@@ -1,0 +1,13 @@
+header: 
+  seq: 2
+  stamp: 
+    secs: 1548549975
+    nsecs: 615114570
+  frame_id: ''
+id: 688
+is_rtr: False
+is_extended: False
+is_error: False
+dlc: 8
+data: [42, 0, 0, 7, 225, 0, 0, 0]
+---

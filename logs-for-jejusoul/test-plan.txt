@@ -1,0 +1,80 @@
+Basic recording of drive from hackspace to charger.
+
+From car "off", power on, drive to charger (short drive), power off
+
+---
+
+Stationary, "on" test before charge:
+
+ODO: 5572 mi
+Mi/kWh: 4.9
+External temp: 13c
+Drive mode: Normal
+LKAS: Enabled
+BSD: Enabled
+VESS: On
+Cable Auto-release: enabled
+Climate: off
+Charge door: closed
+
+Press brake pedal
+Release parking brake
+shift to D
+shift to R
+shift to N
+shift to P
+Activate parking brake
+release pedal
+
+Cycle drive modes, slowly
+
+Cycle LKAS
+
+Cycle BSD
+
+Cycle VESS
+
+Cycle cable auto-release:
+
+Turn climate on auto, 19.0c
+Change temp up to 30.0, down to 15.0, restore to 19.0
+Activate driver-only, then deactivate
+Turn climate off
+
+---
+
+Charge at 15A test
+
+Start with nothing plugged in, charge door open, car in "on" mode as at end
+of above, but with charge door already open.
+
+Attach cable to car
+
+Engage charging
+
+Allow charge to ramp up to 15A
+
+Disable charging
+
+Remove cable from car
+
+---
+
+Charge at faster (32A?) test
+
+As before, but with AC from rapid charger unit
+
+---
+
+Had a 20 or so minute break here because of a Leaf using the charger
+
+As a result, the android auto is now on, dunno if that makes a difference.
+
+---
+
+CCS Rapid charge
+
+As before, but with CCS charge
+
+---
+

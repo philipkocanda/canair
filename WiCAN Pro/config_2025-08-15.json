@@ -1,0 +1,590 @@
+{
+  "config": {
+    "wifi_mode": "APStation",
+    "ap_ch": "6",
+    "sta_ssid": "***REDACTED***",
+    "sta_pass": "***REDACTED***",
+    "sta_security": "wpa2",
+    "can_datarate": "500K",
+    "can_mode": "normal",
+    "port_type": "tcp",
+    "port": "35000",
+    "ap_pass": "***REDACTED***",
+    "protocol": "auto_pid",
+    "ble_pass": "123456",
+    "ble_status": "disable",
+    "sleep_status": "enable",
+    "sleep_disable_agree": "no",
+    "periodic_wakeup": "enable",
+    "sleep_volt": "12.6",
+    "sleep_time": "5",
+    "wakeup_interval": "90",
+    "batt_alert": "disable",
+    "batt_alert_ssid": "MeatPi",
+    "batt_alert_pass": "***REDACTED***",
+    "batt_alert_volt": "11.0",
+    "batt_alert_protocol": "mqtt",
+    "batt_alert_url": "mqtt://mqtt.eclipseprojects.io",
+    "batt_alert_port": "1883",
+    "batt_alert_topic": "CAR1/voltage",
+    "batt_alert_time": "1",
+    "batt_mqtt_user": "meatpi",
+    "batt_mqtt_pass": "meatpi",
+    "mqtt_en": "false",
+    "mqtt_url": "mqtt://10.0.1.114",
+    "mqtt_port": "1883",
+    "mqtt_user": "mqtt",
+    "mqtt_pass": "",
+    "mqtt_tx_topic": "wican/9888e006734d/can/tx",
+    "ap_auto_disable": "disable",
+    "mqtt_tx_en": "disable",
+    "mqtt_rx_topic": "wican/9888e006734d/can/rx",
+    "mqtt_rx_en": "disable",
+    "mqtt_status_topic": "wican/9888e006734d/can/status",
+    "mqtt_elm327_log": "disable",
+    "logger_status": "enable",
+    "log_filesystem": "fatfs",
+    "log_storage": "sdcard",
+    "log_period": "5000"
+  },
+  "auto_pid_car_data": {
+    "cars": [
+      {
+        "car_model": "Hyundai: Ioniq2017",
+        "init": "ATSP6;ATSH7E4;ATST96;",
+        "pids": [
+          {
+            "pid": "2105",
+            "pid_init": "",
+            "parameters": [
+              {
+                "name": "SOC_DISP",
+                "expression": "B39/2",
+                "unit": "%",
+                "class": "battery",
+                "period": "5000",
+                "min": "",
+                "max": "",
+                "type": "Default",
+                "send_to": ""
+              }
+            ]
+          },
+          {
+            "pid": "2105",
+            "pid_init": "",
+            "parameters": [
+              {
+                "name": "SOH",
+                "expression": "[B33:B34]/10",
+                "unit": "%",
+                "class": "none",
+                "period": "5000",
+                "min": "0",
+                "max": "105",
+                "type": "Default",
+                "send_to": ""
+              }
+            ]
+          },
+          {
+            "pid": "2101",
+            "pid_init": "",
+            "parameters": [
+              {
+                "name": "SOC_BMS",
+                "expression": "B09/2",
+                "unit": "%",
+                "class": "battery",
+                "period": "5000",
+                "min": "0",
+                "max": "100",
+                "type": "Default",
+                "send_to": ""
+              }
+            ]
+          },
+          {
+            "pid": "2101",
+            "pid_init": "",
+            "parameters": [
+              {
+                "name": "BATTERY_VOLTAGE",
+                "expression": "[B18:B19]/10",
+                "unit": "V",
+                "class": "voltage",
+                "period": "5000",
+                "min": "0",
+                "max": "",
+                "type": "Default",
+                "send_to": ""
+              }
+            ]
+          },
+          {
+            "pid": "2101",
+            "pid_init": "",
+            "parameters": [
+              {
+                "name": "BATTERY_CURRENT",
+                "expression": "((S15 << 8) | S17)/10",
+                "unit": "A",
+                "class": "current",
+                "period": "5000",
+                "min": "-200",
+                "max": "200",
+                "type": "Default",
+                "send_to": ""
+              }
+            ]
+          },
+          {
+            "pid": "2101",
+            "pid_init": "",
+            "parameters": [
+              {
+                "name": "MAX_CELL_VOLTAGE",
+                "expression": "B30*0.02",
+                "unit": "V",
+                "class": "voltage",
+                "period": "5000",
+                "min": "0",
+                "max": "10",
+                "type": "Default",
+                "send_to": ""
+              }
+            ]
+          },
+          {
+            "pid": "2101",
+            "pid_init": "",
+            "parameters": [
+              {
+                "name": "MIN_CELL_VOLTAGE",
+                "expression": "B33*0.02",
+                "unit": "V",
+                "class": "voltage",
+                "period": "5000",
+                "min": "0",
+                "max": "10",
+                "type": "Default",
+                "send_to": ""
+              }
+            ]
+          },
+          {
+            "pid": "2101",
+            "pid_init": "",
+            "parameters": [
+              {
+                "name": "AUX_BATTERY_VOLTAGE",
+                "expression": "B37*0.1",
+                "unit": "V",
+                "class": "voltage",
+                "period": "5000",
+                "min": "0",
+                "max": "128",
+                "type": "Default",
+                "send_to": ""
+              }
+            ]
+          },
+          {
+            "pid": "2101",
+            "pid_init": "",
+            "parameters": [
+              {
+                "name": "CHARGER_CONNECTED",
+                "expression": "B14:5",
+                "unit": "",
+                "class": "plug",
+                "period": "5000",
+                "min": "",
+                "max": "",
+                "type": "Default",
+                "send_to": ""
+              }
+            ]
+          },
+          {
+            "pid": "2101",
+            "pid_init": "",
+            "parameters": [
+              {
+                "name": "CHARGING",
+                "expression": "B14:7",
+                "unit": "",
+                "class": "battery_charging",
+                "period": "5000",
+                "min": "",
+                "max": "",
+                "type": "Default",
+                "send_to": ""
+              }
+            ]
+          },
+          {
+            "pid": "2101",
+            "pid_init": "",
+            "parameters": [
+              {
+                "name": "CHARGING_DC",
+                "expression": "B14:6",
+                "unit": "",
+                "class": "plug",
+                "period": "5000",
+                "min": "",
+                "max": "",
+                "type": "Default",
+                "send_to": ""
+              }
+            ]
+          },
+          {
+            "pid": "2101",
+            "pid_init": "",
+            "parameters": [
+              {
+                "name": "BATTERY_FAN_STATUS",
+                "expression": "B35",
+                "unit": "",
+                "class": "",
+                "period": "5000",
+                "min": "",
+                "max": "",
+                "type": "Default",
+                "send_to": ""
+              }
+            ]
+          },
+          {
+            "pid": "2101",
+            "pid_init": "",
+            "parameters": [
+              {
+                "name": "BATTERY_FAN_FEEDBACK",
+                "expression": "B36",
+                "unit": "",
+                "class": "",
+                "period": "5000",
+                "min": "",
+                "max": "",
+                "type": "Default",
+                "send_to": ""
+              }
+            ]
+          },
+          {
+            "pid": "2101",
+            "pid_init": "",
+            "parameters": [
+              {
+                "name": "BATTERY_FAN_FEEDBACK",
+                "expression": "B36",
+                "unit": "",
+                "class": "",
+                "period": "5000",
+                "min": "",
+                "max": "",
+                "type": "Default",
+                "send_to": ""
+              }
+            ]
+          },
+          {
+            "pid": "2101",
+            "pid_init": "",
+            "parameters": [
+              {
+                "name": "BATTERY_INLET_TEMP",
+                "expression": "S29",
+                "unit": "°C",
+                "class": "temperature",
+                "period": "5000",
+                "min": "-128",
+                "max": "128",
+                "type": "Default",
+                "send_to": ""
+              }
+            ]
+          },
+          {
+            "pid": "2101",
+            "pid_init": "",
+            "parameters": [
+              {
+                "name": "BATTERY_MAX_TEMP",
+                "expression": "S20",
+                "unit": "°C",
+                "class": "temperature",
+                "period": "5000",
+                "min": "-128",
+                "max": "128",
+                "type": "Default",
+                "send_to": ""
+              }
+            ]
+          },
+          {
+            "pid": "2101",
+            "pid_init": "",
+            "parameters": [
+              {
+                "name": "BATTERY_MIN_TEMP",
+                "expression": "S21",
+                "unit": "°C",
+                "class": "temperature",
+                "period": "5000",
+                "min": "-128",
+                "max": "128",
+                "type": "Default",
+                "send_to": ""
+              }
+            ]
+          },
+          {
+            "pid": "2101",
+            "pid_init": "",
+            "parameters": [
+              {
+                "name": "MODULE_1_TEMP",
+                "expression": "S22",
+                "unit": "°C",
+                "class": "temperature",
+                "period": "5000",
+                "min": "-128",
+                "max": "128",
+                "type": "Default",
+                "send_to": ""
+              }
+            ]
+          },
+          {
+            "pid": "2101",
+            "pid_init": "",
+            "parameters": [
+              {
+                "name": "MODULE_2_TEMP",
+                "expression": "S23",
+                "unit": "°C",
+                "class": "temperature",
+                "period": "5000",
+                "min": "-128",
+                "max": "128",
+                "type": "Default",
+                "send_to": ""
+              }
+            ]
+          },
+          {
+            "pid": "2101",
+            "pid_init": "",
+            "parameters": [
+              {
+                "name": "MODULE_3_TEMP",
+                "expression": "S25",
+                "unit": "°C",
+                "class": "temperature",
+                "period": "5000",
+                "min": "-128",
+                "max": "128",
+                "type": "Default",
+                "send_to": ""
+              }
+            ]
+          },
+          {
+            "pid": "2101",
+            "pid_init": "",
+            "parameters": [
+              {
+                "name": "MODULE_4_TEMP",
+                "expression": "S26",
+                "unit": "°C",
+                "class": "temperature",
+                "period": "5000",
+                "min": "-128",
+                "max": "128",
+                "type": "Default",
+                "send_to": ""
+              }
+            ]
+          },
+          {
+            "pid": "2101",
+            "pid_init": "",
+            "parameters": [
+              {
+                "name": "MODULE_5_TEMP",
+                "expression": "S27",
+                "unit": "°C",
+                "class": "temperature",
+                "period": "5000",
+                "min": "-128",
+                "max": "128",
+                "type": "Default",
+                "send_to": ""
+              }
+            ]
+          },
+          {
+            "pid": "2180",
+            "pid_init": "ATSH7E6;ATFCSH7E6",
+            "parameters": [
+              {
+                "name": "AMBIENT_TEMP",
+                "expression": "(B18-80)/2",
+                "unit": "°C",
+                "class": "temperature",
+                "period": "5000",
+                "min": "-128",
+                "max": "128",
+                "type": "Default",
+                "send_to": ""
+              }
+            ]
+          },
+          {
+            "pid": "22B002",
+            "pid_init": "ATSH7C6;ATFCSH7C6",
+            "parameters": [
+              {
+                "name": "ODOMETER",
+                "expression": "[B12:B14]",
+                "unit": "km",
+                "class": "distance",
+                "period": "5000",
+                "min": "0",
+                "max": "",
+                "type": "Default",
+                "send_to": ""
+              }
+            ]
+          },
+          {
+            "pid": "2101",
+            "pid_init": "ATSH7E2;ATFCSH7E2",
+            "parameters": [
+              {
+                "name": "VEHICLE_SPEED",
+                "expression": "((S20*256)+S19)/100",
+                "unit": "km/h",
+                "class": "speed",
+                "period": "5000",
+                "min": "-255",
+                "max": "255",
+                "type": "Default",
+                "send_to": ""
+              }
+            ]
+          },
+          {
+            "pid": "2101",
+            "pid_init": "ATSH7E2;ATFCSH7E2",
+            "parameters": [
+              {
+                "name": "DEBUG_DRIVE_MODE_FLAGS",
+                "expression": "B10",
+                "unit": "",
+                "class": "",
+                "period": "5000",
+                "min": "",
+                "max": "",
+                "type": "Default",
+                "send_to": ""
+              }
+            ]
+          },
+          {
+            "pid": "2101",
+            "pid_init": "ATSH7E2;ATFCSH7E2",
+            "parameters": [
+              {
+                "name": "DEBUG_VEHICLE_STATE_FLAGS",
+                "expression": "B11",
+                "unit": "",
+                "class": "",
+                "period": "5000",
+                "min": "",
+                "max": "",
+                "type": "Default",
+                "send_to": ""
+              }
+            ]
+          },
+          {
+            "pid": "2101",
+            "pid_init": "ATSH7E2;ATFCSH7E2",
+            "parameters": [
+              {
+                "name": "DEBUG_MCU_STATE_FLAGS",
+                "expression": "B12",
+                "unit": "",
+                "class": "",
+                "period": "5000",
+                "min": "",
+                "max": "",
+                "type": "Default",
+                "send_to": ""
+              }
+            ]
+          },
+          {
+            "pid": "2101",
+            "pid_init": "",
+            "parameters": [
+              {
+                "name": "DEBUG_BMS_STATE_FLAGS",
+                "expression": "B14",
+                "unit": "",
+                "class": "",
+                "period": "5000",
+                "min": "",
+                "max": "",
+                "type": "Default",
+                "send_to": ""
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "auto_pid": {
+    "initialisation": "ATSP6;ATSH7E4;ATS0;ATAL;ATST96;",
+    "grouping": "disable",
+    "group_dest_type": "Default",
+    "destination": "",
+    "cycle": "5000",
+    "car_specific": "enable",
+    "ha_discovery": "disable",
+    "car_model": "Hyundai: Ioniq2017",
+    "pids": [
+      {
+        "Name": "MAX_CELL_VOLTAGE_NO",
+        "Init": "",
+        "PID": "2101",
+        "Expression": "B31",
+        "MinValue": "0",
+        "MaxValue": "255",
+        "Period": "5000",
+        "Type": "Default",
+        "Send_to": ""
+      },
+      {
+        "Name": "MIN_CELL_VOLTAGE_NO",
+        "Init": "",
+        "PID": "2101",
+        "Expression": "B34",
+        "MinValue": "0",
+        "MaxValue": "255",
+        "Period": "5000",
+        "Type": "Default",
+        "Send_to": ""
+      }
+    ],
+    "std_pids": [],
+    "standard_pids": "disable",
+    "ecu_protocol": "6"
+  }
+}

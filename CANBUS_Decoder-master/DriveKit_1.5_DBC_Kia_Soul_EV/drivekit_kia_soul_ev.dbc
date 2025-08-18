@@ -1,0 +1,130 @@
+VERSION ""
+
+NS_ :
+	BA_
+	BA_DEF_
+	BA_DEF_DEF_
+	BA_DEF_DEF_REL_
+	BA_DEF_REL_
+	BA_DEF_SGTYPE_
+	BA_REL_
+	BA_SGTYPE_
+	BO_TX_BU_
+	BU_BO_REL_
+	BU_EV_REL_
+	BU_SG_REL_
+	CAT_
+	CAT_DEF_
+	CM_
+	ENVVAR_DATA_
+	EV_DATA_
+	FILTER
+	NS_DESC_
+	SGTYPE_
+	SGTYPE_VAL_
+	SG_MUL_VAL_
+	SIGTYPE_VALTYPE_
+	SIG_GROUP_
+	SIG_TYPE_REF_
+	SIG_VALTYPE_
+	VAL_
+	VAL_TABLE_
+
+BS_:
+
+BU_: BRAKE STEERING THROTTLE FAULT STEERING_CTRL
+
+BO_ 112 BRAKE_ENABLE: 8 BRAKE
+ SG_ brake_enable_magic : 0|16@1+ (1,0) [0|0] "" BRAKE
+
+BO_ 113 BRAKE_DISABLE: 8 BRAKE
+ SG_ brake_disable_magic : 0|16@1+ (1,0) [0|0] "" BRAKE
+
+BO_ 114 BRAKE_COMMAND: 8 BRAKE
+ SG_ brake_command_magic : 0|16@1+ (1,0) [0|0] "" BRAKE
+ SG_ brake_pedal_command : 16|32@1- (1,0) [0|1] "" BRAKE
+
+BO_ 115 BRAKE_REPORT: 8 BRAKE
+ SG_ brake_report_magic : 0|16@1+ (1,0) [0|0] "" BRAKE
+ SG_ brake_report_enabled : 16|8@1+ (1,0) [0|0] "" BRAKE
+ SG_ brake_operator_override : 24|8@1+ (1,0) [0|0] "" BRAKE
+ SG_ brake_dtcs : 32|8@1+ (1,0) [0|0] "" BRAKE
+
+BO_ 128 STEERING_ENABLE: 8 STEERING
+ SG_ steering_enable_magic : 0|16@1+ (1,0) [0|0] "" STEERING
+
+BO_ 129 STEERING_DISABLE: 8 STEERING
+ SG_ steering_disable_magic : 0|16@1+ (1,0) [0|0] "" STEERING
+
+BO_ 130 STEERING_TORQUE_COMMAND: 8 STEERING
+ SG_ steering_command_magic : 0|16@1+ (1,0) [0|0] "" STEERING
+ SG_ steering_torque_command : 16|32@1- (1,0) [-1|1] "" STEERING
+
+BO_ 131 STEERING_REPORT: 8 STEERING
+ SG_ steering_report_magic : 0|16@1+ (1,0) [0|0] "" STEERING
+ SG_ steering_report_enabled : 16|8@1+ (1,0) [0|0] "" STEERING
+ SG_ steering_operator_override : 24|8@1+ (1,0) [0|0] "" STEERING
+ SG_ steering_dtcs : 32|8@1+ (1,0) [0|0] "" STEERING
+
+BO_ 144 THROTTLE_ENABLE: 8 THROTTLE
+ SG_ throttle_enable_magic : 0|16@1+ (1,0) [0|0] "" THROTTLE
+
+BO_ 145 THROTTLE_DISABLE: 8 THROTTLE
+ SG_ throttle_disable_magic : 0|16@1+ (1,0) [0|0] "" THROTTLE
+
+BO_ 146 THROTTLE_COMMAND: 8 THROTTLE
+ SG_ throttle_command_magic : 0|16@1+ (1,0) [0|0] "" THROTTLE
+ SG_ throttle_pedal_command : 16|32@1- (1,0) [0|1] "" THROTTLE
+
+BO_ 147 THROTTLE_REPORT: 8 THROTTLE
+ SG_ throttle_report_magic : 0|16@1+ (1,0) [0|0] "" THROTTLE
+ SG_ throttle_report_enabled : 16|8@1+ (1,0) [0|0] "" THROTTLE
+ SG_ throttle_operator_override : 24|8@1+ (1,0) [0|0] "" THROTTLE
+ SG_ throttle_dtcs : 32|8@1+ (1,0) [0|0] "" THROTTLE
+
+BO_ 175 FAULT_REPORT: 8 FAULT
+ SG_ fault_report_magic : 0|16@1+ (1,0) [0|0] "" FAULT
+ SG_ fault_origin_id : 16|32@1+ (1,0) [0|0] "" FAULT
+ SG_ fault_dtcs : 48|8@1+ (1,0) [0|0] "" FAULT
+
+BO_ 185 STEERING_ANGLE_REPORT: 8 STEERING_CTRL
+  SG_ steering_angle_report_flags : 0|8@1+ (1,0) [0|0] "" STEERING_CTRL
+  SG_ steering_angle_report_errors : 8|8@1+ (1,0) [0|0] "" STEERING_CTRL
+
+BO_ 184 STEERING_ANGLE_COMMAND: 8 STEERING_CTRL
+  SG_ steering_angle_cmd_flags : 0|8@1+ (1,0) [0|0] "" STEERING_CTRL
+  SG_ steering_angle_cmd_angle : 8|16@1- (0.1,0) [0|0] "" STEERING_CTRL
+  SG_ steering_angle_cmd_max_velocity : 24|16@1- (0.1,0) [0|0] "" STEERING_CTRL
+
+CM_ BU_ BRAKE "The OSCC brake module";
+CM_ BU_ STEERING "The OSCC steering module";
+CM_ BU_ THROTTLE "The OSCC throttle module";
+CM_ BU_ FAULT "The OSCC fault report";
+CM_ BU_ STEERING_CTRL "The DriveKit PID Steering Angle Control";
+
+VAL_ 185 steering_angle_report_flags 0 "Enable";
+VAL_ 185 steering_angle_report_errors 6 "Command Rejected" 4 "Module Disabled" 2 "Angle Irrational" 1 "Angle Missing" 0 "None";
+VAL_ 184 steering_angle_cmd_flags 1 "Enable" 0 "Disable";
+
+VAL_ 115 brake_dtcs 0 "No communication with brake sensor" 1 "Operator Override: Brake";
+VAL_ 131 steering_dtcs 0 "No communication with steering sensor" 1 "Operator Override: Steering";
+VAL_ 147 throttle_dtcs 0 "No communication with throttle sensor" 1 "Operator Override: Throttle";
+VAL_ 175 fault_dtcs 0 "No communication with sensor" 1 "Operator Override";
+
+VAL_ 112 brake_enable_magic 1372 "Default Magic Number";
+VAL_ 113 brake_disable_magic 1372 "Default Magic Number";
+VAL_ 114 brake_command_magic 1372 "Default Magic Number";
+VAL_ 115 brake_report_magic 1372 "Default Magic Number";
+VAL_ 128 steering_enable_magic 1372 "Default Magic Number";
+VAL_ 129 steering_disable_magic 1372 "Default Magic Number";
+VAL_ 130 steering_command_magic 1372 "Default Magic Number";
+VAL_ 131 steering_report_magic 1372 "Default Magic Number";
+VAL_ 144 throttle_enable_magic 1372 "Default Magic Number";
+VAL_ 145 throttle_disable_magic 1372 "Default Magic Number";
+VAL_ 146 throttle_command_magic 1372 "Default Magic Number";
+VAL_ 147 throttle_report_magic 1372 "Default Magic Number";
+VAL_ 175 fault_report_magic 1372 "Default Magic Number";
+
+SIG_VALTYPE_ 114 brake_pedal_command : 1;
+SIG_VALTYPE_ 130 steering_torque_command : 1;
+SIG_VALTYPE_ 146 throttle_pedal_command : 1;
