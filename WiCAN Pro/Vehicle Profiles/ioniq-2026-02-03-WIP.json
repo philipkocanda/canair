@@ -8,10 +8,10 @@
       "enabled": true,
       "period": "15000",
       "parameters": {
-        "TYRE_PRESSURE_FL": "B10*0.2/72.52",
-        "TYRE_PRESSURE_FR": "B14*0.2/72.52",
-        "TYRE_PRESSURE_RL": "B19*0.2/72.52",
-        "TYRE_PRESSURE_RR": "B23*0.2/72.52"
+        "TYRE_PRESSURE_FL": "B10/72.52",
+        "TYRE_PRESSURE_FR": "B14/72.52",
+        "TYRE_PRESSURE_RL": "B19/72.52",
+        "TYRE_PRESSURE_RR": "B23/72.52"
       }
     },
     {
