@@ -11,7 +11,20 @@
         "TYRE_PRESSURE_FL": "B10/72.52",
         "TYRE_PRESSURE_FR": "B14/72.52",
         "TYRE_PRESSURE_RL": "B19/72.52",
-        "TYRE_PRESSURE_RR": "B23/72.52"
+        "TYRE_PRESSURE_RR": "B23/72.52",
+        "TYRE_TEMP_FL": "B11-50",
+        "TYRE_TEMP_FR": "B15-50",
+        "TYRE_TEMP_RL": "B20-50",
+        "TYRE_TEMP_RR": "B24-50"
+      }
+    },
+    {
+      "pid_init": "ATSH7A0;ATFCSH7A0;",
+      "pid": "22B00E",
+      "enabled": true,
+      "period": "5000",
+      "parameters": {
+        "CHARGE_PORT_OPEN": "B10:4"
       }
     },
     {
@@ -37,6 +50,44 @@
       }
     },
     {
+      "pid_init": "ATSH770;ATFCSH770;",
+      "pid": "22BC03",
+      "enabled": true,
+      "period": "2500",
+      "parameters": {
+        "DOOR_DRV_OPEN": "B10:5",
+        "DOOR_PAS_OPEN": "B10:4",
+        "DOOR_RL_OPEN": "B10:0",
+        "DOOR_RR_OPEN": "B10:2",
+        "TRUNK_OPEN": "B10:7",
+        "IGNITION_ON": "B11:5",
+        "SEATBELT_FL": "B11:1",
+        "SEATBELT_FR": "B11:2",
+        "DOOR_LOCK_RL": "1-B10:1",
+        "DOOR_LOCK_RR": "1-B10:3"
+      }
+    },
+    {
+      "pid_init": "ATSH770;ATFCSH770;",
+      "pid": "22BC04",
+      "enabled": true,
+      "period": "2500",
+      "parameters": {
+        "DOOR_LOCK_FL": "B10:3",
+        "DOOR_LOCK_FR": "B10:2",
+        "HIGH_BEAM": "B13:4"
+      }
+    },
+    {
+      "pid_init": "ATSH7D1;ATFCSH7D1;",
+      "pid": "22C101",
+      "enabled": true,
+      "period": "2500",
+      "parameters": {
+        "REAL_SPEED_KMH": "B12"
+      }
+    },
+    {
       "pid_init": "ATSH7E2;ATFCSH7E2;",
       "pid": "2101",
       "enabled": true,
@@ -57,7 +108,9 @@
         "VEHICLE_STATE_VCU_READY": "B11:4",
         "VEHICLE_STATE_MAIN_RELAY_OFF": "B11:5",
         "VEHICLE_STATE_POWER_ENABLE": "B11:6",
-        "VEHICLE_STATE_LDC_INHIBIT": "B11:7"
+        "VEHICLE_STATE_LDC_INHIBIT": "B11:7",
+        "CAR_READY": "B26:3",
+        "PARK_BRAKE": "B26:5"
       }
     },
     {
@@ -121,6 +174,28 @@
         "MIN_DETERIORATION_CELL_NO": "B38",
         "SOC_DISP": "B39/2",
         "UNKNOWN_4": "B42"
+      }
+    },
+    {
+      "pid_init": "ATSH7E5;ATFCSH7E5;",
+      "pid": "2101",
+      "enabled": true,
+      "period": "5000",
+      "parameters": {
+        "OBC_TEMP_HEATSINK": "B52/2-40",
+        "OBC_TEMP_INSIDE": "B53/2-40",
+        "OBC_TEMP_WATER": "B54/2-40",
+        "OBC_DC_V": "[B60:B61]/10",
+        "OBC_AC_V": "B55"
+      }
+    },
+    {
+      "pid_init": "ATSH7E5;ATFCSH7E5;",
+      "pid": "2103",
+      "enabled": true,
+      "period": "5000",
+      "parameters": {
+        "OBC_AC_C": "[B9:B10]/100"
       }
     },
     {
