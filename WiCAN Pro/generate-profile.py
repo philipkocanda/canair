@@ -63,8 +63,13 @@ def make_pid_init(tx_id: int) -> str:
 def generate_profile(data: dict, verified_only: bool = False) -> dict:
     """Generate Vehicle Profile format JSON (grouped parameters per PID).
 
-    This is the format accepted by WiCAN for upload. Each PID entry has a
-    parameters dict of {"PARAM_NAME": "expression"} pairs.
+    Produces the upstream source format where parameters is a dict of
+    {"PARAM_NAME": "expression"} pairs. This format is used for:
+    - The output JSON file (upstream PR-compatible)
+    - Input to to_device_format() for upload to WiCAN
+
+    The firmware does NOT accept this format directly — use to_device_format()
+    to convert before uploading.
     """
     profile = {
         "car_model": data["car_model"],
@@ -103,11 +108,74 @@ def generate_profile(data: dict, verified_only: bool = False) -> dict:
     return profile
 
 
-def normalize_device_profile(device_data: dict) -> dict:
-    """Normalize the flat device format back to grouped Vehicle Profile format.
+def to_device_format(profile: dict, data: dict | None = None) -> dict:
+    """Convert grouped profile to the device's expected format for upload.
 
-    The device stores one parameter per entry. This groups them back by
-    (pid_init, pid) so they can be compared against the generated profile.
+    The firmware (autopid.c load_all_pids()) expects:
+      {"cars": [{"car_model": "...", "init": "...", "pids": [...]}]}
+
+    Each PID entry must have parameters as an array of objects:
+      [{"name": "SOC", "expression": "B09/2", "unit": "%", "class": "battery",
+        "period": "5000", "min": "", "max": "", "type": "Default", "send_to": ""}]
+
+    The web UI's build system (cars.js process_profile) does this same conversion
+    when building vehicle_profiles.json from upstream source files.
+
+    Args:
+        profile: Grouped profile from generate_profile() (dict-format parameters)
+        data: Optional YAML data for looking up unit/class/min/max per parameter
+    """
+    # Build parameter metadata lookup from YAML if provided
+    param_meta = {}
+    if data:
+        for ecu in data["ecus"].values():
+            for pid_data in ecu["pids"].values():
+                for param_name, param in pid_data["parameters"].items():
+                    param_meta[param_name] = param
+
+    device_profile = {
+        "car_model": profile["car_model"],
+        "init": profile["init"],
+        "pids": [],
+    }
+
+    for pid_entry in profile["pids"]:
+        params_array = []
+        for name, expression in pid_entry["parameters"].items():
+            meta = param_meta.get(name, {})
+            params_array.append({
+                "name": name,
+                "expression": expression,
+                "unit": meta.get("unit", ""),
+                "class": meta.get("ha_class", "none") or "none",
+                "period": pid_entry.get("period", "5000"),
+                "min": str(meta.get("min", "")) if meta.get("min", "") != "" else "",
+                "max": str(meta.get("max", "")) if meta.get("max", "") != "" else "",
+                "type": "Default",
+                "send_to": "",
+            })
+
+        device_profile["pids"].append({
+            "pid_init": pid_entry["pid_init"],
+            "pid": pid_entry["pid"],
+            "enabled": pid_entry.get("enabled", True),
+            "parameters": params_array,
+        })
+
+    return {"cars": [device_profile]}
+
+
+def normalize_device_profile(device_data: dict) -> dict:
+    """Normalize the device format back to grouped Vehicle Profile format.
+
+    The device stores whatever is POSTed to /store_car_data verbatim.
+    Depending on how the profile was uploaded, parameters may be:
+    - An array of objects (from our upload or the web UI): [{name, expression, ...}]
+    - A dict (if someone uploaded upstream source format): {NAME: expression}
+
+    In both cases, the web UI creates one PID entry per parameter (flat), but
+    our upload groups multiple parameters per PID entry. This normalizes
+    everything to grouped dict format for diffing.
     """
     if "cars" in device_data and device_data["cars"]:
         car = device_data["cars"][0]
@@ -120,16 +188,30 @@ def normalize_device_profile(device_data: dict) -> dict:
     for entry in car.get("pids", []):
         key = (entry.get("pid_init", ""), entry.get("pid", ""))
         if key not in groups:
-            period = entry["parameters"][0].get("period", "5000") if entry.get("parameters") else "5000"
             groups[key] = {
                 "pid_init": entry.get("pid_init", ""),
                 "pid": entry.get("pid", ""),
                 "enabled": entry.get("enabled", True),
-                "period": period,
+                "period": "5000",
                 "parameters": {},
             }
-        for param in entry.get("parameters", []):
-            groups[key]["parameters"][param["name"]] = param["expression"]
+
+        params = entry.get("parameters", {})
+
+        if isinstance(params, list):
+            # Array-of-objects format: [{name, expression, period, ...}]
+            for param in params:
+                name = param.get("name", "")
+                expr = param.get("expression", "")
+                if name:
+                    groups[key]["parameters"][name] = expr
+                # Use period from first parameter if available
+                if "period" in param and groups[key]["period"] == "5000":
+                    groups[key]["period"] = str(param["period"])
+        elif isinstance(params, dict):
+            # Dict format: {NAME: expression}
+            for name, expr in params.items():
+                groups[key]["parameters"][name] = expr
 
     return {
         "car_model": car.get("car_model", ""),
@@ -263,15 +345,26 @@ def show_diff(current_raw: dict | None, generated: dict) -> bool:
     return has_diff
 
 
-def upload_profile(base_url: str, profile: dict, reboot: bool = False) -> None:
-    """Upload vehicle profile to WiCAN device via POST /store_car_data."""
+def upload_profile(base_url: str, device_payload: dict, reboot: bool = False) -> None:
+    """Upload vehicle profile to WiCAN device via POST /store_car_data.
+
+    Expects device_payload in the firmware's format:
+      {"cars": [{"car_model": "...", "init": "...", "pids": [...]}]}
+    with parameters as array-of-objects. Use to_device_format() to convert.
+    """
     require_requests()
+
+    n_pids = len(device_payload.get("cars", [{}])[0].get("pids", []))
+    n_params = sum(
+        len(p.get("parameters", []))
+        for p in device_payload.get("cars", [{}])[0].get("pids", [])
+    )
 
     url = f"{base_url}/store_car_data"
     try:
-        resp = requests.post(url, json=profile, timeout=WICAN_TIMEOUT)
+        resp = requests.post(url, json=device_payload, timeout=WICAN_TIMEOUT)
         resp.raise_for_status()
-        print(f"  Uploaded to {url} — {resp.status_code}")
+        print(f"  Uploaded to {url} — {resp.status_code} ({n_pids} PIDs, {n_params} params)")
     except requests.RequestException as e:
         print(f"  FAILED to upload to {url}: {e}", file=sys.stderr)
         sys.exit(1)
@@ -381,8 +474,14 @@ def main():
 
     # Upload
     if args.upload:
+        print(f"\nConverting to device format...")
+        device_payload = to_device_format(profile, data)
+        n_pids = len(device_payload["cars"][0]["pids"])
+        n_dev_params = sum(len(p["parameters"]) for p in device_payload["cars"][0]["pids"])
+        print(f"  {n_pids} PID groups, {n_dev_params} parameters (array-of-objects)")
+
         print(f"\nUploading to {base_url}...")
-        upload_profile(base_url, profile, reboot=args.reboot)
+        upload_profile(base_url, device_payload, reboot=args.reboot)
 
     print("\nDone.")
 
