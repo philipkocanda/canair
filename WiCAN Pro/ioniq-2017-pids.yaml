@@ -982,8 +982,8 @@ ecus:
             max: ""
             source: "Original WiCAN config"
             source_links: []
-            verified: true
-            notes: ""
+            verified: false
+            notes: "INCORRECT: always returns 1. Car does expose this value (visible in CarScanner). Formula or byte offset is wrong."
 
           INVERTER_CAPACITOR_VOLTAGE:
             expression: "B62*0.1"
