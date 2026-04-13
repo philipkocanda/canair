@@ -190,7 +190,7 @@ ecus:
             max: "87"
             source: "Original WiCAN config"
             source_links: []
-            verified: true
+            verified: false
             notes: ""
 
           HVAC_HUMIDITY_SENSOR_FOR_AUTOMATIC_DEFOGGER:
@@ -202,7 +202,7 @@ ecus:
             max: "100"
             source: "Original WiCAN config"
             source_links: []
-            verified: true
+            verified: false
             notes: ""
 
           HVAC_HUMIDITY_SENSOR_FOR_AUTOMATIC_DEFOGGER_IONIQ5:
@@ -636,7 +636,7 @@ ecus:
             max: ""
             source: "Original WiCAN config"
             source_links: []
-            verified: true
+            verified: false
             notes: ""
 
           DEBUG_MCU_STATE_FLAGS:
@@ -951,7 +951,7 @@ ecus:
 
           CUMULATIVE_ENERGY_CHARGED:
             expression: "((B47<<24)|(B49<<16)|(B50<<8)|B51)/10"
-            unit: kWh
+            unit: Wh
             ha_class: energy
             mqtt_topic: cumulative_energy_charged
             min: "0"
@@ -959,11 +959,11 @@ ecus:
             source: "Original WiCAN config"
             source_links: []
             verified: true
-            notes: "Lifetime cumulative"
+            notes: "Lifetime cumulative, unit is Wh not kWh"
 
           CUMULATIVE_ENERGY_DISCHARGED:
             expression: "((B52<<24)|(B53<<16)|(B54<<8)|B55)/10"
-            unit: kWh
+            unit: Wh
             ha_class: energy
             mqtt_topic: cumulative_energy_discharged
             min: "0"
@@ -971,7 +971,7 @@ ecus:
             source: "Original WiCAN config"
             source_links: []
             verified: true
-            notes: "Lifetime cumulative"
+            notes: "Lifetime cumulative, unit is Wh not kWh"
 
           OPERATING_TIME:
             expression: "B57"
