@@ -1,0 +1,1376 @@
+# Ioniq 2017 EV — WiCAN Pro PID Definitions
+# Source of truth for all OBD-II / UDS PIDs polled by WiCAN.
+# Run generate-profile.py to produce WiCAN JSON profiles from this file.
+#
+# Field reference:
+#   expression  — WiCAN formula (B=unsigned byte, S=signed byte, [Bx:By]=multi-byte)
+#   unit        — display unit (°C, %, V, A, bar, km/h, km, kW, kWh)
+#   ha_class    — Home Assistant device_class for MQTT discovery (battery, temperature, etc.)
+#   mqtt_topic  — MQTT topic suffix (auto-prefixed with wican/ioniq/)
+#   min/max     — expected value range (for HA/MQTT, empty string if unknown)
+#   source      — short description of where the PID/formula was obtained
+#   source_links — URLs to source material
+#   verified    — true if tested on Ioniq 2017, false if from another vehicle/untested
+#   notes       — free-form notes
+#   enabled     — include in generated profiles (default true if omitted)
+
+car_model: "Hyundai: Ioniq2017"
+init: "ATSP6;ATS0;ATAL;ATST96;"
+
+ecus:
+
+  # ─── TPMS (Tyre Pressure Monitoring System) ───────────────────────────
+  TPMS:
+    tx_id: 0x7A0
+    pids:
+      22C00B:
+        period: 15000
+        enabled: true
+        parameters:
+          TYRE_PRESSURE_FL:
+            expression: "B10/72.52"
+            unit: bar
+            ha_class: pressure
+            mqtt_topic: tyre_pressure_fl
+            min: "0"
+            max: "5"
+            source: "Original WiCAN config + Ioniq forum"
+            source_links:
+              - https://github.com/meatpiHQ/wican-fw/pull/716
+            verified: true
+            notes: "72.52 converts raw byte to bar. Alternative: B10/5 gives psi."
+
+          TYRE_PRESSURE_FR:
+            expression: "B14/72.52"
+            unit: bar
+            ha_class: pressure
+            mqtt_topic: tyre_pressure_fr
+            min: "0"
+            max: "5"
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          TYRE_PRESSURE_RL:
+            expression: "B19/72.52"
+            unit: bar
+            ha_class: pressure
+            mqtt_topic: tyre_pressure_rl
+            min: "0"
+            max: "5"
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          TYRE_PRESSURE_RR:
+            expression: "B23/72.52"
+            unit: bar
+            ha_class: pressure
+            mqtt_topic: tyre_pressure_rr
+            min: "0"
+            max: "5"
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          TYRE_TEMP_FL:
+            expression: "B11-50"
+            unit: "°C"
+            ha_class: temperature
+            mqtt_topic: tyre_temp_fl
+            min: "-50"
+            max: "100"
+            source: "Kia Niro EV WiCAN PR#716"
+            source_links:
+              - https://github.com/meatpiHQ/wican-fw/pull/716
+            verified: false
+            notes: "From Niro EV, untested on Ioniq 2017"
+
+          TYRE_TEMP_FR:
+            expression: "B15-50"
+            unit: "°C"
+            ha_class: temperature
+            mqtt_topic: tyre_temp_fr
+            min: "-50"
+            max: "100"
+            source: "Kia Niro EV WiCAN PR#716"
+            source_links:
+              - https://github.com/meatpiHQ/wican-fw/pull/716
+            verified: false
+            notes: ""
+
+          TYRE_TEMP_RL:
+            expression: "B20-50"
+            unit: "°C"
+            ha_class: temperature
+            mqtt_topic: tyre_temp_rl
+            min: "-50"
+            max: "100"
+            source: "Kia Niro EV WiCAN PR#716"
+            source_links:
+              - https://github.com/meatpiHQ/wican-fw/pull/716
+            verified: false
+            notes: ""
+
+          TYRE_TEMP_RR:
+            expression: "B24-50"
+            unit: "°C"
+            ha_class: temperature
+            mqtt_topic: tyre_temp_rr
+            min: "-50"
+            max: "100"
+            source: "Kia Niro EV WiCAN PR#716"
+            source_links:
+              - https://github.com/meatpiHQ/wican-fw/pull/716
+            verified: false
+            notes: ""
+
+  # ─── BCM (Body Control Module) ────────────────────────────────────────
+  BCM:
+    tx_id: 0x7A0
+    pids:
+      22B00E:
+        period: 5000
+        enabled: true
+        parameters:
+          CHARGE_PORT_OPEN:
+            expression: "B10:4"
+            unit: ""
+            ha_class: opening
+            mqtt_topic: charge_port_open
+            min: ""
+            max: ""
+            source: "Kia Niro EV WiCAN PR#716"
+            source_links:
+              - https://github.com/meatpiHQ/wican-fw/pull/716
+            verified: false
+            notes: "Bit flag — 1=open, 0=closed. Untested on Ioniq 2017."
+
+  # ─── HVAC (Heating, Ventilation, Air Conditioning) ────────────────────
+  HVAC:
+    tx_id: 0x7B3
+    pids:
+      220100:
+        period: 5000
+        enabled: true
+        parameters:
+          HVAC_IAT:
+            expression: "(B11/2)-40"
+            unit: "°C"
+            ha_class: temperature
+            mqtt_topic: hvac_iat
+            min: "-40"
+            max: "87"
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: "Intake Air Temperature"
+
+          HVAC_AAT:
+            expression: "(B12/2)-40"
+            unit: "°C"
+            ha_class: temperature
+            mqtt_topic: hvac_aat
+            min: "-40"
+            max: "87"
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: "Ambient Air Temperature (HVAC sensor)"
+
+          HVAC_EVAPORATOR_TEMP:
+            expression: "(B13/2)-40"
+            unit: "°C"
+            ha_class: temperature
+            mqtt_topic: hvac_evaporator_temp
+            min: "-40"
+            max: "87"
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          HVAC_HUMIDITY_SENSOR_FOR_AUTOMATIC_DEFOGGER:
+            expression: "B9/255*100"
+            unit: "%"
+            ha_class: humidity
+            mqtt_topic: hvac_humidity
+            min: "0"
+            max: "100"
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          HVAC_HUMIDITY_SENSOR_FOR_AUTOMATIC_DEFOGGER_IONIQ5:
+            expression: "B34/255*100"
+            unit: "%"
+            ha_class: humidity
+            mqtt_topic: hvac_humidity_ioniq5
+            min: "0"
+            max: "100"
+            source: "Original WiCAN config"
+            source_links: []
+            verified: false
+            notes: "Ioniq 5 byte offset — may not work on Ioniq 2017"
+
+  # ─── CLU (Cluster / Instrument Panel) ─────────────────────────────────
+  CLU:
+    tx_id: 0x7C6
+    pids:
+      22B002:
+        period: 10000
+        enabled: true
+        parameters:
+          ODOMETER:
+            expression: "[B12:B14]"
+            unit: km
+            ha_class: distance
+            mqtt_topic: odometer
+            min: "0"
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: "3-byte odometer value"
+
+  # ─── IGPM (Integrated Gateway Power Module) ──────────────────────────
+  IGPM:
+    tx_id: 0x770
+    pids:
+      22BC03:
+        period: 2500
+        enabled: true
+        parameters:
+          DOOR_DRV_OPEN:
+            expression: "B10:5"
+            unit: ""
+            ha_class: door
+            mqtt_topic: door_drv_open
+            min: ""
+            max: ""
+            source: "Kia Niro EV WiCAN PR#716"
+            source_links:
+              - https://github.com/meatpiHQ/wican-fw/pull/716
+            verified: false
+            notes: "Bit flag — 1=open"
+
+          DOOR_PAS_OPEN:
+            expression: "B10:4"
+            unit: ""
+            ha_class: door
+            mqtt_topic: door_pas_open
+            min: ""
+            max: ""
+            source: "Kia Niro EV WiCAN PR#716"
+            source_links:
+              - https://github.com/meatpiHQ/wican-fw/pull/716
+            verified: false
+            notes: ""
+
+          DOOR_RL_OPEN:
+            expression: "B10:0"
+            unit: ""
+            ha_class: door
+            mqtt_topic: door_rl_open
+            min: ""
+            max: ""
+            source: "Kia Niro EV WiCAN PR#716"
+            source_links:
+              - https://github.com/meatpiHQ/wican-fw/pull/716
+            verified: false
+            notes: ""
+
+          DOOR_RR_OPEN:
+            expression: "B10:2"
+            unit: ""
+            ha_class: door
+            mqtt_topic: door_rr_open
+            min: ""
+            max: ""
+            source: "Kia Niro EV WiCAN PR#716"
+            source_links:
+              - https://github.com/meatpiHQ/wican-fw/pull/716
+            verified: false
+            notes: ""
+
+          TRUNK_OPEN:
+            expression: "B10:7"
+            unit: ""
+            ha_class: door
+            mqtt_topic: trunk_open
+            min: ""
+            max: ""
+            source: "Kia Niro EV WiCAN PR#716"
+            source_links:
+              - https://github.com/meatpiHQ/wican-fw/pull/716
+            verified: false
+            notes: ""
+
+          IGNITION_ON:
+            expression: "B11:5"
+            unit: ""
+            ha_class: power
+            mqtt_topic: ignition_on
+            min: ""
+            max: ""
+            source: "Kia Niro EV WiCAN PR#716"
+            source_links:
+              - https://github.com/meatpiHQ/wican-fw/pull/716
+            verified: false
+            notes: ""
+
+          SEATBELT_FL:
+            expression: "B11:1"
+            unit: ""
+            ha_class: ""
+            mqtt_topic: seatbelt_fl
+            min: ""
+            max: ""
+            source: "Kia Niro EV WiCAN PR#716"
+            source_links:
+              - https://github.com/meatpiHQ/wican-fw/pull/716
+            verified: false
+            notes: ""
+
+          SEATBELT_FR:
+            expression: "B11:2"
+            unit: ""
+            ha_class: ""
+            mqtt_topic: seatbelt_fr
+            min: ""
+            max: ""
+            source: "Kia Niro EV WiCAN PR#716"
+            source_links:
+              - https://github.com/meatpiHQ/wican-fw/pull/716
+            verified: false
+            notes: ""
+
+          DOOR_LOCK_RL:
+            expression: "1-B10:1"
+            unit: ""
+            ha_class: lock
+            mqtt_topic: door_lock_rl
+            min: ""
+            max: ""
+            source: "Kia Niro EV WiCAN PR#716"
+            source_links:
+              - https://github.com/meatpiHQ/wican-fw/pull/716
+            verified: false
+            notes: "Inverted bit — 1-B10:1 means 1=locked"
+
+          DOOR_LOCK_RR:
+            expression: "1-B10:3"
+            unit: ""
+            ha_class: lock
+            mqtt_topic: door_lock_rr
+            min: ""
+            max: ""
+            source: "Kia Niro EV WiCAN PR#716"
+            source_links:
+              - https://github.com/meatpiHQ/wican-fw/pull/716
+            verified: false
+            notes: "Inverted bit"
+
+      22BC04:
+        period: 2500
+        enabled: true
+        parameters:
+          DOOR_LOCK_FL:
+            expression: "B10:3"
+            unit: ""
+            ha_class: lock
+            mqtt_topic: door_lock_fl
+            min: ""
+            max: ""
+            source: "Kia Niro EV WiCAN PR#716"
+            source_links:
+              - https://github.com/meatpiHQ/wican-fw/pull/716
+            verified: false
+            notes: ""
+
+          DOOR_LOCK_FR:
+            expression: "B10:2"
+            unit: ""
+            ha_class: lock
+            mqtt_topic: door_lock_fr
+            min: ""
+            max: ""
+            source: "Kia Niro EV WiCAN PR#716"
+            source_links:
+              - https://github.com/meatpiHQ/wican-fw/pull/716
+            verified: false
+            notes: ""
+
+          HIGH_BEAM:
+            expression: "B13:4"
+            unit: ""
+            ha_class: light
+            mqtt_topic: high_beam
+            min: ""
+            max: ""
+            source: "Kia Niro EV WiCAN PR#716"
+            source_links:
+              - https://github.com/meatpiHQ/wican-fw/pull/716
+            verified: false
+            notes: ""
+
+  # ─── ESC (Electronic Stability Control) ──────────────────────────────
+  ESC:
+    tx_id: 0x7D1
+    pids:
+      22C101:
+        period: 2500
+        enabled: true
+        parameters:
+          REAL_SPEED_KMH:
+            expression: "B12"
+            unit: km/h
+            ha_class: speed
+            mqtt_topic: real_speed_kmh
+            min: "0"
+            max: "200"
+            source: "Kia Niro EV WiCAN PR#660"
+            source_links:
+              - https://github.com/meatpiHQ/wican-fw/pull/660
+            verified: false
+            notes: "Wheel-speed based, may differ from VCU speed. Untested on Ioniq."
+
+  # ─── VCU (Vehicle Control Unit) ──────────────────────────────────────
+  VCU:
+    tx_id: 0x7E2
+    pids:
+      2101:
+        period: 2500
+        enabled: true
+        parameters:
+          VEHICLE_SPEED:
+            expression: "((S20*256)+S19)/100"
+            unit: km/h
+            ha_class: speed
+            mqtt_topic: vehicle_speed
+            min: "-255"
+            max: "255"
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: "Signed 16-bit, divided by 100"
+
+          VEHICLE_SPEED_ALT:
+            expression: "[B19:B20]/100"
+            unit: km/h
+            ha_class: speed
+            mqtt_topic: vehicle_speed_alt
+            min: ""
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: "Alternative unsigned formula — same bytes, different sign handling"
+
+          DEBUG_DRIVE_MODE_FLAGS:
+            expression: "B10"
+            unit: ""
+            ha_class: ""
+            mqtt_topic: debug_drive_mode_flags
+            min: ""
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: "Raw byte — individual bits below"
+
+          DRIVE_MODE_P:
+            expression: "B10:0"
+            unit: ""
+            ha_class: ""
+            mqtt_topic: drive_mode_p
+            min: ""
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          DRIVE_MODE_R:
+            expression: "B10:1"
+            unit: ""
+            ha_class: ""
+            mqtt_topic: drive_mode_r
+            min: ""
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          DRIVE_MODE_N:
+            expression: "B10:2"
+            unit: ""
+            ha_class: ""
+            mqtt_topic: drive_mode_n
+            min: ""
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          DRIVE_MODE_D:
+            expression: "B10:3"
+            unit: ""
+            ha_class: ""
+            mqtt_topic: drive_mode_d
+            min: ""
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          DEBUG_VEHICLE_STATE_FLAGS:
+            expression: "B11"
+            unit: ""
+            ha_class: ""
+            mqtt_topic: debug_vehicle_state_flags
+            min: ""
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: "Raw byte — individual bits below"
+
+          VEHICLE_STATE_BRAKE_LAMP:
+            expression: "B11:0"
+            unit: ""
+            ha_class: ""
+            mqtt_topic: vehicle_state_brake_lamp
+            min: ""
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          VEHICLE_STATE_NOT_BRAKING:
+            expression: "B11:1"
+            unit: ""
+            ha_class: ""
+            mqtt_topic: vehicle_state_not_braking
+            min: ""
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          VEHICLE_STATE_START_KEY:
+            expression: "B11:2"
+            unit: ""
+            ha_class: ""
+            mqtt_topic: vehicle_state_start_key
+            min: ""
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          VEHICLE_STATE_EV_READY:
+            expression: "B11:3"
+            unit: ""
+            ha_class: ""
+            mqtt_topic: vehicle_state_ev_ready
+            min: ""
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          VEHICLE_STATE_VCU_READY:
+            expression: "B11:4"
+            unit: ""
+            ha_class: ""
+            mqtt_topic: vehicle_state_vcu_ready
+            min: ""
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          VEHICLE_STATE_MAIN_RELAY_OFF:
+            expression: "B11:5"
+            unit: ""
+            ha_class: ""
+            mqtt_topic: vehicle_state_main_relay_off
+            min: ""
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          VEHICLE_STATE_POWER_ENABLE:
+            expression: "B11:6"
+            unit: ""
+            ha_class: ""
+            mqtt_topic: vehicle_state_power_enable
+            min: ""
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          VEHICLE_STATE_LDC_INHIBIT:
+            expression: "B11:7"
+            unit: ""
+            ha_class: ""
+            mqtt_topic: vehicle_state_ldc_inhibit
+            min: ""
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          DEBUG_MCU_STATE_FLAGS:
+            expression: "B12"
+            unit: ""
+            ha_class: ""
+            mqtt_topic: debug_mcu_state_flags
+            min: ""
+            max: ""
+            source: "AutoPID config (on device)"
+            source_links: []
+            verified: true
+            notes: "Present in AutoPID but not in vehicle profile"
+
+          CAR_READY:
+            expression: "B26:3"
+            unit: ""
+            ha_class: ""
+            mqtt_topic: car_ready
+            min: ""
+            max: ""
+            source: "Kia Niro EV WiCAN PR#716"
+            source_links:
+              - https://github.com/meatpiHQ/wican-fw/pull/716
+            verified: false
+            notes: ""
+
+          PARK_BRAKE:
+            expression: "B26:5"
+            unit: ""
+            ha_class: ""
+            mqtt_topic: park_brake
+            min: ""
+            max: ""
+            source: "Kia Niro EV WiCAN PR#716"
+            source_links:
+              - https://github.com/meatpiHQ/wican-fw/pull/716
+            verified: false
+            notes: ""
+
+  # ─── BMS (Battery Management System) ─────────────────────────────────
+  BMS:
+    tx_id: 0x7E4
+    pids:
+      2101:
+        period: 2500
+        enabled: true
+        parameters:
+          SOC_BMS:
+            expression: "B09/2"
+            unit: "%"
+            ha_class: battery
+            mqtt_topic: soc_bms
+            min: "0"
+            max: "100"
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: "BMS state of charge (raw, not display-adjusted)"
+
+          BATTERY_POWER:
+            expression: "(([B18:B19]/10) * (((S15 << 8) | S17)/10)) / 1000"
+            unit: kW
+            ha_class: power
+            mqtt_topic: battery_power
+            min: ""
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: "Computed from voltage * current. Negative = charging."
+
+          BATTERY_VOLTAGE:
+            expression: "[B18:B19]/10"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: battery_voltage
+            min: "0"
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          BATTERY_CURRENT:
+            expression: "((S15 << 8) | S17)/10"
+            unit: A
+            ha_class: current
+            mqtt_topic: battery_current
+            min: "-200"
+            max: "200"
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: "Signed — negative = charging"
+
+          MAX_CELL_VOLTAGE:
+            expression: "B30*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: max_cell_voltage
+            min: "0"
+            max: "10"
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          MIN_CELL_VOLTAGE:
+            expression: "B33*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: min_cell_voltage
+            min: "0"
+            max: "10"
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          AUX_BATTERY_VOLTAGE:
+            expression: "B37*0.1"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: aux_battery_voltage
+            min: "0"
+            max: "128"
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: "12V auxiliary battery"
+
+          CHARGER_CONNECTED:
+            expression: "B14:5"
+            unit: ""
+            ha_class: plug
+            mqtt_topic: charger_connected
+            min: ""
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          CHARGING_DC:
+            expression: "B14:6"
+            unit: ""
+            ha_class: plug
+            mqtt_topic: charging_dc
+            min: ""
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          CHARGING:
+            expression: "B14:7"
+            unit: ""
+            ha_class: battery_charging
+            mqtt_topic: charging
+            min: ""
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          BATTERY_FAN_STATUS:
+            expression: "B35"
+            unit: ""
+            ha_class: ""
+            mqtt_topic: battery_fan_status
+            min: ""
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          BATTERY_FAN_FEEDBACK:
+            expression: "B36"
+            unit: ""
+            ha_class: ""
+            mqtt_topic: battery_fan_feedback
+            min: ""
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          BATTERY_INLET_TEMP:
+            expression: "S29"
+            unit: "°C"
+            ha_class: temperature
+            mqtt_topic: battery_inlet_temp
+            min: "-128"
+            max: "128"
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          BATTERY_MAX_TEMP:
+            expression: "S20"
+            unit: "°C"
+            ha_class: temperature
+            mqtt_topic: battery_max_temp
+            min: "-128"
+            max: "128"
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          BATTERY_MIN_TEMP:
+            expression: "S21"
+            unit: "°C"
+            ha_class: temperature
+            mqtt_topic: battery_min_temp
+            min: "-128"
+            max: "128"
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          MODULE_1_TEMP:
+            expression: "S22"
+            unit: "°C"
+            ha_class: temperature
+            mqtt_topic: module_1_temp
+            min: "-128"
+            max: "128"
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          MODULE_2_TEMP:
+            expression: "S23"
+            unit: "°C"
+            ha_class: temperature
+            mqtt_topic: module_2_temp
+            min: "-128"
+            max: "128"
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          MODULE_3_TEMP:
+            expression: "S25"
+            unit: "°C"
+            ha_class: temperature
+            mqtt_topic: module_3_temp
+            min: "-128"
+            max: "128"
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          MODULE_4_TEMP:
+            expression: "S26"
+            unit: "°C"
+            ha_class: temperature
+            mqtt_topic: module_4_temp
+            min: "-128"
+            max: "128"
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          MODULE_5_TEMP:
+            expression: "S27"
+            unit: "°C"
+            ha_class: temperature
+            mqtt_topic: module_5_temp
+            min: "-128"
+            max: "128"
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          MAX_CELL_VOLTAGE_NO:
+            expression: "B31"
+            unit: ""
+            ha_class: ""
+            mqtt_topic: max_cell_voltage_no
+            min: ""
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: "Cell number with max voltage"
+
+          MIN_CELL_VOLTAGE_NO:
+            expression: "B34"
+            unit: ""
+            ha_class: ""
+            mqtt_topic: min_cell_voltage_no
+            min: ""
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: "Cell number with min voltage"
+
+          CUMULATIVE_ENERGY_CHARGED:
+            expression: "((B47<<24)|(B49<<16)|(B50<<8)|B51)/10"
+            unit: kWh
+            ha_class: energy
+            mqtt_topic: cumulative_energy_charged
+            min: "0"
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: "Lifetime cumulative"
+
+          CUMULATIVE_ENERGY_DISCHARGED:
+            expression: "((B52<<24)|(B53<<16)|(B54<<8)|B55)/10"
+            unit: kWh
+            ha_class: energy
+            mqtt_topic: cumulative_energy_discharged
+            min: "0"
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: "Lifetime cumulative"
+
+          OPERATING_TIME:
+            expression: "B57"
+            unit: ""
+            ha_class: ""
+            mqtt_topic: operating_time
+            min: ""
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          INVERTER_CAPACITOR_VOLTAGE:
+            expression: "B62*0.1"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: inverter_capacitor_voltage
+            min: ""
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          DRIVE_MOTOR_SPEED:
+            expression: "B65"
+            unit: ""
+            ha_class: ""
+            mqtt_topic: drive_motor_speed
+            min: ""
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          ISOLATION_RESISTANCE:
+            expression: "B69*1000"
+            unit: ""
+            ha_class: ""
+            mqtt_topic: isolation_resistance
+            min: ""
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          DEBUG_BMS_STATE_FLAGS:
+            expression: "B14"
+            unit: ""
+            ha_class: ""
+            mqtt_topic: debug_bms_state_flags
+            min: ""
+            max: ""
+            source: "AutoPID config (on device)"
+            source_links: []
+            verified: true
+            notes: "Present in AutoPID but not in vehicle profile"
+
+      2105:
+        period: 5000
+        enabled: true
+        parameters:
+          AVAIL_CHARGE_POWER:
+            expression: "[B22:B23]/100"
+            unit: kW
+            ha_class: power
+            mqtt_topic: avail_charge_power
+            min: ""
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          AVAIL_DISCHARGE_POWER:
+            expression: "[B25:B26]/100"
+            unit: kW
+            ha_class: power
+            mqtt_topic: avail_discharge_power
+            min: ""
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          BATTERY_VOLTAGE_DEVIATION:
+            expression: "B27*0.1"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: battery_voltage_deviation
+            min: ""
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          QUICK_CHARGING_NORMAL_STATUS:
+            expression: "B28"
+            unit: ""
+            ha_class: ""
+            mqtt_topic: quick_charging_normal_status
+            min: ""
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          MODULE_6_TEMP:
+            expression: "S14"
+            unit: "°C"
+            ha_class: temperature
+            mqtt_topic: module_6_temp
+            min: "-128"
+            max: "128"
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          MODULE_7_TEMP:
+            expression: "S15"
+            unit: "°C"
+            ha_class: temperature
+            mqtt_topic: module_7_temp
+            min: "-128"
+            max: "128"
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          MODULE_8_TEMP:
+            expression: "S17"
+            unit: "°C"
+            ha_class: temperature
+            mqtt_topic: module_8_temp
+            min: "-128"
+            max: "128"
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          MODULE_9_TEMP:
+            expression: "S18"
+            unit: "°C"
+            ha_class: temperature
+            mqtt_topic: module_9_temp
+            min: "-128"
+            max: "128"
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          MODULE_10_TEMP:
+            expression: "S19"
+            unit: "°C"
+            ha_class: temperature
+            mqtt_topic: module_10_temp
+            min: "-128"
+            max: "128"
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          MODULE_11_TEMP:
+            expression: "S20"
+            unit: "°C"
+            ha_class: temperature
+            mqtt_topic: module_11_temp
+            min: "-128"
+            max: "128"
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          MODULE_12_TEMP:
+            expression: "S21"
+            unit: "°C"
+            ha_class: temperature
+            mqtt_topic: module_12_temp
+            min: "-128"
+            max: "128"
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          BATTERY_HEATER_1_TEMP:
+            expression: "S30"
+            unit: "°C"
+            ha_class: temperature
+            mqtt_topic: battery_heater_1_temp
+            min: "-128"
+            max: "128"
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          BATTERY_HEATER_2_TEMP:
+            expression: "S31"
+            unit: "°C"
+            ha_class: temperature
+            mqtt_topic: battery_heater_2_temp
+            min: "-128"
+            max: "128"
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          SOH:
+            expression: "[B33:B34]/10"
+            unit: "%"
+            ha_class: ""
+            mqtt_topic: soh
+            min: "0"
+            max: "105"
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: "State of Health"
+
+          MAX_DETERIORATION_CELL_NO:
+            expression: "B35"
+            unit: ""
+            ha_class: ""
+            mqtt_topic: max_deterioration_cell_no
+            min: ""
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          MIN_DETERIORATION:
+            expression: "[B36:B37]/10"
+            unit: "%"
+            ha_class: ""
+            mqtt_topic: min_deterioration
+            min: ""
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          MIN_DETERIORATION_CELL_NO:
+            expression: "B38"
+            unit: ""
+            ha_class: ""
+            mqtt_topic: min_deterioration_cell_no
+            min: ""
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
+
+          SOC_DISP:
+            expression: "B39/2"
+            unit: "%"
+            ha_class: battery
+            mqtt_topic: soc_disp
+            min: "0"
+            max: "100"
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: "Display SOC (what the dashboard shows)"
+
+          UNKNOWN_4:
+            expression: "B42"
+            unit: ""
+            ha_class: ""
+            mqtt_topic: unknown_4
+            min: ""
+            max: ""
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: "Unknown parameter — kept for investigation"
+
+  # ─── OBC (On-Board Charger / VMCU) ───────────────────────────────────
+  OBC:
+    tx_id: 0x7E5
+    pids:
+      2101:
+        period: 5000
+        enabled: true
+        parameters:
+          OBC_TEMP_HEATSINK:
+            expression: "B52/2-40"
+            unit: "°C"
+            ha_class: temperature
+            mqtt_topic: obc_temp_heatsink
+            min: "-40"
+            max: "87"
+            source: "Kia Niro EV WiCAN PR#716"
+            source_links:
+              - https://github.com/meatpiHQ/wican-fw/pull/716
+            verified: false
+            notes: "Untested on Ioniq 2017"
+
+          OBC_TEMP_INSIDE:
+            expression: "B53/2-40"
+            unit: "°C"
+            ha_class: temperature
+            mqtt_topic: obc_temp_inside
+            min: "-40"
+            max: "87"
+            source: "Kia Niro EV WiCAN PR#716"
+            source_links:
+              - https://github.com/meatpiHQ/wican-fw/pull/716
+            verified: false
+            notes: ""
+
+          OBC_TEMP_WATER:
+            expression: "B54/2-40"
+            unit: "°C"
+            ha_class: temperature
+            mqtt_topic: obc_temp_water
+            min: "-40"
+            max: "87"
+            source: "Kia Niro EV WiCAN PR#716"
+            source_links:
+              - https://github.com/meatpiHQ/wican-fw/pull/716
+            verified: false
+            notes: ""
+
+          OBC_DC_V:
+            expression: "[B60:B61]/10"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: obc_dc_v
+            min: "0"
+            max: ""
+            source: "Kia Niro EV WiCAN PR#716"
+            source_links:
+              - https://github.com/meatpiHQ/wican-fw/pull/716
+            verified: false
+            notes: ""
+
+          OBC_AC_V:
+            expression: "B55"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: obc_ac_v
+            min: "0"
+            max: "255"
+            source: "Kia Niro EV WiCAN PR#716"
+            source_links:
+              - https://github.com/meatpiHQ/wican-fw/pull/716
+            verified: false
+            notes: ""
+
+      2103:
+        period: 5000
+        enabled: true
+        parameters:
+          OBC_AC_C:
+            expression: "[B9:B10]/100"
+            unit: A
+            ha_class: current
+            mqtt_topic: obc_ac_c
+            min: "0"
+            max: ""
+            source: "Kia Niro EV WiCAN PR#716"
+            source_links:
+              - https://github.com/meatpiHQ/wican-fw/pull/716
+            verified: false
+            notes: ""
+
+  # ─── Gateway ─────────────────────────────────────────────────────────
+  Gateway:
+    tx_id: 0x7E6
+    pids:
+      2180:
+        period: 10000
+        enabled: true
+        parameters:
+          AMBIENT_TEMP:
+            expression: "(B18-80)/2"
+            unit: "°C"
+            ha_class: temperature
+            mqtt_topic: ambient_temp
+            min: "-40"
+            max: "87"
+            source: "Original WiCAN config"
+            source_links: []
+            verified: true
+            notes: ""
