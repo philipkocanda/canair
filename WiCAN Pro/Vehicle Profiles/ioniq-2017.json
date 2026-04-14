@@ -209,22 +209,13 @@
       "enabled": true,
       "period": "5000",
       "parameters": {
-        "OBC_TEMP_HEATSINK": "B52/2-40",
-        "OBC_TEMP_INSIDE": "B53/2-40",
-        "OBC_TEMP_WATER": "B54/2-40",
-        "OBC_DC_V": "[B60:B61]/10",
-        "OBC_AC_V": "B55",
-        "LDC_TEMP_1": "B15-100",
+        "LDC_HV_INPUT_V": "[B12:B13]/100",
+        "LDC_OUTPUT_V": "[B25:B26]/100",
+        "LDC_TEMP": "B21-40",
+        "OBC_CHARGE_V": "[B10:B11]/100",
+        "LDC_OUTPUT_A": "B15/10",
+        "OBC_AC_A": "[B17:B18]/100",
         "OBC_PILOT_DUTY": "B47/3"
-      }
-    },
-    {
-      "pid_init": "ATSH7E5;ATFCSH7E5;",
-      "pid": "2103",
-      "enabled": true,
-      "period": "5000",
-      "parameters": {
-        "OBC_AC_C": "[B9:B10]/100"
       }
     },
     {

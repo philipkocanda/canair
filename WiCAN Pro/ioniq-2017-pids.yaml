@@ -2458,91 +2458,91 @@ ecus:
             verified: true
             notes: "Last cell. Total: 96 cells across PIDs 2102/2103/2104."
 
-  # ─── OBC (On-Board Charger / VMCU) ───────────────────────────────────
-  OBC:
+  # ─── LDC / OBC (Low-Voltage DC-DC Converter / On-Board Charger) ─────
+  # CarScanner identifies ECU 0x7E5 as "AEV**LDC**53" on Ioniq 2017.
+  # Response to PID 2101 is 48 ISO-TP bytes (56 WiCAN bytes).
+  # PID 2103 returns NRC 0x12 (subFunctionNotSupported) — does not exist on Ioniq 2017.
+  # Original Niro PR#716 formulas (B52-B55, B60-B61) are WRONG for Ioniq —
+  # they reference bytes beyond the Ioniq's shorter response (zero padding / OOB).
+  # Correct byte offsets decoded from live captures during AC charging (2026-04-14).
+  LDC:
     tx_id: 0x7E5
     pids:
       2101:
         period: 5000
         enabled: true
         parameters:
-          OBC_TEMP_HEATSINK:
-            expression: "B52/2-40"
-            unit: "°C"
-            ha_class: temperature
-            mqtt_topic: obc_temp_heatsink
-            min: "-40"
-            max: "87"
-            source: "Kia Niro EV WiCAN PR#716"
-            source_links:
-              - https://github.com/meatpiHQ/wican-fw/pull/716
-            verified: false
-            notes: "Untested on Ioniq 2017"
-
-          OBC_TEMP_INSIDE:
-            expression: "B53/2-40"
-            unit: "°C"
-            ha_class: temperature
-            mqtt_topic: obc_temp_inside
-            min: "-40"
-            max: "87"
-            source: "Kia Niro EV WiCAN PR#716"
-            source_links:
-              - https://github.com/meatpiHQ/wican-fw/pull/716
-            verified: false
-            notes: ""
-
-          OBC_TEMP_WATER:
-            expression: "B54/2-40"
-            unit: "°C"
-            ha_class: temperature
-            mqtt_topic: obc_temp_water
-            min: "-40"
-            max: "87"
-            source: "Kia Niro EV WiCAN PR#716"
-            source_links:
-              - https://github.com/meatpiHQ/wican-fw/pull/716
-            verified: false
-            notes: ""
-
-          OBC_DC_V:
-            expression: "[B60:B61]/10"
+          LDC_HV_INPUT_V:
+            expression: "[B12:B13]/100"
             unit: V
             ha_class: voltage
-            mqtt_topic: obc_dc_v
+            mqtt_topic: ldc_hv_input_v
             min: "0"
-            max: ""
-            source: "Kia Niro EV WiCAN PR#716"
-            source_links:
-              - https://github.com/meatpiHQ/wican-fw/pull/716
-            verified: false
-            notes: ""
+            max: "500"
+            source: "Decoded from live captures (2026-04-14)"
+            source_links: []
+            verified: true
+            notes: "HV battery input voltage to LDC. Cross-validated: matches BMS BATTERY_VOLTAGE (353.45V vs 353.3V). ISO-TP bytes 9-10."
 
-          OBC_AC_V:
-            expression: "B55"
+          LDC_OUTPUT_V:
+            expression: "[B25:B26]/100"
             unit: V
             ha_class: voltage
-            mqtt_topic: obc_ac_v
+            mqtt_topic: ldc_output_v
             min: "0"
-            max: "255"
-            source: "Kia Niro EV WiCAN PR#716"
-            source_links:
-              - https://github.com/meatpiHQ/wican-fw/pull/716
-            verified: false
-            notes: ""
+            max: "20"
+            source: "Decoded from live captures (2026-04-14)"
+            source_links: []
+            verified: true
+            notes: "LDC 12V system output voltage. Reads 14.52V during charging — correct for 12V system under charge. ISO-TP bytes 20-21."
 
-          LDC_TEMP_1:
-            expression: "B15-100"
+          LDC_TEMP:
+            expression: "B21-40"
             unit: "°C"
             ha_class: temperature
-            mqtt_topic: ldc_temp_1
-            min: "-100"
-            max: "155"
-            source: "Ioniq PID sheet (Torque letter n)"
-            source_links:
-              - https://docs.google.com/spreadsheets/d/1R2dW_4-ANg04TQdkHH52-8wdYItBkWDfppcsqOc-m1M
+            mqtt_topic: ldc_temp
+            min: "-40"
+            max: "120"
+            source: "Decoded from live captures (2026-04-14)"
+            source_links: []
+            verified: true
+            notes: "LDC converter temperature. Increased gradually 35→36°C between captures ~2 min apart during AC charging. ISO-TP byte 17."
+
+          OBC_CHARGE_V:
+            expression: "[B10:B11]/100"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: obc_charge_v
+            min: "0"
+            max: "500"
+            source: "Decoded from live captures (2026-04-14)"
+            source_links: []
+            verified: true
+            notes: "OBC DC output voltage (charge voltage into battery). Reads ~370V during AC charging — higher than HV battery voltage as expected. ISO-TP bytes 7-8."
+
+          LDC_OUTPUT_A:
+            expression: "B15/10"
+            unit: A
+            ha_class: current
+            mqtt_topic: ldc_output_a
+            min: "0"
+            max: "40"
+            source: "Decoded from live captures (2026-04-14)"
+            source_links: []
             verified: false
-            notes: "LDC converter temperature. Torque n=data byte 13 → WiCAN B15. Different formula from OBC temps (/2-40 vs -100)."
+            notes: "LDC output current to 12V system. Changed 11.7→9.4A between captures — plausible for varying 12V load. ISO-TP byte 12. Medium confidence."
+
+          OBC_AC_A:
+            expression: "[B17:B18]/100"
+            unit: A
+            ha_class: current
+            mqtt_topic: obc_ac_a
+            min: "0"
+            max: "50"
+            source: "Decoded from live captures (2026-04-14)"
+            source_links: []
+            verified: false
+            notes: "AC grid input current during charging. Reads 2.85A — close to BMS charging current (~2.6A). Constant between captures. ISO-TP bytes 13-14. Medium confidence."
 
           OBC_PILOT_DUTY:
             expression: "B47/3"
@@ -2555,11 +2555,11 @@ ecus:
             source_links:
               - https://docs.google.com/spreadsheets/d/1R2dW_4-ANg04TQdkHH52-8wdYItBkWDfppcsqOc-m1M
             verified: false
-            notes: "EVSE pilot duty cycle — useful for determining charge state/rate."
+            notes: "EVSE pilot duty cycle. Reads ~29% during AC charging. ISO-TP byte 39. Torque letter am."
 
       2103:
         period: 5000
-        enabled: true
+        enabled: false
         parameters:
           OBC_AC_C:
             expression: "[B9:B10]/100"
@@ -2572,7 +2572,7 @@ ecus:
             source_links:
               - https://github.com/meatpiHQ/wican-fw/pull/716
             verified: false
-            notes: ""
+            notes: "DISABLED: PID 2103 returns NRC 0x12 (subFunctionNotSupported) on Ioniq 2017. Does not exist on this car."
 
   # ─── MCU (Motor Control Unit) ─────────────────────────────────────────
   MCU:

@@ -157,3 +157,125 @@ sessions:
         pid: "2102"
         payload: "610207ffffffc0091f011f019f0114121013f7fff6ff7dd6cdabc2cd720022fc3000e307f726f606c1cd0000eb3100000000000000000000"
         notes: ""
+
+  - date: "2026-04-14"
+    label: "Charging (AC)"
+    notes: "Car parked, AC charging at ~2.6A. SOC ~51%. First OBC/LDC ECU captures."
+    captures:
+      - ecu_tx: 0x7E5
+        ecu_rx: 0x7ED
+        ecu_name: OBC/LDC
+        pid: "2101"
+        payload: "6101FFFFF80000906C8A115775011D90024B00BB05AC43102000C8021C006276000B000701F38A4157CA000F00000000"
+        notes: "First query during session. 48 bytes. OBC temps B52-B54 all zero — Niro PR#716 formulas produce -40C."
+
+      - ecu_tx: 0x7E5
+        ecu_rx: 0x7ED
+        ecu_name: OBC/LDC
+        pid: "2101"
+        payload: "6101FFFFF8000090488A14575E011D90024C00BB05AC43102000C8021C006276000B000701F48A437448000F00000000"
+        notes: "Second query ~2 min later. 48 bytes. Minor value changes vs first query."
+
+      - ecu_tx: 0x7E5
+        ecu_rx: 0x7ED
+        ecu_name: OBC/LDC
+        pid: "2102"
+        payload: "6102FFFC0000684F792A694A79286E847927650F791B7499791F7293792B74827931"
+        notes: "34 bytes. Interesting repeating pattern — possibly voltage/current pairs."
+
+      - ecu_tx: 0x7E5
+        ecu_rx: 0x7ED
+        ecu_name: OBC/LDC
+        pid: "2103"
+        payload: ""
+        notes: "NRC 0x12 — subFunctionNotSupported. PID 2103 does not exist on this ECU."
+
+  - date: "2026-04-14"
+    label: "Charging (AC) — all ECUs"
+    notes: >
+      Comprehensive capture of all known ECUs during AC Level 2 charging.
+      SOC 52% (BMS) / 53.5% (display), battery 353.9V, charging current -2.7A,
+      battery temps 13-14°C, ambient 11.5°C, LDC temp 37°C, OBC charge voltage 370.6V,
+      OBC AC current 2.84A, pilot duty 15.7%, aux battery 14.5V.
+      Odometer ~67,000 km, operating time 5,902 hours.
+      CLU (0x7C6), TPMS (0x7A0/22C00B), IGPM (0x770), ESC (0x7D1), BCM (0x7A0/22B00E)
+      all returned NO DATA or empty response — these ECUs likely require ignition ON.
+    captures:
+      - ecu_tx: 0x7E4
+        ecu_rx: 0x7EC
+        ecu_name: BMS
+        pid: "2101"
+        payload: "6101FFFFFFFF6826482648A3FFE50DD30E0D0E0E0E0D0D000EB846B80100009100052B4000052A490001DF440001D082014440FB0901610000000003E800"
+        notes: "62 bytes. SOC_BMS 52%, voltage 353.9V, current -2.7A (charging), temps 13-14°C."
+
+      - ecu_tx: 0x7E4
+        ecu_rx: 0x7EC
+        ecu_name: BMS
+        pid: "2105"
+        payload: "6105FFFFFFFF00000000000D0D0D0D0E0E0E264826480001640D0D03E80203E8016B0029000000000000000000000000"
+        notes: "48 bytes. SOH 35.6%, SOC_DISP 53.5%. Module temps 13-14°C."
+
+      - ecu_tx: 0x7E4
+        ecu_rx: 0x7EC
+        ecu_name: BMS
+        pid: "2102"
+        payload: "6102FFFFFFFFB8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8000000"
+        notes: "41 bytes. Cell voltages — all 0xB8 (3.68V each). Uniform during charging at 52% SOC."
+
+      - ecu_tx: 0x7E4
+        ecu_rx: 0x7EC
+        ecu_name: BMS
+        pid: "2103"
+        payload: "6103FFFFFFFFB8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8000000"
+        notes: "41 bytes. Cells 33-64, all 0xB8 (3.68V)."
+
+      - ecu_tx: 0x7E4
+        ecu_rx: 0x7EC
+        ecu_name: BMS
+        pid: "2104"
+        payload: "6104FFFFFFFFB8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8B8000000"
+        notes: "41 bytes. Cells 65-96, all 0xB8 (3.68V)."
+
+      - ecu_tx: 0x7E2
+        ecu_rx: 0x7EA
+        ecu_name: VCU
+        pid: "2101"
+        payload: "6101FFE000000921106A064A03000000008E770007200000000000"
+        notes: "27 bytes. Car in park, not driving. Speed 0. VCU response is 27 bytes while charging (vs 22 stationary, 27 driving in earlier sessions)."
+
+      - ecu_tx: 0x7E5
+        ecu_rx: 0x7ED
+        ecu_name: LDC
+        pid: "2101"
+        payload: "6101FFFFF8000090A48A5157EB011D92024B00BB05AA43102000C8021C006276000B000701F38A771558000F00000000"
+        notes: "48 bytes. LDC temp 37°C (B21-40=0x4D-40), HV input 354.07V, output 14.51V, OBC charge 370.6V."
+
+      - ecu_tx: 0x7E5
+        ecu_rx: 0x7ED
+        ecu_name: LDC
+        pid: "2102"
+        payload: "6102FFFC0000684F792A694A79286E847927650F791B7499791F7293792B74827931"
+        notes: "34 bytes. Repeating byte-pair pattern — unknown decoding. Consistent with earlier AC charging capture."
+
+      - ecu_tx: 0x7B3
+        ecu_rx: 0x7BB
+        ecu_name: HVAC
+        pid: "220100"
+        payload: "6201007E5007C8FF7C676E001081FFFF81FF11FFFFFFFFFFFFFFFFFF00EF747200FFFF00FFFF000000"
+        notes: "41 bytes. IAT (B11/2-40) = 22°C, AAT (B12/2-40) = 11.5°C. Note: 3 extra trailing 00 bytes vs earlier captures (38 vs 41)."
+
+      - ecu_tx: 0x7E6
+        ecu_rx: 0x7EE
+        ecu_name: Gateway
+        pid: "2180"
+        payload: "6180C366C000225100000000001D67004435000085130098980000"
+        notes: "27 bytes. Ambient temp (B18-80)/2 = (0x67-80)/2 = 11.5°C."
+
+      # ECUs that did not respond during charging:
+      #
+      # 0x7C6 (CLU) 22B002  — NO DATA (cluster likely off, ignition required)
+      # 0x7A0 (TPMS) 22C00B — empty response (TPMS needs driving/wheel movement)
+      # 0x770 (IGPM) 22BC03 — empty response (ignition required?)
+      # 0x770 (IGPM) 22BC04 — empty response (ignition required?)
+      # 0x7A0 (BCM) 22B00E  — NO DATA (ignition required?)
+      # 0x7D1 (ESC) 22C101  — empty response (ignition required?)
