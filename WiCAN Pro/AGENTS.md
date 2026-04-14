@@ -6,7 +6,7 @@ For reference, the WiCAN firmware is checked out in the `wican-fw/` directory (g
 
 - **`generate-profile.py`** — Generate WiCAN vehicle profiles from `ioniq-2017-pids.yaml`, upload/download/diff with device
 - **`decode-captures.py`** — Decode captured UDS payloads using WiCAN expression evaluator (Python port of `expression_parser.c`)
-- **`can-request.py`** — CLI tool for custom CAN/UDS requests via WiCAN WebSocket ELM327 terminal mode. Supports interactive REPL, `--param`, `--ecu`, `--raw`, `--scan` modes. Dependencies: `websockets`, `pyyaml`.
+- **`can-request.py`** — CLI tool for custom CAN/UDS requests via WiCAN WebSocket ELM327 terminal mode. Supports interactive REPL, `--param`, `--ecu`, `--raw`, `--scan` modes. **Use `--reboot` to restore AutoPID after session** (WebSocket terminal overrides AutoPID mode). Dependencies: `websockets`, `pyyaml`, `requests` (optional, for reboot).
 
 ## Key Files
 

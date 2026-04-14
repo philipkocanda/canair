@@ -5,6 +5,10 @@ Uses the WiCAN ELM327 terminal mode over WebSocket (ws://<ip>/ws) to send
 ELM327 AT commands and UDS requests. The firmware handles ISO-TP internally,
 so multi-frame responses are reassembled automatically.
 
+IMPORTANT: Using the WebSocket terminal overrides AutoPID mode. The WiCAN
+must be rebooted after a terminal session for AutoPID (MQTT data feed to
+Home Assistant) to resume. Use --reboot to reboot automatically on exit.
+
 Modes:
     Interactive     python3 can-request.py
     Query params    python3 can-request.py --param SOC_BMS SOC_DISP
@@ -12,7 +16,7 @@ Modes:
     Raw request     python3 can-request.py --raw 7E4:2101
     Scan PIDs       python3 can-request.py --scan --tx 7E4 --service 21 --range 01-FF
 
-Requires: websockets, pyyaml
+Requires: websockets, pyyaml (requests optional, for --reboot)
 """
 
 import argparse
@@ -36,6 +40,12 @@ try:
 except ImportError:
     print("ERROR: websockets not installed. Run: pip3 install websockets", file=sys.stderr)
     sys.exit(1)
+
+try:
+    import requests as _requests_mod
+    HAS_REQUESTS = True
+except ImportError:
+    HAS_REQUESTS = False
 
 # Import expression evaluator from decode-captures.py
 SCRIPT_DIR = Path(__file__).parent
@@ -307,6 +317,27 @@ def elm_hex_to_wican_bytes(hex_str: str) -> bytes:
         return bytes(result)
 
 
+def reboot_wican(host: str):
+    """Reboot WiCAN device via HTTP POST to restore AutoPID mode.
+
+    After using the WebSocket terminal, the device stays in terminal mode
+    and AutoPID (which feeds MQTT/HA) does not resume until rebooted.
+    """
+    if not HAS_REQUESTS:
+        print("  Cannot reboot: 'requests' module not installed. Run: pip3 install requests", file=sys.stderr)
+        print(f"  Manual reboot: curl -X POST http://{host}/system_reboot -d reboot", file=sys.stderr)
+        return False
+
+    url = f"http://{host}/system_reboot"
+    try:
+        resp = _requests_mod.post(url, data="reboot", timeout=5)
+        print(f"Rebooting WiCAN... ({resp.status_code})")
+        return True
+    except _requests_mod.RequestException as e:
+        print(f"  FAILED to reboot: {e}", file=sys.stderr)
+        return False
+
+
 # ── WiCAN WebSocket Connection ───────────────────────────────────────────
 
 class WiCANTerminal:
@@ -546,6 +577,7 @@ async def mode_interactive(terminal: WiCANTerminal, pids_data: dict, verbose: bo
     print("  !hexdump       Show hex dump of last response")
     print("  !info <ECU>    Show ECU info from YAML (e.g., !info BMS)")
     print("  !list          List all known ECUs")
+    print("  !reboot        Reboot WiCAN to restore AutoPID mode")
     print("  !quit / Ctrl+C Exit")
     print()
 
@@ -568,6 +600,10 @@ async def mode_interactive(terminal: WiCANTerminal, pids_data: dict, verbose: bo
         # Built-in commands
         if cmd.lower() in ("!quit", "!exit", "!q"):
             print("Bye!")
+            break
+
+        if cmd.lower() == "!reboot":
+            reboot_wican(terminal.host)
             break
 
         if cmd.lower() == "!list":
@@ -1013,6 +1049,13 @@ async def async_main(args):
     finally:
         await terminal.close()
 
+        # Reboot to restore AutoPID mode, or warn
+        if args.reboot:
+            reboot_wican(host)
+        else:
+            print("NOTE: WiCAN is now in terminal mode. AutoPID (MQTT/HA data feed) is paused.")
+            print("      Run with --reboot or reboot manually to restore AutoPID.")
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -1031,6 +1074,7 @@ Examples:
   %(prog)s --wican vpn --param SOC_BMS      Use VPN address
   %(prog)s --verbose --ecu VCU              Show raw WebSocket traffic
   %(prog)s --json --param SOC_BMS           JSON output
+  %(prog)s --reboot --param SOC_BMS         Query + reboot to restore AutoPID
 """,
     )
 
@@ -1068,6 +1112,8 @@ Examples:
                         help="Output results as JSON")
     parser.add_argument("--verbose", "-v", action="store_true",
                         help="Show raw WebSocket traffic and expressions")
+    parser.add_argument("--reboot", action="store_true",
+                        help="Reboot WiCAN after session to restore AutoPID mode")
 
     args = parser.parse_args()
 
