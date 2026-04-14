@@ -2555,7 +2555,13 @@ ecus:
             source_links:
               - https://docs.google.com/spreadsheets/d/1R2dW_4-ANg04TQdkHH52-8wdYItBkWDfppcsqOc-m1M
             verified: false
-            notes: "EVSE pilot duty cycle. Reads ~29% during AC charging. ISO-TP byte 39. Torque letter am."
+            notes: >
+              EVSE pilot duty cycle.
+              Value is 6 when charging at 6 Amps AC.
+              Value is briefly 4.33 then constant at 32.33 when increasing charging speed to 8 Amps AC.
+              Value is 39.67 when increasing charging speed to 10 Amps AC
+              After a while down to 22.67 then 32 (still at 10 Amps AC)
+              ISO-TP byte 39. Torque letter am.
 
       2103:
         period: 5000
