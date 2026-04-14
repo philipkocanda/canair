@@ -12,7 +12,10 @@ The **SKM (Smart Key Module)** at ECU address `0x7A5` can remotely activate the 
 
 - WiCAN must be connected to WiFi and reachable (e.g. `http://10.0.2.86`)
 - Use `can-request.py` interactive mode or direct WebSocket terminal
-- Car must be powered enough for CAN bus to be active (e.g. 12V battery above sleep threshold, or charging)
+- **The CAN bus must already be active** — the SKM cannot wake the car from a fully powered-down state. The diagnostic CAN bus is completely off when the car is asleep; all commands return `NO DATA`. The CAN bus is active when:
+  - The car is AC or DC charging
+  - Within ~10 minutes of unlocking with the smart key remote
+  - The car is in ACC or ignition-on mode
 
 ## Wakeup Procedure
 
