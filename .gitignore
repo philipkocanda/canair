@@ -12,4 +12,5 @@ Thumbs.db
 
 # Original pattern
 **/*/Icon
+__pycache__/
 wican-fw
