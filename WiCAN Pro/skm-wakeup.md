@@ -20,7 +20,20 @@ The **SKM (Smart Key Module)** at ECU address `0x7A5` can remotely activate the 
 
 ## Wakeup Procedure
 
-### Step 1: Set ELM327 headers for SKM
+### Step 1: Broadcast wake (IMPORTANT)
+
+Direct `1003` to the SKM often returns `NO DATA` during charging because the SKM may be in a partial sleep state. Sending a broadcast first nudges it awake:
+
+```
+ATSH7DF
+ATFCSH7DF
+3E00              → powertrain ECUs respond (7EC, 7EA, 7EB, 7ED)
+1001              → same + OBC (7EE)
+```
+
+This only takes a second and makes the SKM reliably respond on the next step.
+
+### Step 2: Set ELM327 headers for SKM
 
 ```
 ATSH7A5
@@ -29,15 +42,15 @@ ATFCSH7A5
 
 Both should return `OK`.
 
-### Step 2: Enter extended diagnostic session
+### Step 3: Enter extended diagnostic session
 
 ```
 1003
 ```
 
-Expected response: `5003` (positive response for DiagnosticSessionControl — extendedDiagnostic).
+Expected response: `5003` (positive response for DiagnosticSessionControl — extendedDiagnostic). The SKM may need 2-3 attempts after the broadcast — retry with ~0.5s delay if it returns `NO DATA`.
 
-### Step 3: Send ACC On command
+### Step 4: Send ACC On command
 
 ```
 2FB108030A0A05
@@ -56,11 +69,24 @@ Expected response sequence:
 1. `7F2F78` — requestCorrectlyReceivedResponsePending (ECU is processing)
 2. `6FB108030A0A05` — positive response confirming ACC activated
 
-### Step 4: Verify
+### Step 5: Verify
 
 - Dashboard lights should turn on
 - Previously sleeping ECUs (IGPM, TPMS, CLU, ESC) should now respond to queries
 - IGPM 22BC03 byte 7 bit 5 will read `1` (ACC flag)
+
+## Relay Level Effects
+
+Different relay levels wake different sets of ECUs:
+
+| Level   | DID    | Wakes                          | Visible Effect          |
+|---------|--------|--------------------------------|-------------------------|
+| `acc`   | `B108` | IGPM, TPMS                     | Dashboard lights on     |
+| `ign1`  | `B109` | IGPM, TPMS, ESC                | Nothing visible         |
+| `ign2`  | `B10A` | Same as ign1 (tested)          | Nothing visible         |
+| `start` | `B10B` | **Cranks motor — use caution** | Motor starts            |
+
+**CLU never woke** with ACC, IGN1, or IGN2 — it may require the car to be in full "ready" state. Odometer queries (`22B002`) only work when the user manually puts the car in ACC mode.
 
 ## Available Relay Commands
 
@@ -132,7 +158,52 @@ The SKM is **not always powered**. It shares a power domain with the powertrain 
 | ACC mode (button)        | ON      | Yes   | Yes          | Yes                 |
 | Ignition ON              | ON      | Yes   | Yes          | Yes                 |
 
-## Example Session (can-request.py)
+## Using can-request.py
+
+### Automated wakeup (recommended)
+
+```bash
+# ACC wakeup (default level)
+python3 can-request.py --skm-wakeup --reboot
+
+# IGN1 wakeup (wakes more ECUs including ESC)
+python3 can-request.py --skm-wakeup --level ign1
+
+# Wakeup + query IGPM immediately
+python3 can-request.py --skm-wakeup && python3 can-request.py --ecu IGPM --reboot
+```
+
+The `--skm-wakeup` flag handles the full broadcast-wake → session → relay-ON sequence automatically, with retries.
+
+### TesterPresent keepalive
+
+Some IOControl commands need a sustained diagnostic session. Use `--tester-present` to send `3E00` at 1 Hz:
+
+```bash
+# Broadcast TesterPresent to all ECUs
+python3 can-request.py --tester-present
+
+# TesterPresent to SKM only
+python3 can-request.py --tester-present --target 7A5
+
+# Custom interval (2 seconds)
+python3 can-request.py --tester-present --interval 2.0
+```
+
+Press Ctrl+C to stop the loop. Note: this holds the WiCAN in terminal mode (AutoPID is paused) until reboot.
+
+### Interactive mode commands
+
+In the interactive REPL, use `!skm` and `!tester`:
+
+```
+> !skm              # ACC wakeup
+> !skm ign1         # IGN1 wakeup
+> !tester           # TesterPresent broadcast loop (Ctrl+C to stop)
+> !tester 7A5       # TesterPresent to SKM only
+```
+
+### Manual session (step by step)
 
 ```bash
 $ python3 can-request.py --wican home

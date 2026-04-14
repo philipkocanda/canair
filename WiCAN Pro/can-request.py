@@ -15,6 +15,8 @@ Modes:
     Query ECU       python3 can-request.py --ecu BMS [--pid 2101]
     Raw request     python3 can-request.py --raw 7E4:2101
     Scan PIDs       python3 can-request.py --scan --tx 7E4 --service 21 --range 01-FF
+    SKM wakeup      python3 can-request.py --skm-wakeup [--level acc|ign1|ign2]
+    TesterPresent   python3 can-request.py --tester-present [--target 7A5]
 
 Requires: websockets, pyyaml (requests optional, for --reboot)
 """
@@ -568,6 +570,7 @@ class WiCANTerminal:
         # Collect response until we see the > prompt or timeout
         response_parts = []
         deadline = time.monotonic() + timeout
+        got_prompt = False
 
         while time.monotonic() < deadline:
             remaining = deadline - time.monotonic()
@@ -576,10 +579,20 @@ class WiCANTerminal:
             try:
                 msg = await asyncio.wait_for(self.ws.recv(), timeout=min(remaining, 0.5))
             except asyncio.TimeoutError:
-                # Check if we have a complete response
+                # Check if we have a complete response (prompt seen and no pending NRC)
+                if got_prompt:
+                    full = "".join(response_parts)
+                    # If response contains 7Fxx78 (requestCorrectlyReceived-
+                    # ResponsePending), the ECU is still processing — keep reading
+                    if "7F" in full and "78" in full:
+                        # Check specifically for the pending NRC pattern
+                        clean = full.replace(" ", "").replace("\r", "").replace("\n", "")
+                        if re.search(r"7F[0-9A-Fa-f]{2}78", clean):
+                            continue  # Keep waiting for the real response
+                    break
                 if response_parts:
                     text = "".join(response_parts)
-                    if ">" in text or "\r" in text:
+                    if "\r" in text and "7F" not in text:
                         break
                 continue
             except websockets.exceptions.ConnectionClosed:
@@ -609,6 +622,14 @@ class WiCANTerminal:
             # Check for prompt indicating end of response
             full = "".join(response_parts)
             if ">" in full:
+                got_prompt = True
+                # Don't break yet — check if we have a pending NRC
+                clean = full.replace(" ", "").replace("\r", "").replace("\n", "")
+                if re.search(r"7F[0-9A-Fa-f]{2}78", clean):
+                    # Pending NRC — keep reading for the real response
+                    # Reset deadline to give ECU more time
+                    deadline = time.monotonic() + timeout
+                    continue
                 break
 
         raw = "".join(response_parts)
@@ -742,6 +763,8 @@ async def mode_interactive(terminal: WiCANTerminal, pids_data: dict, verbose: bo
     print("  !hexdump       Show hex dump of last response")
     print("  !info <ECU>    Show ECU info from YAML (e.g., !info BMS)")
     print("  !list          List all known ECUs")
+    print("  !skm [level]   SKM wakeup (acc/ign1/ign2/start, default: acc)")
+    print("  !tester [id]   TesterPresent loop (broadcast or target ECU, Ctrl+C to stop)")
     print("  !reboot        Reboot WiCAN to restore AutoPID mode")
     print("  !quit / Ctrl+C Exit")
     print()
@@ -770,6 +793,19 @@ async def mode_interactive(terminal: WiCANTerminal, pids_data: dict, verbose: bo
         if cmd.lower() == "!reboot":
             reboot_wican(terminal.host)
             break
+
+        if cmd.lower().startswith("!skm"):
+            parts = cmd.split()
+            level = parts[1] if len(parts) > 1 else "acc"
+            await mode_skm_wakeup(terminal, level, verbose)
+            continue
+
+        if cmd.lower().startswith("!tester"):
+            parts = cmd.split()
+            target = parts[1] if len(parts) > 1 else None
+            print("  Starting TesterPresent loop. Ctrl+C to stop.")
+            await mode_tester_present(terminal, target, 1.0, verbose)
+            continue
 
         if cmd.lower() == "!list":
             print(f"\n{'ECU':<10} {'TX ID':<8} {'PIDs'}")
@@ -1148,6 +1184,248 @@ async def mode_scan(terminal: WiCANTerminal, tx_id: int, service: int,
     print()
 
 
+# ── SKM Wakeup Mode ──────────────────────────────────────────────────────
+
+# SKM relay control DIDs
+SKM_RELAYS = {
+    "acc":  ("B108", "ACC (Accessory)"),
+    "ign1": ("B109", "IGN1 (Ignition 1)"),
+    "ign2": ("B10A", "IGN2 (Ignition 2)"),
+    "start": ("B10B", "Start Relay"),
+}
+
+# Magic bytes required for SKM IOControl ON
+SKM_MAGIC = "0A0A05"
+
+
+async def mode_skm_wakeup(terminal: WiCANTerminal, level: str, verbose: bool):
+    """Wake sleeping ECUs via SKM relay control.
+
+    Sends a broadcast 3E00 + 1001 to nudge the SKM awake, then establishes
+    an extended diagnostic session and activates the requested relay level.
+
+    The SKM (0x7A5) can only be reached when the CAN bus is already active
+    (e.g. during charging). See skm-wakeup.md for details.
+    """
+    if level not in SKM_RELAYS:
+        print(f"  Unknown level: {level}. Available: {', '.join(SKM_RELAYS.keys())}", file=sys.stderr)
+        return False
+
+    did, desc = SKM_RELAYS[level]
+
+    if level == "start":
+        print("  !! WARNING: Start Relay can crank the motor!", file=sys.stderr)
+        print("  !! Only proceed if the car is in Park and safe conditions.", file=sys.stderr)
+        try:
+            confirm = await asyncio.get_event_loop().run_in_executor(
+                None, lambda: input("  !! Type 'YES' to proceed: "))
+        except (EOFError, KeyboardInterrupt):
+            confirm = ""
+        if confirm.strip() != "YES":
+            print("  Aborted.")
+            return False
+
+    print(f"\n  SKM Wakeup — {desc}")
+    print(f"  ─────────────────────────────────")
+
+    # Step 1: Broadcast to wake SKM
+    print(f"  [1/3] Broadcasting wake signal (3E00 + 1001 on 0x7DF)...")
+    await terminal.send_command("ATSH7DF")
+    await terminal.send_command("ATFCSH7DF")
+
+    # Send multiple rounds — SKM may need several nudges to wake
+    for i in range(3):
+        resp = await terminal.send_command("3E00")
+        if verbose:
+            print(f"        3E00 [{i+1}] -> {resp}")
+
+    resp = await terminal.send_command("1001")
+    if verbose:
+        print(f"        1001 -> {resp}")
+
+    # Brief pause before switching to SKM — let CAN bus settle
+    await asyncio.sleep(0.5)
+
+    # Step 2: Extended diagnostic session on SKM
+    print(f"  [2/3] Establishing extended session on SKM (0x7A5)...")
+    await terminal.send_command("ATSH7A5")
+    await terminal.send_command("ATFCSH7A5")
+
+    session_ok = False
+    for attempt in range(8):
+        resp = await terminal.send_command("1003", timeout=3.0)
+        if "50 03" in resp or "5003" in resp:
+            session_ok = True
+            if verbose:
+                print(f"        1003 -> {resp} (attempt {attempt + 1})")
+            break
+        if verbose:
+            print(f"        1003 -> {resp} (attempt {attempt + 1})")
+        await asyncio.sleep(1.0)
+
+    if not session_ok:
+        print(f"  FAILED: SKM did not respond to extended session request.")
+        print(f"  The SKM may be asleep. It only responds when the CAN bus is active")
+        print(f"  (e.g. during charging). See skm-wakeup.md for details.")
+        return False
+
+    print(f"        Session established.")
+
+    # Step 3: Send relay ON command
+    # The IOControl command is 7 bytes of UDS data (2F B1 xx 03 0A 0A 05),
+    # which exceeds the single-frame ISO-TP limit (max 6 data bytes after the
+    # PCI byte). The ELM327 therefore sends a multi-frame request:
+    #   - First Frame (FF) with the start of the payload
+    #   - The ECU responds with a Flow Control (FC) frame
+    #   - ELM327 sends Consecutive Frame(s) with the rest
+    #
+    # The ELM327 echoes "F00" (the FC frame it received from the ECU) and then
+    # immediately shows the ">" prompt — BEFORE the ECU sends its actual UDS
+    # response. The real response (7F2F78 pending, then 6FB10803 positive)
+    # arrives asynchronously after the prompt. We must keep reading after the
+    # initial "F00" response.
+    await terminal._drain()
+    cmd = f"2F{did}03{SKM_MAGIC}"
+    print(f"  [3/3] Sending {desc} ON ({cmd})...")
+    resp = await terminal.send_command(cmd, timeout=10.0)
+
+    # If the response is just the FC echo ("F00" or similar), the real UDS
+    # response hasn't arrived yet. Keep reading from the WebSocket.
+    clean = resp.replace(" ", "").replace("\n", "").upper()
+    is_fc_only = clean in ("F00", "FC00", "F0", "FC0") or \
+                 (len(clean) <= 4 and clean.startswith("F"))
+
+    if is_fc_only or ("7F2F78" in clean and "6F" not in clean):
+        if verbose:
+            reason = "FC echo" if is_fc_only else "pending NRC"
+            print(f"        Initial response: {resp.strip()} ({reason})")
+            print(f"        Waiting for UDS response...")
+        # Keep reading WebSocket messages for the actual UDS response.
+        # The ECU sends 7F2F78 (pending) first, then the positive response.
+        # Collect for up to 10 seconds.
+        deadline = time.monotonic() + 10.0
+        extra_parts = []
+        while time.monotonic() < deadline:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            try:
+                msg = await asyncio.wait_for(
+                    terminal.ws.recv(), timeout=min(remaining, 1.0))
+                if isinstance(msg, str):
+                    try:
+                        parsed = json.loads(msg)
+                        if parsed.get("type") == "term_out":
+                            data = parsed["data"]
+                            extra_parts.append(data)
+                            if verbose:
+                                print(f"        Recv: {data.strip()!r}")
+                        continue
+                    except json.JSONDecodeError:
+                        pass
+                    extra_parts.append(msg)
+                    if verbose:
+                        print(f"        Recv: {msg.strip()!r}")
+                # Check if we got the positive response — stop early
+                combined = "".join(extra_parts).replace(" ", "").upper()
+                if "6FB1" in combined or "6F" in combined:
+                    break
+                # Also stop on non-pending NRC (real error)
+                if re.search(r"7F2F(?!78)[0-9A-Fa-f]{2}", combined):
+                    break
+            except asyncio.TimeoutError:
+                # If we already have a pending NRC, keep waiting
+                combined = "".join(extra_parts).replace(" ", "").upper()
+                if "7F2F78" in combined and "6F" not in combined:
+                    continue
+                break
+            except Exception:
+                break
+        if extra_parts:
+            resp = resp + "\n" + "".join(extra_parts)
+            if verbose:
+                print(f"        Full response: {resp.strip()}")
+
+    # Parse response — look for positive response 6F B1 xx 03
+    success = f"6F{did[0:2]}" in resp.replace(" ", "").upper() or \
+              f"6FB1" in resp.replace(" ", "").upper()
+
+    if success:
+        print(f"        {desc} activated!")
+        print(f"\n  Woke ECUs should now respond to queries.")
+    else:
+        # Check for pending + NRC
+        clean = resp.replace(" ", "").upper()
+        if "7F2F7F" in clean:
+            print(f"        FAILED: serviceNotSupportedInActiveSession")
+            print(f"        The extended session may have expired. Try again.")
+        elif "7F2F78" in clean and "6F" not in clean:
+            print(f"        Pending response received but no positive confirmation.")
+        else:
+            print(f"        Response: {resp}")
+            print(f"        Could not confirm relay activation.")
+
+    return success
+
+
+# ── TesterPresent Mode ───────────────────────────────────────────────────
+
+async def mode_tester_present(terminal: WiCANTerminal, target: str | None,
+                               interval: float, verbose: bool):
+    """Send TesterPresent (3E00) at regular intervals to keep a session alive.
+
+    If no target is specified, sends to the broadcast address (7DF).
+    If a target ECU TX ID is specified, sends only to that ECU.
+
+    Runs until interrupted with Ctrl+C.
+    """
+    if target:
+        tx_id = target.upper()
+        print(f"\n  TesterPresent — targeting 0x{tx_id} every {interval:.1f}s")
+        await terminal.send_command(f"ATSH{tx_id}")
+        await terminal.send_command(f"ATFCSH{tx_id}")
+    else:
+        tx_id = "7DF"
+        print(f"\n  TesterPresent — broadcast (0x7DF) every {interval:.1f}s")
+        await terminal.send_command("ATSH7DF")
+        await terminal.send_command("ATFCSH7DF")
+
+    print(f"  Press Ctrl+C to stop.\n")
+
+    count = 0
+    try:
+        while True:
+            count += 1
+            resp = await terminal.send_command("3E00", timeout=2.0)
+
+            # Parse response
+            clean = resp.replace(" ", "").replace("\n", " ").strip()
+            ts = datetime.now().strftime("%H:%M:%S")
+
+            if verbose:
+                print(f"  [{ts}] #{count} 3E00 -> {clean}")
+            else:
+                # Count responding ECUs
+                # Positive: 7E 00, Negative: 7F 3E xx
+                n_pos = clean.count("7E00")
+                n_neg = clean.upper().count("7F3E")
+                has_nodata = "NODATA" in clean.upper().replace(" ", "")
+                if has_nodata:
+                    print(f"  [{ts}] #{count} NO DATA", end="\r")
+                else:
+                    parts = []
+                    if n_pos:
+                        parts.append(f"{n_pos} OK")
+                    if n_neg:
+                        parts.append(f"{n_neg} NRC")
+                    print(f"  [{ts}] #{count} {', '.join(parts) if parts else clean[:40]}", end="\r")
+
+            await asyncio.sleep(interval)
+
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        print(f"\n\n  Stopped after {count} messages.")
+
+
 # ── Main ──────────────────────────────────────────────────────────────────
 
 def parse_range(range_str: str) -> tuple[int, int]:
@@ -1167,7 +1445,7 @@ async def async_main(args):
 
     # Initialize logging
     _init_logging()
-    log_command(f"--- SESSION START (host={host}, mode={'interactive' if not any([args.param, args.ecu, args.raw, args.scan]) else 'batch'}, unsafe={args.unsafe}) ---")
+    log_command(f"--- SESSION START (host={host}, mode={'interactive' if not any([args.param, args.ecu, args.raw, args.scan, args.skm_wakeup, args.tester_present]) else 'batch'}, unsafe={args.unsafe}) ---")
 
     if args.unsafe:
         print("!! WARNING: --unsafe mode active. Dangerous command blocklist is bypassed.")
@@ -1194,7 +1472,11 @@ async def async_main(args):
         print("Ready.")
 
         # Dispatch to mode
-        if args.param:
+        if args.skm_wakeup:
+            await mode_skm_wakeup(terminal, args.level, args.verbose)
+        elif args.tester_present:
+            await mode_tester_present(terminal, args.target, args.interval, args.verbose)
+        elif args.param:
             await mode_param(terminal, pids_data, args.param, args.verbose, args.json)
         elif args.ecu:
             await mode_ecu(terminal, pids_data, args.ecu, args.pid, args.verbose, args.json)
@@ -1250,6 +1532,11 @@ Examples:
   %(prog)s --scan --tx 7E4 --service 21 --range 01-FF
                                             Scan PID range
 
+  %(prog)s --skm-wakeup                     Wake sleeping ECUs via SKM (ACC)
+  %(prog)s --skm-wakeup --level ign1        Wake with IGN1 (more ECUs)
+  %(prog)s --tester-present                 Send 3E00 broadcast at 1 Hz
+  %(prog)s --tester-present --target 7A5    Send 3E00 to SKM only
+
   %(prog)s --wican vpn --param SOC_BMS      Use VPN address
   %(prog)s --verbose --ecu VCU              Show raw WebSocket traffic
   %(prog)s --json --param SOC_BMS           JSON output
@@ -1267,6 +1554,10 @@ Examples:
                       help="Raw UDS request (e.g., 7E4:2101)")
     mode.add_argument("--scan", action="store_true",
                       help="Scan a range of PIDs (requires --tx)")
+    mode.add_argument("--skm-wakeup", action="store_true",
+                      help="Wake sleeping ECUs via SKM relay control (requires active CAN bus)")
+    mode.add_argument("--tester-present", action="store_true",
+                      help="Send TesterPresent (3E00) at regular intervals (Ctrl+C to stop)")
 
     # ECU/PID mode options
     parser.add_argument("--pid", metavar="PID",
@@ -1279,6 +1570,17 @@ Examples:
                         help="UDS service for --scan (hex, default: 21)")
     parser.add_argument("--range", metavar="START-END", default="01-FF",
                         help="PID range for --scan (hex, default: 01-FF)")
+
+    # SKM wakeup options
+    parser.add_argument("--level", default="acc",
+                        choices=["acc", "ign1", "ign2", "start"],
+                        help="Relay level for --skm-wakeup (default: acc)")
+
+    # TesterPresent options
+    parser.add_argument("--target", metavar="TX_ID",
+                        help="ECU TX ID for --tester-present (hex, e.g., 7A5). Default: broadcast 7DF")
+    parser.add_argument("--interval", type=float, default=1.0,
+                        help="Interval in seconds for --tester-present (default: 1.0)")
 
     # Connection options
     parser.add_argument("--wican", default=DEFAULT_WICAN,
