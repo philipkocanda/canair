@@ -279,3 +279,125 @@ sessions:
       # 0x770 (IGPM) 22BC04 — empty response (ignition required?)
       # 0x7A0 (BCM) 22B00E  — NO DATA (ignition required?)
       # 0x7D1 (ESC) 22C101  — empty response (ignition required?)
+
+  - date: "2026-04-14"
+    label: "ACC mode (accessory on, parked)"
+    notes: >
+      Car in accessory mode (ACC), not charging, parked, all doors closed and locked.
+      SKM wakeup (2FB108030A0A05 on 0x7A5) was used earlier in this session to bring
+      ECUs online during charging — ACC stayed on even after ACC Off and ECU Reset commands.
+      User then manually put car in ACC mode. All IGPM, CLU, TPMS, ESC responding.
+      IGPM 22BC08-0A return NRC 0x31 (requestOutOfRange) — those DIDs don't exist.
+    captures:
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC01"
+        payload: "62BC01400000000002"
+        notes: "9 bytes."
+
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC02"
+        payload: "62BC0200000000"
+        notes: "7 bytes. All zeros."
+
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC03"
+        payload: "62BC03FDEE3C7320600000"
+        notes: >
+          11 bytes. Door/trunk/seatbelt/ignition status.
+          All doors closed+locked, trunk closed, ACC on.
+          Compare with SKM-wakeup capture: byte 7 changed 00->20 (bit 5 = ACC),
+          byte 8 changed 00->60 (bits 5+6), byte 9 changed 0C->00.
+
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC04"
+        payload: "62BC04B53FF4EA01000042"
+        notes: >
+          11 bytes. Door lock status.
+          Compare with SKM-wakeup: byte 7 changed 00->01.
+          Byte 10 = 0x42 (same in both captures).
+
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC05"
+        payload: "62BC057F112000000000"
+        notes: "11 bytes. Unknown function."
+
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC06"
+        payload: "62BC06B4800000000000"
+        notes: "11 bytes. Lighting/brake status? Byte 3 = 0xB4, byte 4 = 0x80."
+
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC07"
+        payload: "62BC070841FBCC00001900"
+        notes: "11 bytes. Unknown function."
+
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC08"
+        payload: ""
+        notes: "NRC 0x31 — requestOutOfRange. DID does not exist."
+
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC09"
+        payload: ""
+        notes: "NRC 0x31 — requestOutOfRange. DID does not exist."
+
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC0A"
+        payload: ""
+        notes: "NRC 0x31 — requestOutOfRange. DID does not exist."
+
+      - ecu_tx: 0x7C6
+        ecu_rx: 0x7CE
+        ecu_name: CLU
+        pid: "22B002"
+        payload: "62B002E0000000008E01119F00000000000000"
+        notes: "18 bytes. Odometer at byte 9-11: 0x008E01 = needs verification. Responded in ACC (failed during charging)."
+
+      - ecu_tx: 0x7A0
+        ecu_rx: 0x7A8
+        ecu_name: TPMS
+        pid: "22C00B"
+        payload: "62C00BFFFF0000C9430100CB430100CF440100CB440100"
+        notes: >
+          23 bytes. Tyre pressures and temps. FL: 0xC9=201/72.52=2.77bar, temp 0x43=67-50=17°C.
+          FR: 0xCB=203/72.52=2.80bar, temp 0x43=17°C.
+          RL: 0xCF=207/72.52=2.85bar, temp 0x44=18°C.
+          RR: 0xCB=203/72.52=2.80bar, temp 0x44=18°C.
+          Responded in ACC (failed during charging).
+
+      - ecu_tx: 0x7D1
+        ecu_rx: 0x7D9
+        ecu_name: ESC
+        pid: "22C101"
+        payload: "62C1015BD7E760FFFF00FF01C4FF0000000000FF80FF0030F4000000FFFF801407FB07FCFFFF0000FFFFFF0000000000"
+        notes: "42 bytes. First capture of ESC. Responded in ACC (failed during charging). Contains wheel speed and stability data — undecoded."
+
+      # SKM wakeup sequence used earlier in this session:
+      #
+      # 1. ATSH7A5 / ATFCSH7A5 (set headers for SKM)
+      # 2. 1003 (extended diagnostic session) → positive response 5003
+      # 3. 2FB108030A0A05 (ACC On) → 7F2F78 (pending) then positive
+      # 4. ACC turned on dashboard lights and woke IGPM
+      # 5. 2FB10800 (ACC Off) → positive response 6FB10800, but lights stayed on
+      # 6. 1101 (ECU hard reset) → positive 510100FE, lights still on
+      # 7. ACC could not be turned off via CAN — stayed on until user intervened

@@ -21,7 +21,9 @@ Requires: websockets, pyyaml (requests optional, for --reboot)
 
 import argparse
 import asyncio
+from datetime import datetime, timezone
 import json
+import logging
 import os
 import re
 import signal
@@ -68,6 +70,134 @@ WICAN_ADDRESSES = {
     "vpn": "192.168.3.2",
 }
 DEFAULT_WICAN = "home"
+
+# ── Logging ───────────────────────────────────────────────────────────────
+LOG_DIR = SCRIPT_DIR / "logs"
+
+# Separate loggers for commands and responses
+_cmd_logger: logging.Logger | None = None
+_resp_logger: logging.Logger | None = None
+
+
+def _init_logging():
+    """Initialize date-stamped command and response log files.
+
+    Creates:
+        logs/commands-YYYY-MM-DD.log   — every command sent to the WiCAN
+        logs/responses-YYYY-MM-DD.log  — every response received from the WiCAN
+    """
+    global _cmd_logger, _resp_logger
+
+    LOG_DIR.mkdir(exist_ok=True)
+    date_str = datetime.now().strftime("%Y-%m-%d")
+
+    # Command logger
+    _cmd_logger = logging.getLogger("can_request.commands")
+    _cmd_logger.setLevel(logging.INFO)
+    _cmd_logger.propagate = False
+    if not _cmd_logger.handlers:
+        fh = logging.FileHandler(LOG_DIR / f"commands-{date_str}.log", encoding="utf-8")
+        fh.setFormatter(logging.Formatter("%(message)s"))
+        _cmd_logger.addHandler(fh)
+
+    # Response logger
+    _resp_logger = logging.getLogger("can_request.responses")
+    _resp_logger.setLevel(logging.INFO)
+    _resp_logger.propagate = False
+    if not _resp_logger.handlers:
+        fh = logging.FileHandler(LOG_DIR / f"responses-{date_str}.log", encoding="utf-8")
+        fh.setFormatter(logging.Formatter("%(message)s"))
+        _resp_logger.addHandler(fh)
+
+
+def log_command(cmd: str):
+    """Log a command with ISO 8601 timestamp."""
+    if _cmd_logger:
+        ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+        _cmd_logger.info(f"[{ts}] {cmd}")
+
+
+def log_response(cmd: str, response: str):
+    """Log a response with ISO 8601 timestamp and the command that triggered it."""
+    if _resp_logger:
+        ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+        # Collapse multi-line responses to a single log line for grep-ability
+        resp_oneline = response.replace("\n", " | ")
+        _resp_logger.info(f"[{ts}] {cmd} -> {resp_oneline}")
+
+
+# ── Safety: Dangerous Command Blocklist ──────────────────────────────────
+# UDS services that can write to ECU memory, reflash firmware, or actuate
+# physical outputs. These are blocked by default to prevent accidental
+# damage to the vehicle's electronic control units.
+#
+# Blocked services:
+#   0x10 02   — DiagnosticSessionControl: programming session
+#   0x2E      — WriteDataByIdentifier: write arbitrary data to ECU
+#   0x34      — RequestDownload: initiate ECU reflash
+#   0x35      — RequestUpload: read ECU memory (can leak keys)
+#   0x36      — TransferData: data transfer during flash
+#   0x37      — RequestTransferExit: finalize flash transfer
+#   0x38      — RequestFileTransfer
+#
+# Allowed services (NOT blocked):
+#   0x10 01   — DiagnosticSessionControl: default session
+#   0x10 03   — DiagnosticSessionControl: extended session (needed for some reads)
+#   0x21/0x22 — ReadDataByIdentifier (our primary use case)
+#   0x27      — SecurityAccess (needed for IOControl experiments)
+#   0x2F      — InputOutputControlByIdentifier (needed for door lock/cable experiments)
+#   0x31      — RoutineControl (valid diagnostic use)
+#   0x3E      — TesterPresent (keepalive)
+#   0x19      — ReadDTCInformation (read-only)
+
+BLOCKED_UDS_SERVICES = {
+    0x2E: "WriteDataByIdentifier (write to ECU memory)",
+    0x34: "RequestDownload (ECU reflash)",
+    0x35: "RequestUpload (ECU memory dump)",
+    0x36: "TransferData (flash data transfer)",
+    0x37: "RequestTransferExit (finalize flash)",
+    0x38: "RequestFileTransfer",
+}
+
+
+def check_command_safety(cmd: str) -> str | None:
+    """Check if a command is potentially dangerous.
+
+    Returns an error message if the command is blocked, or None if safe.
+    Checks both raw UDS hex commands and AT commands.
+    """
+    clean = cmd.strip().upper()
+
+    # AT commands are generally safe — they configure the ELM327 adapter,
+    # not the vehicle ECUs. Allow all AT commands.
+    if clean.startswith("AT"):
+        return None
+
+    # Must be a hex UDS request. Extract the service byte.
+    hex_only = clean.replace(" ", "")
+    if not hex_only or not all(c in "0123456789ABCDEF" for c in hex_only):
+        return None  # Not a hex command — let ELM327 handle it
+
+    if len(hex_only) < 2:
+        return None
+
+    service_byte = int(hex_only[:2], 16)
+
+    # Check blocklist
+    if service_byte in BLOCKED_UDS_SERVICES:
+        desc = BLOCKED_UDS_SERVICES[service_byte]
+        return f"BLOCKED: UDS service 0x{service_byte:02X} — {desc}"
+
+    # Special case: DiagnosticSessionControl (0x10) — block programming (02)
+    # session but allow default (01) and extended (03)
+    if service_byte == 0x10 and len(hex_only) >= 4:
+        sub = int(hex_only[2:4], 16)
+        if sub == 0x02:
+            return ("BLOCKED: DiagnosticSessionControl sub 0x02 "
+                    "(programmingSession) — required for flash/write operations")
+
+    return None
+
 
 # ── ELM327 constants ─────────────────────────────────────────────────────
 # UDS Negative Response Code descriptions
@@ -343,11 +473,13 @@ def reboot_wican(host: str):
 class WiCANTerminal:
     """WebSocket connection to WiCAN in ELM327 terminal mode."""
 
-    def __init__(self, host: str, timeout: float = 3.0, verbose: bool = False):
+    def __init__(self, host: str, timeout: float = 3.0, verbose: bool = False,
+                 unsafe: bool = False):
         self.host = host
         self.url = f"ws://{host}/ws"
         self.timeout = timeout
         self.verbose = verbose
+        self.unsafe = unsafe
         self.ws = None
         self._buffer = ""
 
@@ -397,9 +529,36 @@ class WiCANTerminal:
 
         Returns:
             Raw response text (may contain multiple lines)
+
+        Raises:
+            ValueError: If the command is blocked by the safety check.
         """
         if timeout is None:
             timeout = self.timeout
+
+        # Safety check — block dangerous UDS services
+        blocked = check_command_safety(cmd)
+        if blocked:
+            if not self.unsafe:
+                log_command(f"{cmd}  !! {blocked}")
+                raise ValueError(blocked)
+            # Unsafe mode: require explicit user consent for each command
+            print(f"\n  !! WARNING: {blocked}", file=sys.stderr)
+            print(f"  !! --unsafe mode is active. The user MUST be consulted and", file=sys.stderr)
+            print(f"  !! must explicitly give consent before this command is executed.", file=sys.stderr)
+            print(f"  !! This command can cause irreversible damage to vehicle ECUs.", file=sys.stderr)
+            try:
+                confirm = await asyncio.get_event_loop().run_in_executor(
+                    None, lambda: input("  !! Type 'YES' to execute, anything else to skip: "))
+            except (EOFError, KeyboardInterrupt):
+                confirm = ""
+            if confirm.strip() != "YES":
+                log_command(f"{cmd}  !! {blocked} — user declined")
+                raise ValueError(f"Command declined by user: {cmd}")
+            log_command(f"{cmd}  !! {blocked} — user confirmed (unsafe mode)")
+
+        # Log the command
+        log_command(cmd)
 
         # Send command with CR terminator
         await self.ws.send(cmd + "\r")
@@ -457,7 +616,13 @@ class WiCANTerminal:
         raw = raw.replace(">", "").replace("\r\n", "\n").replace("\r", "\n")
         # Strip control characters except newline
         raw = re.sub(r"[\x00-\x09\x0b-\x1f]", "", raw)
-        return raw.strip()
+
+        result = raw.strip()
+
+        # Log the response
+        log_response(cmd, result)
+
+        return result
 
     async def init_elm(self, init_string: str = "ATSP6;ATS0;ATAL;ATST96;"):
         """Send ELM327 initialization commands.
@@ -717,6 +882,9 @@ async def mode_interactive(terminal: WiCANTerminal, pids_data: dict, verbose: bo
                     desc = response.get("nrc_desc", "unknown")
                     print(f"  [NRC] Service 0x{svc:02X} rejected: 0x{nrc:02X} ({desc})")
 
+        except ValueError as e:
+            # Blocked by safety check
+            print(f"  !! {e}")
         except Exception as e:
             print(f"  Error: {e}")
     print()
@@ -997,6 +1165,15 @@ async def async_main(args):
     if host in WICAN_ADDRESSES:
         host = WICAN_ADDRESSES[host]
 
+    # Initialize logging
+    _init_logging()
+    log_command(f"--- SESSION START (host={host}, mode={'interactive' if not any([args.param, args.ecu, args.raw, args.scan]) else 'batch'}, unsafe={args.unsafe}) ---")
+
+    if args.unsafe:
+        print("!! WARNING: --unsafe mode active. Dangerous command blocklist is bypassed.")
+        print("!! Each blocked command will require explicit user consent before execution.")
+        print()
+
     # Load YAML definitions
     pids_data = load_pids()
     init_string = pids_data.get("init", "ATSP6;ATS0;ATAL;ATST96;")
@@ -1006,6 +1183,7 @@ async def async_main(args):
         host=host,
         timeout=args.timeout,
         verbose=args.verbose,
+        unsafe=args.unsafe,
     )
 
     try:
@@ -1048,6 +1226,7 @@ async def async_main(args):
         sys.exit(1)
     finally:
         await terminal.close()
+        log_command("--- SESSION END ---")
 
         # Reboot to restore AutoPID mode, or warn
         if args.reboot:
@@ -1114,6 +1293,8 @@ Examples:
                         help="Show raw WebSocket traffic and expressions")
     parser.add_argument("--reboot", action="store_true",
                         help="Reboot WiCAN after session to restore AutoPID mode")
+    parser.add_argument("--unsafe", action="store_true",
+                        help="Bypass dangerous command blocklist (requires explicit per-command consent)")
 
     args = parser.parse_args()
 
