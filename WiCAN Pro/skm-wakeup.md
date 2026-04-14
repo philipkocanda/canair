@@ -10,12 +10,13 @@ The **SKM (Smart Key Module)** at ECU address `0x7A5` can remotely activate the 
 
 ## Prerequisites
 
+- **WiCAN must be powered on** — the WiCAN has a sleep mode that powers the device off when the 12V battery voltage drops below a configured threshold (currently **12.9V**). When the car is fully off, the 12V battery rests at ~12.4–12.6V — below the threshold — so the WiCAN is completely off and unreachable. The WiCAN only stays powered when the LDC (DC-DC converter) is active, which charges the 12V battery to ~14.5V. This happens during:
+  - AC or DC charging
+  - ACC or ignition-on mode
+  - Briefly after keyfob unlock (if 12V was recently topped up)
 - WiCAN must be connected to WiFi and reachable (e.g. `http://10.0.2.86`)
 - Use `can-request.py` interactive mode or direct WebSocket terminal
-- **The CAN bus must already be active** — the SKM cannot wake the car from a fully powered-down state. The diagnostic CAN bus is completely off when the car is asleep; all commands return `NO DATA`. The CAN bus is active when:
-  - The car is AC or DC charging
-  - Within ~10 minutes of unlocking with the smart key remote
-  - The car is in ACC or ignition-on mode
+- **The CAN bus must already be active** — the SKM cannot wake the car from a fully powered-down state. The diagnostic CAN bus is completely off when the car is asleep; all commands return `NO DATA`
 
 ## Wakeup Procedure
 
