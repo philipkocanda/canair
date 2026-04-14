@@ -1091,16 +1091,17 @@ ecus:
             notes: "ImHex offset 0x24 → WiCAN B36. Raw capture: 313313 → 31331.3 Ah."
 
           OPERATING_TIME:
-            expression: "B57"
-            unit: ""
-            ha_class: ""
+            expression: "[B57:B60]/3600"
+            unit: "h"
+            ha_class: duration
             mqtt_topic: operating_time
-            min: ""
-            max: ""
-            source: "Original WiCAN config"
-            source_links: []
-            verified: false
-            notes: "INCORRECT: always returns 1. Car does expose this value (visible in CarScanner). Formula or byte offset is wrong."
+            min: "0"
+            max: "1000000"
+            source: "CSS Electronics DBC (OperatingTime m257 : 399|32@0+, scale 1/3600) + live verification"
+            source_links:
+              - "CSS Electronics/ev-data-pack-v10/electric_cars/dbc_files/can1-hyundai-kia-uds-v2.4.dbc"
+            verified: true
+            notes: "32-bit unsigned, ISO-TP bytes 48-51 (WiCAN B57-B60). Raw value is seconds, /3600 converts to hours. Live-verified 2026-04-14: 5902h. Was B57 (single byte = MSB of u32, always 0x01 = 1)."
 
           INVERTER_CAPACITOR_VOLTAGE:
             expression: "B62*0.1"
