@@ -217,6 +217,18 @@ ecus:
             verified: false
             notes: "Ioniq 5 byte offset — may not work on Ioniq 2017"
 
+          HVAC_INVERTER_TEMP:
+            expression: "(B15/2)-40"
+            unit: "°C"
+            ha_class: temperature
+            mqtt_topic: hvac_inverter_temp
+            min: "-40"
+            max: "87"
+            source: "ImHex pattern (@ 0x0C)"
+            source_links: []
+            verified: false
+            notes: "AC compressor inverter temperature. ImHex 0x0C → WiCAN B15."
+
   # ─── CLU (Cluster / Instrument Panel) ─────────────────────────────────
   CLU:
     tx_id: 0x7C6
@@ -417,6 +429,22 @@ ecus:
               - https://github.com/meatpiHQ/wican-fw/pull/716
             verified: false
             notes: ""
+
+      22BC06:
+        period: 2500
+        enabled: true
+        parameters:
+          BRAKE_LIGHT:
+            expression: "B4"
+            unit: ""
+            ha_class: ""
+            mqtt_topic: brake_light
+            min: "0"
+            max: "255"
+            source: "Ioniq 5 OBDb"
+            source_links: []
+            verified: false
+            notes: "Scalar value 0-255. For 0x22 service: B4 = data byte 1 (after 62 BC 06 header). Ioniq 5 confirmed at bix 32, len 8."
 
   # ─── ESC (Electronic Stability Control) ──────────────────────────────
   ESC:
@@ -676,6 +704,71 @@ ecus:
               - https://github.com/meatpiHQ/wican-fw/pull/716
             verified: false
             notes: ""
+
+          ACCEL_PEDAL_DEPTH:
+            expression: "B16/2"
+            unit: "%"
+            ha_class: ""
+            mqtt_topic: accel_pedal_depth
+            min: "0"
+            max: "100"
+            source: "ImHex pattern (@ 0x0E) + JejuSoul Torque Pro CSV"
+            source_links:
+              - https://docs.google.com/spreadsheets/d/1R2dW_4-ANg04TQdkHH52-8wdYItBkWDfppcsqOc-m1M
+            verified: false
+            notes: "ImHex offset 0x0E + 2 = B16. Ioniq 5 OBDb confirms at bix 96, len 8, div 2."
+
+      2102:
+        period: 5000
+        enabled: true
+        parameters:
+          VCU_MOTOR_RPM:
+            expression: "((S7<<8)|B6)"
+            unit: RPM
+            ha_class: ""
+            mqtt_topic: vcu_motor_rpm
+            min: ""
+            max: ""
+            source: "JejuSoul Torque Pro CSV"
+            source_links: []
+            verified: false
+            notes: "Torque letters e=B4,f=B5 → ISO-TP 4,5 → WiCAN B6,B7. Signed 16-bit."
+
+          VCU_INVERTER_INPUT_VOLTAGE:
+            expression: "B10*2"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: vcu_inverter_input_voltage
+            min: "0"
+            max: ""
+            source: "JejuSoul Torque Pro CSV"
+            source_links: []
+            verified: false
+            notes: "Torque letter I=B8 → ISO-TP 8 → WiCAN B10."
+
+          VCU_HEAT_SINK_TEMP:
+            expression: "B16-40"
+            unit: "°C"
+            ha_class: temperature
+            mqtt_topic: vcu_heat_sink_temp
+            min: "-40"
+            max: "215"
+            source: "JejuSoul Torque Pro CSV"
+            source_links: []
+            verified: false
+            notes: "Torque letter o=B14 → ISO-TP 14 → WiCAN B16."
+
+          VCU_MCU_TEMP:
+            expression: "B22-40"
+            unit: "°C"
+            ha_class: temperature
+            mqtt_topic: vcu_mcu_temp
+            min: "-40"
+            max: "215"
+            source: "JejuSoul Torque Pro CSV"
+            source_links: []
+            verified: false
+            notes: "Torque letter u=B20 → ISO-TP 20 → WiCAN B22."
 
   # ─── BMS (Battery Management System) ─────────────────────────────────
   BMS:
@@ -973,6 +1066,30 @@ ecus:
             verified: true
             notes: "Lifetime cumulative, unit is Wh not kWh"
 
+          CUMULATIVE_CURRENT_CHARGED:
+            expression: "((B32<<24)|(B33<<16)|(B34<<8)|B35)/10"
+            unit: Ah
+            ha_class: ""
+            mqtt_topic: cumulative_current_charged
+            min: "0"
+            max: ""
+            source: "ImHex pattern (u32 @ 0x20)"
+            source_links: []
+            verified: false
+            notes: "ImHex offset 0x20 → WiCAN B32. Raw capture: 313775 → 31377.5 Ah. Matches ImHex comment exactly."
+
+          CUMULATIVE_CURRENT_DISCHARGED:
+            expression: "((B36<<24)|(B37<<16)|(B38<<8)|B39)/10"
+            unit: Ah
+            ha_class: ""
+            mqtt_topic: cumulative_current_discharged
+            min: "0"
+            max: ""
+            source: "ImHex pattern (u32 @ 0x24)"
+            source_links: []
+            verified: false
+            notes: "ImHex offset 0x24 → WiCAN B36. Raw capture: 313313 → 31331.3 Ah."
+
           OPERATING_TIME:
             expression: "B57"
             unit: ""
@@ -1265,6 +1382,1081 @@ ecus:
             verified: true
             notes: "Unknown parameter — kept for investigation"
 
+      # Cell voltage PIDs — 96 cells across 3 PIDs (32 each)
+      # Format: B(6+n)*0.02 where n=cell index within PID (0-31)
+      # Cells 1-32 in 2102, 33-64 in 2103, 65-96 in 2104
+      # Only a subset are defined here; add more as needed.
+      2102:
+        period: 10000
+        enabled: false
+        parameters:
+          CELL_01_VOLTAGE:
+            expression: "B6*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_01_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern + raw capture verified"
+            source_links: []
+            verified: true
+            notes: "First cell. Pattern: CELL_n = B(5+n)*0.02 for n=1..32."
+          CELL_02_VOLTAGE:
+            expression: "B7*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_02_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_03_VOLTAGE:
+            expression: "B8*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_03_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_04_VOLTAGE:
+            expression: "B9*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_04_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_05_VOLTAGE:
+            expression: "B10*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_05_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_06_VOLTAGE:
+            expression: "B11*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_06_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_07_VOLTAGE:
+            expression: "B12*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_07_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_08_VOLTAGE:
+            expression: "B13*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_08_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_09_VOLTAGE:
+            expression: "B14*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_09_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_10_VOLTAGE:
+            expression: "B15*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_10_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_11_VOLTAGE:
+            expression: "B16*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_11_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_12_VOLTAGE:
+            expression: "B17*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_12_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_13_VOLTAGE:
+            expression: "B18*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_13_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_14_VOLTAGE:
+            expression: "B19*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_14_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_15_VOLTAGE:
+            expression: "B20*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_15_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_16_VOLTAGE:
+            expression: "B21*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_16_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_17_VOLTAGE:
+            expression: "B22*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_17_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_18_VOLTAGE:
+            expression: "B23*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_18_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_19_VOLTAGE:
+            expression: "B24*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_19_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_20_VOLTAGE:
+            expression: "B25*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_20_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_21_VOLTAGE:
+            expression: "B26*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_21_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_22_VOLTAGE:
+            expression: "B27*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_22_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_23_VOLTAGE:
+            expression: "B28*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_23_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_24_VOLTAGE:
+            expression: "B29*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_24_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_25_VOLTAGE:
+            expression: "B30*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_25_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_26_VOLTAGE:
+            expression: "B31*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_26_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_27_VOLTAGE:
+            expression: "B32*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_27_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_28_VOLTAGE:
+            expression: "B33*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_28_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_29_VOLTAGE:
+            expression: "B34*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_29_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_30_VOLTAGE:
+            expression: "B35*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_30_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_31_VOLTAGE:
+            expression: "B36*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_31_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_32_VOLTAGE:
+            expression: "B37*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_32_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: "Last cell in PID 2102."
+
+      2103:
+        period: 10000
+        enabled: false
+        parameters:
+          CELL_33_VOLTAGE:
+            expression: "B6*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_33_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern + raw capture verified"
+            source_links: []
+            verified: true
+            notes: "First cell in PID 2103. Same B6..B37 pattern as 2102."
+          CELL_34_VOLTAGE:
+            expression: "B7*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_34_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_35_VOLTAGE:
+            expression: "B8*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_35_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_36_VOLTAGE:
+            expression: "B9*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_36_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_37_VOLTAGE:
+            expression: "B10*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_37_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_38_VOLTAGE:
+            expression: "B11*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_38_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_39_VOLTAGE:
+            expression: "B12*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_39_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_40_VOLTAGE:
+            expression: "B13*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_40_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_41_VOLTAGE:
+            expression: "B14*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_41_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_42_VOLTAGE:
+            expression: "B15*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_42_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_43_VOLTAGE:
+            expression: "B16*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_43_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_44_VOLTAGE:
+            expression: "B17*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_44_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_45_VOLTAGE:
+            expression: "B18*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_45_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_46_VOLTAGE:
+            expression: "B19*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_46_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_47_VOLTAGE:
+            expression: "B20*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_47_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_48_VOLTAGE:
+            expression: "B21*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_48_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_49_VOLTAGE:
+            expression: "B22*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_49_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_50_VOLTAGE:
+            expression: "B23*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_50_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_51_VOLTAGE:
+            expression: "B24*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_51_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_52_VOLTAGE:
+            expression: "B25*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_52_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_53_VOLTAGE:
+            expression: "B26*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_53_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_54_VOLTAGE:
+            expression: "B27*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_54_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_55_VOLTAGE:
+            expression: "B28*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_55_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_56_VOLTAGE:
+            expression: "B29*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_56_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_57_VOLTAGE:
+            expression: "B30*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_57_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_58_VOLTAGE:
+            expression: "B31*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_58_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_59_VOLTAGE:
+            expression: "B32*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_59_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_60_VOLTAGE:
+            expression: "B33*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_60_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_61_VOLTAGE:
+            expression: "B34*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_61_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_62_VOLTAGE:
+            expression: "B35*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_62_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_63_VOLTAGE:
+            expression: "B36*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_63_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_64_VOLTAGE:
+            expression: "B37*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_64_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: "Last cell in PID 2103."
+
+      2104:
+        period: 10000
+        enabled: false
+        parameters:
+          CELL_65_VOLTAGE:
+            expression: "B6*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_65_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern + raw capture verified"
+            source_links: []
+            verified: true
+            notes: "First cell in PID 2104. Same B6..B37 pattern."
+          CELL_66_VOLTAGE:
+            expression: "B7*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_66_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_67_VOLTAGE:
+            expression: "B8*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_67_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_68_VOLTAGE:
+            expression: "B9*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_68_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_69_VOLTAGE:
+            expression: "B10*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_69_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_70_VOLTAGE:
+            expression: "B11*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_70_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_71_VOLTAGE:
+            expression: "B12*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_71_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_72_VOLTAGE:
+            expression: "B13*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_72_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_73_VOLTAGE:
+            expression: "B14*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_73_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_74_VOLTAGE:
+            expression: "B15*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_74_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_75_VOLTAGE:
+            expression: "B16*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_75_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_76_VOLTAGE:
+            expression: "B17*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_76_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_77_VOLTAGE:
+            expression: "B18*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_77_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_78_VOLTAGE:
+            expression: "B19*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_78_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_79_VOLTAGE:
+            expression: "B20*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_79_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_80_VOLTAGE:
+            expression: "B21*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_80_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_81_VOLTAGE:
+            expression: "B22*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_81_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_82_VOLTAGE:
+            expression: "B23*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_82_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_83_VOLTAGE:
+            expression: "B24*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_83_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_84_VOLTAGE:
+            expression: "B25*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_84_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_85_VOLTAGE:
+            expression: "B26*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_85_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_86_VOLTAGE:
+            expression: "B27*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_86_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_87_VOLTAGE:
+            expression: "B28*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_87_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_88_VOLTAGE:
+            expression: "B29*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_88_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_89_VOLTAGE:
+            expression: "B30*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_89_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_90_VOLTAGE:
+            expression: "B31*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_90_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_91_VOLTAGE:
+            expression: "B32*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_91_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_92_VOLTAGE:
+            expression: "B33*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_92_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_93_VOLTAGE:
+            expression: "B34*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_93_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_94_VOLTAGE:
+            expression: "B35*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_94_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_95_VOLTAGE:
+            expression: "B36*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_95_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: ""
+          CELL_96_VOLTAGE:
+            expression: "B37*0.02"
+            unit: V
+            ha_class: voltage
+            mqtt_topic: cell_96_voltage
+            min: "0"
+            max: "5"
+            source: "ImHex pattern"
+            source_links: []
+            verified: true
+            notes: "Last cell. Total: 96 cells across PIDs 2102/2103/2104."
+
   # ─── OBC (On-Board Charger / VMCU) ───────────────────────────────────
   OBC:
     tx_id: 0x7E5
@@ -1338,6 +2530,32 @@ ecus:
             verified: false
             notes: ""
 
+          LDC_TEMP_1:
+            expression: "B15-100"
+            unit: "°C"
+            ha_class: temperature
+            mqtt_topic: ldc_temp_1
+            min: "-100"
+            max: "155"
+            source: "Ioniq PID sheet (Torque letter n)"
+            source_links:
+              - https://docs.google.com/spreadsheets/d/1R2dW_4-ANg04TQdkHH52-8wdYItBkWDfppcsqOc-m1M
+            verified: false
+            notes: "LDC converter temperature. Torque n=data byte 13 → WiCAN B15. Different formula from OBC temps (/2-40 vs -100)."
+
+          OBC_PILOT_DUTY:
+            expression: "B47/3"
+            unit: "%"
+            ha_class: ""
+            mqtt_topic: obc_pilot_duty
+            min: "0"
+            max: "100"
+            source: "Ioniq PID sheet (Torque am)"
+            source_links:
+              - https://docs.google.com/spreadsheets/d/1R2dW_4-ANg04TQdkHH52-8wdYItBkWDfppcsqOc-m1M
+            verified: false
+            notes: "EVSE pilot duty cycle — useful for determining charge state/rate."
+
       2103:
         period: 5000
         enabled: true
@@ -1354,6 +2572,26 @@ ecus:
               - https://github.com/meatpiHQ/wican-fw/pull/716
             verified: false
             notes: ""
+
+  # ─── MCU (Motor Control Unit) ─────────────────────────────────────────
+  MCU:
+    tx_id: 0x7E3
+    pids:
+      2102:
+        period: 5000
+        enabled: true
+        parameters:
+          MCU_MOTOR_RPM:
+            expression: "((S7<<8)|B6)"
+            unit: RPM
+            ha_class: ""
+            mqtt_topic: mcu_motor_rpm
+            min: ""
+            max: ""
+            source: "JejuSoul Torque Pro CSV + OVMS e-Niro"
+            source_links: []
+            verified: false
+            notes: "Signed 16-bit. Torque letters e=4,f=5 → ISO-TP 4,5 → WiCAN B6,B7. OVMS confirms 0x7E3 PID 2102 is polled at 11s intervals."
 
   # ─── Gateway ─────────────────────────────────────────────────────────
   Gateway:
