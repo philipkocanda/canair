@@ -1,5 +1,7 @@
 # SKM ECU Wakeup — Remote ACC/IGN Control via CAN
 
+
+
 ## Overview
 
 The **SKM (Smart Key Module)** at ECU address `0x7A5` can remotely activate the car's ACC (Accessory), IGN1, IGN2, and Start relays via UDS IOControl (`0x2F`) commands. This wakes sleeping ECUs (IGPM, CLU, TPMS, ESC, BCM) that don't respond when the car is locked or only AC charging.
