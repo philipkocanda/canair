@@ -112,17 +112,24 @@ For sustained IOControl sessions, UDS requires periodic TesterPresent (`3E00`) m
 - These commands are from the Kia Soul community and **have not been exhaustively tested** on the Ioniq. Proceed with caution
 - The magic bytes `0A 0A 05` work on both Kia Soul and Ioniq 2017. Alternative sequences `0A 05 0A` and `05 0A 0A` have been documented but not tested
 
+## ECU Power Domains
+
+The SKM is **not always powered**. It shares a power domain with the powertrain ECUs, not the body ECUs. This means:
+
+- **Keyfob unlock** wakes the IGPM only — the SKM, BMS, VCU all remain asleep
+- **AC charging** wakes BMS, VCU, LDC, Gateway, **and the SKM** — this is the only non-ignition state where SKM wakeup works
+- The SKM wakeup command is therefore specifically useful during **charging sessions** to bring the body ECUs (IGPM, CLU, TPMS, ESC) online alongside the already-awake powertrain ECUs
+
 ## ECU Sleep/Wake Behavior
 
-| Car State               | CAN Bus  | BMS/VCU/LDC | IGPM/CLU/TPMS/ESC |
-|--------------------------|----------|--------------|---------------------|
-| Locked, not charging     | OFF      | No           | No                  |
-| AC charging              | ON       | Yes          | No (sleeping)       |
-| AC charging + SKM wakeup | ON       | Yes          | Yes (ACC woke them) |
-| ACC mode (button)        | ON       | Yes          | Yes                 |
-| Ignition ON              | ON       | Yes          | Yes                 |
-
-After remote unlock (no ACC), IGPM responds for ~10 minutes before going back to sleep.
+| Car State                | CAN Bus | SKM   | BMS/VCU/LDC | IGPM/CLU/TPMS/ESC |
+|--------------------------|---------|-------|--------------|---------------------|
+| Locked, not charging     | OFF     | No    | No           | No                  |
+| Keyfob unlock (no ACC)   | ON      | No    | No           | IGPM only (~10 min) |
+| AC charging              | ON      | Yes   | Yes          | No (sleeping)       |
+| AC charging + SKM wakeup | ON      | Yes   | Yes          | Yes (ACC woke them) |
+| ACC mode (button)        | ON      | Yes   | Yes          | Yes                 |
+| Ignition ON              | ON      | Yes   | Yes          | Yes                 |
 
 ## Example Session (can-request.py)
 

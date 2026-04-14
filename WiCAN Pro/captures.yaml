@@ -401,3 +401,45 @@ sessions:
       # 5. 2FB10800 (ACC Off) → positive response 6FB10800, but lights stayed on
       # 6. 1101 (ECU hard reset) → positive 510100FE, lights still on
       # 7. ACC could not be turned off via CAN — stayed on until user intervened
+
+  - date: "2026-04-14"
+    label: "Keyfob wake (locked, no ignition)"
+    notes: >
+      Car fully asleep, then manual keyfob lock/unlock/lock. No charging, no ignition.
+      Only IGPM responds — BMS, VCU, SKM, CLU, TPMS all return NO DATA.
+      SKM wakeup (1003, 2FB108030A0A05) also returns NO DATA — SKM is only powered
+      during charging or ACC/IGN mode. IGPM stays awake ~10 min after keyfob activity.
+      22BC01 returned NO DATA (may need longer wake time or different power state).
+    captures:
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC03"
+        payload: "62BC03FDEE3C730A000000"
+        notes: >
+          11 bytes. Doors closed, locked, no ignition.
+          Byte 7 = 0x0A (00001010) — compare: 0x00 during charging-only, 0x20 in ACC mode.
+          Bits 1+3 set = keyfob-wake state. Bit 5 clear = no ACC.
+
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC04"
+        payload: "62BC04B53FF4EA0C00000200"
+        notes: >
+          11 bytes. Door lock status.
+          Byte 7 = 0x0C — compare: 0x00 during charging, 0x01 in ACC mode.
+          Byte 10 = 0x02 — compare: 0x00 during charging, 0x42 in ACC mode.
+
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC06"
+        payload: "62BC06B4800000000000"
+        notes: "11 bytes. Same as ACC mode capture — no change."
+
+      # ECUs that did NOT respond (car asleep, keyfob wake only):
+      # 0x7A5 (SKM) 1003 → NO DATA (not powered in this state)
+      # 0x7A5 (SKM) 2FB108030A0A05 → NO DATA
+      # 0x7E4 (BMS) 2101 → NO DATA
+      # 0x770 (IGPM) 22BC01 → NO DATA
