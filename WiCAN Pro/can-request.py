@@ -15,6 +15,7 @@ Modes:
     Query ECU       python3 can-request.py --ecu BMS [--pid 2101]
     Raw request     python3 can-request.py --raw 7E4:2101
     Scan PIDs       python3 can-request.py --scan --tx 7E4 --service 21 --range 01-FF
+    Scan IOControl  python3 can-request.py --scan --tx 7E4 --service 2F --range E000-E0FF --append 03 --session
     SKM wakeup      python3 can-request.py --skm-wakeup [--level acc|ign1|ign2]
     TesterPresent   python3 can-request.py --tester-present [--target 7A5]
 
@@ -1108,56 +1109,114 @@ async def mode_raw(terminal: WiCANTerminal, raw_spec: str, verbose: bool, as_jso
 
 
 async def mode_scan(terminal: WiCANTerminal, tx_id: int, service: int,
-                    pid_range: tuple[int, int], verbose: bool, as_json: bool):
-    """Scan a range of PIDs and show which respond positively."""
+                    pid_range: tuple[int, int], verbose: bool, as_json: bool,
+                    append_bytes: str = "", session: bool = False):
+    """Scan a range of PIDs and show which respond positively.
+
+    Args:
+        append_bytes: Hex string to append after each PID (e.g. "03" for
+            IOControl ShortTermAdjustment). Makes scan send e.g. "2F{DID}03".
+        session: If True, enter extended diagnostic session (10 03) before
+            scanning and send periodic TesterPresent (3E 00) in the background
+            to keep the session alive.
+    """
     start, end = pid_range
     total = end - start + 1
 
-    print(f"\n  Scanning TX 0x{tx_id:03X}, service 0x{service:02X}, PIDs 0x{start:02X}..0x{end:02X} ({total} PIDs)")
-    print()
+    # Use 2-byte DIDs for services that take them (0x22, 0x2F, 0x31)
+    wide_did = service in (0x22, 0x2F, 0x31)
+    did_fmt = "04X" if wide_did else "02X"
+    did_label = "DID" if wide_did else "PID"
+
+    suffix_label = f" + suffix {append_bytes}" if append_bytes else ""
+    print(f"\n  Scanning TX 0x{tx_id:03X}, service 0x{service:02X}, "
+          f"{did_label}s 0x{start:{did_fmt}}..0x{end:{did_fmt}} ({total} {did_label}s){suffix_label}")
 
     await terminal.set_header(tx_id)
+
+    # Enter extended diagnostic session if requested
+    tester_task = None
+    if session:
+        print(f"  Entering extended diagnostic session (10 03)...")
+        resp = await terminal.send_uds("1003", timeout=5.0)
+        if resp.get("ok"):
+            print(f"  Session established.")
+        elif resp.get("nrc") is not None:
+            nrc = resp["nrc"]
+            desc = resp["nrc_desc"]
+            print(f"  WARNING: Session request returned NRC 0x{nrc:02X} ({desc})")
+            print(f"  Continuing scan anyway — some ECUs may not need extended session.")
+        else:
+            error = resp.get("error", "unknown")
+            print(f"  WARNING: Session request failed: {error}")
+            print(f"  Continuing scan anyway.")
+
+        # Start background TesterPresent task
+        async def _tester_present_loop():
+            """Send 3E 00 every 2s to keep the extended session alive."""
+            try:
+                while True:
+                    await asyncio.sleep(2.0)
+                    try:
+                        await terminal.send_command("3E00", timeout=1.5)
+                        if verbose:
+                            print(f"  [tester] 3E00 keepalive sent", file=sys.stderr)
+                    except Exception:
+                        pass  # Don't crash scan on keepalive failure
+            except asyncio.CancelledError:
+                pass
+
+        tester_task = asyncio.create_task(_tester_present_loop())
+
+    print()
 
     positive = []
     negative = []
     errors = []
 
-    for pid_val in range(start, end + 1):
-        # Build the request string
-        if service == 0x22:
-            # Service 0x22 uses 2-byte DIDs
-            req = f"{service:02X}{pid_val:04X}"
-        else:
-            req = f"{service:02X}{pid_val:02X}"
+    try:
+        for pid_val in range(start, end + 1):
+            # Build the request string
+            req = f"{service:02X}{pid_val:{did_fmt}}{append_bytes}"
 
-        response = await terminal.send_uds(req, timeout=2.0)
+            response = await terminal.send_uds(req, timeout=2.0)
 
-        status = ""
-        if response["ok"]:
-            n_bytes = len(response["bytes"])
-            positive.append((pid_val, response))
-            status = f"  + 0x{pid_val:02X}: OK ({n_bytes} bytes)"
-            if verbose:
-                status += f"  {response['hex']}"
-            print(status)
-        elif response.get("nrc") is not None:
-            nrc = response["nrc"]
-            desc = response["nrc_desc"]
-            negative.append((pid_val, nrc, desc))
-            if verbose:
-                print(f"  - 0x{pid_val:02X}: NRC 0x{nrc:02X} ({desc})")
-        else:
-            error = response.get("error", "unknown")
-            errors.append((pid_val, error))
-            if verbose:
-                print(f"  ! 0x{pid_val:02X}: {error}")
+            status = ""
+            if response["ok"]:
+                n_bytes = len(response["bytes"])
+                positive.append((pid_val, response))
+                status = f"  + 0x{pid_val:{did_fmt}}: OK ({n_bytes} bytes)"
+                if verbose:
+                    status += f"  {response['hex']}"
+                print(status)
+            elif response.get("nrc") is not None:
+                nrc = response["nrc"]
+                desc = response["nrc_desc"]
+                negative.append((pid_val, nrc, desc))
+                if verbose:
+                    print(f"  - 0x{pid_val:{did_fmt}}: NRC 0x{nrc:02X} ({desc})")
+            else:
+                error = response.get("error", "unknown")
+                errors.append((pid_val, error))
+                if verbose:
+                    print(f"  ! 0x{pid_val:{did_fmt}}: {error}")
 
-        # Progress indicator (non-verbose)
-        if not verbose and not response["ok"]:
-            # Print progress every 16 PIDs
-            if (pid_val - start + 1) % 16 == 0:
-                pct = (pid_val - start + 1) / total * 100
-                print(f"  ... {pid_val - start + 1}/{total} ({pct:.0f}%)", end="\r", file=sys.stderr)
+            # Progress indicator (non-verbose)
+            if not verbose and not response["ok"]:
+                # Print progress every 16 PIDs
+                if (pid_val - start + 1) % 16 == 0:
+                    pct = (pid_val - start + 1) / total * 100
+                    print(f"  ... {pid_val - start + 1}/{total} ({pct:.0f}%)", end="\r", file=sys.stderr)
+    finally:
+        # Always cancel the TesterPresent background task
+        if tester_task:
+            tester_task.cancel()
+            try:
+                await tester_task
+            except asyncio.CancelledError:
+                pass
+            if verbose:
+                print(f"  [tester] Background keepalive stopped.", file=sys.stderr)
 
     print(f"\n  ─── Scan Results ────────────────────────")
     print(f"  Positive: {len(positive)}")
@@ -1165,19 +1224,21 @@ async def mode_scan(terminal: WiCANTerminal, tx_id: int, service: int,
     print(f"  Errors:   {len(errors)}")
 
     if positive:
-        print(f"\n  Responding PIDs:")
+        print(f"\n  Responding {did_label}s:")
         for pid_val, resp in positive:
             n = len(resp["bytes"])
-            print(f"    0x{pid_val:02X} — {n} bytes: {resp['hex'][:60]}{'...' if len(resp['hex']) > 60 else ''}")
+            print(f"    0x{pid_val:{did_fmt}} — {n} bytes: {resp['hex'][:60]}{'...' if len(resp['hex']) > 60 else ''}")
 
     if as_json:
         out = {
             "tx_id": f"0x{tx_id:03X}",
             "service": f"0x{service:02X}",
-            "range": f"0x{start:02X}-0x{end:02X}",
-            "positive": [{"pid": f"0x{p:02X}", "bytes": r["hex"]} for p, r in positive],
-            "negative": [{"pid": f"0x{p:02X}", "nrc": f"0x{n:02X}", "desc": d} for p, n, d in negative],
-            "errors": [{"pid": f"0x{p:02X}", "error": e} for p, e in errors],
+            "range": f"0x{start:{did_fmt}}-0x{end:{did_fmt}}",
+            "append": append_bytes if append_bytes else None,
+            "session": session,
+            "positive": [{"did": f"0x{p:{did_fmt}}", "bytes": r["hex"]} for p, r in positive],
+            "negative": [{"did": f"0x{p:{did_fmt}}", "nrc": f"0x{n:02X}", "desc": d} for p, n, d in negative],
+            "errors": [{"did": f"0x{p:{did_fmt}}", "error": e} for p, e in errors],
         }
         print(json.dumps(out, indent=2))
 
@@ -1429,10 +1490,10 @@ async def mode_tester_present(terminal: WiCANTerminal, target: str | None,
 # ── Main ──────────────────────────────────────────────────────────────────
 
 def parse_range(range_str: str) -> tuple[int, int]:
-    """Parse a PID range like '01-FF' or '00-1F'."""
+    """Parse a PID/DID range like '01-FF', 'E000-E0FF', or 'BC01-BC0B'."""
     match = re.match(r"^([0-9A-Fa-f]+)-([0-9A-Fa-f]+)$", range_str)
     if not match:
-        raise argparse.ArgumentTypeError(f"Invalid range: {range_str}. Expected format: 01-FF")
+        raise argparse.ArgumentTypeError(f"Invalid range: {range_str}. Expected format: 01-FF or E000-E0FF")
     return int(match.group(1), 16), int(match.group(2), 16)
 
 
@@ -1445,7 +1506,7 @@ async def async_main(args):
 
     # Initialize logging
     _init_logging()
-    log_command(f"--- SESSION START (host={host}, mode={'interactive' if not any([args.param, args.ecu, args.raw, args.scan, args.skm_wakeup, args.tester_present]) else 'batch'}, unsafe={args.unsafe}) ---")
+    log_command(f"--- SESSION START (host={host}, mode={'interactive' if not any([args.param, args.ecu, args.raw, args.scan, args.skm_wakeup, args.tester_present]) else 'batch'}, unsafe={args.unsafe}, session={getattr(args, 'session', False)}) ---")
 
     if args.unsafe:
         print("!! WARNING: --unsafe mode active. Dangerous command blocklist is bypassed.")
@@ -1489,7 +1550,15 @@ async def async_main(args):
             tx_id = int(args.tx, 16)
             service = int(args.service, 16) if args.service else 0x21
             pid_range = parse_range(args.range) if args.range else (0x01, 0xFF)
-            await mode_scan(terminal, tx_id, service, pid_range, args.verbose, args.json)
+            append_bytes = ""
+            if args.append:
+                cleaned = args.append.replace(" ", "").upper()
+                if not all(c in "0123456789ABCDEF" for c in cleaned) or len(cleaned) % 2 != 0:
+                    print(f"Error: --append must be valid hex bytes (e.g., 03 or 030A0A05)", file=sys.stderr)
+                    sys.exit(1)
+                append_bytes = cleaned
+            await mode_scan(terminal, tx_id, service, pid_range, args.verbose, args.json,
+                            append_bytes=append_bytes, session=args.session)
         else:
             # Interactive mode
             await mode_interactive(terminal, pids_data, args.verbose)
@@ -1531,6 +1600,10 @@ Examples:
   %(prog)s --raw 7E4:2101                   Raw UDS request
   %(prog)s --scan --tx 7E4 --service 21 --range 01-FF
                                             Scan PID range
+  %(prog)s --scan --tx 7E4 --service 2F --range E000-E0FF --append 03 --session
+                                            IOControl scan (extended session + suffix)
+  %(prog)s --scan --tx 7E4 --service 22 --range BC01-BC0B
+                                            Scan 0x22 DID range (auto 2-byte DIDs)
 
   %(prog)s --skm-wakeup                     Wake sleeping ECUs via SKM (ACC)
   %(prog)s --skm-wakeup --level ign1        Wake with IGN1 (more ECUs)
@@ -1570,6 +1643,12 @@ Examples:
                         help="UDS service for --scan (hex, default: 21)")
     parser.add_argument("--range", metavar="START-END", default="01-FF",
                         help="PID range for --scan (hex, default: 01-FF)")
+    parser.add_argument("--append", metavar="HEX",
+                        help="Hex bytes to append after each DID in --scan (e.g., 03 for IOControl "
+                             "ShortTermAdjustment). Makes scan send e.g. 2F{DID}03 instead of 2F{DID}.")
+    parser.add_argument("--session", action="store_true",
+                        help="Enter extended diagnostic session (10 03) before --scan and send periodic "
+                             "TesterPresent (3E 00) in the background to keep it alive.")
 
     # SKM wakeup options
     parser.add_argument("--level", default="acc",
