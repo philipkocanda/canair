@@ -293,17 +293,9 @@ read_pids:
     prerequisite: always
     description:  "BMS main — some params have wrong offsets or suspect values"
     what_to_test:
-      - "OPERATING_TIME (B57) — always returns 1, formula/offset wrong"
-      - "CUMULATIVE_ENERGY_CHARGED — implausibly large, B47→B49 skips B48"
-      - "CUMULATIVE_ENERGY_DISCHARGED — same issue"
-      - "CUMULATIVE_CURRENT_CHARGED — unverified"
-      - "CUMULATIVE_CURRENT_DISCHARGED — unverified"
-      - "MODULE_3_TEMP (S25) reads 0xCE = -50°C (padding byte)"
-      - "MODULE_5_TEMP (S27) reads 0xCE = -50°C (padding byte)"
       - "INVERTER_CAP_VOLTAGE (B62) — exceeds 61-byte stationary payload"
       - "DRIVE_MOTOR_SPEED (B65) — exceeds 61-byte stationary payload"
       - "ISOLATION_RESISTANCE (B69) — exceeds 61-byte stationary payload"
-      - "Response is 61 bytes stationary, 63 bytes driving — test while driving"
     sources:
       - "decode-captures.py output"
       - "ioniq-2017-pids.yaml"
@@ -1146,76 +1138,178 @@ read_pids:
 iocontrol:
 
   # ===========================================================================
-  # IGPM IOControl (0x770) — FROM KIA SOUL / e-NIRO, UNTESTED
+  # IGPM IOControl (0x770) — SCAN RESULTS FROM 2026-04-15
+  # ===========================================================================
+  # Full scan of BC00-BC20 performed. WARNING: scan triggered car alarm by
+  # actuating trunk unlock (BC09) and door lock/unlock (BC10/BC11).
+  # NEVER scan IOControl ranges blindly — test individual commands only.
+  # Lock/unlock/trunk tests must be done with the key fob in or near the
+  # car to prevent the horn/alarm from triggering.
+  #
+  # IOControl actuators require extended session (1003) + TesterPresent (3E00)
+  # keepalive. Actuator releases when session drops.
+  # Use: can-request.py --raw 770:2FBC0103 --hold
   # ===========================================================================
 
   - ecu:          IGPM
     tx_id:        "0x770"
     prerequisite: ext_sess
+    scan_date:    "2026-04-15"
     commands:
       - cmd: "2FBC0103"
         desc: "Head light low beam ON"
         off: "2FBC0100"
         priority: P2
+        status: verified
+        notes: "Confirmed working 2026-04-15. Positive response 6FBC0103."
       - cmd: "2FBC0203"
         desc: "Head light high beam ON"
         off: "2FBC0200"
         priority: P2
+        status: accepted
+        notes: "Positive response in scan. Not visually tested."
       - cmd: "2FBC0303"
         desc: "Front fog light ON"
         off: "2FBC0300"
         priority: P2
+        status: accepted
+        notes: "Positive response in scan. Not visually tested."
       - cmd: "2FBC0403"
         desc: "Rear light ON"
         off: "2FBC0400"
         priority: P2
+        status: accepted
+        notes: "Positive response in scan. Not visually tested. May also activate DRLs."
       - cmd: "2FBC0503"
         desc: "Red backlight flash"
         priority: P3
+        status: accepted
+        notes: "Positive response in scan. Not visually tested."
+      - cmd: "2FBC0703"
+        desc: "Unknown (not in e-Niro/Soul tables)"
+        priority: P3
+        status: accepted
+        notes: "Positive response in scan. Function unknown."
       - cmd: "2FBC0803"
         desc: "Rear fog light ON"
         off: "2FBC0800"
         priority: P3
+        status: accepted
+        notes: "Positive response in scan. Not visually tested."
       - cmd: "2FBC0903"
         desc: "Trunk unlock"
         priority: P1
+        status: verified
+        notes: "CONFIRMED WORKING 2026-04-15 — triggered car alarm during scan! Use with extreme caution."
+      - cmd: "2FBC0A03"
+        desc: "Unknown (not in e-Niro/Soul tables)"
+        priority: P3
+        status: accepted
+        notes: "Positive response in scan. Function unknown."
       - cmd: "2FBC0B03"
         desc: "Rear washer ON"
         off: "2FBC0B00"
         priority: P3
+        status: rejected
+        notes: "NRC 0x31 (requestOutOfRange). Not supported on Ioniq 2017."
       - cmd: "2FBC0C03"
         desc: "Defogger ON"
         off: "2FBC0C00"
         priority: P2
+        status: accepted
+        notes: "Positive response in scan. Not visually tested."
       - cmd: "2FBC1003"
         desc: "Door LOCK all"
         priority: P1
-      - cmd: "6FBC1103"
-        desc: "Door UNLOCK all (note: 0x6F prefix, not 0x2F)"
+        status: verified
+        notes: "CONFIRMED WORKING 2026-04-15 — triggered car alarm during scan!"
+      - cmd: "2FBC1103"
+        desc: "Door UNLOCK all"
         priority: P1
+        status: verified
+        notes: "CONFIRMED WORKING 2026-04-15 — triggered car alarm during scan! Note: uses standard 2F prefix (not 6F as in Kia Soul docs)."
+      - cmd: "2FBC1203"
+        desc: "Unknown unlock variant"
+        priority: P3
+        status: accepted
+        notes: "Positive response in scan. Function unknown."
+      - cmd: "2FBC1303"
+        desc: "Unknown"
+        priority: P3
+        status: rejected
+        notes: "NRC 0x22 (conditionsNotCorrect). May need ignition on or other precondition."
+      - cmd: "2FBC1403"
+        desc: "Unknown"
+        priority: P3
+        status: accepted
+        notes: "Positive response in scan. Function unknown."
       - cmd: "2FBC1503"
         desc: "Left turn indicator ON"
         off: "2FBC1500"
         priority: P2
+        status: verified
+        notes: "Confirmed working 2026-04-15. Left indicator turned on."
       - cmd: "2FBC1603"
         desc: "Right turn indicator ON"
         off: "2FBC1600"
         priority: P2
+        status: verified
+        notes: "Confirmed working 2026-04-15. Right indicator turned on."
+      - cmd: "2FBC1803"
+        desc: "Unknown"
+        priority: P3
+        status: accepted
+        notes: "Positive response in scan. Function unknown."
+      - cmd: "2FBC1B03"
+        desc: "Unknown"
+        priority: P3
+        status: accepted
+        notes: "Positive response in scan. Function unknown."
       - cmd: "2FBC1C03"
         desc: "Luggage lamp ON"
         off: "2FBC1C00"
         priority: P3
+        status: rejected
+        notes: "Response was 3E007E00 (TesterPresent echo, not IOControl response). Likely timing artifact."
       - cmd: "2FBC3F03"
         desc: "Charge cable LOCK"
         priority: P2
+        status: untested
+        notes: "Not in BC00-BC20 scan range. Still untested."
       - cmd: "2FBC4103"
         desc: "Charge cable UNLOCK"
         priority: P2
-    notes: |
-      Ioniq AE may use RoutineControl (0x31) instead of IOControl (0x2F).
-      If 0x2F returns NRC, try 0x31 with same subfunction bytes.
-    sources:
-      - "Obsidian: IGPM.md — KIA Soul / e-Niro commands"
+        status: untested
+        notes: "Not in BC00-BC20 scan range. Still untested."
+
+    rejected_dids:
+      - did: "BC00"
+        nrc: "0x31"
+        desc: "requestOutOfRange — no DRL IOControl"
+      - did: "BC06"
+        nrc: "0x31"
+        desc: "requestOutOfRange"
+      - did: "BC0B"
+        nrc: "0x31"
+        desc: "requestOutOfRange — rear washer not supported"
+      - did: "BC0D"
+        nrc: "0x31"
+        desc: "requestOutOfRange"
+      - did: "BC0E"
+        nrc: "0x31"
+        desc: "requestOutOfRange"
+      - did: "BC13"
+        nrc: "0x22"
+        desc: "conditionsNotCorrect — may need ignition"
+      - did: "BC17"
+        nrc: "0x31"
+        desc: "requestOutOfRange"
+      - did: "BC19"
+        nrc: "0x31"
+        desc: "requestOutOfRange"
+      - did: "BC1A"
+        nrc: "0x31"
+        desc: "requestOutOfRange"
 
   # ===========================================================================
   # BCM IOControl (0x7A0) — FROM e-NIRO, UNTESTED
@@ -1499,7 +1593,7 @@ discovery_scans:
     scan_cmd:     "--scan --tx 7E3 --service 2F --range E000-E0FF --append 03 --session"
     priority:     P2
     prerequisite: acc
-    description:  "MCU IOControl E0xx range — EWP control may be here (Ioniq 5 has EWP on MCU)"
+    description:  "MCU IOControl E0xx range"
 
   - ecu:          IGPM
     tx_id:        "0x770"
