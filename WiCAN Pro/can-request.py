@@ -19,6 +19,9 @@ Modes:
     SKM wakeup      python3 can-request.py --skm-wakeup [--level acc|ign1|ign2]
     TesterPresent   python3 can-request.py --tester-present [--target 7A5]
 
+    Add --session to any mode (except interactive) to enter extended diagnostic
+    session (10 03) before sending requests. Required for ECUs like IGPM (0x770).
+
 Requires: websockets, pyyaml (requests optional, for --reboot)
 """
 
@@ -593,7 +596,11 @@ class WiCANTerminal:
                     break
                 if response_parts:
                     text = "".join(response_parts)
-                    if "\r" in text and "7F" not in text:
+                    # Only break early if we have actual data (not just
+                    # the CR echo from our command). Strip whitespace and
+                    # check for hex content.
+                    stripped = text.replace("\r", "").replace("\n", "").strip()
+                    if stripped and "\r" in text and "7F" not in text:
                         break
                 continue
             except websockets.exceptions.ConnectionClosed:
@@ -691,6 +698,51 @@ class WiCANTerminal:
         """
         raw = await self.send_command(service_pid, timeout=timeout)
         return parse_elm_response(raw)
+
+    async def enter_extended_session(self) -> tuple[bool, asyncio.Task | None]:
+        """Enter extended diagnostic session (10 03) and start TesterPresent keepalive.
+
+        Some ECUs (e.g. IGPM 0x770) require an extended diagnostic session before
+        they will respond to 0x22 DID reads. This sends 10 03 and starts a background
+        task that sends 3E 00 every 2 seconds to keep the session alive.
+
+        Returns:
+            (success, tester_task) — success indicates if session was established,
+            tester_task is the background keepalive task (must be cancelled by caller).
+        """
+        print(f"  Entering extended diagnostic session (10 03)...")
+        resp = await self.send_uds("1003", timeout=5.0)
+        if resp.get("ok"):
+            print(f"  Session established.")
+        elif resp.get("nrc") is not None:
+            nrc = resp["nrc"]
+            desc = resp["nrc_desc"]
+            print(f"  WARNING: Session request returned NRC 0x{nrc:02X} ({desc})")
+            print(f"  Continuing anyway — some ECUs may not need extended session.")
+        else:
+            error = resp.get("error", "unknown")
+            print(f"  WARNING: Session request failed: {error}")
+            print(f"  Continuing anyway.")
+
+        # Start background TesterPresent task
+        verbose = self.verbose
+
+        async def _tester_present_loop():
+            """Send 3E 00 every 2s to keep the extended session alive."""
+            try:
+                while True:
+                    await asyncio.sleep(2.0)
+                    try:
+                        await self.send_command("3E00", timeout=1.5)
+                        if verbose:
+                            print(f"  [tester] 3E00 keepalive sent", file=sys.stderr)
+                    except Exception:
+                        pass  # Don't crash on keepalive failure
+            except asyncio.CancelledError:
+                pass
+
+        tester_task = asyncio.create_task(_tester_present_loop())
+        return resp.get("ok", False), tester_task
 
 
 # ── Output Formatting ────────────────────────────────────────────────────
@@ -928,7 +980,7 @@ async def mode_interactive(terminal: WiCANTerminal, pids_data: dict, verbose: bo
 
 
 async def mode_param(terminal: WiCANTerminal, pids_data: dict, param_names: list[str],
-                     verbose: bool, as_json: bool):
+                     verbose: bool, as_json: bool, session: bool = False):
     """Query specific named parameters."""
     param_index = build_param_index(pids_data)
 
@@ -953,34 +1005,48 @@ async def mode_param(terminal: WiCANTerminal, pids_data: dict, param_names: list
         return
 
     all_results = []
+    tester_tasks = []
 
-    for (tx_id, pid), params in groups.items():
-        ecu_name = params[0]["ecu"]
+    try:
+        for (tx_id, pid), params in groups.items():
+            ecu_name = params[0]["ecu"]
 
-        # Set ECU header
-        await terminal.set_header(tx_id)
+            # Set ECU header
+            await terminal.set_header(tx_id)
 
-        # Send UDS request
-        response = await terminal.send_uds(pid)
+            # Enter extended diagnostic session if requested
+            if session:
+                _, tester_task = await terminal.enter_extended_session()
+                tester_tasks.append(tester_task)
 
-        if not response["ok"]:
-            error = response.get("error") or response.get("nrc_desc", "unknown error")
-            if response.get("nrc") is not None:
-                error = f"NRC 0x{response['nrc']:02X}: {response['nrc_desc']}"
+            # Send UDS request
+            response = await terminal.send_uds(pid)
+
+            if not response["ok"]:
+                error = response.get("error") or response.get("nrc_desc", "unknown error")
+                if response.get("nrc") is not None:
+                    error = f"NRC 0x{response['nrc']:02X}: {response['nrc_desc']}"
+                for p in params:
+                    all_results.append((p["name"], None, p["unit"], p["expression"], error, p["verified"]))
+                continue
+
+            # Convert to WiCAN byte indexing and decode
+            wican_bytes = elm_hex_to_wican_bytes(response["hex"])
+
             for p in params:
-                all_results.append((p["name"], None, p["unit"], p["expression"], error, p["verified"]))
-            continue
-
-        # Convert to WiCAN byte indexing and decode
-        wican_bytes = elm_hex_to_wican_bytes(response["hex"])
-
-        for p in params:
+                try:
+                    value = evaluate_expression(p["expression"], wican_bytes)
+                    value = round(value * 100) / 100
+                    all_results.append((p["name"], value, p["unit"], p["expression"], None, p["verified"]))
+                except Exception as e:
+                    all_results.append((p["name"], None, p["unit"], p["expression"], str(e), p["verified"]))
+    finally:
+        for task in tester_tasks:
+            task.cancel()
             try:
-                value = evaluate_expression(p["expression"], wican_bytes)
-                value = round(value * 100) / 100
-                all_results.append((p["name"], value, p["unit"], p["expression"], None, p["verified"]))
-            except Exception as e:
-                all_results.append((p["name"], None, p["unit"], p["expression"], str(e), p["verified"]))
+                await task
+            except asyncio.CancelledError:
+                pass
 
     if as_json:
         json_out = []
@@ -997,7 +1063,8 @@ async def mode_param(terminal: WiCANTerminal, pids_data: dict, param_names: list
 
 
 async def mode_ecu(terminal: WiCANTerminal, pids_data: dict, ecu_name: str,
-                   pid_filter: str | None, verbose: bool, as_json: bool):
+                   pid_filter: str | None, verbose: bool, as_json: bool,
+                   session: bool = False):
     """Query all parameters for an ECU, optionally filtered by PID."""
     ecu_index = build_ecu_index(pids_data)
     ecu_key = ecu_name.upper()
@@ -1013,59 +1080,72 @@ async def mode_ecu(terminal: WiCANTerminal, pids_data: dict, ecu_name: str,
     # Set ECU header once
     await terminal.set_header(tx_id)
 
+    # Enter extended diagnostic session if requested
+    tester_task = None
+    if session:
+        _, tester_task = await terminal.enter_extended_session()
+
     print(f"\n  {ecu_key} — TX 0x{tx_id:03X}")
 
     all_json = []
 
-    for pid_code, pid_info in sorted(ecu_info["pids"].items()):
-        if pid_filter and pid_code.upper() != pid_filter.upper():
-            continue
-
-        parameters = pid_info["parameters"]
-        if not parameters:
-            continue
-
-        print(f"\n  PID {pid_code}:")
-
-        # Send UDS request
-        response = await terminal.send_uds(pid_code)
-
-        if not response["ok"]:
-            error = response.get("error") or response.get("nrc_desc", "unknown error")
-            if response.get("nrc") is not None:
-                error = f"NRC 0x{response['nrc']:02X}: {response['nrc_desc']}"
-            print(f"    Error: {error}")
-            continue
-
-        # Convert and decode
-        wican_bytes = elm_hex_to_wican_bytes(response["hex"])
-
-        if verbose:
-            print(f"    Response: {response['hex']}")
-            print(f"    WiCAN bytes ({len(wican_bytes)}): {wican_bytes.hex().upper()}")
-
-        results = []
-        for pname, pdef in parameters.items():
-            expr = pdef.get("expression", "")
-            unit = pdef.get("unit", "")
-            verified = pdef.get("verified", False)
-            if not expr:
+    try:
+        for pid_code, pid_info in sorted(ecu_info["pids"].items()):
+            if pid_filter and pid_code.upper() != pid_filter.upper():
                 continue
-            try:
-                value = evaluate_expression(expr, wican_bytes)
-                value = round(value * 100) / 100
-                results.append((pname, value, unit, expr, None, verified))
-            except Exception as e:
-                results.append((pname, None, unit, expr, str(e), verified))
 
-        if as_json:
-            for name, value, unit, expr, error, verified in results:
-                entry = {"ecu": ecu_key, "pid": pid_code, "name": name, "value": value, "unit": unit}
-                if error:
-                    entry["error"] = error
-                all_json.append(entry)
-        else:
-            print_decoded_params(results, verbose=verbose)
+            parameters = pid_info["parameters"]
+            if not parameters:
+                continue
+
+            print(f"\n  PID {pid_code}:")
+
+            # Send UDS request
+            response = await terminal.send_uds(pid_code)
+
+            if not response["ok"]:
+                error = response.get("error") or response.get("nrc_desc", "unknown error")
+                if response.get("nrc") is not None:
+                    error = f"NRC 0x{response['nrc']:02X}: {response['nrc_desc']}"
+                print(f"    Error: {error}")
+                continue
+
+            # Convert and decode
+            wican_bytes = elm_hex_to_wican_bytes(response["hex"])
+
+            if verbose:
+                print(f"    Response: {response['hex']}")
+                print(f"    WiCAN bytes ({len(wican_bytes)}): {wican_bytes.hex().upper()}")
+
+            results = []
+            for pname, pdef in parameters.items():
+                expr = pdef.get("expression", "")
+                unit = pdef.get("unit", "")
+                verified = pdef.get("verified", False)
+                if not expr:
+                    continue
+                try:
+                    value = evaluate_expression(expr, wican_bytes)
+                    value = round(value * 100) / 100
+                    results.append((pname, value, unit, expr, None, verified))
+                except Exception as e:
+                    results.append((pname, None, unit, expr, str(e), verified))
+
+            if as_json:
+                for name, value, unit, expr, error, verified in results:
+                    entry = {"ecu": ecu_key, "pid": pid_code, "name": name, "value": value, "unit": unit}
+                    if error:
+                        entry["error"] = error
+                    all_json.append(entry)
+            else:
+                print_decoded_params(results, verbose=verbose)
+    finally:
+        if tester_task:
+            tester_task.cancel()
+            try:
+                await tester_task
+            except asyncio.CancelledError:
+                pass
 
     if as_json:
         print(json.dumps(all_json, indent=2))
@@ -1073,8 +1153,16 @@ async def mode_ecu(terminal: WiCANTerminal, pids_data: dict, ecu_name: str,
     print()
 
 
-async def mode_raw(terminal: WiCANTerminal, raw_spec: str, verbose: bool, as_json: bool):
-    """Send a raw UDS request specified as TX_ID:SERVICE_PID."""
+async def mode_raw(terminal: WiCANTerminal, raw_spec: str, verbose: bool, as_json: bool,
+                   session: bool = False, hold: bool = False):
+    """Send a raw UDS request specified as TX_ID:SERVICE_PID.
+
+    Args:
+        hold: If True, keep the extended diagnostic session alive after the
+            command completes (TesterPresent keepalive runs until Ctrl+C).
+            Useful for IOControl (2F) commands where the actuator releases
+            when the session drops. Implies --session.
+    """
     # Parse spec: "7E4:2101" or "7E4 2101"
     match = re.match(r"^([0-9A-Fa-f]{3})[:\s]([0-9A-Fa-f]+)$", raw_spec)
     if not match:
@@ -1085,27 +1173,57 @@ async def mode_raw(terminal: WiCANTerminal, raw_spec: str, verbose: bool, as_jso
     tx_id = int(match.group(1), 16)
     service_pid = match.group(2).upper()
 
+    # --hold implies --session
+    if hold:
+        session = True
+
     print(f"\n  TX: 0x{tx_id:03X}  Request: {service_pid}")
 
     await terminal.set_header(tx_id)
-    response = await terminal.send_uds(service_pid)
 
-    if as_json:
-        print_json_result(response)
-        return
+    # Enter extended diagnostic session if requested
+    tester_task = None
+    if session:
+        _, tester_task = await terminal.enter_extended_session()
 
-    if not response["ok"]:
-        error = response.get("error") or response.get("nrc_desc", "unknown error")
-        if response.get("nrc") is not None:
-            print(f"  NRC: 0x{response['nrc']:02X} — {response['nrc_desc']}")
-            print(f"  Service: 0x{response.get('nrc_service', 0):02X}")
+    try:
+        response = await terminal.send_uds(service_pid)
+
+        if as_json:
+            print_json_result(response)
+            if not hold:
+                return
+        elif not response["ok"]:
+            error = response.get("error") or response.get("nrc_desc", "unknown error")
+            if response.get("nrc") is not None:
+                print(f"  NRC: 0x{response['nrc']:02X} — {response['nrc_desc']}")
+                print(f"  Service: 0x{response.get('nrc_service', 0):02X}")
+            else:
+                print(f"  Error: {error}")
+            if not hold:
+                return
         else:
-            print(f"  Error: {error}")
-        return
+            print(f"  Response ({len(response['bytes'])} bytes): {response['hex']}")
+            print()
+            print_hexdump(response["bytes"])
 
-    print(f"  Response ({len(response['bytes'])} bytes): {response['hex']}")
-    print()
-    print_hexdump(response["bytes"])
+        # Hold session open with TesterPresent until Ctrl+C
+        if hold and tester_task:
+            print()
+            print("  Session held open (TesterPresent keepalive active).")
+            print("  Press Ctrl+C to release and exit.")
+            try:
+                # Wait indefinitely — tester_task sends 3E00 in background
+                await asyncio.Event().wait()
+            except (KeyboardInterrupt, asyncio.CancelledError):
+                print("\n  Releasing session...")
+    finally:
+        if tester_task:
+            tester_task.cancel()
+            try:
+                await tester_task
+            except asyncio.CancelledError:
+                pass
 
 
 async def mode_scan(terminal: WiCANTerminal, tx_id: int, service: int,
@@ -1137,36 +1255,7 @@ async def mode_scan(terminal: WiCANTerminal, tx_id: int, service: int,
     # Enter extended diagnostic session if requested
     tester_task = None
     if session:
-        print(f"  Entering extended diagnostic session (10 03)...")
-        resp = await terminal.send_uds("1003", timeout=5.0)
-        if resp.get("ok"):
-            print(f"  Session established.")
-        elif resp.get("nrc") is not None:
-            nrc = resp["nrc"]
-            desc = resp["nrc_desc"]
-            print(f"  WARNING: Session request returned NRC 0x{nrc:02X} ({desc})")
-            print(f"  Continuing scan anyway — some ECUs may not need extended session.")
-        else:
-            error = resp.get("error", "unknown")
-            print(f"  WARNING: Session request failed: {error}")
-            print(f"  Continuing scan anyway.")
-
-        # Start background TesterPresent task
-        async def _tester_present_loop():
-            """Send 3E 00 every 2s to keep the extended session alive."""
-            try:
-                while True:
-                    await asyncio.sleep(2.0)
-                    try:
-                        await terminal.send_command("3E00", timeout=1.5)
-                        if verbose:
-                            print(f"  [tester] 3E00 keepalive sent", file=sys.stderr)
-                    except Exception:
-                        pass  # Don't crash scan on keepalive failure
-            except asyncio.CancelledError:
-                pass
-
-        tester_task = asyncio.create_task(_tester_present_loop())
+        _, tester_task = await terminal.enter_extended_session()
 
     print()
 
@@ -1538,11 +1627,14 @@ async def async_main(args):
         elif args.tester_present:
             await mode_tester_present(terminal, args.target, args.interval, args.verbose)
         elif args.param:
-            await mode_param(terminal, pids_data, args.param, args.verbose, args.json)
+            await mode_param(terminal, pids_data, args.param, args.verbose, args.json,
+                             session=args.session)
         elif args.ecu:
-            await mode_ecu(terminal, pids_data, args.ecu, args.pid, args.verbose, args.json)
+            await mode_ecu(terminal, pids_data, args.ecu, args.pid, args.verbose, args.json,
+                           session=args.session)
         elif args.raw:
-            await mode_raw(terminal, args.raw, args.verbose, args.json)
+            await mode_raw(terminal, args.raw, args.verbose, args.json,
+                           session=args.session, hold=args.hold)
         elif args.scan:
             if not args.tx:
                 print("Error: --scan requires --tx (ECU TX ID)", file=sys.stderr)
@@ -1605,6 +1697,11 @@ Examples:
   %(prog)s --scan --tx 7E4 --service 22 --range BC01-BC0B
                                             Scan 0x22 DID range (auto 2-byte DIDs)
 
+  %(prog)s --raw 770:22BC03 --session       Raw request with extended session
+  %(prog)s --ecu IGPM --session             Query ECU that needs extended session
+  %(prog)s --param DOOR_DRV_OPEN --session  Query parameter with extended session
+  %(prog)s --raw 770:2FBC0103 --hold        IOControl: hold low beams on (Ctrl+C to release)
+
   %(prog)s --skm-wakeup                     Wake sleeping ECUs via SKM (ACC)
   %(prog)s --skm-wakeup --level ign1        Wake with IGN1 (more ECUs)
   %(prog)s --tester-present                 Send 3E00 broadcast at 1 Hz
@@ -1647,8 +1744,14 @@ Examples:
                         help="Hex bytes to append after each DID in --scan (e.g., 03 for IOControl "
                              "ShortTermAdjustment). Makes scan send e.g. 2F{DID}03 instead of 2F{DID}.")
     parser.add_argument("--session", action="store_true",
-                        help="Enter extended diagnostic session (10 03) before --scan and send periodic "
-                             "TesterPresent (3E 00) in the background to keep it alive.")
+                         help="Enter extended diagnostic session (10 03) before the request and send "
+                              "periodic TesterPresent (3E 00) in the background to keep it alive. "
+                              "Required for some ECUs (e.g. IGPM 0x770) that only respond to 0x22 "
+                              "DID reads in extended session.")
+    parser.add_argument("--hold", action="store_true",
+                         help="Keep session alive after command completes (Ctrl+C to release). "
+                              "Useful for IOControl (2F) commands where the actuator releases when "
+                              "the diagnostic session drops. Implies --session. Only for --raw mode.")
 
     # SKM wakeup options
     parser.add_argument("--level", default="acc",

@@ -443,3 +443,260 @@ sessions:
       # 0x7A5 (SKM) 2FB108030A0A05 → NO DATA
       # 0x7E4 (BMS) 2101 → NO DATA
       # 0x770 (IGPM) 22BC01 → NO DATA
+
+  - date: "2026-04-15"
+    label: "Charging, dash on, doors unlocked — door/lock PID verification"
+    notes: >
+      AC charging at home. Dashboard on, all doors closed, all doors UNLOCKED.
+      Extended diagnostic session (1003) required for IGPM 22BC03/04/06.
+      Verification session to confirm door open/lock bit positions.
+    captures:
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC03"
+        payload: "62BC03FDEE3C7300600000AAAA"
+        state: "all doors closed, UNLOCKED, charging, dash on"
+        notes: >
+          13 bytes (11 data + 2 padding 0xAA).
+          Byte 7 = 0x00 (compare: 0x20 ACC, 0x0A keyfob).
+          Byte 8 = 0x60 = 01100000. Bit 5 (B10:5) = 1, bit 6 (B10:6) = 1.
+          All DOOR_*_OPEN bits (B10:0,2,4,5) read 0 — doors closed.
+          TRUNK_OPEN (B10:7) = 0.
+          DOOR_LOCK_RL (1-B10:1) = 1, DOOR_LOCK_RR (1-B10:3) = 1 — but doors are UNLOCKED.
+
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC04"
+        payload: "62BC04B53FF4EA01000042AAAA"
+        state: "all doors closed, UNLOCKED, charging, dash on"
+        notes: >
+          13 bytes (11 data + 2 padding 0xAA).
+          DOOR_LOCK_FL (B10:3) = 0, DOOR_LOCK_FR (B10:2) = 0.
+
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC06"
+        payload: "62BC06B480000000000000AAAA"
+        state: "all doors closed, UNLOCKED, charging, dash on"
+        notes: "13 bytes. BRAKE_LIGHT (B7) = 0x00 (not braking)."
+
+  - date: "2026-04-15"
+    label: "ACC mode — light/ignition/seatbelt/charge port verification"
+    notes: >
+      Extended verification session in ACC2 mode. All IGPM reads use extended session (1003).
+      BCM (0x7A0) does NOT require extended session. Tested: headlights (off/DRL/low/high),
+      turn signals (left/right — hazards did NOT register), brake pedal, seatbelt toggle,
+      ignition states (OFF/ACC1/ACC2/Ready), charge port flap (open/close).
+    captures:
+      # --- Ignition state progression ---
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC03"
+        payload: "62BC03FDEE3C730000000000AAAA"
+        state: "OFF (ignition off, after charging)"
+        notes: "B7=0x00, B8=0x00 — no ignition flags set."
+
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC03"
+        payload: "62BC03FDEE3C730060000000AAAA"
+        state: "ACC2 (no lights, doors locked)"
+        notes: "B7=0x00, B8=0x60 (bits 5,6). IGNITION_ON (B11:5)=1."
+
+      # --- Light state captures (ACC2 mode) ---
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC03"
+        payload: "62BC03FDEE3C730A600C00AAAA"
+        state: "ACC2, DRL only"
+        notes: "B9=0x0C (00001100). B9:2=DRL=1, B9:3=tail=1, B9:4=high=0, B9:5=low=0."
+
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC03"
+        payload: "62BC03FDEE3C730A602C00AAAA"
+        state: "ACC2, low beams on"
+        notes: "B9=0x2C (00101100). B9:2=DRL=1, B9:3=tail=1, B9:4=high=0, B9:5=low=1."
+
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC03"
+        payload: "62BC03FDEE3C730A603C00AAAA"
+        state: "ACC2, high beams on"
+        notes: "B9=0x3C (00111100). B9:2=DRL=1, B9:3=tail=1, B9:4=high=1, B9:5=low=1."
+
+      # --- Seatbelt verification ---
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC03"
+        payload: "62BC03FDEE3C730A622C00AAAA"
+        state: "ACC2, low beams, seatbelt buckled"
+        notes: "B8=0x62 (01100010). SEATBELT_FL (B11:1)=1. Compare 0x60 without seatbelt."
+
+      # --- Ready mode (charger unplugged) ---
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC03"
+        payload: "62BC03FDEE3C732060000AAAA"
+        state: "Ready mode, driver door open"
+        notes: "B8=0x60 — same as ACC2, cannot distinguish Ready from ACC2 via ignition bit."
+
+      # --- Door verification captures ---
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC03"
+        payload: "62BC03FDEE3C7320600000AAAA"
+        state: "driver door open, all unlocked"
+        notes: "DOOR_DRV_OPEN (B10:5)=1. All other door bits 0."
+
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC03"
+        payload: "62BC03FDEE3C730A600000AAAA"
+        state: "all doors closed, ALL LOCKED"
+        notes: "B10=0x0A (00001010). DOOR_LOCK_RL (B10:1)=1, DOOR_LOCK_RR (B10:3)=1."
+
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC04"
+        payload: "62BC04B53FF4EA0D000042AAAA"
+        state: "all doors closed, ALL LOCKED"
+        notes: "B10=0x0D. DOOR_LOCK_FL (B10:3)=1, DOOR_LOCK_FR (B10:2)=1."
+
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC03"
+        payload: "62BC03FDEE3C732A600000AAAA"
+        state: "driver door open+unlocked, rest locked"
+        notes: "B10=0x2A (00101010). DRV_OPEN (bit5)=1, LOCK_RL (bit1)=1, LOCK_RR (bit3)=1. Driver unlocked by opening door."
+
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC04"
+        payload: "62BC04B53FF4EA05000042AAAA"
+        state: "driver door open+unlocked, rest locked"
+        notes: "B10=0x05 (00000101). LOCK_FL (bit3)=0 (driver unlocked), LOCK_FR (bit2)=1."
+
+      # --- Turn signal captures (BC06) ---
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC06"
+        payload: "62BC06B480000000000000AAAA"
+        state: "ACC2, no lights/brake"
+        notes: "Baseline — all zeros in light/signal bytes."
+
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC06"
+        payload: "62BC06B480000001000000AAAA"
+        state: "ACC2, left turn signal on"
+        notes: "B8=0x01. LEFT_TURN_SIGNAL (B8:0)=1."
+
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC06"
+        payload: "62BC06B480000002000000AAAA"
+        state: "ACC2, right turn signal on"
+        notes: "B8=0x02. RIGHT_TURN_SIGNAL (B8:1)=1."
+
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC06"
+        payload: "62BC06B48000002D000000AAAA"
+        state: "ACC2, brake pedal pressed"
+        notes: "B7=0x2D (45 decimal). BRAKE_LIGHT scalar — non-zero = brake applied."
+
+      # --- Charge port flap (BCM 0x7A0, no extended session needed) ---
+      - ecu_tx: 0x7A0
+        ecu_rx: 0x7A8
+        ecu_name: BCM
+        pid: "22B00E"
+        payload: "62B00E0C00000020000000AAAA"
+        state: "charge port flap OPEN"
+        notes: "B10=0x20 (bit 5 set). CHARGE_PORT_OPEN (B10:5)=1."
+
+      - ecu_tx: 0x7A0
+        ecu_rx: 0x7A8
+        ecu_name: BCM
+        pid: "22B00E"
+        payload: "62B00E0C00000000000000AAAA"
+        state: "charge port flap CLOSED"
+        notes: "B10=0x00 (bit 5 clear). CHARGE_PORT_OPEN (B10:5)=0."
+
+      # --- IOControl tests (service 0x2F) ---
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "2FBC01"
+        payload: "6FBC0103"
+        state: "IOControl: low beam ON (shortTermAdjustment=03)"
+        notes: |
+          Positive response — low beams turned on physically. Actuator holds only
+          while extended session (1003) is maintained with TesterPresent (3E00)
+          keepalive. Session drop releases the actuator (lights turn off).
+          Use: can-request.py --raw 770:2FBC0103 --hold
+
+      # --- IOControl scan BC00-BC20 (service 0x2F, append 03) ---
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "2F_SCAN_BC00-BC20"
+        payload: "scan_results"
+        state: "IOControl scan with shortTermAdjustment (03)"
+        notes: |
+          WARNING: This scan triggered the car alarm! BC09 (trunk unlock) and
+          BC10/BC11 (door lock/unlock) were actuated during the scan.
+          NEVER scan IOControl ranges blindly — always list individual commands
+          and get explicit approval before sending.
+
+          Accepted DIDs (positive 6F response):
+            BC01 — low beam (verified: lights turned on)
+            BC02 — high beam
+            BC03 — front fog light
+            BC04 — tail/rear light
+            BC05 — red backlight flash
+            BC07 — unknown
+            BC08 — rear fog light
+            BC09 — trunk unlock (TRIGGERED ALARM)
+            BC0A — unknown
+            BC0C — rear defogger relay
+            BC10 — door LOCK all (TRIGGERED ALARM)
+            BC11 — door UNLOCK all (TRIGGERED ALARM)
+            BC12 — unknown (unlock variant?)
+            BC14 — unknown
+            BC15 — left turn indicator
+            BC16 — right turn indicator
+            BC18 — unknown
+            BC1B — unknown
+
+          Rejected DIDs (NRC):
+            BC00 — 0x31 (requestOutOfRange)
+            BC06 — 0x31
+            BC0B — 0x31
+            BC0D — 0x31
+            BC0E — 0x31
+            BC13 — 0x22 (conditionsNotCorrect)
+            BC17 — 0x31
+            BC19 — 0x31
+            BC1A — 0x31
+
+          No DRL-specific DID found. DRLs may activate with BC04 (tail light).
