@@ -119,7 +119,7 @@ BC1B — may be reverse light (only accepts command when car is in reverse gear?
 
 ## SKM IOControl DIDs (0x7A5)
 
-Requires extended session (`1003`). SKM wakes from `1001` even in deep sleep — **but fob proximity may be required** (tested with fob in pocket near car; untested without fob).
+Requires extended session (`1003`). **SKM requires fob proximity** — the SKM's CAN transceiver only wakes when the key fob's LF field is present (~1-2m range). Without the fob nearby, `1001` returns NO DATA and the SKM is completely dead.
 
 Magic bytes `0A 0A 05` are from Kia Soul and confirmed working on Ioniq 2017.
 
@@ -127,7 +127,7 @@ Magic bytes `0A 0A 05` are from Kia Soul and confirmed working on Ioniq 2017.
 
 | DID  | Label (Soul)    | Status    | Ioniq 2017 Notes                                                                |
 |------|-----------------|-----------|---------------------------------------------------------------------------------|
-| B108 | ACC relay       | Confirmed | ACC ON: dash lights, infotainment, doors unlock. Confirmed 2026-04-15 from deep sleep (fob nearby). NRC 0x22 if ACC already on. `freezeCurrentState` (02) returns status bytes `6255`. |
+| B108 | ACC relay       | Confirmed | ACC ON: dash lights, infotainment, doors unlock. Confirmed 2026-04-15. Only works with fob nearby. NRC 0x22 if ACC already on. `freezeCurrentState` (02) returns status bytes `6255`. |
 | B109 | IGN1 relay      | Untested  | Ignition 1 — wakes all ECUs including HV system. **Use with extreme caution**   |
 | B10A | IGN2 relay      | Untested  | Ignition 2 — purpose unclear on Ioniq EV. From Kia Soul (ICE start circuit)     |
 | B10B | Start relay     | Untested  | Starter motor relay — **DO NOT USE on EV** (no starter motor, unknown behavior) |

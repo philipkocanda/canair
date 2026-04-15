@@ -1361,9 +1361,9 @@ iocontrol:
                 doors unlock. Does NOT latch — relay releases when session drops.
                 freezeCurrentState (2FB10802) returns status 6255.
                 NRC 0x22 if ACC already on.
-                Wakes from deep sleep with --wake (1001), BUT fob was nearby
-                during test — need to retest without fob to confirm true CAN wake.
-                Magic bytes 0A0A05 from Kia Soul confirmed working on Ioniq 2017."
+                REQUIRES FOB PROXIMITY — SKM only wakes from 1001 when key fob
+                LF field is present (~1-2m). Without fob nearby, SKM is completely
+                dead (confirmed: fob far away → all NO DATA)."
       - cmd: "2FB109030A0A05"
         desc: "IGN1 relay ON"
         off: "2FB10900"

@@ -6,13 +6,13 @@ Read BMS SoC (and other ECU data) remotely while the car is fully asleep and unp
 
 ## ECU Wake Hierarchy
 
-| ECU          | Fob lock wake | CAN `1001` wake | Needs ACC power               |
-|--------------|---------------|-----------------|-------------------------------|
-| IGPM (0x770) | Yes           | Yes             | No — always partially powered |
-| SKM (0x7A5)  | No            | **Yes**         | No — wakes from CAN activity  |
-| BMS (0x7E4)  | No            | No              | Yes — needs ACC relay          |
-| VCU (0x7E2)  | Not tested    | Not tested      | Yes                           |
-| BCM (0x7A0)  | Not tested    | No (tested)     | Yes                           |
+| ECU          | Fob lock wake | CAN `1001` wake          | Needs ACC power               |
+|--------------|---------------|--------------------------|-------------------------------|
+| IGPM (0x770) | Yes           | Yes                      | No — always partially powered |
+| SKM (0x7A5)  | No            | **Only with fob nearby** | Yes — needs fob LF field      |
+| BMS (0x7E4)  | No            | No                       | Yes — needs ACC relay          |
+| VCU (0x7E2)  | Not tested    | Not tested               | Yes                           |
+| BCM (0x7A0)  | Not tested    | No (tested)              | Yes                           |
 
 ### Key Finding: IGPM Wakes from Deep Sleep
 
@@ -28,17 +28,38 @@ Sometimes the first `1001` gets a response immediately; sometimes it takes a ret
 - Read DIDs (`22BCxx`) — door status, lock status, lights, ignition, seatbelt
 - IOControl (`2FBCxx`) — low/high beam, turn signals, horn, door lock/unlock, trunk
 
-### Key Finding: SKM Also Wakes from Deep Sleep (2026-04-15)
+### Key Finding: SKM Requires Fob Proximity (2026-04-15)
 
-**Contrary to earlier testing, the SKM DOES wake from `1001`** — even when the car is fully asleep (off + locked). The `--wake` flag sends `1001` to the target ECU, which wakes the SKM's CAN transceiver. After a brief delay, `1003` succeeds and IOControl works.
+The SKM wakes from `1001` **only when the key fob is nearby** (within LF antenna range, ~1-2m). Without the fob, `1001` returns NO DATA — the SKM's CAN transceiver is completely unpowered.
 
-**CAVEAT: Key fob was in proximity during this test** (user was near the car with fob in pocket). The fob's passive LF/RFID signal may have kept the SKM's transceiver partially powered. Earlier tests without the fob nearby failed. **A retest with the fob far from the car is needed** to determine if `1001` alone is sufficient, or if fob proximity is required for SKM wake.
+**Test 1 — fob nearby (user near car with fob in pocket):**
+```
+1001 → NO DATA  (wakes SKM transceiver via fob LF field)
+1003 → 5003     (extended session established)
+2FB108030A0A05 → ACC relay ON (clicking heard, infotainment powered on, doors unlocked)
+```
+
+**Test 2 — fob far away (~10 min later, user inside house):**
+```
+1001 → NO DATA
+1003 → NO DATA
+2FB108030A0A05 → NO DATA  (SKM completely dead)
+```
+
+**Conclusion:** The fob's passive LF/RFID antenna field keeps the SKM's transceiver partially powered. Without it, CAN bus activity alone cannot wake the SKM. **True remote BMS access via the SKM→ACC path is NOT possible without fob proximity.**
 
 Tested sequence (car off, locked, deep sleep, **fob nearby**):
 ```
 1001 → NO DATA  (wakes SKM transceiver)
 1003 → 5003     (extended session established)
 2FB108030A0A05 → ACC relay ON (clicking heard, infotainment powered on, doors unlocked)
+```
+
+Tested sequence (car off, locked, deep sleep, **fob far away**):
+```
+1001 → NO DATA
+1003 → NO DATA
+2FB108030A0A05 → NO DATA  (SKM completely dead — no fob LF field)
 ```
 
 **ACC does NOT latch** — it stays on only while the IOControl session is held (TesterPresent keepalive). When the session drops, the ACC relay opens and the car re-locks.
@@ -49,27 +70,28 @@ Tested sequence (car off, locked, deep sleep, **fob nearby**):
 - Doors re-lock when session drops
 - Infotainment may get stuck mid-boot if power is cut abruptly
 
-### Updated Power Dependency Chain
+### Power Dependency Chain
 
 ```
-CAN bus activity (any frame, e.g. 1001)
-  ├─ IGPM (0x770) ← wakes from CAN activity (always partially powered)
-  └─ SKM (0x7A5)  ← ALSO wakes from CAN activity
+Key fob LF field (~1-2m range)
+  └─ SKM (0x7A5) ← fob proximity REQUIRED to wake transceiver
        └─ ACC relay ← IOControl 2FB108030A0A05 (hold with TesterPresent)
             └─ BMS (0x7E4), VCU, MCU, etc.
+
+CAN bus activity alone (no fob):
+  └─ IGPM (0x770) ← wakes from CAN activity (always partially powered)
+       └─ Door status, lights, locks, horn — but NO ACC relay control
 ```
 
-### Remaining Challenge: Multi-ECU Session
+### Blocking Problem: No Remote BMS Access Without Fob
 
-The remote BMS read path is now clear:
-1. Wake SKM with `1001`
-2. Hold ACC via `2FB108030A0A05` with TesterPresent keepalive
-3. Query BMS (0x7E4) for SoC, voltages, etc.
-4. Release ACC (drop session)
+The SKM→ACC→BMS path works, but **only with the fob nearby**. Since the WiCAN is inside the car and the fob is typically inside the house, true remote BMS SoC reads are blocked.
 
-**BUT:** `can-request.py` currently supports only one ECU per session. Holding ACC on the SKM while querying the BMS requires either:
-- Multi-ECU support in `can-request.py` (send AT header switches mid-session)
-- A dedicated "remote read" script that handles the full sequence
+**Possible workarounds (none tested):**
+1. **Leave a spare fob in the car** — would keep SKM wakeable, but security risk
+2. **IGPM hidden relay** — BC25/BC42/BC43/BC44 accepted IOControl but had no visible effect. One might control an internal power relay that feeds the SKM. Hard to verify without instrumentation.
+3. **Direct ACC relay wiring** — bypass the SKM entirely with a relay module controlled by the WiCAN's GPIO output. Invasive but reliable.
+4. **Charging state** — when plugged in, the CAN bus stays active and all ECUs are powered. BMS reads work without any wake sequence during charging.
 
 ## IGPM DID Scan Results
 

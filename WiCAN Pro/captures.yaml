@@ -736,6 +736,20 @@ sessions:
         response: "accepted (session established after 1001 wake)"
         notes: "SKM woke from deep sleep with 1001! ACC relay clicked on, doors unlocked, infotainment booted. Relay released on timeout, car re-locked. CAVEAT: fob was in proximity."
 
+      # SKM IOControl (0x7A5) — car off, LOCKED, deep sleep, fob FAR AWAY
+      - ecu: SKM
+        pid: "2FB108030A0A05"
+        label: "ACC relay ON — car off, locked, deep sleep, --wake, NO FOB"
+        response: "NO DATA (all attempts)"
+        notes: "Fob inside house (~15m away). 1001 → NO DATA, 1003 → NO DATA, IOControl → NO DATA. SKM completely dead without fob LF field. Confirms fob proximity is REQUIRED."
+
+      # IGPM wake confirmation — no fob, deep sleep
+      - ecu: IGPM
+        pid: "22BC03"
+        label: "IGPM wake test — no fob nearby, deep sleep"
+        response: "62BC03FDEE3C730A000000AAAA"
+        notes: "IGPM wakes from 1001 regardless of fob proximity. B7=0x0A (locked state)."
+
       # IGPM read scan (Service 0x22) — Ready mode
       - ecu: IGPM
         pid: "22BC1D-BC41"
