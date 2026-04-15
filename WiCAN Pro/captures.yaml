@@ -700,3 +700,130 @@ sessions:
             BC1A — 0x31
 
           No DRL-specific DID found. DRLs may activate with BC04 (tail light).
+
+  # =========================================================================
+  # 2026-04-15 — Ready mode session: SKM test, IGPM scans, IOControl tests
+  # =========================================================================
+
+  - date: "2026-04-15"
+    state: "Ready mode (ACC on), then off+locked for SKM deep sleep test. Fob nearby."
+    captures:
+
+      # SKM IOControl (0x7A5) — Ready mode (ACC already on)
+      - ecu: SKM
+        pid: "2FB108030A0A05"
+        label: "ACC relay ON — car in Ready (ACC already on)"
+        response: "NRC 0x22 (conditionsNotCorrect)"
+        notes: "ACC already active — IOControl rejects actuating to current state."
+
+      - ecu: SKM
+        pid: "2FB10802"
+        label: "ACC relay freezeCurrentState — car in Ready"
+        response: "6FB1080262550000AAAAAAAAAA"
+        notes: "Status bytes 0x62=01100010, 0x55=01010101. Possibly relay state bitmask."
+
+      # SKM IOControl (0x7A5) — car off, unlocked, light sleep
+      - ecu: SKM
+        pid: "2FB108030A0A05"
+        label: "ACC relay ON — car off, unlocked, light sleep"
+        response: "accepted (session held, relay clicking)"
+        notes: "ACC relay closed. Infotainment powered on, doors unlocked. Relay released on session drop."
+
+      # SKM IOControl (0x7A5) — car off, LOCKED, deep sleep, fob nearby
+      - ecu: SKM
+        pid: "2FB108030A0A05"
+        label: "ACC relay ON — car off, locked, deep sleep, --wake, fob nearby"
+        response: "accepted (session established after 1001 wake)"
+        notes: "SKM woke from deep sleep with 1001! ACC relay clicked on, doors unlocked, infotainment booted. Relay released on timeout, car re-locked. CAVEAT: fob was in proximity."
+
+      # IGPM read scan (Service 0x22) — Ready mode
+      - ecu: IGPM
+        pid: "22BC1D-BC41"
+        label: "Read scan — Ready mode"
+        scan_results:
+          responding:
+            - { did: "BC21", response: "7E00" }
+            - { did: "BC34", response: "7E00" }
+          rejected: "all others (NRC 0x31)"
+        notes: "BC33 responded in deep sleep but BC34 in Ready. Timing-sensitive."
+
+      - ecu: IGPM
+        pid: "22BC42-BC80"
+        label: "Read scan — Ready mode"
+        scan_results:
+          responding:
+            - { did: "BC46", response: "7E00" }
+            - { did: "BC59", response: "7E00" }
+            - { did: "BC72", response: "7E00" }
+          rejected: "all others (NRC 0x31)"
+        notes: "Different DIDs vs deep sleep (BC56→BC59, BC77→BC72). Only BC46 consistent."
+
+      # IGPM IOControl existence scan (Service 0x2F, --append 00) — Ready mode
+      - ecu: IGPM
+        pid: "2FBC1D-BC41 (append 00)"
+        label: "IOControl existence scan — Ready mode"
+        scan_results:
+          responding:
+            - { did: "BC21", response: "7E00", notes: "status register" }
+            - { did: "BC26→BC25", response: "6FBC2500", notes: "unknown actuator (off-by-one)" }
+            - { did: "BC2C→BC2B", response: "6FBC2B00", notes: "rear left brake (known)" }
+            - { did: "BC2D→BC2C", response: "6FBC2C00", notes: "rear right brake (known)" }
+            - { did: "BC2E→BC2D", response: "6FBC2D00", notes: "CHMSL (confirmed)" }
+            - { did: "BC34", response: "7E00", notes: "status register" }
+            - { did: "BC41→BC3F", response: "6FBC3F00", notes: "charge cable lock (known)" }
+
+      - ecu: IGPM
+        pid: "2FBC42-BC60 (append 00)"
+        label: "IOControl existence scan — Ready mode"
+        scan_results:
+          responding:
+            - { did: "BC42", response: "6FBC4200", notes: "unknown actuator, no visible effect" }
+            - { did: "BC43", response: "6FBC4300", notes: "unknown actuator, no visible effect" }
+            - { did: "BC44", response: "6FBC4400", notes: "unknown actuator, no visible effect" }
+            - { did: "BC46", response: "7E00", notes: "status register" }
+            - { did: "BC58", response: "7E00", notes: "status register" }
+
+      - ecu: IGPM
+        pid: "2FBC61-BCFF (append 00)"
+        label: "IOControl existence scan — Ready mode"
+        scan_results:
+          responding:
+            - { did: "BC65", response: "7E00" }
+            - { did: "BC78", response: "7E00" }
+            - { did: "BC91", response: "7E00" }
+            - { did: "BCAB", response: "7E00" }
+            - { did: "BCC5", response: "7E00" }
+            - { did: "BCDF", response: "7E00" }
+            - { did: "BCF9", response: "7E00" }
+          notes: "All status registers, evenly spaced (~26 apart). No new actuators above BC44."
+
+      # IOControl actuator tests — Ready mode
+      - ecu: IGPM
+        pid: "2FBC2503"
+        label: "Unknown actuator test — Ready mode"
+        response: "accepted"
+        notes: "No visible or audible effect."
+
+      - ecu: IGPM
+        pid: "2FBC2D03"
+        label: "CHMSL test — Ready mode"
+        response: "accepted"
+        notes: "Center high-mount stop lamp (third brake light) turned on! Confirmed."
+
+      - ecu: IGPM
+        pid: "2FBC4203"
+        label: "Unknown actuator test — Ready mode"
+        response: "accepted"
+        notes: "No visible or audible effect."
+
+      - ecu: IGPM
+        pid: "2FBC4303"
+        label: "Unknown actuator test — Ready mode"
+        response: "accepted"
+        notes: "No visible or audible effect."
+
+      - ecu: IGPM
+        pid: "2FBC4403"
+        label: "Unknown actuator test — Ready mode"
+        response: "accepted"
+        notes: "No visible or audible effect."
