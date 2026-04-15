@@ -12,7 +12,8 @@ For reference, the WiCAN firmware is checked out in the `wican-fw/` directory (g
 
 - **`ioniq-2017-pids.yaml`** — SOURCE OF TRUTH for all PID definitions (211 parameters, 167 verified)
 - **`captures.yaml`** — Raw UDS response payloads from capture sessions
-- **`wican-iso-tp-index-conversion.md`** — WiCAN vs ISO-TP vs Torque byte index mapping
+- **`docs/wican-iso-tp-index-conversion.md`** — WiCAN vs ISO-TP vs Torque byte index mapping
+- **`docs/CLI commands.md`** — Reference for `can-request.py` usage and examples
 
 ## WiCAN Access
 
