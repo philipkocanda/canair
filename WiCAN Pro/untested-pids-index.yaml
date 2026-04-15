@@ -1172,40 +1172,40 @@ iocontrol:
         desc: "Front fog light ON"
         off: "2FBC0300"
         priority: P2
-        status: accepted
-        notes: "Positive response in scan. Not visually tested."
+        status: verified
+        notes: "Confirmed 2026-04-15 — nothing visible. Ioniq 2017 base trim has no fog lights (no bulb installed). DID accepted by ECU."
       - cmd: "2FBC0403"
-        desc: "Rear light ON"
+        desc: "Tail/rear light ON"
         off: "2FBC0400"
         priority: P2
-        status: accepted
-        notes: "Positive response in scan. Not visually tested. May also activate DRLs."
+        status: verified
+        notes: "Confirmed working 2026-04-15. Tail lights on."
       - cmd: "2FBC0503"
-        desc: "Red backlight flash"
+        desc: "Red backlight flash (CHMSL?)"
         priority: P3
-        status: accepted
-        notes: "Positive response in scan. Not visually tested."
+        status: verified
+        notes: "Confirmed 2026-04-15 — nothing visible. May be CHMSL (center high-mount stop lamp) flash, or requires specific conditions."
       - cmd: "2FBC0703"
-        desc: "Unknown (not in e-Niro/Soul tables)"
+        desc: "Horn"
         priority: P3
-        status: accepted
-        notes: "Positive response in scan. Function unknown."
+        status: verified
+        notes: "CONFIRMED 2026-04-15 — HORN! Not labeled in Soul/e-Niro tables. Activates horn immediately."
       - cmd: "2FBC0803"
         desc: "Rear fog light ON"
         off: "2FBC0800"
         priority: P3
-        status: accepted
-        notes: "Positive response in scan. Not visually tested."
+        status: verified
+        notes: "Confirmed working 2026-04-15. Rear fog light on."
       - cmd: "2FBC0903"
         desc: "Trunk unlock"
         priority: P1
         status: verified
         notes: "CONFIRMED WORKING 2026-04-15 — triggered car alarm during scan! Use with extreme caution."
       - cmd: "2FBC0A03"
-        desc: "Unknown (not in e-Niro/Soul tables)"
+        desc: "Welcome/approach light? (puddle lights or DRL greeting)"
         priority: P3
         status: accepted
-        notes: "Positive response in scan. Function unknown."
+        notes: "Positive response in scan. Not visually tested. Likely puddle lights or DRL greeting on unlock — safe to test."
       - cmd: "2FBC0B03"
         desc: "Rear washer ON"
         off: "2FBC0B00"
@@ -1229,20 +1229,20 @@ iocontrol:
         status: verified
         notes: "CONFIRMED WORKING 2026-04-15 — triggered car alarm during scan! Note: uses standard 2F prefix (not 6F as in Kia Soul docs)."
       - cmd: "2FBC1203"
-        desc: "Unknown unlock variant"
+        desc: "Individual door unlock? (driver door only per Soul 6F pattern)"
         priority: P3
         status: accepted
-        notes: "Positive response in scan. Function unknown."
+        notes: "Positive response in scan. Soul uses 6F BC 12/13/14 for per-door unlock. May unlock driver door only. Alarm risk — test with keyfob ready."
       - cmd: "2FBC1303"
         desc: "Unknown"
         priority: P3
         status: rejected
         notes: "NRC 0x22 (conditionsNotCorrect). May need ignition on or other precondition."
       - cmd: "2FBC1403"
-        desc: "Unknown"
+        desc: "Individual door unlock? (rear door per Soul 6F pattern)"
         priority: P3
         status: accepted
-        notes: "Positive response in scan. Function unknown."
+        notes: "Positive response in scan. Part of Soul's per-door unlock sequence (BC12/13/14). Alarm risk — test with keyfob ready."
       - cmd: "2FBC1503"
         desc: "Left turn indicator ON"
         off: "2FBC1500"
@@ -1256,15 +1256,15 @@ iocontrol:
         status: verified
         notes: "Confirmed working 2026-04-15. Right indicator turned on."
       - cmd: "2FBC1803"
-        desc: "Unknown"
+        desc: "Courtesy lamp / license plate light?"
         priority: P3
         status: accepted
-        notes: "Positive response in scan. Function unknown."
+        notes: "Positive response in scan. Not visually tested. In DID gap after turn signals — likely a lighting output (courtesy lamp, license plate, or side marker). Safe to test."
       - cmd: "2FBC1B03"
-        desc: "Unknown"
+        desc: "Reverse light / side marker?"
         priority: P3
         status: accepted
-        notes: "Positive response in scan. Function unknown."
+        notes: "Positive response in scan. Not visually tested. Another lighting output in post-turn-signal DID range. Safe to test."
       - cmd: "2FBC1C03"
         desc: "Luggage lamp ON"
         off: "2FBC1C00"
