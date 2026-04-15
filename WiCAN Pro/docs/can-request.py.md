@@ -39,6 +39,8 @@ Keeps the extended diagnostic session alive after the command completes, until C
 
 **IMPORTANT:** Using the WebSocket terminal overrides AutoPID mode. The WiCAN must be rebooted after a terminal session for AutoPID (MQTT data feed to Home Assistant) to resume.
 
+**CRITICAL: Only one connection at a time.** The WiCAN has a single WebSocket endpoint. Never run multiple `can-request.py` commands in parallel — the second connection will either fail or lock up the device, requiring a power cycle to recover. Always wait for one command to finish before starting the next.
+
 **Never reboot the WiCAN without asking the user first.** Always ask whether they are done probing the CAN bus before suggesting or triggering a reboot. They may want to run more commands in the same session. Only use `--reboot` or `!reboot` when the user has confirmed they are finished.
 
 Please keep the `captures.yaml` file up to date with any new captures. Also note that ALL requests/responses are automatically logged by this tool (see logs directory).

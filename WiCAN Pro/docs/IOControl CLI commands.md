@@ -88,38 +88,27 @@ Warning: Attempt to open door/trunk (after unlocked using IOControl) will trigge
 | BC16 | Right turn indicator      | Confirmed | Right indicator on                                                           |
 | BC18 | DRL (daytime running lights) | Confirmed | DRL on — confirmed on Ioniq 2017                                         |
 | BC1B | Reverse/side marker?      | -         | Untested. Another lighting output in the post-turn-signal DID range          |
-| BC1C | Luggage lamp              | -         | TODO test                                                                   |
-|      |                           |           | **— BC1D-BC2A: UNSCANNED —**                                                |
+| BC1C | Luggage lamp              | -         | TODO test                                                                    |
+| BC25 | Unknown                   | No effect | Accepted but no visible/audible effect. Tested 2026-04-15 (Ready mode)       |
 | BC2B | Rear left brake light     | Confirmed | Works!                                                                       |
 | BC2C | Rear right brake light    | Confirmed | Works!                                                                       |
-|      |                           |           | **— BC2D-BC3E: UNSCANNED — charge port flap likely here (near BC3F/41)**    |
+| BC2D | CHMSL (center brake light)| Confirmed | Center high-mount stop lamp. Confirmed 2026-04-15                            |
 | BC3F | Charge cable LOCK         | Confirmed | Works!                                                                       |
-|      |                           |           | **— BC40: UNSCANNED — could be charge port flap (between lock/unlock)**     |
-| BC41 | Charge cable UNLOCK       | Confirmed | Works, but likely does not stop charge session (DANGER! needs testing!)      |
-|      |                           |           | **— BC42+: UNSCANNED —**                                                    |
+| BC41 | Charge cable UNLOCK       | Confirmed | Works, but likely does not stop charge session (DANGER! needs testing!)       |
+| BC42 | Unknown                   | No effect | Accepted but no visible/audible effect. Tested 2026-04-15 (Ready mode)       |
+| BC43 | Unknown                   | No effect | Accepted but no visible/audible effect. Tested 2026-04-15 (Ready mode)       |
+| BC44 | Unknown                   | No effect | Accepted but no visible/audible effect. Tested 2026-04-15 (Ready mode)       |
 
 ### Rejected DIDs (NRC 0x31 — requestOutOfRange)
 
 BC00, BC06, BC0B, BC0D, BC0E, BC17, BC19, BC1A
 
+All other DIDs in BC1D-BCFF not listed above (scanned 2026-04-15 in Ready mode).
+
 ### Conditional reject (NRC 0x22 — conditionsNotCorrect)
 
 BC13 — may need ignition on or other precondition.
 BC1B — may be reverse light (only accepts command when car is in reverse gear?)
-
-### TODO: scan unscanned ranges
-
-The initial scan only covered BC00-BC20. Charge port flap is likely in BC20-BC41 (near charge cable lock/unlock).
-
-```sh
-# Targeted scan for charge port flap and other unknowns
-python3 can-request.py --scan --tx 770 --service 2F --range BC1D-BC41 --append 03 --session
-
-# If not found, try wider range
-python3 can-request.py --scan --tx 770 --service 2F --range BC42-BCFF --append 03 --session
-```
-
-**Safe to scan** — IGPM IOControl actuators release on session drop. Only risk is BC10/BC11 (lock/unlock) which are already known. The BC20-BC41 range should be all relay/motor outputs.
 
 ## Safety Notes
 
@@ -130,13 +119,15 @@ python3 can-request.py --scan --tx 770 --service 2F --range BC42-BCFF --append 0
 
 ## SKM IOControl DIDs (0x7A5)
 
-Requires extended session (`1003`). **Only works when car is charging or ACC/IGN already on** — SKM is unpowered when car is fully asleep.
+Requires extended session (`1003`). SKM wakes from `1001` even in deep sleep — **but fob proximity may be required** (tested with fob in pocket near car; untested without fob).
 
-Magic bytes `0A 0A 05` are from Kia Soul and confirmed working on Ioniq 2017. Alternative byte orders (`0A 05 0A`, `05 0A 0A`) documented but untested.
+Magic bytes `0A 0A 05` are from Kia Soul and confirmed working on Ioniq 2017.
+
+**ACC does NOT latch** — relay stays on only while the IOControl session is held (TesterPresent keepalive). When the session drops, ACC relay opens, doors re-lock.
 
 | DID  | Label (Soul)    | Status    | Ioniq 2017 Notes                                                                |
 |------|-----------------|-----------|---------------------------------------------------------------------------------|
-| B108 | ACC relay       | Confirmed | Turns on accessory power (dash lights, wakes most ECUs)                         |
+| B108 | ACC relay       | Confirmed | ACC ON: dash lights, infotainment, doors unlock. Confirmed 2026-04-15 from deep sleep (fob nearby). NRC 0x22 if ACC already on. `freezeCurrentState` (02) returns status bytes `6255`. |
 | B109 | IGN1 relay      | Untested  | Ignition 1 — wakes all ECUs including HV system. **Use with extreme caution**   |
 | B10A | IGN2 relay      | Untested  | Ignition 2 — purpose unclear on Ioniq EV. From Kia Soul (ICE start circuit)     |
 | B10B | Start relay     | Untested  | Starter motor relay — **DO NOT USE on EV** (no starter motor, unknown behavior) |

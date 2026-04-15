@@ -1345,31 +1345,40 @@ iocontrol:
       - "Obsidian: BCM.md — e-Niro commands"
 
   # ===========================================================================
-  # SKM — Smart Key Module (0x7A5) — UNVERIFIED ECU ID
+  # SKM — Smart Key Module (0x7A5) — CONFIRMED WORKING
   # ===========================================================================
 
   - ecu:          SKM
     tx_id:        "0x7A5"
-    prerequisite: always
+    prerequisite: ext_sess
     commands:
       - cmd: "2FB108030A0A05"
         desc: "ACC relay ON — WAKE UP sleeping ECUs"
         off: "2FB10800"
         priority: P1
-        notes: "Critical for remote operations. May need magic byte variants:
-                0A050A or 050A0A. ACC On already tested and works!"
+        status: verified
+        notes: "Confirmed 2026-04-15. ACC relay clicks on, infotainment powers up,
+                doors unlock. Does NOT latch — relay releases when session drops.
+                freezeCurrentState (2FB10802) returns status 6255.
+                NRC 0x22 if ACC already on.
+                Wakes from deep sleep with --wake (1001), BUT fob was nearby
+                during test — need to retest without fob to confirm true CAN wake.
+                Magic bytes 0A0A05 from Kia Soul confirmed working on Ioniq 2017."
       - cmd: "2FB109030A0A05"
         desc: "IGN1 relay ON"
         off: "2FB10900"
         priority: P2
+        status: untested
       - cmd: "2FB10A030A0A05"
         desc: "IGN2 relay ON"
         off: "2FB10A00"
         priority: P2
+        status: untested
       - cmd: "2FB10B030A0A05"
         desc: "Start relay ON"
         off: "2FB10B00"
         priority: P3
+        status: untested
         notes: "CAUTION: activates starter relay. Only test if safe."
     sources:
       - "Obsidian: SKM.md — KIA Soul commands"

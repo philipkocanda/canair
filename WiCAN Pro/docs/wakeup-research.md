@@ -9,8 +9,8 @@ Read BMS SoC (and other ECU data) remotely while the car is fully asleep and unp
 | ECU          | Fob lock wake | CAN `1001` wake | Needs ACC power               |
 |--------------|---------------|-----------------|-------------------------------|
 | IGPM (0x770) | Yes           | Yes             | No — always partially powered |
-| SKM (0x7A5)  | No            | No              | Yes                           |
-| BMS (0x7E4)  | No            | No              | Yes                           |
+| SKM (0x7A5)  | No            | **Yes**         | No — wakes from CAN activity  |
+| BMS (0x7E4)  | No            | No              | Yes — needs ACC relay          |
 | VCU (0x7E2)  | Not tested    | Not tested      | Yes                           |
 | BCM (0x7A0)  | Not tested    | No (tested)     | Yes                           |
 
@@ -28,24 +28,54 @@ Sometimes the first `1001` gets a response immediately; sometimes it takes a ret
 - Read DIDs (`22BCxx`) — door status, lock status, lights, ignition, seatbelt
 - IOControl (`2FBCxx`) — low/high beam, turn signals, horn, door lock/unlock, trunk
 
-### Blocking Problem: SKM Power Dependency
+### Key Finding: SKM Also Wakes from Deep Sleep (2026-04-15)
 
-The path to BMS requires the ACC relay:
+**Contrary to earlier testing, the SKM DOES wake from `1001`** — even when the car is fully asleep (off + locked). The `--wake` flag sends `1001` to the target ECU, which wakes the SKM's CAN transceiver. After a brief delay, `1003` succeeds and IOControl works.
+
+**CAVEAT: Key fob was in proximity during this test** (user was near the car with fob in pocket). The fob's passive LF/RFID signal may have kept the SKM's transceiver partially powered. Earlier tests without the fob nearby failed. **A retest with the fob far from the car is needed** to determine if `1001` alone is sufficient, or if fob proximity is required for SKM wake.
+
+Tested sequence (car off, locked, deep sleep, **fob nearby**):
+```
+1001 → NO DATA  (wakes SKM transceiver)
+1003 → 5003     (extended session established)
+2FB108030A0A05 → ACC relay ON (clicking heard, infotainment powered on, doors unlocked)
+```
+
+**ACC does NOT latch** — it stays on only while the IOControl session is held (TesterPresent keepalive). When the session drops, the ACC relay opens and the car re-locks.
+
+**Side effects of ACC ON via IOControl:**
+- Doors unlock (normal ACC behavior)
+- Infotainment boots
+- Doors re-lock when session drops
+- Infotainment may get stuck mid-boot if power is cut abruptly
+
+### Updated Power Dependency Chain
 
 ```
-IGPM (0x770) ← wakes from CAN bus activity
-  └─ SKM (0x7A5) ← needs ACC power (fully unpowered in deep sleep)
-       └─ ACC relay ← controlled by SKM IOControl (2FB108030A0A05)
+CAN bus activity (any frame, e.g. 1001)
+  ├─ IGPM (0x770) ← wakes from CAN activity (always partially powered)
+  └─ SKM (0x7A5)  ← ALSO wakes from CAN activity
+       └─ ACC relay ← IOControl 2FB108030A0A05 (hold with TesterPresent)
             └─ BMS (0x7E4), VCU, MCU, etc.
 ```
 
-The SKM's CAN transceiver is completely off in deep sleep — `1001` has no effect. Without the SKM, we can't close the ACC relay programmatically.
+### Remaining Challenge: Multi-ECU Session
 
-## IGPM DID Scan Results (Deep Sleep)
+The remote BMS read path is now clear:
+1. Wake SKM with `1001`
+2. Hold ACC via `2FB108030A0A05` with TesterPresent keepalive
+3. Query BMS (0x7E4) for SoC, voltages, etc.
+4. Release ACC (drop session)
 
-### Read Scan (Service 0x22) — All Responding DIDs
+**BUT:** `can-request.py` currently supports only one ECU per session. Holding ACC on the SKM while querying the BMS requires either:
+- Multi-ECU support in `can-request.py` (send AT header switches mid-session)
+- A dedicated "remote read" script that handles the full sequence
 
-Scanned BC00-BC80 while car was in deep sleep (unplugged, locked). All responding DIDs listed:
+## IGPM DID Scan Results
+
+### Deep Sleep Scan (car off, unplugged, locked)
+
+#### Read Scan (Service 0x22) — BC00-BC80
 
 | DID Range | Responding DIDs                                                              |
 |-----------|------------------------------------------------------------------------------|
@@ -55,92 +85,138 @@ Scanned BC00-BC80 while car was in deep sleep (unplugged, locked). All respondin
 | BC42-BC60 | **BC46** (7E00), **BC56** (7E00)                                             |
 | BC61-BC80 | **BC65** (7E00), **BC77** (7E00), **BC80** (7E00)                            |
 
-#### New DIDs (all return `7E00` in deep sleep)
+### Ready Mode Scan (car in Ready, ACC on — 2026-04-15)
 
-| DID    | Value  | Binary           | Notes                                                    |
-|--------|--------|------------------|----------------------------------------------------------|
-| BC21   | `7E00` | `01111110 00000000` | Unknown — likely IOControl status register              |
-| BC33   | `7E00` | `01111110 00000000` | Unknown — same pattern                                  |
-| BC46   | `7E00` | `01111110 00000000` | Unknown — same pattern                                  |
-| BC56   | `7E00` | `01111110 00000000` | Unknown — same pattern                                  |
-| BC65   | `7E00` | `01111110 00000000` | Unknown — same pattern                                  |
-| BC77   | `7E00` | `01111110 00000000` | Unknown — same pattern                                  |
-| BC80   | `7E00` | `01111110 00000000` | Unknown — same pattern                                  |
+#### Read Scan (Service 0x22) — BC1D-BC80
 
-All 7 new DIDs return identical `7E00`. These are likely IOControl actuator status registers — each one might correspond to a group of actuators, with `0x7E` = bits 1-6 set representing "off/inactive" state. The values need to be compared against ACC-on readings to determine which bits change.
+| DID Range | Responding DIDs                                                              |
+|-----------|------------------------------------------------------------------------------|
+| BC1D-BC41 | **BC21** (7E00), **BC34** (7E00)                                             |
+| BC42-BC80 | **BC46** (7E00), **BC59** (7E00), **BC72** (7E00)                            |
 
-### IOControl Scan (Service 0x2F) — Previous Results (BC00-BC20)
+**Note:** Different DIDs respond compared to deep sleep (BC33→BC34, BC56→BC59, BC77→BC72, BC65+BC80 not seen). Only BC21 and BC46 are consistent across both states. All values remain `7E00`. The responding DIDs may be timing-sensitive — the scan order or transceiver timing may affect which periodic register catches the response window.
 
-From earlier scanning in ACC mode:
+#### IOControl Existence Scan (Service 0x2F, `--append 00`) — BC1D-BCFF
 
-| DID  | Status   | Description                  |
-|------|----------|------------------------------|
-| BC01 | Accepted | Low beam headlight           |
-| BC02 | Accepted | High beam headlight          |
-| BC03 | Accepted | Front fog light              |
-| BC04 | Accepted | Tail light                   |
-| BC05 | Accepted | Backlight flash              |
-| BC07 | Accepted | **Horn**                     |
-| BC08 | Accepted | Rear fog light               |
-| BC09 | Accepted | Trunk unlock                 |
-| BC0A | Accepted | Unknown (puddle/welcome?)    |
-| BC0C | Accepted | Rear defogger relay          |
-| BC10 | Accepted | Door LOCK all                |
-| BC11 | Accepted | Door UNLOCK all              |
-| BC12 | Accepted | Unknown (per-door unlock?)   |
-| BC14 | Accepted | Unknown (per-door unlock?)   |
-| BC15 | Accepted | Left turn indicator          |
-| BC16 | Accepted | Right turn indicator         |
-| BC18 | Accepted | DRL (daytime running lights) |
-| BC1B | Accepted | (NRC: 0x22 — conditionsNotCorrect) |
-| BC00 | Rejected | (NRC 0x31)                   |
-| BC06 | Rejected | (NRC 0x31)                   |
-| BC0B | Rejected | (NRC 0x31)                   |
-| BC13 | Rejected | (NRC 0x22 conditionsNotCorrect) |
+Full scan completed in Ready mode. `--append 00` = returnControlToECU (safe, checks DID existence without actuating).
 
-**Unscanned IOControl ranges:** BC1D-BC41, BC42+
+**New actuator DIDs discovered:**
 
-## Next Steps (ACC-On Session)
+| DID  | Response       | Notes                                                                 |
+|------|----------------|-----------------------------------------------------------------------|
+| BC25 | `6FBC2500`     | Unknown actuator. Requested as BC26, responded as BC25 (off-by-one)   |
+| BC2D | `6FBC2D00`     | Unknown actuator. Requested as BC2E, responded as BC2D. Between brake lights (BC2B/BC2C) — possibly CHMSL or reverse light |
+| BC42 | `6FBC4200`     | Unknown actuator. Right after charge cable unlock (BC41)              |
+| BC43 | `6FBC4300`     | Unknown actuator                                                      |
+| BC44 | `6FBC4400`     | Unknown actuator                                                      |
 
-When the car is in ACC mode:
+**Re-confirmed existing DIDs via off-by-one responses:**
 
-### 1. Confirm SKM IOControl works on Ioniq
+| Requested | Responded | Known DID                |
+|-----------|-----------|--------------------------|
+| BC2C      | BC2B      | Rear left brake light    |
+| BC2D      | BC2C      | Rear right brake light   |
+| BC41      | BC3F      | Charge cable lock        |
 
-```sh
-python3 can-request.py --raw 7A5:2FB108030A0A05 --session --wican home
+**Note on off-by-one:** Some DIDs respond with a different DID than requested (e.g. request BC26, response `6FBC2500`). This may be a firmware artifact where adjacent DIDs share a handler.
+
+**Status registers (all `7E00`, periodic pattern):**
+
+BC21, BC34, BC46, BC58, BC65, BC78, BC91, BCAB, BCC5, BCDF, BCF9
+
+Spacing pattern: ~18-26 apart. Likely periodic watchdog/heartbeat registers in the IGPM firmware, not useful for actuation. No new actuator DIDs found above BC44.
+
+**Rejected DIDs (NRC 0x31):** Everything else in BC1D-BCFF not listed above.
+
+### IOControl Scan Summary — All Known IGPM DIDs (BC00-BCFF)
+
+From combined ACC-mode scan (BC00-BC20, 2026-04-15) and Ready-mode scan (BC1D-BCFF, 2026-04-15):
+
+| DID  | Status    | Description                  |
+|------|-----------|------------------------------|
+| BC01 | Confirmed | Low beam headlight           |
+| BC02 | Confirmed | High beam headlight          |
+| BC03 | Confirmed | Front fog light              |
+| BC04 | Confirmed | Tail light                   |
+| BC05 | Accepted  | Backlight flash              |
+| BC07 | Confirmed | **Horn**                     |
+| BC08 | Confirmed | Rear fog light               |
+| BC09 | Confirmed | Trunk unlock                 |
+| BC0A | Accepted  | Unknown (puddle/welcome?)    |
+| BC0C | Accepted  | Rear defogger relay          |
+| BC10 | Confirmed | Door LOCK all                |
+| BC11 | Confirmed | Door UNLOCK all              |
+| BC12 | Accepted  | Unknown (per-door unlock?)   |
+| BC14 | Accepted  | Unknown (per-door unlock?)   |
+| BC15 | Confirmed | Left turn indicator          |
+| BC16 | Confirmed | Right turn indicator         |
+| BC18 | Confirmed | DRL (daytime running lights) |
+| BC1B | Accepted  | Unknown (reverse/marker?)    |
+| BC25 | Accepted  | Unknown                      |
+| BC2B | Confirmed | Rear left brake light        |
+| BC2C | Confirmed | Rear right brake light       |
+| BC2D | Accepted  | Unknown (CHMSL/reverse?)     |
+| BC3F | Confirmed | Charge cable LOCK            |
+| BC41 | Confirmed | Charge cable UNLOCK          |
+| BC42 | Accepted  | Unknown                      |
+| BC43 | Accepted  | Unknown                      |
+| BC44 | Accepted  | Unknown                      |
+
+**Rejected:** BC00, BC06, BC0B, BC0D, BC0E, BC17, BC19, BC1A (NRC 0x31)
+**Conditional:** BC13 (NRC 0x22), BC1B (NRC 0x22 in some states)
+
+## SKM IOControl Test (Ready Mode — 2026-04-15)
+
+### Test: ACC relay IOControl (`2FB108030A0A05`)
+
+```
+TX: 7A5:2FB108030A0A05 → NRC 0x22 (conditionsNotCorrect)
 ```
 
-If accepted: ACC relay can be controlled via SKM. The remaining challenge is powering the SKM remotely.
+SKM responded (session established with `5003`), but rejected the ACC relay ON command. Likely because ACC is **already on** — IOControl refuses to actuate an already-active relay.
 
-### 2. Re-read new DIDs in ACC to compare
+### Test: freezeCurrentState (`2FB10802`)
 
-```sh
-python3 can-request.py --raw 770:22BC21 --session --wican home
-python3 can-request.py --raw 770:22BC33 --session --wican home
-python3 can-request.py --raw 770:22BC46 --session --wican home
-python3 can-request.py --raw 770:22BC56 --session --wican home
-python3 can-request.py --raw 770:22BC65 --session --wican home
-python3 can-request.py --raw 770:22BC77 --session --wican home
-python3 can-request.py --raw 770:22BC80 --session --wican home
+```
+TX: 7A5:2FB10802 → 6FB1080262550000
 ```
 
-Compare values against deep-sleep baseline (`7E00`). Any bits that change indicate ACC/IGN-related status.
+DID B108 exists and returns status data. Response bytes:
+- `0x62` = `01100010` — bits 1, 5, 6 set
+- `0x55` = `01010101` — bits 0, 2, 4, 6 set (possibly a bitmask of relay states: ACC, IGN1, IGN2, Start?)
 
-### 3. IOControl existence scan (safe, no actuation)
+### Implications
+
+The SKM B108 DID is confirmed working on the Ioniq 2017. The NRC 0x22 when ACC is already on is consistent with IOControl behavior (can't actuate to current state). The key question remains: **how to power the SKM when the car is fully asleep** — the SKM's CAN transceiver is completely off in deep sleep.
+
+## Next Steps
+
+### 1. Test unknown IGPM IOControl DIDs
+
+The following accepted-but-untested DIDs should be tested with `--hold` (one at a time, visually confirm what happens):
 
 ```sh
-python3 can-request.py --scan --tx 770 --service 2F --range BC1D-BC41 --append 00 --session --wican home
+python3 can-request.py --raw 770:2FBC0A03 --hold   # Puddle/welcome light?
+python3 can-request.py --raw 770:2FBC0C03 --hold   # Rear defogger relay
+python3 can-request.py --raw 770:2FBC2503 --hold   # Unknown (NEW)
+python3 can-request.py --raw 770:2FBC2D03 --hold   # Unknown (NEW) — CHMSL/reverse?
+python3 can-request.py --raw 770:2FBC4203 --hold   # Unknown (NEW)
+python3 can-request.py --raw 770:2FBC4303 --hold   # Unknown (NEW)
+python3 can-request.py --raw 770:2FBC4403 --hold   # Unknown (NEW)
 ```
 
-Using `--append 00` (returnControlToECU) — only checks if the DID exists as an IOControl target, doesn't activate anything.
+### 2. Test SKM relay ON when ACC is off
 
-### 4. Broader read scan in ACC
-
+With the car off (but recently driven, so SKM is still powered — light sleep):
 ```sh
-python3 can-request.py --scan --tx 770 --service 22 --range BC81-BCFF --session --wican home
+python3 can-request.py --raw 7A5:2FB108030A0A05 --session --hold
 ```
 
-There may be more DIDs above BC80.
+If this works, we confirm the ON command is valid and the NRC 0x22 was indeed "already active".
+
+### 3. HVAC IOControl discovery
+
+See HVAC section in IOControl CLI commands doc.
 
 ## Theories for Remote BMS Access
 
