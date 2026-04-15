@@ -91,8 +91,8 @@ From earlier scanning in ACC mode:
 | BC14 | Accepted | Unknown (per-door unlock?)   |
 | BC15 | Accepted | Left turn indicator          |
 | BC16 | Accepted | Right turn indicator         |
-| BC18 | Accepted | Unknown (courtesy/license?)  |
-| BC1B | Accepted | Unknown (reverse/marker?)    |
+| BC18 | Accepted | DRL (daytime running lights) |
+| BC1B | Accepted | (NRC: 0x22 — conditionsNotCorrect) |
 | BC00 | Rejected | (NRC 0x31)                   |
 | BC06 | Rejected | (NRC 0x31)                   |
 | BC0B | Rejected | (NRC 0x31)                   |
