@@ -1,0 +1,1568 @@
+# =============================================================================
+# Ioniq 2017 (28 kWh) — Untested ECU/PID Index
+# =============================================================================
+#
+# Generated: 2026-04-15
+#
+# This file indexes all ECU/PID combinations that have potential for containing
+# useful information and have NOT yet been successfully queried and decoded.
+#
+# Use with can-request.py:
+#   python3 can-request.py --raw <tx_id>:<pid>          # single PID
+#   python3 can-request.py --scan --tx <tx_id> --service 22 --range <start>-<end>
+#
+# Status legend:
+#   untested       — never queried on Ioniq 2017
+#   captured       — response captured but not decoded
+#   partial        — some params decoded, others remain
+#   nrc            — returned Negative Response Code (noted which)
+#   unverified_id  — ECU arbitration ID itself is unconfirmed for Ioniq 2017
+#
+# Priority legend:
+#   P1 — high value, likely to work (confirmed ECU + cross-platform evidence)
+#   P2 — medium value, good chance (confirmed ECU, untested PID range)
+#   P3 — speculative (unverified ECU ID or ChatGPT-only source)
+#
+# Prerequisite legend:
+#   acc       — requires ACC/ignition on (keyfob wake insufficient)
+#   charging  — requires AC or DC charging active
+#   driving   — requires vehicle in motion
+#   always    — responds even with keyfob wake
+#   ext_sess  — requires extended diagnostic session (10 03)
+#   sec_acc   — requires security access (27 01/02)
+#
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# SECTION 1: READ PIDs (Service 0x21 and 0x22)
+# These are safe diagnostic reads — no risk of actuating anything.
+# -----------------------------------------------------------------------------
+
+read_pids:
+
+  # ===========================================================================
+  # VCU — Vehicle Control Unit (0x7E2) — CONFIRMED WORKING
+  # ===========================================================================
+
+  - ecu:          VCU
+    tx_id:        "0x7E2"
+    pid:          "2101"
+    service:      "0x21"
+    status:       partial
+    priority:     P1
+    prerequisite: acc
+    description:  "VCU live data — partially decoded"
+    what_to_test:
+      - "CAR_READY (B26:3) — causes OOB on 22-byte response. Niro/Soul profile
+         uses PID '21014' (trailing digit = frame count?). Try requesting with
+         longer timeout or check if response is longer with ACC on vs keyfob."
+      - "PARK_BRAKE (B26:5) — same OOB issue as CAR_READY"
+      - "ACCEL_PEDAL_DEPTH (B17, /2 %) — in YAML but unverified"
+      - "LDC_INHIBIT (B11:7) — unverified bitfield"
+      - "MCU_STATE (B11:6) — unverified, labeled 'power_enable' in Ioniq5"
+      - "ECO/Sport/Normal mode — suspected in B10 upper nibble, not decoded"
+      - "Regen mode (off/1/2/3) — location unknown, possibly in B10 or B11"
+    sources:
+      - "ioniq-2017-pids.yaml (existing, 44 unverified params total)"
+      - "Kia Niro PR — CAR_READY/PARK_BRAKE"
+      - "Obsidian: VCU.md"
+
+  - ecu:          VCU
+    tx_id:        "0x7E2"
+    pid:          "2102"
+    service:      "0x21"
+    status:       captured
+    priority:     P1
+    prerequisite: acc
+    description:  "VCU page 2 — motor/inverter data, captured but not decoded"
+    what_to_test:
+      - "Heat sink temp (offset unknown, formula: val-40 °C)"
+      - "Inverter input voltage (formula: val*2 V)"
+      - "MCU temp (formula: val-40 °C)"
+      - "Motor actual speed RPM (signed 16-bit)"
+    sources:
+      - "Obsidian: VCU.md — 23 bytes captured 2025-08-07"
+      - "38kWh profile — B20*3.97+2.3 speed formula (differs from ours)"
+
+  - ecu:          VCU
+    tx_id:        "0x7E2"
+    pid:          "22E001"
+    service:      "0x22"
+    status:       untested
+    priority:     P2
+    prerequisite: acc
+    description:  "Vehicle speed (Ioniq 5 cross-ref)"
+    sources:
+      - "ChatGPT — E001-E00C range"
+      - "OBDb Ioniq 5"
+
+  - ecu:          VCU
+    tx_id:        "0x7E2"
+    pid:          "22E002"
+    service:      "0x22"
+    status:       untested
+    priority:     P2
+    prerequisite: acc
+    description:  "Motor RPM"
+    sources:
+      - "ChatGPT"
+
+  - ecu:          VCU
+    tx_id:        "0x7E2"
+    pid:          "22E004"
+    service:      "0x22"
+    status:       untested
+    priority:     P1
+    prerequisite: acc
+    description:  "Accel pedal (16-bit /512), vehicle speed HD, aux battery voltage"
+    sources:
+      - "OBDb Ioniq 5 — confirmed signal definitions"
+
+  - ecu:          VCU
+    tx_id:        "0x7E2"
+    pid:          "22E005"
+    service:      "0x22"
+    status:       untested
+    priority:     P2
+    prerequisite: acc
+    description:  "Disconnector stroke/meet/end points, actuator motor current, PWM duty"
+    sources:
+      - "OBDb Ioniq 5"
+
+  - ecu:          VCU
+    tx_id:        "0x7E2"
+    pid:          "22E006"
+    service:      "0x22"
+    status:       untested
+    priority:     P2
+    prerequisite: acc
+    description:  "Drive mode"
+    sources:
+      - "ChatGPT"
+
+  - ecu:          VCU
+    tx_id:        "0x7E2"
+    pid:          "22E007"
+    service:      "0x22"
+    status:       untested
+    priority:     P1
+    prerequisite: acc
+    description:  "Regen level — high value for monitoring regen braking"
+    sources:
+      - "ChatGPT"
+
+  - ecu:          VCU
+    tx_id:        "0x7E2"
+    pid:          "22E008"
+    service:      "0x22"
+    status:       untested
+    priority:     P2
+    prerequisite: acc
+    description:  "Torque request"
+    sources:
+      - "ChatGPT"
+
+  - ecu:          VCU
+    tx_id:        "0x7E2"
+    pid:          "22E009"
+    service:      "0x22"
+    status:       untested
+    priority:     P2
+    prerequisite: acc
+    description:  "Actual regen torque"
+    sources:
+      - "ChatGPT"
+
+  - ecu:          VCU
+    tx_id:        "0x7E2"
+    pid:          "22E00A"
+    service:      "0x22"
+    status:       untested
+    priority:     P2
+    prerequisite: acc
+    description:  "Odometer (duplicate of CLU?)"
+    sources:
+      - "ChatGPT"
+
+  - ecu:          VCU
+    tx_id:        "0x7E2"
+    pid:          "22E00B"
+    service:      "0x22"
+    status:       untested
+    priority:     P2
+    prerequisite: acc
+    description:  "Motor temp"
+    sources:
+      - "ChatGPT"
+
+  - ecu:          VCU
+    tx_id:        "0x7E2"
+    pid:          "22E00C"
+    service:      "0x22"
+    status:       untested
+    priority:     P2
+    prerequisite: acc
+    description:  "Inverter cooling temp"
+    sources:
+      - "ChatGPT"
+
+  - ecu:          VCU
+    tx_id:        "0x7E2"
+    pid:          "22E010"
+    service:      "0x22"
+    status:       untested
+    priority:     P2
+    prerequisite: acc
+    description:  "Gear state"
+    sources:
+      - "ChatGPT"
+
+  # Scan suggestion: --scan --tx 7E2 --service 22 --range E001-E010
+
+  # ===========================================================================
+  # MCU — Motor Control Unit (0x7E3) — CONFIRMED WORKING
+  # ===========================================================================
+
+  - ecu:          MCU
+    tx_id:        "0x7E3"
+    pid:          "2101"
+    service:      "0x21"
+    status:       captured
+    priority:     P1
+    prerequisite: acc
+    description:  "MCU page 1 — 56 bytes captured, ImHex pattern 'ALL WRONG'"
+    what_to_test:
+      - "Re-capture with ACC on and compare driving vs stationary"
+      - "Compare with Ioniq 5 MCU 22E001 signal definitions"
+      - "Expected: motor torque, phase current, temps"
+    sources:
+      - "Obsidian: MCU.md — captured but undecoded"
+      - "OBDb Ioniq 5 MCU 22E001 signals"
+
+  - ecu:          MCU
+    tx_id:        "0x7E3"
+    pid:          "2102"
+    service:      "0x21"
+    status:       captured
+    priority:     P1
+    prerequisite: acc
+    description:  "MCU page 2 — motor RPM confirmed: ((Signed(F)*256)+E)"
+    what_to_test:
+      - "Decode remaining bytes beyond motor RPM"
+    sources:
+      - "Obsidian: MCU.md"
+
+  - ecu:          MCU
+    tx_id:        "0x7E3"
+    pid:          "22E001"
+    service:      "0x22"
+    status:       untested
+    priority:     P1
+    prerequisite: acc
+    description:  "Ignition voltage, motor RPM, nominal/actual torque, motor phase
+                   current RMS, motor/inverter/heatsink temps"
+    sources:
+      - "OBDb Ioniq 5 — full signal definitions available"
+
+  - ecu:          MCU
+    tx_id:        "0x7E3"
+    pid:          "22E009"
+    service:      "0x22"
+    status:       untested
+    priority:     P1
+    prerequisite: acc
+    description:  "Electric water pump (current/voltage/speed), electric oil pump
+                   (speed/current) — thermal management monitoring"
+    sources:
+      - "OBDb Ioniq 5"
+
+  # Scan suggestion: --scan --tx 7E3 --service 22 --range E001-E010
+
+  # ===========================================================================
+  # BMS — Battery Management System (0x7E4) — CONFIRMED WORKING
+  # ===========================================================================
+
+  - ecu:          BMS
+    tx_id:        "0x7E4"
+    pid:          "2101"
+    service:      "0x21"
+    status:       partial
+    priority:     P1
+    prerequisite: always
+    description:  "BMS main — some params have wrong offsets or suspect values"
+    what_to_test:
+      - "OPERATING_TIME (B57) — always returns 1, formula/offset wrong"
+      - "CUMULATIVE_ENERGY_CHARGED — implausibly large, B47→B49 skips B48"
+      - "CUMULATIVE_ENERGY_DISCHARGED — same issue"
+      - "CUMULATIVE_CURRENT_CHARGED — unverified"
+      - "CUMULATIVE_CURRENT_DISCHARGED — unverified"
+      - "MODULE_3_TEMP (S25) reads 0xCE = -50°C (padding byte)"
+      - "MODULE_5_TEMP (S27) reads 0xCE = -50°C (padding byte)"
+      - "INVERTER_CAP_VOLTAGE (B62) — exceeds 61-byte stationary payload"
+      - "DRIVE_MOTOR_SPEED (B65) — exceeds 61-byte stationary payload"
+      - "ISOLATION_RESISTANCE (B69) — exceeds 61-byte stationary payload"
+      - "Response is 61 bytes stationary, 63 bytes driving — test while driving"
+    sources:
+      - "decode-captures.py output"
+      - "ioniq-2017-pids.yaml"
+
+  - ecu:          BMS
+    tx_id:        "0x7E4"
+    pid:          "22BC01"
+    service:      "0x22"
+    status:       untested
+    priority:     P2
+    prerequisite: always
+    description:  "Battery voltage (UDS alternative to 2101)"
+    sources:
+      - "ChatGPT — 22BCxx range"
+
+  - ecu:          BMS
+    tx_id:        "0x7E4"
+    pid:          "22BC02"
+    service:      "0x22"
+    status:       untested
+    priority:     P2
+    prerequisite: always
+    description:  "Battery current"
+    sources:
+      - "ChatGPT"
+
+  - ecu:          BMS
+    tx_id:        "0x7E4"
+    pid:          "22BC03"
+    service:      "0x22"
+    status:       untested
+    priority:     P2
+    prerequisite: always
+    description:  "SoC"
+    sources:
+      - "ChatGPT"
+
+  - ecu:          BMS
+    tx_id:        "0x7E4"
+    pid:          "22BC04"
+    service:      "0x22"
+    status:       untested
+    priority:     P2
+    prerequisite: always
+    description:  "Display SoC"
+    sources:
+      - "ChatGPT"
+
+  - ecu:          BMS
+    tx_id:        "0x7E4"
+    pid:          "22BC05"
+    service:      "0x22"
+    status:       untested
+    priority:     P2
+    prerequisite: always
+    description:  "Charging status"
+    sources:
+      - "ChatGPT"
+
+  - ecu:          BMS
+    tx_id:        "0x7E4"
+    pid:          "22BC06"
+    service:      "0x22"
+    status:       untested
+    priority:     P2
+    prerequisite: always
+    description:  "Battery temp"
+    sources:
+      - "ChatGPT"
+
+  - ecu:          BMS
+    tx_id:        "0x7E4"
+    pid:          "22BC07"
+    service:      "0x22"
+    status:       untested
+    priority:     P2
+    prerequisite: always
+    description:  "Max cell voltage"
+    sources:
+      - "ChatGPT"
+
+  - ecu:          BMS
+    tx_id:        "0x7E4"
+    pid:          "22BC08"
+    service:      "0x22"
+    status:       untested
+    priority:     P2
+    prerequisite: always
+    description:  "Min cell voltage"
+    sources:
+      - "ChatGPT"
+
+  - ecu:          BMS
+    tx_id:        "0x7E4"
+    pid:          "22BC09"
+    service:      "0x22"
+    status:       untested
+    priority:     P2
+    prerequisite: always
+    description:  "Max/min cell temp"
+    sources:
+      - "ChatGPT"
+
+  - ecu:          BMS
+    tx_id:        "0x7E4"
+    pid:          "22BC0A"
+    service:      "0x22"
+    status:       untested
+    priority:     P2
+    prerequisite: always
+    description:  "State of Health"
+    sources:
+      - "ChatGPT"
+
+  - ecu:          BMS
+    tx_id:        "0x7E4"
+    pid:          "22BC0B"
+    service:      "0x22"
+    status:       untested
+    priority:     P2
+    prerequisite: always
+    description:  "Average cell voltage"
+    sources:
+      - "ChatGPT"
+
+  - ecu:          BMS
+    tx_id:        "0x7E4"
+    pid:          "22B002"
+    service:      "0x22"
+    status:       untested
+    priority:     P3
+    prerequisite: always
+    description:  "Max charge power"
+    sources:
+      - "ChatGPT"
+
+  - ecu:          BMS
+    tx_id:        "0x7E4"
+    pid:          "22B003"
+    service:      "0x22"
+    status:       untested
+    priority:     P3
+    prerequisite: always
+    description:  "Max discharge power"
+    sources:
+      - "ChatGPT"
+
+  - ecu:          BMS
+    tx_id:        "0x7E4"
+    pid:          "22B004"
+    service:      "0x22"
+    status:       untested
+    priority:     P3
+    prerequisite: always
+    description:  "BMS internal temp"
+    sources:
+      - "ChatGPT"
+
+  - ecu:          BMS
+    tx_id:        "0x7E4"
+    pid:          "22B005"
+    service:      "0x22"
+    status:       untested
+    priority:     P3
+    prerequisite: always
+    description:  "BMS status flags"
+    sources:
+      - "ChatGPT"
+
+  - ecu:          BMS
+    tx_id:        "0x7E4"
+    pid:          "22E003"
+    service:      "0x22"
+    status:       untested
+    priority:     P2
+    prerequisite: always
+    description:  "Estimated range"
+    sources:
+      - "ChatGPT"
+
+  - ecu:          BMS
+    tx_id:        "0x7E4"
+    pid:          "22E005"
+    service:      "0x22"
+    status:       untested
+    priority:     P2
+    prerequisite: charging
+    description:  "Time to full charge"
+    sources:
+      - "ChatGPT"
+
+  # Scan suggestion: --scan --tx 7E4 --service 22 --range BC01-BC0B
+  # Scan suggestion: --scan --tx 7E4 --service 22 --range B002-B005
+  # Scan suggestion: --scan --tx 7E4 --service 22 --range E003-E005
+
+  # ===========================================================================
+  # HVAC — Climate Control (0x7B3) — CONFIRMED WORKING
+  # ===========================================================================
+
+  - ecu:          HVAC
+    tx_id:        "0x7B3"
+    pid:          "220100"
+    service:      "0x22"
+    status:       partial
+    priority:     P1
+    prerequisite: acc
+    description:  "HVAC main data — partially decoded"
+    what_to_test:
+      - "HVAC_INVERTER_TEMP (B15, (x/2)-40) — in YAML but unverified"
+      - "Additional undecoded bytes: driver vent temp (B28), driver legs vent
+         temp (B29), evaporator temp alt (B31), unknown temps (B32-34)"
+      - "Vehicle speed at bix 232 (= byte 29) per Ioniq 5 OBDb — verify"
+    sources:
+      - "ioniq-2017-pids.yaml"
+      - "OBDb Ioniq 5 — 220100 signals"
+
+  - ecu:          HVAC
+    tx_id:        "0x7B3"
+    pid:          "220101"
+    service:      "0x22"
+    status:       untested
+    priority:     P1
+    prerequisite: acc
+    description:  "Passenger vent temp, passenger legs vent temp"
+    sources:
+      - "OBDb Ioniq 5"
+      - "Obsidian: HVAC.md"
+
+  - ecu:          HVAC
+    tx_id:        "0x7B3"
+    pid:          "220102"
+    service:      "0x22"
+    status:       untested
+    priority:     P1
+    prerequisite: acc
+    description:  "Coolant temperature, inverter temperature"
+    sources:
+      - "OBDb Ioniq 5"
+      - "Obsidian: HVAC.md"
+
+  - ecu:          HVAC
+    tx_id:        "0x7B3"
+    pid:          "220105"
+    service:      "0x22"
+    status:       untested
+    priority:     P3
+    prerequisite: acc
+    description:  "Driver vent temp"
+    sources:
+      - "ChatGPT"
+
+  - ecu:          HVAC
+    tx_id:        "0x7B3"
+    pid:          "220106"
+    service:      "0x22"
+    status:       untested
+    priority:     P3
+    prerequisite: acc
+    description:  "Cabin center temp"
+    sources:
+      - "ChatGPT"
+
+  - ecu:          HVAC
+    tx_id:        "0x7B3"
+    pid:          "220107"
+    service:      "0x22"
+    status:       untested
+    priority:     P3
+    prerequisite: acc
+    description:  "Humidity sensor"
+    sources:
+      - "ChatGPT"
+
+  - ecu:          HVAC
+    tx_id:        "0x7B3"
+    pid:          "220108"
+    service:      "0x22"
+    status:       untested
+    priority:     P3
+    prerequisite: acc
+    description:  "HVAC inverter temp"
+    sources:
+      - "ChatGPT"
+
+  - ecu:          HVAC
+    tx_id:        "0x7B3"
+    pid:          "220109"
+    service:      "0x22"
+    status:       untested
+    priority:     P3
+    prerequisite: acc
+    description:  "Passenger vent temp (ChatGPT alt)"
+    sources:
+      - "ChatGPT"
+
+  - ecu:          HVAC
+    tx_id:        "0x7B3"
+    pid:          "22010A"
+    service:      "0x22"
+    status:       untested
+    priority:     P3
+    prerequisite: acc
+    description:  "Rear humidity / recirculation"
+    sources:
+      - "ChatGPT"
+
+  - ecu:          HVAC
+    tx_id:        "0x7B3"
+    pid:          "22010B"
+    service:      "0x22"
+    status:       untested
+    priority:     P3
+    prerequisite: acc
+    description:  "Blower RPM / duty cycle"
+    sources:
+      - "ChatGPT"
+
+  # Scan suggestion: --scan --tx 7B3 --service 22 --range 0100-010B
+
+  # ===========================================================================
+  # CLU — Instrument Cluster (0x7C6) — CONFIRMED WORKING
+  # ===========================================================================
+
+  - ecu:          CLU
+    tx_id:        "0x7C6"
+    pid:          "22B002"
+    service:      "0x22"
+    status:       partial
+    priority:     P1
+    prerequisite: acc
+    description:  "Cluster data — odometer confirmed, more signals available"
+    what_to_test:
+      - "Imperial odometer (Ioniq 5: bix 72 = byte 9, UINT24)"
+      - "Range estimate — reported in e-Niro sheet"
+      - "Time driven"
+      - "Speed limit"
+      - "Cruise control info"
+    sources:
+      - "OBDb Ioniq 5 — 22B002 has km + imperial odometer"
+      - "e-Niro reference sheet"
+
+  # Scan suggestion: --scan --tx 7C6 --service 22 --range B001-B010
+
+  # ===========================================================================
+  # IGPM — Integrated Gateway / Power Module (0x770) — CONFIRMED RESPONDING
+  # ===========================================================================
+
+  - ecu:          IGPM
+    tx_id:        "0x770"
+    pid:          "22BC01"
+    service:      "0x22"
+    status:       captured
+    priority:     P1
+    prerequisite: acc
+    description:  "IGPM page 1 — captured but not decoded"
+    what_to_test:
+      - "Decode response bytes — compare with BC03/BC04 structure"
+    sources:
+      - "captures.yaml — 2026-04-14"
+
+  - ecu:          IGPM
+    tx_id:        "0x770"
+    pid:          "22BC02"
+    service:      "0x22"
+    status:       captured
+    priority:     P1
+    prerequisite: acc
+    description:  "IGPM page 2 — captured but not decoded"
+    what_to_test:
+      - "Decode response bytes"
+    sources:
+      - "captures.yaml — 2026-04-14"
+
+  - ecu:          IGPM
+    tx_id:        "0x770"
+    pid:          "22BC03"
+    service:      "0x22"
+    status:       partial
+    priority:     P1
+    prerequisite: acc
+    description:  "Door open/seatbelt/trunk — all params unverified in YAML"
+    what_to_test:
+      - "DOOR_OPEN_FL/FR/RL/RR (B3:0-3) — open/close each door to verify"
+      - "TRUNK_OPEN (B3:4)"
+      - "SEATBELT_DRIVER (B3:5)"
+      - "SEATBELT_PASSENGER (B4:3)"
+      - "IGNITION (B5:4)"
+      - "LOW_BEAMS (bix 48 = B6:0 per Ioniq 5 OBDb)"
+    sources:
+      - "ioniq-2017-pids.yaml (unverified)"
+      - "OBDb Ioniq 5"
+
+  - ecu:          IGPM
+    tx_id:        "0x770"
+    pid:          "22BC04"
+    service:      "0x22"
+    status:       partial
+    priority:     P1
+    prerequisite: acc
+    description:  "Door lock status — unverified in YAML"
+    what_to_test:
+      - "DOOR_LOCK_FL (B3:0), DOOR_LOCK_FR (B3:1) — lock/unlock to verify"
+      - "HIGH_BEAM (B4:7)"
+    sources:
+      - "ioniq-2017-pids.yaml (unverified)"
+
+  - ecu:          IGPM
+    tx_id:        "0x770"
+    pid:          "22BC05"
+    service:      "0x22"
+    status:       captured
+    priority:     P1
+    prerequisite: acc
+    description:  "IGPM page 5 — captured but not decoded"
+    sources:
+      - "captures.yaml — 2026-04-14"
+
+  - ecu:          IGPM
+    tx_id:        "0x770"
+    pid:          "22BC06"
+    service:      "0x22"
+    status:       captured
+    priority:     P1
+    prerequisite: acc
+    description:  "Brake light (bix 32 = byte 4 per Ioniq 5 OBDb)"
+    what_to_test:
+      - "Press brake pedal and verify bit toggles"
+    sources:
+      - "OBDb Ioniq 5"
+      - "captures.yaml — 2026-04-14"
+
+  - ecu:          IGPM
+    tx_id:        "0x770"
+    pid:          "22BC07"
+    service:      "0x22"
+    status:       captured
+    priority:     P2
+    prerequisite: acc
+    description:  "IGPM page 7 — captured but not decoded"
+    sources:
+      - "captures.yaml — 2026-04-14"
+
+  - ecu:          IGPM
+    tx_id:        "0x770"
+    pid:          "22BC08"
+    service:      "0x22"
+    status:       nrc
+    priority:     P3
+    prerequisite: acc
+    description:  "Returned NRC 0x31 (requestOutOfRange) — may not exist on Ioniq"
+    sources:
+      - "captures.yaml — 2026-04-14"
+
+  - ecu:          IGPM
+    tx_id:        "0x770"
+    pid:          "22BC09"
+    service:      "0x22"
+    status:       nrc
+    priority:     P3
+    prerequisite: acc
+    description:  "Returned NRC 0x31"
+    sources:
+      - "captures.yaml — 2026-04-14"
+
+  - ecu:          IGPM
+    tx_id:        "0x770"
+    pid:          "22BC0A"
+    service:      "0x22"
+    status:       nrc
+    priority:     P3
+    prerequisite: acc
+    description:  "Returned NRC 0x31"
+    sources:
+      - "captures.yaml — 2026-04-14"
+
+  # ===========================================================================
+  # BCM/TPMS — Body Control Module (0x7A0) — CONFIRMED WORKING
+  # ===========================================================================
+
+  - ecu:          TPMS
+    tx_id:        "0x7A0"
+    pid:          "22C00B"
+    service:      "0x22"
+    status:       partial
+    priority:     P1
+    prerequisite: acc
+    description:  "TPMS — tyre temps unverified, additional undecoded bytes"
+    what_to_test:
+      - "TYRE_TEMP_FL/FR/RL/RR (B11/15/20/24 - 50 °C) — verify against known temps"
+      - "Decode remaining bytes in 22C00B response beyond pressures/temps"
+    sources:
+      - "ioniq-2017-pids.yaml (temps unverified)"
+
+  - ecu:          BCM
+    tx_id:        "0x7A0"
+    pid:          "22B00E"
+    service:      "0x22"
+    status:       untested
+    priority:     P1
+    prerequisite: acc
+    description:  "Charge port flap open (B10:4) — from Kia Niro PR#716"
+    sources:
+      - "ioniq-2017-pids.yaml (unverified)"
+      - "Kia Niro PR#716"
+
+  - ecu:          BCM
+    tx_id:        "0x7A0"
+    pid:          "22B001"
+    service:      "0x22"
+    status:       untested
+    priority:     P2
+    prerequisite: acc
+    description:  "BCM data page 1"
+    sources:
+      - "Obsidian: BCM.md — scan range suggestion"
+
+  - ecu:          BCM
+    tx_id:        "0x7A0"
+    pid:          "22B00C"
+    service:      "0x22"
+    status:       untested
+    priority:     P2
+    prerequisite: acc
+    description:  "Heated handle / heated steering status"
+    sources:
+      - "Obsidian: BCM.md"
+
+  # Scan suggestion: --scan --tx 7A0 --service 22 --range B001-B012
+  # Scan suggestion: --scan --tx 7A0 --service 22 --range C001-C00F
+
+  # ===========================================================================
+  # ESC — Electronic Stability Control (0x7D1) — CONFIRMED RESPONDING
+  # ===========================================================================
+
+  - ecu:          ESC
+    tx_id:        "0x7D1"
+    pid:          "22C101"
+    service:      "0x22"
+    status:       captured
+    priority:     P1
+    prerequisite: acc
+    description:  "42-byte response captured but undecoded. REAL_SPEED_KMH at B12."
+    what_to_test:
+      - "REAL_SPEED_KMH (B12) — unverified, verify against GPS while driving"
+      - "Decode remaining 41 bytes"
+    sources:
+      - "ioniq-2017-pids.yaml (unverified)"
+      - "captures.yaml — 2026-04-14"
+
+  - ecu:          ESC
+    tx_id:        "0x7D1"
+    pid:          "220104"
+    service:      "0x22"
+    status:       untested
+    priority:     P1
+    prerequisite: driving
+    description:  "Individual wheel speeds FL/FR/RL/RR (8-bit each, km/h)"
+    sources:
+      - "OBDb Ioniq 5"
+
+  - ecu:          ESC
+    tx_id:        "0x7D1"
+    pid:          "22F010"
+    service:      "0x22"
+    status:       untested
+    priority:     P2
+    prerequisite: driving
+    description:  "Ioniq 5 PID — 4 wheel speeds (16-bit /32), steering angle (/10),
+                   lateral/longitudinal acceleration, yaw rate"
+    sources:
+      - "OBDb Ioniq 5 (on 0x730, but try on 0x7D1 too)"
+
+  # Also try ESC on alternative address 0x730:
+  - ecu:          "ESC (alt)"
+    tx_id:        "0x730"
+    pid:          "22F010"
+    service:      "0x22"
+    status:       untested
+    priority:     P2
+    prerequisite: driving
+    description:  "ESC wheel speeds on Ioniq 5 address — may or may not respond"
+    sources:
+      - "OBDb Ioniq 5 uses 0x730 for ESC"
+
+  # ===========================================================================
+  # EPS — Electronic Power Steering (0x7D4) — UNTESTED
+  # ===========================================================================
+
+  - ecu:          EPS
+    tx_id:        "0x7D4"
+    pid:          "220101"
+    service:      "0x22"
+    status:       untested
+    priority:     P1
+    prerequisite: acc
+    description:  "Steering wheel angle absolute (/10 deg), MDPS motor current (signed A)"
+    sources:
+      - "OBDb Ioniq 5"
+      - "OpenDBC fingerprints confirm EPS at 0x7D4"
+
+  # ===========================================================================
+  # OBC/LDC Combined (0x7E5) — CONFIRMED RESPONDING
+  # ===========================================================================
+
+  - ecu:          "OBC/LDC"
+    tx_id:        "0x7E5"
+    pid:          "2101"
+    service:      "0x21"
+    status:       captured
+    priority:     P1
+    prerequisite: charging
+    description:  "OBC/LDC data — captured during AC charging, not fully decoded"
+    what_to_test:
+      - "OBC_TEMP_HEATSINK (S15) — unverified"
+      - "OBC_TEMP_INSIDE (S16) — unverified"
+      - "OBC_TEMP_WATER (S17) — unverified"
+      - "OBC_DC_V ([B18:B19]/10) — unverified"
+      - "OBC_AC_V ([B20:B21]/10) — unverified"
+      - "LDC temp (val-100 °C)"
+      - "DC volt out (/10)"
+    sources:
+      - "ioniq-2017-pids.yaml (unverified)"
+      - "Kia Niro PR#660"
+
+  - ecu:          "OBC/LDC"
+    tx_id:        "0x7E5"
+    pid:          "2102"
+    service:      "0x21"
+    status:       captured
+    priority:     P2
+    prerequisite: charging
+    description:  "OBC/LDC page 2 — captured, not decoded"
+    sources:
+      - "captures.yaml — 2026-04-14"
+
+  - ecu:          "OBC/LDC"
+    tx_id:        "0x7E5"
+    pid:          "2103"
+    service:      "0x21"
+    status:       nrc
+    priority:     P3
+    prerequisite: charging
+    description:  "Returned NRC 0x12 (subFunctionNotSupported)"
+    what_to_test:
+      - "OBC_AC_C ([B9:B10]/100 A) — if it ever responds"
+    sources:
+      - "captures.yaml — 2026-04-14"
+
+  - ecu:          "OBC/LDC"
+    tx_id:        "0x7E5"
+    pid:          "22E001"
+    service:      "0x22"
+    status:       untested
+    priority:     P2
+    prerequisite: charging
+    description:  "Ioniq 5: charge mode DC target V/I, AC max current, V2L targets"
+    sources:
+      - "OBDb Ioniq 5"
+
+  - ecu:          "OBC/LDC"
+    tx_id:        "0x7E5"
+    pid:          "22E002"
+    service:      "0x22"
+    status:       untested
+    priority:     P2
+    prerequisite: charging
+    description:  "Ioniq 5: OBC AC voltages A/B, frequency, currents, DC V/I, OBC temps"
+    sources:
+      - "OBDb Ioniq 5"
+
+  - ecu:          "OBC/LDC"
+    tx_id:        "0x7E5"
+    pid:          "22E011"
+    service:      "0x22"
+    status:       untested
+    priority:     P1
+    prerequisite: always
+    description:  "Ioniq 5: LDC temp, output V/I, input V, aux battery current/SoC/V/temp"
+    sources:
+      - "OBDb Ioniq 5 — useful even when not charging for LDC/aux monitoring"
+
+  # ===========================================================================
+  # OBC Standalone (0x79C) — UNVERIFIED ECU ID
+  # ===========================================================================
+
+  - ecu:          "OBC (standalone)"
+    tx_id:        "0x79C"
+    pid:          "22B101"
+    service:      "0x22"
+    status:       untested
+    priority:     P3
+    prerequisite: charging
+    description:  "AC input voltage — ECU ID from KIA Soul, unverified on Ioniq"
+    sources:
+      - "ChatGPT"
+
+  - ecu:          "OBC (standalone)"
+    tx_id:        "0x79C"
+    pid:          "22B102"
+    service:      "0x22"
+    status:       untested
+    priority:     P3
+    prerequisite: charging
+    description:  "AC input current"
+    sources:
+      - "ChatGPT"
+
+  - ecu:          "OBC (standalone)"
+    tx_id:        "0x79C"
+    pid:          "22B103"
+    service:      "0x22"
+    status:       untested
+    priority:     P3
+    prerequisite: charging
+    description:  "DC output voltage"
+    sources:
+      - "ChatGPT"
+
+  - ecu:          "OBC (standalone)"
+    tx_id:        "0x79C"
+    pid:          "22B104"
+    service:      "0x22"
+    status:       untested
+    priority:     P3
+    prerequisite: charging
+    description:  "DC output current"
+    sources:
+      - "ChatGPT"
+
+  - ecu:          "OBC (standalone)"
+    tx_id:        "0x79C"
+    pid:          "22B105"
+    service:      "0x22"
+    status:       untested
+    priority:     P3
+    prerequisite: charging
+    description:  "Charging state flags"
+    sources:
+      - "ChatGPT"
+
+  - ecu:          "OBC (standalone)"
+    tx_id:        "0x79C"
+    pid:          "22B106"
+    service:      "0x22"
+    status:       untested
+    priority:     P3
+    prerequisite: charging
+    description:  "Charger inlet temp"
+    sources:
+      - "ChatGPT"
+
+  - ecu:          "OBC (standalone)"
+    tx_id:        "0x79C"
+    pid:          "22B107"
+    service:      "0x22"
+    status:       untested
+    priority:     P3
+    prerequisite: charging
+    description:  "Charging power"
+    sources:
+      - "ChatGPT"
+
+  # Scan suggestion: --scan --tx 79C --service 22 --range B101-B107
+
+  # ===========================================================================
+  # LDC Standalone (0x7CD) — UNVERIFIED ECU ID
+  # ===========================================================================
+
+  - ecu:          "LDC (standalone)"
+    tx_id:        "0x7CD"
+    pid:          "2101"
+    service:      "0x21"
+    status:       untested
+    priority:     P3
+    prerequisite: acc
+    description:  "DC volt out, DC amp out, DC volt in (/2), LDC temp (+100 °C) —
+                   ECU ID from KIA Soul, likely at 0x7E5 on Ioniq instead"
+    sources:
+      - "Obsidian: LDC.md"
+
+  # ===========================================================================
+  # Charging Controller / VCMS (0x744) — UNVERIFIED
+  # ===========================================================================
+
+  - ecu:          Charging
+    tx_id:        "0x744"
+    pid:          "22E001"
+    service:      "0x22"
+    status:       untested
+    priority:     P2
+    prerequisite: charging
+    description:  "Aux battery V, DC/AC charge state, OBC DC V/I, AC V/I, est power"
+    sources:
+      - "OBDb Ioniq 5"
+
+  - ecu:          Charging
+    tx_id:        "0x744"
+    pid:          "22E002"
+    service:      "0x22"
+    status:       untested
+    priority:     P2
+    prerequisite: charging
+    description:  "EVSE max/min V/I, regulation tolerance, delivered/max power"
+    sources:
+      - "OBDb Ioniq 5"
+
+  - ecu:          Charging
+    tx_id:        "0x744"
+    pid:          "22E003"
+    service:      "0x22"
+    status:       untested
+    priority:     P2
+    prerequisite: charging
+    description:  "CP voltage/duty, PD voltage, HV bat V/SoC, target V/I,
+                   AC/DC charge counters, charge times"
+    sources:
+      - "OBDb Ioniq 5"
+
+  - ecu:          Charging
+    tx_id:        "0x744"
+    pid:          "22E004"
+    service:      "0x22"
+    status:       untested
+    priority:     P2
+    prerequisite: charging
+    description:  "Main relay status, charging socket, 400V relay, DC/AC inlet temps"
+    sources:
+      - "OBDb Ioniq 5"
+
+  # Scan suggestion: --scan --tx 744 --service 22 --range E001-E004
+
+
+# -----------------------------------------------------------------------------
+# SECTION 2: IOControl Commands (Service 0x2F)
+# WARNING: These ACTUATE physical hardware. Only test with car stationary,
+#          in safe conditions, doors closed where relevant.
+# Require extended diagnostic session (10 03) and TesterPresent keepalive.
+# -----------------------------------------------------------------------------
+
+iocontrol:
+
+  # ===========================================================================
+  # IGPM IOControl (0x770) — FROM KIA SOUL / e-NIRO, UNTESTED
+  # ===========================================================================
+
+  - ecu:          IGPM
+    tx_id:        "0x770"
+    prerequisite: ext_sess
+    commands:
+      - cmd: "2FBC0103"
+        desc: "Head light low beam ON"
+        off: "2FBC0100"
+        priority: P2
+      - cmd: "2FBC0203"
+        desc: "Head light high beam ON"
+        off: "2FBC0200"
+        priority: P2
+      - cmd: "2FBC0303"
+        desc: "Front fog light ON"
+        off: "2FBC0300"
+        priority: P2
+      - cmd: "2FBC0403"
+        desc: "Rear light ON"
+        off: "2FBC0400"
+        priority: P2
+      - cmd: "2FBC0503"
+        desc: "Red backlight flash"
+        priority: P3
+      - cmd: "2FBC0803"
+        desc: "Rear fog light ON"
+        off: "2FBC0800"
+        priority: P3
+      - cmd: "2FBC0903"
+        desc: "Trunk unlock"
+        priority: P1
+      - cmd: "2FBC0B03"
+        desc: "Rear washer ON"
+        off: "2FBC0B00"
+        priority: P3
+      - cmd: "2FBC0C03"
+        desc: "Defogger ON"
+        off: "2FBC0C00"
+        priority: P2
+      - cmd: "2FBC1003"
+        desc: "Door LOCK all"
+        priority: P1
+      - cmd: "6FBC1103"
+        desc: "Door UNLOCK all (note: 0x6F prefix, not 0x2F)"
+        priority: P1
+      - cmd: "2FBC1503"
+        desc: "Left turn indicator ON"
+        off: "2FBC1500"
+        priority: P2
+      - cmd: "2FBC1603"
+        desc: "Right turn indicator ON"
+        off: "2FBC1600"
+        priority: P2
+      - cmd: "2FBC1C03"
+        desc: "Luggage lamp ON"
+        off: "2FBC1C00"
+        priority: P3
+      - cmd: "2FBC3F03"
+        desc: "Charge cable LOCK"
+        priority: P2
+      - cmd: "2FBC4103"
+        desc: "Charge cable UNLOCK"
+        priority: P2
+    notes: |
+      Ioniq AE may use RoutineControl (0x31) instead of IOControl (0x2F).
+      If 0x2F returns NRC, try 0x31 with same subfunction bytes.
+    sources:
+      - "Obsidian: IGPM.md — KIA Soul / e-Niro commands"
+
+  # ===========================================================================
+  # BCM IOControl (0x7A0) — FROM e-NIRO, UNTESTED
+  # ===========================================================================
+
+  - ecu:          BCM
+    tx_id:        "0x7A0"
+    prerequisite: ext_sess
+    commands:
+      - cmd: "2FB06103"
+        desc: "Charge door open"
+        priority: P1
+      - cmd: "2FB05B03"
+        desc: "Mirrors fold"
+        priority: P2
+      - cmd: "2FB05C03"
+        desc: "Mirrors unfold"
+        priority: P2
+      - cmd: "2FB05903"
+        desc: "Heated door handle ON"
+        off: "2FB05900"
+        priority: P2
+      - cmd: "2FB05A03"
+        desc: "Heated door handle LED ON"
+        off: "2FB05A00"
+        priority: P3
+      - cmd: "2FB01903"
+        desc: "Room lamp ON"
+        off: "2FB01900"
+        priority: P3
+    sources:
+      - "Obsidian: BCM.md — e-Niro commands"
+
+  # ===========================================================================
+  # SKM — Smart Key Module (0x7A5) — UNVERIFIED ECU ID
+  # ===========================================================================
+
+  - ecu:          SKM
+    tx_id:        "0x7A5"
+    prerequisite: always
+    commands:
+      - cmd: "2FB108030A0A05"
+        desc: "ACC relay ON — WAKE UP sleeping ECUs"
+        off: "2FB10800"
+        priority: P1
+        notes: "Critical for remote operations. May need magic byte variants:
+                0A050A or 050A0A. ACC On already tested and works!"
+      - cmd: "2FB109030A0A05"
+        desc: "IGN1 relay ON"
+        off: "2FB10900"
+        priority: P2
+      - cmd: "2FB10A030A0A05"
+        desc: "IGN2 relay ON"
+        off: "2FB10A00"
+        priority: P2
+      - cmd: "2FB10B030A0A05"
+        desc: "Start relay ON"
+        off: "2FB10B00"
+        priority: P3
+        notes: "CAUTION: activates starter relay. Only test if safe."
+    sources:
+      - "Obsidian: SKM.md — KIA Soul commands"
+
+  # ===========================================================================
+  # PSM — Power Seat Module (0x7A3) — UNVERIFIED ECU ID
+  # ===========================================================================
+
+  - ecu:          PSM
+    tx_id:        "0x7A3"
+    prerequisite: ext_sess
+    commands:
+      - cmd: "2FB40103"
+        desc: "Seat slide foremost"
+        off: "2FB40100"
+        priority: P3
+      - cmd: "2FB40203"
+        desc: "Seat slide backmost"
+        off: "2FB40200"
+        priority: P3
+      - cmd: "2FB40303"
+        desc: "Seat recline upright"
+        off: "2FB40300"
+        priority: P3
+      - cmd: "2FB40403"
+        desc: "Seat recline back"
+        off: "2FB40400"
+        priority: P3
+      - cmd: "2FB40503"
+        desc: "Front seat up"
+        off: "2FB40500"
+        priority: P3
+      - cmd: "2FB40603"
+        desc: "Front seat down"
+        off: "2FB40600"
+        priority: P3
+    sources:
+      - "Obsidian: PSM.md — e-Niro commands"
+
+  # ===========================================================================
+  # VESS — Vehicle Engine Sound System (0x736) — UNVERIFIED ECU ID
+  # ===========================================================================
+
+  - ecu:          VESS
+    tx_id:        "0x736"
+    prerequisite: acc
+    commands:
+      - cmd: "2F110300010000"
+        desc: "Play VESS sound for 5 seconds"
+        priority: P3
+      - cmd: "2FF01103"
+        desc: "Play VESS sound (Lubos variant)"
+        priority: P3
+    sources:
+      - "Obsidian: VESS.md"
+
+
+# -----------------------------------------------------------------------------
+# SECTION 3: DISCOVERY SCANS
+# Broad range scans to find unknown responding PIDs.
+# Run these last, after targeted queries.
+# -----------------------------------------------------------------------------
+
+discovery_scans:
+
+  - ecu:          VCU
+    tx_id:        "0x7E2"
+    scan_cmd:     "--scan --tx 7E2 --service 22 --range E001-E010"
+    priority:     P1
+    prerequisite: acc
+    description:  "VCU 0x22 E0xx powertrain range"
+
+  - ecu:          MCU
+    tx_id:        "0x7E3"
+    scan_cmd:     "--scan --tx 7E3 --service 22 --range E001-E010"
+    priority:     P1
+    prerequisite: acc
+    description:  "MCU 0x22 E0xx powertrain range"
+
+  - ecu:          BMS
+    tx_id:        "0x7E4"
+    scan_cmd:     "--scan --tx 7E4 --service 22 --range BC01-BC0B"
+    priority:     P1
+    prerequisite: always
+    description:  "BMS 0x22 BCxx body/comfort range (ChatGPT-sourced)"
+
+  - ecu:          BMS
+    tx_id:        "0x7E4"
+    scan_cmd:     "--scan --tx 7E4 --service 22 --range B002-B005"
+    priority:     P2
+    prerequisite: always
+    description:  "BMS 0x22 B0xx cluster range"
+
+  - ecu:          BMS
+    tx_id:        "0x7E4"
+    scan_cmd:     "--scan --tx 7E4 --service 22 --range E003-E005"
+    priority:     P2
+    prerequisite: always
+    description:  "BMS 0x22 E0xx powertrain range (range estimate, time to charge)"
+
+  - ecu:          HVAC
+    tx_id:        "0x7B3"
+    scan_cmd:     "--scan --tx 7B3 --service 22 --range 0100-010B"
+    priority:     P1
+    prerequisite: acc
+    description:  "HVAC full DID range"
+
+  - ecu:          CLU
+    tx_id:        "0x7C6"
+    scan_cmd:     "--scan --tx 7C6 --service 22 --range B001-B010"
+    priority:     P2
+    prerequisite: acc
+    description:  "CLU cluster range"
+
+  - ecu:          BCM
+    tx_id:        "0x7A0"
+    scan_cmd:     "--scan --tx 7A0 --service 22 --range B001-B012"
+    priority:     P2
+    prerequisite: acc
+    description:  "BCM body data range"
+
+  - ecu:          BCM
+    tx_id:        "0x7A0"
+    scan_cmd:     "--scan --tx 7A0 --service 22 --range C001-C00F"
+    priority:     P2
+    prerequisite: acc
+    description:  "BCM/TPMS comfort range"
+
+  - ecu:          ESC
+    tx_id:        "0x7D1"
+    scan_cmd:     "--scan --tx 7D1 --service 22 --range C101-C10F"
+    priority:     P2
+    prerequisite: acc
+    description:  "ESC C1xx range"
+
+  - ecu:          ESC
+    tx_id:        "0x7D1"
+    scan_cmd:     "--scan --tx 7D1 --service 22 --range 0101-010F"
+    priority:     P2
+    prerequisite: acc
+    description:  "ESC 01xx range (Ioniq 5 uses 0104)"
+
+  - ecu:          "ESC (alt)"
+    tx_id:        "0x730"
+    scan_cmd:     "--scan --tx 730 --service 22 --range F010-F010"
+    priority:     P2
+    prerequisite: driving
+    description:  "Ioniq 5 ESC address — wheel speeds/steering"
+
+  - ecu:          EPS
+    tx_id:        "0x7D4"
+    scan_cmd:     "--scan --tx 7D4 --service 22 --range 0101-0105"
+    priority:     P2
+    prerequisite: acc
+    description:  "EPS steering angle range"
+
+  - ecu:          "OBC/LDC"
+    tx_id:        "0x7E5"
+    scan_cmd:     "--scan --tx 7E5 --service 22 --range E001-E011"
+    priority:     P2
+    prerequisite: charging
+    description:  "OBC/LDC UDS range"
+
+  - ecu:          "OBC (standalone)"
+    tx_id:        "0x79C"
+    scan_cmd:     "--scan --tx 79C --service 22 --range B101-B107"
+    priority:     P3
+    prerequisite: charging
+    description:  "OBC standalone B1xx range — ECU ID unverified"
+
+  - ecu:          Charging
+    tx_id:        "0x744"
+    scan_cmd:     "--scan --tx 744 --service 22 --range E001-E004"
+    priority:     P2
+    prerequisite: charging
+    description:  "Charging controller E0xx range"
+
+  - ecu:          "LDC (standalone)"
+    tx_id:        "0x7CD"
+    scan_cmd:     "--scan --tx 7CD --service 21 --range 01-05"
+    priority:     P3
+    prerequisite: acc
+    description:  "LDC standalone 0x21 range — ECU ID unverified"
+
+  # Broad discovery on unknown ECU IDs
+  - ecu:          "Unknown"
+    tx_id:        "0x7E0"
+    scan_cmd:     "--scan --tx 7E0 --service 22 --range 0101-0105"
+    priority:     P3
+    prerequisite: acc
+    description:  "38kWh profile says VCU is at 0x7E0 — test if anything responds"
+
+  - ecu:          "Unknown"
+    tx_id:        "0x7E1"
+    scan_cmd:     "--scan --tx 7E1 --service 22 --range 0101-0105"
+    priority:     P3
+    prerequisite: acc
+    description:  "Powertrain address — test if anything responds"
+
+
+# -----------------------------------------------------------------------------
+# SECTION 4: SESSION PLAN
+# Recommended order of operations for a testing session.
+# -----------------------------------------------------------------------------
+
+session_plan:
+
+  keyfob_wake:
+    description: "Car sleeping, wake with keyfob (no ACC)"
+    duration_est: "5 min"
+    tests:
+      - "BMS 0x7E4: scan 22 BC01-BC0B (always-on ECU)"
+      - "BMS 0x7E4: scan 22 B002-B005"
+      - "BMS 0x7E4: scan 22 E003-E005"
+      - "Gateway 0x7E6: test additional PIDs beyond 2180"
+      - "LDC 0x7CD: test 2101"
+      - "OBC/LDC 0x7E5: test 22E011 (LDC aux battery monitoring)"
+
+  acc_on:
+    description: "ACC on via keyfob or SKM wakeup"
+    duration_est: "15 min"
+    tests:
+      - "IGPM 0x770: verify BC03/04 door/lock params (open/close doors)"
+      - "IGPM 0x770: decode BC01/02/05/06/07 captured responses"
+      - "BCM 0x7A0: scan B001-B012 and C001-C00F"
+      - "BCM 0x7A0: test 22B00E charge port flap"
+      - "VCU 0x7E2: scan 22 E001-E010"
+      - "VCU 0x7E2: decode 2102 (motor/inverter data)"
+      - "MCU 0x7E3: scan 22 E001-E010"
+      - "MCU 0x7E3: re-decode 2101 (compare with Ioniq 5 22E001 signals)"
+      - "HVAC 0x7B3: scan 220100-22010B"
+      - "CLU 0x7C6: scan 22B001-B010"
+      - "ESC 0x7D1: scan 22C101-C10F and 220101-010F"
+      - "EPS 0x7D4: scan 220101-0105"
+      - "0x730: test 22F010 (Ioniq 5 ESC address)"
+      - "0x7E0/0x7E1: probe for response (unknown ECUs)"
+
+  acc_on_iocontrol:
+    description: "IOControl testing — extended session required"
+    duration_est: "10 min"
+    prerequisites: "Enter extended diagnostic session first: send 10 03 to target ECU"
+    tests:
+      - "IGPM 0x770: test door lock/unlock (2F BC 10/11)"
+      - "IGPM 0x770: test headlights (2F BC 01/02)"
+      - "IGPM 0x770: test turn indicators (2F BC 15/16)"
+      - "IGPM 0x770: test trunk unlock (2F BC 09)"
+      - "BCM 0x7A0: test charge door open (2F B0 61)"
+      - "BCM 0x7A0: test mirrors fold/unfold (2F B0 5B/5C)"
+      - "If 0x2F returns NRC, retry same subfunctions with 0x31 (RoutineControl)"
+
+  charging:
+    description: "During AC charging session"
+    duration_est: "10 min"
+    tests:
+      - "OBC/LDC 0x7E5: decode 2101/2102 captured data"
+      - "OBC/LDC 0x7E5: scan 22 E001-E011"
+      - "OBC standalone 0x79C: scan 22 B101-B107"
+      - "Charging 0x744: scan 22 E001-E004"
+      - "IGPM 0x770: test charge cable lock/unlock (2F BC 3F/41)"
+
+  driving:
+    description: "While driving (passenger operates laptop)"
+    duration_est: "10 min"
+    tests:
+      - "VCU 0x7E2: check if 2101 response is longer than 22 bytes while driving"
+      - "VCU 0x7E2: verify speed formula (compare with GPS)"
+      - "ESC 0x7D1: verify REAL_SPEED_KMH (B12)"
+      - "ESC 0x7D1: test 220104 individual wheel speeds"
+      - "ESC 0x730: test 22F010 wheel speeds/steering/accel"
+      - "BMS 0x7E4: test 2101 — verify 63-byte response while driving"
+      - "MCU 0x7E3: capture 2101/2102 while driving (motor under load)"
+
+
+# -----------------------------------------------------------------------------
+# SECTION 5: STATISTICS
+# -----------------------------------------------------------------------------
+
+stats:
+  total_read_entries:     76
+  total_iocontrol_entries: 32
+  total_discovery_scans:  19
+  priority_breakdown:
+    P1: 30
+    P2: 46
+    P3: 32
+  by_prerequisite:
+    always:    20
+    acc:       55
+    charging:  22
+    driving:    8
+    ext_sess:   3
+  confirmed_ecus_with_untested_pids: 10
+  unverified_ecu_ids: 5
