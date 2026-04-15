@@ -774,6 +774,18 @@ read_pids:
   # ===========================================================================
   # BCM/TPMS — Body Control Module (0x7A0) — CONFIRMED WORKING
   # ===========================================================================
+  # BCM wakes via SKM ACC+IGN1 (cannot wake independently from deep sleep).
+  # Does NOT need extended session for reads (22 B0xx, 22 C0xx).
+  # IOControl (2F B0xx) DOES need extended session (1003).
+  #
+  # READ SCAN COMPLETE (2026-04-15, deep sleep + SKM ACC+IGN1):
+  #   22 B001-B00F: 14/15 responding (B00B=status register, B010-B012 rejected)
+  #   22 C001-C00F: ALL 15 responding (TPMS config, sensors, pressure, extended)
+  #
+  # IOCONTROL SCAN PARTIAL (2026-04-15, deep sleep + SKM ACC+IGN1):
+  #   2F B000-B072: 24 accepted (safe scan with --append 00)
+  #   2F B073-B0FF: incomplete (SKM session dropped mid-scan, needs re-scan)
+  #   2F B061: NRC 0x31 (charge door open not supported on Ioniq 2017)
 
   - ecu:          TPMS
     tx_id:        "0x7A0"
@@ -793,38 +805,96 @@ read_pids:
     tx_id:        "0x7A0"
     pid:          "22B00E"
     service:      "0x22"
-    status:       untested
-    priority:     P1
-    prerequisite: acc
-    description:  "Charge port flap open (B10:4) — from Kia Niro PR#716"
+    status:       verified
+    priority:     done
+    prerequisite: none
+    description:  "Charge port flap status — VERIFIED B10:5 (WiCAN idx)"
+    notes: "Verified 2026-04-15. BCM reads work without extended session.
+            B10:5 = 1 when charge port open, 0 when closed."
     sources:
-      - "ioniq-2017-pids.yaml (unverified)"
-      - "Kia Niro PR#716"
-
-  - ecu:          BCM
-    tx_id:        "0x7A0"
-    pid:          "22B001"
-    service:      "0x22"
-    status:       untested
-    priority:     P2
-    prerequisite: acc
-    description:  "BCM data page 1"
-    sources:
-      - "Obsidian: BCM.md — scan range suggestion"
+      - "ioniq-2017-pids.yaml (verified)"
 
   - ecu:          BCM
     tx_id:        "0x7A0"
     pid:          "22B00C"
     service:      "0x22"
-    status:       untested
+    status:       captured
     priority:     P2
-    prerequisite: acc
-    description:  "Heated handle / heated steering status"
+    prerequisite: skm_acc
+    description:  "Preheat schedule — day-of-week bitmask"
+    notes: "B3=0x3F (0b00111111) = 6 days set. User has daily 08:00 preheat
+            (may have missed one day). Remaining bytes 00 = no charge schedule.
+            Preheat TIME is NOT in this DID — may be in B007 or B00D."
     sources:
-      - "Obsidian: BCM.md"
+      - "Captured 2026-04-15"
 
-  # Scan suggestion: --scan --tx 7A0 --service 22 --range B001-B012
-  # Scan suggestion: --scan --tx 7A0 --service 22 --range C001-C00F
+  - ecu:          BCM
+    tx_id:        "0x7A0"
+    pid:          "22B00D"
+    service:      "0x22"
+    status:       captured
+    priority:     P2
+    prerequisite: skm_acc
+    description:  "Preheat timer config — may contain departure time"
+    notes: "B3-B4=0xFCFC, B5=0xE0. Relationship to 08:00 (480 min) unclear.
+            Change preheat time and re-read to decode."
+    sources:
+      - "Captured 2026-04-15"
+
+  - ecu:          BCM
+    tx_id:        "0x7A0"
+    pid:          "22B007"
+    service:      "0x22"
+    status:       captured
+    priority:     P2
+    prerequisite: skm_acc
+    description:  "BCM data — may contain preheat time"
+    notes: "Contains 0x01E0 = 480 decimal = minutes from midnight for 08:00.
+            Strong candidate for preheat departure time field."
+    sources:
+      - "Captured 2026-04-15"
+
+  - ecu:          BCM
+    tx_id:        "0x7A0"
+    pid:          "22B001-B00A, B00F"
+    service:      "0x22"
+    status:       captured
+    priority:     P3
+    prerequisite: skm_acc
+    description:  "BCM body data pages — all responding, mostly undecoded"
+    notes: "B001 (20B): config flags. B003 (27B): dense bitfields.
+            B004: possible voltage/current. B009: repeating FEEE pattern.
+            Full payloads in captures.yaml 2026-04-15."
+    sources:
+      - "Captured 2026-04-15"
+
+  - ecu:          BCM
+    tx_id:        "0x7A0"
+    pid:          "22C001-C00A"
+    service:      "0x22"
+    status:       captured
+    priority:     P3
+    prerequisite: skm_acc
+    description:  "TPMS sensor config — per-sensor IDs and calibration"
+    notes: "C003-C007: active sensors with ASCII IDs (DO01, NA01, NTPM, DO02, NA02).
+            C008-C00A: spare slots (all FF). C001/C002: summary/config."
+    sources:
+      - "Captured 2026-04-15"
+
+  - ecu:          BCM
+    tx_id:        "0x7A0"
+    pid:          "22C00C-C00F"
+    service:      "0x22"
+    status:       captured
+    priority:     P3
+    prerequisite: skm_acc
+    description:  "TPMS extended per-sensor data with status flags"
+    notes: "41 bytes each. C00C and C00F have active data, C00D/C00E are zeros."
+    sources:
+      - "Captured 2026-04-15"
+
+  # Scan suggestion: --scan --tx 7A0 --service 22 --range B001-B012 — DONE
+  # Scan suggestion: --scan --tx 7A0 --service 22 --range C001-C00F — DONE
 
   # ===========================================================================
   # ESC — Electronic Stability Control (0x7D1) — CONFIRMED RESPONDING
@@ -1313,35 +1383,155 @@ iocontrol:
         desc: "requestOutOfRange"
 
   # ===========================================================================
-  # BCM IOControl (0x7A0) — FROM e-NIRO, UNTESTED
+  # BCM IOControl (0x7A0) — SCAN PARTIAL (B000-B072 done, B073-B0FF incomplete)
   # ===========================================================================
+  # BCM IOControl requires extended session (1003) AND SKM ACC+IGN1 power.
+  # Scanned 2026-04-15 with returnControlToECU (--append 00, safe).
+  # B061 (charge door open from e-Niro) = NRC 0x31, NOT supported on Ioniq.
+  #
+  # Accepted DIDs (B000-B072): B003, B006, B008, B009, B00A, B00F, B019, B01A,
+  #   B025, B028, B029, B030, B038, B039, B03A, B03B, B04D, B057, B059, B05A,
+  #   B05B, B05C, B071, B072
+  # Rejected (NRC 0x31): everything else in B000-B072 incl. B061
+  # B073-B0FF: NOT SCANNED (SKM session dropped, needs re-scan)
 
   - ecu:          BCM
     tx_id:        "0x7A0"
-    prerequisite: ext_sess
+    prerequisite: ext_sess_skm_acc
     commands:
-      - cmd: "2FB06103"
-        desc: "Charge door open"
-        priority: P1
-      - cmd: "2FB05B03"
-        desc: "Mirrors fold"
+      # ─── Known/labeled (from e-Niro + confirmed scan) ───
+      - cmd: "2FB01903"
+        desc: "Room lamp (interior light)"
+        off: "2FB01900"
         priority: P2
-      - cmd: "2FB05C03"
-        desc: "Mirrors unfold"
-        priority: P2
+        status: accepted
+        notes: "DID exists on Ioniq. Untested for visible effect."
+      - cmd: "2FB01A03"
+        desc: "Unknown — adjacent to room lamp"
+        off: "2FB01A00"
+        priority: P3
+        status: accepted
+      - cmd: "2FB05703"
+        desc: "Unknown — mirror/handle region"
+        off: "2FB05700"
+        priority: P3
+        status: accepted
       - cmd: "2FB05903"
         desc: "Heated door handle ON"
         off: "2FB05900"
         priority: P2
+        status: accepted
+        notes: "May not exist on Ioniq 2017 base trim (no heated handles)."
       - cmd: "2FB05A03"
         desc: "Heated door handle LED ON"
         off: "2FB05A00"
         priority: P3
-      - cmd: "2FB01903"
-        desc: "Room lamp ON"
-        off: "2FB01900"
+        status: accepted
+      - cmd: "2FB05B03"
+        desc: "Mirrors fold"
+        priority: P1
+        status: verified
+        notes: "Confirmed working on Ioniq 2017."
+      - cmd: "2FB05C03"
+        desc: "Mirrors unfold"
+        priority: P1
+        status: verified
+        notes: "Confirmed working on Ioniq 2017."
+      - cmd: "2FB06103"
+        desc: "Charge door open (e-Niro)"
+        priority: P1
+        status: rejected
+        notes: "NRC 0x31 — NOT supported on Ioniq 2017. Tested with and without
+                ACC power. Charge port flap may not have a remote-open actuator
+                on this model."
+      - cmd: "2FB07103"
+        desc: "Unknown"
+        off: "2FB07100"
         priority: P3
+        status: accepted
+      - cmd: "2FB07203"
+        desc: "Unknown"
+        off: "2FB07200"
+        priority: P3
+        status: accepted
+      # ─── Unknown DIDs (accepted in scan, no label) ───
+      - cmd: "2FB00303"
+        desc: "Unknown — low DID range (status/config?)"
+        off: "2FB00300"
+        priority: P3
+        status: accepted
+      - cmd: "2FB00603"
+        desc: "Unknown"
+        off: "2FB00600"
+        priority: P3
+        status: accepted
+      - cmd: "2FB00803"
+        desc: "Unknown"
+        off: "2FB00800"
+        priority: P3
+        status: accepted
+      - cmd: "2FB00903"
+        desc: "Unknown"
+        off: "2FB00900"
+        priority: P3
+        status: accepted
+      - cmd: "2FB00A03"
+        desc: "Unknown"
+        off: "2FB00A00"
+        priority: P3
+        status: accepted
+      - cmd: "2FB00F03"
+        desc: "Unknown"
+        off: "2FB00F00"
+        priority: P3
+        status: accepted
+      - cmd: "2FB02503"
+        desc: "Unknown — possibly window/wiper"
+        off: "2FB02500"
+        priority: P3
+        status: accepted
+      - cmd: "2FB02803"
+        desc: "Unknown — possibly window/wiper"
+        off: "2FB02800"
+        priority: P3
+        status: accepted
+      - cmd: "2FB02903"
+        desc: "Unknown — possibly window/wiper"
+        off: "2FB02900"
+        priority: P3
+        status: accepted
+      - cmd: "2FB03003"
+        desc: "Unknown — possibly wiper/washer"
+        off: "2FB03000"
+        priority: P3
+        status: accepted
+      - cmd: "2FB03803"
+        desc: "Unknown"
+        off: "2FB03800"
+        priority: P3
+        status: accepted
+      - cmd: "2FB03903"
+        desc: "Unknown"
+        off: "2FB03900"
+        priority: P3
+        status: accepted
+      - cmd: "2FB03A03"
+        desc: "Unknown"
+        off: "2FB03A00"
+        priority: P3
+        status: accepted
+      - cmd: "2FB03B03"
+        desc: "Unknown"
+        off: "2FB03B00"
+        priority: P3
+        status: accepted
+      - cmd: "2FB04D03"
+        desc: "Unknown"
+        off: "2FB04D00"
+        priority: P3
+        status: accepted
     sources:
+      - "IOControl scan 2026-04-15 (B000-B072 with --append 00)"
       - "Obsidian: BCM.md — e-Niro commands"
 
   # ===========================================================================
@@ -1361,9 +1551,9 @@ iocontrol:
                 doors unlock. Does NOT latch — relay releases when session drops.
                 freezeCurrentState (2FB10802) returns status 6255.
                 NRC 0x22 if ACC already on.
-                REQUIRES FOB PROXIMITY — SKM only wakes from 1001 when key fob
-                LF field is present (~1-2m). Without fob nearby, SKM is completely
-                dead (confirmed: fob far away → all NO DATA)."
+                SKM wakes from rapid-fire 1001 (50x at 150ms, ATST10) WITHOUT fob.
+                Single 1001 is not enough — sustained CAN traffic needed. SKM falls
+                asleep again after ~60s of bus inactivity."
       - cmd: "2FB109030A0A05"
         desc: "IGN1 relay ON"
         off: "2FB10900"
@@ -1496,16 +1686,16 @@ discovery_scans:
   - ecu:          BCM
     tx_id:        "0x7A0"
     scan_cmd:     "--scan --tx 7A0 --service 22 --range B001-B012"
-    priority:     P2
+    priority:     done
     prerequisite: acc
-    description:  "BCM body data range"
+    description:  "BCM body data range — DONE 2026-04-15. 14/15 responding."
 
   - ecu:          BCM
     tx_id:        "0x7A0"
     scan_cmd:     "--scan --tx 7A0 --service 22 --range C001-C00F"
-    priority:     P2
+    priority:     done
     prerequisite: acc
-    description:  "BCM/TPMS comfort range"
+    description:  "BCM/TPMS comfort range — DONE 2026-04-15. 15/15 responding."
 
   - ecu:          ESC
     tx_id:        "0x7D1"
@@ -1614,10 +1804,12 @@ discovery_scans:
 
   - ecu:          BCM
     tx_id:        "0x7A0"
-    scan_cmd:     "--scan --tx 7A0 --service 2F --range B000-B0FF --append 03 --session"
+    scan_cmd:     "--scan --tx 7A0 --service 2F --range B073-B0FF --append 00 --session"
     priority:     P2
-    prerequisite: acc
-    description:  "BCM IOControl full B0xx range — find all supported actuator DIDs"
+    prerequisite: skm_acc
+    description:  "BCM IOControl B073-B0FF — INCOMPLETE. B000-B072 done (24 accepted).
+                   Scan timed out at B072 due to SKM session drop. Re-scan with more
+                   aggressive keepalive needed."
 
 
 # -----------------------------------------------------------------------------
@@ -1642,10 +1834,10 @@ session_plan:
     description: "ACC on via keyfob or SKM wakeup"
     duration_est: "15 min"
     tests:
-      - "IGPM 0x770: verify BC03/04 door/lock params (open/close doors)"
-      - "IGPM 0x770: decode BC01/02/05/06/07 captured responses"
-      - "BCM 0x7A0: scan B001-B012 and C001-C00F"
-      - "BCM 0x7A0: test 22B00E charge port flap"
+      - "IGPM 0x770: verify BC03/04 door/lock params (open/close doors) — DONE 2026-04-15"
+      - "IGPM 0x770: decode BC01/02/05/06/07 captured responses — DONE (BC06=brake/turns)"
+      - "BCM 0x7A0: scan B001-B012 and C001-C00F — DONE 2026-04-15 (29/30 responding)"
+      - "BCM 0x7A0: test 22B00E charge port flap — DONE (B10:5 verified)"
       - "VCU 0x7E2: scan 22 E001-E010"
       - "VCU 0x7E2: decode 2102 (motor/inverter data)"
       - "MCU 0x7E3: scan 22 E001-E010"
@@ -1662,12 +1854,14 @@ session_plan:
     duration_est: "10 min"
     prerequisites: "Enter extended diagnostic session first: send 10 03 to target ECU"
     tests:
-      - "IGPM 0x770: test door lock/unlock (2F BC 10/11)"
-      - "IGPM 0x770: test headlights (2F BC 01/02)"
-      - "IGPM 0x770: test turn indicators (2F BC 15/16)"
-      - "IGPM 0x770: test trunk unlock (2F BC 09)"
-      - "BCM 0x7A0: test charge door open (2F B0 61)"
-      - "BCM 0x7A0: test mirrors fold/unfold (2F B0 5B/5C)"
+      - "IGPM 0x770: test door lock/unlock (2F BC 10/11) — DONE 2026-04-15"
+      - "IGPM 0x770: test headlights (2F BC 01/02) — DONE 2026-04-15"
+      - "IGPM 0x770: test turn indicators (2F BC 15/16) — DONE 2026-04-15"
+      - "IGPM 0x770: test trunk unlock (2F BC 09) — DONE 2026-04-15"
+      - "BCM 0x7A0: charge door open (2F B0 61) — REJECTED (NRC 0x31, not supported)"
+      - "BCM 0x7A0: test mirrors fold/unfold (2F B0 5B/5C) — B05B CONFIRMED"
+      - "BCM 0x7A0: scan B073-B0FF IOControl (incomplete, needs re-scan)"
+      - "BCM 0x7A0: test accepted unknown DIDs (B019 room lamp, B025-B030, etc.)"
       - "If 0x2F returns NRC, retry same subfunctions with 0x31 (RoutineControl)"
 
   charging:
