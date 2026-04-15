@@ -5,12 +5,16 @@ Actuators release when session drops (Ctrl+C or `--timeout`).
 
 ## Quick Reference
 
+Note: Append --wake flag if car is fully asleep (e.g. after 30 min idle) — this sends a wakeup message before the command, which may be necessary to get a response from the IGPM.
+
 ```sh
 # Lights
 python3 can-request.py --raw 770:2FBC0103 --hold   # Low beam ON
 python3 can-request.py --raw 770:2FBC0203 --hold   # High beam ON
+python3 can-request.py --raw 770:2FBC1803 --hold   # DRL ON
 python3 can-request.py --raw 770:2FBC0403 --hold   # Tail/rear light ON
 python3 can-request.py --raw 770:2FBC0803 --hold   # Rear fog light ON
+python3 can-request.py --raw 770:2FBC1803 --hold --timeout 10 --wake # DRL ON for 10 sec, with wakeup if asleep
 
 # Turn signals
 python3 can-request.py --raw 770:2FBC1503 --hold --timeout 10  # Left indicator
@@ -82,9 +86,9 @@ Warning: Attempt to open door/trunk (after unlocked using IOControl) will trigge
 | BC14 | Individual door unlock?   | -         | Untested. Soul uses 6F prefix — may unlock a specific door. Alarm risk!      |
 | BC15 | Left turn indicator       | Confirmed | Left indicator on                                                            |
 | BC16 | Right turn indicator      | Confirmed | Right indicator on                                                           |
-| BC18 | Courtesy/license plate?   | -         | Untested. In DID gap after turn signals — likely a lighting output           |
+| BC18 | DRL (daytime running lights) | Confirmed | DRL on — confirmed on Ioniq 2017                                         |
 | BC1B | Reverse/side marker?      | -         | Untested. Another lighting output in the post-turn-signal DID range          |
-| BC1C | Luggage lamp              | Rejected  | Got TesterPresent echo (timing artifact)                                     |
+| BC1C | Luggage lamp              | -         | TODO test                                                                   |
 |      |                           |           | **— BC1D-BC2A: UNSCANNED —**                                                |
 | BC2B | Rear left brake light     | Confirmed | Works!                                                                       |
 | BC2C | Rear right brake light    | Confirmed | Works!                                                                       |
@@ -101,6 +105,7 @@ BC00, BC06, BC0B, BC0D, BC0E, BC17, BC19, BC1A
 ### Conditional reject (NRC 0x22 — conditionsNotCorrect)
 
 BC13 — may need ignition on or other precondition.
+BC1B — may be reverse light (only accepts command when car is in reverse gear?)
 
 ### TODO: scan unscanned ranges
 

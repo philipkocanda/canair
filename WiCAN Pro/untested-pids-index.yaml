@@ -1256,10 +1256,11 @@ iocontrol:
         status: verified
         notes: "Confirmed working 2026-04-15. Right indicator turned on."
       - cmd: "2FBC1803"
-        desc: "Courtesy lamp / license plate light?"
-        priority: P3
-        status: accepted
-        notes: "Positive response in scan. Not visually tested. In DID gap after turn signals — likely a lighting output (courtesy lamp, license plate, or side marker). Safe to test."
+        desc: "DRL (daytime running lights)"
+        off: "2FBC1800"
+        priority: P2
+        status: verified
+        notes: "Confirmed working 2026-04-15. DRL turned on — user verified visually."
       - cmd: "2FBC1B03"
         desc: "Reverse light / side marker?"
         priority: P3
