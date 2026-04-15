@@ -10,6 +10,8 @@
 # Use with can-request.py:
 #   python3 can-request.py --raw <tx_id>:<pid>          # single PID
 #   python3 can-request.py --scan --tx <tx_id> --service 22 --range <start>-<end>
+#   python3 can-request.py --scan --tx <tx_id> --service 2F --range <start>-<end> --append 03 --session
+#                                                       # IOControl scan (extended session + suffix byte)
 #
 # Status legend:
 #   untested       — never queried on Ioniq 2017
@@ -1472,6 +1474,47 @@ discovery_scans:
     prerequisite: acc
     description:  "Powertrain address — test if anything responds"
 
+  # ===========================================================================
+  # IOControl (0x2F) discovery scans — find which DIDs accept actuator commands
+  # Requires --append 03 (ShortTermAdjustment) and --session (extended session)
+  # ===========================================================================
+
+  - ecu:          BMS
+    tx_id:        "0x7E4"
+    scan_cmd:     "--scan --tx 7E4 --service 2F --range E000-E0FF --append 03 --session"
+    priority:     P1
+    prerequisite: acc
+    description:  "BMS IOControl E0xx range — looking for battery fan/EWP control DID"
+    notes:        "Kingbolen scanner can activate fan from here. Most likely DID range."
+
+  - ecu:          BMS
+    tx_id:        "0x7E4"
+    scan_cmd:     "--scan --tx 7E4 --service 2F --range BC00-BCFF --append 03 --session"
+    priority:     P2
+    prerequisite: acc
+    description:  "BMS IOControl BCxx range — body/comfort-style DIDs"
+
+  - ecu:          MCU
+    tx_id:        "0x7E3"
+    scan_cmd:     "--scan --tx 7E3 --service 2F --range E000-E0FF --append 03 --session"
+    priority:     P2
+    prerequisite: acc
+    description:  "MCU IOControl E0xx range — EWP control may be here (Ioniq 5 has EWP on MCU)"
+
+  - ecu:          IGPM
+    tx_id:        "0x770"
+    scan_cmd:     "--scan --tx 770 --service 2F --range BC00-BCFF --append 03 --session"
+    priority:     P2
+    prerequisite: acc
+    description:  "IGPM IOControl full BCxx range — find all supported actuator DIDs"
+
+  - ecu:          BCM
+    tx_id:        "0x7A0"
+    scan_cmd:     "--scan --tx 7A0 --service 2F --range B000-B0FF --append 03 --session"
+    priority:     P2
+    prerequisite: acc
+    description:  "BCM IOControl full B0xx range — find all supported actuator DIDs"
+
 
 # -----------------------------------------------------------------------------
 # SECTION 4: SESSION PLAN
@@ -1553,14 +1596,14 @@ session_plan:
 stats:
   total_read_entries:     76
   total_iocontrol_entries: 32
-  total_discovery_scans:  19
+  total_discovery_scans:  24
   priority_breakdown:
-    P1: 30
-    P2: 46
+    P1: 32
+    P2: 50
     P3: 32
   by_prerequisite:
     always:    20
-    acc:       55
+    acc:       60
     charging:  22
     driving:    8
     ext_sess:   3
