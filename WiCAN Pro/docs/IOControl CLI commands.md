@@ -51,16 +51,69 @@ python3 can-request.py --raw 736:2FF011030001 --hold  # Play VESS sound 5 sec
 
 ## BCM IOControl DIDs (0x7A0)
 
-BCM does **not** require extended diagnostic session — commands work directly.
+BCM requires extended diagnostic session (`1003`) AND SKM ACC+IGN1 power to respond to IOControl. For read-only data (service 0x22), no session needed — BCM responds directly.
+
+**IOControl scan status:** B000-B072 fully scanned (2026-04-15, `--append 00` safe mode). B073-B0FF incomplete (SKM session dropped mid-scan).
 
 | DID  | Label (e-Niro)            | Status    | Ioniq 2017 Notes                                                         |
 |------|---------------------------|-----------|--------------------------------------------------------------------------|
-| B019 | Room lamp (interior)      | Untested  | Interior light on/off                                                    |
-| B059 | Heated door handle ON     | Untested  | May not exist on Ioniq 2017 base trim                                    |
-| B05A | Heated door handle LED    | Untested  | LED on door handle                                                       |
+| B003 | Unknown                   | Accepted  | Low DID range — possibly status/config register                          |
+| B006 | Unknown                   | Accepted  |                                                                          |
+| B008 | Unknown                   | Accepted  |                                                                          |
+| B009 | Unknown                   | Accepted  |                                                                          |
+| B00A | Unknown                   | Accepted  |                                                                          |
+| B00F | Unknown                   | Accepted  |                                                                          |
+| B019 | Room lamp (interior)      | Accepted  | DID exists. Untested for visible effect                                  |
+| B01A | Unknown                   | Accepted  | Adjacent to room lamp — may be reading lamp or trunk lamp                |
+| B025 | Unknown                   | Accepted  | Possibly window or wiper motor                                           |
+| B028 | Unknown                   | Accepted  | Possibly window or wiper motor                                           |
+| B029 | Unknown                   | Accepted  | Possibly window or wiper motor                                           |
+| B030 | Unknown                   | Accepted  | Possibly wiper/washer pump                                               |
+| B038 | Unknown                   | Accepted  |                                                                          |
+| B039 | Unknown                   | Accepted  |                                                                          |
+| B03A | Unknown                   | Accepted  |                                                                          |
+| B03B | Unknown                   | Accepted  |                                                                          |
+| B04D | Unknown                   | Accepted  |                                                                          |
+| B057 | Unknown                   | Accepted  | Mirror/handle region                                                     |
+| B059 | Heated door handle ON     | Accepted  | DID exists. May not have heated handles on base trim                     |
+| B05A | Heated door handle LED    | Accepted  |                                                                          |
 | B05B | Mirror fold               | Confirmed | Fold side mirrors in. From e-Niro                                        |
-| B05C | Mirror unfold             | Untested  | Unfold side mirrors. From e-Niro                                         |
-| B061 | Charge door open          | Failed    | NRC 0x7F (serviceNotSupportedInActiveSession). BCM won't enter extended session when car is asleep. May work with ACC on, or charge port may be on IGPM instead |
+| B05C | Mirror unfold             | Confirmed | Unfold side mirrors. From e-Niro                                         |
+| B061 | Charge door open          | Rejected  | **NRC 0x31 — NOT supported on Ioniq 2017.** Tested both with and without ACC power. DID doesn't exist on this model |
+| B071 | Unknown                   | Accepted  |                                                                          |
+| B072 | Unknown                   | Accepted  |                                                                          |
+
+### Unscanned range
+
+B073-B0FF not yet scanned (SKM session dropped during scan). Re-scan needed with more aggressive keepalive.
+
+### BCM Read DIDs (service 0x22)
+
+BCM has extensive readable data — no session needed for reads:
+
+| DID  | Size | Content                                                           |
+|------|------|-------------------------------------------------------------------|
+| B001 | 20 B | Config/status flags                                               |
+| B002 | 13 B | Minimal data                                                      |
+| B003 | 27 B | Dense bitfields — BCM feature configuration                       |
+| B004 | 13 B | Possible voltage/current calibration                              |
+| B005 | 13 B | Unknown                                                           |
+| B006 | 13 B | Mostly zeros                                                      |
+| B007 | 13 B | Contains 0x01E0 (480 = 08:00 in minutes) — **preheat time?**     |
+| B008 | 13 B | Unknown                                                           |
+| B009 | 13 B | Repeating FEEE pattern — config word                              |
+| B00A | 13 B | Unknown                                                           |
+| B00B | 2 B  | Status register (7E00)                                            |
+| B00C | 13 B | **Preheat schedule** — day-of-week bitmask (0x3F = 6 days)        |
+| B00D | 13 B | **Preheat timer config** — FCFC E0, may encode departure time     |
+| B00E | 13 B | Charge port flap status (B10:5 = open/closed) — **VERIFIED**     |
+| B00F | 13 B | Unknown                                                           |
+| C001 | 34 B | TPMS config — pressure limits, sensor setup                       |
+| C002 | 27 B | TPMS pressure readings (4 wheels)                                 |
+| C003-C007 | 34 B | Per-wheel TPMS sensor IDs (DO01, NA01, NTPM, DO02, NA02)   |
+| C008-C00A | 34 B | Spare TPMS slots (all FF)                                   |
+| C00B | 27 B | TPMS live data (already in AutoPID)                               |
+| C00C-C00F | 41 B | Extended per-sensor TPMS data with status flags              |
 
 ## IGPM IOControl DIDs (0x770)
 
@@ -119,7 +172,7 @@ BC1B — may be reverse light (only accepts command when car is in reverse gear?
 
 ## SKM IOControl DIDs (0x7A5)
 
-Requires extended session (`1003`). **SKM requires fob proximity** — the SKM's CAN transceiver only wakes when the key fob's LF field is present (~1-2m range). Without the fob nearby, `1001` returns NO DATA and the SKM is completely dead.
+Requires extended session (`1003`). SKM wakes from **rapid-fire `1001`** (50x at 150ms intervals with `ATST10`) — no fob needed. A single `1001` is not enough; sustained CAN traffic wakes the transceiver. SKM falls asleep after ~60s of bus inactivity.
 
 Magic bytes `0A 0A 05` are from Kia Soul and confirmed working on Ioniq 2017.
 
@@ -158,6 +211,13 @@ Vehicle Exterior Sound System (pedestrian warning buzzer). From online sources �
 ## HVAC IOControl (0x7B3) — TODO
 
 **Goal: remote climate pre-conditioning** (heat/cool cabin before driving).
+
+BCM controls the charge/precondition timer schedule:
+- **22B00C**: Day-of-week bitmask (0x3F = 6 days). Byte 0 = preheat days, rest = charging schedule (00 = disabled).
+- **22B007**: Contains 0x01E0 = 480 = minutes from midnight for 08:00 — strong candidate for departure time.
+- **22B00D**: Timer config bytes (FCFC E0) — encoding unclear, needs comparison test.
+
+To decode: change preheat time in infotainment, then re-read B007/B00C/B00D to see which bytes change.
 
 Not yet researched. The HVAC ECU (0x7B3) responds to read requests (`22 01 00`) and provides temperature/humidity data. IOControl commands for compressor, blower, heater, and A/C are unknown.
 
