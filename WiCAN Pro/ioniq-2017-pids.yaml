@@ -203,7 +203,7 @@ ecus:
             source: "Original WiCAN config"
             source_links: []
             verified: false
-            notes: ""
+            notes: "Static value, cannot be correct"
 
           HVAC_HUMIDITY_SENSOR_FOR_AUTOMATIC_DEFOGGER_IONIQ5:
             expression: "B34/255*100"
@@ -252,6 +252,7 @@ ecus:
   # ─── IGPM (Integrated Gateway Power Module) ──────────────────────────
   IGPM:
     tx_id: 0x770
+    session: true  # Requires extended diagnostic session (10 03) before PID queries
     pids:
       22BC03:
         period: 2500
@@ -323,7 +324,7 @@ ecus:
             notes: "Bit flag — 1=open. Verified 2026-04-15."
 
           DRL:
-            expression: "B9:2"
+            expression: "B12:2"
             unit: ""
             ha_class: light
             mqtt_topic: drl
@@ -335,7 +336,7 @@ ecus:
             notes: "Daytime Running Lights. Bit flag — 1=on. On in all light modes (DRL, low beam, high beam). Verified 2026-04-15."
 
           TAIL_LIGHTS:
-            expression: "B9:3"
+            expression: "B12:3"
             unit: ""
             ha_class: light
             mqtt_topic: tail_lights
@@ -347,7 +348,7 @@ ecus:
             notes: "Tail/position lights. Bit flag — 1=on. On in all light modes (DRL, low beam, high beam). Verified 2026-04-15."
 
           HIGH_BEAM:
-            expression: "B9:4"
+            expression: "B12:4"
             unit: ""
             ha_class: light
             mqtt_topic: high_beam
@@ -359,7 +360,7 @@ ecus:
             notes: "Bit flag — 1=on. Only set with high beams active. Niro PR had this on BC04 B13:4 — wrong for Ioniq. Verified 2026-04-15."
 
           LOW_BEAM:
-            expression: "B9:5"
+            expression: "B12:5"
             unit: ""
             ha_class: light
             mqtt_topic: low_beam
@@ -470,7 +471,7 @@ ecus:
         enabled: true
         parameters:
           BRAKE_LIGHT:
-            expression: "B7"
+            expression: "B10"
             unit: ""
             ha_class: ""
             mqtt_topic: brake_light
@@ -482,7 +483,7 @@ ecus:
             notes: "Scalar value. 0x00=off, 0x2D=brake pressed. Ioniq 5 OBDb had this at B4 — wrong for Ioniq 2017. Actual position is B7 (data byte 4). Verified 2026-04-15."
 
           LEFT_TURN_SIGNAL:
-            expression: "B8:0"
+            expression: "B10:0"
             unit: ""
             ha_class: ""
             mqtt_topic: left_turn_signal
@@ -494,7 +495,7 @@ ecus:
             notes: "Left turn signal stalk. Bit flag — 1=on, persistent (not blinking state). Hazard lights do NOT register here. Verified 2026-04-15."
 
           RIGHT_TURN_SIGNAL:
-            expression: "B8:1"
+            expression: "B10:1"
             unit: ""
             ha_class: ""
             mqtt_topic: right_turn_signal

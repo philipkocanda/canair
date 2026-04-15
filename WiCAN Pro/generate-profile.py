@@ -54,10 +54,18 @@ def load_yaml() -> dict:
         return yaml.safe_load(f)
 
 
-def make_pid_init(tx_id: int) -> str:
-    """Generate AT header init string from TX ID."""
+def make_pid_init(tx_id: int, session: bool = False) -> str:
+    """Generate AT header init string from TX ID.
+
+    If session=True, prepend a UDS extended diagnostic session request (10 03)
+    before setting headers. Some ECUs (e.g. IGPM) require this to respond to
+    22xx DID queries.
+    """
     hex_id = f"{tx_id:03X}"
-    return f"ATSH{hex_id};ATFCSH{hex_id};"
+    init = f"ATSH{hex_id};ATFCSH{hex_id};"
+    if session:
+        init += "1003;"
+    return init
 
 
 def generate_profile(data: dict, verified_only: bool = False) -> dict:
@@ -80,7 +88,8 @@ def generate_profile(data: dict, verified_only: bool = False) -> dict:
 
     for ecu_name, ecu in data["ecus"].items():
         tx_id = ecu["tx_id"]
-        pid_init = make_pid_init(tx_id)
+        session = ecu.get("session", False)
+        pid_init = make_pid_init(tx_id, session=session)
 
         for pid_code, pid_data in ecu["pids"].items():
             if not pid_data.get("enabled", True):

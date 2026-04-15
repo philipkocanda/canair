@@ -22,6 +22,9 @@ Modes:
     Add --session to any mode (except interactive) to enter extended diagnostic
     session (10 03) before sending requests. Required for ECUs like IGPM (0x770).
 
+    Add --wake to wake ECUs from deep sleep before entering extended session.
+    Sends 10 01 (default session) as a CAN wake-up frame. Implies --session.
+
 Requires: websockets, pyyaml (requests optional, for --reboot)
 """
 
@@ -699,17 +702,34 @@ class WiCANTerminal:
         raw = await self.send_command(service_pid, timeout=timeout)
         return parse_elm_response(raw)
 
-    async def enter_extended_session(self) -> tuple[bool, asyncio.Task | None]:
+    async def enter_extended_session(self, wake: bool = False) -> tuple[bool, asyncio.Task | None]:
         """Enter extended diagnostic session (10 03) and start TesterPresent keepalive.
 
         Some ECUs (e.g. IGPM 0x770) require an extended diagnostic session before
         they will respond to 0x22 DID reads. This sends 10 03 and starts a background
         task that sends 3E 00 every 2 seconds to keep the session alive.
 
+        Args:
+            wake: If True, send a default session request (10 01) first to wake the
+                ECU from deep sleep before entering extended session. The IGPM's CAN
+                transceiver wakes on the 10 01 frame even though it may not respond
+                in time (NO DATA). A brief delay allows the ECU to fully initialize
+                before the 10 03 request.
+
         Returns:
             (success, tester_task) — success indicates if session was established,
             tester_task is the background keepalive task (must be cancelled by caller).
         """
+        if wake:
+            print(f"  Sending wake-up frame (10 01)...")
+            wake_resp = await self.send_uds("1001", timeout=3.0)
+            if wake_resp.get("ok"):
+                print(f"  ECU responded to wake-up.")
+            else:
+                print(f"  No response to wake-up (expected — ECU needs time to initialize).")
+            # Brief delay to let the ECU fully wake up
+            await asyncio.sleep(0.5)
+
         print(f"  Entering extended diagnostic session (10 03)...")
         resp = await self.send_uds("1003", timeout=5.0)
         if resp.get("ok"):
@@ -980,7 +1000,7 @@ async def mode_interactive(terminal: WiCANTerminal, pids_data: dict, verbose: bo
 
 
 async def mode_param(terminal: WiCANTerminal, pids_data: dict, param_names: list[str],
-                     verbose: bool, as_json: bool, session: bool = False):
+                     verbose: bool, as_json: bool, session: bool = False, wake: bool = False):
     """Query specific named parameters."""
     param_index = build_param_index(pids_data)
 
@@ -1016,7 +1036,7 @@ async def mode_param(terminal: WiCANTerminal, pids_data: dict, param_names: list
 
             # Enter extended diagnostic session if requested
             if session:
-                _, tester_task = await terminal.enter_extended_session()
+                _, tester_task = await terminal.enter_extended_session(wake=wake)
                 tester_tasks.append(tester_task)
 
             # Send UDS request
@@ -1064,7 +1084,7 @@ async def mode_param(terminal: WiCANTerminal, pids_data: dict, param_names: list
 
 async def mode_ecu(terminal: WiCANTerminal, pids_data: dict, ecu_name: str,
                    pid_filter: str | None, verbose: bool, as_json: bool,
-                   session: bool = False):
+                   session: bool = False, wake: bool = False):
     """Query all parameters for an ECU, optionally filtered by PID."""
     ecu_index = build_ecu_index(pids_data)
     ecu_key = ecu_name.upper()
@@ -1083,7 +1103,7 @@ async def mode_ecu(terminal: WiCANTerminal, pids_data: dict, ecu_name: str,
     # Enter extended diagnostic session if requested
     tester_task = None
     if session:
-        _, tester_task = await terminal.enter_extended_session()
+        _, tester_task = await terminal.enter_extended_session(wake=wake)
 
     print(f"\n  {ecu_key} — TX 0x{tx_id:03X}")
 
@@ -1154,7 +1174,7 @@ async def mode_ecu(terminal: WiCANTerminal, pids_data: dict, ecu_name: str,
 
 
 async def mode_raw(terminal: WiCANTerminal, raw_spec: str, verbose: bool, as_json: bool,
-                   session: bool = False, hold: bool = False):
+                   session: bool = False, hold: bool = False, wake: bool = False):
     """Send a raw UDS request specified as TX_ID:SERVICE_PID.
 
     Args:
@@ -1173,8 +1193,8 @@ async def mode_raw(terminal: WiCANTerminal, raw_spec: str, verbose: bool, as_jso
     tx_id = int(match.group(1), 16)
     service_pid = match.group(2).upper()
 
-    # --hold implies --session
-    if hold:
+    # --hold and --wake imply --session
+    if hold or wake:
         session = True
 
     print(f"\n  TX: 0x{tx_id:03X}  Request: {service_pid}")
@@ -1184,7 +1204,7 @@ async def mode_raw(terminal: WiCANTerminal, raw_spec: str, verbose: bool, as_jso
     # Enter extended diagnostic session if requested
     tester_task = None
     if session:
-        _, tester_task = await terminal.enter_extended_session()
+        _, tester_task = await terminal.enter_extended_session(wake=wake)
 
     try:
         response = await terminal.send_uds(service_pid)
@@ -1228,7 +1248,7 @@ async def mode_raw(terminal: WiCANTerminal, raw_spec: str, verbose: bool, as_jso
 
 async def mode_scan(terminal: WiCANTerminal, tx_id: int, service: int,
                     pid_range: tuple[int, int], verbose: bool, as_json: bool,
-                    append_bytes: str = "", session: bool = False):
+                    append_bytes: str = "", session: bool = False, wake: bool = False):
     """Scan a range of PIDs and show which respond positively.
 
     Args:
@@ -1255,7 +1275,7 @@ async def mode_scan(terminal: WiCANTerminal, tx_id: int, service: int,
     # Enter extended diagnostic session if requested
     tester_task = None
     if session:
-        _, tester_task = await terminal.enter_extended_session()
+        _, tester_task = await terminal.enter_extended_session(wake=wake)
 
     print()
 
@@ -1621,6 +1641,10 @@ async def async_main(args):
         await terminal.init_elm(init_string)
         print("Ready.")
 
+        # --wake implies --session
+        if args.wake:
+            args.session = True
+
         # Dispatch to mode
         if args.skm_wakeup:
             await mode_skm_wakeup(terminal, args.level, args.verbose)
@@ -1628,13 +1652,13 @@ async def async_main(args):
             await mode_tester_present(terminal, args.target, args.interval, args.verbose)
         elif args.param:
             await mode_param(terminal, pids_data, args.param, args.verbose, args.json,
-                             session=args.session)
+                             session=args.session, wake=args.wake)
         elif args.ecu:
             await mode_ecu(terminal, pids_data, args.ecu, args.pid, args.verbose, args.json,
-                           session=args.session)
+                           session=args.session, wake=args.wake)
         elif args.raw:
             await mode_raw(terminal, args.raw, args.verbose, args.json,
-                           session=args.session, hold=args.hold)
+                           session=args.session, hold=args.hold, wake=args.wake)
         elif args.scan:
             if not args.tx:
                 print("Error: --scan requires --tx (ECU TX ID)", file=sys.stderr)
@@ -1650,7 +1674,7 @@ async def async_main(args):
                     sys.exit(1)
                 append_bytes = cleaned
             await mode_scan(terminal, tx_id, service, pid_range, args.verbose, args.json,
-                            append_bytes=append_bytes, session=args.session)
+                            append_bytes=append_bytes, session=args.session, wake=args.wake)
         else:
             # Interactive mode
             await mode_interactive(terminal, pids_data, args.verbose)
@@ -1701,6 +1725,8 @@ Examples:
   %(prog)s --ecu IGPM --session             Query ECU that needs extended session
   %(prog)s --param DOOR_DRV_OPEN --session  Query parameter with extended session
   %(prog)s --raw 770:2FBC0103 --hold        IOControl: hold low beams on (Ctrl+C to release)
+  %(prog)s --raw 770:2FBC0103 --hold --wake IOControl with deep sleep wake-up
+  %(prog)s --ecu IGPM --session --wake      Query IGPM after waking from deep sleep
 
   %(prog)s --skm-wakeup                     Wake sleeping ECUs via SKM (ACC)
   %(prog)s --skm-wakeup --level ign1        Wake with IGN1 (more ECUs)
@@ -1752,6 +1778,11 @@ Examples:
                          help="Keep session alive after command completes (Ctrl+C to release). "
                               "Useful for IOControl (2F) commands where the actuator releases when "
                               "the diagnostic session drops. Implies --session. Only for --raw mode.")
+    parser.add_argument("--wake", action="store_true",
+                         help="Send a wake-up frame (10 01) before entering extended session to "
+                              "rouse ECUs from deep sleep. The IGPM (0x770) goes into deep sleep "
+                              "when the car is off and unplugged — this wakes it via CAN. "
+                              "Implies --session.")
 
     # SKM wakeup options
     parser.add_argument("--level", default="acc",
