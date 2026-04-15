@@ -40,6 +40,13 @@ import sys
 import time
 from pathlib import Path
 
+# Force line-buffered stdout so output appears immediately when piped
+# (Python uses block buffering when stdout is not a TTY, which causes
+# all output to be delayed until the buffer fills or the process exits)
+if not sys.stdout.isatty():
+    sys.stdout.reconfigure(line_buffering=True)
+    sys.stderr.reconfigure(line_buffering=True)
+
 try:
     import yaml
 except ImportError:
@@ -310,6 +317,20 @@ def parse_elm_response(raw: str) -> dict:
             continue
         if line == "OK":
             continue
+        # Filter out ISO-TP flow control frame echoes.
+        # When the ELM327 receives a multi-frame response (or sends an
+        # IOControl request), it echoes the Flow Control frame it transmits.
+        # These look like "F00" or "FC xx xx xx" — short hex starting with F
+        # that isn't a valid UDS response (UDS positive responses use 4x-7x).
+        # With headers ON, they appear as e.g. "770 F00" or "770F00".
+        fc_check = line.replace(" ", "").upper()
+        # Strip optional CAN ID prefix (3 hex chars)
+        if len(fc_check) >= 6 and fc_check[:3].isalnum():
+            fc_body = fc_check[3:]
+        else:
+            fc_body = fc_check
+        if fc_body.startswith("F0") and len(fc_body) <= 8:
+            continue  # Flow control frame echo — skip
         if line == "?":
             result["error"] = "Unknown command"
             return result
@@ -337,15 +358,20 @@ def parse_elm_response(raw: str) -> dict:
         result["error"] = "Empty response"
         return result
 
-    # Filter out echo of the request (e.g., "2101" echoed back)
-    # The echo is typically the first line and matches a short hex-only pattern
-    # that's also the UDS request we sent. We detect it by checking if the first
-    # line is much shorter than subsequent lines.
+    # Filter out echo of the request (e.g., "2101" or "2FBC0103" echoed back)
+    # The ELM327 echoes the request before the response. We detect it by
+    # checking if the first line starts with a UDS request service byte
+    # (0x10-0x3F range) while the response would start with a positive
+    # response SID (0x40-0x7F range) or negative response (0x7F).
     if len(data_lines) > 1:
         first = data_lines[0].replace(" ", "")
-        # If first line is <= 6 hex chars and looks like a request echo, skip it
-        if len(first) <= 6 and all(c in "0123456789ABCDEFabcdef" for c in first):
-            data_lines = data_lines[1:]
+        if len(first) >= 2 and all(c in "0123456789ABCDEFabcdef" for c in first):
+            first_byte = int(first[:2], 16)
+            # UDS request SIDs: 0x10-0x3E (DiagnosticSessionControl through
+            # various services). Response SIDs are request + 0x40 (0x50-0x7E).
+            # Negative response is 0x7F.
+            if 0x10 <= first_byte <= 0x3E:
+                data_lines = data_lines[1:]
 
     # Check for multi-frame ISO-TP format: N:hexdata (e.g., "0:6101FFFFFFFF")
     # The ELM327 with ATAL (allow long messages) returns multi-frame responses
@@ -600,10 +626,16 @@ class WiCANTerminal:
                 if response_parts:
                     text = "".join(response_parts)
                     # Only break early if we have actual data (not just
-                    # the CR echo from our command). Strip whitespace and
-                    # check for hex content.
+                    # the CR echo from our command or a flow control frame echo).
+                    # Strip whitespace, CRs, and check for hex content.
                     stripped = text.replace("\r", "").replace("\n", "").strip()
-                    if stripped and "\r" in text and "7F" not in text:
+                    # Also filter out flow control frame echoes (F0x) which
+                    # appear before the actual IOControl response
+                    if stripped:
+                        stripped_nfc = re.sub(r'\bF0[0-9A-Fa-f]?\b', '', stripped).strip()
+                    else:
+                        stripped_nfc = ""
+                    if stripped_nfc and "\r" in text and "7F" not in text:
                         break
                 continue
             except websockets.exceptions.ConnectionClosed:
