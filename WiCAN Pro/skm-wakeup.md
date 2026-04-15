@@ -6,7 +6,7 @@
 
 The **SKM (Smart Key Module)** at ECU address `0x7A5` can remotely activate the car's ACC (Accessory), IGN1, IGN2, and Start relays via UDS IOControl (`0x2F`) commands. This wakes sleeping ECUs (IGPM, CLU, TPMS, ESC, BCM) that don't respond when the car is locked or only AC charging.
 
-**Tested on:** Hyundai Ioniq Electric 2017 (28 kWh), via WiCAN Pro WebSocket ELM327 terminal  
+**Tested on:** Hyundai Ioniq Electric AE EV 2017 (28 kWh), via WiCAN Pro WebSocket ELM327 terminal (model sold from 2016-2019, full electric, do not confuse with the hybrid or the PHEV model - though they probably have similar SKM behavior)
 **Source:** Kia Soul EV community documentation (projectgus.com)  
 **Date first tested:** 2026-04-14
 
@@ -135,7 +135,7 @@ For sustained IOControl sessions, UDS requires periodic TesterPresent (`3E00`) m
 
 ## Safety Warnings
 
-- **Start Relay (`B10B`) can crank the motor** — do NOT use unless the car is in a safe state (Park, no one in front, etc.)
+- **Start Relay (`B10B`) can crank the motor** — do NOT use unless the car is in a safe state (Park, no one in front, etc.) (EDIT: This is an EV, motor cranking does not apply)
 - IOControl commands actuate **real physical hardware** (relays, solenoids)
 - The Ioniq is a keyless-start vehicle — the SKM validates the smart key proximity before allowing normal start. UDS IOControl **bypasses this check**
 - These commands are from the Kia Soul community and **have not been exhaustively tested** on the Ioniq. Proceed with caution
