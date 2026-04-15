@@ -841,3 +841,73 @@ sessions:
         label: "Unknown actuator test — Ready mode"
         response: "accepted"
         notes: "No visible or audible effect."
+
+  - date: "2026-04-15"
+    label: "SKM rapid-fire wake & ECU sweep"
+    state: "car off, locked, unplugged, fob ~10m away inside house"
+    captures:
+      - ecu: SKM
+        pid: "1001"
+        label: "Rapid-fire wake — cold start #1"
+        response: "5001"
+        notes: "SKM alive at attempt 17 of 100. 64ms timeout (ATST10), 150ms intervals. No fob nearby."
+
+      - ecu: SKM
+        pid: "1001"
+        label: "Rapid-fire wake — cold start #2"
+        response: "5001"
+        notes: "SKM alive at attempt 16. After WiCAN reboot + 15s settle."
+
+      - ecu: SKM
+        pid: "1001"
+        label: "Rapid-fire wake — cold start #3"
+        response: "5001"
+        notes: "SKM alive at attempt 2. Full ACC+IGN1 sequence followed."
+
+      - ecu: SKM
+        pid: "2FB108030A0A05"
+        label: "ACC relay ON — deep sleep, no fob"
+        response: "6FB10803"
+        notes: "ACC IOControl accepted without fob. Relay may not fully latch."
+
+      - ecu: SKM
+        pid: "2FB109030A0A05"
+        label: "IGN1 relay ON — deep sleep, no fob"
+        response: "6FB10903"
+        notes: "IGN1 IOControl accepted without fob."
+
+      - ecu: BCM
+        pid: "22C00B"
+        label: "TPMS read — after SKM ACC+IGN1"
+        response: "62C00BFFFF00C9450200CB43"
+        notes: "BCM alive after SKM ACC+IGN1. TPMS data returned. Multi-frame with ATH1 headers."
+
+      - ecu: BCM
+        pid: "22B00E"
+        label: "Charge port — after SKM ACC+IGN1"
+        response: "62B00E0C00000000000000"
+        notes: "Charge port closed. BCM responds without extended session."
+
+      - ecu: CLU
+        pid: "1001"
+        label: "Brute-force wake attempt"
+        response: "NO DATA"
+        notes: "50 rapid attempts — CLU dead."
+
+      - ecu: HVAC
+        pid: "1001"
+        label: "Brute-force wake attempt"
+        response: "NO DATA"
+        notes: "50 rapid attempts — HVAC dead."
+
+      - ecu: GW
+        pid: "1001"
+        label: "Wake probe"
+        response: "NO DATA"
+        notes: "GW (0x7E6) dead."
+
+      - ecu: ESC
+        pid: "1001"
+        label: "Wake probe"
+        response: "NO DATA"
+        notes: "ESC (0x7D1) dead."

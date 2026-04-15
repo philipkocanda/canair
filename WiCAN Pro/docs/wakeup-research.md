@@ -6,13 +6,19 @@ Read BMS SoC (and other ECU data) remotely while the car is fully asleep and unp
 
 ## ECU Wake Hierarchy
 
-| ECU          | Fob lock wake | CAN `1001` wake          | Needs ACC power               |
-|--------------|---------------|--------------------------|-------------------------------|
-| IGPM (0x770) | Yes           | Yes                      | No — always partially powered |
-| SKM (0x7A5)  | No            | **Only with fob nearby** | Yes — needs fob LF field      |
-| BMS (0x7E4)  | No            | No                       | Yes — needs ACC relay          |
-| VCU (0x7E2)  | Not tested    | Not tested               | Yes                           |
-| BCM (0x7A0)  | Not tested    | No (tested)              | Yes                           |
+| ECU          | Single `1001` | Rapid-fire `1001` (50x) | After SKM ACC+IGN1 | Power domain           |
+|--------------|---------------|-------------------------|---------------------|------------------------|
+| IGPM (0x770) | Yes           | Yes (attempt 1)         | Alive               | Always on (body)       |
+| SKM (0x7A5)  | No            | **Yes (~2-17 attempts)**| Alive               | Body (partial standby) |
+| BCM (0x7A0)  | No            | Not tested              | **Alive**           | Body (ACC-switched)    |
+| CLU (0x7C6)  | No            | No (50 tries)           | Dead                | IGN-switched           |
+| BMS (0x7E4)  | No            | —                       | Dead                | Powertrain (ACC relay) |
+| VCU (0x7E2)  | No            | —                       | Dead                | Powertrain (ACC relay) |
+| MCU (0x7E3)  | No            | —                       | Dead                | Powertrain (ACC relay) |
+| LDC (0x7E5)  | No            | —                       | Dead                | Powertrain (ACC relay) |
+| GW (0x7E6)   | No            | No                      | Dead                | Powertrain (ACC relay) |
+| HVAC (0x7B3) | No            | No (50 tries)           | Dead                | IGN-switched           |
+| ESC (0x7D1)  | No            | No                      | Dead                | Powertrain             |
 
 ### Key Finding: IGPM Wakes from Deep Sleep
 
@@ -28,39 +34,24 @@ Sometimes the first `1001` gets a response immediately; sometimes it takes a ret
 - Read DIDs (`22BCxx`) — door status, lock status, lights, ignition, seatbelt
 - IOControl (`2FBCxx`) — low/high beam, turn signals, horn, door lock/unlock, trunk
 
-### Key Finding: SKM Requires Fob Proximity (2026-04-15)
+### Key Finding: SKM Wakes from Rapid-Fire `1001` Without Fob (2026-04-15)
 
-The SKM wakes from `1001` **only when the key fob is nearby** (within LF antenna range, ~1-2m). Without the fob, `1001` returns NO DATA — the SKM's CAN transceiver is completely unpowered.
+A single `1001` is NOT enough to wake the SKM — it returns NO DATA. But **sustained rapid CAN traffic** (repeated `1001` frames at ~150ms intervals) wakes the SKM transceiver from deep sleep without fob proximity. Consistently succeeds at attempts 2-17 across multiple cold-start tests.
 
-**Test 1 — fob nearby (user near car with fob in pocket):**
+**Rapid-fire wake sequence (car off, locked, deep sleep, fob far away):**
 ```
-1001 → NO DATA  (wakes SKM transceiver via fob LF field)
+ATST10          (set 64ms timeout for speed)
+1001 → NO DATA  (attempt 1)
+1001 → NO DATA  (attempt 2-16)
+1001 → 5001     (attempt 17 — SKM transceiver awake!)
+ATST96          (restore normal timeout)
 1003 → 5003     (extended session established)
-2FB108030A0A05 → ACC relay ON (clicking heard, infotainment powered on, doors unlocked)
+2FB108030A0A05 → ACC relay ON (6FB10803)
 ```
 
-**Test 2 — fob far away (~10 min later, user inside house):**
-```
-1001 → NO DATA
-1003 → NO DATA
-2FB108030A0A05 → NO DATA  (SKM completely dead)
-```
+**Previous misconception:** Earlier tests used only 1-2 `1001` attempts and concluded "fob proximity required." The SKM's CAN transceiver is in ultra-low-power standby — it needs ~2-3 seconds of sustained CAN bus activity to trigger its hardware wake-up circuit. This is different from the IGPM, which wakes on the first frame.
 
-**Conclusion:** The fob's passive LF/RFID antenna field keeps the SKM's transceiver partially powered. Without it, CAN bus activity alone cannot wake the SKM. **True remote BMS access via the SKM→ACC path is NOT possible without fob proximity.**
-
-Tested sequence (car off, locked, deep sleep, **fob nearby**):
-```
-1001 → NO DATA  (wakes SKM transceiver)
-1003 → 5003     (extended session established)
-2FB108030A0A05 → ACC relay ON (clicking heard, infotainment powered on, doors unlocked)
-```
-
-Tested sequence (car off, locked, deep sleep, **fob far away**):
-```
-1001 → NO DATA
-1003 → NO DATA
-2FB108030A0A05 → NO DATA  (SKM completely dead — no fob LF field)
-```
+**Reproducibility:** Confirmed across 4 separate cold-start tests with WiCAN rebooted between each. Attempt count varies from 2 to 17. The SKM falls back asleep after ~60s of CAN bus inactivity.
 
 **ACC does NOT latch** — it stays on only while the IOControl session is held (TesterPresent keepalive). When the session drops, the ACC relay opens and the car re-locks.
 
@@ -70,28 +61,64 @@ Tested sequence (car off, locked, deep sleep, **fob far away**):
 - Doors re-lock when session drops
 - Infotainment may get stuck mid-boot if power is cut abruptly
 
+### Key Finding: BCM Wakes with SKM ACC+IGN1 (2026-04-15)
+
+When SKM ACC+IGN1 IOControl is active, the BCM (0x7A0) becomes responsive. It reads TPMS data (`22C00B`) and charge port status (`22B00E`) without needing extended session. The BCM shares the body electronics power domain with the IGPM.
+
+```
+# After SKM ACC+IGN1 active:
+ATSH7A0; ATFCSH7A0;
+22C00B → 62C00B... (full TPMS data — pressures, temps)
+22B00E → 62B00E... (charge port status)
+```
+
 ### Power Dependency Chain
 
 ```
-Key fob LF field (~1-2m range)
-  └─ SKM (0x7A5) ← fob proximity REQUIRED to wake transceiver
-       └─ ACC relay ← IOControl 2FB108030A0A05 (hold with TesterPresent)
-            └─ BMS (0x7E4), VCU, MCU, etc.
+CAN bus rapid-fire (50x 1001 at 150ms intervals)
+  └─ IGPM (0x770) ← always-on, wakes on first CAN frame
+  └─ SKM (0x7A5) ← wakes after ~2-17 sustained CAN frames
+       └─ ACC + IGN1 relays ← IOControl 2FB108/B109 (hold with TesterPresent)
+            └─ BCM (0x7A0) ← body electronics, TPMS, charge port
+            └─ BMS (0x7E4), VCU, MCU, LDC, GW ← STILL DEAD (powertrain relay doesn't latch)
 
-CAN bus activity alone (no fob):
-  └─ IGPM (0x770) ← wakes from CAN activity (always partially powered)
-       └─ Door status, lights, locks, horn — but NO ACC relay control
+NOT reachable without physical ACC/IGN:
+  CLU (0x7C6), HVAC (0x7B3), ESC (0x7D1)
 ```
 
-### Blocking Problem: No Remote BMS Access Without Fob
+### Blocking Problem: Powertrain ECUs Not Reachable
 
-The SKM→ACC→BMS path works, but **only with the fob nearby**. Since the WiCAN is inside the car and the fob is typically inside the house, true remote BMS SoC reads are blocked.
+The SKM wakes and ACC/IGN1 IOControl is accepted, but the powertrain ECUs (BMS, VCU, MCU, LDC, GW) remain dead. The IOControl energizes the relay coil but the relay may not latch without the proper handshake (e.g. immobilizer validation, or the relay requires sustained current that the IOControl pathway doesn't provide).
+
+**Reachable without fob:**
+- IGPM (0x770) — doors, locks, lights, horn, turn signals, trunk
+- SKM (0x7A5) — relay IOControl (accepted but relay doesn't latch for powertrain)
+- BCM (0x7A0) — TPMS, charge port status (once ACC active)
+
+**NOT reachable without physical key turn or fob button press:**
+- BMS, VCU, MCU, LDC, GW (powertrain power domain)
+- CLU, HVAC, ESC (IGN-switched power domain)
 
 **Possible workarounds (none tested):**
-1. **Leave a spare fob in the car** — would keep SKM wakeable, but security risk
-2. **IGPM hidden relay** — BC25/BC42/BC43/BC44 accepted IOControl but had no visible effect. One might control an internal power relay that feeds the SKM. Hard to verify without instrumentation.
-3. **Direct ACC relay wiring** — bypass the SKM entirely with a relay module controlled by the WiCAN's GPIO output. Invasive but reliable.
-4. **Charging state** — when plugged in, the CAN bus stays active and all ECUs are powered. BMS reads work without any wake sequence during charging.
+1. **Leave a spare fob in the car** — would keep SKM wakeable with full relay latch, but security risk
+2. **Direct ACC relay wiring** — bypass the SKM entirely with a relay module controlled by the WiCAN's GPIO output. Invasive but reliable.
+3. **Charging state** — when plugged in, the CAN bus stays active and all ECUs are powered. BMS reads work without any wake sequence during charging.
+
+### Alternative Wake Approaches Tested (All Failed)
+
+The following were all tested on 2026-04-15 with the car fully asleep, unplugged, no fob:
+
+| Approach                                    | Result                                  |
+|---------------------------------------------|----------------------------------------|
+| Functional broadcast `0x7DF` (3E00, 1001)   | 0 responders                           |
+| NM wake frames (0x500-0x5FF range)          | No effect                              |
+| IGPM mystery actuators BC25/BC42/BC43/BC44  | Accepted but didn't wake other ECUs    |
+| SKM response ID 0x7AD direct                | NO DATA                                |
+| CAN ID 0x000 (bus-dominant wake)            | No effect                              |
+| Gateway forwarding via IGPM reads           | No effect                              |
+| Brute-force 1001 to CLU (50x)              | Dead                                   |
+| Brute-force 1001 to HVAC (50x)             | Dead                                   |
+| Brute-force 1001 to GW/ESC                  | Dead                                   |
 
 ## IGPM DID Scan Results
 
@@ -127,7 +154,7 @@ Full scan completed in Ready mode. `--append 00` = returnControlToECU (safe, che
 | DID  | Response       | Notes                                                                 |
 |------|----------------|-----------------------------------------------------------------------|
 | BC25 | `6FBC2500`     | Unknown actuator. Requested as BC26, responded as BC25 (off-by-one)   |
-| BC2D | `6FBC2D00`     | Unknown actuator. Requested as BC2E, responded as BC2D. Between brake lights (BC2B/BC2C) — possibly CHMSL or reverse light |
+| BC2D | `6FBC2D00`     | Verified CHMSL light. Requested as BC2E, responded as BC2D.           |
 | BC42 | `6FBC4200`     | Unknown actuator. Right after charge cable unlock (BC41)              |
 | BC43 | `6FBC4300`     | Unknown actuator                                                      |
 | BC44 | `6FBC4400`     | Unknown actuator                                                      |
@@ -187,9 +214,20 @@ From combined ACC-mode scan (BC00-BC20, 2026-04-15) and Ready-mode scan (BC1D-BC
 **Rejected:** BC00, BC06, BC0B, BC0D, BC0E, BC17, BC19, BC1A (NRC 0x31)
 **Conditional:** BC13 (NRC 0x22), BC1B (NRC 0x22 in some states)
 
-## SKM IOControl Test (Ready Mode — 2026-04-15)
+## SKM IOControl Tests
 
-### Test: ACC relay IOControl (`2FB108030A0A05`)
+### Deep Sleep Wake (car off, locked, no fob — 2026-04-15)
+
+**SKM wakes from rapid-fire `1001` without fob.** 4 cold-start tests:
+
+| Test | SKM wake attempt | ACC ON   | BMS response | Notes                          |
+|------|-----------------|----------|--------------|--------------------------------|
+| #1   | 17              | Accepted | —            | First discovery                |
+| #2   | 16              | Accepted | NO DATA      | Tried immediately, no wait     |
+| #3   | 2               | Accepted | NO DATA      | 5s wait, BMS still dead        |
+| #4   | 1               | Accepted | NO DATA      | ACC+IGN1, 5s wait, BCM alive   |
+
+### Ready Mode (car in Ready — 2026-04-15)
 
 ```
 TX: 7A5:2FB108030A0A05 → NRC 0x22 (conditionsNotCorrect)
@@ -213,50 +251,35 @@ The SKM B108 DID is confirmed working on the Ioniq 2017. The NRC 0x22 when ACC i
 
 ## Next Steps
 
-### 1. Test unknown IGPM IOControl DIDs
+### 1. Test with fob nearby for comparison
 
-The following accepted-but-untested DIDs should be tested with `--hold` (one at a time, visually confirm what happens):
+Re-run the full ECU sweep with fob nearby to confirm whether the ACC relay actually latches (vs. just energizing the coil). If BMS/VCU respond with fob present but not without, the relay latch requires immobilizer validation.
 
-```sh
-python3 can-request.py --raw 770:2FBC0A03 --hold   # Puddle/welcome light?
-python3 can-request.py --raw 770:2FBC0C03 --hold   # Rear defogger relay
-python3 can-request.py --raw 770:2FBC2503 --hold   # Unknown (NEW)
-python3 can-request.py --raw 770:2FBC2D03 --hold   # Unknown (NEW) — CHMSL/reverse?
-python3 can-request.py --raw 770:2FBC4203 --hold   # Unknown (NEW)
-python3 can-request.py --raw 770:2FBC4303 --hold   # Unknown (NEW)
-python3 can-request.py --raw 770:2FBC4403 --hold   # Unknown (NEW)
-```
+### 2. Read BCM data during SKM-held ACC
 
-### 2. Test SKM relay ON when ACC is off
-
-With the car off (but recently driven, so SKM is still powered — light sleep):
-```sh
-python3 can-request.py --raw 7A5:2FB108030A0A05 --session --hold
-```
-
-If this works, we confirm the ON command is valid and the NRC 0x22 was indeed "already active".
+The BCM is alive — explore its full DID range for useful data beyond TPMS and charge port.
 
 ### 3. HVAC IOControl discovery
 
-See HVAC section in IOControl CLI commands doc.
+See HVAC section in IOControl CLI commands doc. Needs ACC/IGN physically on.
 
-## Theories for Remote BMS Access
+## Remaining Questions
 
-### Theory 1: IGPM has an ACC relay DID
+### Why don't powertrain ECUs power up?
 
-One of the unscanned IGPM IOControl DIDs (BC1D-BC41 range) might directly control the ACC power relay, bypassing the SKM entirely. The IGPM is the power distribution module — it's plausible it has direct relay control.
+The SKM ACC/IGN1/IGN2 IOControl commands are all accepted (`6FBxxx03`), which means the SKM firmware processes the request. But the BMS/VCU/MCU remain dead. Possible explanations:
 
-### Theory 2: IGPM can wake SKM indirectly
+1. **Relay coil vs. latch** — the IOControl may energize the coil momentarily but the relay requires an immobilizer validation handshake to latch
+2. **Two-stage power** — ACC IOControl may only control a secondary (diagnostic) power rail, not the main powertrain relay
+3. **Different CAN bus** — BMS/VCU/MCU may be on a separate CAN bus (P-CAN) that's physically disconnected from the diagnostic bus (D-CAN) when the car is off
 
-An IGPM IOControl DID might energize a bus or relay that powers the SKM, even if it doesn't control the ACC relay directly. Once the SKM has power, we can use its own IOControl for ACC.
+### What are BC25/BC42/BC43/BC44?
 
-### Theory 3: Network Management (NM) frames
-
-Hyundai/Kia uses OSEK NM. The IGPM might forward NM wake requests to other ECUs via internal relay logic. This wasn't testable in deep sleep (NM frames timed out on dead bus), but might work differently if the IGPM is already awake.
-
-### Theory 4: Functional addressing (0x7DF)
-
-UDS functional broadcast might reach ECUs that individual addressing doesn't, if the IGPM acts as a gateway and forwards requests. Not successful in deep sleep, but worth retesting with IGPM awake.
+These IGPM IOControl DIDs were accepted but had no visible effect. Candidates:
+- Internal diagnostic relays
+- Power distribution test points
+- Security-related actuators (immobilizer, alarm arming)
+- Wiper-related (BC42-44 sequential range)
 
 ## Sleep State Observations
 
