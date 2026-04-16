@@ -181,6 +181,10 @@ async def mode_skm_wakeup(terminal: WiCANTerminal, level: str, verbose: bool):
     await terminal.send_command("ATSH770")
     await terminal.send_command("ATFCSH770")
 
+    # IGPM may be in deep sleep — wake it first with 1001
+    wake_resp = await terminal.send_command("1001", timeout=3.0)
+    # 1001 may return NO DATA when IGPM is in deep sleep — that's expected
+
     # IGPM needs extended session for 22BCxx reads
     igpm_resp = await terminal.send_command("1003", timeout=3.0)
     if "50 03" not in igpm_resp and "5003" not in igpm_resp:
@@ -217,8 +221,8 @@ async def mode_skm_wakeup(terminal: WiCANTerminal, level: str, verbose: bool):
                 )
         else:
             print(f"        BC03 response too short to extract ignition byte.")
-            if verbose:
-                print(f"        Data: {data_hex}")
+            print(f"        Got {len(data_hex) // 2} data bytes, need 12.")
+            print(f"        Raw response: {igpm_resp.strip()}")
     else:
         print(f"        Could not read IGPM BC03: {igpm_resp.strip()}")
 
