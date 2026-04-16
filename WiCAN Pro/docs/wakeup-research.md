@@ -63,9 +63,13 @@ ATST96          (restore normal timeout)
 
 **Previous misconception:** Earlier tests reported needing 2-17 attempts because the rapid-fire script varied in timing. The wake actually happens on attempt 2 consistently — the variable attempt count was an artifact of the test harness timing, not the ECU's behaviour.
 
+**CRITICAL: Fob proximity required for relay engagement.** The SKM returns a positive UDS response (`6FB10803`) to the ACC IOControl command even without fob nearby, but the relay **physically doesn't close**. Verified by reading IGPM BC03 B11 (ignition byte = `0x00`, should be `0x20`+ for real ACC) and BC04 B7 (also stays `0x00` = deep sleep). Earlier observations of "ACC relay clicked, doors unlocked" **required fob proximity** — this was not recognized at the time.
+
+The `skm-wake` command now includes a verification step (step 4/4) that reads IGPM BC03 after the IOControl command and checks the ignition byte to confirm the relay actually engaged.
+
 **ACC does NOT latch** — it stays on only while the IOControl session is held (TesterPresent keepalive). When the session drops, the ACC relay opens and the car re-locks.
 
-**Side effects of ACC ON via IOControl:**
+**Side effects of ACC ON via IOControl (with fob nearby):**
 - Doors unlock (normal ACC behavior)
 - Infotainment boots
 - Doors re-lock when session drops
@@ -110,8 +114,11 @@ The SKM wakes and ACC/IGN1 IOControl is accepted, but the powertrain ECUs (BMS, 
 
 **Reachable without fob:**
 - IGPM (0x770) — doors, locks, lights, horn, turn signals, trunk
-- SKM (0x7A5) — relay IOControl (accepted but relay doesn't latch for powertrain)
-- BCM (0x7A0) — TPMS, charge port status (once ACC active)
+- SKM (0x7A5) — relay IOControl (UDS response positive, but relay doesn't physically close without fob)
+- BCM (0x7A0) — TPMS, charge port status (wakes from CAN bus activity alone)
+
+**Requires fob proximity:**
+- SKM ACC/IGN relay latch — positive UDS response without fob is misleading; relay only closes with fob nearby
 
 **NOT reachable without physical key turn or fob button press:**
 - BMS, VCU, MCU, LDC, GW (powertrain power domain)
@@ -369,8 +376,8 @@ The IGPM always wakes from `1001` in any state — but the first attempt may ret
 
 ## IOControl — SKM (0x7A5)
 
-- **ACC relay** (`2FB108030A0A05`) confirmed working. ACC does NOT latch — releases when session drops.
-- **IGN1/IGN2** accepted but powertrain ECUs remain dead (relay doesn't latch).
+- **ACC relay** (`2FB108030A0A05`) — UDS positive response confirmed. **However, relay only physically closes with fob nearby.** Without fob, SKM returns `6FB10803` but ignition byte stays `0x00`. The `skm-wake` command verifies this via IGPM BC03.
+- **IGN1/IGN2** accepted but powertrain ECUs remain dead (relay doesn't latch even with fob — separate issue).
 - **freezeCurrentState** (`2FB10802`) returns status bytes `6255`.
 
 ## ECU Wake from Deep Sleep (car off, unplugged, no fob)
