@@ -28,6 +28,14 @@ Usage:
   python3 wican.py reboot                           # Reboot device
   python3 wican.py reboot --yes                     # Skip confirmation
 
+  python3 wican.py logs                              # List available log databases
+  python3 wican.py logs --download                   # Download all log DBs to logs/
+  python3 wican.py logs --download --db <filename>   # Download specific DB
+  python3 wican.py logs --query SOC_BMS              # Query parameter from latest DB
+  python3 wican.py logs --query SOC_BMS --limit 20   # Last 20 values
+  python3 wican.py logs --params                     # List all logged parameters
+  python3 wican.py logs --json                       # JSON output
+
 Global flags:
   --wican home|vpn|<url>   Device address (default: home)
   --timeout <seconds>      Request timeout (default: 10)
@@ -35,8 +43,10 @@ Global flags:
 
 import argparse
 import json
+import sqlite3
 import sys
-from datetime import datetime
+import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 
 try:
@@ -48,6 +58,7 @@ except ImportError:
 # ── Constants ──────────────────────────────────────────────────────────────
 SCRIPT_DIR = Path(__file__).parent
 CONFIGS_DIR = SCRIPT_DIR / "configs"
+LOGS_DIR = SCRIPT_DIR / "logs"
 
 WICAN_ADDRESSES = {
     "home": "http://10.0.2.86",
@@ -363,6 +374,200 @@ def cmd_status(args) -> None:
             print(f"  {label:<{max_label}}  {value}")
 
 
+def get_log_index(base_url: str, timeout: int) -> dict:
+    """GET /obd_logs and return parsed JSON index."""
+    url = f"{base_url}/obd_logs"
+    try:
+        resp = requests.get(url, timeout=timeout)
+        resp.raise_for_status()
+        return resp.json()
+    except requests.ConnectionError:
+        print(f"ERROR: Cannot connect to WiCAN at {base_url}", file=sys.stderr)
+        sys.exit(1)
+    except requests.Timeout:
+        print(f"ERROR: Timeout connecting to {base_url}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(f"ERROR: Failed to get log index: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def download_log_db(base_url: str, filename: str, dest: Path, timeout: int) -> Path:
+    """Download a log database file from the device."""
+    url = f"{base_url}/obd_logs/{filename}"
+    try:
+        resp = requests.get(url, timeout=max(timeout, 60))  # Large files need more time
+        resp.raise_for_status()
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(resp.content)
+        return dest
+    except Exception as e:
+        print(f"ERROR: Failed to download {filename}: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def open_log_db(path: Path) -> sqlite3.Connection:
+    """Open a log database, tolerating partial corruption."""
+    db = sqlite3.connect(str(path))
+    # WAL mode + ignore malformed pages where possible
+    try:
+        db.execute("PRAGMA journal_mode=WAL")
+    except sqlite3.DatabaseError:
+        pass
+    return db
+
+
+def cmd_logs(args) -> None:
+    """List, download, or query OBD log databases."""
+    base_url = resolve_wican_url(args.wican)
+
+    # List log databases
+    index = get_log_index(base_url, args.timeout)
+
+    if args.download:
+        # Download specific or all databases
+        dbs = index.get("databases", [])
+        if args.db:
+            dbs = [d for d in dbs if d["filename"] == args.db]
+            if not dbs:
+                print(f"ERROR: Database '{args.db}' not found", file=sys.stderr)
+                sys.exit(1)
+
+        LOGS_DIR.mkdir(exist_ok=True)
+        for db_info in dbs:
+            fname = db_info["filename"]
+            dest = LOGS_DIR / fname
+            if dest.exists() and not args.force:
+                print(f"  {fname} — already exists (use --force to overwrite)")
+                continue
+            print(f"  Downloading {fname}...", end=" ", flush=True)
+            download_log_db(base_url, fname, dest, args.timeout)
+            size_kb = dest.stat().st_size / 1024
+            print(f"{size_kb:.0f} KB")
+        return
+
+    if args.params or args.query:
+        # Download current DB to temp file and query it
+        current_db = index.get("current_db")
+        if not current_db:
+            print("ERROR: No current database", file=sys.stderr)
+            sys.exit(1)
+
+        # Use local copy if available, otherwise download to temp
+        local_path = LOGS_DIR / current_db
+        if local_path.exists():
+            db_path = local_path
+        else:
+            tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+            tmp.close()
+            db_path = Path(tmp.name)
+            print(f"Downloading {current_db}...", flush=True)
+            download_log_db(base_url, current_db, db_path, args.timeout)
+
+        db = open_log_db(db_path)
+
+        if args.params:
+            # List all parameters
+            try:
+                rows = db.execute(
+                    "SELECT pi.Id, pi.Name, pi.Data, COUNT(pd.rowid) as cnt "
+                    "FROM param_info pi LEFT JOIN param_data pd ON pd.param_id = pi.Id "
+                    "GROUP BY pi.Id ORDER BY pi.Name"
+                ).fetchall()
+            except sqlite3.DatabaseError:
+                # Fallback without join if DB is partially corrupt
+                rows = [(r[0], r[1], r[2], "?") for r in
+                        db.execute("SELECT Id, Name, Data FROM param_info ORDER BY Name").fetchall()]
+
+            if args.json:
+                result = []
+                for row in rows:
+                    meta = json.loads(row[2]) if row[2] else {}
+                    result.append({"id": row[0], "name": row[1], "rows": row[3], **meta})
+                print(json.dumps(result, indent=2))
+            else:
+                print(f"{'Parameter':<35} {'Rows':>7}  {'Period':>8}  Unit")
+                print(f"{'─' * 35} {'─' * 7}  {'─' * 8}  {'─' * 6}")
+                for row in rows:
+                    meta = json.loads(row[2]) if row[2] else {}
+                    period = meta.get("period", "")
+                    unit = meta.get("unit", "")
+                    if period:
+                        period = f"{int(period)/1000:.0f}s"
+                    print(f"  {row[1]:<33} {str(row[3]):>7}  {period:>8}  {unit}")
+            return
+
+        if args.query:
+            # Query a specific parameter
+            param_row = db.execute(
+                "SELECT Id, Data FROM param_info WHERE Name = ? COLLATE NOCASE",
+                (args.query,)
+            ).fetchone()
+            if not param_row:
+                # Try partial match
+                param_row = db.execute(
+                    "SELECT Id, Data FROM param_info WHERE Name LIKE ? COLLATE NOCASE",
+                    (f"%{args.query}%",)
+                ).fetchone()
+            if not param_row:
+                print(f"ERROR: Parameter '{args.query}' not found", file=sys.stderr)
+                print("  Use: wican.py logs --params  to list available parameters", file=sys.stderr)
+                sys.exit(1)
+
+            param_id = param_row[0]
+            limit = args.limit or 10
+
+            try:
+                rows = db.execute(
+                    "SELECT timestamp, value FROM param_data "
+                    "WHERE param_id = ? ORDER BY timestamp DESC LIMIT ?",
+                    (param_id, limit)
+                ).fetchall()
+            except sqlite3.DatabaseError:
+                # DB partially corrupt — fall back to forward scan (oldest first)
+                try:
+                    rows = db.execute(
+                        "SELECT timestamp, value FROM param_data "
+                        "WHERE param_id = ? LIMIT ?",
+                        (param_id, limit)
+                    ).fetchall()
+                    if rows:
+                        print("NOTE: Database partially corrupt, showing oldest available data",
+                              file=sys.stderr)
+                except sqlite3.DatabaseError as e:
+                    print(f"ERROR: Database too corrupt to query: {e}", file=sys.stderr)
+                    rows = []
+
+            if args.json:
+                result = [{"timestamp": r[0], "time": datetime.fromtimestamp(r[0], tz=timezone.utc).isoformat(), "value": r[1]} for r in rows]
+                print(json.dumps(result, indent=2))
+            else:
+                meta = json.loads(param_row[1]) if param_row[1] else {}
+                unit = meta.get("unit", "")
+                print(f"Parameter: {args.query} (last {limit} values)")
+                for row in rows:
+                    ts = datetime.fromtimestamp(row[0], tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+                    print(f"  {ts}  {row[1]} {unit}")
+            return
+
+    # Default: list databases
+    dbs = index.get("databases", [])
+    current = index.get("current_db", "")
+
+    if args.json:
+        print(json.dumps(index, indent=2))
+    else:
+        print(f"Log databases ({len(dbs)}):")
+        for db_info in dbs:
+            fname = db_info["filename"]
+            created = db_info.get("created", "?")
+            size = db_info.get("size", 0)
+            status = db_info.get("status", "")
+            marker = " (active)" if fname == current or status == "active" else ""
+            size_str = f"{size/1024:.0f} KB" if size else "—"
+            print(f"  {fname}  {created}  {size_str}{marker}")
+
+
 # ── Argument parsing ──────────────────────────────────────────────────────
 
 def main() -> None:
@@ -419,6 +624,22 @@ def main() -> None:
     p_status = sub.add_parser("status", help="Device status summary")
     p_status.add_argument("--json", action="store_true", help="Raw JSON output")
     p_status.set_defaults(func=cmd_status)
+
+    # ── logs ──
+    p_logs = sub.add_parser("logs", help="List, download, or query OBD log databases")
+    p_logs.add_argument("--download", action="store_true",
+                        help="Download log databases to logs/ directory")
+    p_logs.add_argument("--db", metavar="FILE", help="Specific database filename")
+    p_logs.add_argument("--force", action="store_true",
+                        help="Overwrite existing files on download")
+    p_logs.add_argument("--params", action="store_true",
+                        help="List all logged parameters")
+    p_logs.add_argument("--query", metavar="PARAM",
+                        help="Query a parameter (e.g. SOC_BMS)")
+    p_logs.add_argument("--limit", type=int, default=10,
+                        help="Number of rows to return (default: 10)")
+    p_logs.add_argument("--json", action="store_true", help="JSON output")
+    p_logs.set_defaults(func=cmd_logs)
 
     args = parser.parse_args()
     args.func(args)
