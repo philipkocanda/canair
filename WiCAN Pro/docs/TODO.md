@@ -7,6 +7,8 @@
 - [ ] Test VESS for IOControl (sound!)
 - [ ] Scan cluster for PIDs (range estimate, settings status)
 - [ ] Scan SKM for PIDs (e.g. key status, start button status)
+- [ ] Decode keyfob proximity state DID (IGPM or SKM — is fob nearby?)
+- [ ] Capture IGPM BC03 B11 in all ignition states (Off/ACC/ON/Ready) to verify byte values
 - [ ] Scan VCU for PIDs (e.g. motor temps, RPM, torque)
 - [ ] Scan MCU for PIDs (e.g. motor temps, RPM, torque)
 - [ ] Scan EPS for PIDs (e.g. steering angle, torque assist)
