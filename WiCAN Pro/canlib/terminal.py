@@ -13,6 +13,7 @@ except ImportError:
 
 try:
     import requests as _requests_mod
+
     HAS_REQUESTS = True
 except ImportError:
     _requests_mod = None
@@ -25,8 +26,13 @@ from .log import log_command, log_response
 class WiCANTerminal:
     """WebSocket connection to WiCAN in ELM327 terminal mode."""
 
-    def __init__(self, host: str, timeout: float = 3.0, verbose: bool = False,
-                 unsafe: bool = False):
+    def __init__(
+        self,
+        host: str,
+        timeout: float = 3.0,
+        verbose: bool = False,
+        unsafe: bool = False,
+    ):
         self.host = host
         self.url = f"ws://{host}/ws"
         self.timeout = timeout
@@ -98,12 +104,25 @@ class WiCANTerminal:
                 log_command(f"{cmd}  !! {blocked}")
                 raise ValueError(blocked)
             print(f"\n  !! WARNING: {blocked}", file=sys.stderr)
-            print(f"  !! --unsafe mode is active. The user MUST be consulted and", file=sys.stderr)
-            print(f"  !! must explicitly give consent before this command is executed.", file=sys.stderr)
-            print(f"  !! This command can cause irreversible damage to vehicle ECUs.", file=sys.stderr)
+            print(
+                f"  !! --unsafe mode is active. The user MUST be consulted and",
+                file=sys.stderr,
+            )
+            print(
+                f"  !! must explicitly give consent before this command is executed.",
+                file=sys.stderr,
+            )
+            print(
+                f"  !! This command can cause irreversible damage to vehicle ECUs.",
+                file=sys.stderr,
+            )
             try:
                 confirm = await asyncio.get_event_loop().run_in_executor(
-                    None, lambda: input("  !! Type 'YES' to execute, anything else to skip: "))
+                    None,
+                    lambda: input(
+                        "  !! Type 'YES' to execute, anything else to skip: "
+                    ),
+                )
             except (EOFError, KeyboardInterrupt):
                 confirm = ""
             if confirm.strip() != "YES":
@@ -126,12 +145,16 @@ class WiCANTerminal:
             if remaining <= 0:
                 break
             try:
-                msg = await asyncio.wait_for(self.ws.recv(), timeout=min(remaining, 1.0))
+                msg = await asyncio.wait_for(
+                    self.ws.recv(), timeout=min(remaining, 1.0)
+                )
             except asyncio.TimeoutError:
                 if got_prompt:
                     full = "".join(response_parts)
                     if "7F" in full and "78" in full:
-                        clean = full.replace(" ", "").replace("\r", "").replace("\n", "")
+                        clean = (
+                            full.replace(" ", "").replace("\r", "").replace("\n", "")
+                        )
                         if re.search(r"7F[0-9A-Fa-f]{2}78", clean):
                             continue
                     break
@@ -139,17 +162,21 @@ class WiCANTerminal:
                     text = "".join(response_parts)
                     stripped = text.replace("\r", "").replace("\n", "").strip()
                     if stripped:
-                        stripped_nfc = re.sub(r'\bF0[0-9A-Fa-f]?\b', '', stripped).strip()
+                        stripped_nfc = re.sub(
+                            r"\bF0[0-9A-Fa-f]?\b", "", stripped
+                        ).strip()
                     else:
                         stripped_nfc = ""
                     if stripped_nfc and "\r" in text and "7F" not in text:
                         # Don't early-exit if the only content is a request echo
                         # (a short hex string matching a UDS service byte 0x10-0x3E)
                         echo_only = stripped_nfc.replace(" ", "")
-                        is_echo = (len(echo_only) <= 8 and
-                                   all(c in "0123456789ABCDEFabcdef" for c in echo_only) and
-                                   len(echo_only) >= 2 and
-                                   0x10 <= int(echo_only[:2], 16) <= 0x3E)
+                        is_echo = (
+                            len(echo_only) <= 8
+                            and all(c in "0123456789ABCDEFabcdef" for c in echo_only)
+                            and len(echo_only) >= 2
+                            and 0x10 <= int(echo_only[:2], 16) <= 0x3E
+                        )
                         if not is_echo:
                             break
                 continue
@@ -231,7 +258,9 @@ class WiCANTerminal:
         raw = await self.send_command(service_pid, timeout=timeout)
         return parse_elm_response(raw)
 
-    async def enter_extended_session(self, wake: bool = False) -> tuple[bool, asyncio.Task | None]:
+    async def enter_extended_session(
+        self, wake: bool = False
+    ) -> tuple[bool, asyncio.Task | None]:
         """Enter extended diagnostic session (10 03) and start TesterPresent keepalive.
 
         Args:
@@ -263,8 +292,20 @@ class WiCANTerminal:
             print(f"  Continuing anyway -- some ECUs may not need extended session.")
         else:
             error = resp.get("error", "unknown")
-            print(f"  WARNING: Session request failed: {error}")
-            print(f"  Continuing anyway.")
+            print(f"  Session request failed: {error} — retrying in 0.5s...")
+            await asyncio.sleep(0.5)
+            resp = await self.send_uds("1003", timeout=5.0)
+            if resp.get("ok"):
+                print(f"  Session established (on retry).")
+            elif resp.get("nrc") is not None:
+                nrc = resp["nrc"]
+                desc = resp["nrc_desc"]
+                print(f"  WARNING: Session retry returned NRC 0x{nrc:02X} ({desc})")
+                print(f"  Continuing anyway.")
+            else:
+                error2 = resp.get("error", "unknown")
+                print(f"  WARNING: Session retry also failed: {error2}")
+                print(f"  Continuing anyway.")
 
         verbose = self.verbose
 
@@ -289,8 +330,14 @@ class WiCANTerminal:
 def reboot_wican(host: str):
     """Reboot WiCAN device via HTTP POST to restore AutoPID mode."""
     if not HAS_REQUESTS:
-        print("  Cannot reboot: 'requests' module not installed. Run: pip3 install requests", file=sys.stderr)
-        print(f"  Manual reboot: curl -X POST http://{host}/system_reboot -d reboot", file=sys.stderr)
+        print(
+            "  Cannot reboot: 'requests' module not installed. Run: pip3 install requests",
+            file=sys.stderr,
+        )
+        print(
+            f"  Manual reboot: curl -X POST http://{host}/system_reboot -d reboot",
+            file=sys.stderr,
+        )
         return False
 
     url = f"http://{host}/system_reboot"
