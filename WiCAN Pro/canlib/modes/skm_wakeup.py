@@ -19,6 +19,105 @@ SKM_RELAYS = {
 SKM_MAGIC = "0A0A05"
 
 
+def parse_igpm_bc03(raw_response: str) -> dict:
+    """Parse IGPM BC03 response for ignition/ACC state.
+
+    Returns dict with:
+        ok: bool - whether parsing succeeded
+        acc: bool - ACC relay engaged (bit 5 of data byte 4)
+        ign_byte: int - raw data byte 4 value
+        ign2_byte: int - raw data byte 5 value
+        error: str - error message if parsing failed
+    """
+    cleaned = (
+        re.sub(r"\d+:", "", raw_response).replace(" ", "").replace("\n", "").upper()
+    )
+
+    if "62BC03" not in cleaned:
+        return {
+            "ok": False,
+            "acc": False,
+            "error": f"No 62BC03 in response: {raw_response.strip()}",
+        }
+
+    hex_start = cleaned.index("62BC03") + 6
+    data_hex = cleaned[hex_start:]
+
+    if len(data_hex) < 12:
+        return {
+            "ok": False,
+            "acc": False,
+            "error": f"Too short ({len(data_hex) // 2} data bytes, need 6)",
+        }
+
+    ign_byte = int(data_hex[8:10], 16)  # data byte 4
+    ign2_byte = int(data_hex[10:12], 16)  # data byte 5
+    acc = bool(ign_byte & 0x20)  # bit 5 = ACC
+
+    return {"ok": True, "acc": acc, "ign_byte": ign_byte, "ign2_byte": ign2_byte}
+
+
+def parse_bcm_b003(raw_response: str) -> dict:
+    """Parse BCM B003 response for power mode byte.
+
+    Returns dict with:
+        ok: bool - whether parsing succeeded
+        power_byte: int - raw data byte 6 value (stripped, 0-indexed)
+        state: str - human-readable state label
+        error: str - error message if parsing failed
+    """
+    cleaned = (
+        re.sub(r"\d+:", "", raw_response).replace(" ", "").replace("\n", "").upper()
+    )
+
+    if "62B003" not in cleaned:
+        return {"ok": False, "error": f"No 62B003 in response: {raw_response.strip()}"}
+
+    hex_start = cleaned.index("62B003") + 6
+    data_hex = cleaned[hex_start:]
+
+    if len(data_hex) < 14:
+        return {
+            "ok": False,
+            "error": f"Too short ({len(data_hex) // 2} data bytes, need 7)",
+        }
+
+    pwr_byte = int(data_hex[12:14], 16)  # data byte 6 (stripped, 0-indexed)
+    known = {0x09: "ACC?", 0x0A: "ACC+IGN1?", 0xF5: "OFF/sleep?"}
+    state = known.get(pwr_byte, "unknown")
+
+    return {"ok": True, "power_byte": pwr_byte, "state": state}
+
+
+async def wake_and_read(terminal: WiCANTerminal, tx_id: str, pid: str) -> dict:
+    """Wake an ECU, enter extended session, and read a PID.
+
+    Args:
+        terminal: WiCAN terminal connection
+        tx_id: ECU TX ID as hex string (e.g. "770")
+        pid: PID to read (e.g. "22BC03")
+
+    Returns dict with:
+        ok: bool - whether the read succeeded
+        response: str - raw response string (if ok)
+        error: str - error description (if not ok)
+    """
+    await terminal.send_command(f"ATSH{tx_id}")
+    await terminal.send_command(f"ATFCSH{tx_id}")
+
+    # Wake from deep sleep
+    await terminal.send_command("1001", timeout=3.0)
+
+    # Extended session
+    resp = await terminal.send_command("1003", timeout=3.0)
+    if "5003" not in resp.replace(" ", "") and "50 03" not in resp:
+        return {"ok": False, "error": "Could not enter extended session."}
+
+    # Read PID
+    resp = await terminal.send_command(pid, timeout=5.0)
+    return {"ok": True, "response": resp}
+
+
 async def mode_skm_wakeup(terminal: WiCANTerminal, level: str, verbose: bool):
     """Wake sleeping ECUs via SKM relay control.
 
@@ -186,78 +285,35 @@ async def mode_skm_wakeup(terminal: WiCANTerminal, level: str, verbose: bool):
 
     # --- IGPM BC03: ignition/ACC state ---
     print(f"        IGPM (0x770) BC03...")
-    await terminal.send_command("ATSH770")
-    await terminal.send_command("ATFCSH770")
-
-    # IGPM may be in deep sleep — wake it first with 1001
-    await terminal.send_command("1001", timeout=3.0)
-    # 1001 may return NO DATA when IGPM is in deep sleep — that's expected
-
-    igpm_resp = await terminal.send_command("1003", timeout=3.0)
-    igpm_ok = "5003" in igpm_resp.replace(" ", "") or "50 03" in igpm_resp
-
-    if igpm_ok:
-        igpm_resp = await terminal.send_command("22BC03", timeout=5.0)
-        igpm_clean = (
-            re.sub(r"\d+:", "", igpm_resp).replace(" ", "").replace("\n", "").upper()
-        )
-
-        if "62BC03" in igpm_clean:
-            hex_start = igpm_clean.index("62BC03") + 6
-            data_hex = igpm_clean[hex_start:]
-            if len(data_hex) >= 12:
-                ign_byte = int(data_hex[8:10], 16)  # data byte 4
-                ign2_byte = int(data_hex[10:12], 16)  # data byte 5
-                if ign_byte & 0x20:
-                    verified = True
-                    print(
-                        f"          B4=0x{ign_byte:02X} B5=0x{ign2_byte:02X} — ACC CONFIRMED"
-                    )
-                else:
-                    print(
-                        f"          B4=0x{ign_byte:02X} B5=0x{ign2_byte:02X} — no ACC"
-                    )
+    igpm = await wake_and_read(terminal, "770", "22BC03")
+    if igpm["ok"]:
+        result = parse_igpm_bc03(igpm["response"])
+        if result["ok"]:
+            if result["acc"]:
+                verified = True
+                print(
+                    f"          B4=0x{result['ign_byte']:02X} B5=0x{result['ign2_byte']:02X} — ACC CONFIRMED"
+                )
             else:
                 print(
-                    f"          BC03 too short ({len(data_hex) // 2} bytes): {igpm_resp.strip()}"
+                    f"          B4=0x{result['ign_byte']:02X} B5=0x{result['ign2_byte']:02X} — no ACC"
                 )
         else:
-            print(f"          BC03 read failed: {igpm_resp.strip()}")
+            print(f"          {result['error']}")
     else:
-        print(f"          Could not enter extended session.")
+        print(f"          {igpm['error']}")
 
     # --- BCM B003: power mode byte ---
     print(f"        BCM  (0x7A0) B003...")
-    await terminal.send_command("ATSH7A0")
-    await terminal.send_command("ATFCSH7A0")
-
-    # BCM also needs wake + extended session from deep sleep
-    await terminal.send_command("1001", timeout=3.0)
-    bcm_session = await terminal.send_command("1003", timeout=3.0)
-    bcm_ok = "5003" in bcm_session.replace(" ", "") or "50 03" in bcm_session
-
-    if bcm_ok:
-        bcm_resp = await terminal.send_command("22B003", timeout=5.0)
-        bcm_clean = (
-            re.sub(r"\d+:", "", bcm_resp).replace(" ", "").replace("\n", "").upper()
-        )
-
-        if "62B003" in bcm_clean:
-            hex_start = bcm_clean.index("62B003") + 6
-            data_hex = bcm_clean[hex_start:]
-            if len(data_hex) >= 14:  # need at least 7 bytes to reach byte 6
-                pwr_byte = int(data_hex[12:14], 16)  # data byte 6 (stripped, 0-indexed)
-                known = {0x09: "ACC?", 0x0A: "ACC+IGN1?", 0xF5: "OFF/sleep?"}
-                state = known.get(pwr_byte, f"unknown")
-                print(f"          Byte 6=0x{pwr_byte:02X} ({state})")
-            else:
-                print(
-                    f"          B003 too short ({len(data_hex) // 2} bytes): {bcm_resp.strip()}"
-                )
+    bcm = await wake_and_read(terminal, "7A0", "22B003")
+    if bcm["ok"]:
+        result = parse_bcm_b003(bcm["response"])
+        if result["ok"]:
+            print(f"          Byte 6=0x{result['power_byte']:02X} ({result['state']})")
         else:
-            print(f"          B003 read failed: {bcm_resp.strip()}")
+            print(f"          {result['error']}")
     else:
-        print(f"          Could not enter extended session.")
+        print(f"          {bcm['error']}")
 
     if verified:
         print(f"\n  {desc} activated and verified!")
