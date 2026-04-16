@@ -323,7 +323,8 @@ Examples:
         help="Multi-ECU pipeline: execute sub-commands in sequence with shared "
         "session management. Each CMD is a quoted string. Sub-commands: "
         "skm-wake [level], session <ECU> [--wake], query <ECU> [PID ...], "
-        "raw <TX:PID>, scan <TX> <SVC> <RANGE> [APPEND], sleep <N>, repl",
+        "raw <TX:PID>, scan <TX> <SVC> <RANGE> [APPEND], security <ECU> [algo ...], "
+        "sleep <N>, repl",
     )
 
     # ECU/PID mode options
