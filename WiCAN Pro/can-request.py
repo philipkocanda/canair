@@ -1289,6 +1289,14 @@ async def mode_scan(terminal: WiCANTerminal, tx_id: int, service: int,
         session: If True, enter extended diagnostic session (10 03) before
             scanning and send periodic TesterPresent (3E 00) in the background
             to keep the session alive.
+
+    IMPORTANT — scan gently and patiently:
+        - Only ONE scan at a time. The WiCAN has a single WebSocket connection;
+          running a second scan in parallel will lock up the device.
+        - ECUs also need time to recover between requests. Back-to-back scans
+          across multiple ECUs may cause some to stop responding.
+        - Use a modest --range (e.g. 01-20 before 01-FF) and check results
+          before continuing. If an ECU goes silent, wait or reboot the WiCAN.
     """
     start, end = pid_range
     total = end - start + 1
@@ -1781,7 +1789,9 @@ Examples:
     mode.add_argument("--raw", metavar="TX:PID",
                       help="Raw UDS request (e.g., 7E4:2101)")
     mode.add_argument("--scan", action="store_true",
-                      help="Scan a range of PIDs (requires --tx)")
+                      help="Scan a range of PIDs (requires --tx). "
+                           "One scan at a time only — parallel scans lock up the device. "
+                           "Scan gently: use small ranges first, wait between scans.")
     mode.add_argument("--skm-wakeup", action="store_true",
                       help="Wake sleeping ECUs via SKM relay control (requires active CAN bus)")
     mode.add_argument("--tester-present", action="store_true",
