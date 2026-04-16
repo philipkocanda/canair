@@ -9,7 +9,7 @@ from ..terminal import WiCANTerminal
 
 # SKM relay control DIDs
 SKM_RELAYS = {
-    "acc":  ("B108", "ACC (Accessory)"),
+    "acc": ("B108", "ACC (Accessory)"),
     "ign1": ("B109", "IGN1 (Ignition 1)"),
     "ign2": ("B10A", "IGN2 (Ignition 2)"),
     "start": ("B10B", "Start Relay"),
@@ -36,7 +36,8 @@ async def mode_skm_wakeup(terminal: WiCANTerminal, level: str, verbose: bool):
         print("  !! Only proceed if the car is in Park and safe conditions.")
         try:
             confirm = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: input("  !! Type 'YES' to proceed: "))
+                None, lambda: input("  !! Type 'YES' to proceed: ")
+            )
         except (EOFError, KeyboardInterrupt):
             confirm = ""
         if confirm.strip() != "YES":
@@ -46,46 +47,56 @@ async def mode_skm_wakeup(terminal: WiCANTerminal, level: str, verbose: bool):
     print(f"\n  SKM Wakeup -- {desc}")
     print(f"  ---------------------------------")
 
-    # Step 1: Broadcast to wake SKM
-    print(f"  [1/3] Broadcasting wake signal (3E00 + 1001 on 0x7DF)...")
-    await terminal.send_command("ATSH7DF")
-    await terminal.send_command("ATFCSH7DF")
-
-    for i in range(3):
-        resp = await terminal.send_command("3E00")
-        if verbose:
-            print(f"        3E00 [{i+1}] -> {resp}")
-
-    resp = await terminal.send_command("1001")
-    if verbose:
-        print(f"        1001 -> {resp}")
-
-    await asyncio.sleep(0.5)
-
-    # Step 2: Extended diagnostic session on SKM
-    print(f"  [2/3] Establishing extended session on SKM (0x7A5)...")
+    # Step 1: Rapid-fire 1001 to wake SKM transceiver from deep sleep
+    # SKM wakes on the 2nd frame but has a ~2s sleep timer — needs fast CAN
+    # traffic (64ms timeout) to stay awake. Direct to 0x7A5, no broadcast needed.
+    print(f"  [1/3] Waking SKM (rapid-fire 1001 at 64ms timeout)...")
     await terminal.send_command("ATSH7A5")
     await terminal.send_command("ATFCSH7A5")
 
+    # Save current timeout and switch to fast mode
+    await terminal.send_command("ATST10")  # 64ms timeout
+
+    skm_awake = False
+    for attempt in range(20):
+        resp = await terminal.send_command("1001", timeout=3.0)
+        if "50 01" in resp or "5001" in resp:
+            skm_awake = True
+            if verbose:
+                print(f"        1001 -> {resp} (attempt {attempt + 1})")
+            break
+        if verbose:
+            print(f"        1001 -> {resp} (attempt {attempt + 1})")
+
+    if not skm_awake:
+        # Restore timeout before returning
+        await terminal.send_command("ATST96")
+        print(f"  FAILED: SKM did not wake after 20 rapid-fire attempts.")
+        print(f"  The SKM transceiver may be fully unpowered.")
+        return False
+
+    print(f"        SKM awake (attempt {attempt + 1}).")
+
+    # Step 2: Extended diagnostic session — send immediately while SKM is awake
+    print(f"  [2/3] Establishing extended session on SKM (0x7A5)...")
+
     session_ok = False
-    for attempt in range(8):
+    for attempt in range(5):
         resp = await terminal.send_command("1003", timeout=3.0)
         if "50 03" in resp or "5003" in resp:
             session_ok = True
-            if verbose:
-                print(f"        1003 -> {resp} (attempt {attempt + 1})")
             break
         if verbose:
             print(f"        1003 -> {resp} (attempt {attempt + 1})")
-        await asyncio.sleep(1.0)
+
+    # Restore normal timeout
+    await terminal.send_command("ATST96")
 
     if not session_ok:
-        print(f"  FAILED: SKM did not respond to extended session request.")
-        print(f"  The SKM may be asleep. It only responds when the CAN bus is active")
-        print(f"  (e.g. during charging). See skm-wakeup.md for details.")
+        print(f"  FAILED: SKM awake but extended session failed.")
         return False
 
-    print(f"        Session established.")
+    print(f"        Extended session (10 03) established.")
 
     # Step 3: Send relay ON command
     await terminal._drain()
@@ -94,8 +105,9 @@ async def mode_skm_wakeup(terminal: WiCANTerminal, level: str, verbose: bool):
     resp = await terminal.send_command(cmd, timeout=10.0)
 
     clean = resp.replace(" ", "").replace("\n", "").upper()
-    is_fc_only = clean in ("F00", "FC00", "F0", "FC0") or \
-                 (len(clean) <= 4 and clean.startswith("F"))
+    is_fc_only = clean in ("F00", "FC00", "F0", "FC0") or (
+        len(clean) <= 4 and clean.startswith("F")
+    )
 
     if is_fc_only or ("7F2F78" in clean and "6F" not in clean):
         if verbose:
@@ -110,7 +122,8 @@ async def mode_skm_wakeup(terminal: WiCANTerminal, level: str, verbose: bool):
                 break
             try:
                 msg = await asyncio.wait_for(
-                    terminal.ws.recv(), timeout=min(remaining, 1.0))
+                    terminal.ws.recv(), timeout=min(remaining, 1.0)
+                )
                 if isinstance(msg, str):
                     try:
                         parsed = json.loads(msg)
@@ -142,8 +155,10 @@ async def mode_skm_wakeup(terminal: WiCANTerminal, level: str, verbose: bool):
             if verbose:
                 print(f"        Full response: {resp.strip()}")
 
-    success = f"6F{did[0:2]}" in resp.replace(" ", "").upper() or \
-              f"6FB1" in resp.replace(" ", "").upper()
+    success = (
+        f"6F{did[0:2]}" in resp.replace(" ", "").upper()
+        or f"6FB1" in resp.replace(" ", "").upper()
+    )
 
     if success:
         print(f"        {desc} activated!")
