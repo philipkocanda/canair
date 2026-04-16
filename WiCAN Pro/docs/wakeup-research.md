@@ -249,19 +249,75 @@ DID B108 exists and returns status data. Response bytes:
 
 The SKM B108 DID is confirmed working on the Ioniq 2017. The NRC 0x22 when ACC is already on is consistent with IOControl behavior (can't actuate to current state). The key question remains: **how to power the SKM when the car is fully asleep** — the SKM's CAN transceiver is completely off in deep sleep.
 
+## BCM Power Sequencing Theory (2026-04-15)
+
+### Hypothesis
+
+The BCM orchestrates the vehicle power mode state machine (OFF → ACC → IGN1 → IGN2 → Ready). Instead of directly controlling relays like the SKM IOControl does, the BCM manages the *logical* power state — coordinating the SKM (relay hardware), IGPM (circuit enables), CLU (dashboard wake), and HVAC.
+
+### Evidence
+
+1. **BCM contains preheat departure time (DID B007)** — The BCM knows when to power up the HVAC for cabin preheating, which means it must be able to initiate a power-up sequence autonomously.
+2. **Preheat works without key press** — The car preheats on schedule (daily 08:00). Something triggers ACC/IGN from sleep to run the HVAC. The BCM timer is the most likely trigger. **However, preheat only works when the car is plugged in — it draws power from the charger, not the HV battery.**
+3. **B003 byte 8 reflects power mode** — Changes between ACC and ACC+IGN1 (see comparison below).
+4. **BCM has IOControl DIDs for power-related functions** — 24 accepted DIDs in B0xx range, including some that could be power mode selectors.
+
+### B003 Power State Comparison (2026-04-15)
+
+Read BCM DID `22B003` in three states (all via SKM IOControl from deep sleep, no fob):
+
+| Power State       | B003 stripped byte 8 | Binary       | Notes                        |
+|-------------------|-----------------------|--------------|------------------------------|
+| ACC only          | `0x09`                | `0b00001001` | Bits 0, 3 set                |
+| ACC + IGN1        | `0x0A`                | `0b00001010` | Bits 1, 3 set                |
+| ACC + IGN1 + IGN2 | (incomplete read)     | —            | Session dropped mid-capture  |
+
+**Key observation:** Bits 0 and 1 swap between ACC and IGN1 states. This could be:
+- A 2-bit power mode field: `01` = ACC, `10` = IGN1
+- Or individual relay status bits: bit 0 = ACC relay, bit 1 = IGN1 relay
+
+Full B003 payload (stripped, ACC only):
+```
+62 B003 BF 8B 80 00 97 3D 09 B8 F9 F8 F9 F7 3D F8 00 00 00 00 00 00 00 AA AA AA
+```
+
+Full B003 payload (stripped, ACC + IGN1):
+```
+62 B003 BF 8B 80 00 97 3D 0A B8 F9 F8 F9 F7 3D F8 00 00 00 00 00 00 00 AA AA AA
+```
+
+Only byte 8 (WiCAN B11) changed. B001 and B008 were identical across states.
+
+### Charger Dependency
+
+**Critical constraint:** The preheat schedule only works when the car is connected to a charger and can draw power from it. This means:
+- The BCM timer-based power-up is designed for EVSE power, not standalone battery operation
+- Remote climate without being plugged in is impossible through the BCM timer path
+- The BCM probably commands the OBC/LDC to draw charger power → 12V → HVAC PTC heater
+
+This limits the BCM power sequencing approach: even if we could trigger the BCM's power-up routine remotely, it would only work while plugged in.
+
+### Testing Plan
+
+1. **B003 power mode tracking** — read B003 in more states (OFF/deep sleep, Ready mode with physical key) to map all bit patterns
+2. **Write test (0x2E) to B003** — attempt `2EB003` with modified byte 8 to request a power mode change. Start with current value + 1 bit to avoid drastic changes. **Requires extended session and possibly security access.**
+3. **RoutineControl scan (0x31)** — check if BCM has routines for power mode transitions: `31 01 xxxx` range scan
+4. **BCM DID B00C/B00D** — the preheat schedule DIDs. Writing to these might configure a one-time departure time and trigger immediate preheat
+5. **Monitor B003 during preheat** — capture B003 while the car is plugged in and the preheat timer fires, to see the BCM's actual power-up sequence
+
 ## Next Steps
 
-### 1. Test with fob nearby for comparison
+### 1. BCM power mode investigation
+
+Test the BCM power sequencing theory — see BCM Power Sequencing Theory section above.
+
+### 2. Test with fob nearby for comparison
 
 Re-run the full ECU sweep with fob nearby to confirm whether the ACC relay actually latches (vs. just energizing the coil). If BMS/VCU respond with fob present but not without, the relay latch requires immobilizer validation.
 
-### 2. Read BCM data during SKM-held ACC
-
-The BCM is alive — explore its full DID range for useful data beyond TPMS and charge port.
-
 ### 3. HVAC IOControl discovery
 
-See HVAC section in IOControl CLI commands doc. Needs ACC/IGN physically on.
+See HVAC section in IOControl CLI commands doc. Needs ACC/IGN physically on (or plugged-in preheat state).
 
 ## Remaining Questions
 

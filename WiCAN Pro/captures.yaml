@@ -1127,3 +1127,116 @@ sessions:
         notes: "requestOutOfRange — B061 not supported on Ioniq 2017. This was also
                 tried earlier without ACC (got 0x7F then). Definitively not a
                 supported DID."
+
+  - date: "2026-04-15"
+    state: "deep sleep → SKM ACC only (IOControl B108), no fob"
+    label: "BCM power state comparison — ACC only"
+    captures:
+      - ecu: BCM
+        pid: "22B001"
+        label: "BCM config flags — ACC only"
+        response: "62B00140C0000100000000000002010000 00"
+        notes: "Identical to earlier ACC+IGN1 read — B001 does not change with power state."
+
+      - ecu: BCM
+        pid: "22B003"
+        label: "BCM dense bitfield — ACC only"
+        response: "62B003BF8B8000973D09B8F9F8F9F73DF800000000000000AAAAAA"
+        notes: "Byte 8 (stripped) = 0x09 (0b00001001). Compare with ACC+IGN1 where byte 8 = 0x0A.
+                Bits 0 and 1 swap between ACC and IGN1 — possible power mode field."
+
+      - ecu: BCM
+        pid: "22B008"
+        label: "BCM status — ACC only"
+        response: "62B00800510C2000880000AAAA"
+        notes: "Identical to earlier ACC+IGN1 read — B008 does not change with power state."
+
+  - date: "2026-04-15"
+    state: "deep sleep → SKM ACC + IGN1 (IOControl B108+B109), no fob"
+    label: "BCM power state comparison — ACC + IGN1"
+    captures:
+      - ecu: BCM
+        pid: "22B003"
+        label: "BCM dense bitfield — ACC + IGN1"
+        response: "62B003BF8B8000973D0AB8F9F8F9F73DF800000000000000AAAAAA"
+        notes: "Byte 8 (stripped) = 0x0A (0b00001010). Changed from 0x09 in ACC-only.
+                Bits 0→0, 1→1 compared to ACC state. Power mode tracking confirmed."
+
+  - date: "2026-04-16"
+    state: "deep sleep, parked, locked, no charging"
+    label: "IGPM deep-sleep baseline — all status registers"
+    notes: >
+      Car fully asleep (WiCAN sleep mode, woke via terminal session).
+      Queried all 7 known IGPM status DIDs (BC01-BC07) using --wake flag
+      (sends 10 01 wake frame, then 10 03 extended session).
+      All 7 DIDs respond successfully during deep sleep.
+      BC01 responds here but returned NO DATA during earlier keyfob-wake test — timing issue.
+      BC08-BC0A confirmed NRC 0x31 (requestOutOfRange) in earlier session.
+    captures:
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC01"
+        payload: "62BC01400000000002AAAAAAAA"
+        notes: >
+          9 data bytes + 4 padding. Byte 3 = 0x40 (bit 6), byte 8 = 0x02 (bit 1).
+          Identical to ACC mode capture — appears static/config.
+          May contain immobilizer or key-related config.
+
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC02"
+        payload: "62BC0200000000"
+        notes: >
+          4 data bytes, all zeros. Identical to ACC mode.
+          May only populate during driving (speed/wiper state?).
+
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC03"
+        payload: "62BC03FDEE3C730A000000AAAA"
+        notes: >
+          8 data bytes + 2 padding. Door/trunk/lock/light/ignition register.
+          Byte 7 = 0x0A (00001010) = deep sleep / keyfob-wake state.
+          Compare: 0x00 during charging, 0x20 in ACC mode. Bit 5 = ACC flag.
+          All doors closed, locked, lights off, ignition off.
+
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC04"
+        payload: "62BC04B53FF4EA0C00000200"
+        notes: >
+          8 data bytes. Door lock register.
+          Byte 7 = 0x0C. Byte 10 = 0x02.
+          Compare: byte 7 = 0x00 charging, 0x01 ACC. Byte 10 = 0x00 charging, 0x42 ACC.
+
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC05"
+        payload: "62BC057F11200000000000AAAA"
+        notes: >
+          8 data bytes + 2 padding. Identical to ACC mode capture.
+          Appears static/config.
+
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC06"
+        payload: "62BC06B4800000000000AAAA"
+        notes: >
+          8 data bytes + 2 padding. Brake/turn signal register.
+          All zeros (no signals active). Consistent with parked car.
+
+      - ecu_tx: 0x770
+        ecu_rx: 0x778
+        ecu_name: IGPM
+        pid: "22BC07"
+        payload: "62BC070841FBCC00001900AAAA"
+        notes: >
+          8 data bytes + 2 padding. Identical to ACC mode capture.
+          0x0841FBCC could be immobilizer/key ID or anti-theft code.
+          Static across all power states observed so far.

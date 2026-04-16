@@ -384,6 +384,22 @@ ecus:
             verified: true
             notes: "Activates at ACC2/IGN1. Cannot distinguish ACC2 from Ready — both show bit=1. OFF and ACC1 both show bit=0 (ACC1 may behave differently when not charging). Verified 2026-04-15."
 
+          POWER_MODE:
+            expression: "B09"
+            unit: ""
+            ha_class: ""
+            mqtt_topic: power_mode
+            min: "0"
+            max: "255"
+            source: "Reverse engineered from cross-state comparison"
+            source_links: []
+            verified: true
+            notes: >
+              Raw power mode byte. Known values: 0x0A (10) = deep sleep / keyfob wake,
+              0x00 (0) = charging (no ACC), 0x20 (32) = ACC mode. Bit 5 = ACC flag.
+              More values expected for IGN-ON and READY states (not yet captured).
+              Verified 2026-04-16 across sleep/charging/ACC captures.
+
           SEATBELT_FL:
             expression: "B11:1"
             unit: ""
