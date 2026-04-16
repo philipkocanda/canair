@@ -172,11 +172,13 @@ Requires extended session (`1003`). SKM wakes from **rapid-fire `1001`** (50x at
 
 Magic bytes `0A 0A 05` are from Kia Soul and confirmed working on Ioniq 2017.
 
+**CRITICAL: Fob proximity required.** SKM returns a positive UDS response (`6FB10803`) even without the keyfob nearby, but the relay **physically doesn't close**. The `skm-wake` command verifies engagement by reading IGPM BC03 ignition byte after the IOControl command.
+
 **ACC does NOT latch** — relay stays on only while the IOControl session is held (TesterPresent keepalive). When the session drops, ACC relay opens, doors re-lock.
 
 | DID  | Label (Soul)    | Status    | Ioniq 2017 Notes                                                                |
 |------|-----------------|-----------|---------------------------------------------------------------------------------|
-| B108 | ACC relay       | Confirmed | ACC ON: dash lights, infotainment, doors unlock. Confirmed 2026-04-15. Only works with fob nearby. NRC 0x22 if ACC already on. `freezeCurrentState` (02) returns status bytes `6255`. |
+| B108 | ACC relay       | Confirmed | ACC ON: dash lights, infotainment, doors unlock. **Requires fob proximity** — UDS positive response without fob is misleading (relay doesn't physically close). Verified via IGPM BC03 ignition byte. NRC 0x22 if ACC already on. `freezeCurrentState` (02) returns status bytes `6255`. |
 | B109 | IGN1 relay      | Untested  | Ignition 1 — wakes all ECUs including HV system. **Use with extreme caution**   |
 | B10A | IGN2 relay      | Untested  | Ignition 2 — purpose unclear on Ioniq EV. From Kia Soul (ICE start circuit)     |
 | B10B | Start relay     | Untested  | Starter motor relay — **DO NOT USE on EV** (no starter motor, unknown behavior) |
