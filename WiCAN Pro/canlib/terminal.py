@@ -249,7 +249,7 @@ class WiCANTerminal:
             if wake_resp.get("ok"):
                 print(f"  ECU responded to wake-up.")
             else:
-                print(f"  No response to wake-up (expected -- ECU needs time to initialize).")
+                print(f"  Wake-up sent (no response is normal for sleeping ECUs).")
             await asyncio.sleep(0.5)
 
         print(f"  Entering extended diagnostic session (10 03)...")

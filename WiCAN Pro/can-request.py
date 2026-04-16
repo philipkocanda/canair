@@ -278,7 +278,7 @@ Examples:
     parser.add_argument("--verbose", "-v", action="store_true",
                         help="Show raw WebSocket traffic and expressions")
     parser.add_argument("--reboot", action="store_true",
-                        help="Reboot WiCAN after session to restore AutoPID mode")
+                         help="Reboot WiCAN after session to restore AutoPID mode")
     parser.add_argument("--unsafe", action="store_true",
                         help="Bypass dangerous command blocklist (requires explicit per-command consent)")
 
