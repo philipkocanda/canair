@@ -36,6 +36,12 @@ Usage:
   python3 wican.py logs --params                     # List all logged parameters
   python3 wican.py logs --json                       # JSON output
 
+  python3 wican.py protocol                          # Show current protocol
+  python3 wican.py protocol --set slcan              # Switch to SLCAN mode
+  python3 wican.py protocol --set auto_pid           # Switch back to AutoPID
+  python3 wican.py protocol --set elm327 --port 35000  # ELM327 on custom port
+  python3 wican.py protocol --set slcan --dry-run    # Preview without applying
+
 Global flags:
   --wican home|vpn|<url>   Device address (default: home)
   --timeout <seconds>      Request timeout (default: 10)
@@ -105,9 +111,21 @@ CONFIG_SECTIONS = {
         "ap_ch",
     ],
     "can": [
-        "port", "protocol", "can_datarate", "can_mode",
+        "port", "protocol", "can_datarate", "can_mode", "port_type",
     ],
 }
+
+# Protocol modes (firmware: config_server_protocol() in config_server.c)
+PROTOCOLS = {
+    "auto_pid":    "AutoPID — MQTT vehicle data polling (normal operation)",
+    "slcan":       "SLCAN — serial CAN adapter (for SavvyCAN, candump, etc.)",
+    "elm327":      "ELM327 — OBD-II emulation over TCP/UDP",
+    "savvycan":    "SavvyCAN — native SavvyCAN TCP protocol",
+    "realdash66":  "RealDash — RealDash protocol 66",
+}
+
+# Protocol config keys that are relevant
+PROTOCOL_KEYS = ["protocol", "port_type", "port", "can_mode"]
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────
@@ -568,6 +586,130 @@ def cmd_logs(args) -> None:
             print(f"  {fname}  {created}  {size_str}{marker}")
 
 
+def cmd_protocol(args) -> None:
+    """View or switch the CAN protocol mode."""
+    base_url = resolve_wican_url(args.wican)
+    config = get_config(base_url, args.timeout)
+
+    current = config.get("protocol", "unknown")
+    port_type = config.get("port_type", "tcp")
+    port = config.get("port", "3333")
+    can_mode = config.get("can_mode", "normal")
+
+    if not args.set:
+        # Display current protocol and available options
+        print(f"Current protocol: {current}")
+        print(f"Port:             {port} ({port_type.upper()})")
+        print(f"CAN mode:         {can_mode}")
+        print()
+        print("Available protocols:")
+        for proto, desc in PROTOCOLS.items():
+            marker = " ←" if proto == current else ""
+            print(f"  {proto:<14} {desc}{marker}")
+        print()
+        print("Switch with: wican.py protocol --set <name>")
+        return
+
+    target = args.set.lower()
+
+    # Accept common aliases
+    aliases = {"autopid": "auto_pid", "realdash": "realdash66"}
+    target = aliases.get(target, target)
+
+    if target not in PROTOCOLS:
+        print(f"ERROR: Unknown protocol '{args.set}'", file=sys.stderr)
+        print(f"  Available: {', '.join(PROTOCOLS.keys())}", file=sys.stderr)
+        sys.exit(1)
+
+    if target == current:
+        print(f"Already set to {target}")
+        return
+
+    # Build changes
+    changes = {"protocol": target}
+
+    # Set sensible defaults for port/type based on protocol
+    if args.port:
+        changes["port"] = str(args.port)
+    if args.port_type:
+        changes["port_type"] = args.port_type
+    if args.can_mode:
+        changes["can_mode"] = args.can_mode
+
+    # Show what's happening and warn about consequences
+    print(f"Protocol change: {current} → {target}")
+    print()
+
+    # Protocol-specific warnings
+    warnings = []
+    if current == "auto_pid" and target != "auto_pid":
+        warnings.append(
+            "AutoPID will STOP — no more MQTT data to Home Assistant. "
+            "Vehicle parameters will not be polled or published until you switch back."
+        )
+    if target == "auto_pid" and current != "auto_pid":
+        warnings.append(
+            "AutoPID will START — vehicle profile must be configured. "
+            "MQTT data feed to Home Assistant will resume."
+        )
+    if target == "slcan":
+        warnings.append(
+            f"SLCAN mode uses TCP port {changes.get('port', port)}. "
+            "Connect SavvyCAN or socketcand to this port."
+        )
+    if target == "savvycan":
+        warnings.append(
+            f"SavvyCAN native mode uses TCP port {changes.get('port', port)}. "
+            "Use 'Add Connection → Network' in SavvyCAN with this port."
+        )
+    if target == "elm327":
+        warnings.append(
+            f"ELM327 mode listens on {port_type.upper()} port {changes.get('port', port)}. "
+            "Connect with any ELM327-compatible app (Torque, Car Scanner, etc.)."
+        )
+    if target == "realdash66":
+        warnings.append(
+            f"RealDash mode uses TCP port {changes.get('port', port)}. "
+            "Configure RealDash to connect to this address and port."
+        )
+
+    # General warnings
+    warnings.append(
+        "Protocols are MUTUALLY EXCLUSIVE — only one can be active at a time."
+    )
+    warnings.append(
+        "Device will REBOOT to apply the change."
+    )
+
+    for i, w in enumerate(warnings, 1):
+        print(f"  ⚠ {w}")
+    print()
+
+    # Show diff
+    print("Changes:")
+    for key, new_val in changes.items():
+        old_val = config.get(key, "")
+        if old_val != new_val:
+            print(f"  {key}: {old_val} → {new_val}")
+
+    if args.dry_run:
+        print("\n(dry run — no changes applied)")
+        return
+
+    print()
+    if not args.yes and not confirm("Apply and reboot?"):
+        print("Cancelled.")
+        return
+
+    # Apply: merge into full config and store (triggers reboot)
+    for key, val in changes.items():
+        config[key] = val
+
+    print("Storing config...", end=" ", flush=True)
+    store_config(base_url, config, args.timeout)
+    print("device is rebooting.")
+
+
 # ── Argument parsing ──────────────────────────────────────────────────────
 
 def main() -> None:
@@ -640,6 +782,22 @@ def main() -> None:
                         help="Number of rows to return (default: 10)")
     p_logs.add_argument("--json", action="store_true", help="JSON output")
     p_logs.set_defaults(func=cmd_logs)
+
+    # ── protocol ──
+    p_proto = sub.add_parser("protocol", help="View or switch CAN protocol mode")
+    p_proto.add_argument("--set", metavar="MODE",
+                         help=f"Switch to protocol: {', '.join(PROTOCOLS.keys())}")
+    p_proto.add_argument("--port", type=int, metavar="PORT",
+                         help="TCP/UDP port number (default varies by protocol)")
+    p_proto.add_argument("--port-type", choices=["tcp", "udp"],
+                         help="Port type: tcp or udp")
+    p_proto.add_argument("--can-mode", choices=["normal", "silent"],
+                         help="CAN mode: normal (read/write) or silent (read-only)")
+    p_proto.add_argument("--dry-run", action="store_true",
+                         help="Preview changes without applying")
+    p_proto.add_argument("--yes", "-y", action="store_true",
+                         help="Skip confirmation prompt")
+    p_proto.set_defaults(func=cmd_protocol)
 
     args = parser.parse_args()
     args.func(args)
