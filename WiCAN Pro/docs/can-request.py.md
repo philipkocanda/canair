@@ -21,30 +21,13 @@ python3 can-request.py --raw 770:2FBC0103 --wake --hold # IOControl with session
 
 ##### `--identity` flag
 
-Queries standard UDS identity DIDs from an ECU and prints decoded results. Covers the common Hyundai/Kia identity DID set:
+Example:
 
-| DID  | Field                    | Format    |
-|------|--------------------------|-----------|
-| F190 | VIN                      | ASCII     |
-| F188 | ECU Part Number          | ASCII     |
-| F18C | ECU Serial / Cal ID      | ASCII     |
-| F18B | Manufacture Date         | BCD date  |
-| F18D | ECU Manufacturing Date   | BCD date  |
-| F191 | HW Version Number        | ASCII     |
-| F100 | Boot SW ID               | ASCII     |
-| F101 | App SW ID                | ASCII     |
-| F110 | ECU Identification       | ASCII     |
-| F17E | SW Install Date          | BCD date  |
-| F18A | System Supplier ID       | ASCII     |
-| F192 | Supplier HW Number       | ASCII     |
-| F193 | Supplier HW Version      | ASCII     |
-| F194 | Supplier SW Number       | ASCII     |
-| F195 | Supplier SW Version      | ASCII     |
-| F196 | Exhaust Regulation / SW  | ASCII     |
-| F197 | System / Engine Name     | ASCII     |
-| F1A0 | Diagnostic Address       | hex       |
-| F1A2 | HW Version               | ASCII     |
-| F1A4 | HW Part 2                | ASCII     |
+```sh
+./can-request.py --identity --tx 7A0 --wake --wican home
+```
+
+Queries standard UDS identity DIDs from an ECU and prints decoded results. Covers the common Hyundai/Kia identity DID set.
 
 Requires `--tx`. Use `--session` for most ECUs; use `--wake` for deep-sleeping ECUs (IGPM). Silently skips unsupported DIDs (NRC responses). Use `!identity` in interactive mode after setting a header with `ATSH`.
 

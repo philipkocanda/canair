@@ -1421,7 +1421,7 @@ SKM_MAGIC = "0A0A05"
 # Ordered from most to least useful for quick identification.
 IDENTITY_DIDS: list[tuple[str, str, str]] = [
     ("F190", "VIN",                     "ascii"),   # Vehicle Identification Number
-    ("F188", "ECU Part Number",         "ascii"),   # Supplier part number
+    ("F188", "ECU Part Number",         "ascii"),   # Supplier part number (transient on BCM — needs ACC?)
     ("F18C", "ECU Serial / Cal ID",     "ascii"),   # Serial number / calibration ID
     ("F18B", "Manufacture Date",        "date"),    # BCD YYYYMMDD
     ("F18D", "ECU Manufacturing Date",  "date"),    # BCD alt format
@@ -1487,7 +1487,7 @@ async def mode_identity(terminal: WiCANTerminal, tx_id: int, session: bool, wake
         print(f"\n  Identity query: ECU 0x{tx_id:03X}\n")
         label_width = max(len(label) for _, label, _ in IDENTITY_DIDS)
 
-        for did_hex, label, fmt in IDENTITY_DIDS:
+        for i, (did_hex, label, fmt) in enumerate(IDENTITY_DIDS):
             response = await terminal.send_uds(f"22{did_hex}")
             if response["ok"]:
                 payload = response["bytes"][3:]  # Strip 62 + 2-byte DID echo
