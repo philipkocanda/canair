@@ -1439,3 +1439,99 @@ sessions:
         pid: "22C014"
         payload: "62C014F00000000CAAAAAAAAAA"
         notes: "13 bytes. Unknown — 0x0C at end."
+
+# ─── 2026-04-16 — BCM gap DIDs B004-B007 + identity DIDs (deep sleep) ────────
+# Probe: deep sleep, SKM wake not attempted, BCM inherently awake.
+# Note: B004-B007 were missed in the 2026-04-15 session.
+
+- session: "2026-04-16-bcm-gap-and-identity"
+  date: "2026-04-16"
+  car_state: "deep sleep"
+  conditions: "Car parked at home, 12V battery resting. BCM inherently awake."
+  captures:
+
+    # B004-B007 gap (missed in previous session)
+    - ecu_tx: 0x7A0
+      ecu_rx: 0x7A8
+      ecu_name: BCM
+      pid: "22B004"
+      payload: "62B0047402990C00008000AAAA"
+      notes: "13 bytes. Unknown — first 2 bytes 0x7402 may be a counter or flags."
+
+    - ecu_tx: 0x7A0
+      ecu_rx: 0x7A8
+      ecu_name: BCM
+      pid: "22B005"
+      payload: "62B0052000100000000800AAAA"
+      notes: "13 bytes. Sparse bitfield — purpose unknown."
+
+    - ecu_tx: 0x7A0
+      ecu_rx: 0x7A8
+      ecu_name: BCM
+      pid: "22B006"
+      payload: "62B0062000000000000000AAAA"
+      notes: "13 bytes. All zeros except 0x20 at start — likely empty/unused register."
+
+    - ecu_tx: 0x7A0
+      ecu_rx: 0x7A8
+      ecu_name: BCM
+      pid: "22B007"
+      payload: "62B007002001E000000000AAAA"
+      notes: "13 bytes. 0x01E0 = 480 decimal — could be a timeout or config value."
+
+    # Standard UDS identity DIDs
+    - ecu_tx: 0x7A0
+      ecu_rx: 0x7A8
+      ecu_name: BCM
+      pid: "22F100"
+      payload: "62F100313830"
+      notes: "6 bytes. ASCII '180' — hardware version string."
+
+    - ecu_tx: 0x7A0
+      ecu_rx: 0x7A8
+      ecu_name: BCM
+      pid: "22F188"
+      payload: "62F18739353430304737343730"
+      notes: "13 bytes. ASCII '95400G7470' — ECU part number (confirms BCM: 95400G7470)."
+
+    - ecu_tx: 0x7A0
+      ecu_rx: 0x7A8
+      ecu_name: BCM
+      pid: "22F18C"
+      payload: "62F18B20170531"
+      notes: "7 bytes. Manufacturing date in BCD: 2017-05-31."
+
+    - ecu_tx: 0x7A0
+      ecu_rx: 0x7A8
+      ecu_name: BCM
+      pid: "22F18D"
+      payload: "62F18C3137303533313030373000000000000000000000AAAAAAAA"
+      notes: "27 bytes. ASCII '1705310070' padded with zeros — calibration/serial ID."
+
+    - ecu_tx: 0x7A0
+      ecu_rx: 0x7A8
+      ecu_name: BCM
+      pid: "22F195"
+      payload: "62F193313030"
+      notes: "6 bytes. ASCII '100' — software version component."
+
+    - ecu_tx: 0x7A0
+      ecu_rx: 0x7A8
+      ecu_name: BCM
+      pid: "22F196"
+      payload: "62F19430383830"
+      notes: "7 bytes. ASCII '0880' — software version component."
+
+    - ecu_tx: 0x7A0
+      ecu_rx: 0x7A8
+      ecu_name: BCM
+      pid: "22F197"
+      payload: "62F195323230"
+      notes: "6 bytes. ASCII '220' — calibration version."
+
+    - ecu_tx: 0x7A0
+      ecu_rx: 0x7A8
+      ecu_name: BCM
+      pid: "22F1A4"
+      payload: "62F1A2363230"
+      notes: "6 bytes. ASCII '620' — hardware version component."
