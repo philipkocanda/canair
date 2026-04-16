@@ -58,7 +58,7 @@ async def mode_skm_wakeup(terminal: WiCANTerminal, level: str, verbose: bool):
     await terminal.send_command("ATST10")  # 64ms timeout
 
     skm_awake = False
-    for attempt in range(20):
+    for attempt in range(10):
         resp = await terminal.send_command("1001", timeout=3.0)
         if "50 01" in resp or "5001" in resp:
             skm_awake = True
@@ -71,7 +71,7 @@ async def mode_skm_wakeup(terminal: WiCANTerminal, level: str, verbose: bool):
     if not skm_awake:
         # Restore timeout before returning
         await terminal.send_command(terminal.elm_timeout_cmd)
-        print(f"  FAILED: SKM did not wake after 20 rapid-fire attempts.")
+        print(f"  FAILED: SKM did not wake after 10 rapid-fire attempts.")
         print(f"  The SKM transceiver may be fully unpowered.")
         return False
 
