@@ -1,5 +1,20 @@
 # WiCAN TODOs
 
+- [ ] Decode BCM charge scheduling DIDs (e.g. preheat and charge schedules, scheduled charging on/off, rear defrost on/off, etc.) -> can we also write these somehow?
+- [ ] Scan various ECUs using --identity flag.
+- [ ] Scan HVAC for PIDs (e.g. blower speed, A/C status)
+- [ ] Scan HVAC for IOControl (e.g. blower speed control, A/C on/off)
+- [ ] Test VESS for IOControl (sound!)
+- [ ] Scan cluster for PIDs (range estimate, settings status)
+- [ ] Scan SKM for PIDs (e.g. key status, start button status)
+- [ ] Scan VCU for PIDs (e.g. motor temps, RPM, torque)
+- [ ] Scan MCU for PIDs (e.g. motor temps, RPM, torque)
+- [ ] Scan EPS for PIDs (e.g. steering angle, torque assist)
+- [ ] Scan ABS for PIDs (e.g. wheel speeds, brake pressure)
+- [ ] Scan BCM for IOControl (e.g. door lock/unlock, light control)
+- [ ] Scan BMS for IOControl (e.g. battery fan control)
+
+
 ## Unverified PIDs
 
 - [ ] **VCU speed** — verify if formula is MPH or km/h (compare with GPS)
