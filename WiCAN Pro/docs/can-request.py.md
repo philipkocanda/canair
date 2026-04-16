@@ -19,6 +19,42 @@ can-request.py --raw 770:22BC03 --wake          # Wake from deep sleep + session
 can-request.py --raw 770:2FBC0103 --wake --hold # IOControl with session held open
 ```
 
+##### `--multi` flag (multi-ECU pipeline)
+
+Executes a sequence of sub-commands within a single WebSocket session, managing extended diagnostic sessions across multiple ECUs with interleaved TesterPresent keepalives. After the pipeline completes, drops into an interactive REPL with all sessions still active (suppress with `--no-repl`).
+
+```bash
+# Wake SKM, query IGPM, drop into REPL
+can-request.py --multi "skm-wake acc" "query IGPM BC03 BC06"
+
+# Wake SKM + BCM, raw query charge port, REPL
+can-request.py --multi "skm-wake acc" "session BCM --wake" "raw 7A0:22B00E"
+
+# Wake IGPM, query all PIDs, exit (no REPL)
+can-request.py --multi "session IGPM --wake" "query IGPM" --no-repl
+
+# Pipeline with explicit sleep between steps
+can-request.py --multi "skm-wake acc" "sleep 1" "query BCM B00E" "repl"
+```
+
+**Sub-commands:**
+
+| Sub-command                      | Description                                         |
+|----------------------------------|-----------------------------------------------------|
+| `skm-wake [level]`              | Wake SKM + activate relay (acc/ign1/ign2/start)     |
+| `session <ECU\|TX_ID> [--wake]` | Enter extended session on ECU (add to session table) |
+| `query <ECU> [PID ...]`         | Query ECU parameters (like `--ecu`/`--param`)       |
+| `raw <TX:PID>`                  | Raw UDS request                                      |
+| `scan <TX> <SVC> <RANGE> [APP]` | Scan PID range                                       |
+| `sleep <seconds>`               | Pause between steps                                  |
+| `repl`                          | Drop into interactive REPL (explicit)                |
+
+ECU names are resolved from YAML definitions (e.g., `IGPM`, `BCM`, `SKM`) or can be hex TX IDs (`770`, `7A0`).
+
+**Session management:** The SessionManager tracks all ECUs with active extended sessions and sends TesterPresent (`3E00`) keepalives to stale sessions before each foreground command. In the REPL, a background task sends keepalives every 2s. This allows querying one ECU while keeping sessions alive on others (e.g., keeping SKM ACC relay active while reading BCM charge port data).
+
+**Multi-ECU REPL commands:** `!session <ECU>` (open new session), `!sessions` (list active), `!query <ECU> [PID ...]`, `!raw <TX:PID>`, `!skm [level]`, `!quit`.
+
 ##### `--identity` flag
 
 Example:

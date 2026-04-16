@@ -348,3 +348,25 @@ Three observed IGPM sleep states:
 | Deep sleep   | Extended time off/unplugged | Only `1001` wake works (may need retry) |
 
 The IGPM always wakes from `1001` in any state — but the first attempt may return NO DATA while the transceiver powers up. A 0.5s delay between wake and session request is sufficient.
+
+## IOControl — SKM (0x7A5)
+
+- **ACC relay** (`2FB108030A0A05`) confirmed working. ACC does NOT latch — releases when session drops.
+- **IGN1/IGN2** accepted but powertrain ECUs remain dead (relay doesn't latch).
+- **freezeCurrentState** (`2FB10802`) returns status bytes `6255`.
+
+## ECU Wake from Deep Sleep (car off, unplugged, no fob)
+
+- **IGPM wakes from single `1001`** — always partially powered.
+- **SKM wakes from rapid-fire `1001`** (50x at 150ms intervals, `ATST10`). Consistently wakes at attempts 2-17. **No fob needed** (earlier "fob required" conclusion was wrong — single attempts aren't enough).
+- **BCM wakes when SKM ACC+IGN1 active** — TPMS and charge port data confirmed.
+- **Powertrain ECUs (BMS/VCU/MCU/LDC/GW) remain dead** even with ACC+IGN1+IGN2. Relay doesn't latch.
+- **CLU, HVAC, ESC dead** — IGN-switched power domain.
+- 10 alternative wake approaches all failed for non-body ECUs (functional broadcast, NM frames, brute-force per-ECU, etc.).
+
+## BCM Power Sequencing Theory
+
+- BCM may orchestrate vehicle power mode state machine. Evidence: B007 contains `0x01E0` (480 = minutes for 08:00 preheat time), B00C has day-of-week bitmask (`0x3F` = 6 days).
+- **B003 byte 8 reflects live power state**: `0x09` in ACC, `0x0A` in ACC+IGN1. Bits 0-1 encode power mode.
+- **Security access available** on BCM: `2701` returns 4-byte random seed. Key algorithm unknown. Writes (`0x2E`) return NRC 0x33 (securityAccessDenied) without completing handshake.
+- **Preheat only works when plugged in** (draws from charger, not HV battery).

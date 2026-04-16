@@ -29,10 +29,6 @@ python3 can-request.py --raw 770:2FBC0903 --hold   # Trunk unlock
 python3 can-request.py --raw 770:2FBC3F03 --hold   # Charge cable LOCK
 python3 can-request.py --raw 770:2FBC4103 --hold   # Charge cable UNLOCK
 
-# Charge port flap (BCM — no --session needed)
-python3 can-request.py --raw 7A0:2FB06103 --hold   # Charge door OPEN
-python3 can-request.py --raw 7A0:2FB06100 --hold   # Charge door CLOSE (release)
-
 # Mirrors (BCM)
 python3 can-request.py --raw 7A0:2FB05B03 --hold   # Mirrors FOLD
 python3 can-request.py --raw 7A0:2FB05C03 --hold   # Mirrors UNFOLD
@@ -75,7 +71,7 @@ BCM requires extended diagnostic session (`1003`) AND SKM ACC+IGN1 power to resp
 | B03B | Unknown                   | Accepted  |                                                                          |
 | B04D | Unknown                   | Accepted  |                                                                          |
 | B057 | Unknown                   | Accepted  | Mirror/handle region                                                     |
-| B059 | Heated door handle ON     | Accepted  | DID exists. May not have heated handles on base trim                     |
+| B059 | Heated door handle ON     | Accepted  | DID exists. May not have heated handles. Or may refer to heated steering wheel? (more likely IMO!) |
 | B05A | Heated door handle LED    | Accepted  |                                                                          |
 | B05B | Mirror fold               | Confirmed | Fold side mirrors in. From e-Niro                                        |
 | B05C | Mirror unfold             | Confirmed | Unfold side mirrors. From e-Niro                                         |

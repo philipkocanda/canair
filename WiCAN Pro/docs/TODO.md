@@ -1,9 +1,5 @@
 # WiCAN TODOs
 
-## IOControl
-
-- [ ] **Charge cable unlock** — test `2FBC4103` (UNLOCK) and `2FBC3F03` (LOCK) on IGPM 0x770. Useful for remotely releasing stuck charge cables. Test during active charging with key fob nearby. Commands: `can-request.py --raw 770:2FBC4103 --hold` / `--raw 770:2FBC3F03 --hold`
-
 ## Unverified PIDs
 
 - [ ] **VCU speed** — verify if formula is MPH or km/h (compare with GPS)
