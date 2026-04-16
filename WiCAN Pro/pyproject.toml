@@ -1,0 +1,19 @@
+[project]
+name = "wican-pro"
+version = "0.1.0"
+description = "CAN bus reverse engineering tools for Hyundai Ioniq via WiCAN Pro OBD-II dongle"
+requires-python = ">=3.12"
+dependencies = [
+    "pyyaml>=6.0",
+    "rich>=13.0",
+    "websockets>=12.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=1.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
