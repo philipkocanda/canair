@@ -6,11 +6,11 @@ Read BMS SoC (and other ECU data) remotely while the car is fully asleep and unp
 
 ## ECU Wake Hierarchy
 
-| ECU          | Single `1001` | Rapid-fire `1001` (50x) | After SKM ACC+IGN1 | Power domain           |
-|--------------|---------------|-------------------------|---------------------|------------------------|
-| IGPM (0x770) | Yes           | Yes (attempt 1)         | Alive               | Always on (body)       |
-| SKM (0x7A5)  | No            | **Yes (~2-17 attempts)**| Alive               | Body (partial standby) |
-| BCM (0x7A0)  | No            | Not tested              | **Alive**           | Body (CAN bus wake)    |
+| ECU          | Single `1001` | Rapid-fire `1001` (64ms) | After SKM ACC+IGN1 | Power domain             |
+|--------------|---------------|--------------------------|---------------------|--------------------------|
+| IGPM (0x770) | Yes           | Yes (attempt 1)          | Alive               | Always on (body)         |
+| BCM (0x7A0)  | Yes (side effect) | Yes                  | Alive               | Body (CAN bus wake)      |
+| SKM (0x7A5)  | No            | **Yes (attempt 2)**      | Alive               | Body (2s sleep timer)    |
 | CLU (0x7C6)  | No            | No (50 tries)           | Dead                | IGN-switched           |
 | BMS (0x7E4)  | No            | —                       | Dead                | Powertrain (ACC relay) |
 | VCU (0x7E2)  | No            | —                       | Dead                | Powertrain (ACC relay) |
@@ -34,24 +34,34 @@ Sometimes the first `1001` gets a response immediately; sometimes it takes a ret
 - Read DIDs (`22BCxx`) — door status, lock status, lights, ignition, seatbelt
 - IOControl (`2FBCxx`) — low/high beam, turn signals, horn, door lock/unlock, trunk
 
-### Key Finding: SKM Wakes from Rapid-Fire `1001` Without Fob (2026-04-15)
+### Key Finding: SKM Wake Mechanism (2026-04-15, refined 2026-04-16)
 
-A single `1001` is NOT enough to wake the SKM — it returns NO DATA. But **sustained rapid CAN traffic** (repeated `1001` frames at ~150ms intervals) wakes the SKM transceiver from deep sleep without fob proximity. Consistently succeeds at attempts 2-17 across multiple cold-start tests.
+The SKM wakes on the **second** `1001` frame — it needs exactly one CAN frame to trigger its transceiver hardware wake-up. No broadcast, no IGPM involvement needed — sending `1001` directly to `0x7A5` works.
 
-**Rapid-fire wake sequence (car off, locked, deep sleep, fob far away):**
+**Critical detail:** The SKM has an aggressive **sleep timer (~2 seconds)**. After waking, it falls back asleep if CAN traffic drops below a threshold. With the default ELM327 timeout (600ms), the gap between frames is too long — the SKM responds to attempts 2-4, then goes back to sleep. With reduced timeout (64ms, `ATST10`), frames flow fast enough to sustain the wake state.
+
+**Wake sequence:**
 ```
-ATST10          (set 64ms timeout for speed)
-1001 → NO DATA  (attempt 1)
-1001 → NO DATA  (attempt 2-16)
-1001 → 5001     (attempt 17 — SKM transceiver awake!)
+ATST10          (set 64ms timeout — essential for keeping SKM awake)
+1001 → NO DATA  (attempt 1 — triggers transceiver wake)
+1001 → 5001     (attempt 2 — SKM awake and responsive)
+...             (keep sending to maintain wake state)
 ATST96          (restore normal timeout)
-1003 → 5003     (extended session established)
+1003 → 5003     (extended session + TesterPresent keepalive takes over)
 2FB108030A0A05 → ACC relay ON (6FB10803)
 ```
 
-**Previous misconception:** Earlier tests used only 1-2 `1001` attempts and concluded "fob proximity required." The SKM's CAN transceiver is in ultra-low-power standby — it needs ~2-3 seconds of sustained CAN bus activity to trigger its hardware wake-up circuit. This is different from the IGPM, which wakes on the first frame.
+**Evidence (2026-04-16 step-by-step re-test):**
 
-**Reproducibility:** Confirmed across 4 separate cold-start tests with WiCAN rebooted between each. Attempt count varies from 2 to 17. The SKM falls back asleep after ~60s of CAN bus inactivity.
+| Test                                       | Result                                    |
+|--------------------------------------------|-------------------------------------------|
+| Single `1001` to SKM (600ms timeout)       | Dead                                      |
+| 3x `1001` to SKM (600ms)                  | Dead                                      |
+| 5x IGPM wake + sleep 1s + 3x SKM (600ms)  | Dead (IGPM traffic doesn't help)          |
+| 10x `1001` to SKM (600ms)                 | Woke at #2, fell asleep at #5             |
+| 10x `1001` to SKM (64ms)                  | Woke at #2, stayed awake through #10      |
+
+**Previous misconception:** Earlier tests reported needing 2-17 attempts because the rapid-fire script varied in timing. The wake actually happens on attempt 2 consistently — the variable attempt count was an artifact of the test harness timing, not the ECU's behaviour.
 
 **ACC does NOT latch** — it stays on only while the IOControl session is held (TesterPresent keepalive). When the session drops, the ACC relay opens and the car re-locks.
 
