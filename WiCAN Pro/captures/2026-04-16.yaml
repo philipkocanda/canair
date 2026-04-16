@@ -290,3 +290,26 @@ sessions:
         pid: "22F1A4"
         payload: "62F1A2363230"
         notes: "6 bytes. ASCII '620' — hardware version component."
+
+  - session: bcm-can-bus-wake-test
+    date: "2026-04-16"
+    state: "deep sleep, unplugged, no SKM ACC, no extended session"
+    notes: >
+      Proved BCM wakes from CAN bus activity alone — no ACC relay needed.
+      Only IGPM 1001 was sent (5x), no SKM involvement.
+      BCM responded to 22C00B after ~1s delay.
+    captures:
+      - ecu: IGPM
+        pid: "1001"
+        payload: "NO DATA"
+        notes: "First attempt — wakes IGPM transceiver."
+
+      - ecu: IGPM
+        pid: "1001"
+        payload: "5001"
+        notes: "Second attempt — IGPM responsive."
+
+      - ecu: BCM
+        pid: "22C00B"
+        payload: "62C00BFFFF0000C9450200CB430100CF440100CB440100AAAAAAAA"
+        notes: "TPMS data. BCM woke from CAN bus activity without ACC power."
