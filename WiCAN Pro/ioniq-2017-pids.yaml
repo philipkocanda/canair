@@ -132,7 +132,7 @@ ecus:
   BCM:
     tx_id: 0x7A0
     pids:
-       22B00E:
+      22B00E:
         period: 5000
         enabled: true
         parameters:
