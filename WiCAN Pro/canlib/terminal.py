@@ -272,10 +272,12 @@ class WiCANTerminal:
             tester_task is the background keepalive task (must be cancelled by caller).
         """
         if wake:
-            wake_resp = await self.send_uds("1001", timeout=15.0)
+            wake_resp = await self.send_uds("1001", timeout=3.0)
+            if not wake_resp.get("ok"):
+                # First frame may just trigger the transceiver — retry
+                wake_resp = await self.send_uds("1001", timeout=3.0)
             if wake_resp.get("ok"):
                 print(f"  Wake-up: ECU responded.")
-            await asyncio.sleep(0.5)
 
         resp = await self.send_uds("1003", timeout=5.0)
         if resp.get("ok"):
