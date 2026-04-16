@@ -267,12 +267,14 @@ async def _exec_raw(sm: SessionManager, spec: str, hold: bool, verbose: bool):
         else:
             print(f"  Error: {error}")
     else:
-        print(f"  Response ({len(response['bytes'])} bytes): {response['hex']}")
         decode = decode_uds_response(response["bytes"])
         if decode:
             print(f"  → {decode}")
-        print()
-        print_hexdump(response["bytes"])
+            print(f"    Raw: {response['hex']}")
+        else:
+            print(f"  Response ({len(response['bytes'])} bytes): {response['hex']}")
+            print()
+            print_hexdump(response["bytes"])
 
     if hold:
         print("\n  Holding session (Ctrl+C to continue pipeline)...")
