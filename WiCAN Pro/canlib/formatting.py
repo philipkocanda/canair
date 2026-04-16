@@ -122,6 +122,102 @@ def print_hexdump(data: bytes, prefix: str = "  "):
         print()
 
 
+def decode_uds_response(data: bytes) -> str | None:
+    """Return a human-readable one-line decode of a UDS response, or None."""
+    if len(data) < 1:
+        return None
+
+    sid = data[0]
+
+    # UDS control types (0x2F IOControl)
+    CONTROL_TYPES = {
+        0x00: "returnControlToECU",
+        0x01: "resetToDefault",
+        0x02: "freezeCurrentState",
+        0x03: "shortTermAdjustment",
+    }
+
+    # 0x50-0x5F: DiagnosticSessionControl, ECUReset, SecurityAccess, etc.
+    if sid == 0x50 and len(data) >= 2:
+        session_names = {0x01: "default", 0x02: "programming", 0x03: "extended"}
+        stype = data[1]
+        name = session_names.get(stype, f"0x{stype:02X}")
+        return f"DiagnosticSessionControl: {name} session"
+
+    if sid == 0x51 and len(data) >= 2:
+        reset_names = {0x01: "hardReset", 0x02: "keyOffOnReset", 0x03: "softReset"}
+        rtype = data[1]
+        name = reset_names.get(rtype, f"0x{rtype:02X}")
+        return f"ECUReset: {name}"
+
+    if sid == 0x67 and len(data) >= 2:
+        level = data[1]
+        if level % 2 == 1:  # odd = seed response
+            seed_hex = data[2:].hex().upper()
+            return f"SecurityAccess: level {level} seed = {seed_hex}"
+        else:
+            return f"SecurityAccess: level {level} key accepted"
+
+    if sid == 0x62 and len(data) >= 3:
+        did = (data[1] << 8) | data[2]
+        payload_len = len(data) - 3
+        return f"ReadDataByIdentifier: DID 0x{did:04X}, {payload_len} data bytes"
+
+    if sid == 0x61 and len(data) >= 2:
+        pid = data[1]
+        payload_len = len(data) - 2
+        return f"ReadDataByIdentifier (mfr): PID 0x{pid:02X}, {payload_len} data bytes"
+
+    if sid == 0x6E and len(data) >= 3:
+        did = (data[1] << 8) | data[2]
+        return f"WriteDataByIdentifier: DID 0x{did:04X} accepted"
+
+    if sid == 0x6F and len(data) >= 3:
+        did = (data[1] << 8) | data[2]
+        ctrl = data[3] if len(data) >= 4 else None
+        ctrl_name = (
+            CONTROL_TYPES.get(ctrl, f"0x{ctrl:02X}") if ctrl is not None else "?"
+        )
+        status = data[4:].hex().upper() if len(data) > 4 else ""
+        result = f"IOControl: DID 0x{did:04X}, {ctrl_name}"
+        if status:
+            result += f", status={status}"
+        return result
+
+    if sid == 0x71 and len(data) >= 4:
+        rtype = data[1]
+        rid = (data[2] << 8) | data[3]
+        type_names = {0x01: "start", 0x02: "stop", 0x03: "requestResults"}
+        name = type_names.get(rtype, f"0x{rtype:02X}")
+        return f"RoutineControl: {name} routine 0x{rid:04X}"
+
+    if sid == 0x59 and len(data) >= 2:
+        sub = data[1]
+        sub_names = {
+            0x01: "reportNumberOfDTCByStatusMask",
+            0x02: "reportDTCByStatusMask",
+            0x03: "reportDTCSnapshotIdentification",
+            0x04: "reportDTCSnapshotRecordByDTCNumber",
+            0x06: "reportDTCExtendedDataRecordByDTCNumber",
+            0x09: "reportSeverityInformationOfDTC",
+            0x0A: "reportSupportedDTC",
+            0x0B: "reportFirstTestFailedDTC",
+            0x0E: "reportMostRecentConfirmedDTC",
+        }
+        name = sub_names.get(sub, f"subFunction 0x{sub:02X}")
+        dtc_count = len(data) - 2
+        return f"ReadDTCInformation: {name}, {dtc_count} data bytes"
+
+    if sid == 0x63 and len(data) >= 2:
+        addr_len = len(data) - 1
+        return f"ReadMemoryByAddress: {addr_len} bytes returned"
+
+    if sid == 0x7E:
+        return "TesterPresent: acknowledged"
+
+    return None
+
+
 def print_json_result(result: dict):
     """Print result as JSON for machine consumption."""
     out = {}

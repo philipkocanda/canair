@@ -4,11 +4,18 @@ import asyncio
 import re
 
 from ..terminal import WiCANTerminal
-from ..formatting import print_hexdump, print_json_result
+from ..formatting import print_hexdump, print_json_result, decode_uds_response
 
 
-async def mode_raw(terminal: WiCANTerminal, raw_spec: str, verbose: bool, as_json: bool,
-                   session: bool = False, hold: bool = False, wake: bool = False):
+async def mode_raw(
+    terminal: WiCANTerminal,
+    raw_spec: str,
+    verbose: bool,
+    as_json: bool,
+    session: bool = False,
+    hold: bool = False,
+    wake: bool = False,
+):
     """Send a raw UDS request specified as TX_ID:SERVICE_PID.
 
     Args:
@@ -55,6 +62,9 @@ async def mode_raw(terminal: WiCANTerminal, raw_spec: str, verbose: bool, as_jso
                 return
         else:
             print(f"  Response ({len(response['bytes'])} bytes): {response['hex']}")
+            decode = decode_uds_response(response["bytes"])
+            if decode:
+                print(f"  → {decode}")
             print()
             print_hexdump(response["bytes"])
 

@@ -28,6 +28,7 @@ from ..formatting import (
     print_pid_table,
     print_hexdump,
     print_json_result,
+    decode_uds_response,
 )
 from ..expression import evaluate_expression
 from ..elm327 import parse_elm_response, elm_hex_to_wican_bytes
@@ -267,6 +268,9 @@ async def _exec_raw(sm: SessionManager, spec: str, hold: bool, verbose: bool):
             print(f"  Error: {error}")
     else:
         print(f"  Response ({len(response['bytes'])} bytes): {response['hex']}")
+        decode = decode_uds_response(response["bytes"])
+        if decode:
+            print(f"  → {decode}")
         print()
         print_hexdump(response["bytes"])
 
