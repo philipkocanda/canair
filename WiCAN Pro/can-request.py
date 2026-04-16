@@ -40,20 +40,33 @@ if not sys.stdout.isatty():
     sys.stderr.reconfigure(line_buffering=True)
 
 from canlib import (
-    WICAN_ADDRESSES, DEFAULT_WICAN,
-    WiCANTerminal, reboot_wican,
-    load_pids, init_logging, log_command,
+    WICAN_ADDRESSES,
+    DEFAULT_WICAN,
+    WiCANTerminal,
+    reboot_wican,
+    load_pids,
+    init_logging,
+    log_command,
 )
+from canlib.lock import WiCANLock
 from canlib.modes import (
-    mode_interactive, mode_param, mode_ecu, mode_raw,
-    mode_scan, mode_identity, mode_skm_wakeup, mode_tester_present,
+    mode_interactive,
+    mode_param,
+    mode_ecu,
+    mode_raw,
+    mode_scan,
+    mode_identity,
+    mode_skm_wakeup,
+    mode_tester_present,
     mode_multi,
 )
 
 try:
     import websockets
 except ImportError:
-    print("ERROR: websockets not installed. Run: pip3 install websockets", file=sys.stderr)
+    print(
+        "ERROR: websockets not installed. Run: pip3 install websockets", file=sys.stderr
+    )
     sys.exit(1)
 
 
@@ -61,7 +74,9 @@ def parse_range(range_str: str) -> tuple[int, int]:
     """Parse a PID/DID range like '01-FF', 'E000-E0FF', or 'BC01-BC0B'."""
     match = re.match(r"^([0-9A-Fa-f]+)-([0-9A-Fa-f]+)$", range_str)
     if not match:
-        raise argparse.ArgumentTypeError(f"Invalid range: {range_str}. Expected format: 01-FF or E000-E0FF")
+        raise argparse.ArgumentTypeError(
+            f"Invalid range: {range_str}. Expected format: 01-FF or E000-E0FF"
+        )
     return int(match.group(1), 16), int(match.group(2), 16)
 
 
@@ -72,11 +87,17 @@ async def async_main(args):
         host = WICAN_ADDRESSES[host]
 
     init_logging()
-    log_command(f"--- SESSION START (host={host}, mode={'interactive' if not any([args.param, args.ecu, args.raw, args.scan, args.skm_wakeup, args.tester_present]) else 'batch'}, unsafe={args.unsafe}, session={getattr(args, 'session', False)}) ---")
+    log_command(
+        f"--- SESSION START (host={host}, mode={'interactive' if not any([args.param, args.ecu, args.raw, args.scan, args.skm_wakeup, args.tester_present]) else 'batch'}, unsafe={args.unsafe}, session={getattr(args, 'session', False)}) ---"
+    )
 
     if args.unsafe:
-        print("!! WARNING: --unsafe mode active. Dangerous command blocklist is bypassed.")
-        print("!! Each blocked command will require explicit user consent before execution.")
+        print(
+            "!! WARNING: --unsafe mode active. Dangerous command blocklist is bypassed."
+        )
+        print(
+            "!! Each blocked command will require explicit user consent before execution."
+        )
         print()
 
     pids_data = load_pids()
@@ -109,28 +130,54 @@ async def async_main(args):
 
         # Dispatch to mode
         if args.multi:
-            await mode_multi(terminal, args.multi, pids_data, args.verbose,
-                             no_repl=args.no_repl)
+            await mode_multi(
+                terminal, args.multi, pids_data, args.verbose, no_repl=args.no_repl
+            )
         elif args.skm_wakeup:
             await mode_skm_wakeup(terminal, args.level, args.verbose)
         elif args.tester_present:
-            await mode_tester_present(terminal, args.target, args.interval, args.verbose)
+            await mode_tester_present(
+                terminal, args.target, args.interval, args.verbose
+            )
         elif args.identity:
             if not args.tx:
                 print("Error: --identity requires --tx (ECU TX ID)", file=sys.stderr)
                 sys.exit(1)
             tx_id = int(args.tx, 16)
-            await mode_identity(terminal, tx_id, session=args.session, wake=args.wake,
-                                as_json=args.json)
+            await mode_identity(
+                terminal, tx_id, session=args.session, wake=args.wake, as_json=args.json
+            )
         elif args.param:
-            await mode_param(terminal, pids_data, args.param, args.verbose, args.json,
-                             session=args.session, wake=args.wake)
+            await mode_param(
+                terminal,
+                pids_data,
+                args.param,
+                args.verbose,
+                args.json,
+                session=args.session,
+                wake=args.wake,
+            )
         elif args.ecu:
-            await mode_ecu(terminal, pids_data, args.ecu, args.pid, args.verbose, args.json,
-                           session=args.session, wake=args.wake)
+            await mode_ecu(
+                terminal,
+                pids_data,
+                args.ecu,
+                args.pid,
+                args.verbose,
+                args.json,
+                session=args.session,
+                wake=args.wake,
+            )
         elif args.raw:
-            await mode_raw(terminal, args.raw, args.verbose, args.json,
-                           session=args.session, hold=args.hold, wake=args.wake)
+            await mode_raw(
+                terminal,
+                args.raw,
+                args.verbose,
+                args.json,
+                session=args.session,
+                hold=args.hold,
+                wake=args.wake,
+            )
         elif args.scan:
             if not args.tx:
                 print("Error: --scan requires --tx (ECU TX ID)", file=sys.stderr)
@@ -141,12 +188,27 @@ async def async_main(args):
             append_bytes = ""
             if args.append:
                 cleaned = args.append.replace(" ", "").upper()
-                if not all(c in "0123456789ABCDEF" for c in cleaned) or len(cleaned) % 2 != 0:
-                    print(f"Error: --append must be valid hex bytes (e.g., 03 or 030A0A05)", file=sys.stderr)
+                if (
+                    not all(c in "0123456789ABCDEF" for c in cleaned)
+                    or len(cleaned) % 2 != 0
+                ):
+                    print(
+                        f"Error: --append must be valid hex bytes (e.g., 03 or 030A0A05)",
+                        file=sys.stderr,
+                    )
                     sys.exit(1)
                 append_bytes = cleaned
-            await mode_scan(terminal, tx_id, service, pid_range, args.verbose, args.json,
-                            append_bytes=append_bytes, session=args.session, wake=args.wake)
+            await mode_scan(
+                terminal,
+                tx_id,
+                service,
+                pid_range,
+                args.verbose,
+                args.json,
+                append_bytes=append_bytes,
+                session=args.session,
+                wake=args.wake,
+            )
         else:
             await mode_interactive(terminal, pids_data, args.verbose)
 
@@ -219,98 +281,185 @@ Examples:
 
     # Mode selection (mutually exclusive)
     mode = parser.add_mutually_exclusive_group()
-    mode.add_argument("--param", nargs="+", metavar="NAME",
-                      help="Query named parameters (e.g., SOC_BMS SOC_DISP)")
-    mode.add_argument("--ecu", metavar="NAME",
-                      help="Query all parameters for an ECU (e.g., BMS, VCU)")
-    mode.add_argument("--raw", metavar="TX:PID",
-                      help="Raw UDS request (e.g., 7E4:2101)")
-    mode.add_argument("--scan", action="store_true",
-                      help="Scan a range of PIDs (requires --tx). "
-                           "One scan at a time only -- parallel scans lock up the device. "
-                           "Scan gently: use small ranges first, wait between scans.")
-    mode.add_argument("--skm-wakeup", action="store_true",
-                      help="Wake sleeping ECUs via SKM relay control (requires active CAN bus)")
-    mode.add_argument("--tester-present", action="store_true",
-                      help="Send TesterPresent (3E00) at regular intervals (Ctrl+C to stop)")
-    mode.add_argument("--identity", action="store_true",
-                       help="Query standard UDS identity DIDs (F100, F18x, F190, F19x) from --tx ECU "
-                            "and print decoded part number, serial, manufacture date, VIN, etc.")
-    mode.add_argument("--multi", nargs="+", metavar="CMD",
-                       help="Multi-ECU pipeline: execute sub-commands in sequence with shared "
-                            "session management. Each CMD is a quoted string. Sub-commands: "
-                            "skm-wake [level], session <ECU> [--wake], query <ECU> [PID ...], "
-                            "raw <TX:PID>, scan <TX> <SVC> <RANGE> [APPEND], sleep <N>, repl")
+    mode.add_argument(
+        "--param",
+        nargs="+",
+        metavar="NAME",
+        help="Query named parameters (e.g., SOC_BMS SOC_DISP)",
+    )
+    mode.add_argument(
+        "--ecu", metavar="NAME", help="Query all parameters for an ECU (e.g., BMS, VCU)"
+    )
+    mode.add_argument(
+        "--raw", metavar="TX:PID", help="Raw UDS request (e.g., 7E4:2101)"
+    )
+    mode.add_argument(
+        "--scan",
+        action="store_true",
+        help="Scan a range of PIDs (requires --tx). "
+        "One scan at a time only -- parallel scans lock up the device. "
+        "Scan gently: use small ranges first, wait between scans.",
+    )
+    mode.add_argument(
+        "--skm-wakeup",
+        action="store_true",
+        help="Wake sleeping ECUs via SKM relay control (requires active CAN bus)",
+    )
+    mode.add_argument(
+        "--tester-present",
+        action="store_true",
+        help="Send TesterPresent (3E00) at regular intervals (Ctrl+C to stop)",
+    )
+    mode.add_argument(
+        "--identity",
+        action="store_true",
+        help="Query standard UDS identity DIDs (F100, F18x, F190, F19x) from --tx ECU "
+        "and print decoded part number, serial, manufacture date, VIN, etc.",
+    )
+    mode.add_argument(
+        "--multi",
+        nargs="+",
+        metavar="CMD",
+        help="Multi-ECU pipeline: execute sub-commands in sequence with shared "
+        "session management. Each CMD is a quoted string. Sub-commands: "
+        "skm-wake [level], session <ECU> [--wake], query <ECU> [PID ...], "
+        "raw <TX:PID>, scan <TX> <SVC> <RANGE> [APPEND], sleep <N>, repl",
+    )
 
     # ECU/PID mode options
-    parser.add_argument("--pid", metavar="PID",
-                        help="Filter by PID code (for --ecu mode)")
+    parser.add_argument(
+        "--pid", metavar="PID", help="Filter by PID code (for --ecu mode)"
+    )
 
     # Scan mode options
-    parser.add_argument("--tx", metavar="ID",
-                        help="ECU TX ID for --scan (hex, e.g., 7E4)")
-    parser.add_argument("--service", metavar="SVC", default="21",
-                        help="UDS service for --scan (hex, default: 21)")
-    parser.add_argument("--range", metavar="START-END", default="01-FF",
-                        help="PID range for --scan (hex, default: 01-FF)")
-    parser.add_argument("--append", metavar="HEX",
-                        help="Hex bytes to append after each DID in --scan (e.g., 03 for IOControl "
-                             "ShortTermAdjustment). Makes scan send e.g. 2F{DID}03 instead of 2F{DID}.")
-    parser.add_argument("--session", action="store_true",
-                         help="Enter extended diagnostic session (10 03) before the request and send "
-                              "periodic TesterPresent (3E 00) in the background to keep it alive. "
-                              "Required for some ECUs (e.g. IGPM 0x770) that only respond to 0x22 "
-                              "DID reads in extended session.")
-    parser.add_argument("--hold", action="store_true",
-                         help="Keep session alive after command completes (Ctrl+C to release). "
-                              "Useful for IOControl (2F) commands where the actuator releases when "
-                              "the diagnostic session drops. Implies --session. Only for --raw mode.")
-    parser.add_argument("--wake", action="store_true",
-                         help="Send a wake-up frame (10 01) before entering extended session to "
-                              "rouse ECUs from deep sleep. The IGPM (0x770) goes into deep sleep "
-                          "when the car is off and unplugged -- this wakes it via CAN. "
-                               "Implies --session.")
-    parser.add_argument("--no-repl", action="store_true",
-                         help="For --multi: don't drop into REPL after pipeline completes")
+    parser.add_argument(
+        "--tx", metavar="ID", help="ECU TX ID for --scan (hex, e.g., 7E4)"
+    )
+    parser.add_argument(
+        "--service",
+        metavar="SVC",
+        default="21",
+        help="UDS service for --scan (hex, default: 21)",
+    )
+    parser.add_argument(
+        "--range",
+        metavar="START-END",
+        default="01-FF",
+        help="PID range for --scan (hex, default: 01-FF)",
+    )
+    parser.add_argument(
+        "--append",
+        metavar="HEX",
+        help="Hex bytes to append after each DID in --scan (e.g., 03 for IOControl "
+        "ShortTermAdjustment). Makes scan send e.g. 2F{DID}03 instead of 2F{DID}.",
+    )
+    parser.add_argument(
+        "--session",
+        action="store_true",
+        help="Enter extended diagnostic session (10 03) before the request and send "
+        "periodic TesterPresent (3E 00) in the background to keep it alive. "
+        "Required for some ECUs (e.g. IGPM 0x770) that only respond to 0x22 "
+        "DID reads in extended session.",
+    )
+    parser.add_argument(
+        "--hold",
+        action="store_true",
+        help="Keep session alive after command completes (Ctrl+C to release). "
+        "Useful for IOControl (2F) commands where the actuator releases when "
+        "the diagnostic session drops. Implies --session. Only for --raw mode.",
+    )
+    parser.add_argument(
+        "--wake",
+        action="store_true",
+        help="Send a wake-up frame (10 01) before entering extended session to "
+        "rouse ECUs from deep sleep. The IGPM (0x770) goes into deep sleep "
+        "when the car is off and unplugged -- this wakes it via CAN. "
+        "Implies --session.",
+    )
+    parser.add_argument(
+        "--no-repl",
+        action="store_true",
+        help="For --multi: don't drop into REPL after pipeline completes",
+    )
 
     # SKM wakeup options
-    parser.add_argument("--level", default="acc",
-                        choices=["acc", "ign1", "ign2", "start"],
-                        help="Relay level for --skm-wakeup (default: acc)")
+    parser.add_argument(
+        "--level",
+        default="acc",
+        choices=["acc", "ign1", "ign2", "start"],
+        help="Relay level for --skm-wakeup (default: acc)",
+    )
 
     # TesterPresent options
-    parser.add_argument("--target", metavar="TX_ID",
-                        help="ECU TX ID for --tester-present (hex, e.g., 7A5). Default: broadcast 7DF")
-    parser.add_argument("--interval", type=float, default=1.0,
-                        help="Interval in seconds for --tester-present (default: 1.0)")
+    parser.add_argument(
+        "--target",
+        metavar="TX_ID",
+        help="ECU TX ID for --tester-present (hex, e.g., 7A5). Default: broadcast 7DF",
+    )
+    parser.add_argument(
+        "--interval",
+        type=float,
+        default=1.0,
+        help="Interval in seconds for --tester-present (default: 1.0)",
+    )
 
     # Connection options
-    parser.add_argument("--wican", default=DEFAULT_WICAN,
-                        help=f"WiCAN address: {', '.join(WICAN_ADDRESSES.keys())} or IP (default: {DEFAULT_WICAN})")
-    parser.add_argument("--timeout", type=float, default=3.0,
-                        help="WebSocket response timeout in seconds -- max wait for ELM327 to reply (default: 3.0). "
-                             "In practice, the ELM327's own ATST timeout governs how long it waits for an ECU response.")
-    parser.add_argument("--elm-timeout", type=int, default=None, metavar="MS",
-                        help="ELM327 ECU response timeout in milliseconds (default: ~614ms from ATST96). "
-                             "Sent as ATSTxx after init. Useful for slow ECUs or scanning.")
+    parser.add_argument(
+        "--wican",
+        default=DEFAULT_WICAN,
+        help=f"WiCAN address: {', '.join(WICAN_ADDRESSES.keys())} or IP (default: {DEFAULT_WICAN})",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=3.0,
+        help="WebSocket response timeout in seconds -- max wait for ELM327 to reply (default: 3.0). "
+        "In practice, the ELM327's own ATST timeout governs how long it waits for an ECU response.",
+    )
+    parser.add_argument(
+        "--elm-timeout",
+        type=int,
+        default=None,
+        metavar="MS",
+        help="ELM327 ECU response timeout in milliseconds (default: ~614ms from ATST96). "
+        "Sent as ATSTxx after init. Useful for slow ECUs or scanning.",
+    )
 
     # Output options
-    parser.add_argument("--json", action="store_true",
-                        help="Output results as JSON")
-    parser.add_argument("--verbose", "-v", action="store_true",
-                        help="Show raw WebSocket traffic and expressions")
-    parser.add_argument("--reboot", action="store_true",
-                         help="Reboot WiCAN after session to restore AutoPID mode")
-    parser.add_argument("--unsafe", action="store_true",
-                        help="Bypass dangerous command blocklist (requires explicit per-command consent)")
+    parser.add_argument("--json", action="store_true", help="Output results as JSON")
+    parser.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        help="Show raw WebSocket traffic and expressions",
+    )
+    parser.add_argument(
+        "--reboot",
+        action="store_true",
+        help="Reboot WiCAN after session to restore AutoPID mode",
+    )
+    parser.add_argument(
+        "--unsafe",
+        action="store_true",
+        help="Bypass dangerous command blocklist (requires explicit per-command consent)",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Steal the connection lock if another session is still running (use after a killed session)",
+    )
 
     args = parser.parse_args()
 
+    lock = WiCANLock()
+    lock.acquire(force=args.force)
     try:
         asyncio.run(async_main(args))
     except KeyboardInterrupt:
         print("\nInterrupted.")
         sys.exit(0)
+    finally:
+        lock.release()
 
 
 if __name__ == "__main__":
