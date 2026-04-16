@@ -719,7 +719,14 @@ async def mode_multi(
 
             elif cmd_type == "sleep":
                 print(f"\n{step} Sleeping {cmd['seconds']}s...")
-                await asyncio.sleep(cmd["seconds"])
+                # Send keepalives during sleep to maintain active sessions
+                remaining = cmd["seconds"]
+                while remaining > 0:
+                    chunk = min(remaining, 1.5)
+                    await asyncio.sleep(chunk)
+                    remaining -= chunk
+                    if sm.active_sessions:
+                        await sm.keepalive_stale()
 
             elif cmd_type == "security":
                 algos_str = " ".join(cmd["algos"]) if cmd["algos"] else "all"
