@@ -370,3 +370,84 @@ The IGPM always wakes from `1001` in any state — but the first attempt may ret
 - **B003 byte 8 reflects live power state**: `0x09` in ACC, `0x0A` in ACC+IGN1. Bits 0-1 encode power mode.
 - **Security access available** on BCM: `2701` returns 4-byte random seed. Key algorithm unknown. Writes (`0x2E`) return NRC 0x33 (securityAccessDenied) without completing handshake.
 - **Preheat only works when plugged in** (draws from charger, not HV battery).
+
+## Security Access Research (2026-04-16)
+
+### Goal
+
+Unlock BCM (0x7A0) write access via UDS Security Access (service 0x27) to enable writing power mode config (B003), preheat schedule (B00C/B007), and potentially other configuration DIDs.
+
+### What We Know
+
+- **BCM and IGPM** both support security access level 1 (`27 01`/`27 02`)
+- Level 2 (`27 03`) returns NRC 0x12 (not supported) — only level 1 exists
+- 2-byte key returns NRC 0x13 (wrong length) — **4-byte key required**
+- Seeds are 4-byte, appear random (full range 0x00-0xFF in each position)
+- Default session (`10 01`) returns NRC 0x7F — extended session (`10 03`) required
+- **Lockout after ~2 wrong keys** — NRC 0x37, ~11s delay, session drops and must be re-established
+- Security access works from deep sleep (with SKM ACC wake)
+
+### Seed Samples (30 collected)
+
+```
+CECD67F1  928649CD  47E8A47E  7B2D3E20  6F85384D
+9FC7506D  0C4F06B1  23AF9261  B377DA45  9A854DCD
+423321A3  5109A90E  3DAA1F5F  B807DC8C  ECF37703
+2EA817DF  2F101812  87554435  3F21201A  9A69CDBF
+9B544E34  96854BCD  99254D1C  1E4E0FB0  862D43A1
+85324323  A78ED450  DFFF7088  7D363F25  89ED4580
+```
+
+### Algorithms Tested (48 total, all failed)
+
+**Simple transforms (17):** NOT, XOR (0x0D0B0507, 0x5A5A5A5A, 0xA5A5A5A5, 0x12345678, 0xDEADBEEF, 0x98765432, 0xFFFFFFFF, 0x6FD56FD5, 0xAAAAAAAA), byte-swap, swap16, ROL/ROR (4/8/16 bits), plus1, minus1, same (echo), zero, NOT+1, mul3+1, add/sub per-byte.
+
+**Static keys (1):** Kia Soul `0x6FD56FD5` — the Soul sheet showed this as a static key for CAN ID 0x7DE (TPMS). The Soul's `27 01` returned no seed (zero), making it effectively a password. Our BCM returns random seeds, so it uses actual challenge-response.
+
+**KI221Algo2 — XOR+ADD (2):** `key = (seed ^ 0x78253947) + 0x83249272` and reversed order. From UnlockECU project (Daimler instrument clusters).
+
+**KI203Algo — swap/rotate/XOR with root key (9 root keys):** Byte-swap → ROL3 → XOR root → ROR(popcount(root)) → byte-swap. Tried roots: 0x30BACD45, 0x27FC2D10, 0x4902EF27, 0xBADEF289, 0x62FB90EF, 0x3EFA72D6, 0x3913B1FF, 0x4532F3EF, 0x2A58122F.
+
+**KI221Algo1 — XOR/swap/rotate Feistel (6 root keys):** XOR root bytes with seed → byte-swap → ROR3 → XOR root → ROL7. Tried roots: 0x3913B1FF, 0x4532F3EF, 0x2A58122F, 0x78253947, 0x83249272, 0x30BACD45.
+
+**Combination transforms (13):** ADD/SUB 0x6FD56FD5, byte-swap+NOT, NOT+byte-swap, XOR+byte-swap combos.
+
+### Why These Failed
+
+The UnlockECU algorithms (KI prefix) are for **Daimler/Mercedes Kombiinstrument** (instrument clusters), not Kia/Hyundai. The Hyundai Ioniq BCM (Mobis part 95400G7470) uses a proprietary Hyundai Mobis algorithm that has not been publicly reverse-engineered.
+
+### Kia Soul Reference
+
+The [Kia Soul TPMS spreadsheet](https://docs.google.com/spreadsheets/d/1YYlZ-IcTQlz-LzaYkHO-7a4SFM8QYs2BGNXiSU5_EwI/edit?gid=1506618410#gid=1506618410) shows CAN ID 0x7DE (BCM/TPMS):
+```
+02 27 01 00              → Seed request: "no key required" (zero seed?)
+06 27 02 6F D5 6F D5     → Key: static 0x6FD56FD5
+67 02 34                  → Positive response
+```
+The Soul may use a zero-seed (always-unlocked) scheme, unlike the Ioniq which returns random 4-byte seeds.
+
+### DST80 / Immobilizer Connection
+
+KU Leuven researchers found Hyundai/Kia used the proprietary DST80 encryption algorithm for immobilizer key fob authentication, with keys derivable from fixed constants or serial numbers. However, the immobilizer system (RF transponder ↔ engine start) is separate from UDS diagnostic security (CAN bus ↔ ECU write access). The security philosophy is similar though — "security through obscurity with hardcoded constants."
+
+### Possible VIN-Based Key Derivation
+
+Some OEMs use VIN or ECU serial number as input to the key derivation constant. If the algorithm incorporates VIN, the root key would be vehicle-specific. However, GDS dealer tools must compute keys for any vehicle, so the VIN → constant mapping would need to be in the tool's DLL/database, not truly per-vehicle secret.
+
+### Community Resources
+
+- **mhhauto.com** — automotive locksmith/diagnostic forum with a thread on "Security Access Algorithms Seed Key Algo All Brands All ECUs". Requires login, not publicly accessible. May contain Hyundai-specific seed-key calculators or DLLs.
+- **UnlockECU** (jglim/UnlockECU on GitHub) — extensive seed-key algorithm database, but only Daimler/Continental/Bosch ECUs. No Hyundai/Kia entries.
+- **OVMS** — Hyundai/Kia vehicle modules never use security access (read-only polling only).
+
+### Next Steps
+
+1. **Obtain a valid seed-key pair** — highest priority. Options:
+   - Use Kingbolen scanner's TPMS programming function (if it authenticates to BCM)
+   - Acquire a cheap ELM327-based TPMS tool that programs Hyundai sensors
+   - Try GDS/KDS software (dealer tool) — may be obtainable from Korean automotive forums
+   - Ask on mhhauto.com forum (create account, post in Hyundai/Kia section)
+2. **Sniff the CAN bus during scanner authentication** — if any scanner tool authenticates, capture the `27 01` → `67 01 <seed>` → `27 02 <key>` → `67 02` exchange
+3. **Firmware dump** — extract BCM firmware via JTAG/SWD debug port to find the algorithm in the binary. Requires physical access to the BCM board.
+4. **Reverse the GDS security DLL** — if GDS software is obtainable, the `SecurityAccess.dll` can be analyzed with tools like jglim/SecurityAccessQuery
+5. **Try other ECUs** — test security access on IGPM (0x770), SKM (0x7A5) with the same algorithms. If one ECU uses a simpler scheme, it might provide clues for the BCM.
