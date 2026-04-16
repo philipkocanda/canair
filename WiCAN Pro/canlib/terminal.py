@@ -40,6 +40,7 @@ class WiCANTerminal:
         self.unsafe = unsafe
         self.ws = None
         self._buffer = ""
+        self.elm_timeout_cmd = "ATST96"  # current ELM327 timeout command
 
     async def connect(self):
         """Connect to WiCAN and enter ELM327 terminal mode."""
@@ -281,7 +282,7 @@ class WiCANTerminal:
                 wake_resp = await self.send_uds("1001", timeout=3.0)
             if wake_resp.get("ok"):
                 print(f"  Wake-up: ECU responded.")
-            await self.send_command("ATST96")  # restore normal timeout
+            await self.send_command(self.elm_timeout_cmd)  # restore
 
         resp = await self.send_uds("1003", timeout=5.0)
         if resp.get("ok"):
