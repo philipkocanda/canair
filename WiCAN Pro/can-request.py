@@ -870,6 +870,7 @@ async def mode_interactive(terminal: WiCANTerminal, pids_data: dict, verbose: bo
     print("  !list          List all known ECUs")
     print("  !skm [level]   SKM wakeup (acc/ign1/ign2/start, default: acc)")
     print("  !tester [id]   TesterPresent loop (broadcast or target ECU, Ctrl+C to stop)")
+    print("  !identity      Query UDS identity DIDs from current ECU (set header first with ATSH)")
     print("  !reboot        Reboot WiCAN to restore AutoPID mode")
     print("  !quit / Ctrl+C Exit")
     print()
@@ -1000,6 +1001,14 @@ async def mode_interactive(terminal: WiCANTerminal, pids_data: dict, verbose: bo
                 print_hexdump(wican_bytes)
             else:
                 print(f"  Raw: {last_response.get('raw', '(none)')}")
+            continue
+
+        if cmd.lower() == "!identity":
+            if last_tx_id is None:
+                print("  No ECU header set. Use ATSH<id> first (e.g., ATSH7A0).")
+            else:
+                await mode_identity(terminal, last_tx_id, session=False, wake=False,
+                                    as_json=False)
             continue
 
         # Track ATSH commands to know current TX ID
@@ -1408,6 +1417,99 @@ SKM_RELAYS = {
 SKM_MAGIC = "0A0A05"
 
 
+# Standard UDS identity DIDs (ISO 14229-1 / Hyundai-Kia common subset).
+# Ordered from most to least useful for quick identification.
+IDENTITY_DIDS: list[tuple[str, str, str]] = [
+    ("F190", "VIN",                     "ascii"),   # Vehicle Identification Number
+    ("F188", "ECU Part Number",         "ascii"),   # Supplier part number
+    ("F18C", "ECU Serial / Cal ID",     "ascii"),   # Serial number / calibration ID
+    ("F18B", "Manufacture Date",        "date"),    # BCD YYYYMMDD
+    ("F191", "HW Version Number",       "ascii"),   # Hardware version
+    ("F100", "Boot SW ID",              "ascii"),   # Boot software version
+    ("F101", "App SW ID",               "ascii"),   # Application software version
+    ("F18A", "System Supplier ID",      "ascii"),   # Supplier name
+    ("F192", "Supplier HW Number",      "ascii"),   # Supplier hardware part number
+    ("F193", "Supplier HW Version",     "ascii"),   # Supplier hardware version
+    ("F194", "Supplier SW Number",      "ascii"),   # Supplier software part number
+    ("F195", "Supplier SW Version",     "ascii"),   # Supplier software version
+    ("F196", "Exhaust Regulation / SW", "ascii"),   # Exhaust reg info or extra SW
+    ("F197", "System / Engine Name",    "ascii"),   # System or engine type name
+    ("F1A2", "HW Version",              "ascii"),   # Extra HW version (Hyundai)
+    ("F1A4", "HW Part 2",               "ascii"),   # Extra HW version component
+]
+
+
+def _decode_identity_payload(payload_bytes: bytes, fmt: str) -> str:
+    """Decode identity DID payload to a human-readable string."""
+    # Strip trailing padding (0xAA, 0x00, 0xFF)
+    stripped = payload_bytes.rstrip(b"\xaa\x00\xff")
+
+    if fmt == "date" and len(stripped) >= 3:
+        # BCD date: common formats are YYYYMMDD (4 bytes) or YYMMDD (3 bytes)
+        hex_str = stripped.hex().upper()
+        if len(hex_str) == 8:   # YYYYMMDD
+            return f"{hex_str[0:4]}-{hex_str[4:6]}-{hex_str[6:8]}"
+        elif len(hex_str) == 6:  # YYMMDD
+            return f"20{hex_str[0:2]}-{hex_str[2:4]}-{hex_str[4:6]}"
+        else:
+            return stripped.hex().upper()
+
+    if fmt == "ascii":
+        printable = "".join(chr(b) if 32 <= b < 127 else "." for b in stripped)
+        return printable if printable else stripped.hex().upper()
+
+    return stripped.hex().upper()
+
+
+async def mode_identity(terminal: WiCANTerminal, tx_id: int, session: bool, wake: bool,
+                        as_json: bool):
+    """Query standard UDS identity DIDs from an ECU and print decoded results.
+
+    Queries the common Hyundai/Kia identity DID set (F100, F18x, F19x, F1Ax)
+    and decodes responses as ASCII / BCD date where appropriate.
+    """
+    await terminal.set_header(tx_id)
+
+    tester_task = None
+    if session:
+        _, tester_task = await terminal.enter_extended_session(wake=wake)
+
+    results = []
+    try:
+        print(f"\n  Identity query: ECU 0x{tx_id:03X}\n")
+        label_width = max(len(label) for _, label, _ in IDENTITY_DIDS)
+
+        for did_hex, label, fmt in IDENTITY_DIDS:
+            response = await terminal.send_uds(f"22{did_hex}")
+            if response["ok"]:
+                payload = response["bytes"][3:]  # Strip 62 + 2-byte DID echo
+                decoded = _decode_identity_payload(payload, fmt)
+                raw_hex = payload.hex().upper()
+                if as_json:
+                    results.append({"did": did_hex, "label": label, "decoded": decoded,
+                                    "raw": raw_hex})
+                else:
+                    print(f"  {did_hex}  {label:<{label_width}}  {decoded}")
+                    # Show raw hex only for non-ASCII formats (e.g. dates) or
+                    # when decoded contains substituted bytes (dots)
+                    if fmt != "ascii" or "." in decoded:
+                        raw_hex = payload.hex().upper()
+                        print(f"        {'':>{label_width}}  raw: {raw_hex}")
+            # Skip NRC — silently omit unsupported DIDs
+
+        if as_json:
+            import json
+            print(json.dumps(results, indent=2))
+
+    finally:
+        if tester_task:
+            tester_task.cancel()
+            try:
+                await tester_task
+            except asyncio.CancelledError:
+                pass
+
+
 async def mode_skm_wakeup(terminal: WiCANTerminal, level: str, verbose: bool):
     """Wake sleeping ECUs via SKM relay control.
 
@@ -1690,6 +1792,13 @@ async def async_main(args):
             await mode_skm_wakeup(terminal, args.level, args.verbose)
         elif args.tester_present:
             await mode_tester_present(terminal, args.target, args.interval, args.verbose)
+        elif args.identity:
+            if not args.tx:
+                print("Error: --identity requires --tx (ECU TX ID)", file=sys.stderr)
+                sys.exit(1)
+            tx_id = int(args.tx, 16)
+            await mode_identity(terminal, tx_id, session=args.session, wake=args.wake,
+                                as_json=args.json)
         elif args.param:
             await mode_param(terminal, pids_data, args.param, args.verbose, args.json,
                              session=args.session, wake=args.wake)
@@ -1796,6 +1905,9 @@ Examples:
                       help="Wake sleeping ECUs via SKM relay control (requires active CAN bus)")
     mode.add_argument("--tester-present", action="store_true",
                       help="Send TesterPresent (3E00) at regular intervals (Ctrl+C to stop)")
+    mode.add_argument("--identity", action="store_true",
+                      help="Query standard UDS identity DIDs (F100, F18x, F190, F19x) from --tx ECU "
+                           "and print decoded part number, serial, manufacture date, VIN, etc.")
 
     # ECU/PID mode options
     parser.add_argument("--pid", metavar="PID",
