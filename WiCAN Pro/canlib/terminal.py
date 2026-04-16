@@ -279,7 +279,7 @@ class WiCANTerminal:
 
         resp = await self.send_uds("1003", timeout=5.0)
         if resp.get("ok"):
-            pass  # silent success
+            print(f"  Extended session (10 03) established.")
         elif resp.get("nrc") is not None:
             nrc = resp["nrc"]
             desc = resp["nrc_desc"]
@@ -291,7 +291,7 @@ class WiCANTerminal:
             await asyncio.sleep(0.5)
             resp = await self.send_uds("1003", timeout=5.0)
             if resp.get("ok"):
-                pass  # silent success on retry
+                print(f"  Extended session (10 03) established (on retry).")
             elif resp.get("nrc") is not None:
                 nrc = resp["nrc"]
                 desc = resp["nrc_desc"]
