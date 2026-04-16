@@ -61,12 +61,14 @@ async def mode_raw(
             if not hold:
                 return
         else:
-            print(f"  Response ({len(response['bytes'])} bytes): {response['hex']}")
             decode = decode_uds_response(response["bytes"])
             if decode:
                 print(f"  → {decode}")
-            print()
-            print_hexdump(response["bytes"])
+                print(f"    Raw: {response['hex']}")
+            else:
+                print(f"  Response ({len(response['bytes'])} bytes): {response['hex']}")
+                print()
+                print_hexdump(response["bytes"])
 
         if hold and tester_task:
             print()
