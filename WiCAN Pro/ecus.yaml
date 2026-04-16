@@ -1,0 +1,48 @@
+# Ioniq 2017 EV — ECU address lookup
+# TX ID is the OBD-II request arbitration ID; RX ID is TX + 8.
+ecus:
+  0x770:
+    name: IGPM
+    description: Integrated Gateway & Power Module
+  0x7A0:
+    name: BCM
+    description: Body Control Module
+  0x7A3:
+    name: PSM
+    description: Power Seat Module
+  0x7A5:
+    name: SKM
+    description: Smart Key Module
+  0x736:
+    name: VESS
+    description: Virtual Engine Sound System
+  0x744:
+    name: Charging
+    description: Charging ECU (unverified)
+  0x7B3:
+    name: HVAC
+    description: Climate Control
+  0x7C0:
+    name: AVN
+    description: Audio/Video/Navigation head unit
+  0x7C6:
+    name: CLU
+    description: Cluster (instrument panel)
+  0x7D1:
+    name: ESC
+    description: Electronic Stability Control
+  0x7E2:
+    name: VCU
+    description: Vehicle Control Unit
+  0x7E3:
+    name: MCU
+    description: Motor Control Unit (inverter)
+  0x7E4:
+    name: BMS
+    description: Battery Management System
+  0x7E5:
+    name: LDC
+    description: Low-voltage DC-DC Converter / OBC
+  0x7E6:
+    name: Gateway
+    description: CAN Gateway
