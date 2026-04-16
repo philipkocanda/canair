@@ -3,6 +3,7 @@
 import asyncio
 import json
 
+from ..pids import ecu_name
 from ..terminal import WiCANTerminal
 
 # Standard UDS identity DIDs (ISO 14229-1 / Hyundai-Kia common subset).
@@ -64,7 +65,7 @@ async def mode_identity(terminal: WiCANTerminal, tx_id: int, session: bool, wake
 
     results = []
     try:
-        print(f"\n  Identity query: ECU 0x{tx_id:03X}\n")
+        print(f"\n  Identity query: {ecu_name(tx_id)} (0x{tx_id:03X})\n")
         label_width = max(len(label) for _, label, _ in IDENTITY_DIDS)
 
         for did_hex, label, fmt in IDENTITY_DIDS:

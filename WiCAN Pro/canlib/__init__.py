@@ -8,10 +8,10 @@ from .elm327 import (
     elm_hex_to_wican_bytes,
 )
 from .terminal import WiCANTerminal, reboot_wican
-from .pids import load_pids, build_param_index, build_ecu_index
+from .pids import load_pids, build_param_index, build_ecu_index, load_ecus, ecu_name
 from .formatting import format_value, print_decoded_params, print_hexdump, print_json_result
 from .log import init_logging, log_command, log_response
-from .constants import WICAN_ADDRESSES, DEFAULT_WICAN, PIDS_FILE, SCRIPT_DIR
+from .constants import WICAN_ADDRESSES, DEFAULT_WICAN, PIDS_FILE, ECUS_FILE, SCRIPT_DIR
 
 __all__ = [
     "NRC_CODES",
@@ -24,6 +24,8 @@ __all__ = [
     "load_pids",
     "build_param_index",
     "build_ecu_index",
+    "load_ecus",
+    "ecu_name",
     "format_value",
     "print_decoded_params",
     "print_hexdump",
@@ -34,5 +36,6 @@ __all__ = [
     "WICAN_ADDRESSES",
     "DEFAULT_WICAN",
     "PIDS_FILE",
+    "ECUS_FILE",
     "SCRIPT_DIR",
 ]

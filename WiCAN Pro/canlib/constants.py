@@ -11,3 +11,5 @@ WICAN_ADDRESSES = {
     "vpn": "192.168.3.2",
 }
 DEFAULT_WICAN = "home"
+
+ECUS_FILE = SCRIPT_DIR / "ecus.yaml"
