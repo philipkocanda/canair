@@ -195,26 +195,34 @@ async def mode_skm_wakeup(terminal: WiCANTerminal, level: str, verbose: bool):
     # Small delay for relay state to settle
     await asyncio.sleep(0.3)
 
-    # Read BC03 — ignition state is at byte B11 (stripped) = B14 (WiCAN)
-    # Expected values: 0x00=off, 0x20=ACC, 0x40=IGN1, 0x60=ACC+IGN1
+    # Read BC03 — ignition/ACC state in data bytes after 62BC03
+    # BC03 returns 8 data bytes: FD EE 3C 73 xx yy zz zz
+    # Data byte 4 (0-indexed): 0x00=off, 0x20=ACC (bit 5), 0x0A=fob-wake
+    # Data byte 5: 0x00=off, 0x60=ACC+IGN1
     igpm_resp = await terminal.send_command("22BC03", timeout=5.0)
-    igpm_clean = igpm_resp.replace(" ", "").upper()
+    # Strip multi-frame prefixes (0:, 1:, etc.) and whitespace
+    import re
+
+    igpm_clean = (
+        re.sub(r"\d+:", "", igpm_resp).replace(" ", "").replace("\n", "").upper()
+    )
 
     verified = False
     if "62BC03" in igpm_clean:
-        # Extract ignition byte — B11 stripped, which is the 12th data byte
-        # after 62BC03 (3 bytes SID+DID), so offset 11 in data = chars 22..24
         hex_start = igpm_clean.index("62BC03") + 6  # skip 62BC03
         data_hex = igpm_clean[hex_start:]
-        if len(data_hex) >= 24:  # need at least 12 bytes (B0-B11)
-            ign_byte = int(data_hex[22:24], 16)
-            if ign_byte != 0x00:
+        if len(data_hex) >= 12:  # need at least 6 bytes (B0-B5)
+            ign_byte = int(data_hex[8:10], 16)  # data byte 4
+            ign2_byte = int(data_hex[10:12], 16)  # data byte 5
+            if ign_byte & 0x20:  # bit 5 = ACC
                 verified = True
                 print(
-                    f"        Ignition byte: 0x{ign_byte:02X} -- relay CONFIRMED engaged!"
+                    f"        Ignition byte: 0x{ign_byte:02X} (B5=0x{ign2_byte:02X}) -- relay CONFIRMED engaged!"
                 )
             else:
-                print(f"        Ignition byte: 0x00 -- relay did NOT engage!")
+                print(
+                    f"        Ignition byte: 0x{ign_byte:02X} (B5=0x{ign2_byte:02X}) -- relay did NOT engage!"
+                )
                 print(f"        The keyfob is likely not nearby.")
                 print(
                     f"        SKM responds positively but the relay requires fob proximity."
