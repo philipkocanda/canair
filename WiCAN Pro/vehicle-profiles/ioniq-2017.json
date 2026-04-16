@@ -66,6 +66,7 @@
         "HIGH_BEAM": "B12:4",
         "LOW_BEAM": "B12:5",
         "IGNITION_ON": "B11:5",
+        "POWER_MODE": "B09",
         "SEATBELT_FL": "B11:1",
         "SEATBELT_FR": "B11:2",
         "DOOR_LOCK_RL": "B10:1",

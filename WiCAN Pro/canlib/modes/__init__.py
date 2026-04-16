@@ -8,6 +8,7 @@ from .scan import mode_scan
 from .identity import mode_identity, IDENTITY_DIDS
 from .skm_wakeup import mode_skm_wakeup, SKM_RELAYS, SKM_MAGIC
 from .tester import mode_tester_present
+from .multi import mode_multi
 
 __all__ = [
     "mode_interactive",
@@ -18,6 +19,7 @@ __all__ = [
     "mode_identity",
     "mode_skm_wakeup",
     "mode_tester_present",
+    "mode_multi",
     "IDENTITY_DIDS",
     "SKM_RELAYS",
     "SKM_MAGIC",

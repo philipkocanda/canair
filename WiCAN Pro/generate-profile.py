@@ -37,7 +37,7 @@ except ImportError:
 # ── Paths ──────────────────────────────────────────────────────────────────
 SCRIPT_DIR = Path(__file__).parent
 YAML_SOURCE = SCRIPT_DIR / "ioniq-2017-pids.yaml"
-PROFILE_OUT = SCRIPT_DIR / "Vehicle Profiles" / "ioniq-2017.json"
+PROFILE_OUT = SCRIPT_DIR / "vehicle-profiles" / "ioniq-2017.json"
 
 # ── WiCAN addresses ───────────────────────────────────────────────────────
 WICAN_ADDRESSES = {

@@ -16,6 +16,7 @@ Modes:
     Raw request     python3 can-request.py --raw 7E4:2101
     Scan PIDs       python3 can-request.py --scan --tx 7E4 --service 21 --range 01-FF
     Scan IOControl  python3 can-request.py --scan --tx 7E4 --service 2F --range E000-E0FF --append 03 --session
+    Multi-ECU       python3 can-request.py --multi "skm-wake acc" "query IGPM BC03 BC06"
     SKM wakeup      python3 can-request.py --skm-wakeup [--level acc|ign1|ign2]
     TesterPresent   python3 can-request.py --tester-present [--target 7A5]
 
@@ -46,6 +47,7 @@ from canlib import (
 from canlib.modes import (
     mode_interactive, mode_param, mode_ecu, mode_raw,
     mode_scan, mode_identity, mode_skm_wakeup, mode_tester_present,
+    mode_multi,
 )
 
 try:
@@ -106,7 +108,10 @@ async def async_main(args):
             args.session = True
 
         # Dispatch to mode
-        if args.skm_wakeup:
+        if args.multi:
+            await mode_multi(terminal, args.multi, pids_data, args.verbose,
+                             no_repl=args.no_repl)
+        elif args.skm_wakeup:
             await mode_skm_wakeup(terminal, args.level, args.verbose)
         elif args.tester_present:
             await mode_tester_present(terminal, args.target, args.interval, args.verbose)
@@ -199,6 +204,16 @@ Examples:
   %(prog)s --verbose --ecu VCU              Show raw WebSocket traffic
   %(prog)s --json --param SOC_BMS           JSON output
   %(prog)s --reboot --param SOC_BMS         Query + reboot to restore AutoPID
+
+  Multi-ECU pipeline (sessions managed automatically):
+  %(prog)s --multi "skm-wake acc" "query IGPM BC03 BC06"
+                                            Wake SKM, query IGPM, drop into REPL
+  %(prog)s --multi "skm-wake acc" "session BCM --wake" "raw 7A0:22B00E"
+                                            Wake SKM+BCM, raw query, REPL
+  %(prog)s --multi "session IGPM --wake" "query IGPM" --no-repl
+                                            Wake IGPM, query all PIDs, exit
+  %(prog)s --multi "skm-wake acc" "sleep 1" "query BCM B00E" "repl"
+                                            Pipeline with explicit sleep and REPL
 """,
     )
 
@@ -219,8 +234,13 @@ Examples:
     mode.add_argument("--tester-present", action="store_true",
                       help="Send TesterPresent (3E00) at regular intervals (Ctrl+C to stop)")
     mode.add_argument("--identity", action="store_true",
-                      help="Query standard UDS identity DIDs (F100, F18x, F190, F19x) from --tx ECU "
-                           "and print decoded part number, serial, manufacture date, VIN, etc.")
+                       help="Query standard UDS identity DIDs (F100, F18x, F190, F19x) from --tx ECU "
+                            "and print decoded part number, serial, manufacture date, VIN, etc.")
+    mode.add_argument("--multi", nargs="+", metavar="CMD",
+                       help="Multi-ECU pipeline: execute sub-commands in sequence with shared "
+                            "session management. Each CMD is a quoted string. Sub-commands: "
+                            "skm-wake [level], session <ECU> [--wake], query <ECU> [PID ...], "
+                            "raw <TX:PID>, scan <TX> <SVC> <RANGE> [APPEND], sleep <N>, repl")
 
     # ECU/PID mode options
     parser.add_argument("--pid", metavar="PID",
@@ -248,8 +268,10 @@ Examples:
     parser.add_argument("--wake", action="store_true",
                          help="Send a wake-up frame (10 01) before entering extended session to "
                               "rouse ECUs from deep sleep. The IGPM (0x770) goes into deep sleep "
-                              "when the car is off and unplugged -- this wakes it via CAN. "
-                              "Implies --session.")
+                          "when the car is off and unplugged -- this wakes it via CAN. "
+                               "Implies --session.")
+    parser.add_argument("--no-repl", action="store_true",
+                         help="For --multi: don't drop into REPL after pipeline completes")
 
     # SKM wakeup options
     parser.add_argument("--level", default="acc",
