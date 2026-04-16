@@ -23,7 +23,7 @@ import shlex
 
 from ..session_manager import SessionManager
 from ..pids import build_ecu_index, build_param_index, load_pids
-from ..formatting import print_decoded_params, print_hexdump, print_json_result
+from ..formatting import print_decoded_params, print_pid_table, print_hexdump, print_json_result
 from ..expression import evaluate_expression
 from ..elm327 import parse_elm_response, elm_hex_to_wican_bytes
 from ..terminal import WiCANTerminal
@@ -162,7 +162,7 @@ async def _exec_query(sm: SessionManager, ecu_name_str: str, pid_filter: list[st
             print(f"  Available: {', '.join(sorted(ecu_info['pids'].keys()))}")
             return
 
-    print(f"\n  Querying {upper} (0x{tx_id:03X}) -- {len(pids_to_query)} PIDs")
+    print(f"\n  Querying {upper} (0x{tx_id:03X}) — {len(pids_to_query)} PID(s)")
 
     for pid_code, pid_info in sorted(pids_to_query.items()):
         await sm.keepalive_stale()
@@ -194,12 +194,13 @@ async def _exec_query(sm: SessionManager, ecu_name_str: str, pid_filter: list[st
             except Exception as e:
                 results.append((pname, None, unit, expr, str(e), verified))
 
-        print(f"    PID {pid_code}:")
-        if results:
-            print_decoded_params(results, verbose=verbose)
-        if not results or verbose:
-            # No mapped parameters (unmapped PID) or verbose — always show raw bytes
-            print(f"      {resp['hex']}  ({len(resp['bytes'])} bytes)")
+        print_pid_table(
+            pid_code=pid_code,
+            ecu_label=f"{upper} (0x{tx_id:03X})",
+            params_results=results,
+            raw_hex=resp["hex"],
+            verbose=verbose,
+        )
 
 
 async def _exec_raw(sm: SessionManager, spec: str, hold: bool, verbose: bool):
