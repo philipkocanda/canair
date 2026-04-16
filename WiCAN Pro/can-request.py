@@ -120,6 +120,7 @@ async def async_main(args):
             atst_val = max(1, min(255, round(args.elm_timeout / 4.096)))
             atst_cmd = f"ATST{atst_val:02X}"
             await terminal.send_command(atst_cmd)
+            terminal.elm_timeout_cmd = atst_cmd
             actual_ms = atst_val * 4.096
             print(f"  ELM327 timeout: {atst_cmd} ({actual_ms:.0f}ms)")
 

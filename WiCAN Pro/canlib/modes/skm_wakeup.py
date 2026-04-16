@@ -70,7 +70,7 @@ async def mode_skm_wakeup(terminal: WiCANTerminal, level: str, verbose: bool):
 
     if not skm_awake:
         # Restore timeout before returning
-        await terminal.send_command("ATST96")
+        await terminal.send_command(terminal.elm_timeout_cmd)
         print(f"  FAILED: SKM did not wake after 20 rapid-fire attempts.")
         print(f"  The SKM transceiver may be fully unpowered.")
         return False
@@ -89,8 +89,8 @@ async def mode_skm_wakeup(terminal: WiCANTerminal, level: str, verbose: bool):
         if verbose:
             print(f"        1003 -> {resp} (attempt {attempt + 1})")
 
-    # Restore normal timeout
-    await terminal.send_command("ATST96")
+    # Restore user's timeout
+    await terminal.send_command(terminal.elm_timeout_cmd)
 
     if not session_ok:
         print(f"  FAILED: SKM awake but extended session failed.")
