@@ -174,70 +174,95 @@ async def mode_skm_wakeup(terminal: WiCANTerminal, level: str, verbose: bool):
 
     print(f"        UDS positive response received.")
 
-    # Step 4: Verify ACC actually engaged by reading IGPM ignition state
+    # Step 4: Verify ACC actually engaged by reading IGPM and BCM
     # SKM returns positive UDS response even without keyfob nearby,
-    # but the relay physically doesn't close. Read IGPM BC03 to verify.
-    print(f"  [4/4] Verifying relay engagement via IGPM (0x770)...")
-    await terminal.send_command("ATSH770")
-    await terminal.send_command("ATFCSH770")
-
-    # IGPM may be in deep sleep — wake it first with 1001
-    wake_resp = await terminal.send_command("1001", timeout=3.0)
-    # 1001 may return NO DATA when IGPM is in deep sleep — that's expected
-
-    # IGPM needs extended session for 22BCxx reads
-    igpm_resp = await terminal.send_command("1003", timeout=3.0)
-    if "50 03" not in igpm_resp and "5003" not in igpm_resp:
-        print(f"        WARNING: Could not enter IGPM extended session.")
-        print(f"        Cannot verify relay state — proceed with caution.")
-        return True
+    # but the relay physically doesn't close. Read both ECUs to verify.
+    print(f"  [4/4] Verifying relay engagement...")
 
     # Small delay for relay state to settle
     await asyncio.sleep(0.3)
 
-    # Read BC03 — ignition/ACC state in data bytes after 62BC03
-    # BC03 returns 8 data bytes: FD EE 3C 73 xx yy zz zz
-    # Data byte 4 (0-indexed): 0x00=off, 0x20=ACC (bit 5), 0x0A=fob-wake
-    # Data byte 5: 0x00=off, 0x60=ACC+IGN1
-    igpm_resp = await terminal.send_command("22BC03", timeout=5.0)
-    # Strip multi-frame prefixes (0:, 1:, etc.) and whitespace
-    import re
-
-    igpm_clean = (
-        re.sub(r"\d+:", "", igpm_resp).replace(" ", "").replace("\n", "").upper()
-    )
-
     verified = False
-    if "62BC03" in igpm_clean:
-        hex_start = igpm_clean.index("62BC03") + 6  # skip 62BC03
-        data_hex = igpm_clean[hex_start:]
-        if len(data_hex) >= 12:  # need at least 6 bytes (B0-B5)
-            ign_byte = int(data_hex[8:10], 16)  # data byte 4
-            ign2_byte = int(data_hex[10:12], 16)  # data byte 5
-            if ign_byte & 0x20:  # bit 5 = ACC
-                verified = True
-                print(
-                    f"        Ignition byte: 0x{ign_byte:02X} (B5=0x{ign2_byte:02X}) -- relay CONFIRMED engaged!"
-                )
+
+    # --- IGPM BC03: ignition/ACC state ---
+    print(f"        IGPM (0x770) BC03...")
+    await terminal.send_command("ATSH770")
+    await terminal.send_command("ATFCSH770")
+
+    # IGPM may be in deep sleep — wake it first with 1001
+    await terminal.send_command("1001", timeout=3.0)
+    # 1001 may return NO DATA when IGPM is in deep sleep — that's expected
+
+    igpm_resp = await terminal.send_command("1003", timeout=3.0)
+    igpm_ok = "5003" in igpm_resp.replace(" ", "") or "50 03" in igpm_resp
+
+    if igpm_ok:
+        igpm_resp = await terminal.send_command("22BC03", timeout=5.0)
+        igpm_clean = (
+            re.sub(r"\d+:", "", igpm_resp).replace(" ", "").replace("\n", "").upper()
+        )
+
+        if "62BC03" in igpm_clean:
+            hex_start = igpm_clean.index("62BC03") + 6
+            data_hex = igpm_clean[hex_start:]
+            if len(data_hex) >= 12:
+                ign_byte = int(data_hex[8:10], 16)  # data byte 4
+                ign2_byte = int(data_hex[10:12], 16)  # data byte 5
+                if ign_byte & 0x20:
+                    verified = True
+                    print(
+                        f"          B4=0x{ign_byte:02X} B5=0x{ign2_byte:02X} — ACC CONFIRMED"
+                    )
+                else:
+                    print(
+                        f"          B4=0x{ign_byte:02X} B5=0x{ign2_byte:02X} — no ACC"
+                    )
             else:
                 print(
-                    f"        Ignition byte: 0x{ign_byte:02X} (B5=0x{ign2_byte:02X}) -- relay did NOT engage!"
-                )
-                print(f"        The keyfob is likely not nearby.")
-                print(
-                    f"        SKM responds positively but the relay requires fob proximity."
+                    f"          BC03 too short ({len(data_hex) // 2} bytes): {igpm_resp.strip()}"
                 )
         else:
-            print(f"        BC03 response too short to extract ignition byte.")
-            print(f"        Got {len(data_hex) // 2} data bytes, need 12.")
-            print(f"        Raw response: {igpm_resp.strip()}")
+            print(f"          BC03 read failed: {igpm_resp.strip()}")
     else:
-        print(f"        Could not read IGPM BC03: {igpm_resp.strip()}")
+        print(f"          Could not enter extended session.")
+
+    # --- BCM B003: power mode byte ---
+    print(f"        BCM  (0x7A0) B003...")
+    await terminal.send_command("ATSH7A0")
+    await terminal.send_command("ATFCSH7A0")
+
+    # BCM also needs wake + extended session from deep sleep
+    await terminal.send_command("1001", timeout=3.0)
+    bcm_session = await terminal.send_command("1003", timeout=3.0)
+    bcm_ok = "5003" in bcm_session.replace(" ", "") or "50 03" in bcm_session
+
+    if bcm_ok:
+        bcm_resp = await terminal.send_command("22B003", timeout=5.0)
+        bcm_clean = (
+            re.sub(r"\d+:", "", bcm_resp).replace(" ", "").replace("\n", "").upper()
+        )
+
+        if "62B003" in bcm_clean:
+            hex_start = bcm_clean.index("62B003") + 6
+            data_hex = bcm_clean[hex_start:]
+            if len(data_hex) >= 14:  # need at least 7 bytes to reach byte 6
+                pwr_byte = int(data_hex[12:14], 16)  # data byte 6 (stripped, 0-indexed)
+                known = {0x09: "ACC?", 0x0A: "ACC+IGN1?", 0xF5: "OFF/sleep?"}
+                state = known.get(pwr_byte, f"unknown")
+                print(f"          Byte 6=0x{pwr_byte:02X} ({state})")
+            else:
+                print(
+                    f"          B003 too short ({len(data_hex) // 2} bytes): {bcm_resp.strip()}"
+                )
+        else:
+            print(f"          B003 read failed: {bcm_resp.strip()}")
+    else:
+        print(f"          Could not enter extended session.")
 
     if verified:
-        print(f"\n  {desc} activated and verified! ECUs should now respond to queries.")
+        print(f"\n  {desc} activated and verified!")
     else:
         print(f"\n  WARNING: {desc} command accepted but relay NOT confirmed.")
-        print(f"  Bring the keyfob closer and try again.")
+        print(f"  The keyfob is likely not nearby.")
 
     return verified

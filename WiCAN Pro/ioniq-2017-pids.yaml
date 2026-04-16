@@ -132,7 +132,7 @@ ecus:
   BCM:
     tx_id: 0x7A0
     pids:
-      22B00E:
+       22B00E:
         period: 5000
         enabled: true
         parameters:
@@ -148,6 +148,28 @@ ecus:
               - https://github.com/meatpiHQ/wican-fw/pull/716
             verified: true
             notes: "Bit flag — 1=open, 0=closed. Niro PR had B10:4 — wrong for Ioniq, actual bit is B10:5. BCM does NOT require extended diagnostic session. Verified 2026-04-15."
+
+      22B003:
+        period: 10000
+        enabled: false
+        parameters:
+          BCM_POWER_MODE:
+            expression: "B12"
+            unit: ""
+            ha_class: ""
+            mqtt_topic: bcm_power_mode
+            min: "0"
+            max: "255"
+            source: "Reverse engineered from cross-state comparison"
+            source_links: []
+            verified: false
+            notes: >
+              Raw power mode byte (stripped byte 6, WiCAN B12). Known values from captures:
+              0x09 = ACC or sleep (ambiguous — seen in both states), 0x0A = ACC+IGN1,
+              0xF5 = OFF/sleep (one capture). NOT reliable for ACC detection — 0x09 appears
+              during deep sleep too. Needs more at-car captures to fully decode. Requires
+              wake frame (1001) + extended session (1003) during deep sleep. Disabled until
+              values are better understood.
 
   # ─── HVAC (Heating, Ventilation, Air Conditioning) ────────────────────
   HVAC:
@@ -395,10 +417,12 @@ ecus:
             source_links: []
             verified: true
             notes: >
-              Raw power mode byte. Known values: 0x0A (10) = deep sleep / keyfob wake,
-              0x00 (0) = charging (no ACC), 0x20 (32) = ACC mode. Bit 5 = ACC flag.
-              More values expected for IGN-ON and READY states (not yet captured).
-              Verified 2026-04-16 across sleep/charging/ACC captures.
+              Raw power mode byte (IGPM BC03 WiCAN B09). Bitfield with multiple flags.
+              Bit 5 (0x20) = ACC. Known values: 0x00 = off/charging, 0x0A = keyfob-wake
+              or ACC2+lights (ambiguous — seen in both sleep and ACC2 states), 0x20 = ACC
+              via SKM IOControl. Not a clean enum — treat as bitfield. Bit 5 is the only
+              reliable ACC indicator. More at-car captures needed to fully map.
+              Verified 2026-04-16.
 
           SEATBELT_FL:
             expression: "B11:1"
