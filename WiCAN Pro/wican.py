@@ -22,6 +22,9 @@ Usage:
   python3 wican.py sleep --no-wakeup                # Disable periodic wakeup
   python3 wican.py sleep --disable --dry-run        # Preview change without applying
 
+  python3 wican.py status                            # Device status summary
+  python3 wican.py status --json                    # Raw JSON from /check_status
+
   python3 wican.py reboot                           # Reboot device
   python3 wican.py reboot --yes                     # Skip confirmation
 
@@ -280,6 +283,86 @@ def cmd_reboot(args) -> None:
     print("Reboot command sent.")
 
 
+def get_status(base_url: str, timeout: int) -> dict:
+    """GET /check_status and return parsed JSON."""
+    url = f"{base_url}/check_status"
+    try:
+        resp = requests.get(url, timeout=timeout)
+        resp.raise_for_status()
+        return resp.json()
+    except requests.ConnectionError:
+        print(f"ERROR: Cannot connect to WiCAN at {base_url}", file=sys.stderr)
+        print("  Is the device reachable? Try: --wican vpn", file=sys.stderr)
+        sys.exit(1)
+    except requests.Timeout:
+        print(f"ERROR: Timeout connecting to {base_url}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(f"ERROR: Failed to get status: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_status(args) -> None:
+    """Show device status summary."""
+    base_url = resolve_wican_url(args.wican)
+    status = get_status(base_url, args.timeout)
+
+    if args.json:
+        print(json.dumps(status, indent=2))
+        return
+
+    # Curated summary
+    sections = [
+        ("Device", [
+            ("Hardware",        status.get("hw_version", "?")),
+            ("Firmware",        status.get("fw_version", "?") + " (" + status.get("git_version", "?") + ")"),
+            ("Device ID",       status.get("device_id", "?")),
+            ("Uptime",          status.get("uptime", "?")),
+            ("Battery",         status.get("batt_voltage", "?")),
+        ]),
+        ("Network", [
+            ("WiFi mode",       status.get("wifi_mode", "?")),
+            ("WiFi status",     status.get("sta_status", "?")),
+            ("IP address",      status.get("sta_ip", "?")),
+            ("Connected SSID",  status.get("sta_ssid", "?")),
+            ("mDNS",            status.get("mdns", "?")),
+            ("VPN status",      status.get("vpn_status", "?")),
+            ("VPN IP",          status.get("vpn_ip", "") or "-"),
+        ]),
+        ("CAN / OBD", [
+            ("Protocol",        status.get("protocol", "?")),
+            ("CAN datarate",    status.get("can_datarate", "?")),
+            ("CAN mode",        status.get("can_mode", "?")),
+            ("OBD chip",        status.get("obd_chip_status", "?")),
+            ("ECU status",      status.get("ecu_status", "?")),
+        ]),
+        ("Power", [
+            ("Sleep mode",      status.get("sleep_status", "?")),
+            ("Sleep voltage",   status.get("sleep_volt", "?") + "V"),
+            ("Sleep delay",     status.get("sleep_time", "?") + " min"),
+            ("Periodic wakeup", status.get("periodic_wakeup", "?")),
+            ("Wakeup interval", status.get("wakeup_interval", "?") + " min"),
+            ("Wakeup voltage",  status.get("wakeup_volt", "?")),
+        ]),
+        ("MQTT", [
+            ("Enabled",         status.get("mqtt_en", "?")),
+            ("Broker",          status.get("mqtt_url", "?") + ":" + status.get("mqtt_port", "?")),
+            ("Status topic",    status.get("mqtt_status_topic", "?")),
+        ]),
+        ("Logging", [
+            ("SD logging",      status.get("logger_status", "?")),
+            ("Period",          status.get("log_period", "?") + "s"),
+            ("IMU threshold",   status.get("imu_threshold", "?")),
+        ]),
+    ]
+
+    for section_name, fields in sections:
+        print(f"\n{section_name}:")
+        max_label = max(len(label) for label, _ in fields)
+        for label, value in fields:
+            print(f"  {label:<{max_label}}  {value}")
+
+
 # ── Argument parsing ──────────────────────────────────────────────────────
 
 def main() -> None:
@@ -331,6 +414,11 @@ def main() -> None:
     p_reboot.add_argument("--yes", "-y", action="store_true",
                           help="Skip confirmation prompt")
     p_reboot.set_defaults(func=cmd_reboot)
+
+    # ── status ──
+    p_status = sub.add_parser("status", help="Device status summary")
+    p_status.add_argument("--json", action="store_true", help="Raw JSON output")
+    p_status.set_defaults(func=cmd_status)
 
     args = parser.parse_args()
     args.func(args)
