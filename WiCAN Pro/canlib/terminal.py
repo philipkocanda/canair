@@ -272,12 +272,16 @@ class WiCANTerminal:
             tester_task is the background keepalive task (must be cancelled by caller).
         """
         if wake:
+            # Use fast timeout during wake — some ECUs (SKM) have a ~2s sleep
+            # timer and need rapid CAN traffic to stay awake
+            await self.send_command("ATST10")  # 64ms
             wake_resp = await self.send_uds("1001", timeout=3.0)
             if not wake_resp.get("ok"):
                 # First frame may just trigger the transceiver — retry
                 wake_resp = await self.send_uds("1001", timeout=3.0)
             if wake_resp.get("ok"):
                 print(f"  Wake-up: ECU responded.")
+            await self.send_command("ATST96")  # restore normal timeout
 
         resp = await self.send_uds("1003", timeout=5.0)
         if resp.get("ok"):
