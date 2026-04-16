@@ -1,0 +1,295 @@
+"""WiCAN WebSocket terminal connection and ELM327 session management."""
+
+import asyncio
+import json
+import re
+import sys
+import time
+
+try:
+    import websockets
+except ImportError:
+    raise ImportError("websockets not installed. Run: pip3 install websockets")
+
+try:
+    import requests as _requests_mod
+    HAS_REQUESTS = True
+except ImportError:
+    _requests_mod = None
+    HAS_REQUESTS = False
+
+from .elm327 import check_command_safety, parse_elm_response
+from .log import log_command, log_response
+
+
+class WiCANTerminal:
+    """WebSocket connection to WiCAN in ELM327 terminal mode."""
+
+    def __init__(self, host: str, timeout: float = 3.0, verbose: bool = False,
+                 unsafe: bool = False):
+        self.host = host
+        self.url = f"ws://{host}/ws"
+        self.timeout = timeout
+        self.verbose = verbose
+        self.unsafe = unsafe
+        self.ws = None
+        self._buffer = ""
+
+    async def connect(self):
+        """Connect to WiCAN and enter ELM327 terminal mode."""
+        if self.verbose:
+            print(f"  [ws] Connecting to {self.url}...", file=sys.stderr)
+
+        self.ws = await websockets.connect(self.url, ping_interval=None)
+
+        mode_msg = json.dumps({"ws_mode": "terminal", "terminal_type": "elm327"})
+        await self.ws.send(mode_msg)
+        if self.verbose:
+            print(f"  [ws] Sent: {mode_msg}", file=sys.stderr)
+
+        await asyncio.sleep(0.3)
+        await self._drain()
+
+    async def close(self):
+        """Close the WebSocket connection."""
+        if self.ws:
+            try:
+                await self.ws.close()
+            except Exception:
+                pass
+            self.ws = None
+
+    async def _drain(self):
+        """Read and discard any pending messages."""
+        while True:
+            try:
+                msg = await asyncio.wait_for(self.ws.recv(), timeout=0.2)
+                if self.verbose:
+                    print(f"  [ws] Drained: {msg!r}", file=sys.stderr)
+            except (asyncio.TimeoutError, Exception):
+                break
+
+    async def send_command(self, cmd: str, timeout: float = None) -> str:
+        """Send an ELM327 command and wait for the response.
+
+        There are two timeout levels:
+        1. ELM327 ATST timeout (~614ms at ATST96) -- how long the ELM327 chip waits
+           for an ECU response before returning "NO DATA". This governs actual CAN timing.
+        2. WebSocket timeout (this parameter) -- max wait for the ELM327 chip to reply
+           over the WebSocket. Only matters if the WebSocket stalls or NRC 0x78
+           (ResponsePending) extends the exchange.
+
+        Args:
+            cmd: ELM327 command (without CR terminator)
+            timeout: WebSocket-level timeout in seconds (default: self.timeout)
+
+        Returns:
+            Raw response text (may contain multiple lines)
+
+        Raises:
+            ValueError: If the command is blocked by the safety check.
+        """
+        if timeout is None:
+            timeout = self.timeout
+
+        blocked = check_command_safety(cmd)
+        if blocked:
+            if not self.unsafe:
+                log_command(f"{cmd}  !! {blocked}")
+                raise ValueError(blocked)
+            print(f"\n  !! WARNING: {blocked}", file=sys.stderr)
+            print(f"  !! --unsafe mode is active. The user MUST be consulted and", file=sys.stderr)
+            print(f"  !! must explicitly give consent before this command is executed.", file=sys.stderr)
+            print(f"  !! This command can cause irreversible damage to vehicle ECUs.", file=sys.stderr)
+            try:
+                confirm = await asyncio.get_event_loop().run_in_executor(
+                    None, lambda: input("  !! Type 'YES' to execute, anything else to skip: "))
+            except (EOFError, KeyboardInterrupt):
+                confirm = ""
+            if confirm.strip() != "YES":
+                log_command(f"{cmd}  !! {blocked} -- user declined")
+                raise ValueError(f"Command declined by user: {cmd}")
+            log_command(f"{cmd}  !! {blocked} -- user confirmed (unsafe mode)")
+
+        log_command(cmd)
+
+        await self.ws.send(cmd + "\r")
+        if self.verbose:
+            print(f"  [ws] Sent: {cmd!r}", file=sys.stderr)
+
+        response_parts = []
+        deadline = time.monotonic() + timeout
+        got_prompt = False
+
+        while time.monotonic() < deadline:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            try:
+                msg = await asyncio.wait_for(self.ws.recv(), timeout=min(remaining, 0.5))
+            except asyncio.TimeoutError:
+                if got_prompt:
+                    full = "".join(response_parts)
+                    if "7F" in full and "78" in full:
+                        clean = full.replace(" ", "").replace("\r", "").replace("\n", "")
+                        if re.search(r"7F[0-9A-Fa-f]{2}78", clean):
+                            continue
+                    break
+                if response_parts:
+                    text = "".join(response_parts)
+                    stripped = text.replace("\r", "").replace("\n", "").strip()
+                    if stripped:
+                        stripped_nfc = re.sub(r'\bF0[0-9A-Fa-f]?\b', '', stripped).strip()
+                    else:
+                        stripped_nfc = ""
+                    if stripped_nfc and "\r" in text and "7F" not in text:
+                        break
+                continue
+            except websockets.exceptions.ConnectionClosed:
+                raise ConnectionError("WebSocket connection closed")
+
+            if isinstance(msg, str):
+                try:
+                    parsed = json.loads(msg)
+                    if parsed.get("type") == "term_out":
+                        data = parsed["data"]
+                        response_parts.append(data)
+                        if self.verbose:
+                            print(f"  [ws] Recv (term_out): {data!r}", file=sys.stderr)
+                    elif parsed.get("type") == "ws_mode":
+                        if self.verbose:
+                            print(f"  [ws] Mode ack: {parsed}", file=sys.stderr)
+                        continue
+                    else:
+                        if self.verbose:
+                            print(f"  [ws] Recv (json): {parsed}", file=sys.stderr)
+                except json.JSONDecodeError:
+                    response_parts.append(msg)
+                    if self.verbose:
+                        print(f"  [ws] Recv (text): {msg!r}", file=sys.stderr)
+
+            full = "".join(response_parts)
+            if ">" in full:
+                got_prompt = True
+                clean = full.replace(" ", "").replace("\r", "").replace("\n", "")
+                if re.search(r"7F[0-9A-Fa-f]{2}78", clean):
+                    deadline = time.monotonic() + timeout
+                    continue
+                break
+
+        raw = "".join(response_parts)
+        raw = raw.replace(">", "").replace("\r\n", "\n").replace("\r", "\n")
+        raw = re.sub(r"[\x00-\x09\x0b-\x1f]", "", raw)
+
+        result = raw.strip()
+        log_response(cmd, result)
+        return result
+
+    async def init_elm(self, init_string: str = "ATSP6;ATS0;ATAL;ATST96;"):
+        """Send ELM327 initialization commands."""
+        resp = await self.send_command("ATZ", timeout=3.0)
+        if self.verbose:
+            print(f"  [init] ATZ -> {resp!r}", file=sys.stderr)
+
+        for cmd in init_string.rstrip(";").split(";"):
+            cmd = cmd.strip()
+            if not cmd:
+                continue
+            resp = await self.send_command(cmd)
+            if self.verbose:
+                print(f"  [init] {cmd} -> {resp!r}", file=sys.stderr)
+
+    async def set_header(self, tx_id: int):
+        """Set the ELM327 header (target ECU TX ID)."""
+        hex_id = f"{tx_id:03X}"
+        resp = await self.send_command(f"ATSH{hex_id}")
+        if self.verbose:
+            print(f"  [header] ATSH{hex_id} -> {resp!r}", file=sys.stderr)
+
+        resp = await self.send_command(f"ATFCSH{hex_id}")
+        if self.verbose:
+            print(f"  [header] ATFCSH{hex_id} -> {resp!r}", file=sys.stderr)
+
+    async def send_uds(self, service_pid: str, timeout: float = None) -> dict:
+        """Send a UDS request and parse the response.
+
+        Args:
+            service_pid: UDS request hex string (e.g., "2101", "22C00B")
+            timeout: WebSocket-level timeout in seconds (see send_command docstring)
+
+        Returns:
+            Parsed response dict from parse_elm_response()
+        """
+        raw = await self.send_command(service_pid, timeout=timeout)
+        return parse_elm_response(raw)
+
+    async def enter_extended_session(self, wake: bool = False) -> tuple[bool, asyncio.Task | None]:
+        """Enter extended diagnostic session (10 03) and start TesterPresent keepalive.
+
+        Args:
+            wake: If True, send a default session request (10 01) first to wake the
+                ECU from deep sleep before entering extended session.
+
+        Returns:
+            (success, tester_task) -- success indicates if session was established,
+            tester_task is the background keepalive task (must be cancelled by caller).
+        """
+        if wake:
+            print(f"  Sending wake-up frame (10 01)...")
+            wake_resp = await self.send_uds("1001", timeout=15.0)
+
+            if wake_resp.get("ok"):
+                print(f"  ECU responded to wake-up.")
+            else:
+                print(f"  No response to wake-up (expected -- ECU needs time to initialize).")
+            await asyncio.sleep(0.5)
+
+        print(f"  Entering extended diagnostic session (10 03)...")
+        resp = await self.send_uds("1003", timeout=5.0)
+        if resp.get("ok"):
+            print(f"  Session established.")
+        elif resp.get("nrc") is not None:
+            nrc = resp["nrc"]
+            desc = resp["nrc_desc"]
+            print(f"  WARNING: Session request returned NRC 0x{nrc:02X} ({desc})")
+            print(f"  Continuing anyway -- some ECUs may not need extended session.")
+        else:
+            error = resp.get("error", "unknown")
+            print(f"  WARNING: Session request failed: {error}")
+            print(f"  Continuing anyway.")
+
+        verbose = self.verbose
+
+        async def _tester_present_loop():
+            """Send 3E 00 every 2s to keep the extended session alive."""
+            try:
+                while True:
+                    await asyncio.sleep(2.0)
+                    try:
+                        await self.send_command("3E00", timeout=1.5)
+                        if verbose:
+                            print(f"  [tester] 3E00 keepalive sent", file=sys.stderr)
+                    except Exception:
+                        pass
+            except asyncio.CancelledError:
+                pass
+
+        tester_task = asyncio.create_task(_tester_present_loop())
+        return resp.get("ok", False), tester_task
+
+
+def reboot_wican(host: str):
+    """Reboot WiCAN device via HTTP POST to restore AutoPID mode."""
+    if not HAS_REQUESTS:
+        print("  Cannot reboot: 'requests' module not installed. Run: pip3 install requests", file=sys.stderr)
+        print(f"  Manual reboot: curl -X POST http://{host}/system_reboot -d reboot", file=sys.stderr)
+        return False
+
+    url = f"http://{host}/system_reboot"
+    try:
+        resp = _requests_mod.post(url, data="reboot", timeout=5)
+        print(f"Rebooting WiCAN... ({resp.status_code})")
+        return True
+    except _requests_mod.RequestException as e:
+        print(f"  FAILED to reboot: {e}", file=sys.stderr)
+        return False
