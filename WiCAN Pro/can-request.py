@@ -558,9 +558,16 @@ class WiCANTerminal:
     async def send_command(self, cmd: str, timeout: float = None) -> str:
         """Send an ELM327 command and wait for the response.
 
+        There are two timeout levels:
+        1. ELM327 ATST timeout (~614ms at ATST96) — how long the ELM327 chip waits
+           for an ECU response before returning "NO DATA". This governs actual CAN timing.
+        2. WebSocket timeout (this parameter) — max wait for the ELM327 chip to reply
+           over the WebSocket. Only matters if the WebSocket stalls or NRC 0x78
+           (ResponsePending) extends the exchange.
+
         Args:
             cmd: ELM327 command (without CR terminator)
-            timeout: Response timeout in seconds (default: self.timeout)
+            timeout: WebSocket-level timeout in seconds (default: self.timeout)
 
         Returns:
             Raw response text (may contain multiple lines)
@@ -727,6 +734,7 @@ class WiCANTerminal:
 
         Args:
             service_pid: UDS request hex string (e.g., "2101", "22C00B")
+            timeout: WebSocket-level timeout in seconds (see send_command docstring)
 
         Returns:
             Parsed response dict from parse_elm_response()
@@ -754,7 +762,13 @@ class WiCANTerminal:
         """
         if wake:
             print(f"  Sending wake-up frame (10 01)...")
-            wake_resp = await self.send_uds("1001", timeout=3.0)
+            # Wake-up needs a generous timeout — the ECU may take several seconds
+            # to power up its CAN transceiver, during which the ELM327 returns
+            # NO DATA. Some ECUs also send NRC 0x78 (ResponsePending) repeatedly
+            # while initializing. Each pending NRC resets the deadline, so the
+            # timeout value is per-attempt, not total.
+            wake_resp = await self.send_uds("1001", timeout=15.0)
+
             if wake_resp.get("ok"):
                 print(f"  ECU responded to wake-up.")
             else:
@@ -1789,6 +1803,15 @@ async def async_main(args):
         await terminal.connect()
         print("Connected. Initializing ELM327...")
         await terminal.init_elm(init_string)
+
+        # Override ELM327 ECU response timeout if requested
+        if args.elm_timeout is not None:
+            atst_val = max(1, min(255, round(args.elm_timeout / 4.096)))
+            atst_cmd = f"ATST{atst_val:02X}"
+            await terminal.send_command(atst_cmd)
+            actual_ms = atst_val * 4.096
+            print(f"  ELM327 timeout: {atst_cmd} ({actual_ms:.0f}ms)")
+
         print("Ready.")
 
         # --wake implies --session
@@ -1855,9 +1878,9 @@ async def async_main(args):
         # Reboot to restore AutoPID mode, or warn
         if args.reboot:
             reboot_wican(host)
-        else:
-            print("NOTE: WiCAN is now in terminal mode. AutoPID (MQTT/HA data feed) is paused.")
-            print("      Run with --reboot or reboot manually to restore AutoPID.")
+        # else:
+        #     print()
+        #     print("NOTE: WiCAN is now in terminal mode. AutoPID is paused.")
 
 
 def main():
@@ -1961,7 +1984,11 @@ Examples:
     parser.add_argument("--wican", default=DEFAULT_WICAN,
                         help=f"WiCAN address: {', '.join(WICAN_ADDRESSES.keys())} or IP (default: {DEFAULT_WICAN})")
     parser.add_argument("--timeout", type=float, default=3.0,
-                        help="Response timeout in seconds (default: 3.0)")
+                        help="WebSocket response timeout in seconds — max wait for ELM327 to reply (default: 3.0). "
+                             "In practice, the ELM327's own ATST timeout governs how long it waits for an ECU response.")
+    parser.add_argument("--elm-timeout", type=int, default=None, metavar="MS",
+                        help="ELM327 ECU response timeout in milliseconds (default: ~614ms from ATST96). "
+                             "Sent as ATSTxx after init. Useful for slow ECUs or scanning.")
 
     # Output options
     parser.add_argument("--json", action="store_true",
