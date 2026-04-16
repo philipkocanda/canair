@@ -1470,10 +1470,11 @@ def _decode_identity_payload(payload_bytes: bytes, fmt: str) -> str:
 
 async def mode_identity(terminal: WiCANTerminal, tx_id: int, session: bool, wake: bool,
                         as_json: bool):
-    """Query standard UDS identity DIDs from an ECU and print decoded results.
+    """Query standard UDS identity DIDs and OBD-II service 09 infotypes from an ECU.
 
-    Queries the common Hyundai/Kia identity DID set (F100, F18x, F19x, F1Ax)
-    and decodes responses as ASCII / BCD date where appropriate.
+    Queries the common Hyundai/Kia identity DID set (22 F1xx) and OBD-II
+    service 09 vehicle info (VIN, calibration ID, ECU name), decoding
+    responses as ASCII / BCD date where appropriate.
     """
     await terminal.set_header(tx_id)
 
@@ -1493,14 +1494,13 @@ async def mode_identity(terminal: WiCANTerminal, tx_id: int, session: bool, wake
                 decoded = _decode_identity_payload(payload, fmt)
                 raw_hex = payload.hex().upper()
                 if as_json:
-                    results.append({"did": did_hex, "label": label, "decoded": decoded,
-                                    "raw": raw_hex})
+                    results.append({"service": "22", "did": did_hex, "label": label,
+                                    "decoded": decoded, "raw": raw_hex})
                 else:
                     print(f"  {did_hex}  {label:<{label_width}}  {decoded}")
                     # Show raw hex only for non-ASCII formats (e.g. dates) or
                     # when decoded contains substituted bytes (dots)
                     if fmt != "ascii" or "." in decoded:
-                        raw_hex = payload.hex().upper()
                         print(f"        {'':>{label_width}}  raw: {raw_hex}")
             # Skip NRC — silently omit unsupported DIDs
 
