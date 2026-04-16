@@ -1421,7 +1421,8 @@ SKM_MAGIC = "0A0A05"
 # Ordered from most to least useful for quick identification.
 IDENTITY_DIDS: list[tuple[str, str, str]] = [
     ("F190", "VIN",                     "ascii"),   # Vehicle Identification Number
-    ("F188", "ECU Part Number",         "ascii"),   # Supplier part number (transient on BCM — needs ACC?)
+    ("F188", "ECU Part Number (UDS)",  "ascii"),   # Standard UDS — may need ACC on Hyundai/Kia
+    ("F187", "ECU Part Number (HK)",   "ascii"),   # Hyundai/Kia uses F187 (standard is F188)
     ("F18C", "ECU Serial / Cal ID",     "ascii"),   # Serial number / calibration ID
     ("F18B", "Manufacture Date",        "date"),    # BCD YYYYMMDD
     ("F18D", "ECU Manufacturing Date",  "date"),    # BCD alt format
