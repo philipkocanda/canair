@@ -1,0 +1,71 @@
+# Ioniq 28kWh (AE) — captured UDS response payloads
+#
+# Each capture is a raw ISO-TP payload as hex, including the UDS response header.
+# WiCAN expressions (B0, B1, ...) index into this full payload:
+#   Service 0x21 → B0=0x61, B1=PID, data from B2
+#   Service 0x22 → B0=0x62, B1-B2=DID, data from B3
+
+sessions:
+
+  - date: "2025-08-07"
+    label: "Driving"
+    notes: "Driving session. More ECUs captured including odometer and ambient temp."
+    captures:
+      - ecu: BMS
+        pid: "2101"
+        payload: "6101ffffffffb0254a26484501180ef2131313131313130015c711c7010000920004c9c00004c83e0001bb7a0001adee0125ad290d017d12c012c003e80000"
+        notes: "Longer than stationary capture (63 vs 61 bytes)"
+
+      - ecu: BMS
+        pid: "2102"
+        payload: "6102ffffffffcececececececececececececececececececececececececececececececece"
+        notes: "Cell voltages — all 0xCE (3.278V each), same as stationary"
+
+      - ecu: BMS
+        pid: "2105"
+        payload: "6105ffffffff00000000001112121112121217aa264800014b111103e80203e801c70029000000000000000000"
+        notes: "Identical to stationary session"
+
+      - ecu: VCU
+        pid: "2101"
+        payload: "6101ffe0000009285a5b09a604600dce043d6e340408"
+        notes: ""
+
+      - ecu: VCU
+        pid: "2102"
+        payload: "6102f8f8000001010000009622c67c633aa10cab9ae739"
+        notes: ""
+
+      - ecu: MCU
+        pid: "2101"
+        payload: "610207ffffffb3047d017d01050211141115f8fff6ff7dd6cdabc2cd6b0094f82c003705f726f606c1cd0000ba3100000000000000000000"
+        notes: "File was named '7E3 2101.bin' but UDS header is ambiguous — 6102 prefix means PID 0x02. However this session also has no separate 7E3 2102 file."
+
+      - ecu: CLU
+        pid: "22B002"
+        payload: "62b002e000000000ab00fe07000000"
+        notes: "Odometer data"
+
+      - ecu: Gateway
+        pid: "2180"
+        payload: "6180c366c000212700000000002c8200454100008713009595"
+        notes: "Ambient temperature data"
+
+      - ecu: BCM
+        pid: "22B001"
+        payload: "62b00140c0000000010000000000000202000000"
+        notes: "Identical to stationary session"
+
+      - ecu: HVAC
+        pid: "220100"
+        payload: "6201007e5007c8ff79707103ef4affff49ff10ffffffffffffffffff49d47d7b00ffff00ffff"
+        notes: "Identical to stationary session"
+
+  - date: "2025-08-07"
+    label: "Driving (extra)"
+    notes: "Additional BMS capture from same session, different moment."
+    captures:
+      - ecu: BMS
+        pid: "2101"
+        payload: "6101ffffffffba1d2e26480300180f47141313131414130015cb4dcb010000860004c9b70004c80a0001bb780001addb0125a6b70d01860000000003e80000"
+        notes: "From temp.bin — different SOC/temps than primary capture"

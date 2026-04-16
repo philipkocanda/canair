@@ -16,6 +16,7 @@ Usage:
 """
 
 import argparse
+import glob
 import math
 import os
 import re
@@ -26,6 +27,8 @@ import yaml
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PIDS_FILE = os.path.join(SCRIPT_DIR, "ioniq-2017-pids.yaml")
 CAPTURES_FILE = os.path.join(SCRIPT_DIR, "captures.yaml")
+CAPTURES_DIR = os.path.join(SCRIPT_DIR, "captures")
+ECUS_FILE = os.path.join(SCRIPT_DIR, "ecus.yaml")
 
 
 # ─── WiCAN Expression Evaluator ──────────────────────────────────────────────
@@ -242,9 +245,36 @@ def load_pids(path: str = PIDS_FILE) -> dict:
         return yaml.safe_load(f)
 
 
-def load_captures(path: str = CAPTURES_FILE) -> dict:
-    with open(path) as f:
-        return yaml.safe_load(f)
+def load_captures(path: str = None) -> dict:
+    """Load captures from captures/ directory or a single file."""
+    if path and os.path.isfile(path):
+        with open(path) as f:
+            return yaml.safe_load(f)
+    # Load all YAML files from captures/ directory
+    captures_dir = path if path and os.path.isdir(path) else CAPTURES_DIR
+    all_sessions = []
+    for fpath in sorted(glob.glob(os.path.join(captures_dir, "*.yaml"))):
+        if os.path.basename(fpath) == "SCHEMA.yaml":
+            continue
+        with open(fpath) as f:
+            data = yaml.safe_load(f)
+        if data and "sessions" in data:
+            all_sessions.extend(data["sessions"])
+    return {"sessions": all_sessions}
+
+
+def load_ecus_lookup() -> dict:
+    """Load ECU name -> tx_id lookup from ecus.yaml."""
+    with open(ECUS_FILE) as f:
+        data = yaml.safe_load(f)
+    result = {}
+    for tx_id, info in data.get("ecus", {}).items():
+        if isinstance(tx_id, str) and tx_id.startswith("0x"):
+            tx_id = int(tx_id, 16)
+        result[info["name"].upper()] = int(tx_id)
+    # Add aliases
+    result["BCM/TPMS"] = result.get("BCM", result.get("BCM/TPMS", 0))
+    return result
 
 
 def hex_to_bytes(hex_str: str) -> bytes:
@@ -316,13 +346,13 @@ def format_value(value: float, unit: str) -> str:
 
 def print_decoded(capture: dict, ecu_label: str, parameters: dict, results: list):
     """Print decoded results for a single capture."""
-    ecu_name = capture.get("ecu_name", "?")
+    ecu_name = capture.get("ecu") or capture.get("ecu_name", "?")
     pid = capture.get("pid", "?")
     tx = capture.get("ecu_tx")
-    tx_str = f"0x{tx:03X}" if isinstance(tx, int) else str(tx)
+    tx_str = f"0x{tx:03X}" if isinstance(tx, int) else ""
 
     print(f"\n{'─' * 72}")
-    print(f"  {ecu_name} ({ecu_label}) — PID {pid} — TX {tx_str}")
+    print(f"  {ecu_name} ({ecu_label}) — PID {pid}" + (f" — TX {tx_str}" if tx_str else ""))
     if capture.get("notes"):
         print(f"  Note: {capture['notes']}")
     print(f"{'─' * 72}")
@@ -343,13 +373,13 @@ def print_decoded(capture: dict, ecu_label: str, parameters: dict, results: list
 def print_hexdump(capture: dict, ecu_label: str, parameters: dict):
     """Print annotated hex dump showing which bytes each parameter uses."""
     payload = hex_to_bytes(capture["payload"])
-    ecu_name = capture.get("ecu_name", "?")
+    ecu_name = capture.get("ecu") or capture.get("ecu_name", "?")
     pid = capture.get("pid", "?")
     tx = capture.get("ecu_tx")
-    tx_str = f"0x{tx:03X}" if isinstance(tx, int) else str(tx)
+    tx_str = f"0x{tx:03X}" if isinstance(tx, int) else ""
 
     print(f"\n{'═' * 72}")
-    print(f"  {ecu_name} ({ecu_label}) — PID {pid} — TX {tx_str}")
+    print(f"  {ecu_name} ({ecu_label}) — PID {pid}" + (f" — TX {tx_str}" if tx_str else ""))
     print(f"{'═' * 72}")
 
     # Print hex dump with byte indices
@@ -393,7 +423,7 @@ def main():
     parser.add_argument("--raw", help="Decode a raw hex payload directly (use with --expr or --pid)")
     parser.add_argument("--expr", help="Evaluate a single expression (use with --raw)")
     parser.add_argument("--pids-file", default=PIDS_FILE, help="Path to PID definitions YAML")
-    parser.add_argument("--captures-file", default=CAPTURES_FILE, help="Path to captures YAML")
+    parser.add_argument("--captures-file", default=None, help="Path to captures YAML file or directory (default: captures/)")
 
     args = parser.parse_args()
 
@@ -427,6 +457,7 @@ def main():
     # Decode captures from file
     pids_data = load_pids(args.pids_file)
     captures_data = load_captures(args.captures_file)
+    ecus_lookup = load_ecus_lookup()
 
     total_decoded = 0
     total_errors = 0
@@ -442,9 +473,10 @@ def main():
         first_in_session = True
 
         for capture in session.get("captures", []):
-            ecu_name = capture.get("ecu_name", "")
+            # Support both old (ecu_name/ecu_tx) and new (ecu) field formats
+            ecu_name = capture.get("ecu") or capture.get("ecu_name", "")
             pid = capture.get("pid", "")
-            ecu_tx = capture.get("ecu_tx")
+            ecu_tx = capture.get("ecu_tx") or ecus_lookup.get(ecu_name.upper())
 
             # Apply filters
             if args.ecu and args.ecu.upper() != ecu_name.upper():
@@ -458,8 +490,9 @@ def main():
             if not parameters:
                 total_no_def += 1
                 if not args.param:  # Don't show "no definition" when filtering by param
-                    tx_str = f"0x{ecu_tx:03X}" if isinstance(ecu_tx, int) else str(ecu_tx)
-                    print(f"\n  {ecu_name} PID {pid} (TX {tx_str}): no PID definition found")
+                    tx_str = f"0x{ecu_tx:03X}" if isinstance(ecu_tx, int) else ""
+                    suffix = f" (TX {tx_str})" if tx_str else ""
+                    print(f"\n  {ecu_name} PID {pid}{suffix}: no PID definition found")
                 continue
 
             # Filter by parameter name
@@ -469,6 +502,10 @@ def main():
                 if not filtered:
                     continue
                 parameters = filtered
+
+            # Skip non-payload captures (experiments, scans)
+            if "payload" not in capture:
+                continue
 
             payload_bytes = hex_to_bytes(capture["payload"])
 

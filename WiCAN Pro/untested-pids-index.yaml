@@ -692,39 +692,6 @@ read_pids:
 
   - ecu:          IGPM
     tx_id:        "0x770"
-    pid:          "22BC03"
-    service:      "0x22"
-    status:       partial
-    priority:     P1
-    prerequisite: acc
-    description:  "Door open/seatbelt/trunk — all params unverified in YAML"
-    what_to_test:
-      - "DOOR_OPEN_FL/FR/RL/RR (B3:0-3) — open/close each door to verify"
-      - "TRUNK_OPEN (B3:4)"
-      - "SEATBELT_DRIVER (B3:5)"
-      - "SEATBELT_PASSENGER (B4:3)"
-      - "IGNITION (B5:4)"
-      - "LOW_BEAMS (bix 48 = B6:0 per Ioniq 5 OBDb)"
-    sources:
-      - "ioniq-2017-pids.yaml (unverified)"
-      - "OBDb Ioniq 5"
-
-  - ecu:          IGPM
-    tx_id:        "0x770"
-    pid:          "22BC04"
-    service:      "0x22"
-    status:       partial
-    priority:     P1
-    prerequisite: acc
-    description:  "Door lock status — unverified in YAML"
-    what_to_test:
-      - "DOOR_LOCK_FL (B3:0), DOOR_LOCK_FR (B3:1) — lock/unlock to verify"
-      - "HIGH_BEAM (B4:7)"
-    sources:
-      - "ioniq-2017-pids.yaml (unverified)"
-
-  - ecu:          IGPM
-    tx_id:        "0x770"
     pid:          "22BC05"
     service:      "0x22"
     status:       captured
