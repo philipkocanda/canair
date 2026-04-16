@@ -1,0 +1,17 @@
+# Ioniq 28kWh (AE) — captured UDS response payloads
+#
+# Each capture is a raw ISO-TP payload as hex, including the UDS response header.
+# WiCAN expressions (B0, B1, ...) index into this full payload:
+#   Service 0x21 → B0=0x61, B1=PID, data from B2
+#   Service 0x22 → B0=0x62, B1-B2=DID, data from B3
+
+sessions:
+
+  - date: "2025-08-10"
+    label: "Driving"
+    notes: "Driving session. Only MCU capture preserved."
+    captures:
+      - ecu: MCU
+        pid: "2102"
+        payload: "610207ffffffc0091f011f019f0114121013f7fff6ff7dd6cdabc2cd720022fc3000e307f726f606c1cd0000eb3100000000000000000000"
+        notes: ""

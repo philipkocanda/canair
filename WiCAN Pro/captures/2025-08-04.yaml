@@ -1,0 +1,47 @@
+# Ioniq 28kWh (AE) — captured UDS response payloads
+#
+# Each capture is a raw ISO-TP payload as hex, including the UDS response header.
+# WiCAN expressions (B0, B1, ...) index into this full payload:
+#   Service 0x21 → B0=0x61, B1=PID, data from B2
+#   Service 0x22 → B0=0x62, B1-B2=DID, data from B3
+
+sessions:
+
+  - date: "2025-08-04"
+    label: "Stationary"
+    notes: "Car parked, ignition off. First capture session."
+    captures:
+      - ecu: BMS
+        pid: "2101"
+        payload: "6101ffffffffbd17aa26480300170f7f121112121211120011ce4dce0100008c0004c9af0004c7e10001bb770001adcb01257f610d018c0000000003e8"
+        notes: ""
+
+      - ecu: BMS
+        pid: "2102"
+        payload: "6102ffffffffcececececececececececececececececececececececececececececececece"
+        notes: "Cell voltages — all 0xCE (3.278V each)"
+
+      - ecu: BMS
+        pid: "2105"
+        payload: "6105ffffffff00000000001112121112121217aa264800014b111103e80203e801c70029000000000000000000"
+        notes: ""
+
+      - ecu: VCU
+        pid: "2101"
+        payload: "6101ffe0000009215a5e064803000000009478340420"
+        notes: ""
+
+      - ecu: MCU
+        pid: "2102"
+        payload: "610207ffffff000000000000200008080a0af8fff7ff7dd6cdabc2cd7c0094fb2d008307f726f606c1cd0000973100000000000000000000"
+        notes: "File was named '7E3 2101.bin' but UDS header 6102 confirms this is PID 2102"
+
+      - ecu: BCM
+        pid: "22B001"
+        payload: "62b00140c0000000010000000000000202000000"
+        notes: "TPMS data — all pressures zero (stationary, possibly no TPMS data available)"
+
+      - ecu: HVAC
+        pid: "220100"
+        payload: "6201007e5007c8ff79707103ef4affff49ff10ffffffffffffffffff49d47d7b00ffff00ffff"
+        notes: ""

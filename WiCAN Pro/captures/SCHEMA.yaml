@@ -1,0 +1,40 @@
+# Capture file schema — Ioniq CAN reverse engineering
+#
+# Each file in captures/ is one date. Structure:
+#
+# sessions:
+#   - date: "YYYY-MM-DD"           # required, ISO 8601
+#     label: "short description"    # required
+#     state: "vehicle state"        # optional (e.g. "deep sleep", "ACC", "charging")
+#     notes: "..."                  # optional, session-level notes
+#     captures:
+#       - <capture entry>
+#
+# ─── Capture entry fields ────────────────────────────────────────────────
+#
+# Required fields (all capture types):
+#   ecu:     ECU short name (must exist in ecus.yaml)
+#   pid:     PID/DID string (e.g. "2101", "22BC03", "2FBC2D03", "22BC1D-BC41")
+#   notes:   Capture notes (string, may be empty "")
+#
+# Exactly one of these payload fields must be present:
+#   payload:       Raw hex response (standard read captures)
+#   response:      Text response — hex, NRC description, or prose (experiments/IOControl)
+#   scan_results:  Scan summary object (DID range scans)
+#
+# Optional fields:
+#   label:   Short description of what was tested (recommended for experiments/scans)
+#
+# ─── scan_results structure ──────────────────────────────────────────────
+#
+# scan_results:
+#   responding:                      # list of DIDs that responded
+#     - did: "BC21"                  # DID hex
+#       response: "7E00"             # raw response hex
+#       notes: "optional note"       # optional per-DID note
+#   rejected: "description"          # summary of non-responding DIDs (optional string)
+#   notes: "..."                     # optional scan-level notes
+#
+# ─── Deprecated fields (do NOT use in new captures) ─────────────────────
+#
+# ecu_tx, ecu_rx, ecu_name — replaced by ecu (short name from ecus.yaml)
