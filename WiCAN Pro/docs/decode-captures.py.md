@@ -1,6 +1,6 @@
 #### decode-captures.py
 
-Decodes captured UDS response payloads using the WiCAN expression evaluator (faithful Python port of `wican-fw/main/expression_parser.c`).
+Decodes captured UDS response payloads from `captures/` directory using the WiCAN expression evaluator (faithful Python port of `wican-fw/main/expression_parser.c`). Loads all `captures/*.yaml` files (skips `SCHEMA.yaml`), resolves ECU names to TX IDs via `ecus.yaml`.
 
 ```bash
 python3 decode-captures.py               # Decode all captures
