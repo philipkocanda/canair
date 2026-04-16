@@ -10,7 +10,7 @@ Read BMS SoC (and other ECU data) remotely while the car is fully asleep and unp
 |--------------|---------------|-------------------------|---------------------|------------------------|
 | IGPM (0x770) | Yes           | Yes (attempt 1)         | Alive               | Always on (body)       |
 | SKM (0x7A5)  | No            | **Yes (~2-17 attempts)**| Alive               | Body (partial standby) |
-| BCM (0x7A0)  | No            | Not tested              | **Alive**           | Body (ACC-switched)    |
+| BCM (0x7A0)  | No            | Not tested              | **Alive**           | Body (CAN bus wake)    |
 | CLU (0x7C6)  | No            | No (50 tries)           | Dead                | IGN-switched           |
 | BMS (0x7E4)  | No            | —                       | Dead                | Powertrain (ACC relay) |
 | VCU (0x7E2)  | No            | —                       | Dead                | Powertrain (ACC relay) |
@@ -61,25 +61,33 @@ ATST96          (restore normal timeout)
 - Doors re-lock when session drops
 - Infotainment may get stuck mid-boot if power is cut abruptly
 
-### Key Finding: BCM Wakes with SKM ACC+IGN1 (2026-04-15)
+### Key Finding: BCM Wakes from CAN Bus Activity Alone (2026-04-16)
 
-When SKM ACC+IGN1 IOControl is active, the BCM (0x7A0) becomes responsive. It reads TPMS data (`22C00B`) and charge port status (`22B00E`) without needing extended session. The BCM shares the body electronics power domain with the IGPM.
+The BCM (0x7A0) wakes from CAN bus activity without needing SKM ACC power. Simply waking the IGPM with `1001` generates enough CAN traffic to wake the BCM as a side effect. No SKM session, no ACC relay, no extended session needed.
+
+```bash
+# From deep sleep — no SKM involved:
+./can-request.py --multi "raw 770:1001" "raw 770:1001" "sleep 1" "raw 7A0:22C00B" --no-repl
+```
 
 ```
-# After SKM ACC+IGN1 active:
-ATSH7A0; ATFCSH7A0;
-22C00B → 62C00B... (full TPMS data — pressures, temps)
-22B00E → 62B00E... (charge port status)
+770:1001 → NO DATA     (wakes IGPM transceiver)
+770:1001 → 5001        (IGPM responsive)
+7A0:22C00B → 62C00B... (BCM responds — TPMS data)
 ```
+
+**Previous misconception:** Earlier tests always had SKM ACC active when querying BCM, so it appeared that ACC power was required. In reality, BCM has the same CAN-bus-wake capability as IGPM — its transceiver stays in standby and wakes on bus activity.
+
+**Practical implication:** BCM data (TPMS pressures, charge port status, preheat schedules) is accessible remotely without any relay activation — just wake IGPM and query BCM directly.
 
 ### Power Dependency Chain
 
 ```
-CAN bus rapid-fire (50x 1001 at 150ms intervals)
+CAN bus activity (any frame, e.g. 1001 to IGPM)
   └─ IGPM (0x770) ← always-on, wakes on first CAN frame
-  └─ SKM (0x7A5) ← wakes after ~2-17 sustained CAN frames
+  └─ BCM (0x7A0) ← wakes on CAN bus activity (no ACC needed)
+  └─ SKM (0x7A5) ← wakes after ~2-17 sustained rapid-fire CAN frames
        └─ ACC + IGN1 relays ← IOControl 2FB108/B109 (hold with TesterPresent)
-            └─ BCM (0x7A0) ← body electronics, TPMS, charge port
             └─ BMS (0x7E4), VCU, MCU, LDC, GW ← STILL DEAD (powertrain relay doesn't latch)
 
 NOT reachable without physical ACC/IGN:
