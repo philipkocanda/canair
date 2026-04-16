@@ -1424,9 +1424,12 @@ IDENTITY_DIDS: list[tuple[str, str, str]] = [
     ("F188", "ECU Part Number",         "ascii"),   # Supplier part number
     ("F18C", "ECU Serial / Cal ID",     "ascii"),   # Serial number / calibration ID
     ("F18B", "Manufacture Date",        "date"),    # BCD YYYYMMDD
+    ("F18D", "ECU Manufacturing Date",  "date"),    # BCD alt format
     ("F191", "HW Version Number",       "ascii"),   # Hardware version
     ("F100", "Boot SW ID",              "ascii"),   # Boot software version
     ("F101", "App SW ID",               "ascii"),   # Application software version
+    ("F110", "ECU Identification",      "ascii"),   # ECU name / description
+    ("F17E", "SW Install Date",         "date"),    # Software installation date
     ("F18A", "System Supplier ID",      "ascii"),   # Supplier name
     ("F192", "Supplier HW Number",      "ascii"),   # Supplier hardware part number
     ("F193", "Supplier HW Version",     "ascii"),   # Supplier hardware version
@@ -1434,8 +1437,9 @@ IDENTITY_DIDS: list[tuple[str, str, str]] = [
     ("F195", "Supplier SW Version",     "ascii"),   # Supplier software version
     ("F196", "Exhaust Regulation / SW", "ascii"),   # Exhaust reg info or extra SW
     ("F197", "System / Engine Name",    "ascii"),   # System or engine type name
+    ("F1A0", "Diagnostic Address",      "hex"),     # Diagnostic address info
     ("F1A2", "HW Version",              "ascii"),   # Extra HW version (Hyundai)
-    ("F1A4", "HW Part 2",               "ascii"),   # Extra HW version component
+    ("F1A4", "HW Part 2",              "ascii"),   # Extra HW version component
 ]
 
 
@@ -1444,6 +1448,8 @@ def _decode_identity_payload(payload_bytes: bytes, fmt: str) -> str:
     # Strip trailing padding (0xAA, 0x00, 0xFF)
     stripped = payload_bytes.rstrip(b"\xaa\x00\xff")
 
+    if not stripped:
+        return "(empty)"
     if fmt == "date" and len(stripped) >= 3:
         # BCD date: common formats are YYYYMMDD (4 bytes) or YYMMDD (3 bytes)
         hex_str = stripped.hex().upper()
@@ -1458,6 +1464,7 @@ def _decode_identity_payload(payload_bytes: bytes, fmt: str) -> str:
         printable = "".join(chr(b) if 32 <= b < 127 else "." for b in stripped)
         return printable if printable else stripped.hex().upper()
 
+    # hex or unknown
     return stripped.hex().upper()
 
 
