@@ -212,6 +212,42 @@ def decode_uds_response(data: bytes) -> str | None:
         addr_len = len(data) - 1
         return f"ReadMemoryByAddress: {addr_len} bytes returned"
 
+    if sid == 0x74 and len(data) >= 2:
+        fmt = data[1]
+        mem_len = (fmt >> 4) & 0xF
+        addr_len = fmt & 0xF
+        return f"WARNING: RequestDownload ACCEPTED — ECU ready to receive firmware (addrLen={addr_len}, memLen={mem_len})"
+
+    if sid == 0x75 and len(data) >= 2:
+        fmt = data[1]
+        mem_len = (fmt >> 4) & 0xF
+        addr_len = fmt & 0xF
+        return f"WARNING: RequestUpload ACCEPTED — ECU ready to send memory (addrLen={addr_len}, memLen={mem_len})"
+
+    if sid == 0x76 and len(data) >= 2:
+        seq = data[1]
+        payload_len = len(data) - 2
+        return f"WARNING: TransferData — block {seq}, {payload_len} bytes being transferred"
+
+    if sid == 0x77:
+        return "WARNING: TransferExit — firmware transfer completed"
+
+    if sid == 0x68 and len(data) >= 3:
+        did = (data[1] << 8) | data[2]
+        return (
+            f"WARNING: ControlDTCSetting — DID 0x{did:04X}, DTC logging may be altered"
+        )
+
+    if sid == 0x6C and len(data) >= 2:
+        sub = data[1]
+        sub_names = {
+            0x01: "enableRxAndTx",
+            0x02: "enableRxAndDisableTx",
+            0x03: "disableRxAndTx",
+        }
+        name = sub_names.get(sub, f"0x{sub:02X}")
+        return f"CommunicationControl: {name}"
+
     if sid == 0x7E:
         return "TesterPresent: acknowledged"
 
