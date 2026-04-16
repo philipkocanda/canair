@@ -126,7 +126,7 @@ class WiCANTerminal:
             if remaining <= 0:
                 break
             try:
-                msg = await asyncio.wait_for(self.ws.recv(), timeout=min(remaining, 0.5))
+                msg = await asyncio.wait_for(self.ws.recv(), timeout=min(remaining, 1.0))
             except asyncio.TimeoutError:
                 if got_prompt:
                     full = "".join(response_parts)
@@ -143,7 +143,15 @@ class WiCANTerminal:
                     else:
                         stripped_nfc = ""
                     if stripped_nfc and "\r" in text and "7F" not in text:
-                        break
+                        # Don't early-exit if the only content is a request echo
+                        # (a short hex string matching a UDS service byte 0x10-0x3E)
+                        echo_only = stripped_nfc.replace(" ", "")
+                        is_echo = (len(echo_only) <= 8 and
+                                   all(c in "0123456789ABCDEFabcdef" for c in echo_only) and
+                                   len(echo_only) >= 2 and
+                                   0x10 <= int(echo_only[:2], 16) <= 0x3E)
+                        if not is_echo:
+                            break
                 continue
             except websockets.exceptions.ConnectionClosed:
                 raise ConnectionError("WebSocket connection closed")
