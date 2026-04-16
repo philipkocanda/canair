@@ -272,19 +272,14 @@ class WiCANTerminal:
             tester_task is the background keepalive task (must be cancelled by caller).
         """
         if wake:
-            print(f"  Sending wake-up frame (10 01)...")
             wake_resp = await self.send_uds("1001", timeout=15.0)
-
             if wake_resp.get("ok"):
-                print(f"  ECU responded to wake-up.")
-            else:
-                print(f"  Wake-up sent (no response is normal for sleeping ECUs).")
+                print(f"  Wake-up: ECU responded.")
             await asyncio.sleep(0.5)
 
-        print(f"  Entering extended diagnostic session (10 03)...")
         resp = await self.send_uds("1003", timeout=5.0)
         if resp.get("ok"):
-            print(f"  Session established.")
+            pass  # silent success
         elif resp.get("nrc") is not None:
             nrc = resp["nrc"]
             desc = resp["nrc_desc"]
@@ -296,7 +291,7 @@ class WiCANTerminal:
             await asyncio.sleep(0.5)
             resp = await self.send_uds("1003", timeout=5.0)
             if resp.get("ok"):
-                print(f"  Session established (on retry).")
+                pass  # silent success on retry
             elif resp.get("nrc") is not None:
                 nrc = resp["nrc"]
                 desc = resp["nrc_desc"]
