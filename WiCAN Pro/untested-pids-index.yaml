@@ -640,6 +640,27 @@ read_pids:
   # Scan suggestion: --scan --tx 7C6 --service 22 --range B001-B010
 
   # ===========================================================================
+  # AVN — Head Unit / Audio-Video-Navigation (0x7C0) — UNVERIFIED
+  # ===========================================================================
+
+  - ecu:          AVN
+    tx_id:        "0x7C0"
+    pid:          "2101"
+    service:      "0x21"
+    status:       nrc
+    priority:     P2
+    prerequisite: acc
+    description:  "Head unit — no response during deep sleep (may be on separate M-CAN bus)"
+    what_to_test:
+      - "Probe 0x7C0 with ACC on — determine if ECU is on diagnostic CAN"
+      - "Also try 0x7C1 (secondary multimedia address)"
+      - "If reachable: scan 21 01-05, 22 B001-B010, 22 E001-E010"
+    sources:
+      - "Hyundai/Kia convention: 0x7C0 = AVN"
+      - "Ioniq 5 Gen5 head unit research in Obsidian vault"
+    notes: "Probed 2026-04-16 during deep sleep — NO DATA. Head unit likely on M-CAN bus (not reachable from OBD-II) or simply asleep."
+
+  # ===========================================================================
   # IGPM — Integrated Gateway / Power Module (0x770) — CONFIRMED RESPONDING
   # ===========================================================================
 
@@ -1844,6 +1865,8 @@ session_plan:
       - "MCU 0x7E3: re-decode 2101 (compare with Ioniq 5 22E001 signals)"
       - "HVAC 0x7B3: scan 220100-22010B"
       - "CLU 0x7C6: scan 22B001-B010"
+      - "AVN 0x7C0: probe 2101 + scan 22B001-B010 (NO DATA during deep sleep, retry with ACC)"
+      - "AVN 0x7C1: probe as secondary multimedia address"
       - "ESC 0x7D1: scan 22C101-C10F and 220101-010F"
       - "EPS 0x7D4: scan 220101-0105"
       - "0x730: test 22F010 (Ioniq 5 ESC address)"
