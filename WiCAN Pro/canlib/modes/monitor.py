@@ -221,11 +221,13 @@ def _prompt_and_save(
     hex_history: dict[tuple[str, str], list[tuple[str, str]]],
     prev_hex: dict[tuple[str, str], str],
     captures_dir: Path,
+    pids_data: dict | None = None,
 ) -> None:
     """Prompt for session metadata and write captures to YAML file.
 
     Collects label, state, and notes via stdin prompts, then appends a new
     session with all unique payloads to captures/YYYY-MM-DD.yaml.
+    If pids_data is provided, decoded parameter values are included per capture.
     """
     if not hex_history and not prev_hex:
         print("  No payloads captured — nothing to save.")
@@ -265,10 +267,26 @@ def _prompt_and_save(
         return
 
     # Build captures list, grouped by ECU then PID
+    # Optionally decode parameters from raw payloads
+    ecu_index = None
+    if pids_data:
+        from ..elm327 import elm_hex_to_wican_bytes
+        from ..expression import evaluate_expression
+        from ..pids import build_ecu_index
+
+        ecu_index = build_ecu_index(pids_data)
+
     captures = []
     for (ecu_label, pid), entries in sorted(merged.items()):
         # Extract ECU short name from "BCM (0x7A0)"
         ecu_name = re.match(r"(\w+)", ecu_label).group(1)
+
+        # Look up PID definition for decoding
+        pid_info = None
+        if ecu_index and ecu_name.upper() in ecu_index:
+            ecu_def = ecu_index[ecu_name.upper()]
+            pid_info = ecu_def.get("pids", {}).get(pid)
+
         for hex_val, ts in entries:
             capture: dict = {
                 "ecu": ecu_name,
@@ -277,6 +295,37 @@ def _prompt_and_save(
             }
             if ts:
                 capture["time"] = ts
+
+            # Decode parameters from payload
+            if pid_info and pid_info.get("parameters"):
+                try:
+                    wican_bytes = elm_hex_to_wican_bytes(hex_val)
+                    decoded = {}
+                    for pname, pdef in pid_info["parameters"].items():
+                        expr = pdef.get("expression", "")
+                        if not expr:
+                            continue
+                        try:
+                            value = evaluate_expression(expr, wican_bytes)
+                            value = round(value * 100) / 100
+                            unit = pdef.get("unit", "")
+                            display = pdef.get("display", "")
+                            if display:
+                                try:
+                                    v = value  # noqa: F841 — used by eval(display)
+                                    formatted = eval(display)
+                                    decoded[pname] = f"{value} {unit} ({formatted})".strip()
+                                except Exception:
+                                    decoded[pname] = f"{value} {unit}".strip()
+                            else:
+                                decoded[pname] = f"{value} {unit}".strip()
+                        except Exception:
+                            pass  # skip params that fail to decode
+                    if decoded:
+                        capture["decoded"] = decoded
+                except Exception:
+                    pass  # skip decoding on error
+
             captures.append(capture)
 
     # Build session entry
@@ -317,7 +366,9 @@ def _prompt_and_save(
     _Dumper.add_representer(str, _str_representer)
 
     with open(capture_file, "w") as f:
-        yaml.dump(data, f, Dumper=_Dumper, default_flow_style=False, sort_keys=False)
+        yaml.dump(
+            data, f, Dumper=_Dumper, default_flow_style=False, sort_keys=False, allow_unicode=True
+        )
 
     print(f"  → Saved {len(captures)} capture(s) to {capture_file.name}")
     print("    Run: python3 validate-captures.py  # to verify")
@@ -454,7 +505,7 @@ async def mode_monitor(
             print("\n  Monitoring stopped.")
             if save and hex_history is not None:
                 captures_dir = PIDS_DIR.parent / "captures"
-                _prompt_and_save(hex_history, prev_hex, captures_dir)
+                _prompt_and_save(hex_history, prev_hex, captures_dir, pids_data)
             return
 
         # If we got here, it was a ConnectionError

@@ -20,6 +20,7 @@
 #   notes:   Capture notes (string, may be empty "")
 #   label:   Short description of what was tested (recommended for experiments/scans)
 #   time:    Capture timestamp as HH:MM:SS (added by --save from monitor mode)
+#   decoded: Dict of decoded parameter values (added by --save, for correlation)
 #
 # ─── scan_results structure ──────────────────────────────────────────────
 #
