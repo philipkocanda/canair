@@ -17,3 +17,14 @@ Gateway:
           source_links: []
           verified: true
           notes: ""
+    2181:
+      period: 0
+      enabled: false
+      parameters:
+        GW_2181_UNKNOWN:
+          expression: ""
+          unit: ""
+          source: "DID scan 2026-04-17"
+          source_links: []
+          verified: false
+          notes: "27 bytes, similar structure to 2180. Payload: 6181FFFFC0000229000000000024757E4339494986130798980000"
