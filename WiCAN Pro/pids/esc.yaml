@@ -11,7 +11,6 @@ ESC:
           expression: "B12"
           unit: km/h
           ha_class: speed
-          mqtt_topic: real_speed_kmh
           min: "0"
           max: "200"
           source: "Kia Niro EV WiCAN PR#660"

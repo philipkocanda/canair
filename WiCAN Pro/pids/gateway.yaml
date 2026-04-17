@@ -11,7 +11,6 @@ Gateway:
           expression: "(B18-80)/2"
           unit: "°C"
           ha_class: temperature
-          mqtt_topic: ambient_temp
           min: "-40"
           max: "87"
           source: "Original WiCAN config"

@@ -11,7 +11,6 @@ MCU:
           expression: "((S7<<8)|B6)"
           unit: RPM
           ha_class: ""
-          mqtt_topic: mcu_motor_rpm
           min: ""
           max: ""
           source: "JejuSoul Torque Pro CSV + OVMS e-Niro"

@@ -11,7 +11,6 @@ HVAC:
           expression: "(B11/2)-40"
           unit: "°C"
           ha_class: temperature
-          mqtt_topic: hvac_iat
           min: "-40"
           max: "87"
           source: "Original WiCAN config"
@@ -23,7 +22,6 @@ HVAC:
           expression: "(B12/2)-40"
           unit: "°C"
           ha_class: temperature
-          mqtt_topic: hvac_aat
           min: "-40"
           max: "87"
           source: "Original WiCAN config"
@@ -35,7 +33,6 @@ HVAC:
           expression: "(B13/2)-40"
           unit: "°C"
           ha_class: temperature
-          mqtt_topic: hvac_evaporator_temp
           min: "-40"
           max: "87"
           source: "Original WiCAN config"
@@ -47,7 +44,6 @@ HVAC:
           expression: "B9/255*100"
           unit: "%"
           ha_class: humidity
-          mqtt_topic: hvac_humidity
           min: "0"
           max: "100"
           source: "Original WiCAN config"
@@ -59,7 +55,6 @@ HVAC:
           expression: "B34/255*100"
           unit: "%"
           ha_class: humidity
-          mqtt_topic: hvac_humidity_ioniq5
           min: "0"
           max: "100"
           source: "Original WiCAN config"
@@ -71,7 +66,6 @@ HVAC:
           expression: "(B15/2)-40"
           unit: "°C"
           ha_class: temperature
-          mqtt_topic: hvac_inverter_temp
           min: "-40"
           max: "87"
           source: "ImHex pattern (@ 0x0C)"

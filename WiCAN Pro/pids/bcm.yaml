@@ -13,7 +13,6 @@ BCM:
           expression: "B10/72.52"
           unit: bar
           ha_class: pressure
-          mqtt_topic: tyre_pressure_fl
           min: "0"
           max: "5"
           source: "Original WiCAN config + Ioniq forum"
@@ -26,7 +25,6 @@ BCM:
           expression: "B14/72.52"
           unit: bar
           ha_class: pressure
-          mqtt_topic: tyre_pressure_fr
           min: "0"
           max: "5"
           source: "Original WiCAN config"
@@ -38,7 +36,6 @@ BCM:
           expression: "B19/72.52"
           unit: bar
           ha_class: pressure
-          mqtt_topic: tyre_pressure_rl
           min: "0"
           max: "5"
           source: "Original WiCAN config"
@@ -50,7 +47,6 @@ BCM:
           expression: "B23/72.52"
           unit: bar
           ha_class: pressure
-          mqtt_topic: tyre_pressure_rr
           min: "0"
           max: "5"
           source: "Original WiCAN config"
@@ -62,7 +58,6 @@ BCM:
           expression: "B11-50"
           unit: "°C"
           ha_class: temperature
-          mqtt_topic: tyre_temp_fl
           min: "-50"
           max: "100"
           source: "Kia Niro EV WiCAN PR#716"
@@ -75,7 +70,6 @@ BCM:
           expression: "B15-50"
           unit: "°C"
           ha_class: temperature
-          mqtt_topic: tyre_temp_fr
           min: "-50"
           max: "100"
           source: "Kia Niro EV WiCAN PR#716"
@@ -88,7 +82,6 @@ BCM:
           expression: "B20-50"
           unit: "°C"
           ha_class: temperature
-          mqtt_topic: tyre_temp_rl
           min: "-50"
           max: "100"
           source: "Kia Niro EV WiCAN PR#716"
@@ -101,7 +94,6 @@ BCM:
           expression: "B25-50"
           unit: "°C"
           ha_class: temperature
-          mqtt_topic: tyre_temp_rr
           min: "-50"
           max: "100"
           source: "Kia Niro EV WiCAN PR#716"
@@ -125,7 +117,6 @@ BCM:
           expression: "B10:5"
           unit: ""
           ha_class: opening
-          mqtt_topic: charge_port_open
           min: ""
           max: ""
           source: "Kia Niro EV WiCAN PR#716"
@@ -173,7 +164,6 @@ BCM:
           unit: "min"
           display: "f'{int(v)//60:02d}:{int(v)%60:02d}'"
           ha_class: ""
-          mqtt_topic: preheat_departure_time
           min: "0"
           max: "1439"
           source: "Reverse engineered — 0x01E0 = 480 = 08:00"
@@ -224,7 +214,6 @@ BCM:
           unit: ""
           display: "f'{int(v):07b}'"
           ha_class: ""
-          mqtt_topic: preheat_schedule_days
           min: "0"
           max: "127"
           source: "Reverse engineered — 0x3F = 6 days set"
@@ -260,7 +249,6 @@ BCM:
           unit: "V"
           display: ""
           ha_class: voltage
-          mqtt_topic: bcm_12v_battery
           min: "0"
           max: "20"
           source: "Reverse engineered from monitor drift analysis"
@@ -275,7 +263,6 @@ BCM:
           unit: ""
           display: ""
           ha_class: ""
-          mqtt_topic: bcm_power_mode
           min: "0"
           max: "255"
           source: "Reverse engineered from cross-state comparison"

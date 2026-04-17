@@ -10,11 +10,7 @@ IGPM:
       parameters:
         DOOR_DRV_OPEN:
           expression: "B10:5"
-          unit: ""
           ha_class: door
-          mqtt_topic: door_drv_open
-          min: ""
-          max: ""
           source: "Kia Niro EV WiCAN PR#716"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
@@ -23,11 +19,7 @@ IGPM:
 
         DOOR_PAS_OPEN:
           expression: "B10:4"
-          unit: ""
           ha_class: door
-          mqtt_topic: door_pas_open
-          min: ""
-          max: ""
           source: "Kia Niro EV WiCAN PR#716"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
@@ -36,11 +28,7 @@ IGPM:
 
         DOOR_RL_OPEN:
           expression: "B10:0"
-          unit: ""
           ha_class: door
-          mqtt_topic: door_rl_open
-          min: ""
-          max: ""
           source: "Kia Niro EV WiCAN PR#716"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
@@ -49,11 +37,7 @@ IGPM:
 
         DOOR_RR_OPEN:
           expression: "B10:2"
-          unit: ""
           ha_class: door
-          mqtt_topic: door_rr_open
-          min: ""
-          max: ""
           source: "Kia Niro EV WiCAN PR#716"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
@@ -62,11 +46,7 @@ IGPM:
 
         TRUNK_OPEN:
           expression: "B10:7"
-          unit: ""
           ha_class: door
-          mqtt_topic: trunk_open
-          min: ""
-          max: ""
           source: "Kia Niro EV WiCAN PR#716"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
@@ -75,11 +55,7 @@ IGPM:
 
         DRL:
           expression: "B12:2"
-          unit: ""
           ha_class: light
-          mqtt_topic: drl
-          min: ""
-          max: ""
           source: "Decoded from live captures (2026-04-15)"
           source_links: []
           verified: true
@@ -87,11 +63,7 @@ IGPM:
 
         TAIL_LIGHTS:
           expression: "B12:3"
-          unit: ""
           ha_class: light
-          mqtt_topic: tail_lights
-          min: ""
-          max: ""
           source: "Decoded from live captures (2026-04-15)"
           source_links: []
           verified: true
@@ -99,11 +71,7 @@ IGPM:
 
         HIGH_BEAM:
           expression: "B12:4"
-          unit: ""
           ha_class: light
-          mqtt_topic: high_beam
-          min: ""
-          max: ""
           source: "Decoded from live captures (2026-04-15)"
           source_links: []
           verified: true
@@ -111,11 +79,7 @@ IGPM:
 
         LOW_BEAM:
           expression: "B12:5"
-          unit: ""
           ha_class: light
-          mqtt_topic: low_beam
-          min: ""
-          max: ""
           source: "Decoded from live captures (2026-04-15)"
           source_links: []
           verified: true
@@ -123,11 +87,7 @@ IGPM:
 
         IGNITION_ON:
           expression: "B11:5"
-          unit: ""
           ha_class: power
-          mqtt_topic: ignition_on
-          min: ""
-          max: ""
           source: "Kia Niro EV WiCAN PR#716"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
@@ -136,10 +96,8 @@ IGPM:
 
         POWER_MODE:
           expression: "B09"
-          unit: ""
           display: "f'0x{int(v):02X} {int(v):08b}'"
           ha_class: ""
-          mqtt_topic: power_mode
           min: "0"
           max: "255"
           source: "Reverse engineered from cross-state comparison"
@@ -155,11 +113,7 @@ IGPM:
 
         SEATBELT_FL:
           expression: "B11:1"
-          unit: ""
           ha_class: ""
-          mqtt_topic: seatbelt_fl
-          min: ""
-          max: ""
           source: "Kia Niro EV WiCAN PR#716"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
@@ -168,11 +122,7 @@ IGPM:
 
         SEATBELT_FR:
           expression: "B11:2"
-          unit: ""
           ha_class: ""
-          mqtt_topic: seatbelt_fr
-          min: ""
-          max: ""
           source: "Kia Niro EV WiCAN PR#716"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
@@ -181,11 +131,7 @@ IGPM:
 
         DOOR_LOCK_RL:
           expression: "B10:1"
-          unit: ""
           ha_class: lock
-          mqtt_topic: door_lock_rl
-          min: ""
-          max: ""
           source: "Kia Niro EV WiCAN PR#716"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
@@ -194,11 +140,7 @@ IGPM:
 
         DOOR_LOCK_RR:
           expression: "B10:3"
-          unit: ""
           ha_class: lock
-          mqtt_topic: door_lock_rr
-          min: ""
-          max: ""
           source: "Kia Niro EV WiCAN PR#716"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
@@ -211,11 +153,7 @@ IGPM:
       parameters:
         DOOR_LOCK_FL:
           expression: "B10:3"
-          unit: ""
           ha_class: lock
-          mqtt_topic: door_lock_fl
-          min: ""
-          max: ""
           source: "Kia Niro EV WiCAN PR#716"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
@@ -224,11 +162,7 @@ IGPM:
 
         DOOR_LOCK_FR:
           expression: "B10:2"
-          unit: ""
           ha_class: lock
-          mqtt_topic: door_lock_fr
-          min: ""
-          max: ""
           source: "Kia Niro EV WiCAN PR#716"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
@@ -241,9 +175,7 @@ IGPM:
       parameters:
         BRAKE_LIGHT:
           expression: "B10"
-          unit: ""
           ha_class: ""
-          mqtt_topic: brake_light
           min: "0"
           max: "255"
           source: "Decoded from live captures (2026-04-15)"
@@ -253,11 +185,7 @@ IGPM:
 
         LEFT_TURN_SIGNAL:
           expression: "B10:0"
-          unit: ""
           ha_class: ""
-          mqtt_topic: left_turn_signal
-          min: ""
-          max: ""
           source: "Decoded from live captures (2026-04-15)"
           source_links: []
           verified: true
@@ -265,11 +193,7 @@ IGPM:
 
         RIGHT_TURN_SIGNAL:
           expression: "B10:1"
-          unit: ""
           ha_class: ""
-          mqtt_topic: right_turn_signal
-          min: ""
-          max: ""
           source: "Decoded from live captures (2026-04-15)"
           source_links: []
           verified: true
