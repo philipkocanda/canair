@@ -172,7 +172,25 @@ BCM:
       period: 10000
       enabled: false
       parameters:
-         BCM_POWER_MODE:
+        BCM_12V_BATTERY:
+          expression: "B10*0.08"
+          unit: "V"
+          display: ""
+          ha_class: voltage
+          mqtt_topic: bcm_12v_battery
+          min: "0"
+          max: "20"
+          source: "Reverse engineered from monitor drift analysis"
+          source_links: []
+          verified: false
+          notes: >
+            12V battery voltage measured by BCM. WiCAN B10 (ELM payload index 7) is the
+            fastest-drifting byte in 22B003 during deep sleep — decrements ~2 LSB/min under
+            parasitic load. Formula v*0.08 estimated: value 149 → 11.92V, consistent with
+            a low 12V battery at rest. Needs cross-reference with LDC_OUTPUT_V to confirm
+            exact scale factor. Other bytes in B003 (B09, B11-B15, B17) also drift but
+            slower — may be additional measurement points (fuse box, BCM rail, etc.).
+        BCM_POWER_MODE:
           expression: "B12"
           unit: ""
           display: ""
@@ -184,9 +202,8 @@ BCM:
           source_links: []
           verified: false
           notes: >
-            Raw power mode byte (stripped byte 6, WiCAN B12). Known values from captures:
-            0x09 = ACC or sleep (ambiguous — seen in both states), 0x0A = ACC+IGN1,
-            0xF5 = OFF/sleep (one capture). NOT reliable for ACC detection — 0x09 appears
-            during deep sleep too. Needs more at-car captures to fully decode. Requires
-            wake frame (1001) + extended session (1003) during deep sleep. Disabled until
-            values are better understood.
+            WiCAN B12 (ELM payload index 9). Shows ADC-like values (~245-248) during deep
+            sleep, oscillating ±1 LSB (typical ADC noise). Earlier captures showed 0x09 and
+            0x0A — possibly from a different vehicle state (ACC/IGN on) or a pre-PCI-fix
+            byte offset error. Disabled until values are better understood with at-car
+            captures across multiple vehicle states.
