@@ -15,6 +15,34 @@ def _bytes_to_ascii(raw_hex: str) -> str:
     return "".join(chr(b) if 32 <= b < 127 else "." for b in data)
 
 
+def _build_byte_colors(params: list, n_bytes: int) -> list[str]:
+    """Return a per-ELM-byte colour list based on parameter coverage and verification.
+
+    Priority: green (covered by verified param) > yellow (covered by unverified) >
+              bright_black (not covered by any expression).
+
+    Args:
+        params:   list of (name, value, unit, expression, error, verified[, display])
+        n_bytes:  number of ELM payload bytes
+    Returns:
+        list of Rich colour strings, one per byte index.
+    """
+    # 0 = uncovered, 1 = unverified, 2 = verified
+    rank = [0] * n_bytes
+    for row in params:
+        expression, perr, verified = row[3], row[4], row[5]
+        if perr or not expression:
+            continue
+        level = 2 if verified else 1
+        for wi in extract_byte_indices(expression):
+            ei = wican_to_elm_idx(wi, n_bytes)
+            if ei is not None and 0 <= ei < n_bytes:
+                if level > rank[ei]:
+                    rank[ei] = level
+    color_map = {0: "bright_black", 1: "yellow", 2: "green"}
+    return [color_map[r] for r in rank]
+
+
 def format_value(value: float, unit: str, display: str = "") -> str:
     """Format a decoded value with unit and optional display expression.
 
@@ -157,25 +185,12 @@ def print_ecu_results(
                     f"      [bright_black]{spaced}  {ascii_repr}  ({n_bytes} B)[/bright_black]"
                 )
             else:
-                # Mapped: find which ELM payload bytes are covered by expressions
-                covered_elm = set()
-                for row in params:
-                    expression, perr = row[3], row[4]
-                    if perr or not expression:
-                        continue
-                    wican_indices = extract_byte_indices(expression)
-                    for wi in wican_indices:
-                        ei = wican_to_elm_idx(wi, n_bytes)
-                        if ei is not None and 0 <= ei < n_bytes:
-                            covered_elm.add(ei)
-
-                # Build hex: covered bytes in white, uncovered in dark grey
-                hex_parts = []
-                for i, hb in enumerate(elm_bytes):
-                    if i in covered_elm:
-                        hex_parts.append(f"[white]{hb}[/white]")
-                    else:
-                        hex_parts.append(f"[bright_black]{hb}[/bright_black]")
+                # Build per-byte colour: green (verified) > yellow (unverified) > bright_black
+                byte_color = _build_byte_colors(params, n_bytes)
+                hex_parts = [
+                    f"[{byte_color[i]}]{hb}[/{byte_color[i]}]"
+                    for i, hb in enumerate(elm_bytes)
+                ]
                 c.print(
                     f"      {' '.join(hex_parts)}  [bright_black]({n_bytes} B)[/bright_black]"
                 )
