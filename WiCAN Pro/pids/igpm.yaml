@@ -237,17 +237,3 @@ IGPM:
         NRC 0x31 (requestOutOfRange). DID does not exist on Ioniq 2017 IGPM.
         Tested 2026-04-14.
       parameters: {}
-
-    22BC09:
-      ignored: true
-      notes: >
-        NRC 0x31 (requestOutOfRange). DID does not exist on Ioniq 2017 IGPM.
-        Tested 2026-04-14.
-      parameters: {}
-
-    22BC0A:
-      ignored: true
-      notes: >
-        NRC 0x31 (requestOutOfRange). DID does not exist on Ioniq 2017 IGPM.
-        Tested 2026-04-14.
-      parameters: {}
