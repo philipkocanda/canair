@@ -1,0 +1,47 @@
+
+# ─── MFC (Multi-Function Camera / ADAS) ───────────────────────────────
+MFC:
+  tx_id: 0x7C4
+  pids:
+    220100:
+      period: 2500
+      enabled: false
+      parameters:
+        MFC_0100_UNKNOWN:
+          expression: ""
+          unit: ""
+          ha_class: ""
+          min: ""
+          max: ""
+          source: "DID scan 2026-04-17"
+          source_links: []
+          verified: false
+          notes: "13 bytes: 620100000102FB010008AAAAAA. ADAS camera status — lane detection, speed sign recognition."
+    220101:
+      period: 2500
+      enabled: false
+      parameters:
+        MFC_0101_UNKNOWN:
+          expression: ""
+          unit: ""
+          ha_class: ""
+          min: ""
+          max: ""
+          source: "DID scan 2026-04-17"
+          source_links: []
+          verified: false
+          notes: "4 bytes: 620101FE. Single status byte (0xFE)."
+    220102:
+      period: 2500
+      enabled: false
+      parameters:
+        MFC_0102_UNKNOWN:
+          expression: ""
+          unit: ""
+          ha_class: ""
+          min: ""
+          max: ""
+          source: "DID scan 2026-04-17"
+          source_links: []
+          verified: false
+          notes: "7 bytes: 620102FB010008. Overlaps with 0100 payload — possibly subset or alternate view."
