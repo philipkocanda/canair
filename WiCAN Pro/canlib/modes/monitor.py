@@ -39,10 +39,13 @@ _HIGHLIGHT_STYLE = {
 }
 
 
-def _render_hex_line(raw_hex: str, params: list, unmapped: bool, *, prev_raw: str = "") -> Text:
+def _render_hex_line(
+    raw_hex: str, params: list, unmapped: bool, *, prev_raw: str = "", dim: bool = False
+) -> Text:
     """Render a hex line with per-byte change highlighting.
 
     Changed bytes get a background color adapted from their base color.
+    If dim=True, render the entire line in bright_black (for history rows).
     """
     elm_bytes = [raw_hex[i : i + 2] for i in range(0, len(raw_hex), 2)]
     prev_bytes = [prev_raw[i : i + 2] for i in range(0, len(prev_raw), 2)] if prev_raw else []
@@ -50,7 +53,14 @@ def _render_hex_line(raw_hex: str, params: list, unmapped: bool, *, prev_raw: st
     t = Text()
     t.append("      ")
 
-    if unmapped or not params:
+    if dim:
+        # History row — all bytes in bright_black
+        for i, hb in enumerate(elm_bytes):
+            if i > 0:
+                t.append(" ")
+            t.append(hb, style="bright_black")
+        t.append(f"  ({n_bytes} B)", style="bright_black")
+    elif unmapped or not params:
         for i, hb in enumerate(elm_bytes):
             if i > 0:
                 t.append(" ")
@@ -81,6 +91,7 @@ def _render_results(
     elapsed: float,
     interval: float,
     prev_hex: dict[tuple[str, str], str] | None = None,
+    hex_history: dict[tuple[str, str], list[str]] | None = None,
 ) -> Text:
     """Render all ECU query results as a Rich Text object for Live display."""
     text = Text()
@@ -119,6 +130,13 @@ def _render_results(
                 text.append(" ●", style="bright_green")
             if unmapped:
                 text.append(" (unmapped)", style="dim")
+            # Show unique count when keeping history
+            if hex_history and hex_key in hex_history:
+                n_unique = len(hex_history[hex_key])
+                if raw_hex and raw_hex not in hex_history[hex_key]:
+                    n_unique += 1  # current not yet added
+                if n_unique > 1:
+                    text.append(f"  ({n_unique} unique)", style="dim")
             if error:
                 text.append(f"  {error}\n", style="red")
                 continue
@@ -160,6 +178,12 @@ def _render_results(
                 prev_raw = prev_hex.get(hex_key, "") if prev_hex and cycle > 1 else ""
                 text.append_text(_render_hex_line(raw_hex, params, unmapped, prev_raw=prev_raw))
 
+                # Show history (older unique payloads, newest first, dimmed)
+                if hex_history and hex_key in hex_history:
+                    for hist_hex in reversed(hex_history[hex_key]):
+                        if hist_hex != raw_hex:
+                            text.append_text(_render_hex_line(hist_hex, params, unmapped, dim=True))
+
     text.append("\n  Press Ctrl+C to stop monitoring\n", style="dim")
     return text
 
@@ -171,6 +195,7 @@ async def mode_monitor(
     verbose: bool,
     interval: float = 5.0,
     session_steps: list[dict] | None = None,
+    keep: bool = False,
 ):
     """Live-refresh ECU parameter monitor.
 
@@ -211,6 +236,7 @@ async def mode_monitor(
         cycle = 0
         last_queries: list[tuple[str, list]] = []
         prev_hex: dict[tuple[str, str], str] = {}
+        hex_history: dict[tuple[str, str], list[str]] = {} if keep else None
 
         with Live(
             _render_results([], verbose, 0, 0.0, interval),
@@ -240,15 +266,20 @@ async def mode_monitor(
                 last_queries = new_queries
                 elapsed = time.monotonic() - t0
                 live.update(
-                    _render_results(last_queries, verbose, cycle, elapsed, interval, prev_hex)
+                    _render_results(
+                        last_queries, verbose, cycle, elapsed, interval, prev_hex, hex_history
+                    )
                 )
 
-                # Update prev_hex for next cycle
+                # Update prev_hex (and history) for next cycle
                 for ecu_label, pid_results in new_queries:
                     for entry in pid_results:
                         raw = entry.get("raw_hex", "")
                         if raw:
-                            prev_hex[(ecu_label, entry["pid"])] = raw
+                            key = (ecu_label, entry["pid"])
+                            prev_hex[key] = raw
+                            if hex_history is not None and raw not in hex_history.get(key, []):
+                                hex_history.setdefault(key, []).append(raw)
 
                 remaining = interval - elapsed
                 if remaining > 0:

@@ -146,6 +146,7 @@ async def async_main(args):
                 args.verbose,
                 interval=args.monitor,
                 session_steps=session_steps,
+                keep=args.keep,
             )
         elif args.multi:
             await mode_multi(terminal, args.multi, pids_data, args.verbose, no_repl=not args.repl)
@@ -403,6 +404,13 @@ Examples:
         "all 'query' steps and refresh the display in-place (live monitor). "
         "Non-query steps (session, skm-wake, sleep) run once as setup. "
         "Optional poll interval in seconds (default: 5.0).",
+    )
+    parser.add_argument(
+        "--keep",
+        action="store_true",
+        help="For --monitor: retain all unique payloads per PID and display "
+        "them chronologically below the current value. Useful for observing "
+        "slow-changing values over time.",
     )
 
     # SKM wakeup options

@@ -291,7 +291,7 @@ sessions:
         payload: "62F1A2363230"
         notes: "6 bytes. ASCII '620' — hardware version component."
 
-  - session: bcm-can-bus-wake-test
+  - label: "BCM CAN bus wake test — no ACC needed"
     date: "2026-04-16"
     state: "deep sleep, unplugged, no SKM ACC, no extended session"
     notes: >
@@ -314,7 +314,7 @@ sessions:
         payload: "62C00BFFFF0000C9450200CB430100CF440100CB440100AAAAAAAA"
         notes: "TPMS data. BCM woke from CAN bus activity without ACC power."
 
-  - session: skm-wake-mechanism-retest
+  - label: "SKM wake mechanism retest — sleep timer discovery"
     date: "2026-04-16"
     state: "deep sleep, unplugged, fob inside house"
     notes: >
