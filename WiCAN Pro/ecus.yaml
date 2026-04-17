@@ -75,8 +75,8 @@ ecus:
     boot_sw: "060"
     id_protocol: UDS  # F1xx
   0x725:
-    name: SAS
-    description: Steering Angle Sensor
+    name: WPC
+    description: Wireless Phone Charging unit
     part_number: "95560G7000"
     hw_version: "100"
     sw_version: "102"
@@ -140,8 +140,8 @@ ecus:
     fw_version: "1.03"
     id_protocol: UDS  # F1xx
   0x7B6:
-    name: PTC
-    description: PTC Heater (Kostal)
+    name: GSA
+    description: Gear Shift Assembly (gear selector module)
     part_number: "46700-G7100"
     mfg_date: "2016-05-26"
     supplier: "KCI_KOSTAL"

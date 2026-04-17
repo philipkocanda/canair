@@ -1,0 +1,29 @@
+
+# ─── WPC (Wireless Phone Charging unit) ────────────────────────────────────────
+WPC:
+  tx_id: 0x725
+  pids:
+    220100:
+      period: 5000
+      enabled: false
+      parameters:
+        WPC_0100_B03_B04:
+          expression: "[S03:S04]"
+          unit: ""
+          ha_class: ""
+          min: ""
+          max: ""
+          source: "DID scan 2026-04-17"
+          source_links: []
+          verified: false
+          notes: "Signed 16-bit at B03-B04. Was initially guessed as steering angle — re-examine with phone on/off pad."
+        WPC_0100_B05_B06:
+          expression: "[S05:S06]"
+          unit: ""
+          ha_class: ""
+          min: ""
+          max: ""
+          source: "DID scan 2026-04-17"
+          source_links: []
+          verified: false
+          notes: "Signed 16-bit at B05-B06. Was initially guessed as steering rate — re-examine with phone on/off pad."
