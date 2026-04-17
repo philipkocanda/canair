@@ -198,6 +198,7 @@ ecus:
     mfg_date: "2017-06-01"
     firmware: "MDPS C 1.00/1.03"
     id_protocol: UDS  # F1xx
+    notes: Steering column
   0x7D5:
     name: Unknown-7D5
     description: Unknown ECU
