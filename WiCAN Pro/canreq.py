@@ -17,7 +17,7 @@ Modes:
     Scan PIDs       python3 canreq.py --scan --tx 7E4 --service 21 --range 01-FF
     Scan IOControl  python3 canreq.py --scan --tx 7E4 --service 2F --range E000-E0FF --append 03 --session
     Multi-ECU       python3 canreq.py --multi "skm-wake acc" "query IGPM BC03 BC06"
-    Monitor         python3 canreq.py --multi "query BMS 2101" --monitor [--interval 2]
+    Monitor         python3 canreq.py --multi "query BMS 2101" --monitor [INTERVAL]
     SKM wakeup      python3 canreq.py --skm-wakeup [--level acc|ign1|ign2]
     TesterPresent   python3 canreq.py --tester-present [--target 7A5]
 
@@ -152,7 +152,7 @@ async def async_main(args):
                 query_steps,
                 pids_data,
                 args.verbose,
-                interval=args.poll_interval,
+                interval=args.monitor,
                 session_steps=session_steps,
             )
         elif args.multi:
@@ -305,7 +305,7 @@ Examples:
                                             Pipeline with explicit sleep and REPL
   %(prog)s --multi "query BMS 2101" --monitor
                                             Live monitor: refresh BMS 2101 every 5s
-  %(prog)s --multi "session IGPM --wake" "query IGPM BC03 BC06" --monitor --poll-interval 2
+  %(prog)s --multi "session IGPM --wake" "query IGPM BC03 BC06" --monitor 2
                                             Wake IGPM, then poll BC03+BC06 every 2s
 """,
     )
@@ -413,20 +413,18 @@ Examples:
         action="store_true",
         help="For --multi: drop into REPL after pipeline completes",
     )
-    parser.add_argument(
-        "--monitor",
-        action="store_true",
-        help="For --multi: instead of running the pipeline once, repeatedly poll "
-        "all 'query' steps and refresh the display in-place (live monitor). "
-        "Non-query steps (session, skm-wake, sleep) run once as setup.",
-    )
-    parser.add_argument(
-        "--poll-interval",
-        type=float,
-        default=5.0,
-        dest="poll_interval",
-        help="Poll interval in seconds for --monitor (default: 5.0)",
-    )
+     parser.add_argument(
+         "--monitor",
+         nargs="?",
+         const=5.0,
+         default=None,
+         type=float,
+         metavar="INTERVAL",
+         help="For --multi: instead of running the pipeline once, repeatedly poll "
+         "all 'query' steps and refresh the display in-place (live monitor). "
+         "Non-query steps (session, skm-wake, sleep) run once as setup. "
+         "Optional poll interval in seconds (default: 5.0).",
+     )
 
     # SKM wakeup options
     parser.add_argument(

@@ -6,7 +6,7 @@ parameter values (SOC, temps, voltages, etc.).
 
 Usage (via --multi --monitor):
     canreq --multi "session BCM --wake" "query BCM C00B B00E" --monitor
-    canreq --multi "query BMS 2101" --monitor --poll-interval 2.0
+    canreq --multi "query BMS 2101" --monitor 2.0
     canreq --multi "session IGPM --wake" "query IGPM BC03 BC06" --monitor
 
 The --monitor flag applies to the last 'query' step in the pipeline. If
