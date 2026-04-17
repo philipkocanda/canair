@@ -80,6 +80,53 @@ def parse_range(range_str: str) -> tuple[int, int]:
     return int(match.group(1), 16), int(match.group(2), 16)
 
 
+def _print_sleep_banner(host: str, timeout: int = 5) -> None:
+    """Fetch WiCAN sleep status and battery voltage, print a status line.
+
+    Shows a red warning banner if sleep is enabled and battery is close to
+    the sleep threshold voltage.
+    """
+    try:
+        from wican import get_config, get_status
+
+        base_url = f"http://{host}"
+        status = get_status(base_url, timeout)
+        config = get_config(base_url, timeout)
+    except Exception:
+        return  # silently skip if REST API unreachable
+
+    batt = status.get("batt_voltage", "?")  # already includes 'V' suffix e.g. '12.1V'
+    sleep_on = config.get("sleep_status", "disable") == "enable"
+    sleep_volt = config.get("sleep_volt", "?")  # numeric string e.g. '12'
+
+    # Parse numeric values for comparison
+    try:
+        batt_f = float(str(batt).rstrip("V"))
+        thresh_f = float(sleep_volt)
+        margin = batt_f - thresh_f
+    except (ValueError, TypeError):
+        batt_f = None
+        thresh_f = None
+        margin = None
+
+    from rich.console import Console
+
+    console = Console()
+
+    if sleep_on:
+        sleep_str = f"[red]ON[/red]  threshold {sleep_volt}V"
+        if margin is not None and margin < 0.5:
+            console.print(
+                f"  [bold red]⚠ Sleep: ON  |  Battery: {batt}  |  Threshold: {sleep_volt}V"
+                f"  — {margin:.2f}V above cutoff — may shut down soon![/bold red]"
+            )
+            return
+    else:
+        sleep_str = "[green]OFF[/green]"
+
+    console.print(f"  Sleep: {sleep_str}  |  Battery: {batt}")
+
+
 async def async_main(args):
     """Main async entry point."""
     host = args.wican
@@ -121,6 +168,7 @@ async def async_main(args):
             print(f"  ELM327 timeout: {atst_cmd} ({actual_ms:.0f}ms)")
 
         print("Ready.")
+        _print_sleep_banner(host)
 
         if args.wake:
             args.session = True
