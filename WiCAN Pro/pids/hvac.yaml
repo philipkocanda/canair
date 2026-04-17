@@ -224,13 +224,102 @@ HVAC:
             0x1D=29 when off. Correlates with compressor/PTC heater load.
 
     2201A0:
-      enabled: false
-      notes: "62 bytes. Lots of non-FF data — likely operational stats or config."
-      parameters: {}
+      enabled: true
+      notes: >
+        62 bytes. Primary HVAC control/status DID. Contains set temperature,
+        HVAC on/off flags, heating mode, and defrost flags. Also contains
+        actuator target values (ELM[3-9]) that track requested heat output,
+        and mirrored values at ELM[43-45]. ELM[24]=0x28 is a constant (not
+        set temp). Fan speed byte and HVAC mode selector not yet identified.
+      parameters:
+        HVAC_SET_TEMP_DRIVER:
+          expression: "B44"
+          unit: "°C"
+          display: "f'{v} °C'"
+          min: "15"
+          max: "32"
+          source: "Monitor session 2026-04-17"
+          verified: true
+          notes: >
+            Set temperature (driver side). Direct °C value: 0x14=20°C,
+            0x1E=30°C, 0x0F=15°C — all match user input exactly.
+
+        HVAC_SET_TEMP_PASSENGER:
+          expression: "B45"
+          unit: "°C"
+          display: "f'{v} °C'"
+          min: "15"
+          max: "32"
+          source: "Monitor session 2026-04-17"
+          verified: true
+          notes: >
+            Set temperature (passenger side or redundancy). Always matches
+            B44 in single-zone Ioniq. Dual-zone mirror.
+
+        HVAC_ON_FLAG:
+          expression: "B23"
+          unit: ""
+          display: "f'{'ON' if v else 'OFF'}'"
+          min: "0"
+          max: "1"
+          source: "Monitor session 2026-04-17"
+          verified: true
+          notes: >
+            HVAC system running flag. 1 when HVAC is on, 0 when off.
+
+        HVAC_STARTUP_FLAG:
+          expression: "B22"
+          unit: ""
+          min: "0"
+          max: "1"
+          source: "Monitor session 2026-04-17"
+          verified: false
+          notes: >
+            Transient flag: briefly 1 at HVAC turn-on, then returns to 0.
+            Possibly a startup/initialization signal.
+
+        HVAC_COOLING_MODE:
+          expression: "B25"
+          unit: ""
+          min: "0"
+          max: "1"
+          source: "Monitor session 2026-04-17"
+          verified: false
+          notes: >
+            Mode flag: 1 during normal/cooling operation, 0 during PTC
+            heater mode. May indicate A/C compressor vs resistive heating.
+
+        HVAC_PTC_HEATER_FLAG:
+          expression: "B06"
+          unit: ""
+          min: "0"
+          max: "2"
+          source: "Monitor session 2026-04-17"
+          verified: false
+          notes: >
+            0x00 normal, 0x02 during PTC heater activation. Correlates
+            with high heat output values in ELM[3,5-8].
+
+        HVAC_DEFROST_FLAGS:
+          expression: "(B58 << 8) | B59"
+          unit: ""
+          display: "f'0x{v:04X}'"
+          min: "0"
+          max: "65535"
+          source: "Monitor session 2026-04-17"
+          verified: false
+          notes: >
+            0x0000 = off, 0xFFEF appeared during defrost/defog period
+            (17:46:16-17:47:26). Likely bitfield for front defrost,
+            rear defogger, and possibly recirculation. Need more targeted
+            testing to decode individual bits.
 
     2201A1:
       enabled: false
-      notes: "62 bytes. Many zero runs interspersed with data."
+      notes: >
+        62 bytes. Actuator control data. First 10 bytes very active during
+        HVAC operation (RPM-like 16-bit values). ELM[9-10] = 01 01 when on,
+        00 00 when off. ELM[13-14]: 00 78 at rest, 01 3C during PTC heater.
       parameters: {}
 
     2201A2:
@@ -241,8 +330,10 @@ HVAC:
     2201A3:
       enabled: false
       notes: >
-        55 bytes. Pattern includes 10 11 10 12 17 13 13 14 13 — could be temp
-        sensor data or zone config. 01A3-01A6 returned identical payloads.
+        55 bytes. Dynamic during HVAC operation (NOT static as initially
+        thought from cold-read). Contains compressor RPM data, PTC heater
+        info (ELM[12] shows 0x39/0x3A during PTC activation). 01A3-01A6
+        may still share structure but diverge under load.
       parameters: {}
 
     2201A4:

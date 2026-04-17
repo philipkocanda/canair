@@ -1,48 +1,98 @@
 # Ioniq 2017 EV — ECU address lookup
 # TX ID is the OBD-II request arbitration ID; RX ID is TX + 8.
+# Metadata from UDS identity DIDs (F187, F18B, F100, F18E, F191 etc.)
 ecus:
   0x770:
     name: IGPM
     description: Integrated Gateway & Power Module
+    part_number: "91950G7510"
+    mfg_date: "2017-06-06"
+    hw_version: "100"
+    sw_version: "109"
+    boot_sw: "20"
+    app_sw: "160205"
   0x7A0:
     name: BCM
     description: Body Control Module
+    part_number: "95400G7470"
+    mfg_date: "2017-05-31"
   0x7A3:
     name: PSM
     description: Power Seat Module
+    part_number: "95450G7000"
+    mfg_date: "2017-06-01"
+    hw_version: "100"
+    sw_version: "100"
+    boot_sw: "190"
   0x7A5:
     name: SKM
+    alias: SMK  # ECU self-identifies as "SMK"
     description: Smart Key Module
+    mfg_date: "2017-06-02"
+    diag_address: "190"
+    hw_version: "10000"
+    sw_version: "10200"
   0x736:
     name: VESS
     description: Virtual Engine Sound System
+    part_number: "96390G7000"
+    mfg_date: "2016-06-08"
+    hw_version: "100"
+    sw_version: "101"
+    boot_sw: "060"
   0x744:
     name: Charging
-    description: Charging ECU (unverified)
+    description: Charging ECU (unverified — no response without AC/DC charging)
   0x7B3:
     name: HVAC
+    alias: DATC  # Digital Automatic Temperature Control
     description: Climate Control
+    part_number: "97250-G7060"
+    mfg_date: "2017-05-30"
+    firmware: "AE_EV DATC(-)1.0"
+    fw_version: "1.03"
   0x7C0:
     name: AVN
     description: Audio/Video/Navigation head unit
+    notes: "Does not support F1xx identity DIDs"
   0x7C6:
     name: CLU
     description: Cluster (instrument panel)
+    part_number: "94003G7300"
+    mfg_date: "2017-06-01"
+    hw_version: "100"
+    sw_version: "201"
+    boot_sw: "625"
   0x7D1:
     name: ESC
     description: Electronic Stability Control
+    serial: "GWLK7F01A986826"
+    app_sw: "G7"
+    notes: "No part number DID supported"
+  0x7D4:
+    name: EPS
+    alias: MDPS  # Motor-Driven Power Steering
+    description: Electric Power Steering
+    part_number: "56310G7300"
+    mfg_date: "2017-06-01"
+    firmware: "MDPS C 1.00/1.03"
   0x7E2:
     name: VCU
     description: Vehicle Control Unit
+    notes: "Does not support F1xx identity DIDs"
   0x7E3:
     name: MCU
     description: Motor Control Unit (inverter)
+    notes: "Does not support F1xx identity DIDs"
   0x7E4:
     name: BMS
     description: Battery Management System
+    notes: "Does not support F1xx identity DIDs (NRC 0x12 even in extended session)"
   0x7E5:
     name: LDC
     description: Low-voltage DC-DC Converter / OBC
+    notes: "Does not support F1xx identity DIDs. CarScanner identifies as AEV**LDC**53."
   0x7E6:
     name: Gateway
     description: CAN Gateway
+    notes: "Does not support F1xx identity DIDs"

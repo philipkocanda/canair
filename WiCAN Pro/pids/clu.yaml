@@ -17,3 +17,31 @@ CLU:
           source_links: []
           verified: true
           notes: "3-byte odometer value"
+    22B001:
+      period: 10000
+      enabled: false
+      parameters:
+        CLU_B001_UNKNOWN:
+          expression: ""
+          unit: ""
+          ha_class: ""
+          min: ""
+          max: ""
+          source: "DID scan 2026-04-17"
+          source_links: []
+          verified: false
+          notes: "13 bytes, all zeros when stationary. Purpose unknown. Payload: 62B00100000000000000000000"
+    22B003:
+      period: 10000
+      enabled: false
+      parameters:
+        CLU_B003_UNKNOWN:
+          expression: ""
+          unit: ""
+          ha_class: ""
+          min: ""
+          max: ""
+          source: "DID scan 2026-04-17"
+          source_links: []
+          verified: false
+          notes: "13 bytes. B3=0x88, B7=0x01, rest zeros. Purpose unknown. Payload: 62B00388000000010000000000"

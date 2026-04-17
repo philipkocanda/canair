@@ -1,0 +1,33 @@
+
+# ─── EPS (Electric Power Steering) ───────────────────────────────────
+EPS:
+  tx_id: 0x7D4
+  pids:
+    220101:
+      period: 2500
+      enabled: false
+      parameters:
+        EPS_0101_UNKNOWN:
+          expression: ""
+          unit: ""
+          ha_class: ""
+          min: ""
+          max: ""
+          source: "DID scan 2026-04-17"
+          source_links: []
+          verified: false
+          notes: "20 bytes. Likely steering angle/torque data. Payload: 6201018F9400FFE9FFFD00000000101025010000"
+    220102:
+      period: 2500
+      enabled: false
+      parameters:
+        EPS_0102_UNKNOWN:
+          expression: ""
+          unit: ""
+          ha_class: ""
+          min: ""
+          max: ""
+          source: "DID scan 2026-04-17"
+          source_links: []
+          verified: false
+          notes: "13 bytes. B6=0x03, rest zeros. Status/config register. Payload: 62010200000003000000000000"
