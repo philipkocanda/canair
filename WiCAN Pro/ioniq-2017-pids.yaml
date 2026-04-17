@@ -118,7 +118,7 @@ ecus:
             notes: ""
 
           TYRE_TEMP_RR:
-            expression: "B24-50"
+            expression: "B25-50"
             unit: "°C"
             ha_class: temperature
             mqtt_topic: tyre_temp_rr
