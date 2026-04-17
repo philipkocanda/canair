@@ -413,18 +413,18 @@ Examples:
         action="store_true",
         help="For --multi: drop into REPL after pipeline completes",
     )
-     parser.add_argument(
-         "--monitor",
-         nargs="?",
-         const=5.0,
-         default=None,
-         type=float,
-         metavar="INTERVAL",
-         help="For --multi: instead of running the pipeline once, repeatedly poll "
-         "all 'query' steps and refresh the display in-place (live monitor). "
-         "Non-query steps (session, skm-wake, sleep) run once as setup. "
-         "Optional poll interval in seconds (default: 5.0).",
-     )
+    parser.add_argument(
+        "--monitor",
+        nargs="?",
+        const=5.0,
+        default=None,
+        type=float,
+        metavar="INTERVAL",
+        help="For --multi: instead of running the pipeline once, repeatedly poll "
+        "all 'query' steps and refresh the display in-place (live monitor). "
+        "Non-query steps (session, skm-wake, sleep) run once as setup. "
+        "Optional poll interval in seconds (default: 5.0).",
+    )
 
     # SKM wakeup options
     parser.add_argument(
