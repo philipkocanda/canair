@@ -6,6 +6,12 @@
 #   ECU_NAME:
 #     tx_id: 0xNNN          # hex CAN arbitration ID
 #     session: bool          # optional — requires extended diagnostic session (10 03)
+#     identity:              # optional — ECU identity from F1xx DIDs
+#       part_number: str     # from F187/F188 (HK DID)
+#       description: str     # human-readable module name
+#       firmware: str        # firmware version
+#       software: str        # software ID string
+#       serial: str          # from F18C/F18B (cal date / serial)
 #     pids:
 #       PID_CODE:            # e.g. 22C00B, 2101
 #         period: N          # polling interval in ms (optional, default 5000)
@@ -31,6 +37,7 @@ required_ecu_fields:
 
 optional_ecu_fields:
   - session
+  - identity
 
 required_pid_fields: []
 
