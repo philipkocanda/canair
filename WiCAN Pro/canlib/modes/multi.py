@@ -166,8 +166,13 @@ async def _exec_query(
     ecu_index: dict,
     pids_data: dict,
     verbose: bool,
+    return_results: bool = False,
 ):
-    """Execute query sub-command — query ECU parameters."""
+    """Execute query sub-command — query ECU parameters.
+
+    Args:
+        return_results: If True, return (ecu_label, pid_results) instead of printing.
+    """
     upper = ecu_name_str.upper()
     if upper not in ecu_index:
         print(
@@ -303,8 +308,12 @@ async def _exec_query(
                 }
             )
 
+    ecu_label = f"{upper} (0x{tx_id:03X})"
+    if return_results:
+        return ecu_label, all_pid_results
+
     print_ecu_results(
-        ecu_label=f"{upper} (0x{tx_id:03X})",
+        ecu_label=ecu_label,
         pid_results=all_pid_results,
         verbose=verbose,
     )

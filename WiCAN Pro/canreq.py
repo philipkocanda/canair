@@ -17,6 +17,7 @@ Modes:
     Scan PIDs       python3 canreq.py --scan --tx 7E4 --service 21 --range 01-FF
     Scan IOControl  python3 canreq.py --scan --tx 7E4 --service 2F --range E000-E0FF --append 03 --session
     Multi-ECU       python3 canreq.py --multi "skm-wake acc" "query IGPM BC03 BC06"
+    Monitor         python3 canreq.py --multi "query BMS 2101" --monitor [--interval 2]
     SKM wakeup      python3 canreq.py --skm-wakeup [--level acc|ign1|ign2]
     TesterPresent   python3 canreq.py --tester-present [--target 7A5]
 
@@ -59,6 +60,7 @@ from canlib.modes import (
     mode_skm_wakeup,
     mode_tester_present,
     mode_multi,
+    mode_monitor,
 )
 
 try:
@@ -130,7 +132,30 @@ async def async_main(args):
             args.session = True
 
         # Dispatch to mode
-        if args.multi:
+        if args.multi and args.monitor:
+            # Monitor mode: split pipeline into setup steps + query steps
+            from canlib.modes.multi import parse_sub_commands
+
+            commands = parse_sub_commands(args.multi)
+            session_steps = [
+                c for c in commands if c["type"] in ("session", "skm-wake", "sleep")
+            ]
+            query_steps = [c for c in commands if c["type"] == "query"]
+            if not query_steps:
+                print(
+                    "Error: --monitor requires at least one 'query' step in --multi",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+            await mode_monitor(
+                terminal,
+                query_steps,
+                pids_data,
+                args.verbose,
+                interval=args.interval,
+                session_steps=session_steps,
+            )
+        elif args.multi:
             await mode_multi(
                 terminal, args.multi, pids_data, args.verbose, no_repl=not args.repl
             )
@@ -278,6 +303,10 @@ Examples:
                                             Wake IGPM, query all PIDs, REPL
   %(prog)s --multi "skm-wake acc" "sleep 1" "query BCM B00E" "repl"
                                             Pipeline with explicit sleep and REPL
+  %(prog)s --multi "query BMS 2101" --monitor
+                                            Live monitor: refresh BMS 2101 every 5s
+  %(prog)s --multi "session IGPM --wake" "query IGPM BC03 BC06" --monitor --interval 2
+                                            Wake IGPM, then poll BC03+BC06 every 2s
 """,
     )
 
@@ -383,6 +412,19 @@ Examples:
         "--repl",
         action="store_true",
         help="For --multi: drop into REPL after pipeline completes",
+    )
+    parser.add_argument(
+        "--monitor",
+        action="store_true",
+        help="For --multi: instead of running the pipeline once, repeatedly poll "
+        "all 'query' steps and refresh the display in-place (live monitor). "
+        "Non-query steps (session, skm-wake, sleep) run once as setup.",
+    )
+    parser.add_argument(
+        "--interval",
+        type=float,
+        default=5.0,
+        help="Poll interval in seconds for --monitor (default: 5.0)",
     )
 
     # SKM wakeup options
