@@ -78,3 +78,45 @@ HVAC:
           source_links: []
           verified: false
           notes: "AC compressor inverter temperature. ImHex 0x0C → WiCAN B15."
+
+    220102:
+      enabled: false
+      notes: "20 bytes. B06-B07 = 0x7877 (30839). B14 = 0x17 (23). Undecoded."
+      parameters: {}
+
+    2201A0:
+      enabled: false
+      notes: "62 bytes. Lots of non-FF data — likely operational stats or config."
+      parameters: {}
+
+    2201A1:
+      enabled: false
+      notes: "62 bytes. Many zero runs interspersed with data."
+      parameters: {}
+
+    2201A2:
+      enabled: false
+      notes: "55 bytes. Similar structure to 01A1."
+      parameters: {}
+
+    2201A3:
+      enabled: false
+      notes: >
+        55 bytes. Pattern includes 10 11 10 12 17 13 13 14 13 — could be temp
+        sensor data or zone config. 01A3-01A6 returned identical payloads.
+      parameters: {}
+
+    2201A4:
+      enabled: false
+      notes: "55 bytes. Identical to 01A3."
+      parameters: {}
+
+    2201A5:
+      enabled: false
+      notes: "55 bytes. Identical to 01A3."
+      parameters: {}
+
+    2201A6:
+      enabled: false
+      notes: "55 bytes. Identical to 01A3."
+      parameters: {}
