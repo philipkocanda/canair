@@ -167,11 +167,13 @@ async def _exec_query(
     pids_data: dict,
     verbose: bool,
     return_results: bool = False,
+    quiet: bool = False,
 ):
     """Execute query sub-command — query ECU parameters.
 
     Args:
         return_results: If True, return (ecu_label, pid_results) instead of printing.
+        quiet: If True, suppress informational NOTE/WARNING prints (for monitor mode).
     """
     upper = ecu_name_str.upper()
     if upper not in ecu_index:
@@ -231,8 +233,9 @@ async def _exec_query(
                     else:
                         raw_pids.append(f"22{u}")
                 else:
-                    print(f"  WARNING: Invalid PID format '{u}', skipping")
-            if raw_pids:
+                    if not quiet:
+                        print(f"  WARNING: Invalid PID format '{u}', skipping")
+            if raw_pids and not quiet:
                 print(
                     f"  NOTE: {', '.join(raw_pids)} not in {PIDS_DIR.name}/ — querying raw"
                 )
