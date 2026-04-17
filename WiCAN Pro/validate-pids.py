@@ -18,23 +18,6 @@ SCRIPT_DIR = Path(__file__).parent
 PIDS_DIR = SCRIPT_DIR / "pids"
 SCHEMA_FILE = PIDS_DIR / "_schema.yaml"
 
-REQUIRED_PARAM_FIELDS = {"expression", "unit"}
-OPTIONAL_PARAM_FIELDS = {
-    "ha_class",
-    "mqtt_topic",
-    "min",
-    "max",
-    "source",
-    "source_links",
-    "verified",
-    "notes",
-    "enabled",
-    "display",
-}
-ALL_PARAM_FIELDS = REQUIRED_PARAM_FIELDS | OPTIONAL_PARAM_FIELDS
-REQUIRED_ECU_FIELDS = {"tx_id", "pids"}
-REQUIRED_META_FIELDS = {"car_model", "init"}
-
 # Regex for valid WiCAN expressions (basic sanity — not a full parser)
 EXPR_TOKEN_RE = re.compile(
     r"\[[BS]\d+:[BS]\d+\]|"  # [Bnn:Bmm] multi-byte (must be before Bnn:k)
@@ -44,6 +27,16 @@ EXPR_TOKEN_RE = re.compile(
     r"[0-9]+\.?[0-9]*|"  # numeric literal
     r"[+\-*/()&|^<>=\s]"  # operators, whitespace
 )
+
+
+def load_schema(path: Path = SCHEMA_FILE) -> dict:
+    """Load schema definition from _schema.yaml."""
+    with open(path) as f:
+        schema = yaml.safe_load(f)
+    if not schema or not isinstance(schema, dict):
+        print(f"ERROR: {path} is empty or invalid", file=sys.stderr)
+        sys.exit(1)
+    return schema
 
 
 def validate_expression(expr: str, param_name: str, pid: str, ecu: str) -> list[str]:
@@ -62,7 +55,15 @@ def validate_expression(expr: str, param_name: str, pid: str, ecu: str) -> list[
     return errors
 
 
-def validate_ecu_file(path: Path) -> tuple[list[str], list[str], dict]:
+def validate_ecu_file(
+    path: Path,
+    required_ecu_fields: set,
+    optional_ecu_fields: set,
+    required_pid_fields: set,
+    optional_pid_fields: set,
+    required_param_fields: set,
+    all_param_fields: set,
+) -> tuple[list[str], list[str], dict]:
     """Validate a single ECU YAML file.
 
     Returns (errors, warnings, stats).
@@ -80,6 +81,9 @@ def validate_ecu_file(path: Path) -> tuple[list[str], list[str], dict]:
     if not data or not isinstance(data, dict):
         return [f"{path.name}: empty or invalid YAML"], [], stats
 
+    all_ecu_fields = required_ecu_fields | optional_ecu_fields
+    all_pid_fields = required_pid_fields | optional_pid_fields
+
     for ecu_name, ecu_def in data.items():
         stats["ecus"] += 1
 
@@ -88,9 +92,14 @@ def validate_ecu_file(path: Path) -> tuple[list[str], list[str], dict]:
             continue
 
         # Check required ECU fields
-        for field in REQUIRED_ECU_FIELDS:
+        for field in required_ecu_fields:
             if field not in ecu_def:
                 errors.append(f"{path.name}/{ecu_name}: missing required field '{field}'")
+
+        # Check unknown ECU fields
+        for field in ecu_def:
+            if field not in all_ecu_fields:
+                warnings.append(f"{path.name}/{ecu_name}: unknown ECU field '{field}'")
 
         # Validate tx_id
         tx_id = ecu_def.get("tx_id")
@@ -111,6 +120,20 @@ def validate_ecu_file(path: Path) -> tuple[list[str], list[str], dict]:
             if not isinstance(pid_def, dict):
                 errors.append(f"{path.name}/{ecu_name}/{pid_str}: PID definition must be a dict")
                 continue
+
+            # Check required PID fields
+            for field in required_pid_fields:
+                if field not in pid_def:
+                    errors.append(
+                        f"{path.name}/{ecu_name}/{pid_str}: missing required PID field '{field}'"
+                    )
+
+            # Check unknown PID fields
+            for field in pid_def:
+                if field not in all_pid_fields:
+                    warnings.append(
+                        f"{path.name}/{ecu_name}/{pid_str}: unknown PID field '{field}'"
+                    )
 
             # Validate period
             period = pid_def.get("period")
@@ -139,13 +162,13 @@ def validate_ecu_file(path: Path) -> tuple[list[str], list[str], dict]:
                     continue
 
                 # Required fields
-                for field in REQUIRED_PARAM_FIELDS:
+                for field in required_param_fields:
                     if field not in param:
                         errors.append(f"{ecu_name}/{pid_str}/{param_name}: missing '{field}'")
 
                 # Unknown fields
                 for field in param:
-                    if field not in ALL_PARAM_FIELDS:
+                    if field not in all_param_fields:
                         warnings.append(
                             f"{ecu_name}/{pid_str}/{param_name}: unknown field '{field}'"
                         )
@@ -164,7 +187,7 @@ def validate_ecu_file(path: Path) -> tuple[list[str], list[str], dict]:
     return errors, warnings, stats
 
 
-def validate_meta(path: Path) -> list[str]:
+def validate_meta(path: Path, required_fields: set) -> list[str]:
     """Validate _meta.yaml."""
     errors = []
     try:
@@ -176,7 +199,7 @@ def validate_meta(path: Path) -> list[str]:
     if not data or not isinstance(data, dict):
         return ["_meta.yaml: empty or invalid"]
 
-    for field in REQUIRED_META_FIELDS:
+    for field in required_fields:
         if field not in data:
             errors.append(f"_meta.yaml: missing required field '{field}'")
 
@@ -188,6 +211,17 @@ def main():
     parser.add_argument("files", nargs="*", help="Specific files to validate (default: all)")
     parser.add_argument("--stats", action="store_true", help="Show parameter statistics")
     args = parser.parse_args()
+
+    # Load schema
+    schema = load_schema()
+    required_ecu_fields = set(schema.get("required_ecu_fields", []))
+    optional_ecu_fields = set(schema.get("optional_ecu_fields", []))
+    required_pid_fields = set(schema.get("required_pid_fields", []))
+    optional_pid_fields = set(schema.get("optional_pid_fields", []))
+    required_param_fields = set(schema.get("required_param_fields", []))
+    optional_param_fields = set(schema.get("optional_param_fields", []))
+    all_param_fields = required_param_fields | optional_param_fields
+    required_meta_fields = set(schema.get("required_meta_fields", []))
 
     all_errors = []
     all_warnings = []
@@ -203,10 +237,18 @@ def main():
             continue
 
         if fpath.name == "_meta.yaml":
-            all_errors.extend(validate_meta(fpath))
+            all_errors.extend(validate_meta(fpath, required_meta_fields))
             continue
 
-        errors, warnings, stats = validate_ecu_file(fpath)
+        errors, warnings, stats = validate_ecu_file(
+            fpath,
+            required_ecu_fields,
+            optional_ecu_fields,
+            required_pid_fields,
+            optional_pid_fields,
+            required_param_fields,
+            all_param_fields,
+        )
         all_errors.extend(errors)
         all_warnings.extend(warnings)
         for k in total_stats:
@@ -239,6 +281,7 @@ def main():
     if args.stats:
         print(f"\n  ECUs:       {total_stats['ecus']}")
         print(f"  PIDs:       {total_stats['pids']}")
+        print(f"  Ignored:    {total_stats['ignored']}")
         print(f"  Parameters: {total_stats['params']}")
         print(f"  Verified:   {total_stats['verified']}")
         print(f"  Unverified: {total_stats['unverified']}")

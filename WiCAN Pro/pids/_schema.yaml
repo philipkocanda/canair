@@ -1,10 +1,11 @@
 # PID Definition Schema
 # Validates per-ECU YAML files in this directory.
 # Run: python3 validate-pids.py
-
+#
 # Each ECU file (e.g. bcm.yaml) must have this top-level structure:
 #   ECU_NAME:
 #     tx_id: 0xNNN          # hex CAN arbitration ID
+#     session: bool          # optional — requires extended diagnostic session (10 03)
 #     pids:
 #       PID_CODE:            # e.g. 22C00B, 2101
 #         period: N          # polling interval in ms (optional, default 5000)
@@ -13,24 +14,32 @@
 #                            # Use for DIDs that returned NRC or contain no useful data.
 #                            # Ignored PIDs are still documented but excluded from
 #                            # build_ecu_index, generate-profile, and query commands.
-#                            # Might be relevant in future research, in other power states, or on other models.
+#         notes: str         # optional — PID-level notes
 #         parameters:
 #           PARAM_NAME:
 #             expression: str     # required — WiCAN formula
 #             unit: str           # optional — display unit
-#             ha_class: str       # optional — HA device_class
-#             min: str            # optional — expected min value
-#             max: str            # optional — expected max value
-#             source: str         # optional — origin description
-#             source_links: list  # optional — URLs
-#             verified: bool      # optional — confirmed working on Ioniq 2017? (default false)
-#             notes: str          # optional — free-form
-#             enabled: bool       # optional — include in profiles (default true)
-#             display: str        # optional — Python f-string for display formatting
-
+#             ...                 # see optional_param_fields below
+#
 # _meta.yaml must have:
 #   car_model: str
 #   init: str              # AT command init string
+
+required_ecu_fields:
+  - tx_id
+  - pids
+
+optional_ecu_fields:
+  - session
+
+required_pid_fields: []
+
+optional_pid_fields:
+  - period
+  - enabled
+  - ignored
+  - notes
+  - parameters
 
 required_param_fields:
   - expression
@@ -38,6 +47,7 @@ required_param_fields:
 optional_param_fields:
   - unit
   - ha_class
+  - mqtt_topic
   - min
   - max
   - source
@@ -46,10 +56,6 @@ optional_param_fields:
   - notes
   - enabled
   - display
-
-required_ecu_fields:
-  - tx_id
-  - pids
 
 required_meta_fields:
   - car_model
