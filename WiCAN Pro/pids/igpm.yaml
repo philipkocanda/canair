@@ -240,3 +240,222 @@ IGPM:
         NRC 0x31 (requestOutOfRange). DID does not exist on Ioniq 2017 IGPM.
         Tested 2026-04-14.
       parameters: {}
+
+  # ─── IOControl (service 2F) ──────────────────────────────────────────
+  # All require extended session (10 03). Actuators release on session drop.
+  # Wake with --wake flag if car is in deep sleep.
+  # Usage: python3 canreq.py --raw 770:<on_command> --hold [--wake]
+  iocontrol:
+    BC01:
+      label: Low beam
+      verified: true
+      on: "2FBC0103"
+      off: "2FBC0100"
+      notes: >
+        Headlights on.
+
+    BC02:
+      label: High beam
+      verified: true
+      on: "2FBC0203"
+      off: "2FBC0200"
+
+    BC03:
+      label: Front fog light
+      verified: true
+      on: "2FBC0303"
+      off: "2FBC0300"
+      notes: >
+        No visible effect — Ioniq 2017 base trim has no fog light bulbs installed.
+
+    BC04:
+      label: Tail / rear light
+      verified: true
+      on: "2FBC0403"
+      off: "2FBC0400"
+
+    BC05:
+      label: Red backlight flash
+      verified: false
+      on: "2FBC0503"
+      off: "2FBC0500"
+      notes: >
+        No visible effect during test — may be CHMSL (center high-mount stop lamp) flash.
+
+    BC07:
+      label: Horn
+      verified: true
+      on: "2FBC0703"
+      off: "2FBC0700"
+      notes: >
+        LOUD — be careful when testing! Not labeled in Soul/e-Niro tables but
+        confirmed on Ioniq.
+
+    BC08:
+      label: Rear fog light
+      verified: true
+      on: "2FBC0803"
+      off: "2FBC0800"
+
+    BC09:
+      label: Trunk unlock
+      verified: true
+      on: "2FBC0903"
+      off: "2FBC0900"
+      notes: >
+        Triggers alarm if car is locked! Releases latch only (no lift motor).
+
+    BC0A:
+      label: Welcome / approach light
+      verified: false
+      on: "2FBC0A03"
+      off: "2FBC0A00"
+      notes: >
+        Likely puddle lights or DRL greeting on unlock.
+
+    BC0C:
+      label: Rear defogger relay
+      verified: false
+      on: "2FBC0C03"
+      off: "2FBC0C00"
+      notes: >
+        Well-documented on e-Niro/Soul — defrosts rear window.
+
+    BC10:
+      label: Door LOCK all
+      verified: true
+      on: "2FBC1003"
+      off: "2FBC1000"
+      notes: >
+        Does NOT arm alarm — only locks doors.
+
+    BC11:
+      label: Door UNLOCK all
+      verified: true
+      on: "2FBC1103"
+      off: "2FBC1100"
+      notes: >
+        Does NOT disarm alarm — opening door will trigger horn!
+
+    BC12:
+      label: Individual door unlock (1)
+      verified: false
+      on: "2FBC1203"
+      off: "2FBC1200"
+      notes: >
+        May trigger alarm. Test with keyfob in hand.
+        Soul uses 6F prefix — may unlock driver door only.
+
+    BC13:
+      label: Unknown (conditional)
+      verified: false
+      on: "2FBC1303"
+      off: "2FBC1300"
+      notes: >
+        NRC 0x22 (conditionsNotCorrect) — may need ignition on or other precondition.
+
+    BC14:
+      label: Individual door unlock (2)
+      verified: false
+      on: "2FBC1403"
+      off: "2FBC1400"
+      notes: >
+        May trigger alarm. Soul uses 6F prefix — may unlock a specific door.
+
+    BC15:
+      label: Left turn indicator
+      verified: true
+      on: "2FBC1503"
+      off: "2FBC1500"
+
+    BC16:
+      label: Right turn indicator
+      verified: true
+      on: "2FBC1603"
+      off: "2FBC1600"
+
+    BC18:
+      label: DRL (daytime running lights)
+      verified: true
+      on: "2FBC1803"
+      off: "2FBC1800"
+
+    BC1B:
+      label: Reverse / side marker light
+      verified: false
+      on: "2FBC1B03"
+      off: "2FBC1B00"
+      notes: >
+        NRC 0x22 — may be reverse light (only accepts when car is in reverse gear?).
+
+    BC1C:
+      label: Luggage lamp
+      verified: false
+      on: "2FBC1C03"
+      off: "2FBC1C00"
+
+    BC25:
+      label: Unknown
+      verified: false
+      on: "2FBC2503"
+      off: "2FBC2500"
+      notes: >
+        Accepted but no visible/audible effect. Tested 2026-04-15 (Ready mode).
+
+    BC2B:
+      label: Rear left brake light
+      verified: true
+      on: "2FBC2B03"
+      off: "2FBC2B00"
+
+    BC2C:
+      label: Rear right brake light
+      verified: true
+      on: "2FBC2C03"
+      off: "2FBC2C00"
+
+    BC2D:
+      label: CHMSL (center brake light)
+      verified: true
+      on: "2FBC2D03"
+      off: "2FBC2D00"
+      notes: >
+        Center high-mount stop lamp. Confirmed 2026-04-15.
+
+    BC3F:
+      label: Charge cable LOCK
+      verified: true
+      on: "2FBC3F03"
+      off: "2FBC3F00"
+
+    BC41:
+      label: Charge cable UNLOCK
+      verified: true
+      on: "2FBC4103"
+      off: "2FBC4100"
+      notes: >
+        May not stop active charge session — test with caution!
+
+    BC42:
+      label: Unknown
+      verified: false
+      on: "2FBC4203"
+      off: "2FBC4200"
+      notes: >
+        Accepted but no visible/audible effect. Tested 2026-04-15 (Ready mode).
+
+    BC43:
+      label: Unknown
+      verified: false
+      on: "2FBC4303"
+      off: "2FBC4300"
+      notes: >
+        Accepted but no visible/audible effect. Tested 2026-04-15 (Ready mode).
+
+    BC44:
+      label: Unknown
+      verified: false
+      on: "2FBC4403"
+      off: "2FBC4400"
+      notes: >
+        Accepted but no visible/audible effect. Tested 2026-04-15 (Ready mode).

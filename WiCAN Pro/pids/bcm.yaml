@@ -421,3 +421,182 @@ BCM:
         13 bytes. B10=0x0C. Purpose unknown — last responding DID in C0xx range.
         Sample: 62C014F00000000CAAAAAAAAAA.
       parameters: {}
+
+  # ─── IOControl (service 2F) ──────────────────────────────────────────
+  # BCM requires extended diagnostic session (10 03) AND SKM ACC+IGN1 power.
+  # Scan status: B000-B072 fully scanned (2026-04-15). B073-B0FF incomplete.
+  # Usage: python3 canreq.py --raw 7A0:<on_command> --hold
+  iocontrol:
+    B003:
+      label: Unknown
+      verified: false
+      on: "2FB00303"
+      off: "2FB00300"
+      notes: >
+        Low DID range — possibly status/config register.
+
+    B006:
+      label: Unknown
+      verified: false
+      on: "2FB00603"
+      off: "2FB00600"
+
+    B008:
+      label: Unknown
+      verified: false
+      on: "2FB00803"
+      off: "2FB00800"
+
+    B009:
+      label: Unknown
+      verified: false
+      on: "2FB00903"
+      off: "2FB00900"
+
+    B00A:
+      label: Unknown
+      verified: false
+      on: "2FB00A03"
+      off: "2FB00A00"
+
+    B00F:
+      label: Unknown
+      verified: false
+      on: "2FB00F03"
+      off: "2FB00F00"
+
+    B019:
+      label: Room lamp (interior)
+      verified: false
+      on: "2FB01903"
+      off: "2FB01900"
+      notes: >
+        DID exists. Untested for visible effect.
+
+    B01A:
+      label: Unknown
+      verified: false
+      on: "2FB01A03"
+      off: "2FB01A00"
+      notes: >
+        Adjacent to room lamp — may be reading lamp or trunk lamp.
+
+    B025:
+      label: Unknown
+      verified: false
+      on: "2FB02503"
+      off: "2FB02500"
+      notes: >
+        Possibly window or wiper motor.
+
+    B028:
+      label: Unknown
+      verified: false
+      on: "2FB02803"
+      off: "2FB02800"
+      notes: >
+        Possibly window or wiper motor.
+
+    B029:
+      label: Unknown
+      verified: false
+      on: "2FB02903"
+      off: "2FB02900"
+      notes: >
+        Possibly window or wiper motor.
+
+    B030:
+      label: Unknown
+      verified: false
+      on: "2FB03003"
+      off: "2FB03000"
+      notes: >
+        Possibly wiper/washer pump.
+
+    B038:
+      label: Unknown
+      verified: false
+      on: "2FB03803"
+      off: "2FB03800"
+
+    B039:
+      label: Unknown
+      verified: false
+      on: "2FB03903"
+      off: "2FB03900"
+
+    B03A:
+      label: Unknown
+      verified: false
+      on: "2FB03A03"
+      off: "2FB03A00"
+
+    B03B:
+      label: Unknown
+      verified: false
+      on: "2FB03B03"
+      off: "2FB03B00"
+
+    B04D:
+      label: Unknown
+      verified: false
+      on: "2FB04D03"
+      off: "2FB04D00"
+
+    B057:
+      label: Unknown
+      verified: false
+      on: "2FB05703"
+      off: "2FB05700"
+      notes: >
+        Mirror/handle region.
+
+    B059:
+      label: Heated door handle / heated steering wheel
+      verified: false
+      on: "2FB05903"
+      off: "2FB05900"
+      notes: >
+        e-Niro labels as heated door handle. May refer to heated steering wheel on Ioniq.
+
+    B05A:
+      label: Heated door handle LED
+      verified: false
+      on: "2FB05A03"
+      off: "2FB05A00"
+
+    B05B:
+      label: Mirror fold
+      verified: true
+      on: "2FB05B03"
+      off: "2FB05B00"
+      notes: >
+        Fold side mirrors in. From e-Niro, confirmed on Ioniq.
+
+    B05C:
+      label: Mirror unfold
+      verified: true
+      on: "2FB05C03"
+      off: "2FB05C00"
+      notes: >
+        Unfold side mirrors. From e-Niro, confirmed on Ioniq.
+
+    B061:
+      label: Charge door open
+      verified: false
+      on: "2FB06103"
+      off: "2FB06100"
+      notes: >
+        NRC 0x31 — NOT supported on Ioniq 2017. Tested with and without ACC power.
+
+    B071:
+      label: Unknown
+      verified: false
+      on: "2FB07103"
+      off: "2FB07100"
+
+    B072:
+      label: Unknown
+      verified: false
+      on: "2FB07203"
+      off: "2FB07200"

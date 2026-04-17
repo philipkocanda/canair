@@ -38,6 +38,7 @@ required_ecu_fields:
 optional_ecu_fields:
   - session
   - identity
+  - iocontrol       # IOControl (service 2F) commands — see iocontrol_fields below
 
 required_pid_fields: []
 
@@ -67,3 +68,32 @@ optional_param_fields:
 required_meta_fields:
   - car_model
   - init
+
+# IOControl section (service 0x2F) — per-ECU actuator commands.
+# Lives under ECU_NAME.iocontrol alongside ECU_NAME.pids.
+# Format:
+#   iocontrol:
+#     DID_HEX:                         # e.g. BC01, B05B
+#       label: str                     # Human-readable name (required)
+#       verified: bool                 # Tested on this car? (same as PID parameters)
+#       on: str                        # Full hex command for ON (e.g. "2FBC0103")
+#       off: str                       # Full hex command for OFF (e.g. "2FBC0100")
+#       notes: str                     # Additional context (use > for multiline)
+#       session: bool                  # Requires extended session (default: true)
+#       hold: bool                     # Needs --hold to keep active (default: true)
+#
+# Control type suffixes (appended to 2F<DID>):
+#   03 = shortTermAdjustment (ON)
+#   00 = returnControl (OFF / release)
+#
+# Usage with canreq.py:
+#   python3 canreq.py --raw <TX_ID>:<on_command> --hold
+#   e.g.: python3 canreq.py --raw 770:2FBC0103 --hold
+iocontrol_fields:
+  - label
+  - verified
+  - "on"
+  - "off"
+  - notes
+  - session
+  - hold

@@ -70,7 +70,15 @@ def validate_ecu_file(
     """
     errors = []
     warnings = []
-    stats = {"ecus": 0, "pids": 0, "params": 0, "verified": 0, "unverified": 0, "ignored": 0}
+    stats = {
+        "ecus": 0,
+        "pids": 0,
+        "params": 0,
+        "verified": 0,
+        "unverified": 0,
+        "ignored": 0,
+        "iocontrol": 0,
+    }
 
     try:
         with open(path) as f:
@@ -81,7 +89,7 @@ def validate_ecu_file(
     if not data or not isinstance(data, dict):
         return [f"{path.name}: empty or invalid YAML"], [], stats
 
-    all_ecu_fields = required_ecu_fields | optional_ecu_fields
+    all_ecu_fields = required_ecu_fields | optional_ecu_fields | {"iocontrol"}
     all_pid_fields = required_pid_fields | optional_pid_fields
 
     for ecu_name, ecu_def in data.items():
@@ -184,6 +192,39 @@ def validate_ecu_file(
                 else:
                     stats["unverified"] += 1
 
+        # Validate IOControl section
+        iocontrol = ecu_def.get("iocontrol")
+        if iocontrol is not None:
+            if not isinstance(iocontrol, dict):
+                errors.append(f"{path.name}/{ecu_name}: 'iocontrol' must be a dict")
+            else:
+                valid_fields = {
+                    "label",
+                    "verified",
+                    "on",
+                    "off",
+                    "notes",
+                    "session",
+                    "hold",
+                    True,
+                    False,  # YAML bool keys from unquoted on/off
+                }
+                for did, did_def in iocontrol.items():
+                    did_str = str(did)
+                    if not isinstance(did_def, dict):
+                        errors.append(f"{path.name}/{ecu_name}/iocontrol/{did_str}: must be a dict")
+                        continue
+                    if "label" not in did_def:
+                        warnings.append(
+                            f"{path.name}/{ecu_name}/iocontrol/{did_str}: missing 'label'"
+                        )
+                    for field in did_def:
+                        if field not in valid_fields:
+                            warnings.append(
+                                f"{path.name}/{ecu_name}/iocontrol/{did_str}: unknown field '{field}'"
+                            )
+                    stats["iocontrol"] += 1
+
     return errors, warnings, stats
 
 
@@ -225,7 +266,15 @@ def main():
 
     all_errors = []
     all_warnings = []
-    total_stats = {"ecus": 0, "pids": 0, "params": 0, "verified": 0, "unverified": 0, "ignored": 0}
+    total_stats = {
+        "ecus": 0,
+        "pids": 0,
+        "params": 0,
+        "verified": 0,
+        "unverified": 0,
+        "ignored": 0,
+        "iocontrol": 0,
+    }
 
     if args.files:
         files = [Path(f) for f in args.files]
@@ -269,8 +318,10 @@ def main():
     n_files = len([f for f in files if f.name not in ("_schema.yaml", "_meta.yaml")])
     ignored = total_stats["ignored"]
     ignored_str = f", {ignored} ignored" if ignored else ""
+    ioctl = total_stats["iocontrol"]
+    ioctl_str = f", {ioctl} IOControl DIDs" if ioctl else ""
     print(
-        f"OK — {n_files} ECU files, {total_stats['pids']} PIDs{ignored_str}, "
+        f"OK — {n_files} ECU files, {total_stats['pids']} PIDs{ignored_str}{ioctl_str}, "
         f"{total_stats['params']} parameters "
         f"({total_stats['verified']} verified, {total_stats['unverified']} unverified)"
     )
@@ -285,6 +336,7 @@ def main():
         print(f"  Parameters: {total_stats['params']}")
         print(f"  Verified:   {total_stats['verified']}")
         print(f"  Unverified: {total_stats['unverified']}")
+        print(f"  IOControl:  {total_stats['iocontrol']}")
 
 
 if __name__ == "__main__":

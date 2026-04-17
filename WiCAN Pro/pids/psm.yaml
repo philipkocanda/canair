@@ -1,0 +1,80 @@
+
+# ─── PSM (Power Seat Module) ──────────────────────────────────────────
+# From e-Niro — untested on Ioniq 2017 (Premium trim has power seats).
+# Likely requires ACC/IGN on. Actuators are continuous motors — hold command
+# active for desired duration, send OFF to stop.
+PSM:
+  tx_id: 0x7A3
+  identity:
+    part_number: "95450G7000"
+    description: "Power Seat Module"
+  pids: {}
+
+  # ─── IOControl (service 2F) ──────────────────────────────────────────
+  # All from e-Niro — untested on Ioniq 2017.
+  # Continuous motors: send ON, wait desired duration, send OFF.
+  # Usage: python3 canreq.py --raw 7A3:<on_command> --hold
+  iocontrol:
+    B401:
+      label: Seat slide forward
+      verified: false
+      on: "2FB40103"
+      off: "2FB40100"
+      notes: >
+        Continuous motor — send OFF to stop.
+
+    B402:
+      label: Seat slide backward
+      verified: false
+      on: "2FB40203"
+      off: "2FB40200"
+      notes: >
+        Continuous motor — send OFF to stop.
+
+    B403:
+      label: Seat recline upright
+      verified: false
+      on: "2FB40303"
+      off: "2FB40300"
+      notes: >
+        Continuous motor — send OFF to stop.
+
+    B404:
+      label: Seat recline backward
+      verified: false
+      on: "2FB40403"
+      off: "2FB40400"
+      notes: >
+        Continuous motor — send OFF to stop.
+
+    B405:
+      label: Seat front height up
+      verified: false
+      on: "2FB40503"
+      off: "2FB40500"
+      notes: >
+        Continuous motor — send OFF to stop.
+
+    B406:
+      label: Seat front height down
+      verified: false
+      on: "2FB40603"
+      off: "2FB40600"
+      notes: >
+        Continuous motor — send OFF to stop.
+
+    B407:
+      label: Seat rear height up
+      verified: false
+      on: "2FB40703"
+      off: "2FB40700"
+      notes: >
+        Continuous motor — send OFF to stop.
+
+    B408:
+      label: Seat rear height down
+      verified: false
+      on: "2FB40803"
+      off: "2FB40800"
+      notes: >
+        Continuous motor — send OFF to stop.
