@@ -186,10 +186,12 @@ BCM:
           notes: >
             12V battery voltage measured by BCM. WiCAN B10 (ELM payload index 7) is the
             fastest-drifting byte in 22B003 during deep sleep — decrements ~2 LSB/min under
-            parasitic load. Formula v*0.08 estimated: value 149 → 11.92V, consistent with
-            a low 12V battery at rest. Needs cross-reference with LDC_OUTPUT_V to confirm
-            exact scale factor. Other bytes in B003 (B09, B11-B15, B17) also drift but
-            slower — may be additional measurement points (fuse box, BCM rail, etc.).
+            parasitic load. Formula v*0.08 estimated: value 149 → 11.92V, cross-referenced
+            against WiCAN onboard voltage sensor reading 12.1V at same time (value ~149).
+            Approximate — needs multimeter reference to confirm exact scale. BMS uses *0.1
+            convention but that gives 14.9V which is too high. Other bytes in B003 (B09,
+            B11-B15, B17) also drift but slower — may be additional measurement points
+            (fuse box, BCM rail, etc.).
         BCM_POWER_MODE:
           expression: "B12"
           unit: ""
