@@ -1,8 +1,13 @@
 """Tests for canlib.modes.monitor — rendering and helper functions."""
 
+from unittest.mock import patch
+
+import yaml
+
 from canlib.modes.monitor import (
     _HIGHLIGHT_STYLE,
     _bytes_to_ascii,
+    _prompt_and_save,
     _render_hex_line,
     _render_results,
 )
@@ -375,3 +380,84 @@ class TestKeepHistory:
         pos_aa = plain.index("62 B0 03 AA")
         pos_bb = plain.index("62 B0 03 BB")
         assert pos_aa < pos_bb
+
+
+class TestPromptAndSave:
+    def test_saves_to_new_file(self, tmp_path):
+        """Saves captures to a new YAML file."""
+        hex_history = {
+            ("BCM (0x7A0)", "22C00B"): [("62C00BAA", "14:00:01"), ("62C00BBB", "14:00:06")],
+        }
+        prev_hex = {("BCM (0x7A0)", "22C00B"): "62C00BBB"}
+        with patch("builtins.input", side_effect=["BCM test session", "deep sleep", "test notes"]):
+            _prompt_and_save(hex_history, prev_hex, tmp_path)
+
+        files = list(tmp_path.glob("*.yaml"))
+        assert len(files) == 1
+        with open(files[0]) as f:
+            data = yaml.safe_load(f)
+        assert len(data["sessions"]) == 1
+        s = data["sessions"][0]
+        assert s["label"] == "BCM test session"
+        assert s["state"] == "deep sleep"
+        assert s["notes"] == "test notes"
+        assert len(s["captures"]) == 2
+        assert s["captures"][0]["ecu"] == "BCM"
+        assert s["captures"][0]["pid"] == "22C00B"
+        assert s["captures"][0]["payload"] == "62C00BAA"
+        assert s["captures"][1]["payload"] == "62C00BBB"
+
+    def test_appends_to_existing_file(self, tmp_path):
+        """Appends session to existing capture file."""
+        from datetime import datetime
+
+        today = datetime.now().strftime("%Y-%m-%d")
+        existing = tmp_path / f"{today}.yaml"
+        existing.write_text("sessions:\n  - date: '2026-01-01'\n    label: old\n    captures: []\n")
+
+        hex_history = {("IGPM (0x770)", "22BC03"): [("62BC03FF", "10:00:00")]}
+        prev_hex = {}
+        with patch("builtins.input", side_effect=["New session", "", ""]):
+            _prompt_and_save(hex_history, prev_hex, tmp_path)
+
+        with open(existing) as f:
+            data = yaml.safe_load(f)
+        assert len(data["sessions"]) == 2
+        assert data["sessions"][1]["label"] == "New session"
+        assert "state" not in data["sessions"][1]  # empty state omitted
+
+    def test_empty_label_cancels(self, tmp_path):
+        """Empty label cancels save."""
+        hex_history = {("BCM (0x7A0)", "22B003"): [("62B003AA", "10:00:00")]}
+        with patch("builtins.input", side_effect=[""]):
+            _prompt_and_save(hex_history, {}, tmp_path)
+        assert list(tmp_path.glob("*.yaml")) == []
+
+    def test_no_payloads_skips(self, tmp_path):
+        """No payloads means nothing to save."""
+        _prompt_and_save({}, {}, tmp_path)
+        assert list(tmp_path.glob("*.yaml")) == []
+
+    def test_keyboard_interrupt_cancels(self, tmp_path):
+        """Ctrl+C during prompt cancels gracefully."""
+        hex_history = {("BCM (0x7A0)", "22B003"): [("62B003AA", "10:00:00")]}
+        with patch("builtins.input", side_effect=KeyboardInterrupt):
+            _prompt_and_save(hex_history, {}, tmp_path)
+        assert list(tmp_path.glob("*.yaml")) == []
+
+    def test_multiple_ecus(self, tmp_path):
+        """Captures from multiple ECUs are saved correctly."""
+        hex_history = {
+            ("BCM (0x7A0)", "22C00B"): [("62C00BAA", "10:00:00")],
+            ("IGPM (0x770)", "22BC03"): [("62BC03FF", "10:00:01")],
+        }
+        with patch("builtins.input", side_effect=["Multi-ECU test", "ACC", ""]):
+            _prompt_and_save(hex_history, {}, tmp_path)
+
+        files = list(tmp_path.glob("*.yaml"))
+        with open(files[0]) as f:
+            data = yaml.safe_load(f)
+        captures = data["sessions"][0]["captures"]
+        assert len(captures) == 2
+        ecus = {c["ecu"] for c in captures}
+        assert ecus == {"BCM", "IGPM"}

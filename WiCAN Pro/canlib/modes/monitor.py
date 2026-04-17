@@ -21,9 +21,12 @@ exercise and would eliminate all the Rich Live quirks.
 """
 
 import asyncio
+import re
 import time
 from datetime import datetime
+from pathlib import Path
 
+import yaml
 from rich.console import Console
 from rich.live import Live
 from rich.text import Text
@@ -213,6 +216,108 @@ def _render_results(
     return text
 
 
+def _prompt_and_save(
+    hex_history: dict[tuple[str, str], list[tuple[str, str]]],
+    prev_hex: dict[tuple[str, str], str],
+    captures_dir: Path,
+) -> None:
+    """Prompt for session metadata and write captures to YAML file.
+
+    Collects label, state, and notes via stdin prompts, then appends a new
+    session with all unique payloads to captures/YYYY-MM-DD.yaml.
+    """
+    if not hex_history and not prev_hex:
+        print("  No payloads captured — nothing to save.")
+        return
+
+    # Merge current values into history for PIDs not yet in history
+    all_keys = set(hex_history.keys()) | set(prev_hex.keys())
+    merged: dict[tuple[str, str], list[tuple[str, str]]] = {}
+    for key in all_keys:
+        entries = list(hex_history.get(key, []))
+        cur = prev_hex.get(key, "")
+        if cur and cur not in [h for h, _ts in entries]:
+            ts = datetime.now().strftime("%H:%M:%S")
+            entries.append((cur, ts))
+        if entries:
+            merged[key] = entries
+
+    if not merged:
+        print("  No payloads captured — nothing to save.")
+        return
+
+    # Count what we'll save
+    n_pids = len(merged)
+    n_payloads = sum(len(v) for v in merged.values())
+    print(f"\n  Saving {n_payloads} payload(s) across {n_pids} PID(s).")
+
+    # Prompt for metadata
+    try:
+        label = input("  Session label: ").strip()
+        if not label:
+            print("  Cancelled (empty label).")
+            return
+        state = input("  State (e.g. deep sleep, ACC, charging) []: ").strip()
+        notes = input("  Notes []: ").strip()
+    except (KeyboardInterrupt, EOFError):
+        print("\n  Cancelled.")
+        return
+
+    # Build captures list, grouped by ECU then PID
+    captures = []
+    for (ecu_label, pid), entries in sorted(merged.items()):
+        # Extract ECU short name from "BCM (0x7A0)"
+        ecu_name = re.match(r"(\w+)", ecu_label).group(1)
+        for hex_val, ts in entries:
+            capture: dict = {
+                "ecu": ecu_name,
+                "pid": pid,
+                "notes": f"monitor capture at {ts}" if ts else "",
+                "payload": hex_val.upper(),
+            }
+            captures.append(capture)
+
+    # Build session entry
+    today = datetime.now().strftime("%Y-%m-%d")
+    session: dict = {"date": today, "label": label}
+    if state:
+        session["state"] = state
+    if notes:
+        session["notes"] = notes
+    session["captures"] = captures
+
+    # Write to file
+    capture_file = captures_dir / f"{today}.yaml"
+    if capture_file.exists():
+        with open(capture_file) as f:
+            data = yaml.safe_load(f)
+        if not data or "sessions" not in data:
+            data = {"sessions": []}
+        data["sessions"].append(session)
+    else:
+        data = {"sessions": [session]}
+
+    # Custom YAML formatting for readability
+    class _Dumper(yaml.SafeDumper):
+        pass
+
+    # Flow style for simple payload strings, block for everything else
+    def _str_representer(dumper, data):
+        if "\n" in data:
+            return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
+        if len(data) > 60 or ":" in data:
+            return dumper.represent_scalar("tag:yaml.org,2002:str", data, style='"')
+        return dumper.represent_scalar("tag:yaml.org,2002:str", data)
+
+    _Dumper.add_representer(str, _str_representer)
+
+    with open(capture_file, "w") as f:
+        yaml.dump(data, f, Dumper=_Dumper, default_flow_style=False, sort_keys=False)
+
+    print(f"  → Saved {len(captures)} capture(s) to {capture_file.name}")
+    print("    Run: python3 validate-captures.py  # to verify")
+
+
 async def mode_monitor(
     terminal,
     query_steps: list[dict],
@@ -221,6 +326,7 @@ async def mode_monitor(
     interval: float = 5.0,
     session_steps: list[dict] | None = None,
     keep: bool = False,
+    save: bool = False,
 ):
     """Live-refresh ECU parameter monitor.
 
@@ -236,7 +342,10 @@ async def mode_monitor(
         interval:       Seconds between poll cycles (default: 5.0).
         session_steps:  Optional list of session/skm-wake steps to run once before
                         the first poll cycle.
+        keep:           Retain all unique payloads per PID in display.
+        save:           On Ctrl+C, prompt for metadata and save to captures/.
     """
+    from ..constants import PIDS_DIR
     from ..pids import build_ecu_index
     from .multi import _exec_query, _exec_session, _exec_skm_wake
 
@@ -261,7 +370,7 @@ async def mode_monitor(
         cycle = 0
         last_queries: list[tuple[str, list]] = []
         prev_hex: dict[tuple[str, str], str] = {}
-        hex_history: dict[tuple[str, str], list[tuple[str, str]]] = {} if keep else None
+        hex_history: dict[tuple[str, str], list[tuple[str, str]]] = {} if keep or save else None
 
         with Live(
             _render_results([], verbose, 0, 0.0, interval),
@@ -319,6 +428,9 @@ async def mode_monitor(
                 pass
             except KeyboardInterrupt:
                 print("\n  Monitoring stopped.")
+                if save and hex_history is not None:
+                    captures_dir = PIDS_DIR.parent / "captures"
+                    _prompt_and_save(hex_history, prev_hex, captures_dir)
                 return
 
         # If we got here, it was a ConnectionError — print after Live has exited

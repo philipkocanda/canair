@@ -195,6 +195,7 @@ async def async_main(args):
                 interval=args.monitor,
                 session_steps=session_steps,
                 keep=args.keep,
+                save=args.save,
             )
         elif args.multi:
             await mode_multi(terminal, args.multi, pids_data, args.verbose, no_repl=not args.repl)
@@ -340,7 +341,9 @@ Examples:
   %(prog)s --multi "query BMS 2101" --monitor
                                             Live monitor: refresh BMS 2101 every 5s
   %(prog)s --multi "session IGPM --wake" "query IGPM BC03 BC06" --monitor 2
-                                            Wake IGPM, then poll BC03+BC06 every 2s
+                                             Wake IGPM, then poll BC03+BC06 every 2s
+  %(prog)s --multi "query BCM C00B B003" --monitor --keep --save
+                                             Monitor + save captures on Ctrl+C
 """,
     )
 
@@ -459,6 +462,12 @@ Examples:
         help="For --monitor: retain all unique payloads per PID and display "
         "them chronologically below the current value. Useful for observing "
         "slow-changing values over time.",
+    )
+    parser.add_argument(
+        "--save",
+        action="store_true",
+        help="For --monitor --keep: on Ctrl+C, prompt for session metadata "
+        "and save all unique payloads to captures/YYYY-MM-DD.yaml.",
     )
 
     # SKM wakeup options
