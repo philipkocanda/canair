@@ -119,7 +119,7 @@ ecus:
     notes: "Firmware ID 'AE_EV EUR.SOP' matches Ioniq head unit firmware/map updates. Previously misidentified as TCU."
   0x783:
     name: AMP
-    description: Audio Amplifier (Krell premium audio)
+    description: Audio Amplifier (external)
     id_protocol: none  # NRC 0x11 on all UDS F1xx and KWP2000 1Axx
     notes: "Identified via Kia e-Niro CAN spreadsheet (exact address match 783/78B). No diagnostic identity data — audio-only module."
   0x796:
@@ -156,10 +156,10 @@ ecus:
     serial: "31114851713802876"
     id_protocol: UDS  # F1xx (many FF-padded fields, same format as BSD-L 0x755)
   0x7C0:
-    name: TCU
-    description: Telematics Control Unit (BlueLink) — tentative
+    name: Unknown-7C0
+    description: Unknown module (responds to 1001 session control)
     id_protocol: unknown
-    notes: "Discovered 2026-04-17. Previously listed as AVN but actual AVN is 0x780. No identity DIDs responded. Best guess: BlueLink telematics module (low-medium confidence)."
+    notes: "Discovered 2026-04-17. No identity DIDs responded. Actual AVN is 0x780. Car has no BlueLink — may be head unit sub-module, DAB tuner, or dormant platform module."
   0x7C4:
     name: MFC
     description: Multi-Function Camera (ADAS)
