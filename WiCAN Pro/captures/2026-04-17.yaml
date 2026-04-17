@@ -5580,3 +5580,17 @@ sessions:
             notes: "Contains 0x7E0 and 0x0302 — possibly routing/address info"
         rejected: "81-8C, 8E-90, 92-97, 9A-9F: NRC"
       notes: "5/32 responding. Fewest identity DIDs of all powertrain ECUs."
+
+- date: "2026-04-17"
+  label: "Gateway broader DID scan — service 21 (80-9F) + service 22 (B/C ranges)"
+  state: "ready"
+  notes: "Gateway is KWP2000. Service 22 returns NO DATA (not supported). Service 21 range 80-9F found 2180 (known) and 2181 (new)."
+  captures:
+    - ecu: Gateway
+      pid: "2181"
+      scan_results:
+        responding:
+          - did: "81"
+            response: "6181FFFFC0000229000000000024757E4339494986130798980000"
+            notes: "27 bytes, very similar structure to 2180 (ambient temp). Bytes 4-7 differ (FFFF vs C366). Possibly freeze-frame or alternate measurement."
+        rejected: "82-9F: NRC 0x12. Service 22 B001-B010, C001-C010: NO DATA (not supported). Service 21 01-0F: all NRC."
