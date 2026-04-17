@@ -159,7 +159,7 @@ ecus:
     name: Unknown-7C0
     description: Unknown module (responds to 1001 session control)
     id_protocol: unknown
-    notes: "Discovered 2026-04-17. No identity DIDs responded. Actual AVN is 0x780. Car has no BlueLink — may be head unit sub-module, DAB tuner, or dormant platform module."
+    notes: "Discovered 2026-04-17. No identity DIDs responded. Actual AVN is 0x780. Car has no BlueLink subscription — module may still exist as dormant platform hardware (UNCONFIRMED). Other candidates: head unit sub-module, DAB tuner."
   0x7C4:
     name: MFC
     description: Multi-Function Camera (ADAS)
