@@ -1,6 +1,14 @@
 # Ioniq 2017 EV — ECU address lookup
 # TX ID is the OBD-II request arbitration ID; RX ID is TX + 8.
-# Metadata from UDS identity DIDs (F187, F18B, F100, F18E, F191 etc.)
+#
+# Protocol split:
+#   Body/comfort ECUs (IGPM, BCM, SKM, CLU, ESC, EPS, HVAC, PSM, VESS) → UDS
+#     Identity: 22 F1xx (with Hyundai -1 offset: F187 instead of F188, etc.)
+#     Live data: 22 xxxx (ReadDataByIdentifier)
+#   Powertrain ECUs (BMS, VCU, MCU, LDC/OBC, Gateway) → KWP2000
+#     Identity: 1A xx (ReadEcuIdentification, range 80-9F)
+#     Live data: 21 xx (manufacturer-specific, paged: 2101, 2102, etc.)
+#     These ECUs do NOT respond to UDS 22 F1xx or 22 Exxx DIDs.
 ecus:
   0x770:
     name: IGPM
@@ -11,11 +19,13 @@ ecus:
     sw_version: "109"
     boot_sw: "20"
     app_sw: "160205"
+    id_protocol: UDS  # F1xx
   0x7A0:
     name: BCM
     description: Body Control Module
     part_number: "95400G7470"
     mfg_date: "2017-05-31"
+    id_protocol: UDS  # F1xx
   0x7A3:
     name: PSM
     description: Power Seat Module
@@ -24,6 +34,7 @@ ecus:
     hw_version: "100"
     sw_version: "100"
     boot_sw: "190"
+    id_protocol: UDS  # F1xx
   0x7A5:
     name: SKM
     alias: SMK  # ECU self-identifies as "SMK"
@@ -32,6 +43,7 @@ ecus:
     diag_address: "190"
     hw_version: "10000"
     sw_version: "10200"
+    id_protocol: UDS  # F1xx
   0x736:
     name: VESS
     description: Virtual Engine Sound System
@@ -40,6 +52,7 @@ ecus:
     hw_version: "100"
     sw_version: "101"
     boot_sw: "060"
+    id_protocol: UDS  # F1xx
   0x744:
     name: Charging
     description: Charging ECU (unverified — no response without AC/DC charging)
@@ -51,10 +64,11 @@ ecus:
     mfg_date: "2017-05-30"
     firmware: "AE_EV DATC(-)1.0"
     fw_version: "1.03"
+    id_protocol: UDS  # F1xx
   0x7C0:
     name: AVN
     description: Audio/Video/Navigation head unit
-    notes: "Does not support F1xx identity DIDs"
+    notes: "No response to UDS F1xx or KWP2000 1Axx identity DIDs"
   0x7C6:
     name: CLU
     description: Cluster (instrument panel)
@@ -63,12 +77,13 @@ ecus:
     hw_version: "100"
     sw_version: "201"
     boot_sw: "625"
+    id_protocol: UDS  # F1xx
   0x7D1:
     name: ESC
     description: Electronic Stability Control
     serial: "GWLK7F01A986826"
     app_sw: "G7"
-    notes: "No part number DID supported"
+    id_protocol: UDS  # F1xx (limited — no part number DID)
   0x7D4:
     name: EPS
     alias: MDPS  # Motor-Driven Power Steering
@@ -76,23 +91,46 @@ ecus:
     part_number: "56310G7300"
     mfg_date: "2017-06-01"
     firmware: "MDPS C 1.00/1.03"
+    id_protocol: UDS  # F1xx
   0x7E2:
     name: VCU
     description: Vehicle Control Unit
-    notes: "Does not support F1xx identity DIDs"
+    part_number: "36601-0E250"
+    ecu_id: AEVLDC53  # KWP2000 1A8C — oddly reports LDC identifier
+    sw_id: "EAEEO5L-NS7-D060"
+    calibration: "C5210617"
+    vin: "KMHCXXXXXXXXXXXX"
+    id_protocol: KWP2000  # 1Axx
   0x7E3:
     name: MCU
     description: Motor Control Unit (inverter)
-    notes: "Does not support F1xx identity DIDs"
+    part_number: "36600-0E250"
+    ecu_id: AEEMCU83  # KWP2000 1A8C
+    sw_id: "EAEEHEL-MS2-D000"
+    calibration: "00000001"
+    id_protocol: KWP2000  # 1Axx
   0x7E4:
     name: BMS
     description: Battery Management System
-    notes: "Does not support F1xx identity DIDs (NRC 0x12 even in extended session)"
+    ecu_id: "AEEV__ BMS"  # KWP2000 1A90
+    fw_version: "VER.2.3"  # KWP2000 1A91
+    sw_id: CGBMSE305AE1000A  # KWP2000 1A8C
+    calibration: "4604"  # KWP2000 1A8D
+    id_protocol: KWP2000  # 1Axx
+    notes: "1A80 firmware build date 2008-07-09 (likely platform date, not unit manufacture)"
   0x7E5:
     name: LDC
+    alias: OBC  # Also handles On-Board Charger
     description: Low-voltage DC-DC Converter / OBC
-    notes: "Does not support F1xx identity DIDs. CarScanner identifies as AEV**LDC**53."
+    part_number: "36400-0E150"
+    ecu_id: AEEOBC51  # KWP2000 1A8C
+    sw_id: "EAEEH5L-OS3-D000"
+    calibration: "00000001"
+    id_protocol: KWP2000  # 1Axx
   0x7E6:
     name: Gateway
     description: CAN Gateway
-    notes: "Does not support F1xx identity DIDs"
+    part_number: M3062000307  # KWP2000 1A91
+    sw_id: EAE16AAFB30001  # KWP2000 1A8D
+    firmware: EAEAAFP201  # KWP2000 1A98
+    id_protocol: KWP2000  # 1Axx
