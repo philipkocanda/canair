@@ -84,7 +84,7 @@ ecus:
     id_protocol: UDS  # F1xx
   0x733:
     name: PLC
-    description: PLC Charge Control Module (Power Line Communication for AC/DC charging)
+    description: PLC Charge Control Module (Power Line Communication for DC CCS fast-charging)
     part_number: "91950G7200"
     mfg_date: "2017-05-21"
     hw_version: "101"
@@ -111,18 +111,19 @@ ecus:
     serial: "31114851712211429"
     id_protocol: UDS  # F1xx (many FF-padded fields)
   0x780:
-    name: TCU
-    description: Telematics Control Unit
+    name: AVN
+    description: Audio/Video/Navigation head unit
     serial: "00000076FE0085-003240"
     app_sw: "AE_EV EURSOP 12 017.1"
     id_protocol: UDS  # F1xx (limited — 3 DIDs)
+    notes: "Firmware ID 'AE_EV EUR.SOP' matches Ioniq head unit firmware/map updates. Previously misidentified as TCU."
   0x783:
     name: Unknown-783
     description: Unknown ECU (responds to 1001 but no identity DIDs)
     notes: "NRC 0x11 (serviceNotSupported) on all UDS F1xx and all KWP2000 1Axx. Alive but unidentifiable."
   0x796:
     name: AVM
-    description: Around View Monitor / Parking Distance Control
+    description: Rear View Camera / Parking Distance Control
     part_number: "95760G2000"
     mfg_date: "2017-05-30"  # ASCII-encoded in raw field
     hw_version: "100"
@@ -153,10 +154,6 @@ ecus:
     part_number: "95811G2000"
     serial: "31114851713802876"
     id_protocol: UDS  # F1xx (many FF-padded fields, same format as FCAM 0x755)
-  0x7C0:
-    name: AVN
-    description: Audio/Video/Navigation head unit
-    notes: "No response to UDS F1xx or KWP2000 1Axx identity DIDs"
   0x7C4:
     name: MFC
     description: Multi-Function Camera (ADAS)
