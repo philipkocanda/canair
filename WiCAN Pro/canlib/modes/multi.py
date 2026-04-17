@@ -239,9 +239,17 @@ async def _exec_query(
 
     total = len(pids_to_query) + len(raw_pids)
 
+    # Build sorted query plan: interleave mapped and unmapped PIDs by DID
+    query_plan = []  # list of (pid_code, pid_info_or_None, unmapped)
+    for pid_code, pid_info in pids_to_query.items():
+        query_plan.append((pid_code, pid_info, False))
+    for raw_pid in raw_pids:
+        query_plan.append((raw_pid, None, True))
+    query_plan.sort(key=lambda x: x[0])
+
     all_pid_results = []
 
-    for pid_code, pid_info in sorted(pids_to_query.items()):
+    for pid_code, pid_info, unmapped in query_plan:
         await sm.keepalive_stale()
         await sm.terminal.set_header(tx_id)
 
@@ -251,57 +259,48 @@ async def _exec_query(
             nrc = resp.get("nrc")
             if nrc is not None:
                 error = f"NRC 0x{nrc:02X} ({resp['nrc_desc']})"
-            all_pid_results.append({"pid": pid_code, "error": error})
+            all_pid_results.append(
+                {"pid": pid_code, "error": error, "unmapped": unmapped}
+            )
             continue
 
-        wican_bytes = elm_hex_to_wican_bytes(resp["hex"])
-        params = pid_info["parameters"]
-        results = []
-        for pname, pdef in params.items():
-            expr = pdef.get("expression", "")
-            unit = pdef.get("unit", "")
-            verified = pdef.get("verified", False)
-            if not expr:
-                continue
-            try:
-                value = evaluate_expression(expr, wican_bytes)
-                value = round(value * 100) / 100
-                results.append((pname, value, unit, expr, None, verified))
-            except Exception as e:
-                results.append((pname, None, unit, expr, str(e), verified))
+        if pid_info:
+            # Mapped PID — decode parameters
+            wican_bytes = elm_hex_to_wican_bytes(resp["hex"])
+            params = pid_info["parameters"]
+            results = []
+            for pname, pdef in params.items():
+                expr = pdef.get("expression", "")
+                unit = pdef.get("unit", "")
+                verified = pdef.get("verified", False)
+                if not expr:
+                    continue
+                try:
+                    value = evaluate_expression(expr, wican_bytes)
+                    value = round(value * 100) / 100
+                    results.append((pname, value, unit, expr, None, verified))
+                except Exception as e:
+                    results.append((pname, None, unit, expr, str(e), verified))
 
-        all_pid_results.append(
-            {
-                "pid": pid_code,
-                "params": results,
-                "raw_hex": resp["hex"],
-            }
-        )
-
-    # Query raw (unmapped) PIDs
-    for raw_pid in raw_pids:
-        await sm.keepalive_stale()
-        await sm.terminal.set_header(tx_id)
-
-        resp = await sm.terminal.send_uds(raw_pid)
-        if not resp.get("ok"):
-            error = resp.get("error") or resp.get("nrc_desc", "unknown")
-            nrc = resp.get("nrc")
-            if nrc is not None:
-                error = f"NRC 0x{nrc:02X} ({resp['nrc_desc']})"
-            all_pid_results.append({"pid": raw_pid, "error": error, "unmapped": True})
-            continue
-
-        decode = decode_uds_response(resp["bytes"])
-        all_pid_results.append(
-            {
-                "pid": raw_pid,
-                "params": [],
-                "raw_hex": resp["hex"],
-                "decode": decode,
-                "unmapped": True,
-            }
-        )
+            all_pid_results.append(
+                {
+                    "pid": pid_code,
+                    "params": results,
+                    "raw_hex": resp["hex"],
+                }
+            )
+        else:
+            # Unmapped PID — raw response
+            decode = decode_uds_response(resp["bytes"])
+            all_pid_results.append(
+                {
+                    "pid": pid_code,
+                    "params": [],
+                    "raw_hex": resp["hex"],
+                    "decode": decode,
+                    "unmapped": True,
+                }
+            )
 
     print_ecu_results(
         ecu_label=f"{upper} (0x{tx_id:03X})",
