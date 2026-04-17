@@ -11,7 +11,7 @@ ECUS_FILE = Path(__file__).parent / "ecus.yaml"
 
 PAYLOAD_FIELDS = {"payload", "response", "scan_results"}
 REQUIRED_CAPTURE_FIELDS = {"ecu", "pid", "notes"}
-ALLOWED_CAPTURE_FIELDS = REQUIRED_CAPTURE_FIELDS | PAYLOAD_FIELDS | {"label"}
+ALLOWED_CAPTURE_FIELDS = REQUIRED_CAPTURE_FIELDS | PAYLOAD_FIELDS | {"label", "time"}
 DEPRECATED_FIELDS = {"ecu_tx", "ecu_rx", "ecu_name"}
 REQUIRED_SESSION_FIELDS = {"date", "label", "captures"}
 ALLOWED_SESSION_FIELDS = REQUIRED_SESSION_FIELDS | {"state", "notes"}

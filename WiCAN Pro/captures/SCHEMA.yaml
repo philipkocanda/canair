@@ -24,6 +24,7 @@
 #
 # Optional fields:
 #   label:   Short description of what was tested (recommended for experiments/scans)
+#   time:    Capture timestamp as HH:MM:SS (added by --save from monitor mode)
 #
 # ─── scan_results structure ──────────────────────────────────────────────
 #
