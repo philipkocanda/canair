@@ -31,24 +31,24 @@ def _bytes_to_ascii(raw_hex: str) -> str:
     return "".join(chr(b) if 32 <= b < 127 else "." for b in data)
 
 
-def _render_hex_line(raw_hex: str, params: list, unmapped: bool) -> Text:
+def _render_hex_line(raw_hex: str, params: list, unmapped: bool, *, bg: str = "") -> Text:
     """Render a hex line: green=verified, yellow=unverified, bright_black=uncovered/unmapped."""
     elm_bytes = [raw_hex[i : i + 2] for i in range(0, len(raw_hex), 2)]
     n_bytes = len(elm_bytes)
     t = Text()
-    t.append("      ")
+    t.append("      ", style=bg.strip() if bg else "")
 
     if unmapped or not params:
         spaced = " ".join(elm_bytes)
         ascii_repr = _bytes_to_ascii(raw_hex)
-        t.append(f"{spaced}  {ascii_repr}  ({n_bytes} B)", style="bright_black")
+        t.append(f"{spaced}  {ascii_repr}  ({n_bytes} B)", style="bright_black" + bg)
     else:
         byte_color = _build_byte_colors(params, n_bytes)
         for i, hb in enumerate(elm_bytes):
             if i > 0:
-                t.append(" ")
-            t.append(hb, style=byte_color[i])
-        t.append(f"  ({n_bytes} B)", style="bright_black")
+                t.append(" ", style=bg.strip() if bg else "")
+            t.append(hb, style=byte_color[i] + bg)
+        t.append(f"  ({n_bytes} B)", style="bright_black" + bg)
 
     t.append("\n")
     return t
@@ -60,6 +60,7 @@ def _render_results(
     cycle: int,
     elapsed: float,
     interval: float,
+    prev_hex: dict[tuple[str, str], str] | None = None,
 ) -> Text:
     """Render all ECU query results as a Rich Text object for Live display."""
     text = Text()
@@ -68,6 +69,9 @@ def _render_results(
         f"  Monitor — cycle {cycle}  (last: {elapsed:.1f}s, interval: {interval:.1f}s)\n",
         style="dim",
     )
+
+    if prev_hex is None:
+        prev_hex = {}
 
     for ecu_label, pid_results in queries:
         if not pid_results:
@@ -85,12 +89,19 @@ def _render_results(
             decode = entry.get("decode")
             unmapped = entry.get("unmapped", False)
 
+            # Detect change from previous cycle
+            hex_key = (ecu_label, pid)
+            changed = cycle > 1 and raw_hex and hex_key in prev_hex and prev_hex[hex_key] != raw_hex
+            bg = " on grey23" if changed else ""
+
             text.append("    ")
-            text.append(pid, style="yellow")
+            text.append(pid, style="yellow" + bg)
+            if changed:
+                text.append(" ●", style="bright_green" + bg)
             if unmapped:
-                text.append(" (unmapped)", style="dim")
+                text.append(" (unmapped)", style="dim" + bg)
             if error:
-                text.append(f"  {error}\n", style="red")
+                text.append(f"  {error}\n", style="red" + bg)
                 continue
             text.append("\n")
 
@@ -110,23 +121,23 @@ def _render_results(
                     mark_style = "green" if verified else "yellow"
                     mark_char = "✓" if verified else "?"
                     if perr:
-                        text.append(f"      {name:<{max_name}}  ")
-                        text.append(f"ERROR: {perr}\n", style="red")
+                        text.append(f"      {name:<{max_name}}  ", style=bg.strip() if bg else "")
+                        text.append(f"ERROR: {perr}\n", style="red" + bg)
                     else:
                         val_str = format_value(value, unit, display)
-                        text.append(f"      {name:<{max_name}}  ")
+                        text.append(f"      {name:<{max_name}}  ", style=bg.strip() if bg else "")
                         if verbose:
-                            text.append(f"{val_str:<{max_val}}  ")
-                            text.append(mark_char, style=mark_style)
-                            text.append(f"  {expression}\n", style="dim")
+                            text.append(f"{val_str:<{max_val}}  ", style=bg.strip() if bg else "")
+                            text.append(mark_char, style=mark_style + bg)
+                            text.append(f"  {expression}\n", style="dim" + bg)
                         else:
-                            text.append(f"{val_str:<{max_val}}  ")
-                            text.append(mark_char + "\n", style=mark_style)
+                            text.append(f"{val_str:<{max_val}}  ", style=bg.strip() if bg else "")
+                            text.append(mark_char + "\n", style=mark_style + bg)
             elif decode:
-                text.append(f"      {decode}\n")
+                text.append(f"      {decode}\n", style=bg.strip() if bg else "")
 
             if raw_hex:
-                text.append_text(_render_hex_line(raw_hex, params, unmapped))
+                text.append_text(_render_hex_line(raw_hex, params, unmapped, bg=bg))
 
     text.append("\n  Press Ctrl+C to stop monitoring\n", style="dim")
     return text
@@ -178,6 +189,7 @@ async def mode_monitor(
 
         cycle = 0
         last_queries: list[tuple[str, list]] = []
+        prev_hex: dict[tuple[str, str], str] = {}
 
         with Live(
             _render_results([], verbose, 0, 0.0, interval),
@@ -206,7 +218,16 @@ async def mode_monitor(
 
                 last_queries = new_queries
                 elapsed = time.monotonic() - t0
-                live.update(_render_results(last_queries, verbose, cycle, elapsed, interval))
+                live.update(
+                    _render_results(last_queries, verbose, cycle, elapsed, interval, prev_hex)
+                )
+
+                # Update prev_hex for next cycle
+                for ecu_label, pid_results in new_queries:
+                    for entry in pid_results:
+                        raw = entry.get("raw_hex", "")
+                        if raw:
+                            prev_hex[(ecu_label, entry["pid"])] = raw
 
                 remaining = interval - elapsed
                 if remaining > 0:
