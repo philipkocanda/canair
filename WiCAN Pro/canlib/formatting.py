@@ -15,18 +15,31 @@ def _bytes_to_ascii(raw_hex: str) -> str:
     return "".join(chr(b) if 32 <= b < 127 else "." for b in data)
 
 
-def format_value(value: float, unit: str) -> str:
-    """Format a decoded value with unit."""
+def format_value(value: float, unit: str, display: str = "") -> str:
+    """Format a decoded value with unit and optional display expression.
+
+    If display is set, evaluates it as an f-string with v=value and appends
+    the formatted result in parentheses: "480 min (08:00)".
+    """
     if value == int(value):
-        return f"{int(value)} {unit}".strip()
-    return f"{value:.2f} {unit}".strip()
+        base = f"{int(value)} {unit}".strip()
+    else:
+        base = f"{value:.2f} {unit}".strip()
+    if display:
+        try:
+            v = value  # noqa: F841 — used in eval
+            formatted = eval(display)
+            base = f"{base} ({formatted})"
+        except Exception:
+            pass  # silently skip broken display expressions
+    return base
 
 
 def print_decoded_params(params_results: list, verbose: bool = False):
     """Print decoded parameter values in a compact aligned table.
 
     Args:
-        params_results: list of (name, value, unit, expression, error, verified)
+        params_results: list of (name, value, unit, expression, error, verified[, display])
     """
     if not params_results:
         print("  No parameters to display")
@@ -34,16 +47,22 @@ def print_decoded_params(params_results: list, verbose: bool = False):
 
     max_name = max(len(r[0]) for r in params_results)
     max_val = max(
-        len(format_value(r[1], r[2]) if r[1] is not None else "ERROR")
+        len(
+            format_value(r[1], r[2], r[6] if len(r) > 6 else "")
+            if r[1] is not None
+            else "ERROR"
+        )
         for r in params_results
     )
 
-    for name, value, unit, expression, error, verified in params_results:
+    for row in params_results:
+        name, value, unit, expression, error, verified = row[:6]
+        display = row[6] if len(row) > 6 else ""
         v_mark = " " if verified else "?"
         if error:
             print(f"  {v_mark} {name:<{max_name}}  {'ERROR':<{max_val}}  !! {error}")
         else:
-            val_str = format_value(value, unit)
+            val_str = format_value(value, unit, display)
             if verbose:
                 print(
                     f"  {v_mark} {name:<{max_name}}  {val_str:<{max_val}}  [{expression}]"
@@ -98,16 +117,22 @@ def print_ecu_results(
         if params:
             max_name = max(len(r[0]) for r in params)
             max_val = max(
-                len(format_value(r[1], r[2]) if r[1] is not None else "ERROR")
+                len(
+                    format_value(r[1], r[2], r[6] if len(r) > 6 else "")
+                    if r[1] is not None
+                    else "ERROR"
+                )
                 for r in params
             )
-            for name, value, unit, expression, perr, verified in params:
+            for row in params:
+                name, value, unit, expression, perr, verified = row[:6]
+                display = row[6] if len(row) > 6 else ""
                 mark = "[green]✓[/green]" if verified else "[yellow]?[/yellow]"
                 if perr:
                     val_str = f"[red]ERROR: {perr}[/red]"
                     c.print(f"      {name:<{max_name}}  {val_str}")
                 else:
-                    val_str = format_value(value, unit)
+                    val_str = format_value(value, unit, display)
                     if verbose:
                         c.print(
                             f"      {name:<{max_name}}  {val_str:<{max_val}}  {mark}  [dim]{expression}[/dim]"
@@ -134,7 +159,8 @@ def print_ecu_results(
             else:
                 # Mapped: find which ELM payload bytes are covered by expressions
                 covered_elm = set()
-                for _, _, _, expression, perr, _ in params:
+                for row in params:
+                    expression, perr = row[3], row[4]
                     if perr or not expression:
                         continue
                     wican_indices = extract_byte_indices(expression)

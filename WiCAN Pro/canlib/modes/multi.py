@@ -273,14 +273,15 @@ async def _exec_query(
                 expr = pdef.get("expression", "")
                 unit = pdef.get("unit", "")
                 verified = pdef.get("verified", False)
+                display = pdef.get("display", "")
                 if not expr:
                     continue
                 try:
                     value = evaluate_expression(expr, wican_bytes)
                     value = round(value * 100) / 100
-                    results.append((pname, value, unit, expr, None, verified))
+                    results.append((pname, value, unit, expr, None, verified, display))
                 except Exception as e:
-                    results.append((pname, None, unit, expr, str(e), verified))
+                    results.append((pname, None, unit, expr, str(e), verified, display))
 
             all_pid_results.append(
                 {
