@@ -246,6 +246,7 @@ async def mode_monitor(
         hex_history: dict[tuple[str, str], list[tuple[str, str]]] = {} if keep else None
 
         last_render: Text | None = None
+        stopped = False
 
         with Live(
             _render_results([], verbose, 0, 0.0, interval),
@@ -253,55 +254,65 @@ async def mode_monitor(
             refresh_per_second=4,
             transient=True,
         ) as live:
-            while True:
-                cycle += 1
-                t0 = time.monotonic()
+            try:
+                while True:
+                    cycle += 1
+                    t0 = time.monotonic()
 
-                new_queries = []
-                for step in query_steps:
-                    result = await _exec_query(
-                        sm,
-                        step["ecu"],
-                        step.get("pids", []),
-                        ecu_index,
-                        pids_data,
-                        verbose,
-                        return_results=True,
-                        quiet=True,
+                    new_queries = []
+                    for step in query_steps:
+                        result = await _exec_query(
+                            sm,
+                            step["ecu"],
+                            step.get("pids", []),
+                            ecu_index,
+                            pids_data,
+                            verbose,
+                            return_results=True,
+                            quiet=True,
+                        )
+                        if result is not None:
+                            new_queries.append(result)
+
+                    last_queries = new_queries
+                    elapsed = time.monotonic() - t0
+
+                    # Record new payloads into history before rendering
+                    for ecu_label, pid_results in new_queries:
+                        for entry in pid_results:
+                            raw = entry.get("raw_hex", "")
+                            if raw:
+                                key = (ecu_label, entry["pid"])
+                                prev_hex[key] = raw
+                                if hex_history is not None:
+                                    existing = [h for h, _ts in hex_history.get(key, [])]
+                                    if raw not in existing:
+                                        ts = datetime.now().strftime("%H:%M:%S")
+                                        hex_history.setdefault(key, []).append((raw, ts))
+
+                    render = _render_results(
+                        last_queries, verbose, cycle, elapsed, interval, prev_hex, hex_history
                     )
-                    if result is not None:
-                        new_queries.append(result)
+                    last_render = render
+                    live.update(render)
 
-                last_queries = new_queries
-                elapsed = time.monotonic() - t0
+                    remaining = interval - elapsed
+                    if remaining > 0:
+                        await asyncio.sleep(remaining)
 
-                # Record new payloads into history before rendering
-                for ecu_label, pid_results in new_queries:
-                    for entry in pid_results:
-                        raw = entry.get("raw_hex", "")
-                        if raw:
-                            key = (ecu_label, entry["pid"])
-                            prev_hex[key] = raw
-                            if hex_history is not None:
-                                existing = [h for h, _ts in hex_history.get(key, [])]
-                                if raw not in existing:
-                                    ts = datetime.now().strftime("%H:%M:%S")
-                                    hex_history.setdefault(key, []).append((raw, ts))
+            except KeyboardInterrupt:
+                stopped = True
+                # Print final state before Live clears the screen on exit
+                if last_render is not None:
+                    live.update(last_render)
 
-                render = _render_results(
-                    last_queries, verbose, cycle, elapsed, interval, prev_hex, hex_history
-                )
-                last_render = render
-                live.update(render)
-
-                remaining = interval - elapsed
-                if remaining > 0:
-                    await asyncio.sleep(remaining)
+        # Live has exited (transient cleared screen) — reprint final state
+        if stopped and last_render is not None:
+            _console.print(last_render)
+            print("  Monitoring stopped.")
 
     except KeyboardInterrupt:
-        if last_render is not None:
-            _console.print(last_render)
-        print("\n  Monitoring stopped.")
+        pass  # interrupted before first cycle
     finally:
         sm.stop_background_keepalive()
         print("  Closing sessions...")
