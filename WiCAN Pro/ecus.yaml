@@ -13,7 +13,7 @@
 #   identity DIDs at all — they may be sub-modules or CAN bus repeaters.
 #
 # Discovery scan 2026-04-17: full sweep 0x700-0x7EF found 30 alive addresses.
-# 16 previously known + 14 newly discovered + 0x7DF (OBD-II broadcast).
+# 16 previously known + 14 newly discovered + 0x7C0 (unknown) + 0x7DF (OBD-II broadcast).
 ecus:
   0x770:
     name: IGPM
@@ -105,8 +105,8 @@ ecus:
     id_protocol: KWP2000  # 1Axx (10/32 responding)
     notes: "Responds to 1001 with NRC 0x12 but alive. KWP2000 only. Most fields FFFFFFFF. May overlap with LDC 0x7E5 OBC function."
   0x755:
-    name: FCAM
-    description: Front Camera
+    name: BSD-L
+    description: Blind Spot Detection radar (left)
     part_number: "95821G2000"
     serial: "31114851712211429"
     id_protocol: UDS  # F1xx (many FF-padded fields)
@@ -122,8 +122,8 @@ ecus:
     description: Unknown ECU (responds to 1001 but no identity DIDs)
     notes: "NRC 0x11 (serviceNotSupported) on all UDS F1xx and all KWP2000 1Axx. Alive but unidentifiable."
   0x796:
-    name: AVM
-    description: Rear View Camera / Parking Distance Control
+    name: RCAM
+    description: Rear View Camera (parking)
     part_number: "95760G2000"
     mfg_date: "2017-05-30"  # ASCII-encoded in raw field
     hw_version: "100"
@@ -149,11 +149,16 @@ ecus:
     sw_version: "KOSTAL_SW_G07"
     id_protocol: UDS  # F1xx
   0x7B7:
-    name: RCAM
-    description: Rear Camera
+    name: BSD-R
+    description: Blind Spot Detection radar (right)
     part_number: "95811G2000"
     serial: "31114851713802876"
-    id_protocol: UDS  # F1xx (many FF-padded fields, same format as FCAM 0x755)
+    id_protocol: UDS  # F1xx (many FF-padded fields, same format as BSD-L 0x755)
+  0x7C0:
+    name: Unknown-7C0
+    description: Unknown (responds to 1001 session control)
+    id_protocol: unknown
+    notes: "Discovered 2026-04-17. Previously listed as AVN but no identity DIDs responded. May be head unit sub-module (actual AVN is 0x780)."
   0x7C4:
     name: MFC
     description: Multi-Function Camera (ADAS)
