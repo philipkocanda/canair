@@ -81,7 +81,7 @@ The BCM (0x7A0) wakes from CAN bus activity without needing SKM ACC power. Simpl
 
 ```bash
 # From deep sleep — no SKM involved:
-./can-request.py --multi "raw 770:1001" "raw 770:1001" "sleep 1" "raw 7A0:22C00B" --no-repl
+./canreq.py --multi "raw 770:1001" "raw 770:1001" "sleep 1" "raw 7A0:22C00B"
 ```
 
 ```

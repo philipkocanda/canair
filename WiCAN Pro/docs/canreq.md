@@ -1,40 +1,40 @@
-#### can-request.py
+#### canreq.py
 
 CLI tool for sending custom CAN/UDS requests to the Ioniq via WiCAN's WebSocket ELM327 terminal mode. Connects to `ws://<ip>/ws`, sends `{"ws_mode": "terminal", "terminal_type": "elm327"}` to enter terminal mode. The firmware handles ISO-TP internally — no Python ISO-TP implementation needed.
 
 ```bash
-can-request.py                                  # Interactive REPL
-can-request.py --param SOC_BMS SOC_DISP         # Query specific parameters
-can-request.py --ecu BMS                        # Query all BMS parameters
-can-request.py --ecu BMS --pid 2101             # Query BMS PID 2101 only
-can-request.py --raw 7E4:2101                   # Raw UDS request with hex dump
-can-request.py --scan --tx 7E4 --service 21 --range 01-FF  # Scan PID range
-can-request.py --identity --tx 7A0 --session    # Query UDS identity DIDs (part no, dates, versions)
-can-request.py --identity --tx 770 --wake       # Identity query with deep-sleep wake
-can-request.py --wican vpn --param SOC_BMS      # Use VPN address
-can-request.py --verbose --ecu VCU              # Show raw WebSocket traffic
-can-request.py --json --param SOC_BMS           # JSON output
-can-request.py --raw 770:22BC03 --session       # Extended diagnostic session (10 03)
-can-request.py --raw 770:22BC03 --wake          # Wake from deep sleep + session
-can-request.py --raw 770:2FBC0103 --wake --hold # IOControl with session held open
+canreq.py                                  # Interactive REPL
+canreq.py --param SOC_BMS SOC_DISP         # Query specific parameters
+canreq.py --ecu BMS                        # Query all BMS parameters
+canreq.py --ecu BMS --pid 2101             # Query BMS PID 2101 only
+canreq.py --raw 7E4:2101                   # Raw UDS request with hex dump
+canreq.py --scan --tx 7E4 --service 21 --range 01-FF  # Scan PID range
+canreq.py --identity --tx 7A0 --session    # Query UDS identity DIDs (part no, dates, versions)
+canreq.py --identity --tx 770 --wake       # Identity query with deep-sleep wake
+canreq.py --wican vpn --param SOC_BMS      # Use VPN address
+canreq.py --verbose --ecu VCU              # Show raw WebSocket traffic
+canreq.py --json --param SOC_BMS           # JSON output
+canreq.py --raw 770:22BC03 --session       # Extended diagnostic session (10 03)
+canreq.py --raw 770:22BC03 --wake          # Wake from deep sleep + session
+canreq.py --raw 770:2FBC0103 --wake --hold # IOControl with session held open
 ```
 
 ##### `--multi` flag (multi-ECU pipeline)
 
-Executes a sequence of sub-commands within a single WebSocket session, managing extended diagnostic sessions across multiple ECUs with interleaved TesterPresent keepalives. After the pipeline completes, drops into an interactive REPL with all sessions still active (suppress with `--no-repl`).
+Executes a sequence of sub-commands within a single WebSocket session, managing extended diagnostic sessions across multiple ECUs with interleaved TesterPresent keepalives. After the pipeline completes, exits by default. Use `--repl` to drop into an interactive REPL with all sessions still active, or include an explicit `repl` step in the pipeline.
 
 ```bash
-# Wake SKM, query IGPM, drop into REPL
-can-request.py --multi "skm-wake acc" "query IGPM BC03 BC06"
+# Wake SKM, query IGPM, exit
+canreq.py --multi "skm-wake acc" "query IGPM BC03 BC06"
 
-# Wake SKM + BCM, raw query charge port, REPL
-can-request.py --multi "skm-wake acc" "session BCM --wake" "raw 7A0:22B00E"
+# Wake SKM + BCM, raw query charge port, exit
+canreq.py --multi "skm-wake acc" "session BCM --wake" "raw 7A0:22B00E"
 
-# Wake IGPM, query all PIDs, exit (no REPL)
-can-request.py --multi "session IGPM --wake" "query IGPM" --no-repl
+# Wake IGPM, query all PIDs, drop into REPL
+canreq.py --multi "session IGPM --wake" "query IGPM" --repl
 
 # Pipeline with explicit sleep between steps
-can-request.py --multi "skm-wake acc" "sleep 1" "query BCM B00E" "repl"
+canreq.py --multi "skm-wake acc" "sleep 1" "query BCM B00E" "repl"
 ```
 
 **Sub-commands:**
@@ -60,7 +60,7 @@ ECU names are resolved from YAML definitions (e.g., `IGPM`, `BCM`, `SKM`) or can
 Example:
 
 ```sh
-./can-request.py --identity --tx 7A0 --wake --wican home
+./canreq.py --identity --tx 7A0 --wake --wican home
 ```
 
 Queries standard UDS identity DIDs from an ECU and prints decoded results. Covers the common Hyundai/Kia identity DID set.
@@ -89,12 +89,12 @@ Keeps the extended diagnostic session alive after the command completes, until C
 
 **Dependencies:** `websockets`, `pyyaml`. Optional: `requests` (for `--reboot`). Imports `evaluate_expression()` from `decode-captures.py`.
 
-**ALWAYS use `can-request.py` for any CAN/UDS communication with the vehicle. Never write your own Python code to open a WebSocket, send ELM327 commands, or talk to the WiCAN device. If `can-request.py` doesn't support a particular operation, that is intentional — discuss with the user before working around it.**
+**ALWAYS use `canreq.py` for any CAN/UDS communication with the vehicle. Never write your own Python code to open a WebSocket, send ELM327 commands, or talk to the WiCAN device. If `canreq.py` doesn't support a particular operation, that is intentional — discuss with the user before working around it.**
 
 **IMPORTANT:** Using the WebSocket terminal overrides AutoPID mode. The WiCAN must be rebooted after a terminal session for AutoPID (MQTT data feed to Home Assistant) to resume (though user must be asked first).
 
 **Never reboot the WiCAN without asking the user first.** Always ask whether they are done probing the CAN bus before suggesting or triggering a reboot. They may want to run more commands in the same session. Only use `--reboot` or `!reboot` when the user has confirmed they are finished.
 
-**CRITICAL: Only one connection at a time.** The WiCAN has a single WebSocket endpoint. Never run multiple `can-request.py` commands in parallel — the second connection will either fail or lock up the device, requiring a power cycle to recover. Always wait for one command to finish before starting the next.
+**CRITICAL: Only one connection at a time.** The WiCAN has a single WebSocket endpoint. Never run multiple `canreq.py` commands in parallel — the second connection will either fail or lock up the device, requiring a power cycle to recover. Always wait for one command to finish before starting the next.
 
 Please keep the `captures/YYYY-MM-DD.yaml` files up to date with any new captures. Also note that ALL requests/responses are automatically logged by this tool in the `logs/` directory with timestamped filenames.

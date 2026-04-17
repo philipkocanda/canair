@@ -19,8 +19,10 @@ init: "ATSP6;ATS0;ATAL;ATST96;"
 
 ecus:
 
-  # ─── TPMS (Tyre Pressure Monitoring System) ───────────────────────────
-  TPMS:
+  # ─── BCM (Body Control Module) / TPMS ──────────────────────────────────
+  # BCM and TPMS share TX ID 0x7A0 (same physical ECU, part 95400G7470).
+  # TPMS data is accessed via DID 22C00B on the BCM.
+  BCM:
     tx_id: 0x7A0
     pids:
       22C00B:
@@ -127,11 +129,6 @@ ecus:
               - https://github.com/meatpiHQ/wican-fw/pull/716
             verified: false
             notes: ""
-
-  # ─── BCM (Body Control Module) ────────────────────────────────────────
-  BCM:
-    tx_id: 0x7A0
-    pids:
       22B00E:
         period: 5000
         enabled: true

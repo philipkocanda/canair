@@ -150,7 +150,7 @@ sessions:
           Positive response — low beams turned on physically. Actuator holds only
           while extended session (1003) is maintained with TesterPresent (3E00)
           keepalive. Session drop releases the actuator (lights turn off).
-          Use: can-request.py --raw 770:2FBC0103 --hold
+          Use: canreq.py --raw 770:2FBC0103 --hold
 
       # --- IOControl scan BC00-BC20 (service 0x2F, append 03) ---
       - ecu: IGPM
@@ -415,7 +415,7 @@ sessions:
   - date: "2026-04-15"
     label: "BCM read scan — deep sleep, SKM ACC+IGN1 held"
     state: "Car off, locked, deep sleep. SKM ACC+IGN1 held via IOControl."
-    notes: "Method: can-request.py --scan --tx 7A0 --service 22 --range B001-B012 --wake"
+    notes: "Method: canreq.py --scan --tx 7A0 --service 22 --range B001-B012 --wake"
     captures:
       # B-range: BCM body data
       - ecu: BCM

@@ -3,12 +3,8 @@
 import json
 
 from rich.console import Console
-from rich.table import Table
-from rich import box
 
 _console = Console(highlight=False)
-# Narrow console for tables — prevents Rich from expanding to full terminal width
-_table_console = Console(highlight=False, width=100)
 
 
 def format_value(value: float, unit: str) -> str:
@@ -48,67 +44,78 @@ def print_decoded_params(params_results: list, verbose: bool = False):
                 print(f"  {v_mark} {name:<{max_name}}  {val_str}")
 
 
-def print_pid_table(
-    pid_code: str,
+def print_ecu_results(
     ecu_label: str,
-    params_results: list,
-    raw_hex: str,
+    pid_results: list,
     verbose: bool = False,
 ):
-    """Print a PID response as a Rich table.
+    """Print all PID results for an ECU in a grouped, compact layout.
 
     Args:
-        pid_code:       PID identifier string, e.g. '22BC03'.
-        ecu_label:      ECU name + TX ID, e.g. 'IGPM (0x770)'.
-        params_results: list of (name, value, unit, expression, error, verified).
-                        May be empty for unmapped PIDs.
-        raw_hex:        Full response hex string, e.g. '62BC030000...'.
-        verbose:        If True, include expression column.
+        ecu_label:   ECU name + TX ID, e.g. 'BCM (0x7A0)'.
+        pid_results: list of dicts, each with:
+            pid:      PID code string, e.g. '22C00B'
+            params:   list of (name, value, unit, expression, error, verified) — may be empty
+            raw_hex:  full response hex string (optional)
+            error:    error string if the PID query failed (optional)
+            decode:   UDS decode string for raw/unmapped PIDs (optional)
+            unmapped: bool — True for PIDs not in YAML
+        verbose:     If True, show expressions.
     """
-    title = f"{ecu_label} · {pid_code}"
-    raw_bytes_str = " ".join(raw_hex[i : i + 2] for i in range(0, len(raw_hex), 2))
-    n_bytes = len(raw_hex) // 2
+    if not pid_results:
+        return
 
-    if params_results:
-        table = Table(
-            title=title,
-            box=box.SIMPLE_HEAD,
-            show_header=True,
-            title_justify="left",
-            padding=(0, 1),
-            expand=False,
-        )
-        max_name_len = max(len(r[0]) for r in params_results)
-        table.add_column(
-            "Parameter",
-            style="bold",
-            no_wrap=True,
-            min_width=max_name_len,
-            max_width=max_name_len,
-        )
-        table.add_column("Value", no_wrap=True)
-        table.add_column("V", justify="center", no_wrap=True)
-        if verbose:
-            table.add_column("Expression", style="dim", no_wrap=True)
+    c = _console
 
-        for name, value, unit, expression, error, verified in params_results:
-            v_mark = "✓" if verified else "[yellow]?[/yellow]"
-            if error:
-                val_str = f"[red]ERROR: {error}[/red]"
-            else:
-                val_str = format_value(value, unit)
-            row = [name, val_str, v_mark]
-            if verbose:
-                row.append(expression if not error else "")
-            table.add_row(*row)
+    # ECU header
+    c.print(f"\n  [bold cyan]{ecu_label}[/bold cyan]")
 
-        _table_console.print(table)
-    else:
-        _table_console.print(f"[bold]{title}[/bold]")
+    for entry in pid_results:
+        pid = entry["pid"]
+        error = entry.get("error")
+        params = entry.get("params", [])
+        raw_hex = entry.get("raw_hex", "")
+        decode = entry.get("decode")
+        unmapped = entry.get("unmapped", False)
 
-    # Raw line always printed separately — not squeezed by any column max_width
-    _table_console.print(f"  [dim]raw  {raw_bytes_str}  ({n_bytes} bytes)[/dim]")
-    _table_console.print()
+        # PID sub-header
+        tag = " [dim](unmapped)[/dim]" if unmapped else ""
+        if error:
+            c.print(f"    [yellow]{pid}[/yellow]{tag}  [red]{error}[/red]")
+            continue
+
+        c.print(f"    [yellow]{pid}[/yellow]{tag}")
+
+        # Decoded parameters — aligned columns
+        if params:
+            max_name = max(len(r[0]) for r in params)
+            max_val = max(
+                len(format_value(r[1], r[2]) if r[1] is not None else "ERROR")
+                for r in params
+            )
+            for name, value, unit, expression, perr, verified in params:
+                mark = "[green]✓[/green]" if verified else "[yellow]?[/yellow]"
+                if perr:
+                    val_str = f"[red]ERROR: {perr}[/red]"
+                    c.print(f"      {name:<{max_name}}  {val_str}")
+                else:
+                    val_str = format_value(value, unit)
+                    if verbose:
+                        c.print(
+                            f"      {name:<{max_name}}  {val_str:<{max_val}}  {mark}  [dim]{expression}[/dim]"
+                        )
+                    else:
+                        c.print(
+                            f"      {name:<{max_name}}  {val_str:<{max_val}}  {mark}"
+                        )
+        elif decode:
+            c.print(f"      {decode}")
+
+        # Raw hex
+        if raw_hex:
+            spaced = " ".join(raw_hex[i : i + 2] for i in range(0, len(raw_hex), 2))
+            n_bytes = len(raw_hex) // 2
+            c.print(f"      [dim]{spaced}  ({n_bytes} B)[/dim]")
 
 
 def print_hexdump(data: bytes, prefix: str = "  "):

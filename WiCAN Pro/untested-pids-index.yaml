@@ -7,10 +7,10 @@
 # This file indexes all ECU/PID combinations that have potential for containing
 # useful information and have NOT yet been successfully queried and decoded.
 #
-# Use with can-request.py:
-#   python3 can-request.py --raw <tx_id>:<pid>          # single PID
-#   python3 can-request.py --scan --tx <tx_id> --service 22 --range <start>-<end>
-#   python3 can-request.py --scan --tx <tx_id> --service 2F --range <start>-<end> --append 03 --session
+# Use with canreq.py:
+#   python3 canreq.py --raw <tx_id>:<pid>          # single PID
+#   python3 canreq.py --scan --tx <tx_id> --service 22 --range <start>-<end>
+#   python3 canreq.py --scan --tx <tx_id> --service 2F --range <start>-<end> --append 03 --session
 #                                                       # IOControl scan (extended session + suffix byte)
 #
 # Status legend:
@@ -775,7 +775,7 @@ read_pids:
   #   2F B073-B0FF: incomplete (SKM session dropped mid-scan, needs re-scan)
   #   2F B061: NRC 0x31 (charge door open not supported on Ioniq 2017)
 
-  - ecu:          TPMS
+  - ecu:          BCM
     tx_id:        "0x7A0"
     pid:          "22C00B"
     service:      "0x22"
@@ -1206,7 +1206,7 @@ iocontrol:
   #
   # IOControl actuators require extended session (1003) + TesterPresent (3E00)
   # keepalive. Actuator releases when session drops.
-  # Use: can-request.py --raw 770:2FBC0103 --hold
+  # Use: canreq.py --raw 770:2FBC0103 --hold
   # ===========================================================================
 
   - ecu:          IGPM

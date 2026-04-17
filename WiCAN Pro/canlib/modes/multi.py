@@ -13,8 +13,8 @@ Sub-commands:
     sleep <seconds>                 Pause between steps
     repl                            Drop into interactive REPL (explicit)
 
-After all sub-commands complete, drops into REPL by default (unless --no-repl
-was specified or an explicit 'repl' step was already executed).
+After all sub-commands complete, exits by default. Use --repl to drop into
+an interactive REPL, or include an explicit 'repl' step in the pipeline.
 """
 
 import asyncio
@@ -23,9 +23,10 @@ import shlex
 
 from ..session_manager import SessionManager
 from ..pids import build_ecu_index, build_param_index, load_pids
+from ..constants import PIDS_FILE
 from ..formatting import (
     print_decoded_params,
-    print_pid_table,
+    print_ecu_results,
     print_hexdump,
     print_json_result,
     decode_uds_response,
@@ -187,6 +188,7 @@ async def _exec_query(
         pass
 
     pids_to_query = ecu_info["pids"]
+    raw_pids = []  # Unmatched filters to query as raw UDS requests
     if pid_filter:
         # Match filter values flexibly: "BC03" matches key "22BC03", and "22BC03" matches too
         filter_upper = [p.upper() for p in pid_filter]
@@ -196,12 +198,48 @@ async def _exec_query(
             if k.upper() in filter_upper
             or any(k.upper().endswith(f) for f in filter_upper)
         }
-        if not pids_to_query:
+
+        # Find unmatched filters — query them as raw UDS requests
+        matched_filters = set()
+        for f in filter_upper:
+            for k in pids_to_query:
+                if k.upper() == f or k.upper().endswith(f):
+                    matched_filters.add(f)
+                    break
+        unmatched = [f for f in filter_upper if f not in matched_filters]
+        if unmatched:
+            # Convert short DID codes to full UDS request codes
+            for u in unmatched:
+                if all(c in "0123456789ABCDEF" for c in u):
+                    if len(u) <= 2:
+                        # Short KWP2000 local ID: "01" → "2101"
+                        raw_pids.append(f"21{u}")
+                    elif len(u) == 4 and u[:2] in ("21", "22"):
+                        # Already a full service+ID: "2101", "22B0"
+                        raw_pids.append(u)
+                    elif len(u) == 4:
+                        # 4-char DID: "B001" → "22B001"
+                        raw_pids.append(f"22{u}")
+                    elif len(u) >= 5 and u[:2] in ("21", "22"):
+                        # Full request code: "22BC03", "2101"
+                        raw_pids.append(u)
+                    else:
+                        raw_pids.append(f"22{u}")
+                else:
+                    print(f"  WARNING: Invalid PID format '{u}', skipping")
+            if raw_pids:
+                print(
+                    f"  NOTE: {', '.join(raw_pids)} not in {PIDS_FILE.name} — querying raw"
+                )
+
+        if not pids_to_query and not raw_pids:
             print(f"  No matching PIDs for filter: {pid_filter}")
             print(f"  Available: {', '.join(sorted(ecu_info['pids'].keys()))}")
             return
 
-    print(f"\n  Querying {upper} (0x{tx_id:03X}) — {len(pids_to_query)} PID(s)")
+    total = len(pids_to_query) + len(raw_pids)
+
+    all_pid_results = []
 
     for pid_code, pid_info in sorted(pids_to_query.items()):
         await sm.keepalive_stale()
@@ -212,9 +250,8 @@ async def _exec_query(
             error = resp.get("error") or resp.get("nrc_desc", "unknown")
             nrc = resp.get("nrc")
             if nrc is not None:
-                print(f"    {pid_code}: NRC 0x{nrc:02X} ({resp['nrc_desc']})")
-            else:
-                print(f"    {pid_code}: {error}")
+                error = f"NRC 0x{nrc:02X} ({resp['nrc_desc']})"
+            all_pid_results.append({"pid": pid_code, "error": error})
             continue
 
         wican_bytes = elm_hex_to_wican_bytes(resp["hex"])
@@ -233,13 +270,44 @@ async def _exec_query(
             except Exception as e:
                 results.append((pname, None, unit, expr, str(e), verified))
 
-        print_pid_table(
-            pid_code=pid_code,
-            ecu_label=f"{upper} (0x{tx_id:03X})",
-            params_results=results,
-            raw_hex=resp["hex"],
-            verbose=verbose,
+        all_pid_results.append(
+            {
+                "pid": pid_code,
+                "params": results,
+                "raw_hex": resp["hex"],
+            }
         )
+
+    # Query raw (unmapped) PIDs
+    for raw_pid in raw_pids:
+        await sm.keepalive_stale()
+        await sm.terminal.set_header(tx_id)
+
+        resp = await sm.terminal.send_uds(raw_pid)
+        if not resp.get("ok"):
+            error = resp.get("error") or resp.get("nrc_desc", "unknown")
+            nrc = resp.get("nrc")
+            if nrc is not None:
+                error = f"NRC 0x{nrc:02X} ({resp['nrc_desc']})"
+            all_pid_results.append({"pid": raw_pid, "error": error, "unmapped": True})
+            continue
+
+        decode = decode_uds_response(resp["bytes"])
+        all_pid_results.append(
+            {
+                "pid": raw_pid,
+                "params": [],
+                "raw_hex": resp["hex"],
+                "decode": decode,
+                "unmapped": True,
+            }
+        )
+
+    print_ecu_results(
+        ecu_label=f"{upper} (0x{tx_id:03X})",
+        pid_results=all_pid_results,
+        verbose=verbose,
+    )
 
 
 async def _exec_raw(sm: SessionManager, spec: str, hold: bool, verbose: bool):
@@ -746,12 +814,12 @@ async def mode_multi(
                 repl_executed = True
                 await _multi_repl(sm, ecu_index, pids_data, verbose)
 
-        # Auto-REPL if no explicit repl step and not suppressed
+        # Auto-REPL if no explicit repl step and --repl was passed
         if not repl_executed and not no_repl:
             sessions_str = ", ".join(f"0x{tx:03X}" for tx in sm.active_sessions)
             if sessions_str:
                 print(f"\n  Active sessions: {sessions_str}")
-            print(f"\n  Pipeline complete. Entering REPL (use --no-repl to skip)...")
+            print(f"\n  Pipeline complete. Entering REPL...")
             await _multi_repl(sm, ecu_index, pids_data, verbose)
 
     except KeyboardInterrupt:
