@@ -2,13 +2,18 @@
 # TX ID is the OBD-II request arbitration ID; RX ID is TX + 8.
 #
 # Protocol split:
-#   Body/comfort ECUs (IGPM, BCM, SKM, CLU, ESC, EPS, HVAC, PSM, VESS) → UDS
+#   Body/comfort ECUs (IGPM, BCM, SKM, CLU, ESC, EPS, HVAC, PSM, VESS, SAS, etc.) → UDS
 #     Identity: 22 F1xx (with Hyundai -1 offset: F187 instead of F188, etc.)
 #     Live data: 22 xxxx (ReadDataByIdentifier)
-#   Powertrain ECUs (BMS, VCU, MCU, LDC/OBC, Gateway) → KWP2000
+#   Powertrain ECUs (BMS, VCU, MCU, LDC/OBC, Gateway, OBC-746) → KWP2000
 #     Identity: 1A xx (ReadEcuIdentification, range 80-9F)
 #     Live data: 21 xx (manufacturer-specific, paged: 2101, 2102, etc.)
 #     These ECUs do NOT respond to UDS 22 F1xx or 22 Exxx DIDs.
+#   Some ECUs (0x783, 0x7D2) respond to session control (1001) but have no
+#   identity DIDs at all — they may be sub-modules or CAN bus repeaters.
+#
+# Discovery scan 2026-04-17: full sweep 0x700-0x7EF found 30 alive addresses.
+# 16 previously known + 14 newly discovered + 0x7DF (OBD-II broadcast).
 ecus:
   0x770:
     name: IGPM
@@ -35,6 +40,22 @@ ecus:
     sw_version: "100"
     boot_sw: "190"
     id_protocol: UDS  # F1xx
+  0x7A1:
+    name: SWRC-L
+    description: Steering Wheel Remote Control (Left)
+    part_number: "93570G2110"
+    mfg_date: "2017-06-02"
+    hw_version: "100"
+    sw_version: "100"
+    id_protocol: UDS  # F1xx (very chatty — 21 DIDs, echoes part# in many fields)
+  0x7A2:
+    name: SWRC-R
+    description: Steering Wheel Remote Control (Right)
+    part_number: "93575G2160"
+    mfg_date: "2017-06-05"
+    hw_version: "100"
+    sw_version: "100"
+    id_protocol: UDS  # F1xx (same pattern as SWRC-L)
   0x7A5:
     name: SKM
     alias: SMK  # ECU self-identifies as "SMK"
@@ -53,9 +74,61 @@ ecus:
     sw_version: "101"
     boot_sw: "060"
     id_protocol: UDS  # F1xx
+  0x725:
+    name: SAS
+    description: Steering Angle Sensor
+    part_number: "95560G7000"
+    hw_version: "100"
+    sw_version: "102"
+    boot_sw: "1.6"
+    id_protocol: UDS  # F1xx
+  0x733:
+    name: PLC
+    description: PLC Charge Control Module (Power Line Communication for AC/DC charging)
+    part_number: "91950G7200"
+    mfg_date: "2017-05-21"
+    hw_version: "101"
+    sw_version: "103"
+    app_sw: "1104"
+    id_protocol: UDS  # F1xx
   0x744:
     name: Charging
-    description: Charging ECU (unverified — no response without AC/DC charging)
+    description: Charging ECU (no response to 1001 — only alive during AC/DC charging?)
+    notes: "Discovery scan 2026-04-17: NO DATA. Earlier scan returned errors. May need active charging session."
+  0x746:
+    name: OBC-746
+    description: On-Board Charger (alternate address)
+    ecu_id: "1.10"  # KWP2000 1A8C
+    sw_id: "Z311"  # KWP2000 1A8D/1A8E
+    calibration: "Z311"
+    hw_sw: "3.5"  # KWP2000 1A92
+    id_protocol: KWP2000  # 1Axx (10/32 responding)
+    notes: "Responds to 1001 with NRC 0x12 but alive. KWP2000 only. Most fields FFFFFFFF. May overlap with LDC 0x7E5 OBC function."
+  0x755:
+    name: FCAM
+    description: Front Camera
+    part_number: "95821G2000"
+    serial: "31114851712211429"
+    id_protocol: UDS  # F1xx (many FF-padded fields)
+  0x780:
+    name: TCU
+    description: Telematics Control Unit
+    serial: "00000076FE0085-003240"
+    app_sw: "AE_EV EURSOP 12 017.1"
+    id_protocol: UDS  # F1xx (limited — 3 DIDs)
+  0x783:
+    name: Unknown-783
+    description: Unknown ECU (responds to 1001 but no identity DIDs)
+    notes: "NRC 0x11 (serviceNotSupported) on all UDS F1xx and all KWP2000 1Axx. Alive but unidentifiable."
+  0x796:
+    name: AVM
+    description: Around View Monitor / Parking Distance Control
+    part_number: "95760G2000"
+    mfg_date: "2017-05-30"  # ASCII-encoded in raw field
+    hw_version: "100"
+    sw_version: "102"
+    boot_sw: "CAN_15.11.01"
+    id_protocol: UDS  # F1xx
   0x7B3:
     name: HVAC
     alias: DATC  # Digital Automatic Temperature Control
@@ -65,10 +138,31 @@ ecus:
     firmware: "AE_EV DATC(-)1.0"
     fw_version: "1.03"
     id_protocol: UDS  # F1xx
+  0x7B6:
+    name: PTC
+    description: PTC Heater (Kostal)
+    part_number: "46700-G7100"
+    mfg_date: "2016-05-26"
+    supplier: "KCI_KOSTAL"
+    hw_version: "KOSTAL_HW_G07"
+    sw_version: "KOSTAL_SW_G07"
+    id_protocol: UDS  # F1xx
+  0x7B7:
+    name: RCAM
+    description: Rear Camera
+    part_number: "95811G2000"
+    serial: "31114851713802876"
+    id_protocol: UDS  # F1xx (many FF-padded fields, same format as FCAM 0x755)
   0x7C0:
     name: AVN
     description: Audio/Video/Navigation head unit
     notes: "No response to UDS F1xx or KWP2000 1Axx identity DIDs"
+  0x7C4:
+    name: MFC
+    description: Multi-Function Camera (ADAS)
+    part_number: "95740-G2200"
+    boot_sw: "AEE MFC AT EUR LHD 1.00 1.00 95740-G2200 161014"
+    id_protocol: UDS  # F1xx (only 1 DID: F100)
   0x7C6:
     name: CLU
     description: Cluster (instrument panel)
@@ -78,12 +172,22 @@ ecus:
     sw_version: "201"
     boot_sw: "625"
     id_protocol: UDS  # F1xx
+  0x7D0:
+    name: SCC
+    description: Smart Cruise Control
+    part_number: "96400-G7000"
+    boot_sw: "AEev SCC F-CUP 1.00 1.00"
+    id_protocol: UDS  # F1xx (3 DIDs)
   0x7D1:
     name: ESC
     description: Electronic Stability Control
     serial: "GWLK7F01A986826"
     app_sw: "G7"
     id_protocol: UDS  # F1xx (limited — no part number DID)
+  0x7D2:
+    name: Unknown-7D2
+    description: Unknown ECU (responds to 1001 but no identity DIDs)
+    notes: "NRC 0x11 on all KWP2000 1Axx. No UDS F1xx response. Alive but unidentifiable."
   0x7D4:
     name: EPS
     alias: MDPS  # Motor-Driven Power Steering
@@ -92,6 +196,11 @@ ecus:
     mfg_date: "2017-06-01"
     firmware: "MDPS C 1.00/1.03"
     id_protocol: UDS  # F1xx
+  0x7D5:
+    name: Unknown-7D5
+    description: Unknown ECU
+    app_sw: "G7"
+    id_protocol: UDS  # F1xx (only 2 DIDs: F18C serial, F101 app SW)
   0x7E2:
     name: VCU
     description: Vehicle Control Unit
