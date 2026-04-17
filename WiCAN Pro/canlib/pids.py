@@ -72,6 +72,8 @@ def build_param_index(pids_data: dict) -> dict:
     for ecu_name, ecu_def in pids_data.get("ecus", {}).items():
         tx_id = ecu_def["tx_id"]
         for pid_code, pid_def in ecu_def.get("pids", {}).items():
+            if pid_def.get("ignored", False):
+                continue
             for param_name, param in pid_def.get("parameters", {}).items():
                 index[param_name.upper()] = {
                     "ecu": ecu_name,
@@ -94,6 +96,8 @@ def build_ecu_index(pids_data: dict) -> dict:
             "pids": {},
         }
         for pid_code, pid_def in ecu_def.get("pids", {}).items():
+            if pid_def.get("ignored", False):
+                continue
             index[ecu_name.upper()]["pids"][str(pid_code).upper()] = {
                 "parameters": pid_def.get("parameters", {}),
                 "period": pid_def.get("period", 5000),

@@ -69,7 +69,7 @@ def validate_ecu_file(path: Path) -> tuple[list[str], list[str], dict]:
     """
     errors = []
     warnings = []
-    stats = {"ecus": 0, "pids": 0, "params": 0, "verified": 0, "unverified": 0}
+    stats = {"ecus": 0, "pids": 0, "params": 0, "verified": 0, "unverified": 0, "ignored": 0}
 
     try:
         with open(path) as f:
@@ -116,6 +116,11 @@ def validate_ecu_file(path: Path) -> tuple[list[str], list[str], dict]:
             period = pid_def.get("period")
             if period is not None and (not isinstance(period, int) or period < 0):
                 errors.append(f"{path.name}/{ecu_name}/{pid_str}: period must be positive int")
+
+            # Ignored PIDs — count and skip parameter validation
+            if pid_def.get("ignored", False):
+                stats["ignored"] += 1
+                continue
 
             # Validate parameters
             params = pid_def.get("parameters", {})
@@ -186,7 +191,7 @@ def main():
 
     all_errors = []
     all_warnings = []
-    total_stats = {"ecus": 0, "pids": 0, "params": 0, "verified": 0, "unverified": 0}
+    total_stats = {"ecus": 0, "pids": 0, "params": 0, "verified": 0, "unverified": 0, "ignored": 0}
 
     if args.files:
         files = [Path(f) for f in args.files]
@@ -220,8 +225,10 @@ def main():
         sys.exit(1)
 
     n_files = len([f for f in files if f.name not in ("_schema.yaml", "_meta.yaml")])
+    ignored = total_stats["ignored"]
+    ignored_str = f", {ignored} ignored" if ignored else ""
     print(
-        f"OK — {n_files} ECU files, {total_stats['pids']} PIDs, "
+        f"OK — {n_files} ECU files, {total_stats['pids']} PIDs{ignored_str}, "
         f"{total_stats['params']} parameters "
         f"({total_stats['verified']} verified, {total_stats['unverified']} unverified)"
     )

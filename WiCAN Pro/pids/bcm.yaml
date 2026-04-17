@@ -109,6 +109,14 @@ BCM:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
           notes: ""
+    22B00D:
+      enabled: false
+      notes: >
+        13 bytes. May contain preheat timer configuration. B03-B04=0xFCFC, B05=0xE0.
+        Relationship to departure time (480 min = 08:00 in B007) unclear. Needs retest
+        after changing preheat settings. Sample: 62B00DFCFCE00000000000AAAA.
+      parameters: {}
+
     22B00E:
       period: 5000
       enabled: true
@@ -125,6 +133,36 @@ BCM:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
           notes: "Bit flag — 1=open, 0=closed. Niro PR had B10:4 — wrong for Ioniq, actual bit is B10:5. BCM does NOT require extended diagnostic session. Verified 2026-04-15."
+
+    22B00F:
+      enabled: false
+      notes: >
+        13 bytes. Identical payload to B00D (0xFCFC E0...) — possibly mirrored register
+        or preheat config overflow. B010+ did not respond in DID scan.
+        Sample: 62B00FFCFCE00000000000AAAA.
+      parameters: {}
+
+    22B004:
+      enabled: false
+      notes: >
+        13 bytes. B09 toggles 0x00↔0x40 (bit 6) every ~12-15 seconds during deep sleep —
+        periodic heartbeat/watchdog flag. B03=0x74, B04=0x02, B05=0x99, B06=0x0C (=12 decimal).
+        Other bytes static across captures. Sample: 62B0047402990C00008000AAAA.
+      parameters: {}
+
+    22B005:
+      enabled: false
+      notes: >
+        13 bytes. Sparse bitfield — B03=0x20, B05=0x10, B11=0x08. Purpose unknown.
+        Static across captures. Sample: 62B0052000100000000800AAAA.
+      parameters: {}
+
+    22B006:
+      enabled: false
+      notes: >
+        13 bytes. All zeros except B03=0x20 — likely empty or unused register.
+        Sample: 62B0062000000000000000AAAA.
+      parameters: {}
 
     22B007:
       period: 60000
@@ -147,6 +185,36 @@ BCM:
             Multi-frame response (13 bytes) — B08 is PCI byte, so can't use [B07:B09].
             B05=0x00, B06=0x20 purpose unknown.
 
+    22B008:
+      enabled: false
+      notes: >
+        13 bytes. Static across deep sleep and ACC captures — configuration register.
+        B03=0x00, B04=0x51, B05=0x0C, B06=0x20, B07=0x00, B08=0x88.
+        Sample: 62B00800510C2000880000AAAA.
+      parameters: {}
+
+    22B009:
+      enabled: false
+      notes: >
+        13 bytes. Repeating 0xFEEE pattern (B03-B06) — possibly sensor addresses or
+        calibration references. Rest zeros. Static. Sample: 62B009FEEEFEEE00000000AAAA.
+      parameters: {}
+
+    22B00A:
+      enabled: false
+      notes: >
+        13 bytes. B03=0xE3, B04=0xFE, B05=0xE3, B07=0x40, B08=0x05. Purpose unknown.
+        Static across captures. Sample: 62B00AE3FEE30000400500AAAA.
+      parameters: {}
+
+    22B00B:
+      enabled: false
+      notes: >
+        NRC 0x31 (requestOutOfRange) in deep sleep. Only 2-byte response (7E00) on some
+        attempts — may be a status register that requires ACC/IGN on. Needs retest with
+        ignition active.
+      parameters: {}
+
     22B00C:
       period: 60000
       enabled: false
@@ -168,6 +236,21 @@ BCM:
             Bit mapping (Mon=bit0? Sun=bit6?) not yet confirmed. Needs verification by
             toggling individual days.
 
+    22B001:
+      enabled: false
+      notes: >
+        20 bytes. Mostly zeros with config-like flags. Returns NO DATA on first attempt
+        after wake, then responds on retry. Static across captures — likely BCM configuration
+        or feature flags. Sample: 62B00140C0000000010000000000000201000000.
+      parameters: {}
+
+    22B002:
+      enabled: false
+      notes: >
+        13 bytes. Sparse data with 0xAA padding. Purpose unknown.
+        Sample: 62B002C00000000200AAAAAAAA.
+      parameters: {}
+
     22B003:
       period: 10000
       enabled: false
@@ -184,14 +267,9 @@ BCM:
           source_links: []
           verified: false
           notes: >
-            12V battery voltage measured by BCM. WiCAN B10 (ELM payload index 7) is the
-            fastest-drifting byte in 22B003 during deep sleep — decrements ~2 LSB/min under
-            parasitic load. Formula v*0.08 estimated: value 149 → 11.92V, cross-referenced
+            12V battery voltage measured by BCM. Formula v*0.08 estimated: value 149 → 11.92V, cross-referenced
             against WiCAN onboard voltage sensor reading 12.1V at same time (value ~149).
-            Approximate — needs multimeter reference to confirm exact scale. BMS uses *0.1
-            convention but that gives 14.9V which is too high. Other bytes in B003 (B09,
-            B11-B15, B17) also drift but slower — may be additional measurement points
-            (fuse box, BCM rail, etc.).
+            Approximate — needs multimeter reference to confirm exact scale.
         BCM_POWER_MODE:
           expression: "B12"
           unit: ""
@@ -209,3 +287,147 @@ BCM:
             0x0A — possibly from a different vehicle state (ACC/IGN on) or a pre-PCI-fix
             byte offset error. Disabled until values are better understood with at-car
             captures across multiple vehicle states.
+
+    # ─── TPMS configuration DIDs (22C001-C014) ───────────────────────────
+    # Static TPMS sensor registration, IDs, and configuration data.
+    # C00B (above) has live tyre pressure/temp readings.
+
+    22C001:
+      ignored: true
+      notes: >
+        34 bytes. Contains 4× C0F8-prefixed TPMS receiver addresses — one per wheel.
+        Static configuration. Sample: 62C001FFFF000001C0F80410C0F80BD2C0F81174C0F81188AAAA.
+      parameters: {}
+
+    22C002:
+      ignored: true
+      notes: >
+        27 bytes. Same C0F8 addresses as C001 but in different order — wheel-to-receiver
+        mapping table. Sample: 62C002FFFF0000C0F81174C0F80410C0F80BD2C0F81188AAAAAAAA.
+      parameters: {}
+
+    22C003:
+      ignored: true
+      notes: >
+        34 bytes. TPMS sensor registration for wheel 1. ASCII 'DO01' at offset 7.
+        Contains pressure limits, sensor ID, calibration data.
+        Sample: 62C00300000000444F303101002E2E02500706B5B50A098C3C0000000001FF0100AA.
+      parameters: {}
+
+    22C004:
+      ignored: true
+      notes: >
+        34 bytes. TPMS sensor registration for wheel 2. ASCII 'NA01'.
+        Sample: 62C004000000004E41303101002E2E024B0005B5B508088C3C0100000001FF0100AA.
+      parameters: {}
+
+    22C005:
+      ignored: true
+      notes: >
+        34 bytes. Spare/reference TPMS sensor. ASCII 'NTPM'.
+        Sample: 62C005000000004E54504D0100302F02500000ABAB00008C3C0000030001FF0000AA.
+      parameters: {}
+
+    22C006:
+      ignored: true
+      notes: >
+        34 bytes. TPMS sensor registration for wheel 3. ASCII 'DO02'.
+        Sample: 62C00600000000444F303201002E2E02500706B5AB0A098C3C0000000001010100AA.
+      parameters: {}
+
+    22C007:
+      ignored: true
+      notes: >
+        34 bytes. TPMS sensor registration for wheel 4. ASCII 'NA02'.
+        Sample: 62C007000000004E41303201002E2E024B0005B5AB08088C3C0100000001010100AA.
+      parameters: {}
+
+    22C008:
+      ignored: true
+      notes: >
+        34 bytes. Empty TPMS slot (all FF after ASCII '0005').
+        Sample: 62C00800000000303030350000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFAA.
+      parameters: {}
+
+    22C009:
+      ignored: true
+      notes: >
+        34 bytes. Empty TPMS slot (ASCII '0006').
+        Sample: 62C00900000000303030360000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFAA.
+      parameters: {}
+
+    22C00A:
+      ignored: true
+      notes: >
+        34 bytes. Empty TPMS slot (ASCII '0007').
+        Sample: 62C00A00000000303030370000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFAA.
+      parameters: {}
+
+    22C00C:
+      ignored: true
+      notes: >
+        41 bytes. Extended TPMS data — wheel 1 has live data with C0F8 address,
+        other slots empty (FFFF). May contain per-wheel signal quality or sensor history.
+        Sample: 62C00CFFFF030001C0F8117499434119180000000000FFFF000000000000...
+      parameters: {}
+
+    22C00D:
+      ignored: true
+      notes: >
+        41 bytes. Extended TPMS data — all slots empty (FFFF/zeros).
+        Sample: 62C00DFFFF03000000000000FFFF0000000000000000FFFF000000...
+      parameters: {}
+
+    22C00E:
+      ignored: true
+      notes: >
+        41 bytes. Extended TPMS data — all slots empty.
+        Sample: 62C00EFFFF03000000000000FFFF0000000000000000FFFF000000...
+      parameters: {}
+
+    22C00F:
+      ignored: true
+      notes: >
+        41 bytes. Extended TPMS data — one active entry with C0F8 address (C0F81188).
+        Sample: 62C00FFFFF030001C0F8118801203B1E560000000000FFFF000000...
+      parameters: {}
+
+    22C010:
+      ignored: true
+      notes: >
+        13 bytes. Mostly zeros. B03=0xFC. Purpose unknown.
+        Sample: 62C010FC00000000AAAAAAAAAA.
+      parameters: {}
+
+    22C011:
+      enabled: false
+      notes: >
+        13 bytes. NOT static — bytes 8-9 (ELM index) change rapidly every 2s. Byte 8
+        drifts slowly (~0xA2, occasionally 0xA1), byte 9 jumps 20-100 counts per read
+        (ADC-like jitter). Tail bytes 10-11 (0x266E) are static. Likely TPMS RF signal
+        strength (RSSI) or last-received signal metric for a receiver channel. Earlier
+        single-read capture (0xA2D3266B) was misleading — appeared static but byte 9
+        was just one snapshot. Test: compare with C012-C014 and correlate with tyre
+        proximity. Sample: 62C011E000000000A25F266EAA (byte 9 varies).
+      parameters: {}
+
+    22C012:
+      ignored: true
+      notes: >
+        13 bytes. ASCII 'DO01' at B07-B10 — references wheel 1 sensor ID.
+        Sample: 62C01280000000444F3031AAAA.
+      parameters: {}
+
+    22C013:
+      ignored: true
+      notes: >
+        13 bytes. ASCII '0x0620' — possibly TPMS firmware version or config revision.
+        Sample: 62C01380000000307830363230.
+      parameters: {}
+
+    22C014:
+      ignored: true
+      notes: >
+        13 bytes. B10=0x0C. Purpose unknown — last responding DID in C0xx range.
+        Sample: 62C014F00000000CAAAAAAAAAA.
+      parameters: {}
