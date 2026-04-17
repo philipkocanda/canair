@@ -185,14 +185,16 @@ def print_ecu_results(
                         if ei is not None and 0 <= ei < n_bytes:
                             covered_elm.add(ei)
 
-                # Build hex with uncovered bytes highlighted
+                # Build hex: covered bytes in white, uncovered in dark grey
                 hex_parts = []
                 for i, hb in enumerate(elm_bytes):
                     if i in covered_elm:
-                        hex_parts.append(hb)
+                        hex_parts.append(f"[white]{hb}[/white]")
                     else:
-                        hex_parts.append(f"[dim]{hb}[/dim]")
-                c.print(f"      {' '.join(hex_parts)}  [dim]({n_bytes} B)[/dim]")
+                        hex_parts.append(f"[bright_black]{hb}[/bright_black]")
+                c.print(
+                    f"      {' '.join(hex_parts)}  [bright_black]({n_bytes} B)[/bright_black]"
+                )
 
 
 def print_hexdump(data: bytes, prefix: str = "  "):
