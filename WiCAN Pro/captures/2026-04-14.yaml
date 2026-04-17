@@ -152,21 +152,6 @@ sessions:
         payload: "62BC070841FBCC00001900"
         notes: "11 bytes. Unknown function."
 
-      - ecu: IGPM
-        pid: "22BC08"
-        payload: ""
-        notes: "NRC 0x31 — requestOutOfRange. DID does not exist."
-
-      - ecu: IGPM
-        pid: "22BC09"
-        payload: ""
-        notes: "NRC 0x31 — requestOutOfRange. DID does not exist."
-
-      - ecu: IGPM
-        pid: "22BC0A"
-        payload: ""
-        notes: "NRC 0x31 — requestOutOfRange. DID does not exist."
-
       - ecu: CLU
         pid: "22B002"
         payload: "62B002E0000000008E01119F00000000000000"

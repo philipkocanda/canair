@@ -371,6 +371,7 @@ async def mode_monitor(
         last_queries: list[tuple[str, list]] = []
         prev_hex: dict[tuple[str, str], str] = {}
         hex_history: dict[tuple[str, str], list[tuple[str, str]]] = {} if keep or save else None
+        stopped_by_user = False
 
         with Live(
             _render_results([], verbose, 0, 0.0, interval),
@@ -427,11 +428,14 @@ async def mode_monitor(
                 # Let Live exit cleanly, then print error outside
                 pass
             except KeyboardInterrupt:
-                print("\n  Monitoring stopped.")
-                if save and hex_history is not None:
-                    captures_dir = PIDS_DIR.parent / "captures"
-                    _prompt_and_save(hex_history, prev_hex, captures_dir)
-                return
+                stopped_by_user = True
+
+        if stopped_by_user:
+            print("\n  Monitoring stopped.")
+            if save and hex_history is not None:
+                captures_dir = PIDS_DIR.parent / "captures"
+                _prompt_and_save(hex_history, prev_hex, captures_dir)
+            return
 
         # If we got here, it was a ConnectionError — print after Live has exited
         _console.print("\n  [bold red]✖ WebSocket disconnected[/bold red]")
