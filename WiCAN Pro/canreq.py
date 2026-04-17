@@ -114,7 +114,7 @@ def _print_sleep_banner(host: str, timeout: int = 5) -> None:
     console = Console()
 
     if sleep_on:
-        sleep_str = f"[red]ON[/red]  threshold {sleep_volt}V"
+        sleep_str = f"[red]ON[/red] (threshold {sleep_volt}V)"
         if margin is not None and margin < 0.5:
             console.print(
                 f"  [bold red]⚠ Sleep: ON  |  Battery: {batt}  |  Threshold: {sleep_volt}V"
@@ -124,7 +124,7 @@ def _print_sleep_banner(host: str, timeout: int = 5) -> None:
     else:
         sleep_str = "[green]OFF[/green]"
 
-    console.print(f"  Sleep: {sleep_str}  |  Battery: {batt}")
+    console.print(f"  [WiCAN] Sleep: {sleep_str}  |  Battery: {batt}")
 
 
 async def async_main(args):

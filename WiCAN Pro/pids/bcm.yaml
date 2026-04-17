@@ -68,7 +68,7 @@ BCM:
           source: "Kia Niro EV WiCAN PR#716"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
-          verified: false
+          verified: true
           notes: "From Niro EV, untested on Ioniq 2017"
 
         TYRE_TEMP_FR:
@@ -81,7 +81,7 @@ BCM:
           source: "Kia Niro EV WiCAN PR#716"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
-          verified: false
+          verified: true
           notes: ""
 
         TYRE_TEMP_RL:
@@ -94,7 +94,7 @@ BCM:
           source: "Kia Niro EV WiCAN PR#716"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
-          verified: false
+          verified: true
           notes: ""
 
         TYRE_TEMP_RR:
@@ -107,7 +107,7 @@ BCM:
           source: "Kia Niro EV WiCAN PR#716"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
-          verified: false
+          verified: true
           notes: ""
     22B00E:
       period: 5000
