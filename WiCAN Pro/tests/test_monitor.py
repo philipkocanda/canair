@@ -177,3 +177,43 @@ class TestRenderResults:
         results = [("BCM (0x7A0)", [entry])]
         t = _render_results(results, verbose=False, cycle=1, elapsed=0.1, interval=5.0)
         assert "raw: FF" in t.plain
+
+    def test_changed_pid_shows_indicator(self):
+        """Changed PID between cycles shows ● indicator."""
+        entry = self._make_pid_result(pid="2101", raw_hex="610100")
+        results = [("BMS (0x7E4)", [entry])]
+        prev = {("BMS (0x7E4)", "2101"): "610199"}  # different from current
+        t = _render_results(
+            results, verbose=False, cycle=2, elapsed=0.1, interval=5.0, prev_hex=prev
+        )
+        assert "●" in t.plain
+
+    def test_unchanged_pid_no_indicator(self):
+        """Unchanged PID shows no ● indicator."""
+        entry = self._make_pid_result(pid="2101", raw_hex="610100")
+        results = [("BMS (0x7E4)", [entry])]
+        prev = {("BMS (0x7E4)", "2101"): "610100"}  # same as current
+        t = _render_results(
+            results, verbose=False, cycle=2, elapsed=0.1, interval=5.0, prev_hex=prev
+        )
+        assert "●" not in t.plain
+
+    def test_first_cycle_no_indicator(self):
+        """First cycle never shows change indicator even with prev_hex."""
+        entry = self._make_pid_result(pid="2101", raw_hex="610100")
+        results = [("BMS (0x7E4)", [entry])]
+        prev = {("BMS (0x7E4)", "2101"): "610199"}
+        t = _render_results(
+            results, verbose=False, cycle=1, elapsed=0.1, interval=5.0, prev_hex=prev
+        )
+        assert "●" not in t.plain
+
+    def test_new_pid_no_indicator(self):
+        """PID not in prev_hex (first time seen) shows no indicator."""
+        entry = self._make_pid_result(pid="2101", raw_hex="610100")
+        results = [("BMS (0x7E4)", [entry])]
+        prev = {}  # never seen before
+        t = _render_results(
+            results, verbose=False, cycle=2, elapsed=0.1, interval=5.0, prev_hex=prev
+        )
+        assert "●" not in t.plain
