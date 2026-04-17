@@ -14,23 +14,23 @@ sessions:
   captures:
   - ecu: BCM
     pid: 22B003
-    notes: "run 1 \u2014 B07=0x95 (149)"
+    notes: run 1 — B07=0x95 (149)
     payload: 62B003BF8B8000953DF5A5F9F8F9F83DF800000000000000AAAAAA
   - ecu: BCM
     pid: 22B003
-    notes: "run 2 \u2014 B07=0x94 (148)"
+    notes: run 2 — B07=0x94 (148)
     payload: 62B003BF8B8000943DF5A5F9F8F9F83DF800000000000000AAAAAA
   - ecu: BCM
     pid: 22B003
-    notes: "run 4 \u2014 B07=0x93 (147)"
+    notes: run 4 — B07=0x93 (147)
     payload: 62B003BF8B80009343F5A5F9F8F9F73DF800000000000000AAAAAA
   - ecu: BCM
     pid: 22B003
-    notes: "run 6 \u2014 B12=F7, B14=F7"
+    notes: run 6 — B12=F7, B14=F7
     payload: 62B003BF8B80009334F5A5F9F7F9F73DF800000000000000AAAAAA
   - ecu: BCM
     pid: 22B003
-    notes: "run 10 \u2014 B10=A4, B15=F7 (all drifting down)"
+    notes: run 10 — B10=A4, B15=F7 (all drifting down)
     payload: 62B003BF8B80009334F5A4F8F7F8F73DF700000000000000AAAAAA
   - ecu: BCM
     pid: 22B004
@@ -42,10 +42,11 @@ sessions:
     payload: 62B00474029900C004080000AAAA
 - date: '2026-04-17'
   state: deep sleep, parked, locked, no charging
-  label: "BCM 22B001 \u2014 static config DID"
-  notes: "22B001 consistently returns NO DATA on the first query attempt, then responds\
-    \ on subsequent retries. 17 data bytes. All values appear static across multiple\
-    \ monitor cycles \u2014 no changes observed.\n"
+  label: BCM 22B001 — static config DID
+  notes: >
+    22B001 consistently returns NO DATA on the first query attempt, then responds
+    on subsequent retries. 17 data bytes. All values appear static across multiple
+    monitor cycles — no changes observed.
   captures:
   - ecu: BCM
     pid: 22B001
@@ -54,7 +55,7 @@ sessions:
     payload: 62B00140C0000000010000000000000201000000
 - date: '2026-04-17'
   state: deep sleep, parked, locked, no charging
-  label: "IGPM 22BC07 \u2014 status DID, unknown decode"
+  label: IGPM 22BC07 — status DID, unknown decode
   notes: >
     10 data bytes. Not yet decoded. IOControl 2FBC0703 confirmed as Horn (see docs/IOControl
     CLI commands.md). Contents unknown \u2014 possibly horn status, VESS, or unrelated
@@ -161,3 +162,35 @@ sessions:
     notes: ''
     payload: 62C00BFFFF0000C9450200CB430100CF440100CB440100AAAAAAAA
     time: "15:26:50"
+- date: '2026-04-17'
+  label: test
+  state: sleep
+  captures:
+  - ecu: BCM
+    pid: 22B003
+    payload: 62B003BF8B80009C3DF5A3F9F8F9F73DF800000000000000AAAAAA
+    time: "15:33:59"
+    decoded:
+      BCM_12V_BATTERY: 12.48 V
+      BCM_POWER_MODE: '245.0'
+  - ecu: BCM
+    pid: 22B004
+    payload: 62B0047402990C00008000AAAA
+    time: "15:33:55"
+  - ecu: BCM
+    pid: 22B004
+    payload: 62B0047402990C00408000AAAA
+    time: "15:34:04"
+  - ecu: BCM
+    pid: 22C00B
+    payload: 62C00BFFFF0000C9450200CB430100CF440100CB440100AAAAAAAA
+    time: "15:33:55"
+    decoded:
+      TYRE_PRESSURE_FL: 2.77 bar
+      TYRE_PRESSURE_FR: 2.8 bar
+      TYRE_PRESSURE_RL: 2.85 bar
+      TYRE_PRESSURE_RR: 2.8 bar
+      TYRE_TEMP_FL: 19.0 °C
+      TYRE_TEMP_FR: 17.0 °C
+      TYRE_TEMP_RL: 18.0 °C
+      TYRE_TEMP_RR: 18.0 °C
