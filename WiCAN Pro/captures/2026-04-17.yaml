@@ -56,3 +56,17 @@ sessions:
         pid: "22B004"
         notes: "B09=0x40 (bit 6 set)"
         payload: "62B00474029900C004080000AAAA"
+
+  - date: "2026-04-17"
+    state: "deep sleep, parked, locked, no charging"
+    label: "BCM 22B001 — static config DID"
+    notes: >
+      22B001 consistently returns NO DATA on the first query attempt, then
+      responds on subsequent retries. 17 data bytes. All values appear static
+      across multiple monitor cycles — no changes observed.
+    captures:
+
+      - ecu: BCM
+        pid: "22B001"
+        notes: "deep sleep, after session 1003. First attempt returns NO DATA, second succeeds."
+        payload: "62B00140C0000000010000000000000201000000"
