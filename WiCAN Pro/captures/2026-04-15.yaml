@@ -510,7 +510,7 @@ sessions:
         pid: "22B00F"
         label: "BCM data page F"
         payload: "62B00FFCFCE00000000000AAAA"
-        notes: "Note: scan showed this as 0xB00F responding but NOT B010-B012."
+        notes: "Note: scan showed this as 0xB00F responding but NOT B010-B012. Possibly only in ACC/Drive mode?"
 
       # C-range: TPMS/comfort data
       - ecu: BCM
