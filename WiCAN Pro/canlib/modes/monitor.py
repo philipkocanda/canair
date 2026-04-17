@@ -254,7 +254,7 @@ def _prompt_and_save(
 
     # Prompt for metadata
     try:
-        label = input("  Session label: ").strip()
+        label = input("  Session label (required, empty to skip): ").strip()
         if not label:
             print("  Cancelled (empty label).")
             return
