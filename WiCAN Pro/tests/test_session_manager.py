@@ -2,6 +2,7 @@
 
 import asyncio
 import time
+
 import pytest
 
 from canlib.session_manager import SessionManager
@@ -34,6 +35,7 @@ class MockTerminal:
 
 # --- open_session ---
 
+
 class TestOpenSession:
     @pytest.mark.asyncio
     async def test_open_session_success(self):
@@ -60,9 +62,11 @@ class TestOpenSession:
     @pytest.mark.asyncio
     async def test_open_session_nrc_still_tracked(self):
         """Session is tracked even if ECU responds with NRC (best-effort)."""
-        t = MockTerminal(uds_responses={
-            (0x770, "1003"): {"ok": False, "nrc": 0x12, "nrc_desc": "subFunctionNotSupported"}
-        })
+        t = MockTerminal(
+            uds_responses={
+                (0x770, "1003"): {"ok": False, "nrc": 0x12, "nrc_desc": "subFunctionNotSupported"}
+            }
+        )
         sm = SessionManager(t)
         result = await sm.open_session(0x770)
         assert result is False
@@ -70,9 +74,7 @@ class TestOpenSession:
 
     @pytest.mark.asyncio
     async def test_open_session_error_still_tracked(self):
-        t = MockTerminal(uds_responses={
-            (0x770, "1003"): {"ok": False, "error": "NO DATA"}
-        })
+        t = MockTerminal(uds_responses={(0x770, "1003"): {"ok": False, "error": "NO DATA"}})
         sm = SessionManager(t)
         result = await sm.open_session(0x770)
         assert result is False
@@ -80,6 +82,7 @@ class TestOpenSession:
 
 
 # --- keepalive ---
+
 
 class TestKeepalive:
     @pytest.mark.asyncio
@@ -97,8 +100,8 @@ class TestKeepalive:
     async def test_keepalive_stale_only_refreshes_old(self):
         t = MockTerminal()
         sm = SessionManager(t)
-        sm._sessions[0x770] = time.monotonic()          # fresh
-        sm._sessions[0x7A5] = time.monotonic() - 10     # stale
+        sm._sessions[0x770] = time.monotonic()  # fresh
+        sm._sessions[0x7A5] = time.monotonic() - 10  # stale
         await sm.keepalive_stale(threshold=1.5)
         # Only 7A5 should have been refreshed
         header_calls = [c[1] for c in t.calls if c[0] == "set_header"]
@@ -119,6 +122,7 @@ class TestKeepalive:
 
 # --- background keepalive ---
 
+
 class TestBackgroundKeepalive:
     @pytest.mark.asyncio
     async def test_start_and_stop(self):
@@ -138,13 +142,14 @@ class TestBackgroundKeepalive:
         t = MockTerminal()
         sm = SessionManager(t)
         task1 = sm.start_background_keepalive(interval=1.0)
-        task2 = sm.start_background_keepalive(interval=1.0)
+        _task2 = sm.start_background_keepalive(interval=1.0)
         await asyncio.sleep(0)  # Let cancellation propagate
         assert task1.done() or task1.cancelled()
         sm.stop_background_keepalive()
 
 
 # --- close ---
+
 
 class TestCloseSession:
     @pytest.mark.asyncio

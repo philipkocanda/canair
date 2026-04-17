@@ -8,27 +8,27 @@ from ..terminal import WiCANTerminal
 
 # Standard UDS identity DIDs (ISO 14229-1 / Hyundai-Kia common subset).
 IDENTITY_DIDS: list[tuple[str, str, str]] = [
-    ("F190", "VIN",                     "ascii"),
-    ("F188", "ECU Part Number (UDS)",  "ascii"),
-    ("F187", "ECU Part Number (HK)",   "ascii"),
-    ("F18C", "ECU Serial / Cal ID",     "ascii"),
-    ("F18B", "Manufacture Date",        "date"),
-    ("F18D", "ECU Manufacturing Date",  "date"),
-    ("F191", "HW Version Number",       "ascii"),
-    ("F100", "Boot SW ID",              "ascii"),
-    ("F101", "App SW ID",               "ascii"),
-    ("F110", "ECU Identification",      "ascii"),
-    ("F17E", "SW Install Date",         "date"),
-    ("F18A", "System Supplier ID",      "ascii"),
-    ("F192", "Supplier HW Number",      "ascii"),
-    ("F193", "Supplier HW Version",     "ascii"),
-    ("F194", "Supplier SW Number",      "ascii"),
-    ("F195", "Supplier SW Version",     "ascii"),
+    ("F190", "VIN", "ascii"),
+    ("F188", "ECU Part Number (UDS)", "ascii"),
+    ("F187", "ECU Part Number (HK)", "ascii"),
+    ("F18C", "ECU Serial / Cal ID", "ascii"),
+    ("F18B", "Manufacture Date", "date"),
+    ("F18D", "ECU Manufacturing Date", "date"),
+    ("F191", "HW Version Number", "ascii"),
+    ("F100", "Boot SW ID", "ascii"),
+    ("F101", "App SW ID", "ascii"),
+    ("F110", "ECU Identification", "ascii"),
+    ("F17E", "SW Install Date", "date"),
+    ("F18A", "System Supplier ID", "ascii"),
+    ("F192", "Supplier HW Number", "ascii"),
+    ("F193", "Supplier HW Version", "ascii"),
+    ("F194", "Supplier SW Number", "ascii"),
+    ("F195", "Supplier SW Version", "ascii"),
     ("F196", "Exhaust Regulation / SW", "ascii"),
-    ("F197", "System / Engine Name",    "ascii"),
-    ("F1A0", "Diagnostic Address",      "hex"),
-    ("F1A2", "HW Version",              "ascii"),
-    ("F1A4", "HW Part 2",              "ascii"),
+    ("F197", "System / Engine Name", "ascii"),
+    ("F1A0", "Diagnostic Address", "hex"),
+    ("F1A2", "HW Version", "ascii"),
+    ("F1A4", "HW Part 2", "ascii"),
 ]
 
 
@@ -54,8 +54,9 @@ def _decode_identity_payload(payload_bytes: bytes, fmt: str) -> str:
     return stripped.hex().upper()
 
 
-async def mode_identity(terminal: WiCANTerminal, tx_id: int, session: bool, wake: bool,
-                        as_json: bool):
+async def mode_identity(
+    terminal: WiCANTerminal, tx_id: int, session: bool, wake: bool, as_json: bool
+):
     """Query standard UDS identity DIDs from an ECU."""
     await terminal.set_header(tx_id)
 
@@ -75,8 +76,15 @@ async def mode_identity(terminal: WiCANTerminal, tx_id: int, session: bool, wake
                 decoded = _decode_identity_payload(payload, fmt)
                 raw_hex = payload.hex().upper()
                 if as_json:
-                    results.append({"service": "22", "did": did_hex, "label": label,
-                                    "decoded": decoded, "raw": raw_hex})
+                    results.append(
+                        {
+                            "service": "22",
+                            "did": did_hex,
+                            "label": label,
+                            "decoded": decoded,
+                            "raw": raw_hex,
+                        }
+                    )
                 else:
                     print(f"  {did_hex}  {label:<{label_width}}  {decoded}")
                     if fmt != "ascii" or "." in decoded:

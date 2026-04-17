@@ -1,7 +1,8 @@
 """Tests for canlib.pids — PID loading and index building."""
 
 import pytest
-from canlib.pids import load_pids, build_param_index, build_ecu_index
+
+from canlib.pids import build_ecu_index, build_param_index, load_pids
 
 
 @pytest.fixture(scope="module")
@@ -45,7 +46,7 @@ class TestBuildParamIndex:
 
     def test_param_has_required_fields(self, pids_data):
         idx = build_param_index(pids_data)
-        for name, p in list(idx.items())[:5]:
+        for _name, p in list(idx.items())[:5]:
             assert "ecu" in p
             assert "tx_id" in p
             assert "pid" in p

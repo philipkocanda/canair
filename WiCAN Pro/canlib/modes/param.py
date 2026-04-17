@@ -3,15 +3,22 @@
 import asyncio
 import json
 
-from ..terminal import WiCANTerminal
-from ..pids import build_param_index
 from ..elm327 import elm_hex_to_wican_bytes
-from ..formatting import print_decoded_params
 from ..expression import evaluate_expression
+from ..formatting import print_decoded_params
+from ..pids import build_param_index
+from ..terminal import WiCANTerminal
 
 
-async def mode_param(terminal: WiCANTerminal, pids_data: dict, param_names: list[str],
-                     verbose: bool, as_json: bool, session: bool = False, wake: bool = False):
+async def mode_param(
+    terminal: WiCANTerminal,
+    pids_data: dict,
+    param_names: list[str],
+    verbose: bool,
+    as_json: bool,
+    session: bool = False,
+    wake: bool = False,
+):
     """Query specific named parameters."""
     param_index = build_param_index(pids_data)
 
@@ -51,7 +58,9 @@ async def mode_param(terminal: WiCANTerminal, pids_data: dict, param_names: list
                 if response.get("nrc") is not None:
                     error = f"NRC 0x{response['nrc']:02X}: {response['nrc_desc']}"
                 for p in params:
-                    all_results.append((p["name"], None, p["unit"], p["expression"], error, p["verified"]))
+                    all_results.append(
+                        (p["name"], None, p["unit"], p["expression"], error, p["verified"])
+                    )
                 continue
 
             wican_bytes = elm_hex_to_wican_bytes(response["hex"])
@@ -60,9 +69,13 @@ async def mode_param(terminal: WiCANTerminal, pids_data: dict, param_names: list
                 try:
                     value = evaluate_expression(p["expression"], wican_bytes)
                     value = round(value * 100) / 100
-                    all_results.append((p["name"], value, p["unit"], p["expression"], None, p["verified"]))
+                    all_results.append(
+                        (p["name"], value, p["unit"], p["expression"], None, p["verified"])
+                    )
                 except Exception as e:
-                    all_results.append((p["name"], None, p["unit"], p["expression"], str(e), p["verified"]))
+                    all_results.append(
+                        (p["name"], None, p["unit"], p["expression"], str(e), p["verified"])
+                    )
     finally:
         for task in tester_tasks:
             task.cancel()
@@ -73,7 +86,7 @@ async def mode_param(terminal: WiCANTerminal, pids_data: dict, param_names: list
 
     if as_json:
         json_out = []
-        for name, value, unit, expr, error, verified in all_results:
+        for name, value, unit, _expr, error, _verified in all_results:
             entry = {"name": name, "value": value, "unit": unit}
             if error:
                 entry["error"] = error

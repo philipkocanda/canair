@@ -67,8 +67,10 @@ def check_command_safety(cmd: str) -> str | None:
     if service_byte == 0x10 and len(hex_only) >= 4:
         sub = int(hex_only[2:4], 16)
         if sub == 0x02:
-            return ("BLOCKED: DiagnosticSessionControl sub 0x02 "
-                    "(programmingSession) -- required for flash/write operations")
+            return (
+                "BLOCKED: DiagnosticSessionControl sub 0x02 "
+                "(programmingSession) -- required for flash/write operations"
+            )
 
     return None
 
@@ -88,7 +90,7 @@ def parse_elm_response(raw: str) -> dict:
     result = {"raw": raw, "ok": False}
 
     lines = raw.strip().split("\n")
-    lines = [l.strip() for l in lines if l.strip()]
+    lines = [line.strip() for line in lines if line.strip()]
 
     data_lines = []
     for line in lines:
@@ -226,10 +228,10 @@ def elm_hex_to_wican_bytes(hex_str: str) -> bytes:
         while offset < payload_len:
             pci_cf = 0x20 | (seq & 0x0F)
             result.append(pci_cf)
-            chunk = data[offset:offset + 7]
+            chunk = data[offset : offset + 7]
             result.extend(chunk)
             if len(chunk) < 7:
-                result.extend(b'\x00' * (7 - len(chunk)))
+                result.extend(b"\x00" * (7 - len(chunk)))
             offset += 7
             seq += 1
 

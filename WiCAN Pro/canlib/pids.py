@@ -4,8 +4,8 @@ from pathlib import Path
 
 try:
     import yaml
-except ImportError:
-    raise ImportError("PyYAML not installed. Run: pip3 install pyyaml")
+except ImportError as e:
+    raise ImportError("PyYAML not installed. Run: pip3 install pyyaml") from e
 
 from .constants import ECUS_FILE, PIDS_DIR
 
@@ -58,7 +58,7 @@ def load_ecus(path: Path = ECUS_FILE) -> dict:
     return result
 
 
-def ecu_name(tx_id: int, ecus: dict = None) -> str:
+def ecu_name(tx_id: int, ecus: dict | None = None) -> str:
     """Get ECU name for a TX ID, or '0x{tx_id:03X}' if unknown."""
     if ecus is None:
         ecus = load_ecus()

@@ -30,19 +30,15 @@ import re
 import sys
 
 from canlib.byteindex import (
+    bix_to_wican,
+    conversion_table,
+    isotp_to_wican,
+    letter_to_torque_idx,
+    torque_idx_to_letter,
+    torque_to_wican,
+    wican_to_bix,
     wican_to_isotp,
     wican_to_torque,
-    wican_to_bix,
-    isotp_to_wican,
-    isotp_to_torque,
-    torque_to_wican,
-    torque_to_isotp,
-    torque_to_bix,
-    bix_to_torque,
-    bix_to_wican,
-    torque_idx_to_letter,
-    letter_to_torque_idx,
-    conversion_table,
 )
 
 
@@ -102,14 +98,14 @@ def _print_result(notation: str, idx: int, sub_bytes: int):
     if isotp is not None:
         print(f"  ISO-TP:   0x{isotp:02X}  (payload index {isotp})")
     else:
-        print(f"  ISO-TP:   —  (PCI byte)")
+        print("  ISO-TP:   —  (PCI byte)")
     if torque is not None:
         print(f"  Torque:   {letter}  (byte {torque}, {sub_label})")
         print(f"  bix:      {bix}  (bit index, {sub_label})")
     else:
         role = "PCI" if isotp is None else "UDS header"
         print(f"  Torque:   —  ({role} byte, {sub_label})")
-        print(f"  bix:      —")
+        print("  bix:      —")
 
     # Warn if adjacent to a PCI byte (multi-byte expressions would span it)
     pci_indices = set(range(0, w + 10, 8))  # PCI at 0, 8, 16, 24, ...
@@ -117,12 +113,8 @@ def _print_result(notation: str, idx: int, sub_bytes: int):
         if (w + 1) in pci_indices:
             pci = w + 1
             after = w + 2 if (w + 2) not in pci_indices else w + 3
-            print(
-                f"\n  ⚠ B{pci:02d} is a PCI byte — [B{w:02d}:B{after:02d}] would include it!"
-            )
-            print(
-                f"    Use (B{w:02d} << 8) | B{after:02d} instead of [B{w:02d}:B{after:02d}]"
-            )
+            print(f"\n  ⚠ B{pci:02d} is a PCI byte — [B{w:02d}:B{after:02d}] would include it!")
+            print(f"    Use (B{w:02d} << 8) | B{after:02d} instead of [B{w:02d}:B{after:02d}]")
         if (w - 1) in pci_indices and w > 0:
             pci = w - 1
             before = w - 2 if (w - 2) not in pci_indices else w - 3
@@ -139,9 +131,7 @@ def _print_table(sub_bytes: int, max_wican: int = 71):
     """Print the full conversion table."""
     table = conversion_table(max_wican=max_wican, subfunction_bytes=sub_bytes)
 
-    sub_label = (
-        f"Torque {sub_bytes}" if sub_bytes in (1, 2) else f"Torque (sub={sub_bytes})"
-    )
+    sub_label = f"Torque {sub_bytes}" if sub_bytes in (1, 2) else f"Torque (sub={sub_bytes})"
     print(f"| {'WiCAN':>5} | {'ISO-TP':>6} | {sub_label:>8} | {'bix':>5} |")
     print(f"|{'-' * 7}|{'-' * 8}|{'-' * 10}|{'-' * 7}|")
 
@@ -186,9 +176,7 @@ subfunction modes:
         const=2,
         help="2-byte subfunction mode (22xxxx DIDs)",
     )
-    parser.add_argument(
-        "--table", "-t", action="store_true", help="Print full conversion table"
-    )
+    parser.add_argument("--table", "-t", action="store_true", help="Print full conversion table")
     parser.add_argument(
         "--max", type=int, default=71, help="Max WiCAN index for table (default: 71)"
     )

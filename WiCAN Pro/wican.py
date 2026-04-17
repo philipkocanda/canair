@@ -52,7 +52,7 @@ import json
 import sqlite3
 import sys
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 try:
@@ -97,31 +97,52 @@ SLEEP_LABELS = {
 CONFIG_SECTIONS = {
     "sleep": SLEEP_KEYS,
     "battery_alert": [
-        "batt_alert", "batt_alert_ssid", "batt_alert_pass",
-        "batt_alert_volt", "batt_alert_protocol", "batt_alert_url",
-        "batt_alert_port", "batt_alert_topic", "batt_alert_time",
-        "batt_mqtt_user", "batt_mqtt_pass",
+        "batt_alert",
+        "batt_alert_ssid",
+        "batt_alert_pass",
+        "batt_alert_volt",
+        "batt_alert_protocol",
+        "batt_alert_url",
+        "batt_alert_port",
+        "batt_alert_topic",
+        "batt_alert_time",
+        "batt_mqtt_user",
+        "batt_mqtt_pass",
     ],
     "mqtt": [
-        "mqtt_en", "mqtt_url", "mqtt_port", "mqtt_user", "mqtt_pass",
-        "mqtt_tx_topic", "mqtt_rx_topic", "mqtt_status_topic",
+        "mqtt_en",
+        "mqtt_url",
+        "mqtt_port",
+        "mqtt_user",
+        "mqtt_pass",
+        "mqtt_tx_topic",
+        "mqtt_rx_topic",
+        "mqtt_status_topic",
     ],
     "wifi": [
-        "ssid", "password", "ssid_st", "password_st", "sta_channel",
+        "ssid",
+        "password",
+        "ssid_st",
+        "password_st",
+        "sta_channel",
         "ap_ch",
     ],
     "can": [
-        "port", "protocol", "can_datarate", "can_mode", "port_type",
+        "port",
+        "protocol",
+        "can_datarate",
+        "can_mode",
+        "port_type",
     ],
 }
 
 # Protocol modes (firmware: config_server_protocol() in config_server.c)
 PROTOCOLS = {
-    "auto_pid":    "AutoPID — MQTT vehicle data polling (normal operation)",
-    "slcan":       "SLCAN — serial CAN adapter (for SavvyCAN, candump, etc.)",
-    "elm327":      "ELM327 — OBD-II emulation over TCP/UDP",
-    "savvycan":    "SavvyCAN — native SavvyCAN TCP protocol",
-    "realdash66":  "RealDash — RealDash protocol 66",
+    "auto_pid": "AutoPID — MQTT vehicle data polling (normal operation)",
+    "slcan": "SLCAN — serial CAN adapter (for SavvyCAN, candump, etc.)",
+    "elm327": "ELM327 — OBD-II emulation over TCP/UDP",
+    "savvycan": "SavvyCAN — native SavvyCAN TCP protocol",
+    "realdash66": "RealDash — RealDash protocol 66",
 }
 
 # Protocol config keys that are relevant
@@ -129,6 +150,7 @@ PROTOCOL_KEYS = ["protocol", "port_type", "port", "can_mode"]
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────
+
 
 def resolve_wican_url(wican: str) -> str:
     """Resolve --wican argument to a base URL."""
@@ -199,6 +221,7 @@ def confirm(prompt: str) -> bool:
 
 
 # ── Subcommands ────────────────────────────────────────────────────────────
+
 
 def cmd_config(args) -> None:
     """Download and display device configuration."""
@@ -342,47 +365,68 @@ def cmd_status(args) -> None:
 
     # Curated summary
     sections = [
-        ("Device", [
-            ("Hardware",        status.get("hw_version", "?")),
-            ("Firmware",        status.get("fw_version", "?") + " (" + status.get("git_version", "?") + ")"),
-            ("Device ID",       status.get("device_id", "?")),
-            ("Uptime",          status.get("uptime", "?")),
-            ("Battery",         status.get("batt_voltage", "?")),
-        ]),
-        ("Network", [
-            ("WiFi mode",       status.get("wifi_mode", "?")),
-            ("WiFi status",     status.get("sta_status", "?")),
-            ("IP address",      status.get("sta_ip", "?")),
-            ("Connected SSID",  status.get("sta_ssid", "?")),
-            ("mDNS",            status.get("mdns", "?")),
-            ("VPN status",      status.get("vpn_status", "?")),
-            ("VPN IP",          status.get("vpn_ip", "") or "-"),
-        ]),
-        ("CAN / OBD", [
-            ("Protocol",        status.get("protocol", "?")),
-            ("CAN datarate",    status.get("can_datarate", "?")),
-            ("CAN mode",        status.get("can_mode", "?")),
-            ("OBD chip",        status.get("obd_chip_status", "?")),
-            ("ECU status",      status.get("ecu_status", "?")),
-        ]),
-        ("Power", [
-            ("Sleep mode",      status.get("sleep_status", "?")),
-            ("Sleep voltage",   status.get("sleep_volt", "?") + "V"),
-            ("Sleep delay",     status.get("sleep_time", "?") + " min"),
-            ("Periodic wakeup", status.get("periodic_wakeup", "?")),
-            ("Wakeup interval", status.get("wakeup_interval", "?") + " min"),
-            ("Wakeup voltage",  status.get("wakeup_volt", "?")),
-        ]),
-        ("MQTT", [
-            ("Enabled",         status.get("mqtt_en", "?")),
-            ("Broker",          status.get("mqtt_url", "?") + ":" + status.get("mqtt_port", "?")),
-            ("Status topic",    status.get("mqtt_status_topic", "?")),
-        ]),
-        ("Logging", [
-            ("SD logging",      status.get("logger_status", "?")),
-            ("Period",          status.get("log_period", "?") + "s"),
-            ("IMU threshold",   status.get("imu_threshold", "?")),
-        ]),
+        (
+            "Device",
+            [
+                ("Hardware", status.get("hw_version", "?")),
+                (
+                    "Firmware",
+                    status.get("fw_version", "?") + " (" + status.get("git_version", "?") + ")",
+                ),
+                ("Device ID", status.get("device_id", "?")),
+                ("Uptime", status.get("uptime", "?")),
+                ("Battery", status.get("batt_voltage", "?")),
+            ],
+        ),
+        (
+            "Network",
+            [
+                ("WiFi mode", status.get("wifi_mode", "?")),
+                ("WiFi status", status.get("sta_status", "?")),
+                ("IP address", status.get("sta_ip", "?")),
+                ("Connected SSID", status.get("sta_ssid", "?")),
+                ("mDNS", status.get("mdns", "?")),
+                ("VPN status", status.get("vpn_status", "?")),
+                ("VPN IP", status.get("vpn_ip", "") or "-"),
+            ],
+        ),
+        (
+            "CAN / OBD",
+            [
+                ("Protocol", status.get("protocol", "?")),
+                ("CAN datarate", status.get("can_datarate", "?")),
+                ("CAN mode", status.get("can_mode", "?")),
+                ("OBD chip", status.get("obd_chip_status", "?")),
+                ("ECU status", status.get("ecu_status", "?")),
+            ],
+        ),
+        (
+            "Power",
+            [
+                ("Sleep mode", status.get("sleep_status", "?")),
+                ("Sleep voltage", status.get("sleep_volt", "?") + "V"),
+                ("Sleep delay", status.get("sleep_time", "?") + " min"),
+                ("Periodic wakeup", status.get("periodic_wakeup", "?")),
+                ("Wakeup interval", status.get("wakeup_interval", "?") + " min"),
+                ("Wakeup voltage", status.get("wakeup_volt", "?")),
+            ],
+        ),
+        (
+            "MQTT",
+            [
+                ("Enabled", status.get("mqtt_en", "?")),
+                ("Broker", status.get("mqtt_url", "?") + ":" + status.get("mqtt_port", "?")),
+                ("Status topic", status.get("mqtt_status_topic", "?")),
+            ],
+        ),
+        (
+            "Logging",
+            [
+                ("SD logging", status.get("logger_status", "?")),
+                ("Period", status.get("log_period", "?") + "s"),
+                ("IMU threshold", status.get("imu_threshold", "?")),
+            ],
+        ),
     ]
 
     for section_name, fields in sections:
@@ -494,8 +538,12 @@ def cmd_logs(args) -> None:
                 ).fetchall()
             except sqlite3.DatabaseError:
                 # Fallback without join if DB is partially corrupt
-                rows = [(r[0], r[1], r[2], "?") for r in
-                        db.execute("SELECT Id, Name, Data FROM param_info ORDER BY Name").fetchall()]
+                rows = [
+                    (r[0], r[1], r[2], "?")
+                    for r in db.execute(
+                        "SELECT Id, Name, Data FROM param_info ORDER BY Name"
+                    ).fetchall()
+                ]
 
             if args.json:
                 result = []
@@ -511,25 +559,26 @@ def cmd_logs(args) -> None:
                     period = meta.get("period", "")
                     unit = meta.get("unit", "")
                     if period:
-                        period = f"{int(period)/1000:.0f}s"
-                    print(f"  {row[1]:<33} {str(row[3]):>7}  {period:>8}  {unit}")
+                        period = f"{int(period) / 1000:.0f}s"
+                    print(f"  {row[1]:<33} {row[3]!s:>7}  {period:>8}  {unit}")
             return
 
         if args.query:
             # Query a specific parameter
             param_row = db.execute(
-                "SELECT Id, Data FROM param_info WHERE Name = ? COLLATE NOCASE",
-                (args.query,)
+                "SELECT Id, Data FROM param_info WHERE Name = ? COLLATE NOCASE", (args.query,)
             ).fetchone()
             if not param_row:
                 # Try partial match
                 param_row = db.execute(
                     "SELECT Id, Data FROM param_info WHERE Name LIKE ? COLLATE NOCASE",
-                    (f"%{args.query}%",)
+                    (f"%{args.query}%",),
                 ).fetchone()
             if not param_row:
                 print(f"ERROR: Parameter '{args.query}' not found", file=sys.stderr)
-                print("  Use: wican.py logs --params  to list available parameters", file=sys.stderr)
+                print(
+                    "  Use: wican.py logs --params  to list available parameters", file=sys.stderr
+                )
                 sys.exit(1)
 
             param_id = param_row[0]
@@ -539,32 +588,40 @@ def cmd_logs(args) -> None:
                 rows = db.execute(
                     "SELECT timestamp, value FROM param_data "
                     "WHERE param_id = ? ORDER BY timestamp DESC LIMIT ?",
-                    (param_id, limit)
+                    (param_id, limit),
                 ).fetchall()
             except sqlite3.DatabaseError:
                 # DB partially corrupt — fall back to forward scan (oldest first)
                 try:
                     rows = db.execute(
-                        "SELECT timestamp, value FROM param_data "
-                        "WHERE param_id = ? LIMIT ?",
-                        (param_id, limit)
+                        "SELECT timestamp, value FROM param_data WHERE param_id = ? LIMIT ?",
+                        (param_id, limit),
                     ).fetchall()
                     if rows:
-                        print("NOTE: Database partially corrupt, showing oldest available data",
-                              file=sys.stderr)
+                        print(
+                            "NOTE: Database partially corrupt, showing oldest available data",
+                            file=sys.stderr,
+                        )
                 except sqlite3.DatabaseError as e:
                     print(f"ERROR: Database too corrupt to query: {e}", file=sys.stderr)
                     rows = []
 
             if args.json:
-                result = [{"timestamp": r[0], "time": datetime.fromtimestamp(r[0], tz=timezone.utc).isoformat(), "value": r[1]} for r in rows]
+                result = [
+                    {
+                        "timestamp": r[0],
+                        "time": datetime.fromtimestamp(r[0], tz=UTC).isoformat(),
+                        "value": r[1],
+                    }
+                    for r in rows
+                ]
                 print(json.dumps(result, indent=2))
             else:
                 meta = json.loads(param_row[1]) if param_row[1] else {}
                 unit = meta.get("unit", "")
                 print(f"Parameter: {args.query} (last {limit} values)")
                 for row in rows:
-                    ts = datetime.fromtimestamp(row[0], tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+                    ts = datetime.fromtimestamp(row[0], tz=UTC).strftime("%Y-%m-%d %H:%M:%S")
                     print(f"  {ts}  {row[1]} {unit}")
             return
 
@@ -582,7 +639,7 @@ def cmd_logs(args) -> None:
             size = db_info.get("size", 0)
             status = db_info.get("status", "")
             marker = " (active)" if fname == current or status == "active" else ""
-            size_str = f"{size/1024:.0f} KB" if size else "—"
+            size_str = f"{size / 1024:.0f} KB" if size else "—"
             print(f"  {fname}  {created}  {size_str}{marker}")
 
 
@@ -674,14 +731,10 @@ def cmd_protocol(args) -> None:
         )
 
     # General warnings
-    warnings.append(
-        "Protocols are MUTUALLY EXCLUSIVE — only one can be active at a time."
-    )
-    warnings.append(
-        "Device will REBOOT to apply the change."
-    )
+    warnings.append("Protocols are MUTUALLY EXCLUSIVE — only one can be active at a time.")
+    warnings.append("Device will REBOOT to apply the change.")
 
-    for i, w in enumerate(warnings, 1):
+    for w in warnings:
         print(f"  ⚠ {w}")
     print()
 
@@ -712,17 +765,22 @@ def cmd_protocol(args) -> None:
 
 # ── Argument parsing ──────────────────────────────────────────────────────
 
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="WiCAN CLI — manage WiCAN Pro device configuration",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
-        "--wican", default=DEFAULT_WICAN, metavar="ADDR",
+        "--wican",
+        default=DEFAULT_WICAN,
+        metavar="ADDR",
         help="Device address: home, vpn, or URL (default: home)",
     )
     parser.add_argument(
-        "--timeout", type=int, default=WICAN_TIMEOUT,
+        "--timeout",
+        type=int,
+        default=WICAN_TIMEOUT,
         help=f"Request timeout in seconds (default: {WICAN_TIMEOUT})",
     )
 
@@ -730,11 +788,11 @@ def main() -> None:
 
     # ── config ──
     p_config = sub.add_parser("config", help="View device configuration")
-    p_config.add_argument("--section", metavar="NAME",
-                          help=f"Filter to section: {', '.join(CONFIG_SECTIONS.keys())}")
+    p_config.add_argument(
+        "--section", metavar="NAME", help=f"Filter to section: {', '.join(CONFIG_SECTIONS.keys())}"
+    )
     p_config.add_argument("--json", action="store_true", help="Raw JSON output")
-    p_config.add_argument("--save", action="store_true",
-                          help="Save snapshot to configs/ directory")
+    p_config.add_argument("--save", action="store_true", help="Save snapshot to configs/ directory")
     p_config.set_defaults(func=cmd_config)
 
     # ── sleep ──
@@ -742,24 +800,21 @@ def main() -> None:
     grp = p_sleep.add_mutually_exclusive_group()
     grp.add_argument("--enable", action="store_true", help="Enable sleep mode")
     grp.add_argument("--disable", action="store_true", help="Disable sleep mode")
-    p_sleep.add_argument("--voltage", type=float, metavar="V",
-                         help="Sleep voltage threshold (e.g. 12.5)")
-    p_sleep.add_argument("--time", type=int, metavar="MIN",
-                         help="Sleep delay in minutes")
-    p_sleep.add_argument("--wakeup-interval", type=int, metavar="MIN",
-                         help="Periodic wakeup interval in minutes")
-    p_sleep.add_argument("--no-wakeup", action="store_true",
-                         help="Disable periodic wakeup")
-    p_sleep.add_argument("--dry-run", action="store_true",
-                         help="Preview changes without applying")
-    p_sleep.add_argument("--yes", "-y", action="store_true",
-                         help="Skip confirmation prompt")
+    p_sleep.add_argument(
+        "--voltage", type=float, metavar="V", help="Sleep voltage threshold (e.g. 12.5)"
+    )
+    p_sleep.add_argument("--time", type=int, metavar="MIN", help="Sleep delay in minutes")
+    p_sleep.add_argument(
+        "--wakeup-interval", type=int, metavar="MIN", help="Periodic wakeup interval in minutes"
+    )
+    p_sleep.add_argument("--no-wakeup", action="store_true", help="Disable periodic wakeup")
+    p_sleep.add_argument("--dry-run", action="store_true", help="Preview changes without applying")
+    p_sleep.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
     p_sleep.set_defaults(func=cmd_sleep)
 
     # ── reboot ──
     p_reboot = sub.add_parser("reboot", help="Reboot the device")
-    p_reboot.add_argument("--yes", "-y", action="store_true",
-                          help="Skip confirmation prompt")
+    p_reboot.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
     p_reboot.set_defaults(func=cmd_reboot)
 
     # ── status ──
@@ -769,34 +824,35 @@ def main() -> None:
 
     # ── logs ──
     p_logs = sub.add_parser("logs", help="List, download, or query OBD log databases")
-    p_logs.add_argument("--download", action="store_true",
-                        help="Download log databases to logs/ directory")
+    p_logs.add_argument(
+        "--download", action="store_true", help="Download log databases to logs/ directory"
+    )
     p_logs.add_argument("--db", metavar="FILE", help="Specific database filename")
-    p_logs.add_argument("--force", action="store_true",
-                        help="Overwrite existing files on download")
-    p_logs.add_argument("--params", action="store_true",
-                        help="List all logged parameters")
-    p_logs.add_argument("--query", metavar="PARAM",
-                        help="Query a parameter (e.g. SOC_BMS)")
-    p_logs.add_argument("--limit", type=int, default=10,
-                        help="Number of rows to return (default: 10)")
+    p_logs.add_argument("--force", action="store_true", help="Overwrite existing files on download")
+    p_logs.add_argument("--params", action="store_true", help="List all logged parameters")
+    p_logs.add_argument("--query", metavar="PARAM", help="Query a parameter (e.g. SOC_BMS)")
+    p_logs.add_argument(
+        "--limit", type=int, default=10, help="Number of rows to return (default: 10)"
+    )
     p_logs.add_argument("--json", action="store_true", help="JSON output")
     p_logs.set_defaults(func=cmd_logs)
 
     # ── protocol ──
     p_proto = sub.add_parser("protocol", help="View or switch CAN protocol mode")
-    p_proto.add_argument("--set", metavar="MODE",
-                         help=f"Switch to protocol: {', '.join(PROTOCOLS.keys())}")
-    p_proto.add_argument("--port", type=int, metavar="PORT",
-                         help="TCP/UDP port number (default varies by protocol)")
-    p_proto.add_argument("--port-type", choices=["tcp", "udp"],
-                         help="Port type: tcp or udp")
-    p_proto.add_argument("--can-mode", choices=["normal", "silent"],
-                         help="CAN mode: normal (read/write) or silent (read-only)")
-    p_proto.add_argument("--dry-run", action="store_true",
-                         help="Preview changes without applying")
-    p_proto.add_argument("--yes", "-y", action="store_true",
-                         help="Skip confirmation prompt")
+    p_proto.add_argument(
+        "--set", metavar="MODE", help=f"Switch to protocol: {', '.join(PROTOCOLS.keys())}"
+    )
+    p_proto.add_argument(
+        "--port", type=int, metavar="PORT", help="TCP/UDP port number (default varies by protocol)"
+    )
+    p_proto.add_argument("--port-type", choices=["tcp", "udp"], help="Port type: tcp or udp")
+    p_proto.add_argument(
+        "--can-mode",
+        choices=["normal", "silent"],
+        help="CAN mode: normal (read/write) or silent (read-only)",
+    )
+    p_proto.add_argument("--dry-run", action="store_true", help="Preview changes without applying")
+    p_proto.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
     p_proto.set_defaults(func=cmd_protocol)
 
     args = parser.parse_args()

@@ -3,8 +3,8 @@
 import asyncio
 import re
 
+from ..formatting import decode_uds_response, print_hexdump, print_json_result
 from ..terminal import WiCANTerminal
-from ..formatting import print_hexdump, print_json_result, decode_uds_response
 
 
 async def mode_raw(
@@ -27,7 +27,7 @@ async def mode_raw(
     match = re.match(r"^([0-9A-Fa-f]{3})[:\s]([0-9A-Fa-f]+)$", raw_spec)
     if not match:
         print(f"  Invalid format: {raw_spec}")
-        print(f"  Expected: <TX_ID>:<SERVICE_PID>  (e.g., 7E4:2101)")
+        print("  Expected: <TX_ID>:<SERVICE_PID>  (e.g., 7E4:2101)")
         return
 
     tx_id = int(match.group(1), 16)

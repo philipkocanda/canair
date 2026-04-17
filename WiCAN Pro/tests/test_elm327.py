@@ -1,10 +1,9 @@
 """Tests for canlib.elm327 — ELM327 parsing, safety checks, byte conversion."""
 
-import pytest
-from canlib.elm327 import check_command_safety, parse_elm_response, elm_hex_to_wican_bytes
-
+from canlib.elm327 import check_command_safety, elm_hex_to_wican_bytes, parse_elm_response
 
 # --- check_command_safety ---
+
 
 class TestCheckCommandSafety:
     def test_at_commands_always_safe(self):
@@ -40,6 +39,7 @@ class TestCheckCommandSafety:
 
 
 # --- parse_elm_response ---
+
 
 class TestParseElmResponse:
     def test_positive_single_frame(self):
@@ -115,6 +115,7 @@ class TestParseElmResponse:
 
 # --- elm_hex_to_wican_bytes ---
 
+
 class TestElmHexToWicanBytes:
     def test_single_frame(self):
         """Single-frame: PCI = length byte prepended."""
@@ -154,13 +155,13 @@ class TestElmHexToWicanBytes:
         assert result[1] == 8
         cf1_data = result[9:16]
         assert cf1_data[0:2] == bytes.fromhex("EEFF")
-        assert cf1_data[2:] == b'\x00' * 5
+        assert cf1_data[2:] == b"\x00" * 5
 
     def test_roundtrip_byte_indices(self):
         """Verify B00, B08, B16 are PCI bytes (matching WiCAN expression indexing)."""
         payload = bytes(range(0x61, 0x61 + 30)).hex()  # 30 bytes
         result = elm_hex_to_wican_bytes(payload)
-        assert result[0] == 0x10   # B00 = FF PCI high
-        assert result[8] == 0x21   # B08 = CF1 PCI
+        assert result[0] == 0x10  # B00 = FF PCI high
+        assert result[8] == 0x21  # B08 = CF1 PCI
         assert result[16] == 0x22  # B16 = CF2 PCI
         assert result[24] == 0x23  # B24 = CF3 PCI

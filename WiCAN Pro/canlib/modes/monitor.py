@@ -20,8 +20,8 @@ from rich.console import Console
 from rich.live import Live
 from rich.text import Text
 
+from ..formatting import _build_byte_colors, format_value
 from ..session_manager import SessionManager
-from ..formatting import format_value, _build_byte_colors
 
 _console = Console(highlight=False)
 
@@ -171,9 +171,7 @@ async def mode_monitor(
                     await _exec_skm_wake(sm, step["level"], verbose)
                 elif stype == "session":
                     print(f"  Opening session on {step['target']}...")
-                    await _exec_session(
-                        sm, step["target"], step.get("wake", False), ecu_index
-                    )
+                    await _exec_session(sm, step["target"], step.get("wake", False), ecu_index)
 
         # Start background keepalives
         sm.start_background_keepalive(interval=2.0)
@@ -208,9 +206,7 @@ async def mode_monitor(
 
                 last_queries = new_queries
                 elapsed = time.monotonic() - t0
-                live.update(
-                    _render_results(last_queries, verbose, cycle, elapsed, interval)
-                )
+                live.update(_render_results(last_queries, verbose, cycle, elapsed, interval))
 
                 remaining = interval - elapsed
                 if remaining > 0:
@@ -223,5 +219,5 @@ async def mode_monitor(
         print("  Closing sessions...")
         try:
             await asyncio.wait_for(sm.close_all(), timeout=3.0)
-        except (asyncio.TimeoutError, Exception):
+        except (TimeoutError, Exception):
             pass

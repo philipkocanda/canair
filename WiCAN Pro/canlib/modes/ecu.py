@@ -3,16 +3,23 @@
 import asyncio
 import json
 
-from ..terminal import WiCANTerminal
-from ..pids import build_ecu_index
 from ..elm327 import elm_hex_to_wican_bytes
-from ..formatting import print_decoded_params
 from ..expression import evaluate_expression
+from ..formatting import print_decoded_params
+from ..pids import build_ecu_index
+from ..terminal import WiCANTerminal
 
 
-async def mode_ecu(terminal: WiCANTerminal, pids_data: dict, ecu_name: str,
-                   pid_filter: str | None, verbose: bool, as_json: bool,
-                   session: bool = False, wake: bool = False):
+async def mode_ecu(
+    terminal: WiCANTerminal,
+    pids_data: dict,
+    ecu_name: str,
+    pid_filter: str | None,
+    verbose: bool,
+    as_json: bool,
+    session: bool = False,
+    wake: bool = False,
+):
     """Query all parameters for an ECU, optionally filtered by PID."""
     ecu_index = build_ecu_index(pids_data)
     ecu_key = ecu_name.upper()
@@ -76,8 +83,14 @@ async def mode_ecu(terminal: WiCANTerminal, pids_data: dict, ecu_name: str,
                     results.append((pname, None, unit, expr, str(e), verified))
 
             if as_json:
-                for name, value, unit, expr, error, verified in results:
-                    entry = {"ecu": ecu_key, "pid": pid_code, "name": name, "value": value, "unit": unit}
+                for name, value, unit, _expr, error, _verified in results:
+                    entry = {
+                        "ecu": ecu_key,
+                        "pid": pid_code,
+                        "name": name,
+                        "value": value,
+                        "unit": unit,
+                    }
                     if error:
                         entry["error"] = error
                     all_json.append(entry)

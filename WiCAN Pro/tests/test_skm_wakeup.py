@@ -1,9 +1,6 @@
 """Tests for canlib.modes.skm_wakeup — parsing helpers."""
 
-import pytest
-
-from canlib.modes.skm_wakeup import parse_igpm_bc03, parse_bcm_b003
-
+from canlib.modes.skm_wakeup import parse_bcm_b003, parse_igpm_bc03
 
 # ── parse_igpm_bc03 ──────────────────────────────────────────────────────────
 

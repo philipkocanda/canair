@@ -29,7 +29,7 @@ def validate_file(path: Path, ecu_names: set[str]) -> list[str]:
         data = yaml.safe_load(f)
 
     if not isinstance(data, dict) or "sessions" not in data:
-        errors.append(f"Missing root 'sessions' key")
+        errors.append("Missing root 'sessions' key")
         return errors
 
     for si, session in enumerate(data["sessions"]):
@@ -83,7 +83,9 @@ def validate_file(path: Path, ecu_names: set[str]) -> list[str]:
             # Exactly one payload field
             present_payload = PAYLOAD_FIELDS & set(cap)
             if len(present_payload) == 0:
-                errors.append(f"{cprefix}: missing payload (need one of: payload, response, scan_results)")
+                errors.append(
+                    f"{cprefix}: missing payload (need one of: payload, response, scan_results)"
+                )
             elif len(present_payload) > 1:
                 errors.append(f"{cprefix}: multiple payload fields: {present_payload}")
 
@@ -100,9 +102,13 @@ def validate_file(path: Path, ecu_names: set[str]) -> list[str]:
                 elif "responding" in sr:
                     for ri, entry in enumerate(sr["responding"]):
                         if not isinstance(entry, dict):
-                            errors.append(f"{cprefix}.scan_results.responding[{ri}]: must be a mapping")
+                            errors.append(
+                                f"{cprefix}.scan_results.responding[{ri}]: must be a mapping"
+                            )
                         elif "did" not in entry or "response" not in entry:
-                            errors.append(f"{cprefix}.scan_results.responding[{ri}]: needs 'did' and 'response'")
+                            errors.append(
+                                f"{cprefix}.scan_results.responding[{ri}]: needs 'did' and 'response'"
+                            )
 
     return errors
 

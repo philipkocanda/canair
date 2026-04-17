@@ -29,9 +29,7 @@ def parse_igpm_bc03(raw_response: str) -> dict:
         ign2_byte: int - raw data byte 5 value
         error: str - error message if parsing failed
     """
-    cleaned = (
-        re.sub(r"\d+:", "", raw_response).replace(" ", "").replace("\n", "").upper()
-    )
+    cleaned = re.sub(r"\d+:", "", raw_response).replace(" ", "").replace("\n", "").upper()
 
     if "62BC03" not in cleaned:
         return {
@@ -66,9 +64,7 @@ def parse_bcm_b003(raw_response: str) -> dict:
         state: str - human-readable state label
         error: str - error message if parsing failed
     """
-    cleaned = (
-        re.sub(r"\d+:", "", raw_response).replace(" ", "").replace("\n", "").upper()
-    )
+    cleaned = re.sub(r"\d+:", "", raw_response).replace(" ", "").replace("\n", "").upper()
 
     if "62B003" not in cleaned:
         return {"ok": False, "error": f"No 62B003 in response: {raw_response.strip()}"}
@@ -144,12 +140,12 @@ async def mode_skm_wakeup(terminal: WiCANTerminal, level: str, verbose: bool):
             return False
 
     print(f"\n  SKM Wakeup -- {desc}")
-    print(f"  ---------------------------------")
+    print("  ---------------------------------")
 
     # Step 1: Rapid-fire 1001 to wake SKM transceiver from deep sleep
     # SKM wakes on the 2nd frame but has a ~2s sleep timer — needs fast CAN
     # traffic (64ms timeout) to stay awake. Direct to 0x7A5, no broadcast needed.
-    print(f"  [1/4] Waking SKM (rapid-fire 1001 at 64ms timeout)...")
+    print("  [1/4] Waking SKM (rapid-fire 1001 at 64ms timeout)...")
     await terminal.send_command("ATSH7A5")
     await terminal.send_command("ATFCSH7A5")
 
@@ -170,14 +166,14 @@ async def mode_skm_wakeup(terminal: WiCANTerminal, level: str, verbose: bool):
     if not skm_awake:
         # Restore timeout before returning
         await terminal.send_command(terminal.elm_timeout_cmd)
-        print(f"  FAILED: SKM did not wake after 10 rapid-fire attempts.")
-        print(f"  The SKM transceiver may be fully unpowered.")
+        print("  FAILED: SKM did not wake after 10 rapid-fire attempts.")
+        print("  The SKM transceiver may be fully unpowered.")
         return False
 
     print(f"        SKM awake (attempt {attempt + 1}).")
 
     # Step 2: Extended diagnostic session — send immediately while SKM is awake
-    print(f"  [2/4] Establishing extended session on SKM (0x7A5)...")
+    print("  [2/4] Establishing extended session on SKM (0x7A5)...")
 
     session_ok = False
     for attempt in range(5):
@@ -192,10 +188,10 @@ async def mode_skm_wakeup(terminal: WiCANTerminal, level: str, verbose: bool):
     await terminal.send_command(terminal.elm_timeout_cmd)
 
     if not session_ok:
-        print(f"  FAILED: SKM awake but extended session failed.")
+        print("  FAILED: SKM awake but extended session failed.")
         return False
 
-    print(f"        Extended session (10 03) established.")
+    print("        Extended session (10 03) established.")
 
     # Step 3: Send relay ON command
     await terminal._drain()
@@ -212,7 +208,7 @@ async def mode_skm_wakeup(terminal: WiCANTerminal, level: str, verbose: bool):
         if verbose:
             reason = "FC echo" if is_fc_only else "pending NRC"
             print(f"        Initial response: {resp.strip()} ({reason})")
-            print(f"        Waiting for UDS response...")
+            print("        Waiting for UDS response...")
         deadline = time.monotonic() + 10.0
         extra_parts = []
         while time.monotonic() < deadline:
@@ -220,9 +216,7 @@ async def mode_skm_wakeup(terminal: WiCANTerminal, level: str, verbose: bool):
             if remaining <= 0:
                 break
             try:
-                msg = await asyncio.wait_for(
-                    terminal.ws.recv(), timeout=min(remaining, 1.0)
-                )
+                msg = await asyncio.wait_for(terminal.ws.recv(), timeout=min(remaining, 1.0))
                 if isinstance(msg, str):
                     try:
                         parsed = json.loads(msg)
@@ -242,7 +236,7 @@ async def mode_skm_wakeup(terminal: WiCANTerminal, level: str, verbose: bool):
                     break
                 if re.search(r"7F2F(?!78)[0-9A-Fa-f]{2}", combined):
                     break
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 combined = "".join(extra_parts).replace(" ", "").upper()
                 if "7F2F78" in combined and "6F" not in combined:
                     continue
@@ -255,28 +249,27 @@ async def mode_skm_wakeup(terminal: WiCANTerminal, level: str, verbose: bool):
                 print(f"        Full response: {resp.strip()}")
 
     success = (
-        f"6F{did[0:2]}" in resp.replace(" ", "").upper()
-        or f"6FB1" in resp.replace(" ", "").upper()
+        f"6F{did[0:2]}" in resp.replace(" ", "").upper() or "6FB1" in resp.replace(" ", "").upper()
     )
 
     if not success:
         clean = resp.replace(" ", "").upper()
         if "7F2F7F" in clean:
-            print(f"        FAILED: serviceNotSupportedInActiveSession")
-            print(f"        The extended session may have expired. Try again.")
+            print("        FAILED: serviceNotSupportedInActiveSession")
+            print("        The extended session may have expired. Try again.")
         elif "7F2F78" in clean and "6F" not in clean:
-            print(f"        Pending response received but no positive confirmation.")
+            print("        Pending response received but no positive confirmation.")
         else:
             print(f"        Response: {resp}")
-            print(f"        Could not confirm relay activation.")
+            print("        Could not confirm relay activation.")
         return False
 
-    print(f"        UDS positive response received.")
+    print("        UDS positive response received.")
 
     # Step 4: Verify ACC actually engaged by reading IGPM and BCM
     # SKM returns positive UDS response even without keyfob nearby,
     # but the relay physically doesn't close. Read both ECUs to verify.
-    print(f"  [4/4] Verifying relay engagement...")
+    print("  [4/4] Verifying relay engagement...")
 
     # Small delay for relay state to settle
     await asyncio.sleep(0.3)
@@ -284,7 +277,7 @@ async def mode_skm_wakeup(terminal: WiCANTerminal, level: str, verbose: bool):
     verified = False
 
     # --- IGPM BC03: ignition/ACC state ---
-    print(f"        IGPM (0x770) BC03...")
+    print("        IGPM (0x770) BC03...")
     igpm = await wake_and_read(terminal, "770", "22BC03")
     if igpm["ok"]:
         result = parse_igpm_bc03(igpm["response"])
@@ -304,7 +297,7 @@ async def mode_skm_wakeup(terminal: WiCANTerminal, level: str, verbose: bool):
         print(f"          {igpm['error']}")
 
     # --- BCM B003: power mode byte ---
-    print(f"        BCM  (0x7A0) B003...")
+    print("        BCM  (0x7A0) B003...")
     bcm = await wake_and_read(terminal, "7A0", "22B003")
     if bcm["ok"]:
         result = parse_bcm_b003(bcm["response"])
@@ -319,6 +312,6 @@ async def mode_skm_wakeup(terminal: WiCANTerminal, level: str, verbose: bool):
         print(f"\n  {desc} activated and verified!")
     else:
         print(f"\n  WARNING: {desc} command accepted but relay NOT confirmed.")
-        print(f"  The keyfob is likely not nearby.")
+        print("  The keyfob is likely not nearby.")
 
     return verified

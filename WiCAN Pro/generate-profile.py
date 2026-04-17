@@ -24,7 +24,7 @@ import time
 from pathlib import Path
 
 try:
-    import yaml
+    import yaml  # noqa: F401
 except ImportError:
     print("ERROR: PyYAML not installed. Run: pip3 install pyyaml", file=sys.stderr)
     sys.exit(1)
@@ -87,7 +87,7 @@ def generate_profile(data: dict, verified_only: bool = False) -> dict:
         "can_filters": [],
     }
 
-    for ecu_name, ecu in data["ecus"].items():
+    for _ecu_name, ecu in data["ecus"].items():
         tx_id = ecu["tx_id"]
         session = ecu.get("session", False)
         pid_init = make_pid_init(tx_id, session=session)
@@ -162,12 +162,8 @@ def to_device_format(profile: dict, data: dict | None = None) -> dict:
                     "unit": meta.get("unit", ""),
                     "class": meta.get("ha_class", "none") or "none",
                     "period": pid_entry.get("period", "5000"),
-                    "min": str(meta.get("min", ""))
-                    if meta.get("min", "") != ""
-                    else "",
-                    "max": str(meta.get("max", ""))
-                    if meta.get("max", "") != ""
-                    else "",
+                    "min": str(meta.get("min", "")) if meta.get("min", "") != "" else "",
+                    "max": str(meta.get("max", "")) if meta.get("max", "") != "" else "",
                     "type": "Default",
                     "send_to": "",
                 }
@@ -197,7 +193,7 @@ def normalize_device_profile(device_data: dict) -> dict:
     our upload groups multiple parameters per PID entry. This normalizes
     everything to grouped dict format for diffing.
     """
-    if "cars" in device_data and device_data["cars"]:
+    if device_data.get("cars"):
         car = device_data["cars"][0]
     else:
         car = device_data
@@ -350,9 +346,7 @@ def show_diff(current_raw: dict | None, generated: dict) -> bool:
                 pid_diffs.append(f"      - {name}: {cur_params[name]}")
                 removed_params += 1
             elif cur_params[name] != gen_params[name]:
-                pid_diffs.append(
-                    f"      ~ {name}: {cur_params[name]} → {gen_params[name]}"
-                )
+                pid_diffs.append(f"      ~ {name}: {cur_params[name]} → {gen_params[name]}")
                 changed_params += 1
 
         if pid_diffs:
@@ -383,17 +377,14 @@ def upload_profile(base_url: str, device_payload: dict, reboot: bool = False) ->
 
     n_pids = len(device_payload.get("cars", [{}])[0].get("pids", []))
     n_params = sum(
-        len(p.get("parameters", []))
-        for p in device_payload.get("cars", [{}])[0].get("pids", [])
+        len(p.get("parameters", [])) for p in device_payload.get("cars", [{}])[0].get("pids", [])
     )
 
     url = f"{base_url}/store_car_data"
     try:
         resp = requests.post(url, json=device_payload, timeout=WICAN_TIMEOUT)
         resp.raise_for_status()
-        print(
-            f"  Uploaded to {url} — {resp.status_code} ({n_pids} PIDs, {n_params} params)"
-        )
+        print(f"  Uploaded to {url} — {resp.status_code} ({n_pids} PIDs, {n_params} params)")
     except requests.RequestException as e:
         print(f"  FAILED to upload to {url}: {e}", file=sys.stderr)
         sys.exit(1)
@@ -430,7 +421,7 @@ def print_stats(data: dict) -> None:
             verified_count += n_verified
             unverified_count += n_unverified
 
-            sources = set(p.get("source", "?") for p in params.values())
+            sources = {p.get("source", "?") for p in params.values()}
             source_str = "; ".join(sorted(sources))[:40]
 
             v_str = f"{n_verified}/{n_params}"
@@ -461,15 +452,9 @@ def main():
         action="store_true",
         help="Download current config and show diff against generated",
     )
-    parser.add_argument(
-        "--upload", action="store_true", help="Upload generated profile to WiCAN"
-    )
-    parser.add_argument(
-        "--reboot", action="store_true", help="Reboot WiCAN after upload"
-    )
-    parser.add_argument(
-        "--stats", action="store_true", help="Show PID statistics table"
-    )
+    parser.add_argument("--upload", action="store_true", help="Upload generated profile to WiCAN")
+    parser.add_argument("--reboot", action="store_true", help="Reboot WiCAN after upload")
+    parser.add_argument("--stats", action="store_true", help="Show PID statistics table")
     parser.add_argument(
         "--wican",
         default=DEFAULT_WICAN,
@@ -500,7 +485,7 @@ def main():
 
     # Write file
     if not args.no_write:
-        print(f"\nWriting output...")
+        print("\nWriting output...")
         write_json(profile, PROFILE_OUT)
 
     # Download / diff
@@ -513,7 +498,7 @@ def main():
         if args.download and not args.diff:
             if current_raw:
                 normalized = normalize_device_profile(current_raw)
-                print(f"\n=== Current device profile (normalized) ===")
+                print("\n=== Current device profile (normalized) ===")
                 print(json.dumps(normalized, indent=2))
 
         if args.diff:
@@ -521,12 +506,10 @@ def main():
 
     # Upload
     if args.upload:
-        print(f"\nConverting to device format...")
+        print("\nConverting to device format...")
         device_payload = to_device_format(profile, data)
         n_pids = len(device_payload["cars"][0]["pids"])
-        n_dev_params = sum(
-            len(p["parameters"]) for p in device_payload["cars"][0]["pids"]
-        )
+        n_dev_params = sum(len(p["parameters"]) for p in device_payload["cars"][0]["pids"])
         print(f"  {n_pids} PID groups, {n_dev_params} parameters (array-of-objects)")
 
         print(f"\nUploading to {base_url}...")

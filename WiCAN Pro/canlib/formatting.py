@@ -75,11 +75,7 @@ def print_decoded_params(params_results: list, verbose: bool = False):
 
     max_name = max(len(r[0]) for r in params_results)
     max_val = max(
-        len(
-            format_value(r[1], r[2], r[6] if len(r) > 6 else "")
-            if r[1] is not None
-            else "ERROR"
-        )
+        len(format_value(r[1], r[2], r[6] if len(r) > 6 else "") if r[1] is not None else "ERROR")
         for r in params_results
     )
 
@@ -92,9 +88,7 @@ def print_decoded_params(params_results: list, verbose: bool = False):
         else:
             val_str = format_value(value, unit, display)
             if verbose:
-                print(
-                    f"  {v_mark} {name:<{max_name}}  {val_str:<{max_val}}  [{expression}]"
-                )
+                print(f"  {v_mark} {name:<{max_name}}  {val_str:<{max_val}}  [{expression}]")
             else:
                 print(f"  {v_mark} {name:<{max_name}}  {val_str}")
 
@@ -166,9 +160,7 @@ def print_ecu_results(
                             f"      {name:<{max_name}}  {val_str:<{max_val}}  {mark}  [dim]{expression}[/dim]"
                         )
                     else:
-                        c.print(
-                            f"      {name:<{max_name}}  {val_str:<{max_val}}  {mark}"
-                        )
+                        c.print(f"      {name:<{max_name}}  {val_str:<{max_val}}  {mark}")
         elif decode:
             c.print(f"      {decode}")
 
@@ -181,19 +173,14 @@ def print_ecu_results(
                 # Unmapped: all grey hex + ASCII
                 spaced = " ".join(elm_bytes)
                 ascii_repr = _bytes_to_ascii(raw_hex)
-                c.print(
-                    f"      [bright_black]{spaced}  {ascii_repr}  ({n_bytes} B)[/bright_black]"
-                )
+                c.print(f"      [bright_black]{spaced}  {ascii_repr}  ({n_bytes} B)[/bright_black]")
             else:
                 # Build per-byte colour: green (verified) > yellow (unverified) > bright_black
                 byte_color = _build_byte_colors(params, n_bytes)
                 hex_parts = [
-                    f"[{byte_color[i]}]{hb}[/{byte_color[i]}]"
-                    for i, hb in enumerate(elm_bytes)
+                    f"[{byte_color[i]}]{hb}[/{byte_color[i]}]" for i, hb in enumerate(elm_bytes)
                 ]
-                c.print(
-                    f"      {' '.join(hex_parts)}  [bright_black]({n_bytes} B)[/bright_black]"
-                )
+                c.print(f"      {' '.join(hex_parts)}  [bright_black]({n_bytes} B)[/bright_black]")
 
 
 def print_hexdump(data: bytes, prefix: str = "  "):
@@ -260,9 +247,7 @@ def decode_uds_response(data: bytes) -> str | None:
     if sid == 0x6F and len(data) >= 3:
         did = (data[1] << 8) | data[2]
         ctrl = data[3] if len(data) >= 4 else None
-        ctrl_name = (
-            CONTROL_TYPES.get(ctrl, f"0x{ctrl:02X}") if ctrl is not None else "?"
-        )
+        ctrl_name = CONTROL_TYPES.get(ctrl, f"0x{ctrl:02X}") if ctrl is not None else "?"
         status = data[4:].hex().upper() if len(data) > 4 else ""
         result = f"IOControl: DID 0x{did:04X}, {ctrl_name}"
         if status:
@@ -319,9 +304,7 @@ def decode_uds_response(data: bytes) -> str | None:
 
     if sid == 0x68 and len(data) >= 3:
         did = (data[1] << 8) | data[2]
-        return (
-            f"WARNING: ControlDTCSetting — DID 0x{did:04X}, DTC logging may be altered"
-        )
+        return f"WARNING: ControlDTCSetting — DID 0x{did:04X}, DTC logging may be altered"
 
     if sid == 0x6C and len(data) >= 2:
         sub = data[1]

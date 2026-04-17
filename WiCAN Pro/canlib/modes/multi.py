@@ -21,18 +21,16 @@ import asyncio
 import re
 import shlex
 
-from ..session_manager import SessionManager
-from ..pids import build_ecu_index, build_param_index, load_pids
 from ..constants import PIDS_DIR
+from ..elm327 import elm_hex_to_wican_bytes, parse_elm_response
+from ..expression import evaluate_expression
 from ..formatting import (
-    print_decoded_params,
+    decode_uds_response,
     print_ecu_results,
     print_hexdump,
-    print_json_result,
-    decode_uds_response,
 )
-from ..expression import evaluate_expression
-from ..elm327 import parse_elm_response, elm_hex_to_wican_bytes
+from ..pids import build_ecu_index, build_param_index
+from ..session_manager import SessionManager
 from ..terminal import WiCANTerminal
 
 
@@ -72,33 +70,27 @@ def parse_sub_commands(args: list[str]) -> list[dict]:
 
         elif verb == "session":
             if len(parts) < 2:
-                raise ValueError(
-                    f"'session' requires an ECU name or TX ID: session IGPM"
-                )
+                raise ValueError("'session' requires an ECU name or TX ID: session IGPM")
             wake = "--wake" in parts
             target = parts[1]
             commands.append({"type": "session", "target": target, "wake": wake})
 
         elif verb == "query":
             if len(parts) < 2:
-                raise ValueError(f"'query' requires an ECU name: query IGPM BC03 BC06")
+                raise ValueError("'query' requires an ECU name: query IGPM BC03 BC06")
             ecu = parts[1]
             pids = parts[2:] if len(parts) > 2 else []
             commands.append({"type": "query", "ecu": ecu, "pids": pids})
 
         elif verb == "raw":
             if len(parts) < 2:
-                raise ValueError(f"'raw' requires TX:PID: raw 770:22BC03")
-            commands.append(
-                {"type": "raw", "spec": parts[1], "hold": "--hold" in parts}
-            )
+                raise ValueError("'raw' requires TX:PID: raw 770:22BC03")
+            commands.append({"type": "raw", "spec": parts[1], "hold": "--hold" in parts})
 
         elif verb == "scan":
             # scan <TX> <SVC> <RANGE> [APPEND]
             if len(parts) < 4:
-                raise ValueError(
-                    f"'scan' requires: scan <TX> <SERVICE> <RANGE> [APPEND]"
-                )
+                raise ValueError("'scan' requires: scan <TX> <SERVICE> <RANGE> [APPEND]")
             commands.append(
                 {
                     "type": "scan",
@@ -116,9 +108,7 @@ def parse_sub_commands(args: list[str]) -> list[dict]:
         elif verb == "security":
             # security <ECU|TX_ID> [algo1 algo2 ...]
             if len(parts) < 2:
-                raise ValueError(
-                    "'security' requires an ECU name or TX ID: security BCM"
-                )
+                raise ValueError("'security' requires an ECU name or TX ID: security BCM")
             target = parts[1]
             algos = parts[2:] if len(parts) > 2 else []
             commands.append({"type": "security", "target": target, "algos": algos})
@@ -177,9 +167,7 @@ async def _exec_query(
     """
     upper = ecu_name_str.upper()
     if upper not in ecu_index:
-        print(
-            f"  ERROR: Unknown ECU '{ecu_name_str}'. Available: {', '.join(ecu_index.keys())}"
-        )
+        print(f"  ERROR: Unknown ECU '{ecu_name_str}'. Available: {', '.join(ecu_index.keys())}")
         return
 
     ecu_info = ecu_index[upper]
@@ -202,8 +190,7 @@ async def _exec_query(
         pids_to_query = {
             k: v
             for k, v in pids_to_query.items()
-            if k.upper() in filter_upper
-            or any(k.upper().endswith(f) for f in filter_upper)
+            if k.upper() in filter_upper or any(k.upper().endswith(f) for f in filter_upper)
         }
 
         # Find unmatched filters — query them as raw UDS requests
@@ -236,16 +223,14 @@ async def _exec_query(
                     if not quiet:
                         print(f"  WARNING: Invalid PID format '{u}', skipping")
             if raw_pids and not quiet:
-                print(
-                    f"  NOTE: {', '.join(raw_pids)} not in {PIDS_DIR.name}/ — querying raw"
-                )
+                print(f"  NOTE: {', '.join(raw_pids)} not in {PIDS_DIR.name}/ — querying raw")
 
         if not pids_to_query and not raw_pids:
             print(f"  No matching PIDs for filter: {pid_filter}")
             print(f"  Available: {', '.join(sorted(ecu_info['pids'].keys()))}")
             return
 
-    total = len(pids_to_query) + len(raw_pids)
+    _total = len(pids_to_query) + len(raw_pids)
 
     # Build sorted query plan: interleave mapped and unmapped PIDs by DID
     query_plan = []  # list of (pid_code, pid_info_or_None, unmapped)
@@ -267,9 +252,7 @@ async def _exec_query(
             nrc = resp.get("nrc")
             if nrc is not None:
                 error = f"NRC 0x{nrc:02X} ({resp['nrc_desc']})"
-            all_pid_results.append(
-                {"pid": pid_code, "error": error, "unmapped": unmapped}
-            )
+            all_pid_results.append({"pid": pid_code, "error": error, "unmapped": unmapped})
             continue
 
         if pid_info:
@@ -326,9 +309,7 @@ async def _exec_raw(sm: SessionManager, spec: str, hold: bool, verbose: bool):
     """Execute raw sub-command."""
     match = re.match(r"^([0-9A-Fa-f]{3})[:\s]([0-9A-Fa-f]+)$", spec)
     if not match:
-        print(
-            f"  ERROR: Invalid raw format: {spec}. Expected: TX:PID (e.g., 770:22BC03)"
-        )
+        print(f"  ERROR: Invalid raw format: {spec}. Expected: TX:PID (e.g., 770:22BC03)")
         return
 
     tx_id = int(match.group(1), 16)
@@ -358,7 +339,7 @@ async def _exec_raw(sm: SessionManager, spec: str, hold: bool, verbose: bool):
 
     if hold:
         print("\n  Holding session (Ctrl+C to continue pipeline)...")
-        bg = sm.start_background_keepalive()
+        sm.start_background_keepalive()
         try:
             await asyncio.Event().wait()
         except (KeyboardInterrupt, asyncio.CancelledError):
@@ -465,10 +446,7 @@ SECURITY_ALGORITHMS = {
     "swap": (
         "byte-swap (reverse order)",
         lambda s: (
-            ((s & 0xFF) << 24)
-            | ((s & 0xFF00) << 8)
-            | ((s & 0xFF0000) >> 8)
-            | ((s >> 24) & 0xFF)
+            ((s & 0xFF) << 24) | ((s & 0xFF00) << 8) | ((s & 0xFF0000) >> 8) | ((s >> 24) & 0xFF)
         ),
     ),
     "plus1": ("seed + 1", lambda s: (s + 1) & 0xFFFFFFFF),
@@ -655,7 +633,7 @@ async def _exec_security(
 
         # Request seed (with retry loop for lockout recovery)
         resp = None
-        for attempt in range(3):
+        for _attempt in range(3):
             resp = await sm.terminal.send_uds("2701", timeout=5.0)
 
             if resp.get("ok"):
@@ -684,11 +662,7 @@ async def _exec_security(
 
         if not resp or not resp.get("ok"):
             nrc = resp.get("nrc") if resp else None
-            desc = (
-                resp.get("nrc_desc") or resp.get("error", "unknown")
-                if resp
-                else "no response"
-            )
+            desc = resp.get("nrc_desc") or resp.get("error", "unknown") if resp else "no response"
             print(f"  {algo_name:<30} {'—':>10}  {'—':>10}  Seed failed: {desc}")
             continue
 
@@ -713,14 +687,8 @@ async def _exec_security(
 
         if key_resp.get("ok"):
             raw_key_bytes = key_resp.get("bytes", b"")
-            if (
-                len(raw_key_bytes) >= 2
-                and raw_key_bytes[0] == 0x67
-                and raw_key_bytes[1] == 0x02
-            ):
-                print(
-                    f"  {algo_name:<30} {seed_hex:>10}  {key_hex:>10}  *** ACCEPTED ***"
-                )
+            if len(raw_key_bytes) >= 2 and raw_key_bytes[0] == 0x67 and raw_key_bytes[1] == 0x02:
+                print(f"  {algo_name:<30} {seed_hex:>10}  {key_hex:>10}  *** ACCEPTED ***")
                 print(f"\n  Security access GRANTED on 0x{tx_id:03X}!")
                 print(f"  Algorithm: {algo_desc}")
                 print(f"  Seed: 0x{seed_hex}  Key: 0x{key_hex}")
@@ -734,9 +702,7 @@ async def _exec_security(
             if nrc == 0x35:  # invalidKey
                 print(f"  {algo_name:<30} {seed_hex:>10}  {key_hex:>10}  invalid key")
             elif nrc == 0x36:  # exceededNumberOfAttempts
-                print(
-                    f"  {algo_name:<30} {seed_hex:>10}  {key_hex:>10}  LOCKOUT — stopping."
-                )
+                print(f"  {algo_name:<30} {seed_hex:>10}  {key_hex:>10}  LOCKOUT — stopping.")
                 return False
             elif nrc == 0x37:  # requiredTimeDelayNotExpired
                 print(
@@ -746,7 +712,7 @@ async def _exec_security(
                 desc = key_resp.get("nrc_desc") or key_resp.get("error", "unknown")
                 print(f"  {algo_name:<30} {seed_hex:>10}  {key_hex:>10}  {desc}")
 
-    print(f"\n  No algorithm worked. Security access denied.")
+    print("\n  No algorithm worked. Security access denied.")
     return False
 
 
@@ -787,18 +753,14 @@ async def mode_multi(
             elif cmd_type == "query":
                 pids_str = " ".join(cmd["pids"]) if cmd["pids"] else "all"
                 print(f"\n{step} Query {cmd['ecu']} ({pids_str})...")
-                await _exec_query(
-                    sm, cmd["ecu"], cmd["pids"], ecu_index, pids_data, verbose
-                )
+                await _exec_query(sm, cmd["ecu"], cmd["pids"], ecu_index, pids_data, verbose)
 
             elif cmd_type == "raw":
                 print(f"\n{step} Raw {cmd['spec']}...")
                 await _exec_raw(sm, cmd["spec"], cmd["hold"], verbose)
 
             elif cmd_type == "scan":
-                print(
-                    f"\n{step} Scan {cmd['tx']} service {cmd['service']} range {cmd['range']}..."
-                )
+                print(f"\n{step} Scan {cmd['tx']} service {cmd['service']} range {cmd['range']}...")
                 await _exec_scan(
                     sm, cmd["tx"], cmd["service"], cmd["range"], cmd["append"], verbose
                 )
@@ -817,9 +779,7 @@ async def mode_multi(
             elif cmd_type == "security":
                 algos_str = " ".join(cmd["algos"]) if cmd["algos"] else "all"
                 print(f"\n{step} Security access on {cmd['target']} ({algos_str})...")
-                await _exec_security(
-                    sm, cmd["target"], cmd["algos"], ecu_index, verbose
-                )
+                await _exec_security(sm, cmd["target"], cmd["algos"], ecu_index, verbose)
 
             elif cmd_type == "repl":
                 print(f"\n{step} Entering REPL...")
@@ -831,7 +791,7 @@ async def mode_multi(
             sessions_str = ", ".join(f"0x{tx:03X}" for tx in sm.active_sessions)
             if sessions_str:
                 print(f"\n  Active sessions: {sessions_str}")
-            print(f"\n  Pipeline complete. Entering REPL...")
+            print("\n  Pipeline complete. Entering REPL...")
             await _multi_repl(sm, ecu_index, pids_data, verbose)
 
     except KeyboardInterrupt:
@@ -842,29 +802,23 @@ async def mode_multi(
         print("  Closing all sessions...")
         try:
             await asyncio.wait_for(sm.close_all(), timeout=3.0)
-        except (asyncio.TimeoutError, KeyboardInterrupt, Exception):
+        except (TimeoutError, KeyboardInterrupt, Exception):
             pass
 
 
-async def _multi_repl(
-    sm: SessionManager, ecu_index: dict, pids_data: dict, verbose: bool
-):
+async def _multi_repl(sm: SessionManager, ecu_index: dict, pids_data: dict, verbose: bool):
     """Interactive REPL with multi-ECU session awareness.
 
     Extends the standard REPL with session keepalives and multi-ECU commands.
     """
-    from .interactive import mode_interactive
     from .skm_wakeup import mode_skm_wakeup
-    from .tester import mode_tester_present
-    from .identity import mode_identity
 
     terminal = sm.terminal
-    param_index = build_param_index(pids_data)
-    last_response = None
+    _param_index = build_param_index(pids_data)
     last_tx_id = None
 
     # Start background keepalive for all tracked sessions
-    bg_task = sm.start_background_keepalive(interval=2.0)
+    sm.start_background_keepalive(interval=2.0)
 
     print()
     print("Multi-ECU REPL -- sessions are kept alive automatically")
@@ -894,11 +848,12 @@ async def _multi_repl(
             lambda: asyncio.StreamReaderProtocol(reader), __import__("sys").stdin
         )
 
-        import sys, signal
+        import signal
+        import sys
 
         # Set up SIGINT to cancel the current readline gracefully
         repl_quit = asyncio.Event()
-        old_handler = signal.getsignal(signal.SIGINT)
+        _old_handler = signal.getsignal(signal.SIGINT)
 
         def _sigint_handler(sig, frame):
             repl_quit.set()
@@ -962,7 +917,7 @@ async def _multi_repl(
                 else:
                     sm.stop_background_keepalive()
                     await sm.open_session(tx_id)
-                    bg_task = sm.start_background_keepalive(interval=2.0)
+                    sm.start_background_keepalive(interval=2.0)
                     print(f"  Session opened on 0x{tx_id:03X}")
                 continue
 
@@ -972,7 +927,7 @@ async def _multi_repl(
                 sm.stop_background_keepalive()
                 await mode_skm_wakeup(terminal, level, verbose)
                 sm._sessions[0x7A5] = __import__("time").monotonic()
-                bg_task = sm.start_background_keepalive(interval=2.0)
+                sm.start_background_keepalive(interval=2.0)
                 continue
 
             if cmd_lower.startswith("query "):
@@ -982,7 +937,7 @@ async def _multi_repl(
                 pids = parts[2:] if len(parts) > 2 else []
                 sm.stop_background_keepalive()
                 await _exec_query(sm, ecu, pids, ecu_index, pids_data, verbose)
-                bg_task = sm.start_background_keepalive(interval=2.0)
+                sm.start_background_keepalive(interval=2.0)
                 continue
 
             if cmd_lower.startswith("raw "):
@@ -992,7 +947,7 @@ async def _multi_repl(
                     spec = spec.lstrip("!")
                 sm.stop_background_keepalive()
                 await _exec_raw(sm, spec, hold=False, verbose=verbose)
-                bg_task = sm.start_background_keepalive(interval=2.0)
+                sm.start_background_keepalive(interval=2.0)
                 continue
 
             if cmd_lower.startswith("security "):
@@ -1001,7 +956,7 @@ async def _multi_repl(
                 algo_filter = parts[2:] if len(parts) > 2 else []
                 sm.stop_background_keepalive()
                 await _exec_security(sm, target, algo_filter, ecu_index, verbose)
-                bg_task = sm.start_background_keepalive(interval=2.0)
+                sm.start_background_keepalive(interval=2.0)
                 continue
 
             # Track ATSH commands
@@ -1023,7 +978,7 @@ async def _multi_repl(
 
                 response = parse_elm_response(raw)
                 if response.get("ok") or response.get("nrc") is not None:
-                    last_response = response
+                    _last_response = response
                     if response.get("nrc") is not None:
                         nrc = response["nrc"]
                         desc = response.get("nrc_desc", "unknown")
@@ -1033,7 +988,7 @@ async def _multi_repl(
             except Exception as e:
                 print(f"  Error: {e}")
 
-            bg_task = sm.start_background_keepalive(interval=2.0)
+            sm.start_background_keepalive(interval=2.0)
 
     finally:
         sm.stop_background_keepalive()
