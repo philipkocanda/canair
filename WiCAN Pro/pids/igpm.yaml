@@ -1,0 +1,276 @@
+
+# ─── IGPM (Integrated Gateway Power Module) ──────────────────────────
+IGPM:
+  tx_id: 0x770
+  session: true  # Requires extended diagnostic session (10 03) before PID queries
+  pids:
+    22BC03:
+      period: 2500
+      enabled: true
+      parameters:
+        DOOR_DRV_OPEN:
+          expression: "B10:5"
+          unit: ""
+          ha_class: door
+          mqtt_topic: door_drv_open
+          min: ""
+          max: ""
+          source: "Kia Niro EV WiCAN PR#716"
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/pull/716
+          verified: true
+          notes: "Bit flag — 1=open. Verified 2026-04-15."
+
+        DOOR_PAS_OPEN:
+          expression: "B10:4"
+          unit: ""
+          ha_class: door
+          mqtt_topic: door_pas_open
+          min: ""
+          max: ""
+          source: "Kia Niro EV WiCAN PR#716"
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/pull/716
+          verified: true
+          notes: "Bit flag — 1=open. Verified 2026-04-15."
+
+        DOOR_RL_OPEN:
+          expression: "B10:0"
+          unit: ""
+          ha_class: door
+          mqtt_topic: door_rl_open
+          min: ""
+          max: ""
+          source: "Kia Niro EV WiCAN PR#716"
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/pull/716
+          verified: true
+          notes: "Bit flag — 1=open. Verified 2026-04-15."
+
+        DOOR_RR_OPEN:
+          expression: "B10:2"
+          unit: ""
+          ha_class: door
+          mqtt_topic: door_rr_open
+          min: ""
+          max: ""
+          source: "Kia Niro EV WiCAN PR#716"
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/pull/716
+          verified: true
+          notes: "Bit flag — 1=open. Verified 2026-04-15."
+
+        TRUNK_OPEN:
+          expression: "B10:7"
+          unit: ""
+          ha_class: door
+          mqtt_topic: trunk_open
+          min: ""
+          max: ""
+          source: "Kia Niro EV WiCAN PR#716"
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/pull/716
+          verified: true
+          notes: "Bit flag — 1=open. Verified 2026-04-15."
+
+        DRL:
+          expression: "B12:2"
+          unit: ""
+          ha_class: light
+          mqtt_topic: drl
+          min: ""
+          max: ""
+          source: "Decoded from live captures (2026-04-15)"
+          source_links: []
+          verified: true
+          notes: "Daytime Running Lights. Bit flag — 1=on. On in all light modes (DRL, low beam, high beam). Verified 2026-04-15."
+
+        TAIL_LIGHTS:
+          expression: "B12:3"
+          unit: ""
+          ha_class: light
+          mqtt_topic: tail_lights
+          min: ""
+          max: ""
+          source: "Decoded from live captures (2026-04-15)"
+          source_links: []
+          verified: true
+          notes: "Tail/position lights. Bit flag — 1=on. On in all light modes (DRL, low beam, high beam). Verified 2026-04-15."
+
+        HIGH_BEAM:
+          expression: "B12:4"
+          unit: ""
+          ha_class: light
+          mqtt_topic: high_beam
+          min: ""
+          max: ""
+          source: "Decoded from live captures (2026-04-15)"
+          source_links: []
+          verified: true
+          notes: "Bit flag — 1=on. Only set with high beams active. Niro PR had this on BC04 B13:4 — wrong for Ioniq. Verified 2026-04-15."
+
+        LOW_BEAM:
+          expression: "B12:5"
+          unit: ""
+          ha_class: light
+          mqtt_topic: low_beam
+          min: ""
+          max: ""
+          source: "Decoded from live captures (2026-04-15)"
+          source_links: []
+          verified: true
+          notes: "Low beam headlights. Bit flag — 1=on. Also set when high beams are on (both low+high active together). Verified 2026-04-15."
+
+        IGNITION_ON:
+          expression: "B11:5"
+          unit: ""
+          ha_class: power
+          mqtt_topic: ignition_on
+          min: ""
+          max: ""
+          source: "Kia Niro EV WiCAN PR#716"
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/pull/716
+          verified: true
+          notes: "Activates at ACC2/IGN1. Cannot distinguish ACC2 from Ready — both show bit=1. OFF and ACC1 both show bit=0 (ACC1 may behave differently when not charging). Verified 2026-04-15."
+
+        POWER_MODE:
+          expression: "B09"
+          unit: ""
+          display: "f'0x{int(v):02X} {int(v):08b}'"
+          ha_class: ""
+          mqtt_topic: power_mode
+          min: "0"
+          max: "255"
+          source: "Reverse engineered from cross-state comparison"
+          source_links: []
+          verified: true
+          notes: >
+            Raw power mode byte (IGPM BC03 WiCAN B09). Bitfield with multiple flags.
+            Bit 5 (0x20) = ACC. Known values: 0x00 = off/charging, 0x0A = keyfob-wake
+            or ACC2+lights (ambiguous — seen in both sleep and ACC2 states), 0x20 = ACC
+            via SKM IOControl. Not a clean enum — treat as bitfield. Bit 5 is the only
+            reliable ACC indicator. More at-car captures needed to fully map.
+            Verified 2026-04-16.
+
+        SEATBELT_FL:
+          expression: "B11:1"
+          unit: ""
+          ha_class: ""
+          mqtt_topic: seatbelt_fl
+          min: ""
+          max: ""
+          source: "Kia Niro EV WiCAN PR#716"
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/pull/716
+          verified: true
+          notes: "Driver seatbelt. 1=buckled, 0=unbuckled. Verified 2026-04-15."
+
+        SEATBELT_FR:
+          expression: "B11:2"
+          unit: ""
+          ha_class: ""
+          mqtt_topic: seatbelt_fr
+          min: ""
+          max: ""
+          source: "Kia Niro EV WiCAN PR#716"
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/pull/716
+          verified: false
+          notes: "Passenger seatbelt. Not tested (no passenger available during verification session)."
+
+        DOOR_LOCK_RL:
+          expression: "B10:1"
+          unit: ""
+          ha_class: lock
+          mqtt_topic: door_lock_rl
+          min: ""
+          max: ""
+          source: "Kia Niro EV WiCAN PR#716"
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/pull/716
+          verified: true
+          notes: "1=locked, 0=unlocked. Niro PR used inverted 1-B10:1 but Ioniq raw bit already has correct polarity. Verified 2026-04-15."
+
+        DOOR_LOCK_RR:
+          expression: "B10:3"
+          unit: ""
+          ha_class: lock
+          mqtt_topic: door_lock_rr
+          min: ""
+          max: ""
+          source: "Kia Niro EV WiCAN PR#716"
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/pull/716
+          verified: true
+          notes: "1=locked, 0=unlocked. Niro PR used inverted 1-B10:3 but Ioniq raw bit already has correct polarity. Verified 2026-04-15."
+
+    22BC04:
+      period: 2500
+      enabled: true
+      parameters:
+        DOOR_LOCK_FL:
+          expression: "B10:3"
+          unit: ""
+          ha_class: lock
+          mqtt_topic: door_lock_fl
+          min: ""
+          max: ""
+          source: "Kia Niro EV WiCAN PR#716"
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/pull/716
+          verified: true
+          notes: "1=locked, 0=unlocked. Verified 2026-04-15."
+
+        DOOR_LOCK_FR:
+          expression: "B10:2"
+          unit: ""
+          ha_class: lock
+          mqtt_topic: door_lock_fr
+          min: ""
+          max: ""
+          source: "Kia Niro EV WiCAN PR#716"
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/pull/716
+          verified: true
+          notes: "1=locked, 0=unlocked. Verified 2026-04-15."
+
+    22BC06:
+      period: 2500
+      enabled: true
+      parameters:
+        BRAKE_LIGHT:
+          expression: "B10"
+          unit: ""
+          ha_class: ""
+          mqtt_topic: brake_light
+          min: "0"
+          max: "255"
+          source: "Decoded from live captures (2026-04-15)"
+          source_links: []
+          verified: true
+          notes: "Scalar value. 0x00=off, 0x2D=brake pressed. Ioniq 5 OBDb had this at B4 — wrong for Ioniq 2017. Actual position is B7 (data byte 4). Verified 2026-04-15."
+
+        LEFT_TURN_SIGNAL:
+          expression: "B10:0"
+          unit: ""
+          ha_class: ""
+          mqtt_topic: left_turn_signal
+          min: ""
+          max: ""
+          source: "Decoded from live captures (2026-04-15)"
+          source_links: []
+          verified: true
+          notes: "Left turn signal stalk. Bit flag — 1=on, persistent (not blinking state). Hazard lights do NOT register here. Verified 2026-04-15."
+
+        RIGHT_TURN_SIGNAL:
+          expression: "B10:1"
+          unit: ""
+          ha_class: ""
+          mqtt_topic: right_turn_signal
+          min: ""
+          max: ""
+          source: "Decoded from live captures (2026-04-15)"
+          source_links: []
+          verified: true
+          notes: "Right turn signal stalk. Bit flag — 1=on, persistent (not blinking state). Hazard lights do NOT register here. Verified 2026-04-15."

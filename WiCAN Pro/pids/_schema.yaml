@@ -1,0 +1,53 @@
+# PID Definition Schema
+# Validates per-ECU YAML files in this directory.
+# Run: python3 validate-pids.py
+
+# Each ECU file (e.g. bcm.yaml) must have this top-level structure:
+#   ECU_NAME:
+#     tx_id: 0xNNN          # hex CAN arbitration ID
+#     pids:
+#       PID_CODE:            # e.g. 22C00B, 2101
+#         period: N          # polling interval in ms (optional, default 5000)
+#         enabled: bool      # include in profiles (optional, default true)
+#         parameters:
+#           PARAM_NAME:
+#             expression: str     # required — WiCAN formula
+#             unit: str           # required — display unit
+#             ha_class: str       # optional — HA device_class
+#             mqtt_topic: str     # optional — MQTT suffix
+#             min: str            # optional — expected min value
+#             max: str            # optional — expected max value
+#             source: str         # optional — origin description
+#             source_links: list  # optional — URLs
+#             verified: bool      # optional — tested on Ioniq 2017? (default false)
+#             notes: str          # optional — free-form
+#             enabled: bool       # optional — include in profiles (default true)
+#             display: str        # optional — Python f-string for display formatting
+
+# _meta.yaml must have:
+#   car_model: str
+#   init: str              # AT command init string
+
+required_param_fields:
+  - expression
+  - unit
+
+optional_param_fields:
+  - ha_class
+  - mqtt_topic
+  - min
+  - max
+  - source
+  - source_links
+  - verified
+  - notes
+  - enabled
+  - display
+
+required_ecu_fields:
+  - tx_id
+  - pids
+
+required_meta_fields:
+  - car_model
+  - init

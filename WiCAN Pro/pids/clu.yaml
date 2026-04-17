@@ -1,0 +1,20 @@
+
+# ─── CLU (Cluster / Instrument Panel) ─────────────────────────────────
+CLU:
+  tx_id: 0x7C6
+  pids:
+    22B002:
+      period: 10000
+      enabled: true
+      parameters:
+        ODOMETER:
+          expression: "[B12:B14]"
+          unit: km
+          ha_class: distance
+          mqtt_topic: odometer
+          min: "0"
+          max: ""
+          source: "Original WiCAN config"
+          source_links: []
+          verified: true
+          notes: "3-byte odometer value"

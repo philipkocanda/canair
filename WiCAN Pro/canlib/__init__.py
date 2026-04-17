@@ -17,7 +17,7 @@ from .formatting import (
     print_json_result,
 )
 from .log import init_logging, log_command, log_response
-from .constants import WICAN_ADDRESSES, DEFAULT_WICAN, PIDS_FILE, ECUS_FILE, SCRIPT_DIR
+from .constants import WICAN_ADDRESSES, DEFAULT_WICAN, PIDS_DIR, ECUS_FILE, SCRIPT_DIR
 
 __all__ = [
     "NRC_CODES",
@@ -42,7 +42,7 @@ __all__ = [
     "log_response",
     "WICAN_ADDRESSES",
     "DEFAULT_WICAN",
-    "PIDS_FILE",
+    "PIDS_DIR",
     "ECUS_FILE",
     "SCRIPT_DIR",
 ]

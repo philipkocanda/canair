@@ -1,0 +1,80 @@
+
+# ─── HVAC (Heating, Ventilation, Air Conditioning) ────────────────────
+HVAC:
+  tx_id: 0x7B3
+  pids:
+    220100:
+      period: 5000
+      enabled: true
+      parameters:
+        HVAC_IAT:
+          expression: "(B11/2)-40"
+          unit: "°C"
+          ha_class: temperature
+          mqtt_topic: hvac_iat
+          min: "-40"
+          max: "87"
+          source: "Original WiCAN config"
+          source_links: []
+          verified: true
+          notes: "Intake Air Temperature"
+
+        HVAC_AAT:
+          expression: "(B12/2)-40"
+          unit: "°C"
+          ha_class: temperature
+          mqtt_topic: hvac_aat
+          min: "-40"
+          max: "87"
+          source: "Original WiCAN config"
+          source_links: []
+          verified: true
+          notes: "Ambient Air Temperature (HVAC sensor)"
+
+        HVAC_EVAPORATOR_TEMP:
+          expression: "(B13/2)-40"
+          unit: "°C"
+          ha_class: temperature
+          mqtt_topic: hvac_evaporator_temp
+          min: "-40"
+          max: "87"
+          source: "Original WiCAN config"
+          source_links: []
+          verified: false
+          notes: ""
+
+        HVAC_HUMIDITY_SENSOR_FOR_AUTOMATIC_DEFOGGER:
+          expression: "B9/255*100"
+          unit: "%"
+          ha_class: humidity
+          mqtt_topic: hvac_humidity
+          min: "0"
+          max: "100"
+          source: "Original WiCAN config"
+          source_links: []
+          verified: false
+          notes: "Static value, cannot be correct"
+
+        HVAC_HUMIDITY_SENSOR_FOR_AUTOMATIC_DEFOGGER_IONIQ5:
+          expression: "B34/255*100"
+          unit: "%"
+          ha_class: humidity
+          mqtt_topic: hvac_humidity_ioniq5
+          min: "0"
+          max: "100"
+          source: "Original WiCAN config"
+          source_links: []
+          verified: false
+          notes: "Ioniq 5 byte offset — may not work on Ioniq 2017"
+
+        HVAC_INVERTER_TEMP:
+          expression: "(B15/2)-40"
+          unit: "°C"
+          ha_class: temperature
+          mqtt_topic: hvac_inverter_temp
+          min: "-40"
+          max: "87"
+          source: "ImHex pattern (@ 0x0C)"
+          source_links: []
+          verified: false
+          notes: "AC compressor inverter temperature. ImHex 0x0C → WiCAN B15."
