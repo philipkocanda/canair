@@ -31,23 +31,43 @@ def _bytes_to_ascii(raw_hex: str) -> str:
     return "".join(chr(b) if 32 <= b < 127 else "." for b in data)
 
 
-def _render_hex_line(raw_hex: str, params: list, unmapped: bool) -> Text:
-    """Render a hex line: green=verified, yellow=unverified, bright_black=uncovered/unmapped."""
+# Map base byte color → highlighted variant (changed byte)
+_HIGHLIGHT_STYLE = {
+    "green": "bold white on dark_green",
+    "yellow": "bold white on dark_goldenrod",
+    "bright_black": "bold white on grey37",
+}
+
+
+def _render_hex_line(raw_hex: str, params: list, unmapped: bool, *, prev_raw: str = "") -> Text:
+    """Render a hex line with per-byte change highlighting.
+
+    Changed bytes get a background color adapted from their base color.
+    """
     elm_bytes = [raw_hex[i : i + 2] for i in range(0, len(raw_hex), 2)]
+    prev_bytes = [prev_raw[i : i + 2] for i in range(0, len(prev_raw), 2)] if prev_raw else []
     n_bytes = len(elm_bytes)
     t = Text()
     t.append("      ")
 
     if unmapped or not params:
-        spaced = " ".join(elm_bytes)
+        for i, hb in enumerate(elm_bytes):
+            if i > 0:
+                t.append(" ")
+            changed = i < len(prev_bytes) and prev_bytes[i] != hb
+            style = _HIGHLIGHT_STYLE["bright_black"] if changed else "bright_black"
+            t.append(hb, style=style)
         ascii_repr = _bytes_to_ascii(raw_hex)
-        t.append(f"{spaced}  {ascii_repr}  ({n_bytes} B)", style="bright_black")
+        t.append(f"  {ascii_repr}  ({n_bytes} B)", style="bright_black")
     else:
         byte_color = _build_byte_colors(params, n_bytes)
         for i, hb in enumerate(elm_bytes):
             if i > 0:
                 t.append(" ")
-            t.append(hb, style=byte_color[i])
+            base = byte_color[i]
+            changed = i < len(prev_bytes) and prev_bytes[i] != hb
+            style = _HIGHLIGHT_STYLE.get(base, base) if changed else base
+            t.append(hb, style=style)
         t.append(f"  ({n_bytes} B)", style="bright_black")
 
     t.append("\n")
@@ -136,7 +156,9 @@ def _render_results(
                 text.append(f"      {decode}\n")
 
             if raw_hex:
-                text.append_text(_render_hex_line(raw_hex, params, unmapped))
+                hex_key = (ecu_label, pid)
+                prev_raw = prev_hex.get(hex_key, "") if prev_hex and cycle > 1 else ""
+                text.append_text(_render_hex_line(raw_hex, params, unmapped, prev_raw=prev_raw))
 
     text.append("\n  Press Ctrl+C to stop monitoring\n", style="dim")
     return text
