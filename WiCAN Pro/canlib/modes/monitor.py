@@ -31,24 +31,24 @@ def _bytes_to_ascii(raw_hex: str) -> str:
     return "".join(chr(b) if 32 <= b < 127 else "." for b in data)
 
 
-def _render_hex_line(raw_hex: str, params: list, unmapped: bool, *, bg: str = "") -> Text:
+def _render_hex_line(raw_hex: str, params: list, unmapped: bool) -> Text:
     """Render a hex line: green=verified, yellow=unverified, bright_black=uncovered/unmapped."""
     elm_bytes = [raw_hex[i : i + 2] for i in range(0, len(raw_hex), 2)]
     n_bytes = len(elm_bytes)
     t = Text()
-    t.append("      ", style=bg.strip() if bg else "")
+    t.append("      ")
 
     if unmapped or not params:
         spaced = " ".join(elm_bytes)
         ascii_repr = _bytes_to_ascii(raw_hex)
-        t.append(f"{spaced}  {ascii_repr}  ({n_bytes} B)", style="bright_black" + bg)
+        t.append(f"{spaced}  {ascii_repr}  ({n_bytes} B)", style="bright_black")
     else:
         byte_color = _build_byte_colors(params, n_bytes)
         for i, hb in enumerate(elm_bytes):
             if i > 0:
-                t.append(" ", style=bg.strip() if bg else "")
-            t.append(hb, style=byte_color[i] + bg)
-        t.append(f"  ({n_bytes} B)", style="bright_black" + bg)
+                t.append(" ")
+            t.append(hb, style=byte_color[i])
+        t.append(f"  ({n_bytes} B)", style="bright_black")
 
     t.append("\n")
     return t
@@ -92,16 +92,15 @@ def _render_results(
             # Detect change from previous cycle
             hex_key = (ecu_label, pid)
             changed = cycle > 1 and raw_hex and hex_key in prev_hex and prev_hex[hex_key] != raw_hex
-            bg = " on grey23" if changed else ""
 
             text.append("    ")
-            text.append(pid, style="yellow" + bg)
+            text.append(pid, style="yellow")
             if changed:
-                text.append(" ●", style="bright_green" + bg)
+                text.append(" ●", style="bright_green")
             if unmapped:
-                text.append(" (unmapped)", style="dim" + bg)
+                text.append(" (unmapped)", style="dim")
             if error:
-                text.append(f"  {error}\n", style="red" + bg)
+                text.append(f"  {error}\n", style="red")
                 continue
             text.append("\n")
 
@@ -121,23 +120,23 @@ def _render_results(
                     mark_style = "green" if verified else "yellow"
                     mark_char = "✓" if verified else "?"
                     if perr:
-                        text.append(f"      {name:<{max_name}}  ", style=bg.strip() if bg else "")
-                        text.append(f"ERROR: {perr}\n", style="red" + bg)
+                        text.append(f"      {name:<{max_name}}  ")
+                        text.append(f"ERROR: {perr}\n", style="red")
                     else:
                         val_str = format_value(value, unit, display)
-                        text.append(f"      {name:<{max_name}}  ", style=bg.strip() if bg else "")
+                        text.append(f"      {name:<{max_name}}  ")
                         if verbose:
-                            text.append(f"{val_str:<{max_val}}  ", style=bg.strip() if bg else "")
-                            text.append(mark_char, style=mark_style + bg)
-                            text.append(f"  {expression}\n", style="dim" + bg)
+                            text.append(f"{val_str:<{max_val}}  ")
+                            text.append(mark_char, style=mark_style)
+                            text.append(f"  {expression}\n", style="dim")
                         else:
-                            text.append(f"{val_str:<{max_val}}  ", style=bg.strip() if bg else "")
-                            text.append(mark_char + "\n", style=mark_style + bg)
+                            text.append(f"{val_str:<{max_val}}  ")
+                            text.append(mark_char + "\n", style=mark_style)
             elif decode:
-                text.append(f"      {decode}\n", style=bg.strip() if bg else "")
+                text.append(f"      {decode}\n")
 
             if raw_hex:
-                text.append_text(_render_hex_line(raw_hex, params, unmapped, bg=bg))
+                text.append_text(_render_hex_line(raw_hex, params, unmapped))
 
     text.append("\n  Press Ctrl+C to stop monitoring\n", style="dim")
     return text
