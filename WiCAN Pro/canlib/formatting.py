@@ -125,10 +125,12 @@ def print_ecu_results(
             elm_bytes = [raw_hex[i : i + 2] for i in range(0, len(raw_hex), 2)]
 
             if unmapped or not params:
-                # Unmapped: all dim hex + ASCII
+                # Unmapped: all grey hex + ASCII
                 spaced = " ".join(elm_bytes)
                 ascii_repr = _bytes_to_ascii(raw_hex)
-                c.print(f"      [dim]{spaced}  {ascii_repr}  ({n_bytes} B)[/dim]")
+                c.print(
+                    f"      [bright_black]{spaced}  {ascii_repr}  ({n_bytes} B)[/bright_black]"
+                )
             else:
                 # Mapped: find which ELM payload bytes are covered by expressions
                 covered_elm = set()
