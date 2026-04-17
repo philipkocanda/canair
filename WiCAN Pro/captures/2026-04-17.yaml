@@ -1,0 +1,58 @@
+# Ioniq 28kWh (AE) — captured UDS response payloads
+#
+# Each capture is a raw ISO-TP payload as hex, including the UDS response header.
+# WiCAN expressions (B0, B1, ...) index into this full payload:
+#   Service 0x21 → B0=0x61, B1=PID, data from B2
+#   Service 0x22 → B0=0x62, B1-B2=DID, data from B3
+
+sessions:
+
+  - date: "2026-04-17"
+    state: "deep sleep, parked, locked, no charging"
+    label: "BCM 22B003/22B004 live voltage monitoring"
+    notes: >
+      Observed 22B003 and 22B004 changing every few seconds in monitor mode.
+      22B003 contains slowly decrementing ADC-like values — likely 12V battery
+      voltage measurements across multiple points (battery terminals, fuse box,
+      BCM internal rail). B07 drifts fastest (~2 LSB/min), B10/B12/B14 follow.
+      Static bytes (B03-B06, B08, B15) may be config/thresholds.
+      22B004 has a single bit (B09 bit 6) toggling 0x00↔0x40 every ~12-15s —
+      periodic heartbeat/watchdog flag. Rest of B004 is static.
+      BCM likely uses these readings to decide when to activate the LDC
+      (DC-DC converter) to top up the 12V from the HV traction battery.
+    captures:
+
+      - ecu: BCM
+        pid: "22B003"
+        notes: "run 1 — B07=0x95 (149)"
+        payload: "62B003BF8B8000953DF5A5F9F8F9F83DF800000000000000AAAAAA"
+
+      - ecu: BCM
+        pid: "22B003"
+        notes: "run 2 — B07=0x94 (148)"
+        payload: "62B003BF8B8000943DF5A5F9F8F9F83DF800000000000000AAAAAA"
+
+      - ecu: BCM
+        pid: "22B003"
+        notes: "run 4 — B07=0x93 (147)"
+        payload: "62B003BF8B80009343F5A5F9F8F9F73DF800000000000000AAAAAA"
+
+      - ecu: BCM
+        pid: "22B003"
+        notes: "run 6 — B12=F7, B14=F7"
+        payload: "62B003BF8B80009334F5A5F9F7F9F73DF800000000000000AAAAAA"
+
+      - ecu: BCM
+        pid: "22B003"
+        notes: "run 10 — B10=A4, B15=F7 (all drifting down)"
+        payload: "62B003BF8B80009334F5A4F8F7F8F73DF700000000000000AAAAAA"
+
+      - ecu: BCM
+        pid: "22B004"
+        notes: "B09=0x00"
+        payload: "62B00474029900C000080000AAAA"
+
+      - ecu: BCM
+        pid: "22B004"
+        notes: "B09=0x40 (bit 6 set)"
+        payload: "62B00474029900C004080000AAAA"

@@ -251,3 +251,84 @@ class TestRenderResults:
             results, verbose=False, cycle=2, elapsed=0.1, interval=5.0, prev_hex=prev
         )
         assert "●" not in t.plain
+
+
+class TestKeepHistory:
+    """Tests for --keep history rendering."""
+
+    @staticmethod
+    def _make_pid_result(pid="22B003", raw_hex="62B003AABB", **kw):
+        return {"pid": pid, "raw_hex": raw_hex, "params": [], "unmapped": True, **kw}
+
+    def test_no_history_no_extra_lines(self):
+        """Without hex_history, only one hex line per PID."""
+        entry = self._make_pid_result(raw_hex="62B003AABB")
+        results = [("BCM (0x7A0)", [entry])]
+        t = _render_results(results, verbose=False, cycle=1, elapsed=0.1, interval=5.0)
+        assert t.plain.count("62 B0 03 AA BB") == 1
+
+    def test_history_shows_older_entries(self):
+        """With hex_history containing 2 previous payloads, both shown."""
+        entry = self._make_pid_result(raw_hex="62B003CC")
+        results = [("BCM (0x7A0)", [entry])]
+        history = {("BCM (0x7A0)", "22B003"): ["62B003AA", "62B003BB"]}
+        t = _render_results(
+            results, verbose=False, cycle=3, elapsed=0.1, interval=5.0, hex_history=history
+        )
+        plain = t.plain
+        assert "62 B0 03 CC" in plain
+        assert "62 B0 03 AA" in plain
+        assert "62 B0 03 BB" in plain
+
+    def test_history_skips_duplicate_of_current(self):
+        """If current payload is in history, it's not shown again as history."""
+        entry = self._make_pid_result(raw_hex="62B003AA")
+        results = [("BCM (0x7A0)", [entry])]
+        history = {("BCM (0x7A0)", "22B003"): ["62B003AA", "62B003BB"]}
+        t = _render_results(
+            results, verbose=False, cycle=3, elapsed=0.1, interval=5.0, hex_history=history
+        )
+        plain = t.plain
+        assert plain.count("62 B0 03 AA") == 1
+        assert "62 B0 03 BB" in plain
+
+    def test_unique_count_shown(self):
+        """When history has multiple unique payloads, count is displayed."""
+        entry = self._make_pid_result(raw_hex="62B003CC")
+        results = [("BCM (0x7A0)", [entry])]
+        history = {("BCM (0x7A0)", "22B003"): ["62B003AA", "62B003BB"]}
+        t = _render_results(
+            results, verbose=False, cycle=3, elapsed=0.1, interval=5.0, hex_history=history
+        )
+        assert "(3 unique)" in t.plain
+
+    def test_no_unique_count_when_single(self):
+        """No count shown when only one unique payload exists."""
+        entry = self._make_pid_result(raw_hex="62B003AA")
+        results = [("BCM (0x7A0)", [entry])]
+        history = {("BCM (0x7A0)", "22B003"): ["62B003AA"]}
+        t = _render_results(
+            results, verbose=False, cycle=2, elapsed=0.1, interval=5.0, hex_history=history
+        )
+        assert "unique" not in t.plain
+
+    def test_history_dim_rendering(self):
+        """History lines use dim=True (bright_black style)."""
+        t = _render_hex_line("62B003AA", [], True, dim=True)
+        for span in t._spans:
+            assert "bright_black" in str(span.style)
+
+    def test_history_newest_first(self):
+        """History entries shown newest-first (reversed)."""
+        entry = self._make_pid_result(raw_hex="62B003DD")
+        results = [("BCM (0x7A0)", [entry])]
+        history = {("BCM (0x7A0)", "22B003"): ["62B003AA", "62B003BB", "62B003CC"]}
+        t = _render_results(
+            results, verbose=False, cycle=4, elapsed=0.1, interval=5.0, hex_history=history
+        )
+        plain = t.plain
+        pos_dd = plain.index("62 B0 03 DD")
+        pos_cc = plain.index("62 B0 03 CC")
+        pos_bb = plain.index("62 B0 03 BB")
+        pos_aa = plain.index("62 B0 03 AA")
+        assert pos_dd < pos_cc < pos_bb < pos_aa
