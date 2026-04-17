@@ -181,7 +181,7 @@ def _render_results(
                         all_entries = list(history)
                     for i, (payload, ts) in enumerate(all_entries):
                         prev_raw = all_entries[i - 1][0] if i > 0 else ""
-                        prefix = f"    {ts}  " if ts else "              "
+                        prefix = f"      {ts}  " if ts else "                "
                         text.append_text(
                             _render_hex_line(
                                 payload, params, unmapped, prev_raw=prev_raw, prefix=prefix
