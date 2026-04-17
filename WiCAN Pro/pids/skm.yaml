@@ -1,0 +1,59 @@
+
+# ─── SKM (Smart Key Module) ────────────────────────────────────────────
+# Self-identifies as "SMK". Wakes from rapid-fire 1001 (no fob needed).
+# Falls asleep after ~60s of bus inactivity.
+SKM:
+  tx_id: 0x7A5
+  session: true
+  identity:
+    part_number: ""
+    description: "Smart Key Module (SMK)"
+  pids: {}
+
+  # ─── IOControl (service 2F) ──────────────────────────────────────────
+  # Requires extended session (10 03).
+  # CRITICAL: Fob proximity required for relay to physically close.
+  # SKM returns positive UDS response even without fob, but relay doesn't latch.
+  # ACC does NOT latch — relay stays on only while session is held (TesterPresent).
+  # Magic bytes 0A 0A 05 from Kia Soul, confirmed working on Ioniq 2017.
+  # Usage: python3 canreq.py --raw 7A5:<on_command> --session
+  iocontrol:
+    B108:
+      label: ACC relay
+      verified: true
+      on: "2FB108030A0A05"
+      off: "2FB10800"
+      hold: false
+      notes: >
+        Requires fob proximity — UDS positive response without fob is misleading
+        (relay doesn't physically close). Verify via IGPM BC03 ignition byte.
+        ACC ON: dash lights, infotainment, doors unlock. NRC 0x22 if ACC already on.
+        freezeCurrentState (02) returns status bytes 6255.
+
+    B109:
+      label: IGN1 relay
+      verified: false
+      on: "2FB109030A0A05"
+      off: "2FB10900"
+      hold: false
+      notes: >
+        Ignition 1 — wakes all ECUs including HV system. Use with extreme caution.
+
+    B10A:
+      label: IGN2 relay
+      verified: false
+      on: "2FB10A030A0A05"
+      off: "2FB10A00"
+      hold: false
+      notes: >
+        Ignition 2 — purpose unclear on Ioniq EV. From Kia Soul (ICE start circuit).
+
+    B10B:
+      label: Start relay
+      verified: false
+      on: "2FB10B030A0A05"
+      off: "2FB10B00"
+      hold: false
+      notes: >
+        DO NOT USE on EV — no starter motor, unknown behavior.
+        Starter motor relay from Kia Soul ICE. Not applicable to Ioniq EV.

@@ -30,7 +30,7 @@ HVAC:
           source: "Original WiCAN config"
           verified: true
           notes: >
-            Intake Air Temperature. Confirmed: drops from 27°C to 18.5°C
+            Interior Air Temperature (not "intake"!). Confirmed: drops from 27°C to 18.5°C
             when AC blows cold air, slowly recovers. Tracks cabin temp well.
 
         HVAC_AAT:
@@ -65,8 +65,7 @@ HVAC:
           verified: false
           notes: >
             B9=ELM[6]=0xC8 was static across all 82 full frames in the
-            2026-04-17 session (78.4%). Either it updates very slowly or
-            this is not actually humidity. Needs multi-day monitoring.
+            2026-04-17 session (78.4%). Highly unlikely.
 
         HVAC_BLOWER_FAN_DUTY:
           expression: "B15"

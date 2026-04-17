@@ -157,9 +157,13 @@ ecus:
     id_protocol: UDS  # F1xx (many FF-padded fields, same format as BSD-L 0x755)
   0x7C0:
     name: Unknown-7C0
-    description: Unknown module (responds to 1001 session control)
+    description: Maybe TCU? (BlueLink) (responds to 1001 session control)
     id_protocol: unknown
-    notes: "Discovered 2026-04-17. No identity DIDs responded. Actual AVN is 0x780. Car has no BlueLink subscription — module may still exist as dormant platform hardware (UNCONFIRMED). Other candidates: head unit sub-module, DAB tuner."
+    notes: >
+      No identity DIDs responded.
+      Car has no BlueLink (was never available in Netherlands).
+      Module may still exist as dormant platform hardware (UNCONFIRMED). 
+      Other candidates: head unit sub-module, DAB tuner.
   0x7C4:
     name: MFC
     description: Multi-Function Camera (ADAS)
