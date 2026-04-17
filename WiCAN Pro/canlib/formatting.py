@@ -189,9 +189,9 @@ def print_ecu_results(
                 hex_parts = []
                 for i, hb in enumerate(elm_bytes):
                     if i in covered_elm:
-                        hex_parts.append(f"[dim]{hb}[/dim]")
+                        hex_parts.append(hb)
                     else:
-                        hex_parts.append(f"[bold]{hb}[/bold]")
+                        hex_parts.append(f"[dim]{hb}[/dim]")
                 c.print(f"      {' '.join(hex_parts)}  [dim]({n_bytes} B)[/dim]")
 
 
