@@ -111,6 +111,29 @@ def _print_result(notation: str, idx: int, sub_bytes: int):
         print(f"  Torque:   —  ({role} byte, {sub_label})")
         print(f"  bix:      —")
 
+    # Warn if adjacent to a PCI byte (multi-byte expressions would span it)
+    pci_indices = set(range(0, w + 10, 8))  # PCI at 0, 8, 16, 24, ...
+    if isotp is not None:  # skip warning for PCI bytes themselves
+        if (w + 1) in pci_indices:
+            pci = w + 1
+            after = w + 2 if (w + 2) not in pci_indices else w + 3
+            print(
+                f"\n  ⚠ B{pci:02d} is a PCI byte — [B{w:02d}:B{after:02d}] would include it!"
+            )
+            print(
+                f"    Use (B{w:02d} << 8) | B{after:02d} instead of [B{w:02d}:B{after:02d}]"
+            )
+        if (w - 1) in pci_indices and w > 0:
+            pci = w - 1
+            before = w - 2 if (w - 2) not in pci_indices else w - 3
+            if before >= 0:
+                print(
+                    f"\n  ⚠ B{pci:02d} is a PCI byte — [B{before:02d}:B{w:02d}] would include it!"
+                )
+                print(
+                    f"    Use (B{before:02d} << 8) | B{w:02d} instead of [B{before:02d}:B{w:02d}]"
+                )
+
 
 def _print_table(sub_bytes: int, max_wican: int = 71):
     """Print the full conversion table."""

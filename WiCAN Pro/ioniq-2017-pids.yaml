@@ -146,6 +146,48 @@ ecus:
             verified: true
             notes: "Bit flag — 1=open, 0=closed. Niro PR had B10:4 — wrong for Ioniq, actual bit is B10:5. BCM does NOT require extended diagnostic session. Verified 2026-04-15."
 
+      22B007:
+        period: 60000
+        enabled: false
+        parameters:
+          PREHEAT_DEPARTURE_TIME:
+            expression: "(B07 << 8) | B09"
+            unit: "min"
+            display: "f'{int(v)//60:02d}:{int(v)%60:02d}'"
+            ha_class: ""
+            mqtt_topic: preheat_departure_time
+            min: "0"
+            max: "1439"
+            source: "Reverse engineered — 0x01E0 = 480 = 08:00"
+            source_links: []
+            verified: false
+            notes: >
+              WIP. Minutes from midnight for departure preheat time. 0x01E0 = 480 = 08:00 matches
+              configured preheat schedule. Needs verification by changing departure time and re-reading.
+              Multi-frame response (13 bytes) — B08 is PCI byte, so can't use [B07:B09].
+              B05=0x00, B06=0x20 purpose unknown.
+
+      22B00C:
+        period: 60000
+        enabled: false
+        parameters:
+          PREHEAT_SCHEDULE_DAYS:
+            expression: "B05"
+            unit: ""
+            display: "f'{int(v):07b}'"
+            ha_class: ""
+            mqtt_topic: preheat_schedule_days
+            min: "0"
+            max: "127"
+            source: "Reverse engineered — 0x3F = 6 days set"
+            source_links: []
+            verified: false
+            notes: >
+              WIP. Day-of-week bitmask for preheat schedule. 0x3F = 0b00111111 = 6 days
+              (user has daily preheat, one day may be unset or bit 6 = Sunday excluded).
+              Bit mapping (Mon=bit0? Sun=bit6?) not yet confirmed. Needs verification by
+              toggling individual days.
+
       22B003:
         period: 10000
         enabled: false
@@ -153,6 +195,7 @@ ecus:
           BCM_POWER_MODE:
             expression: "B12"
             unit: ""
+            display: "{'9': 'ACC/sleep', '10': 'ACC+IGN1', '245': 'OFF/sleep'}.get(str(int(v)), '?')"
             ha_class: ""
             mqtt_topic: bcm_power_mode
             min: "0"
