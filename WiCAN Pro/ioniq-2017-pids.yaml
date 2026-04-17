@@ -449,6 +449,7 @@ ecus:
           POWER_MODE:
             expression: "B09"
             unit: ""
+            display: "f'0x{int(v):02X} {int(v):08b}'"
             ha_class: ""
             mqtt_topic: power_mode
             min: "0"
