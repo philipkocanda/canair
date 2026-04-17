@@ -90,17 +90,13 @@ def validate_ecu_file(path: Path) -> tuple[list[str], list[str], dict]:
         # Check required ECU fields
         for field in REQUIRED_ECU_FIELDS:
             if field not in ecu_def:
-                errors.append(
-                    f"{path.name}/{ecu_name}: missing required field '{field}'"
-                )
+                errors.append(f"{path.name}/{ecu_name}: missing required field '{field}'")
 
         # Validate tx_id
         tx_id = ecu_def.get("tx_id")
         if tx_id is not None:
             if not isinstance(tx_id, int) or tx_id < 0 or tx_id > 0x7FF:
-                errors.append(
-                    f"{path.name}/{ecu_name}: tx_id must be 0x000-0x7FF, got {tx_id}"
-                )
+                errors.append(f"{path.name}/{ecu_name}: tx_id must be 0x000-0x7FF, got {tx_id}")
 
         # Validate PIDs
         pids = ecu_def.get("pids", {})
@@ -113,46 +109,34 @@ def validate_ecu_file(path: Path) -> tuple[list[str], list[str], dict]:
             pid_str = str(pid_code)
 
             if not isinstance(pid_def, dict):
-                errors.append(
-                    f"{path.name}/{ecu_name}/{pid_str}: PID definition must be a dict"
-                )
+                errors.append(f"{path.name}/{ecu_name}/{pid_str}: PID definition must be a dict")
                 continue
 
             # Validate period
             period = pid_def.get("period")
             if period is not None and (not isinstance(period, int) or period < 0):
-                errors.append(
-                    f"{path.name}/{ecu_name}/{pid_str}: period must be positive int"
-                )
+                errors.append(f"{path.name}/{ecu_name}/{pid_str}: period must be positive int")
 
             # Validate parameters
             params = pid_def.get("parameters", {})
             if not isinstance(params, dict):
-                errors.append(
-                    f"{path.name}/{ecu_name}/{pid_str}: 'parameters' must be a dict"
-                )
+                errors.append(f"{path.name}/{ecu_name}/{pid_str}: 'parameters' must be a dict")
                 continue
 
             if not params:
-                warnings.append(
-                    f"{path.name}/{ecu_name}/{pid_str}: no parameters defined"
-                )
+                warnings.append(f"{path.name}/{ecu_name}/{pid_str}: no parameters defined")
 
             for param_name, param in params.items():
                 stats["params"] += 1
 
                 if not isinstance(param, dict):
-                    errors.append(
-                        f"{ecu_name}/{pid_str}/{param_name}: parameter must be a dict"
-                    )
+                    errors.append(f"{ecu_name}/{pid_str}/{param_name}: parameter must be a dict")
                     continue
 
                 # Required fields
                 for field in REQUIRED_PARAM_FIELDS:
                     if field not in param:
-                        errors.append(
-                            f"{ecu_name}/{pid_str}/{param_name}: missing '{field}'"
-                        )
+                        errors.append(f"{ecu_name}/{pid_str}/{param_name}: missing '{field}'")
 
                 # Unknown fields
                 for field in param:
@@ -164,9 +148,7 @@ def validate_ecu_file(path: Path) -> tuple[list[str], list[str], dict]:
                 # Expression validation
                 expr = param.get("expression", "")
                 if expr:
-                    errors.extend(
-                        validate_expression(expr, param_name, pid_str, ecu_name)
-                    )
+                    errors.extend(validate_expression(expr, param_name, pid_str, ecu_name))
 
                 # Stats
                 if param.get("verified", False):
@@ -198,12 +180,8 @@ def validate_meta(path: Path) -> list[str]:
 
 def main():
     parser = argparse.ArgumentParser(description="Validate PID definition files")
-    parser.add_argument(
-        "files", nargs="*", help="Specific files to validate (default: all)"
-    )
-    parser.add_argument(
-        "--stats", action="store_true", help="Show parameter statistics"
-    )
+    parser.add_argument("files", nargs="*", help="Specific files to validate (default: all)")
+    parser.add_argument("--stats", action="store_true", help="Show parameter statistics")
     args = parser.parse_args()
 
     all_errors = []

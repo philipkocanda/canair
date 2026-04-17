@@ -6,8 +6,9 @@ from datetime import datetime
 from ..terminal import WiCANTerminal
 
 
-async def mode_tester_present(terminal: WiCANTerminal, target: str | None,
-                               interval: float, verbose: bool):
+async def mode_tester_present(
+    terminal: WiCANTerminal, target: str | None, interval: float, verbose: bool
+):
     """Send TesterPresent (3E00) at regular intervals to keep a session alive.
 
     Runs until interrupted with Ctrl+C.
@@ -23,7 +24,7 @@ async def mode_tester_present(terminal: WiCANTerminal, target: str | None,
         await terminal.send_command("ATSH7DF")
         await terminal.send_command("ATFCSH7DF")
 
-    print(f"  Press Ctrl+C to stop.\n")
+    print("  Press Ctrl+C to stop.\n")
 
     count = 0
     try:
@@ -48,7 +49,9 @@ async def mode_tester_present(terminal: WiCANTerminal, target: str | None,
                         parts.append(f"{n_pos} OK")
                     if n_neg:
                         parts.append(f"{n_neg} NRC")
-                    print(f"  [{ts}] #{count} {', '.join(parts) if parts else clean[:40]}", end="\r")
+                    print(
+                        f"  [{ts}] #{count} {', '.join(parts) if parts else clean[:40]}", end="\r"
+                    )
 
             await asyncio.sleep(interval)
 

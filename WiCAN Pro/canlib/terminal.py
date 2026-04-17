@@ -8,8 +8,8 @@ import time
 
 try:
     import websockets
-except ImportError:
-    raise ImportError("websockets not installed. Run: pip3 install websockets")
+except ImportError as e:
+    raise ImportError("websockets not installed. Run: pip3 install websockets") from e
 
 try:
     import requests as _requests_mod
@@ -73,10 +73,10 @@ class WiCANTerminal:
                 msg = await asyncio.wait_for(self.ws.recv(), timeout=0.2)
                 if self.verbose:
                     print(f"  [ws] Drained: {msg!r}", file=sys.stderr)
-            except (asyncio.TimeoutError, Exception):
+            except (TimeoutError, Exception):
                 break
 
-    async def send_command(self, cmd: str, timeout: float = None) -> str:
+    async def send_command(self, cmd: str, timeout: float | None = None) -> str:
         """Send an ELM327 command and wait for the response.
 
         There are two timeout levels:
@@ -106,23 +106,21 @@ class WiCANTerminal:
                 raise ValueError(blocked)
             print(f"\n  !! WARNING: {blocked}", file=sys.stderr)
             print(
-                f"  !! --unsafe mode is active. The user MUST be consulted and",
+                "  !! --unsafe mode is active. The user MUST be consulted and",
                 file=sys.stderr,
             )
             print(
-                f"  !! must explicitly give consent before this command is executed.",
+                "  !! must explicitly give consent before this command is executed.",
                 file=sys.stderr,
             )
             print(
-                f"  !! This command can cause irreversible damage to vehicle ECUs.",
+                "  !! This command can cause irreversible damage to vehicle ECUs.",
                 file=sys.stderr,
             )
             try:
                 confirm = await asyncio.get_event_loop().run_in_executor(
                     None,
-                    lambda: input(
-                        "  !! Type 'YES' to execute, anything else to skip: "
-                    ),
+                    lambda: input("  !! Type 'YES' to execute, anything else to skip: "),
                 )
             except (EOFError, KeyboardInterrupt):
                 confirm = ""
@@ -146,16 +144,12 @@ class WiCANTerminal:
             if remaining <= 0:
                 break
             try:
-                msg = await asyncio.wait_for(
-                    self.ws.recv(), timeout=min(remaining, 1.0)
-                )
-            except asyncio.TimeoutError:
+                msg = await asyncio.wait_for(self.ws.recv(), timeout=min(remaining, 1.0))
+            except TimeoutError:
                 if got_prompt:
                     full = "".join(response_parts)
                     if "7F" in full and "78" in full:
-                        clean = (
-                            full.replace(" ", "").replace("\r", "").replace("\n", "")
-                        )
+                        clean = full.replace(" ", "").replace("\r", "").replace("\n", "")
                         if re.search(r"7F[0-9A-Fa-f]{2}78", clean):
                             continue
                     break
@@ -163,9 +157,7 @@ class WiCANTerminal:
                     text = "".join(response_parts)
                     stripped = text.replace("\r", "").replace("\n", "").strip()
                     if stripped:
-                        stripped_nfc = re.sub(
-                            r"\bF0[0-9A-Fa-f]?\b", "", stripped
-                        ).strip()
+                        stripped_nfc = re.sub(r"\bF0[0-9A-Fa-f]?\b", "", stripped).strip()
                     else:
                         stripped_nfc = ""
                     if stripped_nfc and "\r" in text and "7F" not in text:
@@ -181,8 +173,8 @@ class WiCANTerminal:
                         if not is_echo:
                             break
                 continue
-            except websockets.exceptions.ConnectionClosed:
-                raise ConnectionError("WebSocket connection closed")
+            except websockets.exceptions.ConnectionClosed as e:
+                raise ConnectionError("WebSocket connection closed") from e
 
             if isinstance(msg, str):
                 try:
@@ -246,7 +238,7 @@ class WiCANTerminal:
         if self.verbose:
             print(f"  [header] ATFCSH{hex_id} -> {resp!r}", file=sys.stderr)
 
-    async def send_uds(self, service_pid: str, timeout: float = None) -> dict:
+    async def send_uds(self, service_pid: str, timeout: float | None = None) -> dict:
         """Send a UDS request and parse the response.
 
         Args:
@@ -259,9 +251,7 @@ class WiCANTerminal:
         raw = await self.send_command(service_pid, timeout=timeout)
         return parse_elm_response(raw)
 
-    async def enter_extended_session(
-        self, wake: bool = False
-    ) -> tuple[bool, asyncio.Task | None]:
+    async def enter_extended_session(self, wake: bool = False) -> tuple[bool, asyncio.Task | None]:
         """Enter extended diagnostic session (10 03) and start TesterPresent keepalive.
 
         Args:
@@ -281,33 +271,33 @@ class WiCANTerminal:
                 # First frame may just trigger the transceiver — retry
                 wake_resp = await self.send_uds("1001", timeout=3.0)
             if wake_resp.get("ok"):
-                print(f"  Wake-up: ECU responded.")
+                print("  Wake-up: ECU responded.")
             await self.send_command(self.elm_timeout_cmd)  # restore
 
         resp = await self.send_uds("1003", timeout=5.0)
         if resp.get("ok"):
-            print(f"  Extended session (10 03) established.")
+            print("  Extended session (10 03) established.")
         elif resp.get("nrc") is not None:
             nrc = resp["nrc"]
             desc = resp["nrc_desc"]
             print(f"  WARNING: Session request returned NRC 0x{nrc:02X} ({desc})")
-            print(f"  Continuing anyway -- some ECUs may not need extended session.")
+            print("  Continuing anyway -- some ECUs may not need extended session.")
         else:
             error = resp.get("error", "unknown")
             print(f"  Session request failed: {error} — retrying in 0.5s...")
             await asyncio.sleep(0.5)
             resp = await self.send_uds("1003", timeout=5.0)
             if resp.get("ok"):
-                print(f"  Extended session (10 03) established (on retry).")
+                print("  Extended session (10 03) established (on retry).")
             elif resp.get("nrc") is not None:
                 nrc = resp["nrc"]
                 desc = resp["nrc_desc"]
                 print(f"  WARNING: Session retry returned NRC 0x{nrc:02X} ({desc})")
-                print(f"  Continuing anyway.")
+                print("  Continuing anyway.")
             else:
                 error2 = resp.get("error", "unknown")
                 print(f"  WARNING: Session retry also failed: {error2}")
-                print(f"  Continuing anyway.")
+                print("  Continuing anyway.")
 
         verbose = self.verbose
 
@@ -319,7 +309,7 @@ class WiCANTerminal:
                     try:
                         await self.send_command("3E00", timeout=1.5)
                         if verbose:
-                            print(f"  [tester] 3E00 keepalive sent", file=sys.stderr)
+                            print("  [tester] 3E00 keepalive sent", file=sys.stderr)
                     except Exception:
                         pass
             except asyncio.CancelledError:

@@ -41,34 +41,32 @@ if not sys.stdout.isatty():
     sys.stderr.reconfigure(line_buffering=True)
 
 from canlib import (
-    WICAN_ADDRESSES,
     DEFAULT_WICAN,
+    WICAN_ADDRESSES,
     WiCANTerminal,
-    reboot_wican,
-    load_pids,
     init_logging,
+    load_pids,
     log_command,
+    reboot_wican,
 )
 from canlib.lock import WiCANLock
 from canlib.modes import (
-    mode_interactive,
-    mode_param,
     mode_ecu,
+    mode_identity,
+    mode_interactive,
+    mode_monitor,
+    mode_multi,
+    mode_param,
     mode_raw,
     mode_scan,
-    mode_identity,
     mode_skm_wakeup,
     mode_tester_present,
-    mode_multi,
-    mode_monitor,
 )
 
 try:
     import websockets
 except ImportError:
-    print(
-        "ERROR: websockets not installed. Run: pip3 install websockets", file=sys.stderr
-    )
+    print("ERROR: websockets not installed. Run: pip3 install websockets", file=sys.stderr)
     sys.exit(1)
 
 
@@ -94,12 +92,8 @@ async def async_main(args):
     )
 
     if args.unsafe:
-        print(
-            "!! WARNING: --unsafe mode active. Dangerous command blocklist is bypassed."
-        )
-        print(
-            "!! Each blocked command will require explicit user consent before execution."
-        )
+        print("!! WARNING: --unsafe mode active. Dangerous command blocklist is bypassed.")
+        print("!! Each blocked command will require explicit user consent before execution.")
         print()
 
     pids_data = load_pids()
@@ -137,9 +131,7 @@ async def async_main(args):
             from canlib.modes.multi import parse_sub_commands
 
             commands = parse_sub_commands(args.multi)
-            session_steps = [
-                c for c in commands if c["type"] in ("session", "skm-wake", "sleep")
-            ]
+            session_steps = [c for c in commands if c["type"] in ("session", "skm-wake", "sleep")]
             query_steps = [c for c in commands if c["type"] == "query"]
             if not query_steps:
                 print(
@@ -156,15 +148,11 @@ async def async_main(args):
                 session_steps=session_steps,
             )
         elif args.multi:
-            await mode_multi(
-                terminal, args.multi, pids_data, args.verbose, no_repl=not args.repl
-            )
+            await mode_multi(terminal, args.multi, pids_data, args.verbose, no_repl=not args.repl)
         elif args.skm_wakeup:
             await mode_skm_wakeup(terminal, args.level, args.verbose)
         elif args.tester_present:
-            await mode_tester_present(
-                terminal, args.target, args.interval, args.verbose
-            )
+            await mode_tester_present(terminal, args.target, args.interval, args.verbose)
         elif args.identity:
             if not args.tx:
                 print("Error: --identity requires --tx (ECU TX ID)", file=sys.stderr)
@@ -214,12 +202,9 @@ async def async_main(args):
             append_bytes = ""
             if args.append:
                 cleaned = args.append.replace(" ", "").upper()
-                if (
-                    not all(c in "0123456789ABCDEF" for c in cleaned)
-                    or len(cleaned) % 2 != 0
-                ):
+                if not all(c in "0123456789ABCDEF" for c in cleaned) or len(cleaned) % 2 != 0:
                     print(
-                        f"Error: --append must be valid hex bytes (e.g., 03 or 030A0A05)",
+                        "Error: --append must be valid hex bytes (e.g., 03 or 030A0A05)",
                         file=sys.stderr,
                     )
                     sys.exit(1)
@@ -321,9 +306,7 @@ Examples:
     mode.add_argument(
         "--ecu", metavar="NAME", help="Query all parameters for an ECU (e.g., BMS, VCU)"
     )
-    mode.add_argument(
-        "--raw", metavar="TX:PID", help="Raw UDS request (e.g., 7E4:2101)"
-    )
+    mode.add_argument("--raw", metavar="TX:PID", help="Raw UDS request (e.g., 7E4:2101)")
     mode.add_argument(
         "--scan",
         action="store_true",
@@ -359,14 +342,10 @@ Examples:
     )
 
     # ECU/PID mode options
-    parser.add_argument(
-        "--pid", metavar="PID", help="Filter by PID code (for --ecu mode)"
-    )
+    parser.add_argument("--pid", metavar="PID", help="Filter by PID code (for --ecu mode)")
 
     # Scan mode options
-    parser.add_argument(
-        "--tx", metavar="ID", help="ECU TX ID for --scan (hex, e.g., 7E4)"
-    )
+    parser.add_argument("--tx", metavar="ID", help="ECU TX ID for --scan (hex, e.g., 7E4)")
     parser.add_argument(
         "--service",
         metavar="SVC",

@@ -1,10 +1,11 @@
 """Tests for canlib.modes.multi — parse_sub_commands, resolve_tx_id."""
 
 import pytest
+
 from canlib.modes.multi import parse_sub_commands, resolve_tx_id
 
-
 # --- resolve_tx_id ---
+
 
 class TestResolveTxId:
     """Tests for ECU name / hex ID resolution."""
@@ -42,6 +43,7 @@ class TestResolveTxId:
 
 
 # --- parse_sub_commands ---
+
 
 class TestParseSubCommands:
     def test_skm_wake_default(self):
@@ -95,8 +97,11 @@ class TestParseSubCommands:
     def test_scan(self):
         result = parse_sub_commands(["scan 770 22 BC00-BCFF"])
         assert result[0] == {
-            "type": "scan", "tx": "770", "service": "22",
-            "range": "BC00-BCFF", "append": "",
+            "type": "scan",
+            "tx": "770",
+            "service": "22",
+            "range": "BC00-BCFF",
+            "append": "",
         }
 
     def test_scan_with_append(self):
@@ -128,12 +133,14 @@ class TestParseSubCommands:
         assert len(result) == 1
 
     def test_multi_command_pipeline(self):
-        result = parse_sub_commands([
-            "skm-wake acc",
-            "session IGPM --wake",
-            "query IGPM BC03",
-            "sleep 1",
-        ])
+        result = parse_sub_commands(
+            [
+                "skm-wake acc",
+                "session IGPM --wake",
+                "query IGPM BC03",
+                "sleep 1",
+            ]
+        )
         assert len(result) == 4
         assert [r["type"] for r in result] == ["skm-wake", "session", "query", "sleep"]
 

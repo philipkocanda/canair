@@ -9,7 +9,7 @@ Protocol stack: CAN → ISO-TP → UDS
 - **Torque index**: UDS data payload, skipping SID + subfunction byte(s).
   Torque 1: 1-byte subfunction (e.g. ``21 01``), data starts at ISO-TP offset 2.
   Torque 2: 2-byte subfunction (e.g. ``22 C0 0B``), data starts at ISO-TP offset 3.
-- **bix (bit index)**: Torque byte index × 8. Used by Torque app and OBDb.
+- **bix (bit index)**: Torque byte index x 8. Used by Torque app and OBDb.
 - **Torque letter**: A=byte 0, B=byte 1, ..., Z=byte 25, AA=byte 26, AB=byte 27, ...
 
 See ``docs/wican-iso-tp-index-conversion.md`` for the full reference table.
@@ -18,7 +18,6 @@ See ``docs/wican-iso-tp-index-conversion.md`` for the full reference table.
 from __future__ import annotations
 
 import re
-
 
 # ---------------------------------------------------------------------------
 # Core conversions (all multi-frame, which is the common case for 21xx/22xx)
@@ -218,9 +217,7 @@ def conversion_table(
                 "wican": w,
                 "isotp": isotp,
                 "torque": torque,
-                "torque_letter": torque_idx_to_letter(torque)
-                if torque is not None
-                else None,
+                "torque_letter": torque_idx_to_letter(torque) if torque is not None else None,
                 "bix": torque_to_bix(torque) if torque is not None else None,
             }
         )

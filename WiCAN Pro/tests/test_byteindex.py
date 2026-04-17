@@ -1,24 +1,21 @@
 """Tests for canlib.byteindex — byte index conversion between notations."""
 
 import pytest
+
 from canlib.byteindex import (
-    wican_to_isotp,
-    isotp_to_wican,
-    isotp_to_torque,
-    torque_to_isotp,
-    torque_to_bix,
     bix_to_torque,
-    wican_to_torque,
+    conversion_table,
+    extract_byte_indices,
+    isotp_to_wican,
+    letter_to_torque_idx,
+    torque_idx_to_letter,
+    torque_to_bix,
     torque_to_wican,
     wican_to_bix,
-    bix_to_wican,
-    torque_idx_to_letter,
-    letter_to_torque_idx,
-    extract_byte_indices,
     wican_to_elm_idx,
-    conversion_table,
+    wican_to_isotp,
+    wican_to_torque,
 )
-
 
 # ── Reference table from docs/wican-iso-tp-index-conversion.md ──
 # (wican, isotp_hex, torque1_letter, bix1, torque2_letter, bix2)
@@ -158,16 +155,12 @@ class TestTorque2AgainstTable:
 class TestRoundTrips:
     """Verify all conversions round-trip correctly."""
 
-    @pytest.mark.parametrize(
-        "wican", [w for w, isotp, *_ in REFERENCE_TABLE if isotp is not None]
-    )
+    @pytest.mark.parametrize("wican", [w for w, isotp, *_ in REFERENCE_TABLE if isotp is not None])
     def test_isotp_round_trip(self, wican):
         isotp = wican_to_isotp(wican)
         assert isotp_to_wican(isotp) == wican
 
-    @pytest.mark.parametrize(
-        "wican", [w for w, _, t1, *_ in REFERENCE_TABLE if t1 is not None]
-    )
+    @pytest.mark.parametrize("wican", [w for w, _, t1, *_ in REFERENCE_TABLE if t1 is not None])
     def test_torque1_round_trip(self, wican):
         t = wican_to_torque(wican, subfunction_bytes=1)
         assert torque_to_wican(t, subfunction_bytes=1) == wican
@@ -187,7 +180,7 @@ class TestRoundTrips:
 class TestLetterNotation:
     """Test Torque letter ↔ index conversion."""
 
-    CASES = [
+    CASES = [  # noqa: RUF012
         (0, "A"),
         (1, "B"),
         (25, "Z"),

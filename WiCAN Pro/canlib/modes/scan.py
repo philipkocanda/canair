@@ -2,15 +2,22 @@
 
 import asyncio
 import json
-import re
 import sys
 
 from ..terminal import WiCANTerminal
 
 
-async def mode_scan(terminal: WiCANTerminal, tx_id: int, service: int,
-                    pid_range: tuple[int, int], verbose: bool, as_json: bool,
-                    append_bytes: str = "", session: bool = False, wake: bool = False):
+async def mode_scan(
+    terminal: WiCANTerminal,
+    tx_id: int,
+    service: int,
+    pid_range: tuple[int, int],
+    verbose: bool,
+    as_json: bool,
+    append_bytes: str = "",
+    session: bool = False,
+    wake: bool = False,
+):
     """Scan a range of PIDs and show which respond positively.
 
     Args:
@@ -32,8 +39,10 @@ async def mode_scan(terminal: WiCANTerminal, tx_id: int, service: int,
     did_label = "DID" if wide_did else "PID"
 
     suffix_label = f" + suffix {append_bytes}" if append_bytes else ""
-    print(f"\n  Scanning TX 0x{tx_id:03X}, service 0x{service:02X}, "
-          f"{did_label}s 0x{start:{did_fmt}}..0x{end:{did_fmt}} ({total} {did_label}s){suffix_label}")
+    print(
+        f"\n  Scanning TX 0x{tx_id:03X}, service 0x{service:02X}, "
+        f"{did_label}s 0x{start:{did_fmt}}..0x{end:{did_fmt}} ({total} {did_label}s){suffix_label}"
+    )
 
     await terminal.set_header(tx_id)
 
@@ -75,7 +84,11 @@ async def mode_scan(terminal: WiCANTerminal, tx_id: int, service: int,
             if not verbose and not response["ok"]:
                 if (pid_val - start + 1) % 16 == 0:
                     pct = (pid_val - start + 1) / total * 100
-                    print(f"  ... {pid_val - start + 1}/{total} ({pct:.0f}%)", end="\r", file=sys.stderr)
+                    print(
+                        f"  ... {pid_val - start + 1}/{total} ({pct:.0f}%)",
+                        end="\r",
+                        file=sys.stderr,
+                    )
     finally:
         if tester_task:
             tester_task.cancel()
@@ -84,9 +97,9 @@ async def mode_scan(terminal: WiCANTerminal, tx_id: int, service: int,
             except asyncio.CancelledError:
                 pass
             if verbose:
-                print(f"  [tester] Background keepalive stopped.", file=sys.stderr)
+                print("  [tester] Background keepalive stopped.", file=sys.stderr)
 
-    print(f"\n  --- Scan Results ----------------------------------------")
+    print("\n  --- Scan Results ----------------------------------------")
     print(f"  Positive: {len(positive)}")
     print(f"  Negative: {len(negative)}")
     print(f"  Errors:   {len(errors)}")
@@ -95,7 +108,9 @@ async def mode_scan(terminal: WiCANTerminal, tx_id: int, service: int,
         print(f"\n  Responding {did_label}s:")
         for pid_val, resp in positive:
             n = len(resp["bytes"])
-            print(f"    0x{pid_val:{did_fmt}} -- {n} bytes: {resp['hex'][:60]}{'...' if len(resp['hex']) > 60 else ''}")
+            print(
+                f"    0x{pid_val:{did_fmt}} -- {n} bytes: {resp['hex'][:60]}{'...' if len(resp['hex']) > 60 else ''}"
+            )
 
     if as_json:
         out = {
@@ -105,7 +120,9 @@ async def mode_scan(terminal: WiCANTerminal, tx_id: int, service: int,
             "append": append_bytes if append_bytes else None,
             "session": session,
             "positive": [{"did": f"0x{p:{did_fmt}}", "bytes": r["hex"]} for p, r in positive],
-            "negative": [{"did": f"0x{p:{did_fmt}}", "nrc": f"0x{n:02X}", "desc": d} for p, n, d in negative],
+            "negative": [
+                {"did": f"0x{p:{did_fmt}}", "nrc": f"0x{n:02X}", "desc": d} for p, n, d in negative
+            ],
             "errors": [{"did": f"0x{p:{did_fmt}}", "error": e} for p, e in errors],
         }
         print(json.dumps(out, indent=2))

@@ -1,8 +1,7 @@
 """Command and response logging to date-stamped files."""
 
 import logging
-from datetime import datetime, timezone
-from pathlib import Path
+from datetime import UTC, datetime
 
 from .constants import SCRIPT_DIR
 
@@ -44,13 +43,13 @@ def init_logging():
 def log_command(cmd: str):
     """Log a command with ISO 8601 timestamp."""
     if _cmd_logger:
-        ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+        ts = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
         _cmd_logger.info(f"[{ts}] {cmd}")
 
 
 def log_response(cmd: str, response: str):
     """Log a response with ISO 8601 timestamp and the command that triggered it."""
     if _resp_logger:
-        ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+        ts = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
         resp_oneline = response.replace("\n", " | ")
         _resp_logger.info(f"[{ts}] {cmd} -> {resp_oneline}")

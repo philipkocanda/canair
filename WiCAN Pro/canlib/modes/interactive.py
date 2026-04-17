@@ -2,21 +2,21 @@
 
 import re
 
-from ..elm327 import parse_elm_response, elm_hex_to_wican_bytes
-from ..terminal import WiCANTerminal, reboot_wican
-from ..pids import build_param_index, build_ecu_index
-from ..formatting import print_decoded_params, print_hexdump
+from ..elm327 import elm_hex_to_wican_bytes, parse_elm_response
 from ..expression import evaluate_expression
+from ..formatting import print_decoded_params, print_hexdump
+from ..pids import build_ecu_index
+from ..terminal import WiCANTerminal, reboot_wican
 
 
 async def mode_interactive(terminal: WiCANTerminal, pids_data: dict, verbose: bool):
     """Interactive REPL mode -- type ELM327/UDS commands directly."""
     # Lazy imports to avoid circular dependencies for modes that reference each other
+    import asyncio
+
     from .identity import mode_identity
     from .skm_wakeup import mode_skm_wakeup
     from .tester import mode_tester_present
-
-    import asyncio
 
     print("WiCAN ELM327 Terminal -- Interactive Mode")
     print(f"Connected to {terminal.host}")
@@ -36,7 +36,6 @@ async def mode_interactive(terminal: WiCANTerminal, pids_data: dict, verbose: bo
     print()
 
     ecu_index = build_ecu_index(pids_data)
-    param_index = build_param_index(pids_data)
     last_response = None
     last_tx_id = None
 
@@ -95,7 +94,9 @@ async def mode_interactive(terminal: WiCANTerminal, pids_data: dict, verbose: bo
                 for pname in sorted(pid_info["parameters"].keys()):
                     pdef = pid_info["parameters"][pname]
                     v = "+" if pdef.get("verified") else "?"
-                    print(f"      {v} {pname}: {pdef.get('expression', '')} [{pdef.get('unit', '')}]")
+                    print(
+                        f"      {v} {pname}: {pdef.get('expression', '')} [{pdef.get('unit', '')}]"
+                    )
             print()
             continue
 
@@ -163,8 +164,7 @@ async def mode_interactive(terminal: WiCANTerminal, pids_data: dict, verbose: bo
             if last_tx_id is None:
                 print("  No ECU header set. Use ATSH<id> first (e.g., ATSH7A0).")
             else:
-                await mode_identity(terminal, last_tx_id, session=False, wake=False,
-                                    as_json=False)
+                await mode_identity(terminal, last_tx_id, session=False, wake=False, as_json=False)
             continue
 
         # Track ATSH commands to know current TX ID

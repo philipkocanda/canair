@@ -199,9 +199,7 @@ def evaluate_expression(expression: str, data: bytes, V: float = 0.0) -> float:
             i += 2
             continue
 
-        raise ValueError(
-            f"Invalid character '{ch}' at position {i} in expression: {expression}"
-        )
+        raise ValueError(f"Invalid character '{ch}' at position {i} in expression: {expression}")
 
     # Final reduction
     while operator_stack:
