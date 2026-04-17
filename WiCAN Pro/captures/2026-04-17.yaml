@@ -70,3 +70,17 @@ sessions:
         pid: "22B001"
         notes: "deep sleep, after session 1003. First attempt returns NO DATA, second succeeds."
         payload: "62B00140C0000000010000000000000201000000"
+
+  - date: "2026-04-17"
+    state: "deep sleep, parked, locked, no charging"
+    label: "IGPM 22BC07 — status DID, unknown decode"
+    notes: >
+      10 data bytes. Not yet decoded. IOControl 2FBC0703 confirmed as Horn
+      (see docs/IOControl CLI commands.md). Contents unknown — possibly horn
+      status, VESS, or unrelated body state.
+    captures:
+
+      - ecu: IGPM
+        pid: "22BC07"
+        notes: "deep sleep, monitor mode at 14:02:58"
+        payload: "62BC070841FBCC00001100AAAA"
