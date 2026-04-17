@@ -172,10 +172,10 @@ BCM:
       period: 10000
       enabled: false
       parameters:
-        BCM_POWER_MODE:
+         BCM_POWER_MODE:
           expression: "B12"
           unit: ""
-          display: "{'9': 'ACC/sleep', '10': 'ACC+IGN1', '245': 'OFF/sleep'}.get(str(int(v)), '?')"
+          display: ""
           ha_class: ""
           mqtt_topic: bcm_power_mode
           min: "0"
