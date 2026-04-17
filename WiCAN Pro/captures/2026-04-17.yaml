@@ -8,9 +8,9 @@ sessions:
     measurements across multiple points (battery terminals, fuse box, BCM internal
     rail). B07 drifts fastest (~2 LSB/min), B10/B12/B14 follow. Static bytes (B03-B06,
     B08, B15) may be config/thresholds. 22B004 has a single bit (B09 bit 6) toggling
-    0x00u21940x40 every ~12-15s u2014 periodic heartbeat/watchdog flag. Rest of
-    B004 is static. BCM likely uses these readings to decide when to activate the
-    LDC (DC-DC converter) to top up the 12V from the HV traction battery.
+    0x00u21940x40 every ~12-15s u2014 periodic heartbeat/watchdog flag. Rest of B004
+    is static. BCM likely uses these readings to decide when to activate the LDC (DC-DC
+    converter) to top up the 12V from the HV traction battery.
   captures:
   - ecu: BCM
     pid: 22B003
@@ -56,9 +56,9 @@ sessions:
   state: deep sleep, parked, locked, no charging
   label: "IGPM 22BC07 \u2014 status DID, unknown decode"
   notes: >
-    10 data bytes. Not yet decoded. IOControl 2FBC0703 confirmed as Horn (see
-    docs/IOControl CLI commands.md). Contents unknown \u2014 possibly horn status,
-    VESS, or unrelated body state.
+    10 data bytes. Not yet decoded. IOControl 2FBC0703 confirmed as Horn (see docs/IOControl
+    CLI commands.md). Contents unknown \u2014 possibly horn status, VESS, or unrelated
+    body state.
   captures:
   - ecu: IGPM
     pid: 22BC07
@@ -88,3 +88,27 @@ sessions:
     pid: 22C00B
     notes: "monitor capture at 15:20:11"
     payload: 62C00BFFFF0000C9450200CB430100CF440100CB440100AAAAAAAA
+- date: '2026-04-17'
+  label: testing save feature
+  state: deep sleep
+  captures:
+  - ecu: BCM
+    pid: 22B003
+    notes: ''
+    payload: 62B003BF8B80009C3DF5A3F9F8F9F83DF800000000000000AAAAAA
+    time: "15:25:32"
+  - ecu: BCM
+    pid: 22B003
+    notes: ''
+    payload: 62B003BF8B80009C3DF5A3F9F8F9F73DF800000000000000AAAAAA
+    time: "15:25:37"
+  - ecu: BCM
+    pid: 22B004
+    notes: ''
+    payload: 62B0047402990C00008000AAAA
+    time: "15:25:28"
+  - ecu: BCM
+    pid: 22C00B
+    notes: ''
+    payload: 62C00BFFFF0000C9450200CB430100CF440100CB440100AAAAAAAA
+    time: "15:25:28"
