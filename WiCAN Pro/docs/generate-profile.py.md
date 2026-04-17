@@ -1,6 +1,6 @@
 #### generate-profile.py
 
-Generates WiCAN vehicle profiles from `ioniq-2017-pids.yaml`.
+Generates WiCAN vehicle profiles from `pids/` directory.
 
 ```bash
 python3 generate-profile.py              # Generate Vehicle Profiles/ioniq-2017.json

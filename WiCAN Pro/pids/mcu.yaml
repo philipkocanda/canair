@@ -1,0 +1,20 @@
+
+# ─── MCU (Motor Control Unit) ─────────────────────────────────────────
+MCU:
+  tx_id: 0x7E3
+  pids:
+    2102:
+      period: 5000
+      enabled: true
+      parameters:
+        MCU_MOTOR_RPM:
+          expression: "((S7<<8)|B6)"
+          unit: RPM
+          ha_class: ""
+          mqtt_topic: mcu_motor_rpm
+          min: ""
+          max: ""
+          source: "JejuSoul Torque Pro CSV + OVMS e-Niro"
+          source_links: []
+          verified: false
+          notes: "Signed 16-bit. Torque letters e=4,f=5 → ISO-TP 4,5 → WiCAN B6,B7. OVMS confirms 0x7E3 PID 2102 is polled at 11s intervals."

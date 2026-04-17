@@ -1,0 +1,20 @@
+
+# ─── Gateway ─────────────────────────────────────────────────────────
+Gateway:
+  tx_id: 0x7E6
+  pids:
+    2180:
+      period: 10000
+      enabled: true
+      parameters:
+        AMBIENT_TEMP:
+          expression: "(B18-80)/2"
+          unit: "°C"
+          ha_class: temperature
+          mqtt_topic: ambient_temp
+          min: "-40"
+          max: "87"
+          source: "Original WiCAN config"
+          source_links: []
+          verified: true
+          notes: ""

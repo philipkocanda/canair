@@ -1,0 +1,21 @@
+
+# ─── ESC (Electronic Stability Control) ──────────────────────────────
+ESC:
+  tx_id: 0x7D1
+  pids:
+    22C101:
+      period: 2500
+      enabled: true
+      parameters:
+        REAL_SPEED_KMH:
+          expression: "B12"
+          unit: km/h
+          ha_class: speed
+          mqtt_topic: real_speed_kmh
+          min: "0"
+          max: "200"
+          source: "Kia Niro EV WiCAN PR#660"
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/pull/660
+          verified: false
+          notes: "Wheel-speed based, may differ from VCU speed. Untested on Ioniq."

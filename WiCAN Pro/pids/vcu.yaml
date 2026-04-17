@@ -1,0 +1,303 @@
+
+# ─── VCU (Vehicle Control Unit) ──────────────────────────────────────
+VCU:
+  tx_id: 0x7E2
+  pids:
+    2101:
+      period: 2500
+      enabled: true
+      parameters:
+        VEHICLE_SPEED:
+          expression: "((S20*256)+S19)/100"
+          unit: km/h
+          ha_class: speed
+          mqtt_topic: vehicle_speed
+          min: "-255"
+          max: "255"
+          source: "Original WiCAN config"
+          source_links: []
+          verified: true
+          notes: "Signed 16-bit, divided by 100"
+
+        VEHICLE_SPEED_ALT:
+          expression: "[B19:B20]/100"
+          unit: km/h
+          ha_class: speed
+          mqtt_topic: vehicle_speed_alt
+          min: ""
+          max: ""
+          source: "Original WiCAN config"
+          source_links: []
+          verified: true
+          notes: "Alternative unsigned formula — same bytes, different sign handling"
+
+        DEBUG_DRIVE_MODE_FLAGS:
+          expression: "B10"
+          unit: ""
+          ha_class: ""
+          mqtt_topic: debug_drive_mode_flags
+          min: ""
+          max: ""
+          source: "Original WiCAN config"
+          source_links: []
+          verified: true
+          notes: "Raw byte — individual bits below"
+
+        DRIVE_MODE_P:
+          expression: "B10:0"
+          unit: ""
+          ha_class: ""
+          mqtt_topic: drive_mode_p
+          min: ""
+          max: ""
+          source: "Original WiCAN config"
+          source_links: []
+          verified: true
+          notes: ""
+
+        DRIVE_MODE_R:
+          expression: "B10:1"
+          unit: ""
+          ha_class: ""
+          mqtt_topic: drive_mode_r
+          min: ""
+          max: ""
+          source: "Original WiCAN config"
+          source_links: []
+          verified: true
+          notes: ""
+
+        DRIVE_MODE_N:
+          expression: "B10:2"
+          unit: ""
+          ha_class: ""
+          mqtt_topic: drive_mode_n
+          min: ""
+          max: ""
+          source: "Original WiCAN config"
+          source_links: []
+          verified: true
+          notes: ""
+
+        DRIVE_MODE_D:
+          expression: "B10:3"
+          unit: ""
+          ha_class: ""
+          mqtt_topic: drive_mode_d
+          min: ""
+          max: ""
+          source: "Original WiCAN config"
+          source_links: []
+          verified: true
+          notes: ""
+
+        DEBUG_VEHICLE_STATE_FLAGS:
+          expression: "B11"
+          unit: ""
+          ha_class: ""
+          mqtt_topic: debug_vehicle_state_flags
+          min: ""
+          max: ""
+          source: "Original WiCAN config"
+          source_links: []
+          verified: true
+          notes: "Raw byte — individual bits below"
+
+        VEHICLE_STATE_BRAKE_LAMP:
+          expression: "B11:0"
+          unit: ""
+          ha_class: ""
+          mqtt_topic: vehicle_state_brake_lamp
+          min: ""
+          max: ""
+          source: "Original WiCAN config"
+          source_links: []
+          verified: true
+          notes: ""
+
+        VEHICLE_STATE_NOT_BRAKING:
+          expression: "B11:1"
+          unit: ""
+          ha_class: ""
+          mqtt_topic: vehicle_state_not_braking
+          min: ""
+          max: ""
+          source: "Original WiCAN config"
+          source_links: []
+          verified: true
+          notes: ""
+
+        VEHICLE_STATE_START_KEY:
+          expression: "B11:2"
+          unit: ""
+          ha_class: ""
+          mqtt_topic: vehicle_state_start_key
+          min: ""
+          max: ""
+          source: "Original WiCAN config"
+          source_links: []
+          verified: true
+          notes: ""
+
+        VEHICLE_STATE_EV_READY:
+          expression: "B11:3"
+          unit: ""
+          ha_class: ""
+          mqtt_topic: vehicle_state_ev_ready
+          min: ""
+          max: ""
+          source: "Original WiCAN config"
+          source_links: []
+          verified: true
+          notes: ""
+
+        VEHICLE_STATE_VCU_READY:
+          expression: "B11:4"
+          unit: ""
+          ha_class: ""
+          mqtt_topic: vehicle_state_vcu_ready
+          min: ""
+          max: ""
+          source: "Original WiCAN config"
+          source_links: []
+          verified: true
+          notes: ""
+
+        VEHICLE_STATE_MAIN_RELAY_OFF:
+          expression: "B11:5"
+          unit: ""
+          ha_class: ""
+          mqtt_topic: vehicle_state_main_relay_off
+          min: ""
+          max: ""
+          source: "Original WiCAN config"
+          source_links: []
+          verified: true
+          notes: ""
+
+        VEHICLE_STATE_POWER_ENABLE:
+          expression: "B11:6"
+          unit: ""
+          ha_class: ""
+          mqtt_topic: vehicle_state_power_enable
+          min: ""
+          max: ""
+          source: "Original WiCAN config"
+          source_links: []
+          verified: true
+          notes: ""
+
+        VEHICLE_STATE_LDC_INHIBIT:
+          expression: "B11:7"
+          unit: ""
+          ha_class: ""
+          mqtt_topic: vehicle_state_ldc_inhibit
+          min: ""
+          max: ""
+          source: "Original WiCAN config"
+          source_links: []
+          verified: false
+          notes: ""
+
+        DEBUG_MCU_STATE_FLAGS:
+          expression: "B12"
+          unit: ""
+          ha_class: ""
+          mqtt_topic: debug_mcu_state_flags
+          min: ""
+          max: ""
+          source: "AutoPID config (on device)"
+          source_links: []
+          verified: true
+          notes: "Present in AutoPID but not in vehicle profile"
+
+        CAR_READY:
+          expression: "B26:3"
+          unit: ""
+          ha_class: ""
+          mqtt_topic: car_ready
+          min: ""
+          max: ""
+          source: "Kia Niro EV WiCAN PR#716"
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/pull/716
+          verified: false
+          notes: ""
+
+        PARK_BRAKE:
+          expression: "B26:5"
+          unit: ""
+          ha_class: ""
+          mqtt_topic: park_brake
+          min: ""
+          max: ""
+          source: "Kia Niro EV WiCAN PR#716"
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/pull/716
+          verified: false
+          notes: ""
+
+        ACCEL_PEDAL_DEPTH:
+          expression: "B16/2"
+          unit: "%"
+          ha_class: ""
+          mqtt_topic: accel_pedal_depth
+          min: "0"
+          max: "100"
+          source: "ImHex pattern (@ 0x0E) + JejuSoul Torque Pro CSV"
+          source_links:
+            - https://docs.google.com/spreadsheets/d/1R2dW_4-ANg04TQdkHH52-8wdYItBkWDfppcsqOc-m1M
+          verified: false
+          notes: "ImHex offset 0x0E + 2 = B16. Ioniq 5 OBDb confirms at bix 96, len 8, div 2."
+
+    2102:
+      period: 5000
+      enabled: true
+      parameters:
+        VCU_MOTOR_RPM:
+          expression: "((S7<<8)|B6)"
+          unit: RPM
+          ha_class: ""
+          mqtt_topic: vcu_motor_rpm
+          min: ""
+          max: ""
+          source: "JejuSoul Torque Pro CSV"
+          source_links: []
+          verified: false
+          notes: "Torque letters e=B4,f=B5 → ISO-TP 4,5 → WiCAN B6,B7. Signed 16-bit."
+
+        VCU_INVERTER_INPUT_VOLTAGE:
+          expression: "B10*2"
+          unit: V
+          ha_class: voltage
+          mqtt_topic: vcu_inverter_input_voltage
+          min: "0"
+          max: ""
+          source: "JejuSoul Torque Pro CSV"
+          source_links: []
+          verified: false
+          notes: "Torque letter I=B8 → ISO-TP 8 → WiCAN B10."
+
+        VCU_HEAT_SINK_TEMP:
+          expression: "B16-40"
+          unit: "°C"
+          ha_class: temperature
+          mqtt_topic: vcu_heat_sink_temp
+          min: "-40"
+          max: "215"
+          source: "JejuSoul Torque Pro CSV"
+          source_links: []
+          verified: false
+          notes: "Torque letter o=B14 → ISO-TP 14 → WiCAN B16."
+
+        VCU_MCU_TEMP:
+          expression: "B22-40"
+          unit: "°C"
+          ha_class: temperature
+          mqtt_topic: vcu_mcu_temp
+          min: "-40"
+          max: "215"
+          source: "JejuSoul Torque Pro CSV"
+          source_links: []
+          verified: false
+          notes: "Torque letter u=B20 → ISO-TP 20 → WiCAN B22."

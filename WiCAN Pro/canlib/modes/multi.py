@@ -23,7 +23,7 @@ import shlex
 
 from ..session_manager import SessionManager
 from ..pids import build_ecu_index, build_param_index, load_pids
-from ..constants import PIDS_FILE
+from ..constants import PIDS_DIR
 from ..formatting import (
     print_decoded_params,
     print_ecu_results,
@@ -229,7 +229,7 @@ async def _exec_query(
                     print(f"  WARNING: Invalid PID format '{u}', skipping")
             if raw_pids:
                 print(
-                    f"  NOTE: {', '.join(raw_pids)} not in {PIDS_FILE.name} — querying raw"
+                    f"  NOTE: {', '.join(raw_pids)} not in {PIDS_DIR.name}/ — querying raw"
                 )
 
         if not pids_to_query and not raw_pids:

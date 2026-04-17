@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Decode captured UDS response payloads using WiCAN expression definitions.
 
-Reads captures.yaml (raw ISO-TP payloads) and ioniq-2017-pids.yaml (parameter
+Reads captures.yaml (raw ISO-TP payloads) and pids/ (parameter
 definitions with WiCAN expressions), evaluates each expression against matching
 captures, and prints decoded values.
 
@@ -25,7 +25,7 @@ import sys
 import yaml
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-PIDS_FILE = os.path.join(SCRIPT_DIR, "ioniq-2017-pids.yaml")
+PIDS_DIR = os.path.join(SCRIPT_DIR, "pids")
 CAPTURES_FILE = os.path.join(SCRIPT_DIR, "captures.yaml")
 CAPTURES_DIR = os.path.join(SCRIPT_DIR, "captures")
 ECUS_FILE = os.path.join(SCRIPT_DIR, "ecus.yaml")
@@ -248,9 +248,10 @@ def evaluate_expression(expression: str, data: bytes, V: float = 0.0) -> float:
 # ─── Data Loading ─────────────────────────────────────────────────────────────
 
 
-def load_pids(path: str = PIDS_FILE) -> dict:
-    with open(path) as f:
-        return yaml.safe_load(f)
+def load_pids(path: str = PIDS_DIR) -> dict:
+    from canlib.pids import load_pids as _load
+
+    return _load(path)
 
 
 def load_captures(path: str = None) -> dict:
@@ -450,7 +451,9 @@ def main():
     )
     parser.add_argument("--expr", help="Evaluate a single expression (use with --raw)")
     parser.add_argument(
-        "--pids-file", default=PIDS_FILE, help="Path to PID definitions YAML"
+        "--pids-file",
+        default=PIDS_DIR,
+        help="Path to PID definitions directory or YAML file",
     )
     parser.add_argument(
         "--captures-file",

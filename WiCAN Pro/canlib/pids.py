@@ -7,11 +7,38 @@ try:
 except ImportError:
     raise ImportError("PyYAML not installed. Run: pip3 install pyyaml")
 
-from .constants import ECUS_FILE, PIDS_FILE
+from .constants import ECUS_FILE, PIDS_DIR
 
 
-def load_pids(path: Path = PIDS_FILE) -> dict:
-    """Load PID definitions from YAML."""
+def load_pids(path: Path = PIDS_DIR) -> dict:
+    """Load PID definitions from YAML.
+
+    Accepts either a directory (pids/) containing per-ECU YAML files,
+    or a single YAML file (legacy ioniq-2017-pids.yaml format).
+    """
+    path = Path(path)
+
+    if path.is_dir():
+        # Load _meta.yaml for car_model/init
+        meta_path = path / "_meta.yaml"
+        if meta_path.exists():
+            with open(meta_path) as f:
+                result = yaml.safe_load(f) or {}
+        else:
+            result = {}
+        result["ecus"] = {}
+
+        # Load per-ECU files (all .yaml except _meta, _schema)
+        for fpath in sorted(path.glob("*.yaml")):
+            if fpath.name.startswith("_"):
+                continue
+            with open(fpath) as f:
+                data = yaml.safe_load(f)
+            if data:
+                result["ecus"].update(data)
+        return result
+
+    # Legacy: single file
     with open(path) as f:
         return yaml.safe_load(f)
 

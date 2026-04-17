@@ -65,7 +65,7 @@ read_pids:
       - "ECO/Sport/Normal mode — suspected in B10 upper nibble, not decoded"
       - "Regen mode (off/1/2/3) — location unknown, possibly in B10 or B11"
     sources:
-      - "ioniq-2017-pids.yaml (existing, 44 unverified params total)"
+      - "pids/ (existing, 44 unverified params total)"
       - "Kia Niro PR — CAR_READY/PARK_BRAKE"
       - "Obsidian: VCU.md"
 
@@ -298,7 +298,7 @@ read_pids:
       - "ISOLATION_RESISTANCE (B69) — exceeds 61-byte stationary payload"
     sources:
       - "decode-captures.py output"
-      - "ioniq-2017-pids.yaml"
+      - "pids/"
 
   - ecu:          BMS
     tx_id:        "0x7E4"
@@ -509,7 +509,7 @@ read_pids:
          temp (B29), evaporator temp alt (B31), unknown temps (B32-34)"
       - "Vehicle speed at bix 232 (= byte 29) per Ioniq 5 OBDb — verify"
     sources:
-      - "ioniq-2017-pids.yaml"
+      - "pids/"
       - "OBDb Ioniq 5 — 220100 signals"
 
   - ecu:          HVAC
@@ -787,7 +787,7 @@ read_pids:
       - "TYRE_TEMP_FL/FR/RL/RR (B11/15/20/24 - 50 °C) — verify against known temps"
       - "Decode remaining bytes in 22C00B response beyond pressures/temps"
     sources:
-      - "ioniq-2017-pids.yaml (temps unverified)"
+      - "pids/ (temps unverified)"
 
   - ecu:          BCM
     tx_id:        "0x7A0"
@@ -800,7 +800,7 @@ read_pids:
     notes: "Verified 2026-04-15. BCM reads work without extended session.
             B10:5 = 1 when charge port open, 0 when closed."
     sources:
-      - "ioniq-2017-pids.yaml (verified)"
+      - "pids/ (verified)"
 
   - ecu:          BCM
     tx_id:        "0x7A0"
@@ -900,7 +900,7 @@ read_pids:
       - "REAL_SPEED_KMH (B12) — unverified, verify against GPS while driving"
       - "Decode remaining 41 bytes"
     sources:
-      - "ioniq-2017-pids.yaml (unverified)"
+      - "pids/ (unverified)"
       - "captures.yaml — 2026-04-14"
 
   - ecu:          ESC
@@ -975,7 +975,7 @@ read_pids:
       - "LDC temp (val-100 °C)"
       - "DC volt out (/10)"
     sources:
-      - "ioniq-2017-pids.yaml (unverified)"
+      - "pids/ (unverified)"
       - "Kia Niro PR#660"
 
   - ecu:          "OBC/LDC"
