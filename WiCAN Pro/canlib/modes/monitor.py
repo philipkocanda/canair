@@ -48,7 +48,13 @@ _HIGHLIGHT_STYLE = {
 
 
 def _render_hex_line(
-    raw_hex: str, params: list, unmapped: bool, *, prev_raw: str = "", prefix: str = "      "
+    raw_hex: str,
+    params: list,
+    unmapped: bool,
+    *,
+    prev_raw: str = "",
+    prefix: str = "      ",
+    prefix_style: str = "",
 ) -> Text:
     """Render a hex line with per-byte change highlighting.
 
@@ -59,7 +65,7 @@ def _render_hex_line(
     prev_bytes = [prev_raw[i : i + 2] for i in range(0, len(prev_raw), 2)] if prev_raw else []
     n_bytes = len(elm_bytes)
     t = Text()
-    t.append(prefix)
+    t.append(prefix, style=prefix_style)
 
     if unmapped or not params:
         for i, hb in enumerate(elm_bytes):
@@ -191,7 +197,12 @@ def _render_results(
                         prefix = f"      {ts}  " if ts else "                "
                         text.append_text(
                             _render_hex_line(
-                                payload, params, unmapped, prev_raw=prev_raw, prefix=prefix
+                                payload,
+                                params,
+                                unmapped,
+                                prev_raw=prev_raw,
+                                prefix=prefix,
+                                prefix_style="grey30" if ts else "",
                             )
                         )
                 else:
