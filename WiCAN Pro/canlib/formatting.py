@@ -1,10 +1,62 @@
 """Output formatting helpers."""
 
 import json
+import re
 
 from rich.console import Console
 
 _console = Console(highlight=False)
+
+
+def _bytes_to_ascii(raw_hex: str) -> str:
+    """Convert hex string to ASCII representation (printable chars or '.')."""
+    data = bytes.fromhex(raw_hex)
+    return "".join(chr(b) if 32 <= b < 127 else "." for b in data)
+
+
+def _extract_byte_indices(expression: str) -> set[int]:
+    """Extract all byte indices referenced in a WiCAN expression.
+
+    Patterns: B03, S03, B03:0 (bit), [B04:B05] (range), [S04:S05] (range).
+    """
+    indices = set()
+    # Multi-byte ranges: [B04:B05] or [S04:S05]
+    for m in re.finditer(r"\[([BS])(\d+):([BS])(\d+)\]", expression):
+        lo, hi = int(m.group(2)), int(m.group(4))
+        indices.update(range(lo, hi + 1))
+    # Single byte: B03, S03, B03:0 (bit access)
+    for m in re.finditer(r"(?<!\[)([BS])(\d+)(?::\d+)?(?!\d)", expression):
+        indices.add(int(m.group(2)))
+    return indices
+
+
+def _wican_idx_to_elm_idx(wican_idx: int, payload_len: int) -> int | None:
+    """Map a WiCAN AutoPID byte index to an ELM payload byte index.
+
+    WiCAN layout has PCI bytes at positions 0, 8, 16, 24, ...
+    For single-frame (payload <= 7): PCI at 0, data at 1..7.
+    For multi-frame: FF PCI at 0-1, data at 2-7, then CF PCI at 8, data 9-15, etc.
+    Returns None if the index points to a PCI byte.
+    """
+    if payload_len <= 7:
+        # Single frame: [PCI] [d d d d d d d]
+        if wican_idx == 0:
+            return None  # PCI byte
+        return wican_idx - 1
+    else:
+        # Multi-frame
+        frame = wican_idx // 8
+        pos_in_frame = wican_idx % 8
+        if frame == 0:
+            # First frame: [PCI_hi PCI_lo] [d d d d d d]
+            if pos_in_frame < 2:
+                return None  # PCI
+            return pos_in_frame - 2
+        else:
+            # Consecutive frame: [PCI] [d d d d d d d]
+            if pos_in_frame == 0:
+                return None  # PCI
+            return 6 + (frame - 1) * 7 + (pos_in_frame - 1)
 
 
 def format_value(value: float, unit: str) -> str:
@@ -111,11 +163,36 @@ def print_ecu_results(
         elif decode:
             c.print(f"      {decode}")
 
-        # Raw hex
+        # Raw hex line
         if raw_hex:
-            spaced = " ".join(raw_hex[i : i + 2] for i in range(0, len(raw_hex), 2))
             n_bytes = len(raw_hex) // 2
-            c.print(f"      [dim]{spaced}  ({n_bytes} B)[/dim]")
+            elm_bytes = [raw_hex[i : i + 2] for i in range(0, len(raw_hex), 2)]
+
+            if unmapped or not params:
+                # Unmapped: all dim hex + ASCII
+                spaced = " ".join(elm_bytes)
+                ascii_repr = _bytes_to_ascii(raw_hex)
+                c.print(f"      [dim]{spaced}  {ascii_repr}  ({n_bytes} B)[/dim]")
+            else:
+                # Mapped: find which ELM payload bytes are covered by expressions
+                covered_elm = set()
+                for _, _, _, expression, perr, _ in params:
+                    if perr or not expression:
+                        continue
+                    wican_indices = _extract_byte_indices(expression)
+                    for wi in wican_indices:
+                        ei = _wican_idx_to_elm_idx(wi, n_bytes)
+                        if ei is not None and 0 <= ei < n_bytes:
+                            covered_elm.add(ei)
+
+                # Build hex with uncovered bytes highlighted
+                hex_parts = []
+                for i, hb in enumerate(elm_bytes):
+                    if i in covered_elm:
+                        hex_parts.append(f"[dim]{hb}[/dim]")
+                    else:
+                        hex_parts.append(f"[bold]{hb}[/bold]")
+                c.print(f"      {' '.join(hex_parts)}  [dim]({n_bytes} B)[/dim]")
 
 
 def print_hexdump(data: bytes, prefix: str = "  "):
