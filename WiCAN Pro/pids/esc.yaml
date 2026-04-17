@@ -18,3 +18,17 @@ ESC:
             - https://github.com/meatpiHQ/wican-fw/pull/660
           verified: false
           notes: "Wheel-speed based, may differ from VCU speed. Untested on Ioniq."
+    22C102:
+      period: 2500
+      enabled: false
+      parameters:
+        ESC_C102_UNKNOWN:
+          expression: ""
+          unit: ""
+          ha_class: ""
+          min: ""
+          max: ""
+          source: "DID scan 2026-04-17"
+          source_links: []
+          verified: false
+          notes: "27 bytes. Rich data with 0x3FE0 prefix, FF blocks, 0xA9AA, 0xC0C0D4D4. Likely wheel speeds or ABS sensor data. Payload: 62C1023FE00000FFFFFFFFFFFF01010000A9AA000000C0C0D4D400"
