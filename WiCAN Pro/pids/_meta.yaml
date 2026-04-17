@@ -1,19 +1,6 @@
 # Ioniq 2017 EV — WiCAN Pro PID Definitions
 # Source of truth for all OBD-II / UDS PIDs polled by WiCAN.
 # Run generate-profile.py to produce WiCAN JSON profiles from this file.
-#
-# Field reference:
-#   expression  — WiCAN formula (B=unsigned byte, S=signed byte, [Bx:By]=multi-byte)
-#   unit        — display unit (°C, %, V, A, bar, km/h, km, kW, kWh)
-#   ha_class    — Home Assistant device_class for MQTT discovery (battery, temperature, etc.)
-#   mqtt_topic  — MQTT topic suffix (auto-prefixed with wican/ioniq/)
-#   min/max     — expected value range (for HA/MQTT, empty string if unknown)
-#   source      — short description of where the PID/formula was obtained
-#   source_links — URLs to source material
-#   verified    — true if tested on Ioniq 2017, false if from another vehicle/untested
-#   notes       — free-form notes
-#   enabled     — include in generated profiles (default true if omitted)
 
 car_model: "Hyundai: Ioniq2017"
 init: "ATSP6;ATS0;ATAL;ATST96;"
-

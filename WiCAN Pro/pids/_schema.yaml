@@ -17,9 +17,8 @@
 #         parameters:
 #           PARAM_NAME:
 #             expression: str     # required — WiCAN formula
-#             unit: str           # required — display unit
+#             unit: str           # optional — display unit
 #             ha_class: str       # optional — HA device_class
-#             mqtt_topic: str     # optional — MQTT suffix
 #             min: str            # optional — expected min value
 #             max: str            # optional — expected max value
 #             source: str         # optional — origin description
@@ -35,11 +34,10 @@
 
 required_param_fields:
   - expression
-  - unit
 
 optional_param_fields:
+  - unit
   - ha_class
-  - mqtt_topic
   - min
   - max
   - source
