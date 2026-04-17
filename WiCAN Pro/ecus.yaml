@@ -9,8 +9,8 @@
 #     Identity: 1A xx (ReadEcuIdentification, range 80-9F)
 #     Live data: 21 xx (manufacturer-specific, paged: 2101, 2102, etc.)
 #     These ECUs do NOT respond to UDS 22 F1xx or 22 Exxx DIDs.
-#   Some ECUs (0x783, 0x7D2) respond to session control (1001) but have no
-#   identity DIDs at all — they may be sub-modules or CAN bus repeaters.
+#   Some ECUs (0x783 AMP, 0x7D2 SRS) respond to session control (1001) but have no
+#   identity DIDs — security-locked or audio-only modules.
 #
 # Discovery scan 2026-04-17: full sweep 0x700-0x7EF found 30 alive addresses.
 # 16 previously known + 14 newly discovered + 0x7C0 (unknown) + 0x7DF (OBD-II broadcast).
@@ -118,9 +118,10 @@ ecus:
     id_protocol: UDS  # F1xx (limited — 3 DIDs)
     notes: "Firmware ID 'AE_EV EUR.SOP' matches Ioniq head unit firmware/map updates. Previously misidentified as TCU."
   0x783:
-    name: Unknown-783
-    description: Unknown ECU (responds to 1001 but no identity DIDs)
-    notes: "NRC 0x11 (serviceNotSupported) on all UDS F1xx and all KWP2000 1Axx. Alive but unidentifiable."
+    name: AMP
+    description: Audio Amplifier (Krell premium audio)
+    id_protocol: none  # NRC 0x11 on all UDS F1xx and KWP2000 1Axx
+    notes: "Identified via Kia e-Niro CAN spreadsheet (exact address match 783/78B). No diagnostic identity data — audio-only module."
   0x796:
     name: RCAM
     description: Rear View Camera (parking)
@@ -155,10 +156,10 @@ ecus:
     serial: "31114851713802876"
     id_protocol: UDS  # F1xx (many FF-padded fields, same format as BSD-L 0x755)
   0x7C0:
-    name: Unknown-7C0
-    description: Unknown (responds to 1001 session control)
+    name: TCU
+    description: Telematics Control Unit (BlueLink) — tentative
     id_protocol: unknown
-    notes: "Discovered 2026-04-17. Previously listed as AVN but no identity DIDs responded. May be head unit sub-module (actual AVN is 0x780)."
+    notes: "Discovered 2026-04-17. Previously listed as AVN but actual AVN is 0x780. No identity DIDs responded. Best guess: BlueLink telematics module (low-medium confidence)."
   0x7C4:
     name: MFC
     description: Multi-Function Camera (ADAS)
@@ -187,9 +188,10 @@ ecus:
     app_sw: "G7"
     id_protocol: UDS  # F1xx (limited — no part number DID)
   0x7D2:
-    name: Unknown-7D2
-    description: Unknown ECU (responds to 1001 but no identity DIDs)
-    notes: "NRC 0x11 on all KWP2000 1Axx. No UDS F1xx response. Alive but unidentifiable."
+    name: SRS
+    description: Airbag / Supplemental Restraint System
+    id_protocol: none  # NRC 0x11 on all UDS F1xx and KWP2000 1Axx
+    notes: "Identified via Kia e-Niro CAN spreadsheet (exact address match 7D2/7DA). Security-locked — no diagnostic identity exposed."
   0x7D4:
     name: EPS
     alias: MDPS  # Motor-Driven Power Steering
@@ -200,10 +202,11 @@ ecus:
     id_protocol: UDS  # F1xx
     notes: Steering column
   0x7D5:
-    name: Unknown-7D5
-    description: Unknown ECU
+    name: AHB
+    description: Active Hydraulic Booster (electronic brake booster) — tentative
     app_sw: "G7"
     id_protocol: UDS  # F1xx (only 2 DIDs: F18C serial, F101 app SW)
+    notes: "Shares 'G7' app SW with ESC (0x7D1). Adjacent to ESC/EPS in address space. Medium confidence — try 2101 for brake pressure/pedal data to confirm."
   0x7E2:
     name: VCU
     description: Vehicle Control Unit
