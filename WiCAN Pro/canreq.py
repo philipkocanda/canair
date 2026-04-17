@@ -16,6 +16,7 @@ Modes:
     Raw request     python3 canreq.py --raw 7E4:2101
     Scan PIDs       python3 canreq.py --scan --tx 7E4 --service 21 --range 01-FF
     Scan IOControl  python3 canreq.py --scan --tx 7E4 --service 2F --range E000-E0FF --append 03 --session
+    Discover ECUs   python3 canreq.py --discover [--range 700-7EF] [--delay 0.2]
     Multi-ECU       python3 canreq.py --multi "skm-wake acc" "query IGPM BC03 BC06"
     Monitor         python3 canreq.py --multi "query BMS 2101" --monitor [INTERVAL]
     SKM wakeup      python3 canreq.py --skm-wakeup [--level acc|ign1|ign2]
@@ -51,6 +52,7 @@ from canlib import (
 )
 from canlib.lock import WiCANLock
 from canlib.modes import (
+    mode_discover,
     mode_ecu,
     mode_identity,
     mode_interactive,
@@ -135,7 +137,7 @@ async def async_main(args):
 
     init_logging()
     log_command(
-        f"--- SESSION START (host={host}, mode={'interactive' if not any([args.param, args.ecu, args.raw, args.scan, args.skm_wakeup, args.tester_present]) else 'batch'}, unsafe={args.unsafe}, session={getattr(args, 'session', False)}) ---"
+        f"--- SESSION START (host={host}, mode={'interactive' if not any([args.param, args.ecu, args.raw, args.scan, args.discover, args.skm_wakeup, args.tester_present]) else 'batch'}, unsafe={args.unsafe}, session={getattr(args, 'session', False)}) ---"
     )
 
     if args.unsafe:
@@ -270,6 +272,15 @@ async def async_main(args):
                 session=args.session,
                 wake=args.wake,
             )
+        elif args.discover:
+            addr_range = parse_range(args.range) if args.range != "01-FF" else (0x700, 0x7EF)
+            await mode_discover(
+                terminal,
+                addr_range,
+                args.verbose,
+                args.json,
+                delay=args.delay,
+            )
         else:
             await mode_interactive(terminal, pids_data, args.verbose)
 
@@ -311,6 +322,10 @@ Examples:
                                             IOControl scan (extended session + suffix)
   %(prog)s --scan --tx 7E4 --service 22 --range BC01-BC0B
                                             Scan 0x22 DID range (auto 2-byte DIDs)
+
+  %(prog)s --discover                       Discover ECUs in 0x700-0x7EF (default)
+  %(prog)s --discover --range 600-6FF       Discover ECUs in custom range
+  %(prog)s --discover --delay 0.5           Slower pacing (0.5s between probes)
 
   %(prog)s --raw 770:22BC03 --session       Raw request with extended session
   %(prog)s --ecu IGPM --session             Query ECU that needs extended session
@@ -381,6 +396,14 @@ Examples:
         action="store_true",
         help="Query standard UDS identity DIDs (F100, F18x, F190, F19x) from --tx ECU "
         "and print decoded part number, serial, manufacture date, VIN, etc.",
+    )
+    mode.add_argument(
+        "--discover",
+        action="store_true",
+        help="Sweep a range of TX addresses to find responding ECUs. "
+        "Sends 10 01 (default session) to each address. "
+        "Use --range to specify address range (default: 700-7EF). "
+        "Use --delay to control pacing (default: 0.2s).",
     )
     mode.add_argument(
         "--multi",
@@ -489,6 +512,12 @@ Examples:
         type=float,
         default=1.0,
         help="Interval in seconds for --tester-present (default: 1.0)",
+    )
+    parser.add_argument(
+        "--delay",
+        type=float,
+        default=0.2,
+        help="Delay between requests for --discover mode in seconds (default: 0.2)",
     )
 
     # Connection options

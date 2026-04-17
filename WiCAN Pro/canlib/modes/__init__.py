@@ -1,5 +1,6 @@
 """Mode implementations for canreq.py."""
 
+from .discover import mode_discover
 from .ecu import mode_ecu
 from .identity import IDENTITY_DIDS, mode_identity
 from .interactive import mode_interactive
@@ -15,6 +16,7 @@ __all__ = [
     "IDENTITY_DIDS",
     "SKM_MAGIC",
     "SKM_RELAYS",
+    "mode_discover",
     "mode_ecu",
     "mode_identity",
     "mode_interactive",
