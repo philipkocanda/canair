@@ -93,6 +93,7 @@ def _render_results(
     interval: float,
     prev_hex: dict[tuple[str, str], str] | None = None,
     hex_history: dict[tuple[str, str], list[tuple[str, str]]] | None = None,
+    disconnect_msg: str | None = None,
 ) -> Text:
     """Render all ECU query results as a Rich Text object for Live display."""
     text = Text()
@@ -101,6 +102,13 @@ def _render_results(
         f"  Monitor — cycle {cycle}  (last: {elapsed:.1f}s, interval: {interval:.1f}s)\n",
         style="dim",
     )
+
+    if disconnect_msg:
+        text.append("\n")
+        text.append(f"  ✖ WebSocket disconnected: {disconnect_msg}\n", style="bold red")
+        text.append("  Exiting...\n", style="red")
+        text.append("\n")
+        return text
 
     if prev_hex is None:
         prev_hex = {}
@@ -303,6 +311,22 @@ async def mode_monitor(
                     if remaining > 0:
                         await asyncio.sleep(remaining)
 
+            except ConnectionError as e:
+                live.update(
+                    _render_results(
+                        last_queries,
+                        verbose,
+                        cycle,
+                        0.0,
+                        interval,
+                        prev_hex,
+                        hex_history,
+                        disconnect_msg=str(e),
+                    )
+                )
+                # Brief pause so the user can see the error before Live exits
+                await asyncio.sleep(1.5)
+                raise
             except KeyboardInterrupt:
                 print("\n  Monitoring stopped.")
     finally:
