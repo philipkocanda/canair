@@ -10,15 +10,15 @@ must be rebooted after a terminal session for AutoPID (MQTT data feed to
 Home Assistant) to resume. Use --reboot to reboot automatically on exit.
 
 Modes:
-    Interactive     python3 can-request.py
-    Query params    python3 can-request.py --param SOC_BMS SOC_DISP
-    Query ECU       python3 can-request.py --ecu BMS [--pid 2101]
-    Raw request     python3 can-request.py --raw 7E4:2101
-    Scan PIDs       python3 can-request.py --scan --tx 7E4 --service 21 --range 01-FF
-    Scan IOControl  python3 can-request.py --scan --tx 7E4 --service 2F --range E000-E0FF --append 03 --session
-    Multi-ECU       python3 can-request.py --multi "skm-wake acc" "query IGPM BC03 BC06"
-    SKM wakeup      python3 can-request.py --skm-wakeup [--level acc|ign1|ign2]
-    TesterPresent   python3 can-request.py --tester-present [--target 7A5]
+    Interactive     python3 canreq.py
+    Query params    python3 canreq.py --param SOC_BMS SOC_DISP
+    Query ECU       python3 canreq.py --ecu BMS [--pid 2101]
+    Raw request     python3 canreq.py --raw 7E4:2101
+    Scan PIDs       python3 canreq.py --scan --tx 7E4 --service 21 --range 01-FF
+    Scan IOControl  python3 canreq.py --scan --tx 7E4 --service 2F --range E000-E0FF --append 03 --session
+    Multi-ECU       python3 canreq.py --multi "skm-wake acc" "query IGPM BC03 BC06"
+    SKM wakeup      python3 canreq.py --skm-wakeup [--level acc|ign1|ign2]
+    TesterPresent   python3 canreq.py --tester-present [--target 7A5]
 
     Add --session to any mode (except interactive) to enter extended diagnostic
     session (10 03) before sending requests. Required for ECUs like IGPM (0x770).
@@ -132,7 +132,7 @@ async def async_main(args):
         # Dispatch to mode
         if args.multi:
             await mode_multi(
-                terminal, args.multi, pids_data, args.verbose, no_repl=args.no_repl
+                terminal, args.multi, pids_data, args.verbose, no_repl=not args.repl
             )
         elif args.skm_wakeup:
             await mode_skm_wakeup(terminal, args.level, args.verbose)
@@ -235,6 +235,7 @@ async def async_main(args):
 
 def main():
     parser = argparse.ArgumentParser(
+        prog="canreq",
         description="Send custom CAN/UDS requests via WiCAN WebSocket terminal",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
@@ -270,11 +271,11 @@ Examples:
 
   Multi-ECU pipeline (sessions managed automatically):
   %(prog)s --multi "skm-wake acc" "query IGPM BC03 BC06"
-                                            Wake SKM, query IGPM, drop into REPL
+                                            Wake SKM, query IGPM, exit
   %(prog)s --multi "skm-wake acc" "session BCM --wake" "raw 7A0:22B00E"
-                                            Wake SKM+BCM, raw query, REPL
-  %(prog)s --multi "session IGPM --wake" "query IGPM" --no-repl
-                                            Wake IGPM, query all PIDs, exit
+                                            Wake SKM+BCM, raw query, exit
+  %(prog)s --multi "session IGPM --wake" "query IGPM" --repl
+                                            Wake IGPM, query all PIDs, REPL
   %(prog)s --multi "skm-wake acc" "sleep 1" "query BCM B00E" "repl"
                                             Pipeline with explicit sleep and REPL
 """,
@@ -379,9 +380,9 @@ Examples:
         "Implies --session.",
     )
     parser.add_argument(
-        "--no-repl",
+        "--repl",
         action="store_true",
-        help="For --multi: don't drop into REPL after pipeline completes",
+        help="For --multi: drop into REPL after pipeline completes",
     )
 
     # SKM wakeup options

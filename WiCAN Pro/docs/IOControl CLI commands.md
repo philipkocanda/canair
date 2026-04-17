@@ -9,38 +9,38 @@ Note: Append --wake flag if car is fully asleep (e.g. after 30 min idle) — thi
 
 ```sh
 # Lights
-python3 can-request.py --raw 770:2FBC0103 --hold   # Low beam ON
-python3 can-request.py --raw 770:2FBC0203 --hold   # High beam ON
-python3 can-request.py --raw 770:2FBC1803 --hold   # DRL ON
-python3 can-request.py --raw 770:2FBC0403 --hold   # Tail/rear light ON
-python3 can-request.py --raw 770:2FBC0803 --hold   # Rear fog light ON
-python3 can-request.py --raw 770:2FBC1803 --hold --timeout 10 --wake # DRL ON for 10 sec, with wakeup if asleep
+python3 canreq.py --raw 770:2FBC0103 --hold   # Low beam ON
+python3 canreq.py --raw 770:2FBC0203 --hold   # High beam ON
+python3 canreq.py --raw 770:2FBC1803 --hold   # DRL ON
+python3 canreq.py --raw 770:2FBC0403 --hold   # Tail/rear light ON
+python3 canreq.py --raw 770:2FBC0803 --hold   # Rear fog light ON
+python3 canreq.py --raw 770:2FBC1803 --hold --timeout 10 --wake # DRL ON for 10 sec, with wakeup if asleep
 
 # Turn signals
-python3 can-request.py --raw 770:2FBC1503 --hold --timeout 10  # Left indicator
-python3 can-request.py --raw 770:2FBC1603 --hold --timeout 10  # Right indicator
+python3 canreq.py --raw 770:2FBC1503 --hold --timeout 10  # Left indicator
+python3 canreq.py --raw 770:2FBC1603 --hold --timeout 10  # Right indicator
 
 # Locks (have keyfob ready — may trigger alarm!)
-python3 can-request.py --raw 770:2FBC1003 --hold   # Door LOCK all
-python3 can-request.py --raw 770:2FBC1103 --hold   # Door UNLOCK all
-python3 can-request.py --raw 770:2FBC0903 --hold   # Trunk unlock
+python3 canreq.py --raw 770:2FBC1003 --hold   # Door LOCK all
+python3 canreq.py --raw 770:2FBC1103 --hold   # Door UNLOCK all
+python3 canreq.py --raw 770:2FBC0903 --hold   # Trunk unlock
 
 # Charge cable (IGPM)
-python3 can-request.py --raw 770:2FBC3F03 --hold   # Charge cable LOCK
-python3 can-request.py --raw 770:2FBC4103 --hold   # Charge cable UNLOCK
+python3 canreq.py --raw 770:2FBC3F03 --hold   # Charge cable LOCK
+python3 canreq.py --raw 770:2FBC4103 --hold   # Charge cable UNLOCK
 
 # Mirrors (BCM)
-python3 can-request.py --raw 7A0:2FB05B03 --hold   # Mirrors FOLD
-python3 can-request.py --raw 7A0:2FB05C03 --hold   # Mirrors UNFOLD
+python3 canreq.py --raw 7A0:2FB05B03 --hold   # Mirrors FOLD
+python3 canreq.py --raw 7A0:2FB05C03 --hold   # Mirrors UNFOLD
 
 # SKM relay control (only works when car is charging or ACC on)
-python3 can-request.py --raw 7A5:2FB108030A0A05 --session  # ACC ON
-python3 can-request.py --raw 7A5:2FB10800 --session        # ACC OFF
-python3 can-request.py --raw 7A5:2FB109030A0A05 --session  # IGN1 ON
-python3 can-request.py --raw 7A5:2FB10900 --session        # IGN1 OFF
+python3 canreq.py --raw 7A5:2FB108030A0A05 --session  # ACC ON
+python3 canreq.py --raw 7A5:2FB10800 --session        # ACC OFF
+python3 canreq.py --raw 7A5:2FB109030A0A05 --session  # IGN1 ON
+python3 canreq.py --raw 7A5:2FB10900 --session        # IGN1 OFF
 
 # VESS — vehicle exterior sound (pedestrian warning)
-python3 can-request.py --raw 736:2FF011030001 --hold  # Play VESS sound 5 sec
+python3 canreq.py --raw 736:2FF011030001 --hold  # Play VESS sound 5 sec
 
 # Replace 03 with 00 to turn OFF (e.g. 2FBC0100 = low beam OFF)
 ```
@@ -225,10 +225,10 @@ Not yet researched. The HVAC ECU (0x7B3) responds to read requests (`22 01 00`) 
 
 ```sh
 # HVAC actuators — E0xx range (Hyundai/Kia powertrain/HVAC convention)
-python3 can-request.py --scan --tx 7B3 --service 2F --range E000-E0FF --append 03 --session
+python3 canreq.py --scan --tx 7B3 --service 2F --range E000-E0FF --append 03 --session
 
 # Body/comfort range — blower fan control might be here
-python3 can-request.py --scan --tx 7B3 --service 2F --range B000-B0FF --append 03 --session
+python3 canreq.py --scan --tx 7B3 --service 2F --range B000-B0FF --append 03 --session
 ```
 
 These scans are safe — worst case is a blast of air or fan spin-up. No alarm, no locks.

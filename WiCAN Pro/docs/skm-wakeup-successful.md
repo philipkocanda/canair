@@ -7,7 +7,7 @@ This is from Kia Soul, so the magic bytes (0a 0a 05) might differ. Let me also n
 
 Let me try the SKM wakeup carefully. First, let me see if the SKM itself responds:
 
-$ cd ~/projects/ioniq-can-reverse-engineering/WiCAN\ Pro && python3 can-request.py --raw 7A5:1001 --wican home 2>&1
+$ cd ~/projects/ioniq-can-reverse-engineering/WiCAN\ Pro && python3 canreq.py --raw 7A5:1001 --wican home 2>&1
 
 Connecting to WiCAN at 10.0.2.86...
 Connected. Initializing ELM327...

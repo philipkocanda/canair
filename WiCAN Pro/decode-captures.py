@@ -34,6 +34,7 @@ ECUS_FILE = os.path.join(SCRIPT_DIR, "ecus.yaml")
 # ─── WiCAN Expression Evaluator ──────────────────────────────────────────────
 # Faithful Python port of wican-fw/main/expression_parser.c evaluate_expression()
 
+
 def evaluate_expression(expression: str, data: bytes, V: float = 0.0) -> float:
     """Evaluate a WiCAN expression against a byte array.
 
@@ -54,43 +55,47 @@ def evaluate_expression(expression: str, data: bytes, V: float = 0.0) -> float:
     operator_stack: list[str] = []
 
     def precedence(op: str) -> int:
-        if op in ('|', '^'):
+        if op in ("|", "^"):
             return 1
-        if op == '&':
+        if op == "&":
             return 2
-        if op in ('<<', '>>'):
+        if op in ("<<", ">>"):
             return 3
-        if op in ('+', '-'):
+        if op in ("+", "-"):
             return 4
-        if op in ('*', '/'):
+        if op in ("*", "/"):
             return 5
         return 0
 
     def apply_op(op: str, a: float, b: float) -> float:
-        if op == '+':
+        if op == "+":
             return a + b
-        if op == '-':
+        if op == "-":
             return a - b
-        if op == '*':
+        if op == "*":
             return a * b
-        if op == '/':
+        if op == "/":
             if b == 0:
                 raise ZeroDivisionError(f"Division by zero in expression: {expression}")
             return a / b
-        if op == '&':
+        if op == "&":
             return float(int(a) & int(b))
-        if op == '|':
+        if op == "|":
             return float(int(a) | int(b))
-        if op == '^':
+        if op == "^":
             return float(int(a) ^ int(b))
-        if op == '<<':
+        if op == "<<":
             return float(int(a) << int(b))
-        if op == '>>':
+        if op == ">>":
             return float(int(a) >> int(b))
         raise ValueError(f"Unknown operator: {op}")
 
     def process_pending(min_prec: int):
-        while operator_stack and operator_stack[-1] != '(' and precedence(operator_stack[-1]) >= min_prec:
+        while (
+            operator_stack
+            and operator_stack[-1] != "("
+            and precedence(operator_stack[-1]) >= min_prec
+        ):
             op = operator_stack.pop()
             b = operand_stack.pop()
             a = operand_stack.pop()
@@ -103,40 +108,40 @@ def evaluate_expression(expression: str, data: bytes, V: float = 0.0) -> float:
         ch = expr[i]
 
         # Whitespace
-        if ch == ' ':
+        if ch == " ":
             i += 1
             continue
 
         # Numeric literal
-        if ch.isdigit() or (ch == '.' and i + 1 < len(expr) and expr[i + 1].isdigit()):
+        if ch.isdigit() or (ch == "." and i + 1 < len(expr) and expr[i + 1].isdigit()):
             j = i
-            while j < len(expr) and (expr[j].isdigit() or expr[j] == '.'):
+            while j < len(expr) and (expr[j].isdigit() or expr[j] == "."):
                 j += 1
             operand_stack.append(float(expr[i:j]))
             i = j
             continue
 
         # V (external value)
-        if ch == 'V' and (i + 1 >= len(expr) or not expr[i + 1].isalnum()):
+        if ch == "V" and (i + 1 >= len(expr) or not expr[i + 1].isalnum()):
             operand_stack.append(V)
             i += 1
             continue
 
         # Multi-byte range: [Bn:Bm] or [Sn:Sm]
-        if ch == '[':
-            m_unsigned = re.match(r'\[B(\d+):B(\d+)\]', expr[i:])
+        if ch == "[":
+            m_unsigned = re.match(r"\[B(\d+):B(\d+)\]", expr[i:])
             if m_unsigned:
                 start_idx = int(m_unsigned.group(1))
                 end_idx = int(m_unsigned.group(2))
                 value = 0
                 for j in range(start_idx, end_idx + 1):
                     shift = (end_idx - j) * 8
-                    value |= (data[j] << shift)
+                    value |= data[j] << shift
                 operand_stack.append(float(value))
                 i += m_unsigned.end()
                 continue
 
-            m_signed = re.match(r'\[S(\d+):S(\d+)\]', expr[i:])
+            m_signed = re.match(r"\[S(\d+):S(\d+)\]", expr[i:])
             if m_signed:
                 start_idx = int(m_signed.group(1))
                 end_idx = int(m_signed.group(2))
@@ -144,7 +149,7 @@ def evaluate_expression(expression: str, data: bytes, V: float = 0.0) -> float:
                 raw = 0
                 for j in range(start_idx, end_idx + 1):
                     shift = (end_idx - j) * 8
-                    raw |= (data[j] << shift)
+                    raw |= data[j] << shift
                 # Sign-extend based on byte count (matching firmware logic)
                 if span == 0:
                     value = raw if raw < 128 else raw - 256
@@ -161,13 +166,13 @@ def evaluate_expression(expression: str, data: bytes, V: float = 0.0) -> float:
             raise ValueError(f"Invalid array syntax at position {i}: {expr[i:]}")
 
         # Unsigned byte: Bn or Bn:bit
-        if ch == 'B':
+        if ch == "B":
             i += 1
             idx = 0
             while i < len(expr) and expr[i].isdigit():
                 idx = idx * 10 + int(expr[i])
                 i += 1
-            if i < len(expr) and expr[i] == ':':
+            if i < len(expr) and expr[i] == ":":
                 i += 1
                 bit = int(expr[i])
                 i += 1
@@ -177,7 +182,7 @@ def evaluate_expression(expression: str, data: bytes, V: float = 0.0) -> float:
             continue
 
         # Signed byte: Sn
-        if ch == 'S':
+        if ch == "S":
             i += 1
             idx = 0
             while i < len(expr) and expr[i].isdigit():
@@ -188,42 +193,44 @@ def evaluate_expression(expression: str, data: bytes, V: float = 0.0) -> float:
             continue
 
         # Parentheses
-        if ch == '(':
-            operator_stack.append('(')
+        if ch == "(":
+            operator_stack.append("(")
             i += 1
             continue
 
-        if ch == ')':
-            while operator_stack and operator_stack[-1] != '(':
+        if ch == ")":
+            while operator_stack and operator_stack[-1] != "(":
                 op = operator_stack.pop()
                 b = operand_stack.pop()
                 a = operand_stack.pop()
                 operand_stack.append(apply_op(op, a, b))
-            if operator_stack and operator_stack[-1] == '(':
+            if operator_stack and operator_stack[-1] == "(":
                 operator_stack.pop()
             i += 1
             continue
 
         # Operators
-        if ch in ('+', '-', '*', '/', '&', '|', '^'):
+        if ch in ("+", "-", "*", "/", "&", "|", "^"):
             process_pending(precedence(ch))
             operator_stack.append(ch)
             i += 1
             continue
 
-        if ch == '<' and i + 1 < len(expr) and expr[i + 1] == '<':
-            process_pending(precedence('<<'))
-            operator_stack.append('<<')
+        if ch == "<" and i + 1 < len(expr) and expr[i + 1] == "<":
+            process_pending(precedence("<<"))
+            operator_stack.append("<<")
             i += 2
             continue
 
-        if ch == '>' and i + 1 < len(expr) and expr[i + 1] == '>':
-            process_pending(precedence('>>'))
-            operator_stack.append('>>')
+        if ch == ">" and i + 1 < len(expr) and expr[i + 1] == ">":
+            process_pending(precedence(">>"))
+            operator_stack.append(">>")
             i += 2
             continue
 
-        raise ValueError(f"Invalid character '{ch}' at position {i} in expression: {expression}")
+        raise ValueError(
+            f"Invalid character '{ch}' at position {i} in expression: {expression}"
+        )
 
     # Final reduction
     while operator_stack:
@@ -239,6 +246,7 @@ def evaluate_expression(expression: str, data: bytes, V: float = 0.0) -> float:
 
 
 # ─── Data Loading ─────────────────────────────────────────────────────────────
+
 
 def load_pids(path: str = PIDS_FILE) -> dict:
     with open(path) as f:
@@ -272,8 +280,9 @@ def load_ecus_lookup() -> dict:
         if isinstance(tx_id, str) and tx_id.startswith("0x"):
             tx_id = int(tx_id, 16)
         result[info["name"].upper()] = int(tx_id)
-    # Add aliases
+    # Add aliases (TPMS merged into BCM, but old captures may use either name)
     result["BCM/TPMS"] = result.get("BCM", result.get("BCM/TPMS", 0))
+    result.setdefault("TPMS", result.get("BCM", 0))
     return result
 
 
@@ -294,7 +303,9 @@ def find_pid_definition(pids_data: dict, ecu_tx: int, pid: str) -> tuple:
         if isinstance(ecu_tx_id, int):
             ecu_tx_val = ecu_tx_id
         elif isinstance(ecu_tx_id, str):
-            ecu_tx_val = int(ecu_tx_id, 16) if ecu_tx_id.startswith("0x") else int(ecu_tx_id)
+            ecu_tx_val = (
+                int(ecu_tx_id, 16) if ecu_tx_id.startswith("0x") else int(ecu_tx_id)
+            )
         else:
             continue
 
@@ -314,6 +325,7 @@ def find_pid_definition(pids_data: dict, ecu_tx: int, pid: str) -> tuple:
 
 
 # ─── Decode + Display ─────────────────────────────────────────────────────────
+
 
 def decode_capture(payload_bytes: bytes, parameters: dict) -> list:
     """Evaluate all parameter expressions against a payload.
@@ -352,7 +364,10 @@ def print_decoded(capture: dict, ecu_label: str, parameters: dict, results: list
     tx_str = f"0x{tx:03X}" if isinstance(tx, int) else ""
 
     print(f"\n{'─' * 72}")
-    print(f"  {ecu_name} ({ecu_label}) — PID {pid}" + (f" — TX {tx_str}" if tx_str else ""))
+    print(
+        f"  {ecu_name} ({ecu_label}) — PID {pid}"
+        + (f" — TX {tx_str}" if tx_str else "")
+    )
     if capture.get("notes"):
         print(f"  Note: {capture['notes']}")
     print(f"{'─' * 72}")
@@ -379,7 +394,10 @@ def print_hexdump(capture: dict, ecu_label: str, parameters: dict):
     tx_str = f"0x{tx:03X}" if isinstance(tx, int) else ""
 
     print(f"\n{'═' * 72}")
-    print(f"  {ecu_name} ({ecu_label}) — PID {pid}" + (f" — TX {tx_str}" if tx_str else ""))
+    print(
+        f"  {ecu_name} ({ecu_label}) — PID {pid}"
+        + (f" — TX {tx_str}" if tx_str else "")
+    )
     print(f"{'═' * 72}")
 
     # Print hex dump with byte indices
@@ -396,10 +414,10 @@ def print_hexdump(capture: dict, ecu_label: str, parameters: dict):
     for pname, pdef in parameters.items():
         expr = pdef.get("expression", "")
         # Extract byte references from expression
-        for m in re.finditer(r'[BS](\d+)', expr):
+        for m in re.finditer(r"[BS](\d+)", expr):
             idx = int(m.group(1))
             byte_map.setdefault(idx, []).append(pname)
-        for m in re.finditer(r'\[[BS](\d+):[BS](\d+)\]', expr):
+        for m in re.finditer(r"\[[BS](\d+):[BS](\d+)\]", expr):
             for idx in range(int(m.group(1)), int(m.group(2)) + 1):
                 byte_map.setdefault(idx, []).append(pname)
 
@@ -408,22 +426,37 @@ def print_hexdump(capture: dict, ecu_label: str, parameters: dict):
         for idx in sorted(byte_map.keys()):
             if idx < len(payload):
                 names = ", ".join(sorted(set(byte_map[idx])))
-                print(f"    B{idx:02d} = 0x{payload[idx]:02X} ({payload[idx]:3d})  ← {names}")
+                print(
+                    f"    B{idx:02d} = 0x{payload[idx]:02X} ({payload[idx]:3d})  ← {names}"
+                )
 
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
+
 def main():
-    parser = argparse.ArgumentParser(description="Decode captured UDS response payloads")
+    parser = argparse.ArgumentParser(
+        description="Decode captured UDS response payloads"
+    )
     parser.add_argument("--session", help="Filter by session date (e.g. 2025-08-04)")
     parser.add_argument("--ecu", help="Filter by ECU name (e.g. BMS, VCU)")
     parser.add_argument("--pid", help="Filter by PID (e.g. 2101)")
     parser.add_argument("--param", help="Filter by parameter name (e.g. SOC_BMS)")
-    parser.add_argument("--hexdump", action="store_true", help="Show annotated hex dump per capture")
-    parser.add_argument("--raw", help="Decode a raw hex payload directly (use with --expr or --pid)")
+    parser.add_argument(
+        "--hexdump", action="store_true", help="Show annotated hex dump per capture"
+    )
+    parser.add_argument(
+        "--raw", help="Decode a raw hex payload directly (use with --expr or --pid)"
+    )
     parser.add_argument("--expr", help="Evaluate a single expression (use with --raw)")
-    parser.add_argument("--pids-file", default=PIDS_FILE, help="Path to PID definitions YAML")
-    parser.add_argument("--captures-file", default=None, help="Path to captures YAML file or directory (default: captures/)")
+    parser.add_argument(
+        "--pids-file", default=PIDS_FILE, help="Path to PID definitions YAML"
+    )
+    parser.add_argument(
+        "--captures-file",
+        default=None,
+        help="Path to captures YAML file or directory (default: captures/)",
+    )
 
     args = parser.parse_args()
 
@@ -445,8 +478,12 @@ def main():
                 if str(pid_key).upper() == args.pid.upper():
                     params = pid_def.get("parameters", {})
                     results = decode_capture(data, params)
-                    capture = {"ecu_name": ecu_label, "pid": args.pid,
-                               "ecu_tx": ecu_def.get("tx_id", "?"), "notes": ""}
+                    capture = {
+                        "ecu_name": ecu_label,
+                        "pid": args.pid,
+                        "ecu_tx": ecu_def.get("tx_id", "?"),
+                        "notes": "",
+                    }
                     print_decoded(capture, ecu_label, params, results)
         return
 
@@ -497,8 +534,11 @@ def main():
 
             # Filter by parameter name
             if args.param:
-                filtered = {k: v for k, v in parameters.items()
-                            if args.param.upper() in k.upper()}
+                filtered = {
+                    k: v
+                    for k, v in parameters.items()
+                    if args.param.upper() in k.upper()
+                }
                 if not filtered:
                     continue
                 parameters = filtered
@@ -530,8 +570,10 @@ def main():
                     total_decoded += 1
 
     print(f"\n{'─' * 72}")
-    print(f"  Decoded: {total_decoded} values, {total_errors} errors, "
-          f"{total_no_def} captures without PID definitions")
+    print(
+        f"  Decoded: {total_decoded} values, {total_errors} errors, "
+        f"{total_no_def} captures without PID definitions"
+    )
     print(f"{'─' * 72}")
 
 

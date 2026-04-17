@@ -1,4 +1,4 @@
-"""Mode implementations for can-request.py."""
+"""Mode implementations for canreq.py."""
 
 from .interactive import mode_interactive
 from .param import mode_param

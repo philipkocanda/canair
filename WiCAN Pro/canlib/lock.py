@@ -1,6 +1,6 @@
 """WiCAN connection mutex using flock(2).
 
-Uses an exclusive advisory lock on a lock file so only one can-request.py
+Uses an exclusive advisory lock on a lock file so only one canreq.py
 process holds a WebSocket connection to the WiCAN at a time.
 
 The lock is automatically released when the process exits (clean or crash),
@@ -63,7 +63,7 @@ class WiCANLock:
                 os.close(self._fd)
                 self._fd = None
                 print(
-                    f"ERROR: Another can-request.py is already connected to the WiCAN{holder_info}.\n"
+                    f"ERROR: Another canreq.py is already connected to the WiCAN{holder_info}.\n"
                     f"  Only one WebSocket connection is allowed at a time.\n"
                     f"  Use --force to steal the lock if the previous session was killed.",
                     file=sys.stderr,
