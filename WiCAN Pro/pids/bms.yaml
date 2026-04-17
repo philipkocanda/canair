@@ -11,7 +11,6 @@ BMS:
           expression: "B09/2"
           unit: "%"
           ha_class: battery
-          mqtt_topic: soc_bms
           min: "0"
           max: "100"
           source: "Original WiCAN config"
@@ -23,7 +22,6 @@ BMS:
           expression: "(([B18:B19]/10) * (((S15 << 8) | S17)/10)) / 1000"
           unit: kW
           ha_class: power
-          mqtt_topic: battery_power
           min: ""
           max: ""
           source: "Original WiCAN config"
@@ -35,7 +33,6 @@ BMS:
           expression: "[B18:B19]/10"
           unit: V
           ha_class: voltage
-          mqtt_topic: battery_voltage
           min: "0"
           max: ""
           source: "Original WiCAN config"
@@ -47,7 +44,6 @@ BMS:
           expression: "((S15 << 8) | S17)/10"
           unit: A
           ha_class: current
-          mqtt_topic: battery_current
           min: "-200"
           max: "200"
           source: "Original WiCAN config"
@@ -59,7 +55,6 @@ BMS:
           expression: "B30*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: max_cell_voltage
           min: "0"
           max: "10"
           source: "Original WiCAN config"
@@ -71,7 +66,6 @@ BMS:
           expression: "B33*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: min_cell_voltage
           min: "0"
           max: "10"
           source: "Original WiCAN config"
@@ -83,7 +77,6 @@ BMS:
           expression: "B37*0.1"
           unit: V
           ha_class: voltage
-          mqtt_topic: aux_battery_voltage
           min: "0"
           max: "128"
           source: "Original WiCAN config"
@@ -95,7 +88,6 @@ BMS:
           expression: "B14:5"
           unit: ""
           ha_class: plug
-          mqtt_topic: charger_connected
           min: ""
           max: ""
           source: "Original WiCAN config"
@@ -107,7 +99,6 @@ BMS:
           expression: "B14:6"
           unit: ""
           ha_class: plug
-          mqtt_topic: charging_dc
           min: ""
           max: ""
           source: "Original WiCAN config"
@@ -119,7 +110,6 @@ BMS:
           expression: "B14:7"
           unit: ""
           ha_class: battery_charging
-          mqtt_topic: charging
           min: ""
           max: ""
           source: "Original WiCAN config"
@@ -131,7 +121,6 @@ BMS:
           expression: "B35"
           unit: ""
           ha_class: ""
-          mqtt_topic: battery_fan_status
           min: ""
           max: ""
           source: "Original WiCAN config"
@@ -143,7 +132,6 @@ BMS:
           expression: "B36"
           unit: ""
           ha_class: ""
-          mqtt_topic: battery_fan_feedback
           min: ""
           max: ""
           source: "Original WiCAN config"
@@ -155,7 +143,6 @@ BMS:
           expression: "S29"
           unit: "°C"
           ha_class: temperature
-          mqtt_topic: battery_inlet_temp
           min: "-128"
           max: "128"
           source: "Original WiCAN config"
@@ -167,7 +154,6 @@ BMS:
           expression: "S20"
           unit: "°C"
           ha_class: temperature
-          mqtt_topic: battery_max_temp
           min: "-128"
           max: "128"
           source: "Original WiCAN config"
@@ -179,7 +165,6 @@ BMS:
           expression: "S21"
           unit: "°C"
           ha_class: temperature
-          mqtt_topic: battery_min_temp
           min: "-128"
           max: "128"
           source: "Original WiCAN config"
@@ -191,7 +176,6 @@ BMS:
           expression: "S22"
           unit: "°C"
           ha_class: temperature
-          mqtt_topic: module_1_temp
           min: "-128"
           max: "128"
           source: "Original WiCAN config"
@@ -203,7 +187,6 @@ BMS:
           expression: "S23"
           unit: "°C"
           ha_class: temperature
-          mqtt_topic: module_2_temp
           min: "-128"
           max: "128"
           source: "Original WiCAN config"
@@ -215,7 +198,6 @@ BMS:
           expression: "S25"
           unit: "°C"
           ha_class: temperature
-          mqtt_topic: module_3_temp
           min: "-128"
           max: "128"
           source: "Original WiCAN config"
@@ -227,7 +209,6 @@ BMS:
           expression: "S26"
           unit: "°C"
           ha_class: temperature
-          mqtt_topic: module_4_temp
           min: "-128"
           max: "128"
           source: "Original WiCAN config"
@@ -239,7 +220,6 @@ BMS:
           expression: "S27"
           unit: "°C"
           ha_class: temperature
-          mqtt_topic: module_5_temp
           min: "-128"
           max: "128"
           source: "Original WiCAN config"
@@ -251,7 +231,6 @@ BMS:
           expression: "B31"
           unit: ""
           ha_class: ""
-          mqtt_topic: max_cell_voltage_no
           min: ""
           max: ""
           source: "Original WiCAN config"
@@ -263,7 +242,6 @@ BMS:
           expression: "B34"
           unit: ""
           ha_class: ""
-          mqtt_topic: min_cell_voltage_no
           min: ""
           max: ""
           source: "Original WiCAN config"
@@ -275,7 +253,6 @@ BMS:
           expression: "((B47<<24)|(B49<<16)|(B50<<8)|B51)/10"
           unit: Wh
           ha_class: energy
-          mqtt_topic: cumulative_energy_charged
           min: "0"
           max: ""
           source: "Original WiCAN config"
@@ -287,7 +264,6 @@ BMS:
           expression: "((B52<<24)|(B53<<16)|(B54<<8)|B55)/10"
           unit: Wh
           ha_class: energy
-          mqtt_topic: cumulative_energy_discharged
           min: "0"
           max: ""
           source: "Original WiCAN config"
@@ -299,7 +275,6 @@ BMS:
           expression: "((B32<<24)|(B33<<16)|(B34<<8)|B35)/10"
           unit: Ah
           ha_class: ""
-          mqtt_topic: cumulative_current_charged
           min: "0"
           max: ""
           source: "ImHex pattern (u32 @ 0x20)"
@@ -311,7 +286,6 @@ BMS:
           expression: "((B36<<24)|(B37<<16)|(B38<<8)|B39)/10"
           unit: Ah
           ha_class: ""
-          mqtt_topic: cumulative_current_discharged
           min: "0"
           max: ""
           source: "ImHex pattern (u32 @ 0x24)"
@@ -323,7 +297,6 @@ BMS:
           expression: "[B57:B60]/3600"
           unit: "h"
           ha_class: duration
-          mqtt_topic: operating_time
           min: "0"
           max: "1000000"
           source: "CSS Electronics DBC (OperatingTime m257 : 399|32@0+, scale 1/3600) + live verification"
@@ -336,7 +309,6 @@ BMS:
           expression: "B62*0.1"
           unit: V
           ha_class: voltage
-          mqtt_topic: inverter_capacitor_voltage
           min: ""
           max: ""
           source: "Original WiCAN config"
@@ -348,7 +320,6 @@ BMS:
           expression: "B65"
           unit: ""
           ha_class: ""
-          mqtt_topic: drive_motor_speed
           min: ""
           max: ""
           source: "Original WiCAN config"
@@ -360,7 +331,6 @@ BMS:
           expression: "B69*1000"
           unit: ""
           ha_class: ""
-          mqtt_topic: isolation_resistance
           min: ""
           max: ""
           source: "Original WiCAN config"
@@ -372,7 +342,6 @@ BMS:
           expression: "B14"
           unit: ""
           ha_class: ""
-          mqtt_topic: debug_bms_state_flags
           min: ""
           max: ""
           source: "AutoPID config (on device)"
@@ -388,7 +357,6 @@ BMS:
           expression: "[B22:B23]/100"
           unit: kW
           ha_class: power
-          mqtt_topic: avail_charge_power
           min: ""
           max: ""
           source: "Original WiCAN config"
@@ -400,7 +368,6 @@ BMS:
           expression: "[B25:B26]/100"
           unit: kW
           ha_class: power
-          mqtt_topic: avail_discharge_power
           min: ""
           max: ""
           source: "Original WiCAN config"
@@ -412,7 +379,6 @@ BMS:
           expression: "B27*0.1"
           unit: V
           ha_class: voltage
-          mqtt_topic: battery_voltage_deviation
           min: ""
           max: ""
           source: "Original WiCAN config"
@@ -424,7 +390,6 @@ BMS:
           expression: "B28"
           unit: ""
           ha_class: ""
-          mqtt_topic: quick_charging_normal_status
           min: ""
           max: ""
           source: "Original WiCAN config"
@@ -436,7 +401,6 @@ BMS:
           expression: "S14"
           unit: "°C"
           ha_class: temperature
-          mqtt_topic: module_6_temp
           min: "-128"
           max: "128"
           source: "Original WiCAN config"
@@ -448,7 +412,6 @@ BMS:
           expression: "S15"
           unit: "°C"
           ha_class: temperature
-          mqtt_topic: module_7_temp
           min: "-128"
           max: "128"
           source: "Original WiCAN config"
@@ -460,7 +423,6 @@ BMS:
           expression: "S17"
           unit: "°C"
           ha_class: temperature
-          mqtt_topic: module_8_temp
           min: "-128"
           max: "128"
           source: "Original WiCAN config"
@@ -472,7 +434,6 @@ BMS:
           expression: "S18"
           unit: "°C"
           ha_class: temperature
-          mqtt_topic: module_9_temp
           min: "-128"
           max: "128"
           source: "Original WiCAN config"
@@ -484,7 +445,6 @@ BMS:
           expression: "S19"
           unit: "°C"
           ha_class: temperature
-          mqtt_topic: module_10_temp
           min: "-128"
           max: "128"
           source: "Original WiCAN config"
@@ -496,7 +456,6 @@ BMS:
           expression: "S20"
           unit: "°C"
           ha_class: temperature
-          mqtt_topic: module_11_temp
           min: "-128"
           max: "128"
           source: "Original WiCAN config"
@@ -508,7 +467,6 @@ BMS:
           expression: "S21"
           unit: "°C"
           ha_class: temperature
-          mqtt_topic: module_12_temp
           min: "-128"
           max: "128"
           source: "Original WiCAN config"
@@ -520,7 +478,6 @@ BMS:
           expression: "S30"
           unit: "°C"
           ha_class: temperature
-          mqtt_topic: battery_heater_1_temp
           min: "-128"
           max: "128"
           source: "Original WiCAN config"
@@ -532,7 +489,6 @@ BMS:
           expression: "S31"
           unit: "°C"
           ha_class: temperature
-          mqtt_topic: battery_heater_2_temp
           min: "-128"
           max: "128"
           source: "Original WiCAN config"
@@ -544,7 +500,6 @@ BMS:
           expression: "[B33:B34]/10"
           unit: "%"
           ha_class: ""
-          mqtt_topic: soh
           min: "0"
           max: "105"
           source: "Original WiCAN config"
@@ -556,7 +511,6 @@ BMS:
           expression: "B35"
           unit: ""
           ha_class: ""
-          mqtt_topic: max_deterioration_cell_no
           min: ""
           max: ""
           source: "Original WiCAN config"
@@ -568,7 +522,6 @@ BMS:
           expression: "[B36:B37]/10"
           unit: "%"
           ha_class: ""
-          mqtt_topic: min_deterioration
           min: ""
           max: ""
           source: "Original WiCAN config"
@@ -580,7 +533,6 @@ BMS:
           expression: "B38"
           unit: ""
           ha_class: ""
-          mqtt_topic: min_deterioration_cell_no
           min: ""
           max: ""
           source: "Original WiCAN config"
@@ -592,7 +544,6 @@ BMS:
           expression: "B39/2"
           unit: "%"
           ha_class: battery
-          mqtt_topic: soc_disp
           min: "0"
           max: "100"
           source: "Original WiCAN config"
@@ -604,7 +555,6 @@ BMS:
           expression: "B42"
           unit: ""
           ha_class: ""
-          mqtt_topic: unknown_4
           min: ""
           max: ""
           source: "Original WiCAN config"
@@ -624,7 +574,6 @@ BMS:
           expression: "B6*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_01_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern + raw capture verified"
@@ -635,7 +584,6 @@ BMS:
           expression: "B7*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_02_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -646,7 +594,6 @@ BMS:
           expression: "B8*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_03_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -657,7 +604,6 @@ BMS:
           expression: "B9*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_04_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -668,7 +614,6 @@ BMS:
           expression: "B10*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_05_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -679,7 +624,6 @@ BMS:
           expression: "B11*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_06_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -690,7 +634,6 @@ BMS:
           expression: "B12*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_07_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -701,7 +644,6 @@ BMS:
           expression: "B13*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_08_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -712,7 +654,6 @@ BMS:
           expression: "B14*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_09_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -723,7 +664,6 @@ BMS:
           expression: "B15*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_10_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -734,7 +674,6 @@ BMS:
           expression: "B16*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_11_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -745,7 +684,6 @@ BMS:
           expression: "B17*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_12_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -756,7 +694,6 @@ BMS:
           expression: "B18*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_13_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -767,7 +704,6 @@ BMS:
           expression: "B19*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_14_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -778,7 +714,6 @@ BMS:
           expression: "B20*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_15_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -789,7 +724,6 @@ BMS:
           expression: "B21*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_16_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -800,7 +734,6 @@ BMS:
           expression: "B22*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_17_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -811,7 +744,6 @@ BMS:
           expression: "B23*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_18_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -822,7 +754,6 @@ BMS:
           expression: "B24*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_19_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -833,7 +764,6 @@ BMS:
           expression: "B25*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_20_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -844,7 +774,6 @@ BMS:
           expression: "B26*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_21_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -855,7 +784,6 @@ BMS:
           expression: "B27*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_22_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -866,7 +794,6 @@ BMS:
           expression: "B28*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_23_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -877,7 +804,6 @@ BMS:
           expression: "B29*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_24_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -888,7 +814,6 @@ BMS:
           expression: "B30*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_25_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -899,7 +824,6 @@ BMS:
           expression: "B31*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_26_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -910,7 +834,6 @@ BMS:
           expression: "B32*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_27_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -921,7 +844,6 @@ BMS:
           expression: "B33*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_28_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -932,7 +854,6 @@ BMS:
           expression: "B34*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_29_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -943,7 +864,6 @@ BMS:
           expression: "B35*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_30_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -954,7 +874,6 @@ BMS:
           expression: "B36*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_31_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -965,7 +884,6 @@ BMS:
           expression: "B37*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_32_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -981,7 +899,6 @@ BMS:
           expression: "B6*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_33_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern + raw capture verified"
@@ -992,7 +909,6 @@ BMS:
           expression: "B7*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_34_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1003,7 +919,6 @@ BMS:
           expression: "B8*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_35_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1014,7 +929,6 @@ BMS:
           expression: "B9*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_36_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1025,7 +939,6 @@ BMS:
           expression: "B10*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_37_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1036,7 +949,6 @@ BMS:
           expression: "B11*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_38_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1047,7 +959,6 @@ BMS:
           expression: "B12*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_39_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1058,7 +969,6 @@ BMS:
           expression: "B13*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_40_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1069,7 +979,6 @@ BMS:
           expression: "B14*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_41_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1080,7 +989,6 @@ BMS:
           expression: "B15*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_42_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1091,7 +999,6 @@ BMS:
           expression: "B16*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_43_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1102,7 +1009,6 @@ BMS:
           expression: "B17*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_44_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1113,7 +1019,6 @@ BMS:
           expression: "B18*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_45_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1124,7 +1029,6 @@ BMS:
           expression: "B19*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_46_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1135,7 +1039,6 @@ BMS:
           expression: "B20*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_47_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1146,7 +1049,6 @@ BMS:
           expression: "B21*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_48_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1157,7 +1059,6 @@ BMS:
           expression: "B22*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_49_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1168,7 +1069,6 @@ BMS:
           expression: "B23*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_50_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1179,7 +1079,6 @@ BMS:
           expression: "B24*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_51_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1190,7 +1089,6 @@ BMS:
           expression: "B25*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_52_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1201,7 +1099,6 @@ BMS:
           expression: "B26*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_53_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1212,7 +1109,6 @@ BMS:
           expression: "B27*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_54_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1223,7 +1119,6 @@ BMS:
           expression: "B28*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_55_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1234,7 +1129,6 @@ BMS:
           expression: "B29*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_56_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1245,7 +1139,6 @@ BMS:
           expression: "B30*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_57_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1256,7 +1149,6 @@ BMS:
           expression: "B31*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_58_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1267,7 +1159,6 @@ BMS:
           expression: "B32*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_59_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1278,7 +1169,6 @@ BMS:
           expression: "B33*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_60_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1289,7 +1179,6 @@ BMS:
           expression: "B34*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_61_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1300,7 +1189,6 @@ BMS:
           expression: "B35*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_62_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1311,7 +1199,6 @@ BMS:
           expression: "B36*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_63_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1322,7 +1209,6 @@ BMS:
           expression: "B37*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_64_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1338,7 +1224,6 @@ BMS:
           expression: "B6*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_65_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern + raw capture verified"
@@ -1349,7 +1234,6 @@ BMS:
           expression: "B7*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_66_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1360,7 +1244,6 @@ BMS:
           expression: "B8*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_67_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1371,7 +1254,6 @@ BMS:
           expression: "B9*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_68_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1382,7 +1264,6 @@ BMS:
           expression: "B10*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_69_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1393,7 +1274,6 @@ BMS:
           expression: "B11*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_70_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1404,7 +1284,6 @@ BMS:
           expression: "B12*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_71_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1415,7 +1294,6 @@ BMS:
           expression: "B13*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_72_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1426,7 +1304,6 @@ BMS:
           expression: "B14*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_73_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1437,7 +1314,6 @@ BMS:
           expression: "B15*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_74_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1448,7 +1324,6 @@ BMS:
           expression: "B16*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_75_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1459,7 +1334,6 @@ BMS:
           expression: "B17*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_76_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1470,7 +1344,6 @@ BMS:
           expression: "B18*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_77_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1481,7 +1354,6 @@ BMS:
           expression: "B19*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_78_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1492,7 +1364,6 @@ BMS:
           expression: "B20*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_79_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1503,7 +1374,6 @@ BMS:
           expression: "B21*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_80_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1514,7 +1384,6 @@ BMS:
           expression: "B22*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_81_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1525,7 +1394,6 @@ BMS:
           expression: "B23*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_82_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1536,7 +1404,6 @@ BMS:
           expression: "B24*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_83_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1547,7 +1414,6 @@ BMS:
           expression: "B25*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_84_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1558,7 +1424,6 @@ BMS:
           expression: "B26*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_85_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1569,7 +1434,6 @@ BMS:
           expression: "B27*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_86_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1580,7 +1444,6 @@ BMS:
           expression: "B28*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_87_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1591,7 +1454,6 @@ BMS:
           expression: "B29*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_88_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1602,7 +1464,6 @@ BMS:
           expression: "B30*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_89_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1613,7 +1474,6 @@ BMS:
           expression: "B31*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_90_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1624,7 +1484,6 @@ BMS:
           expression: "B32*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_91_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1635,7 +1494,6 @@ BMS:
           expression: "B33*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_92_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1646,7 +1504,6 @@ BMS:
           expression: "B34*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_93_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1657,7 +1514,6 @@ BMS:
           expression: "B35*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_94_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1668,7 +1524,6 @@ BMS:
           expression: "B36*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_95_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
@@ -1679,7 +1534,6 @@ BMS:
           expression: "B37*0.02"
           unit: V
           ha_class: voltage
-          mqtt_topic: cell_96_voltage
           min: "0"
           max: "5"
           source: "ImHex pattern"
