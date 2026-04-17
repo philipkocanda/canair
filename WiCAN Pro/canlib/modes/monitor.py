@@ -22,6 +22,7 @@ exercise and would eliminate all the Rich Live quirks.
 
 import asyncio
 import re
+import signal
 import time
 from datetime import datetime
 from pathlib import Path
@@ -371,33 +372,49 @@ async def mode_monitor(
         last_queries: list[tuple[str, list]] = []
         prev_hex: dict[tuple[str, str], str] = {}
         hex_history: dict[tuple[str, str], list[tuple[str, str]]] = {} if keep or save else None
-        stopped_by_user = False
+        stop_requested = False
 
-        with Live(
-            _render_results([], verbose, 0, 0.0, interval),
-            console=_console,
-            refresh_per_second=4,
-            transient=False,
-        ) as live:
-            try:
-                while True:
+        def _handle_sigint(_sig, _frame):
+            nonlocal stop_requested
+            stop_requested = True
+
+        old_handler = signal.signal(signal.SIGINT, _handle_sigint)
+
+        try:
+            with Live(
+                _render_results([], verbose, 0, 0.0, interval),
+                console=_console,
+                refresh_per_second=4,
+                transient=False,
+            ) as live:
+                disconnected = False
+                while not stop_requested:
                     cycle += 1
                     t0 = time.monotonic()
 
                     new_queries = []
                     for step in query_steps:
-                        result = await _exec_query(
-                            sm,
-                            step["ecu"],
-                            step.get("pids", []),
-                            ecu_index,
-                            pids_data,
-                            verbose,
-                            return_results=True,
-                            quiet=True,
-                        )
+                        if stop_requested:
+                            break
+                        try:
+                            result = await _exec_query(
+                                sm,
+                                step["ecu"],
+                                step.get("pids", []),
+                                ecu_index,
+                                pids_data,
+                                verbose,
+                                return_results=True,
+                                quiet=True,
+                            )
+                        except ConnectionError:
+                            disconnected = True
+                            break
                         if result is not None:
                             new_queries.append(result)
+
+                    if disconnected:
+                        break
 
                     last_queries = new_queries
                     elapsed = time.monotonic() - t0
@@ -420,27 +437,26 @@ async def mode_monitor(
                     )
                     live.update(render)
 
-                    remaining = interval - elapsed
-                    if remaining > 0:
-                        await asyncio.sleep(remaining)
+                    # Sleep in small increments so we can check stop_requested
+                    remaining = interval - (time.monotonic() - t0)
+                    while remaining > 0 and not stop_requested:
+                        await asyncio.sleep(min(remaining, 0.2))
+                        remaining = interval - (time.monotonic() - t0)
 
-            except ConnectionError:
-                # Let Live exit cleanly, then print error outside
-                pass
-            except KeyboardInterrupt:
-                stopped_by_user = True
+        finally:
+            signal.signal(signal.SIGINT, old_handler)
 
-        if stopped_by_user:
+        if stop_requested:
             print("\n  Monitoring stopped.")
             if save and hex_history is not None:
                 captures_dir = PIDS_DIR.parent / "captures"
                 _prompt_and_save(hex_history, prev_hex, captures_dir)
             return
 
-        # If we got here, it was a ConnectionError — print after Live has exited
+        # If we got here, it was a ConnectionError
         _console.print("\n  [bold red]✖ WebSocket disconnected[/bold red]")
         _console.print(f"  [red]Stopped after {cycle} cycles.[/red]\n")
-        raise
+        raise ConnectionError("WebSocket disconnected")
 
     finally:
         sm.stop_background_keepalive()
