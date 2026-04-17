@@ -144,7 +144,7 @@ IGPM:
           max: "255"
           source: "Reverse engineered from cross-state comparison"
           source_links: []
-          verified: true
+          verified: false
           notes: >
             Raw power mode byte (IGPM BC03 WiCAN B09). Bitfield with multiple flags.
             Bit 5 (0x20) = ACC. Known values: 0x00 = off/charging, 0x0A = keyfob-wake
