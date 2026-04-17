@@ -375,3 +375,34 @@ class TestKeepHistory:
         pos_aa = plain.index("62 B0 03 AA")
         pos_bb = plain.index("62 B0 03 BB")
         assert pos_aa < pos_bb
+
+
+class TestRenderResultsDisconnect:
+    def test_disconnect_message_shown(self):
+        t = _render_results(
+            [],
+            verbose=False,
+            cycle=3,
+            elapsed=1.2,
+            interval=5.0,
+            disconnect_msg="WebSocket connection closed",
+        )
+        plain = t.plain
+        assert "WebSocket disconnected" in plain
+        assert "WebSocket connection closed" in plain
+        assert "Exiting" in plain
+
+    def test_disconnect_suppresses_normal_content(self):
+        """When disconnect_msg is set, normal PID rows should not be rendered."""
+        results = [("BCM (0x7A0)", [{"pid": "22C00B", "params": [], "raw_hex": "62C00B01"}])]
+        t = _render_results(
+            results,
+            verbose=False,
+            cycle=2,
+            elapsed=0.5,
+            interval=5.0,
+            disconnect_msg="connection closed",
+        )
+        plain = t.plain
+        assert "22C00B" not in plain
+        assert "disconnected" in plain
