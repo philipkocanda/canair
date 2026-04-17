@@ -400,12 +400,14 @@ class TestPromptAndSave:
         s = data["sessions"][0]
         assert s["label"] == "BCM test session"
         assert s["state"] == "deep sleep"
-        assert s["notes"] == "test notes"
+        assert s["notes"] == "test notes\n"
         assert len(s["captures"]) == 2
         assert s["captures"][0]["ecu"] == "BCM"
         assert s["captures"][0]["pid"] == "22C00B"
         assert s["captures"][0]["payload"] == "62C00BAA"
+        assert s["captures"][0]["time"] == "14:00:01"
         assert s["captures"][1]["payload"] == "62C00BBB"
+        assert s["captures"][1]["time"] == "14:00:06"
 
     def test_appends_to_existing_file(self, tmp_path):
         """Appends session to existing capture file."""

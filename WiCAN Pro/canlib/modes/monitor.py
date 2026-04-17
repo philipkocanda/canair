@@ -273,9 +273,11 @@ def _prompt_and_save(
             capture: dict = {
                 "ecu": ecu_name,
                 "pid": pid,
-                "notes": f"monitor capture at {ts}" if ts else "",
+                "notes": "",
                 "payload": hex_val.upper(),
             }
+            if ts:
+                capture["time"] = ts
             captures.append(capture)
 
     # Build session entry
@@ -284,7 +286,7 @@ def _prompt_and_save(
     if state:
         session["state"] = state
     if notes:
-        session["notes"] = notes
+        session["notes"] = notes + "\n"  # trailing newline triggers YAML folded style
     session["captures"] = captures
 
     # Write to file
@@ -304,6 +306,9 @@ def _prompt_and_save(
 
     # Flow style for simple payload strings, block for everything else
     def _str_representer(dumper, data):
+        if data.endswith("\n") and "\n" not in data[:-1]:
+            # Single-line with trailing newline → folded style (>)
+            return dumper.represent_scalar("tag:yaml.org,2002:str", data, style=">")
         if "\n" in data:
             return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
         if len(data) > 60 or ":" in data:
