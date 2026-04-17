@@ -274,3 +274,56 @@ IGPM:
           source_links: []
           verified: true
           notes: "Right turn signal stalk. Bit flag — 1=on, persistent (not blinking state). Hazard lights do NOT register here. Verified 2026-04-15."
+
+    22BC01:
+      enabled: false
+      notes: >
+        9 bytes. B03=0x40 (bit 6 set), B08=0x02 (bit 1 set), rest zeros. Static across
+        deep sleep and ACC captures. Possibly immobilizer or key-related configuration flags.
+        Sample: 62BC01400000000002.
+      parameters: {}
+
+    22BC02:
+      enabled: false
+      notes: >
+        4 data bytes, all zeros in every capture (deep sleep and ACC). May only populate
+        during driving (speed pulse, wiper state?). Sample: 62BC0200000000.
+      parameters: {}
+
+    22BC05:
+      enabled: false
+      notes: >
+        8 data bytes. B03=0x7F, B04=0x11, B05=0x20, rest zeros. Static across all power
+        states. 0x7F11 could be a version or capability register. Purpose unknown.
+        Sample: 62BC057F112000000000.
+      parameters: {}
+
+    22BC07:
+      enabled: false
+      notes: >
+        8 data bytes. B03-B06=0x0841FBCC (static — possibly anti-theft code or immobilizer
+        ID). B09 changes between captures: 0x19 (ACC/deep sleep Apr 14-16) vs 0x11 (deep
+        sleep Apr 17). May encode a slow-changing state or counter. Rest static.
+        Sample: 62BC070841FBCC00001900AAAA.
+      parameters: {}
+
+    22BC08:
+      ignored: true
+      notes: >
+        NRC 0x31 (requestOutOfRange). DID does not exist on Ioniq 2017 IGPM.
+        Tested 2026-04-14.
+      parameters: {}
+
+    22BC09:
+      ignored: true
+      notes: >
+        NRC 0x31 (requestOutOfRange). DID does not exist on Ioniq 2017 IGPM.
+        Tested 2026-04-14.
+      parameters: {}
+
+    22BC0A:
+      ignored: true
+      notes: >
+        NRC 0x31 (requestOutOfRange). DID does not exist on Ioniq 2017 IGPM.
+        Tested 2026-04-14.
+      parameters: {}

@@ -56,14 +56,18 @@ ECU names are resolved from YAML definitions (e.g., `IGPM`, `BCM`, `SKM`) or can
 Turns a `--multi` pipeline into a live-refreshing monitor. Non-query steps (session, skm-wake, sleep) run once as setup; all `query` steps are then polled repeatedly, with Rich Live updating the display in-place. Sessions are kept alive with background TesterPresent keepalives.
 
 ```bash
-# Monitor BMS SOC every 5s (default interval)
-canreq.py --multi "query BMS 2101" --monitor
+
+# Monitor BMS every 5s (default interval)
+canreq.py --multi "query BMS 2101" --monitor # NOTE: not tested yet, canreq might need adjustments to support this.
+
+# Monitor BCM (all known PIDs in bcm.yaml), keep all unique payloads seen for each PID
+canreq.py --monitor --keep --multi "query BCM"
 
 # Monitor IGPM status with 2s interval, wake from deep sleep
 canreq.py --multi "session IGPM --wake" "query IGPM BC03 BC06" --monitor 2
 
 # Monitor BCM voltage ADCs with payload history
-canreq.py --multi "session BCM --wake" "query BCM B003 B004" --monitor --keep
+canreq.py --monitor 2 --keep --multi "session BCM --wake" "query BCM B003 B004"
 ```
 
 **Hex display features:**
@@ -78,7 +82,7 @@ Press Ctrl+C to stop monitoring.
 
 **Session management:** The SessionManager tracks all ECUs with active extended sessions and sends TesterPresent (`3E00`) keepalives to stale sessions before each foreground command. In the REPL, a background task sends keepalives every 2s. This allows querying one ECU while keeping sessions alive on others (e.g., keeping SKM ACC relay active while reading BCM charge port data).
 
-**Multi-ECU REPL commands:** `!session <ECU>` (open new session), `!sessions` (list active), `!query <ECU> [PID ...]`, `!raw <TX:PID>`, `!skm [level]`, `!quit`.
+**Multi-ECU REPL commands** (via `--repl` or `repl` step): same sub-commands as `--multi` pipeline steps (`session`, `query`, `raw`, `skm-wake`, `scan`, `sleep`, `quit`). The `!` prefix is optional.
 
 ##### `--identity` flag
 
@@ -104,7 +108,7 @@ Enters extended diagnostic session (`10 03`) before sending requests. Required f
 
 Wakes ECUs from deep sleep before entering extended session. Sends `10 01` (default session request) as a CAN wake-up frame — this triggers the CAN transceiver even when the ECU is in deep sleep. The first attempt may return NO DATA while the transceiver powers up; a 0.5s delay allows the ECU to initialize before the `10 03` extended session request. Implies `--session`.
 
-Currently only the IGPM (0x770) is known to wake from deep sleep via this method. Other ECUs (SKM, BMS, VCU, BCM) are fully unpowered and do not respond.
+Currently the IGPM (0x770) and BCM (0x7A0) are known to wake from deep sleep via this method. Other ECUs (BMS, VCU, MCU) require the ACC relay to be powered.
 
 ##### `--hold` flag
 
@@ -112,7 +116,7 @@ Keeps the extended diagnostic session alive after the command completes, until C
 
 **Interactive mode built-in commands:** `!decode` (decode last response), `!hexdump` (hex dump), `!info <ECU>` (show ECU info), `!list` (list ECUs), `!identity` (query identity DIDs for current header ECU), `!reboot` (reboot WiCAN), `!quit`.
 
-**Dependencies:** `websockets`, `pyyaml`. Optional: `requests` (for `--reboot`). Imports `evaluate_expression()` from `decode-captures.py`.
+**Dependencies:** `websockets`, `pyyaml`. Optional: `requests` (for `--reboot`).
 
 **ALWAYS use `canreq.py` for any CAN/UDS communication with the vehicle. Never write your own Python code to open a WebSocket, send ELM327 commands, or talk to the WiCAN device. If `canreq.py` doesn't support a particular operation, that is intentional — discuss with the user before working around it.**
 

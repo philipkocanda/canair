@@ -9,6 +9,10 @@
 #       PID_CODE:            # e.g. 22C00B, 2101
 #         period: N          # polling interval in ms (optional, default 5000)
 #         enabled: bool      # include in profiles (optional, default true)
+#         ignored: bool      # hide from queries/profiles (optional, default false)
+#                            # Use for DIDs that returned NRC or contain no useful data.
+#                            # Ignored PIDs are still documented but excluded from
+#                            # build_ecu_index, generate-profile, and query commands.
 #         parameters:
 #           PARAM_NAME:
 #             expression: str     # required — WiCAN formula
