@@ -152,7 +152,7 @@ async def async_main(args):
                 query_steps,
                 pids_data,
                 args.verbose,
-                interval=args.interval,
+                interval=args.poll_interval,
                 session_steps=session_steps,
             )
         elif args.multi:
@@ -305,7 +305,7 @@ Examples:
                                             Pipeline with explicit sleep and REPL
   %(prog)s --multi "query BMS 2101" --monitor
                                             Live monitor: refresh BMS 2101 every 5s
-  %(prog)s --multi "session IGPM --wake" "query IGPM BC03 BC06" --monitor --interval 2
+  %(prog)s --multi "session IGPM --wake" "query IGPM BC03 BC06" --monitor --poll-interval 2
                                             Wake IGPM, then poll BC03+BC06 every 2s
 """,
     )
@@ -421,9 +421,10 @@ Examples:
         "Non-query steps (session, skm-wake, sleep) run once as setup.",
     )
     parser.add_argument(
-        "--interval",
+        "--poll-interval",
         type=float,
         default=5.0,
+        dest="poll_interval",
         help="Poll interval in seconds for --monitor (default: 5.0)",
     )
 
