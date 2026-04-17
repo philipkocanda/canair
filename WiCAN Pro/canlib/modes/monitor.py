@@ -202,7 +202,7 @@ def _render_results(
                                 unmapped,
                                 prev_raw=prev_raw,
                                 prefix=prefix,
-                                prefix_style="grey30" if ts else "",
+                                prefix_style="dim" if ts else "",
                             )
                         )
                 else:
