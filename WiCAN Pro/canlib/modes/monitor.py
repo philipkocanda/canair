@@ -21,8 +21,7 @@ from rich.live import Live
 from rich.text import Text
 
 from ..session_manager import SessionManager
-from ..formatting import format_value
-from ..byteindex import extract_byte_indices, wican_to_elm_idx
+from ..formatting import format_value, _build_byte_colors
 
 _console = Console(highlight=False)
 
@@ -33,7 +32,7 @@ def _bytes_to_ascii(raw_hex: str) -> str:
 
 
 def _render_hex_line(raw_hex: str, params: list, unmapped: bool) -> Text:
-    """Render a hex line as a Rich Text: covered bytes white, uncovered dim."""
+    """Render a hex line: green=verified, yellow=unverified, bright_black=uncovered/unmapped."""
     elm_bytes = [raw_hex[i : i + 2] for i in range(0, len(raw_hex), 2)]
     n_bytes = len(elm_bytes)
     t = Text()
@@ -44,19 +43,11 @@ def _render_hex_line(raw_hex: str, params: list, unmapped: bool) -> Text:
         ascii_repr = _bytes_to_ascii(raw_hex)
         t.append(f"{spaced}  {ascii_repr}  ({n_bytes} B)", style="bright_black")
     else:
-        covered_elm = set()
-        for row in params:
-            expression, perr = row[3], row[4]
-            if perr or not expression:
-                continue
-            for wi in extract_byte_indices(expression):
-                ei = wican_to_elm_idx(wi, n_bytes)
-                if ei is not None and 0 <= ei < n_bytes:
-                    covered_elm.add(ei)
+        byte_color = _build_byte_colors(params, n_bytes)
         for i, hb in enumerate(elm_bytes):
             if i > 0:
                 t.append(" ")
-            t.append(hb, style="white" if i in covered_elm else "bright_black")
+            t.append(hb, style=byte_color[i])
         t.append(f"  ({n_bytes} B)", style="bright_black")
 
     t.append("\n")
@@ -180,7 +171,9 @@ async def mode_monitor(
                     await _exec_skm_wake(sm, step["level"], verbose)
                 elif stype == "session":
                     print(f"  Opening session on {step['target']}...")
-                    await _exec_session(sm, step["target"], step.get("wake", False), ecu_index)
+                    await _exec_session(
+                        sm, step["target"], step.get("wake", False), ecu_index
+                    )
 
         # Start background keepalives
         sm.start_background_keepalive(interval=2.0)
@@ -232,4 +225,3 @@ async def mode_monitor(
             await asyncio.wait_for(sm.close_all(), timeout=3.0)
         except (asyncio.TimeoutError, Exception):
             pass
-
