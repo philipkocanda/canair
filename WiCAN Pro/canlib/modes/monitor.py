@@ -11,6 +11,13 @@ Usage (via --multi --monitor):
 
 The --monitor flag applies to the last 'query' step in the pipeline. If
 there are multiple query steps, all of them are repeated each cycle.
+
+NOTE on terminal rendering: Rich Live with transient=False leaves artifacts on
+terminal resize (duplicate renders). The clean solution would be to use the
+alternate screen buffer — in Python that's Textual (https://github.com/Textualize/textual),
+in Go that's Bubble Tea (https://github.com/charmbracelet/bubbletea, same approach
+used by OpenCode's TUI). Refactoring this tool to Go + Bubble Tea would be a fun
+exercise and would eliminate all the Rich Live quirks.
 """
 
 import asyncio
