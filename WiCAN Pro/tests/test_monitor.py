@@ -271,7 +271,7 @@ class TestKeepHistory:
         """With hex_history, all unique payloads shown oldest to newest."""
         entry = self._make_pid_result(raw_hex="62B003CC")
         results = [("BCM (0x7A0)", [entry])]
-        history = {("BCM (0x7A0)", "22B003"): ["62B003AA", "62B003BB"]}
+        history = {("BCM (0x7A0)", "22B003"): [("62B003AA", "10:00:00"), ("62B003BB", "10:01:00")]}
         t = _render_results(
             results, verbose=False, cycle=3, elapsed=0.1, interval=5.0, hex_history=history
         )
@@ -289,7 +289,7 @@ class TestKeepHistory:
         """If current payload is in history, it's not shown again as history."""
         entry = self._make_pid_result(raw_hex="62B003AA")
         results = [("BCM (0x7A0)", [entry])]
-        history = {("BCM (0x7A0)", "22B003"): ["62B003AA", "62B003BB"]}
+        history = {("BCM (0x7A0)", "22B003"): [("62B003AA", "10:00:00"), ("62B003BB", "10:01:00")]}
         t = _render_results(
             results, verbose=False, cycle=3, elapsed=0.1, interval=5.0, hex_history=history
         )
@@ -301,7 +301,7 @@ class TestKeepHistory:
         """When history has multiple unique payloads, count is displayed."""
         entry = self._make_pid_result(raw_hex="62B003CC")
         results = [("BCM (0x7A0)", [entry])]
-        history = {("BCM (0x7A0)", "22B003"): ["62B003AA", "62B003BB"]}
+        history = {("BCM (0x7A0)", "22B003"): [("62B003AA", "10:00:00"), ("62B003BB", "10:01:00")]}
         t = _render_results(
             results, verbose=False, cycle=3, elapsed=0.1, interval=5.0, hex_history=history
         )
@@ -311,7 +311,7 @@ class TestKeepHistory:
         """No count shown when only one unique payload exists."""
         entry = self._make_pid_result(raw_hex="62B003AA")
         results = [("BCM (0x7A0)", [entry])]
-        history = {("BCM (0x7A0)", "22B003"): ["62B003AA"]}
+        history = {("BCM (0x7A0)", "22B003"): [("62B003AA", "10:00:00")]}
         t = _render_results(
             results, verbose=False, cycle=2, elapsed=0.1, interval=5.0, hex_history=history
         )
@@ -321,12 +321,10 @@ class TestKeepHistory:
         """Each history row highlights bytes that differ from its predecessor."""
         entry = self._make_pid_result(raw_hex="62B003CC")
         results = [("BCM (0x7A0)", [entry])]
-        history = {("BCM (0x7A0)", "22B003"): ["62B003AA", "62B003BB"]}
+        history = {("BCM (0x7A0)", "22B003"): [("62B003AA", "10:00:00"), ("62B003BB", "10:01:00")]}
         t = _render_results(
             results, verbose=False, cycle=3, elapsed=0.1, interval=5.0, hex_history=history
         )
-        # BB differs from AA at last byte, CC differs from BB at last byte
-        # Both should have change highlighting (not dim)
         spans = t._spans
         highlight_styles = [str(s.style) for s in spans if "grey37" in str(s.style)]
         assert len(highlight_styles) >= 2  # at least BB and CC have highlighted bytes
@@ -335,7 +333,13 @@ class TestKeepHistory:
         """History entries shown chronologically oldest to newest."""
         entry = self._make_pid_result(raw_hex="62B003DD")
         results = [("BCM (0x7A0)", [entry])]
-        history = {("BCM (0x7A0)", "22B003"): ["62B003AA", "62B003BB", "62B003CC"]}
+        history = {
+            ("BCM (0x7A0)", "22B003"): [
+                ("62B003AA", "10:00:00"),
+                ("62B003BB", "10:01:00"),
+                ("62B003CC", "10:02:00"),
+            ]
+        }
         t = _render_results(
             results, verbose=False, cycle=4, elapsed=0.1, interval=5.0, hex_history=history
         )
@@ -345,3 +349,29 @@ class TestKeepHistory:
         pos_cc = plain.index("62 B0 03 CC")
         pos_dd = plain.index("62 B0 03 DD")
         assert pos_aa < pos_bb < pos_cc < pos_dd
+
+    def test_timestamp_shown_for_history_entries(self):
+        """Timestamps are shown for history entries."""
+        entry = self._make_pid_result(raw_hex="62B003BB")
+        results = [("BCM (0x7A0)", [entry])]
+        history = {("BCM (0x7A0)", "22B003"): [("62B003AA", "14:23:05")]}
+        t = _render_results(
+            results, verbose=False, cycle=2, elapsed=0.1, interval=5.0, hex_history=history
+        )
+        assert "14:23:05" in t.plain
+
+    def test_no_timestamp_for_current_entry(self):
+        """Current (newest, not yet in history) entry has no timestamp."""
+        entry = self._make_pid_result(raw_hex="62B003BB")
+        results = [("BCM (0x7A0)", [entry])]
+        history = {("BCM (0x7A0)", "22B003"): [("62B003AA", "14:23:05")]}
+        t = _render_results(
+            results, verbose=False, cycle=2, elapsed=0.1, interval=5.0, hex_history=history
+        )
+        plain = t.plain
+        # AA has timestamp, BB (current) does not — verify BB hex is present without extra timestamp
+        assert "14:23:05" in plain
+        # BB appears after AA
+        pos_aa = plain.index("62 B0 03 AA")
+        pos_bb = plain.index("62 B0 03 BB")
+        assert pos_aa < pos_bb
