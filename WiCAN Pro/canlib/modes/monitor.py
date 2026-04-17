@@ -6,7 +6,7 @@ parameter values (SOC, temps, voltages, etc.).
 
 Usage (via --multi --monitor):
     canreq --multi "session BCM --wake" "query BCM C00B B00E" --monitor
-    canreq --multi "query BMS 2101" --monitor --interval 2.0
+    canreq --multi "query BMS 2101" --monitor --poll-interval 2.0
     canreq --multi "session IGPM --wake" "query IGPM BC03 BC06" --monitor
 
 The --monitor flag applies to the last 'query' step in the pipeline. If
@@ -21,12 +21,46 @@ from rich.live import Live
 from rich.text import Text
 
 from ..session_manager import SessionManager
-from ..formatting import print_ecu_results, format_value
-from ..expression import evaluate_expression
-from ..elm327 import elm_hex_to_wican_bytes
-from ..formatting import decode_uds_response
+from ..formatting import format_value
+from ..byteindex import extract_byte_indices, wican_to_elm_idx
 
 _console = Console(highlight=False)
+
+
+def _bytes_to_ascii(raw_hex: str) -> str:
+    data = bytes.fromhex(raw_hex)
+    return "".join(chr(b) if 32 <= b < 127 else "." for b in data)
+
+
+def _render_hex_line(raw_hex: str, params: list, unmapped: bool) -> Text:
+    """Render a hex line as a Rich Text: covered bytes white, uncovered dim."""
+    elm_bytes = [raw_hex[i : i + 2] for i in range(0, len(raw_hex), 2)]
+    n_bytes = len(elm_bytes)
+    t = Text()
+    t.append("      ")
+
+    if unmapped or not params:
+        spaced = " ".join(elm_bytes)
+        ascii_repr = _bytes_to_ascii(raw_hex)
+        t.append(f"{spaced}  {ascii_repr}  ({n_bytes} B)", style="bright_black")
+    else:
+        covered_elm = set()
+        for row in params:
+            expression, perr = row[3], row[4]
+            if perr or not expression:
+                continue
+            for wi in extract_byte_indices(expression):
+                ei = wican_to_elm_idx(wi, n_bytes)
+                if ei is not None and 0 <= ei < n_bytes:
+                    covered_elm.add(ei)
+        for i, hb in enumerate(elm_bytes):
+            if i > 0:
+                t.append(" ")
+            t.append(hb, style="white" if i in covered_elm else "bright_black")
+        t.append(f"  ({n_bytes} B)", style="bright_black")
+
+    t.append("\n")
+    return t
 
 
 def _render_results(
@@ -36,18 +70,9 @@ def _render_results(
     elapsed: float,
     interval: float,
 ) -> Text:
-    """Render all ECU query results as a Rich Text object for Live display.
-
-    Args:
-        queries:  list of (ecu_label, pid_results) tuples
-        verbose:  show expressions
-        cycle:    poll cycle number (1-based)
-        elapsed:  seconds since last refresh
-        interval: target poll interval
-    """
+    """Render all ECU query results as a Rich Text object for Live display."""
     text = Text()
 
-    # Header line
     text.append(
         f"  Monitor — cycle {cycle}  (last: {elapsed:.1f}s, interval: {interval:.1f}s)\n",
         style="dim",
@@ -57,7 +82,7 @@ def _render_results(
         if not pid_results:
             continue
 
-        text.append(f"\n  ", style="")
+        text.append("\n  ")
         text.append(ecu_label, style="bold cyan")
         text.append("\n")
 
@@ -69,8 +94,7 @@ def _render_results(
             decode = entry.get("decode")
             unmapped = entry.get("unmapped", False)
 
-            # PID sub-header
-            text.append(f"    ", style="")
+            text.append("    ")
             text.append(pid, style="yellow")
             if unmapped:
                 text.append(" (unmapped)", style="dim")
@@ -79,7 +103,6 @@ def _render_results(
                 continue
             text.append("\n")
 
-            # Decoded parameters
             if params:
                 max_name = max(len(r[0]) for r in params)
                 max_val = max(
@@ -96,25 +119,25 @@ def _render_results(
                     mark_style = "green" if verified else "yellow"
                     mark_char = "✓" if verified else "?"
                     if perr:
-                        text.append(f"      {name:<{max_name}}  ", style="")
+                        text.append(f"      {name:<{max_name}}  ")
                         text.append(f"ERROR: {perr}\n", style="red")
                     else:
                         val_str = format_value(value, unit, display)
-                        text.append(f"      {name:<{max_name}}  ", style="")
+                        text.append(f"      {name:<{max_name}}  ")
                         if verbose:
-                            text.append(f"{val_str:<{max_val}}  ", style="")
+                            text.append(f"{val_str:<{max_val}}  ")
                             text.append(mark_char, style=mark_style)
                             text.append(f"  {expression}\n", style="dim")
                         else:
-                            text.append(f"{val_str:<{max_val}}  ", style="")
+                            text.append(f"{val_str:<{max_val}}  ")
                             text.append(mark_char + "\n", style=mark_style)
             elif decode:
-                text.append(f"      {decode}\n", style="")
+                text.append(f"      {decode}\n")
 
-    text.append(
-        "\n  Press Ctrl+C to stop monitoring\n",
-        style="dim",
-    )
+            if raw_hex:
+                text.append_text(_render_hex_line(raw_hex, params, unmapped))
+
+    text.append("\n  Press Ctrl+C to stop monitoring\n", style="dim")
     return text
 
 
@@ -157,15 +180,12 @@ async def mode_monitor(
                     await _exec_skm_wake(sm, step["level"], verbose)
                 elif stype == "session":
                     print(f"  Opening session on {step['target']}...")
-                    await _exec_session(
-                        sm, step["target"], step.get("wake", False), ecu_index
-                    )
+                    await _exec_session(sm, step["target"], step.get("wake", False), ecu_index)
 
         # Start background keepalives
         sm.start_background_keepalive(interval=2.0)
 
         cycle = 0
-        last_render_time = time.monotonic()
         last_queries: list[tuple[str, list]] = []
 
         with Live(
@@ -178,7 +198,6 @@ async def mode_monitor(
                 cycle += 1
                 t0 = time.monotonic()
 
-                # Collect results from all query steps
                 new_queries = []
                 for step in query_steps:
                     result = await _exec_query(
@@ -189,6 +208,7 @@ async def mode_monitor(
                         pids_data,
                         verbose,
                         return_results=True,
+                        quiet=True,
                     )
                     if result is not None:
                         new_queries.append(result)
@@ -199,7 +219,6 @@ async def mode_monitor(
                     _render_results(last_queries, verbose, cycle, elapsed, interval)
                 )
 
-                # Wait for next cycle, sending keepalives in the background
                 remaining = interval - elapsed
                 if remaining > 0:
                     await asyncio.sleep(remaining)
@@ -213,3 +232,4 @@ async def mode_monitor(
             await asyncio.wait_for(sm.close_all(), timeout=3.0)
         except (asyncio.TimeoutError, Exception):
             pass
+
