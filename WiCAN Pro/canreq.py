@@ -64,6 +64,7 @@ from canlib.modes import (
     mode_skm_wakeup,
     mode_tester_present,
 )
+from canlib.modes.iocontrol import mode_iocontrol_execute, mode_iocontrol_list
 
 try:
     import websockets
@@ -137,7 +138,7 @@ async def async_main(args):
 
     init_logging()
     log_command(
-        f"--- SESSION START (host={host}, mode={'interactive' if not any([args.param, args.ecu, args.raw, args.scan, args.discover, args.skm_wakeup, args.tester_present]) else 'batch'}, unsafe={args.unsafe}, session={getattr(args, 'session', False)}) ---"
+        f"--- SESSION START (host={host}, mode={'interactive' if not any([args.param, args.ecu, args.raw, args.scan, args.discover, args.skm_wakeup, args.tester_present, args.iocontrol]) else 'batch'}, unsafe={args.unsafe}, session={getattr(args, 'session', False)}) ---"
     )
 
     if args.unsafe:
@@ -146,6 +147,12 @@ async def async_main(args):
         print()
 
     pids_data = load_pids()
+
+    # List-only mode: no CAN connection needed
+    if args.iocontrol and not args.did:
+        mode_iocontrol_list(pids_data, args.iocontrol, as_json=args.json)
+        return
+
     init_string = pids_data.get("init", "ATSP6;ATS0;ATAL;ATST96;")
 
     terminal = WiCANTerminal(
@@ -272,6 +279,19 @@ async def async_main(args):
                 session=args.session,
                 wake=args.wake,
             )
+        elif args.iocontrol:
+            if args.did:
+                await mode_iocontrol_execute(
+                    terminal,
+                    pids_data,
+                    args.iocontrol,
+                    args.did,
+                    off=args.off,
+                    verbose=args.verbose,
+                    as_json=args.json,
+                )
+            else:
+                mode_iocontrol_list(pids_data, args.iocontrol, as_json=args.json)
         elif args.discover:
             addr_range = parse_range(args.range) if args.range != "01-FF" else (0x700, 0x7EF)
             await mode_discover(
@@ -353,6 +373,14 @@ Examples:
                                             Wake IGPM, query all PIDs, REPL
   %(prog)s --multi "skm-wake acc" "sleep 1" "query BCM B00E" "repl"
                                             Pipeline with explicit sleep and REPL
+
+  IOControl (actuator commands from pids/ YAML):
+  %(prog)s --iocontrol IGPM                 List all IGPM IOControl DIDs
+  %(prog)s --iocontrol IGPM --did BC01      Turn on low beam (auto-session, hold until Ctrl+C)
+  %(prog)s --iocontrol IGPM --did BC01 --off  Turn off low beam
+  %(prog)s --multi "iocontrol IGPM BC01"    IOControl in multi pipeline
+  %(prog)s --multi "iocontrol IGPM BC01" "sleep 3" "iocontrol IGPM BC01 --off"
+                                            ON, wait 3s, OFF
   %(prog)s --multi "query BMS 2101" --monitor
                                             Live monitor: refresh BMS 2101 every 5s
   %(prog)s --multi "session IGPM --wake" "query IGPM BC03 BC06" --monitor 2
@@ -406,6 +434,14 @@ Examples:
         "Use --delay to control pacing (default: 0.2s).",
     )
     mode.add_argument(
+        "--iocontrol",
+        metavar="ECU",
+        help="IOControl mode: list or execute IOControl commands for an ECU. "
+        "Without --did, lists all available IOControl DIDs. "
+        "With --did, sends the ON command (or OFF with --off). "
+        "Session and hold behavior are auto-applied from pids/ YAML.",
+    )
+    mode.add_argument(
         "--multi",
         nargs="+",
         metavar="CMD",
@@ -413,11 +449,21 @@ Examples:
         "session management. Each CMD is a quoted string. Sub-commands: "
         "skm-wake [level], session <ECU> [--wake], query <ECU> [PID ...], "
         "raw <TX:PID>, scan <TX> <SVC> <RANGE> [APPEND], security <ECU> [algo ...], "
-        "sleep <N>, repl",
+        "iocontrol <ECU> <DID> [--off], sleep <N>, repl",
     )
 
     # ECU/PID mode options
     parser.add_argument("--pid", metavar="PID", help="Filter by PID code (for --ecu mode)")
+
+    # IOControl mode options
+    parser.add_argument(
+        "--did", metavar="DID", help="DID to execute (for --iocontrol mode, e.g., BC01)"
+    )
+    parser.add_argument(
+        "--off",
+        action="store_true",
+        help="Send OFF/returnControl command instead of ON (for --iocontrol mode)",
+    )
 
     # Scan mode options
     parser.add_argument("--tx", metavar="ID", help="ECU TX ID for --scan (hex, e.g., 7E4)")

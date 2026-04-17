@@ -29,7 +29,7 @@ from ..formatting import (
     print_ecu_results,
     print_hexdump,
 )
-from ..pids import build_ecu_index, build_param_index
+from ..pids import build_ecu_index, build_iocontrol_index, build_param_index
 from ..session_manager import SessionManager
 from ..terminal import WiCANTerminal
 
@@ -116,11 +116,19 @@ def parse_sub_commands(args: list[str]) -> list[dict]:
         elif verb == "repl":
             commands.append({"type": "repl"})
 
+        elif verb == "iocontrol":
+            if len(parts) < 3:
+                raise ValueError("'iocontrol' requires ECU and DID: iocontrol IGPM BC01 [--off]")
+            ecu = parts[1]
+            did = parts[2]
+            off = "--off" in parts
+            commands.append({"type": "iocontrol", "ecu": ecu, "did": did, "off": off})
+
         else:
             raise ValueError(
                 f"Unknown sub-command: {verb!r}. "
                 f"Available: skm-wake, session, query, raw, scan, sleep, "
-                f"security, repl"
+                f"security, iocontrol, repl"
             )
 
     return commands
@@ -346,6 +354,65 @@ async def _exec_raw(sm: SessionManager, spec: str, hold: bool, verbose: bool):
             print("  Continuing...")
         finally:
             sm.stop_background_keepalive()
+
+
+async def _exec_iocontrol(
+    sm: SessionManager,
+    ecu_name: str,
+    did: str,
+    off: bool,
+    pids_data: dict,
+    ecu_index: dict,
+    verbose: bool,
+):
+    """Execute iocontrol sub-command within multi pipeline."""
+    ioctrl_index = build_iocontrol_index(pids_data)
+    ecu_key = ecu_name.upper()
+    did_key = did.upper()
+
+    if ecu_key not in ioctrl_index:
+        available = sorted(ioctrl_index.keys())
+        print(f"  ERROR: No IOControl DIDs for ECU: {ecu_name}")
+        if available:
+            print(f"  ECUs with IOControl: {', '.join(available)}")
+        return
+
+    ecu_info = ioctrl_index[ecu_key]
+    cmds = ecu_info["cmds"]
+
+    if did_key not in cmds:
+        available = sorted(cmds.keys())
+        print(f"  ERROR: Unknown DID {did_key} for {ecu_key}")
+        if available:
+            print(f"  Available: {', '.join(available)}")
+        return
+
+    cmd_def = cmds[did_key]
+    tx_id = ecu_info["tx_id"]
+    action = "OFF" if off else "ON"
+    hex_cmd = cmd_def["off"] if off else cmd_def["on"]
+    label = cmd_def["label"]
+
+    if not hex_cmd:
+        print(f"  ERROR: No {action} command defined for {ecu_key} {did_key} ({label})")
+        return
+
+    # Ensure session is active on this ECU if needed
+    if cmd_def["session"] and tx_id not in sm.active_sessions:
+        await sm.ensure_session(tx_id)
+
+    await sm.keepalive_stale()
+    await sm.terminal.set_header(tx_id)
+
+    print(f"  {ecu_key} {did_key} ({label}) → {action}: {hex_cmd}")
+    response = await sm.terminal.send_uds(hex_cmd, timeout=3.0)
+
+    if response["ok"]:
+        print(f"  ✓ Positive response: {response['hex']}")
+    elif response.get("nrc") is not None:
+        print(f"  ✗ NRC 0x{response['nrc']:02X}: {response['nrc_desc']}")
+    else:
+        print(f"  ✗ Error: {response.get('error', 'unknown')}")
 
 
 async def _exec_scan(
@@ -785,6 +852,13 @@ async def mode_multi(
                 print(f"\n{step} Entering REPL...")
                 repl_executed = True
                 await _multi_repl(sm, ecu_index, pids_data, verbose)
+
+            elif cmd_type == "iocontrol":
+                action = "OFF" if cmd["off"] else "ON"
+                print(f"\n{step} IOControl {cmd['ecu']} {cmd['did']} ({action})...")
+                await _exec_iocontrol(
+                    sm, cmd["ecu"], cmd["did"], cmd["off"], pids_data, ecu_index, verbose
+                )
 
         # Auto-REPL if no explicit repl step and --repl was passed
         if not repl_executed and not no_repl:
