@@ -12,6 +12,14 @@ HVAC:
     220100:
       period: 5000
       enabled: true
+      notes: >
+        41-byte ELM response (39 data bytes). Live HVAC sensor/actuator data.
+        Monitored 2026-04-17 with HVAC on/off, fan speed changes, temp changes,
+        A/C toggle, recirculation, defrost, rear defogger. Set temp, fan speed,
+        mode, and recirc did NOT appear — this DID is purely sensor/actuator
+        status. Settings likely in a different DID (01Ax range or undiscovered).
+        Static bytes: ELM[3]=0x7E, ELM[4]=0x50, ELM[5]=0x07, ELM[6]=0xC8
+        (purpose unknown — possibly sensor IDs or config flags).
       parameters:
         HVAC_IAT:
           expression: "(B11/2)-40"
@@ -20,9 +28,10 @@ HVAC:
           min: "-40"
           max: "87"
           source: "Original WiCAN config"
-          source_links: []
           verified: true
-          notes: "Intake Air Temperature"
+          notes: >
+            Intake Air Temperature. Confirmed: drops from 27°C to 18.5°C
+            when AC blows cold air, slowly recovers. Tracks cabin temp well.
 
         HVAC_AAT:
           expression: "(B12/2)-40"
@@ -31,9 +40,8 @@ HVAC:
           min: "-40"
           max: "87"
           source: "Original WiCAN config"
-          source_links: []
           verified: true
-          notes: "Ambient Air Temperature (HVAC sensor)"
+          notes: "Ambient Air Temperature (HVAC sensor). Stable at ~18.5°C during session."
 
         HVAC_EVAPORATOR_TEMP:
           expression: "(B13/2)-40"
@@ -42,47 +50,178 @@ HVAC:
           min: "-40"
           max: "87"
           source: "Original WiCAN config"
-          source_links: []
-          verified: false
-          notes: ""
+          verified: true
+          notes: >
+            Confirmed: 21.5°C at rest, drops to ~5°C with compressor running,
+            recovers when compressor cycles off. Clear thermal lag vs IAT.
 
-        HVAC_HUMIDITY_SENSOR_FOR_AUTOMATIC_DEFOGGER:
+        HVAC_HUMIDITY:
           expression: "B9/255*100"
           unit: "%"
           ha_class: humidity
           min: "0"
           max: "100"
           source: "Original WiCAN config"
-          source_links: []
           verified: false
-          notes: "Static value, cannot be correct"
+          notes: >
+            B9=ELM[6]=0xC8 was static across all 82 full frames in the
+            2026-04-17 session (78.4%). Either it updates very slowly or
+            this is not actually humidity. Needs multi-day monitoring.
 
-        HVAC_HUMIDITY_SENSOR_FOR_AUTOMATIC_DEFOGGER_IONIQ5:
-          expression: "B34/255*100"
-          unit: "%"
-          ha_class: humidity
+        HVAC_BLOWER_FAN_DUTY:
+          expression: "B15"
+          unit: ""
           min: "0"
-          max: "100"
-          source: "Original WiCAN config"
-          source_links: []
-          verified: false
-          notes: "Ioniq 5 byte offset — may not work on Ioniq 2017"
+          max: "255"
+          source: "Monitor session 2026-04-17"
+          verified: true
+          notes: >
+            NOT inverter temp — this is blower fan PWM duty cycle.
+            0x10=16 at idle/off, spikes to 0x45/0xB6/0xEF during fan
+            activity. 0xEF=239 is max fan. Previously misidentified as
+            HVAC_INVERTER_TEMP with formula (x/2)-40.
 
-        HVAC_INVERTER_TEMP:
-          expression: "(B15/2)-40"
+        HVAC_BLOWER_FAN_FEEDBACK:
+          expression: "B17"
+          unit: ""
+          min: "0"
+          max: "255"
+          source: "Monitor session 2026-04-17"
+          verified: false
+          notes: >
+            Mirrors B15 (blower duty) almost exactly. Could be commanded
+            vs actual, or feedback from fan speed sensor.
+
+        HVAC_BLOWER_FAN_DUTY_3:
+          expression: "B20"
+          unit: ""
+          min: "0"
+          max: "255"
+          source: "Monitor session 2026-04-17"
+          verified: false
+          enabled: false
+          notes: >
+            Third fan-related byte, same pattern as B15/B17. Possibly
+            redundant — disabled by default.
+
+        HVAC_COMPRESSOR_TRANSITION:
+          expression: "B22"
+          unit: ""
+          min: "0"
+          max: "255"
+          source: "Monitor session 2026-04-17"
+          verified: false
+          notes: >
+            Spikes during AC compressor on/off transitions (0x90, 0xB1,
+            0xD0), settles to 0x10 when steady. Possibly compressor
+            request signal or clutch duty cycle.
+
+        HVAC_DUCT_TEMP_1:
+          expression: "(B36/2)-40"
           unit: "°C"
           ha_class: temperature
           min: "-40"
           max: "87"
-          source: "ImHex pattern (@ 0x0C)"
-          source_links: []
+          source: "Monitor session 2026-04-17"
           verified: false
-          notes: "AC compressor inverter temperature. ImHex 0x0C → WiCAN B15."
+          notes: >
+            Slow thermal drift (0x26=−21→0x1F→0x24). Could be duct outlet
+            temp or heater core temp. Needs verification with heat mode.
+
+        HVAC_DUCT_TEMP_2:
+          expression: "(B37/2)-40"
+          unit: "°C"
+          ha_class: temperature
+          min: "-40"
+          max: "87"
+          source: "Monitor session 2026-04-17"
+          verified: false
+          notes: >
+            Big swings (0xEF=79.5→0x56=3→recovery). Drops sharply with
+            compressor — likely vent air temp close to evaporator.
+
+        HVAC_VENT_OUTLET_TEMP:
+          expression: "(B38/2)-40"
+          unit: "°C"
+          ha_class: temperature
+          min: "-40"
+          max: "87"
+          source: "Monitor session 2026-04-17"
+          verified: false
+          notes: >
+            Tracks evaporator temp with delay (0x84=26°C → 0x6D=14.5°C).
+            Likely the actual air temp at the vent outlet.
+
+        HVAC_AC_COMPRESSOR_ON:
+          expression: "B44"
+          unit: ""
+          min: "0"
+          max: "1"
+          source: "Monitor session 2026-04-17"
+          verified: true
+          notes: >
+            AC compressor on/off flag. 0=off, 1=on. Toggles when AC
+            activates/deactivates. Clear binary behavior in monitoring.
 
     220102:
-      enabled: false
-      notes: "20 bytes. B06-B07 = 0x7877 (30839). B14 = 0x17 (23). Undecoded."
-      parameters: {}
+      enabled: true
+      period: 5000
+      notes: >
+        20-byte ELM response (17 data bytes). Secondary HVAC temps.
+        Monitored 2026-04-17. B10/B11 are temps that rise with heating.
+      parameters:
+        HVAC_HEAT_EXCHANGER_TEMP:
+          expression: "(B10/2)-40"
+          unit: "°C"
+          ha_class: temperature
+          min: "-40"
+          max: "87"
+          source: "Monitor session 2026-04-17"
+          verified: false
+          notes: >
+            0x78=20°C at rest, rises to 0x97=35.5°C with HVAC activity.
+            Likely heater coolant or heat exchanger temperature.
+
+        HVAC_HEAT_EXCHANGER_TEMP_2:
+          expression: "(B11/2)-40"
+          unit: "°C"
+          ha_class: temperature
+          min: "-40"
+          max: "87"
+          source: "Monitor session 2026-04-17"
+          verified: false
+          notes: >
+            Follows B10 with lag. 0x77=19.5°C at rest, rises to 0x80=24°C.
+            Secondary heat exchanger or return line temperature.
+
+        HVAC_COMPRESSOR_RELAY:
+          expression: "B17"
+          unit: ""
+          min: "0"
+          max: "1"
+          source: "Monitor session 2026-04-17"
+          verified: false
+          notes: "0x00/0x01 toggle. Compressor relay or mode flag."
+
+        HVAC_HEATER_MODE_FLAG:
+          expression: "B18"
+          unit: ""
+          min: "0"
+          max: "1"
+          source: "Monitor session 2026-04-17"
+          verified: false
+          notes: "0x00/0x01 toggle. Possibly heater vs cooler mode flag."
+
+        HVAC_COMPRESSOR_LOAD:
+          expression: "B19"
+          unit: ""
+          min: "0"
+          max: "255"
+          source: "Monitor session 2026-04-17"
+          verified: false
+          notes: >
+            0x17=23 at rest, rises to 0x29=41 with fan activity, drops to
+            0x1D=29 when off. Correlates with compressor/PTC heater load.
 
     2201A0:
       enabled: false
