@@ -4,6 +4,9 @@
 # TPMS data is accessed via DID 22C00B on the BCM.
 BCM:
   tx_id: 0x7A0
+  identity:
+    part_number: "95400G7470"
+    description: "BCM / TPMS"
   pids:
     22C00B:
       period: 15000

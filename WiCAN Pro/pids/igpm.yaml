@@ -3,6 +3,9 @@
 IGPM:
   tx_id: 0x770
   session: true  # Requires extended diagnostic session (10 03) before PID queries
+  identity:
+    part_number: "91950G7510"
+    description: "Integrated Gateway Power Module"
   pids:
     22BC03:
       period: 2500

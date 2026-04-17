@@ -2,6 +2,12 @@
 # ─── HVAC (Heating, Ventilation, Air Conditioning) ────────────────────
 HVAC:
   tx_id: 0x7B3
+  identity:
+    part_number: "97250-G7060"
+    description: "CONTROL ASS'Y-DATC"
+    firmware: "1.03"
+    software: "AE_EV DATC(-)1.0"
+    serial: "1705304705"
   pids:
     220100:
       period: 5000
