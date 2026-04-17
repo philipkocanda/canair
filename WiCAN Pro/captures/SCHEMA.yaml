@@ -15,14 +15,9 @@
 # Required fields (all capture types):
 #   ecu:     ECU short name (must exist in ecus.yaml)
 #   pid:     PID/DID string (e.g. "2101", "22BC03", "2FBC2D03", "22BC1D-BC41")
-#   notes:   Capture notes (string, may be empty "")
-#
-# Exactly one of these payload fields must be present:
-#   payload:       Raw hex response (standard read captures)
-#   response:      Text response — hex, NRC description, or prose (experiments/IOControl)
-#   scan_results:  Scan summary object (DID range scans)
 #
 # Optional fields:
+#   notes:   Capture notes (string, may be empty "")
 #   label:   Short description of what was tested (recommended for experiments/scans)
 #   time:    Capture timestamp as HH:MM:SS (added by --save from monitor mode)
 #

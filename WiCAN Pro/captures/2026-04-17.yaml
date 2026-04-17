@@ -112,3 +112,52 @@ sessions:
     notes: ''
     payload: 62C00BFFFF0000C9450200CB430100CF440100CB440100AAAAAAAA
     time: "15:25:28"
+- date: '2026-04-17'
+  label: testing
+  state: deep sleep
+  captures:
+  - ecu: BCM
+    pid: 22B003
+    notes: ''
+    payload: 62B003BF8B80009D3DF5A3F9F8F9F83DF800000000000000AAAAAA
+    time: "15:26:54"
+  - ecu: BCM
+    pid: 22B003
+    notes: ''
+    payload: 62B003BF8B80009C3DF5A3F9F8F9F83DF800000000000000AAAAAA
+    time: "15:27:04"
+  - ecu: BCM
+    pid: 22B003
+    notes: ''
+    payload: 62B003BF8B80009C3DF5A3F9F8F9F73DF800000000000000AAAAAA
+    time: "15:27:09"
+  - ecu: BCM
+    pid: 22B003
+    notes: ''
+    payload: 62B003BF8B80009C3DF6A3F9F8F9F83DF800000000000000AAAAAA
+    time: "15:27:29"
+  - ecu: BCM
+    pid: 22B003
+    notes: ''
+    payload: 62B003BF8B80009C3DF5A3F8F7F8F73DF700000000000000AAAAAA
+    time: "15:27:39"
+  - ecu: BCM
+    pid: 22B003
+    notes: ''
+    payload: 62B003BF8B80009C3DF5A2F9F8F9F83DF800000000000000AAAAAA
+    time: "15:27:49"
+  - ecu: BCM
+    pid: 22B004
+    notes: ''
+    payload: 62B0047402990C00008000AAAA
+    time: "15:26:50"
+  - ecu: BCM
+    pid: 22B004
+    notes: ''
+    payload: 62B0047402990C00408000AAAA
+    time: "15:27:19"
+  - ecu: BCM
+    pid: 22C00B
+    notes: ''
+    payload: 62C00BFFFF0000C9450200CB430100CF440100CB440100AAAAAAAA
+    time: "15:26:50"

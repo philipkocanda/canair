@@ -273,7 +273,6 @@ def _prompt_and_save(
             capture: dict = {
                 "ecu": ecu_name,
                 "pid": pid,
-                "notes": "",
                 "payload": hex_val.upper(),
             }
             if ts:
