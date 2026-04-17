@@ -13,7 +13,8 @@ For reference, the WiCAN firmware is checked out in the `wican-fw/` directory (g
 
 - **`ioniq-2017-pids.yaml`** — SOURCE OF TRUTH for all PID definitions (211 parameters, 167 verified)
 - **`captures.yaml`** — Raw UDS response payloads from capture sessions
-- **`docs/wican-iso-tp-index-conversion.md`** — WiCAN vs ISO-TP vs Torque byte index mapping
+- **`bix.py`** — Byte index converter: WiCAN ↔ ISO-TP ↔ Torque ↔ bix. Use `python3 bix.py w9` or `python3 bix.py E` for quick lookups, `--table` for full table. Supports `-1` (21xx) and `-2` (22xxxx) subfunction modes.
+- **`docs/wican-iso-tp-index-conversion.md`** — Reference table for byte index notation differences
 - **`docs/CLI commands.md`** — Reference for `canreq.py` usage and examples
 
 ## WiCAN Access
