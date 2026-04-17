@@ -13,6 +13,7 @@
 #                            # Use for DIDs that returned NRC or contain no useful data.
 #                            # Ignored PIDs are still documented but excluded from
 #                            # build_ecu_index, generate-profile, and query commands.
+#                            # Might be relevant in future research, in other power states, or on other models.
 #         parameters:
 #           PARAM_NAME:
 #             expression: str     # required — WiCAN formula
@@ -23,7 +24,7 @@
 #             max: str            # optional — expected max value
 #             source: str         # optional — origin description
 #             source_links: list  # optional — URLs
-#             verified: bool      # optional — tested on Ioniq 2017? (default false)
+#             verified: bool      # optional — confirmed working on Ioniq 2017? (default false)
 #             notes: str          # optional — free-form
 #             enabled: bool       # optional — include in profiles (default true)
 #             display: str        # optional — Python f-string for display formatting
