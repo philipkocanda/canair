@@ -174,14 +174,14 @@ def _render_results(
                     # Show all unique payloads chronologically, each diffed against predecessor
                     history = hex_history[hex_key]  # list of (hex, timestamp)
                     history_hexes = [h for h, _ts in history]
-                    # Build full list including current if new
+                    # Include current if not yet in history (first cycle edge case)
                     if raw_hex not in history_hexes:
                         all_entries = [*history, (raw_hex, "")]
                     else:
                         all_entries = list(history)
                     for i, (payload, ts) in enumerate(all_entries):
                         prev_raw = all_entries[i - 1][0] if i > 0 else ""
-                        prefix = f"  {ts}  " if ts else "      "
+                        prefix = f"    {ts}  " if ts else "              "
                         text.append_text(
                             _render_hex_line(
                                 payload, params, unmapped, prev_raw=prev_raw, prefix=prefix
@@ -272,13 +272,8 @@ async def mode_monitor(
 
                 last_queries = new_queries
                 elapsed = time.monotonic() - t0
-                live.update(
-                    _render_results(
-                        last_queries, verbose, cycle, elapsed, interval, prev_hex, hex_history
-                    )
-                )
 
-                # Update prev_hex (and history) for next cycle
+                # Record new payloads into history before rendering
                 for ecu_label, pid_results in new_queries:
                     for entry in pid_results:
                         raw = entry.get("raw_hex", "")
@@ -290,6 +285,12 @@ async def mode_monitor(
                                 if raw not in existing:
                                     ts = datetime.now().strftime("%H:%M:%S")
                                     hex_history.setdefault(key, []).append((raw, ts))
+
+                live.update(
+                    _render_results(
+                        last_queries, verbose, cycle, elapsed, interval, prev_hex, hex_history
+                    )
+                )
 
                 remaining = interval - elapsed
                 if remaining > 0:
