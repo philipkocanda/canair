@@ -1,6 +1,11 @@
 """Tests for canlib.modes.monitor — rendering and helper functions."""
 
-from canlib.modes.monitor import _bytes_to_ascii, _render_hex_line, _render_results
+from canlib.modes.monitor import (
+    _HIGHLIGHT_STYLE,
+    _bytes_to_ascii,
+    _render_hex_line,
+    _render_results,
+)
 
 
 class TestBytesToAscii:
@@ -58,6 +63,35 @@ class TestRenderHexLine:
         t = _render_hex_line("", [], unmapped=True)
         text = t.plain
         assert "(0 B)" in text
+
+    def test_changed_byte_highlighted_unmapped(self):
+        """Changed bytes in unmapped PID get highlight style."""
+        t = _render_hex_line("62B00140", [], unmapped=True, prev_raw="62B00150")
+        styles = [str(s.style) for s in t._spans]
+        assert any(_HIGHLIGHT_STYLE["bright_black"] in s for s in styles)
+
+    def test_changed_byte_highlighted_mapped(self):
+        """Changed bytes in mapped PID get highlight style based on base color."""
+        params = [("SOC", 50.0, "%", "B02/2", None, True)]
+        t = _render_hex_line("620100FF", params, unmapped=False, prev_raw="62010064")
+        # Byte 3 changed (FF vs 64)
+        styles = [str(s.style) for s in t._spans]
+        has_highlight = any(any(hs in s for hs in _HIGHLIGHT_STYLE.values()) for s in styles)
+        assert has_highlight
+
+    def test_no_change_no_highlight(self):
+        """Identical prev_raw produces no highlight styles."""
+        t = _render_hex_line("62B001", [], unmapped=True, prev_raw="62B001")
+        styles = [str(s.style) for s in t._spans]
+        for hs in _HIGHLIGHT_STYLE.values():
+            assert not any(hs in s for s in styles)
+
+    def test_no_prev_raw_no_highlight(self):
+        """No prev_raw (first cycle) produces no highlight styles."""
+        t = _render_hex_line("62B001", [], unmapped=True, prev_raw="")
+        styles = [str(s.style) for s in t._spans]
+        for hs in _HIGHLIGHT_STYLE.values():
+            assert not any(hs in s for s in styles)
 
 
 class TestRenderResults:
