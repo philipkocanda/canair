@@ -245,11 +245,13 @@ async def mode_monitor(
         prev_hex: dict[tuple[str, str], str] = {}
         hex_history: dict[tuple[str, str], list[tuple[str, str]]] = {} if keep else None
 
+        last_render: Text | None = None
+
         with Live(
             _render_results([], verbose, 0, 0.0, interval),
             console=_console,
             refresh_per_second=4,
-            transient=False,
+            transient=True,
         ) as live:
             while True:
                 cycle += 1
@@ -286,17 +288,19 @@ async def mode_monitor(
                                     ts = datetime.now().strftime("%H:%M:%S")
                                     hex_history.setdefault(key, []).append((raw, ts))
 
-                live.update(
-                    _render_results(
-                        last_queries, verbose, cycle, elapsed, interval, prev_hex, hex_history
-                    )
+                render = _render_results(
+                    last_queries, verbose, cycle, elapsed, interval, prev_hex, hex_history
                 )
+                last_render = render
+                live.update(render)
 
                 remaining = interval - elapsed
                 if remaining > 0:
                     await asyncio.sleep(remaining)
 
     except KeyboardInterrupt:
+        if last_render is not None:
+            _console.print(last_render)
         print("\n  Monitoring stopped.")
     finally:
         sm.stop_background_keepalive()
