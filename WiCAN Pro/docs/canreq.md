@@ -51,6 +51,31 @@ canreq.py --multi "skm-wake acc" "sleep 1" "query BCM B00E" "repl"
 
 ECU names are resolved from YAML definitions (e.g., `IGPM`, `BCM`, `SKM`) or can be hex TX IDs (`770`, `7A0`).
 
+##### `--monitor` flag (live refresh)
+
+Turns a `--multi` pipeline into a live-refreshing monitor. Non-query steps (session, skm-wake, sleep) run once as setup; all `query` steps are then polled repeatedly, with Rich Live updating the display in-place. Sessions are kept alive with background TesterPresent keepalives.
+
+```bash
+# Monitor BMS SOC every 5s (default interval)
+canreq.py --multi "query BMS 2101" --monitor
+
+# Monitor IGPM status with 2s interval, wake from deep sleep
+canreq.py --multi "session IGPM --wake" "query IGPM BC03 BC06" --monitor 2
+
+# Monitor BCM voltage ADCs with payload history
+canreq.py --multi "session BCM --wake" "query BCM B003 B004" --monitor --keep
+```
+
+**Hex display features:**
+
+- **Byte-level change highlighting:** Changed bytes get a highlighted background adapted from their verification color (green → dark green bg, yellow → dark goldenrod bg, grey → grey37 bg). A green `●` dot appears next to PIDs with changed payloads.
+- **Verification coloring:** Bytes covered by verified parameters are green, unverified are yellow, uncovered bytes are dim grey.
+- **Unmapped PIDs:** Shown with ASCII representation alongside the hex dump.
+
+**`--keep` flag:** Retains all unique payloads seen for each PID and displays them as a flat chronological list (oldest at top, newest at bottom). Each row highlights bytes that changed from its predecessor, making it easy to spot which bytes are drifting over time. A count is shown next to the PID header (e.g. `22B003 (3 unique)`). Without `--keep`, only the current payload is displayed.
+
+Press Ctrl+C to stop monitoring.
+
 **Session management:** The SessionManager tracks all ECUs with active extended sessions and sends TesterPresent (`3E00`) keepalives to stale sessions before each foreground command. In the REPL, a background task sends keepalives every 2s. This allows querying one ECU while keeping sessions alive on others (e.g., keeping SKM ACC relay active while reading BCM charge port data).
 
 **Multi-ECU REPL commands:** `!session <ECU>` (open new session), `!sessions` (list active), `!query <ECU> [PID ...]`, `!raw <TX:PID>`, `!skm [level]`, `!quit`.
