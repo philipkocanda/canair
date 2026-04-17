@@ -1,4 +1,4 @@
-# WiCAN TODOs
+# Reverse Engineering TODOs
 
 - [ ] Decode BCM charge scheduling DIDs (e.g. preheat and charge schedules, scheduled charging on/off, rear defrost on/off, etc.) -> can we also write these somehow?
 - [ ] Scan various ECUs using --identity flag.
@@ -15,7 +15,10 @@
 - [ ] Scan ABS for PIDs (e.g. wheel speeds, brake pressure)
 - [ ] Scan BCM for IOControl (e.g. door lock/unlock, light control)
 - [ ] Scan BMS for IOControl (e.g. battery fan control)
-
+- [ ] **Ioniq charge cable unlock IOControl** — test `2FBC4103` (charge cable UNLOCK) and `2FBC3F03` (charge cable LOCK) on IGPM 0x770. Both accepted in IOControl scan (BC20-BC41 range untested visually). Useful for remotely releasing stuck charge cables. Requires extended session (`--session --hold`). Test during active charging session with key fob nearby.
+- [ ] **Ioniq remote climate start** — research HVAC (0x7B3) IOControl DIDs for compressor, blower, heater, A/C control. Goal: remote cabin pre-conditioning via CAN. Likely requires SKM IGN1 wakeup (HV system needed for compressor/PTC heater). Scan `--scan --tx 7B3 --service 2F --session` and cross-reference with e-Niro/Ioniq 5 HVAC actuator tables.
+- [ ] **Ioniq BCM security access** — crack UDS `27 01`/`27 02` seed-key algorithm for BCM (0x7A0) and IGPM (0x770). 48 algorithms tried, all failed. Need a valid seed-key pair (sniff from Kingbolen/GDS scanner) or firmware dump. See `WiCAN Pro/docs/wakeup-research.md` Security Access section. Check mhhauto.com forum (requires account).
+- [ ] **Ioniq IGPM undecoded DIDs** — decode remaining bytes in BC01–BC07 status registers. Known candidates: seatbelt status, ambient light sensor, window positions, mirror fold state, wiper/washer state, washer fluid level, bonnet/hood open, rear defogger active, hazard lights, interior lamps (room/map/trunk), key-in-ignition warning, vehicle speed pulse. Requires ignition-ON testing for most. BC03/BC04 can be further decoded with lock/unlock cycle while monitoring.
 
 ## Unverified PIDs
 
