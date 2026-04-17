@@ -87,6 +87,35 @@ def build_param_index(pids_data: dict) -> dict:
     return index
 
 
+def build_iocontrol_index(pids_data: dict) -> dict:
+    """Build lookup: ECU_NAME -> {tx_id, cmds: {DID: {label, on, off, session, hold, verified, notes}}}."""
+    index = {}
+    for ecu_name, ecu_def in pids_data.get("ecus", {}).items():
+        ioctrl = ecu_def.get("iocontrol", {})
+        if not ioctrl:
+            continue
+        cmds = {}
+        for did, cdef in ioctrl.items():
+            did_str = str(did).upper()
+            # YAML parses bare on/off as True/False booleans
+            on_cmd = cdef.get("on") or cdef.get(True, "")
+            off_cmd = cdef.get("off") or cdef.get(False, "")
+            cmds[did_str] = {
+                "label": cdef.get("label", ""),
+                "on": str(on_cmd),
+                "off": str(off_cmd),
+                "session": cdef.get("session", True),
+                "hold": cdef.get("hold", True),
+                "verified": cdef.get("verified", False),
+                "notes": cdef.get("notes", ""),
+            }
+        index[ecu_name.upper()] = {
+            "tx_id": ecu_def["tx_id"],
+            "cmds": cmds,
+        }
+    return index
+
+
 def build_ecu_index(pids_data: dict) -> dict:
     """Build lookup: ECU_NAME -> {tx_id, pids: {PID: {parameters: ...}}}."""
     index = {}

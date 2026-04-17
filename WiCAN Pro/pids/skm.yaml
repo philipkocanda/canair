@@ -37,8 +37,7 @@ SKM:
       off: "2FB10900"
       hold: false
       notes: >
-        Ignition 1 — wakes all ECUs including HV system. Use with extreme caution.
-
+        Ignition 1 — wakes all ECUs including HV system?
     B10A:
       label: IGN2 relay
       verified: false
@@ -46,7 +45,7 @@ SKM:
       off: "2FB10A00"
       hold: false
       notes: >
-        Ignition 2 — purpose unclear on Ioniq EV. From Kia Soul (ICE start circuit).
+        Ignition 2 — purpose unclear on Ioniq EV. From Kia Soul EV.
 
     B10B:
       label: Start relay
@@ -55,5 +54,4 @@ SKM:
       off: "2FB10B00"
       hold: false
       notes: >
-        DO NOT USE on EV — no starter motor, unknown behavior.
-        Starter motor relay from Kia Soul ICE. Not applicable to Ioniq EV.
+        Start relay from Kia Soul EV.
