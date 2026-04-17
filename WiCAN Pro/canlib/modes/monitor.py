@@ -39,13 +39,10 @@ _HIGHLIGHT_STYLE = {
 }
 
 
-def _render_hex_line(
-    raw_hex: str, params: list, unmapped: bool, *, prev_raw: str = "", dim: bool = False
-) -> Text:
+def _render_hex_line(raw_hex: str, params: list, unmapped: bool, *, prev_raw: str = "") -> Text:
     """Render a hex line with per-byte change highlighting.
 
     Changed bytes get a background color adapted from their base color.
-    If dim=True, render the entire line in bright_black (for history rows).
     """
     elm_bytes = [raw_hex[i : i + 2] for i in range(0, len(raw_hex), 2)]
     prev_bytes = [prev_raw[i : i + 2] for i in range(0, len(prev_raw), 2)] if prev_raw else []
@@ -53,14 +50,7 @@ def _render_hex_line(
     t = Text()
     t.append("      ")
 
-    if dim:
-        # History row — all bytes in bright_black
-        for i, hb in enumerate(elm_bytes):
-            if i > 0:
-                t.append(" ")
-            t.append(hb, style="bright_black")
-        t.append(f"  ({n_bytes} B)", style="bright_black")
-    elif unmapped or not params:
+    if unmapped or not params:
         for i, hb in enumerate(elm_bytes):
             if i > 0:
                 t.append(" ")
@@ -175,14 +165,21 @@ def _render_results(
 
             if raw_hex:
                 hex_key = (ecu_label, pid)
-                prev_raw = prev_hex.get(hex_key, "") if prev_hex and cycle > 1 else ""
-                text.append_text(_render_hex_line(raw_hex, params, unmapped, prev_raw=prev_raw))
-
-                # Show history (older unique payloads, newest first, dimmed)
                 if hex_history and hex_key in hex_history:
-                    for hist_hex in reversed(hex_history[hex_key]):
-                        if hist_hex != raw_hex:
-                            text.append_text(_render_hex_line(hist_hex, params, unmapped, dim=True))
+                    # Show all unique payloads chronologically, each diffed against predecessor
+                    history = hex_history[hex_key]
+                    # Build full list: history + current (deduplicated)
+                    all_payloads = list(history)
+                    if raw_hex not in all_payloads:
+                        all_payloads.append(raw_hex)
+                    for i, payload in enumerate(all_payloads):
+                        prev_raw = all_payloads[i - 1] if i > 0 else ""
+                        text.append_text(
+                            _render_hex_line(payload, params, unmapped, prev_raw=prev_raw)
+                        )
+                else:
+                    prev_raw = prev_hex.get(hex_key, "") if prev_hex and cycle > 1 else ""
+                    text.append_text(_render_hex_line(raw_hex, params, unmapped, prev_raw=prev_raw))
 
     text.append("\n  Press Ctrl+C to stop monitoring\n", style="dim")
     return text

@@ -267,8 +267,8 @@ class TestKeepHistory:
         t = _render_results(results, verbose=False, cycle=1, elapsed=0.1, interval=5.0)
         assert t.plain.count("62 B0 03 AA BB") == 1
 
-    def test_history_shows_older_entries(self):
-        """With hex_history containing 2 previous payloads, both shown."""
+    def test_history_shows_all_chronologically(self):
+        """With hex_history, all unique payloads shown oldest to newest."""
         entry = self._make_pid_result(raw_hex="62B003CC")
         results = [("BCM (0x7A0)", [entry])]
         history = {("BCM (0x7A0)", "22B003"): ["62B003AA", "62B003BB"]}
@@ -276,9 +276,14 @@ class TestKeepHistory:
             results, verbose=False, cycle=3, elapsed=0.1, interval=5.0, hex_history=history
         )
         plain = t.plain
-        assert "62 B0 03 CC" in plain
         assert "62 B0 03 AA" in plain
         assert "62 B0 03 BB" in plain
+        assert "62 B0 03 CC" in plain
+        # Chronological order: AA, BB, CC
+        pos_aa = plain.index("62 B0 03 AA")
+        pos_bb = plain.index("62 B0 03 BB")
+        pos_cc = plain.index("62 B0 03 CC")
+        assert pos_aa < pos_bb < pos_cc
 
     def test_history_skips_duplicate_of_current(self):
         """If current payload is in history, it's not shown again as history."""
@@ -312,14 +317,22 @@ class TestKeepHistory:
         )
         assert "unique" not in t.plain
 
-    def test_history_dim_rendering(self):
-        """History lines use dim=True (bright_black style)."""
-        t = _render_hex_line("62B003AA", [], True, dim=True)
-        for span in t._spans:
-            assert "bright_black" in str(span.style)
+    def test_history_change_highlighting(self):
+        """Each history row highlights bytes that differ from its predecessor."""
+        entry = self._make_pid_result(raw_hex="62B003CC")
+        results = [("BCM (0x7A0)", [entry])]
+        history = {("BCM (0x7A0)", "22B003"): ["62B003AA", "62B003BB"]}
+        t = _render_results(
+            results, verbose=False, cycle=3, elapsed=0.1, interval=5.0, hex_history=history
+        )
+        # BB differs from AA at last byte, CC differs from BB at last byte
+        # Both should have change highlighting (not dim)
+        spans = t._spans
+        highlight_styles = [str(s.style) for s in spans if "grey37" in str(s.style)]
+        assert len(highlight_styles) >= 2  # at least BB and CC have highlighted bytes
 
-    def test_history_newest_first(self):
-        """History entries shown newest-first (reversed)."""
+    def test_history_chronological_order(self):
+        """History entries shown chronologically oldest to newest."""
         entry = self._make_pid_result(raw_hex="62B003DD")
         results = [("BCM (0x7A0)", [entry])]
         history = {("BCM (0x7A0)", "22B003"): ["62B003AA", "62B003BB", "62B003CC"]}
@@ -327,8 +340,8 @@ class TestKeepHistory:
             results, verbose=False, cycle=4, elapsed=0.1, interval=5.0, hex_history=history
         )
         plain = t.plain
-        pos_dd = plain.index("62 B0 03 DD")
-        pos_cc = plain.index("62 B0 03 CC")
-        pos_bb = plain.index("62 B0 03 BB")
         pos_aa = plain.index("62 B0 03 AA")
-        assert pos_dd < pos_cc < pos_bb < pos_aa
+        pos_bb = plain.index("62 B0 03 BB")
+        pos_cc = plain.index("62 B0 03 CC")
+        pos_dd = plain.index("62 B0 03 DD")
+        assert pos_aa < pos_bb < pos_cc < pos_dd
