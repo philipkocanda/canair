@@ -5299,3 +5299,284 @@ sessions:
     pid: 2201A6
     payload: "6201A600B400CEFFFFFFFF0000012800EE07000000000000000000231010100000F0230000010100000002BC02DA000000000100000000"
     time: "17:48:16"
+
+- date: "2026-04-17"
+  label: "KWP2000 identity scan (1Axx) — BMS, VCU, MCU, LDC, Gateway"
+  state: ready
+  notes: >
+    Powertrain ECUs (BMS, VCU, MCU, LDC, Gateway) don't support UDS F1xx identity DIDs
+    but respond to KWP2000 ReadEcuIdentification service 1A. Scanned 1A80-1A9F on each.
+    Key discovery: these ECUs use KWP2000, not UDS, for identification.
+    CarScanner uses the same service 1A approach.
+  captures:
+    # ── BMS 0x7E4 ──
+    - ecu: BMS
+      pid: 1A80
+      payload: "5A800A0B0C0D0E0A0B0C0D0E20080709414545565F5F20424D53200000000000005645522E322E3320202020000A0B0C0D0E0A0B0C0D0E0000000034363034111111110000"
+      notes: "69 bytes. ECU name: AEEV__ BMS, firmware: VER.2.3, build date: 2008-07-09, suffix: 4604"
+    - ecu: BMS
+      pid: 1A8C
+      response: "CGBMSE305AE1000A"
+      notes: "Software identifier"
+    - ecu: BMS
+      pid: 1A8D
+      response: "4604"
+      notes: "Calibration/part suffix"
+    - ecu: BMS
+      pid: 1A90
+      response: "AEEV__ BMS"
+      notes: "ECU name"
+    - ecu: BMS
+      pid: 1A91
+      response: "VER.2.3"
+      notes: "Firmware version"
+    - ecu: BMS
+      pid: scan
+      scan_results:
+        responding:
+          - did: "80"
+            response: "5A80... (69 bytes)"
+            notes: "General identification"
+          - did: "8A"
+            response: "5A8A2020202020202020202000 (13 bytes)"
+            notes: "Blank/spaces"
+          - did: "8B"
+            response: "5A8B00000000 (6 bytes)"
+            notes: "Date field — all zeros on BMS"
+          - did: "8C"
+            response: "CGBMSE305AE1000A (20 bytes)"
+            notes: "SW ID"
+          - did: "8D"
+            response: "4604 (6 bytes)"
+            notes: "Calibration"
+          - did: "8E"
+            response: "11111111 (6 bytes)"
+            notes: "Unknown — 0x11 repeated"
+          - did: "90"
+            response: "AEEV__ BMS (20 bytes)"
+            notes: "ECU name"
+          - did: "91"
+            response: "VER.2.3 (20 bytes)"
+            notes: "Version"
+          - did: "98"
+            response: "spaces (13 bytes)"
+            notes: "Blank"
+          - did: "99"
+            response: "00000000 (6 bytes)"
+            notes: "All zeros"
+          - did: "9A"
+            response: "0000000000000000000000 (13 bytes)"
+            notes: "All zeros"
+        rejected: "81-89 (excl 8A), 8F, 92-97, 9B-9F: NRC"
+      notes: "11/32 responding. KWP2000 service 1A works where UDS F1xx failed."
+
+    # ── VCU 0x7E2 ──
+    - ecu: VCU
+      pid: 1A90
+      response: "KMHCXXXXXXXXXXXX"
+      notes: "Full VIN"
+    - ecu: VCU
+      pid: 1A91
+      response: "36601-0E250"
+      notes: "Part number"
+    - ecu: VCU
+      pid: 1A8C
+      response: "AEVLDC53"
+      notes: "ECU ID — oddly reports LDC identifier, not VCU"
+    - ecu: VCU
+      pid: 1A8D
+      response: "EAEEO5L-NS7-D060"
+      notes: "Software identifier"
+    - ecu: VCU
+      pid: 1A8E
+      response: "C5210617"
+      notes: "Calibration identifier"
+    - ecu: VCU
+      pid: scan
+      scan_results:
+        responding:
+          - did: "80"
+            response: "69 bytes — general ID with VIN"
+            notes: "Contains VIN prefix"
+          - did: "8A"
+            response: "13 bytes — spaces"
+            notes: "Blank"
+          - did: "8B"
+            response: "1E090D14 (6 bytes)"
+            notes: "Date/version field — encoding unclear"
+          - did: "8C"
+            response: "AEVLDC53"
+            notes: "ECU ID (misreports as LDC)"
+          - did: "8D"
+            response: "EAEEO5L-NS7-D060"
+            notes: "SW ID"
+          - did: "8E"
+            response: "C5210617"
+            notes: "Calibration"
+          - did: "90"
+            response: "KMHCXXXXXXXXXXXX"
+            notes: "VIN"
+          - did: "91"
+            response: "36601-0E250"
+            notes: "Part number"
+          - did: "92"
+            response: "13 bytes — all zeros"
+            notes: "Empty"
+          - did: "98"
+            response: "13 bytes — spaces"
+            notes: "Blank"
+          - did: "99"
+            response: "1E090D14 (6 bytes)"
+            notes: "Same as 8B"
+        rejected: "81-89 (excl 8A), 8F, 93-97, 9A-9F: NRC"
+      notes: "11/32 responding"
+
+    # ── MCU 0x7E3 ──
+    - ecu: MCU
+      pid: 1A8C
+      response: "AEEMCU83"
+      notes: "ECU ID"
+    - ecu: MCU
+      pid: 1A91
+      response: "36600-0E250"
+      notes: "Part number"
+    - ecu: MCU
+      pid: 1A8D
+      response: "EAEEHEL-MS2-D000"
+      notes: "Software identifier"
+    - ecu: MCU
+      pid: scan
+      scan_results:
+        responding:
+          - did: "80"
+            response: "69 bytes"
+            notes: "General ID"
+          - did: "8A"
+            response: "13 bytes — spaces"
+            notes: "Blank"
+          - did: "8B"
+            response: "1E060A14 (6 bytes)"
+            notes: "Date/version field"
+          - did: "8C"
+            response: "AEEMCU83"
+            notes: "ECU ID"
+          - did: "8D"
+            response: "EAEEHEL-MS2-D000"
+            notes: "SW ID"
+          - did: "8E"
+            response: "00000001"
+            notes: "Calibration"
+          - did: "90"
+            response: "20 bytes — spaces"
+            notes: "Blank (no VIN)"
+          - did: "91"
+            response: "36600-0E250"
+            notes: "Part number"
+          - did: "98"
+            response: "13 bytes — spaces"
+            notes: "Blank"
+          - did: "99"
+            response: "1E060A14 (6 bytes)"
+            notes: "Same as 8B"
+        rejected: "81-89 (excl 8A), 8F, 92-97, 9A-9F: NRC"
+      notes: "10/32 responding"
+
+    # ── LDC/OBC 0x7E5 ──
+    - ecu: LDC
+      pid: 1A80
+      payload: "5A8033363430302D30453135304145454F45533038523000000000"
+      notes: "27 bytes. Part 36400-0E150, ID AEEOES08R0"
+    - ecu: LDC
+      pid: 1A87
+      payload: "5A87FF"
+      notes: "3 bytes — 0xFF. Supports 1A87 but returns FF"
+    - ecu: LDC
+      pid: 1A8C
+      response: "AEEOBC51"
+      notes: "ECU ID — identifies as OBC (On-Board Charger)"
+    - ecu: LDC
+      pid: 1A91
+      response: "36400-0E150"
+      notes: "Part number"
+    - ecu: LDC
+      pid: 1A8D
+      response: "EAEEH5L-OS3-D000"
+      notes: "Software identifier"
+    - ecu: LDC
+      pid: scan
+      scan_results:
+        responding:
+          - did: "80"
+            response: "27 bytes — shorter than others"
+            notes: "Part# + ID"
+          - did: "87"
+            response: "FF (3 bytes)"
+            notes: "Exists but returns 0xFF"
+          - did: "8A"
+            response: "13 bytes — spaces"
+            notes: "Blank"
+          - did: "8B"
+            response: "1E090D14 (6 bytes)"
+            notes: "Date/version field"
+          - did: "8C"
+            response: "AEEOBC51"
+            notes: "ECU ID"
+          - did: "8D"
+            response: "EAEEH5L-OS3-D000"
+            notes: "SW ID"
+          - did: "8E"
+            response: "00000001"
+            notes: "Calibration"
+          - did: "90"
+            response: "20 bytes — spaces"
+            notes: "Blank"
+          - did: "91"
+            response: "36400-0E150"
+            notes: "Part number"
+          - did: "98"
+            response: "13 bytes — mostly zeros"
+            notes: "Near-empty"
+          - did: "99"
+            response: "1E090D14 (6 bytes)"
+            notes: "Same as 8B"
+        rejected: "81-86, 88-89, 8F, 92-97, 9A-9F: NRC"
+      notes: "11/32 responding. LDC uniquely supports 1A87."
+
+    # ── Gateway 0x7E6 ──
+    - ecu: Gateway
+      pid: 1A80
+      payload: "5A804D33303632303030333037204541454141465032303107E003024541"
+      notes: "48 bytes. Part M3062000307, firmware EAEAAFP201"
+    - ecu: Gateway
+      pid: 1A91
+      response: "M3062000307"
+      notes: "Part number"
+    - ecu: Gateway
+      pid: 1A8D
+      response: "EAE16AAFB30001"
+      notes: "Software identifier"
+    - ecu: Gateway
+      pid: 1A98
+      response: "EAEAAFP201"
+      notes: "Firmware identifier"
+    - ecu: Gateway
+      pid: scan
+      scan_results:
+        responding:
+          - did: "80"
+            response: "48 bytes"
+            notes: "General ID"
+          - did: "8D"
+            response: "EAE16AAFB30001"
+            notes: "SW ID"
+          - did: "91"
+            response: "M3062000307"
+            notes: "Part number"
+          - did: "98"
+            response: "EAEAAFP201"
+            notes: "Firmware ID"
+          - did: "99"
+            response: "07E00302 (6 bytes)"
+            notes: "Contains 0x7E0 and 0x0302 — possibly routing/address info"
+        rejected: "81-8C, 8E-90, 92-97, 9A-9F: NRC"
+      notes: "5/32 responding. Fewest identity DIDs of all powertrain ECUs."
