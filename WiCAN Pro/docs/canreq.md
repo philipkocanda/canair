@@ -9,8 +9,12 @@ canreq.py --ecu BMS                        # Query all BMS parameters
 canreq.py --ecu BMS --pid 2101             # Query BMS PID 2101 only
 canreq.py --raw 7E4:2101                   # Raw UDS request with hex dump
 canreq.py --scan --tx 7E4 --service 21 --range 01-FF  # Scan PID range
+canreq.py --discover                       # Sweep 0x700-0x7EF for responding ECUs
 canreq.py --identity --tx 7A0 --session    # Query UDS identity DIDs (part no, dates, versions)
 canreq.py --identity --tx 770 --wake       # Identity query with deep-sleep wake
+canreq.py --iocontrol IGPM                 # List all IGPM IOControl DIDs (no CAN needed)
+canreq.py --iocontrol IGPM --did BC01      # Turn on low beam (auto-session, hold)
+canreq.py --iocontrol IGPM --did BC01 --off  # Turn off low beam
 canreq.py --wican vpn --param SOC_BMS      # Use VPN address
 canreq.py --verbose --ecu VCU              # Show raw WebSocket traffic
 canreq.py --json --param SOC_BMS           # JSON output
@@ -46,6 +50,7 @@ canreq.py --multi "skm-wake acc" "sleep 1" "query BCM B00E" "repl"
 | `query <ECU> [PID ...]`         | Query ECU parameters (like `--ecu`/`--param`)       |
 | `raw <TX:PID>`                  | Raw UDS request                                      |
 | `scan <TX> <SVC> <RANGE> [APP]` | Scan PID range                                       |
+| `iocontrol <ECU> <DID> [--off]` | Execute IOControl ON/OFF from pids/ YAML             |
 | `sleep <seconds>`               | Pause between steps                                  |
 | `repl`                          | Drop into interactive REPL (explicit)                |
 
@@ -110,6 +115,43 @@ Requires `--tx`. Use `--session` for most ECUs; use `--wake` for deep-sleeping E
 Known results (deep sleep, no ACC):
 - **BCM (0x7A0):** F18C=`1705310070`, F18B=`2017-05-31`, F100=`180`, F194=`100`, F195=`0880`, F196=`220`, F1A4=`620`
 - **IGPM (0x770):** F18B=`2017-06-06`, F100=`20`, F101=`160205`, F110=`(empty)`, F194=`100`, F196=`109`
+
+##### `--iocontrol` flag
+
+Executes IOControl (service `2F`) commands defined in the `iocontrol:` section of pids/ YAML files. Session and hold behavior are auto-applied from the YAML metadata — no need to pass `--session` or `--hold` manually.
+
+```bash
+# List all IOControl DIDs for an ECU (no CAN connection needed)
+canreq.py --iocontrol IGPM
+canreq.py --iocontrol BCM --json
+
+# Execute ON command (auto-session, hold until Ctrl+C if hold: true)
+canreq.py --iocontrol IGPM --did BC01
+
+# Execute OFF command
+canreq.py --iocontrol IGPM --did BC01 --off
+
+# In multi pipeline (session managed by pipeline)
+canreq.py --multi "iocontrol IGPM BC01" "sleep 3" "iocontrol IGPM BC01 --off"
+```
+
+**Behavior:**
+- Without `--did`: lists all IOControl DIDs in a table (DID, label, ON/OFF commands, verified, hold). Works offline — no WiCAN connection.
+- With `--did`: sends the ON command (or OFF with `--off`). Auto-enters extended diagnostic session if `session: true` in YAML.
+- If `hold: true` in YAML (default): keeps TesterPresent alive until Ctrl+C, then auto-sends the OFF command on release.
+- If `hold: false` (e.g. SKM relays): sends command and exits immediately.
+
+ECUs with IOControl DIDs: IGPM, BCM, SKM, PSM, VESS (see respective `pids/*.yaml` files).
+
+##### `--discover` flag
+
+Sweeps a range of CAN TX addresses to find responding ECUs. Sends `10 01` (default session request) to each address and reports which ones respond (positive or NRC — both indicate a live ECU).
+
+```bash
+canreq.py --discover                       # Sweep 0x700-0x7EF (default)
+canreq.py --discover --range 600-6FF       # Custom range
+canreq.py --discover --delay 0.5           # Slower pacing (default: 0.2s)
+```
 
 ##### `--session` flag
 
