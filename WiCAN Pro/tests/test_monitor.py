@@ -429,11 +429,19 @@ class TestPromptAndSave:
         assert "state" not in data["sessions"][1]  # empty state omitted
 
     def test_empty_label_cancels(self, tmp_path):
-        """Empty label cancels save."""
+        """Ctrl+C during prompt cancels save."""
         hex_history = {("BCM (0x7A0)", "22B003"): [("62B003AA", "10:00:00")]}
-        with patch("builtins.input", side_effect=[""]):
+        with patch("builtins.input", side_effect=KeyboardInterrupt):
             _prompt_and_save(hex_history, {}, tmp_path)
         assert list(tmp_path.glob("*.yaml")) == []
+
+    def test_empty_label_with_suggestion_saves(self, tmp_path):
+        """Empty label accepts the suggested label and saves."""
+        hex_history = {("BCM (0x7A0)", "22B003"): [("62B003AA", "10:00:00")]}
+        with patch("builtins.input", side_effect=["", "", ""]):
+            _prompt_and_save(hex_history, {}, tmp_path)
+        files = list(tmp_path.glob("*.yaml"))
+        assert len(files) == 1
 
     def test_no_payloads_skips(self, tmp_path):
         """No payloads means nothing to save."""

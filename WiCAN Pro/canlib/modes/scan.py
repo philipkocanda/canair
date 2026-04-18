@@ -17,6 +17,7 @@ async def mode_scan(
     append_bytes: str = "",
     session: bool = False,
     wake: bool = False,
+    save: bool = False,
 ):
     """Scan a range of PIDs and show which respond positively.
 
@@ -25,6 +26,7 @@ async def mode_scan(
             IOControl ShortTermAdjustment).
         session: If True, enter extended diagnostic session (10 03) before
             scanning and send periodic TesterPresent (3E 00) in the background.
+        save: If True, prompt for metadata and save results to captures/.
 
     IMPORTANT -- scan gently and patiently:
         - Only ONE scan at a time.
@@ -126,5 +128,39 @@ async def mode_scan(
             "errors": [{"did": f"0x{p:{did_fmt}}", "error": e} for p, e in errors],
         }
         print(json.dumps(out, indent=2))
+
+    # Auto-save to captures
+    if save:
+        from ..captures import (
+            build_scan_session,
+            prompt_metadata,
+            save_session,
+            suggest_scan_label,
+        )
+        from ..pids import ecu_name
+
+        ecu = ecu_name(tx_id)
+        suggested = suggest_scan_label(ecu, service, pid_range, append_bytes)
+        n_pos = len(positive)
+        n_neg = len(negative)
+        print(f"\n  Save: {n_pos} positive, {n_neg} negative responses.")
+        meta = prompt_metadata(suggested_label=suggested)
+        if meta:
+            label, state, notes = meta
+            session_dict = build_scan_session(
+                ecu_name=ecu,
+                tx_id=tx_id,
+                service=service,
+                pid_range=pid_range,
+                positive=positive,
+                negative=negative,
+                errors=errors,
+                label=label,
+                state=state,
+                notes=notes,
+                append_bytes=append_bytes,
+                session_flag=session,
+            )
+            save_session(session_dict)
 
     print()

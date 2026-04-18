@@ -15,6 +15,8 @@ async def mode_raw(
     session: bool = False,
     hold: bool = False,
     wake: bool = False,
+    save: bool = False,
+    pids_data: dict | None = None,
 ):
     """Send a raw UDS request specified as TX_ID:SERVICE_PID.
 
@@ -23,6 +25,8 @@ async def mode_raw(
             command completes (TesterPresent keepalive runs until Ctrl+C).
             Useful for IOControl (2F) commands where the actuator releases
             when the session drops. Implies --session.
+        save: If True, prompt for metadata and save result to captures/.
+        pids_data: Loaded PID definitions for decoding (used with --save).
     """
     match = re.match(r"^([0-9A-Fa-f]{3})[:\s]([0-9A-Fa-f]+)$", raw_spec)
     if not match:
@@ -50,6 +54,8 @@ async def mode_raw(
         if as_json:
             print_json_result(response)
             if not hold:
+                if save:
+                    _save_raw(tx_id, service_pid, response, pids_data)
                 return
         elif not response["ok"]:
             error = response.get("error") or response.get("nrc_desc", "unknown error")
@@ -59,6 +65,8 @@ async def mode_raw(
             else:
                 print(f"  Error: {error}")
             if not hold:
+                if save:
+                    _save_raw(tx_id, service_pid, response, pids_data)
                 return
         else:
             decode = decode_uds_response(response["bytes"])
@@ -78,6 +86,8 @@ async def mode_raw(
                 await asyncio.Event().wait()
             except (KeyboardInterrupt, asyncio.CancelledError):
                 print("\n  Releasing session...")
+        elif save:
+            _save_raw(tx_id, service_pid, response, pids_data)
     finally:
         if tester_task:
             tester_task.cancel()
@@ -85,3 +95,26 @@ async def mode_raw(
                 await tester_task
             except asyncio.CancelledError:
                 pass
+
+
+def _save_raw(tx_id: int, request: str, response: dict, pids_data: dict | None) -> None:
+    """Prompt and save a raw request result to captures."""
+    from ..captures import build_raw_session, prompt_metadata, save_session, suggest_raw_label
+    from ..pids import ecu_name
+
+    ecu = ecu_name(tx_id)
+    suggested = suggest_raw_label(ecu, request)
+    meta = prompt_metadata(suggested_label=suggested)
+    if meta:
+        label, state, notes = meta
+        session_dict = build_raw_session(
+            ecu_name=ecu,
+            tx_id=tx_id,
+            request=request,
+            response=response,
+            label=label,
+            state=state,
+            notes=notes,
+            pids_data=pids_data,
+        )
+        save_session(session_dict)

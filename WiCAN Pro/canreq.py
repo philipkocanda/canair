@@ -250,6 +250,8 @@ async def async_main(args):
                 session=args.session,
                 hold=args.hold,
                 wake=args.wake,
+                save=args.save,
+                pids_data=pids_data,
             )
         elif args.scan:
             if not args.tx:
@@ -278,6 +280,7 @@ async def async_main(args):
                 append_bytes=append_bytes,
                 session=args.session,
                 wake=args.wake,
+                save=args.save,
             )
         elif args.iocontrol:
             if args.did:
@@ -307,6 +310,7 @@ async def async_main(args):
                 args.verbose,
                 args.json,
                 delay=args.delay,
+                save=args.save,
             )
         else:
             await mode_interactive(terminal, pids_data, args.verbose)
@@ -545,8 +549,9 @@ Examples:
     parser.add_argument(
         "--save",
         action="store_true",
-        help="For --monitor --keep: on Ctrl+C, prompt for session metadata "
-        "and save all unique payloads to captures/YYYY-MM-DD.yaml.",
+        help="Save results to captures/YYYY-MM-DD.yaml. Prompts for session "
+        "metadata (label auto-suggested, Enter to accept). Works with "
+        "--scan, --raw, --discover, and --monitor --keep.",
     )
 
     # SKM wakeup options

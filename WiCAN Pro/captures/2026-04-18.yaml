@@ -92,3 +92,61 @@ sessions:
               response: "27 bytes (known from 2026-04-17)"
               notes: "Raw: 6181FFFFC00021270000000100206D824041454582130797970000"
           rejected: "253 DIDs returned NO DATA or NRC"
+
+  - date: "2026-04-18"
+    label: "SKM DID scan + IGPM key-in-car observation"
+    state: "Deep sleep, key in unlocked car, unplugged, 12.4-12.6V battery"
+    notes: |
+      SKM B0xx range discovery: 9 responding DIDs (B002-B00B).
+      B002 has 136 data bytes — massive status register, likely contains key presence.
+      Also captured IGPM BC03 POWER_MODE=0x73 with key in car (vs 0x0A without key).
+      SKM B1xx, 01xx, service 21 01-0F all returned NRC — B0xx is the right range.
+    captures:
+      - ecu: IGPM
+        pid: "22BC03"
+        notes: "POWER_MODE=0x73 (115) — key in unlocked car. Stable over 12 reads."
+        payload: "62BC03FDEE3C7300000000AAAA"
+
+      - ecu: SKM
+        pid: "scan 22 B000-B020"
+        notes: "9 responding DIDs. B002 = 136 data bytes (massive). Key in car, doors unlocked."
+        scan_results:
+          responding:
+            - did: "B002"
+              response: "136 bytes"
+              notes: "Raw: 62B0020000000014320007120A003C0A462C3F750A1910E0168004FEFF1EC89664FA03320503090A1E1432320506140332320205320F00073246141E1E1E140000000000002C3F75FE0000000000000000000000FFFAC89664960102000000100012080F0A14100A00000000000000C864030F3CC814000000000000006428081010031E00000000AAAAAA"
+            - did: "B003"
+              response: "27 bytes"
+              notes: "Raw: 62B003000000003412900300000000C6A21261000000000F00AAAA"
+            - did: "B005"
+              response: "13 bytes"
+              notes: "Raw: 62B005FA60900000040000AAAA"
+            - did: "B006"
+              response: "27 bytes"
+              notes: "Raw: 62B006AFE000009C0000000000000000009B0000000000AAAAAAAA"
+            - did: "B007"
+              response: "20 bytes"
+              notes: "Raw: 62B0071E7FB80000000C007FFF00000000AAAAAA"
+            - did: "B008"
+              response: "20 bytes"
+              notes: "Raw: 62B0080000000000000000000000000000AAAAAA"
+            - did: "B009"
+              response: "34 bytes"
+              notes: "Raw: 62B009000000000000000000000000000000000000000000000000000000..."
+            - did: "B00A"
+              response: "20 bytes"
+              notes: "Raw: 62B00A0100F038000501080600000040010000AA"
+            - did: "B00B"
+              response: "55 bytes"
+              notes: "Raw: 62B00B800000000200000000000000000000000400005319420000000002..."
+          rejected: "24 DIDs returned NRC (B000-B001, B004, B00C-B020)"
+
+      - ecu: SKM
+        pid: "scan 22 B100-B110"
+        notes: "All NRC — SKM does not use B1xx range"
+        response: "0/17 responding"
+
+      - ecu: SKM
+        pid: "scan 21 01-0F"
+        notes: "All NRC — SKM does not use service 21"
+        response: "0/15 responding"
