@@ -3,7 +3,7 @@
 import asyncio
 import re
 
-from ..formatting import decode_uds_response, print_hexdump, print_json_result
+from ..formatting import decode_uds_response, print_hexdump, print_json_result, format_raw_with_bnn
 from ..terminal import WiCANTerminal
 
 
@@ -73,6 +73,7 @@ async def mode_raw(
             if decode:
                 print(f"  → {decode}")
                 print(f"    Raw: {response['hex']}")
+                print(f"    Bnn: {format_raw_with_bnn(response['bytes'])}")
             else:
                 print(f"  Response ({len(response['bytes'])} bytes): {response['hex']}")
                 print()
