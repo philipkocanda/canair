@@ -41,6 +41,7 @@ class WiCANTerminal:
         self.ws = None
         self._buffer = ""
         self.elm_timeout_cmd = "ATST96"  # current ELM327 timeout command
+        self._cmd_lock = asyncio.Lock()  # serialize all ELM327 commands
 
     async def connect(self):
         """Connect to WiCAN and enter ELM327 terminal mode."""
@@ -86,6 +87,9 @@ class WiCANTerminal:
            over the WebSocket. Only matters if the WebSocket stalls or NRC 0x78
            (ResponsePending) extends the exchange.
 
+        All commands are serialized via an asyncio.Lock to prevent TesterPresent
+        keepalive from colliding with user commands on the single ELM327 channel.
+
         Args:
             cmd: ELM327 command (without CR terminator)
             timeout: WebSocket-level timeout in seconds (default: self.timeout)
@@ -129,6 +133,11 @@ class WiCANTerminal:
                 raise ValueError(f"Command declined by user: {cmd}")
             log_command(f"{cmd}  !! {blocked} -- user confirmed (unsafe mode)")
 
+        async with self._cmd_lock:
+            return await self._send_command_locked(cmd, timeout)
+
+    async def _send_command_locked(self, cmd: str, timeout: float) -> str:
+        """Send command while holding the lock (internal)."""
         log_command(cmd)
 
         await self.ws.send(cmd + "\r")
