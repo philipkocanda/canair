@@ -1,0 +1,7 @@
+
+# ─── SWRC-R (Steering Wheel Remote Control — Right) ───────────────────
+# Right steering wheel buttons at 0x7A2. Part: 93575G2160
+# No live data DIDs discovered yet. Service 22 ranges untested.
+SWRC-R:
+  tx_id: 0x7A2
+  pids: {}

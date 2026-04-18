@@ -1,0 +1,7 @@
+
+# ─── SWRC-L (Steering Wheel Remote Control — Left) ────────────────────
+# Left steering wheel buttons at 0x7A1. Part: 93570G2110
+# No live data DIDs discovered yet. Service 22 ranges untested.
+SWRC-L:
+  tx_id: 0x7A1
+  pids: {}
