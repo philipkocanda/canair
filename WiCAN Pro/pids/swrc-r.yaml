@@ -4,4 +4,5 @@
 # No live data DIDs discovered yet. Service 22 ranges untested.
 SWRC-R:
   tx_id: 0x7A2
+  availability: [plugged, acc, ign, ready, charging]
   pids: {}

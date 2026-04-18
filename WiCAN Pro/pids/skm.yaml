@@ -4,11 +4,124 @@
 # Falls asleep after ~60s of bus inactivity.
 SKM:
   tx_id: 0x7A5
+  availability: [sleep, plugged, acc, ign, ready, charging]
   session: true
   identity:
     part_number: ""
     description: "Smart Key Module (SMK)"
-  pids: {}
+  pids:
+    22B002:
+      period: 10000
+      enabled: false
+      availability: [sleep]
+      notes: >
+        136 data bytes — massive status register. Likely contains key fob presence,
+        RSSI, button presses, immobilizer state. Needs decoding.
+        Captured with key in unlocked car during deep sleep (2026-04-18).
+      parameters:
+        SKM_B002_UNKNOWN:
+          expression: ""
+          unit: ""
+          source: "DID scan 2026-04-18"
+          source_links: []
+          verified: false
+          notes: "136 bytes. Raw: 62B002000000001432000712...00AAAAAA"
+    22B003:
+      period: 10000
+      enabled: false
+      availability: [sleep]
+      parameters:
+        SKM_B003_UNKNOWN:
+          expression: ""
+          unit: ""
+          source: "DID scan 2026-04-18"
+          source_links: []
+          verified: false
+          notes: "27 bytes. Raw: 62B003000000003412900300000000C6A21261000000000F00AAAA"
+    22B005:
+      period: 10000
+      enabled: false
+      availability: [sleep]
+      parameters:
+        SKM_B005_UNKNOWN:
+          expression: ""
+          unit: ""
+          source: "DID scan 2026-04-18"
+          source_links: []
+          verified: false
+          notes: "13 bytes. Raw: 62B005FA60900000040000AAAA"
+    22B006:
+      period: 10000
+      enabled: false
+      availability: [sleep]
+      parameters:
+        SKM_B006_UNKNOWN:
+          expression: ""
+          unit: ""
+          source: "DID scan 2026-04-18"
+          source_links: []
+          verified: false
+          notes: "27 bytes. Raw: 62B006AFE000009C0000000000000000009B0000000000AAAAAAAA"
+    22B007:
+      period: 10000
+      enabled: false
+      availability: [sleep]
+      parameters:
+        SKM_B007_UNKNOWN:
+          expression: ""
+          unit: ""
+          source: "DID scan 2026-04-18"
+          source_links: []
+          verified: false
+          notes: "20 bytes. Raw: 62B0071E7FB80000000C007FFF00000000AAAAAA"
+    22B008:
+      period: 10000
+      enabled: false
+      availability: [sleep]
+      parameters:
+        SKM_B008_UNKNOWN:
+          expression: ""
+          unit: ""
+          source: "DID scan 2026-04-18"
+          source_links: []
+          verified: false
+          notes: "20 bytes, all zeros. Raw: 62B0080000000000000000000000000000AAAAAA"
+    22B009:
+      period: 10000
+      enabled: false
+      availability: [sleep]
+      parameters:
+        SKM_B009_UNKNOWN:
+          expression: ""
+          unit: ""
+          source: "DID scan 2026-04-18"
+          source_links: []
+          verified: false
+          notes: "34 bytes, mostly zeros. Raw: 62B00900000000000000000000000000000000000000..."
+    22B00A:
+      period: 10000
+      enabled: false
+      availability: [sleep]
+      parameters:
+        SKM_B00A_UNKNOWN:
+          expression: ""
+          unit: ""
+          source: "DID scan 2026-04-18"
+          source_links: []
+          verified: false
+          notes: "20 bytes. Raw: 62B00A0100F038000501080600000040010000AA"
+    22B00B:
+      period: 10000
+      enabled: false
+      availability: [sleep]
+      parameters:
+        SKM_B00B_UNKNOWN:
+          expression: ""
+          unit: ""
+          source: "DID scan 2026-04-18"
+          source_links: []
+          verified: false
+          notes: "55 bytes. Raw: 62B00B800000000200000000000000000000000400005319420000000002..."
 
   # ─── IOControl (service 2F) ──────────────────────────────────────────
   # Requires extended session (10 03).
@@ -60,6 +173,19 @@ SKM:
       notes: >
         Start relay from Kia Soul EV.
   research:
+    - type: decode
+      target: "22B002"
+      status: captured
+      priority: P1
+      prerequisite: [sleep]
+      date: "2026-04-18"
+      notes: >
+        136 bytes — biggest payload of any ECU. Likely contains key fob presence/RSSI,
+        immobilizer state, button presses. Capture with key removed for diff.
+      what_to_test:
+        - "Key in car vs key removed — diff B002 payload"
+        - "Key near vs far — check for RSSI bytes"
+        - "During ACC/ready — compare states"
     - type: verify
       target: "2FB109"
       status: pending

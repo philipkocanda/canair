@@ -5,4 +5,5 @@
 # Service 22 scan returned no results (2026-04-17, car not charging).
 PLC:
   tx_id: 0x733
+  availability: [charging]  # DC CCS only — likely inactive during AC
   pids: {}

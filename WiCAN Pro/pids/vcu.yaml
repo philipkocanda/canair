@@ -2,6 +2,7 @@
 # ─── VCU (Vehicle Control Unit) ──────────────────────────────────────
 VCU:
   tx_id: 0x7E2
+  availability: [ready, charging]
   pids:
     2101:
       period: 2500

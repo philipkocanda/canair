@@ -5,4 +5,5 @@
 # No live data DIDs discovered yet. Try 2101 for brake pressure/pedal data.
 AHB:
   tx_id: 0x7D5
+  availability: [acc, ign, ready]
   pids: {}

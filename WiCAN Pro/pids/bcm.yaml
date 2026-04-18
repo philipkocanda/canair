@@ -4,6 +4,7 @@
 # TPMS data is accessed via DID 22C00B on the BCM.
 BCM:
   tx_id: 0x7A0
+  availability: [sleep, plugged, acc, ign, ready, charging]  # Wakes from CAN bus activity
   identity:
     part_number: "95400G7470"
     description: "BCM / TPMS"
@@ -11,7 +12,7 @@ BCM:
     22C00B:
       period: 15000
       enabled: true
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       parameters:
         TYRE_PRESSURE_FL:
           expression: "B10/72.52"
@@ -107,7 +108,7 @@ BCM:
           notes: ""
     22B00D:
       enabled: false
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       notes: >
         13 bytes. May contain preheat timer configuration. B03-B04=0xFCFC, B05=0xE0.
         Relationship to departure time (480 min = 08:00 in B007) unclear. Needs retest
@@ -117,7 +118,7 @@ BCM:
     22B00E:
       period: 5000
       enabled: true
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       parameters:
         CHARGE_PORT_OPEN:
           expression: "B10:5"
@@ -133,7 +134,7 @@ BCM:
 
     22B00F:
       enabled: false
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       notes: >
         13 bytes. Identical payload to B00D (0xFCFC E0...) — possibly mirrored register
         or preheat config overflow. B010+ did not respond in DID scan.
@@ -142,7 +143,7 @@ BCM:
 
     22B004:
       enabled: false
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       notes: >
         13 bytes. B09 toggles 0x00↔0x40 (bit 6) every ~12-15 seconds during deep sleep —
         periodic heartbeat/watchdog flag. B03=0x74, B04=0x02, B05=0x99, B06=0x0C (=12 decimal).
@@ -151,7 +152,7 @@ BCM:
 
     22B005:
       enabled: false
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       notes: >
         13 bytes. Sparse bitfield — B03=0x20, B05=0x10, B11=0x08. Purpose unknown.
         Static across captures. Sample: 62B0052000100000000800AAAA.
@@ -159,7 +160,7 @@ BCM:
 
     22B006:
       enabled: false
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       notes: >
         13 bytes. All zeros except B03=0x20 — likely empty or unused register.
         Sample: 62B0062000000000000000AAAA.
@@ -168,7 +169,7 @@ BCM:
     22B007:
       period: 60000
       enabled: false
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       parameters:
         PREHEAT_DEPARTURE_TIME:
           expression: "(B07 << 8) | B09"
@@ -188,7 +189,7 @@ BCM:
 
     22B008:
       enabled: false
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       notes: >
         13 bytes. Static across deep sleep and ACC captures — configuration register.
         B03=0x00, B04=0x51, B05=0x0C, B06=0x20, B07=0x00, B08=0x88.
@@ -197,7 +198,7 @@ BCM:
 
     22B009:
       enabled: false
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       notes: >
         13 bytes. Repeating 0xFEEE pattern (B03-B06) — possibly sensor addresses or
         calibration references. Rest zeros. Static. Sample: 62B009FEEEFEEE00000000AAAA.
@@ -205,7 +206,7 @@ BCM:
 
     22B00A:
       enabled: false
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       notes: >
         13 bytes. B03=0xE3, B04=0xFE, B05=0xE3, B07=0x40, B08=0x05. Purpose unknown.
         Static across captures. Sample: 62B00AE3FEE30000400500AAAA.
@@ -213,7 +214,7 @@ BCM:
 
     22B00B:
       enabled: false
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       notes: >
         NRC 0x31 (requestOutOfRange) in deep sleep. Only 2-byte response (7E00) on some
         attempts — may be a status register that requires ACC/IGN on. Needs retest with
@@ -223,7 +224,7 @@ BCM:
     22B00C:
       period: 60000
       enabled: false
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       parameters:
         PREHEAT_SCHEDULE_DAYS:
           expression: "B05"
@@ -243,7 +244,7 @@ BCM:
 
     22B001:
       enabled: false
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       notes: >
         20 bytes. Mostly zeros with config-like flags. Returns NO DATA on first attempt
         after wake, then responds on retry. Static across captures — likely BCM configuration
@@ -252,7 +253,7 @@ BCM:
 
     22B002:
       enabled: false
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       notes: >
         13 bytes. Sparse data with 0xAA padding. Purpose unknown.
         Sample: 62B002C00000000200AAAAAAAA.
@@ -261,7 +262,7 @@ BCM:
     22B003:
       period: 10000
       enabled: false
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       parameters:
         BCM_12V_BATTERY:
           expression: "B10*0.08"
@@ -300,7 +301,7 @@ BCM:
 
     22C001:
       ignored: true
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       notes: >
         34 bytes. Contains 4× C0F8-prefixed TPMS receiver addresses — one per wheel.
         Static configuration. Sample: 62C001FFFF000001C0F80410C0F80BD2C0F81174C0F81188AAAA.
@@ -308,7 +309,7 @@ BCM:
 
     22C002:
       ignored: true
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       notes: >
         27 bytes. Same C0F8 addresses as C001 but in different order — wheel-to-receiver
         mapping table. Sample: 62C002FFFF0000C0F81174C0F80410C0F80BD2C0F81188AAAAAAAA.
@@ -316,7 +317,7 @@ BCM:
 
     22C003:
       ignored: true
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       notes: >
         34 bytes. TPMS sensor registration for wheel 1. ASCII 'DO01' at offset 7.
         Contains pressure limits, sensor ID, calibration data.
@@ -325,7 +326,7 @@ BCM:
 
     22C004:
       ignored: true
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       notes: >
         34 bytes. TPMS sensor registration for wheel 2. ASCII 'NA01'.
         Sample: 62C004000000004E41303101002E2E024B0005B5B508088C3C0100000001FF0100AA.
@@ -333,7 +334,7 @@ BCM:
 
     22C005:
       ignored: true
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       notes: >
         34 bytes. Spare/reference TPMS sensor. ASCII 'NTPM'.
         Sample: 62C005000000004E54504D0100302F02500000ABAB00008C3C0000030001FF0000AA.
@@ -341,7 +342,7 @@ BCM:
 
     22C006:
       ignored: true
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       notes: >
         34 bytes. TPMS sensor registration for wheel 3. ASCII 'DO02'.
         Sample: 62C00600000000444F303201002E2E02500706B5AB0A098C3C0000000001010100AA.
@@ -349,7 +350,7 @@ BCM:
 
     22C007:
       ignored: true
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       notes: >
         34 bytes. TPMS sensor registration for wheel 4. ASCII 'NA02'.
         Sample: 62C007000000004E41303201002E2E024B0005B5AB08088C3C0100000001010100AA.
@@ -357,7 +358,7 @@ BCM:
 
     22C008:
       ignored: true
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       notes: >
         34 bytes. Empty TPMS slot (all FF after ASCII '0005').
         Sample: 62C00800000000303030350000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFAA.
@@ -365,7 +366,7 @@ BCM:
 
     22C009:
       ignored: true
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       notes: >
         34 bytes. Empty TPMS slot (ASCII '0006').
         Sample: 62C00900000000303030360000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFAA.
@@ -373,7 +374,7 @@ BCM:
 
     22C00A:
       ignored: true
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       notes: >
         34 bytes. Empty TPMS slot (ASCII '0007').
         Sample: 62C00A00000000303030370000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFAA.
@@ -381,7 +382,7 @@ BCM:
 
     22C00C:
       ignored: true
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       notes: >
         41 bytes. Extended TPMS data — wheel 1 has live data with C0F8 address,
         other slots empty (FFFF). May contain per-wheel signal quality or sensor history.
@@ -390,7 +391,7 @@ BCM:
 
     22C00D:
       ignored: true
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       notes: >
         41 bytes. Extended TPMS data — all slots empty (FFFF/zeros).
         Sample: 62C00DFFFF03000000000000FFFF0000000000000000FFFF000000...
@@ -398,7 +399,7 @@ BCM:
 
     22C00E:
       ignored: true
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       notes: >
         41 bytes. Extended TPMS data — all slots empty.
         Sample: 62C00EFFFF03000000000000FFFF0000000000000000FFFF000000...
@@ -406,7 +407,7 @@ BCM:
 
     22C00F:
       ignored: true
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       notes: >
         41 bytes. Extended TPMS data — one active entry with C0F8 address (C0F81188).
         Sample: 62C00FFFFF030001C0F8118801203B1E560000000000FFFF000000...
@@ -414,7 +415,7 @@ BCM:
 
     22C010:
       ignored: true
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       notes: >
         13 bytes. Mostly zeros. B03=0xFC. Purpose unknown.
         Sample: 62C010FC00000000AAAAAAAAAA.
@@ -422,7 +423,7 @@ BCM:
 
     22C011:
       enabled: false
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       notes: >
         13 bytes. NOT static — bytes 8-9 (ELM index) change rapidly every 2s. Byte 8
         drifts slowly (~0xA2, occasionally 0xA1), byte 9 jumps 20-100 counts per read
@@ -435,7 +436,7 @@ BCM:
 
     22C012:
       ignored: true
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       notes: >
         13 bytes. ASCII 'DO01' at B07-B10 — references wheel 1 sensor ID.
         Sample: 62C01280000000444F3031AAAA.
@@ -443,7 +444,7 @@ BCM:
 
     22C013:
       ignored: true
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       notes: >
         13 bytes. ASCII '0x0620' — possibly TPMS firmware version or config revision.
         Sample: 62C01380000000307830363230.
@@ -451,7 +452,7 @@ BCM:
 
     22C014:
       ignored: true
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       notes: >
         13 bytes. B10=0x0C. Purpose unknown — last responding DID in C0xx range.
         Sample: 62C014F00000000CAAAAAAAAAA.
@@ -463,7 +464,7 @@ BCM:
   # Usage: python3 canreq.py --raw 7A0:<on_command> --hold
   iocontrol:
     B003:
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       label: Unknown
       verified: false
       on: "2FB00303"
@@ -472,42 +473,42 @@ BCM:
         Low DID range — possibly status/config register.
 
     B006:
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       label: Unknown
       verified: false
       on: "2FB00603"
       off: "2FB00600"
 
     B008:
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       label: Unknown
       verified: false
       on: "2FB00803"
       off: "2FB00800"
 
     B009:
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       label: Unknown
       verified: false
       on: "2FB00903"
       off: "2FB00900"
 
     B00A:
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       label: Unknown
       verified: false
       on: "2FB00A03"
       off: "2FB00A00"
 
     B00F:
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       label: Unknown
       verified: false
       on: "2FB00F03"
       off: "2FB00F00"
 
     B019:
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       label: Room lamp (interior)
       verified: false
       on: "2FB01903"
@@ -516,7 +517,7 @@ BCM:
         DID exists. Untested for visible effect.
 
     B01A:
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       label: Unknown
       verified: false
       on: "2FB01A03"
@@ -525,7 +526,7 @@ BCM:
         Adjacent to room lamp — may be reading lamp or trunk lamp.
 
     B025:
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       label: Unknown
       verified: false
       on: "2FB02503"
@@ -534,7 +535,7 @@ BCM:
         Possibly window or wiper motor.
 
     B028:
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       label: Unknown
       verified: false
       on: "2FB02803"
@@ -543,7 +544,7 @@ BCM:
         Possibly window or wiper motor.
 
     B029:
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       label: Unknown
       verified: false
       on: "2FB02903"
@@ -552,7 +553,7 @@ BCM:
         Possibly window or wiper motor.
 
     B030:
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       label: Unknown
       verified: false
       on: "2FB03003"
@@ -561,42 +562,42 @@ BCM:
         Possibly wiper/washer pump.
 
     B038:
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       label: Unknown
       verified: false
       on: "2FB03803"
       off: "2FB03800"
 
     B039:
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       label: Unknown
       verified: false
       on: "2FB03903"
       off: "2FB03900"
 
     B03A:
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       label: Unknown
       verified: false
       on: "2FB03A03"
       off: "2FB03A00"
 
     B03B:
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       label: Unknown
       verified: false
       on: "2FB03B03"
       off: "2FB03B00"
 
     B04D:
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       label: Unknown
       verified: false
       on: "2FB04D03"
       off: "2FB04D00"
 
     B057:
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       label: Unknown
       verified: false
       on: "2FB05703"
@@ -605,7 +606,7 @@ BCM:
         Mirror/handle region.
 
     B059:
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       label: Heated door handle / heated steering wheel
       verified: false
       on: "2FB05903"
@@ -614,14 +615,14 @@ BCM:
         e-Niro labels as heated door handle. May refer to heated steering wheel on Ioniq.
 
     B05A:
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       label: Heated door handle LED
       verified: false
       on: "2FB05A03"
       off: "2FB05A00"
 
     B05B:
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       label: Mirror fold
       verified: true
       on: "2FB05B03"
@@ -630,7 +631,7 @@ BCM:
         Fold side mirrors in. From e-Niro, confirmed on Ioniq.
 
     B05C:
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       label: Mirror unfold
       verified: true
       on: "2FB05C03"
@@ -639,7 +640,7 @@ BCM:
         Unfold side mirrors. From e-Niro, confirmed on Ioniq.
 
     B061:
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       label: Charge door open
       verified: false
       on: "2FB06103"
@@ -648,14 +649,14 @@ BCM:
         NRC 0x31 — NOT supported on Ioniq 2017. Tested with and without ACC power.
 
     B071:
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       label: Unknown
       verified: false
       on: "2FB07103"
       off: "2FB07100"
 
     B072:
-      availability: [sleep, acc, ign, ready, charging]
+      availability: [sleep, plugged, acc, ign, ready, charging]
       label: Unknown
       verified: false
       on: "2FB07203"
