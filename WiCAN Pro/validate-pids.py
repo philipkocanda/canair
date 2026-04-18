@@ -78,6 +78,7 @@ def validate_ecu_file(
         "unverified": 0,
         "ignored": 0,
         "iocontrol": 0,
+        "research": 0,
     }
 
     try:
@@ -147,6 +148,26 @@ def validate_ecu_file(
             period = pid_def.get("period")
             if period is not None and (not isinstance(period, int) or period < 0):
                 errors.append(f"{path.name}/{ecu_name}/{pid_str}: period must be positive int")
+
+            # Validate availability
+            VALID_AVAILABILITY = {"sleep", "acc", "ign", "ready", "charging"}
+            avail = pid_def.get("availability")
+            if avail is not None:
+                if not isinstance(avail, list):
+                    errors.append(
+                        f"{path.name}/{ecu_name}/{pid_str}: availability must be a list"
+                    )
+                else:
+                    for v in avail:
+                        if v not in VALID_AVAILABILITY:
+                            errors.append(
+                                f"{path.name}/{ecu_name}/{pid_str}: invalid availability "
+                                f"value '{v}' (allowed: {sorted(VALID_AVAILABILITY)})"
+                            )
+                    if len(avail) != len(set(avail)):
+                        errors.append(
+                            f"{path.name}/{ecu_name}/{pid_str}: duplicate availability values"
+                        )
 
             # Ignored PIDs — count and skip parameter validation
             if pid_def.get("ignored", False):
@@ -225,6 +246,82 @@ def validate_ecu_file(
                             )
                     stats["iocontrol"] += 1
 
+        # Validate research section
+        research = ecu_def.get("research")
+        if research is not None:
+            if not isinstance(research, list):
+                errors.append(f"{path.name}/{ecu_name}: 'research' must be a list")
+            else:
+                valid_types = {"scan", "decode", "verify", "iocontrol_scan"}
+                valid_statuses = {"pending", "captured", "nrc", "done"}
+                valid_priorities = {"P1", "P2", "P3"}
+                valid_prereqs = {"sleep", "acc", "ign", "ready", "charging"}
+                research_optional = {
+                    "priority",
+                    "prerequisite",
+                    "date",
+                    "result",
+                    "notes",
+                    "sources",
+                    "what_to_test",
+                }
+                research_required = {"type", "target", "status"}
+                all_research_fields = research_required | research_optional
+
+                for i, entry in enumerate(research):
+                    label = f"{path.name}/{ecu_name}/research[{i}]"
+                    if not isinstance(entry, dict):
+                        errors.append(f"{label}: entry must be a dict")
+                        continue
+
+                    # Required fields
+                    for field in research_required:
+                        if field not in entry:
+                            errors.append(f"{label}: missing required field '{field}'")
+
+                    # Unknown fields
+                    for field in entry:
+                        if field not in all_research_fields:
+                            warnings.append(f"{label}: unknown field '{field}'")
+
+                    # Validate type
+                    rtype = entry.get("type")
+                    if rtype and rtype not in valid_types:
+                        errors.append(
+                            f"{label}: invalid type '{rtype}' (allowed: {sorted(valid_types)})"
+                        )
+
+                    # Validate status
+                    rstatus = entry.get("status")
+                    if rstatus and rstatus not in valid_statuses:
+                        errors.append(
+                            f"{label}: invalid status '{rstatus}' "
+                            f"(allowed: {sorted(valid_statuses)})"
+                        )
+
+                    # Validate priority
+                    rprio = entry.get("priority")
+                    if rprio and rprio not in valid_priorities:
+                        errors.append(
+                            f"{label}: invalid priority '{rprio}' "
+                            f"(allowed: {sorted(valid_priorities)})"
+                        )
+
+                    # Validate prerequisite
+                    prereq = entry.get("prerequisite")
+                    if prereq is not None:
+                        if not isinstance(prereq, list):
+                            errors.append(f"{label}: prerequisite must be a list")
+                        else:
+                            for v in prereq:
+                                if v not in valid_prereqs:
+                                    errors.append(
+                                        f"{label}: invalid prerequisite '{v}' "
+                                        f"(allowed: {sorted(valid_prereqs)})"
+                                    )
+
+                    stats["research"] += 1
+
     return errors, warnings, stats
 
 
@@ -274,6 +371,7 @@ def main():
         "unverified": 0,
         "ignored": 0,
         "iocontrol": 0,
+        "research": 0,
     }
 
     if args.files:
@@ -320,8 +418,10 @@ def main():
     ignored_str = f", {ignored} ignored" if ignored else ""
     ioctl = total_stats["iocontrol"]
     ioctl_str = f", {ioctl} IOControl DIDs" if ioctl else ""
+    research = total_stats["research"]
+    research_str = f", {research} research items" if research else ""
     print(
-        f"OK — {n_files} ECU files, {total_stats['pids']} PIDs{ignored_str}{ioctl_str}, "
+        f"OK — {n_files} ECU files, {total_stats['pids']} PIDs{ignored_str}{ioctl_str}{research_str}, "
         f"{total_stats['params']} parameters "
         f"({total_stats['verified']} verified, {total_stats['unverified']} unverified)"
     )
@@ -337,6 +437,7 @@ def main():
         print(f"  Verified:   {total_stats['verified']}")
         print(f"  Unverified: {total_stats['unverified']}")
         print(f"  IOControl:  {total_stats['iocontrol']}")
+        print(f"  Research:   {total_stats['research']}")
 
 
 if __name__ == "__main__":

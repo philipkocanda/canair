@@ -27,11 +27,51 @@
 - [ ] **Battery fan control DID (likely on BMS)** — Kingbolen scanner can actuate fan via UDS, specific DID unknown
 - [ ] **Remaining IOControl** — BCM `2f b0 xx`, SKM `2f b1 08 03` (wakeup).
 
+## Untested PIDs — now in per-ECU `pids/*.yaml` files
+
+As of 2026-04-18, all untested/undecoded PID research items have been migrated from
+`untested-pids-index.yaml` into `research:` sections in the per-ECU YAML files under `pids/`.
+Each ECU file now contains its own research backlog alongside its PID definitions.
+
+See `pids/_schema.yaml` for the research entry format (type, target, status, priority,
+prerequisite, notes, sources, what_to_test).
+
+### Session plan
+
+**Keyfob wake (deep sleep, no ACC) — ~5 min:**
+- BMS 0x7E4: scan 22 BC01-BC0B, B002-B005, E003-E005
+- OBC/LDC 0x7E5: test 22E011 (LDC aux battery monitoring)
+
+**ACC on — ~15 min:**
+- VCU 0x7E2: scan 22 E001-E010, decode 2102
+- MCU 0x7E3: scan 22 E001-E010, re-decode 2101
+- HVAC 0x7B3: scan 22 0100-010B
+- CLU 0x7C6: scan 22 B001-B010
+- AVN 0x7C0/7C1: probe (NO DATA during sleep, retry with ACC)
+- ESC 0x7D1: scan 22 C101-C10F, 0101-010F
+- EPS 0x7D4: scan 22 0101-0105
+- 0x730: test 22 F010 (Ioniq 5 ESC address)
+
+**ACC IOControl — ~10 min:**
+- BCM 0x7A0: scan 2F B073-B0FF (incomplete from 2026-04-15)
+- BCM 0x7A0: test accepted unknown DIDs (B019 room lamp, etc.)
+- BMS 0x7E4: scan 2F E000-E0FF (battery fan DID)
+- IGPM 0x770: test BC3F/BC41 (charge cable lock/unlock)
+
+**During charging — ~10 min:**
+- OBC/LDC 0x7E5: scan 22 E001-E011
+- IGPM 0x770: test charge cable lock/unlock during active charge
+
+**While driving — ~10 min:**
+- VCU speed formula: compare with GPS (MPH vs km/h)
+- ESC 0x7D1: verify REAL_SPEED_KMH (B12), test 220104 wheel speeds
+- MCU 0x7E3: capture 2101/2102 under load
+
 ## Discovery Scan Follow-up (2026-04-17)
 
 Full address sweep found 30 alive ECUs (14 new). New PID files created for SAS, PTC, SCC, MFC.
 
-- [ ] **Scan OBC-746 and PLC 0x733 during active charging** — both ECUs have no live data when idle. Need to scan service 21 01-0F and 22 E001-E020 while plugged in (AC or DC).
+- [x] **Scan OBC-746 and PLC 0x733 during active charging** — OBC-746: only 21F2 responds (6 bytes). PLC: all 255 NRCs, dead during AC charging (DC CCS only?). 0x744 dead, removed from ecus.yaml.
 - [ ] **Decode SAS 0x725 steering angle** — 220100 has 48 bytes. B03-B04 likely signed 16-bit angle (0 = straight). Verify by turning wheel during monitor mode.
 - [ ] **Decode PTC 0x7B6 heater data** — 220100 has 27 bytes, mostly zeros when off. Need captures with cabin heater ON to see changing bytes. Candidate temps at B13/B15/B16.
 - [ ] **Decode SCC 0x7D0 cruise control** — 5 DIDs (0100-0103, 0105). Need driving captures with cruise control active to decode target speed, gap, radar distance.
