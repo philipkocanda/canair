@@ -3,6 +3,15 @@
   "init": "ATSP6;ATS0;ATAL;ATST96;",
   "pids": [
     {
+      "pid_init": "ATSH7E6;ATFCSH7E6;",
+      "pid": "2180",
+      "enabled": true,
+      "period": "10000",
+      "parameters": {
+        "AMBIENT_TEMP": "(B18-80)/2"
+      }
+    },
+    {
       "pid_init": "ATSH7A0;ATFCSH7A0;",
       "pid": "22C00B",
       "enabled": true,
@@ -112,15 +121,6 @@
       }
     },
     {
-      "pid_init": "ATSH7E6;ATFCSH7E6;",
-      "pid": "2180",
-      "enabled": true,
-      "period": "10000",
-      "parameters": {
-        "AMBIENT_TEMP": "(B18-80)/2"
-      }
-    },
-    {
       "pid_init": "ATSH7B3;ATFCSH7B3;",
       "pid": "220100",
       "enabled": true,
@@ -183,7 +183,7 @@
         "HIGH_BEAM": "B12:4",
         "LOW_BEAM": "B12:5",
         "IGNITION_ON": "B11:5",
-        "POWER_MODE": "B09",
+        "IGPM_CONFIG_BYTE": "B09",
         "SEATBELT_FL": "B11:1",
         "SEATBELT_FR": "B11:2",
         "DOOR_LOCK_RL": "B10:1",

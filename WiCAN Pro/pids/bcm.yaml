@@ -145,26 +145,66 @@ BCM:
       enabled: false
       availability: [sleep, plugged, acc, ign, ready, charging]
       notes: >
-        13 bytes. B09 toggles 0x00↔0x40 (bit 6) every ~12-15 seconds during deep sleep —
-        periodic heartbeat/watchdog flag. B03=0x74, B04=0x02, B05=0x99, B06=0x0C (=12 decimal).
-        Other bytes static across captures. Sample: 62B0047402990C00008000AAAA.
-      parameters: {}
+        13 bytes. B11:6 = door lock state (1=locked, 0=unlocked) — confirmed via
+        fob lock/unlock test (0x40↔0x00 transition correlates with B005/B006 changes).
+        B05=0x74, B06=0x02, B07=0x99, B09=0x0C.
+      parameters:
+        BCM_DOORS_LOCKED:
+          expression: "B11:6"
+          unit: ""
+          ha_class: ""
+          mqtt_topic: bcm_doors_locked
+          min: "0"
+          max: "1"
+          source: "Fob lock/unlock test 2026-04-18"
+          source_links: []
+          verified: true
+          notes: >
+            1=locked, 0=unlocked. Same representation as IGPM door locks.
+            Confirmed by correlating with B005 (courtesy light) and B006
+            (turn signal flash) transitions during fob lock/unlock.
 
     22B005:
       enabled: false
       availability: [sleep, plugged, acc, ign, ready, charging]
       notes: >
-        13 bytes. Sparse bitfield — B03=0x20, B05=0x10, B11=0x08. Purpose unknown.
-        Static across captures. Sample: 62B0052000100000000800AAAA.
-      parameters: {}
+        13 bytes. B10 changes A0↔AC during fob lock/unlock (bits 2,3 = 0x0C).
+        Correlated with B004 lock state and B006 indicator flash.
+        B05=0x20, B07=0x10, B12=0x08.
+      parameters:
+        BCM_B005_UNLOCK_BITS:
+          expression: "B12"
+          unit: ""
+          ha_class: ""
+          min: "0"
+          max: "255"
+          source: "Fob lock/unlock test 2026-04-18"
+          source_links: []
+          verified: true
+          notes: >
+            Correlated with B004 lock state. Bits 2,3 (0x0C) set during unlock.
+            Possibly courtesy lamp or interior lighting trigger. Base value 0xA0.
 
     22B006:
       enabled: false
       availability: [sleep, plugged, acc, ign, ready, charging]
       notes: >
-        13 bytes. All zeros except B03=0x20 — likely empty or unused register.
-        Sample: 62B0062000000000000000AAAA.
-      parameters: {}
+        13 bytes. B12 changes 00↔04 during fob lock/unlock (bit 2).
+        Correlated with B004 lock state and B005 unlock bits.
+        B05=0x20, rest normally zeros.
+      parameters:
+        BCM_B006_UNLOCK_BITS:
+          expression: "B12"
+          unit: ""
+          ha_class: ""
+          min: "0"
+          max: "255"
+          source: "Fob lock/unlock test 2026-04-18"
+          source_links: []
+          verified: true
+          notes: >
+            Correlated with B004 lock state. Bit 2 (0x04) set during unlock.
+            Possibly turn signal confirmation flash.
 
     22B007:
       period: 60000

@@ -140,14 +140,13 @@ def _render_results(
                 text.append(" ●", style="bright_green")
             if unmapped:
                 text.append(" (unmapped)", style="dim")
-            # Show unique count when keeping history
+            # Show history count when keeping history
             if hex_history and hex_key in hex_history:
-                history_hexes = [h for h, _ts in hex_history[hex_key]]
-                n_unique = len(history_hexes)
-                if raw_hex and raw_hex not in history_hexes:
-                    n_unique += 1  # current not yet added
-                if n_unique > 1:
-                    text.append(f"  ({n_unique} unique)", style="dim")
+                n_entries = len(hex_history[hex_key])
+                if raw_hex and raw_hex not in [h for h, _ts in hex_history[hex_key]]:
+                    n_entries += 1  # current not yet added
+                if n_entries > 1:
+                    text.append(f"  ({n_entries} entries)", style="dim")
             if error:
                 text.append(f"  {error}\n", style="red")
                 continue
@@ -302,7 +301,7 @@ async def mode_monitor(
     verbose: bool,
     interval: float = 5.0,
     session_steps: list[dict] | None = None,
-    keep: bool = False,
+    keep_mode: str | None = None,
     save: bool = False,
 ):
     """Live-refresh ECU parameter monitor.
@@ -319,7 +318,8 @@ async def mode_monitor(
         interval:       Seconds between poll cycles (default: 5.0).
         session_steps:  Optional list of session/skm-wake steps to run once before
                         the first poll cycle.
-        keep:           Retain all unique payloads per PID in display.
+        keep_mode:      None = no history, "unique" = deduped unique payloads,
+                        "all" = every payload from every cycle.
         save:           On Ctrl+C, prompt for metadata and save to captures/.
     """
     from ..captures import CAPTURES_DIR
@@ -347,7 +347,7 @@ async def mode_monitor(
         cycle = 0
         last_queries: list[tuple[str, list]] = []
         prev_hex: dict[tuple[str, str], str] = {}
-        hex_history: dict[tuple[str, str], list[tuple[str, str]]] = {} if keep or save else None
+        hex_history: dict[tuple[str, str], list[tuple[str, str]]] = {} if keep_mode or save else None
         stop_requested = False
 
         def _handle_sigint(_sig, _frame):
@@ -403,10 +403,15 @@ async def mode_monitor(
                                 key = (ecu_label, entry["pid"])
                                 prev_hex[key] = raw
                                 if hex_history is not None:
-                                    existing = [h for h, _ts in hex_history.get(key, [])]
-                                    if raw not in existing:
-                                        ts = datetime.now().strftime("%H:%M:%S")
+                                    ts = datetime.now().strftime("%H:%M:%S")
+                                    if keep_mode == "all":
+                                        # Store every payload, including duplicates
                                         hex_history.setdefault(key, []).append((raw, ts))
+                                    else:
+                                        # "unique" mode: only store if not seen before
+                                        existing = [h for h, _ts in hex_history.get(key, [])]
+                                        if raw not in existing:
+                                            hex_history.setdefault(key, []).append((raw, ts))
 
                     render = _render_results(
                         last_queries, verbose, cycle, elapsed, interval, prev_hex, hex_history

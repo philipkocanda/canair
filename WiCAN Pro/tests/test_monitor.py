@@ -310,7 +310,7 @@ class TestKeepHistory:
         t = _render_results(
             results, verbose=False, cycle=3, elapsed=0.1, interval=5.0, hex_history=history
         )
-        assert "(3 unique)" in t.plain
+        assert "(3 entries)" in t.plain
 
     def test_no_unique_count_when_single(self):
         """No count shown when only one unique payload exists."""
@@ -320,7 +320,7 @@ class TestKeepHistory:
         t = _render_results(
             results, verbose=False, cycle=2, elapsed=0.1, interval=5.0, hex_history=history
         )
-        assert "unique" not in t.plain
+        assert "entries" not in t.plain
 
     def test_history_change_highlighting(self):
         """Each history row highlights bytes that differ from its predecessor."""
