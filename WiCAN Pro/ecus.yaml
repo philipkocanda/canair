@@ -91,10 +91,9 @@ ecus:
     sw_version: "103"
     app_sw: "1104"
     id_protocol: UDS  # F1xx
-  0x744:
-    name: Charging
-    description: Charging ECU (no response to 1001 — only alive during AC/DC charging?)
-    notes: "Discovery scan 2026-04-17: NO DATA. Earlier scan returned errors. May need active charging session."
+  # 0x744 removed — never responded positively. Discovery scan (2026-04-17) returned
+  # CAN-level errors, service 21 scan during AC charging (2026-04-18) returned 255 NO DATA.
+  # Cross-platform reference only; likely does not exist on Ioniq 28kWh.
   0x746:
     name: OBC-746
     description: On-Board Charger (alternate address)
@@ -222,6 +221,7 @@ ecus:
     id_protocol: KWP2000  # 1Axx
   0x7E3:
     name: MCU
+    alias: VMCU
     description: Motor Control Unit (inverter)
     part_number: "36600-0E250"
     ecu_id: AEEMCU83  # KWP2000 1A8C
