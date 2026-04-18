@@ -1,0 +1,335 @@
+"""Shared capture file save logic.
+
+Provides functions for prompting session metadata and appending captures
+to per-date YAML files in captures/. Used by scan, raw, discover, and
+monitor modes.
+"""
+
+from datetime import datetime
+from pathlib import Path
+
+import yaml
+
+
+CAPTURES_DIR = Path(__file__).parent.parent / "captures"
+
+
+# ---------------------------------------------------------------------------
+# YAML formatting (shared dumper)
+# ---------------------------------------------------------------------------
+
+class _CaptureDumper(yaml.SafeDumper):
+    """Custom YAML dumper for capture files — readable formatting."""
+    pass
+
+
+def _str_representer(dumper, data):
+    if data.endswith("\n") and "\n" not in data[:-1]:
+        return dumper.represent_scalar("tag:yaml.org,2002:str", data, style=">")
+    if "\n" in data:
+        return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
+    if len(data) > 60 or ":" in data:
+        return dumper.represent_scalar("tag:yaml.org,2002:str", data, style='"')
+    return dumper.represent_scalar("tag:yaml.org,2002:str", data)
+
+
+_CaptureDumper.add_representer(str, _str_representer)
+
+
+# ---------------------------------------------------------------------------
+# Metadata prompt
+# ---------------------------------------------------------------------------
+
+def prompt_metadata(
+    suggested_label: str = "",
+    last_state: str | None = None,
+) -> tuple[str, str, str] | None:
+    """Prompt user for session label, state, notes.
+
+    Returns (label, state, notes) or None if cancelled.
+    The suggested_label is shown in brackets and accepted on Enter.
+    last_state is shown as default for state (re-use across saves).
+    """
+    try:
+        if suggested_label:
+            label = input(f"  Session label [{suggested_label}]: ").strip()
+            if not label:
+                label = suggested_label
+        else:
+            label = input("  Session label (required, empty to skip): ").strip()
+            if not label:
+                print("  Cancelled (empty label).")
+                return None
+
+        state_prompt = f"  State [{last_state}]: " if last_state else "  State (e.g. deep sleep, ACC, charging) []: "
+        state = input(state_prompt).strip()
+        if not state and last_state:
+            state = last_state
+
+        notes = input("  Notes []: ").strip()
+    except (KeyboardInterrupt, EOFError):
+        print("\n  Cancelled.")
+        return None
+
+    return label, state, notes
+
+
+# ---------------------------------------------------------------------------
+# Session builders
+# ---------------------------------------------------------------------------
+
+def build_scan_session(
+    ecu_name: str,
+    tx_id: int,
+    service: int,
+    pid_range: tuple[int, int],
+    positive: list[tuple[int, dict]],
+    negative: list[tuple[int, int, str]],
+    errors: list[tuple[int, str]],
+    label: str,
+    state: str,
+    notes: str,
+    append_bytes: str = "",
+    session_flag: bool = False,
+) -> dict:
+    """Build a capture session dict from scan results."""
+    start, end = pid_range
+    wide_did = service in (0x22, 0x2F, 0x31)
+    did_fmt = "04X" if wide_did else "02X"
+
+    range_str = f"{start:{did_fmt}}-{end:{did_fmt}}"
+    suffix = f" + suffix {append_bytes}" if append_bytes else ""
+
+    session: dict = {
+        "date": datetime.now().strftime("%Y-%m-%d"),
+        "label": label,
+    }
+    if state:
+        session["state"] = state
+    if notes:
+        session["notes"] = notes + "\n"
+
+    # Build scan_results capture
+    scan_capture: dict = {
+        "ecu": ecu_name,
+        "pid": f"scan {service:02X} {range_str}{suffix}",
+    }
+
+    scan_results: dict = {}
+    if positive:
+        responding = []
+        for pid_val, resp in positive:
+            entry: dict = {
+                "did": f"{pid_val:{did_fmt}}",
+                "response": f"{len(resp['bytes'])} bytes",
+            }
+            hex_str = resp["hex"]
+            if len(hex_str) > 80:
+                hex_str = hex_str[:80] + "..."
+            entry["notes"] = f"Raw: {hex_str}"
+            responding.append(entry)
+        scan_results["responding"] = responding
+
+    n_rejected = len(negative) + len(errors)
+    if n_rejected:
+        parts = []
+        if negative:
+            parts.append(f"{len(negative)} NRC")
+        if errors:
+            parts.append(f"{len(errors)} errors")
+        scan_results["rejected"] = f"{n_rejected} DIDs returned {' + '.join(parts)}"
+
+    scan_capture["scan_results"] = scan_results
+    session["captures"] = [scan_capture]
+    return session
+
+
+def build_raw_session(
+    ecu_name: str,
+    tx_id: int,
+    request: str,
+    response: dict,
+    label: str,
+    state: str,
+    notes: str,
+    pids_data: dict | None = None,
+) -> dict:
+    """Build a capture session dict from a raw UDS response."""
+    session: dict = {
+        "date": datetime.now().strftime("%Y-%m-%d"),
+        "label": label,
+    }
+    if state:
+        session["state"] = state
+    if notes:
+        session["notes"] = notes + "\n"
+
+    capture: dict = {
+        "ecu": ecu_name,
+        "pid": request,
+    }
+
+    if response["ok"]:
+        capture["payload"] = response["hex"].upper()
+
+        # Try to decode parameters
+        if pids_data:
+            decoded = _decode_payload(ecu_name, request, response["hex"], pids_data)
+            if decoded:
+                capture["decoded"] = decoded
+    else:
+        if response.get("nrc") is not None:
+            capture["response"] = f"NRC 0x{response['nrc']:02X} ({response['nrc_desc']})"
+        else:
+            capture["response"] = response.get("error", "unknown error")
+
+    session["captures"] = [capture]
+    return session
+
+
+def build_discover_session(
+    alive: list[tuple[int, str, str]],
+    silent_count: int,
+    error_count: int,
+    addr_range: tuple[int, int],
+    label: str,
+    state: str,
+    notes: str,
+) -> dict:
+    """Build a capture session dict from discovery scan results."""
+    start, end = addr_range
+    session: dict = {
+        "date": datetime.now().strftime("%Y-%m-%d"),
+        "label": label,
+    }
+    if state:
+        session["state"] = state
+    if notes:
+        session["notes"] = notes + "\n"
+
+    capture: dict = {
+        "ecu": "Gateway",
+        "pid": f"discover {start:03X}-{end:03X}",
+    }
+
+    scan_results: dict = {}
+    if alive:
+        responding = []
+        for tx_id, ecu_label, resp_hex in alive:
+            entry: dict = {
+                "did": f"{tx_id:03X}",
+                "response": ecu_label,
+                "notes": f"Raw: {resp_hex}" if resp_hex else "",
+            }
+            responding.append(entry)
+        scan_results["responding"] = responding
+
+    total_silent = silent_count + error_count
+    if total_silent:
+        scan_results["rejected"] = f"{total_silent} addresses silent"
+
+    capture["scan_results"] = scan_results
+    session["captures"] = [capture]
+    return session
+
+
+# ---------------------------------------------------------------------------
+# File I/O
+# ---------------------------------------------------------------------------
+
+def save_session(session: dict, captures_dir: Path = CAPTURES_DIR) -> Path:
+    """Append a session dict to captures/YYYY-MM-DD.yaml. Returns the file path."""
+    today = datetime.now().strftime("%Y-%m-%d")
+    capture_file = captures_dir / f"{today}.yaml"
+
+    if capture_file.exists():
+        with open(capture_file) as f:
+            data = yaml.safe_load(f)
+        if not data or "sessions" not in data:
+            data = {"sessions": []}
+        data["sessions"].append(session)
+    else:
+        data = {"sessions": [session]}
+
+    with open(capture_file, "w") as f:
+        yaml.dump(
+            data, f, Dumper=_CaptureDumper, default_flow_style=False,
+            sort_keys=False, allow_unicode=True,
+        )
+
+    n_captures = len(session.get("captures", []))
+    print(f"  \u2192 Saved {n_captures} capture(s) to {capture_file.name}")
+    return capture_file
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _decode_payload(ecu_name: str, pid: str, hex_payload: str, pids_data: dict) -> dict | None:
+    """Try to decode a payload using PID definitions. Returns decoded dict or None."""
+    from .elm327 import elm_hex_to_wican_bytes
+    from .expression import evaluate_expression
+    from .pids import build_ecu_index
+
+    ecu_index = build_ecu_index(pids_data)
+    ecu_key = ecu_name.upper()
+    if ecu_key not in ecu_index:
+        return None
+
+    ecu_def = ecu_index[ecu_key]
+    pid_info = ecu_def.get("pids", {}).get(pid)
+    if not pid_info or not pid_info.get("parameters"):
+        return None
+
+    try:
+        wican_bytes = elm_hex_to_wican_bytes(hex_payload)
+        decoded = {}
+        for pname, pdef in pid_info["parameters"].items():
+            expr = pdef.get("expression", "")
+            if not expr:
+                continue
+            try:
+                value = evaluate_expression(expr, wican_bytes)
+                value = round(value * 100) / 100
+                unit = pdef.get("unit", "")
+                display = pdef.get("display", "")
+                if display:
+                    try:
+                        v = value  # noqa: F841 — used by eval(display)
+                        formatted = eval(display)
+                        decoded[pname] = f"{value} {unit} ({formatted})".strip()
+                    except Exception:
+                        decoded[pname] = f"{value} {unit}".strip()
+                else:
+                    decoded[pname] = f"{value} {unit}".strip()
+            except Exception:
+                pass
+        return decoded if decoded else None
+    except Exception:
+        return None
+
+
+def suggest_scan_label(
+    ecu_name: str,
+    service: int,
+    pid_range: tuple[int, int],
+    append_bytes: str = "",
+) -> str:
+    """Generate a suggested label for a scan session."""
+    start, end = pid_range
+    wide_did = service in (0x22, 0x2F, 0x31)
+    did_fmt = "04X" if wide_did else "02X"
+    suffix = f" +{append_bytes}" if append_bytes else ""
+    return f"Scan {ecu_name} {service:02X} {start:{did_fmt}}-{end:{did_fmt}}{suffix}"
+
+
+def suggest_raw_label(ecu_name: str, request: str) -> str:
+    """Generate a suggested label for a raw request capture."""
+    return f"Raw {ecu_name} {request}"
+
+
+def suggest_discover_label(addr_range: tuple[int, int]) -> str:
+    """Generate a suggested label for a discovery scan."""
+    start, end = addr_range
+    return f"Discovery scan {start:03X}-{end:03X}"

@@ -27,7 +27,6 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-import yaml
 from rich.console import Console
 from rich.live import Live
 from rich.text import Text
@@ -229,6 +228,8 @@ def _prompt_and_save(
     session with all unique payloads to captures/YYYY-MM-DD.yaml.
     If pids_data is provided, decoded parameter values are included per capture.
     """
+    from ..captures import prompt_metadata, save_session, _decode_payload
+
     if not hex_history and not prev_hex:
         print("  No payloads captured — nothing to save.")
         return
@@ -255,41 +256,19 @@ def _prompt_and_save(
     print(f"\n  Saving {n_payloads} payload(s) across {n_pids} PID(s).")
 
     # Prompt for metadata
-    try:
-        label = input("  Session label (required, empty to skip): ").strip()
-        if not label:
-            print("  Cancelled (empty label).")
-            return
-        state = input("  State (e.g. deep sleep, ACC, charging) []: ").strip()
-        notes = input("  Notes []: ").strip()
-    except (KeyboardInterrupt, EOFError):
-        print("\n  Cancelled.")
+    meta = prompt_metadata(suggested_label="Monitor session")
+    if meta is None:
         return
+    label, state, notes = meta
 
     # Build captures list, grouped by ECU then PID
-    # Optionally decode parameters from raw payloads
-    ecu_index = None
-    if pids_data:
-        from ..elm327 import elm_hex_to_wican_bytes
-        from ..expression import evaluate_expression
-        from ..pids import build_ecu_index
-
-        ecu_index = build_ecu_index(pids_data)
-
     captures = []
     for (ecu_label, pid), entries in sorted(merged.items()):
-        # Extract ECU short name from "BCM (0x7A0)"
-        ecu_name = re.match(r"(\w+)", ecu_label).group(1)
-
-        # Look up PID definition for decoding
-        pid_info = None
-        if ecu_index and ecu_name.upper() in ecu_index:
-            ecu_def = ecu_index[ecu_name.upper()]
-            pid_info = ecu_def.get("pids", {}).get(pid)
+        ecu_short = re.match(r"(\w+)", ecu_label).group(1)
 
         for hex_val, ts in entries:
             capture: dict = {
-                "ecu": ecu_name,
+                "ecu": ecu_short,
                 "pid": pid,
                 "payload": hex_val.upper(),
             }
@@ -297,34 +276,10 @@ def _prompt_and_save(
                 capture["time"] = ts
 
             # Decode parameters from payload
-            if pid_info and pid_info.get("parameters"):
-                try:
-                    wican_bytes = elm_hex_to_wican_bytes(hex_val)
-                    decoded = {}
-                    for pname, pdef in pid_info["parameters"].items():
-                        expr = pdef.get("expression", "")
-                        if not expr:
-                            continue
-                        try:
-                            value = evaluate_expression(expr, wican_bytes)
-                            value = round(value * 100) / 100
-                            unit = pdef.get("unit", "")
-                            display = pdef.get("display", "")
-                            if display:
-                                try:
-                                    v = value  # noqa: F841 — used by eval(display)
-                                    formatted = eval(display)
-                                    decoded[pname] = f"{value} {unit} ({formatted})".strip()
-                                except Exception:
-                                    decoded[pname] = f"{value} {unit}".strip()
-                            else:
-                                decoded[pname] = f"{value} {unit}".strip()
-                        except Exception:
-                            pass  # skip params that fail to decode
-                    if decoded:
-                        capture["decoded"] = decoded
-                except Exception:
-                    pass  # skip decoding on error
+            if pids_data:
+                decoded = _decode_payload(ecu_short, pid, hex_val, pids_data)
+                if decoded:
+                    capture["decoded"] = decoded
 
             captures.append(capture)
 
@@ -334,44 +289,10 @@ def _prompt_and_save(
     if state:
         session["state"] = state
     if notes:
-        session["notes"] = notes + "\n"  # trailing newline triggers YAML folded style
+        session["notes"] = notes + "\n"
     session["captures"] = captures
 
-    # Write to file
-    capture_file = captures_dir / f"{today}.yaml"
-    if capture_file.exists():
-        with open(capture_file) as f:
-            data = yaml.safe_load(f)
-        if not data or "sessions" not in data:
-            data = {"sessions": []}
-        data["sessions"].append(session)
-    else:
-        data = {"sessions": [session]}
-
-    # Custom YAML formatting for readability
-    class _Dumper(yaml.SafeDumper):
-        pass
-
-    # Flow style for simple payload strings, block for everything else
-    def _str_representer(dumper, data):
-        if data.endswith("\n") and "\n" not in data[:-1]:
-            # Single-line with trailing newline → folded style (>)
-            return dumper.represent_scalar("tag:yaml.org,2002:str", data, style=">")
-        if "\n" in data:
-            return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
-        if len(data) > 60 or ":" in data:
-            return dumper.represent_scalar("tag:yaml.org,2002:str", data, style='"')
-        return dumper.represent_scalar("tag:yaml.org,2002:str", data)
-
-    _Dumper.add_representer(str, _str_representer)
-
-    with open(capture_file, "w") as f:
-        yaml.dump(
-            data, f, Dumper=_Dumper, default_flow_style=False, sort_keys=False, allow_unicode=True
-        )
-
-    print(f"  → Saved {len(captures)} capture(s) to {capture_file.name}")
-    print("    Run: python3 validate-captures.py  # to verify")
+    save_session(session, captures_dir)
 
 
 async def mode_monitor(
@@ -401,7 +322,7 @@ async def mode_monitor(
         keep:           Retain all unique payloads per PID in display.
         save:           On Ctrl+C, prompt for metadata and save to captures/.
     """
-    from ..constants import PIDS_DIR
+    from ..captures import CAPTURES_DIR
     from ..pids import build_ecu_index
     from .multi import _exec_query, _exec_session, _exec_skm_wake
 
@@ -504,7 +425,7 @@ async def mode_monitor(
         if stop_requested:
             print("\n  Monitoring stopped.")
             if save and hex_history is not None:
-                captures_dir = PIDS_DIR.parent / "captures"
+                captures_dir = CAPTURES_DIR
                 _prompt_and_save(hex_history, prev_hex, captures_dir, pids_data)
             return
 

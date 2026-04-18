@@ -13,6 +13,7 @@ async def mode_discover(
     verbose: bool,
     as_json: bool,
     delay: float = 0.2,
+    save: bool = False,
 ):
     """Sweep a range of CAN arbitration IDs to find responding ECUs.
 
@@ -106,5 +107,39 @@ async def mode_discover(
             "errors": [{"tx": f"0x{t:03X}", "error": e} for t, e in errors],
         }
         print(json.dumps(out, indent=2))
+
+    # Auto-save to captures
+    if save and alive:
+        from ..captures import (
+            build_discover_session,
+            prompt_metadata,
+            save_session,
+            suggest_discover_label,
+        )
+
+        # Enrich alive list with ECU names from ecus.yaml
+        from ..pids import ecu_name as _ecu_name
+
+        enriched = []
+        for tx_id_val, status, detail in alive:
+            name = _ecu_name(tx_id_val)
+            ecu_label = f"{name} ({status})" if name != f"0x{tx_id_val:03X}" else status
+            enriched.append((tx_id_val, ecu_label, detail))
+
+        silent_count = total - len(alive) - len(errors)
+        suggested = suggest_discover_label(addr_range)
+        meta = prompt_metadata(suggested_label=suggested)
+        if meta:
+            label, state, notes = meta
+            session_dict = build_discover_session(
+                alive=enriched,
+                silent_count=silent_count,
+                error_count=len(errors),
+                addr_range=addr_range,
+                label=label,
+                state=state,
+                notes=notes,
+            )
+            save_session(session_dict)
 
     print()
