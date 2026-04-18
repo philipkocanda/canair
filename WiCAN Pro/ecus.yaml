@@ -25,6 +25,9 @@ ecus:
     boot_sw: "20"
     app_sw: "160205"
     id_protocol: UDS  # F1xx
+    notes: >
+      IGPM is the CAN gateway. OBD port connects directly to the IGPM, so all diagnostic requests are routed through it.
+      It is also the main power distribution module, controlling ignition and accessory power to other ECUs.
   0x7A0:
     name: BCM
     description: Body Control Module
@@ -96,13 +99,15 @@ ecus:
   # Cross-platform reference only; likely does not exist on Ioniq 28kWh.
   0x746:
     name: OBC-746
-    description: On-Board Charger (alternate address)
+    description: On-Board Charger (alternate address?)
     ecu_id: "1.10"  # KWP2000 1A8C
     sw_id: "Z311"  # KWP2000 1A8D/1A8E
     calibration: "Z311"
     hw_sw: "3.5"  # KWP2000 1A92
     id_protocol: KWP2000  # 1Axx (10/32 responding)
-    notes: "Responds to 1001 with NRC 0x12 but alive. KWP2000 only. Most fields FFFFFFFF. May overlap with LDC 0x7E5 OBC function."
+    notes: >
+      Responds to 1001 with NRC 0x12 but alive. KWP2000 only.
+      Most fields FFFFFFFF. May overlap with LDC 0x7E5 OBC function.
   0x755:
     name: BSD-L
     description: Blind Spot Detection radar (left)
@@ -118,9 +123,11 @@ ecus:
     notes: "Firmware ID 'AE_EV EUR.SOP' matches Ioniq head unit firmware/map updates. Previously misidentified as TCU."
   0x783:
     name: AMP
-    description: Audio Amplifier (external)
+    description: Audio Amplifier (external - Infinity audio system)
     id_protocol: none  # NRC 0x11 on all UDS F1xx and KWP2000 1Axx
-    notes: "Identified via Kia e-Niro CAN spreadsheet (exact address match 783/78B). No diagnostic identity data — audio-only module."
+    notes: >
+      Identified via Kia e-Niro CAN spreadsheet (exact address match 783/78B).
+      No diagnostic identity data — audio-only module."
   0x796:
     name: RCAM
     description: Rear View Camera (parking)
@@ -161,7 +168,7 @@ ecus:
     notes: >
       No identity DIDs responded.
       Car has no BlueLink (was never available in Netherlands).
-      Module may still exist as dormant platform hardware (UNCONFIRMED). 
+      Module may still exist as dormant platform hardware (UNCONFIRMED).
       Other candidates: head unit sub-module, DAB tuner.
   0x7C4:
     name: MFC
@@ -186,6 +193,7 @@ ecus:
     id_protocol: UDS  # F1xx (3 DIDs)
   0x7D1:
     name: ESC
+    alias: ABS
     description: Electronic Stability Control
     serial: "GWLK7F01A986826"
     app_sw: "G7"
@@ -209,12 +217,14 @@ ecus:
     description: Active Hydraulic Booster (electronic brake booster) — tentative
     app_sw: "G7"
     id_protocol: UDS  # F1xx (only 2 DIDs: F18C serial, F101 app SW)
-    notes: "Shares 'G7' app SW with ESC (0x7D1). Adjacent to ESC/EPS in address space. Medium confidence — try 2101 for brake pressure/pedal data to confirm."
+    notes: >
+      Shares 'G7' app SW with ESC (0x7D1). Adjacent to ESC/EPS in address space.
+      Medium confidence — try reading 2101 for brake pressure/pedal data to confirm.
   0x7E2:
-    name: VCU
+    name: VCU # TODO: Rename to LDC? (check exposed PIDs to confirm)
     description: Vehicle Control Unit
     part_number: "36601-0E250"
-    ecu_id: AEVLDC53  # KWP2000 1A8C — oddly reports LDC identifier
+    ecu_id: AEVLDC53  # KWP2000 1A8C — oddly reports LDC identifier (!)
     sw_id: "EAEEO5L-NS7-D060"
     calibration: "C5210617"
     vin: "KMHCXXXXXXXXXXXX"
@@ -238,7 +248,7 @@ ecus:
     id_protocol: KWP2000  # 1Axx
     notes: "1A80 firmware build date 2008-07-09 (likely platform date, not unit manufacture)"
   0x7E5:
-    name: LDC
+    name: LDC # TODO: Rename to OBC?
     alias: OBC  # Also handles On-Board Charger
     description: Low-voltage DC-DC Converter / OBC
     part_number: "36400-0E150"
@@ -247,9 +257,14 @@ ecus:
     calibration: "00000001"
     id_protocol: KWP2000  # 1Axx
   0x7E6:
-    name: Gateway
-    description: CAN Gateway
-    part_number: M3062000307  # KWP2000 1A91
+    name: AAF
+    description: Ambient Air Temperature sensor controller (previously misidentified as "CAN Gateway")
+    part_number: M3062000307  # KWP2000 1A91 — likely Renesas M16C/M306 MCU part, not a Hyundai part number
     sw_id: EAE16AAFB30001  # KWP2000 1A8D
-    firmware: EAEAAFP201  # KWP2000 1A98
+    firmware: EAEAAFP201  # KWP2000 1A98 — "AAF" is the Hyundai internal module code
     id_protocol: KWP2000  # 1Axx
+    notes: >
+      Only exposes ambient temperature (PID 2180, 2181). All community projects
+      (OVMS, pioniq, EVNotiPi, JejuSoul) use this address solely for external temp.
+      Does not wake from CAN bus activity — requires ACC power like other powertrain ECUs.
+      The actual CAN gateway function is performed by the IGPM (0x770).

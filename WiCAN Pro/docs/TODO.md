@@ -1,24 +1,26 @@
 # Reverse Engineering TODOs
 
-- [ ] Decode BCM charge scheduling DIDs (e.g. preheat and charge schedules, scheduled charging on/off, rear defrost on/off, etc.) -> can we also write these somehow?
-- [x] Scan various ECUs using --identity flag.
-- [x] Scan HVAC for PIDs (e.g. blower speed, A/C status)
-- [ ] Scan HVAC for IOControl (e.g. blower speed control, A/C on/off)
-- [ ] Test VESS for IOControl (sound!)
-- [x] Scan cluster for PIDs (range estimate, settings status)
-- [ ] Scan SKM for PIDs (e.g. key status, start button status)
 - [ ] Decode keyfob proximity state DID (IGPM or SKM — is fob nearby?)
+- [ ] Decode BCM charge scheduling DIDs (e.g. preheat and charge schedules, scheduled charging on/off, rear defrost on/off, etc.) -> can we also write these somehow?
+- [ ] Scan HVAC for IOControl (e.g. blower speed control, A/C on/off)
+- [ ] Decode HVAC pids (e.g. blower speed, A/C status, temperature settings)
+- [ ] Test VESS for IOControl (sound!)
+- [ ] Scan SKM for PIDs (e.g. key status, start button status)
 - [ ] Capture IGPM BC03 B11 in all ignition states (Off/ACC/ON/Ready) to verify byte values
 - [x] Scan VCU for PIDs (e.g. motor temps, RPM, torque)
 - [x] Scan MCU for PIDs (e.g. motor temps, RPM, torque)
 - [x] Scan EPS for PIDs (e.g. steering angle, torque assist)
-- [ ] Scan ABS for PIDs (e.g. wheel speeds, brake pressure)
+- [ ] Scan ESC for PIDs (e.g. wheel speeds, brake pressure)
 - [ ] Scan BCM for IOControl (e.g. door lock/unlock, light control)
 - [ ] Scan BMS for IOControl (e.g. battery fan control)
-- [ ] **Ioniq charge cable unlock IOControl** — test `2FBC4103` (charge cable UNLOCK) and `2FBC3F03` (charge cable LOCK) on IGPM 0x770. Both accepted in IOControl scan (BC20-BC41 range untested visually). Useful for remotely releasing stuck charge cables. Requires extended session (`--session --hold`). Test during active charging session with key fob nearby.
+- [x] Scan cluster for PIDs (range estimate, settings status)
+- [x] Scan various ECUs using --identity flag.
+- [x] Scan HVAC for PIDs (e.g. blower speed, A/C status)
 - [ ] **Ioniq remote climate start** — research HVAC (0x7B3) IOControl DIDs for compressor, blower, heater, A/C control. Goal: remote cabin pre-conditioning via CAN. Likely requires SKM IGN1 wakeup (HV system needed for compressor/PTC heater). Scan `--scan --tx 7B3 --service 2F --session` and cross-reference with e-Niro/Ioniq 5 HVAC actuator tables.
 - [ ] **Ioniq BCM security access** — crack UDS `27 01`/`27 02` seed-key algorithm for BCM (0x7A0) and IGPM (0x770). 48 algorithms tried, all failed. Need a valid seed-key pair (sniff from Kingbolen/GDS scanner) or firmware dump. See `WiCAN Pro/docs/wakeup-research.md` Security Access section. Check mhhauto.com forum (requires account).
 - [ ] **Ioniq IGPM undecoded DIDs** — decode remaining bytes in BC01–BC07 status registers. Known candidates: seatbelt status, ambient light sensor, window positions, mirror fold state, wiper/washer state, washer fluid level, bonnet/hood open, rear defogger active, hazard lights, interior lamps (room/map/trunk), key-in-ignition warning, vehicle speed pulse. Requires ignition-ON testing for most. BC03/BC04 can be further decoded with lock/unlock cycle while monitoring.
+- [ ] Add a "quality score" or "confidence level" to each PID based on factors like how many sources confirm it, how well it matches known data, etc. This can help prioritize which PIDs to focus on next and which ones are more likely to be correct.
+- [ ] For each unverified PID, add a "verification plan" that outlines the specific steps needed to confirm its meaning. This can include things like what conditions to test under (e.g. ignition on, driving, charging), what other data to compare it against (e.g. GPS speed for VCU speed).
 
 ## Unverified PIDs
 
@@ -60,7 +62,7 @@ prerequisite, notes, sources, what_to_test).
 
 **During charging — ~10 min:**
 - OBC/LDC 0x7E5: scan 22 E001-E011
-- IGPM 0x770: test charge cable lock/unlock during active charge
+- IGPM 0x770: test charge cable lock/unlock during active charge (verify the state actually propagates to the BMS and the rest of the car, and that it actually stops charging!)
 
 **While driving — ~10 min:**
 - VCU speed formula: compare with GPS (MPH vs km/h)
@@ -72,8 +74,6 @@ prerequisite, notes, sources, what_to_test).
 Full address sweep found 30 alive ECUs (14 new). New PID files created for SAS, PTC, SCC, MFC.
 
 - [x] **Scan OBC-746 and PLC 0x733 during DCFC charging** — OBC-746: only 21F2 responds (6 bytes). PLC: all 255 NRCs, dead during AC charging (DC CCS only?).
-- [ ] **Decode SCC 0x7D0 cruise control** — 5 DIDs (0100-0103, 0105). Need driving captures with cruise control active to decode target speed, gap, radar distance.
-- [ ] **Decode MFC 0x7C4 ADAS camera** — 3 DIDs (0100-0102). Need driving captures to see lane detection, speed sign recognition data.
 - [ ] **Identify Unknown-783 and Unknown-7D2** — both respond to 1001 session control but have zero identity DIDs (no UDS F1xx, no KWP2000 1Axx). Try service 09 (vehicle info request) or broader DID ranges.
 - [ ] **Identify Unknown-7D5** — only 2 identity DIDs (serial + "G7" app SW). Try service 22 broader ranges.
 
