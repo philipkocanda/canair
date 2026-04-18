@@ -2,11 +2,12 @@
 # ─── Gateway ─────────────────────────────────────────────────────────
 Gateway:
   tx_id: 0x7E6
+  availability: [ready, charging]  # TODO: 2180 may work during sleep — verify
   pids:
     2180:
       period: 10000
       enabled: true
-      availability: [sleep, acc, ign, ready, charging]  # TODO: verify sleep avaability
+      availability: [ready, charging]  # TODO: verify sleep/acc availability
       parameters:
         AMBIENT_TEMP:
           expression: "(B18-80)/2"

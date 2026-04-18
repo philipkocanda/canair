@@ -4,4 +4,5 @@
 # No live data DIDs discovered. Service 22 scan returned no results (2026-04-17).
 RCAM:
   tx_id: 0x796
+  availability: [plugged, acc, ign, ready, charging]
   pids: {}

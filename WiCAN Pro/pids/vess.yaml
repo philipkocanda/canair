@@ -3,6 +3,7 @@
 # Pedestrian warning buzzer. From online sources — untested on Ioniq 2017.
 VESS:
   tx_id: 0x736
+  availability: [acc, ign, ready]
   identity:
     part_number: "96390G7000"
     description: "Virtual Engine Sound System"

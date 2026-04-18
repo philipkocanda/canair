@@ -2,6 +2,7 @@
 # ─── ESC (Electronic Stability Control) ──────────────────────────────
 ESC:
   tx_id: 0x7D1
+  availability: [acc, ign, ready]
   pids:
     22C101:
       period: 2500

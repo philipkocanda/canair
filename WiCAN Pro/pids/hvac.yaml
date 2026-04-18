@@ -2,6 +2,7 @@
 # ─── HVAC (Heating, Ventilation, Air Conditioning) ────────────────────
 HVAC:
   tx_id: 0x7B3
+  availability: [acc, ign, ready]
   identity:
     part_number: "97250-G7060"
     description: "CONTROL ASS'Y-DATC"

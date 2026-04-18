@@ -8,6 +8,7 @@
 # Correct byte offsets decoded from live captures during AC charging (2026-04-14).
 LDC:
   tx_id: 0x7E5
+  availability: [ready, charging]
   pids:
     2101:
       period: 5000

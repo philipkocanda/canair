@@ -2,6 +2,7 @@
 # ─── BMS (Battery Management System) ─────────────────────────────────
 BMS:
   tx_id: 0x7E4
+  availability: [ready, charging]
   pids:
     2101:
       period: 2500

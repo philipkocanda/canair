@@ -2,6 +2,7 @@
 # ─── EPS (Electric Power Steering) ───────────────────────────────────
 EPS:
   tx_id: 0x7D4
+  availability: [acc, ign, ready]
   pids:
     220101:
       period: 2500

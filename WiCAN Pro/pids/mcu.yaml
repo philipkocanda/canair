@@ -4,6 +4,7 @@
 #   0x01 (34 bytes), 0x02 (62 bytes), 0x03 (27 bytes, all zeros), 0xF2 (69 bytes).
 MCU:
   tx_id: 0x7E3
+  availability: [ready, charging]
   pids:
     2101:
       period: 5000

@@ -2,6 +2,7 @@
 # ─── CLU (Cluster / Instrument Panel) ─────────────────────────────────
 CLU:
   tx_id: 0x7C6
+  availability: [acc, ign, ready]
   pids:
     22B002:
       period: 10000

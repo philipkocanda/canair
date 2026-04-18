@@ -8,6 +8,7 @@
 #   only 0xF2 responded (6 bytes: 61F200000007).
 OBC-746:
   tx_id: 0x746
+  availability: [ready, charging]
   pids:
     21F2:
       period: 10000
