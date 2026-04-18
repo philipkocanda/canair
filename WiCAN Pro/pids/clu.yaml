@@ -6,6 +6,7 @@ CLU:
     22B002:
       period: 10000
       enabled: true
+      availability: [acc, ign, ready] # TODO: test during charging
       parameters:
         ODOMETER:
           expression: "[B12:B14]"
@@ -20,6 +21,7 @@ CLU:
     22B001:
       period: 10000
       enabled: false
+      availability: []
       parameters:
         CLU_B001_UNKNOWN:
           expression: ""
@@ -34,6 +36,7 @@ CLU:
     22B003:
       period: 10000
       enabled: false
+      availability: []
       parameters:
         CLU_B003_UNKNOWN:
           expression: ""
@@ -45,3 +48,32 @@ CLU:
           source_links: []
           verified: false
           notes: "13 bytes. B3=0x88, B7=0x01, rest zeros. Purpose unknown. Payload: 62B00388000000010000000000"
+  research:
+    - type: verify
+      target: "22B002"
+      status: pending
+      priority: P1
+      prerequisite: [acc]
+      notes: "Odometer confirmed. Additional signals from e-Niro: imperial odometer (UINT24 at bix 72), range estimate, time driven, speed limit, cruise control."
+      what_to_test:
+        - "Imperial odometer (byte 9, UINT24)"
+        - "Range estimate"
+        - "Speed limit display"
+        - "Cruise control info"
+      sources:
+        - "OBDb Ioniq 5 — 22B002"
+        - "e-Niro reference sheet"
+    - type: scan
+      target: "22 B001-B010"
+      status: pending
+      priority: P2
+      prerequisite: [acc]
+      notes: "CLU cluster range scan."
+    - type: scan
+      target: "0x7C0/0x7C1 probes"
+      status: pending
+      priority: P2
+      prerequisite: [acc]
+      notes: "Head unit — NO DATA during deep sleep (probed 2026-04-16). May be on M-CAN bus. Retry with ACC on: scan 21 01-05, 22 B001-B010."
+      sources:
+        - "Hyundai/Kia convention: 0x7C0 = AVN"

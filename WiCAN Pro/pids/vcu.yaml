@@ -6,6 +6,7 @@ VCU:
     2101:
       period: 2500
       enabled: true
+      availability: [ready, charging]
       parameters:
         VEHICLE_SPEED:
           expression: "((S20*256)+S19)/100"
@@ -146,6 +147,7 @@ VCU:
     2102:
       period: 5000
       enabled: true
+      availability: [ready, charging]
       parameters:
         VCU_MOTOR_RPM:
           expression: "((S7<<8)|B6)"
@@ -182,3 +184,70 @@ VCU:
           source: "JejuSoul Torque Pro CSV"
           verified: false
           notes: "Torque letter u=B20 → ISO-TP 20 → WiCAN B22."
+
+    21F2:
+      period: 0
+      enabled: false
+      availability: [charging]
+      notes: >
+        69 bytes. Discovered during charging PID scan (2026-04-18).
+        Raw payload: 61F2FF000000084566003FC6AE1101877F00000000000000000000000000...
+        Undecoded — needs analysis.
+  research:
+    - type: verify
+      target: "2101"
+      status: pending
+      priority: P1
+      prerequisite: [acc]
+      notes: "Several unverified params: CAR_READY (B26:3) causes OOB on 22-byte response, PARK_BRAKE (B26:5) same issue, ACCEL_PEDAL_DEPTH (B17), LDC_INHIBIT (B11:7), MCU_STATE (B11:6). Also ECO/Sport/Normal mode (B10 upper nibble?) and regen mode unknown."
+      what_to_test:
+        - "CAR_READY (B26:3) — OOB on 22-byte response, try with ACC on"
+        - "PARK_BRAKE (B26:5) — same OOB issue"
+        - "ECO/Sport/Normal mode — suspected in B10 upper nibble"
+        - "Regen mode (off/1/2/3) — location unknown"
+      sources:
+        - "Kia Niro PR — CAR_READY/PARK_BRAKE"
+        - "Obsidian: VCU.md"
+    - type: decode
+      target: "2102"
+      status: captured
+      priority: P1
+      prerequisite: [ready, charging]
+      notes: "27 bytes captured. Expected: heat sink temp (val-40), inverter input voltage (val*2), MCU temp (val-40), motor actual speed RPM (signed 16-bit)."
+      sources:
+        - "Obsidian: VCU.md — 23 bytes captured 2025-08-07"
+        - "38kWh profile — B20*3.97+2.3 speed formula"
+    - type: decode
+      target: "21F2"
+      status: captured
+      priority: P2
+      prerequisite: [charging]
+      date: "2026-04-18"
+      notes: "69 bytes. Discovered during charging scan. Undecoded."
+    - type: scan
+      target: "22 E001-E010"
+      status: pending
+      priority: P1
+      prerequisite: [acc]
+      notes: "Ioniq 5 cross-ref: E001 vehicle speed, E002 motor RPM, E004 accel pedal/speed HD/aux voltage, E005 disconnector, E006 drive mode, E007 regen level, E008 torque request, E009 actual regen torque, E00A odometer, E00B motor temp, E00C inverter cooling temp, E010 gear state."
+      sources:
+        - "OBDb Ioniq 5"
+        - "ChatGPT"
+    - type: verify
+      target: "2101 speed"
+      status: pending
+      priority: P1
+      prerequisite: [ready]
+      notes: "Verify if speed formula is MPH or km/h by comparing with GPS while driving."
+    - type: scan
+      target: "0x7E0 22 0101-0105"
+      status: pending
+      priority: P3
+      prerequisite: [acc]
+      notes: "38kWh profile says VCU is at 0x7E0 — test if anything responds on our 28kWh."
+    - type: scan
+      target: "0x7E1 22 0101-0105"
+      status: pending
+      priority: P3
+      prerequisite: [acc]
+      notes: "Powertrain address — test if anything responds."

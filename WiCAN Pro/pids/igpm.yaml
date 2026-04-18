@@ -10,6 +10,7 @@ IGPM:
     22BC03:
       period: 2500
       enabled: true
+      availability: [sleep, acc, ign, ready, charging]
       parameters:
         DOOR_DRV_OPEN:
           expression: "B10:5"
@@ -153,6 +154,7 @@ IGPM:
     22BC04:
       period: 2500
       enabled: true
+      availability: [sleep, acc, ign, ready, charging]
       parameters:
         DOOR_LOCK_FL:
           expression: "B10:3"
@@ -175,6 +177,7 @@ IGPM:
     22BC06:
       period: 2500
       enabled: true
+      availability: [sleep, acc, ign, ready, charging]
       parameters:
         BRAKE_LIGHT:
           expression: "B10"
@@ -204,6 +207,7 @@ IGPM:
 
     22BC01:
       enabled: false
+      availability: [sleep, acc, ign, ready, charging]
       notes: >
         9 bytes. B03=0x40 (bit 6 set), B08=0x02 (bit 1 set), rest zeros. Static across
         deep sleep and ACC captures. Possibly immobilizer or key-related configuration flags.
@@ -212,6 +216,7 @@ IGPM:
 
     22BC02:
       enabled: false
+      availability: [sleep, acc, ign, ready, charging]
       notes: >
         4 data bytes, all zeros in every capture (deep sleep and ACC). May only populate
         during driving (speed pulse, wiper state?). Sample: 62BC0200000000.
@@ -219,6 +224,7 @@ IGPM:
 
     22BC05:
       enabled: false
+      availability: [sleep, acc, ign, ready, charging]
       notes: >
         8 data bytes. B03=0x7F, B04=0x11, B05=0x20, rest zeros. Static across all power
         states. 0x7F11 could be a version or capability register. Purpose unknown.
@@ -227,6 +233,7 @@ IGPM:
 
     22BC07:
       enabled: false
+      availability: [sleep, acc, ign, ready, charging]
       notes: >
         8 data bytes. B03-B06=0x0841FBCC (static — possibly anti-theft code or immobilizer
         ID). B09 changes between captures: 0x19 (ACC/deep sleep Apr 14-16) vs 0x11 (deep
@@ -236,6 +243,7 @@ IGPM:
 
     22BC08:
       ignored: true
+      availability: [sleep, acc, ign, ready, charging]
       notes: >
         NRC 0x31 (requestOutOfRange). DID does not exist on Ioniq 2017 IGPM.
         Tested 2026-04-14.
@@ -247,6 +255,7 @@ IGPM:
   # Usage: python3 canreq.py --raw 770:<on_command> --hold [--wake]
   iocontrol:
     BC01:
+      availability: [sleep, acc, ign, ready, charging]
       label: Low beam
       verified: true
       on: "2FBC0103"
@@ -255,12 +264,14 @@ IGPM:
         Headlights on.
 
     BC02:
+      availability: [sleep, acc, ign, ready, charging]
       label: High beam
       verified: true
       on: "2FBC0203"
       off: "2FBC0200"
 
     BC03:
+      availability: [sleep, acc, ign, ready, charging]
       label: Front fog light
       verified: true
       on: "2FBC0303"
@@ -269,12 +280,14 @@ IGPM:
         No visible effect — Ioniq 2017 base trim has no fog light bulbs installed.
 
     BC04:
+      availability: [sleep, acc, ign, ready, charging]
       label: Tail / rear light
       verified: true
       on: "2FBC0403"
       off: "2FBC0400"
 
     BC05:
+      availability: [sleep, acc, ign, ready, charging]
       label: Red backlight flash
       verified: false
       on: "2FBC0503"
@@ -283,6 +296,7 @@ IGPM:
         No visible effect during test — may be CHMSL (center high-mount stop lamp) flash.
 
     BC07:
+      availability: [sleep, acc, ign, ready, charging]
       label: Horn
       verified: true
       on: "2FBC0703"
@@ -292,12 +306,14 @@ IGPM:
         confirmed on Ioniq.
 
     BC08:
+      availability: [sleep, acc, ign, ready, charging]
       label: Rear fog light
       verified: true
       on: "2FBC0803"
       off: "2FBC0800"
 
     BC09:
+      availability: [sleep, acc, ign, ready, charging]
       label: Trunk unlock
       verified: true
       on: "2FBC0903"
@@ -306,6 +322,7 @@ IGPM:
         Triggers alarm if car is locked! Releases latch only (no lift motor).
 
     BC0A:
+      availability: [sleep, acc, ign, ready, charging]
       label: Welcome / approach light
       verified: false
       on: "2FBC0A03"
@@ -314,6 +331,7 @@ IGPM:
         Likely puddle lights or DRL greeting on unlock.
 
     BC0C:
+      availability: [sleep, acc, ign, ready, charging]
       label: Rear defogger relay
       verified: false
       on: "2FBC0C03"
@@ -322,6 +340,7 @@ IGPM:
         Well-documented on e-Niro/Soul — defrosts rear window.
 
     BC10:
+      availability: [sleep, acc, ign, ready, charging]
       label: Door LOCK all
       verified: true
       on: "2FBC1003"
@@ -330,6 +349,7 @@ IGPM:
         Does NOT arm alarm — only locks doors.
 
     BC11:
+      availability: [sleep, acc, ign, ready, charging]
       label: Door UNLOCK all
       verified: true
       on: "2FBC1103"
@@ -338,6 +358,7 @@ IGPM:
         Does NOT disarm alarm — opening door will trigger horn!
 
     BC12:
+      availability: [sleep, acc, ign, ready, charging]
       label: Individual door unlock (1)
       verified: false
       on: "2FBC1203"
@@ -347,6 +368,7 @@ IGPM:
         Soul uses 6F prefix — may unlock driver door only.
 
     BC13:
+      availability: [sleep, acc, ign, ready, charging]
       label: Unknown (conditional)
       verified: false
       on: "2FBC1303"
@@ -355,6 +377,7 @@ IGPM:
         NRC 0x22 (conditionsNotCorrect) — may need ignition on or other precondition.
 
     BC14:
+      availability: [sleep, acc, ign, ready, charging]
       label: Individual door unlock (2)
       verified: false
       on: "2FBC1403"
@@ -363,24 +386,28 @@ IGPM:
         May trigger alarm. Soul uses 6F prefix — may unlock a specific door.
 
     BC15:
+      availability: [sleep, acc, ign, ready, charging]
       label: Left turn indicator
       verified: true
       on: "2FBC1503"
       off: "2FBC1500"
 
     BC16:
+      availability: [sleep, acc, ign, ready, charging]
       label: Right turn indicator
       verified: true
       on: "2FBC1603"
       off: "2FBC1600"
 
     BC18:
+      availability: [sleep, acc, ign, ready, charging]
       label: DRL (daytime running lights)
       verified: true
       on: "2FBC1803"
       off: "2FBC1800"
 
     BC1B:
+      availability: [sleep, acc, ign, ready, charging]
       label: Reverse / side marker light
       verified: false
       on: "2FBC1B03"
@@ -389,12 +416,14 @@ IGPM:
         NRC 0x22 — may be reverse light (only accepts when car is in reverse gear?).
 
     BC1C:
+      availability: [sleep, acc, ign, ready, charging]
       label: Luggage lamp
       verified: false
       on: "2FBC1C03"
       off: "2FBC1C00"
 
     BC25:
+      availability: [sleep, acc, ign, ready, charging]
       label: Unknown
       verified: false
       on: "2FBC2503"
@@ -403,18 +432,21 @@ IGPM:
         Accepted but no visible/audible effect. Tested 2026-04-15 (Ready mode).
 
     BC2B:
+      availability: [sleep, acc, ign, ready, charging]
       label: Rear left brake light
       verified: true
       on: "2FBC2B03"
       off: "2FBC2B00"
 
     BC2C:
+      availability: [sleep, acc, ign, ready, charging]
       label: Rear right brake light
       verified: true
       on: "2FBC2C03"
       off: "2FBC2C00"
 
     BC2D:
+      availability: [sleep, acc, ign, ready, charging]
       label: CHMSL (center brake light)
       verified: true
       on: "2FBC2D03"
@@ -423,12 +455,14 @@ IGPM:
         Center high-mount stop lamp. Confirmed 2026-04-15.
 
     BC3F:
+      availability: [sleep, acc, ign, ready, charging]
       label: Charge cable LOCK
       verified: true
       on: "2FBC3F03"
       off: "2FBC3F00"
 
     BC41:
+      availability: [sleep, acc, ign, ready, charging]
       label: Charge cable UNLOCK
       verified: true
       on: "2FBC4103"
@@ -437,6 +471,7 @@ IGPM:
         May not stop active charge session — test with caution!
 
     BC42:
+      availability: [sleep, acc, ign, ready, charging]
       label: Unknown
       verified: false
       on: "2FBC4203"
@@ -445,6 +480,7 @@ IGPM:
         Accepted but no visible/audible effect. Tested 2026-04-15 (Ready mode).
 
     BC43:
+      availability: [sleep, acc, ign, ready, charging]
       label: Unknown
       verified: false
       on: "2FBC4303"
@@ -453,9 +489,109 @@ IGPM:
         Accepted but no visible/audible effect. Tested 2026-04-15 (Ready mode).
 
     BC44:
+      availability: [sleep, acc, ign, ready, charging]
       label: Unknown
       verified: false
       on: "2FBC4403"
       off: "2FBC4400"
       notes: >
         Accepted but no visible/audible effect. Tested 2026-04-15 (Ready mode).
+  research:
+    - type: decode
+      target: "22BC01"
+      status: captured
+      priority: P1
+      prerequisite: [sleep, acc, ign, ready, charging]
+      notes: "Captured 2026-04-14, not decoded. Compare with BC03/BC04 structure."
+      sources:
+        - "captures/ — 2026-04-14"
+    - type: decode
+      target: "22BC02"
+      status: captured
+      priority: P1
+      prerequisite: [sleep, acc, ign, ready, charging]
+      notes: "Captured 2026-04-14, not decoded."
+      sources:
+        - "captures/ — 2026-04-14"
+    - type: decode
+      target: "22BC05"
+      status: captured
+      priority: P1
+      prerequisite: [sleep, acc, ign, ready, charging]
+      notes: "Captured 2026-04-14, not decoded."
+      sources:
+        - "captures/ — 2026-04-14"
+    - type: verify
+      target: "22BC06"
+      status: captured
+      priority: P1
+      prerequisite: [sleep, acc, ign, ready, charging]
+      notes: "Brake light at bix 32 (byte 4) per Ioniq 5 OBDb. Press brake pedal and verify bit toggles."
+      what_to_test:
+        - "Brake light bit toggle with pedal press"
+      sources:
+        - "OBDb Ioniq 5"
+        - "captures/ — 2026-04-14"
+    - type: decode
+      target: "22BC07"
+      status: captured
+      priority: P2
+      prerequisite: [sleep, acc, ign, ready, charging]
+      notes: "Captured 2026-04-14, not decoded."
+      sources:
+        - "captures/ — 2026-04-14"
+    - type: verify
+      target: "2FBC0A"
+      status: pending
+      priority: P3
+      notes: "Welcome/approach light — accepted but not visually tested. Likely puddle lights or DRL greeting."
+    - type: verify
+      target: "2FBC0C"
+      status: pending
+      priority: P2
+      notes: "Defogger — accepted but not visually tested."
+    - type: verify
+      target: "2FBC12"
+      status: pending
+      priority: P3
+      notes: "Individual door unlock (driver only per Soul pattern). Alarm risk — test with keyfob ready."
+    - type: verify
+      target: "2FBC14"
+      status: pending
+      priority: P3
+      notes: "Individual door unlock (rear per Soul pattern). Alarm risk — test with keyfob ready."
+    - type: verify
+      target: "2FBC1B"
+      status: pending
+      priority: P3
+      notes: "Reverse light / side marker — accepted, not visually tested."
+    - type: verify
+      target: "2FBC3F"
+      status: pending
+      priority: P2
+      notes: "Charge cable LOCK — not in BC00-BC20 scan range. Untested."
+    - type: verify
+      target: "2FBC41"
+      status: pending
+      priority: P2
+      notes: "Charge cable UNLOCK — not in BC00-BC20 scan range. Untested."
+    - type: verify
+      target: "2FBC25"
+      status: pending
+      priority: P3
+      notes: "Accepted but no visible/audible effect during ready mode test."
+    - type: verify
+      target: "2FBC42"
+      status: pending
+      priority: P3
+      notes: "Accepted but no visible/audible effect."
+    - type: verify
+      target: "2FBC43"
+      status: pending
+      priority: P3
+      notes: "Accepted but no visible/audible effect."
+    - type: verify
+      target: "2FBC44"
+      status: pending
+      priority: P3
+      notes: "Accepted but no visible/audible effect."

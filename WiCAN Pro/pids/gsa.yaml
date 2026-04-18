@@ -6,6 +6,7 @@ GSA:
     220100:
       period: 5000
       enabled: false
+      availability: [acc, ign, ready]
       parameters:
         GSA_0100_UNKNOWN:
           expression: ""

@@ -6,6 +6,7 @@ WPC:
     220100:
       period: 5000
       enabled: false
+      availability: [acc, ign, ready]
       parameters:
         WPC_0100_B03_B04:
           expression: "[S03:S04]"

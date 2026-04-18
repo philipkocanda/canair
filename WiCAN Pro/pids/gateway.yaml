@@ -6,6 +6,7 @@ Gateway:
     2180:
       period: 10000
       enabled: true
+      availability: [sleep, acc, ign, ready, charging]  # TODO: verify sleep avaability
       parameters:
         AMBIENT_TEMP:
           expression: "(B18-80)/2"
@@ -20,6 +21,7 @@ Gateway:
     2181:
       period: 0
       enabled: false
+      availability: [charging] # TODO: other states untested
       parameters:
         GW_2181_UNKNOWN:
           expression: ""

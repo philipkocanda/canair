@@ -39,6 +39,7 @@ optional_ecu_fields:
   - session
   - identity
   - iocontrol       # IOControl (service 2F) commands — see iocontrol_fields below
+  - research        # Untested/undecoded PIDs and scan TODOs — see research_fields below
 
 required_pid_fields: []
 
@@ -46,6 +47,13 @@ optional_pid_fields:
   - period
   - enabled
   - ignored
+  - availability     # When this PID responds. Array of car power states:
+                     #   sleep    — deep sleep, 12V standby only
+                     #   acc      — ACC1, one start button press, accessory power
+                     #   ign      — ACC2/IGN, two presses without brake, full ignition, no HV
+                     #   ready    — brake + start, HV active, driveable
+                     #   charging — AC or DC charging active
+                     # Empty array [] means untested/unknown. Omitting is also valid.
   - notes
   - parameters
 
@@ -97,3 +105,29 @@ iocontrol_fields:
   - notes
   - session
   - hold
+
+# Research section — untested PIDs, undecoded captures, pending scans, and
+# IOControl discovery. Lives under ECU_NAME.research alongside pids/iocontrol.
+# Items graduate to pids/iocontrol once decoded/verified; mark research entry "done".
+#
+# Format:
+#   research:
+#     - type: scan | decode | verify | iocontrol_scan
+#       target: "22 E001-E010"     # PID, DID range, or scan description
+#       status: pending | captured | nrc | done
+#       priority: P1 | P2 | P3    # P1=high value, P2=medium, P3=speculative
+#       prerequisite: [acc]        # Car power states needed (same as availability)
+#       date: "2026-04-15"         # When last tested (optional)
+#       result: "..."              # Short result summary (optional)
+#       notes: "..."               # Details, what to look for
+#       sources: [...]             # Cross-references (URLs, file references)
+#       what_to_test: [...]        # Specific things to check (optional)
+#
+# type values:
+#   scan           — broad PID/DID range scan not yet performed
+#   decode         — response captured but payload not decoded
+#   verify         — parameter exists but value unverified on this car
+#   iocontrol_scan — IOControl (2F) discovery scan
+research_fields:
+  required: [type, target, status]
+  optional: [priority, prerequisite, date, result, notes, sources, what_to_test]

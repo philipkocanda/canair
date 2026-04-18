@@ -6,6 +6,7 @@ EPS:
     220101:
       period: 2500
       enabled: false
+      availability: [ready]
       parameters:
         EPS_0101_UNKNOWN:
           expression: ""
@@ -20,6 +21,7 @@ EPS:
     220102:
       period: 2500
       enabled: false
+      availability: [ready]
       parameters:
         EPS_0102_UNKNOWN:
           expression: ""
@@ -31,3 +33,13 @@ EPS:
           source_links: []
           verified: false
           notes: "13 bytes. B6=0x03, rest zeros. Status/config register. Payload: 62010200000003000000000000"
+  research:
+    - type: scan
+      target: "22 0101-0105"
+      status: pending
+      priority: P2
+      prerequisite: [acc]
+      notes: "0101 = steering wheel angle absolute (/10 deg), MDPS motor current (signed A) per Ioniq 5."
+      sources:
+        - "OBDb Ioniq 5"
+        - "OpenDBC fingerprints confirm EPS at 0x7D4"

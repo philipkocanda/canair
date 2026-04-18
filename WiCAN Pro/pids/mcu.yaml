@@ -1,11 +1,23 @@
 
 # ─── MCU (Motor Control Unit) ─────────────────────────────────────────
+# Full service 21 scan (01-FF) during AC charging (2026-04-18):
+#   0x01 (34 bytes), 0x02 (62 bytes), 0x03 (27 bytes, all zeros), 0xF2 (69 bytes).
 MCU:
   tx_id: 0x7E3
   pids:
+    2101:
+      period: 5000
+      enabled: false
+      availability: [charging]  # TODO: likely also ready — verify with ignition on
+      notes: >
+        34 bytes. Captured but not decoded.
+        Raw payload (charging): 6101000003FF083801268D7F390000000A00460253044F397A007A000CFF...
+      parameters: {}
+
     2102:
       period: 5000
       enabled: true
+      availability: [charging]  # TODO: likely also ready — verify with ignition on
       parameters:
         MCU_MOTOR_RPM:
           expression: "((S7<<8)|B6)"
@@ -17,3 +29,70 @@ MCU:
           source_links: []
           verified: false
           notes: "Signed 16-bit. Torque letters e=4,f=5 → ISO-TP 4,5 → WiCAN B6,B7. OVMS confirms 0x7E3 PID 2102 is polled at 11s intervals."
+
+    2103:
+      period: 0
+      enabled: false
+      availability: [charging]
+      notes: >
+        27 bytes, all zeros during AC charging.
+        Raw payload: 610300000000000000000000000000000000000000000000000000
+        May contain data during driving. Discovered 2026-04-18.
+      parameters: {}
+
+    21F2:
+      period: 0
+      enabled: false
+      availability: [charging]
+      notes: >
+        69 bytes. Discovered during charging PID scan (2026-04-18).
+        Raw payload: 61F2FFFFFF3FF8FFF6FF7DD609000000000000000000190500000B05CDAB...
+        Undecoded — needs analysis.
+      parameters: {}
+  research:
+    - type: decode
+      target: "2101"
+      status: captured
+      priority: P1
+      prerequisite: [charging]
+      date: "2026-04-18"
+      notes: "34 bytes captured during charging. ImHex pattern 'ALL WRONG'. Expected: motor torque, phase current, temps. Compare with Ioniq 5 MCU 22E001 signals."
+      sources:
+        - "Obsidian: MCU.md"
+        - "OBDb Ioniq 5 MCU 22E001"
+    - type: decode
+      target: "2102"
+      status: captured
+      priority: P1
+      prerequisite: [charging]
+      notes: "62 bytes. Motor RPM confirmed at ((Signed(F)*256)+E). Remaining bytes undecoded."
+      sources:
+        - "Obsidian: MCU.md"
+    - type: decode
+      target: "2103"
+      status: captured
+      priority: P2
+      prerequisite: [charging]
+      date: "2026-04-18"
+      notes: "27 bytes, all zeros during charging. May contain data while driving."
+    - type: decode
+      target: "21F2"
+      status: captured
+      priority: P2
+      prerequisite: [charging]
+      date: "2026-04-18"
+      notes: "69 bytes. Discovered during charging scan. Undecoded."
+    - type: scan
+      target: "22 E001-E010"
+      status: pending
+      priority: P1
+      prerequisite: [acc]
+      notes: "Ioniq 5 cross-ref: E001 ignition voltage/motor RPM/torque/phase current/temps, E009 electric water pump/oil pump."
+      sources:
+        - "OBDb Ioniq 5"
+    - type: iocontrol_scan
+      target: "2F E000-E0FF"
+      status: pending
+      priority: P2
+      prerequisite: [acc]
+      notes: "MCU IOControl E0xx range."
