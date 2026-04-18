@@ -1,0 +1,94 @@
+sessions:
+
+  - date: "2026-04-18"
+    label: "Service 21 PID scan during AC charging — powertrain ECUs"
+    state: "AC charging (240V, SOC ~63%, 14.7V battery)"
+    notes: |
+      Full service 21 scan (01-FF) on 7 ECUs during AC charging.
+      Goal: find new PIDs available during charging, especially on LDC/OBC/Charging.
+      Key finding: 0x744 (Charging) and 0x733 (PLC) remain dead during AC charging.
+      New PIDs discovered: LDC 2102, VCU 21F2, MCU 2101/2103/21F2.
+    captures:
+      - ecu: "Gateway"
+        pid: "2101-21FF"
+        label: "Full service 21 scan on removed ECU 0x744"
+        notes: "0x744 returned NO DATA on all 255 PIDs during active AC charging. ECU removed from ecus.yaml — likely does not exist on Ioniq 28kWh."
+        response: "NO DATA — 255 errors, address 0x744 dead"
+
+      - ecu: "LDC"
+        pid: "2101-21FF"
+        label: "Full service 21 scan"
+        scan_results:
+          responding:
+            - did: "01"
+              response: "48 bytes (known)"
+            - did: "02"
+              response: "34 bytes (NEW)"
+              notes: "Raw: 6102FFFC0000684F792A694A79286E847927650F791B7499791F7293792B"
+          rejected: "253 DIDs returned NO DATA or NRC"
+          notes: "PID 2102 is new — 34 bytes, undecoded. Many repeated 79xx values suggest voltage/current readings."
+
+      - ecu: "OBC-746"
+        pid: "2101-21FF"
+        label: "Full service 21 scan"
+        scan_results:
+          responding:
+            - did: "F2"
+              response: "6 bytes: 61F200000007"
+              notes: "Same response during charging and off — not charging-specific data"
+          rejected: "254 DIDs returned NO DATA or NRC"
+
+      - ecu: "PLC"
+        pid: "2101-21FF"
+        label: "Full service 21 scan"
+        response: "255 NRCs — ECU dead during AC charging"
+        notes: "PLC is CCS DC fast-charge controller — expected to be inactive during AC charging."
+
+      - ecu: "VCU"
+        pid: "2101-21FF"
+        label: "Full service 21 scan"
+        scan_results:
+          responding:
+            - did: "01"
+              response: "27 bytes (known)"
+              notes: "Raw: 6101FFE0000009211063064A030000000063770007200000000000"
+            - did: "02"
+              response: "27 bytes (known)"
+              notes: "Raw: 6102F8F8000001010000009410B582F3392A060A8D9A3900000000"
+            - did: "F2"
+              response: "69 bytes (NEW)"
+              notes: "Raw: 61F2FF000000084566003FC6AE1101877F00000000000000000000000000..."
+          rejected: "252 DIDs returned NO DATA or NRC"
+          notes: "21F2 is new — 69 bytes, undecoded."
+
+      - ecu: "MCU"
+        pid: "2101-21FF"
+        label: "Full service 21 scan"
+        scan_results:
+          responding:
+            - did: "01"
+              response: "34 bytes (previously captured but not in pids/)"
+              notes: "Raw: 6101000003FF083801268D7F390000000A00460253044F397A007A000CFF..."
+            - did: "02"
+              response: "62 bytes (known)"
+            - did: "03"
+              response: "27 bytes (NEW, all zeros)"
+              notes: "Raw: 610300000000000000000000000000000000000000000000000000. May contain data during driving."
+            - did: "F2"
+              response: "69 bytes (NEW)"
+              notes: "Raw: 61F2FFFFFF3FF8FFF6FF7DD609000000000000000000190500000B05CDAB..."
+          rejected: "251 DIDs returned NO DATA or NRC"
+          notes: "MCU 2103 all zeros during charging — worth re-testing while driving."
+
+      - ecu: "Gateway"
+        pid: "2101-21FF"
+        label: "Full service 21 scan"
+        scan_results:
+          responding:
+            - did: "80"
+              response: "27 bytes (known as 2180)"
+              notes: "Raw: 6180C366C00021270000000000206D004041000082130097970000"
+            - did: "81"
+              response: "27 bytes (known from 2026-04-17)"
+              notes: "Raw: 6181FFFFC00021270000000100206D824041454582130797970000"
+          rejected: "253 DIDs returned NO DATA or NRC"

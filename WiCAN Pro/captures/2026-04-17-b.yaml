@@ -9,7 +9,7 @@ sessions:
         pid: "1001"
         notes: |
           Full address sweep 0x700-0x7EF — 30 responding addresses:
-          Known (16): 0x736(VESS), 0x744(Charging-errors), 0x770(IGPM), 0x7A0(BCM), 0x7A3(PSM), 0x7A5(SKM),
+          Known (16): 0x736(VESS), 0x744(errors-only, removed), 0x770(IGPM), 0x7A0(BCM), 0x7A3(PSM), 0x7A5(SKM),
             0x7B3(HVAC), 0x7C0(AVN), 0x7C6(CLU), 0x7D1(ESC), 0x7D4(EPS), 0x7E2(VCU), 0x7E3(MCU),
             0x7E4(BMS), 0x7E5(LDC), 0x7E6(Gateway)
           Newly discovered (14): 0x725(SAS), 0x733(PLC), 0x746(OBC), 0x755(FCAM), 0x780(TCU), 0x783(unknown),

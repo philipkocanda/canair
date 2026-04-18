@@ -1,0 +1,20 @@
+
+# ─── OBC-746 (On-Board Charger — alternate address) ─────────────────
+# Alternate OBC address at 0x746. KWP2000 protocol.
+# ECU ID 1.10, SW ID Z311 (from 1A identity scan).
+# Most identity fields returned FFFFFFFF.
+# Only PID 21F2 responds — confirmed during both charging and non-charging.
+# Full service 21 scan (01-FF) performed during AC charging (2026-04-18):
+#   only 0xF2 responded (6 bytes: 61F200000007).
+OBC-746:
+  tx_id: 0x746
+  pids:
+    21F2:
+      period: 10000
+      enabled: false
+      availability: [ready, charging]
+      notes: >
+        6 bytes. Responds both during AC charging and when car is off.
+        Payload: 61F200000007 — meaning unknown.
+        Full scan (2026-04-18): only PID in service 21 range 01-FF that responds.
+      parameters: {}

@@ -1539,12 +1539,10 @@ sessions:
       responding: []
       rejected: "E001-E011 (17 DIDs): all NRC 0x31"
     notes: No service 22 DIDs found beyond existing 21xx PIDs
-  - ecu: Charging
-    pid: scan
-    scan_results:
-      responding: []
-      rejected: "E001-E004: 4 errors (ECU not responding)"
-    notes: Car not plugged in — charging ECU likely asleep
+  - ecu: Gateway
+    pid: "0x744-scan"
+    notes: "0x744 (formerly 'Charging') — 4 errors, ECU not responding. Car not plugged in. Address later confirmed dead during AC charging (2026-04-18). Removed from ecus.yaml."
+    response: "E001-E004: 4 errors (ECU not responding)"
   - ecu: Gateway
     pid: probe
     response: NO DATA
