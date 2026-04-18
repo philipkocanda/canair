@@ -97,9 +97,13 @@ IGPM:
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
-          notes: "Activates at ACC2/IGN1. Cannot distinguish ACC2 from Ready — both show bit=1. OFF and ACC1 both show bit=0 (ACC1 may behave differently when not charging). Verified 2026-04-15."
+          notes: >
+            Activates at ACC2/IGN1. Cannot distinguish ACC2 from Ready — both show
+            bit=1. OFF and ACC1 both show bit=0. Fob-unlock does NOT set this bit
+            (confirmed 2026-04-18 — B11 stays 0x00 on fob unlock, the 0x2C seen was
+            B12 lights). Verified 2026-04-15.
 
-        POWER_MODE:
+        IGPM_CONFIG_BYTE:
           expression: "B09"
           display: "f'0x{int(v):02X} {int(v):08b}'"
           ha_class: ""
@@ -107,17 +111,14 @@ IGPM:
           max: "255"
           source: "Reverse engineered from cross-state comparison"
           source_links: []
-          verified: false
+          verified: true
           notes: >
-            Raw power mode byte (IGPM BC03 WiCAN B09). Bitfield with multiple flags.
-            Bit 5 (0x20) = ACC. Known values: 0x00 = off/charging (no key, locked),
-            0x0A = keyfob-wake or ACC2+lights (no key, locked),
-            0x20 = ACC via SKM IOControl (no key),
-            0x73 = deep sleep with key inside unlocked car (stable, 2026-04-18).
-            0x0A→0x73 diff: key in car AND/OR doors unlocked — bits 0,3,4,5,6 flip.
-            Need to test key-in+locked vs key-out+unlocked to isolate.
-            Not a clean enum — treat as bitfield.
-            Verified 2026-04-16.
+            Static configuration/capability byte (IGPM BC03 WiCAN B09). Always 0x73
+            (01110011) across all tested states: deep sleep, ACC, ready, locked,
+            unlocked, key in, key out (16 captures 2026-04-14 to 2026-04-18).
+            Originally misidentified as "POWER_MODE" — the changing byte was actually
+            B10 (door lock bits). Likely a hardware revision or feature flag.
+            Verified static 2026-04-18.
 
         SEATBELT_FL:
           expression: "B11:1"
@@ -600,22 +601,14 @@ IGPM:
       priority: P3
       notes: "Accepted but no visible/audible effect."
     - type: decode
-      target: "22BC03 POWER_MODE"
-      status: captured
-      priority: P1
+      target: "22BC03 IGPM_CONFIG_BYTE (was POWER_MODE)"
+      status: done
+      priority: P2
       prerequisite: [sleep]
       notes: >
-        POWER_MODE (B09) encodes key proximity and/or door lock state.
-        0x0A (no key, all 5 doors locked) vs 0x73 (key in car, all 5 doors unlocked)
-        during sleep — bits 0,3,4,5,6 differ. Two variables changed simultaneously;
-        need isolated tests to determine which bits are key vs lock state.
-      what_to_test:
-        - "Sleep, no key, locked (baseline: 0x0A)"
-        - "Sleep, key in car, unlocked (captured: 0x73)"
-        - "Sleep, key in car, locked (isolates key bit)"
-        - "Sleep, no key, unlocked (isolates lock bit)"
-        - "ACC with/without key"
-        - "Ready (always has key)"
+        RESOLVED 2026-04-18: POWER_MODE (B09) = 0x73 in all deep sleep states
+        (key in/out, locked/unlocked). The earlier 0x0A attribution was a byte offset
+        error — 0x0A was actually B10 (rear door lock bits RL+RR=1).
+        Remaining: test ACC and ready states to confirm bit 5 (0x20) = ACC.
       sources:
-        - "captures/ — 2026-04-16 (no key, locked)"
-        - "live query 2026-04-18 (key in car, unlocked)"
+        - "live queries 2026-04-18 — key in unlocked, key out unlocked, locked no key: all B09=0x73"
