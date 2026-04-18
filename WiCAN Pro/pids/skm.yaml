@@ -183,6 +183,127 @@ SKM:
       hold: false
       notes: >
         Start relay from Kia Soul EV.
+
+    B101:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB10103"
+      off: "2FB10100"
+    B102:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB10203"
+      off: "2FB10200"
+    B103:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB10303"
+      off: "2FB10300"
+    B104:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB10403"
+      off: "2FB10400"
+    B106:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB10603"
+      off: "2FB10600"
+    B10C:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB10C03"
+      off: "2FB10C00"
+    B10E:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB10E03"
+      off: "2FB10E00"
+    B111:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB11103"
+      off: "2FB11100"
+    B114:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB11403"
+      off: "2FB11400"
+    B115:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB11503"
+      off: "2FB11500"
+    B118:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB11803"
+      off: "2FB11800"
+    B119:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB11903"
+      off: "2FB11900"
+    B11A:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB11A03"
+      off: "2FB11A00"
+    B11B:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB11B03"
+      off: "2FB11B00"
+    B120:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB12003"
+      off: "2FB12000"
+    B123:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB12303"
+      off: "2FB12300"
+    B125:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB12503"
+      off: "2FB12500"
+    B127:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB12703"
+      off: "2FB12700"
+    B12A:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB12A03"
+      off: "2FB12A00"
+    B130:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB13003"
+      off: "2FB13000"
   research:
     - type: decode
       target: "22B002"
