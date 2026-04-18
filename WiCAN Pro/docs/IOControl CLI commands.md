@@ -3,6 +3,14 @@
 All commands use extended diagnostic session (`--session` implied by `--hold`).
 Actuators release when session drops (Ctrl+C or `--timeout`).
 
+## Scanning
+
+```sh
+# Scan BCM IOControl DIDs — body/comfort range
+# sends 2F <DID> 00 which is returnControl (OFF/release). That's the safest IOControl command — it tells the ECU to stop any external control and return to normal operation. No actuation risk.
+canreq --scan --tx 7A0 --service 2F --range B000-B0FF --append 00 --session
+```
+
 ## Quick Reference
 
 Note: Append --wake flag if car is fully asleep (e.g. after 30 min idle) — this sends a wakeup message before the command, which may be necessary to get a response from the IGPM.
