@@ -6,6 +6,7 @@ SCC:
     220100:
       period: 2500
       enabled: false
+      availability: [ready]
       parameters:
         SCC_0100_UNKNOWN:
           expression: ""
@@ -20,6 +21,7 @@ SCC:
     220101:
       period: 2500
       enabled: false
+      availability: []
       parameters:
         SCC_0101_UNKNOWN:
           expression: ""
@@ -34,6 +36,7 @@ SCC:
     220102:
       period: 2500
       enabled: false
+      availability: []
       parameters:
         SCC_0102_UNKNOWN:
           expression: ""
@@ -48,6 +51,7 @@ SCC:
     220103:
       period: 2500
       enabled: false
+      availability: []
       parameters:
         SCC_0103_UNKNOWN:
           expression: ""
@@ -62,6 +66,7 @@ SCC:
     220105:
       period: 2500
       enabled: false
+      availability: []
       parameters:
         SCC_0105_UNKNOWN:
           expression: ""

@@ -19,6 +19,7 @@ SKM:
   # Usage: python3 canreq.py --raw 7A5:<on_command> --session
   iocontrol:
     B108:
+      availability: []
       label: ACC relay
       verified: true
       on: "2FB108030A0A05"
@@ -31,6 +32,7 @@ SKM:
         freezeCurrentState (02) returns status bytes 6255.
 
     B109:
+      availability: []
       label: IGN1 relay
       verified: false
       on: "2FB109030A0A05"
@@ -39,6 +41,7 @@ SKM:
       notes: >
         Ignition 1 — wakes all ECUs including HV system?
     B10A:
+      availability: []
       label: IGN2 relay
       verified: false
       on: "2FB10A030A0A05"
@@ -48,6 +51,7 @@ SKM:
         Ignition 2 — purpose unclear on Ioniq EV. From Kia Soul EV.
 
     B10B:
+      availability: []
       label: Start relay
       verified: false
       on: "2FB10B030A0A05"
@@ -55,3 +59,21 @@ SKM:
       hold: false
       notes: >
         Start relay from Kia Soul EV.
+  research:
+    - type: verify
+      target: "2FB109"
+      status: pending
+      priority: P2
+      notes: "IGN1 relay ON — accepted but untested."
+    - type: verify
+      target: "2FB10A"
+      status: pending
+      priority: P2
+      notes: "IGN2 relay ON — accepted but untested."
+    - type: verify
+      target: "2FB10B"
+      status: pending
+      priority: P3
+      notes: "Start relay ON — CAUTION. Only test if safe."
+      sources:
+        - "Obsidian: SKM.md — KIA Soul commands"

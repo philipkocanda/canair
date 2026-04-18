@@ -6,6 +6,7 @@ BMS:
     2101:
       period: 2500
       enabled: true
+      availability: [ready, charging]
       parameters:
         SOC_BMS:
           expression: "B09/2"
@@ -352,6 +353,7 @@ BMS:
     2105:
       period: 5000
       enabled: true
+      availability: [ready, charging]
       parameters:
         AVAIL_CHARGE_POWER:
           expression: "[B22:B23]/100"
@@ -569,6 +571,7 @@ BMS:
     2102:
       period: 10000
       enabled: false
+      availability: [ready, charging]
       parameters:
         CELL_01_VOLTAGE:
           expression: "B6*0.02"
@@ -894,6 +897,7 @@ BMS:
     2103:
       period: 10000
       enabled: false
+      availability: [ready, charging]
       parameters:
         CELL_33_VOLTAGE:
           expression: "B6*0.02"
@@ -1219,6 +1223,7 @@ BMS:
     2104:
       period: 10000
       enabled: false
+      availability: [ready, charging]
       parameters:
         CELL_65_VOLTAGE:
           expression: "B6*0.02"
@@ -1540,3 +1545,48 @@ BMS:
           source_links: []
           verified: true
           notes: "Last cell. Total: 96 cells across PIDs 2102/2103/2104."
+  research:
+    - type: verify
+      target: "2101 extended bytes"
+      status: pending
+      priority: P1
+      prerequisite: [ready]
+      notes: "INVERTER_CAP_VOLTAGE (B62), DRIVE_MOTOR_SPEED (B65), ISOLATION_RESISTANCE (B69) exceed 61-byte stationary payload. Check if response is longer while driving."
+      sources:
+        - "decode-captures.py output"
+    - type: scan
+      target: "22 BC01-BC0B"
+      status: pending
+      priority: P2
+      prerequisite: [ready, charging]
+      notes: "ChatGPT-sourced: BC01 battery voltage, BC02 current, BC03 SoC, BC04 display SoC, BC05 charging status, BC06 temp, BC07 max cell V, BC08 min cell V, BC09 max/min cell temp, BC0A SoH, BC0B avg cell V."
+      sources:
+        - "ChatGPT"
+    - type: scan
+      target: "22 B002-B005"
+      status: pending
+      priority: P3
+      prerequisite: [ready, charging]
+      notes: "ChatGPT-sourced: B002 max charge power, B003 max discharge power, B004 internal temp, B005 status flags."
+      sources:
+        - "ChatGPT"
+    - type: scan
+      target: "22 E003-E005"
+      status: pending
+      priority: P2
+      prerequisite: [ready, charging]
+      notes: "E003 estimated range, E005 time to full charge (charging only)."
+      sources:
+        - "ChatGPT"
+    - type: iocontrol_scan
+      target: "2F E000-E0FF"
+      status: pending
+      priority: P1
+      prerequisite: [acc]
+      notes: "Looking for battery fan/EWP control DID. Kingbolen scanner can actuate fan from BMS."
+    - type: iocontrol_scan
+      target: "2F BC00-BCFF"
+      status: pending
+      priority: P2
+      prerequisite: [acc]
+      notes: "BMS IOControl body/comfort-style DIDs."

@@ -16,6 +16,7 @@ PSM:
   # Usage: python3 canreq.py --raw 7A3:<on_command> --hold
   iocontrol:
     B401:
+      availability: []
       label: Seat slide forward
       verified: false
       on: "2FB40103"
@@ -24,6 +25,7 @@ PSM:
         Continuous motor — send OFF to stop.
 
     B402:
+      availability: []
       label: Seat slide backward
       verified: false
       on: "2FB40203"
@@ -32,6 +34,7 @@ PSM:
         Continuous motor — send OFF to stop.
 
     B403:
+      availability: []
       label: Seat recline upright
       verified: false
       on: "2FB40303"
@@ -40,6 +43,7 @@ PSM:
         Continuous motor — send OFF to stop.
 
     B404:
+      availability: []
       label: Seat recline backward
       verified: false
       on: "2FB40403"
@@ -48,6 +52,7 @@ PSM:
         Continuous motor — send OFF to stop.
 
     B405:
+      availability: []
       label: Seat front height up
       verified: false
       on: "2FB40503"
@@ -56,6 +61,7 @@ PSM:
         Continuous motor — send OFF to stop.
 
     B406:
+      availability: []
       label: Seat front height down
       verified: false
       on: "2FB40603"
@@ -64,6 +70,7 @@ PSM:
         Continuous motor — send OFF to stop.
 
     B407:
+      availability: []
       label: Seat rear height up
       verified: false
       on: "2FB40703"
@@ -72,6 +79,7 @@ PSM:
         Continuous motor — send OFF to stop.
 
     B408:
+      availability: []
       label: Seat rear height down
       verified: false
       on: "2FB40803"

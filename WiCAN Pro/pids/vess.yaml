@@ -12,6 +12,7 @@ VESS:
   # Usage: python3 canreq.py --raw 736:<on_command> --hold
   iocontrol:
     F011:
+      availability: []
       label: Play VESS sound
       verified: false
       on: "2FF011030001"

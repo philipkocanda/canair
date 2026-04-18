@@ -6,6 +6,7 @@ MFC:
     220100:
       period: 2500
       enabled: false
+      availability: [ready]
       parameters:
         MFC_0100_UNKNOWN:
           expression: ""
@@ -20,6 +21,7 @@ MFC:
     220101:
       period: 2500
       enabled: false
+      availability: [ready]
       parameters:
         MFC_0101_UNKNOWN:
           expression: ""
@@ -34,6 +36,7 @@ MFC:
     220102:
       period: 2500
       enabled: false
+      availability: [ready]
       parameters:
         MFC_0102_UNKNOWN:
           expression: ""

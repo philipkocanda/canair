@@ -12,6 +12,7 @@ LDC:
     2101:
       period: 5000
       enabled: true
+      availability: [ready, charging] # TODO: maybe also ACC2/IGN?
       parameters:
         LDC_HV_INPUT_V:
           expression: "[B12:B13]/100"
@@ -97,6 +98,17 @@ LDC:
             After a while down to 22.67 then 32 (still at 10 Amps AC)
             ISO-TP byte 39. Torque letter am.
 
+    2102:
+      period: 5000
+      enabled: false
+      availability: [charging]
+      notes: >
+        34 bytes. Only responds during AC charging — returns NRC when car is off.
+        Discovered during charging PID scan (2026-04-18).
+        Raw payload: 6102FFFC0000684F792A694A79286E847927650F791B7499791F7293792B...
+        Undecoded — needs analysis.
+      parameters: {}
+
     2103:
       period: 5000
       enabled: false
@@ -112,3 +124,31 @@ LDC:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: false
           notes: "DISABLED: PID 2103 returns NRC 0x12 (subFunctionNotSupported) on Ioniq 2017. Does not exist on this car."
+  research:
+    - type: decode
+      target: "2101"
+      status: captured
+      priority: P1
+      prerequisite: [ready, charging]
+      notes: "Some params unverified: OBC_TEMP_HEATSINK (S15), OBC_TEMP_INSIDE (S16), OBC_TEMP_WATER (S17), OBC_DC_V ([B18:B19]/10), OBC_AC_V ([B20:B21]/10), LDC temp (val-100), DC volt out (/10)."
+      what_to_test:
+        - "OBC temps (S15/S16/S17)"
+        - "OBC DC/AC voltage"
+        - "LDC temp and DC volt out"
+      sources:
+        - "Kia Niro PR#660"
+    - type: decode
+      target: "2102"
+      status: captured
+      priority: P2
+      prerequisite: [charging]
+      date: "2026-04-18"
+      notes: "34 bytes captured during charging. Undecoded."
+    - type: scan
+      target: "22 E001-E011"
+      status: pending
+      priority: P2
+      prerequisite: [charging]
+      notes: "Ioniq 5 cross-ref: E001 charge mode/DC target V-I/AC max current, E002 OBC voltages/currents/temps, E011 LDC temp/output V-I/input V/aux battery."
+      sources:
+        - "OBDb Ioniq 5"
