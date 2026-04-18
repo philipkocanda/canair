@@ -1,0 +1,7 @@
+
+# ─── BSD-L (Blind Spot Detection — Left) ──────────────────────────────
+# Left BSD radar at 0x755. Part: 95821G2000
+# No live data DIDs discovered yet. Service 22 ranges untested.
+BSD-L:
+  tx_id: 0x755
+  pids: {}

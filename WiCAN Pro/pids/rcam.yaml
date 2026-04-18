@@ -1,0 +1,7 @@
+
+# ─── RCAM (Rear View Camera) ──────────────────────────────────────────
+# Parking camera at 0x796. Part: 95760G2000
+# No live data DIDs discovered. Service 22 scan returned no results (2026-04-17).
+RCAM:
+  tx_id: 0x796
+  pids: {}

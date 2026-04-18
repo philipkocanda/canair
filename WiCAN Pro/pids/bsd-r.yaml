@@ -1,0 +1,7 @@
+
+# ─── BSD-R (Blind Spot Detection — Right) ─────────────────────────────
+# Right BSD radar at 0x7B7. Part: 95811G2000
+# No live data DIDs discovered yet. Service 22 ranges untested.
+BSD-R:
+  tx_id: 0x7B7
+  pids: {}

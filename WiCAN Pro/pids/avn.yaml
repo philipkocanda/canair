@@ -1,0 +1,7 @@
+
+# ─── AVN (Audio/Video/Navigation) ─────────────────────────────────────
+# Head unit at 0x780. Firmware: AE_EV EURSOP 12 017.1
+# No live data DIDs discovered yet. Service 22 ranges untested.
+AVN:
+  tx_id: 0x780
+  pids: {}
