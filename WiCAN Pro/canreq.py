@@ -148,9 +148,9 @@ async def async_main(args):
 
     pids_data = load_pids()
 
-    # List-only mode: no CAN connection needed
-    if args.iocontrol and not args.did:
-        mode_iocontrol_list(pids_data, args.iocontrol, as_json=args.json)
+    # List-only mode: no CAN connection needed (--json or explicit list)
+    if args.iocontrol and not args.did and args.json:
+        mode_iocontrol_list(pids_data, args.iocontrol, as_json=True)
         return
 
     init_string = pids_data.get("init", "ATSP6;ATS0;ATAL;ATST96;")
@@ -291,7 +291,14 @@ async def async_main(args):
                     as_json=args.json,
                 )
             else:
-                mode_iocontrol_list(pids_data, args.iocontrol, as_json=args.json)
+                from canlib.modes.iocontrol import mode_iocontrol_tui
+
+                await mode_iocontrol_tui(
+                    terminal,
+                    pids_data,
+                    args.iocontrol,
+                    verbose=args.verbose,
+                )
         elif args.discover:
             addr_range = parse_range(args.range) if args.range != "01-FF" else (0x700, 0x7EF)
             await mode_discover(
@@ -375,7 +382,8 @@ Examples:
                                             Pipeline with explicit sleep and REPL
 
   IOControl (actuator commands from pids/ YAML):
-  %(prog)s --iocontrol IGPM                 List all IGPM IOControl DIDs
+  %(prog)s --iocontrol IGPM                 Interactive TUI (navigate, toggle ON/OFF)
+  %(prog)s --iocontrol IGPM --json          List all IGPM IOControl DIDs (JSON, offline)
   %(prog)s --iocontrol IGPM --did BC01      Turn on low beam (auto-session, hold until Ctrl+C)
   %(prog)s --iocontrol IGPM --did BC01 --off  Turn off low beam
   %(prog)s --multi "iocontrol IGPM BC01"    IOControl in multi pipeline
@@ -435,10 +443,12 @@ Examples:
     )
     mode.add_argument(
         "--iocontrol",
+        "--io",
         metavar="ECU",
-        help="IOControl mode: list or execute IOControl commands for an ECU. "
-        "Without --did, lists all available IOControl DIDs. "
+        help="IOControl mode: interactive TUI or single-command execution. "
+        "Without --did, launches interactive TUI (navigate + toggle). "
         "With --did, sends the ON command (or OFF with --off). "
+        "Use --json without --did for offline JSON listing. "
         "Session and hold behavior are auto-applied from pids/ YAML.",
     )
     mode.add_argument(

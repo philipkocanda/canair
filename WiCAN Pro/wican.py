@@ -5,6 +5,10 @@ WiCAN CLI — manage WiCAN Pro device configuration.
 Subcommands:
   config   Download and display device configuration
   sleep    View or modify sleep/power saving settings
+  status   Device status summary
+  autopid  Show latest AutoPID cached values
+  logs     List, download, or query OBD log databases
+  protocol View or switch CAN protocol mode
   reboot   Reboot the device
 
 Usage:
@@ -41,6 +45,10 @@ Usage:
   python3 wican.py protocol --set auto_pid           # Switch back to AutoPID
   python3 wican.py protocol --set elm327 --port 35000  # ELM327 on custom port
   python3 wican.py protocol --set slcan --dry-run    # Preview without applying
+
+  python3 wican.py autopid                            # Show all cached PID values
+  python3 wican.py autopid --json                     # Raw JSON output
+  python3 wican.py autopid -f tyre                    # Filter by name pattern
 
 Global flags:
   --wican home|vpn|<url>   Device address (default: home)
@@ -643,6 +651,44 @@ def cmd_logs(args) -> None:
             print(f"  {fname}  {created}  {size_str}{marker}")
 
 
+def get_autopid_data(base_url: str, timeout: int) -> dict:
+    """Fetch latest AutoPID cached values from /autopid_data."""
+    resp = requests.get(f"{base_url}/autopid_data", timeout=timeout)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def cmd_autopid(args) -> None:
+    """Show latest AutoPID cached values."""
+    base_url = resolve_wican_url(args.wican)
+    data = get_autopid_data(base_url, args.timeout)
+
+    if not data:
+        print("  No AutoPID data available (car may be asleep or AutoPID not running).")
+        return
+
+    if args.json:
+        print(json.dumps(data, indent=2))
+        return
+
+    # Filter by parameter name if specified
+    if args.filter:
+        pattern = args.filter.upper()
+        data = {k: v for k, v in data.items() if pattern in k.upper()}
+        if not data:
+            print(f"  No parameters matching '{args.filter}'.")
+            return
+
+    # Column-aligned table
+    name_w = max(len(k) for k in data)
+    print(f"\n  AutoPID data — {len(data)} parameters\n")
+    print(f"  {'Parameter':<{name_w}}  Value")
+    print(f"  {'─' * (name_w + 20)}")
+    for name, value in sorted(data.items()):
+        print(f"  {name:<{name_w}}  {value}")
+    print()
+
+
 def cmd_protocol(args) -> None:
     """View or switch the CAN protocol mode."""
     base_url = resolve_wican_url(args.wican)
@@ -839,6 +885,14 @@ def main() -> None:
 
     # ── protocol ──
     p_proto = sub.add_parser("protocol", help="View or switch CAN protocol mode")
+
+    p_autopid = sub.add_parser(
+        "autopid", aliases=["pids"], help="Show latest AutoPID cached values"
+    )
+    p_autopid.add_argument("--json", action="store_true", help="Raw JSON output")
+    p_autopid.add_argument("--filter", "-f", metavar="PATTERN", help="Filter parameters by name")
+    p_autopid.set_defaults(func=cmd_autopid)
+
     p_proto.add_argument(
         "--set", metavar="MODE", help=f"Switch to protocol: {', '.join(PROTOCOLS.keys())}"
     )
