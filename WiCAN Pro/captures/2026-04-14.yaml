@@ -87,7 +87,7 @@ sessions:
         payload: "6201007E5007C8FF7C676E001081FFFF81FF11FFFFFFFFFFFFFFFFFF00EF747200FFFF00FFFF000000"
         notes: "41 bytes. IAT (B11/2-40) = 22°C, AAT (B12/2-40) = 11.5°C. Note: 3 extra trailing 00 bytes vs earlier captures (38 vs 41)."
 
-      - ecu: Gateway
+      - ecu: AAF
         pid: "2180"
         payload: "6180C366C000225100000000001D67004435000085130098980000"
         notes: "27 bytes. Ambient temp (B18-80)/2 = (0x67-80)/2 = 11.5°C."

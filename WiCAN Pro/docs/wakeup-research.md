@@ -16,7 +16,6 @@ Read BMS SoC (and other ECU data) remotely while the car is fully asleep and unp
 | VCU (0x7E2)  | No            | —                       | Dead                | Powertrain (ACC relay) |
 | MCU (0x7E3)  | No            | —                       | Dead                | Powertrain (ACC relay) |
 | LDC (0x7E5)  | No            | —                       | Dead                | Powertrain (ACC relay) |
-| GW (0x7E6)   | No            | No                      | Dead                | Powertrain (ACC relay) |
 | HVAC (0x7B3) | No            | No (50 tries)           | Dead                | IGN-switched           |
 | ESC (0x7D1)  | No            | No                      | Dead                | Powertrain             |
 

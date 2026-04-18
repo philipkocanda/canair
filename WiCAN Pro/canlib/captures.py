@@ -208,7 +208,7 @@ def build_discover_session(
         session["notes"] = notes + "\n"
 
     capture: dict = {
-        "ecu": "Gateway",
+        "ecu": "broadcast",
         "pid": f"discover {start:03X}-{end:03X}",
     }
 

@@ -1,0 +1,41 @@
+
+# ─── AAF (Ambient Air Temperature sensor controller - acronym completely made up for lack of official name) ──────────────────
+#
+# Most manufacturers don't have a dedicated ECU just for ambient temperature — it's typically a simple thermistor wired into an existing module (HVAC, cluster, BCM, or engine ECU).
+# Having a separate CAN node (0x7E6) with its own microcontroller just for ambient temp is unusual.
+# This makes me wonder if 0x7E6 actually does more than we think — maybe it hosts other sensors or functions when the car is in ready/driving state, and ambient temp is just the one PID that community projects bothered to document.
+# The 2181 PID we haven't been able to query (needs ACC) might reveal more. The fact that it has a Renesas M306 MCU is overkill for a single thermistor.
+# It could also be a platform artifact — Hyundai may have needed a separate node for the EV variant because the ICE Ioniq uses the engine ECU (0x7E0) for ambient temp, and the EV has no engine ECU.
+# Rather than rewiring the thermistor to another module, they stuck a small controller on the powertrain bus at 0x7E6.
+#
+AAF:
+  tx_id: 0x7E6
+  availability: [ready, charging]
+  pids:
+    2180:
+      period: 10000
+      enabled: true
+      availability: [ready, charging]  # TODO: verify sleep/acc availability
+      parameters:
+        AMBIENT_TEMP:
+          expression: "(B18-80)/2"
+          unit: "°C"
+          ha_class: temperature
+          min: "-40"
+          max: "87"
+          source: "Original WiCAN config"
+          source_links: []
+          verified: true
+          notes: ""
+    2181:
+      period: 0
+      enabled: false
+      availability: [charging] # TODO: other states untested
+      parameters:
+        AAF_2181_UNKNOWN:
+          expression: ""
+          unit: ""
+          source: "DID scan 2026-04-17"
+          source_links: []
+          verified: false
+          notes: "27 bytes, similar structure to 2180. Payload: 6181FFFFC0000229000000000024757E4339494986130798980000"

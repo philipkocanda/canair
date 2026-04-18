@@ -398,7 +398,7 @@ sessions:
         response: "NO DATA"
         notes: "50 rapid attempts — HVAC dead."
 
-      - ecu: Gateway
+      - ecu: AAF
         pid: "1001"
         label: "Wake probe"
         response: "NO DATA"

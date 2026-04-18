@@ -1539,11 +1539,11 @@ sessions:
       responding: []
       rejected: "E001-E011 (17 DIDs): all NRC 0x31"
     notes: No service 22 DIDs found beyond existing 21xx PIDs
-  - ecu: Gateway
+  - ecu: AAF
     pid: "0x744-scan"
     notes: "0x744 (formerly 'Charging') — 4 errors, ECU not responding. Car not plugged in. Address later confirmed dead during AC charging (2026-04-18). Removed from ecus.yaml."
     response: "E001-E004: 4 errors (ECU not responding)"
-  - ecu: Gateway
+  - ecu: AAF
     pid: probe
     response: NO DATA
     notes: "Probed 6 unverified ECU IDs with 1001 default session: 0x730, 0x79C, 0x7CD,\
@@ -1649,7 +1649,7 @@ sessions:
     pid: identity
     response: NO DATA
     notes: Does not support F1xx identity DIDs
-  - ecu: Gateway
+  - ecu: AAF
     pid: identity
     response: NO DATA
     notes: Does not support F1xx identity DIDs
@@ -5541,23 +5541,23 @@ sessions:
       notes: "11/32 responding. LDC uniquely supports 1A87."
 
     # ── Gateway 0x7E6 ──
-    - ecu: Gateway
+    - ecu: AAF
       pid: 1A80
       payload: "5A804D33303632303030333037204541454141465032303107E003024541"
       notes: "48 bytes. Part M3062000307, firmware EAEAAFP201"
-    - ecu: Gateway
+    - ecu: AAF
       pid: 1A91
       response: "M3062000307"
       notes: "Part number"
-    - ecu: Gateway
+    - ecu: AAF
       pid: 1A8D
       response: "EAE16AAFB30001"
       notes: "Software identifier"
-    - ecu: Gateway
+    - ecu: AAF
       pid: 1A98
       response: "EAEAAFP201"
       notes: "Firmware identifier"
-    - ecu: Gateway
+    - ecu: AAF
       pid: scan
       scan_results:
         responding:
@@ -5584,7 +5584,7 @@ sessions:
   state: "ready"
   notes: "Gateway is KWP2000. Service 22 returns NO DATA (not supported). Service 21 range 80-9F found 2180 (known) and 2181 (new)."
   captures:
-    - ecu: Gateway
+    - ecu: AAF
       pid: "2181"
       scan_results:
         responding:
