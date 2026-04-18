@@ -137,10 +137,35 @@ SKM:
   # Usage: python3 canreq.py --raw 7A5:<on_command> --session
   #
   # Scan status (2026-04-18):
-  #   B100-B1FF: 150/256 responding (returnControl 00 probe). Mostly likely diagnostic test
+  #   B000-B0FF: not scanned (session dropped on B0xx — SKM may sleep mid-scan)
+  #   B100-B1FF: 150/256 responding (returnControl 00 probe). Likely diagnostic test
   #     points for factory QA — relay drivers, antenna circuits, LED, buzzer, key slot.
   #     Only B108-B10B are documented individually (relay control with magic bytes).
-  #     Remaining 146 DIDs not listed — add individually as identified through testing.
+  #     First 20 B1xx DIDs added for identification testing.
+  #     Remaining ~130 DIDs not listed — add individually as identified through testing.
+  #
+  # ⚠ SAFETY WARNINGS for unknown B1xx DIDs:
+  #   HIGH RISK:
+  #   - ESCL (steering column lock) — locking without proper key state may require
+  #     dealer tools to unlock. Could physically immobilize the car.
+  #   - Main B+ relay — cutting main power kills OBD port. WiCAN loses connection,
+  #     cannot send OFF command. Need physical car restart.
+  #   - Start/motor contactor — engaging HV contactor unexpectedly could confuse BMS
+  #     or trigger safety interlocks.
+  #   - Immobilizer re-learn — triggering a reset cycle may prevent starting until
+  #     dealer re-programs the key.
+  #   MEDIUM RISK:
+  #   - Door locks — UDS-triggered lock with key inside could lock you out (anti-lockout
+  #     logic may not apply to diagnostic commands).
+  #   - Alarm/siren/horn — annoying, hard to stop if WiCAN connection drops.
+  #   MITIGATION:
+  #   - Always have physical key fob in hand.
+  #   - Keep activations brief — don't hold 03 on unknown DIDs.
+  #   - Test during daytime (horn/siren tolerance).
+  #   - Have someone in the car who can press start button or fob.
+  #   - Skip B101-B103 until identified — likely most dangerous (power/ESCL/immobilizer).
+  #   - Note: B108-B10B proved that UDS positive response ≠ physical actuation without
+  #     fob. Same safety MAY apply to other dangerous DIDs, but don't count on it.
   iocontrol:
     B108:
       availability: []
