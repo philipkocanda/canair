@@ -71,10 +71,17 @@ prerequisite, notes, sources, what_to_test).
 
 Full address sweep found 30 alive ECUs (14 new). New PID files created for SAS, PTC, SCC, MFC.
 
-- [x] **Scan OBC-746 and PLC 0x733 during active charging** — OBC-746: only 21F2 responds (6 bytes). PLC: all 255 NRCs, dead during AC charging (DC CCS only?). 0x744 dead, removed from ecus.yaml.
-- [ ] **Decode SAS 0x725 steering angle** — 220100 has 48 bytes. B03-B04 likely signed 16-bit angle (0 = straight). Verify by turning wheel during monitor mode.
-- [ ] **Decode PTC 0x7B6 heater data** — 220100 has 27 bytes, mostly zeros when off. Need captures with cabin heater ON to see changing bytes. Candidate temps at B13/B15/B16.
+- [x] **Scan OBC-746 and PLC 0x733 during DCFC charging** — OBC-746: only 21F2 responds (6 bytes). PLC: all 255 NRCs, dead during AC charging (DC CCS only?).
 - [ ] **Decode SCC 0x7D0 cruise control** — 5 DIDs (0100-0103, 0105). Need driving captures with cruise control active to decode target speed, gap, radar distance.
 - [ ] **Decode MFC 0x7C4 ADAS camera** — 3 DIDs (0100-0102). Need driving captures to see lane detection, speed sign recognition data.
 - [ ] **Identify Unknown-783 and Unknown-7D2** — both respond to 1001 session control but have zero identity DIDs (no UDS F1xx, no KWP2000 1Axx). Try service 09 (vehicle info request) or broader DID ranges.
 - [ ] **Identify Unknown-7D5** — only 2 identity DIDs (serial + "G7" app SW). Try service 22 broader ranges.
+
+## Sharing when done
+
+- [ ] Rename canreq to udscan
+- [ ] Rename repository to wican-tools ("A set of WiCAN reverse engineering tools") 
+- [ ] Make more generic (not Ioniq-specific) and share on GitHub with open source license (MIT/Apache)
+- [ ] Write blog post about reverse engineering process, findings, and how to use the tool?
+- [ ] Share with Gathering of Tweakers community
+- [ ] Share on various Hyundai/Kia forums (ioniqforum.com)
