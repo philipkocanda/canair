@@ -500,7 +500,7 @@ BCM:
 
   # ─── IOControl (service 2F) ──────────────────────────────────────────
   # BCM requires extended diagnostic session (10 03) AND SKM ACC+IGN1 power.
-  # Scan status: B000-B072 fully scanned (2026-04-15). B073-B0FF incomplete.
+  # Scan status: B000-B0FF fully scanned (24 DIDs), C000-C0FF (6 DIDs), E000-E0FF (0). 2026-04-18.
   # Usage: python3 canreq.py --raw 7A0:<on_command> --hold
   iocontrol:
     B003:
@@ -660,7 +660,8 @@ BCM:
       on: "2FB05903"
       off: "2FB05900"
       notes: >
-        e-Niro labels as heated door handle. May refer to heated steering wheel on Ioniq.
+        Sleep (locked): NRC 0x22: conditionsNotCorrect
+        e-Niro labels as heated door handle. May refer to heated steering wheel on Ioniq?
 
     B05A:
       availability: []
@@ -668,6 +669,8 @@ BCM:
       verified: false
       on: "2FB05A03"
       off: "2FB05A00"
+      notes: >
+        Sleep (locked): NRC 0x22: conditionsNotCorrect
 
     B05B:
       availability: [sleep, plugged, acc, ign, ready, charging]
@@ -690,7 +693,7 @@ BCM:
 
     B061:
       availability: []
-      label: Charge door open (Kia Niro EV)
+      label: Charge door open (on Kia Niro EV)
       verified: false
       on: "2FB06103"
       off: "2FB06100"
@@ -710,16 +713,65 @@ BCM:
       verified: false
       on: "2FB07203"
       off: "2FB07200"
+
+    C001:
+      availability: []
+      label: Unknown (TPMS region)
+      verified: false
+      on: "2FC00103"
+      off: "2FC00100"
+      notes: >
+        WARNING: C0xx is the TPMS/body-comfort DID range. C001-C006 may be TPMS sensor
+        registration or reset commands. Do NOT activate (03) without understanding —
+        could reset TPMS pairing. Discovered via returnControl (00) probe only.
+
+    C002:
+      availability: []
+      label: Unknown (TPMS region)
+      verified: false
+      on: "2FC00203"
+      off: "2FC00200"
+      notes: >
+        WARNING: TPMS region. See C001 notes. Do not activate without understanding.
+
+    C003:
+      availability: []
+      label: Unknown (TPMS region)
+      verified: false
+      on: "2FC00303"
+      off: "2FC00300"
+      notes: >
+        WARNING: TPMS region. See C001 notes. Do not activate without understanding.
+
+    C004:
+      availability: []
+      label: Unknown (TPMS region)
+      verified: false
+      on: "2FC00403"
+      off: "2FC00400"
+      notes: >
+        WARNING: TPMS region. See C001 notes. C004-C007 are the 4 TPMS sensor
+        registration read DIDs — IOControl on these could trigger sensor re-learn.
+
+    C005:
+      availability: []
+      label: Unknown (TPMS region)
+      verified: false
+      on: "2FC00503"
+      off: "2FC00500"
+      notes: >
+        WARNING: TPMS region. See C004 notes.
+
+    C006:
+      availability: []
+      label: Unknown (TPMS region)
+      verified: false
+      on: "2FC00603"
+      off: "2FC00600"
+      notes: >
+        WARNING: TPMS region. See C004 notes.
+
   research:
-    - type: verify
-      target: "22C00B"
-      status: pending
-      priority: P1
-      prerequisite: [acc]
-      notes: "Tyre temps (B11/15/20/24 - 50°C) unverified. Additional undecoded bytes beyond pressures/temps."
-      what_to_test:
-        - "TYRE_TEMP_FL/FR/RL/RR verify against known temps"
-        - "Decode remaining 22C00B bytes"
     - type: decode
       target: "22B00C"
       status: captured
@@ -752,45 +804,11 @@ BCM:
       notes: "BCM body data pages, all responding, mostly undecoded. B001 config flags (20B), B003 dense bitfields (27B), B004 voltage/current, B009 repeating FEEE."
       sources:
         - "Captured 2026-04-15"
-    - type: decode
-      target: "22C001-C00A"
-      status: captured
-      priority: P3
-      prerequisite: [acc]
-      notes: "TPMS sensor config. C003-C007 active sensors with ASCII IDs. C008-C00A spare slots (FF). C001/C002 summary/config."
-      sources:
-        - "Captured 2026-04-15"
-    - type: decode
-      target: "22C00C-C00F"
-      status: captured
-      priority: P3
-      prerequisite: [acc]
-      notes: "TPMS extended per-sensor data, 41 bytes each. C00C/C00F active, C00D/C00E zeros."
-      sources:
-        - "Captured 2026-04-15"
     - type: iocontrol_scan
       target: "2F B073-B0FF"
-      status: pending
+      status: done
       priority: P2
       prerequisite: [acc]
-      notes: "B000-B072 done (24 accepted). B073-B0FF scan incomplete — SKM session dropped. Re-scan with aggressive keepalive."
+      notes: "B000-B0FF complete (24 DIDs, all in B000-B072). B100-B1FF empty. C000-C0FF has 6 new (C001-C006, TPMS region). E000-E0FF empty. Scanned 2026-04-18."
       sources:
-        - "IOControl scan 2026-04-15"
-    - type: verify
-      target: "2FB019"
-      status: pending
-      priority: P2
-      prerequisite: [acc]
-      notes: "Room lamp (interior light) — DID accepted, untested for visible effect."
-    - type: verify
-      target: "2FB059"
-      status: pending
-      priority: P2
-      prerequisite: [acc]
-      notes: "Heated door handle — may not exist on Ioniq 2017 base trim."
-    - type: verify
-      target: "BCM unknown accepted DIDs"
-      status: pending
-      priority: P3
-      prerequisite: [acc]
-      notes: "Accepted but untested: B003, B006, B008, B009, B00A, B00F, B01A, B025, B028, B029, B030, B038, B039, B03A, B03B, B04D, B057, B05A, B071, B072."
+        - "IOControl scan 2026-04-15, 2026-04-18"

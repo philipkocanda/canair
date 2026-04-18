@@ -514,3 +514,417 @@ sessions:
     pid: 22B006
     payload: 62B0062000000000000000AAAA
     time: "22:27:11"
+
+- date: '2026-04-18'
+  label: IOControl scan — BCM + IGPM + SKM alternative ranges
+  state: sleep (plugged in, car unlocked)
+  notes: |
+    Scanned alternative IOControl (2F) ranges on BCM, IGPM, and SKM using
+    returnControl (00) probe — safe, no actuation.
+  captures:
+  - ecu: BCM
+    pid: 2F B000-B0FF
+    notes: "24/256 responding — same as previous scan, all in B000-B072"
+    scan_results:
+      responding:
+      - did: B003
+        response: 6FB00300
+      - did: B006
+        response: 6FB00600
+      - did: B008
+        response: 6FB00800
+      - did: B009
+        response: 6FB00900
+      - did: B00A
+        response: 6FB00A00
+      - did: B00F
+        response: 6FB00F00
+      - did: B019
+        response: 6FB01900
+      - did: B01A
+        response: 6FB01A00
+      - did: B025
+        response: 6FB02500
+      - did: B028
+        response: 6FB02800
+      - did: B029
+        response: 6FB02900
+      - did: B030
+        response: 6FB03000
+      - did: B038
+        response: 6FB03800
+      - did: B039
+        response: 6FB03900
+      - did: B03A
+        response: 6FB03A00
+      - did: B03B
+        response: 6FB03B00
+      - did: B04D
+        response: 6FB04D00
+      - did: B057
+        response: 6FB05700
+      - did: B059
+        response: 6FB05900
+      - did: B05A
+        response: 6FB05A00
+      - did: B05B
+        response: 6FB05B00
+      - did: B05C
+        response: 6FB05C00
+      - did: B071
+        response: 6FB07100
+      - did: B072
+        response: 6FB07200
+      rejected: "232/256 NRC (B073-B0FF all rejected)"
+  - ecu: BCM
+    pid: 2F B100-B1FF
+    notes: "0/256 — no IOControl DIDs in B1xx range"
+    response: "All NRC"
+  - ecu: BCM
+    pid: 2F C000-C0FF
+    notes: "6/256 responding — NEW! TPMS region, handle with care"
+    scan_results:
+      responding:
+      - did: C001
+        response: 6FC00100
+        notes: "TPMS region — may be sensor registration/reset"
+      - did: C002
+        response: 6FC00200
+      - did: C003
+        response: 6FC00300
+      - did: C004
+        response: 6FC00400
+        notes: "C004-C007 are TPMS sensor registration read DIDs"
+      - did: C005
+        response: 6FC00500
+      - did: C006
+        response: 6FC00600
+      rejected: "250/256 NRC"
+  - ecu: BCM
+    pid: 2F E000-E0FF
+    notes: "0/256 — no IOControl DIDs in E0xx range"
+    response: "All NRC"
+  - ecu: IGPM
+    pid: 2F BC00-BCFF
+    notes: "28/256 responding — same as previous scan, no new DIDs"
+    response: "28 positive (BC01-BC44 known set), 228 NRC"
+  - ecu: IGPM
+    pid: 2F B000-B0FF
+    notes: "0/256 — no IOControl DIDs in B0xx range"
+    response: "All NRC"
+  - ecu: IGPM
+    pid: 2F C000-C0FF
+    notes: "0/256"
+    response: "All NRC"
+  - ecu: IGPM
+    pid: 2F E000-E0FF
+    notes: "0/256"
+    response: "All NRC"
+  - ecu: SKM
+    pid: 2F B100-B1FF
+    notes: "150/256 responding — massive IOControl capability, mostly factory QA test points"
+    scan_results:
+      responding:
+      - did: B101
+        response: 6FB10100
+      - did: B102
+        response: 6FB10200
+      - did: B103
+        response: 6FB10300
+      - did: B104
+        response: 6FB10400
+      - did: B106
+        response: 6FB10600
+      - did: B108
+        response: 6FB10800
+        notes: "Known: ACC relay"
+      - did: B109
+        response: 6FB10900
+        notes: "Known: IGN1 relay"
+      - did: B10C
+        response: 6FB10C00
+      - did: B10E
+        response: 6FB10E00
+      - did: B111
+        response: 6FB11100
+      - did: B114
+        response: 6FB11400
+      - did: B115
+        response: 6FB11500
+      - did: B118
+        response: 6FB11800
+      - did: B119
+        response: 6FB11900
+      - did: B11A
+        response: 6FB11A00
+      - did: B11B
+        response: 6FB11B00
+      - did: B120
+        response: 6FB12000
+      - did: B123
+        response: 6FB12300
+      - did: B125
+        response: 6FB12500
+      - did: B127
+        response: 6FB12700
+      - did: B12A
+        response: 6FB12A00
+      - did: B130
+        response: 6FB13000
+      - did: B131
+        response: 6FB13100
+      - did: B134
+        response: 6FB13400
+      - did: B135
+        response: 6FB13500
+      - did: B137
+        response: 6FB13700
+      - did: B138
+        response: 6FB13800
+      - did: B139
+        response: 6FB13900
+      - did: B13B
+        response: 6FB13B00
+      - did: B13C
+        response: 6FB13C00
+      - did: B13E
+        response: 6FB13E00
+      - did: B140
+        response: 6FB14000
+      - did: B141
+        response: 6FB14100
+      - did: B142
+        response: 6FB14200
+      - did: B143
+        response: 6FB14300
+      - did: B145
+        response: 6FB14500
+      - did: B146
+        response: 6FB14600
+      - did: B148
+        response: 6FB14800
+      - did: B149
+        response: 6FB14900
+      - did: B14A
+        response: 6FB14A00
+      - did: B14C
+        response: 6FB14C00
+      - did: B14D
+        response: 6FB14D00
+      - did: B14E
+        response: 6FB14E00
+      - did: B14F
+        response: 6FB14F00
+      - did: B150
+        response: 6FB15000
+      - did: B151
+        response: 6FB15100
+      - did: B154
+        response: 6FB15400
+      - did: B156
+        response: 6FB15600
+      - did: B157
+        response: 6FB15700
+      - did: B158
+        response: 6FB15800
+      - did: B159
+        response: 6FB15900
+      - did: B15B
+        response: 6FB15B00
+      - did: B15D
+        response: 6FB15D00
+      - did: B15E
+        response: 6FB15E00
+      - did: B15F
+        response: 6FB15F00
+      - did: B161
+        response: 6FB16100
+      - did: B162
+        response: 6FB16200
+      - did: B163
+        response: 6FB16300
+      - did: B165
+        response: 6FB16500
+      - did: B166
+        response: 6FB16600
+      - did: B167
+        response: 6FB16700
+      - did: B168
+        response: 6FB16800
+      - did: B169
+        response: 6FB16900
+      - did: B16C
+        response: 6FB16C00
+      - did: B16D
+        response: 6FB16D00
+      - did: B16E
+        response: 6FB16E00
+      - did: B16F
+        response: 6FB16F00
+      - did: B171
+        response: 6FB17100
+      - did: B172
+        response: 6FB17200
+      - did: B174
+        response: 6FB17400
+      - did: B175
+        response: 6FB17500
+      - did: B177
+        response: 6FB17700
+      - did: B17B
+        response: 6FB17B00
+      - did: B17D
+        response: 6FB17D00
+      - did: B17F
+        response: 6FB17F00
+      - did: B181
+        response: 6FB18100
+      - did: B182
+        response: 6FB18200
+      - did: B183
+        response: 6FB18300
+      - did: B184
+        response: 6FB18400
+      - did: B185
+        response: 6FB18500
+      - did: B186
+        response: 6FB18600
+      - did: B188
+        response: 6FB18800
+      - did: B189
+        response: 6FB18900
+      - did: B18A
+        response: 6FB18A00
+      - did: B18E
+        response: 6FB18E00
+      - did: B18F
+        response: 6FB18F00
+      - did: B190
+        response: 6FB19000
+      - did: B191
+        response: 6FB19100
+      - did: B192
+        response: 6FB19200
+      - did: B193
+        response: 6FB19300
+      - did: B194
+        response: 6FB19400
+      - did: B197
+        response: 6FB19700
+      - did: B198
+        response: 6FB19800
+      - did: B19A
+        response: 6FB19A00
+      - did: B19D
+        response: 6FB19D00
+      - did: B19E
+        response: 6FB19E00
+      - did: B1A0
+        response: 6FB1A000
+      - did: B1A1
+        response: 6FB1A100
+      - did: B1A2
+        response: 6FB1A200
+      - did: B1A3
+        response: 6FB1A300
+      - did: B1A4
+        response: 6FB1A400
+      - did: B1A5
+        response: 6FB1A500
+      - did: B1A6
+        response: 6FB1A600
+      - did: B1A7
+        response: 6FB1A700
+      - did: B1A9
+        response: 6FB1A900
+      - did: B1AD
+        response: 6FB1AD00
+      - did: B1AF
+        response: 6FB1AF00
+      - did: B1B1
+        response: 6FB1B100
+      - did: B1B2
+        response: 6FB1B200
+      - did: B1B3
+        response: 6FB1B300
+      - did: B1BA
+        response: 6FB1BA00
+      - did: B1BB
+        response: 6FB1BB00
+      - did: B1BD
+        response: 6FB1BD00
+      - did: B1BE
+        response: 6FB1BE00
+      - did: B1BF
+        response: 6FB1BF00
+      - did: B1C1
+        response: 6FB1C100
+      - did: B1C3
+        response: 6FB1C300
+      - did: B1C5
+        response: 6FB1C500
+      - did: B1C6
+        response: 6FB1C600
+      - did: B1C8
+        response: 6FB1C800
+      - did: B1C9
+        response: 6FB1C900
+      - did: B1CA
+        response: 6FB1CA00
+      - did: B1CB
+        response: 6FB1CB00
+      - did: B1CE
+        response: 6FB1CE00
+      - did: B1CF
+        response: 6FB1CF00
+      - did: B1D0
+        response: 6FB1D000
+      - did: B1D3
+        response: 6FB1D300
+      - did: B1D4
+        response: 6FB1D400
+      - did: B1D7
+        response: 6FB1D700
+      - did: B1D8
+        response: 6FB1D800
+      - did: B1D9
+        response: 6FB1D900
+      - did: B1DA
+        response: 6FB1DA00
+      - did: B1DD
+        response: 6FB1DD00
+      - did: B1DE
+        response: 6FB1DE00
+      - did: B1E0
+        response: 6FB1E000
+      - did: B1E1
+        response: 6FB1E100
+      - did: B1E3
+        response: 6FB1E300
+      - did: B1E4
+        response: 6FB1E400
+      - did: B1E6
+        response: 6FB1E600
+      - did: B1EB
+        response: 6FB1EB00
+      - did: B1ED
+        response: 6FB1ED00
+      - did: B1EF
+        response: 6FB1EF00
+      - did: B1F1
+        response: 6FB1F100
+      - did: B1F2
+        response: 6FB1F200
+      - did: B1F3
+        response: 6FB1F300
+      - did: B1F4
+        response: 6FB1F400
+      - did: B1F5
+        response: 6FB1F500
+      - did: B1FB
+        response: 6FB1FB00
+      - did: B1FC
+        response: 6FB1FC00
+      - did: B1FD
+        response: 6FB1FD00
+      rejected: "106/256 NRC"

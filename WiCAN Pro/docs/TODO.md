@@ -1,11 +1,11 @@
 # Reverse Engineering TODOs
 
-- [x] Test BCM IOControl with car asleep (locked) (most are NRC 0x22 conditionsNotCorrect
+- [ ] Scan HVAC for IOControl (e.g. blower speed control, A/C on/off)
 - [ ] Test BCM IOControl with car asleep (unlocked)
 - [ ] Test BCM IOControl with ACC ON
-- [ ] Decode keyfob proximity state DID (IGPM or SKM — is fob nearby?)
 - [ ] Decode BCM charge scheduling DIDs (e.g. preheat and charge schedules, scheduled charging on/off, rear defrost on/off, etc.) -> can we also write these somehow?
-- [ ] Scan HVAC for IOControl (e.g. blower speed control, A/C on/off)
+- [x] Test BCM IOControl with car asleep (locked) (most are NRC 0x22 conditionsNotCorrect
+- [ ] Decode keyfob proximity state DID (IGPM or SKM — is fob nearby?)
 - [ ] Decode HVAC pids (e.g. blower speed, A/C status, temperature settings)
 - [ ] Test VESS for IOControl (sound!)
 - [ ] Scan SKM for PIDs (e.g. key status, start button status)
@@ -14,9 +14,9 @@
 - [x] Scan MCU for PIDs (e.g. motor temps, RPM, torque)
 - [x] Scan EPS for PIDs (e.g. steering angle, torque assist)
 - [ ] Scan ESC for PIDs (e.g. wheel speeds, brake pressure)
-- [ ] Scan BCM for IOControl (e.g. door lock/unlock, light control)
-- [ ] Scan BMS for IOControl (e.g. battery fan control)
+- [ ] Scan BMS for IOControl (e.g. battery fan control) (should be safe as dangerous operations are likely protected by security access)
 - [x] Scan cluster for PIDs (range estimate, settings status)
+- [ ] Scan cluster for IOControl
 - [x] Scan various ECUs using --identity flag.
 - [x] Scan HVAC for PIDs (e.g. blower speed, A/C status)
 - [ ] **Ioniq remote climate start** — research HVAC (0x7B3) IOControl DIDs for compressor, blower, heater, A/C control. Goal: remote cabin pre-conditioning via CAN. Likely requires SKM IGN1 wakeup (HV system needed for compressor/PTC heater). Scan `--scan --tx 7B3 --service 2F --session` and cross-reference with e-Niro/Ioniq 5 HVAC actuator tables.

@@ -135,6 +135,12 @@ SKM:
   # ACC does NOT latch — relay stays on only while session is held (TesterPresent).
   # Magic bytes 0A 0A 05 from Kia Soul, confirmed working on Ioniq 2017.
   # Usage: python3 canreq.py --raw 7A5:<on_command> --session
+  #
+  # Scan status (2026-04-18):
+  #   B100-B1FF: 150/256 responding (returnControl 00 probe). Mostly likely diagnostic test
+  #     points for factory QA — relay drivers, antenna circuits, LED, buzzer, key slot.
+  #     Only B108-B10B are documented individually (relay control with magic bytes).
+  #     Remaining 146 DIDs not listed — add individually as identified through testing.
   iocontrol:
     B108:
       availability: []
