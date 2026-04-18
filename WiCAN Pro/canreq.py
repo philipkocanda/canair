@@ -203,7 +203,7 @@ async def async_main(args):
                 args.verbose,
                 interval=args.monitor,
                 session_steps=session_steps,
-                keep=args.keep,
+                keep_mode="unique" if args.keep_unique else ("all" if args.keep_all else None),
                 save=args.save,
             )
         elif args.multi:
@@ -397,7 +397,7 @@ Examples:
                                             Live monitor: refresh BMS 2101 every 5s
   %(prog)s --multi "session IGPM --wake" "query IGPM BC03 BC06" --monitor 2
                                              Wake IGPM, then poll BC03+BC06 every 2s
-  %(prog)s --multi "query BCM C00B B003" --monitor --keep --save
+  %(prog)s --multi "query BCM C00B B003" --monitor --keep-unique --save
                                              Monitor + save captures on Ctrl+C
 """,
     )
@@ -539,19 +539,25 @@ Examples:
         "Non-query steps (session, skm-wake, sleep) run once as setup. "
         "Optional poll interval in seconds (default: 5.0).",
     )
-    parser.add_argument(
-        "--keep",
+    keep_group = parser.add_mutually_exclusive_group()
+    keep_group.add_argument(
+        "--keep-unique",
         action="store_true",
-        help="For --monitor: retain all unique payloads per PID and display "
-        "them chronologically below the current value. Useful for observing "
-        "slow-changing values over time.",
+        help="For --monitor: retain unique payloads per PID (deduped). "
+        "Shows chronological history of distinct values only.",
+    )
+    keep_group.add_argument(
+        "--keep-all",
+        action="store_true",
+        help="For --monitor: retain every payload from every cycle (with "
+        "timestamps), including duplicates. Useful for logging all responses.",
     )
     parser.add_argument(
         "--save",
         action="store_true",
         help="Save results to captures/YYYY-MM-DD.yaml. Prompts for session "
         "metadata (label auto-suggested, Enter to accept). Works with "
-        "--scan, --raw, --discover, and --monitor --keep.",
+        "--scan, --raw, --discover, and --monitor --keep-unique/--keep-all.",
     )
 
     # SKM wakeup options

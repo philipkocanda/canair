@@ -267,3 +267,250 @@ sessions:
       B11_BIT3_UNKNOWN: '0.0'
       DOOR_LOCK_RL: '0.0'
       DOOR_LOCK_RR: '0.0'
+- date: '2026-04-18'
+  label: Keyfob unlock/lock/unlock/lock
+  state: sleep
+  captures:
+  - ecu: IGPM
+    pid: 22BC01
+    payload: 62BC01400000000002AAAAAAAA
+    time: "22:15:02"
+  - ecu: IGPM
+    pid: 22BC02
+    payload: 62BC0200000000
+    time: "22:15:01"
+  - ecu: IGPM
+    pid: 22BC04
+    payload: 62BC04B53FF4EA0C000002AAAA
+    time: "22:15:01"
+    decoded:
+      DOOR_LOCK_FL: '1.0'
+      DOOR_LOCK_FR: '1.0'
+  - ecu: IGPM
+    pid: 22BC04
+    payload: 62BC04B53FF4EA00000042AAAA
+    time: "22:15:13"
+    decoded:
+      DOOR_LOCK_FL: '0.0'
+      DOOR_LOCK_FR: '0.0'
+  - ecu: IGPM
+    pid: 22BC04
+    payload: 62BC04B53FF4EA0C000042AAAA
+    time: "22:15:25"
+    decoded:
+      DOOR_LOCK_FL: '1.0'
+      DOOR_LOCK_FR: '1.0'
+  - ecu: IGPM
+    pid: 22BC05
+    payload: 62BC057F11200000000000AAAA
+    time: "22:15:01"
+- date: '2026-04-18'
+  label: bcm unlock signals
+  state: sleep
+  notes: >
+    unlocked 22:26:51 - locked again at 22:27:01
+  captures:
+  - ecu: BCM
+    pid: 22B004
+    payload: 62B0047402990C0040A000AAAA
+    time: "22:26:41"
+  - ecu: BCM
+    pid: 22B004
+    payload: 62B0047402990C0040A000AAAA
+    time: "22:26:42"
+  - ecu: BCM
+    pid: 22B004
+    payload: 62B0047402990C0040A000AAAA
+    time: "22:26:43"
+  - ecu: BCM
+    pid: 22B004
+    payload: 62B0047402990C0040A000AAAA
+    time: "22:26:45"
+  - ecu: BCM
+    pid: 22B004
+    payload: 62B0047402990C0040A000AAAA
+    time: "22:26:47"
+  - ecu: BCM
+    pid: 22B004
+    payload: 62B0047402990C0040A000AAAA
+    time: "22:26:49"
+  - ecu: BCM
+    pid: 22B004
+    payload: 62B0047402990C0000A000AAAA
+    time: "22:26:51"
+  - ecu: BCM
+    pid: 22B004
+    payload: 62B0047402990C0000A000AAAA
+    time: "22:26:53"
+  - ecu: BCM
+    pid: 22B004
+    payload: 62B0047402990C0000A000AAAA
+    time: "22:26:55"
+  - ecu: BCM
+    pid: 22B004
+    payload: 62B0047402990C0000A000AAAA
+    time: "22:26:57"
+  - ecu: BCM
+    pid: 22B004
+    payload: 62B0047402990C0000A000AAAA
+    time: "22:26:59"
+  - ecu: BCM
+    pid: 22B004
+    payload: 62B0047402990C0040A000AAAA
+    time: "22:27:01"
+  - ecu: BCM
+    pid: 22B004
+    payload: 62B0047402990C0040A000AAAA
+    time: "22:27:03"
+  - ecu: BCM
+    pid: 22B004
+    payload: 62B0047402990C0040A000AAAA
+    time: "22:27:05"
+  - ecu: BCM
+    pid: 22B004
+    payload: 62B0047402990C0040A000AAAA
+    time: "22:27:07"
+  - ecu: BCM
+    pid: 22B004
+    payload: 62B0047402990C0040A000AAAA
+    time: "22:27:09"
+  - ecu: BCM
+    pid: 22B004
+    payload: 62B0047402990C0040A000AAAA
+    time: "22:27:11"
+  - ecu: BCM
+    pid: 22B005
+    payload: 62B00520001000A0000800AAAA
+    time: "22:26:41"
+  - ecu: BCM
+    pid: 22B005
+    payload: 62B00520001000A0000800AAAA
+    time: "22:26:42"
+  - ecu: BCM
+    pid: 22B005
+    payload: 62B00520001000A0000800AAAA
+    time: "22:26:43"
+  - ecu: BCM
+    pid: 22B005
+    payload: 62B00520001000A0000800AAAA
+    time: "22:26:45"
+  - ecu: BCM
+    pid: 22B005
+    payload: 62B00520001000A0000800AAAA
+    time: "22:26:47"
+  - ecu: BCM
+    pid: 22B005
+    payload: 62B00520001000A0000800AAAA
+    time: "22:26:49"
+  - ecu: BCM
+    pid: 22B005
+    payload: 62B00520001000AC000800AAAA
+    time: "22:26:51"
+  - ecu: BCM
+    pid: 22B005
+    payload: 62B00520001000AC000800AAAA
+    time: "22:26:53"
+  - ecu: BCM
+    pid: 22B005
+    payload: 62B00520001000AC000800AAAA
+    time: "22:26:55"
+  - ecu: BCM
+    pid: 22B005
+    payload: 62B00520001000AC000800AAAA
+    time: "22:26:57"
+  - ecu: BCM
+    pid: 22B005
+    payload: 62B00520001000AC000800AAAA
+    time: "22:26:59"
+  - ecu: BCM
+    pid: 22B005
+    payload: 62B00520001000AC000800AAAA
+    time: "22:27:01"
+  - ecu: BCM
+    pid: 22B005
+    payload: 62B00520001000A0000800AAAA
+    time: "22:27:03"
+  - ecu: BCM
+    pid: 22B005
+    payload: 62B00520001000A0000800AAAA
+    time: "22:27:05"
+  - ecu: BCM
+    pid: 22B005
+    payload: 62B00520001000A0000800AAAA
+    time: "22:27:07"
+  - ecu: BCM
+    pid: 22B005
+    payload: 62B00520001000A0000800AAAA
+    time: "22:27:09"
+  - ecu: BCM
+    pid: 22B005
+    payload: 62B00520001000A0000800AAAA
+    time: "22:27:11"
+  - ecu: BCM
+    pid: 22B006
+    payload: 62B0062000000000000000AAAA
+    time: "22:26:41"
+  - ecu: BCM
+    pid: 22B006
+    payload: 62B0062000000000000000AAAA
+    time: "22:26:42"
+  - ecu: BCM
+    pid: 22B006
+    payload: 62B0062000000000000000AAAA
+    time: "22:26:43"
+  - ecu: BCM
+    pid: 22B006
+    payload: 62B0062000000000000000AAAA
+    time: "22:26:45"
+  - ecu: BCM
+    pid: 22B006
+    payload: 62B0062000000000000000AAAA
+    time: "22:26:47"
+  - ecu: BCM
+    pid: 22B006
+    payload: 62B0062000000000000000AAAA
+    time: "22:26:49"
+  - ecu: BCM
+    pid: 22B006
+    payload: 62B0062000000004000000AAAA
+    time: "22:26:51"
+  - ecu: BCM
+    pid: 22B006
+    payload: 62B0062000000004000000AAAA
+    time: "22:26:53"
+  - ecu: BCM
+    pid: 22B006
+    payload: 62B0062000000004000000AAAA
+    time: "22:26:55"
+  - ecu: BCM
+    pid: 22B006
+    payload: 62B0062000000004000000AAAA
+    time: "22:26:57"
+  - ecu: BCM
+    pid: 22B006
+    payload: 62B0062000000004000000AAAA
+    time: "22:26:59"
+  - ecu: BCM
+    pid: 22B006
+    payload: 62B0062000000000000000AAAA
+    time: "22:27:01"
+  - ecu: BCM
+    pid: 22B006
+    payload: 62B0062000000000000000AAAA
+    time: "22:27:03"
+  - ecu: BCM
+    pid: 22B006
+    payload: 62B0062000000000000000AAAA
+    time: "22:27:05"
+  - ecu: BCM
+    pid: 22B006
+    payload: 62B0062000000000000000AAAA
+    time: "22:27:07"
+  - ecu: BCM
+    pid: 22B006
+    payload: 62B0062000000000000000AAAA
+    time: "22:27:09"
+  - ecu: BCM
+    pid: 22B006
+    payload: 62B0062000000000000000AAAA
+    time: "22:27:11"

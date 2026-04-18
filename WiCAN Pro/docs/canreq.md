@@ -65,14 +65,14 @@ Turns a `--multi` pipeline into a live-refreshing monitor. Non-query steps (sess
 # Monitor BMS every 5s (default interval)
 canreq.py --multi "query BMS 2101" --monitor # NOTE: not tested yet, canreq might need adjustments to support this.
 
-# Monitor BCM (all known PIDs in bcm.yaml), keep all unique payloads seen for each PID
-canreq.py --monitor --keep --multi "query BCM"
+# Monitor BCM (all known PIDs in bcm.yaml), keep unique payloads per PID
+canreq.py --monitor --keep-unique --multi "query BCM"
 
 # Monitor IGPM status with 2s interval, wake from deep sleep
 canreq.py --multi "session IGPM --wake" "query IGPM BC03 BC06" --monitor 2
 
-# Monitor BCM voltage ADCs with payload history
-canreq.py --monitor 2 --keep --multi "session BCM --wake" "query BCM B003 B004"
+# Monitor BCM voltage ADCs with full payload history (every cycle)
+canreq.py --monitor 2 --keep-all --multi "session BCM --wake" "query BCM B003 B004"
 ```
 
 **Hex display features:**
@@ -81,9 +81,11 @@ canreq.py --monitor 2 --keep --multi "session BCM --wake" "query BCM B003 B004"
 - **Verification coloring:** Bytes covered by verified parameters are green, unverified are yellow, uncovered bytes are dim grey.
 - **Unmapped PIDs:** Shown with ASCII representation alongside the hex dump.
 
-**`--keep` flag:** Retains all unique payloads seen for each PID and displays them as a flat chronological list (oldest at top, newest at bottom). Each row highlights bytes that changed from its predecessor, making it easy to spot which bytes are drifting over time. A count is shown next to the PID header (e.g. `22B003 (3 unique)`). Without `--keep`, only the current payload is displayed.
+**`--keep-unique` flag:** Retains only distinct payloads seen for each PID, displayed as a flat chronological list (oldest at top, newest at bottom). Each row highlights bytes that changed from its predecessor, making it easy to spot which bytes are drifting over time. A count is shown next to the PID header (e.g. `22B003 (3 entries)`). Without either `--keep` flag, only the current payload is displayed.
 
-**`--save` flag:** Prompts for session metadata (label, state, notes) and saves results to `captures/YYYY-MM-DD.yaml`. Works with `--scan`, `--raw`, `--discover`, and `--monitor --keep`. Labels are auto-suggested based on the command (press Enter to accept). Examples:
+**`--keep-all` flag:** Retains every payload from every poll cycle (including duplicates), with timestamps. Useful for logging all responses over time, even when values don't change.
+
+**`--save` flag:** Prompts for session metadata (label, state, notes) and saves results to `captures/YYYY-MM-DD.yaml`. Works with `--scan`, `--raw`, `--discover`, and `--monitor --keep-unique/--keep-all`. Labels are auto-suggested based on the command (press Enter to accept). Examples:
 
 ```bash
 canreq.py --scan --tx 7E4 --service 22 --range BC01-BC0B --save
@@ -95,7 +97,7 @@ canreq.py --raw 7E4:2101 --save
 canreq.py --discover --save
 # → auto-suggests: "Discovery scan 700-7EF"
 
-canreq.py --multi "query BCM C00B B003 B004" --monitor 5 --keep --save
+canreq.py --multi "query BCM C00B B003 B004" --monitor 5 --keep-unique --save
 # ... monitor runs, Ctrl+C ...
 # → Saved 6 capture(s) to 2026-04-18.yaml
 ```
