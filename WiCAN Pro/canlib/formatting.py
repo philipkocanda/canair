@@ -184,14 +184,38 @@ def print_ecu_results(
 
 
 def print_hexdump(data: bytes, prefix: str = "  "):
-    """Print a hex dump of raw bytes."""
+    """Print a hex dump of raw bytes with WiCAN byte indices.
+
+    Data is ISO-TP payload (PCI bytes already stripped). The WiCAN Bnn indices
+    account for PCI bytes that occupy positions 0-1 (first frame) and 8,16,24,...
+    (consecutive frames).
+    """
+    from .byteindex import isotp_to_wican
+
     for row_start in range(0, len(data), 16):
         row_end = min(row_start + 16, len(data))
         hex_part = " ".join(f"{data[j]:02X}" for j in range(row_start, row_end))
-        idx_part = " ".join(f"{j:2d}" for j in range(row_start, row_end))
-        print(f"{prefix}Idx:  {idx_part}")
-        print(f"{prefix}Hex:  {hex_part}")
+        bnn_part = " ".join(
+            f"B{isotp_to_wican(j):02d}" for j in range(row_start, row_end)
+        )
+        print(f"{prefix}Bnn:  {bnn_part}")
+        print(f"{prefix}Hex:   {hex_part}")
         print()
+
+
+def format_raw_with_bnn(data: bytes) -> str:
+    """Format ISO-TP payload bytes with WiCAN Bnn index labels.
+
+    Returns a string like: B02=62 B03=BC B04=03 B05=FD ...
+    Helps avoid byte offset confusion when reading raw output.
+    """
+    from .byteindex import isotp_to_wican
+
+    parts = []
+    for i, b in enumerate(data):
+        bnn = isotp_to_wican(i)
+        parts.append(f"B{bnn:02d}={b:02X}")
+    return " ".join(parts)
 
 
 def decode_uds_response(data: bytes) -> str | None:
