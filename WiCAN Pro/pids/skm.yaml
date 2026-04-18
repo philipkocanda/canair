@@ -1,6 +1,7 @@
 
 # ─── SKM (Smart Key Module) ────────────────────────────────────────────
-# Self-identifies as "SMK". Wakes from rapid-fire 1001 (no fob needed).
+# Self-identifies as "SMK". Wakes from at least two or more CAN requests, slow to wake (>1s).
+# Likely responsible for key fob detection, immobilizer, and remote functions.
 # Falls asleep after ~60s of bus inactivity.
 SKM:
   tx_id: 0x7A5
@@ -25,7 +26,11 @@ SKM:
           source: "DID scan 2026-04-18"
           source_links: []
           verified: false
-          notes: "136 bytes. Raw: 62B002000000001432000712...00AAAAAA"
+          notes: >
+            136 bytes. Raw:
+            62 B0 02 00 00 00 00 14 32 00 07 12 0A 00 3C 0A 46 2C 3F 75 0A 19 10 E0 16 80 04 FE FF 1E C8 96 64 FA 03 32 05 03 09 0A 1E 14 32 32 05 06 14 03 32 32
+            02 05 32 0F 00 07 32 46 14 1E 1E 1E 14 00 00 00 00 00 00 2C 3F 75 FE 00 00 00 00 00 00 00 00 00 00 00 FF FA C8 96 64 96 01 02 00 00 00 10 00 12 08 0F 0A 14 10 0A 00
+            00 00 00 00 00 00 C8 64 03 0F 3C C8 14 00 00 00 00 00 00 00 64 28 08 10 10 03 1E 00 00 00 00 AA AA AA
     22B003:
       period: 10000
       enabled: false
