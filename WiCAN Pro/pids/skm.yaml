@@ -211,17 +211,34 @@ SKM:
 
     B101:
       availability: []
-      label: Unknown
+      label: "⚠ DO NOT TEST — likely B+ relay or ESCL"
       verified: false
       on: "2FB10103"
       off: "2FB10100"
+      notes: >
+        DANGER: Likely main power relay or ESCL (steering column lock). Activating
+        ESCL via raw UDS can corrupt its internal state machine, causing it to refuse
+        to unlock. Known to have bricked a Renault Zoe ESCL via DDT4All — required
+        dealer replacement of ESCL+SKM+BCM (cryptographically paired). Do not test
+        until positively identified through non-destructive means.
     B102:
       availability: []
-      label: Unknown
+      label: "⚠ DO NOT TEST — likely ESCL or immobilizer"
       verified: false
       on: "2FB10203"
       off: "2FB10200"
+      notes: >
+        DANGER: See B101 notes. Likely ESCL lock/unlock or immobilizer control.
+        ESCL has wear counter and error state that is unrecoverable without dealer tools.
     B103:
+      availability: []
+      label: "⚠ DO NOT TEST — likely immobilizer lamp or ESCL"
+      verified: false
+      on: "2FB10303"
+      off: "2FB10300"
+      notes: >
+        DANGER: See B101 notes. May be immobilizer indicator lamp (lower risk) or
+        ESCL-related (high risk). Skip until B101/B102 are identified.
       availability: []
       label: Unknown
       verified: false
