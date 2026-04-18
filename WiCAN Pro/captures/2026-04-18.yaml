@@ -1,152 +1,269 @@
 sessions:
-
-  - date: "2026-04-18"
-    label: "Service 21 PID scan during AC charging — powertrain ECUs"
-    state: "AC charging (240V, SOC ~63%, 14.7V battery)"
-    notes: |
-      Full service 21 scan (01-FF) on 7 ECUs during AC charging.
-      Goal: find new PIDs available during charging, especially on LDC/OBC/Charging.
-      Key finding: 0x744 (Charging) and 0x733 (PLC) remain dead during AC charging.
-      New PIDs discovered: LDC 2102, VCU 21F2, MCU 2101/2103/21F2.
-    captures:
-      - ecu: "Gateway"
-        pid: "2101-21FF"
-        label: "Full service 21 scan on removed ECU 0x744"
-        notes: "0x744 returned NO DATA on all 255 PIDs during active AC charging. ECU removed from ecus.yaml — likely does not exist on Ioniq 28kWh."
-        response: "NO DATA — 255 errors, address 0x744 dead"
-
-      - ecu: "LDC"
-        pid: "2101-21FF"
-        label: "Full service 21 scan"
-        scan_results:
-          responding:
-            - did: "01"
-              response: "48 bytes (known)"
-            - did: "02"
-              response: "34 bytes (NEW)"
-              notes: "Raw: 6102FFFC0000684F792A694A79286E847927650F791B7499791F7293792B"
-          rejected: "253 DIDs returned NO DATA or NRC"
-          notes: "PID 2102 is new — 34 bytes, undecoded. Many repeated 79xx values suggest voltage/current readings."
-
-      - ecu: "OBC-746"
-        pid: "2101-21FF"
-        label: "Full service 21 scan"
-        scan_results:
-          responding:
-            - did: "F2"
-              response: "6 bytes: 61F200000007"
-              notes: "Same response during charging and off — not charging-specific data"
-          rejected: "254 DIDs returned NO DATA or NRC"
-
-      - ecu: "PLC"
-        pid: "2101-21FF"
-        label: "Full service 21 scan"
-        response: "255 NRCs — ECU dead during AC charging"
-        notes: "PLC is CCS DC fast-charge controller — expected to be inactive during AC charging."
-
-      - ecu: "VCU"
-        pid: "2101-21FF"
-        label: "Full service 21 scan"
-        scan_results:
-          responding:
-            - did: "01"
-              response: "27 bytes (known)"
-              notes: "Raw: 6101FFE0000009211063064A030000000063770007200000000000"
-            - did: "02"
-              response: "27 bytes (known)"
-              notes: "Raw: 6102F8F8000001010000009410B582F3392A060A8D9A3900000000"
-            - did: "F2"
-              response: "69 bytes (NEW)"
-              notes: "Raw: 61F2FF000000084566003FC6AE1101877F00000000000000000000000000..."
-          rejected: "252 DIDs returned NO DATA or NRC"
-          notes: "21F2 is new — 69 bytes, undecoded."
-
-      - ecu: "MCU"
-        pid: "2101-21FF"
-        label: "Full service 21 scan"
-        scan_results:
-          responding:
-            - did: "01"
-              response: "34 bytes (previously captured but not in pids/)"
-              notes: "Raw: 6101000003FF083801268D7F390000000A00460253044F397A007A000CFF..."
-            - did: "02"
-              response: "62 bytes (known)"
-            - did: "03"
-              response: "27 bytes (NEW, all zeros)"
-              notes: "Raw: 610300000000000000000000000000000000000000000000000000. May contain data during driving."
-            - did: "F2"
-              response: "69 bytes (NEW)"
-              notes: "Raw: 61F2FFFFFF3FF8FFF6FF7DD609000000000000000000190500000B05CDAB..."
-          rejected: "251 DIDs returned NO DATA or NRC"
-          notes: "MCU 2103 all zeros during charging — worth re-testing while driving."
-
-      - ecu: "Gateway"
-        pid: "2101-21FF"
-        label: "Full service 21 scan"
-        scan_results:
-          responding:
-            - did: "80"
-              response: "27 bytes (known as 2180)"
-              notes: "Raw: 6180C366C00021270000000000206D004041000082130097970000"
-            - did: "81"
-              response: "27 bytes (known from 2026-04-17)"
-              notes: "Raw: 6181FFFFC00021270000000100206D824041454582130797970000"
-          rejected: "253 DIDs returned NO DATA or NRC"
-
-  - date: "2026-04-18"
-    label: "SKM DID scan + IGPM key-in-car observation"
-    state: "Deep sleep, key in unlocked car, unplugged, 12.4-12.6V battery"
-    notes: |
-      SKM B0xx range discovery: 9 responding DIDs (B002-B00B).
-      B002 has 136 data bytes — massive status register, likely contains key presence.
-      Also captured IGPM BC03 POWER_MODE=0x73 with key in car (vs 0x0A without key).
-      SKM B1xx, 01xx, service 21 01-0F all returned NRC — B0xx is the right range.
-    captures:
-      - ecu: IGPM
-        pid: "22BC03"
-        notes: "POWER_MODE=0x73 (115) — key in unlocked car. Stable over 12 reads."
-        payload: "62BC03FDEE3C7300000000AAAA"
-
-      - ecu: SKM
-        pid: "scan 22 B000-B020"
-        notes: "9 responding DIDs. B002 = 136 data bytes (massive). Key in car, doors unlocked."
-        scan_results:
-          responding:
-            - did: "B002"
-              response: "136 bytes"
-              notes: "Raw: 62B0020000000014320007120A003C0A462C3F750A1910E0168004FEFF1EC89664FA03320503090A1E1432320506140332320205320F00073246141E1E1E140000000000002C3F75FE0000000000000000000000FFFAC89664960102000000100012080F0A14100A00000000000000C864030F3CC814000000000000006428081010031E00000000AAAAAA"
-            - did: "B003"
-              response: "27 bytes"
-              notes: "Raw: 62B003000000003412900300000000C6A21261000000000F00AAAA"
-            - did: "B005"
-              response: "13 bytes"
-              notes: "Raw: 62B005FA60900000040000AAAA"
-            - did: "B006"
-              response: "27 bytes"
-              notes: "Raw: 62B006AFE000009C0000000000000000009B0000000000AAAAAAAA"
-            - did: "B007"
-              response: "20 bytes"
-              notes: "Raw: 62B0071E7FB80000000C007FFF00000000AAAAAA"
-            - did: "B008"
-              response: "20 bytes"
-              notes: "Raw: 62B0080000000000000000000000000000AAAAAA"
-            - did: "B009"
-              response: "34 bytes"
-              notes: "Raw: 62B009000000000000000000000000000000000000000000000000000000..."
-            - did: "B00A"
-              response: "20 bytes"
-              notes: "Raw: 62B00A0100F038000501080600000040010000AA"
-            - did: "B00B"
-              response: "55 bytes"
-              notes: "Raw: 62B00B800000000200000000000000000000000400005319420000000002..."
-          rejected: "24 DIDs returned NRC (B000-B001, B004, B00C-B020)"
-
-      - ecu: SKM
-        pid: "scan 22 B100-B110"
-        notes: "All NRC — SKM does not use B1xx range"
-        response: "0/17 responding"
-
-      - ecu: SKM
-        pid: "scan 21 01-0F"
-        notes: "All NRC — SKM does not use service 21"
-        response: "0/15 responding"
+- date: '2026-04-18'
+  label: Service 21 PID scan during AC charging — powertrain ECUs
+  state: AC charging (240V, SOC ~63%, 14.7V battery)
+  notes: |
+    Full service 21 scan (01-FF) on 7 ECUs during AC charging.
+    Goal: find new PIDs available during charging, especially on LDC/OBC/Charging.
+    Key finding: 0x744 (Charging) and 0x733 (PLC) remain dead during AC charging.
+    New PIDs discovered: LDC 2102, VCU 21F2, MCU 2101/2103/21F2.
+  captures:
+  - ecu: AAF
+    pid: 2101-21FF
+    label: Full service 21 scan on removed ECU 0x744
+    notes: "0x744 returned NO DATA on all 255 PIDs during active AC charging. ECU\
+      \ removed from ecus.yaml — likely does not exist on Ioniq 28kWh."
+    response: NO DATA — 255 errors, address 0x744 dead
+  - ecu: LDC
+    pid: 2101-21FF
+    label: Full service 21 scan
+    scan_results:
+      responding:
+      - did: '01'
+        response: 48 bytes (known)
+      - did: '02'
+        response: 34 bytes (NEW)
+        notes: "Raw: 6102FFFC0000684F792A694A79286E847927650F791B7499791F7293792B"
+      rejected: 253 DIDs returned NO DATA or NRC
+      notes: "PID 2102 is new — 34 bytes, undecoded. Many repeated 79xx values suggest\
+        \ voltage/current readings."
+  - ecu: OBC-746
+    pid: 2101-21FF
+    label: Full service 21 scan
+    scan_results:
+      responding:
+      - did: F2
+        response: "6 bytes: 61F200000007"
+        notes: "Same response during charging and off — not charging-specific data"
+      rejected: 254 DIDs returned NO DATA or NRC
+  - ecu: PLC
+    pid: 2101-21FF
+    label: Full service 21 scan
+    response: 255 NRCs — ECU dead during AC charging
+    notes: "PLC is CCS DC fast-charge controller — expected to be inactive during\
+      \ AC charging."
+  - ecu: VCU
+    pid: 2101-21FF
+    label: Full service 21 scan
+    scan_results:
+      responding:
+      - did: '01'
+        response: 27 bytes (known)
+        notes: "Raw: 6101FFE0000009211063064A030000000063770007200000000000"
+      - did: '02'
+        response: 27 bytes (known)
+        notes: "Raw: 6102F8F8000001010000009410B582F3392A060A8D9A3900000000"
+      - did: F2
+        response: 69 bytes (NEW)
+        notes: "Raw: 61F2FF000000084566003FC6AE1101877F00000000000000000000000000..."
+      rejected: 252 DIDs returned NO DATA or NRC
+      notes: 21F2 is new — 69 bytes, undecoded.
+  - ecu: MCU
+    pid: 2101-21FF
+    label: Full service 21 scan
+    scan_results:
+      responding:
+      - did: '01'
+        response: 34 bytes (previously captured but not in pids/)
+        notes: "Raw: 6101000003FF083801268D7F390000000A00460253044F397A007A000CFF..."
+      - did: '02'
+        response: 62 bytes (known)
+      - did: '03'
+        response: 27 bytes (NEW, all zeros)
+        notes: "Raw: 610300000000000000000000000000000000000000000000000000. May contain\
+          \ data during driving."
+      - did: F2
+        response: 69 bytes (NEW)
+        notes: "Raw: 61F2FFFFFF3FF8FFF6FF7DD609000000000000000000190500000B05CDAB..."
+      rejected: 251 DIDs returned NO DATA or NRC
+      notes: "MCU 2103 all zeros during charging — worth re-testing while driving."
+  - ecu: AAF
+    pid: 2101-21FF
+    label: Full service 21 scan
+    scan_results:
+      responding:
+      - did: '80'
+        response: 27 bytes (known as 2180)
+        notes: "Raw: 6180C366C00021270000000000206D004041000082130097970000"
+      - did: '81'
+        response: 27 bytes (known from 2026-04-17)
+        notes: "Raw: 6181FFFFC00021270000000100206D824041454582130797970000"
+      rejected: 253 DIDs returned NO DATA or NRC
+- date: '2026-04-18'
+  label: SKM DID scan + IGPM key-in-car observation
+  state: "Deep sleep, key in unlocked car, unplugged, 12.4-12.6V battery"
+  notes: |
+    SKM B0xx range discovery: 9 responding DIDs (B002-B00B).
+    B002 has 136 data bytes — massive status register, likely contains key presence.
+    Also captured IGPM BC03 POWER_MODE=0x73 with key in car (vs 0x0A without key).
+    SKM B1xx, 01xx, service 21 01-0F all returned NRC — B0xx is the right range.
+  captures:
+  - ecu: IGPM
+    pid: 22BC03
+    notes: "POWER_MODE=0x73 (115) — key in unlocked car. Stable over 12 reads."
+    payload: 62BC03FDEE3C7300000000AAAA
+  - ecu: SKM
+    pid: scan 22 B000-B020
+    notes: "9 responding DIDs. B002 = 136 data bytes (massive). Key in car, doors\
+      \ unlocked."
+    scan_results:
+      responding:
+      - did: B002
+        response: 136 bytes
+        notes: "Raw: 62B0020000000014320007120A003C0A462C3F750A1910E0168004FEFF1EC89664FA03320503090A1E1432320506140332320205320F00073246141E1E1E140000000000002C3F75FE0000000000000000000000FFFAC89664960102000000100012080F0A14100A00000000000000C864030F3CC814000000000000006428081010031E00000000AAAAAA"
+      - did: B003
+        response: 27 bytes
+        notes: "Raw: 62B003000000003412900300000000C6A21261000000000F00AAAA"
+      - did: B005
+        response: 13 bytes
+        notes: "Raw: 62B005FA60900000040000AAAA"
+      - did: B006
+        response: 27 bytes
+        notes: "Raw: 62B006AFE000009C0000000000000000009B0000000000AAAAAAAA"
+      - did: B007
+        response: 20 bytes
+        notes: "Raw: 62B0071E7FB80000000C007FFF00000000AAAAAA"
+      - did: B008
+        response: 20 bytes
+        notes: "Raw: 62B0080000000000000000000000000000AAAAAA"
+      - did: B009
+        response: 34 bytes
+        notes: "Raw: 62B009000000000000000000000000000000000000000000000000000000..."
+      - did: B00A
+        response: 20 bytes
+        notes: "Raw: 62B00A0100F038000501080600000040010000AA"
+      - did: B00B
+        response: 55 bytes
+        notes: "Raw: 62B00B800000000200000000000000000000000400005319420000000002..."
+      rejected: 24 DIDs returned NRC (B000-B001, B004, B00C-B020)
+  - ecu: SKM
+    pid: scan 22 B100-B110
+    notes: All NRC — SKM does not use B1xx range
+    response: 0/17 responding
+  - ecu: SKM
+    pid: scan 21 01-0F
+    notes: All NRC — SKM does not use service 21
+    response: 0/15 responding
+- date: '2026-04-18'
+  label: SKM with/wo keyfob
+  state: sleep
+  captures:
+  - ecu: SKM
+    pid: 22B002
+    payload: "62B0020000000014320007120A003C0A462C3F750A1910E0168004FEFF1EC89664FA03320503090A1E1432320506140332320205320F00073246141E1E1E140000000000002C3F75FE0000000000000000000000FFFAC89664960102000000100012080F0A14100A00000000000000C864030F3CC814000000000000006428081010031E00000000AAAAAA"
+    time: "21:38:40"
+  - ecu: SKM
+    pid: 22B003
+    payload: 62B003000000003412900300000000C6A21261000000000F00AAAA
+    time: "21:38:40"
+  - ecu: SKM
+    pid: 22B005
+    payload: 62B005FA60900000040000AAAA
+    time: "21:38:40"
+  - ecu: SKM
+    pid: 22B006
+    payload: 62B006AFE000009C0000000000000000009B0000000000AAAAAAAA
+    time: "21:38:40"
+  - ecu: SKM
+    pid: 22B006
+    payload: 62B006AFE000009B0000000000000000009A0000000000AAAAAAAA
+    time: "21:38:52"
+  - ecu: SKM
+    pid: 22B006
+    payload: 62B006AFE000009A0000000000000000009A0000000000AAAAAAAA
+    time: "21:39:30"
+  - ecu: SKM
+    pid: 22B007
+    payload: 62B0071E7FB80000000C007FFF00000000AAAAAA
+    time: "21:38:40"
+  - ecu: SKM
+    pid: 22B007
+    payload: 62B0071E7FB80000060C007FFF00000000AAAAAA
+    time: "21:42:46"
+  - ecu: SKM
+    pid: 22B008
+    payload: 62B0080000000000000000000000000000AAAAAA
+    time: "21:38:40"
+  - ecu: SKM
+    pid: 22B009
+    payload: "62B009000000000000000000000000000000000000000000000000000000000000AA"
+    time: "21:38:40"
+  - ecu: SKM
+    pid: 22B00A
+    payload: 62B00A0100F038000501080600000040010000AA
+    time: "21:38:40"
+  - ecu: SKM
+    pid: 22B00B
+    payload: "62B00B80000000020000000000000000000000040000531942000000000200000000000000000000000000000000000000000000AAAAAA"
+    time: "21:38:40"
+  - ecu: SKM
+    pid: 22B00B
+    payload: "62B00B80000000020000000000000000000000040000531942000100000200000000010000000000000000000000000000000000AAAAAA"
+    time: "21:42:32"
+- date: '2026-04-18'
+  label: unlock/lock/unlock/lock cycle
+  state: sleep
+  captures:
+  - ecu: IGPM
+    pid: 22BC03
+    payload: 62BC03FDEE3C730A000000AAAA
+    time: "22:07:01"
+    decoded:
+      DOOR_DRV_OPEN: '0.0'
+      DOOR_PAS_OPEN: '0.0'
+      DOOR_RL_OPEN: '0.0'
+      DOOR_RR_OPEN: '0.0'
+      TRUNK_OPEN: '0.0'
+      DRL: '0.0'
+      TAIL_LIGHTS: '0.0'
+      HIGH_BEAM: '0.0'
+      LOW_BEAM: '0.0'
+      SECURITY_UNLOCKED: '0.0'
+      IGPM_CONFIG_BYTE: 115.0  (0x73 01110011)
+      SEATBELT_FL: '0.0'
+      SEATBELT_FR: '0.0'
+      B11_BIT3_UNKNOWN: '0.0'
+      DOOR_LOCK_RL: '1.0'
+      DOOR_LOCK_RR: '1.0'
+  - ecu: IGPM
+    pid: 22BC03
+    payload: 62BC03FDEE3C7300002C00AAAA
+    time: "22:07:14"
+    decoded:
+      DOOR_DRV_OPEN: '0.0'
+      DOOR_PAS_OPEN: '0.0'
+      DOOR_RL_OPEN: '0.0'
+      DOOR_RR_OPEN: '0.0'
+      TRUNK_OPEN: '0.0'
+      DRL: '1.0'
+      TAIL_LIGHTS: '1.0'
+      HIGH_BEAM: '0.0'
+      LOW_BEAM: '1.0'
+      SECURITY_UNLOCKED: '0.0'
+      IGPM_CONFIG_BYTE: 115.0  (0x73 01110011)
+      SEATBELT_FL: '0.0'
+      SEATBELT_FR: '0.0'
+      B11_BIT3_UNKNOWN: '0.0'
+      DOOR_LOCK_RL: '0.0'
+      DOOR_LOCK_RR: '0.0'
+  - ecu: IGPM
+    pid: 22BC03
+    payload: 62BC03FDEE3C7300000000AAAA
+    time: "22:07:28"
+    decoded:
+      DOOR_DRV_OPEN: '0.0'
+      DOOR_PAS_OPEN: '0.0'
+      DOOR_RL_OPEN: '0.0'
+      DOOR_RR_OPEN: '0.0'
+      TRUNK_OPEN: '0.0'
+      DRL: '0.0'
+      TAIL_LIGHTS: '0.0'
+      HIGH_BEAM: '0.0'
+      LOW_BEAM: '0.0'
+      SECURITY_UNLOCKED: '0.0'
+      IGPM_CONFIG_BYTE: 115.0  (0x73 01110011)
+      SEATBELT_FL: '0.0'
+      SEATBELT_FR: '0.0'
+      B11_BIT3_UNKNOWN: '0.0'
+      DOOR_LOCK_RL: '0.0'
+      DOOR_LOCK_RR: '0.0'
