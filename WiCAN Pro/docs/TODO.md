@@ -1,5 +1,8 @@
 # Reverse Engineering TODOs
 
+- [x] Test BCM IOControl with car asleep (locked) (most are NRC 0x22 conditionsNotCorrect
+- [ ] Test BCM IOControl with car asleep (unlocked)
+- [ ] Test BCM IOControl with ACC ON
 - [ ] Decode keyfob proximity state DID (IGPM or SKM — is fob nearby?)
 - [ ] Decode BCM charge scheduling DIDs (e.g. preheat and charge schedules, scheduled charging on/off, rear defrost on/off, etc.) -> can we also write these somehow?
 - [ ] Scan HVAC for IOControl (e.g. blower speed control, A/C on/off)

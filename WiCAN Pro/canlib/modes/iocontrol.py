@@ -474,10 +474,14 @@ class _IOControlTUI:
         finally:
             loop.remove_reader(fd)
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+            # Capture final render before leaving alternate screen
+            final_render = self._render()
             # Leave alternate screen buffer
             sys.stdout.write("\033[?25h")  # show cursor
             sys.stdout.write("\033[?1049l")  # leave alt screen
             sys.stdout.flush()
+            # Print final state to main screen
+            print(final_render)
             await self._cleanup()
             _tui_logger.info("TUI session end")
             print(f"  Debug log: {_LOG_FILE}")

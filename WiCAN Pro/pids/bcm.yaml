@@ -504,78 +504,86 @@ BCM:
   # Usage: python3 canreq.py --raw 7A0:<on_command> --hold
   iocontrol:
     B003:
-      availability: [sleep, plugged, acc, ign, ready, charging]
+      availability: []
       label: Unknown
       verified: false
       on: "2FB00303"
       off: "2FB00300"
       notes: >
-        Low DID range — possibly status/config register.
+        Sleep (locked): NRC 0x22: conditionsNotCorrect
 
     B006:
-      availability: [sleep, plugged, acc, ign, ready, charging]
+      availability: []
       label: Unknown
       verified: false
       on: "2FB00603"
       off: "2FB00600"
+      notes: >
+        Sleep (locked): NRC 0x22: conditionsNotCorrect
 
     B008:
-      availability: [sleep, plugged, acc, ign, ready, charging]
+      availability: []
       label: Unknown
       verified: false
       on: "2FB00803"
       off: "2FB00800"
+      notes: >
+        Sleep (locked): NRC 0x22: conditionsNotCorrect
 
     B009:
-      availability: [sleep, plugged, acc, ign, ready, charging]
+      availability: []
       label: Unknown
       verified: false
       on: "2FB00903"
       off: "2FB00900"
+      notes: >
+        Sleep (locked): NRC 0x22: conditionsNotCorrect
 
     B00A:
-      availability: [sleep, plugged, acc, ign, ready, charging]
+      availability: []
       label: Unknown
       verified: false
       on: "2FB00A03"
       off: "2FB00A00"
+      notes: >
+        Sleep (locked): NRC 0x22: conditionsNotCorrect
 
     B00F:
-      availability: [sleep, plugged, acc, ign, ready, charging]
+      availability: []
       label: Unknown
       verified: false
       on: "2FB00F03"
       off: "2FB00F00"
+      notes: >
+        Sleep (locked): No visible effect, but no NRC
 
     B019:
-      availability: [sleep, plugged, acc, ign, ready, charging]
+      availability: []
       label: Room lamp (interior)
       verified: false
       on: "2FB01903"
       off: "2FB01900"
       notes: >
-        DID exists. Untested for visible effect.
+        Sleep (locked): No visible effect, but no NRC
 
     B01A:
-      availability: [sleep, plugged, acc, ign, ready, charging]
+      availability: []
       label: Unknown
       verified: false
       on: "2FB01A03"
       off: "2FB01A00"
       notes: >
-        Adjacent to room lamp — may be reading lamp or trunk lamp.
+        Adjacent to room lamp — may be reading lamp or trunk lamp?
 
     B025:
-      availability: [sleep, plugged, acc, ign, ready, charging]
-      label: Unknown
-      verified: false
+      availability: [sleep, plugged]
+      label: Puddle lights
+      verified: true
       on: "2FB02503"
       off: "2FB02500"
-      notes: >
-        Possibly window or wiper motor.
 
     B028:
-      availability: [sleep, plugged, acc, ign, ready, charging]
+      availability: []
       label: Unknown
       verified: false
       on: "2FB02803"
@@ -584,7 +592,7 @@ BCM:
         Possibly window or wiper motor.
 
     B029:
-      availability: [sleep, plugged, acc, ign, ready, charging]
+      availability: []
       label: Unknown
       verified: false
       on: "2FB02903"
@@ -593,7 +601,7 @@ BCM:
         Possibly window or wiper motor.
 
     B030:
-      availability: [sleep, plugged, acc, ign, ready, charging]
+      availability: []
       label: Unknown
       verified: false
       on: "2FB03003"
@@ -602,42 +610,42 @@ BCM:
         Possibly wiper/washer pump.
 
     B038:
-      availability: [sleep, plugged, acc, ign, ready, charging]
+      availability: []
       label: Unknown
       verified: false
       on: "2FB03803"
       off: "2FB03800"
 
     B039:
-      availability: [sleep, plugged, acc, ign, ready, charging]
+      availability: []
       label: Unknown
       verified: false
       on: "2FB03903"
       off: "2FB03900"
 
     B03A:
-      availability: [sleep, plugged, acc, ign, ready, charging]
+      availability: []
       label: Unknown
       verified: false
       on: "2FB03A03"
       off: "2FB03A00"
 
     B03B:
-      availability: [sleep, plugged, acc, ign, ready, charging]
+      availability: []
       label: Unknown
       verified: false
       on: "2FB03B03"
       off: "2FB03B00"
 
     B04D:
-      availability: [sleep, plugged, acc, ign, ready, charging]
+      availability: []
       label: Unknown
       verified: false
       on: "2FB04D03"
       off: "2FB04D00"
 
     B057:
-      availability: [sleep, plugged, acc, ign, ready, charging]
+      availability: []
       label: Unknown
       verified: false
       on: "2FB05703"
@@ -646,7 +654,7 @@ BCM:
         Mirror/handle region.
 
     B059:
-      availability: [sleep, plugged, acc, ign, ready, charging]
+      availability: []
       label: Heated door handle / heated steering wheel
       verified: false
       on: "2FB05903"
@@ -655,7 +663,7 @@ BCM:
         e-Niro labels as heated door handle. May refer to heated steering wheel on Ioniq.
 
     B05A:
-      availability: [sleep, plugged, acc, ign, ready, charging]
+      availability: []
       label: Heated door handle LED
       verified: false
       on: "2FB05A03"
@@ -669,6 +677,7 @@ BCM:
       off: "2FB05B00"
       notes: >
         Fold side mirrors in. From e-Niro, confirmed on Ioniq.
+        Must be turned off again for the mirror unfold command (B05C) to work!
 
     B05C:
       availability: [sleep, plugged, acc, ign, ready, charging]
@@ -680,13 +689,13 @@ BCM:
         Unfold side mirrors. From e-Niro, confirmed on Ioniq.
 
     B061:
-      availability: [sleep, plugged, acc, ign, ready, charging]
-      label: Charge door open
+      availability: []
+      label: Charge door open (Kia Niro EV)
       verified: false
       on: "2FB06103"
       off: "2FB06100"
       notes: >
-        NRC 0x31 — NOT supported on Ioniq 2017. Tested with and without ACC power.
+        NRC 0x31: requestoutotRange (Tested with and without ACC power)
 
     B071:
       availability: [sleep, plugged, acc, ign, ready, charging]
