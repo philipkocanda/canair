@@ -43,6 +43,7 @@ optional_ecu_fields:
   - identity
   - iocontrol       # IOControl (service 2F) commands — see iocontrol_fields below
   - research        # Untested/undecoded PIDs and scan TODOs — see research_fields below
+  - routines        # RoutineControl (service 0x31) discoveries — see routines_fields below
 
 required_pid_fields: []
 
@@ -138,3 +139,23 @@ iocontrol_fields:
 research_fields:
   required: [type, target, status]
   optional: [priority, prerequisite, date, result, notes, sources, what_to_test]
+
+# Routines section — RoutineControl (UDS service 0x31) discovery results.
+# Populated by `canreq.py --routines-scan`. Lives under ECU_NAME.routines.
+#
+# Format:
+#   routines:
+#     RID_HEX:                       # 4-digit hex Routine Identifier (e.g. F010)
+#       session: default | extended  # which session answered
+#       response: str                # hex payload of positive 71-response (optional)
+#       nrc: 0xNN                    # negative response code (if NRC-based hit)
+#       nrc_desc: str                # NRC description text
+#       label: str                   # optional human label (filled in as research proceeds)
+#       verified: bool               # optional — tested/decoded on this car
+#       notes: str                   # optional — findings, cross-refs
+#
+# Exactly one of {response, nrc} is set per hit. Routines enter here from
+# the scanner as leads; promotion to iocontrol (if start-routine is ever
+# attempted and verified safe) is a manual step and requires explicit consent.
+routines_fields:
+  optional: [session, response, nrc, nrc_desc, label, verified, notes]

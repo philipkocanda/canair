@@ -65,6 +65,7 @@ from canlib.modes import (
     mode_tester_present,
 )
 from canlib.modes.iocontrol import mode_iocontrol_execute, mode_iocontrol_list
+from canlib.modes.routines_scan import mode_routines_scan
 
 try:
     import websockets
@@ -138,7 +139,7 @@ async def async_main(args):
 
     init_logging()
     log_command(
-        f"--- SESSION START (host={host}, mode={'interactive' if not any([args.param, args.ecu, args.raw, args.scan, args.discover, args.skm_wakeup, args.tester_present, args.iocontrol]) else 'batch'}, unsafe={args.unsafe}, session={getattr(args, 'session', False)}) ---"
+        f"--- SESSION START (host={host}, mode={'interactive' if not any([args.param, args.ecu, args.raw, args.scan, args.discover, args.skm_wakeup, args.tester_present, args.iocontrol, args.routines_scan is not None]) else 'batch'}, unsafe={args.unsafe}, session={getattr(args, 'session', False)}) ---"
     )
 
     if args.unsafe:
@@ -302,6 +303,18 @@ async def async_main(args):
                     args.iocontrol,
                     verbose=args.verbose,
                 )
+        elif args.routines_scan is not None:
+            ecus = args.routines_scan if args.routines_scan else ["IGPM", "BCM", "HVAC"]
+            rid_range = parse_range(args.rid_range)
+            await mode_routines_scan(
+                terminal,
+                pids_data,
+                ecus=ecus,
+                rid_range=rid_range,
+                throttle_ms=args.throttle_ms,
+                verbose=args.verbose,
+                write_yaml=True,
+            )
         elif args.discover:
             addr_range = parse_range(args.range) if args.range != "01-FF" else (0x700, 0x7EF)
             await mode_discover(
@@ -456,6 +469,16 @@ Examples:
         "Session and hold behavior are auto-applied from pids/ YAML.",
     )
     mode.add_argument(
+        "--routines-scan",
+        nargs="*",
+        metavar="ECU",
+        help="RoutineControl (0x31) discovery scan. Probes requestRoutineResults "
+        "(sub-function 0x03) across a range of Routine IDs on one or more ECUs. "
+        "SAFE: sub-function 0x03 never starts a routine. Default ECUs: IGPM, BCM, "
+        "HVAC (SKM excluded). Default range: F000-F0FF. Hits are written to "
+        "pids/<ecu>.yaml under a routines: section.",
+    )
+    mode.add_argument(
         "--multi",
         nargs="+",
         metavar="CMD",
@@ -558,6 +581,19 @@ Examples:
         help="Save results to captures/YYYY-MM-DD.yaml. Prompts for session "
         "metadata (label auto-suggested, Enter to accept). Works with "
         "--scan, --raw, --discover, and --monitor --keep-unique/--keep-all.",
+    )
+
+    parser.add_argument(
+        "--rid-range",
+        metavar="START-END",
+        default="F000-F0FF",
+        help="Routine ID range for --routines-scan (hex, default: F000-F0FF)",
+    )
+    parser.add_argument(
+        "--throttle-ms",
+        type=int,
+        default=150,
+        help="Delay in ms between RoutineControl probes (default: 150)",
     )
 
     # SKM wakeup options

@@ -207,6 +207,113 @@ def _replace_field_in_block(block: str, field: str, new_line_or_lines: str | lis
     return result
 
 
+# ── Routines section appender ────────────────────────────────────────────────
+
+
+def _format_routines_block(hits) -> list[str]:
+    """Render a ``routines:`` section body for a list of RoutineHit tuples.
+
+    Produces lines at 2-space indent (sibling of ``pids:`` / ``iocontrol:``),
+    e.g.::
+
+        routines:
+          F010:
+            session: extended
+            response: "71 03 F0 10 00 00"
+            notes: ""
+          F02A:
+            session: default
+            nrc: 0x24
+            nrc_desc: "requestSequenceError"
+            notes: ""
+    """
+    lines: list[str] = ["  routines:"]
+    for hit in hits:
+        rid_hex = f"{hit.rid:04X}"
+        lines.append(f"    {rid_hex}:")
+        lines.append(f"      session: {hit.session}")
+        if hit.nrc is None:
+            # Positive response: record the hex payload
+            resp = hit.response_hex or ""
+            lines.append(f'      response: "{resp}"')
+        else:
+            lines.append(f"      nrc: 0x{hit.nrc:02X}")
+            desc = (hit.nrc_desc or "").replace('"', '\\"')
+            lines.append(f'      nrc_desc: "{desc}"')
+        lines.append('      notes: ""')
+    return lines
+
+
+def _find_ecu_block(text: str, ecu_name: str) -> tuple[int, int]:
+    """Return (start, end) of the ECU's top-level block in ``text``.
+
+    start = offset of the ``ECU:`` line.
+    end   = offset just before the next top-level sibling (or EOF).
+    """
+    target = ecu_name.strip().upper()
+    # Top-level ECU key — 0-space indent
+    start_re = re.compile(r"^([A-Za-z][A-Za-z0-9_\-]*):\s*$", re.MULTILINE)
+    ecu_start = None
+    for m in start_re.finditer(text):
+        if m.group(1).upper() == target:
+            ecu_start = m.start()
+            break
+    if ecu_start is None:
+        raise PidsEditError(f"ECU {ecu_name!r} not found at top level")
+
+    # Next top-level sibling (not indented, not a comment-only line)
+    # Start the search after the ECU's header line, not mid-token.
+    header_end = text.find("\n", ecu_start)
+    if header_end == -1:
+        return ecu_start, len(text)
+    search_from = header_end + 1
+    after = text[search_from:]
+    sibling_re = re.compile(r"^[A-Za-z][A-Za-z0-9_\-]*:\s*$", re.MULTILINE)
+    m2 = sibling_re.search(after)
+    if m2:
+        return ecu_start, search_from + m2.start()
+    return ecu_start, len(text)
+
+
+def append_routines_block(ecu_name: str, hits, pids_dir: Path = PIDS_DIR) -> Path:
+    """Write/overwrite a ``routines:`` section at the end of the ECU block.
+
+    If a ``routines:`` section already exists for this ECU, it is replaced
+    wholesale. Preserves surrounding YAML (pids/iocontrol/research blocks).
+
+    Returns the file path edited. No-op if ``hits`` is empty.
+    """
+    if not hits:
+        fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
+        return fpath
+
+    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
+    text = fpath.read_text()
+    ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
+    ecu_block = text[ecu_start:ecu_end]
+
+    new_lines = _format_routines_block(hits)
+    new_section = "\n".join(new_lines) + "\n"
+
+    # Remove any pre-existing ``  routines:`` section within the ECU block
+    existing_re = re.compile(r"^ {2}routines:\s*$", re.MULTILINE)
+    m = existing_re.search(ecu_block)
+    if m:
+        # Find end: next sibling at 2-space indent or lower (non-blank, non-comment)
+        tail_re = re.compile(r"^ {0,2}[A-Za-z_]", re.MULTILINE)
+        tail = tail_re.search(ecu_block, pos=m.end())
+        sec_end = tail.start() if tail else len(ecu_block)
+        ecu_block = ecu_block[: m.start()] + ecu_block[sec_end:]
+
+    # Strip trailing blank lines, append new section, keep one trailing newline
+    body = ecu_block.rstrip("\n")
+    new_ecu_block = body + "\n\n" + new_section
+
+    new_text = text[:ecu_start] + new_ecu_block + text[ecu_end:]
+    fpath.write_text(new_text)
+    return fpath
+
+
 # ── Public API ───────────────────────────────────────────────────────────────
 
 

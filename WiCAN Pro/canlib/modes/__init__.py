@@ -9,6 +9,7 @@ from .monitor import mode_monitor
 from .multi import mode_multi
 from .param import mode_param
 from .raw import mode_raw
+from .routines_scan import mode_routines_scan
 from .scan import mode_scan
 from .skm_wakeup import SKM_MAGIC, SKM_RELAYS, mode_skm_wakeup
 from .tester import mode_tester_present
@@ -28,6 +29,7 @@ __all__ = [
     "mode_multi",
     "mode_param",
     "mode_raw",
+    "mode_routines_scan",
     "mode_scan",
     "mode_skm_wakeup",
     "mode_tester_present",
