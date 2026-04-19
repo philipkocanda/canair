@@ -316,7 +316,7 @@ IGPM:
     BC05:
       availability: [sleep, plugged, acc, ign, ready, charging]
       label: Blue instrument LEDs
-      verified: false
+      verified: true
       on: "2FBC0503"
       off: "2FBC0500"
       notes: >
@@ -362,7 +362,7 @@ IGPM:
     BC0C:
       availability: [sleep, plugged, acc, ign, ready, charging]
       label: Rear defogger relay
-      verified: false
+      verified: true
       on: "2FBC0C03"
       off: "2FBC0C00"
       notes: >
