@@ -12,6 +12,13 @@ IGPM:
       period: 2500
       enabled: true
       availability: [sleep, plugged, acc, ign, ready, charging]
+      notes: >
+        B10 cross-state observations (all doors closed):
+          Deep sleep locked: 0x0A (00001010) — lock bits 1,3 set
+          ACC locked: 0x20 (00100000) — bit 5 set, lock bits CLEAR
+          ACC2+charging unlocked: 0x00 (00000000) — all clear
+        Bit 5 correlates with ACC power, NOT driver door open as previously
+        thought. Needs further investigation.
       parameters:
         DOOR_DRV_OPEN:
           expression: "B10:5"
@@ -19,8 +26,14 @@ IGPM:
           source: "Kia Niro EV WiCAN PR#716"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
-          verified: true
-          notes: "Bit flag — 1=open. Verified 2026-04-15."
+          verified: false
+          notes: >
+            SUSPECT — may NOT be driver door open. B10:5 (0x20) was set during
+            ACC mode with doors CLOSED (Apr 14), cleared in deep sleep locked
+            (Apr 16, B10=0x0A) and ACC2+charging unlocked (Apr 19, B10=0x00).
+            Pattern suggests bit 5 is an ACC power state flag, not door open.
+            Original Apr 15 verification may have conflated ACC toggle with
+            door open/close. Needs retesting: toggle door with ACC constantly on.
 
         DOOR_PAS_OPEN:
           expression: "B10:4"
@@ -90,7 +103,7 @@ IGPM:
           verified: true
           notes: "Low beam headlights. Bit flag — 1=on. Also set when high beams are on (both low+high active together). Verified 2026-04-15."
 
-        IGNITION_ON:
+        ACC2_IGN_ON:
           expression: "B11:5"
           ha_class: power
           source: "Kia Niro EV WiCAN PR#716"
@@ -98,10 +111,12 @@ IGPM:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
           notes: >
-            Activates at ACC2/IGN1. Cannot distinguish ACC2 from Ready — both show
-            bit=1. OFF and ACC1 both show bit=0. Fob-unlock does NOT set this bit
-            (confirmed 2026-04-18 — B11 stays 0x00 on fob unlock, the 0x2C seen was
-            B12 lights). Verified 2026-04-15.
+            Renamed from IGNITION_ON — misleading because the ignition is NOT
+            physically on. Activates at ACC2/IGN1 power state. Cannot distinguish
+            ACC2 from Ready — both show bit=1. OFF and ACC1 both show bit=0.
+            Fob-unlock does NOT set this bit (confirmed 2026-04-18 — B11 stays
+            0x00 on fob unlock, the 0x2C seen was B12 lights). Also reads 1
+            during ACC2+AC charging (2026-04-19). Verified 2026-04-15.
 
         IGPM_CONFIG_BYTE:
           expression: "B09"
@@ -241,9 +256,10 @@ IGPM:
       availability: [sleep, plugged, acc, ign, ready, charging]
       notes: >
         8 data bytes. B03-B06=0x0841FBCC (static — possibly anti-theft code or immobilizer
-        ID). B09 changes between captures: 0x19 (ACC/deep sleep Apr 14-16) vs 0x11 (deep
-        sleep Apr 17). May encode a slow-changing state or counter. Rest static.
-        Sample: 62BC070841FBCC00001900AAAA.
+        ID). B09 bit 7 set (0x00→0x80) during ACC2+AC charging — likely **charging active**
+        indicator. B10: 0x19 (ACC/deep sleep Apr 14-16), 0x11 (deep sleep Apr 17), 0x18
+        (ACC2+charging Apr 19). Slow-changing, possibly a counter or state register.
+        Sample (ACC2+charging): 62BC070841FBCC00801800.
       parameters: {}
 
     22BC08:

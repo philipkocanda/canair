@@ -3,25 +3,37 @@
 CLI tool for sending custom CAN/UDS requests to the Ioniq via WiCAN's WebSocket ELM327 terminal mode. Connects to `ws://<ip>/ws`, sends `{"ws_mode": "terminal", "terminal_type": "elm327"}` to enter terminal mode. The firmware handles ISO-TP internally — no Python ISO-TP implementation needed.
 
 ```bash
-canreq.py                                  # Interactive REPL
-canreq.py --param SOC_BMS SOC_DISP         # Query specific parameters
+# Preferred: --multi "query ..." for decoded output with session management
+canreq.py --multi "query BMS 2101"                # Query single PID, decoded parameters
+canreq.py --multi "query BMS 2101" "query VCU 2101"  # Multi-ECU in one session
+canreq.py --multi "session IGPM --wake" "query IGPM BC03 BC06"  # Wake + query
+canreq.py --multi "query BMS 2101" --monitor      # Live-refresh every 5s
+
+# Single-ECU shortcuts (simpler syntax, same decoded output)
+canreq.py --param SOC_BMS SOC_DISP         # Query specific named parameters
 canreq.py --ecu BMS                        # Query all BMS parameters
 canreq.py --ecu BMS --pid 2101             # Query BMS PID 2101 only
-canreq.py --raw 7E4:2101                   # Raw UDS request with hex dump
+
+# Discovery and scanning
 canreq.py --scan --tx 7E4 --service 21 --range 01-FF  # Scan PID range
 canreq.py --discover                       # Sweep 0x700-0x7EF for responding ECUs
-canreq.py --identity --tx 7A0 --session    # Query UDS identity DIDs (part no, dates, versions)
-canreq.py --identity --tx 770 --wake       # Identity query with deep-sleep wake
-canreq.py --iocontrol IGPM                 # List all IGPM IOControl DIDs (no CAN needed)
-canreq.py --iocontrol IGPM --did BC01      # Turn on low beam (auto-session, hold)
-canreq.py --iocontrol IGPM --did BC01 --off  # Turn off low beam
-canreq.py --wican vpn --param SOC_BMS      # Use VPN address
-canreq.py --verbose --ecu VCU              # Show raw WebSocket traffic
-canreq.py --json --param SOC_BMS           # JSON output
-canreq.py --raw 770:22BC03 --session       # Extended diagnostic session (10 03)
-canreq.py --raw 770:22BC03 --wake          # Wake from deep sleep + session
+canreq.py --identity --tx 7A0 --session    # Query UDS identity DIDs
+
+# Raw mode — last resort (hex dump only, no parameter decoding)
+canreq.py --raw 7E4:2101                   # Raw UDS request
 canreq.py --raw 770:2FBC0103 --wake --hold # IOControl with session held open
+
+# IOControl (dedicated mode with TUI)
+canreq.py --iocontrol IGPM                 # Interactive TUI
+canreq.py --iocontrol IGPM --did BC01      # Turn on low beam
+
+# Other
+canreq.py                                  # Interactive REPL
+canreq.py --wican vpn --param SOC_BMS      # Use VPN address
+canreq.py --json --param SOC_BMS           # JSON output
 ```
+
+> **Mode guidance:** Use `--multi "query ..."` or `--param`/`--ecu` for decoded, readable output. Use `--raw` only when no PID definition exists yet, or for ad-hoc UDS commands (IOControl without YAML, exploratory reads). `--verbose` is for debugging canreq itself — not useful for normal operation.
 
 ##### `--multi` flag (multi-ECU pipeline)
 
