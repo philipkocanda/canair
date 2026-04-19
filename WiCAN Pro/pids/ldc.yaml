@@ -8,12 +8,12 @@
 # Correct byte offsets decoded from live captures during AC charging (2026-04-14).
 LDC:
   tx_id: 0x7E5
-  availability: [ready, charging]
+  availability: [ready, charging, acc2]
   pids:
     2101:
       period: 5000
       enabled: true
-      availability: [ready, charging] # TODO: maybe also ACC2/IGN?
+      availability: [ready, charging, acc2]
       parameters:
         LDC_HV_INPUT_V:
           expression: "[B12:B13]/100"
@@ -102,9 +102,9 @@ LDC:
     2102:
       period: 5000
       enabled: false
-      availability: [charging]
+      availability: [charging, acc2]
       notes: >
-        34 bytes. Only responds during AC charging — returns NRC when car is off.
+        34 bytes. Also responds in ACC2 (not just charging). Returns NRC when car is fully off.
         Discovered during charging PID scan (2026-04-18).
         Raw payload: 6102FFFC0000684F792A694A79286E847927650F791B7499791F7293792B...
         Undecoded — needs analysis.

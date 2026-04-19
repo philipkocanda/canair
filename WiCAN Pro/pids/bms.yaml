@@ -253,25 +253,25 @@ BMS:
 
         CUMULATIVE_ENERGY_CHARGED:
           expression: "((B47<<24)|(B49<<16)|(B50<<8)|B51)/10"
-          unit: Wh
+          unit: kWh
           ha_class: energy
           min: "0"
           max: ""
           source: "Original WiCAN config"
           source_links: []
           verified: true
-          notes: "Lifetime cumulative, unit is Wh not kWh"
+          notes: "Lifetime cumulative. ECU reports in 0.1 kWh units, /10 gives kWh. Verified ~12274 kWh lifetime on 2017 Ioniq 28kWh."
 
         CUMULATIVE_ENERGY_DISCHARGED:
           expression: "((B52<<24)|(B53<<16)|(B54<<8)|B55)/10"
-          unit: Wh
+          unit: kWh
           ha_class: energy
           min: "0"
           max: ""
           source: "Original WiCAN config"
           source_links: []
           verified: true
-          notes: "Lifetime cumulative, unit is Wh not kWh"
+          notes: "Lifetime cumulative. ECU reports in 0.1 kWh units, /10 gives kWh."
 
         CUMULATIVE_CURRENT_CHARGED:
           expression: "((B32<<24)|(B33<<16)|(B34<<8)|B35)/10"
