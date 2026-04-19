@@ -8,6 +8,7 @@ import asyncio
 import json
 import logging
 import os
+import shutil
 import sys
 import termios
 import tty
@@ -22,6 +23,22 @@ from .status import format_status_value, query_param_status
 _LOGS_DIR = Path(__file__).parent.parent.parent / "logs"
 _LOG_FILE = _LOGS_DIR / "iocontrol-tui.log"
 _tui_logger = logging.getLogger("iocontrol-tui")
+
+
+def _terminal_columns(default: int = 120) -> int:
+    """Best-effort terminal width for table layout."""
+    return shutil.get_terminal_size(fallback=(default, 24)).columns
+
+
+def _truncate_text(text: str, width: int) -> str:
+    """Truncate text to visible width using ASCII ellipsis."""
+    if width <= 0:
+        return ""
+    if len(text) <= width:
+        return text
+    if width <= 3:
+        return text[:width]
+    return text[: width - 3] + "..."
 
 
 def mode_iocontrol_list(pids_data: dict, ecu_name: str, as_json: bool = False):
@@ -64,16 +81,19 @@ def mode_iocontrol_list(pids_data: dict, ecu_name: str, as_json: bool = False):
     print(f"\n  {ecu_key} -- TX 0x{ecu_info['tx_id']:03X} -- {len(cmds)} IOControl DIDs\n")
 
     # Column-aligned table
+    term_w = _terminal_columns()
     did_w = max(len(d) for d in cmds) if cmds else 4
     label_w = max(len(c["label"]) for c in cmds.values()) if cmds else 5
     on_w = max(len(c["on"]) for c in cmds.values()) if cmds else 2
     off_w = max(len(c["off"]) for c in cmds.values()) if cmds else 3
     sp_w = max((len(c.get("status_param") or "") for c in cmds.values()), default=0)
-    sp_w = max(sp_w, len("Status PID"))
+    sp_w = max(sp_w, len("Read PID"))
+    fixed_w = 2 + did_w + 2 + label_w + 2 + on_w + 2 + off_w + 2 + 2 + len("Verified  Hold")
+    sp_w = min(sp_w, 100, max(len("Read PID"), term_w - fixed_w))
 
     hdr = (
         f"  {'DID':<{did_w}}  {'Label':<{label_w}}  {'ON cmd':<{on_w}}  "
-        f"{'OFF cmd':<{off_w}}  {'Status PID':<{sp_w}}  Verified  Hold"
+        f"{'OFF cmd':<{off_w}}  {'Read PID':<{sp_w}}  Verified  Hold"
     )
     print(hdr)
     print(f"  {'─' * (len(hdr) - 2)}")
@@ -84,7 +104,7 @@ def mode_iocontrol_list(pids_data: dict, ecu_name: str, as_json: bool = False):
         sp = c.get("status_param") or ""
         print(
             f"  {did:<{did_w}}  {c['label']:<{label_w}}  {c['on']:<{on_w}}  {c['off']:<{off_w}}  "
-            f"{sp:<{sp_w}}     {v}        {h}"
+            f"{_truncate_text(sp, sp_w):<{sp_w}}     {v}        {h}"
         )
     print()
 
@@ -136,7 +156,7 @@ async def mode_iocontrol_execute(
     print(f"\n  {ecu_key} 0x{tx_id:03X} -- {label} -- {action}")
     print(f"  Command: {hex_cmd}")
     if status_param:
-        print(f"  Status param: {status_param}")
+        print(f"  Readback PID: {status_param}")
 
     await terminal.set_header(tx_id)
 
@@ -146,14 +166,16 @@ async def mode_iocontrol_execute(
             print("  Entering extended diagnostic session (10 03)...")
         _, tester_task = await terminal.enter_extended_session()
 
-    # Query status before executing
+    # Query the mapped readback PID before executing. This is a best-effort hint
+    # only: IOControl overrides may drive an output without changing the ECU
+    # status bit or register that the readback PID exposes.
     if status_param:
         before = await query_param_status(terminal, pids_data, status_param, verbose=verbose)
         await terminal.set_header(tx_id)  # restore header after status query may have changed it
         if before["error"]:
-            print(f"  Status before: ERR {before['error']}")
+            print(f"  Readback before: ERR {before['error']}")
         else:
-            print(f"  Status before: {status_param} = {format_status_value(before)}")
+            print(f"  Readback before: {status_param} = {format_status_value(before)}")
 
     try:
         response = await terminal.send_uds(hex_cmd, timeout=3.0)
@@ -209,14 +231,16 @@ async def mode_iocontrol_execute(
                 error = release_resp.get("error") or f"NRC 0x{release_resp.get('nrc', 0):02X}"
                 print(f"  ✗ Release failed: {error}")
 
-        # Query status after command (or after release if we were holding)
+        # Query the mapped readback PID after command/release. Same caveat as
+        # above: it may reflect normal ECU logic rather than the temporary
+        # IOControl override.
         if status_param:
             await terminal.set_header(tx_id)
             after = await query_param_status(terminal, pids_data, status_param, verbose=verbose)
             if after["error"]:
-                print(f"  Status after:  ERR {after['error']}")
+                print(f"  Readback after: ERR {after['error']}")
             else:
-                print(f"  Status after:  {status_param} = {format_status_value(after)}")
+                print(f"  Readback after: {status_param} = {format_status_value(after)}")
 
     print()
 
@@ -277,27 +301,52 @@ class _IOControlTUI:
         lines = []
         lines.append(f"\033[1;36m  IOControl TUI — {self.ecu_key} (0x{self.tx_id:03X})\033[0m")
         sess = "\033[32mactive\033[0m" if self._session_active else "\033[2mnot started\033[0m"
-        poll = "  \033[2m[polling status]\033[0m" if self._status_polling else ""
+        poll = "  \033[2m[polling]\033[0m" if self._status_polling else ""
         lines.append(f"\033[2m  Session: \033[0m{sess}{poll}")
         lines.append("")
 
-        # Column widths
-        did_w = max(len(d) for d in self.dids) if self.dids else 4
-        label_w = max(len(self.cmds[d]["label"]) for d in self.dids) if self.dids else 5
-        # Status column: max of mapped param names (or "—" for none)
-        status_vals = [
-            self.status_val.get(d) or (self.cmds[d].get("status_param") or "")
-            for d in self.dids
-        ]
-        status_hdr = "Status"
-        status_w = max(max((len(s) for s in status_vals), default=0), len(status_hdr))
+        # Fixed column widths (ANSI codes don't count toward padding — we pad
+        # the *text* content to the desired width, then wrap in colour codes).
+        term_w = _terminal_columns()
+        did_w   = max((len(d) for d in self.dids), default=4)
+        label_w = max((len(self.cmds[d]["label"]) for d in self.dids), default=5)
 
-        # Header
-        lines.append(
-            f"\033[2m     {'DID':<{did_w}}  {'Label':<{label_w}}  State     "
-            f"{'Status':<{status_w}}  Response\033[0m"
+        # "Cmd" column: what we sent (ON / OFF / idle) — always 3 visible chars
+        cmd_hdr = "Cmd"
+        cmd_hdr_w = len(cmd_hdr)   # 3
+
+        # "Read PID" column: current value for the mapped readback PID.
+        # This is only a best-effort hint; some IOControl actions do not update
+        # the readable status registers even when the actuator is physically on.
+        # Width = max of: all current display strings, all param names (shown
+        # as placeholder before first poll), and the header text.
+        pid_state_hdr = "Read PID"
+        pid_vals_w = max(
+            (
+                len(self.status_val[d]) if self.status_val[d] else len(self.cmds[d].get("status_param") or "—")
+                for d in self.dids
+            ),
+            default=len(pid_state_hdr),
         )
-        lines.append(f"\033[2m     {'─' * (did_w + label_w + status_w + 38)}\033[0m")
+        fixed_w = 5 + did_w + 2 + label_w + 2 + cmd_hdr_w + 2 + 2 + 13
+        pid_state_w = min(max(pid_vals_w, len(pid_state_hdr)), 100, max(len(pid_state_hdr), term_w - fixed_w))
+
+        # Separator widths for the ruler
+        total_w = 5 + did_w + 2 + label_w + 2 + cmd_hdr_w + 2 + pid_state_w + 2 + 13
+        ruler = "─" * total_w
+
+        # Header row — plain text, dim
+        # Layout: 3 (prefix) + 2 (verified mark) + did_w + 2 + label_w + 2 + cmd_hdr_w + 2 + pid_state_w + 2 + …
+        hdr = (
+            f"     "                                  # 3 (prefix) + 2 (verified)
+            f"{'DID':<{did_w}}  "
+            f"{'Label':<{label_w}}  "
+            f"{cmd_hdr:<{cmd_hdr_w}}  "
+            f"{pid_state_hdr:<{pid_state_w}}  "
+            f"Last response"
+        )
+        lines.append(f"\033[2m{hdr}\033[0m")
+        lines.append(f"\033[2m  {ruler}\033[0m")
 
         for i, did in enumerate(self.dids):
             cmd = self.cmds[did]
@@ -307,50 +356,54 @@ class _IOControlTUI:
             sv = self.status_val.get(did)
             sp = cmd.get("status_param")
 
-            # Cursor indicator
+            # Cursor indicator (3 chars: " ▸ " or "   ")
             prefix = " \033[1m▸\033[0m " if is_cursor else "   "
 
-            # State display
+            # Verified marker (1 char + space = 2)
+            v_mark = "\033[32m✓\033[0m " if cmd["verified"] else "\033[33m?\033[0m "
+
+            # DID + Label (bold if cursor)
+            b0 = "\033[1m" if is_cursor else ""
+            b1 = "\033[0m" if is_cursor else ""
+            did_label = f"{b0}{did:<{did_w}}  {cmd['label']:<{label_w}}{b1}"
+
+            # "Cmd" column — what we last sent (3 visible chars)
             if state == "on":
-                state_part = "\033[1;32m● ON \033[0m"
+                cmd_part = "\033[1;32mON \033[0m"
             elif state == "off":
-                state_part = "\033[2m  OFF\033[0m"
+                cmd_part = "\033[2mOFF\033[0m"
             elif state == "error":
-                state_part = "\033[1;31m✗ ERR\033[0m"
+                cmd_part = "\033[1;31mERR\033[0m"
             else:
-                state_part = "\033[2m  ·  \033[0m"
+                cmd_part = "\033[2m · \033[0m"
 
-            # Verified marker
-            if cmd["verified"]:
-                v_part = "\033[32m✓\033[0m"
-            else:
-                v_part = "\033[33m?\033[0m"
-
-            # Status value display
+            # "Read PID" column — live mapped readback value
             if sp is None:
-                status_part = f"\033[2m{'—':<{status_w}}\033[0m"
+                # No mapping — show dash
+                ps_text = f"{'—':<{pid_state_w}}"
+                pid_part = f"\033[2m{ps_text}\033[0m"
             elif sv is None:
-                status_part = f"\033[2m{'…':<{status_w}}\033[0m"
+                # Mapped but not yet polled — show param name dimmed
+                ps_text = f"{_truncate_text(sp, pid_state_w):<{pid_state_w}}"
+                pid_part = f"\033[2m{ps_text}\033[0m"
             elif sv.startswith("ERR"):
-                status_part = f"\033[31m{sv:<{status_w}}\033[0m"
+                ps_text = f"{_truncate_text(sv, pid_state_w):<{pid_state_w}}"
+                pid_part = f"\033[31m{ps_text}\033[0m"
+            elif sv.strip() == "1":
+                ps_text = f"{'1':<{pid_state_w}}"
+                pid_part = f"\033[1;32m{ps_text}\033[0m"
+            elif sv.strip() == "0":
+                ps_text = f"{'0':<{pid_state_w}}"
+                pid_part = f"\033[2m{ps_text}\033[0m"
             else:
-                # Highlight 1 (on) in green, 0 (off) dimmed
-                if sv.strip() == "1":
-                    status_part = f"\033[1;32m{'1':<{status_w}}\033[0m"
-                elif sv.strip() == "0":
-                    status_part = f"\033[2m{'0':<{status_w}}\033[0m"
-                else:
-                    status_part = f"{sv:<{status_w}}"
+                pid_part = f"{_truncate_text(sv, pid_state_w):<{pid_state_w}}"
 
-            bold_on = "\033[1m" if is_cursor else ""
-            bold_off = "\033[0m" if is_cursor else ""
+            # Response column — raw hex, dimmed
             resp_part = f"  \033[2m{resp}\033[0m" if resp else ""
 
             lines.append(
-                f"{prefix}{bold_on}{did:<{did_w}}  {cmd['label']:<{label_w}}{bold_off}  "
-                f"{state_part}  {v_part} {status_part}{resp_part}"
+                f"{prefix}{v_mark}{did_label}  {cmd_part}  {pid_part}{resp_part}"
             )
-
 
         lines.append("")
         if self._hex_input is not None:

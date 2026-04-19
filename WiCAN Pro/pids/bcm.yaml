@@ -514,17 +514,18 @@ BCM:
         Sleep (locked): NRC 0x22: conditionsNotCorrect
 
     B006:
-      availability: []
-      label: Unknown
+      availability: [acc, ready]
+      label: Parking sensors
       verified: false
       on: "2FB00603"
       off: "2FB00600"
       notes: >
+        Turns on blue parking sensors switch LED
         Sleep (locked): NRC 0x22: conditionsNotCorrect
 
     B008:
       availability: []
-      label: Unknown
+      label: Wiper Motor (slow)
       verified: false
       on: "2FB00803"
       off: "2FB00800"
@@ -533,7 +534,7 @@ BCM:
 
     B009:
       availability: []
-      label: Unknown
+      label: Wiper Motor (fast)
       verified: false
       on: "2FB00903"
       off: "2FB00900"
@@ -561,11 +562,12 @@ BCM:
     B019:
       availability: []
       label: Room lamp (interior)
-      verified: false
+      verified: true
       on: "2FB01903"
       off: "2FB01900"
       notes: >
         Sleep (locked): No visible effect, but no NRC
+        ACC: Confirmed
 
     B01A:
       availability: []
@@ -590,7 +592,7 @@ BCM:
       on: "2FB02803"
       off: "2FB02800"
       notes: >
-        Possibly window or wiper motor.
+        ACC: ConditionsNotCorrect
 
     B029:
       availability: []
@@ -612,28 +614,28 @@ BCM:
 
     B038:
       availability: []
-      label: Unknown
+      label: Seatbelt warning (driver)
       verified: false
       on: "2FB03803"
       off: "2FB03800"
 
     B039:
       availability: []
-      label: Unknown
+      label: Seatbelt warning (passenger 1)
       verified: false
       on: "2FB03903"
       off: "2FB03900"
 
     B03A:
       availability: []
-      label: Unknown
+      label: Seatbelt pass 2
       verified: false
       on: "2FB03A03"
       off: "2FB03A00"
 
     B03B:
       availability: []
-      label: Unknown
+      label: Seatbelt pass 3
       verified: false
       on: "2FB03B03"
       off: "2FB03B00"
@@ -656,8 +658,8 @@ BCM:
 
     B059:
       availability: []
-      label: Heated door handle / heated steering wheel
-      verified: false
+      label: Heated steering wheel
+      verified: true
       on: "2FB05903"
       off: "2FB05900"
       notes: >
@@ -666,7 +668,7 @@ BCM:
 
     B05A:
       availability: []
-      label: Heated door handle LED
+      label: Heated steering wheel LED
       verified: false
       on: "2FB05A03"
       off: "2FB05A00"

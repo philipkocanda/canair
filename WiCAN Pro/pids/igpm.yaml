@@ -315,12 +315,12 @@ IGPM:
 
     BC05:
       availability: [sleep, plugged, acc, ign, ready, charging]
-      label: Red backlight flash
+      label: Blue instrument LEDs
       verified: false
       on: "2FBC0503"
       off: "2FBC0500"
       notes: >
-        No visible effect during test — may be CHMSL (center high-mount stop lamp) flash.
+        Also turns on green indicator on dash.
 
     BC07:
       availability: [sleep, plugged, acc, ign, ready, charging]
@@ -357,6 +357,7 @@ IGPM:
       off: "2FBC0A00"
       notes: >
         Likely puddle lights or DRL greeting on unlock.
+        ACC: Tested, no visible result.
 
     BC0C:
       availability: [sleep, plugged, acc, ign, ready, charging]
@@ -366,6 +367,7 @@ IGPM:
       off: "2FBC0C00"
       notes: >
         Well-documented on e-Niro/Soul — defrosts rear window.
+        ACC: Confirmed (loud click). Also lights button on HVAC controls.
 
     BC10:
       availability: [sleep, plugged, acc, ign, ready, charging]
@@ -395,8 +397,7 @@ IGPM:
       off: "2FBC1200"
       status_param: DOOR_LOCK_FL
       notes: >
-        May trigger alarm. Test with keyfob in hand.
-        Soul uses 6F prefix — may unlock driver door only.
+        Acc: clicking relay (click-clack). Heated mirror?
 
     BC13:
       availability: [sleep, plugged, acc, ign, ready, charging]
@@ -405,16 +406,17 @@ IGPM:
       on: "2FBC1303"
       off: "2FBC1300"
       notes: >
+        Acc: same clicking relay sound as BC12 (click-clack).
         NRC 0x22 (conditionsNotCorrect) — may need ignition on or other precondition.
 
     BC14:
       availability: [sleep, plugged, acc, ign, ready, charging]
-      label: Individual door unlock (2)
+      label: Unknown (conditionsNotCorrect in ACC)
       verified: false
       on: "2FBC1403"
       off: "2FBC1400"
       notes: >
-        May trigger alarm. Soul uses 6F prefix — may unlock a specific door.
+        ?
 
     BC15:
       availability: [sleep, plugged, acc, ign, ready, charging]
@@ -442,17 +444,18 @@ IGPM:
 
     BC1B:
       availability: [sleep, plugged, acc, ign, ready, charging]
-      label: Reverse / side marker light
+      label: Unknown
       verified: false
       on: "2FBC1B03"
       off: "2FBC1B00"
       notes: >
+        Acc: relay single click. tlTurns off dome light! (maybe cuts power to stuff?)
         NRC 0x22 — may be reverse light (only accepts when car is in reverse gear?).
 
     BC1C:
       availability: [sleep, plugged, acc, ign, ready, charging]
       label: Luggage lamp
-      verified: false
+      verified: true
       on: "2FBC1C03"
       off: "2FBC1C00"
 
@@ -505,6 +508,7 @@ IGPM:
       on: "2FBC4103"
       off: "2FBC4100"
       notes: >
+        Car inmediately re-activates it. Safety? 
         May not stop active charge session — test with caution!
 
     BC42:
@@ -533,6 +537,7 @@ IGPM:
       off: "2FBC4400"
       notes: >
         Accepted but no visible/audible effect. Tested 2026-04-15 (Ready mode).
+        ACC: ConditionsNotCorrect.
   research:
     - type: decode
       target: "22BC01"
