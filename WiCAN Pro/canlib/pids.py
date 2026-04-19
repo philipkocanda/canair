@@ -87,12 +87,19 @@ def build_param_index(pids_data: dict) -> dict:
     return index
 
 
-def build_iocontrol_index(pids_data: dict) -> dict:
-    """Build lookup: ECU_NAME -> {tx_id, cmds: {DID: {label, on, off, session, hold, verified, notes}}}."""
+def build_iocontrol_index(pids_data: dict, include_discoveries: bool = False) -> dict:
+    """Build lookup: ECU_NAME -> {tx_id, cmds: {DID: {label, on, off, session, hold, verified, notes, discovery}}}.
+
+    When ``include_discoveries=True``, entries from the ``iocontrol_discoveries:``
+    section are merged in with ``discovery=True``. Curated ``iocontrol:`` entries
+    take precedence if a DID appears in both. Discovery entries get safe defaults
+    (label="?", on="", off="", verified=False, session=True, discovery=True).
+    """
     index = {}
     for ecu_name, ecu_def in pids_data.get("ecus", {}).items():
         ioctrl = ecu_def.get("iocontrol", {})
-        if not ioctrl:
+        discoveries = ecu_def.get("iocontrol_discoveries", {}) if include_discoveries else {}
+        if not ioctrl and not discoveries:
             continue
         cmds = {}
         for did, cdef in ioctrl.items():
@@ -109,6 +116,24 @@ def build_iocontrol_index(pids_data: dict) -> dict:
                 "verified": cdef.get("verified", False),
                 "notes": cdef.get("notes", ""),
                 "status_param": cdef.get("status_param", None),
+                "discovery": False,
+            }
+        for did, ddef in discoveries.items():
+            did_str = str(did).upper()
+            if did_str in cmds:
+                # Curated entry wins; discovery is shadowed.
+                continue
+            ddef = ddef or {}
+            cmds[did_str] = {
+                "label": "?",
+                "on": "",
+                "off": "",
+                "session": (ddef.get("session", "extended") == "extended"),
+                "hold": True,
+                "verified": False,
+                "notes": ddef.get("notes", ""),
+                "status_param": None,
+                "discovery": True,
             }
         index[ecu_name.upper()] = {
             "tx_id": ecu_def["tx_id"],
