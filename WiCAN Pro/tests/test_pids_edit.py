@@ -15,6 +15,7 @@ from canlib.pids_edit import (
     EDITABLE_FIELDS,
     PidsEditError,
     find_ecu_file,
+    promote_discovery,
     update_iocontrol_field,
 )
 
@@ -49,6 +50,20 @@ TEST:
       verified: false
       on: "2FAA0303"
       off: "2FAA0300"
+
+  iocontrol_discoveries:
+    BB01:
+      session: extended
+      response: "6FBB010100"
+      notes: ""
+    BB02:
+      session: extended
+      response: "6FBB02010000"
+      notes: ""
+    BB03:
+      session: extended
+      response: "6FBB03"
+      notes: ""
 
   pids:
     2200:
@@ -168,3 +183,65 @@ class TestGuards:
 
     def test_editable_fields_list(self):
         assert set(EDITABLE_FIELDS) == {"label", "verified", "notes"}
+
+
+class TestPromoteDiscovery:
+    def test_promotes_with_inferred_single_byte_state(self, tmp_pids_dir: Path):
+        """BB01 response 6FBB010100 → tail=0100 → on=2FBB01030100 (replay state)."""
+        promote_discovery("TEST", "BB01", "Fan speed", pids_dir=tmp_pids_dir)
+        data = _reload(tmp_pids_dir / "test.yaml")
+        entry = data["TEST"]["iocontrol"]["BB01"]
+        assert entry["label"] == "Fan speed"
+        assert entry["verified"] is False
+        # YAML parses bare on/off keys as booleans
+        assert entry[True] == "2FBB01030100"
+        assert entry[False] == "2FBB0100"
+        # Removed from discoveries
+        assert "BB01" not in (data["TEST"].get("iocontrol_discoveries") or {})
+
+    def test_infers_from_longer_response(self, tmp_pids_dir: Path):
+        """BB02 response 6FBB02010000 → tail=010000 → on=2FBB0203010000."""
+        promote_discovery("TEST", "BB02", "Three-byte actuator", pids_dir=tmp_pids_dir)
+        data = _reload(tmp_pids_dir / "test.yaml")
+        assert data["TEST"]["iocontrol"]["BB02"][True] == "2FBB0203010000"
+
+    def test_falls_back_on_short_response(self, tmp_pids_dir: Path):
+        """BB03 response 6FBB03 (3 bytes, no tail) → fallback payload 00."""
+        promote_discovery("TEST", "BB03", "Fallback default", pids_dir=tmp_pids_dir)
+        data = _reload(tmp_pids_dir / "test.yaml")
+        assert data["TEST"]["iocontrol"]["BB03"][True] == "2FBB030300"
+
+    def test_removes_discoveries_section_when_emptied(self, tmp_pids_dir: Path):
+        promote_discovery("TEST", "BB01", "a", pids_dir=tmp_pids_dir)
+        promote_discovery("TEST", "BB02", "b", pids_dir=tmp_pids_dir)
+        promote_discovery("TEST", "BB03", "c", pids_dir=tmp_pids_dir)
+        raw = (tmp_pids_dir / "test.yaml").read_text()
+        assert "iocontrol_discoveries:" not in raw
+        data = _reload(tmp_pids_dir / "test.yaml")
+        assert set(data["TEST"]["iocontrol"]) >= {"AA01", "AA02", "AA03", "BB01", "BB02", "BB03"}
+
+    def test_keeps_other_discoveries_intact(self, tmp_pids_dir: Path):
+        promote_discovery("TEST", "BB01", "a", pids_dir=tmp_pids_dir)
+        data = _reload(tmp_pids_dir / "test.yaml")
+        disc = data["TEST"]["iocontrol_discoveries"]
+        assert set(disc) == {"BB02", "BB03"}
+
+    def test_refuses_duplicate_did(self, tmp_pids_dir: Path):
+        with pytest.raises(PidsEditError, match="already exists"):
+            promote_discovery("TEST", "AA01", "dup", pids_dir=tmp_pids_dir)
+
+    def test_unknown_did(self, tmp_pids_dir: Path):
+        with pytest.raises(PidsEditError):
+            promote_discovery("TEST", "FFFF", "nope", pids_dir=tmp_pids_dir)
+
+    def test_rejects_invalid_did_format(self, tmp_pids_dir: Path):
+        with pytest.raises(PidsEditError, match="4 hex digits"):
+            promote_discovery("TEST", "ZZZZ", "bad", pids_dir=tmp_pids_dir)
+
+    def test_rejects_empty_label(self, tmp_pids_dir: Path):
+        with pytest.raises(PidsEditError, match="label"):
+            promote_discovery("TEST", "BB01", "   ", pids_dir=tmp_pids_dir)
+
+    def test_unknown_ecu(self, tmp_pids_dir: Path):
+        with pytest.raises(PidsEditError):
+            promote_discovery("NOPE", "BB01", "x", pids_dir=tmp_pids_dir)

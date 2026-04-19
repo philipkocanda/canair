@@ -28,6 +28,38 @@ NRC_CODES = {
     0x7F: "serviceNotSupportedInActiveSession",
 }
 
+# Short mnemonics for compact UI display (TUI "Last response" column, etc).
+# Derived from the initials of each NRC name; use `nrc_abbrev(n)` for lookup.
+NRC_ABBREV = {
+    0x10: "GR",     # generalReject
+    0x11: "SNS",    # serviceNotSupported
+    0x12: "SFNS",   # subFunctionNotSupported
+    0x13: "IMLIF",  # incorrectMessageLengthOrInvalidFormat
+    0x14: "RTL",    # responseTooLong
+    0x21: "BRR",    # busyRepeatRequest
+    0x22: "CNC",    # conditionsNotCorrect
+    0x24: "RSE",    # requestSequenceError
+    0x25: "NRFSC",  # noResponseFromSubnetComponent
+    0x26: "FPE",    # failurePreventsExecution
+    0x31: "ROOR",   # requestOutOfRange
+    0x33: "SAD",    # securityAccessDenied
+    0x35: "IK",     # invalidKey
+    0x36: "ENOA",   # exceededNumberOfAttempts
+    0x37: "RTDNE",  # requiredTimeDelayNotExpired
+    0x70: "UDNA",   # uploadDownloadNotAccepted
+    0x71: "TDS",    # transferDataSuspended
+    0x72: "GPF",    # generalProgrammingFailure
+    0x73: "WBSC",   # wrongBlockSequenceCounter
+    0x78: "RCRRP",  # requestCorrectlyReceivedResponsePending
+    0x7E: "SFNSIAS",  # subFunctionNotSupportedInActiveSession
+    0x7F: "SNSIAS",   # serviceNotSupportedInActiveSession
+}
+
+
+def nrc_abbrev(nrc: int) -> str:
+    """Short mnemonic for an NRC, or ``?`` if unknown."""
+    return NRC_ABBREV.get(nrc, "?")
+
 # UDS services that can write to ECU memory, reflash firmware, or actuate
 # physical outputs. Blocked by default to prevent accidental damage.
 BLOCKED_UDS_SERVICES = {

@@ -15,8 +15,9 @@ import tty
 from datetime import datetime
 from pathlib import Path
 
+from ..elm327 import nrc_abbrev
 from ..pids import build_iocontrol_index, load_pids
-from ..pids_edit import PidsEditError, update_iocontrol_field
+from ..pids_edit import PidsEditError, promote_discovery, update_iocontrol_field
 from ..terminal import WiCANTerminal
 from .status import format_status_value, query_param_status
 
@@ -29,6 +30,11 @@ _tui_logger = logging.getLogger("iocontrol-tui")
 def _terminal_columns(default: int = 120) -> int:
     """Best-effort terminal width for table layout."""
     return shutil.get_terminal_size(fallback=(default, 24)).columns
+
+
+def _terminal_lines(default: int = 24) -> int:
+    """Best-effort terminal height for viewport sizing."""
+    return shutil.get_terminal_size(fallback=(120, default)).lines
 
 
 def _truncate_text(text: str, width: int) -> str:
@@ -263,6 +269,9 @@ class _IOControlTUI:
         e            Edit label (writes to pids/<ecu>.yaml)
         n            Edit notes (writes to pids/<ecu>.yaml)
         m            Toggle verified (writes to pids/<ecu>.yaml)
+        d            Cycle view: curated / all / discoveries
+        P            Promote current discovery to curated entry (on/off
+                     inferred from response length; prompts for label)
         q / Ctrl+C   Quit (auto-OFF any active actuator)
     """
 
@@ -277,12 +286,20 @@ class _IOControlTUI:
         self.terminal = terminal
         self.ecu_key = ecu_key
         self.tx_id = ecu_info["tx_id"]
-        self.cmds = ecu_info["cmds"]
+        # Full cmd map (curated + discoveries); filtered view is in self.cmds.
+        self.all_cmds = ecu_info["cmds"]
         self.pids_data = pids_data
         self.verbose = verbose
 
-        # Ordered list of DID keys
-        self.dids = list(self.cmds.keys())
+        # View mode cycles through:
+        #   "curated"     — only hand-authored iocontrol: entries
+        #   "all"         — curated + scanner-discovered entries
+        #   "discoveries" — only unpromoted discoveries (for triage)
+        # Starts on "curated" so existing muscle memory is unchanged; user
+        # presses 'd' to cycle to review newly scanned DIDs.
+        self.view_mode = "curated"
+        self._apply_view_filter()
+
         self.cursor = 0
 
         # Per-DID state: None=idle, "on"=active, "off"=sent off, "error"=failed
@@ -290,9 +307,11 @@ class _IOControlTUI:
         self.last_response: dict[str, str] = {}  # DID → last response text
         self.last_value: dict[str, bytes] = {}  # DID → last ShortTermAdjustment value bytes
 
-        # Per-DID status: mapped param current value (polled in background)
-        # key = DID, value = display string or None
-        self.status_val: dict[str, str | None] = {d: None for d in self.dids}
+        # Per-DID status: trailing bytes (controlStatusRecord) from the last
+        # 0x2F response for this DID, rendered as hex. Populated by both the
+        # background poll loop (2F {DID} 00 returnControlToECU) and by every
+        # ON/OFF/ADJUST send. None = never seen a response yet.
+        self.status_bytes: dict[str, str | None] = {d: None for d in self.dids}
         self._status_polling = False  # True while background poll loop is running
 
         self._session_active = False
@@ -306,76 +325,164 @@ class _IOControlTUI:
         # toggled directly (no input buffer).
         self._edit_input: tuple[str, str] | None = None
 
+        # Scroll viewport: index of the first DID rendered on screen. Auto-
+        # adjusted in ``_clamp_viewport()`` so the cursor is always visible.
+        self._scroll_top = 0
+
+    def _apply_view_filter(self):
+        """Populate ``self.cmds`` / ``self.dids`` from ``self.all_cmds`` per view mode.
+
+        Preserves insertion order from ``all_cmds`` (which in turn reflects
+        YAML order: curated first, then discoveries). Called by ``__init__``
+        and every time ``self.view_mode`` changes.
+        """
+        if self.view_mode == "curated":
+            filtered = {d: c for d, c in self.all_cmds.items() if not c.get("discovery")}
+        elif self.view_mode == "discoveries":
+            filtered = {d: c for d, c in self.all_cmds.items() if c.get("discovery")}
+        else:  # "all"
+            filtered = dict(self.all_cmds)
+        self.cmds = filtered
+        self.dids = list(filtered.keys())
+
+    def _cycle_view(self):
+        """Advance ``view_mode`` and re-apply the filter. Resets cursor/scroll."""
+        order = ("curated", "all", "discoveries")
+        try:
+            idx = order.index(self.view_mode)
+        except ValueError:
+            idx = 0
+        # Skip modes that would produce an empty list (e.g. no discoveries
+        # in this ECU at all) so the user doesn't hit a blank screen.
+        for step in range(1, len(order) + 1):
+            candidate = order[(idx + step) % len(order)]
+            probe_cmds = self.all_cmds
+            if candidate == "curated":
+                probe = [d for d, c in probe_cmds.items() if not c.get("discovery")]
+            elif candidate == "discoveries":
+                probe = [d for d, c in probe_cmds.items() if c.get("discovery")]
+            else:
+                probe = list(probe_cmds.keys())
+            if probe:
+                self.view_mode = candidate
+                break
+        self._apply_view_filter()
+        # Reset per-DID state dicts for any new DIDs (missing keys would KeyError).
+        for d in self.dids:
+            self.state.setdefault(d, None)
+            self.status_bytes.setdefault(d, None)
+        self.cursor = 0
+        self._scroll_top = 0
+
     def _render(self) -> str:
         """Build the display as a plain string with ANSI codes."""
         lines = []
         lines.append(f"\033[1;36m  IOControl TUI — {self.ecu_key} (0x{self.tx_id:03X})\033[0m")
         sess = "\033[32mactive\033[0m" if self._session_active else "\033[2mnot started\033[0m"
         poll = "  \033[2m[polling]\033[0m" if self._status_polling else ""
-        lines.append(f"\033[2m  Session: \033[0m{sess}{poll}")
+        # View-mode indicator: curated / all / discoveries, colour-coded.
+        curated_n = sum(1 for c in self.all_cmds.values() if not c.get("discovery"))
+        disc_n = sum(1 for c in self.all_cmds.values() if c.get("discovery"))
+        if self.view_mode == "curated":
+            mode_lbl = f"\033[36mcurated\033[0m ({curated_n})"
+        elif self.view_mode == "discoveries":
+            mode_lbl = f"\033[33mdiscoveries\033[0m ({disc_n} to triage)"
+        else:
+            mode_lbl = f"\033[1mall\033[0m ({curated_n}+{disc_n})"
+        lines.append(f"\033[2m  Session: \033[0m{sess}{poll}   \033[2mView: \033[0m{mode_lbl}")
         lines.append("")
 
         # Fixed column widths (ANSI codes don't count toward padding — we pad
         # the *text* content to the desired width, then wrap in colour codes).
         term_w = _terminal_columns()
         did_w   = max((len(d) for d in self.dids), default=4)
-        label_w = max((len(self.cmds[d]["label"]) for d in self.dids), default=5)
+        raw_label_w = max((len(self.cmds[d]["label"]) for d in self.dids), default=5)
 
         # "Cmd" column: what we sent (ON / OFF / idle) — always 3 visible chars
         cmd_hdr = "Cmd"
         cmd_hdr_w = len(cmd_hdr)   # 3
 
-        # "Read PID" column: current value for the mapped readback PID.
-        # This is only a best-effort hint; some IOControl actions do not update
-        # the readable status registers even when the actuator is physically on.
-        # Width = max of: all current display strings, all param names (shown
-        # as placeholder before first poll), and the header text.
-        pid_state_hdr = "Read PID"
-        pid_vals_w = max(
-            (
-                len(self.status_val[d]) if self.status_val[d] else len(self.cmds[d].get("status_param") or "—")
-                for d in self.dids
-            ),
-            default=len(pid_state_hdr),
+        # "Status" column: trailing bytes of the last 0x2F response for this
+        # DID (controlStatusRecord). Populated by background 2F{DID}00 polling
+        # and by every ON/OFF send. Empty = no tail bytes, None = never polled.
+        status_hdr = "Status"
+        status_vals_w = max(
+            (len(self.status_bytes[d] or "") for d in self.dids),
+            default=len(status_hdr),
         )
-        fixed_w = 5 + did_w + 2 + label_w + 2 + cmd_hdr_w + 2 + 2 + 13
-        pid_state_w = min(max(pid_vals_w, len(pid_state_hdr)), 100, max(len(pid_state_hdr), term_w - fixed_w))
+        # Width budget: prefix(5) + did + 2 + label + 2 + 3 + 2 + status + 2 + 13
+        # Non-flex components = 5 + did_w + 2 + 2 + 3 + 2 + 2 + 13 = 29 + did_w
+        non_flex = 29 + did_w
+        # Reserve at least 5 chars for status_w, then give label what's left;
+        # if we still don't fit, shrink label first (down to a floor of 8),
+        # then shrink status to fit the terminal.
+        min_status_w = max(len(status_hdr), 5)
+        avail = max(0, term_w - non_flex - min_status_w)
+        label_w = min(raw_label_w, max(8, avail)) if avail else max(8, raw_label_w)
+        status_w = min(max(status_vals_w, len(status_hdr)), 40, max(min_status_w, term_w - non_flex - label_w))
 
-        # Separator widths for the ruler
-        total_w = 5 + did_w + 2 + label_w + 2 + cmd_hdr_w + 2 + pid_state_w + 2 + 13
-        ruler = "─" * total_w
+        # Separator widths for the ruler. The header line starts at column 0
+        # (5-space prefix is part of its content); the ruler line is inset by
+        # 2 spaces as visual scaffolding, so shrink it by 2 to match width.
+        total_w = 5 + did_w + 2 + label_w + 2 + cmd_hdr_w + 2 + status_w + 2 + 13
+        ruler = "─" * max(1, total_w - 2)
 
         # Header row — plain text, dim
-        # Layout: 3 (prefix) + 2 (verified mark) + did_w + 2 + label_w + 2 + cmd_hdr_w + 2 + pid_state_w + 2 + …
+        # Layout: 3 (prefix) + 2 (verified mark) + did_w + 2 + label_w + 2 + cmd_hdr_w + 2 + status_w + 2 + …
         hdr = (
             f"     "                                  # 3 (prefix) + 2 (verified)
             f"{'DID':<{did_w}}  "
             f"{'Label':<{label_w}}  "
             f"{cmd_hdr:<{cmd_hdr_w}}  "
-            f"{pid_state_hdr:<{pid_state_w}}  "
+            f"{status_hdr:<{status_w}}  "
             f"Last response"
         )
         lines.append(f"\033[2m{hdr}\033[0m")
         lines.append(f"\033[2m  {ruler}\033[0m")
 
-        for i, did in enumerate(self.dids):
+        # Viewport: chrome above (3 banner + 2 column header = 5 lines) and
+        # below (1 scroll-indicator + 1 status/input + 1 key-hint = 3 lines)
+        # leaves N rows for DIDs. Clamp scroll_top so the cursor is visible.
+        term_h = _terminal_lines()
+        chrome = 5 + 3
+        viewport_rows = max(5, term_h - chrome)
+        n_dids = len(self.dids)
+        # Clamp scroll_top into range and make sure the cursor is on-screen.
+        if self.cursor < self._scroll_top:
+            self._scroll_top = self.cursor
+        elif self.cursor >= self._scroll_top + viewport_rows:
+            self._scroll_top = self.cursor - viewport_rows + 1
+        self._scroll_top = max(0, min(self._scroll_top, max(0, n_dids - viewport_rows)))
+        visible_start = self._scroll_top
+        visible_end = min(n_dids, self._scroll_top + viewport_rows)
+
+        for i in range(visible_start, visible_end):
+            did = self.dids[i]
             cmd = self.cmds[did]
             is_cursor = i == self.cursor
             state = self.state[did]
             resp = self.last_response.get(did, "")
-            sv = self.status_val.get(did)
-            sp = cmd.get("status_param")
+            sb = self.status_bytes.get(did)
 
             # Cursor indicator (3 chars: " ▸ " or "   ")
             prefix = " \033[1m▸\033[0m " if is_cursor else "   "
 
-            # Verified marker (1 char + space = 2)
-            v_mark = "\033[32m✓\033[0m " if cmd["verified"] else "\033[33m?\033[0m "
+            # Verified / discovery marker (1 char + space = 2):
+            #   ✓  — curated, verified
+            #   ?  — curated, unverified
+            #   »  — scanner-discovered (not yet promoted)
+            if cmd.get("discovery"):
+                v_mark = "\033[35m»\033[0m "
+            elif cmd["verified"]:
+                v_mark = "\033[32m✓\033[0m "
+            else:
+                v_mark = "\033[33m?\033[0m "
 
             # DID + Label (bold if cursor)
             b0 = "\033[1m" if is_cursor else ""
             b1 = "\033[0m" if is_cursor else ""
-            did_label = f"{b0}{did:<{did_w}}  {cmd['label']:<{label_w}}{b1}"
+            label_text = _truncate_text(cmd["label"], label_w)
+            did_label = f"{b0}{did:<{did_w}}  {label_text:<{label_w}}{b1}"
 
             # "Cmd" column — what we last sent (3 visible chars)
             if state == "on":
@@ -387,35 +494,41 @@ class _IOControlTUI:
             else:
                 cmd_part = "\033[2m · \033[0m"
 
-            # "Read PID" column — live mapped readback value
-            if sp is None:
-                # No mapping — show dash
-                ps_text = f"{'—':<{pid_state_w}}"
-                pid_part = f"\033[2m{ps_text}\033[0m"
-            elif sv is None:
-                # Mapped but not yet polled — show param name dimmed
-                ps_text = f"{_truncate_text(sp, pid_state_w):<{pid_state_w}}"
-                pid_part = f"\033[2m{ps_text}\033[0m"
-            elif sv.startswith("ERR"):
-                ps_text = f"{_truncate_text(sv, pid_state_w):<{pid_state_w}}"
-                pid_part = f"\033[31m{ps_text}\033[0m"
-            elif sv.strip() == "1":
-                ps_text = f"{'1':<{pid_state_w}}"
-                pid_part = f"\033[1;32m{ps_text}\033[0m"
-            elif sv.strip() == "0":
-                ps_text = f"{'0':<{pid_state_w}}"
-                pid_part = f"\033[2m{ps_text}\033[0m"
+            # "Status" column — trailing bytes of the last 0x2F response.
+            # None = never observed (waiting for first poll). "" = positive
+            # response with no tail bytes (3-byte 6F{DID} echo only).
+            if sb is None:
+                text = f"{'—':<{status_w}}"
+                status_part = f"\033[2m{text}\033[0m"
+            elif sb == "":
+                text = f"{'·':<{status_w}}"
+                status_part = f"\033[2m{text}\033[0m"
+            elif sb.startswith("ERR") or sb.startswith("NRC"):
+                text = f"{_truncate_text(sb, status_w):<{status_w}}"
+                status_part = f"\033[31m{text}\033[0m"
             else:
-                pid_part = f"{_truncate_text(sv, pid_state_w):<{pid_state_w}}"
+                text = f"{_truncate_text(sb, status_w):<{status_w}}"
+                status_part = f"\033[36m{text}\033[0m"
 
             # Response column — raw hex, dimmed
             resp_part = f"  \033[2m{resp}\033[0m" if resp else ""
 
             lines.append(
-                f"{prefix}{v_mark}{did_label}  {cmd_part}  {pid_part}{resp_part}"
+                f"{prefix}{v_mark}{did_label}  {cmd_part}  {status_part}{resp_part}"
             )
 
-        lines.append("")
+        # Scroll indicator: show position + ↑/↓ hints when list overflows.
+        if n_dids > viewport_rows:
+            above = visible_start
+            below = n_dids - visible_end
+            up = "\033[33m↑\033[0m" if above else "\033[2m·\033[0m"
+            dn = "\033[33m↓\033[0m" if below else "\033[2m·\033[0m"
+            lines.append(
+                f"\033[2m  {up}{dn} {self.cursor + 1}/{n_dids} "
+                f"(viewing {visible_start + 1}–{visible_end}, {above}↑ {below}↓)\033[0m"
+            )
+        else:
+            lines.append("")
         if self._hex_input is not None:
             did = self.dids[self.cursor]
             lines.append(f"  \033[1;33mValue for {did} (hex): \033[0m{self._hex_input}\033[5m▏\033[0m")
@@ -423,12 +536,20 @@ class _IOControlTUI:
         elif self._edit_input is not None:
             did = self.dids[self.cursor]
             field, buf = self._edit_input
-            lines.append(
-                f"  \033[1;33m{field.capitalize()} for {did}: \033[0m{buf}\033[5m▏\033[0m"
-            )
-            lines.append(
-                "\033[2m  Type new value, Enter to save to pids/*.yaml, Esc to cancel\033[0m"
-            )
+            if field == "promote":
+                lines.append(
+                    f"  \033[1;33mLabel for new curated entry from {did}: \033[0m{buf}\033[5m▏\033[0m"
+                )
+                lines.append(
+                    "\033[2m  on/off inferred from response length; Enter to save, Esc to cancel\033[0m"
+                )
+            else:
+                lines.append(
+                    f"  \033[1;33m{field.capitalize()} for {did}: \033[0m{buf}\033[5m▏\033[0m"
+                )
+                lines.append(
+                    "\033[2m  Type new value, Enter to save to pids/*.yaml, Esc to cancel\033[0m"
+                )
         elif self._status:
             lines.append(f"  {self._status}")
         # Show last value hint for +/- keys
@@ -437,8 +558,8 @@ class _IOControlTUI:
         if did in self.last_value:
             val_hint = f"  \033[2mlast value: {self.last_value[did].hex().upper()}\033[0m"
         lines.append(
-            f"\033[2m  ↑↓/jk Nav  Enter Toggle  o OFF  v Value  +/- Step  "
-            f"e Label  n Notes  m Verified  q Quit\033[0m{val_hint}"
+            f"\033[2m  ↑↓/jk Nav  PgUp/Dn  g/G Top/Bot  Enter Toggle  o OFF  v Value  +/- Step  "
+            f"e Label  n Notes  m Verified  d View  P Promote  q Quit\033[0m{val_hint}"
         )
         return "\n".join(lines)
 
@@ -451,6 +572,27 @@ class _IOControlTUI:
         ok, self._tester_task = await self.terminal.enter_extended_session()
         self._session_active = ok
         _tui_logger.info("Session established: %s", ok)
+
+    def _extract_status_bytes(self, did: str, resp: dict) -> None:
+        """Extract the controlStatusRecord tail from a 0x2F response and store it.
+
+        A positive 0x2F response is `6F {DID_HI} {DID_LO} [tail bytes...]`.
+        We store the tail bytes (anything after the 3-byte echo) as an
+        uppercase hex string in ``self.status_bytes[did]``.
+
+        - Positive with tail: ``"AA BB"`` (space-separated bytes)
+        - Positive with no tail: ``""``
+        - Negative (NRC): ``f"NRC {nrc:02X} {abbrev}"``
+        - Transport error: ``"ERR"``
+        """
+        if resp.get("ok"):
+            b = resp.get("bytes") or []
+            tail = b[3:] if len(b) >= 3 else []
+            self.status_bytes[did] = " ".join(f"{x:02X}" for x in tail)
+        elif resp.get("nrc") is not None:
+            self.status_bytes[did] = f"NRC {resp['nrc']:02X} {nrc_abbrev(resp['nrc'])}"
+        else:
+            self.status_bytes[did] = "ERR"
 
     async def _send_on(self, did: str):
         """Send ON command for a DID."""
@@ -469,12 +611,13 @@ class _IOControlTUI:
                 await self._ensure_session()
             resp = await self.terminal.send_uds(hex_cmd, timeout=3.0)
             _tui_logger.info("ON  %s resp: %s", did, resp)
+            self._extract_status_bytes(did, resp)
             if resp["ok"]:
                 self.state[did] = "on"
                 self.last_response[did] = resp["hex"]
             elif resp.get("nrc") is not None:
                 self.state[did] = "error"
-                self.last_response[did] = f"NRC 0x{resp['nrc']:02X}: {resp['nrc_desc']}"
+                self.last_response[did] = f"NRC 0x{resp['nrc']:02X} {nrc_abbrev(resp['nrc'])}"
             else:
                 self.state[did] = "error"
                 self.last_response[did] = resp.get("error", "unknown error")
@@ -501,12 +644,13 @@ class _IOControlTUI:
         try:
             resp = await self.terminal.send_uds(hex_cmd, timeout=3.0)
             _tui_logger.info("OFF %s resp: %s", did, resp)
+            self._extract_status_bytes(did, resp)
             if resp["ok"]:
                 self.state[did] = "off"
                 self.last_response[did] = resp["hex"]
             elif resp.get("nrc") is not None:
                 self.state[did] = "error"
-                self.last_response[did] = f"NRC 0x{resp['nrc']:02X}: {resp['nrc_desc']}"
+                self.last_response[did] = f"NRC 0x{resp['nrc']:02X} {nrc_abbrev(resp['nrc'])}"
             else:
                 self.state[did] = "error"
                 self.last_response[did] = resp.get("error", "unknown error")
@@ -555,13 +699,14 @@ class _IOControlTUI:
                 await self._ensure_session()
             resp = await self.terminal.send_uds(hex_cmd, timeout=3.0)
             _tui_logger.info("ADJ %s resp: %s", did, resp)
+            self._extract_status_bytes(did, resp)
             if resp["ok"]:
                 self.state[did] = "on"
                 self.last_response[did] = resp["hex"]
                 self.last_value[did] = value_bytes
             elif resp.get("nrc") is not None:
                 self.state[did] = "error"
-                self.last_response[did] = f"NRC 0x{resp['nrc']:02X}: {resp['nrc_desc']}"
+                self.last_response[did] = f"NRC 0x{resp['nrc']:02X} {nrc_abbrev(resp['nrc'])}"
                 self.last_value[did] = value_bytes  # still store for +/- stepping
             else:
                 self.state[did] = "error"
@@ -576,80 +721,48 @@ class _IOControlTUI:
             self._busy = False
 
     async def _poll_status_once(self):
-        """Query all mapped status_param PIDs once and update status_val."""
-        from ..pids import build_param_index
+        """Poll every DID once by sending ``2F {DID} 00`` (returnControlToECU).
 
-        param_index = build_param_index(self.pids_data)
+        This is the safe no-op IOControl sub-function per ISO 14229-1 §10.4 —
+        it does not actuate anything, but ECUs that support the DID return a
+        positive response including the current ``controlStatusRecord`` tail
+        bytes. Those bytes are stored in ``self.status_bytes[did]`` and
+        rendered in the "Status" column.
 
-        # Build per-DID query list: DID → param_name (skip DIDs with no status_param)
-        did_params = {
-            did: self.cmds[did]["status_param"]
-            for did in self.dids
-            if self.cmds[did].get("status_param")
-        }
-        if not did_params:
-            return
+        Bails early if the TUI is busy (mid-ON/OFF/ADJUST) or quitting; the
+        scheduling loop in ``_status_poll_loop`` retries on the next tick.
 
-        # Deduplicate: group DIDs that share the same (tx_id, pid) so we only
-        # send one UDS request per PID and evaluate expressions for all DIDs
-        # that reference params from it.
-        from ..elm327 import elm_hex_to_wican_bytes
-        from ..expression import evaluate_expression
-
-        pid_to_dids: dict[tuple, list] = {}  # (tx_id, pid) → list of (did, param_name)
-        for did, pname in did_params.items():
-            key = pname.upper()
-            if key not in param_index:
-                self.status_val[did] = "?"
-                continue
-            pinfo = param_index[key]
-            pid_key = (pinfo["tx_id"], pinfo["pid"])
-            pid_to_dids.setdefault(pid_key, []).append((did, pname, pinfo))
-
-        for (tx_id, pid), did_list in pid_to_dids.items():
+        Most 0x2F DIDs require an extended diagnostic session, so we open
+        one (same mechanism as the ON/OFF paths) before the first poll.
+        """
+        # Ensure extended session — 0x2F typically returns NRC 7F without it.
+        if not self._session_active:
             if self._quit or self._busy:
                 return
+            await self._ensure_session()
+            if not self._session_active:
+                _tui_logger.warning("poll: could not establish extended session")
+                return
+
+        # Make sure we're talking to the right ECU header.
+        await self.terminal.set_header(self.tx_id)
+
+        for did in self.dids:
+            if self._quit or self._busy:
+                return
+            did_hex = did.upper()
+            req = f"2F{did_hex}00"
             try:
-                await self.terminal.set_header(tx_id)
-                response = await self.terminal.send_uds(pid, timeout=3.0)
+                resp = await self.terminal.send_uds(req, timeout=3.0)
             except Exception as exc:
-                for did, pname, _ in did_list:
-                    self.status_val[did] = f"ERR: {exc}"
+                self.status_bytes[did] = "ERR"
+                _tui_logger.warning("poll %s exception: %s", did, exc)
                 continue
-
-            if not response["ok"]:
-                nrc = response.get("nrc")
-                if nrc is not None:
-                    err_str = f"NRC {nrc:02X}"
-                else:
-                    err_str = response.get("error", "?")
-                for did, pname, _ in did_list:
-                    self.status_val[did] = f"ERR: {err_str}"
-                continue
-
-            try:
-                wican_bytes = elm_hex_to_wican_bytes(response["hex"])
-            except Exception as exc:
-                for did, pname, _ in did_list:
-                    self.status_val[did] = f"ERR: {exc}"
-                continue
-
-            for did, pname, pinfo in did_list:
-                try:
-                    val = evaluate_expression(pinfo["expression"], wican_bytes)
-                    val = round(val * 100) / 100
-                    unit = pinfo.get("unit", "")
-                    result = {"param": pname, "value": val, "unit": unit, "error": None}
-                    self.status_val[did] = format_status_value(result)
-                except Exception as exc:
-                    self.status_val[did] = f"ERR: {exc}"
-
-        # Restore header to ECU's tx_id after status queries may have changed it
-        if not self._quit:
-            await self.terminal.set_header(self.tx_id)
+            _tui_logger.debug("poll %s req=%s resp=%s", did, req, resp)
+            self._extract_status_bytes(did, resp)
 
     async def _status_poll_loop(self, interval: float = 3.0):
-        """Background loop: poll all status params every `interval` seconds."""
+        """Background loop: poll every DID's status bytes every ``interval`` seconds."""
         self._status_polling = True
         _tui_logger.info("Status poll loop started (interval=%.1fs)", interval)
         try:
@@ -699,18 +812,67 @@ class _IOControlTUI:
 
         # Reload pids_data from disk and rebuild the iocontrol index so the
         # TUI reflects the change. We mutate the existing dict in place so
-        # any references held elsewhere stay valid.
+        # any references held elsewhere stay valid. Preserve discoveries so
+        # the current view-mode filter keeps working.
         try:
             fresh = load_pids()
             self.pids_data.clear()
             self.pids_data.update(fresh)
-            idx = build_iocontrol_index(self.pids_data)
-            self.cmds = idx[self.ecu_key]["cmds"]
+            idx = build_iocontrol_index(self.pids_data, include_discoveries=True)
+            self.all_cmds = idx[self.ecu_key]["cmds"]
+            self._apply_view_filter()
+            for d in self.dids:
+                self.state.setdefault(d, None)
+                self.status_bytes.setdefault(d, None)
         except Exception as exc:  # reload failure is non-fatal; in-memory stale
             _tui_logger.warning("reload after edit failed: %s", exc)
 
         self._status = f"\033[32mSaved {field} on {did} → {fpath.name}\033[0m"
         _tui_logger.info("edit %s %s=%r -> %s", did, field, value, fpath)
+
+    def _apply_promote(self, did: str, label: str) -> None:
+        """Promote a discovery DID to a curated entry and reload state.
+
+        ``on``/``off`` are inferred from the discovery's captured response
+        length (see ``pids_edit.promote_discovery``). The user refines the
+        payload afterwards via ``e``/direct YAML edit if needed.
+        """
+        label = label.strip()
+        if not label:
+            self._status = "\033[31mPromote cancelled: empty label\033[0m"
+            return
+        try:
+            fpath = promote_discovery(self.ecu_key, did, label)
+        except PidsEditError as exc:
+            self._status = f"\033[31mPromote failed: {exc}\033[0m"
+            _tui_logger.error("promote %s label=%r: %s", did, label, exc)
+            return
+
+        # Reload from disk so the curated entry (with inferred on/off) is
+        # picked up and the discovery disappears from the discoveries view.
+        try:
+            fresh = load_pids()
+            self.pids_data.clear()
+            self.pids_data.update(fresh)
+            idx = build_iocontrol_index(self.pids_data, include_discoveries=True)
+            self.all_cmds = idx[self.ecu_key]["cmds"]
+            self._apply_view_filter()
+            for d in self.dids:
+                self.state.setdefault(d, None)
+                self.status_bytes.setdefault(d, None)
+            # Keep cursor on the same DID if still visible, else clamp.
+            if did in self.dids:
+                self.cursor = self.dids.index(did)
+            else:
+                self.cursor = min(self.cursor, max(0, len(self.dids) - 1))
+        except Exception as exc:
+            _tui_logger.warning("reload after promote failed: %s", exc)
+
+        self._status = (
+            f"\033[32mPromoted {did} → curated (on/off inferred) — "
+            f"verify & refine via 'e'\033[0m"
+        )
+        _tui_logger.info("promote %s label=%r -> %s", did, label, fpath)
 
     def _draw(self):
         """Clear screen and draw the full frame."""
@@ -761,9 +923,10 @@ class _IOControlTUI:
             tty.setcbreak(fd)  # cbreak instead of raw — allows signal handling
             loop.add_reader(fd, _on_stdin_ready)
 
-            # Start background status polling if any DIDs have status_param mapped
-            has_status = any(self.cmds[d].get("status_param") for d in self.dids)
-            poll_task = asyncio.ensure_future(self._status_poll_loop()) if has_status else None
+            # Start background status polling. Every IOControl DID supports
+            # 2F {DID} 00 (returnControlToECU) as a safe no-op probe, so we
+            # poll unconditionally — no need to check for mapped status_param.
+            poll_task = asyncio.ensure_future(self._status_poll_loop())
 
             self._draw()
 
@@ -797,7 +960,10 @@ class _IOControlTUI:
                     elif key in ("\r", "\n"):  # Enter — save
                         self._edit_input = None
                         did = self.dids[self.cursor]
-                        self._apply_edit(did, field, buf)
+                        if field == "promote":
+                            self._apply_promote(did, buf)
+                        else:
+                            self._apply_edit(did, field, buf)
                     elif key in ("\x7f", "\x08"):  # Backspace
                         self._edit_input = (field, buf[:-1])
                     elif len(key) == 1 and (key.isprintable() or key == "\t"):
@@ -825,6 +991,16 @@ class _IOControlTUI:
                     self.cursor = max(0, self.cursor - 1)
                 elif key in ("\x1b[B", "j"):  # Down arrow or j
                     self.cursor = min(len(self.dids) - 1, self.cursor + 1)
+                elif key in ("\x1b[5~", "\x02"):  # PageUp / Ctrl+B
+                    page = max(1, _terminal_lines() - 10)
+                    self.cursor = max(0, self.cursor - page)
+                elif key in ("\x1b[6~", "\x06"):  # PageDown / Ctrl+F
+                    page = max(1, _terminal_lines() - 10)
+                    self.cursor = min(len(self.dids) - 1, self.cursor + page)
+                elif key in ("\x1b[H", "g"):  # Home / g — jump to top
+                    self.cursor = 0
+                elif key in ("\x1b[F", "G"):  # End / G — jump to bottom
+                    self.cursor = len(self.dids) - 1
                 elif key in ("\r", "\n", " "):  # Enter or Space — toggle ON/OFF
                     if not self._busy:
                         did = self.dids[self.cursor]
@@ -864,6 +1040,16 @@ class _IOControlTUI:
                     did = self.dids[self.cursor]
                     new_val = not bool(self.cmds[did].get("verified", False))
                     self._apply_edit(did, "verified", new_val)
+                elif key == "d" and not self._busy:  # Cycle view (curated/all/discoveries)
+                    self._cycle_view()
+                elif key == "P" and not self._busy:  # Promote discovery
+                    did = self.dids[self.cursor]
+                    if not self.cmds[did].get("discovery"):
+                        self._status = (
+                            "\033[33mNot a discovery — use 'e' to edit curated entries\033[0m"
+                        )
+                    else:
+                        self._edit_input = ("promote", "")
 
                 self._draw()
 
@@ -897,7 +1083,7 @@ async def mode_iocontrol_tui(
     verbose: bool = False,
 ):
     """Interactive IOControl TUI for an ECU."""
-    ioctrl_index = build_iocontrol_index(pids_data)
+    ioctrl_index = build_iocontrol_index(pids_data, include_discoveries=True)
     ecu_key = ecu_name.upper()
 
     if ecu_key not in ioctrl_index:

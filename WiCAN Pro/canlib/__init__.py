@@ -3,9 +3,11 @@
 from .constants import DEFAULT_WICAN, ECUS_FILE, PIDS_DIR, SCRIPT_DIR, WICAN_ADDRESSES
 from .elm327 import (
     BLOCKED_UDS_SERVICES,
+    NRC_ABBREV,
     NRC_CODES,
     check_command_safety,
     elm_hex_to_wican_bytes,
+    nrc_abbrev,
     parse_elm_response,
 )
 from .formatting import (
@@ -23,6 +25,7 @@ __all__ = [
     "BLOCKED_UDS_SERVICES",
     "DEFAULT_WICAN",
     "ECUS_FILE",
+    "NRC_ABBREV",
     "NRC_CODES",
     "PIDS_DIR",
     "SCRIPT_DIR",
@@ -39,6 +42,7 @@ __all__ = [
     "load_pids",
     "log_command",
     "log_response",
+    "nrc_abbrev",
     "parse_elm_response",
     "print_decoded_params",
     "print_ecu_results",
