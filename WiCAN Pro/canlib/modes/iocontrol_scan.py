@@ -232,12 +232,25 @@ async def scan_ecu(
 
 
 # Default DID ranges to scan per ECU (tuple of (start, end) pairs).
-# Based on HKMC convention: body actuators live in B0-BF, comfort in F0-FF.
+# Informed by the HKMC body-controller DID map:
+#   B000-B07F  exterior lamps (head/tail/turn)
+#   B080-B0FF  interior lamps + chimes
+#   B100-B1FF  wipers, horn
+#   B200-B2FF  door locks
+#   B300-B3FF  windows, mirror
+#   B400-B5FF  seats (PSM-owned)
+#   B600-B7FF  steering-wheel heater
+#   BC00-BCFF  EV accessory (IGPM-owned)
+#   BD00-BDFF  extended EV accessory
+#   C000-C0FF  TPMS
+#   F000-F2FF  HVAC climate
+# Curated hits so far cluster in these zones; the broader B800-BBFF /
+# B800-BFFF gaps are empty in practice so we skip them.
 DEFAULT_ECU_RANGES: dict[str, list[tuple[int, int]]] = {
-    "IGPM": [(0xB000, 0xBFFF)],
-    "BCM": [(0xB000, 0xCFFF)],
+    "IGPM": [(0xB000, 0xBFFF), (0xBD00, 0xBDFF), (0xC000, 0xC0FF)],
+    "BCM":  [(0xB000, 0xB3FF), (0xB400, 0xB7FF), (0xC000, 0xC0FF), (0xF000, 0xF0FF)],
     "HVAC": [(0xF000, 0xFFFF)],
-    "PSM": [(0xB000, 0xB5FF)],
+    "PSM":  [(0xB000, 0xBFFF)],
 }
 
 
