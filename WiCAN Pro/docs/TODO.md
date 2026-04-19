@@ -1,5 +1,6 @@
 # Reverse Engineering TODOs
 
+- [ ] ⭐️ IDEA: Check recorded data (WiCAN's data logger) and use it to validate findings and guide next steps. Look for patterns in the data that can help identify unknown PIDs or confirm hypotheses about existing ones (IDEA: for unknown (bit)fields specifically - we can just add them as "candidate" PIDs with a note that they need verification, and then use the recorded data to confirm or refute them, using other known PIDs as reference!). 
 - [ ] Scan HVAC for IOControl (e.g. blower speed control, A/C on/off)
 - [ ] Test BCM IOControl with ACC ON <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NEXT!!!
 - [ ] Test BCM IOControl with car asleep & unlocked

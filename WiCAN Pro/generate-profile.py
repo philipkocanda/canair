@@ -142,7 +142,7 @@ def to_device_format(profile: dict, data: dict | None = None) -> dict:
     if data:
         for ecu in data["ecus"].values():
             for pid_data in ecu["pids"].values():
-                for param_name, param in pid_data["parameters"].items():
+                for param_name, param in pid_data.get("parameters", {}).items():
                     param_meta[param_name] = param
 
     device_profile = {
