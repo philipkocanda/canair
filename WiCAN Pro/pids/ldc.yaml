@@ -140,11 +140,17 @@ LDC:
         - "Kia Niro PR#660"
     - type: decode
       target: "2102"
-      status: captured
-      priority: P2
+      status: analyzed
+      priority: P3
       prerequisite: [charging]
-      date: "2026-04-18"
-      notes: "34 bytes captured during charging. Undecoded."
+      date: "2026-04-19"
+      notes: >
+        34 bytes captured during charging. Payload identical across Apr 14 and Apr 19 sessions —
+        static factory calibration data, not live measurements. Structure after header (6102 FFFC 0000):
+        7 pairs of uint16 big-endian values alternating (variable, 79xx reference).
+        Variable values: 684F, 694A, 6E84, 650F, 7499, 7293, 7482 (range 25871-29849).
+        Reference values: 792A, 7928, 7927, 791B, 791F, 792B, 7931 (range 30971-30993).
+        Likely ADC calibration table. Low priority — no live data value.
     - type: scan
       target: "22 E001-E011"
       status: done
