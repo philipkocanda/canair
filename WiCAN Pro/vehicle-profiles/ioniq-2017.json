@@ -129,13 +129,13 @@
         "HVAC_IAT": "(B11/2)-40",
         "HVAC_AAT": "(B12/2)-40",
         "HVAC_EVAPORATOR_TEMP": "(B13/2)-40",
-        "HVAC_HUMIDITY": "B9/255*100",
         "HVAC_BLOWER_FAN_DUTY": "B15",
         "HVAC_BLOWER_FAN_FEEDBACK": "B17",
         "HVAC_COMPRESSOR_TRANSITION": "B22",
         "HVAC_DUCT_TEMP_1": "(B36/2)-40",
         "HVAC_DUCT_TEMP_2": "(B37/2)-40",
         "HVAC_VENT_OUTLET_TEMP": "(B38/2)-40",
+        "HVAC_FAN_SPEED_LEVEL": "B33",
         "HVAC_AC_COMPRESSOR_ON": "B44"
       }
     },
@@ -164,6 +164,7 @@
         "HVAC_STARTUP_FLAG": "B22",
         "HVAC_COOLING_MODE": "B25",
         "HVAC_PTC_HEATER_FLAG": "B06",
+        "HVAC_MAX_FAN_FLAG": "B57",
         "HVAC_DEFROST_FLAGS": "(B58 << 8) | B59"
       }
     },
@@ -182,7 +183,7 @@
         "TAIL_LIGHTS": "B12:3",
         "HIGH_BEAM": "B12:4",
         "LOW_BEAM": "B12:5",
-        "IGNITION_ON": "B11:5",
+        "ACC2_IGN_ON": "B11:5",
         "IGPM_CONFIG_BYTE": "B09",
         "SEATBELT_FL": "B11:1",
         "SEATBELT_FR": "B11:2",
