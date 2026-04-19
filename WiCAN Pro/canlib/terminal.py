@@ -247,18 +247,32 @@ class WiCANTerminal:
         if self.verbose:
             print(f"  [header] ATFCSH{hex_id} -> {resp!r}", file=sys.stderr)
 
-    async def send_uds(self, service_pid: str, timeout: float | None = None) -> dict:
+    async def send_uds(
+        self,
+        service_pid: str,
+        timeout: float | None = None,
+        expected_sid: int | None = None,
+        expected_did: int | None = None,
+    ) -> dict:
         """Send a UDS request and parse the response.
 
         Args:
             service_pid: UDS request hex string (e.g., "2101", "22C00B")
             timeout: WebSocket-level timeout in seconds (see send_command docstring)
+            expected_sid: If set, parser validates the response echoes this SID
+                (catches stale frames from previous requests).
+            expected_did: If set along with ``expected_sid``, parser also
+                validates the DID echo in bytes 1..2 of the positive response.
 
         Returns:
             Parsed response dict from parse_elm_response()
         """
         raw = await self.send_command(service_pid, timeout=timeout)
-        return parse_elm_response(raw)
+        return parse_elm_response(
+            raw,
+            expected_sid=expected_sid,
+            expected_did=expected_did,
+        )
 
     async def enter_extended_session(self, wake: bool = False) -> tuple[bool, asyncio.Task | None]:
         """Enter extended diagnostic session (10 03) and start TesterPresent keepalive.

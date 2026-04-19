@@ -107,16 +107,35 @@ def check_command_safety(cmd: str) -> str | None:
     return None
 
 
-def parse_elm_response(raw: str) -> dict:
+def parse_elm_response(
+    raw: str,
+    expected_sid: int | None = None,
+    expected_did: int | None = None,
+) -> dict:
     """Parse an ELM327 response into structured data.
 
+    Args:
+        raw: Raw ELM327 text response.
+        expected_sid: If set, the positive response must echo this request SID
+            (i.e. response byte 0 == expected_sid + 0x40). Mismatches are
+            reported as ``error="SID mismatch: ..."`` and ``ok=False``. Used
+            to catch stale/misaligned responses from the ELM327 adapter
+            where a late-arriving frame from a previous request leaks into
+            the next read (seen during 0x2F IOControl scans — see
+            ``canlib/modes/iocontrol_scan.py``).
+        expected_did: If set AND ``expected_sid`` is set, the positive
+            response must also echo this 16-bit DID in bytes 1..2
+            (big-endian). Used by services that carry a DID
+            immediately after the SID: 0x22 ReadDataByIdentifier,
+            0x2E WriteDataByIdentifier, 0x2F InputOutputControlByIdentifier.
+
     Returns dict with keys:
-        ok: bool - whether a positive response was received
+        ok: bool - whether a positive and (if requested) echo-matching response was received
         hex: str - raw hex string of response data (if ok)
         bytes: bytes - parsed response bytes (if ok)
         nrc: int - negative response code (if not ok)
         nrc_desc: str - NRC description (if not ok)
-        error: str - error message (if parse failed)
+        error: str - error message (if parse failed or echo mismatched)
         raw: str - original response text
     """
     result = {"raw": raw, "ok": False}
@@ -213,7 +232,42 @@ def parse_elm_response(raw: str) -> dict:
         result["nrc"] = nrc
         result["nrc_service"] = response_bytes[1]
         result["nrc_desc"] = NRC_CODES.get(nrc, f"unknown (0x{nrc:02X})")
+        if expected_sid is not None and response_bytes[1] != expected_sid:
+            # NRC is reporting rejection for a *different* service — this is
+            # a stale/misaligned frame, not a real NRC for our request.
+            result["error"] = (
+                f"NRC echo mismatch: NRC service byte 0x{response_bytes[1]:02X} "
+                f"!= expected SID 0x{expected_sid:02X}"
+            )
+            # Keep nrc/nrc_desc for diagnostics, but leave ok=False.
+            result.pop("nrc", None)
+            result.pop("nrc_service", None)
+            result.pop("nrc_desc", None)
         return result
+
+    if expected_sid is not None:
+        expected_resp_sid = (expected_sid + 0x40) & 0xFF
+        if response_bytes[0] != expected_resp_sid:
+            result["error"] = (
+                f"SID mismatch: response SID 0x{response_bytes[0]:02X} "
+                f"!= expected 0x{expected_resp_sid:02X} "
+                f"(for request SID 0x{expected_sid:02X})"
+            )
+            return result
+        if expected_did is not None:
+            if len(response_bytes) < 3:
+                result["error"] = (
+                    f"Response too short for DID echo: "
+                    f"got {len(response_bytes)} bytes, need >= 3"
+                )
+                return result
+            got_did = (response_bytes[1] << 8) | response_bytes[2]
+            if got_did != expected_did:
+                result["error"] = (
+                    f"DID mismatch: response DID 0x{got_did:04X} "
+                    f"!= expected 0x{expected_did:04X}"
+                )
+                return result
 
     result["ok"] = True
     return result

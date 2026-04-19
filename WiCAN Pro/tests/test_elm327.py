@@ -113,6 +113,74 @@ class TestParseElmResponse:
         assert r["raw"] == "NO DATA"
 
 
+class TestEchoValidation:
+    """SID/DID echo validation catches stale/misaligned frames buffered
+    in the ELM327 adapter — the off-by-one we saw during IGPM 0x2F scans
+    where a late 6FBC0900 leaked into the next read and got recorded as
+    BC0A's response."""
+
+    def test_sid_echo_ok(self):
+        r = parse_elm_response("6F BC 0A 00", expected_sid=0x2F, expected_did=0xBC0A)
+        assert r["ok"] is True
+        assert r["hex"] == "6FBC0A00"
+
+    def test_sid_mismatch_detected(self):
+        """Response SID 0x62 (from a 0x22 request) arriving in a 0x2F read."""
+        r = parse_elm_response("62 BC 0A 00", expected_sid=0x2F, expected_did=0xBC0A)
+        assert r["ok"] is False
+        assert "SID mismatch" in r["error"]
+        assert "0x62" in r["error"]
+        assert "0x6F" in r["error"]
+
+    def test_did_mismatch_detected(self):
+        """The off-by-one: probe BC0A gets back BC09's late response."""
+        r = parse_elm_response("6F BC 09 00", expected_sid=0x2F, expected_did=0xBC0A)
+        assert r["ok"] is False
+        assert "DID mismatch" in r["error"]
+        assert "0xBC09" in r["error"]
+        assert "0xBC0A" in r["error"]
+
+    def test_response_too_short_for_did(self):
+        r = parse_elm_response("6F BC", expected_sid=0x2F, expected_did=0xBC0A)
+        assert r["ok"] is False
+        assert "too short" in r["error"].lower()
+
+    def test_garbage_first_byte_rejected(self):
+        """The '7E00' anomaly seen in discoveries — not a valid 2F response."""
+        r = parse_elm_response("7E 00", expected_sid=0x2F, expected_did=0xBB51)
+        assert r["ok"] is False
+        # '7E00' parses as 2 bytes; first is 0x7E != 0x6F → SID mismatch
+        assert "SID mismatch" in r["error"]
+
+    def test_nrc_with_matching_service_ok(self):
+        """NRC 0x7F {SID=0x2F} {0x31} — correctly-addressed NRC for our 0x2F request."""
+        r = parse_elm_response("7F 2F 31", expected_sid=0x2F, expected_did=0xBC0A)
+        assert r["ok"] is False
+        assert r["nrc"] == 0x31
+        assert r.get("error") is None  # No mismatch error
+
+    def test_nrc_with_wrong_service_rejected(self):
+        """NRC 0x7F {SID=0x22} {0x31} arriving in a 0x2F scan — stale frame."""
+        r = parse_elm_response("7F 22 31", expected_sid=0x2F, expected_did=0xBC0A)
+        assert r["ok"] is False
+        assert "NRC echo mismatch" in r["error"]
+        # The stale nrc is suppressed so scanner doesn't misclassify as "absent"
+        assert "nrc" not in r
+
+    def test_validation_disabled_by_default(self):
+        """Without expected_sid, old behaviour preserved — no mismatch check."""
+        r = parse_elm_response("6F BC 09 00")
+        assert r["ok"] is True
+        r = parse_elm_response("7F 22 31")
+        assert r["ok"] is False
+        assert r["nrc"] == 0x31
+
+    def test_sid_only_without_did(self):
+        """expected_sid alone validates SID but not DID echo."""
+        r = parse_elm_response("6F BC 99 00", expected_sid=0x2F)
+        assert r["ok"] is True  # SID matches, DID not checked
+
+
 # --- elm_hex_to_wican_bytes ---
 
 
