@@ -692,8 +692,8 @@ Examples:
         metavar="START-END",
         default=None,
         help="Data ID range for --iocontrol-scan (hex, e.g. B000-BFFF). "
-        "If omitted, uses per-ECU defaults: IGPM=B000-BFFF, BCM=B000-CFFF, "
-        "HVAC=F000-FFFF, PSM=B000-B5FF.",
+        "If omitted, uses per-ECU defaults from DEFAULT_ECU_RANGES "
+        "(HKMC-informed zones: body B000-B7FF, TPMS C000-C0FF, HVAC F000-FFFF).",
     )
     parser.add_argument(
         "--throttle-ms",
