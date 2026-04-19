@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# PYTHON_ARGCOMPLETE_OK
 """Send custom CAN/UDS requests to the Ioniq via WiCAN's WebSocket terminal.
 
 Uses the WiCAN ELM327 terminal mode over WebSocket (ws://<ip>/ws) to send
@@ -35,6 +36,11 @@ import argparse
 import asyncio
 import re
 import sys
+
+try:
+    import argcomplete
+except ImportError:  # pragma: no cover - optional dep
+    argcomplete = None
 
 # Force line-buffered stdout so output appears immediately when piped
 if not sys.stdout.isatty():
@@ -365,6 +371,68 @@ async def async_main(args):
             reboot_wican(host)
 
 
+# --- Shell completion helpers (argcomplete) --------------------------------
+# Lazy-load pids/ only when tab-completion is triggered, so normal CLI startup
+# stays fast. Failures are swallowed (completion is best-effort).
+
+
+def _load_pids_for_completion():
+    try:
+        return load_pids()
+    except Exception:
+        return None
+
+
+def _ecu_completer(prefix, parsed_args=None, **kwargs):
+    """Complete ECU names from pids/*.yaml (e.g. BMS, IGPM, HVAC)."""
+    data = _load_pids_for_completion()
+    if not data:
+        return []
+    names = list(data.get("ecus", {}).keys())
+    up = prefix.upper()
+    return [n for n in names if n.upper().startswith(up)]
+
+
+def _pid_completer(prefix, parsed_args=None, **kwargs):
+    """Complete PID codes. Narrows to --ecu's PIDs if that arg is set."""
+    data = _load_pids_for_completion()
+    if not data:
+        return []
+    ecus = data.get("ecus", {})
+    ecu_filter = getattr(parsed_args, "ecu", None)
+    pids = set()
+    if ecu_filter and ecu_filter.upper() in {k.upper() for k in ecus}:
+        # Case-insensitive lookup
+        target = next(k for k in ecus if k.upper() == ecu_filter.upper())
+        pids.update(ecus[target].get("pids", {}).keys())
+    else:
+        for info in ecus.values():
+            pids.update(info.get("pids", {}).keys())
+    # Keys are typically int (YAML parses "2101" as decimal int 2101 -- same glyphs
+    # as the hex code, which is why this works) or str (e.g. "BC01"). Render both
+    # via str() and normalize to uppercase hex-style without 0x prefix.
+    codes = [str(p).upper().removeprefix("0X") for p in pids]
+    up = prefix.upper()
+    return sorted(c for c in codes if c.startswith(up))
+
+
+def _param_completer(prefix, parsed_args=None, **kwargs):
+    """Complete parameter names (--param) from all ECUs' pids."""
+    data = _load_pids_for_completion()
+    if not data:
+        return []
+    names = set()
+    for info in data.get("ecus", {}).values():
+        for pid_info in info.get("pids", {}).values():
+            if not isinstance(pid_info, dict):
+                continue
+            for param in pid_info.get("params", []) or []:
+                if isinstance(param, dict) and "name" in param:
+                    names.add(param["name"])
+    up = prefix.upper()
+    return sorted(n for n in names if n.upper().startswith(up))
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="canreq",
@@ -439,10 +507,10 @@ Examples:
         nargs="+",
         metavar="NAME",
         help="Query named parameters (e.g., SOC_BMS SOC_DISP)",
-    )
+    ).completer = _param_completer
     mode.add_argument(
         "--ecu", metavar="NAME", help="Query all parameters for an ECU (e.g., BMS, VCU)"
-    )
+    ).completer = _ecu_completer
     mode.add_argument("--raw", metavar="TX:PID", help="Raw UDS request (e.g., 7E4:2101)")
     mode.add_argument(
         "--scan",
@@ -484,7 +552,7 @@ Examples:
         "With --did, sends the ON command (or OFF with --off). "
         "Use --json without --did for offline JSON listing. "
         "Session and hold behavior are auto-applied from pids/ YAML.",
-    )
+    ).completer = _ecu_completer
     mode.add_argument(
         "--routines-scan",
         nargs="*",
@@ -494,7 +562,7 @@ Examples:
         "SAFE: sub-function 0x03 never starts a routine. Default ECUs: IGPM, BCM, "
         "HVAC (SKM excluded). Default range: F000-F0FF. Hits are written to "
         "pids/<ecu>.yaml under a routines: section.",
-    )
+    ).completer = _ecu_completer
     mode.add_argument(
         "--iocontrol-scan",
         nargs="*",
@@ -505,7 +573,7 @@ Examples:
         "ECUs: IGPM, BCM, HVAC, PSM. Uses per-ECU default ranges (B0-BF for "
         "body ECUs, F0-FF for HVAC) unless --did-range is given. Hits are "
         "written to pids/<ecu>.yaml under an iocontrol_discoveries: section.",
-    )
+    ).completer = _ecu_completer
     mode.add_argument(
         "--multi",
         nargs="+",
@@ -518,7 +586,9 @@ Examples:
     )
 
     # ECU/PID mode options
-    parser.add_argument("--pid", metavar="PID", help="Filter by PID code (for --ecu mode)")
+    parser.add_argument(
+        "--pid", metavar="PID", help="Filter by PID code (for --ecu mode)"
+    ).completer = _pid_completer
 
     # IOControl mode options
     parser.add_argument(
@@ -705,6 +775,8 @@ Examples:
         help="Steal the connection lock if another session is still running (use after a killed session)",
     )
 
+    if argcomplete is not None:
+        argcomplete.autocomplete(parser)
     args = parser.parse_args()
 
     lock = WiCANLock()
