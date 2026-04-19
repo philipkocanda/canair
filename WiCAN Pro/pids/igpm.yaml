@@ -260,6 +260,9 @@ IGPM:
         indicator. B10: 0x19 (ACC/deep sleep Apr 14-16), 0x11 (deep sleep Apr 17), 0x18
         (ACC2+charging Apr 19). Slow-changing, possibly a counter or state register.
         Sample (ACC2+charging): 62BC070841FBCC00801800.
+        **TODO: Most likely register for charge cable lock STATUS** — probe with cable
+        plugged/unplugged while parked to find the toggling bit. IOControl lock/unlock
+        commands (BC3F/BC41) exist but no status read DID is confirmed yet.
       parameters: {}
 
     22BC08:
@@ -281,6 +284,7 @@ IGPM:
       verified: true
       on: "2FBC0103"
       off: "2FBC0100"
+      status_param: LOW_BEAM
       notes: >
         Headlights on.
 
@@ -290,6 +294,7 @@ IGPM:
       verified: true
       on: "2FBC0203"
       off: "2FBC0200"
+      status_param: HIGH_BEAM
 
     BC03:
       availability: [sleep, plugged, acc, ign, ready, charging]
@@ -306,6 +311,7 @@ IGPM:
       verified: true
       on: "2FBC0403"
       off: "2FBC0400"
+      status_param: TAIL_LIGHTS
 
     BC05:
       availability: [sleep, plugged, acc, ign, ready, charging]
@@ -339,6 +345,7 @@ IGPM:
       verified: true
       on: "2FBC0903"
       off: "2FBC0900"
+      status_param: TRUNK_OPEN
       notes: >
         Triggers alarm if car is locked! Releases latch only (no lift motor).
 
@@ -366,6 +373,7 @@ IGPM:
       verified: true
       on: "2FBC1003"
       off: "2FBC1000"
+      status_param: DOOR_LOCK_FL
       notes: >
         Does NOT arm alarm — only locks doors.
 
@@ -375,6 +383,7 @@ IGPM:
       verified: true
       on: "2FBC1103"
       off: "2FBC1100"
+      status_param: DOOR_LOCK_FL
       notes: >
         Does NOT disarm alarm — opening door will trigger horn!
 
@@ -384,6 +393,7 @@ IGPM:
       verified: false
       on: "2FBC1203"
       off: "2FBC1200"
+      status_param: DOOR_LOCK_FL
       notes: >
         May trigger alarm. Test with keyfob in hand.
         Soul uses 6F prefix — may unlock driver door only.
@@ -412,6 +422,7 @@ IGPM:
       verified: true
       on: "2FBC1503"
       off: "2FBC1500"
+      status_param: LEFT_TURN_SIGNAL
 
     BC16:
       availability: [sleep, plugged, acc, ign, ready, charging]
@@ -419,6 +430,7 @@ IGPM:
       verified: true
       on: "2FBC1603"
       off: "2FBC1600"
+      status_param: RIGHT_TURN_SIGNAL
 
     BC18:
       availability: [sleep, plugged, acc, ign, ready, charging]
@@ -426,6 +438,7 @@ IGPM:
       verified: true
       on: "2FBC1803"
       off: "2FBC1800"
+      status_param: DRL
 
     BC1B:
       availability: [sleep, plugged, acc, ign, ready, charging]
@@ -458,6 +471,7 @@ IGPM:
       verified: true
       on: "2FBC2B03"
       off: "2FBC2B00"
+      status_param: BRAKE_LIGHT
 
     BC2C:
       availability: [sleep, plugged, acc, ign, ready, charging]
@@ -465,6 +479,7 @@ IGPM:
       verified: true
       on: "2FBC2C03"
       off: "2FBC2C00"
+      status_param: BRAKE_LIGHT
 
     BC2D:
       availability: [sleep, plugged, acc, ign, ready, charging]
@@ -472,6 +487,7 @@ IGPM:
       verified: true
       on: "2FBC2D03"
       off: "2FBC2D00"
+      status_param: BRAKE_LIGHT
       notes: >
         Center high-mount stop lamp. Confirmed 2026-04-15.
 

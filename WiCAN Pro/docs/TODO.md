@@ -1,5 +1,9 @@
 # Reverse Engineering TODOs
 
+- [ ] ⭐️ Find charge cable lock **status** flag — IOControl commands exist (BC3F=lock, BC41=unlock) but no status read DID is known. Most likely candidate: `22BC07` (already has a charging-active bit at B09:7). Probe with cable plugged/unplugged while parked to find the toggling bit. Also try `22BC05` and `22BC01`/`22BC02`.
+
+- [ ] Streamline canreq.py API: the --multi command should be the promary entrypoint for everything. It is best tested
+      . Unless there is a reason to have both.
 - [ ] ⭐️ IDEA: Check recorded data (WiCAN's data logger) and use it to validate findings and guide next steps. Look for patterns in the data that can help identify unknown PIDs or confirm hypotheses about existing ones (IDEA: for unknown (bit)fields specifically - we can just add them as "candidate" PIDs with a note that they need verification, and then use the recorded data to confirm or refute them, using other known PIDs as reference!). 
 - [ ] Scan HVAC for IOControl (e.g. blower speed control, A/C on/off)
 - [ ] Test BCM IOControl with ACC ON <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NEXT!!!
