@@ -82,14 +82,27 @@ async def probe_iocontrol(
     did: int,
     sub_function: int = SF_RETURN_CONTROL,
 ) -> dict:
-    """Send ``2F {DID_HI} {DID_LO} {SF}`` and return the parsed response."""
+    """Send ``2F {DID_HI} {DID_LO} {SF}`` and return the parsed response.
+
+    Uses SID/DID echo validation (``expected_sid=0x2F``, ``expected_did=did``)
+    so that stale or misaligned frames buffered in the ELM327 adapter are
+    caught and reported as errors rather than misattributed to the wrong
+    DID. Observed failure mode: a late-arriving ``6F {prev_did} 00`` from
+    the previous probe leaks into the next read, silently shifting every
+    subsequent hit by -1 DID. See `tests/test_iocontrol_scan.py`.
+    """
     if sub_function != SF_RETURN_CONTROL:
         raise ValueError(
             f"Refusing to probe with sub-function 0x{sub_function:02X}; "
             f"only 0x00 returnControlToECU is safe for scanning."
         )
     req = f"2F{did:04X}{sub_function:02X}"
-    return await terminal.send_uds(req, timeout=2.0)
+    return await terminal.send_uds(
+        req,
+        timeout=2.0,
+        expected_sid=0x2F,
+        expected_did=did,
+    )
 
 
 def classify(response: dict) -> tuple[str, int | None]:
