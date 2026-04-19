@@ -614,28 +614,28 @@ BCM:
 
     B038:
       availability: []
-      label: Seatbelt warning (driver)
+      label: Seatbelt warn driver
       verified: true
       on: "2FB03803"
       off: "2FB03800"
 
     B039:
       availability: []
-      label: Seatbelt warning (passenger 1)
+      label: Seatbelt warn pass 1
       verified: true
       on: "2FB03903"
       off: "2FB03900"
 
     B03A:
       availability: []
-      label: Seatbelt pass 2
+      label: Seatbelt warn pass 2
       verified: true
       on: "2FB03A03"
       off: "2FB03A00"
 
     B03B:
       availability: []
-      label: Seatbelt pass 3
+      label: Seatbelt warn pass 3
       verified: true
       on: "2FB03B03"
       off: "2FB03B00"
@@ -696,7 +696,7 @@ BCM:
 
     B061:
       availability: []
-      label: Charge door open (on Kia Niro EV)
+      label: N/A
       verified: false
       on: "2FB06103"
       off: "2FB06100"
@@ -815,3 +815,101 @@ BCM:
       notes: "B000-B0FF complete (24 DIDs, all in B000-B072). B100-B1FF empty. C000-C0FF has 6 new (C001-C006, TPMS region). E000-E0FF empty. Scanned 2026-04-18."
       sources:
         - "IOControl scan 2026-04-15, 2026-04-18"
+
+  iocontrol_discoveries:
+    B003:
+      session: extended
+      response: "6FB00300"
+      notes: ""
+    B006:
+      session: extended
+      response: "6FB00600"
+      notes: ""
+    B008:
+      session: extended
+      response: "6FB00800"
+      notes: ""
+    B009:
+      session: extended
+      response: "6FB00900"
+      notes: ""
+    B00A:
+      session: extended
+      response: "6FB00A00"
+      notes: ""
+    B00F:
+      session: extended
+      response: "6FB00F00"
+      notes: ""
+    B019:
+      session: extended
+      response: "6FB01900"
+      notes: ""
+    B01A:
+      session: extended
+      response: "6FB01A00"
+      notes: ""
+    B025:
+      session: extended
+      response: "6FB02500"
+      notes: ""
+    B028:
+      session: extended
+      response: "6FB02800"
+      notes: ""
+    B029:
+      session: extended
+      response: "6FB02900"
+      notes: ""
+    B030:
+      session: extended
+      response: "6FB03000"
+      notes: ""
+    B038:
+      session: extended
+      response: "6FB03800"
+      notes: ""
+    B039:
+      session: extended
+      response: "6FB03900"
+      notes: ""
+    B03A:
+      session: extended
+      response: "6FB03A00"
+      notes: ""
+    B03B:
+      session: extended
+      response: "6FB03B00"
+      notes: ""
+    B04D:
+      session: extended
+      response: "6FB04D00"
+      notes: ""
+    B057:
+      session: extended
+      response: "6FB05700"
+      notes: ""
+    B059:
+      session: extended
+      response: "6FB05900"
+      notes: ""
+    B05A:
+      session: extended
+      response: "6FB05A00"
+      notes: ""
+    B05B:
+      session: extended
+      response: "6FB05B00"
+      notes: ""
+    B05C:
+      session: extended
+      response: "6FB05C00"
+      notes: ""
+    B071:
+      session: extended
+      response: "6FB07100"
+      notes: ""
+    B072:
+      session: extended
+      response: "6FB07200"
+      notes: ""
