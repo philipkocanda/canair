@@ -151,6 +151,51 @@ canreq.py --multi "iocontrol IGPM BC01" "sleep 3" "iocontrol IGPM BC01 --off"
 
 ECUs with IOControl DIDs: IGPM, BCM, SKM, PSM, VESS (see respective `pids/*.yaml` files).
 
+##### `--scan` flag
+
+**Preferred method for scanning PID/DID ranges on an ECU.** Iterates through a range of PIDs or DIDs, sending each as a UDS request, and reports which ones respond positively. This is the standard way to discover what data an ECU exposes.
+
+Requires `--tx` (ECU TX ID). Optional arguments:
+
+| Argument    | Default | Description                                                                 |
+|-------------|---------|-----------------------------------------------------------------------------|
+| `--service` | `21`    | UDS service ID (hex). Common: `21` (live data), `22` (DID read), `2F` (IOControl), `31` (routine) |
+| `--range`   | `01-FF` | PID/DID range (hex). Auto-widens to 4-digit for services 22/2F/31          |
+| `--append`  | —       | Hex bytes appended after each DID (e.g. `03` for IOControl ShortTermAdjustment) |
+| `--session` | off     | Enter extended diagnostic session (`10 03`) before scanning                 |
+| `--wake`    | off     | Wake ECU from deep sleep first (implies `--session`)                        |
+| `--save`    | off     | Save results to `captures/YYYY-MM-DD.yaml` (prompts for label)             |
+| `--verbose` | off     | Show NRC codes and errors for non-responding DIDs                           |
+| `--json`    | off     | Output full results as JSON                                                 |
+
+**Examples:**
+
+```bash
+# Scan all service 21 PIDs on BMS (0x7E4)
+canreq.py --scan --tx 7E4 --service 21 --range 01-FF
+
+# Scan service 22 DIDs on IGPM (needs extended session + wake)
+canreq.py --scan --tx 770 --service 22 --range BC00-BCFF --session --wake
+
+# IOControl scan with ShortTermAdjustment suffix (2F{DID}03)
+canreq.py --scan --tx 7E4 --service 2F --range E000-E0FF --append 03 --session
+
+# Scan and auto-save results to captures/
+canreq.py --scan --tx 7A0 --service 22 --range B000-B0FF --session --save
+
+# In a --multi pipeline
+canreq.py --multi "session IGPM --wake" "scan 770 22 BC00-BCFF"
+```
+
+**Output:** During the scan, positive responses are printed immediately with byte count (and hex payload in `--verbose` mode). Non-verbose mode shows a progress counter every 16 DIDs. After completion, a summary shows counts and lists all responding PIDs/DIDs with their payload (truncated to 60 chars).
+
+**How it works:** For services `22`, `2F`, and `31`, DIDs are formatted as 4 hex digits (e.g. `BC01`); for other services (e.g. `21`), PIDs use 2 hex digits (e.g. `01`). Each request is sent as `{service}{DID}{append}` with a 2-second timeout. Responses are classified as positive (valid data), negative (NRC error code), or error (timeout/parse failure).
+
+**Safety notes:**
+- Only run ONE scan at a time — parallel scans lock up the WiCAN device.
+- Use small ranges first to gauge ECU response time, then expand.
+- IOControl scans (`--service 2F`) may actuate physical hardware — ensure the car is in a safe state.
+
 ##### `--discover` flag
 
 Sweeps a range of CAN TX addresses to find responding ECUs. Sends `10 01` (default session request) to each address and reports which ones respond (positive or NRC — both indicate a live ECU).
