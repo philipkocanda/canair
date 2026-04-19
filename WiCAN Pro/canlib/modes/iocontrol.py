@@ -15,7 +15,8 @@ import tty
 from datetime import datetime
 from pathlib import Path
 
-from ..pids import build_iocontrol_index
+from ..pids import build_iocontrol_index, load_pids
+from ..pids_edit import PidsEditError, update_iocontrol_field
 from ..terminal import WiCANTerminal
 from .status import format_status_value, query_param_status
 
@@ -257,6 +258,9 @@ class _IOControlTUI:
         o            Send explicit OFF (ReturnControlToECU 00)
         v            Enter hex value → send ShortTermAdjustment (2F{DID}03{hex})
         +/-          Increment/decrement last value sent to current DID
+        e            Edit label (writes to pids/<ecu>.yaml)
+        n            Edit notes (writes to pids/<ecu>.yaml)
+        V            Toggle verified (writes to pids/<ecu>.yaml)
         q / Ctrl+C   Quit (auto-OFF any active actuator)
     """
 
@@ -295,6 +299,10 @@ class _IOControlTUI:
         self._busy = False  # prevent concurrent CAN commands
         self._status = ""  # bottom status line
         self._hex_input: str | None = None  # None = not in input mode, "" = editing
+        # Metadata-edit input state. Tuple of (field, buffer) where field is
+        # one of "label" / "notes"; None = not in edit mode. verified is
+        # toggled directly (no input buffer).
+        self._edit_input: tuple[str, str] | None = None
 
     def _render(self) -> str:
         """Build the display as a plain string with ANSI codes."""
@@ -410,6 +418,15 @@ class _IOControlTUI:
             did = self.dids[self.cursor]
             lines.append(f"  \033[1;33mValue for {did} (hex): \033[0m{self._hex_input}\033[5m▏\033[0m")
             lines.append("\033[2m  Type hex bytes, Enter to send 2F{DID}03{value}, Esc to cancel\033[0m")
+        elif self._edit_input is not None:
+            did = self.dids[self.cursor]
+            field, buf = self._edit_input
+            lines.append(
+                f"  \033[1;33m{field.capitalize()} for {did}: \033[0m{buf}\033[5m▏\033[0m"
+            )
+            lines.append(
+                "\033[2m  Type new value, Enter to save to pids/*.yaml, Esc to cancel\033[0m"
+            )
         elif self._status:
             lines.append(f"  {self._status}")
         # Show last value hint for +/- keys
@@ -417,7 +434,10 @@ class _IOControlTUI:
         val_hint = ""
         if did in self.last_value:
             val_hint = f"  \033[2mlast value: {self.last_value[did].hex().upper()}\033[0m"
-        lines.append(f"\033[2m  ↑↓/jk Navigate  Enter/Space Toggle  o OFF  v Value  +/- Step  q Quit\033[0m{val_hint}")
+        lines.append(
+            f"\033[2m  ↑↓/jk Nav  Enter Toggle  o OFF  v Value  +/- Step  "
+            f"e Label  n Notes  V Verified  q Quit\033[0m{val_hint}"
+        )
         return "\n".join(lines)
 
     async def _ensure_session(self):
@@ -646,6 +666,35 @@ class _IOControlTUI:
             except asyncio.CancelledError:
                 pass
 
+    def _apply_edit(self, did: str, field: str, value) -> None:
+        """Persist an edit to pids/<ecu>.yaml and refresh in-memory state.
+
+        Errors are surfaced via ``self._status``; the original on-disk file
+        is left intact when a write fails (surgical edits only mutate on
+        successful regex match).
+        """
+        try:
+            fpath = update_iocontrol_field(self.ecu_key, did, field, value)
+        except PidsEditError as exc:
+            self._status = f"\033[31mEdit failed: {exc}\033[0m"
+            _tui_logger.error("edit %s %s=%r: %s", did, field, value, exc)
+            return
+
+        # Reload pids_data from disk and rebuild the iocontrol index so the
+        # TUI reflects the change. We mutate the existing dict in place so
+        # any references held elsewhere stay valid.
+        try:
+            fresh = load_pids()
+            self.pids_data.clear()
+            self.pids_data.update(fresh)
+            idx = build_iocontrol_index(self.pids_data)
+            self.cmds = idx[self.ecu_key]["cmds"]
+        except Exception as exc:  # reload failure is non-fatal; in-memory stale
+            _tui_logger.warning("reload after edit failed: %s", exc)
+
+        self._status = f"\033[32mSaved {field} on {did} → {fpath.name}\033[0m"
+        _tui_logger.info("edit %s %s=%r -> %s", did, field, value, fpath)
+
     def _draw(self):
         """Clear screen and draw the full frame."""
         # Move to top-left and clear screen
@@ -713,10 +762,27 @@ class _IOControlTUI:
                     if self._hex_input is not None:
                         # Cancel hex input mode
                         self._hex_input = None
+                    elif self._edit_input is not None:
+                        # Cancel metadata edit
+                        self._edit_input = None
                     else:
                         self._status = "Releasing actuators..."
                         self._draw()
                         self._quit = True
+                elif self._edit_input is not None:
+                    # Metadata-edit input mode — capture any printable text.
+                    field, buf = self._edit_input
+                    if key == "\x1b":  # Esc — cancel
+                        self._edit_input = None
+                    elif key == "\r":  # Enter — save
+                        self._edit_input = None
+                        did = self.dids[self.cursor]
+                        self._apply_edit(did, field, buf)
+                    elif key in ("\x7f", "\x08"):  # Backspace
+                        self._edit_input = (field, buf[:-1])
+                    elif len(key) == 1 and (key.isprintable() or key == "\t"):
+                        self._edit_input = (field, buf + key)
+                    # Ignore other control sequences while editing metadata.
                 elif self._hex_input is not None:
                     # Hex input mode — capture hex chars, backspace, enter, escape
                     if key == "\x1b":  # Escape — cancel input
@@ -764,6 +830,17 @@ class _IOControlTUI:
                         n = len(self.last_value[did])
                         if val >= 0:
                             await self._send_adjust(did, val.to_bytes(n, "big"))
+                elif key == "e" and not self._busy:  # Edit label
+                    did = self.dids[self.cursor]
+                    self._edit_input = ("label", self.cmds[did].get("label", ""))
+                elif key == "n" and not self._busy:  # Edit notes
+                    did = self.dids[self.cursor]
+                    current = (self.cmds[did].get("notes") or "").strip()
+                    self._edit_input = ("notes", current)
+                elif key == "V" and not self._busy:  # Toggle verified
+                    did = self.dids[self.cursor]
+                    new_val = not bool(self.cmds[did].get("verified", False))
+                    self._apply_edit(did, "verified", new_val)
 
                 self._draw()
 
