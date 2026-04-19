@@ -108,6 +108,7 @@ def build_iocontrol_index(pids_data: dict) -> dict:
                 "hold": cdef.get("hold", True),
                 "verified": cdef.get("verified", False),
                 "notes": cdef.get("notes", ""),
+                "status_param": cdef.get("status_param", None),
             }
         index[ecu_name.upper()] = {
             "tx_id": ecu_def["tx_id"],

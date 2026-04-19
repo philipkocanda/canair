@@ -111,6 +111,7 @@ iocontrol_fields:
   - notes
   - session
   - hold
+  - status_param   # optional: param name from pids section to query as status indicator
 
 # Research section — untested PIDs, undecoded captures, pending scans, and
 # IOControl discovery. Lives under ECU_NAME.research alongside pids/iocontrol.
