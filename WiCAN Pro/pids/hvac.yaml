@@ -57,18 +57,6 @@ HVAC:
             Confirmed: 21.5°C at rest, drops to ~5°C with compressor running,
             recovers when compressor cycles off. Clear thermal lag vs IAT.
 
-        HVAC_HUMIDITY:
-          expression: "B9/255*100"
-          unit: "%"
-          ha_class: humidity
-          min: "0"
-          max: "100"
-          source: "Original WiCAN config"
-          verified: false
-          notes: >
-            B9=ELM[6]=0xC8 was static across all 82 full frames in the
-            2026-04-17 session (78.4%). Highly unlikely.
-
         HVAC_BLOWER_FAN_DUTY:
           expression: "B15"
           unit: ""
@@ -124,7 +112,7 @@ HVAC:
           min: "-40"
           max: "87"
           source: "Monitor session 2026-04-17"
-          verified: false
+          verified: true
           notes: >
             Slow thermal drift (0x26=−21→0x1F→0x24). Could be duct outlet
             temp or heater core temp. Needs verification with heat mode.
@@ -136,7 +124,7 @@ HVAC:
           min: "-40"
           max: "87"
           source: "Monitor session 2026-04-17"
-          verified: false
+          verified: true
           notes: >
             Big swings (0xEF=79.5→0x56=3→recovery). Drops sharply with
             compressor — likely vent air temp close to evaporator.
@@ -153,16 +141,30 @@ HVAC:
             Tracks evaporator temp with delay (0x84=26°C → 0x6D=14.5°C).
             Likely the actual air temp at the vent outlet.
 
+        HVAC_FAN_SPEED_LEVEL:
+          expression: "B33"
+          unit: ""
+          min: "0"
+          max: "255"
+          source: "Fan speed test 2026-04-19"
+          verified: true
+          notes: >
+            Blower fan speed level. Tested at 4 speeds during ACC2 charging
+            (blower only, no compressor/PTC): fan 1=0x26 (38), fan 2=0x29 (41),
+            fan 4=0x2D (45), fan MAX=0x2D (45). Fan 4 and MAX share same value
+            here — MAX distinguished by 2201A0 B57 instead. ~3 per step.
+
         HVAC_AC_COMPRESSOR_ON:
           expression: "B44"
           unit: ""
           min: "0"
-          max: "1"
+          max: "255"
           source: "Monitor session 2026-04-17"
-          verified: true
+          verified: false
           notes: >
-            AC compressor on/off flag. 0=off, 1=on. Toggles when AC
-            activates/deactivates. Clear binary behavior in monitoring.
+            AC compressor on/off flag. 0=off, 1=on during normal operation.
+            Reads 0xFF (255) when compressor is off in ACC2 mode while charging.
+            Not a clean boolean — needs more testing to understand 0xFF vs 0x00.
 
     220102:
       enabled: true
@@ -303,6 +305,18 @@ HVAC:
             0x00 normal, 0x02 during PTC heater activation. Correlates
             with high heat output values in ELM[3,5-8].
 
+        HVAC_MAX_FAN_FLAG:
+          expression: "B57"
+          unit: ""
+          min: "0"
+          max: "255"
+          source: "Fan speed test 2026-04-19"
+          verified: true
+          notes: >
+            MAX fan indicator. 0x00 at fan speeds 1-4, 0xAE (174) at MAX.
+            Only way to distinguish fan 4 from MAX (220100 B33 is identical
+            for both at 0x2D).
+
         HVAC_DEFROST_FLAGS:
           expression: "(B58 << 8) | B59"
           unit: ""
@@ -324,6 +338,8 @@ HVAC:
         62 bytes. Actuator control data. First 10 bytes very active during
         HVAC operation (RPM-like 16-bit values). ELM[9-10] = 01 01 when on,
         00 00 when off. ELM[13-14]: 00 78 at rest, 01 3C during PTC heater.
+        B22 mirrors 2201A0 B07 exactly (target value, drifts over time).
+        B68: coarse fan step — 0x05 at fan 1-2, 0x0A at fan 4/MAX.
       parameters: {}
 
     2201A2:
@@ -359,7 +375,142 @@ HVAC:
       notes: "55 bytes. Identical to 01A3."
       availability: [acc, ign, ready]
       parameters: {}
+  iocontrol:
+    F011:
+      label: "Unknown actuator 1"
+      verified: false
+      on: ""
+      off: "2FF01100"
+      session: true
+      hold: false
+      notes: >
+        ReturnControlToECU confirmed (6FF0110000). ShortTermAdjustment (03)
+        needs value bytes — format/length unknown.
+    F012:
+      label: "Unknown actuator 2"
+      verified: false
+      on: ""
+      off: ""
+      session: true
+      hold: false
+      notes: >
+        Write-only: NRC 0x31 for ReturnControlToECU (00), but NRC 0x13 for
+        ShortTermAdjustment (03) — meaning 03 is accepted but needs value bytes.
+        No OFF/release command available via 00.
+    F013:
+      label: "Unknown actuator 3"
+      verified: false
+      on: ""
+      off: "2FF01300"
+      session: true
+      hold: false
+      notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
+    F014:
+      label: "Unknown actuator 4"
+      verified: false
+      on: ""
+      off: "2FF01400"
+      session: true
+      hold: false
+      notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
+    F015:
+      label: "Unknown actuator 5"
+      verified: false
+      on: ""
+      off: "2FF01500"
+      session: true
+      hold: false
+      notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
+    F016:
+      label: "Unknown actuator 6"
+      verified: false
+      on: ""
+      off: "2FF01600"
+      session: true
+      hold: false
+      notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
+    F017:
+      label: "Unknown actuator 7"
+      verified: false
+      on: ""
+      off: "2FF01700"
+      session: true
+      hold: false
+      notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
+    F018:
+      label: "Unknown actuator 8"
+      verified: false
+      on: ""
+      off: "2FF01800"
+      session: true
+      hold: false
+      notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
+    F022:
+      label: "Unknown actuator 9"
+      verified: false
+      on: ""
+      off: "2FF02200"
+      session: true
+      hold: false
+      notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
+    F023:
+      label: "Unknown actuator 10"
+      verified: false
+      on: ""
+      off: "2FF02300"
+      session: true
+      hold: false
+      notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
+    F024:
+      label: "Unknown actuator 11"
+      verified: false
+      on: ""
+      off: "2FF02400"
+      session: true
+      hold: false
+      notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
+    F025:
+      label: "Unknown actuator 12"
+      verified: false
+      on: ""
+      off: "2FF02500"
+      session: true
+      hold: false
+      notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
+    F026:
+      label: "Unknown actuator 13"
+      verified: false
+      on: ""
+      off: "2FF02600"
+      session: true
+      hold: false
+      notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
+    F027:
+      label: "Unknown actuator 14"
+      verified: false
+      on: ""
+      off: "2FF02700"
+      session: true
+      hold: false
+      notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
   research:
+    - type: iocontrol_scan
+      target: "2F F000-F0FF"
+      status: done
+      date: "2026-04-19"
+      priority: P1
+      prerequisite: [acc, charging]
+      result: >
+        13 DIDs respond to ReturnControlToECU (00): F011, F013-F018, F022-F027.
+        F012 accepts ShortTermAdjustment (03) but rejects ReturnControlToECU (00).
+        All return 6F{DID}0000 (5 bytes). Gaps at F012 (exists for 03 but not 00),
+        F019-F021. ShortTermAdjustment (03) accepted but requires value bytes —
+        NRC 0x13 without them. Ranges E0xx, B0xx, C0xx, 01xx, F1xx, 00xx all
+        NRC 0x31 (empty).
+      notes: >
+        Two groups: F011-F018 (7 DIDs, gap at F012) and F022-F027 (6 DIDs).
+        F028-F0FF not yet scanned. Value byte format unknown — need to test
+        with TUI v-key (ShortTermAdjustment with user-provided values).
     - type: verify
       target: "220100"
       status: pending
@@ -374,10 +525,12 @@ HVAC:
         - "OBDb Ioniq 5 — 220100 signals"
     - type: scan
       target: "22 0100-010B"
-      status: pending
+      status: done
       priority: P1
       prerequisite: [acc]
-      notes: "Full HVAC DID range. 0101 passenger vent temps, 0102 coolant/inverter temp, 0105-010B from ChatGPT (vent temps, humidity, blower RPM)."
-      sources:
-        - "OBDb Ioniq 5"
-        - "ChatGPT"
+      notes: >
+        Scanned 2026-04-19. Service 0x21 for 0101-010B: all NRC 0x11.
+        Service 0x22 for 0101-010B: only 0102 responds (already known),
+        0101 and 0103-010B all NRC 0x31. HVAC ECU only has 220100 and
+        220102 in the 01xx range. ChatGPT suggestions for 0105-010B were
+        incorrect for Ioniq 2017.

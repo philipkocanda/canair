@@ -201,7 +201,9 @@ class _IOControlTUI:
     Keys:
         ↑/↓ or j/k  Navigate
         Enter/Space  Toggle ON (or OFF if already ON)
-        o            Send explicit OFF
+        o            Send explicit OFF (ReturnControlToECU 00)
+        v            Enter hex value → send ShortTermAdjustment (2F{DID}03{hex})
+        +/-          Increment/decrement last value sent to current DID
         q / Ctrl+C   Quit (auto-OFF any active actuator)
     """
 
@@ -225,12 +227,14 @@ class _IOControlTUI:
         # Per-DID state: None=idle, "on"=active, "off"=sent off, "error"=failed
         self.state: dict[str, str | None] = {d: None for d in self.dids}
         self.last_response: dict[str, str] = {}  # DID → last response text
+        self.last_value: dict[str, bytes] = {}  # DID → last ShortTermAdjustment value bytes
 
         self._session_active = False
         self._tester_task: asyncio.Task | None = None
         self._quit = False
         self._busy = False  # prevent concurrent CAN commands
         self._status = ""  # bottom status line
+        self._hex_input: str | None = None  # None = not in input mode, "" = editing
 
     def _render(self) -> str:
         """Build the display as a plain string with ANSI codes."""
@@ -285,9 +289,18 @@ class _IOControlTUI:
             )
 
         lines.append("")
-        if self._status:
+        if self._hex_input is not None:
+            did = self.dids[self.cursor]
+            lines.append(f"  \033[1;33mValue for {did} (hex): \033[0m{self._hex_input}\033[5m▏\033[0m")
+            lines.append("\033[2m  Type hex bytes, Enter to send 2F{DID}03{value}, Esc to cancel\033[0m")
+        elif self._status:
             lines.append(f"  {self._status}")
-        lines.append("\033[2m  ↑↓/jk Navigate  Enter/Space Toggle  o OFF  q Quit\033[0m")
+        # Show last value hint for +/- keys
+        did = self.dids[self.cursor]
+        val_hint = ""
+        if did in self.last_value:
+            val_hint = f"  \033[2mlast value: {self.last_value[did].hex().upper()}\033[0m"
+        lines.append(f"\033[2m  ↑↓/jk Navigate  Enter/Space Toggle  o OFF  v Value  +/- Step  q Quit\033[0m{val_hint}")
         return "\n".join(lines)
 
     async def _ensure_session(self):
@@ -374,6 +387,40 @@ class _IOControlTUI:
         else:
             await self._send_on(did)
 
+    async def _send_adjust(self, did: str, value_bytes: bytes):
+        """Send ShortTermAdjustment (2F{DID}03{value}) for a DID."""
+        did_hex = did.upper()
+        hex_cmd = f"2F{did_hex}03{value_bytes.hex().upper()}"
+
+        self._busy = True
+        self._status = f"Adjust: {did} → {hex_cmd}"
+        _tui_logger.info("ADJ %s cmd=%s", did, hex_cmd)
+        try:
+            cmd = self.cmds.get(did, {})
+            if cmd.get("session", True):
+                await self._ensure_session()
+            resp = await self.terminal.send_uds(hex_cmd, timeout=3.0)
+            _tui_logger.info("ADJ %s resp: %s", did, resp)
+            if resp["ok"]:
+                self.state[did] = "on"
+                self.last_response[did] = resp["hex"]
+                self.last_value[did] = value_bytes
+            elif resp.get("nrc") is not None:
+                self.state[did] = "error"
+                self.last_response[did] = f"NRC 0x{resp['nrc']:02X}: {resp['nrc_desc']}"
+                self.last_value[did] = value_bytes  # still store for +/- stepping
+            else:
+                self.state[did] = "error"
+                self.last_response[did] = resp.get("error", "unknown error")
+            self._status = ""
+        except Exception as e:
+            _tui_logger.error("ADJ %s exception: %s", did, e, exc_info=True)
+            self.state[did] = "error"
+            self.last_response[did] = str(e)
+            self._status = ""
+        finally:
+            self._busy = False
+
     async def _release_all(self):
         """Send OFF for all active actuators."""
         active = [d for d in self.dids if self.state[d] == "on"]
@@ -453,14 +500,36 @@ class _IOControlTUI:
                     continue
 
                 if key in ("q", "Q", "\x03"):  # q or Ctrl+C
-                    self._status = "Releasing actuators..."
-                    self._draw()
-                    self._quit = True
+                    if self._hex_input is not None:
+                        # Cancel hex input mode
+                        self._hex_input = None
+                    else:
+                        self._status = "Releasing actuators..."
+                        self._draw()
+                        self._quit = True
+                elif self._hex_input is not None:
+                    # Hex input mode — capture hex chars, backspace, enter, escape
+                    if key == "\x1b":  # Escape — cancel input
+                        self._hex_input = None
+                    elif key == "\r":  # Enter — send value
+                        hex_str = self._hex_input.strip()
+                        self._hex_input = None
+                        if hex_str and len(hex_str) % 2 == 0 and not self._busy:
+                            did = self.dids[self.cursor]
+                            value_bytes = bytes.fromhex(hex_str)
+                            await self._send_adjust(did, value_bytes)
+                        elif hex_str:
+                            self._status = "Invalid: need even number of hex chars"
+                    elif key in ("\x7f", "\x08"):  # Backspace/Delete
+                        self._hex_input = self._hex_input[:-1]
+                    elif len(key) == 1 and key.lower() in "0123456789abcdef":
+                        self._hex_input += key.upper()
+                    # Ignore other keys in hex input mode
                 elif key in ("\x1b[A", "k"):  # Up arrow or k
                     self.cursor = max(0, self.cursor - 1)
                 elif key in ("\x1b[B", "j"):  # Down arrow or j
                     self.cursor = min(len(self.dids) - 1, self.cursor + 1)
-                elif key in ("\r", " "):  # Enter or Space
+                elif key in ("\r", " "):  # Enter or Space — toggle ON/OFF
                     if not self._busy:
                         did = self.dids[self.cursor]
                         await self._toggle(did)
@@ -468,6 +537,23 @@ class _IOControlTUI:
                     if not self._busy:
                         did = self.dids[self.cursor]
                         await self._send_off(did)
+                elif key in ("v", "V"):  # Enter hex value input mode
+                    if not self._busy:
+                        self._hex_input = ""
+                elif key == "+" and not self._busy:  # Increment last value
+                    did = self.dids[self.cursor]
+                    if did in self.last_value:
+                        val = int.from_bytes(self.last_value[did], "big") + 1
+                        n = len(self.last_value[did])
+                        if val < (1 << (8 * n)):
+                            await self._send_adjust(did, val.to_bytes(n, "big"))
+                elif key == "-" and not self._busy:  # Decrement last value
+                    did = self.dids[self.cursor]
+                    if did in self.last_value:
+                        val = int.from_bytes(self.last_value[did], "big") - 1
+                        n = len(self.last_value[did])
+                        if val >= 0:
+                            await self._send_adjust(did, val.to_bytes(n, "big"))
 
                 self._draw()
 
