@@ -1,9 +1,0 @@
-
-# ─── AHB (Active Hydraulic Booster) ───────────────────────────────────
-# Electronic brake booster at 0x7D5 (tentative identification).
-# Shares 'G7' app SW identifier with ESC (0x7D1).
-# No live data DIDs discovered yet. Try 2101 for brake pressure/pedal data.
-AHB:
-  tx_id: 0x7D5
-  availability: [acc, ign, ready]
-  pids: {}

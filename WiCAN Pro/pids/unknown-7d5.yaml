@@ -1,0 +1,15 @@
+
+# ─── Unknown-7D5 ──────────────────────────────────────────────────────
+# Unknown ECU at 0x7D5, adjacent to ESC (0x7D1) and EPS (0x7D4).
+# Only 2 UDS identity DIDs respond: F18C (serial) and F101 (app SW "G7").
+# "G7" is the Ioniq Electric vehicle model code, not an ECU identifier.
+# No live data DIDs discovered yet. Try 2101 for brake pressure/pedal data.
+#
+# Probing (2026-04-19):
+#   Dead during AC charging — does not respond to 1001, 1003, 3E00, 1A8C, or 22 F100-F1FF.
+#   Requires ACC/ignition power. Scan service 22 F100-F1FF returned 256 NO DATA.
+#   KWP2000 1A8C also NO DATA (not a KWP2000 ECU — only UDS).
+Unknown-7D5:
+  tx_id: 0x7D5
+  availability: [acc, ign, ready]
+  pids: {}

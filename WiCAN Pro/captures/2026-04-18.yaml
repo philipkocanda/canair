@@ -27,7 +27,7 @@ sessions:
       rejected: 253 DIDs returned NO DATA or NRC
       notes: "PID 2102 is new — 34 bytes, undecoded. Many repeated 79xx values suggest\
         \ voltage/current readings."
-  - ecu: OBC-746
+  - ecu: Unknown-746
     pid: 2101-21FF
     label: Full service 21 scan
     scan_results:

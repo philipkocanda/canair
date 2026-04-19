@@ -64,7 +64,7 @@ prerequisite, notes, sources, what_to_test).
 - IGPM 0x770: test BC3F/BC41 (charge cable lock/unlock)
 
 **During charging — ~10 min:**
-- OBC/LDC 0x7E5: scan 22 E001-E011
+- OBC/LDC 0x7E5: ~~scan 22 E001-E011~~ (all NRC 0x12 — service 22 not supported), capture 2101+2102 during charging
 - IGPM 0x770: test charge cable lock/unlock during active charge (verify the state actually propagates to the BMS and the rest of the car, and that it actually stops charging!)
 
 **While driving — ~10 min:**
@@ -76,7 +76,7 @@ prerequisite, notes, sources, what_to_test).
 
 Full address sweep found 30 alive ECUs (14 new). New PID files created for SAS, PTC, SCC, MFC.
 
-- [x] **Scan OBC-746 and PLC 0x733 during DCFC charging** — OBC-746: only 21F2 responds (6 bytes). PLC: all 255 NRCs, dead during AC charging (DC CCS only?).
+- [x] **Scan Unknown-746 and PLC 0x733 during DCFC charging** — Unknown-746: only 21F2 responds (6 bytes). PLC: all 255 NRCs, dead during AC charging (DC CCS only?).
 - [ ] **Identify Unknown-783 and Unknown-7D2** — both respond to 1001 session control but have zero identity DIDs (no UDS F1xx, no KWP2000 1Axx). Try service 09 (vehicle info request) or broader DID ranges.
 - [ ] **Identify Unknown-7D5** — only 2 identity DIDs (serial + "G7" app SW). Try service 22 broader ranges.
 

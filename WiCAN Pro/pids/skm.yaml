@@ -150,7 +150,7 @@ SKM:
   #     dealer tools to unlock. Could physically immobilize the car.
   #   - Main B+ relay — cutting main power kills OBD port. WiCAN loses connection,
   #     cannot send OFF command. Need physical car restart.
-  #   - Start/motor contactor — engaging HV contactor unexpectedly could confuse BMS
+  #   - Start contactor — engaging HV contactor unexpectedly could confuse BMS
   #     or trigger safety interlocks.
   #   - Immobilizer re-learn — triggering a reset cycle may prevent starting until
   #     dealer re-programs the key.
@@ -239,11 +239,6 @@ SKM:
       notes: >
         DANGER: See B101 notes. May be immobilizer indicator lamp (lower risk) or
         ESCL-related (high risk). Skip until B101/B102 are identified.
-      availability: []
-      label: Unknown
-      verified: false
-      on: "2FB10303"
-      off: "2FB10300"
     B104:
       availability: []
       label: Unknown

@@ -12,7 +12,7 @@ sessions:
           Known (16): 0x736(VESS), 0x744(errors-only, removed), 0x770(IGPM), 0x7A0(BCM), 0x7A3(PSM), 0x7A5(SKM),
             0x7B3(HVAC), 0x7C0(AVN), 0x7C6(CLU), 0x7D1(ESC), 0x7D4(EPS), 0x7E2(VCU), 0x7E3(MCU),
             0x7E4(BMS), 0x7E5(LDC), 0x7E6(Gateway)
-          Newly discovered (14): 0x725(SAS), 0x733(PLC), 0x746(OBC), 0x755(FCAM), 0x780(TCU), 0x783(unknown),
+          Newly discovered (14): 0x725(SAS), 0x733(PLC), 0x746(unknown), 0x755(FCAM), 0x780(TCU), 0x783(unknown),
             0x796(AVM), 0x7A1(SWRC-L), 0x7A2(SWRC-R), 0x7B6(PTC), 0x7B7(RCAM), 0x7C4(MFC), 0x7D0(SCC),
             0x7D2(unknown), 0x7D5(unknown)
           Broadcast: 0x7DF (OBD-II, skipped)
@@ -31,7 +31,7 @@ sessions:
         pid: "F187"
         payload: "62F18739313935304737323030"
         notes: "Part 91950G7200 (PLC Charge Control Module). Mfg 2017-05-21. App SW 1104, HW 101, SW 103."
-      - ecu: "OBC-746"
+      - ecu: "Unknown-746"
         pid: "1A80-9F"
         notes: |
           KWP2000 identity scan. 10/32 responding. UDS F1xx: no response.
