@@ -50,11 +50,33 @@ canreq.py --multi "skm-wake acc" "sleep 1" "query BCM B00E" "repl"
 | `query <ECU> [PID ...]`         | Query ECU parameters (like `--ecu`/`--param`)       |
 | `raw <TX:PID>`                  | Raw UDS request                                      |
 | `scan <TX> <SVC> <RANGE> [APP]` | Scan PID range                                       |
+| `security <ECU> [algo ...]`     | Try UDS Security Access (27 01/02) with key algorithms |
 | `iocontrol <ECU> <DID> [--off]` | Execute IOControl ON/OFF from pids/ YAML             |
 | `sleep <seconds>`               | Pause between steps                                  |
 | `repl`                          | Drop into interactive REPL (explicit)                |
 
 ECU names are resolved from YAML definitions (e.g., `IGPM`, `BCM`, `SKM`) or can be hex TX IDs (`770`, `7A0`).
+
+##### `security` sub-command (in `--multi` pipeline)
+
+Attempts UDS Security Access (service `27`) on an ECU by requesting a seed (`27 01`) and computing a key (`27 02`) using common Hyundai/Kia key algorithms. Requires an active extended session on the target ECU. Tries all built-in algorithms by default, or a filtered subset if algorithm names are given.
+
+```bash
+# Try all algorithms on BCM (session must be open)
+canreq.py --multi "session BCM --wake" "security BCM"
+
+# Try specific algorithms only
+canreq.py --multi "session BCM --wake" "security BCM not xor-0d0b0507 ki203-30bacd45"
+
+# In REPL after opening a session
+security BCM ki221-std
+```
+
+**Built-in algorithms** (~40 total): simple transforms (`not`, `swap`, `plus1`, `minus1`, `same`, `zero`), XOR with known constants (`xor-0d0b0507`, `xor-5a`, `xor-a5`, `xor-dead`, etc.), rotations (`ror4`, `ror8`, `rol4`, `rol8`, `ror16`), compound transforms (`swap-not`, `not-swap`, `not-plus1`, `mul3plus1`), Kia-specific (`static-6fd5`, `xor-6fd5`, `add-6fd5`, `sub-6fd5`), and parameterized Hyundai/Kia algorithms (`ki203-*`, `ki221a1-*`, `ki221-std`).
+
+**Output:** Tabular display showing each algorithm attempted, the seed received, key computed, and result (accepted, invalid key, or lockout). Automatically handles NRC 0x36 (lockout — stops immediately) and NRC 0x37 (time delay — waits 11s and re-establishes session before retrying).
+
+**Safety:** Security access is a prerequisite for write operations (`2E`) but does NOT itself modify anything. The algorithms are read-only seed→key computations. However, once security access is granted, be careful with subsequent commands.
 
 ##### `--monitor` flag (live refresh)
 
