@@ -79,6 +79,7 @@ def validate_ecu_file(
         "ignored": 0,
         "iocontrol": 0,
         "research": 0,
+        "routines": 0,
     }
 
     try:
@@ -90,7 +91,7 @@ def validate_ecu_file(
     if not data or not isinstance(data, dict):
         return [f"{path.name}: empty or invalid YAML"], [], stats
 
-    all_ecu_fields = required_ecu_fields | optional_ecu_fields | {"iocontrol"}
+    all_ecu_fields = required_ecu_fields | optional_ecu_fields | {"iocontrol", "routines"}
     all_pid_fields = required_pid_fields | optional_pid_fields
 
     for ecu_name, ecu_def in data.items():
@@ -322,6 +323,44 @@ def validate_ecu_file(
 
                     stats["research"] += 1
 
+        # Validate routines section (RoutineControl 0x31 discoveries)
+        routines = ecu_def.get("routines")
+        if routines is not None:
+            if not isinstance(routines, dict):
+                errors.append(f"{path.name}/{ecu_name}: 'routines' must be a dict")
+            else:
+                valid_sessions = {"default", "extended"}
+                valid_routine_fields = {
+                    "session",
+                    "response",
+                    "nrc",
+                    "nrc_desc",
+                    "label",
+                    "verified",
+                    "notes",
+                }
+                for rid, rid_def in routines.items():
+                    rid_str = str(rid)
+                    label = f"{path.name}/{ecu_name}/routines/{rid_str}"
+                    if not isinstance(rid_def, dict):
+                        errors.append(f"{label}: entry must be a dict")
+                        continue
+                    for field in rid_def:
+                        if field not in valid_routine_fields:
+                            warnings.append(f"{label}: unknown field '{field}'")
+                    rsession = rid_def.get("session")
+                    if rsession is not None and rsession not in valid_sessions:
+                        errors.append(
+                            f"{label}: invalid session '{rsession}' "
+                            f"(allowed: {sorted(valid_sessions)})"
+                        )
+                    # Exactly one of response/nrc should be set (soft check)
+                    has_resp = bool(rid_def.get("response"))
+                    has_nrc = rid_def.get("nrc") is not None
+                    if not has_resp and not has_nrc:
+                        warnings.append(f"{label}: neither 'response' nor 'nrc' set")
+                    stats["routines"] += 1
+
     return errors, warnings, stats
 
 
@@ -372,6 +411,7 @@ def main():
         "ignored": 0,
         "iocontrol": 0,
         "research": 0,
+        "routines": 0,
     }
 
     if args.files:
@@ -420,8 +460,10 @@ def main():
     ioctl_str = f", {ioctl} IOControl DIDs" if ioctl else ""
     research = total_stats["research"]
     research_str = f", {research} research items" if research else ""
+    routines = total_stats["routines"]
+    routines_str = f", {routines} routines" if routines else ""
     print(
-        f"OK — {n_files} ECU files, {total_stats['pids']} PIDs{ignored_str}{ioctl_str}{research_str}, "
+        f"OK — {n_files} ECU files, {total_stats['pids']} PIDs{ignored_str}{ioctl_str}{research_str}{routines_str}, "
         f"{total_stats['params']} parameters "
         f"({total_stats['verified']} verified, {total_stats['unverified']} unverified)"
     )
@@ -438,6 +480,7 @@ def main():
         print(f"  Unverified: {total_stats['unverified']}")
         print(f"  IOControl:  {total_stats['iocontrol']}")
         print(f"  Research:   {total_stats['research']}")
+        print(f"  Routines:   {total_stats['routines']}")
 
 
 if __name__ == "__main__":
