@@ -287,8 +287,9 @@ BCM:
       availability: [sleep, plugged, acc, ign, ready, charging]
       notes: >
         20 bytes. Mostly zeros with config-like flags. Returns NO DATA on first attempt
-        after wake, then responds on retry. Static across captures — likely BCM configuration
-        or feature flags. Sample: 62B00140C0000000010000000000000201000000.
+        after wake, then responds on retry. B20 changes with power state: 0x02 (ACC, Apr 14)
+        → 0x01 (ACC2+charging, Apr 19). Possibly BCM power mode sub-state.
+        Sample (ACC2+charging): 62B00140C0000000010000000000000201000000.
       parameters: {}
 
     22B002:

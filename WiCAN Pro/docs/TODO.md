@@ -1,12 +1,12 @@
 # Reverse Engineering TODOs
 
 - [ ] Scan HVAC for IOControl (e.g. blower speed control, A/C on/off)
-- [ ] Test BCM IOControl with car asleep (unlocked)
-- [ ] Test BCM IOControl with ACC ON
+- [ ] Test BCM IOControl with ACC ON <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NEXT!!!
+- [ ] Test BCM IOControl with car asleep & unlocked
 - [ ] Decode BCM charge scheduling DIDs (e.g. preheat and charge schedules, scheduled charging on/off, rear defrost on/off, etc.) -> can we also write these somehow?
 - [x] Test BCM IOControl with car asleep (locked) (most are NRC 0x22 conditionsNotCorrect
 - [ ] Decode keyfob proximity state DID (IGPM or SKM — is fob nearby?)
-- [ ] Decode HVAC pids (e.g. blower speed, A/C status, temperature settings)
+- [x] Decode HVAC pids (e.g. blower speed, A/C status, temperature settings)
 - [ ] Test VESS for IOControl (sound!)
 - [ ] Scan SKM for PIDs (e.g. key status, start button status)
 - [ ] Capture IGPM BC03 B11 in all ignition states (Off/ACC/ON/Ready) to verify byte values
@@ -25,6 +25,13 @@
 - [ ] Add a "quality score" or "confidence level" to each PID based on factors like how many sources confirm it, how well it matches known data, etc. This can help prioritize which PIDs to focus on next and which ones are more likely to be correct.
 - [ ] For each unverified PID, add a "verification plan" that outlines the specific steps needed to confirm its meaning. This can include things like what conditions to test under (e.g. ignition on, driving, charging), what other data to compare it against (e.g. GPS speed for VCU speed).
 
+## Note on Vehicle Power Modes
+
+Power modes:
+- ACC1: 1x Start Button -> Start Button LED = Orange
+- ACC2: 2x Start Button -> Start Button LED = Blue
+- READY: Start Button + Brake Pedal -> Start Button LED = Off
+
 ## Unverified PIDs
 
 - [ ] **VCU speed** — verify if formula is MPH or km/h (compare with GPS)
@@ -34,8 +41,7 @@
 
 ## Untested PIDs — now in per-ECU `pids/*.yaml` files
 
-As of 2026-04-18, all untested/undecoded PID research items have been migrated from
-`untested-pids-index.yaml` into `research:` sections in the per-ECU YAML files under `pids/`.
+As of 2026-04-18, all untested/undecoded PID research items are logged in `research:` sections in the per-ECU YAML files under `pids/`.
 Each ECU file now contains its own research backlog alongside its PID definitions.
 
 See `pids/_schema.yaml` for the research entry format (type, target, status, priority,

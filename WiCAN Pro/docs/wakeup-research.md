@@ -1,5 +1,12 @@
 # IGPM Wake-Up & Remote Access Research
 
+## Note on Vehicle Power Modes
+
+Power modes:
+- ACC1: 1x Start Button -> Start Button LED = Orange
+- ACC2: 2x Start Button -> Start Button LED = Blue
+- READY: Start Button + Brake Pedal -> Start Button LED = Off
+
 ## Goal
 
 Read BMS SoC (and other ECU data) remotely while the car is fully asleep and unplugged, without physical access to the key fob or vehicle.
