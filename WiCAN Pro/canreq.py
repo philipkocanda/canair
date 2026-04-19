@@ -66,6 +66,7 @@ from canlib.modes import (
 )
 from canlib.modes.iocontrol import mode_iocontrol_execute, mode_iocontrol_list
 from canlib.modes.routines_scan import mode_routines_scan
+from canlib.modes.iocontrol_scan import mode_iocontrol_scan
 
 try:
     import websockets
@@ -139,7 +140,7 @@ async def async_main(args):
 
     init_logging()
     log_command(
-        f"--- SESSION START (host={host}, mode={'interactive' if not any([args.param, args.ecu, args.raw, args.scan, args.discover, args.skm_wakeup, args.tester_present, args.iocontrol, args.routines_scan is not None]) else 'batch'}, unsafe={args.unsafe}, session={getattr(args, 'session', False)}) ---"
+        f"--- SESSION START (host={host}, mode={'interactive' if not any([args.param, args.ecu, args.raw, args.scan, args.discover, args.skm_wakeup, args.tester_present, args.iocontrol, args.routines_scan is not None, args.iocontrol_scan is not None]) else 'batch'}, unsafe={args.unsafe}, session={getattr(args, 'session', False)}) ---"
     )
 
     if args.unsafe:
@@ -315,6 +316,22 @@ async def async_main(args):
                 verbose=args.verbose,
                 write_yaml=True,
             )
+        elif args.iocontrol_scan is not None:
+            ecus = (
+                args.iocontrol_scan
+                if args.iocontrol_scan
+                else ["IGPM", "BCM", "HVAC", "PSM"]
+            )
+            did_range = parse_range(args.did_range) if args.did_range else None
+            await mode_iocontrol_scan(
+                terminal,
+                pids_data,
+                ecus=ecus,
+                did_range=did_range,
+                throttle_ms=args.throttle_ms,
+                verbose=args.verbose,
+                write_yaml=True,
+            )
         elif args.discover:
             addr_range = parse_range(args.range) if args.range != "01-FF" else (0x700, 0x7EF)
             await mode_discover(
@@ -479,6 +496,17 @@ Examples:
         "pids/<ecu>.yaml under a routines: section.",
     )
     mode.add_argument(
+        "--iocontrol-scan",
+        nargs="*",
+        metavar="ECU",
+        help="IOControl (0x2F) DID discovery scan. Probes returnControlToECU "
+        "(sub-function 0x00) across a range of Data IDs on one or more ECUs. "
+        "SAFE: sub-function 0x00 releases control and never actuates. Default "
+        "ECUs: IGPM, BCM, HVAC, PSM. Uses per-ECU default ranges (B0-BF for "
+        "body ECUs, F0-FF for HVAC) unless --did-range is given. Hits are "
+        "written to pids/<ecu>.yaml under an iocontrol_discoveries: section.",
+    )
+    mode.add_argument(
         "--multi",
         nargs="+",
         metavar="CMD",
@@ -590,10 +618,18 @@ Examples:
         help="Routine ID range for --routines-scan (hex, default: F000-F0FF)",
     )
     parser.add_argument(
+        "--did-range",
+        metavar="START-END",
+        default=None,
+        help="Data ID range for --iocontrol-scan (hex, e.g. B000-BFFF). "
+        "If omitted, uses per-ECU defaults: IGPM=B000-BFFF, BCM=B000-CFFF, "
+        "HVAC=F000-FFFF, PSM=B000-B5FF.",
+    )
+    parser.add_argument(
         "--throttle-ms",
         type=int,
         default=150,
-        help="Delay in ms between RoutineControl probes (default: 150)",
+        help="Delay in ms between probes for --routines-scan / --iocontrol-scan (default: 150)",
     )
 
     # SKM wakeup options

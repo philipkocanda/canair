@@ -80,6 +80,7 @@ def validate_ecu_file(
         "iocontrol": 0,
         "research": 0,
         "routines": 0,
+        "iocontrol_discoveries": 0,
     }
 
     try:
@@ -91,7 +92,9 @@ def validate_ecu_file(
     if not data or not isinstance(data, dict):
         return [f"{path.name}: empty or invalid YAML"], [], stats
 
-    all_ecu_fields = required_ecu_fields | optional_ecu_fields | {"iocontrol", "routines"}
+    all_ecu_fields = required_ecu_fields | optional_ecu_fields | {
+        "iocontrol", "routines", "iocontrol_discoveries"
+    }
     all_pid_fields = required_pid_fields | optional_pid_fields
 
     for ecu_name, ecu_def in data.items():
@@ -323,45 +326,77 @@ def validate_ecu_file(
 
                     stats["research"] += 1
 
-        # Validate routines section (RoutineControl 0x31 discoveries)
-        routines = ecu_def.get("routines")
-        if routines is not None:
-            if not isinstance(routines, dict):
-                errors.append(f"{path.name}/{ecu_name}: 'routines' must be a dict")
-            else:
-                valid_sessions = {"default", "extended"}
-                valid_routine_fields = {
-                    "session",
-                    "response",
-                    "nrc",
-                    "nrc_desc",
-                    "label",
-                    "verified",
-                    "notes",
-                }
-                for rid, rid_def in routines.items():
-                    rid_str = str(rid)
-                    label = f"{path.name}/{ecu_name}/routines/{rid_str}"
-                    if not isinstance(rid_def, dict):
-                        errors.append(f"{label}: entry must be a dict")
-                        continue
-                    for field in rid_def:
-                        if field not in valid_routine_fields:
-                            warnings.append(f"{label}: unknown field '{field}'")
-                    rsession = rid_def.get("session")
-                    if rsession is not None and rsession not in valid_sessions:
-                        errors.append(
-                            f"{label}: invalid session '{rsession}' "
-                            f"(allowed: {sorted(valid_sessions)})"
-                        )
-                    # Exactly one of response/nrc should be set (soft check)
-                    has_resp = bool(rid_def.get("response"))
-                    has_nrc = rid_def.get("nrc") is not None
-                    if not has_resp and not has_nrc:
-                        warnings.append(f"{label}: neither 'response' nor 'nrc' set")
-                    stats["routines"] += 1
+        # Validate routines section (RoutineControl 0x31 discoveries) and
+        # iocontrol_discoveries section (0x2F SF 00 scanner output). Both have
+        # identical structure — each entry is a 4-hex-digit ID mapping to
+        # {session, response, nrc, nrc_desc, label, verified, notes}.
+        _validate_hit_section(
+            ecu_def, "routines", path, ecu_name, errors, warnings, stats
+        )
+        _validate_hit_section(
+            ecu_def,
+            "iocontrol_discoveries",
+            path,
+            ecu_name,
+            errors,
+            warnings,
+            stats,
+        )
 
     return errors, warnings, stats
+
+
+def _validate_hit_section(
+    ecu_def: dict,
+    section_name: str,
+    path: Path,
+    ecu_name: str,
+    errors: list,
+    warnings: list,
+    stats: dict,
+) -> None:
+    """Validate a scanner-generated hit section (routines/iocontrol_discoveries).
+
+    Both sections share the same entry schema: id_hex → {session, response,
+    nrc, nrc_desc, label, verified, notes} with session ∈ {default, extended}
+    and exactly one of {response, nrc} set.
+    """
+    section = ecu_def.get(section_name)
+    if section is None:
+        return
+    if not isinstance(section, dict):
+        errors.append(f"{path.name}/{ecu_name}: '{section_name}' must be a dict")
+        return
+    valid_sessions = {"default", "extended"}
+    valid_fields = {
+        "session",
+        "response",
+        "nrc",
+        "nrc_desc",
+        "label",
+        "verified",
+        "notes",
+    }
+    for key_id, entry in section.items():
+        key_str = str(key_id)
+        label = f"{path.name}/{ecu_name}/{section_name}/{key_str}"
+        if not isinstance(entry, dict):
+            errors.append(f"{label}: entry must be a dict")
+            continue
+        for field in entry:
+            if field not in valid_fields:
+                warnings.append(f"{label}: unknown field '{field}'")
+        rsession = entry.get("session")
+        if rsession is not None and rsession not in valid_sessions:
+            errors.append(
+                f"{label}: invalid session '{rsession}' "
+                f"(allowed: {sorted(valid_sessions)})"
+            )
+        has_resp = bool(entry.get("response"))
+        has_nrc = entry.get("nrc") is not None
+        if not has_resp and not has_nrc:
+            warnings.append(f"{label}: neither 'response' nor 'nrc' set")
+        stats[section_name] += 1
 
 
 def validate_meta(path: Path, required_fields: set) -> list[str]:
@@ -412,6 +447,7 @@ def main():
         "iocontrol": 0,
         "research": 0,
         "routines": 0,
+        "iocontrol_discoveries": 0,
     }
 
     if args.files:
@@ -462,8 +498,10 @@ def main():
     research_str = f", {research} research items" if research else ""
     routines = total_stats["routines"]
     routines_str = f", {routines} routines" if routines else ""
+    ioctl_disc = total_stats["iocontrol_discoveries"]
+    ioctl_disc_str = f", {ioctl_disc} IO discoveries" if ioctl_disc else ""
     print(
-        f"OK — {n_files} ECU files, {total_stats['pids']} PIDs{ignored_str}{ioctl_str}{research_str}{routines_str}, "
+        f"OK — {n_files} ECU files, {total_stats['pids']} PIDs{ignored_str}{ioctl_str}{research_str}{routines_str}{ioctl_disc_str}, "
         f"{total_stats['params']} parameters "
         f"({total_stats['verified']} verified, {total_stats['unverified']} unverified)"
     )
@@ -481,6 +519,7 @@ def main():
         print(f"  IOControl:  {total_stats['iocontrol']}")
         print(f"  Research:   {total_stats['research']}")
         print(f"  Routines:   {total_stats['routines']}")
+        print(f"  IO Discoveries: {total_stats['iocontrol_discoveries']}")
 
 
 if __name__ == "__main__":

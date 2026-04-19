@@ -5,6 +5,7 @@ from .ecu import mode_ecu
 from .identity import IDENTITY_DIDS, mode_identity
 from .interactive import mode_interactive
 from .iocontrol import mode_iocontrol_execute, mode_iocontrol_list, mode_iocontrol_tui
+from .iocontrol_scan import mode_iocontrol_scan
 from .monitor import mode_monitor
 from .multi import mode_multi
 from .param import mode_param
@@ -24,6 +25,7 @@ __all__ = [
     "mode_interactive",
     "mode_iocontrol_execute",
     "mode_iocontrol_list",
+    "mode_iocontrol_scan",
     "mode_iocontrol_tui",
     "mode_monitor",
     "mode_multi",
