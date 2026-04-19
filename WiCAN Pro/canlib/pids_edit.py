@@ -288,6 +288,22 @@ def append_iocontrol_discoveries_block(
     )
 
 
+def _format_hit_entry(hit, key_attr: str) -> list[str]:
+    """Render a single hit entry (4-space indent for key, 6 for fields)."""
+    key_val = getattr(hit, key_attr)
+    key_hex = f"{key_val:04X}"
+    lines = [f"    {key_hex}:", f"      session: {hit.session}"]
+    if hit.nrc is None:
+        resp = hit.response_hex or ""
+        lines.append(f'      response: "{resp}"')
+    else:
+        lines.append(f"      nrc: 0x{hit.nrc:02X}")
+        desc = (hit.nrc_desc or "").replace('"', '\\"')
+        lines.append(f'      nrc_desc: "{desc}"')
+    lines.append('      notes: ""')
+    return lines
+
+
 def _format_hit_block(hits, section_name: str, key_attr: str) -> list[str]:
     """Render a hit-block (routines or iocontrol_discoveries).
 
@@ -296,19 +312,31 @@ def _format_hit_block(hits, section_name: str, key_attr: str) -> list[str]:
     """
     lines: list[str] = [f"  {section_name}:"]
     for hit in hits:
-        key_val = getattr(hit, key_attr)
-        key_hex = f"{key_val:04X}"
-        lines.append(f"    {key_hex}:")
-        lines.append(f"      session: {hit.session}")
-        if hit.nrc is None:
-            resp = hit.response_hex or ""
-            lines.append(f'      response: "{resp}"')
-        else:
-            lines.append(f"      nrc: 0x{hit.nrc:02X}")
-            desc = (hit.nrc_desc or "").replace('"', '\\"')
-            lines.append(f'      nrc_desc: "{desc}"')
-        lines.append('      notes: ""')
+        lines.extend(_format_hit_entry(hit, key_attr))
     return lines
+
+
+def _parse_existing_entries(section_body: str) -> dict[str, list[str]]:
+    """Extract existing DID/RID entries from a section body as raw text blocks.
+
+    Returns ``{KEY_HEX: [line1, line2, ...]}`` where each value is the raw
+    lines of that entry (4-space-indented key line + 6-space-indented fields).
+    This preserves any hand-edited notes or fields when merging.
+
+    ``section_body`` is the text after the ``  <section_name>:`` header and
+    before the next 0/2-space-indented key (not including those bookends).
+    """
+    entries: dict[str, list[str]] = {}
+    # Each entry starts with "    <HEX>:\n" at 4-space indent
+    entry_re = re.compile(r"^ {4}([0-9A-Fa-f]{4}):\s*$", re.MULTILINE)
+    matches = list(entry_re.finditer(section_body))
+    for i, m in enumerate(matches):
+        key = m.group(1).upper()
+        start = m.start()
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(section_body)
+        block = section_body[start:end].rstrip("\n")
+        entries[key] = block.split("\n")
+    return entries
 
 
 def _append_hit_block(
@@ -318,7 +346,13 @@ def _append_hit_block(
     key_attr: str,
     pids_dir: Path,
 ) -> Path:
-    """Shared implementation for writing a scanner-generated YAML section."""
+    """Shared implementation for writing a scanner-generated YAML section.
+
+    MERGE semantics: existing entries are preserved; entries in ``hits`` are
+    upserted (overwrite on key conflict). Output is sorted by key ascending.
+    This lets narrow/targeted scans run without wiping discoveries outside
+    the scanned range.
+    """
     if not hits:
         return find_ecu_file(ecu_name, pids_dir=pids_dir)
 
@@ -327,10 +361,8 @@ def _append_hit_block(
     ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
     ecu_block = text[ecu_start:ecu_end]
 
-    new_lines = _format_hit_block(hits, section_name, key_attr)
-    new_section = "\n".join(new_lines) + "\n"
-
-    # Remove any pre-existing ``  <section_name>:`` section within the ECU block
+    # Parse any pre-existing ``  <section_name>:`` section within the ECU block
+    existing_entries: dict[str, list[str]] = {}
     existing_re = re.compile(
         r"^ {2}" + re.escape(section_name) + r":\s*$", re.MULTILINE
     )
@@ -339,7 +371,22 @@ def _append_hit_block(
         tail_re = re.compile(r"^ {0,2}[A-Za-z_]", re.MULTILINE)
         tail = tail_re.search(ecu_block, pos=m.end())
         sec_end = tail.start() if tail else len(ecu_block)
+        section_body = ecu_block[m.end():sec_end]
+        existing_entries = _parse_existing_entries(section_body)
+        # Strip the old section out; we'll reappend a merged one.
         ecu_block = ecu_block[: m.start()] + ecu_block[sec_end:]
+
+    # Upsert new hits into the entry map (new overrides old)
+    merged: dict[str, list[str]] = dict(existing_entries)
+    for hit in hits:
+        key_hex = f"{getattr(hit, key_attr):04X}"
+        merged[key_hex] = _format_hit_entry(hit, key_attr)
+
+    # Render sorted by key
+    out_lines: list[str] = [f"  {section_name}:"]
+    for key in sorted(merged.keys()):
+        out_lines.extend(merged[key])
+    new_section = "\n".join(out_lines) + "\n"
 
     body = ecu_block.rstrip("\n")
     new_ecu_block = body + "\n\n" + new_section

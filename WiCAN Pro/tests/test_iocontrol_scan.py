@@ -200,7 +200,8 @@ def test_append_iocontrol_discoveries_preserves_other_sections(pids_dir):
     assert data["TEST"]["research"][0]["target"] == "22BC00-22BCFF"
 
 
-def test_append_iocontrol_discoveries_replaces_existing_block(pids_dir):
+def test_append_iocontrol_discoveries_merges_with_existing(pids_dir):
+    """Prior discoveries outside the new hit set must be preserved (merge)."""
     first = [IOControlHit(did=0xB001, session="default", response_hex="",
                           nrc=0x33, nrc_desc="securityAccessDenied")]
     append_iocontrol_discoveries_block("TEST", first, pids_dir=pids_dir)
@@ -211,8 +212,30 @@ def test_append_iocontrol_discoveries_replaces_existing_block(pids_dir):
 
     data = yaml.safe_load((pids_dir / "test.yaml").read_text())
     disc = data["TEST"]["iocontrol_discoveries"]
-    assert "B001" not in disc
+    # Both hits are present; second scan did not wipe the first.
+    assert "B001" in disc
     assert "B002" in disc
+    # Entries are sorted ascending by DID
+    assert list(disc.keys()) == ["B001", "B002"]
+
+
+def test_append_iocontrol_discoveries_upserts_same_did(pids_dir):
+    """Re-scanning a DID overwrites its prior entry (latest result wins)."""
+    first = [IOControlHit(did=0xB001, session="default", response_hex="",
+                          nrc=0x33, nrc_desc="securityAccessDenied")]
+    append_iocontrol_discoveries_block("TEST", first, pids_dir=pids_dir)
+
+    # Same DID, different response (e.g., session-state changed between runs)
+    second = [IOControlHit(did=0xB001, session="extended",
+                           response_hex="6FB00100", nrc=None, nrc_desc=None)]
+    append_iocontrol_discoveries_block("TEST", second, pids_dir=pids_dir)
+
+    data = yaml.safe_load((pids_dir / "test.yaml").read_text())
+    entry = data["TEST"]["iocontrol_discoveries"]["B001"]
+    # The second (positive) result won; NRC fields are gone.
+    assert entry["session"] == "extended"
+    assert entry["response"] == "6FB00100"
+    assert "nrc" not in entry
 
 
 def test_append_iocontrol_discoveries_empty_is_noop(pids_dir):
