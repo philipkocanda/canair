@@ -2,18 +2,19 @@
 """Query captured UDS payloads across all capture files.
 
 Modes:
-  --summary           Overview: captures per ECU, per date, total payloads
-  --ecu ECU           All captures for an ECU (e.g. BMS, IGPM)
-  --pid PID           All captures for a specific PID (e.g. 2101, 22BC03)
-  --latest [ECU]      Most recent payload per PID (optionally filtered by ECU)
-  --diff ECU PID      Show all payloads for an ECU+PID with byte-level diff colorization
+  --ecu ECU --pid PID   Captures for a specific ECU+PID combination (recommended)
+  --ecu ECU             All captures for an ECU
+  --pid PID             All captures for a PID (across all ECUs)
+  --summary             Overview: captures per ECU, per date, total payloads
+  --latest [ECU]        Most recent payload per PID (optionally filtered by ECU)
+  --diff ECU PID        Show all payloads for an ECU+PID with byte-level diff colorization
 
 Examples:
-  python3 query-captures.py --summary
-  python3 query-captures.py --ecu BMS
-  python3 query-captures.py --pid 22BC03
-  python3 query-captures.py --latest BMS
-  python3 query-captures.py --diff IGPM 22BC03
+  python3 query-captures.py --ecu IGPM --pid 22BC03   # ECU+PID (most useful)
+  python3 query-captures.py --ecu BMS                 # All BMS captures
+  python3 query-captures.py --summary                 # Overview stats
+  python3 query-captures.py --latest BMS              # Latest payload per BMS PID
+  python3 query-captures.py --diff IGPM 22BC03        # Byte-level diff
 """
 
 import argparse
@@ -117,50 +118,64 @@ def cmd_summary(entries: list[dict]) -> None:
 
 
 # ---------------------------------------------------------------------------
-# ECU mode
+# Filter mode (--ecu, --pid, or both)
+# ---------------------------------------------------------------------------
+
+def cmd_filter(entries: list[dict], ecu: str | None = None, pid: str | None = None) -> None:
+    """Show captures filtered by ECU, PID, or both."""
+    filtered = entries
+
+    if ecu:
+        ecu_upper = ecu.upper()
+        filtered = [e for e in filtered if e["ecu"].upper() == ecu_upper]
+        if not filtered:
+            # Try partial match
+            filtered = [e for e in entries if ecu_upper in e["ecu"].upper()]
+        if not filtered:
+            print(f"  No captures found for ECU '{ecu}'.")
+            ecus = sorted(set(e["ecu"] for e in entries))
+            print(f"  Available: {', '.join(ecus)}")
+            return
+
+    if pid:
+        pid_upper = pid.upper()
+        filtered = [e for e in filtered if pid_upper in str(e["pid"]).upper()]
+        if not filtered:
+            print(f"  No captures found for PID '{pid}'" + (f" on ECU '{ecu}'" if ecu else "") + ".")
+            return
+
+    # Title
+    parts = []
+    if ecu:
+        parts.append(ecu)
+    if pid:
+        parts.append(f"PID {pid.upper()}")
+    title = " ".join(parts) if parts else "All"
+
+    print(f"\n  {_BOLD}{title}{_RESET} — {len(filtered)} captures\n")
+
+    show_ecu = not ecu  # Show ECU column when not filtering by ECU
+    for e in filtered:
+        _print_entry(e, show_ecu=show_ecu)
+    print()
+
+
+# ---------------------------------------------------------------------------
+# ECU mode (kept for backward compat, delegates to cmd_filter)
 # ---------------------------------------------------------------------------
 
 def cmd_ecu(entries: list[dict], ecu_filter: str) -> None:
     """Show all captures for an ECU."""
-    ecu_upper = ecu_filter.upper()
-    filtered = [e for e in entries if e["ecu"].upper() == ecu_upper]
-
-    if not filtered:
-        # Try partial match
-        filtered = [e for e in entries if ecu_upper in e["ecu"].upper()]
-
-    if not filtered:
-        print(f"  No captures found for ECU '{ecu_filter}'.")
-        ecus = sorted(set(e["ecu"] for e in entries))
-        print(f"  Available: {', '.join(ecus)}")
-        return
-
-    ecu_name = filtered[0]["ecu"]
-    print(f"\n  {_BOLD}{ecu_name}{_RESET} — {len(filtered)} captures\n")
-
-    for e in filtered:
-        _print_entry(e)
-    print()
+    cmd_filter(entries, ecu=ecu_filter)
 
 
 # ---------------------------------------------------------------------------
-# PID mode
+# PID mode (kept for backward compat, delegates to cmd_filter)
 # ---------------------------------------------------------------------------
 
 def cmd_pid(entries: list[dict], pid_filter: str) -> None:
     """Show all captures for a PID."""
-    pid_upper = pid_filter.upper()
-    filtered = [e for e in entries if pid_upper in e["pid"].upper()]
-
-    if not filtered:
-        print(f"  No captures found for PID '{pid_filter}'.")
-        return
-
-    print(f"\n  {_BOLD}PID {pid_upper}{_RESET} — {len(filtered)} captures\n")
-
-    for e in filtered:
-        _print_entry(e, show_ecu=True)
-    print()
+    cmd_filter(entries, pid=pid_filter)
 
 
 # ---------------------------------------------------------------------------
@@ -334,10 +349,13 @@ def main():
         epilog=__doc__,
     )
 
-    group = parser.add_mutually_exclusive_group(required=True)
+    # --ecu and --pid can be used independently or together
+    parser.add_argument("--ecu", "-e", metavar="ECU", help="Filter by ECU name")
+    parser.add_argument("--pid", "-p", metavar="PID", help="Filter by PID/DID")
+
+    # These are mutually exclusive with each other (and with --ecu/--pid)
+    group = parser.add_mutually_exclusive_group()
     group.add_argument("--summary", "-s", action="store_true", help="Overview statistics")
-    group.add_argument("--ecu", "-e", metavar="ECU", help="Filter by ECU name")
-    group.add_argument("--pid", "-p", metavar="PID", help="Filter by PID/DID")
     group.add_argument(
         "--latest", "-l", nargs="?", const="", metavar="ECU",
         help="Latest payload per PID (optionally filtered by ECU)",
@@ -353,6 +371,15 @@ def main():
     )
 
     args = parser.parse_args()
+
+    # Require at least one mode
+    if not any([args.ecu, args.pid, args.summary, args.latest is not None, args.diff]):
+        parser.error("at least one of --ecu, --pid, --summary, --latest, --diff is required")
+
+    # --summary/--latest/--diff conflict with --ecu/--pid
+    if (args.summary or args.diff) and (args.ecu or args.pid):
+        parser.error("--summary and --diff cannot be combined with --ecu/--pid")
+
     entries = load_all_captures(args.dir)
 
     if not entries:
@@ -361,14 +388,12 @@ def main():
 
     if args.summary:
         cmd_summary(entries)
-    elif args.ecu:
-        cmd_ecu(entries, args.ecu)
-    elif args.pid is not None:
-        cmd_pid(entries, args.pid)
-    elif args.latest is not None:
-        cmd_latest(entries, args.latest or None)
     elif args.diff:
         cmd_diff(entries, args.diff[0], args.diff[1])
+    elif args.latest is not None:
+        cmd_latest(entries, args.latest or args.ecu or None)
+    elif args.ecu or args.pid:
+        cmd_filter(entries, ecu=args.ecu, pid=args.pid)
 
 
 if __name__ == "__main__":

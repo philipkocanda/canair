@@ -5,6 +5,10 @@
 # "G7" is the Ioniq Electric vehicle model code, not an ECU identifier.
 # No live data DIDs discovered yet. Try 2101 for brake pressure/pedal data.
 #
+# Identity (2026-04-17, ready mode):
+#   F18C (serial): 17060100003900000000 (mfg date 2017-06-01, serial 0039)
+#   F101 (app SW): G7
+#
 # Probing (2026-04-19):
 #   Dead during AC charging — does not respond to 1001, 1003, 3E00, 1A8C, or 22 F100-F1FF.
 #   Requires ACC/ignition power. Scan service 22 F100-F1FF returned 256 NO DATA.
