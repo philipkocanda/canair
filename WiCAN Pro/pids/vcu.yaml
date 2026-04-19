@@ -91,11 +91,11 @@ VCU:
           verified: true
           notes: ""
 
-        VEHICLE_STATE_MAIN_RELAY_OFF:
-          expression: "B11:5"
+        VEHICLE_STATE_MAIN_RELAY_ON:
+          expression: "1-B11:5"
           unit: ""
           verified: true
-          notes: ""
+          notes: "Inverted from MAIN_RELAY_OFF bit. 1=relay closed (normal Ready/charging), 0=relay open (car off)."
 
         VEHICLE_STATE_POWER_ENABLE:
           expression: "B11:6"
@@ -103,11 +103,11 @@ VCU:
           verified: true
           notes: ""
 
-        VEHICLE_STATE_LDC_INHIBIT:
-          expression: "B11:7"
+        VEHICLE_STATE_LDC_ENABLED:
+          expression: "1-B11:7"
           unit: ""
           verified: false
-          notes: ""
+          notes: "Inverted from LDC_INHIBIT bit. 1=LDC active, 0=inhibited."
 
         DEBUG_MCU_STATE_FLAGS:
           expression: "B12"
