@@ -5,7 +5,7 @@
 #   Body/comfort ECUs (IGPM, BCM, SKM, CLU, ESC, EPS, HVAC, PSM, VESS, SAS, etc.) → UDS
 #     Identity: 22 F1xx (with Hyundai -1 offset: F187 instead of F188, etc.)
 #     Live data: 22 xxxx (ReadDataByIdentifier)
-#   Powertrain ECUs (BMS, VCU, MCU, LDC/OBC, Gateway, OBC-746) → KWP2000
+#   Powertrain ECUs (BMS, VCU, MCU, LDC/OBC, Gateway, Unknown-746) → KWP2000
 #     Identity: 1A xx (ReadEcuIdentification, range 80-9F)
 #     Live data: 21 xx (manufacturer-specific, paged: 2101, 2102, etc.)
 #     These ECUs do NOT respond to UDS 22 F1xx or 22 Exxx DIDs.
@@ -98,16 +98,17 @@ ecus:
   # CAN-level errors, service 21 scan during AC charging (2026-04-18) returned 255 NO DATA.
   # Cross-platform reference only; likely does not exist on Ioniq 28kWh.
   0x746:
-    name: OBC-746
-    description: On-Board Charger (alternate address?)
+    name: Unknown-746
+    description: Unknown ECU — KWP2000 only, no OBC evidence
     ecu_id: "1.10"  # KWP2000 1A8C
     sw_id: "Z311"  # KWP2000 1A8D/1A8E
     calibration: "Z311"
     hw_sw: "3.5"  # KWP2000 1A92
     id_protocol: KWP2000  # 1Axx (10/32 responding)
     notes: >
-      Responds to 1001 with NRC 0x12 but alive. KWP2000 only.
-      Most fields FFFFFFFF. May overlap with LDC 0x7E5 OBC function.
+      Previously labelled OBC-746 speculatively (address proximity to 0x744).
+      No evidence of OBC function. Only data PID: 21F2 → 00000007 (4 bytes).
+      Responds to 1001 with NRC 0x12 but alive. Most identity fields FFFFFFFF.
   0x755:
     name: BSD-L
     description: Blind Spot Detection radar (left)
@@ -127,7 +128,12 @@ ecus:
     id_protocol: none  # NRC 0x11 on all UDS F1xx and KWP2000 1Axx
     notes: >
       Identified via Kia e-Niro CAN spreadsheet (exact address match 783/78B).
-      No diagnostic identity data — audio-only module."
+      No diagnostic identity data — audio-only module.
+      Services supported: 10 (session), 14 (clearDTC), 19 (readDTC), 3E (testerPresent).
+      All other services (21, 22, 27, 2F) return NRC 0x11 (serviceNotSupported).
+      DTCs during charging (2026-04-19, ignition off):
+        A919 (status 09), A91A (09), A91B (09), A915 (09),
+        A916 (09), A920 (09), A921 (09) — 7 DTCs, all status 0x09.
   0x796:
     name: RCAM
     description: Rear View Camera (parking)
@@ -170,6 +176,7 @@ ecus:
       Car has no BlueLink (was never available in Netherlands).
       Module may still exist as dormant platform hardware (UNCONFIRMED).
       Other candidates: head unit sub-module, DAB tuner.
+      Dead during AC charging (2026-04-19): 1001, 1003, 3E00, 1A8C all NO DATA.
   0x7C4:
     name: MFC
     description: Multi-Function Camera (ADAS)
@@ -202,7 +209,10 @@ ecus:
     name: SRS
     description: Airbag / Supplemental Restraint System
     id_protocol: none  # NRC 0x11 on all UDS F1xx and KWP2000 1Axx
-    notes: "Identified via Kia e-Niro CAN spreadsheet (exact address match 7D2/7DA). Security-locked — no diagnostic identity exposed."
+    notes: >
+      Identified via Kia e-Niro CAN spreadsheet (exact address match 7D2/7DA).
+      Security-locked — no diagnostic identity exposed.
+      Dead during AC charging (2026-04-19): 1001, 1003, 3E00, 1A8C all NO DATA.
   0x7D4:
     name: EPS
     alias: MDPS  # Motor-Driven Power Steering
@@ -213,13 +223,15 @@ ecus:
     id_protocol: UDS  # F1xx
     notes: Steering column
   0x7D5:
-    name: AHB
-    description: Active Hydraulic Booster (electronic brake booster) — tentative
+    name: Unknown-7D5
+    description: Unknown ECU — adjacent to ESC/EPS in address space
     app_sw: "G7"
     id_protocol: UDS  # F1xx (only 2 DIDs: F18C serial, F101 app SW)
     notes: >
-      Shares 'G7' app SW with ESC (0x7D1). Adjacent to ESC/EPS in address space.
-      Medium confidence — try reading 2101 for brake pressure/pedal data to confirm.
+      Previously misidentified as AHB (Active Hydraulic Booster). The only identity data
+      is app_sw "G7", which is just the Ioniq Electric vehicle model code (same as ESC 0x7D1),
+      not an ECU identifier. No part number, no ECU ID string. Could be AHB, iBAU, or another
+      brake/chassis sub-module. Try reading 2101 for brake pressure/pedal data to narrow down.
   0x7E2:
     name: VCU # TODO: Rename to LDC? (check exposed PIDs to confirm)
     description: Vehicle Control Unit

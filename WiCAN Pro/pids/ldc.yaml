@@ -147,9 +147,10 @@ LDC:
       notes: "34 bytes captured during charging. Undecoded."
     - type: scan
       target: "22 E001-E011"
-      status: pending
+      status: done
       priority: P2
       prerequisite: [charging]
-      notes: "Ioniq 5 cross-ref: E001 charge mode/DC target V-I/AC max current, E002 OBC voltages/currents/temps, E011 LDC temp/output V-I/input V/aux battery."
+      date: "2026-04-19"
+      notes: "All 17 DIDs return NRC 0x12 (subFunctionNotSupported) — both default and extended session. LDC also rejects 10 03 with NRC 0x12. Service 22 not supported on Ioniq 2017 LDC. Ioniq 5 cross-ref does not apply."
       sources:
         - "OBDb Ioniq 5"
