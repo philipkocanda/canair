@@ -254,13 +254,15 @@ class _IOControlTUI:
 
     Keys:
         ↑/↓ or j/k  Navigate
-        Enter/Space  Toggle ON (or OFF if already ON)
+        Enter/Space  Toggle ON (or OFF if already ON). If the DID has no
+                     simple ON command, opens the value prompt instead
+                     (seeded with the last value sent this session, or 00).
         o            Send explicit OFF (ReturnControlToECU 00)
         v            Enter hex value → send ShortTermAdjustment (2F{DID}03{hex})
         +/-          Increment/decrement last value sent to current DID
         e            Edit label (writes to pids/<ecu>.yaml)
         n            Edit notes (writes to pids/<ecu>.yaml)
-        V            Toggle verified (writes to pids/<ecu>.yaml)
+        m            Toggle verified (writes to pids/<ecu>.yaml)
         q / Ctrl+C   Quit (auto-OFF any active actuator)
     """
 
@@ -436,7 +438,7 @@ class _IOControlTUI:
             val_hint = f"  \033[2mlast value: {self.last_value[did].hex().upper()}\033[0m"
         lines.append(
             f"\033[2m  ↑↓/jk Nav  Enter Toggle  o OFF  v Value  +/- Step  "
-            f"e Label  n Notes  V Verified  q Quit\033[0m{val_hint}"
+            f"e Label  n Notes  m Verified  q Quit\033[0m{val_hint}"
         )
         return "\n".join(lines)
 
@@ -518,11 +520,26 @@ class _IOControlTUI:
             self._busy = False
 
     async def _toggle(self, did: str):
-        """Toggle: if ON → OFF, otherwise → ON."""
+        """Toggle: if ON → OFF, otherwise → ON.
+
+        If the DID has no simple ON command (``on: ""`` in the YAML), open
+        the hex value prompt instead of erroring. This is the common case
+        for HVAC F0xx actuators and other DIDs that require
+        ShortTermAdjustment value bytes. The prompt is seeded with the last
+        value sent to this DID in the current session (``last_value``) or
+        ``00`` if none has been sent yet.
+        """
         if self.state[did] == "on":
             await self._send_off(did)
-        else:
-            await self._send_on(did)
+            return
+        if not self.cmds[did]["on"]:
+            # No simple ON — open the hex value prompt. Seed with the last
+            # value sent this session (if any) so +/- stepping still works
+            # naturally afterwards.
+            seed = self.last_value[did].hex().upper() if did in self.last_value else "00"
+            self._hex_input = seed
+            return
+        await self._send_on(did)
 
     async def _send_adjust(self, did: str, value_bytes: bytes):
         """Send ShortTermAdjustment (2F{DID}03{value}) for a DID."""
@@ -815,7 +832,10 @@ class _IOControlTUI:
                         await self._send_off(did)
                 elif key in ("v", "V"):  # Enter hex value input mode
                     if not self._busy:
-                        self._hex_input = ""
+                        did = self.dids[self.cursor]
+                        # Seed with last value if available, otherwise blank
+                        seed = self.last_value[did].hex().upper() if did in self.last_value else ""
+                        self._hex_input = seed
                 elif key == "+" and not self._busy:  # Increment last value
                     did = self.dids[self.cursor]
                     if did in self.last_value:
@@ -837,7 +857,7 @@ class _IOControlTUI:
                     did = self.dids[self.cursor]
                     current = (self.cmds[did].get("notes") or "").strip()
                     self._edit_input = ("notes", current)
-                elif key == "V" and not self._busy:  # Toggle verified
+                elif key == "m" and not self._busy:  # Toggle verified
                     did = self.dids[self.cursor]
                     new_val = not bool(self.cmds[did].get("verified", False))
                     self._apply_edit(did, "verified", new_val)
