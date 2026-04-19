@@ -391,7 +391,7 @@ IGPM:
 
     BC12:
       availability: [sleep, plugged, acc, ign, ready, charging]
-      label: Individual door unlock (1)
+      label: Heated mirror?
       verified: false
       on: "2FBC1203"
       off: "2FBC1200"
@@ -406,17 +406,16 @@ IGPM:
       on: "2FBC1303"
       off: "2FBC1300"
       notes: >
-        Acc: same clicking relay sound as BC12 (click-clack).
-        NRC 0x22 (conditionsNotCorrect) — may need ignition on or other precondition.
+        Acc: same clicking relay sound as BC12 (click-clack). Works when car is asleep (though did not listen for relay).
 
     BC14:
       availability: [sleep, plugged, acc, ign, ready, charging]
-      label: Unknown (conditionsNotCorrect in ACC)
+      label: Unknown (conditional)
       verified: false
       on: "2FBC1403"
       off: "2FBC1400"
       notes: >
-        ?
+        ConditionsNotCorrect in ACC. Only works in sleep!
 
     BC15:
       availability: [sleep, plugged, acc, ign, ready, charging]
@@ -436,7 +435,7 @@ IGPM:
 
     BC18:
       availability: [sleep, plugged, acc, ign, ready, charging]
-      label: DRL (daytime running lights)
+      label: DRL lights
       verified: true
       on: "2FBC1803"
       off: "2FBC1800"
