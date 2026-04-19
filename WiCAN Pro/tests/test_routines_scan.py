@@ -156,8 +156,8 @@ def test_append_routines_preserves_existing_sections(pids_dir):
     assert data["TEST"]["research"][0]["target"] == "22BC00-22BCFF"
 
 
-def test_append_routines_replaces_existing_block(pids_dir):
-    """Running the scanner twice should overwrite, not append duplicates."""
+def test_append_routines_merges_with_existing(pids_dir):
+    """Running the scanner twice preserves old entries and upserts new ones."""
     first = [
         RoutineHit(rid=0xF001, session="default", response_hex="",
                    nrc=0x24, nrc_desc="requestSequenceError"),
@@ -172,8 +172,10 @@ def test_append_routines_replaces_existing_block(pids_dir):
 
     data = yaml.safe_load((pids_dir / "test.yaml").read_text())
     routines = data["TEST"]["routines"]
-    assert "F001" not in routines
+    # Both entries coexist; second scan did not overwrite the first.
+    assert "F001" in routines
     assert "F002" in routines
+    assert list(routines.keys()) == ["F001", "F002"]
 
 
 def test_append_empty_hits_is_noop(pids_dir):
