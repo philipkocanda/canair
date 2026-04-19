@@ -775,23 +775,26 @@ class _IOControlTUI:
                     self._draw()
                     continue
 
-                if key in ("q", "Q", "\x03"):  # q or Ctrl+C
+                if key == "\x03":  # Ctrl+C — always quits (even mid-edit)
                     if self._hex_input is not None:
-                        # Cancel hex input mode
                         self._hex_input = None
                     elif self._edit_input is not None:
-                        # Cancel metadata edit
                         self._edit_input = None
                     else:
                         self._status = "Releasing actuators..."
                         self._draw()
                         self._quit = True
+                elif key in ("q", "Q") and self._hex_input is None and self._edit_input is None:
+                    # q only quits in nav mode — allow it as a typed char in edits.
+                    self._status = "Releasing actuators..."
+                    self._draw()
+                    self._quit = True
                 elif self._edit_input is not None:
                     # Metadata-edit input mode — capture any printable text.
                     field, buf = self._edit_input
                     if key == "\x1b":  # Esc — cancel
                         self._edit_input = None
-                    elif key == "\r":  # Enter — save
+                    elif key in ("\r", "\n"):  # Enter — save
                         self._edit_input = None
                         did = self.dids[self.cursor]
                         self._apply_edit(did, field, buf)
@@ -804,7 +807,7 @@ class _IOControlTUI:
                     # Hex input mode — capture hex chars, backspace, enter, escape
                     if key == "\x1b":  # Escape — cancel input
                         self._hex_input = None
-                    elif key == "\r":  # Enter — send value
+                    elif key in ("\r", "\n"):  # Enter — send value
                         hex_str = self._hex_input.strip()
                         self._hex_input = None
                         if hex_str and len(hex_str) % 2 == 0 and not self._busy:
@@ -822,7 +825,7 @@ class _IOControlTUI:
                     self.cursor = max(0, self.cursor - 1)
                 elif key in ("\x1b[B", "j"):  # Down arrow or j
                     self.cursor = min(len(self.dids) - 1, self.cursor + 1)
-                elif key in ("\r", " "):  # Enter or Space — toggle ON/OFF
+                elif key in ("\r", "\n", " "):  # Enter or Space — toggle ON/OFF
                     if not self._busy:
                         did = self.dids[self.cursor]
                         await self._toggle(did)

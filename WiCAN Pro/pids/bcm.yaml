@@ -516,7 +516,7 @@ BCM:
     B006:
       availability: [acc, ready]
       label: Parking sensors
-      verified: false
+      verified: true
       on: "2FB00603"
       off: "2FB00600"
       notes: >
@@ -526,7 +526,7 @@ BCM:
     B008:
       availability: []
       label: Wiper Motor (slow)
-      verified: false
+      verified: true
       on: "2FB00803"
       off: "2FB00800"
       notes: >
@@ -535,7 +535,7 @@ BCM:
     B009:
       availability: []
       label: Wiper Motor (fast)
-      verified: false
+      verified: true
       on: "2FB00903"
       off: "2FB00900"
       notes: >
@@ -615,28 +615,28 @@ BCM:
     B038:
       availability: []
       label: Seatbelt warning (driver)
-      verified: false
+      verified: true
       on: "2FB03803"
       off: "2FB03800"
 
     B039:
       availability: []
       label: Seatbelt warning (passenger 1)
-      verified: false
+      verified: true
       on: "2FB03903"
       off: "2FB03900"
 
     B03A:
       availability: []
       label: Seatbelt pass 2
-      verified: false
+      verified: true
       on: "2FB03A03"
       off: "2FB03A00"
 
     B03B:
       availability: []
       label: Seatbelt pass 3
-      verified: false
+      verified: true
       on: "2FB03B03"
       off: "2FB03B00"
 
@@ -669,7 +669,7 @@ BCM:
     B05A:
       availability: []
       label: Heated steering wheel LED
-      verified: false
+      verified: true
       on: "2FB05A03"
       off: "2FB05A00"
       notes: >

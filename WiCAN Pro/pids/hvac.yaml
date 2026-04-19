@@ -384,8 +384,7 @@ HVAC:
       session: true
       hold: false
       notes: >
-        ReturnControlToECU confirmed (6FF0110000). ShortTermAdjustment (03)
-        needs value bytes — format/length unknown.
+        updated via TUI test
     F012:
       label: "Unknown actuator 2"
       verified: false
