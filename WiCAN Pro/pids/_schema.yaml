@@ -42,6 +42,7 @@ optional_ecu_fields:
   - session
   - identity
   - iocontrol       # IOControl (service 2F) commands — see iocontrol_fields below
+  - iocontrol_discoveries  # Raw 0x2F SF 00 scanner output — see iocontrol_discoveries_fields
   - research        # Untested/undecoded PIDs and scan TODOs — see research_fields below
   - routines        # RoutineControl (service 0x31) discoveries — see routines_fields below
 
@@ -158,4 +159,19 @@ research_fields:
 # the scanner as leads; promotion to iocontrol (if start-routine is ever
 # attempted and verified safe) is a manual step and requires explicit consent.
 routines_fields:
+  optional: [session, response, nrc, nrc_desc, label, verified, notes]
+
+# IOControl discoveries section — raw 0x2F SF 00 (returnControlToECU) scan
+# output. Populated by `canreq.py --iocontrol-scan`. Lives under
+# ECU_NAME.iocontrol_discoveries. Distinct from ECU_NAME.iocontrol (the
+# curated, human-authored actuator list) so the scanner can rerun without
+# clobbering on/off/notes.
+#
+# Format: same shape as routines_fields — each entry is a DID_HEX (4-digit
+# hex) mapping to {session, response, nrc, nrc_desc, label, verified, notes}.
+# Exactly one of {response, nrc} is set per hit.
+#
+# Promotion workflow: a discovery becomes a real iocontrol entry manually
+# once on/off commands have been determined and verified on the car.
+iocontrol_discoveries_fields:
   optional: [session, response, nrc, nrc_desc, label, verified, notes]
