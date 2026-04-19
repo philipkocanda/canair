@@ -7,7 +7,7 @@ For reference, the WiCAN firmware is checked out in the `wican-fw/` directory (g
 - **`generate-profile.py`** — Generate WiCAN vehicle profiles from `pids/`, upload/download/diff with device
 - **`canreq.py`** — CLI tool for custom CAN/UDS requests via WiCAN WebSocket ELM327 terminal mode. Supports interactive REPL, `--param`, `--ecu`, `--raw`, `--scan` modes. **Use `--reboot` to restore AutoPID after session** (WebSocket terminal overrides AutoPID mode). Dependencies: `websockets`, `pyyaml`, `requests` (optional, for reboot).
 - **`wican.py`** — WiCAN device management CLI. Subcommands: `config` (view/save device config), `sleep` (toggle sleep mode, set voltage/timing), `status` (device status summary), `protocol` (switch CAN protocol: auto_pid/slcan/elm327/savvycan/realdash66), `logs` (list/download/query SD card OBD log databases), `reboot`. Uses `--wican home|vpn|<url>` for address selection. Dependencies: `requests`.
-- **`query-captures.py`** — Query captured UDS payloads across all capture files. Use after adding new captures to spot patterns. Modes: `--summary` (stats per ECU/date), `--ecu ECU` (all captures for ECU), `--pid PID` (all captures for PID), `--latest [ECU]` (most recent payload per PID), `--diff ECU PID` (byte-level diff across captures).
+- **`query-captures.py`** — Query captured UDS payloads across all capture files. Use after adding new captures to spot patterns. Modes: `--ecu ECU --pid PID` (combined, most useful), `--ecu ECU` (all captures for ECU), `--summary` (stats per ECU/date), `--latest [ECU]` (most recent payload per PID), `--diff ECU PID` (byte-level diff across captures).
 
 ## Key Files
 
