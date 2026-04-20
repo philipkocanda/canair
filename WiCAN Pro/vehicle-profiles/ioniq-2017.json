@@ -126,7 +126,7 @@
       "enabled": true,
       "period": "5000",
       "parameters": {
-        "HVAC_IAT": "(B11/2)-40",
+        "HVAC_INTERIOR_TEMP": "(B11/2)-40",
         "HVAC_AAT": "(B12/2)-40",
         "HVAC_EVAPORATOR_TEMP": "(B13/2)-40",
         "HVAC_BLOWER_FAN_DUTY": "B15",

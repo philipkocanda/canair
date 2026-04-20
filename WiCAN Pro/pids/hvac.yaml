@@ -23,7 +23,7 @@ HVAC:
         Static bytes: ELM[3]=0x7E, ELM[4]=0x50, ELM[5]=0x07, ELM[6]=0xC8
         (purpose unknown — possibly sensor IDs or config flags).
       parameters:
-        HVAC_IAT:
+        HVAC_INTERIOR_TEMP:
           expression: "(B11/2)-40"
           unit: "°C"
           ha_class: temperature
