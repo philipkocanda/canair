@@ -292,7 +292,7 @@ def _format_hit_entry(hit, key_attr: str) -> list[str]:
     """Render a single hit entry (4-space indent for key, 6 for fields)."""
     key_val = getattr(hit, key_attr)
     key_hex = f"{key_val:04X}"
-    lines = [f"    {key_hex}:", f"      session: {hit.session}"]
+    lines = [f"    {key_hex}:"]
     if hit.nrc is None:
         resp = hit.response_hex or ""
         lines.append(f'      response: "{resp}"')
@@ -307,7 +307,7 @@ def _format_hit_entry(hit, key_attr: str) -> list[str]:
 def _format_hit_block(hits, section_name: str, key_attr: str) -> list[str]:
     """Render a hit-block (routines or iocontrol_discoveries).
 
-    Each hit must expose ``.session``, ``.nrc``, ``.nrc_desc``, ``.response_hex``
+    Each hit must expose ``.nrc``, ``.nrc_desc``, ``.response_hex``
     and the 16-bit key attribute named by ``key_attr`` (``rid`` or ``did``).
     """
     lines: list[str] = [f"  {section_name}:"]
@@ -392,6 +392,80 @@ def _append_hit_block(
     new_ecu_block = body + "\n\n" + new_section
 
     new_text = text[:ecu_start] + new_ecu_block + text[ecu_end:]
+    fpath.write_text(new_text)
+    return fpath
+
+
+# ── Routines section field editor ────────────────────────────────────────────
+
+
+def _find_routine_block(text: str, rid: str) -> tuple[int, int]:
+    """Find the character range of a RID block inside ``routines:``.
+
+    Returns (start, end) spanning from the RID key line up to (but not
+    including) the next sibling / dedent. Raises ``PidsEditError`` if the
+    RID isn't found under ``routines:``.
+    """
+    rid_u = rid.strip().upper()
+    sec_re = re.compile(r"^ {2}routines:\s*$", re.MULTILINE)
+    sec_m = sec_re.search(text)
+    if not sec_m:
+        raise PidsEditError("No routines: section found")
+
+    # Section body ends at the next line at 2-or-less spaces of content.
+    tail_re = re.compile(r"^ {0,2}[A-Za-z_]", re.MULTILINE)
+    tail_m = tail_re.search(text, pos=sec_m.end() + 1)
+    sec_end = tail_m.start() if tail_m else len(text)
+
+    # Find "    RID:" within the section.
+    rid_re = re.compile(rf"^( {{4}}){re.escape(rid_u)}:\s*$", re.MULTILINE)
+    rm = rid_re.search(text, pos=sec_m.end(), endpos=sec_end)
+    if not rm:
+        raise PidsEditError(f"RID {rid_u!r} not found under routines:")
+
+    start = rm.start()
+    next_re = re.compile(r"^ {4}[A-Za-z0-9]", re.MULTILINE)
+    nm = next_re.search(text, pos=rm.end(), endpos=sec_end)
+    end = nm.start() if nm else sec_end
+    return start, end
+
+
+def update_routines_field(
+    ecu_name: str,
+    rid: str,
+    field: str,
+    value: str | bool,
+    pids_dir: Path = PIDS_DIR,
+) -> Path:
+    """Update a single RID field in-place in the ``routines:`` section.
+
+    Supports the same fields as ``update_iocontrol_field``: label, verified,
+    notes. Returns the file path edited. Raises ``PidsEditError`` on failure.
+    """
+    if field not in EDITABLE_FIELDS:
+        raise PidsEditError(f"Field {field!r} not editable; allowed: {EDITABLE_FIELDS}")
+
+    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
+    text = fpath.read_text()
+    start, end = _find_routine_block(text, rid)
+    block = text[start:end]
+
+    if field == "label":
+        new_line = f"      label: {_format_label(str(value))}"
+        new_block = _replace_field_in_block(block, "label", new_line)
+    elif field == "verified":
+        new_line = f"      verified: {_format_verified(bool(value))}"
+        new_block = _replace_field_in_block(block, "verified", new_line)
+    elif field == "notes":
+        new_lines = _format_notes_block(str(value))
+        new_block = _replace_field_in_block(block, "notes", new_lines)
+    else:  # pragma: no cover
+        raise PidsEditError(field)
+
+    if new_block == block:
+        return fpath  # no-op
+
+    new_text = text[:start] + new_block + text[end:]
     fpath.write_text(new_text)
     return fpath
 
