@@ -71,6 +71,7 @@ from canlib.modes import (
     mode_tester_present,
 )
 from canlib.modes.iocontrol import mode_iocontrol_execute, mode_iocontrol_list
+from canlib.modes.routines import mode_routines_execute, mode_routines_list
 from canlib.modes.routines_scan import mode_routines_scan
 from canlib.modes.iocontrol_scan import mode_iocontrol_scan
 
@@ -146,7 +147,7 @@ async def async_main(args):
 
     init_logging()
     log_command(
-        f"--- SESSION START (host={host}, mode={'interactive' if not any([args.param, args.ecu, args.raw, args.scan, args.discover, args.skm_wakeup, args.tester_present, args.iocontrol, args.routines_scan is not None, args.iocontrol_scan is not None]) else 'batch'}, unsafe={args.unsafe}, session={getattr(args, 'session', False)}) ---"
+        f"--- SESSION START (host={host}, mode={'interactive' if not any([args.param, args.ecu, args.raw, args.scan, args.discover, args.skm_wakeup, args.tester_present, args.iocontrol, args.routines, args.routines_scan is not None, args.iocontrol_scan is not None]) else 'batch'}, unsafe={args.unsafe}, session={getattr(args, 'session', False)}) ---"
     )
 
     if args.unsafe:
@@ -159,6 +160,9 @@ async def async_main(args):
     # List-only mode: no CAN connection needed (--json or explicit list)
     if args.iocontrol and not args.did and args.json:
         mode_iocontrol_list(pids_data, args.iocontrol, as_json=True)
+        return
+    if args.routines and not args.rid and args.json:
+        mode_routines_list(pids_data, args.routines, as_json=True)
         return
 
     init_string = pids_data.get("init", "ATSP6;ATS0;ATAL;ATST96;")
@@ -211,7 +215,8 @@ async def async_main(args):
                 args.verbose,
                 interval=args.monitor,
                 session_steps=session_steps,
-                keep_mode="unique" if args.keep_unique else ("all" if args.keep_all else None),
+                keep_mode="unique" if args.keep_unique else ("all" if args.keep_all else ("last" if args.keep else None)),
+                keep_n=args.keep,
                 save=args.save,
             )
         elif args.multi:
@@ -308,6 +313,51 @@ async def async_main(args):
                     terminal,
                     pids_data,
                     args.iocontrol,
+                    verbose=args.verbose,
+                )
+        elif args.routines:
+            if args.rid:
+                from canlib.modes.routines import SF_RESULTS, SF_START, SF_STOP
+                sf_map = {"results": SF_RESULTS, "start": SF_START, "stop": SF_STOP}
+                sf_name = (args.sf or "results").lower()
+                if sf_name not in sf_map:
+                    print(
+                        f"Error: --sf must be one of: results, start, stop (got {args.sf!r})",
+                        file=sys.stderr,
+                    )
+                    sys.exit(1)
+                sub_function = sf_map[sf_name]
+                if sub_function == SF_START:
+                    print(
+                        f"!! WARNING: --sf start will send startRoutine (SF 0x01) to {args.routines} RID {args.rid}.",
+                        file=sys.stderr,
+                    )
+                    print(
+                        "!! This may actuate hardware. Continue? [y/N] ",
+                        end="",
+                        flush=True,
+                        file=sys.stderr,
+                    )
+                    answer = sys.stdin.readline().strip().lower()
+                    if answer not in ("y", "yes"):
+                        print("Aborted.", file=sys.stderr)
+                        sys.exit(0)
+                await mode_routines_execute(
+                    terminal,
+                    pids_data,
+                    args.routines,
+                    args.rid,
+                    sub_function=sub_function,
+                    verbose=args.verbose,
+                    as_json=args.json,
+                )
+            else:
+                from canlib.modes.routines import mode_routines_tui
+
+                await mode_routines_tui(
+                    terminal,
+                    pids_data,
+                    args.routines,
                     verbose=args.verbose,
                 )
         elif args.routines_scan is not None:
@@ -491,6 +541,12 @@ Examples:
   %(prog)s --multi "iocontrol IGPM BC01"    IOControl in multi pipeline
   %(prog)s --multi "iocontrol IGPM BC01" "sleep 3" "iocontrol IGPM BC01 --off"
                                             ON, wait 3s, OFF
+
+  Routines (RoutineControl 0x31 from pids/ YAML):
+  %(prog)s --routines BCM                   Interactive TUI (navigate, request results)
+  %(prog)s --routines BCM --json            List all BCM routines (JSON, offline)
+  %(prog)s --routines BCM --rid 12A1        Request results for RID 12A1 (SF 0x03, safe)
+  %(prog)s --routines BCM --rid 12A1 --sf stop  Send stopRoutine (SF 0x02)
   %(prog)s --multi "query BMS 2101" --monitor
                                             Live monitor: refresh BMS 2101 every 5s
   %(prog)s --multi "session IGPM --wake" "query IGPM BC03 BC06" --monitor 2
@@ -554,6 +610,16 @@ Examples:
         "Session and hold behavior are auto-applied from pids/ YAML.",
     ).completer = _ecu_completer
     mode.add_argument(
+        "--routines",
+        metavar="ECU",
+        help="Routines mode: interactive TUI or single-command execution for "
+        "RoutineControl (0x31) entries defined in pids/<ecu>.yaml under "
+        "the 'routines:' key. Without --rid, launches interactive TUI. "
+        "With --rid, sends requestRoutineResults (SF 0x03, safe read-only) "
+        "or the sub-function given by --sf. Use --json without --rid for "
+        "offline JSON listing.",
+    ).completer = _ecu_completer
+    mode.add_argument(
         "--routines-scan",
         nargs="*",
         metavar="ECU",
@@ -598,6 +664,21 @@ Examples:
         "--off",
         action="store_true",
         help="Send OFF/returnControl command instead of ON (for --iocontrol mode)",
+    )
+
+    # Routines mode options
+    parser.add_argument(
+        "--rid", metavar="RID", help="Routine ID to execute (for --routines mode, e.g., 12A1)"
+    )
+    parser.add_argument(
+        "--sf",
+        metavar="SF",
+        default="results",
+        choices=["results", "start", "stop"],
+        help="RoutineControl sub-function for --routines mode: "
+        "results (0x03, default — safe read-only), "
+        "start (0x01 — actuates; requires confirmation), "
+        "stop (0x02)",
     )
 
     # Scan mode options
@@ -672,6 +753,13 @@ Examples:
         action="store_true",
         help="For --monitor: retain every payload from every cycle (with "
         "timestamps), including duplicates. Useful for logging all responses.",
+    )
+    keep_group.add_argument(
+        "--keep",
+        type=int,
+        metavar="N",
+        help="For --monitor: keep the last N payloads per PID on screen "
+        "(sliding window). Includes duplicates.",
     )
     parser.add_argument(
         "--save",

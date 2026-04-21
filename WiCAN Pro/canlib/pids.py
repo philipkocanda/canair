@@ -142,6 +142,38 @@ def build_iocontrol_index(pids_data: dict, include_discoveries: bool = False) ->
     return index
 
 
+def build_routines_index(pids_data: dict) -> dict:
+    """Build lookup: ECU_NAME -> {tx_id, routines: {RID: {label, nrc, nrc_desc, response, verified, notes}}}.
+
+    Reads the ``routines:`` section from each ECU's YAML. Each entry corresponds
+    to a RoutineControl (0x31) hit found by ``--routines-scan``. The TUI uses this
+    to send sub-function 0x03 (requestRoutineResults — safe, read-only) and
+    optionally 0x01 (startRoutine — only with explicit user confirmation).
+    """
+    index = {}
+    for ecu_name, ecu_def in pids_data.get("ecus", {}).items():
+        routines = ecu_def.get("routines", {})
+        if not routines:
+            continue
+        rmap = {}
+        for rid, rdef in routines.items():
+            rid_str = str(rid).upper()
+            rdef = rdef or {}
+            rmap[rid_str] = {
+                "label": rdef.get("label", ""),
+                "nrc": rdef.get("nrc"),
+                "nrc_desc": rdef.get("nrc_desc", ""),
+                "response": rdef.get("response", ""),
+                "verified": rdef.get("verified", False),
+                "notes": rdef.get("notes", ""),
+            }
+        index[ecu_name.upper()] = {
+            "tx_id": ecu_def["tx_id"],
+            "routines": rmap,
+        }
+    return index
+
+
 def build_ecu_index(pids_data: dict) -> dict:
     """Build lookup: ECU_NAME -> {tx_id, pids: {PID: {parameters: ...}}}."""
     index = {}
