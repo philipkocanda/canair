@@ -38,6 +38,7 @@ import asyncio
 import sys
 from typing import NamedTuple
 
+from ..scan_state import ScanStateWriter
 from ..terminal import WiCANTerminal
 
 # IOControl sub-functions — 0x00 is the ONLY safe one for scanning
@@ -158,8 +159,20 @@ async def scan_ecu(
     tester_task: asyncio.Task | None = None
     in_extended = False
 
+    state = ScanStateWriter("iocontrol", ecu_name, tx_id, start, end)
+    state.open()
     try:
         for did in range(start, end + 1):
+            # Show current probe on stderr (overwritten each line)
+            req_hex = f"2F {did >> 8:02X} {did & 0xFF:02X} 00"
+            idx = did - start + 1
+            pct = idx / total * 100
+            print(
+                f"    [{idx}/{total} {pct:.0f}%] probing 0x{did:04X}  ({req_hex})" + " " * 4,
+                end="\r",
+                file=sys.stderr,
+            )
+
             response = await probe_iocontrol(terminal, did, SF_RETURN_CONTROL)
             category, nrc = classify(response)
 
@@ -187,8 +200,12 @@ async def scan_ecu(
                     nrc_desc=None,
                 )
                 hits.append(hit)
+                resp_hex = response.get("hex", "")
                 nbytes = len(response.get("bytes", []))
-                print(f"    + 0x{did:04X}: positive ({nbytes} bytes)")
+                print(
+                    f"    + 0x{did:04X}: positive ({nbytes} bytes)"
+                    + (f"  [{resp_hex}]" if resp_hex else "")
+                )
             elif category == "exists":
                 desc = response.get("nrc_desc", "")
                 hit = IOControlHit(
@@ -210,12 +227,7 @@ async def scan_ecu(
                     err = response.get("error", "unknown")
                     print(f"    ! 0x{did:04X}: {err}")
 
-            if not verbose and category == "absent":
-                idx = did - start + 1
-                if idx % 128 == 0:
-                    pct = idx / total * 100
-                    print(f"    ... {idx}/{total} ({pct:.0f}%)",
-                          end="\r", file=sys.stderr)
+            state.update(did, hits=len(hits))
 
             if throttle_ms > 0:
                 await asyncio.sleep(throttle_ms / 1000.0)
@@ -227,7 +239,10 @@ async def scan_ecu(
             except asyncio.CancelledError:
                 pass
 
+    # Clear progress line
+    print(" " * 60, end="\r", file=sys.stderr)
     print(f"  [{ecu_name}] done — {len(hits)} hits, {absent} absent, {errors} errors")
+    state.close()
     return hits
 
 
