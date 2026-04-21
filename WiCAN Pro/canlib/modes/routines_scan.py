@@ -30,8 +30,9 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from typing import NamedTuple
+from typing import Callable, NamedTuple
 
+from ..scan_state import ScanStateWriter
 from ..terminal import WiCANTerminal
 
 # Routine sub-functions
@@ -111,8 +112,14 @@ async def scan_ecu(
     rid_range: tuple[int, int],
     throttle_ms: int = 150,
     verbose: bool = False,
+    on_hit: Callable[[RoutineHit], None] | None = None,
 ) -> list[RoutineHit]:
     """Scan one ECU. Default session first, retry in extended on NRC 7F.
+
+    Args:
+        on_hit: Optional callback invoked after each hit is found. Use this
+            to persist results incrementally so interrupted scans don't lose
+            data.
 
     The caller is responsible for invoking this inside any broader session
     plumbing (we establish per-ECU extended session lazily on first 7F).
@@ -129,8 +136,20 @@ async def scan_ecu(
     tester_task: asyncio.Task | None = None
     in_extended = False
 
+    state = ScanStateWriter("routines", ecu_name, tx_id, start, end)
+    state.open()
     try:
         for rid in range(start, end + 1):
+            # Show current probe on stderr (overwritten each line)
+            req_hex = f"31 03 {rid >> 8:02X} {rid & 0xFF:02X}"
+            idx = rid - start + 1
+            pct = idx / total * 100
+            print(
+                f"    [{idx}/{total} {pct:.0f}%] probing 0x{rid:04X}  ({req_hex})" + " " * 4,
+                end="\r",
+                file=sys.stderr,
+            )
+
             response = await probe_routine(terminal, rid, SF_RESULTS)
             category, nrc = classify(response)
 
@@ -154,7 +173,13 @@ async def scan_ecu(
                     nrc_desc=None,
                 )
                 hits.append(hit)
-                print(f"    + 0x{rid:04X}: positive ({len(response.get('bytes', []))} bytes)")
+                if on_hit:
+                    on_hit(hit)
+                resp_hex = response.get("hex", "")
+                print(
+                    f"    + 0x{rid:04X}: positive ({len(response.get('bytes', []))} bytes)"
+                    + (f"  [{resp_hex}]" if resp_hex else "")
+                )
             elif category == "exists":
                 desc = response.get("nrc_desc", "")
                 hit = RoutineHit(
@@ -165,6 +190,8 @@ async def scan_ecu(
                     nrc_desc=desc,
                 )
                 hits.append(hit)
+                if on_hit:
+                    on_hit(hit)
                 print(f"    ~ 0x{rid:04X}: exists (NRC 0x{nrc:02X} {desc})")
             elif category == "absent":
                 absent += 1
@@ -176,12 +203,7 @@ async def scan_ecu(
                     err = response.get("error", "unknown")
                     print(f"    ! 0x{rid:04X}: {err}")
 
-            # Progress indicator for silent runs
-            if not verbose and category == "absent":
-                idx = rid - start + 1
-                if idx % 32 == 0:
-                    pct = idx / total * 100
-                    print(f"    ... {idx}/{total} ({pct:.0f}%)", end="\r", file=sys.stderr)
+            state.update(rid, hits=len(hits))
 
             if throttle_ms > 0:
                 await asyncio.sleep(throttle_ms / 1000.0)
@@ -193,7 +215,10 @@ async def scan_ecu(
             except asyncio.CancelledError:
                 pass
 
+    # Clear progress line
+    print(" " * 60, end="\r", file=sys.stderr)
     print(f"  [{ecu_name}] done — {len(hits)} hits, {absent} absent, {errors} errors")
+    state.close()
     return hits
 
 
@@ -235,6 +260,23 @@ async def mode_routines_scan(
             print(f"  WARNING: ECU {ecu!r} has no tx_id, skipping", file=sys.stderr)
             continue
 
+        # Build incremental YAML writer callback so hits survive disconnects
+        on_hit: Callable[[RoutineHit], None] | None = None
+        if write_yaml:
+            from ..pids_edit import append_routines_block
+
+            _saved = 0
+
+            def _write_hit(hit: RoutineHit, _ecu=key) -> None:
+                nonlocal _saved
+                try:
+                    append_routines_block(_ecu, [hit])
+                    _saved += 1
+                except Exception as exc:
+                    print(f"  [{_ecu}] ERROR writing YAML: {exc}", file=sys.stderr)
+
+            on_hit = _write_hit
+
         hits = await scan_ecu(
             terminal,
             ecu_name=key,
@@ -242,17 +284,12 @@ async def mode_routines_scan(
             rid_range=rid_range,
             throttle_ms=throttle_ms,
             verbose=verbose,
+            on_hit=on_hit,
         )
         results[key] = hits
 
         if write_yaml and hits:
-            from ..pids_edit import append_routines_block
-
-            try:
-                path = append_routines_block(key, hits)
-                print(f"  [{key}] wrote {len(hits)} routines to {path.name}")
-            except Exception as exc:
-                print(f"  [{key}] ERROR writing YAML: {exc}", file=sys.stderr)
+            print(f"  [{key}] {len(hits)} routines saved to YAML (incremental)")
 
     # Summary
     print("\n  --- RoutineControl Scan Summary ---")

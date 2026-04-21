@@ -157,6 +157,23 @@ async def async_main(args):
 
     pids_data = load_pids()
 
+    # Warn about any aborted scans from a previous interrupted session
+    from canlib.scan_state import find_aborted_scans
+
+    _aborted = find_aborted_scans()
+    if _aborted:
+        print("!! Aborted scan(s) detected from a previous session:")
+        for _s in _aborted:
+            print(
+                f"   [{_s['type'].upper()} scan  {_s['ecu']} @ {_s['tx_id']}]"
+                f"  range {_s['range']}"
+                f"  last probe: {_s['current']}"
+                f"  ({_s['hits']} hits / {_s['total']} total)"
+                f"  started {_s.get('started', '?')}"
+            )
+        print("!! To resume, re-run with the same ECU and --rid-range starting at the last probe.")
+        print()
+
     # List-only mode: no CAN connection needed (--json or explicit list)
     if args.iocontrol and not args.did and args.json:
         mode_iocontrol_list(pids_data, args.iocontrol, as_json=True)
