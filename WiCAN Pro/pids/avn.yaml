@@ -4,5 +4,5 @@
 # No live data DIDs discovered yet. Service 22 ranges untested.
 AVN:
   tx_id: 0x780
-  availability: [plugged, acc, ign, ready, charging]
+  availability: [plugged, acc, acc2, ready, charging]
   pids: {}

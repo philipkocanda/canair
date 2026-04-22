@@ -2,7 +2,7 @@
 # ─── HVAC (Heating, Ventilation, Air Conditioning) ────────────────────
 HVAC:
   tx_id: 0x7B3
-  availability: [acc, ign, ready]
+  availability: [acc, acc2, ready]
   identity:
     part_number: "97250-G7060"
     description: "CONTROL ASS'Y-DATC"
@@ -13,7 +13,7 @@ HVAC:
     220100:
       period: 5000
       enabled: true
-      availability: [acc, ign, ready]
+      availability: [acc, acc2, ready]
       notes: >
         41-byte ELM response (39 data bytes). Live HVAC sensor/actuator data.
         Monitored 2026-04-17 with HVAC on/off, fan speed changes, temp changes,
@@ -229,7 +229,7 @@ HVAC:
 
     2201A0:
       enabled: true
-      availability: [acc, ign, ready]
+      availability: [acc, acc2, ready]
       notes: >
         62 bytes. Primary HVAC control/status DID. Contains set temperature,
         HVAC on/off flags, heating mode, and defrost flags. Also contains
@@ -333,7 +333,7 @@ HVAC:
 
     2201A1:
       enabled: false
-      availability: [acc, ign, ready]
+      availability: [acc, acc2, ready]
       notes: >
         62 bytes. Actuator control data. First 10 bytes very active during
         HVAC operation (RPM-like 16-bit values). ELM[9-10] = 01 01 when on,
@@ -345,12 +345,12 @@ HVAC:
     2201A2:
       enabled: false
       notes: "55 bytes. Similar structure to 01A1."
-      availability: [acc, ign, ready]
+      availability: [acc, acc2, ready]
       parameters: {}
 
     2201A3:
       enabled: false
-      availability: [acc, ign, ready]
+      availability: [acc, acc2, ready]
       notes: >
         55 bytes. Dynamic during HVAC operation (NOT static as initially
         thought from cold-read). Contains compressor RPM data, PTC heater
@@ -361,19 +361,19 @@ HVAC:
     2201A4:
       enabled: false
       notes: "55 bytes. Identical to 01A3."
-      availability: [acc, ign, ready]
+      availability: [acc, acc2, ready]
       parameters: {}
 
     2201A5:
       enabled: false
       notes: "55 bytes. Identical to 01A3."
-      availability: [acc, ign, ready]
+      availability: [acc, acc2, ready]
       parameters: {}
 
     2201A6:
       enabled: false
       notes: "55 bytes. Identical to 01A3."
-      availability: [acc, ign, ready]
+      availability: [acc, acc2, ready]
       parameters: {}
   iocontrol:
     F011:
@@ -381,7 +381,6 @@ HVAC:
       verified: false
       on: ""
       off: "2FF01100"
-      session: true
       hold: false
       notes: >
         updated via TUI test
@@ -390,7 +389,6 @@ HVAC:
       verified: false
       on: ""
       off: ""
-      session: true
       hold: false
       notes: >
         Write-only: NRC 0x31 for ReturnControlToECU (00), but NRC 0x13 for
@@ -401,7 +399,6 @@ HVAC:
       verified: false
       on: ""
       off: "2FF01300"
-      session: true
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
     F014:
@@ -409,7 +406,6 @@ HVAC:
       verified: false
       on: ""
       off: "2FF01400"
-      session: true
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
     F015:
@@ -417,7 +413,6 @@ HVAC:
       verified: false
       on: ""
       off: "2FF01500"
-      session: true
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
     F016:
@@ -425,7 +420,6 @@ HVAC:
       verified: false
       on: ""
       off: "2FF01600"
-      session: true
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
     F017:
@@ -433,7 +427,6 @@ HVAC:
       verified: false
       on: ""
       off: "2FF01700"
-      session: true
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
     F018:
@@ -441,7 +434,6 @@ HVAC:
       verified: false
       on: ""
       off: "2FF01800"
-      session: true
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
     F022:
@@ -449,7 +441,6 @@ HVAC:
       verified: false
       on: ""
       off: "2FF02200"
-      session: true
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
     F023:
@@ -457,7 +448,6 @@ HVAC:
       verified: false
       on: ""
       off: "2FF02300"
-      session: true
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
     F024:
@@ -465,7 +455,6 @@ HVAC:
       verified: false
       on: ""
       off: "2FF02400"
-      session: true
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
     F025:
@@ -473,7 +462,6 @@ HVAC:
       verified: false
       on: ""
       off: "2FF02500"
-      session: true
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
     F026:
@@ -481,7 +469,6 @@ HVAC:
       verified: false
       on: ""
       off: "2FF02600"
-      session: true
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
     F027:
@@ -489,7 +476,6 @@ HVAC:
       verified: false
       on: ""
       off: "2FF02700"
-      session: true
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
   research:

@@ -14,6 +14,46 @@
 #
 # Discovery scan 2026-04-17: full sweep 0x700-0x7EF found 30 alive addresses.
 # 16 previously known + 14 newly discovered + 0x7C0 (unknown) + 0x7DF (OBD-II broadcast).
+#
+# Per-ECU scan log — tracks which UDS service/range combinations have been probed.
+# Format: service (hex), range, date, result count, car state.
+scan_log:
+  0x770:  # IGPM
+    - service: 0x31
+      range: "0000-FFFF"
+      date: 2026-04-20
+      hits: 0
+      probes: 768  # cut off at 0x00FF — battery died
+      state: asleep
+      notes: >
+        All NRC 0x12 (subFunctionNotSupported) — IGPM does not support sub-function 03
+        (requestRoutineResults). Sub-function 01 (startRoutine) untested (unsafe to scan blindly).
+  0x7A0:  # BCM
+    - service: 0x31
+      range: "0000-FFFF"
+      date: 2026-04-20
+      hits: "~71+ (screen only, not in log — connection dropped)"
+      probes: 49813  # cut off at 0xC8D2 — WiCAN sleep/disconnect
+      state: asleep
+      notes: >
+        BCM supports service 31 (sub-fn 03 requestRoutineResults).
+        Two clusters of positive responses seen on screen (not saved to log — connection dropped):
+          Cluster A: 0x95CE–0x97C2 (~40 hits, stride 0x0D)
+          Cluster B: 0xC726–0xC8B8 (~32 hits, stride 0x0D)
+        All responses are 2 bytes (just positive ack, no result data — routine exists but no
+        result available, likely needs startRoutine first or ignition on).
+        Notable: RID 0x12A1 returned NRC 0x22 (conditionsNotCorrect).
+        Remaining range 0xC8D3-0xFFFF not yet scanned.
+        TODO: Resume scan from 0xC8D3. Also re-scan 0x95CE-0xC8D2 to capture hits to log.
+  0x7B3:  # HVAC
+    - service: 0x31
+      range: "E000-E0FF"
+      date: 2026-04-20
+      hits: 0
+      probes: 256
+      state: asleep
+      notes: "256 errors — likely no service 31 support without ignition"
+
 ecus:
   0x770:
     name: IGPM
@@ -269,7 +309,7 @@ ecus:
     calibration: "00000001"
     id_protocol: KWP2000  # 1Axx
   0x7E6:
-    name: AAF
+    name: AAF # Todo: rename to AAT? (ambient air temp)
     description: Ambient Air Temperature sensor controller (previously misidentified as "CAN Gateway")
     part_number: M3062000307  # KWP2000 1A91 — likely Renesas M16C/M306 MCU part, not a Hyundai part number
     sw_id: EAE16AAFB30001  # KWP2000 1A8D

@@ -302,6 +302,7 @@ async def mode_monitor(
     interval: float = 5.0,
     session_steps: list[dict] | None = None,
     keep_mode: str | None = None,
+    keep_n: int | None = None,
     save: bool = False,
 ):
     """Live-refresh ECU parameter monitor.
@@ -319,7 +320,9 @@ async def mode_monitor(
         session_steps:  Optional list of session/skm-wake steps to run once before
                         the first poll cycle.
         keep_mode:      None = no history, "unique" = deduped unique payloads,
-                        "all" = every payload from every cycle.
+                        "all" = every payload from every cycle,
+                        "last" = sliding window of last N payloads (see keep_n).
+        keep_n:         For keep_mode="last": number of recent payloads to display.
         save:           On Ctrl+C, prompt for metadata and save to captures/.
     """
     from ..captures import CAPTURES_DIR
@@ -347,7 +350,8 @@ async def mode_monitor(
         cycle = 0
         last_queries: list[tuple[str, list]] = []
         prev_hex: dict[tuple[str, str], str] = {}
-        hex_history: dict[tuple[str, str], list[tuple[str, str]]] = {} if keep_mode or save else None
+        hex_history: dict[tuple[str, str], list[tuple[str, str]]] = {} if keep_mode else None
+        save_history: dict[tuple[str, str], list[tuple[str, str]]] = {} if save else None
         stop_requested = False
 
         def _handle_sigint(_sig, _frame):
@@ -402,11 +406,16 @@ async def mode_monitor(
                             if raw:
                                 key = (ecu_label, entry["pid"])
                                 prev_hex[key] = raw
+                                ts = datetime.now().strftime("%H:%M:%S")
+                                # Save history (for --save): always keep all
+                                if save_history is not None:
+                                    save_history.setdefault(key, []).append((raw, ts))
+                                # Display history (for --keep flags)
                                 if hex_history is not None:
-                                    ts = datetime.now().strftime("%H:%M:%S")
-                                    if keep_mode == "all":
-                                        # Store every payload, including duplicates
+                                    if keep_mode == "all" or keep_mode == "last":
                                         hex_history.setdefault(key, []).append((raw, ts))
+                                        if keep_mode == "last" and keep_n and len(hex_history[key]) > keep_n:
+                                            hex_history[key] = hex_history[key][-keep_n:]
                                     else:
                                         # "unique" mode: only store if not seen before
                                         existing = [h for h, _ts in hex_history.get(key, [])]
@@ -429,9 +438,9 @@ async def mode_monitor(
 
         if stop_requested:
             print("\n  Monitoring stopped.")
-            if save and hex_history is not None:
+            if save and save_history is not None:
                 captures_dir = CAPTURES_DIR
-                _prompt_and_save(hex_history, prev_hex, captures_dir, pids_data)
+                _prompt_and_save(save_history, prev_hex, captures_dir, pids_data)
             return
 
         # If we got here, it was a ConnectionError

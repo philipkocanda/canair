@@ -1,0 +1,191 @@
+sessions:
+- date: '2026-04-20'
+  label: "\x03"
+  state: C
+  captures:
+  - ecu: BCM
+    pid: 22B001
+    payload: 62B00140C0000000010000000000000201000000
+    time: "20:24:36"
+  - ecu: BCM
+    pid: 22B002
+    payload: 62B002C00000000200AAAAAAAA
+    time: "20:24:32"
+  - ecu: BCM
+    pid: 22B003
+    payload: 62B003BF8B8000993D15C3D3F7F8F63DF800000000000000AAAAAA
+    time: "20:24:32"
+    decoded:
+      BCM_12V_BATTERY: 12.24 V
+      BCM_POWER_MODE: '21.0'
+  - ecu: BCM
+    pid: 22B003
+    payload: 62B003BF8B8000993D15C3D3F8F8F73DF800000000000000AAAAAA
+    time: "20:24:36"
+    decoded:
+      BCM_12V_BATTERY: 12.24 V
+      BCM_POWER_MODE: '21.0'
+  - ecu: BCM
+    pid: 22B003
+    payload: 62B003BF8B8000983D15C3D3F8F8F63DF800000000000000AAAAAA
+    time: "20:24:41"
+    decoded:
+      BCM_12V_BATTERY: 12.16 V
+      BCM_POWER_MODE: '21.0'
+  - ecu: BCM
+    pid: 22B003
+    payload: 62B003BF8B8000993D15C3D3F8F9F73DF800000000000000AAAAAA
+    time: "20:24:45"
+    decoded:
+      BCM_12V_BATTERY: 12.24 V
+      BCM_POWER_MODE: '21.0'
+  - ecu: BCM
+    pid: 22B003
+    payload: 62B003BF8B8000993D1BC3D3F8F9F73DF800000000000000AAAAAA
+    time: "20:24:49"
+    decoded:
+      BCM_12V_BATTERY: 12.24 V
+      BCM_POWER_MODE: '27.0'
+  - ecu: BCM
+    pid: 22B003
+    payload: 62B003BF8B8000983D15C3D3F8F8F73DF800000000000000AAAAAA
+    time: "20:24:53"
+    decoded:
+      BCM_12V_BATTERY: 12.16 V
+      BCM_POWER_MODE: '21.0'
+  - ecu: BCM
+    pid: 22B003
+    payload: 62B003BF8B8000983D15C3D3F7F9F63DF800000000000000AAAAAA
+    time: "20:24:57"
+    decoded:
+      BCM_12V_BATTERY: 12.16 V
+      BCM_POWER_MODE: '21.0'
+  - ecu: BCM
+    pid: 22B003
+    payload: 62B003BF8B8000983D17C3D3F8F8F73DF800000000000000AAAAAA
+    time: "20:25:09"
+    decoded:
+      BCM_12V_BATTERY: 12.16 V
+      BCM_POWER_MODE: '23.0'
+  - ecu: BCM
+    pid: 22B003
+    payload: 62B003BF8B8000983D1BC3D3F8F8F73DF800000000000000AAAAAA
+    time: "20:25:13"
+    decoded:
+      BCM_12V_BATTERY: 12.16 V
+      BCM_POWER_MODE: '27.0'
+  - ecu: BCM
+    pid: 22B004
+    payload: 62B0047402990C00008000AAAA
+    time: "20:24:32"
+    decoded:
+      BCM_DOORS_LOCKED: '0.0'
+  - ecu: BCM
+    pid: 22B004
+    payload: 62B0047402990C00408000AAAA
+    time: "20:24:53"
+    decoded:
+      BCM_DOORS_LOCKED: '1.0'
+  - ecu: BCM
+    pid: 22B005
+    payload: 62B00520001000A0000800AAAA
+    time: "20:24:32"
+    decoded:
+      BCM_B005_UNLOCK_BITS: '8.0'
+  - ecu: BCM
+    pid: 22B006
+    payload: 62B0062000000000000000AAAA
+    time: "20:24:32"
+    decoded:
+      BCM_B006_UNLOCK_BITS: '0.0'
+  - ecu: BCM
+    pid: 22B007
+    payload: 62B007002001E000000000AAAA
+    time: "20:24:32"
+    decoded:
+      PREHEAT_DEPARTURE_TIME: "480.0 min (08:00)"
+  - ecu: BCM
+    pid: 22B008
+    payload: 62B00800510C2000880000AAAA
+    time: "20:24:32"
+  - ecu: BCM
+    pid: 22B009
+    payload: 62B009FEEEFEEE00000000AAAA
+    time: "20:24:32"
+  - ecu: BCM
+    pid: 22B00A
+    payload: 62B00AE3FEE30000400500AAAA
+    time: "20:24:32"
+  - ecu: BCM
+    pid: 22B00C
+    payload: 62B00C3F00000000000000AAAA
+    time: "20:24:32"
+    decoded:
+      PREHEAT_SCHEDULE_DAYS: 63.0  (0111111)
+  - ecu: BCM
+    pid: 22B00D
+    payload: 62B00DFCFCE00003000000AAAA
+    time: "20:24:32"
+  - ecu: BCM
+    pid: 22B00E
+    payload: 62B00E0C00000000000000AAAA
+    time: "20:24:32"
+    decoded:
+      CHARGE_PORT_OPEN: '0.0'
+  - ecu: BCM
+    pid: 22C00B
+    payload: 62C00BFFFF0000C03C0100C23C0100C43C0100C33C0100AAAAAAAA
+    time: "20:24:32"
+    decoded:
+      TYRE_PRESSURE_FL: 2.65 bar
+      TYRE_PRESSURE_FR: 2.68 bar
+      TYRE_PRESSURE_RL: 2.7 bar
+      TYRE_PRESSURE_RR: 2.69 bar
+      TYRE_TEMP_FL: 10.0 °C
+      TYRE_TEMP_FR: 10.0 °C
+      TYRE_TEMP_RL: 10.0 °C
+      TYRE_TEMP_RR: 10.0 °C
+  - ecu: BCM
+    pid: 22C011
+    payload: 62C011E0000000009C85267CAA
+    time: "20:24:32"
+  - ecu: BCM
+    pid: 22C011
+    payload: 62C011E0000000009CA3267CAA
+    time: "20:24:36"
+  - ecu: BCM
+    pid: 22C011
+    payload: 62C011E0000000009C69267CAA
+    time: "20:24:41"
+  - ecu: BCM
+    pid: 22C011
+    payload: 62C011E0000000009C5F267CAA
+    time: "20:24:45"
+  - ecu: BCM
+    pid: 22C011
+    payload: 62C011E0000000009C68267CAA
+    time: "20:24:49"
+  - ecu: BCM
+    pid: 22C011
+    payload: 62C011E0000000009C06267CAA
+    time: "20:24:53"
+  - ecu: BCM
+    pid: 22C011
+    payload: 62C011E0000000009C0C267CAA
+    time: "20:24:57"
+  - ecu: BCM
+    pid: 22C011
+    payload: 62C011E0000000009C2E267CAA
+    time: "20:25:01"
+  - ecu: BCM
+    pid: 22C011
+    payload: 62C011E0000000009BBC267CAA
+    time: "20:25:05"
+  - ecu: BCM
+    pid: 22C011
+    payload: 62C011E0000000009C27267CAA
+    time: "20:25:09"
+  - ecu: BCM
+    pid: 22C011
+    payload: 62C011E0000000009C0B267CAA
+    time: "20:25:13"

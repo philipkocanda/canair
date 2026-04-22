@@ -4,5 +4,5 @@
 # No live data DIDs discovered yet. Service 22 ranges untested.
 BSD-L:
   tx_id: 0x755
-  availability: [acc, ign, ready]
+  availability: [acc, acc2, ready]
   pids: {}

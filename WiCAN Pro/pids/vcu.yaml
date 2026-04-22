@@ -1,5 +1,17 @@
 
 # ─── VCU (Vehicle Control Unit) ──────────────────────────────────────
+#
+# Sometimes referred to as VMCU, though the distinction is vague..
+#
+# The VCU is the logical brain of the EV powertrain:
+# - Torque requests (accelerator input, cruise control)
+# - Drive mode logic
+# - Regen braking strength (0-1-2-3) and brake blending
+# - Coordination between motor, inverter, battery, and safety systems
+# 
+# The Vehicle Control Unit (VCU) and Motor Control Unit (MCU)
+# are both part of the Electronic Powertrain Control Unit (EPCU) physical housing.
+#
 VCU:
   tx_id: 0x7E2
   availability: [ready, charging]
@@ -58,7 +70,7 @@ VCU:
         DEBUG_VEHICLE_STATE_FLAGS:
           expression: "B11"
           unit: ""
-          verified: true
+          verified: false
           notes: "Raw byte — individual bits below"
 
         VEHICLE_STATE_BRAKE_LAMP:
@@ -76,7 +88,7 @@ VCU:
         VEHICLE_STATE_START_KEY:
           expression: "B11:2"
           unit: ""
-          verified: true
+          verified: false
           notes: ""
 
         VEHICLE_STATE_EV_READY:
@@ -94,13 +106,13 @@ VCU:
         VEHICLE_STATE_MAIN_RELAY_ON:
           expression: "1-B11:5"
           unit: ""
-          verified: true
+          verified: false
           notes: "Inverted from MAIN_RELAY_OFF bit. 1=relay closed (normal Ready/charging), 0=relay open (car off)."
 
         VEHICLE_STATE_POWER_ENABLE:
           expression: "B11:6"
           unit: ""
-          verified: true
+          verified: false
           notes: ""
 
         VEHICLE_STATE_LDC_ENABLED:

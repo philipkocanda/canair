@@ -154,7 +154,7 @@ def validate_ecu_file(
                 errors.append(f"{path.name}/{ecu_name}/{pid_str}: period must be positive int")
 
             # Validate availability
-            VALID_AVAILABILITY = {"sleep", "plugged", "acc", "ign", "ready", "charging"}
+            VALID_AVAILABILITY = {"sleep", "plugged", "acc", "acc2", "ready", "charging"}
             avail = pid_def.get("availability")
             if avail is not None:
                 if not isinstance(avail, list):
@@ -231,6 +231,8 @@ def validate_ecu_file(
                     "notes",
                     "session",
                     "hold",
+                    "availability",
+                    "status_param",
                     True,
                     False,  # YAML bool keys from unquoted on/off
                 }
@@ -259,7 +261,7 @@ def validate_ecu_file(
                 valid_types = {"scan", "decode", "verify", "iocontrol_scan"}
                 valid_statuses = {"pending", "captured", "nrc", "done"}
                 valid_priorities = {"P1", "P2", "P3"}
-                valid_prereqs = {"sleep", "plugged", "acc", "ign", "ready", "charging"}
+                valid_prereqs = {"sleep", "plugged", "acc", "acc2", "ready", "charging"}
                 research_optional = {
                     "priority",
                     "prerequisite",

@@ -15,5 +15,5 @@
 #   KWP2000 1A8C also NO DATA (not a KWP2000 ECU — only UDS).
 Unknown-7D5:
   tx_id: 0x7D5
-  availability: [acc, ign, ready]
+  availability: [acc, acc2, ready]
   pids: {}

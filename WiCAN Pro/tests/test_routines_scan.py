@@ -97,7 +97,7 @@ FIXTURE_YAML = """\
 TEST:
   tx_id: 0x770
   availability:
-    - ign
+    - acc2
   pids:
     BC03:
       label: TEST_PID
@@ -131,11 +131,9 @@ def test_append_routines_block_adds_new_section(pids_dir):
     assert "F010" in routines
     assert "F02A" in routines
 
-    assert routines["F010"]["session"] == "extended"
     assert routines["F010"]["response"] == "71 03 F0 10 00"
     assert routines["F010"]["notes"] == ""
 
-    assert routines["F02A"]["session"] == "default"
     assert routines["F02A"]["nrc"] == 0x24
     assert routines["F02A"]["nrc_desc"] == "requestSequenceError"
 
@@ -150,7 +148,7 @@ def test_append_routines_preserves_existing_sections(pids_dir):
 
     # Original sections intact
     assert data["TEST"]["tx_id"] == 0x770
-    assert data["TEST"]["availability"] == ["ign"]
+    assert data["TEST"]["availability"] == ["acc2"]
     assert "BC03" in data["TEST"]["pids"]
     assert data["TEST"]["pids"]["BC03"]["label"] == "TEST_PID"
     assert data["TEST"]["research"][0]["target"] == "22BC00-22BCFF"

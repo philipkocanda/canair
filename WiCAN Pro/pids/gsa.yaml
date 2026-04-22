@@ -2,12 +2,12 @@
 # ─── GSA (Gear Shift Assembly — Kostal) ────────────────────────────────────────
 GSA:
   tx_id: 0x7B6
-  availability: [acc, ign, ready]
+  availability: [acc, acc2, ready]
   pids:
     220100:
       period: 5000
       enabled: false
-      availability: [acc, ign, ready]
+      availability: [acc, acc2, ready]
       parameters:
         GSA_0100_UNKNOWN:
           expression: ""
