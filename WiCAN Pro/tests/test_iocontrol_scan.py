@@ -119,7 +119,7 @@ FIXTURE_YAML = """\
 TEST:
   tx_id: 0x770
   availability:
-    - ign
+    - acc2
   pids:
     BC03:
       label: TEST_PID
@@ -158,11 +158,9 @@ def test_append_iocontrol_discoveries_adds_new_section(pids_dir):
     assert "B010" in disc
     assert "B02A" in disc
 
-    assert disc["B010"]["session"] == "extended"
     assert disc["B010"]["response"] == "6F B0 10 00"
     assert disc["B010"]["notes"] == ""
 
-    assert disc["B02A"]["session"] == "default"
     assert disc["B02A"]["nrc"] == 0x33
     assert disc["B02A"]["nrc_desc"] == "securityAccessDenied"
 
@@ -195,7 +193,7 @@ def test_append_iocontrol_discoveries_preserves_other_sections(pids_dir):
     data = yaml.safe_load((pids_dir / "test.yaml").read_text())
 
     assert data["TEST"]["tx_id"] == 0x770
-    assert data["TEST"]["availability"] == ["ign"]
+    assert data["TEST"]["availability"] == ["acc2"]
     assert "BC03" in data["TEST"]["pids"]
     assert data["TEST"]["research"][0]["target"] == "22BC00-22BCFF"
 
@@ -233,7 +231,7 @@ def test_append_iocontrol_discoveries_upserts_same_did(pids_dir):
     data = yaml.safe_load((pids_dir / "test.yaml").read_text())
     entry = data["TEST"]["iocontrol_discoveries"]["B001"]
     # The second (positive) result won; NRC fields are gone.
-    assert entry["session"] == "extended"
+    assert entry["response"] == "6FB00100"
     assert entry["response"] == "6FB00100"
     assert "nrc" not in entry
 

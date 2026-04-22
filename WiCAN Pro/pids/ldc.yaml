@@ -140,7 +140,7 @@ LDC:
         - "Kia Niro PR#660"
     - type: decode
       target: "2102"
-      status: analyzed
+      status: done
       priority: P3
       prerequisite: [charging]
       date: "2026-04-19"

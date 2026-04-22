@@ -5,7 +5,7 @@
 # active for desired duration, send OFF to stop.
 PSM:
   tx_id: 0x7A3
-  availability: [plugged, acc, ign, ready, charging]
+  availability: [plugged, acc, acc2, ready, charging]
   identity:
     part_number: "95450G7000"
     description: "Power Seat Module"

@@ -1,18 +1,31 @@
 # Reverse Engineering TODOs
 
-- [ ] ⭐️ Find charge cable lock **status** flag — IOControl commands exist (BC3F=lock, BC41=unlock) but no status read DID is known. Most likely candidate: `22BC07` (already has a charging-active bit at B09:7). Probe with cable plugged/unplugged while parked to find the toggling bit. Also try `22BC05` and `22BC01`/`22BC02`.
+READ THIS PAPER:
+ https://flaviodgarcia.com/publications/BtB.pdf
 
+
+- [ ] Try UDS seed keey fuzzer:
+      https://github.com/CaringCaribou/caringcaribou/blob/master/documentation/uds_fuzz.md
+- [ ] ⭐️ **RoutineControl (`31`) scan** — scan BMS, MCU, HVAC, and other ECUs for supported routines (`31 01 xxxx`). This is likely how scan tools (Kingbolen) actuate the battery fan, run pump tests, etc. Try ranges `E000-E0FF` and `F000-F0FF` first. Create a TUI similar to the existing IOControl TUI (`docs/IOControl CLI commands.md`) for manually starting/stopping/querying routines quickly and safely (sub-functions: `01`=start, `02`=stop, `03`=requestResults).
+- [ ] ⭐️ Find charge cable lock **status** flag — 
+      IOControl commands exist (BC3F=lock, BC41=unlock) but no status read DID is known. 
+      Most likely candidate: `22BC07` (already has a charging-active bit at B09:7). Probe with cable plugged/unplugged while parked to find the toggling bit. Also try `22BC05` and `22BC01`/`22BC02`.
+- [ ] Find battery SoC in IGPM/BCM (which are always online)
+  - [ ] Query and capture BMS 2101 and BCM 22B003 together to find correlated signals
 - [ ] Streamline canreq.py API: the --multi command should be the promary entrypoint for everything. It is best tested
       . Unless there is a reason to have both.
-- [ ] ⭐️ IDEA: Check recorded data (WiCAN's data logger) and use it to validate findings and guide next steps. Look for patterns in the data that can help identify unknown PIDs or confirm hypotheses about existing ones (IDEA: for unknown (bit)fields specifically - we can just add them as "candidate" PIDs with a note that they need verification, and then use the recorded data to confirm or refute them, using other known PIDs as reference!). 
+- [ ] ⭐️ IDEA: Check recorded data (WiCAN's data logger) and use it to validate findings and guide next steps. Look for patterns in the data that can help identify unknown PIDs or confirm hypotheses about existing ones
+      (IDEA: for unknown (bit)fields specifically - we can just add them as "candidate" PIDs with a note that they need verification, and then use the recorded data to confirm or refute them, using other known PIDs as reference!). 
 - [ ] Scan HVAC for IOControl (e.g. blower speed control, A/C on/off)
-- [ ] Test BCM IOControl with ACC ON <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NEXT!!!
-- [ ] Test BCM IOControl with car asleep & unlocked
+- [x] Test BCM IOControl with ACC ON <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NEXT!!!
+- [x] Test BCM IOControl with car asleep & unlocked
 - [ ] Decode BCM charge scheduling DIDs (e.g. preheat and charge schedules, scheduled charging on/off, rear defrost on/off, etc.) -> can we also write these somehow?
 - [x] Test BCM IOControl with car asleep (locked) (most are NRC 0x22 conditionsNotCorrect
 - [ ] Decode keyfob proximity state DID (IGPM or SKM — is fob nearby?)
 - [x] Decode HVAC pids (e.g. blower speed, A/C status, temperature settings)
 - [ ] Test VESS for IOControl (sound!)
+      https://github.com/ereuter/vess/blob/master/vess.py
+      (may need access to PCAN to emulate speed messages which VESS listens to)
 - [ ] Scan SKM for PIDs (e.g. key status, start button status)
 - [ ] Capture IGPM BC03 B11 in all ignition states (Off/ACC/ON/Ready) to verify byte values
 - [x] Scan VCU for PIDs (e.g. motor temps, RPM, torque)
@@ -29,6 +42,8 @@
 - [ ] **Ioniq IGPM undecoded DIDs** — decode remaining bytes in BC01–BC07 status registers. Known candidates: seatbelt status, ambient light sensor, window positions, mirror fold state, wiper/washer state, washer fluid level, bonnet/hood open, rear defogger active, hazard lights, interior lamps (room/map/trunk), key-in-ignition warning, vehicle speed pulse. Requires ignition-ON testing for most. BC03/BC04 can be further decoded with lock/unlock cycle while monitoring.
 - [ ] Add a "quality score" or "confidence level" to each PID based on factors like how many sources confirm it, how well it matches known data, etc. This can help prioritize which PIDs to focus on next and which ones are more likely to be correct.
 - [ ] For each unverified PID, add a "verification plan" that outlines the specific steps needed to confirm its meaning. This can include things like what conditions to test under (e.g. ignition on, driving, charging), what other data to compare it against (e.g. GPS speed for VCU speed).
+- [ ] Adjust AC charge current? Example: https://github.com/projectgus/kona-ev-dbc/commit/0151c0a3663e3f24bb28e432d80600c01d42f258#diff-7df1f18dc3a48a2905f2d683f66b3df2f80845b021a1ceef4bce55734a3ef7a2R169
+- [ ] Check DTC codes when sending CAN messages (non-disgnostic). This is what Fakon (Kona) did.
 
 ## Note on Vehicle Power Modes
 
@@ -99,3 +114,23 @@ Full address sweep found 30 alive ECUs (14 new). New PID files created for SAS, 
 - [ ] Write blog post about reverse engineering process, findings, and how to use the tool?
 - [ ] Share with Gathering of Tweakers community
 - [ ] Share on various Hyundai/Kia forums (ioniqforum.com)
+
+## Scanning 0x31 RoutineControl
+
+# BCM — full range (skip already-scanned segments)
+python3 canreq.py --routines-scan BCM --rid-range 0100-DFFF --save
+
+# IGPM
+python3 canreq.py --routines-scan IGPM --rid-range 0100-DFFF --save
+
+# HVAC (probably won't respond, but covers it)
+python3 canreq.py --routines-scan HVAC --rid-range 0000-DFFF --save
+
+# BMS
+python3 canreq.py --routines-scan BMS --rid-range 0000-FFFF --save --session
+
+# MCU — motor/inverter test routines
+python3 canreq.py --routines-scan MCU --rid-range 0000-FFFF --save --session
+
+# VCU
+python3 canreq.py --routines-scan VCU --rid-range 0000-FFFF --save --session

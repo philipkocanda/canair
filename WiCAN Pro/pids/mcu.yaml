@@ -1,5 +1,17 @@
 
 # ─── MCU (Motor Control Unit) ─────────────────────────────────────────
+#
+# This is the power electronics + control for the traction motor.
+#
+# Responsibilities:
+# - Inverter switching (DC → 3-phase AC)
+# - Motor torque/current control loops
+# - Rotor position handling
+# - Thermal protection of motor/inverter
+#
+# The Vehicle Control Unit (VCU) and Motor Control Unit (MCU)
+# are both part of the Electronic Powertrain Control Unit (EPCU) physical housing.
+#
 # Full service 21 scan (01-FF) during AC charging (2026-04-18):
 #   0x01 (34 bytes), 0x02 (62 bytes), 0x03 (27 bytes, all zeros), 0xF2 (69 bytes).
 MCU:

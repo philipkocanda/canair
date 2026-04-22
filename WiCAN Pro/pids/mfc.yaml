@@ -2,7 +2,7 @@
 # ─── MFC (Multi-Function Camera / ADAS) ───────────────────────────────
 MFC:
   tx_id: 0x7C4
-  availability: [acc, ign, ready]
+  availability: [acc, acc2, ready]
   pids:
     220100:
       period: 2500

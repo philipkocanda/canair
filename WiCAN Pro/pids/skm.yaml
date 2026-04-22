@@ -5,7 +5,7 @@
 # Falls asleep after ~60s of bus inactivity.
 SKM:
   tx_id: 0x7A5
-  availability: [sleep, plugged, acc, ign, ready, charging]
+  availability: [sleep, plugged, acc, acc2, ready, charging]
   session: true
   identity:
     part_number: ""

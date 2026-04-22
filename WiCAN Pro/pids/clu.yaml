@@ -2,12 +2,12 @@
 # ─── CLU (Cluster / Instrument Panel) ─────────────────────────────────
 CLU:
   tx_id: 0x7C6
-  availability: [acc, ign, ready]
+  availability: [acc, acc2, ready]
   pids:
     22B002:
       period: 10000
       enabled: true
-      availability: [acc, ign, ready] # TODO: test during charging
+      availability: [acc, acc2, ready] # TODO: test during charging
       parameters:
         ODOMETER:
           expression: "[B12:B14]"

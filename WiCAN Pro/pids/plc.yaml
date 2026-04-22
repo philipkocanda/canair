@@ -3,6 +3,8 @@
 # Power Line Communication for DC CCS fast-charging at 0x733. Part: 91950G7200
 # No live data DIDs discovered. Likely only active during DC fast charging.
 # Service 22 scan returned no results (2026-04-17, car not charging).
+# TODO: Rename CCM?
+# https://www.projectgus.com/2024/12/fakon/
 PLC:
   tx_id: 0x733
   availability: [charging]  # DC CCS only — likely inactive during AC

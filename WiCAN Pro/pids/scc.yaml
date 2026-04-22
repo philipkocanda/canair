@@ -2,7 +2,7 @@
 # ─── SCC (Smart Cruise Control) ───────────────────────────────────────
 SCC:
   tx_id: 0x7D0
-  availability: [acc, ign, ready]
+  availability: [acc, acc2, ready]
   pids:
     220100:
       period: 2500
