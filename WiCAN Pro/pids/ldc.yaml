@@ -70,7 +70,7 @@ LDC:
           verified: false
           notes: "LDC output current to 12V system. Changed 11.7→9.4A between captures — plausible for varying 12V load. ISO-TP byte 12. Medium confidence."
 
-        OBC_AC_A:
+        OBC_DC_A:
           expression: "[B17:B18]/100"
           unit: A
           ha_class: current
@@ -78,8 +78,8 @@ LDC:
           max: "50"
           source: "Decoded from live captures (2026-04-14)"
           source_links: []
-          verified: false
-          notes: "AC grid input current during charging. Reads 2.85A — close to BMS charging current (~2.6A). Constant between captures. ISO-TP bytes 13-14. Medium confidence."
+          verified: true
+          notes: "DC output current during charging. Reads 2.85A — close to BMS charging current (~2.6A). Constant between captures. ISO-TP bytes 13-14. Medium confidence."
 
         OBC_PILOT_DUTY:
           expression: "B47/3"

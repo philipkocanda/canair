@@ -223,7 +223,7 @@
         "LDC_TEMP": "B21-40",
         "OBC_CHARGE_V": "[B10:B11]/100",
         "LDC_OUTPUT_A": "B15/10",
-        "OBC_AC_A": "[B17:B18]/100",
+        "OBC_DC_A": "[B17:B18]/100",
         "OBC_PILOT_DUTY": "B47/3"
       }
     },
