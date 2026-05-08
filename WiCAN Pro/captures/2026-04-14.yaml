@@ -37,7 +37,7 @@ sessions:
       Comprehensive capture of all known ECUs during AC Level 2 charging.
       SOC 52% (BMS) / 53.5% (display), battery 353.9V, charging current -2.7A,
       battery temps 13-14°C, ambient 11.5°C, LDC temp 37°C, OBC charge voltage 370.6V,
-      OBC AC current 2.84A, pilot duty 15.7%, aux battery 14.5V.
+      OBC DC current 2.84A, pilot duty 15.7%, aux battery 14.5V.
       Odometer ~67,000 km, operating time 5,902 hours.
       CLU (0x7C6), TPMS (0x7A0/22C00B), IGPM (0x770), ESC (0x7D1), BCM (0x7A0/22B00E)
       all returned NO DATA or empty response — these ECUs likely require ignition ON.
