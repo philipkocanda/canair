@@ -18,3 +18,4 @@ WiCAN Pro/logs/
 
 # Secrets
 .env
+.secrets.json
