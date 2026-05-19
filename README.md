@@ -21,10 +21,10 @@ This project uses a [WiCAN Pro](https://www.meatpi.com/products/wican-pro) OBD-I
 
 ## Project structure
 
-The primary working directory is **`WiCAN Pro/`**:
+The primary working directory is **`wican-pro/`**:
 
 ```
-WiCAN Pro/
+wican-pro/
 ├── canreq.py              # Main CLI — send CAN/UDS requests via WebSocket
 ├── wican.py               # WiCAN device management (config, sleep, reboot)
 ├── generate-profile.py    # Generate WiCAN vehicle profiles from YAML definitions
@@ -112,9 +112,9 @@ Requires keyfob proximity for physical relay engagement.
 
 ### Where IOControl commands are defined
 
-- **PID/DID YAML files:** `WiCAN Pro/pids/igpm.yaml`, `bcm.yaml`, `skm.yaml`, `hvac.yaml`, `vess.yaml`, `psm.yaml` — source of truth for all actuator definitions, parameters, and verification status.
-- **IOControl mode implementation:** `WiCAN Pro/canlib/modes/iocontrol.py` — TUI-based interactive actuator control and single-command execution.
-- **Quick reference docs:** `WiCAN Pro/docs/IOControl CLI commands.md` — copy-paste command examples.
+- **PID/DID YAML files:** `wican-pro/pids/igpm.yaml`, `bcm.yaml`, `skm.yaml`, `hvac.yaml`, `vess.yaml`, `psm.yaml` — source of truth for all actuator definitions, parameters, and verification status.
+- **IOControl mode implementation:** `wican-pro/canlib/modes/iocontrol.py` — TUI-based interactive actuator control and single-command execution.
+- **Quick reference docs:** `wican-pro/docs/IOControl CLI commands.md` — copy-paste command examples.
 
 ## How the CLI works
 
@@ -167,7 +167,7 @@ canreq.py (argparse + argcomplete)
 ## Getting started
 
 ```bash
-cd "WiCAN Pro"
+cd wican-pro
 uv sync            # Install dependencies
 uv run canreq.py --help
 uv run wican.py --help

@@ -15,15 +15,15 @@ This project has an OpenCode skill defined at `.opencode/skills/ioniq-reverse-en
 ## Quick Start
 
 ```bash
-cd "WiCAN Pro"
+cd wican-pro
 uv sync
 uv run canreq.py --help
 ```
 
 ## Key Directories
 
-- `WiCAN Pro/` — primary working directory (CLI tools, library, PID definitions)
-- `WiCAN Pro/pids/` — source of truth for all PID/DID definitions (YAML, 25+ ECU files)
-- `WiCAN Pro/canlib/modes/` — CLI sub-mode implementations (IOControl, scan, routines, etc.)
-- `WiCAN Pro/docs/` — documentation (CLI reference, IOControl commands, research notes)
+- `wican-pro/` — primary working directory (CLI tools, library, PID definitions)
+- `wican-pro/pids/` — source of truth for all PID/DID definitions (YAML, 25+ ECU files)
+- `wican-pro/canlib/modes/` — CLI sub-mode implementations (IOControl, scan, routines, etc.)
+- `wican-pro/docs/` — documentation (CLI reference, IOControl commands, research notes)
 - `.opencode/skills/` — OpenCode agent skill definitions

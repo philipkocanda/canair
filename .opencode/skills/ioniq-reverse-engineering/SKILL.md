@@ -19,7 +19,7 @@ You can also use the ELM327 command to reset the bus if that is what you need.
 
 This skill covers the Hyundai Ioniq 2017 EV CAN bus reverse engineering project, including OBD-II PID definitions, WiCAN Pro vehicle profile configuration, and the data pipeline into Home Assistant via MQTT.
 
-Dedicated TODOs for this project are located in "WiCAN Pro/docs/TODO.md"
+Dedicated TODOs for this project are located in "wican-pro/docs/TODO.md"
 
 ### Goals
 
@@ -35,7 +35,7 @@ Dedicated TODOs for this project are located in "WiCAN Pro/docs/TODO.md"
 ## Project Structure
 
 ```
-├── WiCAN Pro/
+├── wican-pro/
 │   ├── pids/                               # SOURCE OF TRUTH — per-ECU PID definitions (split by ECU)
 │   │   ├── _meta.yaml                      # Car model and AT init string
 │   │   ├── _schema.yaml                    # Schema documentation
@@ -58,13 +58,13 @@ Dedicated TODOs for this project are located in "WiCAN Pro/docs/TODO.md"
 │   ├── docs/                                # Tool documentation (canreq, generate-profile, etc.)
 │   ├── vehicle-profiles/
 │   │   ├── ioniq-2017.json                  # Generated vehicle profile
-│   ├── Configs/                             # WiCAN device config snapshots (full JSON dumps)
+│   ├── configs/                             # WiCAN device config snapshots (full JSON dumps)
 │   └── wican-fw/                            # WiCAN firmware checkout (git submodule-like)
-├── Kona/                                    # Reference data from Kona EV
+├── kona/                                    # Reference data from Kona EV
 ├── logs-for-jejusoul/                       # Raw CAN log captures
-├── Spreadsheet_IoniqEV_BMS_2101_2105.xls    # Reference BMS PID spreadsheet
-├── Kia Soul EV CAN Messages.xlsx            # Reference CAN message database
-├── Charge-Curve.ods                         # Charging curve analysis
+├── ioniq-ev-bms-2101-2105.xls              # Reference BMS PID spreadsheet
+├── kia-soul-ev-can-messages.xlsx            # Reference CAN message database
+├── charge-curve.ods                         # Charging curve analysis
 ```
 
 ## WiCAN Configuration
@@ -147,7 +147,7 @@ All endpoints are JSON, no authentication. Device address varies (see Device Acc
 
 Generates WiCAN vehicle profiles from `pids/` directory.
 
-Full CLI docs here: `projects/ioniq-can-reverse-engineering/WiCAN Pro/docs/generate-profile.py.md`
+Full CLI docs here: `projects/ioniq-can-reverse-engineering/wican-pro/docs/generate-profile.py.md`
 
 #### canreq.py
 
@@ -155,7 +155,7 @@ CLI tool for sending custom CAN/UDS requests to the Ioniq via WiCAN's WebSocket 
 
 **CRITICAL: Only one connection at a time.** The WiCAN has a single WebSocket endpoint. Never run multiple `canreq.py` commands in parallel — the second connection will either fail or lock up the device, requiring a power cycle to recover. Always wait for one command to finish before starting the next.
 
-Full CLI docs here: `projects/ioniq-can-reverse-engineering/WiCAN Pro/docs/canreq.py.md`
+Full CLI docs here: `projects/ioniq-can-reverse-engineering/wican-pro/docs/canreq.py.md`
 
 **Preferred modes (use these first):**
 
