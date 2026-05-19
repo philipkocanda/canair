@@ -99,7 +99,7 @@ def _print_sleep_banner(host: str, timeout: int = 5) -> None:
     the sleep threshold voltage.
     """
     try:
-        from wican import get_config, get_status
+        from canlib.wican_api import get_config, get_status
 
         base_url = f"http://{host}"
         status = get_status(base_url, timeout)
