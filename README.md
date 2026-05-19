@@ -70,6 +70,82 @@ The top-level directory also contains earlier CarScanner captures (by date), ref
 | `decode.py` | Apply byte-level expressions from PID definitions to historical captures, showing decoded values and spotting anomalies. |
 | `query-captures.py` | Search across all capture files — show summaries, diffs between dates, or latest values per ECU/PID. |
 
+## IOControl — what can be remotely controlled
+
+Beyond reading diagnostic data, the toolkit can **actuate** vehicle hardware via UDS IOControlByIdentifier (service `0x2F`). All actuators auto-release when the diagnostic session ends (Ctrl+C or timeout) — no permanent state changes.
+
+### IGPM (Integrated Power Gate Module, `0x770`)
+
+Works from deep sleep with `--wake`. No ACC/IGN required.
+
+| Category | Actuators |
+|----------|-----------|
+| Lights | Low beam, high beam, DRL, tail lights, rear fog, left/right indicators, rear brake lights (L/R), CHMSL, luggage lamp |
+| Horn | Horn |
+| Locks | Door lock all, door unlock all, trunk release |
+| Charge cable | Cable lock, cable unlock |
+
+### BCM (Body Control Module, `0x7A0`)
+
+Requires extended session + SKM ACC power.
+
+| Category | Actuators |
+|----------|-----------|
+| Mirrors | Fold, unfold |
+| Interior | Room lamp, puddle lights, heated steering wheel + LED |
+| Wipers | Wiper motor (slow/fast) |
+| Sensors | Parking sensor buzzer |
+| Warnings | Seatbelt warning (driver + 3 passengers) |
+
+### SKM (Smart Key Module, `0x7A5`)
+
+Requires keyfob proximity for physical relay engagement.
+
+| Relay | Effect |
+|-------|--------|
+| ACC (`B108`) | Turns on accessories, dash, infotainment, unlocks doors |
+| IGN1 (`B109`) | Wakes HV system (untested, use with caution) |
+
+### HVAC (`0x7B3`) — work in progress
+
+14+ actuator DIDs discovered but unverified. Goal: remote cabin pre-conditioning (heat/cool before driving). Research ongoing.
+
+### Where IOControl commands are defined
+
+- **PID/DID YAML files:** `WiCAN Pro/pids/igpm.yaml`, `bcm.yaml`, `skm.yaml`, `hvac.yaml`, `vess.yaml`, `psm.yaml` — source of truth for all actuator definitions, parameters, and verification status.
+- **IOControl mode implementation:** `WiCAN Pro/canlib/modes/iocontrol.py` — TUI-based interactive actuator control and single-command execution.
+- **Quick reference docs:** `WiCAN Pro/docs/IOControl CLI commands.md` — copy-paste command examples.
+
+## How the CLI works
+
+The main tool is `canreq.py` — an async Python CLI that connects to the WiCAN Pro via WebSocket, enters ELM327 terminal mode, and sends UDS/KWP2000 requests over ISO-TP.
+
+**Architecture:**
+
+```
+canreq.py (argparse + argcomplete)
+  └── canlib/
+      ├── terminal.py        # WebSocket connection (WiCANTerminal)
+      ├── elm327.py          # ELM327/ISO-TP protocol parsing
+      ├── session_manager.py # Multi-ECU sessions + TesterPresent keepalive
+      └── modes/             # 17 sub-mode implementations
+```
+
+**Key modes:**
+
+| Mode | Flag | Purpose |
+|------|------|---------|
+| Parameter query | `--param NAME` / `--ecu NAME` | Decode named parameters from YAML definitions |
+| IOControl | `--iocontrol ECU [--did DID]` | Interactive TUI or single actuator command |
+| Multi-ECU pipeline | `--multi "CMD" "CMD" ...` | Sequenced commands with session management |
+| Scan | `--scan --tx ID --service SVC --range START-END` | Probe DID ranges for responses |
+| SKM wakeup | `--skm-wakeup [--level acc\|ign1]` | Wake ECUs via Smart Key Module relay |
+| Raw | `--raw TX:PAYLOAD` | Direct hex request (no decoding) |
+| Routines | `--routines ECU` | RoutineControl (0x31) TUI |
+| Monitor | `--multi "..." --monitor [SEC]` | Live-refreshing poll loop |
+
+**Cross-cutting flags:** `--session`, `--wake`, `--hold`, `--timeout`, `--save`, `--json`, `--verbose`, `--reboot`, `--wican home|vpn|IP`, `--unsafe`
+
 ## Protocols
 
 | Protocol | Used for |

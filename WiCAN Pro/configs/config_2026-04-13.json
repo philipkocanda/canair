@@ -6,13 +6,13 @@
     "ap_ssid": "",
     "webhook_en": "disable",
     "sta_ssid": "***REDACTED***",
-    "sta_pass": "***REDACTED***",
+    "sta_pass": "*** REDACTED - see .env ***",
     "sta_security": "wpa2",
     "home_ssid": "",
-    "home_password": "",
+    "home_password": "*** REDACTED - see .env ***",
     "home_security": "wpa3",
     "drive_ssid": "",
-    "drive_password": "",
+    "drive_password": "*** REDACTED - see .env ***",
     "drive_security": "wpa3",
     "home_protocol": "elm327",
     "drive_protocol": "elm327",
@@ -22,9 +22,9 @@
     "can_mode": "normal",
     "port_type": "tcp",
     "port": "35000",
-    "ap_pass": "***REDACTED***",
+    "ap_pass": "*** REDACTED - see .env ***",
     "protocol": "auto_pid",
-    "ble_pass": "***REDACTED***",
+    "ble_pass": "*** REDACTED - see .env ***",
     "ble_status": "disable",
     "ble_power": "9",
     "sleep_status": "enable",
@@ -35,20 +35,20 @@
     "wakeup_interval": "120",
     "batt_alert": "disable",
     "batt_alert_ssid": "MeatPi",
-    "batt_alert_pass": "***REDACTED***",
+    "batt_alert_pass": "*** REDACTED - see .env ***",
     "batt_alert_volt": "11.0",
     "batt_alert_protocol": "mqtt",
     "batt_alert_url": "mqtt://mqtt.eclipseprojects.io",
     "batt_alert_port": "1883",
     "batt_alert_topic": "CAR1/voltage",
     "batt_alert_time": "1",
-    "batt_mqtt_user": "meatpi",
-    "batt_mqtt_pass": "meatpi",
+    "batt_mqtt_user": "*** REDACTED - see .env ***",
+    "batt_mqtt_pass": "*** REDACTED - see .env ***",
     "mqtt_en": "enable",
     "mqtt_url": "mqtt://10.0.1.114",
     "mqtt_port": "1883",
-    "mqtt_user": "mqtt",
-    "mqtt_pass": "***REDACTED***",
+    "mqtt_user": "*** REDACTED - see .env ***",
+    "mqtt_pass": "*** REDACTED - see .env ***",
     "mqtt_security": "none",
     "mqtt_cert_set": "default",
     "mqtt_skip_cn": "disable",
@@ -68,21 +68,29 @@
     "sta_fallbacks": [
       {
         "ssid": "***REDACTED***",
-        "pass": "***REDACTED***",
-        "security": "wpa2"
-      },
-      { "ssid": "***REDACTED***", "pass": "***REDACTED***", "security": "wpa2" },
-      {
-        "ssid": "***REDACTED***",
-        "pass": "***REDACTED***",
+        "pass": "*** REDACTED - see .env ***",
         "security": "wpa2"
       },
       {
         "ssid": "***REDACTED***",
-        "pass": "***REDACTED***",
+        "pass": "*** REDACTED - see .env ***",
         "security": "wpa2"
       },
-      { "ssid": "hoi", "pass": "***REDACTED***", "security": "wpa2" }
+      {
+        "ssid": "***REDACTED***",
+        "pass": "*** REDACTED - see .env ***",
+        "security": "wpa2"
+      },
+      {
+        "ssid": "***REDACTED***",
+        "pass": "*** REDACTED - see .env ***",
+        "security": "wpa2"
+      },
+      {
+        "ssid": "hoi",
+        "pass": "*** REDACTED - see .env ***",
+        "security": "wpa2"
+      }
     ]
   },
   "auto_pid_car_data": {
@@ -1451,7 +1459,9 @@
         "api_token": "",
         "cert_set": "default",
         "enabled": true,
-        "auth": { "type": "none" },
+        "auth": {
+          "type": "none"
+        },
         "query_params": [],
         "success_count": 0,
         "fail_count": 0,
