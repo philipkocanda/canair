@@ -15,7 +15,8 @@ Usage:
   python3 wican.py config                          # Pretty-print full config
   python3 wican.py config --section sleep           # Show only sleep fields
   python3 wican.py config --json                    # Raw JSON output
-  python3 wican.py config --save                    # Save snapshot to configs/
+  python3 wican.py config --save                    # Save snapshot to configs/ (warns about credentials)
+  python3 wican.py config --save --redact           # Save with credentials stripped
 
   python3 wican.py sleep                            # Show current sleep status
   python3 wican.py sleep --enable                   # Enable sleep mode
@@ -320,6 +321,14 @@ def cmd_config(args) -> None:
         CONFIGS_DIR.mkdir(exist_ok=True)
         timestamp = datetime.now().strftime("%Y-%m-%d")
         path = CONFIGS_DIR / f"config_{timestamp}.json"
+        # Never overwrite — add incremental suffix if file exists
+        if path.exists():
+            n = 2
+            while True:
+                path = CONFIGS_DIR / f"config_{timestamp}-{n}.json"
+                if not path.exists():
+                    break
+                n += 1
         if args.redact:
             output = redact_config(config)
             suffix = " (credentials redacted)"
