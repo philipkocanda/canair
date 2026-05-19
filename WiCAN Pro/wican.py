@@ -81,6 +81,22 @@ WICAN_ADDRESSES = {
 DEFAULT_WICAN = "home"
 WICAN_TIMEOUT = 10  # seconds
 
+# Sensitive fields to redact when saving config snapshots to disk.
+# These are replaced with a placeholder so credentials never hit the repo.
+REDACT_KEYS = {
+    "sta_pass",
+    "ap_pass",
+    "ble_pass",
+    "batt_alert_pass",
+    "batt_mqtt_pass",
+    "batt_mqtt_user",
+    "mqtt_pass",
+    "mqtt_user",
+    "home_password",
+    "drive_password",
+}
+REDACTED_PLACEHOLDER = "*** REDACTED - see .env ***"
+
 # Sleep-related config keys
 SLEEP_KEYS = [
     "sleep_status",
@@ -167,6 +183,36 @@ def resolve_wican_url(wican: str) -> str:
     if not wican.startswith("http"):
         return f"http://{wican}"
     return wican
+
+
+def redact_config(config: dict) -> dict:
+    """Return a copy of config with sensitive fields replaced by placeholders.
+
+    Handles both flat configs (keys at root) and nested configs (keys under
+    "config" sub-dict). Also redacts "pass" fields in sta_fallbacks arrays.
+    """
+    import copy
+
+    redacted = copy.deepcopy(config)
+
+    def _redact_obj(obj: dict) -> None:
+        for key in REDACT_KEYS:
+            if key in obj:
+                obj[key] = REDACTED_PLACEHOLDER
+        # Handle sta_fallbacks entries
+        if "sta_fallbacks" in obj and isinstance(obj["sta_fallbacks"], list):
+            for entry in obj["sta_fallbacks"]:
+                if isinstance(entry, dict) and "pass" in entry:
+                    entry["pass"] = REDACTED_PLACEHOLDER
+
+    # Nested structure: {"config": {...}, "auto_pid_car_data": {...}, ...}
+    if "config" in redacted and isinstance(redacted["config"], dict):
+        _redact_obj(redacted["config"])
+    else:
+        # Flat structure: sensitive keys at root level
+        _redact_obj(redacted)
+
+    return redacted
 
 
 def get_config(base_url: str, timeout: int) -> dict:
@@ -259,10 +305,11 @@ def cmd_config(args) -> None:
         CONFIGS_DIR.mkdir(exist_ok=True)
         timestamp = datetime.now().strftime("%Y-%m-%d")
         path = CONFIGS_DIR / f"config_{timestamp}.json"
+        redacted = redact_config(config)
         with open(path, "w") as f:
-            json.dump(config, f, indent=2)
+            json.dump(redacted, f, indent=2)
             f.write("\n")
-        print(f"\nSaved to {path}")
+        print(f"\nSaved to {path} (credentials redacted)")
 
 
 def cmd_sleep(args) -> None:

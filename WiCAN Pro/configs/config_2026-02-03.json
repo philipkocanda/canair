@@ -6,13 +6,13 @@
     "ap_ssid": "",
     "webhook_en": "enable",
     "sta_ssid": "***REDACTED***",
-    "sta_pass": "***REDACTED***",
+    "sta_pass": "*** REDACTED - see .env ***",
     "sta_security": "wpa2",
     "home_ssid": "",
-    "home_password": "",
+    "home_password": "*** REDACTED - see .env ***",
     "home_security": "wpa3",
     "drive_ssid": "",
-    "drive_password": "",
+    "drive_password": "*** REDACTED - see .env ***",
     "drive_security": "wpa3",
     "home_protocol": "elm327",
     "drive_protocol": "elm327",
@@ -22,9 +22,9 @@
     "can_mode": "normal",
     "port_type": "tcp",
     "port": "35000",
-    "ap_pass": "***REDACTED***",
+    "ap_pass": "*** REDACTED - see .env ***",
     "protocol": "auto_pid",
-    "ble_pass": "***REDACTED***",
+    "ble_pass": "*** REDACTED - see .env ***",
     "ble_status": "disable",
     "ble_power": "9",
     "sleep_status": "enable",
@@ -35,20 +35,20 @@
     "wakeup_interval": "120",
     "batt_alert": "disable",
     "batt_alert_ssid": "MeatPi",
-    "batt_alert_pass": "***REDACTED***",
+    "batt_alert_pass": "*** REDACTED - see .env ***",
     "batt_alert_volt": "11.0",
     "batt_alert_protocol": "mqtt",
     "batt_alert_url": "mqtt://mqtt.eclipseprojects.io",
     "batt_alert_port": "1883",
     "batt_alert_topic": "CAR1/voltage",
     "batt_alert_time": "1",
-    "batt_mqtt_user": "meatpi",
-    "batt_mqtt_pass": "meatpi",
+    "batt_mqtt_user": "*** REDACTED - see .env ***",
+    "batt_mqtt_pass": "*** REDACTED - see .env ***",
     "mqtt_en": "enable",
     "mqtt_url": "mqtt://10.0.1.114",
     "mqtt_port": "1883",
-    "mqtt_user": "mqtt",
-    "mqtt_pass": "***REDACTED***",
+    "mqtt_user": "*** REDACTED - see .env ***",
+    "mqtt_pass": "*** REDACTED - see .env ***",
     "mqtt_security": "none",
     "mqtt_cert_set": "default",
     "mqtt_skip_cn": "disable",
@@ -68,21 +68,29 @@
     "sta_fallbacks": [
       {
         "ssid": "***REDACTED***",
-        "pass": "***REDACTED***",
-        "security": "wpa2"
-      },
-      { "ssid": "***REDACTED***", "pass": "***REDACTED***", "security": "wpa2" },
-      {
-        "ssid": "***REDACTED***",
-        "pass": "***REDACTED***",
+        "pass": "*** REDACTED - see .env ***",
         "security": "wpa2"
       },
       {
         "ssid": "***REDACTED***",
-        "pass": "***REDACTED***",
+        "pass": "*** REDACTED - see .env ***",
         "security": "wpa2"
       },
-      { "ssid": "hoi", "pass": "***REDACTED***", "security": "wpa2" }
+      {
+        "ssid": "***REDACTED***",
+        "pass": "*** REDACTED - see .env ***",
+        "security": "wpa2"
+      },
+      {
+        "ssid": "***REDACTED***",
+        "pass": "*** REDACTED - see .env ***",
+        "security": "wpa2"
+      },
+      {
+        "ssid": "hoi",
+        "pass": "*** REDACTED - see .env ***",
+        "security": "wpa2"
+      }
     ]
   },
   "auto_pid_car_data": {
@@ -143,7 +151,7 @@
               {
                 "name": "MODULE_6_TEMP",
                 "expression": "S14",
-                "unit": "°C",
+                "unit": "\u00b0C",
                 "class": "temperature",
                 "period": "60000",
                 "min": "-60",
@@ -154,7 +162,7 @@
               {
                 "name": "MODULE_7_TEMP",
                 "expression": "S15",
-                "unit": "°C",
+                "unit": "\u00b0C",
                 "class": "temperature",
                 "period": "60000",
                 "min": "-60",
@@ -165,7 +173,7 @@
               {
                 "name": "MODULE_8_TEMP",
                 "expression": "S17",
-                "unit": "°C",
+                "unit": "\u00b0C",
                 "class": "temperature",
                 "period": "60000",
                 "min": "-60",
@@ -176,7 +184,7 @@
               {
                 "name": "MODULE_9_TEMP",
                 "expression": "S18",
-                "unit": "°C",
+                "unit": "\u00b0C",
                 "class": "temperature",
                 "period": "60000",
                 "min": "-60",
@@ -187,7 +195,7 @@
               {
                 "name": "MODULE_10_TEMP",
                 "expression": "S19",
-                "unit": "°C",
+                "unit": "\u00b0C",
                 "class": "temperature",
                 "period": "60000",
                 "min": "-60",
@@ -198,7 +206,7 @@
               {
                 "name": "MODULE_11_TEMP",
                 "expression": "S20",
-                "unit": "°C",
+                "unit": "\u00b0C",
                 "class": "temperature",
                 "period": "60000",
                 "min": "-60",
@@ -209,7 +217,7 @@
               {
                 "name": "MODULE_12_TEMP",
                 "expression": "S21",
-                "unit": "°C",
+                "unit": "\u00b0C",
                 "class": "temperature",
                 "period": "60000",
                 "min": "-60",
@@ -220,7 +228,7 @@
               {
                 "name": "BATTERY_HEATER_1_TEMP",
                 "expression": "S30",
-                "unit": "°C",
+                "unit": "\u00b0C",
                 "class": "temperature",
                 "period": "60000",
                 "min": "-40",
@@ -231,7 +239,7 @@
               {
                 "name": "BATTERY_HEATER_2_TEMP",
                 "expression": "S31",
-                "unit": "°C",
+                "unit": "\u00b0C",
                 "class": "temperature",
                 "period": "60000",
                 "min": "-40",
@@ -370,7 +378,7 @@
               {
                 "name": "BATTERY_INLET_TEMP",
                 "expression": "S29",
-                "unit": "°C",
+                "unit": "\u00b0C",
                 "class": "temperature",
                 "period": "5000",
                 "min": "-40",
@@ -381,7 +389,7 @@
               {
                 "name": "BATTERY_MAX_TEMP",
                 "expression": "S20",
-                "unit": "°C",
+                "unit": "\u00b0C",
                 "class": "temperature",
                 "period": "60000",
                 "min": "-40",
@@ -392,7 +400,7 @@
               {
                 "name": "BATTERY_MIN_TEMP",
                 "expression": "S21",
-                "unit": "°C",
+                "unit": "\u00b0C",
                 "class": "temperature",
                 "period": "60000",
                 "min": "-40",
@@ -403,7 +411,7 @@
               {
                 "name": "MODULE_1_TEMP",
                 "expression": "S22",
-                "unit": "°C",
+                "unit": "\u00b0C",
                 "class": "temperature",
                 "period": "60000",
                 "min": "-40",
@@ -414,7 +422,7 @@
               {
                 "name": "MODULE_2_TEMP",
                 "expression": "S23",
-                "unit": "°C",
+                "unit": "\u00b0C",
                 "class": "temperature",
                 "period": "60000",
                 "min": "-40",
@@ -425,7 +433,7 @@
               {
                 "name": "MODULE_3_TEMP",
                 "expression": "S25",
-                "unit": "°C",
+                "unit": "\u00b0C",
                 "class": "temperature",
                 "period": "60000",
                 "min": "-40",
@@ -436,7 +444,7 @@
               {
                 "name": "MODULE_4_TEMP",
                 "expression": "S26",
-                "unit": "°C",
+                "unit": "\u00b0C",
                 "class": "temperature",
                 "period": "60000",
                 "min": "-40",
@@ -447,7 +455,7 @@
               {
                 "name": "MODULE_5_TEMP",
                 "expression": "S27",
-                "unit": "°C",
+                "unit": "\u00b0C",
                 "class": "temperature",
                 "period": "60000",
                 "min": "-40",
@@ -491,7 +499,7 @@
               {
                 "name": "AMBIENT_TEMP",
                 "expression": "(B18-80)/2",
-                "unit": "°C",
+                "unit": "\u00b0C",
                 "class": "temperature",
                 "period": "30000",
                 "min": "-40",
@@ -629,7 +637,9 @@
         "api_token": "",
         "cert_set": "default",
         "enabled": true,
-        "auth": { "type": "none" },
+        "auth": {
+          "type": "none"
+        },
         "query_params": [],
         "success_count": 18,
         "fail_count": 0,
