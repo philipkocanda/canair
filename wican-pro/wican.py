@@ -74,11 +74,9 @@ SCRIPT_DIR = Path(__file__).parent
 CONFIGS_DIR = SCRIPT_DIR / "configs"
 LOGS_DIR = SCRIPT_DIR / "logs"
 
-WICAN_ADDRESSES = {
-    "home": "http://10.0.2.86",
-    "vpn": "http://192.168.3.2",
-}
-DEFAULT_WICAN = "home"
+# WiCAN addresses loaded from config.yaml (see config.example.yaml)
+from canlib.constants import DEFAULT_WICAN, WICAN_ADDRESSES  # noqa: E402
+
 WICAN_TIMEOUT = 10  # seconds
 
 # Sensitive fields to redact when saving config snapshots to disk.
@@ -179,12 +177,14 @@ PROTOCOL_KEYS = ["protocol", "port_type", "port", "can_mode"]
 
 
 def resolve_wican_url(wican: str) -> str:
-    """Resolve --wican argument to a base URL."""
+    """Resolve --wican argument to a base HTTP URL."""
     if wican in WICAN_ADDRESSES:
-        return WICAN_ADDRESSES[wican]
-    if not wican.startswith("http"):
-        return f"http://{wican}"
-    return wican
+        addr = WICAN_ADDRESSES[wican]
+    else:
+        addr = wican
+    if not addr.startswith("http"):
+        return f"http://{addr}"
+    return addr
 
 
 def redact_config(config: dict) -> dict:
@@ -873,7 +873,7 @@ def main() -> None:
         "--wican",
         default=DEFAULT_WICAN,
         metavar="ADDR",
-        help="Device address: home, vpn, or URL (default: home)",
+        help=f"Device address: {', '.join(WICAN_ADDRESSES.keys())} or IP/URL (default: {DEFAULT_WICAN})",
     )
     parser.add_argument(
         "--timeout",

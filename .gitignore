@@ -14,12 +14,16 @@ Thumbs.db
 __pycache__/
 .venv/
 
+# NodeJS
+node_modules
+
 # Project-specific
 wican-fw
 wican-pro/logs/
 archive/
 css-electronics/
 
-# Secrets
+# Secrets and local config
 .env
 .secrets.json
+wican-pro/config.yaml
