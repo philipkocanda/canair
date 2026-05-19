@@ -10,11 +10,15 @@ Icon\r
 ehthumbs.db
 Thumbs.db
 
-# Original pattern
-**/*/Icon
+# Python
 __pycache__/
+.venv/
+
+# Project-specific
 wican-fw
-WiCAN Pro/logs/
+wican-pro/logs/
+archive/
+css-electronics/
 
 # Secrets
 .env

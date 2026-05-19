@@ -177,4 +177,4 @@ The WiCAN Pro must be powered on and connected to your WiFi network (or you conn
 
 ## License
 
-Not yet determined — this is a personal research project.
+MIT — see [LICENSE](LICENSE).
