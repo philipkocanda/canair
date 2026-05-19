@@ -84,9 +84,11 @@ WICAN_TIMEOUT = 10  # seconds
 # Sensitive fields to redact when saving config snapshots to disk.
 # These are replaced with a placeholder so credentials never hit the repo.
 REDACT_KEYS = {
+    "sta_ssid",
     "sta_pass",
     "ap_pass",
     "ble_pass",
+    "batt_alert_ssid",
     "batt_alert_pass",
     "batt_mqtt_pass",
     "batt_mqtt_user",
@@ -95,7 +97,7 @@ REDACT_KEYS = {
     "home_password",
     "drive_password",
 }
-REDACTED_PLACEHOLDER = "*** REDACTED - see .env ***"
+REDACTED_PLACEHOLDER = "*** REDACTED - see .secrets.json ***"
 
 # Sleep-related config keys
 SLEEP_KEYS = [
@@ -202,8 +204,11 @@ def redact_config(config: dict) -> dict:
         # Handle sta_fallbacks entries
         if "sta_fallbacks" in obj and isinstance(obj["sta_fallbacks"], list):
             for entry in obj["sta_fallbacks"]:
-                if isinstance(entry, dict) and "pass" in entry:
-                    entry["pass"] = REDACTED_PLACEHOLDER
+                if isinstance(entry, dict):
+                    if "pass" in entry:
+                        entry["pass"] = REDACTED_PLACEHOLDER
+                    if "ssid" in entry:
+                        entry["ssid"] = REDACTED_PLACEHOLDER
 
     # Nested structure: {"config": {...}, "auto_pid_car_data": {...}, ...}
     if "config" in redacted and isinstance(redacted["config"], dict):
