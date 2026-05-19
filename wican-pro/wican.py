@@ -279,6 +279,16 @@ def confirm(prompt: str) -> bool:
         return False
 
 
+def _warn(msg: str) -> None:
+    """Print a yellow warning message to stderr."""
+    is_tty = hasattr(sys.stderr, "isatty") and sys.stderr.isatty()
+    if is_tty:
+        # ANSI: bold yellow
+        print(f"\033[1;33mWARNING:\033[0m {msg}", file=sys.stderr)
+    else:
+        print(f"WARNING: {msg}", file=sys.stderr)
+
+
 # ── Subcommands ────────────────────────────────────────────────────────────
 
 
@@ -310,11 +320,21 @@ def cmd_config(args) -> None:
         CONFIGS_DIR.mkdir(exist_ok=True)
         timestamp = datetime.now().strftime("%Y-%m-%d")
         path = CONFIGS_DIR / f"config_{timestamp}.json"
-        redacted = redact_config(config)
+        if args.redact:
+            output = redact_config(config)
+            suffix = " (credentials redacted)"
+        else:
+            output = config
+            suffix = ""
+            # Warn about plaintext credentials
+            _warn(
+                "Saving config with plaintext credentials. "
+                "Use --redact to strip sensitive fields."
+            )
         with open(path, "w") as f:
-            json.dump(redacted, f, indent=2)
+            json.dump(output, f, indent=2)
             f.write("\n")
-        print(f"\nSaved to {path} (credentials redacted)")
+        print(f"\nSaved to {path}{suffix}")
 
 
 def cmd_sleep(args) -> None:
@@ -891,6 +911,9 @@ def main() -> None:
     )
     p_config.add_argument("--json", action="store_true", help="Raw JSON output")
     p_config.add_argument("--save", action="store_true", help="Save snapshot to configs/ directory")
+    p_config.add_argument(
+        "--redact", action="store_true", help="Redact credentials in saved snapshot"
+    )
     p_config.set_defaults(func=cmd_config)
 
     # ── sleep ──
