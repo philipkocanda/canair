@@ -169,11 +169,13 @@ canreq.py (argparse + argcomplete)
 ```bash
 cd wican-pro
 uv sync            # Install dependencies
+cp config.example.yaml config.yaml   # Configure your WiCAN device address
+# Edit config.yaml with your device's IP address
 uv run canreq.py --help
 uv run wican.py --help
 ```
 
-The WiCAN Pro must be powered on and connected to your WiFi network (or you connect to its AP). Default WebSocket endpoint: `ws://192.168.80.1/ws`.
+The WiCAN Pro must be powered on and connected to your WiFi network (or you connect to its AP). Device addresses are configured in `config.yaml` — the `--wican` flag selects which address to use (e.g. `--wican home`, `--wican vpn`, or `--wican 192.168.80.1`). Without a `config.yaml`, tools default to `192.168.80.1` (WiCAN's built-in AP).
 
 ## License
 

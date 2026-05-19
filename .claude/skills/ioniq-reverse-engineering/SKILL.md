@@ -48,6 +48,8 @@ Dedicated TODOs for this project are located in "wican-pro/docs/TODO.md"
 │   ├── decode.py                       # Decode captured payloads using PID expressions (historical analysis)
 │   ├── bix.py                               # Byte index converter: WiCAN ↔ ISO-TP ↔ Torque ↔ bix
 │   ├── canlib/                              # Extracted library package (elm827, terminal, pids, captures, modes/, byteindex)
+│   ├── config.yaml                          # Local WiCAN device addresses (gitignored, user-specific)
+│   ├── config.example.yaml                  # Template for config.yaml (committed)
 │   ├── ecus.yaml                            # ECU TX ID → name/description lookup (15 entries)
 │   ├── captures/                            # UDS response captures, split by date
 │   │   ├── SCHEMA.yaml                      # Capture file schema definition
@@ -71,21 +73,32 @@ Dedicated TODOs for this project are located in "wican-pro/docs/TODO.md"
 
 ### Device Access
 
-- **Home network:** `http://10.0.2.86` (when car is parked at home)
-- **Remote/driving:** `http://192.168.3.2` (via WireGuard VPN — WiCAN uses iPhone hotspot for internet connectivity)
+WiCAN device addresses are configured in `wican-pro/config.yaml` (gitignored, user-specific). Copy from `config.example.yaml` to get started. All CLI tools (`canreq.py`, `wican.py`, `generate-profile.py`) read addresses from this file via `canlib.constants`.
+
+```yaml
+# config.yaml
+wican_addresses:
+  home: "10.0.2.86"       # Device on local LAN
+  vpn: "192.168.3.2"      # Device via WireGuard VPN (iPhone hotspot)
+default_wican: home
+```
+
+Without `config.yaml`, tools fall back to `192.168.80.1` (WiCAN factory AP address).
+
+- **CLI usage:** `--wican home`, `--wican vpn`, or `--wican <arbitrary-ip>`
 - **Firmware:** [github.com/meatpiHQ/wican-fw](https://github.com/meatpiHQ/wican-fw)
 - **Docs:** [meatpihq.github.io/wican-fw](https://meatpihq.github.io/wican-fw/)
 
 ### Live Data
 
-When WiCAN is in AutoPID/Automate mode, the latest PID values can be read directly: `https://10.0.2.86/autopid_data`. AutoPID caches last received data, so querying it might return stale values if the car is off or the ECU is asleep. For real-time data, use the script `canreq.py` to send direct CAN/UDS requests via the WebSocket terminal mode.
+When WiCAN is in AutoPID/Automate mode, the latest PID values can be read directly: `http://<wican-ip>/autopid_data`. AutoPID caches last received data, so querying it might return stale values if the car is off or the ECU is asleep. For real-time data, use the script `canreq.py` to send direct CAN/UDS requests via the WebSocket terminal mode.
 
 **AutoPID stops polling when 12V battery is at or below `sleep_volt` threshold.** The WiCAN may remain WiFi-connected and reachable (not sleeping) but stop sending CAN requests. Current config: `sleep_volt=12.0V`, `sleep_time=5min`. At 12.0V the device is in an ambiguous state — connected but not polling. Stale HA sensor values (e.g. lights showing "on" when off) after parking are a symptom of this. Direct `canreq.py` queries still work because they use the WebSocket terminal mode, bypassing AutoPID. Values self-correct on next successful poll cycle (wakeup interval 120min or next drive).
 
 ### Connection
 
-- **WiFi SSIDs:**  <redacted>
-- **MQTT broker:** `mqtt://10.0.1.114:1883` (NUC) — user `mqtt`
+- **WiFi SSIDs:**  <redacted — see .secrets.json>
+- **MQTT broker:** configured in device config (user-specific)
 - **MQTT topic:** `wican/ioniq/pids` (publishes all PID results as single JSON)
 - **Sleep:** enabled, voltage threshold 12.9V, sleep time 5 min, wakeup interval 120 min
 - **Logging:** SD card, FAT filesystem, 60s period, IMU threshold 8

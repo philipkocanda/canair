@@ -22,7 +22,17 @@ For reference, the WiCAN firmware is checked out in the `wican-fw/` directory (g
 
 ## WiCAN Access
 
-- Home: `http://10.0.2.86` | VPN: `http://192.168.3.2`
+Device addresses are configured in `config.yaml` (gitignored). Copy from `config.example.yaml`:
+
+```yaml
+wican_addresses:
+  home: "10.0.2.86"       # Device on local LAN
+  vpn: "192.168.3.2"      # Device via VPN
+default_wican: home
+```
+
+All CLI tools use `--wican home|vpn|<ip>` to select the target. Without `config.yaml`, falls back to `192.168.80.1` (WiCAN AP mode).
+
 - WebSocket terminal: `ws://<ip>/ws` (send `{"ws_mode": "terminal", "terminal_type": "elm327"}`)
 
 ## Ideas
