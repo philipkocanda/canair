@@ -39,12 +39,9 @@ SCRIPT_DIR = Path(__file__).parent
 YAML_SOURCE = SCRIPT_DIR / "pids"
 PROFILE_OUT = SCRIPT_DIR / "vehicle-profiles" / "ioniq-2017.json"
 
-# ── WiCAN addresses ───────────────────────────────────────────────────────
-WICAN_ADDRESSES = {
-    "home": "http://10.0.2.86",
-    "vpn": "http://192.168.3.2",
-}
-DEFAULT_WICAN = "home"
+# ── WiCAN addresses (loaded from config.yaml) ─────────────────────────────
+from canlib.constants import DEFAULT_WICAN, WICAN_ADDRESSES  # noqa: E402
+
 WICAN_TIMEOUT = 10  # seconds
 
 
@@ -248,10 +245,13 @@ def write_json(data: dict, path: Path) -> None:
 
 
 def get_wican_url(address: str) -> str:
-    """Resolve WiCAN address name to URL."""
+    """Resolve WiCAN address name to HTTP base URL."""
     if address.startswith("http"):
         return address
-    return WICAN_ADDRESSES.get(address, WICAN_ADDRESSES[DEFAULT_WICAN])
+    addr = WICAN_ADDRESSES.get(address, WICAN_ADDRESSES.get(DEFAULT_WICAN, address))
+    if not addr.startswith("http"):
+        return f"http://{addr}"
+    return addr
 
 
 def require_requests():
