@@ -26,7 +26,6 @@ The primary working directory is **`wican-pro/`**:
 ```
 wican-pro/
 ├── canreq.py              # Main CLI — send CAN/UDS requests via WebSocket
-├── wican.py               # WiCAN device management (config, sleep, reboot)
 ├── generate-profile.py    # Generate WiCAN vehicle profiles from YAML definitions
 ├── decode.py              # Decode captured payloads using PID definitions
 ├── query-captures.py      # Query raw UDS payloads across capture dates
@@ -65,7 +64,6 @@ The top-level directory also contains earlier CarScanner captures (by date), ref
 | Script | Purpose |
 |--------|---------|
 | `canreq.py` | Send UDS/KWP2000 requests to ECUs via the WiCAN WebSocket terminal. Supports interactive mode, parameter queries, DID scanning, IOControl actuation, and Smart Key Module wake-up. |
-| `wican.py` | Manage the WiCAN Pro device — view/save config, toggle sleep, switch protocol modes, query SD card logs, reboot. |
 | `generate-profile.py` | Read all `pids/*.yaml` definitions and produce a WiCAN-compatible JSON vehicle profile. Can upload directly to the device or diff against the current config. |
 | `decode.py` | Apply byte-level expressions from PID definitions to historical captures, showing decoded values and spotting anomalies. |
 | `query-captures.py` | Search across all capture files — show summaries, diffs between dates, or latest values per ECU/PID. |
@@ -172,7 +170,6 @@ uv sync            # Install dependencies
 cp config.example.yaml config.yaml   # Configure your WiCAN device address
 # Edit config.yaml with your device's IP address
 uv run canreq.py --help
-uv run wican.py --help
 ```
 
 The WiCAN Pro must be powered on and connected to your WiFi network (or you connect to its AP). Device addresses are configured in `config.yaml` — the `--wican` flag selects which address to use (e.g. `--wican home`, `--wican vpn`, or `--wican 192.168.80.1`). Without a `config.yaml`, tools default to `192.168.80.1` (WiCAN's built-in AP).

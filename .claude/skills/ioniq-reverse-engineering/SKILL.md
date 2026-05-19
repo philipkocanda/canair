@@ -42,7 +42,6 @@ Dedicated TODOs for this project are located in "wican-pro/docs/TODO.md"
 │   │   ├── bms.yaml, bcm.yaml, vcu.yaml... # One file per ECU
 │   ├── validate-pids.py                     # Schema validation for pids/ YAML files
 │   ├── query-captures.py                    # Query captures: --ecu+--pid (combinable), --summary, --latest, --diff
-│   ├── wican.py                            # WiCAN device management CLI (config upload/download, sleep, protocol, logs, reboot)
 │   ├── generate-profile.py                  # Generate JSON profiles, upload/download/diff against WiCAN device
 │   ├── canreq.py                       # CLI tool: custom CAN/UDS requests via WiCAN WebSocket terminal
 │   ├── decode.py                       # Decode captured payloads using PID expressions (historical analysis)
@@ -73,7 +72,7 @@ Dedicated TODOs for this project are located in "wican-pro/docs/TODO.md"
 
 ### Device Access
 
-WiCAN device addresses are configured in `wican-pro/config.yaml` (gitignored, user-specific). Copy from `config.example.yaml` to get started. All CLI tools (`canreq.py`, `wican.py`, `generate-profile.py`) read addresses from this file via `canlib.constants`.
+WiCAN device addresses are configured in `wican-pro/config.yaml` (gitignored, user-specific). Copy from `config.example.yaml` to get started. All CLI tools (`canreq.py`, `generate-profile.py`) read addresses from this file via `canlib.constants`. For device management (config, sleep, protocol, logs, reboot), use the separate [`wican-cli`](https://github.com/philipkocanda/wican-cli) package.
 
 ```yaml
 # config.yaml
@@ -201,42 +200,40 @@ canreq.py --multi "session BCM --wake" "raw 7A0:22B00E"  # Raw within a pipeline
 
 **`--verbose` — debugging only.** Shows raw WebSocket traffic. Not useful for normal operation — only for debugging canreq itself.
 
-#### wican.py
+#### wican-cli (separate package)
 
-WiCAN device management CLI. Manages device configuration, sleep/power saving, protocol switching, status, OBD log queries, and reboots via the REST API.
+WiCAN device management is handled by the standalone [`wican-cli`](https://github.com/philipkocanda/wican-cli) package (`pip install wican-cli`). Manages device configuration, sleep/power saving, protocol switching, status, OBD log queries, and reboots via the REST API.
 
 ```bash
-python3 wican.py config                          # View full device config
-python3 wican.py config --section sleep           # View sleep settings only
-python3 wican.py config --save                    # Save config snapshot to configs/
-python3 wican.py sleep                            # Show current sleep status
-python3 wican.py sleep --disable --dry-run        # Preview disabling sleep
-python3 wican.py sleep --disable -y               # Disable sleep (skip confirmation)
-python3 wican.py sleep --enable -y                # Re-enable sleep
-python3 wican.py sleep --voltage 12.5 --time 10   # Adjust thresholds
-python3 wican.py status                           # Device status summary
-python3 wican.py protocol                         # Show current protocol + options
-python3 wican.py protocol --set slcan --dry-run   # Preview switching to SLCAN
-python3 wican.py protocol --set slcan -y          # Switch to SLCAN (reboots device)
-python3 wican.py protocol --set auto_pid -y       # Switch back to AutoPID
-python3 wican.py logs                             # List SD card log databases
-python3 wican.py logs --download                  # Download all log DBs to logs/
-python3 wican.py logs --params                    # List all logged parameters
-python3 wican.py logs --query SOC_BMS --limit 20  # Query parameter time series
-python3 wican.py reboot                           # Reboot device
-python3 wican.py --wican vpn sleep                # Use VPN address
+wican config                          # View full device config
+wican config --section sleep          # View sleep settings only
+wican config --save                   # Save config snapshot to configs/
+wican sleep                           # Show current sleep status
+wican sleep --disable                 # Disable sleep
+wican sleep --enable                  # Re-enable sleep
+wican sleep --voltage 12.5 --time 10  # Adjust thresholds
+wican status                          # Device status summary
+wican protocol                        # Show current protocol + options
+wican protocol --set slcan            # Switch to SLCAN (reboots device)
+wican protocol --set auto_pid         # Switch back to AutoPID
+wican logs                            # List SD card log databases
+wican logs --download                 # Download all log DBs
+wican logs --params                   # List all logged parameters
+wican logs --query SOC_BMS --limit 20 # Query parameter time series
+wican reboot                          # Reboot device
+wican --wican vpn sleep               # Use VPN address
 ```
 
-**Protocol modes** are mutually exclusive: `auto_pid` (normal MQTT polling), `slcan` (for SavvyCAN/candump), `elm327` (OBD-II apps), `savvycan` (native SavvyCAN), `realdash66`. Switching stops the current mode, applies the new one, and reboots the device. The `protocol` subcommand shows clear warnings about consequences (e.g. AutoPID stopping MQTT data feed to HA).
+**Protocol modes** are mutually exclusive: `auto_pid` (normal MQTT polling), `slcan` (for SavvyCAN/candump), `elm327` (OBD-II apps), `savvycan` (native SavvyCAN), `realdash66`. Switching stops the current mode, applies the new one, and reboots the device.
 
 **Important:** `POST /store_config` replaces the entire config on flash and auto-reboots the device. The tool handles this by doing a GET first, modifying only the changed fields, and POSTing the full config back.
 
 **Tip: Disable sleep during reverse engineering sessions.** When probing ECUs with `canreq.py`, the WiCAN may go to sleep mid-session if the 12V battery voltage drops below the threshold (especially with engine off). Disable sleep before starting a session and re-enable it when done:
 
 ```bash
-python3 wican.py sleep --disable -y    # Before RE session
+wican sleep --disable    # Before RE session
 # ... do your CAN bus work ...
-python3 wican.py sleep --enable -y     # After RE session
+wican sleep --enable     # After RE session
 ```
 
 ### Captures
