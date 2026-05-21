@@ -1,5 +1,5 @@
 
-# ─── AAF (Ambient Air Temperature sensor controller - acronym completely made up for lack of official name) ──────────────────
+# ─── AAT (Ambient Air Temperature sensor controller) ──────────────────
 #
 # Most manufacturers don't have a dedicated ECU just for ambient temperature — it's typically a simple thermistor wired into an existing module (HVAC, cluster, BCM, or engine ECU).
 # Having a separate CAN node (0x7E6) with its own microcontroller just for ambient temp is unusual.
@@ -8,7 +8,7 @@
 # It could also be a platform artifact — Hyundai may have needed a separate node for the EV variant because the ICE Ioniq uses the engine ECU (0x7E0) for ambient temp, and the EV has no engine ECU.
 # Rather than rewiring the thermistor to another module, they stuck a small controller on the powertrain bus at 0x7E6.
 #
-AAF:
+AAT:
   tx_id: 0x7E6
   availability: [ready, charging]
   pids:
@@ -32,7 +32,7 @@ AAF:
       enabled: false
       availability: [charging] # TODO: other states untested
       parameters:
-        AAF_2181_UNKNOWN:
+        AAT_2181_UNKNOWN:
           expression: ""
           unit: ""
           source: "DID scan 2026-04-17"
