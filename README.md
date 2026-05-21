@@ -68,6 +68,89 @@ The top-level directory also contains earlier CarScanner captures (by date), ref
 | `decode.py` | Apply byte-level expressions from PID definitions to historical captures, showing decoded values and spotting anomalies. |
 | `query-captures.py` | Search across all capture files — show summaries, diffs between dates, or latest values per ECU/PID. |
 
+## Querying captures
+
+The `query-captures.py` script searches across all saved UDS response captures (in `captures/`) and displays them with context — timestamps, vehicle state, notes, and decoded parameter values where PID definitions exist.
+
+```bash
+uv run query-captures.py --ecu BMS           # All captures for the BMS ECU
+uv run query-captures.py --ecu IGPM --pid 22BC03  # Specific ECU+PID (most useful)
+uv run query-captures.py --pid 2101          # All captures for a PID across ECUs
+uv run query-captures.py --summary           # Overview: captures per ECU, per date
+uv run query-captures.py --latest BMS        # Most recent payload per BMS PID
+uv run query-captures.py --diff IGPM 22BC03  # Byte-level diff (highlights changed bytes)
+```
+
+**Example output** (`--ecu BMS` shows 38 captures across multiple dates):
+
+```
+BMS — 38 captures
+
+2026-04-17 16:43:21  (ready)
+  PID: 2101
+  Payload: 6101FFFFFFFF8C264826480300080E720F0E0E0E0F0F0E0010C00DC001000091...
+  SOC_BMS: 70.0 %
+  BATTERY_POWER: 0.3 kW
+  BATTERY_VOLTAGE: 369.8 V
+
+2026-04-17  (ready)
+  PID: scan
+  Scan: 0 responding, BC01-BC0B (11 DIDs): all NRC 0x31.
+  Notes: No service 22 DIDs found beyond existing 21xx PIDs
+
+2026-04-17  (ready)
+  PID: 1A90
+  Response: AEEV__ BMS
+  Notes: ECU name
+```
+
+Captures are saved by `canreq.py --save` during scanning, raw queries, and monitor sessions. Use `query-captures.py` after collecting new data to spot patterns not obvious during the live session (byte-level changes between vehicle states, new ECU/PID combinations, payload length differences).
+
+## Generating vehicle profiles
+
+The `generate-profile.py` script reads all PID definitions from `pids/*.yaml` and produces a WiCAN-compatible JSON vehicle profile. It can also upload directly to the device or diff against the currently loaded config.
+
+```bash
+uv run generate-profile.py                    # Generate JSON to vehicle-profiles/ioniq-2017.json
+uv run generate-profile.py --verified-only    # Only include verified parameters (105 vs 138 total)
+uv run generate-profile.py --no-write         # Dry run — show what would be generated without writing
+uv run generate-profile.py --stats            # Show per-ECU/PID statistics table
+uv run generate-profile.py --download         # Download current config from WiCAN device
+uv run generate-profile.py --diff             # Download + diff against locally generated profile
+uv run generate-profile.py --upload           # Generate + upload to WiCAN device
+uv run generate-profile.py --upload --reboot  # Upload + reboot device to apply changes
+```
+
+**Example output** (default mode):
+
+```
+Loading /Users/philip/projects/ioniq-can/wican-pro/pids
+
+Generating profile...
+  17 PID groups, 138 parameters
+
+Writing output...
+  Written: vehicle-profiles/ioniq-2017.json (6222 bytes)
+```
+
+**`--stats` mode** shows a detailed breakdown per ECU and PID — parameter counts, verification status, polling period, and data source:
+
+```
+ECU        TX ID    PID        Period   Params   Verified   Source Summary
+────────────────────────────────────────────────────────────────────────────────
+BMS        0x7E4    2101       2500     31       29/31      AutoPID config; CSS Electron...
+BMS        0x7E4    2105       5000     19       19/19      Original WiCAN config
+BMS        0x7E4    2102       10000    32       32/32      ImHex pattern
+IGPM       0x770    22BC03     2500     15       13/15      Decoded from live captures
+HVAC       0x7B3    220100     5000     12       7/12       Fan speed test 2026-04-19
+VCU        0x7E2    2101       2500     20       12/20      AutoPID config; ImHex pattern
+...
+```
+
+**Device interaction flags** (`--download`, `--diff`, `--upload`) require the WiCAN to be reachable on the network. Use `--wican home`, `--wican vpn`, or `--wican <ip>` to select the device address (defaults to `home` from `config.yaml`).
+
+The generated profile uses the **Vehicle Profile format** (grouped parameters per PID) — the format accepted by the WiCAN web UI and `POST /store_car_data`. The tool handles conversion to the device's internal array format automatically during upload.
+
 ## IOControl — what can be remotely controlled
 
 Beyond reading diagnostic data, the toolkit can **actuate** vehicle hardware via UDS IOControlByIdentifier (service `0x2F`). All actuators auto-release when the diagnostic session ends (Ctrl+C or timeout) — no permanent state changes.
