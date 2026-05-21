@@ -6,6 +6,15 @@
 
 This project uses a [WiCAN Pro](https://www.meatpi.com/products/wican-pro) OBD-II WiFi dongle to communicate with the vehicle's Electronic Control Units (ECUs) via Unified Diagnostic Services (UDS) and Keyword Protocol 2000 (KWP2000). The goal is to decode and document the car's internal diagnostic data and publish it via MQTT to Home Assistant for remote monitoring.
 
+### What's in the box
+
+- 🔌 **`canreq.py`** — query ECUs live over WiFi: read battery stats, decode parameters, scan for unknown DIDs, and actuate hardware (lights, locks, horn, trunk) via IOControl
+- 📦 **`generate-profile.py`** — turn YAML PID definitions into a WiCAN vehicle profile and upload it to the device in one command
+- 🔬 **`decode.py`** — replay captured UDS payloads against PID definitions to validate expressions and spot anomalies
+- 🗂️ **`query-captures.py`** — search and diff historical captures across dates and vehicle states
+- 🧮 **`bix.py`** — convert between the four byte-index notations used by WiCAN, ISO-TP, Torque, and OBDb
+- 📐 **`pids/`** — 25+ YAML files defining every known parameter per ECU (the single source of truth)
+
 ## What's been mapped so far
 
 - **30 ECUs** discovered on the CAN bus
