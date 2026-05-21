@@ -15,7 +15,6 @@ This project has a Claude skill defined at `.claude/skills/ioniq-reverse-enginee
 ## Quick Start
 
 ```bash
-cd wican-pro
 uv sync
 cp config.example.yaml config.yaml   # Set your WiCAN device IP
 uv run canreq.py --help
@@ -23,8 +22,7 @@ uv run canreq.py --help
 
 ## Key Directories
 
-- `wican-pro/` — primary working directory (CLI tools, library, PID definitions)
-- `wican-pro/pids/` — source of truth for all PID/DID definitions (YAML, 25+ ECU files)
-- `wican-pro/canlib/modes/` — CLI sub-mode implementations (IOControl, scan, routines, etc.)
-- `wican-pro/docs/` — documentation (CLI reference, IOControl commands, research notes)
+- `pids/` — source of truth for all PID/DID definitions (YAML, 25+ ECU files)
+- `canlib/modes/` — CLI sub-mode implementations (IOControl, scan, routines, etc.)
+- `docs/` — local documentation (CLI reference, IOControl commands, research notes; gitignored)
 - `.claude/skills/` — Claude/OpenCode agent skill definitions
