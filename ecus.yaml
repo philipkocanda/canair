@@ -309,7 +309,7 @@ ecus:
     calibration: "00000001"
     id_protocol: KWP2000  # 1Axx
   0x7E6:
-    name: AAF # Todo: rename to AAT? (ambient air temp)
+    name: AAT
     description: Ambient Air Temperature sensor controller (previously misidentified as "CAN Gateway")
     part_number: M3062000307  # KWP2000 1A91 — likely Renesas M16C/M306 MCU part, not a Hyundai part number
     sw_id: EAE16AAFB30001  # KWP2000 1A8D
