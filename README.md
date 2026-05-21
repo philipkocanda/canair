@@ -61,7 +61,6 @@ This project uses a [WiCAN Pro](https://www.meatpi.com/products/wican-pro) OBD-I
 ├── vehicle-profiles/      # Generated WiCAN JSON profiles
 ├── ecus.yaml              # Master ECU address registry (30 ECUs)
 ├── configs/               # WiCAN device config backups
-├── docs/                  # Documentation (CLI reference, research notes)
 ├── logs/                  # Command/response logs (gitignored)
 └── tests/                 # pytest test suite
 ```

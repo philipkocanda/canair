@@ -17,7 +17,7 @@ You can also use the ELM327 command to reset the bus if that is what you need.
 
 ## Overview
 
-This skill covers the Hyundai Ioniq 2017 EV CAN bus reverse engineering project, including OBD-II PID definitions, WiCAN Pro vehicle profile configuration, and the data pipeline into Home Assistant via MQTT.
+This skill covers the Hyundai Ioniq 2017 EV CAN bus reverse engineering project, including OBD-II PID definitions, WiCAN Pro vehicle profile configuration, and MQTT data publishing.
 
 Dedicated TODOs for this project are located in "wican-pro/docs/TODO.md"
 
@@ -35,37 +35,32 @@ Dedicated TODOs for this project are located in "wican-pro/docs/TODO.md"
 ## Project Structure
 
 ```
-├── wican-pro/
-│   ├── pids/                               # SOURCE OF TRUTH — per-ECU PID definitions (split by ECU)
-│   │   ├── _meta.yaml                      # Car model and AT init string
-│   │   ├── _schema.yaml                    # Schema documentation
-│   │   ├── bms.yaml, bcm.yaml, vcu.yaml... # One file per ECU
-│   ├── validate-pids.py                     # Schema validation for pids/ YAML files
-│   ├── query-captures.py                    # Query captures: --ecu+--pid (combinable), --summary, --latest, --diff
-│   ├── generate-profile.py                  # Generate JSON profiles, upload/download/diff against WiCAN device
-│   ├── canreq.py                       # CLI tool: custom CAN/UDS requests via WiCAN WebSocket terminal
-│   ├── decode.py                       # Decode captured payloads using PID expressions (historical analysis)
-│   ├── bix.py                               # Byte index converter: WiCAN ↔ ISO-TP ↔ Torque ↔ bix
-│   ├── canlib/                              # Extracted library package (elm827, terminal, pids, captures, modes/, byteindex)
-│   ├── config.yaml                          # Local WiCAN device addresses (gitignored, user-specific)
-│   ├── config.example.yaml                  # Template for config.yaml (committed)
-│   ├── ecus.yaml                            # ECU TX ID → name/description lookup (15 entries)
-│   ├── captures/                            # UDS response captures, split by date
-│   │   ├── SCHEMA.yaml                      # Capture file schema definition
-│   │   ├── 2025-08-04.yaml ... 2026-04-16.yaml  # Per-date capture files
-│   ├── validate-captures.py                 # Validate capture files against SCHEMA.yaml
-│   ├── tests/                               # Unit tests (47 tests: elm827, expression, pids, formatting)
-│   ├── AGENTS.md                            # Project-specific instructions
-│   ├── docs/                                # Tool documentation (canreq, generate-profile, etc.)
-│   ├── vehicle-profiles/
-│   │   ├── ioniq-2017.json                  # Generated vehicle profile
-│   ├── configs/                             # WiCAN device config snapshots (full JSON dumps)
-│   └── wican-fw/                            # WiCAN firmware checkout (git submodule-like)
-├── kona/                                    # Reference data from Kona EV
-├── logs-for-jejusoul/                       # Raw CAN log captures
-├── ioniq-ev-bms-2101-2105.xls              # Reference BMS PID spreadsheet
-├── kia-soul-ev-can-messages.xlsx            # Reference CAN message database
-├── charge-curve.ods                         # Charging curve analysis
+├── pids/                               # SOURCE OF TRUTH — per-ECU PID definitions (split by ECU)
+│   ├── _meta.yaml                      # Car model and AT init string
+│   ├── _schema.yaml                    # Schema documentation
+│   ├── bms.yaml, bcm.yaml, vcu.yaml... # One file per ECU
+├── validate-pids.py                     # Schema validation for pids/ YAML files
+├── query-captures.py                    # Query captures: --ecu+--pid (combinable), --summary, --latest, --diff
+├── generate-profile.py                  # Generate JSON profiles, upload/download/diff against WiCAN device
+├── canreq.py                            # CLI tool: custom CAN/UDS requests via WiCAN WebSocket terminal
+├── decode.py                            # Decode captured payloads using PID expressions (historical analysis)
+├── bix.py                               # Byte index converter: WiCAN ↔ ISO-TP ↔ Torque ↔ bix
+├── canlib/                              # Extracted library package (elm827, terminal, pids, captures, modes/, byteindex)
+├── config.yaml                          # Local WiCAN device addresses (gitignored, user-specific)
+├── config.example.yaml                  # Template for config.yaml (committed)
+├── ecus.yaml                            # ECU TX ID → name/description lookup (15 entries)
+├── captures/                            # UDS response captures, split by date
+│   ├── SCHEMA.yaml                      # Capture file schema definition
+│   ├── 2025-08-04.yaml ... 2026-04-16.yaml  # Per-date capture files
+├── validate-captures.py                 # Validate capture files against SCHEMA.yaml
+├── tests/                               # Unit tests (47 tests: elm827, expression, pids, formatting)
+├── AGENTS.md                            # Project-specific instructions
+├── docs/                                # Tool documentation (gitignored, local only)
+├── vehicle-profiles/
+│   ├── ioniq-2017.json                  # Generated vehicle profile
+├── configs/                             # WiCAN device config snapshots (full JSON dumps)
+├── wican-fw/                            # WiCAN firmware checkout (gitignored)
+└── research/                            # Reference data (Kona, Kia Soul, spreadsheets)
 ```
 
 ## WiCAN Configuration
@@ -92,7 +87,7 @@ Without `config.yaml`, tools fall back to `192.168.80.1` (WiCAN factory AP addre
 
 When WiCAN is in AutoPID/Automate mode, the latest PID values can be read directly: `http://<wican-ip>/autopid_data`. AutoPID caches last received data, so querying it might return stale values if the car is off or the ECU is asleep. For real-time data, use the script `canreq.py` to send direct CAN/UDS requests via the WebSocket terminal mode.
 
-**AutoPID stops polling when 12V battery is at or below `sleep_volt` threshold.** The WiCAN may remain WiFi-connected and reachable (not sleeping) but stop sending CAN requests. Current config: `sleep_volt=12.0V`, `sleep_time=5min`. At 12.0V the device is in an ambiguous state — connected but not polling. Stale HA sensor values (e.g. lights showing "on" when off) after parking are a symptom of this. Direct `canreq.py` queries still work because they use the WebSocket terminal mode, bypassing AutoPID. Values self-correct on next successful poll cycle (wakeup interval 120min or next drive).
+**AutoPID stops polling when 12V battery is at or below `sleep_volt` threshold.** The WiCAN may remain WiFi-connected and reachable (not sleeping) but stop sending CAN requests. Current config: `sleep_volt=12.0V`, `sleep_time=5min`. At 12.0V the device is in an ambiguous state — connected but not polling. Stale MQTT values (e.g. lights showing "on" when off) after parking are a symptom of this. Direct `canreq.py` queries still work because they use the WebSocket terminal mode, bypassing AutoPID. Values self-correct on next successful poll cycle (wakeup interval 120min or next drive).
 
 ### Connection
 
@@ -122,7 +117,7 @@ PID definitions are split into per-ECU YAML files under `pids/` (e.g. `pids/bms.
 PARAM_NAME:
   expression: "B09/2"        # WiCAN formula
   unit: "%"                  # Display unit
-  ha_class: battery          # HA device_class
+  ha_class: battery          # device_class (for downstream consumers)
   mqtt_topic: soc_bms        # MQTT suffix
   min: "0"                   # Expected range
   max: "100"
@@ -325,36 +320,90 @@ python3 bix.py -2 -a "62 B0 04 74 02 99"       # spaces OK
 
 The `--annotate` (`-a`) flag takes raw UDS response bytes (as seen in `canreq --raw` or monitor output), reconstructs the WiCAN frame with PCI bytes inserted, and prints a table with each byte's WiCAN Bnn, ISO-TP index, Torque letter, bix, and role (PCI/SID/DID/PID). Use `-1` (default) for service 21 or `-2` for service 22 DIDs.
 
-## Data Pipeline: WiCAN -> HA
+### Conversion Table (WiCAN ↔ ISO-TP ↔ Torque ↔ bix)
 
-```
-WiCAN Pro (OBD-II port in car)
-  → MQTT: wican/ioniq/pids (JSON with all PID results)
-    → Node-RED "one topic for every PID" function
-      → MQTT: wican/ioniq/filtered/<key_lowercase> (retain=true, per-parameter)
-        → HA MQTT sensors (packages/ev/mqtt/wican.yaml)
-          → HA template sensors (packages/ev/template/wican.yaml)
-          → InfluxDB export (entity glob: sensor.ioniq_*)
-```
+Each CAN frame has 8 data bytes. PCI bytes (at WiCAN indices 0, 8, 16, 24, ...) are consumed by ISO-TP framing and have no ISO-TP/Torque/bix equivalent. Torque 1/bix 1 are for 1-byte subfunctions (service `21xx`), Torque 2/bix 2 for 2-byte subfunctions (service `22xxxx`).
 
-### HA Configuration Files
-
-| File                                                          | Contents                                        |
-|---------------------------------------------------------------|------------------------------------------------|
-| `~/VM100/home-automation/homeassistant/packages/ev/mqtt/wican.yaml` | 51 MQTT sensors + 15 binary sensors             |
-| `~/VM100/home-automation/homeassistant/packages/ev/template/wican.yaml` | Derived sensors (drive mode, state, power, speed) |
-| `~/VM100/home-automation/homeassistant/packages/ev/automation/notify.yaml` | 12V alert, charge start/stop/stale notifications |
-| `~/VM100/home-automation/homeassistant/packages/ev/automation/abrp.yaml` | ABRP telemetry upload                           |
-
-### Lovelace Dashboard
-
-Home Assistant WiCAN dashboard lives at path `/lovelace-car/wican`.
+| WiCAN | ISO-TP | Torque 1 | bix 1 | Torque 2 | bix 2 |
+| ----- | ------ | -------- | ----- | -------- | ----- |
+| 0     |        |          |       |          |       |
+| 1     |        |          |       |          |       |
+| 2     | 0x00   |          |       |          |       |
+| 3     | 0x01   |          |       |          |       |
+| 4     | 0x02   | A        | 0     |          |       |
+| 5     | 0x03   | B        | 8     | A        | 0     |
+| 6     | 0x04   | C        | 16    | B        | 8     |
+| 7     | 0x05   | D        | 24    | C        | 16    |
+| 8     |        |          |       |          |       |
+| 9     | 0x06   | E        | 32    | D        | 24    |
+| 10    | 0x07   | F        | 40    | E        | 32    |
+| 11    | 0x08   | G        | 48    | F        | 40    |
+| 12    | 0x09   | H        | 56    | G        | 48    |
+| 13    | 0x0A   | I        | 64    | H        | 56    |
+| 14    | 0x0B   | J        | 72    | I        | 64    |
+| 15    | 0x0C   | K        | 80    | J        | 72    |
+| 16    |        |          |       |          |       |
+| 17    | 0x0D   | L        | 88    | K        | 80    |
+| 18    | 0x0E   | M        | 96    | L        | 88    |
+| 19    | 0x0F   | N        | 104   | M        | 96    |
+| 20    | 0x10   | O        | 112   | N        | 104   |
+| 21    | 0x11   | P        | 120   | O        | 112   |
+| 22    | 0x12   | Q        | 128   | P        | 120   |
+| 23    | 0x13   | R        | 136   | Q        | 128   |
+| 24    |        |          |       |          |       |
+| 25    | 0x14   | S        | 144   | R        | 136   |
+| 26    | 0x15   | T        | 152   | S        | 144   |
+| 27    | 0x16   | U        | 160   | T        | 152   |
+| 28    | 0x17   | V        | 168   | U        | 160   |
+| 29    | 0x18   | W        | 176   | V        | 168   |
+| 30    | 0x19   | X        | 184   | W        | 176   |
+| 31    | 0x1A   | Y        | 192   | X        | 184   |
+| 32    |        |          |       |          |       |
+| 33    | 0x1B   | Z        | 200   | Y        | 192   |
+| 34    | 0x1C   | AA       | 208   | Z        | 200   |
+| 35    | 0x1D   | AB       | 216   | AA       | 208   |
+| 36    | 0x1E   | AC       | 224   | AB       | 216   |
+| 37    | 0x1F   | AD       | 232   | AC       | 224   |
+| 38    | 0x20   | AE       | 240   | AD       | 232   |
+| 39    | 0x21   | AF       | 248   | AE       | 240   |
+| 40    |        |          |       |          |       |
+| 41    | 0x22   | AG       | 256   | AF       | 248   |
+| 42    | 0x23   | AH       | 264   | AG       | 256   |
+| 43    | 0x24   | AI       | 272   | AH       | 264   |
+| 44    | 0x25   | AJ       | 280   | AI       | 272   |
+| 45    | 0x26   | AK       | 288   | AJ       | 280   |
+| 46    | 0x27   | AL       | 296   | AK       | 288   |
+| 47    | 0x28   | AM       | 304   | AL       | 296   |
+| 48    |        |          |       |          |       |
+| 49    | 0x29   | AN       | 312   | AM       | 304   |
+| 50    | 0x2A   | AO       | 320   | AN       | 312   |
+| 51    | 0x2B   | AP       | 328   | AO       | 320   |
+| 52    | 0x2C   | AQ       | 336   | AP       | 328   |
+| 53    | 0x2D   | AR       | 344   | AQ       | 336   |
+| 54    | 0x2E   | AS       | 352   | AR       | 344   |
+| 55    | 0x2F   | AT       | 360   | AS       | 352   |
+| 56    |        |          |       |          |       |
+| 57    | 0x30   | AU       | 368   | AT       | 360   |
+| 58    | 0x31   | AV       | 376   | AU       | 368   |
+| 59    | 0x32   | AW       | 384   | AV       | 376   |
+| 60    | 0x33   | AX       | 392   | AW       | 384   |
+| 61    | 0x34   | AY       | 400   | AX       | 392   |
+| 62    | 0x35   | AZ       | 408   | AY       | 400   |
+| 63    | 0x36   | BA       | 416   | AZ       | 408   |
+| 64    |        |          |       |          |       |
+| 65    | 0x37   | BB       | 424   | BA       | 416   |
+| 66    | 0x38   | BC       | 432   | BB       | 424   |
+| 67    | 0x39   | BD       | 440   | BC       | 432   |
+| 68    | 0x3A   | BE       | 448   | BD       | 440   |
+| 69    | 0x3B   | BF       | 456   | BE       | 448   |
+| 70    | 0x3C   | BG       | 464   | BF       | 456   |
+| 71    | 0x3D   | BH       | 472   | BG       | 464   |
 
 ## Memory
 
 ### 2026-04-19 — AutoPID stops at sleep_volt threshold even when WiCAN stays connected
 
-When 12V battery drops to `sleep_volt` (currently 12.0V), the WiCAN stops AutoPID polling but remains WiFi-connected. This creates a deceptive state: device is reachable, `/autopid_data` returns data, but values are stale from the last successful poll. Observed: after parking, DRL/low beam/tail lights showed "on" in HA because the WiCAN polled during a drive with lights on, then stopped polling when voltage dropped to 12.0V. Direct `canreq.py` queries confirmed lights were actually off. Fix: values self-correct on next successful poll. Consider raising `sleep_volt` slightly (e.g. 12.2V) to create a clearer gap vs. the actual sleep trigger.
+When 12V battery drops to `sleep_volt` (currently 12.0V), the WiCAN stops AutoPID polling but remains WiFi-connected. This creates a deceptive state: device is reachable, `/autopid_data` returns data, but values are stale from the last successful poll. Observed: after parking, DRL/low beam/tail lights showed "on" via MQTT because the WiCAN polled during a drive with lights on, then stopped polling when voltage dropped to 12.0V. Direct `canreq.py` queries confirmed lights were actually off. Fix: values self-correct on next successful poll. Consider raising `sleep_volt` slightly (e.g. 12.2V) to create a clearer gap vs. the actual sleep trigger.
 
 ### 2026-04-19 — BCM 95400-G7470 is Ioniq AE Electric (BEV) only
 

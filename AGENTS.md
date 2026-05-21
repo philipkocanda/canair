@@ -16,8 +16,8 @@ For reference, the WiCAN firmware is checked out in the `wican-fw/` directory (g
 - **`captures/`** — Raw UDS response payloads, split by date (e.g. `2026-04-19.yaml`). Schema in `captures/SCHEMA.yaml`. Validate with `python3 validate-captures.py`. **After adding captures, run `python3 query-captures.py --summary` to check for new patterns.**
 - **`validate-captures.py`** — Schema validation for `captures/` YAML files
 - **`bix.py`** — Byte index converter: WiCAN ↔ ISO-TP ↔ Torque ↔ bix. Use `python3 bix.py w9` or `python3 bix.py E` for quick lookups, `--table` for full table. **`--annotate HEX` (`-a`)** maps a raw UDS response payload to a table with WiCAN Bnn, ISO-TP index, Torque letter, bix, and role per byte. Supports `-1` (21xx, default) and `-2` (22xxxx) subfunction modes.
-- **`docs/wican-iso-tp-index-conversion.md`** — Reference table for byte index notation differences
-- **`docs/CLI commands.md`** — Reference for `canreq.py` usage and examples
+- **`docs/wican-iso-tp-index-conversion.md`** — Reference table for byte index notation differences (local only, not tracked in git)
+- **`docs/CLI commands.md`** — Reference for `canreq.py` usage and examples (local only, not tracked in git)
 
 ## WiCAN Access
 
