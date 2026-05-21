@@ -18,6 +18,8 @@ This project uses a [WiCAN Pro](https://www.meatpi.com/products/wican-pro) OBD-I
 - 🧮 **`bix.py`** — convert between the four byte-index notations used by WiCAN, ISO-TP, Torque, and OBDb
 - 📐 **`pids/`** — 25+ YAML files defining every known parameter per ECU (the single source of truth)
 
+<img width="1211" height="698" alt="Screenshot 2026-05-21 at 11 17 53" src="https://github.com/user-attachments/assets/70c7af9f-d356-4a76-ba4f-a9529008e505" />
+
 ## What's been mapped so far
 
 - **30 ECUs** discovered on the CAN bus
