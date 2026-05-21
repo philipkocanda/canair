@@ -33,10 +33,7 @@ This project uses a [WiCAN Pro](https://www.meatpi.com/products/wican-pro) OBD-I
 
 ## Project structure
 
-The primary working directory is **`wican-pro/`**:
-
 ```
-wican-pro/
 ├── canreq.py              # Main CLI — send CAN/UDS requests via WebSocket
 ├── generate-profile.py    # Generate WiCAN vehicle profiles from YAML definitions
 ├── decode.py              # Decode captured payloads using PID definitions
@@ -69,7 +66,7 @@ wican-pro/
 └── tests/                 # pytest test suite
 ```
 
-The top-level directory also contains earlier CarScanner captures (by date), reference spreadsheets, and cross-reference material from related vehicles (Kona, Kia Soul EV).
+The `research/` directory contains earlier CarScanner captures, reference spreadsheets, and cross-reference material from related vehicles (Kona, Kia Soul EV).
 
 ## Key tools
 
@@ -79,6 +76,7 @@ The top-level directory also contains earlier CarScanner captures (by date), ref
 | `generate-profile.py` | Read all `pids/*.yaml` definitions and produce a WiCAN-compatible JSON vehicle profile. Can upload directly to the device or diff against the current config. |
 | `decode.py` | Apply byte-level expressions from PID definitions to historical captures, showing decoded values and spotting anomalies. |
 | `query-captures.py` | Search across all capture files — show summaries, diffs between dates, or latest values per ECU/PID. |
+| [`wican-cli`](https://github.com/philipkocanda/wican-cli) | Separate package for WiCAN device management — config, sleep/power, protocol switching, status, OBD log queries, and reboots. Install with `pip install wican-cli`. |
 
 ## Querying captures
 
@@ -136,7 +134,7 @@ uv run generate-profile.py --upload --reboot  # Upload + reboot device to apply 
 **Example output** (default mode):
 
 ```
-Loading /Users/philip/projects/ioniq-can/wican-pro/pids
+Loading pids/
 
 Generating profile...
   17 PID groups, 138 parameters
@@ -205,9 +203,9 @@ Requires keyfob proximity for physical relay engagement.
 
 ### Where IOControl commands are defined
 
-- **PID/DID YAML files:** `wican-pro/pids/igpm.yaml`, `bcm.yaml`, `skm.yaml`, `hvac.yaml`, `vess.yaml`, `psm.yaml` — source of truth for all actuator definitions, parameters, and verification status.
-- **IOControl mode implementation:** `wican-pro/canlib/modes/iocontrol.py` — TUI-based interactive actuator control and single-command execution.
-- **Quick reference docs:** `wican-pro/docs/IOControl CLI commands.md` — copy-paste command examples.
+- **PID/DID YAML files:** `pids/igpm.yaml`, `bcm.yaml`, `skm.yaml`, `hvac.yaml`, `vess.yaml`, `psm.yaml` — source of truth for all actuator definitions, parameters, and verification status.
+- **IOControl mode implementation:** `canlib/modes/iocontrol.py` — TUI-based interactive actuator control and single-command execution.
+- **Quick reference docs:** `docs/IOControl CLI commands.md` — copy-paste command examples.
 
 ## How the CLI works
 
@@ -260,7 +258,6 @@ canreq.py (argparse + argcomplete)
 ## Getting started
 
 ```bash
-cd wican-pro
 uv sync            # Install dependencies
 cp config.example.yaml config.yaml   # Configure your WiCAN device address
 # Edit config.yaml with your device's IP address

@@ -18,12 +18,12 @@ __pycache__/
 node_modules
 
 # Project-specific
-wican-fw
-wican-pro/logs/
+wican-fw/
+logs/
 archive/
 css-electronics/
 
 # Secrets and local config
 .env
 .secrets.json
-wican-pro/config.yaml
+config.yaml
