@@ -1,0 +1,269 @@
+#### canreq.py
+
+CLI tool for sending custom CAN/UDS requests to the Ioniq via WiCAN's WebSocket ELM327 terminal mode. Connects to `ws://<ip>/ws`, sends `{"ws_mode": "terminal", "terminal_type": "elm327"}` to enter terminal mode. The firmware handles ISO-TP internally — no Python ISO-TP implementation needed.
+
+```bash
+# Preferred: --multi "query ..." for decoded output with session management
+canreq.py --multi "query BMS 2101"                # Query single PID, decoded parameters
+canreq.py --multi "query BMS 2101" "query VCU 2101"  # Multi-ECU in one session
+canreq.py --multi "session IGPM --wake" "query IGPM BC03 BC06"  # Wake + query
+canreq.py --multi "query BMS 2101" --monitor      # Live-refresh every 5s
+
+# Single-ECU shortcuts (simpler syntax, same decoded output)
+canreq.py --param SOC_BMS SOC_DISP         # Query specific named parameters
+canreq.py --ecu BMS                        # Query all BMS parameters
+canreq.py --ecu BMS --pid 2101             # Query BMS PID 2101 only
+
+# Discovery and scanning
+canreq.py --scan --tx 7E4 --service 21 --range 01-FF  # Scan PID range
+canreq.py --discover                       # Sweep 0x700-0x7EF for responding ECUs
+canreq.py --identity --tx 7A0 --session    # Query UDS identity DIDs
+
+# Raw mode — last resort (hex dump only, no parameter decoding)
+canreq.py --raw 7E4:2101                   # Raw UDS request
+canreq.py --raw 770:2FBC0103 --wake --hold # IOControl with session held open
+
+# IOControl (dedicated mode with TUI)
+canreq.py --iocontrol IGPM                 # Interactive TUI
+canreq.py --iocontrol IGPM --did BC01      # Turn on low beam
+
+# Other
+canreq.py                                  # Interactive REPL
+canreq.py --wican vpn --param SOC_BMS      # Use VPN address
+canreq.py --json --param SOC_BMS           # JSON output
+```
+
+> **Mode guidance:** Use `--multi "query ..."` or `--param`/`--ecu` for decoded, readable output. Use `--raw` only when no PID definition exists yet, or for ad-hoc UDS commands (IOControl without YAML, exploratory reads). `--verbose` is for debugging canreq itself — not useful for normal operation.
+
+##### `--multi` flag (multi-ECU pipeline)
+
+Executes a sequence of sub-commands within a single WebSocket session, managing extended diagnostic sessions across multiple ECUs with interleaved TesterPresent keepalives. After the pipeline completes, exits by default. Use `--repl` to drop into an interactive REPL with all sessions still active, or include an explicit `repl` step in the pipeline.
+
+```bash
+# Wake SKM, query IGPM, exit
+canreq.py --multi "skm-wake acc" "query IGPM BC03 BC06"
+
+# Wake SKM + BCM, raw query charge port, exit
+canreq.py --multi "skm-wake acc" "session BCM --wake" "raw 7A0:22B00E"
+
+# Wake IGPM, query all PIDs, drop into REPL
+canreq.py --multi "session IGPM --wake" "query IGPM" --repl
+
+# Pipeline with explicit sleep between steps
+canreq.py --multi "skm-wake acc" "sleep 1" "query BCM B00E" "repl"
+```
+
+**Sub-commands:**
+
+| Sub-command                      | Description                                         |
+|----------------------------------|-----------------------------------------------------|
+| `skm-wake [level]`              | Wake SKM + activate relay (acc/ign1/ign2/start)     |
+| `session <ECU\|TX_ID> [--wake]` | Enter extended session on ECU (add to session table) |
+| `query <ECU> [PID ...]`         | Query ECU parameters (like `--ecu`/`--param`)       |
+| `raw <TX:PID>`                  | Raw UDS request                                      |
+| `scan <TX> <SVC> <RANGE> [APP]` | Scan PID range                                       |
+| `security <ECU> [algo ...]`     | Try UDS Security Access (27 01/02) with key algorithms |
+| `iocontrol <ECU> <DID> [--off]` | Execute IOControl ON/OFF from pids/ YAML             |
+| `sleep <seconds>`               | Pause between steps                                  |
+| `repl`                          | Drop into interactive REPL (explicit)                |
+
+ECU names are resolved from YAML definitions (e.g., `IGPM`, `BCM`, `SKM`) or can be hex TX IDs (`770`, `7A0`).
+
+##### `security` sub-command (in `--multi` pipeline)
+
+Attempts UDS Security Access (service `27`) on an ECU by requesting a seed (`27 01`) and computing a key (`27 02`) using common Hyundai/Kia key algorithms. Requires an active extended session on the target ECU. Tries all built-in algorithms by default, or a filtered subset if algorithm names are given.
+
+```bash
+# Try all algorithms on BCM (session must be open)
+canreq.py --multi "session BCM --wake" "security BCM"
+
+# Try specific algorithms only
+canreq.py --multi "session BCM --wake" "security BCM not xor-0d0b0507 ki203-30bacd45"
+
+# In REPL after opening a session
+security BCM ki221-std
+```
+
+**Built-in algorithms** (~40 total): simple transforms (`not`, `swap`, `plus1`, `minus1`, `same`, `zero`), XOR with known constants (`xor-0d0b0507`, `xor-5a`, `xor-a5`, `xor-dead`, etc.), rotations (`ror4`, `ror8`, `rol4`, `rol8`, `ror16`), compound transforms (`swap-not`, `not-swap`, `not-plus1`, `mul3plus1`), Kia-specific (`static-6fd5`, `xor-6fd5`, `add-6fd5`, `sub-6fd5`), and parameterized Hyundai/Kia algorithms (`ki203-*`, `ki221a1-*`, `ki221-std`).
+
+**Output:** Tabular display showing each algorithm attempted, the seed received, key computed, and result (accepted, invalid key, or lockout). Automatically handles NRC 0x36 (lockout — stops immediately) and NRC 0x37 (time delay — waits 11s and re-establishes session before retrying).
+
+**Safety:** Security access is a prerequisite for write operations (`2E`) but does NOT itself modify anything. The algorithms are read-only seed→key computations. However, once security access is granted, be careful with subsequent commands.
+
+##### `--monitor` flag (live refresh)
+
+Turns a `--multi` pipeline into a live-refreshing monitor. Non-query steps (session, skm-wake, sleep) run once as setup; all `query` steps are then polled repeatedly, with Rich Live updating the display in-place. Sessions are kept alive with background TesterPresent keepalives.
+
+```bash
+
+# Monitor BMS every 5s (default interval)
+canreq.py --multi "query BMS 2101" --monitor # NOTE: not tested yet, canreq might need adjustments to support this.
+
+# Monitor BCM (all known PIDs in bcm.yaml), keep unique payloads per PID
+canreq.py --monitor --keep-unique --multi "query BCM"
+
+# Monitor IGPM status with 2s interval, wake from deep sleep
+canreq.py --multi "session IGPM --wake" "query IGPM BC03 BC06" --monitor 2
+
+# Monitor BCM voltage ADCs with full payload history (every cycle)
+canreq.py --monitor 2 --keep-all --multi "session BCM --wake" "query BCM B003 B004"
+```
+
+**Hex display features:**
+
+- **Byte-level change highlighting:** Changed bytes get a highlighted background adapted from their verification color (green → dark green bg, yellow → dark goldenrod bg, grey → grey37 bg). A green `●` dot appears next to PIDs with changed payloads.
+- **Verification coloring:** Bytes covered by verified parameters are green, unverified are yellow, uncovered bytes are dim grey.
+- **Unmapped PIDs:** Shown with ASCII representation alongside the hex dump.
+
+**`--keep-unique` flag:** Retains only distinct payloads seen for each PID, displayed as a flat chronological list (oldest at top, newest at bottom). Each row highlights bytes that changed from its predecessor, making it easy to spot which bytes are drifting over time. A count is shown next to the PID header (e.g. `22B003 (3 entries)`). Without either `--keep` flag, only the current payload is displayed.
+
+**`--keep-all` flag:** Retains every payload from every poll cycle (including duplicates), with timestamps. Useful for logging all responses over time, even when values don't change.
+
+**`--save` flag:** Prompts for session metadata (label, state, notes) and saves results to `captures/YYYY-MM-DD.yaml`. Works with `--scan`, `--raw`, `--discover`, and `--monitor --keep-unique/--keep-all`. Labels are auto-suggested based on the command (press Enter to accept). Examples:
+
+```bash
+canreq.py --scan --tx 7E4 --service 22 --range BC01-BC0B --save
+# → auto-suggests: "Scan BMS 22 BC01-BC0B"
+
+canreq.py --raw 7E4:2101 --save
+# → auto-suggests: "Raw BMS 2101"
+
+canreq.py --discover --save
+# → auto-suggests: "Discovery scan 700-7EF"
+
+canreq.py --multi "query BCM C00B B003 B004" --monitor 5 --keep-unique --save
+# ... monitor runs, Ctrl+C ...
+# → Saved 6 capture(s) to 2026-04-18.yaml
+```
+
+Press Ctrl+C to stop monitoring.
+
+**Session management:** The SessionManager tracks all ECUs with active extended sessions and sends TesterPresent (`3E00`) keepalives to stale sessions before each foreground command. In the REPL, a background task sends keepalives every 2s. This allows querying one ECU while keeping sessions alive on others (e.g., keeping SKM ACC relay active while reading BCM charge port data).
+
+**Multi-ECU REPL commands** (via `--repl` or `repl` step): same sub-commands as `--multi` pipeline steps (`session`, `query`, `raw`, `skm-wake`, `scan`, `sleep`, `quit`). The `!` prefix is optional.
+
+##### `--identity` flag
+
+Example:
+
+```sh
+./canreq.py --identity --tx 7A0 --wake --wican home
+```
+
+Queries standard UDS identity DIDs from an ECU and prints decoded results. Covers the common Hyundai/Kia identity DID set.
+
+Requires `--tx`. Use `--session` for most ECUs; use `--wake` for deep-sleeping ECUs (IGPM). Silently skips unsupported DIDs (NRC responses). Use `!identity` in interactive mode after setting a header with `ATSH`.
+
+Known results (deep sleep, no ACC):
+- **BCM (0x7A0):** F18C=`1705310070`, F18B=`2017-05-31`, F100=`180`, F194=`100`, F195=`0880`, F196=`220`, F1A4=`620`
+- **IGPM (0x770):** F18B=`2017-06-06`, F100=`20`, F101=`160205`, F110=`(empty)`, F194=`100`, F196=`109`
+
+##### `--iocontrol` flag
+
+Executes IOControl (service `2F`) commands defined in the `iocontrol:` section of pids/ YAML files. Session and hold behavior are auto-applied from the YAML metadata — no need to pass `--session` or `--hold` manually.
+
+```bash
+# List all IOControl DIDs for an ECU (no CAN connection needed)
+canreq.py --iocontrol IGPM
+canreq.py --iocontrol BCM --json
+
+# Execute ON command (auto-session, hold until Ctrl+C if hold: true)
+canreq.py --iocontrol IGPM --did BC01
+
+# Execute OFF command
+canreq.py --iocontrol IGPM --did BC01 --off
+
+# In multi pipeline (session managed by pipeline)
+canreq.py --multi "iocontrol IGPM BC01" "sleep 3" "iocontrol IGPM BC01 --off"
+```
+
+**Behavior:**
+- Without `--did`: lists all IOControl DIDs in a table (DID, label, ON/OFF commands, verified, hold). Works offline — no WiCAN connection.
+- With `--did`: sends the ON command (or OFF with `--off`). Auto-enters extended diagnostic session if `session: true` in YAML.
+- If `hold: true` in YAML (default): keeps TesterPresent alive until Ctrl+C, then auto-sends the OFF command on release.
+- If `hold: false` (e.g. SKM relays): sends command and exits immediately.
+
+ECUs with IOControl DIDs: IGPM, BCM, SKM, PSM, VESS (see respective `pids/*.yaml` files).
+
+##### `--scan` flag
+
+**Preferred method for scanning PID/DID ranges on an ECU.** Iterates through a range of PIDs or DIDs, sending each as a UDS request, and reports which ones respond positively. This is the standard way to discover what data an ECU exposes.
+
+Requires `--tx` (ECU TX ID). Optional arguments:
+
+| Argument    | Default | Description                                                                 |
+|-------------|---------|-----------------------------------------------------------------------------|
+| `--service` | `21`    | UDS service ID (hex). Common: `21` (live data), `22` (DID read), `2F` (IOControl), `31` (routine) |
+| `--range`   | `01-FF` | PID/DID range (hex). Auto-widens to 4-digit for services 22/2F/31          |
+| `--append`  | —       | Hex bytes appended after each DID (e.g. `03` for IOControl ShortTermAdjustment) |
+| `--session` | off     | Enter extended diagnostic session (`10 03`) before scanning                 |
+| `--wake`    | off     | Wake ECU from deep sleep first (implies `--session`)                        |
+| `--save`    | off     | Save results to `captures/YYYY-MM-DD.yaml` (prompts for label)             |
+| `--verbose` | off     | Show NRC codes and errors for non-responding DIDs                           |
+| `--json`    | off     | Output full results as JSON                                                 |
+
+**Examples:**
+
+```bash
+# Scan all service 21 PIDs on BMS (0x7E4)
+canreq.py --scan --tx 7E4 --service 21 --range 01-FF
+
+# Scan service 22 DIDs on IGPM (needs extended session + wake)
+canreq.py --scan --tx 770 --service 22 --range BC00-BCFF --session --wake
+
+# IOControl scan with ShortTermAdjustment suffix (2F{DID}03)
+canreq.py --scan --tx 7E4 --service 2F --range E000-E0FF --append 03 --session
+
+# Scan and auto-save results to captures/
+canreq.py --scan --tx 7A0 --service 22 --range B000-B0FF --session --save
+
+# In a --multi pipeline
+canreq.py --multi "session IGPM --wake" "scan 770 22 BC00-BCFF"
+```
+
+**Output:** During the scan, positive responses are printed immediately with byte count (and hex payload in `--verbose` mode). Non-verbose mode shows a progress counter every 16 DIDs. After completion, a summary shows counts and lists all responding PIDs/DIDs with their payload (truncated to 60 chars).
+
+**How it works:** For services `22`, `2F`, and `31`, DIDs are formatted as 4 hex digits (e.g. `BC01`); for other services (e.g. `21`), PIDs use 2 hex digits (e.g. `01`). Each request is sent as `{service}{DID}{append}` with a 2-second timeout. Responses are classified as positive (valid data), negative (NRC error code), or error (timeout/parse failure).
+
+**Safety notes:**
+- Only run ONE scan at a time — parallel scans lock up the WiCAN device.
+- Use small ranges first to gauge ECU response time, then expand.
+- IOControl scans (`--service 2F`) may actuate physical hardware — ensure the car is in a safe state.
+
+##### `--discover` flag
+
+Sweeps a range of CAN TX addresses to find responding ECUs. Sends `10 01` (default session request) to each address and reports which ones respond (positive or NRC — both indicate a live ECU).
+
+```bash
+canreq.py --discover                       # Sweep 0x700-0x7EF (default)
+canreq.py --discover --range 600-6FF       # Custom range
+canreq.py --discover --delay 0.5           # Slower pacing (default: 0.2s)
+```
+
+##### `--session` flag
+
+Enters extended diagnostic session (`10 03`) before sending requests. Required for ECUs like IGPM (0x770) that only respond to `22BCxx` reads and `2FBCxx` IOControl in extended session. Starts a background TesterPresent (`3E 00`) keepalive every 2s to prevent session timeout. Works with all modes (`--raw`, `--param`, `--ecu`, `--scan`).
+
+##### `--wake` flag
+
+Wakes ECUs from deep sleep before entering extended session. Sends `10 01` (default session request) as a CAN wake-up frame — this triggers the CAN transceiver even when the ECU is in deep sleep. The first attempt may return NO DATA while the transceiver powers up; a 0.5s delay allows the ECU to initialize before the `10 03` extended session request. Implies `--session`.
+
+Currently the IGPM (0x770) and BCM (0x7A0) are known to wake from deep sleep via this method. Other ECUs (BMS, VCU, MCU) require the ACC relay to be powered.
+
+##### `--hold` flag
+
+Keeps the extended diagnostic session alive after the command completes, until Ctrl+C. Useful for IOControl commands (`2FBCxx03`) where the actuator releases as soon as the session drops. Implies `--session`. Only works with `--raw` mode.
+
+**Interactive mode built-in commands:** `!decode` (decode last response), `!hexdump` (hex dump), `!info <ECU>` (show ECU info), `!list` (list ECUs), `!identity` (query identity DIDs for current header ECU), `!reboot` (reboot WiCAN), `!quit`.
+
+**Dependencies:** `websockets`, `pyyaml`. Optional: `requests` (for `--reboot`).
+
+**ALWAYS use `canreq.py` for any CAN/UDS communication with the vehicle. Never write your own Python code to open a WebSocket, send ELM327 commands, or talk to the WiCAN device. If `canreq.py` doesn't support a particular operation, that is intentional — discuss with the user before working around it.**
+
+**IMPORTANT:** Using the WebSocket terminal overrides AutoPID mode. The WiCAN must be rebooted after a terminal session for AutoPID (MQTT data feed to Home Assistant) to resume (though user must be asked first).
+
+**Never reboot the WiCAN without asking the user first.** Always ask whether they are done probing the CAN bus before suggesting or triggering a reboot. They may want to run more commands in the same session. Only use `--reboot` or `!reboot` when the user has confirmed they are finished.
+
+**CRITICAL: Only one connection at a time.** The WiCAN has a single WebSocket endpoint. Never run multiple `canreq.py` commands in parallel — the second connection will either fail or lock up the device, requiring a power cycle to recover. Always wait for one command to finish before starting the next.
+
+Please keep the `captures/YYYY-MM-DD.yaml` files up to date with any new captures. Also note that ALL requests/responses are automatically logged by this tool in the `logs/` directory with timestamped filenames.
