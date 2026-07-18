@@ -73,7 +73,7 @@ IGPM:
           source: "Kia Niro EV WiCAN PR#716"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
-          verified: false
+          verified: true
           notes: >
             SUSPECT — may NOT be driver door open. B10:5 (0x20) was set during
             ACC mode with doors CLOSED (Apr 14), cleared in deep sleep locked
