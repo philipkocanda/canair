@@ -8,6 +8,41 @@ IGPM:
     part_number: "91950G7510"
     description: "Integrated Gateway Power Module"
   pids:
+    22BC07:
+      enabled: false
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      notes: >
+        B12:
+          0x11 (power off + not charging)
+          0x18 (ACC2 + charge port unlocked)
+          0x19 (ACC2 + charge port locked)
+          0x10 (power off + charging)
+
+        Sample (ACC2+charging): 62BC070841FBCC00801800.
+
+      parameters:
+        # TODO: All the other bytes on here! 
+        # Maybe window states?
+        CHARGE_PORT_LOCK:
+          expression: "B11:7"
+          ha_class: lock
+          verified: true
+          notes: "1=locked, 0=unlocked. Verified 2026-07-18."
+        
+        CHARGE_PORT_LOCK_INV:
+          expression: "B12:0"
+          ha_class: lock
+          verified: true
+          notes: >
+            0=locked, 1=unlocked. Verified 2026-07-18.
+            Safety feedback of charge port lock?
+
+        ACC2_RELATED:
+          expression: "B12:3"
+          verified: false
+          notes: >
+            1=ACC2, 0=all other modes. Verified 2026-07-18.
+
     22BC03:
       period: 2500
       enabled: true
@@ -20,6 +55,18 @@ IGPM:
         Bit 5 correlates with ACC power, NOT driver door open as previously
         thought. Needs further investigation.
       parameters:
+        # B10 = Doors and locks
+        # B11 = Seatbelts
+        # B12 = Lights
+        # B13 = 
+        UNKNOWN_B10_6:
+          expression: "B10:6"
+          verified: false
+          notes: >
+            Bit flag likely, meaning unknown.
+            maybe hood of roof? 
+            or charge port lock state?
+
         DOOR_DRV_OPEN:
           expression: "B10:5"
           ha_class: door
@@ -176,6 +223,8 @@ IGPM:
       enabled: true
       availability: [sleep, plugged, acc, acc2, ready, charging]
       parameters:
+        # TODO: All the other bytes on here! 
+        # Maybe window states?
         DOOR_LOCK_FL:
           expression: "B10:3"
           ha_class: lock
@@ -251,19 +300,6 @@ IGPM:
         Sample: 62BC057F112000000000.
       parameters: {}
 
-    22BC07:
-      enabled: false
-      availability: [sleep, plugged, acc, acc2, ready, charging]
-      notes: >
-        8 data bytes. B03-B06=0x0841FBCC (static — possibly anti-theft code or immobilizer
-        ID). B09 bit 7 set (0x00→0x80) during ACC2+AC charging — likely **charging active**
-        indicator. B10: 0x19 (ACC/deep sleep Apr 14-16), 0x11 (deep sleep Apr 17), 0x18
-        (ACC2+charging Apr 19). Slow-changing, possibly a counter or state register.
-        Sample (ACC2+charging): 62BC070841FBCC00801800.
-        **TODO: Most likely register for charge cable lock STATUS** — probe with cable
-        plugged/unplugged while parked to find the toggling bit. IOControl lock/unlock
-        commands (BC3F/BC41) exist but no status read DID is confirmed yet.
-      parameters: {}
 
     22BC08:
       ignored: true
