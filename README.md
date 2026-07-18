@@ -164,6 +164,8 @@ The generated profile uses the **Vehicle Profile format** (grouped parameters pe
 
 Beyond reading diagnostic data, the toolkit can **actuate** vehicle hardware via UDS IOControlByIdentifier (service `0x2F`). All actuators auto-release when the diagnostic session ends (Ctrl+C or timeout) — no permanent state changes.
 
+<img width="1211" height="698" alt="Screenshot 2026-05-21 at 11 17 53" src="https://github.com/user-attachments/assets/70c7af9f-d356-4a76-ba4f-a9529008e505" />
+
 ### IGPM (Integrated Power Gate Module, `0x770`)
 
 Works from deep sleep with `--wake`. No ACC/IGN required.
@@ -235,6 +237,44 @@ canreq.py (argparse + argcomplete)
 | Monitor | `--multi "..." --monitor [SEC]` | Live-refreshing poll loop |
 
 **Cross-cutting flags:** `--session`, `--wake`, `--hold`, `--timeout`, `--save`, `--json`, `--verbose`, `--reboot`, `--wican home|vpn|IP`, `--unsafe`
+
+## Usage examples
+
+```bash
+# Read specific parameters (decoded output)
+canreq --param SOC_BMS BATTERY_VOLTAGE BATTERY_POWER
+
+# Query all parameters for an ECU
+canreq --ecu BMS --pid 2101
+
+# Live monitor — refresh every 5 seconds
+canreq --multi "query BMS 2101" --monitor
+
+# Wake a sleeping ECU and query it
+canreq --multi "session IGPM --wake" "query IGPM BC03 BC06"
+
+# IOControl — interactive TUI for actuators
+canreq --iocontrol IGPM
+# Or single command: turn on low beam (hold until Ctrl+C)
+canreq --iocontrol IGPM --did BC01
+
+# Scan for unknown DIDs on an ECU
+canreq --scan --tx 7E4 --service 22 --range BC00-BCFF
+
+# Discover all responding ECUs on the bus
+canreq --discover
+
+# Raw UDS request (hex in, hex out)
+canreq --raw 7E4:2101
+
+# Monitor + capture unique payloads, save on exit
+canreq --multi "query BCM C00B" --monitor --keep-unique --save
+
+# Multi-ECU pipeline: wake SKM, query IGPM and BCM
+canreq --multi "skm-wake acc" "query IGPM BC03" "query BCM C00B"
+```
+
+All commands support `--wican home|vpn|<ip>` to select the target device, `--json` for machine-readable output, and `--reboot` to restore AutoPID mode after a session.
 
 ## Protocols
 
