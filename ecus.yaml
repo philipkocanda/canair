@@ -283,7 +283,7 @@ ecus:
     id_protocol: KWP2000  # 1Axx
   0x7E3:
     name: MCU
-    alias: VMCU
+    alias: VMCU # aka HPCU (Hybrid Power Control Unit - legacy term but may help to know)
     description: Motor Control Unit (inverter)
     part_number: "36600-0E250"
     ecu_id: AEEMCU83  # KWP2000 1A8C
