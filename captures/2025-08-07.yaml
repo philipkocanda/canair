@@ -46,7 +46,7 @@ sessions:
         payload: "62b002e000000000ab00fe07000000"
         notes: "Odometer data"
 
-      - ecu: AAF
+      - ecu: AAT
         pid: "2180"
         payload: "6180c366c000212700000000002c8200454100008713009595"
         notes: "Ambient temperature data"

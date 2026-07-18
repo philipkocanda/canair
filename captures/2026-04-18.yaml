@@ -8,7 +8,7 @@ sessions:
     Key finding: 0x744 (Charging) and 0x733 (PLC) remain dead during AC charging.
     New PIDs discovered: LDC 2102, VCU 21F2, MCU 2101/2103/21F2.
   captures:
-  - ecu: AAF
+  - ecu: AAT
     pid: 2101-21FF
     label: Full service 21 scan on removed ECU 0x744
     notes: "0x744 returned NO DATA on all 255 PIDs during active AC charging. ECU\
@@ -77,7 +77,7 @@ sessions:
         notes: "Raw: 61F2FFFFFF3FF8FFF6FF7DD609000000000000000000190500000B05CDAB..."
       rejected: 251 DIDs returned NO DATA or NRC
       notes: "MCU 2103 all zeros during charging — worth re-testing while driving."
-  - ecu: AAF
+  - ecu: AAT
     pid: 2101-21FF
     label: Full service 21 scan
     scan_results:
