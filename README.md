@@ -247,7 +247,7 @@ canreq --param SOC_BMS BATTERY_VOLTAGE BATTERY_POWER
 # Query all parameters for an ECU
 canreq --ecu BMS --pid 2101
 
-# Live monitor — refresh every 5 seconds
+# Live monitor — refresh every 5 seconds and highlight changes
 canreq --multi "query BMS 2101" --monitor
 
 # Wake a sleeping ECU and query it
@@ -275,6 +275,14 @@ canreq --multi "skm-wake acc" "query IGPM BC03" "query BCM C00B"
 ```
 
 All commands support `--wican home|vpn|<ip>` to select the target device, `--json` for machine-readable output, and `--reboot` to restore AutoPID mode after a session.
+
+### Live monitoring of responses and auto-highlighting changes 
+
+```
+canreq --multi "query IGPM 22BC07" --monitor 2 --keep-unique
+```
+
+<img width="1206" height="448" alt="image" src="https://github.com/user-attachments/assets/53e2d063-0aae-4089-903b-b2fa8a213c91" />
 
 ## Protocols
 
