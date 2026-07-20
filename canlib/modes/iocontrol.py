@@ -8,7 +8,6 @@ import asyncio
 import json
 import logging
 import os
-import shutil
 import sys
 import termios
 import tty
@@ -19,22 +18,14 @@ from ..elm327 import nrc_abbrev
 from ..pids import build_iocontrol_index, load_pids
 from ..pids_edit import PidsEditError, promote_discovery, update_iocontrol_field
 from ..terminal import WiCANTerminal
+from ..tui import terminal_columns as _terminal_columns
+from ..tui import terminal_lines as _terminal_lines
 from .status import format_status_value, query_param_status
 
 # TUI debug log — cleared each session, written to logs/iocontrol-tui.log
 _LOGS_DIR = Path(__file__).parent.parent.parent / "logs"
 _LOG_FILE = _LOGS_DIR / "iocontrol-tui.log"
 _tui_logger = logging.getLogger("iocontrol-tui")
-
-
-def _terminal_columns(default: int = 120) -> int:
-    """Best-effort terminal width for table layout."""
-    return shutil.get_terminal_size(fallback=(default, 24)).columns
-
-
-def _terminal_lines(default: int = 24) -> int:
-    """Best-effort terminal height for viewport sizing."""
-    return shutil.get_terminal_size(fallback=(120, default)).lines
 
 
 def _truncate_text(text: str, width: int) -> str:

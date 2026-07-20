@@ -272,7 +272,10 @@ security BCM ki221-std
 
 ##### `--monitor` flag (live refresh)
 
-Turns a `--multi` pipeline into a live-refreshing monitor. Non-query steps (session, skm-wake, sleep) run once as setup; all `query` steps are then polled repeatedly, with Rich Live updating the display in-place. Sessions are kept alive with background TesterPresent keepalives.
+Turns a `--multi` pipeline into a live-refreshing monitor. Non-query steps (session, skm-wake, sleep) run once as setup; all `query` steps are then polled repeatedly in a background task. The display renders into the **alternate screen with a scrollable viewport**, so output taller than the terminal can be scrolled. Sessions are kept alive with background TesterPresent keepalives.
+
+**Scrolling / keys (interactive TTY):** `↑`/`↓` or `j`/`k` scroll a line, `PgUp`/`PgDn` page, `g`/`Home` jump to top, `G`/`End` jump to bottom, `f` toggles follow-tail (on by default — the view sticks to the newest output and detaches when you scroll up), and `q` or `Ctrl+C` stops. On stop, if the full output is taller than the terminal it's opened in a pager (`$PAGER`/`less -R`) so you can review everything (great with `--keep-all`). When stdout is **not** a TTY (piped/scripted), it polls silently until `Ctrl+C` and prints the final values.
+
 
 ```bash
 # Monitor BMS every 5s (default interval)

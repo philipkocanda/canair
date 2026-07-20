@@ -22,7 +22,6 @@ import asyncio
 import json
 import logging
 import os
-import shutil
 import sys
 import termios
 import tty
@@ -32,6 +31,8 @@ from ..elm327 import nrc_abbrev
 from ..pids import build_routines_index, load_pids
 from ..pids_edit import PidsEditError, update_routines_field
 from ..terminal import WiCANTerminal
+from ..tui import terminal_columns as _terminal_columns
+from ..tui import terminal_lines as _terminal_lines
 
 # TUI debug log — cleared each session
 _LOGS_DIR = Path(__file__).parent.parent.parent / "logs"
@@ -42,14 +43,6 @@ _tui_logger = logging.getLogger("routines-tui")
 SF_START = 0x01   # startRoutine — use with care
 SF_STOP = 0x02    # stopRoutine
 SF_RESULTS = 0x03  # requestRoutineResults — safe, read-only
-
-
-def _terminal_columns(default: int = 120) -> int:
-    return shutil.get_terminal_size(fallback=(default, 24)).columns
-
-
-def _terminal_lines(default: int = 24) -> int:
-    return shutil.get_terminal_size(fallback=(120, default)).lines
 
 
 def _truncate_text(text: str, width: int) -> str:

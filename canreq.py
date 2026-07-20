@@ -797,8 +797,10 @@ Examples:
         type=float,
         metavar="INTERVAL",
         help="For --multi: instead of running the pipeline once, repeatedly poll "
-        "all 'query' steps and refresh the display in-place (live monitor). "
+        "all 'query' steps and refresh a scrollable live view (alternate screen). "
         "Non-query steps (session, skm-wake, sleep) run once as setup. "
+        "Scroll with arrows/j-k, PgUp/PgDn, g/G/Home/End; f toggles follow-tail; "
+        "q or Ctrl+C stops (overflow is opened in a pager on exit). "
         "Optional poll interval in seconds (default: 5.0).",
     )
     keep_group = parser.add_mutually_exclusive_group()
