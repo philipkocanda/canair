@@ -31,6 +31,14 @@ MCU:
       period: 5000
       enabled: true
       availability: [charging]  # TODO: likely also ready — verify with ignition on
+      notes: >
+        62 bytes. Layout (WiCAN B / ISO-TP): B10:B11 RPM (verified), B12:B13 & B14:B15 the two
+        signed-16 torque fields (command/estimated), B17:B18 phase-current RMS candidate, B20/B21
+        temperatures. STATIC CALIBRATION BLOCK at ~B27–B33 (raw pattern 7D D6 CD AB C2 CD …) — these
+        are per-unit resolver + U/V phase current-sensor offsets (Soul VMCU: static Int16 "Resolver
+        Offset" / "U/V Phase Current Sensor Offset"). Constant across all captures and the same bytes
+        recur in 21F2 next to the "EHEL-MS2" cal ID, confirming they are calibration data, not live
+        signals — intentionally NOT mapped as pollable parameters. Tail B54+ is zero padding.
       parameters:
         MCU_MOTOR_RPM:
           expression: "[S10:S11]"
@@ -63,6 +71,43 @@ MCU:
             byte) and its ÷10 scale gave ±3226 Nm across all captures — 10× the motor's ~295 Nm limit.
             [S12:S13]/100 reads −249..+324 Nm (cruise small +ve, hard accel ~+300, regen ~−250) — physical.
             Scale/bytes inferred from range; not yet correlated with pedal/accel, so still unverified.
+
+        MCU_MOTOR_TORQUE_2:
+          expression: "[S14:S15]/100"
+          unit: Nm
+          ha_class: ""
+          min: "-300"
+          max: "300"
+          enabled: false
+          source: "Kia Soul EV VMCU CSV (Torque Command vs Estimated Torque — two signed-16 torque fields)"
+          source_links: []
+          verified: false
+          notes: >
+            UNVERIFIED CANDIDATE (Phase 1, 2026-07-20) — needs Phase 2 validation. Second signed-16-bit
+            big-endian pair at B14:B15 (ISO-TP 0x0B:0x0C), immediately after MCU_MOTOR_TORQUE [S12:S13].
+            The Soul VMCU exposes BOTH a Motor Torque Command AND an Estimated Motor Torque as separate
+            signed-16 fields; [S12:S13] and [S14:S15] are the two zero/near-zero-at-park ±32k pairs here, so
+            this is the likely second torque. Park ≈ 0.27–0.40 Nm (raw 27–40, small idle bias), driving
+            −314..+326 Nm. Which is command vs estimated (and the exact scale) is unconfirmed — kept out of
+            the profile (enabled:false) until a synced drive correlates it against MCU_MOTOR_TORQUE and pedal.
+
+        MCU_PHASE_CURRENT_RMS:
+          expression: "[B17:B18]/10"
+          unit: A
+          ha_class: current
+          min: "0"
+          max: "600"
+          enabled: false
+          source: "Kia Soul EV VMCU CSV (Motor Phase Current RMS = Int16, 0..5000)"
+          source_links: []
+          verified: false
+          notes: >
+            UNVERIFIED CANDIDATE (Phase 1, 2026-07-20) — needs Phase 2 validation. Unsigned 16-bit
+            big-endian at B17:B18 (ISO-TP 0x0D:0x0E). Always ≥0 (0..2069 raw), reads ~0 at park and rises
+            with acceleration (r=+0.44 vs dRPM across 255 driving samples) — the classic phase-current RMS
+            signature. Matches the Soul VMCU "Motor Phase Current RMS" field. The /10 scale (→ 0..~207 A) is
+            a guess to land in a plausible range for a ~120 kW motor; raw 2069 as amps would be too high.
+            Scale and exact bytes need confirmation against torque/accel under load — enabled:false meanwhile.
 
         MCU_TEMP_1:
           expression: "S20"
@@ -117,16 +162,18 @@ MCU:
       priority: P1
       prerequisite: [charging]
       notes: >
-        62 bytes. 2026-07-20: MOTOR_RPM verified at [S10:S11] (signed BE), not the old E:F guess.
-        Remaining Soul VMCU fields (0x7E2 on Soul, split into this MCU on Ioniq) still to place:
-        motor torque command / estimated torque (signed 16-bit, ±Nm), phase-current RMS, and the
-        U/V-phase + resolver current-sensor offsets. The offset/calibration block sits around B27–B47
-        (static bytes 7D D6 CD AB C2 CD ... — the same pattern appears in 21F2 alongside the "EHEL-MS2"
-        cal ID, confirming it is calibration data). Torque bytes near B12–B15 swing the full ±32k, so
-        they read like phase-current values; separating torque needs a time-synced VCU+MCU drive capture.
+        62 bytes. 2026-07-20 (Phase 1): MOTOR_RPM verified at [S10:S11]. Added UNVERIFIED candidates from
+        variance + park/drive + dRPM-correlation over 332 captures: MCU_MOTOR_TORQUE_2 [S14:S15]/100 (second
+        signed-16 torque, ≈0 at park), MCU_PHASE_CURRENT_RMS [B17:B18]/10 (always ≥0, r=+0.44 vs dRPM). Temps
+        B20/B21 still barely-warmed candidates. Calibration block B27–B33 documented as static (resolver +
+        U/V phase offsets). STILL OPEN (Phase 2): confirm which torque is command vs estimated, phase-current
+        scale, disambiguate the 3rd temperature (B22/B25 track RPM, 52..248 raw — offset/scale unclear), and
+        identify the highly-dynamic B52 (card=180). Needs a warm, dense, synced VCU+MCU drive capture.
       what_to_test:
-        - "Torque: best candidate so far is [S17:S18] (~0 at park, r=+0.42 vs dRPM) but it stays >=0 (0..2069), so likely |torque|/output power, not signed torque. Confirm with regen/braking segments where signed torque must go negative."
-        - "Phase-current RMS: Soul Int16(v:u); expect ~0 at park, rises with torque"
+        - "Torque: MCU_MOTOR_TORQUE [S12:S13] vs MCU_MOTOR_TORQUE_2 [S14:S15] — which is command vs estimated? Both ≈0 at park; correlate against pedal + dRPM incl. regen/braking (signed must go negative)."
+        - "Phase current: [B17:B18] scale — /10→A guess; confirm 0 at park, rises with |torque|, peak vs motor spec."
+        - "Temps: B20/B21 raw °C vs value−40; warm the inverter to separate motor/inverter/heat-sink. Check B22/B25 as a 3rd temp or a different quantity."
+        - "B52 (TAQ, card=180) — identify this fast-changing signal."
         - >
           CAPTURE METHOD: WebSocket polling is sequential over one connection and the stored
           timestamp is per-cycle (not per-PID acquisition), so VCU 2101 and MCU 2102 are skewed

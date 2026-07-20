@@ -73,8 +73,11 @@ The `research/` directory contains earlier CarScanner captures, reference spread
 |--------|---------|
 | `canreq.py` | Send UDS/KWP2000 requests to ECUs via the WiCAN WebSocket terminal. Supports interactive mode, parameter queries, DID scanning, IOControl actuation, and Smart Key Module wake-up. |
 | `generate-profile.py` | Read all `pids/*.yaml` definitions and produce a WiCAN-compatible JSON vehicle profile. Can upload directly to the device or diff against the current config. |
-| `decode.py` | Apply byte-level expressions from PID definitions to historical captures, showing decoded values and spotting anomalies. |
-| `query-captures.py` | Search across all capture files — show summaries, diffs between dates, or latest values per ECU/PID. |
+| `decode.py` | Parameter/value-centric decoding: shows each PID parameter's value range across all captures (default), plus statistics (`--stats`), correlation vs a reference signal (`--corr`), and candidate-expression testing without editing YAML (`--try`). |
+| `query-captures.py` | Search across all capture files — show summaries, diffs between dates, or latest values per ECU/PID. Scope any mode by date with `--since`/`--until`/`--date`. |
+| `research.py` | Report the open reverse-engineering backlog from the per-ECU `research:` sections (by type/status/priority/prerequisite). The "what should I decode next?" entry point. |
+| `pid-coverage.py` | Audit PID definitions for decoding gaps — unmapped data bytes, partial bitfields, and PIDs with no captures yet. |
+| `pids-edit.py` | Safely add/update `pids/` parameters and research entries from the CLI (comment-preserving, schema-validated, auto-reverted on failure). |
 | [`wican-cli`](https://github.com/philipkocanda/wican-cli) | Separate package for WiCAN device management — config, sleep/power, protocol switching, status, OBD log queries, and reboots. Install with `pip install wican-cli`. |
 
 ## Querying captures
