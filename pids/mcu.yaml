@@ -49,7 +49,7 @@ MCU:
             Old expr ((S7<<8)|B6) read B6/B7 (0xFF 0xFF) = -1 — wrong bytes.
 
         MCU_MOTOR_TORQUE:
-          expression: "((S12*256)+B11)/10"
+          expression: "[S12:S13]/100"
           unit: Nm
           ha_class: ""
           min: "-300"
@@ -58,11 +58,11 @@ MCU:
           source_links: []
           verified: false
           notes: >
-            Motor torque. 2026-07-20: from the community sheet ((Signed(h)*256)+g = B12:B11). Reads 0 at park,
-            spans raw -510..1806 while driving; the community 'Torque Command' and 'Estimated Torque'
-            (B12:B11 and B14:B13) are IDENTICAL in all 309 of our captures, so only one value is exposed.
-            ÷10 inferred from physical range (raw/10 → -51..180 Nm; cruise ~15-44 Nm, hard accel ~180 Nm,
-            regen ~-51 Nm — all sensible; Ioniq peak ~295 Nm). CSV shows raw (no ÷); scale unconfirmed.
+            Motor torque, signed 16-bit big-endian at B12:B13 (ISO-TP 0x09:0x0A), the pair right after
+            MCU_MOTOR_RPM [S10:S11]. 2026-07-20 fix: previous ((S12*256)+B11)/10 reused B11 (the RPM low
+            byte) and its ÷10 scale gave ±3226 Nm across all captures — 10× the motor's ~295 Nm limit.
+            [S12:S13]/100 reads −249..+324 Nm (cruise small +ve, hard accel ~+300, regen ~−250) — physical.
+            Scale/bytes inferred from range; not yet correlated with pedal/accel, so still unverified.
 
         MCU_TEMP_1:
           expression: "S20"

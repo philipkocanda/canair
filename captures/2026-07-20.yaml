@@ -294,3 +294,15 @@ sessions:
     pid: 2181
     payload: 6181FFFFC0002229000000000026778F523B5A5A98130696960000
     notes: "27B. Same layout as 2180 but extra non-zero bytes (B19=8F, B22/B23=5A, B24=06) — richer variant."
+- date: '2026-07-20'
+  label: GSA gear-shift assembly scan (ACC2)
+  state: acc2
+  notes: >
+    GSA 0x7B6 scan (ACC2, gear P). Responds ONLY to 220100 (service 21 none; 22 0101-0130 all NRC).
+    B19/B21/B22 = 0x77/0x76/0x78 (119/118/120) vs 2026-04-17 P capture 0x93/0x91/0x94 — drifted ~30 in
+    same gear (likely lever hall sensors or temp). Needs a P/R/N/D shift test + drive-mode-button test.
+  captures:
+  - ecu: GSA
+    pid: '220100'
+    payload: 620100FF00000080AA010000000000770176780001000000000000
+    notes: "27B. ACC2, gear P. Candidate lever-sensor bytes B19/B21/B22."

@@ -238,6 +238,7 @@ HVAC:
 
     2201A0:
       enabled: true
+      period: 5000
       availability: [acc, acc2, ready]
       notes: >
         62 bytes. Primary HVAC control/status DID. Contains set temperature,

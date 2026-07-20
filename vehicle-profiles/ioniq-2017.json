@@ -52,6 +52,7 @@
         "MAX_CELL_VOLTAGE": "B30*0.02",
         "MIN_CELL_VOLTAGE": "B33*0.02",
         "AUX_BATTERY_VOLTAGE": "B37*0.1",
+        "BMS_MAIN_RELAY": "B14:0",
         "CHARGER_CONNECTED": "B14:5",
         "CHARGING_DC": "B14:6",
         "CHARGING": "B14:7",
@@ -69,8 +70,8 @@
         "MIN_CELL_VOLTAGE_NO": "B34",
         "CUMULATIVE_ENERGY_CHARGED": "((B47<<24)|(B49<<16)|(B50<<8)|B51)/10",
         "CUMULATIVE_ENERGY_DISCHARGED": "((B52<<24)|(B53<<16)|(B54<<8)|B55)/10",
-        "CUMULATIVE_CURRENT_CHARGED": "((B32<<24)|(B33<<16)|(B34<<8)|B35)/10",
-        "CUMULATIVE_CURRENT_DISCHARGED": "((B36<<24)|(B37<<16)|(B38<<8)|B39)/10",
+        "CUMULATIVE_CURRENT_CHARGED": "((B38<<24)|(B39<<16)|(B41<<8)|B42)/10",
+        "CUMULATIVE_CURRENT_DISCHARGED": "((B43<<24)|(B44<<16)|(B45<<8)|B46)/10",
         "OPERATING_TIME": "[B57:B60]/3600",
         "INVERTER_CAPACITOR_VOLTAGE": "B62*0.1",
         "DRIVE_MOTOR_SPEED": "B65",
@@ -102,7 +103,7 @@
         "MIN_DETERIORATION": "[B36:B37]/10",
         "MIN_DETERIORATION_CELL_NO": "B38",
         "SOC_DISP": "B39/2",
-        "UNKNOWN_4": "B42"
+        "DEBUG_BMS_STATE_FLAGS_2105": "B42"
       }
     },
     {
@@ -237,7 +238,7 @@
       "period": "5000",
       "parameters": {
         "MCU_MOTOR_RPM": "[S10:S11]",
-        "MCU_MOTOR_TORQUE": "((S12*256)+B11)/10",
+        "MCU_MOTOR_TORQUE": "[S12:S13]/100",
         "MCU_TEMP_1": "S20",
         "MCU_TEMP_2": "S21"
       }
@@ -267,8 +268,7 @@
         "VEHICLE_STATE_LDC_ENABLED": "1-B11:7",
         "DEBUG_MCU_STATE_FLAGS": "B12",
         "CAR_READY": "B26:3",
-        "PARK_BRAKE": "B26:5",
-        "VCU_UNKNOWN": "B20/2"
+        "PARK_BRAKE": "B26:5"
       }
     },
     {
