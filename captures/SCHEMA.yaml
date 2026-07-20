@@ -1,5 +1,11 @@
 # Capture file schema — Ioniq CAN reverse engineering
 #
+# This file is the human-readable companion. The AUTHORITATIVE, machine-checked
+# schema is captures/schema.json (JSON Schema, draft 2020-12); validate with
+# `python3 validate-captures.py`. Capture files are written/edited only by the
+# canlib.captures helpers, which round-trip via ruamel.yaml and preserve any
+# comments you add here.
+#
 # Each file in captures/ is one date. Structure:
 #
 # sessions:

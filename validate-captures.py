@@ -1,35 +1,27 @@
 #!/usr/bin/env python3
-"""Validate capture files against the schema defined in captures/SCHEMA.yaml."""
+"""Validate capture files against captures/schema.json (JSON Schema).
 
+Structural validation is delegated to the JSON Schema in captures/schema.json.
+A few cross-file invariants that JSON Schema can't express are checked here:
+  * ecu response address (non-sentinel) must exist in ecus.yaml (RX = TX + 8)
+  * the session date must match the filename stem
+  * deprecated fields get a clearer message than a bare "additional property"
+"""
+
+import json
 import sys
 from datetime import datetime
 from pathlib import Path
 
 import yaml
+from jsonschema import Draft202012Validator
 
 sys.path.insert(0, str(Path(__file__).parent))
 
 CAPTURES_DIR = Path(__file__).parent / "captures"
-ECUS_FILE = Path(__file__).parent / "ecus.yaml"
+SCHEMA_FILE = CAPTURES_DIR / "schema.json"
 
-PAYLOAD_FIELDS = {"payload", "response", "scan_results"}
-REQUIRED_CAPTURE_FIELDS = {"ecu", "pid"}
-ALLOWED_CAPTURE_FIELDS = (
-    REQUIRED_CAPTURE_FIELDS | PAYLOAD_FIELDS | {"label", "time", "notes"}
-)
 DEPRECATED_FIELDS = {"ecu_tx", "ecu_rx", "ecu_name", "decoded"}
-REQUIRED_SESSION_FIELDS = {"date", "label", "captures"}
-ALLOWED_SESSION_FIELDS = REQUIRED_SESSION_FIELDS | {"state", "notes"}
-
-
-def _valid_session_date(date: str) -> bool:
-    """True if ``date`` is YYYY-MM-DD, optionally with a "-<suffix>" (same-day)."""
-    try:
-        datetime.strptime(date[:10], "%Y-%m-%d")
-    except ValueError:
-        return False
-    # Bare date, or a "-<suffix>" after the 10-char date.
-    return len(date) == 10 or (len(date) > 11 and date[10] == "-")
 
 
 def load_valid_rx_addrs() -> set[int]:
@@ -39,106 +31,72 @@ def load_valid_rx_addrs() -> set[int]:
     return set(build_rx_index())
 
 
-def validate_file(path: Path, rx_addrs: set[int]) -> list[str]:
+def _path_str(abs_path) -> str:
+    """Render a jsonschema error path (deque) as e.g. sessions[0].captures[3].ecu."""
+    out = ""
+    for part in abs_path:
+        if isinstance(part, int):
+            out += f"[{part}]"
+        else:
+            out += f".{part}" if out else part
+    return out or "<root>"
+
+
+def validate_file(path: Path, validator: Draft202012Validator, rx_addrs: set[int]) -> list[str]:
     from canlib.ecus import SENTINELS, parse_ecu_ref
 
-    errors = []
+    errors: list[str] = []
     with open(path) as f:
         data = yaml.safe_load(f)
 
-    if not isinstance(data, dict) or "sessions" not in data:
-        errors.append("Missing root 'sessions' key")
-        return errors
+    # Schema validation (structure, types, required/allowed fields, patterns).
+    for err in sorted(validator.iter_errors(data), key=lambda e: list(e.absolute_path)):
+        loc = _path_str(err.absolute_path)
+        # Nicer message for known-deprecated fields flagged by additionalProperties.
+        dep = DEPRECATED_FIELDS & set(err.instance) if isinstance(err.instance, dict) else set()
+        if err.validator == "additionalProperties" and dep:
+            errors.append(f"{loc}: deprecated field(s): {sorted(dep)}")
+        else:
+            errors.append(f"{loc}: {err.message}")
 
-    for si, session in enumerate(data["sessions"]):
-        prefix = f"session[{si}]"
-
-        # Session-level checks
-        for field in REQUIRED_SESSION_FIELDS:
-            if field not in session:
-                errors.append(f"{prefix}: missing required field '{field}'")
-
-        for field in session:
-            if field not in ALLOWED_SESSION_FIELDS:
-                errors.append(f"{prefix}: unknown field '{field}'")
-
-        date = session.get("date", "")
-        # A date is YYYY-MM-DD, optionally with a "-<suffix>" for a second
-        # session captured on the same day (e.g. "2026-04-17-b").
-        if date and not _valid_session_date(date):
-            errors.append(f"{prefix}: date '{date}' not in YYYY-MM-DD[-suffix] format")
-
-        # Check filename matches date
-        expected_stem = date
-        if expected_stem and path.stem != expected_stem:
-            errors.append(f"{prefix}: date '{date}' doesn't match filename '{path.stem}'")
-
-        captures = session.get("captures", [])
-        if not isinstance(captures, list):
-            errors.append(f"{prefix}: 'captures' must be a list")
-            continue
-
-        for ci, cap in enumerate(captures):
-            cprefix = f"{prefix}.captures[{ci}]"
-
-            if not isinstance(cap, dict):
-                errors.append(f"{cprefix}: capture must be a mapping")
+    # Cross-file / cross-field checks not expressible in JSON Schema.
+    if isinstance(data, dict):
+        for si, session in enumerate(data.get("sessions", []) or []):
+            if not isinstance(session, dict):
                 continue
+            date = session.get("date", "")
+            if date:
+                # Schema checks the shape; verify the leading date is a real
+                # calendar date (a "-<suffix>" for same-day sessions is allowed).
+                try:
+                    datetime.strptime(str(date)[:10], "%Y-%m-%d")
+                except ValueError:
+                    errors.append(f"sessions[{si}]: date '{date}' is not a valid calendar date")
+                if path.stem != date:
+                    errors.append(f"sessions[{si}]: date '{date}' doesn't match filename '{path.stem}'")
 
-            # Check for deprecated fields
-            deprecated_found = DEPRECATED_FIELDS & set(cap)
-            if deprecated_found:
-                errors.append(f"{cprefix}: deprecated fields: {deprecated_found}")
-
-            # Check required fields
-            for field in REQUIRED_CAPTURE_FIELDS:
-                if field not in cap:
-                    errors.append(f"{cprefix}: missing required field '{field}'")
-
-            # Check unknown fields
-            unknown = set(cap) - ALLOWED_CAPTURE_FIELDS - DEPRECATED_FIELDS
-            if unknown:
-                errors.append(f"{cprefix}: unknown fields: {unknown}")
-
-            # Exactly one payload field
-            present_payload = PAYLOAD_FIELDS & set(cap)
-            if len(present_payload) == 0:
-                errors.append(
-                    f"{cprefix}: missing payload (need one of: payload, response, scan_results)"
-                )
-            elif len(present_payload) > 1:
-                errors.append(f"{cprefix}: multiple payload fields: {present_payload}")
-
-            # Validate ECU response address (or a sentinel like "broadcast")
-            ecu = cap.get("ecu")
-            if ecu and str(ecu).lower() not in SENTINELS:
-                rx = parse_ecu_ref(ecu)
-                if rx is None:
-                    errors.append(f"{cprefix}: ECU '{ecu}' is not a valid response address or sentinel")
-                elif rx not in rx_addrs:
-                    errors.append(f"{cprefix}: ECU response address '{ecu}' not in ecus.yaml (RX = TX + 8)")
-
-            # Validate scan_results structure
-            if "scan_results" in cap:
-                sr = cap["scan_results"]
-                if not isinstance(sr, dict):
-                    errors.append(f"{cprefix}: scan_results must be a mapping")
-                elif "responding" in sr:
-                    for ri, entry in enumerate(sr["responding"]):
-                        if not isinstance(entry, dict):
-                            errors.append(
-                                f"{cprefix}.scan_results.responding[{ri}]: must be a mapping"
-                            )
-                        elif ("did" not in entry and "ecu" not in entry) or "response" not in entry:
-                            errors.append(
-                                f"{cprefix}.scan_results.responding[{ri}]: needs 'did'/'ecu' and 'response'"
-                            )
+            for ci, cap in enumerate(session.get("captures", []) or []):
+                if not isinstance(cap, dict):
+                    continue
+                ecu = cap.get("ecu")
+                if ecu and str(ecu).lower() not in SENTINELS:
+                    rx = parse_ecu_ref(ecu)
+                    if rx is not None and rx not in rx_addrs:
+                        errors.append(
+                            f"sessions[{si}].captures[{ci}].ecu: response address "
+                            f"'{ecu}' not in ecus.yaml (RX = TX + 8)"
+                        )
 
     return errors
 
 
 def main():
+    with open(SCHEMA_FILE) as f:
+        schema = json.load(f)
+    Draft202012Validator.check_schema(schema)
+    validator = Draft202012Validator(schema)
     rx_addrs = load_valid_rx_addrs()
+
     files = sorted(CAPTURES_DIR.glob("*.yaml"))
     files = [f for f in files if f.name != "SCHEMA.yaml"]
 
@@ -148,7 +106,7 @@ def main():
 
     total_errors = 0
     for path in files:
-        errors = validate_file(path, rx_addrs)
+        errors = validate_file(path, validator, rx_addrs)
         if errors:
             print(f"\n{path.name}: {len(errors)} errors")
             for e in errors:

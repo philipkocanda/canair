@@ -400,7 +400,7 @@ class TestPromptAndSave:
         s = data["sessions"][0]
         assert s["label"] == "BCM test session"
         assert s["state"] == "deep sleep"
-        assert s["notes"] == "test notes\n"
+        assert s["notes"] == "test notes"
         assert len(s["captures"]) == 2
         assert s["captures"][0]["ecu"] == "0x7A8"  # BCM response address (0x7A0 + 8)
         assert s["captures"][0]["pid"] == "22C00B"
@@ -448,7 +448,7 @@ class TestPromptAndSave:
         s = yaml.safe_load(files[0].read_text())["sessions"][0]
         assert s["label"] == "Live ref"
         assert s["state"] == "ready, parked"
-        assert s["notes"] == "18C ambient\n"
+        assert s["notes"] == "18C ambient"
         assert s["captures"][0]["payload"] == "6102AABB"
 
     def test_empty_label_with_suggestion_saves(self, tmp_path):

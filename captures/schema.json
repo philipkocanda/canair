@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ioniq-can/captures/schema.json",
+  "title": "Ioniq CAN capture file",
+  "description": "Machine schema for captures/*.yaml. Authoritative; SCHEMA.yaml is the human-readable companion. Cross-checks that can't be expressed here (ecu address must exist in ecus.yaml, filename must match session date) live in validate-captures.py.",
+  "type": "object",
+  "required": ["sessions"],
+  "additionalProperties": false,
+  "properties": {
+    "sessions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/session" }
+    }
+  },
+  "$defs": {
+    "session": {
+      "type": "object",
+      "required": ["date", "label", "captures"],
+      "additionalProperties": false,
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "YYYY-MM-DD, optionally with a -<suffix> for a second same-day session.",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}(-.+)?$"
+        },
+        "label": { "type": "string" },
+        "state": { "type": "string" },
+        "notes": { "type": "string" },
+        "captures": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capture" }
+        }
+      }
+    },
+    "capture": {
+      "type": "object",
+      "required": ["ecu", "pid"],
+      "additionalProperties": false,
+      "description": "Exactly one payload field (payload, response, or scan_results) must be present.",
+      "properties": {
+        "ecu": {
+          "description": "ECU CAN response address (RX = request TX + 8), e.g. 0x7EC; or the 'broadcast' sentinel for multi-ECU scans.",
+          "type": "string",
+          "pattern": "^(0x[0-9A-Fa-f]{3}|broadcast)$"
+        },
+        "pid": {
+          "description": "PID/DID string, e.g. 2101, 22BC03. Bare-integer values are tolerated.",
+          "type": ["string", "integer"]
+        },
+        "payload": { "type": "string" },
+        "response": { "type": "string" },
+        "scan_results": { "$ref": "#/$defs/scan_results" },
+        "label": { "type": "string" },
+        "time": { "type": "string" },
+        "notes": { "type": "string" }
+      },
+      "oneOf": [
+        { "required": ["payload"] },
+        { "required": ["response"] },
+        { "required": ["scan_results"] }
+      ]
+    },
+    "scan_results": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "responding": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/responding_entry" }
+        },
+        "rejected": { "type": "string" },
+        "notes": { "type": "string" }
+      }
+    },
+    "responding_entry": {
+      "type": "object",
+      "required": ["response"],
+      "additionalProperties": false,
+      "description": "A responder is keyed by 'did' (DID/service scans) or 'ecu' (broadcast/discover scans).",
+      "properties": {
+        "did": { "type": "string" },
+        "ecu": { "type": "string" },
+        "response": { "type": "string" },
+        "notes": { "type": "string" }
+      },
+      "anyOf": [
+        { "required": ["did"] },
+        { "required": ["ecu"] }
+      ]
+    }
+  }
+}
