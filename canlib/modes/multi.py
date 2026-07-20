@@ -22,8 +22,8 @@ import re
 import shlex
 
 from ..constants import PIDS_DIR
-from ..elm327 import elm_hex_to_wican_bytes, parse_elm_response
-from ..expression import evaluate_expression
+from ..decoding import decode_param_rows
+from ..elm327 import parse_elm_response
 from ..formatting import (
     decode_uds_response,
     print_ecu_results,
@@ -265,22 +265,7 @@ async def _exec_query(
 
         if pid_info:
             # Mapped PID — decode parameters
-            wican_bytes = elm_hex_to_wican_bytes(resp["hex"])
-            params = pid_info["parameters"]
-            results = []
-            for pname, pdef in params.items():
-                expr = pdef.get("expression", "")
-                unit = pdef.get("unit", "")
-                verified = pdef.get("verified", False)
-                display = pdef.get("display", "")
-                if not expr:
-                    continue
-                try:
-                    value = evaluate_expression(expr, wican_bytes)
-                    value = round(value * 100) / 100
-                    results.append((pname, value, unit, expr, None, verified, display))
-                except Exception as e:
-                    results.append((pname, None, unit, expr, str(e), verified, display))
+            results = decode_param_rows(resp["hex"], pid_info["parameters"])
 
             all_pid_results.append(
                 {

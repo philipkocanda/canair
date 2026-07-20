@@ -274,39 +274,6 @@ def cmd_latest(entries: list[dict], ecu_filter: str | None) -> None:
 # Diff mode
 # ---------------------------------------------------------------------------
 
-def _decode_param_rows(payload_hex: str, parameters: dict) -> list[tuple]:
-    """Decode a payload into param rows for the canreq-style renderer.
-
-    Returns a list of ``(name, value, unit, expression, error, verified)`` tuples
-    — the exact shape expected by canlib's ``_build_byte_colors`` / ``_render_hex_line``
-    and by ``format_value``. Value is ``None`` when the expression errored.
-    """
-    if not parameters:
-        return []
-    from canlib.elm327 import elm_hex_to_wican_bytes
-    from canlib.expression import evaluate_expression
-
-    try:
-        wican_bytes = elm_hex_to_wican_bytes(payload_hex)
-    except Exception:
-        return []
-
-    rows = []
-    for name, pdef in parameters.items():
-        expr = pdef.get("expression", "")
-        if not expr:
-            continue
-        unit = pdef.get("unit", "")
-        verified = pdef.get("verified", False)
-        try:
-            value = evaluate_expression(expr, wican_bytes)
-            value = round(value * 100) / 100
-            rows.append((name, value, unit, expr, None, verified))
-        except Exception as ex:  # noqa: BLE001 — surface decode errors in the table
-            rows.append((name, None, unit, expr, str(ex), verified))
-    return rows
-
-
 def cmd_diff(entries: list[dict], ecu_filter: str, pid_filter: str, show_all: bool = False) -> None:
     """Show payloads for an ECU+PID in canreq monitor style.
 
@@ -319,9 +286,10 @@ def cmd_diff(entries: list[dict], ecu_filter: str, pid_filter: str, show_all: bo
     pass ``show_all=True`` to render every capture.
     """
     from rich.console import Console
+    from rich.text import Text
 
-    from canlib.formatting import format_value
-    from canlib.modes.monitor import _render_hex_line
+    from canlib.decoding import decode_param_rows
+    from canlib.formatting import _build_byte_colors, _render_hex_line, render_param_table
 
     console = Console(highlight=False)
 
@@ -362,8 +330,9 @@ def cmd_diff(entries: list[dict], ecu_filter: str, pid_filter: str, show_all: bo
         pass
 
     # Decode the most recent payload into param rows (drives the table + colours).
-    rows = _decode_param_rows(payloads[-1]["payload"], parameters)
+    rows = decode_param_rows(payloads[-1]["payload"], parameters)
     unmapped = not rows
+    n_bytes = len(payloads[-1]["payload"].replace(" ", "")) // 2
 
     # Dedupe payloads (case/space-insensitive), keeping first-seen order.
     seen: set[str] = set()
@@ -387,27 +356,44 @@ def cmd_diff(entries: list[dict], ecu_filter: str, pid_filter: str, show_all: bo
     console.print(f"\n  [bold cyan]{ecu_display}{tx_str}[/bold cyan]")
     console.print(f"    [yellow]{pid_upper}[/yellow]  [dim]{count_str}[/dim]")
 
-    # Decoded-parameter block (aligned columns, verification marks).
+    # Decoded-parameter block (aligned columns, verification marks, byte indices).
     if rows:
-        max_name = max(len(r[0]) for r in rows)
-        max_val = max(
-            len("ERROR" if r[1] is None else format_value(r[1], r[2])) for r in rows
-        )
-        for name, value, unit, _expr, err, verified in rows:
-            mark = "[green]✓[/green]" if verified else "[yellow]?[/yellow]"
-            if err:
-                console.print(f"      {name:<{max_name}}  [red]ERROR: {err}[/red]")
-            else:
-                val_str = format_value(value, unit)
-                console.print(f"      {name:<{max_name}}  {val_str:<{max_val}}  {mark}")
+        console.print(render_param_table(rows, n_bytes=n_bytes), end="")
 
-    # Payload hex lines with per-byte change highlighting.
+    # Payload hex lines with per-byte change highlighting, under a byte-index ruler.
     render_list = payloads if show_all else unique
+    max_ts = max((len(e.get("time") or e.get("date") or "") for e in render_list), default=0)
+
+    # Byte-index ruler (once), coloured by parameter coverage and aligned with the
+    # hex byte columns below. A dark background bar sets it apart as a header.
+    # Two rows: "idx" = payload byte position, "wican" = WiCAN Bnn (skips PCI).
+    if n_bytes:
+        from canlib.byteindex import elm_to_wican_idx
+
+        bg = "on grey23"
+        # Lift uncovered grey to a readable tone against the dark background.
+        fg_map = {"green": "green", "yellow": "yellow", "bright_black": "grey58"}
+        byte_colors = _build_byte_colors(rows, n_bytes) if rows else None
+        head_pad = f"{' ' * max_ts}  "
+
+        def _ruler(label: str, value_fn) -> Text:
+            t = Text()
+            t.append(f"{label:>6}{head_pad}", style=f"bold white {bg}")
+            for i in range(n_bytes):
+                if i > 0:
+                    t.append(" ", style=bg)
+                base = byte_colors[i] if byte_colors else "bright_black"
+                t.append(f"{value_fn(i):02d}", style=f"{fg_map.get(base, base)} {bg}")
+            return t
+
+        console.print(_ruler("idx", lambda i: i), soft_wrap=True)
+        console.print(_ruler("wican", lambda i: elm_to_wican_idx(i, n_bytes)), soft_wrap=True)
+
     prev_norm = ""
     for e in render_list:
         norm = e["payload"].upper().replace(" ", "")
         ts = e.get("time") or e.get("date") or ""
-        prefix = f"      {ts}  " if ts else "      "
+        prefix = f"      {ts:<{max_ts}}  "
         line = _render_hex_line(
             norm, rows, unmapped, prev_raw=prev_norm, prefix=prefix, prefix_style="dim"
         )
