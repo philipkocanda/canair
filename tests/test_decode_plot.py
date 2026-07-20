@@ -19,6 +19,11 @@ F32 = ("f32", 4, "float", True)
 
 FRAME = bytes([0x04, 0x61, 0x01, 0xAB, 0xCD, 0x00])  # PCI, SID, echo, data...
 
+_MAP_DEFS = {
+    "MCU_MOTOR_RPM": {"expression": "[S10:S11]", "verified": True},
+    "OTHER": {"expression": "B20", "verified": False},
+}
+
 
 class TestInterpretBytes:
     def test_unsigned_and_signed_byte(self):
@@ -107,3 +112,48 @@ class TestRendering:
         # With a ref, both series are normalized; caption notes it.
         lines = dp.render_plot([10, 20, 30], ref=[1, 2, 3], width=20, height=6)
         assert any("normalized" in ln for ln in lines)
+
+    def test_caption_override(self):
+        lines = dp.render_plot([1, 2, 3], width=20, height=6, caption="captures 0-2 of 3")
+        assert any("captures 0-2 of 3" in ln for ln in lines)
+
+
+class TestWindow:
+    def test_full_range(self):
+        assert dp._window(list(range(100)), 0.0, 1.0)[1:] == (0, 100)
+
+    def test_zoomed_subrange(self):
+        view, i0, i1 = dp._window(list(range(100)), 0.25, 0.5)
+        assert (i0, i1) == (25, 50) and view == list(range(25, 50))
+
+    def test_empty(self):
+        assert dp._window([], 0.0, 1.0) == ([], 0, 0)
+
+    def test_always_at_least_one_point(self):
+        # A degenerate window still yields a non-empty slice.
+        view, i0, i1 = dp._window([1, 2, 3, 4], 0.99, 0.99)
+        assert len(view) >= 1 and i1 > i0
+
+
+class TestMappingForOffset:
+    def test_exact_match(self):
+        exact, overlap = dp._mapping_for_offset(_MAP_DEFS, 10, 2, "[S10:S11]")
+        assert exact == [("MCU_MOTOR_RPM", "[S10:S11]", True)]
+        assert overlap == []
+
+    def test_overlap_not_exact(self):
+        # B11 is read by [S10:S11] but the expression differs -> overlap, not exact.
+        exact, overlap = dp._mapping_for_offset(_MAP_DEFS, 11, 1, "B11")
+        assert exact == []
+        assert overlap == [("MCU_MOTOR_RPM", "[S10:S11]", True)]
+
+    def test_unmapped(self):
+        assert dp._mapping_for_offset(_MAP_DEFS, 50, 1, "B50") == ([], [])
+
+    def test_none_current_expr_still_finds_overlap(self):
+        # A float interpretation (no WiCAN expr) can still report byte overlap.
+        exact, overlap = dp._mapping_for_offset(_MAP_DEFS, 20, 4, None)
+        assert exact == [] and overlap and overlap[0][0] == "OTHER"
+
+    def test_empty_defs(self):
+        assert dp._mapping_for_offset({}, 10, 2, "[S10:S11]") == ([], [])
