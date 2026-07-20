@@ -219,15 +219,15 @@ def _prompt_and_save(
     hex_history: dict[tuple[str, str], list[tuple[str, str]]],
     prev_hex: dict[tuple[str, str], str],
     captures_dir: Path,
-    pids_data: dict | None = None,
 ) -> None:
     """Prompt for session metadata and write captures to YAML file.
 
     Collects label, state, and notes via stdin prompts, then appends a new
     session with all unique payloads to captures/YYYY-MM-DD.yaml.
-    If pids_data is provided, decoded parameter values are included per capture.
+    Decoded parameter values are not stored — they are regenerated on demand
+    from the payload + PID definitions (see decode.py / query-captures.py).
     """
-    from ..captures import prompt_metadata, save_session, _decode_payload
+    from ..captures import prompt_metadata, save_session
 
     if not hex_history and not prev_hex:
         print("  No payloads captured — nothing to save.")
@@ -273,12 +273,6 @@ def _prompt_and_save(
             }
             if ts:
                 capture["time"] = ts
-
-            # Decode parameters from payload
-            if pids_data:
-                decoded = _decode_payload(ecu_short, pid, hex_val, pids_data)
-                if decoded:
-                    capture["decoded"] = decoded
 
             captures.append(capture)
 
@@ -440,7 +434,7 @@ async def mode_monitor(
             print("\n  Monitoring stopped.")
             if save and save_history is not None:
                 captures_dir = CAPTURES_DIR
-                _prompt_and_save(save_history, prev_hex, captures_dir, pids_data)
+                _prompt_and_save(save_history, prev_hex, captures_dir)
             return
 
         # If we got here, it was a ConnectionError

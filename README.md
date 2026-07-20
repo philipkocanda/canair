@@ -79,7 +79,7 @@ The `research/` directory contains earlier CarScanner captures, reference spread
 
 ## Querying captures
 
-The `query-captures.py` script searches across all saved UDS response captures (in `captures/`) and displays them with context — timestamps, vehicle state, notes, and decoded parameter values where PID definitions exist.
+The `query-captures.py` script searches across all saved UDS response captures (in `captures/`) and displays them with context — timestamps, vehicle state, notes, and decoded parameter values (computed on the fly from the PID definitions, not stored in the capture files) where those definitions exist.
 
 ```bash
 uv run query-captures.py --ecu BMS           # All captures for the BMS ECU
