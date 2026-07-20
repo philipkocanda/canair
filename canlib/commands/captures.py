@@ -310,6 +310,11 @@ def cmd_list(entries: list[dict], query) -> None:
     for e in matched:
         _print_entry(e, show_ecu=show_ecu)
     print()
+    if sys.stdout.isatty():
+        print(
+            f"  {_DIM}Tip: add --step to interactively step through these captures "
+            f"one at a time.{_RESET}\n"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -1023,11 +1028,13 @@ def run(args) -> int:
             print("error: --diff/--step cannot be combined with --summary/--latest", file=sys.stderr)
             return 2
     elif not query:
+        from canlib.commands._hints import ecu_hint
+
         print(
-            "error: a QUERY is required (e.g. 'BMS 2102' or 'BMS:2102,2103'); "
-            "or use --summary / --latest",
-            file=sys.stderr,
+            "Specify a QUERY to look up captures, e.g. `canair captures BMS 2102` "
+            "(or use --summary / --latest).\n"
         )
+        print(ecu_hint())
         return 2
 
     # Resolve date scoping (--date is shorthand for an equal since/until pair).

@@ -1,19 +1,19 @@
 # TODOs
 
 - Captures:
-  - [ ] Fix BMS cell voltages (CELL_03_VOLTAGE, CELL_11_VOLTAGE, CELL_19_VOLTAGE, CELL_27_VOLTAGE are hitting PCI bytes!)
   - [ ] ESC PIDs while driving
   - [ ] VCU/MCU while driving (canreq --multi "query VCU 2101" "query MCU 2102" --monitor 1 --keep-all --save --wican vpn)
   - [ ] More HVAC PIDs in various states
   - [ ] Drive-mode button (Eco/Normal/Sport) + regen paddle (0-3) toggle test while monitoring VCU 2101 (see "Drive mode + regen" section below)
-- [x] Fix incorrect VCU VEHICLE_SPEED param, cluster value vs decoded PID value
+  - [x] Fix BMS cell voltages (CELL_03_VOLTAGE, CELL_11_VOLTAGE, CELL_19_VOLTAGE, CELL_27_VOLTAGE are hitting PCI bytes!)
+  - [x] Fix incorrect VCU VEHICLE_SPEED param, cluster value vs decoded PID value
 - Canreq:
   - [x] display byte index(es) for each mapped PID
   - [ ] simplify usage by making the "multi" mode the default, removing the complexity of maintaining both single and multi modes
 - Various:
   - [x] In query-captures, implement a "step through" feature so I can use the arrow keys (l/r) to step through the captures and see the decoded values for each capture, while also still showing the capture diff (against previous capture) underneath, just only for the current capture and not for all at the time. This is useful for debugging and understanding how the values change over time.
   - [x] unified query syntax (rather than having --ecu and --pid flags)
-  - [ ] The project should clarify that this is intended for UDS and OBD-II diagnostic queries, not for handling raw CAN bus traffic (that may be a future follow-up). We should note that "ioniq-can" is not an ideal name, given it is primarily UDS/KWP2000 focused.
+  - [x] The project should clarify that this is intended for UDS and OBD-II diagnostic queries, not for handling raw CAN bus traffic (that may be a future follow-up). We should note that "ioniq-can" is not an ideal name, given it is primarily UDS/KWP2000 focused.
   - [ ] Web UI for viewing and querying captures (similar to https://github.com/deanlee/openpilot-cabana used by https://www.projectgus.com/2023/10/kona-can-decoding/, but focused on UDS/KWP2000)
   - [ ] Store captures in CAN log files in the "gvret/SavvyCAN" CSV format, as supported by SavvyCAN? Or DBC? Not sure what is best here.
 
