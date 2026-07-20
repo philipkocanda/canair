@@ -1,15 +1,8 @@
 """Tests for decode.py --try candidate-expression parsing."""
 
-import importlib.util
-from pathlib import Path
-
 import pytest
 
-_SPEC = importlib.util.spec_from_file_location(
-    "decode_script", Path(__file__).resolve().parent.parent / "decode.py"
-)
-decode_script = importlib.util.module_from_spec(_SPEC)
-_SPEC.loader.exec_module(decode_script)
+from canlib.commands import decode as decode_script
 
 parse_try_expr = decode_script.parse_try_expr
 build_try_params = decode_script.build_try_params

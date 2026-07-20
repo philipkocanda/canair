@@ -7,15 +7,18 @@ try:
 except ImportError as e:
     raise ImportError("PyYAML not installed. Run: pip3 install pyyaml") from e
 
-from .constants import PIDS_DIR
 
-
-def load_pids(path: Path = PIDS_DIR) -> dict:
+def load_pids(path: Path | None = None) -> dict:
     """Load PID definitions from YAML.
 
     Accepts either a directory (pids/) containing per-ECU YAML files,
-    or a single YAML file (legacy ioniq-2017-pids.yaml format).
+    or a single YAML file (legacy ioniq-2017-pids.yaml format). When ``path``
+    is None, the active vehicle profile's pids/ directory is used.
     """
+    if path is None:
+        from .profile import active
+
+        path = active().pids_dir
     path = Path(path)
 
     if path.is_dir():

@@ -1,0 +1,646 @@
+"""Shared runtime for live-device subcommands (query, scan, discover, io, ...).
+
+All live subcommands talk to the WiCAN over the WebSocket ELM327 terminal.
+They share one connection lifecycle and one dispatcher (``async_main``, moved
+here verbatim from the old ``canreq.py``). Each subcommand is a thin argparse
+surface that populates the same attribute names ``async_main`` expects, then
+calls :func:`run_live`.
+"""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
+import re
+import sys
+
+# Force line-buffered stdout so output appears immediately when piped
+if not sys.stdout.isatty():
+    sys.stdout.reconfigure(line_buffering=True)
+    sys.stderr.reconfigure(line_buffering=True)
+
+from canlib import (
+    DEFAULT_WICAN,
+    WICAN_ADDRESSES,
+    WiCANTerminal,
+    init_logging,
+    load_pids,
+    log_command,
+    reboot_wican,
+)
+from canlib.lock import WiCANLock
+from canlib.modes import (
+    mode_discover,
+    mode_ecu,
+    mode_identity,
+    mode_interactive,
+    mode_monitor,
+    mode_multi,
+    mode_param,
+    mode_raw,
+    mode_scan,
+    mode_skm_wakeup,
+    mode_tester_present,
+)
+from canlib.modes.iocontrol import mode_iocontrol_execute, mode_iocontrol_list
+from canlib.modes.iocontrol_scan import mode_iocontrol_scan
+from canlib.modes.routines import mode_routines_execute, mode_routines_list
+from canlib.modes.routines_scan import mode_routines_scan
+
+try:
+    import websockets
+except ImportError:  # pragma: no cover
+    print("ERROR: websockets not installed. Run: pip3 install websockets", file=sys.stderr)
+    sys.exit(1)
+
+
+# ---------------------------------------------------------------------------
+# canreq default namespace — every attribute async_main reads, with the same
+# defaults the old flat parser used. Live subcommands only expose a subset of
+# these as real arguments; finalize_live_parser fills in the rest.
+# ---------------------------------------------------------------------------
+
+CANREQ_DEFAULTS: dict = {
+    # mode selectors
+    "param": None,
+    "ecu": None,
+    "raw": None,
+    "scan": False,
+    "skm_wakeup": False,
+    "tester_present": False,
+    "identity": False,
+    "discover": False,
+    "iocontrol": None,
+    "routines": None,
+    "routines_scan": None,
+    "iocontrol_scan": None,
+    "multi": None,
+    # options
+    "pid": None,
+    "did": None,
+    "off": False,
+    "rid": None,
+    "sf": "results",
+    "tx": None,
+    "service": "21",
+    "range": "01-FF",
+    "append": None,
+    "session": False,
+    "hold": False,
+    "wake": False,
+    "repl": False,
+    "monitor": None,
+    "keep_unique": False,
+    "keep_all": False,
+    "keep": None,
+    "save": False,
+    "label": None,
+    "state": None,
+    "notes": None,
+    "rulers": False,
+    "rid_range": "F000-F0FF",
+    "did_range": None,
+    "throttle_ms": 150,
+    "level": "acc",
+    "target": None,
+    "interval": 1.0,
+    "delay": 0.2,
+    "wican": DEFAULT_WICAN,
+    "timeout": 3.0,
+    "elm_timeout": None,
+    "json": False,
+    "verbose": False,
+    "reboot": False,
+    "unsafe": False,
+    "force": False,
+}
+
+
+def parse_range(range_str: str) -> tuple[int, int]:
+    """Parse a PID/DID range like '01-FF', 'E000-E0FF', or 'BC01-BC0B'."""
+    match = re.match(r"^([0-9A-Fa-f]+)-([0-9A-Fa-f]+)$", range_str)
+    if not match:
+        raise argparse.ArgumentTypeError(
+            f"Invalid range: {range_str}. Expected format: 01-FF or E000-E0FF"
+        )
+    return int(match.group(1), 16), int(match.group(2), 16)
+
+
+# ---------------------------------------------------------------------------
+# Shell completion helpers (argcomplete)
+# ---------------------------------------------------------------------------
+
+
+def _load_pids_for_completion():
+    try:
+        return load_pids()
+    except Exception:
+        return None
+
+
+def ecu_completer(prefix, parsed_args=None, **kwargs):
+    """Complete ECU names from pids/*.yaml (e.g. BMS, IGPM, HVAC)."""
+    data = _load_pids_for_completion()
+    if not data:
+        return []
+    names = list(data.get("ecus", {}).keys())
+    up = prefix.upper()
+    return [n for n in names if n.upper().startswith(up)]
+
+
+def pid_completer(prefix, parsed_args=None, **kwargs):
+    """Complete PID codes. Narrows to --ecu's PIDs if that arg is set."""
+    data = _load_pids_for_completion()
+    if not data:
+        return []
+    ecus = data.get("ecus", {})
+    ecu_filter = getattr(parsed_args, "ecu", None)
+    pids = set()
+    if ecu_filter and ecu_filter.upper() in {k.upper() for k in ecus}:
+        target = next(k for k in ecus if k.upper() == ecu_filter.upper())
+        pids.update(ecus[target].get("pids", {}).keys())
+    else:
+        for info in ecus.values():
+            pids.update(info.get("pids", {}).keys())
+    codes = [str(p).upper().removeprefix("0X") for p in pids]
+    up = prefix.upper()
+    return sorted(c for c in codes if c.startswith(up))
+
+
+def param_completer(prefix, parsed_args=None, **kwargs):
+    """Complete parameter names from all ECUs' pids."""
+    data = _load_pids_for_completion()
+    if not data:
+        return []
+    names = set()
+    for info in data.get("ecus", {}).values():
+        for pid_info in info.get("pids", {}).values():
+            if not isinstance(pid_info, dict):
+                continue
+            for param in pid_info.get("params", []) or []:
+                if isinstance(param, dict) and "name" in param:
+                    names.add(param["name"])
+    up = prefix.upper()
+    return sorted(n for n in names if n.upper().startswith(up))
+
+
+# ---------------------------------------------------------------------------
+# Parser helpers shared by live subcommands
+# ---------------------------------------------------------------------------
+
+
+def add_connection_args(parser: argparse.ArgumentParser) -> None:
+    """Add the connection/output flags common to every live subcommand."""
+    parser.add_argument(
+        "--wican",
+        default=DEFAULT_WICAN,
+        help=f"WiCAN address: {', '.join(WICAN_ADDRESSES.keys())} or IP (default: {DEFAULT_WICAN})",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=3.0,
+        help="WebSocket response timeout in seconds (default: 3.0)",
+    )
+    parser.add_argument(
+        "--elm-timeout",
+        type=int,
+        default=None,
+        metavar="MS",
+        help="ELM327 ECU response timeout in ms (sent as ATSTxx after init)",
+    )
+    parser.add_argument("--json", action="store_true", help="Output results as JSON")
+    parser.add_argument(
+        "--verbose", "-v", action="store_true", help="Show raw WebSocket traffic and expressions"
+    )
+    parser.add_argument(
+        "--reboot", action="store_true", help="Reboot WiCAN after session to restore AutoPID mode"
+    )
+    parser.add_argument(
+        "--unsafe",
+        action="store_true",
+        help="Bypass dangerous command blocklist (requires explicit per-command consent)",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Steal the connection lock if another session is still running",
+    )
+
+
+def finalize_live_parser(parser: argparse.ArgumentParser, **active_mode) -> None:
+    """Fill in every canreq default attribute the parser does not already expose.
+
+    ``active_mode`` sets the mode selector(s) for this subcommand (e.g.
+    ``scan=True`` or ``discover=True``). Also wires ``func=run``.
+    """
+    exposed = {a.dest for a in parser._actions}
+    for dest, default in CANREQ_DEFAULTS.items():
+        if dest in exposed or dest in active_mode:
+            continue
+        parser.set_defaults(**{dest: default})
+    parser.set_defaults(**active_mode, func=run)
+
+
+# ---------------------------------------------------------------------------
+# Connection lifecycle + dispatcher (moved verbatim from canreq.async_main)
+# ---------------------------------------------------------------------------
+
+
+def _print_sleep_banner(host: str, timeout: int = 5) -> None:
+    """Fetch WiCAN sleep status and battery voltage, print a status line."""
+    try:
+        from canlib.wican_api import get_config, get_status
+
+        base_url = f"http://{host}"
+        status = get_status(base_url, timeout)
+        config = get_config(base_url, timeout)
+    except Exception:
+        return  # silently skip if REST API unreachable
+
+    batt = status.get("batt_voltage", "?")
+    sleep_on = config.get("sleep_status", "disable") == "enable"
+    sleep_volt = config.get("sleep_volt", "?")
+
+    try:
+        batt_f = float(str(batt).rstrip("V"))
+        thresh_f = float(sleep_volt)
+        margin = batt_f - thresh_f
+    except (ValueError, TypeError):
+        batt_f = None
+        thresh_f = None
+        margin = None
+
+    from rich.console import Console
+
+    console = Console()
+
+    if sleep_on:
+        sleep_str = f"[red]ON[/red] (threshold {sleep_volt}V)"
+        if margin is not None and margin < 0.5:
+            console.print(
+                f"  [bold red]⚠ Sleep: ON  |  Battery: {batt}  |  Threshold: {sleep_volt}V"
+                f"  — {margin:.2f}V above cutoff — may shut down soon![/bold red]"
+            )
+            return
+    else:
+        sleep_str = "[green]OFF[/green]"
+
+    console.print(f"  [WiCAN] Sleep: {sleep_str}  |  Battery: {batt}")
+
+
+async def async_main(args):
+    """Main async entry point."""
+    host = args.wican
+    if host in WICAN_ADDRESSES:
+        host = WICAN_ADDRESSES[host]
+
+    init_logging()
+    log_command(
+        f"--- SESSION START (host={host}, mode={'interactive' if not any([args.param, args.ecu, args.raw, args.scan, args.discover, args.skm_wakeup, args.tester_present, args.iocontrol, args.routines, args.routines_scan is not None, args.iocontrol_scan is not None]) else 'batch'}, unsafe={args.unsafe}, session={getattr(args, 'session', False)}) ---"
+    )
+
+    if args.unsafe:
+        print("!! WARNING: --unsafe mode active. Dangerous command blocklist is bypassed.")
+        print("!! Each blocked command will require explicit user consent before execution.")
+        print()
+
+    pids_data = load_pids()
+
+    # Warn about any aborted scans from a previous interrupted session
+    from canlib.scan_state import find_aborted_scans
+
+    _aborted = find_aborted_scans()
+    if _aborted:
+        print("!! Aborted scan(s) detected from a previous session:")
+        for _s in _aborted:
+            print(
+                f"   [{_s['type'].upper()} scan  {_s['ecu']} @ {_s['tx_id']}]"
+                f"  range {_s['range']}"
+                f"  last probe: {_s['current']}"
+                f"  ({_s['hits']} hits / {_s['total']} total)"
+                f"  started {_s.get('started', '?')}"
+            )
+        print("!! To resume, re-run with the same ECU and --rid-range starting at the last probe.")
+        print()
+
+    # List-only mode: no CAN connection needed (--json or explicit list)
+    if args.iocontrol and not args.did and args.json:
+        mode_iocontrol_list(pids_data, args.iocontrol, as_json=True)
+        return
+    if args.routines and not args.rid and args.json:
+        mode_routines_list(pids_data, args.routines, as_json=True)
+        return
+
+    init_string = pids_data.get("init", "ATSP6;ATS0;ATAL;ATST96;")
+
+    # Fail loud: --save (and metadata flags) only apply to capture-producing modes.
+    _wants_save = (
+        args.save or args.label is not None or args.state is not None or args.notes is not None
+    )
+    if _wants_save:
+        _save_ok = bool(args.scan or args.raw or args.discover)
+        if not _save_ok and args.multi:
+            from canlib.modes.multi import parse_sub_commands
+
+            _save_ok = any(c["type"] in ("query", "raw") for c in parse_sub_commands(args.multi))
+        if not _save_ok:
+            print(
+                "Error: --save/--label/--state/--notes only apply to --scan, --raw, "
+                "--discover, or --multi with a 'query'/'raw' step.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+    terminal = WiCANTerminal(
+        host=host,
+        timeout=args.timeout,
+        verbose=args.verbose,
+        unsafe=args.unsafe,
+    )
+
+    try:
+        print(f"Connecting to WiCAN at {host}...")
+        await terminal.connect()
+        print("Connected. Initializing ELM327...")
+        await terminal.init_elm(init_string)
+
+        if args.elm_timeout is not None:
+            atst_val = max(1, min(255, round(args.elm_timeout / 4.096)))
+            atst_cmd = f"ATST{atst_val:02X}"
+            await terminal.send_command(atst_cmd)
+            terminal.elm_timeout_cmd = atst_cmd
+            actual_ms = atst_val * 4.096
+            print(f"  ELM327 timeout: {atst_cmd} ({actual_ms:.0f}ms)")
+
+        print("Ready.")
+        _print_sleep_banner(host)
+
+        if args.wake:
+            args.session = True
+
+        # Dispatch to mode
+        if args.multi and args.monitor:
+            from canlib.modes.multi import parse_sub_commands
+
+            commands = parse_sub_commands(args.multi)
+            session_steps = [c for c in commands if c["type"] in ("session", "skm-wake", "sleep")]
+            query_steps = [c for c in commands if c["type"] == "query"]
+            if not query_steps:
+                print(
+                    "Error: --monitor requires at least one 'query' step in --multi",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+            await mode_monitor(
+                terminal,
+                query_steps,
+                pids_data,
+                args.verbose,
+                interval=args.monitor,
+                session_steps=session_steps,
+                keep_mode="unique"
+                if args.keep_unique
+                else ("all" if args.keep_all else ("last" if args.keep else None)),
+                keep_n=args.keep,
+                save=args.save,
+                show_rulers=args.rulers,
+                label=args.label,
+                state=args.state,
+                notes=args.notes,
+            )
+        elif args.multi:
+            await mode_multi(
+                terminal,
+                args.multi,
+                pids_data,
+                args.verbose,
+                no_repl=not args.repl,
+                save=args.save,
+                label=args.label,
+                state=args.state,
+                notes=args.notes,
+            )
+        elif args.skm_wakeup:
+            await mode_skm_wakeup(terminal, args.level, args.verbose)
+        elif args.tester_present:
+            await mode_tester_present(terminal, args.target, args.interval, args.verbose)
+        elif args.identity:
+            if not args.tx:
+                print("Error: --identity requires --tx (ECU TX ID)", file=sys.stderr)
+                sys.exit(1)
+            tx_id = int(args.tx, 16)
+            await mode_identity(
+                terminal, tx_id, session=args.session, wake=args.wake, as_json=args.json
+            )
+        elif args.param:
+            await mode_param(
+                terminal,
+                pids_data,
+                args.param,
+                args.verbose,
+                args.json,
+                session=args.session,
+                wake=args.wake,
+            )
+        elif args.ecu:
+            await mode_ecu(
+                terminal,
+                pids_data,
+                args.ecu,
+                args.pid,
+                args.verbose,
+                args.json,
+                session=args.session,
+                wake=args.wake,
+            )
+        elif args.raw:
+            await mode_raw(
+                terminal,
+                args.raw,
+                args.verbose,
+                args.json,
+                session=args.session,
+                hold=args.hold,
+                wake=args.wake,
+                save=args.save,
+                pids_data=pids_data,
+                label=args.label,
+                state=args.state,
+                notes=args.notes,
+            )
+        elif args.scan:
+            if not args.tx:
+                print("Error: --scan requires --tx (ECU TX ID)", file=sys.stderr)
+                sys.exit(1)
+            tx_id = int(args.tx, 16)
+            service = int(args.service, 16) if args.service else 0x21
+            pid_range = parse_range(args.range) if args.range else (0x01, 0xFF)
+            append_bytes = ""
+            if args.append:
+                cleaned = args.append.replace(" ", "").upper()
+                if not all(c in "0123456789ABCDEF" for c in cleaned) or len(cleaned) % 2 != 0:
+                    print(
+                        "Error: --append must be valid hex bytes (e.g., 03 or 030A0A05)",
+                        file=sys.stderr,
+                    )
+                    sys.exit(1)
+                append_bytes = cleaned
+            await mode_scan(
+                terminal,
+                tx_id,
+                service,
+                pid_range,
+                args.verbose,
+                args.json,
+                append_bytes=append_bytes,
+                session=args.session,
+                wake=args.wake,
+                save=args.save,
+                label=args.label,
+                state=args.state,
+                notes=args.notes,
+            )
+        elif args.iocontrol:
+            if args.did:
+                await mode_iocontrol_execute(
+                    terminal,
+                    pids_data,
+                    args.iocontrol,
+                    args.did,
+                    off=args.off,
+                    verbose=args.verbose,
+                    as_json=args.json,
+                )
+            else:
+                from canlib.modes.iocontrol import mode_iocontrol_tui
+
+                await mode_iocontrol_tui(
+                    terminal,
+                    pids_data,
+                    args.iocontrol,
+                    verbose=args.verbose,
+                )
+        elif args.routines:
+            if args.rid:
+                from canlib.modes.routines import SF_RESULTS, SF_START, SF_STOP
+
+                sf_map = {"results": SF_RESULTS, "start": SF_START, "stop": SF_STOP}
+                sf_name = (args.sf or "results").lower()
+                if sf_name not in sf_map:
+                    print(
+                        f"Error: --sf must be one of: results, start, stop (got {args.sf!r})",
+                        file=sys.stderr,
+                    )
+                    sys.exit(1)
+                sub_function = sf_map[sf_name]
+                if sub_function == SF_START:
+                    print(
+                        f"!! WARNING: --sf start will send startRoutine (SF 0x01) to {args.routines} RID {args.rid}.",
+                        file=sys.stderr,
+                    )
+                    print(
+                        "!! This may actuate hardware. Continue? [y/N] ",
+                        end="",
+                        flush=True,
+                        file=sys.stderr,
+                    )
+                    answer = sys.stdin.readline().strip().lower()
+                    if answer not in ("y", "yes"):
+                        print("Aborted.", file=sys.stderr)
+                        sys.exit(0)
+                await mode_routines_execute(
+                    terminal,
+                    pids_data,
+                    args.routines,
+                    args.rid,
+                    sub_function=sub_function,
+                    verbose=args.verbose,
+                    as_json=args.json,
+                )
+            else:
+                from canlib.modes.routines import mode_routines_tui
+
+                await mode_routines_tui(
+                    terminal,
+                    pids_data,
+                    args.routines,
+                    verbose=args.verbose,
+                )
+        elif args.routines_scan is not None:
+            ecus = args.routines_scan if args.routines_scan else ["IGPM", "BCM", "HVAC"]
+            rid_range = parse_range(args.rid_range)
+            await mode_routines_scan(
+                terminal,
+                pids_data,
+                ecus=ecus,
+                rid_range=rid_range,
+                throttle_ms=args.throttle_ms,
+                verbose=args.verbose,
+                write_yaml=True,
+            )
+        elif args.iocontrol_scan is not None:
+            ecus = args.iocontrol_scan if args.iocontrol_scan else ["IGPM", "BCM", "HVAC", "PSM"]
+            did_range = parse_range(args.did_range) if args.did_range else None
+            await mode_iocontrol_scan(
+                terminal,
+                pids_data,
+                ecus=ecus,
+                did_range=did_range,
+                throttle_ms=args.throttle_ms,
+                verbose=args.verbose,
+                write_yaml=True,
+            )
+        elif args.discover:
+            addr_range = parse_range(args.range) if args.range != "01-FF" else (0x700, 0x7EF)
+            await mode_discover(
+                terminal,
+                addr_range,
+                args.verbose,
+                args.json,
+                delay=args.delay,
+                save=args.save,
+                label=args.label,
+                state=args.state,
+                notes=args.notes,
+            )
+        else:
+            await mode_interactive(terminal, pids_data, args.verbose)
+
+    except ConnectionError as e:
+        print(f"Connection error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except websockets.exceptions.InvalidURI as e:
+        print(f"Invalid WebSocket URI: {e}", file=sys.stderr)
+        sys.exit(1)
+    except websockets.exceptions.ConnectionClosedError as e:
+        print(f"WebSocket closed: {e}", file=sys.stderr)
+        sys.exit(1)
+    except OSError as e:
+        print(f"Network error: {e}", file=sys.stderr)
+        sys.exit(1)
+    finally:
+        await terminal.close()
+        log_command("--- SESSION END ---")
+
+        if args.reboot:
+            reboot_wican(host)
+
+
+def run_live(args) -> int:
+    """Acquire the device lock and run ``async_main`` for a live subcommand."""
+    lock = WiCANLock()
+    lock.acquire(force=args.force)
+    try:
+        asyncio.run(async_main(args))
+    except KeyboardInterrupt:
+        print("\nInterrupted.")
+        return 0
+    finally:
+        lock.release()
+    return 0
+
+
+def run(args) -> int:
+    """Default live dispatch used by most subcommands (set via finalize_live_parser)."""
+    return run_live(args)

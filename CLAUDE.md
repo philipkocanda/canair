@@ -15,14 +15,19 @@ This project has a Claude skill defined at `.claude/skills/ioniq-reverse-enginee
 ## Quick Start
 
 ```bash
-uv sync
-cp config.example.yaml config.yaml   # Set your WiCAN device IP
-uv run canreq.py --help
+uv tool install .                              # Install the canair CLI (or: uv sync for dev)
+cp config.example.yaml ~/.config/canair/config.yaml   # Set your WiCAN device IP
+canair --help
 ```
+
+`uv run canair ...` also works in the repo. Vehicle data lives in a *profile* bundle; the repo ships `profiles/ioniq-2017/` as the default/example. Inspect with `canair profile list` / `show` / `path`.
 
 ## Key Directories
 
-- `pids/` — source of truth for all PID/DID definitions (YAML, 25+ ECU files)
-- `canlib/modes/` — CLI sub-mode implementations (IOControl, scan, routines, etc.)
+- `profiles/ioniq-2017/pids/` — source of truth for all PID/DID definitions (YAML, 25+ ECU files) in the bundled example profile
+- `profiles/ioniq-2017/{captures,out}/`, `ecus.yaml` — captures, generated WiCAN profiles, and the ECU registry for that profile
+- `canlib/cli.py` + `canlib/commands/` — the `canair` CLI entrypoint and per-subcommand modules
+- `canlib/modes/` — live CLI sub-mode implementations (IOControl, scan, routines, etc.)
+- `canlib/schema/` — tool-owned schemas (`pids_schema.yaml`, `captures_schema.json`)
 - `docs/` — local documentation (CLI reference, IOControl commands, research notes; gitignored)
 - `.claude/skills/` — Claude/OpenCode agent skill definitions

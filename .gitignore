@@ -13,6 +13,8 @@ Thumbs.db
 # Python
 __pycache__/
 .venv/
+dist/
+*.egg-info/
 
 # NodeJS
 node_modules
@@ -28,3 +30,6 @@ css-electronics/
 .env
 .secrets.json
 config.yaml
+
+# Per-profile logs (command/response captures) and generated build output
+profiles/*/logs/

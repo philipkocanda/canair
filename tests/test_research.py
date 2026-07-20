@@ -1,15 +1,8 @@
 """Tests for research.py — aggregating pids/ research: sections."""
 
-import importlib.util
-from pathlib import Path
-
 import pytest
 
-_SPEC = importlib.util.spec_from_file_location(
-    "research", Path(__file__).resolve().parent.parent / "research.py"
-)
-research = importlib.util.module_from_spec(_SPEC)
-_SPEC.loader.exec_module(research)
+from canlib.commands import research
 
 
 @pytest.fixture

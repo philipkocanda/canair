@@ -208,6 +208,46 @@ def elm_to_wican_idx(elm_idx: int, payload_len: int) -> int:
 
 
 # ---------------------------------------------------------------------------
+# UDS payload → WiCAN frame reconstruction
+# ---------------------------------------------------------------------------
+
+
+def payload_to_wican_frame(payload_bytes: list[int]) -> list[tuple[int, int | None]]:
+    """Convert raw UDS payload bytes to a WiCAN frame with PCI bytes inserted.
+
+    Returns a list of ``(byte_value, payload_index_or_None)`` tuples;
+    ``payload_index`` is None for PCI bytes.
+    """
+    n = len(payload_bytes)
+    if n <= 7:
+        # Single Frame: PCI = 0x0n where n = length
+        frame: list[tuple[int, int | None]] = [(n, None)]  # SF PCI
+        for i, b in enumerate(payload_bytes):
+            frame.append((b, i))
+        return frame
+    # First Frame: PCI = 10 nn (2 bytes)
+    frame = [(0x10 | ((n >> 8) & 0x0F), None), (n & 0xFF, None)]
+    pi = 0  # payload index
+    # First frame carries 6 data bytes
+    for _ in range(min(6, n)):
+        frame.append((payload_bytes[pi], pi))
+        pi += 1
+    # Consecutive frames: PCI = 2x, carry 7 data bytes each
+    seq = 1
+    while pi < n:
+        frame.append((0x20 | (seq & 0x0F), None))  # CF PCI
+        seq += 1
+        for _ in range(min(7, n - pi)):
+            frame.append((payload_bytes[pi], pi))
+            pi += 1
+    return frame
+
+
+# Backwards-compatible alias (was defined in bix.py).
+_payload_to_wican_frame = payload_to_wican_frame
+
+
+# ---------------------------------------------------------------------------
 # Bulk conversion / table generation
 # ---------------------------------------------------------------------------
 

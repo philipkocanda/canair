@@ -1,15 +1,26 @@
-# WiCAN Pro local configuration
-# Copy this file to config.yaml and adjust to match your network.
+# canair configuration
 #
-# Addresses can be IPs or hostnames. The CLI --wican flag accepts any key
-# defined here, or an arbitrary URL/IP.
+# canair looks for this file at $XDG_CONFIG_HOME/canair/config.yaml
+# (default: ~/.config/canair/config.yaml). A legacy ./config.yaml in the repo
+# root is still read (and overridden by the user config) for backwards compat.
+#
+# Copy to your config location and adjust to taste. All keys are optional.
 
+# Which vehicle profile to use when none is given on the command line.
+# Overridden by --profile or the CANAIR_PROFILE environment variable.
+# If exactly one profile is discovered, it is auto-selected and this is optional.
+default_profile: ioniq-2017
+
+# Extra directory to search for vehicle profiles (in addition to
+# ~/.config/canair/profiles and the repo-bundled profiles/). Local profiles
+# placed here are never committed to the repo.
+# profiles_dir: ~/vehicles
+
+# WiCAN device addresses for the --wican flag. Values can be IPs or hostnames.
+# --wican accepts any alias defined here, or an arbitrary URL/IP.
 wican_addresses:
-  # Direct connection to WiCAN AP (factory default)
-  ap: "192.168.80.1"
-  # Example: device on your home LAN
-  home: "192.168.1.100"
-  # Example: device reachable via VPN/tunnel
-  vpn: "10.0.0.100"
+  ap: "192.168.80.1"    # Direct connection to WiCAN AP (factory default)
+  home: "192.168.1.100" # Example: device on your home LAN
+  vpn: "10.0.0.100"     # Example: device reachable via VPN/tunnel
 
 default_wican: ap

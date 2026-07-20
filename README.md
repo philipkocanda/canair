@@ -1,4 +1,4 @@
-# ioniq-can
+# canair (formerly Ioniq-CAN)
 
 **CAN bus reverse engineering toolkit for the 2017 Hyundai Ioniq Electric (28kWh)**
 
@@ -7,16 +7,18 @@
 
 > Work in progress — actively mapping ECUs, decoding parameters, and building tooling.
 
-This project uses a [WiCAN Pro](https://www.meatpi.com/products/wican-pro) OBD-II WiFi dongle to communicate with the vehicle's Electronic Control Units (ECUs) via Unified Diagnostic Services (UDS) and Keyword Protocol 2000 (KWP2000). The goal is to decode and document the car's internal diagnostic data and publish it via MQTT to Home Assistant for remote monitoring.
+This project uses a [WiCAN Pro](https://www.meatpi.com/products/wican-pro) OBD-II WiFi dongle to communicate with the vehicle's ECUs via Unified Diagnostic Services (UDS) and Keyword Protocol 2000 (KWP2000). The goal is to decode and document the car's internal diagnostic data and publish it via MQTT to Home Assistant for remote monitoring and control (eventually).
+
+Everything ships as a single installable CLI, **`canair`** (argparse subcommands). Vehicle data lives in a *profile* bundle; the repo ships `profiles/ioniq-2017/` as the default/example profile, so nothing is hardcoded to one car.
 
 ### What's in the box
 
-- 🔌 **`canreq.py`** — query ECUs live over WiFi: read battery stats, decode parameters, scan for unknown DIDs, and actuate hardware (lights, locks, horn, trunk) via IOControl
-- 📦 **`generate-profile.py`** — turn YAML PID definitions into a WiCAN vehicle profile and upload it to the device in one command
-- 🔬 **`decode.py`** — replay captured UDS payloads against PID definitions to validate expressions and spot anomalies
-- 🗂️ **`query-captures.py`** — search and diff historical captures across dates and vehicle states
-- 🧮 **`bix.py`** — convert between the four byte-index notations used by WiCAN, ISO-TP, Torque, and OBDb
-- 📐 **`pids/`** — 25+ YAML files defining every known parameter per ECU (the single source of truth)
+- 🔌 **`canair query`** — query ECUs live over WiFi: read battery stats, decode parameters, scan for unknown DIDs, and actuate hardware (lights, locks, horn, trunk) via IOControl (`canair scan`/`discover`/`io`/`routines`/`raw`)
+- 📦 **`canair wican`** — turn YAML PID definitions into a WiCAN vehicle profile and upload it to the device in one command
+- 🔬 **`canair decode`** — replay captured UDS payloads against PID definitions to validate expressions and spot anomalies
+- 🗂️ **`canair captures`** — search and diff historical captures across dates and vehicle states
+- 🧮 **`canair bix`** — convert between the four byte-index notations used by WiCAN, ISO-TP, Torque, and OBDb
+- 📐 **`profiles/ioniq-2017/pids/`** — 25+ YAML files defining every known parameter per ECU (the single source of truth for the bundled example profile)
 
 ## What's been mapped so far
 
@@ -26,75 +28,87 @@ This project uses a [WiCAN Pro](https://www.meatpi.com/products/wican-pro) OBD-I
   - All 96 individual cell voltages
   - State of Health (SOH) and cumulative lifetime energy
   - Tyre pressures and temperatures
-  - HVAC / climate control state
-  - Gear position, vehicle speed, steering angle
-  - Charging state (AC / DC / CCS)
+  - HVAC / climate control state and interior temperatures
+  - Gear, vehicle speed, motor speed, torque, and temperatures
+  - Charging state (AC / DC / CCS) & charge port lock
+  - Door locks, trunk, lights, indicators
   - Ambient temperature
 
 ## Project structure
 
 ```
-├── canreq.py              # Main CLI — send CAN/UDS requests via WebSocket
-├── generate-profile.py    # Generate WiCAN vehicle profiles from YAML definitions
-├── decode.py              # Decode captured payloads using PID definitions
-├── query-captures.py      # Query raw UDS payloads across capture dates
-├── validate-pids.py       # Schema validator for pids/ YAML files
-├── validate-captures.py   # Schema validator for captures/ YAML files
-├── bix.py                 # Byte index notation converter (4 systems)
+├── canlib/                     # The canair CLI + shared library
+│   ├── cli.py                  #   argparse entrypoint — the `canair` command
+│   ├── commands/               #   one module per subcommand (query, scan, decode, captures, wican, bix, …)
+│   ├── elm327.py               #   ELM327 / ISO-TP protocol parsing
+│   ├── expression.py           #   WiCAN expression evaluator (Bnn, Snn notation)
+│   ├── session_manager.py      #   UDS session management
+│   ├── terminal.py             #   WebSocket terminal interface
+│   ├── modes/                  #   query sub-modes (scan, interactive, IOControl, etc.)
+│   └── schema/                 #   tool-owned schemas: pids_schema.yaml, captures_schema.json
 │
-├── canlib/                # Shared Python library
-│   ├── elm327.py          #   ELM327 / ISO-TP protocol parsing
-│   ├── expression.py      #   WiCAN expression evaluator (Bnn, Snn notation)
-│   ├── session_manager.py #   UDS session management
-│   ├── terminal.py        #   WebSocket terminal interface
-│   └── modes/             #   canreq.py sub-modes (scan, interactive, IOControl, etc.)
+├── profiles/                   # Vehicle profile bundles (each = one car's data)
+│   └── ioniq-2017/             #   bundled default/example profile
+│       ├── pids/               #     PID definitions per ECU (source of truth)
+│       │   ├── _meta.yaml      #       car model + AT init string
+│       │   ├── bms.yaml        #       Battery Management System (largest — 220+ params)
+│       │   ├── vcu.yaml        #       Vehicle Control Unit
+│       │   ├── mcu.yaml        #       Motor Control Unit
+│       │   ├── bcm.yaml        #       Body Control Module
+│       │   ├── hvac.yaml       #       Climate Control
+│       │   └── ... (25+ ECU files)
+│       ├── captures/           #     Raw UDS response payloads by date
+│       ├── ecus.yaml           #     Master ECU address registry (30 ECUs)
+│       └── out/                #     Generated WiCAN JSON profiles
 │
-├── pids/                  # PID definitions per ECU (source of truth)
-│   ├── bms.yaml           #   Battery Management System (largest — 220+ params)
-│   ├── vcu.yaml           #   Vehicle Control Unit
-│   ├── mcu.yaml           #   Motor Control Unit
-│   ├── bcm.yaml           #   Body Control Module
-│   ├── hvac.yaml          #   Climate Control
-│   └── ... (25+ ECU files)
-│
-├── captures/              # Raw UDS response payloads by date
-├── vehicle-profiles/      # Generated WiCAN JSON profiles
-├── ecus.yaml              # Master ECU address registry (30 ECUs)
-├── configs/               # WiCAN device config backups
-├── logs/                  # Command/response logs (gitignored)
-└── tests/                 # pytest test suite
+├── config.example.yaml         # Template for ~/.config/canair/config.yaml
+├── configs/                    # WiCAN device config backups
+├── logs/                       # Command/response logs (gitignored)
+└── tests/                      # pytest test suite
 ```
+
+Local (uncommitted) profiles live in `~/.config/canair/profiles/` and shadow bundled ones by name.
 
 The `research/` directory contains earlier CarScanner captures, reference spreadsheets, and cross-reference material from related vehicles (Kona, Kia Soul EV).
 
 ## Key tools
 
-| Script | Purpose |
+All functionality is exposed as `canair <subcommand>`. (The old standalone scripts — `canreq.py`, `generate-profile.py`, etc. — still exist as thin **deprecated shims** that forward to `canair`.)
+
+| Subcommand | Purpose |
 |--------|---------|
-| `canreq.py` | Send UDS/KWP2000 requests to ECUs via the WiCAN WebSocket terminal. Supports interactive mode, parameter queries, DID scanning, IOControl actuation, and Smart Key Module wake-up. |
-| `generate-profile.py` | Read all `pids/*.yaml` definitions and produce a WiCAN-compatible JSON vehicle profile. Can upload directly to the device or diff against the current config. |
-| `decode.py` | Parameter/value-centric decoding: shows each PID parameter's value range across all captures (default), plus statistics (`--stats`), correlation vs a reference signal (`--corr`), an interactive signal explorer (`--plot` — sweep ImHex-style byte interpretations and transforms, plot across captures), and candidate-expression testing without editing YAML (`--try`). |
-| `query-captures.py` | Search across all capture files — show summaries, diffs between dates, or latest values per ECU/PID. Scope any mode by date with `--since`/`--until`/`--date`. |
-| `research.py` | Report the open reverse-engineering backlog from the per-ECU `research:` sections (by type/status/priority/prerequisite). The "what should I decode next?" entry point. |
-| `pid-coverage.py` | Audit PID definitions for decoding gaps — unmapped data bytes, partial bitfields, and PIDs with no captures yet. |
-| `pids-edit.py` | Safely add/update `pids/` parameters and research entries from the CLI (comment-preserving, schema-validated, auto-reverted on failure). |
+| `canair query` | Send UDS/KWP2000 requests to ECUs via the WiCAN WebSocket terminal. Supports parameter queries, positional query steps (multi-ECU pipeline), monitoring, and more. Companions: `canair scan` (DID scanning), `canair discover`, `canair io` (IOControl actuation), `canair routines`, `canair raw`, `canair wake` (Smart Key Module), `canair repl` (interactive). |
+| `canair wican` | Read all `pids/*.yaml` definitions and produce a WiCAN-compatible JSON vehicle profile. Can upload directly to the device or diff against the current config. |
+| `canair decode` | Parameter/value-centric decoding: shows each PID parameter's value range across all captures (default), plus statistics (`--stats`), correlation vs a reference signal (`--corr`), an interactive signal explorer (`--plot` — sweep ImHex-style byte interpretations and transforms, plot across captures), and candidate-expression testing without editing YAML (`--try`). |
+| `canair captures` | Search across all capture files — show summaries, diffs between dates, or latest values per ECU/PID. Scope any mode by date with `--since`/`--until`/`--date`. |
+| `canair research` | Report the open reverse-engineering backlog from the per-ECU `research:` sections (by type/status/priority/prerequisite). The "what should I decode next?" entry point. |
+| `canair coverage` | Audit PID definitions for decoding gaps — unmapped data bytes, partial bitfields, and PIDs with no captures yet. |
+| `canair pids` | Safely add/update `pids/` parameters and research entries from the CLI (comment-preserving, schema-validated, auto-reverted on failure). |
 | [`wican-cli`](https://github.com/philipkocanda/wican-cli) | Separate package for WiCAN device management — config, sleep/power, protocol switching, status, OBD log queries, and reboots. Install with `pip install wican-cli`. |
+
+## Profiles
+
+A *profile* is a directory bundling one vehicle's data — `pids/`, `ecus.yaml`, `captures/`, and generated `out/`. The repo ships `profiles/ioniq-2017/` as the default/example profile. Inspect profiles with `canair profile list`, `canair profile show [NAME]`, and `canair profile path [NAME]`.
+
+**Selection precedence** (first match wins): `--profile NAME|PATH` (global flag, before the subcommand) → `CANAIR_PROFILE` env var → `default_profile` in config → the single discovered profile (auto).
+
+**Discovery** searches, in order: `--profiles-dir`, `$CANAIR_PROFILES_DIR`, `profiles_dir` in config, `~/.config/canair/profiles/` (user, uncommitted), and the repo's bundled `profiles/`. User profiles shadow bundled ones by name. Local profiles live in `~/.config/canair/profiles/` and are **not** committed.
 
 ## Querying captures
 
-The `query-captures.py` script searches across all saved UDS response captures (in `captures/`) and displays them with context — timestamps, vehicle state, notes, and decoded parameter values (computed on the fly from the PID definitions, not stored in the capture files) where those definitions exist.
+`canair captures` searches across all saved UDS response captures (in the profile's `captures/`) and displays them with context — timestamps, vehicle state, notes, and decoded parameter values (computed on the fly from the PID definitions, not stored in the capture files) where those definitions exist.
 
 ```bash
-uv run query-captures.py BMS                 # All captures for the BMS ECU
-uv run query-captures.py IGPM 22BC03         # Specific ECU+PID (most useful)
-uv run query-captures.py "BMS:2102,2103"     # Several PIDs (query mini-language)
-uv run query-captures.py --summary           # Overview: captures per ECU, per date
-uv run query-captures.py --latest BMS        # Most recent payload per BMS PID
-uv run query-captures.py IGPM 22BC03 --diff  # Byte-level diff (highlights changed bytes)
-uv run query-captures.py BMS 2102 --step     # Interactively step through captures
+canair captures BMS                 # All captures for the BMS ECU
+canair captures IGPM 22BC03         # Specific ECU+PID (most useful)
+canair captures "BMS:2102,2103"     # Several PIDs (query mini-language)
+canair captures --summary           # Overview: captures per ECU, per date
+canair captures --latest BMS        # Most recent payload per BMS PID
+canair captures IGPM 22BC03 --diff  # Byte-level diff (highlights changed bytes)
+canair captures BMS 2102 --step     # Interactively step through captures
 ```
 
-**Example output** (`query-captures.py BMS` shows 38 captures across multiple dates):
+**Example output** (`canair captures BMS` shows 38 captures across multiple dates):
 
 ```
 BMS — 38 captures
@@ -117,33 +131,33 @@ BMS — 38 captures
   Notes: ECU name
 ```
 
-Captures are saved by `canreq.py --save` during scanning, raw queries, and monitor sessions. Use `query-captures.py` after collecting new data to spot patterns not obvious during the live session (byte-level changes between vehicle states, new ECU/PID combinations, payload length differences).
+Captures are saved by `canair query --save` during scanning, raw queries, and monitor sessions. Use `canair captures` after collecting new data to spot patterns not obvious during the live session (byte-level changes between vehicle states, new ECU/PID combinations, payload length differences).
 
 ## Generating vehicle profiles
 
-The `generate-profile.py` script reads all PID definitions from `pids/*.yaml` and produces a WiCAN-compatible JSON vehicle profile. It can also upload directly to the device or diff against the currently loaded config.
+`canair wican` reads all PID definitions from the profile's `pids/*.yaml` and produces a WiCAN-compatible JSON vehicle profile. It can also upload directly to the device or diff against the currently loaded config.
 
 ```bash
-uv run generate-profile.py                    # Generate JSON to vehicle-profiles/ioniq-2017.json
-uv run generate-profile.py --verified-only    # Only include verified parameters (105 vs 138 total)
-uv run generate-profile.py --no-write         # Dry run — show what would be generated without writing
-uv run generate-profile.py --stats            # Show per-ECU/PID statistics table
-uv run generate-profile.py --download         # Download current config from WiCAN device
-uv run generate-profile.py --diff             # Download + diff against locally generated profile
-uv run generate-profile.py --upload           # Generate + upload to WiCAN device
-uv run generate-profile.py --upload --reboot  # Upload + reboot device to apply changes
+canair wican                    # Generate JSON to the profile's out/ioniq-2017.json
+canair wican --verified-only    # Only include verified parameters (105 vs 138 total)
+canair wican --no-write         # Dry run — show what would be generated without writing
+canair wican --stats            # Show per-ECU/PID statistics table
+canair wican --download         # Download current config from WiCAN device
+canair wican --diff             # Download + diff against locally generated profile
+canair wican --upload           # Generate + upload to WiCAN device
+canair wican --upload --reboot  # Upload + reboot device to apply changes
 ```
 
 **Example output** (default mode):
 
 ```
-Loading pids/
+Loading profiles/ioniq-2017/pids/
 
 Generating profile...
   17 PID groups, 138 parameters
 
 Writing output...
-  Written: vehicle-profiles/ioniq-2017.json (6222 bytes)
+  Written: profiles/ioniq-2017/out/ioniq-2017.json (6222 bytes)
 ```
 
 **`--stats` mode** shows a detailed breakdown per ECU and PID — parameter counts, verification status, polling period, and data source:
@@ -160,7 +174,7 @@ VCU        0x7E2    2101       2500     20       12/20      AutoPID config; ImHe
 ...
 ```
 
-**Device interaction flags** (`--download`, `--diff`, `--upload`) require the WiCAN to be reachable on the network. Use `--wican home`, `--wican vpn`, or `--wican <ip>` to select the device address (defaults to `home` from `config.yaml`).
+**Device interaction flags** (`--download`, `--diff`, `--upload`) require the WiCAN to be reachable on the network. Use `--wican home`, `--wican vpn`, or `--wican <ip>` to select the device address (defaults to `home` from `~/.config/canair/config.yaml`).
 
 The generated profile uses the **Vehicle Profile format** (grouped parameters per PID) — the format accepted by the WiCAN web UI and `POST /store_car_data`. The tool handles conversion to the device's internal array format automatically during upload.
 
@@ -208,19 +222,20 @@ Requires keyfob proximity for physical relay engagement.
 
 ### Where IOControl commands are defined
 
-- **PID/DID YAML files:** `pids/igpm.yaml`, `bcm.yaml`, `skm.yaml`, `hvac.yaml`, `vess.yaml`, `psm.yaml` — source of truth for all actuator definitions, parameters, and verification status.
+- **PID/DID YAML files:** `profiles/ioniq-2017/pids/igpm.yaml`, `bcm.yaml`, `skm.yaml`, `hvac.yaml`, `vess.yaml`, `psm.yaml` — source of truth for all actuator definitions, parameters, and verification status.
 - **IOControl mode implementation:** `canlib/modes/iocontrol.py` — TUI-based interactive actuator control and single-command execution.
 - **Quick reference docs:** `docs/IOControl CLI commands.md` — copy-paste command examples.
 
 ## How the CLI works
 
-The main tool is `canreq.py` — an async Python CLI that connects to the WiCAN Pro via WebSocket, enters ELM327 terminal mode, and sends UDS/KWP2000 requests over ISO-TP.
+`canair` is an async Python CLI (argparse subcommands) that connects to the WiCAN Pro via WebSocket, enters ELM327 terminal mode, and sends UDS/KWP2000 requests over ISO-TP. `canair query` (and its sibling subcommands) drive the live communication.
 
 **Architecture:**
 
 ```
-canreq.py (argparse + argcomplete)
+canair (canlib/cli.py — argparse + argcomplete)
   └── canlib/
+      ├── commands/          # one module per subcommand (query, scan, io, wican, …)
       ├── terminal.py        # WebSocket connection (WiCANTerminal)
       ├── elm327.py          # ELM327/ISO-TP protocol parsing
       ├── session_manager.py # Multi-ECU sessions + TesterPresent keepalive
@@ -229,16 +244,16 @@ canreq.py (argparse + argcomplete)
 
 **Key modes:**
 
-| Mode | Flag | Purpose |
+| Mode | Command | Purpose |
 |------|------|---------|
-| Parameter query | `--param NAME` / `--ecu NAME` | Decode named parameters from YAML definitions |
-| IOControl | `--iocontrol ECU [--did DID]` | Interactive TUI or single actuator command |
-| Multi-ECU pipeline | `--multi "CMD" "CMD" ...` | Sequenced commands with session management |
-| Scan | `--scan --tx ID --service SVC --range START-END` | Probe DID ranges for responses |
-| SKM wakeup | `--skm-wakeup [--level acc\|ign1]` | Wake ECUs via Smart Key Module relay |
-| Raw | `--raw TX:PAYLOAD` | Direct hex request (no decoding) |
-| Routines | `--routines ECU` | RoutineControl (0x31) TUI |
-| Monitor | `--multi "..." --monitor [SEC]` | Live-refreshing poll loop |
+| Parameter query | `canair query --param NAME` / `canair query ECU` | Decode named parameters from YAML definitions |
+| IOControl | `canair io ECU [--did DID]` | Interactive TUI or single actuator command |
+| Query pipeline | `canair query "CMD" "CMD" ...` | Sequenced query steps (multi mini-language) with session management |
+| Scan | `canair scan --tx ID --service SVC --range START-END` | Probe DID ranges for responses |
+| SKM wakeup | `canair wake [--level acc\|ign1]` | Wake ECUs via Smart Key Module relay |
+| Raw | `canair raw TX:PAYLOAD` | Direct hex request (no decoding) |
+| Routines | `canair routines ECU` | RoutineControl (0x31) TUI |
+| Monitor | `canair query "..." --monitor [SEC]` | Live-refreshing poll loop |
 
 **Cross-cutting flags:** `--session`, `--wake`, `--hold`, `--timeout`, `--save`, `--json`, `--verbose`, `--reboot`, `--wican home|vpn|IP`, `--unsafe`
 
@@ -246,36 +261,37 @@ canreq.py (argparse + argcomplete)
 
 ```bash
 # Read specific parameters (decoded output)
-canreq --param SOC_BMS BATTERY_VOLTAGE BATTERY_POWER
+canair query --param SOC_BMS BATTERY_VOLTAGE BATTERY_POWER
 
-# Query all parameters for an ECU
-canreq --ecu BMS --pid 2101
+# Query all parameters for an ECU (or a single PID)
+canair query BMS
+canair query BMS:2101
 
 # Live monitor — refresh every 5 seconds and highlight changes
-canreq --multi "query BMS 2101" --monitor
+canair query "query BMS 2101" --monitor
 
 # Wake a sleeping ECU and query it
-canreq --multi "session IGPM --wake" "query IGPM BC03 BC06"
+canair query "session IGPM --wake" "query IGPM BC03 BC06"
 
 # IOControl — interactive TUI for actuators
-canreq --iocontrol IGPM
+canair io IGPM
 # Or single command: turn on low beam (hold until Ctrl+C)
-canreq --iocontrol IGPM --did BC01
+canair io IGPM --did BC01
 
 # Scan for unknown DIDs on an ECU
-canreq --scan --tx 7E4 --service 22 --range BC00-BCFF
+canair scan --tx 7E4 --service 22 --range BC00-BCFF
 
 # Discover all responding ECUs on the bus
-canreq --discover
+canair discover
 
 # Raw UDS request (hex in, hex out)
-canreq --raw 7E4:2101
+canair raw 7E4:2101
 
 # Monitor + capture unique payloads, save on exit
-canreq --multi "query BCM C00B" --monitor --keep-unique --save
+canair query "query BCM C00B" --monitor --keep-unique --save
 
 # Multi-ECU pipeline: wake SKM, query IGPM and BCM
-canreq --multi "skm-wake acc" "query IGPM BC03" "query BCM C00B"
+canair query "skm-wake acc" "query IGPM BC03" "query BCM C00B"
 ```
 
 All commands support `--wican home|vpn|<ip>` to select the target device, `--json` for machine-readable output, and `--reboot` to restore AutoPID mode after a session.
@@ -283,7 +299,7 @@ All commands support `--wican home|vpn|<ip>` to select the target device, `--jso
 ### Live monitoring of responses and auto-highlighting changes 
 
 ```
-canreq --multi "query IGPM 22BC07" --monitor 2 --keep-unique
+canair query "query IGPM 22BC07" --monitor 2 --keep-unique
 ```
 
 <img width="1206" height="448" alt="image" src="https://github.com/user-attachments/assets/53e2d063-0aae-4089-903b-b2fa8a213c91" />
@@ -297,25 +313,23 @@ canreq --multi "query IGPM 22BC07" --monitor 2 --keep-unique
 | **ISO-TP** (ISO 15765-2) | Transport layer for multi-frame CAN messages |
 | **ELM327 AT commands** | Communication protocol between tooling and the WiCAN dongle |
 
-## Tech stack
-
-- **Python 3.12** with `uv` for package management
-- `websockets` — async WebSocket communication with WiCAN
-- `pyyaml` — YAML-based PID definitions and captures
-- `rich` — terminal output formatting
-- `requests` — WiCAN HTTP API (config upload/download)
-- `pytest` + `ruff` — testing and linting
-
 ## Getting started
 
 ```bash
-uv sync            # Install dependencies
-cp config.example.yaml config.yaml   # Configure your WiCAN device address
-# Edit config.yaml with your device's IP address
-uv run canreq.py --help
+uv tool install .                              # Install the canair CLI (or: uv sync for dev)
+mkdir -p ~/.config/canair
+cp config.example.yaml ~/.config/canair/config.yaml   # Configure your WiCAN device address
+# Edit ~/.config/canair/config.yaml with your device's IP address
+canair --help
 ```
 
-The WiCAN Pro must be powered on and connected to your WiFi network (or you connect to its AP). Device addresses are configured in `config.yaml` — the `--wican` flag selects which address to use (e.g. `--wican home`, `--wican vpn`, or `--wican 192.168.80.1`). Without a `config.yaml`, tools default to `192.168.80.1` (WiCAN's built-in AP).
+In the repo, `uv run canair ...` also works without installing. Enable shell completion (argcomplete) with:
+
+```bash
+eval "$(register-python-argcomplete canair)"
+```
+
+The WiCAN Pro must be powered on and connected to your WiFi network (or you connect to its AP). Device addresses are configured in `~/.config/canair/config.yaml` (a legacy repo-root `config.yaml` is still read for back-compat) — the `--wican` flag selects which address to use (e.g. `--wican home`, `--wican vpn`, or `--wican 192.168.80.1`). Without a config file, tools default to `192.168.80.1` (WiCAN's built-in AP).
 
 ## License
 

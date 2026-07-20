@@ -1,15 +1,11 @@
 """Tests for validate-pids.py PCI-byte detection (check_pci_bytes)."""
 
-import importlib.util
 from pathlib import Path
 
 import pytest
 
-_SPEC = importlib.util.spec_from_file_location(
-    "validate_pids", Path(__file__).resolve().parent.parent / "validate-pids.py"
-)
-validate_pids = importlib.util.module_from_spec(_SPEC)
-_SPEC.loader.exec_module(validate_pids)
+from canlib.commands import validate as validate_pids
+
 check_pci_bytes = validate_pids.check_pci_bytes
 
 
@@ -50,7 +46,9 @@ class TestRealPidsHaveNoPciBytes:
         import yaml
 
         offenders = []
-        for path in glob.glob(str(Path(__file__).resolve().parent.parent / "pids" / "*.yaml")):
+        from canlib.profile import active
+
+        for path in glob.glob(str(active().pids_dir / "*.yaml")):
             data = yaml.safe_load(open(path))
             if not isinstance(data, dict):
                 continue

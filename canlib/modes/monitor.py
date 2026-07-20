@@ -280,9 +280,11 @@ async def mode_monitor(
     TTY (piped/scripted), it polls silently until Ctrl+C and prints the final
     values. On stop, output taller than the terminal is opened in a pager.
     """
-    from ..captures import CAPTURES_DIR
     from ..pids import build_ecu_index
+    from ..profile import active
     from .multi import _exec_query, _exec_session, _exec_skm_wake
+
+    captures_dir = active().captures_dir
 
     ecu_index = build_ecu_index(pids_data)
     sm = SessionManager(terminal, verbose=verbose)
@@ -487,7 +489,7 @@ async def mode_monitor(
             sys.stdout.flush()
         print("  Monitoring stopped.")
         if save and save_history is not None:
-            _prompt_and_save(save_history, prev_hex, CAPTURES_DIR, label, state, notes)
+            _prompt_and_save(save_history, prev_hex, captures_dir, label, state, notes)
 
     finally:
         sm.stop_background_keepalive()
