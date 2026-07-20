@@ -23,13 +23,24 @@ VCU:
       availability: [ready, charging]
       parameters:
         VEHICLE_SPEED:
-          expression: "((S20*256)+S19)/100"
+          expression: "[B20:B21]*1.609344/100"
           unit: km/h
           ha_class: speed
-          min: "-255"
+          min: "0"
           max: "255"
-          verified: true
-          notes: "Signed 16-bit, divided by 100"
+          verified: false
+          notes: >
+            Raw field is speed in MPH×100, big-endian 16-bit at [B20:B21]. Converted to km/h (×1.609344).
+            2026-07-20: Old formula ((S20*256)+S19)/100 was wrong on two counts:
+            (1) it paired high byte B20 with the preceding byte B19 as low byte, but B19 is an unrelated
+            erratic signal (values swing 23→219) and was read as *signed* (S19), corrupting ~17% of frames
+            (whenever B19≥0x80). Correct 16-bit field is big-endian [B20:B21].
+            (2) unit is MPH, not km/h.
+            Cross-checked against dashboard at 3 points (2026-07-19 drive): 83/96/109 km/h cluster vs
+            78.9/91.4/103.7 decoded → constant +5.1% (= normal speedometer over-read). The constant bias
+            only appears with the correct low byte B21; using B19 it scatters 2.3–5.5%.
+            Pending GPS/multi-point confirmation across full speed range (see research). NOTE: dashboard
+            speed itself is a separate signal — ESC 0x7D1 22C101 REAL_SPEED_KMH (B12), wheel-speed based.
 
         DEBUG_DRIVE_MODE_FLAGS:
           expression: "B10"
@@ -255,7 +266,12 @@ VCU:
       status: pending
       priority: P1
       prerequisite: [ready]
-      notes: "Verify if speed formula is MPH or km/h by comparing with GPS while driving."
+      notes: >
+        2026-07-20: RESOLVED unit = MPH (not km/h). Field is MPH×100 big-endian at [B20:B21];
+        expression now converts to km/h. Confirmed against dashboard at 3 points → constant +5.1%
+        speedo over-read. STILL PENDING: GPS + multi-point confirmation across full speed range, and
+        confirm the B21 low byte (vs B19) definitively. Also capture ESC 22C101 REAL_SPEED_KMH (B12)
+        while driving to verify it as the true dashboard speed source.
     - type: scan
       target: "0x7E1 22 0101-0105"
       status: pending
