@@ -1,6 +1,8 @@
 # canair (formerly Ioniq-CAN)
 
-**CAN bus reverse engineering toolkit for the 2017 Hyundai Ioniq Electric (28kWh)**
+**CAN bus reverse engineering toolkit for the WiCAN Pro**
+
+Contains a detailed vehicle profile reverse engineered from a 2017 Hyundai Ioniq AE EV (28kWh).
 
 > [!WARNING]
 > Sending arbitrary UDS commands to a vehicle's ECUs can cause **permanent damage** — bricked modules, voided warranties, disabled safety systems, or unintended physical actuation (steering, braking, airbags). Never use UDS programming sessions (`1002`) or firmware write commands. Never run IOControl commands while driving. If you don't fully understand a command, don't send it. This toolkit is provided as-is with no safety guarantees. **You are responsible for anything you send to your car's CAN bus.**
@@ -13,7 +15,7 @@ Everything ships as a single installable CLI, **`canair`** (argparse subcommands
 
 ### What's in the box
 
-- 🔌 **`canair query`** — query ECUs live over WiFi: read battery stats, decode parameters, scan for unknown DIDs, and actuate hardware (lights, locks, horn, trunk) via IOControl (`canair scan`/`discover`/`io`/`routines`/`raw`)
+- 🔌 **`canair query`** — query ECUs live over WiFi or VPN: read battery stats, decode parameters, scan for unknown DIDs, and actuate hardware (lights, locks, horn, trunk) via IOControl (`canair scan`/`discover`/`io`/`routines`/`raw`)
 - 📦 **`canair wican`** — turn YAML PID definitions into a WiCAN vehicle profile and upload it to the device in one command
 - 🔬 **`canair decode`** — replay captured UDS payloads against PID definitions to validate expressions and spot anomalies
 - 🗂️ **`canair captures`** — search and diff historical captures across dates and vehicle states
