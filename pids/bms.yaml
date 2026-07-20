@@ -86,6 +86,17 @@ BMS:
           verified: true
           notes: "12V auxiliary battery"
 
+        BMS_MAIN_RELAY:
+          expression: "B14:0"
+          unit: ""
+          ha_class: ""
+          min: ""
+          max: ""
+          source: "ITStromer community sheet (j:0 = BMS Relay) + captures"
+          source_links: []
+          verified: true
+          notes: "BMS main (HV) relay closed. 2026-07-20: set (1) in all responsive captures — READY, AC & DC charging."
+
         CHARGER_CONNECTED:
           expression: "B14:5"
           unit: ""
@@ -95,7 +106,7 @@ BMS:
           source: "Original WiCAN config"
           source_links: []
           verified: true
-          notes: ""
+          notes: "J1772 / AC charge plug connected (bit5). 2026-07-20: set only during AC charging (0xA3), not DC (0x45)."
 
         CHARGING_DC:
           expression: "B14:6"
@@ -106,7 +117,7 @@ BMS:
           source: "Original WiCAN config"
           source_links: []
           verified: true
-          notes: ""
+          notes: "CCS / DC charge plug connected (bit6). 2026-07-20: set in the CCS/DC capture (0x45), clear on AC."
 
         CHARGING:
           expression: "B14:7"
@@ -274,26 +285,33 @@ BMS:
           notes: "Lifetime cumulative. ECU reports in 0.1 kWh units, /10 gives kWh."
 
         CUMULATIVE_CURRENT_CHARGED:
-          expression: "((B32<<24)|(B33<<16)|(B34<<8)|B35)/10"
+          expression: "((B38<<24)|(B39<<16)|(B41<<8)|B42)/10"
           unit: Ah
           ha_class: ""
           min: "0"
           max: ""
-          source: "ImHex pattern (u32 @ 0x20)"
+          source: "ImHex pattern (u32 @ ISO-TP 0x20) — PCI-corrected"
           source_links: []
           verified: false
-          notes: "ImHex offset 0x20 → WiCAN B32. Raw capture: 313775 → 31377.5 Ah. Matches ImHex comment exactly."
+          notes: >
+            32-bit at ISO-TP 0x20 = WiCAN B38,B39,B41,B42 (skips PCI byte B40). 2026-07-20 fix:
+            the old ((B32<<24)|...) conflated ImHex/ISO-TP offset 0x20 with WiCAN B32 — but B32 is a
+            PCI frame byte, giving ~61,700,000 Ah of garbage. Corrected bytes read ~34,000 Ah, consistent
+            with CUMULATIVE_ENERGY_CHARGED (÷ pack voltage ≈ same Ah). Sits just before the energy u32s.
 
         CUMULATIVE_CURRENT_DISCHARGED:
-          expression: "((B36<<24)|(B37<<16)|(B38<<8)|B39)/10"
+          expression: "((B43<<24)|(B44<<16)|(B45<<8)|B46)/10"
           unit: Ah
           ha_class: ""
           min: "0"
           max: ""
-          source: "ImHex pattern (u32 @ 0x24)"
+          source: "ImHex pattern (u32 @ ISO-TP 0x24) — PCI-corrected"
           source_links: []
           verified: false
-          notes: "ImHex offset 0x24 → WiCAN B36. Raw capture: 313313 → 31331.3 Ah."
+          notes: >
+            32-bit at ISO-TP 0x24 = WiCAN B43,B44,B45,B46. 2026-07-20 fix: old ((B36<<24)|...) used the
+            wrong (PCI-unaware) indices, giving ~917,000 Ah. Corrected reads ~34,000 Ah, consistent with
+            CUMULATIVE_ENERGY_DISCHARGED.
 
         OPERATING_TIME:
           expression: "[B57:B60]/3600"
@@ -331,7 +349,7 @@ BMS:
 
         ISOLATION_RESISTANCE:
           expression: "B69*1000"
-          unit: ""
+          unit: "kΩ"
           ha_class: ""
           min: ""
           max: ""
@@ -346,10 +364,20 @@ BMS:
           ha_class: ""
           min: ""
           max: ""
-          source: "AutoPID config (on device)"
+          source: "AutoPID config (on device); bitfield decoded via ITStromer community sheet + ioniq-ev-bms xls"
           source_links: []
           verified: true
-          notes: "Present in AutoPID but not in vehicle profile"
+          notes: >
+            BMS charging/relay state bitfield. 2026-07-20: decoded via the ITStromer community 2101 sheet
+            (byte 'j' = "Charging Indicators") + our captures. Observed values: 0x03 (READY, not charging),
+            0xA3 (AC charging), 0x45 (CCS/DC). Bits:
+            b0=Main Relay ON (BMS_MAIN_RELAY; set in all responsive states),
+            b1=? (set in ready + AC charge, clear in DC),
+            b2=? (set in DC/CCS only — likely rapid-charge mode),
+            b3/b4=? (unobserved),
+            b5=J1772/AC plug connected (CHARGER_CONNECTED),
+            b6=CCS/DC plug connected (CHARGING_DC),
+            b7=Charging active (CHARGING).
 
     2105:
       period: 5000
@@ -554,16 +582,24 @@ BMS:
           verified: true
           notes: "Display SOC (what the dashboard shows)"
 
-        UNKNOWN_4:
+        DEBUG_BMS_STATE_FLAGS_2105:
           expression: "B42"
           unit: ""
           ha_class: ""
           min: ""
           max: ""
-          source: "Original WiCAN config"
+          source: "Original WiCAN config (UNKNOWN_4); decoded via ioniq-ev-bms-2101-2105.xls"
           source_links: []
-          verified: true
-          notes: "Unknown parameter — kept for investigation"
+          verified: false
+          notes: >
+            BMS state/status bitfield (was UNKNOWN_4). 2026-07-20: identified via research/ioniq-ev-bms-2101-2105.xls
+            ("Bitfield? 41 when car off, 45 when car on"). Reads 0x29=41 in EVERY capture we have (ready, AC & DC/CCS
+            charging, driving in the JejuSoul logs) — i.e. the "car off / charging" value; a car-on/driving 2105
+            would be expected to read 0x2D=45 (bit2 set). Hypothesised bits (all unverified, xls marks them "?"):
+            b0=Main Relay ON, b1=Controllable State, b2=Warning (set when car on?), b3=Fault, b4=Weld flag,
+            b5=Normal Charge Port, b6=Rapid Charge Port, b7=Charging. NOTE: b7=Charging did NOT hold in our
+            AC/DC charging captures (stayed 0), so the bit labels need verification. Capture a car-on driving 2105
+            (expect 45) and a mid-charge 2105 to confirm the bits.
 
     # Cell voltage PIDs — 96 cells across 3 PIDs (32 each)
     # Format: B(6+n)*0.02 where n=cell index within PID (0-31)

@@ -176,14 +176,16 @@ VCU:
           unit: "%"
           min: "0"
           max: "100"
+          enabled: false
           source: "ImHex pattern (@ 0x0E) + JejuSoul Torque Pro CSV"
           source_links:
             - https://docs.google.com/spreadsheets/d/1R2dW_4-ANg04TQdkHH52-8wdYItBkWDfppcsqOc-m1M
           verified: false
           notes: >
-            ImHex offset 0x0E + 2 = B16. Ioniq 5 OBDb confirms at bix 96, len 8, div 2.
-            2026-07-19: Implausible - fixed at 17% during charging
-            2026-07-19: Could be regen/drive mode?
+            DISABLED 2026-07-20 (excluded from public profile): B20 is the HIGH byte of VEHICLE_SPEED
+            ((S20*256)+B19) — so B20/2 is just half the speed high byte, not an independent signal, and it
+            exceeds its 100% max (observed 127.5%). Ioniq5 OBDb suggested bix 96 = B18, but that never
+            validated either ("fixed at 17% during charging", implausible). Kept for research only.
 
     2102:
       period: 5000
