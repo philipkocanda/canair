@@ -292,7 +292,7 @@ BMS:
           max: ""
           source: "ImHex pattern (u32 @ ISO-TP 0x20) — PCI-corrected"
           source_links: []
-          verified: false
+          verified: true
           notes: >
             32-bit at ISO-TP 0x20 = WiCAN B38,B39,B41,B42 (skips PCI byte B40). 2026-07-20 fix:
             the old ((B32<<24)|...) conflated ImHex/ISO-TP offset 0x20 with WiCAN B32 — but B32 is a
@@ -307,7 +307,7 @@ BMS:
           max: ""
           source: "ImHex pattern (u32 @ ISO-TP 0x24) — PCI-corrected"
           source_links: []
-          verified: false
+          verified: true
           notes: >
             32-bit at ISO-TP 0x24 = WiCAN B43,B44,B45,B46. 2026-07-20 fix: old ((B36<<24)|...) used the
             wrong (PCI-unaware) indices, giving ~917,000 Ah. Corrected reads ~34,000 Ah, consistent with
