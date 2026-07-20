@@ -152,7 +152,7 @@ VCU:
           notes: ""
 
         VCU_UNKNOWN:
-          expression: "B16/2"
+          expression: "B20/2"
           unit: "%"
           min: "0"
           max: "100"
