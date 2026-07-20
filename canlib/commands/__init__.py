@@ -42,7 +42,6 @@ COMMAND_NAMES: list[str] = [
     "profile",
     # utilities
     "bix",
-    "scan_log",
     "completion",
 ]
 
