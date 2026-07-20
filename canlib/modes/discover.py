@@ -17,6 +17,8 @@ async def mode_discover(
     label: str | None = None,
     state: str | None = None,
     notes: str | None = None,
+    register: bool = False,
+    dry_run: bool = False,
 ):
     """Sweep a range of CAN arbitration IDs to find responding ECUs.
 
@@ -28,6 +30,8 @@ async def mode_discover(
         addr_range: (start, end) TX IDs inclusive (e.g. 0x700, 0x7EF).
         delay: Seconds to wait between addresses to avoid overwhelming
             the WiCAN WebSocket. Default 0.2s.
+        register: Register newly-discovered ECUs into the profile's ecus.yaml.
+        dry_run: With ``register``, preview additions without writing.
     """
     start, end = addr_range
     total = end - start + 1
@@ -90,13 +94,13 @@ async def mode_discover(
     print(f"  Errors: {len(errors)}")
 
     if alive:
-        print(f"\n  Responding addresses:")
+        print("\n  Responding addresses:")
         for tx_id, status, detail in alive:
             rx_id = tx_id + 8
             print(f"    0x{tx_id:03X} (RX 0x{rx_id:03X}) — {status}: {detail}")
 
     if errors:
-        print(f"\n  Errors:")
+        print("\n  Errors:")
         for tx_id, err in errors:
             print(f"    0x{tx_id:03X}: {err}")
 
@@ -145,4 +149,57 @@ async def mode_discover(
             )
             save_session(session_dict)
 
+    # Auto-register newly-discovered ECUs into ecus.yaml
+    if register:
+        _register_discovered(alive, dry_run=dry_run)
+
     print()
+
+
+def _register_discovered(alive: list[tuple[int, str, str]], dry_run: bool = False) -> None:
+    """Register alive TX ids that aren't yet in the profile's ecus.yaml.
+
+    New entries get a placeholder ``Unknown-<TX>`` name and a provenance note;
+    existing entries are left untouched. ``id_protocol`` is intentionally left
+    unset — a 10 01 probe cannot distinguish UDS from KWP2000 (that's the job of
+    ``canair identity``).
+    """
+    from datetime import date
+
+    from ..ecus import load_ecus
+
+    print("\n  --- Register ---------------------------------------------")
+    if not alive:
+        print("  No alive ECUs to register.")
+        return
+
+    try:
+        known = set(load_ecus().keys())
+    except FileNotFoundError:
+        known = set()  # fresh profile with no ecus.yaml yet
+
+    new = [(tx, status) for tx, status, _ in alive if tx not in known]
+    if not new:
+        print(f"  All {len(alive)} alive ECU(s) already in ecus.yaml.")
+        return
+
+    if dry_run:
+        print(f"  Would register {len(new)} new ECU(s) ({len(alive) - len(new)} already known):")
+        for tx, status in new:
+            print(f"    0x{tx:03X} -> Unknown-{tx:03X}  ({status})")
+        print("  (dry-run — nothing written)")
+        return
+
+    from ..ecus_edit import EcusEditError, register_ecu
+
+    today = date.today().isoformat()
+    added = 0
+    for tx, status in new:
+        try:
+            register_ecu(tx, notes=f"Discovered {today} via 10 01 ({status}).")
+            added += 1
+            print(f"    + 0x{tx:03X} -> Unknown-{tx:03X}  ({status})")
+        except EcusEditError as e:
+            print(f"    ! 0x{tx:03X}: {e}")
+    print(f"  Registered {added} new ECU(s); {len(alive) - len(new)} already known.")
+    print("  Next: name them, then run `canair identity --write` to fill in metadata.")
