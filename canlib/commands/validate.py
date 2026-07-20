@@ -907,7 +907,7 @@ def _run_captures() -> int:
 
     if not files:
         print("No capture files found.")
-        return 1
+        return 0
 
     total_errors = 0
     for path in files:

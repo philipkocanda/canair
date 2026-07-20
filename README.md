@@ -101,6 +101,8 @@ All functionality is exposed as `canair <subcommand>`.
 
 A *profile* is a directory bundling one vehicle's data — `pids/`, `ecus.yaml`, `captures/`, and generated `out/`. The repo ships `profiles/ioniq-2017/` as the default/example profile. Inspect profiles with `canair profile list`, `canair profile show [NAME]`, and `canair profile path [NAME]`.
 
+Start a new vehicle from scratch with `canair profile create <name> --car-model "..."`, which scaffolds an empty bundle (`pids/_meta.yaml`, an empty `ecus.yaml`, `captures/`, `out/`) under `~/.config/canair/profiles/<name>` (or `--path DIR`). Add `--set-default` to make it the default. Validate the ECU registry any time with `canair validate ecus`.
+
 **Selection precedence** (first match wins): `--profile NAME|PATH` (global flag, before the subcommand) → `CANAIR_PROFILE` env var → `default_profile` in config → the single discovered profile (auto).
 
 **Discovery** searches, in order: `--profiles-dir`, `$CANAIR_PROFILES_DIR`, `profiles_dir` in config, `~/.config/canair/profiles/` (user, uncommitted), and the repo's bundled `profiles/`. User profiles shadow bundled ones by name. Local profiles live in `~/.config/canair/profiles/` and are **not** committed.
