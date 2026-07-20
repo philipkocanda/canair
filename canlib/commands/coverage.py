@@ -30,6 +30,8 @@ import sys
 import yaml
 
 from canlib.byteindex import extract_byte_indices, payload_to_wican_frame
+from canlib.commands._hints import ecu_completer as _ecu_completer
+from canlib.commands._hints import pid_completer as _pid_completer
 from canlib.pids import build_ecu_index, load_pids
 
 NAME = "coverage"
@@ -163,8 +165,12 @@ def add_parser(subparsers):
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__.split("Examples:")[1] if "Examples:" in __doc__ else "",
     )
-    parser.add_argument("ecu", nargs="?", help="Filter to one ECU (e.g. IGPM)")
-    parser.add_argument("pid", nargs="?", help="Filter to one PID (e.g. 22BC03)")
+    parser.add_argument(
+        "ecu", nargs="?", help="Filter to one ECU (e.g. IGPM)"
+    ).completer = _ecu_completer
+    parser.add_argument(
+        "pid", nargs="?", help="Filter to one PID (e.g. 22BC03)"
+    ).completer = _pid_completer
     parser.add_argument("--all", action="store_true",
                         help="Include fully-mapped PIDs (no gaps)")
     parser.add_argument("--unmapped", action="store_true",
