@@ -213,3 +213,24 @@ class TestCaptureView:
         many = [dict(_VIEW_CAPS[0], label=f"c{i}") for i in range(50)]
         lines = dp._info_lines("MCU", "2102", many, 0, 50, "r", max_rows=10)
         assert any("and 40 more" in ln for ln in lines)
+
+
+class TestOverlayCycle:
+    def test_cycles_through_all_and_wraps(self):
+        cyc = [None, "A", "B"]
+        assert dp._cycle_overlay(None, cyc) == "A"    # off -> first param
+        assert dp._cycle_overlay("A", cyc) == "B"
+        assert dp._cycle_overlay("B", cyc) is None     # wraps back to off
+
+    def test_works_without_corr_when_params_exist(self):
+        # The reported bug: `o` did nothing without --corr. Any numeric param is
+        # a valid overlay reference, so cycling engages an overlay.
+        cyc = [None, "MCU_MOTOR_RPM"]
+        assert dp._cycle_overlay(None, cyc) == "MCU_MOTOR_RPM"
+
+    def test_noop_when_no_candidates(self):
+        assert dp._cycle_overlay(None, [None]) is None
+
+    def test_unknown_ref_restarts(self):
+        # A stale ref not in the cycle restarts from the first entry.
+        assert dp._cycle_overlay("GONE", [None, "A"]) == "A"
