@@ -597,10 +597,9 @@ def cmd_diff(entries: list[dict], query, show_all: bool = False) -> None:
 
 def _read_key(fd: int) -> str:
     """Read a single keypress (or escape sequence) from a raw/cbreak stdin."""
-    import os
+    from canlib.tui import read_key_raw
 
-    ch = os.read(fd, 16).decode("utf-8", errors="ignore")
-    return ch
+    return read_key_raw(fd)
 
 
 def _render_step_frame(
