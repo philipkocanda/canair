@@ -45,7 +45,7 @@ class TestBuildQuerySession:
         s = build_query_session(results, "lbl", "ready, parked", "notes here")
         assert s["label"] == "lbl"
         assert s["state"] == "ready, parked"
-        assert s["notes"] == "notes here\n"
+        assert s["notes"] == "notes here"
         assert "date" in s
         assert s["captures"][0] == {"ecu": "0x7EB", "pid": "2102", "payload": "6102AABB"}
         # time preserved when present

@@ -6,34 +6,45 @@ monitor modes.
 """
 
 from datetime import datetime
+from io import StringIO
 from pathlib import Path
 
-import yaml
-
+from ruamel.yaml import YAML
 
 CAPTURES_DIR = Path(__file__).parent.parent / "captures"
 
 
 # ---------------------------------------------------------------------------
-# YAML formatting (shared dumper)
+# YAML round-trip (comment-preserving)
 # ---------------------------------------------------------------------------
+#
+# Capture files are appended to and edited in place. We use ruamel.yaml in
+# round-trip mode so existing comments, quoting, and layout survive writes —
+# only newly appended content is rendered fresh.
+#
+# All readers use PyYAML, which is a YAML 1.1 parser. We therefore emit YAML
+# 1.1 so ruamel quotes 1.1-ambiguous scalars (e.g. a "14:00:01" time that 1.1
+# would otherwise read as a sexagesimal int, or a "yes" note read as a bool).
+# The "%YAML 1.1" directive ruamel adds for this is stripped on write to keep
+# the files clean; a directive-less file still parses as 1.1 by default.
 
-class _CaptureDumper(yaml.SafeDumper):
-    """Custom YAML dumper for capture files — readable formatting."""
-    pass
+def _yaml() -> YAML:
+    y = YAML()  # round-trip by default
+    y.preserve_quotes = True
+    y.width = 4096  # don't wrap long hex payloads / folded notes
+    y.indent(mapping=2, sequence=2, offset=0)
+    y.version = (1, 1)  # match the PyYAML (1.1) readers' scalar interpretation
+    return y
 
 
-def _str_representer(dumper, data):
-    if data.endswith("\n") and "\n" not in data[:-1]:
-        return dumper.represent_scalar("tag:yaml.org,2002:str", data, style=">")
-    if "\n" in data:
-        return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
-    if len(data) > 60 or ":" in data:
-        return dumper.represent_scalar("tag:yaml.org,2002:str", data, style='"')
-    return dumper.represent_scalar("tag:yaml.org,2002:str", data)
-
-
-_CaptureDumper.add_representer(str, _str_representer)
+def _dump(data, fobj) -> None:
+    """Dump ``data`` as YAML, stripping the leading 1.1 version directive."""
+    buf = StringIO()
+    _yaml().dump(data, buf)
+    lines = buf.getvalue().splitlines(keepends=True)
+    while lines and (lines[0].startswith("%YAML") or lines[0].strip() == "---"):
+        lines.pop(0)
+    fobj.write("".join(lines))
 
 
 # ---------------------------------------------------------------------------
@@ -118,7 +129,7 @@ def build_query_session(
     if state:
         session["state"] = state
     if notes:
-        session["notes"] = notes + "\n"
+        session["notes"] = notes
 
     captures: list[dict] = []
     for ecu_ref, pid, hex_val, ts in results:
@@ -163,7 +174,7 @@ def build_scan_session(
     if state:
         session["state"] = state
     if notes:
-        session["notes"] = notes + "\n"
+        session["notes"] = notes
 
     # Build scan_results capture
     scan_capture: dict = {
@@ -208,7 +219,7 @@ def build_raw_session(
     label: str,
     state: str,
     notes: str,
-    pids_data: dict | None = None,  # noqa: ARG001 — kept for call-site compatibility
+    pids_data: dict | None = None,
 ) -> dict:
     """Build a capture session dict from a raw UDS response.
 
@@ -223,7 +234,7 @@ def build_raw_session(
     if state:
         session["state"] = state
     if notes:
-        session["notes"] = notes + "\n"
+        session["notes"] = notes
 
     capture: dict = {
         "ecu": ecu_ref,
@@ -267,7 +278,7 @@ def build_discover_session(
     if state:
         session["state"] = state
     if notes:
-        session["notes"] = notes + "\n"
+        session["notes"] = notes
 
     capture: dict = {
         "ecu": "broadcast",
@@ -300,13 +311,18 @@ def build_discover_session(
 # ---------------------------------------------------------------------------
 
 def save_session(session: dict, captures_dir: Path = CAPTURES_DIR) -> Path:
-    """Append a session dict to captures/YYYY-MM-DD.yaml. Returns the file path."""
+    """Append a session dict to captures/YYYY-MM-DD.yaml. Returns the file path.
+
+    Existing content (including comments) is preserved via a ruamel round-trip;
+    only the newly appended session is rendered fresh.
+    """
     today = datetime.now().strftime("%Y-%m-%d")
     capture_file = captures_dir / f"{today}.yaml"
 
+    y = _yaml()
     if capture_file.exists():
         with open(capture_file) as f:
-            data = yaml.safe_load(f)
+            data = y.load(f)
         if not data or "sessions" not in data:
             data = {"sessions": []}
         data["sessions"].append(session)
@@ -314,10 +330,7 @@ def save_session(session: dict, captures_dir: Path = CAPTURES_DIR) -> Path:
         data = {"sessions": [session]}
 
     with open(capture_file, "w") as f:
-        yaml.dump(
-            data, f, Dumper=_CaptureDumper, default_flow_style=False,
-            sort_keys=False, allow_unicode=True,
-        )
+        _dump(data, f)
 
     n_captures = len(session.get("captures", []))
     print(f"  \u2192 Saved {n_captures} capture(s) to {capture_file.name}")
@@ -325,12 +338,9 @@ def save_session(session: dict, captures_dir: Path = CAPTURES_DIR) -> Path:
 
 
 def _write_captures_file(fpath: Path, data: dict) -> None:
-    """Serialize a capture-file dict back to disk with the shared dumper."""
+    """Serialize a capture-file dict back to disk (comment-preserving)."""
     with open(fpath, "w") as f:
-        yaml.dump(
-            data, f, Dumper=_CaptureDumper, default_flow_style=False,
-            sort_keys=False, allow_unicode=True,
-        )
+        _dump(data, f)
 
 
 def set_capture_note(fpath: Path, session_idx: int, capture_idx: int, note: str) -> None:
@@ -340,7 +350,7 @@ def set_capture_note(fpath: Path, session_idx: int, capture_idx: int, note: str)
     field entirely. Raises IndexError if the indices don't resolve.
     """
     with open(fpath) as f:
-        data = yaml.safe_load(f)
+        data = _yaml().load(f)
     cap = data["sessions"][session_idx]["captures"][capture_idx]
     note = note.strip()
     if note:
@@ -355,7 +365,7 @@ def delete_capture(fpath: Path, session_idx: int, capture_idx: int) -> bool:
     session was removed too. Raises IndexError if the indices don't resolve.
     """
     with open(fpath) as f:
-        data = yaml.safe_load(f)
+        data = _yaml().load(f)
     captures = data["sessions"][session_idx]["captures"]
     del captures[capture_idx]
     removed_session = not captures
