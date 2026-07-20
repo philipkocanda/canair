@@ -280,10 +280,10 @@ canair query BMS
 canair query BMS:2101
 
 # Live monitor — refresh every 5 seconds and highlight changes
-canair query "query BMS 2101" --monitor
+canair query BMS:2101 --monitor
 
 # Wake a sleeping ECU and query it
-canair query "session IGPM --wake" "query IGPM BC03 BC06"
+canair query "session IGPM --wake" "query IGPM:BC03,BC06"
 
 # IOControl — interactive TUI for actuators
 canair io IGPM
@@ -296,22 +296,61 @@ canair scan --tx 7E4 --service 22 --range BC00-BCFF
 # Discover all responding ECUs on the bus
 canair discover
 
+# Discover and auto-register new ECUs into ecus.yaml (--dry-run to preview)
+canair discover --register
+
 # Raw UDS request (hex in, hex out)
 canair raw 7E4:2101
 
 # Monitor + capture unique payloads, save on exit
-canair query "query BCM C00B" --monitor --keep-unique --save
+canair query BCM:C00B --monitor --keep-unique --save
 
 # Multi-ECU pipeline: wake SKM, query IGPM and BCM
-canair query "skm-wake acc" "query IGPM BC03" "query BCM C00B"
+canair query "skm-wake acc" "query IGPM:BC03" "query BCM:C00B"
 ```
 
 All commands support `--wican home|vpn|<ip>` to select the target device, `--json` for machine-readable output, and `--reboot` to restore AutoPID mode after a session.
 
+### Query mini-language
+
+`canair query` (and the capture/decode tools) select ECUs and PIDs with a small
+selection syntax. A **selector** is `ECU[:PIDLIST]`:
+
+| Selector | Meaning |
+|----------|---------|
+| `BMS` | all known PIDs for BMS |
+| `BMS:2101` | BMS PID `2101` only |
+| `IGPM:BC03,BC06` | two IGPM DIDs (comma-separated PID list) |
+| `VCU:2101 BMS:2101` | cross-ECU — a **space separates independent selectors** |
+
+> **Bind each PID to its ECU with a colon, never a space.** In a query a space
+> separates independent ECU selectors, so `IGPM 22BC07` means "all of IGPM **plus**
+> a (bogus) ECU named `22BC07`" — not IGPM's PID `22BC07`. Write `IGPM:22BC07`.
+> `canair query` rejects a bare PID/DID in the ECU slot with a hint to the colon form.
+
+`canair query` also accepts a **pipeline** of steps (each a quoted string), run in
+order over one session. A bare selector is shorthand for a `query` step, so
+`canair query BMS:2101` == `canair query "query BMS:2101"`. Step verbs:
+
+| Step | Purpose |
+|------|---------|
+| `query <SELECTORS>` | read ECU parameters/PIDs |
+| `session <ECU> [--wake]` | enter an extended diagnostic session |
+| `skm-wake [acc\|ign1\|ign2]` | wake the SKM and activate a relay |
+| `raw <TX:PID> [--hold]` | raw UDS request |
+| `scan <TX> <SVC> <RANGE>` | scan a PID range |
+| `iocontrol <ECU> <DID> [--off]` | InputOutputControl |
+| `security <ECU>` / `sleep <s>` / `repl` | security access / pause / drop into REPL |
+
+```bash
+# Pipeline: wake IGPM, then read two of its DIDs
+canair query "session IGPM --wake" "query IGPM:BC03,BC06"
+```
+
 ### Live monitoring of responses and auto-highlighting changes 
 
 ```
-canair query "query IGPM 22BC07" --monitor 2 --keep-unique
+canair query IGPM:22BC07 --monitor 2 --keep-unique
 ```
 
 <img width="1206" height="448" alt="image" src="https://github.com/user-attachments/assets/53e2d063-0aae-4089-903b-b2fa8a213c91" />

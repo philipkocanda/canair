@@ -178,7 +178,7 @@ MCU:
           CAPTURE METHOD: WebSocket polling is sequential over one connection and the stored
           timestamp is per-cycle (not per-PID acquisition), so VCU 2101 and MCU 2102 are skewed
           ~0.3-3s and cannot be tightly synced across ECUs. Mitigation: poll ONLY the two PIDs,
-          dense + back-to-back:  canreq --multi "query VCU 2101" "query MCU 2102" --monitor 1
+          dense + back-to-back:  canair query "query VCU:2101" "query MCU:2102" --monitor 1
           --keep-all --save --wican vpn  (drive with hard launches, lift-off/regen, and braking;
           run long enough to warm the inverter for the temp mapping). NOTE: torque RPM are BOTH in
           MCU 2102, so torque needs no cross-ECU sync - just finer dRPM (dense sampling) + regen data.

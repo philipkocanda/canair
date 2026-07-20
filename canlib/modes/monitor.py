@@ -7,10 +7,10 @@ latest values and handles keys. Content taller than the terminal can be scrolled
 default and detaches when you scroll up. Each poll cycle updates the values in
 place, giving a real-time view of changing parameters (SOC, temps, voltages …).
 
-Usage (via --multi --monitor):
-    canreq --multi "session BCM --wake" "query BCM C00B B00E" --monitor
-    canreq --multi "query BMS 2101" --monitor 2.0
-    canreq --multi "session IGPM --wake" "query IGPM BC03 BC06" --monitor
+Usage (via canair query --monitor):
+    canair query "session BCM --wake" "query BCM:C00B,B00E" --monitor
+    canair query "query BMS:2101" --monitor 2.0
+    canair query "session IGPM --wake" "query IGPM:BC03,BC06" --monitor
 
 The --monitor flag applies to the last 'query' step in the pipeline. If
 there are multiple query steps, all of them are repeated each cycle.
