@@ -261,6 +261,47 @@ def save_session(session: dict, captures_dir: Path = CAPTURES_DIR) -> Path:
     return capture_file
 
 
+def _write_captures_file(fpath: Path, data: dict) -> None:
+    """Serialize a capture-file dict back to disk with the shared dumper."""
+    with open(fpath, "w") as f:
+        yaml.dump(
+            data, f, Dumper=_CaptureDumper, default_flow_style=False,
+            sort_keys=False, allow_unicode=True,
+        )
+
+
+def set_capture_note(fpath: Path, session_idx: int, capture_idx: int, note: str) -> None:
+    """Set (or clear) the ``notes`` field on one capture, addressed by index.
+
+    A non-empty ``note`` is stored verbatim; an empty/blank note removes the
+    field entirely. Raises IndexError if the indices don't resolve.
+    """
+    with open(fpath) as f:
+        data = yaml.safe_load(f)
+    cap = data["sessions"][session_idx]["captures"][capture_idx]
+    note = note.strip()
+    if note:
+        cap["notes"] = note
+    else:
+        cap.pop("notes", None)
+    _write_captures_file(fpath, data)
+
+
+def delete_capture(fpath: Path, session_idx: int, capture_idx: int) -> bool:
+    """Delete one capture, addressed by index. Returns True if its (now empty)
+    session was removed too. Raises IndexError if the indices don't resolve.
+    """
+    with open(fpath) as f:
+        data = yaml.safe_load(f)
+    captures = data["sessions"][session_idx]["captures"]
+    del captures[capture_idx]
+    removed_session = not captures
+    if removed_session:
+        del data["sessions"][session_idx]
+    _write_captures_file(fpath, data)
+    return removed_session
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
