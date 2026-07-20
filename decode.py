@@ -30,6 +30,8 @@ Examples:
 
 import argparse
 import json
+import math
+import shutil
 import sys
 from pathlib import Path
 
@@ -289,7 +291,13 @@ def _paired(all_results: list[dict], ref: str, name: str) -> tuple[list[float], 
 
 
 def _fmt_num(x: float) -> str:
-    """Compact numeric formatting: integers stay integral, else 2 decimals."""
+    """Compact numeric formatting: integers stay integral, else 2 decimals.
+
+    Non-finite values (which float byte-interpretations routinely produce) are
+    rendered as text rather than crashing ``int()``.
+    """
+    if not math.isfinite(x):
+        return "nan" if math.isnan(x) else ("inf" if x > 0 else "-inf")
     if x == int(x):
         return str(int(x))
     return f"{x:.2f}"
@@ -646,6 +654,41 @@ def _series_stats_str(values: list[float]) -> str:
             f"mean={_fmt_num(_mean(values))}")
 
 
+def _cap_ts(cap: dict) -> str:
+    """A capture's timestamp as ``YYYY-MM-DD HH:MM:SS`` (date and/or time, trimmed)."""
+    return f"{cap.get('date', '')!s} {cap.get('time', '')!s}".strip()
+
+
+def _view_time_range(caps: list[dict]) -> tuple[str, str]:
+    """Earliest/latest timestamp across captures (ISO strings sort chronologically)."""
+    tss = [t for t in (_cap_ts(c) for c in caps) if t]
+    return (min(tss), max(tss)) if tss else ("", "")
+
+
+def _info_lines(ecu_key: str, pid_key: str, caps_view: list[dict], i0: int,
+                total: int, ts_range: str, max_rows: int) -> list[str]:
+    """Modal body: list the captures backing the current view (date/state/label/notes/file)."""
+    out = [
+        f"{_BOLD}{ecu_key} {pid_key}{_RESET}  {_DIM}·  captures in view{_RESET}",
+        f"  {_DIM}{len(caps_view)} capture(s)  ·  {ts_range or 'no timestamps'}  ·  "
+        f"i/Esc to close{_RESET}",
+        "",
+    ]
+    for n, cap in enumerate(caps_view[:max_rows]):
+        state = cap.get("state", "")
+        label = cap.get("label", "")
+        meta = "  ".join(x for x in [f"[{state}]" if state else "", label] if x)
+        out.append(f"  {_CYAN}{i0 + n:>4}{_RESET}  {_BOLD}{_cap_ts(cap) or '?':<20}{_RESET}  "
+                   f"{_DIM}{cap.get('file', '')}{_RESET}" + (f"  {meta}" if meta else ""))
+        notes = (cap.get("notes", "") or "").replace("\n", " ").strip()
+        if notes:
+            out.append(f"        {_DIM}{notes[:100]}{_RESET}")
+    if len(caps_view) > max_rows:
+        out.append(f"  {_DIM}... and {len(caps_view) - max_rows} more — "
+                   f"zoom in (+ or ,/.) to narrow the window{_RESET}")
+    return out
+
+
 def cmd_plot(all_results: list[dict], param_names: list[str], parameters: dict,
              candidate_names: set[str], corr_ref: str | None,
              ecu_key: str, pid_key: str, defined_params: dict | None = None) -> None:
@@ -692,6 +735,7 @@ def cmd_plot(all_results: list[dict], param_names: list[str], parameters: dict,
     pi = 0                              # param index (param mode)
     overlay = False
     xlo, xhi = 0.0, 1.0                 # fractional x-axis window (zoom/pan)
+    show_info = False                   # captures-in-view modal
 
     def frame_lines() -> list[str]:
         spec = INSPECT_TYPES[ti]
@@ -727,18 +771,40 @@ def cmd_plot(all_results: list[dict], param_names: list[str], parameters: dict,
             expr_line = f"expr: {parameters.get(name, {}).get('expression', '')}"
             src = name
 
+        # Drop missing (None) and non-finite (NaN/Inf) values — float byte
+        # interpretations routinely yield NaN/Inf, which can't be plotted or
+        # averaged. Keep each retained value's capture aligned for the modal.
+        caps_all = [r["capture"] for r in all_results]
         if overlay and ref_per_cap is not None:
-            pairs = [(rf, cv) for rf, cv in zip(ref_per_cap, per_cap, strict=True)
-                     if rf is not None and cv is not None]
-            ref_full = [p[0] for p in pairs]
-            cur_full = apply_transform([p[1] for p in pairs], tmode)
+            triples = [(cap, rf, cv)
+                       for cap, rf, cv in zip(caps_all, ref_per_cap, per_cap, strict=True)
+                       if rf is not None and cv is not None
+                       and math.isfinite(rf) and math.isfinite(cv)]
+            caps_full = [t[0] for t in triples]
+            ref_full = [t[1] for t in triples]
+            cur_full = apply_transform([t[2] for t in triples], tmode)
         else:
+            kept = [(cap, v) for cap, v in zip(caps_all, per_cap, strict=True)
+                    if v is not None and math.isfinite(v)]
+            caps_full = [k[0] for k in kept]
             ref_full = None
-            cur_full = apply_transform([v for v in per_cap if v is not None], tmode)
+            cur_full = apply_transform([k[1] for k in kept], tmode)
 
-        # Apply the x-axis window (zoom/pan), keeping ref aligned to the view.
+        # Apply the x-axis window (zoom/pan), keeping ref + captures aligned.
         series, i0, i1 = _window(cur_full, xlo, xhi)
-        refseries = _window(ref_full, xlo, xhi)[0] if ref_full is not None else None
+        caps_view = caps_full[i0:i1]
+        refseries = ref_full[i0:i1] if ref_full is not None else None
+
+        # Date/time span of the *visible* window (accounts for zoom).
+        lo_ts, hi_ts = _view_time_range(caps_view)
+        ts_range = f"{lo_ts} → {hi_ts}" if lo_ts else "no timestamps"
+
+        total = len(cur_full)
+
+        # Captures-in-view modal takes over the frame when toggled.
+        if show_info:
+            max_rows = max(4, shutil.get_terminal_size((80, 24)).lines - 8)
+            return _info_lines(ecu_key, pid_key, caps_view, i0, total, ts_range, max_rows)
 
         if overlay and refseries is not None:
             r = _pearson(refseries, series)
@@ -747,10 +813,10 @@ def cmd_plot(all_results: list[dict], param_names: list[str], parameters: dict,
         else:
             rstr = ""
 
-        total = len(cur_full)
         zoomed = (i0, i1) != (0, total)
         caption = (f"captures {i0}-{i1 - 1} of {total}" if total else "no data") \
-            + ("  (zoomed)" if zoomed else "") + ("  · normalized 0-1" if overlay else "")
+            + f"  ·  {ts_range}" + ("  (zoomed)" if zoomed else "") \
+            + ("  · normalized 0-1" if overlay else "")
 
         out = [
             f"{_BOLD}{ecu_key} {pid_key}{_RESET}  {_DIM}·  {mode} mode{_RESET}",
@@ -784,7 +850,7 @@ def cmd_plot(all_results: list[dict], param_names: list[str], parameters: dict,
         while True:
             sys.stdout.write("\033[2J\033[H")
             sys.stdout.write("\r\n".join(frame_lines()))
-            common = "  +/- zoom · ,/. pan · 0 reset-x · f transform · o overlay · q quit"
+            common = "  +/- zoom · ,/. pan · 0 reset-x · f transform · o overlay · i captures · q quit"
             hint = ("←/→ offset · t/T type · e endian · m param" + common
                     if mode == "bytes"
                     else "←/→ param · m bytes" + common)
@@ -792,8 +858,15 @@ def cmd_plot(all_results: list[dict], param_names: list[str], parameters: dict,
             sys.stdout.flush()
 
             k = _read_key(fd)
-            if k in ("q", "Q", "\x1b", "\x1b\x1b", "\x03"):
+            if k in ("i", "I"):                         # toggle captures-in-view modal
+                show_info = not show_info
+            elif k in ("q", "Q", "\x03"):
                 break
+            elif k in ("\x1b", "\x1b\x1b"):             # Esc closes the modal, else quits
+                if show_info:
+                    show_info = False
+                else:
+                    break
             elif k in ("\x1b[D", "h"):
                 if mode == "bytes":
                     offset = max(0, offset - 1)
