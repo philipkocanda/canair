@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 
-from canlib.commands._live import add_connection_args, ecu_completer, finalize_live_parser
+from canlib.commands._live import add_connection_args, ecu_completer, finalize_live_parser, run_live
 
 NAME = "io"
 
@@ -24,11 +24,22 @@ examples:
   canair io IGPM --did BC01 --off
 """,
     )
-    parser.add_argument("iocontrol", metavar="ECU", help="ECU name (e.g. IGPM)").completer = (
-        ecu_completer
-    )
+    parser.add_argument(
+        "iocontrol", metavar="ECU", nargs="?", help="ECU name (e.g. IGPM)"
+    ).completer = ecu_completer
     parser.add_argument("--did", metavar="DID", help="DID to execute (e.g. BC01)")
     parser.add_argument("--off", action="store_true", help="Send OFF/returnControl instead of ON")
     add_connection_args(parser)
     finalize_live_parser(parser)
+    parser.set_defaults(func=run)
     return parser
+
+
+def run(args) -> int:
+    if not args.iocontrol:
+        from canlib.commands._hints import ecu_hint
+
+        print("Specify an ECU, e.g. `canair io IGPM`.\n")
+        print(ecu_hint())
+        return 2
+    return run_live(args)

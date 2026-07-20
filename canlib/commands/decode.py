@@ -37,6 +37,8 @@ import sys
 import yaml
 
 from canlib.byteindex import extract_byte_indices, payload_to_wican_frame
+from canlib.commands._hints import ecu_completer as _ecu_completer
+from canlib.commands._hints import pid_completer as _pid_completer
 from canlib.expression import evaluate_expression
 from canlib.pids import build_ecu_index, load_pids
 
@@ -953,8 +955,12 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__.split("Examples:")[1] if "Examples:" in __doc__ else "",
     )
-    parser.add_argument("ecu", help="ECU name (e.g., BMS, IGPM, BCM)")
-    parser.add_argument("pid", help="PID code (e.g., 2101, 22BC03)")
+    parser.add_argument(
+        "ecu", nargs="?", help="ECU name (e.g., BMS, IGPM, BCM)"
+    ).completer = _ecu_completer
+    parser.add_argument(
+        "pid", nargs="?", help="PID code (e.g., 2101, 22BC03)"
+    ).completer = _pid_completer
     parser.add_argument("--param", nargs="+", metavar="NAME",
                         help="Show only specific parameters")
     parser.add_argument("--verified", action="store_true",
@@ -982,6 +988,20 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
 
 
 def run(args) -> int:
+    # Friendly guidance when the ECU/PID selectors are missing.
+    if not args.ecu:
+        from canlib.commands._hints import ecu_hint
+
+        print("Specify an ECU and PID to decode, e.g. `canair decode BMS 2101`.\n")
+        print(ecu_hint())
+        return 2
+    if not args.pid:
+        from canlib.commands._hints import pid_hint
+
+        print(f"Specify a PID for {args.ecu.upper()}, e.g. `canair decode {args.ecu} 2101`.\n")
+        print(pid_hint(args.ecu))
+        return 2
+
     # --plot and --try tolerate a not-yet-defined ECU/PID (raw byte inspection).
     tolerate_missing = bool(args.try_expr) or args.plot
 

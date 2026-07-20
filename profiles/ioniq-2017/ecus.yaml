@@ -300,7 +300,7 @@ ecus:
     id_protocol: KWP2000  # 1Axx
     notes: "1A80 firmware build date 2008-07-09 (likely platform date, not unit manufacture)"
   0x7E5:
-    name: LDC # TODO: Rename to OBC?
+    name: LDC
     alias: OBC  # Also handles On-Board Charger
     description: Low-voltage DC-DC Converter / OBC
     part_number: "36400-0E150"
@@ -310,15 +310,14 @@ ecus:
     id_protocol: KWP2000  # 1Axx
   0x7E6:
     name: AAF
-    description: Active Air Flaps controller (previously misidentified as "CAN Gateway", then as an ambient temperature sensor controller)
-    part_number: M3062000307  # KWP2000 1A91 — likely Renesas M16C/M306 MCU part, not a Hyundai part number
+    description: Active Air Flap controller
+    part_number: M3062000307  # KWP2000 1A91
     sw_id: EAE16AAFB30001  # KWP2000 1A8D — "AAF" is the Hyundai internal module code
     firmware: EAEAAFP201  # KWP2000 1A98 — "AAF" is the Hyundai internal module code
     id_protocol: KWP2000  # 1Axx
     notes: >
-      Active Air Flaps (AAF) controller — confirmed by the "AAF" module code in its
+      Active Air Flap (AAF) controller — confirmed by the "AAF" module code in its
       sw_id (EAE16AAFB30001) and firmware (EAEAAFP201). Also exposes several thermal
       readings via PID 2180/2181 (ambient temp, heater element, heat sink, compressor),
       which is why community projects (OVMS, pioniq, EVNotiPi, JejuSoul) use this address
-      for external temp. Does not wake from CAN bus activity — requires ACC power like
-      other powertrain ECUs. The actual CAN gateway function is performed by the IGPM (0x770).
+      for external temp.

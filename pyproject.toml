@@ -22,6 +22,12 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["canlib"]
+# Ship the bundled example profile(s) so a fresh install has a working default
+# (resolves to site-packages/profiles, matching BUNDLED_PROFILES_DIR).
+exclude = ["profiles/*/logs", "**/__pycache__"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"profiles" = "profiles"
 
 [dependency-groups]
 dev = [

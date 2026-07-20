@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 
-from canlib.commands._live import add_connection_args, ecu_completer, finalize_live_parser
+from canlib.commands._live import add_connection_args, ecu_completer, finalize_live_parser, run_live
 
 NAME = "routines"
 
@@ -23,9 +23,9 @@ examples:
   canair routines BCM --rid 12A1 --sf stop
 """,
     )
-    parser.add_argument("routines", metavar="ECU", help="ECU name (e.g. BCM)").completer = (
-        ecu_completer
-    )
+    parser.add_argument(
+        "routines", metavar="ECU", nargs="?", help="ECU name (e.g. BCM)"
+    ).completer = ecu_completer
     parser.add_argument("--rid", metavar="RID", help="Routine ID to execute (e.g. 12A1)")
     parser.add_argument(
         "--sf",
@@ -36,4 +36,15 @@ examples:
     )
     add_connection_args(parser)
     finalize_live_parser(parser)
+    parser.set_defaults(func=run)
     return parser
+
+
+def run(args) -> int:
+    if not args.routines:
+        from canlib.commands._hints import ecu_hint
+
+        print("Specify an ECU, e.g. `canair routines BCM`.\n")
+        print(ecu_hint())
+        return 2
+    return run_live(args)

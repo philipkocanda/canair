@@ -37,6 +37,51 @@ def user_config_file() -> Path:
     return config_dir() / "config.yaml"
 
 
+def user_profiles_dir() -> Path:
+    """Return the user profiles directory ($XDG_CONFIG_HOME/canair/profiles)."""
+    return config_dir() / "profiles"
+
+
+_STARTER_CONFIG = """\
+# canair configuration — see `canair --help` and config.example.yaml in the repo.
+# This file was created automatically; edit it to taste. All keys are optional.
+
+# Vehicle profile to use when none is given (--profile / CANAIR_PROFILE override).
+# Auto-selected when exactly one profile is discovered, so this is optional.
+# default_profile: ioniq-2017
+
+# Extra directory to search for vehicle profiles (in addition to this dir's
+# profiles/ subfolder and the repo-bundled profiles/).
+# profiles_dir: ~/vehicles
+
+# WiCAN device addresses for the --wican flag (alias -> IP/host).
+# wican_addresses:
+#   ap: "192.168.80.1"    # WiCAN AP mode (factory default)
+#   home: "192.168.1.100"
+# default_wican: ap
+"""
+
+
+def ensure_config_dir(seed_config: bool = True) -> Path:
+    """Create ``~/.config/canair`` (and ``profiles/``) if missing.
+
+    When ``seed_config`` is True and no config file exists yet, a commented
+    starter ``config.yaml`` is written so users have a discoverable place to
+    configure the tool without any manual setup. Best-effort: filesystem errors
+    are swallowed so a read-only HOME never breaks the CLI.
+    """
+    cfg_dir = config_dir()
+    try:
+        cfg_dir.mkdir(parents=True, exist_ok=True)
+        user_profiles_dir().mkdir(parents=True, exist_ok=True)
+        cfg_file = user_config_file()
+        if seed_config and not cfg_file.exists():
+            cfg_file.write_text(_STARTER_CONFIG)
+    except OSError:
+        pass
+    return cfg_dir
+
+
 def _read_yaml(path: Path) -> dict:
     if path.exists():
         with open(path) as f:
