@@ -9,6 +9,9 @@ Modes:
   --latest [ECU]        Most recent payload per PID (optionally filtered by ECU)
   --diff ECU PID        canreq monitor-style view: decoded params + colored
                         byte-diff hex (unique payloads only; --all for every one)
+  --step ECU PID        Interactive: step through captures one at a time with
+                        arrow keys, decoded params + byte-diff vs previous
+                        capture; e adds/edits a note, d deletes a capture
 
 Examples:
   python3 query-captures.py --ecu IGPM --pid 22BC03   # ECU+PID (most useful)
@@ -17,6 +20,7 @@ Examples:
   python3 query-captures.py --latest BMS              # Latest payload per BMS PID
   python3 query-captures.py --diff VCU 2101           # Params + colored byte-diff
   python3 query-captures.py --diff VCU 2101 --all     # ...show every payload
+  python3 query-captures.py --step VCU 2101           # Interactive step-through
 """
 
 import argparse
@@ -98,6 +102,9 @@ def load_all_captures(captures_dir: Path = CAPTURES_DIR) -> list[dict]:
     Each entry is a dict with keys:
         file, date, label, state, ecu, pid, payload, response, scan_results,
         notes, time
+
+    Plus internal locator keys (``_session_idx``, ``_capture_idx``) that address
+    the capture within its source file, for in-place edits/deletes.
     """
     entries = []
     for fpath in sorted(captures_dir.glob("*.yaml")):
@@ -107,11 +114,11 @@ def load_all_captures(captures_dir: Path = CAPTURES_DIR) -> list[dict]:
             data = yaml.safe_load(f)
         if not data or "sessions" not in data:
             continue
-        for session in data["sessions"]:
+        for s_idx, session in enumerate(data["sessions"]):
             date = session.get("date", "")
             label = session.get("label", "")
             state = session.get("state", "")
-            for cap in session.get("captures", []):
+            for c_idx, cap in enumerate(session.get("captures", [])):
                 entry = {
                     "file": fpath.name,
                     "date": date,
@@ -125,6 +132,8 @@ def load_all_captures(captures_dir: Path = CAPTURES_DIR) -> list[dict]:
                     "notes": cap.get("notes", ""),
                     "time": cap.get("time", ""),
                     "label": cap.get("label", ""),
+                    "_session_idx": s_idx,
+                    "_capture_idx": c_idx,
                 }
                 entries.append(entry)
     return entries
@@ -256,12 +265,12 @@ def cmd_latest(entries: list[dict], ecu_filter: str | None) -> None:
     title = f"Latest payloads" + (f" for {ecu_filter}" if ecu_filter else "")
     print(f"\n  {_BOLD}{title}{_RESET} — {len(latest)} PIDs\n")
 
-    for (ecu, pid), e in sorted(latest.items()):
+    for (ecu, pid), e in sorted(latest.items(), key=lambda kv: (str(kv[0][0]), str(kv[0][1]))):
         payload = e["payload"]
         date = e["date"]
         state = f"  ({e['state']})" if e["state"] else ""
         trunc = payload[:80] + "..." if len(payload) > 80 else payload
-        print(f"  {_CYAN}{ecu:<10}{_RESET} {pid:<10} {_DIM}{date}{state}{_RESET}")
+        print(f"  {_CYAN}{ecu:<10}{_RESET} {str(pid):<10} {_DIM}{date}{state}{_RESET}")
         print(f"    {trunc}")
         decoded = _decoded_preview(e)
         if decoded:
@@ -274,29 +283,19 @@ def cmd_latest(entries: list[dict], ecu_filter: str | None) -> None:
 # Diff mode
 # ---------------------------------------------------------------------------
 
-def cmd_diff(entries: list[dict], ecu_filter: str, pid_filter: str, show_all: bool = False) -> None:
-    """Show payloads for an ECU+PID in canreq monitor style.
+def _gather_payloads(
+    entries: list[dict], ecu_filter: str, pid_filter: str
+) -> tuple[list[dict], dict, int | None]:
+    """Collect + chronologically sort payloads for an ECU+PID, plus PID defs.
 
-    Renders an ``ECU (0xTXID)`` / ``PID (N entries)`` header, a decoded-parameter
-    block (from the most recent payload) with verification marks, then the payload
-    hex lines with per-byte change highlighting (bytes differing from the previous
-    line get a background colour) plus base colouring by parameter coverage.
-
-    By default only *unique* payloads are shown (deduped, first-seen timestamp);
-    pass ``show_all=True`` to render every capture.
+    Returns ``(payloads, parameters, tx_id)``. ``payloads`` is an empty list when
+    nothing matches (callers report the error). Exact ECU+PID match is preferred
+    (needed for correct PID-definition lookup); falls back to a substring PID
+    match so nothing silently disappears (those render without params).
     """
-    from rich.console import Console
-
-    from canlib.decoding import decode_param_rows
-    from canlib.formatting import _render_hex_line, render_byte_rulers, render_param_table
-
-    console = Console(highlight=False)
-
     ecu_upper = ecu_filter.upper()
     pid_upper = pid_filter.upper()
 
-    # Exact ECU+PID match (needed for correct PID-definition lookup); fall back to
-    # substring PID match so nothing silently disappears (rendered without params).
     payloads = [
         e for e in entries
         if e["ecu"].upper() == ecu_upper and str(e["pid"]).upper() == pid_upper and e["payload"]
@@ -306,9 +305,6 @@ def cmd_diff(entries: list[dict], ecu_filter: str, pid_filter: str, show_all: bo
             e for e in entries
             if e["ecu"].upper() == ecu_upper and pid_upper in str(e["pid"]).upper() and e["payload"]
         ]
-    if not payloads:
-        print(f"  No payloads found for {ecu_filter} {pid_filter}.")
-        return
 
     # Chronological order (date, then time within a session).
     payloads.sort(key=lambda e: (str(e.get("date", "")), str(e.get("time", ""))))
@@ -328,12 +324,11 @@ def cmd_diff(entries: list[dict], ecu_filter: str, pid_filter: str, show_all: bo
     except Exception:
         pass
 
-    # Decode the most recent payload into param rows (drives the table + colours).
-    rows = decode_param_rows(payloads[-1]["payload"], parameters)
-    unmapped = not rows
-    n_bytes = len(payloads[-1]["payload"].replace(" ", "")) // 2
+    return payloads, parameters, tx_id
 
-    # Dedupe payloads (case/space-insensitive), keeping first-seen order.
+
+def _dedupe_payloads(payloads: list[dict]) -> list[dict]:
+    """Return payloads with duplicate hex removed (case/space-insensitive, first-seen)."""
     seen: set[str] = set()
     unique: list[dict] = []
     for e in payloads:
@@ -341,6 +336,41 @@ def cmd_diff(entries: list[dict], ecu_filter: str, pid_filter: str, show_all: bo
         if norm not in seen:
             seen.add(norm)
             unique.append(e)
+    return unique
+
+
+def cmd_diff(entries: list[dict], ecu_filter: str, pid_filter: str, show_all: bool = False) -> None:
+    """Show payloads for an ECU+PID in canreq monitor style.
+
+    Renders an ``ECU (0xTXID)`` / ``PID (N entries)`` header, a decoded-parameter
+    block (from the most recent payload) with verification marks, then the payload
+    hex lines with per-byte change highlighting (bytes differing from the previous
+    line get a background colour) plus base colouring by parameter coverage.
+
+    By default only *unique* payloads are shown (deduped, first-seen timestamp);
+    pass ``show_all=True`` to render every capture.
+    """
+    from rich.console import Console
+
+    from canlib.decoding import decode_param_rows
+    from canlib.formatting import _render_hex_line, render_byte_rulers, render_param_table
+
+    console = Console(highlight=False)
+
+    pid_upper = pid_filter.upper()
+
+    payloads, parameters, tx_id = _gather_payloads(entries, ecu_filter, pid_filter)
+    if not payloads:
+        print(f"  No payloads found for {ecu_filter} {pid_filter}.")
+        return
+
+    # Decode the most recent payload into param rows (drives the table + colours).
+    rows = decode_param_rows(payloads[-1]["payload"], parameters)
+    unmapped = not rows
+    n_bytes = len(payloads[-1]["payload"].replace(" ", "")) // 2
+
+    # Dedupe payloads (case/space-insensitive), keeping first-seen order.
+    unique = _dedupe_payloads(payloads)
 
     total = len(payloads)
     n_unique = len(unique)
@@ -386,8 +416,271 @@ def cmd_diff(entries: list[dict], ecu_filter: str, pid_filter: str, show_all: bo
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Step mode (interactive)
 # ---------------------------------------------------------------------------
+
+def _read_key(fd: int) -> str:
+    """Read a single keypress (or escape sequence) from a raw/cbreak stdin."""
+    import os
+
+    ch = os.read(fd, 16).decode("utf-8", errors="ignore")
+    return ch
+
+
+def _render_step_frame(
+    console,
+    payloads: list[dict],
+    i: int,
+    parameters: dict,
+    tx_id: int | None,
+    pid_upper: str,
+    status: str = "",
+    prompt: str | None = None,
+) -> None:
+    """Render one capture full-screen: header, decoded params, ruler, diff hex.
+
+    Shows the *current* capture's decoded parameter table and, underneath, the
+    previous capture's payload hex (dimmed, for reference) followed by the current
+    payload with per-byte change highlighting against that previous capture — the
+    "diff, current capture only" view.
+
+    ``prompt`` (when set) replaces the status line with a bold input prompt, used
+    by the note-edit and delete-confirm sub-loops.
+    """
+    from rich.markup import escape
+
+    from canlib.decoding import decode_param_rows
+    from canlib.formatting import _render_hex_line, render_byte_rulers, render_param_table
+
+    e = payloads[i]
+    prev = payloads[i - 1] if i > 0 else None
+
+    norm = e["payload"].upper().replace(" ", "")
+    prev_norm = prev["payload"].upper().replace(" ", "") if prev else ""
+    n_bytes = len(norm) // 2
+
+    # Decode the *current* capture (drives the table + byte colours for this frame).
+    rows = decode_param_rows(e["payload"], parameters)
+    unmapped = not rows
+
+    # Header: ECU / PID + position, timestamp, state, label, file.
+    ecu_display = escape(e["ecu"])
+    tx_str = f" (0x{tx_id:03X})" if isinstance(tx_id, int) else ""
+    ts = e.get("time") or e.get("date") or ""
+    state = f"  state={escape(e['state'])}" if e.get("state") else ""
+    label = f"  [{escape(e['label'])}]" if e.get("label") else ""
+    file_str = f"  ({escape(e['file'])})" if e.get("file") else ""
+
+    console.print(f"\n  [bold cyan]{ecu_display}{tx_str}[/bold cyan]")
+    console.print(
+        f"    [yellow]{escape(pid_upper)}[/yellow]  "
+        f"[dim]capture {i + 1}/{len(payloads)}[/dim]"
+    )
+    console.print(
+        f"    [bold]{escape(ts)}[/bold][dim]{state}{label}{file_str}[/dim]"
+    )
+
+    # Capture note (if any).
+    note = (e.get("notes") or "").strip()
+    if note:
+        console.print(f"    [dim]note:[/dim] {escape(note)}")
+
+    # Decoded-parameter block (aligned columns, verification marks, byte indices).
+    if rows:
+        console.print(render_param_table(rows, n_bytes=n_bytes), end="")
+
+    # Byte-index ruler, aligned with the hex byte columns below.
+    max_ts = len(ts)
+    if n_bytes:
+        console.print(
+            render_byte_rulers(n_bytes, rows, prefix_width=8 + max_ts), end="", soft_wrap=True
+        )
+
+    # Previous capture (dimmed, no highlight) for visual reference, then the
+    # current capture with per-byte change highlighting against it.
+    if prev is not None:
+        prev_ts = prev.get("time") or prev.get("date") or ""
+        prev_prefix = f"      {prev_ts:<{max_ts}}  "
+        console.print(
+            _render_hex_line(prev_norm, rows, unmapped, prefix=prev_prefix, prefix_style="dim"),
+            end="",
+            soft_wrap=True,
+        )
+    prefix = f"    > {ts:<{max_ts}}  "
+    console.print(
+        _render_hex_line(norm, rows, unmapped, prev_raw=prev_norm, prefix=prefix),
+        end="",
+        soft_wrap=True,
+    )
+
+    # Footer: key hints, then either an input prompt or a transient status.
+    console.print(
+        "\n  [dim]←/h/p prev   →/l/n/space next   g/G first/last   "
+        "e note   d delete   q quit[/dim]"
+    )
+    if prompt is not None:
+        console.print(f"  [bold yellow]{escape(prompt)}[/bold yellow]")
+    elif status:
+        console.print(f"  [yellow]{escape(status)}[/yellow]")
+
+
+def cmd_step(
+    entries: list[dict],
+    ecu_filter: str,
+    pid_filter: str,
+    show_all: bool = False,
+    captures_dir: Path = CAPTURES_DIR,
+) -> None:
+    """Interactively step through captures for an ECU+PID, one at a time.
+
+    Arrow keys (or vim ``h``/``l``) move between captures. Each frame shows the
+    decoded parameter values for the current capture plus a byte-diff hex view
+    (current payload highlighted against the previous capture) — the same
+    rendering as ``--diff`` but focused on a single capture at a time.
+
+    ``e`` edits/adds the current capture's note; ``d`` deletes the current
+    capture (after a y/N confirmation). Both mutate the source YAML file and
+    reload in place.
+
+    Steps through *unique* payloads by default; ``show_all=True`` walks every
+    capture (including duplicates). Falls back to ``cmd_diff`` when stdin/stdout
+    is not an interactive terminal.
+    """
+    import sys
+
+    from rich.console import Console
+
+    from canlib.captures import delete_capture, set_capture_note
+
+    pid_upper = pid_filter.upper()
+
+    def build_list(src: list[dict]):
+        pls, params, tx = _gather_payloads(src, ecu_filter, pid_filter)
+        if not show_all:
+            pls = _dedupe_payloads(pls)
+        return pls, params, tx
+
+    payloads, parameters, tx_id = build_list(entries)
+    if not payloads:
+        print(f"  No payloads found for {ecu_filter} {pid_filter}.")
+        return
+
+    # Non-interactive (piped) — fall back to the static diff view.
+    if not (sys.stdin.isatty() and sys.stdout.isatty()):
+        print("  (not a TTY — falling back to --diff view)")
+        cmd_diff(entries, ecu_filter, pid_filter, show_all=show_all)
+        return
+
+    import termios
+    import tty
+
+    console = Console(highlight=False)
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+
+    i = 0
+    status = ""
+    final_msg = ""
+
+    def redraw(prompt: str | None = None) -> None:
+        sys.stdout.write("\033[2J\033[H")  # clear + home
+        _render_step_frame(
+            console, payloads, i, parameters, tx_id, pid_upper, status=status, prompt=prompt
+        )
+
+    def reload() -> bool:
+        """Re-read captures from disk and rebuild the payload list. False if empty."""
+        nonlocal payloads, parameters, tx_id, i
+        fresh = load_all_captures(captures_dir)
+        payloads, parameters, tx_id = build_list(fresh)
+        if not payloads:
+            return False
+        i = min(i, len(payloads) - 1)
+        return True
+
+    # Alternate screen buffer + hidden cursor for clean redraws.
+    sys.stdout.write("\033[?1049h\033[?25l")
+    sys.stdout.flush()
+    try:
+        tty.setcbreak(fd)
+        while True:
+            redraw()
+            status = ""
+
+            key = _read_key(fd)
+            if key in ("q", "Q", "\x1b\x1b", "\x1b", "\x03"):  # q / Esc / Ctrl-C
+                break
+            elif key in ("\x1b[D", "h", "p"):  # left / prev
+                if i > 0:
+                    i -= 1
+                else:
+                    status = "At first capture"
+            elif key in ("\x1b[C", "l", "n", " "):  # right / next
+                if i < len(payloads) - 1:
+                    i += 1
+                else:
+                    status = "At last capture"
+            elif key in ("\x1b[H", "g"):  # Home / g — first
+                i = 0
+            elif key in ("\x1b[F", "G"):  # End / G — last
+                i = len(payloads) - 1
+            elif key in ("e", "E"):  # edit / add note
+                cap = payloads[i]
+                buf = (cap.get("notes") or "").replace("\n", " ").strip()
+                cancelled = False
+                while True:
+                    redraw(prompt=f"note (Enter=save · Esc=cancel): {buf}\u2588")
+                    k = _read_key(fd)
+                    if k in ("\r", "\n"):
+                        break
+                    if k in ("\x1b", "\x03"):
+                        cancelled = True
+                        break
+                    if k in ("\x7f", "\x08"):  # backspace
+                        buf = buf[:-1]
+                    elif len(k) == 1 and k.isprintable():
+                        buf += k
+                if cancelled:
+                    status = "Note edit cancelled"
+                else:
+                    try:
+                        set_capture_note(
+                            captures_dir / cap["file"],
+                            cap["_session_idx"], cap["_capture_idx"], buf,
+                        )
+                        saved = "Note saved" if buf.strip() else "Note cleared"
+                        if not reload():
+                            final_msg = saved + " — no captures left"
+                            break
+                        status = saved
+                    except Exception as ex:
+                        status = f"Note save failed: {ex}"
+            elif key in ("d", "D"):  # delete current capture (confirmed)
+                cap = payloads[i]
+                redraw(prompt="Delete this capture? (y/N)")
+                if _read_key(fd) in ("y", "Y"):
+                    try:
+                        delete_capture(
+                            captures_dir / cap["file"],
+                            cap["_session_idx"], cap["_capture_idx"],
+                        )
+                        if not reload():
+                            final_msg = "Capture deleted — no captures left"
+                            break
+                        status = "Capture deleted"
+                    except Exception as ex:
+                        status = f"Delete failed: {ex}"
+                else:
+                    status = "Delete cancelled"
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+        sys.stdout.write("\033[?25h\033[?1049l")  # show cursor, leave alt screen
+        sys.stdout.flush()
+
+    if final_msg:
+        print(f"  {final_msg}")
+
+
 
 def _print_entry(e: dict, show_ecu: bool = False) -> None:
     """Print a single capture entry."""
@@ -453,10 +746,14 @@ def main():
         "--diff", "-d", nargs=2, metavar=("ECU", "PID"),
         help="canreq monitor-style view for ECU+PID: decoded params + colored byte-diff",
     )
+    group.add_argument(
+        "--step", "-S", nargs=2, metavar=("ECU", "PID"),
+        help="Interactively step through captures for ECU+PID (arrow keys; e=note, d=delete)",
+    )
 
     parser.add_argument(
         "--all", "-a", action="store_true",
-        help="For --diff: show every payload line instead of unique-only",
+        help="For --diff/--step: use every payload instead of unique-only",
     )
 
     parser.add_argument(
@@ -467,12 +764,12 @@ def main():
     args = parser.parse_args()
 
     # Require at least one mode
-    if not any([args.ecu, args.pid, args.summary, args.latest is not None, args.diff]):
-        parser.error("at least one of --ecu, --pid, --summary, --latest, --diff is required")
+    if not any([args.ecu, args.pid, args.summary, args.latest is not None, args.diff, args.step]):
+        parser.error("at least one of --ecu, --pid, --summary, --latest, --diff, --step is required")
 
-    # --summary/--latest/--diff conflict with --ecu/--pid
-    if (args.summary or args.diff) and (args.ecu or args.pid):
-        parser.error("--summary and --diff cannot be combined with --ecu/--pid")
+    # --summary/--latest/--diff/--step conflict with --ecu/--pid
+    if (args.summary or args.diff or args.step) and (args.ecu or args.pid):
+        parser.error("--summary, --diff and --step cannot be combined with --ecu/--pid")
 
     entries = load_all_captures(args.dir)
 
@@ -484,6 +781,8 @@ def main():
         cmd_summary(entries)
     elif args.diff:
         cmd_diff(entries, args.diff[0], args.diff[1], show_all=args.all)
+    elif args.step:
+        cmd_step(entries, args.step[0], args.step[1], show_all=args.all, captures_dir=args.dir)
     elif args.latest is not None:
         cmd_latest(entries, args.latest or args.ecu or None)
     elif args.ecu or args.pid:
