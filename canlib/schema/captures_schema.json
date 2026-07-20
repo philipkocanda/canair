@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://ioniq-can/captures/schema.json",
-  "title": "Ioniq CAN capture file",
+  "$id": "https://canair/captures/schema.json",
+  "title": "canair capture file",
   "description": "Machine schema for captures/*.yaml. Authoritative; SCHEMA.yaml is the human-readable companion. Cross-checks that can't be expressed here (ecu address must exist in ecus.yaml, filename must match session date) live in validate-captures.py.",
   "type": "object",
   "required": ["sessions"],

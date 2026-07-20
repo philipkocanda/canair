@@ -26,7 +26,15 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from .constants import PIDS_DIR
+
+def _resolve_pids_dir(pids_dir: Path | None) -> Path:
+    """Resolve a pids/ directory, defaulting to the active profile's."""
+    if pids_dir is None:
+        from .profile import active
+
+        return active().pids_dir
+    return Path(pids_dir)
+
 
 # IOControl fields editable from the TUI.
 EDITABLE_FIELDS = ("label", "verified", "notes")
@@ -39,13 +47,13 @@ class PidsEditError(Exception):
 # ── File discovery ───────────────────────────────────────────────────────────
 
 
-def find_ecu_file(ecu_name: str, pids_dir: Path = PIDS_DIR) -> Path:
+def find_ecu_file(ecu_name: str, pids_dir: Path | None = None) -> Path:
     """Return the pids/<ecu>.yaml file that defines ``ecu_name``.
 
     Scans every non-underscore YAML in ``pids_dir`` for a top-level
     ``<ecu_name>:`` key (0-space indent, case-insensitive on the name).
     """
-    pids_dir = Path(pids_dir)
+    pids_dir = _resolve_pids_dir(pids_dir)
     target = ecu_name.strip().upper()
     # Match a top-level key like "IGPM:" — no leading whitespace.
     pattern = re.compile(r"^([A-Za-z][A-Za-z0-9_\-]*):\s*$", re.MULTILINE)
@@ -249,7 +257,7 @@ def _find_ecu_block(text: str, ecu_name: str) -> tuple[int, int]:
     return ecu_start, len(text)
 
 
-def append_routines_block(ecu_name: str, hits, pids_dir: Path = PIDS_DIR) -> Path:
+def append_routines_block(ecu_name: str, hits, pids_dir: Path | None = None) -> Path:
     """Write/overwrite a ``routines:`` section at the end of the ECU block.
 
     If a ``routines:`` section already exists for this ECU, it is replaced
@@ -267,7 +275,7 @@ def append_routines_block(ecu_name: str, hits, pids_dir: Path = PIDS_DIR) -> Pat
 
 
 def append_iocontrol_discoveries_block(
-    ecu_name: str, hits, pids_dir: Path = PIDS_DIR
+    ecu_name: str, hits, pids_dir: Path | None = None
 ) -> Path:
     """Write/overwrite an ``iocontrol_discoveries:`` section at the end of
     the ECU block.
@@ -435,7 +443,7 @@ def update_routines_field(
     rid: str,
     field: str,
     value: str | bool,
-    pids_dir: Path = PIDS_DIR,
+    pids_dir: Path | None = None,
 ) -> Path:
     """Update a single RID field in-place in the ``routines:`` section.
 
@@ -478,7 +486,7 @@ def update_iocontrol_field(
     did: str,
     field: str,
     value: str | bool,
-    pids_dir: Path = PIDS_DIR,
+    pids_dir: Path | None = None,
 ) -> Path:
     """Update a single DID field in-place and return the file path edited.
 
@@ -609,7 +617,7 @@ def promote_discovery(
     ecu_name: str,
     did: str,
     label: str,
-    pids_dir: Path = PIDS_DIR,
+    pids_dir: Path | None = None,
 ) -> Path:
     """Promote a discovery DID to a curated ``iocontrol:`` entry.
 
@@ -872,7 +880,7 @@ def upsert_parameter(
     notes: str | None = None,
     enabled: bool | None = None,
     display: str | None = None,
-    pids_dir: Path = PIDS_DIR,
+    pids_dir: Path | None = None,
 ) -> Path:
     """Add or update one parameter under ``ECU.pids.<PID>.parameters``.
 
@@ -1041,7 +1049,7 @@ def add_research_entry(
     notes: str | None = None,
     sources: list | None = None,
     what_to_test: list | None = None,
-    pids_dir: Path = PIDS_DIR,
+    pids_dir: Path | None = None,
 ) -> Path:
     """Append a new item to the ECU's ``research:`` list (creating it if absent)."""
     provided = {
@@ -1088,7 +1096,7 @@ def set_research_status(
     status: str,
     *,
     type: str | None = None,
-    pids_dir: Path = PIDS_DIR,
+    pids_dir: Path | None = None,
 ) -> Path:
     """Update the ``status:`` of the research item matching ``target`` (and ``type``).
 

@@ -1,16 +1,27 @@
 [project]
-name = "ioniq-can"
+name = "canair"
 version = "0.1.0"
-description = "CAN bus reverse engineering tools for Hyundai Ioniq via WiCAN Pro OBD-II dongle"
+description = "General-purpose CAN/UDS/KWP2000 diagnostic reverse-engineering CLI (WiCAN over-the-air)"
 requires-python = ">=3.12"
 dependencies = [
     "argcomplete>=3.0",
     "jsonschema>=4.0",
     "pyyaml>=6.0",
+    "requests>=2.0",
     "rich>=13.0",
     "ruamel.yaml>=0.18",
     "websockets>=12.0",
 ]
+
+[project.scripts]
+canair = "canlib.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["canlib"]
 
 [dependency-groups]
 dev = [

@@ -6,16 +6,16 @@ description: Reverse-engineer / decode a NEW Ioniq PID or DID end to end — dis
 # Reverse-engineering a new Ioniq PID
 
 This is the end-to-end workflow for taking a PID/DID from "unknown" to a
-verified, decoded parameter in `pids/`. It assumes the broader project context
+verified, decoded parameter in the profile's `pids/`. It assumes the broader project context
 from the **ioniq-reverse-engineering** skill — load that too for vehicle facts,
-the ECU status table, full `canreq.py`/`wican-cli` flag reference, and MQTT/
+the ECU status table, full `canair`/`wican-cli` flag reference, and MQTT/
 profile details. This skill owns the *decoding* procedure and reference.
 
 ## Safety first (non-negotiable)
 
 - **NEVER** use UDS programming session (`10 02`) or any firmware write/upload.
   This is a real, un-brickable car.
-- Be gentle: old, slow ECUs. **One `canreq.py`/WebSocket connection at a time**
+- Be gentle: old, slow ECUs. **One `canair`/WebSocket connection at a time**
   (a second locks up the WiCAN — power-cycle to recover). No concurrent requests
   to the same ECU.
 - **Never reboot the WiCAN without asking.** Using the WebSocket terminal
@@ -32,22 +32,22 @@ orient → prerequisites → discover → capture → inspect → hypothesize
        → define → decode/validate → verify → integrate
 ```
 
-Progress is tracked per-ECU in the `research:` block of `pids/<ecu>.yaml`
-(schema in `pids/_schema.yaml`), graduating:
+Progress is tracked per-ECU in the `research:` block of the profile's `pids/<ecu>.yaml`
+(schema in `canlib/schema/pids_schema.yaml`), graduating:
 `pending → captured → (decoded) → verify → done`, at which point a real
 `parameters:` entry exists and is marked `verified: true`.
 
 ### 1. Orient — pick a target
 
 ```bash
-python3 research.py --summary                 # backlog counts by status/type/priority
-python3 research.py --priority P1             # highest-value open items
-python3 research.py --ecu MCU                 # one ECU's backlog
-python3 pid-coverage.py --no-capture          # params defined but never captured
-python3 pid-coverage.py --unmapped            # captured PIDs with undecoded bytes
+canair research --summary                 # backlog counts by status/type/priority
+canair research --priority P1             # highest-value open items
+canair research --ecu MCU                 # one ECU's backlog
+canair coverage --no-capture              # params defined but never captured
+canair coverage --unmapped                # captured PIDs with undecoded bytes
 ```
 
-`research.py` surfaces *planned* work; `pid-coverage.py` surfaces *undecoded
+`canair research` surfaces *planned* work; `canair coverage` surfaces *undecoded
 bytes* in PIDs you already capture. The ECU status table (parent skill) shows
 which ECUs are worth probing.
 
@@ -59,21 +59,21 @@ an extended session. IGPM (0x770) and BCM (0x7A0) wake from CAN activity;
 powertrain ECUs (BMS/VCU/MCU) generally need ACC/ignition or charging.
 
 ```bash
-python3 canreq.py --discover                  # which ECUs are answering right now
+canair discover                  # which ECUs are answering right now
 ```
 
 ### 3. Discover — which DIDs respond
 
 ```bash
 # service 21 (live data), service 22 (DID read; often needs session+wake)
-python3 canreq.py --scan --tx 7E3 --service 21 --range 01-FF --save
-python3 canreq.py --scan --tx 770 --service 22 --range BC00-BCFF --session --wake --save
+canair scan --tx 7E3 --service 21 --range 01-FF --save
+canair scan --tx 770 --service 22 --range BC00-BCFF --session --wake --save
 ```
 
 Record a research lead as you go:
 
 ```bash
-python3 pids-edit.py add-research MCU --type decode --target 2102 \
+canair pids add-research MCU --type decode --target 2102 \
     --status captured --priority P1 --prereq charging --notes "62 bytes, undecoded"
 ```
 
@@ -81,29 +81,29 @@ python3 pids-edit.py add-research MCU --type decode --target 2102 \
 
 ```bash
 # Preferred: decoded, session-managed, saved
-python3 canreq.py --multi "query MCU:2102" --save --label "MCU 2102 driving" \
+canair query "query MCU:2102" --save --label "MCU 2102 driving" \
     --state "ready, driving" --notes "hard launches + regen"
 # Capture change across time (values that move reveal what a byte means)
-python3 canreq.py --monitor 1 --keep-all --multi "query MCU 2102" --save
+canair query "query MCU 2102" --monitor 1 --keep-all --save
 ```
 
 Capture the SAME PID in DIFFERENT states (park vs drive, cold vs warm, charging
 vs ready) — contrast is what lets you separate signal bytes from constants.
 **Never hand-edit `captures/`.** After saving, run
-`python3 query-captures.py --summary`.
+`canair captures --summary`.
 
 ### 5. Inspect — see the bytes
 
 ```bash
-python3 query-captures.py MCU 2102                      # list captures + decoded
-python3 query-captures.py MCU:2102 --diff               # unique payloads, byte-diff
-python3 query-captures.py MCU:2102 --diff --since 2026-07-19   # scope by date
-python3 query-captures.py MCU:2102 --step               # interactive step-through
-python3 bix.py -1 --annotate 6101FFFF...                # map each byte -> Bnn/ISO-TP/Torque/role
+canair captures MCU 2102                      # list captures + decoded
+canair captures MCU:2102 --diff               # unique payloads, byte-diff
+canair captures MCU:2102 --diff --since 2026-07-19   # scope by date
+canair captures MCU:2102 --step               # interactive step-through
+canair bix -1 --annotate 6101FFFF...          # map each byte -> Bnn/ISO-TP/Torque/role
 ```
 
 Byte-diff highlights which bytes moved between states — your candidate signal
-bytes. `bix.py --annotate` tells you each byte's WiCAN index and flags the PCI
+bytes. `canair bix --annotate` tells you each byte's WiCAN index and flags the PCI
 bytes you must not read across (see Reference below).
 
 ### 6. Hypothesize — form an expression
@@ -114,16 +114,16 @@ at the bottom.
 
 ### 7. Test the expression WITHOUT committing
 
-`decode.py --try` evaluates a candidate against every capture — no YAML edit:
+`canair decode --try` evaluates a candidate against every capture — no YAML edit:
 
 ```bash
-python3 decode.py MCU 2102 --try "MOTOR_RPM:RPM=[S10:S11]"        # value range across captures
-python3 decode.py MCU 2102 --try "TORQUE:Nm=[S12:S13]/100" --stats  # mean/median/stdev/distinct
+canair decode MCU 2102 --try "MOTOR_RPM:RPM=[S10:S11]"        # value range across captures
+canair decode MCU 2102 --try "TORQUE:Nm=[S12:S13]/100" --stats  # mean/median/stdev/distinct
 # Validate by correlation against a known signal (the key RE lever):
-python3 decode.py MCU 2102 --try "T=[S17:S18]" --corr MCU_MOTOR_RPM
+canair decode MCU 2102 --try "T=[S17:S18]" --corr MCU_MOTOR_RPM
 # Or hunt visually: interactive plot, sweep byte interpretations + transforms.
-python3 decode.py MCU 2102 --plot                      # sweep interpretations, find the signal
-python3 decode.py MCU 2102 --plot --corr MCU_MOTOR_RPM # overlay a known signal + live r
+canair decode MCU 2102 --plot                      # sweep interpretations, find the signal
+canair decode MCU 2102 --plot --corr MCU_MOTOR_RPM # overlay a known signal + live r
 ```
 
 Iterate until the range is physical, the distribution makes sense (constant?
@@ -154,17 +154,17 @@ exact captures in that segment.
 
 ### 8. Define — write it to pids/
 
-Use `pids-edit.py` (surgical, comment-preserving, auto-validated + auto-reverted
+Use `canair pids` (surgical, comment-preserving, auto-validated + auto-reverted
 on schema failure) rather than hand-editing:
 
 ```bash
-python3 pids-edit.py upsert-param MCU 2102 MCU_MOTOR_RPM "[S10:S11]" \
+canair pids upsert-param MCU 2102 MCU_MOTOR_RPM "[S10:S11]" \
     --unit RPM --min -10500 --max 10500 --unverified \
     --source "Kia Soul VMCU CSV" --notes "signed 16-bit BE at B10:B11 (ISO-TP 0x07:0x08)"
 ```
 
 New params start `--unverified`. (Hand-editing `pids/` is allowed, but the tool
-keeps field order/quoting correct and runs `validate-pids.py` for you.)
+keeps field order/quoting correct and runs `canair validate pids` for you.)
 
 ### 9. Verify — confirm against reality
 
@@ -172,13 +172,13 @@ Confirm the decoded values across the full history and against known physical
 state, then flip to verified:
 
 ```bash
-python3 decode.py MCU 2102                      # ranges (default) — sanity across captures
-python3 decode.py MCU 2102 --stats              # distribution / enum detection
-python3 pid-coverage.py MCU 2102                # any bytes still unmapped?
-python3 validate-pids.py                        # schema + PCI-boundary checks
+canair decode MCU 2102                      # ranges (default) — sanity across captures
+canair decode MCU 2102 --stats              # distribution / enum detection
+canair coverage MCU 2102                    # any bytes still unmapped?
+canair validate pids                        # schema + PCI-boundary checks
 
-python3 pids-edit.py upsert-param MCU 2102 MCU_MOTOR_RPM "[S10:S11]" --verified   # promote
-python3 pids-edit.py set-status MCU 2102 done --type decode                       # close the lead
+canair pids upsert-param MCU 2102 MCU_MOTOR_RPM "[S10:S11]" --verified   # promote
+canair pids set-status MCU 2102 done --type decode                       # close the lead
 ```
 
 A parameter is `verified: true` only when validated against real data / known
@@ -187,9 +187,9 @@ state (physical correlation, matching a scan tool, or a definitive constant).
 ### 10. Integrate
 
 ```bash
-python3 generate-profile.py                     # regenerate vehicle-profiles/ioniq-2017.json
-python3 generate-profile.py --diff --wican home # compare to device (optional)
-python3 -m pytest -q                            # keep the suite green
+canair wican                     # regenerate profiles/ioniq-2017/out/ioniq-2017.json
+canair wican --diff --wican home # compare to device (optional)
+python3 -m pytest -q             # keep the suite green
 ```
 
 Then consider an upstream wican-fw PR (see parent skill goals).
@@ -198,14 +198,14 @@ Then consider an upstream wican-fw PR (see parent skill goals).
 
 | Step | Tool |
 |------|------|
-| what to work on | `research.py`, `pid-coverage.py` |
-| talk to the car | `canreq.py` (`--scan`/`--discover`/`--multi`/`--monitor`, `--save`) |
-| see captures | `query-captures.py` (`--diff`/`--step`/`--since`/`--until`) |
-| map bytes | `bix.py --annotate` |
-| test expressions | `decode.py --try` / `--stats` / `--corr` / `--plot` |
-| write definitions | `pids-edit.py upsert-param` / `add-research` / `set-status` |
-| validate | `validate-pids.py`, `pid-coverage.py` |
-| ship | `generate-profile.py` |
+| what to work on | `canair research`, `canair coverage` |
+| talk to the car | `canair query`/`scan`/`discover` (`--monitor`, `--save`) |
+| see captures | `canair captures` (`--diff`/`--step`/`--since`/`--until`) |
+| map bytes | `canair bix --annotate` |
+| test expressions | `canair decode --try` / `--stats` / `--corr` / `--plot` |
+| write definitions | `canair pids upsert-param` / `add-research` / `set-status` |
+| validate | `canair validate pids`, `canair coverage` |
+| ship | `canair wican` |
 
 ---
 
@@ -255,15 +255,15 @@ For a `0x22` service request (DID `C00B`), the response starts `62 C0 0B <data..
 bytes.** If a multi-byte value spans a CAN frame boundary (B07-B08, B15-B16,
 etc.), the PCI byte at B08/B16/... is included, producing garbage. Use manual
 bit-shifting instead: `(B07 << 8) | B09` to skip the PCI byte at B08. Always use
-`bix.py` to check whether a byte range crosses a PCI boundary.
+`canair bix` to check whether a byte range crosses a PCI boundary.
 
 ```bash
-python3 bix.py w9        # WiCAN B09 → ISO-TP 0x06, Torque E, bix 32
-python3 bix.py E         # Torque letter → all notations
-python3 bix.py -2 w5     # 2-byte subfunction mode (22xxxx DIDs)
-python3 bix.py --table   # Full conversion table
-python3 bix.py -2 --annotate 62B0047402990C0040A000AAAA   # annotate a real payload
-python3 bix.py --annotate 6101FFFF...                     # service 21 (1-byte PID)
+canair bix w9        # WiCAN B09 → ISO-TP 0x06, Torque E, bix 32
+canair bix E         # Torque letter → all notations
+canair bix -2 w5     # 2-byte subfunction mode (22xxxx DIDs)
+canair bix --table   # Full conversion table
+canair bix -2 --annotate 62B0047402990C0040A000AAAA   # annotate a real payload
+canair bix --annotate 6101FFFF...                     # service 21 (1-byte PID)
 ```
 
 `--annotate` (`-a`) reconstructs the WiCAN frame with PCI bytes inserted and
@@ -388,6 +388,6 @@ DIDs, use the HK DID:
 | F18C             | F18B   | Manufacture Date |
 | F192             | F191   | Supplier HW No   |
 
-`canreq.py --identity` queries both. The ECU answers the HK DID (e.g. `22F187` →
+`canair identity` queries both. The ECU answers the HK DID (e.g. `22F187` →
 `62F187 <part number>`) while the standard DID may NRC. If a scan finds data
 echoing a DID one less than requested, try the -1 DID directly.

@@ -53,7 +53,7 @@ Multi-parameter PIDs that decode well but still have unmapped data bytes worth c
 - [ ] **MCU 2102** (62B, 4p, 1 verified) — motor temps/RPM/torque suspected; almost entirely unmapped. Capture while driving.
 - [ ] **ESC 22C101** (48B, 1p) — only 1 param; needs driving-state captures + decode.
 - [ ] **GSA 220100** (27B, 1p) — gear/lever hall sensors (B19/B21/B22 drift noted); decode.
-- [ ] **AAT 2180** (27B, 4p) / **AAT 2181** (27B, 1p) — ambient/temp sensors, mostly unmapped.
+- [ ] **AAF 2180** (27B, 4p) / **AAF 2181** (27B, 1p) — Active Air Flaps controller; exposes thermal readings (ambient/heater/heatsink/compressor), mostly unmapped.
 - [ ] **CLU 22B001 / 22B002 / 22B003** — odometer decoded on B002; B001/B003 return live-but-undecoded bytes (drive-mode/regen candidate — see section below).
 - [ ] **SKM 22B002** (139B), **22B00B** (55B), **22B009** (34B), **22B003/22B006/22B007/22B008/22B00A/22B005** — all 1 param, essentially undecoded. Large SKM datasets worth a decode pass.
 - [ ] **VCU 2102** (27B, 2p) — mostly unmapped; pair with MCU 2102 while driving.

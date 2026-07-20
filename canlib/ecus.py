@@ -13,18 +13,21 @@ try:
 except ImportError as e:
     raise ImportError("PyYAML not installed. Run: pip3 install pyyaml") from e
 
-from .constants import ECUS_FILE
-
 # Non-address ECU references allowed in capture files (multi-ECU / broadcast
 # captures that don't map to a single physical responder).
 SENTINELS = frozenset({"broadcast"})
 
 
-def load_ecus(path: Path = ECUS_FILE) -> dict:
+def load_ecus(path: Path | None = None) -> dict:
     """Load ECU lookup table from YAML.
 
-    Returns dict: tx_id (int) -> {name, description, ...}.
+    Returns dict: tx_id (int) -> {name, description, ...}. When ``path`` is
+    None, the active vehicle profile's ecus.yaml is used.
     """
+    if path is None:
+        from .profile import active
+
+        path = active().ecus_file
     with open(path) as f:
         data = yaml.safe_load(f)
     result = {}

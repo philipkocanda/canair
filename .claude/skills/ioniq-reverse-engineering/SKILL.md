@@ -37,50 +37,48 @@ Dedicated TODOs for this project are located in "docs/TODO.md"
 ## Project Structure
 
 ```
-├── pids/                               # SOURCE OF TRUTH — per-ECU PID definitions (split by ECU)
-│   ├── _meta.yaml                      # Car model and AT init string
-│   ├── _schema.yaml                    # Schema documentation
-│   ├── bms.yaml, bcm.yaml, vcu.yaml... # One file per ECU
-├── validate-pids.py                     # Schema validation for pids/ YAML files
-├── query-captures.py                    # Query captures: QUERY mini-language, --diff/--step, --summary, --latest
-├── generate-profile.py                  # Generate JSON profiles, upload/download/diff against WiCAN device
-├── canreq.py                            # CLI tool: custom CAN/UDS requests via WiCAN WebSocket terminal
-├── decode.py                            # Decode captured payloads using PID expressions (historical analysis)
-├── pid-coverage.py                      # Audit PID defs for gaps: unmapped bytes, partial bitfields, no-capture
-├── bix.py                               # Byte index converter: WiCAN ↔ ISO-TP ↔ Torque ↔ bix
-├── canlib/                              # Extracted library package (elm827, terminal, pids, captures, modes/, byteindex)
-├── config.yaml                          # Local WiCAN device addresses (gitignored, user-specific)
-├── config.example.yaml                  # Template for config.yaml (committed)
-├── ecus.yaml                            # ECU TX ID → name/description lookup (15 entries)
-├── captures/                            # UDS response captures, split by date
-│   ├── SCHEMA.yaml                      # Capture file schema definition
-│   ├── 2025-08-04.yaml ... 2026-04-16.yaml  # Per-date capture files
-├── validate-captures.py                 # Validate capture files against SCHEMA.yaml
+├── canlib/                              # The canair CLI + shared library package
+│   ├── cli.py                          # argparse entrypoint — the `canair` command
+│   ├── commands/                       # one module per subcommand (query, scan, decode, captures, wican, bix, …)
+│   ├── modes/                          # live query sub-modes (scan, interactive, IOControl, …)
+│   ├── elm827, terminal, expression, session_manager, pids, captures, byteindex …
+│   └── schema/                         # tool-owned schemas: pids_schema.yaml, captures_schema.json
+├── config.example.yaml                  # Template for ~/.config/canair/config.yaml (committed)
+├── profiles/                            # Vehicle profile bundles (each = one car's data)
+│   └── ioniq-2017/                      # bundled default/example profile
+│       ├── pids/                        #   SOURCE OF TRUTH — per-ECU PID definitions (split by ECU)
+│       │   ├── _meta.yaml               #     Car model and AT init string
+│       │   ├── bms.yaml, bcm.yaml, vcu.yaml...  # One file per ECU
+│       ├── ecus.yaml                    #   ECU TX ID → name/description lookup
+│       ├── captures/                    #   UDS response captures, split by date
+│       │   ├── SCHEMA.yaml              #     Capture file schema (points at canlib/schema/captures_schema.json)
+│       │   ├── 2025-08-04.yaml ... 2026-04-16.yaml  # Per-date capture files
+│       └── out/                         #   GENERATED WiCAN profiles (do not hand-edit; run `canair wican`)
 ├── tests/                               # Unit tests (47 tests: elm827, expression, pids, formatting)
 ├── AGENTS.md                            # Project-specific instructions
 ├── docs/                                # Tool documentation (gitignored, local only)
-├── vehicle-profiles/
-│   ├── ioniq-2017.json                  # GENERATED vehicle profile (do not hand-edit; run generate-profile.py)
 ├── configs/                             # WiCAN device config snapshots (full JSON dumps)
 ├── wican-fw/                            # WiCAN firmware checkout (gitignored)
 └── research/                            # Reference data (Kona, Kia Soul, spreadsheets)
 ```
 
+Local (uncommitted) profiles live in `~/.config/canair/profiles/` and shadow bundled ones by name. Selection precedence: `--profile NAME|PATH` (global flag) > `CANAIR_PROFILE` env var > `default_profile` in config > single discovered profile (auto). Inspect with `canair profile list` / `show [NAME]` / `path [NAME]`.
+
 ## WiCAN Configuration
 
 ### Device Access
 
-WiCAN device addresses are configured in `config.yaml` (gitignored, user-specific). Copy from `config.example.yaml` to get started. All CLI tools (`canreq.py`, `generate-profile.py`) read addresses from this file via `canlib.constants`. For device management (config, sleep, protocol, logs, reboot), use the separate [`wican-cli`](https://github.com/philipkocanda/wican-cli) package.
+WiCAN device addresses are configured in `~/.config/canair/config.yaml` (a legacy repo-root `config.yaml` is still read for back-compat; both gitignored, user-specific). Copy from `config.example.yaml` to get started. All `canair` subcommands read addresses from this file via `canlib.constants`. Config keys: `default_profile`, `profiles_dir`, `wican_addresses`, `default_wican`. For device management (config, sleep, protocol, logs, reboot), use the separate [`wican-cli`](https://github.com/philipkocanda/wican-cli) package.
 
 ```yaml
-# config.yaml
+# ~/.config/canair/config.yaml
 wican_addresses:
   home: "10.0.2.86"       # Device on local LAN
   vpn: "192.168.3.2"      # Device via WireGuard VPN (iPhone hotspot)
 default_wican: home
 ```
 
-Without `config.yaml`, tools fall back to `192.168.80.1` (WiCAN factory AP address).
+Without a config file, tools fall back to `192.168.80.1` (WiCAN factory AP address).
 
 - **CLI usage:** `--wican home`, `--wican vpn`, or `--wican <arbitrary-ip>`
 - **Firmware:** [github.com/meatpiHQ/wican-fw](https://github.com/meatpiHQ/wican-fw)
@@ -88,9 +86,9 @@ Without `config.yaml`, tools fall back to `192.168.80.1` (WiCAN factory AP addre
 
 ### Live Data
 
-When WiCAN is in AutoPID/Automate mode, the latest PID values can be read directly: `http://<wican-ip>/autopid_data`. AutoPID caches last received data, so querying it might return stale values if the car is off or the ECU is asleep. For real-time data, use the script `canreq.py` to send direct CAN/UDS requests via the WebSocket terminal mode.
+When WiCAN is in AutoPID/Automate mode, the latest PID values can be read directly: `http://<wican-ip>/autopid_data`. AutoPID caches last received data, so querying it might return stale values if the car is off or the ECU is asleep. For real-time data, use `canair query` to send direct CAN/UDS requests via the WebSocket terminal mode.
 
-**AutoPID stops polling when 12V battery is at or below `sleep_volt` threshold.** The WiCAN may remain WiFi-connected and reachable (not sleeping) but stop sending CAN requests. Current config: `sleep_volt=12.0V`, `sleep_time=5min`. At 12.0V the device is in an ambiguous state — connected but not polling. Stale MQTT values (e.g. lights showing "on" when off) after parking are a symptom of this. Direct `canreq.py` queries still work because they use the WebSocket terminal mode, bypassing AutoPID. Values self-correct on next successful poll cycle (wakeup interval 120min or next drive).
+**AutoPID stops polling when 12V battery is at or below `sleep_volt` threshold.** The WiCAN may remain WiFi-connected and reachable (not sleeping) but stop sending CAN requests. Current config: `sleep_volt=12.0V`, `sleep_time=5min`. At 12.0V the device is in an ambiguous state — connected but not polling. Stale MQTT values (e.g. lights showing "on" when off) after parking are a symptom of this. Direct `canair query` requests still work because they use the WebSocket terminal mode, bypassing AutoPID. Values self-correct on next successful poll cycle (wakeup interval 120min or next drive).
 
 ### Connection
 
@@ -104,9 +102,9 @@ When WiCAN is in AutoPID/Automate mode, the latest PID values can be read direct
 
 WiCAN supports two profile formats — be careful not to confuse them:
 
-1. **Vehicle Profile format** (`vehicle-profiles/ioniq-2017.json`) — grouped parameters per PID, used for upstream PRs. Parameters are key-value pairs: `"PARAM_NAME": "expression"`. **Generated** by `generate-profile.py` from `pids/` — never hand-edit; edit `pids/` and regenerate (see the `generate-profile.py` tool section below).
+1. **Vehicle Profile format** (`profiles/ioniq-2017/out/ioniq-2017.json`) — grouped parameters per PID, used for upstream PRs. Parameters are key-value pairs: `"PARAM_NAME": "expression"`. **Generated** by `canair wican` from the profile's `pids/` — never hand-edit; edit `pids/` and regenerate (see the `canair wican` tool section below).
 
-2. **Device format** — what the firmware actually parses. Parameters as array of objects: `[{"name": "SOC_BMS", "expression": "B09/2", "unit": "%", "class": "battery", "period": "2500", ...}]`. Wrapped in `{"cars": [{"car_model": "...", "init": "...", "pids": [...]}]}`. The `generate-profile.py --upload` command converts format 1 → device format automatically.
+2. **Device format** — what the firmware actually parses. Parameters as array of objects: `[{"name": "SOC_BMS", "expression": "B09/2", "unit": "%", "class": "battery", "period": "2500", ...}]`. Wrapped in `{"cars": [{"car_model": "...", "init": "...", "pids": [...]}]}`. The `canair wican --upload` command converts format 1 → device format automatically.
 
 The **active device config** uses AutoPID format with destination set to `wican/ioniq/pids` and `Default` type (all PIDs published as a single JSON payload to one topic).
 
@@ -114,7 +112,7 @@ The **active device config** uses AutoPID format with destination set to `wican/
 
 ### YAML Source of Truth
 
-PID definitions are split into per-ECU YAML files under `pids/` (e.g. `pids/bms.yaml`, `pids/bcm.yaml`). Each file contains one ECU with its `tx_id` and PIDs. `pids/_meta.yaml` has `car_model` and `init`. Each parameter has:
+PID definitions are split into per-ECU YAML files under the profile's `pids/` (e.g. `profiles/ioniq-2017/pids/bms.yaml`, `.../pids/bcm.yaml`). Each file contains one ECU with its `tx_id` and PIDs. `pids/_meta.yaml` has `car_model` and `init`. Each parameter has:
 
 ```yaml
 PARAM_NAME:
@@ -153,20 +151,20 @@ All endpoints are JSON, no authentication. Device address varies (see Device Acc
 
 ### Tools
 
-#### generate-profile.py
+#### canair wican
 
-Generates the WiCAN vehicle profile from the `pids/` directory.
+Generates the WiCAN vehicle profile from the active profile's `pids/` directory.
 
-**`vehicle-profiles/ioniq-2017.json` is a GENERATED artifact — never hand-edit it.** It is produced entirely from `pids/` (the source of truth). Any manual edit will be silently overwritten on the next run, and hand-edits drift out of sync with `pids/` (e.g. a stale `VEHICLE_SPEED_ALT` lingered in the profile long after it was removed from `pids/`).
+**`profiles/ioniq-2017/out/ioniq-2017.json` is a GENERATED artifact — never hand-edit it.** It is produced entirely from the profile's `pids/` (the source of truth). Any manual edit will be silently overwritten on the next run, and hand-edits drift out of sync with `pids/` (e.g. a stale `VEHICLE_SPEED_ALT` lingered in the profile long after it was removed from `pids/`).
 
 **Workflow after changing any PID definition:**
 
 ```bash
-python3 validate-pids.py        # 1. Validate pids/ against the schema
-python3 generate-profile.py     # 2. Regenerate vehicle-profiles/ioniq-2017.json (local write only)
+canair validate pids        # 1. Validate pids/ against the schema
+canair wican                # 2. Regenerate out/ioniq-2017.json (local write only)
 ```
 
-Only `pids/` is edited by hand; the profile is always regenerated. `generate-profile.py` reads every `pids/*.yaml`, emits the Vehicle Profile format (grouped params per PID) to the single output file `vehicle-profiles/ioniq-2017.json` (`PROFILE_OUT` in the script). Parameters with `enabled: false` are excluded. Other flags:
+Only `pids/` is edited by hand; the profile is always regenerated. `canair wican` reads every `pids/*.yaml`, emits the Vehicle Profile format (grouped params per PID) to the profile's `out/ioniq-2017.json`. Parameters with `enabled: false` are excluded. Other flags:
 
 - `--verified-only` — include only `verified: true` params
 - `--no-write` — dry run (generate without writing the file)
@@ -174,63 +172,63 @@ Only `pids/` is edited by hand; the profile is always regenerated. `generate-pro
 - `--download` / `--diff` — fetch the device's live config and (optionally) diff it against the freshly generated profile
 - `--upload [--reboot]` — convert grouped→device format and POST to the WiCAN (mutative; **ask the user first**, and reboot only when explicitly requested)
 
-Full CLI docs here: `docs/generate-profile.py.md`
+Full CLI docs here: `docs/canair-wican.md`
 
-#### canreq.py
+#### canair query
 
-CLI tool for sending custom CAN/UDS requests to the Ioniq via WiCAN's WebSocket ELM327 terminal mode. Connects to `ws://<ip>/ws`, sends `{"ws_mode": "terminal", "terminal_type": "elm327"}` to enter terminal mode. The firmware handles ISO-TP internally — no Python ISO-TP implementation needed. Core logic lives in `canlib/` package (elm827, terminal, pids, modes/).
+The `canair query` subcommand sends custom CAN/UDS requests to the Ioniq via WiCAN's WebSocket ELM327 terminal mode. Connects to `ws://<ip>/ws`, sends `{"ws_mode": "terminal", "terminal_type": "elm327"}` to enter terminal mode. The firmware handles ISO-TP internally — no Python ISO-TP implementation needed. Core logic lives in `canlib/` package (elm827, terminal, pids, modes/). Discovery/actuation live in sibling subcommands (`canair scan`, `discover`, `io`, `routines`, `raw`, `wake`, `repl`).
 
-**CRITICAL: Only one connection at a time.** The WiCAN has a single WebSocket endpoint. Never run multiple `canreq.py` commands in parallel — the second connection will either fail or lock up the device, requiring a power cycle to recover. Always wait for one command to finish before starting the next.
+**CRITICAL: Only one connection at a time.** The WiCAN has a single WebSocket endpoint. Never run multiple `canair` commands in parallel — the second connection will either fail or lock up the device, requiring a power cycle to recover. Always wait for one command to finish before starting the next.
 
 ```bash
-# Preferred: --multi "query ..." for decoded output with session management
-canreq.py --multi "query BMS 2101"                # Query single PID, decoded parameters
-canreq.py --multi "query BMS 2101" "query VCU 2101"  # Multi-ECU in one session
-canreq.py --multi "session IGPM --wake" "query IGPM BC03 BC06"  # Wake + query
-canreq.py --multi "query BMS 2101" --monitor      # Live-refresh every 5s
+# Preferred: positional query steps for decoded output with session management
+canair query "query BMS 2101"                # Query single PID, decoded parameters
+canair query "query BMS 2101" "query VCU 2101"  # Multi-ECU in one session
+canair query "session IGPM --wake" "query IGPM BC03 BC06"  # Wake + query
+canair query "query BMS 2101" --monitor      # Live-refresh every 5s
 
 # Single-ECU shortcuts (simpler syntax, same decoded output)
-canreq.py --param SOC_BMS SOC_DISP         # Query specific named parameters
-canreq.py --ecu BMS                        # Query all BMS parameters
-canreq.py --ecu BMS --pid 2101             # Query BMS PID 2101 only
+canair query --param SOC_BMS SOC_DISP      # Query specific named parameters
+canair query BMS                           # Query all BMS parameters
+canair query BMS:2101                       # Query BMS PID 2101 only
 
 # Discovery and scanning
-canreq.py --scan --tx 7E4 --service 21 --range 01-FF  # Scan PID range
-canreq.py --discover                       # Sweep 0x700-0x7EF for responding ECUs
-canreq.py --identity --tx 7A0 --session    # Query UDS identity DIDs
+canair scan --tx 7E4 --service 21 --range 01-FF  # Scan PID range
+canair discover                            # Sweep 0x700-0x7EF for responding ECUs
+canair identity --tx 7A0 --session         # Query UDS identity DIDs
 
 # Raw mode — last resort (hex dump only, no parameter decoding)
-canreq.py --raw 7E4:2101                   # Raw UDS request
-canreq.py --raw 770:2FBC0103 --wake --hold # IOControl with session held open
+canair raw 7E4:2101                        # Raw UDS request
+canair raw 770:2FBC0103 --wake --hold      # IOControl with session held open
 
 # IOControl (dedicated mode with TUI)
-canreq.py --iocontrol IGPM                 # Interactive TUI
-canreq.py --iocontrol IGPM --did BC01      # Turn on low beam
+canair io IGPM                             # Interactive TUI
+canair io IGPM --did BC01                  # Turn on low beam
 
 # Other
-canreq.py                                  # Interactive REPL
-canreq.py --wican vpn --param SOC_BMS      # Use VPN address
-canreq.py --json --param SOC_BMS           # JSON output
+canair repl                                # Interactive REPL
+canair query --wican vpn --param SOC_BMS   # Use VPN address
+canair query --json --param SOC_BMS        # JSON output
 ```
 
-> **Mode guidance:** Use `--multi "query ..."` or `--param`/`--ecu` for decoded, readable output. Use `--raw` only when no PID definition exists yet, or for ad-hoc UDS commands (IOControl without YAML, exploratory reads). `--verbose` is for debugging canreq itself — not useful for normal operation.
+> **Mode guidance:** Use positional `"query ..."` steps or `--param`/`canair query ECU` for decoded, readable output. Use `canair raw` only when no PID definition exists yet, or for ad-hoc UDS commands (IOControl without YAML, exploratory reads). `--verbose` is for debugging canair itself — not useful for normal operation.
 
-##### `--multi` flag (multi-ECU pipeline)
+##### positional query steps (multi-ECU pipeline)
 
-Executes a sequence of sub-commands within a single WebSocket session, managing extended diagnostic sessions across multiple ECUs with interleaved TesterPresent keepalives. After the pipeline completes, exits by default. Use `--repl` to drop into an interactive REPL with all sessions still active, or include an explicit `repl` step in the pipeline.
+`canair query` executes a sequence of positional STEP arguments within a single WebSocket session (the "multi" mini-language), managing extended diagnostic sessions across multiple ECUs with interleaved TesterPresent keepalives. After the pipeline completes, exits by default. Use `--repl` to drop into an interactive REPL with all sessions still active, or include an explicit `repl` step in the pipeline. (A bare selector like `BMS:2101` is treated as a query step.)
 
 ```bash
 # Wake SKM, query IGPM, exit
-canreq.py --multi "skm-wake acc" "query IGPM BC03 BC06"
+canair query "skm-wake acc" "query IGPM BC03 BC06"
 
 # Wake SKM + BCM, raw query charge port, exit
-canreq.py --multi "skm-wake acc" "session BCM --wake" "raw 7A0:22B00E"
+canair query "skm-wake acc" "session BCM --wake" "raw 7A0:22B00E"
 
 # Wake IGPM, query all PIDs, drop into REPL
-canreq.py --multi "session IGPM --wake" "query IGPM" --repl
+canair query "session IGPM --wake" "query IGPM" --repl
 
 # Pipeline with explicit sleep between steps
-canreq.py --multi "skm-wake acc" "sleep 1" "query BCM B00E" "repl"
+canair query "skm-wake acc" "sleep 1" "query BCM B00E" "repl"
 ```
 
 **Sub-commands:**
@@ -239,7 +237,7 @@ canreq.py --multi "skm-wake acc" "sleep 1" "query BCM B00E" "repl"
 |----------------------------------|-----------------------------------------------------|
 | `skm-wake [level]`              | Wake SKM + activate relay (acc/ign1/ign2/start)     |
 | `session <ECU\|TX_ID> [--wake]` | Enter extended session on ECU (add to session table) |
-| `query <ECU> [PID ...]`         | Query ECU parameters (like `--ecu`/`--param`)       |
+| `query <ECU> [PID ...]`         | Query ECU parameters (like `--param`/`canair query ECU`) |
 | `raw <TX:PID>`                  | Raw UDS request                                      |
 | `scan <TX> <SVC> <RANGE> [APP]` | Scan PID range                                       |
 | `security <ECU> [algo ...]`     | Try UDS Security Access (27 01/02) with key algorithms |
@@ -249,16 +247,16 @@ canreq.py --multi "skm-wake acc" "sleep 1" "query BCM B00E" "repl"
 
 ECU names are resolved from YAML definitions (e.g., `IGPM`, `BCM`, `SKM`) or can be hex TX IDs (`770`, `7A0`).
 
-##### `security` sub-command (in `--multi` pipeline)
+##### `security` sub-command (in a query pipeline)
 
 Attempts UDS Security Access (service `27`) on an ECU by requesting a seed (`27 01`) and computing a key (`27 02`) using common Hyundai/Kia key algorithms. Requires an active extended session on the target ECU. Tries all built-in algorithms by default, or a filtered subset if algorithm names are given.
 
 ```bash
 # Try all algorithms on BCM (session must be open)
-canreq.py --multi "session BCM --wake" "security BCM"
+canair query "session BCM --wake" "security BCM"
 
 # Try specific algorithms only
-canreq.py --multi "session BCM --wake" "security BCM not xor-0d0b0507 ki203-30bacd45"
+canair query "session BCM --wake" "security BCM not xor-0d0b0507 ki203-30bacd45"
 
 # In REPL after opening a session
 security BCM ki221-std
@@ -272,23 +270,23 @@ security BCM ki221-std
 
 ##### `--monitor` flag (live refresh)
 
-Turns a `--multi` pipeline into a live-refreshing monitor. Non-query steps (session, skm-wake, sleep) run once as setup; all `query` steps are then polled repeatedly in a background task. The display renders into the **alternate screen with a scrollable viewport**, so output taller than the terminal can be scrolled. Sessions are kept alive with background TesterPresent keepalives.
+Turns a `canair query` pipeline into a live-refreshing monitor. Non-query steps (session, skm-wake, sleep) run once as setup; all `query` steps are then polled repeatedly in a background task. The display renders into the **alternate screen with a scrollable viewport**, so output taller than the terminal can be scrolled. Sessions are kept alive with background TesterPresent keepalives.
 
 **Scrolling / keys (interactive TTY):** `↑`/`↓` or `j`/`k` scroll a line, `PgUp`/`PgDn` page, `g`/`Home` jump to top, `G`/`End` jump to bottom, `f` toggles follow-tail (on by default — the view sticks to the newest output and detaches when you scroll up), and `q` or `Ctrl+C` stops. On stop, if the full output is taller than the terminal it's opened in a pager (`$PAGER`/`less -R`) so you can review everything (great with `--keep-all`). When stdout is **not** a TTY (piped/scripted), it polls silently until `Ctrl+C` and prints the final values.
 
 
 ```bash
 # Monitor BMS every 5s (default interval)
-canreq.py --multi "query BMS 2101" --monitor
+canair query "query BMS 2101" --monitor
 
 # Monitor BCM (all known PIDs in bcm.yaml), keep unique payloads per PID
-canreq.py --monitor --keep-unique --multi "query BCM"
+canair query "query BCM" --monitor --keep-unique
 
 # Monitor IGPM status with 2s interval, wake from deep sleep
-canreq.py --multi "session IGPM --wake" "query IGPM BC03 BC06" --monitor 2
+canair query "session IGPM --wake" "query IGPM BC03 BC06" --monitor 2
 
 # Monitor BCM voltage ADCs with full payload history (every cycle)
-canreq.py --monitor 2 --keep-all --multi "session BCM --wake" "query BCM B003 B004"
+canair query "session BCM --wake" "query BCM B003 B004" --monitor 2 --keep-all
 ```
 
 **Hex display features:**
@@ -301,24 +299,24 @@ canreq.py --monitor 2 --keep-all --multi "session BCM --wake" "query BCM B003 B0
 
 **`--keep-all` flag:** Retains every payload from every poll cycle (including duplicates), with timestamps. Useful for logging all responses over time, even when values don't change.
 
-**`--save` flag:** Saves results to `captures/YYYY-MM-DD.yaml`. Works with `--scan`, `--raw`, `--discover`, **`--multi` (any `query`/`raw` step)**, and `--monitor --keep-unique/--keep-all`. Provide `--label` (and optionally `--state`/`--notes`) to save **non-interactively** (no prompt) — this is how agents/scripts should always call it. Without `--label`, the CLI prompts for metadata on stdin (label auto-suggested, Enter to accept). Using `--save`/`--label`/`--state`/`--notes` with an unsupported mode errors out (fails loud). Examples:
+**`--save` flag:** Saves results to the profile's `captures/YYYY-MM-DD.yaml`. Works with `canair scan`, `canair raw`, `canair discover`, **`canair query` (any `query`/`raw` step)**, and `--monitor --keep-unique/--keep-all`. Provide `--label` (and optionally `--state`/`--notes`) to save **non-interactively** (no prompt) — this is how agents/scripts should always call it. Without `--label`, the CLI prompts for metadata on stdin (label auto-suggested, Enter to accept). Using `--save`/`--label`/`--state`/`--notes` with an unsupported mode errors out (fails loud). Examples:
 
 ```bash
 # Non-interactive (preferred for agents): live multi-ECU snapshot
-canreq.py --multi "query MCU" "query VCU:2101" --wican vpn \
+canair query "query MCU" "query VCU:2101" --wican vpn \
   --save --label "MCU/VCU live reference" --state "ready, parked" --notes "~18C ambient"
 
-canreq.py --scan --tx 7E4 --service 22 --range BC01-BC0B --save --label "Scan BMS BC01-BC0B"
+canair scan --tx 7E4 --service 22 --range BC01-BC0B --save --label "Scan BMS BC01-BC0B"
 
-canreq.py --raw 7E4:2101 --save --label "Raw BMS 2101" --state "ready"
+canair raw 7E4:2101 --save --label "Raw BMS 2101" --state "ready"
 
-canreq.py --discover --save --label "Discovery 700-7EF"
+canair discover --save --label "Discovery 700-7EF"
 
-canreq.py --multi "query BCM C00B B003 B004" --monitor 5 --keep-unique --save --label "BCM monitor"
+canair query "query BCM C00B B003 B004" --monitor 5 --keep-unique --save --label "BCM monitor"
 # ... monitor runs, Ctrl+C -> saves ...
 
 # Interactive (human): omit --label to be prompted for metadata
-canreq.py --raw 7E4:2101 --save
+canair raw 7E4:2101 --save
 ```
 
 **NEVER hand-write or edit capture YAML files** — always record via `--save`. For edits/removals use the `canlib.captures` helpers (`set_capture_note`, `delete_capture`).
@@ -327,37 +325,37 @@ Press Ctrl+C to stop monitoring.
 
 **Session management:** The SessionManager tracks all ECUs with active extended sessions and sends TesterPresent (`3E00`) keepalives to stale sessions before each foreground command. In the REPL, a background task sends keepalives every 2s. This allows querying one ECU while keeping sessions alive on others (e.g., keeping SKM ACC relay active while reading BCM charge port data).
 
-**Multi-ECU REPL commands** (via `--repl` or `repl` step): same sub-commands as `--multi` pipeline steps (`session`, `query`, `raw`, `skm-wake`, `scan`, `sleep`, `quit`). The `!` prefix is optional.
+**Multi-ECU REPL commands** (via `--repl` or `repl` step): same sub-commands as the query pipeline steps (`session`, `query`, `raw`, `skm-wake`, `scan`, `sleep`, `quit`). The `!` prefix is optional.
 
-##### `--identity` flag
+##### `canair identity`
 
 Queries standard UDS identity DIDs from an ECU and prints decoded results. Covers the common Hyundai/Kia identity DID set. Requires `--tx`. Use `--session` for most ECUs; use `--wake` for deep-sleeping ECUs (IGPM). Silently skips unsupported DIDs (NRC responses). Use `!identity` in interactive mode after setting a header with `ATSH`.
 
 ```sh
-canreq.py --identity --tx 7A0 --wake --wican home
+canair identity --tx 7A0 --wake --wican home
 ```
 
 Known results (deep sleep, no ACC):
 - **BCM (0x7A0):** F18C=`1705310070`, F18B=`2017-05-31`, F100=`180`, F194=`100`, F195=`0880`, F196=`220`, F1A4=`620`
 - **IGPM (0x770):** F18B=`2017-06-06`, F100=`20`, F101=`160205`, F110=`(empty)`, F194=`100`, F196=`109`
 
-##### `--iocontrol` flag
+##### `canair io` (IOControl)
 
 Executes IOControl (service `2F`) commands defined in the `iocontrol:` section of pids/ YAML files. Session and hold behavior are auto-applied from the YAML metadata.
 
 ```bash
 # List all IOControl DIDs for an ECU (no CAN connection needed)
-canreq.py --iocontrol IGPM
-canreq.py --iocontrol BCM --json
+canair io IGPM
+canair io BCM --json
 
 # Execute ON command (auto-session, hold until Ctrl+C if hold: true)
-canreq.py --iocontrol IGPM --did BC01
+canair io IGPM --did BC01
 
 # Execute OFF command
-canreq.py --iocontrol IGPM --did BC01 --off
+canair io IGPM --did BC01 --off
 
-# In multi pipeline (session managed by pipeline)
-canreq.py --multi "iocontrol IGPM BC01" "sleep 3" "iocontrol IGPM BC01 --off"
+# In a query pipeline (session managed by pipeline)
+canair query "iocontrol IGPM BC01" "sleep 3" "iocontrol IGPM BC01 --off"
 ```
 
 **Behavior:**
@@ -368,7 +366,7 @@ canreq.py --multi "iocontrol IGPM BC01" "sleep 3" "iocontrol IGPM BC01 --off"
 
 ECUs with IOControl DIDs: IGPM, BCM, SKM, PSM, VESS (see respective `pids/*.yaml` files).
 
-##### `--scan` flag
+##### `canair scan`
 
 Iterates through a range of PIDs or DIDs, sending each as a UDS request, and reports which ones respond positively. Standard way to discover what data an ECU exposes.
 
@@ -381,25 +379,25 @@ Requires `--tx` (ECU TX ID). Optional arguments:
 | `--append`  | —       | Hex bytes appended after each DID (e.g. `03` for IOControl ShortTermAdjustment) |
 | `--session` | off     | Enter extended diagnostic session (`10 03`) before scanning                 |
 | `--wake`    | off     | Wake ECU from deep sleep first (implies `--session`)                        |
-| `--save`    | off     | Save results to `captures/YYYY-MM-DD.yaml` (prompts for label)             |
+| `--save`    | off     | Save results to the profile's `captures/YYYY-MM-DD.yaml` (prompts for label) |
 | `--verbose` | off     | Show NRC codes and errors for non-responding DIDs                           |
 | `--json`    | off     | Output full results as JSON                                                 |
 
 ```bash
 # Scan all service 21 PIDs on BMS (0x7E4)
-canreq.py --scan --tx 7E4 --service 21 --range 01-FF
+canair scan --tx 7E4 --service 21 --range 01-FF
 
 # Scan service 22 DIDs on IGPM (needs extended session + wake)
-canreq.py --scan --tx 770 --service 22 --range BC00-BCFF --session --wake
+canair scan --tx 770 --service 22 --range BC00-BCFF --session --wake
 
 # IOControl scan with ShortTermAdjustment suffix (2F{DID}03)
-canreq.py --scan --tx 7E4 --service 2F --range E000-E0FF --append 03 --session
+canair scan --tx 7E4 --service 2F --range E000-E0FF --append 03 --session
 
 # Scan and auto-save results to captures/
-canreq.py --scan --tx 7A0 --service 22 --range B000-B0FF --session --save
+canair scan --tx 7A0 --service 22 --range B000-B0FF --session --save
 
-# In a --multi pipeline
-canreq.py --multi "session IGPM --wake" "scan 770 22 BC00-BCFF"
+# In a query pipeline
+canair query "session IGPM --wake" "scan 770 22 BC00-BCFF"
 ```
 
 **Safety notes:**
@@ -407,14 +405,14 @@ canreq.py --multi "session IGPM --wake" "scan 770 22 BC00-BCFF"
 - Use small ranges first to gauge ECU response time, then expand.
 - IOControl scans (`--service 2F`) may actuate physical hardware — ensure the car is in a safe state.
 
-##### `--discover` flag
+##### `canair discover`
 
 Sweeps a range of CAN TX addresses to find responding ECUs. Sends `10 01` (default session request) to each address and reports which ones respond (positive or NRC — both indicate a live ECU).
 
 ```bash
-canreq.py --discover                       # Sweep 0x700-0x7EF (default)
-canreq.py --discover --range 600-6FF       # Custom range
-canreq.py --discover --delay 0.5           # Slower pacing (default: 0.2s)
+canair discover                       # Sweep 0x700-0x7EF (default)
+canair discover --range 600-6FF       # Custom range
+canair discover --delay 0.5           # Slower pacing (default: 0.2s)
 ```
 
 ##### `--session` flag
@@ -429,19 +427,19 @@ Currently the IGPM (0x770) and BCM (0x7A0) are known to wake from deep sleep via
 
 ##### `--hold` flag
 
-Keeps the extended diagnostic session alive after the command completes, until Ctrl+C. Useful for IOControl commands (`2FBCxx03`) where the actuator releases as soon as the session drops. Implies `--session`. Only works with `--raw` mode.
+Keeps the extended diagnostic session alive after the command completes, until Ctrl+C. Useful for IOControl commands (`2FBCxx03`) where the actuator releases as soon as the session drops. Implies `--session`. Only works with `canair raw`.
 
 **Interactive mode built-in commands:** `!decode` (decode last response), `!hexdump` (hex dump), `!info <ECU>` (show ECU info), `!list` (list ECUs), `!identity` (query identity DIDs for current header ECU), `!reboot` (reboot WiCAN), `!quit`.
 
 **Dependencies:** `websockets`, `pyyaml`. Optional: `requests` (for `--reboot`).
 
-**ALWAYS use `canreq.py` for any CAN/UDS communication with the vehicle. Never write custom Python code to open a WebSocket, send ELM327 commands, or talk to the WiCAN device. If `canreq.py` doesn't support a particular operation, discuss with the user before working around it.**
+**ALWAYS use `canair` (`query`/`scan`/`raw`/`io`/…) for any CAN/UDS communication with the vehicle. Never write custom Python code to open a WebSocket, send ELM327 commands, or talk to the WiCAN device. If `canair` doesn't support a particular operation, discuss with the user before working around it.**
 
 **IMPORTANT:** Using the WebSocket terminal overrides AutoPID mode. The WiCAN must be rebooted after a terminal session for AutoPID (MQTT data feed) to resume (though user must be asked first).
 
 **Never reboot the WiCAN without asking the user first.** Always ask whether they are done probing the CAN bus before suggesting or triggering a reboot.
 
-**CRITICAL: Only one connection at a time.** Never run multiple `canreq.py` commands in parallel — the second connection will either fail or lock up the device, requiring a power cycle to recover.
+**CRITICAL: Only one connection at a time.** Never run multiple `canair` commands in parallel — the second connection will either fail or lock up the device, requiring a power cycle to recover.
 
 #### wican-cli (separate package)
 
@@ -471,7 +469,7 @@ wican --wican vpn sleep               # Use VPN address
 
 **Important:** `POST /store_config` replaces the entire config on flash and auto-reboots the device. The tool handles this by doing a GET first, modifying only the changed fields, and POSTing the full config back.
 
-**Tip: Disable sleep during reverse engineering sessions.** When probing ECUs with `canreq.py`, the WiCAN may go to sleep mid-session if the 12V battery voltage drops below the threshold (especially with engine off). Disable sleep before starting a session and re-enable it when done:
+**Tip: Disable sleep during reverse engineering sessions.** When probing ECUs with `canair`, the WiCAN may go to sleep mid-session if the 12V battery voltage drops below the threshold (especially with engine off). Disable sleep before starting a session and re-enable it when done:
 
 ```bash
 wican sleep --disable    # Before RE session
@@ -481,33 +479,33 @@ wican sleep --enable     # After RE session
 
 ### Captures
 
-UDS response payloads are stored in `captures/` as per-date YAML files (e.g. `2026-04-16.yaml`). Schema defined in `captures/SCHEMA.yaml`. Each file contains sessions with `date`, `label`, `state` (optional), and a list of captures. Each capture has `ecu` (name from `ecus.yaml`), `pid`, `notes`, and exactly one of `payload` (hex), `response` (text/NRC), or `scan_results` (structured).
+UDS response payloads are stored in the profile's `captures/` as per-date YAML files (e.g. `2026-04-16.yaml`). Schema defined in `captures/SCHEMA.yaml` (tool-owned: `canlib/schema/captures_schema.json`). Each file contains sessions with `date`, `label`, `state` (optional), and a list of captures. Each capture has `ecu` (name from `ecus.yaml`), `pid`, `notes`, and exactly one of `payload` (hex), `response` (text/NRC), or `scan_results` (structured).
 
-**Saving captures:** NEVER hand-write/edit capture YAML. Record device reads with `--save` (works with `--scan`, `--raw`, `--discover`, `--multi` query/raw steps, and `--monitor`). Pass `--label`/`--state`/`--notes` for non-interactive save (agents should always do this); without `--label` it prompts. Shared save logic in `canlib/captures.py`; for edits/removals use its `set_capture_note`/`delete_capture` helpers.
+**Saving captures:** NEVER hand-write/edit capture YAML. Record device reads with `--save` (works with `canair scan`, `canair raw`, `canair discover`, `canair query` query/raw steps, and `--monitor`). Pass `--label`/`--state`/`--notes` for non-interactive save (agents should always do this); without `--label` it prompts. Shared save logic in `canlib/captures.py`; for edits/removals use its `set_capture_note`/`delete_capture` helpers.
 
-**Querying captures:** After adding new captures, always run `query-captures.py` to check for patterns that weren't obvious during the live session (e.g. byte-level changes between states, new ECU/PID combinations, payload length differences).
+**Querying captures:** After adding new captures, always run `canair captures` to check for patterns that weren't obvious during the live session (e.g. byte-level changes between states, new ECU/PID combinations, payload length differences).
 ```bash
-python3 query-captures.py IGPM 22BC03               # ECU+PID combination (most useful)
-python3 query-captures.py --summary                  # Overview stats: captures per ECU/date
-python3 query-captures.py BMS                        # All captures for an ECU
-python3 query-captures.py "BMS:2102,2103"            # Several PIDs (query mini-language)
-python3 query-captures.py --latest BMS               # Most recent payload per PID
-python3 query-captures.py IGPM 22BC03 --diff         # Byte-level diff (red=changed, dim=unchanged)
-python3 query-captures.py IGPM 22BC03 --step         # Interactively step through captures
+canair captures IGPM 22BC03               # ECU+PID combination (most useful)
+canair captures --summary                  # Overview stats: captures per ECU/date
+canair captures BMS                        # All captures for an ECU
+canair captures "BMS:2102,2103"            # Several PIDs (query mini-language)
+canair captures --latest BMS               # Most recent payload per PID
+canair captures IGPM 22BC03 --diff         # Byte-level diff (red=changed, dim=unchanged)
+canair captures IGPM 22BC03 --step         # Interactively step through captures
 ```
 
-**Decoding captures:** `decode.py` applies PID expressions to captures and, by default, reports each parameter's value **range** across all captures (payload/byte views live in `query-captures.py`). It also tests candidate expressions (`--try`), and does statistics/correlation (`--stats`/`--corr`). Full decode workflow: the **reverse-engineer-pid** skill.
+**Decoding captures:** `canair decode` applies PID expressions to captures and, by default, reports each parameter's value **range** across all captures (payload/byte views live in `canair captures`). It also tests candidate expressions (`--try`), and does statistics/correlation (`--stats`/`--corr`). Full decode workflow: the **reverse-engineer-pid** skill.
 
 ```bash
-python3 decode.py BMS 2101                            # Value range per param across captures (default)
-python3 decode.py BMS 2101 --param SOC_BMS            # Filter to specific params
-python3 decode.py BMS 2101 --compact                  # One line per capture (value evolution)
-python3 decode.py MCU 2102 --stats                    # mean/median/stdev/distinct per param
-python3 decode.py MCU 2102 --try "T:Nm=[S12:S13]/100" # Test a candidate expression (no YAML edit)
-python3 decode.py MCU 2102 --corr MCU_MOTOR_RPM       # Correlate params vs a known signal
+canair decode BMS 2101                            # Value range per param across captures (default)
+canair decode BMS 2101 --param SOC_BMS            # Filter to specific params
+canair decode BMS 2101 --compact                  # One line per capture (value evolution)
+canair decode MCU 2102 --stats                    # mean/median/stdev/distinct per param
+canair decode MCU 2102 --try "T:Nm=[S12:S13]/100" # Test a candidate expression (no YAML edit)
+canair decode MCU 2102 --corr MCU_MOTOR_RPM       # Correlate params vs a known signal
 ```
 
-**Auditing coverage:** Use `pid-coverage.py` to find decoding gaps across all PID
+**Auditing coverage:** Use `canair coverage` to find decoding gaps across all PID
 definitions. It cross-references each PID's parameter expressions against its
 longest captured payload and reports **UNMAPPED** data bytes, incomplete **BITS**
 (bytes read bit-by-bit with undecoded bits left), and **NO CAPTURE** PIDs (params
@@ -515,19 +513,19 @@ defined but nothing captured yet). Byte indices are WiCAN Bnn (PCI/SID/DID-echo
 excluded). Run after adding params or captures to see what still needs work.
 
 ```bash
-python3 pid-coverage.py                    # Audit every ECU/PID
-python3 pid-coverage.py IGPM               # Filter to one ECU
-python3 pid-coverage.py IGPM 22BC03        # Single ECU/PID
-python3 pid-coverage.py --bitfields        # Only incomplete-bitfield findings
-python3 pid-coverage.py --unmapped         # Only unmapped-byte findings
-python3 pid-coverage.py --no-capture       # PIDs with params but no capture
-python3 pid-coverage.py --all              # Include fully-mapped PIDs too
-python3 pid-coverage.py --json             # Machine-readable output
+canair coverage                    # Audit every ECU/PID
+canair coverage IGPM               # Filter to one ECU
+canair coverage IGPM 22BC03        # Single ECU/PID
+canair coverage --bitfields        # Only incomplete-bitfield findings
+canair coverage --unmapped         # Only unmapped-byte findings
+canair coverage --no-capture       # PIDs with params but no capture
+canair coverage --all              # Include fully-mapped PIDs too
+canair coverage --json             # Machine-readable output
 ```
 
 
 ```bash
-python3 validate-captures.py              # Validate all capture files against schema
+canair validate captures              # Validate all capture files against schema
 ```
 
 ### AT Command Init
@@ -536,13 +534,13 @@ Per-ECU init: `ATSH{id};ATFCSH{id};` (e.g. `ATSH7E4;ATFCSH7E4;` for BMS). Global
 
 ## WiCAN Byte Index Notation
 
-Moved to the **reverse-engineer-pid** skill: byte layout, the `[Bnn:Bmm]` PCI-boundary caution, expression syntax, and the full WiCAN ↔ ISO-TP ↔ Torque ↔ bix conversion table. Load that skill when decoding a payload; use `bix.py` for one-off lookups (`bix.py --table`, `bix.py --annotate <hex>`).
+Moved to the **reverse-engineer-pid** skill: byte layout, the `[Bnn:Bmm]` PCI-boundary caution, expression syntax, and the full WiCAN ↔ ISO-TP ↔ Torque ↔ bix conversion table. Load that skill when decoding a payload; use `canair bix` for one-off lookups (`canair bix --table`, `canair bix --annotate <hex>`).
 
 ## Memory
 
 ### 2026-04-19 — AutoPID stops at sleep_volt threshold even when WiCAN stays connected
 
-When 12V battery drops to `sleep_volt` (currently 12.0V), the WiCAN stops AutoPID polling but remains WiFi-connected. This creates a deceptive state: device is reachable, `/autopid_data` returns data, but values are stale from the last successful poll. Observed: after parking, DRL/low beam/tail lights showed "on" via MQTT because the WiCAN polled during a drive with lights on, then stopped polling when voltage dropped to 12.0V. Direct `canreq.py` queries confirmed lights were actually off. Fix: values self-correct on next successful poll. Consider raising `sleep_volt` slightly (e.g. 12.2V) to create a clearer gap vs. the actual sleep trigger.
+When 12V battery drops to `sleep_volt` (currently 12.0V), the WiCAN stops AutoPID polling but remains WiFi-connected. This creates a deceptive state: device is reachable, `/autopid_data` returns data, but values are stale from the last successful poll. Observed: after parking, DRL/low beam/tail lights showed "on" via MQTT because the WiCAN polled during a drive with lights on, then stopped polling when voltage dropped to 12.0V. Direct `canair query` reads confirmed lights were actually off. Fix: values self-correct on next successful poll. Consider raising `sleep_volt` slightly (e.g. 12.2V) to create a clearer gap vs. the actual sleep trigger.
 
 ### 2026-04-19 — BCM 95400-G7470 is Ioniq AE Electric (BEV) only
 
@@ -559,7 +557,7 @@ This means IOControl DIDs that accept but produce no visible effect are **not** 
 
 ### 2026-04-16 — IGPM status reads confirmed during deep sleep
 
-Tested querying IGPM (0x770) while car is in deep sleep using `canreq.py --ecu IGPM --wake`. Sequence: wake frame `10 01` (returns NO DATA, expected), then extended session `10 03` (succeeds), then `22BC03`/`22BC04`/`22BC06` all return valid data. Confirmed readable: all 5 door open/close states, trunk, 4 door locks, all lights (DRL/tail/high/low beam), ignition, seatbelts, brake light, turn signals. All values consistent with parked locked car (doors closed, locked, lights off, ignition off). This means **periodic IGPM polling during WiCAN wake cycles is feasible** — no SKM wake or fob needed for IGPM reads.
+Tested querying IGPM (0x770) while car is in deep sleep using `canair query IGPM --wake`. Sequence: wake frame `10 01` (returns NO DATA, expected), then extended session `10 03` (succeeds), then `22BC03`/`22BC04`/`22BC06` all return valid data. Confirmed readable: all 5 door open/close states, trunk, 4 door locks, all lights (DRL/tail/high/low beam), ignition, seatbelts, brake light, turn signals. All values consistent with parked locked car (doors closed, locked, lights off, ignition off). This means **periodic IGPM polling during WiCAN wake cycles is feasible** — no SKM wake or fob needed for IGPM reads.
 
 ### 2026-04-14 — Capture decoder + expression evaluator
 
@@ -567,7 +565,7 @@ Created expression evaluator (`canlib/expression.py`) — faithful Python port o
 
 ## ECU Research Status
 
-Derived from `~/obsidian-vault/KB/EV/Hyundai Ioniq/Reverse engineering/PIDs by ECU/`. For untested ECU/PID combinations, query the per-ECU `research:` sections with `research.py` (e.g. `research.py --summary`, `research.py --priority P1`).
+Derived from `~/obsidian-vault/KB/EV/Hyundai Ioniq/Reverse engineering/PIDs by ECU/`. For untested ECU/PID combinations, query the per-ECU `research:` sections with `canair research` (e.g. `canair research --summary`, `canair research --priority P1`).
 
 ### ECU Status Overview
 
@@ -582,7 +580,7 @@ Derived from `~/obsidian-vault/KB/EV/Hyundai Ioniq/Reverse engineering/PIDs by E
 | IGPM      | 0x770  | ✅ Working   | Full IOControl map complete (BC00-BCFF scanned). 27 actuator DIDs, 11 status registers. Confirmed: lights, horn, turn signals, DRL, CHMSL, brake lights, trunk, door lock/unlock, charge cable lock/unlock. Wakes from deep sleep via `1001` — **status reads (BC03/BC04/BC06) confirmed working during deep sleep** (doors, locks, lights, ignition all readable). See `docs/IOControl CLI commands.md`. |
 | SKM/SMK   | 0x7A5  | ✅ Working   | ACC relay IOControl (`2FB108030A0A05`) — UDS positive response confirmed but **relay only physically closes with fob nearby**. Without fob, `6FB10803` returned but IGPM BC03 ignition byte stays `0x00`. `skm-wake` command now verifies via IGPM BC03 (step 4/4). **Wakes from rapid-fire `1001` without fob** (2 attempts at 64ms timeout). ACC/IGN1/IGN2 IOControl accepted but powertrain ECUs stay dead. ACC releases when session drops. See `docs/wakeup-research.md`. |
 | LDC       | 0x7E5  | 🔶 Partial   | Confirmed LDC/OBC combined (ecu_id `AEEOBC51`). **Available in ACC2/IGN**. 2101 (48-byte): 2026-07-20 verified via live READY-vs-charging + BMS cross-check — LDC_HV_INPUT_V=`[B45:B46]/100` (386.9V=BMS pack), LDC_OUTPUT_V=14.15V (=BMS aux), LDC_TEMP=`B19-100` (21→65°C over 3h charge, Soul -100 offset), OBC_CHARGE_V `[B10:B11]`=397V, OBC_OUTPUT_V `[B12:B13]`=386V (idle in READY), OBC_DC_A=5.2A (=BMS charge current), pilot 10% at 10A AC. Removed bogus OBC temps (S15/S17=current bytes, S16=PCI 0x22) + OBC_AC_INPUT_V(=B15 current). **OBC internal temps are NOT broadcast** — full charging capture confirms no heatsink/inside/water temp (candidate bytes are dead constants). 2102 = static calibration. 2103: NRC 0x12. |
-| Gateway   | 0x7E6  | ✅ Working    | Ambient temp via `2180`, expression `(B18-80)/2`. Not a discrete ECU — likely gateway-forwarded. |
+| AAF       | 0x7E6  | ✅ Working    | Active Air Flaps controller (confirmed by "AAF" module code in sw_id/firmware). Exposes thermal readings via `2180`/`2181`: ambient temp `(B18-80)/2`, plus heater/heatsink/compressor temps. |
 | Charging  | 0x744  | ❓ Unverified | Cross-platform evidence only, not confirmed for Ioniq 28 kWh. |
 | PSM       | 0x7A3  | 🔶 Research  | Power seat IOControl `2f b4 xx` — slide, recline, height. From e-Niro only, not tested. |
 | VESS      | 0x736  | 🔶 Research  | Vehicle Exterior Sound System. IOControl commands known, Python script exists. Not yet tested. |
@@ -625,7 +623,7 @@ Key files: `PIDs by ECU/` (per-ECU research, summarized in ECU Status table abov
 
 ## Open TODOs
 
-For the full untested ECU/PID backlog with priorities, prerequisites, and status, query the per-ECU `research:` sections: `research.py --summary` / `research.py --priority P1`.
+For the full untested ECU/PID backlog with priorities, prerequisites, and status, query the per-ECU `research:` sections: `canair research --summary` / `canair research --priority P1`.
 
 **Active investigation items:**
 - [ ] **VCU speed** — unit resolved as MPH (converted to km/h in expression), low byte = B19 unsigned (reads 0 at park); still verify with GPS across full range, and validate ESC `22C101` `REAL_SPEED_KMH` (B12) as the true dashboard speed source (only captured at standstill so far)

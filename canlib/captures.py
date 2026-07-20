@@ -11,8 +11,6 @@ from pathlib import Path
 
 from ruamel.yaml import YAML
 
-CAPTURES_DIR = Path(__file__).parent.parent / "captures"
-
 
 # ---------------------------------------------------------------------------
 # YAML round-trip (comment-preserving)
@@ -310,12 +308,17 @@ def build_discover_session(
 # File I/O
 # ---------------------------------------------------------------------------
 
-def save_session(session: dict, captures_dir: Path = CAPTURES_DIR) -> Path:
+def save_session(session: dict, captures_dir: Path | None = None) -> Path:
     """Append a session dict to captures/YYYY-MM-DD.yaml. Returns the file path.
 
     Existing content (including comments) is preserved via a ruamel round-trip;
-    only the newly appended session is rendered fresh.
+    only the newly appended session is rendered fresh. When ``captures_dir`` is
+    None, the active vehicle profile's captures/ directory is used.
     """
+    if captures_dir is None:
+        from .profile import active
+
+        captures_dir = active().captures_dir
     today = datetime.now().strftime("%Y-%m-%d")
     capture_file = captures_dir / f"{today}.yaml"
 

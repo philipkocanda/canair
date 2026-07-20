@@ -1,14 +1,8 @@
 """Tests for decode.py --plot helpers: byte interpretation, transforms, rendering."""
 
-import importlib.util
 import math
-from pathlib import Path
 
-_SPEC = importlib.util.spec_from_file_location(
-    "decode_plot", Path(__file__).resolve().parent.parent / "decode.py"
-)
-dp = importlib.util.module_from_spec(_SPEC)
-_SPEC.loader.exec_module(dp)
+from canlib.commands import decode as dp
 
 U8 = ("u8", 1, "int", False)
 I8 = ("i8", 1, "int", True)

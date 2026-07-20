@@ -1,15 +1,9 @@
-"""Tests for pids-edit.py CLI orchestration (snapshot -> edit -> validate gate)."""
+"""Tests for `canair pids` CLI orchestration (snapshot -> edit -> validate gate)."""
 
-import importlib.util
-from pathlib import Path
 
 import pytest
 
-_SPEC = importlib.util.spec_from_file_location(
-    "pids_edit_cli", Path(__file__).resolve().parent.parent / "pids-edit.py"
-)
-cli = importlib.util.module_from_spec(_SPEC)
-_SPEC.loader.exec_module(cli)
+from canlib.commands import pids as cli
 
 
 @pytest.fixture

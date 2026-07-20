@@ -1,6 +1,6 @@
 """CAN/UDS library for WiCAN ELM327 terminal communication."""
 
-from .constants import DEFAULT_WICAN, ECUS_FILE, PIDS_DIR, SCRIPT_DIR, WICAN_ADDRESSES
+from .constants import SCRIPT_DIR
 from .decoding import decode_param_rows
 from .elm327 import (
     BLOCKED_UDS_SERVICES,
@@ -40,10 +40,8 @@ from .terminal import WiCANTerminal, reboot_wican
 __all__ = [
     "BLOCKED_UDS_SERVICES",
     "DEFAULT_WICAN",
-    "ECUS_FILE",
     "NRC_ABBREV",
     "NRC_CODES",
-    "PIDS_DIR",
     "SCRIPT_DIR",
     "WICAN_ADDRESSES",
     "WiCANTerminal",
@@ -78,3 +76,12 @@ __all__ = [
     "rx_addr_str",
     "rx_from_name",
 ]
+
+
+def __getattr__(name):
+    """Lazily expose profile/config-dependent constants (PEP 562)."""
+    if name in ("DEFAULT_WICAN", "WICAN_ADDRESSES", "PIDS_DIR", "ECUS_FILE", "CAPTURES_DIR"):
+        from . import constants
+
+        return getattr(constants, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

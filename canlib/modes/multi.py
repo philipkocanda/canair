@@ -30,7 +30,6 @@ import re
 import shlex
 import time
 
-from ..constants import PIDS_DIR
 from ..decoding import decode_param_rows
 from ..elm327 import parse_elm_response
 from ..formatting import (
@@ -264,7 +263,7 @@ async def _exec_query(
                     if not quiet:
                         print(f"  WARNING: Invalid PID format '{u}', skipping")
             if raw_pids and not quiet:
-                print(f"  NOTE: {', '.join(raw_pids)} not in {PIDS_DIR.name}/ — querying raw")
+                print(f"  NOTE: {', '.join(raw_pids)} not in pids/ — querying raw")
 
         if not pids_to_query and not raw_pids:
             print(f"  No matching PIDs for filter: {pid_filter}")
