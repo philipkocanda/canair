@@ -14,6 +14,8 @@ from pathlib import Path
 
 import yaml
 
+from canlib.byteindex import wican_to_isotp
+
 SCRIPT_DIR = Path(__file__).parent
 PIDS_DIR = SCRIPT_DIR / "pids"
 SCHEMA_FILE = PIDS_DIR / "_schema.yaml"
@@ -53,6 +55,47 @@ def validate_expression(expr: str, param_name: str, pid: str, ecu: str) -> list[
             f"{ecu}/{pid}/{param_name}: suspicious expression chars: '{cleaned.strip()}' in '{expr}'"
         )
     return errors
+
+
+def check_pci_bytes(expr: str, param_name: str, pid: str, ecu: str) -> list[str]:
+    """Warn if an expression reads ISO-TP PCI bytes.
+
+    PCI (frame-header) bytes live at WiCAN indices 0, 1, 8, 16, 24, 32, ...
+    (``wican_to_isotp`` returns None for them). Reading one yields the frame
+    counter/length, not real data — a common byte-index mistake. This also
+    flags multi-byte ranges ``[Bnn:Bmm]`` that *span* a PCI byte, since those
+    read consecutive raw bytes without skipping PCI.
+    """
+    warnings = []
+
+    def is_pci(idx: int) -> bool:
+        return wican_to_isotp(idx) is None
+
+    # Multi-byte ranges: [Bnn:Bmm] / [Snn:Smm] — flag if any index in range is PCI
+    ranges = []
+    for m in re.finditer(r"\[[BS](\d+):[BS](\d+)\]", expr):
+        a, b = int(m.group(1)), int(m.group(2))
+        lo, hi = min(a, b), max(a, b)
+        ranges.append((m.span(), lo, hi))
+        pci = [x for x in range(lo, hi + 1) if is_pci(x)]
+        if pci:
+            warnings.append(
+                f"{ecu}/{pid}/{param_name}: range '{m.group(0)}' spans ISO-TP PCI byte(s) "
+                f"{', '.join(f'B{x}' for x in pci)} — reads frame header, not data"
+            )
+
+    # Single byte refs: Bnn, Snn, Bnn:k — skip those inside a flagged range
+    for m in re.finditer(r"[BS](\d+)", expr):
+        idx = int(m.group(1))
+        if any(start <= m.start() < end for (start, end), _, _ in ranges):
+            continue
+        if is_pci(idx):
+            warnings.append(
+                f"{ecu}/{pid}/{param_name}: reads ISO-TP PCI byte B{idx} "
+                f"(frame header, not data) in '{expr}'"
+            )
+    return warnings
+
 
 
 def validate_ecu_file(
@@ -210,6 +253,7 @@ def validate_ecu_file(
                 expr = param.get("expression", "")
                 if expr:
                     errors.extend(validate_expression(expr, param_name, pid_str, ecu_name))
+                    warnings.extend(check_pci_bytes(expr, param_name, pid_str, ecu_name))
 
                 # Stats
                 if param.get("verified", False):
