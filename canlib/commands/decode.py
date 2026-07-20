@@ -1214,4 +1214,9 @@ def run(args) -> int:
         printed = True
     if not printed:
         print_value_ranges(all_results, param_names, parameters, candidate_names)
+        if sys.stdout.isatty():
+            print(
+                f"\n  {_DIM}Tip: add --plot to interactively explore these signals "
+                f"(byte interpretations, transforms, correlations).{_RESET}"
+            )
     return 0

@@ -332,20 +332,23 @@ Then edit `~/.config/canair/config.yaml` (created automatically on first run) to
 your WiCAN device address(es). `config.example.yaml` in the repo documents every key.
 
 In the repo, `uv run canair ...` also works without installing. Enable tab-completion
-(subcommands, flags, and ECU/PID names from the active profile) by adding one line to
-your shell startup file (`~/.zshrc`, `~/.bashrc`, …), then restart your shell:
+(subcommands, flags, and ECU/PID names from the active profile) with one command:
 
 ```bash
-eval "$(canair completion zsh)"    # or: bash | fish (see `canair completion --help`)
+canair completion --install    # auto-detects your shell; open a new shell afterwards
 ```
+
+This writes the completion script into your shell's autoload directory (fish/bash need
+no further setup; zsh loads it from a directory on `$fpath`). To wire it up manually
+instead, add `eval "$(canair completion zsh)"` to your shell startup file.
 
 **For development** (`uv run canair`, no global install): completion hooks the `canair`
 command word, so it won't fire through the `uv run` prefix. Activate the project venv so
-`canair` is on your `PATH` directly, then register as above:
+`canair` is on your `PATH` directly, then install as above:
 
 ```bash
 uv sync && source .venv/bin/activate
-eval "$(canair completion zsh)"
+canair completion --install
 ```
 
 The WiCAN Pro must be powered on and connected to your WiFi network (or you connect to its AP). Device addresses are configured in `~/.config/canair/config.yaml` (a legacy repo-root `config.yaml` is still read for back-compat) — the `--wican` flag selects which address to use (e.g. `--wican home`, `--wican vpn`, or `--wican 192.168.80.1`). Without a config file, tools default to `192.168.80.1` (WiCAN's built-in AP).
