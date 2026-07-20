@@ -19,6 +19,8 @@ You can also use the ELM327 command to reset the bus if that is what you need.
 
 This skill covers the Hyundai Ioniq 2017 EV CAN bus reverse engineering project, including OBD-II PID definitions, WiCAN Pro vehicle profile configuration, and MQTT data publishing.
 
+**Reverse-engineering a new PID/DID?** Load the companion **reverse-engineer-pid** skill for the end-to-end decode workflow (discover → capture → analyze → define → verify) plus the byte-index/expression and UDS-decoding reference.
+
 Dedicated TODOs for this project are located in "docs/TODO.md"
 
 ### Goals
@@ -44,6 +46,7 @@ Dedicated TODOs for this project are located in "docs/TODO.md"
 ├── generate-profile.py                  # Generate JSON profiles, upload/download/diff against WiCAN device
 ├── canreq.py                            # CLI tool: custom CAN/UDS requests via WiCAN WebSocket terminal
 ├── decode.py                            # Decode captured payloads using PID expressions (historical analysis)
+├── pid-coverage.py                      # Audit PID defs for gaps: unmapped bytes, partial bitfields, no-capture
 ├── bix.py                               # Byte index converter: WiCAN ↔ ISO-TP ↔ Torque ↔ bix
 ├── canlib/                              # Extracted library package (elm827, terminal, pids, captures, modes/, byteindex)
 ├── config.yaml                          # Local WiCAN device addresses (gitignored, user-specific)
@@ -489,15 +492,35 @@ python3 query-captures.py --latest BMS               # Most recent payload per P
 python3 query-captures.py --diff IGPM 22BC03         # Byte-level diff (red=changed, dim=unchanged)
 ```
 
-**Decoding captures:** Use `decode.py` to apply PID parameter expressions to captured payloads and see decoded values. Essential for validating expressions against real data and spotting anomalies (out-of-range values, wrong offsets, PCI boundary issues).
+**Decoding captures:** `decode.py` applies PID expressions to captures and, by default, reports each parameter's value **range** across all captures (payload/byte views live in `query-captures.py`). It also tests candidate expressions (`--try`), and does statistics/correlation (`--stats`/`--corr`). Full decode workflow: the **reverse-engineer-pid** skill.
 
 ```bash
-python3 decode.py BMS 2101                            # Full table: all params × all captures
-python3 decode.py BMS 2101 --param SOC_BMS BATTERY_VOLTAGE  # Filter to specific params
-python3 decode.py BMS 2101 --compact                  # One-liner per capture
-python3 decode.py BMS 2101 --unverified               # Only unverified params (validation focus)
-python3 decode.py BMS 2101 --json                     # JSON output (for further processing)
+python3 decode.py BMS 2101                            # Value range per param across captures (default)
+python3 decode.py BMS 2101 --param SOC_BMS            # Filter to specific params
+python3 decode.py BMS 2101 --compact                  # One line per capture (value evolution)
+python3 decode.py MCU 2102 --stats                    # mean/median/stdev/distinct per param
+python3 decode.py MCU 2102 --try "T:Nm=[S12:S13]/100" # Test a candidate expression (no YAML edit)
+python3 decode.py MCU 2102 --corr MCU_MOTOR_RPM       # Correlate params vs a known signal
 ```
+
+**Auditing coverage:** Use `pid-coverage.py` to find decoding gaps across all PID
+definitions. It cross-references each PID's parameter expressions against its
+longest captured payload and reports **UNMAPPED** data bytes, incomplete **BITS**
+(bytes read bit-by-bit with undecoded bits left), and **NO CAPTURE** PIDs (params
+defined but nothing captured yet). Byte indices are WiCAN Bnn (PCI/SID/DID-echo
+excluded). Run after adding params or captures to see what still needs work.
+
+```bash
+python3 pid-coverage.py                    # Audit every ECU/PID
+python3 pid-coverage.py IGPM               # Filter to one ECU
+python3 pid-coverage.py IGPM 22BC03        # Single ECU/PID
+python3 pid-coverage.py --bitfields        # Only incomplete-bitfield findings
+python3 pid-coverage.py --unmapped         # Only unmapped-byte findings
+python3 pid-coverage.py --no-capture       # PIDs with params but no capture
+python3 pid-coverage.py --all              # Include fully-mapped PIDs too
+python3 pid-coverage.py --json             # Machine-readable output
+```
+
 
 ```bash
 python3 validate-captures.py              # Validate all capture files against schema
@@ -509,137 +532,7 @@ Per-ECU init: `ATSH{id};ATFCSH{id};` (e.g. `ATSH7E4;ATFCSH7E4;` for BMS). Global
 
 ## WiCAN Byte Index Notation
 
-WiCAN expressions index into the **raw CAN frame data including PCI bytes**. The firmware's ELM327 response parser (`parse_elm327_response()` in `autopid.c`) runs with headers ON and copies ALL 8 CAN data bytes per frame (including ISO-TP PCI bytes) sequentially into a flat byte array.
-
-### Byte layout (AutoPID internal format)
-
-For a multi-frame response to `2101` on BMS (0x7E4):
-
-```
-Frame 0 (First Frame):  [10 3B] [61 01 FF FF FF FF]  → B00-B07
-Frame 1 (Consecutive):  [21]    [d  d  d  d  d  d  d] → B08-B15
-Frame 2 (Consecutive):  [22]    [d  d  d  d  d  d  d] → B16-B23
-...
-```
-
-- `B00` = PCI high byte (0x10), `B01` = PCI low byte (length)
-- `B02` = SID response (0x61), `B03` = PID echo (0x01)
-- `B08` = PCI consecutive (0x21), `B09` = first actual data byte of frame 1
-- PCI bytes occupy indices 0, 8, 16, 24, 32, 40, 48, 56, ...
-
-### Byte indexing examples
-
-For a `0x21` service request (PID `01`), the response starts `61 01 <data...>`:
-- `B0` = `0x61` (service response ID)
-- `B1` = `0x01` (PID echo)
-- `B2` = first data byte
-
-For a `0x22` service request (DID `C00B`), the response starts `62 C0 0B <data...>`:
-- `B0` = `0x62` (service response ID)
-- `B1` = `0xC0` (DID high byte)
-- `B2` = `0x0B` (DID low byte)
-- `B3` = first data byte
-
-### Expression syntax
-
-`Bnn` (unsigned byte), `Snn` (signed), `[Bnn:Bmm]` (multi-byte unsigned), `[Snn:Smm]` (multi-byte signed), `Bnn:k` (bit k, 0=LSB). Operators: `+ - * / << >> & | ^`. See `expression_parser.c` source for full reference.
-
-**CAUTION: `[Bnn:Bmm]` reads consecutive raw bytes — it does NOT skip PCI bytes.** If a multi-byte value spans a CAN frame boundary (B07-B08, B15-B16, etc.), the PCI byte at B08/B16/... will be included in the value, producing garbage. Use manual bit-shifting instead: `(B07 << 8) | B09` to skip the PCI byte at B08. Always use `bix.py` to verify whether your byte range crosses a PCI boundary.
-
-Use `bix.py` to convert between WiCAN, ISO-TP, Torque, and OBDb (bix) byte index notations:
-
-```bash
-python3 bix.py w9        # WiCAN B09 → ISO-TP 0x06, Torque E, bix 32
-python3 bix.py E         # Torque letter → all notations
-python3 bix.py -2 w5     # 2-byte subfunction mode (22xxxx DIDs)
-python3 bix.py --table   # Full conversion table
-
-# Annotate a UDS response payload — shows WiCAN Bnn for each byte
-python3 bix.py -2 --annotate 62B0047402990C0040A000AAAA
-python3 bix.py --annotate 6101FFFF...           # service 21 (1-byte PID)
-python3 bix.py -2 -a "62 B0 04 74 02 99"       # spaces OK
-```
-
-The `--annotate` (`-a`) flag takes raw UDS response bytes (as seen in `canreq --raw` or monitor output), reconstructs the WiCAN frame with PCI bytes inserted, and prints a table with each byte's WiCAN Bnn, ISO-TP index, Torque letter, bix, and role (PCI/SID/DID/PID). Use `-1` (default) for service 21 or `-2` for service 22 DIDs.
-
-### Conversion Table (WiCAN ↔ ISO-TP ↔ Torque ↔ bix)
-
-Each CAN frame has 8 data bytes. PCI bytes (at WiCAN indices 0, 8, 16, 24, ...) are consumed by ISO-TP framing and have no ISO-TP/Torque/bix equivalent. Torque 1/bix 1 are for 1-byte subfunctions (service `21xx`), Torque 2/bix 2 for 2-byte subfunctions (service `22xxxx`).
-
-| WiCAN | ISO-TP | Torque 1 | bix 1 | Torque 2 | bix 2 |
-| ----- | ------ | -------- | ----- | -------- | ----- |
-| 0     |        |          |       |          |       |
-| 1     |        |          |       |          |       |
-| 2     | 0x00   |          |       |          |       |
-| 3     | 0x01   |          |       |          |       |
-| 4     | 0x02   | A        | 0     |          |       |
-| 5     | 0x03   | B        | 8     | A        | 0     |
-| 6     | 0x04   | C        | 16    | B        | 8     |
-| 7     | 0x05   | D        | 24    | C        | 16    |
-| 8     |        |          |       |          |       |
-| 9     | 0x06   | E        | 32    | D        | 24    |
-| 10    | 0x07   | F        | 40    | E        | 32    |
-| 11    | 0x08   | G        | 48    | F        | 40    |
-| 12    | 0x09   | H        | 56    | G        | 48    |
-| 13    | 0x0A   | I        | 64    | H        | 56    |
-| 14    | 0x0B   | J        | 72    | I        | 64    |
-| 15    | 0x0C   | K        | 80    | J        | 72    |
-| 16    |        |          |       |          |       |
-| 17    | 0x0D   | L        | 88    | K        | 80    |
-| 18    | 0x0E   | M        | 96    | L        | 88    |
-| 19    | 0x0F   | N        | 104   | M        | 96    |
-| 20    | 0x10   | O        | 112   | N        | 104   |
-| 21    | 0x11   | P        | 120   | O        | 112   |
-| 22    | 0x12   | Q        | 128   | P        | 120   |
-| 23    | 0x13   | R        | 136   | Q        | 128   |
-| 24    |        |          |       |          |       |
-| 25    | 0x14   | S        | 144   | R        | 136   |
-| 26    | 0x15   | T        | 152   | S        | 144   |
-| 27    | 0x16   | U        | 160   | T        | 152   |
-| 28    | 0x17   | V        | 168   | U        | 160   |
-| 29    | 0x18   | W        | 176   | V        | 168   |
-| 30    | 0x19   | X        | 184   | W        | 176   |
-| 31    | 0x1A   | Y        | 192   | X        | 184   |
-| 32    |        |          |       |          |       |
-| 33    | 0x1B   | Z        | 200   | Y        | 192   |
-| 34    | 0x1C   | AA       | 208   | Z        | 200   |
-| 35    | 0x1D   | AB       | 216   | AA       | 208   |
-| 36    | 0x1E   | AC       | 224   | AB       | 216   |
-| 37    | 0x1F   | AD       | 232   | AC       | 224   |
-| 38    | 0x20   | AE       | 240   | AD       | 232   |
-| 39    | 0x21   | AF       | 248   | AE       | 240   |
-| 40    |        |          |       |          |       |
-| 41    | 0x22   | AG       | 256   | AF       | 248   |
-| 42    | 0x23   | AH       | 264   | AG       | 256   |
-| 43    | 0x24   | AI       | 272   | AH       | 264   |
-| 44    | 0x25   | AJ       | 280   | AI       | 272   |
-| 45    | 0x26   | AK       | 288   | AJ       | 280   |
-| 46    | 0x27   | AL       | 296   | AK       | 288   |
-| 47    | 0x28   | AM       | 304   | AL       | 296   |
-| 48    |        |          |       |          |       |
-| 49    | 0x29   | AN       | 312   | AM       | 304   |
-| 50    | 0x2A   | AO       | 320   | AN       | 312   |
-| 51    | 0x2B   | AP       | 328   | AO       | 320   |
-| 52    | 0x2C   | AQ       | 336   | AP       | 328   |
-| 53    | 0x2D   | AR       | 344   | AQ       | 336   |
-| 54    | 0x2E   | AS       | 352   | AR       | 344   |
-| 55    | 0x2F   | AT       | 360   | AS       | 352   |
-| 56    |        |          |       |          |       |
-| 57    | 0x30   | AU       | 368   | AT       | 360   |
-| 58    | 0x31   | AV       | 376   | AU       | 368   |
-| 59    | 0x32   | AW       | 384   | AV       | 376   |
-| 60    | 0x33   | AX       | 392   | AW       | 384   |
-| 61    | 0x34   | AY       | 400   | AX       | 392   |
-| 62    | 0x35   | AZ       | 408   | AY       | 400   |
-| 63    | 0x36   | BA       | 416   | AZ       | 408   |
-| 64    |        |          |       |          |       |
-| 65    | 0x37   | BB       | 424   | BA       | 416   |
-| 66    | 0x38   | BC       | 432   | BB       | 424   |
-| 67    | 0x39   | BD       | 440   | BC       | 432   |
-| 68    | 0x3A   | BE       | 448   | BD       | 440   |
-| 69    | 0x3B   | BF       | 456   | BE       | 448   |
-| 70    | 0x3C   | BG       | 464   | BF       | 456   |
-| 71    | 0x3D   | BH       | 472   | BG       | 464   |
+Moved to the **reverse-engineer-pid** skill: byte layout, the `[Bnn:Bmm]` PCI-boundary caution, expression syntax, and the full WiCAN ↔ ISO-TP ↔ Torque ↔ bix conversion table. Load that skill when decoding a payload; use `bix.py` for one-off lookups (`bix.py --table`, `bix.py --annotate <hex>`).
 
 ## Memory
 
@@ -670,7 +563,7 @@ Created expression evaluator (`canlib/expression.py`) — faithful Python port o
 
 ## ECU Research Status
 
-Derived from `~/obsidian-vault/KB/EV/Hyundai Ioniq/Reverse engineering/PIDs by ECU/`. For untested ECU/PID combinations, see `untested-pids-index.yaml`.
+Derived from `~/obsidian-vault/KB/EV/Hyundai Ioniq/Reverse engineering/PIDs by ECU/`. For untested ECU/PID combinations, query the per-ECU `research:` sections with `research.py` (e.g. `research.py --summary`, `research.py --priority P1`).
 
 ### ECU Status Overview
 
@@ -694,41 +587,9 @@ Derived from `~/obsidian-vault/KB/EV/Hyundai Ioniq/Reverse engineering/PIDs by E
 
 Source: `KB/EV/Hyundai Ioniq/Reverse engineering/Hyundai Kia UDS DID Conventions.md`
 
-### PID Categories
+### PID / DID decoding conventions
 
-- **`0x21xx` PIDs** — fast live data snapshots; no extended session or security needed; multiple parameters per response; use manufacturer-specific function byte `0x21`
-- **`0x22xx` PIDs** — structured, may need extended diagnostic session (`10 03`); use standard UDS ReadDataByIdentifier (`22`); some DIDs are writable via `2E` — handle with care
-
-### DID Paging vs Indexing
-
-- Some ECUs (e.g. BMS) use **paging**: `2101`, `2102`, `2103`, `2104` each return a different block of data (the `xx` is a page number, not a DID)
-- Other ECUs use **indexing**: `2101`, `2102` are sub-functions or pages within the same dataset
-
-### DID Range Semantics (Hyundai/Kia convention)
-
-- `0x21xx` — live data, manufacturer-specific
-- `0x22Bxxx` — cluster/display data
-- `0x22Cxxx` — body/comfort (BCM, TPMS)
-- `0x22Exxx` — powertrain (BMS, MCU, VCU, HVAC)
-- `0x22Fxxx` — often flash/calibration data — **do not write**
-
-### Hyundai/Kia DID -1 Offset (F1xx Identity DIDs)
-
-Hyundai/Kia ECUs use identity DIDs shifted by **-1** from the standard UDS specification. When reading standard UDS identity DIDs (`22 F1xx`), use the Hyundai/Kia DID instead:
-
-| Standard UDS DID | HK DID | Field            |
-|------------------|--------|------------------|
-| F188             | F187   | ECU Part Number  |
-| F18C             | F18B   | Manufacture Date |
-| F192             | F191   | Supplier HW No   |
-
-The `--identity` flag in `canreq.py` queries both standard and HK DIDs. The ECU responds positively to the HK DID (e.g. `22F187` → `62F187 <part number>`) while the standard DID (F188) returns NRC 0x31 during deep sleep.
-
-**Confirmed part numbers via F187:**
-- BCM (0x7A0): `95400G7470`
-- IGPM (0x770): `91950G7510`
-
-This -1 offset may also apply to other DID ranges — when a DID scan finds data echoing a DID one less than requested, try the -1 DID directly.
+Moved to the **reverse-engineer-pid** skill: PID categories (`21xx` vs `22xx`), DID paging vs indexing, DID range semantics, and the Hyundai/Kia F1xx `-1` identity-DID offset.
 
 ### Security Access
 
@@ -760,7 +621,7 @@ Key files: `PIDs by ECU/` (per-ECU research, summarized in ECU Status table abov
 
 ## Open TODOs
 
-For the full untested ECU/PID index with priorities, prerequisites, and scan commands, see `untested-pids-index.yaml`.
+For the full untested ECU/PID backlog with priorities, prerequisites, and status, query the per-ECU `research:` sections: `research.py --summary` / `research.py --priority P1`.
 
 **Active investigation items:**
 - [ ] **VCU speed** — unit resolved as MPH (converted to km/h in expression), low byte = B19 unsigned (reads 0 at park); still verify with GPS across full range, and validate ESC `22C101` `REAL_SPEED_KMH` (B12) as the true dashboard speed source (only captured at standstill so far)

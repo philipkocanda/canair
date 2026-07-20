@@ -225,6 +225,24 @@ VCU:
             output target/command rather than the battery terminal. Use BMS AUX_BATTERY_VOLTAGE or LDC_OUTPUT_V
             for the real 12V. Kept for research trail; excluded from profile.
 
+        VCU_TORQUE_REQUEST:
+          expression: "[S12:S13]"
+          unit: ""
+          min: "-32768"
+          max: "32767"
+          enabled: false
+          source: "Phase 1 variance/correlation analysis (2026-07-20); Kia Soul EV VMCU torque fields"
+          source_links: []
+          verified: false
+          notes: >
+            UNVERIFIED CANDIDATE (Phase 1, 2026-07-20) — needs Phase 2 validation. Signed 16-bit
+            big-endian at B12:B13 (ISO-TP 0x09:0x0A). Reads exactly 0 at park and swings ±~31000 while
+            driving — a genuine dynamic powertrain signal, most likely a VCU-level torque request /
+            available-torque or power value (the VCU coordinates torque demand). Showed r=−0.65 vs the
+            (2101) vehicle speed proxy, but that cross-PID join was loose, so both the physical meaning and
+            the scale/units are UNKNOWN. Raw signed value only for now; enabled:false until a synced VCU
+            2101+2102 drive capture pins it down (torque request vs motor torque vs power). Do not publish.
+
         # VCU_MOTOR_RPM:
         #   expression: "((S7<<8)|B6)"
         #   unit: RPM
@@ -311,6 +329,9 @@ VCU:
       what_to_test:
         - "Re-map motor RPM/torque/temps under MCU 0x7E3 2101/2102 using the Soul VMCU scalings as a guide"
         - "Confirm B17 HV voltage with a same-instant BMS read while driving"
+        - "VCU_TORQUE_REQUEST [S12:S13] (Phase 1 candidate, 0 at park, ±31k driving) — determine physical meaning + scale; is it torque request, available torque, or power? Join with VCU 2101 speed/pedal + MCU 2102 torque."
+        - "EWP (electric water pump) speed / target RPM — Soul VMCU exposes these; look for a 0..190 byte that spins up under load/charge (EPCU coolant loop exists even though the 28 kWh battery is air-cooled). Candidates among the dynamic bytes B22/B25/B26."
+        - "Coolant/EPCU temperature(s) — B20/B27 sit ~51 raw at cold park (≈11°C if value−40); confirm with a warm drive."
       sources:
         - "Kia Soul EV VMCU CSV — 0x7E2 (Inverter f*2, Aux e/10, temps w/x/y-40, RPM/torque 16-bit)"
         - "Obsidian: VCU.md — 23 bytes captured 2025-08-07"

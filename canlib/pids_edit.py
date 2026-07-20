@@ -589,7 +589,7 @@ def _infer_on_payload(discovery_block: str) -> str:
     shortTermAdjustment payload (``2F{DID}03{tail}``) is a guaranteed
     in-range, safe probe — it asserts "make state == current state" — and
     avoids NRC 0x31 requestOutOfRange rejections that the previous
-    ``FF × nbytes`` default triggered.
+    ``FF x nbytes`` default triggered.
 
     The user then refines the payload via the ``e`` edit flow once the real
     controlState semantics are understood. Falls back to a single ``00`` byte
@@ -701,4 +701,455 @@ def promote_discovery(
 
     new_text = text[:ecu_start] + new_block + text[ecu_end:]
     fpath.write_text(new_text)
+    return fpath
+
+
+# ── Parameter + research editing (reverse-engineering workflow) ───────────────
+#
+# Unlike the scanner sections above (routines / iocontrol_discoveries), these
+# edit the hand-authored pids: and research: structures used when decoding a new
+# PID. The deeper nesting (pids: PID: parameters: PARAM: field) needs its own
+# indent-anchored locators. Every write is followed by a YAML re-parse; on any
+# failure the original text is restored so a botched edit never lands on disk.
+
+# Canonical field order for a rendered parameter (matches pids/_schema.yaml).
+PARAM_FIELD_ORDER = (
+    "expression", "unit", "ha_class", "mqtt_topic", "min", "max",
+    "source", "source_links", "verified", "notes", "enabled", "display",
+)
+
+# Canonical field order for a rendered research entry.
+RESEARCH_FIELD_ORDER = (
+    "type", "target", "status", "priority", "prerequisite",
+    "date", "result", "notes", "sources", "what_to_test",
+)
+
+
+def _keyed_block(text: str, name: str, indent: int, win_start: int, win_end: int):
+    """Locate ``<indent spaces><name>:`` within ``[win_start, win_end)``.
+
+    Returns ``(hdr_start, line_end, body_start, body_end, inline)`` or ``None``:
+      - ``hdr_start``  offset of the key line
+      - ``line_end``   offset of the newline ending the key line
+      - ``body_start`` offset of the first child line
+      - ``body_end``   offset just before the next same-or-shallower sibling
+      - ``inline``     any text after ``name:`` on the header line (e.g. ``{}``)
+    """
+    pat = re.compile(rf"^ {{{indent}}}{re.escape(name)}:[ \t]*(.*)$", re.MULTILINE)
+    m = pat.search(text, win_start, win_end)
+    if not m:
+        return None
+    inline = m.group(1).strip()
+    line_end = text.find("\n", m.start())
+    if line_end == -1:
+        line_end = win_end
+    body_start = min(line_end + 1, win_end)
+    tail = re.compile(rf"^ {{0,{indent}}}[^\s#]", re.MULTILINE).search(text, body_start, win_end)
+    body_end = tail.start() if tail else win_end
+    return (m.start(), line_end, body_start, body_end, inline)
+
+
+def _format_scalar_field(indent: str, key: str, value) -> str:
+    """Render one ``key: value`` scalar line with schema-appropriate quoting."""
+    if isinstance(value, bool):
+        return f"{indent}{key}: {'true' if value else 'false'}"
+    if key in ("min", "max"):
+        return f'{indent}{key}: "{value}"'  # schema convention: quoted strings
+    return f"{indent}{key}: {_format_label(str(value))}"
+
+
+def _format_block_scalar(indent: str, key: str, value: str) -> list[str]:
+    """Render ``key: >`` followed by the folded body, indented two deeper."""
+    body_indent = indent + "  "
+    out = [f"{indent}{key}: >"]
+    for ln in str(value).strip("\n").splitlines() or [""]:
+        out.append(f"{body_indent}{ln.rstrip()}")
+    return out
+
+
+def _format_list_field(indent: str, key: str, values) -> list[str]:
+    """Render a block list ``key:`` / ``  - item`` (empty -> ``key: []``)."""
+    if not values:
+        return [f"{indent}{key}: []"]
+    out = [f"{indent}{key}:"]
+    for item in values:
+        out.append(f"{indent}  - {_format_label(str(item))}")
+    return out
+
+
+def _format_param_block(name: str, fields: dict, indent: int = 8) -> list[str]:
+    """Render a full ``PARAM_NAME:`` block (key at ``indent``, fields +2)."""
+    ind = " " * indent
+    fld = " " * (indent + 2)
+    lines = [f"{ind}{name}:"]
+    for key in PARAM_FIELD_ORDER:
+        if key not in fields or fields[key] is None:
+            continue
+        val = fields[key]
+        if key == "notes":
+            lines.extend(_format_block_scalar(fld, key, str(val)))
+        elif key == "source_links":
+            lines.extend(_format_list_field(fld, key, val if isinstance(val, (list, tuple)) else [val]))
+        else:
+            lines.append(_format_scalar_field(fld, key, val))
+    return lines
+
+
+def _format_research_item(fields: dict, indent: int = 4) -> list[str]:
+    """Render one ``- ...`` research list item (dash at ``indent``, fields +2)."""
+    dash = " " * indent + "- "
+    fld = " " * (indent + 2)
+    lines: list[str] = []
+    for key in RESEARCH_FIELD_ORDER:
+        if key not in fields or fields[key] is None:
+            continue
+        val = fields[key]
+        prefix = dash if not lines else fld  # first field sits on the dash line
+        if key == "prerequisite":
+            joined = ", ".join(str(v) for v in val) if isinstance(val, (list, tuple)) else str(val)
+            lines.append(f"{prefix}{key}: [{joined}]")
+        elif key in ("notes", "result") and "\n" in str(val):
+            block = _format_block_scalar(fld, key, str(val))
+            block[0] = prefix + block[0][len(fld):]
+            lines.extend(block)
+        elif key in ("sources", "what_to_test"):
+            block = _format_list_field(fld, key, val if isinstance(val, (list, tuple)) else [val])
+            block[0] = prefix + block[0][len(fld):]
+            lines.extend(block)
+        else:
+            line = _format_scalar_field(fld, key, val)
+            lines.append(prefix + line[len(fld):])
+    return lines
+
+
+def _reparse_or_raise(fpath: Path) -> dict:
+    """Re-read the file as YAML; raise ``PidsEditError`` if it no longer parses."""
+    import yaml
+    try:
+        data = yaml.safe_load(fpath.read_text())
+    except yaml.YAMLError as e:
+        raise PidsEditError(f"edit produced invalid YAML: {e}") from e
+    if not isinstance(data, dict):
+        raise PidsEditError("edit produced a non-mapping top-level document")
+    return data
+
+
+def _safe_write(fpath: Path, original: str, new_text: str, ecu: str, checker) -> None:
+    """Write ``new_text``, re-parse, and run ``checker(data[ecu])``.
+
+    Restores ``original`` and raises ``PidsEditError`` if the result is invalid
+    YAML or ``checker`` fails — so a broken surgical edit never persists.
+    """
+    fpath.write_text(new_text)
+    try:
+        data = _reparse_or_raise(fpath)
+        ecu_def = data.get(ecu)
+        if not isinstance(ecu_def, dict):
+            raise PidsEditError(f"ECU {ecu!r} missing after edit")
+        checker(ecu_def)
+    except PidsEditError:
+        fpath.write_text(original)
+        raise
+    except Exception as e:  # pragma: no cover - defensive
+        fpath.write_text(original)
+        raise PidsEditError(f"edit failed post-check, reverted: {e}") from e
+
+
+def upsert_parameter(
+    ecu_name: str,
+    pid: str,
+    param_name: str,
+    expression: str,
+    *,
+    unit: str | None = None,
+    ha_class: str | None = None,
+    mqtt_topic: str | None = None,
+    min: str | None = None,
+    max: str | None = None,
+    source: str | None = None,
+    source_links: list | None = None,
+    verified: bool | None = None,
+    notes: str | None = None,
+    enabled: bool | None = None,
+    display: str | None = None,
+    pids_dir: Path = PIDS_DIR,
+) -> Path:
+    """Add or update one parameter under ``ECU.pids.<PID>.parameters``.
+
+    New parameters are rendered from the provided fields in canonical order.
+    Existing parameters have only the *provided* fields replaced in place
+    (other fields and formatting are preserved). Creates the ``PID`` block
+    and/or ``parameters:`` map if missing. Requires the ECU to already exist
+    with a ``pids:`` section.
+
+    The write is verified by a YAML re-parse; on failure the file is restored.
+    """
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", param_name or ""):
+        raise PidsEditError(f"invalid parameter name {param_name!r}")
+    if not (expression or "").strip():
+        raise PidsEditError("expression must not be empty")
+
+    provided = {
+        "expression": expression, "unit": unit, "ha_class": ha_class,
+        "mqtt_topic": mqtt_topic, "min": min, "max": max, "source": source,
+        "source_links": source_links, "verified": verified, "notes": notes,
+        "enabled": enabled, "display": display,
+    }
+    fields = {k: v for k, v in provided.items() if v is not None}
+
+    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
+    original = fpath.read_text()
+    ecu_key = ecu_name.strip().upper()
+    pid_u = str(pid).strip().upper()
+
+    def transform(text: str) -> str:
+        ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
+        pids = _keyed_block(text, "pids", 2, ecu_start, ecu_end)
+        if not pids:
+            raise PidsEditError(f"ECU {ecu_name!r} has no pids: section")
+        _, _, pids_body_start, pids_body_end, _ = pids
+
+        pidb = _keyed_block(text, pid_u, 4, pids_body_start, pids_body_end)
+        if not pidb:
+            # New PID block appended to the pids: section.
+            param_lines = _format_param_block(param_name, fields, indent=8)
+            block = [f"    {pid_u}:", "      parameters:", *param_lines]
+            return _insert_lines(text, pids_body_start, pids_body_end, block)
+
+        _, _, pid_body_start, pid_body_end, _ = pidb
+        params = _keyed_block(text, "parameters", 6, pid_body_start, pid_body_end)
+        param_lines = _format_param_block(param_name, fields, indent=8)
+
+        if not params:
+            # PID exists but has no parameters: — add one after the PID header.
+            block = ["      parameters:", *param_lines]
+            return _insert_lines(text, pid_body_start, pid_body_start, block)
+
+        p_hdr, p_line_end, p_body_start, p_body_end, p_inline = params
+        if p_inline in ("{}", "{ }"):
+            # Convert inline empty map to block form, then add the param.
+            new_header = "      parameters:\n" + "".join(ln + "\n" for ln in param_lines)
+            return text[:p_hdr] + new_header + text[p_line_end + 1:]
+
+        existing = _keyed_block(text, param_name, 8, p_body_start, p_body_end)
+        if existing:
+            # Update only the provided fields on the existing param block.
+            e_start = existing[0]
+            e_end = existing[3]
+            block_text = text[e_start:e_end]
+            for key in PARAM_FIELD_ORDER:
+                if key not in fields:
+                    continue
+                if key == "notes":
+                    repl = _format_block_scalar(" " * 10, "notes", str(fields[key]))
+                elif key == "source_links":
+                    v = fields[key]
+                    repl = _format_list_field(" " * 10, "source_links",
+                                              v if isinstance(v, (list, tuple)) else [v])
+                else:
+                    repl = _replace_param_field_line(" " * 10, key, fields[key])
+                block_text = _replace_field_in_block_at(block_text, key, repl, indent=10)
+            return text[:e_start] + block_text + text[e_end:]
+
+        # New param appended into the existing parameters: map.
+        return _insert_lines(text, p_body_start, p_body_end, param_lines)
+
+    def checker(ecu_def: dict) -> None:
+        params = (ecu_def.get("pids", {}).get(pid_u) or {}).get("parameters") or {}
+        # PID keys may be int (bare 2101) or str; normalize.
+        if param_name not in params:
+            pids_map = ecu_def.get("pids", {})
+            match = next((v for k, v in pids_map.items() if str(k).upper() == pid_u), None)
+            params = (match or {}).get("parameters") or {}
+        if param_name not in params:
+            raise PidsEditError(f"parameter {param_name!r} missing after edit")
+        if params[param_name].get("expression") != expression:
+            raise PidsEditError("expression mismatch after edit")
+
+    new_text = transform(original)
+    _safe_write(fpath, original, new_text, ecu_key, checker)
+    return fpath
+
+
+def _replace_param_field_line(indent: str, key: str, value) -> str:
+    """One rendered scalar/bool line for a param field (used on existing blocks)."""
+    return _format_scalar_field(indent, key, value)
+
+
+def _insert_lines(text: str, region_start: int, region_end: int, lines: list[str]) -> str:
+    """Insert ``lines`` at the end of ``[region_start, region_end)``.
+
+    Backs up over trailing blank lines so the insertion sits adjacent to the
+    last real content line rather than after a gap.
+    """
+    ins = region_end
+    while ins > region_start and text[ins - 1] == "\n" and (ins < 2 or text[ins - 2] == "\n"):
+        ins -= 1
+    payload = "".join(ln + "\n" for ln in lines)
+    return text[:ins] + payload + text[ins:]
+
+
+def _replace_field_in_block_at(block: str, field: str, new_line_or_lines, indent: int) -> str:
+    """Like ``_replace_field_in_block`` but for an arbitrary field indent.
+
+    Replaces ``field:`` (and any block-scalar continuation) at ``indent`` spaces
+    within ``block``; appends the field if absent.
+    """
+    replacement_lines = [new_line_or_lines] if isinstance(new_line_or_lines, str) else list(new_line_or_lines)
+    lines = block.splitlines()
+    out: list[str] = []
+    i = 0
+    replaced = False
+    field_re = re.compile(rf"^ {{{indent}}}{re.escape(field)}:(.*)$")
+    while i < len(lines):
+        line = lines[i]
+        m = field_re.match(line)
+        if m and not replaced:
+            rest = m.group(1).strip()
+            i += 1
+            if rest in (">", "|", ">-", "|-", ">+", "|+"):
+                # Skip block-scalar continuation (indented deeper than field).
+                while i < len(lines) and (lines[i] == "" or lines[i].startswith(" " * (indent + 1))):
+                    if re.match(rf"^ {{{indent}}}[A-Za-z_]", lines[i]):
+                        break
+                    i += 1
+            out.extend(replacement_lines)
+            replaced = True
+            continue
+        out.append(line)
+        i += 1
+    if not replaced:
+        while out and out[-1].strip() == "":
+            out.pop()
+        out.extend(replacement_lines)
+    result = "\n".join(out)
+    if block.endswith("\n") and not result.endswith("\n"):
+        result += "\n"
+    return result
+
+
+def add_research_entry(
+    ecu_name: str,
+    *,
+    type: str,
+    target: str,
+    status: str,
+    priority: str | None = None,
+    prerequisite: list | None = None,
+    date: str | None = None,
+    result: str | None = None,
+    notes: str | None = None,
+    sources: list | None = None,
+    what_to_test: list | None = None,
+    pids_dir: Path = PIDS_DIR,
+) -> Path:
+    """Append a new item to the ECU's ``research:`` list (creating it if absent)."""
+    provided = {
+        "type": type, "target": target, "status": status, "priority": priority,
+        "prerequisite": prerequisite, "date": date, "result": result,
+        "notes": notes, "sources": sources, "what_to_test": what_to_test,
+    }
+    fields = {k: v for k, v in provided.items() if v is not None}
+    for req in ("type", "target", "status"):
+        if not str(fields.get(req, "")).strip():
+            raise PidsEditError(f"research entry requires non-empty {req!r}")
+
+    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
+    original = fpath.read_text()
+    ecu_key = ecu_name.strip().upper()
+    item_lines = _format_research_item(fields, indent=4)
+
+    def transform(text: str) -> str:
+        ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
+        research = _keyed_block(text, "research", 2, ecu_start, ecu_end)
+        if research:
+            _, _, r_body_start, r_body_end, _ = research
+            return _insert_lines(text, r_body_start, r_body_end, item_lines)
+        # No research: section — append one at the end of the ECU block.
+        body = text[ecu_start:ecu_end].rstrip("\n")
+        new_block = body + "\n\n  research:\n" + "".join(ln + "\n" for ln in item_lines)
+        return text[:ecu_start] + new_block + text[ecu_end:]
+
+    def checker(ecu_def: dict) -> None:
+        research = ecu_def.get("research")
+        if not isinstance(research, list) or not any(
+            e.get("target") == target and e.get("type") == type for e in research
+        ):
+            raise PidsEditError("research entry missing after edit")
+
+    new_text = transform(original)
+    _safe_write(fpath, original, new_text, ecu_key, checker)
+    return fpath
+
+
+def set_research_status(
+    ecu_name: str,
+    target: str,
+    status: str,
+    *,
+    type: str | None = None,
+    pids_dir: Path = PIDS_DIR,
+) -> Path:
+    """Update the ``status:`` of the research item matching ``target`` (and ``type``).
+
+    Raises ``PidsEditError`` if no matching item is found or the match is
+    ambiguous (multiple items share the target and no ``type`` was given).
+    """
+    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
+    original = fpath.read_text()
+    ecu_key = ecu_name.strip().upper()
+    target_norm = str(target).strip().strip('"').strip("'")
+
+    def transform(text: str) -> str:
+        ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
+        research = _keyed_block(text, "research", 2, ecu_start, ecu_end)
+        if not research:
+            raise PidsEditError(f"ECU {ecu_name!r} has no research: section")
+        _, _, r_body_start, r_body_end, _ = research
+        body = text[r_body_start:r_body_end]
+
+        item_re = re.compile(r"^ {4}- ", re.MULTILINE)
+        starts = [r_body_start + m.start() for m in item_re.finditer(body)]
+        target_re = re.compile(r"^ {4,6}(?:- )?target:[ \t]*(.*)$", re.MULTILINE)
+        type_re = re.compile(r"^ {4,6}(?:- )?type:[ \t]*(.*)$", re.MULTILINE)
+
+        matches = []
+        for idx, s in enumerate(starts):
+            e = starts[idx + 1] if idx + 1 < len(starts) else r_body_end
+            item = text[s:e]
+            tm = target_re.search(item)
+            if not tm:
+                continue
+            item_target = tm.group(1).strip().strip('"').strip("'")
+            if item_target != target_norm:
+                continue
+            if type is not None:
+                ty = type_re.search(item)
+                if not ty or ty.group(1).strip().strip('"').strip("'") != type:
+                    continue
+            matches.append((s, e))
+
+        if not matches:
+            raise PidsEditError(f"no research item with target {target!r}"
+                                + (f" and type {type!r}" if type else ""))
+        if len(matches) > 1:
+            raise PidsEditError(f"ambiguous target {target!r} ({len(matches)} matches); pass type=")
+
+        s, e = matches[0]
+        item = text[s:e]
+        new_item = _replace_field_in_block_at(item, "status", f"      status: {status}", indent=6)
+        return text[:s] + new_item + text[e:]
+
+    def checker(ecu_def: dict) -> None:
+        research = ecu_def.get("research") or []
+        ok = any(
+            e.get("target") == target_norm and e.get("status") == status
+            and (type is None or e.get("type") == type)
+            for e in research
+        )
+        if not ok:
+            raise PidsEditError("status not applied after edit")
+
+    new_text = transform(original)
+    _safe_write(fpath, original, new_text, ecu_key, checker)
     return fpath
