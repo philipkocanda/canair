@@ -665,6 +665,18 @@ def _view_time_range(caps: list[dict]) -> tuple[str, str]:
     return (min(tss), max(tss)) if tss else ("", "")
 
 
+def _cycle_overlay(overlay_ref: str | None, ov_cycle: list) -> str | None:
+    """Advance the overlay reference to the next entry in ``ov_cycle`` (wraps).
+
+    ``ov_cycle`` is ``[None, param, param, …]``; returns ``overlay_ref`` unchanged
+    when there is nothing to cycle (only the ``None`` entry).
+    """
+    if len(ov_cycle) <= 1:
+        return overlay_ref
+    idx = ov_cycle.index(overlay_ref) if overlay_ref in ov_cycle else 0
+    return ov_cycle[(idx + 1) % len(ov_cycle)]
+
+
 def _info_lines(ecu_key: str, pid_key: str, caps_view: list[dict], i0: int,
                 total: int, ts_range: str, max_rows: int) -> list[str]:
     """Modal body: list the captures backing the current view (date/state/label/notes/file)."""
@@ -716,11 +728,13 @@ def cmd_plot(all_results: list[dict], param_names: list[str], parameters: dict,
     pci = _pci_positions(longest_payload)
     max_off = (max((len(f) for f in valid), default=1)) - 1
 
-    ref_per_cap = ([r["decoded"].get(corr_ref, {}).get("value") for r in all_results]
-                   if corr_ref else None)
     plottable_params = [n for n in param_names
                         if len([1 for r in all_results
                                 if r["decoded"].get(n, {}).get("value") is not None]) >= 2]
+
+    # Overlay reference is selectable at runtime (cycled with `o`), seeded by
+    # --corr when given. Any numeric param can be overlaid — no --corr required.
+    ov_cycle = [None, *dict.fromkeys(([corr_ref] if corr_ref else []) + plottable_params)]
 
     if not valid and not plottable_params:
         print("  Nothing to plot (no decodable payloads or numeric params).")
@@ -733,7 +747,7 @@ def cmd_plot(all_results: list[dict], param_names: list[str], parameters: dict,
     little = False
     tmode = "raw"                       # post-transform
     pi = 0                              # param index (param mode)
-    overlay = False
+    overlay_ref = corr_ref              # overlay reference param (None = off)
     xlo, xhi = 0.0, 1.0                 # fractional x-axis window (zoom/pan)
     show_info = False                   # captures-in-view modal
 
@@ -770,6 +784,11 @@ def cmd_plot(all_results: list[dict], param_names: list[str], parameters: dict,
             per_cap = [r["decoded"].get(name, {}).get("value") for r in all_results]
             expr_line = f"expr: {parameters.get(name, {}).get('expression', '')}"
             src = name
+
+        # Overlay reference resolved from runtime state (cycled with `o`).
+        overlay = overlay_ref is not None
+        ref_per_cap = ([r["decoded"].get(overlay_ref, {}).get("value") for r in all_results]
+                       if overlay else None)
 
         # Drop missing (None) and non-finite (NaN/Inf) values — float byte
         # interpretations routinely yield NaN/Inf, which can't be plotted or
@@ -808,8 +827,8 @@ def cmd_plot(all_results: list[dict], param_names: list[str], parameters: dict,
 
         if overlay and refseries is not None:
             r = _pearson(refseries, series)
-            rstr = f"  {_CYAN}r={r:+.3f} vs {corr_ref}{_RESET}" if r is not None \
-                else f"  {_DIM}r=n/a vs {corr_ref}{_RESET}"
+            rstr = f"  {_CYAN}r={r:+.3f} vs {overlay_ref}{_RESET}" if r is not None \
+                else f"  {_DIM}r=n/a vs {overlay_ref}{_RESET}"
         else:
             rstr = ""
 
@@ -845,6 +864,7 @@ def cmd_plot(all_results: list[dict], param_names: list[str], parameters: dict,
     old = termios.tcgetattr(fd)
     sys.stdout.write("\033[?1049h\033[?25l")
     sys.stdout.flush()
+    status = ""
     try:
         tty.setcbreak(fd)
         while True:
@@ -855,8 +875,11 @@ def cmd_plot(all_results: list[dict], param_names: list[str], parameters: dict,
                     if mode == "bytes"
                     else "←/→ param · m bytes" + common)
             sys.stdout.write(f"\r\n\r\n  {_DIM}{hint}{_RESET}\r\n")
+            if status:
+                sys.stdout.write(f"  {_YELLOW}{status}{_RESET}\r\n")
             sys.stdout.flush()
 
+            status = ""
             k = _read_key(fd)
             if k in ("i", "I"):                         # toggle captures-in-view modal
                 show_info = not show_info
@@ -887,8 +910,12 @@ def cmd_plot(all_results: list[dict], param_names: list[str], parameters: dict,
                 tmode = POST_TRANSFORMS[(POST_TRANSFORMS.index(tmode) + 1) % len(POST_TRANSFORMS)]
             elif k == "m":
                 mode = "param" if mode == "bytes" else "bytes"
-            elif k in ("o", "O") and ref_per_cap is not None:
-                overlay = not overlay
+            elif k in ("o", "O"):                       # cycle overlay reference param
+                if len(ov_cycle) > 1:
+                    overlay_ref = _cycle_overlay(overlay_ref, ov_cycle)
+                    status = f"overlay: {overlay_ref}" if overlay_ref else "overlay: off"
+                else:
+                    status = "no numeric param to overlay (define one or use --try)"
             elif k in ("+", "="):                       # zoom in (halve window)
                 c, half = (xlo + xhi) / 2, (xhi - xlo) / 4
                 if (xhi - xlo) > 0.02:
