@@ -140,7 +140,7 @@ async def mode_scan(
             save_session,
             suggest_scan_label,
         )
-        from ..pids import ecu_name
+        from ..ecus import ecu_name, rx_addr_str
 
         ecu = ecu_name(tx_id)
         suggested = suggest_scan_label(ecu, service, pid_range, append_bytes)
@@ -151,7 +151,7 @@ async def mode_scan(
         if meta:
             label, state, notes = meta
             session_dict = build_scan_session(
-                ecu_name=ecu,
+                ecu_ref=rx_addr_str(tx_id),
                 tx_id=tx_id,
                 service=service,
                 pid_range=pid_range,

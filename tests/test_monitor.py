@@ -402,7 +402,7 @@ class TestPromptAndSave:
         assert s["state"] == "deep sleep"
         assert s["notes"] == "test notes\n"
         assert len(s["captures"]) == 2
-        assert s["captures"][0]["ecu"] == "BCM"
+        assert s["captures"][0]["ecu"] == "0x7A8"  # BCM response address (0x7A0 + 8)
         assert s["captures"][0]["pid"] == "22C00B"
         assert s["captures"][0]["payload"] == "62C00BAA"
         assert s["captures"][0]["time"] == "14:00:01"
@@ -486,4 +486,4 @@ class TestPromptAndSave:
         captures = data["sessions"][0]["captures"]
         assert len(captures) == 2
         ecus = {c["ecu"] for c in captures}
-        assert ecus == {"BCM", "IGPM"}
+        assert ecus == {"0x7A8", "0x778"}  # BCM (0x7A0+8), IGPM (0x770+8)

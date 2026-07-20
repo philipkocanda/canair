@@ -121,7 +121,7 @@ async def mode_discover(
         )
 
         # Enrich alive list with ECU names from ecus.yaml
-        from ..pids import ecu_name as _ecu_name
+        from ..ecus import ecu_name as _ecu_name
 
         enriched = []
         for tx_id_val, status, detail in alive:

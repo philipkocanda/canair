@@ -812,12 +812,25 @@ async def _exec_security(
     return False
 
 
-def _ecu_short_for_tx(tx_id: int, ecu_index: dict) -> str:
-    """Return the ECU short name for a TX id, or the hex id if unknown."""
-    for name, info in ecu_index.items():
-        if info.get("tx_id") == tx_id:
-            return name
-    return f"{tx_id:03X}"
+def _rx_addr_for_tx(tx_id: int) -> str:
+    """Return the ECU CAN response address string for a TX id (e.g. "0x7EC")."""
+    from ..ecus import rx_addr_str
+
+    return rx_addr_str(tx_id)
+
+
+def _rx_addr_for_ecu_label(ecu_label: str, ecu_index: dict) -> str:
+    """Resolve an ECU label (e.g. "BMS" or "BMS (0x7E4)") to its RX address.
+
+    Falls back to the leading token verbatim if the ECU is not in the index.
+    """
+    from ..ecus import rx_addr_str
+
+    ecu_short = re.match(r"(\w+)", ecu_label).group(1)
+    info = ecu_index.get(ecu_short.upper())
+    if info and info.get("tx_id") is not None:
+        return rx_addr_str(info["tx_id"])
+    return ecu_short
 
 
 def _save_collected(
@@ -871,15 +884,15 @@ async def mode_multi(
     ecu_index = build_ecu_index(pids_data)
     sm = SessionManager(terminal, verbose=verbose)
     repl_executed = False
-    # Collected (ecu_short, pid, hex, time) rows for --save
+    # Collected (ecu_ref, pid, hex, time) rows for --save
     collected: list[tuple[str, str, str, str]] = []
 
     def _collect_query(ecu_label: str, pid_results: list[dict]) -> None:
-        ecu_short = re.match(r"(\w+)", ecu_label).group(1)
+        ecu_ref = _rx_addr_for_ecu_label(ecu_label, ecu_index)
         for entry in pid_results or []:
             raw_hex = entry.get("raw_hex", "")
             if raw_hex:
-                collected.append((ecu_short, entry["pid"], raw_hex, ""))
+                collected.append((ecu_ref, entry["pid"], raw_hex, ""))
 
     try:
         for i, cmd in enumerate(commands):
@@ -915,8 +928,8 @@ async def mode_multi(
                 if save and raw_result:
                     tx_id, req, resp = raw_result
                     if resp.get("ok") and resp.get("hex"):
-                        ecu_short = _ecu_short_for_tx(tx_id, ecu_index)
-                        collected.append((ecu_short, req, resp["hex"], ""))
+                        ecu_ref = _rx_addr_for_tx(tx_id)
+                        collected.append((ecu_ref, req, resp["hex"], ""))
 
 
             elif cmd_type == "scan":

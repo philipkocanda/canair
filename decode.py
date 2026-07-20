@@ -59,7 +59,18 @@ _RESET = "\033[0m"
 
 
 def load_captures(ecu: str, pid: str) -> list[dict]:
-    """Load all captures matching ECU+PID from capture files."""
+    """Load all captures matching ECU+PID from capture files.
+
+    Capture ``ecu`` fields store the ECU CAN response address (e.g. ``0x7EC``);
+    they are resolved to the canonical short name before matching ``ecu``.
+    """
+    from canlib.ecus import build_rx_index, ecu_name_from_ref
+
+    try:
+        rx_index = build_rx_index()
+    except Exception:
+        rx_index = {}
+
     entries = []
     for fpath in sorted(CAPTURES_DIR.glob("*.yaml")):
         if fpath.name.startswith(("SCHEMA", "_")):
@@ -73,7 +84,7 @@ def load_captures(ecu: str, pid: str) -> list[dict]:
             label = session.get("label", "")
             state = session.get("state", "")
             for cap in session.get("captures", []):
-                cap_ecu = cap.get("ecu", "")
+                cap_ecu = ecu_name_from_ref(cap.get("ecu", ""), rx_index)
                 cap_pid = str(cap.get("pid", "")).upper()
                 if cap_ecu.upper() != ecu.upper():
                     continue

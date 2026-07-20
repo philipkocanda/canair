@@ -8,13 +8,13 @@ sessions:
     Key finding: 0x744 (Charging) and 0x733 (PLC) remain dead during AC charging.
     New PIDs discovered: LDC 2102, VCU 21F2, MCU 2101/2103/21F2.
   captures:
-  - ecu: AAT
+  - ecu: '0x7EE'
     pid: 2101-21FF
     label: Full service 21 scan on removed ECU 0x744
     notes: "0x744 returned NO DATA on all 255 PIDs during active AC charging. ECU\
       \ removed from ecus.yaml — likely does not exist on Ioniq 28kWh."
     response: NO DATA — 255 errors, address 0x744 dead
-  - ecu: LDC
+  - ecu: '0x7ED'
     pid: 2101-21FF
     label: Full service 21 scan
     scan_results:
@@ -27,7 +27,7 @@ sessions:
       rejected: 253 DIDs returned NO DATA or NRC
       notes: "PID 2102 is new — 34 bytes, undecoded. Many repeated 79xx values suggest\
         \ voltage/current readings."
-  - ecu: Unknown-746
+  - ecu: '0x74E'
     pid: 2101-21FF
     label: Full service 21 scan
     scan_results:
@@ -36,13 +36,13 @@ sessions:
         response: "6 bytes: 61F200000007"
         notes: "Same response during charging and off — not charging-specific data"
       rejected: 254 DIDs returned NO DATA or NRC
-  - ecu: PLC
+  - ecu: '0x73B'
     pid: 2101-21FF
     label: Full service 21 scan
     response: 255 NRCs — ECU dead during AC charging
     notes: "PLC is CCS DC fast-charge controller — expected to be inactive during\
       \ AC charging."
-  - ecu: VCU
+  - ecu: '0x7EA'
     pid: 2101-21FF
     label: Full service 21 scan
     scan_results:
@@ -58,7 +58,7 @@ sessions:
         notes: "Raw: 61F2FF000000084566003FC6AE1101877F00000000000000000000000000..."
       rejected: 252 DIDs returned NO DATA or NRC
       notes: 21F2 is new — 69 bytes, undecoded.
-  - ecu: MCU
+  - ecu: '0x7EB'
     pid: 2101-21FF
     label: Full service 21 scan
     scan_results:
@@ -77,7 +77,7 @@ sessions:
         notes: "Raw: 61F2FFFFFF3FF8FFF6FF7DD609000000000000000000190500000B05CDAB..."
       rejected: 251 DIDs returned NO DATA or NRC
       notes: "MCU 2103 all zeros during charging — worth re-testing while driving."
-  - ecu: AAT
+  - ecu: '0x7EE'
     pid: 2101-21FF
     label: Full service 21 scan
     scan_results:
@@ -98,11 +98,11 @@ sessions:
     Also captured IGPM BC03 POWER_MODE=0x73 with key in car (vs 0x0A without key).
     SKM B1xx, 01xx, service 21 01-0F all returned NRC — B0xx is the right range.
   captures:
-  - ecu: IGPM
+  - ecu: '0x778'
     pid: 22BC03
     notes: "POWER_MODE=0x73 (115) — key in unlocked car. Stable over 12 reads."
     payload: 62BC03FDEE3C7300000000AAAA
-  - ecu: SKM
+  - ecu: '0x7AD'
     pid: scan 22 B000-B020
     notes: "9 responding DIDs. B002 = 136 data bytes (massive). Key in car, doors\
       \ unlocked."
@@ -136,11 +136,11 @@ sessions:
         response: 55 bytes
         notes: "Raw: 62B00B800000000200000000000000000000000400005319420000000002..."
       rejected: 24 DIDs returned NRC (B000-B001, B004, B00C-B020)
-  - ecu: SKM
+  - ecu: '0x7AD'
     pid: scan 22 B100-B110
     notes: All NRC — SKM does not use B1xx range
     response: 0/17 responding
-  - ecu: SKM
+  - ecu: '0x7AD'
     pid: scan 21 01-0F
     notes: All NRC — SKM does not use service 21
     response: 0/15 responding
@@ -148,55 +148,55 @@ sessions:
   label: SKM with/wo keyfob
   state: sleep
   captures:
-  - ecu: SKM
+  - ecu: '0x7AD'
     pid: 22B002
     payload: "62B0020000000014320007120A003C0A462C3F750A1910E0168004FEFF1EC89664FA03320503090A1E1432320506140332320205320F00073246141E1E1E140000000000002C3F75FE0000000000000000000000FFFAC89664960102000000100012080F0A14100A00000000000000C864030F3CC814000000000000006428081010031E00000000AAAAAA"
     time: "21:38:40"
-  - ecu: SKM
+  - ecu: '0x7AD'
     pid: 22B003
     payload: 62B003000000003412900300000000C6A21261000000000F00AAAA
     time: "21:38:40"
-  - ecu: SKM
+  - ecu: '0x7AD'
     pid: 22B005
     payload: 62B005FA60900000040000AAAA
     time: "21:38:40"
-  - ecu: SKM
+  - ecu: '0x7AD'
     pid: 22B006
     payload: 62B006AFE000009C0000000000000000009B0000000000AAAAAAAA
     time: "21:38:40"
-  - ecu: SKM
+  - ecu: '0x7AD'
     pid: 22B006
     payload: 62B006AFE000009B0000000000000000009A0000000000AAAAAAAA
     time: "21:38:52"
-  - ecu: SKM
+  - ecu: '0x7AD'
     pid: 22B006
     payload: 62B006AFE000009A0000000000000000009A0000000000AAAAAAAA
     time: "21:39:30"
-  - ecu: SKM
+  - ecu: '0x7AD'
     pid: 22B007
     payload: 62B0071E7FB80000000C007FFF00000000AAAAAA
     time: "21:38:40"
-  - ecu: SKM
+  - ecu: '0x7AD'
     pid: 22B007
     payload: 62B0071E7FB80000060C007FFF00000000AAAAAA
     time: "21:42:46"
-  - ecu: SKM
+  - ecu: '0x7AD'
     pid: 22B008
     payload: 62B0080000000000000000000000000000AAAAAA
     time: "21:38:40"
-  - ecu: SKM
+  - ecu: '0x7AD'
     pid: 22B009
     payload: "62B009000000000000000000000000000000000000000000000000000000000000AA"
     time: "21:38:40"
-  - ecu: SKM
+  - ecu: '0x7AD'
     pid: 22B00A
     payload: 62B00A0100F038000501080600000040010000AA
     time: "21:38:40"
-  - ecu: SKM
+  - ecu: '0x7AD'
     pid: 22B00B
     payload: "62B00B80000000020000000000000000000000040000531942000000000200000000000000000000000000000000000000000000AAAAAA"
     time: "21:38:40"
-  - ecu: SKM
+  - ecu: '0x7AD'
     pid: 22B00B
     payload: "62B00B80000000020000000000000000000000040000531942000100000200000000010000000000000000000000000000000000AAAAAA"
     time: "21:42:32"
@@ -204,15 +204,15 @@ sessions:
   label: unlock/lock/unlock/lock cycle
   state: sleep
   captures:
-  - ecu: IGPM
+  - ecu: '0x778'
     pid: 22BC03
     payload: 62BC03FDEE3C730A000000AAAA
     time: "22:07:01"
-  - ecu: IGPM
+  - ecu: '0x778'
     pid: 22BC03
     payload: 62BC03FDEE3C7300002C00AAAA
     time: "22:07:14"
-  - ecu: IGPM
+  - ecu: '0x778'
     pid: 22BC03
     payload: 62BC03FDEE3C7300000000AAAA
     time: "22:07:28"
@@ -220,27 +220,27 @@ sessions:
   label: Keyfob unlock/lock/unlock/lock
   state: sleep
   captures:
-  - ecu: IGPM
+  - ecu: '0x778'
     pid: 22BC01
     payload: 62BC01400000000002AAAAAAAA
     time: "22:15:02"
-  - ecu: IGPM
+  - ecu: '0x778'
     pid: 22BC02
     payload: 62BC0200000000
     time: "22:15:01"
-  - ecu: IGPM
+  - ecu: '0x778'
     pid: 22BC04
     payload: 62BC04B53FF4EA0C000002AAAA
     time: "22:15:01"
-  - ecu: IGPM
+  - ecu: '0x778'
     pid: 22BC04
     payload: 62BC04B53FF4EA00000042AAAA
     time: "22:15:13"
-  - ecu: IGPM
+  - ecu: '0x778'
     pid: 22BC04
     payload: 62BC04B53FF4EA0C000042AAAA
     time: "22:15:25"
-  - ecu: IGPM
+  - ecu: '0x778'
     pid: 22BC05
     payload: 62BC057F11200000000000AAAA
     time: "22:15:01"
@@ -250,207 +250,207 @@ sessions:
   notes: >
     unlocked 22:26:51 - locked again at 22:27:01
   captures:
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B004
     payload: 62B0047402990C0040A000AAAA
     time: "22:26:41"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B004
     payload: 62B0047402990C0040A000AAAA
     time: "22:26:42"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B004
     payload: 62B0047402990C0040A000AAAA
     time: "22:26:43"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B004
     payload: 62B0047402990C0040A000AAAA
     time: "22:26:45"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B004
     payload: 62B0047402990C0040A000AAAA
     time: "22:26:47"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B004
     payload: 62B0047402990C0040A000AAAA
     time: "22:26:49"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B004
     payload: 62B0047402990C0000A000AAAA
     time: "22:26:51"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B004
     payload: 62B0047402990C0000A000AAAA
     time: "22:26:53"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B004
     payload: 62B0047402990C0000A000AAAA
     time: "22:26:55"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B004
     payload: 62B0047402990C0000A000AAAA
     time: "22:26:57"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B004
     payload: 62B0047402990C0000A000AAAA
     time: "22:26:59"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B004
     payload: 62B0047402990C0040A000AAAA
     time: "22:27:01"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B004
     payload: 62B0047402990C0040A000AAAA
     time: "22:27:03"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B004
     payload: 62B0047402990C0040A000AAAA
     time: "22:27:05"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B004
     payload: 62B0047402990C0040A000AAAA
     time: "22:27:07"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B004
     payload: 62B0047402990C0040A000AAAA
     time: "22:27:09"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B004
     payload: 62B0047402990C0040A000AAAA
     time: "22:27:11"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B005
     payload: 62B00520001000A0000800AAAA
     time: "22:26:41"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B005
     payload: 62B00520001000A0000800AAAA
     time: "22:26:42"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B005
     payload: 62B00520001000A0000800AAAA
     time: "22:26:43"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B005
     payload: 62B00520001000A0000800AAAA
     time: "22:26:45"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B005
     payload: 62B00520001000A0000800AAAA
     time: "22:26:47"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B005
     payload: 62B00520001000A0000800AAAA
     time: "22:26:49"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B005
     payload: 62B00520001000AC000800AAAA
     time: "22:26:51"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B005
     payload: 62B00520001000AC000800AAAA
     time: "22:26:53"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B005
     payload: 62B00520001000AC000800AAAA
     time: "22:26:55"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B005
     payload: 62B00520001000AC000800AAAA
     time: "22:26:57"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B005
     payload: 62B00520001000AC000800AAAA
     time: "22:26:59"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B005
     payload: 62B00520001000AC000800AAAA
     time: "22:27:01"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B005
     payload: 62B00520001000A0000800AAAA
     time: "22:27:03"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B005
     payload: 62B00520001000A0000800AAAA
     time: "22:27:05"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B005
     payload: 62B00520001000A0000800AAAA
     time: "22:27:07"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B005
     payload: 62B00520001000A0000800AAAA
     time: "22:27:09"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B005
     payload: 62B00520001000A0000800AAAA
     time: "22:27:11"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B006
     payload: 62B0062000000000000000AAAA
     time: "22:26:41"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B006
     payload: 62B0062000000000000000AAAA
     time: "22:26:42"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B006
     payload: 62B0062000000000000000AAAA
     time: "22:26:43"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B006
     payload: 62B0062000000000000000AAAA
     time: "22:26:45"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B006
     payload: 62B0062000000000000000AAAA
     time: "22:26:47"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B006
     payload: 62B0062000000000000000AAAA
     time: "22:26:49"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B006
     payload: 62B0062000000004000000AAAA
     time: "22:26:51"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B006
     payload: 62B0062000000004000000AAAA
     time: "22:26:53"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B006
     payload: 62B0062000000004000000AAAA
     time: "22:26:55"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B006
     payload: 62B0062000000004000000AAAA
     time: "22:26:57"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B006
     payload: 62B0062000000004000000AAAA
     time: "22:26:59"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B006
     payload: 62B0062000000000000000AAAA
     time: "22:27:01"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B006
     payload: 62B0062000000000000000AAAA
     time: "22:27:03"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B006
     payload: 62B0062000000000000000AAAA
     time: "22:27:05"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B006
     payload: 62B0062000000000000000AAAA
     time: "22:27:07"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B006
     payload: 62B0062000000000000000AAAA
     time: "22:27:09"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 22B006
     payload: 62B0062000000000000000AAAA
     time: "22:27:11"
@@ -462,7 +462,7 @@ sessions:
     Scanned alternative IOControl (2F) ranges on BCM, IGPM, and SKM using
     returnControl (00) probe — safe, no actuation.
   captures:
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 2F B000-B0FF
     notes: "24/256 responding — same as previous scan, all in B000-B072"
     scan_results:
@@ -516,11 +516,11 @@ sessions:
       - did: B072
         response: 6FB07200
       rejected: "232/256 NRC (B073-B0FF all rejected)"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 2F B100-B1FF
     notes: "0/256 — no IOControl DIDs in B1xx range"
     response: "All NRC"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 2F C000-C0FF
     notes: "6/256 responding — NEW! TPMS region, handle with care"
     scan_results:
@@ -540,27 +540,27 @@ sessions:
       - did: C006
         response: 6FC00600
       rejected: "250/256 NRC"
-  - ecu: BCM
+  - ecu: '0x7A8'
     pid: 2F E000-E0FF
     notes: "0/256 — no IOControl DIDs in E0xx range"
     response: "All NRC"
-  - ecu: IGPM
+  - ecu: '0x778'
     pid: 2F BC00-BCFF
     notes: "28/256 responding — same as previous scan, no new DIDs"
     response: "28 positive (BC01-BC44 known set), 228 NRC"
-  - ecu: IGPM
+  - ecu: '0x778'
     pid: 2F B000-B0FF
     notes: "0/256 — no IOControl DIDs in B0xx range"
     response: "All NRC"
-  - ecu: IGPM
+  - ecu: '0x778'
     pid: 2F C000-C0FF
     notes: "0/256"
     response: "All NRC"
-  - ecu: IGPM
+  - ecu: '0x778'
     pid: 2F E000-E0FF
     notes: "0/256"
     response: "All NRC"
-  - ecu: SKM
+  - ecu: '0x7AD'
     pid: 2F B100-B1FF
     notes: "150/256 responding — massive IOControl capability, mostly factory QA test points"
     scan_results:
