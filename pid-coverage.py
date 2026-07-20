@@ -52,7 +52,18 @@ _RESET = "\033[0m"
 
 def load_longest_payloads() -> dict[tuple[str, str], dict]:
     """Return {(ECU_UPPER, PID_UPPER): {payload, date, label, file}} for the
-    longest captured payload seen per PID (most complete response)."""
+    longest captured payload seen per PID (most complete response).
+
+    Capture ``ecu`` fields store the ECU CAN response address (e.g. ``0x7EC``)
+    and are resolved to the canonical short name for the ``(ECU, PID)`` key.
+    """
+    from canlib.ecus import build_rx_index, ecu_name_from_ref
+
+    try:
+        rx_index = build_rx_index()
+    except Exception:
+        rx_index = {}
+
     best: dict[tuple[str, str], dict] = {}
     for fpath in sorted(CAPTURES_DIR.glob("*.yaml")):
         if fpath.name.startswith(("SCHEMA", "_")):
@@ -64,7 +75,8 @@ def load_longest_payloads() -> dict[tuple[str, str], dict]:
                 if not payload:
                     continue
                 payload = payload.replace(" ", "")
-                key = (str(cap.get("ecu", "")).upper(), str(cap.get("pid", "")).upper())
+                ecu_name = ecu_name_from_ref(cap.get("ecu", ""), rx_index)
+                key = (ecu_name.upper(), str(cap.get("pid", "")).upper())
                 prev = best.get(key)
                 if prev is None or len(payload) > len(prev["payload"]):
                     best[key] = {

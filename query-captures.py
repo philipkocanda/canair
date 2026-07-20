@@ -116,12 +116,23 @@ def load_all_captures(captures_dir: Path = CAPTURES_DIR) -> list[dict]:
     """Load all capture files and return a flat list of (session, capture) tuples.
 
     Each entry is a dict with keys:
-        file, date, label, state, ecu, pid, payload, response, scan_results,
-        notes, time
+        file, date, label, state, ecu, ecu_addr, pid, payload, response,
+        scan_results, notes, time
+
+    The capture ``ecu`` field stores the ECU CAN response address (e.g.
+    ``"0x7EC"``); it is resolved to the canonical short name in ``ecu`` for
+    display/joins, with the raw address preserved in ``ecu_addr``.
 
     Plus internal locator keys (``_session_idx``, ``_capture_idx``) that address
     the capture within its source file, for in-place edits/deletes.
     """
+    from canlib.ecus import build_rx_index, ecu_name_from_ref
+
+    try:
+        rx_index = build_rx_index()
+    except Exception:
+        rx_index = {}
+
     entries = []
     for fpath in sorted(captures_dir.glob("*.yaml")):
         if fpath.name.startswith(("SCHEMA", "_")):
@@ -135,12 +146,14 @@ def load_all_captures(captures_dir: Path = CAPTURES_DIR) -> list[dict]:
             label = session.get("label", "")
             state = session.get("state", "")
             for c_idx, cap in enumerate(session.get("captures", [])):
+                raw_ecu = cap.get("ecu", "")
                 entry = {
                     "file": fpath.name,
                     "date": date,
                     "session_label": label,
                     "state": state,
-                    "ecu": cap.get("ecu", ""),
+                    "ecu": ecu_name_from_ref(raw_ecu, rx_index) if raw_ecu else "",
+                    "ecu_addr": raw_ecu,
                     "pid": cap.get("pid", ""),
                     "payload": cap.get("payload"),
                     "response": cap.get("response"),

@@ -204,12 +204,18 @@ def _prompt_and_save(
         return
     label, state, notes = meta
 
-    # Flatten to (ecu_short, pid, hex, time) rows, grouped by ECU then PID
+    # Flatten to (ecu_ref, pid, hex, time) rows, grouped by ECU then PID.
+    # The ECU label (e.g. "BMS") is resolved to its CAN response address; an
+    # unknown label falls back to its leading token verbatim.
+    from ..ecus import build_name_tx_index, rx_from_name
+
+    name_index = build_name_tx_index()
     results: list[tuple[str, str, str, str]] = []
     for (ecu_label, pid), entries in sorted(merged.items()):
         ecu_short = re.match(r"(\w+)", ecu_label).group(1)
+        ecu_ref = rx_from_name(ecu_short, name_index) or ecu_short
         for hex_val, ts in entries:
-            results.append((ecu_short, pid, hex_val, ts))
+            results.append((ecu_ref, pid, hex_val, ts))
 
     session = build_query_session(results, label, state, notes)
     save_session(session, captures_dir)

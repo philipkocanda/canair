@@ -14,7 +14,7 @@ sessions:
       Extended diagnostic session (1003) required for IGPM 22BC03/04/06.
       Verification session to confirm door open/lock bit positions.
     captures:
-      - ecu: IGPM
+      - ecu: '0x778'
         pid: "22BC03"
         payload: "62BC03FDEE3C7300600000AAAA"
         notes: >
@@ -25,14 +25,14 @@ sessions:
           TRUNK_OPEN (B10:7) = 0.
           DOOR_LOCK_RL (1-B10:1) = 1, DOOR_LOCK_RR (1-B10:3) = 1 — but doors are UNLOCKED.
 
-      - ecu: IGPM
+      - ecu: '0x778'
         pid: "22BC04"
         payload: "62BC04B53FF4EA01000042AAAA"
         notes: >
           13 bytes (11 data + 2 padding 0xAA).
           DOOR_LOCK_FL (B10:3) = 0, DOOR_LOCK_FR (B10:2) = 0.
 
-      - ecu: IGPM
+      - ecu: '0x778'
         pid: "22BC06"
         payload: "62BC06B480000000000000AAAA"
         notes: "13 bytes. BRAKE_LIGHT (B7) = 0x00 (not braking)."
@@ -46,104 +46,104 @@ sessions:
       ignition states (OFF/ACC1/ACC2/Ready), charge port flap (open/close).
     captures:
       # --- Ignition state progression ---
-      - ecu: IGPM
+      - ecu: '0x778'
         pid: "22BC03"
         payload: "62BC03FDEE3C730000000000AAAA"
         notes: "B7=0x00, B8=0x00 — no ignition flags set."
 
-      - ecu: IGPM
+      - ecu: '0x778'
         pid: "22BC03"
         payload: "62BC03FDEE3C730060000000AAAA"
         notes: "B7=0x00, B8=0x60 (bits 5,6). IGNITION_ON (B11:5)=1."
 
       # --- Light state captures (ACC2 mode) ---
-      - ecu: IGPM
+      - ecu: '0x778'
         pid: "22BC03"
         payload: "62BC03FDEE3C730A600C00AAAA"
         notes: "B9=0x0C (00001100). B9:2=DRL=1, B9:3=tail=1, B9:4=high=0, B9:5=low=0."
 
-      - ecu: IGPM
+      - ecu: '0x778'
         pid: "22BC03"
         payload: "62BC03FDEE3C730A602C00AAAA"
         notes: "B9=0x2C (00101100). B9:2=DRL=1, B9:3=tail=1, B9:4=high=0, B9:5=low=1."
 
-      - ecu: IGPM
+      - ecu: '0x778'
         pid: "22BC03"
         payload: "62BC03FDEE3C730A603C00AAAA"
         notes: "B9=0x3C (00111100). B9:2=DRL=1, B9:3=tail=1, B9:4=high=1, B9:5=low=1."
 
       # --- Seatbelt verification ---
-      - ecu: IGPM
+      - ecu: '0x778'
         pid: "22BC03"
         payload: "62BC03FDEE3C730A622C00AAAA"
         notes: "B8=0x62 (01100010). SEATBELT_FL (B11:1)=1. Compare 0x60 without seatbelt."
 
       # --- Ready mode (charger unplugged) ---
-      - ecu: IGPM
+      - ecu: '0x778'
         pid: "22BC03"
         payload: "62BC03FDEE3C7320600000AAAA"
         notes: "B8=0x60 — same as ACC2, cannot distinguish Ready from ACC2 via ignition bit."
 
       # --- Door verification captures ---
-      - ecu: IGPM
+      - ecu: '0x778'
         pid: "22BC03"
         payload: "62BC03FDEE3C7320600000AAAA"
         notes: "DOOR_DRV_OPEN (B10:5)=1. All other door bits 0."
 
-      - ecu: IGPM
+      - ecu: '0x778'
         pid: "22BC03"
         payload: "62BC03FDEE3C730A600000AAAA"
         notes: "B10=0x0A (00001010). DOOR_LOCK_RL (B10:1)=1, DOOR_LOCK_RR (B10:3)=1."
 
-      - ecu: IGPM
+      - ecu: '0x778'
         pid: "22BC04"
         payload: "62BC04B53FF4EA0D000042AAAA"
         notes: "B10=0x0D. DOOR_LOCK_FL (B10:3)=1, DOOR_LOCK_FR (B10:2)=1."
 
-      - ecu: IGPM
+      - ecu: '0x778'
         pid: "22BC03"
         payload: "62BC03FDEE3C732A600000AAAA"
         notes: "B10=0x2A (00101010). DRV_OPEN (bit5)=1, LOCK_RL (bit1)=1, LOCK_RR (bit3)=1. Driver unlocked by opening door."
 
-      - ecu: IGPM
+      - ecu: '0x778'
         pid: "22BC04"
         payload: "62BC04B53FF4EA05000042AAAA"
         notes: "B10=0x05 (00000101). LOCK_FL (bit3)=0 (driver unlocked), LOCK_FR (bit2)=1."
 
       # --- Turn signal captures (BC06) ---
-      - ecu: IGPM
+      - ecu: '0x778'
         pid: "22BC06"
         payload: "62BC06B480000000000000AAAA"
         notes: "Baseline — all zeros in light/signal bytes."
 
-      - ecu: IGPM
+      - ecu: '0x778'
         pid: "22BC06"
         payload: "62BC06B480000001000000AAAA"
         notes: "B8=0x01. LEFT_TURN_SIGNAL (B8:0)=1."
 
-      - ecu: IGPM
+      - ecu: '0x778'
         pid: "22BC06"
         payload: "62BC06B480000002000000AAAA"
         notes: "B8=0x02. RIGHT_TURN_SIGNAL (B8:1)=1."
 
-      - ecu: IGPM
+      - ecu: '0x778'
         pid: "22BC06"
         payload: "62BC06B48000002D000000AAAA"
         notes: "B7=0x2D (45 decimal). BRAKE_LIGHT scalar — non-zero = brake applied."
 
       # --- Charge port flap (BCM 0x7A0, no extended session needed) ---
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22B00E"
         payload: "62B00E0C00000020000000AAAA"
         notes: "B10=0x20 (bit 5 set). CHARGE_PORT_OPEN (B10:5)=1."
 
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22B00E"
         payload: "62B00E0C00000000000000AAAA"
         notes: "B10=0x00 (bit 5 clear). CHARGE_PORT_OPEN (B10:5)=0."
 
       # --- IOControl tests (service 0x2F) ---
-      - ecu: IGPM
+      - ecu: '0x778'
         pid: "2FBC01"
         payload: "6FBC0103"
         notes: |
@@ -153,7 +153,7 @@ sessions:
           Use: canreq.py --raw 770:2FBC0103 --hold
 
       # --- IOControl scan BC00-BC20 (service 0x2F, append 03) ---
-      - ecu: IGPM
+      - ecu: '0x778'
         pid: "2F_SCAN_BC00-BC20"
         response: "see notes"
         notes: |
@@ -205,48 +205,48 @@ sessions:
     captures:
 
       # SKM IOControl (0x7A5) — Ready mode (ACC already on)
-      - ecu: SKM
+      - ecu: '0x7AD'
         pid: "2FB108030A0A05"
         label: "ACC relay ON — car in Ready (ACC already on)"
         response: "NRC 0x22 (conditionsNotCorrect)"
         notes: "ACC already active — IOControl rejects actuating to current state."
 
-      - ecu: SKM
+      - ecu: '0x7AD'
         pid: "2FB10802"
         label: "ACC relay freezeCurrentState — car in Ready"
         payload: "6FB1080262550000AAAAAAAAAA"
         notes: "Status bytes 0x62=01100010, 0x55=01010101. Possibly relay state bitmask."
 
       # SKM IOControl (0x7A5) — car off, unlocked, light sleep
-      - ecu: SKM
+      - ecu: '0x7AD'
         pid: "2FB108030A0A05"
         label: "ACC relay ON — car off, unlocked, light sleep"
         response: "accepted (session held, relay clicking)"
         notes: "ACC relay closed. Infotainment powered on, doors unlocked. Relay released on session drop."
 
       # SKM IOControl (0x7A5) — car off, LOCKED, deep sleep, fob nearby
-      - ecu: SKM
+      - ecu: '0x7AD'
         pid: "2FB108030A0A05"
         label: "ACC relay ON — car off, locked, deep sleep, --wake, fob nearby"
         response: "accepted (session established after 1001 wake)"
         notes: "SKM woke from deep sleep with 1001! ACC relay clicked on, doors unlocked, infotainment booted. Relay released on timeout, car re-locked. CAVEAT: fob was in proximity."
 
       # SKM IOControl (0x7A5) — car off, LOCKED, deep sleep, fob FAR AWAY
-      - ecu: SKM
+      - ecu: '0x7AD'
         pid: "2FB108030A0A05"
         label: "ACC relay ON — car off, locked, deep sleep, --wake, NO FOB"
         response: "NO DATA (all attempts)"
         notes: "Fob inside house (~15m away). 1001 → NO DATA, 1003 → NO DATA, IOControl → NO DATA. SKM completely dead without fob LF field. Confirms fob proximity is REQUIRED."
 
       # IGPM wake confirmation — no fob, deep sleep
-      - ecu: IGPM
+      - ecu: '0x778'
         pid: "22BC03"
         label: "IGPM wake test — no fob nearby, deep sleep"
         payload: "62BC03FDEE3C730A000000AAAA"
         notes: "IGPM wakes from 1001 regardless of fob proximity. B7=0x0A (locked state)."
 
       # IGPM read scan (Service 0x22) — Ready mode
-      - ecu: IGPM
+      - ecu: '0x778'
         pid: "22BC1D-BC41"
         label: "Read scan — Ready mode"
         scan_results:
@@ -256,7 +256,7 @@ sessions:
           rejected: "all others (NRC 0x31)"
         notes: "BC33 responded in deep sleep but BC34 in Ready. Timing-sensitive."
 
-      - ecu: IGPM
+      - ecu: '0x778'
         pid: "22BC42-BC80"
         label: "Read scan — Ready mode"
         scan_results:
@@ -268,7 +268,7 @@ sessions:
         notes: "Different DIDs vs deep sleep (BC56→BC59, BC77→BC72). Only BC46 consistent."
 
       # IGPM IOControl existence scan (Service 0x2F, --append 00) — Ready mode
-      - ecu: IGPM
+      - ecu: '0x778'
         pid: "2FBC1D-BC41 (append 00)"
         label: "IOControl existence scan — Ready mode"
         scan_results:
@@ -282,7 +282,7 @@ sessions:
             - { did: "BC41→BC3F", response: "6FBC3F00", notes: "charge cable lock (known)" }
         notes: ""
 
-      - ecu: IGPM
+      - ecu: '0x778'
         pid: "2FBC42-BC60 (append 00)"
         label: "IOControl existence scan — Ready mode"
         scan_results:
@@ -294,7 +294,7 @@ sessions:
             - { did: "BC58", response: "7E00", notes: "status register" }
         notes: ""
 
-      - ecu: IGPM
+      - ecu: '0x778'
         pid: "2FBC61-BCFF (append 00)"
         label: "IOControl existence scan — Ready mode"
         scan_results:
@@ -310,31 +310,31 @@ sessions:
         notes: ""
 
       # IOControl actuator tests — Ready mode
-      - ecu: IGPM
+      - ecu: '0x778'
         pid: "2FBC2503"
         label: "Unknown actuator test — Ready mode"
         response: "accepted"
         notes: "No visible or audible effect."
 
-      - ecu: IGPM
+      - ecu: '0x778'
         pid: "2FBC2D03"
         label: "CHMSL test — Ready mode"
         response: "accepted"
         notes: "Center high-mount stop lamp (third brake light) turned on! Confirmed."
 
-      - ecu: IGPM
+      - ecu: '0x778'
         pid: "2FBC4203"
         label: "Unknown actuator test — Ready mode"
         response: "accepted"
         notes: "No visible or audible effect."
 
-      - ecu: IGPM
+      - ecu: '0x778'
         pid: "2FBC4303"
         label: "Unknown actuator test — Ready mode"
         response: "accepted"
         notes: "No visible or audible effect."
 
-      - ecu: IGPM
+      - ecu: '0x778'
         pid: "2FBC4403"
         label: "Unknown actuator test — Ready mode"
         response: "accepted"
@@ -344,67 +344,67 @@ sessions:
     label: "SKM rapid-fire wake & ECU sweep"
     state: "car off, locked, unplugged, fob ~10m away inside house"
     captures:
-      - ecu: SKM
+      - ecu: '0x7AD'
         pid: "1001"
         label: "Rapid-fire wake — cold start #1"
         payload: "5001"
         notes: "SKM alive at attempt 17 of 100. 64ms timeout (ATST10), 150ms intervals. No fob nearby."
 
-      - ecu: SKM
+      - ecu: '0x7AD'
         pid: "1001"
         label: "Rapid-fire wake — cold start #2"
         payload: "5001"
         notes: "SKM alive at attempt 16. After WiCAN reboot + 15s settle."
 
-      - ecu: SKM
+      - ecu: '0x7AD'
         pid: "1001"
         label: "Rapid-fire wake — cold start #3"
         payload: "5001"
         notes: "SKM alive at attempt 2. Full ACC+IGN1 sequence followed."
 
-      - ecu: SKM
+      - ecu: '0x7AD'
         pid: "2FB108030A0A05"
         label: "ACC relay ON — deep sleep, no fob"
         payload: "6FB10803"
         notes: "ACC IOControl accepted without fob. Relay may not fully latch."
 
-      - ecu: SKM
+      - ecu: '0x7AD'
         pid: "2FB109030A0A05"
         label: "IGN1 relay ON — deep sleep, no fob"
         payload: "6FB10903"
         notes: "IGN1 IOControl accepted without fob."
 
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22C00B"
         label: "TPMS read — after SKM ACC+IGN1"
         payload: "62C00BFFFF00C9450200CB43"
         notes: "BCM alive after SKM ACC+IGN1. TPMS data returned. Multi-frame with ATH1 headers."
 
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22B00E"
         label: "Charge port — after SKM ACC+IGN1"
         payload: "62B00E0C00000000000000"
         notes: "Charge port closed. BCM responds without extended session."
 
-      - ecu: CLU
+      - ecu: '0x7CE'
         pid: "1001"
         label: "Brute-force wake attempt"
         response: "NO DATA"
         notes: "50 rapid attempts — CLU dead."
 
-      - ecu: HVAC
+      - ecu: '0x7BB'
         pid: "1001"
         label: "Brute-force wake attempt"
         response: "NO DATA"
         notes: "50 rapid attempts — HVAC dead."
 
-      - ecu: AAT
+      - ecu: '0x7EE'
         pid: "1001"
         label: "Wake probe"
         response: "NO DATA"
         notes: "GW (0x7E6) dead."
 
-      - ecu: ESC
+      - ecu: '0x7D9'
         pid: "1001"
         label: "Wake probe"
         response: "NO DATA"
@@ -418,73 +418,73 @@ sessions:
     notes: "Method: canreq.py --scan --tx 7A0 --service 22 --range B001-B012 --wake"
     captures:
       # B-range: BCM body data
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22B001"
         label: "BCM data page 1"
         payload: "62B00140C0000000010000000000000201000000"
         notes: "20 bytes. Feature/config flags. Mostly zeros."
 
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22B002"
         label: "BCM data page 2"
         payload: "62B002C00000000200AAAAAAAA"
         notes: "13 bytes. Minimal data."
 
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22B003"
         label: "BCM data page 3"
         payload: "62B003BF8B8000973D09B8F9F8F9F73DF800000000000000AAAAAA"
         notes: "27 bytes. Dense bitfields — likely BCM configuration/feature flags."
 
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22B004"
         label: "BCM data page 4"
         payload: "62B0047402990C00008000AAAA"
         notes: "13 bytes. 0x7402990C — could be voltage/current calibration."
 
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22B005"
         label: "BCM data page 5"
         payload: "62B0052000100000000800AAAA"
         notes: "13 bytes."
 
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22B006"
         label: "BCM data page 6"
         payload: "62B0062000000000000000AAAA"
         notes: "13 bytes. Mostly zeros."
 
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22B007"
         label: "BCM data page 7"
         payload: "62B007002001E000000000AAAA"
         notes: "13 bytes. 0x01E0 = 480 decimal (minutes from midnight for 08:00?)."
 
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22B008"
         label: "BCM data page 8"
         payload: "62B00800510C2000880000AAAA"
         notes: "13 bytes."
 
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22B009"
         label: "BCM data page 9"
         payload: "62B009FEEEFEEE00000000AAAA"
         notes: "13 bytes. Repeating pattern FEEE — config word."
 
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22B00A"
         label: "BCM data page A"
         payload: "62B00AE3FEE30000400500AAAA"
         notes: "13 bytes."
 
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22B00B"
         label: "BCM status register"
         payload: "7E00"
         notes: "2 bytes only — status register, same as IGPM BC status DIDs."
 
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22B00C"
         label: "Preheat schedule — day-of-week bitmask"
         payload: "62B00C3F00000000000000AAAA"
@@ -492,7 +492,7 @@ sessions:
                 at 08:00 but may have missed one day. Remaining bytes 00 = no charging
                 schedule. Preheat TIME not in this DID — likely in B007 or B00D."
 
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22B00D"
         label: "Preheat timer configuration"
         payload: "62B00DFCFCE00000000000AAAA"
@@ -500,104 +500,104 @@ sessions:
                 0xE0=224 — relationship to 08:00 (480 min) unclear. Need to change
                 time and re-read to decode."
 
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22B00E"
         label: "Charge port flap status"
         payload: "62B00E0C00000000000000AAAA"
         notes: "Charge port CLOSED. B3=0x0C. Confirmed: B10:5 in WiCAN = open/closed."
 
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22B00F"
         label: "BCM data page F"
         payload: "62B00FFCFCE00000000000AAAA"
         notes: "Note: scan showed this as 0xB00F responding but NOT B010-B012. Possibly only in ACC/Drive mode?"
 
       # C-range: TPMS/comfort data
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22C001"
         label: "TPMS config"
         payload: "62C001000000002E2E02500706B5B50A098C3C0000000001FF01000101AA"
         notes: "34 bytes. Tire configuration — pressure limits, sensor IDs."
 
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22C002"
         label: "TPMS pressure readings"
         payload: "62C002FFFF0000C0F81174C0F80410C0F80BD2C0F81188AAAAAAAA"
         notes: "27 bytes. 4 × pressure values. C0F8 prefix per wheel."
 
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22C003"
         label: "TPMS sensor 1 (DO01)"
         payload: "62C00300000000444F303101002E2E02500706B5B50A098C3C0000000001"
         notes: "34 bytes. Sensor ID 'DO01' (ASCII at B7-B10)."
 
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22C004"
         label: "TPMS sensor 2 (NA01)"
         payload: "62C004000000004E41303101002E2E024B0005B5B508088C3C0100000001"
         notes: "34 bytes. Sensor ID 'NA01'."
 
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22C005"
         label: "TPMS sensor 3 (NTPM)"
         payload: "62C005000000004E54504D0100302F02500000ABAB00008C3C0000030001"
         notes: "34 bytes. Sensor ID 'NTPM'."
 
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22C006"
         label: "TPMS sensor 4 (DO02)"
         payload: "62C00600000000444F303201002E2E02500706B5AB0A098C3C0000000001"
         notes: "34 bytes. Sensor ID 'DO02'."
 
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22C007"
         label: "TPMS sensor 5 (NA02)"
         payload: "62C007000000004E41303201002E2E024B0005B5AB08088C3C0100000001"
         notes: "34 bytes. Sensor ID 'NA02'."
 
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22C008"
         label: "TPMS slot 5 (0005)"
         payload: "62C00800000000303030350000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
         notes: "34 bytes. Spare slot '0005' — all FF data (no sensor)."
 
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22C009"
         label: "TPMS slot 6 (0006)"
         payload: "62C00900000000303030360000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
         notes: "34 bytes. Spare slot '0006' — all FF data."
 
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22C00A"
         label: "TPMS slot 7 (0007)"
         payload: "62C00A00000000303030370000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
         notes: "34 bytes. Spare slot '0007' — all FF data."
 
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22C00B"
         label: "TPMS live data (already in AutoPID)"
         payload: "62C00BFFFF0000C9450200CB430100CF440100CB440100AAAAAAAA"
         notes: "27 bytes. Same as existing AutoPID sensor. Pressure + temp per wheel."
 
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22C00C"
         label: "TPMS extended data 1"
         payload: "62C00CFFFF030001C0F8117499434119180000000000FFFF000000000000"
         notes: "41 bytes. Extended per-sensor data with status flags."
 
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22C00D"
         label: "TPMS extended data 2"
         payload: "62C00DFFFF03000000000000FFFF0000000000000000FFFF000000000000"
         notes: "41 bytes. Mostly zeros — no active sensor in this slot."
 
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22C00E"
         label: "TPMS extended data 3"
         payload: "62C00EFFFF03000000000000FFFF0000000000000000FFFF000000000000"
         notes: "41 bytes. Mostly zeros."
 
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22C00F"
         label: "TPMS extended data 4"
         payload: "62C00FFFFF030001C0F8118801203B1E560000000000FFFF000000000000"
@@ -610,7 +610,7 @@ sessions:
     state: "Car off, deep sleep. SKM ACC+IGN1 held via IOControl."
     notes: "Method: BCM IOControl scan: 2F B0xx 00 (returnControlToECU, safe)"
     captures:
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "2F B0xx"
         label: "IOControl DID existence scan B000-B072"
         response: |
@@ -622,7 +622,7 @@ sessions:
                 wasn't frequent enough, BCM lost power mid-scan. Re-scan needed.
                 B061 (charge door open) NRC 0x31 — DID not supported on Ioniq 2017."
 
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "2FB06103"
         label: "Charge door open retry (with ACC power)"
         response: "NRC 0x31"
@@ -634,20 +634,20 @@ sessions:
     state: "deep sleep → SKM ACC only (IOControl B108), no fob"
     label: "BCM power state comparison — ACC only"
     captures:
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22B001"
         label: "BCM config flags — ACC only"
         response: "62B00140C0000100000000000002010000 00"
         notes: "Identical to earlier ACC+IGN1 read — B001 does not change with power state."
 
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22B003"
         label: "BCM dense bitfield — ACC only"
         payload: "62B003BF8B8000973D09B8F9F8F9F73DF800000000000000AAAAAA"
         notes: "Byte 8 (stripped) = 0x09 (0b00001001). Compare with ACC+IGN1 where byte 8 = 0x0A.
                 Bits 0 and 1 swap between ACC and IGN1 — possible power mode field."
 
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22B008"
         label: "BCM status — ACC only"
         payload: "62B00800510C2000880000AAAA"
@@ -657,7 +657,7 @@ sessions:
     state: "deep sleep → SKM ACC + IGN1 (IOControl B108+B109), no fob"
     label: "BCM power state comparison — ACC + IGN1"
     captures:
-      - ecu: BCM
+      - ecu: '0x7A8'
         pid: "22B003"
         label: "BCM dense bitfield — ACC + IGN1"
         payload: "62B003BF8B8000973D0AB8F9F8F9F73DF800000000000000AAAAAA"

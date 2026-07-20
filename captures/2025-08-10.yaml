@@ -11,7 +11,7 @@ sessions:
     label: "Driving"
     notes: "Driving session. Only MCU capture preserved."
     captures:
-      - ecu: MCU
+      - ecu: '0x7EB'
         pid: "2102"
         payload: "610207ffffffc0091f011f019f0114121013f7fff6ff7dd6cdabc2cd720022fc3000e307f726f606c1cd0000eb3100000000000000000000"
         notes: ""

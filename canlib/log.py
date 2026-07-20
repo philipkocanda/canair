@@ -33,7 +33,7 @@ def _load_ecu_lookup() -> dict[int, str]:
     if _ecu_lookup is not None:
         return _ecu_lookup
     try:
-        from .pids import load_ecus
+        from .ecus import load_ecus
         ecus = load_ecus()
         _ecu_lookup = {tx_id: info["name"] for tx_id, info in ecus.items()}
     except Exception:

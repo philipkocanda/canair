@@ -107,7 +107,7 @@ def _save_raw(
 ) -> None:
     """Prompt (or use provided metadata) and save a raw request result to captures."""
     from ..captures import build_raw_session, resolve_metadata, save_session, suggest_raw_label
-    from ..pids import ecu_name
+    from ..ecus import ecu_name, rx_addr_str
 
     ecu = ecu_name(tx_id)
     suggested = suggest_raw_label(ecu, request)
@@ -115,7 +115,7 @@ def _save_raw(
     if meta:
         label, state, notes = meta
         session_dict = build_raw_session(
-            ecu_name=ecu,
+            ecu_ref=rx_addr_str(tx_id),
             tx_id=tx_id,
             request=request,
             response=response,

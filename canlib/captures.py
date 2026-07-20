@@ -105,10 +105,11 @@ def build_query_session(
 ) -> dict:
     """Build a capture session dict from query/raw payload results.
 
-    ``results`` is a list of ``(ecu_short, pid, hex, time)`` tuples (``time``
-    may be an empty string). Captures are grouped by ECU then PID in the order
-    given. Decoded parameter values are intentionally NOT stored — they are
-    regenerated on demand from the payload + PID definitions.
+    ``results`` is a list of ``(ecu_ref, pid, hex, time)`` tuples (``time``
+    may be an empty string). ``ecu_ref`` is the ECU CAN response address as a
+    hex string (e.g. ``"0x7EC"``). Captures are grouped by ECU then PID in the
+    order given. Decoded parameter values are intentionally NOT stored — they
+    are regenerated on demand from the payload + PID definitions.
     """
     session: dict = {
         "date": datetime.now().strftime("%Y-%m-%d"),
@@ -120,9 +121,9 @@ def build_query_session(
         session["notes"] = notes + "\n"
 
     captures: list[dict] = []
-    for ecu_short, pid, hex_val, ts in results:
+    for ecu_ref, pid, hex_val, ts in results:
         capture: dict = {
-            "ecu": ecu_short,
+            "ecu": ecu_ref,
             "pid": pid,
             "payload": hex_val.upper(),
         }
@@ -134,7 +135,7 @@ def build_query_session(
     return session
 
 def build_scan_session(
-    ecu_name: str,
+    ecu_ref: str,
     tx_id: int,
     service: int,
     pid_range: tuple[int, int],
@@ -166,7 +167,7 @@ def build_scan_session(
 
     # Build scan_results capture
     scan_capture: dict = {
-        "ecu": ecu_name,
+        "ecu": ecu_ref,
         "pid": f"scan {service:02X} {range_str}{suffix}",
     }
 
@@ -200,7 +201,7 @@ def build_scan_session(
 
 
 def build_raw_session(
-    ecu_name: str,
+    ecu_ref: str,
     tx_id: int,
     request: str,
     response: dict,
@@ -225,7 +226,7 @@ def build_raw_session(
         session["notes"] = notes + "\n"
 
     capture: dict = {
-        "ecu": ecu_name,
+        "ecu": ecu_ref,
         "pid": request,
     }
 
@@ -250,7 +251,14 @@ def build_discover_session(
     state: str,
     notes: str,
 ) -> dict:
-    """Build a capture session dict from discovery scan results."""
+    """Build a capture session dict from discovery scan results.
+
+    The top-level ``ecu`` is the ``broadcast`` sentinel (a discovery scan spans
+    many ECUs). Each responder's originating ECU is preserved as its CAN
+    response address (RX = TX + 8) in ``scan_results.responding[].ecu``.
+    """
+    from .ecus import rx_addr_str
+
     start, end = addr_range
     session: dict = {
         "date": datetime.now().strftime("%Y-%m-%d"),
@@ -271,7 +279,7 @@ def build_discover_session(
         responding = []
         for tx_id, ecu_label, resp_hex in alive:
             entry: dict = {
-                "did": f"{tx_id:03X}",
+                "ecu": rx_addr_str(tx_id),
                 "response": ecu_label,
                 "notes": f"Raw: {resp_hex}" if resp_hex else "",
             }

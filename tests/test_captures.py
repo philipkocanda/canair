@@ -37,27 +37,28 @@ class TestResolveMetadata:
 
 class TestBuildQuerySession:
     def test_groups_and_uppercases(self):
+        # ecu_ref is the ECU CAN response address (RX = request TX + 8).
         results = [
-            ("MCU", "2102", "6102aabb", ""),
-            ("VCU", "2101", "6101ccdd", "12:00:01"),
+            ("0x7EB", "2102", "6102aabb", ""),   # MCU (0x7E3 + 8)
+            ("0x7EA", "2101", "6101ccdd", "12:00:01"),  # VCU (0x7E2 + 8)
         ]
         s = build_query_session(results, "lbl", "ready, parked", "notes here")
         assert s["label"] == "lbl"
         assert s["state"] == "ready, parked"
         assert s["notes"] == "notes here\n"
         assert "date" in s
-        assert s["captures"][0] == {"ecu": "MCU", "pid": "2102", "payload": "6102AABB"}
+        assert s["captures"][0] == {"ecu": "0x7EB", "pid": "2102", "payload": "6102AABB"}
         # time preserved when present
         assert s["captures"][1]["time"] == "12:00:01"
         assert s["captures"][1]["payload"] == "6101CCDD"
 
     def test_empty_state_notes_omitted(self):
-        s = build_query_session([("BMS", "2101", "6101", "")], "l", "", "")
+        s = build_query_session([("0x7EC", "2101", "6101", "")], "l", "", "")  # BMS
         assert "state" not in s
         assert "notes" not in s
 
     def test_roundtrips_and_appends_via_save_session(self, tmp_path):
-        results = [("MCU", "2102", "6102AABB", "")]
+        results = [("0x7EB", "2102", "6102AABB", "")]  # MCU
         s = build_query_session(results, "Live ref", "ready, parked", "18C")
         save_session(s, tmp_path)
         files = list(tmp_path.glob("*.yaml"))

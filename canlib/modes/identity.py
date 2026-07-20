@@ -3,7 +3,7 @@
 import asyncio
 import json
 
-from ..pids import ecu_name
+from ..ecus import ecu_name
 from ..terminal import WiCANTerminal
 
 # Standard UDS identity DIDs (ISO 14229-1 / Hyundai-Kia common subset).

@@ -7,7 +7,7 @@ try:
 except ImportError as e:
     raise ImportError("PyYAML not installed. Run: pip3 install pyyaml") from e
 
-from .constants import ECUS_FILE, PIDS_DIR
+from .constants import PIDS_DIR
 
 
 def load_pids(path: Path = PIDS_DIR) -> dict:
@@ -41,29 +41,6 @@ def load_pids(path: Path = PIDS_DIR) -> dict:
     # Legacy: single file
     with open(path) as f:
         return yaml.safe_load(f)
-
-
-def load_ecus(path: Path = ECUS_FILE) -> dict:
-    """Load ECU lookup table from YAML.
-
-    Returns dict: tx_id (int) -> {name, description}.
-    """
-    with open(path) as f:
-        data = yaml.safe_load(f)
-    result = {}
-    for tx_id, info in data.get("ecus", {}).items():
-        if isinstance(tx_id, str) and tx_id.startswith("0x"):
-            tx_id = int(tx_id, 16)
-        result[int(tx_id)] = info
-    return result
-
-
-def ecu_name(tx_id: int, ecus: dict | None = None) -> str:
-    """Get ECU name for a TX ID, or '0x{tx_id:03X}' if unknown."""
-    if ecus is None:
-        ecus = load_ecus()
-    info = ecus.get(tx_id)
-    return info["name"] if info else f"0x{tx_id:03X}"
 
 
 def build_param_index(pids_data: dict) -> dict:

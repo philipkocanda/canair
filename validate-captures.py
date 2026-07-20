@@ -2,9 +2,12 @@
 """Validate capture files against the schema defined in captures/SCHEMA.yaml."""
 
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import yaml
+
+sys.path.insert(0, str(Path(__file__).parent))
 
 CAPTURES_DIR = Path(__file__).parent / "captures"
 ECUS_FILE = Path(__file__).parent / "ecus.yaml"
@@ -19,13 +22,26 @@ REQUIRED_SESSION_FIELDS = {"date", "label", "captures"}
 ALLOWED_SESSION_FIELDS = REQUIRED_SESSION_FIELDS | {"state", "notes"}
 
 
-def load_ecu_names() -> set[str]:
-    with open(ECUS_FILE) as f:
-        data = yaml.safe_load(f)
-    return {info["name"] for info in data.get("ecus", {}).values()}
+def _valid_session_date(date: str) -> bool:
+    """True if ``date`` is YYYY-MM-DD, optionally with a "-<suffix>" (same-day)."""
+    try:
+        datetime.strptime(date[:10], "%Y-%m-%d")
+    except ValueError:
+        return False
+    # Bare date, or a "-<suffix>" after the 10-char date.
+    return len(date) == 10 or (len(date) > 11 and date[10] == "-")
 
 
-def validate_file(path: Path, ecu_names: set[str]) -> list[str]:
+def load_valid_rx_addrs() -> set[int]:
+    """Set of valid ECU CAN response addresses (RX = request TX + 8)."""
+    from canlib.ecus import build_rx_index
+
+    return set(build_rx_index())
+
+
+def validate_file(path: Path, rx_addrs: set[int]) -> list[str]:
+    from canlib.ecus import SENTINELS, parse_ecu_ref
+
     errors = []
     with open(path) as f:
         data = yaml.safe_load(f)
@@ -47,8 +63,10 @@ def validate_file(path: Path, ecu_names: set[str]) -> list[str]:
                 errors.append(f"{prefix}: unknown field '{field}'")
 
         date = session.get("date", "")
-        if date and not (len(date) == 10 and date[4] == "-" and date[7] == "-"):
-            errors.append(f"{prefix}: date '{date}' not in YYYY-MM-DD format")
+        # A date is YYYY-MM-DD, optionally with a "-<suffix>" for a second
+        # session captured on the same day (e.g. "2026-04-17-b").
+        if date and not _valid_session_date(date):
+            errors.append(f"{prefix}: date '{date}' not in YYYY-MM-DD[-suffix] format")
 
         # Check filename matches date
         expected_stem = date
@@ -91,10 +109,14 @@ def validate_file(path: Path, ecu_names: set[str]) -> list[str]:
             elif len(present_payload) > 1:
                 errors.append(f"{cprefix}: multiple payload fields: {present_payload}")
 
-            # Validate ECU name
+            # Validate ECU response address (or a sentinel like "broadcast")
             ecu = cap.get("ecu")
-            if ecu and ecu not in ecu_names:
-                errors.append(f"{cprefix}: unknown ECU '{ecu}' (not in ecus.yaml)")
+            if ecu and str(ecu).lower() not in SENTINELS:
+                rx = parse_ecu_ref(ecu)
+                if rx is None:
+                    errors.append(f"{cprefix}: ECU '{ecu}' is not a valid response address or sentinel")
+                elif rx not in rx_addrs:
+                    errors.append(f"{cprefix}: ECU response address '{ecu}' not in ecus.yaml (RX = TX + 8)")
 
             # Validate scan_results structure
             if "scan_results" in cap:
@@ -107,16 +129,16 @@ def validate_file(path: Path, ecu_names: set[str]) -> list[str]:
                             errors.append(
                                 f"{cprefix}.scan_results.responding[{ri}]: must be a mapping"
                             )
-                        elif "did" not in entry or "response" not in entry:
+                        elif ("did" not in entry and "ecu" not in entry) or "response" not in entry:
                             errors.append(
-                                f"{cprefix}.scan_results.responding[{ri}]: needs 'did' and 'response'"
+                                f"{cprefix}.scan_results.responding[{ri}]: needs 'did'/'ecu' and 'response'"
                             )
 
     return errors
 
 
 def main():
-    ecu_names = load_ecu_names()
+    rx_addrs = load_valid_rx_addrs()
     files = sorted(CAPTURES_DIR.glob("*.yaml"))
     files = [f for f in files if f.name != "SCHEMA.yaml"]
 
@@ -126,7 +148,7 @@ def main():
 
     total_errors = 0
     for path in files:
-        errors = validate_file(path, ecu_names)
+        errors = validate_file(path, rx_addrs)
         if errors:
             print(f"\n{path.name}: {len(errors)} errors")
             for e in errors:

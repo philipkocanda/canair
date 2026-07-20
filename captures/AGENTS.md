@@ -10,3 +10,5 @@ Record device reads with `--save` plus non-interactive metadata flags, e.g.:
 
 `--save` works with `--scan`, `--raw`, `--discover`, `--multi` (any `query`/`raw` step), and `--monitor --keep-unique/--keep-all`. Always pass `--label` (and optionally `--state`/`--notes`) so saving is non-interactive — without `--label` the CLI prompts on stdin. For edits/removals of existing captures, use the `canlib.captures` helpers (`set_capture_note`, `delete_capture`), never a text editor.
 
+The `ecu` field stores the ECU CAN **response** address (RX = request TX + 8) as a hex string, e.g. `"0x7EC"` for BMS (`"broadcast"` for multi-ECU discovery scans). Tools resolve it back to the short name via `ecus.yaml`, so you still query by name (`--ecu BMS`). See `captures/SCHEMA.yaml`.
+
