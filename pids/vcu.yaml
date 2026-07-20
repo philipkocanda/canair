@@ -23,25 +23,44 @@ VCU:
       availability: [ready, charging]
       parameters:
         VEHICLE_SPEED:
-          expression: "((S20*256)+B19)*1.609344/100"
+          expression: "((S20*256)+B19)/60"
           unit: km/h
           ha_class: speed
           min: "0"
           max: "255"
           verified: false
           notes: >
-            Signed 16-bit little-endian: high byte S20 (signed, for reverse/regen roll-back), low byte B19
-            (unsigned). Raw value is speed in MPH×100 → converted to km/h (×1.609344).
-            2026-07-20: The original ((S20*256)+S19)/100 had the RIGHT bytes (B20 high, B19 low) but two bugs:
-            (1) the low byte was read *signed* (S19), corrupting frames where B19≥0x80; fixed to unsigned B19.
-            (2) unit is MPH, not km/h; added ×1.609344.
-            Reads exactly 0 at park (confirmed live 2026-07-20: B19=B20=0 in all 354 parked frames; B19 forms
-            a smooth monotonic 16-bit ramp while accelerating). vs dashboard at 3 points (2026-07-19):
-            83/96/109 km/h cluster vs 79.8/91.0/106.5 decoded → ~+4% speedometer over-read (normal).
-            WARNING: do NOT use B21 as the low byte — an earlier revision did, but B21 is a separate signal
-            that is non-zero and jittery at standstill (67–150), making speed read ~0.5–2.4 km/h while parked.
-            Pending GPS/multi-point confirmation across full speed range (see research). NOTE: dashboard
-            speed itself is a separate signal — ESC 0x7D1 22C101 REAL_SPEED_KMH (B12), wheel-speed based.
+            16-bit: high byte S20 (signed, for reverse/regen roll-back), low byte B19 (unsigned), divided by 60.
+            2026-07-20: divisor corrected to /60 (was *1.609344/100). The ITStromer community PID sheet gives
+            "Real Vehicle Speed = ((Signed(o)*256)+n)/60" (o=B20, n=B19) — /60 yields km/h directly, matching
+            the dashboard within ~1.5% (83/96/109 cluster vs 82.6/94.2/110.3 decoded). The earlier mph theory
+            (*1.609/100) read ~4-5% low — a contrived fit; /60 is the internal vehicle speed (≈ dash).
+            Reads exactly 0 at park (B19=B20=0 in all parked frames; B19 is a smooth 16-bit low byte while
+            accelerating). Original ((S20*256)+S19)/100 also had the low byte read *signed* (corrupting B19≥0x80).
+            WARNING: do NOT use B21 as the low byte — B21 is a separate signal, non-zero/jittery at standstill.
+            NOTE: a distinct wheel-speed source exists at ESC 0x7D1 22C101 REAL_SPEED_KMH (B12).
+
+        ACCEL_PEDAL_DEPTH:
+          expression: "B18/2"
+          unit: "%"
+          ha_class: ""
+          min: "0"
+          max: "100"
+          source: "ITStromer community PID sheet (Accel Pedal Depth = m/2)"
+          verified: false
+          notes: >
+            Accelerator pedal position. 2026-07-20: from the ITStromer community sheet, confirmed by its
+            controlled test (0% pedal → B18=0; pedal to floor → B18=0xC8=200 → 100%). Our captures: 0% at
+            rest, 0-56% while driving, up to 86% with pedal pressed in Park. ISO-TP byte 0x0e.
+
+        ACCEL_PEDAL_RELATED:
+          expression: "B17"
+          unit: ""
+          min: "0"
+          max: "255"
+          source: "ITStromer community PID sheet (Accel Pedal Related = l)"
+          verified: false
+          notes: "Raw accelerator-related sensor (APS). Tracks pedal (0-254). ISO-TP byte 0x0d."
 
         DEBUG_DRIVE_MODE_FLAGS:
           expression: "B10"
