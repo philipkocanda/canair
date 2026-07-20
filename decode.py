@@ -21,6 +21,8 @@ Examples:
   python3 decode.py BMS 2101 --json       # JSON (per-capture decoded values)
   python3 decode.py MCU 2102 --stats      # Descriptive stats per param (mean/median/stdev/distinct)
   python3 decode.py MCU 2102 --corr MCU_MOTOR_RPM   # Correlate every param vs a known signal
+  python3 decode.py MCU 2102 --plot                      # sweep interpretations, find the signal
+  python3 decode.py MCU 2102 --plot --corr MCU_MOTOR_RPM # overlay a known signal + live r
   python3 decode.py MCU 2102 --try "TORQUE:Nm=[S12:S13]/100"   # Test a candidate expression
   python3 decode.py MCU 2102 --try "T=[S17:S18]" --corr MCU_MOTOR_RPM  # Validate a candidate by correlation
   python3 decode.py MCU 21F2 --try "X=B9" --try "Y=[S10:S11]"  # Multiple candidates, undefined PID OK
@@ -387,6 +389,359 @@ def print_correlations(
     print()
 
 
+# ---------------------------------------------------------------------------
+# Plot mode (interactive signal exploration)
+# ---------------------------------------------------------------------------
+#
+# Two composable layers, like an ImHex data inspector plus post-processing:
+#   1. INTERPRETATION — read raw payload bytes at an offset as a type
+#      (u8/i8/u16/.../u64/i64/f16/f32/f64, big/little endian). The "how do I
+#      read these bytes" sweep for finding a signal.
+#   2. TRANSFORM — post-process the resulting per-capture series
+#      (raw/delta/abs/cumsum/normalize/smooth) to expose structure.
+# The series (one value per capture) is drawn as a Unicode braille line chart;
+# an optional reference parameter can be overlaid with a live Pearson r.
+
+# name, byte width, kind ("int"/"float"), signed (ints only)
+INSPECT_TYPES = [
+    ("u8", 1, "int", False), ("i8", 1, "int", True),
+    ("u16", 2, "int", False), ("i16", 2, "int", True),
+    ("u24", 3, "int", False), ("i24", 3, "int", True),
+    ("u32", 4, "int", False), ("i32", 4, "int", True),
+    ("u64", 8, "int", False), ("i64", 8, "int", True),
+    ("f16", 2, "float", True), ("f32", 4, "float", True), ("f64", 8, "float", True),
+]
+
+POST_TRANSFORMS = ("raw", "delta", "abs", "cumsum", "normalize", "smooth")
+
+_V_AXIS = "\u2502"   # box vertical
+_CORNER = "\u2514"   # box corner
+_HLINE = "\u2500"    # box horizontal
+
+
+def interpret_bytes(frame: bytes, offset: int, spec: tuple, little: bool = False) -> float | None:
+    """Read ``frame`` at ``offset`` as one INSPECT_TYPES spec, or None if OOB.
+
+    ``spec`` is ``(name, width, kind, signed)``. Endianness applies to
+    multi-byte types; single bytes ignore it.
+    """
+    _, width, kind, signed = spec
+    if offset < 0 or offset + width > len(frame):
+        return None
+    bs = frame[offset:offset + width]
+    if kind == "int":
+        order = "little" if (little and width > 1) else "big"
+        return float(int.from_bytes(bs, order, signed=signed))
+    import struct
+    fmt = {2: "e", 4: "f", 8: "d"}[width]
+    try:
+        return float(struct.unpack(("<" if little else ">") + fmt, bs)[0])
+    except (struct.error, ValueError):
+        return None
+
+
+def wican_expr(offset: int, spec: tuple, little: bool = False) -> str | None:
+    """Equivalent WiCAN expression for an interpretation, or None if not expressible.
+
+    Big-endian ints map to the ``[Bnn:Bmm]`` / ``[Snn:Smm]`` forms; little-endian
+    unsigned ints to a shift-composition; floats and little-endian *signed* ints
+    have no direct expression in the WiCAN language.
+    """
+    _, width, kind, signed = spec
+    if kind == "float":
+        return None
+    c = "S" if signed else "B"
+    if width == 1:
+        return f"{c}{offset}"
+    if not little:
+        return f"[{c}{offset}:{c}{offset + width - 1}]"
+    if signed:
+        return None
+    terms = [f"B{offset}"] + [f"(B{offset + k} << {8 * k})" for k in range(1, width)]
+    return " | ".join(terms)
+
+
+def apply_transform(values: list[float], mode: str) -> list[float]:
+    """Apply a post-processing transform to a value series (see POST_TRANSFORMS)."""
+    if not values or mode == "raw":
+        return list(values)
+    if mode == "delta":
+        return [0.0] + [values[i] - values[i - 1] for i in range(1, len(values))]
+    if mode == "abs":
+        return [abs(v) for v in values]
+    if mode == "cumsum":
+        out, run = [], 0.0
+        for v in values:
+            run += v
+            out.append(run)
+        return out
+    if mode == "normalize":
+        return _norm01(values)
+    if mode == "smooth":
+        w, out = 5, []
+        for i in range(len(values)):
+            a, b = max(0, i - w // 2), min(len(values), i + w // 2 + 1)
+            out.append(sum(values[a:b]) / (b - a))
+        return out
+    return list(values)
+
+
+def _norm01(values: list[float]) -> list[float]:
+    if not values:
+        return []
+    lo, hi = min(values), max(values)
+    span = hi - lo or 1.0
+    return [(v - lo) / span for v in values]
+
+
+class _Braille:
+    """A 2x4-dots-per-cell Unicode braille drawing surface (w x h *cells*)."""
+
+    _DOTS = ((0x01, 0x08), (0x02, 0x10), (0x04, 0x20), (0x40, 0x80))
+
+    def __init__(self, w: int, h: int):
+        self.w, self.h = w, h
+        self.g = [[0] * w for _ in range(h)]
+
+    def _set(self, px: int, py: int) -> None:
+        if 0 <= px < 2 * self.w and 0 <= py < 4 * self.h:
+            self.g[py // 4][px // 2] |= self._DOTS[py % 4][px % 2]
+
+    def plot(self, points: list[tuple[int, int]]) -> None:
+        """Plot points, connecting consecutive ones with straight segments."""
+        prev = None
+        for px, py in points:
+            if prev is not None:
+                x0, y0 = prev
+                steps = max(abs(px - x0), abs(py - y0), 1)
+                for s in range(steps + 1):
+                    self._set(round(x0 + (px - x0) * s / steps),
+                              round(y0 + (py - y0) * s / steps))
+            else:
+                self._set(px, py)
+            prev = (px, py)
+
+    def char_grid(self) -> list[list[int]]:
+        return [[(0x2800 + c) if c else 0 for c in row] for row in self.g]
+
+
+def _to_pixels(values: list[float], w: int, h: int, lo: float, hi: float) -> list[tuple[int, int]]:
+    span = hi - lo or 1.0
+    px_max, py_max = 2 * w - 1, 4 * h - 1
+    den = max(len(values) - 1, 1)
+    return [(round(i / den * px_max), round((1 - (v - lo) / span) * py_max))
+            for i, v in enumerate(values)]
+
+
+def render_plot(values: list[float], ref: list[float] | None = None,
+                width: int = 74, height: int = 16) -> list[str]:
+    """Render a braille line chart (list of rows) with a y-axis min/max gutter.
+
+    When ``ref`` is given, both series are normalized to [0,1] and overlaid
+    (``values`` bright, ``ref`` dim) so their shapes can be compared.
+    """
+    if not values:
+        return ["  (no data to plot)"]
+    overlay = bool(ref)
+    if overlay:
+        mv, rv, lo, hi = _norm01(values), _norm01(ref), 0.0, 1.0
+    else:
+        mv, lo, hi = list(values), min(values), max(values)
+
+    main = _Braille(width, height)
+    main.plot(_to_pixels(mv, width, height, lo, hi))
+    mg = main.char_grid()
+    rg = None
+    if overlay:
+        refg = _Braille(width, height)
+        refg.plot(_to_pixels(rv, width, height, lo, hi))
+        rg = refg.char_grid()
+
+    gutter = 12
+    lines = []
+    for r in range(height):
+        ylab = _fmt_num(hi) if r == 0 else _fmt_num(lo) if r == height - 1 else ""
+        cells = []
+        for c in range(width):
+            if mg[r][c]:
+                cells.append(f"{_GREEN}{chr(mg[r][c])}{_RESET}")
+            elif rg and rg[r][c]:
+                cells.append(f"{_DIM}{chr(rg[r][c])}{_RESET}")
+            else:
+                cells.append(" ")
+        lines.append(f"{ylab:>{gutter}} {_V_AXIS}{''.join(cells)}")
+    lines.append(f"{'':>{gutter}} {_CORNER}{_HLINE * width}")
+    tag = "normalized 0-1" if overlay else f"{len(values)} captures"
+    lines.append(f"{'':>{gutter}}  {_DIM}{tag}{_RESET}")
+    return lines
+
+
+def _pci_positions(payload_hex: str) -> set[int]:
+    """WiCAN byte indices that are ISO-TP PCI bytes for a payload (role is None)."""
+    ph = payload_hex.replace(" ", "")
+    try:
+        pb = [int(ph[i:i + 2], 16) for i in range(0, len(ph), 2)]
+        frame = _payload_to_wican_frame(pb)
+    except Exception:
+        return set()
+    return {i for i, (_, role) in enumerate(frame) if role is None}
+
+
+def _read_key(fd: int) -> str:
+    import os
+    return os.read(fd, 16).decode("utf-8", errors="ignore")
+
+
+def _series_stats_str(values: list[float]) -> str:
+    if not values:
+        return "n=0"
+    return (f"n={len(values)}  min={_fmt_num(min(values))} max={_fmt_num(max(values))} "
+            f"mean={_fmt_num(_mean(values))}")
+
+
+def cmd_plot(all_results: list[dict], param_names: list[str], parameters: dict,
+             candidate_names: set[str], corr_ref: str | None,
+             ecu_key: str, pid_key: str) -> None:
+    """Interactive signal explorer: sweep byte interpretations / params and plot.
+
+    Byte mode is the ImHex-style inspector (offset x type x endianness over the
+    raw payload); param mode plots a defined/--try parameter's decoded series.
+    Both feed a post-transform and an optional reference overlay; byte mode also
+    shows the equivalent WiCAN expression to paste into pids-edit. Falls back to
+    a single static chart when stdin/stdout is not a TTY.
+    """
+    # Raw WiCAN frames per capture (offset space matches Bnn / expressions).
+    frames: list[bytes | None] = []
+    for r in all_results:
+        payload = r["capture"].get("payload")
+        try:
+            frames.append(payload_to_wican_bytes(payload) if payload else None)
+        except Exception:
+            frames.append(None)
+    valid = [f for f in frames if f]
+    longest_payload = max((r["capture"]["payload"] for r in all_results
+                           if r["capture"].get("payload")), key=len, default="")
+    pci = _pci_positions(longest_payload)
+    max_off = (max((len(f) for f in valid), default=1)) - 1
+
+    ref_per_cap = ([r["decoded"].get(corr_ref, {}).get("value") for r in all_results]
+                   if corr_ref else None)
+    plottable_params = [n for n in param_names
+                        if len([1 for r in all_results
+                                if r["decoded"].get(n, {}).get("value") is not None]) >= 2]
+
+    if not valid and not plottable_params:
+        print("  Nothing to plot (no decodable payloads or numeric params).")
+        return
+
+    # ---- state ----
+    mode = "bytes" if valid else "param"
+    offset = min(max_off, 3)           # skip PCI/SID/echo by default
+    ti = 0                              # INSPECT_TYPES index
+    little = False
+    tmode = "raw"                       # post-transform
+    pi = 0                              # param index (param mode)
+    overlay = False
+
+    def frame_lines() -> list[str]:
+        spec = INSPECT_TYPES[ti]
+        warn = ""
+        if mode == "bytes":
+            per_cap = [interpret_bytes(f, offset, spec, little) if f else None for f in frames]
+            expr = wican_expr(offset, spec, little)
+            width = spec[1]
+            if any((offset + k) in pci for k in range(width)):
+                warn = "crosses PCI byte — likely garbage"
+            endian = "" if width == 1 else ("  LE" if little else "  BE")
+            src = f"B{offset} as {spec[0]}{endian}"
+            expr_line = f"expr: {expr}" if expr else "expr: (no direct WiCAN expression)"
+        else:
+            if not plottable_params:
+                return [f"{_BOLD}{ecu_key} {pid_key}{_RESET}",
+                        "  No numeric parameters to plot — press m for byte mode."]
+            name = plottable_params[pi % len(plottable_params)]
+            per_cap = [r["decoded"].get(name, {}).get("value") for r in all_results]
+            expr_line = f"expr: {parameters.get(name, {}).get('expression', '')}"
+            src = name
+
+        if overlay and ref_per_cap is not None:
+            pairs = [(rf, cv) for rf, cv in zip(ref_per_cap, per_cap, strict=True)
+                     if rf is not None and cv is not None]
+            ref_vals = [p[0] for p in pairs]
+            series = apply_transform([p[1] for p in pairs], tmode)
+            r = _pearson(ref_vals, series)
+            rstr = f"  {_CYAN}r={r:+.3f} vs {corr_ref}{_RESET}" if r is not None \
+                else f"  {_DIM}r=n/a vs {corr_ref}{_RESET}"
+            refseries = ref_vals
+        else:
+            series = apply_transform([v for v in per_cap if v is not None], tmode)
+            refseries, rstr = None, ""
+
+        out = [
+            f"{_BOLD}{ecu_key} {pid_key}{_RESET}  {_DIM}·  {mode} mode{_RESET}",
+            f"  {_CYAN}{src}{_RESET}   {_DIM}{expr_line}{_RESET}",
+            f"  transform={_YELLOW}{tmode}{_RESET}  {_series_stats_str(series)}{rstr}"
+            + (f"   {_RED}\u26a0 {warn}{_RESET}" if warn else ""),
+            "",
+        ]
+        out.extend(render_plot(series, ref=refseries if overlay else None))
+        return out
+
+    # Non-interactive: print one static frame and return.
+    if not (sys.stdin.isatty() and sys.stdout.isatty()):
+        print("\n".join(frame_lines()))
+        print("  (interactive --plot needs a TTY for navigation)")
+        return
+
+    import termios
+    import tty
+
+    fd = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
+    sys.stdout.write("\033[?1049h\033[?25l")
+    sys.stdout.flush()
+    try:
+        tty.setcbreak(fd)
+        while True:
+            sys.stdout.write("\033[2J\033[H")
+            sys.stdout.write("\r\n".join(frame_lines()))
+            hint = ("←/→ offset · t/T type · e endian · f transform · m param · o overlay · q quit"
+                    if mode == "bytes"
+                    else "←/→ param · f transform · m bytes · o overlay · q quit")
+            sys.stdout.write(f"\r\n\r\n  {_DIM}{hint}{_RESET}\r\n")
+            sys.stdout.flush()
+
+            k = _read_key(fd)
+            if k in ("q", "Q", "\x1b", "\x1b\x1b", "\x03"):
+                break
+            elif k in ("\x1b[D", "h"):
+                if mode == "bytes":
+                    offset = max(0, offset - 1)
+                elif plottable_params:
+                    pi = (pi - 1) % len(plottable_params)
+            elif k in ("\x1b[C", "l"):
+                if mode == "bytes":
+                    offset = min(max_off, offset + 1)
+                elif plottable_params:
+                    pi = (pi + 1) % len(plottable_params)
+            elif k == "t":
+                ti = (ti + 1) % len(INSPECT_TYPES)
+            elif k == "T":
+                ti = (ti - 1) % len(INSPECT_TYPES)
+            elif k == "e":
+                little = not little
+            elif k == "f":
+                tmode = POST_TRANSFORMS[(POST_TRANSFORMS.index(tmode) + 1) % len(POST_TRANSFORMS)]
+            elif k == "m":
+                mode = "param" if mode == "bytes" else "bytes"
+            elif k in ("o", "O") and ref_per_cap is not None:
+                overlay = not overlay
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+        sys.stdout.write("\033[?25h\033[?1049l")
+        sys.stdout.flush()
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Decode captured UDS payloads using PID parameter definitions.",
@@ -409,10 +764,17 @@ def main():
                         help="Descriptive statistics per param (n, distinct, mean, median, stdev)")
     parser.add_argument("--corr", metavar="PARAM",
                         help="Correlate every param (incl. --try) against PARAM (Pearson r)")
+    parser.add_argument("--plot", action="store_true",
+                        help="Interactive signal explorer: sweep byte interpretations "
+                             "(u8/i16/f32/... and endianness) and params, plot across captures, "
+                             "apply transforms (delta/abs/normalize/...), overlay a --corr signal")
     parser.add_argument("--try", dest="try_expr", action="append", metavar="NAME[:unit]=EXPR",
                         help="Evaluate a candidate expression against captures without editing "
                              "YAML (repeatable; works even if the PID has no params defined yet)")
     args = parser.parse_args()
+
+    # --plot and --try tolerate a not-yet-defined ECU/PID (raw byte inspection).
+    tolerate_missing = bool(args.try_expr) or args.plot
 
     # Build any candidate expressions from --try (validated early for a clean error).
     try:
@@ -436,10 +798,10 @@ def main():
         ecu_pids = ecu_index[ecu_key]["pids"]
         if pid_key in ecu_pids:
             parameters = ecu_pids[pid_key]["parameters"]
-        elif not try_params:
+        elif not tolerate_missing:
             print(f"PID '{args.pid}' not found for {ecu_key}. Available: {', '.join(sorted(ecu_pids))}")
             sys.exit(1)
-    elif not try_params:
+    elif not tolerate_missing:
         print(f"ECU '{args.ecu}' not found in pids/. Available: {', '.join(sorted(ecu_index))}")
         sys.exit(1)
 
@@ -459,7 +821,7 @@ def main():
     if try_params:
         parameters = {**parameters, **try_params}
 
-    if not parameters:
+    if not parameters and not args.plot:
         print("No parameters match the filter criteria.")
         sys.exit(1)
 
@@ -496,6 +858,12 @@ def main():
             "capture": cap,
             "decoded": decoded,
         })
+
+    # Interactive signal explorer (byte interpretations + params + transforms).
+    if args.plot:
+        cmd_plot(all_results, list(parameters.keys()), parameters,
+                 candidate_names, corr_ref, ecu_key, pid_key)
+        return
 
     if args.json:
         param_names = list(parameters.keys())

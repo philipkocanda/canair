@@ -121,11 +121,27 @@ python3 decode.py MCU 2102 --try "MOTOR_RPM:RPM=[S10:S11]"        # value range 
 python3 decode.py MCU 2102 --try "TORQUE:Nm=[S12:S13]/100" --stats  # mean/median/stdev/distinct
 # Validate by correlation against a known signal (the key RE lever):
 python3 decode.py MCU 2102 --try "T=[S17:S18]" --corr MCU_MOTOR_RPM
+# Or hunt visually: interactive plot, sweep byte interpretations + transforms.
+python3 decode.py MCU 2102 --plot                      # sweep interpretations, find the signal
+python3 decode.py MCU 2102 --plot --corr MCU_MOTOR_RPM # overlay a known signal + live r
 ```
 
 Iterate until the range is physical, the distribution makes sense (constant?
 enum? continuous?), and — where a relationship should exist — the correlation
 confirms it. A bad expression shows `ERROR` rather than hiding.
+
+**`--plot` (interactive signal explorer)** is the fastest way to *find* a signal
+when you don't yet have a candidate expression. It works even on a not-yet-defined
+PID (raw payloads only). Keys:
+- `←`/`→` move the byte offset (byte mode) or switch parameter (param mode)
+- `t`/`T` cycle the interpretation type (`u8 i8 u16 i16 u24 i24 u32 i32 u64 i64 f16 f32 f64`)
+- `e` toggle endianness · `f` cycle post-transform (`raw delta abs cumsum normalize smooth`)
+- `m` toggle byte↔param source · `o` overlay the `--corr` reference (with live Pearson r) · `q` quit
+
+Byte mode shows the **equivalent WiCAN expression** for the current
+interpretation (e.g. `[S10:S11]`) — copy it straight into step 8. It also warns
+when a multi-byte read crosses a PCI byte (garbage). Endianness and float types
+that have no direct WiCAN expression are flagged as such.
 
 ### 8. Define — write it to pids/
 
@@ -177,7 +193,7 @@ Then consider an upstream wican-fw PR (see parent skill goals).
 | talk to the car | `canreq.py` (`--scan`/`--discover`/`--multi`/`--monitor`, `--save`) |
 | see captures | `query-captures.py` (`--diff`/`--step`/`--since`/`--until`) |
 | map bytes | `bix.py --annotate` |
-| test expressions | `decode.py --try` / `--stats` / `--corr` |
+| test expressions | `decode.py --try` / `--stats` / `--corr` / `--plot` |
 | write definitions | `pids-edit.py upsert-param` / `add-research` / `set-status` |
 | validate | `validate-pids.py`, `pid-coverage.py` |
 | ship | `generate-profile.py` |
