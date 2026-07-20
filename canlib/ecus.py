@@ -29,9 +29,9 @@ def load_ecus(path: Path | None = None) -> dict:
 
         path = active().ecus_file
     with open(path) as f:
-        data = yaml.safe_load(f)
+        data = yaml.safe_load(f) or {}
     result = {}
-    for tx_id, info in data.get("ecus", {}).items():
+    for tx_id, info in (data.get("ecus") or {}).items():
         if isinstance(tx_id, str) and tx_id.startswith("0x"):
             tx_id = int(tx_id, 16)
         result[int(tx_id)] = info

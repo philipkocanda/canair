@@ -127,9 +127,9 @@ def resolve_profile(
         return Profile(only, profiles[only])
     if not profiles:
         raise ProfileError(
-            "No vehicle profiles found. Add one under "
-            f"{config_dir() / 'profiles'} or {BUNDLED_PROFILES_DIR} "
-            "(see `canair profile`)."
+            "No vehicle profiles found. Create one with "
+            "`canair profile create <name> --car-model \"...\"`, or add a bundle "
+            f"under {config_dir() / 'profiles'} or {BUNDLED_PROFILES_DIR}."
         )
     raise ProfileError(
         f"Multiple profiles found ({', '.join(profiles)}). "
