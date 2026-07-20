@@ -611,7 +611,7 @@ BMS:
       availability: [ready, charging]
       parameters:
         CELL_01_VOLTAGE:
-          expression: "B6*0.02"
+          expression: "B9*0.02"
           unit: V
           ha_class: voltage
           min: "0"
@@ -619,38 +619,13 @@ BMS:
           source: "ImHex pattern + raw capture verified"
           source_links: []
           verified: true
-          notes: "First cell. Pattern: CELL_n = B(5+n)*0.02 for n=1..32."
+          notes: >
+            First cell. 2026-07-20 FIX: cells start at B9 (after the 4-byte 0xFFFFFFFF cell-present header at
+            B4-B7) and skip PCI bytes (B8/16/24/32/40). The old linear B(5+n) mapping was wrong on two counts:
+            CELL_01/02 read the 0xFF header (5.10V) and CELL_03/11/19/27 landed on PCI bytes (0.66-0.72V).
+            Correct WiCAN indices per in-PID cell (1..32): B9,10,11,12,13,14,15, B17,18,19,20,21,22,23,
+            B25,26,27,28,29,30,31, B33,34,35,36,37,38,39, B41,42,43,44. Same layout for 2103 (33-64) and 2104 (65-96).
         CELL_02_VOLTAGE:
-          expression: "B7*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          source: "ImHex pattern"
-          source_links: []
-          verified: true
-          notes: ""
-        CELL_03_VOLTAGE:
-          expression: "B8*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          source: "ImHex pattern"
-          source_links: []
-          verified: true
-          notes: ""
-        CELL_04_VOLTAGE:
-          expression: "B9*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          source: "ImHex pattern"
-          source_links: []
-          verified: true
-          notes: ""
-        CELL_05_VOLTAGE:
           expression: "B10*0.02"
           unit: V
           ha_class: voltage
@@ -660,7 +635,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_06_VOLTAGE:
+        CELL_03_VOLTAGE:
           expression: "B11*0.02"
           unit: V
           ha_class: voltage
@@ -670,7 +645,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_07_VOLTAGE:
+        CELL_04_VOLTAGE:
           expression: "B12*0.02"
           unit: V
           ha_class: voltage
@@ -680,7 +655,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_08_VOLTAGE:
+        CELL_05_VOLTAGE:
           expression: "B13*0.02"
           unit: V
           ha_class: voltage
@@ -690,7 +665,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_09_VOLTAGE:
+        CELL_06_VOLTAGE:
           expression: "B14*0.02"
           unit: V
           ha_class: voltage
@@ -700,7 +675,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_10_VOLTAGE:
+        CELL_07_VOLTAGE:
           expression: "B15*0.02"
           unit: V
           ha_class: voltage
@@ -710,17 +685,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_11_VOLTAGE:
-          expression: "B16*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          source: "ImHex pattern"
-          source_links: []
-          verified: true
-          notes: ""
-        CELL_12_VOLTAGE:
+        CELL_08_VOLTAGE:
           expression: "B17*0.02"
           unit: V
           ha_class: voltage
@@ -730,7 +695,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_13_VOLTAGE:
+        CELL_09_VOLTAGE:
           expression: "B18*0.02"
           unit: V
           ha_class: voltage
@@ -740,7 +705,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_14_VOLTAGE:
+        CELL_10_VOLTAGE:
           expression: "B19*0.02"
           unit: V
           ha_class: voltage
@@ -750,7 +715,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_15_VOLTAGE:
+        CELL_11_VOLTAGE:
           expression: "B20*0.02"
           unit: V
           ha_class: voltage
@@ -760,7 +725,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_16_VOLTAGE:
+        CELL_12_VOLTAGE:
           expression: "B21*0.02"
           unit: V
           ha_class: voltage
@@ -770,7 +735,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_17_VOLTAGE:
+        CELL_13_VOLTAGE:
           expression: "B22*0.02"
           unit: V
           ha_class: voltage
@@ -780,7 +745,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_18_VOLTAGE:
+        CELL_14_VOLTAGE:
           expression: "B23*0.02"
           unit: V
           ha_class: voltage
@@ -790,17 +755,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_19_VOLTAGE:
-          expression: "B24*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          source: "ImHex pattern"
-          source_links: []
-          verified: true
-          notes: ""
-        CELL_20_VOLTAGE:
+        CELL_15_VOLTAGE:
           expression: "B25*0.02"
           unit: V
           ha_class: voltage
@@ -810,7 +765,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_21_VOLTAGE:
+        CELL_16_VOLTAGE:
           expression: "B26*0.02"
           unit: V
           ha_class: voltage
@@ -820,7 +775,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_22_VOLTAGE:
+        CELL_17_VOLTAGE:
           expression: "B27*0.02"
           unit: V
           ha_class: voltage
@@ -830,7 +785,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_23_VOLTAGE:
+        CELL_18_VOLTAGE:
           expression: "B28*0.02"
           unit: V
           ha_class: voltage
@@ -840,7 +795,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_24_VOLTAGE:
+        CELL_19_VOLTAGE:
           expression: "B29*0.02"
           unit: V
           ha_class: voltage
@@ -850,7 +805,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_25_VOLTAGE:
+        CELL_20_VOLTAGE:
           expression: "B30*0.02"
           unit: V
           ha_class: voltage
@@ -860,7 +815,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_26_VOLTAGE:
+        CELL_21_VOLTAGE:
           expression: "B31*0.02"
           unit: V
           ha_class: voltage
@@ -870,17 +825,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_27_VOLTAGE:
-          expression: "B32*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          source: "ImHex pattern"
-          source_links: []
-          verified: true
-          notes: ""
-        CELL_28_VOLTAGE:
+        CELL_22_VOLTAGE:
           expression: "B33*0.02"
           unit: V
           ha_class: voltage
@@ -890,7 +835,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_29_VOLTAGE:
+        CELL_23_VOLTAGE:
           expression: "B34*0.02"
           unit: V
           ha_class: voltage
@@ -900,7 +845,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_30_VOLTAGE:
+        CELL_24_VOLTAGE:
           expression: "B35*0.02"
           unit: V
           ha_class: voltage
@@ -910,7 +855,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_31_VOLTAGE:
+        CELL_25_VOLTAGE:
           expression: "B36*0.02"
           unit: V
           ha_class: voltage
@@ -920,8 +865,68 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_32_VOLTAGE:
+        CELL_26_VOLTAGE:
           expression: "B37*0.02"
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "5"
+          source: "ImHex pattern"
+          source_links: []
+          verified: true
+          notes: ""
+        CELL_27_VOLTAGE:
+          expression: "B38*0.02"
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "5"
+          source: "ImHex pattern"
+          source_links: []
+          verified: true
+          notes: ""
+        CELL_28_VOLTAGE:
+          expression: "B39*0.02"
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "5"
+          source: "ImHex pattern"
+          source_links: []
+          verified: true
+          notes: ""
+        CELL_29_VOLTAGE:
+          expression: "B41*0.02"
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "5"
+          source: "ImHex pattern"
+          source_links: []
+          verified: true
+          notes: ""
+        CELL_30_VOLTAGE:
+          expression: "B42*0.02"
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "5"
+          source: "ImHex pattern"
+          source_links: []
+          verified: true
+          notes: ""
+        CELL_31_VOLTAGE:
+          expression: "B43*0.02"
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "5"
+          source: "ImHex pattern"
+          source_links: []
+          verified: true
+          notes: ""
+        CELL_32_VOLTAGE:
+          expression: "B44*0.02"
           unit: V
           ha_class: voltage
           min: "0"
@@ -937,7 +942,7 @@ BMS:
       availability: [ready, charging]
       parameters:
         CELL_33_VOLTAGE:
-          expression: "B6*0.02"
+          expression: "B9*0.02"
           unit: V
           ha_class: voltage
           min: "0"
@@ -947,36 +952,6 @@ BMS:
           verified: true
           notes: "First cell in PID 2103. Same B6..B37 pattern as 2102."
         CELL_34_VOLTAGE:
-          expression: "B7*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          source: "ImHex pattern"
-          source_links: []
-          verified: true
-          notes: ""
-        CELL_35_VOLTAGE:
-          expression: "B8*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          source: "ImHex pattern"
-          source_links: []
-          verified: true
-          notes: ""
-        CELL_36_VOLTAGE:
-          expression: "B9*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          source: "ImHex pattern"
-          source_links: []
-          verified: true
-          notes: ""
-        CELL_37_VOLTAGE:
           expression: "B10*0.02"
           unit: V
           ha_class: voltage
@@ -986,7 +961,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_38_VOLTAGE:
+        CELL_35_VOLTAGE:
           expression: "B11*0.02"
           unit: V
           ha_class: voltage
@@ -996,7 +971,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_39_VOLTAGE:
+        CELL_36_VOLTAGE:
           expression: "B12*0.02"
           unit: V
           ha_class: voltage
@@ -1006,7 +981,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_40_VOLTAGE:
+        CELL_37_VOLTAGE:
           expression: "B13*0.02"
           unit: V
           ha_class: voltage
@@ -1016,7 +991,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_41_VOLTAGE:
+        CELL_38_VOLTAGE:
           expression: "B14*0.02"
           unit: V
           ha_class: voltage
@@ -1026,7 +1001,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_42_VOLTAGE:
+        CELL_39_VOLTAGE:
           expression: "B15*0.02"
           unit: V
           ha_class: voltage
@@ -1036,17 +1011,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_43_VOLTAGE:
-          expression: "B16*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          source: "ImHex pattern"
-          source_links: []
-          verified: true
-          notes: ""
-        CELL_44_VOLTAGE:
+        CELL_40_VOLTAGE:
           expression: "B17*0.02"
           unit: V
           ha_class: voltage
@@ -1056,7 +1021,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_45_VOLTAGE:
+        CELL_41_VOLTAGE:
           expression: "B18*0.02"
           unit: V
           ha_class: voltage
@@ -1066,7 +1031,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_46_VOLTAGE:
+        CELL_42_VOLTAGE:
           expression: "B19*0.02"
           unit: V
           ha_class: voltage
@@ -1076,7 +1041,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_47_VOLTAGE:
+        CELL_43_VOLTAGE:
           expression: "B20*0.02"
           unit: V
           ha_class: voltage
@@ -1086,7 +1051,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_48_VOLTAGE:
+        CELL_44_VOLTAGE:
           expression: "B21*0.02"
           unit: V
           ha_class: voltage
@@ -1096,7 +1061,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_49_VOLTAGE:
+        CELL_45_VOLTAGE:
           expression: "B22*0.02"
           unit: V
           ha_class: voltage
@@ -1106,7 +1071,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_50_VOLTAGE:
+        CELL_46_VOLTAGE:
           expression: "B23*0.02"
           unit: V
           ha_class: voltage
@@ -1116,17 +1081,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_51_VOLTAGE:
-          expression: "B24*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          source: "ImHex pattern"
-          source_links: []
-          verified: true
-          notes: ""
-        CELL_52_VOLTAGE:
+        CELL_47_VOLTAGE:
           expression: "B25*0.02"
           unit: V
           ha_class: voltage
@@ -1136,7 +1091,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_53_VOLTAGE:
+        CELL_48_VOLTAGE:
           expression: "B26*0.02"
           unit: V
           ha_class: voltage
@@ -1146,7 +1101,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_54_VOLTAGE:
+        CELL_49_VOLTAGE:
           expression: "B27*0.02"
           unit: V
           ha_class: voltage
@@ -1156,7 +1111,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_55_VOLTAGE:
+        CELL_50_VOLTAGE:
           expression: "B28*0.02"
           unit: V
           ha_class: voltage
@@ -1166,7 +1121,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_56_VOLTAGE:
+        CELL_51_VOLTAGE:
           expression: "B29*0.02"
           unit: V
           ha_class: voltage
@@ -1176,7 +1131,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_57_VOLTAGE:
+        CELL_52_VOLTAGE:
           expression: "B30*0.02"
           unit: V
           ha_class: voltage
@@ -1186,7 +1141,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_58_VOLTAGE:
+        CELL_53_VOLTAGE:
           expression: "B31*0.02"
           unit: V
           ha_class: voltage
@@ -1196,17 +1151,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_59_VOLTAGE:
-          expression: "B32*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          source: "ImHex pattern"
-          source_links: []
-          verified: true
-          notes: ""
-        CELL_60_VOLTAGE:
+        CELL_54_VOLTAGE:
           expression: "B33*0.02"
           unit: V
           ha_class: voltage
@@ -1216,7 +1161,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_61_VOLTAGE:
+        CELL_55_VOLTAGE:
           expression: "B34*0.02"
           unit: V
           ha_class: voltage
@@ -1226,7 +1171,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_62_VOLTAGE:
+        CELL_56_VOLTAGE:
           expression: "B35*0.02"
           unit: V
           ha_class: voltage
@@ -1236,7 +1181,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_63_VOLTAGE:
+        CELL_57_VOLTAGE:
           expression: "B36*0.02"
           unit: V
           ha_class: voltage
@@ -1246,8 +1191,68 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_64_VOLTAGE:
+        CELL_58_VOLTAGE:
           expression: "B37*0.02"
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "5"
+          source: "ImHex pattern"
+          source_links: []
+          verified: true
+          notes: ""
+        CELL_59_VOLTAGE:
+          expression: "B38*0.02"
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "5"
+          source: "ImHex pattern"
+          source_links: []
+          verified: true
+          notes: ""
+        CELL_60_VOLTAGE:
+          expression: "B39*0.02"
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "5"
+          source: "ImHex pattern"
+          source_links: []
+          verified: true
+          notes: ""
+        CELL_61_VOLTAGE:
+          expression: "B41*0.02"
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "5"
+          source: "ImHex pattern"
+          source_links: []
+          verified: true
+          notes: ""
+        CELL_62_VOLTAGE:
+          expression: "B42*0.02"
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "5"
+          source: "ImHex pattern"
+          source_links: []
+          verified: true
+          notes: ""
+        CELL_63_VOLTAGE:
+          expression: "B43*0.02"
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "5"
+          source: "ImHex pattern"
+          source_links: []
+          verified: true
+          notes: ""
+        CELL_64_VOLTAGE:
+          expression: "B44*0.02"
           unit: V
           ha_class: voltage
           min: "0"
@@ -1263,7 +1268,7 @@ BMS:
       availability: [ready, charging]
       parameters:
         CELL_65_VOLTAGE:
-          expression: "B6*0.02"
+          expression: "B9*0.02"
           unit: V
           ha_class: voltage
           min: "0"
@@ -1273,36 +1278,6 @@ BMS:
           verified: true
           notes: "First cell in PID 2104. Same B6..B37 pattern."
         CELL_66_VOLTAGE:
-          expression: "B7*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          source: "ImHex pattern"
-          source_links: []
-          verified: true
-          notes: ""
-        CELL_67_VOLTAGE:
-          expression: "B8*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          source: "ImHex pattern"
-          source_links: []
-          verified: true
-          notes: ""
-        CELL_68_VOLTAGE:
-          expression: "B9*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          source: "ImHex pattern"
-          source_links: []
-          verified: true
-          notes: ""
-        CELL_69_VOLTAGE:
           expression: "B10*0.02"
           unit: V
           ha_class: voltage
@@ -1312,7 +1287,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_70_VOLTAGE:
+        CELL_67_VOLTAGE:
           expression: "B11*0.02"
           unit: V
           ha_class: voltage
@@ -1322,7 +1297,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_71_VOLTAGE:
+        CELL_68_VOLTAGE:
           expression: "B12*0.02"
           unit: V
           ha_class: voltage
@@ -1332,7 +1307,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_72_VOLTAGE:
+        CELL_69_VOLTAGE:
           expression: "B13*0.02"
           unit: V
           ha_class: voltage
@@ -1342,7 +1317,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_73_VOLTAGE:
+        CELL_70_VOLTAGE:
           expression: "B14*0.02"
           unit: V
           ha_class: voltage
@@ -1352,7 +1327,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_74_VOLTAGE:
+        CELL_71_VOLTAGE:
           expression: "B15*0.02"
           unit: V
           ha_class: voltage
@@ -1362,17 +1337,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_75_VOLTAGE:
-          expression: "B16*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          source: "ImHex pattern"
-          source_links: []
-          verified: true
-          notes: ""
-        CELL_76_VOLTAGE:
+        CELL_72_VOLTAGE:
           expression: "B17*0.02"
           unit: V
           ha_class: voltage
@@ -1382,7 +1347,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_77_VOLTAGE:
+        CELL_73_VOLTAGE:
           expression: "B18*0.02"
           unit: V
           ha_class: voltage
@@ -1392,7 +1357,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_78_VOLTAGE:
+        CELL_74_VOLTAGE:
           expression: "B19*0.02"
           unit: V
           ha_class: voltage
@@ -1402,7 +1367,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_79_VOLTAGE:
+        CELL_75_VOLTAGE:
           expression: "B20*0.02"
           unit: V
           ha_class: voltage
@@ -1412,7 +1377,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_80_VOLTAGE:
+        CELL_76_VOLTAGE:
           expression: "B21*0.02"
           unit: V
           ha_class: voltage
@@ -1422,7 +1387,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_81_VOLTAGE:
+        CELL_77_VOLTAGE:
           expression: "B22*0.02"
           unit: V
           ha_class: voltage
@@ -1432,7 +1397,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_82_VOLTAGE:
+        CELL_78_VOLTAGE:
           expression: "B23*0.02"
           unit: V
           ha_class: voltage
@@ -1442,17 +1407,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_83_VOLTAGE:
-          expression: "B24*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          source: "ImHex pattern"
-          source_links: []
-          verified: true
-          notes: ""
-        CELL_84_VOLTAGE:
+        CELL_79_VOLTAGE:
           expression: "B25*0.02"
           unit: V
           ha_class: voltage
@@ -1462,7 +1417,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_85_VOLTAGE:
+        CELL_80_VOLTAGE:
           expression: "B26*0.02"
           unit: V
           ha_class: voltage
@@ -1472,7 +1427,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_86_VOLTAGE:
+        CELL_81_VOLTAGE:
           expression: "B27*0.02"
           unit: V
           ha_class: voltage
@@ -1482,7 +1437,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_87_VOLTAGE:
+        CELL_82_VOLTAGE:
           expression: "B28*0.02"
           unit: V
           ha_class: voltage
@@ -1492,7 +1447,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_88_VOLTAGE:
+        CELL_83_VOLTAGE:
           expression: "B29*0.02"
           unit: V
           ha_class: voltage
@@ -1502,7 +1457,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_89_VOLTAGE:
+        CELL_84_VOLTAGE:
           expression: "B30*0.02"
           unit: V
           ha_class: voltage
@@ -1512,7 +1467,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_90_VOLTAGE:
+        CELL_85_VOLTAGE:
           expression: "B31*0.02"
           unit: V
           ha_class: voltage
@@ -1522,17 +1477,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_91_VOLTAGE:
-          expression: "B32*0.02"
-          unit: V
-          ha_class: voltage
-          min: "0"
-          max: "5"
-          source: "ImHex pattern"
-          source_links: []
-          verified: true
-          notes: ""
-        CELL_92_VOLTAGE:
+        CELL_86_VOLTAGE:
           expression: "B33*0.02"
           unit: V
           ha_class: voltage
@@ -1542,7 +1487,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_93_VOLTAGE:
+        CELL_87_VOLTAGE:
           expression: "B34*0.02"
           unit: V
           ha_class: voltage
@@ -1552,7 +1497,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_94_VOLTAGE:
+        CELL_88_VOLTAGE:
           expression: "B35*0.02"
           unit: V
           ha_class: voltage
@@ -1562,7 +1507,7 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_95_VOLTAGE:
+        CELL_89_VOLTAGE:
           expression: "B36*0.02"
           unit: V
           ha_class: voltage
@@ -1572,8 +1517,68 @@ BMS:
           source_links: []
           verified: true
           notes: ""
-        CELL_96_VOLTAGE:
+        CELL_90_VOLTAGE:
           expression: "B37*0.02"
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "5"
+          source: "ImHex pattern"
+          source_links: []
+          verified: true
+          notes: ""
+        CELL_91_VOLTAGE:
+          expression: "B38*0.02"
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "5"
+          source: "ImHex pattern"
+          source_links: []
+          verified: true
+          notes: ""
+        CELL_92_VOLTAGE:
+          expression: "B39*0.02"
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "5"
+          source: "ImHex pattern"
+          source_links: []
+          verified: true
+          notes: ""
+        CELL_93_VOLTAGE:
+          expression: "B41*0.02"
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "5"
+          source: "ImHex pattern"
+          source_links: []
+          verified: true
+          notes: ""
+        CELL_94_VOLTAGE:
+          expression: "B42*0.02"
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "5"
+          source: "ImHex pattern"
+          source_links: []
+          verified: true
+          notes: ""
+        CELL_95_VOLTAGE:
+          expression: "B43*0.02"
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "5"
+          source: "ImHex pattern"
+          source_links: []
+          verified: true
+          notes: ""
+        CELL_96_VOLTAGE:
+          expression: "B44*0.02"
           unit: V
           ha_class: voltage
           min: "0"
