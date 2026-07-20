@@ -73,7 +73,7 @@ The `research/` directory contains earlier CarScanner captures, reference spread
 |--------|---------|
 | `canreq.py` | Send UDS/KWP2000 requests to ECUs via the WiCAN WebSocket terminal. Supports interactive mode, parameter queries, DID scanning, IOControl actuation, and Smart Key Module wake-up. |
 | `generate-profile.py` | Read all `pids/*.yaml` definitions and produce a WiCAN-compatible JSON vehicle profile. Can upload directly to the device or diff against the current config. |
-| `decode.py` | Parameter/value-centric decoding: shows each PID parameter's value range across all captures (default), plus statistics (`--stats`), correlation vs a reference signal (`--corr`), and candidate-expression testing without editing YAML (`--try`). |
+| `decode.py` | Parameter/value-centric decoding: shows each PID parameter's value range across all captures (default), plus statistics (`--stats`), correlation vs a reference signal (`--corr`), an interactive signal explorer (`--plot` — sweep ImHex-style byte interpretations and transforms, plot across captures), and candidate-expression testing without editing YAML (`--try`). |
 | `query-captures.py` | Search across all capture files — show summaries, diffs between dates, or latest values per ECU/PID. Scope any mode by date with `--since`/`--until`/`--date`. |
 | `research.py` | Report the open reverse-engineering backlog from the per-ECU `research:` sections (by type/status/priority/prerequisite). The "what should I decode next?" entry point. |
 | `pid-coverage.py` | Audit PID definitions for decoding gaps — unmapped data bytes, partial bitfields, and PIDs with no captures yet. |
