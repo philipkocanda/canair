@@ -7,14 +7,16 @@ Modes:
   --pid PID             All captures for a PID (across all ECUs)
   --summary             Overview: captures per ECU, per date, total payloads
   --latest [ECU]        Most recent payload per PID (optionally filtered by ECU)
-  --diff ECU PID        Show all payloads for an ECU+PID with byte-level diff colorization
+  --diff ECU PID        canreq monitor-style view: decoded params + colored
+                        byte-diff hex (unique payloads only; --all for every one)
 
 Examples:
   python3 query-captures.py --ecu IGPM --pid 22BC03   # ECU+PID (most useful)
   python3 query-captures.py --ecu BMS                 # All BMS captures
   python3 query-captures.py --summary                 # Overview stats
   python3 query-captures.py --latest BMS              # Latest payload per BMS PID
-  python3 query-captures.py --diff IGPM 22BC03        # Byte-level diff
+  python3 query-captures.py --diff VCU 2101           # Params + colored byte-diff
+  python3 query-captures.py --diff VCU 2101 --all     # ...show every payload
 """
 
 import argparse
@@ -272,79 +274,148 @@ def cmd_latest(entries: list[dict], ecu_filter: str | None) -> None:
 # Diff mode
 # ---------------------------------------------------------------------------
 
-def cmd_diff(entries: list[dict], ecu_filter: str, pid_filter: str) -> None:
-    """Show all payloads for ECU+PID with byte-level diff colorization."""
+def _decode_param_rows(payload_hex: str, parameters: dict) -> list[tuple]:
+    """Decode a payload into param rows for the canreq-style renderer.
+
+    Returns a list of ``(name, value, unit, expression, error, verified)`` tuples
+    — the exact shape expected by canlib's ``_build_byte_colors`` / ``_render_hex_line``
+    and by ``format_value``. Value is ``None`` when the expression errored.
+    """
+    if not parameters:
+        return []
+    from canlib.elm327 import elm_hex_to_wican_bytes
+    from canlib.expression import evaluate_expression
+
+    try:
+        wican_bytes = elm_hex_to_wican_bytes(payload_hex)
+    except Exception:
+        return []
+
+    rows = []
+    for name, pdef in parameters.items():
+        expr = pdef.get("expression", "")
+        if not expr:
+            continue
+        unit = pdef.get("unit", "")
+        verified = pdef.get("verified", False)
+        try:
+            value = evaluate_expression(expr, wican_bytes)
+            value = round(value * 100) / 100
+            rows.append((name, value, unit, expr, None, verified))
+        except Exception as ex:  # noqa: BLE001 — surface decode errors in the table
+            rows.append((name, None, unit, expr, str(ex), verified))
+    return rows
+
+
+def cmd_diff(entries: list[dict], ecu_filter: str, pid_filter: str, show_all: bool = False) -> None:
+    """Show payloads for an ECU+PID in canreq monitor style.
+
+    Renders an ``ECU (0xTXID)`` / ``PID (N entries)`` header, a decoded-parameter
+    block (from the most recent payload) with verification marks, then the payload
+    hex lines with per-byte change highlighting (bytes differing from the previous
+    line get a background colour) plus base colouring by parameter coverage.
+
+    By default only *unique* payloads are shown (deduped, first-seen timestamp);
+    pass ``show_all=True`` to render every capture.
+    """
+    from rich.console import Console
+
+    from canlib.formatting import format_value
+    from canlib.modes.monitor import _render_hex_line
+
+    console = Console(highlight=False)
+
     ecu_upper = ecu_filter.upper()
     pid_upper = pid_filter.upper()
 
-    filtered = [
+    # Exact ECU+PID match (needed for correct PID-definition lookup); fall back to
+    # substring PID match so nothing silently disappears (rendered without params).
+    payloads = [
         e for e in entries
-        if e["ecu"].upper() == ecu_upper
-        and pid_upper in e["pid"].upper()
-        and e["payload"]
+        if e["ecu"].upper() == ecu_upper and str(e["pid"]).upper() == pid_upper and e["payload"]
     ]
-
-    if not filtered:
+    if not payloads:
+        payloads = [
+            e for e in entries
+            if e["ecu"].upper() == ecu_upper and pid_upper in str(e["pid"]).upper() and e["payload"]
+        ]
+    if not payloads:
         print(f"  No payloads found for {ecu_filter} {pid_filter}.")
         return
 
-    print(f"\n  {_BOLD}Diff: {ecu_filter} {pid_filter}{_RESET} — {len(filtered)} payloads\n")
+    # Chronological order (date, then time within a session).
+    payloads.sort(key=lambda e: (str(e.get("date", "")), str(e.get("time", ""))))
 
-    prev_hex = None
-    for e in filtered:
-        payload = e["payload"].upper()
-        date = e["date"]
-        time_str = e.get("time", "")
-        state = f"  ({e['state']})" if e["state"] else ""
-        ts = f"{date} {time_str}".strip()
+    # Look up PID definitions for decoding + byte colouring.
+    parameters: dict = {}
+    tx_id = None
+    try:
+        from canlib.pids import build_ecu_index, load_pids
 
-        print(f"  {_DIM}{ts}{state}{_RESET}")
+        idx = build_ecu_index(load_pids(PIDS_DIR))
+        if ecu_upper in idx:
+            tx_id = idx[ecu_upper].get("tx_id")
+            pid_info = idx[ecu_upper]["pids"].get(pid_upper)
+            if pid_info:
+                parameters = pid_info.get("parameters", {}) or {}
+    except Exception:
+        pass
 
-        if prev_hex is None:
-            # First payload — print normally
-            print(f"    {_format_hex_spaced(payload)}")
-        else:
-            # Colorize changed bytes
-            print(f"    {_diff_hex(prev_hex, payload)}")
+    # Decode the most recent payload into param rows (drives the table + colours).
+    rows = _decode_param_rows(payloads[-1]["payload"], parameters)
+    unmapped = not rows
 
-        decoded = _decoded_preview(e)
-        if decoded:
-            for k, v in list(decoded.items())[:5]:
-                print(f"    {_DIM}{k}: {v}{_RESET}")
+    # Dedupe payloads (case/space-insensitive), keeping first-seen order.
+    seen: set[str] = set()
+    unique: list[dict] = []
+    for e in payloads:
+        norm = e["payload"].upper().replace(" ", "")
+        if norm not in seen:
+            seen.add(norm)
+            unique.append(e)
 
-        prev_hex = payload
+    total = len(payloads)
+    n_unique = len(unique)
+    if total == n_unique or show_all:
+        count_str = f"({total} entries)"
+    else:
+        count_str = f"({total} entries, {n_unique} unique)"
 
-    print()
+    # ECU + PID headers.
+    ecu_display = payloads[0]["ecu"] or ecu_filter
+    tx_str = f" (0x{tx_id:03X})" if isinstance(tx_id, int) else ""
+    console.print(f"\n  [bold cyan]{ecu_display}{tx_str}[/bold cyan]")
+    console.print(f"    [yellow]{pid_upper}[/yellow]  [dim]{count_str}[/dim]")
 
+    # Decoded-parameter block (aligned columns, verification marks).
+    if rows:
+        max_name = max(len(r[0]) for r in rows)
+        max_val = max(
+            len("ERROR" if r[1] is None else format_value(r[1], r[2])) for r in rows
+        )
+        for name, value, unit, _expr, err, verified in rows:
+            mark = "[green]✓[/green]" if verified else "[yellow]?[/yellow]"
+            if err:
+                console.print(f"      {name:<{max_name}}  [red]ERROR: {err}[/red]")
+            else:
+                val_str = format_value(value, unit)
+                console.print(f"      {name:<{max_name}}  {val_str:<{max_val}}  {mark}")
 
-def _format_hex_spaced(hex_str: str) -> str:
-    """Format hex string with spaces between bytes."""
-    return " ".join(hex_str[i:i+2] for i in range(0, len(hex_str), 2))
+    # Payload hex lines with per-byte change highlighting.
+    render_list = payloads if show_all else unique
+    prev_norm = ""
+    for e in render_list:
+        norm = e["payload"].upper().replace(" ", "")
+        ts = e.get("time") or e.get("date") or ""
+        prefix = f"      {ts}  " if ts else "      "
+        line = _render_hex_line(
+            norm, rows, unmapped, prev_raw=prev_norm, prefix=prefix, prefix_style="dim"
+        )
+        # soft_wrap keeps long hex lines on one row (let the terminal wrap, not rich)
+        console.print(line, end="", soft_wrap=True)
+        prev_norm = norm
 
-
-def _diff_hex(prev: str, curr: str) -> str:
-    """Colorize hex diff — green for unchanged, red for changed bytes."""
-    prev = prev.upper()
-    curr = curr.upper()
-
-    parts = []
-    max_len = max(len(prev), len(curr))
-    for i in range(0, max_len, 2):
-        prev_byte = prev[i:i+2] if i + 1 < len(prev) else "  "
-        curr_byte = curr[i:i+2] if i + 1 < len(curr) else "  "
-
-        if i >= len(prev):
-            # New byte (payload grew)
-            parts.append(f"{_YELLOW}{curr_byte}{_RESET}")
-        elif i >= len(curr):
-            # Missing byte (payload shrank)
-            parts.append(f"{_RED}--{_RESET}")
-        elif prev_byte != curr_byte:
-            parts.append(f"{_RED}{curr_byte}{_RESET}")
-        else:
-            parts.append(f"{_DIM}{curr_byte}{_RESET}")
-
-    return " ".join(parts)
+    console.print()
 
 
 # ---------------------------------------------------------------------------
@@ -413,7 +484,12 @@ def main():
     )
     group.add_argument(
         "--diff", "-d", nargs=2, metavar=("ECU", "PID"),
-        help="Byte-level diff for ECU+PID payloads",
+        help="canreq monitor-style view for ECU+PID: decoded params + colored byte-diff",
+    )
+
+    parser.add_argument(
+        "--all", "-a", action="store_true",
+        help="For --diff: show every payload line instead of unique-only",
     )
 
     parser.add_argument(
@@ -440,7 +516,7 @@ def main():
     if args.summary:
         cmd_summary(entries)
     elif args.diff:
-        cmd_diff(entries, args.diff[0], args.diff[1])
+        cmd_diff(entries, args.diff[0], args.diff[1], show_all=args.all)
     elif args.latest is not None:
         cmd_latest(entries, args.latest or args.ecu or None)
     elif args.ecu or args.pid:
