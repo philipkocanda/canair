@@ -35,6 +35,7 @@ from ..formatting import (
     _HIGHLIGHT_STYLE,
     _bytes_to_ascii,
     _render_hex_line,
+    render_byte_rulers,
     render_param_table,
 )
 from ..session_manager import SessionManager
@@ -60,6 +61,7 @@ def _render_results(
     interval: float,
     prev_hex: dict[tuple[str, str], str] | None = None,
     hex_history: dict[tuple[str, str], list[tuple[str, str]]] | None = None,
+    show_rulers: bool = False,
 ) -> Text:
     """Render all ECU query results as a Rich Text object for Live display."""
     text = Text()
@@ -117,6 +119,12 @@ def _render_results(
 
             if raw_hex:
                 hex_key = (ecu_label, pid)
+                # Byte-index ruler, once per PID, above the hex lines.
+                if show_rulers:
+                    ruler_pw = 16 if hex_history is not None else 6
+                    text.append_text(
+                        render_byte_rulers(len(raw_hex) // 2, params, prefix_width=ruler_pw)
+                    )
                 if hex_history and hex_key in hex_history:
                     # Show all unique payloads chronologically, each diffed against predecessor
                     history = hex_history[hex_key]  # list of (hex, timestamp)
@@ -230,6 +238,7 @@ async def mode_monitor(
     keep_mode: str | None = None,
     keep_n: int | None = None,
     save: bool = False,
+    show_rulers: bool = False,
 ):
     """Live-refresh ECU parameter monitor.
 
@@ -250,6 +259,7 @@ async def mode_monitor(
                         "last" = sliding window of last N payloads (see keep_n).
         keep_n:         For keep_mode="last": number of recent payloads to display.
         save:           On Ctrl+C, prompt for metadata and save to captures/.
+        show_rulers:    Show byte-index rulers (idx/wican) once per PID.
     """
     from ..captures import CAPTURES_DIR
     from ..pids import build_ecu_index
@@ -288,7 +298,7 @@ async def mode_monitor(
 
         try:
             with Live(
-                _render_results([], verbose, 0, 0.0, interval),
+                _render_results([], verbose, 0, 0.0, interval, show_rulers=show_rulers),
                 console=_console,
                 refresh_per_second=4,
                 transient=False,
@@ -349,7 +359,8 @@ async def mode_monitor(
                                             hex_history.setdefault(key, []).append((raw, ts))
 
                     render = _render_results(
-                        last_queries, verbose, cycle, elapsed, interval, prev_hex, hex_history
+                        last_queries, verbose, cycle, elapsed, interval, prev_hex, hex_history,
+                        show_rulers=show_rulers,
                     )
                     live.update(render)
 
