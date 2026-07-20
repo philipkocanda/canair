@@ -23,22 +23,23 @@ VCU:
       availability: [ready, charging]
       parameters:
         VEHICLE_SPEED:
-          expression: "[B20:B21]*1.609344/100"
+          expression: "((S20*256)+B19)*1.609344/100"
           unit: km/h
           ha_class: speed
           min: "0"
           max: "255"
           verified: false
           notes: >
-            Raw field is speed in MPH×100, big-endian 16-bit at [B20:B21]. Converted to km/h (×1.609344).
-            2026-07-20: Old formula ((S20*256)+S19)/100 was wrong on two counts:
-            (1) it paired high byte B20 with the preceding byte B19 as low byte, but B19 is an unrelated
-            erratic signal (values swing 23→219) and was read as *signed* (S19), corrupting ~17% of frames
-            (whenever B19≥0x80). Correct 16-bit field is big-endian [B20:B21].
-            (2) unit is MPH, not km/h.
-            Cross-checked against dashboard at 3 points (2026-07-19 drive): 83/96/109 km/h cluster vs
-            78.9/91.4/103.7 decoded → constant +5.1% (= normal speedometer over-read). The constant bias
-            only appears with the correct low byte B21; using B19 it scatters 2.3–5.5%.
+            Signed 16-bit little-endian: high byte S20 (signed, for reverse/regen roll-back), low byte B19
+            (unsigned). Raw value is speed in MPH×100 → converted to km/h (×1.609344).
+            2026-07-20: The original ((S20*256)+S19)/100 had the RIGHT bytes (B20 high, B19 low) but two bugs:
+            (1) the low byte was read *signed* (S19), corrupting frames where B19≥0x80; fixed to unsigned B19.
+            (2) unit is MPH, not km/h; added ×1.609344.
+            Reads exactly 0 at park (confirmed live 2026-07-20: B19=B20=0 in all 354 parked frames; B19 forms
+            a smooth monotonic 16-bit ramp while accelerating). vs dashboard at 3 points (2026-07-19):
+            83/96/109 km/h cluster vs 79.8/91.0/106.5 decoded → ~+4% speedometer over-read (normal).
+            WARNING: do NOT use B21 as the low byte — an earlier revision did, but B21 is a separate signal
+            that is non-zero and jittery at standstill (67–150), making speed read ~0.5–2.4 km/h while parked.
             Pending GPS/multi-point confirmation across full speed range (see research). NOTE: dashboard
             speed itself is a separate signal — ESC 0x7D1 22C101 REAL_SPEED_KMH (B12), wheel-speed based.
 
@@ -170,44 +171,77 @@ VCU:
       enabled: true
       availability: [ready, charging]
       parameters:
-        VCU_MOTOR_RPM:
-          expression: "((S7<<8)|B6)"
-          unit: RPM
-          source: "JejuSoul Torque Pro CSV"
-          verified: false
-          notes: "Torque letters e=B4,f=B5 → ISO-TP 4,5 → WiCAN B6,B7. Signed 16-bit."
-
         VCU_INVERTER_INPUT_VOLTAGE:
-          expression: "B10*2"
+          expression: "B17*2"
           unit: V
           ha_class: voltage
           min: "0"
-          source: "JejuSoul Torque Pro CSV"
-          verified: false
+          max: "450"
+          source: "Kia Soul EV VMCU CSV (Inverter Input Voltage = f*2)"
+          verified: true
           notes: >
-            Torque letter I=B8 → ISO-TP 8 → WiCAN B10.
+            HV DC-link (= battery pack) voltage. 2026-07-20: identified via Kia Soul EV VMCU
+            reference (0x7E2, "Inverter Input Voltage = f*2"). Old guess B10*2 gave ~2V (B10=0x01, wrong).
+            B17*2 reads 364–382V in ready/driving across 1317 captures (range 28–412V over all states),
+            matching BMS pack voltage (~369V) and LDC HV input (~353V) — the inverter DC-link is the pack.
+            Cross-validated while charging (2026-07-20, SOC 94%): B17*2 = 396V vs BMS pack 396.4V — spot on.
+            NOTE: Soul's letter positions do NOT transfer directly (its f = our B17, its e = our B18);
+            the Ioniq VCU 2102 field order differs from the Soul VMCU.
 
-        VCU_HEAT_SINK_TEMP:
-          expression: "B16"
-          unit: "°C"
-          ha_class: temperature
-          min: "-40"
-          max: "215"
-          source: "JejuSoul Torque Pro CSV"
+        VCU_AUX_BATTERY_VOLTAGE:
+          expression: "B18/10"
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "16"
+          enabled: false
+          source: "Kia Soul EV VMCU CSV (Aux Battery Voltage = e/10)"
           verified: false
           notes: >
-            Torque letter o=B14 → ISO-TP 14 → WiCAN B16.
+            DISABLED 2026-07-20: B18/10 does NOT match the 12V aux battery. Charging cross-check (SOC 94%) read
+            14.8V while the actual 12V bus was 12.8V per BOTH BMS AUX_BATTERY_VOLTAGE (12.80V) and LDC_OUTPUT_V
+            (12.81V). It tracked plausibly (~12.3-13.6V) in READY but reads ~2V high under charge — likely an LDC
+            output target/command rather than the battery terminal. Use BMS AUX_BATTERY_VOLTAGE or LDC_OUTPUT_V
+            for the real 12V. Kept for research trail; excluded from profile.
 
-        VCU_MCU_TEMP:
-          expression: "B22"
-          unit: "°C"
-          ha_class: temperature
-          min: "-40"
-          max: "215"
-          source: "JejuSoul Torque Pro CSV"
-          verified: false
-          notes: >
-            Torque letter u=B20 → ISO-TP 20 → WiCAN B22.
+        # VCU_MOTOR_RPM:
+        #   expression: "((S7<<8)|B6)"
+        #   unit: RPM
+        #   enabled: false
+        #   source: "JejuSoul Torque Pro CSV"
+        #   verified: false
+        #   notes: >
+        #     DISABLED 2026-07-20: B6/B7 (ISO-TP 4,5) are always 0x00 across all VCU captures → always 0.
+        #     The Ioniq splits the inverter into a separate MCU ECU (0x7E3); live motor RPM/torque/phase-current
+        #     are in MCU 2102 (see MCU_MOTOR_RPM), not VCU 2102. Kept for research trail; excluded from profile.
+
+        # VCU_HEAT_SINK_TEMP:
+        #   expression: "B16"
+        #   unit: "°C"
+        #   ha_class: temperature
+        #   min: "-40"
+        #   max: "215"
+        #   enabled: false
+        #   source: "JejuSoul Torque Pro CSV"
+        #   verified: false
+        #   notes: >
+        #     DISABLED 2026-07-20: B16 is an ISO-TP PCI byte (0x22), not data — the 34°C it "reads" is the
+        #     frame header, coincidental garbage. No valid heat-sink temp found in VCU 2102: candidate bytes
+        #     (B14/B20/B25/B27) are identical between a cold April parked capture and a hot July drive → constants,
+        #     not temps. Inverter/motor temps are likely in MCU 0x7E3. Kept for research trail; excluded from profile.
+
+        # VCU_MCU_TEMP:
+        #   expression: "B22"
+        #   unit: "°C"
+        #   ha_class: temperature
+        #   min: "-40"
+        #   max: "215"
+        #   enabled: false
+        #   source: "JejuSoul Torque Pro CSV"
+        #   verified: false
+        #   notes: >
+        #     DISABLED 2026-07-20: B22 is dynamic (0–120, correlates weakly with speed), not a stable temperature.
+        #     MCU/inverter temps are likely in MCU 0x7E3, not VCU 2102. Kept for research trail; excluded from profile.
 
     21F2:
       period: 0
@@ -236,16 +270,28 @@ VCU:
         - "PARK_BRAKE (B26:5) — same OOB issue"
         - "ECO/Sport/Normal mode — suspected in B10 upper nibble"
         - "Regen mode (off/1/2/3) — location unknown"
+        - "ACCEL_PEDAL — Kia Soul VMCU has 'Accel Pedal Related=i' + 'Accel Pedal Depth=j/2' (%). In our 2101, B17 and B18 are 0 when truly parked (P) and active while driving — strong candidates. Press pedal while stationary in Ready to confirm which is depth (÷2 for %) and the raw-related byte."
       sources:
         - "Kia Niro PR — CAR_READY/PARK_BRAKE"
+        - "Kia Soul EV VMCU CSV — accel pedal (i, j/2), drive-mode/state bits"
         - "Obsidian: VCU.md"
     - type: decode
       target: "2102"
       status: captured
       priority: P1
       prerequisite: [ready, charging]
-      notes: "27 bytes captured. Expected: heat sink temp (val-40), inverter input voltage (val*2), MCU temp (val-40), motor actual speed RPM (signed 16-bit)."
+      notes: >
+        27 bytes. 2026-07-20 (Kia Soul EV VMCU cross-ref, 0x7E2): mapped INVERTER_INPUT_VOLTAGE=B17*2
+        (verified vs BMS pack ~369V) and AUX_BATTERY_VOLTAGE=B18/10 (~12–13.6V). KEY FINDING: the Ioniq
+        redistributes the Soul VMCU payload — motor RPM/torque/heat-sink & MCU temp/phase currents are NOT
+        in VCU 2102 (candidate temp bytes are constant across cold/hot sessions; no byte tracks speed like RPM).
+        Those live in the separate MCU ECU (0x7E3). Soul letter positions also don't transfer 1:1
+        (Soul e/f = our B18/B17, transposed). Disabled the old bogus params (MOTOR_RPM/HEAT_SINK/MCU_TEMP).
+      what_to_test:
+        - "Re-map motor RPM/torque/temps under MCU 0x7E3 2101/2102 using the Soul VMCU scalings as a guide"
+        - "Confirm B17 HV voltage with a same-instant BMS read while driving"
       sources:
+        - "Kia Soul EV VMCU CSV — 0x7E2 (Inverter f*2, Aux e/10, temps w/x/y-40, RPM/torque 16-bit)"
         - "Obsidian: VCU.md — 23 bytes captured 2025-08-07"
         - "38kWh profile — B20*3.97+2.3 speed formula"
 
@@ -267,10 +313,11 @@ VCU:
       priority: P1
       prerequisite: [ready]
       notes: >
-        2026-07-20: RESOLVED unit = MPH (not km/h). Field is MPH×100 big-endian at [B20:B21];
-        expression now converts to km/h. Confirmed against dashboard at 3 points → constant +5.1%
-        speedo over-read. STILL PENDING: GPS + multi-point confirmation across full speed range, and
-        confirm the B21 low byte (vs B19) definitively. Also capture ESC 22C101 REAL_SPEED_KMH (B12)
+        2026-07-20: RESOLVED unit = MPH (not km/h) and low byte = B19 (unsigned), high byte = S20 (signed).
+        Expression ((S20*256)+B19)*1.609344/100 reads 0 at park (verified live) and ~+4% under dashboard.
+        An interim revision wrongly used B21 as low byte → non-zero jittery speed while parked (B21 is a
+        separate signal, 67–150 at standstill); reverted to B19. STILL PENDING: GPS + multi-point
+        confirmation across full speed range. Also capture ESC 22C101 REAL_SPEED_KMH (B12)
         while driving to verify it as the true dashboard speed source.
     - type: scan
       target: "0x7E1 22 0101-0105"
