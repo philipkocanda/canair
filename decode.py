@@ -39,6 +39,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).parent))
 
 from bix import _payload_to_wican_frame
+from canlib.byteindex import extract_byte_indices
 from canlib.expression import evaluate_expression
 from canlib.pids import build_ecu_index, load_pids
 
@@ -534,11 +535,12 @@ def _to_pixels(values: list[float], w: int, h: int, lo: float, hi: float) -> lis
 
 
 def render_plot(values: list[float], ref: list[float] | None = None,
-                width: int = 74, height: int = 16) -> list[str]:
+                width: int = 74, height: int = 16, caption: str | None = None) -> list[str]:
     """Render a braille line chart (list of rows) with a y-axis min/max gutter.
 
     When ``ref`` is given, both series are normalized to [0,1] and overlaid
-    (``values`` bright, ``ref`` dim) so their shapes can be compared.
+    (``values`` bright, ``ref`` dim) so their shapes can be compared. ``caption``
+    overrides the default bottom label (used to show the visible x-range).
     """
     if not values:
         return ["  (no data to plot)"]
@@ -571,9 +573,54 @@ def render_plot(values: list[float], ref: list[float] | None = None,
                 cells.append(" ")
         lines.append(f"{ylab:>{gutter}} {_V_AXIS}{''.join(cells)}")
     lines.append(f"{'':>{gutter}} {_CORNER}{_HLINE * width}")
-    tag = "normalized 0-1" if overlay else f"{len(values)} captures"
-    lines.append(f"{'':>{gutter}}  {_DIM}{tag}{_RESET}")
+    if caption is None:
+        caption = "normalized 0-1" if overlay else f"{len(values)} captures"
+    lines.append(f"{'':>{gutter}}  {_DIM}{caption}{_RESET}")
     return lines
+
+
+def _window(seq: list, xlo: float, xhi: float) -> tuple[list, int, int]:
+    """Slice ``seq`` to the fractional x-window ``[xlo, xhi]``.
+
+    Returns ``(view, i0, i1)`` with ``i0``/``i1`` the resolved integer bounds.
+    Fractions (rather than indices) keep the zoom stable as the underlying
+    series length changes between offsets/types.
+    """
+    n = len(seq)
+    if n == 0:
+        return [], 0, 0
+    i0 = max(0, min(n - 1, int(xlo * n)))
+    i1 = max(i0 + 1, min(n, round(xhi * n)))
+    return seq[i0:i1], i0, i1
+
+
+def _mapping_for_offset(defined_params: dict, offset: int, width: int,
+                        current_expr: str | None) -> tuple[list, list]:
+    """Which defined parameters read the byte range ``[offset, offset+width)``.
+
+    Returns ``(exact, overlap)`` lists of ``(name, expression, verified)``:
+    ``exact`` matches the current interpretation's expression byte-for-byte;
+    ``overlap`` merely reads one of the same bytes. Lets the plot flag bytes
+    that are already decoded (and by what) while sweeping.
+    """
+    cur_bytes = set(range(offset, offset + width))
+    norm_cur = current_expr.replace(" ", "") if current_expr else None
+    exact, overlap = [], []
+    for name, pdef in (defined_params or {}).items():
+        expr = (pdef or {}).get("expression", "")
+        if not expr:
+            continue
+        try:
+            bs = extract_byte_indices(expr)
+        except Exception:
+            bs = set()
+        if bs & cur_bytes:
+            entry = (name, expr, bool((pdef or {}).get("verified", False)))
+            if norm_cur and expr.replace(" ", "") == norm_cur:
+                exact.append(entry)
+            else:
+                overlap.append(entry)
+    return exact, overlap
 
 
 def _pci_positions(payload_hex: str) -> set[int]:
@@ -601,15 +648,17 @@ def _series_stats_str(values: list[float]) -> str:
 
 def cmd_plot(all_results: list[dict], param_names: list[str], parameters: dict,
              candidate_names: set[str], corr_ref: str | None,
-             ecu_key: str, pid_key: str) -> None:
+             ecu_key: str, pid_key: str, defined_params: dict | None = None) -> None:
     """Interactive signal explorer: sweep byte interpretations / params and plot.
 
     Byte mode is the ImHex-style inspector (offset x type x endianness over the
     raw payload); param mode plots a defined/--try parameter's decoded series.
     Both feed a post-transform and an optional reference overlay; byte mode also
-    shows the equivalent WiCAN expression to paste into pids-edit. Falls back to
-    a single static chart when stdin/stdout is not a TTY.
+    shows the equivalent WiCAN expression and flags bytes already mapped by a
+    defined parameter. The x-axis can be zoomed/panned. Falls back to a single
+    static chart when stdin/stdout is not a TTY.
     """
+    defined_params = defined_params or {}
     # Raw WiCAN frames per capture (offset space matches Bnn / expressions).
     frames: list[bytes | None] = []
     for r in all_results:
@@ -642,10 +691,12 @@ def cmd_plot(all_results: list[dict], param_names: list[str], parameters: dict,
     tmode = "raw"                       # post-transform
     pi = 0                              # param index (param mode)
     overlay = False
+    xlo, xhi = 0.0, 1.0                 # fractional x-axis window (zoom/pan)
 
     def frame_lines() -> list[str]:
         spec = INSPECT_TYPES[ti]
         warn = ""
+        map_line = None
         if mode == "bytes":
             per_cap = [interpret_bytes(f, offset, spec, little) if f else None for f in frames]
             expr = wican_expr(offset, spec, little)
@@ -655,6 +706,18 @@ def cmd_plot(all_results: list[dict], param_names: list[str], parameters: dict,
             endian = "" if width == 1 else ("  LE" if little else "  BE")
             src = f"B{offset} as {spec[0]}{endian}"
             expr_line = f"expr: {expr}" if expr else "expr: (no direct WiCAN expression)"
+            # Feature: flag bytes already mapped by a defined parameter.
+            exact, overlap = _mapping_for_offset(defined_params, offset, width, expr)
+            if exact:
+                n_, e_, v_ = exact[0]
+                mk = f"{_GREEN}✓{_RESET}" if v_ else f"{_YELLOW}?{_RESET}"
+                map_line = f"  {_GREEN}= mapped: {n_}{_RESET} {mk} {_DIM}({e_}){_RESET}"
+            elif overlap:
+                shown = "  ".join(f"{n_} {_DIM}({e_}){_RESET}" for n_, e_, _ in overlap[:3])
+                more = f" +{len(overlap) - 3}" if len(overlap) > 3 else ""
+                map_line = f"  {_YELLOW}~ reads B{offset}:{_RESET} {shown}{more}"
+            else:
+                map_line = f"  {_DIM}unmapped{_RESET}"
         else:
             if not plottable_params:
                 return [f"{_BOLD}{ecu_key} {pid_key}{_RESET}",
@@ -667,24 +730,40 @@ def cmd_plot(all_results: list[dict], param_names: list[str], parameters: dict,
         if overlay and ref_per_cap is not None:
             pairs = [(rf, cv) for rf, cv in zip(ref_per_cap, per_cap, strict=True)
                      if rf is not None and cv is not None]
-            ref_vals = [p[0] for p in pairs]
-            series = apply_transform([p[1] for p in pairs], tmode)
-            r = _pearson(ref_vals, series)
+            ref_full = [p[0] for p in pairs]
+            cur_full = apply_transform([p[1] for p in pairs], tmode)
+        else:
+            ref_full = None
+            cur_full = apply_transform([v for v in per_cap if v is not None], tmode)
+
+        # Apply the x-axis window (zoom/pan), keeping ref aligned to the view.
+        series, i0, i1 = _window(cur_full, xlo, xhi)
+        refseries = _window(ref_full, xlo, xhi)[0] if ref_full is not None else None
+
+        if overlay and refseries is not None:
+            r = _pearson(refseries, series)
             rstr = f"  {_CYAN}r={r:+.3f} vs {corr_ref}{_RESET}" if r is not None \
                 else f"  {_DIM}r=n/a vs {corr_ref}{_RESET}"
-            refseries = ref_vals
         else:
-            series = apply_transform([v for v in per_cap if v is not None], tmode)
-            refseries, rstr = None, ""
+            rstr = ""
+
+        total = len(cur_full)
+        zoomed = (i0, i1) != (0, total)
+        caption = (f"captures {i0}-{i1 - 1} of {total}" if total else "no data") \
+            + ("  (zoomed)" if zoomed else "") + ("  · normalized 0-1" if overlay else "")
 
         out = [
             f"{_BOLD}{ecu_key} {pid_key}{_RESET}  {_DIM}·  {mode} mode{_RESET}",
             f"  {_CYAN}{src}{_RESET}   {_DIM}{expr_line}{_RESET}",
-            f"  transform={_YELLOW}{tmode}{_RESET}  {_series_stats_str(series)}{rstr}"
-            + (f"   {_RED}\u26a0 {warn}{_RESET}" if warn else ""),
-            "",
         ]
-        out.extend(render_plot(series, ref=refseries if overlay else None))
+        if map_line:
+            out.append(map_line)
+        out.append(
+            f"  transform={_YELLOW}{tmode}{_RESET}  {_series_stats_str(series)}{rstr}"
+            + (f"   {_RED}\u26a0 {warn}{_RESET}" if warn else "")
+        )
+        out.append("")
+        out.extend(render_plot(series, ref=refseries if overlay else None, caption=caption))
         return out
 
     # Non-interactive: print one static frame and return.
@@ -705,9 +784,10 @@ def cmd_plot(all_results: list[dict], param_names: list[str], parameters: dict,
         while True:
             sys.stdout.write("\033[2J\033[H")
             sys.stdout.write("\r\n".join(frame_lines()))
-            hint = ("←/→ offset · t/T type · e endian · f transform · m param · o overlay · q quit"
+            common = "  +/- zoom · ,/. pan · 0 reset-x · f transform · o overlay · q quit"
+            hint = ("←/→ offset · t/T type · e endian · m param" + common
                     if mode == "bytes"
-                    else "←/→ param · f transform · m bytes · o overlay · q quit")
+                    else "←/→ param · m bytes" + common)
             sys.stdout.write(f"\r\n\r\n  {_DIM}{hint}{_RESET}\r\n")
             sys.stdout.flush()
 
@@ -736,6 +816,21 @@ def cmd_plot(all_results: list[dict], param_names: list[str], parameters: dict,
                 mode = "param" if mode == "bytes" else "bytes"
             elif k in ("o", "O") and ref_per_cap is not None:
                 overlay = not overlay
+            elif k in ("+", "="):                       # zoom in (halve window)
+                c, half = (xlo + xhi) / 2, (xhi - xlo) / 4
+                if (xhi - xlo) > 0.02:
+                    xlo, xhi = max(0.0, c - half), min(1.0, c + half)
+            elif k in ("-", "_"):                       # zoom out (double window)
+                c, half = (xlo + xhi) / 2, (xhi - xlo)
+                xlo, xhi = max(0.0, c - half), min(1.0, c + half)
+            elif k in (",", "<"):                       # pan left
+                d = min(xlo, 0.1 * (xhi - xlo))
+                xlo, xhi = xlo - d, xhi - d
+            elif k in (".", ">"):                       # pan right
+                d = min(1.0 - xhi, 0.1 * (xhi - xlo))
+                xlo, xhi = xlo + d, xhi + d
+            elif k == "0":                              # reset x-window
+                xlo, xhi = 0.0, 1.0
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old)
         sys.stdout.write("\033[?25h\033[?1049l")
@@ -767,7 +862,8 @@ def main():
     parser.add_argument("--plot", action="store_true",
                         help="Interactive signal explorer: sweep byte interpretations "
                              "(u8/i16/f32/... and endianness) and params, plot across captures, "
-                             "apply transforms (delta/abs/normalize/...), overlay a --corr signal")
+                             "apply transforms (delta/abs/normalize/...), zoom/pan the x-axis, "
+                             "overlay a --corr signal, and flag bytes already mapped by a param")
     parser.add_argument("--try", dest="try_expr", action="append", metavar="NAME[:unit]=EXPR",
                         help="Evaluate a candidate expression against captures without editing "
                              "YAML (repeatable; works even if the PID has no params defined yet)")
@@ -804,6 +900,10 @@ def main():
     elif not tolerate_missing:
         print(f"ECU '{args.ecu}' not found in pids/. Available: {', '.join(sorted(ecu_index))}")
         sys.exit(1)
+
+    # Full (unfiltered) defined params for this PID — used by --plot to flag
+    # bytes that are already mapped, independent of --param/--verified filters.
+    defined_params = dict(parameters)
 
     # Filter parameters (applies to *defined* params only; --try params are always shown)
     if args.param:
@@ -862,7 +962,7 @@ def main():
     # Interactive signal explorer (byte interpretations + params + transforms).
     if args.plot:
         cmd_plot(all_results, list(parameters.keys()), parameters,
-                 candidate_names, corr_ref, ecu_key, pid_key)
+                 candidate_names, corr_ref, ecu_key, pid_key, defined_params=defined_params)
         return
 
     if args.json:

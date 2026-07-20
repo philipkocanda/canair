@@ -136,12 +136,17 @@ PID (raw payloads only). Keys:
 - `←`/`→` move the byte offset (byte mode) or switch parameter (param mode)
 - `t`/`T` cycle the interpretation type (`u8 i8 u16 i16 u24 i24 u32 i32 u64 i64 f16 f32 f64`)
 - `e` toggle endianness · `f` cycle post-transform (`raw delta abs cumsum normalize smooth`)
+- `+`/`-` zoom the x-axis · `,`/`.` pan · `0` reset x-range
 - `m` toggle byte↔param source · `o` overlay the `--corr` reference (with live Pearson r) · `q` quit
 
 Byte mode shows the **equivalent WiCAN expression** for the current
-interpretation (e.g. `[S10:S11]`) — copy it straight into step 8. It also warns
-when a multi-byte read crosses a PCI byte (garbage). Endianness and float types
-that have no direct WiCAN expression are flagged as such.
+interpretation (e.g. `[S10:S11]`) — copy it straight into step 8 — and whether
+that byte is **already mapped** by a defined parameter (`= mapped: NAME`, or
+`~ reads Bn: …` for a partial overlap, or `unmapped`), so you don't
+re-decode known bytes. It also warns when a multi-byte read crosses a PCI byte
+(garbage); endianness and float types with no direct WiCAN expression are
+flagged as such. Zoom/pan (`+`/`-`/`,`/`.`) narrows the x-axis to inspect a
+segment (e.g. a single launch or regen event).
 
 ### 8. Define — write it to pids/
 
