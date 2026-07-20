@@ -1,11 +1,22 @@
 
 # ─── LDC / OBC (Low-Voltage DC-DC Converter / On-Board Charger) ─────
+#
+# Combines functions of the LDC and OBC into a single ECU. This ECU is responsible for:
+# - Converting high-voltage DC from the traction battery to low-voltage DC for the 12V system (LDC function).
+# - Managing AC charging of the traction battery (OBC function).
+# - Reporting various voltages, currents, and temperatures related to the LDC and OBC.
+#
+# The challenge here is disambiguating the LDC and OBC parameters.
+# IDEA: Compare between charging (OBC active) and non-charging in READY-mode (LDC active) to identify which parameters belong to which function.
+#
 # CarScanner identifies ECU 0x7E5 as "AEV**LDC**53" on Ioniq 2017.
 # Response to PID 2101 is 48 ISO-TP bytes (56 WiCAN bytes).
 # PID 2103 returns NRC 0x12 (subFunctionNotSupported) — does not exist on Ioniq 2017.
 # Original Niro PR#716 formulas (B52-B55, B60-B61) are WRONG for Ioniq —
 # they reference bytes beyond the Ioniq's shorter response (zero padding / OOB).
 # Correct byte offsets decoded from live captures during AC charging (2026-04-14).
+#
+#
 LDC:
   tx_id: 0x7E5
   availability: [ready, charging, acc2]
@@ -45,8 +56,10 @@ LDC:
           max: "120"
           source: "Decoded from live captures (2026-04-14)"
           source_links: []
-          verified: true
-          notes: "LDC converter temperature. Increased gradually 35→36°C between captures ~2 min apart during AC charging. ISO-TP byte 17."
+          verified: false
+          notes: >
+            2026-04-14: LDC converter temperature? Increased gradually 35→36°C between captures ~2 min apart during AC charging.
+            2026-07-19: implausible -> 14°C after long drive on a very hot day, and varies way too much during charging
 
         OBC_CHARGE_V:
           expression: "[B10:B11]/100"
@@ -99,6 +112,37 @@ LDC:
             After a while down to 22.67 then 32 (still at 10 Amps AC)
             ISO-TP byte 39. Torque letter am.
 
+        OBC_TEMP_HEATSINK:
+          expression: "S15"
+          verified: false
+          notes: >
+            WIP - Needs verification
+            2026-07-19: Seems implausible (varies wildly: [-119, -106, 118, 126, 123, -114, -118, -127, 98, 103, 112, 111, 121, -125])
+
+        OBC_TEMP_INSIDE:
+          expression: "S16"
+          verified: false
+          notes: >
+            WIP - Needs verification
+            2026-07-19: Seems plausible (static at 34°C after several hours of AC charging)
+
+        OBC_TEMP_WATER:
+          expression: "S17"
+          verified: false
+          notes: >
+            WIP - Needs verification
+            2026-07-19: Implausible (static value of 1)
+
+
+        OBC_AC_INPUT_V:
+          expression: "B15"
+          verified: false
+          notes: >
+            WIP - Needs verification
+            2026-07-19: ?
+
+        # notes: "Some params unverified: OBC_TEMP_HEATSINK (S15), OBC_TEMP_INSIDE (S16), OBC_TEMP_WATER (S17), OBC_DC_V ([B18:B19]/10), OBC_AC_V ([B20:B21]/10), LDC temp (val-100), DC volt out (/10)."
+
     2102:
       period: 5000
       enabled: false
@@ -110,21 +154,6 @@ LDC:
         Undecoded — needs analysis.
       parameters: {}
 
-    2103:
-      period: 5000
-      enabled: false
-      parameters:
-        OBC_AC_C:
-          expression: "[B9:B10]/100"
-          unit: A
-          ha_class: current
-          min: "0"
-          max: ""
-          source: "Kia Niro EV WiCAN PR#716"
-          source_links:
-            - https://github.com/meatpiHQ/wican-fw/pull/716
-          verified: false
-          notes: "DISABLED: PID 2103 returns NRC 0x12 (subFunctionNotSupported) on Ioniq 2017. Does not exist on this car."
   research:
     - type: decode
       target: "2101"

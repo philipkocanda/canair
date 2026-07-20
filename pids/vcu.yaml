@@ -8,7 +8,8 @@
 # - Drive mode logic
 # - Regen braking strength (0-1-2-3) and brake blending
 # - Coordination between motor, inverter, battery, and safety systems
-# 
+# - Suspected: preconditioning, charge timer, charge power limit settings (station/portable).
+#
 # The Vehicle Control Unit (VCU) and Motor Control Unit (MCU)
 # are both part of the Electronic Powertrain Control Unit (EPCU) physical housing.
 #
@@ -146,7 +147,7 @@ VCU:
           verified: false
           notes: ""
 
-        ACCEL_PEDAL_DEPTH:
+        VCU_UNKNOWN:
           expression: "B16/2"
           unit: "%"
           min: "0"
@@ -155,7 +156,10 @@ VCU:
           source_links:
             - https://docs.google.com/spreadsheets/d/1R2dW_4-ANg04TQdkHH52-8wdYItBkWDfppcsqOc-m1M
           verified: false
-          notes: "ImHex offset 0x0E + 2 = B16. Ioniq 5 OBDb confirms at bix 96, len 8, div 2."
+          notes: >
+            ImHex offset 0x0E + 2 = B16. Ioniq 5 OBDb confirms at bix 96, len 8, div 2.
+            2026-07-19: Implausible - fixed at 17% during charging
+            2026-07-19: Could be regen/drive mode?
 
     2102:
       period: 5000
@@ -176,27 +180,30 @@ VCU:
           min: "0"
           source: "JejuSoul Torque Pro CSV"
           verified: false
-          notes: "Torque letter I=B8 → ISO-TP 8 → WiCAN B10."
+          notes: >
+            Torque letter I=B8 → ISO-TP 8 → WiCAN B10.
 
         VCU_HEAT_SINK_TEMP:
-          expression: "B16-40"
+          expression: "B16"
           unit: "°C"
           ha_class: temperature
           min: "-40"
           max: "215"
           source: "JejuSoul Torque Pro CSV"
           verified: false
-          notes: "Torque letter o=B14 → ISO-TP 14 → WiCAN B16."
+          notes: >
+            Torque letter o=B14 → ISO-TP 14 → WiCAN B16.
 
         VCU_MCU_TEMP:
-          expression: "B22-40"
+          expression: "B22"
           unit: "°C"
           ha_class: temperature
           min: "-40"
           max: "215"
           source: "JejuSoul Torque Pro CSV"
           verified: false
-          notes: "Torque letter u=B20 → ISO-TP 20 → WiCAN B22."
+          notes: >
+            Torque letter u=B20 → ISO-TP 20 → WiCAN B22.
 
     21F2:
       period: 0
@@ -206,6 +213,10 @@ VCU:
         69 bytes. Discovered during charging PID scan (2026-04-18).
         Raw payload: 61F2FF000000084566003FC6AE1101877F00000000000000000000000000...
         Undecoded — needs analysis.
+
+        2026-07-19: charge timer schedule and precondition timestamp? -> no change
+        2026-07-19: charger power limit setting? -> no change
+
   research:
     - type: verify
       target: "2101"
@@ -213,8 +224,8 @@ VCU:
       priority: P1
       prerequisite: [acc]
       notes: >
-        Several unverified params: CAR_READY (B26:3) causes OOB on 22-byte response, PARK_BRAKE (B26:5) same issue, ACCEL_PEDAL_DEPTH (B17), LDC_INHIBIT (B11:7), 
-        MCU_STATE (B11:6). 
+        Several unverified params: CAR_READY (B26:3) causes OOB on 22-byte response, PARK_BRAKE (B26:5) same issue, ACCEL_PEDAL_DEPTH (B17), LDC_INHIBIT (B11:7),
+        MCU_STATE (B11:6).
         Also ECO/Sport/Normal mode (B10 upper nibble?) and regen mode unknown.
       what_to_test:
         - "CAR_READY (B26:3) — OOB on 22-byte response, try with ACC on"
@@ -233,19 +244,16 @@ VCU:
       sources:
         - "Obsidian: VCU.md — 23 bytes captured 2025-08-07"
         - "38kWh profile — B20*3.97+2.3 speed formula"
-    - type: decode
-      target: "21F2"
-      status: captured
-      priority: P2
-      prerequisite: [charging]
-      date: "2026-04-18"
-      notes: "69 bytes. Discovered during charging scan. Undecoded."
+
     - type: scan
       target: "22 E001-E010"
       status: pending
       priority: P1
       prerequisite: [acc]
-      notes: "Ioniq 5 cross-ref: E001 vehicle speed, E002 motor RPM, E004 accel pedal/speed HD/aux voltage, E005 disconnector, E006 drive mode, E007 regen level, E008 torque request, E009 actual regen torque, E00A odometer, E00B motor temp, E00C inverter cooling temp, E010 gear state."
+      notes: >
+        Ioniq 5 cross-ref: E001 vehicle speed, E002 motor RPM, E004 accel pedal/speed HD/aux voltage, E005 disconnector, E006 drive mode, E007 regen level, E008 torque request, E009 actual regen torque, E00A odometer, E00B motor temp, E00C inverter cooling temp, E010 gear state."
+        2026-07-19: 22E001 -> NRC 0x12 (subFunctionNotSupported)
+
       sources:
         - "OBDb Ioniq 5"
         - "ChatGPT"

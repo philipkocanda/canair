@@ -64,8 +64,7 @@ IGPM:
           verified: false
           notes: >
             Bit flag likely, meaning unknown.
-            maybe hood of roof? 
-            or charge port lock state?
+            maybe hood?
 
         DOOR_DRV_OPEN:
           expression: "B10:5"

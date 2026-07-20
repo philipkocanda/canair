@@ -59,8 +59,9 @@ MCU:
       availability: [charging]
       notes: >
         69 bytes. Discovered during charging PID scan (2026-04-18).
-        Raw payload: 61F2FFFFFF3FF8FFF6FF7DD609000000000000000000190500000B05CDAB...
+        Raw payload: 61F2FFFFFF3FF6FFF8FF7DD60900000000000000000003050000EE04CDABC2CD4C00F0F32B002A041D002900000012000F001100C1CD967393222D4548454C2D4D53320000
         Undecoded — needs analysis.
+        2026-07-19: Contains a part of the ECU sw_id string ("-EHEL-MS2"), so likely to be static.
       parameters: {}
   research:
     - type: decode

@@ -26,7 +26,7 @@ Unknown-746:
       availability: [ready, charging]
       notes: >
         6 bytes. Responds both during AC charging and when car is off (?) (TODO: test response when car is off!)
-        Payload: 61F200000007 — meaning unknown.
+        Payload: 61F200000007 — meaning unknown (tested both on 2026-04-18 and 2026-07-19, same response).
         Full service 21 scan (2026-04-18): only PID in range 01-FF that responds.
         Full service 22 scan (2026-04-19): NRC 0x11 (serviceNotSupported) — no service 22 at all.
       parameters: {}
