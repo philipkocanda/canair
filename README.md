@@ -86,7 +86,7 @@ All functionality is exposed as `canair <subcommand>`.
 
 | Subcommand | Purpose |
 |--------|---------|
-| `canair query` | Send UDS/KWP2000 requests to ECUs via the WiCAN WebSocket terminal. Supports parameter queries, positional query steps (multi-ECU pipeline), monitoring, and more. Companions: `canair scan` (DID scanning), `canair discover`, `canair io` (IOControl actuation), `canair routines`, `canair raw`, `canair wake` (Smart Key Module), `canair repl` (interactive). |
+| `canair query` | Send UDS/KWP2000 requests to ECUs via the WiCAN WebSocket terminal. Supports parameter queries, positional query steps (multi-ECU pipeline), monitoring, and more. Companions: `canair scan` (DID scanning), `canair discover`, `canair io` (IOControl actuation), `canair routines`, `canair raw`, `canair repl` (interactive). |
 | `canair wican` | Read all `pids/*.yaml` definitions and produce a WiCAN-compatible JSON vehicle profile. Can upload directly to the device or diff against the current config. |
 | `canair decode` | Parameter/value-centric decoding: shows each PID parameter's value range across all captures (default), plus statistics (`--stats`), correlation vs a reference signal (`--corr`), an interactive signal explorer (`--plot` — sweep ImHex-style byte interpretations and transforms, plot across captures), and candidate-expression testing without editing YAML (`--try`). |
 | `canair captures` | Search across all capture files — show summaries, diffs between dates, or latest values per ECU/PID. Scope any mode by date with `--since`/`--until`/`--date`. |
@@ -259,7 +259,6 @@ canair (canlib/cli.py — argparse + argcomplete)
 | IOControl | `canair io ECU [--did DID]` | Interactive TUI or single actuator command |
 | Query pipeline | `canair query "CMD" "CMD" ...` | Sequenced query steps (multi mini-language) with session management |
 | Scan | `canair scan --tx ID --service SVC --range START-END` | Probe DID ranges for responses |
-| SKM wakeup | `canair wake [--level acc\|ign1]` | Wake ECUs via Smart Key Module relay |
 | Raw | `canair raw TX:PAYLOAD` | Direct hex request (no decoding) |
 | Routines | `canair routines ECU` | RoutineControl (0x31) TUI |
 | Monitor | `canair query "..." --monitor [SEC]` | Live-refreshing poll loop |
