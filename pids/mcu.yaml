@@ -33,15 +33,20 @@ MCU:
       availability: [charging]  # TODO: likely also ready — verify with ignition on
       parameters:
         MCU_MOTOR_RPM:
-          expression: "((S7<<8)|B6)"
+          expression: "[S10:S11]"
           unit: RPM
           ha_class: ""
-          min: ""
-          max: ""
-          source: "JejuSoul Torque Pro CSV + OVMS e-Niro"
+          min: "-10500"
+          max: "10500"
+          source: "Kia Soul EV VMCU CSV (Motor Actual Speed RPM) + physical validation"
           source_links: []
-          verified: false
-          notes: "Signed 16-bit. Torque letters e=4,f=5 → ISO-TP 4,5 → WiCAN B6,B7. OVMS confirms 0x7E3 PID 2102 is polled at 11s intervals."
+          verified: true
+          notes: >
+            Signed 16-bit big-endian at B10:B11 (ISO-TP 0x07:0x08). 2026-07-20: verified against
+            VCU vehicle speed across 179 driving samples — rpm/speed ratio = 62.8 (median), matching the
+            physical single-speed reduction (gear 7.412 × 205/55R16 tyre ≈ 61.8 rpm per km/h). Reads 0 at
+            park (live READY capture) and peaks ~6650 at 107 km/h; slightly negative during regen/rock-back.
+            Old expr ((S7<<8)|B6) read B6/B7 (0xFF 0xFF) = -1 — wrong bytes.
 
     2103:
       period: 0
@@ -65,23 +70,48 @@ MCU:
       parameters: {}
   research:
     - type: decode
-      target: "2101"
-      status: captured
-      priority: P1
-      prerequisite: [charging]
-      date: "2026-04-18"
-      notes: "34 bytes captured during charging. ImHex pattern 'ALL WRONG'. Expected: motor torque, phase current, temps. Compare with Ioniq 5 MCU 22E001 signals."
-      sources:
-        - "Obsidian: MCU.md"
-        - "OBDb Ioniq 5 MCU 22E001"
-    - type: decode
       target: "2102"
       status: captured
       priority: P1
       prerequisite: [charging]
-      notes: "62 bytes. Motor RPM confirmed at ((Signed(F)*256)+E). Remaining bytes undecoded."
+      notes: >
+        62 bytes. 2026-07-20: MOTOR_RPM verified at [S10:S11] (signed BE), not the old E:F guess.
+        Remaining Soul VMCU fields (0x7E2 on Soul, split into this MCU on Ioniq) still to place:
+        motor torque command / estimated torque (signed 16-bit, ±Nm), phase-current RMS, and the
+        U/V-phase + resolver current-sensor offsets. The offset/calibration block sits around B27–B47
+        (static bytes 7D D6 CD AB C2 CD ... — the same pattern appears in 21F2 alongside the "EHEL-MS2"
+        cal ID, confirming it is calibration data). Torque bytes near B12–B15 swing the full ±32k, so
+        they read like phase-current values; separating torque needs a time-synced VCU+MCU drive capture.
+      what_to_test:
+        - "Torque: best candidate so far is [S17:S18] (~0 at park, r=+0.42 vs dRPM) but it stays >=0 (0..2069), so likely |torque|/output power, not signed torque. Confirm with regen/braking segments where signed torque must go negative."
+        - "Phase-current RMS: Soul Int16(v:u); expect ~0 at park, rises with torque"
+        - >
+          CAPTURE METHOD: WebSocket polling is sequential over one connection and the stored
+          timestamp is per-cycle (not per-PID acquisition), so VCU 2101 and MCU 2102 are skewed
+          ~0.3-3s and cannot be tightly synced across ECUs. Mitigation: poll ONLY the two PIDs,
+          dense + back-to-back:  canreq --multi "query VCU 2101" "query MCU 2102" --monitor 1
+          --keep-all --save --wican vpn  (drive with hard launches, lift-off/regen, and braking;
+          run long enough to warm the inverter for the temp mapping). NOTE: torque RPM are BOTH in
+          MCU 2102, so torque needs no cross-ECU sync - just finer dRPM (dense sampling) + regen data.
       sources:
+        - "Kia Soul EV VMCU CSV — RPM/torque (signed 16-bit), phase current + resolver offsets (Int16)"
         - "Obsidian: MCU.md"
+    - type: decode
+      target: "2101"
+      status: captured
+      priority: P1
+      prerequisite: [ready]
+      notes: >
+        34 bytes. 2026-07-20: live READY capture at ~18°C ambient did NOT yield clean temps —
+        candidate bytes are bimodal/constant (B10 = 4 or 56, B15 ≈ constant 57, B13 tight ~150),
+        i.e. status/calibration, not motor/inverter/heat-sink temps. The July drive was short and cool,
+        so components barely warmed. Re-attempt temp mapping (Soul motor/MCU/heat-sink = val-40) after a
+        longer drive that heats the inverter, comparing cold-soak vs warm bytes. Also search for HV DC-link
+        voltage here (VCU 2102 has B17*2; MCU may carry its own).
+      sources:
+        - "Kia Soul EV VMCU CSV — temps (w/x/y - 40)"
+        - "Obsidian: MCU.md"
+        - "OBDb Ioniq 5 MCU 22E001"
     - type: decode
       target: "2103"
       status: captured

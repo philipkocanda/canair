@@ -27,15 +27,20 @@ LDC:
       availability: [ready, charging, acc2]
       parameters:
         LDC_HV_INPUT_V:
-          expression: "[B12:B13]/100"
+          expression: "[B45:B46]/100"
           unit: V
           ha_class: voltage
           min: "0"
           max: "500"
-          source: "Decoded from live captures (2026-04-14)"
+          source: "Live READY vs charging + BMS cross-check (2026-07-20)"
           source_links: []
           verified: true
-          notes: "HV battery input voltage to LDC. Cross-validated: matches BMS BATTERY_VOLTAGE (353.45V vs 353.3V). ISO-TP bytes 9-10."
+          notes: >
+            HV battery (pack) voltage at the LDC — the always-present DC-link. 2026-07-20: reads 385.7V in
+            READY and 386.9V charging, matching BMS BATTERY_VOLTAGE (385.6V) — present in BOTH states, unlike
+            the OBC charge-side senses ([B10:B11], [B12:B13]) which idle to ~0-6V in READY. (Earlier guesses
+            [B12:B13]/100 and B23*2 were wrong: [B12:B13] is OBC-only; B23*2≈372-378V doesn't track pack.)
+            ISO-TP bytes 0x26-0x27 — only in the full 48-byte response. Cross-check at one SOC (~85%) only.
 
         LDC_OUTPUT_V:
           expression: "[B25:B26]/100"
@@ -46,20 +51,21 @@ LDC:
           source: "Decoded from live captures (2026-04-14)"
           source_links: []
           verified: true
-          notes: "LDC 12V system output voltage. Reads 14.52V during charging — correct for 12V system under charge. ISO-TP bytes 20-21."
+          notes: "LDC 12V system output voltage. 14.52V charging / 14.31V READY — correct for 12V system. ISO-TP bytes 20-21."
 
         LDC_TEMP:
-          expression: "B21-40"
+          expression: "B19-100"
           unit: "°C"
           ha_class: temperature
           min: "-40"
           max: "120"
-          source: "Decoded from live captures (2026-04-14)"
+          source: "Kia Soul EV LDC CSV (LDC Temp = i-100) + charging session trend (2026-07-19)"
           source_links: []
-          verified: false
+          verified: true
           notes: >
-            2026-04-14: LDC converter temperature? Increased gradually 35→36°C between captures ~2 min apart during AC charging.
-            2026-07-19: implausible -> 14°C after long drive on a very hot day, and varies way too much during charging
+            LDC/converter temperature. 2026-07-20: corrected from B21-40 (which varies too much → not a temp).
+            B19-100 = 21°C at READY (≈18°C ambient) and rises smoothly 28→65°C over a 3h AC charge (10:45→13:50)
+            — textbook thermal behaviour; live 10A-AC charge read 27°C. Matches Soul LDC "-100" offset. ISO-TP byte 0x0f.
 
         OBC_CHARGE_V:
           expression: "[B10:B11]/100"
@@ -70,7 +76,21 @@ LDC:
           source: "Decoded from live captures (2026-04-14)"
           source_links: []
           verified: true
-          notes: "OBC DC output voltage (charge voltage into battery). Reads ~370V during AC charging — higher than HV battery voltage as expected. ISO-TP bytes 7-8."
+          notes: "OBC charge voltage into battery. ~370V during AC charging, ~6V idle (READY). ISO-TP bytes 7-8."
+
+        OBC_OUTPUT_V:
+          expression: "[B12:B13]/100"
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "500"
+          source: "Decoded from live captures (2026-04-14); reclassified 2026-07-20"
+          source_links: []
+          verified: true
+          notes: >
+            OBC DC output voltage (charge-side). ~353-384V during AC charging, but only ~3.8V in READY (OBC idle)
+            — which is why it is NOT the LDC HV input (see LDC_HV_INPUT_V = B23*2). Was previously mislabelled
+            LDC_HV_INPUT_V. ISO-TP bytes 9-10.
 
         LDC_OUTPUT_A:
           expression: "B15/10"
@@ -78,10 +98,12 @@ LDC:
           ha_class: current
           min: "0"
           max: "40"
-          source: "Decoded from live captures (2026-04-14)"
+          source: "Decoded from live captures (2026-04-14); Kia Soul LDC (DC Current Out)"
           source_links: []
           verified: false
-          notes: "LDC output current to 12V system. Changed 11.7→9.4A between captures — plausible for varying 12V load. ISO-TP byte 12. Medium confidence."
+          notes: >
+            LDC output current to 12V system. ~22A READY / ~11-18A charging — plausible 12V load. ISO-TP byte 12.
+            NOTE: B15 was also (wrongly) used for OBC_AC_INPUT_V and OBC_TEMP_HEATSINK — those are removed.
 
         OBC_DC_A:
           expression: "[B17:B18]/100"
@@ -92,7 +114,7 @@ LDC:
           source: "Decoded from live captures (2026-04-14)"
           source_links: []
           verified: true
-          notes: "DC output current during charging. Reads 2.85A — close to BMS charging current (~2.6A). Constant between captures. ISO-TP bytes 13-14. Medium confidence."
+          notes: "OBC DC output current during charging. ~2.85A (close to BMS charging current ~2.6A), 0A idle. ISO-TP bytes 13-14."
 
         OBC_PILOT_DUTY:
           expression: "B47/3"
@@ -100,48 +122,47 @@ LDC:
           ha_class: ""
           min: "0"
           max: "100"
-          source: "Ioniq PID sheet (Torque am)"
+          source: "Ioniq PID sheet (Torque am); Kia Soul OBC (Pilot Duty = r/3)"
           source_links:
             - https://docs.google.com/spreadsheets/d/1R2dW_4-ANg04TQdkHH52-8wdYItBkWDfppcsqOc-m1M
           verified: false
           notes: >
-            EVSE pilot duty cycle.
-            Value is 6 when charging at 6 Amps AC.
-            Value is briefly 4.33 then constant at 32.33 when increasing charging speed to 8 Amps AC.
-            Value is 39.67 when increasing charging speed to 10 Amps AC
-            After a while down to 22.67 then 32 (still at 10 Amps AC)
-            ISO-TP byte 39. Torque letter am.
+            J1772 control-pilot duty cycle (÷3 matches Soul OBC "r/3"). EVSE-ADVERTISED current = duty×0.6
+            (see OBC_PILOT_AMPS), i.e. it reports the charger's max, NOT the actual draw (that's OBC_DC_A).
+            2026-07-20 — WHY IT "WOBBLES" (two independent causes):
+            1. It is genuinely dynamic. Live sampling at a steady 5.2A DC charge showed B47/3 ramping/settling
+               between ~4% and ~41% while OBC_DC_A stayed flat. B47 sits LOW right after a diagnostic session
+               starts (a single clean query at steady 12A read only 3.67% — impossible for a real pilot while
+               drawing ~11A) and ramps to its steady ~41% only under continuous polling — i.e. opening the OBD
+               session itself perturbs the reading. Steady ~41% = EVSE advertising ~24A (car draws less).
+            2. B47 is the LAST meaningful data byte (ISO-TP 0x28 = reassembled byte 42). The response declares
+               length 0x2C (44 B) padded to 48 with trailing zeros. ALL 583 historical captures were stored as
+               only 40 bytes, so B47 was out-of-bounds — on a short/truncated frame the firmware reads a stale
+               or zero byte, making the decoded duty jump to 0/garbage. This adds spurious jumps on top of (1).
+            Only trustworthy after continuous polling has let it settle; instantaneous reads are unreliable.
 
-        OBC_TEMP_HEATSINK:
-          expression: "S15"
+        OBC_PILOT_AMPS:
+          expression: "B47/5"
+          unit: A
+          ha_class: current
+          min: "0"
+          max: "80"
+          source: "Kia Soul OBC (Amps_Limit = Pilot_Duty × 0.6); B47/3 × 0.6 = B47/5"
+          source_links: []
           verified: false
           notes: >
-            WIP - Needs verification
-            2026-07-19: Seems implausible (varies wildly: [-119, -106, 118, 126, 123, -114, -118, -127, 98, 103, 112, 111, 121, -125])
+            EVSE-advertised max AC current = pilot-duty × 0.6 (J1772). Same source byte as OBC_PILOT_DUTY,
+            so it shares the same dynamic + truncation caveats. Observed settling ~8A → ~24.6A during a
+            10A-set charge (pilot advertises charger capacity, not the car's actual draw).
 
-        OBC_TEMP_INSIDE:
-          expression: "S16"
-          verified: false
-          notes: >
-            WIP - Needs verification
-            2026-07-19: Seems plausible (static at 34°C after several hours of AC charging)
-
-        OBC_TEMP_WATER:
-          expression: "S17"
-          verified: false
-          notes: >
-            WIP - Needs verification
-            2026-07-19: Implausible (static value of 1)
-
-
-        OBC_AC_INPUT_V:
-          expression: "B15"
-          verified: false
-          notes: >
-            WIP - Needs verification
-            2026-07-19: ?
-
-        # notes: "Some params unverified: OBC_TEMP_HEATSINK (S15), OBC_TEMP_INSIDE (S16), OBC_TEMP_WATER (S17), OBC_DC_V ([B18:B19]/10), OBC_AC_V ([B20:B21]/10), LDC temp (val-100), DC volt out (/10)."
+        # OBC heatsink/inside/water temps (Soul OBC: Signed(S)/(T)/(U)) are NOT exposed on the Ioniq LDC 2101.
+        # Previous S15/S16/S17 guesses were bogus: S15/S17 read current bytes (B15/B17), S16 reads the ISO-TP
+        # PCI byte 0x22 (=34) — the "static 34°C" was the frame header, not a temperature.
+        # 2026-07-20 full 48-byte charging capture (10A AC): the only clean temp is LDC_TEMP (B19-100).
+        # Candidate OBC-temp bytes are dead constants during charging (B28=16, B29=32 across all 262 caps of a
+        # 3h charge → fixed values/status, not sensors); B21-40 drifts 31→38°C charging but reads implausibly
+        # (10°C READY, 14°C after a hot drive) → not a reliable sensor. OBC internal temps likely just aren't
+        # broadcast on this ECU/firmware.
 
     2102:
       period: 5000
@@ -160,12 +181,20 @@ LDC:
       status: captured
       priority: P1
       prerequisite: [ready, charging]
-      notes: "Some params unverified: OBC_TEMP_HEATSINK (S15), OBC_TEMP_INSIDE (S16), OBC_TEMP_WATER (S17), OBC_DC_V ([B18:B19]/10), OBC_AC_V ([B20:B21]/10), LDC temp (val-100), DC volt out (/10)."
+      notes: >
+        2026-07-20 (Kia Soul LDC/OBC CSV + live READY vs 10A-AC charging + BMS cross-check): LDC_HV_INPUT_V
+        = [B45:B46]/100 (385.7V READY / 386.9V charging = BMS pack 385.6V), LDC_TEMP=B19-100 (21→65°C over 3h,
+        live 27°C), reclassified [B12:B13]→OBC_OUTPUT_V (≈pack when charging, idle in READY), OBC_CHARGE_V
+        [B10:B11]=397V (charge > pack), OBC_DC_A=5.2A (≈BMS charge current), LDC_OUTPUT_V=14.15V (=BMS aux 14.2V),
+        pilot 10% at 10A AC. Removed bogus OBC temps (S15/S17=current, S16=PCI 0x22) + OBC_AC_INPUT_V(=B15 current).
+        CONCLUSION: OBC internal temps are NOT broadcast — the full 48-byte charging response has no heatsink/
+        inside/water temp (candidate bytes B28=16/B29=32 are dead constants; B21 unreliable). Only LDC_TEMP exists.
       what_to_test:
-        - "OBC temps (S15/S16/S17)"
-        - "OBC DC/AC voltage"
-        - "LDC temp and DC volt out"
+        - "Confirm LDC_HV_INPUT_V [B45:B46] tracks pack across a wider SOC range (only cross-checked at ~85%)"
+        - "Confirm OBC_OUTPUT_V ([B12:B13]) vs OBC_CHARGE_V ([B10:B11]) semantics against a DC meter"
+        - "RESOLVED 2026-07-20: pilot duty=B47/3 (J1772), advertised A=duty*0.6=B47/5. Wobble = dynamic EVSE ramp (13-41%) + B47 OOB on truncated 40B captures. B47 is the last data byte (ISO-TP 0x28); needs a full >=44B response."
       sources:
+        - "Kia Soul EV LDC CSV (0x7C5 2101) + OBC CSV (0x794 2102)"
         - "Kia Niro PR#660"
     - type: decode
       target: "2102"
@@ -189,3 +218,31 @@ LDC:
       notes: "All 17 DIDs return NRC 0x12 (subFunctionNotSupported) — both default and extended session. LDC also rejects 10 03 with NRC 0x12. Service 22 not supported on Ioniq 2017 LDC. Ioniq 5 cross-ref does not apply."
       sources:
         - "OBDb Ioniq 5"
+    - type: scan
+      target: "21 01-20"
+      status: done
+      priority: P2
+      prerequisite: [charging]
+      date: "2026-07-20"
+      notes: >
+        Service 21 scan 0x01-0x20 while charging (10A AC): ONLY 2101 (48B) and 2102 (34B, static calib) respond;
+        all others NRC. No hidden OBC/charging PIDs on 0x7E5.
+    - type: decode
+      target: "2101 AC-side"
+      status: pending
+      priority: P3
+      prerequisite: [charging]
+      date: "2026-07-20"
+      notes: >
+        Investigated the full 48-byte 2101 for AC-side data (grid V/A, frequency, power). NEGATIVE RESULT:
+        no ~230V AC voltage, no clean AC current, no 50Hz value is exposed. 2026-07-20 stepped the AC charge
+        limit 10A→12A live: OBC_DC_A rose 5.2→6.02A (tracks the step), and the fixed status bytes B14=~87-91,
+        B28=16, B29=32, B31=200, B37=118 stayed PUT — confirming they are NOT current/power signals.
+        The one byte that moved is B34 (161 @5A → 104 @6A → 18 @14A): a real charge-dynamic value that falls as
+        charge current rises (NOT the SOC-taper confound — confirmed by the independent 10A→12A step). But the
+        relationship is non-linear/noisy (my rapid queries caught an unsettled post-step state, pilot wobbling),
+        so no clean mapping yet — likely an OBC control/duty/headroom value. Session-long ±1 correlations
+        (B23/B41/B44/B45) are just the SOC taper (current falls as pack V/temp rise) — not real.
+      what_to_test:
+        - "Let charge settle after each step, then sample B34 at 6/8/10/12/16A (SETTLED, pilot stable) to map it"
+        - "Identify meaning of charging-only constants B28=16, B29=32, B31=200, B37=118 (charge state/limits?)"

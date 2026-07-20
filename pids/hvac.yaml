@@ -135,36 +135,40 @@ HVAC:
           ha_class: temperature
           min: "-40"
           max: "87"
+          enabled: false
           source: "Monitor session 2026-04-17"
           verified: false
           notes: >
-            Tracks evaporator temp with delay (0x84=26°C → 0x6D=14.5°C).
-            Likely the actual air temp at the vent outlet.
+            DISABLED 2026-07-20: across all 143 220100 captures B38 only ever yields -40 or -32 (i.e. B38 =
+            0x00/0xFF/0x10 padding in the FF-filled tail region B30-B44). Never a plausible vent temp. Bogus
+            byte. (The earlier "tracks evaporator" note was a coincidence on one session.) Kept for research trail.
 
         HVAC_FAN_SPEED_LEVEL:
           expression: "B33"
           unit: ""
           min: "0"
           max: "255"
+          enabled: false
           source: "Fan speed test 2026-04-19"
-          verified: true
+          verified: false
           notes: >
-            Blower fan speed level. Tested at 4 speeds during ACC2 charging
-            (blower only, no compressor/PTC): fan 1=0x26 (38), fan 2=0x29 (41),
-            fan 4=0x2D (45), fan MAX=0x2D (45). Fan 4 and MAX share same value
-            here — MAX distinguished by 2201A0 B57 instead. ~3 per step.
+            DISABLED 2026-07-20: B33 is constant 0xFF (255) across ALL 143 220100 captures — including a
+            confirmed fan-only speed-2 charge. It sits in the FF-padding tail (B30-B44) and is NOT the fan
+            level. The 2026-04-19 note (fan 1=0x26 ... 2=0x29) must have referenced a different byte/state and
+            does not reproduce. Use HVAC_BLOWER_FAN_DUTY (B15) for blower activity. Kept for research trail.
 
         HVAC_AC_COMPRESSOR_ON:
           expression: "B44"
           unit: ""
           min: "0"
           max: "255"
+          enabled: false
           source: "Monitor session 2026-04-17"
           verified: false
           notes: >
-            AC compressor on/off flag. 0=off, 1=on during normal operation.
-            Reads 0xFF (255) when compressor is off in ACC2 mode while charging.
-            Not a clean boolean — needs more testing to understand 0xFF vs 0x00.
+            DISABLED 2026-07-20: B44 is constant 0xFF (255) across ALL 143 220100 captures (FF-padding tail).
+            Not a compressor flag. Use HVAC_COMPRESSOR_RELAY (220102 B17) which reads a clean 0/1 for the
+            actual compressor state. Kept for research trail.
 
     220102:
       enabled: true
@@ -216,16 +220,21 @@ HVAC:
           verified: false
           notes: "0x00/0x01 toggle. Possibly heater vs cooler mode flag."
 
-        HVAC_COMPRESSOR_LOAD:
+        HVAC_UNKNOWN_TEMP:
           expression: "B19"
-          unit: ""
+          unit: "°C"
+          ha_class: temperature
           min: "0"
-          max: "255"
-          source: "Monitor session 2026-04-17"
+          max: "80"
+          source: "Monitor session 2026-04-17; reclassified 2026-07-20"
           verified: false
           notes: >
-            0x17=23 at rest, rises to 0x29=41 with fan activity, drops to
-            0x1D=29 when off. Correlates with compressor/PTC heater load.
+            RENAMED from HVAC_COMPRESSOR_LOAD 2026-07-20 — it is a TEMPERATURE, not a load. Evidence across
+            108 220102 captures: B19 reads 20-37 even with the compressor OFF (relay B17=0), so it cannot be
+            a load; and it correlates r=0.96 with HEAT_EXCHANGER_TEMP (B10). Raw byte ≈ °C directly (no /2-40
+            offset), reading a few degrees above the heat exchanger — consistent with the user's report of
+            ~40°C after AC off for hours on a hot day. Exact sensor identity unconfirmed (heater-core / mix /
+            in-cabin area), hence the neutral name. Was wrongly attributed to "compressor/PTC load".
 
     2201A0:
       enabled: true
@@ -311,11 +320,16 @@ HVAC:
           min: "0"
           max: "255"
           source: "Fan speed test 2026-04-19"
-          verified: true
+          verified: false
           notes: >
             MAX fan indicator. 0x00 at fan speeds 1-4, 0xAE (174) at MAX.
             Only way to distinguish fan 4 from MAX (220100 B33 is identical
             for both at 0x2D).
+            2026-07-20 CAVEAT: B57 is OUT-OF-BOUNDS in all 193 stored 2201A0 captures (all truncated to
+            40 bytes; B57 needs the full 62-byte response). Unverifiable from history. The companion April
+            claim (220100 B33=0x2D) is provably wrong — B33 is constant 0xFF across 143 captures — so this
+            mapping is suspect. Live 62B read today = 0 (fan-only speed 2). Downgraded to unverified; re-test
+            with MAX fan on and full-length capture.
 
         HVAC_DEFROST_FLAGS:
           expression: "(B58 << 8) | B59"
@@ -330,6 +344,8 @@ HVAC:
             (17:46:16-17:47:26). Likely bitfield for front defrost,
             rear defogger, and possibly recirculation. Need more targeted
             testing to decode individual bits.
+            2026-07-20 CAVEAT: B58/B59 are OUT-OF-BOUNDS in all stored 2201A0 captures (truncated to 40B);
+            only readable on the full 62-byte response. Verify against a full-length capture.
 
     2201A1:
       enabled: false
