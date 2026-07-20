@@ -6,44 +6,10 @@ monitor modes.
 """
 
 from datetime import datetime
-from io import StringIO
 from pathlib import Path
 
-from ruamel.yaml import YAML
-
-
-# ---------------------------------------------------------------------------
-# YAML round-trip (comment-preserving)
-# ---------------------------------------------------------------------------
-#
-# Capture files are appended to and edited in place. We use ruamel.yaml in
-# round-trip mode so existing comments, quoting, and layout survive writes —
-# only newly appended content is rendered fresh.
-#
-# All readers use PyYAML, which is a YAML 1.1 parser. We therefore emit YAML
-# 1.1 so ruamel quotes 1.1-ambiguous scalars (e.g. a "14:00:01" time that 1.1
-# would otherwise read as a sexagesimal int, or a "yes" note read as a bool).
-# The "%YAML 1.1" directive ruamel adds for this is stripped on write to keep
-# the files clean; a directive-less file still parses as 1.1 by default.
-
-def _yaml() -> YAML:
-    y = YAML()  # round-trip by default
-    y.preserve_quotes = True
-    y.width = 4096  # don't wrap long hex payloads / folded notes
-    y.indent(mapping=2, sequence=2, offset=0)
-    y.version = (1, 1)  # match the PyYAML (1.1) readers' scalar interpretation
-    return y
-
-
-def _dump(data, fobj) -> None:
-    """Dump ``data`` as YAML, stripping the leading 1.1 version directive."""
-    buf = StringIO()
-    _yaml().dump(data, buf)
-    lines = buf.getvalue().splitlines(keepends=True)
-    while lines and (lines[0].startswith("%YAML") or lines[0].strip() == "---"):
-        lines.pop(0)
-    fobj.write("".join(lines))
-
+from .yaml_rt import dump as _dump
+from .yaml_rt import round_trip_yaml as _yaml
 
 # ---------------------------------------------------------------------------
 # Metadata prompt
