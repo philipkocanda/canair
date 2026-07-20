@@ -5,6 +5,7 @@ import pytest
 from canlib.byteindex import (
     bix_to_torque,
     conversion_table,
+    elm_to_wican_idx,
     extract_byte_indices,
     isotp_to_wican,
     letter_to_torque_idx,
@@ -254,6 +255,28 @@ class TestWicanToElmIdx:
         assert wican_to_elm_idx(0, payload_len=20) is None
         assert wican_to_elm_idx(2, payload_len=20) == 0x00
         assert wican_to_elm_idx(9, payload_len=20) == 0x06
+
+
+class TestElmToWicanIdx:
+    """Test elm_to_wican_idx — inverse of wican_to_elm_idx."""
+
+    def test_single_frame(self):
+        assert elm_to_wican_idx(0, payload_len=5) == 1
+        assert elm_to_wican_idx(4, payload_len=5) == 5
+
+    def test_multi_frame(self):
+        # ELM/ISO-TP index → WiCAN, skipping PCI bytes
+        assert elm_to_wican_idx(0, payload_len=27) == 2
+        assert elm_to_wican_idx(6, payload_len=27) == 9  # skips PCI at wican 8
+        assert elm_to_wican_idx(13, payload_len=27) == 17  # skips PCI at wican 16
+
+    def test_round_trip_multi_frame(self):
+        for elm in range(25):
+            assert wican_to_elm_idx(elm_to_wican_idx(elm, 27), 27) == elm
+
+    def test_round_trip_single_frame(self):
+        for elm in range(7):
+            assert wican_to_elm_idx(elm_to_wican_idx(elm, 5), 5) == elm
 
 
 class TestConversionTable:

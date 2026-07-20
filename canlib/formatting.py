@@ -3,10 +3,18 @@
 import json
 
 from rich.console import Console
+from rich.text import Text
 
 from .byteindex import extract_byte_indices, wican_to_elm_idx
 
 _console = Console(highlight=False)
+
+# Map a base byte colour → its highlighted (changed-byte) variant.
+_HIGHLIGHT_STYLE = {
+    "green": "bold white on dark_green",
+    "yellow": "bold white on dark_goldenrod",
+    "bright_black": "bold white on grey37",
+}
 
 
 def _bytes_to_ascii(raw_hex: str) -> str:
@@ -43,6 +51,63 @@ def _build_byte_colors(params: list, n_bytes: int) -> list[str]:
     return [color_map[r] for r in rank]
 
 
+def param_byte_indices(expression: str, n_bytes: int) -> list[int]:
+    """Return the ELM payload byte positions a WiCAN expression reads.
+
+    Maps each WiCAN byte index in ``expression`` to its position in the raw
+    payload hex (ISO-TP/ELM index), so the result lines up with the byte columns
+    shown in the hex view. Out-of-range indices are dropped. Sorted ascending.
+    """
+    elm: set[int] = set()
+    for wi in extract_byte_indices(expression):
+        ei = wican_to_elm_idx(wi, n_bytes)
+        if ei is not None and 0 <= ei < n_bytes:
+            elm.add(ei)
+    return sorted(elm)
+
+
+def format_byte_ranges(indices: list[int]) -> str:
+    """Collapse a sorted index list into compact ranges: ``[3,4,5,9] → '3-5,9'``."""
+    if not indices:
+        return ""
+    parts: list[str] = []
+    start = prev = indices[0]
+    for i in indices[1:]:
+        if i == prev + 1:
+            prev = i
+            continue
+        parts.append(f"{start}-{prev}" if start != prev else f"{start}")
+        start = prev = i
+    parts.append(f"{start}-{prev}" if start != prev else f"{start}")
+    return ",".join(parts)
+
+
+def param_byte_index_str(expression: str, n_bytes: int) -> str:
+    """Human-readable byte reference for a parameter's expression.
+
+    Valid payload positions are shown as compact ranges (e.g. ``16-17``). WiCAN
+    indices that don't map to a payload byte — PCI/ISO-TP framing bytes, or
+    indices beyond the payload — are flagged as ``⚠B<idx>`` (a common definition
+    bug: reading a framing byte as data). Returns ``""`` if nothing is referenced.
+    """
+    valid: list[int] = []
+    bad_wican: list[int] = []
+    for wi in sorted(extract_byte_indices(expression)):
+        ei = wican_to_elm_idx(wi, n_bytes)
+        if ei is not None and 0 <= ei < n_bytes:
+            valid.append(ei)
+        else:
+            bad_wican.append(wi)
+    parts: list[str] = []
+    if valid:
+        parts.append(format_byte_ranges(sorted(set(valid))))
+    if bad_wican:
+        parts.append("⚠B" + ",".join(str(w) for w in bad_wican))
+    return " ".join(parts)
+
+
+
+
 def format_value(value: float, unit: str, display: str = "") -> str:
     """Format a decoded value with unit and optional display expression.
 
@@ -61,6 +126,117 @@ def format_value(value: float, unit: str, display: str = "") -> str:
         except Exception:
             pass  # silently skip broken display expressions
     return base
+
+
+def _render_hex_line(
+    raw_hex: str,
+    params: list,
+    unmapped: bool,
+    *,
+    prev_raw: str = "",
+    prefix: str = "      ",
+    prefix_style: str = "",
+) -> Text:
+    """Render a payload hex line as Rich Text with per-byte change highlighting.
+
+    Bytes get a base colour from parameter coverage (green=verified, yellow=
+    unverified, grey=uncovered); bytes differing from ``prev_raw`` get a
+    highlighted background variant. Unmapped/paramless payloads render grey with
+    a trailing ASCII column. ``prefix`` is prepended before the hex bytes.
+    """
+    elm_bytes = [raw_hex[i : i + 2] for i in range(0, len(raw_hex), 2)]
+    prev_bytes = [prev_raw[i : i + 2] for i in range(0, len(prev_raw), 2)] if prev_raw else []
+    n_bytes = len(elm_bytes)
+    t = Text()
+    t.append(prefix, style=prefix_style)
+
+    if unmapped or not params:
+        for i, hb in enumerate(elm_bytes):
+            if i > 0:
+                t.append(" ")
+            changed = i < len(prev_bytes) and prev_bytes[i] != hb
+            style = _HIGHLIGHT_STYLE["bright_black"] if changed else "bright_black"
+            t.append(hb, style=style)
+        ascii_repr = _bytes_to_ascii(raw_hex)
+        t.append(f"  {ascii_repr}  ({n_bytes} B)", style="bright_black")
+    else:
+        byte_color = _build_byte_colors(params, n_bytes)
+        for i, hb in enumerate(elm_bytes):
+            if i > 0:
+                t.append(" ")
+            base = byte_color[i]
+            changed = i < len(prev_bytes) and prev_bytes[i] != hb
+            style = _HIGHLIGHT_STYLE.get(base, base) if changed else base
+            t.append(hb, style=style)
+        t.append(f"  ({n_bytes} B)", style="bright_black")
+
+    t.append("\n")
+    return t
+
+
+def render_param_table(
+    params: list,
+    *,
+    verbose: bool = False,
+    indent: str = "      ",
+    n_bytes: int | None = None,
+) -> Text:
+    """Render decoded parameter rows as an aligned Rich Text block.
+
+    Each row is ``(name, value, unit, expression, error, verified[, display])``.
+    Layout: ``{indent}{name}  {value}  ✓|?`` with columns aligned; ``verbose``
+    appends the dimmed expression. Error rows show ``ERROR: <msg>`` in red.
+
+    When ``n_bytes`` is given, a dimmed byte-index column is appended after the
+    mark, showing which payload byte position(s) each parameter reads (aligned
+    with the hex view's ruler). Returns an empty ``Text`` when there are no params.
+    """
+    t = Text()
+    if not params:
+        return t
+
+    max_name = max(len(r[0]) for r in params)
+    max_val = max(
+        len(
+            format_value(r[1], r[2], r[6] if len(r) > 6 else "")
+            if r[1] is not None
+            else "ERROR"
+        )
+        for r in params
+    )
+
+    # Precompute byte-index strings (and their column width) when requested.
+    byte_strs: dict[int, str] = {}
+    max_bytes_w = 0
+    if n_bytes is not None:
+        for idx, row in enumerate(params):
+            byte_strs[idx] = param_byte_index_str(row[3], n_bytes)
+        max_bytes_w = max((len(s) for s in byte_strs.values()), default=0)
+
+    for idx, row in enumerate(params):
+        name, value, unit, expression, perr, verified = row[:6]
+        display = row[6] if len(row) > 6 else ""
+        mark_style = "green" if verified else "yellow"
+        mark_char = "✓" if verified else "?"
+        if perr:
+            t.append(f"{indent}{name:<{max_name}}  ")
+            t.append(f"ERROR: {perr}\n", style="red")
+            continue
+
+        val_str = format_value(value, unit, display)
+        t.append(f"{indent}{name:<{max_name}}  ")
+        t.append(f"{val_str:<{max_val}}  ")
+        t.append(mark_char, style=mark_style)
+        if n_bytes is not None:
+            byte_str = byte_strs.get(idx, "")
+            pad = max_bytes_w if verbose else 0
+            t.append(f"  {byte_str:<{pad}}", style="dim")
+        if verbose:
+            t.append(f"  {expression}\n", style="dim")
+        else:
+            t.append("\n")
+    return t
+
 
 
 def print_decoded_params(params_results: list, verbose: bool = False):
@@ -135,52 +311,15 @@ def print_ecu_results(
 
         c.print(f"    [yellow]{pid}[/yellow]{tag}")
 
-        # Decoded parameters — aligned columns
+        # Decoded parameters — aligned columns (shared renderer).
         if params:
-            max_name = max(len(r[0]) for r in params)
-            max_val = max(
-                len(
-                    format_value(r[1], r[2], r[6] if len(r) > 6 else "")
-                    if r[1] is not None
-                    else "ERROR"
-                )
-                for r in params
-            )
-            for row in params:
-                name, value, unit, expression, perr, verified = row[:6]
-                display = row[6] if len(row) > 6 else ""
-                mark = "[green]✓[/green]" if verified else "[yellow]?[/yellow]"
-                if perr:
-                    val_str = f"[red]ERROR: {perr}[/red]"
-                    c.print(f"      {name:<{max_name}}  {val_str}")
-                else:
-                    val_str = format_value(value, unit, display)
-                    if verbose:
-                        c.print(
-                            f"      {name:<{max_name}}  {val_str:<{max_val}}  {mark}  [dim]{expression}[/dim]"
-                        )
-                    else:
-                        c.print(f"      {name:<{max_name}}  {val_str:<{max_val}}  {mark}")
+            c.print(render_param_table(params, verbose=verbose), end="")
         elif decode:
             c.print(f"      {decode}")
 
-        # Raw hex line
+        # Raw hex line (shared renderer; no prev_raw → no change highlighting).
         if raw_hex:
-            n_bytes = len(raw_hex) // 2
-            elm_bytes = [raw_hex[i : i + 2] for i in range(0, len(raw_hex), 2)]
-
-            if unmapped or not params:
-                # Unmapped: all grey hex + ASCII
-                spaced = " ".join(elm_bytes)
-                ascii_repr = _bytes_to_ascii(raw_hex)
-                c.print(f"      [bright_black]{spaced}  {ascii_repr}  ({n_bytes} B)[/bright_black]")
-            else:
-                # Build per-byte colour: green (verified) > yellow (unverified) > bright_black
-                byte_color = _build_byte_colors(params, n_bytes)
-                hex_parts = [
-                    f"[{byte_color[i]}]{hb}[/{byte_color[i]}]" for i, hb in enumerate(elm_bytes)
-                ]
-                c.print(f"      {' '.join(hex_parts)}  [bright_black]({n_bytes} B)[/bright_black]")
+            c.print(_render_hex_line(raw_hex, params, unmapped), end="")
 
 
 def print_hexdump(data: bytes, prefix: str = "  "):

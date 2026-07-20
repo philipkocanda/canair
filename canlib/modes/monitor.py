@@ -31,67 +31,25 @@ from rich.console import Console
 from rich.live import Live
 from rich.text import Text
 
-from ..formatting import _build_byte_colors, format_value
+from ..formatting import (
+    _HIGHLIGHT_STYLE,
+    _bytes_to_ascii,
+    _render_hex_line,
+    render_param_table,
+)
 from ..session_manager import SessionManager
 
+# _HIGHLIGHT_STYLE, _bytes_to_ascii and _render_hex_line moved to canlib.formatting;
+# re-exported here for backward-compatible imports (e.g. tests/test_monitor.py).
+__all__ = [
+    "_HIGHLIGHT_STYLE",
+    "_bytes_to_ascii",
+    "_render_hex_line",
+    "_render_results",
+    "mode_monitor",
+]
+
 _console = Console(highlight=False)
-
-
-def _bytes_to_ascii(raw_hex: str) -> str:
-    data = bytes.fromhex(raw_hex)
-    return "".join(chr(b) if 32 <= b < 127 else "." for b in data)
-
-
-# Map base byte color → highlighted variant (changed byte)
-_HIGHLIGHT_STYLE = {
-    "green": "bold white on dark_green",
-    "yellow": "bold white on dark_goldenrod",
-    "bright_black": "bold white on grey37",
-}
-
-
-def _render_hex_line(
-    raw_hex: str,
-    params: list,
-    unmapped: bool,
-    *,
-    prev_raw: str = "",
-    prefix: str = "      ",
-    prefix_style: str = "",
-) -> Text:
-    """Render a hex line with per-byte change highlighting.
-
-    Changed bytes get a background color adapted from their base color.
-    prefix is prepended before the hex bytes (default: 6 spaces of indent).
-    """
-    elm_bytes = [raw_hex[i : i + 2] for i in range(0, len(raw_hex), 2)]
-    prev_bytes = [prev_raw[i : i + 2] for i in range(0, len(prev_raw), 2)] if prev_raw else []
-    n_bytes = len(elm_bytes)
-    t = Text()
-    t.append(prefix, style=prefix_style)
-
-    if unmapped or not params:
-        for i, hb in enumerate(elm_bytes):
-            if i > 0:
-                t.append(" ")
-            changed = i < len(prev_bytes) and prev_bytes[i] != hb
-            style = _HIGHLIGHT_STYLE["bright_black"] if changed else "bright_black"
-            t.append(hb, style=style)
-        ascii_repr = _bytes_to_ascii(raw_hex)
-        t.append(f"  {ascii_repr}  ({n_bytes} B)", style="bright_black")
-    else:
-        byte_color = _build_byte_colors(params, n_bytes)
-        for i, hb in enumerate(elm_bytes):
-            if i > 0:
-                t.append(" ")
-            base = byte_color[i]
-            changed = i < len(prev_bytes) and prev_bytes[i] != hb
-            style = _HIGHLIGHT_STYLE.get(base, base) if changed else base
-            t.append(hb, style=style)
-        t.append(f"  ({n_bytes} B)", style="bright_black")
-
-    t.append("\n")
-    return t
 
 
 def _render_results(
@@ -153,33 +111,7 @@ def _render_results(
             text.append("\n")
 
             if params:
-                max_name = max(len(r[0]) for r in params)
-                max_val = max(
-                    len(
-                        format_value(r[1], r[2], r[6] if len(r) > 6 else "")
-                        if r[1] is not None
-                        else "ERROR"
-                    )
-                    for r in params
-                )
-                for row in params:
-                    name, value, unit, expression, perr, verified = row[:6]
-                    display = row[6] if len(row) > 6 else ""
-                    mark_style = "green" if verified else "yellow"
-                    mark_char = "✓" if verified else "?"
-                    if perr:
-                        text.append(f"      {name:<{max_name}}  ")
-                        text.append(f"ERROR: {perr}\n", style="red")
-                    else:
-                        val_str = format_value(value, unit, display)
-                        text.append(f"      {name:<{max_name}}  ")
-                        if verbose:
-                            text.append(f"{val_str:<{max_val}}  ")
-                            text.append(mark_char, style=mark_style)
-                            text.append(f"  {expression}\n", style="dim")
-                        else:
-                            text.append(f"{val_str:<{max_val}}  ")
-                            text.append(mark_char + "\n", style=mark_style)
+                text.append_text(render_param_table(params, verbose=verbose))
             elif decode:
                 text.append(f"      {decode}\n")
 

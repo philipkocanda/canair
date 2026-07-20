@@ -194,6 +194,19 @@ def wican_to_elm_idx(wican_idx: int, payload_len: int) -> int | None:
         return wican_to_isotp(wican_idx)
 
 
+def elm_to_wican_idx(elm_idx: int, payload_len: int) -> int:
+    """Inverse of :func:`wican_to_elm_idx`: ELM payload index → WiCAN byte index.
+
+    Maps a byte position in the raw payload hex back to its WiCAN frame index
+    (which skips PCI framing bytes at 0/1, 8, 16, 24, ...).
+    """
+    if payload_len <= 7:
+        # Single frame: [PCI] [d d d d d d d]
+        return elm_idx + 1
+    return isotp_to_wican(elm_idx)
+
+
+
 # ---------------------------------------------------------------------------
 # Bulk conversion / table generation
 # ---------------------------------------------------------------------------
