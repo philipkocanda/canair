@@ -295,22 +295,27 @@ canreq.py --monitor 2 --keep-all --multi "session BCM --wake" "query BCM B003 B0
 
 **`--keep-all` flag:** Retains every payload from every poll cycle (including duplicates), with timestamps. Useful for logging all responses over time, even when values don't change.
 
-**`--save` flag:** Prompts for session metadata (label, state, notes) and saves results to `captures/YYYY-MM-DD.yaml`. Works with `--scan`, `--raw`, `--discover`, and `--monitor --keep-unique/--keep-all`. Labels are auto-suggested based on the command (press Enter to accept). Examples:
+**`--save` flag:** Saves results to `captures/YYYY-MM-DD.yaml`. Works with `--scan`, `--raw`, `--discover`, **`--multi` (any `query`/`raw` step)**, and `--monitor --keep-unique/--keep-all`. Provide `--label` (and optionally `--state`/`--notes`) to save **non-interactively** (no prompt) — this is how agents/scripts should always call it. Without `--label`, the CLI prompts for metadata on stdin (label auto-suggested, Enter to accept). Using `--save`/`--label`/`--state`/`--notes` with an unsupported mode errors out (fails loud). Examples:
 
 ```bash
-canreq.py --scan --tx 7E4 --service 22 --range BC01-BC0B --save
-# -> auto-suggests: "Scan BMS 22 BC01-BC0B"
+# Non-interactive (preferred for agents): live multi-ECU snapshot
+canreq.py --multi "query MCU" "query VCU:2101" --wican vpn \
+  --save --label "MCU/VCU live reference" --state "ready, parked" --notes "~18C ambient"
 
+canreq.py --scan --tx 7E4 --service 22 --range BC01-BC0B --save --label "Scan BMS BC01-BC0B"
+
+canreq.py --raw 7E4:2101 --save --label "Raw BMS 2101" --state "ready"
+
+canreq.py --discover --save --label "Discovery 700-7EF"
+
+canreq.py --multi "query BCM C00B B003 B004" --monitor 5 --keep-unique --save --label "BCM monitor"
+# ... monitor runs, Ctrl+C -> saves ...
+
+# Interactive (human): omit --label to be prompted for metadata
 canreq.py --raw 7E4:2101 --save
-# -> auto-suggests: "Raw BMS 2101"
-
-canreq.py --discover --save
-# -> auto-suggests: "Discovery scan 700-7EF"
-
-canreq.py --multi "query BCM C00B B003 B004" --monitor 5 --keep-unique --save
-# ... monitor runs, Ctrl+C ...
-# -> Saved 6 capture(s) to 2026-04-18.yaml
 ```
+
+**NEVER hand-write or edit capture YAML files** — always record via `--save`. For edits/removals use the `canlib.captures` helpers (`set_capture_note`, `delete_capture`).
 
 Press Ctrl+C to stop monitoring.
 
@@ -472,7 +477,7 @@ wican sleep --enable     # After RE session
 
 UDS response payloads are stored in `captures/` as per-date YAML files (e.g. `2026-04-16.yaml`). Schema defined in `captures/SCHEMA.yaml`. Each file contains sessions with `date`, `label`, `state` (optional), and a list of captures. Each capture has `ecu` (name from `ecus.yaml`), `pid`, `notes`, and exactly one of `payload` (hex), `response` (text/NRC), or `scan_results` (structured).
 
-**Saving captures:** Use `--save` with `--scan`, `--raw`, or `--discover` to auto-save results. Labels are auto-suggested (press Enter to accept). Monitor mode also supports `--save` (prompts on Ctrl+C). Shared save logic in `canlib/captures.py`.
+**Saving captures:** NEVER hand-write/edit capture YAML. Record device reads with `--save` (works with `--scan`, `--raw`, `--discover`, `--multi` query/raw steps, and `--monitor`). Pass `--label`/`--state`/`--notes` for non-interactive save (agents should always do this); without `--label` it prompts. Shared save logic in `canlib/captures.py`; for edits/removals use its `set_capture_note`/`delete_capture` helpers.
 
 **Querying captures:** After adding new captures, always run `query-captures.py` to check for patterns that weren't obvious during the live session (e.g. byte-level changes between states, new ECU/PID combinations, payload length differences).
 ```bash

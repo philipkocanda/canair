@@ -159,15 +159,19 @@ def _prompt_and_save(
     hex_history: dict[tuple[str, str], list[tuple[str, str]]],
     prev_hex: dict[tuple[str, str], str],
     captures_dir: Path,
+    label: str | None = None,
+    state: str | None = None,
+    notes: str | None = None,
 ) -> None:
-    """Prompt for session metadata and write captures to YAML file.
+    """Prompt (or use provided metadata) and write captures to YAML file.
 
-    Collects label, state, and notes via stdin prompts, then appends a new
-    session with all unique payloads to captures/YYYY-MM-DD.yaml.
-    Decoded parameter values are not stored — they are regenerated on demand
-    from the payload + PID definitions (see decode.py / query-captures.py).
+    Collects label, state, and notes via stdin prompts (or uses the provided
+    values non-interactively), then appends a new session with all unique
+    payloads to captures/YYYY-MM-DD.yaml. Decoded parameter values are not
+    stored — they are regenerated on demand from the payload + PID definitions
+    (see decode.py / query-captures.py).
     """
-    from ..captures import prompt_metadata, save_session
+    from ..captures import build_query_session, resolve_metadata, save_session
 
     if not hex_history and not prev_hex:
         print("  No payloads captured — nothing to save.")
@@ -194,37 +198,20 @@ def _prompt_and_save(
     n_payloads = sum(len(v) for v in merged.values())
     print(f"\n  Saving {n_payloads} payload(s) across {n_pids} PID(s).")
 
-    # Prompt for metadata
-    meta = prompt_metadata(suggested_label="Monitor session")
+    # Resolve metadata (non-interactive when label provided)
+    meta = resolve_metadata(label, state, notes, suggested_label="Monitor session")
     if meta is None:
         return
     label, state, notes = meta
 
-    # Build captures list, grouped by ECU then PID
-    captures = []
+    # Flatten to (ecu_short, pid, hex, time) rows, grouped by ECU then PID
+    results: list[tuple[str, str, str, str]] = []
     for (ecu_label, pid), entries in sorted(merged.items()):
         ecu_short = re.match(r"(\w+)", ecu_label).group(1)
-
         for hex_val, ts in entries:
-            capture: dict = {
-                "ecu": ecu_short,
-                "pid": pid,
-                "payload": hex_val.upper(),
-            }
-            if ts:
-                capture["time"] = ts
+            results.append((ecu_short, pid, hex_val, ts))
 
-            captures.append(capture)
-
-    # Build session entry
-    today = datetime.now().strftime("%Y-%m-%d")
-    session: dict = {"date": today, "label": label}
-    if state:
-        session["state"] = state
-    if notes:
-        session["notes"] = notes + "\n"
-    session["captures"] = captures
-
+    session = build_query_session(results, label, state, notes)
     save_session(session, captures_dir)
 
 
@@ -239,6 +226,9 @@ async def mode_monitor(
     keep_n: int | None = None,
     save: bool = False,
     show_rulers: bool = False,
+    label: str | None = None,
+    state: str | None = None,
+    notes: str | None = None,
 ):
     """Live-refresh ECU parameter monitor.
 
@@ -385,7 +375,7 @@ async def mode_monitor(
             print("\n  Monitoring stopped.")
             if save and save_history is not None:
                 captures_dir = CAPTURES_DIR
-                _prompt_and_save(save_history, prev_hex, captures_dir)
+                _prompt_and_save(save_history, prev_hex, captures_dir, label, state, notes)
             return
 
         # If we got here, it was a ConnectionError

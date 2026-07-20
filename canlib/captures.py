@@ -74,9 +74,64 @@ def prompt_metadata(
     return label, state, notes
 
 
+def resolve_metadata(
+    label: str | None,
+    state: str | None,
+    notes: str | None,
+    suggested_label: str = "",
+    last_state: str | None = None,
+) -> tuple[str, str, str] | None:
+    """Resolve session metadata, non-interactively when a label is supplied.
+
+    If ``label`` is given (e.g. from the ``--label`` CLI flag), use the flag
+    values directly and do NOT prompt — this is what agents/scripts use. When
+    ``label`` is None, fall back to the interactive :func:`prompt_metadata`.
+    Returns (label, state, notes) or None if cancelled.
+    """
+    if label is not None:
+        return label, (state or ""), (notes or "")
+    return prompt_metadata(suggested_label=suggested_label, last_state=last_state)
+
+
 # ---------------------------------------------------------------------------
 # Session builders
 # ---------------------------------------------------------------------------
+
+def build_query_session(
+    results: list[tuple[str, str, str, str]],
+    label: str,
+    state: str,
+    notes: str,
+) -> dict:
+    """Build a capture session dict from query/raw payload results.
+
+    ``results`` is a list of ``(ecu_short, pid, hex, time)`` tuples (``time``
+    may be an empty string). Captures are grouped by ECU then PID in the order
+    given. Decoded parameter values are intentionally NOT stored — they are
+    regenerated on demand from the payload + PID definitions.
+    """
+    session: dict = {
+        "date": datetime.now().strftime("%Y-%m-%d"),
+        "label": label,
+    }
+    if state:
+        session["state"] = state
+    if notes:
+        session["notes"] = notes + "\n"
+
+    captures: list[dict] = []
+    for ecu_short, pid, hex_val, ts in results:
+        capture: dict = {
+            "ecu": ecu_short,
+            "pid": pid,
+            "payload": hex_val.upper(),
+        }
+        if ts:
+            capture["time"] = ts
+        captures.append(capture)
+
+    session["captures"] = captures
+    return session
 
 def build_scan_session(
     ecu_name: str,

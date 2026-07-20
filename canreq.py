@@ -18,8 +18,8 @@ Modes:
     Scan PIDs       python3 canreq.py --scan --tx 7E4 --service 21 --range 01-FF
     Scan IOControl  python3 canreq.py --scan --tx 7E4 --service 2F --range E000-E0FF --append 03 --session
     Discover ECUs   python3 canreq.py --discover [--range 700-7EF] [--delay 0.2]
-    Multi-ECU       python3 canreq.py --multi "skm-wake acc" "query IGPM BC03 BC06"
-    Monitor         python3 canreq.py --multi "query BMS 2101" --monitor [INTERVAL]
+    Multi-ECU       python3 canreq.py --multi "skm-wake acc" "query IGPM:BC03,BC06"
+    Monitor         python3 canreq.py --multi "query BMS:2101" --monitor [INTERVAL]
     SKM wakeup      python3 canreq.py --skm-wakeup [--level acc|ign1|ign2]
     TesterPresent   python3 canreq.py --tester-present [--target 7A5]
 
@@ -184,6 +184,24 @@ async def async_main(args):
 
     init_string = pids_data.get("init", "ATSP6;ATS0;ATAL;ATST96;")
 
+    # Fail loud: --save (and metadata flags) only apply to capture-producing modes.
+    _wants_save = args.save or args.label is not None or args.state is not None or args.notes is not None
+    if _wants_save:
+        _save_ok = bool(args.scan or args.raw or args.discover)
+        if not _save_ok and args.multi:
+            from canlib.modes.multi import parse_sub_commands
+
+            _save_ok = any(
+                c["type"] in ("query", "raw") for c in parse_sub_commands(args.multi)
+            )
+        if not _save_ok:
+            print(
+                "Error: --save/--label/--state/--notes only apply to --scan, --raw, "
+                "--discover, or --multi with a 'query'/'raw' step.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
     terminal = WiCANTerminal(
         host=host,
         timeout=args.timeout,
@@ -236,9 +254,19 @@ async def async_main(args):
                 keep_n=args.keep,
                 save=args.save,
                 show_rulers=args.rulers,
+                label=args.label,
+                state=args.state,
+                notes=args.notes,
             )
         elif args.multi:
-            await mode_multi(terminal, args.multi, pids_data, args.verbose, no_repl=not args.repl)
+            await mode_multi(
+                terminal, args.multi, pids_data, args.verbose,
+                no_repl=not args.repl,
+                save=args.save,
+                label=args.label,
+                state=args.state,
+                notes=args.notes,
+            )
         elif args.skm_wakeup:
             await mode_skm_wakeup(terminal, args.level, args.verbose)
         elif args.tester_present:
@@ -283,6 +311,9 @@ async def async_main(args):
                 wake=args.wake,
                 save=args.save,
                 pids_data=pids_data,
+                label=args.label,
+                state=args.state,
+                notes=args.notes,
             )
         elif args.scan:
             if not args.tx:
@@ -312,6 +343,9 @@ async def async_main(args):
                 session=args.session,
                 wake=args.wake,
                 save=args.save,
+                label=args.label,
+                state=args.state,
+                notes=args.notes,
             )
         elif args.iocontrol:
             if args.did:
@@ -415,6 +449,9 @@ async def async_main(args):
                 args.json,
                 delay=args.delay,
                 save=args.save,
+                label=args.label,
+                state=args.state,
+                notes=args.notes,
             )
         else:
             await mode_interactive(terminal, pids_data, args.verbose)
@@ -542,14 +579,18 @@ Examples:
   %(prog)s --reboot --param SOC_BMS         Query + reboot to restore AutoPID
 
   Multi-ECU pipeline (sessions managed automatically):
-  %(prog)s --multi "skm-wake acc" "query IGPM BC03 BC06"
+  %(prog)s --multi "skm-wake acc" "query IGPM:BC03,BC06"
                                             Wake SKM, query IGPM, exit
   %(prog)s --multi "skm-wake acc" "session BCM --wake" "raw 7A0:22B00E"
                                             Wake SKM+BCM, raw query, exit
   %(prog)s --multi "session IGPM --wake" "query IGPM" --repl
                                             Wake IGPM, query all PIDs, REPL
-  %(prog)s --multi "skm-wake acc" "sleep 1" "query BCM B00E" "repl"
+  %(prog)s --multi "query VCU:2101 BMS:2101"  Cross-ECU query (fans out per ECU)
+  %(prog)s --multi "skm-wake acc" "sleep 1" "query BCM:B00E" "repl"
                                             Pipeline with explicit sleep and REPL
+
+  'query' uses the ECU/PID mini-language: whitespace-separated ECU[:PID,PID,...]
+  selectors. A bare ECU (query BMS) queries all its PIDs.
 
   IOControl (actuator commands from pids/ YAML):
   %(prog)s --iocontrol IGPM                 Interactive TUI (navigate, toggle ON/OFF)
@@ -565,11 +606,11 @@ Examples:
   %(prog)s --routines BCM --json            List all BCM routines (JSON, offline)
   %(prog)s --routines BCM --rid 12A1        Request results for RID 12A1 (SF 0x03, safe)
   %(prog)s --routines BCM --rid 12A1 --sf stop  Send stopRoutine (SF 0x02)
-  %(prog)s --multi "query BMS 2101" --monitor
+  %(prog)s --multi "query BMS:2101" --monitor
                                             Live monitor: refresh BMS 2101 every 5s
-  %(prog)s --multi "session IGPM --wake" "query IGPM BC03 BC06" --monitor 2
+  %(prog)s --multi "session IGPM --wake" "query IGPM:BC03,BC06" --monitor 2
                                              Wake IGPM, then poll BC03+BC06 every 2s
-  %(prog)s --multi "query BCM C00B B003" --monitor --keep-unique --save
+  %(prog)s --multi "query BCM:C00B,B003" --monitor --keep-unique --save
                                              Monitor + save captures on Ctrl+C
 """,
     )
@@ -664,7 +705,8 @@ Examples:
         metavar="CMD",
         help="Multi-ECU pipeline: execute sub-commands in sequence with shared "
         "session management. Each CMD is a quoted string. Sub-commands: "
-        "skm-wake [level], session <ECU> [--wake], query <ECU> [PID ...], "
+        "skm-wake [level], session <ECU> [--wake], query <QUERY> (mini-language, "
+        "e.g. IGPM:BC03,BC06 or 'VCU:2101 BMS:2101'), "
         "raw <TX:PID>, scan <TX> <SVC> <RANGE> [APPEND], security <ECU> [algo ...], "
         "iocontrol <ECU> <DID> [--off], sleep <N>, repl",
     )
@@ -783,8 +825,29 @@ Examples:
         "--save",
         action="store_true",
         help="Save results to captures/YYYY-MM-DD.yaml. Prompts for session "
-        "metadata (label auto-suggested, Enter to accept). Works with "
-        "--scan, --raw, --discover, and --monitor --keep-unique/--keep-all.",
+        "metadata (label auto-suggested, Enter to accept), or use "
+        "--label/--state/--notes for non-interactive save. Works with "
+        "--scan, --raw, --discover, --multi \"query ...\", and "
+        "--monitor --keep-unique/--keep-all.",
+    )
+    parser.add_argument(
+        "--label",
+        metavar="TEXT",
+        default=None,
+        help="Session label for --save. When given, saving is non-interactive "
+        "(no prompt) — use with --state/--notes.",
+    )
+    parser.add_argument(
+        "--state",
+        metavar="TEXT",
+        default=None,
+        help="Session state for --save (e.g. 'ready, parked', 'charging').",
+    )
+    parser.add_argument(
+        "--notes",
+        metavar="TEXT",
+        default=None,
+        help="Session notes for --save.",
     )
     parser.add_argument(
         "--rulers",

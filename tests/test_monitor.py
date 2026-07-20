@@ -435,6 +435,22 @@ class TestPromptAndSave:
             _prompt_and_save(hex_history, {}, tmp_path)
         assert list(tmp_path.glob("*.yaml")) == []
 
+    def test_noninteractive_label_skips_prompt(self, tmp_path):
+        """Providing label/state/notes saves without prompting (agent/script use)."""
+        hex_history = {("MCU (0x7E3)", "2102"): [("6102AABB", "09:00:00")]}
+        with patch("builtins.input", side_effect=AssertionError("should not prompt")):
+            _prompt_and_save(
+                hex_history, {}, tmp_path,
+                label="Live ref", state="ready, parked", notes="18C ambient",
+            )
+        files = list(tmp_path.glob("*.yaml"))
+        assert len(files) == 1
+        s = yaml.safe_load(files[0].read_text())["sessions"][0]
+        assert s["label"] == "Live ref"
+        assert s["state"] == "ready, parked"
+        assert s["notes"] == "18C ambient\n"
+        assert s["captures"][0]["payload"] == "6102AABB"
+
     def test_empty_label_with_suggestion_saves(self, tmp_path):
         """Empty label accepts the suggested label and saves."""
         hex_history = {("BCM (0x7A0)", "22B003"): [("62B003AA", "10:00:00")]}

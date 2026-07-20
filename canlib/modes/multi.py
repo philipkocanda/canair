@@ -7,11 +7,19 @@ TesterPresent keepalives.
 Sub-commands:
     skm-wake [level]                Wake SKM + activate relay (acc/ign1/ign2)
     session <ECU|TX_ID> [--wake]    Enter extended session on ECU
-    query <ECU> [PID ...]           Query ECU parameters (like --ecu/--param)
+    query <QUERY>                   Query ECUs/PIDs via the mini-language
     raw <TX:PID>                    Raw UDS request
     scan <TX> <SVC> <RANGE> [APPEND]  Scan PID range
     sleep <seconds>                 Pause between steps
     repl                            Drop into interactive REPL (explicit)
+
+The 'query' sub-command uses the ECU/PID selection mini-language (see
+canlib.query): whitespace-separated ``ECU[:PID,PID,...]`` selectors. A bare
+ECU queries all its PIDs; a cross-ECU query fans out to one query per ECU.
+
+    query BMS                       all BMS PIDs
+    query IGPM:BC03,BC06            two IGPM DIDs
+    query VCU:2101 BMS:2101         cross-ECU (two ECUs)
 
 After all sub-commands complete, exits by default. Use --repl to drop into
 an interactive REPL, or include an explicit 'repl' step in the pipeline.
@@ -52,6 +60,29 @@ def resolve_tx_id(name_or_hex: str, ecu_index: dict) -> int | None:
         return None
 
 
+def _query_selectors(tokens: list[str]) -> list[tuple[str, list[str]]]:
+    """Expand ``query`` sub-command tokens into ``(ecu, pids)`` pairs.
+
+    Tokens are parsed with the ECU/PID mini-language (canlib.query): each
+    whitespace-separated ``ECU[:PID,PID,...]`` selector becomes one pair (a bare
+    ECU yields an empty PID list = all PIDs). Identical selectors are de-duped so
+    a repeated ECU/PID isn't polled twice. Raises ``QueryError`` (a ``ValueError``)
+    on malformed input.
+    """
+    from ..query import parse_query
+
+    query = parse_query(tokens)
+    pairs: list[tuple[str, list[str]]] = []
+    seen: set[tuple[str, tuple[str, ...]]] = set()
+    for sel in query.selectors:
+        key = (sel.ecu, sel.pids)
+        if key in seen:
+            continue
+        seen.add(key)
+        pairs.append((sel.ecu, list(sel.pids)))
+    return pairs
+
+
 def parse_sub_commands(args: list[str]) -> list[dict]:
     """Parse multi-mode sub-command strings into structured dicts.
 
@@ -78,10 +109,11 @@ def parse_sub_commands(args: list[str]) -> list[dict]:
 
         elif verb == "query":
             if len(parts) < 2:
-                raise ValueError("'query' requires an ECU name: query IGPM BC03 BC06")
-            ecu = parts[1]
-            pids = parts[2:] if len(parts) > 2 else []
-            commands.append({"type": "query", "ecu": ecu, "pids": pids})
+                raise ValueError(
+                    "'query' requires a selection: query IGPM:BC03,BC06  or  query VCU:2101 BMS:2101"
+                )
+            for ecu, pids in _query_selectors(parts[1:]):
+                commands.append({"type": "query", "ecu": ecu, "pids": pids})
 
         elif verb == "raw":
             if len(parts) < 2:
@@ -349,6 +381,8 @@ async def _exec_raw(sm: SessionManager, spec: str, hold: bool, verbose: bool):
             print("  Continuing...")
         finally:
             sm.stop_background_keepalive()
+
+    return tx_id, service_pid, response
 
 
 async def _exec_iocontrol(
@@ -778,12 +812,47 @@ async def _exec_security(
     return False
 
 
+def _ecu_short_for_tx(tx_id: int, ecu_index: dict) -> str:
+    """Return the ECU short name for a TX id, or the hex id if unknown."""
+    for name, info in ecu_index.items():
+        if info.get("tx_id") == tx_id:
+            return name
+    return f"{tx_id:03X}"
+
+
+def _save_collected(
+    collected: list[tuple[str, str, str, str]],
+    label: str | None,
+    state: str | None,
+    notes: str | None,
+) -> None:
+    """Build and save a capture session from collected query/raw payloads."""
+    from ..captures import build_query_session, resolve_metadata, save_session
+
+    if not collected:
+        print("\n  --save: no payloads captured — nothing to save.")
+        return
+
+    n = len(collected)
+    print(f"\n  --save: {n} payload(s) captured.")
+    meta = resolve_metadata(label, state, notes, suggested_label="Multi query session")
+    if meta is None:
+        return
+    lbl, st, nt = meta
+    session = build_query_session(collected, lbl, st, nt)
+    save_session(session)
+
+
 async def mode_multi(
     terminal: WiCANTerminal,
     sub_commands: list[str],
     pids_data: dict,
     verbose: bool,
     no_repl: bool = False,
+    save: bool = False,
+    label: str | None = None,
+    state: str | None = None,
+    notes: str | None = None,
 ):
     """Execute a multi-ECU pipeline and optionally drop into REPL.
 
@@ -793,11 +862,24 @@ async def mode_multi(
         pids_data: Loaded PID definitions.
         verbose: Show debug output.
         no_repl: If True, don't drop into REPL after pipeline.
+        save: If True, collect payloads from query/raw steps and save them to
+            captures/YYYY-MM-DD.yaml after the pipeline completes.
+        label/state/notes: Session metadata. When ``label`` is provided, saving
+            is non-interactive; otherwise the user is prompted.
     """
     commands = parse_sub_commands(sub_commands)
     ecu_index = build_ecu_index(pids_data)
     sm = SessionManager(terminal, verbose=verbose)
     repl_executed = False
+    # Collected (ecu_short, pid, hex, time) rows for --save
+    collected: list[tuple[str, str, str, str]] = []
+
+    def _collect_query(ecu_label: str, pid_results: list[dict]) -> None:
+        ecu_short = re.match(r"(\w+)", ecu_label).group(1)
+        for entry in pid_results or []:
+            raw_hex = entry.get("raw_hex", "")
+            if raw_hex:
+                collected.append((ecu_short, entry["pid"], raw_hex, ""))
 
     try:
         for i, cmd in enumerate(commands):
@@ -815,11 +897,27 @@ async def mode_multi(
             elif cmd_type == "query":
                 pids_str = " ".join(cmd["pids"]) if cmd["pids"] else "all"
                 print(f"\n{step} Query {cmd['ecu']} ({pids_str})...")
-                await _exec_query(sm, cmd["ecu"], cmd["pids"], ecu_index, pids_data, verbose)
+                if save:
+                    result = await _exec_query(
+                        sm, cmd["ecu"], cmd["pids"], ecu_index, pids_data, verbose,
+                        return_results=True,
+                    )
+                    if result:
+                        ecu_label, pid_results = result
+                        print_ecu_results(ecu_label=ecu_label, pid_results=pid_results, verbose=verbose)
+                        _collect_query(ecu_label, pid_results)
+                else:
+                    await _exec_query(sm, cmd["ecu"], cmd["pids"], ecu_index, pids_data, verbose)
 
             elif cmd_type == "raw":
                 print(f"\n{step} Raw {cmd['spec']}...")
-                await _exec_raw(sm, cmd["spec"], cmd["hold"], verbose)
+                raw_result = await _exec_raw(sm, cmd["spec"], cmd["hold"], verbose)
+                if save and raw_result:
+                    tx_id, req, resp = raw_result
+                    if resp.get("ok") and resp.get("hex"):
+                        ecu_short = _ecu_short_for_tx(tx_id, ecu_index)
+                        collected.append((ecu_short, req, resp["hex"], ""))
+
 
             elif cmd_type == "scan":
                 print(f"\n{step} Scan {cmd['tx']} service {cmd['service']} range {cmd['range']}...")
@@ -854,6 +952,10 @@ async def mode_multi(
                 await _exec_iocontrol(
                     sm, cmd["ecu"], cmd["did"], cmd["off"], pids_data, ecu_index, verbose
                 )
+
+        # Save collected payloads before any REPL handoff
+        if save:
+            _save_collected(collected, label, state, notes)
 
         # Auto-REPL if no explicit repl step and --repl was passed
         if not repl_executed and not no_repl:
@@ -1001,11 +1103,15 @@ async def _multi_repl(sm: SessionManager, ecu_index: dict, pids_data: dict, verb
 
             if cmd_lower.startswith("query "):
                 parts = cmd.split()
-                # First token might be "query" or "!query"
-                ecu = parts[1]
-                pids = parts[2:] if len(parts) > 2 else []
+                # First token might be "query" or "!query"; rest is a mini-language query.
+                try:
+                    selectors = _query_selectors(parts[1:])
+                except ValueError as ex:
+                    print(f"  Invalid query: {ex}")
+                    continue
                 sm.stop_background_keepalive()
-                await _exec_query(sm, ecu, pids, ecu_index, pids_data, verbose)
+                for ecu, pids in selectors:
+                    await _exec_query(sm, ecu, pids, ecu_index, pids_data, verbose)
                 sm.start_background_keepalive(interval=2.0)
                 continue
 
