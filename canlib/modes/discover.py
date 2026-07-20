@@ -14,6 +14,9 @@ async def mode_discover(
     as_json: bool,
     delay: float = 0.2,
     save: bool = False,
+    label: str | None = None,
+    state: str | None = None,
+    notes: str | None = None,
 ):
     """Sweep a range of CAN arbitration IDs to find responding ECUs.
 
@@ -112,7 +115,7 @@ async def mode_discover(
     if save and alive:
         from ..captures import (
             build_discover_session,
-            prompt_metadata,
+            resolve_metadata,
             save_session,
             suggest_discover_label,
         )
@@ -128,7 +131,7 @@ async def mode_discover(
 
         silent_count = total - len(alive) - len(errors)
         suggested = suggest_discover_label(addr_range)
-        meta = prompt_metadata(suggested_label=suggested)
+        meta = resolve_metadata(label, state, notes, suggested_label=suggested)
         if meta:
             label, state, notes = meta
             session_dict = build_discover_session(

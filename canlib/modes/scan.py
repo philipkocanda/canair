@@ -18,6 +18,9 @@ async def mode_scan(
     session: bool = False,
     wake: bool = False,
     save: bool = False,
+    label: str | None = None,
+    state: str | None = None,
+    notes: str | None = None,
 ):
     """Scan a range of PIDs and show which respond positively.
 
@@ -133,7 +136,7 @@ async def mode_scan(
     if save:
         from ..captures import (
             build_scan_session,
-            prompt_metadata,
+            resolve_metadata,
             save_session,
             suggest_scan_label,
         )
@@ -144,7 +147,7 @@ async def mode_scan(
         n_pos = len(positive)
         n_neg = len(negative)
         print(f"\n  Save: {n_pos} positive, {n_neg} negative responses.")
-        meta = prompt_metadata(suggested_label=suggested)
+        meta = resolve_metadata(label, state, notes, suggested_label=suggested)
         if meta:
             label, state, notes = meta
             session_dict = build_scan_session(

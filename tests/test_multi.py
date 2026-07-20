@@ -72,7 +72,7 @@ class TestParseSubCommands:
             parse_sub_commands(["session"])
 
     def test_query_with_pids(self):
-        result = parse_sub_commands(["query IGPM BC03 BC06"])
+        result = parse_sub_commands(["query IGPM:BC03,BC06"])
         assert result[0]["type"] == "query"
         assert result[0]["ecu"] == "IGPM"
         assert result[0]["pids"] == ["BC03", "BC06"]
@@ -84,6 +84,34 @@ class TestParseSubCommands:
     def test_query_missing_ecu(self):
         with pytest.raises(ValueError, match="requires"):
             parse_sub_commands(["query"])
+
+    def test_query_cross_ecu_fans_out(self):
+        result = parse_sub_commands(["query VCU:2101 BMS:2101"])
+        assert [(c["type"], c["ecu"], c["pids"]) for c in result] == [
+            ("query", "VCU", ["2101"]),
+            ("query", "BMS", ["2101"]),
+        ]
+
+    def test_query_uppercases(self):
+        result = parse_sub_commands(["query vcu:2101"])
+        assert result[0]["ecu"] == "VCU"
+        assert result[0]["pids"] == ["2101"]
+
+    def test_query_dedups_identical_selectors(self):
+        result = parse_sub_commands(["query VCU:2101 VCU:2101"])
+        assert len(result) == 1
+
+    def test_query_all_pids_across_ecus(self):
+        result = parse_sub_commands(["query VCU BMS"])
+        assert [(c["ecu"], c["pids"]) for c in result] == [("VCU", []), ("BMS", [])]
+
+    def test_query_malformed_double_colon_raises(self):
+        with pytest.raises(ValueError):
+            parse_sub_commands(["query VCU::2101"])
+
+    def test_query_malformed_empty_ecu_raises(self):
+        with pytest.raises(ValueError):
+            parse_sub_commands(["query :2101"])
 
     def test_raw_basic(self):
         result = parse_sub_commands(["raw 770:22BC03"])
@@ -140,7 +168,7 @@ class TestParseSubCommands:
             [
                 "skm-wake acc",
                 "session IGPM --wake",
-                "query IGPM BC03",
+                "query IGPM:BC03",
                 "sleep 1",
             ]
         )
