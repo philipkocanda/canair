@@ -20,7 +20,16 @@ Everything ships as a single installable CLI, **`canair`** (argparse subcommands
 - 🧮 **`canair bix`** — convert between the four byte-index notations used by WiCAN, ISO-TP, Torque, and OBDb
 - 📐 **`profiles/ioniq-2017/pids/`** — 25+ YAML files defining every known parameter per ECU (the single source of truth for the bundled example profile)
 
-## What's been mapped so far
+## Hyundai Ioniq 2017 Electric (28 kWh) — what `canair` reads & controls
+
+While the tooling is vehicle-agnostic, the bundled `ioniq-2017` profile makes this
+a practical, ready-to-use **OBD-II / UDS diagnostics toolkit for the 2017 Hyundai
+Ioniq Electric (28 kWh, `AE` platform)**. Plug in a WiCAN Pro and you can read live
+battery, motor, charging, climate, and body data over WiFi — no dealer tools
+required. If you own an Ioniq 28 kWh and want deeper telemetry than a generic
+OBD app provides, this profile is for you.
+
+### What's been mapped so far
 
 - **30 ECUs** discovered on the CAN bus
 - **220+ parameters** defined (192 verified), including:
@@ -73,7 +82,7 @@ The `research/` directory contains earlier CarScanner captures, reference spread
 
 ## Key tools
 
-All functionality is exposed as `canair <subcommand>`. (The old standalone scripts — `canreq.py`, `generate-profile.py`, etc. — still exist as thin **deprecated shims** that forward to `canair`.)
+All functionality is exposed as `canair <subcommand>`.
 
 | Subcommand | Purpose |
 |--------|---------|
@@ -316,12 +325,12 @@ canair query "query IGPM 22BC07" --monitor 2 --keep-unique
 ## Getting started
 
 ```bash
-uv tool install .                              # Install the canair CLI (or: uv sync for dev)
-mkdir -p ~/.config/canair
-cp config.example.yaml ~/.config/canair/config.yaml   # Configure your WiCAN device address
-# Edit ~/.config/canair/config.yaml with your device's IP address
-canair --help
+uv tool install .    # Install the canair CLI (or: uv sync for dev)
+canair --help        # First run auto-creates ~/.config/canair/ + a starter config.yaml
 ```
+
+Then edit `~/.config/canair/config.yaml` (created automatically on first run) to set
+your WiCAN device address(es). `config.example.yaml` in the repo documents every key.
 
 In the repo, `uv run canair ...` also works without installing. Enable shell completion (argcomplete) with:
 

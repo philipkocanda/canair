@@ -6,7 +6,7 @@ For reference, the WiCAN firmware is checked out in the `wican-fw/` directory (g
 
 > Reverse-engineering a new PID/DID end-to-end (discover → capture → analyze → define → verify) is documented in the **reverse-engineer-pid** skill; general project/device context is in the **ioniq-reverse-engineering** skill.
 
-All functionality is exposed through a single installable CLI, **`canair`** (argparse subcommands; `uv tool install .`, or `uv run canair …` in the repo). The old standalone scripts remain as thin **deprecated shims** that forward to `canair`.
+All functionality is exposed through a single installable CLI, **`canair`** (argparse subcommands; `uv tool install .`, or `uv run canair …` in the repo).
 
 - **`canair wican`** — Generate WiCAN vehicle profiles from the active profile's `pids/`, upload/download/diff with device
 - **`canair query`** — Custom CAN/UDS requests via WiCAN WebSocket ELM327 terminal mode. **Prefer positional query steps** like `canair query "query BMS 2101"` (multi mini-language — handles sessions, wake, keepalives; a bare selector like `BMS:2101` is treated as a query step). Use `canair query --param`/`canair query BMS` for simple single-ECU reads, `canair scan` for discovery. Companions: `canair discover`, `canair io`, `canair routines`, `canair wake`, `canair tester-present`, `canair raw` (**last resort** — hex dump only, no decoding), `canair repl` (interactive). `--verbose` is for debugging canair itself, not normal use. **Use `--reboot` to restore AutoPID after session** (WebSocket terminal overrides AutoPID mode). Dependencies: `websockets`, `pyyaml`, `requests` (optional, for reboot).

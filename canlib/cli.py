@@ -35,7 +35,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="Extra directory to search for vehicle profiles.",
     )
     subparsers = parser.add_subparsers(dest="command", metavar="<command>")
-    subparsers.required = True
 
     for module in iter_command_modules():
         module.add_parser(subparsers)
@@ -54,6 +53,11 @@ def main(argv: list[str] | None = None) -> int:
         pass
 
     args = parser.parse_args(argv)
+
+    # Ensure ~/.config/canair (and profiles/) exists so no manual setup is needed.
+    from canlib.config import ensure_config_dir
+
+    ensure_config_dir()
 
     from canlib.profile import ProfileError, set_active
 
