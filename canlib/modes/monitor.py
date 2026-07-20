@@ -180,7 +180,7 @@ def _prompt_and_save(
         entries = list(hex_history.get(key, []))
         cur = prev_hex.get(key, "")
         if cur and cur not in [h for h, _ts in entries]:
-            ts = datetime.now().strftime("%H:%M:%S")
+            ts = datetime.now().strftime("%H:%M:%S.%f")[:-3]
             entries.append((cur, ts))
         if entries:
             merged[key] = entries
@@ -342,7 +342,15 @@ async def mode_monitor(
                             if raw:
                                 key = (ecu_label, entry["pid"])
                                 prev_hex[key] = raw
-                                ts = datetime.now().strftime("%H:%M:%S")
+                                # Use the per-PID acquisition timestamp (moment the
+                                # response arrived) with millisecond precision, so
+                                # sequentially-polled PIDs retain their true skew.
+                                acq = entry.get("acquired_at")
+                                ts = (
+                                    datetime.fromtimestamp(acq).strftime("%H:%M:%S.%f")[:-3]
+                                    if acq
+                                    else datetime.now().strftime("%H:%M:%S.%f")[:-3]
+                                )
                                 # Save history (for --save): always keep all
                                 if save_history is not None:
                                     save_history.setdefault(key, []).append((raw, ts))

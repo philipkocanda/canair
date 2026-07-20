@@ -20,6 +20,7 @@ an interactive REPL, or include an explicit 'repl' step in the pipeline.
 import asyncio
 import re
 import shlex
+import time
 
 from ..constants import PIDS_DIR
 from ..decoding import decode_param_rows
@@ -255,12 +256,19 @@ async def _exec_query(
         await sm.terminal.set_header(tx_id)
 
         resp = await sm.terminal.send_uds(pid_code)
+        # Timestamp the moment the (fully reassembled) response arrived, as close
+        # to the actual acquisition instant as we can observe. Callers (e.g. monitor
+        # mode) use this per-PID timestamp instead of a shared per-cycle time, so
+        # sequentially-polled PIDs keep their true ~sub-second acquisition skew.
+        acquired_at = time.time()
         if not resp.get("ok"):
             error = resp.get("error") or resp.get("nrc_desc", "unknown")
             nrc = resp.get("nrc")
             if nrc is not None:
                 error = f"NRC 0x{nrc:02X} ({resp['nrc_desc']})"
-            all_pid_results.append({"pid": pid_code, "error": error, "unmapped": unmapped})
+            all_pid_results.append(
+                {"pid": pid_code, "error": error, "unmapped": unmapped, "acquired_at": acquired_at}
+            )
             continue
 
         if pid_info:
@@ -272,6 +280,7 @@ async def _exec_query(
                     "pid": pid_code,
                     "params": results,
                     "raw_hex": resp["hex"],
+                    "acquired_at": acquired_at,
                 }
             )
         else:
@@ -284,6 +293,7 @@ async def _exec_query(
                     "raw_hex": resp["hex"],
                     "decode": decode,
                     "unmapped": True,
+                    "acquired_at": acquired_at,
                 }
             )
 

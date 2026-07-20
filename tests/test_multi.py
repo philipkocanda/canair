@@ -1,8 +1,11 @@
 """Tests for canlib.modes.multi — parse_sub_commands, resolve_tx_id."""
 
+import asyncio
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 
-from canlib.modes.multi import parse_sub_commands, resolve_tx_id
+from canlib.modes.multi import _exec_query, parse_sub_commands, resolve_tx_id
 
 # --- resolve_tx_id ---
 
@@ -148,3 +151,56 @@ class TestParseSubCommands:
         """skm_wake (underscore) should work same as skm-wake (hyphen)."""
         result = parse_sub_commands(["skm_wake ign2"])
         assert result[0] == {"type": "skm-wake", "level": "ign2"}
+
+
+# --- _exec_query acquisition timestamps ---
+
+
+class TestExecQueryTimestamp:
+    """Each queried PID must carry its own acquisition timestamp (moment the
+    response arrived), so sequentially-polled PIDs keep their true skew rather
+    than sharing one per-cycle time."""
+
+    def _make_sm(self, latency: float):
+        sm = MagicMock()
+        sm.keepalive_stale = AsyncMock()
+        sm.has_session = MagicMock(return_value=True)
+        sm.terminal = MagicMock()
+        sm.terminal.set_header = AsyncMock()
+
+        async def fake_send_uds(pid_code, *a, **k):
+            await asyncio.sleep(latency)  # simulate round-trip so each PID lands at a distinct time
+            return {"ok": True, "hex": "6101F8F8", "bytes": bytes.fromhex("6101F8F8")}
+
+        sm.terminal.send_uds = fake_send_uds
+        return sm
+
+    def test_acquired_at_attached_per_pid(self):
+        ecu_index = {
+            "MCU": {"tx_id": 0x7E3, "pids": {"2101": {"parameters": {}}, "2102": {"parameters": {}}}}
+        }
+        sm = self._make_sm(latency=0.02)
+        _label, results = asyncio.run(
+            _exec_query(sm, "MCU", [], ecu_index, {}, verbose=False, return_results=True)
+        )
+        assert len(results) == 2
+        for r in results:
+            assert isinstance(r.get("acquired_at"), float)
+        # Sequential PIDs must have distinct, increasing timestamps reflecting real skew.
+        assert results[1]["acquired_at"] > results[0]["acquired_at"]
+        assert results[1]["acquired_at"] - results[0]["acquired_at"] >= 0.01
+
+    def test_error_result_also_timestamped(self):
+        ecu_index = {"MCU": {"tx_id": 0x7E3, "pids": {"2101": {"parameters": {}}}}}
+        sm = self._make_sm(latency=0.0)
+
+        async def fail_send_uds(pid_code, *a, **k):
+            return {"ok": False, "nrc": 0x12, "nrc_desc": "subFunctionNotSupported"}
+
+        sm.terminal.send_uds = fail_send_uds
+        _label, results = asyncio.run(
+            _exec_query(sm, "MCU", [], ecu_index, {}, verbose=False, return_results=True)
+        )
+        assert len(results) == 1
+        assert "error" in results[0]
+        assert isinstance(results[0].get("acquired_at"), float)
