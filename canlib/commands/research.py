@@ -37,6 +37,7 @@ import sys
 from collections import Counter
 from pathlib import Path
 
+from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.pids import load_pids
 
 NAME = "research"
@@ -212,7 +213,9 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__.split("Examples:")[1] if "Examples:" in __doc__ else "",
     )
-    parser.add_argument("--ecu", "-e", metavar="ECU", help="Filter by ECU name")
+    parser.add_argument(
+        "--ecu", "-e", metavar="ECU", help="Filter by ECU name"
+    ).completer = _ecu_completer
     parser.add_argument("--type", "-t", dest="rtype", choices=VALID_TYPES,
                         help="Filter by research type")
     parser.add_argument("--status", choices=VALID_STATUSES, help="Filter by status")

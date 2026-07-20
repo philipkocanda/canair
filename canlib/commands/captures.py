@@ -53,6 +53,8 @@ from pathlib import Path
 
 import yaml
 
+from canlib.commands._hints import ecu_completer as _ecu_completer
+
 NAME = "captures"
 
 # ANSI color helpers
@@ -956,7 +958,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "query", nargs="*", metavar="QUERY",
         help="ECU/PID selection: 'BMS 2102', 'BMS:2102,2103', 'BMS' (all PIDs), "
              "or a quoted cross-ECU query 'VCU:2101 BMS:2101'",
-    )
+    ).completer = _ecu_completer
 
     # View modifiers for a QUERY (default is the list view).
     view = parser.add_mutually_exclusive_group()
