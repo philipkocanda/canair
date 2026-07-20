@@ -235,6 +235,7 @@ async def async_main(args):
                 keep_mode="unique" if args.keep_unique else ("all" if args.keep_all else ("last" if args.keep else None)),
                 keep_n=args.keep,
                 save=args.save,
+                show_rulers=args.rulers,
             )
         elif args.multi:
             await mode_multi(terminal, args.multi, pids_data, args.verbose, no_repl=not args.repl)
@@ -784,6 +785,13 @@ Examples:
         help="Save results to captures/YYYY-MM-DD.yaml. Prompts for session "
         "metadata (label auto-suggested, Enter to accept). Works with "
         "--scan, --raw, --discover, and --monitor --keep-unique/--keep-all.",
+    )
+    parser.add_argument(
+        "--rulers",
+        action="store_true",
+        help="For --monitor: show byte-index rulers (idx = payload position, "
+        "wican = WiCAN Bnn) once per PID, above the hex lines. Helps map "
+        "decoded parameters to raw payload bytes.",
     )
 
     parser.add_argument(

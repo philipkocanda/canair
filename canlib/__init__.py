@@ -20,6 +20,7 @@ from .formatting import (
     print_ecu_results,
     print_hexdump,
     print_json_result,
+    render_byte_rulers,
     render_param_table,
 )
 from .log import init_logging, log_command, log_response
@@ -58,5 +59,6 @@ __all__ = [
     "print_hexdump",
     "print_json_result",
     "reboot_wican",
+    "render_byte_rulers",
     "render_param_table",
 ]

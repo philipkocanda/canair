@@ -238,6 +238,41 @@ def render_param_table(
     return t
 
 
+def render_byte_rulers(n_bytes: int, params: list, *, prefix_width: int = 8) -> Text:
+    """Return a two-row byte-index ruler (``idx`` + ``wican``) as Rich Text.
+
+    ``idx`` = payload byte position; ``wican`` = WiCAN Bnn index (which skips PCI
+    framing bytes). Numbers are coverage-coloured (green=verified, yellow=
+    unverified, grey=uncovered) to match the hex view, on a dark background bar,
+    and aligned under each hex byte column.
+
+    ``prefix_width`` must equal the width of the prefix used on the hex lines
+    rendered below (e.g. timestamp column) so the ruler columns line up. Each
+    row is newline-terminated.
+    """
+    from .byteindex import elm_to_wican_idx
+
+    bg = "on grey23"
+    # Lift uncovered grey to a readable tone against the dark background.
+    fg_map = {"green": "green", "yellow": "yellow", "bright_black": "grey58"}
+    byte_colors = _build_byte_colors(params, n_bytes) if params else None
+
+    out = Text()
+
+    def _row(label: str, value_fn) -> None:
+        # Label sits in the leftmost 6 chars, padded out to the full prefix width.
+        out.append(f"{label:>6}".ljust(prefix_width), style=f"bold white {bg}")
+        for i in range(n_bytes):
+            if i > 0:
+                out.append(" ", style=bg)
+            base = byte_colors[i] if byte_colors else "bright_black"
+            out.append(f"{value_fn(i):02d}", style=f"{fg_map.get(base, base)} {bg}")
+        out.append("\n")
+
+    _row("idx", lambda i: i)
+    _row("wican", lambda i: elm_to_wican_idx(i, n_bytes))
+    return out
+
 
 def print_decoded_params(params_results: list, verbose: bool = False):
     """Print decoded parameter values in a compact aligned table.

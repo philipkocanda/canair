@@ -5,6 +5,7 @@ from canlib.formatting import (
     format_value,
     param_byte_index_str,
     param_byte_indices,
+    render_byte_rulers,
     render_param_table,
 )
 
@@ -146,3 +147,26 @@ class TestParamByteIndexStr:
 
     def test_empty_expression(self):
         assert param_byte_index_str("", 27) == ""
+
+
+class TestRenderByteRulers:
+    def test_two_rows_idx_and_wican(self):
+        text = render_byte_rulers(27, [], prefix_width=8).plain
+        lines = text.splitlines()
+        assert lines[0].split()[0] == "idx"
+        assert lines[1].split()[0] == "wican"
+
+    def test_idx_row_is_sequential(self):
+        lines = render_byte_rulers(5, [], prefix_width=8).plain.splitlines()
+        assert lines[0].split()[1:] == ["00", "01", "02", "03", "04"]
+
+    def test_wican_row_skips_pci(self):
+        # 27-byte payload: ISO-TP 6 → WiCAN 9 (skips PCI byte 8).
+        wican = render_byte_rulers(27, [], prefix_width=8).plain.splitlines()[1].split()[1:]
+        assert wican[0] == "02"  # ISO-TP 0 → WiCAN 2
+        assert wican[6] == "09"  # ISO-TP 6 → WiCAN 9 (8 is PCI)
+
+    def test_columns_align_across_rows(self):
+        lines = render_byte_rulers(10, [], prefix_width=16).plain.splitlines()
+        # Both rows start their numbers at the same column (prefix_width).
+        assert lines[0].index("00") == lines[1].index("02") == 16

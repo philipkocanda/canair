@@ -286,10 +286,9 @@ def cmd_diff(entries: list[dict], ecu_filter: str, pid_filter: str, show_all: bo
     pass ``show_all=True`` to render every capture.
     """
     from rich.console import Console
-    from rich.text import Text
 
     from canlib.decoding import decode_param_rows
-    from canlib.formatting import _build_byte_colors, _render_hex_line, render_param_table
+    from canlib.formatting import _render_hex_line, render_byte_rulers, render_param_table
 
     console = Console(highlight=False)
 
@@ -364,30 +363,12 @@ def cmd_diff(entries: list[dict], ecu_filter: str, pid_filter: str, show_all: bo
     render_list = payloads if show_all else unique
     max_ts = max((len(e.get("time") or e.get("date") or "") for e in render_list), default=0)
 
-    # Byte-index ruler (once), coloured by parameter coverage and aligned with the
-    # hex byte columns below. A dark background bar sets it apart as a header.
+    # Byte-index ruler (once), aligned with the hex byte columns below.
     # Two rows: "idx" = payload byte position, "wican" = WiCAN Bnn (skips PCI).
     if n_bytes:
-        from canlib.byteindex import elm_to_wican_idx
-
-        bg = "on grey23"
-        # Lift uncovered grey to a readable tone against the dark background.
-        fg_map = {"green": "green", "yellow": "yellow", "bright_black": "grey58"}
-        byte_colors = _build_byte_colors(rows, n_bytes) if rows else None
-        head_pad = f"{' ' * max_ts}  "
-
-        def _ruler(label: str, value_fn) -> Text:
-            t = Text()
-            t.append(f"{label:>6}{head_pad}", style=f"bold white {bg}")
-            for i in range(n_bytes):
-                if i > 0:
-                    t.append(" ", style=bg)
-                base = byte_colors[i] if byte_colors else "bright_black"
-                t.append(f"{value_fn(i):02d}", style=f"{fg_map.get(base, base)} {bg}")
-            return t
-
-        console.print(_ruler("idx", lambda i: i), soft_wrap=True)
-        console.print(_ruler("wican", lambda i: elm_to_wican_idx(i, n_bytes)), soft_wrap=True)
+        console.print(
+            render_byte_rulers(n_bytes, rows, prefix_width=8 + max_ts), end="", soft_wrap=True
+        )
 
     prev_norm = ""
     for e in render_list:
