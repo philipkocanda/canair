@@ -15186,6 +15186,7 @@ sessions:
     pid: '2102'
     payload: 6101FFE0000009285A65064F0300001600F3763404080000000000
     time: "16:14:39"
+    notes: Why voltages zero here?
   - ecu: VCU
     pid: '2102'
     payload: 6101FFE0000009215A7307D403000000005B773404200000000000

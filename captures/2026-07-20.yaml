@@ -31,55 +31,62 @@ sessions:
     notes: "27 bytes. Parked READY: DRIVE_MODE_P=1, EV_READY=1, VCU_READY=1, not braking."
   - ecu: LDC
     pid: '2101'
-    payload: 6101FFFFF800000264017C02DC000079003201BD0597410000000000060000600000000001F496A90205000000000000
+    payload: "6101FFFFF800000264017C02DC000079003201BD0597410000000000060000600000000001F496A90205000000000000"
     notes: >
-      48 bytes (full, untruncated). READY = LDC active, OBC idle. Decodes: HV input 378V (B23*2),
-      12V out 14.31V, LDC temp 21C (B19-100, ~ambient), OBC charge/output ~0 (idle), pilot 0.67%.
-      Reference for LDC-vs-OBC disambiguation.
+      48 bytes (full, untruncated). READY = LDC active, OBC idle. Decodes: HV input
+      378V (B23*2), 12V out 14.31V, LDC temp 21C (B19-100, ~ambient), OBC charge/output
+      ~0 (idle), pilot 0.67%. Reference for LDC-vs-OBC disambiguation.
   - ecu: LDC
     pid: '2101'
-    payload: 6101FFFFF800009B3596E35B7F02087F024800BA058743102000C803A200A5760008000301F497221ED4000B00000000
+    payload: "6101FFFFF800009B3596E35B7F02087F024800BA058743102000C803A200A5760008000301F497221ED4000B00000000"
     notes: >
-      48 bytes. Charging 10A AC. HV input [B45:B46]=386.9V (=BMS pack 385.6V), OBC charge [B10:B11]=397V,
-      OBC output [B12:B13]=386V, OBC DC A=5.2A, LDC 12V out 14.15V (=BMS aux 14.2V), LDC temp 27C, pilot 10%.
+      48 bytes. Charging 10A AC. HV input [B45:B46]=386.9V (=BMS pack 385.6V), OBC
+      charge [B10:B11]=397V, OBC output [B12:B13]=386V, OBC DC A=5.2A, LDC 12V out
+      14.15V (=BMS aux 14.2V), LDC temp 27C, pilot 10%.
   - ecu: BMS
     pid: '2101'
-    payload: 6101FFFFFFFFAB258C2648A3FFD10F10111111111111110013C902C80100008E00055FA700055D810001F27D0001E2B80151257F0D01810000000003E800
+    payload: "6101FFFFFFFFAB258C2648A3FFD10F10111111111111110013C902C80100008E00055FA700055D810001F27D0001E2B80151257F0D01810000000003E800"
     notes: >
-      Charging 10A AC (SOC 85.5%). pack=385.6V, aux=14.2V, current=-4.7A, modules 17C, inlet 19C.
-      Cross-reference for LDC/OBC HV & aux voltage during charging.
+      Charging 10A AC (SOC 85.5%). pack=385.6V, aux=14.2V, current=-4.7A, modules
+      17C, inlet 19C. Cross-reference for LDC/OBC HV & aux voltage during charging.
   - ecu: LDC
     pid: '2101'
-    payload: 6101FFFFF800009CBF98A25795025A95024700BA050043102000C8046800C6760008000301F498CA0982000B00000000
+    payload: "6101FFFFF800009CBF98A25795025A95024700BA050043102000C8046800C6760008000301F498CA0982000B00000000"
     notes: >
-      48 bytes. Charging stepped to 12A AC (~13:07). OBC_DC_A=6.02A (was 5.2A at 10A), OBC_CHG_V=401V,
-      LDC_TEMP=B19-100=52C. Byte B34=104 (was 162 at 10A) — inversely tracks charge current (independent
-      of the SOC-taper confound). B14=87, B28=16, B29=32, B31=200, B37=118 unchanged (fixed status).
+      48 bytes. Charging stepped to 12A AC (~13:07). OBC_DC_A=6.02A (was 5.2A at 10A),
+      OBC_CHG_V=401V, LDC_TEMP=B19-100=52C. Byte B34=104 (was 162 at 10A) — inversely
+      tracks charge current (independent of the SOC-taper confound). B14=87, B28=16,
+      B29=32, B31=200, B37=118 unchanged (fixed status).
   - ecu: BMS
     pid: '2101'
-    payload: 6101FFFFFFFFB222552648A3FFC90F3F121111111112120015CB02CB0100008100055FC200055D810001F2880001E2B801512E120D01860000000003E800
+    payload: "6101FFFFFFFFB222552648A3FFC90F3F121111111112120015CB02CB0100008100055FC200055D810001F2880001E2B801512E120D01860000000003E800"
     notes: >
-      Charging 12A AC (~13:07). pack=390.3V, aux=12.9V, modules 17-18C, inlet 21C. Cross-ref for the 12A step.
+      Charging 12A AC (~13:07). pack=390.3V, aux=12.9V, modules 17-18C, inlet 21C.
+      Cross-ref for the 12A step.
   - ecu: LDC
     pid: '2101'
-    payload: 6101FFFFF800009D0398EB5ADA027298024A00BA050043102000C8046900C6760008000301F4990F0B1A000B00000000
+    payload: "6101FFFFF800009D0398EB5ADA027298024A00BA050043102000C8046900C6760008000301F4990F0B1A000B00000000"
     notes: >
-      48 bytes. SETTLED 12A AC (single clean query, EVSE ~2.5-2.6kW, car ~1A under EVSE). OBC_DC_A=6.26A,
-      OBC_CHG_V=402V, LDC_TEMP=B19-100=52C (rising from 27C — confirms temp mapping). B34=105 (161 @5A DC).
-      OBC_PILOT_DUTY read 3.67% here (B47=11): B47 sits LOW right after a session start and ramps to steady
-      ~41% only under continuous polling — the diagnostic session disturbs it (explains the historic wobble).
+      48 bytes. SETTLED 12A AC (single clean query, EVSE ~2.5-2.6kW, car ~1A under
+      EVSE). OBC_DC_A=6.26A, OBC_CHG_V=402V, LDC_TEMP=B19-100=52C (rising from 27C
+      — confirms temp mapping). B34=105 (161 @5A DC). OBC_PILOT_DUTY read 3.67% here
+      (B47=11): B47 sits LOW right after a session start and ramps to steady ~41%
+      only under continuous polling — the diagnostic session disturbs it (explains
+      the historic wobble).
   - ecu: VCU
     pid: '2102'
     payload: 6102F8F8000001010000008411C69483338106E59A3B3300000000
     notes: >
-      27 bytes. Charging (SOC 94%). Cross-validation: VCU_INVERTER_INPUT_VOLTAGE B17*2=396V = BMS pack 396.4V
-      (CONFIRMED). VCU B18/10=14.8V does NOT match aux 12.8V (BMS+LDC) -> AUX param disabled as inaccurate.
+      27 bytes. Charging (SOC 94%). Cross-validation: VCU_INVERTER_INPUT_VOLTAGE B17*2=396V
+      = BMS pack 396.4V (CONFIRMED). VCU B18/10=14.8V does NOT match aux 12.8V (BMS+LDC)
+      -> AUX param disabled as inaccurate.
   - ecu: BMS
     pid: '2101'
-    payload: 6101FFFFFFFFBC19D62648A3FFD40F7C121212121212120016CE02CE0100008000055FED00055D810001F2980001E2B8015138FB0D018C0000000003E800
+    payload: "6101FFFFFFFFBC19D62648A3FFD40F7C121212121212120016CE02CE0100008000055FED00055D810001F2980001E2B8015138FB0D018C0000000003E800"
     notes: >
-      Charging (SOC 94%). pack=396.4V, aux=12.8V, current=-4.4A, cells 4.12V, modules 18C. Ground-truth for
-      VCU/LDC HV & 12V cross-checks (VCU B17*2=396 OK; VCU B18/10=14.8 wrong vs aux 12.8).
+      Charging (SOC 94%). pack=396.4V, aux=12.8V, current=-4.4A, cells 4.12V, modules
+      18C. Ground-truth for VCU/LDC HV & 12V cross-checks (VCU B17*2=396 OK; VCU B18/10=14.8
+      wrong vs aux 12.8).
 - date: '2026-07-20'
   label: parked
   state: READY
@@ -208,43 +215,82 @@ sessions:
   label: HVAC fan-only speed 2 (no AC, charging)
   state: ready, charging
   notes: >
-    HVAC running FAN ONLY (no AC/compressor), blower speed 2, set temp 22C, ambient ~19.5C, interior ~29.5C.
-    Confirmed no AC: COMPRESSOR_RELAY=0, COOLING_MODE=0, PTC_HEATER=0. Reference state for decoding HVAC
-    fan/AC/mode bytes. Note: HVAC_FAN_SPEED_LEVEL decoded to 255 (implausible for speed 2 — mapping suspect).
+    HVAC running FAN ONLY (no AC/compressor), blower speed 2, set temp 22C, ambient
+    ~19.5C, interior ~29.5C. Confirmed no AC: COMPRESSOR_RELAY=0, COOLING_MODE=0,
+    PTC_HEATER=0. Reference state for decoding HVAC fan/AC/mode bytes. Note: HVAC_FAN_SPEED_LEVEL
+    decoded to 255 (implausible for speed 2 — mapping suspect).
   captures:
   - ecu: HVAC
     pid: '220100'
-    payload: 6201007E5007C8FF8B7781087149FFFF49FF11FFFFFFFFFFFFFFFFFF1FD7828200FFFF00FFFF000000
-    notes: "41B. Blower duty=0x71(113), interior 29.5C, AAT 19.5C, evaporator 24.5C, duct 25C."
+    payload: "6201007E5007C8FF8B7781087149FFFF49FF11FFFFFFFFFFFFFFFFFF1FD7828200FFFF00FFFF000000"
+    notes: "41B. Blower duty=0x71(113), interior 29.5C, AAT 19.5C, evaporator 24.5C,\
+      \ duct 25C."
   - ecu: HVAC
     pid: '220102'
     payload: 620102FF80000085840000000000001B00000000
-    notes: "20B. Heat-exchanger temps ~26C, compressor relay/load bytes."
+    notes: 20B. Heat-exchanger temps ~26C, compressor relay/load bytes.
   - ecu: HVAC
     pid: 2201A0
-    payload: 6201A05A0094636365878B8B7B7734060600000100004F28058F0B100D02F70B000A00FFFF161600FBFF9900941400000000000000000000FE0100000000
+    payload: "6201A05A0094636365878B8B7B7734060600000100004F28058F0B100D02F70B000A00FFFF161600FBFF9900941400000000000000000000FE0100000000"
     notes: "62B. Set temp 22C driver/pax, HVAC_ON=1, fan-only speed 2 state."
   - ecu: HVAC
     pid: 2201A1
-    payload: 6201A10000000000000100007800F50001009400FB0001000000000000007608410100010000000000001388170C01900000000000000036000005000000
-    notes: "62B. Undecoded HVAC sub-block."
+    payload: "6201A10000000000000100007800F50001009400FB0001000000000000007608410100010000000000001388170C01900000000000000036000005000000"
+    notes: 62B. Undecoded HVAC sub-block.
   - ecu: HVAC
     pid: 2201A2
-    payload: 6201A2000000000000010000000000009400FBFF99000A00E10013009F000700070014000018FFD8040003B600000A0008000000000000
-    notes: "55B. Undecoded HVAC sub-block."
+    payload: "6201A2000000000000010000000000009400FBFF99000A00E10013009F000700070014000018FFD8040003B600000A0008000000000000"
+    notes: 55B. Undecoded HVAC sub-block.
   - ecu: HVAC
     pid: 2201A3
-    payload: 6201A300FB00FEFFFFFFFF0000010B010706000000000000000000711149490000D71F0000000000000002BC02DA000000000000000000
-    notes: "55B. Undecoded HVAC sub-block (A3-A6 near-identical)."
+    payload: "6201A300FB00FEFFFFFFFF0000010B010706000000000000000000711149490000D71F0000000000000002BC02DA000000000000000000"
+    notes: 55B. Undecoded HVAC sub-block (A3-A6 near-identical).
   - ecu: HVAC
     pid: 2201A4
-    payload: 6201A400FB00FEFFFFFFFF0000010B010706000000000000000000711149490000D71F0000000000000002BC02DA000000000000000000
-    notes: "55B. Mirrors A3."
+    payload: "6201A400FB00FEFFFFFFFF0000010B010706000000000000000000711149490000D71F0000000000000002BC02DA000000000000000000"
+    notes: 55B. Mirrors A3.
   - ecu: HVAC
     pid: 2201A5
-    payload: 6201A500FB00FEFFFFFFFF0000010B010706000000000000000000711149490000D71F0000000000000002BC02DA000000000000000000
-    notes: "55B. Mirrors A3."
+    payload: "6201A500FB00FEFFFFFFFF0000010B010706000000000000000000711149490000D71F0000000000000002BC02DA000000000000000000"
+    notes: 55B. Mirrors A3.
   - ecu: HVAC
     pid: 2201A6
-    payload: 6201A600FB00FEFFFFFFFF0000010B010706000000000000000000711149490000D71F0000000000000002BC02DA000000000000000000
-    notes: "55B. Mirrors A3."
+    payload: "6201A600FB00FEFFFFFFFF0000010B010706000000000000000000711149490000D71F0000000000000002BC02DA000000000000000000"
+    notes: 55B. Mirrors A3.
+- date: '2026-07-20'
+  label: MCU/VCU parked reference (via --save)
+  state: ready, parked
+  notes: >
+    ~18C ambient; end-to-end test of --multi query --save
+  captures:
+  - ecu: MCU
+    pid: '2101'
+    payload: "6101000003FF083800C79A5D390000000A003D022B045E394900610056FF00000000"
+  - ecu: MCU
+    pid: '2102'
+    payload: "610207FFFFFF0000000000001C0009151717F7FFF6FF7DD6CDABC2CD6B0043FD3000C607F726F606C1CD0900B23100000000000000000000000000000000"
+  - ecu: MCU
+    pid: '2103'
+    payload: '610300000000000000000000000000000000000000000000000000'
+  - ecu: MCU
+    pid: 21F2
+    payload: "61F2FFFFFF3FF7FFF6FF7DD60900000000000000000028050000FD04CDABC2CD6B0043FD3000C6072E005200000012002A003000C1CD9578921C214548454C2D4D53320000"
+  - ecu: VCU
+    pid: '2101'
+    payload: 6101FFE000000921125B064A0300000000FB763406200000000000
+- date: '2026-07-20'
+  label: AAT/EPCU thermal (ACC2, charge just finished)
+  state: acc2
+  notes: >
+    ACC2 (was READY, switched to ACC2 during charging; charge finished 100% SoC). AC/heat off, ambient ~19.5C.
+    Decodes 0x7E6 2180: AMBIENT=(B18-80)/2=19.5C, HEATER_ELEMENT=S17/2=19C, HEATSINK=B20-40=42C (still warm
+    from OBC/inverter post-charge), COMPRESSOR=B21-40=19C. 2181 = richer variant (extra non-zero bytes).
+  captures:
+  - ecu: AAT
+    pid: 2180
+    payload: 6180C366C00022290000000000267700523B000098130096960000
+    notes: "27B. AMBIENT 19.5C, HEATER_ELEMENT 19C, HEATSINK 42C (warm post-charge), COMPRESSOR 19C (AC off)."
+  - ecu: AAT
+    pid: 2181
+    payload: 6181FFFFC0002229000000000026778F523B5A5A98130696960000
+    notes: "27B. Same layout as 2180 but extra non-zero bytes (B19=8F, B22/B23=5A, B24=06) — richer variant."
