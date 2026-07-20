@@ -208,65 +208,14 @@ sessions:
     pid: 22BC03
     payload: 62BC03FDEE3C730A000000AAAA
     time: "22:07:01"
-    decoded:
-      DOOR_DRV_OPEN: '0.0'
-      DOOR_PAS_OPEN: '0.0'
-      DOOR_RL_OPEN: '0.0'
-      DOOR_RR_OPEN: '0.0'
-      TRUNK_OPEN: '0.0'
-      DRL: '0.0'
-      TAIL_LIGHTS: '0.0'
-      HIGH_BEAM: '0.0'
-      LOW_BEAM: '0.0'
-      SECURITY_UNLOCKED: '0.0'
-      IGPM_CONFIG_BYTE: 115.0  (0x73 01110011)
-      SEATBELT_FL: '0.0'
-      SEATBELT_FR: '0.0'
-      B11_BIT3_UNKNOWN: '0.0'
-      DOOR_LOCK_RL: '1.0'
-      DOOR_LOCK_RR: '1.0'
   - ecu: IGPM
     pid: 22BC03
     payload: 62BC03FDEE3C7300002C00AAAA
     time: "22:07:14"
-    decoded:
-      DOOR_DRV_OPEN: '0.0'
-      DOOR_PAS_OPEN: '0.0'
-      DOOR_RL_OPEN: '0.0'
-      DOOR_RR_OPEN: '0.0'
-      TRUNK_OPEN: '0.0'
-      DRL: '1.0'
-      TAIL_LIGHTS: '1.0'
-      HIGH_BEAM: '0.0'
-      LOW_BEAM: '1.0'
-      SECURITY_UNLOCKED: '0.0'
-      IGPM_CONFIG_BYTE: 115.0  (0x73 01110011)
-      SEATBELT_FL: '0.0'
-      SEATBELT_FR: '0.0'
-      B11_BIT3_UNKNOWN: '0.0'
-      DOOR_LOCK_RL: '0.0'
-      DOOR_LOCK_RR: '0.0'
   - ecu: IGPM
     pid: 22BC03
     payload: 62BC03FDEE3C7300000000AAAA
     time: "22:07:28"
-    decoded:
-      DOOR_DRV_OPEN: '0.0'
-      DOOR_PAS_OPEN: '0.0'
-      DOOR_RL_OPEN: '0.0'
-      DOOR_RR_OPEN: '0.0'
-      TRUNK_OPEN: '0.0'
-      DRL: '0.0'
-      TAIL_LIGHTS: '0.0'
-      HIGH_BEAM: '0.0'
-      LOW_BEAM: '0.0'
-      SECURITY_UNLOCKED: '0.0'
-      IGPM_CONFIG_BYTE: 115.0  (0x73 01110011)
-      SEATBELT_FL: '0.0'
-      SEATBELT_FR: '0.0'
-      B11_BIT3_UNKNOWN: '0.0'
-      DOOR_LOCK_RL: '0.0'
-      DOOR_LOCK_RR: '0.0'
 - date: '2026-04-18'
   label: Keyfob unlock/lock/unlock/lock
   state: sleep
@@ -283,23 +232,14 @@ sessions:
     pid: 22BC04
     payload: 62BC04B53FF4EA0C000002AAAA
     time: "22:15:01"
-    decoded:
-      DOOR_LOCK_FL: '1.0'
-      DOOR_LOCK_FR: '1.0'
   - ecu: IGPM
     pid: 22BC04
     payload: 62BC04B53FF4EA00000042AAAA
     time: "22:15:13"
-    decoded:
-      DOOR_LOCK_FL: '0.0'
-      DOOR_LOCK_FR: '0.0'
   - ecu: IGPM
     pid: 22BC04
     payload: 62BC04B53FF4EA0C000042AAAA
     time: "22:15:25"
-    decoded:
-      DOOR_LOCK_FL: '1.0'
-      DOOR_LOCK_FR: '1.0'
   - ecu: IGPM
     pid: 22BC05
     payload: 62BC057F11200000000000AAAA

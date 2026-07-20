@@ -152,9 +152,14 @@ def build_raw_session(
     label: str,
     state: str,
     notes: str,
-    pids_data: dict | None = None,
+    pids_data: dict | None = None,  # noqa: ARG001 — kept for call-site compatibility
 ) -> dict:
-    """Build a capture session dict from a raw UDS response."""
+    """Build a capture session dict from a raw UDS response.
+
+    Decoded parameter values are intentionally NOT stored — they are derived
+    data, regenerated on demand from the payload + PID definitions (see
+    decode.py and query-captures.py).
+    """
     session: dict = {
         "date": datetime.now().strftime("%Y-%m-%d"),
         "label": label,
@@ -171,12 +176,6 @@ def build_raw_session(
 
     if response["ok"]:
         capture["payload"] = response["hex"].upper()
-
-        # Try to decode parameters
-        if pids_data:
-            decoded = _decode_payload(ecu_name, request, response["hex"], pids_data)
-            if decoded:
-                capture["decoded"] = decoded
     else:
         if response.get("nrc") is not None:
             capture["response"] = f"NRC 0x{response['nrc']:02X} ({response['nrc_desc']})"
@@ -266,13 +265,25 @@ def save_session(session: dict, captures_dir: Path = CAPTURES_DIR) -> Path:
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _decode_payload(ecu_name: str, pid: str, hex_payload: str, pids_data: dict) -> dict | None:
-    """Try to decode a payload using PID definitions. Returns decoded dict or None."""
+def _decode_payload(
+    ecu_name: str,
+    pid: str,
+    hex_payload: str,
+    pids_data: dict,
+    ecu_index: dict | None = None,
+) -> dict | None:
+    """Try to decode a payload using PID definitions. Returns decoded dict or None.
+
+    Decoded values are never persisted to capture files; this helper is used to
+    regenerate them on demand for display (see query-captures.py). Pass a
+    prebuilt ``ecu_index`` to avoid rebuilding it on every call.
+    """
     from .elm327 import elm_hex_to_wican_bytes
     from .expression import evaluate_expression
     from .pids import build_ecu_index
 
-    ecu_index = build_ecu_index(pids_data)
+    if ecu_index is None:
+        ecu_index = build_ecu_index(pids_data)
     ecu_key = ecu_name.upper()
     if ecu_key not in ecu_index:
         return None

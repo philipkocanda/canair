@@ -25,7 +25,10 @@ from pathlib import Path
 
 import yaml
 
+sys.path.insert(0, str(Path(__file__).parent))
+
 CAPTURES_DIR = Path(__file__).parent / "captures"
+PIDS_DIR = Path(__file__).parent / "pids"
 
 # ANSI color helpers
 _RED = "\033[91m"
@@ -38,6 +41,52 @@ _RESET = "\033[0m"
 
 
 # ---------------------------------------------------------------------------
+# On-the-fly decoding
+# ---------------------------------------------------------------------------
+#
+# Decoded parameter values are NOT stored in capture files (they are derived
+# data). We regenerate them on demand from the payload + PID definitions when
+# displaying previews. The PID index is built once and cached.
+
+_ecu_index = None
+_decode_fn = None
+
+
+def _decoded_preview(entry: dict) -> dict | None:
+    """Regenerate decoded parameter values for a capture entry, or None.
+
+    Lazily loads PID definitions on first use. Returns a dict of
+    ``param_name -> "value unit (formatted)"`` strings, matching the format
+    previously stored in the (now removed) ``decoded`` field.
+    """
+    global _ecu_index, _decode_fn
+
+    payload = entry.get("payload")
+    ecu = entry.get("ecu")
+    pid = entry.get("pid")
+    if not payload or not ecu or not pid:
+        return None
+
+    if _decode_fn is None:
+        try:
+            from canlib.captures import _decode_payload
+            from canlib.pids import build_ecu_index, load_pids
+
+            _decode_fn = _decode_payload
+            _ecu_index = build_ecu_index(load_pids(PIDS_DIR))
+        except Exception:
+            _decode_fn = False  # sentinel: decoding unavailable
+            return None
+    if _decode_fn is False:
+        return None
+
+    try:
+        return _decode_fn(ecu, str(pid), payload, {}, ecu_index=_ecu_index)
+    except Exception:
+        return None
+
+
+# ---------------------------------------------------------------------------
 # Loader
 # ---------------------------------------------------------------------------
 
@@ -46,7 +95,7 @@ def load_all_captures(captures_dir: Path = CAPTURES_DIR) -> list[dict]:
 
     Each entry is a dict with keys:
         file, date, label, state, ecu, pid, payload, response, scan_results,
-        notes, time, decoded
+        notes, time
     """
     entries = []
     for fpath in sorted(captures_dir.glob("*.yaml")):
@@ -73,7 +122,6 @@ def load_all_captures(captures_dir: Path = CAPTURES_DIR) -> list[dict]:
                     "scan_results": cap.get("scan_results"),
                     "notes": cap.get("notes", ""),
                     "time": cap.get("time", ""),
-                    "decoded": cap.get("decoded"),
                     "label": cap.get("label", ""),
                 }
                 entries.append(entry)
@@ -213,8 +261,9 @@ def cmd_latest(entries: list[dict], ecu_filter: str | None) -> None:
         trunc = payload[:80] + "..." if len(payload) > 80 else payload
         print(f"  {_CYAN}{ecu:<10}{_RESET} {pid:<10} {_DIM}{date}{state}{_RESET}")
         print(f"    {trunc}")
-        if e.get("decoded"):
-            for k, v in list(e["decoded"].items())[:5]:
+        decoded = _decoded_preview(e)
+        if decoded:
+            for k, v in list(decoded.items())[:5]:
                 print(f"    {_DIM}{k}: {v}{_RESET}")
     print()
 
@@ -258,8 +307,9 @@ def cmd_diff(entries: list[dict], ecu_filter: str, pid_filter: str) -> None:
             # Colorize changed bytes
             print(f"    {_diff_hex(prev_hex, payload)}")
 
-        if e.get("decoded"):
-            for k, v in list(e["decoded"].items())[:5]:
+        decoded = _decoded_preview(e)
+        if decoded:
+            for k, v in list(decoded.items())[:5]:
                 print(f"    {_DIM}{k}: {v}{_RESET}")
 
         prev_hex = payload
@@ -327,8 +377,9 @@ def _print_entry(e: dict, show_ecu: bool = False) -> None:
             print(f", {rejected}", end="")
         print()
 
-    if e.get("decoded"):
-        for k, v in list(e["decoded"].items())[:3]:
+    decoded = _decoded_preview(e)
+    if decoded:
+        for k, v in list(decoded.items())[:3]:
             print(f"    {_DIM}{k}: {v}{_RESET}")
 
     if e.get("notes"):

@@ -20,7 +20,10 @@
 #   notes:   Capture notes (string, may be empty "")
 #   label:   Short description of what was tested (recommended for experiments/scans)
 #   time:    Capture timestamp as HH:MM:SS (added by --save from monitor mode)
-#   decoded: Dict of decoded parameter values (added by --save, for correlation)
+#
+# NOTE: Decoded parameter values are NOT stored. They are derived data,
+#       regenerated on demand from `payload` + the PID definitions in pids/.
+#       Use decode.py or query-captures.py to view decoded values.
 #
 # ─── scan_results structure ──────────────────────────────────────────────
 #
@@ -35,3 +38,4 @@
 # ─── Deprecated fields (do NOT use in new captures) ─────────────────────
 #
 # ecu_tx, ecu_rx, ecu_name — replaced by ecu (short name from ecus.yaml)
+# decoded — no longer stored; decoded values are regenerated on demand
