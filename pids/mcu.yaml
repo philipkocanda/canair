@@ -48,6 +48,48 @@ MCU:
             park (live READY capture) and peaks ~6650 at 107 km/h; slightly negative during regen/rock-back.
             Old expr ((S7<<8)|B6) read B6/B7 (0xFF 0xFF) = -1 — wrong bytes.
 
+        MCU_MOTOR_TORQUE:
+          expression: "((S12*256)+B11)/10"
+          unit: Nm
+          ha_class: ""
+          min: "-300"
+          max: "300"
+          source: "ITStromer community PID sheet (Motor Torque Command / Estimated Torque)"
+          source_links: []
+          verified: false
+          notes: >
+            Motor torque. 2026-07-20: from the community sheet ((Signed(h)*256)+g = B12:B11). Reads 0 at park,
+            spans raw -510..1806 while driving; the community 'Torque Command' and 'Estimated Torque'
+            (B12:B11 and B14:B13) are IDENTICAL in all 309 of our captures, so only one value is exposed.
+            ÷10 inferred from physical range (raw/10 → -51..180 Nm; cruise ~15-44 Nm, hard accel ~180 Nm,
+            regen ~-51 Nm — all sensible; Ioniq peak ~295 Nm). CSV shows raw (no ÷); scale unconfirmed.
+
+        MCU_TEMP_1:
+          expression: "S20"
+          unit: "°C"
+          ha_class: temperature
+          min: "-40"
+          max: "150"
+          source: "ITStromer community PID sheet (temp?)"
+          verified: false
+          notes: >
+            Candidate motor/inverter temperature (community sheet 'temp?', Signed byte). 2026-07-20: reads
+            13°C at park (~ambient 18°C, cold-soaked), 10-22°C range — plausible but barely warmed on a short
+            cool drive. ISO-TP 0x10.
+
+        MCU_TEMP_2:
+          expression: "S21"
+          unit: "°C"
+          ha_class: temperature
+          min: "-40"
+          max: "150"
+          source: "ITStromer community PID sheet (temp?)"
+          verified: false
+          notes: >
+            Candidate motor/inverter temperature (community sheet 'temp?', Signed byte). 2026-07-20: 13°C at
+            park, 10-34°C range — warms more than MCU_TEMP_1 under load (likely inverter/IGBT vs motor).
+            ISO-TP 0x11. Needs a longer/warmer drive to confirm.
+
     2103:
       period: 0
       enabled: false

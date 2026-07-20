@@ -26,7 +26,50 @@ AAT:
           source: "Original WiCAN config"
           source_links: []
           verified: true
-          notes: ""
+          notes: >
+            Outside/ambient air temp. Cross-validated vs ITStromer community sheet known-temp rows:
+            10°C→9, 0°C→0.5, 14°C→14. ISO-TP 0x0E (Torque M).
+
+        HEATER_ELEMENT_TEMP:
+          expression: "S17/2"
+          unit: "°C"
+          ha_class: temperature
+          min: "-40"
+          max: "120"
+          source: "ITStromer community PID sheet (heating element = signed(l)/2)"
+          source_links: []
+          verified: false
+          notes: >
+            PTC/heater element temperature. 2026-07-20: from community sheet (signed(l)/2 = signed(B17)/2).
+            Tracks heat setting in the sheet's rows: 8°C (heat set 15.5°C) → 27°C (heat set 30°C); ~19°C with
+            heat off (≈ambient). Live ACC2 (heat off) = 19°C. ISO-TP 0x0D (Torque L).
+
+        HEATSINK_TEMP:
+          expression: "B20-40"
+          unit: "°C"
+          ha_class: temperature
+          min: "-40"
+          max: "150"
+          source: "ITStromer community PID sheet (VMCU heat sink = o-40)"
+          source_links: []
+          verified: false
+          notes: >
+            EPCU/power-electronics heat-sink temperature (0x7E6 appears to be an EPCU/climate thermal node,
+            not just ambient). 2026-07-20: from community sheet (o-40 = B20-40). Live ACC2 reading was 42°C
+            right after a charge finished — consistent with OBC/inverter warmth cooling down. ISO-TP 0x10.
+
+        COMPRESSOR_TEMP:
+          expression: "B21-40"
+          unit: "°C"
+          ha_class: temperature
+          min: "-40"
+          max: "120"
+          source: "ITStromer community PID sheet (compressor = p-40)"
+          source_links: []
+          verified: false
+          notes: >
+            A/C compressor temperature. 2026-07-20: from community sheet (p-40 = B21-40). Reads ≈ambient with
+            AC off (live ACC2 = 19°C). Needs an AC-on capture to confirm behaviour. ISO-TP 0x11.
     2181:
       period: 0
       enabled: false
@@ -38,4 +81,7 @@ AAT:
           source: "DID scan 2026-04-17"
           source_links: []
           verified: false
-          notes: "27 bytes, similar structure to 2180. Payload: 6181FFFFC0000229000000000024757E4339494986130798980000"
+          notes: >
+            27 bytes, same layout as 2180 but a richer variant (available in ACC2). 2026-07-20 live: identical
+            to 2180 for ambient (B18) and the temp bytes, but exposes extra non-zero bytes where 2180 has zeros
+            (B19, B22, B23, B24 populated). Likely additional temps/status. Payload: 6181FFFFC0002229000000000026778F523B5A5A981306969600 00
