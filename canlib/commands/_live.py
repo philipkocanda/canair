@@ -603,6 +603,8 @@ async def async_main(args):
                 label=args.label,
                 state=args.state,
                 notes=args.notes,
+                register=getattr(args, "register", False),
+                dry_run=getattr(args, "dry_run", False),
             )
         else:
             await mode_interactive(terminal, pids_data, args.verbose)
