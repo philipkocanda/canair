@@ -95,10 +95,10 @@ vs ready) — contrast is what lets you separate signal bytes from constants.
 ### 5. Inspect — see the bytes
 
 ```bash
-python3 query-captures.py --ecu MCU --pid 2102          # list captures + decoded
-python3 query-captures.py --diff MCU:2102               # unique payloads, byte-diff
-python3 query-captures.py --diff MCU:2102 --since 2026-07-19   # scope by date
-python3 query-captures.py --step MCU:2102               # interactive step-through
+python3 query-captures.py MCU 2102                      # list captures + decoded
+python3 query-captures.py MCU:2102 --diff               # unique payloads, byte-diff
+python3 query-captures.py MCU:2102 --diff --since 2026-07-19   # scope by date
+python3 query-captures.py MCU:2102 --step               # interactive step-through
 python3 bix.py -1 --annotate 6101FFFF...                # map each byte -> Bnn/ISO-TP/Torque/role
 ```
 

@@ -123,11 +123,11 @@ Phase 2 needs the car. Goal: confirm scales/meanings and fill the remaining gaps
 ## CLI commands inconsistencies
 
 ```sh
-./query-captures.py --ecu VCU --pid 2101
-./query-captures.py --diff VCU 2101
-
-# Above actually broken on local machine, but works on agent VM. Use this on Mac instead (we should streamline and document a setup/install process!):
-uv run ./query-captures.py --diff VCU 2101
+# query-captures.py now takes a positional QUERY (mini-language), consistent
+# with decode.py. --diff/--step are view modifiers on the query.
+uv run ./query-captures.py VCU 2101           # list captures
+uv run ./query-captures.py VCU 2101 --diff    # byte-diff view
+uv run ./query-captures.py "VCU:2101,2102" --step
 
 canreq --multi "query VCU" --monitor 2 --keep-unique --wican vpn --save
 canreq --multi "query MCU" "query VCU" "query LDC" --monitor 7 --keep-unique --save --wican vpn
