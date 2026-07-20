@@ -42,7 +42,7 @@ Dedicated TODOs for this project are located in "docs/TODO.md"
 │   ├── _schema.yaml                    # Schema documentation
 │   ├── bms.yaml, bcm.yaml, vcu.yaml... # One file per ECU
 ├── validate-pids.py                     # Schema validation for pids/ YAML files
-├── query-captures.py                    # Query captures: --ecu+--pid (combinable), --summary, --latest, --diff
+├── query-captures.py                    # Query captures: QUERY mini-language, --diff/--step, --summary, --latest
 ├── generate-profile.py                  # Generate JSON profiles, upload/download/diff against WiCAN device
 ├── canreq.py                            # CLI tool: custom CAN/UDS requests via WiCAN WebSocket terminal
 ├── decode.py                            # Decode captured payloads using PID expressions (historical analysis)
@@ -487,12 +487,13 @@ UDS response payloads are stored in `captures/` as per-date YAML files (e.g. `20
 
 **Querying captures:** After adding new captures, always run `query-captures.py` to check for patterns that weren't obvious during the live session (e.g. byte-level changes between states, new ECU/PID combinations, payload length differences).
 ```bash
-python3 query-captures.py --ecu IGPM --pid 22BC03   # ECU+PID combination (most useful)
+python3 query-captures.py IGPM 22BC03               # ECU+PID combination (most useful)
 python3 query-captures.py --summary                  # Overview stats: captures per ECU/date
-python3 query-captures.py --ecu BMS                  # All captures for an ECU
-python3 query-captures.py --pid 22BC03               # All captures for a PID (across ECUs)
+python3 query-captures.py BMS                        # All captures for an ECU
+python3 query-captures.py "BMS:2102,2103"            # Several PIDs (query mini-language)
 python3 query-captures.py --latest BMS               # Most recent payload per PID
-python3 query-captures.py --diff IGPM 22BC03         # Byte-level diff (red=changed, dim=unchanged)
+python3 query-captures.py IGPM 22BC03 --diff         # Byte-level diff (red=changed, dim=unchanged)
+python3 query-captures.py IGPM 22BC03 --step         # Interactively step through captures
 ```
 
 **Decoding captures:** `decode.py` applies PID expressions to captures and, by default, reports each parameter's value **range** across all captures (payload/byte views live in `query-captures.py`). It also tests candidate expressions (`--try`), and does statistics/correlation (`--stats`/`--corr`). Full decode workflow: the **reverse-engineer-pid** skill.

@@ -1,23 +1,26 @@
 #!/usr/bin/env python3
 """Query captured UDS payloads across all capture files.
 
-Modes:
-  --ecu ECU --pid PID   Captures for a specific ECU+PID combination (recommended)
-  --ecu ECU             All captures for an ECU
-  --pid PID             All captures for a PID (across all ECUs)
-  --summary             Overview: captures per ECU, per date, total payloads
-  --latest [ECU]        Most recent payload per PID (optionally filtered by ECU)
-  --diff QUERY          Monitor-style view (decoded params + colored byte-diff),
+A QUERY selects the ECU(s) and PID(s) to show (see the mini-language below).
+By default the matching captures are listed; add --diff or --step to change how
+they are rendered. --summary and --latest are standalone modes that take no
+QUERY.
+
+  QUERY                 List matching captures (default view)
+  QUERY --diff          Monitor-style view (decoded params + colored byte-diff),
                         one block per ECU+PID (unique payloads only; --all = all)
-  --step QUERY          Interactive: step through captures one at a time with
+  QUERY --step          Interactive: step through captures one at a time with
                         arrow keys, decoded params + byte-diff vs previous
                         capture; e adds/edits a note, d deletes a capture
+  --summary             Overview: captures per ECU, per date, total payloads
+  --latest [ECU]        Most recent payload per PID (optionally filtered by ECU)
 
 QUERY mini-language (see canlib/query.py):
+  ECU PID               one PID (bare ECU + PID)       e.g. BMS 2102
   ECU                   all PIDs for an ECU            e.g. VCU
   ECU:PID               one PID                        e.g. VCU:2101
   ECU:PID,PID           several PIDs                   e.g. VCU:2101,22BC03
-  ECU:PID ECU:PID       cross-ECU (space-separated)    e.g. "VCU:2101 BMS:2101"
+  "ECU:PID ECU:PID"     cross-ECU (quote the space)    e.g. "VCU:2101 BMS:2101"
   ECU:22                substring PID match (22xxxx)   e.g. BCM:22
 
 Date scoping (inclusive, YYYY-MM-DD; combines with any mode):
@@ -26,17 +29,20 @@ Date scoping (inclusive, YYYY-MM-DD; combines with any mode):
   --date DATE           captures on DATE only (--since DATE --until DATE)
 
 Examples:
-  python3 query-captures.py --ecu IGPM --pid 22BC03   # ECU+PID (most useful)
-  python3 query-captures.py --ecu BMS                 # All BMS captures
+  python3 query-captures.py BMS 2102                  # ECU + PID (most useful)
+  python3 query-captures.py BMS                       # All BMS captures
+  python3 query-captures.py "BMS:2102,2103"           # Several PIDs
+  python3 query-captures.py IGPM 22BC03 --diff        # Byte-diff for one ECU+PID
+  python3 query-captures.py "BMS:2102,2103" --diff    # Byte-diff, one block per PID
+  python3 query-captures.py BMS 2102 --step           # Step through one PID
+  python3 query-captures.py "BMS:2102,2103" --step    # Step two PIDs interleaved
+  python3 query-captures.py "VCU:2101 BMS:2101" --step  # Cross-ECU step-through
+  python3 query-captures.py --diff VCU:2101 --all     # One PID, every payload
   python3 query-captures.py --summary                 # Overview stats
   python3 query-captures.py --latest BMS              # Latest payload per BMS PID
-  python3 query-captures.py --diff VCU                # All VCU PIDs, one block each
-  python3 query-captures.py --diff VCU:2101 --all     # One PID, every payload
-  python3 query-captures.py --step VCU:2101,2102      # Step two PIDs interleaved
-  python3 query-captures.py --step "VCU:2101 BMS:2101"  # Cross-ECU step-through
   python3 query-captures.py --summary --since 2026-04-19            # Stats since a date
-  python3 query-captures.py --diff BMS:2101 --date 2026-04-19       # One day only
-  python3 query-captures.py --ecu VCU --since 2026-04-14 --until 2026-04-21  # Range
+  python3 query-captures.py BMS 2101 --diff --date 2026-04-19       # One day only
+  python3 query-captures.py VCU --since 2026-04-14 --until 2026-04-21  # Range
 """
 
 import argparse
@@ -263,64 +269,43 @@ def cmd_summary(entries: list[dict]) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Filter mode (--ecu, --pid, or both)
+# List mode (default view for a QUERY)
 # ---------------------------------------------------------------------------
 
-def cmd_filter(entries: list[dict], ecu: str | None = None, pid: str | None = None) -> None:
-    """Show captures filtered by ECU, PID, or both."""
-    filtered = entries
+def cmd_list(entries: list[dict], query) -> None:
+    """List captures matching ``query`` (canlib.query selection).
 
-    if ecu:
-        ecu_upper = ecu.upper()
-        filtered = [e for e in filtered if e["ecu"].upper() == ecu_upper]
-        if not filtered:
-            # Try partial match
-            filtered = [e for e in entries if ecu_upper in e["ecu"].upper()]
-        if not filtered:
-            print(f"  No captures found for ECU '{ecu}'.")
-            ecus = sorted(set(e["ecu"] for e in entries))
-            print(f"  Available: {', '.join(ecus)}")
-            return
+    The default view: unlike --diff/--step (payload-only), this lists *every*
+    matching entry — payloads, text responses and scan results alike — with
+    timestamps, state, notes and a decoded preview where a PID definition exists.
+    Selectors that matched nothing are reported (with the available ECUs).
+    """
+    from canlib.query import parse_query
 
-    if pid:
-        pid_upper = pid.upper()
-        filtered = [e for e in filtered if pid_upper in str(e["pid"]).upper()]
-        if not filtered:
-            print(f"  No captures found for PID '{pid}'" + (f" on ECU '{ecu}'" if ecu else "") + ".")
-            return
+    q = parse_query(query)
+    matched, empty = q.filter(
+        entries, ecu_of=lambda e: e["ecu"], pid_of=lambda e: str(e["pid"])
+    )
 
-    # Title
-    parts = []
-    if ecu:
-        parts.append(ecu)
-    if pid:
-        parts.append(f"PID {pid.upper()}")
-    title = " ".join(parts) if parts else "All"
+    if empty:
+        known = {e["ecu"].upper() for e in entries}
+        for sel in empty:
+            hint = ""
+            if not sel.pids and sel.ecu not in known and any(c.isdigit() for c in sel.ecu):
+                hint = "  (did you mean to attach it as a PID, e.g. ECU:PID?)"
+            print(f"  {_YELLOW}No captures matched selector '{sel}'{_RESET}{hint}")
+        print(f"  {_DIM}Available ECUs: {', '.join(sorted(known))}{_RESET}")
 
-    print(f"\n  {_BOLD}{title}{_RESET} — {len(filtered)} captures\n")
+    if not matched:
+        return
 
-    show_ecu = not ecu  # Show ECU column when not filtering by ECU
-    for e in filtered:
+    print(f"\n  {_BOLD}{q}{_RESET} — {len(matched)} captures\n")
+
+    # Show the ECU column only when the results span more than one ECU.
+    show_ecu = len({e["ecu"] for e in matched}) > 1
+    for e in matched:
         _print_entry(e, show_ecu=show_ecu)
     print()
-
-
-# ---------------------------------------------------------------------------
-# ECU mode (kept for backward compat, delegates to cmd_filter)
-# ---------------------------------------------------------------------------
-
-def cmd_ecu(entries: list[dict], ecu_filter: str) -> None:
-    """Show all captures for an ECU."""
-    cmd_filter(entries, ecu=ecu_filter)
-
-
-# ---------------------------------------------------------------------------
-# PID mode (kept for backward compat, delegates to cmd_filter)
-# ---------------------------------------------------------------------------
-
-def cmd_pid(entries: list[dict], pid_filter: str) -> None:
-    """Show all captures for a PID."""
-    cmd_filter(entries, pid=pid_filter)
 
 
 # ---------------------------------------------------------------------------
@@ -935,6 +920,21 @@ def _print_entry(e: dict, show_ecu: bool = False) -> None:
 # Main
 # ---------------------------------------------------------------------------
 
+def build_query(tokens: list[str]) -> str:
+    """Turn positional CLI tokens into a query string for ``canlib.query``.
+
+    Two bare tokens (neither containing ``:``) collapse to the decode.py-style
+    ``ECU PID`` form, i.e. ``ECU:PID`` — so ``BMS 2102`` becomes ``BMS:2102``.
+    Everything else is space-joined and handed to the mini-language unchanged, so
+    ``BMS:2102,2103`` and a quoted ``"VCU:2101 BMS:2101"`` pass straight through.
+    """
+    if not tokens:
+        return ""
+    if len(tokens) == 2 and ":" not in tokens[0] and ":" not in tokens[1]:
+        return f"{tokens[0]}:{tokens[1]}"
+    return " ".join(tokens)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Query captured UDS payloads.",
@@ -942,24 +942,29 @@ def main():
         epilog=__doc__,
     )
 
-    # --ecu and --pid can be used independently or together
-    parser.add_argument("--ecu", "-e", metavar="ECU", help="Filter by ECU name")
-    parser.add_argument("--pid", "-p", metavar="PID", help="Filter by PID/DID")
+    parser.add_argument(
+        "query", nargs="*", metavar="QUERY",
+        help="ECU/PID selection: 'BMS 2102', 'BMS:2102,2103', 'BMS' (all PIDs), "
+             "or a quoted cross-ECU query 'VCU:2101 BMS:2101'",
+    )
 
-    # These are mutually exclusive with each other (and with --ecu/--pid)
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument("--summary", "-s", action="store_true", help="Overview statistics")
-    group.add_argument(
+    # View modifiers for a QUERY (default is the list view).
+    view = parser.add_mutually_exclusive_group()
+    view.add_argument(
+        "--diff", "-d", action="store_true",
+        help="Monitor-style view (decoded params + colored byte-diff), one block per ECU+PID",
+    )
+    view.add_argument(
+        "--step", "-S", action="store_true",
+        help="Interactively step through matching captures (arrow keys; e=note, d=delete)",
+    )
+
+    # Standalone modes that take no QUERY.
+    standalone = parser.add_mutually_exclusive_group()
+    standalone.add_argument("--summary", "-s", action="store_true", help="Overview statistics")
+    standalone.add_argument(
         "--latest", "-l", nargs="?", const="", metavar="ECU",
         help="Latest payload per PID (optionally filtered by ECU)",
-    )
-    group.add_argument(
-        "--diff", "-d", nargs="+", metavar="QUERY",
-        help="Monitor-style view for a query (e.g. VCU  VCU:2101,2102  'VCU:2101 BMS:2101')",
-    )
-    group.add_argument(
-        "--step", "-S", nargs="+", metavar="QUERY",
-        help="Interactively step through captures matching a query (arrow keys; e=note, d=delete)",
     )
 
     parser.add_argument(
@@ -990,13 +995,21 @@ def main():
 
     args = parser.parse_args()
 
-    # Require at least one mode
-    if not any([args.ecu, args.pid, args.summary, args.latest is not None, args.diff, args.step]):
-        parser.error("at least one of --ecu, --pid, --summary, --latest, --diff, --step is required")
+    query = build_query(args.query)
+    standalone_mode = args.summary or args.latest is not None
 
-    # --summary/--latest/--diff/--step conflict with --ecu/--pid
-    if (args.summary or args.diff or args.step) and (args.ecu or args.pid):
-        parser.error("--summary, --diff and --step cannot be combined with --ecu/--pid")
+    # A QUERY and the standalone modes are mutually exclusive; --diff/--step are
+    # view modifiers that require a QUERY.
+    if standalone_mode:
+        if query:
+            parser.error("--summary/--latest do not take a QUERY argument")
+        if args.diff or args.step:
+            parser.error("--diff/--step cannot be combined with --summary/--latest")
+    elif not query:
+        parser.error(
+            "a QUERY is required (e.g. 'BMS 2102' or 'BMS:2102,2103'); "
+            "or use --summary / --latest"
+        )
 
     # Resolve date scoping (--date is shorthand for an equal since/until pair).
     if args.date and (args.since or args.until):
@@ -1026,14 +1039,14 @@ def main():
     try:
         if args.summary:
             cmd_summary(entries)
-        elif args.diff:
-            cmd_diff(entries, args.diff, show_all=args.all)
-        elif args.step:
-            cmd_step(entries, args.step, show_all=args.all, captures_dir=args.dir)
         elif args.latest is not None:
-            cmd_latest(entries, args.latest or args.ecu or None)
-        elif args.ecu or args.pid:
-            cmd_filter(entries, ecu=args.ecu, pid=args.pid)
+            cmd_latest(entries, args.latest or None)
+        elif args.diff:
+            cmd_diff(entries, query, show_all=args.all)
+        elif args.step:
+            cmd_step(entries, query, show_all=args.all, captures_dir=args.dir)
+        else:
+            cmd_list(entries, query)
     except QueryError as ex:
         parser.error(f"invalid query: {ex}")
 

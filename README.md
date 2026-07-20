@@ -85,15 +85,16 @@ The `research/` directory contains earlier CarScanner captures, reference spread
 The `query-captures.py` script searches across all saved UDS response captures (in `captures/`) and displays them with context — timestamps, vehicle state, notes, and decoded parameter values (computed on the fly from the PID definitions, not stored in the capture files) where those definitions exist.
 
 ```bash
-uv run query-captures.py --ecu BMS           # All captures for the BMS ECU
-uv run query-captures.py --ecu IGPM --pid 22BC03  # Specific ECU+PID (most useful)
-uv run query-captures.py --pid 2101          # All captures for a PID across ECUs
+uv run query-captures.py BMS                 # All captures for the BMS ECU
+uv run query-captures.py IGPM 22BC03         # Specific ECU+PID (most useful)
+uv run query-captures.py "BMS:2102,2103"     # Several PIDs (query mini-language)
 uv run query-captures.py --summary           # Overview: captures per ECU, per date
 uv run query-captures.py --latest BMS        # Most recent payload per BMS PID
-uv run query-captures.py --diff IGPM 22BC03  # Byte-level diff (highlights changed bytes)
+uv run query-captures.py IGPM 22BC03 --diff  # Byte-level diff (highlights changed bytes)
+uv run query-captures.py BMS 2102 --step     # Interactively step through captures
 ```
 
-**Example output** (`--ecu BMS` shows 38 captures across multiple dates):
+**Example output** (`query-captures.py BMS` shows 38 captures across multiple dates):
 
 ```
 BMS — 38 captures
