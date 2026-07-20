@@ -31,13 +31,6 @@ VCU:
           verified: true
           notes: "Signed 16-bit, divided by 100"
 
-        VEHICLE_SPEED_ALT:
-          expression: "[B19:B20]/100"
-          unit: km/h
-          ha_class: speed
-          verified: true
-          notes: "Alternative unsigned formula — same bytes, different sign handling"
-
         DEBUG_DRIVE_MODE_FLAGS:
           expression: "B10"
           unit: ""
