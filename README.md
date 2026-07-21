@@ -6,11 +6,17 @@ Originally this project was built for reverse engineering a 2017 Hyundai Ioniq A
 
 <img width="838" height="497" alt="Screenshot 2026-07-21 at 11 45 49" src="https://github.com/user-attachments/assets/7cab4e56-550a-4443-83dd-2f96bb5eedc7" />
 
-Example screenshot of analyzing/decoding a captured signal using `canair decode --plot`
+Example screenshot of analyzing/decoding a captured signal using `canair decode <query> --plot`
+
+
+<img width="952" height="254" alt="Screenshot 2026-07-21 at 11 49 19" src="https://github.com/user-attachments/assets/f44a53f9-3849-46ec-9934-ba5802ae0f27" />
+
+Example screenshot of stepping through captures one by one using `canair captures <query> --step`
+
 
 <img width="960" height="977" alt="Screenshot 2026-07-21 at 11 47 24" src="https://github.com/user-attachments/assets/791010b8-0f8d-44d5-8cfd-16c5e04a7305" />
 
-Example screenshot of viewing captures using `canair captures --diff` (also works in the live query view). Green/yellow represents PID verification state, changed bytes are highlighted between frames.
+Example screenshot of viewing capture diffs using `canair captures <query> --diff`. Green/yellow represents PID verification state, changed bytes are highlighted between frames. This byte diff view is the default then using `canair query` on a live vehicle.
 
 -----
 
@@ -149,7 +155,7 @@ BMS — 38 captures
   Notes: ECU name
 ```
 
-Captures are saved by `canair query --save` during scanning, raw queries, and monitor sessions. Use `canair captures` after collecting new data to spot patterns not obvious during the live session (byte-level changes between vehicle states, new ECU/PID combinations, payload length differences).
+Captures are saved by `canair query --save` during scanning, raw queries, and monitor sessions. You will be prompted to provide context on the scan when done. Use `canair captures` and `canair decode` after collecting new data to spot patterns not obvious during the live session (byte-level changes between vehicle states, new ECU/PID combinations, payload length differences).
 
 ## Generating WiCAN vehicle profile
 
