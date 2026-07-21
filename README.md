@@ -151,7 +151,7 @@ BMS — 38 captures
 
 Captures are saved by `canair query --save` during scanning, raw queries, and monitor sessions. Use `canair captures` after collecting new data to spot patterns not obvious during the live session (byte-level changes between vehicle states, new ECU/PID combinations, payload length differences).
 
-## Generating vehicle profiles
+## Generating WiCAN vehicle profile
 
 `canair wican` reads all PID definitions from the profile's `pids/*.yaml` and produces a WiCAN-compatible JSON vehicle profile. It can also upload directly to the device or diff against the currently loaded config.
 
