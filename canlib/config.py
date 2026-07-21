@@ -82,6 +82,30 @@ def ensure_config_dir(seed_config: bool = True) -> Path:
     return cfg_dir
 
 
+def set_config_value(key: str, value: str) -> Path:
+    """Set a top-level scalar ``key: value`` in the user config file.
+
+    Preserves the rest of the file (including comments): an existing
+    *uncommented* ``key:`` line is replaced, otherwise the pair is appended.
+    Returns the config file path and invalidates the cached config.
+    """
+    import re
+
+    ensure_config_dir()
+    path = user_config_file()
+    text = path.read_text() if path.exists() else ""
+    line = f"{key}: {value}"
+    if re.search(rf"^{re.escape(key)}:", text, re.MULTILINE):
+        text = re.sub(rf"^{re.escape(key)}:.*$", line, text, flags=re.MULTILINE)
+    else:
+        if text and not text.endswith("\n"):
+            text += "\n"
+        text += line + "\n"
+    path.write_text(text)
+    load_config.cache_clear()
+    return path
+
+
 def _read_yaml(path: Path) -> dict:
     if path.exists():
         with open(path) as f:

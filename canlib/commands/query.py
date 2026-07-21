@@ -9,6 +9,7 @@ is treated as a ``query`` step, so ``canair query BMS:2101`` and
 from __future__ import annotations
 
 import argparse
+import sys
 
 from canlib.commands._live import (
     add_connection_args,
@@ -84,5 +85,14 @@ def _to_step(selector: str) -> str:
 def run(args) -> int:
     if args.steps:
         args.multi = [_to_step(s) for s in args.steps]
+        # Validate the mini-language up front so ambiguous/malformed steps fail
+        # loudly *before* we acquire the device lock and open a connection.
+        from canlib.modes.multi import parse_sub_commands
+
+        try:
+            parse_sub_commands(args.multi)
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            return 2
     # else: --param / interactive fall through to async_main's dispatch
     return run_live(args)

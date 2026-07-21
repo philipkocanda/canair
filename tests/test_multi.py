@@ -113,6 +113,42 @@ class TestParseSubCommands:
         with pytest.raises(ValueError):
             parse_sub_commands(["query :2101"])
 
+    # --- space-vs-colon guard rail (a bare PID/DID in the ECU slot) ---
+
+    def test_query_space_form_pid_after_ecu_raises(self):
+        # "query IGPM 22BC07" is the classic mistake for "query IGPM:22BC07":
+        # the space makes 22BC07 an independent (bogus) ECU selector.
+        with pytest.raises(ValueError, match="looks like a PID/DID"):
+            parse_sub_commands(["query IGPM 22BC07"])
+
+    def test_query_space_form_suggests_colon_form(self):
+        with pytest.raises(ValueError, match=r"IGPM:22BC07"):
+            parse_sub_commands(["query IGPM 22BC07"])
+
+    def test_query_space_form_short_did_raises(self):
+        with pytest.raises(ValueError, match="looks like a PID/DID"):
+            parse_sub_commands(["query BCM C00B B00E"])
+
+    def test_query_lone_pid_raises(self):
+        with pytest.raises(ValueError, match="looks like a PID/DID"):
+            parse_sub_commands(["query 2101"])
+
+    def test_query_colon_form_ok(self):
+        # The correct form must still parse cleanly.
+        result = parse_sub_commands(["query IGPM:22BC07"])
+        assert result[0] == {"type": "query", "ecu": "IGPM", "pids": ["22BC07"]}
+
+    def test_query_two_alpha_ecus_not_flagged(self):
+        # Two real (alphabetic) ECU names are a legitimate cross-ECU query.
+        result = parse_sub_commands(["query VCU BMS"])
+        assert [(c["ecu"], c["pids"]) for c in result] == [("VCU", []), ("BMS", [])]
+
+    def test_query_hex_only_ecu_name_not_flagged(self):
+        # A bare hex-letters-only token (no digit) is not treated as a PID, so a
+        # hypothetical all-letter ECU name still works.
+        result = parse_sub_commands(["query BMS ABC"])
+        assert [(c["ecu"], c["pids"]) for c in result] == [("BMS", []), ("ABC", [])]
+
     def test_raw_basic(self):
         result = parse_sub_commands(["raw 770:22BC03"])
         assert result[0] == {"type": "raw", "spec": "770:22BC03", "hold": False}

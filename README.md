@@ -1,19 +1,32 @@
-# canair (formerly Ioniq-CAN)
+# canair
 
-**CAN bus reverse engineering toolkit for the 2017 Hyundai Ioniq Electric (28kWh)**
+**CLI for reverse engineering CAN/OBD diagnostics over-the-air using the WiCAN Pro**
 
-> [!WARNING]
-> Sending arbitrary UDS commands to a vehicle's ECUs can cause **permanent damage** — bricked modules, voided warranties, disabled safety systems, or unintended physical actuation (steering, braking, airbags). Never use UDS programming sessions (`1002`) or firmware write commands. Never run IOControl commands while driving. If you don't fully understand a command, don't send it. This toolkit is provided as-is with no safety guarantees. **You are responsible for anything you send to your car's CAN bus.**
+This project interfaces with a [WiCAN Pro](https://www.meatpi.com/products/wican-pro) OBD-II WiFi dongle to communicate with the vehicle's ECUs via diagnostic protocols (UDS and KWP2000). It comes with tools for discovering, decoding, analyzing and documenting the car's internal diagnostic data so it can be turned into a [WiCAN vehicle profile](https://meatpihq.github.io/wican-fw/config/automate/new_vehicle_profiles) or for general purpose sharing and documentation.
 
-> Work in progress — actively mapping ECUs, decoding parameters, and building tooling.
+Everything ships as a single installable CLI, **`canair`**. Vehicle data lives in a *profile* bundle; the repo ships `profiles/ioniq-2017/` as the default/example profile.
+Originally this project was built for reverse engineering a 2017 Hyundai Ioniq AE EV (28kWh), but it now supports multiple vehicle profiles and is no longer tied to a single vehicle.
 
-This project uses a [WiCAN Pro](https://www.meatpi.com/products/wican-pro) OBD-II WiFi dongle to communicate with the vehicle's ECUs via Unified Diagnostic Services (UDS) and Keyword Protocol 2000 (KWP2000). The goal is to decode and document the car's internal diagnostic data and publish it via MQTT to Home Assistant for remote monitoring and control (eventually).
+Some highlights of this project's features:
 
-Everything ships as a single installable CLI, **`canair`** (argparse subcommands). Vehicle data lives in a *profile* bundle; the repo ships `profiles/ioniq-2017/` as the default/example profile, so nothing is hardcoded to one car.
+<img width="838" height="497" alt="Screenshot 2026-07-21 at 11 45 49" src="https://github.com/user-attachments/assets/7cab4e56-550a-4443-83dd-2f96bb5eedc7" />
+
+Example screenshot of analyzing/decoding a captured signal using `canair decode <query> --plot`
+
+
+<img width="952" height="254" alt="Screenshot 2026-07-21 at 11 49 19" src="https://github.com/user-attachments/assets/f44a53f9-3849-46ec-9934-ba5802ae0f27" />
+
+Example screenshot of stepping through captures one by one using `canair captures <query> --step`
+
+<img width="3068" height="1072" alt="Screenshot 2026-07-21 at 11 59 42" src="https://github.com/user-attachments/assets/525affb7-836e-4f2d-9064-020858a4a268" />
+
+Example screenshot of viewing capture diffs using `canair captures <query> --diff`. Green/yellow represents PID verification state, changed bytes are highlighted between frames. This byte diff view is the default then using `canair query` on a live vehicle.
+
+-----
 
 ### What's in the box
 
-- 🔌 **`canair query`** — query ECUs live over WiFi: read battery stats, decode parameters, scan for unknown DIDs, and actuate hardware (lights, locks, horn, trunk) via IOControl (`canair scan`/`discover`/`io`/`routines`/`raw`)
+- 🔌 **`canair query`** — query ECUs live over WiFi or VPN: read battery stats, decode parameters, scan for unknown DIDs, and actuate hardware (lights, locks, horn, trunk) via IOControl (`canair scan`/`discover`/`io`/`routines`/`raw`)
 - 📦 **`canair wican`** — turn YAML PID definitions into a WiCAN vehicle profile and upload it to the device in one command
 - 🔬 **`canair decode`** — replay captured UDS payloads against PID definitions to validate expressions and spot anomalies
 - 🗂️ **`canair captures`** — search and diff historical captures across dates and vehicle states
@@ -99,6 +112,8 @@ All functionality is exposed as `canair <subcommand>`.
 
 A *profile* is a directory bundling one vehicle's data — `pids/`, `ecus.yaml`, `captures/`, and generated `out/`. The repo ships `profiles/ioniq-2017/` as the default/example profile. Inspect profiles with `canair profile list`, `canair profile show [NAME]`, and `canair profile path [NAME]`.
 
+Start a new vehicle from scratch with `canair profile create <name> --car-model "..."`, which scaffolds an empty bundle (`pids/_meta.yaml`, an empty `ecus.yaml`, `captures/`, `out/`) under `~/.config/canair/profiles/<name>` (or `--path DIR`). Add `--set-default` to make it the default. Validate the ECU registry any time with `canair validate ecus`.
+
 **Selection precedence** (first match wins): `--profile NAME|PATH` (global flag, before the subcommand) → `CANAIR_PROFILE` env var → `default_profile` in config → the single discovered profile (auto).
 
 **Discovery** searches, in order: `--profiles-dir`, `$CANAIR_PROFILES_DIR`, `profiles_dir` in config, `~/.config/canair/profiles/` (user, uncommitted), and the repo's bundled `profiles/`. User profiles shadow bundled ones by name. Local profiles live in `~/.config/canair/profiles/` and are **not** committed.
@@ -140,9 +155,9 @@ BMS — 38 captures
   Notes: ECU name
 ```
 
-Captures are saved by `canair query --save` during scanning, raw queries, and monitor sessions. Use `canair captures` after collecting new data to spot patterns not obvious during the live session (byte-level changes between vehicle states, new ECU/PID combinations, payload length differences).
+Captures are saved by `canair query --save` during scanning, raw queries, and monitor sessions. You will be prompted to provide context on the scan when done. Use `canair captures` and `canair decode` after collecting new data to spot patterns not obvious during the live session (byte-level changes between vehicle states, new ECU/PID combinations, payload length differences).
 
-## Generating vehicle profiles
+## Generating WiCAN vehicle profile
 
 `canair wican` reads all PID definitions from the profile's `pids/*.yaml` and produces a WiCAN-compatible JSON vehicle profile. It can also upload directly to the device or diff against the currently loaded config.
 
@@ -276,10 +291,10 @@ canair query BMS
 canair query BMS:2101
 
 # Live monitor — refresh every 5 seconds and highlight changes
-canair query "query BMS 2101" --monitor
+canair query BMS:2101 --monitor
 
 # Wake a sleeping ECU and query it
-canair query "session IGPM --wake" "query IGPM BC03 BC06"
+canair query "session IGPM --wake" "query IGPM:BC03,BC06"
 
 # IOControl — interactive TUI for actuators
 canair io IGPM
@@ -292,22 +307,61 @@ canair scan --tx 7E4 --service 22 --range BC00-BCFF
 # Discover all responding ECUs on the bus
 canair discover
 
+# Discover and auto-register new ECUs into ecus.yaml (--dry-run to preview)
+canair discover --register
+
 # Raw UDS request (hex in, hex out)
 canair raw 7E4:2101
 
 # Monitor + capture unique payloads, save on exit
-canair query "query BCM C00B" --monitor --keep-unique --save
+canair query BCM:C00B --monitor --keep-unique --save
 
 # Multi-ECU pipeline: wake SKM, query IGPM and BCM
-canair query "skm-wake acc" "query IGPM BC03" "query BCM C00B"
+canair query "skm-wake acc" "query IGPM:BC03" "query BCM:C00B"
 ```
 
 All commands support `--wican home|vpn|<ip>` to select the target device, `--json` for machine-readable output, and `--reboot` to restore AutoPID mode after a session.
 
+### Query mini-language
+
+`canair query` (and the capture/decode tools) select ECUs and PIDs with a small
+selection syntax. A **selector** is `ECU[:PIDLIST]`:
+
+| Selector | Meaning |
+|----------|---------|
+| `BMS` | all known PIDs for BMS |
+| `BMS:2101` | BMS PID `2101` only |
+| `IGPM:BC03,BC06` | two IGPM DIDs (comma-separated PID list) |
+| `VCU:2101 BMS:2101` | cross-ECU — a **space separates independent selectors** |
+
+> **Bind each PID to its ECU with a colon, never a space.** In a query a space
+> separates independent ECU selectors, so `IGPM 22BC07` means "all of IGPM **plus**
+> a (bogus) ECU named `22BC07`" — not IGPM's PID `22BC07`. Write `IGPM:22BC07`.
+> `canair query` rejects a bare PID/DID in the ECU slot with a hint to the colon form.
+
+`canair query` also accepts a **pipeline** of steps (each a quoted string), run in
+order over one session. A bare selector is shorthand for a `query` step, so
+`canair query BMS:2101` == `canair query "query BMS:2101"`. Step verbs:
+
+| Step | Purpose |
+|------|---------|
+| `query <SELECTORS>` | read ECU parameters/PIDs |
+| `session <ECU> [--wake]` | enter an extended diagnostic session |
+| `skm-wake [acc\|ign1\|ign2]` | wake the SKM and activate a relay |
+| `raw <TX:PID> [--hold]` | raw UDS request |
+| `scan <TX> <SVC> <RANGE>` | scan a PID range |
+| `iocontrol <ECU> <DID> [--off]` | InputOutputControl |
+| `security <ECU>` / `sleep <s>` / `repl` | security access / pause / drop into REPL |
+
+```bash
+# Pipeline: wake IGPM, then read two of its DIDs
+canair query "session IGPM --wake" "query IGPM:BC03,BC06"
+```
+
 ### Live monitoring of responses and auto-highlighting changes 
 
 ```
-canair query "query IGPM 22BC07" --monitor 2 --keep-unique
+canair query IGPM:22BC07 --monitor 2 --keep-unique
 ```
 
 <img width="1206" height="448" alt="image" src="https://github.com/user-attachments/assets/53e2d063-0aae-4089-903b-b2fa8a213c91" />

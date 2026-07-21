@@ -2,7 +2,7 @@
 
 - Captures:
   - [ ] ESC PIDs while driving
-  - [ ] VCU/MCU while driving (canreq --multi "query VCU 2101" "query MCU 2102" --monitor 1 --keep-all --save --wican vpn)
+  - [ ] VCU/MCU while driving (canair query "query VCU:2101" "query MCU:2102" --monitor 1 --keep-all --save --wican vpn)
   - [ ] More HVAC PIDs in various states
   - [ ] Drive-mode button (Eco/Normal/Sport) + regen paddle (0-3) toggle test while monitoring VCU 2101 (see "Drive mode + regen" section below)
 - Canreq:
@@ -74,7 +74,7 @@ Phase 2 needs the car. Goal: confirm scales/meanings and fill the remaining gaps
 (re-run `python3 pid-coverage.py MCU 2102` / `VCU 2102` to see current gaps).
 
 - [ ] **Capture** — dense, back-to-back, minimal skew, and long enough to **warm the inverter**:
-  `canreq --multi "query VCU 2101" "query VCU 2102" "query MCU 2102" --monitor 1 --keep-all --save --wican vpn`
+  `canair query "query VCU:2101" "query VCU:2102" "query MCU:2102" --monitor 1 --keep-all --save --wican vpn`
   Drive profile: hard launches, lift-off/regen, braking, a reverse segment, sustained cruise
   to heat components; plus one charging capture.
 - [ ] **MCU torque** — determine which of `[S12:S13]` / `[S14:S15]` is command vs estimated;

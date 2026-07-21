@@ -1,0 +1,71 @@
+# ECU Registry Schema
+# Validates ecus.yaml (the per-vehicle ECU address registry).
+# Run: canair validate ecus
+#
+# ecus.yaml has two top-level sections:
+#
+#   scan_log:              # optional — audit of which service/range combos were probed
+#     0xNNN:               # TX id (hex string key)
+#       - service: 0xNN
+#         range: "0000-FFFF"
+#         date: 2026-04-20
+#         hits: N
+#         probes: N
+#         state: str
+#         notes: str
+#
+#   ecus:                  # the registry, keyed by hex TX id (e.g. 0x770)
+#     0xNNN:
+#       name: IGPM         # required — canonical short name
+#       ...                # see optional_fields below
+#
+# The CAN response address is always RX = TX + 8; it is not stored.
+
+# Allowed top-level keys.
+top_level_fields:
+  - scan_log
+  - ecus
+
+# Per-ECU entry (under `ecus:`).
+required_fields:
+  - name
+
+optional_fields:
+  - alias          # secondary name the ECU self-identifies as (e.g. SMK for SKM)
+  - description    # human-readable module name
+  - part_number    # from F187/F188 (UDS) or 1A 8x (KWP2000)
+  - mfg_date       # manufacturing / calibration date
+  - hw_version
+  - sw_version
+  - hw_sw          # combined hardware/software id (some ECUs)
+  - boot_sw        # bootloader software version
+  - app_sw         # application software version
+  - fw_version
+  - firmware
+  - serial         # from F18C/F18B
+  - ecu_id         # from F110
+  - sw_id
+  - calibration
+  - supplier
+  - diag_address   # from F1A0
+  - vin            # from F190
+  - id_protocol    # how identity DIDs are read (see valid_id_protocols)
+  - notes
+
+# Accepted values for id_protocol.
+valid_id_protocols:
+  - UDS            # ISO 14229 — identity via 22 F1xx
+  - KWP2000        # ISO 14230 — identity via 1A 8x/9x
+  - none           # responds to session control but exposes no identity DIDs
+  - unknown        # not yet determined
+
+# scan_log entry fields (each entry under scan_log.<tx>).
+scan_log_entry_fields:
+  optional:
+    - service
+    - range
+    - date
+    - hits
+    - probes
+    - state
+    - notes
