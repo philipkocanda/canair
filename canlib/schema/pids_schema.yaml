@@ -32,6 +32,9 @@
 # _meta.yaml must have:
 #   car_model: str
 #   init: str              # AT command init string
+# _meta.yaml may also have (optional):
+#   response_timeout_ms: int   # ELM ATST response timeout in ms (--elm-timeout overrides)
+#   multi_did_batching: bool   # profile default for per-ECU service-22 multi-DID batching
 
 required_ecu_fields:
   - tx_id
@@ -41,6 +44,7 @@ optional_ecu_fields:
   - availability    # ECU-level: when the ECU responds to session control (10 01)
   - session
   - identity
+  - multi_did       # bool: attempt UDS service-22 multi-DID batching on this ECU
   - iocontrol       # IOControl (service 2F) commands — see iocontrol_fields below
   - iocontrol_discoveries  # Raw 0x2F SF 00 scanner output — see iocontrol_discoveries_fields
   - research        # Untested/undecoded PIDs and scan TODOs — see research_fields below

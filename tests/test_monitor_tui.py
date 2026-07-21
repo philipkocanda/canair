@@ -20,6 +20,8 @@ class FakeController:
         self.cycle = 0
         self.elapsed = 0.0
         self.interval = 0.05
+        self.last_cmds = 0
+        self.last_elm_time = 0.0
         self.keep_mode = keep_mode
         self.disconnected = False
         self._n_lines = n_lines
@@ -28,6 +30,8 @@ class FakeController:
     async def poll_once(self):
         self.cycle += 1
         self.elapsed = 0.01
+        self.last_cmds = 3
+        self.last_elm_time = 0.02
         if self._disconnect_after and self.cycle >= self._disconnect_after:
             self.disconnected = True
 

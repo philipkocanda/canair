@@ -42,6 +42,17 @@ class WiCANTerminal:
         self._buffer = ""
         self.elm_timeout_cmd = "ATST96"  # current ELM327 timeout command
         self._cmd_lock = asyncio.Lock()  # serialize all ELM327 commands
+        # Lightweight instrumentation: total ELM commands sent and time spent
+        # waiting on them. Callers (e.g. the monitor) snapshot these to report
+        # per-cycle command counts / ELM latency.
+        self.cmd_count = 0
+        self.cmd_time = 0.0
+        # Cached ELM header state so repeated set_header() for the same ECU is a
+        # no-op (headers only change on ECU switch). Kept coherent for any caller
+        # by inspecting commands in _send_command_locked (ATSH/ATFCSH set it,
+        # ATZ/ATD/ATWS reset it).
+        self._cur_header: int | None = None
+        self._cur_fc_header: int | None = None
 
     async def connect(self):
         """Connect to WiCAN and enter ELM327 terminal mode."""
@@ -49,6 +60,8 @@ class WiCANTerminal:
             print(f"  [ws] Connecting to {self.url}...", file=sys.stderr)
 
         self.ws = await websockets.connect(self.url, ping_interval=None)
+        self._cur_header = None
+        self._cur_fc_header = None
 
         mode_msg = json.dumps({"ws_mode": "terminal", "terminal_type": "elm327"})
         await self.ws.send(mode_msg)
@@ -139,7 +152,10 @@ class WiCANTerminal:
     async def _send_command_locked(self, cmd: str, timeout: float) -> str:
         """Send command while holding the lock (internal)."""
         log_command(cmd)
+        self._track_header(cmd)
 
+        self.cmd_count += 1
+        _t0 = time.monotonic()
         await self.ws.send(cmd + "\r")
         if self.verbose:
             print(f"  [ws] Sent: {cmd!r}", file=sys.stderr)
@@ -220,6 +236,7 @@ class WiCANTerminal:
 
         result = raw.strip()
         log_response(cmd, result)
+        self.cmd_time += time.monotonic() - _t0
         return result
 
     async def init_elm(self, init_string: str = "ATSP6;ATS0;ATAL;ATST96;"):
@@ -236,16 +253,47 @@ class WiCANTerminal:
             if self.verbose:
                 print(f"  [init] {cmd} -> {resp!r}", file=sys.stderr)
 
-    async def set_header(self, tx_id: int):
-        """Set the ELM327 header (target ECU TX ID)."""
-        hex_id = f"{tx_id:03X}"
-        resp = await self.send_command(f"ATSH{hex_id}")
-        if self.verbose:
-            print(f"  [header] ATSH{hex_id} -> {resp!r}", file=sys.stderr)
+    def _track_header(self, cmd: str) -> None:
+        """Keep the cached ELM header state coherent with a command being sent.
 
-        resp = await self.send_command(f"ATFCSH{hex_id}")
-        if self.verbose:
-            print(f"  [header] ATFCSH{hex_id} -> {resp!r}", file=sys.stderr)
+        ATSH/ATFCSH set the (flow-control) header; ATZ/ATWS/ATD reset ELM
+        defaults (clearing the header). A malformed header sets the cache to
+        None so the next set_header() re-sends. This runs for *every* command,
+        so direct sends (e.g. skm_wakeup) can't desync the cache.
+        """
+        cu = cmd.upper().replace(" ", "")
+
+        def _hx(s: str) -> int | None:
+            try:
+                return int(s, 16)
+            except ValueError:
+                return None
+
+        if cu.startswith("ATFCSH"):
+            self._cur_fc_header = _hx(cu[6:])
+        elif cu.startswith("ATSH"):
+            self._cur_header = _hx(cu[4:])
+        elif cu in ("ATZ", "ATWS", "ATD"):
+            self._cur_header = None
+            self._cur_fc_header = None
+
+    async def set_header(self, tx_id: int):
+        """Set the ELM327 header (target ECU TX ID).
+
+        Cached: the ATSH/ATFCSH pair is skipped when the header is already set
+        to ``tx_id``, so polling many PIDs on one ECU (or re-selecting the same
+        ECU across cycles) costs zero header round-trips after the first.
+        """
+        hex_id = f"{tx_id:03X}"
+        if self._cur_header != tx_id:
+            resp = await self.send_command(f"ATSH{hex_id}")
+            if self.verbose:
+                print(f"  [header] ATSH{hex_id} -> {resp!r}", file=sys.stderr)
+
+        if self._cur_fc_header != tx_id:
+            resp = await self.send_command(f"ATFCSH{hex_id}")
+            if self.verbose:
+                print(f"  [header] ATFCSH{hex_id} -> {resp!r}", file=sys.stderr)
 
     async def send_uds(
         self,

@@ -262,10 +262,13 @@ class MonitorController:
 
         self.sm = SessionManager(terminal, verbose=verbose)
         self._ecu_index: dict | None = None
+        self._batch_state = None  # multi.BatchState, created in setup()
 
         # Live state (read by the renderer).
         self.cycle = 0
         self.elapsed = 0.0
+        self.last_cmds = 0  # ELM commands issued during the last poll cycle
+        self.last_elm_time = 0.0  # seconds spent in ELM commands last cycle
         self.last_queries: list[tuple[str, list]] = []
         self.prev_hex: dict[tuple[str, str], str] = {}
         self.hex_history: dict[tuple[str, str], list[tuple[str, str]]] | None = (
@@ -279,9 +282,10 @@ class MonitorController:
     async def setup(self, session_steps: list[dict] | None) -> None:
         """Build the ECU index, run one-shot session setup, start keepalives."""
         from ..pids import build_ecu_index
-        from .multi import _exec_session, _exec_skm_wake
+        from .multi import BatchState, _exec_session, _exec_skm_wake
 
         self._ecu_index = build_ecu_index(self.pids_data)
+        self._batch_state = BatchState()
         for step in session_steps or []:
             stype = step["type"]
             if stype == "skm-wake":
@@ -333,6 +337,8 @@ class MonitorController:
 
         self.cycle += 1
         t0 = time.monotonic()
+        cmds0 = self.terminal.cmd_count
+        elm0 = self.terminal.cmd_time
         new_queries: list[tuple[str, list]] = []
         for step in self.query_steps:
             try:
@@ -345,6 +351,7 @@ class MonitorController:
                     self.verbose,
                     return_results=True,
                     quiet=True,
+                    batch_state=self._batch_state,
                 )
             except ConnectionError:
                 self.disconnected = True
@@ -353,6 +360,8 @@ class MonitorController:
                 new_queries.append(result)
         self.last_queries = new_queries
         self.elapsed = time.monotonic() - t0
+        self.last_cmds = self.terminal.cmd_count - cmds0
+        self.last_elm_time = self.terminal.cmd_time - elm0
         self._record(new_queries)
 
     def render(self) -> Text:

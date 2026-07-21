@@ -127,7 +127,8 @@ class MonitorApp(App):
         paused = " · [reverse] PAUSED [/]" if self.paused else ""
         status.update(
             f"[dim]cycle[/] {c.cycle} [dim]· every[/] {c.interval:.1f}[dim]s · last[/] "
-            f"{c.elapsed:.1f}[dim]s ·[/] {follow}{paused}"
+            f"{c.elapsed:.1f}[dim]s ·[/] {c.last_cmds}[dim] cmds/[/]{c.last_elm_time:.1f}[dim]s ELM ·[/] "
+            f"{follow}{paused}"
             "    [dim]↑↓/jk PgUp/PgDn g/G · f follow · space pause · q quit[/]"
         )
 

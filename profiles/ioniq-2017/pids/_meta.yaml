@@ -4,3 +4,11 @@
 
 car_model: "Hyundai: Ioniq2017"
 init: "ATSP6;ATS0;ATAL;ATST96;"
+
+# ELM327 response timeout in ms (applied as ATSTxx after init; --elm-timeout
+# overrides). The Ioniq 2017 responds slowly, so keep this high. ~614ms == ATST96.
+response_timeout_ms: 614
+
+# Enable UDS service-22 multi-DID batching per ECU (see each ECU file's
+# `multi_did:` flag). Batching is only attempted for ECUs opted in; any ECU that
+# rejects it (NRC 0x13) auto-falls back to single-DID reads for the session.
