@@ -16,10 +16,10 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         description="Probe returnControlToECU (SF 0x00) across a DID range on one or more ECUs. "
         "Hits are written to pids/<ecu>.yaml under an iocontrol_discoveries: section.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="examples:\n  canair iocontrol-scan\n  canair iocontrol-scan IGPM BCM --did-range B000-BFFF\n",
+        epilog="examples:\n  canair iocontrol-scan IGPM\n  canair iocontrol-scan IGPM BCM --did-range B000-BFFF\n",
     )
     parser.add_argument(
-        "iocontrol_scan", nargs="*", metavar="ECU", help="ECUs to scan (default: IGPM BCM HVAC PSM)"
+        "iocontrol_scan", nargs="+", metavar="ECU", help="ECUs to scan (at least one required)"
     ).completer = ecu_completer
     parser.add_argument(
         "--did-range", metavar="START-END", default=None, help="DID range (per-ECU defaults if omitted)"

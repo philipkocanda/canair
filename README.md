@@ -407,6 +407,40 @@ canair completion --install
 
 The WiCAN Pro must be powered on and connected to your WiFi network (or you connect to its AP). Device addresses are configured in `~/.config/canair/config.yaml` (a legacy repo-root `config.yaml` is still read for back-compat) — the `--wican` flag selects which address to use (e.g. `--wican home`, `--wican vpn`, or `--wican 192.168.80.1`). Without a config file, tools default to `192.168.80.1` (WiCAN's built-in AP).
 
+## How it all connects
+
+At a high level, `canair` never talks CAN directly — it drives the WiCAN Pro's
+**ELM327 emulation** over a WebSocket, and the dongle translates each request onto
+the vehicle bus:
+
+```mermaid
+flowchart LR
+    subgraph host["Your computer"]
+        cli["canair CLI"]
+        defs["Profile PID/DID defs<br/>+ captures"]
+    end
+
+    subgraph wican["WiCAN Pro dongle"]
+        ws["WebSocket terminal<br/>ws://HOST/ws"]
+        elm["ELM327 emulation"]
+    end
+
+    subgraph car["Vehicle (OBD-II port)"]
+        bus["CAN bus"]
+        ecus["ECUs<br/>BMS · VCU · MCU · IGPM · BCM …"]
+    end
+
+    cli <-->|"ELM327 AT + UDS/KWP2000 hex<br/>(JSON over WebSocket)"| ws
+    ws <--> elm
+    elm <-->|"ISO-TP / CAN frames"| bus
+    bus <--> ecus
+    defs -.->|"decode responses"| cli
+```
+
+1. `canair` opens `ws://HOST/ws` and sends `{"ws_mode": "terminal", "terminal_type": "elm327"}` to switch the dongle into **ELM327 terminal mode**.
+2. It streams ELM327 `AT` commands plus UDS/KWP2000 request hex; WiCAN's ELM327 emulation packs them into **ISO-TP** frames on the **CAN bus**.
+3. ECU responses return the same path as `term_out` messages, which `canair` parses and decodes into named parameters using the active profile's PID/DID definitions.
+
 ## License
 
 Public domain — see [LICENSE](LICENSE) (Unlicense).
