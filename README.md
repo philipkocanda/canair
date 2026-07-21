@@ -409,20 +409,29 @@ The WiCAN Pro must be powered on and connected to your WiFi network (or you conn
 
 ## How it all connects
 
-At a high level, `canair` never talks CAN directly — it drives the WiCAN Pro's
-**ELM327 emulation** over a WebSocket, and the dongle translates each request onto
-the vehicle bus:
+`canair` never talks CAN directly — it reaches the vehicle bus through the WiCAN
+dongle via one of two **explicitly-selected transports** (config `transport:`
+block or `--transport`; the device runs one protocol at a time — check with
+`canair status`, switch with `canair wican --set-protocol …`, never automatic):
+
+- **`wican-ws`** (default) — the WiCAN Pro's **ELM327 emulation** over a
+  WebSocket. The *dongle* performs ISO-TP (multi-frame reassembly). Works in any
+  device `protocol`.
+- **`slcan-tcp`** — a raw **SLCAN** frame stream over TCP (classic WiCAN or any
+  gateway; requires the device in `slcan` mode). *canair* performs ISO-TP + UDS
+  itself, with request **pipelining** across ECUs and multi-DID batching.
 
 ```mermaid
 flowchart LR
-    subgraph host["Your computer"]
-        cli["canair CLI"]
+    subgraph host["Your computer — canair"]
+        cli["canair CLI<br/>transport: wican-ws | slcan-tcp"]
         defs["Profile PID/DID defs<br/>+ captures"]
+        isotp["client-side ISO-TP + UDS<br/>(pipelined; slcan-tcp only)"]
     end
 
-    subgraph wican["WiCAN Pro dongle"]
-        ws["WebSocket terminal<br/>ws://HOST/ws"]
-        elm["ELM327 emulation"]
+    subgraph wican["WiCAN dongle — one protocol at a time"]
+        ws["ELM327 WebSocket terminal<br/>ws://HOST/ws"]
+        slcan["SLCAN socket<br/>tcp://HOST:PORT"]
     end
 
     subgraph car["Vehicle (OBD-II port)"]
@@ -430,16 +439,26 @@ flowchart LR
         ecus["ECUs<br/>BMS · VCU · MCU · IGPM · BCM …"]
     end
 
-    cli <-->|"ELM327 AT + UDS/KWP2000 hex<br/>(JSON over WebSocket)"| ws
-    ws <--> elm
-    elm <-->|"ISO-TP / CAN frames"| bus
+    cli -->|"wican-ws:<br/>ELM327 AT + UDS/KWP2000 hex"| ws
+    cli --> isotp
+    isotp <-->|"slcan-tcp:<br/>raw CAN frames"| slcan
+    ws <-->|"dongle does ISO-TP"| bus
+    slcan <--> bus
     bus <--> ecus
     defs -.->|"decode responses"| cli
 ```
 
-1. `canair` opens `ws://HOST/ws` and sends `{"ws_mode": "terminal", "terminal_type": "elm327"}` to switch the dongle into **ELM327 terminal mode**.
-2. It streams ELM327 `AT` commands plus UDS/KWP2000 request hex; WiCAN's ELM327 emulation packs them into **ISO-TP** frames on the **CAN bus**.
-3. ECU responses return the same path as `term_out` messages, which `canair` parses and decodes into named parameters using the active profile's PID/DID definitions.
+**`wican-ws` path:** `canair` opens `ws://HOST/ws`, switches the dongle into
+ELM327 terminal mode, and streams ELM327 `AT` commands + UDS/KWP2000 request hex;
+the dongle packs them into ISO-TP frames on the CAN bus and returns responses the
+same way.
+
+**`slcan-tcp` path:** `canair` opens the SLCAN TCP socket and exchanges *raw* CAN
+frames, running its own ISO-TP stack per ECU (`python-can` + `can-isotp`) so it
+can pipeline requests across ECUs.
+
+Either way, ECU responses are parsed and decoded into named parameters using the
+active profile's PID/DID definitions.
 
 ## License
 
