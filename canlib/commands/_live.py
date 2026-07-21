@@ -372,6 +372,16 @@ async def async_main(args):
             terminal.elm_timeout_cmd = atst_cmd
             actual_ms = atst_val * 4.096
             print(f"  ELM327 timeout: {atst_cmd} ({actual_ms:.0f}ms)")
+        elif pids_data.get("response_timeout_ms") is not None:
+            # Per-profile ELM response timeout (ECUs vary: the Ioniq 2017 is slow
+            # and needs a high value; faster vehicles can lower it to speed up
+            # cycles / NO-DATA detection). --elm-timeout overrides this.
+            atst_val = max(1, min(255, round(pids_data["response_timeout_ms"] / 4.096)))
+            atst_cmd = f"ATST{atst_val:02X}"
+            await terminal.send_command(atst_cmd)
+            terminal.elm_timeout_cmd = atst_cmd
+            actual_ms = atst_val * 4.096
+            print(f"  ELM327 timeout: {atst_cmd} ({actual_ms:.0f}ms, from profile)")
 
         print("Ready.")
         _print_sleep_banner(host)
@@ -568,7 +578,7 @@ async def async_main(args):
                     verbose=args.verbose,
                 )
         elif args.routines_scan is not None:
-            ecus = args.routines_scan if args.routines_scan else ["IGPM", "BCM", "HVAC"]
+            ecus = args.routines_scan
             rid_range = parse_range(args.rid_range)
             await mode_routines_scan(
                 terminal,
@@ -580,7 +590,7 @@ async def async_main(args):
                 write_yaml=True,
             )
         elif args.iocontrol_scan is not None:
-            ecus = args.iocontrol_scan if args.iocontrol_scan else ["IGPM", "BCM", "HVAC", "PSM"]
+            ecus = args.iocontrol_scan
             did_range = parse_range(args.did_range) if args.did_range else None
             await mode_iocontrol_scan(
                 terminal,

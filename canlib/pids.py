@@ -157,10 +157,15 @@ def build_routines_index(pids_data: dict) -> dict:
 def build_ecu_index(pids_data: dict) -> dict:
     """Build lookup: ECU_NAME -> {tx_id, pids: {PID: {parameters: ...}}}."""
     index = {}
+    default_batch = bool(pids_data.get("multi_did_batching", False))
     for ecu_name, ecu_def in pids_data.get("ecus", {}).items():
         index[ecu_name.upper()] = {
             "tx_id": ecu_def["tx_id"],
             "pids": {},
+            # UDS service-22 multi-DID batching: per-ECU flag, defaulting to the
+            # profile-wide setting. Only ECUs that opt in are batched (and even
+            # then it auto-falls back if the ECU rejects a multi-DID request).
+            "multi_did": bool(ecu_def.get("multi_did", default_batch)),
         }
         for pid_code, pid_def in ecu_def.get("pids", {}).items():
             if pid_def.get("ignored", False):

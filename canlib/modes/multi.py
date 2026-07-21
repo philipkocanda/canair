@@ -42,6 +42,89 @@ from ..session_manager import SessionManager
 from ..terminal import WiCANTerminal
 
 
+class BatchState:
+    """Per-session UDS service-22 multi-DID batching state.
+
+    Multi-DID support is per-ECU (some Hyundai ECUs answer ``22 D1 D2`` with
+    ``62 D1 <data> D2 <data>``; others reject it with NRC 0x13). We learn each
+    DID's data length from its first single read, batch once all target DIDs
+    have known lengths, and permanently disable batching for an ECU that ever
+    rejects it (or whose response fails to split) for the rest of the session.
+    """
+
+    def __init__(self):
+        self.lengths: dict[tuple[int, str], int] = {}  # (tx_id, DID4) -> data bytes
+        self.disabled: set[int] = set()  # tx_ids that don't support batching
+
+    def learn(self, tx_id: int, did4: str, resp_hex: str) -> None:
+        """Record a DID's data length from a single-DID ``62 DID <data>`` response."""
+        dlen = _did_data_len(resp_hex, did4)
+        if dlen is not None:
+            self.lengths[(tx_id, did4.upper())] = dlen
+
+
+def _strip_trailing_padding(data: bytes, pad: int = 0xAA) -> bytes:
+    """Drop trailing ISO-TP padding bytes (Hyundai pads with 0xAA)."""
+    i = len(data)
+    while i > 0 and data[i - 1] == pad:
+        i -= 1
+    return data[:i]
+
+
+def _did_data_len(resp_hex: str, did4: str) -> int | None:
+    """Length (bytes) of a single-DID response's data, padding stripped.
+
+    ``resp_hex`` is a ``62 <DID> <data> [AA…]`` positive response. Returns the
+    number of data bytes after the 2-byte DID, or None if it doesn't parse.
+    """
+    try:
+        b = bytes.fromhex(resp_hex)
+        did = bytes.fromhex(did4)
+    except ValueError:
+        return None
+    if len(b) < 3 or b[0] != 0x62 or b[1:3] != did:
+        return None
+    return len(_strip_trailing_padding(b[3:]))
+
+
+def split_multi_did(resp_hex: str, dids_lengths: list[tuple[str, int]]) -> dict[str, str] | None:
+    """Split a ``62`` multi-DID response into per-DID single-style responses.
+
+    Args:
+        resp_hex: reassembled UDS payload, ``62 D1 <data1> D2 <data2> … [AA…]``.
+        dids_lengths: ordered ``(DID4, data_len_bytes)`` as requested.
+
+    Returns ``{DID4: "62"+DID+data hex}`` (each looking like a normal single-DID
+    response so existing decoders work unchanged), or ``None`` if the response
+    doesn't match the expected DIDs/lengths (→ caller falls back to per-DID).
+    """
+    try:
+        b = bytes.fromhex(resp_hex)
+    except ValueError:
+        return None
+    if not b or b[0] != 0x62:
+        return None
+    pos = 1
+    out: dict[str, str] = {}
+    for did4, dlen in dids_lengths:
+        try:
+            did = bytes.fromhex(did4)
+        except ValueError:
+            return None
+        if b[pos : pos + 2] != did or len(did) != 2:
+            return None
+        pos += 2
+        data = b[pos : pos + dlen]
+        if len(data) != dlen:
+            return None
+        pos += dlen
+        out[did4.upper()] = (b"\x62" + did + data).hex().upper()
+    # Anything left over must be padding only.
+    if any(x != 0xAA for x in b[pos:]):
+        return None
+    return out
+
+
 def resolve_tx_id(name_or_hex: str, ecu_index: dict) -> int | None:
     """Resolve an ECU name or hex TX ID to an integer.
 
@@ -228,6 +311,130 @@ async def _exec_session(sm: SessionManager, target: str, wake: bool, ecu_index: 
     return await sm.open_session(tx_id, wake=wake)
 
 
+def _is_did22(pid_code: str) -> bool:
+    """True for a full 6-char service-22 DID request like ``22BC03``."""
+    return len(pid_code) == 6 and pid_code[:2] == "22"
+
+
+def _decode_pid_result(pid_code, pid_info, unmapped, hex_str, bytes_val, acquired_at):
+    """Build a result dict from a successful (single or split-out) response."""
+    if pid_info:
+        return {
+            "pid": pid_code,
+            "params": decode_param_rows(hex_str, pid_info["parameters"]),
+            "raw_hex": hex_str,
+            "acquired_at": acquired_at,
+        }
+    return {
+        "pid": pid_code,
+        "params": [],
+        "raw_hex": hex_str,
+        "decode": decode_uds_response(bytes_val),
+        "unmapped": True,
+        "acquired_at": acquired_at,
+    }
+
+
+def _error_result(pid_code, unmapped, resp, acquired_at):
+    error = resp.get("error") or resp.get("nrc_desc", "unknown")
+    nrc = resp.get("nrc")
+    if nrc is not None:
+        error = f"NRC 0x{nrc:02X} ({resp['nrc_desc']})"
+    return {"pid": pid_code, "error": error, "unmapped": unmapped, "acquired_at": acquired_at}
+
+
+async def _read_single(sm, tx_id, pid_code, pid_info, unmapped, batch_state):
+    """Send one PID, return its result dict; learn its 22-DID length for batching.
+
+    keepalive_stale + set_header are cheap under header caching (no-op / cache
+    hit) yet re-establish the header if a background keepalive switched it.
+    """
+    await sm.keepalive_stale()
+    await sm.terminal.set_header(tx_id)
+    resp = await sm.terminal.send_uds(pid_code)
+    # Timestamp the moment the response arrived so sequentially-polled PIDs keep
+    # their true sub-second acquisition skew.
+    acquired_at = time.time()
+    if not resp.get("ok"):
+        return _error_result(pid_code, unmapped, resp, acquired_at)
+    if batch_state is not None and _is_did22(pid_code) and resp.get("hex"):
+        batch_state.learn(tx_id, pid_code[2:], resp["hex"])
+    return _decode_pid_result(pid_code, pid_info, unmapped, resp["hex"], resp["bytes"], acquired_at)
+
+
+async def _read_batch(sm, tx_id, group, out, batch_state) -> bool:
+    """Attempt one multi-DID request for ``group``; append results on success.
+
+    Returns True if the batch succeeded and split cleanly. On NRC 0x13/0x31
+    (format/range not supported) or an unsplittable response, permanently
+    disables batching for the ECU and returns False so the caller falls back to
+    per-DID reads. Transient failures (e.g. NO DATA) return False without
+    disabling.
+    """
+    dids = [e[0][2:] for e in group]
+    await sm.keepalive_stale()
+    await sm.terminal.set_header(tx_id)
+    resp = await sm.terminal.send_uds("22" + "".join(dids))
+    acquired_at = time.time()
+    if not resp.get("ok"):
+        if resp.get("nrc") in (0x13, 0x31):
+            batch_state.disabled.add(tx_id)
+        return False
+    split = split_multi_did(
+        resp.get("hex", ""), [(d, batch_state.lengths[(tx_id, d)]) for d in dids]
+    )
+    if split is None:
+        batch_state.disabled.add(tx_id)
+        return False
+    for pid_code, pid_info, unmapped in group:
+        sub_hex = split[pid_code[2:]]
+        out.append(
+            _decode_pid_result(
+                pid_code, pid_info, unmapped, sub_hex, bytes.fromhex(sub_hex), acquired_at
+            )
+        )
+    return True
+
+
+async def _run_query_plan(sm, tx_id, query_plan, out, batch_state):
+    """Execute a query plan, batching consecutive service-22 DIDs when possible.
+
+    Appends result dicts to ``out`` in plan order. With ``batch_state`` (and an
+    ECU that opted into ``multi_did``), runs of consecutive 22-DIDs whose lengths
+    are already known are read in one ``22 D1 D2 …`` request (≤3 DIDs, so it
+    stays a single-frame request); everything else is read singly. A batch that
+    fails falls back to per-DID reads for that group.
+    """
+    i, n = 0, len(query_plan)
+    while i < n:
+        code = query_plan[i][0]
+        can_batch = (
+            batch_state is not None
+            and tx_id not in batch_state.disabled
+            and _is_did22(code)
+            and (tx_id, code[2:]) in batch_state.lengths
+        )
+        if can_batch:
+            group = []
+            while (
+                i < n
+                and len(group) < 3
+                and _is_did22(query_plan[i][0])
+                and (tx_id, query_plan[i][0][2:]) in batch_state.lengths
+            ):
+                group.append(query_plan[i])
+                i += 1
+            if len(group) > 1 and await _read_batch(sm, tx_id, group, out, batch_state):
+                continue
+            # Single DID, or batch failed → per-DID.
+            for e in group:
+                out.append(await _read_single(sm, tx_id, e[0], e[1], e[2], batch_state))
+            continue
+        e = query_plan[i]
+        out.append(await _read_single(sm, tx_id, e[0], e[1], e[2], batch_state))
+        i += 1
+
+
 async def _exec_query(
     sm: SessionManager,
     ecu_name_str: str,
@@ -237,12 +444,16 @@ async def _exec_query(
     verbose: bool,
     return_results: bool = False,
     quiet: bool = False,
+    batch_state: BatchState | None = None,
 ):
     """Execute query sub-command — query ECU parameters.
 
     Args:
         return_results: If True, return (ecu_label, pid_results) instead of printing.
         quiet: If True, suppress informational NOTE/WARNING prints (for monitor mode).
+        batch_state: If provided and the ECU opts into ``multi_did``, batch UDS
+            service-22 DIDs (learning per-DID lengths, auto-falling back per-DID
+            on rejection). Used by the live monitor.
     """
     upper = ecu_name_str.upper()
     if upper not in ecu_index:
@@ -321,51 +532,8 @@ async def _exec_query(
 
     all_pid_results = []
 
-    for pid_code, pid_info, unmapped in query_plan:
-        await sm.keepalive_stale()
-        await sm.terminal.set_header(tx_id)
-
-        resp = await sm.terminal.send_uds(pid_code)
-        # Timestamp the moment the (fully reassembled) response arrived, as close
-        # to the actual acquisition instant as we can observe. Callers (e.g. monitor
-        # mode) use this per-PID timestamp instead of a shared per-cycle time, so
-        # sequentially-polled PIDs keep their true ~sub-second acquisition skew.
-        acquired_at = time.time()
-        if not resp.get("ok"):
-            error = resp.get("error") or resp.get("nrc_desc", "unknown")
-            nrc = resp.get("nrc")
-            if nrc is not None:
-                error = f"NRC 0x{nrc:02X} ({resp['nrc_desc']})"
-            all_pid_results.append(
-                {"pid": pid_code, "error": error, "unmapped": unmapped, "acquired_at": acquired_at}
-            )
-            continue
-
-        if pid_info:
-            # Mapped PID — decode parameters
-            results = decode_param_rows(resp["hex"], pid_info["parameters"])
-
-            all_pid_results.append(
-                {
-                    "pid": pid_code,
-                    "params": results,
-                    "raw_hex": resp["hex"],
-                    "acquired_at": acquired_at,
-                }
-            )
-        else:
-            # Unmapped PID — raw response
-            decode = decode_uds_response(resp["bytes"])
-            all_pid_results.append(
-                {
-                    "pid": pid_code,
-                    "params": [],
-                    "raw_hex": resp["hex"],
-                    "decode": decode,
-                    "unmapped": True,
-                    "acquired_at": acquired_at,
-                }
-            )
+    batching = batch_state is not None and ecu_info.get("multi_did", False)
+    await _run_query_plan(sm, tx_id, query_plan, all_pid_results, batch_state if batching else None)
 
     ecu_label = f"{upper} (0x{tx_id:03X})"
     if return_results:
@@ -950,12 +1118,19 @@ async def mode_multi(
                 print(f"\n{step} Query {cmd['ecu']} ({pids_str})...")
                 if save:
                     result = await _exec_query(
-                        sm, cmd["ecu"], cmd["pids"], ecu_index, pids_data, verbose,
+                        sm,
+                        cmd["ecu"],
+                        cmd["pids"],
+                        ecu_index,
+                        pids_data,
+                        verbose,
                         return_results=True,
                     )
                     if result:
                         ecu_label, pid_results = result
-                        print_ecu_results(ecu_label=ecu_label, pid_results=pid_results, verbose=verbose)
+                        print_ecu_results(
+                            ecu_label=ecu_label, pid_results=pid_results, verbose=verbose
+                        )
                         _collect_query(ecu_label, pid_results)
                 else:
                     await _exec_query(sm, cmd["ecu"], cmd["pids"], ecu_index, pids_data, verbose)
@@ -968,7 +1143,6 @@ async def mode_multi(
                     if resp.get("ok") and resp.get("hex"):
                         ecu_ref = _rx_addr_for_tx(tx_id)
                         collected.append((ecu_ref, req, resp["hex"], ""))
-
 
             elif cmd_type == "scan":
                 print(f"\n{step} Scan {cmd['tx']} service {cmd['service']} range {cmd['range']}...")

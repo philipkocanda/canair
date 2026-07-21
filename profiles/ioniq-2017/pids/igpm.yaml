@@ -3,6 +3,11 @@
 IGPM:
   tx_id: 0x770
   availability: [sleep, plugged, acc, acc2, ready, charging]
+  # UDS service-22 multi-DID batching: verified on-device 2026-07-21 — IGPM
+  # answers `22 BC03 BC06` with `62BC03 <data> BC06 <data>` (BCM, by contrast,
+  # rejects it with NRC 0x13). The monitor batches ≤3 known-length DIDs per
+  # request and auto-falls back to single reads if a request is ever rejected.
+  multi_did: true
   # NOTE: service-22 PID reads (22BC03/04/06 etc.) do NOT need an extended
   # diagnostic session. Verified 2026-07-21 on the live car (READY mode): a bare
   # ATSH770;ATFCSH770;22BC03 returned a valid 62BC03 payload with no 1003 sent,
