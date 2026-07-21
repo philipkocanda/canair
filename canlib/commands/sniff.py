@@ -227,7 +227,7 @@ def run(args) -> int:
 
     # No auto-switch: the device must already be in slcan mode.
     try:
-        require_protocol(host, "slcan")
+        require_protocol(host, "slcan", transport_name="slcan-tcp")
     except ModeError as e:
         print(f"error: {e}", file=sys.stderr)
         return 2

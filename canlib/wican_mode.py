@@ -39,7 +39,9 @@ def current_protocol(base_url: str, timeout: float = 10.0) -> str:
     return str(load_config(base_url, timeout=timeout).get("protocol", "")).lower()
 
 
-def require_protocol(wican: str, expected: str, timeout: float = 6.0) -> None:
+def require_protocol(
+    wican: str, expected: str, *, transport_name: str | None = None, timeout: float = 6.0
+) -> None:
     """Raise :class:`ModeError` if the WiCAN is reachable but not in ``expected``.
 
     No-op when the HTTP config API isn't reachable (a non-WiCAN gateway, or a
@@ -52,12 +54,20 @@ def require_protocol(wican: str, expected: str, timeout: float = 6.0) -> None:
     except Exception:
         return
     if proto and proto != expected:
-        raise ModeError(
-            f"WiCAN is in '{proto}' mode but this needs '{expected}'. Set it explicitly:\n"
-            f"    canair wican --set-protocol {expected}\n"
-            f"and restore it afterwards with:\n"
-            f"    canair wican --set-protocol {proto}"
+        tname = transport_name or f"the '{expected}'"
+        msg = (
+            f"canair is configured for the {tname} transport, so the WiCAN also "
+            f"needs to be in '{expected}' mode — but it's currently in '{proto}'.\n"
+            f"  • put the device in '{expected}':  canair wican --set-protocol {expected}\n"
+            f"    (restore afterwards with:         canair wican --set-protocol {proto})"
         )
+        if expected == "slcan":
+            msg += (
+                "\n  • or keep the device as-is and use the ELM327 terminal, which works "
+                "in any device mode:\n"
+                "    pass --transport wican-ws, or set transport.type: wican-ws in your config"
+            )
+        raise ModeError(msg)
 
 
 def wait_until_ready(host: str, port: int = 80, timeout: float = 45.0) -> bool:
