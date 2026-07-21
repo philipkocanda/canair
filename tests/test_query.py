@@ -72,6 +72,22 @@ class TestParseQuery:
             parse_query("   ")
 
 
+class TestCanonicalizeEcus:
+    def test_maps_alias_to_primary(self):
+        q = parse_query("SMK:2101 BMS")
+        resolver = {"SMK": "SKM"}
+        out = q.canonicalize_ecus(lambda e: resolver.get(e, e))
+        assert out.selectors == (
+            Selector("SKM", ("2101",)),
+            Selector("BMS", ()),
+        )
+
+    def test_preserves_pids_and_unknown_ecus(self):
+        q = parse_query("FOO:2101,2102")
+        out = q.canonicalize_ecus(lambda e: e)  # identity resolver
+        assert out.selectors == (Selector("FOO", ("2101", "2102")),)
+
+
 class TestSelectorMatching:
     def test_ecu_only_matches_all_pids(self):
         s = Selector("VCU", ())

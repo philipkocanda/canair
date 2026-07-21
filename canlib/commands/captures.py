@@ -236,6 +236,29 @@ def filter_by_date_range(
 
 
 # ---------------------------------------------------------------------------
+# Query parsing (alias-aware)
+# ---------------------------------------------------------------------------
+
+def _parse_query(query):
+    """Parse a QUERY and canonicalize selector ECUs (aliases -> primary name).
+
+    So `canair captures SMK` resolves to the SKM module. Falls back to the raw
+    parse if the ECU registry is unavailable; :class:`EcuNameCollision` from an
+    ambiguous registry is allowed to propagate.
+    """
+    from canlib.query import parse_query
+
+    q = parse_query(query)
+    try:
+        from canlib.ecus import build_canonical_name_index
+
+        name_index = build_canonical_name_index()
+    except FileNotFoundError:
+        return q
+    return q.canonicalize_ecus(lambda ecu: name_index.get(ecu, ecu).upper())
+
+
+# ---------------------------------------------------------------------------
 # Summary mode
 # ---------------------------------------------------------------------------
 
@@ -284,9 +307,7 @@ def cmd_list(entries: list[dict], query) -> None:
     timestamps, state, notes and a decoded preview where a PID definition exists.
     Selectors that matched nothing are reported (with the available ECUs).
     """
-    from canlib.query import parse_query
-
-    q = parse_query(query)
+    q = _parse_query(query)
     matched, empty = q.filter(
         entries, ecu_of=lambda e: e["ecu"], pid_of=lambda e: str(e["pid"])
     )
@@ -324,7 +345,9 @@ def cmd_list(entries: list[dict], query) -> None:
 def cmd_latest(entries: list[dict], ecu_filter: str | None) -> None:
     """Show latest payload per ECU+PID."""
     if ecu_filter:
-        ecu_upper = ecu_filter.upper()
+        from canlib.ecus import canonical_ecu_name
+
+        ecu_upper = canonical_ecu_name(ecu_filter).upper()
         filtered = [e for e in entries if e["ecu"].upper() == ecu_upper]
     else:
         filtered = entries
@@ -406,9 +429,7 @@ def _gather_query(
     When ``warn`` is set, prints a note for any selector that matched nothing
     (with an ``ECU:PID`` hint when a bare selector looks like a DID).
     """
-    from canlib.query import parse_query
-
-    q = parse_query(query)
+    q = _parse_query(query)
     payloads = [e for e in entries if _is_hex_payload(e.get("payload"))]
     matched, empty = q.filter(
         payloads, ecu_of=lambda e: e["ecu"], pid_of=lambda e: e["pid"]

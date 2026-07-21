@@ -16,7 +16,8 @@ from canlib.modes._monitor_tui import MonitorApp
 class FakeController:
     """Stand-in for MonitorController: canned render + counting poll."""
 
-    def __init__(self, *, keep_mode=None, n_lines=50, disconnect_after=None, has_captures=True):
+    def __init__(self, *, keep_mode=None, n_lines=50, disconnect_after=None, has_captures=True,
+                 query_label="BMS:2101"):
         self.cycle = 0
         self.elapsed = 0.0
         self.interval = 0.05
@@ -27,6 +28,7 @@ class FakeController:
         self._n_lines = n_lines
         self._disconnect_after = disconnect_after
         self._has_captures = has_captures
+        self._query_label = query_label
         self.saved = None
 
     async def poll_once(self):
@@ -46,6 +48,9 @@ class FakeController:
 
     def has_captures(self) -> bool:
         return self._has_captures
+
+    def query_label(self) -> str:
+        return self._query_label
 
     def save_now(self, label, state=None, notes=None) -> str:
         self.saved = (label, state, notes)
@@ -142,13 +147,13 @@ class TestMonitorApp:
             await pilot.press("s")
             await pilot.pause(0.1)
             assert isinstance(app.screen, SaveDialog)
-            # Suggested label is pre-filled.
-            assert app.screen.query_one("#f-label", Input).value.startswith("Monitor")
+            # Suggested label is pre-filled with the active query.
+            assert app.screen.query_one("#f-label", Input).value == "BMS:2101"
             # 'q' must not quit while the modal owns the keyboard.
             await pilot.press("enter")
             await pilot.pause(0.1)
             assert ctrl.saved is not None
-            assert ctrl.saved[0].startswith("Monitor")
+            assert ctrl.saved[0] == "BMS:2101"
             status = app.query_one("#status").render()
             plain = status.plain if hasattr(status, "plain") else str(status)
             assert "Saved" in plain

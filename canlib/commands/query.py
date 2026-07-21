@@ -92,9 +92,22 @@ def run(args) -> int:
         from canlib.modes.multi import parse_sub_commands
 
         try:
-            parse_sub_commands(args.multi)
+            commands = parse_sub_commands(args.multi)
         except ValueError as e:
             print(f"Error: {e}", file=sys.stderr)
             return 2
+
+        # Reject typo'd/unknown ECU names in query steps before connecting, so a
+        # mistake like "query ESC ECS" fails loudly instead of silently polling
+        # only the valid ECU(s).
+        query_steps = [c for c in commands if c["type"] == "query"]
+        if query_steps:
+            from canlib.commands._live import load_pids
+            from canlib.modes.monitor import query_ecu_error
+
+            ecu_err = query_ecu_error(query_steps, load_pids())
+            if ecu_err:
+                print(f"Error: {ecu_err}", file=sys.stderr)
+                return 2
     # else: --param / interactive fall through to async_main's dispatch
     return run_live(args)
