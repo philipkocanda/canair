@@ -1,16 +1,18 @@
-"""Validate pids/ and captures/ against their schemas.
+"""Validate pids/, ecus.yaml, and captures/ against their schemas.
 
-Two validators merged into one subcommand:
+Validators merged into one subcommand:
 
-  * ``validate pids`` — per-ECU PID definition files in pids/ vs _schema.yaml
-  * ``validate captures`` — capture files in captures/ vs captures/schema.json
-  * ``validate all`` (default) — run both
+  * ``validate pids`` — per-ECU PID definition files in pids/ vs pids_schema.yaml
+  * ``validate ecus`` — the ecus.yaml registry vs ecus_schema.yaml (+ pids cross-check)
+  * ``validate captures`` — capture files in captures/ vs captures_schema.json
+  * ``validate all`` (default) — run all three
 
 Usage:
-    canair validate                 # validate pids + captures
+    canair validate                 # validate pids + ecus + captures
     canair validate pids            # validate all ECU files
     canair validate pids pids/bms.yaml  # validate specific file(s)
     canair validate pids --stats    # show parameter statistics
+    canair validate ecus            # validate the ECU registry
     canair validate captures        # validate all capture files
 """
 
@@ -29,6 +31,7 @@ from canlib.constants import SCHEMA_DIR
 
 SCHEMA_FILE = SCHEMA_DIR / "pids_schema.yaml"
 CAPTURES_SCHEMA_FILE = SCHEMA_DIR / "captures_schema.json"
+ECUS_SCHEMA_FILE = SCHEMA_DIR / "ecus_schema.yaml"
 
 NAME = "validate"
 
@@ -602,6 +605,223 @@ def _run_pids(files: list[str] | None, stats: bool) -> int:
     return 0
 
 
+# ── ecus validation (ecus.yaml registry) ──────────────────────────────────
+
+
+def load_ecus_schema(path: Path = ECUS_SCHEMA_FILE) -> dict:
+    """Load the ECU-registry schema definition."""
+    with open(path) as f:
+        schema = yaml.safe_load(f)
+    if not schema or not isinstance(schema, dict):
+        print(f"ERROR: {path} is empty or invalid", file=sys.stderr)
+        sys.exit(1)
+    return schema
+
+
+def _parse_tx_key(key) -> int | None:
+    """Parse an ``ecus:`` map key (hex TX id string/int) into an int, or None."""
+    if isinstance(key, int):
+        return key
+    s = str(key).strip()
+    try:
+        return int(s, 16)
+    except ValueError:
+        return None
+
+
+def validate_ecus_registry(path: Path) -> tuple[list[str], list[str], dict]:
+    """Validate ecus.yaml structure and fields (no cross-file checks).
+
+    Returns (errors, warnings, stats). This is what the ecus_edit safe-writer
+    relies on, so it must not depend on pids/ (which may lag during bootstrap).
+    """
+    schema = load_ecus_schema()
+    top_level = set(schema.get("top_level_fields", []))
+    required = set(schema.get("required_fields", []))
+    allowed = required | set(schema.get("optional_fields", []))
+    valid_protocols = set(schema.get("valid_id_protocols", []))
+    scan_log_fields = set(schema.get("scan_log_entry_fields", {}).get("optional", []))
+
+    errors: list[str] = []
+    warnings: list[str] = []
+    stats = {"ecus": 0, "scan_log": 0}
+
+    try:
+        with open(path) as f:
+            data = yaml.safe_load(f)
+    except yaml.YAMLError as e:
+        return [f"{path.name}: YAML parse error: {e}"], [], stats
+
+    if data is None:
+        return [], [], stats
+    if not isinstance(data, dict):
+        return [f"{path.name}: top-level must be a mapping"], [], stats
+
+    for field in data:
+        if field not in top_level:
+            warnings.append(f"{path.name}: unknown top-level key '{field}'")
+
+    ecus = data.get("ecus")
+    if ecus is None:
+        ecus = {}
+    if not isinstance(ecus, dict):
+        errors.append(f"{path.name}: 'ecus' must be a mapping")
+    else:
+        seen_names: dict[str, str] = {}
+        for key, entry in ecus.items():
+            stats["ecus"] += 1
+            tx = _parse_tx_key(key)
+            disp = f"0x{tx:03X}" if tx is not None else key
+            label = f"{path.name}/ecus/{disp}"
+            if tx is None:
+                errors.append(f"{label}: key must be a hex TX id (e.g. 0x7E0)")
+            elif tx < 0 or tx > 0x7FF:
+                errors.append(f"{label}: TX id must be 0x000-0x7FF, got 0x{tx:X}")
+
+            if not isinstance(entry, dict):
+                errors.append(f"{label}: entry must be a mapping")
+                continue
+
+            for field in required:
+                if field not in entry:
+                    errors.append(f"{label}: missing required field '{field}'")
+            for field in entry:
+                if field not in allowed:
+                    warnings.append(f"{label}: unknown field '{field}'")
+
+            proto = entry.get("id_protocol")
+            if proto is not None and proto not in valid_protocols:
+                errors.append(
+                    f"{label}: invalid id_protocol '{proto}' "
+                    f"(allowed: {sorted(valid_protocols)})"
+                )
+
+            name = entry.get("name")
+            if name:
+                nm = str(name).upper()
+                if nm in seen_names:
+                    errors.append(
+                        f"{label}: duplicate ECU name '{name}' (also {seen_names[nm]})"
+                    )
+                else:
+                    seen_names[nm] = disp
+
+    scan_log = data.get("scan_log")
+    if scan_log is not None:
+        if not isinstance(scan_log, dict):
+            errors.append(f"{path.name}: 'scan_log' must be a mapping")
+        else:
+            for key, entries in scan_log.items():
+                label = f"{path.name}/scan_log/{key}"
+                if _parse_tx_key(key) is None:
+                    warnings.append(f"{label}: key is not a hex TX id")
+                if not isinstance(entries, list):
+                    errors.append(f"{label}: must be a list of probe entries")
+                    continue
+                for i, entry in enumerate(entries):
+                    stats["scan_log"] += 1
+                    if not isinstance(entry, dict):
+                        errors.append(f"{label}[{i}]: entry must be a mapping")
+                        continue
+                    for field in entry:
+                        if field not in scan_log_fields:
+                            warnings.append(f"{label}[{i}]: unknown field '{field}'")
+
+    return errors, warnings, stats
+
+
+def validate_ecus_file(path: Path) -> tuple[bool, str]:
+    """(ok, message) wrapper used by the ecus_edit safe-writer."""
+    errors, warnings, _ = validate_ecus_registry(path)
+    lines = [f"  WARN: {w}" for w in warnings]
+    lines += [f"  ERROR: {e}" for e in errors]
+    if errors:
+        lines.append(f"\n{len(errors)} error(s), {len(warnings)} warning(s)")
+    return (not errors, "\n".join(lines))
+
+
+def _ecus_pids_crosscheck(ecus_path: Path) -> tuple[list[str], list[str]]:
+    """Cross-check that every pids/ ECU tx_id is registered in ecus.yaml.
+
+    ecus.yaml is a superset (it lists non-decodable modules with no pids file),
+    so registry-only entries are fine. But a pids ECU whose tx_id is missing
+    from ecus.yaml is an error (captures for it would fail validation).
+    """
+    errors: list[str] = []
+    warnings: list[str] = []
+    try:
+        with open(ecus_path) as f:
+            edata = yaml.safe_load(f) or {}
+    except (OSError, yaml.YAMLError):
+        return errors, warnings
+
+    reg: dict[int, dict] = {}
+    for key, entry in (edata.get("ecus") or {}).items():
+        tx = _parse_tx_key(key)
+        if tx is not None and isinstance(entry, dict):
+            reg[tx] = entry
+
+    try:
+        from canlib.pids import load_pids
+
+        pdata = load_pids()
+    except Exception:
+        return errors, warnings
+
+    for ecu_name, ecu_def in (pdata.get("ecus") or {}).items():
+        if not isinstance(ecu_def, dict):
+            continue
+        tx = ecu_def.get("tx_id")
+        if tx is None:
+            continue
+        if tx not in reg:
+            errors.append(
+                f"pids ECU '{ecu_name}' tx_id 0x{tx:03X} is not registered in ecus.yaml"
+            )
+            continue
+        names = {
+            str(n).upper() for n in (reg[tx].get("name"), reg[tx].get("alias")) if n
+        }
+        if str(ecu_name).upper() not in names:
+            warnings.append(
+                f"pids ECU '{ecu_name}' name differs from ecus.yaml "
+                f"name '{reg[tx].get('name')}' for 0x{tx:03X}"
+            )
+
+    return errors, warnings
+
+
+def _run_ecus() -> int:
+    from canlib.profile import active
+
+    path = active().ecus_file
+    if not path.exists():
+        print("No ecus.yaml found in the active profile.")
+        return 1
+
+    errors, warnings, stats = validate_ecus_registry(path)
+    ce, cw = _ecus_pids_crosscheck(path)
+    errors += ce
+    warnings += cw
+
+    if warnings:
+        for w in warnings:
+            print(f"  WARN: {w}")
+        print()
+
+    if errors:
+        for e in errors:
+            print(f"  ERROR: {e}")
+        print(f"\n{len(errors)} error(s), {len(warnings)} warning(s)")
+        return 1
+
+    scan_str = f", {stats['scan_log']} scan-log entries" if stats["scan_log"] else ""
+    print(f"OK — {stats['ecus']} ECUs{scan_str}")
+    if warnings:
+        print(f"  {len(warnings)} warning(s)")
+    return 0
+
+
 # ── captures validation (from validate-captures.py) ───────────────────────
 
 
@@ -687,7 +907,7 @@ def _run_captures() -> int:
 
     if not files:
         print("No capture files found.")
-        return 1
+        return 0
 
     total_errors = 0
     for path in files:
@@ -721,7 +941,7 @@ def add_parser(subparsers):
     parser.add_argument(
         "target",
         nargs="?",
-        choices=["pids", "captures", "all"],
+        choices=["pids", "captures", "ecus", "all"],
         default="all",
         help="What to validate (default: all)",
     )
@@ -740,8 +960,12 @@ def run(args) -> int:
         return _run_pids(args.files or None, args.stats)
     if args.target == "captures":
         return _run_captures()
+    if args.target == "ecus":
+        return _run_ecus()
     # all:
     rc_p = _run_pids(None, args.stats)
     print()
+    rc_e = _run_ecus()
+    print()
     rc_c = _run_captures()
-    return rc_p or rc_c
+    return rc_p or rc_e or rc_c

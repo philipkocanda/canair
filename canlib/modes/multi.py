@@ -59,6 +59,21 @@ def resolve_tx_id(name_or_hex: str, ecu_index: dict) -> int | None:
         return None
 
 
+_HEX_DIGITS = frozenset("0123456789ABCDEF")
+
+
+def _looks_like_pid(token: str) -> bool:
+    """True if ``token`` looks like a bare PID/DID rather than an ECU name.
+
+    Real ECU names are alphabetic (IGPM, BMS, VCU, …); PIDs/DIDs are hex tokens
+    that contain a digit (2101, 22BC07, BC03, C00B, B00E). A bare hex-with-digit
+    token in the ``ECU`` position is almost always a PID accidentally separated
+    from its ECU by a space instead of a colon.
+    """
+    t = token.upper()
+    return len(t) >= 2 and all(c in _HEX_DIGITS for c in t) and any(c.isdigit() for c in t)
+
+
 def _query_selectors(tokens: list[str]) -> list[tuple[str, list[str]]]:
     """Expand ``query`` sub-command tokens into ``(ecu, pids)`` pairs.
 
@@ -67,10 +82,34 @@ def _query_selectors(tokens: list[str]) -> list[tuple[str, list[str]]]:
     ECU yields an empty PID list = all PIDs). Identical selectors are de-duped so
     a repeated ECU/PID isn't polled twice. Raises ``QueryError`` (a ``ValueError``)
     on malformed input.
+
+    Fails loudly on the classic space-vs-colon mistake: a bare selector that
+    looks like a PID/DID (e.g. ``query IGPM 22BC07``, meant to be
+    ``query IGPM:22BC07``) is rejected rather than silently treated as a query
+    for a non-existent ECU named ``22BC07``.
     """
     from ..query import parse_query
 
     query = parse_query(tokens)
+    prev_ecu: str | None = None
+    for sel in query.selectors:
+        if not sel.pids and _looks_like_pid(sel.ecu):
+            if prev_ecu is not None:
+                hint = (
+                    f"Did you mean '{prev_ecu}:{sel.ecu}'? Attach the PID to its "
+                    f"ECU with a colon (no space)."
+                )
+            else:
+                hint = f"Attach it to an ECU with a colon, e.g. 'IGPM:{sel.ecu}'."
+            raise ValueError(
+                f"query selector {sel.ecu!r} looks like a PID/DID, not an ECU. {hint} "
+                f"A space separates independent ECU selectors, so "
+                f"'{prev_ecu or 'ECU'} {sel.ecu}' would query "
+                f"{'ECU ' + repr(prev_ecu) + ' plus ' if prev_ecu else ''}"
+                f"a non-existent ECU {sel.ecu!r}."
+            )
+        prev_ecu = sel.ecu
+
     pairs: list[tuple[str, list[str]]] = []
     seen: set[tuple[str, tuple[str, ...]]] = set()
     for sel in query.selectors:
@@ -870,7 +909,7 @@ async def mode_multi(
 
     Args:
         terminal: Connected WiCANTerminal.
-        sub_commands: List of sub-command strings (e.g., ["skm-wake acc", "query IGPM BC03"]).
+        sub_commands: List of sub-command strings (e.g., ["skm-wake acc", "query IGPM:BC03"]).
         pids_data: Loaded PID definitions.
         verbose: Show debug output.
         no_repl: If True, don't drop into REPL after pipeline.
