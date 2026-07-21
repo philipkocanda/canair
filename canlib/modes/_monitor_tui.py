@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, ClassVar
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import VerticalScroll
+from textual.css.query import NoMatches
 from textual.widgets import Static
 
 if TYPE_CHECKING:
@@ -31,13 +32,10 @@ class MonitorApp(App):
     """Scrollable, in-place live-value monitor."""
 
     CSS = """
-    Screen { layout: vertical; }
-    #scroll { height: 1fr; scrollbar-gutter: stable; }
-    #body { height: auto; padding: 0 1; }
-    #status {
-        dock: bottom; height: 1; padding: 0 1;
-        background: $panel; color: $text-muted;
-    }
+    Screen { layout: vertical; background: transparent; }
+    #scroll { height: 1fr; scrollbar-gutter: stable; background: transparent; }
+    #body { height: auto; padding: 0 1; background: transparent; }
+    #status { dock: bottom; height: 1; padding: 0 1; background: transparent; }
     """
 
     BINDINGS: ClassVar[list[Binding]] = [
@@ -67,6 +65,13 @@ class MonitorApp(App):
         yield Static("", id="status", markup=True)
 
     def on_mount(self) -> None:
+        # Use the terminal's own palette + default background (ansi_default)
+        # rather than Textual's remapped truecolor theme + grey surface. Keeps
+        # byte colours matching the plain output and readable on any themed
+        # terminal (iTerm2, Termius, …). CSS `background: transparent` covers the
+        # background regardless; the theme fixes the colour mapping.
+        if "ansi-dark" in self.available_themes:
+            self.theme = "ansi-dark"
         self.query_one("#scroll", VerticalScroll).focus()
         self.run_worker(self._poll_loop(), name="poll", exclusive=True)
         self.set_interval(0.25, self._update_status)
@@ -98,21 +103,32 @@ class MonitorApp(App):
                 await asyncio.sleep(0.05)
 
     def _refresh_body(self) -> None:
-        scroll = self.query_one("#scroll", VerticalScroll)
+        # The poll worker can fire mid-teardown (after quit); ignore if the DOM
+        # is already gone.
+        try:
+            scroll = self.query_one("#scroll", VerticalScroll)
+            body = self.query_one("#body", Static)
+        except NoMatches:
+            return
         # Measure BEFORE swapping content: were we pinned to the bottom?
         at_bottom = scroll.scroll_offset.y >= scroll.max_scroll_y - 1
-        self.query_one("#body", Static).update(self.controller.render())
+        body.update(self.controller.render())
         if self.follow_enabled and at_bottom:
             self.call_after_refresh(scroll.scroll_end, animate=False)
         self._update_status()
 
     def _update_status(self) -> None:
+        try:
+            status = self.query_one("#status", Static)
+        except NoMatches:
+            return
         c = self.controller
         follow = "[green]follow[/]" if self.follow_enabled else "[yellow]manual[/]"
-        paused = " · [yellow reverse] PAUSED [/]" if self.paused else ""
-        self.query_one("#status", Static).update(
-            f"cycle {c.cycle} · every {c.interval:.1f}s · last {c.elapsed:.1f}s · {follow}{paused}"
-            "    ↑↓/jk PgUp/PgDn g/G scroll · f follow · space pause · q quit"
+        paused = " · [reverse] PAUSED [/]" if self.paused else ""
+        status.update(
+            f"[dim]cycle[/] {c.cycle} [dim]· every[/] {c.interval:.1f}[dim]s · last[/] "
+            f"{c.elapsed:.1f}[dim]s ·[/] {follow}{paused}"
+            "    [dim]↑↓/jk PgUp/PgDn g/G · f follow · space pause · q quit[/]"
         )
 
     # -- actions -----------------------------------------------------------

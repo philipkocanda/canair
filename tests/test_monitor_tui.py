@@ -54,7 +54,7 @@ class TestMonitorApp:
             status = _plain(app.query_one("#status").render())
             assert "Monitor cycle" in body
             assert "BMS 2100" in body
-            assert "cycle" in status and "scroll" in status
+            assert "cycle" in status and "quit" in status
             assert ctrl.cycle >= 1
             await pilot.press("q")
 
