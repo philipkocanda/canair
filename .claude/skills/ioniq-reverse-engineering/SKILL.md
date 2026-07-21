@@ -182,9 +182,11 @@ as they arrive — overlapping ECU think-time (parallel *across* ECUs, sequentia
 *within* an ECU, since one ISO-TP stack allows a single outstanding request).
 Like `sniff`, it switches to `slcan` (consent / `--yes`) and restores the
 previous mode on exit. Decoded values are identical to the ELM path (same
-profile PIDs). Verified on-device: ~1.4× faster than sequential across
-IGPM+BMS+VCU; the speedup is bounded by the busiest ECU's DIDs (raw multi-DID
-batching is a Phase 2b enhancement).
+profile PIDs). It also **batches a `multi_did` ECU's `22` DIDs into one ISO-TP
+request** (learned lengths, split back per-DID; falls back on NRC 0x13/0x31) and
+**primes each ECU on start** to absorb the first-request-after-idle wake latency.
+Verified on-device: IGPM's 3 DIDs collapse to one request (5→3 reqs/cycle),
+~130–190 ms/cycle, all values matching the ELM path.
 
 
 #### canair wican

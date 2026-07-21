@@ -298,6 +298,10 @@ class MonitorController:
         self.sm = SessionManager(terminal, verbose=verbose) if not self.raw else None
         self._ecu_index: dict | None = None
         self._batch_state = None  # multi.BatchState, created in setup()
+        # Raw-backend multi-DID batching state (learned per-DID lengths + ECUs
+        # that rejected batching this session).
+        self._raw_lengths: dict[tuple[str, str], int] = {}
+        self._raw_nobatch: set[str] = set()
 
         # Live state (read by the renderer).
         self.cycle = 0
@@ -323,12 +327,25 @@ class MonitorController:
         if self.raw:
             # Raw backend: no ELM sessions/keepalive. Sessions (10 03) for ECUs
             # that need them are opened best-effort before polling.
+            from .multi import build_query_plan
+
             for step in session_steps or []:
                 if step["type"] == "session":
                     tgt = step["target"].upper()
                     if tgt in self._ecu_index:
                         with contextlib.suppress(Exception):
                             self.raw_client.read(tgt, bytes.fromhex("1003"), timeout=1.0)
+            # Warm each ECU up: the first diagnostic request after idle is slow
+            # (the ECU/gateway has to wake). Prime with one throwaway read per ECU
+            # on a longer timeout so the first *monitored* cycle is already warm.
+            for step in self.query_steps:
+                info = self._ecu_index.get(step["ecu"].upper())
+                if not info:
+                    continue
+                plan = build_query_plan(info, step.get("pids", []), quiet=True) or []
+                if plan:
+                    with contextlib.suppress(Exception):
+                        self.raw_client.read(step["ecu"].upper(), bytes.fromhex(plan[0][0]), timeout=3.0)
             return
 
         from .multi import BatchState, _exec_session, _exec_skm_wake
@@ -418,24 +435,77 @@ class MonitorController:
         self.last_cmds = self.terminal.cmd_count - cmds0
         self.last_elm_time = self.terminal.cmd_time - elm0
 
-    async def _poll_raw(self) -> None:
-        """Pipelined UDS read over raw CAN (runs the blocking client in a thread)."""
-        import time as _t
+    def _build_raw_submissions(self):
+        """Plan this cycle's raw requests, batching multi-DID ECUs.
 
-        from .multi import build_query_plan
+        Returns ``(submissions, plan_by_ecu)``. Each submission is a dict with
+        ``ecu``, ``req`` (bytes to send), ``members`` [(pid_code, pid_info,
+        unmapped)], and ``lengths`` ([(did4, data_len)] for a batch, else None).
+        Consecutive service-22 DIDs on a ``multi_did`` ECU whose lengths are
+        already learned are combined (≤3, single-frame request); everything else
+        is a single request (and 22-DID lengths are learned from single reads).
+        """
+        from .multi import _is_did22, build_query_plan
 
-        # Build the pipelined request list + a per-(ecu,pid) plan map.
-        requests: list[tuple[str, bytes]] = []
-        plans: list[tuple[str, int, list]] = []  # (ecu_upper, tx_id, plan)
+        submissions: list[dict] = []
+        plan_by_ecu: list[tuple[str, int, list]] = []
         for step in self.query_steps:
             ecu = step["ecu"].upper()
             info = self._ecu_index.get(ecu)
             if info is None:
                 continue
             plan = build_query_plan(info, step.get("pids", []), quiet=True) or []
-            plans.append((ecu, info["tx_id"], plan))
-            for pid_code, _pi, _un in plan:
-                requests.append((ecu, bytes.fromhex(pid_code)))
+            plan_by_ecu.append((ecu, info["tx_id"], plan))
+            batchable = info.get("multi_did", False) and ecu not in self._raw_nobatch
+            i, n = 0, len(plan)
+            while i < n:
+                code = plan[i][0]
+                if batchable and _is_did22(code) and (ecu, code[2:]) in self._raw_lengths:
+                    group = []
+                    while (
+                        i < n
+                        and len(group) < 3
+                        and _is_did22(plan[i][0])
+                        and (ecu, plan[i][0][2:]) in self._raw_lengths
+                    ):
+                        group.append(plan[i])
+                        i += 1
+                    if len(group) > 1:
+                        dids = [g[0][2:] for g in group]
+                        submissions.append(
+                            {
+                                "ecu": ecu,
+                                "req": bytes.fromhex("22" + "".join(dids)),
+                                "members": group,
+                                "lengths": [(d, self._raw_lengths[(ecu, d)]) for d in dids],
+                            }
+                        )
+                        continue
+                    g = group[0]
+                    submissions.append(
+                        {"ecu": ecu, "req": bytes.fromhex(g[0]), "members": [g], "lengths": None}
+                    )
+                    continue
+                submissions.append(
+                    {"ecu": ecu, "req": bytes.fromhex(code), "members": [plan[i]], "lengths": None}
+                )
+                i += 1
+        return submissions, plan_by_ecu
+
+    async def _poll_raw(self) -> None:
+        """Pipelined UDS read over raw CAN (blocking client run in a thread).
+
+        Multi-DID ECUs are batched (one ISO-TP request per group); results are
+        split back per-DID. Per-ECU 22-DID lengths are learned from single reads,
+        and an ECU that rejects batching (NRC 0x13/0x31) or returns an
+        unsplittable response is dropped to single reads for the session.
+        """
+        import time as _t
+
+        from .multi import _did_data_len, _is_did22, split_multi_did
+
+        submissions, plan_by_ecu = self._build_raw_submissions()
+        requests = [(s["ecu"], s["req"]) for s in submissions]
 
         loop = asyncio.get_event_loop()
         try:
@@ -445,19 +515,41 @@ class MonitorController:
             return
 
         acquired = _t.time()
+        by_pid: dict[tuple[str, str], dict] = {}
+        for s in submissions:
+            ecu = s["ecu"]
+            val = results.get((ecu, s["req"]))
+            resp = bytes(val) if isinstance(val, (bytes, bytearray)) else None
+
+            if s["lengths"] is not None:  # batched request
+                split = None
+                if resp and resp[0] != 0x7F:
+                    split = split_multi_did(resp.hex().upper(), s["lengths"])
+                elif resp and resp[0] == 0x7F and (resp[2] if len(resp) >= 3 else 0) in (0x13, 0x31):
+                    self._raw_nobatch.add(ecu)  # ECU can't batch — fall back next cycle
+                if split is None:
+                    if resp and resp[0] != 0x7F:
+                        self._raw_nobatch.add(ecu)  # positive but unsplittable
+                    for code, pi, un in s["members"]:
+                        by_pid[(ecu, code)] = _raw_pid_result(
+                            code, pi, un, val if resp is None else resp, acquired
+                        )
+                else:
+                    for code, pi, un in s["members"]:
+                        sub = bytes.fromhex(split[code[2:]])
+                        by_pid[(ecu, code)] = _raw_pid_result(code, pi, un, sub, acquired)
+                continue
+
+            code, pi, un = s["members"][0]
+            by_pid[(ecu, code)] = _raw_pid_result(code, pi, un, val, acquired)
+            if _is_did22(code) and resp and resp[0] != 0x7F:  # learn length for batching
+                dlen = _did_data_len(resp.hex().upper(), code[2:])
+                if dlen is not None:
+                    self._raw_lengths[(ecu, code[2:])] = dlen
+
         new_queries: list[tuple[str, list]] = []
-        for ecu, tx_id, plan in plans:
-            pid_results = []
-            for pid_code, pid_info, unmapped in plan:
-                pid_results.append(
-                    _raw_pid_result(
-                        pid_code,
-                        pid_info,
-                        unmapped,
-                        results.get((ecu, bytes.fromhex(pid_code))),
-                        acquired,
-                    )
-                )
+        for ecu, tx_id, plan in plan_by_ecu:
+            pid_results = [by_pid[(ecu, c)] for c, _pi, _un in plan if (ecu, c) in by_pid]
             new_queries.append((f"{ecu} (0x{tx_id:03X})", pid_results))
 
         self.last_queries = new_queries

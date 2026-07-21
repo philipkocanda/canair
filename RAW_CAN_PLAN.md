@@ -137,5 +137,19 @@ first**, then **client-side ISO-TP + pipelined UDS** as a faster monitor backend
     *sequential* DIDs — add raw multi-DID batching (combine an ECU's 22-DIDs into
     one ISO-TP request, like the ELM path) to collapse IGPM's 3 reads into 1 and
     pipeline that with the other ECUs.
+- [x] Phase 2b — raw multi-DID batching + ECU warmup (verified on-device
+  2026-07-21):
+  - `MonitorController._build_raw_submissions` batches a `multi_did` ECU's
+    consecutive 22-DIDs (≤3, single-frame request) into one ISO-TP request once
+    per-DID lengths are learned from single reads; splits the response back via
+    `split_multi_did`; drops an ECU to single reads on NRC 0x13/0x31 or an
+    unsplittable response (per-session `_raw_nobatch`).
+  - **ECU warmup:** raw `setup()` primes each ECU with one throwaway read
+    (longer timeout) so the first *monitored* cycle isn't slowed/timed-out by the
+    ECU's first-request-after-idle wake latency (the effect noticed on IGPM).
+    can-isotp's transient recovered-timeout warnings are quieted.
+  - **On-device:** IGPM's 3 DIDs collapse to 1 batched request → **5 → 3
+    requests/cycle**; cycles clean after warmup; steady-state ~130–190 ms/cycle;
+    decoded values unchanged.
 
 
