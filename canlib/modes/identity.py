@@ -120,7 +120,7 @@ async def mode_identity(
                     )
                 else:
                     print(f"  {did_hex}  {label:<{label_width}}  {decoded}")
-                    if fmt != "ascii" or "." in decoded:
+                    if (fmt != "ascii" or "." in decoded) and decoded != raw_hex:
                         print(f"        {'':>{label_width}}  raw: {raw_hex}")
             elif response.get("nrc") is not None:
                 n_nrc += 1
