@@ -626,6 +626,15 @@ IGPM:
         Remaining: test ACC and ready states to confirm bit 5 (0x20) = ACC.
       sources:
         - "live queries 2026-04-18 — key in unlocked, key out unlocked, locked no key: all B09=0x73"
+    - type: verify
+      target: 22BC03 extended-session requirement
+      status: done
+      priority: P2
+      prerequisite: [ready]
+      result: REFUTED — reads work in default session
+      notes: "RESOLVED 2026-07-21: IGPM service-22 reads (22BC03/04/06) do NOT require extended session. Verified live in READY mode — bare ATSH770;ATFCSH770;22BC03 returned valid 62BC03, no 1003 sent, reconfirmed after 8s idle. Removed session:true from igpm.yaml; corrected 2026-04-15 capture notes. 2F IOControl still needs 1003 (handled per-command, not this flag)."
+      sources:
+        - captures/2026-07-21.yaml — default-session read test
 
   iocontrol_discoveries:
     BC01:

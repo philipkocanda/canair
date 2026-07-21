@@ -4050,3 +4050,11 @@ sessions:
     pid: 21F2
     payload: 61F2FF000000083B63195E741A1D01B7BA000000000000000000000000000607E121CB65F3010000640000000000000000000000000000000000000000005B001003000000
     time: '12:53:17.404'
+- date: '2026-07-21'
+  label: IGPM 22BC03 default-session read test
+  state: ready, parked, doors closed/unlocked
+  notes: 'Verifies IGPM service-22 reads do NOT need extended session (1003). Wire trace: ATSH770;ATFCSH770;22BC03 only, no 1003 sent. Valid 62BC03 returned. Reconfirmed after 8s idle (S3 expired). Refutes 2026-04-15 note. NOTE: 2F IOControl still needs 1003 (untested here).'
+  captures:
+  - ecu: '0x778'
+    pid: 22BC03
+    payload: 62BC03FDEE3C7320600000AAAA

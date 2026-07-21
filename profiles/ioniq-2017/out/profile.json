@@ -170,7 +170,7 @@
       }
     },
     {
-      "pid_init": "ATSH770;ATFCSH770;1003;",
+      "pid_init": "ATSH770;ATFCSH770;",
       "pid": "22BC03",
       "enabled": true,
       "period": "2500",
@@ -194,7 +194,7 @@
       }
     },
     {
-      "pid_init": "ATSH770;ATFCSH770;1003;",
+      "pid_init": "ATSH770;ATFCSH770;",
       "pid": "22BC04",
       "enabled": true,
       "period": "2500",
@@ -204,7 +204,7 @@
       }
     },
     {
-      "pid_init": "ATSH770;ATFCSH770;1003;",
+      "pid_init": "ATSH770;ATFCSH770;",
       "pid": "22BC06",
       "enabled": true,
       "period": "2500",
