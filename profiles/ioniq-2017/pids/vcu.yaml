@@ -303,12 +303,20 @@ VCU:
       notes: >
         Several unverified params: CAR_READY (B26:3) causes OOB on 22-byte response, PARK_BRAKE (B26:5) same issue, ACCEL_PEDAL_DEPTH (B17), LDC_INHIBIT (B11:7),
         MCU_STATE (B11:6).
-        Also ECO/Sport/Normal mode (B10 upper nibble?) and regen mode unknown.
+        DRIVE MODE / REGEN: 2026-07-21 stationary test (READY, in D) cycled Normal(regen1) -> Sport(regen2) ->
+        ECO(regen1) -> Normal(regen1) -> regen0 while polling VCU/MCU/BCM/IGPM. RESULT: NOT found. Across the
+        whole window VCU 2101 B10 (DEBUG_DRIVE_MODE_FLAGS) stays flat at 0x28 (D) — the "ECO/Sport/Normal in B10
+        upper nibble" hypothesis is DISPROVEN (upper nibble constant). No other byte on any polled PID (VCU
+        2101/2102, MCU 2101/2102/2103, BCM 22B0xx/BCxx, IGPM 22BCxx) steps through the 5-state sequence; every
+        varying byte is analog noise (currents/voltages/temps/counters). HYPOTHESIS (untested): modes may only
+        re-map torque/regen response, which would be invisible when parked with pedal at 0. Next: (1) scan VCU 22 E006/E007 (see
+        scan entry below — Ioniq 5 exposes drive mode / regen level there); (2) re-capture WHILE DRIVING,
+        holding one mode per labelled session, or --monitor a single PID fast while cycling modes.
       what_to_test:
         - "CAR_READY (B26:3) — OOB on 22-byte response, try with ACC on"
         - "PARK_BRAKE (B26:5) — same OOB issue"
-        - "ECO/Sport/Normal mode — suspected in B10 upper nibble"
-        - "Regen mode (off/1/2/3) — location unknown"
+        - "ECO/Sport/Normal mode — NOT in B10 upper nibble (disproven 2026-07-21 stationary); try 22 E006 or capture while driving"
+        - "Regen mode (off/1/2/3) — not in any 2101/2102 byte stationary; try 22 E007 or capture while coasting/braking (regen torque only appears in motion)"
         - "ACCEL_PEDAL — Kia Soul VMCU has 'Accel Pedal Related=i' + 'Accel Pedal Depth=j/2' (%). In our 2101, B17 and B18 are 0 when truly parked (P) and active while driving — strong candidates. Press pedal while stationary in Ready to confirm which is depth (÷2 for %) and the raw-related byte."
       sources:
         - "Kia Niro PR — CAR_READY/PARK_BRAKE"
@@ -345,6 +353,10 @@ VCU:
       notes: >
         Ioniq 5 cross-ref: E001 vehicle speed, E002 motor RPM, E004 accel pedal/speed HD/aux voltage, E005 disconnector, E006 drive mode, E007 regen level, E008 torque request, E009 actual regen torque, E00A odometer, E00B motor temp, E00C inverter cooling temp, E010 gear state."
         2026-07-19: 22E001 -> NRC 0x12 (subFunctionNotSupported)
+        2026-07-21: now the PRIMARY lead for drive mode / regen level — E006 (drive mode) and E007 (regen level)
+        would directly answer the 2101 verify entry, since a stationary 2101/2102/MCU/BCM/IGPM sweep found no
+        such byte. E001 NRC'd; retry the full E000-E010 range with extended session (10 03) + wake, ideally
+        while driving so any live values are non-zero.
 
       sources:
         - "OBDb Ioniq 5"

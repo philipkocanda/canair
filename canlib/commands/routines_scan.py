@@ -16,10 +16,10 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         description="Probe requestRoutineResults (SF 0x03) across a RID range on one or more ECUs. "
         "Hits are written to pids/<ecu>.yaml under a routines: section.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="examples:\n  canair routines-scan\n  canair routines-scan IGPM BCM --rid-range F000-F0FF\n",
+        epilog="examples:\n  canair routines-scan IGPM\n  canair routines-scan IGPM BCM --rid-range F000-F0FF\n",
     )
     parser.add_argument(
-        "routines_scan", nargs="*", metavar="ECU", help="ECUs to scan (default: IGPM BCM HVAC)"
+        "routines_scan", nargs="+", metavar="ECU", help="ECUs to scan (at least one required)"
     ).completer = ecu_completer
     parser.add_argument(
         "--rid-range", metavar="START-END", default="F000-F0FF", help="RID range (default F000-F0FF)"
