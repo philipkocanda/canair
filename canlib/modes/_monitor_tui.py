@@ -125,9 +125,15 @@ class MonitorApp(App):
         c = self.controller
         follow = "[green]follow[/]" if self.follow_enabled else "[yellow]manual[/]"
         paused = " · [reverse] PAUSED [/]" if self.paused else ""
+        # ELM path reports commands + time spent in the ELM327; the raw path
+        # reports UDS requests (no ELM involved).
+        if getattr(c, "raw", False):
+            metric = f"{c.last_cmds}[dim] reqs ·[/]"
+        else:
+            metric = f"{c.last_cmds}[dim] cmds/[/]{c.last_elm_time:.1f}[dim]s ELM ·[/]"
         status.update(
             f"[dim]cycle[/] {c.cycle} [dim]· every[/] {c.interval:.1f}[dim]s · last[/] "
-            f"{c.elapsed:.1f}[dim]s ·[/] {c.last_cmds}[dim] cmds/[/]{c.last_elm_time:.1f}[dim]s ELM ·[/] "
+            f"{c.elapsed:.1f}[dim]s ·[/] {metric} "
             f"{follow}{paused}"
             "    [dim]↑↓/jk PgUp/PgDn g/G · f follow · space pause · q quit[/]"
         )
