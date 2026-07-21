@@ -462,6 +462,18 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     parser.add_argument("--reboot", action="store_true", help="Reboot WiCAN after upload")
     parser.add_argument("--stats", action="store_true", help="Show PID statistics table")
     parser.add_argument(
+        "--set-protocol",
+        metavar="MODE",
+        choices=("elm327", "slcan", "savvycan", "realdash66", "auto_pid"),
+        default=None,
+        help="Set the WiCAN device protocol/mode and reboot (explicit; e.g. "
+        "'slcan' for raw CAN, 'auto_pid' to restore Home Assistant). Use --yes "
+        "to skip the confirmation prompt.",
+    )
+    parser.add_argument(
+        "--yes", action="store_true", help="Auto-confirm --set-protocol (no prompt)"
+    )
+    parser.add_argument(
         "--wican",
         default=DEFAULT_WICAN,
         help=f"WiCAN address: {', '.join(WICAN_ADDRESSES.keys())} or URL (default: {DEFAULT_WICAN})",
@@ -473,11 +485,63 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     return parser
 
 
+def _set_protocol(args) -> int:
+    """Explicitly set the WiCAN device protocol/mode (reboots). Opt-in only."""
+    from canlib.wican_mode import ModeError, current_protocol, set_protocol
+
+    base_url = get_wican_url(args.wican)
+    target = args.set_protocol
+    try:
+        cur = current_protocol(base_url)
+    except Exception as e:
+        print(f"error: cannot reach WiCAN at {base_url}: {e}", file=sys.stderr)
+        return 1
+
+    if cur == target:
+        print(f"WiCAN already in '{target}' mode.")
+        return 0
+
+    if not args.yes:
+        if not sys.stdin.isatty():
+            print(
+                f"error: refusing to switch '{cur}' -> '{target}' without --yes "
+                f"(non-interactive).",
+                file=sys.stderr,
+            )
+            return 2
+        resp = input(
+            f"Switch WiCAN from '{cur}' to '{target}'? This reboots the device "
+            f"(~5s) and interrupts its current mode. [y/N] "
+        )
+        if resp.strip().lower() not in ("y", "yes"):
+            print("Aborted.")
+            return 1
+
+    print(f"Switching WiCAN '{cur}' -> '{target}' (rebooting)...")
+    try:
+        set_protocol(base_url, target)
+    except ModeError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    try:
+        now = current_protocol(base_url)
+    except Exception:
+        now = "?"
+    if now == target:
+        print(f"WiCAN now in '{target}' mode.")
+        return 0
+    print(f"warning: WiCAN reports '{now}' after switch.", file=sys.stderr)
+    return 1
+
+
 def run(args) -> int:
     from canlib.profile import active
 
-    profile_out = _profile_out()
-    # Load YAML
+    # Explicit device-mode switch — self-contained, no profile generation.
+    if args.set_protocol:
+        return _set_protocol(args)
+
+    profile_out = _profile_out()    # Load YAML
     print(f"Loading {active().pids_dir}")
     data = load_yaml()
 

@@ -193,8 +193,22 @@ def add_connection_args(parser: argparse.ArgumentParser) -> None:
     """Add the connection/output flags common to every live subcommand."""
     parser.add_argument(
         "--wican",
-        default=DEFAULT_WICAN,
-        help=f"WiCAN address: {', '.join(WICAN_ADDRESSES.keys())} or IP (default: {DEFAULT_WICAN})",
+        default=None,
+        help=f"WiCAN address: {', '.join(WICAN_ADDRESSES.keys())} or IP "
+        f"(default: config transport.host / default_wican={DEFAULT_WICAN})",
+    )
+    parser.add_argument(
+        "--transport",
+        choices=("wican-ws", "slcan-tcp"),
+        default=None,
+        help="CAN transport: wican-ws (ELM327 terminal) or slcan-tcp (raw CAN). "
+        "Overrides the config `transport.type` (default: wican-ws).",
+    )
+    parser.add_argument(
+        "--port", type=int, default=None, help="slcan-tcp: SLCAN TCP port (auto-detected if omitted)"
+    )
+    parser.add_argument(
+        "--bitrate", type=int, default=None, help="slcan-tcp: CAN bitrate (default: 500000)"
     )
     parser.add_argument(
         "--timeout",
@@ -291,9 +305,10 @@ def _print_sleep_banner(host: str, timeout: int = 5) -> None:
 
 async def async_main(args):
     """Main async entry point."""
-    host = args.wican
-    if host in WICAN_ADDRESSES:
-        host = WICAN_ADDRESSES[host]
+    from canlib.transport import resolve_transport
+
+    transport = resolve_transport(args)
+    host = transport.host
 
     init_logging()
     log_command(
@@ -307,12 +322,12 @@ async def async_main(args):
 
     pids_data = load_pids()
 
-    # Raw-CAN monitor: bypass the ELM327 WebSocket and use the SLCAN backend +
-    # client-side ISO-TP with request pipelining.
-    if getattr(args, "raw_can", False) and args.multi and args.monitor:
-        from canlib.modes.raw_monitor import run_raw_monitor
+    # Raw transport (slcan-tcp): route to the client-side ISO-TP/UDS path instead
+    # of the ELM327 WebSocket. The device must already be in slcan mode.
+    if transport.is_raw:
+        from canlib.modes.raw_ops import run_raw
 
-        return await run_raw_monitor(args, host, pids_data)
+        return await run_raw(args, transport, pids_data)
 
     # Warn about any aborted scans from a previous interrupted session
     from canlib.scan_state import find_aborted_scans

@@ -1,13 +1,13 @@
 """``canair sniff`` — passive CAN bus sniffer (raw SLCAN-over-TCP backend).
 
-Switches the WiCAN into ``slcan`` mode (with consent), opens the bus via
-python-can, and shows a live per-ID table (count / rate / last data / which
-bytes have changed). Great for discovering broadcast IDs and periodic signals
-that the request/response ELM327 path can't see. Optionally logs every frame to
-a python-can file (``.asc``/``.blf``/``.csv``).
+Opens the WiCAN's SLCAN socket via python-can and shows a live per-ID table
+(count / rate / last data / which bytes have changed). Great for discovering
+broadcast IDs and periodic signals the request/response ELM327 path can't see.
+Optionally logs every frame to a python-can file (``.asc``/``.blf``/``.csv``).
 
-The device runs one protocol at a time, so this temporarily takes it out of
-ELM327/AutoPID mode; the previous mode is restored on exit.
+The device must already be in ``slcan`` mode — sniff never switches it. If it's
+in another mode, sniff errors with the exact command to fix it
+(``canair wican --set-protocol slcan``). See ``canair status``.
 """
 
 from __future__ import annotations
@@ -122,8 +122,9 @@ examples:
 
     parser.add_argument(
         "--wican",
-        default=DEFAULT_WICAN,
-        help=f"WiCAN address: {', '.join(WICAN_ADDRESSES)} or IP (default: {DEFAULT_WICAN})",
+        default=None,
+        help=f"WiCAN address: {', '.join(WICAN_ADDRESSES)} or IP "
+        f"(default: config transport.host / default_wican={DEFAULT_WICAN})",
     )
     parser.add_argument(
         "--port",
@@ -151,11 +152,6 @@ examples:
     parser.add_argument("--duration", type=float, default=None, help="Stop after N seconds")
     parser.add_argument(
         "--save", metavar="FILE", default=None, help="Log all frames to FILE (.asc/.blf/.csv)"
-    )
-    parser.add_argument(
-        "--yes",
-        action="store_true",
-        help="Auto-confirm the WiCAN mode switch (no prompt)",
     )
     parser.add_argument(
         "--force", action="store_true", help="Steal the connection lock if one is held"
@@ -186,7 +182,7 @@ def _parse_datarate(value) -> int | None:
         return None
 
 
-def _resolve_device_defaults(wican: str, port: int | None, bitrate: int | None):
+def _resolve_device_defaults(host: str | None, port: int | None, bitrate: int | None):
     """Fill port/bitrate from the device's live config when not given on the CLI."""
     if port is not None and bitrate is not None:
         return port, bitrate
@@ -197,7 +193,7 @@ def _resolve_device_defaults(wican: str, port: int | None, bitrate: int | None):
 
     cfg = {}
     try:
-        cfg = load_config(resolve_wican_url(wican))
+        cfg = load_config(resolve_wican_url(host))
     except Exception as e:  # best-effort — fall back to conventional defaults
         print(f"  (could not read device config for defaults: {e})", file=sys.stderr)
     if port is None:
@@ -213,11 +209,11 @@ def _resolve_device_defaults(wican: str, port: int | None, bitrate: int | None):
 def run(args) -> int:
     import sys
 
-    from canlib.constants import WICAN_ADDRESSES
     from canlib.lock import WiCANLock
-    from canlib.wican_mode import ModeError, protocol_mode
+    from canlib.transport import resolve_transport
+    from canlib.wican_mode import ModeError, require_protocol
 
-    host = WICAN_ADDRESSES.get(args.wican, args.wican)
+    host = resolve_transport(args).host
     try:
         filters = _parse_filters(args.filter)
     except ValueError:
@@ -226,17 +222,20 @@ def run(args) -> int:
         )
         return 2
 
-    args.port, args.bitrate = _resolve_device_defaults(args.wican, args.port, args.bitrate)
+    args.port, args.bitrate = _resolve_device_defaults(host, args.port, args.bitrate)
     print(f"  Raw CAN via SLCAN — {host}:{args.port} @ {args.bitrate} bps")
+
+    # No auto-switch: the device must already be in slcan mode.
+    try:
+        require_protocol(host, "slcan")
+    except ModeError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
 
     lock = WiCANLock()
     lock.acquire(force=args.force)
     try:
-        with protocol_mode(args.wican, "slcan", assume_yes=args.yes):
-            _run_sniff(host, args, filters)
-    except ModeError as e:
-        print(f"error: {e}", file=sys.stderr)
-        return 2
+        _run_sniff(host, args, filters)
     finally:
         lock.release()
     return 0

@@ -1,13 +1,8 @@
-"""``canair query --monitor --raw-can`` — run the live monitor over raw CAN.
+"""Live monitor over the raw CAN transport (SLCAN + client-side ISO-TP).
 
-Uses the SLCAN-over-TCP backend + client-side ISO-TP (:class:`RawUdsClient`) with
-**request pipelining** instead of the ELM327 WebSocket terminal. Requires the
-WiCAN to be in ``slcan`` mode, so it switches with consent (`--yes`) and restores
-the previous protocol on exit — one reboot each way (pauses ELM327/AutoPID).
-
-Pipelining fires all PID requests for the cycle back-to-back across the ECUs'
-ISO-TP stacks and collects the responses as they arrive, overlapping ECU
-think-time (vs the strictly sequential request→wait of the ELM path).
+Uses :class:`RawUdsClient` with request pipelining + per-ECU multi-DID batching
+instead of the ELM327 WebSocket terminal. The device must already be in ``slcan``
+mode (the caller / ``run_raw`` verifies this — no auto-switching).
 """
 
 from __future__ import annotations
@@ -38,12 +33,10 @@ def _keep_mode(args) -> str | None:
     return None
 
 
-async def run_raw_monitor(args, host: str, pids_data: dict) -> int:
-    # Port/bitrate come from the device config (reuses the sniff resolver).
-    from ..commands.sniff import _resolve_device_defaults
+async def run_raw_monitor(args, host: str, port: int, bitrate: int, pids_data: dict) -> int:
+    """Run the live monitor over raw CAN. Assumes the device is in slcan mode."""
     from ..pids import build_ecu_index
     from ..transport import RawUdsClient, SlcanTcpBus
-    from ..wican_mode import ModeError, protocol_mode
     from .monitor import mode_monitor
     from .multi import parse_sub_commands
 
@@ -57,36 +50,29 @@ async def run_raw_monitor(args, host: str, pids_data: dict) -> int:
     ecu_index = build_ecu_index(pids_data)
     ecus = query_ecu_addresses(query_steps, ecu_index)
     if not ecus:
-        print("Error: no known ECUs in the query steps for --raw-can.", file=sys.stderr)
+        print("Error: no known ECUs in the query steps.", file=sys.stderr)
         return 1
 
-    port, bitrate = _resolve_device_defaults(args.wican, None, None)
     print(
         f"  Raw CAN monitor via SLCAN — {host}:{port} @ {bitrate} bps  "
         f"(ECUs: {', '.join(sorted(ecus))})"
     )
-
-    try:
-        with protocol_mode(args.wican, "slcan", assume_yes=getattr(args, "yes", False)):
-            bus = SlcanTcpBus(host, port=port, bitrate=bitrate)
-            client = RawUdsClient(bus, ecus, timeout=max(1.0, float(args.timeout)))
-            await mode_monitor(
-                None,
-                query_steps,
-                pids_data,
-                args.verbose,
-                interval=args.monitor,
-                session_steps=session_steps,
-                keep_mode=_keep_mode(args),
-                keep_n=getattr(args, "keep", None),
-                save=args.save,
-                show_rulers=getattr(args, "rulers", False),
-                label=args.label,
-                state=args.state,
-                notes=args.notes,
-                raw_client=client,
-            )
-    except ModeError as e:
-        print(f"error: {e}", file=sys.stderr)
-        return 2
+    bus = SlcanTcpBus(host, port=port, bitrate=bitrate)
+    client = RawUdsClient(bus, ecus, timeout=max(1.0, float(args.timeout)))
+    await mode_monitor(
+        None,
+        query_steps,
+        pids_data,
+        args.verbose,
+        interval=args.monitor,
+        session_steps=session_steps,
+        keep_mode=_keep_mode(args),
+        keep_n=getattr(args, "keep", None),
+        save=args.save,
+        show_rulers=getattr(args, "rulers", False),
+        label=args.label,
+        state=args.state,
+        notes=args.notes,
+        raw_client=client,
+    )
     return 0

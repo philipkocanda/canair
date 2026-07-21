@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import contextlib
 import socket
-import sys
 import time
 
 import requests
@@ -38,6 +37,27 @@ def load_config(base_url: str, timeout: float = 10.0) -> dict:
 def current_protocol(base_url: str, timeout: float = 10.0) -> str:
     """Return the device's active ``protocol`` string."""
     return str(load_config(base_url, timeout=timeout).get("protocol", "")).lower()
+
+
+def require_protocol(wican: str, expected: str, timeout: float = 6.0) -> None:
+    """Raise :class:`ModeError` if the WiCAN is reachable but not in ``expected``.
+
+    No-op when the HTTP config API isn't reachable (a non-WiCAN gateway, or a
+    device that's offline) — in that case the transport connect itself will
+    surface the problem. This never switches the mode (explicit-only policy).
+    """
+    base_url = resolve_wican_url(wican)
+    try:
+        proto = current_protocol(base_url, timeout=timeout)
+    except Exception:
+        return
+    if proto and proto != expected:
+        raise ModeError(
+            f"WiCAN is in '{proto}' mode but this needs '{expected}'. Set it explicitly:\n"
+            f"    canair wican --set-protocol {expected}\n"
+            f"and restore it afterwards with:\n"
+            f"    canair wican --set-protocol {proto}"
+        )
 
 
 def wait_until_ready(host: str, port: int = 80, timeout: float = 45.0) -> bool:
@@ -89,65 +109,3 @@ def set_protocol(
         if not wait_until_ready(host):
             raise ModeError(f"WiCAN did not come back online after switching to '{protocol}'.")
     return previous
-
-
-def _confirm(prompt: str, assume_yes: bool) -> bool:
-    if assume_yes:
-        return True
-    if not sys.stdin.isatty():
-        return False
-    try:
-        return input(f"{prompt} [y/N] ").strip().lower() in ("y", "yes")
-    except (EOFError, KeyboardInterrupt):
-        return False
-
-
-@contextlib.contextmanager
-def protocol_mode(
-    wican: str,
-    protocol: str,
-    *,
-    assume_yes: bool = False,
-    restore: bool = True,
-):
-    """Context manager: ensure the device runs ``protocol`` for the block.
-
-    If a switch is needed, asks for consent (unless ``assume_yes``), waits out
-    the reboot, yields, then restores the previous protocol on exit (best-effort,
-    even on error/Ctrl+C). If already in ``protocol``, does nothing and does not
-    reboot on exit.
-    """
-    base_url = resolve_wican_url(wican)
-    previous = current_protocol(base_url)
-
-    if previous == protocol:
-        yield base_url  # already there — nothing to switch or restore
-        return
-
-    prompt = (
-        f"Switch WiCAN from '{previous}' to '{protocol}' mode? This reboots the "
-        f"device (~5s) and pauses ELM327/AutoPID (Home Assistant) until restored."
-    )
-    if not _confirm(prompt, assume_yes):
-        raise ModeError(
-            f"Declined mode switch to '{protocol}'. Re-run with --yes to auto-confirm, "
-            f"or set the device to '{protocol}' manually."
-        )
-
-    print(f"  Switching WiCAN to '{protocol}' mode (rebooting)...")
-    set_protocol(base_url, protocol)
-    print(f"  WiCAN is up in '{protocol}' mode.")
-    try:
-        yield base_url
-    finally:
-        if restore:
-            print(f"  Restoring WiCAN to '{previous}' mode (rebooting)...")
-            try:
-                set_protocol(base_url, previous, wait=False)
-            except Exception as e:  # restore is best-effort — never mask the body
-                print(
-                    f"  WARNING: failed to restore '{previous}' mode: {e}\n"
-                    f"  The device may still be in '{protocol}' mode — set it back "
-                    f"via the web UI if needed.",
-                    file=sys.stderr,
-                )
