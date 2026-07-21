@@ -39,7 +39,7 @@ class FakeRawTerminal:
 @pytest.fixture
 def routed(monkeypatch):
     calls = []
-    monkeypatch.setattr(wican_mode, "require_protocol", lambda host, expected: None)
+    monkeypatch.setattr(wican_mode, "require_protocol", lambda host, expected, **kw: None)
 
     import canlib.commands.sniff as sniff
 
@@ -88,7 +88,7 @@ def test_no_host_errors(routed):
 
 
 def test_mode_mismatch_errors(monkeypatch, routed):
-    def boom(host, expected):
+    def boom(host, expected, **kw):
         raise ModeError("wrong mode")
 
     monkeypatch.setattr(wican_mode, "require_protocol", boom)

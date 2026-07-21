@@ -29,7 +29,7 @@ async def run_raw(args, transport, pids_data) -> int:
 
     # Explicit-mode policy: the device must already be serving SLCAN.
     try:
-        require_protocol(host, "slcan")
+        require_protocol(host, "slcan", transport_name="slcan-tcp")
     except ModeError as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
