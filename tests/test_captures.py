@@ -9,6 +9,38 @@ from canlib.captures import (
     resolve_metadata,
     save_session,
 )
+from canlib.commands.captures import _gather_query, _is_hex_payload
+
+
+class TestIsHexPayload:
+    def test_valid_hex(self):
+        assert _is_hex_payload("5001")
+        assert _is_hex_payload("62BC0140000000000002")
+
+    def test_spaces_tolerated(self):
+        assert _is_hex_payload("50 01")
+
+    def test_non_hex_rejected(self):
+        # Legacy captures that stashed an outcome under `payload`.
+        assert not _is_hex_payload("NO DATA")
+        assert not _is_hex_payload("NO DATA x3")
+
+    def test_empty_and_none_rejected(self):
+        assert not _is_hex_payload("")
+        assert not _is_hex_payload(None)
+
+    def test_odd_length_rejected(self):
+        assert not _is_hex_payload("500")
+
+
+class TestGatherQueryFiltersNonHex:
+    def test_non_hex_payloads_excluded(self):
+        entries = [
+            {"ecu": "IGPM", "pid": "1001", "payload": "NO DATA", "date": "2026-04-16"},
+            {"ecu": "IGPM", "pid": "1001", "payload": "5001", "date": "2026-04-16"},
+        ]
+        matched, _ = _gather_query(entries, "IGPM:1001", warn=False)
+        assert [e["payload"] for e in matched] == ["5001"]
 
 
 class TestResolveMetadata:

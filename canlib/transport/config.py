@@ -8,9 +8,11 @@ explicitly (never auto-detected or auto-switched):
                   diagnostics use client-side ISO-TP via
                   :class:`canlib.transport.uds_raw.RawUdsClient`.
 
-Selection precedence (highest first): CLI flag (``--transport``/``--wican``/
-``--port``/``--bitrate``) > the ``transport:`` block in the user config >
-the legacy ``wican_addresses``/``default_wican`` fallback (→ ``wican-ws``).
+Selection precedence (highest first): CLI flag (``--transport``/``--wican``) >
+the ``transport:`` block in the user config > the legacy
+``wican_addresses``/``default_wican`` fallback (→ ``wican-ws``). Port and bitrate
+have no dedicated CLI flags — they come from the config ``transport:`` block
+(``slcan-tcp`` only), falling back to the device's live config where relevant.
 """
 
 from __future__ import annotations
@@ -76,9 +78,10 @@ def _wican_addresses():  # small indirection so tests can monkeypatch cheaply
 def resolve_transport(args=None) -> TransportConfig:
     """Resolve the active transport from CLI args + user config.
 
-    ``args`` is an argparse Namespace that may expose ``transport``, ``wican``,
-    ``port``, ``bitrate`` (all optional). Raises :class:`TransportError` for an
-    unknown transport type.
+    ``args`` is an argparse Namespace that may expose ``transport`` and ``wican``
+    (both optional). Port and bitrate are taken from the config ``transport:``
+    block only (no CLI flags). Raises :class:`TransportError` for an unknown
+    transport type.
     """
     from ..config import load_config
 
@@ -107,6 +110,7 @@ def resolve_transport(args=None) -> TransportConfig:
     def _int(v):
         return int(v) if v is not None else None
 
+    # Port/bitrate are config-only (slcan-tcp): no dedicated CLI flags.
     port = _int(arg("port")) or _int(block.get("port"))
     bitrate = _int(arg("bitrate")) or _int(block.get("bitrate"))
 

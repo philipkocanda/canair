@@ -41,6 +41,7 @@ COMMAND_NAMES: list[str] = [
     "pids",
     "validate",
     "wican",
+    "ecu",
     "profile",
     "config",
     # utilities

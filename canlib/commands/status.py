@@ -17,6 +17,9 @@ _OK = 0
 _UNREACHABLE = 1
 _MISCONFIGURED = 2
 
+# Per-probe network timeout (s) for the read-only reachability checks.
+_PROBE_TIMEOUT = 4.0
+
 
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
@@ -28,10 +31,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     parser.add_argument("--transport", choices=("wican-ws", "slcan-tcp"), default=None,
                         help="Override the configured transport type")
     parser.add_argument("--wican", default=None, help="Override device host (alias or IP)")
-    parser.add_argument("--port", type=int, default=None, help="Override raw (SLCAN) TCP port")
-    parser.add_argument("--bitrate", type=int, default=None, help="Override CAN bitrate")
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
-    parser.add_argument("--timeout", type=float, default=4.0, help="Per-probe timeout (s)")
     parser.set_defaults(func=run)
     return parser
 
@@ -104,8 +104,8 @@ def _gather(args) -> dict:
 
     # WiCAN HTTP config API (works for both current transports when the device
     # is a WiCAN).
-    cfg = _load_device_config(host, args.timeout)
-    st = _device_status(host, args.timeout) if cfg is not None else None
+    cfg = _load_device_config(host, _PROBE_TIMEOUT)
+    st = _device_status(host, _PROBE_TIMEOUT) if cfg is not None else None
     device_protocol = str(cfg.get("protocol")) if cfg else None
     dev_port = None
     if cfg and cfg.get("port"):
@@ -134,7 +134,7 @@ def _gather(args) -> dict:
     else:
         raw_port = t.port or dev_port or 3333
         info["transport"]["port"] = raw_port
-        raw_ok = _tcp_open(host, raw_port, args.timeout)
+        raw_ok = _tcp_open(host, raw_port, _PROBE_TIMEOUT)
         mismatch = bool(device_protocol and device_protocol != "slcan")
         # Usable only if the port is open AND the device is actually serving SLCAN
         # (an open port in the wrong mode won't speak SLCAN).

@@ -6,7 +6,9 @@ import yaml
 
 from canlib.modes.monitor import (
     _HIGHLIGHT_STYLE,
+    MonitorController,
     _bytes_to_ascii,
+    _merge_history,
     _prompt_and_save,
     _render_hex_line,
     _render_results,
@@ -487,3 +489,71 @@ class TestPromptAndSave:
         assert len(captures) == 2
         ecus = {c["ecu"] for c in captures}
         assert ecus == {"0x7A8", "0x778"}  # BCM (0x7A0+8), IGPM (0x770+8)
+
+
+class TestMergeHistory:
+    def test_current_snapshot_appended_when_absent(self):
+        merged = _merge_history({}, {("BMS (0x7E4)", "2101"): "6101AA"})
+        (entries,) = merged.values()
+        assert entries[0][0] == "6101AA"
+
+    def test_current_not_duplicated(self):
+        history = {("BMS (0x7E4)", "2101"): [("6101AA", "10:00:00")]}
+        merged = _merge_history(history, {("BMS (0x7E4)", "2101"): "6101AA"})
+        assert len(merged[("BMS (0x7E4)", "2101")]) == 1  # no dup of the last entry
+
+    def test_empty(self):
+        assert _merge_history({}, {}) == {}
+
+
+class TestControllerSnapshot:
+    """MonitorController must diff against the *previous* cycle, not the just-recorded one."""
+
+    def _controller(self):
+        return MonitorController(
+            terminal=None, query_steps=[], pids_data={}, verbose=False
+        )
+
+    def test_prev_snapshot_lags_one_cycle(self):
+        c = self._controller()
+        key = ("BMS (0x7E4)", "2101")
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
+        assert c.prev_snapshot == {}  # first cycle: nothing before
+        assert c.prev_hex[key] == "6101AA"
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101BB"}])])
+        assert c.prev_snapshot[key] == "6101AA"  # previous cycle's value
+        assert c.prev_hex[key] == "6101BB"  # current value
+
+    def test_single_frame_render_highlights_change(self):
+        c = self._controller()
+        c.cycle = 2
+        c.last_queries = [("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101BB"}])]
+        c.prev_snapshot = {("BMS (0x7E4)", "2101"): "6101AA"}
+        # Byte 2 (AA→BB) must render with a change-highlight background style.
+        styles = {str(s.style) for s in c.render().spans}
+        assert any("on " in s for s in styles)
+
+    def test_has_captures(self):
+        c = self._controller()
+        assert c.has_captures() is False
+        c.prev_hex[("BMS (0x7E4)", "2101")] = "6101AA"
+        assert c.has_captures() is True
+
+    def test_save_now(self, tmp_path):
+        c = self._controller()
+        c.captures_dir = tmp_path
+        c.prev_hex[("BMS (0x7E4)", "2101")] = "6101AA"
+        msg = c.save_now("Live ref", "ready", "note")
+        assert "Saved" in msg
+        files = list(tmp_path.glob("*.yaml"))
+        assert len(files) == 1
+        s = yaml.safe_load(files[0].read_text())["sessions"][0]
+        assert s["label"] == "Live ref"
+        assert s["captures"][0]["payload"] == "6101AA"
+
+    def test_save_now_nothing_to_save(self, tmp_path):
+        c = self._controller()
+        c.captures_dir = tmp_path
+        assert "nothing to save" in c.save_now("x").lower()
+        assert list(tmp_path.glob("*.yaml")) == []
+
