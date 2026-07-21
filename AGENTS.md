@@ -2,11 +2,29 @@
 
 For reference, the WiCAN firmware is checked out in the `wican-fw/` directory (gitignored; pull if you need to reference the latest version).
 
+## Running the CLI — ALWAYS use `uv run canair` from the repo root
+
+**Every `canair` invocation in this repo MUST be run as `uv run canair …` from the project root (`/Users/philip/projects/canair`).** Do NOT call a bare `canair` (a globally installed `uv tool install .` copy). Running bare `canair`:
+
+- may execute **stale code** from a previous install instead of the current working tree, and
+- may resolve a **different vehicle profile** (wrong `--profiles-dir` / `default_profile`) than the repo-bundled `profiles/ioniq-2017/`.
+
+Running `uv run canair …` from the repo root guarantees the latest repo code and the expected in-repo profile. Throughout this file and the skills, wherever an example is written as `canair …`, execute it as `uv run canair …` (use the `workdir` of the repo root; never `cd`-hop away from it).
+
+## Prefer canair's built-in tooling — do not hand-roll
+
+For **all** querying, capturing, analysis, and reverse-engineering, use the dedicated `canair` subcommands documented below rather than raw sockets, ad-hoc scripts, or hand-editing YAML:
+
+- **Query/read the device** with `canair query` / `scan` / `discover` / `io` / `routines` (use `raw` only as a last resort).
+- **Analyze historical data** with `canair captures`, `canair decode`, `canair coverage`, `canair research`.
+- **Edit definitions** with `canair pids` (surgical, validated) — not by hand-editing `pids/` YAML.
+- **Always pass `--save`** (with `--label`, `--state`, `--notes`) when reading from the device so every payload is recorded to `captures/`. See **Key Files → captures** below for the full flag set and examples. `--save` works with `query`/`scan`/`raw`/`discover`, positional query/raw steps, and `--monitor`.
+
 ## Tools
 
 > Reverse-engineering a new PID/DID end-to-end (discover → capture → analyze → define → verify) is documented in the **reverse-engineer-pid** skill; general project/device context is in the **ioniq-reverse-engineering** skill.
 
-All functionality is exposed through a single installable CLI, **`canair`** (argparse subcommands; `uv tool install .`, or `uv run canair …` in the repo).
+All functionality is exposed through a single installable CLI, **`canair`** — but in this repo you **always** invoke it as **`uv run canair …` from the repo root** (see "Running the CLI" above). `uv tool install .` exists for end users, not for agents working in the tree.
 
 - **`canair wican`** — Generate WiCAN vehicle profiles from the active profile's `pids/`, upload/download/diff with device
 - **`canair query`** — Custom CAN/UDS requests via WiCAN WebSocket ELM327 terminal mode. **Prefer positional query steps** like `canair query BMS:2101` (multi mini-language — handles sessions, wake, keepalives; a bare selector like `BMS:2101` is treated as a query step). **Bind each PID to its ECU with a colon (`IGPM:22BC07`), never a space** — in a query step a space separates *independent ECU selectors*, so `"query IGPM 22BC07"` means "all of IGPM plus a bogus ECU 22BC07" and is rejected. Use `canair query --param`/`canair query BMS` for simple single-ECU reads, `canair scan` for discovery. Companions: `canair discover`, `canair io`, `canair routines`, `canair tester-present`, `canair raw` (**last resort** — hex dump only, no decoding), `canair repl` (interactive). `--verbose` is for debugging canair itself, not normal use. **Use `--reboot` to restore AutoPID after session** (WebSocket terminal overrides AutoPID mode). Dependencies: `websockets`, `pyyaml`, `requests` (optional, for reboot).

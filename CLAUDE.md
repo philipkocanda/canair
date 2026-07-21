@@ -12,15 +12,19 @@ This project has a Claude skill defined at `.claude/skills/ioniq-reverse-enginee
 - IOControl actuator documentation
 - Open research TODOs
 
-## Quick Start
+## Running the CLI — ALWAYS `uv run canair` from the repo root
+
+**Agents working in this repo MUST invoke the CLI as `uv run canair …` from the project root**, never a bare `canair`. A globally installed `canair` (`uv tool install .`) can run **stale code** and resolve the **wrong vehicle profile**; `uv run canair …` guarantees the current working-tree code and the repo-bundled `profiles/ioniq-2017/`.
 
 ```bash
-uv tool install .                              # Install the canair CLI (or: uv sync for dev)
-cp config.example.yaml ~/.config/canair/config.yaml   # Set your WiCAN device IP
-canair --help
+uv sync                                                # Set up the dev environment
+cp config.example.yaml ~/.config/canair/config.yaml    # Set your WiCAN device IP
+uv run canair --help
 ```
 
-`uv run canair ...` also works in the repo. Vehicle data lives in a *profile* bundle; the repo ships `profiles/ioniq-2017/` as the default/example. Inspect with `canair profile list` / `show` / `path`.
+Prefer canair's built-in subcommands (`query`/`scan`/`discover`/`captures`/`decode`/`coverage`/`research`/`pids`) for all querying, analysis, and reverse-engineering rather than hand-rolled scripts — and always pass `--save` (with `--label`/`--state`/`--notes`) when reading the device. `uv tool install .` is for end users, not agents.
+
+Vehicle data lives in a *profile* bundle; the repo ships `profiles/ioniq-2017/` as the default/example. Inspect with `uv run canair profile list` / `show` / `path`.
 
 ## Key Directories
 
