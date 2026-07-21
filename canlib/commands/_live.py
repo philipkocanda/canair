@@ -89,6 +89,7 @@ CANREQ_DEFAULTS: dict = {
     "hold": False,
     "wake": False,
     "repl": False,
+    "protocol": "auto",
     "monitor": None,
     "keep_unique": False,
     "keep_all": False,
@@ -517,7 +518,8 @@ async def dispatch_mode(args, terminal, pids_data, host):
             )
             sys.exit(1)
         await mode_identity(
-            terminal, tx_id, session=args.session, wake=args.wake, as_json=args.json
+            terminal, tx_id, session=args.session, wake=args.wake, as_json=args.json,
+            protocol=getattr(args, "protocol", "auto"),
         )
     elif args.param:
         await mode_param(
