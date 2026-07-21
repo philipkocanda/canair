@@ -129,7 +129,8 @@ first**, then **client-side ISO-TP + pipelined UDS** as a faster monitor backend
     `_decode_pid_result` so decoded values/rendering are identical.
     `canlib/modes/raw_monitor.run_raw_monitor` orchestrates
     lock → `protocol_mode(slcan)` → bus/client → `mode_monitor(raw_client=…)`.
-  - `canair query --monitor --raw-can [--yes]` (branch in `_live.async_main`).
+  - `canair query --monitor` over the raw transport (originally `--raw-can`; now
+  selected by `--transport slcan-tcp` / config — see TRANSPORT_PLAN.md).
   - **On-device result:** decoded values match the ELM path (SOC 91.5 %, VCU
     speed, IGPM bits); a 0.2 s stack-settle makes the first cycle clean;
     pipelined vs sequential across IGPM(3 DIDs)+BMS+VCU = **~1.4× faster**.

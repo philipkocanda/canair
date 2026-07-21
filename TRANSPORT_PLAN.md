@@ -93,7 +93,21 @@ Resolution precedence (highest first): CLI flag > `transport:` block >
 
 ## Status
 
-- [ ] A — TransportConfig + resolve_transport + `canair status` + tests
-- [ ] B — connection flags; remove auto-switch; `canair wican --set-protocol`
-- [ ] C — transport-type dispatch; raw query/raw/scan; drop `--raw-can`
-- [ ] On-device verification + docs (SKILL.md, README/AGENTS as needed)
+- [x] A — `TransportConfig` + `resolve_transport` (`canlib/transport/config.py`) +
+  `canair status` (transport, WiCAN protocol/sleep/battery/ip, profile,
+  mode-mismatch, `--json`, exit codes) + tests.
+- [x] B — `--transport`/`--port`/`--bitrate` on `add_connection_args`;
+  `canair wican --set-protocol <mode> [--yes]` (explicit device-mode set);
+  `wican_mode.require_protocol` preflight; removed auto-switch from `sniff` and
+  the raw monitor (removed the now-orphaned `protocol_mode`/`_confirm`).
+- [x] C — transport-type dispatch in `_live.async_main` (`transport.is_raw` →
+  `canlib.modes.raw_ops.run_raw`); raw `query`/`raw`/`monitor` over `slcan-tcp`;
+  dropped `--raw-can` (superseded by `--transport slcan-tcp`); other commands
+  return a clear "not supported over slcan-tcp yet" error.
+- [x] On-device verified (2026-07-21): `canair status` (wican-ws + slcan-tcp,
+  incl. mode-mismatch warning); `canair wican --set-protocol slcan|auto_pid`;
+  `canair query`/`raw` over `--transport slcan-tcp` (decoded, matches ELM path);
+  device restored to `auto_pid`. Full pytest + ruff green.
+- [ ] Follow-ups: raw `scan`; socketcan / slcan-serial transports; route the
+  advanced commands (io/routines/discover/identity/*-scan) over raw.
+

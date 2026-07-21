@@ -70,18 +70,6 @@ examples:
     parser.add_argument("--state", metavar="TEXT", default=None, help="Session state for --save")
     parser.add_argument("--notes", metavar="TEXT", default=None, help="Session notes for --save")
     parser.add_argument("--rulers", action="store_true", help="Monitor: show byte-index rulers")
-    parser.add_argument(
-        "--raw-can",
-        action="store_true",
-        help="Monitor over the raw SLCAN backend (client-side ISO-TP + pipelined "
-        "UDS) instead of the ELM327 terminal. Switches the WiCAN to slcan mode "
-        "(reboot; use --yes to auto-confirm) and restores it on exit.",
-    )
-    parser.add_argument(
-        "--yes",
-        action="store_true",
-        help="Auto-confirm the WiCAN mode switch for --raw-can (no prompt)",
-    )
     add_connection_args(parser)
     finalize_live_parser(parser)
     parser.set_defaults(func=run)

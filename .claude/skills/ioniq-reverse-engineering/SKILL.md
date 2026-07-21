@@ -151,21 +151,33 @@ All endpoints are JSON, no authentication. Device address varies (see Device Acc
 
 ### Tools
 
+#### Transports: `wican-ws` vs `slcan-tcp` (and `canair status`)
+
+canair talks to the bus over an **explicit, config-chosen transport** (never
+auto-switched):
+
+- **`wican-ws`** (default) — WiCAN Pro WebSocket ELM327 terminal; works in *any*
+  device `protocol` (device does ISO-TP). All commands supported.
+- **`slcan-tcp`** — SLCAN over TCP (classic WiCAN / gateway); diagnostics use
+  client-side ISO-TP (`RawUdsClient`). Requires the device to be in `slcan`
+  mode. Supported: `query`, `raw`, `monitor`, `sniff` (others → clear error).
+
+Select via the `transport:` block in `~/.config/canair/config.yaml`
+(`type`/`host`/`port`/`bitrate`) or per-command `--transport`/`--wican`/
+`--port`/`--bitrate`. **`canair status`** shows the resolved transport, the
+device's current `protocol`/sleep/battery/IP, the active profile, and warns on a
+mode mismatch (with the exact fix). No auto-switching: put the device in the
+needed mode explicitly with **`canair wican --set-protocol slcan|auto_pid [--yes]`**.
+
 #### canair sniff (raw CAN, experimental)
 
-Passive CAN bus sniffer using a **raw-CAN backend** (SLCAN over TCP via
-python-can) instead of the request/response ELM327 terminal. It shows a live
-per-ID table (frame count, rate in Hz, last data, and which bytes have ever
-changed) — ideal for discovering broadcast IDs / periodic signals the ELM327
-path can't observe. `--save FILE` logs every frame (`.asc`/`.blf`/`.csv`);
-`--filter 770,7E4` limits IDs; `--listen-only` is a silent (no-ACK/TX) capture;
-`--duration N` auto-stops.
+Passive CAN bus sniffer over `slcan-tcp` (python-can) instead of the ELM327
+terminal. Live per-ID table (count, Hz, last data, changed bytes) — for
+discovering broadcast IDs / periodic signals. `--save FILE` logs frames
+(`.asc`/`.blf`/`.csv`); `--filter 770,7E4`; `--listen-only`; `--duration N`.
 
-The WiCAN runs one protocol at a time, so `canair sniff` **switches the device
-into `slcan` mode (with a consent prompt, or `--yes`) and restores the previous
-mode (usually `auto_pid`/`elm327`) on exit** — each switch is a device reboot
-(~5 s) and pauses ELM327/AutoPID (Home Assistant) for the duration. See
-`RAW_CAN_PLAN.md` for the full raw-CAN roadmap.
+The device must already be in `slcan` mode (sniff never switches it); otherwise
+it errors with the exact `canair wican --set-protocol slcan` fix.
 
 **Verified on-device (Ioniq):** raw SLCAN is on TCP **35000** (auto-detected
 from `/load_config`); TX+RX works. But **passive sniffing sees ~nothing** here —
@@ -173,20 +185,19 @@ the central gateway forwards only diagnostic request/response to the OBD-II port
 not internal broadcast traffic. So on this car the raw-CAN value is pipelined
 UDS (below), not sniffing.
 
-#### canair query --monitor --raw-can (pipelined UDS, experimental)
+#### canair query / raw / monitor over `slcan-tcp` (pipelined UDS, experimental)
 
-Runs the live monitor over the **raw SLCAN backend + client-side ISO-TP**
-(`can-isotp`) instead of the ELM327 terminal, with **request pipelining**: each
-cycle fires the next request for every ECU concurrently and collects responses
-as they arrive — overlapping ECU think-time (parallel *across* ECUs, sequential
-*within* an ECU, since one ISO-TP stack allows a single outstanding request).
-Like `sniff`, it switches to `slcan` (consent / `--yes`) and restores the
-previous mode on exit. Decoded values are identical to the ELM path (same
-profile PIDs). It also **batches a `multi_did` ECU's `22` DIDs into one ISO-TP
-request** (learned lengths, split back per-DID; falls back on NRC 0x13/0x31) and
-**primes each ECU on start** to absorb the first-request-after-idle wake latency.
-Verified on-device: IGPM's 3 DIDs collapse to one request (5→3 reqs/cycle),
-~130–190 ms/cycle, all values matching the ELM path.
+With `--transport slcan-tcp` (device in `slcan`), the read commands run over the
+**raw SLCAN backend + client-side ISO-TP** (`can-isotp`) instead of the ELM327
+terminal. The monitor pipelines: each cycle fires the next request for every ECU
+concurrently and collects responses as they arrive — overlapping ECU think-time
+(parallel *across* ECUs, sequential *within* an ECU, since one ISO-TP stack
+allows a single outstanding request). Decoded values are identical to the ELM
+path (same profile PIDs). It also **batches a `multi_did` ECU's `22` DIDs into
+one ISO-TP request** (learned lengths, split back per-DID; falls back on NRC
+0x13/0x31) and **primes each ECU on start** to absorb the first-request-after-idle
+wake latency. Verified on-device: IGPM's 3 DIDs collapse to one request
+(5→3 reqs/cycle), ~130–190 ms/cycle, all values matching the ELM path.
 
 
 #### canair wican
