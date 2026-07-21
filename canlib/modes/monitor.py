@@ -164,6 +164,57 @@ def _render_results(
     return text
 
 
+def _merge_history(
+    hex_history: dict[tuple[str, str], list[tuple[str, str]]],
+    prev_hex: dict[tuple[str, str], str],
+) -> dict[tuple[str, str], list[tuple[str, str]]]:
+    """Merge the latest ``prev_hex`` snapshot into the payload history.
+
+    Returns a ``{(ecu_label, pid): [(hex, timestamp), ...]}`` map. A PID whose
+    current payload isn't already the last history entry gets it appended with a
+    fresh timestamp, so a bare snapshot (no history kept) still yields one row
+    per PID.
+    """
+    all_keys = set(hex_history.keys()) | set(prev_hex.keys())
+    merged: dict[tuple[str, str], list[tuple[str, str]]] = {}
+    for key in all_keys:
+        entries = list(hex_history.get(key, []))
+        cur = prev_hex.get(key, "")
+        if cur and cur not in [h for h, _ts in entries]:
+            ts = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+            entries.append((cur, ts))
+        if entries:
+            merged[key] = entries
+    return merged
+
+
+def _write_merged(
+    merged: dict[tuple[str, str], list[tuple[str, str]]],
+    label: str,
+    state: str,
+    notes: str,
+    captures_dir: Path,
+) -> Path:
+    """Build a query-capture session from merged payloads and save it to disk.
+
+    The ECU label (e.g. "BMS") is resolved to its CAN response address; an
+    unknown label falls back to its leading token verbatim.
+    """
+    from ..captures import build_query_session, save_session
+    from ..ecus import build_name_tx_index, rx_from_name
+
+    name_index = build_name_tx_index()
+    results: list[tuple[str, str, str, str]] = []
+    for (ecu_label, pid), entries in sorted(merged.items()):
+        ecu_short = re.match(r"(\w+)", ecu_label).group(1)
+        ecu_ref = rx_from_name(ecu_short, name_index) or ecu_short
+        for hex_val, ts in entries:
+            results.append((ecu_ref, pid, hex_val, ts))
+
+    session = build_query_session(results, label, state, notes)
+    return save_session(session, captures_dir)
+
+
 def _prompt_and_save(
     hex_history: dict[tuple[str, str], list[tuple[str, str]]],
     prev_hex: dict[tuple[str, str], str],
@@ -180,24 +231,13 @@ def _prompt_and_save(
     stored — they are regenerated on demand from the payload + PID definitions
     (see decode.py / query-captures.py).
     """
-    from ..captures import build_query_session, resolve_metadata, save_session
+    from ..captures import resolve_metadata
 
     if not hex_history and not prev_hex:
         print("  No payloads captured — nothing to save.")
         return
 
-    # Merge current values into history for PIDs not yet in history
-    all_keys = set(hex_history.keys()) | set(prev_hex.keys())
-    merged: dict[tuple[str, str], list[tuple[str, str]]] = {}
-    for key in all_keys:
-        entries = list(hex_history.get(key, []))
-        cur = prev_hex.get(key, "")
-        if cur and cur not in [h for h, _ts in entries]:
-            ts = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-            entries.append((cur, ts))
-        if entries:
-            merged[key] = entries
-
+    merged = _merge_history(hex_history, prev_hex)
     if not merged:
         print("  No payloads captured — nothing to save.")
         return
@@ -213,21 +253,7 @@ def _prompt_and_save(
         return
     label, state, notes = meta
 
-    # Flatten to (ecu_ref, pid, hex, time) rows, grouped by ECU then PID.
-    # The ECU label (e.g. "BMS") is resolved to its CAN response address; an
-    # unknown label falls back to its leading token verbatim.
-    from ..ecus import build_name_tx_index, rx_from_name
-
-    name_index = build_name_tx_index()
-    results: list[tuple[str, str, str, str]] = []
-    for (ecu_label, pid), entries in sorted(merged.items()):
-        ecu_short = re.match(r"(\w+)", ecu_label).group(1)
-        ecu_ref = rx_from_name(ecu_short, name_index) or ecu_short
-        for hex_val, ts in entries:
-            results.append((ecu_ref, pid, hex_val, ts))
-
-    session = build_query_session(results, label, state, notes)
-    save_session(session, captures_dir)
+    _write_merged(merged, label, state, notes, captures_dir)
 
 
 def _raw_pid_result(pid_code, pid_info, unmapped, value, acquired_at):
@@ -310,6 +336,14 @@ class MonitorController:
         self.last_elm_time = 0.0  # seconds spent in ELM commands last cycle
         self.last_queries: list[tuple[str, list]] = []
         self.prev_hex: dict[tuple[str, str], str] = {}
+        # Payloads as of the *previous* poll cycle, snapshotted before prev_hex is
+        # overwritten each cycle. Rendering diffs against this so byte-level change
+        # highlighting works in the single-frame view too (prev_hex already holds
+        # the freshly-recorded current payload by render time).
+        self.prev_snapshot: dict[tuple[str, str], str] = {}
+        # Where on-demand ('s' key in the TUI) / end-of-run captures are written.
+        # Set by mode_monitor; resolved lazily if left None.
+        self.captures_dir: Path | None = None
         self.hex_history: dict[tuple[str, str], list[tuple[str, str]]] | None = (
             {} if keep_mode else None
         )
@@ -365,6 +399,10 @@ class MonitorController:
 
     def _record(self, new_queries: list[tuple[str, list]]) -> None:
         """Record freshly-polled payloads into prev_hex / display / save history."""
+        # Snapshot the prior cycle's payloads before overwriting them, so the
+        # renderer can diff current-vs-previous (prev_hex is about to become the
+        # current values).
+        self.prev_snapshot = dict(self.prev_hex)
         for ecu_label, pid_results in new_queries:
             for entry in pid_results:
                 raw = entry.get("raw_hex", "")
@@ -564,7 +602,7 @@ class MonitorController:
             self.cycle,
             self.elapsed,
             self.interval,
-            self.prev_hex,
+            self.prev_snapshot,
             self.hex_history,
             show_rulers=self.show_rulers,
             footer=False,
@@ -579,6 +617,39 @@ class MonitorController:
     ) -> None:
         if self.save and self.save_history is not None:
             _prompt_and_save(self.save_history, self.prev_hex, captures_dir, label, state, notes)
+
+    def has_captures(self) -> bool:
+        """True when there's at least one payload available to save."""
+        history = self.save_history if self.save_history is not None else (self.hex_history or {})
+        return bool(history) or bool(self.prev_hex)
+
+    def save_now(self, label: str, state: str | None = None, notes: str | None = None) -> str:
+        """Save the payloads captured so far (on-demand save from the TUI).
+
+        Uses the richest history available — the full ``--save`` history if
+        enabled, else the display (``--keep``) history, else just the latest
+        per-PID snapshot — merged with the current values. Returns a one-line
+        summary for display. Never writes to stdout (the TUI owns the screen).
+        """
+        import contextlib
+        import io
+
+        history = self.save_history if self.save_history is not None else (self.hex_history or {})
+        merged = _merge_history(history, self.prev_hex)
+        if not merged:
+            return "No payloads captured yet — nothing to save."
+
+        captures_dir = self.captures_dir
+        if captures_dir is None:
+            from ..profile import active
+
+            captures_dir = active().captures_dir
+
+        n_pids = len(merged)
+        n_payloads = sum(len(v) for v in merged.values())
+        with contextlib.redirect_stdout(io.StringIO()):
+            path = _write_merged(merged, label, state or "", notes or "", captures_dir)
+        return f"Saved {n_payloads} payload(s) across {n_pids} PID(s) → {path.name}"
 
     async def close(self) -> None:
         """Stop keepalives and close all open sessions / the raw client (best-effort)."""
@@ -656,7 +727,8 @@ async def mode_monitor(
         show_rulers:    Show byte-index rulers (idx/wican) once per PID.
 
     TUI keys: ↑/↓ or j/k scroll, PgUp/PgDn page, g/Home top, G/End bottom,
-    f toggle follow-tail, space pause/resume polling, q or Ctrl+C stop.
+    f toggle follow-tail, space pause/resume polling, s save captures, q or
+    Ctrl+C stop.
     """
     from ..profile import active
 
@@ -673,6 +745,7 @@ async def mode_monitor(
         show_rulers=show_rulers,
         raw_client=raw_client,
     )
+    controller.captures_dir = captures_dir
 
     try:
         await controller.setup(session_steps)

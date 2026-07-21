@@ -29,8 +29,9 @@ wican_addresses:
 default_wican: ap
 
 # CAN transport selection (advanced). Chosen explicitly; never auto-detected.
-# Overridden by --transport/--wican/--port/--bitrate. When omitted, canair
-# falls back to the wican_addresses/default_wican pair above (→ wican-ws).
+# The type/host are overridden per-command by --transport/--wican; port and
+# bitrate are config-only (no CLI flags). When omitted, canair falls back to the
+# wican_addresses/default_wican pair above (→ wican-ws).
 # transport:
 #   type: wican-ws       # wican-ws (WebSocket ELM327) | slcan-tcp (raw SLCAN over TCP)
 #   host: 192.168.3.2    # device host/IP (both transports)

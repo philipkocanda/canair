@@ -16,7 +16,7 @@ from canlib.modes._monitor_tui import MonitorApp
 class FakeController:
     """Stand-in for MonitorController: canned render + counting poll."""
 
-    def __init__(self, *, keep_mode=None, n_lines=50, disconnect_after=None):
+    def __init__(self, *, keep_mode=None, n_lines=50, disconnect_after=None, has_captures=True):
         self.cycle = 0
         self.elapsed = 0.0
         self.interval = 0.05
@@ -26,6 +26,8 @@ class FakeController:
         self.disconnected = False
         self._n_lines = n_lines
         self._disconnect_after = disconnect_after
+        self._has_captures = has_captures
+        self.saved = None
 
     async def poll_once(self):
         self.cycle += 1
@@ -41,6 +43,13 @@ class FakeController:
         for i in range(self._n_lines):
             t.append(f"  BMS 21{i:02X}: value={self.cycle * i}\n")
         return t
+
+    def has_captures(self) -> bool:
+        return self._has_captures
+
+    def save_now(self, label, state=None, notes=None) -> str:
+        self.saved = (label, state, notes)
+        return "Saved 1 payload → foo.yaml"
 
 
 def _plain(renderable) -> str:
@@ -119,3 +128,59 @@ class TestMonitorApp:
                     break
                 await asyncio.sleep(0.02)
             assert ctrl.disconnected is True
+
+    @pytest.mark.asyncio
+    async def test_save_opens_dialog_and_saves(self):
+        from textual.widgets import Input
+
+        from canlib.modes._monitor_tui import SaveDialog
+
+        ctrl = FakeController()
+        app = MonitorApp(ctrl)
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause(0.1)
+            await pilot.press("s")
+            await pilot.pause(0.1)
+            assert isinstance(app.screen, SaveDialog)
+            # Suggested label is pre-filled.
+            assert app.screen.query_one("#f-label", Input).value.startswith("Monitor")
+            # 'q' must not quit while the modal owns the keyboard.
+            await pilot.press("enter")
+            await pilot.pause(0.1)
+            assert ctrl.saved is not None
+            assert ctrl.saved[0].startswith("Monitor")
+            status = app.query_one("#status").render()
+            plain = status.plain if hasattr(status, "plain") else str(status)
+            assert "Saved" in plain
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
+    async def test_save_cancelled_with_escape(self):
+        from canlib.modes._monitor_tui import SaveDialog
+
+        ctrl = FakeController()
+        app = MonitorApp(ctrl)
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause(0.1)
+            await pilot.press("s")
+            await pilot.pause(0.1)
+            assert isinstance(app.screen, SaveDialog)
+            await pilot.press("escape")
+            await pilot.pause(0.1)
+            assert not isinstance(app.screen, SaveDialog)
+            assert ctrl.saved is None
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
+    async def test_save_no_captures_flashes_no_dialog(self):
+        from canlib.modes._monitor_tui import SaveDialog
+
+        ctrl = FakeController(has_captures=False)
+        app = MonitorApp(ctrl)
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause(0.1)
+            await pilot.press("s")
+            await pilot.pause(0.1)
+            assert not isinstance(app.screen, SaveDialog)
+            assert ctrl.saved is None
+            await pilot.press("q")

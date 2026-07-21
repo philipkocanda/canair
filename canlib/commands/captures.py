@@ -409,7 +409,7 @@ def _gather_query(
     from canlib.query import parse_query
 
     q = parse_query(query)
-    payloads = [e for e in entries if e.get("payload")]
+    payloads = [e for e in entries if _is_hex_payload(e.get("payload"))]
     matched, empty = q.filter(
         payloads, ecu_of=lambda e: e["ecu"], pid_of=lambda e: e["pid"]
     )
@@ -437,6 +437,27 @@ def _gather_query(
         print(f"  {_DIM}Available ECUs: {avail}{_RESET}")
 
     return matched, defs
+
+
+def _is_hex_payload(payload) -> bool:
+    """True if ``payload`` is a byte-diffable hex string.
+
+    The byte-level views (``--diff``/``--step``) render payloads as hex. Some
+    legacy captures store a human outcome (e.g. ``"NO DATA"``) under ``payload``
+    instead of ``response``; those aren't hex and must be excluded here so the
+    hex renderer never chokes on them. Spaces are tolerated (payloads are
+    normally stored space-free, uppercase).
+    """
+    if not payload:
+        return False
+    s = str(payload).replace(" ", "")
+    if not s or len(s) % 2 != 0:
+        return False
+    try:
+        bytes.fromhex(s)
+    except ValueError:
+        return False
+    return True
 
 
 def _capture_key(e: dict) -> tuple[str, str]:
@@ -501,9 +522,10 @@ def _group_by_key(captures: list[dict]) -> dict[tuple[str, str], list[dict]]:
 
 
 def _render_diff_group(
-    console, payloads: list[dict], parameters: dict, tx_id: int | None, show_all: bool
+    console, payloads: list[dict], parameters: dict, tx_id: int | None, show_all: bool,
+    rulers: bool = False,
 ) -> None:
-    """Render one ECU+PID block: header, decoded params, ruler, byte-diff hex."""
+    """Render one ECU+PID block: header, decoded params, optional ruler, byte-diff hex."""
     from rich.markup import escape
 
     from canlib.decoding import decode_param_rows
@@ -537,9 +559,9 @@ def _render_diff_group(
     render_list = payloads if show_all else unique
     max_ts = max((len(e.get("time") or e.get("date") or "") for e in render_list), default=0)
 
-    # Byte-index ruler (once), aligned with the hex byte columns below.
-    # Two rows: "idx" = payload byte position, "wican" = WiCAN Bnn (skips PCI).
-    if n_bytes:
+    # Byte-index ruler (opt-in via --rulers), aligned with the hex byte columns
+    # below. Two rows: "idx" = payload byte position, "wican" = WiCAN Bnn (skips PCI).
+    if rulers and n_bytes:
         console.print(
             render_byte_rulers(n_bytes, rows, prefix_width=8 + max_ts), end="", soft_wrap=True
         )
@@ -557,7 +579,7 @@ def _render_diff_group(
         prev_norm = norm
 
 
-def cmd_diff(entries: list[dict], query, show_all: bool = False) -> None:
+def cmd_diff(entries: list[dict], query, show_all: bool = False, rulers: bool = False) -> None:
     """Show payloads matching ``query`` in canreq monitor style, per ECU+PID.
 
     ``query`` is a canlib.query selection (``"VCU"``, ``"VCU:2101,2102"``,
@@ -580,7 +602,7 @@ def cmd_diff(entries: list[dict], query, show_all: bool = False) -> None:
     groups = _group_by_key(captures)
     for key, group in sorted(groups.items()):
         parameters, tx_id = defs.get(key, ({}, None))
-        _render_diff_group(console, group, parameters, tx_id, show_all)
+        _render_diff_group(console, group, parameters, tx_id, show_all, rulers)
 
     console.print()
 
@@ -606,8 +628,9 @@ def _render_step_frame(
     ordinals: list[tuple[int, int]],
     status: str = "",
     prompt: str | None = None,
+    rulers: bool = False,
 ) -> None:
-    """Render one capture full-screen: header, decoded params, ruler, diff hex.
+    """Render one capture full-screen: header, decoded params, optional ruler, diff hex.
 
     PID definitions (``parameters``/``tx_id``) are resolved per-capture from
     ``defs``, so a single interleaved list can span multiple PIDs/ECUs. The
@@ -668,10 +691,10 @@ def _render_step_frame(
     if rows:
         console.print(render_param_table(rows, n_bytes=n_bytes), end="")
 
-    # Byte-index ruler, aligned with the hex byte columns below.
+    # Byte-index ruler (opt-in via --rulers), aligned with the hex byte columns below.
     prev_ts = (prev.get("time") or prev.get("date") or "") if prev else ""
     max_ts = max(len(ts), len(prev_ts))
-    if n_bytes:
+    if rulers and n_bytes:
         console.print(
             render_byte_rulers(n_bytes, rows, prefix_width=8 + max_ts), end="", soft_wrap=True
         )
@@ -709,6 +732,7 @@ def cmd_step(
     query,
     show_all: bool = False,
     captures_dir: Path | None = None,
+    rulers: bool = False,
 ) -> None:
     """Interactively step through captures matching ``query``, one at a time.
 
@@ -751,7 +775,7 @@ def cmd_step(
     # Non-interactive (piped) — fall back to the static diff view.
     if not (sys.stdin.isatty() and sys.stdout.isatty()):
         print("  (not a TTY — falling back to --diff view)")
-        cmd_diff(entries, query, show_all=show_all)
+        cmd_diff(entries, query, show_all=show_all, rulers=rulers)
         return
 
     import termios
@@ -768,7 +792,8 @@ def cmd_step(
     def redraw(prompt: str | None = None) -> None:
         sys.stdout.write("\033[2J\033[H")  # clear + home
         _render_step_frame(
-            console, captures, i, defs, prev_idx, ordinals, status=status, prompt=prompt
+            console, captures, i, defs, prev_idx, ordinals, status=status, prompt=prompt,
+            rulers=rulers,
         )
 
     def reload() -> bool:
@@ -989,6 +1014,11 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         help="For --diff/--step: use every payload instead of unique-only",
     )
 
+    parser.add_argument(
+        "--rulers", "-r", action="store_true",
+        help="For --diff/--step: show the byte-index ruler (idx/wican) above the hex",
+    )
+
     date_group = parser.add_argument_group(
         "date scoping", "Restrict any mode to captures within a date range (inclusive, YYYY-MM-DD)"
     )
@@ -1070,9 +1100,9 @@ def run(args) -> int:
         elif args.latest is not None:
             cmd_latest(entries, args.latest or None)
         elif args.diff:
-            cmd_diff(entries, query, show_all=args.all)
+            cmd_diff(entries, query, show_all=args.all, rulers=args.rulers)
         elif args.step:
-            cmd_step(entries, query, show_all=args.all, captures_dir=args.dir)
+            cmd_step(entries, query, show_all=args.all, captures_dir=args.dir, rulers=args.rulers)
         else:
             cmd_list(entries, query)
     except QueryError as ex:

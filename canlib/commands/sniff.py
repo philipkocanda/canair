@@ -127,18 +127,6 @@ examples:
         f"(default: config transport.host / default_wican={DEFAULT_WICAN})",
     )
     parser.add_argument(
-        "--port",
-        type=int,
-        default=None,
-        help="SLCAN TCP port (default: the device's configured socket port)",
-    )
-    parser.add_argument(
-        "--bitrate",
-        type=int,
-        default=None,
-        help="CAN bitrate (default: the device's configured can_datarate)",
-    )
-    parser.add_argument(
         "--listen-only",
         action="store_true",
         help="Open the bus silently (no ACK/TX) — pure passive sniff",
@@ -213,7 +201,8 @@ def run(args) -> int:
     from canlib.transport import resolve_transport
     from canlib.wican_mode import ModeError, require_protocol
 
-    host = resolve_transport(args).host
+    t = resolve_transport(args)
+    host = t.host
     try:
         filters = _parse_filters(args.filter)
     except ValueError:
@@ -222,8 +211,10 @@ def run(args) -> int:
         )
         return 2
 
-    args.port, args.bitrate = _resolve_device_defaults(host, args.port, args.bitrate)
-    print(f"  Raw CAN via SLCAN — {host}:{args.port} @ {args.bitrate} bps")
+    # Port/bitrate come from the config transport block, falling back to the
+    # device's live config (no dedicated CLI flags).
+    port, bitrate = _resolve_device_defaults(host, t.port, t.bitrate)
+    print(f"  Raw CAN via SLCAN — {host}:{port} @ {bitrate} bps")
 
     # No auto-switch: the device must already be in slcan mode.
     try:
@@ -235,13 +226,13 @@ def run(args) -> int:
     lock = WiCANLock()
     lock.acquire(force=args.force)
     try:
-        _run_sniff(host, args, filters)
+        _run_sniff(host, args, filters, port, bitrate)
     finally:
         lock.release()
     return 0
 
 
-def _run_sniff(host: str, args, filters) -> None:
+def _run_sniff(host: str, args, filters, port: int, bitrate: int) -> None:
     import can
 
     from canlib.transport import SlcanTcpBus
@@ -249,8 +240,8 @@ def _run_sniff(host: str, args, filters) -> None:
     stats = SniffStats()
     bus = SlcanTcpBus(
         host,
-        port=args.port,
-        bitrate=args.bitrate,
+        port=port,
+        bitrate=bitrate,
         listen_only=args.listen_only,
         can_filters=filters,
     )

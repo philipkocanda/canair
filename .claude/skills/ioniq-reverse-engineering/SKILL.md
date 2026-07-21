@@ -166,8 +166,10 @@ auto-switched):
   adapter (same `set_header`/`send_uds`/session interface, backed by ISO-TP).
 
 Select via the `transport:` block in `~/.config/canair/config.yaml`
-(`type`/`host`/`port`/`bitrate`) or per-command `--transport`/`--wican`/
-`--port`/`--bitrate`. **`canair status`** shows the resolved transport, the
+(`type`/`host`/`port`/`bitrate`) or the per-command `--transport`/`--wican`
+overrides. `port`/`bitrate` are config-only (slcan-tcp; no CLI flags), and the
+WebSocket response timeout is a fixed default (no `--timeout` flag).
+**`canair status`** shows the resolved transport, the
 device's current `protocol`/sleep/battery/IP, the active profile, and warns on a
 mode mismatch (with the exact fix). No auto-switching: put the device in the
 needed mode explicitly with **`canair wican --set-protocol slcan|auto_pid [--yes]`**.
@@ -324,7 +326,7 @@ security BCM ki221-std
 
 Turns a `canair query` pipeline into a live-refreshing monitor. Non-query steps (session, skm-wake, sleep) run once as setup; all `query` steps are then polled repeatedly in a background worker. On a terminal it opens a **Textual TUI**: the latest values render into a widget that updates **in place** inside a scrollable container, so the scroll position is independent of the data refresh — the view never jumps or freezes, and mouse wheel / scrollbar / keys all scroll natively. Sessions are kept alive with background TesterPresent keepalives.
 
-**Scrolling / keys (interactive TTY):** mouse wheel or `↑`/`↓`/`j`/`k` scroll, `PgUp`/`PgDn` page, `g`/`Home` top, `G`/`End` bottom. Auto-follow sticks to the newest output only while already at the bottom (like `tail -f` in a pager) — scroll up to read and new data won't yank you down; `f` toggles sticking entirely (default on for `--keep-all`/`--keep-unique`, off for the plain dashboard). `space` pauses/resumes polling; `q` or `Ctrl+C` quits (final values are printed to scrollback on exit). When stdout is **not** a TTY (piped/scripted), it polls silently until `Ctrl+C` and prints the final values.
+**Scrolling / keys (interactive TTY):** mouse wheel or `↑`/`↓`/`j`/`k` scroll, `PgUp`/`PgDn` page, `g`/`Home` top, `G`/`End` bottom. Auto-follow sticks to the newest output only while already at the bottom (like `tail -f` in a pager) — scroll up to read and new data won't yank you down; `f` toggles sticking entirely (default on for `--keep-all`/`--keep-unique`, off for the plain dashboard). `space` pauses/resumes polling; `s` opens a modal to save the payloads captured so far to the profile's `captures/` (label/state/notes, even without `--save` upfront); `q` or `Ctrl+C` quits (final values are printed to scrollback on exit). When stdout is **not** a TTY (piped/scripted), it polls silently until `Ctrl+C` and prints the final values.
 
 **Performance (multi-ECU polling).** The ELM327 is a single serial channel on one bus, so requests can't be parallelised — throughput is governed by *ELM commands per cycle* (the status bar shows `N cmds / Xs ELM`). Two optimizations cut that: (1) **header caching** — `ATSH`/`ATFCSH` are only re-sent when the target ECU changes, so all PIDs of one ECU share one header set; (2) **service-22 multi-DID batching** — for ECUs with `multi_did: true` (per-ECU flag; profile default `multi_did_batching`), consecutive `22xxxx` DIDs are read `22 D1 D2 D3` in one request (≤3/request, single CAN frame). Per-DID data lengths are learned from the first single read, then batched; any ECU that rejects it (NRC 0x13, like BCM) auto-falls back to single reads for the session. Measured on IGPM (3 DIDs): 11 → 5 (caching) → 1 (batched) commands/cycle. ELM response timeout is per-profile via `response_timeout_ms` in `pids/_meta.yaml` (`--elm-timeout` overrides).
 
@@ -345,7 +347,7 @@ canair query "session BCM --wake" "query BCM B003 B004" --monitor 2 --keep-all
 
 **Hex display features:**
 
-- **Byte-level change highlighting:** Changed bytes get a highlighted background adapted from their verification color (green -> dark green bg, yellow -> dark goldenrod bg, grey -> grey37 bg). A green dot appears next to PIDs with changed payloads.
+- **Byte-level change highlighting:** Changed bytes get a highlighted background adapted from their verification color (green -> dark green bg, yellow -> dark goldenrod bg, grey -> grey37 bg). A green dot appears next to PIDs with changed payloads. This applies to **all views** — the default single-frame view highlights bytes that changed since the previous poll cycle, and the `--keep-unique`/`--keep-all` views highlight bytes changed from each row's predecessor.
 - **Verification coloring:** Bytes covered by verified parameters are green, unverified are yellow, uncovered bytes are dim grey.
 - **Unmapped PIDs:** Shown with ASCII representation alongside the hex dump.
 
@@ -353,7 +355,7 @@ canair query "session BCM --wake" "query BCM B003 B004" --monitor 2 --keep-all
 
 **`--keep-all` flag:** Retains every payload from every poll cycle (including duplicates), with timestamps. Useful for logging all responses over time, even when values don't change.
 
-**`--save` flag:** Saves results to the profile's `captures/YYYY-MM-DD.yaml`. Works with `canair scan`, `canair raw`, `canair discover`, **`canair query` (any `query`/`raw` step)**, and `--monitor --keep-unique/--keep-all`. Provide `--label` (and optionally `--state`/`--notes`) to save **non-interactively** (no prompt) — this is how agents/scripts should always call it. Without `--label`, the CLI prompts for metadata on stdin (label auto-suggested, Enter to accept). Using `--save`/`--label`/`--state`/`--notes` with an unsupported mode errors out (fails loud). Examples:
+**`--save` flag:** Saves results to the profile's `captures/YYYY-MM-DD.yaml`. Works with `canair scan`, `canair raw`, `canair discover`, **`canair query` (any `query`/`raw` step)**, and `--monitor --keep-unique/--keep-all`. Provide `--label` (and optionally `--state`/`--notes`) to save **non-interactively** (no prompt) — this is how agents/scripts should always call it. Without `--label`, the CLI prompts for metadata on stdin (label auto-suggested, Enter to accept). Using `--save`/`--label`/`--state`/`--notes` with an unsupported mode errors out (fails loud). In the interactive `--monitor` TUI you can also save on demand by pressing `s` (opens a metadata modal) — no need to pass `--save` up front. Examples:
 
 ```bash
 # Non-interactive (preferred for agents): live multi-ECU snapshot

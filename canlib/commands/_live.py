@@ -106,7 +106,7 @@ CANREQ_DEFAULTS: dict = {
     "interval": 1.0,
     "delay": 0.2,
     "wican": DEFAULT_WICAN,
-    "timeout": 3.0,
+    "timeout": 3.0,  # WebSocket response timeout (s); fixed default, no CLI flag
     "elm_timeout": None,
     "json": False,
     "verbose": False,
@@ -203,18 +203,6 @@ def add_connection_args(parser: argparse.ArgumentParser) -> None:
         default=None,
         help="CAN transport: wican-ws (ELM327 terminal) or slcan-tcp (raw CAN). "
         "Overrides the config `transport.type` (default: wican-ws).",
-    )
-    parser.add_argument(
-        "--port", type=int, default=None, help="slcan-tcp: SLCAN TCP port (auto-detected if omitted)"
-    )
-    parser.add_argument(
-        "--bitrate", type=int, default=None, help="slcan-tcp: CAN bitrate (default: 500000)"
-    )
-    parser.add_argument(
-        "--timeout",
-        type=float,
-        default=3.0,
-        help="WebSocket response timeout in seconds (default: 3.0)",
     )
     parser.add_argument(
         "--elm-timeout",
