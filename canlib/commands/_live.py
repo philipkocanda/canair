@@ -329,22 +329,35 @@ async def async_main(args):
 
         return await run_raw(args, transport, pids_data)
 
-    # Warn about any aborted scans from a previous interrupted session
-    from canlib.scan_state import find_aborted_scans
+    # Warn about any aborted scans from a previous interrupted session — but
+    # only in the scan subcommand that produces that scan type, so unrelated
+    # commands (query, io, identity, ...) stay quiet.
+    _scan_types: set[str] = set()
+    if args.scan:
+        _scan_types.add("scan")
+    if args.iocontrol_scan is not None:
+        _scan_types.add("iocontrol")
+    if args.routines_scan is not None:
+        _scan_types.add("routines")
 
-    _aborted = find_aborted_scans()
-    if _aborted:
-        print("!! Aborted scan(s) detected from a previous session:")
-        for _s in _aborted:
+    if _scan_types:
+        from canlib.scan_state import find_aborted_scans
+
+        _aborted = [s for s in find_aborted_scans() if s.get("type") in _scan_types]
+        if _aborted:
+            print("!! Aborted scan(s) detected from a previous session:")
+            for _s in _aborted:
+                print(
+                    f"   [{_s['type'].upper()} scan  {_s['ecu']} @ {_s['tx_id']}]"
+                    f"  range {_s['range']}"
+                    f"  last probe: {_s['current']}"
+                    f"  ({_s['hits']} hits / {_s['total']} total)"
+                    f"  started {_s.get('started', '?')}"
+                )
             print(
-                f"   [{_s['type'].upper()} scan  {_s['ecu']} @ {_s['tx_id']}]"
-                f"  range {_s['range']}"
-                f"  last probe: {_s['current']}"
-                f"  ({_s['hits']} hits / {_s['total']} total)"
-                f"  started {_s.get('started', '?')}"
+                "!! To resume, re-run with the same ECU and range starting at the last probe."
             )
-        print("!! To resume, re-run with the same ECU and --rid-range starting at the last probe.")
-        print()
+            print()
 
     # List-only mode: no CAN connection needed (--json or explicit list)
     if args.iocontrol and not args.did and args.json:
