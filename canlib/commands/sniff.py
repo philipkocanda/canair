@@ -125,8 +125,18 @@ examples:
         default=DEFAULT_WICAN,
         help=f"WiCAN address: {', '.join(WICAN_ADDRESSES)} or IP (default: {DEFAULT_WICAN})",
     )
-    parser.add_argument("--port", type=int, default=3333, help="SLCAN TCP port (default: 3333)")
-    parser.add_argument("--bitrate", type=int, default=500000, help="CAN bitrate (default: 500000)")
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=None,
+        help="SLCAN TCP port (default: the device's configured socket port)",
+    )
+    parser.add_argument(
+        "--bitrate",
+        type=int,
+        default=None,
+        help="CAN bitrate (default: the device's configured can_datarate)",
+    )
     parser.add_argument(
         "--listen-only",
         action="store_true",
@@ -161,6 +171,45 @@ def _parse_filters(spec: str | None) -> list[dict] | None:
     return [{"can_id": i, "can_mask": 0x7FF if i <= 0x7FF else 0x1FFFFFFF} for i in ids]
 
 
+def _parse_datarate(value) -> int | None:
+    """Parse a WiCAN ``can_datarate`` like '500K' / '1M' / '250000' to an int bitrate."""
+    if value is None:
+        return None
+    s = str(value).strip().upper().replace("BIT", "").rstrip("/S")
+    try:
+        if s.endswith("M"):
+            return int(float(s[:-1]) * 1_000_000)
+        if s.endswith("K"):
+            return int(float(s[:-1]) * 1_000)
+        return int(s)
+    except ValueError:
+        return None
+
+
+def _resolve_device_defaults(wican: str, port: int | None, bitrate: int | None):
+    """Fill port/bitrate from the device's live config when not given on the CLI."""
+    if port is not None and bitrate is not None:
+        return port, bitrate
+    import sys
+
+    from canlib.wican_api import resolve_wican_url
+    from canlib.wican_mode import load_config
+
+    cfg = {}
+    try:
+        cfg = load_config(resolve_wican_url(wican))
+    except Exception as e:  # best-effort — fall back to conventional defaults
+        print(f"  (could not read device config for defaults: {e})", file=sys.stderr)
+    if port is None:
+        try:
+            port = int(cfg.get("port", 3333) or 3333)
+        except (TypeError, ValueError):
+            port = 3333
+    if bitrate is None:
+        bitrate = _parse_datarate(cfg.get("can_datarate")) or 500000
+    return port, bitrate
+
+
 def run(args) -> int:
     import sys
 
@@ -176,6 +225,9 @@ def run(args) -> int:
             f"error: invalid --filter '{args.filter}' (want hex IDs like 770,7E4)", file=sys.stderr
         )
         return 2
+
+    args.port, args.bitrate = _resolve_device_defaults(args.wican, args.port, args.bitrate)
+    print(f"  Raw CAN via SLCAN — {host}:{args.port} @ {args.bitrate} bps")
 
     lock = WiCANLock()
     lock.acquire(force=args.force)
@@ -258,3 +310,9 @@ def _print_summary(stats: SniffStats) -> None:
     console.print(f"\n  Sniffed {len(rows)} unique IDs, {stats.total_frames} frames.")
     if rows:
         console.print(render_sniff_table(rows))
+    else:
+        console.print(
+            "  [dim]No frames seen. The bus may be idle, or — common on OBD-II — the "
+            "port is gateway-isolated: ECUs answer diagnostic requests but no broadcast "
+            "traffic is forwarded, so there is nothing to sniff passively.[/dim]"
+        )

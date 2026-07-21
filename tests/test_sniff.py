@@ -1,6 +1,6 @@
 """Tests for canair sniff aggregation + rendering (pure, no device)."""
 
-from canlib.commands.sniff import SniffStats, _parse_filters, render_sniff_table
+from canlib.commands.sniff import SniffStats, _parse_datarate, _parse_filters, render_sniff_table
 
 
 class TestSniffStats:
@@ -96,3 +96,19 @@ class TestParseFilters:
             {"can_id": 0x770, "can_mask": 0x7FF},
             {"can_id": 0x7E4, "can_mask": 0x7FF},
         ]
+
+
+class TestParseDatarate:
+    def test_k_suffix(self):
+        assert _parse_datarate("500K") == 500_000
+        assert _parse_datarate("250k") == 250_000
+
+    def test_m_suffix(self):
+        assert _parse_datarate("1M") == 1_000_000
+
+    def test_plain_int(self):
+        assert _parse_datarate("500000") == 500_000
+
+    def test_none_and_garbage(self):
+        assert _parse_datarate(None) is None
+        assert _parse_datarate("fast") is None

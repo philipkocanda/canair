@@ -91,21 +91,34 @@ first**, then **client-side ISO-TP + pipelined UDS** as a faster monitor backend
 
 ## Status
 
-- [~] Phase 0 — device verification **(blocked: WiCAN offline / car asleep at
-  12.4 V)**. Retry `GET /load_config` when reachable to confirm the Pro's
-  `protocol` values + whether SLCAN is TCP `3333` or tunneled over `/ws`.
-- [x] Phase 1 — code + unit tests (all hardware-independent, tested against fakes):
-  - `python-can` dependency added.
-  - `canlib/transport/slcan_tcp.py` — `SlcanTcpBus` + `format/parse_slcan_frame`
-    (`tests/test_slcan_tcp.py`, 24 tests).
-  - `canlib/wican_api.py` — `store_config` (POST /store_config).
-  - `canlib/wican_mode.py` — `set_protocol` + `protocol_mode` consent/restore
-    guard (`tests/test_wican_mode.py`, 9 tests).
-  - `canlib/commands/sniff.py` + `_sniff_tui.py` — `canair sniff` (per-ID live
-    table, `--save`/`--filter`/`--listen-only`/`--duration`, ansi-dark TUI +
-    non-TTY fallback) (`tests/test_sniff.py`, 12 tests).
-- [ ] **Phase 1 on-device verification** — run `canair sniff` against the real
-  Pro once awake: confirm the mode switch, live frames, and restore-on-exit;
-  verify the SLCAN transport assumption (TCP 3333 vs `/ws`).
-- [ ] Phase 2 — ISO-TP + UDS pipelining + monitor `--raw` backend.
+- [x] Phase 0 — device verified on the real Pro (2026-07-21):
+  - `protocol` options are `realdash66` / **`slcan`** / `savvycan` / `elm327` /
+    `auto_pid`; device was in `auto_pid`.
+  - **Socket port is `35000`** (not 3333); bitrate key is **`can_datarate`**
+    (`500K`). `canair sniff` now auto-detects both from `/load_config`.
+  - The `/ws` ELM327 terminal is available **regardless of `protocol`** (works
+    while in `auto_pid`), so `protocol_mode` restores whatever was set (here
+    `auto_pid`), not a hardcoded `elm327`.
+  - SLCAN transport validated **bidirectionally**: `V`/`N` reply, open ACKs, and
+    an actively-sent request frame (`t77080322BC03…`) returned the ECU's
+    response frame (`t7788 100B 62BC03…`, an ISO-TP First Frame). SLCAN is on
+    TCP `35000` (not tunneled over `/ws`).
+- [x] Phase 1 — code + unit tests + on-device end-to-end (switch → capture →
+  restore) all working.
+  - `SlcanTcpBus` + `format/parse_slcan_frame` (`tests/test_slcan_tcp.py`).
+  - `wican_mode.protocol_mode` + `wican_api.store_config` (`tests/test_wican_mode.py`).
+  - `canair sniff` (auto port/bitrate, live per-ID table, `--save`/`--filter`/
+    `--listen-only`/`--duration`, ansi-dark TUI + non-TTY fallback)
+    (`tests/test_sniff.py`).
+- ⚠️ **Key finding — passive sniffing is empty on the Ioniq OBD-II port.** The
+  car was awake (14.7 V, ECUs answering) yet 0 broadcast frames arrived: the
+  central gateway forwards only diagnostic request/response to the OBD port, not
+  internal broadcast traffic. So on this vehicle the raw-CAN value is **Phase 2
+  (pipelined UDS / active requests)**, not passive sniffing. `canair sniff`
+  remains useful on buses that do broadcast (or a WiCAN wired to an internal
+  bus) and now prints a hint when it sees nothing.
+- [ ] Phase 2 — ISO-TP + UDS pipelining + monitor `--raw` backend. (The active
+  probe already returned an ISO-TP First Frame, confirming we'd need client-side
+  flow-control + reassembly — exactly Phase 2.)
+
 
