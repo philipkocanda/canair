@@ -1,6 +1,6 @@
 # canair
 
-**CLI for reverse engineering CAN bus over-the-air using the WiCAN Pro**
+**CLI for reverse engineering CAN/OBD diagnostics over-the-air using the WiCAN Pro**
 
 Originally this project was built for reverse engineering a 2017 Hyundai Ioniq AE EV (28kWh), but it now supports multiple vehicle profiles and is no longer tied to a single vehicle.
 
