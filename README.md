@@ -18,8 +18,7 @@ Example screenshot of analyzing/decoding a captured signal using `canair decode 
 
 Example screenshot of stepping through captures one by one using `canair captures <query> --step`
 
-
-<img width="960" height="977" alt="Screenshot 2026-07-21 at 11 47 24" src="https://github.com/user-attachments/assets/791010b8-0f8d-44d5-8cfd-16c5e04a7305" />
+<img width="3068" height="1072" alt="Screenshot 2026-07-21 at 11 59 42" src="https://github.com/user-attachments/assets/525affb7-836e-4f2d-9064-020858a4a268" />
 
 Example screenshot of viewing capture diffs using `canair captures <query> --diff`. Green/yellow represents PID verification state, changed bytes are highlighted between frames. This byte diff view is the default then using `canair query` on a live vehicle.
 
