@@ -28,8 +28,9 @@ Vehicle data lives in a *profile* bundle; the repo ships `profiles/ioniq-2017/` 
 
 ## Key Directories
 
-- `profiles/ioniq-2017/pids/` — source of truth for all PID/DID definitions (YAML, 25+ ECU files) in the bundled example profile
+- `profiles/ioniq-2017/pids/` — source of truth for all PID/DID definitions (YAML, one file per ECU) in the bundled example profile
 - `profiles/ioniq-2017/{captures,out}/`, `ecus.yaml` — captures, generated WiCAN profiles, and the ECU registry for that profile
+- `profiles/ioniq-2017/research/` — external reference material (other-vehicle logs, spreadsheets, SavvyCAN exports); distinct from the `research:` backlog sections inside `pids/`
 - `canlib/cli.py` + `canlib/commands/` — the `canair` CLI entrypoint and per-subcommand modules
 - `canlib/modes/` — live CLI sub-mode implementations (IOControl, scan, routines, etc.)
 - `canlib/schema/` — tool-owned schemas (`pids_schema.yaml`, `captures_schema.json`)
