@@ -58,8 +58,10 @@ def make_pid_init(tx_id: int, session: bool = False) -> str:
     """Generate AT header init string from TX ID.
 
     If session=True, prepend a UDS extended diagnostic session request (10 03)
-    before setting headers. Some ECUs (e.g. IGPM) require this to respond to
-    22xx DID queries.
+    before setting headers. This is only needed by ECUs that reject 22xx DID
+    reads in the default session; on the Ioniq 2017, SKM is the known example.
+    (IGPM was previously flagged here but its service-22 reads work fine in the
+    default session — verified 2026-07-21.)
     """
     hex_id = f"{tx_id:03X}"
     init = f"ATSH{hex_id};ATFCSH{hex_id};"

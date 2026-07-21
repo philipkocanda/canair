@@ -3,7 +3,13 @@
 IGPM:
   tx_id: 0x770
   availability: [sleep, plugged, acc, acc2, ready, charging]
-  session: true  # Requires extended diagnostic session (10 03) before PID queries
+  # NOTE: service-22 PID reads (22BC03/04/06 etc.) do NOT need an extended
+  # diagnostic session. Verified 2026-07-21 on the live car (READY mode): a bare
+  # ATSH770;ATFCSH770;22BC03 returned a valid 62BC03 payload with no 1003 sent,
+  # reconfirmed after an 8s idle so the S3 timer had expired. The earlier
+  # 2026-04-15 "1003 required for reads" note was wrong. IOControl (service 2F)
+  # still requires 10 03 — that is handled per-command in the live query path,
+  # not by this flag, so no session flag is set here.
   identity:
     part_number: "91950G7510"
     description: "Integrated Gateway Power Module"
@@ -21,14 +27,14 @@ IGPM:
         Sample (ACC2+charging): 62BC070841FBCC00801800.
 
       parameters:
-        # TODO: All the other bytes on here! 
+        # TODO: All the other bytes on here!
         # Maybe window states?
         CHARGE_PORT_LOCK:
           expression: "B11:7"
           ha_class: lock
           verified: true
           notes: "1=locked, 0=unlocked. Verified 2026-07-18."
-        
+
         CHARGE_PORT_LOCK_INV:
           expression: "B12:0"
           ha_class: lock
@@ -58,7 +64,7 @@ IGPM:
         # B10 = Doors and locks
         # B11 = Seatbelts
         # B12 = Lights
-        # B13 = 
+        # B13 =
         UNKNOWN_B10_6:
           expression: "B10:6"
           verified: false
@@ -222,7 +228,7 @@ IGPM:
       enabled: true
       availability: [sleep, plugged, acc, acc2, ready, charging]
       parameters:
-        # TODO: All the other bytes on here! 
+        # TODO: All the other bytes on here!
         # Maybe window states?
         DOOR_LOCK_FL:
           expression: "B10:3"
@@ -262,8 +268,11 @@ IGPM:
           ha_class: ""
           source: "Decoded from live captures (2026-04-15)"
           source_links: []
-          verified: true
-          notes: "Left turn signal stalk. Bit flag — 1=on, persistent (not blinking state). Hazard lights do NOT register here. Verified 2026-04-15."
+          verified: false
+          notes: >
+            2026-04-15: Left turn signal stalk. Bit flag — 1=on, persistent (not blinking state). Hazard lights do NOT register here.
+            2026-07-21: live car (READY mode) falsely shows LEFT_TURN_SIGNAL=1 when neither is active!
+
 
         RIGHT_TURN_SIGNAL:
           expression: "B10:1"
@@ -542,7 +551,7 @@ IGPM:
       on: "2FBC4103"
       off: "2FBC4100"
       notes: >
-        Car inmediately re-activates it. Safety? 
+        Car inmediately re-activates it. Safety?
         May not stop active charge session — test with caution!
 
     BC42:
