@@ -1,7 +1,8 @@
 """WiCAN connection mutex using flock(2).
 
-Uses an exclusive advisory lock on a lock file so only one canreq.py
-process holds a WebSocket connection to the WiCAN at a time.
+Uses an exclusive advisory lock on a lock file so only one canair
+process talks to the WiCAN at a time (over either transport — the WebSocket
+ELM327 terminal or the SLCAN TCP socket).
 
 The lock is automatically released when the process exits (clean or crash),
 so stale locks are never a problem. The --force flag steals the lock
@@ -63,8 +64,8 @@ class WiCANLock:
                 os.close(self._fd)
                 self._fd = None
                 print(
-                    f"ERROR: Another canreq.py is already connected to the WiCAN{holder_info}.\n"
-                    f"  Only one WebSocket connection is allowed at a time.\n"
+                    f"ERROR: Another canair session is already using the WiCAN{holder_info}.\n"
+                    f"  Only one canair session can talk to the device at a time.\n"
                     f"  Use --force to steal the lock if the previous session was killed.",
                     file=sys.stderr,
                 )
