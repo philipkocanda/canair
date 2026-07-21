@@ -42,6 +42,7 @@ COMMAND_NAMES: list[str] = [
     "validate",
     "wican",
     "profile",
+    "config",
     # utilities
     "bix",
     "completion",
