@@ -4,11 +4,11 @@
 
 Originally this project was built for reverse engineering a 2017 Hyundai Ioniq AE EV (28kWh), but it now supports multiple vehicle profiles and is no longer tied to a single vehicle.
 
-<img width="1206" height="770" alt="IMG_2112" src="https://github.com/user-attachments/assets/9ee82a72-9100-4dda-9d76-ea1b1fd245c1" /> 
+<img width="838" height="497" alt="Screenshot 2026-07-21 at 11 45 49" src="https://github.com/user-attachments/assets/7cab4e56-550a-4443-83dd-2f96bb5eedc7" />
 
 Example screenshot of analyzing/decoding a captured signal using `canair decode --plot`
 
-<img width="1206" height="1168" alt="image" src="https://github.com/user-attachments/assets/257cffd2-f754-437e-a82e-524f832494fc" />
+<img width="960" height="977" alt="Screenshot 2026-07-21 at 11 47 24" src="https://github.com/user-attachments/assets/791010b8-0f8d-44d5-8cfd-16c5e04a7305" />
 
 Example screenshot of viewing captures using `canair captures --diff` (also works in the live query view). Green/yellow represents PID verification state, changed bytes are highlighted between frames.
 
