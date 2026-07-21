@@ -8,7 +8,7 @@ import sys
 
 import requests
 
-from canlib.constants import DEFAULT_WICAN, WICAN_ADDRESSES
+from canlib.constants import WICAN_ADDRESSES
 
 
 def resolve_wican_url(wican: str) -> str:
@@ -58,3 +58,24 @@ def get_status(base_url: str, timeout: int = 10) -> dict:
     except Exception as e:
         print(f"ERROR: Failed to get status: {e}", file=sys.stderr)
         sys.exit(1)
+
+
+def store_config(base_url: str, config: dict, timeout: int = 10) -> None:
+    """POST a full config JSON to /store_config.
+
+    The device writes the body verbatim to ``config.json`` and reboots ~2s
+    later. Always send a *complete* config (load → mutate → store); a partial
+    body is rejected at next boot and reset to defaults. Raises on HTTP failure
+    (callers decide how to react — unlike get_config, this does not sys.exit,
+    so restore-on-exit paths can warn and continue).
+    """
+    import json
+
+    url = f"{base_url}/store_config"
+    resp = requests.post(
+        url,
+        data=json.dumps(config),
+        headers={"Content-Type": "application/json"},
+        timeout=timeout,
+    )
+    resp.raise_for_status()
