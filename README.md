@@ -273,7 +273,7 @@ canair (canlib/cli.py — argparse + argcomplete)
 | Parameter query | `canair query --param NAME` / `canair query ECU` | Decode named parameters from YAML definitions |
 | IOControl | `canair io ECU [--did DID]` | Interactive TUI or single actuator command |
 | Query pipeline | `canair query "CMD" "CMD" ...` | Sequenced query steps (multi mini-language) with session management |
-| Scan | `canair scan --tx ID --service SVC --range START-END` | Probe DID ranges for responses |
+| Scan | `canair scan ECU --service SVC --range START-END` | Probe DID ranges for responses |
 | Raw | `canair raw TX:PAYLOAD` | Direct hex request (no decoding) |
 | Routines | `canair routines ECU` | RoutineControl (0x31) TUI |
 | Monitor | `canair query "..." --monitor [SEC]` | Live-refreshing poll loop |
@@ -302,7 +302,7 @@ canair io IGPM
 canair io IGPM --did BC01
 
 # Scan for unknown DIDs on an ECU
-canair scan --tx 7E4 --service 22 --range BC00-BCFF
+canair scan 7E4 --service 22 --range BC00-BCFF
 
 # Discover all responding ECUs on the bus
 canair discover

@@ -44,8 +44,11 @@ async def mode_scan(
     did_label = "DID" if wide_did else "PID"
 
     suffix_label = f" + suffix {append_bytes}" if append_bytes else ""
+    from ..ecus import ecu_display, ecu_name
+
+    ecu = ecu_name(tx_id)
     print(
-        f"\n  Scanning TX 0x{tx_id:03X}, service 0x{service:02X}, "
+        f"\n  Scanning {ecu_display(tx_id)}, service 0x{service:02X}, "
         f"{did_label}s 0x{start:{did_fmt}}..0x{end:{did_fmt}} ({total} {did_label}s){suffix_label}"
     )
 
@@ -105,6 +108,7 @@ async def mode_scan(
                 print("  [tester] Background keepalive stopped.", file=sys.stderr)
 
     print("\n  --- Scan Results ----------------------------------------")
+    print(f"  ECU:      {ecu_display(tx_id)}")
     print(f"  Positive: {len(positive)}")
     print(f"  Negative: {len(negative)}")
     print(f"  Errors:   {len(errors)}")
@@ -119,6 +123,7 @@ async def mode_scan(
 
     if as_json:
         out = {
+            "ecu": ecu,
             "tx_id": f"0x{tx_id:03X}",
             "service": f"0x{service:02X}",
             "range": f"0x{start:{did_fmt}}-0x{end:{did_fmt}}",
@@ -140,9 +145,8 @@ async def mode_scan(
             save_session,
             suggest_scan_label,
         )
-        from ..ecus import ecu_name, rx_addr_str
+        from ..ecus import rx_addr_str
 
-        ecu = ecu_name(tx_id)
         suggested = suggest_scan_label(ecu, service, pid_range, append_bytes)
         n_pos = len(positive)
         n_neg = len(negative)

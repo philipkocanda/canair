@@ -5,10 +5,12 @@ import pytest
 from canlib.ecus import (
     build_name_tx_index,
     build_rx_index,
+    ecu_display,
     ecu_name,
     ecu_name_from_ref,
     load_ecus,
     parse_ecu_ref,
+    resolve_tx,
     rx_addr_str,
     rx_from_name,
 )
@@ -108,3 +110,38 @@ class TestEcuName:
 
     def test_unknown_falls_back_to_hex(self, ecus):
         assert ecu_name(0x123, ecus) == "0x123"
+
+
+class TestResolveTx:
+    def test_name(self):
+        assert resolve_tx("BMS") == 0x7E4
+
+    def test_name_case_insensitive(self):
+        assert resolve_tx("bms") == 0x7E4
+
+    def test_alias(self):
+        assert resolve_tx("SMK") == resolve_tx("SKM")
+
+    def test_hex_with_prefix(self):
+        assert resolve_tx("0x770") == 0x770
+
+    def test_hex_without_prefix(self):
+        assert resolve_tx("7E4") == 0x7E4
+
+    def test_int_passthrough(self):
+        assert resolve_tx(0x7E4) == 0x7E4
+
+    def test_unknown_name_is_none(self):
+        assert resolve_tx("NOPE") is None
+
+    def test_empty_is_none(self):
+        assert resolve_tx("") is None
+        assert resolve_tx(None) is None
+
+
+class TestEcuDisplay:
+    def test_known(self, ecus):
+        assert ecu_display(0x7E4, ecus) == "BMS (0x7E4)"
+
+    def test_unknown_falls_back_to_hex(self, ecus):
+        assert ecu_display(0x123, ecus) == "0x123"

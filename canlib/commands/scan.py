@@ -12,17 +12,21 @@ NAME = "scan"
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
-        help="Scan a range of PIDs/DIDs on an ECU (requires --tx)",
+        help="Scan a range of PIDs/DIDs on an ECU",
         description="Scan a range of PIDs/DIDs on an ECU. One scan at a time only.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
 examples:
-  canair scan --tx 7E4 --service 21 --range 01-FF
-  canair scan --tx 7E4 --service 22 --range BC01-BC0B
-  canair scan --tx 7E4 --service 2F --range E000-E0FF --append 03 --session
+  canair scan BMS --service 21 --range 01-FF
+  canair scan 7E4 --service 22 --range BC01-BC0B
+  canair scan IGPM --service 2F --range E000-E0FF --append 03 --session
 """,
     )
-    parser.add_argument("--tx", metavar="ID", required=True, help="ECU TX ID (hex, e.g. 7E4)")
+    parser.add_argument(
+        "tx",
+        metavar="ECU",
+        help="ECU name or TX ID (e.g. BMS or 7E4)",
+    )
     parser.add_argument("--service", metavar="SVC", default="21", help="UDS service (hex, default 21)")
     parser.add_argument("--range", metavar="START-END", default="01-FF", help="PID range (hex)")
     parser.add_argument("--append", metavar="HEX", help="Hex bytes to append after each DID")

@@ -89,46 +89,6 @@ Phase 2 needs the car. Goal: confirm scales/meanings and fill the remaining gaps
   spins up under load/charge; candidates B22/B25/B26). EPCU coolant loop exists despite air-cooled battery.
 - [ ] **VCU temps** — B20/B27 (~51 raw cold ≈ 11°C if `value−40`) confirm with warm drive.
 
-## canreq.py view
-
-  VCU (0x7E2)
-    2101  (127 entries)
-      VEHICLE_SPEED                0 km/h  ✓
-      VEHICLE_SPEED_ALT            0 km/h  ✓
-      DEBUG_DRIVE_MODE_FLAGS       33      ✓
-      DRIVE_MODE_P                 1       ✓
-      DRIVE_MODE_R                 0       ✓
-      DRIVE_MODE_N                 0       ✓
-      DRIVE_MODE_D                 0       ✓
-      DEBUG_VEHICLE_STATE_FLAGS    90      ?
-      VEHICLE_STATE_BRAKE_LAMP     0       ✓
-      VEHICLE_STATE_NOT_BRAKING    1       ✓
-      VEHICLE_STATE_START_KEY      0       ?
-      VEHICLE_STATE_EV_READY       1       ✓
-      VEHICLE_STATE_VCU_READY      1       ✓
-      VEHICLE_STATE_MAIN_RELAY_ON  1       ?
-      VEHICLE_STATE_POWER_ENABLE   1       ?
-      VEHICLE_STATE_LDC_ENABLED    1       ?
-      DEBUG_MCU_STATE_FLAGS        109     ✓
-      CAR_READY                    0       ?
-      PARK_BRAKE                   1       ?
-      ACCEL_PEDAL_DEPTH            17 %    ?
-
-## CLI commands inconsistencies
-
-```sh
-# query-captures.py now takes a positional QUERY (mini-language), consistent
-# with decode.py. --diff/--step are view modifiers on the query.
-uv run ./query-captures.py VCU 2101           # list captures
-uv run ./query-captures.py VCU 2101 --diff    # byte-diff view
-uv run ./query-captures.py "VCU:2101,2102" --step
-
-canreq --multi "query VCU" --monitor 2 --keep-unique --wican vpn --save
-canreq --multi "query MCU" "query VCU" "query LDC" --monitor 7 --keep-unique --save --wican vpn
-```
-
-Note: canreq is an alias on my local machine. This is used in many examples and is not very helpful. Let's standardize the examples in the README or make a wrapping CLI that can be installed and made globally available. The wrapping CLI could be called "ioniq-can" and would call the underlying scripts with the correct arguments.
-
 ## Drive mode (Eco/Normal/Sport) + regen level — investigation
 
 Status: NOT located in any polled PID as of 2026-07-20.
