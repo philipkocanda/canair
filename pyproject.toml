@@ -6,6 +6,7 @@ requires-python = ">=3.12"
 dependencies = [
     "argcomplete>=3.0",
     "jsonschema>=4.0",
+    "python-can>=4.6.1",
     "pyyaml>=6.0",
     "requests>=2.0",
     "rich>=13.0",

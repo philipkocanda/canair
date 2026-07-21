@@ -23,6 +23,7 @@ COMMAND_NAMES: list[str] = [
     "scan",
     "discover",
     "raw",
+    "sniff",
     "io",
     "routines",
     "identity",

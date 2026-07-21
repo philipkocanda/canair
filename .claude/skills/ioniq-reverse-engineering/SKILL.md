@@ -151,6 +151,24 @@ All endpoints are JSON, no authentication. Device address varies (see Device Acc
 
 ### Tools
 
+#### canair sniff (raw CAN, experimental)
+
+Passive CAN bus sniffer using a **raw-CAN backend** (SLCAN over TCP via
+python-can) instead of the request/response ELM327 terminal. It shows a live
+per-ID table (frame count, rate in Hz, last data, and which bytes have ever
+changed) — ideal for discovering broadcast IDs / periodic signals the ELM327
+path can't observe. `--save FILE` logs every frame (`.asc`/`.blf`/`.csv`);
+`--filter 770,7E4` limits IDs; `--listen-only` is a silent (no-ACK/TX) capture;
+`--duration N` auto-stops.
+
+The WiCAN runs one protocol at a time, so `canair sniff` **switches the device
+into `slcan` mode (with a consent prompt, or `--yes`) and restores the previous
+mode (usually `elm327`) on exit** — each switch is a device reboot (~5 s) and
+pauses ELM327/AutoPID (Home Assistant) for the duration. See `RAW_CAN_PLAN.md`
+for the full raw-CAN roadmap (ISO-TP + pipelined UDS is Phase 2). NOTE:
+on-device verification is pending (built + unit-tested against fakes; the SLCAN
+transport assumption — TCP 3333 vs `/ws` — must be confirmed on the live Pro).
+
 #### canair wican
 
 Generates the WiCAN vehicle profile from the active profile's `pids/` directory.
