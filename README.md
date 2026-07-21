@@ -1,8 +1,8 @@
-# canair (formerly Ioniq-CAN)
+# canair
 
 **CAN bus reverse engineering toolkit for the WiCAN Pro**
 
-Contains a detailed vehicle profile reverse engineered from a 2017 Hyundai Ioniq AE EV (28kWh).
+Originally this project was built for reverse engineering a 2017 Hyundai Ioniq AE EV (28kWh), but it now supports multiple vehicle profiles and is no longer tied to a single vehicle.
 
 <img width="1206" height="770" alt="IMG_2112" src="https://github.com/user-attachments/assets/9ee82a72-9100-4dda-9d76-ea1b1fd245c1" />
 
