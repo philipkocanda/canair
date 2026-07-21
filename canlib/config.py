@@ -9,6 +9,11 @@ Recognized keys:
   profiles_dir:     extra directory to search for profiles
   wican_addresses:  mapping of alias -> IP/host for the --wican flag
   default_wican:    default --wican alias
+  transport:        transport-selection block (type/host/port/bitrate); see
+                    canlib.transport.config
+
+View and edit config from the CLI with ``canair config`` (show/get/set/unset/
+edit/path).
 """
 
 from __future__ import annotations
@@ -82,28 +87,125 @@ def ensure_config_dir(seed_config: bool = True) -> Path:
     return cfg_dir
 
 
-def set_config_value(key: str, value: str) -> Path:
-    """Set a top-level scalar ``key: value`` in the user config file.
+def coerce_scalar(value: str):
+    """Coerce a CLI string into a bool/int/None where unambiguous, else str.
 
-    Preserves the rest of the file (including comments): an existing
-    *uncommented* ``key:`` line is replaced, otherwise the pair is appended.
-    Returns the config file path and invalidates the cached config.
+    Used by ``canair config set`` so that e.g. ``transport.port 35000`` stores
+    an int and ``true``/``false`` store bools. IPs/hostnames stay strings (they
+    never parse as int). Pass through :func:`set_config_key` with ``--string``
+    to bypass this.
     """
-    import re
+    low = value.strip().lower()
+    if low in ("true", "false"):
+        return low == "true"
+    if low in ("null", "none", "~"):
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        return value
+
+
+def set_config_key(key: str, value) -> Path:
+    """Set a (possibly dotted) ``key`` in the user config, preserving layout.
+
+    ``key`` may be a dotted path into nested mappings (e.g. ``transport.port``
+    or ``wican_addresses.home``); intermediate mappings are created as needed.
+    Comments and formatting in an existing config survive the edit. Returns the
+    config file path and invalidates the cached config.
+    """
+    from ruamel.yaml.comments import CommentedMap
+
+    from .yaml_rt import dump, round_trip_yaml
 
     ensure_config_dir()
     path = user_config_file()
     text = path.read_text() if path.exists() else ""
-    line = f"{key}: {value}"
-    if re.search(rf"^{re.escape(key)}:", text, re.MULTILINE):
-        text = re.sub(rf"^{re.escape(key)}:.*$", line, text, flags=re.MULTILINE)
-    else:
+    data = round_trip_yaml().load(text) if text.strip() else None
+    parts = key.split(".")
+
+    if not isinstance(data, dict):
+        # Empty or all-comment file: append fresh YAML so the (helpful) comment
+        # block seeded by ensure_config_dir() survives the first write.
+        node = root = CommentedMap()
+        for part in parts[:-1]:
+            child = CommentedMap()
+            node[part] = child
+            node = child
+        node[parts[-1]] = value
+        from io import StringIO
+
+        buf = StringIO()
+        dump(root, buf)
         if text and not text.endswith("\n"):
             text += "\n"
-        text += line + "\n"
-    path.write_text(text)
+        text += buf.getvalue()
+        path.write_text(text)
+    else:
+        node = data
+        for part in parts[:-1]:
+            if not isinstance(node.get(part), dict):
+                node[part] = CommentedMap()
+            node = node[part]
+        node[parts[-1]] = value
+        with open(path, "w") as f:
+            dump(data, f)
+
     load_config.cache_clear()
     return path
+
+
+def unset_config_key(key: str) -> tuple[Path, bool]:
+    """Remove a (possibly dotted) ``key`` from the user config.
+
+    Returns ``(path, removed)`` where ``removed`` is False if the key was
+    absent. Comments and formatting are preserved.
+    """
+    from .yaml_rt import dump, round_trip_yaml
+
+    path = user_config_file()
+    if not path.exists():
+        return path, False
+    text = path.read_text()
+    data = round_trip_yaml().load(text) if text.strip() else None
+    if not isinstance(data, dict):
+        return path, False
+
+    parts = key.split(".")
+    node = data
+    for part in parts[:-1]:
+        nxt = node.get(part) if isinstance(node, dict) else None
+        if not isinstance(nxt, dict):
+            return path, False
+        node = nxt
+    if parts[-1] not in node:
+        return path, False
+
+    del node[parts[-1]]
+    with open(path, "w") as f:
+        dump(data, f)
+    load_config.cache_clear()
+    return path, True
+
+
+def get_config_key(key: str):
+    """Return the merged-config value at a dotted ``key`` (None if absent)."""
+    node = load_config()
+    for part in key.split("."):
+        if isinstance(node, dict) and part in node:
+            node = node[part]
+        else:
+            return None
+    return node
+
+
+def set_config_value(key: str, value: str) -> Path:
+    """Set a top-level scalar ``key: value`` in the user config file.
+
+    Thin wrapper over :func:`set_config_key` kept for back-compat; stores the
+    value verbatim (no coercion). Returns the config file path.
+    """
+    return set_config_key(key, value)
 
 
 def _read_yaml(path: Path) -> dict:

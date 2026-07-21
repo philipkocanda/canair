@@ -5,6 +5,9 @@
 # root is still read (and overridden by the user config) for backwards compat.
 #
 # Copy to your config location and adjust to taste. All keys are optional.
+#
+# View and edit these settings from the CLI with `canair config`
+# (e.g. `canair config show`, `canair config set default_wican home`).
 
 # Which vehicle profile to use when none is given on the command line.
 # Overridden by --profile or the CANAIR_PROFILE environment variable.
@@ -24,3 +27,12 @@ wican_addresses:
   vpn: "10.0.0.100"     # Example: device reachable via VPN/tunnel
 
 default_wican: ap
+
+# CAN transport selection (advanced). Chosen explicitly; never auto-detected.
+# Overridden by --transport/--wican/--port/--bitrate. When omitted, canair
+# falls back to the wican_addresses/default_wican pair above (→ wican-ws).
+# transport:
+#   type: wican-ws       # wican-ws (WebSocket ELM327) | slcan-tcp (raw SLCAN over TCP)
+#   host: 192.168.3.2    # device host/IP (both transports)
+#   port: 35000          # slcan-tcp only (Pro 35000, classic 3333); auto-detected if omitted
+#   bitrate: 500000      # slcan-tcp only; defaults to the profile's can_datarate, else 500000
