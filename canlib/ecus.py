@@ -46,6 +46,21 @@ def ecu_name(tx_id: int, ecus: dict | None = None) -> str:
     return info["name"] if info else f"0x{tx_id:03X}"
 
 
+def ecu_id_protocol(tx_id: int, ecus: dict | None = None) -> str | None:
+    """Return the identity protocol hint for a TX ID from the registry.
+
+    One of ``"UDS"``, ``"KWP2000"``, ``"none"``, ``"unknown"``, or ``None`` when
+    the ECU is not in the registry or has no ``id_protocol`` recorded. Used by
+    ``canair identity`` to pick the right identity service without probing.
+    """
+    if ecus is None:
+        ecus = load_ecus()
+    info = ecus.get(tx_id)
+    if not info:
+        return None
+    return info.get("id_protocol")
+
+
 def rx_addr_str(tx_id: int) -> str:
     """Format the CAN response address (RX = TX + 8) as a hex string.
 

@@ -2,7 +2,12 @@
 
 from .discover import mode_discover
 from .ecu import mode_ecu
-from .identity import IDENTITY_DIDS, mode_identity
+from .identity import (
+    IDENTITY_DIDS,
+    KWP_IDENTITY_RECORDS,
+    UDS_IDENTITY_DIDS,
+    mode_identity,
+)
 from .interactive import mode_interactive
 from .iocontrol import mode_iocontrol_execute, mode_iocontrol_list, mode_iocontrol_tui
 from .iocontrol_scan import mode_iocontrol_scan
@@ -17,8 +22,10 @@ from .tester import mode_tester_present
 
 __all__ = [
     "IDENTITY_DIDS",
+    "KWP_IDENTITY_RECORDS",
     "SKM_MAGIC",
     "SKM_RELAYS",
+    "UDS_IDENTITY_DIDS",
     "mode_discover",
     "mode_ecu",
     "mode_identity",
