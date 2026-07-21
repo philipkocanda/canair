@@ -10,7 +10,7 @@ Example screenshot of analyzing/decoding a captured signal using `canair decode 
 
 <img width="1206" height="1168" alt="image" src="https://github.com/user-attachments/assets/257cffd2-f754-437e-a82e-524f832494fc" />
 
-Example screenshot of viewing captures using `canair captures --diff` (also works in the live query view). Green/yellow represents PID verification state.
+Example screenshot of viewing captures using `canair captures --diff` (also works in the live query view). Green/yellow represents PID verification state, changed bytes are highlighted between frames.
 
 -----
 
