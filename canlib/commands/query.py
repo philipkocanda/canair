@@ -57,7 +57,9 @@ examples:
         default=None,
         type=float,
         metavar="INTERVAL",
-        help="Repeatedly poll query steps and refresh a live view (default interval 5.0s)",
+        help="Repeatedly poll query steps in a scrollable live view (default interval 5.0s). "
+        "On a terminal this opens a Textual UI: mouse wheel / scrollbar / arrows-jk / "
+        "PgUp-PgDn / g-G scroll, f toggles follow-tail, space pauses, q quits.",
     )
     keep = parser.add_mutually_exclusive_group()
     keep.add_argument("--keep-unique", action="store_true", help="Monitor: retain unique payloads")

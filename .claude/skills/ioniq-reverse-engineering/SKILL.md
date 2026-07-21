@@ -270,9 +270,9 @@ security BCM ki221-std
 
 ##### `--monitor` flag (live refresh)
 
-Turns a `canair query` pipeline into a live-refreshing monitor. Non-query steps (session, skm-wake, sleep) run once as setup; all `query` steps are then polled repeatedly in a background task. The display renders into the **alternate screen with a scrollable viewport**, so output taller than the terminal can be scrolled. Sessions are kept alive with background TesterPresent keepalives.
+Turns a `canair query` pipeline into a live-refreshing monitor. Non-query steps (session, skm-wake, sleep) run once as setup; all `query` steps are then polled repeatedly in a background worker. On a terminal it opens a **Textual TUI**: the latest values render into a widget that updates **in place** inside a scrollable container, so the scroll position is independent of the data refresh — the view never jumps or freezes, and mouse wheel / scrollbar / keys all scroll natively. Sessions are kept alive with background TesterPresent keepalives.
 
-**Scrolling / keys (interactive TTY):** `↑`/`↓` or `j`/`k` scroll a line, `PgUp`/`PgDn` page, `g`/`Home` jump to top, `G`/`End` jump to bottom, `f` toggles follow-tail (on by default — the view sticks to the newest output and detaches when you scroll up), and `q` or `Ctrl+C` stops. On stop, if the full output is taller than the terminal it's opened in a pager (`$PAGER`/`less -R`) so you can review everything (great with `--keep-all`). When stdout is **not** a TTY (piped/scripted), it polls silently until `Ctrl+C` and prints the final values.
+**Scrolling / keys (interactive TTY):** mouse wheel or `↑`/`↓`/`j`/`k` scroll, `PgUp`/`PgDn` page, `g`/`Home` top, `G`/`End` bottom. Auto-follow sticks to the newest output only while already at the bottom (like `tail -f` in a pager) — scroll up to read and new data won't yank you down; `f` toggles sticking entirely (default on for `--keep-all`/`--keep-unique`, off for the plain dashboard). `space` pauses/resumes polling; `q` or `Ctrl+C` quits (final values are printed to scrollback on exit). When stdout is **not** a TTY (piped/scripted), it polls silently until `Ctrl+C` and prints the final values.
 
 
 ```bash

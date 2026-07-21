@@ -1,11 +1,11 @@
 """Live monitor mode — repeatedly polls a set of ECU PIDs and refreshes the display.
 
-Renders into the alternate screen buffer with a scrollable viewport: a
-background task polls all ``query`` steps while the foreground loop redraws the
-latest values and handles keys. Content taller than the terminal can be scrolled
-(arrows / j-k / PgUp-PgDn / g-G / Home-End); the view follows the tail by
-default and detaches when you scroll up. Each poll cycle updates the values in
-place, giving a real-time view of changing parameters (SOC, temps, voltages …).
+On a TTY this runs a Textual app (:mod:`canlib.modes._monitor_tui`): the latest
+values render into a widget that updates *in place* inside a scrollable
+container, so the scroll position stays put while values refresh — mouse wheel,
+scrollbar and keys all scroll natively and nothing ever freezes. When stdout is
+not a TTY (piped/scripted) it polls silently until Ctrl+C and prints the final
+values.
 
 Usage (via canair query --monitor):
     canair query "session BCM --wake" "query BCM:C00B,B00E" --monitor
@@ -15,12 +15,12 @@ Usage (via canair query --monitor):
 The --monitor flag applies to the last 'query' step in the pipeline. If
 there are multiple query steps, all of them are repeated each cycle.
 
-Terminal plumbing (cbreak input, alternate screen, scroll maths, paging) lives
-in :mod:`canlib.tui` and is shared with the other interactive modes.
+The polling / decoding / capture-saving logic lives in :class:`MonitorController`
+(reused by both the TUI and the non-interactive path); only the presentation
+layer differs.
 """
 
 import asyncio
-import contextlib
 import re
 import signal
 import sys
@@ -39,21 +39,12 @@ from ..formatting import (
     render_param_table,
 )
 from ..session_manager import SessionManager
-from ..tui import (
-    ScrollView,
-    compose_frame,
-    page_output,
-    raw_screen,
-    segments_to_str,
-    terminal_columns,
-    terminal_lines,
-    wrap_text_lines,
-)
 
 # _HIGHLIGHT_STYLE, _bytes_to_ascii and _render_hex_line moved to canlib.formatting;
 # re-exported here for backward-compatible imports (e.g. tests/test_monitor.py).
 __all__ = [
     "_HIGHLIGHT_STYLE",
+    "MonitorController",
     "_bytes_to_ascii",
     "_render_hex_line",
     "_render_results",
@@ -238,6 +229,188 @@ def _prompt_and_save(
     save_session(session, captures_dir)
 
 
+class MonitorController:
+    """Polls a set of ECU PIDs on an interval and renders/records the results.
+
+    Holds all monitor state and the CAN-facing logic (session setup, polling,
+    history bookkeeping, capture saving). The presentation layer — the Textual
+    TUI or the non-interactive fallback — drives it via :meth:`poll_once` and
+    :meth:`render`, so the two share identical behaviour.
+    """
+
+    def __init__(
+        self,
+        terminal,
+        query_steps: list[dict],
+        pids_data: dict,
+        verbose: bool,
+        interval: float = 5.0,
+        keep_mode: str | None = None,
+        keep_n: int | None = None,
+        save: bool = False,
+        show_rulers: bool = False,
+    ):
+        self.terminal = terminal
+        self.query_steps = query_steps
+        self.pids_data = pids_data
+        self.verbose = verbose
+        self.interval = interval
+        self.keep_mode = keep_mode
+        self.keep_n = keep_n
+        self.save = save
+        self.show_rulers = show_rulers
+
+        self.sm = SessionManager(terminal, verbose=verbose)
+        self._ecu_index: dict | None = None
+
+        # Live state (read by the renderer).
+        self.cycle = 0
+        self.elapsed = 0.0
+        self.last_queries: list[tuple[str, list]] = []
+        self.prev_hex: dict[tuple[str, str], str] = {}
+        self.hex_history: dict[tuple[str, str], list[tuple[str, str]]] | None = (
+            {} if keep_mode else None
+        )
+        self.save_history: dict[tuple[str, str], list[tuple[str, str]]] | None = (
+            {} if save else None
+        )
+        self.disconnected = False
+
+    async def setup(self, session_steps: list[dict] | None) -> None:
+        """Build the ECU index, run one-shot session setup, start keepalives."""
+        from ..pids import build_ecu_index
+        from .multi import _exec_session, _exec_skm_wake
+
+        self._ecu_index = build_ecu_index(self.pids_data)
+        for step in session_steps or []:
+            stype = step["type"]
+            if stype == "skm-wake":
+                print(f"  SKM wakeup ({step['level']})...")
+                await _exec_skm_wake(self.sm, step["level"], self.verbose)
+            elif stype == "session":
+                print(f"  Opening session on {step['target']}...")
+                await _exec_session(
+                    self.sm, step["target"], step.get("wake", False), self._ecu_index
+                )
+        self.sm.start_background_keepalive(interval=2.0)
+
+    def _record(self, new_queries: list[tuple[str, list]]) -> None:
+        """Record freshly-polled payloads into prev_hex / display / save history."""
+        for ecu_label, pid_results in new_queries:
+            for entry in pid_results:
+                raw = entry.get("raw_hex", "")
+                if not raw:
+                    continue
+                key = (ecu_label, entry["pid"])
+                self.prev_hex[key] = raw
+                # Per-PID acquisition timestamp (moment the response arrived),
+                # millisecond precision, so sequentially-polled PIDs keep skew.
+                acq = entry.get("acquired_at")
+                ts = (
+                    datetime.fromtimestamp(acq).strftime("%H:%M:%S.%f")[:-3]
+                    if acq
+                    else datetime.now().strftime("%H:%M:%S.%f")[:-3]
+                )
+                if self.save_history is not None:  # --save: always keep everything
+                    self.save_history.setdefault(key, []).append((raw, ts))
+                if self.hex_history is not None:  # --keep display history
+                    if self.keep_mode in ("all", "last"):
+                        self.hex_history.setdefault(key, []).append((raw, ts))
+                        if (
+                            self.keep_mode == "last"
+                            and self.keep_n
+                            and len(self.hex_history[key]) > self.keep_n
+                        ):
+                            self.hex_history[key] = self.hex_history[key][-self.keep_n :]
+                    else:  # "unique": store only if not seen before
+                        existing = [h for h, _ts in self.hex_history.get(key, [])]
+                        if raw not in existing:
+                            self.hex_history.setdefault(key, []).append((raw, ts))
+
+    async def poll_once(self) -> None:
+        """Run every query step once, updating live state. Sets ``disconnected``."""
+        from .multi import _exec_query
+
+        self.cycle += 1
+        t0 = time.monotonic()
+        new_queries: list[tuple[str, list]] = []
+        for step in self.query_steps:
+            try:
+                result = await _exec_query(
+                    self.sm,
+                    step["ecu"],
+                    step.get("pids", []),
+                    self._ecu_index,
+                    self.pids_data,
+                    self.verbose,
+                    return_results=True,
+                    quiet=True,
+                )
+            except ConnectionError:
+                self.disconnected = True
+                return
+            if result is not None:
+                new_queries.append(result)
+        self.last_queries = new_queries
+        self.elapsed = time.monotonic() - t0
+        self._record(new_queries)
+
+    def render(self) -> Text:
+        """The current view as a Rich Text (rendered by the TUI / printed on exit)."""
+        return _render_results(
+            self.last_queries,
+            self.verbose,
+            self.cycle,
+            self.elapsed,
+            self.interval,
+            self.prev_hex,
+            self.hex_history,
+            show_rulers=self.show_rulers,
+            footer=False,
+        )
+
+    def save_captures(
+        self,
+        captures_dir: Path,
+        label: str | None,
+        state: str | None,
+        notes: str | None,
+    ) -> None:
+        if self.save and self.save_history is not None:
+            _prompt_and_save(self.save_history, self.prev_hex, captures_dir, label, state, notes)
+
+    async def close(self) -> None:
+        """Stop keepalives and close all open sessions (best-effort)."""
+        self.sm.stop_background_keepalive()
+        print("  Closing sessions...")
+        try:
+            await asyncio.wait_for(self.sm.close_all(), timeout=3.0)
+        except (TimeoutError, Exception):
+            pass
+
+
+async def _monitor_noninteractive(controller: MonitorController) -> None:
+    """No TTY: poll silently until SIGINT/disconnect (piped/scripted runs)."""
+    stop_flag = {"v": False}
+
+    def _handle_sigint(_sig, _frame):
+        stop_flag["v"] = True
+
+    old_handler = signal.signal(signal.SIGINT, _handle_sigint)
+    try:
+        while not stop_flag["v"] and not controller.disconnected:
+            t0 = time.monotonic()
+            await controller.poll_once()
+            if controller.disconnected:
+                return
+            remaining = controller.interval - (time.monotonic() - t0)
+            while remaining > 0 and not stop_flag["v"] and not controller.disconnected:
+                await asyncio.sleep(min(remaining, 0.1))
+                remaining = controller.interval - (time.monotonic() - t0)
+    finally:
+        signal.signal(signal.SIGINT, old_handler)
+
+
 async def mode_monitor(
     terminal,
     query_steps: list[dict],
@@ -253,12 +426,12 @@ async def mode_monitor(
     state: str | None = None,
     notes: str | None = None,
 ):
-    """Live-refresh ECU parameter monitor with a scrollable viewport.
+    """Live-refresh ECU parameter monitor.
 
-    Executes the given query_steps repeatedly in a background task while the
-    foreground loop redraws the latest values into the alternate screen and
-    handles scroll keys. Sessions are opened once (from session_steps) and kept
-    alive with background keepalives.
+    On a TTY this launches the Textual monitor app (scrollable, in-place value
+    updates, mouse + keyboard). Otherwise it polls silently until Ctrl+C and
+    prints the final values. Sessions are opened once (from session_steps) and
+    kept alive with background keepalives.
 
     Args:
         terminal:       Connected WiCANTerminal.
@@ -275,226 +448,43 @@ async def mode_monitor(
         save:           On stop, prompt for metadata and save to captures/.
         show_rulers:    Show byte-index rulers (idx/wican) once per PID.
 
-    Keys (interactive/TTY): ↑/↓ or j/k scroll, PgUp/PgDn page, g/Home top,
-    G/End bottom, f toggle follow-tail, q or Ctrl+C stop. When stdout is not a
-    TTY (piped/scripted), it polls silently until Ctrl+C and prints the final
-    values. On stop, output taller than the terminal is opened in a pager.
+    TUI keys: ↑/↓ or j/k scroll, PgUp/PgDn page, g/Home top, G/End bottom,
+    f toggle follow-tail, space pause/resume polling, q or Ctrl+C stop.
     """
-    from ..pids import build_ecu_index
     from ..profile import active
-    from .multi import _exec_query, _exec_session, _exec_skm_wake
 
     captures_dir = active().captures_dir
-
-    ecu_index = build_ecu_index(pids_data)
-    sm = SessionManager(terminal, verbose=verbose)
-
-    # Shared monitor state — written by the poll cycle, read by the renderer.
-    cycle = 0
-    elapsed = 0.0
-    last_queries: list[tuple[str, list]] = []
-    prev_hex: dict[tuple[str, str], str] = {}
-    hex_history: dict[tuple[str, str], list[tuple[str, str]]] | None = {} if keep_mode else None
-    save_history: dict[tuple[str, str], list[tuple[str, str]]] | None = {} if save else None
-    disconnected = False
-
-    def _record(new_queries: list[tuple[str, list]]) -> None:
-        """Record freshly-polled payloads into prev_hex / display / save history."""
-        for ecu_label, pid_results in new_queries:
-            for entry in pid_results:
-                raw = entry.get("raw_hex", "")
-                if not raw:
-                    continue
-                key = (ecu_label, entry["pid"])
-                prev_hex[key] = raw
-                # Per-PID acquisition timestamp (moment the response arrived),
-                # millisecond precision, so sequentially-polled PIDs keep skew.
-                acq = entry.get("acquired_at")
-                ts = (
-                    datetime.fromtimestamp(acq).strftime("%H:%M:%S.%f")[:-3]
-                    if acq
-                    else datetime.now().strftime("%H:%M:%S.%f")[:-3]
-                )
-                if save_history is not None:  # --save: always keep everything
-                    save_history.setdefault(key, []).append((raw, ts))
-                if hex_history is not None:  # --keep display history
-                    if keep_mode in ("all", "last"):
-                        hex_history.setdefault(key, []).append((raw, ts))
-                        if keep_mode == "last" and keep_n and len(hex_history[key]) > keep_n:
-                            hex_history[key] = hex_history[key][-keep_n:]
-                    else:  # "unique": store only if not seen before
-                        existing = [h for h, _ts in hex_history.get(key, [])]
-                        if raw not in existing:
-                            hex_history.setdefault(key, []).append((raw, ts))
-
-    async def _poll_once() -> None:
-        """Run every query step once, updating shared state."""
-        nonlocal cycle, elapsed, last_queries, disconnected
-        cycle += 1
-        t0 = time.monotonic()
-        new_queries: list[tuple[str, list]] = []
-        for step in query_steps:
-            try:
-                result = await _exec_query(
-                    sm,
-                    step["ecu"],
-                    step.get("pids", []),
-                    ecu_index,
-                    pids_data,
-                    verbose,
-                    return_results=True,
-                    quiet=True,
-                )
-            except ConnectionError:
-                disconnected = True
-                return
-            if result is not None:
-                new_queries.append(result)
-        last_queries = new_queries
-        elapsed = time.monotonic() - t0
-        _record(new_queries)
-
-    async def _poll_loop(should_stop) -> None:
-        """Poll on ``interval`` until stopped or disconnected."""
-        while not should_stop() and not disconnected:
-            t0 = time.monotonic()
-            await _poll_once()
-            if disconnected:
-                return
-            remaining = interval - (time.monotonic() - t0)
-            while remaining > 0 and not should_stop() and not disconnected:
-                await asyncio.sleep(min(remaining, 0.1))
-                remaining = interval - (time.monotonic() - t0)
-
-    def _body(footer: bool = False) -> Text:
-        return _render_results(
-            last_queries,
-            verbose,
-            cycle,
-            elapsed,
-            interval,
-            prev_hex,
-            hex_history,
-            show_rulers=show_rulers,
-            footer=footer,
-        )
-
-    def _footer(scroll: ScrollView) -> Text:
-        t = Text("  ")
-        if scroll.total > scroll.viewport:
-            t.append(f"lines {scroll.top + 1}-{scroll.bottom}/{scroll.total}", style="dim")
-        else:
-            t.append(f"{scroll.total} lines", style="dim")
-        t.append("  ")
-        t.append(
-            "● following" if scroll.follow else "❚❚ paused",
-            style="green" if scroll.follow else "yellow",
-        )
-        t.append("   ↑↓ jk · PgUp/PgDn · g/G · f follow · q quit", style="dim")
-        return t
-
-    def _full_frame_str() -> str:
-        """The complete (uncropped) view as an ANSI string, for paging/printing."""
-        lines = wrap_text_lines(_body(footer=False), terminal_columns(), _console)
-        return segments_to_str(_console, lines)
-
-    async def _monitor_interactive() -> None:
-        scroll = ScrollView(follow=True)
-        stopped = False
-
-        poll_task = asyncio.ensure_future(_poll_loop(lambda: stopped))
-        try:
-            async with raw_screen(alt_screen=True, hide_cursor=True) as get_key:
-                while not stopped and not disconnected:
-                    frame = compose_frame(
-                        _console,
-                        _body(footer=False),
-                        scroll,
-                        width=terminal_columns(),
-                        height=terminal_lines(),
-                        footer=_footer,
-                    )
-                    sys.stdout.write(frame)
-                    sys.stdout.flush()
-
-                    key = await get_key(timeout=0.2)
-                    if key is None:
-                        continue  # periodic redraw (fresh values / elapsed)
-                    if key in ("CTRL_C", "q", "Q"):
-                        stopped = True
-                    elif key in ("UP", "k"):
-                        scroll.scroll(-1)
-                    elif key in ("DOWN", "j"):
-                        scroll.scroll(1)
-                    elif key == "PGUP":
-                        scroll.page(-1)
-                    elif key == "PGDN":
-                        scroll.page(1)
-                    elif key in ("HOME", "g"):
-                        scroll.home()
-                    elif key in ("END", "G"):
-                        scroll.end()
-                    elif key in ("f", "F"):
-                        scroll.toggle_follow()
-        finally:
-            stopped = True
-            poll_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await poll_task
-
-    async def _monitor_noninteractive() -> None:
-        """No TTY: poll silently until SIGINT/disconnect (piped/scripted runs)."""
-        stop_flag = {"v": False}
-
-        def _handle_sigint(_sig, _frame):
-            stop_flag["v"] = True
-
-        old_handler = signal.signal(signal.SIGINT, _handle_sigint)
-        try:
-            await _poll_loop(lambda: stop_flag["v"])
-        finally:
-            signal.signal(signal.SIGINT, old_handler)
+    controller = MonitorController(
+        terminal,
+        query_steps,
+        pids_data,
+        verbose,
+        interval=interval,
+        keep_mode=keep_mode,
+        keep_n=keep_n,
+        save=save,
+        show_rulers=show_rulers,
+    )
 
     try:
-        # One-shot setup: open sessions
-        if session_steps:
-            for step in session_steps:
-                stype = step["type"]
-                if stype == "skm-wake":
-                    print(f"  SKM wakeup ({step['level']})...")
-                    await _exec_skm_wake(sm, step["level"], verbose)
-                elif stype == "session":
-                    print(f"  Opening session on {step['target']}...")
-                    await _exec_session(sm, step["target"], step.get("wake", False), ecu_index)
-
-        # Start background keepalives
-        sm.start_background_keepalive(interval=2.0)
+        await controller.setup(session_steps)
 
         if sys.stdout.isatty():
-            await _monitor_interactive()
-        else:
-            await _monitor_noninteractive()
+            from ._monitor_tui import run_monitor_app
 
-        if disconnected:
+            await run_monitor_app(controller)
+        else:
+            await _monitor_noninteractive(controller)
+
+        if controller.disconnected:
             _console.print("\n  [bold red]✖ WebSocket disconnected[/bold red]")
-            _console.print(f"  [red]Stopped after {cycle} cycles.[/red]\n")
+            _console.print(f"  [red]Stopped after {controller.cycle} cycles.[/red]\n")
             raise ConnectionError("WebSocket disconnected")
 
-        # User-requested stop: surface the full view, then optionally save.
-        frame = _full_frame_str()
-        if sys.stdout.isatty() and frame.count("\n") + 1 > terminal_lines():
-            page_output(frame)  # scroll the whole history in a pager
-        else:
-            sys.stdout.write(frame if frame.endswith("\n") else frame + "\n")
-            sys.stdout.flush()
+        # Print the final values so a stopped session leaves them in scrollback.
+        _console.print(controller.render())
         print("  Monitoring stopped.")
-        if save and save_history is not None:
-            _prompt_and_save(save_history, prev_hex, captures_dir, label, state, notes)
+        controller.save_captures(captures_dir, label, state, notes)
 
     finally:
-        sm.stop_background_keepalive()
-        print("  Closing sessions...")
-        try:
-            await asyncio.wait_for(sm.close_all(), timeout=3.0)
-        except (TimeoutError, Exception):
-            pass
+        await controller.close()
