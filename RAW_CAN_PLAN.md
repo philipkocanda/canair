@@ -117,8 +117,25 @@ first**, then **client-side ISO-TP + pipelined UDS** as a faster monitor backend
   (pipelined UDS / active requests)**, not passive sniffing. `canair sniff`
   remains useful on buses that do broadcast (or a WiCAN wired to an internal
   bus) and now prints a hint when it sees nothing.
-- [ ] Phase 2 — ISO-TP + UDS pipelining + monitor `--raw` backend. (The active
-  probe already returned an ISO-TP First Frame, confirming we'd need client-side
-  flow-control + reassembly — exactly Phase 2.)
+- [x] Phase 2 — ISO-TP + pipelined UDS + monitor `--raw-can` backend (verified
+  on-device 2026-07-21):
+  - `can-isotp` dependency; `canlib/transport/uds_raw.py` — `RawUdsClient`: one
+    `isotp.NotifierBasedCanStack` per ECU over a shared `Notifier`, with
+    **round-based pipelining** (parallel across ECUs, sequential within an ECU —
+    an ISO-TP stack allows only one outstanding request). Tests in
+    `tests/test_uds_raw.py`.
+  - `canlib/modes/multi.build_query_plan` extracted (shared by both backends);
+    `MonitorController` gains a raw backend (`_poll_raw`) reusing
+    `_decode_pid_result` so decoded values/rendering are identical.
+    `canlib/modes/raw_monitor.run_raw_monitor` orchestrates
+    lock → `protocol_mode(slcan)` → bus/client → `mode_monitor(raw_client=…)`.
+  - `canair query --monitor --raw-can [--yes]` (branch in `_live.async_main`).
+  - **On-device result:** decoded values match the ELM path (SOC 91.5 %, VCU
+    speed, IGPM bits); a 0.2 s stack-settle makes the first cycle clean;
+    pipelined vs sequential across IGPM(3 DIDs)+BMS+VCU = **~1.4× faster**.
+  - **Next (Phase 2b, optional):** the speedup is bounded by the busiest ECU's
+    *sequential* DIDs — add raw multi-DID batching (combine an ECU's 22-DIDs into
+    one ISO-TP request, like the ELM path) to collapse IGPM's 3 reads into 1 and
+    pipeline that with the other ECUs.
 
 

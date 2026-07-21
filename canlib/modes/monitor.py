@@ -21,6 +21,7 @@ layer differs.
 """
 
 import asyncio
+import contextlib
 import re
 import signal
 import sys
@@ -229,6 +230,37 @@ def _prompt_and_save(
     save_session(session, captures_dir)
 
 
+def _raw_pid_result(pid_code, pid_info, unmapped, value, acquired_at):
+    """Turn a raw-CAN poll result (bytes / Exception / None) into a result dict.
+
+    Mirrors the ELM path's result shape so the renderer/decoder are unchanged.
+    """
+    from .multi import _decode_pid_result
+
+    if value is None or isinstance(value, Exception):
+        err = "timeout" if value is None or isinstance(value, TimeoutError) else str(value)
+        return {"pid": pid_code, "error": err, "unmapped": unmapped, "acquired_at": acquired_at}
+    resp = bytes(value)
+    if not resp:
+        return {
+            "pid": pid_code,
+            "error": "empty response",
+            "unmapped": unmapped,
+            "acquired_at": acquired_at,
+        }
+    if resp[0] == 0x7F:  # negative response: 7F <sid> <nrc>
+        from ..elm327 import nrc_abbrev
+
+        nrc = resp[2] if len(resp) >= 3 else 0
+        return {
+            "pid": pid_code,
+            "error": f"NRC 0x{nrc:02X} ({nrc_abbrev(nrc)})",
+            "unmapped": unmapped,
+            "acquired_at": acquired_at,
+        }
+    return _decode_pid_result(pid_code, pid_info, unmapped, resp.hex().upper(), resp, acquired_at)
+
+
 class MonitorController:
     """Polls a set of ECU PIDs on an interval and renders/records the results.
 
@@ -249,8 +281,11 @@ class MonitorController:
         keep_n: int | None = None,
         save: bool = False,
         show_rulers: bool = False,
+        raw_client=None,
     ):
         self.terminal = terminal
+        self.raw_client = raw_client  # transport.RawUdsClient when using the raw backend
+        self.raw = raw_client is not None
         self.query_steps = query_steps
         self.pids_data = pids_data
         self.verbose = verbose
@@ -260,7 +295,7 @@ class MonitorController:
         self.save = save
         self.show_rulers = show_rulers
 
-        self.sm = SessionManager(terminal, verbose=verbose)
+        self.sm = SessionManager(terminal, verbose=verbose) if not self.raw else None
         self._ecu_index: dict | None = None
         self._batch_state = None  # multi.BatchState, created in setup()
 
@@ -282,9 +317,22 @@ class MonitorController:
     async def setup(self, session_steps: list[dict] | None) -> None:
         """Build the ECU index, run one-shot session setup, start keepalives."""
         from ..pids import build_ecu_index
-        from .multi import BatchState, _exec_session, _exec_skm_wake
 
         self._ecu_index = build_ecu_index(self.pids_data)
+
+        if self.raw:
+            # Raw backend: no ELM sessions/keepalive. Sessions (10 03) for ECUs
+            # that need them are opened best-effort before polling.
+            for step in session_steps or []:
+                if step["type"] == "session":
+                    tgt = step["target"].upper()
+                    if tgt in self._ecu_index:
+                        with contextlib.suppress(Exception):
+                            self.raw_client.read(tgt, bytes.fromhex("1003"), timeout=1.0)
+            return
+
+        from .multi import BatchState, _exec_session, _exec_skm_wake
+
         self._batch_state = BatchState()
         for step in session_steps or []:
             stype = step["type"]
@@ -333,10 +381,18 @@ class MonitorController:
 
     async def poll_once(self) -> None:
         """Run every query step once, updating live state. Sets ``disconnected``."""
-        from .multi import _exec_query
-
         self.cycle += 1
         t0 = time.monotonic()
+        if self.raw:
+            await self._poll_raw()
+        else:
+            await self._poll_elm()
+        self.elapsed = time.monotonic() - t0
+        self._record(self.last_queries)
+
+    async def _poll_elm(self) -> None:
+        from .multi import _exec_query
+
         cmds0 = self.terminal.cmd_count
         elm0 = self.terminal.cmd_time
         new_queries: list[tuple[str, list]] = []
@@ -359,10 +415,54 @@ class MonitorController:
             if result is not None:
                 new_queries.append(result)
         self.last_queries = new_queries
-        self.elapsed = time.monotonic() - t0
         self.last_cmds = self.terminal.cmd_count - cmds0
         self.last_elm_time = self.terminal.cmd_time - elm0
-        self._record(new_queries)
+
+    async def _poll_raw(self) -> None:
+        """Pipelined UDS read over raw CAN (runs the blocking client in a thread)."""
+        import time as _t
+
+        from .multi import build_query_plan
+
+        # Build the pipelined request list + a per-(ecu,pid) plan map.
+        requests: list[tuple[str, bytes]] = []
+        plans: list[tuple[str, int, list]] = []  # (ecu_upper, tx_id, plan)
+        for step in self.query_steps:
+            ecu = step["ecu"].upper()
+            info = self._ecu_index.get(ecu)
+            if info is None:
+                continue
+            plan = build_query_plan(info, step.get("pids", []), quiet=True) or []
+            plans.append((ecu, info["tx_id"], plan))
+            for pid_code, _pi, _un in plan:
+                requests.append((ecu, bytes.fromhex(pid_code)))
+
+        loop = asyncio.get_event_loop()
+        try:
+            results = await loop.run_in_executor(None, self.raw_client.poll, requests)
+        except Exception:
+            self.disconnected = True
+            return
+
+        acquired = _t.time()
+        new_queries: list[tuple[str, list]] = []
+        for ecu, tx_id, plan in plans:
+            pid_results = []
+            for pid_code, pid_info, unmapped in plan:
+                pid_results.append(
+                    _raw_pid_result(
+                        pid_code,
+                        pid_info,
+                        unmapped,
+                        results.get((ecu, bytes.fromhex(pid_code))),
+                        acquired,
+                    )
+                )
+            new_queries.append((f"{ecu} (0x{tx_id:03X})", pid_results))
+
+        self.last_queries = new_queries
+        self.last_cmds = len(requests)
+        self.last_elm_time = 0.0
 
     def render(self) -> Text:
         """The current view as a Rich Text (rendered by the TUI / printed on exit)."""
@@ -389,7 +489,12 @@ class MonitorController:
             _prompt_and_save(self.save_history, self.prev_hex, captures_dir, label, state, notes)
 
     async def close(self) -> None:
-        """Stop keepalives and close all open sessions (best-effort)."""
+        """Stop keepalives and close all open sessions / the raw client (best-effort)."""
+        if self.raw:
+            print("  Closing raw CAN client...")
+            with contextlib.suppress(Exception):
+                self.raw_client.close()
+            return
         self.sm.stop_background_keepalive()
         print("  Closing sessions...")
         try:
@@ -434,6 +539,7 @@ async def mode_monitor(
     label: str | None = None,
     state: str | None = None,
     notes: str | None = None,
+    raw_client=None,
 ):
     """Live-refresh ECU parameter monitor.
 
@@ -473,6 +579,7 @@ async def mode_monitor(
         keep_n=keep_n,
         save=save,
         show_rulers=show_rulers,
+        raw_client=raw_client,
     )
 
     try:
@@ -486,9 +593,10 @@ async def mode_monitor(
             await _monitor_noninteractive(controller)
 
         if controller.disconnected:
-            _console.print("\n  [bold red]✖ WebSocket disconnected[/bold red]")
+            link = "raw CAN bus" if controller.raw else "WebSocket"
+            _console.print(f"\n  [bold red]✖ {link} disconnected[/bold red]")
             _console.print(f"  [red]Stopped after {controller.cycle} cycles.[/red]\n")
-            raise ConnectionError("WebSocket disconnected")
+            raise ConnectionError(f"{link} disconnected")
 
         # Print the final values so a stopped session leaves them in scrollback.
         _console.print(controller.render())

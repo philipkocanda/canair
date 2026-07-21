@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import select
 import socket
+import threading
 import time
 from collections import deque
 
@@ -111,6 +112,9 @@ class SlcanTcpBus(can.BusABC):
         self.channel_info = f"SLCAN/TCP {host}:{port} @ {bitrate}"
         self._buf = ""
         self._rx: deque[can.Message] = deque()
+        # Serialize writes: with ISO-TP pipelining, several stack threads call
+        # send() concurrently — a lock keeps their SLCAN frames from interleaving.
+        self._send_lock = threading.Lock()
 
         self._sock = socket.create_connection((host, port), timeout=connect_timeout)
         self._sock.setblocking(False)
@@ -150,7 +154,8 @@ class SlcanTcpBus(can.BusABC):
         self._write(cmd + "\r")
 
     def _write(self, text: str) -> None:
-        self._sock.sendall(text.encode("ascii"))
+        with self._send_lock:
+            self._sock.sendall(text.encode("ascii"))
 
     def _read_into_buffer(self, timeout: float | None) -> None:
         """Block up to ``timeout`` for data, then drain + parse all whole lines."""
