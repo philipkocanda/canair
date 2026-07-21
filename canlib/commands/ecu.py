@@ -109,8 +109,20 @@ def _captures_by_pid(ecu_name: str) -> tuple[Counter, int]:
 # ── list mode ─────────────────────────────────────────────────────────────
 
 
-def _list_records(ecus: dict, pids_data: dict) -> list[dict]:
+def _all_captures_by_ecu() -> Counter:
+    """Total capture counts keyed by canonical ECU short name (upper-cased)."""
+    try:
+        from canlib.commands.captures import load_all_captures
+
+        caps = load_all_captures()
+    except Exception:
+        return Counter()
+    return Counter(str(c.get("ecu", "")).upper() for c in caps)
+
+
+def _list_records(ecus: dict, pids_data: dict, with_captures: bool = False) -> list[dict]:
     """Build one record per registry ECU, joined to pids/ by tx_id, name-sorted."""
+    cap_counts = _all_captures_by_ecu() if with_captures else Counter()
     records = []
     for tx_id, info in ecus.items():
         if not isinstance(info, dict):
@@ -129,6 +141,8 @@ def _list_records(ecus: dict, pids_data: dict) -> list[dict]:
         }
         if ecu_def is not None:
             rec.update(_pid_stats(ecu_def))
+            if with_captures:
+                rec["captures"] = cap_counts.get(name.upper(), 0)
         records.append(rec)
     records.sort(key=lambda r: r["name"].upper())
     return records
@@ -139,9 +153,34 @@ def cmd_list(records: list[dict], as_json: bool) -> int:
         json.dump(records, sys.stdout, indent=2, default=str)
         print()
         return 0
-    # Plain, pipeable: one ECU name per line.
-    for rec in records:
-        print(rec["name"])
+
+    n_pids = sum(1 for r in records if r["has_pids"])
+    print(f"\n  {_BOLD}ECUs{_RESET} — {len(records)} in registry, "
+          f"{n_pids} with PID definitions\n")
+
+    # Column header.
+    print(f"  {_DIM}{'NAME':<12} {'TX':<6} {'PROTO':<8} "
+          f"{'PIDS':>4} {'PARM':>5} {'VERIF':>7} {'CAPS':>5}{_RESET}")
+
+    for r in records:
+        name = r["name"]
+        alias = f" {_DIM}({r['alias']}){_RESET}" if r.get("alias") else ""
+        proto = (r.get("id_protocol") or "?")
+        if not r["has_pids"]:
+            # Registry-only module: no PID data to summarise.
+            print(f"  {_CYAN}{name:<12}{_RESET} {r['tx']:<6} {proto:<8} "
+                  f"{_DIM}{'—':>4} {'—':>5} {'—':>7} {'—':>5}{_RESET}{alias}")
+            continue
+        params = r["params"]
+        verified = r["verified"]
+        vcolor = _GREEN if params and verified == params else (_YELLOW if verified else _DIM)
+        vstr = f"{verified}/{params}"
+        caps = r.get("captures", 0)
+        cstr = f"{caps:>5}" if caps else f"{_YELLOW}{'0':>5}{_RESET}"
+        print(f"  {_CYAN}{name:<12}{_RESET} {r['tx']:<6} {proto:<8} "
+              f"{r['pids']:>4} {params:>5} {vcolor}{vstr:>7}{_RESET} "
+              f"{cstr}{alias}")
+    print()
     return 0
 
 
@@ -300,7 +339,7 @@ def run(args) -> int:
     pids_data = load_pids()
 
     if not args.ecu:
-        records = _list_records(ecus, pids_data)
+        records = _list_records(ecus, pids_data, with_captures=True)
         if not records:
             print("No ECUs found in the active profile (see `canair profile show`).")
             return 1
