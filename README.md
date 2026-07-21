@@ -7,8 +7,6 @@ Contains a detailed vehicle profile reverse engineered from a 2017 Hyundai Ioniq
 > [!WARNING]
 > Sending arbitrary UDS commands to a vehicle's ECUs can cause **permanent damage** — bricked modules, voided warranties, disabled safety systems, or unintended physical actuation (steering, braking, airbags). Never use UDS programming sessions (`1002`) or firmware write commands. Never run IOControl commands while driving. If you don't fully understand a command, don't send it. This toolkit is provided as-is with no safety guarantees. **You are responsible for anything you send to your car's CAN bus.**
 
-> Work in progress — actively mapping ECUs, decoding parameters, and building tooling.
-
 This project uses a [WiCAN Pro](https://www.meatpi.com/products/wican-pro) OBD-II WiFi dongle to communicate with the vehicle's ECUs via Unified Diagnostic Services (UDS) and Keyword Protocol 2000 (KWP2000). The goal is to decode and document the car's internal diagnostic data and publish it via MQTT to Home Assistant for remote monitoring and control (eventually).
 
 Everything ships as a single installable CLI, **`canair`** (argparse subcommands). Vehicle data lives in a *profile* bundle; the repo ships `profiles/ioniq-2017/` as the default/example profile, so nothing is hardcoded to one car.
