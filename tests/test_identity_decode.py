@@ -24,12 +24,47 @@ class TestDecodePayload:
     def test_date_6_hex(self):
         assert idec.decode_identity_payload(bytes.fromhex("170606"), "date") == "2017-06-06"
 
+    def test_date_binary_uint16_year(self):
+        # AAF 1A99: 0x07E0 = 2016, month 3, day 2.
+        assert idec.decode_identity_payload(bytes.fromhex("07E00302"), "date") == "2016-03-02"
+
+    def test_non_date_falls_back_to_hex(self):
+        # VCU/MCU 1A8B version-ish code — not a plausible calendar date.
+        assert idec.decode_identity_payload(bytes.fromhex("1E090D14"), "date") == "1E090D14"
+
+    def test_date_zeros_is_empty(self):
+        assert idec.decode_identity_payload(bytes.fromhex("00000000"), "date") == "(empty)"
+
     def test_hex_fallback_for_binary(self):
         # Mostly non-printable -> hex.
         assert idec.decode_identity_payload(b"\x01\x02\x03\x04", "auto") == "01020304"
 
     def test_auto_ascii(self):
         assert idec.decode_identity_payload(b"AEEV__ BMS", "auto") == "AEEV__ BMS"
+
+
+# --- decode_date ---
+
+
+class TestDecodeDate:
+    def test_bcd_4_byte(self):
+        assert idec.decode_date(bytes.fromhex("20170606")) == "2017-06-06"
+
+    def test_bcd_3_byte(self):
+        assert idec.decode_date(bytes.fromhex("170606")) == "2017-06-06"
+
+    def test_binary_uint16_year(self):
+        assert idec.decode_date(bytes.fromhex("07E00302")) == "2016-03-02"
+
+    def test_implausible_year_is_none(self):
+        assert idec.decode_date(bytes.fromhex("1E090D14")) is None
+
+    def test_bad_month_is_none(self):
+        # BCD year ok (2017) but month 0x99 -> 99, invalid.
+        assert idec.decode_date(bytes.fromhex("20179906")) is None
+
+    def test_wrong_length_is_none(self):
+        assert idec.decode_date(bytes.fromhex("2017")) is None
 
 
 # --- service_supported ---
