@@ -1,6 +1,27 @@
 # Ioniq 2017 EV — WiCAN Pro PID Definitions
 # Source of truth for all OBD-II / UDS PIDs polled by WiCAN.
 # Run generate-profile.py to produce WiCAN JSON profiles from this file.
+#
+# ┌──────────────────────────────────────────────────────────────────────────┐
+# │ RECON GOTCHA — ECU WARM-UP (first request after idle is slow)             │
+# ├──────────────────────────────────────────────────────────────────────────┤
+# │ Ioniq ECUs drop to a low-power state when idle. The FIRST diagnostic       │
+# │ request to an ECU that hasn't been queried "in a while" is noticeably      │
+# │ slow (the ECU/gateway has to wake) and can even TIME OUT / return NO DATA  │
+# │ on that first try — subsequent requests are fast. This is normal, not a    │
+# │ dead ECU or a wrong PID. Confirmed on IGPM (0x770); very likely applies to │
+# │ most ECUs.                                                                 │
+# │                                                                            │
+# │ During recon: if a first read fails/looks unresponsive, RETRY once (or     │
+# │ send a throwaway "prime" read first) before concluding the PID/ECU is bad. │
+# │ The live monitor's raw backend (--raw-can) primes each ECU on start for    │
+# │ exactly this reason; the high response_timeout_ms below also helps the ELM │
+# │ path ride out the slow first response.                                     │
+# │                                                                            │
+# │ Separately, the OBD-II port is GATEWAY-ISOLATED: ECUs answer diagnostic    │
+# │ request/response, but there is ~no unsolicited broadcast traffic to sniff  │
+# │ passively (see `canair sniff`). Reads are request/response only.           │
+# └──────────────────────────────────────────────────────────────────────────┘
 
 car_model: "Hyundai: Ioniq2017"
 init: "ATSP6;ATS0;ATAL;ATST96;"

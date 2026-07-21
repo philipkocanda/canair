@@ -3,6 +3,11 @@
 IGPM:
   tx_id: 0x770
   availability: [sleep, plugged, acc, acc2, ready, charging]
+  # WARM-UP: the first request to IGPM after it's been idle is slow and may
+  # time out / return NO DATA on the first try; retry (or prime) and subsequent
+  # reads are fast. This is the ECU waking, not a bad PID. See pids/_meta.yaml
+  # (RECON GOTCHA). Observed here first during recon; likely affects most ECUs.
+  #
   # UDS service-22 multi-DID batching: verified on-device 2026-07-21 — IGPM
   # answers `22 BC03 BC06` with `62BC03 <data> BC06 <data>` (BCM, by contrast,
   # rejects it with NRC 0x13). The monitor batches ≤3 known-length DIDs per
