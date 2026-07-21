@@ -424,247 +424,7 @@ async def async_main(args):
         if args.wake:
             args.session = True
 
-        # Dispatch to mode
-        if args.multi and args.monitor:
-            from canlib.modes.multi import parse_sub_commands
-
-            commands = parse_sub_commands(args.multi)
-            session_steps = [c for c in commands if c["type"] in ("session", "skm-wake", "sleep")]
-            query_steps = [c for c in commands if c["type"] == "query"]
-            if not query_steps:
-                print(
-                    "Error: --monitor requires at least one 'query' step in --multi",
-                    file=sys.stderr,
-                )
-                sys.exit(1)
-            await mode_monitor(
-                terminal,
-                query_steps,
-                pids_data,
-                args.verbose,
-                interval=args.monitor,
-                session_steps=session_steps,
-                keep_mode="unique"
-                if args.keep_unique
-                else ("all" if args.keep_all else ("last" if args.keep else None)),
-                keep_n=args.keep,
-                save=args.save,
-                show_rulers=args.rulers,
-                label=args.label,
-                state=args.state,
-                notes=args.notes,
-            )
-        elif args.multi:
-            await mode_multi(
-                terminal,
-                args.multi,
-                pids_data,
-                args.verbose,
-                no_repl=not args.repl,
-                save=args.save,
-                label=args.label,
-                state=args.state,
-                notes=args.notes,
-            )
-        elif args.skm_wakeup:
-            await mode_skm_wakeup(terminal, args.level, args.verbose)
-        elif args.tester_present:
-            await mode_tester_present(terminal, args.target, args.interval, args.verbose)
-        elif args.identity:
-            from canlib.ecus import resolve_tx
-
-            tx_id = resolve_tx(args.tx)
-            if tx_id is None:
-                print(
-                    f"Error: could not resolve ECU '{args.tx}' "
-                    "(use a name like IGPM or a hex TX id like 770)",
-                    file=sys.stderr,
-                )
-                sys.exit(1)
-            await mode_identity(
-                terminal, tx_id, session=args.session, wake=args.wake, as_json=args.json
-            )
-        elif args.param:
-            await mode_param(
-                terminal,
-                pids_data,
-                args.param,
-                args.verbose,
-                args.json,
-                session=args.session,
-                wake=args.wake,
-            )
-        elif args.ecu:
-            await mode_ecu(
-                terminal,
-                pids_data,
-                args.ecu,
-                args.pid,
-                args.verbose,
-                args.json,
-                session=args.session,
-                wake=args.wake,
-            )
-        elif args.raw:
-            await mode_raw(
-                terminal,
-                args.raw,
-                args.verbose,
-                args.json,
-                session=args.session,
-                hold=args.hold,
-                wake=args.wake,
-                save=args.save,
-                pids_data=pids_data,
-                label=args.label,
-                state=args.state,
-                notes=args.notes,
-            )
-        elif args.scan:
-            from canlib.ecus import resolve_tx
-
-            tx_id = resolve_tx(args.tx)
-            if tx_id is None:
-                print(
-                    f"Error: could not resolve ECU '{args.tx}' "
-                    "(use a name like BMS or a hex TX id like 7E4)",
-                    file=sys.stderr,
-                )
-                sys.exit(1)
-            service = int(args.service, 16) if args.service else 0x21
-            pid_range = parse_range(args.range) if args.range else (0x01, 0xFF)
-            append_bytes = ""
-            if args.append:
-                cleaned = args.append.replace(" ", "").upper()
-                if not all(c in "0123456789ABCDEF" for c in cleaned) or len(cleaned) % 2 != 0:
-                    print(
-                        "Error: --append must be valid hex bytes (e.g., 03 or 030A0A05)",
-                        file=sys.stderr,
-                    )
-                    sys.exit(1)
-                append_bytes = cleaned
-            await mode_scan(
-                terminal,
-                tx_id,
-                service,
-                pid_range,
-                args.verbose,
-                args.json,
-                append_bytes=append_bytes,
-                session=args.session,
-                wake=args.wake,
-                save=args.save,
-                label=args.label,
-                state=args.state,
-                notes=args.notes,
-            )
-        elif args.iocontrol:
-            if args.did:
-                await mode_iocontrol_execute(
-                    terminal,
-                    pids_data,
-                    args.iocontrol,
-                    args.did,
-                    off=args.off,
-                    verbose=args.verbose,
-                    as_json=args.json,
-                )
-            else:
-                from canlib.modes.iocontrol import mode_iocontrol_tui
-
-                await mode_iocontrol_tui(
-                    terminal,
-                    pids_data,
-                    args.iocontrol,
-                    verbose=args.verbose,
-                )
-        elif args.routines:
-            if args.rid:
-                from canlib.modes.routines import SF_RESULTS, SF_START, SF_STOP
-
-                sf_map = {"results": SF_RESULTS, "start": SF_START, "stop": SF_STOP}
-                sf_name = (args.sf or "results").lower()
-                if sf_name not in sf_map:
-                    print(
-                        f"Error: --sf must be one of: results, start, stop (got {args.sf!r})",
-                        file=sys.stderr,
-                    )
-                    sys.exit(1)
-                sub_function = sf_map[sf_name]
-                if sub_function == SF_START:
-                    print(
-                        f"!! WARNING: --sf start will send startRoutine (SF 0x01) to {args.routines} RID {args.rid}.",
-                        file=sys.stderr,
-                    )
-                    print(
-                        "!! This may actuate hardware. Continue? [y/N] ",
-                        end="",
-                        flush=True,
-                        file=sys.stderr,
-                    )
-                    answer = sys.stdin.readline().strip().lower()
-                    if answer not in ("y", "yes"):
-                        print("Aborted.", file=sys.stderr)
-                        sys.exit(0)
-                await mode_routines_execute(
-                    terminal,
-                    pids_data,
-                    args.routines,
-                    args.rid,
-                    sub_function=sub_function,
-                    verbose=args.verbose,
-                    as_json=args.json,
-                )
-            else:
-                from canlib.modes.routines import mode_routines_tui
-
-                await mode_routines_tui(
-                    terminal,
-                    pids_data,
-                    args.routines,
-                    verbose=args.verbose,
-                )
-        elif args.routines_scan is not None:
-            ecus = args.routines_scan
-            rid_range = parse_range(args.rid_range)
-            await mode_routines_scan(
-                terminal,
-                pids_data,
-                ecus=ecus,
-                rid_range=rid_range,
-                throttle_ms=args.throttle_ms,
-                verbose=args.verbose,
-                write_yaml=True,
-            )
-        elif args.iocontrol_scan is not None:
-            ecus = args.iocontrol_scan
-            did_range = parse_range(args.did_range) if args.did_range else None
-            await mode_iocontrol_scan(
-                terminal,
-                pids_data,
-                ecus=ecus,
-                did_range=did_range,
-                throttle_ms=args.throttle_ms,
-                verbose=args.verbose,
-                write_yaml=True,
-            )
-        elif args.discover:
-            addr_range = parse_range(args.range) if args.range != "01-FF" else (0x700, 0x7EF)
-            await mode_discover(
-                terminal,
-                addr_range,
-                args.verbose,
-                args.json,
-                delay=args.delay,
-                save=args.save,
-                label=args.label,
-                state=args.state,
-                notes=args.notes,
-                register=getattr(args, "register", False),
-                dry_run=getattr(args, "dry_run", False),
-            )
-        else:
-            await mode_interactive(terminal, pids_data, args.verbose)
+        await dispatch_mode(args, terminal, pids_data, host)
 
     except ConnectionError as e:
         print(f"Connection error: {e}", file=sys.stderr)
@@ -703,3 +463,252 @@ def run_live(args) -> int:
 def run(args) -> int:
     """Default live dispatch used by most subcommands (set via finalize_live_parser)."""
     return run_live(args)
+
+
+
+async def dispatch_mode(args, terminal, pids_data, host):
+    """Dispatch a live subcommand to its mode handler over ``terminal``.
+
+    Shared by the ELM (WiCANTerminal) and raw (RawTerminal) transports so the
+    same commands work on either — the transport differs, the dispatch does not.
+    """
+    if args.multi and args.monitor:
+        from canlib.modes.multi import parse_sub_commands
+
+        commands = parse_sub_commands(args.multi)
+        session_steps = [c for c in commands if c["type"] in ("session", "skm-wake", "sleep")]
+        query_steps = [c for c in commands if c["type"] == "query"]
+        if not query_steps:
+            print(
+                "Error: --monitor requires at least one 'query' step in --multi",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        await mode_monitor(
+            terminal,
+            query_steps,
+            pids_data,
+            args.verbose,
+            interval=args.monitor,
+            session_steps=session_steps,
+            keep_mode="unique"
+            if args.keep_unique
+            else ("all" if args.keep_all else ("last" if args.keep else None)),
+            keep_n=args.keep,
+            save=args.save,
+            show_rulers=args.rulers,
+            label=args.label,
+            state=args.state,
+            notes=args.notes,
+        )
+    elif args.multi:
+        await mode_multi(
+            terminal,
+            args.multi,
+            pids_data,
+            args.verbose,
+            no_repl=not args.repl,
+            save=args.save,
+            label=args.label,
+            state=args.state,
+            notes=args.notes,
+        )
+    elif args.skm_wakeup:
+        await mode_skm_wakeup(terminal, args.level, args.verbose)
+    elif args.tester_present:
+        await mode_tester_present(terminal, args.target, args.interval, args.verbose)
+    elif args.identity:
+        from canlib.ecus import resolve_tx
+
+        tx_id = resolve_tx(args.tx)
+        if tx_id is None:
+            print(
+                f"Error: could not resolve ECU '{args.tx}' "
+                "(use a name like IGPM or a hex TX id like 770)",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        await mode_identity(
+            terminal, tx_id, session=args.session, wake=args.wake, as_json=args.json
+        )
+    elif args.param:
+        await mode_param(
+            terminal,
+            pids_data,
+            args.param,
+            args.verbose,
+            args.json,
+            session=args.session,
+            wake=args.wake,
+        )
+    elif args.ecu:
+        await mode_ecu(
+            terminal,
+            pids_data,
+            args.ecu,
+            args.pid,
+            args.verbose,
+            args.json,
+            session=args.session,
+            wake=args.wake,
+        )
+    elif args.raw:
+        await mode_raw(
+            terminal,
+            args.raw,
+            args.verbose,
+            args.json,
+            session=args.session,
+            hold=args.hold,
+            wake=args.wake,
+            save=args.save,
+            pids_data=pids_data,
+            label=args.label,
+            state=args.state,
+            notes=args.notes,
+        )
+    elif args.scan:
+        from canlib.ecus import resolve_tx
+
+        tx_id = resolve_tx(args.tx)
+        if tx_id is None:
+            print(
+                f"Error: could not resolve ECU '{args.tx}' "
+                "(use a name like BMS or a hex TX id like 7E4)",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        service = int(args.service, 16) if args.service else 0x21
+        pid_range = parse_range(args.range) if args.range else (0x01, 0xFF)
+        append_bytes = ""
+        if args.append:
+            cleaned = args.append.replace(" ", "").upper()
+            if not all(c in "0123456789ABCDEF" for c in cleaned) or len(cleaned) % 2 != 0:
+                print(
+                    "Error: --append must be valid hex bytes (e.g., 03 or 030A0A05)",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+            append_bytes = cleaned
+        await mode_scan(
+            terminal,
+            tx_id,
+            service,
+            pid_range,
+            args.verbose,
+            args.json,
+            append_bytes=append_bytes,
+            session=args.session,
+            wake=args.wake,
+            save=args.save,
+            label=args.label,
+            state=args.state,
+            notes=args.notes,
+        )
+    elif args.iocontrol:
+        if args.did:
+            await mode_iocontrol_execute(
+                terminal,
+                pids_data,
+                args.iocontrol,
+                args.did,
+                off=args.off,
+                verbose=args.verbose,
+                as_json=args.json,
+            )
+        else:
+            from canlib.modes.iocontrol import mode_iocontrol_tui
+
+            await mode_iocontrol_tui(
+                terminal,
+                pids_data,
+                args.iocontrol,
+                verbose=args.verbose,
+            )
+    elif args.routines:
+        if args.rid:
+            from canlib.modes.routines import SF_RESULTS, SF_START, SF_STOP
+
+            sf_map = {"results": SF_RESULTS, "start": SF_START, "stop": SF_STOP}
+            sf_name = (args.sf or "results").lower()
+            if sf_name not in sf_map:
+                print(
+                    f"Error: --sf must be one of: results, start, stop (got {args.sf!r})",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+            sub_function = sf_map[sf_name]
+            if sub_function == SF_START:
+                print(
+                    f"!! WARNING: --sf start will send startRoutine (SF 0x01) to {args.routines} RID {args.rid}.",
+                    file=sys.stderr,
+                )
+                print(
+                    "!! This may actuate hardware. Continue? [y/N] ",
+                    end="",
+                    flush=True,
+                    file=sys.stderr,
+                )
+                answer = sys.stdin.readline().strip().lower()
+                if answer not in ("y", "yes"):
+                    print("Aborted.", file=sys.stderr)
+                    sys.exit(0)
+            await mode_routines_execute(
+                terminal,
+                pids_data,
+                args.routines,
+                args.rid,
+                sub_function=sub_function,
+                verbose=args.verbose,
+                as_json=args.json,
+            )
+        else:
+            from canlib.modes.routines import mode_routines_tui
+
+            await mode_routines_tui(
+                terminal,
+                pids_data,
+                args.routines,
+                verbose=args.verbose,
+            )
+    elif args.routines_scan is not None:
+        ecus = args.routines_scan
+        rid_range = parse_range(args.rid_range)
+        await mode_routines_scan(
+            terminal,
+            pids_data,
+            ecus=ecus,
+            rid_range=rid_range,
+            throttle_ms=args.throttle_ms,
+            verbose=args.verbose,
+            write_yaml=True,
+        )
+    elif args.iocontrol_scan is not None:
+        ecus = args.iocontrol_scan
+        did_range = parse_range(args.did_range) if args.did_range else None
+        await mode_iocontrol_scan(
+            terminal,
+            pids_data,
+            ecus=ecus,
+            did_range=did_range,
+            throttle_ms=args.throttle_ms,
+            verbose=args.verbose,
+            write_yaml=True,
+        )
+    elif args.discover:
+        addr_range = parse_range(args.range) if args.range != "01-FF" else (0x700, 0x7EF)
+        await mode_discover(
+            terminal,
+            addr_range,
+            args.verbose,
+            args.json,
+            delay=args.delay,
+            save=args.save,
+            label=args.label,
+            state=args.state,
+            notes=args.notes,
+            register=getattr(args, "register", False),
+            dry_run=getattr(args, "dry_run", False),
+        )
+    else:
+        await mode_interactive(terminal, pids_data, args.verbose)

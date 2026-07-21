@@ -159,8 +159,11 @@ auto-switched):
 - **`wican-ws`** (default) — WiCAN Pro WebSocket ELM327 terminal; works in *any*
   device `protocol` (device does ISO-TP). All commands supported.
 - **`slcan-tcp`** — SLCAN over TCP (classic WiCAN / gateway); diagnostics use
-  client-side ISO-TP (`RawUdsClient`). Requires the device to be in `slcan`
-  mode. Supported: `query`, `raw`, `monitor`, `sniff` (others → clear error).
+  client-side ISO-TP. Requires the device to be in `slcan` mode. All live
+  commands work: `monitor` uses the optimized pipelined/batched `RawUdsClient`;
+  everything else (`query`, `raw`, `scan`, `discover`, `identity`, `io`,
+  `routines`, `sniff`, `*-scan`) runs the normal dispatch over a `RawTerminal`
+  adapter (same `set_header`/`send_uds`/session interface, backed by ISO-TP).
 
 Select via the `transport:` block in `~/.config/canair/config.yaml`
 (`type`/`host`/`port`/`bitrate`) or per-command `--transport`/`--wican`/

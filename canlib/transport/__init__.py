@@ -6,11 +6,13 @@ TCP (:class:`canlib.transport.slcan_tcp.SlcanTcpBus`).
 """
 
 from .config import VALID_TRANSPORTS, TransportConfig, TransportError, resolve_transport
+from .raw_terminal import RawTerminal
 from .slcan_tcp import SlcanTcpBus, format_slcan_frame, parse_slcan_frame
 from .uds_raw import RawUdsClient, response_id
 
 __all__ = [
     "VALID_TRANSPORTS",
+    "RawTerminal",
     "RawUdsClient",
     "SlcanTcpBus",
     "TransportConfig",
