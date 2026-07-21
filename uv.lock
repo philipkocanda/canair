@@ -21,11 +21,21 @@ wheels = [
 ]
 
 [[package]]
+name = "can-isotp"
+version = "2.0.7"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/79/29/5a4bfa625254686ee2e6ce4e54530956d62af6e995b0588916b4caae4dc3/can_isotp-2.0.7.tar.gz", hash = "sha256:4586ca62f8646da918df1d3ffd257c7e3532a4fbd138cebd8fe0777e3b94e361", size = 52548, upload-time = "2025-05-14T02:54:13.148Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e4/1e/f1b163783c90ccbad0227de267d899d7283b3174b89f1d66bb7c2a509808/can_isotp-2.0.7-py3-none-any.whl", hash = "sha256:28d155dec1c640bf32771fb4e271323d777158ab130372724a8b7b82aca66a7c", size = 34571, upload-time = "2025-05-14T02:54:11.805Z" },
+]
+
+[[package]]
 name = "canair"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "argcomplete" },
+    { name = "can-isotp" },
     { name = "jsonschema" },
     { name = "python-can" },
     { name = "pyyaml" },
@@ -46,6 +56,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "argcomplete", specifier = ">=3.0" },
+    { name = "can-isotp", specifier = ">=2.0.7" },
     { name = "jsonschema", specifier = ">=4.0" },
     { name = "python-can", specifier = ">=4.6.1" },
     { name = "pyyaml", specifier = ">=6.0" },

@@ -6,5 +6,12 @@ TCP (:class:`canlib.transport.slcan_tcp.SlcanTcpBus`).
 """
 
 from .slcan_tcp import SlcanTcpBus, format_slcan_frame, parse_slcan_frame
+from .uds_raw import RawUdsClient, response_id
 
-__all__ = ["SlcanTcpBus", "format_slcan_frame", "parse_slcan_frame"]
+__all__ = [
+    "RawUdsClient",
+    "SlcanTcpBus",
+    "format_slcan_frame",
+    "parse_slcan_frame",
+    "response_id",
+]

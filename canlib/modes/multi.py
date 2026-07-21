@@ -396,6 +396,54 @@ async def _read_batch(sm, tx_id, group, out, batch_state) -> bool:
     return True
 
 
+def build_query_plan(ecu_info: dict, pid_filter: list[str], quiet: bool = False):
+    """Resolve an ECU + PID filter into a sorted query plan.
+
+    Returns ``[(pid_code, pid_info_or_None, unmapped)]`` sorted by DID, or None
+    if a non-empty ``pid_filter`` matched nothing. Filters match flexibly
+    (``BC03`` matches key ``22BC03``); unmatched hex filters become raw UDS
+    requests (``01``->``2101``, ``B001``->``22B001``, ``22BC03`` verbatim).
+    """
+    pids_to_query = ecu_info["pids"]
+    raw_pids: list[str] = []
+    if pid_filter:
+        filter_upper = [p.upper() for p in pid_filter]
+        pids_to_query = {
+            k: v
+            for k, v in pids_to_query.items()
+            if k.upper() in filter_upper or any(k.upper().endswith(f) for f in filter_upper)
+        }
+        matched_filters = set()
+        for f in filter_upper:
+            for k in pids_to_query:
+                if k.upper() == f or k.upper().endswith(f):
+                    matched_filters.add(f)
+                    break
+        for u in (f for f in filter_upper if f not in matched_filters):
+            if all(c in "0123456789ABCDEF" for c in u):
+                if len(u) <= 2:
+                    raw_pids.append(f"21{u}")  # short KWP local ID: 01 -> 2101
+                elif len(u) == 4 and u[:2] in ("21", "22"):
+                    raw_pids.append(u)  # already service+id
+                elif len(u) == 4:
+                    raw_pids.append(f"22{u}")  # 4-char DID -> 22xxxx
+                elif len(u) >= 5 and u[:2] in ("21", "22"):
+                    raw_pids.append(u)  # full request code
+                else:
+                    raw_pids.append(f"22{u}")
+            elif not quiet:
+                print(f"  WARNING: Invalid PID format '{u}', skipping")
+        if raw_pids and not quiet:
+            print(f"  NOTE: {', '.join(raw_pids)} not in pids/ — querying raw")
+        if not pids_to_query and not raw_pids:
+            return None
+
+    query_plan = [(pid_code, pid_info, False) for pid_code, pid_info in pids_to_query.items()]
+    query_plan += [(raw_pid, None, True) for raw_pid in raw_pids]
+    query_plan.sort(key=lambda x: x[0])
+    return query_plan
+
+
 async def _run_query_plan(sm, tx_id, query_plan, out, batch_state):
     """Execute a query plan, batching consecutive service-22 DIDs when possible.
 
@@ -467,68 +515,11 @@ async def _exec_query(
     await sm.keepalive_stale()
     await sm.terminal.set_header(tx_id)
 
-    # Open session on this ECU if not already tracked
-    if not sm.has_session(tx_id):
-        # Check if ECU needs session (heuristic: try without first)
-        pass
-
-    pids_to_query = ecu_info["pids"]
-    raw_pids = []  # Unmatched filters to query as raw UDS requests
-    if pid_filter:
-        # Match filter values flexibly: "BC03" matches key "22BC03", and "22BC03" matches too
-        filter_upper = [p.upper() for p in pid_filter]
-        pids_to_query = {
-            k: v
-            for k, v in pids_to_query.items()
-            if k.upper() in filter_upper or any(k.upper().endswith(f) for f in filter_upper)
-        }
-
-        # Find unmatched filters — query them as raw UDS requests
-        matched_filters = set()
-        for f in filter_upper:
-            for k in pids_to_query:
-                if k.upper() == f or k.upper().endswith(f):
-                    matched_filters.add(f)
-                    break
-        unmatched = [f for f in filter_upper if f not in matched_filters]
-        if unmatched:
-            # Convert short DID codes to full UDS request codes
-            for u in unmatched:
-                if all(c in "0123456789ABCDEF" for c in u):
-                    if len(u) <= 2:
-                        # Short KWP2000 local ID: "01" → "2101"
-                        raw_pids.append(f"21{u}")
-                    elif len(u) == 4 and u[:2] in ("21", "22"):
-                        # Already a full service+ID: "2101", "22B0"
-                        raw_pids.append(u)
-                    elif len(u) == 4:
-                        # 4-char DID: "B001" → "22B001"
-                        raw_pids.append(f"22{u}")
-                    elif len(u) >= 5 and u[:2] in ("21", "22"):
-                        # Full request code: "22BC03", "2101"
-                        raw_pids.append(u)
-                    else:
-                        raw_pids.append(f"22{u}")
-                else:
-                    if not quiet:
-                        print(f"  WARNING: Invalid PID format '{u}', skipping")
-            if raw_pids and not quiet:
-                print(f"  NOTE: {', '.join(raw_pids)} not in pids/ — querying raw")
-
-        if not pids_to_query and not raw_pids:
-            print(f"  No matching PIDs for filter: {pid_filter}")
-            print(f"  Available: {', '.join(sorted(ecu_info['pids'].keys()))}")
-            return
-
-    _total = len(pids_to_query) + len(raw_pids)
-
-    # Build sorted query plan: interleave mapped and unmapped PIDs by DID
-    query_plan = []  # list of (pid_code, pid_info_or_None, unmapped)
-    for pid_code, pid_info in pids_to_query.items():
-        query_plan.append((pid_code, pid_info, False))
-    for raw_pid in raw_pids:
-        query_plan.append((raw_pid, None, True))
-    query_plan.sort(key=lambda x: x[0])
+    query_plan = build_query_plan(ecu_info, pid_filter, quiet=quiet)
+    if query_plan is None:
+        print(f"  No matching PIDs for filter: {pid_filter}")
+        print(f"  Available: {', '.join(sorted(ecu_info['pids'].keys()))}")
+        return
 
     all_pid_results = []
 

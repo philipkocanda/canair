@@ -307,6 +307,13 @@ async def async_main(args):
 
     pids_data = load_pids()
 
+    # Raw-CAN monitor: bypass the ELM327 WebSocket and use the SLCAN backend +
+    # client-side ISO-TP with request pipelining.
+    if getattr(args, "raw_can", False) and args.multi and args.monitor:
+        from canlib.modes.raw_monitor import run_raw_monitor
+
+        return await run_raw_monitor(args, host, pids_data)
+
     # Warn about any aborted scans from a previous interrupted session
     from canlib.scan_state import find_aborted_scans
 

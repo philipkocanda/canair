@@ -163,11 +163,29 @@ path can't observe. `--save FILE` logs every frame (`.asc`/`.blf`/`.csv`);
 
 The WiCAN runs one protocol at a time, so `canair sniff` **switches the device
 into `slcan` mode (with a consent prompt, or `--yes`) and restores the previous
-mode (usually `elm327`) on exit** — each switch is a device reboot (~5 s) and
-pauses ELM327/AutoPID (Home Assistant) for the duration. See `RAW_CAN_PLAN.md`
-for the full raw-CAN roadmap (ISO-TP + pipelined UDS is Phase 2). NOTE:
-on-device verification is pending (built + unit-tested against fakes; the SLCAN
-transport assumption — TCP 3333 vs `/ws` — must be confirmed on the live Pro).
+mode (usually `auto_pid`/`elm327`) on exit** — each switch is a device reboot
+(~5 s) and pauses ELM327/AutoPID (Home Assistant) for the duration. See
+`RAW_CAN_PLAN.md` for the full raw-CAN roadmap.
+
+**Verified on-device (Ioniq):** raw SLCAN is on TCP **35000** (auto-detected
+from `/load_config`); TX+RX works. But **passive sniffing sees ~nothing** here —
+the central gateway forwards only diagnostic request/response to the OBD-II port,
+not internal broadcast traffic. So on this car the raw-CAN value is pipelined
+UDS (below), not sniffing.
+
+#### canair query --monitor --raw-can (pipelined UDS, experimental)
+
+Runs the live monitor over the **raw SLCAN backend + client-side ISO-TP**
+(`can-isotp`) instead of the ELM327 terminal, with **request pipelining**: each
+cycle fires the next request for every ECU concurrently and collects responses
+as they arrive — overlapping ECU think-time (parallel *across* ECUs, sequential
+*within* an ECU, since one ISO-TP stack allows a single outstanding request).
+Like `sniff`, it switches to `slcan` (consent / `--yes`) and restores the
+previous mode on exit. Decoded values are identical to the ELM path (same
+profile PIDs). Verified on-device: ~1.4× faster than sequential across
+IGPM+BMS+VCU; the speedup is bounded by the busiest ECU's DIDs (raw multi-DID
+batching is a Phase 2b enhancement).
+
 
 #### canair wican
 

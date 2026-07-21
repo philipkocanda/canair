@@ -5,6 +5,7 @@ description = "General-purpose CAN/UDS/KWP2000 diagnostic reverse-engineering CL
 requires-python = ">=3.12"
 dependencies = [
     "argcomplete>=3.0",
+    "can-isotp>=2.0.7",
     "jsonschema>=4.0",
     "python-can>=4.6.1",
     "pyyaml>=6.0",
