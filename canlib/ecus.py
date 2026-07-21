@@ -113,19 +113,78 @@ def ecu_name_from_ref(value, rx_index: dict[int, str] | None = None) -> str:
     return str(value)
 
 
+class EcuNameCollision(ValueError):
+    """Raised when an ECU name or alias resolves ambiguously to >1 ECU.
+
+    Guards the name/alias lookup so an ambiguous registry (two ECUs sharing an
+    alias, or an alias equal to a different ECU's name) fails loudly instead of
+    silently resolving to the wrong module.
+    """
+
+
 def build_name_tx_index(ecus: dict | None = None) -> dict[str, int]:
-    """Build lookup: upper-cased ECU name (and alias) -> TX id."""
+    """Build lookup: upper-cased ECU name (and alias) -> TX id.
+
+    Primary ``name`` keys are assigned first (authoritative), then ``alias``
+    keys. Raises :class:`EcuNameCollision` if any name/alias is claimed by more
+    than one ECU, so aliases can be trusted for lookups without silently masking
+    the wrong ECU.
+    """
     if ecus is None:
         ecus = load_ecus()
     index: dict[str, int] = {}
-    for tx_id, info in ecus.items():
-        name = info.get("name")
-        if name:
-            index[str(name).upper()] = tx_id
-        alias = info.get("alias")
-        if alias:
-            index.setdefault(str(alias).upper(), tx_id)
+    # Two passes so a primary name always wins its key and an alias clashing
+    # with a *different* ECU's name/alias is detected regardless of iteration
+    # order.
+    for field in ("name", "alias"):
+        for tx_id, info in ecus.items():
+            value = info.get(field)
+            if not value:
+                continue
+            key = str(value).upper()
+            prev = index.get(key)
+            if prev is not None and prev != tx_id:
+                raise EcuNameCollision(
+                    f"ECU {field} {value!r} is claimed by both "
+                    f"{ecu_name(prev, ecus)} (0x{prev:03X}) and "
+                    f"{ecu_name(tx_id, ecus)} (0x{tx_id:03X})"
+                )
+            index[key] = tx_id
     return index
+
+
+def build_canonical_name_index(ecus: dict | None = None) -> dict[str, str]:
+    """Build lookup: upper-cased ECU name/alias -> canonical short name.
+
+    Both the primary ``name`` and any ``alias`` resolve to the canonical
+    ``name``. Reuses :func:`build_name_tx_index`, so it inherits the same
+    collision safety (raises :class:`EcuNameCollision` on ambiguity).
+    """
+    if ecus is None:
+        ecus = load_ecus()
+    return {
+        key: ecu_name(tx_id, ecus)
+        for key, tx_id in build_name_tx_index(ecus).items()
+    }
+
+
+def canonical_ecu_name(
+    name,
+    name_index: dict[str, str] | None = None,
+    ecus: dict | None = None,
+) -> str:
+    """Resolve an ECU name/alias to its canonical short name.
+
+    Accepts a name or alias (case-insensitive). Unknown values are returned
+    upper-cased and unchanged, so callers can still match/report them. Raises
+    :class:`EcuNameCollision` (via the index) if the registry is ambiguous.
+    """
+    if name is None:
+        return ""
+    if name_index is None:
+        name_index = build_canonical_name_index(ecus)
+    key = str(name).strip().upper()
+    return name_index.get(key, key)
 
 
 def rx_from_name(name: str, name_index: dict[str, int] | None = None) -> str | None:

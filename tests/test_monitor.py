@@ -12,6 +12,7 @@ from canlib.modes.monitor import (
     _prompt_and_save,
     _render_hex_line,
     _render_results,
+    query_ecu_error,
 )
 
 
@@ -556,4 +557,61 @@ class TestControllerSnapshot:
         c.captures_dir = tmp_path
         assert "nothing to save" in c.save_now("x").lower()
         assert list(tmp_path.glob("*.yaml")) == []
+
+
+class TestQueryLabel:
+    def _controller(self, steps):
+        return MonitorController(
+            terminal=None, query_steps=steps, pids_data={}, verbose=False
+        )
+
+    def test_bare_ecu_and_pid_selector(self):
+        c = self._controller(
+            [
+                {"type": "query", "ecu": "bcm", "pids": []},
+                {"type": "query", "ecu": "vcu", "pids": ["2101"]},
+            ]
+        )
+        assert c.query_label() == "BCM VCU:2101"
+
+    def test_multiple_pids(self):
+        c = self._controller([{"type": "query", "ecu": "IGPM", "pids": ["BC03", "BC06"]}])
+        assert c.query_label() == "IGPM:BC03,BC06"
+
+    def test_empty(self):
+        assert self._controller([]).query_label() == ""
+
+
+class TestQueryEcuError:
+    def _pids(self):
+        return {"ecus": {"BMS": {"tx_id": 0x7E4, "pids": {}}, "ESC": {"tx_id": 0x7D1, "pids": {}}}}
+
+    def test_all_known(self):
+        steps = [{"type": "query", "ecu": "BMS", "pids": []}]
+        assert query_ecu_error(steps, self._pids()) is None
+
+    def test_case_insensitive(self):
+        steps = [{"type": "query", "ecu": "bms", "pids": []}]
+        assert query_ecu_error(steps, self._pids()) is None
+
+    def test_unknown_ecu_flagged(self):
+        # The typo "ECS" (meant "ESC") must be reported, not silently skipped.
+        steps = [
+            {"type": "query", "ecu": "ESC", "pids": []},
+            {"type": "query", "ecu": "ECS", "pids": []},
+        ]
+        err = query_ecu_error(steps, self._pids())
+        assert err is not None
+        assert "ECS" in err
+        assert "ESC" not in err.split("\n")[0]  # ESC is valid, only ECS flagged
+        assert "Available ECUs" in err
+
+    def test_unknown_deduped(self):
+        steps = [
+            {"type": "query", "ecu": "ECS", "pids": []},
+            {"type": "query", "ecu": "ecs", "pids": ["2101"]},
+        ]
+        err = query_ecu_error(steps, self._pids())
+        assert err.split("\n")[0].count("ECS") + err.split("\n")[0].count("ecs") == 1
+
 

@@ -4,10 +4,13 @@ import pytest
 
 from canlib.ecus import (
     build_name_tx_index,
+    build_canonical_name_index,
     build_rx_index,
+    canonical_ecu_name,
     ecu_display,
     ecu_name,
     ecu_name_from_ref,
+    EcuNameCollision,
     load_ecus,
     parse_ecu_ref,
     resolve_tx,
@@ -88,6 +91,52 @@ class TestBuildNameTxIndex:
         idx = build_name_tx_index(ecus)
         # SKM self-identifies as SMK (alias)
         assert idx["SMK"] == idx["SKM"]
+
+    def test_alias_name_collision_raises(self):
+        # An alias that clashes with a *different* ECU's name is ambiguous.
+        ecus = {0x700: {"name": "FOO", "alias": "BAR"}, 0x708: {"name": "BAR"}}
+        with pytest.raises(EcuNameCollision):
+            build_name_tx_index(ecus)
+
+    def test_duplicate_alias_collision_raises(self):
+        ecus = {
+            0x700: {"name": "FOO", "alias": "X"},
+            0x708: {"name": "BAZ", "alias": "X"},
+        }
+        with pytest.raises(EcuNameCollision):
+            build_name_tx_index(ecus)
+
+    def test_self_alias_is_allowed(self):
+        # An alias equal to the ECU's own name is not a collision.
+        ecus = {0x700: {"name": "FOO", "alias": "FOO"}}
+        assert build_name_tx_index(ecus)["FOO"] == 0x700
+
+
+class TestCanonicalEcuName:
+    def test_alias_resolves_to_primary(self):
+        assert canonical_ecu_name("SMK") == "SKM"
+        assert canonical_ecu_name("MDPS") == "EPS"
+        assert canonical_ecu_name("ABS") == "ESC"
+
+    def test_primary_name_passthrough(self):
+        assert canonical_ecu_name("BMS") == "BMS"
+
+    def test_case_insensitive(self):
+        assert canonical_ecu_name("smk") == "SKM"
+
+    def test_unknown_returns_upper_unchanged(self):
+        assert canonical_ecu_name("NOPE") == "NOPE"
+        assert canonical_ecu_name("nope") == "NOPE"
+
+    def test_none_and_empty(self):
+        assert canonical_ecu_name(None) == ""
+        assert canonical_ecu_name("") == ""
+
+    def test_build_index_maps_alias_and_name(self, ecus):
+        idx = build_canonical_name_index(ecus)
+        assert idx["SMK"] == "SKM"
+        assert idx["SKM"] == "SKM"
+        assert idx["BMS"] == "BMS"
 
 
 class TestRxFromName:

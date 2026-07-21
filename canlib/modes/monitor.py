@@ -50,9 +50,37 @@ __all__ = [
     "_render_hex_line",
     "_render_results",
     "mode_monitor",
+    "query_ecu_error",
 ]
 
 _console = Console(highlight=False)
+
+
+def query_ecu_error(query_steps: list[dict], pids_data: dict) -> str | None:
+    """Return an error message if any query step names an unknown ECU, else None.
+
+    Guards against typos like ``query ESC ECS`` (the second selector is a
+    non-existent ECU) that would otherwise be silently skipped every poll cycle.
+    ECU names are matched case-insensitively against the active profile.
+    """
+    from ..pids import build_ecu_index
+
+    ecu_index = build_ecu_index(pids_data)
+    seen: set[str] = set()
+    unknown: list[str] = []
+    for step in query_steps:
+        key = step["ecu"].upper()
+        if key not in ecu_index and key not in seen:
+            seen.add(key)
+            unknown.append(step["ecu"])
+    if not unknown:
+        return None
+    available = ", ".join(sorted(ecu_index.keys()))
+    return (
+        f"unknown ECU(s) in query: {', '.join(unknown)}.\n"
+        f"  Available ECUs: {available}"
+    )
+
 
 
 def _render_results(
@@ -622,6 +650,20 @@ class MonitorController:
         """True when there's at least one payload available to save."""
         history = self.save_history if self.save_history is not None else (self.hex_history or {})
         return bool(history) or bool(self.prev_hex)
+
+    def query_label(self) -> str:
+        """Short summary of the polled selectors, e.g. ``BCM VCU:2101``.
+
+        Reconstructs the query mini-language from the active steps (ECU name,
+        with its PID list attached by a colon when filtered). Used to pre-fill
+        the on-demand save dialog's label.
+        """
+        parts: list[str] = []
+        for step in self.query_steps:
+            ecu = step["ecu"].upper()
+            pids = step.get("pids") or []
+            parts.append(f"{ecu}:{','.join(pids)}" if pids else ecu)
+        return " ".join(parts)
 
     def save_now(self, label: str, state: str | None = None, notes: str | None = None) -> str:
         """Save the payloads captured so far (on-demand save from the TUI).

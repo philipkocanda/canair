@@ -241,7 +241,14 @@ class MonitorApp(App):
         if not self.controller.has_captures():
             self._flash("No payloads captured yet — nothing to save.")
             return
-        suggested = f"Monitor {datetime.now():%H:%M}"
+        # Pre-fill the label with the active query (e.g. "BCM VCU:2101"),
+        # falling back to a timestamp when it can't be derived.
+        suggested = ""
+        label_fn = getattr(self.controller, "query_label", None)
+        if callable(label_fn):
+            suggested = label_fn()
+        if not suggested:
+            suggested = f"Monitor {datetime.now():%H:%M}"
 
         def _done(result: tuple[str, str, str] | None) -> None:
             if result is None:

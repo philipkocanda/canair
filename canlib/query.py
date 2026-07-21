@@ -96,6 +96,18 @@ class Query:
         """True if any selector matches ``(ecu, pid)``."""
         return any(s.matches(ecu, pid) for s in self.selectors)
 
+    def canonicalize_ecus(self, resolver: Callable[[str], str]) -> "Query":
+        """Return a copy with each selector's ECU mapped through ``resolver``.
+
+        ``resolver`` maps a selector ECU token (already upper-cased) to a
+        canonical, upper-cased ECU name — e.g. resolving an alias to the
+        module's primary name. Source-agnostic: the caller supplies the mapping
+        (see :func:`canlib.ecus.canonical_ecu_name`).
+        """
+        return Query(
+            tuple(Selector(resolver(s.ecu), s.pids) for s in self.selectors)
+        )
+
     def filter(
         self,
         records: Iterable[T],
