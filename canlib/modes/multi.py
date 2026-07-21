@@ -650,10 +650,19 @@ async def _exec_scan(
     verbose: bool,
 ):
     """Execute scan sub-command."""
+    from ..ecus import resolve_tx
+    from ..scan_presets import ServiceError, resolve_service
     from .scan import mode_scan
 
-    tx_id = int(tx_str, 16)
-    service = int(service_str, 16)
+    tx_id = resolve_tx(tx_str)
+    if tx_id is None:
+        print(f"  ERROR: could not resolve ECU {tx_str!r}")
+        return
+    try:
+        service, _ = resolve_service(service_str)
+    except ServiceError as e:
+        print(f"  ERROR: {e}")
+        return
     match = re.match(r"^([0-9A-Fa-f]+)-([0-9A-Fa-f]+)$", range_str)
     if not match:
         print(f"  ERROR: Invalid range: {range_str}")

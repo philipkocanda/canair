@@ -1,10 +1,28 @@
-"""``canair scan`` — scan a range of PIDs/DIDs on one ECU."""
+"""``canair scan`` — scan a range of PIDs/DIDs on one ECU.
+
+Beginner-friendly surface over the raw UDS scan:
+  * run ``canair scan`` with no arguments for an interactive wizard;
+  * pass a bare ECU (``canair scan BMS``) to get smart per-ECU defaults;
+  * use friendly ``--service`` names (``live-data``, ``read-did``, …).
+"""
 
 from __future__ import annotations
 
 import argparse
+import sys
 
-from canlib.commands._live import add_connection_args, finalize_live_parser
+from canlib.commands._live import add_connection_args, finalize_live_parser, run_live
+from canlib.scan_presets import (
+    SERVICE_PRESETS,
+    ScanPlan,
+    ServiceError,
+    is_wide_service,
+    plan_scan,
+    preset_by_service,
+    presets_help,
+    resolve_service,
+    service_label,
+)
 
 NAME = "scan"
 
@@ -16,19 +34,58 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         description="Scan a range of PIDs/DIDs on an ECU. One scan at a time only.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
+getting started:
+  canair scan                       # interactive wizard — pick ECU/service/range
+  canair scan BMS                   # smart defaults for that ECU (no flags needed)
+  canair scan IGPM                  # UDS ECU → read-did over its known DID range
+
+"""
+        + presets_help()
+        + """
+
 examples:
-  canair scan BMS --service 21 --range 01-FF
-  canair scan 7E4 --service 22 --range BC01-BC0B
-  canair scan IGPM --service 2F --range E000-E0FF --append 03 --session
+  canair scan BMS --service live-data --range 01-FF
+  canair scan 7E4 --service read-did --range BC01-BC0B
+  canair scan IGPM --service iocontrol --range E000-E0FF --append 03 --session
+
+tips:
+  * Run ONE scan at a time — parallel scans lock up the WiCAN.
+  * Start with a small --range to gauge ECU response time, then widen.
+  * Add --save --label "..." to record results to captures/.
 """,
     )
-    parser.add_argument(
+    ecu_arg = parser.add_argument(
         "tx",
         metavar="ECU",
-        help="ECU name or TX ID (e.g. BMS or 7E4)",
+        nargs="?",
+        default=None,
+        help="ECU name or TX ID (e.g. BMS or 7E4). Omit for the interactive wizard.",
     )
-    parser.add_argument("--service", metavar="SVC", default="21", help="UDS service (hex, default 21)")
-    parser.add_argument("--range", metavar="START-END", default="01-FF", help="PID range (hex)")
+    try:
+        from canlib.commands._hints import ecu_completer
+
+        ecu_arg.completer = ecu_completer  # type: ignore[attr-defined]
+    except Exception:
+        pass
+    parser.add_argument(
+        "-i",
+        "--interactive",
+        action="store_true",
+        help="Force the interactive wizard even when an ECU is given",
+    )
+    parser.add_argument(
+        "--service",
+        metavar="SVC",
+        default=None,
+        help="UDS service: a preset name (live-data, read-did, iocontrol, routine) "
+        "or a hex byte (default: smart per-ECU)",
+    )
+    parser.add_argument(
+        "--range",
+        metavar="START-END",
+        default=None,
+        help="PID/DID range in hex (default: smart per-ECU)",
+    )
     parser.add_argument("--append", metavar="HEX", help="Hex bytes to append after each DID")
     parser.add_argument("--session", action="store_true", help="Enter extended session (10 03)")
     parser.add_argument("--wake", action="store_true", help="Wake ECUs from deep sleep (10 01)")
@@ -38,4 +95,269 @@ examples:
     parser.add_argument("--notes", metavar="TEXT", default=None, help="Session notes for --save")
     add_connection_args(parser)
     finalize_live_parser(parser, scan=True)
+    # Override the shared dispatch with our resolve-then-run wrapper.
+    parser.set_defaults(func=run)
     return parser
+
+
+# ---------------------------------------------------------------------------
+# Resolution: turn friendly/absent --service/--range into concrete values
+# ---------------------------------------------------------------------------
+
+
+def _fmt_range(rng: tuple[int, int], wide: bool) -> str:
+    fmt = "04X" if wide else "02X"
+    return f"{rng[0]:{fmt}}-{rng[1]:{fmt}}"
+
+
+def _resolve_plan(args) -> None:
+    """Populate ``args.service`` (hex str) and ``args.range`` ('START-END').
+
+    Applies smart per-ECU defaults when the user left ``--service``/``--range``
+    unset, and resolves friendly service preset names to hex. Prints a short
+    summary of the resolved plan so the user learns the underlying command.
+    """
+    auto = args.service is None and args.range is None
+    plan: ScanPlan | None = None
+    if args.service is None or args.range is None:
+        try:
+            plan = plan_scan(args.tx)
+        except Exception:
+            plan = None
+
+    # --- service ---
+    if args.service is None:
+        if plan is not None:
+            service_int = plan.service
+            preset_name = plan.service_name
+        else:
+            service_int, preset_name = 0x21, "live-data"
+    else:
+        try:
+            service_int, preset_name = resolve_service(args.service)
+        except ServiceError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(2)
+    args.service = f"{service_int:02X}"
+    wide = is_wide_service(service_int)
+
+    # --- range ---
+    if args.range is None:
+        if plan is not None and plan.service == service_int:
+            args.range = _fmt_range(plan.pid_range, wide)
+        else:
+            preset = preset_by_service(service_int)
+            args.range = preset.default_range if preset else ("0000-00FF" if wide else "01-FF")
+
+    # --- session/wake: only auto-apply in pure smart mode ---
+    if auto and plan is not None:
+        if plan.session and not args.session:
+            args.session = True
+        if plan.wake and not args.wake:
+            args.wake = True
+
+    _print_plan_summary(args, service_int, preset_name, plan if auto else None)
+
+
+def _print_plan_summary(args, service_int, preset_name, plan) -> None:
+    from rich.console import Console
+
+    console = Console(stderr=True)
+    svc = service_label(service_int, preset_name)
+    parts = [f"[bold]{args.tx}[/bold]", f"service {svc}", f"range {args.range}"]
+    if args.append:
+        parts.append(f"append {args.append}")
+    if args.session:
+        parts.append("session")
+    if args.wake:
+        parts.append("wake")
+    console.print("  [dim]Scan plan:[/dim] " + "  |  ".join(parts))
+    if plan is not None and plan.reason:
+        console.print(f"  [dim]         → {plan.reason}[/dim]")
+
+
+# ---------------------------------------------------------------------------
+# Interactive wizard
+# ---------------------------------------------------------------------------
+
+
+def _prompt(text: str, default: str | None = None) -> str:
+    suffix = f" [{default}]" if default else ""
+    try:
+        raw = input(f"{text}{suffix}: ").strip()
+    except (EOFError, KeyboardInterrupt):
+        raise KeyboardInterrupt from None
+    if not raw and default is not None:
+        return default
+    return raw
+
+
+def _ecu_choices() -> list[tuple[str, int, str]]:
+    """Return [(name, tx_id, description)] for ECUs known to the profile."""
+    from canlib.ecus import load_ecus
+    from canlib.pids import load_pids
+
+    try:
+        ecus = load_ecus()
+    except Exception:
+        ecus = {}
+    try:
+        pids = load_pids()
+    except Exception:
+        pids = {}
+
+    seen: dict[str, tuple[str, int, str]] = {}
+    # ECUs with defined PIDs first (most actionable), then any others from ecus.yaml.
+    for name, defn in (pids.get("ecus", {}) or {}).items():
+        tx = defn.get("tx_id")
+        if tx is None:
+            continue
+        desc = ecus.get(tx, {}).get("description", "") if ecus else ""
+        seen[name.upper()] = (name, int(tx), desc)
+    for tx, info in (ecus or {}).items():
+        name = info.get("name")
+        if not name or name.upper() in seen:
+            continue
+        seen[name.upper()] = (name, int(tx), info.get("description", ""))
+    return sorted(seen.values(), key=lambda t: t[0])
+
+
+def _run_wizard(args) -> bool:
+    """Interactively populate ``args`` for a scan. Returns False if cancelled."""
+    from rich.console import Console
+    from rich.table import Table
+
+    console = Console()
+    console.print("\n[bold cyan]canair scan — interactive setup[/bold cyan]")
+    console.print("[dim]Press Ctrl+C to cancel at any time.[/dim]\n")
+
+    try:
+        # 1. ECU
+        if args.tx is None:
+            choices = _ecu_choices()
+            if choices:
+                table = Table(title="ECUs in the active profile", title_justify="left")
+                table.add_column("#", justify="right", style="cyan")
+                table.add_column("ECU", style="bold")
+                table.add_column("TX", style="magenta")
+                table.add_column("Description")
+                for i, (name, tx, desc) in enumerate(choices, 1):
+                    table.add_row(str(i), name, f"0x{tx:03X}", desc or "")
+                console.print(table)
+                sel = _prompt("Select an ECU (number, name, or hex TX id)")
+                args.tx = _resolve_ecu_selection(sel, choices)
+            else:
+                args.tx = _prompt("ECU name or hex TX id")
+            if not args.tx:
+                console.print("[yellow]No ECU selected — cancelled.[/yellow]")
+                return False
+
+        # Compute the smart plan to seed defaults.
+        try:
+            plan = plan_scan(args.tx)
+        except Exception:
+            plan = None
+
+        # 2. Service
+        console.print()
+        stable = Table(title="Services", title_justify="left")
+        stable.add_column("name", style="bold cyan")
+        stable.add_column("hex", style="magenta")
+        stable.add_column("description")
+        for p in SERVICE_PRESETS:
+            note = f"  ⚠ {p.caution}" if p.caution else ""
+            stable.add_row(p.name, f"0x{p.service:02X}", p.summary + note)
+        console.print(stable)
+        default_service = plan.service_name if plan and plan.service_name else "live-data"
+        svc_in = _prompt("Service (preset name or hex byte)", default_service)
+        try:
+            service_int, _preset_name = resolve_service(svc_in)
+        except ServiceError as e:
+            console.print(f"[red]{e}[/red]")
+            return False
+        args.service = f"{service_int:02X}"
+        wide = is_wide_service(service_int)
+
+        # 3. Range
+        if plan is not None and plan.service == service_int:
+            default_range = _fmt_range(plan.pid_range, wide)
+        else:
+            preset = preset_by_service(service_int)
+            default_range = preset.default_range if preset else ("0000-00FF" if wide else "01-FF")
+        args.range = _prompt("Range (START-END, hex)", default_range)
+
+        # 4. Session / wake
+        console.print()
+        default_session = "y" if (args.session or (plan and plan.session)) else "n"
+        args.session = (
+            _prompt("Enter extended session (10 03)? (y/n)", default_session)
+            .lower()
+            .startswith("y")
+        )
+        default_wake = "y" if (args.wake or (plan and plan.wake)) else "n"
+        args.wake = (
+            _prompt("Wake ECU from deep sleep first (10 01)? (y/n)", default_wake)
+            .lower()
+            .startswith("y")
+        )
+
+        # 5. Confirm — show the equivalent one-liner so the user learns it.
+        console.print()
+        console.print("[bold]Ready to scan:[/bold]  " + _equiv_command(args))
+        go = _prompt("Run this scan now? (y/n)", "y")
+        if not go.lower().startswith("y"):
+            console.print("[yellow]Cancelled.[/yellow]")
+            return False
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Cancelled.[/yellow]")
+        return False
+
+    return True
+
+
+def _resolve_ecu_selection(sel: str, choices: list[tuple[str, int, str]]) -> str:
+    """Map a wizard ECU selection (number/name/hex) to an ECU token."""
+    sel = sel.strip()
+    if sel.isdigit():
+        idx = int(sel) - 1
+        if 0 <= idx < len(choices):
+            return choices[idx][0]
+    return sel
+
+
+def _equiv_command(args) -> str:
+    parts = ["canair scan", str(args.tx), f"--service {args.service}", f"--range {args.range}"]
+    if args.append:
+        parts.append(f"--append {args.append}")
+    if args.session:
+        parts.append("--session")
+    if args.wake:
+        parts.append("--wake")
+    return " ".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
+
+def run(args) -> int:
+    """Resolve friendly/absent args, optionally run the wizard, then scan."""
+    want_wizard = args.interactive or args.tx is None
+    if want_wizard:
+        if not sys.stdin.isatty():
+            if args.tx is None:
+                print(
+                    "Error: no ECU given. Specify one (e.g. `canair scan BMS`), run "
+                    "`canair scan` in a terminal for the wizard, or `canair discover` "
+                    "to find live ECUs.",
+                    file=sys.stderr,
+                )
+                return 2
+            # -i without a TTY: fall through to non-interactive resolution.
+        else:
+            if not _run_wizard(args):
+                return 0
+
+    _resolve_plan(args)
+    return run_live(args)

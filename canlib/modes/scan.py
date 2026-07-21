@@ -36,6 +36,22 @@ async def mode_scan(
         - ECUs need time to recover between requests.
         - Use a modest --range first and check results before continuing.
     """
+    from rich.console import Console
+    from rich.progress import (
+        BarColumn,
+        MofNCompleteColumn,
+        Progress,
+        SpinnerColumn,
+        TextColumn,
+        TimeElapsedColumn,
+    )
+    from rich.table import Table
+
+    from ..ecus import ecu_display, ecu_name
+    from ..scan_presets import service_label
+
+    console = Console()
+
     start, end = pid_range
     total = end - start + 1
 
@@ -44,12 +60,12 @@ async def mode_scan(
     did_label = "DID" if wide_did else "PID"
 
     suffix_label = f" + suffix {append_bytes}" if append_bytes else ""
-    from ..ecus import ecu_display, ecu_name
 
     ecu = ecu_name(tx_id)
-    print(
-        f"\n  Scanning {ecu_display(tx_id)}, service 0x{service:02X}, "
-        f"{did_label}s 0x{start:{did_fmt}}..0x{end:{did_fmt}} ({total} {did_label}s){suffix_label}"
+    console.print(
+        f"\n  [bold]Scanning {ecu_display(tx_id)}[/bold] — {service_label(service)}, "
+        f"{did_label}s 0x{start:{did_fmt}}..0x{end:{did_fmt}} "
+        f"([cyan]{total}[/cyan] {did_label}s){suffix_label}"
     )
 
     await terminal.set_header(tx_id)
@@ -58,45 +74,60 @@ async def mode_scan(
     if session:
         _, tester_task = await terminal.enter_extended_session(wake=wake)
 
-    print()
-
     positive = []
     negative = []
     errors = []
 
+    is_tty = sys.stdout.isatty()
+
+    progress = Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        MofNCompleteColumn(),
+        TextColumn("[green]{task.fields[hits]} hit(s)[/green]"),
+        TimeElapsedColumn(),
+        console=console,
+        transient=True,
+        disable=not is_tty,
+    )
+
     try:
-        for pid_val in range(start, end + 1):
-            req = f"{service:02X}{pid_val:{did_fmt}}{append_bytes}"
+        with progress:
+            task = progress.add_task(f"Scanning {ecu}", total=total, hits=0)
+            for pid_val in range(start, end + 1):
+                req = f"{service:02X}{pid_val:{did_fmt}}{append_bytes}"
 
-            response = await terminal.send_uds(req, timeout=2.0)
+                response = await terminal.send_uds(req, timeout=2.0)
 
-            if response["ok"]:
-                n_bytes = len(response["bytes"])
-                positive.append((pid_val, response))
-                status = f"  + 0x{pid_val:{did_fmt}}: OK ({n_bytes} bytes)"
-                if verbose:
-                    status += f"  {response['hex']}"
-                print(status)
-            elif response.get("nrc") is not None:
-                nrc = response["nrc"]
-                desc = response["nrc_desc"]
-                negative.append((pid_val, nrc, desc))
-                if verbose:
-                    print(f"  - 0x{pid_val:{did_fmt}}: NRC 0x{nrc:02X} ({desc})")
-            else:
-                error = response.get("error", "unknown")
-                errors.append((pid_val, error))
-                if verbose:
-                    print(f"  ! 0x{pid_val:{did_fmt}}: {error}")
-
-            if not verbose and not response["ok"]:
-                if (pid_val - start + 1) % 16 == 0:
-                    pct = (pid_val - start + 1) / total * 100
-                    print(
-                        f"  ... {pid_val - start + 1}/{total} ({pct:.0f}%)",
-                        end="\r",
-                        file=sys.stderr,
+                if response["ok"]:
+                    n_bytes = len(response["bytes"])
+                    positive.append((pid_val, response))
+                    line = (
+                        f"  [green]+[/green] 0x{pid_val:{did_fmt}}: "
+                        f"OK ([cyan]{n_bytes}[/cyan] bytes)"
                     )
+                    if verbose:
+                        line += f"  [dim]{response['hex']}[/dim]"
+                    progress.console.print(line)
+                    progress.update(task, hits=len(positive))
+                elif response.get("nrc") is not None:
+                    nrc = response["nrc"]
+                    desc = response["nrc_desc"]
+                    negative.append((pid_val, nrc, desc))
+                    if verbose:
+                        progress.console.print(
+                            f"  [dim]- 0x{pid_val:{did_fmt}}: NRC 0x{nrc:02X} ({desc})[/dim]"
+                        )
+                else:
+                    error = response.get("error", "unknown")
+                    errors.append((pid_val, error))
+                    if verbose:
+                        progress.console.print(
+                            f"  [yellow]! 0x{pid_val:{did_fmt}}: {error}[/yellow]"
+                        )
+
+                progress.advance(task)
     finally:
         if tester_task:
             tester_task.cancel()
@@ -105,21 +136,30 @@ async def mode_scan(
             except asyncio.CancelledError:
                 pass
             if verbose:
-                print("  [tester] Background keepalive stopped.", file=sys.stderr)
+                console.print("  [dim][tester] Background keepalive stopped.[/dim]")
 
-    print("\n  --- Scan Results ----------------------------------------")
-    print(f"  ECU:      {ecu_display(tx_id)}")
-    print(f"  Positive: {len(positive)}")
-    print(f"  Negative: {len(negative)}")
-    print(f"  Errors:   {len(errors)}")
+    # --- Results summary ---
+    summary = Table(show_header=False, box=None, pad_edge=False)
+    summary.add_column(style="dim")
+    summary.add_column()
+    summary.add_row("ECU", ecu_display(tx_id))
+    summary.add_row("Positive", f"[green]{len(positive)}[/green]")
+    summary.add_row("Negative", str(len(negative)))
+    summary.add_row("Errors", f"[yellow]{len(errors)}[/yellow]" if errors else "0")
+    console.print("\n  [bold]Scan results[/bold]")
+    console.print(summary)
 
     if positive:
-        print(f"\n  Responding {did_label}s:")
+        hits = Table(title=f"Responding {did_label}s", title_justify="left")
+        hits.add_column(did_label, style="bold green")
+        hits.add_column("Bytes", justify="right", style="cyan")
+        hits.add_column("Payload", style="dim", overflow="fold")
         for pid_val, resp in positive:
             n = len(resp["bytes"])
-            print(
-                f"    0x{pid_val:{did_fmt}} -- {n} bytes: {resp['hex'][:60]}{'...' if len(resp['hex']) > 60 else ''}"
-            )
+            hexstr = resp["hex"]
+            shown = f"{hexstr[:60]}…" if len(hexstr) > 60 else hexstr
+            hits.add_row(f"0x{pid_val:{did_fmt}}", str(n), shown)
+        console.print(hits)
 
     if as_json:
         out = {
@@ -150,7 +190,7 @@ async def mode_scan(
         suggested = suggest_scan_label(ecu, service, pid_range, append_bytes)
         n_pos = len(positive)
         n_neg = len(negative)
-        print(f"\n  Save: {n_pos} positive, {n_neg} negative responses.")
+        console.print(f"\n  Save: {n_pos} positive, {n_neg} negative responses.")
         meta = resolve_metadata(label, state, notes, suggested_label=suggested)
         if meta:
             label, state, notes = meta
@@ -170,4 +210,37 @@ async def mode_scan(
             )
             save_session(session_dict)
 
-    print()
+    _print_next_steps(console, ecu, service, positive, negative, errors, saved=save)
+
+
+def _print_next_steps(console, ecu, service, positive, negative, errors, saved):
+    """Suggest sensible follow-up commands based on what the scan found."""
+    hints: list[str] = []
+    if positive:
+        first = (
+            f"0x{positive[0][0]:04X}"
+            if service in (0x22, 0x2F, 0x31)
+            else f"0x{positive[0][0]:02X}"
+        )
+        if not saved:
+            hints.append(
+                f'Record these hits:   [cyan]canair scan {ecu} … --save --label "…"[/cyan]'
+            )
+        hints.append(
+            f"Inspect a payload:   [cyan]canair captures {ecu} {first.removeprefix('0x')}[/cyan]"
+        )
+        hints.append(
+            f"Define a parameter:  [cyan]canair pids upsert-param {ecu} {first.removeprefix('0x')} NAME EXPR[/cyan]"
+        )
+    elif errors and not negative:
+        hints.append("All requests errored — the ECU may be asleep or need --session/--wake.")
+        hints.append("Try a smaller --range, or check the car state (ACC/ignition on).")
+    elif not positive:
+        hints.append("No positive responses. Try a different --service or --range,")
+        hints.append("or run [cyan]canair discover[/cyan] to confirm the ECU is alive.")
+
+    if hints:
+        console.print("\n  [bold]Next steps[/bold]")
+        for h in hints:
+            console.print(f"    • {h}")
+    console.print()
