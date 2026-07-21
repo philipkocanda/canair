@@ -19,6 +19,7 @@ from types import ModuleType
 # Subcommand module names, in help-display order.
 COMMAND_NAMES: list[str] = [
     # live device
+    "status",
     "query",
     "scan",
     "discover",

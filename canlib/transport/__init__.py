@@ -5,13 +5,18 @@ This package holds raw-CAN backends built on python-can — currently SLCAN over
 TCP (:class:`canlib.transport.slcan_tcp.SlcanTcpBus`).
 """
 
+from .config import TransportConfig, TransportError, resolve_transport, VALID_TRANSPORTS
 from .slcan_tcp import SlcanTcpBus, format_slcan_frame, parse_slcan_frame
 from .uds_raw import RawUdsClient, response_id
 
 __all__ = [
+    "VALID_TRANSPORTS",
     "RawUdsClient",
     "SlcanTcpBus",
+    "TransportConfig",
+    "TransportError",
     "format_slcan_frame",
     "parse_slcan_frame",
+    "resolve_transport",
     "response_id",
 ]
