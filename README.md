@@ -4,6 +4,11 @@
 
 Contains a detailed vehicle profile reverse engineered from a 2017 Hyundai Ioniq AE EV (28kWh).
 
+Example screenshot of analyzing/decoding a captured signal:
+
+<img width="1206" height="770" alt="IMG_2112" src="https://github.com/user-attachments/assets/9ee82a72-9100-4dda-9d76-ea1b1fd245c1" />
+
+
 > [!WARNING]
 > Sending arbitrary UDS commands to a vehicle's ECUs can cause **permanent damage** — bricked modules, voided warranties, disabled safety systems, or unintended physical actuation (steering, braking, airbags). Never use UDS programming sessions (`1002`) or firmware write commands. Never run IOControl commands while driving. If you don't fully understand a command, don't send it. This toolkit is provided as-is with no safety guarantees. **You are responsible for anything you send to your car's CAN bus.**
 
