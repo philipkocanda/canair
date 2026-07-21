@@ -242,9 +242,9 @@ canair query BMS                           # Query all BMS parameters
 canair query BMS:2101                       # Query BMS PID 2101 only
 
 # Discovery and scanning
-canair scan --tx 7E4 --service 21 --range 01-FF  # Scan PID range
+canair scan BMS --service 21 --range 01-FF  # Scan PID range
 canair discover                            # Sweep 0x700-0x7EF for responding ECUs
-canair identity --tx 7A0 --session         # Query UDS identity DIDs
+canair identity BCM --session         # Query UDS identity DIDs
 
 # Raw mode — last resort (hex dump only, no parameter decoding)
 canair raw 7E4:2101                        # Raw UDS request
@@ -357,7 +357,7 @@ canair query "session BCM --wake" "query BCM B003 B004" --monitor 2 --keep-all
 canair query "query MCU" "query VCU:2101" --wican vpn \
   --save --label "MCU/VCU live reference" --state "ready, parked" --notes "~18C ambient"
 
-canair scan --tx 7E4 --service 22 --range BC01-BC0B --save --label "Scan BMS BC01-BC0B"
+canair scan BMS --service 22 --range BC01-BC0B --save --label "Scan BMS BC01-BC0B"
 
 canair raw 7E4:2101 --save --label "Raw BMS 2101" --state "ready"
 
@@ -380,10 +380,10 @@ Press Ctrl+C to stop monitoring.
 
 ##### `canair identity`
 
-Queries standard UDS identity DIDs from an ECU and prints decoded results. Covers the common Hyundai/Kia identity DID set. Requires `--tx`. Use `--session` for most ECUs; use `--wake` for deep-sleeping ECUs (IGPM). Silently skips unsupported DIDs (NRC responses). Use `!identity` in interactive mode after setting a header with `ATSH`.
+Queries standard UDS identity DIDs from an ECU and prints decoded results. Covers the common Hyundai/Kia identity DID set. Takes a positional `ECU` (name like `BCM` or hex TX ID like `7A0`). Use `--session` for most ECUs; use `--wake` for deep-sleeping ECUs (IGPM). Silently skips unsupported DIDs (NRC responses). Use `!identity` in interactive mode after setting a header with `ATSH`.
 
 ```sh
-canair identity --tx 7A0 --wake --wican home
+canair identity BCM --wake --wican home
 ```
 
 Known results (deep sleep, no ACC):
@@ -421,7 +421,7 @@ ECUs with IOControl DIDs: IGPM, BCM, SKM, PSM, VESS (see respective `pids/*.yaml
 
 Iterates through a range of PIDs or DIDs, sending each as a UDS request, and reports which ones respond positively. Standard way to discover what data an ECU exposes.
 
-Requires `--tx` (ECU TX ID). Optional arguments:
+Requires a positional `ECU` argument (name like `BMS` or hex TX ID like `7E4`). Optional arguments:
 
 | Argument    | Default | Description                                                                 |
 |-------------|---------|-----------------------------------------------------------------------------|
@@ -435,17 +435,17 @@ Requires `--tx` (ECU TX ID). Optional arguments:
 | `--json`    | off     | Output full results as JSON                                                 |
 
 ```bash
-# Scan all service 21 PIDs on BMS (0x7E4)
-canair scan --tx 7E4 --service 21 --range 01-FF
+# Scan all service 21 PIDs on BMS (by name or TX ID)
+canair scan BMS --service 21 --range 01-FF
 
 # Scan service 22 DIDs on IGPM (needs extended session + wake)
-canair scan --tx 770 --service 22 --range BC00-BCFF --session --wake
+canair scan IGPM --service 22 --range BC00-BCFF --session --wake
 
 # IOControl scan with ShortTermAdjustment suffix (2F{DID}03)
-canair scan --tx 7E4 --service 2F --range E000-E0FF --append 03 --session
+canair scan 7E4 --service 2F --range E000-E0FF --append 03 --session
 
 # Scan and auto-save results to captures/
-canair scan --tx 7A0 --service 22 --range B000-B0FF --session --save
+canair scan BCM --service 22 --range B000-B0FF --session --save
 
 # In a query pipeline
 canair query "session IGPM --wake" "scan 770 22 BC00-BCFF"

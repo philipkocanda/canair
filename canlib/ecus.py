@@ -120,3 +120,32 @@ def rx_from_name(name: str, name_index: dict[str, int] | None = None) -> str | N
     tx_id = name_index.get(str(name).strip().upper())
     return rx_addr_str(tx_id) if tx_id is not None else None
 
+
+def resolve_tx(value, name_index: dict[str, int] | None = None) -> int | None:
+    """Resolve an ECU name/alias or hex TX ID to a TX id int, or None.
+
+    Accepts an ECU name/alias ('BMS', 'igpm') or a hex TX id ('7E4', '0x770').
+    """
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    s = str(value).strip()
+    if not s:
+        return None
+    if name_index is None:
+        name_index = build_name_tx_index()
+    tx_id = name_index.get(s.upper())
+    if tx_id is not None:
+        return tx_id
+    try:
+        return int(s.removeprefix("0x").removeprefix("0X"), 16)
+    except ValueError:
+        return None
+
+
+def ecu_display(tx_id: int, ecus: dict | None = None) -> str:
+    """Human-friendly label for a TX id, e.g. 'BMS (0x7E4)' or '0x7E4'."""
+    name = ecu_name(tx_id, ecus)
+    return f"0x{tx_id:03X}" if name.startswith("0x") else f"{name} (0x{tx_id:03X})"
+

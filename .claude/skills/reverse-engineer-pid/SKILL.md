@@ -66,8 +66,8 @@ canair discover                  # which ECUs are answering right now
 
 ```bash
 # service 21 (live data), service 22 (DID read; often needs session+wake)
-canair scan --tx 7E3 --service 21 --range 01-FF --save
-canair scan --tx 770 --service 22 --range BC00-BCFF --session --wake --save
+canair scan MCU --service 21 --range 01-FF --save
+canair scan IGPM --service 22 --range BC00-BCFF --session --wake --save
 ```
 
 Record a research lead as you go:

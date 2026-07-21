@@ -458,10 +458,16 @@ async def async_main(args):
         elif args.tester_present:
             await mode_tester_present(terminal, args.target, args.interval, args.verbose)
         elif args.identity:
-            if not args.tx:
-                print("Error: --identity requires --tx (ECU TX ID)", file=sys.stderr)
+            from canlib.ecus import resolve_tx
+
+            tx_id = resolve_tx(args.tx)
+            if tx_id is None:
+                print(
+                    f"Error: could not resolve ECU '{args.tx}' "
+                    "(use a name like IGPM or a hex TX id like 770)",
+                    file=sys.stderr,
+                )
                 sys.exit(1)
-            tx_id = int(args.tx, 16)
             await mode_identity(
                 terminal, tx_id, session=args.session, wake=args.wake, as_json=args.json
             )
@@ -502,10 +508,16 @@ async def async_main(args):
                 notes=args.notes,
             )
         elif args.scan:
-            if not args.tx:
-                print("Error: --scan requires --tx (ECU TX ID)", file=sys.stderr)
+            from canlib.ecus import resolve_tx
+
+            tx_id = resolve_tx(args.tx)
+            if tx_id is None:
+                print(
+                    f"Error: could not resolve ECU '{args.tx}' "
+                    "(use a name like BMS or a hex TX id like 7E4)",
+                    file=sys.stderr,
+                )
                 sys.exit(1)
-            tx_id = int(args.tx, 16)
             service = int(args.service, 16) if args.service else 0x21
             pid_range = parse_range(args.range) if args.range else (0x01, 0xFF)
             append_bytes = ""
