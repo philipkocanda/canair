@@ -6,7 +6,7 @@ scope* (all-ECU sweep, or a single ECU): which codes **cleared**, which are
 **new**, and which **persist**. That's how you tell, next time, whether a fault
 went away (e.g. after a fix or a self-heal) rather than eyeballing two dumps.
 
-The file is tool-managed (append-only, newest scan last):
+The file is tool-managed (append-only, newest entry last):
 
     scans:
     - timestamp: '2026-07-22T15:40:03'
@@ -15,6 +15,18 @@ The file is tool-managed (append-only, newest scan last):
       ecus:                      # only ECUs that had codes (empty on a clean sweep)
         AMP (0x783): {tx: '0x783', protocol: kwp, dtcs: [B2915-00, B2916-00]}
         PLC (0x733): {tx: '0x733', protocol: uds, dtcs: [C182C-00]}
+    clears:
+    - timestamp: '2026-07-22T16:02:11'
+      type: manual               # 'manual' (ran --clear) or 'detected' (gone since last scan)
+      scope: BMS (0x7E4)
+      ecu: BMS (0x7E4)           # manual only
+      protocol: kwp              # manual only
+      group: '0xFFFF'            # manual only
+      codes: [P1AAA-00]          # manual: codes present before the clear
+    - timestamp: '2026-07-22T16:30:00'
+      type: detected
+      scope: all
+      cleared: [['PLC (0x733)', 'C182C-00']]   # (ecu, code) pairs gone vs last scan
 
 This is per-vehicle runtime state, not shared data: it lives in the active
 profile's directory (naturally uncommitted for a user profile under
@@ -76,6 +88,31 @@ def build_scan(
 
 def append_scan(entry: dict, path: Path | None = None) -> Path:
     """Append a scan entry to the log (comment-preserving), returning the path."""
+    return _append("scans", entry, path)
+
+
+def build_clear(kind: str, scope: str, *, timestamp: str | None = None, **fields) -> dict:
+    """Build a clear event. ``kind`` is 'manual' (ran the clear command) or
+    'detected' (codes gone since the last scan). Extra fields (ecu, protocol,
+    group, codes, cleared, label) are included when not None."""
+    entry: dict = {
+        "timestamp": timestamp or datetime.now().isoformat(timespec="seconds"),
+        "type": kind,
+        "scope": scope,
+    }
+    for key, val in fields.items():
+        if val is not None:
+            entry[key] = val
+    return entry
+
+
+def append_clear(entry: dict, path: Path | None = None) -> Path:
+    """Append a clear event to the log's ``clears:`` list, returning the path."""
+    return _append("clears", entry, path)
+
+
+def _append(section: str, entry: dict, path: Path | None = None) -> Path:
+    """Append ``entry`` to the named top-level list, preserving comments."""
     from ruamel.yaml.comments import CommentedMap
 
     from .yaml_rt import dump as _dump
@@ -88,9 +125,9 @@ def append_scan(entry: dict, path: Path | None = None) -> Path:
             data = _yaml().load(f)
     if not isinstance(data, dict):
         data = CommentedMap()
-    if data.get("scans") is None:
-        data["scans"] = []
-    data["scans"].append(entry)
+    if data.get(section) is None:
+        data[section] = []
+    data[section].append(entry)
     with open(p, "w") as f:
         _dump(data, f)
     return p

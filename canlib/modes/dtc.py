@@ -191,8 +191,11 @@ async def mode_dtc_read(
 
 
 def _log_scan(scope: str, results: list[dict], label: str | None):
-    """Append this scan to the DTC log; return (path, previous_scan, diff)."""
-    from ..dtc_log import append_scan, build_scan, diff_scans, latest_matching
+    """Append this scan to the DTC log; return (path, previous_scan, diff).
+
+    Codes that disappeared since the last same-scope scan (car self-cleared or
+    aged out) are also recorded as a first-class ``detected`` clear event."""
+    from ..dtc_log import append_clear, append_scan, build_clear, build_scan, diff_scans, latest_matching
 
     ecus: dict = {}
     for r in results:
@@ -209,6 +212,8 @@ def _log_scan(scope: str, results: list[dict], label: str | None):
     previous = latest_matching(scope)
     diff = diff_scans(previous, current) if previous else None
     path = append_scan(current)
+    if diff and diff["cleared"]:
+        append_clear(build_clear("detected", scope, cleared=[[e, c] for e, c in diff["cleared"]]))
     return path, previous, diff
 
 
@@ -489,11 +494,18 @@ async def mode_dtc_clear(
     wake: bool = False,
     as_json: bool = False,
     verbose: bool = False,
+    log: bool = False,
+    label: str | None = None,
 ):
     """Clear stored DTCs via ClearDiagnosticInformation (0x14).
 
     UDS uses a 3-byte groupOfDTC (0xFFFFFF = all); KWP2000 uses 2 bytes
     (0xFFFF = all). Mutates ECU fault memory — confirmation is the caller's job.
+
+    When ``log`` is set, the current codes are read first (so the log records
+    what was cleared), a ``manual`` clear event is written to dtc_log.yaml, and
+    the ECU's scan baseline is updated to clean so a later scan doesn't also
+    report these as self-cleared.
     """
     proto = resolve_protocol(protocol, tx_id)
     await terminal.set_header(tx_id)
@@ -503,6 +515,13 @@ async def mode_dtc_clear(
         _, tester_task = await terminal.enter_extended_session(wake=wake)
 
     try:
+        # Read what's there first so the clear log is accurate (best-effort).
+        pre_codes = None
+        if log:
+            pre = await _read_one(terminal, tx_id, 0xFF, protocol, verbose)
+            if "dtcs" in pre:
+                pre_codes = [d["dtc"] for d in pre["dtcs"]]
+
         if proto == "kwp":
             g = group & 0xFFFF
             cmd = f"14{g:04X}"
@@ -519,10 +538,19 @@ async def mode_dtc_clear(
         base = {"ecu": ecu_display(tx_id), "protocol": proto, "command": cmd,
                 "group": f"0x{g:0{4 if proto == 'kwp' else 6}X}"}
         if response["ok"]:
+            if log:
+                _log_manual_clear(tx_id, proto, base["group"], pre_codes, label)
             if as_json:
-                print(json.dumps({**base, "cleared": True}))
+                print(json.dumps({**base, "cleared": True, "cleared_codes": pre_codes}))
             else:
-                print(f"  ✓ DTCs cleared (group {base['group']}).\n")
+                print(f"  ✓ DTCs cleared (group {base['group']}).")
+                if pre_codes:
+                    print(f"    {len(pre_codes)} code(s) cleared: {', '.join(pre_codes)}")
+                elif pre_codes == []:
+                    print("    (no codes were present)")
+                if log:
+                    print(f"  \033[2mLogged clear to dtc_log.yaml\033[0m")
+                print()
         elif response.get("nrc") is not None:
             if as_json:
                 print(json.dumps({**base, "cleared": False,
@@ -546,3 +574,20 @@ async def mode_dtc_clear(
                 await tester_task
             except asyncio.CancelledError:
                 pass
+
+
+def _log_manual_clear(tx_id, proto, group, pre_codes, label):
+    """Record a manual clear event + a post-clear clean scan baseline."""
+    from ..dtc_log import append_clear, append_scan, build_clear, build_scan
+
+    ecu = ecu_display(tx_id)
+    append_clear(build_clear(
+        "manual", ecu, ecu=ecu, protocol=proto, group=group,
+        codes=(pre_codes if pre_codes else None), label=label,
+    ))
+    # The ECU is clean now — record it so the next scan's diff is correct and
+    # doesn't re-report these as a self-clear.
+    append_scan(build_scan(
+        ecu, {ecu: {"tx": f"0x{tx_id:03X}", "protocol": proto, "dtcs": []}},
+        label="post-clear",
+    ))
