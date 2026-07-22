@@ -174,6 +174,31 @@ class TestFormatKwpDtc:
         assert dtc.format_kwp_dtc(0xC1, 0x07) == "U0107"
 
 
+class TestScanLog:
+    @pytest.mark.asyncio
+    async def test_read_logs_baseline_then_cleared(self, monkeypatch, tmp_path, capsys):
+        from canlib import dtc_log
+
+        logp = tmp_path / "dtc_log.yaml"
+        monkeypatch.setattr(dtc_log, "log_path", lambda path=None: logp if path is None else path)
+
+        # First scan: BMS has one DTC -> recorded as baseline.
+        t1 = FakeTerminal({"1902FF": _ok("5902FF" + "0123002F")})
+        await dtc.mode_dtc_read(t1, 0x7E4, protocol="uds", log=True)
+        out1 = capsys.readouterr().out
+        assert "baseline" in out1
+        assert logp.exists()
+
+        # Second scan: BMS now clean -> the code shows as cleared vs baseline.
+        t2 = FakeTerminal({"1902FF": _ok("5902FF")})
+        await dtc.mode_dtc_read(t2, 0x7E4, protocol="uds", log=True)
+        out2 = capsys.readouterr().out
+        assert "cleared" in out2
+        assert "P0123-00" in out2
+        # Two scans recorded, same scope.
+        assert len(dtc_log.load_log(logp)["scans"]) == 2
+
+
 class TestScanAll:
     @pytest.mark.asyncio
     async def test_scan_all_json(self, monkeypatch, capsys):
