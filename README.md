@@ -555,3 +555,10 @@ active profile's PID/DID definitions.
 ## License
 
 Public domain — see [LICENSE](LICENSE) (Unlicense).
+
+## Warning
+
+Interacting with your vehicle's CAN bus and ECUs can damage your car, trigger
+faults, or leave it in an unsafe state. **Use this software entirely at your own
+risk.** Please be careful and mindful of your environment — you are solely
+responsible for any consequences.
