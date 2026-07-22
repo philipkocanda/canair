@@ -11,6 +11,11 @@ By default it prints each parameter's value range (min-max, or constant) across
 all captures. Use --compact for a chronological one-line-per-capture view, or
 --try to test a candidate expression without editing YAML.
 
+Scope which captures are considered with --since/--until/--date (like `canair
+captures`) and --state/--label (case-insensitive substring of the session state
+or label — the natural unit of drive analysis). --first/--last N slice the
+matching captures chronologically.
+
 Examples:
   python3 decode.py BMS 2101              # Value range of every param across captures
   python3 decode.py BMS 2101 --param SOC_BMS SOC_DISP  # Only specific params
@@ -18,6 +23,9 @@ Examples:
   python3 decode.py BMS 2101 --verified   # Only verified parameters
   python3 decode.py BMS 2101 --unverified # Only unverified parameters (validation focus)
   python3 decode.py BMS 2101 --compact    # One line per capture (value evolution)
+  python3 decode.py ESC 22C101 --state 'MT->KW' --compact --changes-only  # One drive, stationary runs collapsed
+  python3 decode.py MCU 2102 --stats --group-by state  # Per-drive-segment statistics
+  python3 decode.py VCU 2101 --date 2026-07-22 --last 20  # Last 20 captures of one day
   python3 decode.py BMS 2101 --json       # JSON (per-capture decoded values)
   python3 decode.py MCU 2102 --stats      # Descriptive stats per param (mean/median/stdev/distinct)
   python3 decode.py MCU 2102 --corr MCU_MOTOR_RPM   # Correlate every param vs a known signal
@@ -37,6 +45,12 @@ import sys
 import yaml
 
 from canlib.byteindex import extract_byte_indices, payload_to_wican_frame
+from canlib.capture_dates import (
+    add_scope_args,
+    filter_by_date_range,
+    filter_by_text,
+    resolve_date_bounds,
+)
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.commands._hints import pid_completer as _pid_completer
 from canlib.expression import evaluate_expression
@@ -104,6 +118,27 @@ def load_captures(ecu: str, pid: str) -> list[dict]:
     return entries
 
 
+def scope_captures(
+    entries: list[dict], *, since=None, until=None, state=None, label=None,
+    first=None, last=None,
+) -> list[dict]:
+    """Apply date/state/label range and first/last slicing to loaded captures.
+
+    Date/text filters run first (they define *what* matches); ``first``/``last``
+    then slice the chronologically-ordered survivors. ``first`` and ``last`` are
+    applied in that order, so combining them yields the first ``first`` then its
+    last ``last`` (rarely useful, but well-defined). Entries are assumed already
+    in capture (chronological) order from :func:`load_captures`.
+    """
+    entries = filter_by_date_range(entries, since, until)
+    entries = filter_by_text(entries, state=state, label=label)
+    if first is not None and first >= 0:
+        entries = entries[:first]
+    if last is not None and last >= 0:
+        entries = entries[-last:] if last else []
+    return entries
+
+
 def payload_to_wican_bytes(payload_hex: str) -> bytes:
     """Convert raw UDS payload hex to WiCAN frame bytes (with PCI inserted)."""
     payload_hex = payload_hex.replace(" ", "")
@@ -166,6 +201,126 @@ def check_range(value: float | None, param_result: dict) -> str | None:
     except (ValueError, TypeError):
         pass
     return None
+
+
+def _scope_banner(since, until, state, label, first, last) -> str:
+    """Human-readable summary of active scope filters (empty when none active)."""
+    parts = []
+    if since or until:
+        lo = since.isoformat() if since else "earliest"
+        hi = until.isoformat() if until else "latest"
+        parts.append(f"{lo} .. {hi}")
+    if state:
+        parts.append(f"state~'{state}'")
+    if label:
+        parts.append(f"label~'{label}'")
+    if first is not None:
+        parts.append(f"first {first}")
+    if last is not None:
+        parts.append(f"last {last}")
+    return "  ·  ".join(parts)
+
+
+def _compact_cell(v: float | None) -> str:
+    """Format one decoded value for a compact column (no unit; units go in header)."""
+    if v is None:
+        return "ERR"
+    if v == int(v):
+        return str(int(v))
+    return f"{v:.2f}"
+
+
+def print_compact(
+    all_results: list[dict],
+    param_names: list[str],
+    parameters: dict,
+    candidate_names: set[str],
+    changes_only: bool = False,
+) -> None:
+    """One row per capture as an aligned table: header once, then time + values.
+
+    Repetition is stripped compared with the old ``name=value name=value`` form:
+      * parameter names print once in a header row (with units), not per cell;
+      * a ``[state]`` divider prints only when the session state *changes*;
+      * the date is dropped from each row when every capture is the same day
+        (time-only rows), and printed inline only when the day rolls over;
+      * values are right-aligned in fixed-width columns so a column reads as a
+        trend. ``changes_only`` additionally drops rows identical (across all
+        shown params) to the previous printed row — collapsing stationary runs.
+    """
+    # Only params that actually appear in the decoded results, in definition order.
+    present = [n for n in param_names
+               if any(n in r["decoded"] for r in all_results)]
+    if not present:
+        print(f"  {_DIM}(no decodable parameters in scope){_RESET}\n")
+        return
+
+    # Column widths: header name/unit vs the widest formatted value in the column.
+    units = {n: parameters.get(n, {}).get("unit", "") for n in present}
+    headers = {n: (f"{n}[{units[n]}]" if units[n] else n) for n in present}
+    widths = {}
+    for n in present:
+        vals = [_compact_cell(r["decoded"].get(n, {}).get("value")) for r in all_results
+                if n in r["decoded"]]
+        widths[n] = max([len(headers[n]), *(len(v) for v in vals)] or [len(headers[n])])
+
+    # Are all captures the same date? If so, rows show time only.
+    dates = {r["capture"].get("date", "") for r in all_results}
+    single_day = len(dates) <= 1
+    day = next(iter(dates)) if single_day else ""
+    ts_w = max((len((r["capture"].get("time") or r["capture"].get("date") or ""))
+                for r in all_results), default=8)
+
+    def _colored_header(n: str) -> str:
+        color = _CYAN if n in candidate_names else (
+            _GREEN if parameters.get(n, {}).get("verified") else _YELLOW)
+        return f"{color}{headers[n]:>{widths[n]}}{_RESET}"
+
+    if single_day and day:
+        print(f"  {_DIM}date {day}{_RESET}")
+    header_cells = "  ".join(_colored_header(n) for n in present)
+    print(f"  {_DIM}{'time':<{ts_w}}{_RESET}  {header_cells}")
+
+    prev_state = None
+    prev_row_vals = None
+    cur_date = None
+    for r in all_results:
+        cap = r["capture"]
+        state = cap.get("state", "")
+        if state != prev_state:
+            label = state if state else "(no state)"
+            print(f"  {_DIM}── [{label}] ─────{_RESET}")
+            prev_state = state
+            prev_row_vals = None  # force first row of a new state to print
+
+        # Row timestamp: time within a single day; else full date+time.
+        if single_day:
+            ts = cap.get("time") or cap.get("date") or ""
+        else:
+            d = cap.get("date", "")
+            t = cap.get("time", "")
+            if d != cur_date:
+                print(f"  {_DIM}date {d}{_RESET}")
+                cur_date = d
+            ts = t or d
+
+        if r.get("error"):
+            print(f"  {_DIM}{ts:<{ts_w}}{_RESET}  {_RED}{r['error']}{_RESET}")
+            prev_row_vals = None
+            continue
+
+        raw_vals = tuple(r["decoded"].get(n, {}).get("value") for n in present)
+        if changes_only and raw_vals == prev_row_vals:
+            continue
+        prev_row_vals = raw_vals
+
+        cells = []
+        for n in present:
+            d = r["decoded"].get(n)
+            cell = _compact_cell(d["value"]) if d else ""
+            cells.append(f"{cell:>{widths[n]}}")
+        print(f"  {_DIM}{ts:<{ts_w}}{_RESET}  {'  '.join(cells)}")
+    print()
 
 
 def parse_try_expr(arg: str) -> tuple[str, str, str]:
@@ -367,6 +522,29 @@ def print_stats_table(
         elif s["distinct"] == 1:
             print(f"        {_DIM}(constant){_RESET}")
     print()
+
+
+def print_stats_grouped(
+    all_results: list[dict], param_names: list[str], parameters: dict,
+    candidate_names: set[str], field: str,
+) -> None:
+    """Per-group descriptive statistics: split captures by session ``field`` first.
+
+    Serves the drive-analysis workflow — e.g. ``--stats --group-by state`` yields
+    min/max/mean per drive segment (``driving MT->KW`` vs ``Driving KW->Home``)
+    in one shot instead of pooling every capture together. Groups are printed in
+    first-appearance order so they follow the chronological session order.
+    """
+    groups: dict[str, list[dict]] = {}
+    for r in all_results:
+        key = str(r["capture"].get(field, "")) or "(no state)"
+        groups.setdefault(key, []).append(r)
+
+    for gi, (key, rows) in enumerate(groups.items()):
+        if gi:
+            print()
+        print(f"  {_BOLD}[{key}]{_RESET} {_DIM}— {len(rows)} captures{_RESET}")
+        print_stats_table(rows, param_names, parameters, candidate_names)
 
 
 def resolve_ref(ref: str, param_names: list[str]) -> str | None:
@@ -971,8 +1149,18 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
                         help="Output as JSON (per-capture decoded values)")
     parser.add_argument("--compact", action="store_true",
                         help="One line per capture (chronological param=value pairs)")
+    parser.add_argument("--changes-only", "-c", action="store_true",
+                        help="With --compact: skip rows where all shown params are "
+                             "unchanged from the previous row (collapses stationary runs)")
     parser.add_argument("--stats", action="store_true",
                         help="Descriptive statistics per param (n, distinct, mean, median, stdev)")
+    parser.add_argument("--group-by", choices=["state"], metavar="FIELD",
+                        help="With --stats: compute statistics per session FIELD "
+                             "(currently 'state') instead of pooling all captures")
+    parser.add_argument("--first", type=int, metavar="N",
+                        help="Only the first N matching captures (chronological)")
+    parser.add_argument("--last", type=int, metavar="N",
+                        help="Only the last N matching captures (chronological)")
     parser.add_argument("--corr", metavar="PARAM",
                         help="Correlate every param (incl. --try) against PARAM (Pearson r)")
     parser.add_argument("--plot", action="store_true",
@@ -983,6 +1171,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     parser.add_argument("--try", dest="try_expr", action="append", metavar="NAME[:unit]=EXPR",
                         help="Evaluate a candidate expression against captures without editing "
                              "YAML (repeatable; works even if the PID has no params defined yet)")
+    add_scope_args(parser)
     parser.set_defaults(func=run)
     return parser
 
@@ -1009,6 +1198,20 @@ def run(args) -> int:
 
     # --plot and --try tolerate a not-yet-defined ECU/PID (raw byte inspection).
     tolerate_missing = bool(args.try_expr) or args.plot
+
+    # Resolve date scoping (--date shorthand for equal since/until; validated here).
+    since, until, err = resolve_date_bounds(args)
+    if err:
+        print(f"error: {err}", file=sys.stderr)
+        return 2
+
+    # Modifier flags depend on their base view; fail loud rather than silently no-op.
+    if args.changes_only and not args.compact:
+        print("error: --changes-only requires --compact", file=sys.stderr)
+        return 2
+    if args.group_by and not args.stats:
+        print("error: --group-by requires --stats", file=sys.stderr)
+        return 2
 
     # Build any candidate expressions from --try (validated early for a clean error).
     try:
@@ -1059,13 +1262,21 @@ def run(args) -> int:
     if try_params:
         parameters = {**parameters, **try_params}
 
+    # Scope arguments shared by every capture load in this run (date/state/label
+    # range + first/last slice). Resolved once so all paths stay consistent.
+    scope = {
+        "since": since, "until": until, "state": args.state, "label": args.label,
+        "first": args.first, "last": args.last,
+    }
+    scoped = any(v is not None for v in scope.values())
+
     if not parameters and not args.plot:
         # Be capture-aware and split the two cases that used to collapse into one
         # misleading message: filters excluded everything vs. nothing defined yet.
         # (This is a terminating error path, so loading captures here doesn't
         # double-load — the normal path at load_captures() below is only reached
         # when there are parameters to decode.)
-        caps = load_captures(args.ecu, args.pid)
+        caps = scope_captures(load_captures(args.ecu, args.pid), **scope)
         if defined_params:
             # Params exist for this PID; the active --param/--verified/--unverified
             # filters just excluded them all.
@@ -1095,10 +1306,13 @@ def run(args) -> int:
                   f"Available: {', '.join(parameters)}")
             return 1
 
-    # Load captures
-    captures = load_captures(args.ecu, args.pid)
+    # Load captures (with any date/state/label/first/last scoping applied).
+    captures = scope_captures(load_captures(args.ecu, args.pid), **scope)
     if not captures:
-        print(f"No captures found for {ecu_key} PID {pid_key}.")
+        if scoped:
+            print(f"No captures for {ecu_key} PID {pid_key} match the scope filters.")
+        else:
+            print(f"No captures found for {ecu_key} PID {pid_key}.")
         return 1
 
     # Decode all captures
@@ -1185,34 +1399,23 @@ def run(args) -> int:
     print(f"\n{_BOLD}{ecu_key} PID {pid_key}{_RESET} — "
           f"{n_total} parameters ({n_verified} verified, {n_total - n_verified} unverified){try_note}, "
           f"{len(captures)} captures\n")
+    scope_banner = _scope_banner(since, until, args.state, args.label, args.first, args.last)
+    if scope_banner:
+        print(f"  {_DIM}scope: {scope_banner}{_RESET}\n")
 
     if args.compact:
-        # One line per capture (chronological value evolution). Opt-in — for
-        # payload/byte-level views across captures use query-captures.py --diff.
-        for r in all_results:
-            cap = r["capture"]
-            ts = cap.get("time") or cap["date"]
-            state_str = f" [{cap['state']}]" if cap["state"] else ""
-            parts = []
-            for name in param_names:
-                d = r["decoded"].get(name)
-                if not d:
-                    continue
-                val = format_value(d["value"], d["unit"])
-                color = _CYAN if name in candidate_names else (_GREEN if d["verified"] else _YELLOW)
-                parts.append(f"{color}{name}{_RESET}={val}")
-            line = " ".join(parts)
-            if r.get("error"):
-                line = f"{_RED}{r['error']}{_RESET}"
-            print(f"  {_DIM}{ts}{state_str}{_RESET}  {line}")
-        print()
+        print_compact(all_results, param_names, parameters, candidate_names,
+                      changes_only=args.changes_only)
         return 0
 
     # Default view: parameter value ranges across all captures (validation-focused).
     # --stats and --corr add/replace it with statistics and correlation tables.
     printed = False
     if args.stats:
-        print_stats_table(all_results, param_names, parameters, candidate_names)
+        if args.group_by == "state":
+            print_stats_grouped(all_results, param_names, parameters, candidate_names, "state")
+        else:
+            print_stats_table(all_results, param_names, parameters, candidate_names)
         printed = True
     if corr_ref:
         print_correlations(all_results, param_names, parameters, candidate_names, corr_ref)

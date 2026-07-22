@@ -146,6 +146,19 @@ canair decode MCU 2102 --plot                      # sweep interpretations, find
 canair decode MCU 2102 --plot --corr MCU_MOTOR_RPM # overlay a known signal + live r
 ```
 
+**Scope the captures** so a candidate is judged on the relevant drive/state, not
+the whole history (shared with `canair captures`): `--since`/`--until`/`--date`,
+`--state SUBSTR`/`--label SUBSTR` (case-insensitive; the natural unit of drive
+analysis, e.g. `--state 'MT->KW'`), and `--first N`/`--last N`. Combine with
+`--stats --group-by state` to contrast a candidate across drive segments, or
+`--compact --changes-only` to watch it evolve with stationary runs collapsed:
+
+```bash
+canair decode MCU 2102 --try "T=[S12:S13]/100" --state 'MT->KW' --stats  # one drive
+canair decode MCU 2102 --stats --group-by state --state driving          # per-segment
+canair decode ESC 22C101 --param REAL_SPEED_KMH --state 'MT->KW' --compact --changes-only
+```
+
 Iterate until the range is physical, the distribution makes sense (constant?
 enum? continuous?), and — where a relationship should exist — the correlation
 confirms it. A bad expression shows `ERROR` rather than hiding.
