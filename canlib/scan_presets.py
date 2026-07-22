@@ -52,7 +52,7 @@ SERVICE_PRESETS: tuple[ServicePreset, ...] = (
         default_range="B000-B0FF",
         summary="UDS InputOutputControlByIdentifier (actuators)",
         needs_session=True,
-        caution="may actuate physical hardware — prefer `canair iocontrol-scan` "
+        caution="may actuate physical hardware — prefer `canair scan iocontrol` "
         "(safe subfunction only) and keep the car in a safe state",
     ),
     ServicePreset(
@@ -62,7 +62,7 @@ SERVICE_PRESETS: tuple[ServicePreset, ...] = (
         default_range="00-FF",
         summary="KWP2000 InputOutputControlByLocalIdentifier (powertrain actuators: BMS fan, …)",
         needs_session=True,
-        caution="may actuate physical hardware — prefer `canair iocontrol-scan BMS` "
+        caution="may actuate physical hardware — prefer `canair scan iocontrol BMS` "
         "(auto-selects 0x30, safe IOCP 0x00 only) and keep the car in a safe state",
     ),
     ServicePreset(
@@ -72,7 +72,7 @@ SERVICE_PRESETS: tuple[ServicePreset, ...] = (
         default_range="F000-F0FF",
         summary="UDS RoutineControl (diagnostic routines)",
         needs_session=True,
-        caution="prefer `canair routines-scan` (probes requestRoutineResults only)",
+        caution="prefer `canair scan routines` (probes requestRoutineResults only)",
     ),
 )
 

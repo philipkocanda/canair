@@ -1,9 +1,18 @@
-"""``canair scan`` — scan a range of PIDs/DIDs on one ECU.
+"""``canair scan`` — the scan command group.
 
-Beginner-friendly surface over the raw UDS scan:
-  * run ``canair scan`` with no arguments for an interactive wizard;
-  * pass a bare ECU (``canair scan BMS``) to get smart per-ECU defaults;
-  * use friendly ``--service`` names (``live-data``, ``read-did``, …).
+Three kinds of scan live under one command:
+
+  * ``canair scan range <ECU>``      — sweep a PID/DID range on one ECU (the
+    general-purpose scan, with friendly ``--service`` presets + a wizard).
+  * ``canair scan iocontrol <ECU>``  — SAFE IOControl discovery. Auto-selects
+    UDS ``0x2F`` or KWP2000 ``0x30`` from the ECU's ``id_protocol`` and only ever
+    sends the side-effect-free returnControlToECU sub-function (never actuates).
+  * ``canair scan routines <ECU>``   — SAFE RoutineControl (``0x31``) discovery
+    (probes requestRoutineResults only).
+
+For convenience, a bare ``canair scan <ECU>`` (or ``canair scan`` with no args)
+is treated as ``canair scan range …`` — see ``_inject_default_scan_kind`` in
+``canlib/cli.py``.
 """
 
 from __future__ import annotations
@@ -11,7 +20,12 @@ from __future__ import annotations
 import argparse
 import sys
 
-from canlib.commands._live import add_connection_args, finalize_live_parser, run_live
+from canlib.commands._live import (
+    add_connection_args,
+    ecu_completer,
+    finalize_live_parser,
+    run_live,
+)
 from canlib.scan_presets import (
     SERVICE_PRESETS,
     ScanPlan,
@@ -26,32 +40,70 @@ from canlib.scan_presets import (
 
 NAME = "scan"
 
+# Subcommand names under ``canair scan``. Kept in sync with ``cli._SCAN_KINDS``
+# (which injects "range" when the token after ``scan`` isn't one of these).
+SCAN_KINDS = ("range", "iocontrol", "routines")
+
 
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
-        help="Scan a range of PIDs/DIDs on an ECU",
+        help="Scan an ECU: range | iocontrol | routines",
+        description="Scan an ECU. Choose a kind:\n"
+        "  range      sweep a PID/DID range (general purpose)\n"
+        "  iocontrol  SAFE IOControl discovery (UDS 0x2F / KWP2000 0x30, auto)\n"
+        "  routines   SAFE RoutineControl (0x31) discovery\n\n"
+        "A bare `canair scan BMS` (or `canair scan` alone) is shorthand for "
+        "`canair scan range …`.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    kinds = parser.add_subparsers(dest="scan_kind", metavar="<kind>")
+    _add_range_parser(kinds)
+    _add_iocontrol_parser(kinds)
+    _add_routines_parser(kinds)
+    parser.set_defaults(func=_group_help, _scan_group_parser=parser)
+    return parser
+
+
+def _group_help(args) -> int:
+    """Fallback when ``canair scan`` is invoked with no resolvable kind."""
+    parser = getattr(args, "_scan_group_parser", None)
+    if parser is not None:
+        parser.print_help()
+    return 1
+
+
+# ---------------------------------------------------------------------------
+# scan range — the general-purpose PID/DID sweep
+# ---------------------------------------------------------------------------
+
+
+def _add_range_parser(kinds) -> argparse.ArgumentParser:
+    parser = kinds.add_parser(
+        "range",
+        help="Sweep a range of PIDs/DIDs on an ECU",
         description="Scan a range of PIDs/DIDs on an ECU. One scan at a time only.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
 getting started:
-  canair scan                       # interactive wizard — pick ECU/service/range
-  canair scan BMS                   # smart defaults for that ECU (no flags needed)
-  canair scan IGPM                  # UDS ECU → read-did over its known DID range
+  canair scan range                 # interactive wizard — pick ECU/service/range
+  canair scan BMS                   # smart defaults for that ECU (bare = range)
+  canair scan range IGPM            # UDS ECU → read-did over its known DID range
 
 """
         + presets_help()
         + """
 
 examples:
-  canair scan BMS --service live-data --range 01-FF
-  canair scan 7E4 --service read-did --range BC01-BC0B
-  canair scan IGPM --service iocontrol --range E000-E0FF --append 03 --session
+  canair scan range BMS --service live-data --range 01-FF
+  canair scan range 7E4 --service read-did --range BC01-BC0B
+  canair scan range IGPM --service iocontrol --range E000-E0FF --append 03 --session
 
 tips:
   * Run ONE scan at a time — parallel scans lock up the WiCAN.
   * Start with a small --range to gauge ECU response time, then widen.
   * Add --save --label "..." to record results to captures/.
+  * For SAFE actuator/routine discovery use `canair scan iocontrol`/`routines`.
 """,
     )
     ecu_arg = parser.add_argument(
@@ -62,8 +114,6 @@ tips:
         help="ECU name or TX ID (e.g. BMS or 7E4). Omit for the interactive wizard.",
     )
     try:
-        from canlib.commands._hints import ecu_completer
-
         ecu_arg.completer = ecu_completer  # type: ignore[attr-defined]
     except Exception:
         pass
@@ -96,7 +146,77 @@ tips:
     add_connection_args(parser)
     finalize_live_parser(parser, scan=True)
     # Override the shared dispatch with our resolve-then-run wrapper.
-    parser.set_defaults(func=run)
+    parser.set_defaults(func=run_range)
+    return parser
+
+
+# ---------------------------------------------------------------------------
+# scan iocontrol — SAFE IOControl discovery (UDS 0x2F / KWP2000 0x30, auto)
+# ---------------------------------------------------------------------------
+
+
+def _add_iocontrol_parser(kinds) -> argparse.ArgumentParser:
+    parser = kinds.add_parser(
+        "iocontrol",
+        help="SAFE IOControl discovery (UDS 0x2F / KWP2000 0x30, auto by id_protocol)",
+        description="Probe returnControlToECU across an id range on one or more ECUs. "
+        "The service is auto-selected per ECU from its id_protocol: UDS ECUs use "
+        "InputOutputControlByIdentifier (0x2F, 16-bit DID); KWP2000 ECUs (BMS, VCU, "
+        "MCU, LDC, AAF) use InputOutputControlByLocalIdentifier (0x30, 8-bit LID). "
+        "Only the side-effect-free sub-function is ever sent — the scanner never "
+        "actuates. Hits are written to pids/<ecu>.yaml under an iocontrol_discoveries: "
+        "section.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="examples:\n"
+        "  canair scan iocontrol IGPM              # UDS 0x2F DID scan\n"
+        "  canair scan iocontrol BMS               # KWP2000 0x30 LID scan (auto)\n"
+        "  canair scan iocontrol BMS --did-range 00-FF\n"
+        "  canair scan iocontrol IGPM BCM --did-range B000-BFFF\n",
+    )
+    parser.add_argument(
+        "iocontrol_scan", nargs="+", metavar="ECU", help="ECUs to scan (at least one required)"
+    ).completer = ecu_completer
+    parser.add_argument(
+        "--did-range",
+        metavar="START-END",
+        default=None,
+        help="Id range: DID for UDS (per-ECU defaults), LID 00-FF for KWP2000 (default 00-FF)",
+    )
+    parser.add_argument(
+        "--throttle-ms", type=int, default=150, help="Delay in ms between probes (default 150)"
+    )
+    add_connection_args(parser)
+    finalize_live_parser(parser)
+    return parser
+
+
+# ---------------------------------------------------------------------------
+# scan routines — SAFE RoutineControl (0x31) discovery
+# ---------------------------------------------------------------------------
+
+
+def _add_routines_parser(kinds) -> argparse.ArgumentParser:
+    parser = kinds.add_parser(
+        "routines",
+        help="SAFE RoutineControl (0x31) discovery (requestRoutineResults SF 0x03)",
+        description="Probe requestRoutineResults (SF 0x03) across a RID range on one or more "
+        "ECUs. Hits are written to pids/<ecu>.yaml under a routines: section.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="examples:\n"
+        "  canair scan routines IGPM\n"
+        "  canair scan routines IGPM BCM --rid-range F000-F0FF\n",
+    )
+    parser.add_argument(
+        "routines_scan", nargs="+", metavar="ECU", help="ECUs to scan (at least one required)"
+    ).completer = ecu_completer
+    parser.add_argument(
+        "--rid-range", metavar="START-END", default="F000-F0FF", help="RID range (default F000-F0FF)"
+    )
+    parser.add_argument(
+        "--throttle-ms", type=int, default=150, help="Delay in ms between probes (default 150)"
+    )
+    add_connection_args(parser)
+    finalize_live_parser(parser)
     return parser
 
 
@@ -326,7 +446,7 @@ def _resolve_ecu_selection(sel: str, choices: list[tuple[str, int, str]]) -> str
 
 
 def _equiv_command(args) -> str:
-    parts = ["canair scan", str(args.tx), f"--service {args.service}", f"--range {args.range}"]
+    parts = ["canair scan range", str(args.tx), f"--service {args.service}", f"--range {args.range}"]
     if args.append:
         parts.append(f"--append {args.append}")
     if args.session:
@@ -341,7 +461,7 @@ def _equiv_command(args) -> str:
 # ---------------------------------------------------------------------------
 
 
-def run(args) -> int:
+def run_range(args) -> int:
     """Resolve friendly/absent args, optionally run the wizard, then scan."""
     want_wizard = args.interactive or args.tx is None
     if want_wizard:
@@ -349,7 +469,7 @@ def run(args) -> int:
             if args.tx is None:
                 print(
                     "Error: no ECU given. Specify one (e.g. `canair scan BMS`), run "
-                    "`canair scan` in a terminal for the wizard, or `canair discover` "
+                    "`canair scan range` in a terminal for the wizard, or `canair discover` "
                     "to find live ECUs.",
                     file=sys.stderr,
                 )

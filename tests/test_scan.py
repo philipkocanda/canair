@@ -167,7 +167,7 @@ class TestCommandHelpers:
         args = SimpleNamespace(
             tx="BMS", service="21", range="01-FF", append=None, session=False, wake=False
         )
-        assert _equiv_command(args) == "canair scan BMS --service 21 --range 01-FF"
+        assert _equiv_command(args) == "canair scan range BMS --service 21 --range 01-FF"
 
     def test_equiv_command_with_flags(self):
         from canlib.commands.scan import _equiv_command

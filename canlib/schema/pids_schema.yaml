@@ -147,7 +147,7 @@ research_fields:
   optional: [priority, prerequisite, date, result, notes, sources, what_to_test, capture_protocol]
 
 # Routines section — RoutineControl (UDS service 0x31) discovery results.
-# Populated by `canreq.py --routines-scan`. Lives under ECU_NAME.routines.
+# Populated by `canair scan routines`. Lives under ECU_NAME.routines.
 #
 # Format:
 #   routines:
@@ -165,8 +165,9 @@ research_fields:
 routines_fields:
   optional: [response, nrc, nrc_desc, label, verified, notes]
 
-# IOControl discoveries section — raw 0x2F SF 00 (returnControlToECU) scan
-# output. Populated by `canreq.py --iocontrol-scan`. Lives under
+# IOControl discoveries section — IOControl discovery scan output (UDS 0x2F SF 00
+# returnControlToECU, or KWP2000 0x30 IOCP 00). Populated by `canair scan iocontrol`.
+# Lives under
 # ECU_NAME.iocontrol_discoveries. Distinct from ECU_NAME.iocontrol (the
 # curated, human-authored actuator list) so the scanner can rerun without
 # clobbering on/off/notes.

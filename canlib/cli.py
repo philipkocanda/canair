@@ -14,6 +14,45 @@ import sys
 
 from canlib.commands import iter_command_modules
 
+# Global options (before the subcommand) that consume a following value. Used by
+# _inject_default_scan_kind to find the command token.
+_GLOBAL_OPTS_WITH_VALUE = {"--profile", "--profiles-dir"}
+# Subcommands under `canair scan`. Kept in sync with commands/scan.SCAN_KINDS.
+_SCAN_KINDS = {"range", "iocontrol", "routines"}
+
+
+def _inject_default_scan_kind(argv: list[str]) -> list[str]:
+    """Make `canair scan …` default to the `range` kind.
+
+    `canair scan BMS`  -> `canair scan range BMS`
+    `canair scan`      -> `canair scan range`   (opens the range wizard)
+    `canair scan -h`   -> unchanged (show the scan group help)
+    `canair scan iocontrol/routines …` -> unchanged.
+
+    This keeps the pre-group muscle memory (`canair scan <ECU>`) working now that
+    `scan` is a command group.
+    """
+    i = 0
+    n = len(argv)
+    # Skip leading global options to find the command token.
+    while i < n:
+        tok = argv[i]
+        if tok in _GLOBAL_OPTS_WITH_VALUE:
+            i += 2
+            continue
+        if tok.startswith("--") and "=" in tok:  # --profile=NAME
+            i += 1
+            continue
+        break
+    if i >= n or argv[i] != "scan":
+        return argv
+    j = i + 1
+    # A kind or a help flag already present → leave as-is.
+    if j < n and (argv[j] in _SCAN_KINDS or argv[j] in ("-h", "--help")):
+        return argv
+    # Otherwise inject "range" right after "scan".
+    return argv[:j] + ["range"] + argv[j:]
+
 
 def build_parser() -> argparse.ArgumentParser:
     """Build the top-level argument parser with all subcommands registered."""
@@ -44,6 +83,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
+
+    if argv is None:
+        argv = sys.argv[1:]
+    argv = _inject_default_scan_kind(argv)
 
     try:
         import argcomplete
