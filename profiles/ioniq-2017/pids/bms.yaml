@@ -1634,14 +1634,20 @@ BMS:
       sources:
         - "ChatGPT"
     - type: iocontrol_scan
-      target: "2F E000-E0FF"
+      target: "30 00-FF"
       status: pending
       priority: P1
       prerequisite: [acc]
-      notes: "Looking for battery fan/EWP control DID. Kingbolen scanner can actuate fan from BMS."
+      notes: >
+        Looking for the battery fan / EWP control local identifier. The BMS is a
+        KWP2000 ECU, so IOControl is service 0x30 InputOutputControlByLocalIdentifier
+        (8-bit LID) — NOT UDS 0x2F. Scan safely with `canair iocontrol-scan BMS`
+        (auto-selects 0x30, sends only IOCP 0x00 returnControlToECU — never actuates).
+        Kingbolen scanner can actuate the fan from the BMS; find the LID here, then
+        actuate one LID at a time in a safe state.
     - type: iocontrol_scan
       target: "2F BC00-BCFF"
       status: pending
       priority: P2
       prerequisite: [acc]
-      notes: "BMS IOControl body/comfort-style DIDs."
+      notes: "BMS IOControl body/comfort-style DIDs (UDS 0x2F). Likely NRC 0x11 — BMS is KWP2000; kept as a cross-check."

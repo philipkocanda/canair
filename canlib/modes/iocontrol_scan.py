@@ -25,6 +25,10 @@ Classification
   NRC 0x7F (serviceNotSupportedInActiveSession) — retry in extended session
   NRC 0x11 (serviceNotSupported) — ECU doesn't implement 0x2F at all → abort
 
+The generic scan loop lives in :mod:`canlib.modes.discovery_scan`; this module
+supplies the 0x2F-specific probe, classification and writeback as a
+:class:`DiscoveryProbe`.
+
 Writeback
 ---------
 Hits are written to ``pids/<ecu>.yaml`` under a new top-level per-ECU section
@@ -34,12 +38,11 @@ the scanner can rerun without clobbering human-authored on/off/notes entries.
 
 from __future__ import annotations
 
-import asyncio
 import sys
 from typing import NamedTuple
 
-from ..scan_state import ScanStateWriter
 from ..terminal import WiCANTerminal
+from .discovery_scan import DiscoveryProbe, mode_discovery_scan
 
 # IOControl sub-functions — 0x00 is the ONLY safe one for scanning
 SF_RETURN_CONTROL = 0x00  # returnControlToECU — safe
@@ -136,116 +139,6 @@ def classify(response: dict) -> tuple[str, int | None]:
     return "exists", nrc
 
 
-async def scan_ecu(
-    terminal: WiCANTerminal,
-    ecu_name: str,
-    tx_id: int,
-    did_range: tuple[int, int],
-    throttle_ms: int = 150,
-    verbose: bool = False,
-) -> list[IOControlHit]:
-    """Scan one ECU over ``did_range`` inclusive. Auto-upgrades to extended
-    session on first NRC 0x7F.
-    """
-    start, end = did_range
-    total = end - start + 1
-
-    print(f"\n  [{ecu_name} @ 0x{tx_id:03X}] scanning DIDs 0x{start:04X}..0x{end:04X} ({total})")
-    await terminal.set_header(tx_id)
-
-    hits: list[IOControlHit] = []
-    absent = 0
-    errors = 0
-    tester_task: asyncio.Task | None = None
-    in_extended = False
-
-    state = ScanStateWriter("iocontrol", ecu_name, tx_id, start, end)
-    state.open()
-    try:
-        for did in range(start, end + 1):
-            # Show current probe on stderr (overwritten each line)
-            req_hex = f"2F {did >> 8:02X} {did & 0xFF:02X} 00"
-            idx = did - start + 1
-            pct = idx / total * 100
-            print(
-                f"    [{idx}/{total} {pct:.0f}%] probing 0x{did:04X}  ({req_hex})" + " " * 4,
-                end="\r",
-                file=sys.stderr,
-            )
-
-            response = await probe_iocontrol(terminal, did, SF_RETURN_CONTROL)
-            category, nrc = classify(response)
-
-            if category == "service-absent":
-                print(f"  [{ecu_name}] NRC 0x11 (serviceNotSupported) — "
-                      f"ECU doesn't implement 0x2F, aborting scan")
-                break
-
-            if category == "wrong-session" and not in_extended:
-                if verbose:
-                    print(f"    0x{did:04X}: NRC 7F — entering extended session")
-                _, tester_task = await terminal.enter_extended_session(wake=False)
-                in_extended = True
-                response = await probe_iocontrol(terminal, did, SF_RETURN_CONTROL)
-                category, nrc = classify(response)
-
-            session_label = "extended" if in_extended else "default"
-
-            if category == "positive":
-                hit = IOControlHit(
-                    did=did,
-                    session=session_label,
-                    response_hex=response.get("hex", ""),
-                    nrc=None,
-                    nrc_desc=None,
-                )
-                hits.append(hit)
-                resp_hex = response.get("hex", "")
-                nbytes = len(response.get("bytes", []))
-                print(
-                    f"    + 0x{did:04X}: positive ({nbytes} bytes)"
-                    + (f"  [{resp_hex}]" if resp_hex else "")
-                )
-            elif category == "exists":
-                desc = response.get("nrc_desc", "")
-                hit = IOControlHit(
-                    did=did,
-                    session=session_label,
-                    response_hex="",
-                    nrc=nrc,
-                    nrc_desc=desc,
-                )
-                hits.append(hit)
-                print(f"    ~ 0x{did:04X}: exists (NRC 0x{nrc:02X} {desc})")
-            elif category == "absent":
-                absent += 1
-                if verbose:
-                    print(f"    - 0x{did:04X}: NRC 0x{nrc:02X}")
-            else:
-                errors += 1
-                if verbose:
-                    err = response.get("error", "unknown")
-                    print(f"    ! 0x{did:04X}: {err}")
-
-            state.update(did, hits=len(hits))
-
-            if throttle_ms > 0:
-                await asyncio.sleep(throttle_ms / 1000.0)
-    finally:
-        if tester_task:
-            tester_task.cancel()
-            try:
-                await tester_task
-            except asyncio.CancelledError:
-                pass
-
-    # Clear progress line
-    print(" " * 60, end="\r", file=sys.stderr)
-    print(f"  [{ecu_name}] done — {len(hits)} hits, {absent} absent, {errors} errors")
-    state.close()
-    return hits
-
-
 # Default DID ranges to scan per ECU (tuple of (start, end) pairs).
 # Informed by the HKMC body-controller DID map:
 #   B000-B07F  exterior lamps (head/tail/turn)
@@ -269,6 +162,33 @@ DEFAULT_ECU_RANGES: dict[str, list[tuple[int, int]]] = {
 }
 
 
+def _make_hit(did, session, response_hex, nrc, nrc_desc) -> IOControlHit:
+    return IOControlHit(did, session, response_hex, nrc, nrc_desc)
+
+
+def _write_hit(ecu_name: str, hit: IOControlHit) -> None:
+    from ..pids_edit import append_iocontrol_discoveries_block
+
+    try:
+        append_iocontrol_discoveries_block(ecu_name, [hit])
+    except Exception as exc:
+        print(f"  [{ecu_name}] ERROR writing YAML: {exc}", file=sys.stderr)
+
+
+IOCONTROL_PROBE = DiscoveryProbe(
+    name="IOControl (0x2F)",
+    scan_type="iocontrol",
+    id_label="DID",
+    id_width=2,
+    service=0x2F,
+    probe=probe_iocontrol,
+    classify=classify,
+    make_hit=_make_hit,
+    request_display=lambda did: f"2F {did >> 8:02X} {did & 0xFF:02X} 00",
+    write_hit=_write_hit,
+)
+
+
 async def mode_iocontrol_scan(
     terminal: WiCANTerminal,
     pids_data: dict,
@@ -280,65 +200,18 @@ async def mode_iocontrol_scan(
 ) -> dict[str, list[IOControlHit]]:
     """Scan IOControl DIDs on one or more ECUs using SF 00 returnControlToECU.
 
-    Args:
-        ecus: ECU names (case-insensitive, must exist in pids_data).
-        did_range: (start, end) inclusive. If None, uses DEFAULT_ECU_RANGES
-            per ECU (B0-BF for body ECUs, F0-FF for HVAC).
-        throttle_ms: Delay between probes.
-        write_yaml: If True, merges hits into pids/<ecu>.yaml under the
-            ``iocontrol_discoveries:`` section.
-
-    Returns mapping of ECU name → list of hits.
+    Thin wrapper over :func:`discovery_scan.mode_discovery_scan` with the 0x2F
+    probe. Uses :data:`DEFAULT_ECU_RANGES` per ECU when ``did_range`` is None.
     """
-    ecu_defs: dict[str, dict] = {}
-    for fname, fdata in pids_data.get("ecus", {}).items():
-        if isinstance(fdata, dict):
-            ecu_defs[fname.upper()] = fdata
-
-    results: dict[str, list[IOControlHit]] = {}
-
-    for ecu in ecus:
-        key = ecu.upper()
-        if key not in ecu_defs:
-            print(f"  WARNING: ECU {ecu!r} not in pids_data, skipping", file=sys.stderr)
-            continue
-        tx_id = ecu_defs[key].get("tx_id")
-        if tx_id is None:
-            print(f"  WARNING: ECU {ecu!r} has no tx_id, skipping", file=sys.stderr)
-            continue
-
-        if did_range is not None:
-            ranges = [did_range]
-        else:
-            ranges = DEFAULT_ECU_RANGES.get(key, [(0xB000, 0xBFFF)])
-
-        ecu_hits: list[IOControlHit] = []
-        for rng in ranges:
-            hits = await scan_ecu(
-                terminal,
-                ecu_name=key,
-                tx_id=tx_id,
-                did_range=rng,
-                throttle_ms=throttle_ms,
-                verbose=verbose,
-            )
-            ecu_hits.extend(hits)
-
-        results[key] = ecu_hits
-
-        if write_yaml and ecu_hits:
-            from ..pids_edit import append_iocontrol_discoveries_block
-
-            try:
-                path = append_iocontrol_discoveries_block(key, ecu_hits)
-                print(f"  [{key}] wrote {len(ecu_hits)} discoveries to {path.name}")
-            except Exception as exc:
-                print(f"  [{key}] ERROR writing YAML: {exc}", file=sys.stderr)
-
-    print("\n  --- IOControl Discovery Scan Summary ---")
-    for ecu_key, hit_list in results.items():
-        positive = sum(1 for h in hit_list if h.nrc is None)
-        nrc_hits = len(hit_list) - positive
-        print(f"    {ecu_key}: {len(hit_list)} hits ({positive} positive, {nrc_hits} NRC)")
-
-    return results
+    return await mode_discovery_scan(
+        terminal,
+        IOCONTROL_PROBE,
+        pids_data,
+        ecus=ecus,
+        id_range=did_range,
+        default_ranges=DEFAULT_ECU_RANGES,
+        default_range=(0xB000, 0xBFFF),
+        throttle_ms=throttle_ms,
+        verbose=verbose,
+        write_yaml=write_yaml,
+    )
