@@ -240,8 +240,9 @@ ecus:
     boot_sw: "1.6"
     id_protocol: UDS  # F1xx
   0x733:
-    name: PLC
-    description: PLC Charge Control Module (Power Line Communication for DC CCS fast-charging)
+    name: CCM
+    alias: PLC
+    description: Charge Control Module (Power Line Communication for DC CCS fast-charging)
     part_number: "91950G7200"
     mfg_date: "2017-05-21"
     hw_version: "101"
