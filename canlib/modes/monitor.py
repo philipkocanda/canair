@@ -344,6 +344,13 @@ class MonitorController:
         # that rejected batching this session).
         self._raw_lengths: dict[tuple[str, str], int] = {}
         self._raw_nobatch: set[str] = set()
+        # Incremental rendering: a hook the TUI sets to refresh the body mid-cycle
+        # so a slow/timing-out PID doesn't freeze the whole view. Left None for
+        # the non-interactive path (results are only rendered once, on exit).
+        self._on_partial = None
+        # Last entry seen per (ecu, pid) — lets a pending PID keep showing its
+        # previous value during a cycle instead of vanishing (no flicker).
+        self._raw_last_entry: dict[tuple[str, str], dict] = {}
 
         # Live state (read by the renderer).
         self.cycle = 0
@@ -507,11 +514,18 @@ class MonitorController:
         self._record(self.last_queries)
 
     async def _poll_elm(self) -> None:
+        import time as _t
+
         from .multi import _exec_query
 
         cmds0 = self.terminal.cmd_count
         elm0 = self.terminal.cmd_time
+        # Seed the frame from last cycle so ECUs not yet re-polled keep showing
+        # their values (no flicker); overwrite each as it completes this cycle.
+        frame = dict(self.last_queries)
+        order = [label for label, _ in self.last_queries]
         new_queries: list[tuple[str, list]] = []
+        last_render = 0.0
         for step in self.query_steps:
             try:
                 result = await _exec_query(
@@ -531,6 +545,16 @@ class MonitorController:
                 return
             if result is not None:
                 new_queries.append(result)
+                label, pids = result
+                if label not in frame:
+                    order.append(label)
+                frame[label] = pids
+                self.last_queries = [(lb, frame[lb]) for lb in order if lb in frame]
+                now = _t.monotonic()
+                if self._on_partial is not None and (now - last_render) >= 0.12:
+                    last_render = now
+                    with contextlib.suppress(Exception):
+                        self._on_partial()
         self.last_queries = new_queries
         self.last_cmds = self.terminal.cmd_count - cmds0
         self.last_elm_time = self.terminal.cmd_time - elm0
@@ -600,62 +624,116 @@ class MonitorController:
         split back per-DID. Per-ECU 22-DID lengths are learned from single reads,
         and an ECU that rejects batching (NRC 0x13/0x31) or returns an
         unsplittable response is dropped to single reads for the session.
+
+        Results are consumed **incrementally**: the client fires a callback as
+        each request resolves, so fast PIDs render immediately and a slow/timing-
+        out PID only holds up its own row — the view never freezes for a cycle.
         """
         import time as _t
 
-        from .multi import _did_data_len, _is_did22, split_multi_did
-
         submissions, plan_by_ecu = self._build_raw_submissions()
         requests = [(s["ecu"], s["req"]) for s in submissions]
+        sub_by_req = {(s["ecu"], s["req"]): s for s in submissions}
 
         loop = asyncio.get_event_loop()
+        q: asyncio.Queue = asyncio.Queue()
+        sentinel = object()
+
+        def _on_result(key, value):  # fired from the executor thread
+            loop.call_soon_threadsafe(q.put_nowait, (key, value))
+
+        def _run():
+            try:
+                return self.raw_client.poll(requests, on_result=_on_result)
+            finally:
+                loop.call_soon_threadsafe(q.put_nowait, sentinel)
+
+        fut = loop.run_in_executor(None, _run)
+
+        by_pid: dict[tuple[str, str], dict] = {}
+        applied: set = set()
+        last_render = 0.0
+        while True:
+            item = await q.get()
+            if item is sentinel:
+                break
+            key, val = item
+            s = sub_by_req.get(key)
+            if s is None:
+                continue
+            self._apply_raw_submission(s, val, _t.time(), by_pid)
+            applied.add(key)
+            self.last_queries = self._raw_build_queries(plan_by_ecu, by_pid)
+            # Throttle mid-cycle repaints so a burst of fast PIDs doesn't thrash.
+            now = _t.monotonic()
+            if self._on_partial is not None and (now - last_render) >= 0.12:
+                last_render = now
+                with contextlib.suppress(Exception):
+                    self._on_partial()
         try:
-            results = await loop.run_in_executor(None, self.raw_client.poll, requests)
+            result_dict = await fut  # surface a bus-level failure (connection dropped)
         except Exception:
             self.disconnected = True
             return
 
-        acquired = _t.time()
-        by_pid: dict[tuple[str, str], dict] = {}
+        # Completeness net: fold in any results not delivered via the callback
+        # (a client may return the dict without implementing on_result).
         for s in submissions:
-            ecu = s["ecu"]
-            val = results.get((ecu, s["req"]))
-            resp = bytes(val) if isinstance(val, (bytes, bytearray)) else None
+            key = (s["ecu"], s["req"])
+            if key not in applied and key in result_dict:
+                self._apply_raw_submission(s, result_dict[key], _t.time(), by_pid)
 
-            if s["lengths"] is not None:  # batched request
-                split = None
-                if resp and resp[0] != 0x7F:
-                    split = split_multi_did(resp.hex().upper(), s["lengths"])
-                elif resp and resp[0] == 0x7F and (resp[2] if len(resp) >= 3 else 0) in (0x13, 0x31):
-                    self._raw_nobatch.add(ecu)  # ECU can't batch — fall back next cycle
-                if split is None:
-                    if resp and resp[0] != 0x7F:
-                        self._raw_nobatch.add(ecu)  # positive but unsplittable
-                    for code, pi, un in s["members"]:
-                        by_pid[(ecu, code)] = _raw_pid_result(
-                            code, pi, un, val if resp is None else resp, acquired
-                        )
-                else:
-                    for code, pi, un in s["members"]:
-                        sub = bytes.fromhex(split[code[2:]])
-                        by_pid[(ecu, code)] = _raw_pid_result(code, pi, un, sub, acquired)
-                continue
-
-            code, pi, un = s["members"][0]
-            by_pid[(ecu, code)] = _raw_pid_result(code, pi, un, val, acquired)
-            if _is_did22(code) and resp and resp[0] != 0x7F:  # learn length for batching
-                dlen = _did_data_len(resp.hex().upper(), code[2:])
-                if dlen is not None:
-                    self._raw_lengths[(ecu, code[2:])] = dlen
-
-        new_queries: list[tuple[str, list]] = []
-        for ecu, tx_id, plan in plan_by_ecu:
-            pid_results = [by_pid[(ecu, c)] for c, _pi, _un in plan if (ecu, c) in by_pid]
-            new_queries.append((f"{ecu} (0x{tx_id:03X})", pid_results))
-
-        self.last_queries = new_queries
+        self.last_queries = self._raw_build_queries(plan_by_ecu, by_pid)
+        self._raw_last_entry.update(by_pid)  # seed next cycle's pending cells
         self.last_cmds = len(requests)
         self.last_elm_time = 0.0
+
+    def _apply_raw_submission(self, s: dict, val, acquired: float, by_pid: dict) -> None:
+        """Fold one completed submission's response into ``by_pid`` (split batches,
+        learn 22-DID lengths, track ECUs that can't batch)."""
+        from .multi import _did_data_len, _is_did22, split_multi_did
+
+        ecu = s["ecu"]
+        resp = bytes(val) if isinstance(val, (bytes, bytearray)) else None
+
+        if s["lengths"] is not None:  # batched request
+            split = None
+            if resp and resp[0] != 0x7F:
+                split = split_multi_did(resp.hex().upper(), s["lengths"])
+            elif resp and resp[0] == 0x7F and (resp[2] if len(resp) >= 3 else 0) in (0x13, 0x31):
+                self._raw_nobatch.add(ecu)  # ECU can't batch — fall back next cycle
+            if split is None:
+                if resp and resp[0] != 0x7F:
+                    self._raw_nobatch.add(ecu)  # positive but unsplittable
+                for code, pi, un in s["members"]:
+                    by_pid[(ecu, code)] = _raw_pid_result(
+                        code, pi, un, val if resp is None else resp, acquired
+                    )
+            else:
+                for code, pi, un in s["members"]:
+                    sub = bytes.fromhex(split[code[2:]])
+                    by_pid[(ecu, code)] = _raw_pid_result(code, pi, un, sub, acquired)
+            return
+
+        code, pi, un = s["members"][0]
+        by_pid[(ecu, code)] = _raw_pid_result(code, pi, un, val, acquired)
+        if _is_did22(code) and resp and resp[0] != 0x7F:  # learn length for batching
+            dlen = _did_data_len(resp.hex().upper(), code[2:])
+            if dlen is not None:
+                self._raw_lengths[(ecu, code[2:])] = dlen
+
+    def _raw_build_queries(self, plan_by_ecu, by_pid: dict) -> list[tuple[str, list]]:
+        """Build the render frame in plan order. PIDs not yet resolved this cycle
+        fall back to their last known entry so the view never flickers."""
+        new_queries: list[tuple[str, list]] = []
+        for ecu, tx_id, plan in plan_by_ecu:
+            pid_results = []
+            for c, _pi, _un in plan:
+                entry = by_pid.get((ecu, c)) or self._raw_last_entry.get((ecu, c))
+                if entry is not None:
+                    pid_results.append(entry)
+            new_queries.append((f"{ecu} (0x{tx_id:03X})", pid_results))
+        return new_queries
 
     def render(self) -> Text:
         """The current view as a Rich Text (rendered by the TUI / printed on exit)."""

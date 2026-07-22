@@ -211,3 +211,20 @@ exist on `SessionManager` (only `open_session`) -> `AttributeError` if the
   removes repeated evaluation of unchanged payloads).
 - Per-ECU `response_timeout_ms` **mechanism** shipped; no concrete VCU/MCU values
   were baked into the profile — set them after measuring with `--timings`.
+
+## Post-implementation fixes (found on-device)
+
+- **TCP_NODELAY on the SLCAN socket** (`transport/slcan_tcp.py`). Nagle +
+  delayed-ACK parked the tiny ISO-TP Flow Control frame ~40 ms on a fast/low-RTT
+  link, overrunning the ECU's flow-control window and aborting multi-frame
+  responses — MCU (largest) timed out on a wired Linux box but not a WiFi Mac
+  (the slower link masked it). Disabling Nagle fixed the bulk of the residual
+  timeouts.
+- **Incremental monitor rendering** (`transport/uds_raw.py` `poll(on_result=…)`,
+  `modes/monitor.py`, `modes/_monitor_tui.py`). A slow/timing-out PID used to
+  freeze the whole view because the frame was rendered once per cycle and a cycle
+  didn't finish until its slowest request resolved. `poll` now streams each
+  result via a callback; the monitor applies + repaints incrementally (throttled
+  ~120 ms), pending PIDs keep their last value (no flicker), and only the slow
+  PID's own row lags. A completeness sweep from the returned dict keeps
+  correctness independent of the callback.

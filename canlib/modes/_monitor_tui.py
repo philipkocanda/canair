@@ -144,6 +144,9 @@ class MonitorApp(App):
         if "ansi-dark" in self.available_themes:
             self.theme = "ansi-dark"
         self.query_one("#scroll", VerticalScroll).focus()
+        # Let the controller repaint mid-cycle as each PID resolves, so a slow /
+        # timing-out PID never freezes the whole view (only its own row lags).
+        self.controller._on_partial = self._refresh_body
         self.run_worker(self._poll_loop(), name="poll", exclusive=True)
         self.set_interval(0.25, self._update_status)
         self._update_status()
