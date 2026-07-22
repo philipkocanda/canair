@@ -54,6 +54,14 @@ examples:
         "logged by default, reporting what cleared/appeared since the last scan)",
     )
     parser.add_argument(
+        "--no-retry",
+        dest="dtc_retry",
+        action="store_false",
+        default=True,
+        help="With --all, don't retry unresponsive ECUs (by default a no-response "
+        "ECU is retried once with a wake + longer timeout so it isn't skipped)",
+    )
+    parser.add_argument(
         "--label",
         default=None,
         help="Optional label for the logged scan entry (e.g. 'before clearing')",

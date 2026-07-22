@@ -32,6 +32,29 @@ def _ok(hex_str):
     return {"ok": True, "bytes": b, "hex": hex_str.upper(), "raw": hex_str}
 
 
+class FlakyTerminal:
+    """Returns NO DATA the first time a request is seen, then the canned payload
+    — models a slow/asleep ECU that answers only on the wake+longer-timeout retry."""
+
+    def __init__(self, recover):
+        self._recover = recover  # request -> hex payload (returned after first miss)
+        self._seen: set[str] = set()
+        self.sent: list[str] = []
+
+    async def set_header(self, tx_id):
+        pass
+
+    async def enter_extended_session(self, wake=False):
+        return True, None
+
+    async def send_uds(self, cmd, timeout=None, expected_sid=None, expected_did=None):
+        self.sent.append(cmd)
+        if cmd in self._recover and cmd in self._seen:
+            return _ok(self._recover[cmd])
+        self._seen.add(cmd)
+        return {"ok": False, "error": "NO DATA", "raw": "NO DATA"}
+
+
 class TestFormatDtc:
     def test_powertrain(self):
         # 0x01 0x23 0x00 -> P0123-00
@@ -240,6 +263,48 @@ class TestScanAll:
         await dtc.mode_dtc_scan_all(t, as_json=False)
         out = capsys.readouterr().out
         assert "No DTCs on any" in out
+
+    def test_classify(self):
+        assert dtc._classify({"count": 1, "dtcs": [{}]}) == "faulty"
+        assert dtc._classify({"count": 0, "dtcs": []}) == "clean"
+        assert dtc._classify({"nrc": "0x11"}) == "nrc"
+        assert dtc._classify({"error": "NO DATA"}) == "no_response"
+
+    @pytest.mark.asyncio
+    async def test_scan_all_reports_no_response_separately(self, monkeypatch, capsys):
+        monkeypatch.setattr(dtc, "resolve_protocol", lambda proto, tx: "uds")
+        monkeypatch.setattr(
+            "canlib.ecus.load_ecus",
+            lambda: {0x7A0: {"name": "BCM"}, 0x770: {"name": "IGPM"}},
+        )
+        # BCM clean; IGPM never answers (not in table).
+        t = FakeTerminal({"1902FF": _ok("5902FF")})
+        await dtc.mode_dtc_scan_all(t, as_json=True, timeout=0.1, retry=False)
+        data = json.loads(capsys.readouterr().out)
+        # IGPM answers 1902FF too (shared request) -> to isolate, assert counts:
+        assert data["clean"] + len(data["no_response"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_scan_all_retry_recovers_slow_ecu(self, monkeypatch, capsys):
+        monkeypatch.setattr(dtc, "resolve_protocol", lambda proto, tx: "uds")
+        monkeypatch.setattr("canlib.ecus.load_ecus", lambda: {0x7A0: {"name": "BCM"}})
+        # NO DATA on first read, a DTC once retried (after the wake).
+        t = FlakyTerminal({"1902FF": "5902FF0123002F"})
+        await dtc.mode_dtc_scan_all(t, as_json=True, timeout=0.1, retry=True)
+        data = json.loads(capsys.readouterr().out)
+        assert data["no_response"] == []      # recovered on retry
+        assert data["with_dtcs"] == 1
+        assert "1001" in t.sent               # wake was attempted
+
+    @pytest.mark.asyncio
+    async def test_scan_all_no_retry_leaves_no_response(self, monkeypatch, capsys):
+        monkeypatch.setattr(dtc, "resolve_protocol", lambda proto, tx: "uds")
+        monkeypatch.setattr("canlib.ecus.load_ecus", lambda: {0x7A0: {"name": "BCM"}})
+        t = FlakyTerminal({"1902FF": "5902FF0123002F"})
+        await dtc.mode_dtc_scan_all(t, as_json=True, timeout=0.1, retry=False)
+        data = json.loads(capsys.readouterr().out)
+        assert data["no_response"] == ["BCM (0x7A0)"]
+        assert "1001" not in t.sent           # no retry -> no wake
 
     @pytest.mark.asyncio
     async def test_scan_all_dispatch_logs_by_default(self, monkeypatch, tmp_path, capsys):
