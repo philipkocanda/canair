@@ -273,6 +273,7 @@ class _IOControlTUI:
         ecu_info: dict,
         pids_data: dict,
         verbose: bool = False,
+        poll: bool = False,
     ):
         self.terminal = terminal
         self.ecu_key = ecu_key
@@ -281,6 +282,11 @@ class _IOControlTUI:
         self.all_cmds = ecu_info["cmds"]
         self.pids_data = pids_data
         self.verbose = verbose
+        # Background status polling is OPT-IN. When enabled, the poll loop sends
+        # 2F{DID}00 (returnControlToECU) to every DID — which can actuate
+        # relay/solenoid-backed DIDs (audible click). Off by default so merely
+        # launching the TUI sends no CAN traffic until the user acts.
+        self._poll_enabled = poll
 
         # View mode cycles through:
         #   "curated"     — only hand-authored iocontrol: entries
@@ -714,11 +720,16 @@ class _IOControlTUI:
     async def _poll_status_once(self):
         """Poll every DID once by sending ``2F {DID} 00`` (returnControlToECU).
 
-        This is the safe no-op IOControl sub-function per ISO 14229-1 §10.4 —
-        it does not actuate anything, but ECUs that support the DID return a
-        positive response including the current ``controlStatusRecord`` tail
-        bytes. Those bytes are stored in ``self.status_bytes[did]`` and
-        rendered in the "Status" column.
+        ISO 14229-1 §10.4 sub-function 00 is *returnControlToECU* — it hands the
+        addressed I/O back to the ECU's own control logic. This is often benign,
+        but it is **NOT a guaranteed silent read**: an ECU may re-assert the
+        actuator's default drive state when control is returned, which on
+        relay/solenoid-backed DIDs (e.g. IGPM door lock/unlock ``BC10``/``BC11``,
+        trunk ``BC09``, charge-cable lock ``BC3F``/``BC41``, defogger ``BC0C``)
+        produces an audible click. Because of this the whole poll loop is
+        opt-in (``--poll``); ECUs that support the DID return a positive response
+        including the current ``controlStatusRecord`` tail bytes, which are stored
+        in ``self.status_bytes[did]`` and rendered in the "Status" column.
 
         Bails early if the TUI is busy (mid-ON/OFF/ADJUST) or quitting; the
         scheduling loop in ``_status_poll_loop`` retries on the next tick.
@@ -914,10 +925,16 @@ class _IOControlTUI:
             tty.setcbreak(fd)  # cbreak instead of raw — allows signal handling
             loop.add_reader(fd, _on_stdin_ready)
 
-            # Start background status polling. Every IOControl DID supports
-            # 2F {DID} 00 (returnControlToECU) as a safe no-op probe, so we
-            # poll unconditionally — no need to check for mapped status_param.
-            poll_task = asyncio.ensure_future(self._status_poll_loop())
+            # Start background status polling — ONLY when opted in via --poll.
+            # The poll sends 2F {DID} 00 (returnControlToECU) to every DID. That
+            # is NOT a guaranteed silent read: returnControlToECU hands the I/O
+            # back to the ECU's own logic and can physically actuate relay/
+            # solenoid-backed DIDs (e.g. IGPM door lock/unlock, trunk, charge
+            # cable lock, defogger) — producing an audible click on the first
+            # poll. So it is off by default; the user enables it explicitly.
+            poll_task = (
+                asyncio.ensure_future(self._status_poll_loop()) if self._poll_enabled else None
+            )
 
             self._draw()
 
@@ -1072,6 +1089,7 @@ async def mode_iocontrol_tui(
     pids_data: dict,
     ecu_name: str,
     verbose: bool = False,
+    poll: bool = False,
 ):
     """Interactive IOControl TUI for an ECU."""
     ioctrl_index = build_iocontrol_index(pids_data, include_discoveries=True)
@@ -1084,5 +1102,7 @@ async def mode_iocontrol_tui(
             print(f"  ECUs with IOControl: {', '.join(available)}")
         return
 
-    tui = _IOControlTUI(terminal, ecu_key, ioctrl_index[ecu_key], pids_data=pids_data, verbose=verbose)
+    tui = _IOControlTUI(
+        terminal, ecu_key, ioctrl_index[ecu_key], pids_data=pids_data, verbose=verbose, poll=poll
+    )
     await tui.run()

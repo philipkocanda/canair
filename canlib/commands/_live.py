@@ -686,6 +686,7 @@ async def dispatch_mode(args, terminal, pids_data, host):
                 pids_data,
                 args.iocontrol,
                 verbose=args.verbose,
+                poll=getattr(args, "poll", False),
             )
     elif args.routines:
         if args.rid:

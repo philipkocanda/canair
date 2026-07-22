@@ -407,6 +407,9 @@ Executes IOControl (service `2F`) commands defined in the `iocontrol:` section o
 canair io IGPM
 canair io BCM --json
 
+# Interactive TUI with background status polling enabled (see warning below)
+canair io IGPM --poll
+
 # Execute ON command (auto-session, hold until Ctrl+C if hold: true)
 canair io IGPM --did BC01
 
@@ -422,6 +425,8 @@ canair query "iocontrol IGPM BC01" "sleep 3" "iocontrol IGPM BC01 --off"
 - With `--did`: sends the ON command (or OFF with `--off`). Auto-enters extended diagnostic session if `session: true` in YAML.
 - If `hold: true` in YAML (default): keeps TesterPresent alive until Ctrl+C, then auto-sends the OFF command on release.
 - If `hold: false` (e.g. SKM relays): sends command and exits immediately.
+
+**⚠️ TUI status polling is opt-in (`--poll`) — it can actuate hardware.** The interactive TUI's background status poll opens an extended session and sends `2F{DID}00` (returnControlToECU) to **every** DID every 3s. `returnControlToECU` is *not* a guaranteed silent read: on relay/solenoid-backed DIDs (IGPM door lock/unlock `BC10`/`BC11`, trunk `BC09`, charge-cable lock `BC3F`/`BC41`, defogger `BC0C`) the ECU can re-assert the actuator's default state, producing an audible soft click near the dash on the first poll — even before you toggle anything. Because of this the poll is **off by default**; enable it with `canair io IGPM --poll` only when you want live status readback and accept the possible click. The Status column stays `—` until you send an ON/OFF/adjust (which populates it).
 
 ECUs with IOControl DIDs: IGPM, BCM, SKM, PSM, VESS (see respective `pids/*.yaml` files).
 
