@@ -996,6 +996,63 @@ def build_query(tokens: list[str]) -> str:
     return " ".join(tokens)
 
 
+def _resolve_captures_dir(explicit: Path | None) -> Path:
+    """Captures dir from --dir, else the active profile's captures/."""
+    if explicit is not None:
+        return explicit
+    from canlib.profile import active
+
+    return active().captures_dir
+
+
+def cmd_recover(captures_dir: Path | None, discard: bool = False) -> int:
+    """Reconcile (or discard) orphaned capture journals left by a killed session."""
+    from canlib.capture_journal import list_orphans
+    from canlib.capture_journal import recover as _recover
+
+    cdir = _resolve_captures_dir(captures_dir)
+    orphans = list_orphans(cdir)
+    if not orphans:
+        print("  No orphaned capture journals found.")
+        return 0
+
+    verb = "Discarding" if discard else "Recovering"
+    print(f"  {verb} {len(orphans)} orphaned journal(s) in {cdir}/.journal/:")
+    recovered = 0
+    for path in orphans:
+        try:
+            written = _recover(path, discard=discard)
+        except Exception as ex:  # keep going; report the failure
+            print(f"    ! {path.name}: {ex}")
+            continue
+        if discard:
+            print(f"    - {path.name} (discarded)")
+        elif written is not None:
+            print(f"    \u2192 {path.name} \u2192 {written.name}")
+            recovered += 1
+        else:
+            print(f"    - {path.name} (empty; removed)")
+    if not discard:
+        print(f"  Recovered {recovered} session(s).")
+    return 0
+
+
+def orphan_notice(captures_dir: Path | None = None) -> None:
+    """Print a one-line notice if orphaned journals exist (best-effort, silent on error)."""
+    try:
+        from canlib.capture_journal import list_orphans
+
+        cdir = _resolve_captures_dir(captures_dir)
+        orphans = list_orphans(cdir)
+    except Exception:
+        return
+    if orphans:
+        print(
+            f"  Note: {len(orphans)} orphaned capture journal(s) from a previous "
+            "session \u2014 run `canair captures --recover` to save (or --discard)."
+        )
+
+
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
@@ -1028,6 +1085,16 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     standalone.add_argument(
         "--latest", "-l", nargs="?", const="", metavar="ECU",
         help="Latest payload per PID (optionally filtered by ECU)",
+    )
+    standalone.add_argument(
+        "--recover", action="store_true",
+        help="Reconcile orphaned capture journals (from a killed/crashed session) "
+             "into capture files. Add --discard to delete them without saving.",
+    )
+
+    parser.add_argument(
+        "--discard", action="store_true",
+        help="With --recover: delete orphaned journals without saving them",
     )
 
     parser.add_argument(
@@ -1066,6 +1133,9 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
 
 
 def run(args) -> int:
+    if args.recover:
+        return cmd_recover(args.dir, discard=args.discard)
+
     query = build_query(args.query)
     standalone_mode = args.summary or args.latest is not None
 

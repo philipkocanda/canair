@@ -1,0 +1,33 @@
+# States Definition Schema (human-readable companion)
+# Validates the optional profiles/<name>/states.yaml.
+#
+# states.yaml declares a profile's canonical, ordered vehicle operating states.
+# The `state` field on a capture session should draw from these names (soft —
+# free text is still accepted, but `canair validate captures` warns on values
+# outside this vocabulary). Each state may carry a `when:` predicate used to
+# auto-suggest the state from decoded PID values (see canlib/states.py).
+#
+# Top-level structure:
+#   states:                 # ordered list; first matching `when` wins on suggest
+#     - name: str           # required — the state name (e.g. "ready", "charging")
+#       description: str    # optional — human-readable explanation
+#       when: str           # optional — boolean predicate over ECU.PARAM values
+#
+# Predicate grammar (whitelisted AST; no function calls / attribute access beyond
+# dotted ECU.PARAM names):
+#   ECU.PARAM               decoded parameter value (e.g. BMS.BATTERY_CURRENT)
+#   and / or / not          boolean composition
+#   == != < <= > >=         comparisons
+#   numbers / 'strings'     literals
+#   __no_response__         true when no ECU responded (deep sleep / off)
+#   __responded__           true when at least one ECU responded
+#
+# Base vocabulary (shared across vehicles; profiles may add composite states):
+#   sleep, plugged, acc, acc2, ready, charging
+
+required_state_fields:
+  - name
+
+optional_state_fields:
+  - description
+  - when

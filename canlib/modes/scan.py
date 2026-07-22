@@ -193,7 +193,7 @@ async def mode_scan(
         from ..captures import (
             build_scan_session,
             resolve_metadata,
-            save_session,
+            save_session_journaled,
             suggest_scan_label,
         )
         from ..ecus import rx_addr_str
@@ -219,7 +219,7 @@ async def mode_scan(
                 append_bytes=append_bytes,
                 session_flag=session,
             )
-            save_session(session_dict)
+            save_session_journaled(session_dict)
 
     _print_next_steps(console, ecu, service, positive, negative, errors, saved=save)
 

@@ -306,6 +306,32 @@ def save_session(session: dict, captures_dir: Path | None = None) -> Path:
     return capture_file
 
 
+def save_session_journaled(session: dict, captures_dir: Path | None = None) -> Path | None:
+    """Save a pre-built session via a write-ahead journal (crash-safe path).
+
+    Used by the one-shot producers (scan/raw/discover) so every save path shares
+    the same recover-on-crash behaviour as streaming query/monitor. The session
+    is written to a journal, then reconciled into ``captures/YYYY-MM-DD.yaml`` and
+    the journal removed. Returns the capture file path (or None if empty).
+    """
+    from .capture_journal import CaptureJournal
+
+    if captures_dir is None:
+        from .profile import active
+
+        captures_dir = active().captures_dir
+
+    journal = CaptureJournal.open(
+        captures_dir,
+        label=session.get("label", ""),
+        state=session.get("state"),
+        notes=session.get("notes"),
+        source="oneshot",
+    )
+    journal.append_session(session)
+    return journal.reconcile()
+
+
 def _write_captures_file(fpath: Path, data: dict) -> None:
     """Serialize a capture-file dict back to disk (comment-preserving)."""
     with open(fpath, "w") as f:

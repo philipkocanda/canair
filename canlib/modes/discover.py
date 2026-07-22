@@ -120,7 +120,7 @@ async def mode_discover(
         from ..captures import (
             build_discover_session,
             resolve_metadata,
-            save_session,
+            save_session_journaled,
             suggest_discover_label,
         )
 
@@ -147,7 +147,7 @@ async def mode_discover(
                 state=state,
                 notes=notes,
             )
-            save_session(session_dict)
+            save_session_journaled(session_dict)
 
     # Auto-register newly-discovered ECUs into ecus.yaml
     if register:

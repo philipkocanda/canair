@@ -36,3 +36,6 @@ profiles/*/logs/
 
 # Per-vehicle DTC scan history — runtime state, changes every scan, not shared
 profiles/*/dtc_log.yaml
+
+# Capture journals — write-ahead logs, reconciled into captures/*.yaml on exit
+profiles/*/captures/.journal/

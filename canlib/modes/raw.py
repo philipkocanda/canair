@@ -106,7 +106,7 @@ def _save_raw(
     label: str | None = None, state: str | None = None, notes: str | None = None,
 ) -> None:
     """Prompt (or use provided metadata) and save a raw request result to captures."""
-    from ..captures import build_raw_session, resolve_metadata, save_session, suggest_raw_label
+    from ..captures import build_raw_session, resolve_metadata, save_session_journaled, suggest_raw_label
     from ..ecus import ecu_name, rx_addr_str
 
     ecu = ecu_name(tx_id)
@@ -124,4 +124,4 @@ def _save_raw(
             notes=notes,
             pids_data=pids_data,
         )
-        save_session(session_dict)
+        save_session_journaled(session_dict)
