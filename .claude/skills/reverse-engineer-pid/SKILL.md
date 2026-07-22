@@ -204,7 +204,7 @@ state (physical correlation, matching a scan tool, or a definitive constant).
 ### 10. Integrate
 
 ```bash
-canair wican                     # regenerate profiles/ioniq-2017/out/ioniq-2017.json
+canair wican                     # regenerate the profile's out/profile.json
 canair wican --diff --wican home # compare to device (optional)
 python3 -m pytest -q             # keep the suite green
 ```
