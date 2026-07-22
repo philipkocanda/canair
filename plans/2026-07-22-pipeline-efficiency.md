@@ -228,3 +228,11 @@ exist on `SessionManager` (only `open_session`) -> `AttributeError` if the
   ~120 ms), pending PIDs keep their last value (no flicker), and only the slow
   PID's own row lags. A completeness sweep from the returned dict keeps
   correctness independent of the callback.
+- **Keep last-good values on timeout (stale/dimmed, not hidden)**
+  (`modes/monitor.py`). A DID that times out now re-shows its last-good
+  parameters/hex marked ``stale`` — rendered dimmed with a ``(stale)`` tag —
+  instead of collapsing to an error line, so the layout never stutters. A real
+  NRC is still shown as-is; a DID that never had good data still shows the
+  timeout. Stale re-shows are skipped by ``_record`` so they're never re-saved as
+  fresh captures. Shared `_displayify` applies this to both the raw and ELM
+  paths; the last-good cache also feeds the raw mid-cycle "pending" fallback.

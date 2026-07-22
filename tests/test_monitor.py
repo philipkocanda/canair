@@ -182,6 +182,24 @@ class TestRenderResults:
         # renders once as space-separated bytes "61 01 ..").
         assert text.count("61 01 ") == _RENDER_MAX_ROWS
 
+    def test_stale_entry_kept_and_marked_not_hidden(self):
+        # A timed-out PID re-shown as stale keeps its params on screen (dimmed)
+        # with a "(stale)" marker — it must NOT be hidden or shown as an error.
+        params = [("SOC_BMS", 50.0, "%", "B09/2", None, True, "")]
+        entry = {
+            "pid": "2101",
+            "params": params,
+            "raw_hex": "6101000000000000006400",
+            "stale": True,
+        }
+        results = [("BMS (0x7E4)", [entry])]
+        t = _render_results(results, verbose=False, cycle=3, elapsed=0.1, interval=5.0)
+        text = t.plain
+        assert "(stale)" in text
+        assert "SOC_BMS" in text  # params still visible, not hidden
+        # Dimmed as a unit: a "dim" span covers part of the entry.
+        assert any("dim" in str(span.style) for span in t.spans)
+
     def test_params_rendered(self):
         params = [("SOC_BMS", 50.0, "%", "B09/2", None, True, "")]
         entry = self._make_pid_result(params=params, raw_hex="6101000000000000006400")
