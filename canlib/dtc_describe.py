@@ -16,6 +16,9 @@ annotate each decoded record.
 
 from __future__ import annotations
 
+from functools import lru_cache
+from pathlib import Path
+
 CATEGORY = {
     "P": "Powertrain",
     "C": "Chassis",
@@ -88,15 +91,24 @@ def dtc_kind(letter: str, first_digit: int | None) -> str:
     }.get(first_digit, "unknown")
 
 
-def describe_dtc(code: str) -> dict:
-    """Return a structural interpretation of a formatted DTC string.
+def describe_dtc(code: str, defs: dict | None = None) -> dict:
+    """Return an interpretation of a formatted DTC string.
 
     Accepts ``"B2915-00"`` (UDS, with failure-type byte) or ``"P0420"`` (KWP /
-    no failure type). Never invents manufacturer-specific meaning — only
-    reports category, control (generic vs manufacturer), and the standardized
-    failure-type byte, plus a generic description when the code is a known
-    ISO/SAE one.
+    no failure type). Reports the standardized structural interpretation
+    (category, generic-vs-manufacturer, failure-type byte) and layers on any
+    known *meaning*: the profile's ``dtc.yaml`` definitions first, then the small
+    bundled generic (ISO/SAE) table. Manufacturer meanings are never invented —
+    they come only from those curated sources.
+
+    ``defs`` is the profile definitions mapping (``{"dtcs":…, "failure_types":…}``);
+    it defaults to the active profile's ``dtc.yaml`` (pass ``{}`` for none).
     """
+    if defs is None:
+        defs = _profile_dtc_defs()
+    profile_dtcs = defs.get("dtcs", {})
+    profile_ftb = defs.get("failure_types", {})
+
     code = (code or "").strip().upper()
     base, _, ftb_hex = code.partition("-")
     ftb = None
@@ -113,13 +125,31 @@ def describe_dtc(code: str) -> dict:
     except (IndexError, ValueError):
         first_digit = None
     kind = dtc_kind(letter, first_digit)
-    ftb_desc = FAILURE_TYPE.get(ftb) if ftb is not None else None
-    description = GENERIC_DTCS.get(base)
 
-    parts = [category, kind]
+    # Failure-type meaning: tool's standard table, then profile overrides/additions.
+    ftb_desc = None
+    if ftb is not None:
+        ftb_desc = FAILURE_TYPE.get(ftb) or profile_ftb.get(ftb)
+
+    # Code meaning: profile definition first, then the bundled generic table.
+    entry = profile_dtcs.get(base)
+    if isinstance(entry, str):
+        description = entry
+    elif isinstance(entry, dict):
+        description = entry.get("description")
+    else:
+        description = None
+    description = description or GENERIC_DTCS.get(base)
+    if description:
+        description = " ".join(description.split())  # collapse folded-YAML newlines
+
+    base_summary = description or " · ".join(
+        p for p in (category, kind) if p and p != "unknown"
+    )
+    parts = [base_summary]
     if ftb is not None and ftb != 0x00:
-        parts.append(ftb_desc or f"failure type 0x{ftb:02X}")
-    meaning = " · ".join(p for p in parts if p and p != "unknown")
+        parts.append(f"FTB 0x{ftb:02X}: {ftb_desc}" if ftb_desc else f"failure type 0x{ftb:02X}")
+    meaning = " · ".join(parts)
 
     return {
         "category": category,
@@ -129,3 +159,35 @@ def describe_dtc(code: str) -> dict:
         "description": description,
         "meaning": meaning,
     }
+
+
+def _profile_dtc_defs() -> dict:
+    """Load the active profile's dtc.yaml (cached), or {} if unavailable."""
+    try:
+        from .profile import active
+
+        return _load_dtc_defs(str(active().root / "dtc.yaml"))
+    except Exception:
+        return {}
+
+
+@lru_cache(maxsize=8)
+def _load_dtc_defs(path_str: str) -> dict:
+    """Parse a profile dtc.yaml into ``{"dtcs": {...}, "failure_types": {int: str}}``."""
+    import yaml
+
+    p = Path(path_str)
+    if not p.exists():
+        return {}
+    with open(p) as f:
+        data = yaml.safe_load(f) or {}
+
+    ftb: dict[int, str] = {}
+    for key, val in (data.get("failure_types") or {}).items():
+        try:
+            byte = key if isinstance(key, int) else int(str(key), 16)
+        except (TypeError, ValueError):
+            continue
+        ftb[byte] = val
+    dtcs = {str(k).upper(): v for k, v in (data.get("dtcs") or {}).items()}
+    return {"dtcs": dtcs, "failure_types": ftb}

@@ -1,0 +1,37 @@
+# Vehicle-specific DTC definitions for the Ioniq.
+#
+# The tool derives each code's *structural* interpretation on its own — category
+# (P/C/B/U), generic-vs-manufacturer control, and the standardized failure-type
+# byte. This file supplies the manufacturer-specific *meanings* it cannot infer.
+# Populate as codes are researched; set `verified: true` once confirmed on-car.
+#
+# Keys under `dtcs:` are the base SAE code WITHOUT the -FTB suffix (e.g. B1285,
+# not B1285-77). `failure_types:` documents suffix bytes beyond the ISO 14229 /
+# SAE J2012 set the tool already knows.
+
+dtcs:
+  C182C:
+    description: "DC fast-charge (CCS) charging / PLC communication failure"
+    ecu: PLC
+    source: >
+      canair RE — stored on the PLC (Power Line Communication) charge-control
+      module; correlated with an owner-observed DC fast-charge (DCFC) abort.
+    verified: false
+
+  B1285:
+    description: >
+      Direction Control Motor — AUTO Defog: the defog mode actuator did not
+      reach the position commanded by the A/C control module within 40 s.
+    ecu: HVAC
+    causes: >
+      poor harness contact; open/short in the motor power circuit; faulty defog
+      mode actuator; faulty A/C control module.
+    source: "https://www.dtcdecode.com/Hyundai/B1285"
+    verified: false
+
+# Failure-type byte (the DTC's -XX suffix). Standard ISO 14229 / SAE J2012 bytes
+# (e.g. 0x00 = no sub-type) are already known by the tool; entries here override
+# or add platform-specific ones.
+failure_types:
+  "0x00": "no sub-type information"          # standard (also known by the tool)
+  "0x77": "Hyundai-specific — meaning not yet determined"
