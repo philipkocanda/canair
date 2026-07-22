@@ -118,6 +118,15 @@ class SlcanTcpBus(can.BusABC):
 
         self._sock = socket.create_connection((host, port), timeout=connect_timeout)
         self._sock.setblocking(False)
+        # Disable Nagle. ISO-TP flow-control frames are tiny and latency-critical:
+        # with Nagle on, a fast/low-RTT link parks the FC frame behind the peer's
+        # delayed ACK (~40 ms), overruns the ECU's flow-control window, and aborts
+        # multi-frame responses (the largest — e.g. MCU — fail first). A slower or
+        # jittery link (WiFi) masks it, so "fast wired times out, WiFi doesn't".
+        try:
+            self._sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        except OSError:
+            pass
 
         # Open the channel: close first (idempotent), set bitrate, then open in
         # active or listen-only mode.

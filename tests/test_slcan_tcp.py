@@ -79,9 +79,13 @@ class FakeSocket:
         self.sent = bytearray()
         self._rx = list(rx_chunks)
         self.closed = False
+        self.sockopts: dict[tuple[int, int], int] = {}
 
     def setblocking(self, flag):
         pass
+
+    def setsockopt(self, level, optname, value):
+        self.sockopts[(level, optname)] = value
 
     def sendall(self, data):
         self.sent += data
@@ -116,6 +120,16 @@ class TestBus:
         # Close, bitrate S6 (500k), open O — each CR-terminated.
         assert fake.sent.decode() == "C\rS6\rO\r"
         bus.shutdown()
+
+    def test_disables_nagle(self, patched_bus):
+        # TCP_NODELAY must be set: ISO-TP flow-control frames are tiny and
+        # latency-critical; Nagle + delayed-ACK on a fast wired link aborts
+        # multi-frame responses (MCU timeouts on wired Linux, fine on WiFi).
+        import socket as _socket
+
+        _bus, fake = patched_bus
+        assert fake.sockopts.get((_socket.IPPROTO_TCP, _socket.TCP_NODELAY)) == 1
+        _bus.shutdown()
 
     def test_listen_only_uses_L(self, monkeypatch):
         fake = FakeSocket()
