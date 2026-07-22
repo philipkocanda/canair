@@ -34,7 +34,7 @@ ESC:
           source: "DID scan 2026-04-17"
           source_links: []
           verified: false
-          notes: "27 bytes. Rich data with 0x3FE0 prefix, FF blocks, 0xA9AA, 0xC0C0D4D4. Likely wheel speeds or ABS sensor data. Payload: 62C1023FE00000FFFFFFFFFFFF01010000A9AA000000C0C0D4D400"
+          notes: "26-27 bytes. 2026-04-17: 62C1023FE00000FFFFFFFFFFFF01010000A9AA000000C0C0D4D400. 2026-07-22 (READY, parked) re-scan: 62C1023FE00000FFFFFFFFFFFF010100009C9C000000C0C0D4D4 — the 16-bit word after '01010000' changed A9AA->9C9C between captures while the 0x3FE0 prefix and 0xC0C0D4D4 tail stayed constant. So that word (ISO-TP ~byte 0x0F-0x10) is a dynamic signal (candidate wheel/ABS sensor), the rest static. Needs a driving capture to decode."
   research:
     - type: decode
       target: "22C101"
@@ -49,13 +49,13 @@ ESC:
         - "captures/ — 2026-04-14"
     - type: scan
       target: "22 C101-C10F"
-      status: pending
+      status: done
       priority: P2
       prerequisite: [acc]
       notes: "ESC C1xx range scan."
     - type: scan
       target: "22 0101-010F"
-      status: pending
+      status: nrc
       priority: P2
       prerequisite: [acc]
       notes: "ESC 01xx range. 0104 = individual wheel speeds FL/FR/RL/RR per Ioniq 5."
@@ -63,7 +63,7 @@ ESC:
         - "OBDb Ioniq 5"
     - type: scan
       target: "22 F010 (on 0x730)"
-      status: pending
+      status: nrc
       priority: P2
       prerequisite: [ready]
       notes: "Ioniq 5 uses 0x730 for ESC with 22F010: 4 wheel speeds (16-bit/32), steering angle (/10), lateral/longitudinal accel, yaw rate. Try on both 0x7D1 and 0x730."

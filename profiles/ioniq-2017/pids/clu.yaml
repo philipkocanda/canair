@@ -52,27 +52,31 @@ CLU:
   research:
     - type: verify
       target: "22B002"
-      status: pending
+      status: done
       priority: P1
       prerequisite: [acc]
-      notes: "Odometer confirmed. Additional signals from e-Niro: imperial odometer (UINT24 at bix 72), range estimate, time driven, speed limit, cruise control."
+      notes: >
+        Odometer (ODOMETER = [B12:B14]) confirmed = 72982 km in READY (2026-07-22).
+        NEGATIVE result on the e-Niro extras: 22B002 returns only 15 bytes on the Ioniq
+        (62 B0 02 E0 00 00 00 00 AD 01 1D 16 00 00 00), so there is no room for the
+        imperial odometer / range / time-driven / speed-limit / cruise fields the e-Niro
+        exposes at higher offsets — they are simply not present in this DID on this car.
+        A full CLU B001-B010 scan (2026-07-22, READY) found only B001 (8B, zeros),
+        B002 (odometer) and B003 (8B, 88..01); B004+ do not respond.
       what_to_test:
-        - "Imperial odometer (byte 9, UINT24)"
-        - "Range estimate"
-        - "Speed limit display"
-        - "Cruise control info"
+        - "Imperial odometer / range / speed-limit / cruise — ABSENT (15-byte response, confirmed 2026-07-22)"
       sources:
         - "OBDb Ioniq 5 — 22B002"
         - "e-Niro reference sheet"
     - type: scan
       target: "22 B001-B010"
-      status: pending
+      status: done
       priority: P2
       prerequisite: [acc]
       notes: "CLU cluster range scan."
     - type: scan
       target: "0x7C0/0x7C1 probes"
-      status: pending
+      status: nrc
       priority: P2
       prerequisite: [acc]
       notes: "Head unit — NO DATA during deep sleep (probed 2026-04-16). May be on M-CAN bus. Retry with ACC on: scan 21 01-05, 22 B001-B010."

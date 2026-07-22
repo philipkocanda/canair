@@ -313,8 +313,8 @@ VCU:
         scan entry below — Ioniq 5 exposes drive mode / regen level there); (2) re-capture WHILE DRIVING,
         holding one mode per labelled session, or --monitor a single PID fast while cycling modes.
       what_to_test:
-        - "CAR_READY (B26:3) — OOB on 22-byte response, try with ACC on"
-        - "PARK_BRAKE (B26:5) — same OOB issue"
+        - "CAR_READY (B26:3) — DISPROVEN 2026-07-22: read 0 in full READY (car definitely ready), so B26:3 is NOT car-ready on the Ioniq (Niro offset does not transfer). VEHICLE_STATE_EV_READY (B11:3, verified) already covers this — recommend disabling CAR_READY."
+        - "PARK_BRAKE (B26:5) — read 1 in READY+Park (2026-07-22); plausible if EPB engaged but unconfirmed. B26=0x20 in the reassembled frame (not truly OOB). Needs EPB on/off contrast to verify."
         - "ECO/Sport/Normal mode — NOT in B10 upper nibble (disproven 2026-07-21 stationary); try 22 E006 or capture while driving"
         - "Regen mode (off/1/2/3) — not in any 2101/2102 byte stationary; try 22 E007 or capture while coasting/braking (regen torque only appears in motion)"
         - "ACCEL_PEDAL — Kia Soul VMCU has 'Accel Pedal Related=i' + 'Accel Pedal Depth=j/2' (%). In our 2101, B17 and B18 are 0 when truly parked (P) and active while driving — strong candidates. Press pedal while stationary in Ready to confirm which is depth (÷2 for %) and the raw-related byte."
@@ -347,7 +347,7 @@ VCU:
 
     - type: scan
       target: "22 E001-E010"
-      status: pending
+      status: nrc
       priority: P1
       prerequisite: [acc]
       notes: >
@@ -375,7 +375,7 @@ VCU:
         while driving to verify it as the true dashboard speed source.
     - type: scan
       target: "0x7E1 22 0101-0105"
-      status: pending
+      status: nrc
       priority: P3
       prerequisite: [acc]
       notes: "Powertrain address — test if anything responds."

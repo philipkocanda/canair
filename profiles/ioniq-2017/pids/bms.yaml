@@ -1590,15 +1590,28 @@ BMS:
   research:
     - type: verify
       target: "2101 extended bytes"
-      status: pending
+      status: captured
       priority: P1
       prerequisite: [ready]
-      notes: "INVERTER_CAP_VOLTAGE (B62), DRIVE_MOTOR_SPEED (B65), ISOLATION_RESISTANCE (B69) exceed 61-byte stationary payload. Check if response is longer while driving."
+      notes: >
+        2026-07-22 (READY, parked): BMS 2101 payload is 61-62 bytes (varies by state; a
+        07-21 monitor run saw 62 B). The three "extended" params are NOT out of bounds —
+        they decode within the payload: DRIVE_MOTOR_SPEED = 0 at park (plausible),
+        ISOLATION_RESISTANCE = 3000 kOhm (plausible, healthy HV isolation). BUT
+        INVERTER_CAPACITOR_VOLTAGE reads 0.10 V in READY, which is implausible — the
+        inverter DC-link cap should sit near pack voltage (~388 V) once the main relay is
+        closed (BMS_MAIN_RELAY=1). So its byte offset/scale is still wrong; the other two
+        are single-point-plausible but need a moving capture (non-zero motor speed) to verify.
+      what_to_test:
+        - "INVERTER_CAPACITOR_VOLTAGE — 0.10 V at READY is wrong (expect ~pack V); find correct byte/scale"
+        - "DRIVE_MOTOR_SPEED — 0 at park; confirm tracks motor RPM while driving (cross-check MCU 2102 [S10:S11])"
+        - "ISOLATION_RESISTANCE — 3000 kOhm plausible; confirm it varies with HV state"
       sources:
         - "decode-captures.py output"
+        - "captures/ — 2026-07-21 (62 B monitor), 2026-07-22 (READY parked)"
     - type: scan
       target: "22 BC01-BC0B"
-      status: pending
+      status: nrc
       priority: P2
       prerequisite: [ready, charging]
       notes: "ChatGPT-sourced: BC01 battery voltage, BC02 current, BC03 SoC, BC04 display SoC, BC05 charging status, BC06 temp, BC07 max cell V, BC08 min cell V, BC09 max/min cell temp, BC0A SoH, BC0B avg cell V."
@@ -1606,7 +1619,7 @@ BMS:
         - "ChatGPT"
     - type: scan
       target: "22 B002-B005"
-      status: pending
+      status: nrc
       priority: P3
       prerequisite: [ready, charging]
       notes: "ChatGPT-sourced: B002 max charge power, B003 max discharge power, B004 internal temp, B005 status flags."
@@ -1614,7 +1627,7 @@ BMS:
         - "ChatGPT"
     - type: scan
       target: "22 E003-E005"
-      status: pending
+      status: nrc
       priority: P2
       prerequisite: [ready, charging]
       notes: "E003 estimated range, E005 time to full charge (charging only)."

@@ -217,7 +217,7 @@ MCU:
       notes: "69 bytes. Discovered during charging scan. Undecoded."
     - type: scan
       target: "22 E001-E010"
-      status: pending
+      status: nrc
       priority: P1
       prerequisite: [acc]
       notes: "Ioniq 5 cross-ref: E001 ignition voltage/motor RPM/torque/phase current/temps, E009 electric water pump/oil pump."

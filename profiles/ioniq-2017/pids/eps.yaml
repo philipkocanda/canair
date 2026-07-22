@@ -37,7 +37,7 @@ EPS:
   research:
     - type: scan
       target: "22 0101-0105"
-      status: pending
+      status: done
       priority: P2
       prerequisite: [acc]
       notes: "0101 = steering wheel angle absolute (/10 deg), MDPS motor current (signed A) per Ioniq 5."

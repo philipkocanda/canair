@@ -77,6 +77,22 @@ canair pids add-research MCU --type decode --target 2102 \
     --status captured --priority P1 --prereq charging --notes "62 bytes, undecoded"
 ```
 
+**Always record the scan outcome — a discovered DID must never be lost:**
+
+- **New responding DID → register it immediately** as an `enabled: false` placeholder
+  PID in `pids/<ecu>.yaml`, with the raw payload pasted into `notes` (and an empty
+  `expression`), then add a `decode` research lead. This is the established project
+  convention (e.g. `ESC 22C102`, `EPS 220101/220102`, `CLU 22B001/B003` are all such
+  placeholders). Keeping it `enabled: false` means it is tracked and captured but stays
+  out of the generated WiCAN profile until it's actually decoded. Before adding, always
+  check whether the DID is already registered — a re-scan of a known DID should just
+  refresh the payload/notes, not create a duplicate.
+- **Negative probe (NRC / no response) → close the scan lead** with
+  `canair pids set-status <ECU> "<target>" nrc --type scan` so nobody re-probes it.
+  Use `nrc` for "probed, ECU said no / silent" and `done` for "scan complete, responders
+  found and registered". Powertrain ECUs (BMS/VCU/MCU/LDC) are KWP2000/service-21 and
+  reliably NRC every `22 xxxx` (Ioniq-5-sourced) DID — confirm once, mark `nrc`, move on.
+
 ### 4. Capture — record real payloads across states
 
 ```bash

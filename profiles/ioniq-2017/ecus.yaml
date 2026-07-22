@@ -53,6 +53,105 @@ scan_log:
       probes: 256
       state: asleep
       notes: "256 errors — likely no service 31 support without ignition"
+  # ─── 2026-07-22 read-DID (service 22) sweep, car in READY (parked) ───
+  # Goal: find live-data DIDs on ECUs previously only identity-scanned.
+  # Ranges tried per ECU noted below. All responses were NRC (alive, no such DID)
+  # unless a hit is listed. Powertrain 22-DID probes are logged in the pids/ research.
+  0x7B6:  # GSA (gear shift assembly)
+    - service: 0x22
+      range: "0101-010F,B001-B010,C001-C010,D001-D010"
+      date: 2026-07-22
+      hits: 0
+      state: ready
+      notes: "Also service 21 01-0F: all NRC. No live-data DIDs exposed via OBD — gear state is available via VCU 2101 DRIVE_MODE_* instead."
+  0x7A3:  # PSM (power seat)
+    - service: 0x22
+      range: "0101-010F,B001-B010,C001-C010,D001-D010"
+      date: 2026-07-22
+      hits: 0
+      state: ready
+      notes: "Also service 21 01-0F: all NRC. No live-data DIDs (seat position not exposed via OBD read)."
+  0x7A5:  # SKM
+    - service: 0x22
+      range: "0101-010F,B001-B010"
+      date: 2026-07-22
+      hits: "B002,B003,B005,B006,B008,B00A"
+      state: "ready, fob present"
+      notes: >
+        Re-confirmed the B0xx live-data block (already registered in pids/skm.yaml).
+        01xx all NRC. NOTE the Hyundai -1 echo: requesting B007/B009/B00B returns
+        B006/B008/B00A's data. B002 (178 B) content DIFFERS between deep-sleep (2026-04-18)
+        and READY — useful power-state contrast for decoding key/immobiliser bytes.
+  0x796:  # RCAM (rear camera)
+    - service: 0x22
+      range: "0101-010F,B001-B010,C101-C10F"
+      date: 2026-07-22
+      hits: 0
+      state: ready
+      notes: "No live-data DIDs found. Camera likely exposes only identity/diagnostics via OBD."
+  0x725:  # WPC (wireless phone charging)
+    - service: 0x22
+      range: "0101-010F,B001-B010,C101-C10F"
+      date: 2026-07-22
+      hits: 0
+      state: ready
+      notes: "No live-data DIDs found."
+  0x755:  # BSD-L (blind spot radar, left)
+    - service: 0x22
+      range: "0101-010F,B001-B010,C101-C10F"
+      date: 2026-07-22
+      hits: 0
+      state: ready
+      notes: "No live-data DIDs found (radar object data may need driving / a different range)."
+  0x7B7:  # BSD-R (blind spot radar, right)
+    - service: 0x22
+      range: "0101-010F,B001-B010,C101-C10F"
+      date: 2026-07-22
+      hits: 0
+      state: ready
+      notes: "No live-data DIDs found."
+  0x7A1:  # SWRC-L (steering wheel remote, left)
+    - service: 0x22
+      range: "0101-010F,B001-B010,C101-C10F"
+      date: 2026-07-22
+      hits: 0
+      state: ready
+      notes: "No live-data DIDs found (button states not exposed as readable DIDs)."
+  0x7A2:  # SWRC-R (steering wheel remote, right)
+    - service: 0x22
+      range: "0101-010F,B001-B010,C101-C10F"
+      date: 2026-07-22
+      hits: 0
+      state: ready
+      notes: "No live-data DIDs found."
+  0x736:  # VESS
+    - service: 0x22
+      range: "0101-010F,B001-B010,C101-C10F"
+      date: 2026-07-22
+      hits: 0
+      state: ready
+      notes: "No live-data DIDs found (VESS actuation is via IOControl, not read DIDs)."
+  0x7D0:  # SCC (smart cruise control)
+    - service: 0x22
+      range: "0101-010F,0106-0120,B001-B010"
+      date: 2026-07-22
+      hits: "0101,0102,0103,0105"
+      state: ready
+      notes: "Re-confirmed the 01xx block (already registered). 0106-0120 and B0xx all NRC."
+  0x7C4:  # MFC (ADAS camera)
+    - service: 0x22
+      range: "0101-010F,0103-0120,B001-B010"
+      date: 2026-07-22
+      hits: "0101,0102"
+      state: ready
+      notes: "Re-confirmed 0100/0101/0102 (already registered). Higher 01xx and B0xx all NRC."
+  0x7D5:  # Unknown-7D5 (candidate AHB/iBAU brake module)
+    - service: 0x22
+      range: "0101-010F,B001-B010,C101-C10F,C001-C010,D001-D010"
+      date: 2026-07-22
+      hits: "C101"
+      state: ready
+      notes: "FIRST live-data DID found — C101 (27 B), same DID as ESC. Registered in pids/unknown-7d5.yaml. All other ranges NRC."
 
 ecus:
   0x770:
@@ -271,7 +370,10 @@ ecus:
       Previously misidentified as AHB (Active Hydraulic Booster). The only identity data
       is app_sw "G7", which is just the Ioniq Electric vehicle model code (same as ESC 0x7D1),
       not an ECU identifier. No part number, no ECU ID string. Could be AHB, iBAU, or another
-      brake/chassis sub-module. Try reading 2101 for brake pressure/pedal data to narrow down.
+      brake/chassis sub-module. 2026-07-22 (READY): found its first live-data DID — 22C101
+      (27 B), the same DID ESC 0x7D1 exposes. Combined with the shared "G7" app SW and the
+      ESC/EPS-adjacent address, this reinforces the chassis/brake sub-module hypothesis.
+      See pids/unknown-7d5.yaml 22C101. 01xx/B0xx/C0xx/D0xx/service-21 all NRC.
   0x7E2:
     name: VCU # TODO: Rename to LDC? (check exposed PIDs to confirm)
     description: Vehicle Control Unit
