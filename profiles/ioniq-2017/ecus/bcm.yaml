@@ -128,9 +128,11 @@ BCM:
       enabled: false
       availability: [sleep, plugged, acc, acc2, ready, charging]
       notes: >
-        13 bytes. May contain preheat timer configuration. B03-B04=0xFCFC, B05=0xE0.
-        Relationship to departure time (480 min = 08:00 in B007) unclear. Needs retest
-        after changing preheat settings. Sample: 62B00DFCFCE00000000000AAAA.
+        13 bytes. Previously guessed as preheat timer config, but LIKELY INCORRECT:
+        B03-B05=0xFCFCE0 are constant across all captures; the only bytes that vary are
+        B07 (0x00->0x03) and B08 (0x00->0x10). Any relationship to the departure time
+        (480 min = 08:00 guessed in B007) is likewise unverified. Re-capture after changing
+        preheat settings to see whether any byte tracks. Sample: 62B00DFCFCE00000000000AAAA.
       parameters: {}
 
     22B00E:
@@ -230,21 +232,17 @@ BCM:
       availability: [sleep, plugged, acc, acc2, ready, charging]
       parameters:
         PREHEAT_DEPARTURE_TIME:
-          expression: "(B07 << 8) | B09"
+          expression: (B07 << 8) | B09
           unit: "min"
           display: "f'{int(v)//60:02d}:{int(v)%60:02d}'"
           ha_class: ""
           min: "0"
           max: "1439"
-          source: "Reverse engineered — 0x01E0 = 480 = 08:00"
+          source: Unverified pattern-match (0x01E0=480=08:00); likely incorrect, value is constant across all captures
           source_links: []
           verified: false
           notes: >
-            WIP. Minutes from midnight for departure preheat time. 0x01E0 = 480 = 08:00 matches
-            configured preheat schedule. Needs verification by changing departure time and re-reading.
-            Multi-frame response (13 bytes) — B08 is PCI byte, so can't use [B07:B09].
-            B05=0x00, B06=0x20 purpose unknown.
-
+            LIKELY INCORRECT / UNVERIFIED. Decodes to a constant 480 across all 25 captures (2026-04-15, spanning sleep/ACC/charging) and was never observed to change. 0x01E0=480=08:00 was pattern-matched, not confirmed by changing the departure time. The bytes that DO vary between captures (payload B08/B09 area) are not the ones this reads; 0x01E0 sits among static BCM config registers (cf. B008/B009), so it is probably a fixed config/format constant, not the live preheat time. Re-capture after actually changing the departure setting to see which bytes move.
     22B008:
       enabled: false
       availability: [sleep, plugged, acc, acc2, ready, charging]
@@ -285,21 +283,17 @@ BCM:
       availability: [sleep, plugged, acc, acc2, ready, charging]
       parameters:
         PREHEAT_SCHEDULE_DAYS:
-          expression: "B05"
+          expression: B05
           unit: ""
           display: "f'{int(v):07b}'"
           ha_class: ""
           min: "0"
           max: "127"
-          source: "Reverse engineered — 0x3F = 6 days set"
+          source: Unverified pattern-match (0x3F=6 days); likely incorrect, value is constant across all captures
           source_links: []
           verified: false
           notes: >
-            WIP. Day-of-week bitmask for preheat schedule. 0x3F = 0b00111111 = 6 days
-            (user has daily preheat, one day may be unset or bit 6 = Sunday excluded).
-            Bit mapping (Mon=bit0? Sun=bit6?) not yet confirmed. Needs verification by
-            toggling individual days.
-
+            LIKELY INCORRECT / UNVERIFIED. Constant 0x3F (=63) across all 23 captures and never observed to change. 0x3F=0b111111 was pattern-matched to '6 days set' but never confirmed by toggling days, and the bit mapping is unknown. Probably a static config/format byte, not the live schedule. Re-capture after changing schedule days to confirm which bytes move.
     22B001:
       enabled: false
       availability: [sleep, plugged, acc, acc2, ready, charging]
@@ -798,7 +792,7 @@ BCM:
       status: captured
       priority: P2
       prerequisite: [acc]
-      notes: "Preheat schedule. B3=0x3F (6 days set). Preheat TIME not in this DID — may be in B007 or B00D."
+      notes: "LIKELY INCORRECT. Reads B05=0x3F (=63), constant across all 23 captures; never observed to change. '6 days set' is an unverified pattern-match, likely a static config/format byte rather than the live schedule. Re-capture after toggling schedule days to find which bytes actually move."
       sources:
         - "Captured 2026-04-15"
     - type: decode
@@ -806,7 +800,7 @@ BCM:
       status: captured
       priority: P2
       prerequisite: [acc]
-      notes: "Preheat timer config. B3-B4=0xFCFC, B5=0xE0. Change preheat time and re-read to decode."
+      notes: "LIKELY NOT PREHEAT. B03-B05=0xFCFCE0 constant across all 23 captures; the only bytes that vary are B07 (0x00->0x03) and B08 (0x00->0x10). Preheat-timer interpretation is unverified and probably incorrect. Re-capture after changing preheat settings to see whether any byte tracks the change."
       sources:
         - "Captured 2026-04-15"
     - type: decode
@@ -814,7 +808,7 @@ BCM:
       status: captured
       priority: P2
       prerequisite: [acc]
-      notes: "Contains 0x01E0 = 480 = minutes from midnight for 08:00. Strong candidate for preheat departure time."
+      notes: "LIKELY INCORRECT. 0x01E0 (=480) is constant across all 25 captures and never changed; 480=08:00 is an unverified pattern-match. The bytes that vary between captures are elsewhere (payload B08/B09 area), not the 0x01E0 this reads. Probably a fixed config/format constant, not the departure time. Re-capture after changing the departure time to confirm."
       sources:
         - "Captured 2026-04-15"
     - type: decode
