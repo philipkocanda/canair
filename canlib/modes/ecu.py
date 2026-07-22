@@ -53,7 +53,7 @@ async def mode_ecu(
 
             print(f"\n  PID {pid_code}:")
 
-            response = await terminal.send_uds(pid_code)
+            response = await terminal.send_uds(pid_code, retries=1)
 
             if not response["ok"]:
                 error = response.get("error") or response.get("nrc_desc", "unknown error")

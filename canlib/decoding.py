@@ -6,6 +6,8 @@ rows. Decoded values are never persisted; they are regenerated on demand from th
 payload + PID definitions.
 """
 
+from functools import lru_cache
+
 from .expression import evaluate_expression
 from .wican_bytes import uds_hex_to_wican_bytes
 
@@ -14,6 +16,37 @@ from .wican_bytes import uds_hex_to_wican_bytes
 #   (name, value, unit, expression, error, verified, display)
 # ``value`` is None when the expression errored (``error`` holds the message).
 ParamRow = tuple[str, float | None, str, str, str | None, bool, str]
+
+# One parameter's identity for the decode cache key — everything that affects the
+# decoded row (name/expr/unit/verified/display). Hashable so it can key an LRU.
+_ParamSig = tuple[str, str, str, bool, str]
+
+
+@lru_cache(maxsize=8192)
+def _decode_cached(payload_hex: str, params_sig: tuple[_ParamSig, ...]) -> tuple[ParamRow, ...]:
+    """Decode from a hashable ``(payload_hex, param-signature)`` key.
+
+    Memoized: the monitor re-decodes the *same* payload every cycle (most Ioniq
+    PIDs are static between polls) and capture analysis replays many identical
+    payloads — caching skips the per-parameter ``evaluate_expression`` work on a
+    repeat. Pure function of its args, so the cache is always correct.
+    """
+    try:
+        wican_bytes = uds_hex_to_wican_bytes(payload_hex)
+    except Exception:
+        return ()
+
+    rows: list[ParamRow] = []
+    for name, expr, unit, verified, display in params_sig:
+        if not expr:
+            continue
+        try:
+            value = evaluate_expression(expr, wican_bytes)
+            value = round(value * 100) / 100
+            rows.append((name, value, unit, expr, None, verified, display))
+        except Exception as ex:  # surface decode errors in the table
+            rows.append((name, None, unit, expr, str(ex), verified, display))
+    return tuple(rows)
 
 
 def decode_param_rows(payload_hex: str, parameters: dict) -> list[ParamRow]:
@@ -32,24 +65,15 @@ def decode_param_rows(payload_hex: str, parameters: dict) -> list[ParamRow]:
     """
     if not parameters:
         return []
-
-    try:
-        wican_bytes = uds_hex_to_wican_bytes(payload_hex)
-    except Exception:
-        return []
-
-    rows: list[ParamRow] = []
-    for name, pdef in parameters.items():
-        expr = pdef.get("expression", "")
-        if not expr:
-            continue
-        unit = pdef.get("unit", "")
-        verified = pdef.get("verified", False)
-        display = pdef.get("display", "")
-        try:
-            value = evaluate_expression(expr, wican_bytes)
-            value = round(value * 100) / 100
-            rows.append((name, value, unit, expr, None, verified, display))
-        except Exception as ex:  # surface decode errors in the table
-            rows.append((name, None, unit, expr, str(ex), verified, display))
-    return rows
+    params_sig = tuple(
+        (
+            name,
+            pdef.get("expression", ""),
+            pdef.get("unit", ""),
+            bool(pdef.get("verified", False)),
+            pdef.get("display", ""),
+        )
+        for name, pdef in parameters.items()
+    )
+    # Copy the cached tuple into a fresh list so callers can't mutate the cache.
+    return list(_decode_cached(payload_hex, params_sig))

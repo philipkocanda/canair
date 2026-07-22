@@ -149,6 +149,26 @@ class TestRenderResults:
         t = _render_results(results, verbose=False, cycle=1, elapsed=0.1, interval=5.0)
         assert "(unmapped)" in t.plain
 
+    def test_keep_all_history_render_is_capped(self):
+        # With --keep-all, a PID can accrue thousands of payloads; the render must
+        # cap to the newest _RENDER_MAX_ROWS and summarize the rest.
+        from canlib.modes.monitor import _RENDER_MAX_ROWS
+
+        n = _RENDER_MAX_ROWS + 50
+        hexes = [f"6101{i:04X}" for i in range(n)]
+        history = [(h, f"12:{i // 60:02d}:{i % 60:02d}") for i, h in enumerate(hexes)]
+        hist = {("BMS (0x7E4)", "2101"): history}
+        entry = self._make_pid_result(pid="2101", raw_hex=hexes[-1])  # already in history
+        results = [("BMS (0x7E4)", [entry])]
+        t = _render_results(
+            results, verbose=False, cycle=5, elapsed=0.1, interval=5.0, hex_history=hist
+        )
+        text = t.plain
+        assert "50 earlier entries omitted" in text
+        # Only the newest _RENDER_MAX_ROWS payload rows are rendered (each payload
+        # renders once as space-separated bytes "61 01 ..").
+        assert text.count("61 01 ") == _RENDER_MAX_ROWS
+
     def test_params_rendered(self):
         params = [("SOC_BMS", 50.0, "%", "B09/2", None, True, "")]
         entry = self._make_pid_result(params=params, raw_hex="6101000000000000006400")
@@ -474,6 +494,21 @@ class TestControllerJournal:
         # ECU label resolved to its CAN response address (0x7E4 + 8 = 0x7EC).
         assert s["captures"][0]["ecu"] == "0x7EC"
         assert s["captures"][0]["payload"] == "6101AA"
+
+    def test_journaling_skips_dead_save_history(self, tmp_path):
+        from canlib.capture_journal import CaptureJournal
+
+        c = self._controller()
+        c.captures_dir = tmp_path
+        c.journal = CaptureJournal.open(tmp_path, label="L", source="monitor")
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
+        # Journal is the source of truth on exit → don't grow the redundant dict.
+        assert c.save_history == {}
+
+    def test_no_journal_populates_save_history(self):
+        c = self._controller()  # save=True but journal stays None (fallback path)
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
+        assert ("BMS (0x7E4)", "2101") in c.save_history
 
     def test_save_now_updates_journal_meta_not_a_second_session(self, tmp_path):
         from canlib.capture_journal import CaptureJournal

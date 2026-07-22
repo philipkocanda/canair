@@ -58,7 +58,15 @@ async def run_raw_monitor(args, host: str, port: int, bitrate: int, pids_data: d
         f"(ECUs: {', '.join(sorted(ecus))})"
     )
     bus = SlcanTcpBus(host, port=port, bitrate=bitrate)
-    client = RawUdsClient(bus, ecus, timeout=max(1.0, float(args.timeout)))
+    from ..timeouts import cli_timeout, ecu_timeouts_by_name
+
+    cli = cli_timeout(args)
+    client = RawUdsClient(
+        bus,
+        ecus,
+        timeout=(cli if cli is not None else 3.0),
+        ecu_timeouts=(None if cli is not None else ecu_timeouts_by_name(pids_data)),
+    )
     await mode_monitor(
         None,
         query_steps,
@@ -75,4 +83,8 @@ async def run_raw_monitor(args, host: str, port: int, bitrate: int, pids_data: d
         notes=args.notes,
         raw_client=client,
     )
+    if getattr(args, "timings", False):
+        from ..timing import print_timings
+
+        print_timings(client.timings, as_json=getattr(args, "json", False))
     return 0

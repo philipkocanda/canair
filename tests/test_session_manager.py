@@ -60,6 +60,15 @@ class TestOpenSession:
         assert uds_calls[1] == ("send_uds", "1003")
 
     @pytest.mark.asyncio
+    async def test_open_session_already_active_skips_resend(self):
+        t = MockTerminal()
+        sm = SessionManager(t)
+        await sm.open_session(0x770)  # first entry sends 10 03
+        await sm.open_session(0x770)  # already active -> must NOT resend
+        assert [c for c in t.calls if c == ("send_uds", "1003")] == [("send_uds", "1003")]
+        assert sm.has_session(0x770)
+
+    @pytest.mark.asyncio
     async def test_open_session_nrc_still_tracked(self):
         """Session is tracked even if ECU responds with NRC (best-effort)."""
         t = MockTerminal(
@@ -118,6 +127,32 @@ class TestKeepalive:
         header_calls = [c[1] for c in t.calls if c[0] == "set_header"]
         assert 0x770 in header_calls
         assert 0x7A5 in header_calls
+
+
+class TestMarkActive:
+    def test_mark_active_refreshes_open_session(self):
+        t = MockTerminal()
+        sm = SessionManager(t)
+        sm._sessions[0x7E2] = time.monotonic() - 10  # would be stale
+        sm.mark_active(0x7E2)
+        assert time.monotonic() - sm._sessions[0x7E2] < 1
+
+    def test_mark_active_noop_without_session(self):
+        t = MockTerminal()
+        sm = SessionManager(t)
+        sm.mark_active(0x7E2)  # no tracked session
+        assert 0x7E2 not in sm._sessions
+
+    @pytest.mark.asyncio
+    async def test_active_poll_suppresses_redundant_keepalive(self):
+        # An ECU we just polled successfully must not get a 3E00 on the next
+        # keepalive sweep (the read already reset its S3 timer).
+        t = MockTerminal()
+        sm = SessionManager(t)
+        sm._sessions[0x7E2] = time.monotonic() - 10  # stale before the poll
+        sm.mark_active(0x7E2)  # simulate a successful read
+        await sm.keepalive_stale(threshold=1.5)
+        assert ("send_command", "3E00") not in t.calls
 
 
 # --- background keepalive ---

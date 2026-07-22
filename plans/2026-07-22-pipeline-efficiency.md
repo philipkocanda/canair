@@ -173,20 +173,41 @@ exist on `SessionManager` (only `open_session`) -> `AttributeError` if the
 - On-device A/B (via Tranche 0 stats): same multi-ECU query on `home`/LAN, before
   vs after each tranche — compare timeout counts + per-PID RTT. Restore device to
   `auto_pid` after.
-- Docs pass: fix stale `pids/_meta.yaml` references in `AGENTS.md` + skills to
-  `profile.yaml` + `ecus/*.yaml` (separate small commit).
+- Docs pass: verify the profile-layout references (`profile.yaml` + `ecus/*.yaml`).
 
 ## Status
 
-- [ ] Tranche 0 — `TimingRecorder` on all 3 clients + `canair query --timings`
-      (+ `--json`) + tests.
-- [ ] Tranche 1 — retry-on-timeout (1.1); per-request poll deadlines (1.2); raw
+- [x] Tranche 0 — `TimingRecorder` on all 3 clients + `canair query --timings`
+      (+ `--json`) + tests. Smoke-tested live (BMS 2101 ≈ 120 ms over raw).
+- [x] Tranche 1 — retry-on-timeout (1.1); per-request poll deadlines (1.2); raw
       0x78 handling (1.3); timeout budget: `--timeout` flag + raw threading +
-      per-ECU `response_timeout_ms` + schema/validator (1.4); active-read keepalive
-      (1.5). Tests + on-device A/B.
-- [ ] Tranche 2 — per-cycle journal flush (2.1); bounded/viewport render (2.2);
-      decode/expression memoization (2.3); ELM monitor prime (2.4); drop dead
-      `save_history` when journaling (2.5). Tests.
-- [ ] Tranche 3 — one-shot multi-DID batching (3.1); event-loop hygiene (3.2);
-      session-entry cleanups (3.3); `ensure_session` fix (3.4). Tests.
-- [ ] Docs — profile-layout reference fix (`profile.yaml` + `ecus/*.yaml`).
+      per-ECU `response_timeout_ms` + schema (1.4); active-read keepalive (1.5).
+      Unit tests added. On-device A/B still to run.
+- [x] Tranche 2 — per-cycle journal flush (2.1); bounded/viewport render (2.2);
+      decode memoization (2.3, via payload-keyed LRU — the interpreter refactor
+      was unnecessary and higher-risk, so deferred); ELM monitor prime (2.4);
+      drop dead `save_history` when journaling (2.5). Tests.
+- [x] Tranche 3 — one-shot multi-DID batching (3.1); event-loop hygiene (3.2:
+      off-loop stack settle, redundant-ATST guard, explicit WS `open_timeout`);
+      session-entry cleanups (3.3: `open_session` already-active guard, `--param`
+      one-session-per-ECU); `ensure_session`→`open_session` fix (3.4). Tests.
+- [x] Docs — verified: `AGENTS.md` and the on-disk skills already use
+      `profile.yaml` + `ecus/*.yaml`. The stale `pids/_meta.yaml` wording was only
+      in the session-injected (cached) skill text and the stale global-install
+      `.venv` RECORD, not the tracked files — no change needed.
+
+## Deviations from the original plan (with rationale)
+
+- **1.1 retry set** narrowed to genuine single-shot reads (query/param/ecu/raw).
+  `identity` was excluded: its per-DID probe loop treats NO DATA as "unsupported"
+  (scan-like), so auto-retry would just double the cost of every unsupported DID.
+- **1.4** does NOT thread the profile-wide `response_timeout_ms` (an ELM *ATST*
+  value ≈614 ms) into the raw ISO-TP recv budget — that would *shrink* the raw
+  budget and cause more timeouts. Raw budget = `--timeout` > per-ECU
+  `response_timeout_ms` > transport default; the profile value still drives the
+  ELM ATST only.
+- **2.3** implemented as payload-keyed decode memoization (LRU); the fused
+  parse+eval interpreter was left intact (well-tested, and memoization already
+  removes repeated evaluation of unchanged payloads).
+- Per-ECU `response_timeout_ms` **mechanism** shipped; no concrete VCU/MCU values
+  were baked into the profile — set them after measuring with `--timings`.

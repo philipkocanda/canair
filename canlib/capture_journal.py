@@ -92,13 +92,27 @@ class CaptureJournal:
                 "notes": notes or "",
                 "source": source,
                 "keep_mode": keep_mode,
-            }
+            },
+            durable=True,
         )
         return journal
 
-    def _write(self, record: dict) -> None:
+    def _write(self, record: dict, *, durable: bool = False) -> None:
         assert self._fh is not None
         self._fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+        if durable:
+            self.flush()
+
+    def flush(self) -> None:
+        """Flush buffered records durably (flush + ``fsync``).
+
+        Streaming :meth:`append` is buffered (no per-record fsync); the monitor
+        calls this once per poll cycle instead, so N payloads cost one ``fsync``
+        rather than N syncs on the event loop. Worst-case loss on a hard crash is
+        the last (~1 cycle) of appends; clean exit / ``__exit__`` reconciles all.
+        """
+        if self._fh is None or self._fh.closed:
+            return
         self._fh.flush()
         try:
             os.fsync(self._fh.fileno())
@@ -108,7 +122,7 @@ class CaptureJournal:
     # -- streaming API -----------------------------------------------------
 
     def append(self, ecu_ref: str, pid: str, hex_val: str, time: str = "") -> None:
-        """Append one captured payload row (durably flushed)."""
+        """Append one captured payload row (buffered; caller flushes per cycle)."""
         rec: dict = {"type": "capture", "ecu": ecu_ref, "pid": pid, "payload": hex_val.upper()}
         if time:
             rec["time"] = time
@@ -116,7 +130,7 @@ class CaptureJournal:
 
     def append_session(self, session: dict) -> None:
         """Append a fully-built session dict (one-shot scan/raw/discover)."""
-        self._write({"type": "session", "session": session})
+        self._write({"type": "session", "session": session}, durable=True)
 
     def update_meta(
         self,
@@ -136,7 +150,7 @@ class CaptureJournal:
             rec["state"] = state
         if notes is not None:
             rec["notes"] = notes
-        self._write(rec)
+        self._write(rec, durable=True)
 
     def _close_fh(self) -> None:
         if self._fh is not None and not self._fh.closed:

@@ -23,15 +23,16 @@ import isotp
 
 from ..log import log_response
 from ..safety import enforce_command_safety
+from ..timing import TimingRecorder
 from ..uds_parse import parse_uds_response
-from .uds_raw import RESPONSE_OFFSET, is_response_pending
+from .uds_raw import (
+    PENDING_RECV_TIMEOUT,
+    PENDING_TOTAL_TIMEOUT,
+    RESPONSE_OFFSET,
+    is_response_pending,
+)
 
 logging.getLogger("isotp").setLevel(logging.ERROR)
-
-# UDS ResponsePending (NRC 0x78) handling: after a 0x78 the ECU sends its real
-# response in a follow-up frame within P2* (server) time. Wait for it, bounded.
-_PENDING_RECV_TIMEOUT = 5.0   # per follow-up recv after a 0x78
-_PENDING_TOTAL_TIMEOUT = 20.0  # overall cap while the ECU keeps saying "pending"
 
 
 class RawTerminal:
@@ -58,6 +59,10 @@ class RawTerminal:
         self.cmd_count = 0
         self.cmd_time = 0.0
         self.elm_timeout_cmd = ""
+        # Per-(ECU, PID) round-trip timing (surfaced by `canair query --timings`).
+        self.timings = TimingRecorder()
+        # Optional per-ECU response budget {tx_id: seconds} (see canlib.timeouts).
+        self.ecu_timeouts: dict[int, float] = {}
 
         self.bus = SlcanTcpBus(host, port=port, bitrate=bitrate)
         self.notifier = can.Notifier(self.bus, [], timeout=0.1)
@@ -82,7 +87,6 @@ class RawTerminal:
 
     async def set_header(self, tx_id: int) -> None:
         self._cur = tx_id
-        self._stack(tx_id)
 
     async def send_uds(
         self,
@@ -90,16 +94,23 @@ class RawTerminal:
         timeout: float | None = None,
         expected_sid: int | None = None,
         expected_did: int | None = None,
+        retries: int = 0,
     ) -> dict:
         await enforce_command_safety(service_pid, self.unsafe)
         try:
             req = bytes.fromhex(service_pid.replace(" ", ""))
         except ValueError:
             return parse_uds_response("?")
-        resp = await self._exchange(req, timeout)
-        raw = "NO DATA" if resp is None else resp.hex().upper()
-        log_response(service_pid, raw)
-        return parse_uds_response(raw, expected_sid=expected_sid, expected_did=expected_did)
+        attempt = 0
+        while True:
+            resp_bytes = await self._exchange(req, timeout)
+            raw = "NO DATA" if resp_bytes is None else resp_bytes.hex().upper()
+            log_response(service_pid, raw)
+            resp = parse_uds_response(raw, expected_sid=expected_sid, expected_did=expected_did)
+            # Retry only a non-answer (NO DATA / timeout); an NRC is definitive.
+            if resp.get("ok") or resp.get("nrc") is not None or attempt >= retries:
+                return resp
+            attempt += 1
 
     async def send_command(self, cmd: str, timeout: float | None = None) -> str:
         """AT commands are a no-op ('OK'); UDS hex is sent and returned as hex."""
@@ -172,10 +183,12 @@ class RawTerminal:
         return await self._exchange_tx(self._cur, req, timeout)
 
     async def _exchange_tx(self, tx_id: int, req: bytes, timeout: float | None):
-        st = self._stack(tx_id)
-        t = timeout if timeout is not None else self.timeout
+        t = timeout if timeout is not None else self.ecu_timeouts.get(tx_id, self.timeout)
 
         def _io():
+            # Create/settle the ISO-TP stack in the executor thread so the one-time
+            # blocking settle never stalls the event loop.
+            st = self._stack(tx_id)
             while st.available():
                 st.recv()
             st.send(req)
@@ -186,9 +199,9 @@ class RawTerminal:
             # Wait through UDS ResponsePending (0x78) so slow services (DTC reads,
             # routines) return their final answer instead of the "still working"
             # placeholder — matching the ELM327 path.
-            pending_deadline = time.monotonic() + _PENDING_TOTAL_TIMEOUT
+            pending_deadline = time.monotonic() + PENDING_TOTAL_TIMEOUT
             while is_response_pending(r) and time.monotonic() < pending_deadline:
-                nxt = st.recv(block=True, timeout=_PENDING_RECV_TIMEOUT)
+                nxt = st.recv(block=True, timeout=PENDING_RECV_TIMEOUT)
                 if nxt is None:
                     break
                 r = bytes(nxt)
@@ -199,7 +212,11 @@ class RawTerminal:
         try:
             return await asyncio.get_event_loop().run_in_executor(None, _io)
         finally:
-            self.cmd_time += time.monotonic() - t0
+            elapsed = time.monotonic() - t0
+            self.cmd_time += elapsed
+            # Record RTT for real UDS requests only (skip 3E00 keepalives).
+            if req != b"\x3e\x00":
+                self.timings.record(f"0x{tx_id:03X}", req.hex().upper(), elapsed)
 
 
 class _suppress:

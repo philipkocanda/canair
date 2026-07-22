@@ -31,18 +31,29 @@ class TestJournalBasics:
         assert meta["state"] == "ready"
         assert meta["source"] == "monitor"
 
-    def test_append_flushes_each_row(self, tmp_path):
-        j = CaptureJournal.open(tmp_path, label="L")
+    def test_append_is_buffered_and_flush_syncs_once(self, tmp_path, monkeypatch):
+        # append() is buffered (no per-row fsync); flush() syncs the whole batch
+        # once — the per-cycle durability model for the monitor.
+        import canlib.capture_journal as cj
+
+        calls = {"n": 0}
+        monkeypatch.setattr(cj.os, "fsync", lambda _fd: calls.__setitem__("n", calls["n"] + 1))
+
+        j = CaptureJournal.open(tmp_path, label="L")  # meta write is durable -> 1 fsync
+        base = calls["n"]
         j.append("0x7EC", "2101", "6101aabb", "12:00:01")
-        # Readable immediately (durably flushed) without closing.
+        j.append("0x7EC", "2102", "6102ccdd", "12:00:02")
+        assert calls["n"] == base  # no per-append fsync
+        j.flush()
+        assert calls["n"] == base + 1  # a single fsync for the batch
+
         recs = [json.loads(x) for x in j.path.read_text().splitlines()]
-        cap = recs[-1]
-        assert cap == {
+        assert recs[-1] == {
             "type": "capture",
             "ecu": "0x7EC",
-            "pid": "2101",
-            "payload": "6101AABB",
-            "time": "12:00:01",
+            "pid": "2102",
+            "payload": "6102CCDD",
+            "time": "12:00:02",
         }
 
 

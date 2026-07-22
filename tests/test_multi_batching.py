@@ -170,6 +170,8 @@ class TestBatchingExecutor:
 
         sm = _mk_sm(send_uds)
         idx = _igpm_index(multi_did=True)
-        # No batch_state (e.g. plain `canair query`, not the monitor).
+        # No batch_state passed → single reads (the _exec_query API contract; the
+        # one-shot pipeline now supplies a shared BatchState, tested via the
+        # learn→batch case above).
         asyncio.run(_exec_query(sm, "IGPM", [], idx, {}, False, return_results=True))
         assert calls == ["22BC03", "22BC06"]

@@ -59,3 +59,41 @@ class TestDecodeParamRows:
         }
         rows = decode_param_rows("62B001", params)
         assert [r[0] for r in rows] == ["A", "B", "C"]
+
+
+class TestDecodeMemoization:
+    def test_repeat_payload_served_from_cache(self, monkeypatch):
+        import canlib.decoding as dec
+
+        dec._decode_cached.cache_clear()
+        calls = {"n": 0}
+        real = dec.evaluate_expression
+
+        def counting(expr, data, V=0.0):
+            calls["n"] += 1
+            return real(expr, data, V)
+
+        monkeypatch.setattr(dec, "evaluate_expression", counting)
+        params = {"SOC": {"expression": "B1", "unit": "%"}}
+        r1 = dec.decode_param_rows("62B001", params)
+        r2 = dec.decode_param_rows("62B001", params)  # identical -> cache hit
+        assert r1 == r2
+        assert r1 is not r2  # callers get independent list copies
+        assert calls["n"] == 1  # evaluate_expression only ran on the first decode
+
+    def test_changed_payload_recomputes(self, monkeypatch):
+        import canlib.decoding as dec
+
+        dec._decode_cached.cache_clear()
+        calls = {"n": 0}
+        real = dec.evaluate_expression
+
+        def counting(expr, data, V=0.0):
+            calls["n"] += 1
+            return real(expr, data, V)
+
+        monkeypatch.setattr(dec, "evaluate_expression", counting)
+        params = {"SOC": {"expression": "B1"}}
+        dec.decode_param_rows("62B001", params)
+        dec.decode_param_rows("62B099", params)  # different payload -> miss
+        assert calls["n"] == 2

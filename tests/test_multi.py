@@ -8,6 +8,7 @@ import yaml
 
 from canlib.capture_journal import CaptureJournal
 from canlib.modes.multi import (
+    _exec_iocontrol,
     _exec_query,
     _finalize_journal,
     parse_sub_commands,
@@ -326,3 +327,42 @@ class TestFinalizeJournal:
             _finalize_journal(j, 1, None, None, None, prompt=False)
         sess = yaml.safe_load(next(tmp_path.glob("*.yaml")).read_text())["sessions"][0]
         assert sess["label"] == "prov"
+
+
+class TestExecIocontrolSession:
+    """Regression: the iocontrol pipeline step must open a session via the real
+    SessionManager API (open_session), not the non-existent ensure_session."""
+
+    def test_opens_session_when_required(self, monkeypatch):
+        from canlib.modes import multi
+
+        idx = {
+            "IGPM": {
+                "tx_id": 0x770,
+                "cmds": {
+                    "BC01": {
+                        "label": "low beam",
+                        "on": "2FBC0103",
+                        "off": "2FBC0100",
+                        "session": True,
+                        "hold": False,
+                        "verified": True,
+                        "notes": "",
+                        "discovery": False,
+                    }
+                },
+            }
+        }
+        monkeypatch.setattr(multi, "build_iocontrol_index", lambda _pids: idx)
+
+        sm = MagicMock()
+        sm.active_sessions = []  # no active session yet
+        sm.open_session = AsyncMock(return_value=True)
+        sm.keepalive_stale = AsyncMock()
+        sm.terminal = MagicMock()
+        sm.terminal.set_header = AsyncMock()
+        sm.terminal.send_uds = AsyncMock(return_value={"ok": True, "hex": "6FBC0103"})
+
+        asyncio.run(_exec_iocontrol(sm, "IGPM", "BC01", False, {}, {}, False))
+        sm.open_session.assert_awaited_once_with(0x770)
+        sm.terminal.send_uds.assert_awaited_once()
