@@ -1,13 +1,17 @@
 # Plan: SecurityAccess (0x27) hardening + pair-solver + BMS session probe
 
-Status: DONE (code + tests: 1252 passed; `canair validate pids` clean). On-car Phase 2
-(`security BCM`) and Phase 3b (BMS `--mode 81`) are the remaining user-driven steps.
-Context: `canair scan iocontrol/routines BMS` → NRC 0x11 (0x30/0x33 unimplemented in
-default session) and `10 03` → NRC 0x12 (BMS rejects the UDS extended-session mode
-byte). A generic scanner (Kingbolen) DOES actuate the battery fan, so it's reachable
-— the fan is locked behind a **manufacturer KWP2000 diagnostic session + security
-access (0x27)**, mirroring GDS. This work de-risks the 0x27 half and prepares the
-session half.
+Status: DONE — code, tests (green), and on-car Phase 2 (`security BCM`) + Phase 3b
+(BMS `--mode 81`) all completed. **Outcome: fan hunt PAUSED pending a scanner sniff**
+(see "Results so far" below): BMS exposes no `0x27`/`0x30`/`0x33` over OBD even in the
+`10 81` session; BCM `0x27` uses a non-trivial key not in our set. All results recorded
+here and in the research backlog (`canair research BMS`/`BCM`).
+
+Context (original hypothesis): `canair scan iocontrol/routines BMS` → NRC 0x11
+(0x30/0x33 unimplemented in default session) and `10 03` → NRC 0x12 (BMS rejects the
+UDS extended-session mode byte). A generic scanner (Kingbolen) DOES actuate the battery
+fan, so it's reachable — presumed locked behind a manufacturer KWP2000 session +
+security (0x27), mirroring GDS. (The results below refine this: `10 81` is accepted but
+still exposes none of `0x27`/`0x30`/`0x33`.)
 
 ## Phase 1 — harden the live SecurityAccess scanner (`modes/multi.py`)
 
