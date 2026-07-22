@@ -6,19 +6,39 @@ EPS:
   pids:
     220101:
       period: 2500
-      enabled: false
+      enabled: true
       availability: [ready]
       parameters:
-        EPS_0101_UNKNOWN:
+        EPS_0101_STEERING_UNMAPPED:
           expression: ""
           unit: ""
           ha_class: ""
           min: ""
           max: ""
-          source: "DID scan 2026-04-17"
+          source: "DID scan 2026-04-17; RE 2026-07-22 driving capture"
           source_links: []
           verified: false
-          notes: "20 bytes. Likely steering angle/torque data. Payload: 6201018F9400FFE9FFFD00000000101025010000"
+          notes: >
+            18-byte payload. Steering data lives in ISO-TP bytes 0x03-0x0A
+            (WiCAN B05,B06,B07,B09,B10,B11,B12,B13). During the 2026-07-22 drive
+            (lots of steering both directions) this region swings both signs and
+            settles near constant at standstill, but exact pairing/endianness/scale
+            is NOT yet resolved: B10 holds a stable ~0xA8 at rest and wraps while
+            driving (candidate absolute-angle low byte); B12 is a signed byte ~0 at
+            rest with +-127 swings while driving (candidate steering torque/rate).
+            The +-256 flips seen when treating B10:B11 or B12:B13 as a single 16-bit
+            LE value show they are NOT clean little-endian pairs. Needs a controlled
+            capture (see research entry) to pin down angle vs torque vs MDPS current.
+            B14 = vehicle speed (decoded). B18/B19 tail = 0x1010 constant.
+        VEHICLE_SPEED:
+          expression: B14
+          unit: km/h
+          min: "0"
+          max: "250"
+          source: RE 2026-07-22 driving capture
+          verified: true
+          notes: >
+            EPS-side vehicle speed echo (speed-dependent steering assist). ISO-TP 0x0B. Tracks ESC REAL_SPEED_KMH within +-1 km/h across 0-39 km/h drive; 0 at standstill.
     220102:
       period: 2500
       enabled: false
@@ -44,3 +64,30 @@ EPS:
       sources:
         - "OBDb Ioniq 5"
         - "OpenDBC fingerprints confirm EPS at 0x7D4"
+    - type: decode
+      target: "220101"
+      status: captured
+      priority: P1
+      prerequisite: [ready]
+      notes: >
+        Resolve steering ANGLE vs TORQUE/rate vs MDPS current in bytes B05-B13.
+        From the 2026-07-22 drive (lots of steering both directions): B10 holds a
+        stable ~0xA8 at standstill and wraps while driving (candidate absolute-angle
+        low byte); B12 is a signed byte ~0 at rest with +-127 swings while driving
+        (candidate steering torque or rate). Treating B10:B11 or B12:B13 as a single
+        16-bit LE value produces +-256 flips at standstill, so they are NOT clean
+        little-endian pairs — the region interleaves multiple signals. VEHICLE_SPEED
+        (B14) already decoded.
+      what_to_test:
+        - "Absolute steering angle byte(s) + scaling (Ioniq5 ref /10 deg)"
+        - "MDPS motor current (signed A) location"
+        - "Steering torque/rate sign convention"
+      sources:
+        - "captures/2026-07-22.yaml — driving capture, lots of steering"
+        - "OBDb Ioniq 5"
+      capture_protocol: >
+        Car stationary in ACC/ready. Hold wheel steady ~5s at each of: centre,
+        quarter-turn left, quarter-turn right, full-lock left, full-lock right;
+        then a slow lock-to-lock sweep. Save each with --label/--state, then
+        'canair decode EPS 220101 --plot' to sweep u16/i16 x endianness and read
+        off scaling.
