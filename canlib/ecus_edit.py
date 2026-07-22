@@ -22,6 +22,7 @@ from pathlib import Path
 from ruamel.yaml.comments import CommentedMap
 from ruamel.yaml.scalarint import HexCapsInt
 
+from .yaml_rt import detect_sequence_indent as _detect_seq
 from .yaml_rt import dump as _dump
 from .yaml_rt import round_trip_yaml as _yaml
 
@@ -146,9 +147,14 @@ def _new_entry(fields: dict) -> CommentedMap:
 
 
 def _safe_write(path: Path, original: str | None, data) -> None:
-    """Write ``data``, then re-parse + schema-validate; revert on failure."""
+    """Write ``data``, then re-parse + schema-validate; revert on failure.
+
+    Block-sequence indentation is matched to the file's existing style (ecus.yaml
+    indents the dash 4/2) so an edit never reflows unrelated ``scan_log`` blocks.
+    """
+    seq_off = _detect_seq(original or "") or (4, 2)
     with open(path, "w") as f:
-        _dump(data, f)
+        _dump(data, f, sequence=seq_off[0], offset=seq_off[1])
     try:
         from .commands.validate import validate_ecus_file
 
