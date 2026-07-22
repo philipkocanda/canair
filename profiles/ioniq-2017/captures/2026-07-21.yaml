@@ -4088,3 +4088,110 @@ sessions:
     pid: 22C102
     payload: 62C1023FE00000FFFFFFFFFFFF010100009C9C000000C0C0D4D4
     time: '23:19:05.396'
+- date: '2026-07-21'
+  label: READY powertrain reference (parked, not charging)
+  state: ready, parked, not charging
+  notes: Fully powered/READY, parked, ~SOC90%. For verify/decode of MCU 2101 temps, VCU 2101/2102, LDC 2101, motor RPM at rest.
+  captures:
+  - ecu: '0x7EC'
+    pid: '2101'
+    payload: 6101FFFFFFFFB424A426480300050F30141314141313130014CA3DCA0100009100055FF700055DAD0001F29D0001E2C90151B0E90D01840000000003E8
+  - ecu: '0x7EC'
+    pid: '2105'
+    payload: 6105FFFFFFFF00000000001313131313141424A42648000150131303E80203E801BC0029000000000000000000
+  - ecu: '0x7EB'
+    pid: '2101'
+    payload: 6101000003FF0C3800D09756390000000A002B023F045939490049006EFF
+  - ecu: '0x7EB'
+    pid: '2102'
+    payload: 610207FFFFFF00000000000022000A0E0F10F7FFF8FF7DD6CDABC2CD6B0043FD3000C607F726F606C1CD0900753100000000000000000000
+  - ecu: '0x7EA'
+    pid: '2101'
+    payload: 6101FFE0000009215A54063E0300000000E376340420
+  - ecu: '0x7EA'
+    pid: '2102'
+    payload: 6102F8F8000001010000009411C285CE398D06CF977739
+  - ecu: '0x7ED'
+    pid: '2101'
+    payload: 6101FFFFF8000002A001B7032100007F003301BD05AD4100000000000D0000600000000001F39808023D0000
+- date: '2026-07-21'
+  label: READY body/chassis reference (parked)
+  state: ready, parked, not charging
+  notes: Fully powered/READY, parked. For ESC 22C101 speed/wheel decode, HVAC 220100 temps verify, CLU 22B002 odometer + extras verify.
+  captures:
+  - ecu: '0x7D9'
+    pid: 22C101
+    payload: 62C1015BD7E760FFFF00FF01ECFF00000000FF80FF0030F4000000FFFF803107FE07FBFFFF0000FFFFFF
+  - ecu: '0x7BB'
+    pid: '220100'
+    payload: 6201007E5007C8FF787274002F4AFFFF49FF10FFFFFFFFFFFFFFFFFF45D7757500FFFF00FFFF
+  - ecu: '0x7CE'
+    pid: 22B002
+    payload: 62B002E000000000AD011D16000000
+- date: '2026-07-21'
+  label: ESC 22 C101-C10F scan (READY)
+  state: ready, parked
+  captures:
+  - ecu: '0x7D9'
+    pid: scan 22 C101-C10F
+    scan_results:
+      responding:
+      - did: C101
+        response: 42 bytes
+        notes: 'Raw: 62C1015BD7E760FFFF00FF01EBFF00000000FF80FF0030F4000000FFFF803107FD07FBFFFF0000FF...'
+      - did: C102
+        response: 26 bytes
+        notes: 'Raw: 62C1023FE00000FFFFFFFFFFFF010100009C9C000000C0C0D4D4'
+      rejected: 13 DIDs returned 13 NRC
+- date: '2026-07-21'
+  label: ESC 22 0101-010F scan (READY)
+  state: ready, parked
+  captures:
+  - ecu: '0x7D9'
+    pid: scan 22 0101-010F
+    scan_results:
+      rejected: 15 DIDs returned 15 NRC
+- date: '2026-07-21'
+  label: EPS 22 0101-010F scan (READY)
+  state: ready, parked
+  notes: Steering angle/MDPS current per Ioniq5 cross-ref
+  captures:
+  - ecu: '0x7DC'
+    pid: scan 22 0101-010F
+    scan_results:
+      responding:
+      - did: '0101'
+        response: 18 bytes
+        notes: 'Raw: 620101939800FFCFFFFA0000000010102201'
+      - did: '0102'
+        response: 8 bytes
+        notes: 'Raw: 6201020000000300'
+      rejected: 13 DIDs returned 13 NRC
+- date: '2026-07-21'
+  label: CLU 22 B001-B010 scan (READY)
+  state: ready, parked
+  notes: Cluster range scan; B002 odometer known
+  captures:
+  - ecu: '0x7CE'
+    pid: scan 22 B001-B010
+    scan_results:
+      responding:
+      - did: B001
+        response: 8 bytes
+        notes: 'Raw: 62B0010000000000'
+      - did: B002
+        response: 15 bytes
+        notes: 'Raw: 62B002E000000000AD011D16000000'
+      - did: B003
+        response: 8 bytes
+        notes: 'Raw: 62B0038800000001'
+      rejected: 13 DIDs returned 13 errors
+- date: '2026-07-21'
+  label: Head-unit 0x7C0 22 B001-B005 probe (READY)
+  state: ready, parked
+  notes: Retry with power on; was NO DATA in deep sleep
+  captures:
+  - ecu: '0x7C8'
+    pid: scan 22 B001-B005
+    scan_results:
+      rejected: 5 DIDs returned 5 errors

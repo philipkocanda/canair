@@ -597,7 +597,11 @@ IGPM:
       status: captured
       priority: P1
       prerequisite: [sleep, plugged, acc, acc2, ready, charging]
-      notes: "Captured 2026-04-14, not decoded. Compare with BC03/BC04 structure."
+      notes: >
+        Data bytes = 40 00 00 00 00 02. 2026-07-22 (READY, ignition on) contrast vs the
+        deep-sleep 2026-04-14/16 captures: IDENTICAL data (only ISO-TP padding length
+        differs) — so BC01 is static config, NOT dynamic body state. Low value for
+        state monitoring; revisit only if a byte moves in some untested state (e.g. charging).
       sources:
         - "captures/ — 2026-04-14"
     - type: decode
@@ -605,7 +609,10 @@ IGPM:
       status: captured
       priority: P1
       prerequisite: [sleep, plugged, acc, acc2, ready, charging]
-      notes: "Captured 2026-04-14, not decoded."
+      notes: >
+        All data bytes zero (62 BC 02 00 00 00 00). 2026-07-22 (READY) contrast: still
+        all zeros — constant across deep-sleep and READY, carries no observable signal.
+        Deprioritize unless a value appears in a charging/plugged state.
       sources:
         - "captures/ — 2026-04-14"
     - type: decode
@@ -613,7 +620,10 @@ IGPM:
       status: captured
       priority: P1
       prerequisite: [sleep, plugged, acc, acc2, ready, charging]
-      notes: "Captured 2026-04-14, not decoded."
+      notes: >
+        Data bytes = 7F 11 20 00 00 00 00 00. 2026-07-22 (READY) contrast: IDENTICAL to
+        the deep-sleep 2026-04-14/16 captures (only padding differs) — static config,
+        not dynamic state. Low value for monitoring.
       sources:
         - "captures/ — 2026-04-14"
     - type: decode
@@ -621,7 +631,11 @@ IGPM:
       status: captured
       priority: P2
       prerequisite: [sleep, plugged, acc, acc2, ready, charging]
-      notes: "Captured 2026-04-14, not decoded."
+      notes: >
+        Data = 08 41 FB CC 00 00 <b9> 00. Byte 9 varies (0x19 in deep-sleep & READY
+        2026-07-22, 0x11 on 2026-04-17) — the CHARGE_PORT_LOCK/ACC2_RELATED bits already
+        defined against it. Remaining bytes (08 41 FB CC) static across states so far;
+        needs a charging capture to see the charge-port bits toggle.
       sources:
         - "captures/ — 2026-04-14"
     - type: decode

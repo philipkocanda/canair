@@ -351,10 +351,14 @@ SKM:
       notes: >
         136 bytes — biggest payload of any ECU. Likely contains key fob presence/RSSI,
         immobilizer state, button presses. Capture with key removed for diff.
+        2026-07-22: captured a READY (fob-present) contrast — the B002 payload DIFFERS from
+        the 2026-04-18 deep-sleep capture (bytes ~7-13 shifted: sleep 14 32 00 07 12 0A 00 vs
+        READY 3C 0A 46 2C 3F 75 FE), so several bytes track power/ignition state. Best next
+        step remains a key-removed capture to isolate the fob-presence byte(s).
       what_to_test:
-        - "Key in car vs key removed — diff B002 payload"
+        - "Key in car vs key removed — diff B002 payload (the key isolation test — still pending)"
         - "Key near vs far — check for RSSI bytes"
-        - "During ACC/ready — compare states"
+        - "During ACC/ready — compare states (partial: sleep vs READY captured 2026-07-22, bytes 7-13 move)"
     - type: verify
       target: "2FB109"
       status: pending

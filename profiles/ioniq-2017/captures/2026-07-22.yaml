@@ -3788,3 +3788,598 @@ sessions:
     pid: 21F2
     payload: 61F2FF00000008AB67995C741A1D01D2CF0300000000000011018CFB6E00060BE121CB65F30102005E0000000000000001000000000000000000000000005B0010030000000000000000000000000000000036303030
     time: '09:07:43.600'
+- date: '2026-07-22'
+  label: MCU 22 E001-E010 probe (READY)
+  state: ready, parked
+  notes: Ioniq5 cross-ref; expect NRC (Ioniq 2017 MCU is KWP2000/service 21)
+  captures:
+  - ecu: '0x7EB'
+    pid: scan 22 E001-E010
+    scan_results:
+      rejected: 16 DIDs returned 16 NRC
+- date: '2026-07-22'
+  label: VCU 22 E001-E010 probe (READY)
+  state: ready, parked
+  notes: Ioniq5 cross-ref; expect NRC (VCU is KWP2000/service 21)
+  captures:
+  - ecu: '0x7EA'
+    pid: scan 22 E001-E010
+    scan_results:
+      rejected: 16 DIDs returned 16 NRC
+- date: '2026-07-22'
+  label: BMS 22 BC01-BC0B probe (READY)
+  state: ready, parked
+  notes: ChatGPT-sourced DIDs; expect NRC (BMS is KWP2000/service 21)
+  captures:
+  - ecu: '0x7EC'
+    pid: scan 22 BC01-BC0B
+    scan_results:
+      rejected: 11 DIDs returned 11 NRC
+- date: '2026-07-22'
+  label: BMS 22 E003-E005 probe (READY)
+  state: ready, parked
+  notes: range/time-to-full; expect NRC
+  captures:
+  - ecu: '0x7EC'
+    pid: scan 22 E003-E005
+    scan_results:
+      rejected: 3 DIDs returned 3 NRC
+- date: '2026-07-22'
+  label: BMS 22 B002-B005 probe (READY)
+  state: ready, parked
+  notes: ChatGPT-sourced; expect NRC
+  captures:
+  - ecu: '0x7EC'
+    pid: scan 22 B002-B005
+    scan_results:
+      rejected: 4 DIDs returned 4 NRC
+- date: '2026-07-22'
+  label: BCM 22 B001-B010 scan (READY)
+  state: ready, parked
+  notes: Body/preheat pages incl B007/B00C/B00D preheat DIDs, fresh READY capture
+  captures:
+  - ecu: '0x7A8'
+    pid: scan 22 B001-B010
+    scan_results:
+      responding:
+      - did: B001
+        response: 20 bytes
+        notes: 'Raw: 62B00140C0000000010000000000000201000000'
+      - did: B002
+        response: 9 bytes
+        notes: 'Raw: 62B002C00000000200'
+      - did: B003
+        response: 24 bytes
+        notes: 'Raw: 62B003BF8B8000B53D09B2F9F8F9F73DF80000B700B6B7B7'
+      - did: B004
+        response: 11 bytes
+        notes: 'Raw: 62B0047402990C0E008000'
+      - did: B005
+        response: 11 bytes
+        notes: 'Raw: 62B0052000100008000800'
+      - did: B006
+        response: 11 bytes
+        notes: 'Raw: 62B0062000000000000000'
+      - did: B007
+        response: 11 bytes
+        notes: 'Raw: 62B007002001E000040000'
+      - did: B008
+        response: 11 bytes
+        notes: 'Raw: 62B00800510C2000880004'
+      - did: B009
+        response: 11 bytes
+        notes: 'Raw: 62B009FEEEFEEE08000800'
+      - did: B00A
+        response: 11 bytes
+        notes: 'Raw: 62B00AE3FEE3000040C500'
+      - did: B00C
+        response: 11 bytes
+        notes: 'Raw: 62B00C3F00000000000000'
+      - did: B00D
+        response: 11 bytes
+        notes: 'Raw: 62B00DFCFCE00000000000'
+      - did: B00E
+        response: 11 bytes
+        notes: 'Raw: 62B00E0C00000000000000'
+      rejected: 3 DIDs returned 3 NRC
+- date: '2026-07-22'
+  label: SKM 22B002 (READY, fob present)
+  state: ready, parked, fob present
+  notes: 136-byte smart key payload; fob is present (car is READY). Baseline for key-present state.
+  captures:
+  - ecu: '0x7AD'
+    pid: 22B002
+    payload: 62B002000000003C0A462C3F75FEFF1EC89664FA14323205061403073246141E1E1E2C3F75FE00000000FFFAC896649612080F0A14100AC864030F3CC8146428081010031E326464C800000000051E1EC4BCC81E1E050A1E031680100F10E0051003050A0A0A1E0F6414C48C0000000014320007120A0A1910E016800403320503090A1E32320205320F00140000000000000000000000000001020000001000000000000000000000000000000000000000
+- date: '2026-07-22'
+  label: IGPM BC01-BC07 (READY, ignition on)
+  state: ready, parked, ignition on
+  notes: Fully powered/READY contrast vs prior deep-sleep BC0x captures. Doors closed, locked, lights off.
+  captures:
+  - ecu: '0x778'
+    pid: 22BC01
+    payload: 62BC01400000000002
+  - ecu: '0x778'
+    pid: 22BC02
+    payload: 62BC0200000000
+  - ecu: '0x778'
+    pid: 22BC03
+    payload: 62BC03FDEE3C7300600000
+  - ecu: '0x778'
+    pid: 22BC04
+    payload: 62BC04B53FF4EA01000042
+  - ecu: '0x778'
+    pid: 22BC05
+    payload: 62BC057F11200000000000
+  - ecu: '0x778'
+    pid: 22BC06
+    payload: 62BC06B480000000000000
+  - ecu: '0x778'
+    pid: 22BC07
+    payload: 62BC070841FBCC00001900
+- date: '2026-07-22'
+  label: GSA 22 0101-010F scan (READY)
+  state: ready, parked
+  notes: Gear shift assembly / gear selector - first-ever PID scan
+  captures:
+  - ecu: '0x7BE'
+    pid: scan 22 0101-010F
+    scan_results:
+      rejected: 15 DIDs returned 15 NRC
+- date: '2026-07-22'
+  label: PSM 22 0101-010F scan (READY)
+  state: ready, parked
+  notes: First-ever live-data PID scan
+  captures:
+  - ecu: '0x7AB'
+    pid: scan 22 0101-010F
+    scan_results:
+      rejected: 15 DIDs returned 15 NRC
+- date: '2026-07-22'
+  label: SKM 22 0101-010F scan (READY)
+  state: ready, parked
+  notes: First-ever live-data PID scan
+  captures:
+  - ecu: '0x7AD'
+    pid: scan 22 0101-010F
+    scan_results:
+      rejected: 15 DIDs returned 15 NRC
+- date: '2026-07-22'
+  label: SCC 22 0101-010F scan (READY)
+  state: ready, parked
+  notes: First-ever live-data PID scan
+  captures:
+  - ecu: '0x7D8'
+    pid: scan 22 0101-010F
+    scan_results:
+      responding:
+      - did: '0101'
+        response: 6 bytes
+        notes: 'Raw: 620101081401'
+      - did: '0102'
+        response: 6 bytes
+        notes: 'Raw: 6201020D000C'
+      - did: '0103'
+        response: 7 bytes
+        notes: 'Raw: 62010328543521'
+      - did: '0105'
+        response: 5 bytes
+        notes: 'Raw: 6201050307'
+      rejected: 11 DIDs returned 11 NRC
+- date: '2026-07-22'
+  label: MFC 22 0101-010F scan (READY)
+  state: ready, parked
+  notes: First-ever live-data PID scan
+  captures:
+  - ecu: '0x7CC'
+    pid: scan 22 0101-010F
+    scan_results:
+      responding:
+      - did: '0101'
+        response: 4 bytes
+        notes: 'Raw: 620101FE'
+      - did: '0102'
+        response: 7 bytes
+        notes: 'Raw: 620102FB010008'
+      rejected: 13 DIDs returned 13 NRC
+- date: '2026-07-22'
+  label: RCAM 22 0101-010F scan (READY)
+  state: ready, parked
+  notes: First-ever live-data PID scan
+  captures:
+  - ecu: '0x79E'
+    pid: scan 22 0101-010F
+    scan_results:
+      rejected: 15 DIDs returned 15 NRC
+- date: '2026-07-22'
+  label: WPC 22 0101-010F scan (READY)
+  state: ready, parked
+  notes: First-ever live-data PID scan
+  captures:
+  - ecu: '0x72D'
+    pid: scan 22 0101-010F
+    scan_results:
+      rejected: 15 DIDs returned 15 NRC
+- date: '2026-07-22'
+  label: BSD-L 22 0101-010F scan (READY)
+  state: ready, parked
+  notes: First-ever live-data PID scan
+  captures:
+  - ecu: '0x75D'
+    pid: scan 22 0101-010F
+    scan_results:
+      rejected: 15 DIDs returned 15 NRC
+- date: '2026-07-22'
+  label: BSD-R 22 0101-010F scan (READY)
+  state: ready, parked
+  notes: First-ever live-data PID scan
+  captures:
+  - ecu: '0x7BF'
+    pid: scan 22 0101-010F
+    scan_results:
+      rejected: 15 DIDs returned 15 NRC
+- date: '2026-07-22'
+  label: SWRC-L 22 0101-010F scan (READY)
+  state: ready, parked
+  notes: First-ever live-data PID scan
+  captures:
+  - ecu: '0x7A9'
+    pid: scan 22 0101-010F
+    scan_results:
+      rejected: 15 DIDs returned 15 NRC
+- date: '2026-07-22'
+  label: SWRC-R 22 0101-010F scan (READY)
+  state: ready, parked
+  notes: First-ever live-data PID scan
+  captures:
+  - ecu: '0x7AA'
+    pid: scan 22 0101-010F
+    scan_results:
+      rejected: 15 DIDs returned 15 NRC
+- date: '2026-07-22'
+  label: VESS 22 0101-010F scan (READY)
+  state: ready, parked
+  notes: First-ever live-data PID scan
+  captures:
+  - ecu: '0x73E'
+    pid: scan 22 0101-010F
+    scan_results:
+      rejected: 15 DIDs returned 15 NRC
+- date: '2026-07-22'
+  label: 7D5 22 0101-010F scan (READY)
+  state: ready, parked
+  notes: First-ever live-data PID scan
+  captures:
+  - ecu: '0x7DD'
+    pid: scan 22 0101-010F
+    scan_results:
+      rejected: 15 DIDs returned 15 NRC
+- date: '2026-07-22'
+  label: GSA 22 B001-B010 scan (READY)
+  state: ready, parked
+  notes: Live-data PID scan (B0xx range)
+  captures:
+  - ecu: '0x7BE'
+    pid: scan 22 B001-B010
+    scan_results:
+      rejected: 16 DIDs returned 16 NRC
+- date: '2026-07-22'
+  label: PSM 22 B001-B010 scan (READY)
+  state: ready, parked
+  notes: Live-data PID scan (B0xx range)
+  captures:
+  - ecu: '0x7AB'
+    pid: scan 22 B001-B010
+    scan_results:
+      rejected: 16 DIDs returned 16 NRC
+- date: '2026-07-22'
+  label: SKM 22 B001-B010 scan (READY)
+  state: ready, parked
+  notes: Live-data PID scan (B0xx range)
+  captures:
+  - ecu: '0x7AD'
+    pid: scan 22 B001-B010
+    scan_results:
+      responding:
+      - did: B003
+        response: 25 bytes
+        notes: 'Raw: 62B003000000003412900300000000C6A21261000000000F00'
+      - did: B006
+        response: 11 bytes
+        notes: 'Raw: 62B005FA6090001C04C001'
+      - did: B007
+        response: 17 bytes
+        notes: 'Raw: 62B0071E7FB80000E600007FFF00000000'
+      - did: B008
+        response: 17 bytes
+        notes: 'Raw: 62B0080000000000000009000000000000'
+      - did: B009
+        response: 33 bytes
+        notes: 'Raw: 62B009000000000000000000000000000000000000000000000000000000000000'
+      - did: B00A
+        response: 19 bytes
+        notes: 'Raw: 62B00A0100F038000501080600000021010000'
+      - did: B00B
+        response: 52 bytes
+        notes: 'Raw: 62B00B8000000002000000000000000000000004040041193E000100000200000070010000000000...'
+      rejected: 9 DIDs returned 9 NRC
+- date: '2026-07-22'
+  label: RCAM 22 B001-B010 scan (READY)
+  state: ready, parked
+  notes: Live-data PID scan (B0xx range)
+  captures:
+  - ecu: '0x79E'
+    pid: scan 22 B001-B010
+    scan_results:
+      rejected: 16 DIDs returned 16 NRC
+- date: '2026-07-22'
+  label: WPC 22 B001-B010 scan (READY)
+  state: ready, parked
+  notes: Live-data PID scan (B0xx range)
+  captures:
+  - ecu: '0x72D'
+    pid: scan 22 B001-B010
+    scan_results:
+      rejected: 16 DIDs returned 16 NRC
+- date: '2026-07-22'
+  label: BSD-L 22 B001-B010 scan (READY)
+  state: ready, parked
+  notes: Live-data PID scan (B0xx range)
+  captures:
+  - ecu: '0x75D'
+    pid: scan 22 B001-B010
+    scan_results:
+      rejected: 16 DIDs returned 16 NRC
+- date: '2026-07-22'
+  label: BSD-R 22 B001-B010 scan (READY)
+  state: ready, parked
+  notes: Live-data PID scan (B0xx range)
+  captures:
+  - ecu: '0x7BF'
+    pid: scan 22 B001-B010
+    scan_results:
+      rejected: 16 DIDs returned 16 NRC
+- date: '2026-07-22'
+  label: SWRC-L 22 B001-B010 scan (READY)
+  state: ready, parked
+  notes: Live-data PID scan (B0xx range)
+  captures:
+  - ecu: '0x7A9'
+    pid: scan 22 B001-B010
+    scan_results:
+      rejected: 16 DIDs returned 16 NRC
+- date: '2026-07-22'
+  label: SWRC-R 22 B001-B010 scan (READY)
+  state: ready, parked
+  notes: Live-data PID scan (B0xx range)
+  captures:
+  - ecu: '0x7AA'
+    pid: scan 22 B001-B010
+    scan_results:
+      rejected: 16 DIDs returned 16 NRC
+- date: '2026-07-22'
+  label: VESS 22 B001-B010 scan (READY)
+  state: ready, parked
+  notes: Live-data PID scan (B0xx range)
+  captures:
+  - ecu: '0x73E'
+    pid: scan 22 B001-B010
+    scan_results:
+      rejected: 16 DIDs returned 16 NRC
+- date: '2026-07-22'
+  label: 7D5 22 B001-B010 scan (READY)
+  state: ready, parked
+  notes: Live-data PID scan (B0xx range)
+  captures:
+  - ecu: '0x7DD'
+    pid: scan 22 B001-B010
+    scan_results:
+      rejected: 16 DIDs returned 16 NRC
+- date: '2026-07-22'
+  label: SCC 22 B001-B010 scan (READY)
+  state: ready, parked
+  notes: Live-data PID scan (B0xx range)
+  captures:
+  - ecu: '0x7D8'
+    pid: scan 22 B001-B010
+    scan_results:
+      rejected: 16 DIDs returned 16 NRC
+- date: '2026-07-22'
+  label: MFC 22 B001-B010 scan (READY)
+  state: ready, parked
+  notes: Live-data PID scan (B0xx range)
+  captures:
+  - ecu: '0x7CC'
+    pid: scan 22 B001-B010
+    scan_results:
+      rejected: 16 DIDs returned 16 NRC
+- date: '2026-07-22'
+  label: SKM 22 B001-B010 scan (READY)
+  state: ready, parked, fob present
+  notes: Smart Key Module live-data range map
+  captures:
+  - ecu: '0x7AD'
+    pid: scan 22 B001-B010
+    scan_results:
+      responding:
+      - did: B002
+        response: 178 bytes
+        notes: 'Raw: 62B002000000003C0A462C3F75FEFF1EC89664FA14323205061403073246141E1E1E2C3F75FE0000...'
+      - did: B003
+        response: 25 bytes
+        notes: 'Raw: 62B003000000003412900300000000C6A21261000000000F00'
+      - did: B005
+        response: 11 bytes
+        notes: 'Raw: 62B005FA6090001C04C001'
+      - did: B007
+        response: 23 bytes
+        notes: 'Raw: 62B006AFE00000B70000000000B7B7B700B70000000000'
+      - did: B009
+        response: 17 bytes
+        notes: 'Raw: 62B0080000000000000009000000000000'
+      - did: B00B
+        response: 19 bytes
+        notes: 'Raw: 62B00A0100F038000501080600000021010000'
+      rejected: 10 DIDs returned 10 NRC
+- date: '2026-07-22'
+  label: SCC 22 0106-0120 scan (READY)
+  state: ready, parked
+  notes: Extend SCC 01xx range
+  captures:
+  - ecu: '0x7D8'
+    pid: scan 22 0106-0120
+    scan_results:
+      rejected: 27 DIDs returned 27 NRC
+- date: '2026-07-22'
+  label: MFC 22 0103-0120 scan (READY)
+  state: ready, parked
+  notes: Extend MFC 01xx range
+  captures:
+  - ecu: '0x7CC'
+    pid: scan 22 0103-0120
+    scan_results:
+      rejected: 30 DIDs returned 30 NRC
+- date: '2026-07-22'
+  label: GSA 22 C101-C10F scan (READY)
+  state: ready, parked
+  captures:
+  - ecu: '0x7BE'
+    pid: scan 22 C101-C10F
+    scan_results:
+      rejected: 15 DIDs returned 15 NRC
+- date: '2026-07-22'
+  label: PSM 22 C101-C10F scan (READY)
+  state: ready, parked
+  captures:
+  - ecu: '0x7AB'
+    pid: scan 22 C101-C10F
+    scan_results:
+      rejected: 15 DIDs returned 15 NRC
+- date: '2026-07-22'
+  label: RCAM 22 C101-C10F scan (READY)
+  state: ready, parked
+  captures:
+  - ecu: '0x79E'
+    pid: scan 22 C101-C10F
+    scan_results:
+      rejected: 15 DIDs returned 15 NRC
+- date: '2026-07-22'
+  label: WPC 22 C101-C10F scan (READY)
+  state: ready, parked
+  captures:
+  - ecu: '0x72D'
+    pid: scan 22 C101-C10F
+    scan_results:
+      rejected: 15 DIDs returned 15 NRC
+- date: '2026-07-22'
+  label: BSD-L 22 C101-C10F scan (READY)
+  state: ready, parked
+  captures:
+  - ecu: '0x75D'
+    pid: scan 22 C101-C10F
+    scan_results:
+      rejected: 15 DIDs returned 15 NRC
+- date: '2026-07-22'
+  label: BSD-R 22 C101-C10F scan (READY)
+  state: ready, parked
+  captures:
+  - ecu: '0x7BF'
+    pid: scan 22 C101-C10F
+    scan_results:
+      rejected: 15 DIDs returned 15 NRC
+- date: '2026-07-22'
+  label: SWRC-L 22 C101-C10F scan (READY)
+  state: ready, parked
+  captures:
+  - ecu: '0x7A9'
+    pid: scan 22 C101-C10F
+    scan_results:
+      rejected: 15 DIDs returned 15 NRC
+- date: '2026-07-22'
+  label: SWRC-R 22 C101-C10F scan (READY)
+  state: ready, parked
+  captures:
+  - ecu: '0x7AA'
+    pid: scan 22 C101-C10F
+    scan_results:
+      rejected: 15 DIDs returned 15 NRC
+- date: '2026-07-22'
+  label: VESS 22 C101-C10F scan (READY)
+  state: ready, parked
+  captures:
+  - ecu: '0x73E'
+    pid: scan 22 C101-C10F
+    scan_results:
+      rejected: 15 DIDs returned 15 NRC
+- date: '2026-07-22'
+  label: 7D5 22 C101-C10F scan (READY)
+  state: ready, parked
+  captures:
+  - ecu: '0x7DD'
+    pid: scan 22 C101-C10F
+    scan_results:
+      responding:
+      - did: C101
+        response: 27 bytes
+        notes: 'Raw: 62C101FB180000BD0DFFF4FCFD020001FFFFFFFFFF000026180004'
+      rejected: 14 DIDs returned 14 NRC
+- date: '2026-07-22'
+  label: Unknown-7D5 22 C101-C10F scan (READY)
+  state: ready, parked
+  notes: 7D5 identify - C1xx range hit
+  captures:
+  - ecu: '0x7DD'
+    pid: scan 22 C101-C10F
+    scan_results:
+      responding:
+      - did: C101
+        response: 27 bytes
+        notes: 'Raw: 62C101FB180000BD0DFFF4FCFD020001FFFFFFFFFF000026180004'
+      rejected: 14 DIDs returned 14 NRC
+- date: '2026-07-22'
+  label: GSA 22 C001-C010 scan (READY)
+  state: ready, parked
+  captures:
+  - ecu: '0x7BE'
+    pid: scan 22 C001-C010
+    scan_results:
+      rejected: 16 DIDs returned 16 NRC
+- date: '2026-07-22'
+  label: PSM 22 C001-C010 scan (READY)
+  state: ready, parked
+  captures:
+  - ecu: '0x7AB'
+    pid: scan 22 C001-C010
+    scan_results:
+      rejected: 16 DIDs returned 16 NRC
+- date: '2026-07-22'
+  label: GSA 22 D001-D010 scan (READY)
+  state: ready, parked
+  captures:
+  - ecu: '0x7BE'
+    pid: scan 22 D001-D010
+    scan_results:
+      rejected: 16 DIDs returned 16 NRC
+- date: '2026-07-22'
+  label: PSM 22 D001-D010 scan (READY)
+  state: ready, parked
+  captures:
+  - ecu: '0x7AB'
+    pid: scan 22 D001-D010
+    scan_results:
+      rejected: 16 DIDs returned 16 NRC
+- date: '2026-07-22'
+  label: GSA 21 01-0F probe (READY)
+  state: ready, parked
+  captures:
+  - ecu: '0x7BE'
+    pid: scan 21 01-0F
+    scan_results:
+      rejected: 15 DIDs returned 15 NRC
+- date: '2026-07-22'
+  label: PSM 21 01-0F probe (READY)
+  state: ready, parked
+  captures:
+  - ecu: '0x7AB'
+    pid: scan 21 01-0F
+    scan_results:
+      rejected: 15 DIDs returned 15 NRC
