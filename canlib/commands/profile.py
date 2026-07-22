@@ -98,6 +98,20 @@ def _cmd_show(args) -> int:
     print(f"ecus.yaml:  {prof.ecus_file}  ({'ok' if prof.ecus_file.exists() else 'MISSING'})")
     print(f"captures:   {prof.captures_dir}  ({'ok' if prof.captures_dir.is_dir() else 'MISSING'})")
     print(f"out:        {prof.out_dir}")
+
+    # States (optional): list the declared vocabulary, marking auto-suggest rules.
+    from canlib.states import StatePredicateError, load_states
+
+    if prof.states_file.exists():
+        try:
+            rules = load_states(prof)
+            names = ", ".join(f"{r.name}*" if r.predicate else r.name for r in rules)
+            print(f"states:     {prof.states_file}  ({len(rules)} states: {names})")
+            print("            (* = has an auto-suggest predicate)")
+        except StatePredicateError as ex:
+            print(f"states:     {prof.states_file}  (INVALID: {ex})")
+    else:
+        print(f"states:     {prof.states_file}  (none — optional)")
     return 0
 
 
@@ -112,6 +126,42 @@ _ECUS_TEMPLATE = """\
 # Populate with `canair discover --register`, `canair identity --write`,
 # or by hand. Validate with `canair validate ecus`.
 ecus:
+"""
+
+# Starter states.yaml — the shared base power-state vocabulary. Add `when:`
+# predicates over decoded ECU.PARAM values to enable state auto-suggestion.
+_STATES_TEMPLATE = """\
+# {car_model} — vehicle operating states
+#
+# Canonical, ordered operating states for capture sessions (`state:` field).
+# Add a `when:` predicate over decoded PID values to auto-suggest the state at
+# save time (first match wins). See canlib/schema/states_schema.yaml and
+# `canair validate states`. Predicate grammar: ECU.PARAM names, and/or/not,
+# == != < <= > >=, numeric/'string' literals, and the sentinels
+# __no_response__ / __responded__.
+
+states:
+  - name: charging
+    description: HV battery actively charging (implies plugged).
+    # when: "BMS.BATTERY_CURRENT < -1"
+  - name: ready
+    description: HV active, driveable.
+    # when: "VCU.EV_READY == 1"
+  - name: deep sleep
+    description: No ECU responded (12V standby only).
+    when: "__no_response__"
+  - name: sleep
+    description: Light sleep / 12V standby (unplugged).
+  - name: plugged
+    description: Charge cable connected, not necessarily charging.
+  - name: acc
+    description: Accessory power (ACC1).
+  - name: acc2
+    description: Full ignition, no HV (ACC2/IGN).
+  - name: parked
+    description: Stationary, gear in Park.
+  - name: driving
+    description: In motion.
 """
 
 
@@ -159,6 +209,7 @@ def _cmd_create(args) -> int:
         f'init: "{init}"\n'
     )
     (root / "ecus.yaml").write_text(_ECUS_TEMPLATE.format(car_model=car_model))
+    (root / "states.yaml").write_text(_STATES_TEMPLATE.format(car_model=car_model))
 
     if args.set_default:
         cfg = set_config_value("default_profile", name)

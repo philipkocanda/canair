@@ -50,9 +50,10 @@ class SaveDialog(ModalScreen[tuple[str, str, str] | None]):
 
     BINDINGS: ClassVar[list[Binding]] = [Binding("escape", "cancel", "cancel")]
 
-    def __init__(self, suggested_label: str):
+    def __init__(self, suggested_label: str, suggested_state: str = ""):
         super().__init__()
         self._suggested = suggested_label
+        self._suggested_state = suggested_state
 
     def compose(self) -> ComposeResult:
         from textual.containers import Vertical
@@ -60,7 +61,11 @@ class SaveDialog(ModalScreen[tuple[str, str, str] | None]):
         with Vertical(id="dialog"):
             yield Label("Save captures to profile", id="dialog-title")
             yield Input(value=self._suggested, placeholder="Label (required)", id="f-label")
-            yield Input(placeholder="State (e.g. ready, parked)", id="f-state")
+            yield Input(
+                value=self._suggested_state,
+                placeholder="State (e.g. ready, parked)",
+                id="f-state",
+            )
             yield Input(placeholder="Notes (optional)", id="f-notes")
             with Horizontal(id="dialog-buttons"):
                 yield Button("Save", variant="primary", id="save")
@@ -202,10 +207,20 @@ class MonitorApp(App):
                 flash = f"    [b green]{self._flash_msg}[/]"
             else:
                 self._flash_msg = ""
+        # Live auto-suggested vehicle state (from decoded PID values), if any.
+        state_txt = ""
+        state_fn = getattr(c, "suggested_state", None)
+        if callable(state_fn):
+            try:
+                s = state_fn()
+            except Exception:
+                s = None
+            if s:
+                state_txt = f"[dim]· state[/] [cyan]{s}[/] "
         status.update(
             f"[dim]cycle[/] {c.cycle} [dim]· every[/] {c.interval:.1f}[dim]s · last[/] "
             f"{c.elapsed:.1f}[dim]s ·[/] {metric} "
-            f"{follow}{paused}"
+            f"{state_txt}{follow}{paused}"
             "    [dim]↑↓/jk PgUp/PgDn g/G · f follow · space pause · s save · q quit[/]"
             f"{flash}"
         )
@@ -250,6 +265,14 @@ class MonitorApp(App):
         if not suggested:
             suggested = f"Monitor {datetime.now():%H:%M}"
 
+        suggested_state = ""
+        state_fn = getattr(self.controller, "suggested_state", None)
+        if callable(state_fn):
+            try:
+                suggested_state = state_fn() or ""
+            except Exception:
+                suggested_state = ""
+
         def _done(result: tuple[str, str, str] | None) -> None:
             if result is None:
                 self._flash("Save cancelled.")
@@ -261,7 +284,7 @@ class MonitorApp(App):
                 msg = f"Save failed: {exc}"
             self._flash(msg)
 
-        self.push_screen(SaveDialog(suggested), _done)
+        self.push_screen(SaveDialog(suggested, suggested_state), _done)
 
 
 async def run_monitor_app(controller: MonitorController) -> None:
