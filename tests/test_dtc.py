@@ -91,6 +91,7 @@ class TestModeRead:
         assert data["dtcs"][0]["dtc"] == "P0123-00"
         assert data["dtcs"][0]["status"] == "0x2F"
         assert "confirmedDTC" in data["dtcs"][0]["status_bits"]
+        assert data["dtcs"][0]["interpretation"]["category"] == "Powertrain"
         assert t.sent == ["1902FF"]
 
     @pytest.mark.asyncio
