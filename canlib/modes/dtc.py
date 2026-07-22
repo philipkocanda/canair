@@ -317,6 +317,12 @@ def _jsonable(records: list[dict]) -> list[dict]:
     ]
 
 
+_C_DIM = "\033[2m"
+_C_YEL = "\033[93m"
+_C_GRN = "\033[92m"
+_C_RST = "\033[0m"
+
+
 def _scan_status(res: dict) -> str:
     """One-line result summary for a single ECU in an all-ECU scan."""
     if "dtcs" in res:
@@ -330,6 +336,38 @@ def _scan_status(res: dict) -> str:
     return "no response" if ("NO DATA" in err or "No response" in err) else err
 
 
+def _classify(res: dict) -> str:
+    """Bucket a scan result: faulty / clean / nrc / no_response."""
+    if res.get("count"):
+        return "faulty"
+    if "dtcs" in res:
+        return "clean"
+    if res.get("nrc") is not None:
+        return "nrc"
+    return "no_response"
+
+
+def _scan_line(res: dict, name_w: int) -> str:
+    """Colored 'ECU proto status' cell — clean is dim, no-response/faulty stand out."""
+    color = {
+        "faulty": _C_YEL,
+        "clean": _C_DIM,
+        "nrc": _C_DIM,
+        "no_response": _C_YEL,
+    }[_classify(res)]
+    return f"{res['ecu']:<{name_w}}  {res['protocol']:<4}  {color}{_scan_status(res)}{_C_RST}"
+
+
+async def _wake_read(terminal, tx_id, mask, protocol, verbose, timeout):
+    """Wake the ECU (1001) then re-read DTCs with a longer timeout."""
+    await terminal.set_header(tx_id)
+    try:
+        await terminal.send_uds("1001", timeout=timeout)
+    except Exception:
+        pass
+    return await _read_one(terminal, tx_id, mask, protocol, verbose, timeout=timeout)
+
+
 async def mode_dtc_scan_all(
     terminal: WiCANTerminal,
     mask: int = 0xFF,
@@ -337,6 +375,7 @@ async def mode_dtc_scan_all(
     as_json: bool = False,
     verbose: bool = False,
     timeout: float = 2.0,
+    retry: bool = True,
     log: bool = False,
     label: str | None = None,
 ):
@@ -345,26 +384,49 @@ async def mode_dtc_scan_all(
     Each ECU's service is auto-selected by its ``id_protocol`` (UDS 0x19 vs
     KWP2000 0x18). Reads run in the default session (no wake) — the same way the
     single-ECU reads succeed — and are strictly sequential (one connection).
+
+    Non-responding ECUs (asleep/slow) are, by default, retried once with a wake
+    (1001) and a longer timeout so a genuinely-present ECU isn't silently
+    skipped; ``retry=False`` disables that.
     """
     from ..ecus import load_ecus
 
     registry = load_ecus()
     tx_ids = sorted(registry)
+    name_w = max((len(ecu_display(t)) for t in tx_ids), default=12) if not as_json else 0
 
     if not as_json:
         print(f"\n  Scanning {len(tx_ids)} ECUs for DTCs "
               f"(protocol={protocol}, mask=0x{mask & 0xFF:02X})...\n")
-        name_w = max((len(ecu_display(t)) for t in tx_ids), default=12)
 
     results = []
     for tx_id in tx_ids:
         res = await _read_one(terminal, tx_id, mask, protocol, verbose, timeout=timeout)
         results.append(res)
         if not as_json:
-            status = _scan_status(res)
-            print(f"  {res['ecu']:<{name_w}}  {res['protocol']:<4}  {status}")
+            print(f"  {_scan_line(res, name_w)}")
 
-    faulty = [r for r in results if r.get("count")]
+    # Retry unresponsive ECUs once (wake + longer timeout). NRC/clean/faulty are
+    # real answers and left alone; only genuine no-responders are retried.
+    retry_idx = [i for i, r in enumerate(results) if _classify(r) == "no_response"]
+    if retry and retry_idx:
+        retry_timeout = max(timeout * 3, 5.0)
+        if not as_json:
+            print(f"\n  {_C_DIM}Retrying {len(retry_idx)} unresponsive ECU(s) "
+                  f"with wake + {retry_timeout:.0f}s timeout...{_C_RST}\n")
+        for i in retry_idx:
+            res2 = await _wake_read(terminal, tx_ids[i], mask, protocol, verbose, retry_timeout)
+            recovered = _classify(res2) != "no_response"
+            if recovered:
+                results[i] = res2
+            if not as_json:
+                mark = f"{_C_GRN}↻ recovered{_C_RST}" if recovered else f"{_C_DIM}↻ still silent{_C_RST}"
+                print(f"  {_scan_line(results[i], name_w)}  {mark}")
+
+    faulty = [r for r in results if _classify(r) == "faulty"]
+    clean = [r for r in results if _classify(r) == "clean"]
+    nrc = [r for r in results if _classify(r) == "nrc"]
+    no_resp = [r for r in results if _classify(r) == "no_response"]
     total_codes = sum(r["count"] for r in faulty)
 
     # Record to the DTC history log and compute the diff vs the last full sweep.
@@ -376,6 +438,9 @@ async def mode_dtc_scan_all(
         out = {
             "scanned": len(results),
             "with_dtcs": len(faulty),
+            "clean": len(clean),
+            "nrc": [r["ecu"] for r in nrc],
+            "no_response": [r["ecu"] for r in no_resp],
             "total_codes": total_codes,
             "results": results,
         }
@@ -385,9 +450,18 @@ async def mode_dtc_scan_all(
         return
 
     print()
-    if not faulty:
-        print(f"  ✓ No DTCs on any of the {len(results)} ECUs scanned.\n")
-    else:
+    summary = f"  Scanned {len(results)}: {len(faulty)} with DTCs, {len(clean)} clean"
+    if nrc:
+        summary += f", {len(nrc)} not supported"
+    if no_resp:
+        summary += f", {_C_YEL}{len(no_resp)} no response{_C_RST}"
+    print(summary)
+    if no_resp:
+        print(f"  {_C_YEL}⚠ no response{_C_RST} {_C_DIM}(skipped — asleep/unpowered?):{_C_RST} "
+              + ", ".join(r["ecu"] for r in no_resp))
+    print()
+
+    if faulty:
         print(f"  ⚠ {len(faulty)} ECU(s) with DTCs — {total_codes} code(s) total:\n")
         for r in faulty:
             print(f"  {r['ecu']} ({r['protocol']}):")
@@ -399,6 +473,8 @@ async def mode_dtc_scan_all(
                 if meaning:
                     print(f"        → {meaning}")
         print()
+    else:
+        print(f"  ✓ No DTCs on any of the {len(results) - len(no_resp)} responding ECUs.\n")
 
     if log:
         _print_log_result(log_path, log_prev, log_diff)

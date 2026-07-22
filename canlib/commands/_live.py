@@ -562,6 +562,7 @@ async def dispatch_mode(args, terminal, pids_data, host):
             await mode_dtc_scan_all(
                 terminal, mask=mask, protocol=args.protocol,
                 as_json=args.json, verbose=args.verbose,
+                retry=getattr(args, "dtc_retry", True),
                 log=getattr(args, "dtc_log", True), label=args.label,
             )
             return
