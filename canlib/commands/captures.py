@@ -13,6 +13,9 @@ QUERY.
                         arrow keys, decoded params + byte-diff vs previous
                         capture; e adds/edits a note, d deletes a capture
   --summary             Overview: captures per ECU, per date, total payloads
+  --sessions            Session table of contents: date/time-span/state/label/
+                        notes/ECUs per session (no payloads); --json for machine
+                        output. Honors the scope filters.
   --latest [ECU]        Most recent payload per PID (optionally filtered by ECU)
 
 QUERY mini-language (see canlib/query.py):
@@ -43,6 +46,9 @@ Examples:
   python3 query-captures.py "VCU:2101 BMS:2101" --step  # Cross-ECU step-through
   python3 query-captures.py --diff VCU:2101 --all     # One PID, every payload
   python3 query-captures.py --summary                 # Overview stats
+  python3 query-captures.py --sessions                # Session table of contents
+  python3 query-captures.py --sessions --state driving # Index of every drive
+  python3 query-captures.py --sessions --json          # Machine-readable TOC
   python3 query-captures.py --latest BMS              # Latest payload per BMS PID
   python3 query-captures.py --summary --since 2026-04-19            # Stats since a date
   python3 query-captures.py BMS 2101 --diff --date 2026-04-19       # One day only
@@ -50,6 +56,7 @@ Examples:
 """
 
 import argparse
+import re
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -164,6 +171,7 @@ def load_all_captures(captures_dir: Path | None = None) -> list[dict]:
             date = session.get("date", "")
             label = session.get("label", "")
             state = session.get("state", "")
+            session_notes = session.get("notes", "")
             for c_idx, cap in enumerate(session.get("captures", [])):
                 raw_ecu = cap.get("ecu", "")
                 entry = {
@@ -171,6 +179,7 @@ def load_all_captures(captures_dir: Path | None = None) -> list[dict]:
                     "date": date,
                     "session_label": label,
                     "state": state,
+                    "session_notes": session_notes,
                     "ecu": ecu_name_from_ref(raw_ecu, rx_index) if raw_ecu else "",
                     "ecu_addr": raw_ecu,
                     "pid": cap.get("pid", ""),
@@ -245,6 +254,119 @@ def cmd_summary(entries: list[dict]) -> None:
     for day, count in sorted(by_date.items()):
         print(f"    {day}  {count:>4}")
     print()
+
+
+# ---------------------------------------------------------------------------
+# Sessions mode (metadata table of contents)
+# ---------------------------------------------------------------------------
+
+# Strip ANSI/CSI escape sequences and other control chars so a note that
+# accidentally captured raw keystrokes (e.g. arrow-key \x1b[D from interactive
+# entry) can't corrupt the terminal when listed.
+_CTRL_RE = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]|[\x00-\x08\x0b-\x1f\x7f]")
+
+
+def _clean(text) -> str:
+    """Sanitize a metadata string for terminal display (drop control sequences).
+
+    Also collapses any whitespace run (incl. newlines from YAML block scalars)
+    into single spaces so each field renders on one tidy line.
+    """
+    return " ".join(_CTRL_RE.sub("", str(text)).split())
+
+
+def _group_sessions(entries: list[dict]) -> list[dict]:
+    """Reconstruct per-session metadata from flat capture entries.
+
+    Groups by ``(file, _session_idx)`` — the true session identity — and rolls
+    up each session's date, label, state, session-level notes, capture count,
+    the distinct ECUs touched, the time span, and any distinct capture-level
+    notes. Sessions are returned in chronological order (date, then first time).
+    """
+    groups: dict[tuple[str, int], dict] = {}
+    for e in entries:
+        key = (e["file"], e.get("_session_idx", 0))
+        g = groups.get(key)
+        if g is None:
+            g = groups[key] = {
+                "file": e["file"],
+                "date": e.get("date", ""),
+                "label": e.get("session_label", ""),
+                "state": e.get("state", ""),
+                "notes": e.get("session_notes", ""),
+                "n": 0,
+                "ecus": {},          # ordered set (dict) of ECU names
+                "times": [],
+                "cap_notes": [],     # distinct capture-level notes, first-seen order
+            }
+        g["n"] += 1
+        ecu = e.get("ecu") or e.get("ecu_addr") or ""
+        if ecu:
+            g["ecus"].setdefault(ecu, None)
+        t = str(e.get("time", "")).strip()
+        if t:
+            g["times"].append(t)
+        cn = str(e.get("notes", "")).strip()
+        if cn and cn not in g["cap_notes"]:
+            g["cap_notes"].append(cn)
+
+    sessions = list(groups.values())
+    sessions.sort(key=lambda g: (str(g["date"]), min(g["times"]) if g["times"] else ""))
+    return sessions
+
+
+def cmd_sessions(entries: list[dict], as_json: bool = False, max_notes: int = 6) -> None:
+    """List capture *sessions* with their metadata — a searchable table of contents.
+
+    Answers "what's in the captures?" without dumping payloads: one block per
+    session showing date, time span, state, label, session notes, capture count,
+    the ECUs touched, and distinct capture-level notes. Honors the shared scope
+    filters (``--since``/``--until``/``--date``/``--state``/``--label``), so e.g.
+    ``--sessions --state driving`` is a quick index of every drive.
+    """
+    sessions = _group_sessions(entries)
+
+    if as_json:
+        import json
+        out = [{
+            "file": s["file"], "date": s["date"], "label": s["label"],
+            "state": s["state"], "notes": s["notes"], "captures": s["n"],
+            "ecus": list(s["ecus"]),
+            "time_start": min(s["times"]) if s["times"] else None,
+            "time_end": max(s["times"]) if s["times"] else None,
+            "capture_notes": s["cap_notes"],
+        } for s in sessions]
+        json.dump(out, sys.stdout, indent=2, default=str)
+        print()
+        return
+
+    if not sessions:
+        print("  No sessions found.")
+        return
+
+    print(f"\n  {_BOLD}Sessions{_RESET} — {len(sessions)} total\n")
+    for s in sessions:
+        span = ""
+        if s["times"]:
+            lo, hi = min(s["times"]), max(s["times"])
+            lo, hi = lo.split(".")[0], hi.split(".")[0]
+            span = lo if lo == hi else f"{lo}-{hi}"
+        state = f"  {_CYAN}{_clean(s['state'])}{_RESET}" if s["state"] else ""
+        print(f"  {_BOLD}{s['date']}{_RESET}{('  ' + _DIM + span + _RESET) if span else ''}{state}")
+        if s["label"]:
+            print(f"    {_clean(s['label'])}")
+        if s["notes"]:
+            print(f"    {_DIM}{_clean(s['notes'])}{_RESET}")
+        ecus = ", ".join(s["ecus"]) or "—"
+        print(f"    {_DIM}{s['n']} captures · {ecus} · {s['file']}{_RESET}")
+        # Distinct capture-level notes (RE annotations) — the other place notes live.
+        for cn in s["cap_notes"][:max_notes]:
+            clean = _clean(cn)
+            trunc = clean if len(clean) <= 100 else clean[:97] + "..."
+            print(f"      {_DIM}▸ {trunc}{_RESET}")
+        if len(s["cap_notes"]) > max_notes:
+            print(f"      {_DIM}… +{len(s['cap_notes']) - max_notes} more capture-notes{_RESET}")
+        print()
 
 
 # ---------------------------------------------------------------------------
@@ -1035,6 +1157,11 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     standalone = parser.add_mutually_exclusive_group()
     standalone.add_argument("--summary", "-s", action="store_true", help="Overview statistics")
     standalone.add_argument(
+        "--sessions", "-n", action="store_true",
+        help="List sessions with their metadata (date/state/label/notes/ECUs) — a "
+             "searchable table of contents; no payloads. Honors the scope filters.",
+    )
+    standalone.add_argument(
         "--latest", "-l", nargs="?", const="", metavar="ECU",
         help="Latest payload per PID (optionally filtered by ECU)",
     )
@@ -1059,6 +1186,11 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         help="For --diff/--step: show the byte-index ruler (idx/wican) above the hex",
     )
 
+    parser.add_argument(
+        "--json", action="store_true",
+        help="Machine-readable output (supported by --sessions)",
+    )
+
     add_scope_args(parser)
 
     parser.add_argument(
@@ -1075,23 +1207,29 @@ def run(args) -> int:
         return cmd_recover(args.dir, discard=args.discard)
 
     query = build_query(args.query)
-    standalone_mode = args.summary or args.latest is not None
+    standalone_mode = args.summary or args.sessions or args.latest is not None
+
+    if args.json and not args.sessions:
+        print("error: --json is only supported with --sessions", file=sys.stderr)
+        return 2
 
     # A QUERY and the standalone modes are mutually exclusive; --diff/--step are
     # view modifiers that require a QUERY.
     if standalone_mode:
         if query:
-            print("error: --summary/--latest do not take a QUERY argument", file=sys.stderr)
+            print("error: --summary/--sessions/--latest do not take a QUERY argument",
+                  file=sys.stderr)
             return 2
         if args.diff or args.step:
-            print("error: --diff/--step cannot be combined with --summary/--latest", file=sys.stderr)
+            print("error: --diff/--step cannot be combined with --summary/--sessions/--latest",
+                  file=sys.stderr)
             return 2
     elif not query:
         from canlib.commands._hints import ecu_hint
 
         print(
             "Specify a QUERY to look up captures, e.g. `canair captures BMS 2102` "
-            "(or use --summary / --latest).\n"
+            "(or use --summary / --sessions / --latest).\n"
         )
         print(ecu_hint())
         return 2
@@ -1105,6 +1243,9 @@ def run(args) -> int:
     entries = load_all_captures(args.dir)
 
     if not entries:
+        if args.json:
+            print("[]")
+            return 0
         print("  No capture files found.")
         return 1
 
@@ -1113,13 +1254,21 @@ def run(args) -> int:
         lo = since.isoformat() if since else "earliest"
         hi = until.isoformat() if until else "latest"
         if not entries:
+            if args.json:
+                print("[]")
+                return 0
             print(f"  No captures in date range {lo} .. {hi}.")
             return 1
-        print(f"  {_DIM}Date range: {lo} .. {hi}  ({len(entries)} entries){_RESET}")
+        # Keep JSON output clean (no human banner) when scoping --sessions --json.
+        if not args.json:
+            print(f"  {_DIM}Date range: {lo} .. {hi}  ({len(entries)} entries){_RESET}")
 
     if args.state or args.label:
         entries = filter_by_text(entries, state=args.state, label=args.label)
         if not entries:
+            if args.json:
+                print("[]")
+                return 0
             crit = ", ".join(
                 x for x in [
                     f"state~'{args.state}'" if args.state else "",
@@ -1134,6 +1283,8 @@ def run(args) -> int:
     try:
         if args.summary:
             cmd_summary(entries)
+        elif args.sessions:
+            cmd_sessions(entries, as_json=args.json)
         elif args.latest is not None:
             cmd_latest(entries, args.latest or None)
         elif args.diff:
