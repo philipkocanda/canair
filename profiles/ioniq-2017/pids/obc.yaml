@@ -20,6 +20,14 @@
 # they reference bytes beyond the Ioniq's shorter response (zero padding / OOB).
 # Correct byte offsets decoded from live captures during AC charging (2026-04-14).
 #
+# KWP2000 diagnostic sessions (service 0x10) — probed 2026-07-22, car in READY:
+#   10 81 standardDiagnosticSession   → 50 81 (supported)
+#   10 82                             → NRC 0x12 subFunctionNotSupported
+#   10 83 extendedDiagnosticSession   → NRC 0x12 subFunctionNotSupported
+# Only 0x81 is accepted; 21xx reads work in the default session too — no session
+# unlocks extra data. Payload sizes are session-independent: 2101, 2102 present;
+# 2103/2104/2105 → NRC 0x12 (do not exist, consistent with the 2103 note above).
+# (TODO: replace with a structured `sessions:` field once the schema supports it.)
 #
 OBC:
   tx_id: 0x7E5

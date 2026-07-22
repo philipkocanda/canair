@@ -39,6 +39,15 @@ EPS:
           verified: true
           notes: >
             EPS-side vehicle speed echo (speed-dependent steering assist). ISO-TP 0x0B. Tracks ESC REAL_SPEED_KMH within +-1 km/h across 0-39 km/h drive; 0 at standstill.
+        STEERING_ANGLE:
+          expression: (B10+S11*256)/10
+          unit: deg
+          min: "-500"
+          max: "500"
+          source: RE 2026-07-22 MT->KW drive; Ioniq5 /10 deg convention
+          verified: false
+          notes: >
+            STRONG CANDIDATE, unverified. Little-endian signed 16-bit: low byte B10 (ISO-TP 0x07), signed high byte B11 (ISO-TP 0x08). Across the 2026-07-22 drive range -374..+299 deg (~1.5 turns each way), centered ~0, returns to centre at standstill; big-endian variant is bimodal (wrong). Scale /10 assumed from Ioniq5 EPS. NEEDS controlled stationary capture (centre/quarter/full-lock each way + lock-to-lock sweep) to confirm scale, zero, and sign convention. This car has active LKAS (lane-keep) so expect related steering-torque/LKAS-command signals nearby (B7/B12 swing signed +-full-scale = torque/rate/MDPS-current candidates).
     220102:
       period: 2500
       enabled: false
@@ -70,18 +79,17 @@ EPS:
       priority: P1
       prerequisite: [ready]
       notes: >
-        Resolve steering ANGLE vs TORQUE/rate vs MDPS current in bytes B05-B13.
-        From the 2026-07-22 drive (lots of steering both directions): B10 holds a
-        stable ~0xA8 at standstill and wraps while driving (candidate absolute-angle
-        low byte); B12 is a signed byte ~0 at rest with +-127 swings while driving
-        (candidate steering torque or rate). Treating B10:B11 or B12:B13 as a single
-        16-bit LE value produces +-256 flips at standstill, so they are NOT clean
-        little-endian pairs — the region interleaves multiple signals. VEHICLE_SPEED
-        (B14) already decoded.
+        STEERING_ANGLE now DEFINED as an unverified candidate: (B10+S11*256)/10
+        deg (little-endian signed 16-bit, low byte B10 / signed high byte B11).
+        Range -374..+299 deg across the 2026-07-22 MT->KW drive (~1.5 turns each
+        way), centres ~0 and returns to centre at standstill; big-endian variant
+        is bimodal (wrong). Still to resolve in this region: MDPS motor current
+        and steering torque/rate — B7 and B12 both swing signed +-full-scale while
+        driving (~0 at rest). VEHICLE_SPEED (B14) already decoded.
       what_to_test:
-        - "Absolute steering angle byte(s) + scaling (Ioniq5 ref /10 deg)"
-        - "MDPS motor current (signed A) location"
-        - "Steering torque/rate sign convention"
+        - "VERIFY STEERING_ANGLE scale (/10?), zero point, and left/right sign via controlled capture"
+        - "MDPS motor current (signed A) location (B7 or B12?)"
+        - "Steering torque/rate sign convention (B7 vs B12)"
       sources:
         - "captures/2026-07-22.yaml — driving capture, lots of steering"
         - "OBDb Ioniq 5"
@@ -90,4 +98,26 @@ EPS:
         quarter-turn left, quarter-turn right, full-lock left, full-lock right;
         then a slow lock-to-lock sweep. Save each with --label/--state, then
         'canair decode EPS 220101 --plot' to sweep u16/i16 x endianness and read
-        off scaling.
+        off scaling. Cross-check STEERING_ANGLE against wheel position at each hold.
+    - type: decode
+      target: "220101"
+      status: pending
+      priority: P2
+      prerequisite: [ready]
+      notes: >
+        LKAS / lane-keep signals. This car has active LKAS (lane-keep assist steering)
+        which commands the MDPS to apply torque — so EPS 220101 (or a sibling
+        22010x page / a separate LKAS-related DID) likely carries an LKAS active
+        flag, a commanded-torque/overlay-torque value, and possibly a driver-override
+        / hands-on-wheel torque. Capture during an LKAS-active highway drive (lane
+        markings present, LKAS engaged, then let it nudge the wheel and also
+        override it) and diff against a manual-steering drive to isolate the LKAS
+        command bytes from the driver-angle/torque bytes (B7/B12 region).
+      what_to_test:
+        - "LKAS active/engaged flag"
+        - "LKAS commanded/overlay steering torque"
+        - "Driver override / hands-on-wheel torque"
+        - "Whether LKAS data is on 220101 or a sibling 22010x page"
+      sources:
+        - "OpenDBC Hyundai LKAS message set (MDPS / LKAS11/LKAS12)"
+        - "OBDb Ioniq 5"

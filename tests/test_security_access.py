@@ -57,6 +57,8 @@ def test_safe_sessions_allowed():
     assert check_command_safety("1001") is None  # default
     assert check_command_safety("1003") is None  # UDS extended
     assert check_command_safety("1081") is None  # KWP standard
+    assert check_command_safety("1082") is None  # KWP periodic/EOL diagnostic
+    assert check_command_safety("1083") is None  # KWP extended diagnostic
 
 
 # ── _exec_security: variable seed length + key width ─────────────────────────

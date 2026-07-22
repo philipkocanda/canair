@@ -14,6 +14,15 @@
 #
 # Full service 21 scan (01-FF) during AC charging (2026-04-18):
 #   0x01 (34 bytes), 0x02 (62 bytes), 0x03 (27 bytes, all zeros), 0xF2 (69 bytes).
+#
+# KWP2000 diagnostic sessions (service 0x10) — probed 2026-07-22, car in READY:
+#   10 81 standardDiagnosticSession   → 50 81 (supported)
+#   10 82                             → NRC 0x12 subFunctionNotSupported
+#   10 83 extendedDiagnosticSession   → NRC 0x12 subFunctionNotSupported
+# Only 0x81 is accepted; 21xx reads work in the default session too — no session
+# unlocks extra data. Payload sizes are session-independent: 2101=30B, 2102=56B,
+# 2103=27B; 2104/2105 → NRC 0x12 (do not exist).
+# (TODO: replace with a structured `sessions:` field once the schema supports it.)
 MCU:
   tx_id: 0x7E3
   availability: [ready, charging]

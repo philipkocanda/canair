@@ -1,5 +1,14 @@
 
 # ─── BMS (Battery Management System) ─────────────────────────────────
+#
+# KWP2000 diagnostic sessions (service 0x10) — probed 2026-07-22, car in READY:
+#   10 81 standardDiagnosticSession   → 50 81 (supported)
+#   10 82                             → NRC 0x12 subFunctionNotSupported
+#   10 83 extendedDiagnosticSession   → NRC 0x12 subFunctionNotSupported
+# Only 0x81 is accepted, and 21xx live-data reads work in the default session
+# anyway — no session unlocks extra data. Payload sizes are identical across
+# sessions: 2101=61B, 2102=38B, 2103=38B, 2104=38B, 2105=45B.
+# (TODO: replace with a structured `sessions:` field once the schema supports it.)
 BMS:
   tx_id: 0x7E4
   availability: [ready, charging]

@@ -122,7 +122,8 @@
       "period": "2500",
       "parameters": {
         "EPS_0101_STEERING_UNMAPPED": "",
-        "VEHICLE_SPEED": "B14"
+        "VEHICLE_SPEED": "B14",
+        "STEERING_ANGLE": "(B10+S11*256)/10"
       }
     },
     {
