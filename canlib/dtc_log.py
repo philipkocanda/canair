@@ -15,6 +15,10 @@ The file is tool-managed (append-only, newest scan last):
       ecus:                      # only ECUs that had codes (empty on a clean sweep)
         AMP (0x783): {tx: '0x783', protocol: kwp, dtcs: [B2915-00, B2916-00]}
         PLC (0x733): {tx: '0x733', protocol: uds, dtcs: [C182C-00]}
+
+This is per-vehicle runtime state, not shared data: it lives in the active
+profile's directory (naturally uncommitted for a user profile under
+``~/.config/canair/profiles/``) and is gitignored for the repo-bundled profile.
 """
 
 from __future__ import annotations
