@@ -14,12 +14,12 @@ import tty
 from datetime import datetime
 from pathlib import Path
 
-from ..elm327 import nrc_abbrev
 from ..pids import build_iocontrol_index, load_pids
 from ..pids_edit import PidsEditError, promote_discovery, update_iocontrol_field
 from ..terminal import WiCANTerminal
 from ..tui import terminal_columns as _terminal_columns
 from ..tui import terminal_lines as _terminal_lines
+from ..uds_parse import nrc_abbrev
 from .status import format_status_value, query_param_status
 
 # TUI debug log — cleared each session, written to logs/iocontrol-tui.log

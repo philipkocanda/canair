@@ -19,9 +19,9 @@ except ImportError:
     _requests_mod = None
     HAS_REQUESTS = False
 
-from .elm327 import parse_elm_response
 from .log import log_command, log_response
 from .safety import enforce_command_safety
+from .uds_parse import parse_uds_response
 
 
 class WiCANTerminal:
@@ -286,10 +286,10 @@ class WiCANTerminal:
                 validates the DID echo in bytes 1..2 of the positive response.
 
         Returns:
-            Parsed response dict from parse_elm_response()
+            Parsed response dict from parse_uds_response()
         """
         raw = await self.send_command(service_pid, timeout=timeout)
-        return parse_elm_response(
+        return parse_uds_response(
             raw,
             expected_sid=expected_sid,
             expected_did=expected_did,

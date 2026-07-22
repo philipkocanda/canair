@@ -6,8 +6,8 @@ rows. Decoded values are never persisted; they are regenerated on demand from th
 payload + PID definitions.
 """
 
-from .elm327 import elm_hex_to_wican_bytes
 from .expression import evaluate_expression
+from .wican_bytes import uds_hex_to_wican_bytes
 
 # A decoded parameter row, as consumed by ``formatting.render_param_table`` and
 # ``formatting._build_byte_colors`` / ``_render_hex_line``:
@@ -34,7 +34,7 @@ def decode_param_rows(payload_hex: str, parameters: dict) -> list[ParamRow]:
         return []
 
     try:
-        wican_bytes = elm_hex_to_wican_bytes(payload_hex)
+        wican_bytes = uds_hex_to_wican_bytes(payload_hex)
     except Exception:
         return []
 

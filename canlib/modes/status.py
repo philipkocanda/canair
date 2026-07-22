@@ -5,10 +5,10 @@ returns its current evaluated value. Used by the IOControl TUI and execute mode
 to show a live status column alongside each actuator.
 """
 
-from ..elm327 import elm_hex_to_wican_bytes
 from ..expression import evaluate_expression
 from ..pids import build_ecu_index, build_param_index
 from ..terminal import WiCANTerminal
+from ..wican_bytes import uds_hex_to_wican_bytes
 
 
 async def query_param_status(
@@ -53,7 +53,7 @@ async def query_param_status(
         return {"param": key, "value": None, "unit": unit, "error": error}
 
     try:
-        wican_bytes = elm_hex_to_wican_bytes(response["hex"])
+        wican_bytes = uds_hex_to_wican_bytes(response["hex"])
         if verbose:
             print(f"    [status] {key}: raw={response['hex']}  bytes={wican_bytes.hex().upper()}")
         value = evaluate_expression(expression, wican_bytes)

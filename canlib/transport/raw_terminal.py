@@ -7,7 +7,7 @@ existing ELM-path modes (scan, discover, identity, iocontrol, routines, and the
 *-scan probers) run unchanged over the ``slcan-tcp`` transport.
 
 One ISO-TP stack is created lazily per target ECU (rx = tx + 8) over a shared
-Notifier. Responses are formatted back through :func:`parse_elm_response` so the
+Notifier. Responses are formatted back through :func:`parse_uds_response` so the
 returned dict is byte-for-byte the same shape the modes already expect (ok / hex
 / bytes / nrc / nrc_desc / error), including SID/DID echo validation.
 """
@@ -21,9 +21,9 @@ import time
 import can
 import isotp
 
-from ..elm327 import parse_elm_response
 from ..log import log_response
 from ..safety import enforce_command_safety
+from ..uds_parse import parse_uds_response
 from .uds_raw import RESPONSE_OFFSET, is_response_pending
 
 logging.getLogger("isotp").setLevel(logging.ERROR)
@@ -95,11 +95,11 @@ class RawTerminal:
         try:
             req = bytes.fromhex(service_pid.replace(" ", ""))
         except ValueError:
-            return parse_elm_response("?")
+            return parse_uds_response("?")
         resp = await self._exchange(req, timeout)
         raw = "NO DATA" if resp is None else resp.hex().upper()
         log_response(service_pid, raw)
-        return parse_elm_response(raw, expected_sid=expected_sid, expected_did=expected_did)
+        return parse_uds_response(raw, expected_sid=expected_sid, expected_did=expected_did)
 
     async def send_command(self, cmd: str, timeout: float | None = None) -> str:
         """AT commands are a no-op ('OK'); UDS hex is sent and returned as hex."""

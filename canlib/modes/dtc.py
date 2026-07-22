@@ -195,7 +195,14 @@ def _log_scan(scope: str, results: list[dict], label: str | None):
 
     Codes that disappeared since the last same-scope scan (car self-cleared or
     aged out) are also recorded as a first-class ``detected`` clear event."""
-    from ..dtc_log import append_clear, append_scan, build_clear, build_scan, diff_scans, latest_matching
+    from ..dtc_log import (
+        append_clear,
+        append_scan,
+        build_clear,
+        build_scan,
+        diff_scans,
+        latest_matching,
+    )
 
     ecus: dict = {}
     for r in results:
@@ -334,7 +341,7 @@ def _scan_status(res: dict) -> str:
         n = res["count"]
         return f"{n} DTC(s)" if n else "clean"
     if "nrc" in res:
-        from ..elm327 import nrc_abbrev
+        from ..uds_parse import nrc_abbrev
 
         return f"NRC {res['nrc']} {nrc_abbrev(int(res['nrc'], 16))}"
     err = res.get("error", "error")

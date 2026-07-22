@@ -1,4 +1,13 @@
-"""ELM327 response parsing, byte conversion, and command safety checks."""
+"""UDS response parsing and Negative Response Code (NRC) tables.
+
+Transport-independent: both the ``wican-ws`` (ELM327 dongle) and ``slcan-tcp``
+(client-side ISO-TP) paths funnel their raw response text/hex through
+:func:`parse_uds_response` so downstream code sees an identical result dict
+regardless of which transport produced the bytes. The parser tolerates
+ELM327-flavored artifacts (AT echoes, ``NO DATA``/``CAN ERROR`` strings, ``>``
+prompts, flow-control frame echoes) which never appear on the raw path but are
+harmless there.
+"""
 
 import re
 
@@ -60,80 +69,18 @@ def nrc_abbrev(nrc: int) -> str:
     """Short mnemonic for an NRC, or ``?`` if unknown."""
     return NRC_ABBREV.get(nrc, "?")
 
-# UDS services that can write to ECU memory, reflash firmware, or actuate
-# physical outputs. Blocked by default to prevent accidental damage.
-BLOCKED_UDS_SERVICES = {
-    0x2E: "WriteDataByIdentifier (write to ECU memory)",
-    0x34: "RequestDownload (ECU reflash)",
-    0x35: "RequestUpload (ECU memory dump)",
-    0x36: "TransferData (flash data transfer)",
-    0x37: "RequestTransferExit (finalize flash)",
-    0x38: "RequestFileTransfer",
-}
 
-
-def check_command_safety(cmd: str) -> str | None:
-    """Check if a command is potentially dangerous.
-
-    Returns an error message if the command is blocked, or None if safe.
-    Checks both raw UDS hex commands and AT commands.
-    """
-    clean = cmd.strip().upper()
-
-    if clean.startswith("AT"):
-        return None
-
-    hex_only = clean.replace(" ", "")
-    if not hex_only or not all(c in "0123456789ABCDEF" for c in hex_only):
-        return None
-
-    if len(hex_only) < 2:
-        return None
-
-    service_byte = int(hex_only[:2], 16)
-
-    if service_byte in BLOCKED_UDS_SERVICES:
-        desc = BLOCKED_UDS_SERVICES[service_byte]
-        return f"BLOCKED: UDS service 0x{service_byte:02X} -- {desc}"
-
-    if service_byte == 0x10 and len(hex_only) >= 4:
-        sub = int(hex_only[2:4], 16)
-        if sub == 0x02:
-            return (
-                "BLOCKED: DiagnosticSessionControl sub 0x02 "
-                "(programmingSession) -- required for flash/write operations"
-            )
-        if sub == 0x85:
-            return (
-                "BLOCKED: StartDiagnosticSession sub 0x85 "
-                "(KWP2000 ECU programming mode) -- required for flash/write operations"
-            )
-        # KWP2000 uses OEM-defined session modes in the 0x80-0xFF band; some are
-        # development/programming modes that are unsafe to enter blind. Allow the
-        # well-known safe diagnostic sessions and require --unsafe for the rest of
-        # the 0x8x range. Safe: 0x81 standardDiagnosticSession, 0x82 (Hyundai/Kia
-        # periodic/EOL diagnostic session), 0x83 extendedDiagnosticSession — all
-        # read-only diagnostic sessions used by scan tools. 0x85 (programming)
-        # stays blocked above.
-        if 0x80 <= sub <= 0xFF and sub not in (0x81, 0x82, 0x83):
-            return (
-                f"BLOCKED: StartDiagnosticSession sub 0x{sub:02X} "
-                "(unrecognized KWP2000 session mode) -- may be a programming/development "
-                "mode; re-run with --unsafe if you are certain it is safe"
-            )
-
-    return None
-
-
-def parse_elm_response(
+def parse_uds_response(
     raw: str,
     expected_sid: int | None = None,
     expected_did: int | None = None,
 ) -> dict:
-    """Parse an ELM327 response into structured data.
+    """Parse a UDS response (as returned by any transport) into structured data.
 
     Args:
-        raw: Raw ELM327 text response.
+        raw: Raw response text. On the ``wican-ws`` path this is ELM327
+            terminal output; on the ``slcan-tcp`` path :class:`RawTerminal`
+            formats the reassembled ISO-TP payload into the same shape.
         expected_sid: If set, the positive response must echo this request SID
             (i.e. response byte 0 == expected_sid + 0x40). Mismatches are
             reported as ``error="SID mismatch: ..."`` and ``ok=False``. Used
@@ -289,54 +236,3 @@ def parse_elm_response(
 
     result["ok"] = True
     return result
-
-
-def elm_hex_to_wican_bytes(hex_str: str) -> bytes:
-    """Convert ELM327 reassembled payload to WiCAN AutoPID byte layout.
-
-    WiCAN AutoPID runs with ELM327 headers ON and spaces ON. Its
-    parse_elm327_response() copies ALL 8 CAN data bytes from each frame
-    (including PCI bytes) sequentially into response.data. This means:
-
-      Frame 0 (First Frame):  [10 LL] [SID SUB d d d d]  -> 8 bytes
-      Frame 1 (Consecutive):  [21]    [d d d d d d d]    -> 8 bytes
-      Frame 2 (Consecutive):  [22]    [d d d d d d d]    -> 8 bytes
-      ...
-
-    Byte indices in expressions (B09, B37, etc.) reference this interleaved
-    format. B0=PCI, B1=length_lo, B2=SID, B8=PCI_CF1, B9=first_data_byte_CF1.
-
-    The ELM327 terminal (our transport) returns ONLY the reassembled UDS
-    payload without PCI. We must reconstruct the AutoPID layout by
-    re-inserting the PCI bytes at the correct positions.
-
-    For single-frame responses (<=7 UDS bytes): PCI is 1 byte (0x0N).
-    For multi-frame responses (>6 UDS bytes):
-      - First frame PCI: 2 bytes (0x10 | (len>>8), len & 0xFF)
-      - Consecutive frame PCI: 1 byte each (0x20 | (seq & 0x0F))
-    """
-    data = bytes.fromhex(hex_str)
-    payload_len = len(data)
-
-    if payload_len <= 7:
-        return bytes([payload_len]) + data
-    else:
-        result = bytearray()
-        pci_hi = 0x10 | ((payload_len >> 8) & 0x0F)
-        pci_lo = payload_len & 0xFF
-        result.extend([pci_hi, pci_lo])
-        result.extend(data[:6])
-
-        offset = 6
-        seq = 1
-        while offset < payload_len:
-            pci_cf = 0x20 | (seq & 0x0F)
-            result.append(pci_cf)
-            chunk = data[offset : offset + 7]
-            result.extend(chunk)
-            if len(chunk) < 7:
-                result.extend(b"\x00" * (7 - len(chunk)))
-            offset += 7
-            seq += 1
-
-        return bytes(result)

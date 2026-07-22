@@ -31,7 +31,6 @@ import shlex
 import time
 
 from ..decoding import decode_param_rows
-from ..elm327 import parse_elm_response
 from ..formatting import (
     decode_uds_response,
     print_ecu_results,
@@ -40,6 +39,7 @@ from ..formatting import (
 from ..pids import build_ecu_index, build_iocontrol_index, build_param_index
 from ..session_manager import SessionManager
 from ..terminal import WiCANTerminal
+from ..uds_parse import parse_uds_response
 
 
 class BatchState:
@@ -1497,7 +1497,7 @@ async def _multi_repl(sm: SessionManager, ecu_index: dict, pids_data: dict, verb
                 raw = await terminal.send_command(cmd)
                 print(raw)
 
-                response = parse_elm_response(raw)
+                response = parse_uds_response(raw)
                 if response.get("ok") or response.get("nrc") is not None:
                     _last_response = response
                     if response.get("nrc") is not None:
