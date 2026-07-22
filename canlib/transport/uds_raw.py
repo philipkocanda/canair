@@ -33,6 +33,17 @@ def response_id(tx_id: int) -> int:
     return tx_id + RESPONSE_OFFSET
 
 
+def is_response_pending(resp: bytes) -> bool:
+    """True if ``resp`` is a UDS ResponsePending negative response (7F xx 78).
+
+    The ECU acknowledges the request but needs more time; it will send the final
+    response in a follow-up frame. Both raw-CAN clients must wait through this so
+    they behave like the ELM327 firmware (which handles 0x78 automatically).
+    """
+    return len(resp) >= 3 and resp[0] == 0x7F and resp[2] == 0x78
+
+
+
 class RawUdsClient:
     """UDS reads over raw CAN with per-ECU ISO-TP stacks and pipelined polling."""
 

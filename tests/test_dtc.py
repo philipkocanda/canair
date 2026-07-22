@@ -84,8 +84,9 @@ class TestModeRead:
     async def test_read_json(self, capsys):
         # 59 02 <availMask=FF> <DTC P0123-00 status 2F>
         t = FakeTerminal({"1902FF": _ok("5902FF" + "0123002F")})
-        await dtc.mode_dtc_read(t, 0x7E4, mask=0xFF, as_json=True)
+        await dtc.mode_dtc_read(t, 0x7E4, mask=0xFF, protocol="uds", as_json=True)
         data = json.loads(capsys.readouterr().out)
+        assert data["protocol"] == "uds"
         assert data["count"] == 1
         assert data["dtcs"][0]["dtc"] == "P0123-00"
         assert data["dtcs"][0]["status"] == "0x2F"
@@ -95,13 +96,13 @@ class TestModeRead:
     @pytest.mark.asyncio
     async def test_read_no_dtcs(self, capsys):
         t = FakeTerminal({"1902FF": _ok("5902FF")})
-        await dtc.mode_dtc_read(t, 0x7E4, mask=0xFF, as_json=False)
+        await dtc.mode_dtc_read(t, 0x7E4, mask=0xFF, protocol="uds", as_json=False)
         assert "No DTCs stored" in capsys.readouterr().out
 
     @pytest.mark.asyncio
     async def test_read_custom_mask(self, capsys):
         t = FakeTerminal({"190208": _ok("590208")})
-        await dtc.mode_dtc_read(t, 0x7E4, mask=0x08, as_json=True)
+        await dtc.mode_dtc_read(t, 0x7E4, mask=0x08, protocol="uds", as_json=True)
         assert t.sent == ["190208"]
 
     @pytest.mark.asyncio
@@ -109,27 +110,94 @@ class TestModeRead:
         t = FakeTerminal(
             {"1902FF": {"ok": False, "nrc": 0x11, "nrc_desc": "serviceNotSupported"}}
         )
-        await dtc.mode_dtc_read(t, 0x7E4, as_json=True)
+        await dtc.mode_dtc_read(t, 0x7E4, protocol="uds", as_json=True)
         data = json.loads(capsys.readouterr().out)
         assert data["nrc"] == "0x11"
+
+    @pytest.mark.asyncio
+    async def test_mask_fallback_on_request_out_of_range(self, capsys):
+        # ECU rejects FF with NRC 0x31, then accepts 0x08 (IGPM behavior).
+        t = FakeTerminal(
+            {
+                "1902FF": {"ok": False, "nrc": 0x31, "nrc_desc": "requestOutOfRange"},
+                "190208": _ok("590209"),
+            }
+        )
+        await dtc.mode_dtc_read(t, 0x770, mask=0xFF, protocol="uds", as_json=True)
+        data = json.loads(capsys.readouterr().out)
+        assert t.sent == ["1902FF", "190208"]
+        assert data["command"] == "190208"
+        assert data["count"] == 0
+
+    @pytest.mark.asyncio
+    async def test_no_fallback_when_mask_already_08(self, capsys):
+        t = FakeTerminal(
+            {"190208": {"ok": False, "nrc": 0x31, "nrc_desc": "requestOutOfRange"}}
+        )
+        await dtc.mode_dtc_read(t, 0x770, mask=0x08, protocol="uds", as_json=True)
+        # No infinite/duplicate retry — one request only.
+        assert t.sent == ["190208"]
+
+
+class TestModeReadKwp:
+    @pytest.mark.asyncio
+    async def test_kwp_read_decodes_2byte_dtcs(self, capsys):
+        # 58 <count=1> <DTC P1234 status 20>
+        t = FakeTerminal({"1800FF00": _ok("5801" + "1234" + "20")})
+        await dtc.mode_dtc_read(t, 0x7E4, protocol="kwp", as_json=True)
+        data = json.loads(capsys.readouterr().out)
+        assert data["protocol"] == "kwp"
+        assert data["command"] == "1800FF00"
+        assert data["count"] == 1
+        assert data["dtcs"][0]["dtc"] == "P1234"
+        assert data["dtcs"][0]["status"] == "0x20"
+
+    @pytest.mark.asyncio
+    async def test_kwp_read_probes_alternate_forms(self, capsys):
+        # First form NRCs, second form succeeds.
+        t = FakeTerminal(
+            {
+                "1800FF00": {"ok": False, "nrc": 0x12, "nrc_desc": "subFunctionNotSupported"},
+                "1802FF00": _ok("5800"),
+            }
+        )
+        await dtc.mode_dtc_read(t, 0x7E4, protocol="kwp", as_json=True)
+        data = json.loads(capsys.readouterr().out)
+        assert t.sent == ["1800FF00", "1802FF00"]
+        assert data["count"] == 0
+
+
+class TestFormatKwpDtc:
+    def test_two_byte_no_failure_type(self):
+        assert dtc.format_kwp_dtc(0x01, 0x23) == "P0123"
+        assert dtc.format_kwp_dtc(0xC1, 0x07) == "U0107"
 
 
 class TestModeClear:
     @pytest.mark.asyncio
     async def test_clear_ok(self, capsys):
         t = FakeTerminal({"14FFFFFF": _ok("54")})
-        await dtc.mode_dtc_clear(t, 0x7E4, group=0xFFFFFF, as_json=True)
+        await dtc.mode_dtc_clear(t, 0x7E4, group=0xFFFFFF, protocol="uds", as_json=True)
         data = json.loads(capsys.readouterr().out)
         assert data["cleared"] is True
         assert data["group"] == "0xFFFFFF"
         assert t.sent == ["14FFFFFF"]
 
     @pytest.mark.asyncio
+    async def test_clear_kwp_uses_2byte_group(self, capsys):
+        t = FakeTerminal({"14FFFF": _ok("54")})
+        await dtc.mode_dtc_clear(t, 0x7E4, group=0xFFFFFF, protocol="kwp", as_json=True)
+        data = json.loads(capsys.readouterr().out)
+        assert data["cleared"] is True
+        assert data["group"] == "0xFFFF"
+        assert t.sent == ["14FFFF"]
+
+    @pytest.mark.asyncio
     async def test_clear_nrc(self, capsys):
         t = FakeTerminal(
             {"14FFFFFF": {"ok": False, "nrc": 0x22, "nrc_desc": "conditionsNotCorrect"}}
         )
-        await dtc.mode_dtc_clear(t, 0x7E4, as_json=True)
+        await dtc.mode_dtc_clear(t, 0x7E4, protocol="uds", as_json=True)
         data = json.loads(capsys.readouterr().out)
         assert data["cleared"] is False
         assert data["nrc"] == "0x22"
@@ -154,7 +222,7 @@ class TestDispatchTransportAgnostic:
         from canlib.commands._live import dispatch_mode
 
         t = FakeTerminal({"1902FF": _ok("5902FF" + "0123002F")})
-        args = self._args(dtc="7E4", mask="FF", clear=False)
+        args = self._args(dtc="7E4", mask="FF", protocol="uds", clear=False)
         await dispatch_mode(args, t, {}, "1.2.3.4")
         assert t.sent == ["1902FF"]
         assert "P0123-00" in capsys.readouterr().out
@@ -164,7 +232,7 @@ class TestDispatchTransportAgnostic:
         from canlib.commands._live import dispatch_mode
 
         t = FakeTerminal({"14FFFFFF": _ok("54")})
-        args = self._args(dtc="7E4", clear=True, group="FFFFFF", yes=True)
+        args = self._args(dtc="7E4", clear=True, group="FFFFFF", protocol="uds", yes=True)
         await dispatch_mode(args, t, {}, "1.2.3.4")
         assert t.sent == ["14FFFFFF"]
         assert "cleared" in capsys.readouterr().out.lower()

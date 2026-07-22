@@ -24,9 +24,14 @@ import isotp
 from ..elm327 import parse_elm_response
 from ..log import log_response
 from ..safety import enforce_command_safety
-from .uds_raw import RESPONSE_OFFSET
+from .uds_raw import RESPONSE_OFFSET, is_response_pending
 
 logging.getLogger("isotp").setLevel(logging.ERROR)
+
+# UDS ResponsePending (NRC 0x78) handling: after a 0x78 the ECU sends its real
+# response in a follow-up frame within P2* (server) time. Wait for it, bounded.
+_PENDING_RECV_TIMEOUT = 5.0   # per follow-up recv after a 0x78
+_PENDING_TOTAL_TIMEOUT = 20.0  # overall cap while the ECU keeps saying "pending"
 
 
 class RawTerminal:
@@ -175,7 +180,19 @@ class RawTerminal:
                 st.recv()
             st.send(req)
             r = st.recv(block=True, timeout=t)
-            return bytes(r) if r is not None else None
+            if r is None:
+                return None
+            r = bytes(r)
+            # Wait through UDS ResponsePending (0x78) so slow services (DTC reads,
+            # routines) return their final answer instead of the "still working"
+            # placeholder — matching the ELM327 path.
+            pending_deadline = time.monotonic() + _PENDING_TOTAL_TIMEOUT
+            while is_response_pending(r) and time.monotonic() < pending_deadline:
+                nxt = st.recv(block=True, timeout=_PENDING_RECV_TIMEOUT)
+                if nxt is None:
+                    break
+                r = bytes(nxt)
+            return r
 
         self.cmd_count += 1
         t0 = time.monotonic()
