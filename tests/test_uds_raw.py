@@ -262,3 +262,26 @@ class TestRawUdsClient:
         assert out[("BMS", bytes.fromhex("2101"))] == bytes.fromhex("6101BB")
         # ...and SLOW times out on its own budget.
         assert isinstance(out[("IGPM", bytes.fromhex("22BC03"))], TimeoutError)
+
+
+class TestPollCallback:
+    def test_on_result_fires_per_request(self, monkeypatch):
+        table = {
+            (0x770, bytes.fromhex("22BC03")): bytes.fromhex("62BC03AA"),
+            (0x7E4, bytes.fromhex("2101")): bytes.fromhex("6101BB"),
+        }
+        c = _client(monkeypatch, table, {"IGPM": (0x770, 0x778), "BMS": (0x7E4, 0x7EC)})
+        seen: dict = {}
+        out = c.poll(
+            [("IGPM", bytes.fromhex("22BC03")), ("BMS", bytes.fromhex("2101"))],
+            on_result=lambda key, val: seen.__setitem__(key, bytes(val)),
+        )
+        # Callback fired once per request with the same values as the return map.
+        assert seen == out
+        assert seen[("IGPM", bytes.fromhex("22BC03"))] == bytes.fromhex("62BC03AA")
+
+    def test_on_result_fires_on_timeout(self, monkeypatch):
+        c = _client(monkeypatch, {}, {"BMS": (0x7E4, 0x7EC)})  # empty table -> timeout
+        seen = []
+        c.poll([("BMS", bytes.fromhex("2199"))], on_result=lambda key, val: seen.append(val))
+        assert len(seen) == 1 and isinstance(seen[0], Exception)

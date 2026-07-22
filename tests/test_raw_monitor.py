@@ -81,8 +81,14 @@ class FakeRawClient:
     def read(self, ecu, req, timeout=None):
         return self.table.get((ecu, bytes(req)))
 
-    def poll(self, requests, timeout=None):
-        return {(e, bytes(r)): self.table.get((e, bytes(r))) for e, r in requests}
+    def poll(self, requests, timeout=None, on_result=None):
+        out = {}
+        for e, r in requests:
+            val = self.table.get((e, bytes(r)))
+            out[(e, bytes(r))] = val
+            if on_result is not None:  # mirror the real client's incremental callback
+                on_result((e, bytes(r)), val)
+        return out
 
 
 def _mk_ctrl(steps, ecu_index, lengths=None, nobatch=None, table=None):
@@ -208,3 +214,31 @@ class TestPollRaw:
         # Next cycle uses single reads.
         subs, _ = c._build_raw_submissions()
         assert len(subs) == 2 and all(s["lengths"] is None for s in subs)
+
+    def test_partial_render_fires_and_pending_pid_keeps_last_value(self):
+        # Incremental rendering: fast PIDs render mid-cycle via _on_partial, and a
+        # PID still pending (not yet resolved) keeps its previous value (no
+        # flicker) rather than vanishing from the frame.
+        table = {
+            ("IGPM", bytes.fromhex("22BC03")): bytes.fromhex("62BC03AA"),
+            ("IGPM", bytes.fromhex("22BC06")): bytes.fromhex("62BC06BB"),
+        }
+        steps = [{"ecu": "IGPM", "pids": ["BC03", "BC06"]}]
+        c = _mk_ctrl(steps, _IGPM_BMS_INDEX, table=table)
+        renders = []
+        c._on_partial = lambda: renders.append(1)
+
+        asyncio.run(c._poll_raw())
+        assert len(renders) >= 1  # repainted mid-cycle, not just at the end
+        got = {r["pid"]: r.get("raw_hex") for _lbl, res in c.last_queries for r in res}
+        assert got["22BC03"] == "62BC03AA"
+        assert got["22BC06"] == "62BC06BB"
+
+        # The cycle remembered both entries, so a frame built with nothing yet
+        # resolved this cycle (all PIDs still pending) shows their last values —
+        # this is what keeps other PIDs visible while a slow one is in flight.
+        _subs, plan_by_ecu = c._build_raw_submissions()
+        frame = c._raw_build_queries(plan_by_ecu, {})
+        pending = {r["pid"]: r.get("raw_hex") for _lbl, res in frame for r in res}
+        assert pending["22BC03"] == "62BC03AA"
+        assert pending["22BC06"] == "62BC06BB"

@@ -122,7 +122,10 @@ class RawUdsClient:
         return resp
 
     def poll(
-        self, requests: list[tuple[str, bytes]], timeout: float | None = None
+        self,
+        requests: list[tuple[str, bytes]],
+        timeout: float | None = None,
+        on_result=None,
     ) -> dict[tuple[str, bytes], bytes | Exception]:
         """Round-based pipelined read.
 
@@ -140,8 +143,21 @@ class RawUdsClient:
         and starved the ECUs collected after it (leaving them ~0.05s → spurious
         timeouts). Now a slow ECU only spends its own budget; the rest are
         unaffected.
+
+        ``on_result``: optional ``callback((ecu, req), value)`` fired the instant
+        each request resolves (bytes) or gives up (Exception). Lets the caller
+        render results *incrementally* so one slow/timing-out request can't hold
+        up displaying the others (the monitor uses this to stay live).
         """
         from collections import defaultdict, deque
+
+        def _finish(ecu: str, req: bytes, value):
+            out[(ecu, req)] = value
+            if on_result is not None:
+                try:
+                    on_result((ecu, req), value)
+                except Exception:
+                    pass  # a rendering callback must never break polling
 
         explicit = timeout is not None
         t = timeout if explicit else self.timeout
@@ -174,7 +190,7 @@ class RawUdsClient:
                     try:
                         resp = st.recv(block=False) if st.available() else None
                     except Exception as e:  # surface per-request, keep polling the rest
-                        out[(ecu, req)] = e
+                        _finish(ecu, req, e)
                         del pending[ecu]
                         progressed = True
                         continue
@@ -189,11 +205,11 @@ class RawUdsClient:
                             progressed = True
                             continue
                         self.timings.record(ecu, req.hex().upper(), time.monotonic() - info["sent_at"])
-                        out[(ecu, req)] = resp
+                        _finish(ecu, req, resp)
                         del pending[ecu]
                         progressed = True
                     elif now >= info["deadline"]:
-                        out[(ecu, req)] = TimeoutError("no response")
+                        _finish(ecu, req, TimeoutError("no response"))
                         del pending[ecu]
                         progressed = True
                 if pending and not progressed:
