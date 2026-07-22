@@ -1,0 +1,47 @@
+# Hyundai Ioniq 2017 EV — vehicle operating states
+#
+# Canonical, ordered operating states for capture sessions. The `state` field on
+# a capture session should draw from these names; `canair validate captures`
+# emits a soft warning when a session's state has no token from this vocabulary
+# (free text is still accepted — this only nudges toward standardization).
+#
+# States with a `when:` predicate are auto-suggested from decoded PID values at
+# save time (first match wins, top-to-bottom). Predicates reference decoded
+# parameters as ECU.PARAM. See canlib/states.py for the grammar.
+#
+# Schema: canlib/schema/states_schema.yaml   (canair validate states)
+
+states:
+  # Actively charging — BMS current is negative while charging (verified), and
+  # the OBC reports DC output current only while charging (verified). Checked
+  # first because a charging car is also "ready"-ish on some signals.
+  - name: charging
+    description: HV battery actively charging (AC or DC). Implies plugged.
+    when: "BMS.BATTERY_CURRENT < -1 or OBC.OBC_DC_A > 0.5"
+
+  # HV active / driveable. VEHICLE_STATE_EV_READY (VCU 2101 B11:3) is verified.
+  - name: ready
+    description: HV active, car in READY (driveable).
+    when: "VCU.VEHICLE_STATE_EV_READY == 1"
+
+  # No ECU answered at all — car fully asleep / powered down.
+  - name: deep sleep
+    description: Deep sleep — no ECU responded (12V standby only).
+    when: "__no_response__"
+
+  # --- Vocabulary-only states (no auto-suggest predicate) --------------------
+  # Present so composite free-text states like "ready, parked" or "sleep,
+  # plugged" don't trip the soft warning, and to document the shared base
+  # vocabulary (sleep/plugged/acc/acc2/ready/charging).
+  - name: sleep
+    description: Light sleep / 12V standby (unplugged).
+  - name: plugged
+    description: Charge cable connected (AC or DC), not necessarily charging.
+  - name: acc
+    description: ACC1 — one start-button press, accessory power.
+  - name: acc2
+    description: ACC2/IGN — full ignition, no HV.
+  - name: parked
+    description: Stationary, gear in Park.
+  - name: driving
+    description: In motion.

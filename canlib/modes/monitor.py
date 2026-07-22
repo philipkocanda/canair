@@ -248,47 +248,6 @@ def _write_merged(
     return save_session(session, captures_dir)
 
 
-def _prompt_and_save(
-    hex_history: dict[tuple[str, str], list[tuple[str, str]]],
-    prev_hex: dict[tuple[str, str], str],
-    captures_dir: Path,
-    label: str | None = None,
-    state: str | None = None,
-    notes: str | None = None,
-) -> None:
-    """Prompt (or use provided metadata) and write captures to YAML file.
-
-    Collects label, state, and notes via stdin prompts (or uses the provided
-    values non-interactively), then appends a new session with all unique
-    payloads to captures/YYYY-MM-DD.yaml. Decoded parameter values are not
-    stored — they are regenerated on demand from the payload + PID definitions
-    (see decode.py / query-captures.py).
-    """
-    from ..captures import resolve_metadata
-
-    if not hex_history and not prev_hex:
-        print("  No payloads captured — nothing to save.")
-        return
-
-    merged = _merge_history(hex_history, prev_hex)
-    if not merged:
-        print("  No payloads captured — nothing to save.")
-        return
-
-    # Count what we'll save
-    n_pids = len(merged)
-    n_payloads = sum(len(v) for v in merged.values())
-    print(f"\n  Saving {n_payloads} payload(s) across {n_pids} PID(s).")
-
-    # Resolve metadata (non-interactive when label provided)
-    meta = resolve_metadata(label, state, notes, suggested_label="Monitor session")
-    if meta is None:
-        return
-    label, state, notes = meta
-
-    _write_merged(merged, label, state, notes, captures_dir)
-
-
 def _raw_pid_result(pid_code, pid_info, unmapped, value, acquired_at):
     """Turn a raw-CAN poll result (bytes / Exception / None) into a result dict.
 
@@ -390,6 +349,14 @@ class MonitorController:
         # the journal on disk for `canair captures --recover`.
         self.journal = None
         self._name_index: dict | None = None
+        # Auto-suggest state: latest decoded {ECU.PARAM: value} + responded ECUs,
+        # evaluated against the profile's states.yaml rules (lazy-loaded).
+        self.decoded_values: dict[str, float] = {}
+        self.responded: set[str] = set()
+        self._state_rules: list | None = None
+        # True once the user sets a non-empty state via the TUI save dialog, so
+        # the end-of-run auto-suggest fallback doesn't clobber their choice.
+        self._state_explicit = False
 
     async def setup(self, session_steps: list[dict] | None) -> None:
         """Build the ECU index, run one-shot session setup, start keepalives."""
@@ -438,6 +405,12 @@ class MonitorController:
 
     def _record(self, new_queries: list[tuple[str, list]]) -> None:
         """Record freshly-polled payloads into prev_hex / display / save history."""
+        # Refresh the decoded-value snapshot used for state auto-suggestion.
+        from ..states import collect_values
+
+        values, responded = collect_values(new_queries)
+        self.decoded_values.update(values)
+        self.responded |= responded
         # Snapshot the prior cycle's payloads before overwriting them, so the
         # renderer can diff current-vs-previous (prev_hex is about to become the
         # current values).
@@ -670,6 +643,7 @@ class MonitorController:
 
     def query_label(self) -> str:
         """Short summary of the polled selectors, e.g. ``BCM VCU:2101``.
+
         Reconstructs the query mini-language from the active steps (ECU name,
         with its PID list attached by a colon when filtered). Used to pre-fill
         the on-demand save dialog's label.
@@ -680,6 +654,24 @@ class MonitorController:
             pids = step.get("pids") or []
             parts.append(f"{ecu}:{','.join(pids)}" if pids else ecu)
         return " ".join(parts)
+
+    def suggested_state(self) -> str | None:
+        """Auto-suggest the vehicle state from the latest decoded values.
+
+        Evaluates the active profile's states.yaml rules against the accumulated
+        ``decoded_values``/``responded`` snapshot. Returns None when no rule
+        matches or the profile declares no states.
+        """
+        from ..states import StatePredicateError, load_states, suggest_state
+
+        if self._state_rules is None:
+            try:
+                self._state_rules = load_states()
+            except StatePredicateError:
+                self._state_rules = []
+        if not self._state_rules:
+            return None
+        return suggest_state(self._state_rules, self.decoded_values, self.responded)
 
     def save_now(self, label: str, state: str | None = None, notes: str | None = None) -> str:
         """Save the payloads captured so far (on-demand save from the TUI).
@@ -698,6 +690,8 @@ class MonitorController:
         if self.journal is not None:
             with contextlib.suppress(Exception):
                 self.journal.update_meta(label, state, notes)
+            if state:
+                self._state_explicit = True
             return f"Metadata set (label={label!r}); session auto-saves on exit."
 
         history = self.save_history if self.save_history is not None else (self.hex_history or {})
@@ -789,7 +783,10 @@ async def mode_monitor(
                         "all" = every payload from every cycle,
                         "last" = sliding window of last N payloads (see keep_n).
         keep_n:         For keep_mode="last": number of recent payloads to display.
-        save:           On stop, prompt for metadata and save to captures/.
+        save:           Journal every polled payload as it arrives and reconcile
+                        into captures/ on stop (crash/disconnect leaves a
+                        recoverable journal). Metadata comes from label/state/
+                        notes (auto-suggested when omitted) and the TUI 's' key.
         show_rulers:    Show byte-index rulers (idx/wican) once per PID.
 
     TUI keys: ↑/↓ or j/k scroll, PgUp/PgDn page, g/Home top, G/End bottom,
@@ -829,6 +826,11 @@ async def mode_monitor(
             source="monitor",
             keep_mode=keep,
         )
+        print(
+            f"  --save: journaling to {controller.journal.path.name} "
+            f"(label: {journal_label!r}); auto-saves on stop. "
+            "Press 's' to edit label/state/notes."
+        )
 
     try:
         await controller.setup(session_steps)
@@ -855,6 +857,12 @@ async def mode_monitor(
         # the old bug where a dropped connection lost the whole --save session).
         if controller.journal is not None:
             with contextlib.suppress(Exception):
+                # If no state was set explicitly (flag or the TUI dialog), fall
+                # back to the auto-suggested state from decoded PID values.
+                if not state and not controller._state_explicit:
+                    suggested = controller.suggested_state()
+                    if suggested:
+                        controller.journal.update_meta(state=suggested)
                 written = controller.journal.reconcile()
                 if written is not None:
                     _console.print(f"  → Saved journaled captures to {written.name}")

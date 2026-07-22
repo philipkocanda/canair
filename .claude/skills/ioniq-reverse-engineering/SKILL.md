@@ -62,7 +62,8 @@ Backlog: `canair research --summary` (per-ECU `research:` sections) and
 
 Vehicle data lives in a *profile* bundle: `pids/` (per-ECU PID definitions —
 **source of truth** — plus `_meta.yaml`), `ecus.yaml` (TX-ID → name registry),
-`captures/` (dated UDS payloads), `research/` (reference data), and **generated**
+`captures/` (dated UDS payloads), `states.yaml` (canonical operating states +
+auto-suggest predicates), `research/` (reference data), and **generated**
 `out/` (never hand-edit — run `canair wican`). The repo ships
 `profiles/ioniq-2017/` as the default. Local (uncommitted) profiles live in
 `~/.config/canair/profiles/` and shadow bundled ones by name; precedence:
@@ -187,7 +188,12 @@ Full reference: **AGENTS.md** + `canair <cmd> --help`. Key project behaviors:
 - **`--save` discipline.** NEVER hand-write/edit `captures/` YAML — record via
   `canair query/scan/raw/discover … --save` (and `--monitor`). Agents must pass
   `--label` (+ optional `--state`/`--notes`) for non-interactive save; without
-  `--label` it prompts. For edits/removals use `canlib.captures`
+  `--label` it prompts. Saves are **journaled** to `captures/.journal/` as they
+  stream and reconciled into the dated file on exit, so a killed/disconnected
+  session isn't lost — recover leftovers with `canair captures --recover`
+  (`--discard` to drop). In `--monitor` press `s` to set/edit label/state/notes
+  live; the **state is auto-suggested** from decoded PID values via the profile's
+  `states.yaml`. For edits/removals use `canlib.captures`
   (`set_capture_note`/`delete_capture`). After saving, run `canair captures
   --summary` to spot patterns missed live.
 - **`--session` / `--wake`.** `--session` = extended session (`10 03`) + 2s

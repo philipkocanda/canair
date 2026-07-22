@@ -922,7 +922,7 @@ def _run_captures() -> int:
     # State vocabulary for soft warnings (empty when no states.yaml → no warnings).
     from canlib.states import state_names
 
-    vocab = set(state_names())
+    vocab = {n.lower() for n in state_names()}
 
     total_errors = 0
     total_warnings = 0
@@ -953,9 +953,10 @@ def _run_captures() -> int:
 def _capture_state_warnings(path: Path, vocab: set[str]) -> list[str]:
     """Soft warnings for session states outside the profile's declared vocabulary.
 
-    A capture ``state`` may be a comma-separated list (e.g. "ready, parked");
-    each token is checked against the vocabulary. Never an error — free text is
-    still accepted, this only nudges toward the standardized state names.
+    A capture ``state`` is often a comma-separated composite (e.g.
+    "ready, parked"); a session is flagged only when *none* of its tokens is a
+    known state name (case-insensitive). Never an error — free text is still
+    accepted; this only nudges toward the standardized vocabulary.
     """
     warnings: list[str] = []
     with open(path) as f:
@@ -968,12 +969,11 @@ def _capture_state_warnings(path: Path, vocab: set[str]) -> list[str]:
         state = session.get("state")
         if not state:
             continue
-        tokens = [t.strip() for t in str(state).split(",") if t.strip()]
-        unknown = [t for t in tokens if t not in vocab]
-        if unknown:
+        tokens = [t.strip().lower() for t in str(state).split(",") if t.strip()]
+        if tokens and not any(t in vocab for t in tokens):
             warnings.append(
-                f"sessions[{si}]: state token(s) not in states.yaml vocabulary: "
-                f"{unknown}"
+                f"sessions[{si}]: state '{state}' has no token in the "
+                f"states.yaml vocabulary"
             )
     return warnings
 

@@ -30,9 +30,9 @@ and the sentinels ``__no_response__`` / ``__responded__`` are permitted.
 from __future__ import annotations
 
 import ast
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
 
 import yaml
 
@@ -60,6 +60,8 @@ _ALLOWED_NODES = (
     ast.Or,
     ast.UnaryOp,
     ast.Not,
+    ast.USub,
+    ast.UAdd,
     ast.Compare,
     ast.Eq,
     ast.NotEq,
@@ -133,9 +135,13 @@ def _eval(node: ast.AST, values: dict, responded: set):
         return any(_eval(v, values, responded) for v in node.values)
     if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
         return not _eval(node.operand, values, responded)
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub):
+        return -_eval(node.operand, values, responded)
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.UAdd):
+        return +_eval(node.operand, values, responded)
     if isinstance(node, ast.Compare):
         left = _eval(node.left, values, responded)
-        for op, comparator in zip(node.ops, node.comparators):
+        for op, comparator in zip(node.ops, node.comparators, strict=False):
             right = _eval(comparator, values, responded)
             if not _compare(op, left, right):
                 return False
@@ -227,3 +233,31 @@ def suggest_state(rules: list[StateRule], values: dict, responded: set) -> str |
         except _Unknown:
             continue
     return None
+
+
+def collect_values(new_queries) -> tuple[dict, set]:
+    """Extract ``{ECU.PARAM: value}`` + responded-ECU set from decoded results.
+
+    ``new_queries`` is a list of ``(ecu_label, pid_results)`` where each result
+    carries a ``params`` list of ``(name, value, unit, expr, error, verified,
+    display)`` rows (as produced by :func:`canlib.decoding.decode_param_rows`).
+    An ECU is "responded" when it returned any result; rows whose value is None
+    (decode error) are skipped.
+    """
+    import re
+
+    values: dict[str, float] = {}
+    responded: set[str] = set()
+    for ecu_label, pid_results in new_queries or []:
+        m = re.match(r"(\w+)", ecu_label or "")
+        if not m:
+            continue
+        ecu = m.group(1).upper()
+        if pid_results:
+            responded.add(ecu)
+        for entry in pid_results or []:
+            for row in entry.get("params", []) or []:
+                name, value = row[0], row[1]
+                if value is not None:
+                    values[f"{ecu}.{name}"] = value
+    return values, responded

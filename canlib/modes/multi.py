@@ -1103,13 +1103,15 @@ def _finalize_journal(
     state: str | None,
     notes: str | None,
     prompt: bool = True,
+    suggested_state: str | None = None,
 ) -> None:
-    """Resolve metadata (optionally prompting) and reconcile the journal to disk.
+    """Resolve metadata (optionally prompting) and reconcile the write-ahead journal.
 
     ``journal`` is a :class:`~canlib.capture_journal.CaptureJournal` (or None).
     On a cancelled interactive prompt the journal is discarded. When ``prompt``
     is False (e.g. an interrupted pipeline) the journal is reconciled with the
-    metadata already on it — no stdin interaction.
+    metadata already on it — no stdin interaction. ``suggested_state`` pre-fills
+    the interactive state prompt (auto-suggested from decoded PID values).
     """
     from ..captures import resolve_metadata
 
@@ -1122,7 +1124,10 @@ def _finalize_journal(
 
     print(f"\n  --save: {count} payload(s) captured.")
     if prompt:
-        meta = resolve_metadata(label, state, notes, suggested_label="Multi query session")
+        meta = resolve_metadata(
+            label, state, notes, suggested_label="Multi query session",
+            last_state=suggested_state,
+        )
         if meta is None:
             journal.discard()
             return
@@ -1161,6 +1166,9 @@ async def mode_multi(
     repl_executed = False
     # Collected (ecu_ref, pid, hex, time) rows for --save (also counts for report).
     collected: list[tuple[str, str, str, str]] = []
+    # Accumulated decoded values for state auto-suggestion at save time.
+    pipe_values: dict[str, float] = {}
+    pipe_responded: set[str] = set()
     # Write-ahead journal: payloads are appended as they arrive and reconciled at
     # the end. An exception mid-pipeline leaves it on disk for `--recover`.
     journal = None
@@ -1184,6 +1192,24 @@ async def mode_multi(
                 collected.append((ecu_ref, entry["pid"], raw_hex, ""))
                 if journal is not None:
                     journal.append(ecu_ref, entry["pid"], raw_hex)
+        # Accumulate decoded values for end-of-pipeline state auto-suggestion.
+        if save:
+            from ..states import collect_values
+
+            vals, resp = collect_values([(ecu_label, pid_results)])
+            pipe_values.update(vals)
+            pipe_responded.update(resp)
+
+    def _suggest_pipeline_state() -> str | None:
+        from ..states import StatePredicateError, load_states, suggest_state
+
+        try:
+            rules = load_states()
+        except StatePredicateError:
+            return None
+        if not rules:
+            return None
+        return suggest_state(rules, pipe_values, pipe_responded)
 
     try:
         for i, cmd in enumerate(commands):
@@ -1267,7 +1293,10 @@ async def mode_multi(
 
         # Save collected payloads before any REPL handoff
         if save:
-            _finalize_journal(journal, len(collected), label, state, notes)
+            _finalize_journal(
+                journal, len(collected), label, state, notes,
+                suggested_state=_suggest_pipeline_state(),
+            )
             journal = None
 
         # Auto-REPL if no explicit repl step and --repl was passed

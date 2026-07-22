@@ -1,6 +1,13 @@
 # Plan: Robust capture journaling + standardized, auto-suggested vehicle states
 
-Status: IN PROGRESS.
+Status: DONE — all workstreams landed; `python -m pytest -q` green and
+        `canair validate all` clean. Journaling wired into monitor (disconnect
+        bug fixed), the multi query pipeline, and scan/raw/discover;
+        `canair captures --recover`/`--discard` + startup orphan notice added;
+        `states.yaml` schema/loader/`validate states` + captures soft-warn +
+        auto-suggest (monitor status line, TUI dialog, pipeline prompt) done;
+        `profile show` lists states and `profile create` scaffolds a starter
+        `states.yaml`. Remaining: exercise end-to-end on the car.
 Trigger: `canair query --save` (esp. `--monitor`) buffers all captures in memory
 and only writes on a clean exit. A crash, `kill`, or dropped connection loses the
 whole session. Concretely, in `--monitor` a disconnect raises `ConnectionError`

@@ -8,8 +8,8 @@ from canlib.capture_journal import (
     CaptureJournal,
     build_session_from_records,
     list_orphans,
-    recover,
     reconcile_file,
+    recover,
 )
 
 

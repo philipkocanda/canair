@@ -106,7 +106,10 @@ canair query "query MCU 2102" --monitor 1 --keep-all --save
 
 Capture the SAME PID in DIFFERENT states (park vs drive, cold vs warm, charging
 vs ready) — contrast is what lets you separate signal bytes from constants.
-**Never hand-edit `captures/`.** After saving, run
+**Never hand-edit `captures/`.** Saves are journaled to `captures/.journal/` and
+reconciled on exit (a killed/disconnected `--monitor` session is recoverable with
+`canair captures --recover`); in `--monitor` the `state` is auto-suggested from
+decoded values (press `s` to edit metadata live). After saving, run
 `canair captures --summary`.
 
 ### 5. Inspect — see the bytes

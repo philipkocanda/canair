@@ -124,15 +124,19 @@ class CaptureJournal:
         state: str | None = None,
         notes: str | None = None,
     ) -> None:
-        """Append a new meta record. Reconcile uses the last meta (last-wins)."""
-        self._write(
-            {
-                "type": "meta",
-                "label": label or "",
-                "state": state or "",
-                "notes": notes or "",
-            }
-        )
+        """Append a meta record with the provided fields (last-wins on reconcile).
+
+        Only non-None fields are written, so a partial update (e.g. state only)
+        leaves the previously-recorded label/notes intact.
+        """
+        rec: dict = {"type": "meta"}
+        if label is not None:
+            rec["label"] = label
+        if state is not None:
+            rec["state"] = state
+        if notes is not None:
+            rec["notes"] = notes
+        self._write(rec)
 
     def _close_fh(self) -> None:
         if self._fh is not None and not self._fh.closed:
@@ -259,7 +263,7 @@ def build_session_from_records(
             del base["notes"]
         for extra in session_records[1:]:
             base.setdefault("captures", []).extend(extra.get("captures", []))
-        return base if base.get("captures") else base
+        return base
 
     if not rows:
         return None
