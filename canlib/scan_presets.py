@@ -56,6 +56,16 @@ SERVICE_PRESETS: tuple[ServicePreset, ...] = (
         "(safe subfunction only) and keep the car in a safe state",
     ),
     ServicePreset(
+        name="iocontrol-kwp",
+        service=0x30,
+        wide=False,  # KWP2000 local identifier is a single byte (2 hex digits)
+        default_range="00-FF",
+        summary="KWP2000 InputOutputControlByLocalIdentifier (powertrain actuators: BMS fan, …)",
+        needs_session=True,
+        caution="may actuate physical hardware — prefer `canair iocontrol-scan BMS` "
+        "(auto-selects 0x30, safe IOCP 0x00 only) and keep the car in a safe state",
+    ),
+    ServicePreset(
         name="routine",
         service=0x31,
         wide=True,
@@ -79,6 +89,8 @@ _ALIASES = {
     "did": "read-did",
     "io": "iocontrol",
     "ioctl": "iocontrol",
+    "kwp-io": "iocontrol-kwp",
+    "iokwp": "iocontrol-kwp",
     "routines": "routine",
 }
 for _alias, _target in _ALIASES.items():
@@ -131,12 +143,22 @@ def resolve_service(value: str) -> tuple[int, str | None]:
 
 
 def service_label(service: int, preset_name: str | None = None) -> str:
-    """Human label for a service, e.g. ``read-did (0x22)`` or ``0x18``."""
+    """Human label for a service, e.g. ``read-did (0x22)``.
+
+    Prefers the friendly scan-preset name; otherwise falls back to the canonical
+    service name from the :mod:`canlib.uds_services` registry (so any SID gets a
+    name, e.g. ``InputOutputControlByLocalIdentifier (0x30)``); finally bare hex.
+    """
     if preset_name is None:
         p = _BY_SERVICE.get(service)
         preset_name = p.name if p else None
     if preset_name:
         return f"{preset_name} (0x{service:02X})"
+    from .uds_services import service_name
+
+    canonical = service_name(service)
+    if canonical:
+        return f"{canonical} (0x{service:02X})"
     return f"0x{service:02X}"
 
 

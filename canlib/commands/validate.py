@@ -393,8 +393,9 @@ def validate_ecu_file(
                     stats["research"] += 1
 
         # Validate routines section (RoutineControl 0x31 discoveries) and
-        # iocontrol_discoveries section (0x2F SF 00 scanner output). Both have
-        # identical structure — each entry is a 4-hex-digit ID mapping to
+        # iocontrol_discoveries section (IOControl scanner output: UDS 0x2F SF 00
+        # with 4-hex-digit DID keys, or KWP2000 0x30 IOCP 00 with 2-hex-digit LID
+        # keys). Each entry maps an id to
         # {session, response, nrc, nrc_desc, label, verified, notes}.
         _validate_hit_section(
             ecu_def, "routines", path, ecu_name, errors, warnings, stats

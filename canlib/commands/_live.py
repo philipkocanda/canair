@@ -720,17 +720,44 @@ async def dispatch_mode(args, terminal, pids_data, host):
             write_yaml=True,
         )
     elif args.iocontrol_scan is not None:
-        ecus = args.iocontrol_scan
+        from canlib.ecus import ecu_id_protocol, resolve_tx
+        from canlib.modes.kwp_iocontrol_scan import mode_kwp_iocontrol_scan
+
         did_range = parse_range(args.did_range) if args.did_range else None
-        await mode_iocontrol_scan(
-            terminal,
-            pids_data,
-            ecus=ecus,
-            did_range=did_range,
-            throttle_ms=args.throttle_ms,
-            verbose=args.verbose,
-            write_yaml=True,
-        )
+
+        # Auto-select the service by the ECU's identity protocol: KWP2000 ECUs
+        # (BMS/VCU/MCU/LDC/AAF) use IOControlByLocalIdentifier (0x30); the rest
+        # use UDS IOControlByIdentifier (0x2F). Split the ECU list accordingly.
+        uds_ecus: list[str] = []
+        kwp_ecus: list[str] = []
+        for ecu in args.iocontrol_scan:
+            tx_id = resolve_tx(ecu)
+            proto = ecu_id_protocol(tx_id) if tx_id is not None else None
+            if str(proto or "").upper().startswith("KWP"):
+                kwp_ecus.append(ecu)
+            else:
+                uds_ecus.append(ecu)
+
+        if uds_ecus:
+            await mode_iocontrol_scan(
+                terminal,
+                pids_data,
+                ecus=uds_ecus,
+                did_range=did_range,
+                throttle_ms=args.throttle_ms,
+                verbose=args.verbose,
+                write_yaml=True,
+            )
+        if kwp_ecus:
+            await mode_kwp_iocontrol_scan(
+                terminal,
+                pids_data,
+                ecus=kwp_ecus,
+                lid_range=did_range,
+                throttle_ms=args.throttle_ms,
+                verbose=args.verbose,
+                write_yaml=True,
+            )
     elif args.discover:
         addr_range = parse_range(args.range) if args.range != "01-FF" else (0x700, 0x7EF)
         await mode_discover(

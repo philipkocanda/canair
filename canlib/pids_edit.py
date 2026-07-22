@@ -292,15 +292,18 @@ def append_routines_block(ecu_name: str, hits, pids_dir: Path | None = None) -> 
 
 
 def append_iocontrol_discoveries_block(
-    ecu_name: str, hits, pids_dir: Path | None = None
+    ecu_name: str, hits, pids_dir: Path | None = None, key_width: int = 4
 ) -> Path:
     """Write/overwrite an ``iocontrol_discoveries:`` section at the end of
     the ECU block.
 
-    Kept distinct from the curated ``iocontrol:`` block so the 0x2F DID
+    Kept distinct from the curated ``iocontrol:`` block so the IOControl DID/LID
     scanner can rerun without clobbering human-authored on/off/notes entries.
     Promotion from a discovery to a fully-fledged iocontrol entry is a
     manual, per-DID step.
+
+    ``key_width`` is the number of hex digits used for the entry key: 4 for
+    UDS 16-bit DIDs (``0x2F``), 2 for KWP2000 8-bit local identifiers (``0x30``).
 
     Returns the file path edited. No-op if ``hits`` is empty.
     """
@@ -310,14 +313,20 @@ def append_iocontrol_discoveries_block(
         section_name="iocontrol_discoveries",
         key_attr="did",
         pids_dir=pids_dir,
+        key_width=key_width,
     )
 
 
-def _format_hit_entry(hit, key_attr: str) -> list[str]:
-    """Render a single hit entry (4-space indent for key, 6 for fields)."""
+def _format_hit_entry(hit, key_attr: str, key_width: int = 4) -> list[str]:
+    """Render a single hit entry (4-space indent for key, 6 for fields).
+
+    Narrow (KWP 2-digit) keys are quoted so all-digit local identifiers like
+    ``30``/``80`` are not parsed as YAML integers/octal.
+    """
     key_val = getattr(hit, key_attr)
-    key_hex = f"{key_val:04X}"
-    lines = [f"    {key_hex}:"]
+    key_hex = f"{key_val:0{key_width}X}"
+    key_token = f'"{key_hex}"' if key_width < 4 else key_hex
+    lines = [f"    {key_token}:"]
     if hit.nrc is None:
         resp = hit.response_hex or ""
         lines.append(f'      response: "{resp}"')
@@ -341,8 +350,8 @@ def _format_hit_block(hits, section_name: str, key_attr: str) -> list[str]:
     return lines
 
 
-def _parse_existing_entries(section_body: str) -> dict[str, list[str]]:
-    """Extract existing DID/RID entries from a section body as raw text blocks.
+def _parse_existing_entries(section_body: str, key_width: int = 4) -> dict[str, list[str]]:
+    """Extract existing DID/RID/LID entries from a section body as raw text blocks.
 
     Returns ``{KEY_HEX: [line1, line2, ...]}`` where each value is the raw
     lines of that entry (4-space-indented key line + 6-space-indented fields).
@@ -350,10 +359,14 @@ def _parse_existing_entries(section_body: str) -> dict[str, list[str]]:
 
     ``section_body`` is the text after the ``  <section_name>:`` header and
     before the next 0/2-space-indented key (not including those bookends).
+    ``key_width`` is the number of hex digits in the entry key (4 for UDS DIDs,
+    2 for KWP2000 local identifiers).
     """
     entries: dict[str, list[str]] = {}
-    # Each entry starts with "    <HEX>:\n" at 4-space indent
-    entry_re = re.compile(r"^ {4}([0-9A-Fa-f]{4}):\s*$", re.MULTILINE)
+    # Each entry starts with "    <HEX>:\n" at 4-space indent (key optionally quoted)
+    entry_re = re.compile(
+        r'^ {4}"?([0-9A-Fa-f]{' + str(key_width) + r'})"?:\s*$', re.MULTILINE
+    )
     matches = list(entry_re.finditer(section_body))
     for i, m in enumerate(matches):
         key = m.group(1).upper()
@@ -370,6 +383,7 @@ def _append_hit_block(
     section_name: str,
     key_attr: str,
     pids_dir: Path,
+    key_width: int = 4,
 ) -> Path:
     """Shared implementation for writing a scanner-generated YAML section.
 
@@ -397,15 +411,15 @@ def _append_hit_block(
         tail = tail_re.search(ecu_block, pos=m.end())
         sec_end = tail.start() if tail else len(ecu_block)
         section_body = ecu_block[m.end():sec_end]
-        existing_entries = _parse_existing_entries(section_body)
+        existing_entries = _parse_existing_entries(section_body, key_width=key_width)
         # Strip the old section out; we'll reappend a merged one.
         ecu_block = ecu_block[: m.start()] + ecu_block[sec_end:]
 
     # Upsert new hits into the entry map (new overrides old)
     merged: dict[str, list[str]] = dict(existing_entries)
     for hit in hits:
-        key_hex = f"{getattr(hit, key_attr):04X}"
-        merged[key_hex] = _format_hit_entry(hit, key_attr)
+        key_hex = f"{getattr(hit, key_attr):0{key_width}X}"
+        merged[key_hex] = _format_hit_entry(hit, key_attr, key_width=key_width)
 
     # Render sorted by key
     out_lines: list[str] = [f"  {section_name}:"]

@@ -64,7 +64,13 @@ class TestServiceHelpers:
     def test_service_label(self):
         assert service_label(0x22, "read-did") == "read-did (0x22)"
         assert service_label(0x21) == "live-data (0x21)"
-        assert service_label(0x18) == "0x18"
+        # Not a scan preset, but named via the uds_services registry.
+        assert service_label(0x18) == "ReadDTCByStatus (KWP2000) (0x18)"
+        assert service_label(0x1A) == "ReadEcuIdentification (0x1A)"
+        # 0x30 is a scan preset now → friendly preset name.
+        assert service_label(0x30) == "iocontrol-kwp (0x30)"
+        # Genuinely unknown SID falls back to bare hex.
+        assert service_label(0xAB) == "0xAB"
 
     def test_presets_help_lists_all(self):
         text = presets_help()
