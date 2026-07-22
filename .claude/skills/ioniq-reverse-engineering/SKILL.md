@@ -611,14 +611,6 @@ The BCM part number `95400-G7470` is **not shared across trims**. The `Gx` code 
 
 This means IOControl DIDs that accept but produce no visible effect are **not** explained by cross-vehicle sharing. More likely explanation: **market variants** — the same G7 BCM ships across all Ioniq Electric markets (EU, US, Korea, etc.) with features like heated door handles, rain sensor, or auto-dimming mirrors that may not be fitted on every market/trim level.
 
-### 2026-04-16 — IGPM status reads confirmed during deep sleep
-
-Tested querying IGPM (0x770) while car is in deep sleep using `canair query IGPM --wake`. Sequence: wake frame `10 01` (returns NO DATA, expected), then extended session `10 03` (succeeds), then `22BC03`/`22BC04`/`22BC06` all return valid data. Confirmed readable: all 5 door open/close states, trunk, 4 door locks, all lights (DRL/tail/high/low beam), ignition, seatbelts, brake light, turn signals. All values consistent with parked locked car (doors closed, locked, lights off, ignition off). This means **periodic IGPM polling during WiCAN wake cycles is feasible** — no SKM wake or fob needed for IGPM reads.
-
-### 2026-04-14 — Capture decoder + expression evaluator
-
-Created expression evaluator (`canlib/expression.py`) — faithful Python port of `wican-fw/main/expression_parser.c`. Decoder surfaced PID definition issues: BMS 2101 `B62+` exceed 61-byte stationary payload, VCU 2101 `B26` exceeds 22-byte payload (CAR_READY/PARK_BRAKE wrong offset for Ioniq), MODULE_3/5_TEMP read padding bytes as -50°C, cumulative energy values implausibly large.
-
 ## ECU Research Status
 
 Derived from `~/obsidian-vault/KB/EV/Hyundai Ioniq/Reverse engineering/PIDs by ECU/`. For untested ECU/PID combinations, query the per-ECU `research:` sections with `canair research` (e.g. `canair research --summary`, `canair research --priority P1`).
@@ -682,7 +674,6 @@ Key files: `PIDs by ECU/` (per-ECU research, summarized in ECU Status table abov
 For the full untested ECU/PID backlog with priorities, prerequisites, and status, query the per-ECU `research:` sections: `canair research --summary` / `canair research --priority P1`.
 
 **Active investigation items:**
-- [ ] **VCU speed** — unit resolved as MPH (converted to km/h in expression), low byte = B19 unsigned (reads 0 at park); still verify with GPS across full range, and validate ESC `22C101` `REAL_SPEED_KMH` (B12) as the true dashboard speed source (only captured at standstill so far)
 - [ ] **VCU 2102 / MCU 2101/2102** — captured but undecoded (motor temps, RPM, torque)
 - [ ] **Battery fan/EWP control DID** — Kingbolen scanner can actuate fan via UDS, specific DID unknown. Scan BMS/MCU `2F E0xx 03` or sniff Kingbolen
 - [ ] **IOControl testing** — BCM `2f b0 xx` untested on Ioniq. IGPM fully scanned (BC00-BCFF). SKM B108 ACC confirmed. Remaining: BC0A, BC0C, BC1B, BC1C untested; BC25/BC42/BC43/BC44 accepted but no visible effect
