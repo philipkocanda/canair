@@ -52,6 +52,10 @@ class Profile:
         return self.root / "captures"
 
     @property
+    def states_file(self) -> Path:
+        return self.root / "states.yaml"
+
+    @property
     def out_dir(self) -> Path:
         return self.root / "out"
 

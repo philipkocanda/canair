@@ -384,6 +384,12 @@ class MonitorController:
             {} if save else None
         )
         self.disconnected = False
+        # Write-ahead journal (durability): when --save is on, every polled
+        # payload is appended here as it arrives and reconciled into a capture
+        # file on exit. Set by mode_monitor. A dropped connection or crash leaves
+        # the journal on disk for `canair captures --recover`.
+        self.journal = None
+        self._name_index: dict | None = None
 
     async def setup(self, session_steps: list[dict] | None) -> None:
         """Build the ECU index, run one-shot session setup, start keepalives."""
@@ -453,6 +459,9 @@ class MonitorController:
                 )
                 if self.save_history is not None:  # --save: always keep everything
                     self.save_history.setdefault(key, []).append((raw, ts))
+                    if self.journal is not None:
+                        with contextlib.suppress(Exception):
+                            self.journal.append(self._ecu_ref(ecu_label), entry["pid"], raw, ts)
                 if self.hex_history is not None:  # --keep display history
                     if self.keep_mode in ("all", "last"):
                         self.hex_history.setdefault(key, []).append((raw, ts))
@@ -641,24 +650,26 @@ class MonitorController:
             footer=False,
         )
 
-    def save_captures(
-        self,
-        captures_dir: Path,
-        label: str | None,
-        state: str | None,
-        notes: str | None,
-    ) -> None:
-        if self.save and self.save_history is not None:
-            _prompt_and_save(self.save_history, self.prev_hex, captures_dir, label, state, notes)
-
     def has_captures(self) -> bool:
         """True when there's at least one payload available to save."""
         history = self.save_history if self.save_history is not None else (self.hex_history or {})
         return bool(history) or bool(self.prev_hex)
 
+    def _ecu_ref(self, ecu_label: str) -> str:
+        """Resolve a monitor ECU label (e.g. "BMS") to its CAN response address.
+
+        Falls back to the label's leading token when it isn't a known ECU name.
+        Caches the name→TX index for repeated calls during polling.
+        """
+        from ..ecus import build_name_tx_index, rx_from_name
+
+        if self._name_index is None:
+            self._name_index = build_name_tx_index()
+        ecu_short = re.match(r"(\w+)", ecu_label).group(1)
+        return rx_from_name(ecu_short, self._name_index) or ecu_short
+
     def query_label(self) -> str:
         """Short summary of the polled selectors, e.g. ``BCM VCU:2101``.
-
         Reconstructs the query mini-language from the active steps (ECU name,
         with its PID list attached by a colon when filtered). Used to pre-fill
         the on-demand save dialog's label.
@@ -680,6 +691,14 @@ class MonitorController:
         """
         import contextlib
         import io
+
+        # Journal active (--save): payloads are already durably journaled and
+        # reconciled on exit. The on-demand save just updates the metadata that
+        # the reconciled session will carry (label/state/notes), applied live.
+        if self.journal is not None:
+            with contextlib.suppress(Exception):
+                self.journal.update_meta(label, state, notes)
+            return f"Metadata set (label={label!r}); session auto-saves on exit."
 
         history = self.save_history if self.save_history is not None else (self.hex_history or {})
         merged = _merge_history(history, self.prev_hex)
@@ -794,6 +813,23 @@ async def mode_monitor(
     )
     controller.captures_dir = captures_dir
 
+    # --save: open the write-ahead journal up front so every polled payload is
+    # durably recorded as it arrives. On a clean stop we reconcile it into a
+    # capture file; a disconnect/crash leaves it on disk for `--recover`.
+    if save:
+        from ..capture_journal import CaptureJournal
+
+        journal_label = label or controller.query_label() or "Monitor session"
+        keep = "unique" if keep_mode == "unique" else None
+        controller.journal = CaptureJournal.open(
+            captures_dir,
+            label=journal_label,
+            state=state,
+            notes=notes,
+            source="monitor",
+            keep_mode=keep,
+        )
+
     try:
         await controller.setup(session_steps)
 
@@ -813,7 +849,13 @@ async def mode_monitor(
         # Print the final values so a stopped session leaves them in scrollback.
         _console.print(controller.render())
         print("  Monitoring stopped.")
-        controller.save_captures(captures_dir, label, state, notes)
 
     finally:
+        # Reconcile the journal even on disconnect/exception (this is the fix for
+        # the old bug where a dropped connection lost the whole --save session).
+        if controller.journal is not None:
+            with contextlib.suppress(Exception):
+                written = controller.journal.reconcile()
+                if written is not None:
+                    _console.print(f"  → Saved journaled captures to {written.name}")
         await controller.close()

@@ -919,9 +919,16 @@ def _run_captures() -> int:
         print("No capture files found.")
         return 0
 
+    # State vocabulary for soft warnings (empty when no states.yaml → no warnings).
+    from canlib.states import state_names
+
+    vocab = set(state_names())
+
     total_errors = 0
+    total_warnings = 0
     for path in files:
         errors = validate_captures_file(path, validator, rx_addrs)
+        warnings = _capture_state_warnings(path, vocab) if vocab else []
         if errors:
             print(f"\n{path.name}: {len(errors)} errors")
             for e in errors:
@@ -929,7 +936,12 @@ def _run_captures() -> int:
             total_errors += len(errors)
         else:
             print(f"{path.name}: OK")
+        for w in warnings:
+            print(f"  ⚠ {w}")
+        total_warnings += len(warnings)
 
+    if total_warnings:
+        print(f"\n{total_warnings} state warning(s) — see `canair validate states` / states.yaml")
     if total_errors:
         print(f"\n{total_errors} total errors across {len(files)} files")
         return 1
@@ -938,7 +950,86 @@ def _run_captures() -> int:
         return 0
 
 
+def _capture_state_warnings(path: Path, vocab: set[str]) -> list[str]:
+    """Soft warnings for session states outside the profile's declared vocabulary.
+
+    A capture ``state`` may be a comma-separated list (e.g. "ready, parked");
+    each token is checked against the vocabulary. Never an error — free text is
+    still accepted, this only nudges toward the standardized state names.
+    """
+    warnings: list[str] = []
+    with open(path) as f:
+        data = yaml.safe_load(f)
+    if not isinstance(data, dict):
+        return warnings
+    for si, session in enumerate(data.get("sessions", []) or []):
+        if not isinstance(session, dict):
+            continue
+        state = session.get("state")
+        if not state:
+            continue
+        tokens = [t.strip() for t in str(state).split(",") if t.strip()]
+        unknown = [t for t in tokens if t not in vocab]
+        if unknown:
+            warnings.append(
+                f"sessions[{si}]: state token(s) not in states.yaml vocabulary: "
+                f"{unknown}"
+            )
+    return warnings
+
+
 # ── CLI interface ─────────────────────────────────────────────────────────
+
+
+def _run_states() -> int:
+    """Validate the profile's optional states.yaml (structure + predicates)."""
+    from canlib.profile import active
+    from canlib.states import StatePredicateError, compile_predicate
+
+    path = active().states_file
+    if not path.exists():
+        print("No states.yaml (optional) — skipping.")
+        return 0
+
+    data = yaml.safe_load(path.read_text()) or {}
+    errors: list[str] = []
+    if not isinstance(data, dict) or "states" not in data:
+        print("states.yaml: missing top-level 'states:' list")
+        return 1
+
+    seen: set[str] = set()
+    states = data.get("states") or []
+    if not isinstance(states, list):
+        print("states.yaml: 'states' must be a list")
+        return 1
+
+    for i, entry in enumerate(states):
+        if not isinstance(entry, dict):
+            errors.append(f"states[{i}]: must be a mapping")
+            continue
+        for extra in set(entry) - {"name", "description", "when"}:
+            errors.append(f"states[{i}]: unknown field '{extra}'")
+        name = entry.get("name")
+        if not name:
+            errors.append(f"states[{i}]: missing 'name'")
+        elif name in seen:
+            errors.append(f"states[{i}]: duplicate state name '{name}'")
+        else:
+            seen.add(name)
+        expr = entry.get("when")
+        if expr:
+            try:
+                compile_predicate(expr)
+            except StatePredicateError as ex:
+                errors.append(f"states[{i}] ('{name}'): invalid when: {ex}")
+
+    if errors:
+        print(f"states.yaml: {len(errors)} errors")
+        for e in errors:
+            print(f"  - {e}")
+        return 1
+    print(f"states.yaml: OK ({len(seen)} states)")
+    return 0
 
 
 def add_parser(subparsers):
@@ -951,7 +1042,7 @@ def add_parser(subparsers):
     parser.add_argument(
         "target",
         nargs="?",
-        choices=["pids", "captures", "ecus", "all"],
+        choices=["pids", "captures", "ecus", "states", "all"],
         default="all",
         help="What to validate (default: all)",
     )
@@ -972,10 +1063,14 @@ def run(args) -> int:
         return _run_captures()
     if args.target == "ecus":
         return _run_ecus()
+    if args.target == "states":
+        return _run_states()
     # all:
     rc_p = _run_pids(None, args.stats)
     print()
     rc_e = _run_ecus()
     print()
     rc_c = _run_captures()
-    return rc_p or rc_e or rc_c
+    print()
+    rc_s = _run_states()
+    return rc_p or rc_e or rc_c or rc_s

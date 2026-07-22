@@ -559,6 +559,50 @@ class TestControllerSnapshot:
         assert list(tmp_path.glob("*.yaml")) == []
 
 
+class TestControllerJournal:
+    """--save wires a write-ahead journal that survives a dropped connection."""
+
+    def _controller(self):
+        c = MonitorController(
+            terminal=None, query_steps=[], pids_data={}, verbose=False, save=True
+        )
+        return c
+
+    def test_record_appends_to_journal(self, tmp_path):
+        from canlib.capture_journal import CaptureJournal
+
+        c = self._controller()
+        c.captures_dir = tmp_path
+        c.journal = CaptureJournal.open(tmp_path, label="L", source="monitor")
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
+        # Reconcile as the mode_monitor finally-block would (even on disconnect).
+        written = c.journal.reconcile()
+        assert written is not None
+        s = yaml.safe_load(written.read_text())["sessions"][0]
+        assert s["label"] == "L"
+        # ECU label resolved to its CAN response address (0x7E4 + 8 = 0x7EC).
+        assert s["captures"][0]["ecu"] == "0x7EC"
+        assert s["captures"][0]["payload"] == "6101AA"
+
+    def test_save_now_updates_journal_meta_not_a_second_session(self, tmp_path):
+        from canlib.capture_journal import CaptureJournal
+
+        c = self._controller()
+        c.captures_dir = tmp_path
+        c.journal = CaptureJournal.open(tmp_path, label="orig", source="monitor")
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
+        msg = c.save_now("edited", "ready", "note")
+        assert "Metadata set" in msg
+        # No immediate write — journal reconciles once on exit.
+        assert list(tmp_path.glob("*.yaml")) == []
+        written = c.journal.reconcile()
+        data = yaml.safe_load(written.read_text())
+        assert len(data["sessions"]) == 1
+        assert data["sessions"][0]["label"] == "edited"
+        assert data["sessions"][0]["state"] == "ready"
+
+
+
 class TestQueryLabel:
     def _controller(self, steps):
         return MonitorController(

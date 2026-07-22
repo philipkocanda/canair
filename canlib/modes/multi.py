@@ -1096,27 +1096,39 @@ def _rx_addr_for_ecu_label(ecu_label: str, ecu_index: dict) -> str:
     return ecu_short
 
 
-def _save_collected(
-    collected: list[tuple[str, str, str, str]],
+def _finalize_journal(
+    journal,
+    count: int,
     label: str | None,
     state: str | None,
     notes: str | None,
+    prompt: bool = True,
 ) -> None:
-    """Build and save a capture session from collected query/raw payloads."""
-    from ..captures import build_query_session, resolve_metadata, save_session
+    """Resolve metadata (optionally prompting) and reconcile the journal to disk.
 
-    if not collected:
+    ``journal`` is a :class:`~canlib.capture_journal.CaptureJournal` (or None).
+    On a cancelled interactive prompt the journal is discarded. When ``prompt``
+    is False (e.g. an interrupted pipeline) the journal is reconciled with the
+    metadata already on it — no stdin interaction.
+    """
+    from ..captures import resolve_metadata
+
+    if journal is None:
+        return
+    if count == 0:
         print("\n  --save: no payloads captured — nothing to save.")
+        journal.discard()
         return
 
-    n = len(collected)
-    print(f"\n  --save: {n} payload(s) captured.")
-    meta = resolve_metadata(label, state, notes, suggested_label="Multi query session")
-    if meta is None:
-        return
-    lbl, st, nt = meta
-    session = build_query_session(collected, lbl, st, nt)
-    save_session(session)
+    print(f"\n  --save: {count} payload(s) captured.")
+    if prompt:
+        meta = resolve_metadata(label, state, notes, suggested_label="Multi query session")
+        if meta is None:
+            journal.discard()
+            return
+        lbl, st, nt = meta
+        journal.update_meta(lbl, st, nt)
+    journal.reconcile()
 
 
 async def mode_multi(
@@ -1147,8 +1159,22 @@ async def mode_multi(
     ecu_index = build_ecu_index(pids_data)
     sm = SessionManager(terminal, verbose=verbose)
     repl_executed = False
-    # Collected (ecu_ref, pid, hex, time) rows for --save
+    # Collected (ecu_ref, pid, hex, time) rows for --save (also counts for report).
     collected: list[tuple[str, str, str, str]] = []
+    # Write-ahead journal: payloads are appended as they arrive and reconciled at
+    # the end. An exception mid-pipeline leaves it on disk for `--recover`.
+    journal = None
+    if save:
+        from ..capture_journal import CaptureJournal
+        from ..profile import active
+
+        journal = CaptureJournal.open(
+            active().captures_dir,
+            label=label or "Multi query session",
+            state=state,
+            notes=notes,
+            source="query",
+        )
 
     def _collect_query(ecu_label: str, pid_results: list[dict]) -> None:
         ecu_ref = _rx_addr_for_ecu_label(ecu_label, ecu_index)
@@ -1156,6 +1182,8 @@ async def mode_multi(
             raw_hex = entry.get("raw_hex", "")
             if raw_hex:
                 collected.append((ecu_ref, entry["pid"], raw_hex, ""))
+                if journal is not None:
+                    journal.append(ecu_ref, entry["pid"], raw_hex)
 
     try:
         for i, cmd in enumerate(commands):
@@ -1200,6 +1228,8 @@ async def mode_multi(
                     if resp.get("ok") and resp.get("hex"):
                         ecu_ref = _rx_addr_for_tx(tx_id)
                         collected.append((ecu_ref, req, resp["hex"], ""))
+                        if journal is not None:
+                            journal.append(ecu_ref, req, resp["hex"])
 
             elif cmd_type == "scan":
                 print(f"\n{step} Scan {cmd['tx']} service {cmd['service']} range {cmd['range']}...")
@@ -1237,7 +1267,8 @@ async def mode_multi(
 
         # Save collected payloads before any REPL handoff
         if save:
-            _save_collected(collected, label, state, notes)
+            _finalize_journal(journal, len(collected), label, state, notes)
+            journal = None
 
         # Auto-REPL if no explicit repl step and --repl was passed
         if not repl_executed and not no_repl:
@@ -1249,6 +1280,10 @@ async def mode_multi(
 
     except KeyboardInterrupt:
         print("\n  Interrupted.")
+        # Reconcile whatever was captured before the interrupt (no prompt).
+        if save and journal is not None:
+            _finalize_journal(journal, len(collected), label, state, notes, prompt=False)
+            journal = None
 
     finally:
         sm.stop_background_keepalive()

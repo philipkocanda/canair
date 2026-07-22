@@ -403,6 +403,10 @@ async def async_main(args):
                 file=sys.stderr,
             )
             sys.exit(1)
+        # Surface any orphaned journals from a previously killed --save session.
+        from canlib.commands.captures import orphan_notice
+
+        orphan_notice()
 
     terminal = WiCANTerminal(
         host=host,

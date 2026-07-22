@@ -1,11 +1,18 @@
 """Tests for canlib.modes.multi — parse_sub_commands, resolve_tx_id."""
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+import yaml
 
-from canlib.modes.multi import _exec_query, parse_sub_commands, resolve_tx_id
+from canlib.capture_journal import CaptureJournal
+from canlib.modes.multi import (
+    _exec_query,
+    _finalize_journal,
+    parse_sub_commands,
+    resolve_tx_id,
+)
 
 # --- resolve_tx_id ---
 
@@ -279,3 +286,43 @@ class TestExecQueryTimestamp:
         assert len(results) == 1
         assert "error" in results[0]
         assert isinstance(results[0].get("acquired_at"), float)
+
+
+class TestFinalizeJournal:
+    """_finalize_journal resolves metadata and reconciles the write-ahead journal."""
+
+    def _journal(self, tmp_path, **kw):
+        j = CaptureJournal.open(tmp_path, label="prov", source="query", **kw)
+        j.append("0x7EC", "2101", "6101AA")
+        return j
+
+    def test_noninteractive_reconciles(self, tmp_path):
+        j = self._journal(tmp_path)
+        _finalize_journal(j, 1, "My label", "ready", "note")
+        files = list(tmp_path.glob("*.yaml"))
+        assert len(files) == 1
+        sess = yaml.safe_load(files[0].read_text())["sessions"][0]
+        assert sess["label"] == "My label"
+        assert sess["state"] == "ready"
+        assert not j.path.exists()
+
+    def test_no_payloads_discards(self, tmp_path):
+        j = CaptureJournal.open(tmp_path, label="prov", source="query")
+        _finalize_journal(j, 0, "L", None, None)
+        assert not j.path.exists()
+        assert list(tmp_path.glob("*.yaml")) == []
+
+    def test_cancelled_prompt_discards(self, tmp_path):
+        j = self._journal(tmp_path)
+        with patch("canlib.captures.resolve_metadata", return_value=None):
+            _finalize_journal(j, 1, None, None, None)
+        assert not j.path.exists()
+        assert list(tmp_path.glob("*.yaml")) == []
+
+    def test_no_prompt_uses_existing_meta(self, tmp_path):
+        # Interrupted-pipeline path: reconcile with provisional metadata, no stdin.
+        j = self._journal(tmp_path)
+        with patch("builtins.input", side_effect=AssertionError("should not prompt")):
+            _finalize_journal(j, 1, None, None, None, prompt=False)
+        sess = yaml.safe_load(next(tmp_path.glob("*.yaml")).read_text())["sessions"][0]
+        assert sess["label"] == "prov"
