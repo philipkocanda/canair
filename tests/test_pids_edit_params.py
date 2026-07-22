@@ -165,6 +165,31 @@ class TestResearch:
             add_research_entry("TESTECU", type="scan", target="", status="pending",
                                pids_dir=pids_dir)
 
+    def test_numeric_target_stays_string(self, pids_dir):
+        # Regression: all-digit targets (e.g. "220101") must be quoted so YAML
+        # re-parses them as strings, not ints — otherwise the post-edit checker
+        # (str target vs int parsed value) fails with "research entry missing".
+        add_research_entry(
+            "TESTECU", type="decode", target="220101", status="captured",
+            pids_dir=pids_dir,
+        )
+        raw = (pids_dir / "test.yaml").read_text()
+        assert 'target: "220101"' in raw
+        research = _load(pids_dir)["TESTECU"]["research"]
+        new = next(e for e in research if e["target"] == "220101")
+        assert isinstance(new["target"], str)
+        assert new["type"] == "decode"
+
+    def test_capture_protocol_field(self, pids_dir):
+        add_research_entry(
+            "TESTECU", type="decode", target="22C101", status="captured",
+            capture_protocol="Hold wheel at centre, full-lock each way.",
+            pids_dir=pids_dir,
+        )
+        research = _load(pids_dir)["TESTECU"]["research"]
+        new = next(e for e in research if e["target"] == "22C101")
+        assert "full-lock" in new["capture_protocol"]
+
     def test_set_status(self, pids_dir):
         set_research_status("TESTECU", "2102", "done", pids_dir=pids_dir)
         research = _load(pids_dir)["TESTECU"]["research"]

@@ -113,19 +113,36 @@ def _field_line_re(field: str) -> re.Pattern:
 # ── Value formatting ─────────────────────────────────────────────────────────
 
 
+def _yaml_reinterprets(value: str) -> bool:
+    """True if YAML would parse the bare scalar as a non-string.
+
+    Bare scalars like ``220101`` (int), ``1.5`` (float), ``true`` (bool),
+    ``null`` or ``2026-04-15`` (date) round-trip to a non-``str`` type, which
+    breaks downstream string comparisons (e.g. a numeric research ``target``).
+    Such values must be quoted to stay strings.
+    """
+    import yaml
+    try:
+        return not isinstance(yaml.safe_load(value), str)
+    except yaml.YAMLError:
+        return True
+
+
 def _format_label(value: str) -> str:
     """Render a label value as a YAML scalar line body."""
     value = value.strip()
     if not value:
         return '""'
     # Quote if it contains characters that are special at the start of a
-    # YAML scalar, or a ': ' sequence, or leading/trailing whitespace.
+    # YAML scalar, or a ': ' sequence, or leading/trailing whitespace, or if a
+    # bare scalar would be re-parsed as a non-string (int/float/bool/null/date).
     needs_quote = (
         not value
         or value[0] in "!&*[]{}|>%@`\"'#,"
         or ": " in value
         or " #" in value
         or value != value.strip()
+        or _yaml_reinterprets(value)
     )
     if needs_quote:
         return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
@@ -729,7 +746,7 @@ PARAM_FIELD_ORDER = (
 # Canonical field order for a rendered research entry.
 RESEARCH_FIELD_ORDER = (
     "type", "target", "status", "priority", "prerequisite",
-    "date", "result", "notes", "sources", "what_to_test",
+    "date", "result", "notes", "sources", "what_to_test", "capture_protocol",
 )
 
 
@@ -817,6 +834,10 @@ def _format_research_item(fields: dict, indent: int = 4) -> list[str]:
             joined = ", ".join(str(v) for v in val) if isinstance(val, (list, tuple)) else str(val)
             lines.append(f"{prefix}{key}: [{joined}]")
         elif key in ("notes", "result") and "\n" in str(val):
+            block = _format_block_scalar(fld, key, str(val))
+            block[0] = prefix + block[0][len(fld):]
+            lines.extend(block)
+        elif key == "capture_protocol":
             block = _format_block_scalar(fld, key, str(val))
             block[0] = prefix + block[0][len(fld):]
             lines.extend(block)
@@ -1049,6 +1070,7 @@ def add_research_entry(
     notes: str | None = None,
     sources: list | None = None,
     what_to_test: list | None = None,
+    capture_protocol: str | None = None,
     pids_dir: Path | None = None,
 ) -> Path:
     """Append a new item to the ECU's ``research:`` list (creating it if absent)."""
@@ -1056,6 +1078,7 @@ def add_research_entry(
         "type": type, "target": target, "status": status, "priority": priority,
         "prerequisite": prerequisite, "date": date, "result": result,
         "notes": notes, "sources": sources, "what_to_test": what_to_test,
+        "capture_protocol": capture_protocol,
     }
     fields = {k: v for k, v in provided.items() if v is not None}
     for req in ("type", "target", "status"):
@@ -1081,7 +1104,8 @@ def add_research_entry(
     def checker(ecu_def: dict) -> None:
         research = ecu_def.get("research")
         if not isinstance(research, list) or not any(
-            e.get("target") == target and e.get("type") == type for e in research
+            str(e.get("target")) == str(target) and e.get("type") == type
+            for e in research
         ):
             raise PidsEditError("research entry missing after edit")
 

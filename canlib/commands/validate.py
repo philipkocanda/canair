@@ -333,6 +333,7 @@ def validate_ecu_file(
                     "notes",
                     "sources",
                     "what_to_test",
+                    "capture_protocol",
                 }
                 research_required = {"type", "target", "status"}
                 all_research_fields = research_required | research_optional
