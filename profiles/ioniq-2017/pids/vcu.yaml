@@ -367,6 +367,12 @@ VCU:
         such byte. E001 NRC'd; retry the full E000-E010 range with extended session (10 03) + wake, ideally
         while driving so any live values are non-zero.
 
+      date: "2026-07-22"
+      result: >
+        Re-scanned E001-E010 with ignition ON (battery 14.4V) 2026-07-22: all 16 -> NRC (0 timeouts,
+        ECU alive). Same NRC 0x12 pattern as MCU. CONFIRMED DEAD END for service-22 E0xx on this
+        KWP2000 VCU — E0xx DIDs are a UDS-era Ioniq-5 construct absent here. The drive-mode / regen
+        data must be found in the service-21 (21xx) range instead; sweep 21 00-FF for hidden pages.
       sources:
         - "OBDb Ioniq 5"
         - "ChatGPT"
@@ -388,3 +394,11 @@ VCU:
       priority: P3
       prerequisite: [acc]
       notes: "Powertrain address — test if anything responds."
+    - type: scan
+      target: 21 00-FF
+      status: done
+      priority: P2
+      prerequisite: [ready]
+      date: "2026-07-22"
+      result: "Exhaustive service-21 LID sweep (ignition on): only 01/02/F2 respond (= known 2101/2102/21F2), all 253 others NRC. No hidden pages. Drive-mode/regen not exposed as a separate VCU service-21 page — must be bytes within 2101/2102 (or 21F2)."
+      notes: Hidden-page hunt. Redirects the drive-mode/regen search back into the known 2101/2102 payloads.

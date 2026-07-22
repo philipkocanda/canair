@@ -270,3 +270,11 @@ OBC:
       priority: P3
       prerequisite: [ready]
       notes: "The LDC 12V output CURRENT is not exposed in OBC 2101. B15 (old LDC_OUTPUT_A=B15/10) DISPROVEN 2026-07-22 by a rear-defroster load step: LDC_OUTPUT_V sagged 14.5->13.6V but B15 (and every other 2101 byte) stayed flat, so no byte tracks the 12V load. Future: hunt an OBC DID that exposes output current, or accept it is not broadcast. (Same test CONFIRMED LDC_OUTPUT_V = 12V rail voltage.)"
+    - type: scan
+      target: 21 00-FF
+      status: done
+      priority: P3
+      prerequisite: [ready]
+      date: "2026-07-22"
+      result: "Exhaustive service-21 LID sweep (ignition on, OBC idle): only 01/02 respond (= known 2101/2102), all 254 others NRC. No hidden pages; notably NO 21F2 (unlike BMS/MCU/VCU). OBC service-21 space fully mapped."
+      notes: Hidden-page hunt 2026-07-22 (KWP2000 completion after BMS/MCU/VCU).

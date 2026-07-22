@@ -659,6 +659,14 @@ IGPM:
       notes: "RESOLVED 2026-07-21: IGPM service-22 reads (22BC03/04/06) do NOT require extended session. Verified live in READY mode — bare ATSH770;ATFCSH770;22BC03 returned valid 62BC03, no 1003 sent, reconfirmed after 8s idle. Removed session:true from igpm.yaml; corrected 2026-04-15 capture notes. 2F IOControl still needs 1003 (handled per-command, not this flag)."
       sources:
         - captures/2026-07-21.yaml — default-session read test
+    - type: scan
+      target: 22 BC00-BC1F
+      status: nrc
+      priority: P3
+      prerequisite: [ready]
+      date: "2026-07-22"
+      result: "Full BC-family boundary sweep (ignition on): only BC01-BC07 respond; BC00 and BC08-BC1F all NRC. Confirms the readable BC family is exactly BC01-BC07 (BC08 already known absent). Note: BC09/BC0A/BC0C exist as 2F IOControl DIDs but do NOT answer service-22 reads — IOControl DID space != readable DID space here."
+      notes: Hidden-page hunt 2026-07-22. Closes the question of readable pages beyond BC07.
 
   iocontrol_discoveries:
     BC01:

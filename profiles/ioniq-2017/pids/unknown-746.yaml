@@ -29,4 +29,9 @@ Unknown-746:
         Payload: 61F200000007 — meaning unknown (tested both on 2026-04-18 and 2026-07-19, same response).
         Full service 21 scan (2026-04-18): only PID in range 01-FF that responds.
         Full service 22 scan (2026-04-19): NRC 0x11 (serviceNotSupported) — no service 22 at all.
+        2026-07-22 (ready, ignition ON): NO DATA — a full 21 00-FF sweep returned 255 NRC + 1 timeout
+        (21F2 was the timeout), and a targeted 21F2 re-read also returned NO DATA. So 21F2 availability is
+        STATE-DEPENDENT: it answered on 2026-04-18/2026-07-19 but not at ignition-on 2026-07-22. Re-read
+        specifically during AC charging (and with the car fully off) to pin down the gating condition.
+        No hidden pages: 21F2 remains the only service-21 PID this ECU ever exposes.
       parameters: {}

@@ -86,3 +86,13 @@ AAF:
             27 bytes, same layout as 2180 but a richer variant (available in ACC2). 2026-07-20 live: identical
             to 2180 for ambient (B18) and the temp bytes, but exposes extra non-zero bytes where 2180 has zeros
             (B19, B22, B23, B24 populated). Likely additional temps/status. Payload: 6181FFFFC0002229000000000026778F523B5A5A981306969600 00
+
+  research:
+    - type: scan
+      target: 21 00-FF
+      status: done
+      priority: P3
+      prerequisite: [ready]
+      date: "2026-07-22"
+      result: "Exhaustive service-21 LID sweep (ignition on): only 80/81 respond (= known 2180/2181), all 254 others NRC. Confirms AAF lives in the 0x80 page range (not 0x01); no hidden pages. Fully mapped."
+      notes: Hidden-page hunt 2026-07-22 (KWP2000 completion).

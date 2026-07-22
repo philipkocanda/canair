@@ -121,3 +121,11 @@ EPS:
       sources:
         - "OpenDBC Hyundai LKAS message set (MDPS / LKAS11/LKAS12)"
         - "OBDb Ioniq 5"
+    - type: scan
+      target: 22 0100-0110
+      status: nrc
+      priority: P2
+      prerequisite: [ready]
+      date: "2026-07-22"
+      result: "22010x sibling sweep (ignition on): only 0101 (18B) and 0102 (8B) respond; 0100 and 0103-0110 all NRC. No hidden sibling pages -> any LKAS active/torque-command signal must live WITHIN 220101/220102 themselves (or is not OBD-exposed on EPS). Narrows the LKAS decode lead."
+      notes: Hidden-page hunt 2026-07-22. Rules out sibling 22010x pages for the LKAS backlog.
