@@ -44,6 +44,12 @@ class TestResolveTxId:
     def test_resolve_invalid_hex_returns_none(self):
         assert resolve_tx_id("ZZZ", self._ecu_index()) is None
 
+    def test_resolve_ecus_alias(self):
+        # ecus.yaml alias 'LDC' canonicalises to the pids key 'OBC' (0x7E5).
+        index = {"OBC": {"tx_id": 0x7E5, "pids": {}}}
+        assert resolve_tx_id("LDC", index) == 0x7E5
+        assert resolve_tx_id("ldc", index) == 0x7E5
+
 
 # --- parse_sub_commands ---
 

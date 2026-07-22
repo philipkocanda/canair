@@ -3,14 +3,15 @@
 import pytest
 
 from canlib.ecus import (
-    build_name_tx_index,
+    EcuNameCollision,
     build_canonical_name_index,
+    build_name_tx_index,
     build_rx_index,
     canonical_ecu_name,
+    canonical_ecu_name_safe,
     ecu_display,
     ecu_name,
     ecu_name_from_ref,
-    EcuNameCollision,
     load_ecus,
     parse_ecu_ref,
     resolve_tx,
@@ -137,6 +138,32 @@ class TestCanonicalEcuName:
         assert idx["SMK"] == "SKM"
         assert idx["SKM"] == "SKM"
         assert idx["BMS"] == "BMS"
+
+
+class TestCanonicalEcuNameSafe:
+    def test_alias_resolves_to_primary(self):
+        assert canonical_ecu_name_safe("LDC") == "OBC"
+        assert canonical_ecu_name_safe("smk") == "SKM"
+
+    def test_primary_and_unknown_passthrough(self):
+        assert canonical_ecu_name_safe("BMS") == "BMS"
+        assert canonical_ecu_name_safe("nope") == "NOPE"
+
+    def test_none_and_empty(self):
+        assert canonical_ecu_name_safe(None) == ""
+        assert canonical_ecu_name_safe("") == ""
+
+    def test_missing_registry_falls_back_to_upper(self, monkeypatch):
+        # A profile may ship pids/ without ecus.yaml: degrade to the raw name
+        # instead of crashing (unlike bare canonical_ecu_name).
+        import canlib.ecus as ecus_mod
+
+        def _raise(*a, **k):
+            raise FileNotFoundError("ecus.yaml")
+
+        monkeypatch.setattr(ecus_mod, "canonical_ecu_name", _raise)
+        assert canonical_ecu_name_safe("ldc") == "LDC"
+        assert canonical_ecu_name_safe(None) == ""
 
 
 class TestRxFromName:

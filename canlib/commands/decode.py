@@ -995,6 +995,11 @@ def run(args) -> int:
         print("Specify an ECU and PID to decode, e.g. `canair decode BMS 2101`.\n")
         print(ecu_hint())
         return 2
+    # Accept an ecus.yaml alias (e.g. LDC for OBC, ABS for ESC) or any case,
+    # matching `canair captures`. Canonicalises to the pids/ key before lookup.
+    from canlib.ecus import canonical_ecu_name_safe
+
+    args.ecu = canonical_ecu_name_safe(args.ecu)
     if not args.pid:
         from canlib.commands._hints import pid_hint
 

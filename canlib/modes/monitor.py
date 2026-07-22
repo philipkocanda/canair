@@ -63,13 +63,18 @@ def query_ecu_error(query_steps: list[dict], pids_data: dict) -> str | None:
     non-existent ECU) that would otherwise be silently skipped every poll cycle.
     ECU names are matched case-insensitively against the active profile.
     """
+    from ..ecus import build_canonical_name_index, canonical_ecu_name_safe
     from ..pids import build_ecu_index
 
     ecu_index = build_ecu_index(pids_data)
+    try:
+        name_index = build_canonical_name_index()
+    except FileNotFoundError:
+        name_index = None
     seen: set[str] = set()
     unknown: list[str] = []
     for step in query_steps:
-        key = step["ecu"].upper()
+        key = canonical_ecu_name_safe(step["ecu"], name_index).upper()
         if key not in ecu_index and key not in seen:
             seen.add(key)
             unknown.append(step["ecu"])

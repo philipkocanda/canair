@@ -187,6 +187,25 @@ def canonical_ecu_name(
     return name_index.get(key, key)
 
 
+def canonical_ecu_name_safe(
+    name,
+    name_index: dict[str, str] | None = None,
+    ecus: dict | None = None,
+) -> str:
+    """:func:`canonical_ecu_name` that tolerates a missing ECU registry.
+
+    Resolves a name/alias to its canonical short name (case-insensitive),
+    falling back to the upper-cased input when ``ecus.yaml`` is absent (a
+    profile may ship ``pids/`` without a registry). An ambiguous registry
+    (:class:`EcuNameCollision`) still propagates, matching the ``captures``
+    selector behaviour.
+    """
+    try:
+        return canonical_ecu_name(name, name_index=name_index, ecus=ecus)
+    except FileNotFoundError:
+        return "" if name is None else str(name).strip().upper()
+
+
 def rx_from_name(name: str, name_index: dict[str, int] | None = None) -> str | None:
     """Resolve an ECU name/alias to its RX response-address string, or None."""
     if name_index is None:
