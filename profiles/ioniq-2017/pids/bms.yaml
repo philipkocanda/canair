@@ -1635,7 +1635,7 @@ BMS:
         - "ChatGPT"
     - type: iocontrol_scan
       target: "30 00-FF"
-      status: pending
+      status: nrc
       priority: P1
       prerequisite: [acc]
       notes: >
@@ -1651,3 +1651,39 @@ BMS:
       priority: P2
       prerequisite: [acc]
       notes: "BMS IOControl body/comfort-style DIDs (UDS 0x2F). Likely NRC 0x11 — BMS is KWP2000; kept as a cross-check."
+    - type: scan
+      target: 33 00-FF
+      status: nrc
+      priority: P2
+      prerequisite: [acc]
+      date: "2026-07-22"
+      result: NRC 0x11 serviceNotSupported
+      notes: "KWP2000 RequestRoutineResultsByLocalIdentifier (0x33) not implemented on BMS (every LID would NRC 0x11; scan aborts on first). Companion findings same session: 30 00 00 IOControl-by-LID -> NRC 0x11; and 10 03 (UDS extended session) -> NRC 0x12 subFunctionNotSupported (BMS does not accept the UDS extended-session mode byte). Conclusion: BMS exposes neither actuator service (0x2F/0x30) nor routine services (0x31/0x33) over OBD in the default session, and the UDS extended session is rejected. Next: (1) sniff a Kingbolen fan actuator test with SavvyCAN/candump to capture the exact ECU + diagnostic session + security(0x27) + service + LID; (2) do NOT blind-sweep 10 xx session modes (KWP programming/development modes are dangerous). Fan control likely requires a manufacturer KWP2000 diagnostic session + security access, or is not the BMS at all."
+      sources:
+        - on-car 2026-07-22 (raw 7E4:300000 --session; canair scan routines BMS)
+    - type: scan
+      target: 10 81 session
+      status: done
+      priority: P1
+      prerequisite: [acc]
+      date: "2026-07-22"
+      result: ACCEPTED (positive 50 81)
+      notes: "The BMS accepts the KWP2000 standard diagnostic session 10 81 (unlike UDS 10 03, which returns NRC 0x12 subFunctionNotSupported). This is the session byte to use for BMS diagnostics. 27 01 (SecurityAccess) inside 10 81 returns NRC 0x11 (not exposed). NOTE: earlier 0x30/0x33/0x2F NRC 0x11 results were in the DEFAULT session, not 10 81 — re-probe those services inside a 10 81 session before concluding they are unsupported."
+      sources:
+        - on-car 2026-07-22 SLCAN
+    - type: iocontrol_scan
+      target: 30/33 in 1081
+      status: nrc
+      priority: P1
+      prerequisite: [acc]
+      notes: "Re-probe IOControl 0x30 and RoutineResults 0x33 on the BMS INSIDE the confirmed 10 81 session (earlier NRC 0x11 was in the default session). If they respond, the battery fan may be actuatable via 10 81 + IOControl/StartRoutine without security. Use: canair scan iocontrol BMS --session --mode 81 (and scan routines BMS --session --mode 81). Never send 0x31 StartRoutine as a blind probe."
+    - type: scan
+      target: fan actuation (sniff needed)
+      status: pending
+      priority: P2
+      prerequisite: [acc]
+      date: "2026-07-22"
+      result: safe avenues exhausted
+      notes: "Battery fan actuation not reachable via safe OBD probing: in the confirmed 10 81 session, 0x27/0x30/0x33 all return NRC 0x11. NOTE 0x33 (RoutineResults) NRC 0x11 does NOT rule out 0x31 StartRoutineByLocalIdentifier — HKMC actuator tests are often fire-and-forget StartRoutine with no results service, but 0x31 actuates so we will NOT blind-probe it. Remaining leads (all need external info): (1) sniff Kingbolen/GDS fan actuation to capture the exact session+service+LID+params; (2) a Hyundai-specific 10 8x session mode (blocked by safety guard). PAUSED pending scanner sniff access."
+      sources:
+        - on-car 2026-07-22

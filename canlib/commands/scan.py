@@ -170,7 +170,7 @@ def _add_iocontrol_parser(kinds) -> argparse.ArgumentParser:
         epilog="examples:\n"
         "  canair scan iocontrol IGPM              # UDS 0x2F DID scan\n"
         "  canair scan iocontrol BMS               # KWP2000 0x30 LID scan (auto)\n"
-        "  canair scan iocontrol BMS --did-range 00-FF\n"
+        "  canair scan iocontrol BMS --session --mode 81   # sweep inside KWP2000 session\n"
         "  canair scan iocontrol IGPM BCM --did-range B000-BFFF\n",
     )
     parser.add_argument(
@@ -184,6 +184,17 @@ def _add_iocontrol_parser(kinds) -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--throttle-ms", type=int, default=150, help="Delay in ms between probes (default 150)"
+    )
+    parser.add_argument(
+        "--session", action="store_true", help="Open a diagnostic session before scanning"
+    )
+    parser.add_argument("--wake", action="store_true", help="Wake ECU from deep sleep first")
+    parser.add_argument(
+        "--mode",
+        dest="session_mode",
+        metavar="HEX",
+        default="03",
+        help="Session mode for --session (default 03 = UDS extended; 81 = KWP2000 standard, e.g. BMS)",
     )
     add_connection_args(parser)
     finalize_live_parser(parser)
@@ -209,6 +220,7 @@ def _add_routines_parser(kinds) -> argparse.ArgumentParser:
         epilog="examples:\n"
         "  canair scan routines IGPM               # UDS 0x31 SF03\n"
         "  canair scan routines BMS                # KWP2000 0x33 LID scan (auto)\n"
+        "  canair scan routines BMS --session --mode 81    # sweep inside KWP2000 session\n"
         "  canair scan routines IGPM BCM --rid-range F000-F0FF\n",
     )
     parser.add_argument(
@@ -222,6 +234,17 @@ def _add_routines_parser(kinds) -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--throttle-ms", type=int, default=150, help="Delay in ms between probes (default 150)"
+    )
+    parser.add_argument(
+        "--session", action="store_true", help="Open a diagnostic session before scanning"
+    )
+    parser.add_argument("--wake", action="store_true", help="Wake ECU from deep sleep first")
+    parser.add_argument(
+        "--mode",
+        dest="session_mode",
+        metavar="HEX",
+        default="03",
+        help="Session mode for --session (default 03 = UDS extended; 81 = KWP2000 standard, e.g. BMS)",
     )
     add_connection_args(parser)
     finalize_live_parser(parser)

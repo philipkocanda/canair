@@ -58,3 +58,47 @@ fan actuation.
 ## Verify
 
 `pytest -q` + `canair validate pids` green; focused commits.
+
+---
+
+## Results so far (on-car, 2026-07-22, SLCAN via 192.168.3.2)
+
+### BCM (0x7A0) — SecurityAccess machinery validated; algorithm NOT in our set
+`canair query "session BCM --wake" "security BCM"`:
+- `10 03` extended session **accepted** (BCM is UDS).
+- `27 01` returns a fresh 4-byte **random seed every request** (e.g. 74FF3B09, CAE8E5FE…).
+- All **48 built-in algorithms → NRC 0x35 (invalidKey)** — i.e. correct key *length*,
+  wrong *value*. Not `0x13` (length) / `0x11` (unsupported), so our seed parse + 4-byte
+  key format are correct; only the transform is unknown.
+- **Aggressive lockout**: ~2 key attempts → NRC 0x37 (11s delay); tool auto-waited and
+  re-opened the session, so all 48 were tried (complete negative).
+- Conclusion: BCM uses a **non-trivial HKMC seed-key** (likely SA2 bytecode/secret),
+  not a simple transform. Blind guessing won't crack it → need a sniffed seed→key pair
+  (→ `canair query --pair`). **No scanner access currently**, so parked.
+
+### BMS (0x7E4) — session byte identified; no SecurityAccess exposed
+- `10 03` (UDS extended) → **NRC 0x12** (subFunctionNotSupported).
+- **`10 81` (KWP2000 standard session) → accepted** (positive `50 81`, `session
+  established`). This is the KWP session byte the BMS wants.
+- **Inside the confirmed `10 81` session, all three still return `NRC 0x11`:**
+  - `27 01` (SecurityAccess) → 0x11
+  - `30 00 00` (IOControlByLocalIdentifier, IOCP 00) → 0x11
+  - `33 00` (RequestRoutineResultsByLocalIdentifier) → 0x11
+- So `10 81` was NOT the missing key — the BMS simply does not expose SecurityAccess,
+  IOControl-by-LID, or RoutineResults over OBD in any session we can safely reach
+  (default / 10 81; 10 03 rejected).
+
+### Safe empirical avenues on the BMS are now EXHAUSTED
+Remaining leads, all requiring info we don't have or carrying risk we won't take blind:
+1. **`0x31` StartRoutineByLocalIdentifier may still exist.** `0x33` (results) returning
+   0x11 does NOT rule out `0x31` — many HKMC actuator tests are fire-and-forget
+   StartRoutine with no results service. But `0x31` **actuates**, so we will NOT
+   blind-probe it. Needs the exact LID/params from a sniff.
+2. **A Hyundai-specific session mode in the `10 8x` band** (blocked by the safety guard
+   as potential programming/dev modes). GDS may use one of these before actuation.
+3. **Sniff a working tool (Kingbolen/GDS)** — the only path that reveals the exact
+   session + service + LID + params in one shot. Blocked on scanner access.
+
+Conclusion: **paused pending a sniff.** The `--session --mode` scanner support (this
+change) is still correct/useful generally, but won't crack the BMS fan because
+`0x30`/`0x33` are service-absent even in `10 81`.

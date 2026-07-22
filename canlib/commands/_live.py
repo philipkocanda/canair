@@ -747,6 +747,10 @@ async def dispatch_mode(args, terminal, pids_data, host):
         # they use the read-only 0x33 RequestRoutineResultsByLocalIdentifier.
         uds_ecus, kwp_ecus = split_ecus_by_protocol(args.routines_scan)
 
+        _session = getattr(args, "session", False)
+        _wake = getattr(args, "wake", False)
+        _mode = getattr(args, "session_mode", "03")
+
         if uds_ecus:
             await mode_routines_scan(
                 terminal,
@@ -756,6 +760,9 @@ async def dispatch_mode(args, terminal, pids_data, host):
                 throttle_ms=args.throttle_ms,
                 verbose=args.verbose,
                 write_yaml=True,
+                session=_session,
+                wake=_wake,
+                session_mode=_mode,
             )
         if kwp_ecus:
             # For KWP2000 ECUs the id is an 8-bit LID; only pass an explicit range
@@ -769,6 +776,9 @@ async def dispatch_mode(args, terminal, pids_data, host):
                 throttle_ms=args.throttle_ms,
                 verbose=args.verbose,
                 write_yaml=True,
+                session=_session,
+                wake=_wake,
+                session_mode=_mode,
             )
     elif args.iocontrol_scan is not None:
         from canlib.modes.kwp_iocontrol_scan import mode_kwp_iocontrol_scan
@@ -780,6 +790,10 @@ async def dispatch_mode(args, terminal, pids_data, host):
         # use UDS IOControlByIdentifier (0x2F).
         uds_ecus, kwp_ecus = split_ecus_by_protocol(args.iocontrol_scan)
 
+        _session = getattr(args, "session", False)
+        _wake = getattr(args, "wake", False)
+        _mode = getattr(args, "session_mode", "03")
+
         if uds_ecus:
             await mode_iocontrol_scan(
                 terminal,
@@ -789,6 +803,9 @@ async def dispatch_mode(args, terminal, pids_data, host):
                 throttle_ms=args.throttle_ms,
                 verbose=args.verbose,
                 write_yaml=True,
+                session=_session,
+                wake=_wake,
+                session_mode=_mode,
             )
         if kwp_ecus:
             await mode_kwp_iocontrol_scan(
@@ -799,6 +816,9 @@ async def dispatch_mode(args, terminal, pids_data, host):
                 throttle_ms=args.throttle_ms,
                 verbose=args.verbose,
                 write_yaml=True,
+                session=_session,
+                wake=_wake,
+                session_mode=_mode,
             )
     elif args.discover:
         addr_range = parse_range(args.range) if args.range != "01-FF" else (0x700, 0x7EF)

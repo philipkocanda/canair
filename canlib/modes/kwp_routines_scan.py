@@ -133,6 +133,9 @@ async def mode_kwp_routines_scan(
     throttle_ms: int = 150,
     verbose: bool = False,
     write_yaml: bool = True,
+    session: bool = False,
+    wake: bool = False,
+    session_mode: str = "03",
 ) -> dict[str, list[KwpRoutineHit]]:
     """Scan KWP2000 routine local identifiers via the safe 0x33 results read.
 
@@ -149,4 +152,7 @@ async def mode_kwp_routines_scan(
         throttle_ms=throttle_ms,
         verbose=verbose,
         write_yaml=write_yaml,
+        session=session,
+        wake=wake,
+        session_mode=session_mode,
     )
