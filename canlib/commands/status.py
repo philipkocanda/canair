@@ -21,6 +21,12 @@ _MISCONFIGURED = 2
 _PROBE_TIMEOUT = 4.0
 
 
+def _valid_transports():
+    from ..transport.config import VALID_TRANSPORTS
+
+    return VALID_TRANSPORTS
+
+
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
@@ -28,7 +34,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("--transport", choices=("wican-ws", "slcan-tcp"), default=None,
+    parser.add_argument("--transport", choices=_valid_transports(), default=None,
                         help="Override the configured transport type")
     parser.add_argument("--wican", default=None, help="Override device host (alias or IP)")
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
@@ -84,6 +90,7 @@ def _gather(args) -> dict:
         "port": t.port,
         "bitrate": t.bitrate,
         "family": "raw" if t.is_raw else "elm",
+        "summary": t.summary,
     }
 
     # Active vehicle profile.
@@ -160,14 +167,15 @@ def _render(info: dict) -> None:
     c = Console()
     t = info.get("transport")
     if t:
-        fam = "raw diagnostics + sniff" if t["family"] == "raw" else "ELM327 terminal (query/raw/scan/monitor/io/routines/…)"
         loc = t.get("host") or "?"
         if t.get("port"):
             loc = f"{loc}:{t['port']}"
         usable = t.get("usable")
         mark = "[green]✓[/green]" if usable else "[red]✗[/red]"
         c.print(f"\n  [bold]Transport[/bold]  {t['type']}  [dim]({loc})[/dim]  {mark}")
-        c.print(f"             [dim]supports:[/dim] {fam}")
+        summary = t.get("summary")
+        if summary:
+            c.print(f"             [dim]{summary}[/dim]")
         if t.get("bitrate"):
             c.print(f"             [dim]bitrate:[/dim]  {t['bitrate']}")
 

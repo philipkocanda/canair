@@ -15,9 +15,10 @@ profile details. This skill owns the *decoding* procedure and reference.
 
 - **NEVER** use UDS programming session (`10 02`) or any firmware write/upload.
   This is a real, un-brickable car.
-- Be gentle: old, slow ECUs. **One `canair`/WebSocket connection at a time**
-  (a second locks up the WiCAN — power-cycle to recover). No concurrent requests
-  to the same ECU.
+- Be gentle: old, slow ECUs. **One `canair` connection at a time, any transport**
+  — canair enforces a `flock` mutex (`/tmp/wican-connection.lock`); a second
+  `slcan-tcp` client hangs unserved and a second `wican-ws` WebSocket can lock up
+  the WiCAN (power-cycle to recover). No concurrent requests to the same ECU.
 - **Never reboot the WiCAN without asking.** Using the WebSocket terminal
   overrides AutoPID; ask before rebooting to restore the MQTT feed.
 - Treat `0x22Fxxx` (flash/cal) as read-only. `2E` writes and `2F` IOControl can

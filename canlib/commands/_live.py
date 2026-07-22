@@ -1,10 +1,11 @@
 """Shared runtime for live-device subcommands (query, scan, discover, io, ...).
 
-All live subcommands talk to the WiCAN over the WebSocket ELM327 terminal.
-They share one connection lifecycle and one dispatcher (``async_main``, moved
-here verbatim from the old ``canreq.py``). Each subcommand is a thin argparse
-surface that populates the same attribute names ``async_main`` expects, then
-calls :func:`run_live`.
+All live subcommands talk to the vehicle over the configured transport (raw
+SLCAN-over-TCP by default, or the WebSocket ELM327 terminal — see
+:mod:`canlib.transport.config`). They share one connection lifecycle and one
+dispatcher (``async_main``, moved here verbatim from the old ``canreq.py``).
+Each subcommand is a thin argparse surface that populates the same attribute
+names ``async_main`` expects, then calls :func:`run_live`.
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ from canlib import (
     log_command,
     reboot_wican,
 )
+from canlib.transport.config import DEFAULT_TRANSPORT, VALID_TRANSPORTS
 from canlib.lock import WiCANLock
 from canlib.modes import (
     mode_discover,
@@ -201,10 +203,10 @@ def add_connection_args(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--transport",
-        choices=("wican-ws", "slcan-tcp"),
+        choices=VALID_TRANSPORTS,
         default=None,
-        help="CAN transport: wican-ws (ELM327 terminal) or slcan-tcp (raw CAN). "
-        "Overrides the config `transport.type` (default: wican-ws).",
+        help="CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327 terminal). "
+        f"Overrides the config `transport.type` (default: {DEFAULT_TRANSPORT}).",
     )
     parser.add_argument(
         "--elm-timeout",
@@ -215,7 +217,7 @@ def add_connection_args(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument("--json", action="store_true", help="Output results as JSON")
     parser.add_argument(
-        "--verbose", "-v", action="store_true", help="Show raw WebSocket traffic and expressions"
+        "--verbose", "-v", action="store_true", help="Show raw transport traffic and expressions"
     )
     parser.add_argument(
         "--reboot", action="store_true", help="Reboot WiCAN after session to restore AutoPID mode"

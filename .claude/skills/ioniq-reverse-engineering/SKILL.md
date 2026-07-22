@@ -154,16 +154,19 @@ All endpoints are JSON, no authentication. Device address varies (see Device Acc
 #### Transports: `wican-ws` vs `slcan-tcp` (and `canair status`)
 
 canair talks to the bus over an **explicit, config-chosen transport** (never
-auto-switched):
+auto-switched). Transports are registered in `canlib/transport/config.py`
+(`TRANSPORTS`), so more can be added; today there are two:
 
-- **`wican-ws`** (default) — WiCAN Pro WebSocket ELM327 terminal; works in *any*
-  device `protocol` (device does ISO-TP). All commands supported.
-- **`slcan-tcp`** — SLCAN over TCP (classic WiCAN / gateway); diagnostics use
-  client-side ISO-TP. Requires the device to be in `slcan` mode. All live
-  commands work: `monitor` uses the optimized pipelined/batched `RawUdsClient`;
-  everything else (`query`, `raw`, `scan`, `discover`, `identity`, `io`,
-  `routines`, `sniff`, `*-scan`) runs the normal dispatch over a `RawTerminal`
-  adapter (same `set_header`/`send_uds`/session interface, backed by ISO-TP).
+- **`slcan-tcp`** (default) — SLCAN over TCP (WiCAN Pro / classic WiCAN /
+  gateway); diagnostics use client-side ISO-TP. Requires the device to be in
+  `slcan` mode. All live commands work: `monitor` uses the optimized
+  pipelined/batched `RawUdsClient`; everything else (`query`, `raw`, `scan`,
+  `discover`, `identity`, `io`, `routines`, `sniff`, `*-scan`) runs the normal
+  dispatch over a `RawTerminal` adapter (same `set_header`/`send_uds`/session
+  interface, backed by ISO-TP). Only this transport supports passive `sniff`.
+- **`wican-ws`** — WiCAN Pro WebSocket ELM327 terminal; works in *any* device
+  `protocol` (device does ISO-TP). All diagnostic commands supported (no
+  passive sniff).
 
 Select via the `transport:` block in `~/.config/canair/config.yaml`
 (`type`/`host`/`port`/`bitrate`) or the per-command `--transport`/`--wican`
@@ -230,9 +233,9 @@ Full CLI docs here: `docs/canair-wican.md`
 
 #### canair query
 
-The `canair query` subcommand sends custom CAN/UDS requests to the Ioniq via WiCAN's WebSocket ELM327 terminal mode. Connects to `ws://<ip>/ws`, sends `{"ws_mode": "terminal", "terminal_type": "elm327"}` to enter terminal mode. The firmware handles ISO-TP internally — no Python ISO-TP implementation needed. Core logic lives in `canlib/` package (elm827, terminal, pids, modes/). Discovery/actuation live in sibling subcommands (`canair scan`, `discover`, `io`, `routines`, `raw`, `wake`, `repl`).
+The `canair query` subcommand sends custom CAN/UDS requests to the Ioniq over the configured transport (raw SLCAN-over-TCP by default; the `wican-ws` WebSocket ELM327 terminal is the alternative — see the transports section above). Core logic lives in `canlib/` package (elm327, terminal, transport, pids, modes/). Discovery/actuation live in sibling subcommands (`canair scan`, `discover`, `io`, `routines`, `raw`, `wake`, `repl`).
 
-**CRITICAL: Only one connection at a time.** The WiCAN has a single WebSocket endpoint. Never run multiple `canair` commands in parallel — the second connection will either fail or lock up the device, requiring a power cycle to recover. Always wait for one command to finish before starting the next.
+**CRITICAL: Only one canair connection at a time (any transport).** canair enforces this with a process mutex — an advisory `flock` on `/tmp/wican-connection.lock` (`canlib/lock.py`) acquired by every live command and `sniff` — so a second concurrent command **fails fast with a clear error** instead of corrupting the session. Use `--force` to steal a stale lock left by a killed session. The lock matters because the WiCAN serves a **single client per protocol**: over `slcan-tcp` the firmware `listen(sock, 1)`s and won't `accept()` a second TCP client until the first disconnects (the second just hangs with no responses); over `wican-ws` a second WebSocket can lock up the device, requiring a power cycle to recover. Never run multiple `canair` commands in parallel — wait for one to finish before starting the next.
 
 ```bash
 # Preferred: positional query steps for decoded output with session management
@@ -269,7 +272,7 @@ canair query --json --param SOC_BMS        # JSON output
 
 ##### positional query steps (multi-ECU pipeline)
 
-`canair query` executes a sequence of positional STEP arguments within a single WebSocket session (the "multi" mini-language), managing extended diagnostic sessions across multiple ECUs with interleaved TesterPresent keepalives. After the pipeline completes, exits by default. Use `--repl` to drop into an interactive REPL with all sessions still active, or include an explicit `repl` step in the pipeline. (A bare selector like `BMS:2101` is treated as a query step.) Unknown ECU names in `query` steps are rejected up front (before connecting) with the list of valid ECUs — so a typo like `query ESC ECS` fails loudly instead of silently polling only `ESC`.
+`canair query` executes a sequence of positional STEP arguments within a single transport session (the "multi" mini-language), managing extended diagnostic sessions across multiple ECUs with interleaved TesterPresent keepalives. After the pipeline completes, exits by default. Use `--repl` to drop into an interactive REPL with all sessions still active, or include an explicit `repl` step in the pipeline. (A bare selector like `BMS:2101` is treated as a query step.) Unknown ECU names in `query` steps are rejected up front (before connecting) with the list of valid ECUs — so a typo like `query ESC ECS` fails loudly instead of silently polling only `ESC`.
 
 ```bash
 # Wake SKM, query IGPM, exit
@@ -495,7 +498,7 @@ Keeps the extended diagnostic session alive after the command completes, until C
 
 **Never reboot the WiCAN without asking the user first.** Always ask whether they are done probing the CAN bus before suggesting or triggering a reboot.
 
-**CRITICAL: Only one connection at a time.** Never run multiple `canair` commands in parallel — the second connection will either fail or lock up the device, requiring a power cycle to recover.
+**CRITICAL: Only one canair connection at a time (any transport).** A process mutex (`flock` on `/tmp/wican-connection.lock`) makes a second concurrent command fail fast — never run multiple `canair` commands in parallel. The device serves a single client per protocol: a second `slcan-tcp` client hangs unserved until the first disconnects, and a second `wican-ws` WebSocket can lock up the device (power-cycle to recover). Use `--force` to steal a stale lock after a killed session. (See the full note under "canair query".)
 
 #### wican-cli (separate package)
 
