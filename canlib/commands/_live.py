@@ -555,6 +555,7 @@ async def dispatch_mode(args, terminal, pids_data, host):
             label=args.label,
             state=args.state,
             notes=args.notes,
+            include_static=getattr(args, "include_static", False),
         )
     elif args.multi:
         await mode_multi(
@@ -567,6 +568,7 @@ async def dispatch_mode(args, terminal, pids_data, host):
             label=args.label,
             state=args.state,
             notes=args.notes,
+            include_static=getattr(args, "include_static", False),
         )
     elif args.skm_wakeup:
         await mode_skm_wakeup(terminal, args.level, args.verbose)

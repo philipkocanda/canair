@@ -366,3 +366,64 @@ class TestExecIocontrolSession:
         asyncio.run(_exec_iocontrol(sm, "IGPM", "BC01", False, {}, {}, False))
         sm.open_session.assert_awaited_once_with(0x770)
         sm.terminal.send_uds.assert_awaited_once()
+
+
+class TestBuildQueryPlanStatic:
+    """Static config/identity PIDs are omitted from a bare-ECU sweep."""
+
+    @staticmethod
+    def _ecu_info():
+        return {
+            "tx_id": 0x7E4,
+            "multi_did": False,
+            "pids": {
+                "2101": {"parameters": {}, "period": 5000, "enabled": True, "static": False},
+                "2102": {"parameters": {}, "period": 5000, "enabled": True, "static": False},
+                "21F2": {"parameters": {}, "period": 0, "enabled": False, "static": True},
+            },
+        }
+
+    def _codes(self, plan):
+        return [p[0] for p in plan]
+
+    def test_bare_ecu_omits_static(self):
+        from canlib.modes.multi import build_query_plan
+
+        plan = build_query_plan(self._ecu_info(), [])
+        assert "21F2" not in self._codes(plan)
+        assert {"2101", "2102"} == set(self._codes(plan))
+
+    def test_include_static_keeps_it(self):
+        from canlib.modes.multi import build_query_plan
+
+        plan = build_query_plan(self._ecu_info(), [], include_static=True)
+        assert "21F2" in self._codes(plan)
+
+    def test_explicit_pid_always_queried(self):
+        from canlib.modes.multi import build_query_plan
+
+        # Naming the static PID explicitly must query it even without include_static.
+        plan = build_query_plan(self._ecu_info(), ["21F2"])
+        assert self._codes(plan) == ["21F2"]
+
+    def test_non_static_unaffected_by_flag(self):
+        from canlib.modes.multi import build_query_plan
+
+        info = {
+            "tx_id": 0x770,
+            "multi_did": False,
+            "pids": {"2101": {"parameters": {}, "period": 5000, "enabled": True, "static": False}},
+        }
+        assert self._codes(build_query_plan(info, [])) == ["2101"]
+
+    def test_missing_static_key_defaults_included(self):
+        from canlib.modes.multi import build_query_plan
+
+        # PIDs from build_ecu_index always carry a static bool; a hand-built dict
+        # without it must still be treated as non-static (included).
+        info = {
+            "tx_id": 0x770,
+            "multi_did": False,
+            "pids": {"BC03": {"parameters": {}, "period": 5000, "enabled": True}},
+        }
+        assert "BC03" in self._codes(build_query_plan(info, []))

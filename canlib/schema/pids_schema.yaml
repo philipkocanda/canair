@@ -31,6 +31,12 @@
 #                          # Use for DIDs that returned NRC or contain no useful data.
 #                          # Ignored PIDs are still documented but excluded from
 #                          # build_ecu_index, generate-profile, and query commands.
+#         static: bool     # static config/identity PID (optional, default false)
+#                          # Use for calibration/identity blocks (e.g. 21F2) whose
+#                          # bytes never change. Still documented, decodable, and
+#                          # queryable when named explicitly (BMS:21F2), but omitted
+#                          # from a bare-ECU `canair query BMS` (all-PIDs) sweep
+#                          # unless --include-static is passed.
 #         notes: str       # optional — PID-level notes
 #         parameters:
 #           PARAM_NAME:
@@ -145,6 +151,10 @@ optional_pid_fields:
   - period
   - enabled
   - ignored
+  - static           # Static config/identity PID (e.g. 21F2 cal blocks). Omitted
+                     # from a bare-ECU `canair query ECU` sweep unless --include-static;
+                     # still queryable when named explicitly and still analysed by
+                     # captures/decode/coverage.
   - availability     # When this PID responds. Array of car power states:
                      #   sleep    — deep sleep, 12V standby only (unplugged)
                      #   plugged  — charge cable connected (AC or DC)

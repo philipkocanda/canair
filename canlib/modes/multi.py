@@ -413,13 +413,19 @@ async def _read_batch(sm, tx_id, group, out, batch_state) -> bool:
     return True
 
 
-def build_query_plan(ecu_info: dict, pid_filter: list[str], quiet: bool = False):
+def build_query_plan(ecu_info: dict, pid_filter: list[str], quiet: bool = False,
+                     include_static: bool = False):
     """Resolve an ECU + PID filter into a sorted query plan.
 
     Returns ``[(pid_code, pid_info_or_None, unmapped)]`` sorted by DID, or None
     if a non-empty ``pid_filter`` matched nothing. Filters match flexibly
     (``BC03`` matches key ``22BC03``); unmatched hex filters become raw UDS
     requests (``01``->``2101``, ``B001``->``22B001``, ``22BC03`` verbatim).
+
+    A bare ECU selector (empty ``pid_filter`` = "all PIDs") omits PIDs flagged
+    ``static: true`` (calibration/identity blocks like 21F2 that never change),
+    unless ``include_static`` is set. Explicitly named PIDs are always queried,
+    static or not — an explicit request wins.
     """
     pids_to_query = ecu_info["pids"]
     raw_pids: list[str] = []
@@ -454,6 +460,10 @@ def build_query_plan(ecu_info: dict, pid_filter: list[str], quiet: bool = False)
             print(f"  NOTE: {', '.join(raw_pids)} not in ecus/ — querying raw")
         if not pids_to_query and not raw_pids:
             return None
+    elif not include_static:
+        # Bare ECU selector = all PIDs. Skip static config/identity PIDs (21F2 &c.)
+        # — they never change, so polling them in a sweep is wasted bus time.
+        pids_to_query = {k: v for k, v in pids_to_query.items() if not v.get("static")}
 
     query_plan = [(pid_code, pid_info, False) for pid_code, pid_info in pids_to_query.items()]
     query_plan += [(raw_pid, None, True) for raw_pid in raw_pids]
@@ -510,6 +520,7 @@ async def _exec_query(
     return_results: bool = False,
     quiet: bool = False,
     batch_state: BatchState | None = None,
+    include_static: bool = False,
 ):
     """Execute query sub-command — query ECU parameters.
 
@@ -536,7 +547,7 @@ async def _exec_query(
     await sm.keepalive_stale()
     await sm.terminal.set_header(tx_id)
 
-    query_plan = build_query_plan(ecu_info, pid_filter, quiet=quiet)
+    query_plan = build_query_plan(ecu_info, pid_filter, quiet=quiet, include_static=include_static)
     if query_plan is None:
         print(f"  No matching PIDs for filter: {pid_filter}")
         print(f"  Available: {', '.join(sorted(ecu_info['pids'].keys()))}")
@@ -1150,6 +1161,7 @@ async def mode_multi(
     label: str | None = None,
     state: str | None = None,
     notes: str | None = None,
+    include_static: bool = False,
 ):
     """Execute a multi-ECU pipeline and optionally drop into REPL.
 
@@ -1245,6 +1257,7 @@ async def mode_multi(
                         verbose,
                         return_results=True,
                         batch_state=batch_state,
+                        include_static=include_static,
                     )
                     if result:
                         ecu_label, pid_results = result
@@ -1261,6 +1274,7 @@ async def mode_multi(
                         pids_data,
                         verbose,
                         batch_state=batch_state,
+                        include_static=include_static,
                     )
 
             elif cmd_type == "raw":
@@ -1474,7 +1488,8 @@ async def _multi_repl(sm: SessionManager, ecu_index: dict, pids_data: dict, verb
                     continue
                 sm.stop_background_keepalive()
                 for ecu, pids in selectors:
-                    await _exec_query(sm, ecu, pids, ecu_index, pids_data, verbose)
+                    await _exec_query(sm, ecu, pids, ecu_index, pids_data, verbose,
+                                      include_static=include_static)
                 sm.start_background_keepalive(interval=2.0)
                 continue
 

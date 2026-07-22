@@ -211,5 +211,6 @@ def build_ecu_index(pids_data: dict) -> dict:
                 "parameters": pid_def.get("parameters", {}),
                 "period": pid_def.get("period", 5000),
                 "enabled": pid_def.get("enabled", True),
+                "static": bool(pid_def.get("static", False)),
             }
     return index

@@ -77,6 +77,13 @@ examples:
     parser.add_argument("--state", metavar="TEXT", default=None, help="Session state for --save")
     parser.add_argument("--notes", metavar="TEXT", default=None, help="Session notes for --save")
     parser.add_argument("--rulers", action="store_true", help="Monitor: show byte-index rulers")
+    parser.add_argument(
+        "--include-static",
+        action="store_true",
+        help="Include static config/identity PIDs (e.g. 21F2) in a bare-ECU sweep. "
+        "By default `canair query ECU` omits PIDs flagged static:true; naming one "
+        "explicitly (ECU:21F2) always queries it.",
+    )
     add_connection_args(parser)
     finalize_live_parser(parser)
     parser.set_defaults(func=run)
