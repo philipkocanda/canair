@@ -602,6 +602,7 @@ async def dispatch_mode(args, terminal, pids_data, host):
                 terminal, tx_id, group=group, protocol=args.protocol,
                 session=args.session, wake=args.wake,
                 as_json=args.json, verbose=args.verbose,
+                log=getattr(args, "dtc_log", True), label=args.label,
             )
         else:
             try:

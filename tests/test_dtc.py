@@ -220,6 +220,36 @@ class TestScanLog:
         assert "P0123-00" in out2
         # Two scans recorded, same scope.
         assert len(dtc_log.load_log(logp)["scans"]) == 2
+        # The self-clear is also recorded as a first-class 'detected' clear event.
+        clears = dtc_log.load_log(logp).get("clears", [])
+        assert len(clears) == 1
+        assert clears[0]["type"] == "detected"
+        assert ["BMS (0x7E4)", "P0123-00"] in clears[0]["cleared"]
+
+    @pytest.mark.asyncio
+    async def test_manual_clear_logs_event_and_clean_baseline(self, monkeypatch, tmp_path, capsys):
+        from canlib import dtc_log
+
+        logp = tmp_path / "dtc_log.yaml"
+        monkeypatch.setattr(dtc_log, "log_path", lambda path=None: logp if path is None else path)
+        # Pre-read shows one DTC (1902FF), then the clear (14FFFFFF) succeeds.
+        t = FakeTerminal({"1902FF": _ok("5902FF" + "0123002F"), "14FFFFFF": _ok("54")})
+        await dtc.mode_dtc_clear(t, 0x7E4, group=0xFFFFFF, protocol="uds", log=True, label="fixed")
+        out = capsys.readouterr().out
+        assert "cleared" in out.lower()
+        assert "P0123-00" in out  # showed what was cleared
+
+        data = dtc_log.load_log(logp)
+        clears = data.get("clears", [])
+        assert len(clears) == 1
+        assert clears[0]["type"] == "manual"
+        assert clears[0]["group"] == "0xFFFFFF"
+        assert clears[0]["codes"] == ["P0123-00"]
+        assert clears[0]["label"] == "fixed"
+        # A clean post-clear baseline scan is recorded so a later scan of the same
+        # ECU won't also report these as self-cleared.
+        bms_scans = [s for s in data["scans"] if s["scope"] == "BMS (0x7E4)"]
+        assert bms_scans and bms_scans[-1]["ecus"]["BMS (0x7E4)"]["dtcs"] == []
 
 
 class TestScanAll:
