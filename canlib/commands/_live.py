@@ -580,7 +580,8 @@ async def dispatch_mode(args, terminal, pids_data, host):
                     print("Aborted.", file=sys.stderr)
                     return
             await mode_dtc_clear(
-                terminal, tx_id, group=group, session=args.session, wake=args.wake,
+                terminal, tx_id, group=group, protocol=args.protocol,
+                session=args.session, wake=args.wake,
                 as_json=args.json, verbose=args.verbose,
             )
         else:
@@ -590,7 +591,8 @@ async def dispatch_mode(args, terminal, pids_data, host):
                 print(f"Error: --mask must be hex (e.g. FF), got {args.mask!r}", file=sys.stderr)
                 sys.exit(1)
             await mode_dtc_read(
-                terminal, tx_id, mask=mask, session=args.session, wake=args.wake,
+                terminal, tx_id, mask=mask, protocol=args.protocol,
+                session=args.session, wake=args.wake,
                 as_json=args.json, verbose=args.verbose,
             )
     elif args.param:

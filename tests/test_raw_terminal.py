@@ -115,6 +115,47 @@ class TestRawTerminalSendUds:
         assert (await t.send_uds("2101"))["hex"] == "6101BB"
         await t.close()
 
+    @pytest.mark.asyncio
+    async def test_waits_through_response_pending(self, monkeypatch):
+        # ECU replies 7F 19 78 (ResponsePending) then the real answer on the next
+        # recv. RawTerminal must keep reading and return the final response —
+        # parity with the ELM327 path.
+        class SeqStack:
+            def __init__(self, txid, seq):
+                self.txid = txid
+                self._seq = list(seq)
+
+            def start(self):
+                pass
+
+            def stop(self):
+                pass
+
+            def available(self):
+                return False
+
+            def send(self, data, *a, **k):
+                pass
+
+            def recv(self, block=False, timeout=None):
+                return bytearray(self._seq.pop(0)) if self._seq else None
+
+        seq = [bytes.fromhex("7F1978"), bytes.fromhex("5902FF0123002F")]
+        monkeypatch.setattr(slcan_mod, "SlcanTcpBus", FakeBus)
+        monkeypatch.setattr(raw_terminal.can, "Notifier", FakeNotifier)
+        monkeypatch.setattr(
+            raw_terminal.isotp,
+            "NotifierBasedCanStack",
+            lambda bus, notifier, address=None, params=None: SeqStack(address._txid, seq),
+        )
+        monkeypatch.setattr(raw_terminal.time, "sleep", lambda *_a: None)
+        t = raw_terminal.RawTerminal("h", 3333, 500000, timeout=0.3)
+        await t.set_header(0x7A0)
+        r = await t.send_uds("1902FF", expected_sid=0x19)
+        assert r["ok"] is True
+        assert r["hex"] == "5902FF0123002F"
+        await t.close()
+
 
 class TestRawTerminalSendCommand:
     @pytest.mark.asyncio

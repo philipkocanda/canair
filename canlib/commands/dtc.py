@@ -30,6 +30,7 @@ examples:
   canair dtc BMS --json                Machine-readable output
   canair dtc BMS --clear               Clear all DTCs (asks to confirm)
   canair dtc BMS --clear --yes         Clear without the confirmation prompt
+  canair dtc BMS --protocol kwp        Force KWP2000 readDTCByStatus (0x18)
 """,
     )
     parser.add_argument(
@@ -39,7 +40,15 @@ examples:
         "--mask",
         metavar="HEX",
         default="FF",
-        help="statusOfDTC mask for the read (hex, default FF = all)",
+        help="statusOfDTC mask for the UDS read (hex, default FF = all; falls "
+        "back to 08 if the ECU rejects FF with requestOutOfRange)",
+    )
+    parser.add_argument(
+        "--protocol",
+        choices=("auto", "uds", "kwp"),
+        default="auto",
+        help="DTC protocol: uds (0x19/0x14), kwp (KWP2000 0x18/0x14), or auto "
+        "(from the profile's id_protocol). Default: auto",
     )
     parser.add_argument(
         "--clear",
