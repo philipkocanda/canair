@@ -143,6 +143,15 @@ MCU:
             Candidate motor/inverter temperature (community sheet 'temp?', Signed byte). 2026-07-20: 13°C at
             park, 10-34°C range — warms more than MCU_TEMP_1 under load (likely inverter/IGBT vs motor).
             ISO-TP 0x11. Needs a longer/warmer drive to confirm.
+        MCU_INVERTER_TEMP:
+          expression: B19
+          unit: °C
+          min: "-40"
+          max: "150"
+          source: RE 2026-07-22 MT->KW drive analysis
+          verified: false
+          notes: >
+            STRONG CANDIDATE, unverified. Inverter/IGBT power-module temperature at B19 (ISO-TP 0x0F), immediately before MCU_TEMP_1 (B20) / MCU_TEMP_2 (B21). Distinguished from those two by being strongly LOAD-responsive: rises to 23-32C while driving (r=0.66 vs |torque|, 0.60 vs phase current) while T1/T2 stay ~13-16C decoupled from load; decays slowly (thermal mass) when stopped (20->15C over the mid-drive stop) rather than dropping instantly like current -> confirms a temperature, not an instantaneous load metric. Per-state means: parked ~8-9C, charging ~20C, driving MT->KW mean 23 (10-32C). Raw byte = degrees C directly (no offset); cold-park 8C matches ambient. Needs verify: watch it climb on a sustained hard drive / hill climb and cross-check against a scan tool's inverter temp.
 
     2103:
       period: 0
@@ -253,3 +262,15 @@ MCU:
       date: "2026-07-22"
       result: "Exhaustive service-21 LID sweep (ignition on): only 01/02/03/F2 respond (= known 2101/2102/2103/21F2), all 252 others NRC. No hidden pages. MCU service-21 space fully mapped."
       notes: Hidden-page hunt. Confirms the E0xx (service-22) dead end has no service-21 analogue beyond known pages.
+    - type: decode
+      target: "2102"
+      status: captured
+      priority: P2
+      prerequisite: [ready]
+      notes: "MCU 2102 B9 (ISO-TP 0x06, immediately before MCU_MOTOR_RPM B10:B11) = candidate motor rotor/resolver electrical ANGLE or motor-speed sub-count/fraction. Signature from 2026-07-22 drive: B9==0 at ALL 18 standstill (RPM=0) samples, and spreads ~uniformly 26-253 (mean 127~=255/2) whenever |RPM|>500 — the classic aliased-angle pattern for a fast-rotating quantity sampled at asynchronous 2s intervals. Weak |RPM| corr (0.42) is just the shared zero-anchor. Cannot distinguish absolute rotor angle (0-255 = 0-360 elec deg) vs RPM fractional low byte without high-rate capture. TO TEST: log B9 with 1001-style fast polling or a SavvyCAN sniff at fixed low RPM to see if it ramps linearly (angle) or stays uniform (fraction)."
+    - type: decode
+      target: "2102"
+      status: done
+      priority: P3
+      prerequisite: [ready]
+      notes: MCU 2102 B52/B53 tail bytes = message alive-counter / checksum, NOT a physical signal. B52 (ISO-TP 0x2E) is chaotic full-range 0-253 with ZERO correlation to RPM/torque/phase-current (r~0.01); B53 sits ~constant 0x31-0x33. Ruled out as a signal during 2026-07-22 drive analysis — do not chase. The remaining B27-B47 block is the known static calibration region (constant across the drive).
