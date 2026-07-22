@@ -302,6 +302,7 @@ VCU:
     21F2:
       period: 0
       enabled: false
+      static: true
       availability: [charging]
       notes: >
         69 bytes. Discovered during charging PID scan (2026-04-18).

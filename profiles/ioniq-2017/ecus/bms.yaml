@@ -1607,6 +1607,7 @@ BMS:
     21F2:
       period: 0
       enabled: false
+      static: true
       availability: [ready]
       notes: |
         BMS identity / calibration block — 121 data bytes (123 incl. 61 F2 header), STATIC.

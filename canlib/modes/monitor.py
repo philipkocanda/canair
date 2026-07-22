@@ -322,6 +322,7 @@ class MonitorController:
         save: bool = False,
         show_rulers: bool = False,
         raw_client=None,
+        include_static: bool = False,
     ):
         self.terminal = terminal
         self.raw_client = raw_client  # transport.RawUdsClient when using the raw backend
@@ -334,6 +335,7 @@ class MonitorController:
         self.keep_n = keep_n
         self.save = save
         self.show_rulers = show_rulers
+        self.include_static = include_static
 
         self.sm = SessionManager(terminal, verbose=verbose) if not self.raw else None
         self._ecu_index: dict | None = None
@@ -404,7 +406,8 @@ class MonitorController:
                 info = self._ecu_index.get(step["ecu"].upper())
                 if not info:
                     continue
-                plan = build_query_plan(info, step.get("pids", []), quiet=True) or []
+                plan = build_query_plan(info, step.get("pids", []), quiet=True,
+                                        include_static=self.include_static) or []
                 if plan:
                     with contextlib.suppress(Exception):
                         self.raw_client.read(step["ecu"].upper(), bytes.fromhex(plan[0][0]), timeout=3.0)
@@ -431,7 +434,8 @@ class MonitorController:
             info = self._ecu_index.get(step["ecu"].upper())
             if not info:
                 continue
-            plan = build_query_plan(info, step.get("pids", []), quiet=True) or []
+            plan = build_query_plan(info, step.get("pids", []), quiet=True,
+                                    include_static=self.include_static) or []
             if plan:
                 with contextlib.suppress(Exception):
                     await self.sm.terminal.set_header(info["tx_id"])
@@ -520,6 +524,7 @@ class MonitorController:
                     return_results=True,
                     quiet=True,
                     batch_state=self._batch_state,
+                    include_static=self.include_static,
                 )
             except ConnectionError:
                 self.disconnected = True
@@ -549,7 +554,8 @@ class MonitorController:
             info = self._ecu_index.get(ecu)
             if info is None:
                 continue
-            plan = build_query_plan(info, step.get("pids", []), quiet=True) or []
+            plan = build_query_plan(info, step.get("pids", []), quiet=True,
+                                    include_static=self.include_static) or []
             plan_by_ecu.append((ecu, info["tx_id"], plan))
             batchable = info.get("multi_did", False) and ecu not in self._raw_nobatch
             i, n = 0, len(plan)
@@ -805,6 +811,7 @@ async def mode_monitor(
     state: str | None = None,
     notes: str | None = None,
     raw_client=None,
+    include_static: bool = False,
 ):
     """Live-refresh ECU parameter monitor.
 
@@ -849,6 +856,7 @@ async def mode_monitor(
         save=save,
         show_rulers=show_rulers,
         raw_client=raw_client,
+        include_static=include_static,
     )
     controller.captures_dir = captures_dir
 

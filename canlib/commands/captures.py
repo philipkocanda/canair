@@ -129,6 +129,38 @@ def _decoded_preview(entry: dict) -> dict | None:
         return None
 
 
+def _dump_json(obj) -> None:
+    """Write ``obj`` to stdout as pretty JSON (dates/other objects via str())."""
+    import json
+
+    json.dump(obj, sys.stdout, indent=2, default=str)
+    print()
+
+
+def _entry_to_dict(e: dict, *, decoded: bool = True) -> dict:
+    """Serialize a capture entry to a clean, JSON-ready dict.
+
+    Includes the regenerated ``decoded`` preview (param -> formatted value) when
+    ``decoded`` is set and a PID definition exists.
+    """
+    d = {
+        "ecu": e.get("ecu"),
+        "ecu_addr": e.get("ecu_addr"),
+        "pid": str(e["pid"]) if e.get("pid") is not None else None,
+        "date": e.get("date"),
+        "time": e.get("time") or None,
+        "state": e.get("state") or None,
+        "label": e.get("label") or e.get("session_label") or None,
+        "notes": (str(e["notes"]).strip() or None) if e.get("notes") else None,
+        "payload": e.get("payload") or None,
+        "response": e.get("response") or None,
+        "scan_results": e.get("scan_results") or None,
+    }
+    if decoded:
+        d["decoded"] = _decoded_preview(e)
+    return d
+
+
 # ---------------------------------------------------------------------------
 # Loader
 # ---------------------------------------------------------------------------
@@ -223,7 +255,7 @@ def _parse_query(query):
 # Summary mode
 # ---------------------------------------------------------------------------
 
-def cmd_summary(entries: list[dict]) -> None:
+def cmd_summary(entries: list[dict], as_json: bool = False) -> None:
     """Print overview statistics."""
     by_ecu = defaultdict(int)
     by_date = defaultdict(int)
@@ -240,6 +272,19 @@ def cmd_summary(entries: list[dict]) -> None:
             scans += 1
         elif e["response"]:
             responses += 1
+
+    if as_json:
+        _dump_json({
+            "files": len({e["file"] for e in entries}),
+            "sessions": len({(e["file"], e["session_label"]) for e in entries}),
+            "entries": len(entries),
+            "payloads": payloads,
+            "scans": scans,
+            "responses": responses,
+            "by_ecu": dict(sorted(by_ecu.items(), key=lambda x: -x[1])),
+            "by_date": dict(sorted(by_date.items())),
+        })
+        return
 
     print(f"\n  {_BOLD}Capture Summary{_RESET}")
     print(f"  Files:    {len({e['file'] for e in entries})}")
@@ -373,7 +418,7 @@ def cmd_sessions(entries: list[dict], as_json: bool = False, max_notes: int = 6)
 # List mode (default view for a QUERY)
 # ---------------------------------------------------------------------------
 
-def cmd_list(entries: list[dict], query) -> None:
+def cmd_list(entries: list[dict], query, as_json: bool = False) -> None:
     """List captures matching ``query`` (canlib.query selection).
 
     The default view: unlike --diff/--step (payload-only), this lists *every*
@@ -385,6 +430,15 @@ def cmd_list(entries: list[dict], query) -> None:
     matched, empty = q.filter(
         entries, ecu_of=lambda e: e["ecu"], pid_of=lambda e: str(e["pid"])
     )
+
+    if as_json:
+        _dump_json({
+            "query": str(q),
+            "matched": len(matched),
+            "unmatched": [str(sel) for sel in empty],
+            "captures": [_entry_to_dict(e) for e in matched],
+        })
+        return
 
     if empty:
         known = {e["ecu"].upper() for e in entries}
@@ -416,7 +470,7 @@ def cmd_list(entries: list[dict], query) -> None:
 # Latest mode
 # ---------------------------------------------------------------------------
 
-def cmd_latest(entries: list[dict], ecu_filter: str | None) -> None:
+def cmd_latest(entries: list[dict], ecu_filter: str | None, as_json: bool = False) -> None:
     """Show latest payload per ECU+PID."""
     if ecu_filter:
         from canlib.ecus import canonical_ecu_name
@@ -430,6 +484,9 @@ def cmd_latest(entries: list[dict], ecu_filter: str | None) -> None:
     payload_entries = [e for e in filtered if e["payload"]]
 
     if not payload_entries:
+        if as_json:
+            _dump_json([])
+            return
         print("  No payload captures found.")
         return
 
@@ -439,10 +496,16 @@ def cmd_latest(entries: list[dict], ecu_filter: str | None) -> None:
         key = (e["ecu"], e["pid"])
         latest[key] = e
 
+    ordered = sorted(latest.items(), key=lambda kv: (str(kv[0][0]), str(kv[0][1])))
+
+    if as_json:
+        _dump_json([_entry_to_dict(e) for _key, e in ordered])
+        return
+
     title = "Latest payloads" + (f" for {ecu_filter}" if ecu_filter else "")
     print(f"\n  {_BOLD}{title}{_RESET} — {len(latest)} PIDs\n")
 
-    for (ecu, pid), e in sorted(latest.items(), key=lambda kv: (str(kv[0][0]), str(kv[0][1]))):
+    for (ecu, pid), e in ordered:
         payload = e["payload"]
         date = e["date"]
         state = f"  ({e['state']})" if e["state"] else ""
@@ -674,7 +737,8 @@ def _render_diff_group(
         prev_norm = norm
 
 
-def cmd_diff(entries: list[dict], query, show_all: bool = False, rulers: bool = False) -> None:
+def cmd_diff(entries: list[dict], query, show_all: bool = False, rulers: bool = False,
+             as_json: bool = False) -> None:
     """Show payloads matching ``query`` in canreq monitor style, per ECU+PID.
 
     ``query`` is a canlib.query selection (``"VCU"``, ``"VCU:2101,2102"``,
@@ -686,15 +750,36 @@ def cmd_diff(entries: list[dict], query, show_all: bool = False, rulers: bool = 
     By default only *unique* payloads per PID are shown; ``show_all=True`` renders
     every capture.
     """
+    captures, defs = _gather_query(entries, query, warn=not as_json)
+    if not captures:
+        if as_json:
+            _dump_json([])
+        return
+
+    groups = _group_by_key(captures)
+
+    if as_json:
+        out = []
+        for key, group in sorted(groups.items()):
+            parameters, tx_id = defs.get(key, ({}, None))
+            unique = _dedupe_payloads(group)
+            render_list = group if show_all else unique
+            out.append({
+                "ecu": group[0]["ecu"],
+                "pid": str(group[0]["pid"]),
+                "tx_id": f"0x{tx_id:03X}" if isinstance(tx_id, int) else None,
+                "total": len(group),
+                "unique": len(unique),
+                "payloads": [e["payload"].upper().replace(" ", "") for e in render_list],
+                "decoded": _decoded_preview(group[-1]),
+            })
+        _dump_json(out)
+        return
+
     from rich.console import Console
 
     console = Console(highlight=False)
 
-    captures, defs = _gather_query(entries, query)
-    if not captures:
-        return
-
-    groups = _group_by_key(captures)
     for key, group in sorted(groups.items()):
         parameters, tx_id = defs.get(key, ({}, None))
         _render_diff_group(console, group, parameters, tx_id, show_all, rulers)
@@ -1188,7 +1273,8 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
 
     parser.add_argument(
         "--json", action="store_true",
-        help="Machine-readable output (supported by --sessions)",
+        help="Machine-readable JSON output (summary/sessions/latest/diff and the "
+             "default QUERY list; not --step, which is interactive)",
     )
 
     add_scope_args(parser)
@@ -1209,8 +1295,8 @@ def run(args) -> int:
     query = build_query(args.query)
     standalone_mode = args.summary or args.sessions or args.latest is not None
 
-    if args.json and not args.sessions:
-        print("error: --json is only supported with --sessions", file=sys.stderr)
+    if args.json and args.step:
+        print("error: --json cannot be combined with --step (interactive mode)", file=sys.stderr)
         return 2
 
     # A QUERY and the standalone modes are mutually exclusive; --diff/--step are
@@ -1282,17 +1368,17 @@ def run(args) -> int:
 
     try:
         if args.summary:
-            cmd_summary(entries)
+            cmd_summary(entries, as_json=args.json)
         elif args.sessions:
             cmd_sessions(entries, as_json=args.json)
         elif args.latest is not None:
-            cmd_latest(entries, args.latest or None)
+            cmd_latest(entries, args.latest or None, as_json=args.json)
         elif args.diff:
-            cmd_diff(entries, query, show_all=args.all, rulers=args.rulers)
+            cmd_diff(entries, query, show_all=args.all, rulers=args.rulers, as_json=args.json)
         elif args.step:
             cmd_step(entries, query, show_all=args.all, captures_dir=args.dir, rulers=args.rulers)
         else:
-            cmd_list(entries, query)
+            cmd_list(entries, query, as_json=args.json)
     except QueryError as ex:
         print(f"error: invalid query: {ex}", file=sys.stderr)
         return 2

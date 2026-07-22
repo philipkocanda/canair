@@ -33,6 +33,7 @@ Unknown-746:
     21F2:
       period: 10000
       enabled: false
+      static: true
       availability: [ready, charging]
       notes: >
         6 bytes. Responds both during AC charging and when car is off (?) (TODO: test response when car is off!)

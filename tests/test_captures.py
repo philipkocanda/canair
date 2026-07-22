@@ -14,7 +14,11 @@ from canlib.commands.captures import (
     _gather_query,
     _group_sessions,
     _is_hex_payload,
+    cmd_diff,
+    cmd_latest,
+    cmd_list,
     cmd_sessions,
+    cmd_summary,
 )
 
 
@@ -202,4 +206,94 @@ class TestCmdSessions:
     def test_json_empty(self, capsys):
         cmd_sessions([], as_json=True)
         import json
+        assert json.loads(capsys.readouterr().out) == []
+
+
+class TestCmdSummaryJson:
+    def test_json_shape(self, capsys):
+        import json
+
+        entries = [
+            _entry(ecu="BMS", payload="6101AA"),
+            _entry(ecu="BMS", payload="", scan_results={"responding": []}),
+            _entry(ecu="VCU", payload="", response="NO DATA"),
+        ]
+        cmd_summary(entries, as_json=True)
+        data = json.loads(capsys.readouterr().out)
+        assert data["entries"] == 3
+        assert data["payloads"] == 1 and data["scans"] == 1 and data["responses"] == 1
+        assert data["by_ecu"] == {"BMS": 2, "VCU": 1}
+        assert data["by_date"] == {"2026-07-22": 3}
+
+
+class TestCmdListJson:
+    def test_json_lists_matched_and_unmatched(self, capsys):
+        import json
+
+        entries = [
+            _entry(ecu="BMS", pid="21F2", payload="61F2AABB", state="ready"),
+            _entry(ecu="VCU", pid="2101", payload="6101CC"),
+        ]
+        cmd_list(entries, "BMS:21F2 IGPM:BC03", as_json=True)
+        data = json.loads(capsys.readouterr().out)
+        assert data["matched"] == 1
+        assert data["captures"][0]["ecu"] == "BMS"
+        assert data["captures"][0]["payload"] == "61F2AABB"
+        assert data["captures"][0]["state"] == "ready"
+        # IGPM:BC03 matched nothing → reported under unmatched.
+        assert any("BC03" in u for u in data["unmatched"])
+
+
+class TestCmdLatestJson:
+    def test_json_latest_per_pid(self, capsys):
+        import json
+
+        entries = [
+            _entry(ecu="BMS", pid="2101", payload="6101AA", date="2026-07-20"),
+            _entry(ecu="BMS", pid="2101", payload="6101BB", date="2026-07-22"),
+        ]
+        cmd_latest(entries, None, as_json=True)
+        data = json.loads(capsys.readouterr().out)
+        assert len(data) == 1  # one ECU+PID, latest kept
+        assert data[0]["payload"] == "6101BB"
+
+    def test_json_empty(self, capsys):
+        import json
+
+        cmd_latest([], None, as_json=True)
+        assert json.loads(capsys.readouterr().out) == []
+
+
+class TestCmdDiffJson:
+    def test_json_groups_unique_payloads(self, capsys):
+        import json
+
+        entries = [
+            _entry(ecu="BMS", pid="21F2", payload="61F2AA"),
+            _entry(ecu="BMS", pid="21F2", payload="61F2AA"),  # dup
+            _entry(ecu="BMS", pid="21F2", payload="61F2BB"),
+        ]
+        cmd_diff(entries, "BMS:21F2", as_json=True)
+        data = json.loads(capsys.readouterr().out)
+        assert len(data) == 1
+        g = data[0]
+        assert g["ecu"] == "BMS" and g["pid"] == "21F2"
+        assert g["total"] == 3 and g["unique"] == 2
+        assert g["payloads"] == ["61F2AA", "61F2BB"]  # unique only by default
+
+    def test_json_show_all_lists_every_payload(self, capsys):
+        import json
+
+        entries = [
+            _entry(ecu="BMS", pid="21F2", payload="61F2AA"),
+            _entry(ecu="BMS", pid="21F2", payload="61F2AA"),
+        ]
+        cmd_diff(entries, "BMS:21F2", show_all=True, as_json=True)
+        data = json.loads(capsys.readouterr().out)
+        assert data[0]["payloads"] == ["61F2AA", "61F2AA"]
+
+    def test_json_empty(self, capsys):
+        import json
+
+        cmd_diff([], "BMS:21F2", as_json=True)
         assert json.loads(capsys.readouterr().out) == []
