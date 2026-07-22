@@ -128,9 +128,12 @@ def split_multi_did(resp_hex: str, dids_lengths: list[tuple[str, int]]) -> dict[
 def resolve_tx_id(name_or_hex: str, ecu_index: dict) -> int | None:
     """Resolve an ECU name or hex TX ID to an integer.
 
-    Accepts: 'IGPM', 'igpm', '770', '0x770', '7A0'.
+    Accepts: 'IGPM', 'igpm', '770', '0x770', '7A0', and ecus.yaml aliases
+    ('LDC' -> OBC, 'ABS' -> ESC).
     """
-    upper = name_or_hex.upper()
+    from ..ecus import canonical_ecu_name_safe
+
+    upper = canonical_ecu_name_safe(name_or_hex).upper()
     if upper in ecu_index:
         return ecu_index[upper]["tx_id"]
 
@@ -504,6 +507,10 @@ async def _exec_query(
             on rejection). Used by the live monitor.
     """
     upper = ecu_name_str.upper()
+    if upper not in ecu_index:
+        from ..ecus import canonical_ecu_name_safe
+
+        upper = canonical_ecu_name_safe(ecu_name_str).upper()
     if upper not in ecu_index:
         print(f"  ERROR: Unknown ECU '{ecu_name_str}'. Available: {', '.join(ecu_index.keys())}")
         return

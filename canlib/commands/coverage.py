@@ -188,7 +188,11 @@ def run(args) -> int:
     ecu_index = build_ecu_index(load_pids())
     payloads = load_longest_payloads()
 
-    ecu_filter = args.ecu.upper() if args.ecu else None
+    # Accept an ecus.yaml alias (e.g. LDC for OBC) or any case, matching
+    # `canair captures`/`decode`. Canonicalises to the pids/ key before filtering.
+    from canlib.ecus import canonical_ecu_name_safe
+
+    ecu_filter = canonical_ecu_name_safe(args.ecu).upper() if args.ecu else None
     pid_filter = args.pid.upper() if args.pid else None
 
     results = []
