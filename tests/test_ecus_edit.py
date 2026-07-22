@@ -175,3 +175,49 @@ class TestValidateEcusRegistry:
         )
         errors, _, _ = validate_ecus_registry(p)
         assert any("duplicate ECU name" in e for e in errors)
+
+
+# ecus.yaml with an *indented* block sequence (dash at +2 past the key) — the
+# hand-authored scan_log style. A field edit must not reflow it.
+SEED_INDENTED_SEQ = """\
+scan_log:
+  0x770:  # IGPM
+    - service: 0x31
+      range: "0000-FFFF"
+      hits: 0
+      notes: >
+        All NRC 0x12 — sub-function not supported.
+ecus:
+  0x770:
+    name: IGPM
+    id_protocol: UDS
+"""
+
+
+class TestIndentationPreserved:
+    def test_detect_sequence_indent(self):
+        from canlib.yaml_rt import detect_sequence_indent
+
+        # Indented style (ecus scan_log): dash 2 past key -> (4, 2).
+        assert detect_sequence_indent("a:\n  0x1:\n    - x: 1\n") == (4, 2)
+        # Indented under a comment-bearing key (real scan_log has `# IGPM`).
+        assert detect_sequence_indent("scan_log:\n  0x770:  # IGPM\n    - s: 1\n") == (4, 2)
+        # Flush nested style (captures): dash aligned with its parent key -> (2, 0).
+        assert detect_sequence_indent("s:\n  captures:\n  - ecu: 1\n") == (2, 0)
+        # Top-level flush sequence -> (2, 0).
+        assert detect_sequence_indent("sessions:\n- date: 1\n") == (2, 0)
+        # No block sequence -> None (caller keeps its default).
+        assert detect_sequence_indent("a:\n  b: 1\n") is None
+
+    def test_field_edit_does_not_reflow_indented_scan_log(self, tmp_path):
+        p = tmp_path / "ecus.yaml"
+        p.write_text(SEED_INDENTED_SEQ)
+        before = p.read_text()
+        set_ecu_fields(0x770, overwrite=True, path=p, identity_confidence="confirmed")
+        after = p.read_text()
+        # The scan_log block (unrelated to the edit) must be byte-identical.
+        before_scanlog = before[: before.index("ecus:")]
+        after_scanlog = after[: after.index("ecus:")]
+        assert before_scanlog == after_scanlog
+        # And the intended field landed.
+        assert "identity_confidence: confirmed" in after
