@@ -138,11 +138,13 @@ def _report_read(as_json: bool, result: dict) -> None:
         return
     print(f"\n  {len(dtcs)} DTC(s):\n")
     dtc_w = max(max(len(d["dtc"]) for d in dtcs), len("DTC"))
-    print(f"  {'DTC':<{dtc_w}}  Status  Flags")
-    print(f"  {'─' * (dtc_w + 8 + 40)}")
     for d in dtcs:
         flags = ", ".join(d["status_bits"]) or "(raw status)"
-        print(f"  {d['dtc']:<{dtc_w}}  {d['status']}    {flags}")
+        print(f"  {d['dtc']:<{dtc_w}}  {d['status']}  {flags}")
+        interp = d.get("interpretation") or {}
+        meaning = interp.get("description") or interp.get("meaning")
+        if meaning:
+            print(f"  {'':<{dtc_w}}  → {meaning}")
     print()
 
 
@@ -260,13 +262,17 @@ async def _read_kwp(terminal: WiCANTerminal, tx_id: int, timeout: float = 3.0) -
 
 
 def _jsonable(records: list[dict]) -> list[dict]:
-    """Render internal records (int status) into the JSON/print-friendly shape."""
+    """Render internal records (int status) into the JSON/print-friendly shape,
+    annotated with a structural interpretation of each code."""
+    from ..dtc_describe import describe_dtc
+
     return [
         {
             "dtc": r["dtc"],
             "raw": r["raw"],
             "status": f"0x{r['status']:02X}",
             "status_bits": r["status_bits"],
+            "interpretation": describe_dtc(r["dtc"]),
         }
         for r in records
     ]
@@ -342,7 +348,11 @@ async def mode_dtc_scan_all(
         print(f"  {r['ecu']} ({r['protocol']}):")
         for d in r["dtcs"]:
             flags = ", ".join(d["status_bits"]) or "raw status"
+            interp = d.get("interpretation") or {}
+            meaning = interp.get("description") or interp.get("meaning") or ""
             print(f"      {d['dtc']}  {d['status']}  {flags}")
+            if meaning:
+                print(f"        → {meaning}")
     print()
 
 
