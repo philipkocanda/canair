@@ -29,9 +29,9 @@ def env(monkeypatch):
 
 
 class TestResolveTransport:
-    def test_default_is_wican_ws_via_default_alias(self, env):
+    def test_default_is_slcan_tcp_via_default_alias(self, env):
         t = resolve_transport(Args())
-        assert t.type == "wican-ws" and t.is_elm
+        assert t.type == "slcan-tcp" and t.is_raw
         assert t.host == "1.2.3.4"  # default_wican=vpn -> IP
         assert t.port is None and t.bitrate is None
 
@@ -58,7 +58,7 @@ class TestResolveTransport:
 
     def test_no_args_object(self, env):
         # resolve_transport(None) must work (uses config only).
-        assert resolve_transport(None).type == "wican-ws"
+        assert resolve_transport(None).type == "slcan-tcp"
 
 
 class TestTransportConfigProps:

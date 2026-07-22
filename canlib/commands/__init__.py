@@ -28,6 +28,7 @@ COMMAND_NAMES: list[str] = [
     "io",
     "routines",
     "identity",
+    "dtc",
     "tester_present",
     "routines_scan",
     "iocontrol_scan",
