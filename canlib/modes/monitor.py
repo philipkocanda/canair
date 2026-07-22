@@ -267,7 +267,7 @@ def _raw_pid_result(pid_code, pid_info, unmapped, value, acquired_at):
             "acquired_at": acquired_at,
         }
     if resp[0] == 0x7F:  # negative response: 7F <sid> <nrc>
-        from ..elm327 import nrc_abbrev
+        from ..uds_parse import nrc_abbrev
 
         nrc = resp[2] if len(resp) >= 3 else 0
         return {

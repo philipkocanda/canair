@@ -3,11 +3,11 @@
 import asyncio
 import json
 
-from ..elm327 import elm_hex_to_wican_bytes
 from ..expression import evaluate_expression
 from ..formatting import print_decoded_params
 from ..pids import build_ecu_index
 from ..terminal import WiCANTerminal
+from ..wican_bytes import uds_hex_to_wican_bytes
 
 
 async def mode_ecu(
@@ -62,7 +62,7 @@ async def mode_ecu(
                 print(f"    Error: {error}")
                 continue
 
-            wican_bytes = elm_hex_to_wican_bytes(response["hex"])
+            wican_bytes = uds_hex_to_wican_bytes(response["hex"])
 
             if verbose:
                 print(f"    Response: {response['hex']}")

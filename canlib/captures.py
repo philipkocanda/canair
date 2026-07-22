@@ -387,9 +387,9 @@ def _decode_payload(
     regenerate them on demand for display (see query-captures.py). Pass a
     prebuilt ``ecu_index`` to avoid rebuilding it on every call.
     """
-    from .elm327 import elm_hex_to_wican_bytes
     from .expression import evaluate_expression
     from .pids import build_ecu_index
+    from .wican_bytes import uds_hex_to_wican_bytes
 
     if ecu_index is None:
         ecu_index = build_ecu_index(pids_data)
@@ -403,7 +403,7 @@ def _decode_payload(
         return None
 
     try:
-        wican_bytes = elm_hex_to_wican_bytes(hex_payload)
+        wican_bytes = uds_hex_to_wican_bytes(hex_payload)
         decoded = {}
         for pname, pdef in pid_info["parameters"].items():
             expr = pdef.get("expression", "")

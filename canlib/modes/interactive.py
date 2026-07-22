@@ -2,11 +2,12 @@
 
 import re
 
-from ..elm327 import elm_hex_to_wican_bytes, parse_elm_response
 from ..expression import evaluate_expression
 from ..formatting import print_decoded_params, print_hexdump
 from ..pids import build_ecu_index
 from ..terminal import WiCANTerminal, reboot_wican
+from ..uds_parse import parse_uds_response
+from ..wican_bytes import uds_hex_to_wican_bytes
 
 
 async def mode_interactive(terminal: WiCANTerminal, pids_data: dict, verbose: bool):
@@ -122,7 +123,7 @@ async def mode_interactive(terminal: WiCANTerminal, pids_data: dict, verbose: bo
                     continue
                 pid_upper = pid_str.upper()
                 if pid_upper in ecu_info["pids"]:
-                    wican_bytes = elm_hex_to_wican_bytes(last_response["hex"])
+                    wican_bytes = uds_hex_to_wican_bytes(last_response["hex"])
                     params = ecu_info["pids"][pid_upper]["parameters"]
                     results = []
                     for pname, pdef in params.items():
@@ -153,7 +154,7 @@ async def mode_interactive(terminal: WiCANTerminal, pids_data: dict, verbose: bo
             if "bytes" in last_response:
                 print(f"\n  Raw ELM response ({len(last_response['bytes'])} bytes):")
                 print_hexdump(last_response["bytes"])
-                wican_bytes = elm_hex_to_wican_bytes(last_response["hex"])
+                wican_bytes = uds_hex_to_wican_bytes(last_response["hex"])
                 print(f"  WiCAN-indexed ({len(wican_bytes)} bytes, with PCI prefix):")
                 print_hexdump(wican_bytes)
             else:
@@ -176,7 +177,7 @@ async def mode_interactive(terminal: WiCANTerminal, pids_data: dict, verbose: bo
             raw = await terminal.send_command(cmd)
             print(raw)
 
-            response = parse_elm_response(raw)
+            response = parse_uds_response(raw)
             if response.get("ok") or response.get("nrc") is not None:
                 last_response = response
 

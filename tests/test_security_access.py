@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from canlib.elm327 import check_command_safety
 from canlib.modes.multi import SECURITY_ALGORITHMS, _exec_security, solve_key_pair
+from canlib.safety import check_command_safety
 
 
 # ── solve_key_pair (offline algorithm identification) ────────────────────────
@@ -59,6 +59,39 @@ def test_safe_sessions_allowed():
     assert check_command_safety("1081") is None  # KWP standard
     assert check_command_safety("1082") is None  # KWP periodic/EOL diagnostic
     assert check_command_safety("1083") is None  # KWP extended diagnostic
+
+
+class TestCheckCommandSafety:
+    def test_at_commands_always_safe(self):
+        assert check_command_safety("ATSP6") is None
+        assert check_command_safety("ATSH7E4") is None
+        assert check_command_safety("atst96") is None
+
+    def test_read_services_allowed(self):
+        assert check_command_safety("2101") is None  # ReadDataByLocalId
+        assert check_command_safety("22BC03") is None  # ReadDataByIdentifier
+        assert check_command_safety("1001") is None  # DiagSession default
+        assert check_command_safety("1003") is None  # DiagSession extended
+
+    def test_blocked_write_services(self):
+        assert "BLOCKED" in check_command_safety("2E F187 00")
+        assert "BLOCKED" in check_command_safety("3400")
+        assert "BLOCKED" in check_command_safety("35")
+        assert "BLOCKED" in check_command_safety("3601AABB")
+
+    def test_blocked_programming_session(self):
+        result = check_command_safety("1002")
+        assert result is not None
+        assert "programmingSession" in result
+
+    def test_iocontrol_allowed(self):
+        # 0x2F IOControl is NOT in blocked list (deliberate — used for testing)
+        assert check_command_safety("2FBC1003") is None
+
+    def test_empty_and_nonsense(self):
+        assert check_command_safety("") is None
+        assert check_command_safety("hello") is None
+        assert check_command_safety("A") is None  # single hex char
 
 
 # ── _exec_security: variable seed length + key width ─────────────────────────

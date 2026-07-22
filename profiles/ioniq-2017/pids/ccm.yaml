@@ -3,8 +3,11 @@
 # Power Line Communication (PLC) for DC CCS fast-charging at 0x733. Part: 91950G7200
 # No live data DIDs discovered. Likely only active during DC fast charging.
 # Service 22 scan returned no results (2026-04-17, car not charging).
+#
+# Physical location: under left seat (both LHD and RHD models)
 
 # https://www.projectgus.com/2024/12/fakon/
+# https://github.com/uhi22/Ioniq28Investigations/blob/main/CCM_ChargeControlModule_PLC_CCS/readme.md
 CCM:
   tx_id: 0x733
   availability: [charging]  # DC CCS only — likely inactive during AC
