@@ -47,6 +47,7 @@ CANONICAL_FIELD_ORDER = (
     "diag_address",
     "vin",
     "id_protocol",
+    "identity_confidence",
     "notes",
 )
 

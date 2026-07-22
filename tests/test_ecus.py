@@ -9,7 +9,9 @@ from canlib.ecus import (
     build_rx_index,
     canonical_ecu_name,
     canonical_ecu_name_safe,
+    derive_identity_confidence,
     ecu_display,
+    ecu_identity_confidence,
     ecu_name,
     ecu_name_from_ref,
     load_ecus,
@@ -221,3 +223,37 @@ class TestEcuDisplay:
 
     def test_unknown_falls_back_to_hex(self, ecus):
         assert ecu_display(0x123, ecus) == "0x123"
+
+
+class TestIdentityConfidence:
+    def test_part_number_is_confirmed(self):
+        assert derive_identity_confidence({"name": "PLC", "part_number": "91950G7200"}) == "confirmed"
+
+    def test_identity_fields_uds_is_probable(self):
+        info = {"name": "AVN", "id_protocol": "UDS", "app_sw": "AE_EV EURSOP 12 017.1"}
+        assert derive_identity_confidence(info) == "probable"
+
+    def test_cross_vehicle_note_is_tentative(self):
+        info = {
+            "name": "AMP",
+            "id_protocol": "none",
+            "notes": "Identified via Kia e-Niro CAN spreadsheet (exact address match 783/78B).",
+        }
+        assert derive_identity_confidence(info) == "tentative"
+
+    def test_unknown_name_is_speculative(self):
+        assert derive_identity_confidence({"name": "Unknown-746"}) == "speculative"
+
+    def test_no_evidence_defaults_tentative(self):
+        assert derive_identity_confidence({"name": "FOO", "id_protocol": "none"}) == "tentative"
+
+    def test_explicit_overrides_derivation(self):
+        info = {"name": "PLC", "part_number": "91950G7200", "identity_confidence": "tentative"}
+        value, explicit = ecu_identity_confidence(info)
+        assert value == "tentative"
+        assert explicit is True
+
+    def test_derived_when_not_set(self):
+        value, explicit = ecu_identity_confidence({"name": "PLC", "part_number": "91950G7200"})
+        assert value == "confirmed"
+        assert explicit is False

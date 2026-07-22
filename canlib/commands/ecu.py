@@ -21,7 +21,7 @@ import sys
 from collections import Counter
 
 from canlib.commands._hints import ecu_completer as _ecu_completer
-from canlib.ecus import load_ecus, resolve_tx, rx_addr_str
+from canlib.ecus import ecu_identity_confidence, load_ecus, resolve_tx, rx_addr_str
 from canlib.pids import load_pids
 
 NAME = "ecu"
@@ -34,6 +34,23 @@ _YELLOW = "\033[93m"
 _RED = "\033[91m"
 _CYAN = "\033[96m"
 _RESET = "\033[0m"
+
+# identity_confidence → (compact code, color) for the list/detail views.
+_CONF_STYLE = {
+    "confirmed": ("conf", _GREEN),
+    "probable": ("prob", _CYAN),
+    "tentative": ("tent", _YELLOW),
+    "speculative": ("spec", _RED),
+}
+
+
+def _conf_cell(rec: dict) -> str:
+    """Colored, width-6 confidence cell for the list view (``~`` = derived)."""
+    conf = rec.get("identity_confidence") or ""
+    explicit = rec.get("identity_confidence_explicit", False)
+    code, color = _CONF_STYLE.get(conf, (conf[:4], _DIM))
+    text = ("" if explicit else "~") + code
+    return f"{color}{text:<6}{_RESET}"
 
 # Identity fields to surface in the detail view, in display order.
 # (name/alias/description/id_protocol are handled separately in the header.)
@@ -129,6 +146,7 @@ def _list_records(ecus: dict, pids_data: dict, with_captures: bool = False) -> l
             continue
         name = info.get("name") or f"0x{tx_id:03X}"
         pids_name, ecu_def = _pids_def_for_tx(pids_data, tx_id)
+        conf, conf_explicit = ecu_identity_confidence(info)
         rec = {
             "name": name,
             "alias": info.get("alias"),
@@ -137,6 +155,8 @@ def _list_records(ecus: dict, pids_data: dict, with_captures: bool = False) -> l
             "rx": rx_addr_str(tx_id),
             "description": info.get("description", ""),
             "id_protocol": info.get("id_protocol"),
+            "identity_confidence": conf,
+            "identity_confidence_explicit": conf_explicit,
             "has_pids": ecu_def is not None,
         }
         if ecu_def is not None:
@@ -159,16 +179,17 @@ def cmd_list(records: list[dict], as_json: bool) -> int:
           f"{n_pids} with PID definitions\n")
 
     # Column header.
-    print(f"  {_DIM}{'NAME':<12} {'TX':<6} {'PROTO':<8} "
+    print(f"  {_DIM}{'NAME':<12} {'TX':<6} {'PROTO':<8} {'IDENT':<6} "
           f"{'PIDS':>4} {'PARM':>5} {'VERIF':>7} {'CAPS':>5}{_RESET}")
 
     for r in records:
         name = r["name"]
         alias = f" {_DIM}({r['alias']}){_RESET}" if r.get("alias") else ""
         proto = (r.get("id_protocol") or "?")
+        conf = _conf_cell(r)
         if not r["has_pids"]:
             # Registry-only module: no PID data to summarise.
-            print(f"  {_CYAN}{name:<12}{_RESET} {r['tx']:<6} {proto:<8} "
+            print(f"  {_CYAN}{name:<12}{_RESET} {r['tx']:<6} {proto:<8} {conf} "
                   f"{_DIM}{'—':>4} {'—':>5} {'—':>7} {'—':>5}{_RESET}{alias}")
             continue
         params = r["params"]
@@ -177,10 +198,13 @@ def cmd_list(records: list[dict], as_json: bool) -> int:
         vstr = f"{verified}/{params}"
         caps = r.get("captures", 0)
         cstr = f"{caps:>5}" if caps else f"{_YELLOW}{'0':>5}{_RESET}"
-        print(f"  {_CYAN}{name:<12}{_RESET} {r['tx']:<6} {proto:<8} "
+        print(f"  {_CYAN}{name:<12}{_RESET} {r['tx']:<6} {proto:<8} {conf} "
               f"{r['pids']:>4} {params:>5} {vcolor}{vstr:>7}{_RESET} "
               f"{cstr}{alias}")
     print()
+    print(f"  {_DIM}IDENT = identity confidence: "
+          f"{_GREEN}conf{_DIM}irmed · {_CYAN}prob{_DIM}able · {_YELLOW}tent{_DIM}ative · "
+          f"{_RED}spec{_DIM}ulative   (~ = derived from evidence, else set in registry){_RESET}")
     return 0
 
 
@@ -189,11 +213,14 @@ def cmd_list(records: list[dict], as_json: bool) -> int:
 
 def _detail_record(info: dict, tx_id: int, pids_name: str | None, ecu_def: dict | None) -> dict:
     name = info.get("name") or f"0x{tx_id:03X}"
+    conf, conf_explicit = ecu_identity_confidence(info)
     rec = {
         "name": name,
         "alias": info.get("alias"),
         "description": info.get("description", ""),
         "id_protocol": info.get("id_protocol"),
+        "identity_confidence": conf,
+        "identity_confidence_explicit": conf_explicit,
         "tx": f"0x{tx_id:03X}",
         "rx": rx_addr_str(tx_id),
         "notes": info.get("notes"),
@@ -249,6 +276,12 @@ def cmd_detail(rec: dict, as_json: bool) -> int:
     proto = rec.get("id_protocol") or "?"
     print(f"\n  {_DIM}TX{_RESET} {rec['tx']}    {_DIM}RX{_RESET} {rec['rx']}    "
           f"{_DIM}protocol{_RESET} {proto}")
+
+    # Identity confidence
+    conf = rec.get("identity_confidence") or ""
+    _code, ccolor = _CONF_STYLE.get(conf, ("", _DIM))
+    origin = "set in registry" if rec.get("identity_confidence_explicit") else "derived from evidence"
+    print(f"  {_DIM}identity confidence{_RESET} {ccolor}{conf}{_RESET} {_DIM}({origin}){_RESET}")
 
     # Identity fields
     if rec["identity"]:

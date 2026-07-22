@@ -642,6 +642,7 @@ def validate_ecus_registry(path: Path) -> tuple[list[str], list[str], dict]:
     required = set(schema.get("required_fields", []))
     allowed = required | set(schema.get("optional_fields", []))
     valid_protocols = set(schema.get("valid_id_protocols", []))
+    valid_confidence = set(schema.get("valid_identity_confidence", []))
     scan_log_fields = set(schema.get("scan_log_entry_fields", {}).get("optional", []))
 
     errors: list[str] = []
@@ -696,6 +697,13 @@ def validate_ecus_registry(path: Path) -> tuple[list[str], list[str], dict]:
                 errors.append(
                     f"{label}: invalid id_protocol '{proto}' "
                     f"(allowed: {sorted(valid_protocols)})"
+                )
+
+            conf = entry.get("identity_confidence")
+            if conf is not None and conf not in valid_confidence:
+                errors.append(
+                    f"{label}: invalid identity_confidence '{conf}' "
+                    f"(allowed: {sorted(valid_confidence)})"
                 )
 
             name = entry.get("name")

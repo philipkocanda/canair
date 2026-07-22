@@ -50,6 +50,7 @@ optional_fields:
   - diag_address   # from F1A0
   - vin            # from F190
   - id_protocol    # how identity DIDs are read (see valid_id_protocols)
+  - identity_confidence  # how sure we are of this ECU's identity (see valid_identity_confidence)
   - notes
 
 # Accepted values for id_protocol.
@@ -58,6 +59,22 @@ valid_id_protocols:
   - KWP2000        # ISO 14230 — identity via 1A 8x/9x
   - none           # responds to session control but exposes no identity DIDs
   - unknown        # not yet determined
+
+# Accepted values for identity_confidence — how well-established this entry's
+# identity (name/description) is. Omit to let the tool derive it from evidence.
+#   confirmed    — identity read from the ECU (part number) and/or physically
+#                  or behaviorally verified for this car.
+#   probable     — self-reported identity fields present, OR multiple converging
+#                  circumstantial evidences (address match to a same-platform
+#                  sibling + function-consistent behavior + option fitted).
+#   tentative    — single weak basis (cross-vehicle address match or behavioral
+#                  guess) with no self-reported identity.
+#   speculative  — address-proximity or naming guess with little/no support.
+valid_identity_confidence:
+  - confirmed
+  - probable
+  - tentative
+  - speculative
 
 # scan_log entry fields (each entry under scan_log.<tx>).
 scan_log_entry_fields:
