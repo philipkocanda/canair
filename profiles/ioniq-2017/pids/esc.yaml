@@ -10,16 +10,53 @@ ESC:
       availability: []
       parameters:
         REAL_SPEED_KMH:
-          expression: "B12"
+          expression: B12
           unit: km/h
           ha_class: speed
           min: "0"
-          max: "200"
-          source: "Kia Niro EV WiCAN PR#660"
+          max: "250"
+          source: Kia Niro EV WiCAN PR#660; verified RE 2026-07-22
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/660
-          verified: false
-          notes: "Wheel-speed based, may differ from VCU speed. Untested on Ioniq."
+          verified: true
+          notes: >
+            ESC vehicle-speed estimate, 1 km/h/bit at ISO-TP 0x09. Verified against 4 wheel speeds (B18-B21, r=+1.000) and driving profile 0-39 km/h. Reads 0 at standstill.
+        WHEEL_SPEED_FL:
+          expression: B18
+          unit: km/h
+          min: "0"
+          max: "250"
+          source: RE 2026-07-22 driving capture; r=+1.000 vs REAL_SPEED_KMH
+          verified: true
+          notes: >
+            Individual wheel speed, 1 km/h/bit. ISO-TP 0x0E. Left/right grouping confirmed (B18/B20 track together = left pair, diverge with B19/B21 in turns). Front/rear within side by Ioniq5/OBDb FL,FR,RL,RR convention — not independently verified.
+        WHEEL_SPEED_FR:
+          expression: B19
+          unit: km/h
+          min: "0"
+          max: "250"
+          source: RE 2026-07-22 driving capture; r=+1.000 vs REAL_SPEED_KMH
+          verified: true
+          notes: >
+            Individual wheel speed, 1 km/h/bit. ISO-TP 0x0F. Right pair (B19/B21 track together). Front/rear by convention.
+        WHEEL_SPEED_RL:
+          expression: B20
+          unit: km/h
+          min: "0"
+          max: "250"
+          source: RE 2026-07-22 driving capture; r=+1.000 vs REAL_SPEED_KMH
+          verified: true
+          notes: >
+            Individual wheel speed, 1 km/h/bit. ISO-TP 0x10. Left pair (B18/B20 track together). Front/rear by convention.
+        WHEEL_SPEED_RR:
+          expression: B21
+          unit: km/h
+          min: "0"
+          max: "250"
+          source: RE 2026-07-22 driving capture; r=+1.000 vs REAL_SPEED_KMH
+          verified: true
+          notes: >
+            Individual wheel speed, 1 km/h/bit. ISO-TP 0x11. Right pair (B19/B21 track together). Front/rear by convention.
     22C102:
       period: 2500
       enabled: false
@@ -39,14 +76,24 @@ ESC:
     - type: decode
       target: "22C101"
       status: captured
-      priority: P1
+      priority: P2
       prerequisite: [acc]
-      notes: "42 bytes captured but undecoded. REAL_SPEED_KMH at B12 unverified. Verify against GPS while driving."
+      notes: >
+        REAL_SPEED_KMH (B12) and 4 wheel speeds (B18-B21, FL/FR/RL/RR interleaved,
+        1 km/h/bit) decoded + verified from the 2026-07-22 drive (r=+1.000). STILL
+        UNDECODED: candidate ESC dynamics at B35:B36 (signed, centred ~0x8000 →
+        yaw rate or steering angle?), B37:B38 (~2048 = offset-binary accel?), and
+        B39/B41 (~2048, spans PCI B40 so use (B39<<8)|B41 → 2nd accel axis?). All
+        three sit near their centre at standstill and deviate while driving; they
+        did NOT correlate with speed (expected). Also B18-B21 front/rear within a
+        side is by convention only. B22/B27 = low-rate status/counter.
       what_to_test:
-        - "REAL_SPEED_KMH (B12) — verify vs GPS"
-        - "Decode remaining 41 bytes"
+        - "B35:B36 signed centred ~0x8000 — yaw rate vs steering angle"
+        - "B37:B38 and (B39<<8)|B41 centred ~2048 — lateral/longitudinal accel"
+        - "Confirm wheel front/rear assignment (needs known-corner reference)"
       sources:
-        - "captures/ — 2026-04-14"
+        - "captures/2026-07-22.yaml — driving capture, lots of steering"
+        - "OBDb Ioniq 5"
     - type: scan
       target: "22 C101-C10F"
       status: done
