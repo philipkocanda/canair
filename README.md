@@ -414,12 +414,13 @@ dongle via one of two **explicitly-selected transports** (config `transport:`
 block or `--transport`; the device runs one protocol at a time — check with
 `canair status`, switch with `canair wican --set-protocol …`, never automatic):
 
-- **`wican-ws`** (default) — the WiCAN Pro's **ELM327 emulation** over a
-  WebSocket. The *dongle* performs ISO-TP (multi-frame reassembly). Works in any
-  device `protocol`.
-- **`slcan-tcp`** — a raw **SLCAN** frame stream over TCP (classic WiCAN or any
-  gateway; requires the device in `slcan` mode). *canair* performs ISO-TP + UDS
-  itself, with request **pipelining** across ECUs and multi-DID batching.
+- **`slcan-tcp`** (default) — a raw **SLCAN** frame stream over TCP (WiCAN Pro,
+  classic WiCAN, or any gateway; requires the device in `slcan` mode). *canair*
+  performs ISO-TP + UDS itself, with request **pipelining** across ECUs and
+  multi-DID batching. Also powers passive `canair sniff`.
+- **`wican-ws`** — the WiCAN Pro's **ELM327 emulation** over a WebSocket. The
+  *dongle* performs ISO-TP (multi-frame reassembly). Works in any device
+  `protocol`.
 
 ```mermaid
 flowchart LR

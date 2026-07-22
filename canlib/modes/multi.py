@@ -1,6 +1,6 @@
 """Multi-ECU pipeline mode.
 
-Executes a sequence of sub-commands within a single WebSocket session,
+Executes a sequence of sub-commands within a single transport session,
 managing extended diagnostic sessions across multiple ECUs with interleaved
 TesterPresent keepalives.
 
