@@ -40,6 +40,30 @@ NAME = "wican"
 WICAN_TIMEOUT = 10  # seconds
 
 
+def _require_pro(operation: str) -> int | None:
+    """Return an error code if the configured WiCAN is not a Pro.
+
+    AutoPID vehicle profiles (upload/download/diff) and device protocol
+    switching are WiCAN Pro-only features. The classic (non-Pro) WiCAN has no
+    AutoPID support, so we refuse these device operations up front with a clear
+    message instead of letting them fail obscurely against the device. Returns
+    ``None`` when the model is Pro (proceed) or an int exit code to abort.
+    """
+    from canlib.config import is_wican_pro
+
+    if is_wican_pro():
+        return None
+    print(
+        f"error: `canair wican {operation}` needs a WiCAN Pro — the classic "
+        "(non-Pro) WiCAN has no AutoPID / vehicle-profile support.\n"
+        "        Your config sets wican_model: classic. Generating profile JSON "
+        "still works — run `canair wican` (no device flags) to write out/profile.json.\n"
+        "        If this device is actually a Pro, run: canair config set wican_model pro",
+        file=sys.stderr,
+    )
+    return 2
+
+
 def _profile_out() -> "object":
     """Default output path for the generated WiCAN profile JSON."""
     from canlib.profile import active
@@ -489,6 +513,10 @@ def _set_protocol(args) -> int:
     """Explicitly set the WiCAN device protocol/mode (reboots). Opt-in only."""
     from canlib.wican_mode import ModeError, current_protocol, set_protocol
 
+    guard = _require_pro("--set-protocol")
+    if guard is not None:
+        return guard
+
     base_url = get_wican_url(args.wican)
     target = args.set_protocol
     try:
@@ -540,6 +568,15 @@ def run(args) -> int:
     # Explicit device-mode switch — self-contained, no profile generation.
     if args.set_protocol:
         return _set_protocol(args)
+
+    # AutoPID device sync is Pro-only; refuse it on a classic WiCAN before we
+    # do any work. Plain JSON generation (below) works regardless of model.
+    if args.download or args.diff or args.upload:
+        guard = _require_pro(
+            "--upload" if args.upload else ("--diff" if args.diff else "--download")
+        )
+        if guard is not None:
+            return guard
 
     profile_out = _profile_out()    # Load YAML
     print(f"Loading {active().ecus_dir}")

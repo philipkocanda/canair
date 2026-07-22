@@ -28,13 +28,24 @@ wican_addresses:
 
 default_wican: ap
 
+# WiCAN hardware model: "pro" (default) or "classic" (the regular, non-Pro WiCAN).
+# The classic WiCAN has no AutoPID vehicle-profile support and no ELM327
+# WebSocket terminal, so with wican_model: classic canair refuses:
+#   - `canair wican --upload/--download/--diff/--set-protocol` (AutoPID sync), and
+#   - the `wican-ws` transport (ELM327 WebSocket terminal).
+# Everything else — reading/scanning/decoding over the default slcan-tcp
+# transport, and generating profile JSON with plain `canair wican` — works on
+# both models. Leave unset (or "pro") if you have a WiCAN Pro.
+# wican_model: pro
+
 # CAN transport selection (advanced). Chosen explicitly; never auto-detected.
 # The type/host are overridden per-command by --transport/--wican; port and
 # bitrate are config-only (no CLI flags). When the type is omitted, canair
 # defaults to slcan-tcp (the canonical default — works on both the WiCAN Pro and
 # the classic WiCAN), using the wican_addresses/default_wican host above.
+# The wican-ws transport requires a WiCAN Pro (see wican_model above).
 # transport:
-#   type: slcan-tcp      # slcan-tcp (raw SLCAN over TCP, default) | wican-ws (WebSocket ELM327)
+#   type: slcan-tcp      # slcan-tcp (raw SLCAN over TCP, default) | wican-ws (WebSocket ELM327, Pro-only)
 #   host: 192.168.3.2    # device host/IP (both transports)
 #   port: 35000          # slcan-tcp only (Pro 35000, classic 3333); auto-detected if omitted
 #   bitrate: 500000      # slcan-tcp only; defaults to the profile's can_datarate, else 500000
