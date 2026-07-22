@@ -108,6 +108,7 @@ class MonitorApp(App):
         Binding("ctrl+c", "quit", "quit", show=False, priority=True),
         Binding("s", "save", "save"),
         Binding("f", "toggle_follow", "follow"),
+        Binding("r", "toggle_rulers", "rulers"),
         Binding("space", "toggle_pause", "pause"),
         Binding("j", "scroll(1)", "down", show=False),
         Binding("k", "scroll(-1)", "up", show=False),
@@ -221,7 +222,7 @@ class MonitorApp(App):
             f"[dim]cycle[/] {c.cycle} [dim]· every[/] {c.interval:.1f}[dim]s · last[/] "
             f"{c.elapsed:.1f}[dim]s ·[/] {metric} "
             f"{state_txt}{follow}{paused}"
-            "    [dim]↑↓/jk PgUp/PgDn g/G · f follow · space pause · s save · q quit[/]"
+            "    [dim]↑↓/jk PgUp/PgDn g/G · f follow · space pause · r rulers · s save · q quit[/]"
             f"{flash}"
         )
 
@@ -244,6 +245,10 @@ class MonitorApp(App):
     def action_toggle_pause(self) -> None:
         self.paused = not self.paused
         self._update_status()
+
+    def action_toggle_rulers(self) -> None:
+        self.controller.show_rulers = not self.controller.show_rulers
+        self._refresh_body()
 
     def _flash(self, msg: str, secs: float = 5.0) -> None:
         """Show a transient message in the status line for ``secs`` seconds."""

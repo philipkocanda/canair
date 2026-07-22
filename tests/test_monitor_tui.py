@@ -30,6 +30,7 @@ class FakeController:
         self._has_captures = has_captures
         self._query_label = query_label
         self.saved = None
+        self.show_rulers = False
 
     async def poll_once(self):
         self.cycle += 1
@@ -90,6 +91,24 @@ class TestMonitorApp:
             await pilot.press("space")  # resume
             await pilot.pause(0.2)
             assert ctrl.cycle > frozen
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
+    async def test_toggle_rulers(self):
+        ctrl = FakeController()
+        app = MonitorApp(ctrl)
+        async with app.run_test(size=(80, 20)) as pilot:
+            await pilot.pause(0.15)
+            assert ctrl.show_rulers is False
+            await pilot.press("r")  # enable rulers
+            await pilot.pause(0.1)
+            assert ctrl.show_rulers is True
+            await pilot.press("r")  # disable again
+            await pilot.pause(0.1)
+            assert ctrl.show_rulers is False
+            # The status line advertises the shortcut.
+            status = _plain(app.query_one("#status").render())
+            assert "r rulers" in status
             await pilot.press("q")
 
     @pytest.mark.asyncio
