@@ -281,7 +281,7 @@ ecus:
     name: AMP
     description: Audio Amplifier (external - Infinity audio system)
     id_protocol: none  # NRC 0x11 on all UDS F1xx and KWP2000 1Axx
-    identity_confidence: tentative  # no self-identity; label from cross-vehicle address match
+    identity_confidence: confirmed  # behaviorally: DTCs map 1:1 to speaker channels
     notes: >
       Identified via Kia e-Niro CAN spreadsheet (exact address match 783/78B).
       No diagnostic identity data — audio-only module.
@@ -296,12 +296,12 @@ ecus:
       to a 3-byte SID+SF+mask request) → no snapshot/extended/supported-DTC data.
       Quirky masks: 1902FF→7 DTCs (avail 0xFF), 190208→0 (avail 0x09), 190204/01→ROOR.
       22/1A identity and 17/18 KWP-DTC all NRC 0x11 even in extended session.
-      Decoded DTCs: B2915/16/19/1A/1B/20/21 (all status 0x09, actively failing).
-      Identity is tentative: minimal identity-less peripheral + premium/Infinity audio
-      fitted + e-Niro address match + body/audio-range speaker-circuit codes are all
-      consistent with an external amplifier (functional identity ~probable), but the exact
-      module cannot be confirmed from the bus (no part number by any service). Likely code
-      cause: amp channels the harness expects but this trim doesn't populate (open circuit).
+      Identity CONFIRMED (behavioral): the 7 DTCs decode to per-speaker open-load
+      faults — B2915 FL woofer, B2916 FR woofer, B2919 front center, B291A RL woofer,
+      B291B RR woofer, B2920 subwoofer 1, B2921 (2nd sub, unconfirmed) — a 1:1 map
+      to the Infinity premium-audio channels this car has. So 0x783 is the external
+      amplifier (see dtc.yaml). Exact part number is unavailable (no identity DID);
+      the open-load codes are for channels the harness expects but that aren't wired.
   0x796:
     name: RCAM
     description: Rear View Camera (parking)

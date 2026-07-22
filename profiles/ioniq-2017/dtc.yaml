@@ -30,6 +30,45 @@ dtcs:
     source: "https://www.dtcdecode.com/Hyundai/B1285"
     verified: false
 
+  # AMP (0x783) external amplifier — per-speaker-channel open-load faults. The
+  # full B2915/16/19/1A/1B/20/21 cluster maps 1:1 to the Infinity premium-audio
+  # channels, which is what identifies 0x783 as the amplifier.
+  B2915:
+    description: "Front Left Woofer — Open Load"
+    ecu: AMP
+    source: "owner-provided Infinity premium-audio channel map"
+    verified: false
+  B2916:
+    description: "Front Right Woofer — Open Load"
+    ecu: AMP
+    source: "owner-provided Infinity premium-audio channel map"
+    verified: false
+  B2919:
+    description: "Front Center — Open Load"
+    ecu: AMP
+    source: "owner-provided Infinity premium-audio channel map"
+    verified: false
+  B291A:
+    description: "Rear Left Woofer — Open Load"
+    ecu: AMP
+    source: "owner-provided Infinity premium-audio channel map"
+    verified: false
+  B291B:
+    description: "Rear Right Woofer — Open Load"
+    ecu: AMP
+    source: "owner-provided Infinity premium-audio channel map"
+    verified: false
+  B2920:
+    description: "Subwoofer 1 — Open Load"
+    ecu: AMP
+    source: "owner-provided Infinity premium-audio channel map"
+    verified: false
+  B2921:
+    description: "Subwoofer 2 / second sub channel — Open Load (unconfirmed, next in sequence)"
+    ecu: AMP
+    source: "owner-provided (inferred from B2915-B2920 sequence)"
+    verified: false
+
 # Failure-type byte (the DTC's -XX suffix). Standard ISO 14229 / SAE J2012 bytes
 # (e.g. 0x00 = no sub-type) are already known by the tool; entries here override
 # or add platform-specific ones.
