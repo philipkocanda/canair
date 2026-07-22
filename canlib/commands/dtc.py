@@ -25,9 +25,9 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         epilog="""\
 examples:
   canair dtc BMS                       Read all stored DTCs (status mask FF)
-  canair dtc --all                     Scan every ECU for DTCs
-  canair dtc --all --log               Scan all + record, showing what cleared since last time
-  canair dtc BMS --log --label fixed   Log a single-ECU scan with a label
+  canair dtc --all                     Scan every ECU (logs + shows changes since last scan)
+  canair dtc --all --no-log            Scan every ECU without recording to the history log
+  canair dtc BMS --label fixed         Read + log a single-ECU scan with a label
   canair dtc BMS --mask 08             Read confirmed DTCs only (mask 0x08)
   canair dtc IGPM --session --wake     Wake + read in extended session
   canair dtc BMS --json                Machine-readable output
@@ -46,16 +46,17 @@ examples:
         help="Scan every ECU in the profile for DTCs (protocol auto-selected per ECU)",
     )
     parser.add_argument(
-        "--log",
+        "--no-log",
         dest="dtc_log",
-        action="store_true",
-        help="Record this scan to the profile's dtc_log.yaml and show what "
-        "cleared/appeared since the last scan of the same scope",
+        action="store_false",
+        default=True,
+        help="Don't record this scan to the profile's dtc_log.yaml (scans are "
+        "logged by default, reporting what cleared/appeared since the last scan)",
     )
     parser.add_argument(
         "--label",
         default=None,
-        help="Optional label for the --log entry (e.g. 'before clearing')",
+        help="Optional label for the logged scan entry (e.g. 'before clearing')",
     )
     parser.add_argument(
         "--mask",
