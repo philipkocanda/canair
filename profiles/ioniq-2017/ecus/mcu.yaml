@@ -1,0 +1,292 @@
+# ─── MCU (Motor Control Unit) ─────────────────────────────────────────
+#
+# This is the power electronics + control for the traction motor.
+#
+# Responsibilities:
+# - Inverter switching (DC → 3-phase AC)
+# - Motor torque/current control loops
+# - Rotor position handling
+# - Thermal protection of motor/inverter
+#
+# The Vehicle Control Unit (VCU) and Motor Control Unit (MCU)
+# are both part of the Electronic Powertrain Control Unit (EPCU) physical housing.
+#
+# Full service 21 scan (01-FF) during AC charging (2026-04-18):
+#   0x01 (34 bytes), 0x02 (62 bytes), 0x03 (27 bytes, all zeros), 0xF2 (69 bytes).
+#
+# KWP2000 diagnostic sessions (service 0x10) — probed 2026-07-22, car in READY:
+#   10 81 standardDiagnosticSession   → 50 81 (supported)
+#   10 82                             → NRC 0x12 subFunctionNotSupported
+#   10 83 extendedDiagnosticSession   → NRC 0x12 subFunctionNotSupported
+# Only 0x81 is accepted; 21xx reads work in the default session too — no session
+# unlocks extra data. Payload sizes are session-independent: 2101=30B, 2102=56B,
+# 2103=27B; 2104/2105 → NRC 0x12 (do not exist).
+# (TODO: replace with a structured `sessions:` field once the schema supports it.)
+MCU:
+  tx_id: 0x7E3
+  identity:
+    alias: VMCU # aka HPCU (Hybrid Power Control Unit - legacy term but may help to know)
+    description: Motor Control Unit (inverter)
+    part_number: "36600-0E250"
+    ecu_id: AEEMCU83  # KWP2000 1A8C
+    sw_id: "EAEEHEL-MS2-D000"
+    calibration: "00000001"
+    id_protocol: KWP2000  # 1Axx
+  availability: [ready, charging]
+  pids:
+    2101:
+      period: 5000
+      enabled: false
+      availability: [charging]  # TODO: likely also ready — verify with ignition on
+      notes: >
+        34 bytes. Captured but not decoded.
+        Raw payload (charging): 6101000003FF083801268D7F390000000A00460253044F397A007A000CFF...
+      parameters: {}
+
+    2102:
+      period: 5000
+      enabled: true
+      availability: [charging]  # TODO: likely also ready — verify with ignition on
+      notes: >
+        62 bytes. Layout (WiCAN B / ISO-TP): B10:B11 RPM (verified), B12:B13 & B14:B15 the two
+        signed-16 torque fields (command/estimated), B17:B18 phase-current RMS candidate, B20/B21
+        temperatures. STATIC CALIBRATION BLOCK at ~B27–B33 (raw pattern 7D D6 CD AB C2 CD …) — these
+        are per-unit resolver + U/V phase current-sensor offsets (Soul VMCU: static Int16 "Resolver
+        Offset" / "U/V Phase Current Sensor Offset"). Constant across all captures and the same bytes
+        recur in 21F2 next to the "EHEL-MS2" cal ID, confirming they are calibration data, not live
+        signals — intentionally NOT mapped as pollable parameters. Tail B54+ is zero padding.
+      parameters:
+        MCU_MOTOR_RPM:
+          expression: "[S10:S11]"
+          unit: RPM
+          ha_class: ""
+          min: "-10500"
+          max: "10500"
+          source: "Kia Soul EV VMCU CSV (Motor Actual Speed RPM) + physical validation"
+          source_links: []
+          verified: true
+          notes: >
+            Signed 16-bit big-endian at B10:B11 (ISO-TP 0x07:0x08). 2026-07-20: verified against
+            VCU vehicle speed across 179 driving samples — rpm/speed ratio = 62.8 (median), matching the
+            physical single-speed reduction (gear 7.412 × 205/55R16 tyre ≈ 61.8 rpm per km/h). Reads 0 at
+            park (live READY capture) and peaks ~6650 at 107 km/h; slightly negative during regen/rock-back.
+            Old expr ((S7<<8)|B6) read B6/B7 (0xFF 0xFF) = -1 — wrong bytes.
+
+        MCU_MOTOR_TORQUE:
+          expression: "[S12:S13]/100"
+          unit: Nm
+          ha_class: ""
+          min: "-300"
+          max: "300"
+          source: "ITStromer community PID sheet (Motor Torque Command / Estimated Torque)"
+          source_links: []
+          verified: false
+          notes: >
+            Motor torque, signed 16-bit big-endian at B12:B13 (ISO-TP 0x09:0x0A), the pair right after
+            MCU_MOTOR_RPM [S10:S11]. 2026-07-20 fix: previous ((S12*256)+B11)/10 reused B11 (the RPM low
+            byte) and its ÷10 scale gave ±3226 Nm across all captures — 10× the motor's ~295 Nm limit.
+            [S12:S13]/100 reads −249..+324 Nm (cruise small +ve, hard accel ~+300, regen ~−250) — physical.
+            Scale/bytes inferred from range; not yet correlated with pedal/accel, so still unverified.
+
+        MCU_MOTOR_TORQUE_2:
+          expression: "[S14:S15]/100"
+          unit: Nm
+          ha_class: ""
+          min: "-300"
+          max: "300"
+          enabled: false
+          source: "Kia Soul EV VMCU CSV (Torque Command vs Estimated Torque — two signed-16 torque fields)"
+          source_links: []
+          verified: false
+          notes: >
+            UNVERIFIED CANDIDATE (Phase 1, 2026-07-20) — needs Phase 2 validation. Second signed-16-bit
+            big-endian pair at B14:B15 (ISO-TP 0x0B:0x0C), immediately after MCU_MOTOR_TORQUE [S12:S13].
+            The Soul VMCU exposes BOTH a Motor Torque Command AND an Estimated Motor Torque as separate
+            signed-16 fields; [S12:S13] and [S14:S15] are the two zero/near-zero-at-park ±32k pairs here, so
+            this is the likely second torque. Park ≈ 0.27–0.40 Nm (raw 27–40, small idle bias), driving
+            −314..+326 Nm. Which is command vs estimated (and the exact scale) is unconfirmed — kept out of
+            the profile (enabled:false) until a synced drive correlates it against MCU_MOTOR_TORQUE and pedal.
+
+        MCU_PHASE_CURRENT_RMS:
+          expression: "[B17:B18]/10"
+          unit: A
+          ha_class: current
+          min: "0"
+          max: "600"
+          enabled: false
+          source: "Kia Soul EV VMCU CSV (Motor Phase Current RMS = Int16, 0..5000)"
+          source_links: []
+          verified: false
+          notes: >
+            UNVERIFIED CANDIDATE (Phase 1, 2026-07-20) — needs Phase 2 validation. Unsigned 16-bit
+            big-endian at B17:B18 (ISO-TP 0x0D:0x0E). Always ≥0 (0..2069 raw), reads ~0 at park and rises
+            with acceleration (r=+0.44 vs dRPM across 255 driving samples) — the classic phase-current RMS
+            signature. Matches the Soul VMCU "Motor Phase Current RMS" field. The /10 scale (→ 0..~207 A) is
+            a guess to land in a plausible range for a ~120 kW motor; raw 2069 as amps would be too high.
+            Scale and exact bytes need confirmation against torque/accel under load — enabled:false meanwhile.
+
+        MCU_TEMP_1:
+          expression: "S20"
+          unit: "°C"
+          ha_class: temperature
+          min: "-40"
+          max: "150"
+          source: "ITStromer community PID sheet (temp?)"
+          verified: false
+          notes: >
+            Candidate motor/inverter temperature (community sheet 'temp?', Signed byte). 2026-07-20: reads
+            13°C at park (~ambient 18°C, cold-soaked), 10-22°C range — plausible but barely warmed on a short
+            cool drive. ISO-TP 0x10.
+
+        MCU_TEMP_2:
+          expression: "S21"
+          unit: "°C"
+          ha_class: temperature
+          min: "-40"
+          max: "150"
+          source: "ITStromer community PID sheet (temp?)"
+          verified: false
+          notes: >
+            Candidate motor/inverter temperature (community sheet 'temp?', Signed byte). 2026-07-20: 13°C at
+            park, 10-34°C range — warms more than MCU_TEMP_1 under load (likely inverter/IGBT vs motor).
+            ISO-TP 0x11. Needs a longer/warmer drive to confirm.
+        MCU_INVERTER_TEMP:
+          expression: B19
+          unit: °C
+          min: "-40"
+          max: "150"
+          source: RE 2026-07-22 MT->KW drive analysis
+          verified: false
+          notes: >
+            STRONG CANDIDATE, unverified. Inverter/IGBT power-module temperature at B19 (ISO-TP 0x0F), immediately before MCU_TEMP_1 (B20) / MCU_TEMP_2 (B21). Distinguished from those two by being strongly LOAD-responsive: rises to 23-32C while driving (r=0.66 vs |torque|, 0.60 vs phase current) while T1/T2 stay ~13-16C decoupled from load; decays slowly (thermal mass) when stopped (20->15C over the mid-drive stop) rather than dropping instantly like current -> confirms a temperature, not an instantaneous load metric. Per-state means: parked ~8-9C, charging ~20C, driving MT->KW mean 23 (10-32C). Raw byte = degrees C directly (no offset); cold-park 8C matches ambient. Needs verify: watch it climb on a sustained hard drive / hill climb and cross-check against a scan tool's inverter temp.
+        MCU_ROTOR_ANGLE:
+          expression: B9
+          unit: ""
+          min: "0"
+          max: "255"
+          source: RE 2026-07-22 MT->KW drive analysis
+          verified: false
+          notes: >
+            CANDIDATE, unverified — raw byte B9 (ISO-TP 0x06), immediately before MCU_MOTOR_RPM (B10:B11). Best interpretation: motor rotor/resolver ELECTRICAL ANGLE (0-255 = 0-360 deg, i.e. B9*360/255) OR the fractional low byte of motor speed. Signature from the 2026-07-22 drive: B9==0 at ALL 18 standstill (RPM=0) samples and spreads ~uniformly 26-253 (mean 127~=255/2) whenever |RPM|>500 — the classic aliased pattern of a fast-rotating quantity sampled at asynchronous 2s intervals. Left as the RAW byte (no scale) until a high-rate/SavvyCAN capture at a fixed low RPM shows whether it ramps linearly (absolute angle) or stays uniform (speed fraction). Weak |RPM| corr (0.42) is just the shared zero-anchor.
+
+    2103:
+      period: 0
+      enabled: false
+      availability: [charging]
+      notes: >
+        27 bytes, all zeros during AC charging.
+        Raw payload: 610300000000000000000000000000000000000000000000000000
+        May contain data during driving. Discovered 2026-04-18.
+      parameters: {}
+
+    21F2:
+      period: 0
+      enabled: false
+      availability: [charging]
+      notes: >
+        69 bytes. Discovered during charging PID scan (2026-04-18).
+        Raw payload: 61F2FFFFFF3FF6FFF8FF7DD60900000000000000000003050000EE04CDABC2CD4C00F0F32B002A041D002900000012000F001100C1CD967393222D4548454C2D4D53320000
+        Undecoded — needs analysis.
+        2026-07-19: Contains a part of the ECU sw_id string ("-EHEL-MS2"), so likely to be static.
+      parameters: {}
+  research:
+    - type: decode
+      target: "2102"
+      status: captured
+      priority: P1
+      prerequisite: [charging]
+      notes: >
+        62 bytes. 2026-07-20 (Phase 1): MOTOR_RPM verified at [S10:S11]. Added UNVERIFIED candidates from
+        variance + park/drive + dRPM-correlation over 332 captures: MCU_MOTOR_TORQUE_2 [S14:S15]/100 (second
+        signed-16 torque, ≈0 at park), MCU_PHASE_CURRENT_RMS [B17:B18]/10 (always ≥0, r=+0.44 vs dRPM). Temps
+        B20/B21 still barely-warmed candidates. Calibration block B27–B33 documented as static (resolver +
+        U/V phase offsets). STILL OPEN (Phase 2): confirm which torque is command vs estimated, phase-current
+        scale, disambiguate the 3rd temperature (B22/B25 track RPM, 52..248 raw — offset/scale unclear), and
+        identify the highly-dynamic B52 (card=180). Needs a warm, dense, synced VCU+MCU drive capture.
+      what_to_test:
+        - "Torque: MCU_MOTOR_TORQUE [S12:S13] vs MCU_MOTOR_TORQUE_2 [S14:S15] — which is command vs estimated? Both ≈0 at park; correlate against pedal + dRPM incl. regen/braking (signed must go negative)."
+        - "Phase current: [B17:B18] scale — /10→A guess; confirm 0 at park, rises with |torque|, peak vs motor spec."
+        - "Temps: B20/B21 raw °C vs value−40; warm the inverter to separate motor/inverter/heat-sink. Check B22/B25 as a 3rd temp or a different quantity."
+        - "B52 (TAQ, card=180) — identify this fast-changing signal."
+        - >
+          CAPTURE METHOD: WebSocket polling is sequential over one connection and the stored
+          timestamp is per-cycle (not per-PID acquisition), so VCU 2101 and MCU 2102 are skewed
+          ~0.3-3s and cannot be tightly synced across ECUs. Mitigation: poll ONLY the two PIDs,
+          dense + back-to-back:  canair query "query VCU:2101" "query MCU:2102" --monitor 1
+          --keep-all --save --wican vpn  (drive with hard launches, lift-off/regen, and braking;
+          run long enough to warm the inverter for the temp mapping). NOTE: torque RPM are BOTH in
+          MCU 2102, so torque needs no cross-ECU sync - just finer dRPM (dense sampling) + regen data.
+      sources:
+        - "Kia Soul EV VMCU CSV — RPM/torque (signed 16-bit), phase current + resolver offsets (Int16)"
+        - "Obsidian: MCU.md"
+    - type: decode
+      target: "2101"
+      status: captured
+      priority: P1
+      prerequisite: [ready]
+      notes: >
+        34 bytes. 2026-07-20: live READY capture at ~18°C ambient did NOT yield clean temps —
+        candidate bytes are bimodal/constant (B10 = 4 or 56, B15 ≈ constant 57, B13 tight ~150),
+        i.e. status/calibration, not motor/inverter/heat-sink temps. The July drive was short and cool,
+        so components barely warmed. Re-attempt temp mapping (Soul motor/MCU/heat-sink = val-40) after a
+        longer drive that heats the inverter, comparing cold-soak vs warm bytes. Also search for HV DC-link
+        voltage here (VCU 2102 has B17*2; MCU may carry its own).
+      sources:
+        - "Kia Soul EV VMCU CSV — temps (w/x/y - 40)"
+        - "Obsidian: MCU.md"
+        - "OBDb Ioniq 5 MCU 22E001"
+    - type: decode
+      target: "2103"
+      status: captured
+      priority: P2
+      prerequisite: [charging]
+      date: "2026-04-18"
+      notes: "27 bytes, all zeros during charging. May contain data while driving."
+    - type: decode
+      target: "21F2"
+      status: captured
+      priority: P2
+      prerequisite: [charging]
+      date: "2026-04-18"
+      notes: "69 bytes. Discovered during charging scan. Undecoded."
+    - type: scan
+      target: "22 E001-E010"
+      status: nrc
+      priority: P1
+      prerequisite: [acc]
+      date: "2026-07-22"
+      notes: "Ioniq 5 cross-ref: E001 ignition voltage/motor RPM/torque/phase current/temps, E009 electric water pump/oil pump."
+      result: >
+        Re-scanned E001-E010 with ignition ON (battery 14.4V) 2026-07-22: all 16 -> NRC 0x12
+        (subFunctionNotSupported), 0 timeouts (ECU alive, rejecting). CONFIRMED DEAD END: this
+        KWP2000 MCU does not implement service-22 read-did with E0xx DIDs (a UDS-era Ioniq-5
+        construct). Hidden MCU pages, if any, live in the service-21 (21xx) range, not 22 E0xx.
+        Pivot: sweep 21 00-FF for undocumented pages instead.
+      sources:
+        - "OBDb Ioniq 5"
+    - type: iocontrol_scan
+      target: "2F E000-E0FF"
+      status: pending
+      priority: P2
+      prerequisite: [acc]
+      notes: "MCU IOControl E0xx range."
+    - type: scan
+      target: 21 00-FF
+      status: done
+      priority: P2
+      prerequisite: [ready]
+      date: "2026-07-22"
+      result: "Exhaustive service-21 LID sweep (ignition on): only 01/02/03/F2 respond (= known 2101/2102/2103/21F2), all 252 others NRC. No hidden pages. MCU service-21 space fully mapped."
+      notes: Hidden-page hunt. Confirms the E0xx (service-22) dead end has no service-21 analogue beyond known pages.
+    - type: decode
+      target: "2102"
+      status: captured
+      priority: P2
+      prerequisite: [ready]
+      notes: "MCU 2102 B9 (ISO-TP 0x06, immediately before MCU_MOTOR_RPM B10:B11) = candidate motor rotor/resolver electrical ANGLE or motor-speed sub-count/fraction. Signature from 2026-07-22 drive: B9==0 at ALL 18 standstill (RPM=0) samples, and spreads ~uniformly 26-253 (mean 127~=255/2) whenever |RPM|>500 — the classic aliased-angle pattern for a fast-rotating quantity sampled at asynchronous 2s intervals. Weak |RPM| corr (0.42) is just the shared zero-anchor. Cannot distinguish absolute rotor angle (0-255 = 0-360 elec deg) vs RPM fractional low byte without high-rate capture. TO TEST: log B9 with 1001-style fast polling or a SavvyCAN sniff at fixed low RPM to see if it ramps linearly (angle) or stays uniform (fraction)."
+    - type: decode
+      target: "2102"
+      status: done
+      priority: P3
+      prerequisite: [ready]
+      notes: MCU 2102 B52/B53 tail bytes = message alive-counter / checksum, NOT a physical signal. B52 (ISO-TP 0x2E) is chaotic full-range 0-253 with ZERO correlation to RPM/torque/phase-current (r~0.01); B53 sits ~constant 0x31-0x33. Ruled out as a signal during 2026-07-22 drive analysis — do not chase. The remaining B27-B47 block is the known static calibration region (constant across the drive).

@@ -54,17 +54,17 @@ Backlog: `canair research --summary` (per-ECU `research:` sections) and
   38 kWh has a liquid-cooled battery, different BMS, and more cell-voltage PIDs.
 - **Dongle:** WiCAN Pro (MeatPi), MAC `9888e006734d`.
 - **CAN:** ISO 15765-4 (11-bit, 500 kbps) — ELM327 protocol `6`.
-- **AT init** (`pids/_meta.yaml`): `ATSP6;ATS0;ATAL;ATST96;`, plus
+- **AT init** (`profile.yaml`): `ATSP6;ATS0;ATAL;ATST96;`, plus
   `response_timeout_ms: 614` (ECUs respond slowly; the first request after idle
-  can time out — retry once; see the RECON GOTCHA banner in `_meta.yaml`).
+  can time out — retry once; see the RECON GOTCHA banner in `profile.yaml`).
 
 ## Profiles
 
-Vehicle data lives in a *profile* bundle: `pids/` (per-ECU PID definitions —
-**source of truth** — plus `_meta.yaml`), `ecus.yaml` (TX-ID → name registry),
-`captures/` (dated UDS payloads), `states.yaml` (canonical operating states +
-auto-suggest predicates), `research/` (reference data), and **generated**
-`out/` (never hand-edit — run `canair wican`). The repo ships
+Vehicle data lives in a *profile* bundle: `ecus/` (one file per ECU — the
+**source of truth**, each carrying identity/scan_log/dtcs/pids), `profile.yaml`
+(car_model/init/failure_types), `captures/` (dated UDS payloads), `states.yaml`
+(canonical operating states + auto-suggest predicates), `references/` (reference
+data), and **generated** `out/` (never hand-edit — run `canair wican`). The repo ships
 `profiles/ioniq-2017/` as the default. Local (uncommitted) profiles live in
 `~/.config/canair/profiles/` and shadow bundled ones by name; precedence:
 `--profile NAME|PATH` > `CANAIR_PROFILE` > `default_profile` > single discovered.
@@ -121,7 +121,7 @@ Most of this is wrapped by `canair` and `wican-cli` — prefer those over raw HT
 
 1. **Vehicle Profile format** (`out/profile.json`) — grouped params per PID
    (`"PARAM": "expression"`), used for upstream PRs. **Generated** by
-   `canair wican` from `pids/`; never hand-edit.
+   `canair wican` from `ecus/`; never hand-edit.
 2. **Device format** — what the firmware parses: params as an array of objects
    (`[{"name":…, "expression":…, "unit":…, "period":…}]`) wrapped in
    `{"cars":[{"car_model":…, "init":…, "pids":[…]}]}`. `canair wican --upload`
@@ -135,8 +135,8 @@ build time; the device never sees grouped format directly.
 
 ### PID source of truth
 
-Per-ECU YAML under `pids/` (one ECU per file, with its `tx_id` and PIDs);
-`_meta.yaml` holds `car_model`/`init`. A parameter looks like:
+Per-ECU YAML under `ecus/` (one ECU per file, with its `tx_id`, `identity:`, and PIDs);
+`profile.yaml` holds `car_model`/`init`. A parameter looks like:
 
 ```yaml
 SOC_BMS:
@@ -259,7 +259,7 @@ ECUs, `--wake` for deep-sleepers (IGPM). Known deep-sleep results:
 
 ### `canair io` (IOControl)
 
-Runs `2F` IOControl from the `iocontrol:` sections of `pids/`. `canair io ECU`
+Runs `2F` IOControl from the `iocontrol:` sections of `ecus/`. `canair io ECU`
 lists DIDs (offline, no connection). `--did BCxx` sends ON (`--off` for OFF);
 auto-enters a session if `session: true`; if `hold: true` (default) keeps
 TesterPresent until Ctrl+C then auto-sends OFF (SKM relays are `hold: false`).
@@ -285,7 +285,7 @@ WiCAN to sleep mid-session), re-enable after.
 
 Live status: `canair ecu` (registry + per-ECU stats + identity confidence) and
 `canair research` (open backlog). Registry = 30 ECUs (27 with PID defs).
-Decode findings are recorded in each `pids/<ecu>.yaml` `notes:`. Highlights:
+Decode findings are recorded in each `ecus/<ecu>.yaml` `notes:`. Highlights:
 
 | ECU | TX ID | Status | Key notes |
 |-----|-------|--------|-----------|
@@ -339,5 +339,5 @@ fitted on every trim).
 - [wican-fw repo](https://github.com/meatpiHQ/wican-fw) ·
   [WiCAN docs](https://meatpihq.github.io/wican-fw/)
 - [Kia Niro 64 kWh PID sheet](https://docs.google.com/spreadsheets/d/1eT2R8hmsD1hC__9LtnkZ3eDjLcdib9JR-3Myc97jy8M)
-  and local `profiles/ioniq-2017/research/` spreadsheets (Kia Soul PIDs are
+  and local `profiles/ioniq-2017/references/` spreadsheets (Kia Soul PIDs are
   offset by 1).

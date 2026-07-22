@@ -1,0 +1,56 @@
+AMP:
+  tx_id: 0x783
+  identity:
+    description: Audio Amplifier (external - Infinity audio system)
+    id_protocol: none  # NRC 0x11 on all UDS F1xx and KWP2000 1Axx
+    identity_confidence: confirmed  # behaviorally: DTCs map 1:1 to speaker channels
+    notes: >
+      Identified via Kia e-Niro CAN spreadsheet (exact address match 783/78B).
+      No diagnostic identity data — audio-only module.
+      Services supported: 10 (session), 14 (clearDTC), 19 (readDTC), 3E (testerPresent).
+      All other services (21, 22, 27, 2F) return NRC 0x11 (serviceNotSupported).
+      DTCs during charging (2026-04-19, ignition off):
+        A919 (status 09), A91A (09), A91B (09), A915 (09),
+        A916 (09), A920 (09), A921 (09) — 7 DTCs, all status 0x09.
+      Deep scan (2026-07-22, READY): confirms minimal/non-compliant diag stack.
+      Service 19 only implements sub-fn 0x02 (readDTCByStatusMask); 0x01/0x0A →
+      subFunctionNotSupported, 0x03/04/06 → incorrectMessageLength (handler hard-gated
+      to a 3-byte SID+SF+mask request) → no snapshot/extended/supported-DTC data.
+      Quirky masks: 1902FF→7 DTCs (avail 0xFF), 190208→0 (avail 0x09), 190204/01→ROOR.
+      22/1A identity and 17/18 KWP-DTC all NRC 0x11 even in extended session.
+      Identity CONFIRMED (behavioral): the 7 DTCs decode to per-speaker open-load
+      faults — B2915 FL woofer, B2916 FR woofer, B2919 front center, B291A RL woofer,
+      B291B RR woofer, B2920 subwoofer (single rear sub), B2921 (unidentified channel) —
+      a 1:1 map
+      to the Infinity premium-audio channels this car has. So 0x783 is the external
+      amplifier (see this file's dtcs:). Exact part number is unavailable (no identity DID);
+      the open-load codes are for channels the harness expects but that aren't wired.
+  dtcs:
+    B2915:
+      description: "Front Left Woofer — Open Load"
+      source: "owner-provided Infinity premium-audio channel map"
+      verified: false
+    B2916:
+      description: "Front Right Woofer — Open Load"
+      source: "owner-provided Infinity premium-audio channel map"
+      verified: false
+    B2919:
+      description: "Front Center — Open Load"
+      source: "owner-provided Infinity premium-audio channel map"
+      verified: false
+    B291A:
+      description: "Rear Left Woofer — Open Load"
+      source: "owner-provided Infinity premium-audio channel map"
+      verified: false
+    B291B:
+      description: "Rear Right Woofer — Open Load"
+      source: "owner-provided Infinity premium-audio channel map"
+      verified: false
+    B2920:
+      description: "Subwoofer 1 — Open Load"
+      source: "owner-provided Infinity premium-audio channel map"
+      verified: false
+    B2921:
+      description: "Amplifier channel — Open Load (unidentified; NOT a 2nd subwoofer — car has a single rear sub)"
+      source: "owner-confirmed single rear sub; specific channel for B2921 not yet identified"
+      verified: false

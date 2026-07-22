@@ -1,6 +1,7 @@
 """ECU address lookup and name/response-address resolution.
 
-Backed by ``ecus.yaml`` (keyed by the OBD-II *request* arbitration ID, TX).
+The registry is derived from the profile's per-ECU files under ``ecus/`` (each
+keyed by the ECU short name, carrying a ``tx_id`` and an ``identity:`` block).
 The CAN *response* address is ``RX = TX + 8``. Capture files reference the
 **response** address as a hex string (e.g. ``"0x7EC"``); the helpers here
 convert between that reference and the canonical ECU short name.
@@ -8,32 +9,33 @@ convert between that reference and the canonical ECU short name.
 
 from pathlib import Path
 
-try:
-    import yaml
-except ImportError as e:
-    raise ImportError("PyYAML not installed. Run: pip3 install pyyaml") from e
-
 # Non-address ECU references allowed in capture files (multi-ECU / broadcast
 # captures that don't map to a single physical responder).
 SENTINELS = frozenset({"broadcast"})
 
 
 def load_ecus(path: Path | None = None) -> dict:
-    """Load ECU lookup table from YAML.
+    """Load the ECU registry, keyed by TX id (int) -> {name, identity fields...}.
 
-    Returns dict: tx_id (int) -> {name, description, ...}. When ``path`` is
-    None, the active vehicle profile's ecus.yaml is used.
+    Derived from the profile's per-ECU ``ecus/`` files: each ECU's short name
+    (the file's top-level key) plus its flattened ``identity:`` block. When
+    ``path`` is None, the active vehicle profile's ``ecus/`` directory is used;
+    otherwise ``path`` is a directory of per-ECU YAML files.
     """
-    if path is None:
-        from .profile import active
+    from .pids import load_pids
 
-        path = active().ecus_file
-    with open(path) as f:
-        data = yaml.safe_load(f) or {}
+    data = load_pids(path)
     result = {}
-    for tx_id, info in (data.get("ecus") or {}).items():
-        if isinstance(tx_id, str) and tx_id.startswith("0x"):
-            tx_id = int(tx_id, 16)
+    for name, ecu_def in (data.get("ecus") or {}).items():
+        if not isinstance(ecu_def, dict):
+            continue
+        tx_id = ecu_def.get("tx_id")
+        if tx_id is None:
+            continue
+        info = {"name": name}
+        identity = ecu_def.get("identity")
+        if isinstance(identity, dict):
+            info.update(identity)
         result[int(tx_id)] = info
     return result
 
@@ -94,7 +96,7 @@ def derive_identity_confidence(info: dict) -> str:
     """Heuristically rate how well-established an ECU's identity is.
 
     Returns one of ``confirmed`` / ``probable`` / ``tentative`` / ``speculative``
-    (see ``valid_identity_confidence`` in ecus_schema.yaml). Used when an entry
+    (see ``valid_identity_confidence`` in pids_schema.yaml). Used when an entry
     has no explicit ``identity_confidence``.
     """
     name = str(info.get("name") or "")
@@ -156,7 +158,7 @@ def parse_ecu_ref(value) -> int | None:
 def build_rx_index(ecus: dict | None = None) -> dict[int, str]:
     """Build lookup: RX address (int) -> canonical ECU short name.
 
-    Derived from ``ecus.yaml`` (the superset of all known addresses, including
+    Derived from the ECU registry (the superset of all known addresses, including
     non-decodable modules like AMP/SRS), so any responder resolves for display.
     """
     if ecus is None:
@@ -260,8 +262,8 @@ def canonical_ecu_name_safe(
     """:func:`canonical_ecu_name` that tolerates a missing ECU registry.
 
     Resolves a name/alias to its canonical short name (case-insensitive),
-    falling back to the upper-cased input when ``ecus.yaml`` is absent (a
-    profile may ship ``pids/`` without a registry). An ambiguous registry
+    falling back to the upper-cased input when the ECU registry is absent (a
+    profile may ship ``ecus/`` without full identity blocks). An ambiguous registry
     (:class:`EcuNameCollision`) still propagates, matching the ``captures``
     selector behaviour.
     """

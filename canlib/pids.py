@@ -1,4 +1,12 @@
-"""YAML PID data loading and index building."""
+"""YAML PID/ECU data loading and index building.
+
+Each vehicle profile stores its ECU definitions as one YAML file per ECU under
+``<profile>/ecus/``. Every file is the single source of truth for one ECU:
+identity, probe history (``scan_log``), DTC meanings (``dtcs``), and all
+readable/actuatable data (``pids``/``iocontrol``/``routines``). Profile-wide
+settings (``car_model``, ``init``, ``failure_types``, ...) live one level up in
+``<profile>/profile.yaml``.
+"""
 
 from pathlib import Path
 
@@ -7,43 +15,72 @@ try:
 except ImportError as e:
     raise ImportError("PyYAML not installed. Run: pip3 install pyyaml") from e
 
+# Prefer the libyaml-backed C loader when available (3-10x faster parse, no
+# behavioural difference). Falls back to the pure-Python SafeLoader otherwise.
+_SafeLoader = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+
+
+def _yaml_load(fh) -> dict:
+    return yaml.load(fh, Loader=_SafeLoader)
+
+
+# ── per-process memoization ───────────────────────────────────────────────
+# The active profile's ECU dir is parsed once per process and reused. Writers
+# (canlib.pids_edit / canlib.ecus_edit) call clear_cache() after mutating a
+# file so a later read in the same process never sees stale data.
+_cache: dict[str, dict] = {}
+
+
+def clear_cache() -> None:
+    """Drop the memoized ECU-definition load (call after writing any ECU file)."""
+    _cache.clear()
+
 
 def load_pids(path: Path | None = None) -> dict:
-    """Load PID definitions from YAML.
+    """Load ECU/PID definitions from a profile's ``ecus/`` directory.
 
-    Accepts either a directory (pids/) containing per-ECU YAML files,
-    or a single YAML file (legacy ioniq-2017-pids.yaml format). When ``path``
-    is None, the active vehicle profile's pids/ directory is used.
+    Accepts either a directory (``ecus/``) containing per-ECU YAML files, or a
+    single legacy YAML file. When ``path`` is None, the active vehicle profile's
+    ``ecus/`` directory is used (and the result is memoized per process).
     """
     if path is None:
         from .profile import active
 
-        path = active().pids_dir
-    path = Path(path)
+        prof = active()
+        key = str(prof.ecus_dir)
+        cached = _cache.get(key)
+        if cached is not None:
+            return cached
+        result = _load_dir(prof.ecus_dir, meta=prof.meta)
+        _cache[key] = result
+        return result
 
+    path = Path(path)
     if path.is_dir():
-        # Load _meta.yaml for car_model/init
-        meta_path = path / "_meta.yaml"
+        meta_path = path.parent / "profile.yaml"
+        meta = {}
         if meta_path.exists():
             with open(meta_path) as f:
-                result = yaml.safe_load(f) or {}
-        else:
-            result = {}
-        result["ecus"] = {}
-
-        # Load per-ECU files (all .yaml except _meta, _schema)
-        for fpath in sorted(path.glob("*.yaml")):
-            if fpath.name.startswith("_"):
-                continue
-            with open(fpath) as f:
-                data = yaml.safe_load(f)
-            if data:
-                result["ecus"].update(data)
-        return result
+                meta = _yaml_load(f) or {}
+        return _load_dir(path, meta=meta)
 
     # Legacy: single file
     with open(path) as f:
-        return yaml.safe_load(f)
+        return _yaml_load(f)
+
+
+def _load_dir(path: Path, meta: dict) -> dict:
+    """Merge profile-wide meta with every per-ECU file under ``path``."""
+    result = dict(meta) if meta else {}
+    result["ecus"] = {}
+    for fpath in sorted(path.glob("*.yaml")):
+        if fpath.name.startswith("_"):
+            continue
+        with open(fpath) as f:
+            data = _yaml_load(f)
+        if data:
+            result["ecus"].update(data)
+    return result
 
 
 def build_param_index(pids_data: dict) -> dict:

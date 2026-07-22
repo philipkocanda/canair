@@ -7,7 +7,7 @@ import argparse
 import yaml
 
 from canlib.commands.profile import DEFAULT_INIT, _cmd_create
-from canlib.commands.validate import validate_ecus_registry
+from canlib.commands.validate import collect_pids_validation
 
 
 def _args(**kw) -> argparse.Namespace:
@@ -28,29 +28,29 @@ class TestProfileCreate:
         root = tmp_path / "prof"
         rc = _cmd_create(_args(path=root))
         assert rc == 0
-        assert (root / "pids").is_dir()
+        assert (root / "ecus").is_dir()
         assert (root / "captures").is_dir()
         assert (root / "out").is_dir()
-        assert (root / "ecus.yaml").exists()
-        assert (root / "pids" / "_meta.yaml").exists()
+        assert (root / "profile.yaml").exists()
 
     def test_meta_contents(self, tmp_path):
         root = tmp_path / "prof"
         _cmd_create(_args(path=root, init="ATSP0;"))
-        meta = yaml.safe_load((root / "pids" / "_meta.yaml").read_text())
+        meta = yaml.safe_load((root / "profile.yaml").read_text())
         assert meta["car_model"] == "VW e-Golf 2019"
         assert meta["init"] == "ATSP0;"
 
     def test_default_init(self, tmp_path):
         root = tmp_path / "prof"
         _cmd_create(_args(path=root))
-        meta = yaml.safe_load((root / "pids" / "_meta.yaml").read_text())
+        meta = yaml.safe_load((root / "profile.yaml").read_text())
         assert meta["init"] == DEFAULT_INIT
 
-    def test_created_ecus_validates(self, tmp_path):
+    def test_created_ecus_dir_validates_empty(self, tmp_path):
         root = tmp_path / "prof"
         _cmd_create(_args(path=root))
-        errors, _w, stats = validate_ecus_registry(root / "ecus.yaml")
+        files = sorted((root / "ecus").glob("*.yaml"))
+        errors, _w, stats = collect_pids_validation(files)
         assert errors == []
         assert stats["ecus"] == 0
 
@@ -65,7 +65,7 @@ class TestProfileCreate:
         root.mkdir()
         (root / "junk.txt").write_text("x")
         assert _cmd_create(_args(path=root, force=True)) == 0
-        assert (root / "ecus.yaml").exists()
+        assert (root / "profile.yaml").exists()
 
     def test_missing_car_model_noninteractive(self, tmp_path, monkeypatch):
         # No car_model + non-tty stdin → error, no scaffolding.

@@ -1,5 +1,5 @@
 """
-Generate WiCAN vehicle profile JSON from pids/ directory.
+Generate WiCAN vehicle profile JSON from the ecus/ directory.
 
 Produces the Vehicle Profile format (grouped parameters per PID) which is
 the format accepted by the WiCAN web UI for upload via POST /store_car_data.
@@ -93,7 +93,7 @@ def generate_profile(data: dict, verified_only: bool = False) -> dict:
         session = ecu.get("session", False)
         pid_init = make_pid_init(tx_id, session=session)
 
-        for pid_code, pid_data in ecu["pids"].items():
+        for pid_code, pid_data in (ecu.get("pids") or {}).items():
             if not pid_data.get("enabled", True):
                 continue
 
@@ -142,7 +142,7 @@ def to_device_format(profile: dict, data: dict | None = None) -> dict:
     param_meta = {}
     if data:
         for ecu in data["ecus"].values():
-            for pid_data in ecu["pids"].values():
+            for pid_data in (ecu.get("pids") or {}).values():
                 for param_name, param in pid_data.get("parameters", {}).items():
                     param_meta[param_name] = param
 
@@ -416,7 +416,7 @@ def print_stats(data: dict) -> None:
 
     for ecu_name, ecu in data["ecus"].items():
         tx_id = ecu["tx_id"]
-        for pid_code, pid_data in ecu["pids"].items():
+        for pid_code, pid_data in (ecu.get("pids") or {}).items():
             params = pid_data["parameters"]
             n_params = len(params)
             n_verified = sum(1 for p in params.values() if p.get("verified", False))
@@ -542,7 +542,7 @@ def run(args) -> int:
         return _set_protocol(args)
 
     profile_out = _profile_out()    # Load YAML
-    print(f"Loading {active().pids_dir}")
+    print(f"Loading {active().ecus_dir}")
     data = load_yaml()
 
     if args.stats:

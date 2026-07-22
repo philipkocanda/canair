@@ -1,6 +1,6 @@
 """Shared comment-preserving YAML round-trip helpers.
 
-Both the capture writer (:mod:`canlib.captures`) and the ECU-registry writer
+Both the capture writer (:mod:`canlib.captures`) and the ECU-file writer
 (:mod:`canlib.ecus_edit`) append to and edit hand-authored YAML files in place.
 We use ruamel.yaml in round-trip mode so existing comments, quoting, and layout
 survive writes — only newly appended content is rendered fresh.
@@ -47,7 +47,7 @@ def detect_sequence_indent(text: str) -> tuple[int, int] | None:
     the document has no block sequence to learn from (caller keeps its default).
 
     This lets a writer reproduce a file's existing layout instead of imposing
-    one — e.g. ecus.yaml indents the dash (4/2) while captures keep it flush
+    one — e.g. ECU files indent the dash (4/2) while captures keep it flush
     with the key (2/0).
     """
     lines = text.splitlines()

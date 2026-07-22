@@ -74,7 +74,7 @@ __all__ = [
 
 def __getattr__(name):
     """Lazily expose profile/config-dependent constants (PEP 562)."""
-    if name in ("DEFAULT_WICAN", "WICAN_ADDRESSES", "PIDS_DIR", "ECUS_FILE", "CAPTURES_DIR"):
+    if name in ("DEFAULT_WICAN", "WICAN_ADDRESSES", "ECUS_DIR", "CAPTURES_DIR"):
         from . import constants
 
         return getattr(constants, name)

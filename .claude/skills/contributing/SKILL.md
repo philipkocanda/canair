@@ -103,7 +103,7 @@ Follow an existing command as a template: `commands/routines.py` +
 
 ## Data & generated artifacts
 
-- `profiles/*/pids/` is the source of truth — edit via `canair pids` (validated,
+- `profiles/*/ecus/` is the source of truth — edit via `canair pids` (validated,
   comment-preserving), not by hand.
 - `profiles/*/captures/*.yaml` are **never** hand-written; record with
   `canair … --save`. Edit/remove via `canlib.captures` helpers.
@@ -165,5 +165,5 @@ warranted rather than bolting on more:
 ```bash
 uv run pytest -q                 # all tests green
 uv run canair <yourcmd> --help   # parser sane
-uv run canair validate all       # if you touched pids/captures/ecus/schema
+uv run canair validate all       # if you touched ecus/captures/schema
 ```

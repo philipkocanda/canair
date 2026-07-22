@@ -1,0 +1,20 @@
+# ─── AVN (Audio/Video/Navigation) ─────────────────────────────────────
+# Head unit at 0x780. Firmware: AE_EV EURSOP 12 017.1
+# No live data DIDs discovered yet. Service 22 ranges untested.
+AVN:
+  tx_id: 0x780
+  identity:
+    description: Audio/Video/Navigation head unit
+    serial: "00000076FE0085-003240"
+    app_sw: "AE_EV EURSOP 12 017.1"
+    id_protocol: UDS  # F1xx (limited — 3 DIDs)
+    notes: "Firmware ID 'AE_EV EUR.SOP' matches Ioniq head unit firmware/map updates. Previously misidentified as TCU."
+  availability: [plugged, acc, acc2, ready, charging]
+  scan_log: # AVN (head unit)
+    - service: 0x22
+      range: "0100-010F,B001-B010"
+      date: 2026-07-22
+      hits: 0
+      state: "ready, ignition on"
+      notes: "Head unit alive (all NRC, 0 timeouts) but exposes NO live-data DIDs — identity DIDs only. Hidden-page hunt."
+  pids: {}

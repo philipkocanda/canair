@@ -1,0 +1,946 @@
+# ─── BCM (Body Control Module) / TPMS ──────────────────────────────────
+# BCM and TPMS share TX ID 0x7A0 (same physical ECU, part 95400G7470).
+# TPMS data is accessed via DID 22C00B on the BCM.
+BCM:
+  tx_id: 0x7A0
+  identity:
+    description: Body Control Module
+    part_number: "95400G7470"
+    mfg_date: "2017-05-31"
+    id_protocol: UDS  # F1xx
+  availability: [sleep, plugged, acc, acc2, ready, charging]  # Wakes from CAN bus activity
+  scan_log: # BCM
+    - service: 0x31
+      range: "0000-FFFF"
+      date: 2026-04-20
+      hits: "~71+ (screen only, not in log — connection dropped)"
+      probes: 49813  # cut off at 0xC8D2 — WiCAN sleep/disconnect
+      state: asleep
+      notes: >
+        BCM supports service 31 (sub-fn 03 requestRoutineResults).
+        Two clusters of positive responses seen on screen (not saved to log — connection dropped):
+          Cluster A: 0x95CE–0x97C2 (~40 hits, stride 0x0D)
+          Cluster B: 0xC726–0xC8B8 (~32 hits, stride 0x0D)
+        All responses are 2 bytes (just positive ack, no result data — routine exists but no
+        result available, likely needs startRoutine first or ignition on).
+        Notable: RID 0x12A1 returned NRC 0x22 (conditionsNotCorrect).
+        Remaining range 0xC8D3-0xFFFF not yet scanned.
+        TODO: Resume scan from 0xC8D3. Also re-scan 0x95CE-0xC8D2 to capture hits to log.
+  pids:
+    22C00B:
+      period: 15000
+      enabled: true
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      parameters:
+        TYRE_PRESSURE_FL:
+          expression: "B10/72.52"
+          unit: bar
+          ha_class: pressure
+          min: "0"
+          max: "5"
+          source: "Original WiCAN config + Ioniq forum"
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/pull/716
+          verified: true
+          notes: "72.52 converts raw byte to bar. Alternative: B10/5 gives psi."
+
+        TYRE_PRESSURE_FR:
+          expression: "B14/72.52"
+          unit: bar
+          ha_class: pressure
+          min: "0"
+          max: "5"
+          source: "Original WiCAN config"
+          source_links: []
+          verified: true
+          notes: ""
+
+        TYRE_PRESSURE_RL:
+          expression: "B19/72.52"
+          unit: bar
+          ha_class: pressure
+          min: "0"
+          max: "5"
+          source: "Original WiCAN config"
+          source_links: []
+          verified: true
+          notes: ""
+
+        TYRE_PRESSURE_RR:
+          expression: "B23/72.52"
+          unit: bar
+          ha_class: pressure
+          min: "0"
+          max: "5"
+          source: "Original WiCAN config"
+          source_links: []
+          verified: true
+          notes: ""
+
+        TYRE_TEMP_FL:
+          expression: "B11-50"
+          unit: "°C"
+          ha_class: temperature
+          min: "-50"
+          max: "100"
+          source: "Kia Niro EV WiCAN PR#716"
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/pull/716
+          verified: true
+          notes: "From Niro EV, untested on Ioniq 2017"
+
+        TYRE_TEMP_FR:
+          expression: "B15-50"
+          unit: "°C"
+          ha_class: temperature
+          min: "-50"
+          max: "100"
+          source: "Kia Niro EV WiCAN PR#716"
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/pull/716
+          verified: true
+          notes: ""
+
+        TYRE_TEMP_RL:
+          expression: "B20-50"
+          unit: "°C"
+          ha_class: temperature
+          min: "-50"
+          max: "100"
+          source: "Kia Niro EV WiCAN PR#716"
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/pull/716
+          verified: true
+          notes: ""
+
+        TYRE_TEMP_RR:
+          expression: "B25-50"
+          unit: "°C"
+          ha_class: temperature
+          min: "-50"
+          max: "100"
+          source: "Kia Niro EV WiCAN PR#716"
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/pull/716
+          verified: true
+          notes: ""
+    22B00D:
+      enabled: false
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      notes: >
+        13 bytes. May contain preheat timer configuration. B03-B04=0xFCFC, B05=0xE0.
+        Relationship to departure time (480 min = 08:00 in B007) unclear. Needs retest
+        after changing preheat settings. Sample: 62B00DFCFCE00000000000AAAA.
+      parameters: {}
+
+    22B00E:
+      period: 5000
+      enabled: true
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      parameters:
+        CHARGE_PORT_OPEN:
+          expression: "B10:5"
+          unit: ""
+          ha_class: opening
+          min: ""
+          max: ""
+          source: "Kia Niro EV WiCAN PR#716"
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/pull/716
+          verified: true
+          notes: "Bit flag — 1=open, 0=closed. Niro PR had B10:4 — wrong for Ioniq, actual bit is B10:5. BCM does NOT require extended diagnostic session. Verified 2026-04-15."
+
+    22B00F:
+      enabled: false
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      notes: >
+        13 bytes. Identical payload to B00D (0xFCFC E0...) — possibly mirrored register
+        or preheat config overflow. B010+ did not respond in DID scan.
+        Sample: 62B00FFCFCE00000000000AAAA.
+      parameters: {}
+
+    22B004:
+      enabled: false
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      notes: >
+        13 bytes. B11:6 = door lock state (1=locked, 0=unlocked) — confirmed via
+        fob lock/unlock test (0x40↔0x00 transition correlates with B005/B006 changes).
+        B05=0x74, B06=0x02, B07=0x99, B09=0x0C.
+      parameters:
+        BCM_DOORS_LOCKED:
+          expression: "B11:6"
+          unit: ""
+          ha_class: ""
+          mqtt_topic: bcm_doors_locked
+          min: "0"
+          max: "1"
+          source: "Fob lock/unlock test 2026-04-18"
+          source_links: []
+          verified: true
+          notes: >
+            1=locked, 0=unlocked. Same representation as IGPM door locks.
+            Confirmed by correlating with B005 (courtesy light) and B006
+            (turn signal flash) transitions during fob lock/unlock.
+
+    22B005:
+      enabled: false
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      notes: >
+        13 bytes. B10 changes A0↔AC during fob lock/unlock (bits 2,3 = 0x0C).
+        Correlated with B004 lock state and B006 indicator flash.
+        B05=0x20, B07=0x10, B12=0x08.
+      parameters:
+        BCM_B005_UNLOCK_BITS:
+          expression: "B12"
+          unit: ""
+          ha_class: ""
+          min: "0"
+          max: "255"
+          source: "Fob lock/unlock test 2026-04-18"
+          source_links: []
+          verified: true
+          notes: >
+            Correlated with B004 lock state. Bits 2,3 (0x0C) set during unlock.
+            Possibly courtesy lamp or interior lighting trigger. Base value 0xA0.
+
+    22B006:
+      enabled: false
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      notes: >
+        13 bytes. B12 changes 00↔04 during fob lock/unlock (bit 2).
+        Correlated with B004 lock state and B005 unlock bits.
+        B05=0x20, rest normally zeros.
+      parameters:
+        BCM_B006_UNLOCK_BITS:
+          expression: "B12"
+          unit: ""
+          ha_class: ""
+          min: "0"
+          max: "255"
+          source: "Fob lock/unlock test 2026-04-18"
+          source_links: []
+          verified: true
+          notes: >
+            Correlated with B004 lock state. Bit 2 (0x04) set during unlock.
+            Possibly turn signal confirmation flash.
+
+    22B007:
+      period: 60000
+      enabled: false
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      parameters:
+        PREHEAT_DEPARTURE_TIME:
+          expression: "(B07 << 8) | B09"
+          unit: "min"
+          display: "f'{int(v)//60:02d}:{int(v)%60:02d}'"
+          ha_class: ""
+          min: "0"
+          max: "1439"
+          source: "Reverse engineered — 0x01E0 = 480 = 08:00"
+          source_links: []
+          verified: false
+          notes: >
+            WIP. Minutes from midnight for departure preheat time. 0x01E0 = 480 = 08:00 matches
+            configured preheat schedule. Needs verification by changing departure time and re-reading.
+            Multi-frame response (13 bytes) — B08 is PCI byte, so can't use [B07:B09].
+            B05=0x00, B06=0x20 purpose unknown.
+
+    22B008:
+      enabled: false
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      notes: >
+        13 bytes. Static across deep sleep and ACC captures — configuration register.
+        B03=0x00, B04=0x51, B05=0x0C, B06=0x20, B07=0x00, B08=0x88.
+        Sample: 62B00800510C2000880000AAAA.
+      parameters: {}
+
+    22B009:
+      enabled: false
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      notes: >
+        13 bytes. Repeating 0xFEEE pattern (B03-B06) — possibly sensor addresses or
+        calibration references. Rest zeros. Static. Sample: 62B009FEEEFEEE00000000AAAA.
+      parameters: {}
+
+    22B00A:
+      enabled: false
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      notes: >
+        13 bytes. B03=0xE3, B04=0xFE, B05=0xE3, B07=0x40, B08=0x05. Purpose unknown.
+        Static across captures. Sample: 62B00AE3FEE30000400500AAAA.
+      parameters: {}
+
+    22B00B:
+      enabled: false
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      notes: >
+        NRC 0x31 (requestOutOfRange) in deep sleep. Only 2-byte response (7E00) on some
+        attempts — may be a status register that requires ACC/IGN on. Needs retest with
+        ignition active.
+      parameters: {}
+
+    22B00C:
+      period: 60000
+      enabled: false
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      parameters:
+        PREHEAT_SCHEDULE_DAYS:
+          expression: "B05"
+          unit: ""
+          display: "f'{int(v):07b}'"
+          ha_class: ""
+          min: "0"
+          max: "127"
+          source: "Reverse engineered — 0x3F = 6 days set"
+          source_links: []
+          verified: false
+          notes: >
+            WIP. Day-of-week bitmask for preheat schedule. 0x3F = 0b00111111 = 6 days
+            (user has daily preheat, one day may be unset or bit 6 = Sunday excluded).
+            Bit mapping (Mon=bit0? Sun=bit6?) not yet confirmed. Needs verification by
+            toggling individual days.
+
+    22B001:
+      enabled: false
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      notes: >
+        20 bytes. Mostly zeros with config-like flags. Returns NO DATA on first attempt
+        after wake, then responds on retry. B20 changes with power state: 0x02 (ACC, Apr 14)
+        → 0x01 (ACC2+charging, Apr 19). Possibly BCM power mode sub-state.
+        Sample (ACC2+charging): 62B00140C0000000010000000000000201000000.
+      parameters: {}
+
+    22B002:
+      enabled: false
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      notes: >
+        13 bytes. Sparse data with 0xAA padding. Purpose unknown.
+        Sample: 62B002C00000000200AAAAAAAA.
+      parameters: {}
+
+    22B003:
+      period: 10000
+      enabled: false
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      parameters:
+        BCM_12V_BATTERY:
+          expression: "B10*0.08"
+          unit: "V"
+          display: ""
+          ha_class: voltage
+          min: "0"
+          max: "20"
+          source: "Reverse engineered from monitor drift analysis"
+          source_links: []
+          verified: true
+          notes: >
+            12V battery voltage measured by BCM. Formula v*0.08 estimated: value 149 → 11.92V, cross-referenced
+            against WiCAN onboard voltage sensor reading 12.1V at same time (value ~149).
+            Approximate — needs multimeter reference to confirm exact scale.
+        BCM_POWER_MODE:
+          expression: "B12"
+          unit: ""
+          display: ""
+          ha_class: ""
+          min: "0"
+          max: "255"
+          source: "Reverse engineered from cross-state comparison"
+          source_links: []
+          verified: false
+          notes: >
+            WiCAN B12 (ELM payload index 9). Shows ADC-like values (~245-248) during deep
+            sleep, oscillating ±1 LSB (typical ADC noise). Earlier captures showed 0x09 and
+            0x0A — possibly from a different vehicle state (ACC/IGN on) or a pre-PCI-fix
+            byte offset error. Disabled until values are better understood with at-car
+            captures across multiple vehicle states.
+
+    # ─── TPMS configuration DIDs (22C001-C014) ───────────────────────────
+    # Static TPMS sensor registration, IDs, and configuration data.
+    # C00B (above) has live tyre pressure/temp readings.
+
+    22C001:
+      ignored: true
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      notes: >
+        34 bytes. Contains 4× C0F8-prefixed TPMS receiver addresses — one per wheel.
+        Static configuration. Sample: 62C001FFFF000001C0F80410C0F80BD2C0F81174C0F81188AAAA.
+      parameters: {}
+
+    22C002:
+      ignored: true
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      notes: >
+        27 bytes. Same C0F8 addresses as C001 but in different order — wheel-to-receiver
+        mapping table. Sample: 62C002FFFF0000C0F81174C0F80410C0F80BD2C0F81188AAAAAAAA.
+      parameters: {}
+
+    22C003:
+      ignored: true
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      notes: >
+        34 bytes. TPMS sensor registration for wheel 1. ASCII 'DO01' at offset 7.
+        Contains pressure limits, sensor ID, calibration data.
+        Sample: 62C00300000000444F303101002E2E02500706B5B50A098C3C0000000001FF0100AA.
+      parameters: {}
+
+    22C004:
+      ignored: true
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      notes: >
+        34 bytes. TPMS sensor registration for wheel 2. ASCII 'NA01'.
+        Sample: 62C004000000004E41303101002E2E024B0005B5B508088C3C0100000001FF0100AA.
+      parameters: {}
+
+    22C005:
+      ignored: true
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      notes: >
+        34 bytes. Spare/reference TPMS sensor. ASCII 'NTPM'.
+        Sample: 62C005000000004E54504D0100302F02500000ABAB00008C3C0000030001FF0000AA.
+      parameters: {}
+
+    22C006:
+      ignored: true
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      notes: >
+        34 bytes. TPMS sensor registration for wheel 3. ASCII 'DO02'.
+        Sample: 62C00600000000444F303201002E2E02500706B5AB0A098C3C0000000001010100AA.
+      parameters: {}
+
+    22C007:
+      ignored: true
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      notes: >
+        34 bytes. TPMS sensor registration for wheel 4. ASCII 'NA02'.
+        Sample: 62C007000000004E41303201002E2E024B0005B5AB08088C3C0100000001010100AA.
+      parameters: {}
+
+    22C008:
+      ignored: true
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      notes: >
+        34 bytes. Empty TPMS slot (all FF after ASCII '0005').
+        Sample: 62C00800000000303030350000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFAA.
+      parameters: {}
+
+    22C009:
+      ignored: true
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      notes: >
+        34 bytes. Empty TPMS slot (ASCII '0006').
+        Sample: 62C00900000000303030360000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFAA.
+      parameters: {}
+
+    22C00A:
+      ignored: true
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      notes: >
+        34 bytes. Empty TPMS slot (ASCII '0007').
+        Sample: 62C00A00000000303030370000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFAA.
+      parameters: {}
+
+    22C00C:
+      ignored: true
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      notes: >
+        41 bytes. Extended TPMS data — wheel 1 has live data with C0F8 address,
+        other slots empty (FFFF). May contain per-wheel signal quality or sensor history.
+        Sample: 62C00CFFFF030001C0F8117499434119180000000000FFFF000000000000...
+      parameters: {}
+
+    22C00D:
+      ignored: true
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      notes: >
+        41 bytes. Extended TPMS data — all slots empty (FFFF/zeros).
+        Sample: 62C00DFFFF03000000000000FFFF0000000000000000FFFF000000...
+      parameters: {}
+
+    22C00E:
+      ignored: true
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      notes: >
+        41 bytes. Extended TPMS data — all slots empty.
+        Sample: 62C00EFFFF03000000000000FFFF0000000000000000FFFF000000...
+      parameters: {}
+
+    22C00F:
+      ignored: true
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      notes: >
+        41 bytes. Extended TPMS data — one active entry with C0F8 address (C0F81188).
+        Sample: 62C00FFFFF030001C0F8118801203B1E560000000000FFFF000000...
+      parameters: {}
+
+    22C010:
+      ignored: true
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      notes: >
+        13 bytes. Mostly zeros. B03=0xFC. Purpose unknown.
+        Sample: 62C010FC00000000AAAAAAAAAA.
+      parameters: {}
+
+    22C011:
+      enabled: false
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      notes: >
+        13 bytes. NOT static — bytes 8-9 (ELM index) change rapidly every 2s. Byte 8
+        drifts slowly (~0xA2, occasionally 0xA1), byte 9 jumps 20-100 counts per read
+        (ADC-like jitter). Tail bytes 10-11 (0x266E) are static. Likely TPMS RF signal
+        strength (RSSI) or last-received signal metric for a receiver channel. Earlier
+        single-read capture (0xA2D3266B) was misleading — appeared static but byte 9
+        was just one snapshot. Test: compare with C012-C014 and correlate with tyre
+        proximity. Sample: 62C011E000000000A25F266EAA (byte 9 varies).
+      parameters: {}
+
+    22C012:
+      ignored: true
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      notes: >
+        13 bytes. ASCII 'DO01' at B07-B10 — references wheel 1 sensor ID.
+        Sample: 62C01280000000444F3031AAAA.
+      parameters: {}
+
+    22C013:
+      ignored: true
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      notes: >
+        13 bytes. ASCII '0x0620' — possibly TPMS firmware version or config revision.
+        Sample: 62C01380000000307830363230.
+      parameters: {}
+
+    22C014:
+      ignored: true
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      notes: >
+        13 bytes. B10=0x0C. Purpose unknown — last responding DID in C0xx range.
+        Sample: 62C014F00000000CAAAAAAAAAA.
+      parameters: {}
+
+  # ─── IOControl (service 2F) ──────────────────────────────────────────
+  # BCM requires extended diagnostic session (10 03) AND SKM ACC+IGN1 power.
+  # Scan status: B000-B0FF fully scanned (24 DIDs), C000-C0FF (6 DIDs), E000-E0FF (0). 2026-04-18.
+  # Usage: python3 canreq.py --raw 7A0:<on_command> --hold
+  iocontrol:
+    B003:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB00303"
+      off: "2FB00300"
+      notes: >
+        Sleep (locked): NRC 0x22: conditionsNotCorrect
+
+    B006:
+      availability: [acc, ready]
+      label: Parking sensors
+      verified: true
+      on: "2FB00603"
+      off: "2FB00600"
+      notes: >
+        Turns on parking sensors switch (LED)
+        Sleep (locked): NRC 0x22: conditionsNotCorrect
+
+    B008:
+      availability: []
+      label: Wiper Motor (slow)
+      verified: true
+      on: "2FB00803"
+      off: "2FB00800"
+      notes: >
+        Sleep (locked): NRC 0x22: conditionsNotCorrect
+
+    B009:
+      availability: []
+      label: Wiper Motor (fast)
+      verified: true
+      on: "2FB00903"
+      off: "2FB00900"
+      notes: >
+        Sleep (locked): NRC 0x22: conditionsNotCorrect
+
+    B00A:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB00A03"
+      off: "2FB00A00"
+      notes: >
+        Sleep (locked): NRC 0x22: conditionsNotCorrect
+
+    B00F:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB00F03"
+      off: "2FB00F00"
+      notes: >
+        Sleep (locked): No visible effect, but no NRC
+
+    B019:
+      availability: []
+      label: Room lamp (interior)
+      verified: true
+      on: "2FB01903"
+      off: "2FB01900"
+      notes: >
+        Sleep (locked): No visible effect, but no NRC
+        ACC: Confirmed
+
+    B01A:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB01A03"
+      off: "2FB01A00"
+      notes: >
+        Adjacent to room lamp — may be reading lamp or trunk lamp?
+
+    B025:
+      availability: [sleep, plugged]
+      label: Puddle lights
+      verified: true
+      on: "2FB02503"
+      off: "2FB02500"
+
+    B028:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB02803"
+      off: "2FB02800"
+      notes: >
+        ACC: ConditionsNotCorrect
+
+    B029:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB02903"
+      off: "2FB02900"
+      notes: >
+        Possibly window or wiper motor.
+
+    B030:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB03003"
+      off: "2FB03000"
+      notes: >
+        Possibly wiper/washer pump.
+
+    B038:
+      availability: []
+      label: Seatbelt warn driver
+      verified: true
+      on: "2FB03803"
+      off: "2FB03800"
+
+    B039:
+      availability: []
+      label: Seatbelt warn pass 1
+      verified: true
+      on: "2FB03903"
+      off: "2FB03900"
+
+    B03A:
+      availability: []
+      label: Seatbelt warn pass 2
+      verified: true
+      on: "2FB03A03"
+      off: "2FB03A00"
+
+    B03B:
+      availability: []
+      label: Seatbelt warn pass 3
+      verified: true
+      on: "2FB03B03"
+      off: "2FB03B00"
+
+    B04D:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB04D03"
+      off: "2FB04D00"
+
+    B057:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB05703"
+      off: "2FB05700"
+      notes: >
+        Mirror/handle region.
+
+    B059:
+      availability: []
+      label: Heated steering wheel
+      verified: true
+      on: "2FB05903"
+      off: "2FB05900"
+      notes: >
+        Sleep (locked): NRC 0x22: conditionsNotCorrect
+        e-Niro labels as heated door handle. May refer to heated steering wheel on Ioniq?
+
+    B05A:
+      availability: []
+      label: Heated steering wheel LED
+      verified: true
+      on: "2FB05A03"
+      off: "2FB05A00"
+      notes: >
+        Sleep (locked): NRC 0x22: conditionsNotCorrect
+
+    B05B:
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      label: Mirror fold
+      verified: true
+      on: "2FB05B03"
+      off: "2FB05B00"
+      notes: >
+        Fold side mirrors in. From e-Niro, confirmed on Ioniq.
+        Must be turned off again for the mirror unfold command (B05C) to work!
+
+    B05C:
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      label: Mirror unfold
+      verified: true
+      on: "2FB05C03"
+      off: "2FB05C00"
+      notes: >
+        Unfold side mirrors. From e-Niro, confirmed on Ioniq.
+
+    B061:
+      availability: []
+      label: N/A
+      verified: false
+      on: "2FB06103"
+      off: "2FB06100"
+      notes: >
+        NRC 0x31: requestoutotRange (Tested with and without ACC power)
+
+    B071:
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      label: Unknown
+      verified: false
+      on: "2FB07103"
+      off: "2FB07100"
+
+    B072:
+      availability: [sleep, plugged, acc, acc2, ready, charging]
+      label: Unknown
+      verified: false
+      on: "2FB07203"
+      off: "2FB07200"
+
+    C001:
+      availability: []
+      label: Unknown (TPMS region)
+      verified: false
+      on: "2FC00103"
+      off: "2FC00100"
+      notes: >
+        WARNING: C0xx is the TPMS/body-comfort DID range. C001-C006 may be TPMS sensor
+        registration or reset commands. Do NOT activate (03) without understanding —
+        could reset TPMS pairing. Discovered via returnControl (00) probe only.
+
+    C002:
+      availability: []
+      label: Unknown (TPMS region)
+      verified: false
+      on: "2FC00203"
+      off: "2FC00200"
+      notes: >
+        WARNING: TPMS region. See C001 notes. Do not activate without understanding.
+
+    C003:
+      availability: []
+      label: Unknown (TPMS region)
+      verified: false
+      on: "2FC00303"
+      off: "2FC00300"
+      notes: >
+        WARNING: TPMS region. See C001 notes. Do not activate without understanding.
+
+    C004:
+      availability: []
+      label: Unknown (TPMS region)
+      verified: false
+      on: "2FC00403"
+      off: "2FC00400"
+      notes: >
+        WARNING: TPMS region. See C001 notes. C004-C007 are the 4 TPMS sensor
+        registration read DIDs — IOControl on these could trigger sensor re-learn.
+
+    C005:
+      availability: []
+      label: Unknown (TPMS region)
+      verified: false
+      on: "2FC00503"
+      off: "2FC00500"
+      notes: >
+        WARNING: TPMS region. See C004 notes.
+
+    C006:
+      availability: []
+      label: Unknown (TPMS region)
+      verified: false
+      on: "2FC00603"
+      off: "2FC00600"
+      notes: >
+        WARNING: TPMS region. See C004 notes.
+
+  research:
+    - type: decode
+      target: "22B00C"
+      status: captured
+      priority: P2
+      prerequisite: [acc]
+      notes: "Preheat schedule. B3=0x3F (6 days set). Preheat TIME not in this DID — may be in B007 or B00D."
+      sources:
+        - "Captured 2026-04-15"
+    - type: decode
+      target: "22B00D"
+      status: captured
+      priority: P2
+      prerequisite: [acc]
+      notes: "Preheat timer config. B3-B4=0xFCFC, B5=0xE0. Change preheat time and re-read to decode."
+      sources:
+        - "Captured 2026-04-15"
+    - type: decode
+      target: "22B007"
+      status: captured
+      priority: P2
+      prerequisite: [acc]
+      notes: "Contains 0x01E0 = 480 = minutes from midnight for 08:00. Strong candidate for preheat departure time."
+      sources:
+        - "Captured 2026-04-15"
+    - type: decode
+      target: "22B001-B00A, B00F"
+      status: captured
+      priority: P3
+      prerequisite: [acc]
+      notes: "BCM body data pages, all responding, mostly undecoded. B001 config flags (20B), B003 dense bitfields (27B), B004 voltage/current, B009 repeating FEEE."
+      sources:
+        - "Captured 2026-04-15"
+    - type: iocontrol_scan
+      target: "2F B073-B0FF"
+      status: done
+      priority: P2
+      prerequisite: [acc]
+      notes: "B000-B0FF complete (24 DIDs, all in B000-B072). B100-B1FF empty. C000-C0FF has 6 new (C001-C006, TPMS region). E000-E0FF empty. Scanned 2026-04-18."
+      sources:
+        - "IOControl scan 2026-04-15, 2026-04-18"
+    - type: scan
+      target: 27 SecurityAccess
+      status: nrc
+      priority: P2
+      date: "2026-07-22"
+      result: present; all 48 built-in algos NRC 0x35 invalidKey
+      notes: "BCM supports SecurityAccess (0x27) in the 10 03 extended session: 27 01 returns a fresh random 4-byte seed each request; 27 02 with any of the 48 built-in key algorithms returns NRC 0x35 (invalidKey) — correct key length, wrong value. So the BCM uses a non-trivial HKMC seed-key (likely SA2 bytecode/secret), not a simple transform. Aggressive lockout (~2 attempts -> NRC 0x37 11s delay). Cracking it needs a sniffed seed->key pair from a working tool, then canair query --pair SEED:KEY. Validates the security tooling end-to-end."
+      sources:
+        - on-car 2026-07-22; canair query security BCM
+
+  iocontrol_discoveries:
+    B003:
+      response: "6FB00300"
+      notes: ""
+    B006:
+      response: "6FB00600"
+      notes: ""
+    B008:
+      response: "6FB00800"
+      notes: ""
+    B009:
+      response: "6FB00900"
+      notes: ""
+    B00A:
+      response: "6FB00A00"
+      notes: ""
+    B00F:
+      response: "6FB00F00"
+      notes: ""
+    B019:
+      response: "6FB01900"
+      notes: ""
+    B01A:
+      response: "6FB01A00"
+      notes: ""
+    B025:
+      response: "6FB02500"
+      notes: ""
+    B028:
+      response: "6FB02800"
+      notes: ""
+    B029:
+      response: "6FB02900"
+      notes: ""
+    B030:
+      response: "6FB03000"
+      notes: ""
+    B038:
+      response: "6FB03800"
+      notes: ""
+    B039:
+      response: "6FB03900"
+      notes: ""
+    B03A:
+      response: "6FB03A00"
+      notes: ""
+    B03B:
+      response: "6FB03B00"
+      notes: ""
+    B04D:
+      response: "6FB04D00"
+      notes: ""
+    B057:
+      response: "6FB05700"
+      notes: ""
+    B059:
+      response: "6FB05900"
+      notes: ""
+    B05A:
+      response: "6FB05A00"
+      notes: ""
+    B05B:
+      response: "6FB05B00"
+      notes: ""
+    B05C:
+      response: "6FB05C00"
+      notes: ""
+    B071:
+      response: "6FB07100"
+      notes: ""
+    B072:
+      response: "6FB07200"
+      notes: ""
+    C001:
+      response: "6FC00100"
+      notes: ""
+    C002:
+      response: "6FC00200"
+      notes: ""
+    C003:
+      response: "6FC00300"
+      notes: ""
+    C004:
+      response: "6FC00400"
+      notes: ""
+    C005:
+      response: "6FC00500"
+      notes: ""
+    C006:
+      response: "6FC00600"
+      notes: ""
+
+  routines:
+    12A1:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    DDDD:
+      nrc: 0x13
+      nrc_desc: "incorrectMessageLengthOrInvalidFormat"
+      notes: ""

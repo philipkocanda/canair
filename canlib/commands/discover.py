@@ -20,7 +20,7 @@ examples:
   canair discover                     Discover ECUs in 0x700-0x7EF (default)
   canair discover --range 600-6FF     Custom range
   canair discover --delay 0.5         Slower pacing
-  canair discover --register          Auto-add newly-found ECUs to ecus.yaml
+  canair discover --register          Auto-add newly-found ECUs to ecus/
   canair discover --register --dry-run  Preview what would be registered
 """,
     )
@@ -32,7 +32,7 @@ examples:
     )
     parser.add_argument(
         "--register", action="store_true",
-        help="Register newly-discovered ECUs into the profile's ecus.yaml",
+        help="Register newly-discovered ECUs as files in the profile's ecus/ directory",
     )
     parser.add_argument(
         "--dry-run", action="store_true",

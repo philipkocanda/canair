@@ -1,0 +1,394 @@
+# ─── SKM (Smart Key Module) ────────────────────────────────────────────
+# Self-identifies as "SMK". Wakes from at least two or more CAN requests, slow to wake (>1s).
+# Likely responsible for key fob detection, immobilizer, and remote functions.
+# Falls asleep after ~60s of bus inactivity.
+SKM:
+  tx_id: 0x7A5
+  identity:
+    alias: SMK  # ECU self-identifies as "SMK"
+    description: Smart Key Module
+    mfg_date: "2017-06-02"
+    diag_address: "190"
+    hw_version: "10000"
+    sw_version: "10200"
+    id_protocol: UDS  # F1xx
+    part_number: ""
+  availability: [sleep, plugged, acc, acc2, ready, charging]
+  session: true
+  scan_log: # SKM
+    - service: 0x22
+      range: "0101-010F,B001-B010"
+      date: 2026-07-22
+      hits: "B002,B003,B005,B006,B008,B00A"
+      state: "ready, fob present"
+      notes: >
+        Re-confirmed the B0xx live-data block (already registered in this file's pids:).
+        01xx all NRC. NOTE the Hyundai -1 echo: requesting B007/B009/B00B returns
+        B006/B008/B00A's data. B002 (178 B) content DIFFERS between deep-sleep (2026-04-18)
+        and READY — useful power-state contrast for decoding key/immobiliser bytes.
+  pids:
+    22B002:
+      period: 10000
+      enabled: false
+      availability: [sleep]
+      notes: >
+        136 data bytes — massive status register. Likely contains key fob presence,
+        RSSI, button presses, immobilizer state. Needs decoding.
+        Captured with key in unlocked car during deep sleep (2026-04-18).
+      parameters:
+        SKM_B002_UNKNOWN:
+          expression: ""
+          unit: ""
+          source: "DID scan 2026-04-18"
+          source_links: []
+          verified: false
+          notes: >
+            136 bytes. Raw:
+            62 B0 02 00 00 00 00 14 32 00 07 12 0A 00 3C 0A 46 2C 3F 75 0A 19 10 E0 16 80 04 FE FF 1E C8 96 64 FA 03 32 05 03 09 0A 1E 14 32 32 05 06 14 03 32 32
+            02 05 32 0F 00 07 32 46 14 1E 1E 1E 14 00 00 00 00 00 00 2C 3F 75 FE 00 00 00 00 00 00 00 00 00 00 00 FF FA C8 96 64 96 01 02 00 00 00 10 00 12 08 0F 0A 14 10 0A 00
+            00 00 00 00 00 00 C8 64 03 0F 3C C8 14 00 00 00 00 00 00 00 64 28 08 10 10 03 1E 00 00 00 00 AA AA AA
+    22B003:
+      period: 10000
+      enabled: false
+      availability: [sleep]
+      parameters:
+        SKM_B003_UNKNOWN:
+          expression: ""
+          unit: ""
+          source: "DID scan 2026-04-18"
+          source_links: []
+          verified: false
+          notes: "27 bytes. Raw: 62B003000000003412900300000000C6A21261000000000F00AAAA"
+    22B005:
+      period: 10000
+      enabled: false
+      availability: [sleep]
+      parameters:
+        SKM_B005_UNKNOWN:
+          expression: ""
+          unit: ""
+          source: "DID scan 2026-04-18"
+          source_links: []
+          verified: false
+          notes: "13 bytes. Raw: 62B005FA60900000040000AAAA"
+    22B006:
+      period: 10000
+      enabled: false
+      availability: [sleep]
+      parameters:
+        SKM_B006_UNKNOWN:
+          expression: ""
+          unit: ""
+          source: "DID scan 2026-04-18"
+          source_links: []
+          verified: false
+          notes: "27 bytes. Raw: 62B006AFE000009C0000000000000000009B0000000000AAAAAAAA"
+    22B007:
+      period: 10000
+      enabled: false
+      availability: [sleep]
+      parameters:
+        SKM_B007_UNKNOWN:
+          expression: ""
+          unit: ""
+          source: "DID scan 2026-04-18"
+          source_links: []
+          verified: false
+          notes: "20 bytes. Raw: 62B0071E7FB80000000C007FFF00000000AAAAAA"
+    22B008:
+      period: 10000
+      enabled: false
+      availability: [sleep]
+      parameters:
+        SKM_B008_UNKNOWN:
+          expression: ""
+          unit: ""
+          source: "DID scan 2026-04-18"
+          source_links: []
+          verified: false
+          notes: "20 bytes, all zeros. Raw: 62B0080000000000000000000000000000AAAAAA"
+    22B009:
+      period: 10000
+      enabled: false
+      availability: [sleep]
+      parameters:
+        SKM_B009_UNKNOWN:
+          expression: ""
+          unit: ""
+          source: "DID scan 2026-04-18"
+          source_links: []
+          verified: false
+          notes: "34 bytes, mostly zeros. Raw: 62B00900000000000000000000000000000000000000..."
+    22B00A:
+      period: 10000
+      enabled: false
+      availability: [sleep]
+      parameters:
+        SKM_B00A_UNKNOWN:
+          expression: ""
+          unit: ""
+          source: "DID scan 2026-04-18"
+          source_links: []
+          verified: false
+          notes: "20 bytes. Raw: 62B00A0100F038000501080600000040010000AA"
+    22B00B:
+      period: 10000
+      enabled: false
+      availability: [sleep]
+      parameters:
+        SKM_B00B_UNKNOWN:
+          expression: ""
+          unit: ""
+          source: "DID scan 2026-04-18"
+          source_links: []
+          verified: false
+          notes: "55 bytes. Raw: 62B00B800000000200000000000000000000000400005319420000000002..."
+
+  # ─── IOControl (service 2F) ──────────────────────────────────────────
+  # Requires extended session (10 03).
+  # CRITICAL: Fob proximity required for relay to physically close.
+  # SKM returns positive UDS response even without fob, but relay doesn't latch.
+  # ACC does NOT latch — relay stays on only while session is held (TesterPresent).
+  # Magic bytes 0A 0A 05 from Kia Soul, confirmed working on Ioniq 2017.
+  # Usage: python3 canreq.py --raw 7A5:<on_command> --session
+  #
+  # Scan status (2026-04-18):
+  #   B000-B0FF: not scanned (session dropped on B0xx — SKM may sleep mid-scan)
+  #   B100-B1FF: 150/256 responding (returnControl 00 probe). Likely diagnostic test
+  #     points for factory QA — relay drivers, antenna circuits, LED, buzzer, key slot.
+  #     Only B108-B10B are documented individually (relay control with magic bytes).
+  #     First 20 B1xx DIDs added for identification testing.
+  #     Remaining ~130 DIDs not listed — add individually as identified through testing.
+  #
+  # ⚠ SAFETY WARNINGS for unknown B1xx DIDs:
+  #   HIGH RISK:
+  #   - ESCL (steering column lock) — locking without proper key state may require
+  #     dealer tools to unlock. Could physically immobilize the car.
+  #   - Main B+ relay — cutting main power kills OBD port. WiCAN loses connection,
+  #     cannot send OFF command. Need physical car restart.
+  #   - Start contactor — engaging HV contactor unexpectedly could confuse BMS
+  #     or trigger safety interlocks.
+  #   - Immobilizer re-learn — triggering a reset cycle may prevent starting until
+  #     dealer re-programs the key.
+  #   MEDIUM RISK:
+  #   - Door locks — UDS-triggered lock with key inside could lock you out (anti-lockout
+  #     logic may not apply to diagnostic commands).
+  #   - Alarm/siren/horn — annoying, hard to stop if WiCAN connection drops.
+  #   MITIGATION:
+  #   - Always have physical key fob in hand.
+  #   - Keep activations brief — don't hold 03 on unknown DIDs.
+  #   - Test during daytime (horn/siren tolerance).
+  #   - Have someone in the car who can press start button or fob.
+  #   - Skip B101-B103 until identified — likely most dangerous (power/ESCL/immobilizer).
+  #   - Note: B108-B10B proved that UDS positive response ≠ physical actuation without
+  #     fob. Same safety MAY apply to other dangerous DIDs, but don't count on it.
+  iocontrol:
+    B108:
+      availability: []
+      label: ACC relay
+      verified: true
+      on: "2FB108030A0A05"
+      off: "2FB10800"
+      hold: false
+      notes: >
+        Requires fob proximity — UDS positive response without fob is misleading
+        (relay doesn't physically close). Verify via IGPM BC03 ignition byte.
+        ACC ON: dash lights, infotainment, doors unlock. NRC 0x22 if ACC already on.
+        freezeCurrentState (02) returns status bytes 6255.
+
+    B109:
+      availability: []
+      label: IGN1 relay
+      verified: false
+      on: "2FB109030A0A05"
+      off: "2FB10900"
+      hold: false
+      notes: >
+        Ignition 1 — wakes all ECUs including HV system?
+    B10A:
+      availability: []
+      label: IGN2 relay
+      verified: false
+      on: "2FB10A030A0A05"
+      off: "2FB10A00"
+      hold: false
+      notes: >
+        Ignition 2 — purpose unclear on Ioniq EV. From Kia Soul EV.
+
+    B10B:
+      availability: []
+      label: Start relay
+      verified: false
+      on: "2FB10B030A0A05"
+      off: "2FB10B00"
+      hold: false
+      notes: >
+        Start relay from Kia Soul EV.
+
+    B101:
+      availability: []
+      label: "⚠ DO NOT TEST — likely B+ relay or ESCL"
+      verified: false
+      on: "2FB10103"
+      off: "2FB10100"
+      notes: >
+        DANGER: Likely main power relay or ESCL (steering column lock). Activating
+        ESCL via raw UDS can corrupt its internal state machine, causing it to refuse
+        to unlock. Known to have bricked a Renault Zoe ESCL via DDT4All — required
+        dealer replacement of ESCL+SKM+BCM (cryptographically paired). Do not test
+        until positively identified through non-destructive means.
+    B102:
+      availability: []
+      label: "⚠ DO NOT TEST — likely ESCL or immobilizer"
+      verified: false
+      on: "2FB10203"
+      off: "2FB10200"
+      notes: >
+        DANGER: See B101 notes. Likely ESCL lock/unlock or immobilizer control.
+        ESCL has wear counter and error state that is unrecoverable without dealer tools.
+    B103:
+      availability: []
+      label: "⚠ DO NOT TEST — likely immobilizer lamp or ESCL"
+      verified: false
+      on: "2FB10303"
+      off: "2FB10300"
+      notes: >
+        DANGER: See B101 notes. May be immobilizer indicator lamp (lower risk) or
+        ESCL-related (high risk). Skip until B101/B102 are identified.
+    B104:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB10403"
+      off: "2FB10400"
+    B106:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB10603"
+      off: "2FB10600"
+    B10C:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB10C03"
+      off: "2FB10C00"
+    B10E:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB10E03"
+      off: "2FB10E00"
+    B111:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB11103"
+      off: "2FB11100"
+    B114:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB11403"
+      off: "2FB11400"
+    B115:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB11503"
+      off: "2FB11500"
+    B118:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB11803"
+      off: "2FB11800"
+    B119:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB11903"
+      off: "2FB11900"
+    B11A:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB11A03"
+      off: "2FB11A00"
+    B11B:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB11B03"
+      off: "2FB11B00"
+    B120:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB12003"
+      off: "2FB12000"
+    B123:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB12303"
+      off: "2FB12300"
+    B125:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB12503"
+      off: "2FB12500"
+    B127:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB12703"
+      off: "2FB12700"
+    B12A:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB12A03"
+      off: "2FB12A00"
+    B130:
+      availability: []
+      label: Unknown
+      verified: false
+      on: "2FB13003"
+      off: "2FB13000"
+  research:
+    - type: decode
+      target: "22B002"
+      status: captured
+      priority: P1
+      prerequisite: [sleep]
+      date: "2026-04-18"
+      notes: >
+        136 bytes — biggest payload of any ECU. Likely contains key fob presence/RSSI,
+        immobilizer state, button presses. Capture with key removed for diff.
+        2026-07-22: captured a READY (fob-present) contrast — the B002 payload DIFFERS from
+        the 2026-04-18 deep-sleep capture (bytes ~7-13 shifted: sleep 14 32 00 07 12 0A 00 vs
+        READY 3C 0A 46 2C 3F 75 FE), so several bytes track power/ignition state. Best next
+        step remains a key-removed capture to isolate the fob-presence byte(s).
+      what_to_test:
+        - "Key in car vs key removed — diff B002 payload (the key isolation test — still pending)"
+        - "Key near vs far — check for RSSI bytes"
+        - "During ACC/ready — compare states (partial: sleep vs READY captured 2026-07-22, bytes 7-13 move)"
+    - type: verify
+      target: "2FB109"
+      status: pending
+      priority: P2
+      notes: "IGN1 relay ON — accepted but untested."
+    - type: verify
+      target: "2FB10A"
+      status: pending
+      priority: P2
+      notes: "IGN2 relay ON — accepted but untested."
+    - type: verify
+      target: "2FB10B"
+      status: pending
+      priority: P3
+      notes: "Start relay ON — CAUTION. Only test if safe."
+      sources:
+        - "Obsidian: SKM.md — KIA Soul commands"

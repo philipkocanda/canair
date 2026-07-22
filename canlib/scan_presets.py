@@ -240,7 +240,7 @@ def plan_scan(
       1. If the profile defines PIDs for this ECU, infer service + range from
          them (most useful — scans the space we already know about).
       2. Otherwise fall back to the ECU's ``id_protocol`` (KWP2000 -> live-data,
-         UDS -> identity DIDs) from ecus.yaml.
+         UDS -> identity DIDs) from the ECU registry.
 
     Returns ``None`` if the ECU can't be resolved to a TX id.
     """

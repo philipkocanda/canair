@@ -1,0 +1,44 @@
+# ─── WPC (Wireless Phone Charging unit) ────────────────────────────────────────
+WPC:
+  tx_id: 0x725
+  identity:
+    description: Wireless Phone Charging unit
+    part_number: "95560G7000"
+    hw_version: "100"
+    sw_version: "102"
+    boot_sw: "1.6"
+    id_protocol: UDS  # F1xx
+  availability: [acc, acc2, ready]
+  scan_log: # WPC (wireless phone charging)
+    - service: 0x22
+      range: "0101-010F,B001-B010,C101-C10F"
+      date: 2026-07-22
+      hits: 0
+      state: ready
+      notes: "No live-data DIDs found."
+  pids:
+    220100:
+      period: 5000
+      enabled: false
+      availability: [acc, acc2, ready]
+      parameters:
+        WPC_0100_B03_B04:
+          expression: "[S03:S04]"
+          unit: ""
+          ha_class: ""
+          min: ""
+          max: ""
+          source: "DID scan 2026-04-17"
+          source_links: []
+          verified: false
+          notes: "Signed 16-bit at B03-B04. Was initially guessed as steering angle — re-examine with phone on/off pad."
+        WPC_0100_B05_B06:
+          expression: "[S05:S06]"
+          unit: ""
+          ha_class: ""
+          min: ""
+          max: ""
+          source: "DID scan 2026-04-17"
+          source_links: []
+          verified: false
+          notes: "Signed 16-bit at B05-B06. Was initially guessed as steering rate — re-examine with phone on/off pad."

@@ -5,7 +5,7 @@ IOControl DID without rewriting the whole YAML file. This preserves comments,
 anchors, block-scalar styles, and hand-curated ordering that a round-trip
 through ``yaml.safe_dump`` would destroy.
 
-Assumptions about file layout (all current pids/*.yaml files conform):
+Assumptions about file layout (all current ecus/*.yaml files conform):
 
     ECU:                           <- 0-space indent
       tx_id: 0x770
@@ -28,12 +28,19 @@ from pathlib import Path
 
 
 def _resolve_pids_dir(pids_dir: Path | None) -> Path:
-    """Resolve a pids/ directory, defaulting to the active profile's."""
+    """Resolve the per-ECU definitions directory, defaulting to the active profile's."""
     if pids_dir is None:
         from .profile import active
 
-        return active().pids_dir
+        return active().ecus_dir
     return Path(pids_dir)
+
+
+def _invalidate() -> None:
+    """Drop the memoized ECU-definition load after a file write."""
+    from .pids import clear_cache
+
+    clear_cache()
 
 
 # IOControl fields editable from the TUI.
@@ -64,7 +71,7 @@ def find_ecu_file(ecu_name: str, pids_dir: Path | None = None) -> Path:
         for m in pattern.finditer(text):
             if m.group(1).upper() == target:
                 return fpath
-    raise PidsEditError(f"ECU {ecu_name!r} not found in any pids/*.yaml")
+    raise PidsEditError(f"ECU {ecu_name!r} not found in any ecus/*.yaml")
 
 
 # ── DID block location ───────────────────────────────────────────────────────
@@ -437,6 +444,7 @@ def _append_hit_block(
 
     new_text = text[:ecu_start] + new_ecu_block + text[ecu_end:]
     fpath.write_text(new_text)
+    _invalidate()
     return fpath
 
 
@@ -511,6 +519,7 @@ def update_routines_field(
 
     new_text = text[:start] + new_block + text[end:]
     fpath.write_text(new_text)
+    _invalidate()
     return fpath
 
 
@@ -554,6 +563,7 @@ def update_iocontrol_field(
 
     new_text = text[:start] + new_block + text[end:]
     fpath.write_text(new_text)
+    _invalidate()
     return fpath
 
 
@@ -745,6 +755,7 @@ def promote_discovery(
 
     new_text = text[:ecu_start] + new_block + text[ecu_end:]
     fpath.write_text(new_text)
+    _invalidate()
     return fpath
 
 
@@ -889,6 +900,7 @@ def _safe_write(fpath: Path, original: str, new_text: str, ecu: str, checker) ->
     YAML or ``checker`` fails — so a broken surgical edit never persists.
     """
     fpath.write_text(new_text)
+    _invalidate()
     try:
         data = _reparse_or_raise(fpath)
         ecu_def = data.get(ecu)
@@ -897,9 +909,11 @@ def _safe_write(fpath: Path, original: str, new_text: str, ecu: str, checker) ->
         checker(ecu_def)
     except PidsEditError:
         fpath.write_text(original)
+        _invalidate()
         raise
     except Exception as e:  # pragma: no cover - defensive
         fpath.write_text(original)
+        _invalidate()
         raise PidsEditError(f"edit failed post-check, reverted: {e}") from e
 
 

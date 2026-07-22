@@ -38,7 +38,7 @@ class TestPciByteDetection:
 
 
 class TestRealPidsHaveNoPciBytes:
-    """The shipped pids/ must not read PCI bytes."""
+    """The shipped ecus/ must not read PCI bytes."""
 
     def test_no_pci_in_any_pid(self):
         import glob
@@ -48,7 +48,7 @@ class TestRealPidsHaveNoPciBytes:
         offenders = []
         from canlib.profile import active
 
-        for path in glob.glob(str(active().pids_dir / "*.yaml")):
+        for path in glob.glob(str(active().ecus_dir / "*.yaml")):
             data = yaml.safe_load(open(path))
             if not isinstance(data, dict):
                 continue

@@ -1,0 +1,41 @@
+# ─── CCM (Charge Control Module) ──────────────────────────────────
+# Power Line Communication (PLC) for DC CCS fast-charging at 0x733. Part: 91950G7200
+# No live data DIDs discovered. Likely only active during DC fast charging.
+# Service 22 scan returned no results (2026-04-17, car not charging).
+#
+# Physical location: under left seat (both LHD and RHD models)
+
+# https://www.projectgus.com/2024/12/fakon/
+# https://github.com/uhi22/Ioniq28Investigations/blob/main/CCM_ChargeControlModule_PLC_CCS/readme.md
+CCM:
+  tx_id: 0x733
+  identity:
+    alias: PLC
+    description: Charge Control Module (Power Line Communication for DC CCS fast-charging)
+    part_number: "91950G7200"
+    mfg_date: "2017-05-21"
+    hw_version: "101"
+    sw_version: "103"
+    app_sw: "1104"
+    id_protocol: UDS  # F1xx
+  # 0x744 removed — never responded positively. Discovery scan (2026-04-17) returned
+  # CAN-level errors, service 21 scan during AC charging (2026-04-18) returned 255 NO DATA.
+  # Cross-platform reference only; likely does not exist on Ioniq 28kWh.
+  availability: [charging]  # DC CCS only — likely inactive during AC
+  scan_log: # CCM / PLC (DC fast-charge)
+    - service: 0x22
+      range: "0100-010F,B001-B010"
+      date: 2026-07-22
+      hits: 0
+      state: "ready, ignition on"
+      notes: "Charge Control Module alive (all NRC, 0 timeouts) but no live-data DIDs at ignition-on. Likely exposes PLC/charge data only during DC (CCS) fast charging — retry mid-DC-charge."
+  pids: {}
+  dtcs:
+    C182C:
+      description: "DC fast-charge (CCS) charging / PLC communication failure"
+      source: >
+        canair RE — stored on the CCM (Charge Control Module, Power Line
+        Communication) charge controller; correlated with an owner-observed DC
+        fast-charge (DCFC) abort.
+      verified: false
+

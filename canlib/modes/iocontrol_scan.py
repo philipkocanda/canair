@@ -31,7 +31,7 @@ supplies the 0x2F-specific probe, classification and writeback as a
 
 Writeback
 ---------
-Hits are written to ``pids/<ecu>.yaml`` under a new top-level per-ECU section
+Hits are written to ``ecus/<ecu>.yaml`` under a new top-level per-ECU section
 ``iocontrol_discoveries:`` — distinct from the curated ``iocontrol:`` block so
 the scanner can rerun without clobbering human-authored on/off/notes entries.
 """

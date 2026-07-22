@@ -1,0 +1,72 @@
+# ─── MFC (Multi-Function Camera / ADAS) ───────────────────────────────
+MFC:
+  tx_id: 0x7C4
+  identity:
+    description: Multi-Function Camera (ADAS)
+    part_number: "95740-G2200"
+    boot_sw: "AEE MFC AT EUR LHD 1.00 1.00 95740-G2200 161014"
+    id_protocol: UDS  # F1xx (only 1 DID: F100)
+  availability: [acc, acc2, ready]
+  scan_log: # MFC (ADAS camera)
+    - service: 0x22
+      range: "0101-010F,0103-0120,B001-B010"
+      date: 2026-07-22
+      hits: "0101,0102"
+      state: ready
+      notes: "Re-confirmed 0100/0101/0102 (already registered). Higher 01xx and B0xx all NRC."
+  pids:
+    220100:
+      period: 2500
+      enabled: false
+      availability: [ready]
+      parameters:
+        MFC_0100_UNKNOWN:
+          expression: ""
+          unit: ""
+          ha_class: ""
+          min: ""
+          max: ""
+          source: "DID scan 2026-04-17"
+          source_links: []
+          verified: false
+          notes: "13 bytes: 620100000102FB010008AAAAAA. ADAS camera status — lane detection, speed sign recognition."
+    220101:
+      period: 2500
+      enabled: false
+      availability: [ready]
+      parameters:
+        MFC_0101_UNKNOWN:
+          expression: ""
+          unit: ""
+          ha_class: ""
+          min: ""
+          max: ""
+          source: "DID scan 2026-04-17"
+          source_links: []
+          verified: false
+          notes: "4 bytes: 620101FE. Single status byte (0xFE)."
+    220102:
+      period: 2500
+      enabled: false
+      availability: [ready]
+      parameters:
+        MFC_0102_UNKNOWN:
+          expression: ""
+          unit: ""
+          ha_class: ""
+          min: ""
+          max: ""
+          source: "DID scan 2026-04-17"
+          source_links: []
+          verified: false
+          notes: "7 bytes: 620102FB010008. Overlaps with 0100 payload — possibly subset or alternate view."
+
+  research:
+    - type: scan
+      target: 21 00-20
+      status: nrc
+      priority: P3
+      prerequisite: [ready]
+      date: "2026-07-22"
+      result: "Service-21 (KWP-style) probe 00-20: all NRC. MFC is a pure UDS ECU and does not implement service 21. Any LKAS/camera data is via service 22 (0100/0101/0102 already registered; higher 01xx + B0xx already NRC per ecus.yaml scan_log)."
+      notes: Hidden-page hunt 2026-07-22. Rules out a KWP live-data path on the ADAS camera.

@@ -1,6 +1,6 @@
 """Audit PID definitions for decoding gaps (unmapped bytes, partial bitfields).
 
-For every ECU/PID in pids/, this cross-references the parameter expressions
+For every ECU/PID in ecus/, this cross-references the parameter expressions
 against the *longest* captured payload for that PID and reports:
 
   - UNMAPPED  data bytes present in the payload that no expression reads
@@ -188,8 +188,8 @@ def run(args) -> int:
     ecu_index = build_ecu_index(load_pids())
     payloads = load_longest_payloads()
 
-    # Accept an ecus.yaml alias (e.g. LDC for OBC) or any case, matching
-    # `canair captures`/`decode`. Canonicalises to the pids/ key before filtering.
+    # Accept an ECU-registry alias (e.g. LDC for OBC) or any case, matching
+    # `canair captures`/`decode`. Canonicalises to the ecus/ key before filtering.
     from canlib.ecus import canonical_ecu_name_safe
 
     ecu_filter = canonical_ecu_name_safe(args.ecu).upper() if args.ecu else None

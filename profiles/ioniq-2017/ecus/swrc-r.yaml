@@ -1,0 +1,21 @@
+# ─── SWRC-R (Steering Wheel Remote Control — Right) ───────────────────
+# Right steering wheel buttons at 0x7A2. Part: 93575G2160
+# No live data DIDs discovered yet. Service 22 ranges untested.
+SWRC-R:
+  tx_id: 0x7A2
+  identity:
+    description: Steering Wheel Remote Control (Right)
+    part_number: "93575G2160"
+    mfg_date: "2017-06-05"
+    hw_version: "100"
+    sw_version: "100"
+    id_protocol: UDS  # F1xx (same pattern as SWRC-L)
+  availability: [plugged, acc, acc2, ready, charging]
+  scan_log: # SWRC-R (steering wheel remote, right)
+    - service: 0x22
+      range: "0101-010F,B001-B010,C101-C10F"
+      date: 2026-07-22
+      hits: 0
+      state: ready
+      notes: "No live-data DIDs found."
+  pids: {}

@@ -394,7 +394,7 @@ class _RoutinesTUI:
                 f"  \033[1;33m{field.capitalize()} for {rid}: \033[0m{buf}\033[5m▏\033[0m"
             )
             lines.append(
-                "\033[2m  Type new value, Enter to save to pids/*.yaml, Esc to cancel\033[0m"
+                "\033[2m  Type new value, Enter to save to ecus/*.yaml, Esc to cancel\033[0m"
             )
         elif self._status:
             lines.append(f"  {self._status}")

@@ -128,7 +128,7 @@ def split_multi_did(resp_hex: str, dids_lengths: list[tuple[str, int]]) -> dict[
 def resolve_tx_id(name_or_hex: str, ecu_index: dict) -> int | None:
     """Resolve an ECU name or hex TX ID to an integer.
 
-    Accepts: 'IGPM', 'igpm', '770', '0x770', '7A0', and ecus.yaml aliases
+    Accepts: 'IGPM', 'igpm', '770', '0x770', '7A0', and ECU-registry aliases
     ('LDC' -> OBC, 'ABS' -> ESC).
     """
     from ..ecus import canonical_ecu_name_safe
@@ -447,7 +447,7 @@ def build_query_plan(ecu_info: dict, pid_filter: list[str], quiet: bool = False)
             elif not quiet:
                 print(f"  WARNING: Invalid PID format '{u}', skipping")
         if raw_pids and not quiet:
-            print(f"  NOTE: {', '.join(raw_pids)} not in pids/ — querying raw")
+            print(f"  NOTE: {', '.join(raw_pids)} not in ecus/ — querying raw")
         if not pids_to_query and not raw_pids:
             return None
 
