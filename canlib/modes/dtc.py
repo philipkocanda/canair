@@ -157,6 +157,8 @@ async def mode_dtc_read(
     wake: bool = False,
     as_json: bool = False,
     verbose: bool = False,
+    log: bool = False,
+    label: str | None = None,
 ):
     """Read stored DTCs, auto-selecting UDS 0x19 or KWP2000 0x18 by protocol."""
     proto = resolve_protocol(protocol, tx_id)
@@ -175,6 +177,10 @@ async def mode_dtc_read(
 
         result = await _read_one(terminal, tx_id, mask, protocol, verbose)
         _report_read(as_json, result)
+        if log and "dtcs" in result:
+            path, previous, diff = _log_scan(result["ecu"], [result], label)
+            if not as_json:
+                _print_log_result(path, previous, diff)
     finally:
         if tester_task:
             tester_task.cancel()
@@ -182,6 +188,39 @@ async def mode_dtc_read(
                 await tester_task
             except asyncio.CancelledError:
                 pass
+
+
+def _log_scan(scope: str, results: list[dict], label: str | None):
+    """Append this scan to the DTC log; return (path, previous_scan, diff)."""
+    from ..dtc_log import append_scan, build_scan, diff_scans, latest_matching
+
+    ecus: dict = {}
+    for r in results:
+        if "dtcs" not in r:
+            continue
+        codes = [d["dtc"] for d in r["dtcs"]]
+        # Full sweep keeps only ECUs with codes (absence on a same-scope sweep =
+        # cleared); a single-ECU scope keeps the ECU even when clean so a later
+        # compare can see its codes clear.
+        if scope != "all" or codes:
+            ecus[r["ecu"]] = {"tx": r.get("tx"), "protocol": r["protocol"], "dtcs": codes}
+
+    current = build_scan(scope, ecus, label=label)
+    previous = latest_matching(scope)
+    diff = diff_scans(previous, current) if previous else None
+    path = append_scan(current)
+    return path, previous, diff
+
+
+def _print_log_result(path, previous, diff) -> None:
+    from ..dtc_log import format_diff
+
+    if previous:
+        for line in format_diff(diff, previous):
+            print(line)
+    else:
+        print("  No previous scan of this scope — recorded as baseline.")
+    print(f"  \033[2mLogged scan to {path.name}\033[0m\n")
 
 
 async def _read_one(
@@ -220,7 +259,7 @@ async def _read_uds(
         cmd = f"1902{_MASK_FALLBACK:02X}"
         response = await terminal.send_uds(cmd, timeout=timeout, expected_sid=0x19)
 
-    base = {"ecu": ecu, "protocol": "uds", "command": cmd}
+    base = {"ecu": ecu, "tx": f"0x{tx_id:03X}", "protocol": "uds", "command": cmd}
     if response["ok"]:
         data = response["bytes"]
         avail = data[2] if len(data) >= 3 else None
@@ -249,7 +288,7 @@ async def _read_kwp(terminal: WiCANTerminal, tx_id: int, timeout: float = 3.0) -
         if response.get("nrc") is None:
             break
 
-    base = {"ecu": ecu, "protocol": "kwp", "command": cmd}
+    base = {"ecu": ecu, "tx": f"0x{tx_id:03X}", "protocol": "kwp", "command": cmd}
     if response["ok"]:
         data = response["bytes"]
         # 58 <count> [dtc_hi dtc_lo status]* — count is advisory; decode by length.
@@ -298,6 +337,8 @@ async def mode_dtc_scan_all(
     as_json: bool = False,
     verbose: bool = False,
     timeout: float = 2.0,
+    log: bool = False,
+    label: str | None = None,
 ):
     """Sweep every ECU in the profile registry and read its stored DTCs.
 
@@ -326,34 +367,41 @@ async def mode_dtc_scan_all(
     faulty = [r for r in results if r.get("count")]
     total_codes = sum(r["count"] for r in faulty)
 
+    # Record to the DTC history log and compute the diff vs the last full sweep.
+    log_path = log_prev = log_diff = None
+    if log:
+        log_path, log_prev, log_diff = _log_scan("all", results, label)
+
     if as_json:
-        print(json.dumps(
-            {
-                "scanned": len(results),
-                "with_dtcs": len(faulty),
-                "total_codes": total_codes,
-                "results": results,
-            },
-            indent=2,
-        ))
+        out = {
+            "scanned": len(results),
+            "with_dtcs": len(faulty),
+            "total_codes": total_codes,
+            "results": results,
+        }
+        if log:
+            out["log"] = {"file": log_path.name, "diff": log_diff}
+        print(json.dumps(out, indent=2))
         return
 
     print()
     if not faulty:
         print(f"  ✓ No DTCs on any of the {len(results)} ECUs scanned.\n")
-        return
+    else:
+        print(f"  ⚠ {len(faulty)} ECU(s) with DTCs — {total_codes} code(s) total:\n")
+        for r in faulty:
+            print(f"  {r['ecu']} ({r['protocol']}):")
+            for d in r["dtcs"]:
+                flags = ", ".join(d["status_bits"]) or "raw status"
+                interp = d.get("interpretation") or {}
+                meaning = interp.get("description") or interp.get("meaning") or ""
+                print(f"      {d['dtc']}  {d['status']}  {flags}")
+                if meaning:
+                    print(f"        → {meaning}")
+        print()
 
-    print(f"  ⚠ {len(faulty)} ECU(s) with DTCs — {total_codes} code(s) total:\n")
-    for r in faulty:
-        print(f"  {r['ecu']} ({r['protocol']}):")
-        for d in r["dtcs"]:
-            flags = ", ".join(d["status_bits"]) or "raw status"
-            interp = d.get("interpretation") or {}
-            meaning = interp.get("description") or interp.get("meaning") or ""
-            print(f"      {d['dtc']}  {d['status']}  {flags}")
-            if meaning:
-                print(f"        → {meaning}")
-    print()
+    if log:
+        _print_log_result(log_path, log_prev, log_diff)
 
 
 async def mode_dtc_clear(

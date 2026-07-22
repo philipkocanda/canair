@@ -1,0 +1,139 @@
+"""Persistent DTC scan history — record scans and diff against the previous one.
+
+Each ``canair dtc … --log`` run appends a decoded snapshot to the profile's
+``dtc_log.yaml`` and reports what changed since the last scan *of the same
+scope* (all-ECU sweep, or a single ECU): which codes **cleared**, which are
+**new**, and which **persist**. That's how you tell, next time, whether a fault
+went away (e.g. after a fix or a self-heal) rather than eyeballing two dumps.
+
+The file is tool-managed (append-only, newest scan last):
+
+    scans:
+    - timestamp: '2026-07-22T15:40:03'
+      scope: all                 # 'all' or an ECU display name like 'BMS (0x7E4)'
+      label: before clearing     # optional, from --label
+      ecus:                      # only ECUs that had codes (empty on a clean sweep)
+        AMP (0x783): {tx: '0x783', protocol: kwp, dtcs: [B2915-00, B2916-00]}
+        PLC (0x733): {tx: '0x733', protocol: uds, dtcs: [C182C-00]}
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+from pathlib import Path
+
+
+def log_path(path: Path | None = None) -> Path:
+    """Path to the active profile's dtc_log.yaml (or the override ``path``)."""
+    if path is not None:
+        return path
+    from .profile import active
+
+    return active().root / "dtc_log.yaml"
+
+
+def load_log(path: Path | None = None) -> dict:
+    """Load the DTC log, or an empty ``{"scans": []}`` when absent."""
+    import yaml
+
+    p = log_path(path)
+    if not p.exists():
+        return {"scans": []}
+    with open(p) as f:
+        data = yaml.safe_load(f) or {}
+    if not isinstance(data.get("scans"), list):
+        data["scans"] = []
+    return data
+
+
+def build_scan(
+    scope: str,
+    ecus: dict,
+    *,
+    label: str | None = None,
+    state: str | None = None,
+    notes: str | None = None,
+    timestamp: str | None = None,
+) -> dict:
+    """Build a scan entry. ``ecus`` maps display-name → {tx, protocol, dtcs:[codes]}."""
+    entry: dict = {
+        "timestamp": timestamp or datetime.now().isoformat(timespec="seconds"),
+        "scope": scope,
+    }
+    if label:
+        entry["label"] = label
+    if state:
+        entry["state"] = state
+    if notes:
+        entry["notes"] = notes
+    entry["ecus"] = ecus
+    return entry
+
+
+def append_scan(entry: dict, path: Path | None = None) -> Path:
+    """Append a scan entry to the log (comment-preserving), returning the path."""
+    from ruamel.yaml.comments import CommentedMap
+
+    from .yaml_rt import dump as _dump
+    from .yaml_rt import round_trip_yaml as _yaml
+
+    p = log_path(path)
+    data = None
+    if p.exists():
+        with open(p) as f:
+            data = _yaml().load(f)
+    if not isinstance(data, dict):
+        data = CommentedMap()
+    if data.get("scans") is None:
+        data["scans"] = []
+    data["scans"].append(entry)
+    with open(p, "w") as f:
+        _dump(data, f)
+    return p
+
+
+def latest_matching(scope: str, path: Path | None = None) -> dict | None:
+    """The most recent logged scan whose scope matches (like-for-like compare)."""
+    for entry in reversed(load_log(path).get("scans", [])):
+        if entry.get("scope") == scope:
+            return entry
+    return None
+
+
+def _pairs(entry: dict) -> set[tuple[str, str]]:
+    """The set of (ecu, code) pairs recorded in a scan entry."""
+    out: set[tuple[str, str]] = set()
+    for ecu, info in (entry.get("ecus") or {}).items():
+        for code in (info or {}).get("dtcs") or []:
+            out.add((ecu, code))
+    return out
+
+
+def diff_scans(previous: dict, current: dict) -> dict:
+    """Return ``{cleared, new, persisting}`` lists of (ecu, code) pairs."""
+    prev, curr = _pairs(previous), _pairs(current)
+    return {
+        "cleared": sorted(prev - curr),
+        "new": sorted(curr - prev),
+        "persisting": sorted(prev & curr),
+    }
+
+
+def format_diff(diff: dict, previous: dict) -> list[str]:
+    """Human-readable lines comparing the current scan to ``previous``."""
+    lines = [f"  Compared to last scan ({previous.get('timestamp', '?')}):"]
+    cleared, new = diff["cleared"], diff["new"]
+    if cleared:
+        lines.append(
+            f"    \033[92m✓ cleared ({len(cleared)})\033[0m: "
+            + ", ".join(f"{e} {c}" for e, c in cleared)
+        )
+    if new:
+        lines.append(
+            f"    \033[91m+ new ({len(new)})\033[0m: "
+            + ", ".join(f"{e} {c}" for e, c in new)
+        )
+    lines.append(f"    = still present: {len(diff['persisting'])}")
+    if not cleared and not new:
+        lines.append("    \033[2m(no change since last scan)\033[0m")
+    return lines
