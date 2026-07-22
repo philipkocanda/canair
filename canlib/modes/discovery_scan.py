@@ -60,10 +60,15 @@ async def scan_ecu(
     id_range: tuple[int, int],
     throttle_ms: int = 150,
     verbose: bool = False,
+    session: bool = False,
+    wake: bool = False,
+    session_mode: str = "03",
 ) -> list:
     """Scan one ECU over ``id_range`` (inclusive) using ``probe``.
 
-    Establishes an extended session lazily on the first ``NRC 0x7F`` and reprobes.
+    If ``session`` or ``wake`` is set, a diagnostic session (``session_mode``,
+    default ``03`` = UDS extended; ``81`` = KWP2000 standard) is opened up front and
+    kept alive; otherwise the session is established lazily on the first ``NRC 0x7F``.
     Persists progress via :class:`ScanStateWriter` so an interrupted scan can be
     resumed. Returns the list of hits (scanner-specific NamedTuples).
     """
@@ -82,6 +87,12 @@ async def scan_ecu(
     errors = 0
     tester_task: asyncio.Task | None = None
     in_extended = False
+
+    # Open the requested session up front (e.g. KWP2000 10 81 on the BMS, which
+    # rejects the lazy 10 03 escalation) and keep it alive for the whole sweep.
+    if session or wake:
+        _, tester_task = await terminal.enter_extended_session(wake=wake, mode=session_mode)
+        in_extended = True
 
     state = ScanStateWriter(probe.scan_type, ecu_name, tx_id, start, end)
     state.open()
@@ -108,8 +119,10 @@ async def scan_ecu(
 
             if category == "wrong-session" and not in_extended:
                 if verbose:
-                    print(f"    0x{id_:{fmt}}: NRC 7F — entering extended session")
-                _, tester_task = await terminal.enter_extended_session(wake=False)
+                    print(f"    0x{id_:{fmt}}: NRC 7F — entering session (10 {session_mode})")
+                _, tester_task = await terminal.enter_extended_session(
+                    wake=False, mode=session_mode
+                )
                 in_extended = True
                 response = await probe.probe(terminal, id_)
                 category, nrc = probe.classify(response)
@@ -172,6 +185,9 @@ async def mode_discovery_scan(
     throttle_ms: int = 150,
     verbose: bool = False,
     write_yaml: bool = True,
+    session: bool = False,
+    wake: bool = False,
+    session_mode: str = "03",
 ) -> dict[str, list]:
     """Run ``probe`` across one or more ECUs.
 
@@ -181,6 +197,9 @@ async def mode_discovery_scan(
         default_ranges: per-ECU default ranges when ``id_range`` is None.
         default_range: fallback range for an ECU with no per-ECU default.
         write_yaml: if False, the probe's ``write_hit`` is disabled.
+        session/wake/session_mode: open a diagnostic session before scanning
+            (``session_mode`` default ``03`` = UDS extended; ``81`` = KWP2000
+            standard, for ECUs like the BMS that reject ``10 03``).
 
     Returns mapping of ECU name (upper-case) → list of hits.
     """
@@ -219,6 +238,9 @@ async def mode_discovery_scan(
                     id_range=rng,
                     throttle_ms=throttle_ms,
                     verbose=verbose,
+                    session=session,
+                    wake=wake,
+                    session_mode=session_mode,
                 )
             )
         results[key] = ecu_hits
