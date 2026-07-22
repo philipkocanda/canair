@@ -103,6 +103,21 @@ def check_command_safety(cmd: str) -> str | None:
                 "BLOCKED: DiagnosticSessionControl sub 0x02 "
                 "(programmingSession) -- required for flash/write operations"
             )
+        if sub == 0x85:
+            return (
+                "BLOCKED: StartDiagnosticSession sub 0x85 "
+                "(KWP2000 ECU programming mode) -- required for flash/write operations"
+            )
+        # KWP2000 uses OEM-defined session modes in the 0x80-0xFF band; some are
+        # development/programming modes that are unsafe to enter blind. Allow the
+        # well-known safe ones (0x81 standardDiagnosticSession) and require
+        # --unsafe for the rest of the 0x8x range.
+        if 0x80 <= sub <= 0xFF and sub not in (0x81,):
+            return (
+                f"BLOCKED: StartDiagnosticSession sub 0x{sub:02X} "
+                "(unrecognized KWP2000 session mode) -- may be a programming/development "
+                "mode; re-run with --unsafe if you are certain it is safe"
+            )
 
     return None
 

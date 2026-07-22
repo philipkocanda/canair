@@ -49,16 +49,23 @@ class SessionManager:
     def has_session(self, tx_id: int) -> bool:
         return tx_id in self._sessions
 
-    async def open_session(self, tx_id: int, wake: bool = False) -> bool:
-        """Enter extended diagnostic session (1003) on an ECU.
+    async def open_session(self, tx_id: int, wake: bool = False, mode: str = "03") -> bool:
+        """Enter a diagnostic session on an ECU.
 
         Args:
             tx_id: ECU CAN arbitration ID (e.g., 0x770 for IGPM).
             wake: Send 1001 first to wake from deep sleep.
+            mode: DiagnosticSessionControl sub-function (hex, no 0x). Default
+                ``"03"`` (UDS extendedDiagnosticSession). Use ``"81"`` for the
+                KWP2000 standardDiagnosticSession on powertrain ECUs that reject
+                ``10 03`` (e.g. the BMS). Programming/unknown modes are refused by
+                the command-safety guard unless ``--unsafe``.
 
         Returns:
             True if session was established (or at least attempted).
         """
+        mode = mode.upper().removeprefix("0X").zfill(2)
+        req = f"10{mode}"
         await self.terminal.set_header(tx_id)
 
         if wake:
@@ -68,8 +75,8 @@ class SessionManager:
             await asyncio.sleep(0.5)
 
         if self.verbose:
-            print(f"  [session] Entering extended session (1003) on 0x{tx_id:03X}...")
-        resp = await self.terminal.send_uds("1003", timeout=5.0)
+            print(f"  [session] Entering session (10{mode}) on 0x{tx_id:03X}...")
+        resp = await self.terminal.send_uds(req, timeout=5.0)
 
         if resp.get("ok"):
             if self.verbose:
