@@ -55,7 +55,7 @@ OBC:
           source: "Decoded from live captures (2026-04-14)"
           source_links: []
           verified: true
-          notes: "LDC 12V system output voltage. 14.52V charging / 14.31V READY — correct for 12V system. ISO-TP bytes 20-21."
+          notes: "LDC 12V system output voltage. 14.52V charging / 14.31V READY — correct for 12V system. ISO-TP bytes 20-21. Load-test confirmed 2026-07-22: sagged 14.5→13.6→14.5V as a rear-defroster (~15-20A) load was switched ON→OFF, i.e. the real 12V rail."
 
         LDC_TEMP:
           expression: "B19-100"
@@ -96,18 +96,24 @@ OBC:
             — which is why it is NOT the LDC HV input (see LDC_HV_INPUT_V = B23*2). Was previously mislabelled
             LDC_HV_INPUT_V. ISO-TP bytes 9-10.
 
-        LDC_OUTPUT_A:
-          expression: "B15/10"
-          unit: A
-          ha_class: current
+        OBC_UNKNOWN_B15:
+          expression: "B15"
+          unit: ""
           min: "0"
-          max: "40"
-          source: "Decoded from live captures (2026-04-14); Kia Soul LDC (DC Current Out)"
+          max: "255"
+          enabled: false
+          source: "Live rear-defroster load test (2026-07-22)"
           source_links: []
           verified: false
           notes: >
-            LDC output current to 12V system. ~22A READY / ~11-18A charging — plausible 12V load. ISO-TP byte 12.
-            NOTE: B15 was also (wrongly) used for OBC_AC_INPUT_V and OBC_TEMP_HEATSINK — those are removed.
+            Was LDC_OUTPUT_A ("B15/10 = 12V output current") — DISPROVEN 2026-07-22 by a controlled
+            12V load step (car in READY, parked). Switching the rear defroster (~15-20A) ON→OFF→ON
+            moved LDC_OUTPUT_V 14.5→13.6→14.5V (a real, large 12V load), yet B15 stayed ~2.3-2.9A the
+            whole time and NO byte in 2101 rose to track the load. So B15 is not the LDC output current,
+            and the 12V output current does not appear to be broadcast in OBC 2101 at all.
+            B15 idles 2-4 (0x14-0x2A), reads ~40-47 driving, and saturates at 0xFF during charging —
+            likely an OBC-side status/duty or HV-side value. Meaning unknown; kept disabled as a
+            research candidate. (Also previously mis-used for OBC_AC_INPUT_V / OBC_TEMP_HEATSINK.)
 
         OBC_DC_A:
           expression: "[B17:B18]/100"
@@ -250,3 +256,9 @@ OBC:
       what_to_test:
         - "Let charge settle after each step, then sample B34 at 6/8/10/12/16A (SETTLED, pilot stable) to map it"
         - "Identify meaning of charging-only constants B28=16, B29=32, B31=200, B37=118 (charge state/limits?)"
+    - type: decode
+      target: 2101 12V output current
+      status: pending
+      priority: P3
+      prerequisite: [ready]
+      notes: "The LDC 12V output CURRENT is not exposed in OBC 2101. B15 (old LDC_OUTPUT_A=B15/10) DISPROVEN 2026-07-22 by a rear-defroster load step: LDC_OUTPUT_V sagged 14.5->13.6V but B15 (and every other 2101 byte) stayed flat, so no byte tracks the 12V load. Future: hunt an OBC DID that exposes output current, or accept it is not broadcast. (Same test CONFIRMED LDC_OUTPUT_V = 12V rail voltage.)"

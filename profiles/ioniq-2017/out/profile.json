@@ -162,7 +162,7 @@
       "parameters": {
         "HVAC_HEAT_EXCHANGER_TEMP": "(B10/2)-40",
         "HVAC_HEAT_EXCHANGER_TEMP_2": "(B11/2)-40",
-        "HVAC_COMPRESSOR_RELAY": "B17",
+        "HVAC_COMPRESSOR_ON": "B17",
         "HVAC_HEATER_MODE_FLAG": "B18",
         "HVAC_UNKNOWN_TEMP": "B19"
       }
@@ -251,7 +251,6 @@
         "LDC_TEMP": "B19-100",
         "OBC_CHARGE_V": "[B10:B11]/100",
         "OBC_OUTPUT_V": "[B12:B13]/100",
-        "LDC_OUTPUT_A": "B15/10",
         "OBC_DC_A": "[B17:B18]/100",
         "OBC_PILOT_DUTY": "B47/3",
         "OBC_PILOT_AMPS": "B47/5"

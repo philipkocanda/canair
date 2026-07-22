@@ -167,7 +167,7 @@ HVAC:
           verified: false
           notes: >
             DISABLED 2026-07-20: B44 is constant 0xFF (255) across ALL 143 220100 captures (FF-padding tail).
-            Not a compressor flag. Use HVAC_COMPRESSOR_RELAY (220102 B17) which reads a clean 0/1 for the
+            Not a compressor flag. Use HVAC_COMPRESSOR_ON (220102 B17) which reads a clean 0/1 for the
             actual compressor state. Kept for research trail.
 
     220102:
@@ -202,14 +202,20 @@ HVAC:
             Follows B10 with lag. 0x77=19.5°C at rest, rises to 0x80=24°C.
             Secondary heat exchanger or return line temperature.
 
-        HVAC_COMPRESSOR_RELAY:
+        HVAC_COMPRESSOR_ON:
           expression: "B17"
           unit: ""
           min: "0"
           max: "1"
-          source: "Monitor session 2026-04-17"
-          verified: false
-          notes: "0x00/0x01 toggle. Compressor relay or mode flag."
+          source: "Monitor session 2026-04-17; verified 2026-07-22 (heat-pump vs PTC)"
+          verified: true
+          notes: >
+            Binary compressor on/off STATUS flag (0/1) — a status byte, not a physical relay
+            (renamed from HVAC_COMPRESSOR_RELAY 2026-07-22). distinct=2 across 196 captures (=1 ~21%).
+            Verified live 2026-07-22: reads 1 while the e-compressor runs (heat-pump heating, ~1.5kW HV
+            draw) and 0 during PTC-only heating and idle. Cleaner than the 220100 FF-junk
+            HVAC_AC_COMPRESSOR_ON. (Nuance: should also read 1 during A/C cooling — untested today;
+            if it's actually heat-pump-mode-only, cooling would show 0.)
 
         HVAC_HEATER_MODE_FLAG:
           expression: "B18"
@@ -536,3 +542,20 @@ HVAC:
         0101 and 0103-010B all NRC 0x31. HVAC ECU only has 220100 and
         220102 in the 01xx range. ChatGPT suggestions for 0105-010B were
         incorrect for Ioniq 2017.
+    - type: decode
+      target: "climate power (console split)"
+      status: pending
+      priority: P2
+      prerequisite: [ready]
+      notes: >
+        The centre console shows a Drive/Climate/Electronics power split. Investigated 2026-07-22
+        (READY, parked) with a steady PTC heat ~1kW load and, earlier, heat-pump ~1.5kW; contrasted
+        against idle. FINDING: no climate WATTAGE byte was found in HVAC 220100 or 220102. Every byte
+        that moved with the climate load is a temperature (heat-exchanger B10/B11, evaporator, duct) or
+        fan duty — thermal/actuator response, not power. BMS 2101 shows only the AGGREGATE HV power
+        (0.15kW idle <-> ~1.5kW). So the per-domain split is most likely COMPUTED by the VMCU/cluster
+        from HV currents, not a single OBD PID. Useful adjunct: HVAC_COMPRESSOR_ON (220102 B17)
+        distinguishes heat-pump (1) vs PTC-only (0). Remaining leads: hunt a PTC-duty byte or a
+        dedicated compressor/PTC-inverter address; otherwise accept the console value is derived.
+        (Note: 220102 is NOT a new PID — it was already decoded as heat-exchanger temps + flags.)
+
