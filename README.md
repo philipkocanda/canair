@@ -1,8 +1,10 @@
 # canair
 
-**CLI for reverse engineering CAN/OBD diagnostics over-the-air using the WiCAN Pro**
+**CLI for reverse engineering CAN/OBD diagnostics over-the-air using a WiCAN dongle**
 
-This project interfaces with a [WiCAN Pro](https://www.meatpi.com/products/wican-pro) OBD-II WiFi dongle to communicate with the vehicle's ECUs via diagnostic protocols (UDS and KWP2000). It comes with tools for discovering, decoding, analyzing and documenting the car's internal diagnostic data so it can be turned into a [WiCAN vehicle profile](https://meatpihq.github.io/wican-fw/config/automate/new_vehicle_profiles) or for general purpose sharing and documentation.
+This project interfaces with a [WiCAN](https://www.meatpi.com/products/wican-pro) OBD-II WiFi dongle to communicate with the vehicle's ECUs via diagnostic protocols (UDS and KWP2000). It comes with tools for discovering, decoding, analyzing and documenting the car's internal diagnostic data so it can be turned into a [WiCAN vehicle profile](https://meatpihq.github.io/wican-fw/config/automate/new_vehicle_profiles) or for general purpose sharing and documentation.
+
+**Both the [WiCAN Pro](https://www.meatpi.com/products/wican-pro) and the regular (classic, non-Pro) WiCAN are supported.** All the core reverse-engineering — querying, scanning, decoding, DTCs, sniffing — works on both over the default raw-SLCAN transport. A few features are **Pro-only**: uploading/downloading AutoPID [vehicle profiles](https://meatpihq.github.io/wican-fw/config/automate/new_vehicle_profiles) (`canair wican` device sync) and the `wican-ws` ELM327 WebSocket terminal. If you have the regular WiCAN, set `wican_model: classic` in your config (see [Getting started](#getting-started)) and canair will cleanly disable those instead of failing against the device.
 
 Everything ships as a single installable CLI, **`canair`**. Vehicle data lives in a *profile* bundle; the repo ships `profiles/ioniq-2017/` as the default/example profile.
 Originally this project was built for reverse engineering a 2017 Hyundai Ioniq AE EV (28kWh), but it now supports multiple vehicle profiles and is no longer tied to a single vehicle.
@@ -29,7 +31,7 @@ Example screenshot of viewing capture diffs using `canair captures <query> --dif
 - 🔌 **`canair query`** — query ECUs live over WiFi or VPN: read battery stats, decode parameters, scan for unknown DIDs, and actuate hardware (lights, locks, horn, trunk) via IOControl. Companions: `canair scan`/`discover`/`io`/`routines`/`identity`/`raw`/`repl`
 - 🩺 **`canair dtc`** — read stored Diagnostic Trouble Codes (DTCs) across every ECU (UDS `0x19` / KWP2000 `0x18`), track what changed since the last scan, and clear fault memory (`0x14`)
 - 📡 **`canair sniff`** — passive CAN-bus sniffer (raw SLCAN mode): a live per-ID table of broadcast frames the request/response path can't see, with optional `.asc`/`.blf`/`.csv` logging
-- 📦 **`canair wican`** — turn YAML PID definitions into a WiCAN vehicle profile and upload it to the device in one command
+- 📦 **`canair wican`** — turn YAML PID definitions into a WiCAN vehicle profile and upload it to the device in one command (device upload/download needs a WiCAN **Pro**; JSON generation works on any model)
 - 🔬 **`canair decode`** — replay captured UDS payloads against PID definitions to validate expressions and spot anomalies
 - 🗂️ **`canair captures`** — search and diff historical captures across dates and vehicle states
 - 🧮 **`canair bix`** — convert between the four byte-index notations used by WiCAN, ISO-TP, Torque, and OBDb
@@ -40,10 +42,10 @@ Example screenshot of viewing capture diffs using `canair captures <query> --dif
 
 While the tooling is vehicle-agnostic, the bundled `ioniq-2017` profile makes this
 a practical, ready-to-use **OBD-II / UDS diagnostics toolkit for the 2017 Hyundai
-Ioniq Electric (28 kWh, `AE` platform)**. Plug in a WiCAN Pro and you can read live
-battery, motor, charging, climate, and body data over WiFi — no dealer tools
-required. If you own an Ioniq 28 kWh and want deeper telemetry than a generic
-OBD app provides, this profile is for you.
+Ioniq Electric (28 kWh, `AE` platform)**. Plug in a WiCAN (Pro or regular) and
+you can read live battery, motor, charging, climate, and body data over WiFi —
+no dealer tools required. If you own an Ioniq 28 kWh and want deeper telemetry
+than a generic OBD app provides, this profile is for you.
 
 ### What's been mapped so far
 
@@ -114,7 +116,7 @@ All functionality is exposed as `canair <subcommand>`.
 | `canair pids` | Safely add/update `ecus/` parameters and research entries from the CLI (comment-preserving, schema-validated, auto-reverted on failure). |
 | `canair ecu` | List all ECUs in the profile, or show one ECU's details, identity confidence, and PID/parameter/capture stats. |
 | `canair status` | Read-only snapshot of the configured transport, device mode, and reachability — "what am I talking to, in what mode, is it usable?" |
-| `canair config` | View and manage user configuration (`~/.config/canair/config.yaml`) — `show`/`get`/`set`/`unset`/`edit`, comment-preserving. |
+| `canair config` | View and manage user configuration (`~/.config/canair/config.yaml`) — `show`/`get`/`set`/`unset`/`edit`, comment-preserving. Set `wican_model` (`pro`/`classic`), WiCAN addresses, default profile, and transport here. |
 | `canair validate` | Validate `ecus/`, `profile.yaml`, and `captures/` against their schemas; `--stats` prints ECU/PID/parameter/verified counts. |
 | `canair tester-present` | Send TesterPresent (`3E00`) at a fixed interval to keep a diagnostic session alive. |
 | [`wican-cli`](https://github.com/philipkocanda/wican-cli) | Separate package for WiCAN device management — config, sleep/power, protocol switching, status, OBD log queries, and reboots. Install with `pip install wican-cli`. |
@@ -211,6 +213,8 @@ VCU        0x7E2    2101       2500     21       10/21      AutoPID config (on d
 ```
 
 **Device interaction flags** (`--download`, `--diff`, `--upload`, `--set-protocol`) require the WiCAN to be reachable on the network. Use `--wican home`, `--wican vpn`, or `--wican <ip>` to select the device address (defaults to your `default_wican` from `~/.config/canair/config.yaml`).
+
+> **WiCAN Pro only.** AutoPID vehicle-profile sync (`--upload`/`--download`/`--diff`) and `--set-protocol` need a WiCAN **Pro**. On the regular WiCAN (`wican_model: classic` in your config) these are refused with a clear message — but plain `canair wican` (generate JSON), `--stats`, and `--no-write` still work. See [Getting started](#getting-started).
 
 The generated profile uses the **Vehicle Profile format** (grouped parameters per PID) — the format accepted by the WiCAN web UI and `POST /store_car_data`. The tool handles conversion to the device's internal array format automatically during upload.
 
@@ -397,20 +401,79 @@ canair query IGPM:22BC07 --monitor 2 --keep-unique
 | **KWP2000** (ISO 14230) | Powertrain ECUs (BMS, VCU, MCU, LDC/OBC) — ReadDataByLocalIdentifier |
 | **ISO-TP** (ISO 15765-2) | Transport layer for multi-frame CAN messages (run client-side on `slcan-tcp`, or by the dongle on `wican-ws`) |
 | **SLCAN over TCP** | Default host↔dongle link — raw CAN frame stream (device in `slcan` mode) |
-| **ELM327 AT commands** | Alternative host↔dongle link — the WiCAN's WebSocket ELM327 emulation (`wican-ws` transport) |
+| **ELM327 AT commands** | Alternative host↔dongle link — the WiCAN Pro's WebSocket ELM327 emulation (`wican-ws` transport; Pro only) |
 
 ## Getting started
 
+New here? Follow these steps in order. You need a **WiCAN dongle** (Pro *or*
+regular/classic), a car with an OBD-II port, and [`uv`](https://docs.astral.sh/uv/)
+installed.
+
+### 1. Plug in and connect to the dongle
+
+Plug the WiCAN into your car's OBD-II port and power the ignition/accessory on.
+Get your computer on the same network as the dongle — either:
+
+- **Join the WiCAN's built-in WiFi access point** (easiest to start): connect to
+  its `WiCAN_xxxx` WiFi network. The device is then reachable at `192.168.80.1`
+  (this is canair's default when no config exists), **or**
+- **Put the WiCAN on your home WiFi** (via its web UI at `192.168.80.1`) so it
+  gets a normal LAN IP you can reach from your computer or over a VPN.
+
+### 2. Install canair
+
 ```bash
-uv tool install .    # Install the canair CLI (or: uv sync for dev)
+uv tool install .    # Install the `canair` CLI globally
 canair --help        # First run auto-creates ~/.config/canair/ + a starter config.yaml
 ```
 
-Then edit `~/.config/canair/config.yaml` (created automatically on first run) to set
-your WiCAN device address(es). `config.example.yaml` in the repo documents every key.
+(No global install needed for a quick try — `uv run canair …` works from the
+repo. For development use `uv sync` instead.)
 
-In the repo, `uv run canair ...` also works without installing. Enable tab-completion
-(subcommands, flags, and ECU/PID names from the active profile) with one command:
+### 3. Tell canair about your device
+
+canair created `~/.config/canair/config.yaml` on first run. Edit it (or use
+`canair config set …`) to set your device address and — importantly — **which
+WiCAN model you have**:
+
+```bash
+# If your device is on your LAN/VPN, add an address and make it the default:
+canair config set wican_addresses.home 192.168.1.100
+canair config set default_wican home
+
+# Tell canair which hardware you have (skip this if you have a WiCAN Pro):
+canair config set wican_model classic   # regular / non-Pro WiCAN
+# canair config set wican_model pro      # WiCAN Pro (this is the default)
+```
+
+> **Which model do I have?** The **Pro** adds AutoPID vehicle profiles and an
+> ELM327 WebSocket terminal. If you have the **regular (classic) WiCAN**, set
+> `wican_model: classic` — canair will then cleanly refuse the Pro-only features
+> (`canair wican --upload/--download/--diff/--set-protocol` and the `wican-ws`
+> transport) with a helpful message instead of failing against the device. **All
+> the reverse-engineering — `query`, `scan`, `discover`, `decode`, `dtc`,
+> `sniff`, and generating profile JSON with plain `canair wican` — works on both
+> models** over the default raw-SLCAN transport. The `--wican` flag on any
+> command selects which address to use (e.g. `--wican home`, `--wican vpn`, or
+> `--wican 192.168.80.1`). `config.example.yaml` in the repo documents every key.
+
+Confirm everything resolved correctly:
+
+```bash
+canair config        # shows config file locations, WiCAN model + addresses, transport
+canair status        # "what am I talking to, in what mode, is it usable?"
+```
+
+### 4. Read something
+
+```bash
+canair query BMS:2101              # read the battery ECU's main PID
+canair discover                    # list every ECU responding on the bus
+```
+
+### 5. (Optional) Enable tab-completion
+
+Tab-completion covers subcommands, flags, and ECU/PID names from the active profile:
 
 ```bash
 canair completion --install    # auto-detects your shell; open a new shell afterwards
@@ -429,7 +492,10 @@ uv sync && source .venv/bin/activate
 canair completion --install
 ```
 
-The WiCAN Pro must be powered on and connected to your WiFi network (or you connect to its AP). Device addresses are configured in `~/.config/canair/config.yaml` (a legacy repo-root `config.yaml` is still read for back-compat) — the `--wican` flag selects which address to use (e.g. `--wican home`, `--wican vpn`, or `--wican 192.168.80.1`). Without a config file, tools default to `192.168.80.1` (WiCAN's built-in AP).
+The WiCAN must be powered on and reachable on the network (or you connect to its
+AP). Device addresses live in `~/.config/canair/config.yaml` (a legacy repo-root
+`config.yaml` is still read for back-compat). Without a config file, tools default
+to `192.168.80.1` (WiCAN's built-in AP).
 
 ## How it all connects
 
@@ -444,7 +510,8 @@ block or `--transport`; the device runs one protocol at a time — check with
   multi-DID batching. Also powers passive `canair sniff`.
 - **`wican-ws`** — the WiCAN Pro's **ELM327 emulation** over a WebSocket. The
   *dongle* performs ISO-TP (multi-frame reassembly). Works in any device
-  `protocol`.
+  `protocol`. **WiCAN Pro only** — not available on the regular WiCAN (canair
+  refuses it when `wican_model: classic`).
 
 ```mermaid
 flowchart LR
