@@ -61,6 +61,71 @@ def ecu_id_protocol(tx_id: int, ecus: dict | None = None) -> str | None:
     return info.get("id_protocol")
 
 
+# Evidence markers in a note that indicate the identity rests on weak, external
+# grounds (cross-vehicle reference) rather than this car's own data.
+_WEAK_IDENTITY_MARKERS = (
+    "speculative",
+    "address match",
+    "address proximity",
+    "spreadsheet",
+    "cross-platform reference",
+    "cross-vehicle",
+    "no evidence",
+)
+
+# Self-reported identity fields — presence means the ECU answered an identity
+# request with real data (grounds the identity in the module itself).
+_IDENTITY_EVIDENCE_FIELDS = (
+    "part_number",
+    "serial",
+    "sw_id",
+    "ecu_id",
+    "app_sw",
+    "calibration",
+    "hw_sw",
+    "fw_version",
+    "firmware",
+    "sw_version",
+    "hw_version",
+)
+
+
+def derive_identity_confidence(info: dict) -> str:
+    """Heuristically rate how well-established an ECU's identity is.
+
+    Returns one of ``confirmed`` / ``probable`` / ``tentative`` / ``speculative``
+    (see ``valid_identity_confidence`` in ecus_schema.yaml). Used when an entry
+    has no explicit ``identity_confidence``.
+    """
+    name = str(info.get("name") or "")
+    notes = str(info.get("notes") or "").lower()
+    proto = str(info.get("id_protocol") or "").lower()
+    has_part_number = bool(info.get("part_number"))
+    has_identity = any(info.get(k) for k in _IDENTITY_EVIDENCE_FIELDS)
+
+    if name.lower().startswith("unknown"):
+        return "speculative"
+    if any(marker in notes for marker in _WEAK_IDENTITY_MARKERS):
+        return "tentative"
+    if has_part_number:
+        return "confirmed"
+    if has_identity and proto in ("uds", "kwp2000"):
+        return "probable"
+    return "tentative"
+
+
+def ecu_identity_confidence(info: dict) -> tuple[str, bool]:
+    """Return ``(confidence, explicit)`` for an ECU registry entry.
+
+    ``explicit`` is True when the value is set in the registry, False when it was
+    derived by :func:`derive_identity_confidence`.
+    """
+    explicit = info.get("identity_confidence")
+    if explicit:
+        return explicit, True
+    return derive_identity_confidence(info), False
+
+
 def rx_addr_str(tx_id: int) -> str:
     """Format the CAN response address (RX = TX + 8) as a hex string.
 

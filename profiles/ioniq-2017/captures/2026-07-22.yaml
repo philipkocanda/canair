@@ -7198,3 +7198,14 @@ sessions:
   - ecu: '0x7BB'
     pid: '220100'
     payload: 6201007E5007C8FF7C6F5C111049FFFF49FF10FFFFFFFFFFFFFFFFFF1BE2616500FFFF01FFFF
+- date: '2026-07-22'
+  label: 0x783 deep scan — capture DTCs + mask/length probes
+  state: READY, parked
+  notes: Capture positive 1902FF (availability mask + 7 DTCs); test 3-byte 190AFF (supported-DTC length hypothesis); enumerate by mask 08/04/01
+  captures:
+  - ecu: '0x78B'
+    pid: 1902FF
+    payload: 5902FFA9190009A91A0009A91B0009A9150009A9160009A9200009A9210009
+  - ecu: '0x78B'
+    pid: '190208'
+    payload: '590209'
