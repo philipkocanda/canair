@@ -10,7 +10,22 @@
 #     Live data: 21 xx (manufacturer-specific, paged: 2101, 2102, etc.)
 #     These ECUs do NOT respond to UDS 22 F1xx or 22 Exxx DIDs.
 #   Some ECUs (0x783 AMP, 0x7D2 SRS) respond to session control (1001) but have no
-#   identity DIDs — security-locked or audio-only modules.
+#     identity DIDs — security-locked or audio-only modules.
+#
+# Hyundai powertrain ECU ID naming (KWP2000 1A8C string):
+#   Hyundai's own powertrain ECUs encode identity as  AE + <variant> + <MODULE> + <ver>
+#     AE       platform code (Ioniq "AE", model years 2016-2019)
+#     variant  single letter — E on MCU/OBC, V on LDC (meaning unconfirmed)
+#     MODULE   3-char module code — the reliable identifier: LDC, MCU, OBC, ...
+#     ver      version digits (e.g. 53, 83, 51)
+#   Confirmed on this car:
+#     0x7E2  AEVLDC53  → "VLDC"  VCU integrated with the LDC (part 36601-0E250)
+#     0x7E3  AEEMCU83  → "EMCU"  Motor Control Unit / inverter (part 36600-0E250)
+#     0x7E5  AEEOBC51  → "EOBC"  On-Board Charger, also reports the shared LDC hardware (part 36400-0E150)
+#   Third-party / non-powertrain ECUs use their own conventions instead, e.g.:
+#     0x7E4  BMS  CGBMSE305AE1000A  (LG Chem supplier format)
+#     0x7E6  AAF  EAE16AAFB30001    (embeds the "AAF" module code)
+#     0x746       "1.10" / "Z311"   (bare version string — non-Hyundai supplier)
 #
 # Discovery scan 2026-04-17: full sweep 0x700-0x7EF found 30 alive addresses.
 # 16 previously known + 14 newly discovered + 0x7C0 (unknown) + 0x7DF (OBD-II broadcast).
@@ -375,10 +390,11 @@ ecus:
       ESC/EPS-adjacent address, this reinforces the chassis/brake sub-module hypothesis.
       See pids/unknown-7d5.yaml 22C101. 01xx/B0xx/C0xx/D0xx/service-21 all NRC.
   0x7E2:
-    name: VCU # TODO: Rename to LDC? (check exposed PIDs to confirm)
-    description: Vehicle Control Unit
+    name: VCU  # ecu_id "VLDC" is the module code; VCU is the functional role exposed via 2101
+    alias: VLDC  # KWP2000 ecu_id module code (VCU with integrated LDC)
+    description: Vehicle Control Unit (integrated LDC)
     part_number: "36601-0E250"
-    ecu_id: AEVLDC53  # KWP2000 1A8C — oddly reports LDC identifier (!)
+    ecu_id: AEVLDC53  # KWP2000 1A8C — "VLDC": VCU with the LDC integrated (standalone at 0x7CD on Kia Soul)
     sw_id: "EAEEO5L-NS7-D060"
     calibration: "C5210617"
     vin: "KMHCXXXXXXXXXXXX"

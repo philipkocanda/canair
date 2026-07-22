@@ -4383,3 +4383,14 @@ sessions:
     pid: scan 21 01-0F
     scan_results:
       rejected: 15 DIDs returned 15 NRC
+- date: '2026-07-22'
+  label: Verify LDC/VCU ecu_id (1A8C)
+  state: ready, parked
+  notes: Double-check 0x7E5=EOBC vs 0x7E2=VLDC attribution
+  captures:
+  - ecu: '0x7ED'
+    pid: 1A8C
+    payload: 5A8C4145454F42433531
+  - ecu: '0x7EA'
+    pid: 1A8C
+    payload: 5A8C4145564C44433533

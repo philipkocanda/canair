@@ -9,7 +9,9 @@
 # The challenge here is disambiguating the LDC and OBC parameters.
 # IDEA: Compare between charging (OBC active) and non-charging in READY-mode (LDC active) to identify which parameters belong to which function.
 #
-# CarScanner identifies ECU 0x7E5 as "AEV**LDC**53" on Ioniq 2017.
+# ECU 0x7E5 self-identifies (KWP2000 1A8C) as "AEEOBC51" → EOBC (On-Board Charger),
+# NOT "AEVLDC53" — that is the VCU at 0x7E2. The LDC hardware shares this OBC's
+# enclosure (part 36400-0E150), so 0x7E5's 2101 reports both OBC and LDC metrics.
 # Response to PID 2101 is 48 ISO-TP bytes (56 WiCAN bytes).
 # PID 2103 returns NRC 0x12 (subFunctionNotSupported) — does not exist on Ioniq 2017.
 # Original Niro PR#716 formulas (B52-B55, B60-B61) are WRONG for Ioniq —
