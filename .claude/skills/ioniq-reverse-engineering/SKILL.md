@@ -269,7 +269,7 @@ ECUs with IOControl DIDs: IGPM, BCM, SKM, PSM, VESS.
 Device management (config, sleep/power, protocol switching, status, OBD-log
 queries, reboots) lives in the standalone
 [`wican-cli`](https://github.com/philipkocanda/wican-cli) (`pip install
-wican-cli`), not in canair.
+wican-cli`), NOT in canair!
 
 ```bash
 wican status            # device summary          wican protocol --set slcan

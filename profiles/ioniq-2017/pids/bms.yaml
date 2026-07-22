@@ -1696,3 +1696,22 @@ BMS:
       notes: "Battery fan actuation not reachable via safe OBD probing: in the confirmed 10 81 session, 0x27/0x30/0x33 all return NRC 0x11. NOTE 0x33 (RoutineResults) NRC 0x11 does NOT rule out 0x31 StartRoutineByLocalIdentifier — HKMC actuator tests are often fire-and-forget StartRoutine with no results service, but 0x31 actuates so we will NOT blind-probe it. Remaining leads (all need external info): (1) sniff Kingbolen/GDS fan actuation to capture the exact session+service+LID+params; (2) a Hyundai-specific 10 8x session mode (blocked by safety guard). PAUSED pending scanner sniff access."
       sources:
         - on-car 2026-07-22
+    - type: decode
+      target: 21F2
+      status: captured
+      priority: P2
+      prerequisite: [ready]
+      date: "2026-07-22"
+      result: "NEW PAGE found via 21 00-FF sweep 2026-07-22 (ignition on): BMS answers 21F2 with 121 data bytes, previously undocumented (BMS defined pages were 2101-2105 only). Payload starts 61F2 FFFFFFFF 34303634('4064') ... with embedded ASCII 'N7IZ' -> looks like a calibration/identity/version block (cf. MCU 21F2 = cal data with 'EHEL-MS2' cal ID), NOT live sensor data. Static content expected."
+      notes: "Decode candidate: identify the ASCII part/cal IDs and any static config fields. Compare against MCU/VCU/OBC 21F2 layout."
+      what_to_test:
+        - Re-read 21F2 in different states (sleep/charging/driving) — if bytes never move, it is static cal/identity
+        - Decode ASCII runs (4064 / N7IZ) as part-number or calibration ID fragments
+    - type: scan
+      target: 21 00-FF
+      status: done
+      priority: P2
+      prerequisite: [ready]
+      date: "2026-07-22"
+      result: "Exhaustive service-21 LID sweep (ignition on): 01/02/03/04/05 (known 2101-2105) PLUS F2 (NEW - see 21F2 decode entry). All 250 others NRC. One new page discovered."
+      notes: Hidden-page hunt. Only genuine new page found in the whole session.

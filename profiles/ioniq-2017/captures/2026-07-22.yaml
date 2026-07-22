@@ -12516,3 +12516,349 @@ sessions:
     pid: '2102'
     payload: 6102F8F8000001010000008B18B6816236220A8B8EE735
     time: '17:19:38.405'
+- date: '2026-07-22'
+  label: BMS 2101-2105 in KWP session 1083
+  state: ready
+  notes: extended diagnostic session (10 83) with periodic tester present; comparing payloads/sizes vs default session
+  captures:
+  - ecu: '0x7EC'
+    pid: '2101'
+    payload: 6101FFFFFFFF80264826480300030E32141213131211120013BD2BBD0100008E0005600A00055E5E0001F2A30001E30A01529FDD0D016B0000000003E8
+  - ecu: '0x7EC'
+    pid: '2102'
+    payload: 6102FFFFFFFFBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBD
+  - ecu: '0x7EC'
+    pid: '2103'
+    payload: 6103FFFFFFFFBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBD
+  - ecu: '0x7EC'
+    pid: '2104'
+    payload: 6104FFFFFFFFBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBD
+  - ecu: '0x7EC'
+    pid: '2105'
+    payload: 6105FFFFFFFF00000000001212121212131326482648000150121203E80203E801860029000000000000000000
+- date: '2026-07-22'
+  label: BMS 2101-2105 in KWP session 1082
+  state: ready
+  notes: periodic/EOL diagnostic session (10 82) with tester present; comparing payloads/sizes vs default/83
+  captures:
+  - ecu: '0x7EC'
+    pid: '2101'
+    payload: 6101FFFFFFFF80264826480300040E32141213131211120013BD3DBD0100008F0005600A00055E5E0001F2A30001E30A01529FE40D016B0000000003E8
+  - ecu: '0x7EC'
+    pid: '2102'
+    payload: 6102FFFFFFFFBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBD
+  - ecu: '0x7EC'
+    pid: '2103'
+    payload: 6103FFFFFFFFBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBD
+  - ecu: '0x7EC'
+    pid: '2104'
+    payload: 6104FFFFFFFFBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBD
+  - ecu: '0x7EC'
+    pid: '2105'
+    payload: 6105FFFFFFFF0000000000121212121213132648264800014B121203E80203E801860029000000000000000000
+- date: '2026-07-22'
+  label: BMS 2101-2105 in KWP session 1081
+  state: ready
+  notes: standardDiagnosticSession (10 81) with tester present; comparing payloads/sizes vs 82/83/default
+  captures:
+  - ecu: '0x7EC'
+    pid: '2101'
+    payload: 6101FFFFFFFF80264826480300050E32141213131211120013BD03BD0100008E0005600A00055E5E0001F2A30001E30A01529FEC0D016B0000000003E8
+  - ecu: '0x7EC'
+    pid: '2102'
+    payload: 6102FFFFFFFFBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBD
+  - ecu: '0x7EC'
+    pid: '2103'
+    payload: 6103FFFFFFFFBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBD
+  - ecu: '0x7EC'
+    pid: '2104'
+    payload: 6104FFFFFFFFBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBD
+  - ecu: '0x7EC'
+    pid: '2105'
+    payload: 6105FFFFFFFF00000000001212121212131326482648000150111203E80203E801860029000000000000000000
+- date: '2026-07-22'
+  label: VCU 2101-2105 in KWP session 1081
+  state: ready
+  notes: standardDiagnosticSession (10 81) with tester present; VCU rejects 82/83 (NRC 0x12), testing whether 81 changes payload sizes
+  captures:
+  - ecu: '0x7EA'
+    pid: '2101'
+    payload: 6101FFE0000009215A79065C03000000005175340420
+  - ecu: '0x7EA'
+    pid: '2102'
+    payload: 6102F8F800000101000000920EB687E8386705DE8DA638
+- date: '2026-07-22'
+  label: MCU 2101-2105 in KWP session 1081
+  state: ready
+  notes: standardDiagnosticSession (10 81) with tester present; MCU rejects 82/83 (NRC 0x12)
+  captures:
+  - ecu: '0x7EB'
+    pid: '2101'
+    payload: 6101000003FF0C3800F68D8B380000000A002C023C0499384900610056FF
+  - ecu: '0x7EB'
+    pid: '2102'
+    payload: 610207FFFFFF00000000000022000A0E1111F7FFF5FF7DD6CDABC2CD61003FFA2600410AF726F606C1CD0900503100000000000000000000
+  - ecu: '0x7EB'
+    pid: '2103'
+    payload: '610300000000000000000000000000000000000000000000000000'
+- date: '2026-07-22'
+  label: OBC 2101-2105 in KWP session 1081
+  state: ready
+  notes: standardDiagnosticSession (10 81) with tester present; OBC/LDC rejects 82/83 (NRC 0x12)
+  captures:
+  - ecu: '0x7ED'
+    pid: '2101'
+    payload: 6101FFFFF8000002BB01D1033B00007F003401BD0598410000000000100000600000000001F38E0B02640000
+  - ecu: '0x7ED'
+    pid: '2102'
+    payload: 6102FFFC0000684F792A694A79286E847927650F791B7499791F7293792B74827931
+- date: '2026-07-22'
+  label: IGPM BC-family gap sweep
+  state: ready, ignition on
+  notes: 'Hidden-page hunt: fill gaps around known BC01-BC08. BC09/BC0A/BC0C have IOControl slots so likely readable via 22.'
+  captures:
+  - ecu: '0x778'
+    pid: scan 22 BC00-BC1F
+    scan_results:
+      responding:
+      - did: BC01
+        response: 9 bytes
+        notes: 'Raw: 62BC01400000000002'
+      - did: BC02
+        response: 7 bytes
+        notes: 'Raw: 62BC0200000000'
+      - did: BC03
+        response: 11 bytes
+        notes: 'Raw: 62BC03FDEE3C7304600000'
+      - did: BC04
+        response: 11 bytes
+        notes: 'Raw: 62BC04B53FF4EA01000042'
+      - did: BC05
+        response: 11 bytes
+        notes: 'Raw: 62BC057F11200000000000'
+      - did: BC06
+        response: 11 bytes
+        notes: 'Raw: 62BC06B480000000000000'
+      - did: BC07
+        response: 11 bytes
+        notes: 'Raw: 62BC070841FBCC00001900'
+      rejected: 25 DIDs returned 25 NRC
+- date: '2026-07-22'
+  label: MCU E0xx hidden-page hunt (ACC)
+  state: ready, ignition on
+  notes: 'P1 backlog retry with ignition on (was NRC at rest). Ioniq5 cross-ref: E001 ignition V/motor RPM/torque/phase current/temps, E009 water/oil pump.'
+  captures:
+  - ecu: '0x7EB'
+    pid: scan 22 E001-E010
+    scan_results:
+      rejected: 16 DIDs returned 16 NRC
+- date: '2026-07-22'
+  label: VCU E0xx hidden-page hunt (ACC)
+  state: ready, ignition on
+  notes: P1 backlog retry with ignition on. KWP2000 ECU - expecting NRC 0x12 like MCU.
+  captures:
+  - ecu: '0x7EA'
+    pid: scan 22 E001-E010
+    scan_results:
+      rejected: 16 DIDs returned 16 NRC
+- date: '2026-07-22'
+  label: EPS 22010x sibling sweep (LKAS hunt)
+  state: ready, ignition on
+  notes: 'Hidden-page hunt: known 220101/220102. LKAS backlog wants sibling 22010x pages carrying LKAS active/torque command.'
+  captures:
+  - ecu: '0x7DC'
+    pid: scan 22 0100-0110
+    scan_results:
+      responding:
+      - did: '0101'
+        response: 18 bytes
+        notes: 'Raw: 6201019196FF00D600030000000010102301'
+      - did: '0102'
+        response: 8 bytes
+        notes: 'Raw: 6201020000000300'
+      rejected: 15 DIDs returned 15 NRC
+- date: '2026-07-22'
+  label: SCC 22010x gap sweep
+  state: ready, ignition on
+  notes: 'Hidden-page hunt: known 220100-0103,0105. Fill 0104 + 0106-0110.'
+  captures:
+  - ecu: '0x7D8'
+    pid: scan 22 0104-0110
+    scan_results:
+      responding:
+      - did: '0105'
+        response: 5 bytes
+        notes: 'Raw: 6201050307'
+      rejected: 12 DIDs returned 12 NRC
+- date: '2026-07-22'
+  label: MCU 21 00-FF hidden-page sweep
+  state: ready, ignition on
+  notes: Service-21 full LID sweep after 22 E0xx dead end. Hunting undocumented live-data pages beyond 2101-2103,21F2.
+  captures:
+  - ecu: '0x7EB'
+    pid: scan 21 00-FF
+    scan_results:
+      responding:
+      - did: '01'
+        response: 30 bytes
+        notes: 'Raw: 6101000003FF0C3800BC8DC1380000000A002F024204C53818001800D0FF'
+      - did: '02'
+        response: 56 bytes
+        notes: 'Raw: 610207FFFFFF0000000000001F000A0E1010F7FFF6FF7DD6CDABC2CD61003FFA2600410AF726F606...'
+      - did: '03'
+        response: 27 bytes
+        notes: 'Raw: 610300000000000000000000000000000000000000000000000000'
+      - did: F2
+        response: 67 bytes
+        notes: 'Raw: 61F2FFFFFF3FF7FFF6FF7DD609000000000000000000480500000405CDABC2CD61003FFA2600410A...'
+      rejected: 252 DIDs returned 252 NRC
+- date: '2026-07-22'
+  label: VCU 21 00-FF hidden-page sweep
+  state: ready, ignition on
+  notes: Service-21 full LID sweep after 22 E0xx dead end. Hunting undocumented live-data pages beyond 2101/2102. Looking for drive mode / regen / speed.
+  captures:
+  - ecu: '0x7EA'
+    pid: scan 21 00-FF
+    scan_results:
+      responding:
+      - did: '01'
+        response: 22 bytes
+        notes: 'Raw: 6101FFE0000009215A7C065703000000004675340420'
+      - did: '02'
+        response: 23 bytes
+        notes: 'Raw: 6102F8F800000101000000920DB586D5382E05B18D9038'
+      - did: F2
+        response: 86 bytes
+        notes: 'Raw: 61F2FF0000000803654C458E331D01A197000000000000000000000000000504E121CB65F3014D00...'
+      rejected: 253 DIDs returned 253 NRC
+- date: '2026-07-22'
+  label: BMS 21 00-FF hidden-page sweep
+  state: ready, ignition on
+  notes: Service-21 full LID sweep. Hunting undocumented live-data pages beyond 2101-2105.
+  captures:
+  - ecu: '0x7EC'
+    pid: scan 21 00-FF
+    scan_results:
+      responding:
+      - did: '01'
+        response: 61 bytes
+        notes: 'Raw: 6101FFFFFFFF7F264826480300050E2D141213131211120013BD02BC0100008E0005600A00055E61...'
+      - did: '02'
+        response: 38 bytes
+        notes: 'Raw: 6102FFFFFFFFBCBDBDBDBDBDBDBDBDBCBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBCBDBDBD'
+      - did: '03'
+        response: 38 bytes
+        notes: 'Raw: 6103FFFFFFFFBDBDBDBDBDBDBCBDBDBDBDBDBDBDBDBCBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBD'
+      - did: '04'
+        response: 38 bytes
+        notes: 'Raw: 6104FFFFFFFFBDBDBDBDBCBDBDBDBDBDBDBCBDBDBCBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBDBD'
+      - did: '05'
+        response: 45 bytes
+        notes: 'Raw: 6105FFFFFFFF0000000000121212111213132648264800014B111103E80203E80185002900000000...'
+      - did: F2
+        response: 123 bytes
+        notes: 'Raw: 61F2FFFFFFFF3430363400210000000000000A16000000000000000B02000BB8C201002D01740162...'
+      rejected: 250 DIDs returned 250 NRC
+- date: '2026-07-22'
+  label: BMS 21F2 new page (discovered via 21 sweep)
+  state: ready, ignition on
+  notes: Undocumented BMS service-21 page found in 21 00-FF sweep. 123 bytes. Likely calibration/identity (cf. MCU 21F2 = cal data).
+  captures:
+  - ecu: '0x7EC'
+    pid: 21F2
+    payload: 61F2FFFFFFFF3430363400210000000000000A16000000000000000B02000BB8C201002D017401620041001A000C00000000FFFFFFFF0000000007DC00000000000000000000000000000000000000000000000000001400FF000000000002E602B500000000000100044E37495A001EFFFFFFFF06E8018D010001
+- date: '2026-07-22'
+  label: OBC 21 00-FF hidden-page sweep
+  state: ready, ignition on
+  notes: Service-21 full LID sweep on KWP2000 OBC/LDC. Known pages 2101/2102. Hunting hidden pages (cf. BMS 21F2 find).
+  captures:
+  - ecu: '0x7ED'
+    pid: scan 21 00-FF
+    scan_results:
+      responding:
+      - did: '01'
+        response: 44 bytes
+        notes: 'Raw: 6101FFFFF8000002B801CD033900007F003401BD0596410000000000100000600000000001F38DD6...'
+      - did: '02'
+        response: 34 bytes
+        notes: 'Raw: 6102FFFC0000684F792A694A79286E847927650F791B7499791F7293792B74827931'
+      rejected: 254 DIDs returned 254 NRC
+- date: '2026-07-22'
+  label: AAF 21 00-FF hidden-page sweep
+  state: ready, ignition on
+  notes: 'Service-21 full LID sweep on KWP2000 Active Air Flap. Known pages 2180/2181 (note: 0x80 range, not 0x01). Hunting hidden pages.'
+  captures:
+  - ecu: '0x7EE'
+    pid: scan 21 00-FF
+    scan_results:
+      responding:
+      - did: '80'
+        response: 25 bytes
+        notes: 'Raw: 6180C366C00021270000000000216F00453C00008813009595'
+      - did: '81'
+        response: 25 bytes
+        notes: 'Raw: 6181FFFFC00021270000000000216F7F453C4B4A8813069595'
+      rejected: 254 DIDs returned 254 NRC
+- date: '2026-07-22'
+  label: Unknown-746 21 00-FF hidden-page sweep
+  state: ready, ignition on
+  notes: Service-21 full LID sweep on mysterious KWP2000 0x746. Only known page 21F2 (00000007). Hunting any other pages to identify function.
+  captures:
+  - ecu: '0x74E'
+    pid: scan 21 00-FF
+    scan_results:
+      rejected: 256 DIDs returned 255 NRC + 1 errors
+- date: '2026-07-22'
+  label: MFC service-21 liveness probe
+  state: ready, ignition on
+  notes: 'Long-shot: MFC is UDS (ADAS camera). Check if it answers any KWP-style service-21 page (LKAS data). Expect NRC.'
+  captures:
+  - ecu: '0x7CC'
+    pid: scan 21 00-20
+    scan_results:
+      rejected: 33 DIDs returned 33 NRC
+- date: '2026-07-22'
+  label: AVN live-data probe (ignition on)
+  state: ready, ignition on
+  notes: Head unit never probed for live-data DIDs. Try 22 01xx.
+  captures:
+  - ecu: '0x788'
+    pid: scan 22 0100-010F
+    scan_results:
+      rejected: 16 DIDs returned 16 NRC
+- date: '2026-07-22'
+  label: AVN B0xx probe
+  state: ready, ignition on
+  notes: Head unit B0xx range.
+  captures:
+  - ecu: '0x788'
+    pid: scan 22 B001-B010
+    scan_results:
+      rejected: 16 DIDs returned 16 NRC
+- date: '2026-07-22'
+  label: CCM live-data probe (ignition on)
+  state: ready, ignition on
+  notes: Charge Control Module (DC PLC) never probed for live-data. Try 22 01xx (may be dormant unless DC charging).
+  captures:
+  - ecu: '0x73B'
+    pid: scan 22 0100-010F
+    scan_results:
+      rejected: 16 DIDs returned 16 NRC
+- date: '2026-07-22'
+  label: CCM B0xx probe
+  state: ready, ignition on
+  notes: CCM B0xx range.
+  captures:
+  - ecu: '0x73B'
+    pid: scan 22 B001-B010
+    scan_results:
+      rejected: 16 DIDs returned 16 NRC
+- date: '2026-07-22'
+  label: Unknown-7C0 live-data probe
+  state: ready, ignition on
+  notes: Dormant module (session-only, no identity). Probe 22 01xx for any data.
+  captures:
+  - ecu: '0x7C8'
+    pid: scan 22 0100-010F
+    scan_results:
+      rejected: 16 DIDs returned 16 errors

@@ -229,7 +229,14 @@ MCU:
       status: nrc
       priority: P1
       prerequisite: [acc]
+      date: "2026-07-22"
       notes: "Ioniq 5 cross-ref: E001 ignition voltage/motor RPM/torque/phase current/temps, E009 electric water pump/oil pump."
+      result: >
+        Re-scanned E001-E010 with ignition ON (battery 14.4V) 2026-07-22: all 16 -> NRC 0x12
+        (subFunctionNotSupported), 0 timeouts (ECU alive, rejecting). CONFIRMED DEAD END: this
+        KWP2000 MCU does not implement service-22 read-did with E0xx DIDs (a UDS-era Ioniq-5
+        construct). Hidden MCU pages, if any, live in the service-21 (21xx) range, not 22 E0xx.
+        Pivot: sweep 21 00-FF for undocumented pages instead.
       sources:
         - "OBDb Ioniq 5"
     - type: iocontrol_scan
@@ -238,3 +245,11 @@ MCU:
       priority: P2
       prerequisite: [acc]
       notes: "MCU IOControl E0xx range."
+    - type: scan
+      target: 21 00-FF
+      status: done
+      priority: P2
+      prerequisite: [ready]
+      date: "2026-07-22"
+      result: "Exhaustive service-21 LID sweep (ignition on): only 01/02/03/F2 respond (= known 2101/2102/2103/21F2), all 252 others NRC. No hidden pages. MCU service-21 space fully mapped."
+      notes: Hidden-page hunt. Confirms the E0xx (service-22) dead end has no service-21 analogue beyond known pages.

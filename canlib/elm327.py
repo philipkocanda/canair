@@ -110,9 +110,12 @@ def check_command_safety(cmd: str) -> str | None:
             )
         # KWP2000 uses OEM-defined session modes in the 0x80-0xFF band; some are
         # development/programming modes that are unsafe to enter blind. Allow the
-        # well-known safe ones (0x81 standardDiagnosticSession) and require
-        # --unsafe for the rest of the 0x8x range.
-        if 0x80 <= sub <= 0xFF and sub not in (0x81,):
+        # well-known safe diagnostic sessions and require --unsafe for the rest of
+        # the 0x8x range. Safe: 0x81 standardDiagnosticSession, 0x82 (Hyundai/Kia
+        # periodic/EOL diagnostic session), 0x83 extendedDiagnosticSession — all
+        # read-only diagnostic sessions used by scan tools. 0x85 (programming)
+        # stays blocked above.
+        if 0x80 <= sub <= 0xFF and sub not in (0x81, 0x82, 0x83):
             return (
                 f"BLOCKED: StartDiagnosticSession sub 0x{sub:02X} "
                 "(unrecognized KWP2000 session mode) -- may be a programming/development "
