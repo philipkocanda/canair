@@ -28,6 +28,10 @@ Date scoping (inclusive, YYYY-MM-DD; combines with any mode):
   --until DATE          captures on or before DATE
   --date DATE           captures on DATE only (--since DATE --until DATE)
 
+State/label scoping (case-insensitive substring; combines with any mode):
+  --state SUBSTR        only sessions whose state contains SUBSTR (e.g. 'MT->KW')
+  --label SUBSTR        only sessions/captures whose label contains SUBSTR
+
 Examples:
   python3 query-captures.py BMS 2102                  # ECU + PID (most useful)
   python3 query-captures.py BMS                       # All BMS captures
@@ -48,11 +52,16 @@ Examples:
 import argparse
 import sys
 from collections import defaultdict
-from datetime import date, datetime
 from pathlib import Path
 
 import yaml
 
+from canlib.capture_dates import (
+    add_scope_args,
+    filter_by_date_range,
+    filter_by_text,
+    resolve_date_bounds,
+)
 from canlib.commands._hints import ecu_completer as _ecu_completer
 
 NAME = "captures"
@@ -176,63 +185,6 @@ def load_all_captures(captures_dir: Path | None = None) -> list[dict]:
                 }
                 entries.append(entry)
     return entries
-
-
-# ---------------------------------------------------------------------------
-# Date scoping
-# ---------------------------------------------------------------------------
-
-def parse_iso_date(s: str) -> date:
-    """Parse an ``YYYY-MM-DD`` string into a ``date`` (for argparse ``type=``).
-
-    Raises ``argparse.ArgumentTypeError`` on a malformed value so argparse emits
-    a clean usage error.
-    """
-    try:
-        return datetime.strptime(s.strip(), "%Y-%m-%d").date()
-    except ValueError:
-        raise argparse.ArgumentTypeError(f"invalid date {s!r} (expected YYYY-MM-DD)") from None
-
-
-def _entry_date(entry: dict) -> date | None:
-    """Parse a capture entry's session ``date`` field, or None if absent/invalid.
-
-    Tolerates a trailing suffix on same-day sessions (e.g. ``2026-04-17-b``) by
-    falling back to the leading ``YYYY-MM-DD`` portion, so those captures still
-    sort into the correct day when a date filter is active.
-    """
-    raw = str(entry.get("date", "")).strip()
-    if not raw:
-        return None
-    for candidate in (raw, raw[:10]):
-        try:
-            return datetime.strptime(candidate, "%Y-%m-%d").date()
-        except ValueError:
-            continue
-    return None
-
-
-def filter_by_date_range(
-    entries: list[dict], since: date | None = None, until: date | None = None
-) -> list[dict]:
-    """Keep entries whose session date falls within ``[since, until]`` (inclusive).
-
-    Either bound may be ``None`` (open-ended). Entries without a parseable date
-    are dropped whenever a bound is active, since they cannot be placed in range.
-    """
-    if since is None and until is None:
-        return entries
-    out = []
-    for e in entries:
-        d = _entry_date(e)
-        if d is None:
-            continue
-        if since is not None and d < since:
-            continue
-        if until is not None and d > until:
-            continue
-        out.append(e)
-    return out
 
 
 # ---------------------------------------------------------------------------
@@ -1107,21 +1059,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         help="For --diff/--step: show the byte-index ruler (idx/wican) above the hex",
     )
 
-    date_group = parser.add_argument_group(
-        "date scoping", "Restrict any mode to captures within a date range (inclusive, YYYY-MM-DD)"
-    )
-    date_group.add_argument(
-        "--since", type=parse_iso_date, metavar="YYYY-MM-DD",
-        help="Only captures on or after this date",
-    )
-    date_group.add_argument(
-        "--until", type=parse_iso_date, metavar="YYYY-MM-DD",
-        help="Only captures on or before this date",
-    )
-    date_group.add_argument(
-        "--date", type=parse_iso_date, metavar="YYYY-MM-DD",
-        help="Only captures on this exact date (shorthand for --since X --until X)",
-    )
+    add_scope_args(parser)
 
     parser.add_argument(
         "--dir", type=Path, default=None,
@@ -1159,13 +1097,9 @@ def run(args) -> int:
         return 2
 
     # Resolve date scoping (--date is shorthand for an equal since/until pair).
-    if args.date and (args.since or args.until):
-        print("error: --date cannot be combined with --since/--until", file=sys.stderr)
-        return 2
-    since = args.date or args.since
-    until = args.date or args.until
-    if since and until and since > until:
-        print(f"error: --since ({since}) is after --until ({until})", file=sys.stderr)
+    since, until, err = resolve_date_bounds(args)
+    if err:
+        print(f"error: {err}", file=sys.stderr)
         return 2
 
     entries = load_all_captures(args.dir)
@@ -1182,6 +1116,18 @@ def run(args) -> int:
             print(f"  No captures in date range {lo} .. {hi}.")
             return 1
         print(f"  {_DIM}Date range: {lo} .. {hi}  ({len(entries)} entries){_RESET}")
+
+    if args.state or args.label:
+        entries = filter_by_text(entries, state=args.state, label=args.label)
+        if not entries:
+            crit = ", ".join(
+                x for x in [
+                    f"state~'{args.state}'" if args.state else "",
+                    f"label~'{args.label}'" if args.label else "",
+                ] if x
+            )
+            print(f"  No captures matching {crit}.")
+            return 1
 
     from canlib.query import QueryError
 
