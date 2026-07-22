@@ -146,8 +146,10 @@ research_fields:
   required: [type, target, status]
   optional: [priority, prerequisite, date, result, notes, sources, what_to_test, capture_protocol]
 
-# Routines section — RoutineControl (UDS service 0x31) discovery results.
-# Populated by `canair scan routines`. Lives under ECU_NAME.routines.
+# Routines section — RoutineControl discovery results.
+# Populated by `canair scan routines` (UDS 0x31 SF03 requestRoutineResults with
+# 4-digit RID keys, or KWP2000 0x33 RequestRoutineResultsByLocalIdentifier with
+# 2-digit LID keys). Lives under ECU_NAME.routines.
 #
 # Format:
 #   routines:
