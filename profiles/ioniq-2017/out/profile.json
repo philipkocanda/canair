@@ -229,6 +229,18 @@
       }
     },
     {
+      "pid_init": "ATSH7E3;ATFCSH7E3;",
+      "pid": "2102",
+      "enabled": true,
+      "period": "5000",
+      "parameters": {
+        "MCU_MOTOR_RPM": "[S10:S11]",
+        "MCU_MOTOR_TORQUE": "[S12:S13]/100",
+        "MCU_TEMP_1": "S20",
+        "MCU_TEMP_2": "S21"
+      }
+    },
+    {
       "pid_init": "ATSH7E5;ATFCSH7E5;",
       "pid": "2101",
       "enabled": true,
@@ -243,18 +255,6 @@
         "OBC_DC_A": "[B17:B18]/100",
         "OBC_PILOT_DUTY": "B47/3",
         "OBC_PILOT_AMPS": "B47/5"
-      }
-    },
-    {
-      "pid_init": "ATSH7E3;ATFCSH7E3;",
-      "pid": "2102",
-      "enabled": true,
-      "period": "5000",
-      "parameters": {
-        "MCU_MOTOR_RPM": "[S10:S11]",
-        "MCU_MOTOR_TORQUE": "[S12:S13]/100",
-        "MCU_TEMP_1": "S20",
-        "MCU_TEMP_2": "S21"
       }
     },
     {

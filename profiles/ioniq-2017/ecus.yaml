@@ -418,14 +418,20 @@ ecus:
     id_protocol: KWP2000  # 1Axx
     notes: "1A80 firmware build date 2008-07-09 (likely platform date, not unit manufacture)"
   0x7E5:
-    name: LDC
-    alias: OBC  # Also handles On-Board Charger
-    description: Low-voltage DC-DC Converter / OBC
+    name: OBC
+    alias: LDC  # Combined unit — also houses the LDC (DC-DC converter); reports its 12V output live while driving
+    description: On-Board Charger (integrated LDC / DC-DC converter)
     part_number: "36400-0E150"
-    ecu_id: AEEOBC51  # KWP2000 1A8C
+    ecu_id: AEEOBC51  # KWP2000 1A8C → EOBC
     sw_id: "EAEEH5L-OS3-D000"
     calibration: "00000001"
     id_protocol: KWP2000  # 1Axx
+    notes: >
+      Combined OBC + LDC power unit (part 36400-0E150). OBC signals (charge voltage/current,
+      pilot duty) are active only while AC charging; the LDC (DC-DC) 12V output is measured
+      live even while driving with the OBC idle (OBC_DC_A=0) — confirming both functions live
+      in this one ECU. The LDC *control* bits (enable/inhibit) live on the VCU (0x7E2, whose
+      module code is "VLDC"), not here.
   0x7E6:
     name: AAF
     description: Active Air Flap controller
