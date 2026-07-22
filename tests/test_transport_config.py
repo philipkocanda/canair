@@ -60,6 +60,17 @@ class TestResolveTransport:
         # resolve_transport(None) must work (uses config only).
         assert resolve_transport(None).type == "slcan-tcp"
 
+    def test_wican_ws_refused_on_classic(self, env, monkeypatch):
+        env({"type": "slcan-tcp"})
+        monkeypatch.setattr(cfg_mod, "wican_model", lambda: "classic")
+        with pytest.raises(TransportError, match="Pro-only"):
+            resolve_transport(Args(transport="wican-ws"))
+
+    def test_wican_ws_allowed_on_pro(self, env, monkeypatch):
+        env({"type": "slcan-tcp"})
+        monkeypatch.setattr(cfg_mod, "wican_model", lambda: "pro")
+        assert resolve_transport(Args(transport="wican-ws")).type == "wican-ws"
+
 
 class TestTransportConfigProps:
     def test_is_raw_elm(self):

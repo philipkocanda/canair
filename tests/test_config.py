@@ -115,6 +115,44 @@ class TestGetConfigKey:
         assert config.get_config_key("missing") is None
 
 
+class TestWicanModel:
+    def test_defaults_to_pro(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        from canlib import config
+
+        _reset()
+        assert config.wican_model() == "pro"
+        assert config.is_wican_pro() is True
+
+    def test_classic(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        from canlib import config
+
+        _reset()
+        config.set_config_key("wican_model", "classic")
+        _reset()
+        assert config.wican_model() == "classic"
+        assert config.is_wican_pro() is False
+
+    def test_normalizes_case_and_whitespace(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        from canlib import config
+
+        _reset()
+        config.set_config_key("wican_model", "  Classic ")
+        _reset()
+        assert config.wican_model() == "classic"
+
+    def test_unknown_value_falls_back_to_pro(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        from canlib import config
+
+        _reset()
+        config.set_config_key("wican_model", "deluxe")
+        _reset()
+        assert config.wican_model() == "pro"
+
+
 class TestConfigCommand:
     def test_show_json(self, tmp_path, monkeypatch, capsys):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))

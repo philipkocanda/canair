@@ -153,6 +153,19 @@ def resolve_transport(args=None) -> TransportConfig:
             f"Unknown transport '{ttype}'. Valid: {', '.join(VALID_TRANSPORTS)}."
         )
 
+    # The wican-ws ELM327 terminal is a WiCAN Pro-only feature; the classic
+    # (non-Pro) WiCAN only speaks raw SLCAN. Refuse it early with a clear hint.
+    if ttype == "wican-ws":
+        from ..config import is_wican_pro
+
+        if not is_wican_pro():
+            raise TransportError(
+                "The 'wican-ws' transport (ELM327 WebSocket terminal) is a WiCAN "
+                "Pro-only feature; your config sets wican_model: classic. Use the "
+                "default 'slcan-tcp' transport instead (works on the classic WiCAN). "
+                "If this device is actually a Pro, run: canair config set wican_model pro"
+            )
+
     # Host: explicit --wican > config transport.host > default_wican alias.
     if arg("wican"):
         host = _resolve_host(arg("wican"))

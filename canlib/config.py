@@ -9,6 +9,10 @@ Recognized keys:
   profiles_dir:     extra directory to search for profiles
   wican_addresses:  mapping of alias -> IP/host for the --wican flag
   default_wican:    default --wican alias
+  wican_model:      "pro" or "classic" — the WiCAN hardware model. AutoPID
+                    vehicle-profile features (canair wican device sync) and the
+                    wican-ws ELM327 terminal are WiCAN Pro-only. Defaults to
+                    "pro".
   transport:        transport-selection block (type/host/port/bitrate); see
                     canlib.transport.config
 
@@ -29,6 +33,11 @@ from .constants import CONFIG_FILE
 # Fallback WiCAN address when nothing is configured (WiCAN AP mode).
 _DEFAULT_ADDRESSES = {"ap": "192.168.80.1"}
 _DEFAULT_WICAN_KEY = "ap"
+
+# WiCAN hardware model. AutoPID vehicle profiles and the wican-ws ELM327
+# terminal are Pro-only; the classic (non-Pro) WiCAN only supports raw SLCAN.
+WICAN_MODELS = ("pro", "classic")
+_DEFAULT_WICAN_MODEL = "pro"
 
 
 def config_dir() -> Path:
@@ -64,6 +73,12 @@ _STARTER_CONFIG = """\
 #   ap: "192.168.80.1"    # WiCAN AP mode (factory default)
 #   home: "192.168.1.100"
 # default_wican: ap
+
+# WiCAN hardware model: "pro" (default) or "classic" (non-Pro). The classic
+# WiCAN has no AutoPID vehicle-profile support and no ELM327 WebSocket terminal,
+# so `canair wican --upload/--download/--diff/--set-protocol` and the wican-ws
+# transport are refused for it. Raw slcan-tcp works on both.
+# wican_model: pro
 """
 
 
@@ -231,3 +246,18 @@ def wican_settings() -> tuple[dict[str, str], str]:
     addresses = {k: str(v) for k, v in addresses.items()}
     default = cfg.get("default_wican", _DEFAULT_WICAN_KEY)
     return addresses, default
+
+
+def wican_model() -> str:
+    """Return the configured WiCAN hardware model ("pro" or "classic").
+
+    Defaults to "pro" so existing setups keep working without any config
+    change. Unknown values fall back to "pro" as well (permissive).
+    """
+    value = str(load_config().get("wican_model", _DEFAULT_WICAN_MODEL)).strip().lower()
+    return value if value in WICAN_MODELS else _DEFAULT_WICAN_MODEL
+
+
+def is_wican_pro() -> bool:
+    """True when the configured WiCAN model supports Pro-only features."""
+    return wican_model() == "pro"

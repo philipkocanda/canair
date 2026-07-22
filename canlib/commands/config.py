@@ -35,6 +35,7 @@ _KNOWN_KEYS = (
     "profiles_dir",
     "default_wican",
     "wican_addresses.<alias>",
+    "wican_model",
     "transport.type",
     "transport.host",
     "transport.port",
@@ -158,6 +159,7 @@ def _gather(args) -> dict:
         load_config,
         user_config_file,
         user_profiles_dir,
+        wican_model,
         wican_settings,
     )
     from canlib.constants import CONFIG_FILE
@@ -176,7 +178,11 @@ def _gather(args) -> dict:
     }
 
     addresses, default_alias = wican_settings()
-    info["wican"] = {"addresses": addresses, "default": default_alias}
+    info["wican"] = {
+        "addresses": addresses,
+        "default": default_alias,
+        "model": wican_model(),
+    }
 
     try:
         from canlib.transport import resolve_transport
@@ -206,7 +212,7 @@ def _gather(args) -> dict:
 
 # Keys rendered on their own in the "Settings" block are shown from the
 # effective config; these are surfaced elsewhere so we skip them there.
-_SPECIAL_KEYS = {"wican_addresses", "transport"}
+_SPECIAL_KEYS = {"wican_addresses", "transport", "wican_model"}
 
 
 def _render(info: dict) -> None:
@@ -234,7 +240,10 @@ def _render(info: dict) -> None:
         c.print(f"\n  [bold]Transport[/bold]   [red]{info['transport_error']}[/red]")
 
     w = info["wican"]
-    c.print("\n  [bold]WiCAN addresses[/bold]")
+    model = w.get("model", "pro")
+    model_note = "" if model == "pro" else "  [dim](AutoPID sync disabled)[/dim]"
+    c.print(f"\n  [bold]WiCAN[/bold]   model: {model}{model_note}")
+    c.print("  [bold]WiCAN addresses[/bold]")
     for alias, addr in w["addresses"].items():
         default = "  [green](default)[/green]" if alias == w["default"] else ""
         c.print(f"    {alias:<9}{addr}{default}")
