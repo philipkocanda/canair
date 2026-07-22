@@ -25,6 +25,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         epilog="""\
 examples:
   canair dtc BMS                       Read all stored DTCs (status mask FF)
+  canair dtc --all                     Scan every ECU for DTCs
   canair dtc BMS --mask 08             Read confirmed DTCs only (mask 0x08)
   canair dtc IGPM --session --wake     Wake + read in extended session
   canair dtc BMS --json                Machine-readable output
@@ -36,6 +37,12 @@ examples:
     parser.add_argument(
         "dtc", metavar="ECU", nargs="?", help="ECU name or TX ID (e.g. BMS or 7E4)"
     ).completer = ecu_completer
+    parser.add_argument(
+        "--all",
+        dest="dtc_all",
+        action="store_true",
+        help="Scan every ECU in the profile for DTCs (protocol auto-selected per ECU)",
+    )
     parser.add_argument(
         "--mask",
         metavar="HEX",
@@ -73,10 +80,10 @@ examples:
 
 
 def run(args) -> int:
-    if not args.dtc:
+    if not args.dtc and not getattr(args, "dtc_all", False):
         from canlib.commands._hints import ecu_hint
 
-        print("Specify an ECU, e.g. `canair dtc BMS`.\n")
+        print("Specify an ECU (e.g. `canair dtc BMS`) or `canair dtc --all`.\n")
         print(ecu_hint())
         return 2
     return run_live(args)

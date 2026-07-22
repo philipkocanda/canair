@@ -73,6 +73,7 @@ CANREQ_DEFAULTS: dict = {
     "identity": False,
     "discover": False,
     "dtc": None,
+    "dtc_all": False,
     "iocontrol": None,
     "routines": None,
     "routines_scan": None,
@@ -548,9 +549,21 @@ async def dispatch_mode(args, terminal, pids_data, host):
             terminal, tx_id, session=args.session, wake=args.wake, as_json=args.json,
             protocol=getattr(args, "protocol", "auto"),
         )
-    elif args.dtc:
+    elif args.dtc or getattr(args, "dtc_all", False):
         from canlib.ecus import resolve_tx
-        from canlib.modes.dtc import mode_dtc_clear, mode_dtc_read
+        from canlib.modes.dtc import mode_dtc_clear, mode_dtc_read, mode_dtc_scan_all
+
+        if getattr(args, "dtc_all", False):
+            try:
+                mask = int(str(args.mask).removeprefix("0x").removeprefix("0X"), 16)
+            except ValueError:
+                print(f"Error: --mask must be hex (e.g. FF), got {args.mask!r}", file=sys.stderr)
+                sys.exit(1)
+            await mode_dtc_scan_all(
+                terminal, mask=mask, protocol=args.protocol,
+                as_json=args.json, verbose=args.verbose,
+            )
+            return
 
         tx_id = resolve_tx(args.dtc)
         if tx_id is None:
