@@ -142,7 +142,7 @@ def _report_read(as_json: bool, result: dict) -> None:
         flags = ", ".join(d["status_bits"]) or "(raw status)"
         print(f"  {d['dtc']:<{dtc_w}}  {d['status']}  {flags}")
         interp = d.get("interpretation") or {}
-        meaning = interp.get("description") or interp.get("meaning")
+        meaning = interp.get("meaning")
         if meaning:
             print(f"  {'':<{dtc_w}}  → {meaning}")
     print()
@@ -473,7 +473,7 @@ async def mode_dtc_scan_all(
             for d in r["dtcs"]:
                 flags = ", ".join(d["status_bits"]) or "raw status"
                 interp = d.get("interpretation") or {}
-                meaning = interp.get("description") or interp.get("meaning") or ""
+                meaning = interp.get("meaning") or ""
                 print(f"      {d['dtc']}  {d['status']}  {flags}")
                 if meaning:
                     print(f"        → {meaning}")
