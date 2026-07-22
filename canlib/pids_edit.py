@@ -274,11 +274,15 @@ def _find_ecu_block(text: str, ecu_name: str) -> tuple[int, int]:
     return ecu_start, len(text)
 
 
-def append_routines_block(ecu_name: str, hits, pids_dir: Path | None = None) -> Path:
+def append_routines_block(ecu_name: str, hits, pids_dir: Path | None = None, key_width: int = 4) -> Path:
     """Write/overwrite a ``routines:`` section at the end of the ECU block.
 
     If a ``routines:`` section already exists for this ECU, it is replaced
     wholesale. Preserves surrounding YAML (pids/iocontrol/research blocks).
+
+    ``key_width`` is the number of hex digits for the entry key: 4 for UDS
+    16-bit Routine Identifiers (``0x31``), 2 for KWP2000 8-bit routine local
+    identifiers (``0x33``).
 
     Returns the file path edited. No-op if ``hits`` is empty.
     """
@@ -288,6 +292,7 @@ def append_routines_block(ecu_name: str, hits, pids_dir: Path | None = None) -> 
         section_name="routines",
         key_attr="rid",
         pids_dir=pids_dir,
+        key_width=key_width,
     )
 
 

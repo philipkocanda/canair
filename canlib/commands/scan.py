@@ -52,7 +52,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         description="Scan an ECU. Choose a kind:\n"
         "  range      sweep a PID/DID range (general purpose)\n"
         "  iocontrol  SAFE IOControl discovery (UDS 0x2F / KWP2000 0x30, auto)\n"
-        "  routines   SAFE RoutineControl (0x31) discovery\n\n"
+        "  routines   SAFE RoutineControl discovery (UDS 0x31 SF03 / KWP2000 0x33, auto)\n\n"
         "A bare `canair scan BMS` (or `canair scan` alone) is shorthand for "
         "`canair scan range …`.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -198,19 +198,27 @@ def _add_iocontrol_parser(kinds) -> argparse.ArgumentParser:
 def _add_routines_parser(kinds) -> argparse.ArgumentParser:
     parser = kinds.add_parser(
         "routines",
-        help="SAFE RoutineControl (0x31) discovery (requestRoutineResults SF 0x03)",
-        description="Probe requestRoutineResults (SF 0x03) across a RID range on one or more "
-        "ECUs. Hits are written to pids/<ecu>.yaml under a routines: section.",
+        help="SAFE RoutineControl discovery (UDS 0x31 SF03 / KWP2000 0x33, auto)",
+        description="Probe routine results across a range on one or more ECUs. The service "
+        "is auto-selected per ECU from its id_protocol: UDS ECUs use RoutineControl "
+        "(0x31, requestRoutineResults SF 0x03); KWP2000 ECUs (BMS, VCU, MCU, LDC, AAF) use "
+        "RequestRoutineResultsByLocalIdentifier (0x33). 0x31 (StartRoutine on KWP2000) is "
+        "NEVER sent to a KWP2000 ECU — only the read-only results service. Hits are written "
+        "to pids/<ecu>.yaml under a routines: section.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="examples:\n"
-        "  canair scan routines IGPM\n"
+        "  canair scan routines IGPM               # UDS 0x31 SF03\n"
+        "  canair scan routines BMS                # KWP2000 0x33 LID scan (auto)\n"
         "  canair scan routines IGPM BCM --rid-range F000-F0FF\n",
     )
     parser.add_argument(
         "routines_scan", nargs="+", metavar="ECU", help="ECUs to scan (at least one required)"
     ).completer = ecu_completer
     parser.add_argument(
-        "--rid-range", metavar="START-END", default="F000-F0FF", help="RID range (default F000-F0FF)"
+        "--rid-range",
+        metavar="START-END",
+        default="F000-F0FF",
+        help="RID range for UDS (default F000-F0FF); KWP2000 ECUs use LID 00-FF",
     )
     parser.add_argument(
         "--throttle-ms", type=int, default=150, help="Delay in ms between probes (default 150)"

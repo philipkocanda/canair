@@ -130,6 +130,30 @@ def parse_range(range_str: str) -> tuple[int, int]:
     return int(match.group(1), 16), int(match.group(2), 16)
 
 
+def split_ecus_by_protocol(names: list[str]) -> tuple[list[str], list[str]]:
+    """Partition ECU names into (uds, kwp) by their registry ``id_protocol``.
+
+    KWP2000 ECUs (BMS/VCU/MCU/LDC/AAF) need the KWP variants of the discovery
+    scanners: InputOutputControlByLocalIdentifier (0x30) instead of UDS 0x2F, and
+    RequestRoutineResultsByLocalIdentifier (0x33) instead of UDS RoutineControl
+    (0x31) — sending 0x31 to a KWP2000 ECU means StartRoutine and can actuate, so
+    this split is a safety boundary, not just a convenience. ECUs whose protocol
+    can't be resolved fall in the UDS bucket (the historical default).
+    """
+    from canlib.ecus import ecu_id_protocol, resolve_tx
+
+    uds: list[str] = []
+    kwp: list[str] = []
+    for name in names:
+        tx_id = resolve_tx(name)
+        proto = ecu_id_protocol(tx_id) if tx_id is not None else None
+        if str(proto or "").upper().startswith("KWP"):
+            kwp.append(name)
+        else:
+            uds.append(name)
+    return uds, kwp
+
+
 # ---------------------------------------------------------------------------
 # Shell completion helpers (argcomplete)
 # ---------------------------------------------------------------------------
@@ -710,35 +734,48 @@ async def dispatch_mode(args, terminal, pids_data, host):
                 verbose=args.verbose,
             )
     elif args.routines_scan is not None:
-        ecus = args.routines_scan
+        from canlib.modes.kwp_routines_scan import mode_kwp_routines_scan
+
         rid_range = parse_range(args.rid_range)
-        await mode_routines_scan(
-            terminal,
-            pids_data,
-            ecus=ecus,
-            rid_range=rid_range,
-            throttle_ms=args.throttle_ms,
-            verbose=args.verbose,
-            write_yaml=True,
-        )
+
+        # Auto-select by id_protocol. UDS ECUs use RoutineControl (0x31 SF03,
+        # requestRoutineResults). KWP2000 ECUs (BMS/VCU/MCU/LDC/AAF) MUST NOT
+        # receive 0x31 — there it means StartRoutineByLocalIdentifier (actuates);
+        # they use the read-only 0x33 RequestRoutineResultsByLocalIdentifier.
+        uds_ecus, kwp_ecus = split_ecus_by_protocol(args.routines_scan)
+
+        if uds_ecus:
+            await mode_routines_scan(
+                terminal,
+                pids_data,
+                ecus=uds_ecus,
+                rid_range=rid_range,
+                throttle_ms=args.throttle_ms,
+                verbose=args.verbose,
+                write_yaml=True,
+            )
+        if kwp_ecus:
+            # For KWP2000 ECUs the id is an 8-bit LID; only pass an explicit range
+            # if the user gave one that fits a single byte, else use the 00-FF default.
+            lid_range = rid_range if rid_range[1] <= 0xFF else None
+            await mode_kwp_routines_scan(
+                terminal,
+                pids_data,
+                ecus=kwp_ecus,
+                lid_range=lid_range,
+                throttle_ms=args.throttle_ms,
+                verbose=args.verbose,
+                write_yaml=True,
+            )
     elif args.iocontrol_scan is not None:
-        from canlib.ecus import ecu_id_protocol, resolve_tx
         from canlib.modes.kwp_iocontrol_scan import mode_kwp_iocontrol_scan
 
         did_range = parse_range(args.did_range) if args.did_range else None
 
         # Auto-select the service by the ECU's identity protocol: KWP2000 ECUs
         # (BMS/VCU/MCU/LDC/AAF) use IOControlByLocalIdentifier (0x30); the rest
-        # use UDS IOControlByIdentifier (0x2F). Split the ECU list accordingly.
-        uds_ecus: list[str] = []
-        kwp_ecus: list[str] = []
-        for ecu in args.iocontrol_scan:
-            tx_id = resolve_tx(ecu)
-            proto = ecu_id_protocol(tx_id) if tx_id is not None else None
-            if str(proto or "").upper().startswith("KWP"):
-                kwp_ecus.append(ecu)
-            else:
-                uds_ecus.append(ecu)
+        # use UDS IOControlByIdentifier (0x2F).
+        uds_ecus, kwp_ecus = split_ecus_by_protocol(args.iocontrol_scan)
 
         if uds_ecus:
             await mode_iocontrol_scan(

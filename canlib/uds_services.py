@@ -67,9 +67,15 @@ SERVICES: tuple[ServiceInfo, ...] = (
         id_width=1, safe_discovery_sf=0x00, actuates=True,
     ),
     ServiceInfo(
-        0x31, "RoutineControl", BOTH,
+        0x31, "RoutineControl (UDS) / StartRoutineByLocalIdentifier (KWP2000)", BOTH,
         id_width=2, safe_discovery_sf=0x03, actuates=True,
     ),
+    # NOTE: safe_discovery_sf=0x03 (requestRoutineResults) is UDS-only. On a
+    # KWP2000 ECU, 0x31 is StartRoutineByLocalIdentifier (actuates!) — its safe
+    # "read results" is a *different service*, 0x33 below. The routines scanner
+    # must pick 0x33 for KWP2000 ECUs and never blind-send 0x31 to them.
+    ServiceInfo(0x32, "StopRoutineByLocalIdentifier", KWP2000, id_width=1, actuates=True),
+    ServiceInfo(0x33, "RequestRoutineResultsByLocalIdentifier", KWP2000, id_width=1),
     ServiceInfo(0x34, "RequestDownload", BOTH, actuates=True),
     ServiceInfo(0x35, "RequestUpload", BOTH, actuates=True),
     ServiceInfo(0x36, "TransferData", BOTH, actuates=True),
