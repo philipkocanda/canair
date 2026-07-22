@@ -2,6 +2,8 @@
 
 **CLI for reverse engineering CAN/OBD diagnostics over-the-air using a WiCAN dongle**
 
+<img width="300" alt="Jul-23-2026 00-14-52" src="https://github.com/user-attachments/assets/e74ce18d-5350-4a69-b96e-d3b312b25b2f" />
+
 This project interfaces with a [WiCAN](https://www.meatpi.com/products/wican-pro) OBD-II WiFi dongle to communicate with the vehicle's ECUs via diagnostic protocols (UDS and KWP2000). It comes with tools for discovering, decoding, analyzing and documenting the car's internal diagnostic data so it can be turned into a [WiCAN vehicle profile](https://meatpihq.github.io/wican-fw/config/automate/new_vehicle_profiles) or for general purpose sharing and documentation.
 
 **Both the [WiCAN Pro](https://www.meatpi.com/products/wican-pro) and the regular (classic, non-Pro) WiCAN are supported.** All the core reverse-engineering — querying, scanning, decoding, DTCs, sniffing — works on both over the default raw-SLCAN transport. A few features are **Pro-only**: uploading/downloading AutoPID [vehicle profiles](https://meatpihq.github.io/wican-fw/config/automate/new_vehicle_profiles) (`canair wican` device sync) and the `wican-ws` ELM327 WebSocket terminal. If you have the regular WiCAN, set `wican_model: classic` in your config (see [Getting started](#getting-started)) and canair will cleanly disable those instead of failing against the device.
