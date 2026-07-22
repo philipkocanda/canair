@@ -16,14 +16,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import sys
 import time
 
 import can
 import isotp
 
-from ..elm327 import check_command_safety, parse_elm_response
-from ..log import log_command, log_response
+from ..elm327 import parse_elm_response
+from ..log import log_response
+from ..safety import enforce_command_safety
 from .uds_raw import RESPONSE_OFFSET
 
 logging.getLogger("isotp").setLevel(logging.ERROR)
@@ -86,7 +86,7 @@ class RawTerminal:
         expected_sid: int | None = None,
         expected_did: int | None = None,
     ) -> dict:
-        self._guard(service_pid)
+        await enforce_command_safety(service_pid, self.unsafe)
         try:
             req = bytes.fromhex(service_pid.replace(" ", ""))
         except ValueError:
@@ -98,7 +98,7 @@ class RawTerminal:
 
     async def send_command(self, cmd: str, timeout: float | None = None) -> str:
         """AT commands are a no-op ('OK'); UDS hex is sent and returned as hex."""
-        self._guard(cmd)
+        await enforce_command_safety(cmd, self.unsafe)
         c = cmd.strip()
         if c.upper().startswith("AT"):
             return "OK"
@@ -147,14 +147,6 @@ class RawTerminal:
             self.bus.shutdown()
 
     # -- internals ----------------------------------------------------------
-    def _guard(self, cmd: str) -> None:
-        blocked = check_command_safety(cmd)
-        if blocked and not self.unsafe:
-            log_command(f"{cmd}  !! {blocked}")
-            raise ValueError(blocked)
-        if blocked:
-            print(f"  !! WARNING (--unsafe): {blocked}", file=sys.stderr)
-
     def _stack(self, tx_id: int) -> isotp.NotifierBasedCanStack:
         st = self._stacks.get(tx_id)
         if st is None:

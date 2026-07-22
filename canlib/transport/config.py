@@ -9,10 +9,12 @@ explicitly (never auto-detected or auto-switched):
                   :class:`canlib.transport.uds_raw.RawUdsClient`.
 
 Selection precedence (highest first): CLI flag (``--transport``/``--wican``) >
-the ``transport:`` block in the user config > the legacy
-``wican_addresses``/``default_wican`` fallback (→ ``wican-ws``). Port and bitrate
-have no dedicated CLI flags — they come from the config ``transport:`` block
-(``slcan-tcp`` only), falling back to the device's live config where relevant.
+the ``transport:`` block in the user config > the default fallback
+(``slcan-tcp``). ``slcan-tcp`` is the canonical default: it works on both the
+WiCAN Pro and the classic WiCAN (any TCP-SLCAN gateway) and drives the bus with
+client-side ISO-TP, so every command supports it. Port and bitrate have no
+dedicated CLI flags — they come from the config ``transport:`` block, falling
+back to the device's live config where relevant.
 """
 
 from __future__ import annotations
@@ -91,7 +93,7 @@ def resolve_transport(args=None) -> TransportConfig:
     raw_block = load_config().get("transport")
     block = raw_block if isinstance(raw_block, dict) else {}
 
-    ttype = arg("transport") or block.get("type") or "wican-ws"
+    ttype = arg("transport") or block.get("type") or "slcan-tcp"
     if ttype not in VALID_TRANSPORTS:
         raise TransportError(
             f"Unknown transport '{ttype}'. Valid: {', '.join(VALID_TRANSPORTS)}."

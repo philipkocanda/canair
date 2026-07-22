@@ -70,6 +70,7 @@ CANREQ_DEFAULTS: dict = {
     "tester_present": False,
     "identity": False,
     "discover": False,
+    "dtc": None,
     "iocontrol": None,
     "routines": None,
     "routines_scan": None,
@@ -301,7 +302,7 @@ async def async_main(args):
 
     init_logging()
     log_command(
-        f"--- SESSION START (host={host}, mode={'interactive' if not any([args.param, args.ecu, args.raw, args.scan, args.discover, args.skm_wakeup, args.tester_present, args.iocontrol, args.routines, args.routines_scan is not None, args.iocontrol_scan is not None]) else 'batch'}, unsafe={args.unsafe}, session={getattr(args, 'session', False)}) ---"
+        f"--- SESSION START (host={host}, mode={'interactive' if not any([args.param, args.ecu, args.raw, args.scan, args.discover, args.skm_wakeup, args.tester_present, args.identity, args.dtc, args.iocontrol, args.routines, args.routines_scan is not None, args.iocontrol_scan is not None]) else 'batch'}, unsafe={args.unsafe}, session={getattr(args, 'session', False)}) ---"
     )
 
     if args.unsafe:
@@ -521,6 +522,51 @@ async def dispatch_mode(args, terminal, pids_data, host):
             terminal, tx_id, session=args.session, wake=args.wake, as_json=args.json,
             protocol=getattr(args, "protocol", "auto"),
         )
+    elif args.dtc:
+        from canlib.ecus import resolve_tx
+        from canlib.modes.dtc import mode_dtc_clear, mode_dtc_read
+
+        tx_id = resolve_tx(args.dtc)
+        if tx_id is None:
+            print(
+                f"Error: could not resolve ECU '{args.dtc}' "
+                "(use a name like BMS or a hex TX id like 7E4)",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        if getattr(args, "clear", False):
+            try:
+                group = int(str(args.group).removeprefix("0x").removeprefix("0X"), 16)
+            except ValueError:
+                print(f"Error: --group must be hex (e.g. FFFFFF), got {args.group!r}", file=sys.stderr)
+                sys.exit(1)
+            if not getattr(args, "yes", False):
+                from canlib.ecus import ecu_display
+
+                print(
+                    f"!! About to CLEAR DTCs on {ecu_display(tx_id)} "
+                    f"(group 0x{group & 0xFFFFFF:06X}). This erases stored fault memory.",
+                    file=sys.stderr,
+                )
+                print("!! Continue? [y/N] ", end="", flush=True, file=sys.stderr)
+                answer = sys.stdin.readline().strip().lower()
+                if answer not in ("y", "yes"):
+                    print("Aborted.", file=sys.stderr)
+                    return
+            await mode_dtc_clear(
+                terminal, tx_id, group=group, session=args.session, wake=args.wake,
+                as_json=args.json, verbose=args.verbose,
+            )
+        else:
+            try:
+                mask = int(str(args.mask).removeprefix("0x").removeprefix("0X"), 16)
+            except ValueError:
+                print(f"Error: --mask must be hex (e.g. FF), got {args.mask!r}", file=sys.stderr)
+                sys.exit(1)
+            await mode_dtc_read(
+                terminal, tx_id, mask=mask, session=args.session, wake=args.wake,
+                as_json=args.json, verbose=args.verbose,
+            )
     elif args.param:
         await mode_param(
             terminal,

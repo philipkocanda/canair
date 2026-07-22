@@ -143,9 +143,23 @@ class TestRawTerminalSafety:
 
     @pytest.mark.asyncio
     async def test_blocked_service_allowed_with_unsafe(self, make_terminal, monkeypatch):
+        # Unsafe mode is unified across transports: it prompts for confirmation
+        # (same as WiCANTerminal). Simulate the user typing YES.
+        monkeypatch.setattr("builtins.input", lambda *a: "YES")
         t = make_terminal({(0x770, bytes.fromhex("2E1234AA")): bytes.fromhex("6E1234")})
         t.unsafe = True
         await t.set_header(0x770)
         r = await t.send_uds("2E1234AA")
         assert r["ok"] is True
+        await t.close()
+
+    @pytest.mark.asyncio
+    async def test_blocked_service_declined_in_unsafe_raises(self, make_terminal, monkeypatch):
+        # Declining the confirmation prompt refuses the command on every transport.
+        monkeypatch.setattr("builtins.input", lambda *a: "no")
+        t = make_terminal({})
+        t.unsafe = True
+        await t.set_header(0x770)
+        with pytest.raises(ValueError):
+            await t.send_uds("2E1234AA")
         await t.close()

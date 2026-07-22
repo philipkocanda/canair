@@ -19,8 +19,9 @@ except ImportError:
     _requests_mod = None
     HAS_REQUESTS = False
 
-from .elm327 import check_command_safety, parse_elm_response
+from .elm327 import parse_elm_response
 from .log import log_command, log_response
+from .safety import enforce_command_safety
 
 
 class WiCANTerminal:
@@ -116,35 +117,7 @@ class WiCANTerminal:
         if timeout is None:
             timeout = self.timeout
 
-        blocked = check_command_safety(cmd)
-        if blocked:
-            if not self.unsafe:
-                log_command(f"{cmd}  !! {blocked}")
-                raise ValueError(blocked)
-            print(f"\n  !! WARNING: {blocked}", file=sys.stderr)
-            print(
-                "  !! --unsafe mode is active. The user MUST be consulted and",
-                file=sys.stderr,
-            )
-            print(
-                "  !! must explicitly give consent before this command is executed.",
-                file=sys.stderr,
-            )
-            print(
-                "  !! This command can cause irreversible damage to vehicle ECUs.",
-                file=sys.stderr,
-            )
-            try:
-                confirm = await asyncio.get_event_loop().run_in_executor(
-                    None,
-                    lambda: input("  !! Type 'YES' to execute, anything else to skip: "),
-                )
-            except (EOFError, KeyboardInterrupt):
-                confirm = ""
-            if confirm.strip() != "YES":
-                log_command(f"{cmd}  !! {blocked} -- user declined")
-                raise ValueError(f"Command declined by user: {cmd}")
-            log_command(f"{cmd}  !! {blocked} -- user confirmed (unsafe mode)")
+        await enforce_command_safety(cmd, self.unsafe)
 
         async with self._cmd_lock:
             return await self._send_command_locked(cmd, timeout)

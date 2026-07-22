@@ -1,6 +1,7 @@
 """Mode implementations for canreq.py."""
 
 from .discover import mode_discover
+from .dtc import mode_dtc_clear, mode_dtc_read
 from .ecu import mode_ecu
 from .identity import (
     IDENTITY_DIDS,
@@ -27,6 +28,8 @@ __all__ = [
     "SKM_RELAYS",
     "UDS_IDENTITY_DIDS",
     "mode_discover",
+    "mode_dtc_clear",
+    "mode_dtc_read",
     "mode_ecu",
     "mode_identity",
     "mode_interactive",
