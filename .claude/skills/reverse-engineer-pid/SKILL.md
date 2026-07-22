@@ -115,6 +115,8 @@ decoded values (press `s` to edit metadata live). After saving, run
 ### 5. Inspect — see the bytes
 
 ```bash
+canair captures --sessions                    # what's in the captures? (TOC: date/state/label/notes/ECUs)
+canair captures --sessions --state driving    # index of every drive
 canair captures MCU 2102                      # list captures + decoded
 canair captures MCU:2102 --diff               # unique payloads, byte-diff
 canair captures MCU:2102 --diff --since 2026-07-19   # scope by date
@@ -123,6 +125,9 @@ canair captures MCU:2102 --step               # interactive step-through
 canair bix -1 --annotate 6101FFFF...          # map each byte -> Bnn/ISO-TP/Torque/role
 ```
 
+Start with `canair captures --sessions` to see what data exists (labels, states,
+notes per session — no payloads) and pick a drive/state to analyze; `--json`
+gives a machine-readable index.
 Byte-diff highlights which bytes moved between states — your candidate signal
 bytes. Both `captures` and `decode` share the same scoping flags —
 `--since`/`--until`/`--date`, `--state SUBSTR`/`--label SUBSTR`, `--first`/
@@ -236,6 +241,7 @@ Then consider an upstream wican-fw PR (see parent skill goals).
 | Step | Tool |
 |------|------|
 | what to work on | `canair research`, `canair coverage` |
+| what's captured | `canair captures --sessions` (TOC: date/state/label/notes/ECUs; `--json`) |
 | talk to the car | `canair query`/`scan`/`discover` (`--monitor`, `--save`) |
 | see captures | `canair captures` (`--diff`/`--step`/`--since`/`--until`/`--state`/`--label`) |
 | map bytes | `canair bix --annotate` |

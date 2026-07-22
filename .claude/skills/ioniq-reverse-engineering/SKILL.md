@@ -195,7 +195,8 @@ Full reference: **AGENTS.md** + `canair <cmd> --help`. Key project behaviors:
   live; the **state is auto-suggested** from decoded PID values via the profile's
   `states.yaml`. For edits/removals use `canlib.captures`
   (`set_capture_note`/`delete_capture`). After saving, run `canair captures
-  --summary` to spot patterns missed live.
+  --summary` to spot patterns missed live, or `canair captures --sessions` for a
+  metadata table of contents (date/state/label/notes/ECUs per session; `--json`).
 - **`--session` / `--wake`.** `--session` = extended session (`10 03`) + 2s
   TesterPresent keepalive; required for IGPM `22BCxx`/`2FBCxx`. `--wake` sends
   `10 01` to rouse a deep-sleeping ECU (implies `--session`; first try may return

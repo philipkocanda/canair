@@ -9,7 +9,13 @@ from canlib.captures import (
     resolve_metadata,
     save_session,
 )
-from canlib.commands.captures import _gather_query, _is_hex_payload
+from canlib.commands.captures import (
+    _clean,
+    _gather_query,
+    _group_sessions,
+    _is_hex_payload,
+    cmd_sessions,
+)
 
 
 class TestIsHexPayload:
@@ -98,3 +104,102 @@ class TestBuildQuerySession:
         data = yaml.safe_load(files[0].read_text())
         assert data["sessions"][0]["label"] == "Live ref"
         assert data["sessions"][0]["captures"][0]["payload"] == "6102AABB"
+
+
+def _entry(**kw):
+    """A minimal flat capture entry as load_all_captures would produce."""
+    base = {
+        "file": "2026-07-22.yaml", "date": "2026-07-22", "session_label": "",
+        "state": "", "session_notes": "", "ecu": "MCU", "ecu_addr": "0x7E3",
+        "pid": "2102", "payload": "6102AA", "response": None, "scan_results": None,
+        "notes": "", "time": "", "label": "", "_session_idx": 0, "_capture_idx": 0,
+    }
+    base.update(kw)
+    return base
+
+
+class TestClean:
+    def test_strips_ansi_and_control(self):
+        # A note that captured raw arrow-key escapes must not corrupt output.
+        assert _clean("hit 100\x1b[D\x1b[Dkm/h") == "hit 100km/h"
+
+    def test_collapses_whitespace_and_newlines(self):
+        assert _clean("line one\n  line two\t x") == "line one line two x"
+
+    def test_plain_passthrough(self):
+        assert _clean("driving MT->KW") == "driving MT->KW"
+
+
+class TestGroupSessions:
+    def test_groups_by_file_and_session_idx(self):
+        entries = [
+            _entry(_session_idx=0, session_label="drive A", state="driving", time="16:00:00"),
+            _entry(_session_idx=0, session_label="drive A", state="driving", time="16:00:05",
+                   ecu="VCU"),
+            _entry(_session_idx=1, session_label="park", state="ready", time="17:00:00"),
+        ]
+        sessions = _group_sessions(entries)
+        assert len(sessions) == 2
+        a = sessions[0]
+        assert a["label"] == "drive A" and a["n"] == 2
+        assert list(a["ecus"]) == ["MCU", "VCU"]
+        assert a["times"] == ["16:00:00", "16:00:05"]
+
+    def test_same_label_distinct_sessions_not_merged(self):
+        # Two sessions sharing a label are still distinct by _session_idx.
+        entries = [
+            _entry(_session_idx=0, session_label="dup", time="10:00:00"),
+            _entry(_session_idx=1, session_label="dup", time="11:00:00"),
+        ]
+        assert len(_group_sessions(entries)) == 2
+
+    def test_chronological_order(self):
+        entries = [
+            _entry(_session_idx=0, date="2026-07-22", time="18:00:00"),
+            _entry(_session_idx=1, date="2026-07-20", time="09:00:00"),
+        ]
+        sessions = _group_sessions(entries)
+        assert [s["date"] for s in sessions] == ["2026-07-20", "2026-07-22"]
+
+    def test_distinct_capture_notes_deduped(self):
+        entries = [
+            _entry(_session_idx=0, notes="note X"),
+            _entry(_session_idx=0, notes="note X"),
+            _entry(_session_idx=0, notes="note Y"),
+        ]
+        assert _group_sessions(entries)[0]["cap_notes"] == ["note X", "note Y"]
+
+
+class TestCmdSessions:
+    def test_text_output_shows_metadata(self, capsys):
+        entries = [
+            _entry(session_label="ESC drive", state="driving MT->KW",
+                   session_notes="highway then city", time="16:51:52.4"),
+        ]
+        cmd_sessions(entries)
+        out = capsys.readouterr().out
+        assert "driving MT->KW" in out
+        assert "ESC drive" in out
+        assert "highway then city" in out
+        assert "1 captures" in out and "MCU" in out
+
+    def test_json_output(self, capsys):
+        entries = [
+            _entry(session_label="lbl", state="driving", session_notes="n",
+                   time="16:00:00", ecu="MCU"),
+            _entry(session_label="lbl", state="driving", time="16:00:09", ecu="VCU"),
+        ]
+        cmd_sessions(entries, as_json=True)
+        import json
+        data = json.loads(capsys.readouterr().out)
+        assert len(data) == 1
+        s = data[0]
+        assert s["captures"] == 2
+        assert s["ecus"] == ["MCU", "VCU"]
+        assert s["time_start"] == "16:00:00" and s["time_end"] == "16:00:09"
+        assert s["state"] == "driving" and s["notes"] == "n"
+
+    def test_json_empty(self, capsys):
+        cmd_sessions([], as_json=True)
+        import json
+        assert json.loads(capsys.readouterr().out) == []
