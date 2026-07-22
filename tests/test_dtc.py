@@ -173,6 +173,60 @@ class TestFormatKwpDtc:
         assert dtc.format_kwp_dtc(0xC1, 0x07) == "U0107"
 
 
+class TestScanAll:
+    @pytest.mark.asyncio
+    async def test_scan_all_json(self, monkeypatch, capsys):
+        # Registry: a UDS ECU (BCM 0x7A0) and a KWP ECU (BMS 0x7E4).
+        monkeypatch.setattr(
+            dtc, "resolve_protocol",
+            lambda proto, tx: "kwp" if tx == 0x7E4 else "uds",
+        )
+        monkeypatch.setattr(
+            "canlib.ecus.load_ecus",
+            lambda: {
+                0x7A0: {"name": "BCM", "id_protocol": "UDS"},
+                0x7E4: {"name": "BMS", "id_protocol": "KWP2000"},
+            },
+        )
+        t = FakeTerminal(
+            {
+                "1902FF": _ok("5902FF" + "0123002F"),  # BCM: 1 DTC
+                "1800FF00": _ok("5800"),               # BMS: clean
+            }
+        )
+        await dtc.mode_dtc_scan_all(t, as_json=True)
+        data = json.loads(capsys.readouterr().out)
+        assert data["scanned"] == 2
+        assert data["with_dtcs"] == 1
+        assert data["total_codes"] == 1
+        by_ecu = {r["ecu"]: r for r in data["results"]}
+        assert any(r.get("count") == 1 for r in data["results"])
+        assert any(r["protocol"] == "kwp" for r in data["results"])
+
+    @pytest.mark.asyncio
+    async def test_scan_all_text_no_dtcs(self, monkeypatch, capsys):
+        monkeypatch.setattr(dtc, "resolve_protocol", lambda proto, tx: "uds")
+        monkeypatch.setattr(
+            "canlib.ecus.load_ecus",
+            lambda: {0x7A0: {"name": "BCM"}, 0x770: {"name": "IGPM"}},
+        )
+        t = FakeTerminal({"1902FF": _ok("5902FF")})  # both clean
+        await dtc.mode_dtc_scan_all(t, as_json=False)
+        out = capsys.readouterr().out
+        assert "No DTCs on any" in out
+
+    @pytest.mark.asyncio
+    async def test_scan_all_dispatch(self, monkeypatch, capsys):
+        from canlib.commands._live import CANREQ_DEFAULTS, dispatch_mode
+
+        monkeypatch.setattr(dtc, "resolve_protocol", lambda proto, tx: "uds")
+        monkeypatch.setattr("canlib.ecus.load_ecus", lambda: {0x7A0: {"name": "BCM"}})
+        t = FakeTerminal({"1902FF": _ok("5902FF")})
+        args = argparse.Namespace(**{**CANREQ_DEFAULTS, "dtc_all": True, "mask": "FF"})
+        await dispatch_mode(args, t, {}, "1.2.3.4")
+        assert "No DTCs on any" in capsys.readouterr().out
+
+
 class TestModeClear:
     @pytest.mark.asyncio
     async def test_clear_ok(self, capsys):

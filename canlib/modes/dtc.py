@@ -158,10 +158,10 @@ async def mode_dtc_read(
 ):
     """Read stored DTCs, auto-selecting UDS 0x19 or KWP2000 0x18 by protocol."""
     proto = resolve_protocol(protocol, tx_id)
-    await terminal.set_header(tx_id)
 
     tester_task = None
     if session:
+        await terminal.set_header(tx_id)
         _, tester_task = await terminal.enter_extended_session(wake=wake)
 
     try:
@@ -171,10 +171,7 @@ async def mode_dtc_read(
             print(f"\n  DTC read: {ecu_display(tx_id)}")
             print(f"  Protocol: {fam}\n")
 
-        if proto == "kwp":
-            result = await _read_kwp(terminal, tx_id)
-        else:
-            result = await _read_uds(terminal, tx_id, mask, verbose)
+        result = await _read_one(terminal, tx_id, mask, protocol, verbose)
         _report_read(as_json, result)
     finally:
         if tester_task:
@@ -185,10 +182,28 @@ async def mode_dtc_read(
                 pass
 
 
-async def _read_uds(terminal: WiCANTerminal, tx_id: int, mask: int, verbose: bool) -> dict:
+async def _read_one(
+    terminal: WiCANTerminal,
+    tx_id: int,
+    mask: int,
+    protocol: str,
+    verbose: bool,
+    timeout: float = 3.0,
+) -> dict:
+    """Set the header and read DTCs from one ECU (no session handling)."""
+    proto = resolve_protocol(protocol, tx_id)
+    await terminal.set_header(tx_id)
+    if proto == "kwp":
+        return await _read_kwp(terminal, tx_id, timeout=timeout)
+    return await _read_uds(terminal, tx_id, mask, verbose, timeout=timeout)
+
+
+async def _read_uds(
+    terminal: WiCANTerminal, tx_id: int, mask: int, verbose: bool, timeout: float = 3.0
+) -> dict:
     ecu = ecu_display(tx_id)
     cmd = f"1902{mask & 0xFF:02X}"
-    response = await terminal.send_uds(cmd, timeout=3.0, expected_sid=0x19)
+    response = await terminal.send_uds(cmd, timeout=timeout, expected_sid=0x19)
 
     # Mask fallback: some ECUs reject 0xFF with requestOutOfRange (0x31) and only
     # accept a mask within their availability bits. Retry once with confirmedDTC.
@@ -201,7 +216,7 @@ async def _read_uds(terminal: WiCANTerminal, tx_id: int, mask: int, verbose: boo
             print(f"  mask 0x{mask & 0xFF:02X} rejected (0x31); retrying with "
                   f"0x{_MASK_FALLBACK:02X}", flush=True)
         cmd = f"1902{_MASK_FALLBACK:02X}"
-        response = await terminal.send_uds(cmd, timeout=3.0, expected_sid=0x19)
+        response = await terminal.send_uds(cmd, timeout=timeout, expected_sid=0x19)
 
     base = {"ecu": ecu, "protocol": "uds", "command": cmd}
     if response["ok"]:
@@ -219,13 +234,17 @@ async def _read_uds(terminal: WiCANTerminal, tx_id: int, mask: int, verbose: boo
     return {**base, "error": response.get("error", "unknown")}
 
 
-async def _read_kwp(terminal: WiCANTerminal, tx_id: int) -> dict:
+async def _read_kwp(terminal: WiCANTerminal, tx_id: int, timeout: float = 3.0) -> dict:
     ecu = ecu_display(tx_id)
     response = None
     cmd = _KWP_READ_REQUESTS[0]
     for cmd in _KWP_READ_REQUESTS:
-        response = await terminal.send_uds(cmd, timeout=3.0, expected_sid=0x18)
+        response = await terminal.send_uds(cmd, timeout=timeout, expected_sid=0x18)
         if response["ok"]:
+            break
+        # Only probe alternate request forms if the ECU actually answered (NRC);
+        # no response means the ECU isn't present — stop probing.
+        if response.get("nrc") is None:
             break
 
     base = {"ecu": ecu, "protocol": "kwp", "command": cmd}
@@ -239,6 +258,7 @@ async def _read_kwp(terminal: WiCANTerminal, tx_id: int) -> dict:
     return {**base, "error": response.get("error", "unknown")}
 
 
+
 def _jsonable(records: list[dict]) -> list[dict]:
     """Render internal records (int status) into the JSON/print-friendly shape."""
     return [
@@ -250,6 +270,80 @@ def _jsonable(records: list[dict]) -> list[dict]:
         }
         for r in records
     ]
+
+
+def _scan_status(res: dict) -> str:
+    """One-line result summary for a single ECU in an all-ECU scan."""
+    if "dtcs" in res:
+        n = res["count"]
+        return f"{n} DTC(s)" if n else "clean"
+    if "nrc" in res:
+        from ..elm327 import nrc_abbrev
+
+        return f"NRC {res['nrc']} {nrc_abbrev(int(res['nrc'], 16))}"
+    err = res.get("error", "error")
+    return "no response" if ("NO DATA" in err or "No response" in err) else err
+
+
+async def mode_dtc_scan_all(
+    terminal: WiCANTerminal,
+    mask: int = 0xFF,
+    protocol: str = "auto",
+    as_json: bool = False,
+    verbose: bool = False,
+    timeout: float = 2.0,
+):
+    """Sweep every ECU in the profile registry and read its stored DTCs.
+
+    Each ECU's service is auto-selected by its ``id_protocol`` (UDS 0x19 vs
+    KWP2000 0x18). Reads run in the default session (no wake) — the same way the
+    single-ECU reads succeed — and are strictly sequential (one connection).
+    """
+    from ..ecus import load_ecus
+
+    registry = load_ecus()
+    tx_ids = sorted(registry)
+
+    if not as_json:
+        print(f"\n  Scanning {len(tx_ids)} ECUs for DTCs "
+              f"(protocol={protocol}, mask=0x{mask & 0xFF:02X})...\n")
+        name_w = max((len(ecu_display(t)) for t in tx_ids), default=12)
+
+    results = []
+    for tx_id in tx_ids:
+        res = await _read_one(terminal, tx_id, mask, protocol, verbose, timeout=timeout)
+        results.append(res)
+        if not as_json:
+            status = _scan_status(res)
+            print(f"  {res['ecu']:<{name_w}}  {res['protocol']:<4}  {status}")
+
+    faulty = [r for r in results if r.get("count")]
+    total_codes = sum(r["count"] for r in faulty)
+
+    if as_json:
+        print(json.dumps(
+            {
+                "scanned": len(results),
+                "with_dtcs": len(faulty),
+                "total_codes": total_codes,
+                "results": results,
+            },
+            indent=2,
+        ))
+        return
+
+    print()
+    if not faulty:
+        print(f"  ✓ No DTCs on any of the {len(results)} ECUs scanned.\n")
+        return
+
+    print(f"  ⚠ {len(faulty)} ECU(s) with DTCs — {total_codes} code(s) total:\n")
+    for r in faulty:
+        print(f"  {r['ecu']} ({r['protocol']}):")
+        for d in r["dtcs"]:
+            flags = ", ".join(d["status_bits"]) or "raw status"
+            print(f"      {d['dtc']}  {d['status']}  {flags}")
+    print()
 
 
 async def mode_dtc_clear(
