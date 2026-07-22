@@ -1,7 +1,7 @@
 """Routines mode — list, execute, and interactive TUI for RoutineControl commands.
 
 Each entry in the ``routines:`` YAML section is a Routine Identifier (RID)
-discovered by ``--routines-scan``. This mode exposes three sub-modes:
+discovered by ``canair scan routines``. This mode exposes three sub-modes:
 
 * ``mode_routines_list``   — offline listing of all RIDs for an ECU.
 * ``mode_routines_execute`` — send a single sub-function to a specific RID.

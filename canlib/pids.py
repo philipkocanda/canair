@@ -126,7 +126,7 @@ def build_routines_index(pids_data: dict) -> dict:
     """Build lookup: ECU_NAME -> {tx_id, routines: {RID: {label, nrc, nrc_desc, response, verified, notes}}}.
 
     Reads the ``routines:`` section from each ECU's YAML. Each entry corresponds
-    to a RoutineControl (0x31) hit found by ``--routines-scan``. The TUI uses this
+    to a RoutineControl (0x31) hit found by ``canair scan routines``. The TUI uses this
     to send sub-function 0x03 (requestRoutineResults — safe, read-only) and
     optionally 0x01 (startRoutine — only with explicit user confirmation).
     """

@@ -188,6 +188,8 @@ Built as a `DiscoveryProbe` on the Stage-2 engine:
 - `pids_edit._find_iocontrol_did_span` still assumes 4-digit keys — extend to 2-digit
   for CLI editing of KWP discoveries.
 - CLI Stage 3b/3c (fold the `*-scan` commands under `canair scan`) now that the engine
-  is shared.
+  is shared.  ← DONE: `canair scan {range,iocontrol,routines}` command group; bare
+  `canair scan BMS` auto-aliases to `scan range`; standalone `iocontrol-scan` /
+  `routines-scan` commands removed (see `cli._inject_default_scan_kind`).
 - Derive `SERVICE_PRESETS` / `elm327.BLOCKED_UDS_SERVICES` from `uds_services.py` to
   fully collapse the remaining scattered service knowledge.
