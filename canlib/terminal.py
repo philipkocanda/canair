@@ -21,6 +21,7 @@ except ImportError:
 
 from .log import log_command, log_response
 from .safety import enforce_command_safety
+from .timing import TimingRecorder
 from .uds_parse import parse_uds_response
 
 
@@ -48,6 +49,11 @@ class WiCANTerminal:
         # per-cycle command counts / ELM latency.
         self.cmd_count = 0
         self.cmd_time = 0.0
+        # Per-(ECU, PID) round-trip timing (surfaced by `canair query --timings`).
+        self.timings = TimingRecorder()
+        # Optional per-ECU response budget {tx_id: seconds}. When a read passes no
+        # explicit timeout, the current header's budget (else self.timeout) applies.
+        self.ecu_timeouts: dict[int, float] = {}
         # Cached ELM header state so repeated set_header() for the same ECU is a
         # no-op (headers only change on ECU switch). Kept coherent for any caller
         # by inspecting commands in _send_command_locked (ATSH/ATFCSH set it,
@@ -60,7 +66,7 @@ class WiCANTerminal:
         if self.verbose:
             print(f"  [ws] Connecting to {self.url}...", file=sys.stderr)
 
-        self.ws = await websockets.connect(self.url, ping_interval=None)
+        self.ws = await websockets.connect(self.url, ping_interval=None, open_timeout=10.0)
         self._cur_header = None
         self._cur_fc_header = None
 
@@ -209,7 +215,12 @@ class WiCANTerminal:
 
         result = raw.strip()
         log_response(cmd, result)
-        self.cmd_time += time.monotonic() - _t0
+        elapsed = time.monotonic() - _t0
+        self.cmd_time += elapsed
+        # Record RTT for real UDS requests only (skip AT setup + 3E00 keepalives).
+        cu = cmd.replace(" ", "").upper()
+        if not cu.startswith("AT") and cu != "3E00" and self._cur_header is not None:
+            self.timings.record(f"0x{self._cur_header:03X}", cu, elapsed)
         return result
 
     async def init_elm(self, init_string: str = "ATSP6;ATS0;ATAL;ATST96;"):
@@ -274,27 +285,46 @@ class WiCANTerminal:
         timeout: float | None = None,
         expected_sid: int | None = None,
         expected_did: int | None = None,
+        retries: int = 0,
     ) -> dict:
         """Send a UDS request and parse the response.
 
         Args:
             service_pid: UDS request hex string (e.g., "2101", "22C00B")
             timeout: WebSocket-level timeout in seconds (see send_command docstring)
-            expected_sid: If set, parser validates the response echoes this SID
+            expected_sid: If set, the parser validates the response echoes this SID
                 (catches stale frames from previous requests).
-            expected_did: If set along with ``expected_sid``, parser also
+            expected_did: If set along with ``expected_sid``, the parser also
                 validates the DID echo in bytes 1..2 of the positive response.
+            retries: Re-send on a *non-answer* (timeout / NO DATA / transport
+                error) up to this many extra times. A definitive negative
+                response (NRC) or a positive response is returned immediately —
+                only silence is retried. The Ioniq's first request after idle
+                often times out (see profile note); one retry recovers it.
 
         Returns:
             Parsed response dict from parse_uds_response()
         """
-        raw = await self.send_command(service_pid, timeout=timeout)
-        return parse_uds_response(
-            raw,
-            expected_sid=expected_sid,
-            expected_did=expected_did,
-        )
-
+        if timeout is None:
+            # Per-ECU budget for the current header, else the client default.
+            timeout = self.ecu_timeouts.get(self._cur_header, self.timeout)
+        attempt = 0
+        while True:
+            raw = await self.send_command(service_pid, timeout=timeout)
+            resp = parse_uds_response(
+                raw,
+                expected_sid=expected_sid,
+                expected_did=expected_did,
+            )
+            if resp.get("ok") or resp.get("nrc") is not None or attempt >= retries:
+                return resp
+            attempt += 1
+            if self.verbose:
+                print(
+                    f"  [retry] {service_pid}: {resp.get('error', 'no response')}"
+                    f" — retry {attempt}/{retries}",
+                    file=sys.stderr,
+                )
     async def enter_extended_session(
         self, wake: bool = False, mode: str = "03"
     ) -> tuple[bool, asyncio.Task | None]:

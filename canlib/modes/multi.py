@@ -364,10 +364,12 @@ async def _read_single(sm, tx_id, pid_code, pid_info, unmapped, batch_state):
     """
     await sm.keepalive_stale()
     await sm.terminal.set_header(tx_id)
-    resp = await sm.terminal.send_uds(pid_code)
+    resp = await sm.terminal.send_uds(pid_code, retries=1)
     # Timestamp the moment the response arrived so sequentially-polled PIDs keep
     # their true sub-second acquisition skew.
     acquired_at = time.time()
+    if resp.get("ok") or resp.get("nrc") is not None:
+        sm.mark_active(tx_id)  # a real answer resets S3 — no redundant 3E00 needed
     if not resp.get("ok"):
         return _error_result(pid_code, unmapped, resp, acquired_at)
     if batch_state is not None and _is_did22(pid_code) and resp.get("hex"):
@@ -389,6 +391,8 @@ async def _read_batch(sm, tx_id, group, out, batch_state) -> bool:
     await sm.terminal.set_header(tx_id)
     resp = await sm.terminal.send_uds("22" + "".join(dids))
     acquired_at = time.time()
+    if resp.get("ok") or resp.get("nrc") is not None:
+        sm.mark_active(tx_id)  # a real answer resets S3 — no redundant 3E00 needed
     if not resp.get("ok"):
         if resp.get("nrc") in (0x13, 0x31):
             batch_state.disabled.add(tx_id)
@@ -642,7 +646,7 @@ async def _exec_iocontrol(
 
     # Ensure session is active on this ECU if needed
     if cmd_def["session"] and tx_id not in sm.active_sessions:
-        await sm.ensure_session(tx_id)
+        await sm.open_session(tx_id)
 
     await sm.keepalive_stale()
     await sm.terminal.set_header(tx_id)
@@ -1212,6 +1216,10 @@ async def mode_multi(
         return suggest_state(rules, pipe_values, pipe_responded)
 
     try:
+        # Shared batch state so multi_did-capable ECUs batch service-22 DIDs in
+        # the one-shot pipeline too (previously only the monitor did). Learns
+        # per-DID lengths across steps and auto-falls back per-DID on rejection.
+        batch_state = BatchState()
         for i, cmd in enumerate(commands):
             cmd_type = cmd["type"]
             step = f"[{i + 1}/{len(commands)}]"
@@ -1236,6 +1244,7 @@ async def mode_multi(
                         pids_data,
                         verbose,
                         return_results=True,
+                        batch_state=batch_state,
                     )
                     if result:
                         ecu_label, pid_results = result
@@ -1244,7 +1253,15 @@ async def mode_multi(
                         )
                         _collect_query(ecu_label, pid_results)
                 else:
-                    await _exec_query(sm, cmd["ecu"], cmd["pids"], ecu_index, pids_data, verbose)
+                    await _exec_query(
+                        sm,
+                        cmd["ecu"],
+                        cmd["pids"],
+                        ecu_index,
+                        pids_data,
+                        verbose,
+                        batch_state=batch_state,
+                    )
 
             elif cmd_type == "raw":
                 print(f"\n{step} Raw {cmd['spec']}...")

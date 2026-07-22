@@ -42,16 +42,20 @@ async def mode_param(
 
     all_results = []
     tester_tasks = []
+    opened: set[int] = set()  # ECUs we've already entered a session on
 
     try:
         for (tx_id, pid), params in groups.items():
             await terminal.set_header(tx_id)
 
-            if session:
+            if session and tx_id not in opened:
+                # One session (+ TesterPresent loop) per ECU, not per (ECU, PID) —
+                # several params on the same ECU must not each open a session.
                 _, tester_task = await terminal.enter_extended_session(wake=wake)
                 tester_tasks.append(tester_task)
+                opened.add(tx_id)
 
-            response = await terminal.send_uds(pid)
+            response = await terminal.send_uds(pid, retries=1)
 
             if not response["ok"]:
                 error = response.get("error") or response.get("nrc_desc", "unknown error")

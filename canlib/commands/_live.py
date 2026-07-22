@@ -29,7 +29,6 @@ from canlib import (
     log_command,
     reboot_wican,
 )
-from canlib.transport.config import DEFAULT_TRANSPORT, VALID_TRANSPORTS
 from canlib.lock import WiCANLock
 from canlib.modes import (
     mode_discover,
@@ -48,6 +47,7 @@ from canlib.modes.iocontrol import mode_iocontrol_execute, mode_iocontrol_list
 from canlib.modes.iocontrol_scan import mode_iocontrol_scan
 from canlib.modes.routines import mode_routines_execute, mode_routines_list
 from canlib.modes.routines_scan import mode_routines_scan
+from canlib.transport.config import DEFAULT_TRANSPORT, VALID_TRANSPORTS
 
 try:
     import websockets
@@ -115,6 +115,7 @@ CANREQ_DEFAULTS: dict = {
     "elm_timeout": None,
     "json": False,
     "verbose": False,
+    "timings": False,
     "reboot": False,
     "unsafe": False,
     "force": False,
@@ -240,9 +241,22 @@ def add_connection_args(parser: argparse.ArgumentParser) -> None:
         metavar="MS",
         help="ELM327 ECU response timeout in ms (sent as ATSTxx after init)",
     )
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=None,
+        metavar="SECONDS",
+        help="Overall UDS response timeout in seconds (default 3.0 ELM / 2.0 raw). "
+        "Overrides any per-ECU response_timeout_ms for the whole run.",
+    )
     parser.add_argument("--json", action="store_true", help="Output results as JSON")
     parser.add_argument(
         "--verbose", "-v", action="store_true", help="Show raw transport traffic and expressions"
+    )
+    parser.add_argument(
+        "--timings",
+        action="store_true",
+        help="Print per-ECU/PID round-trip timing stats on exit (to stderr)",
     )
     parser.add_argument(
         "--reboot", action="store_true", help="Reboot WiCAN after session to restore AutoPID mode"
@@ -408,12 +422,22 @@ async def async_main(args):
 
         orphan_notice()
 
+    from canlib.timeouts import cli_timeout
+
+    _cli_timeout = cli_timeout(args)
+    _ws_timeout = _cli_timeout if _cli_timeout is not None else 3.0
+
     terminal = WiCANTerminal(
         host=host,
-        timeout=args.timeout,
+        timeout=_ws_timeout,
         verbose=args.verbose,
         unsafe=args.unsafe,
     )
+    # Per-ECU response budgets apply only when the user didn't force --timeout.
+    if _cli_timeout is None:
+        from canlib.timeouts import ecu_timeouts_by_tx
+
+        terminal.ecu_timeouts = ecu_timeouts_by_tx(pids_data)
 
     try:
         print(f"Connecting to WiCAN at {host}...")
@@ -434,10 +458,15 @@ async def async_main(args):
             # cycles / NO-DATA detection). --elm-timeout overrides this.
             atst_val = max(1, min(255, round(pids_data["response_timeout_ms"] / 4.096)))
             atst_cmd = f"ATST{atst_val:02X}"
-            await terminal.send_command(atst_cmd)
-            terminal.elm_timeout_cmd = atst_cmd
-            actual_ms = atst_val * 4.096
-            print(f"  ELM327 timeout: {atst_cmd} ({actual_ms:.0f}ms, from profile)")
+            # Skip if the init string already applied this exact ATST (avoid a
+            # redundant round-trip on connect).
+            _init_atst = re.search(r"ATST([0-9A-Fa-f]{2})", init_string)
+            already = _init_atst and f"ATST{_init_atst.group(1).upper()}" == atst_cmd
+            if not already:
+                await terminal.send_command(atst_cmd)
+                terminal.elm_timeout_cmd = atst_cmd
+                actual_ms = atst_val * 4.096
+                print(f"  ELM327 timeout: {atst_cmd} ({actual_ms:.0f}ms, from profile)")
 
         print("Ready.")
         _print_sleep_banner(host)
@@ -446,6 +475,11 @@ async def async_main(args):
             args.session = True
 
         await dispatch_mode(args, terminal, pids_data, host)
+
+        if getattr(args, "timings", False):
+            from canlib.timing import print_timings
+
+            print_timings(terminal.timings, as_json=args.json)
 
     except ConnectionError as e:
         print(f"Connection error: {e}", file=sys.stderr)

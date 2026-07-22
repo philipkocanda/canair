@@ -44,17 +44,31 @@ async def run_raw(args, transport, pids_data) -> int:
 
     # All other commands: reuse the shared dispatch over a RawTerminal adapter.
     from ..commands._live import dispatch_mode
+    from ..timeouts import cli_timeout, ecu_timeouts_by_tx
     from ..transport import RawTerminal
 
     print(f"  Raw CAN via SLCAN — {host}:{port} @ {bitrate} bps")
+    cli = cli_timeout(args)
     terminal = RawTerminal(
-        host, port, bitrate, verbose=args.verbose, unsafe=getattr(args, "unsafe", False)
+        host,
+        port,
+        bitrate,
+        verbose=args.verbose,
+        unsafe=getattr(args, "unsafe", False),
+        timeout=(cli if cli is not None else 2.0),
     )
+    # Per-ECU budgets apply only when the user didn't force --timeout.
+    if cli is None:
+        terminal.ecu_timeouts = ecu_timeouts_by_tx(pids_data)
     try:
         await dispatch_mode(args, terminal, pids_data, host)
     except ConnectionError as e:
         print(f"Connection error: {e}", file=sys.stderr)
         return 1
     finally:
+        if getattr(args, "timings", False):
+            from ..timing import print_timings
+
+            print_timings(terminal.timings, as_json=getattr(args, "json", False))
         await terminal.close()
     return 0

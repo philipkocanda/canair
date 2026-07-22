@@ -19,6 +19,8 @@ import time
 import can
 import isotp
 
+from ..timing import TimingRecorder
+
 # Quiet can-isotp's transient recovered-timeout warnings (e.g. a cold ECU's first
 # multi-frame response) — they're handled/retried and just add noise. Genuine
 # errors surface as per-request Exceptions from poll()/read().
@@ -43,6 +45,12 @@ def is_response_pending(resp: bytes) -> bool:
     return len(resp) >= 3 and resp[0] == 0x7F and resp[2] == 0x78
 
 
+# UDS ResponsePending (0x78) bounds — the ECU said "still working"; wait for the
+# real answer, capped. Shared by both raw-CAN clients (RawUdsClient + RawTerminal).
+PENDING_RECV_TIMEOUT = 5.0  # per follow-up wait after a 0x78
+PENDING_TOTAL_TIMEOUT = 20.0  # overall cap while the ECU keeps saying "pending"
+
+
 
 class RawUdsClient:
     """UDS reads over raw CAN with per-ECU ISO-TP stacks and pipelined polling."""
@@ -54,10 +62,18 @@ class RawUdsClient:
         *,
         timeout: float = 1.0,
         tx_padding: int = 0xAA,
+        ecu_timeouts: dict[str, float] | None = None,
     ):
-        """``ecus``: name -> (tx_id, rx_id). ``timeout``: per-request seconds."""
+        """``ecus``: name -> (tx_id, rx_id). ``timeout``: per-request seconds.
+
+        ``ecu_timeouts``: optional ``{ECU_NAME(upper): seconds}`` per-ECU budget
+        overriding ``timeout`` for that ECU (see :mod:`canlib.timeouts`).
+        """
         self.bus = bus
         self.timeout = timeout
+        self.ecu_timeouts = ecu_timeouts or {}
+        # Per-(ECU, PID) round-trip timing (surfaced by `canair query --timings`).
+        self.timings = TimingRecorder()
         self.notifier = can.Notifier(bus, [], timeout=0.1)
         self._stacks: dict[str, isotp.NotifierBasedCanStack] = {}
         params = {
@@ -87,11 +103,23 @@ class RawUdsClient:
         """Send one UDS request to ``ecu`` and return the reassembled response."""
         stack = self._stacks[ecu]
         self._drain(ecu)
+        t0 = time.monotonic()
         stack.send(request)
-        resp = stack.recv(block=True, timeout=timeout if timeout is not None else self.timeout)
+        t = timeout if timeout is not None else self.ecu_timeouts.get(ecu, self.timeout)
+        resp = stack.recv(block=True, timeout=t)
         if resp is None:
             raise TimeoutError(f"no UDS response from {ecu}")
-        return bytes(resp)
+        resp = bytes(resp)
+        # Wait through UDS ResponsePending (0x78) so slow services return their
+        # final answer — parity with the ELM327 path + RawTerminal.
+        pending_deadline = time.monotonic() + PENDING_TOTAL_TIMEOUT
+        while is_response_pending(resp) and time.monotonic() < pending_deadline:
+            nxt = stack.recv(block=True, timeout=PENDING_RECV_TIMEOUT)
+            if nxt is None:
+                break
+            resp = bytes(nxt)
+        self.timings.record(ecu, request.hex().upper(), time.monotonic() - t0)
+        return resp
 
     def poll(
         self, requests: list[tuple[str, bytes]], timeout: float | None = None
@@ -104,10 +132,19 @@ class RawUdsClient:
         that round's responses — overlapping the ECUs' think-time. Returns a map
         keyed by the input ``(ecu, request)`` tuple; values are response bytes or
         an ``Exception`` on failure.
+
+        Collection is a **non-blocking multiplexed harvest**: each in-flight
+        request gets its *own* deadline (``sent_at + t``) and we round-robin over
+        all stacks, taking whichever completes first. This avoids the earlier
+        shared-deadline bug where one slow/silent ECU consumed the whole budget
+        and starved the ECUs collected after it (leaving them ~0.05s → spurious
+        timeouts). Now a slow ECU only spends its own budget; the rest are
+        unaffected.
         """
         from collections import defaultdict, deque
 
-        t = timeout if timeout is not None else self.timeout
+        explicit = timeout is not None
+        t = timeout if explicit else self.timeout
         queues: dict[str, deque] = defaultdict(deque)
         for ecu, req in requests:
             queues[ecu].append(req)
@@ -116,22 +153,51 @@ class RawUdsClient:
 
         out: dict[tuple[str, bytes], bytes | Exception] = {}
         while any(queues.values()):
-            inflight = []
+            # Send one request per ECU (concurrent on the bus).
+            pending: dict[str, dict] = {}  # ecu -> {req, sent_at, deadline, cap}
+            now = time.monotonic()
             for ecu, q in queues.items():
                 if q:
                     req = q.popleft()
                     self._stacks[ecu].send(req)
-                    inflight.append((ecu, req))
-            deadline = time.monotonic() + t
-            for ecu, req in inflight:
-                remaining = max(0.05, deadline - time.monotonic())
-                try:
-                    resp = self._stacks[ecu].recv(block=True, timeout=remaining)
-                    out[(ecu, req)] = (
-                        bytes(resp) if resp is not None else TimeoutError("no response")
-                    )
-                except Exception as e:  # surface per-request, keep polling the rest
-                    out[(ecu, req)] = e
+                    # Per-ECU budget applies unless the caller forced a timeout.
+                    ecu_t = t if explicit else self.ecu_timeouts.get(ecu, t)
+                    pending[ecu] = {"req": req, "sent_at": now, "deadline": now + ecu_t, "cap": None}
+            # Harvest whichever completes first; each ECU only spends its own budget.
+            while pending:
+                progressed = False
+                now = time.monotonic()
+                for ecu in list(pending):
+                    info = pending[ecu]
+                    req = info["req"]
+                    st = self._stacks[ecu]
+                    try:
+                        resp = st.recv(block=False) if st.available() else None
+                    except Exception as e:  # surface per-request, keep polling the rest
+                        out[(ecu, req)] = e
+                        del pending[ecu]
+                        progressed = True
+                        continue
+                    if resp is not None:
+                        resp = bytes(resp)
+                        if is_response_pending(resp):
+                            # ECU said "still working" — wait for the follow-up,
+                            # bounded (parity with read()/RawTerminal/ELM).
+                            if info["cap"] is None:
+                                info["cap"] = now + PENDING_TOTAL_TIMEOUT
+                            info["deadline"] = min(now + PENDING_RECV_TIMEOUT, info["cap"])
+                            progressed = True
+                            continue
+                        self.timings.record(ecu, req.hex().upper(), time.monotonic() - info["sent_at"])
+                        out[(ecu, req)] = resp
+                        del pending[ecu]
+                        progressed = True
+                    elif now >= info["deadline"]:
+                        out[(ecu, req)] = TimeoutError("no response")
+                        del pending[ecu]
+                        progressed = True
+                if pending and not progressed:
+                    time.sleep(0.002)  # yield to the notifier thread reassembling frames
         return out
 
     def close(self) -> None:

@@ -68,6 +68,14 @@ class SessionManager:
         req = f"10{mode}"
         await self.terminal.set_header(tx_id)
 
+        if not wake and tx_id in self._sessions:
+            # Already in an extended session on this ECU — refresh rather than
+            # re-sending 10xx (a repeated `session <ECU>` step / REPL command).
+            self._sessions[tx_id] = time.monotonic()
+            if self.verbose:
+                print(f"  [session] 0x{tx_id:03X}: already active — refreshed.")
+            return True
+
         if wake:
             if self.verbose:
                 print(f"  [session] Sending wake-up (1001) to 0x{tx_id:03X}...")
@@ -102,6 +110,19 @@ class SessionManager:
                 print(f"  [session] 3E00 -> 0x{tx_id:03X}", end="")
         except Exception:
             pass
+
+    def mark_active(self, tx_id: int) -> None:
+        """Note real traffic to an ECU as keepalive-equivalent.
+
+        Any UDS request the ECU answers already resets its S3 (session timeout)
+        timer, so an ECU we're actively and successfully polling is not "stale"
+        and needs no extra 3E00. Callers invoke this after a successful read so
+        :meth:`keepalive_stale` won't inject a redundant TesterPresent (and, if
+        the header differs, an ATSH/ATFCSH switch) into a hot polling loop.
+        No-op when the ECU has no tracked session.
+        """
+        if tx_id in self._sessions:
+            self._sessions[tx_id] = time.monotonic()
 
     async def keepalive_stale(self, threshold: float = 1.5):
         """Send keepalives to all sessions that haven't been refreshed recently.

@@ -156,6 +156,48 @@ class TestRawTerminalSendUds:
         assert r["hex"] == "5902FF0123002F"
         await t.close()
 
+    @pytest.mark.asyncio
+    async def test_retries_on_no_data_then_succeeds(self, monkeypatch):
+        # First exchange returns NO DATA (recv None); with retries=1 the second
+        # exchange returns the real answer. An NRC would NOT be retried.
+        class RetryStack:
+            def __init__(self, txid, responses):
+                self.txid = txid
+                self._responses = list(responses)
+                self._pending = None
+
+            def start(self):
+                pass
+
+            def stop(self):
+                pass
+
+            def available(self):
+                return False
+
+            def send(self, data, *a, **k):
+                self._pending = self._responses.pop(0) if self._responses else None
+
+            def recv(self, block=False, timeout=None):
+                r, self._pending = self._pending, None
+                return bytearray(r) if r is not None else None
+
+        responses = [None, bytes.fromhex("62BC03FDEE")]
+        monkeypatch.setattr(slcan_mod, "SlcanTcpBus", FakeBus)
+        monkeypatch.setattr(raw_terminal.can, "Notifier", FakeNotifier)
+        monkeypatch.setattr(
+            raw_terminal.isotp,
+            "NotifierBasedCanStack",
+            lambda bus, notifier, address=None, params=None: RetryStack(address._txid, responses),
+        )
+        monkeypatch.setattr(raw_terminal.time, "sleep", lambda *_a: None)
+        t = raw_terminal.RawTerminal("h", 3333, 500000, timeout=0.3)
+        await t.set_header(0x770)
+        r = await t.send_uds("22BC03", retries=1)
+        assert r["ok"] is True
+        assert r["hex"] == "62BC03FDEE"
+        await t.close()
+
 
 class TestRawTerminalSendCommand:
     @pytest.mark.asyncio

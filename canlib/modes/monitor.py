@@ -88,6 +88,13 @@ def query_ecu_error(query_steps: list[dict], pids_data: dict) -> str | None:
 
 
 
+# Cap how many history rows a single PID renders per cycle. With --keep-all a
+# long drive accrues thousands of payloads per PID; rendering them all every
+# cycle is O(cycles²·PIDs) and unbounded. The full history still lives in the
+# journal (--save) — this only bounds the on-screen buffer to the newest rows.
+_RENDER_MAX_ROWS = 200
+
+
 def _render_results(
     queries: list[tuple[str, list]],
     verbose: bool,
@@ -175,6 +182,16 @@ def _render_results(
                         all_entries = [*history, (raw_hex, "")]
                     else:
                         all_entries = list(history)
+                    # Bound the rendered rows to the newest _RENDER_MAX_ROWS so a
+                    # long --keep-all run stays cheap to render (full data is in
+                    # the journal). Older rows are summarized, not walked.
+                    if len(all_entries) > _RENDER_MAX_ROWS:
+                        omitted = len(all_entries) - _RENDER_MAX_ROWS
+                        all_entries = all_entries[-_RENDER_MAX_ROWS:]
+                        text.append(
+                            f"      … {omitted} earlier entries omitted (in journal)\n",
+                            style="dim",
+                        )
                     for i, (payload, ts) in enumerate(all_entries):
                         prev_raw = all_entries[i - 1][0] if i > 0 else ""
                         prefix = f"      {ts}  " if ts else "                "
@@ -388,7 +405,7 @@ class MonitorController:
                         self.raw_client.read(step["ecu"].upper(), bytes.fromhex(plan[0][0]), timeout=3.0)
             return
 
-        from .multi import BatchState, _exec_session, _exec_skm_wake
+        from .multi import BatchState, _exec_session, _exec_skm_wake, build_query_plan
 
         self._batch_state = BatchState()
         for step in session_steps or []:
@@ -402,6 +419,18 @@ class MonitorController:
                     self.sm, step["target"], step.get("wake", False), self._ecu_index
                 )
         self.sm.start_background_keepalive(interval=2.0)
+        # Prime each ECU once (parity with the raw path): the first request after
+        # idle is slow, so warm the path before the first *displayed* cycle. The
+        # retry (retries=1) also rides out a cold NO-DATA on this throwaway read.
+        for step in self.query_steps:
+            info = self._ecu_index.get(step["ecu"].upper())
+            if not info:
+                continue
+            plan = build_query_plan(info, step.get("pids", []), quiet=True) or []
+            if plan:
+                with contextlib.suppress(Exception):
+                    await self.sm.terminal.set_header(info["tx_id"])
+                    await self.sm.terminal.send_uds(plan[0][0], retries=1)
 
     def _record(self, new_queries: list[tuple[str, list]]) -> None:
         """Record freshly-polled payloads into prev_hex / display / save history."""
@@ -430,11 +459,14 @@ class MonitorController:
                     if acq
                     else datetime.now().strftime("%H:%M:%S.%f")[:-3]
                 )
-                if self.save_history is not None:  # --save: always keep everything
-                    self.save_history.setdefault(key, []).append((raw, ts))
+                if self.save_history is not None:  # --save
                     if self.journal is not None:
+                        # Journaled: the write-ahead log is the source of truth on
+                        # exit, so skip the redundant in-memory save_history growth.
                         with contextlib.suppress(Exception):
                             self.journal.append(self._ecu_ref(ecu_label), entry["pid"], raw, ts)
+                    else:
+                        self.save_history.setdefault(key, []).append((raw, ts))
                 if self.hex_history is not None:  # --keep display history
                     if self.keep_mode in ("all", "last"):
                         self.hex_history.setdefault(key, []).append((raw, ts))
@@ -448,6 +480,11 @@ class MonitorController:
                         existing = [h for h, _ts in self.hex_history.get(key, [])]
                         if raw not in existing:
                             self.hex_history.setdefault(key, []).append((raw, ts))
+        # One durable flush per cycle instead of an fsync per payload — keeps the
+        # poll loop (and TUI) off N serial fsync syscalls when saving many PIDs.
+        if self.journal is not None:
+            with contextlib.suppress(Exception):
+                self.journal.flush()
 
     async def poll_once(self) -> None:
         """Run every query step once, updating live state. Sets ``disconnected``."""

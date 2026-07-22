@@ -53,6 +53,8 @@ optional_ecu_fields:
   - availability    # ECU-level: when the ECU responds to session control (10 01)
   - session
   - multi_did       # bool: attempt UDS service-22 multi-DID batching on this ECU
+  - response_timeout_ms  # int: per-ECU UDS response budget in ms (slow ECUs get more;
+                         #   overridden by the global --timeout flag). See canlib.timeouts.
   - scan_log        # Probe-history audit log — see scan_log_entry_fields below
   - dtcs            # Manufacturer-specific DTC meanings — see dtcs_fields below
   - pids            # Readable PIDs (omit for identity-only modules like AMP/SRS)

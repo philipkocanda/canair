@@ -23,7 +23,7 @@ class FakeStack:
         self.started = False
 
     def available(self):
-        return False
+        return self._resp is not None
 
     def send(self, data, *a, **k):
         self.sent.append(bytes(data))
@@ -128,3 +128,137 @@ class TestRawUdsClient:
             bytes.fromhex("22BC06"),
             bytes.fromhex("22BC07"),
         ]
+
+    def test_read_waits_through_response_pending(self, monkeypatch):
+        # read() must ride out 7F xx 78 (ResponsePending) and return the final
+        # answer — parity with RawTerminal + the ELM327 path.
+        class SeqStack:
+            def __init__(self, txid, seq):
+                self.txid = txid
+                self._seq = list(seq)
+                self._sent = False
+
+            def start(self):
+                pass
+
+            def stop(self):
+                pass
+
+            def available(self):
+                return self._sent and bool(self._seq)
+
+            def send(self, data, *a, **k):
+                self._sent = True
+
+            def recv(self, block=False, timeout=None):
+                if not self._sent:
+                    return None
+                return bytearray(self._seq.pop(0)) if self._seq else None
+
+        seq = [bytes.fromhex("7F1978"), bytes.fromhex("5902FF0123002F")]
+        monkeypatch.setattr(uds_raw.can, "Notifier", FakeNotifier)
+        monkeypatch.setattr(
+            uds_raw.isotp,
+            "NotifierBasedCanStack",
+            lambda bus, notifier, address=None, params=None: SeqStack(address._txid, seq),
+        )
+        c = RawUdsClient(bus=object(), ecus={"BMS": (0x7E4, 0x7EC)}, timeout=0.3)
+        assert c.read("BMS", bytes.fromhex("1902FF")) == bytes.fromhex("5902FF0123002F")
+
+    def test_poll_waits_through_response_pending(self, monkeypatch):
+        # poll() must also ride out 0x78: the 0x78 frame is consumed, the ECU is
+        # kept pending, and the real answer is returned on a later harvest.
+        class SeqStack:
+            def __init__(self, txid, seq):
+                self.txid = txid
+                self._queue = list(seq)  # frames the ECU will emit, in order
+                self._sent = False
+                self._out = None
+
+            def start(self):
+                pass
+
+            def stop(self):
+                pass
+
+            def available(self):
+                # Only after a request; surface the next queued frame one at a time.
+                if not self._sent:
+                    return False
+                if self._out is None and self._queue:
+                    self._out = self._queue.pop(0)
+                return self._out is not None
+
+            def send(self, data, *a, **k):
+                self._sent = True
+
+            def recv(self, block=False, timeout=None):
+                r, self._out = self._out, None
+                return bytearray(r) if r is not None else None
+
+        seq = [bytes.fromhex("7F2278"), bytes.fromhex("62BC03FDEE")]
+        monkeypatch.setattr(uds_raw.can, "Notifier", FakeNotifier)
+        monkeypatch.setattr(
+            uds_raw.isotp,
+            "NotifierBasedCanStack",
+            lambda bus, notifier, address=None, params=None: SeqStack(address._txid, seq),
+        )
+        c = RawUdsClient(bus=object(), ecus={"IGPM": (0x770, 0x778)}, timeout=0.5)
+        out = c.poll([("IGPM", bytes.fromhex("22BC03"))])
+        assert out[("IGPM", bytes.fromhex("22BC03"))] == bytes.fromhex("62BC03FDEE")
+
+    def test_poll_slow_ecu_does_not_starve_fast(self, monkeypatch):
+        # Regression for the shared-deadline bug: a silent/slow ECU must NOT eat
+        # the budget of an ECU collected after it. Each request gets its own
+        # deadline and is harvested as soon as it completes.
+        import time as _time
+
+        class DelayedStack:
+            def __init__(self, txid, resp, ready_after):
+                self.txid = txid
+                self._resp = resp
+                self.ready_after = ready_after
+                self._ready_at = None
+                self.sent = []
+
+            def start(self):
+                pass
+
+            def stop(self):
+                pass
+
+            def available(self):
+                return (
+                    self._resp is not None
+                    and self._ready_at is not None
+                    and _time.monotonic() >= self._ready_at
+                )
+
+            def send(self, data, *a, **k):
+                self.sent.append(bytes(data))
+                self._ready_at = _time.monotonic() + self.ready_after
+
+            def recv(self, block=False, timeout=None):
+                if self.available():
+                    r, self._resp = self._resp, None
+                    return bytearray(r) if r is not None else None
+                return None
+
+        stacks = {
+            0x770: DelayedStack(0x770, None, 999),  # SLOW: silent (never answers)
+            0x7E4: DelayedStack(0x7E4, bytes.fromhex("6101BB"), 0.1),  # FAST: ready at 0.1s
+        }
+        monkeypatch.setattr(uds_raw.can, "Notifier", FakeNotifier)
+        monkeypatch.setattr(
+            uds_raw.isotp,
+            "NotifierBasedCanStack",
+            lambda bus, notifier, address=None, params=None: stacks[address._txid],
+        )
+        c = RawUdsClient(
+            bus=object(), ecus={"IGPM": (0x770, 0x778), "BMS": (0x7E4, 0x7EC)}, timeout=0.3
+        )
+        out = c.poll([("IGPM", bytes.fromhex("22BC03")), ("BMS", bytes.fromhex("2101"))])
+        # FAST resolves despite SLOW being silent...
+        assert out[("BMS", bytes.fromhex("2101"))] == bytes.fromhex("6101BB")
+        # ...and SLOW times out on its own budget.
+        assert isinstance(out[("IGPM", bytes.fromhex("22BC03"))], TimeoutError)

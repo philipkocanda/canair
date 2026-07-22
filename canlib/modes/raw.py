@@ -3,7 +3,7 @@
 import asyncio
 import re
 
-from ..formatting import decode_uds_response, print_hexdump, print_json_result, format_raw_with_bnn
+from ..formatting import decode_uds_response, format_raw_with_bnn, print_hexdump, print_json_result
 from ..terminal import WiCANTerminal
 
 
@@ -52,7 +52,7 @@ async def mode_raw(
         _, tester_task = await terminal.enter_extended_session(wake=wake)
 
     try:
-        response = await terminal.send_uds(service_pid)
+        response = await terminal.send_uds(service_pid, retries=1)
 
         if as_json:
             print_json_result(response)
@@ -106,7 +106,12 @@ def _save_raw(
     label: str | None = None, state: str | None = None, notes: str | None = None,
 ) -> None:
     """Prompt (or use provided metadata) and save a raw request result to captures."""
-    from ..captures import build_raw_session, resolve_metadata, save_session_journaled, suggest_raw_label
+    from ..captures import (
+        build_raw_session,
+        resolve_metadata,
+        save_session_journaled,
+        suggest_raw_label,
+    )
     from ..ecus import ecu_name, rx_addr_str
 
     ecu = ecu_name(tx_id)
