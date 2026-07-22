@@ -64,9 +64,9 @@ dtcs:
     source: "owner-provided Infinity premium-audio channel map"
     verified: false
   B2921:
-    description: "Subwoofer 2 / second sub channel — Open Load (unconfirmed, next in sequence)"
+    description: "Amplifier channel — Open Load (unidentified; NOT a 2nd subwoofer — car has a single rear sub)"
     ecu: AMP
-    source: "owner-provided (inferred from B2915-B2920 sequence)"
+    source: "owner-confirmed single rear sub; specific channel for B2921 not yet identified"
     verified: false
 
 # Failure-type byte (the DTC's -XX suffix). Standard ISO 14229 / SAE J2012 bytes

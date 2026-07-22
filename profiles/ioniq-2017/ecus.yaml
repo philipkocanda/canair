@@ -298,7 +298,8 @@ ecus:
       22/1A identity and 17/18 KWP-DTC all NRC 0x11 even in extended session.
       Identity CONFIRMED (behavioral): the 7 DTCs decode to per-speaker open-load
       faults — B2915 FL woofer, B2916 FR woofer, B2919 front center, B291A RL woofer,
-      B291B RR woofer, B2920 subwoofer 1, B2921 (2nd sub, unconfirmed) — a 1:1 map
+      B291B RR woofer, B2920 subwoofer (single rear sub), B2921 (unidentified channel) —
+      a 1:1 map
       to the Infinity premium-audio channels this car has. So 0x783 is the external
       amplifier (see dtc.yaml). Exact part number is unavailable (no identity DID);
       the open-load codes are for channels the harness expects but that aren't wired.
