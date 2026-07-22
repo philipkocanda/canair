@@ -202,6 +202,8 @@ def cmd_list(records: list[dict]) -> None:
         wtt = r.get("what_to_test")
         if isinstance(wtt, list) and wtt:
             print(f"       {_DIM}what_to_test: {len(wtt)} item(s){_RESET}")
+        if r.get("capture_protocol"):
+            print(f"       {_DIM}capture:{_RESET} {_truncate(r['capture_protocol'])}")
     print()
 
 

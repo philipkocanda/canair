@@ -97,6 +97,7 @@ def cmd_add_research(args: argparse.Namespace) -> int:
             priority=args.priority, prerequisite=args.prereq or None,
             date=args.date, result=args.result, notes=args.notes,
             sources=args.source or None, what_to_test=args.what_to_test or None,
+            capture_protocol=args.capture_protocol,
             pids_dir=args.dir,
         )
 
@@ -168,6 +169,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     ar.add_argument("--notes")
     ar.add_argument("--source", action="append", metavar="SRC")
     ar.add_argument("--what-to-test", action="append", metavar="ITEM")
+    ar.add_argument("--capture-protocol", metavar="TEXT")
     _add_common(ar)
     ar.set_defaults(_pids_func=cmd_add_research)
 
