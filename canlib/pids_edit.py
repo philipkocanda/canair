@@ -329,9 +329,88 @@ def append_iocontrol_discoveries_block(
     )
 
 
+def _format_session_entry(hit) -> list[str]:
+    """Render one ``sessions:`` entry (2-space key indent, 4-space fields).
+
+    ``hit`` exposes ``.mode`` (int 0x10 sub-function), ``.name`` (str|None),
+    ``.supported`` (bool), ``.nrc`` (int|None) and ``.nrc_desc`` (str|None).
+    Session-mode keys are always quoted so all-digit values like ``03``/``81``
+    keep their intended hex string form rather than being read as YAML ints.
+    """
+    mode_hex = f"{hit.mode:02X}"
+    lines = [f'    "{mode_hex}":']
+    if getattr(hit, "name", None):
+        name = str(hit.name).replace('"', '\\"')
+        lines.append(f'      name: "{name}"')
+    lines.append(f"      supported: {'true' if hit.supported else 'false'}")
+    if not hit.supported and hit.nrc is not None:
+        lines.append(f"      nrc: 0x{hit.nrc:02X}")
+        desc = (hit.nrc_desc or "").replace('"', '\\"')
+        lines.append(f'      nrc_desc: "{desc}"')
+    return lines
+
+
+def append_sessions_block(ecu_name: str, hits, pids_dir: Path | None = None) -> Path:
+    """Write/merge a ``sessions:`` section for one ECU (comment-preserving).
+
+    Records which DiagnosticSessionControl (service 0x10) sub-functions the ECU
+    supports, as probed by ``canair scan sessions``. MERGE semantics: existing
+    entries are preserved, entries in ``hits`` upsert by session mode, output is
+    sorted by mode ascending. No-op if ``hits`` is empty.
+
+    Each hit must expose ``.mode`` (int), ``.name`` (str|None), ``.supported``
+    (bool), ``.nrc`` (int|None) and ``.nrc_desc`` (str|None).
+    """
+    if not hits:
+        return find_ecu_file(ecu_name, pids_dir=pids_dir)
+
+    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
+    text = fpath.read_text()
+    ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
+    ecu_block = text[ecu_start:ecu_end]
+
+    # Parse any pre-existing ``  sessions:`` section within the ECU block, keeping
+    # each entry's raw lines so hand-edited notes/name/state survive a re-scan.
+    existing_entries: dict[str, list[str]] = {}
+    existing_re = re.compile(r"^ {2}sessions:\s*$", re.MULTILINE)
+    m = existing_re.search(ecu_block)
+    if m:
+        tail_re = re.compile(r"^ {0,2}[A-Za-z_]", re.MULTILINE)
+        tail = tail_re.search(ecu_block, pos=m.end())
+        sec_end = tail.start() if tail else len(ecu_block)
+        section_body = ecu_block[m.end():sec_end]
+        entry_re = re.compile(r'^ {4}"?([0-9A-Fa-f]{1,2})"?:\s*$', re.MULTILINE)
+        matches = list(entry_re.finditer(section_body))
+        for i, em in enumerate(matches):
+            key = em.group(1).upper().zfill(2)
+            start = em.start()
+            end = matches[i + 1].start() if i + 1 < len(matches) else len(section_body)
+            block = section_body[start:end].rstrip("\n")
+            existing_entries[key] = block.split("\n")
+        # Strip the old section; a merged one is reappended below.
+        ecu_block = ecu_block[: m.start()] + ecu_block[sec_end:]
+
+    merged: dict[str, list[str]] = dict(existing_entries)
+    for hit in hits:
+        merged[f"{hit.mode:02X}"] = _format_session_entry(hit)
+
+    out_lines: list[str] = ["  sessions:"]
+    for key in sorted(merged.keys()):
+        out_lines.extend(merged[key])
+    new_section = "\n".join(out_lines) + "\n"
+
+    body = ecu_block.rstrip("\n")
+    new_ecu_block = body + "\n\n" + new_section
+
+    new_text = text[:ecu_start] + new_ecu_block + text[ecu_end:]
+    fpath.write_text(new_text)
+    _invalidate()
+    return fpath
+
+
+
 def _format_hit_entry(hit, key_attr: str, key_width: int = 4) -> list[str]:
     """Render a single hit entry (4-space indent for key, 6 for fields).
-
     Narrow (KWP 2-digit) keys are quoted so all-digit local identifiers like
     ``30``/``80`` are not parsed as YAML integers/octal.
     """

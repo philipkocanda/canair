@@ -18,7 +18,7 @@ from canlib.commands import iter_command_modules
 # _inject_default_scan_kind to find the command token.
 _GLOBAL_OPTS_WITH_VALUE = {"--profile", "--profiles-dir"}
 # Subcommands under `canair scan`. Kept in sync with commands/scan.SCAN_KINDS.
-_SCAN_KINDS = {"range", "iocontrol", "routines"}
+_SCAN_KINDS = {"range", "iocontrol", "routines", "sessions"}
 
 
 def _inject_default_scan_kind(argv: list[str]) -> list[str]:

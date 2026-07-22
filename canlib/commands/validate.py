@@ -136,6 +136,7 @@ def validate_ecu_file(
     valid_confidence = set(schema.get("valid_identity_confidence", []))
     scan_log_fields = set((schema.get("scan_log_entry_fields", {}) or {}).get("optional", []))
     dtcs_fields = set((schema.get("dtcs_fields", {}) or {}).get("optional", []))
+    sessions_fields = set((schema.get("sessions_fields", {}) or {}).get("optional", []))
 
     errors = []
     warnings = []
@@ -152,6 +153,7 @@ def validate_ecu_file(
         "iocontrol_discoveries": 0,
         "scan_log": 0,
         "dtcs": 0,
+        "sessions": 0,
     }
 
     try:
@@ -200,6 +202,9 @@ def validate_ecu_file(
 
         # Validate dtcs
         _validate_dtcs(ecu_def, path, ecu_name, dtcs_fields, errors, warnings, stats)
+
+        # Validate sessions (diagnostic session types — service 0x10)
+        _validate_sessions(ecu_def, path, ecu_name, sessions_fields, errors, warnings, stats)
 
         # Validate PIDs
         pids = ecu_def.get("pids", {})
@@ -497,6 +502,46 @@ def _validate_dtcs(ecu_def, path, ecu_name, dtcs_fields, errors, warnings, stats
         stats["dtcs"] += 1
 
 
+def _validate_sessions(ecu_def, path, ecu_name, sessions_fields, errors, warnings, stats) -> None:
+    """Validate the ECU's sessions: map (diagnostic session types, service 0x10).
+
+    Keys are 0x10 sub-function hex (1-2 digits, no 0x10 prefix). Each entry
+    records ``supported`` (bool) and, for unsupported modes, the ``nrc`` that
+    was returned. A supported entry must not also carry an ``nrc``; an
+    unsupported entry should carry one.
+    """
+    sessions = ecu_def.get("sessions")
+    if sessions is None:
+        return
+    if not isinstance(sessions, dict):
+        errors.append(f"{path.name}/{ecu_name}: 'sessions' must be a dict")
+        return
+    for mode, entry in sessions.items():
+        mode_str = str(mode)
+        label = f"{path.name}/{ecu_name}/sessions/{mode_str}"
+        # Key must be a 1-2 digit hex session sub-function.
+        if not re.fullmatch(r"[0-9A-Fa-f]{1,2}", mode_str):
+            errors.append(
+                f"{label}: session key must be a 1-2 digit hex 0x10 sub-function "
+                f"(e.g. '03' or '81'), got '{mode_str}'"
+            )
+        if not isinstance(entry, dict):
+            errors.append(f"{label}: entry must be a mapping")
+            continue
+        for field in entry:
+            if field not in sessions_fields:
+                warnings.append(f"{label}: unknown field '{field}'")
+        supported = entry.get("supported")
+        if supported is not None and not isinstance(supported, bool):
+            errors.append(f"{label}: 'supported' must be a bool")
+        has_nrc = entry.get("nrc") is not None
+        if supported is True and has_nrc:
+            errors.append(f"{label}: supported session must not also carry an 'nrc'")
+        if supported is False and not has_nrc:
+            warnings.append(f"{label}: unsupported session has no 'nrc' recorded")
+        stats["sessions"] += 1
+
+
 def _validate_hit_section(
     ecu_def: dict,
     section_name: str,
@@ -591,6 +636,7 @@ def collect_pids_validation(files: list[Path]) -> tuple[list[str], list[str], di
         "iocontrol_discoveries": 0,
         "scan_log": 0,
         "dtcs": 0,
+        "sessions": 0,
     }
 
     for fpath in files:
@@ -683,6 +729,7 @@ def _run_pids(files: list[str] | None, stats: bool) -> int:
         print(f"  IO Discoveries: {total_stats['iocontrol_discoveries']}")
         print(f"  Scan-log:   {total_stats['scan_log']}")
         print(f"  DTCs:       {total_stats['dtcs']}")
+        print(f"  Sessions:   {total_stats['sessions']}")
 
     return 0
 
