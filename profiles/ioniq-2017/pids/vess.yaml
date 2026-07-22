@@ -15,7 +15,7 @@ VESS:
     F011:
       availability: []
       label: Play VESS sound
-      verified: false
+      verified: true
       on: "2FF011030001"
       off: "2FF01100"
       notes: >
