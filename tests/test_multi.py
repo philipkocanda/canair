@@ -66,7 +66,12 @@ class TestParseSubCommands:
 
     def test_session_basic(self):
         result = parse_sub_commands(["session IGPM"])
-        assert result[0] == {"type": "session", "target": "IGPM", "wake": False}
+        assert result[0] == {"type": "session", "target": "IGPM", "wake": False, "mode": "03"}
+
+    def test_session_with_mode(self):
+        result = parse_sub_commands(["session BMS --mode 81"])
+        assert result[0]["target"] == "BMS"
+        assert result[0]["mode"] == "81"
 
     def test_session_with_wake(self):
         result = parse_sub_commands(["session SKM --wake"])

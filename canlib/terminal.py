@@ -295,17 +295,24 @@ class WiCANTerminal:
             expected_did=expected_did,
         )
 
-    async def enter_extended_session(self, wake: bool = False) -> tuple[bool, asyncio.Task | None]:
-        """Enter extended diagnostic session (10 03) and start TesterPresent keepalive.
+    async def enter_extended_session(
+        self, wake: bool = False, mode: str = "03"
+    ) -> tuple[bool, asyncio.Task | None]:
+        """Enter a diagnostic session (default 10 03) and start TesterPresent keepalive.
 
         Args:
             wake: If True, send a default session request (10 01) first to wake the
-                ECU from deep sleep before entering extended session.
+                ECU from deep sleep before entering the session.
+            mode: DiagnosticSessionControl sub-function (hex, no 0x). Default
+                ``"03"`` (UDS extendedDiagnosticSession); use ``"81"`` for the
+                KWP2000 standardDiagnosticSession on ECUs that reject 10 03.
 
         Returns:
             (success, tester_task) -- success indicates if session was established,
             tester_task is the background keepalive task (must be cancelled by caller).
         """
+        mode = mode.upper().removeprefix("0X").zfill(2)
+        req = f"10{mode}"
         if wake:
             # Use fast timeout during wake — some ECUs (SKM) have a ~2s sleep
             # timer and need rapid CAN traffic to stay awake
@@ -318,9 +325,9 @@ class WiCANTerminal:
                 print("  Wake-up: ECU responded.")
             await self.send_command(self.elm_timeout_cmd)  # restore
 
-        resp = await self.send_uds("1003", timeout=5.0)
+        resp = await self.send_uds(req, timeout=5.0)
         if resp.get("ok"):
-            print("  Extended session (10 03) established.")
+            print(f"  Session (10 {mode}) established.")
         elif resp.get("nrc") is not None:
             nrc = resp["nrc"]
             desc = resp["nrc_desc"]
@@ -330,9 +337,9 @@ class WiCANTerminal:
             error = resp.get("error", "unknown")
             print(f"  Session request failed: {error} — retrying in 0.5s...")
             await asyncio.sleep(0.5)
-            resp = await self.send_uds("1003", timeout=5.0)
+            resp = await self.send_uds(req, timeout=5.0)
             if resp.get("ok"):
-                print("  Extended session (10 03) established (on retry).")
+                print(f"  Session (10 {mode}) established (on retry).")
             elif resp.get("nrc") is not None:
                 nrc = resp["nrc"]
                 desc = resp["nrc_desc"]

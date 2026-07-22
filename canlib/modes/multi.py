@@ -228,8 +228,16 @@ def parse_sub_commands(args: list[str]) -> list[dict]:
             if len(parts) < 2:
                 raise ValueError("'session' requires an ECU name or TX ID: session IGPM")
             wake = "--wake" in parts
+            # Optional session mode: --mode XX (default 03 = UDS extended). Use 81
+            # for KWP2000 standardDiagnosticSession on ECUs that reject 10 03.
+            mode = "03"
+            if "--mode" in parts:
+                i = parts.index("--mode")
+                if i + 1 >= len(parts):
+                    raise ValueError("'session --mode' requires a hex value: session BMS --mode 81")
+                mode = parts[i + 1]
             target = parts[1]
-            commands.append({"type": "session", "target": target, "wake": wake})
+            commands.append({"type": "session", "target": target, "wake": wake, "mode": mode})
 
         elif verb == "query":
             if len(parts) < 2:
@@ -304,14 +312,16 @@ async def _exec_skm_wake(sm: SessionManager, level: str, verbose: bool):
     return success
 
 
-async def _exec_session(sm: SessionManager, target: str, wake: bool, ecu_index: dict):
+async def _exec_session(
+    sm: SessionManager, target: str, wake: bool, ecu_index: dict, mode: str = "03"
+):
     """Execute session sub-command."""
     tx_id = resolve_tx_id(target, ecu_index)
     if tx_id is None:
         print(f"  ERROR: Unknown ECU '{target}'. Use a name (IGPM) or hex ID (770).")
         return False
-    print(f"  Opening extended session on 0x{tx_id:03X} ({target})...")
-    return await sm.open_session(tx_id, wake=wake)
+    print(f"  Opening session (10{mode.upper().zfill(2)}) on 0x{tx_id:03X} ({target})...")
+    return await sm.open_session(tx_id, wake=wake, mode=mode)
 
 
 def _is_did22(pid_code: str) -> bool:
@@ -887,6 +897,27 @@ SECURITY_ALGORITHMS = {
 }
 
 
+def solve_key_pair(seed: int, key: int, seed_len: int = 4) -> list[tuple[str, str]]:
+    """Return the algorithms that reproduce ``key`` from ``seed`` (offline).
+
+    Iterates :data:`SECURITY_ALGORITHMS`, masking each result to the seed's byte
+    width, and returns ``(name, description)`` for every algorithm that maps
+    ``seed`` -> ``key``. Feed it a seed/key pair sniffed from a working scan tool
+    to identify (or confirm) the ECU's SecurityAccess algorithm without touching
+    the car.
+    """
+    mask = (1 << (seed_len * 8)) - 1
+    key &= mask
+    matches: list[tuple[str, str]] = []
+    for name, (desc, fn) in SECURITY_ALGORITHMS.items():
+        try:
+            if (fn(seed) & mask) == key:
+                matches.append((name, desc))
+        except Exception:
+            continue
+    return matches
+
+
 async def _exec_security(
     sm: SessionManager,
     target: str,
@@ -975,21 +1006,36 @@ async def _exec_security(
             print(f"  {algo_name:<30} {'—':>10}  {'—':>10}  Seed failed: {desc}")
             continue
 
-        # Parse seed from response bytes (67 01 SS SS SS SS)
+        # Parse seed from response bytes (67 01 <seed...>). The seed length is
+        # ECU-specific (commonly 4 bytes, but 2/3/6 occur), so read ALL bytes
+        # after the 67 01 echo rather than assuming 4.
         raw_bytes = resp.get("bytes", b"")
-        if len(raw_bytes) < 6 or raw_bytes[0] != 0x67 or raw_bytes[1] != 0x01:
+        if len(raw_bytes) < 3 or raw_bytes[0] != 0x67 or raw_bytes[1] != 0x01:
             print(
                 f"  {algo_name:<30} {'—':>10}  {'—':>10}  Bad seed response: {resp.get('hex', '?')}"
             )
             continue
 
-        seed_bytes = raw_bytes[2:6]
+        seed_bytes = raw_bytes[2:]
+        seed_len = len(seed_bytes)
         seed = int.from_bytes(seed_bytes, "big")
-        seed_hex = f"{seed:08X}"
+        seed_hex = seed_bytes.hex().upper()
 
-        # Compute key
-        key = algo_fn(seed)
-        key_hex = f"{key:08X}"
+        if seed == 0:
+            # An all-zero seed usually means the ECU is already unlocked (or the
+            # level needs no key). Surface it and stop hammering.
+            print(
+                f"  {algo_name:<30} {seed_hex:>10}  {'—':>10}  seed is all-zero — "
+                "likely already unlocked / no key required"
+            )
+            return True
+
+        # Compute key, masked and formatted to the seed's byte width (the built-in
+        # algorithms are 32-bit-oriented; for non-4-byte seeds this is best-effort
+        # and clearly a guess — the raw seed above is what to feed --pair).
+        mask = (1 << (seed_len * 8)) - 1
+        key = algo_fn(seed) & mask
+        key_hex = f"{key:0{seed_len * 2}X}"
 
         # Send key
         key_resp = await sm.terminal.send_uds(f"2702{key_hex}", timeout=5.0)
@@ -1022,6 +1068,10 @@ async def _exec_security(
                 print(f"  {algo_name:<30} {seed_hex:>10}  {key_hex:>10}  {desc}")
 
     print("\n  No algorithm worked. Security access denied.")
+    print(
+        "  Tip: if you can sniff a working tool's seed→key exchange, identify the "
+        "algorithm offline with:  canair query security --pair SEED:KEY"
+    )
     return False
 
 
@@ -1118,7 +1168,7 @@ async def mode_multi(
 
             elif cmd_type == "session":
                 print(f"\n{step} Session on {cmd['target']}...")
-                await _exec_session(sm, cmd["target"], cmd["wake"], ecu_index)
+                await _exec_session(sm, cmd["target"], cmd["wake"], ecu_index, cmd.get("mode", "03"))
 
             elif cmd_type == "query":
                 pids_str = " ".join(cmd["pids"]) if cmd["pids"] else "all"
