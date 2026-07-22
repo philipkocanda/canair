@@ -242,3 +242,27 @@ class TestPollRaw:
         pending = {r["pid"]: r.get("raw_hex") for _lbl, res in frame for r in res}
         assert pending["22BC03"] == "62BC03AA"
         assert pending["22BC06"] == "62BC06BB"
+
+    def test_timeout_keeps_last_good_as_stale(self):
+        # A DID that times out after a good cycle keeps its last-good values,
+        # marked stale (dimmed on screen) — never collapses to an error line.
+        table = {("IGPM", bytes.fromhex("22BC03")): bytes.fromhex("62BC03AA")}
+        steps = [{"ecu": "IGPM", "pids": ["BC03"]}]
+        c = _mk_ctrl(steps, _IGPM_BMS_INDEX, table=table)
+
+        asyncio.run(c._poll_raw())  # cycle 1: good
+        good = c.last_queries[0][1][0]
+        assert good.get("raw_hex") == "62BC03AA" and not good.get("stale")
+
+        c.raw_client.table.clear()  # cycle 2: BC03 times out
+        asyncio.run(c._poll_raw())
+        entry = c.last_queries[0][1][0]
+        assert entry.get("stale") is True
+        assert entry.get("raw_hex") == "62BC03AA"  # last-good values retained
+        assert not entry.get("error")  # not shown as an error row
+
+    def test_record_skips_stale_entries(self):
+        # A re-shown (stale) value must not be re-recorded as a fresh capture.
+        c = MonitorController(None, [], {}, verbose=False, save=True)
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA", "stale": True}])])
+        assert c.save_history == {}

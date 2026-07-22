@@ -137,45 +137,52 @@ def _render_results(
             raw_hex = entry.get("raw_hex", "")
             decode = entry.get("decode")
             unmapped = entry.get("unmapped", False)
+            stale = entry.get("stale", False)
 
             # Detect change from previous cycle
             hex_key = (ecu_label, pid)
             changed = cycle > 1 and raw_hex and hex_key in prev_hex and prev_hex[hex_key] != raw_hex
 
-            text.append("    ")
-            text.append(pid, style="yellow")
-            if changed:
-                text.append(" ●", style="bright_green")
+            # Render the whole entry into its own Text so a stale (timed-out) PID
+            # can be dimmed as a unit — its last-good values stay on screen
+            # (greyed) instead of collapsing to an error line and jolting layout.
+            entry_text = Text()
+            entry_text.append("    ")
+            entry_text.append(pid, style="yellow")
+            if changed and not stale:
+                entry_text.append(" ●", style="bright_green")
+            if stale:
+                entry_text.append(" (stale)", style="dim")
             if unmapped:
-                text.append(" (unmapped)", style="dim")
+                entry_text.append(" (unmapped)", style="dim")
             # Show history count when keeping history
             if hex_history and hex_key in hex_history:
                 n_entries = len(hex_history[hex_key])
                 if raw_hex and raw_hex not in [h for h, _ts in hex_history[hex_key]]:
                     n_entries += 1  # current not yet added
                 if n_entries > 1:
-                    text.append(f"  ({n_entries} entries)", style="dim")
+                    entry_text.append(f"  ({n_entries} entries)", style="dim")
             if error:
-                text.append(f"  {error}\n", style="red")
+                entry_text.append(f"  {error}\n", style="red")
+                text.append_text(entry_text)
                 continue
-            text.append("\n")
+            entry_text.append("\n")
 
             if params:
                 # With rulers on, annotate each param with the payload byte
                 # index(es) it maps to (e.g. "16-17"), matching the diff view.
                 n_bytes = len(raw_hex) // 2 if (show_rulers and raw_hex) else None
-                text.append_text(
+                entry_text.append_text(
                     render_param_table(params, verbose=verbose, n_bytes=n_bytes)
                 )
             elif decode:
-                text.append(f"      {decode}\n")
+                entry_text.append(f"      {decode}\n")
 
             if raw_hex:
-                hex_key = (ecu_label, pid)
                 # Byte-index ruler, once per PID, above the hex lines.
                 if show_rulers:
                     ruler_pw = 16 if hex_history is not None else 6
-                    text.append_text(
+                    entry_text.append_text(
                         render_byte_rulers(len(raw_hex) // 2, params, prefix_width=ruler_pw)
                     )
                 if hex_history and hex_key in hex_history:
@@ -193,14 +200,14 @@ def _render_results(
                     if len(all_entries) > _RENDER_MAX_ROWS:
                         omitted = len(all_entries) - _RENDER_MAX_ROWS
                         all_entries = all_entries[-_RENDER_MAX_ROWS:]
-                        text.append(
+                        entry_text.append(
                             f"      … {omitted} earlier entries omitted (in journal)\n",
                             style="dim",
                         )
                     for i, (payload, ts) in enumerate(all_entries):
                         prev_raw = all_entries[i - 1][0] if i > 0 else ""
                         prefix = f"      {ts}  " if ts else "                "
-                        text.append_text(
+                        entry_text.append_text(
                             _render_hex_line(
                                 payload,
                                 params,
@@ -212,7 +219,13 @@ def _render_results(
                         )
                 else:
                     prev_raw = prev_hex.get(hex_key, "") if prev_hex and cycle > 1 else ""
-                    text.append_text(_render_hex_line(raw_hex, params, unmapped, prev_raw=prev_raw))
+                    entry_text.append_text(
+                        _render_hex_line(raw_hex, params, unmapped, prev_raw=prev_raw)
+                    )
+
+            if stale:
+                entry_text.stylize("dim")  # grey the whole PID block
+            text.append_text(entry_text)
 
     if footer:
         text.append("\n  Press Ctrl+C to stop monitoring\n", style="dim")
@@ -348,9 +361,11 @@ class MonitorController:
         # so a slow/timing-out PID doesn't freeze the whole view. Left None for
         # the non-interactive path (results are only rendered once, on exit).
         self._on_partial = None
-        # Last entry seen per (ecu, pid) — lets a pending PID keep showing its
-        # previous value during a cycle instead of vanishing (no flicker).
-        self._raw_last_entry: dict[tuple[str, str], dict] = {}
+        # Last *good* entry seen per (ecu_label, pid). A PID that times out reuses
+        # this (marked stale → dimmed) so its values stay on screen instead of
+        # collapsing to an error line and jolting the layout; a pending PID (raw,
+        # mid-cycle) shows it too until its own result lands.
+        self._last_good: dict[tuple[str, str], dict] = {}
 
         # Live state (read by the renderer).
         self.cycle = 0
@@ -462,6 +477,8 @@ class MonitorController:
         self.prev_snapshot = dict(self.prev_hex)
         for ecu_label, pid_results in new_queries:
             for entry in pid_results:
+                if entry.get("stale"):
+                    continue  # a re-shown last-good value on timeout — not fresh data
                 raw = entry.get("raw_hex", "")
                 if not raw:
                     continue
@@ -544,8 +561,12 @@ class MonitorController:
                 self.disconnected = True
                 return
             if result is not None:
-                new_queries.append(result)
                 label, pids = result
+                # Keep a timed-out PID's last-good values (stale/dimmed) instead
+                # of collapsing to an error line and jolting the layout.
+                pids = [self._displayify((label, e["pid"]), e) for e in pids]
+                result = (label, pids)
+                new_queries.append(result)
                 if label not in frame:
                     order.append(label)
                 frame[label] = pids
@@ -684,7 +705,6 @@ class MonitorController:
                 self._apply_raw_submission(s, result_dict[key], _t.time(), by_pid)
 
         self.last_queries = self._raw_build_queries(plan_by_ecu, by_pid)
-        self._raw_last_entry.update(by_pid)  # seed next cycle's pending cells
         self.last_cmds = len(requests)
         self.last_elm_time = 0.0
 
@@ -722,17 +742,42 @@ class MonitorController:
             if dlen is not None:
                 self._raw_lengths[(ecu, code[2:])] = dlen
 
+    def _displayify(self, key: tuple[str, str], entry: dict) -> dict:
+        """Map a freshly-resolved entry to what should be shown for that PID.
+
+        - good (has ``raw_hex``): remembered as the last-good, shown as-is.
+        - a real negative response (``NRC …``): shown as-is (honest).
+        - a timeout / no-data / transport error: reuse the last-good entry marked
+          ``stale`` (dimmed on screen) so its parameters stay put and the layout
+          doesn't jump; if we never had good data, show the error.
+        """
+        if entry.get("raw_hex"):
+            self._last_good[key] = entry
+            return entry
+        if str(entry.get("error", "")).startswith("NRC"):
+            return entry
+        last = self._last_good.get(key)
+        if last is not None:
+            return {**last, "stale": True}
+        return entry
+
     def _raw_build_queries(self, plan_by_ecu, by_pid: dict) -> list[tuple[str, list]]:
-        """Build the render frame in plan order. PIDs not yet resolved this cycle
-        fall back to their last known entry so the view never flickers."""
+        """Build the render frame in plan order. A PID resolved as a timeout keeps
+        its last-good values (stale/dimmed); a PID not yet resolved this cycle
+        shows its last-good values so the view neither flickers nor stutters."""
         new_queries: list[tuple[str, list]] = []
         for ecu, tx_id, plan in plan_by_ecu:
+            label = f"{ecu} (0x{tx_id:03X})"
             pid_results = []
             for c, _pi, _un in plan:
-                entry = by_pid.get((ecu, c)) or self._raw_last_entry.get((ecu, c))
-                if entry is not None:
-                    pid_results.append(entry)
-            new_queries.append((f"{ecu} (0x{tx_id:03X})", pid_results))
+                entry = by_pid.get((ecu, c))
+                if entry is None:  # pending this cycle → show last good if any
+                    last = self._last_good.get((label, c))
+                    if last is not None:
+                        pid_results.append(last)
+                    continue
+                pid_results.append(self._displayify((label, c), entry))
+            new_queries.append((label, pid_results))
         return new_queries
 
     def render(self) -> Text:
