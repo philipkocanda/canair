@@ -257,9 +257,9 @@ class _IOControlTUI:
         o            Send explicit OFF (ReturnControlToECU 00)
         v            Enter hex value → send ShortTermAdjustment (2F{DID}03{hex})
         +/-          Increment/decrement last value sent to current DID
-        e            Edit label (writes to pids/<ecu>.yaml)
-        n            Edit notes (writes to pids/<ecu>.yaml)
-        m            Toggle verified (writes to pids/<ecu>.yaml)
+        e            Edit label (writes to ecus/<ecu>.yaml)
+        n            Edit notes (writes to ecus/<ecu>.yaml)
+        m            Toggle verified (writes to ecus/<ecu>.yaml)
         d            Cycle view: curated / all / discoveries
         P            Promote current discovery to curated entry (on/off
                      inferred from response length; prompts for label)
@@ -545,7 +545,7 @@ class _IOControlTUI:
                     f"  \033[1;33m{field.capitalize()} for {did}: \033[0m{buf}\033[5m▏\033[0m"
                 )
                 lines.append(
-                    "\033[2m  Type new value, Enter to save to pids/*.yaml, Esc to cancel\033[0m"
+                    "\033[2m  Type new value, Enter to save to ecus/*.yaml, Esc to cancel\033[0m"
                 )
         elif self._status:
             lines.append(f"  {self._status}")
@@ -799,7 +799,7 @@ class _IOControlTUI:
                 pass
 
     def _apply_edit(self, did: str, field: str, value) -> None:
-        """Persist an edit to pids/<ecu>.yaml and refresh in-memory state.
+        """Persist an edit to ecus/<ecu>.yaml and refresh in-memory state.
 
         Errors are surfaced via ``self._status``; the original on-disk file
         is left intact when a write fails (surgical edits only mutate on

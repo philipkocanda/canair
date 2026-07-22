@@ -64,7 +64,7 @@ class TestDescribeDtc:
 
 
 class TestProfileDefinitions:
-    """Manufacturer meanings + failure-type bytes come from the profile dtc.yaml."""
+    """Manufacturer meanings + failure-type bytes come from the profile's per-ECU dtcs: + failure_types:."""
 
     DEFS = {
         "dtcs": {

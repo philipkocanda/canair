@@ -1,8 +1,8 @@
 """Shared path roots and lazily-resolved constants.
 
 Path roots (``PACKAGE_DIR``, ``SCRIPT_DIR``, ``BUNDLED_PROFILES_DIR``,
-``SCHEMA_DIR``) are static. Vehicle-data paths (``PIDS_DIR``, ``ECUS_FILE``,
-``CAPTURES_DIR``) and WiCAN settings (``WICAN_ADDRESSES``, ``DEFAULT_WICAN``)
+``SCHEMA_DIR``) are static. Vehicle-data paths (``ECUS_DIR``, ``CAPTURES_DIR``)
+and WiCAN settings (``WICAN_ADDRESSES``, ``DEFAULT_WICAN``)
 are resolved lazily via :mod:`canlib.profile` / :mod:`canlib.config` so the
 active vehicle profile (``--profile`` / ``CANAIR_PROFILE``) is honored at
 access time. Prefer resolving ``canlib.profile.active()`` directly in new code.
@@ -18,18 +18,17 @@ SCHEMA_DIR = PACKAGE_DIR / "schema"  # tool-owned YAML/JSON schemas
 # Legacy repo-local WiCAN config (deprecated in favor of ~/.config/canair/config.yaml)
 CONFIG_FILE = SCRIPT_DIR / "config.yaml"
 
-_LAZY = {"PIDS_DIR", "ECUS_FILE", "CAPTURES_DIR", "WICAN_ADDRESSES", "DEFAULT_WICAN"}
+_LAZY = {"ECUS_DIR", "CAPTURES_DIR", "WICAN_ADDRESSES", "DEFAULT_WICAN"}
 
 
 def __getattr__(name: str):
     """Resolve profile/config-dependent constants lazily (PEP 562)."""
-    if name in ("PIDS_DIR", "ECUS_FILE", "CAPTURES_DIR"):
+    if name in ("ECUS_DIR", "CAPTURES_DIR"):
         from .profile import active
 
         prof = active()
         return {
-            "PIDS_DIR": prof.pids_dir,
-            "ECUS_FILE": prof.ecus_file,
+            "ECUS_DIR": prof.ecus_dir,
             "CAPTURES_DIR": prof.captures_dir,
         }[name]
     if name in ("WICAN_ADDRESSES", "DEFAULT_WICAN"):

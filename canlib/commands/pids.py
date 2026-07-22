@@ -1,4 +1,4 @@
-"""``canair pids`` — safely add/update pids/ parameters and research entries.
+"""``canair pids`` — safely add/update ecus/ parameters and research entries.
 
 A thin, non-interactive wrapper over canlib.pids_edit for the reverse-
 engineering workflow. Every edit is:
@@ -67,7 +67,7 @@ def _guarded(ecu: str, pids_dir: Path, do_edit, *, validate: bool):
 
 def _add_common(sp: argparse.ArgumentParser) -> None:
     sp.add_argument(
-        "--dir", type=Path, default=None, help="pids/ directory (default: active profile)"
+        "--dir", type=Path, default=None, help="ecus/ directory (default: active profile)"
     )
     sp.add_argument(
         "--no-validate", action="store_true", help="Skip the post-edit schema validation gate"
@@ -124,8 +124,8 @@ def cmd_set_status(args: argparse.Namespace) -> int:
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
-        help="Safely edit pids/ parameters and research entries",
-        description="Safely edit pids/ parameters and research entries.",
+        help="Safely edit ecus/ parameters and research entries",
+        description="Safely edit ecus/ parameters and research entries.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__.split("Examples:")[1] if "Examples:" in __doc__ else "",
     )

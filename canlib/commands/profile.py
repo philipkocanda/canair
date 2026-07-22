@@ -17,7 +17,7 @@ from canlib.profile import (
 NAME = "profile"
 
 # Default ELM327 init string for a new profile: ISO 15765-4 CAN 11-bit/500 kbit
-# (the common modern-vehicle protocol). Editable in pids/_meta.yaml afterwards.
+# (the common modern-vehicle protocol). Editable in profile.yaml afterwards.
 DEFAULT_INIT = "ATSP6;ATS0;ATAL;ATST96;"
 
 
@@ -45,7 +45,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "create",
         aliases=["init", "new"],
         help="Scaffold a new empty profile",
-        description="Create a new vehicle profile bundle (pids/, ecus.yaml, captures/, out/).",
+        description="Create a new vehicle profile bundle (ecus/, profile.yaml, captures/, out/).",
     )
     crt.add_argument("name", help="Profile name (used as the directory name)")
     crt.add_argument("--car-model", help="Vehicle description (e.g. 'VW e-Golf 2019')")
@@ -94,8 +94,8 @@ def _cmd_show(args) -> int:
     print(f"root:       {prof.root}")
     print(f"car_model:  {meta.get('car_model', '?')}")
     print(f"init:       {meta.get('init', '?')}")
-    print(f"pids:       {prof.pids_dir}  ({'ok' if prof.pids_dir.is_dir() else 'MISSING'})")
-    print(f"ecus.yaml:  {prof.ecus_file}  ({'ok' if prof.ecus_file.exists() else 'MISSING'})")
+    print(f"ecus:       {prof.ecus_dir}  ({'ok' if prof.ecus_dir.is_dir() else 'MISSING'})")
+    print(f"profile:    {prof.root / 'profile.yaml'}  ({'ok' if (prof.root / 'profile.yaml').exists() else 'MISSING'})")
     print(f"captures:   {prof.captures_dir}  ({'ok' if prof.captures_dir.is_dir() else 'MISSING'})")
     print(f"out:        {prof.out_dir}")
 
@@ -119,14 +119,6 @@ def _cmd_path(args) -> int:
     print(_resolve(args.name).root)
     return 0
 
-
-_ECUS_TEMPLATE = """\
-# {car_model} — ECU address registry
-# TX id is the OBD-II request arbitration ID; RX id is TX + 8.
-# Populate with `canair discover --register`, `canair identity --write`,
-# or by hand. Validate with `canair validate ecus`.
-ecus:
-"""
 
 # Starter states.yaml — the shared base power-state vocabulary. Add `when:`
 # predicates over decoded ECU.PARAM values to enable state auto-suggestion.
@@ -198,17 +190,17 @@ def _cmd_create(args) -> int:
     init = args.init or DEFAULT_INIT
 
     # Scaffold the bundle.
-    (root / "pids").mkdir(parents=True, exist_ok=True)
+    (root / "ecus").mkdir(parents=True, exist_ok=True)
     (root / "captures").mkdir(parents=True, exist_ok=True)
     (root / "out").mkdir(parents=True, exist_ok=True)
 
-    meta = root / "pids" / "_meta.yaml"
-    meta.write_text(
-        f"# {car_model} — PID definitions (created by `canair profile create`)\n"
+    (root / "profile.yaml").write_text(
+        f"# {car_model} — vehicle profile settings (created by `canair profile create`)\n"
+        f"# Per-ECU definitions live in ecus/. Populate with `canair discover --register`,\n"
+        f"# `canair identity --write`, or by hand. Validate with `canair validate`.\n"
         f'car_model: "{car_model}"\n'
         f'init: "{init}"\n'
     )
-    (root / "ecus.yaml").write_text(_ECUS_TEMPLATE.format(car_model=car_model))
     (root / "states.yaml").write_text(_STATES_TEMPLATE.format(car_model=car_model))
 
     if args.set_default:

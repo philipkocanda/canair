@@ -28,7 +28,7 @@ _initialized: bool = False
 
 
 def _load_ecu_lookup() -> dict[int, str]:
-    """Lazy-load ECU TX ID → name mapping from ecus.yaml."""
+    """Lazy-load ECU TX ID → name mapping from the ECU registry."""
     global _ecu_lookup
     if _ecu_lookup is not None:
         return _ecu_lookup

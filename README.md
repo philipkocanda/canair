@@ -34,7 +34,7 @@ Example screenshot of viewing capture diffs using `canair captures <query> --dif
 - 🗂️ **`canair captures`** — search and diff historical captures across dates and vehicle states
 - 🧮 **`canair bix`** — convert between the four byte-index notations used by WiCAN, ISO-TP, Torque, and OBDb
 - 🔎 **`canair ecu` / `canair status` / `canair config`** — inspect the ECU registry & per-ECU stats, check the transport/device mode, and manage user configuration
-- 📐 **`profiles/ioniq-2017/pids/`** — 27 YAML files defining every known parameter per ECU (the single source of truth for the bundled example profile)
+- 📐 **`profiles/ioniq-2017/ecus/`** — one YAML file per ECU (30 files), each the single source of truth for that ECU: identity, probe log, DTC meanings, and all parameters
 
 ## Hyundai Ioniq 2017 Electric (28 kWh) — what `canair` reads & controls
 
@@ -47,7 +47,7 @@ OBD app provides, this profile is for you.
 
 ### What's been mapped so far
 
-- **30 ECUs** discovered on the CAN bus (27 with PID definitions)
+- **30 ECUs** discovered on the CAN bus (27 with PID definitions; 3 identity-only)
 - **289 parameters** defined (215 verified), including:
   - Battery SOC (State of Charge), voltage, current, power
   - All 96 individual cell voltages
@@ -70,21 +70,19 @@ OBD app provides, this profile is for you.
 │   ├── session_manager.py      #   UDS session management
 │   ├── terminal.py             #   WebSocket terminal interface
 │   ├── modes/                  #   query sub-modes (scan, interactive, IOControl, etc.)
-│   └── schema/                 #   tool-owned schemas: pids_schema.yaml, captures_schema.json
+│   └── schema/                 #   tool-owned schemas: pids_schema.yaml, captures_schema.json, states_schema.yaml
 │
 ├── profiles/                   # Vehicle profile bundles (each = one car's data)
 │   └── ioniq-2017/             #   bundled default/example profile
-│       ├── pids/               #     PID definitions per ECU (source of truth)
-│       │   ├── _meta.yaml      #       car model + AT init string
-│       │   ├── bms.yaml        #       Battery Management System (largest — 147 params)
+│       ├── ecus/               #     One file per ECU — the single source of truth
+│       │   ├── bms.yaml        #       BMS: identity, scan_log, dtcs, pids (largest — 147 params)
 │       │   ├── vcu.yaml        #       Vehicle Control Unit
 │       │   ├── mcu.yaml        #       Motor Control Unit
-│       │   ├── bcm.yaml        #       Body Control Module
-│       │   ├── hvac.yaml       #       Climate Control
-│       │   └── ... (27 ECU files total)
+│       │   ├── amp.yaml        #       Audio Amplifier (identity-only — no pids:)
+│       │   └── ... (30 ECU files total)
+│       ├── profile.yaml        #     Profile-wide settings: car_model, init, failure_types
 │       ├── captures/           #     Raw UDS response payloads by date
-│       ├── research/           #     Reference material (other-vehicle logs, spreadsheets)
-│       ├── ecus.yaml           #     Master ECU address registry (30 ECUs)
+│       ├── references/         #     Reference material (other-vehicle logs, spreadsheets)
 │       ├── dtc_log.yaml        #     History of DTC scans (written by `canair dtc`)
 │       └── out/                #     Generated WiCAN JSON profiles
 │
@@ -96,7 +94,7 @@ OBD app provides, this profile is for you.
 
 Local (uncommitted) profiles live in `~/.config/canair/profiles/` and shadow bundled ones by name.
 
-Each profile's `research/` directory (e.g. `profiles/ioniq-2017/research/`) contains earlier CarScanner captures, reference spreadsheets, and cross-reference material from related vehicles (Kona, Kia Soul EV).
+Each profile's `references/` directory (e.g. `profiles/ioniq-2017/references/`) contains earlier CarScanner captures, reference spreadsheets, and cross-reference material from related vehicles (Kona, Kia Soul EV).
 
 ## Key tools
 
@@ -108,24 +106,24 @@ All functionality is exposed as `canair <subcommand>`.
 | `canair dtc` | Read stored Diagnostic Trouble Codes (UDS `0x19` / KWP2000 `0x18`) for one ECU or `--all`, log each scan to `dtc_log.yaml` and report what changed since the last scan, or clear fault memory with `--clear` (`0x14`). |
 | `canair identity` | Query and decode ECU identity data — part number, hardware/software version, serial, VIN — via UDS (`22 F1xx`) or KWP2000 (`1A 8x/9x`); protocol auto-selected from the registry. |
 | `canair sniff` | Passive CAN-bus sniffer (raw SLCAN-over-TCP). Live per-ID table (count/rate/last data/changed bytes) for discovering broadcast IDs the request/response path can't see; optional `.asc`/`.blf`/`.csv` frame logging. |
-| `canair wican` | Read all `pids/*.yaml` definitions and produce a WiCAN-compatible JSON vehicle profile. Can upload directly to the device, diff against the current config, or switch the device protocol (`--set-protocol`). |
+| `canair wican` | Read all `ecus/*.yaml` definitions and produce a WiCAN-compatible JSON vehicle profile. Can upload directly to the device, diff against the current config, or switch the device protocol (`--set-protocol`). |
 | `canair decode` | Parameter/value-centric decoding: shows each PID parameter's value range across all captures (default), plus statistics (`--stats`), correlation vs a reference signal (`--corr`), an interactive signal explorer (`--plot` — sweep ImHex-style byte interpretations and transforms, plot across captures), and candidate-expression testing without editing YAML (`--try`). |
 | `canair captures` | Search across all capture files — show summaries, diffs between dates, or latest values per ECU/PID. Scope any mode by date with `--since`/`--until`/`--date`. |
 | `canair research` | Report the open reverse-engineering backlog from the per-ECU `research:` sections (by type/status/priority/prerequisite). The "what should I decode next?" entry point. |
 | `canair coverage` | Audit PID definitions for decoding gaps — unmapped data bytes, partial bitfields, and PIDs with no captures yet. |
-| `canair pids` | Safely add/update `pids/` parameters and research entries from the CLI (comment-preserving, schema-validated, auto-reverted on failure). |
+| `canair pids` | Safely add/update `ecus/` parameters and research entries from the CLI (comment-preserving, schema-validated, auto-reverted on failure). |
 | `canair ecu` | List all ECUs in the profile, or show one ECU's details, identity confidence, and PID/parameter/capture stats. |
 | `canair status` | Read-only snapshot of the configured transport, device mode, and reachability — "what am I talking to, in what mode, is it usable?" |
 | `canair config` | View and manage user configuration (`~/.config/canair/config.yaml`) — `show`/`get`/`set`/`unset`/`edit`, comment-preserving. |
-| `canair validate` | Validate `pids/`, `captures/`, and `ecus.yaml` against their schemas; `--stats` prints ECU/PID/parameter/verified counts. |
+| `canair validate` | Validate `ecus/`, `profile.yaml`, and `captures/` against their schemas; `--stats` prints ECU/PID/parameter/verified counts. |
 | `canair tester-present` | Send TesterPresent (`3E00`) at a fixed interval to keep a diagnostic session alive. |
 | [`wican-cli`](https://github.com/philipkocanda/wican-cli) | Separate package for WiCAN device management — config, sleep/power, protocol switching, status, OBD log queries, and reboots. Install with `pip install wican-cli`. |
 
 ## Profiles
 
-A *profile* is a directory bundling one vehicle's data — `pids/`, `ecus.yaml`, `captures/`, and generated `out/`. The repo ships `profiles/ioniq-2017/` as the default/example profile. Inspect profiles with `canair profile list`, `canair profile show [NAME]`, and `canair profile path [NAME]`.
+A *profile* is a directory bundling one vehicle's data — `ecus/` (one file per ECU), `profile.yaml`, `captures/`, `references/`, and generated `out/`. The repo ships `profiles/ioniq-2017/` as the default/example profile. Inspect profiles with `canair profile list`, `canair profile show [NAME]`, and `canair profile path [NAME]`.
 
-Start a new vehicle from scratch with `canair profile create <name> --car-model "..."`, which scaffolds an empty bundle (`pids/_meta.yaml`, an empty `ecus.yaml`, `captures/`, `out/`) under `~/.config/canair/profiles/<name>` (or `--path DIR`). Add `--set-default` to make it the default. Validate the ECU registry any time with `canair validate ecus`.
+Start a new vehicle from scratch with `canair profile create <name> --car-model "..."`, which scaffolds an empty bundle (`profile.yaml`, an empty `ecus/`, `captures/`, `out/`) under `~/.config/canair/profiles/<name>` (or `--path DIR`). Add `--set-default` to make it the default. Validate any time with `canair validate`.
 
 **Selection precedence** (first match wins): `--profile NAME|PATH` (global flag, before the subcommand) → `CANAIR_PROFILE` env var → `default_profile` in config → the single discovered profile (auto).
 
@@ -172,7 +170,7 @@ Captures are saved by `canair query --save` during scanning, raw queries, and mo
 
 ## Generating WiCAN vehicle profile
 
-`canair wican` reads all PID definitions from the profile's `pids/*.yaml` and produces a WiCAN-compatible JSON vehicle profile. It can also upload directly to the device or diff against the currently loaded config.
+`canair wican` reads all PID definitions from the profile's `ecus/*.yaml` and produces a WiCAN-compatible JSON vehicle profile. It can also upload directly to the device or diff against the currently loaded config.
 
 ```bash
 canair wican                    # Generate JSON to the profile's out/profile.json
@@ -189,7 +187,7 @@ canair wican --set-protocol slcan   # Switch device protocol/mode (reboots)
 **Example output** (default mode):
 
 ```
-Loading profiles/ioniq-2017/pids/
+Loading profiles/ioniq-2017/ecus/
 
 Generating profile...
   18 PID groups, 147 parameters
@@ -260,7 +258,7 @@ Requires keyfob proximity for physical relay engagement.
 
 ### Where IOControl commands are defined
 
-- **PID/DID YAML files:** `profiles/ioniq-2017/pids/igpm.yaml`, `bcm.yaml`, `skm.yaml`, `hvac.yaml`, `vess.yaml`, `psm.yaml` — source of truth for all actuator definitions, parameters, and verification status.
+- **Per-ECU YAML files:** `profiles/ioniq-2017/ecus/igpm.yaml`, `bcm.yaml`, `skm.yaml`, `hvac.yaml`, `vess.yaml`, `psm.yaml` — source of truth for all actuator definitions, parameters, and verification status.
 - **IOControl mode implementation:** `canlib/modes/iocontrol.py` — TUI-based interactive actuator control and single-command execution.
 - **Quick reference docs:** `docs/IOControl CLI commands.md` — copy-paste command examples.
 
@@ -323,7 +321,7 @@ canair scan 7E4 --service 22 --range BC00-BCFF
 # Discover all responding ECUs on the bus
 canair discover
 
-# Discover and auto-register new ECUs into ecus.yaml (--dry-run to preview)
+# Discover and auto-register new ECUs into ecus/ (--dry-run to preview)
 canair discover --register
 
 # Raw UDS request (hex in, hex out)

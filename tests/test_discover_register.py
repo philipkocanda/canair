@@ -6,29 +6,33 @@ import pytest
 import yaml
 
 from canlib import profile
-from canlib.modes.discover import _register_discovered
+from canlib.pids import clear_cache
 
 
 @pytest.fixture(autouse=True)
 def _restore_active_profile():
     """Don't let set_active() in these tests leak into other test modules."""
     saved = profile._active
+    clear_cache()
     yield
     profile._active = saved
+    clear_cache()
 
 
-def _mk_profile(tmp_path):
+def _mk_profile(tmp_path, seed_ecus: str | None = None):
     root = tmp_path / "prof"
-    (root / "pids").mkdir(parents=True)
+    (root / "ecus").mkdir(parents=True)
     (root / "captures").mkdir()
-    (root / "pids" / "_meta.yaml").write_text('car_model: "T"\ninit: "ATSP6;"\n')
-    (root / "ecus.yaml").write_text("ecus:\n")
+    (root / "profile.yaml").write_text('car_model: "T"\ninit: "ATSP6;"\n')
+    if seed_ecus:
+        (root / "ecus" / "ecm.yaml").write_text(seed_ecus)
     profile.set_active(str(root))
+    clear_cache()
     return root
 
 
-def _load(root) -> dict:
-    return yaml.safe_load((root / "ecus.yaml").read_text())
+def _load(root, filename) -> dict:
+    return yaml.safe_load((root / "ecus" / filename).read_text())
 
 
 ALIVE = [
@@ -39,47 +43,56 @@ ALIVE = [
 
 class TestRegisterDiscovered:
     def test_registers_new_ecus(self, tmp_path):
+        from canlib.modes.discover import _register_discovered
+
         root = _mk_profile(tmp_path)
         _register_discovered(ALIVE, dry_run=False)
-        ecus = _load(root)["ecus"]
-        assert ecus[0x7E0]["name"] == "Unknown-7E0"
-        assert ecus[0x7A0]["name"] == "Unknown-7A0"
-        assert "Discovered" in ecus[0x7E0]["notes"]
+        e0 = _load(root, "unknown-7e0.yaml")["Unknown-7E0"]
+        e1 = _load(root, "unknown-7a0.yaml")["Unknown-7A0"]
+        assert e0["tx_id"] == 0x7E0
+        assert e1["tx_id"] == 0x7A0
+        assert "Discovered" in e0["identity"]["notes"]
 
     def test_no_id_protocol_guess(self, tmp_path):
+        from canlib.modes.discover import _register_discovered
+
         root = _mk_profile(tmp_path)
         _register_discovered(ALIVE, dry_run=False)
         # 10 01 can't distinguish UDS/KWP — must not fabricate id_protocol.
-        assert "id_protocol" not in _load(root)["ecus"][0x7E0]
+        assert "id_protocol" not in _load(root, "unknown-7e0.yaml")["Unknown-7E0"]["identity"]
 
     def test_dry_run_writes_nothing(self, tmp_path):
+        from canlib.modes.discover import _register_discovered
+
         root = _mk_profile(tmp_path)
-        before = (root / "ecus.yaml").read_text()
         _register_discovered(ALIVE, dry_run=True)
-        assert (root / "ecus.yaml").read_text() == before
+        assert list((root / "ecus").glob("*.yaml")) == []
 
     def test_idempotent_skips_known(self, tmp_path):
+        from canlib.modes.discover import _register_discovered
+
         root = _mk_profile(tmp_path)
         _register_discovered(ALIVE, dry_run=False)
-        after_first = (root / "ecus.yaml").read_text()
+        clear_cache()
+        before = (root / "ecus" / "unknown-7e0.yaml").read_text()
         _register_discovered(ALIVE, dry_run=False)
-        assert (root / "ecus.yaml").read_text() == after_first
+        assert (root / "ecus" / "unknown-7e0.yaml").read_text() == before
 
     def test_preserves_existing_named_ecu(self, tmp_path):
-        root = _mk_profile(tmp_path)
-        (root / "ecus.yaml").write_text(
-            "ecus:\n  0x7E0:\n    name: ECM\n    id_protocol: UDS\n"
+        from canlib.modes.discover import _register_discovered
+
+        root = _mk_profile(
+            tmp_path, seed_ecus="ECM:\n  tx_id: 0x7E0\n  identity:\n    id_protocol: UDS\n"
         )
         _register_discovered(ALIVE, dry_run=False)
-        ecus = _load(root)["ecus"]
-        assert ecus[0x7E0]["name"] == "ECM"  # not clobbered
-        assert ecus[0x7A0]["name"] == "Unknown-7A0"  # new one added
+        # 0x7E0 already known (ECM) → untouched; only 0x7A0 added.
+        assert "ECM" in _load(root, "ecm.yaml")
+        assert (root / "ecus" / "unknown-7a0.yaml").exists()
+        assert not (root / "ecus" / "unknown-7e0.yaml").exists()
 
-    def test_handles_missing_ecus_file(self, tmp_path):
-        root = tmp_path / "prof"
-        (root / "pids").mkdir(parents=True)
-        (root / "pids" / "_meta.yaml").write_text('car_model: "T"\ninit: "x"\n')
-        profile.set_active(str(root))
+    def test_handles_empty_ecus_dir(self, tmp_path):
+        from canlib.modes.discover import _register_discovered
+
+        root = _mk_profile(tmp_path)
         _register_discovered(ALIVE, dry_run=False)
-        assert (root / "ecus.yaml").exists()
-        assert _load(root)["ecus"][0x7E0]["name"] == "Unknown-7E0"
+        assert _load(root, "unknown-7e0.yaml")["Unknown-7E0"]["tx_id"] == 0x7E0

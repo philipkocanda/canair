@@ -1,7 +1,7 @@
 """``canair ecu`` — list ECUs, or show one ECU's details and PID stats.
 
 With no argument this prints a plain, pipeable list of every ECU in the active
-profile's ``ecus.yaml`` registry (one name per line). Given an ECU name, alias,
+profile's ``ecus/`` files (one name per line). Given an ECU name, alias,
 or hex TX id it prints that ECU's identity fields plus reverse-engineering stats
 (PIDs, parameters, verified count, captures, research backlog, IO-control,
 routines) and a per-PID breakdown.
@@ -75,7 +75,7 @@ _IDENTITY_FIELDS = [
 
 
 def _pids_def_for_tx(pids_data: dict, tx_id: int) -> tuple[str | None, dict | None]:
-    """Find the pids/ ECU entry whose ``tx_id`` matches, returning (name, def)."""
+    """Find the ecus/ ECU entry whose ``tx_id`` matches, returning (name, def)."""
     for ecu_name, ecu_def in pids_data.get("ecus", {}).items():
         if isinstance(ecu_def, dict) and ecu_def.get("tx_id") == tx_id:
             return ecu_name, ecu_def
@@ -83,7 +83,7 @@ def _pids_def_for_tx(pids_data: dict, tx_id: int) -> tuple[str | None, dict | No
 
 
 def _pid_stats(ecu_def: dict) -> dict:
-    """Compute PID/parameter/research/etc. counts for one pids/ ECU entry."""
+    """Compute PID/parameter/research/etc. counts for one ecus/ ECU entry."""
     pids = ecu_def.get("pids", {}) or {}
     active_pids = {k: v for k, v in pids.items() if isinstance(v, dict) and not v.get("ignored")}
     params = [
@@ -138,7 +138,7 @@ def _all_captures_by_ecu() -> Counter:
 
 
 def _list_records(ecus: dict, pids_data: dict, with_captures: bool = False) -> list[dict]:
-    """Build one record per registry ECU, joined to pids/ by tx_id, name-sorted."""
+    """Build one record per registry ECU, joined to ecus/ by tx_id, name-sorted."""
     cap_counts = _all_captures_by_ecu() if with_captures else Counter()
     records = []
     for tx_id, info in ecus.items():
@@ -294,7 +294,7 @@ def cmd_detail(rec: dict, as_json: bool) -> int:
     stats = rec.get("stats")
     if stats is None:
         print(f"\n  {_YELLOW}No PID definitions{_RESET} "
-              f"{_DIM}(not present in pids/ — registry-only module){_RESET}")
+              f"{_DIM}(no pids: — identity-only module){_RESET}")
     else:
         print(f"\n  {_BOLD}Stats{_RESET}")
         verified = stats["verified"]

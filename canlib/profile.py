@@ -3,9 +3,11 @@
 A *profile* is a self-contained directory bundling one vehicle's data:
 
     <profile>/
-      pids/          per-ECU PID definitions (incl. _meta.yaml)
-      ecus.yaml      ECU address registry
+      profile.yaml   profile-wide settings (car_model, init, failure_types, ...)
+      ecus/          per-ECU definitions — each file is the single source of
+                     truth for one ECU (identity, scan_log, dtcs, pids, ...)
       captures/      raw UDS capture files (per date)
+      references/    external reference material (spreadsheets, other-vehicle logs)
       out/           generated WiCAN JSON profiles (optional)
       logs/          command/response logs (optional)
 
@@ -40,12 +42,8 @@ class Profile:
     root: Path
 
     @property
-    def pids_dir(self) -> Path:
-        return self.root / "pids"
-
-    @property
-    def ecus_file(self) -> Path:
-        return self.root / "ecus.yaml"
+    def ecus_dir(self) -> Path:
+        return self.root / "ecus"
 
     @property
     def captures_dir(self) -> Path:
@@ -65,8 +63,8 @@ class Profile:
 
     @cached_property
     def meta(self) -> dict:
-        """Contents of pids/_meta.yaml (car_model, init, ...), or {}."""
-        meta_path = self.pids_dir / "_meta.yaml"
+        """Contents of <profile>/profile.yaml (car_model, init, ...), or {}."""
+        meta_path = self.root / "profile.yaml"
         if meta_path.exists():
             with open(meta_path) as f:
                 return yaml.safe_load(f) or {}
@@ -74,7 +72,9 @@ class Profile:
 
 
 def _looks_like_profile(path: Path) -> bool:
-    return path.is_dir() and ((path / "pids").is_dir() or (path / "ecus.yaml").exists())
+    return path.is_dir() and (
+        (path / "ecus").is_dir() or (path / "profile.yaml").exists()
+    )
 
 
 def profiles_roots(profiles_dir: str | os.PathLike | None = None) -> list[Path]:

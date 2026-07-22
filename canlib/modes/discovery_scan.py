@@ -4,7 +4,7 @@ The IOControl (UDS ``0x2F``), RoutineControl (UDS ``0x31``) and KWP2000 IOContro
 (``0x30``) discovery scanners all share the same loop: probe an id range with a
 *side-effect-free* sub-function, classify each response, record hits, upgrade to an
 extended session on the first ``NRC 0x7F``, persist progress for resume, and write
-hits back to ``pids/<ecu>.yaml``. Only the request layout, id width, NRC
+hits back to ``ecus/<ecu>.yaml``. Only the request layout, id width, NRC
 classification and writeback section differ.
 
 Those deltas live in a :class:`DiscoveryProbe` config; this module owns the one

@@ -1,0 +1,47 @@
+# ─── Unknown-746 ─────────────────────────────────────────────────────
+# Unknown ECU at 0x746. KWP2000 protocol.
+# Previously labelled OBC-746 speculatively (address proximity to 0x744).
+# No evidence of OBC function.
+# ECU ID 1.10, SW ID Z311 (from 1A identity scan).
+# Most identity fields returned FFFFFFFF.
+#
+# Service discovery (2026-04-19):
+#   Supported: 1A (identity), 20 (stopDiagSession), 21 (live data — only F2),
+#              27 (security — conditionsNotCorrect), 28 (commControl — conditionsNotCorrect),
+#              31 (routineControl — conditionsNotCorrect), 3E (testerPresent — conditionsNotCorrect)
+#   Not supported: 10 (session — NRC 0x12), 22 (NRC 0x11)
+#
+# KWP2000 identity (1A 80-9F, 10/32 responding):
+#   1A80: FFFFFFFF    1A8A: FFFFFFFF    1A8B: FFFFFFFF
+#   1A8C: "1.10"      1A8D: "Z311"      1A8E: "Z311"
+#   1A91: FFFFFFFF    1A92: "3.5"       1A98: FFFFFFFF    1A99: FFFFFFFF
+Unknown-746:
+  tx_id: 0x746
+  identity:
+    description: Unknown ECU — KWP2000 only, no OBC evidence
+    ecu_id: "1.10"  # KWP2000 1A8C
+    sw_id: "Z311"  # KWP2000 1A8D/1A8E
+    calibration: "Z311"
+    hw_sw: "3.5"  # KWP2000 1A92
+    id_protocol: KWP2000  # 1Axx (10/32 responding)
+    notes: >
+      Previously labelled OBC-746 speculatively (address proximity to 0x744).
+      No evidence of OBC function. Only data PID: 21F2 → 00000007 (4 bytes).
+      Responds to 1001 with NRC 0x12 but alive. Most identity fields FFFFFFFF.
+  availability: [ready, charging]
+  pids:
+    21F2:
+      period: 10000
+      enabled: false
+      availability: [ready, charging]
+      notes: >
+        6 bytes. Responds both during AC charging and when car is off (?) (TODO: test response when car is off!)
+        Payload: 61F200000007 — meaning unknown (tested both on 2026-04-18 and 2026-07-19, same response).
+        Full service 21 scan (2026-04-18): only PID in range 01-FF that responds.
+        Full service 22 scan (2026-04-19): NRC 0x11 (serviceNotSupported) — no service 22 at all.
+        2026-07-22 (ready, ignition ON): NO DATA — a full 21 00-FF sweep returned 255 NRC + 1 timeout
+        (21F2 was the timeout), and a targeted 21F2 re-read also returned NO DATA. So 21F2 availability is
+        STATE-DEPENDENT: it answered on 2026-04-18/2026-07-19 but not at ignition-on 2026-07-22. Re-read
+        specifically during AC charging (and with the car fully off) to pin down the gating condition.
+        No hidden pages: 21F2 remains the only service-21 PID this ECU ever exposes.
+      parameters: {}

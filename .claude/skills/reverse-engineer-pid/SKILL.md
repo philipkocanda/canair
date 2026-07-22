@@ -6,7 +6,7 @@ description: Reverse-engineer / decode a NEW Ioniq PID or DID end to end — dis
 # Reverse-engineering a new Ioniq PID
 
 This is the end-to-end workflow for taking a PID/DID from "unknown" to a
-verified, decoded parameter in the profile's `pids/`. It assumes the broader project context
+verified, decoded parameter in the profile's `ecus/`. It assumes the broader project context
 from the **ioniq-reverse-engineering** skill — load that too for vehicle facts,
 the ECU status table, full `canair`/`wican-cli` flag reference, and MQTT/
 profile details. This skill owns the *decoding* procedure and reference.
@@ -33,7 +33,7 @@ orient → prerequisites → discover → capture → inspect → hypothesize
        → define → decode/validate → verify → integrate
 ```
 
-Progress is tracked per-ECU in the `research:` block of the profile's `pids/<ecu>.yaml`
+Progress is tracked per-ECU in the `research:` block of the profile's `ecus/<ecu>.yaml`
 (schema in `canlib/schema/pids_schema.yaml`), graduating:
 `pending → captured → (decoded) → verify → done`, at which point a real
 `parameters:` entry exists and is marked `verified: true`.
@@ -81,7 +81,7 @@ canair pids add-research MCU --type decode --target 2102 \
 **Always record the scan outcome — a discovered DID must never be lost:**
 
 - **New responding DID → register it immediately** as an `enabled: false` placeholder
-  PID in `pids/<ecu>.yaml`, with the raw payload pasted into `notes` (and an empty
+  PID in `ecus/<ecu>.yaml`, with the raw payload pasted into `notes` (and an empty
   `expression`), then add a `decode` research lead. This is the established project
   convention (e.g. `ESC 22C102`, `EPS 220101/220102`, `CLU 22B001/B003` are all such
   placeholders). Keeping it `enabled: false` means it is tracked and captured but stays
@@ -194,7 +194,7 @@ WiCAN expression are flagged as such. Zoom/pan (`+`/`-`/`,`/`.`) narrows the
 x-axis to inspect a segment (e.g. a single launch or regen event); `i` lists the
 exact captures in that segment.
 
-### 8. Define — write it to pids/
+### 8. Define — write it to ecus/
 
 Use `canair pids` (surgical, comment-preserving, auto-validated + auto-reverted
 on schema failure) rather than hand-editing:
@@ -205,7 +205,7 @@ canair pids upsert-param MCU 2102 MCU_MOTOR_RPM "[S10:S11]" \
     --source "Kia Soul VMCU CSV" --notes "signed 16-bit BE at B10:B11 (ISO-TP 0x07:0x08)"
 ```
 
-New params start `--unverified`. (Hand-editing `pids/` is allowed, but the tool
+New params start `--unverified`. (Hand-editing `ecus/` is allowed, but the tool
 keeps field order/quoting correct and runs `canair validate pids` for you.)
 
 ### 9. Verify — confirm against reality

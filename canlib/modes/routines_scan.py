@@ -149,7 +149,7 @@ async def mode_routines_scan(
     """Scan RoutineControl IDs on one or more ECUs (safe SF 0x03).
 
     Thin wrapper over :func:`discovery_scan.mode_discovery_scan` with the 0x31
-    probe. Hits are written incrementally to each ``pids/<ecu>.yaml`` under a
+    probe. Hits are written incrementally to each ``ecus/<ecu>.yaml`` under a
     ``routines:`` section so they survive a mid-scan disconnect.
     """
     return await mode_discovery_scan(

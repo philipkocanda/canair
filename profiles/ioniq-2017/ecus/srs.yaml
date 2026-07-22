@@ -1,0 +1,9 @@
+SRS:
+  tx_id: 0x7D2
+  identity:
+    description: Airbag / Supplemental Restraint System
+    id_protocol: none  # NRC 0x11 on all UDS F1xx and KWP2000 1Axx
+    notes: >
+      Identified via Kia e-Niro CAN spreadsheet (exact address match 7D2/7DA).
+      Security-locked — no diagnostic identity exposed.
+      Dead during AC charging (2026-04-19): 1001, 1003, 3E00, 1A8C all NO DATA.

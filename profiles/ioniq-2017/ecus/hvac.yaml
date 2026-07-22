@@ -1,0 +1,590 @@
+# ─── HVAC (Heating, Ventilation, Air Conditioning) ────────────────────
+HVAC:
+  tx_id: 0x7B3
+  identity:
+    alias: DATC  # Digital Automatic Temperature Control
+    description: Climate Control
+    part_number: "97250-G7060"
+    mfg_date: "2017-05-30"
+    firmware: "AE_EV DATC(-)1.0"
+    fw_version: "1.03"
+    id_protocol: UDS  # F1xx
+    software: "AE_EV DATC(-)1.0"
+    serial: "1705304705"
+  availability: [acc, acc2, ready]
+  scan_log: # HVAC
+    - service: 0x31
+      range: "E000-E0FF"
+      date: 2026-04-20
+      hits: 0
+      probes: 256
+      state: asleep
+      notes: "256 errors — likely no service 31 support without ignition"
+  # ─── 2026-07-22 read-DID (service 22) sweep, car in READY (parked) ───
+  # Goal: find live-data DIDs on ECUs previously only identity-scanned.
+  # Ranges tried per ECU noted below. All responses were NRC (alive, no such DID)
+  # unless a hit is listed. Powertrain 22-DID probes are logged in each ECU's research:.
+  pids:
+    220100:
+      period: 5000
+      enabled: true
+      availability: [acc, acc2, ready]
+      notes: >
+        41-byte ELM response (39 data bytes). Live HVAC sensor/actuator data.
+        Monitored 2026-04-17 with HVAC on/off, fan speed changes, temp changes,
+        A/C toggle, recirculation, defrost, rear defogger. Set temp, fan speed,
+        mode, and recirc did NOT appear — this DID is purely sensor/actuator
+        status. Settings likely in a different DID (01Ax range or undiscovered).
+        Static bytes: ELM[3]=0x7E, ELM[4]=0x50, ELM[5]=0x07, ELM[6]=0xC8
+        (purpose unknown — possibly sensor IDs or config flags).
+      parameters:
+        HVAC_INTERIOR_TEMP:
+          expression: "(B11/2)-40"
+          unit: "°C"
+          ha_class: temperature
+          min: "-40"
+          max: "87"
+          source: "Original WiCAN config"
+          verified: true
+          notes: >
+            Interior Air Temperature (not "intake"!). Confirmed: drops from 27°C to 18.5°C
+            when AC blows cold air, slowly recovers. Tracks cabin temp well.
+
+        HVAC_AAT:
+          expression: "(B12/2)-40"
+          unit: "°C"
+          ha_class: temperature
+          min: "-40"
+          max: "87"
+          source: "Original WiCAN config"
+          verified: true
+          notes: "Ambient Air Temperature (HVAC sensor). Stable at ~18.5°C during session."
+
+        HVAC_EVAPORATOR_TEMP:
+          expression: "(B13/2)-40"
+          unit: "°C"
+          ha_class: temperature
+          min: "-40"
+          max: "87"
+          source: "Original WiCAN config"
+          verified: true
+          notes: >
+            Confirmed: 21.5°C at rest, drops to ~5°C with compressor running,
+            recovers when compressor cycles off. Clear thermal lag vs IAT.
+
+        HVAC_BLOWER_FAN_DUTY:
+          expression: "B15"
+          unit: ""
+          min: "0"
+          max: "255"
+          source: "Monitor session 2026-04-17"
+          verified: true
+          notes: >
+            NOT inverter temp — this is blower fan PWM duty cycle.
+            0x10=16 at idle/off, spikes to 0x45/0xB6/0xEF during fan
+            activity. 0xEF=239 is max fan. Previously misidentified as
+            HVAC_INVERTER_TEMP with formula (x/2)-40.
+
+        HVAC_BLOWER_FAN_FEEDBACK:
+          expression: "B17"
+          unit: ""
+          min: "0"
+          max: "255"
+          source: "Monitor session 2026-04-17"
+          verified: false
+          notes: >
+            Mirrors B15 (blower duty) almost exactly. Could be commanded
+            vs actual, or feedback from fan speed sensor.
+
+        HVAC_BLOWER_FAN_DUTY_3:
+          expression: "B20"
+          unit: ""
+          min: "0"
+          max: "255"
+          source: "Monitor session 2026-04-17"
+          verified: false
+          enabled: false
+          notes: >
+            Third fan-related byte, same pattern as B15/B17. Possibly
+            redundant — disabled by default.
+
+        HVAC_COMPRESSOR_TRANSITION:
+          expression: "B22"
+          unit: ""
+          min: "0"
+          max: "255"
+          source: "Monitor session 2026-04-17"
+          verified: false
+          notes: >
+            Spikes during AC compressor on/off transitions (0x90, 0xB1,
+            0xD0), settles to 0x10 when steady. Possibly compressor
+            request signal or clutch duty cycle.
+
+        HVAC_DUCT_TEMP_1:
+          expression: "(B36/2)-40"
+          unit: "°C"
+          ha_class: temperature
+          min: "-40"
+          max: "87"
+          source: "Monitor session 2026-04-17"
+          verified: true
+          notes: >
+            Slow thermal drift (0x26=−21→0x1F→0x24). Could be duct outlet
+            temp or heater core temp. Needs verification with heat mode.
+
+        HVAC_DUCT_TEMP_2:
+          expression: "(B37/2)-40"
+          unit: "°C"
+          ha_class: temperature
+          min: "-40"
+          max: "87"
+          source: "Monitor session 2026-04-17"
+          verified: true
+          notes: >
+            Big swings (0xEF=79.5→0x56=3→recovery). Drops sharply with
+            compressor — likely vent air temp close to evaporator.
+
+        HVAC_VENT_OUTLET_TEMP:
+          expression: "(B38/2)-40"
+          unit: "°C"
+          ha_class: temperature
+          min: "-40"
+          max: "87"
+          enabled: false
+          source: "Monitor session 2026-04-17"
+          verified: false
+          notes: >
+            DISABLED 2026-07-20: across all 143 220100 captures B38 only ever yields -40 or -32 (i.e. B38 =
+            0x00/0xFF/0x10 padding in the FF-filled tail region B30-B44). Never a plausible vent temp. Bogus
+            byte. (The earlier "tracks evaporator" note was a coincidence on one session.) Kept for research trail.
+
+        HVAC_FAN_SPEED_LEVEL:
+          expression: "B33"
+          unit: ""
+          min: "0"
+          max: "255"
+          enabled: false
+          source: "Fan speed test 2026-04-19"
+          verified: false
+          notes: >
+            DISABLED 2026-07-20: B33 is constant 0xFF (255) across ALL 143 220100 captures — including a
+            confirmed fan-only speed-2 charge. It sits in the FF-padding tail (B30-B44) and is NOT the fan
+            level. The 2026-04-19 note (fan 1=0x26 ... 2=0x29) must have referenced a different byte/state and
+            does not reproduce. Use HVAC_BLOWER_FAN_DUTY (B15) for blower activity. Kept for research trail.
+
+        HVAC_AC_COMPRESSOR_ON:
+          expression: "B44"
+          unit: ""
+          min: "0"
+          max: "255"
+          enabled: false
+          source: "Monitor session 2026-04-17"
+          verified: false
+          notes: >
+            DISABLED 2026-07-20: B44 is constant 0xFF (255) across ALL 143 220100 captures (FF-padding tail).
+            Not a compressor flag. Use HVAC_COMPRESSOR_ON (220102 B17) which reads a clean 0/1 for the
+            actual compressor state. Kept for research trail.
+
+    220102:
+      enabled: true
+      period: 5000
+      availability: []
+      notes: >
+        20-byte ELM response (17 data bytes). Secondary HVAC temps.
+        Monitored 2026-04-17. B10/B11 are temps that rise with heating.
+      parameters:
+        HVAC_HEAT_EXCHANGER_TEMP:
+          expression: "(B10/2)-40"
+          unit: "°C"
+          ha_class: temperature
+          min: "-40"
+          max: "87"
+          source: "Monitor session 2026-04-17"
+          verified: false
+          notes: >
+            0x78=20°C at rest, rises to 0x97=35.5°C with HVAC activity.
+            Likely heater coolant or heat exchanger temperature.
+
+        HVAC_HEAT_EXCHANGER_TEMP_2:
+          expression: "(B11/2)-40"
+          unit: "°C"
+          ha_class: temperature
+          min: "-40"
+          max: "87"
+          source: "Monitor session 2026-04-17"
+          verified: false
+          notes: >
+            Follows B10 with lag. 0x77=19.5°C at rest, rises to 0x80=24°C.
+            Secondary heat exchanger or return line temperature.
+
+        HVAC_COMPRESSOR_ON:
+          expression: "B17"
+          unit: ""
+          min: "0"
+          max: "1"
+          source: "Monitor session 2026-04-17; verified 2026-07-22 (heat-pump vs PTC)"
+          verified: true
+          notes: >
+            Binary compressor on/off STATUS flag (0/1) — a status byte, not a physical relay
+            (renamed from HVAC_COMPRESSOR_RELAY 2026-07-22). distinct=2 across 196 captures (=1 ~21%).
+            Verified live 2026-07-22: reads 1 while the e-compressor runs (heat-pump heating, ~1.5kW HV
+            draw) and 0 during PTC-only heating and idle. Cleaner than the 220100 FF-junk
+            HVAC_AC_COMPRESSOR_ON. (Nuance: should also read 1 during A/C cooling — untested today;
+            if it's actually heat-pump-mode-only, cooling would show 0.)
+
+        HVAC_HEATER_MODE_FLAG:
+          expression: "B18"
+          unit: ""
+          min: "0"
+          max: "1"
+          source: "Monitor session 2026-04-17"
+          verified: false
+          notes: "0x00/0x01 toggle. Possibly heater vs cooler mode flag."
+
+        HVAC_UNKNOWN_TEMP:
+          expression: "B19"
+          unit: "°C"
+          ha_class: temperature
+          min: "0"
+          max: "80"
+          source: "Monitor session 2026-04-17; reclassified 2026-07-20"
+          verified: false
+          notes: >
+            RENAMED from HVAC_COMPRESSOR_LOAD 2026-07-20 — it is a TEMPERATURE, not a load. Evidence across
+            108 220102 captures: B19 reads 20-37 even with the compressor OFF (relay B17=0), so it cannot be
+            a load; and it correlates r=0.96 with HEAT_EXCHANGER_TEMP (B10). Raw byte ≈ °C directly (no /2-40
+            offset), reading a few degrees above the heat exchanger — consistent with the user's report of
+            ~40°C after AC off for hours on a hot day. Exact sensor identity unconfirmed (heater-core / mix /
+            in-cabin area), hence the neutral name. Was wrongly attributed to "compressor/PTC load".
+
+    2201A0:
+      enabled: true
+      period: 5000
+      availability: [acc, acc2, ready]
+      notes: >
+        62 bytes. Primary HVAC control/status DID. Contains set temperature,
+        HVAC on/off flags, heating mode, and defrost flags. Also contains
+        actuator target values (ELM[3-9]) that track requested heat output,
+        and mirrored values at ELM[43-45]. ELM[24]=0x28 is a constant (not
+        set temp). Fan speed byte and HVAC mode selector not yet identified.
+      parameters:
+        HVAC_SET_TEMP_DRIVER:
+          expression: "B44"
+          unit: "°C"
+          display: "f'{v} °C'"
+          min: "15"
+          max: "32"
+          source: "Monitor session 2026-04-17"
+          verified: true
+          notes: >
+            Set temperature (driver side). Direct °C value: 0x14=20°C,
+            0x1E=30°C, 0x0F=15°C — all match user input exactly.
+
+        HVAC_SET_TEMP_PASSENGER:
+          expression: "B45"
+          unit: "°C"
+          display: "f'{v} °C'"
+          min: "15"
+          max: "32"
+          source: "Monitor session 2026-04-17"
+          verified: true
+          notes: >
+            Set temperature (passenger side or redundancy). Always matches
+            B44 in single-zone Ioniq. Dual-zone mirror.
+
+        HVAC_ON_FLAG:
+          expression: "B23"
+          unit: ""
+          display: "f'{'ON' if v else 'OFF'}'"
+          min: "0"
+          max: "1"
+          source: "Monitor session 2026-04-17"
+          verified: true
+          notes: >
+            HVAC system running flag. 1 when HVAC is on, 0 when off.
+
+        HVAC_STARTUP_FLAG:
+          expression: "B22"
+          unit: ""
+          min: "0"
+          max: "1"
+          source: "Monitor session 2026-04-17"
+          verified: false
+          notes: >
+            Transient flag: briefly 1 at HVAC turn-on, then returns to 0.
+            Possibly a startup/initialization signal.
+
+        HVAC_COOLING_MODE:
+          expression: "B25"
+          unit: ""
+          min: "0"
+          max: "1"
+          source: "Monitor session 2026-04-17"
+          verified: false
+          notes: >
+            Mode flag: 1 during normal/cooling operation, 0 during PTC
+            heater mode. May indicate A/C compressor vs resistive heating.
+
+        HVAC_PTC_HEATER_FLAG:
+          expression: "B06"
+          unit: ""
+          min: "0"
+          max: "2"
+          source: "Monitor session 2026-04-17"
+          verified: false
+          notes: >
+            0x00 normal, 0x02 during PTC heater activation. Correlates
+            with high heat output values in ELM[3,5-8].
+
+        HVAC_MAX_FAN_FLAG:
+          expression: "B57"
+          unit: ""
+          min: "0"
+          max: "255"
+          source: "Fan speed test 2026-04-19"
+          verified: false
+          notes: >
+            MAX fan indicator. 0x00 at fan speeds 1-4, 0xAE (174) at MAX.
+            Only way to distinguish fan 4 from MAX (220100 B33 is identical
+            for both at 0x2D).
+            2026-07-20 CAVEAT: B57 is OUT-OF-BOUNDS in all 193 stored 2201A0 captures (all truncated to
+            40 bytes; B57 needs the full 62-byte response). Unverifiable from history. The companion April
+            claim (220100 B33=0x2D) is provably wrong — B33 is constant 0xFF across 143 captures — so this
+            mapping is suspect. Live 62B read today = 0 (fan-only speed 2). Downgraded to unverified; re-test
+            with MAX fan on and full-length capture.
+
+        HVAC_DEFROST_FLAGS:
+          expression: "(B58 << 8) | B59"
+          unit: ""
+          display: "f'0x{v:04X}'"
+          min: "0"
+          max: "65535"
+          source: "Monitor session 2026-04-17"
+          verified: false
+          notes: >
+            0x0000 = off, 0xFFEF appeared during defrost/defog period
+            (17:46:16-17:47:26). Likely bitfield for front defrost,
+            rear defogger, and possibly recirculation. Need more targeted
+            testing to decode individual bits.
+            2026-07-20 CAVEAT: B58/B59 are OUT-OF-BOUNDS in all stored 2201A0 captures (truncated to 40B);
+            only readable on the full 62-byte response. Verify against a full-length capture.
+
+    2201A1:
+      enabled: false
+      availability: [acc, acc2, ready]
+      notes: >
+        62 bytes. Actuator control data. First 10 bytes very active during
+        HVAC operation (RPM-like 16-bit values). ELM[9-10] = 01 01 when on,
+        00 00 when off. ELM[13-14]: 00 78 at rest, 01 3C during PTC heater.
+        B22 mirrors 2201A0 B07 exactly (target value, drifts over time).
+        B68: coarse fan step — 0x05 at fan 1-2, 0x0A at fan 4/MAX.
+      parameters: {}
+
+    2201A2:
+      enabled: false
+      notes: "55 bytes. Similar structure to 01A1."
+      availability: [acc, acc2, ready]
+      parameters: {}
+
+    2201A3:
+      enabled: false
+      availability: [acc, acc2, ready]
+      notes: >
+        55 bytes. Dynamic during HVAC operation (NOT static as initially
+        thought from cold-read). Contains compressor RPM data, PTC heater
+        info (ELM[12] shows 0x39/0x3A during PTC activation). 01A3-01A6
+        may still share structure but diverge under load.
+      parameters: {}
+
+    2201A4:
+      enabled: false
+      notes: "55 bytes. Identical to 01A3."
+      availability: [acc, acc2, ready]
+      parameters: {}
+
+    2201A5:
+      enabled: false
+      notes: "55 bytes. Identical to 01A3."
+      availability: [acc, acc2, ready]
+      parameters: {}
+
+    2201A6:
+      enabled: false
+      notes: "55 bytes. Identical to 01A3."
+      availability: [acc, acc2, ready]
+      parameters: {}
+  iocontrol:
+    F011:
+      label: "Unknown actuator 1"
+      verified: false
+      on: ""
+      off: "2FF01100"
+      hold: false
+      notes: >
+        updated via TUI test
+    F012:
+      label: "Unknown actuator 2"
+      verified: false
+      on: ""
+      off: ""
+      hold: false
+      notes: >
+        Write-only: NRC 0x31 for ReturnControlToECU (00), but NRC 0x13 for
+        ShortTermAdjustment (03) — meaning 03 is accepted but needs value bytes.
+        No OFF/release command available via 00.
+    F013:
+      label: "Unknown actuator 3"
+      verified: false
+      on: ""
+      off: "2FF01300"
+      hold: false
+      notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
+    F014:
+      label: "Unknown actuator 4"
+      verified: false
+      on: ""
+      off: "2FF01400"
+      hold: false
+      notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
+    F015:
+      label: "Unknown actuator 5"
+      verified: false
+      on: ""
+      off: "2FF01500"
+      hold: false
+      notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
+    F016:
+      label: "Unknown actuator 6"
+      verified: false
+      on: ""
+      off: "2FF01600"
+      hold: false
+      notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
+    F017:
+      label: "Unknown actuator 7"
+      verified: false
+      on: ""
+      off: "2FF01700"
+      hold: false
+      notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
+    F018:
+      label: "Unknown actuator 8"
+      verified: false
+      on: ""
+      off: "2FF01800"
+      hold: false
+      notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
+    F022:
+      label: "Unknown actuator 9"
+      verified: false
+      on: ""
+      off: "2FF02200"
+      hold: false
+      notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
+    F023:
+      label: "Unknown actuator 10"
+      verified: false
+      on: ""
+      off: "2FF02300"
+      hold: false
+      notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
+    F024:
+      label: "Unknown actuator 11"
+      verified: false
+      on: ""
+      off: "2FF02400"
+      hold: false
+      notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
+    F025:
+      label: "Unknown actuator 12"
+      verified: false
+      on: ""
+      off: "2FF02500"
+      hold: false
+      notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
+    F026:
+      label: "Unknown actuator 13"
+      verified: false
+      on: ""
+      off: "2FF02600"
+      hold: false
+      notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
+    F027:
+      label: "Unknown actuator 14"
+      verified: false
+      on: ""
+      off: "2FF02700"
+      hold: false
+      notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
+  research:
+    - type: iocontrol_scan
+      target: "2F F000-F0FF"
+      status: done
+      date: "2026-04-19"
+      priority: P1
+      prerequisite: [acc, charging]
+      result: >
+        13 DIDs respond to ReturnControlToECU (00): F011, F013-F018, F022-F027.
+        F012 accepts ShortTermAdjustment (03) but rejects ReturnControlToECU (00).
+        All return 6F{DID}0000 (5 bytes). Gaps at F012 (exists for 03 but not 00),
+        F019-F021. ShortTermAdjustment (03) accepted but requires value bytes —
+        NRC 0x13 without them. Ranges E0xx, B0xx, C0xx, 01xx, F1xx, 00xx all
+        NRC 0x31 (empty).
+      notes: >
+        Two groups: F011-F018 (7 DIDs, gap at F012) and F022-F027 (6 DIDs).
+        F028-F0FF not yet scanned. Value byte format unknown — need to test
+        with TUI v-key (ShortTermAdjustment with user-provided values).
+    - type: verify
+      target: "220100"
+      status: pending
+      priority: P1
+      prerequisite: [acc]
+      notes: "HVAC_INVERTER_TEMP (B15, (x/2)-40) unverified. Additional undecoded bytes: driver vent temp (B28), driver legs vent temp (B29), evaporator temp alt (B31), unknown temps (B32-34). Vehicle speed at bix 232 (byte 29) per Ioniq 5."
+      what_to_test:
+        - "HVAC_INVERTER_TEMP (B15, (x/2)-40)"
+        - "Driver vent temp (B28), legs vent temp (B29)"
+        - "Vehicle speed at bix 232"
+      sources:
+        - "OBDb Ioniq 5 — 220100 signals"
+    - type: scan
+      target: "22 0100-010B"
+      status: done
+      priority: P1
+      prerequisite: [acc]
+      notes: >
+        Scanned 2026-04-19. Service 0x21 for 0101-010B: all NRC 0x11.
+        Service 0x22 for 0101-010B: only 0102 responds (already known),
+        0101 and 0103-010B all NRC 0x31. HVAC ECU only has 220100 and
+        220102 in the 01xx range. ChatGPT suggestions for 0105-010B were
+        incorrect for Ioniq 2017.
+    - type: decode
+      target: "climate power (console split)"
+      status: pending
+      priority: P2
+      prerequisite: [ready]
+      notes: >
+        The centre console shows a Drive/Climate/Electronics power split. Investigated 2026-07-22
+        (READY, parked) with a steady PTC heat ~1kW load and, earlier, heat-pump ~1.5kW; contrasted
+        against idle. FINDING: no climate WATTAGE byte was found in HVAC 220100 or 220102. Every byte
+        that moved with the climate load is a temperature (heat-exchanger B10/B11, evaporator, duct) or
+        fan duty — thermal/actuator response, not power. BMS 2101 shows only the AGGREGATE HV power
+        (0.15kW idle <-> ~1.5kW). So the per-domain split is most likely COMPUTED by the VMCU/cluster
+        from HV currents, not a single OBD PID. Useful adjunct: HVAC_COMPRESSOR_ON (220102 B17)
+        distinguishes heat-pump (1) vs PTC-only (0). Remaining leads: hunt a PTC-duty byte or a
+        dedicated compressor/PTC-inverter address; otherwise accept the console value is derived.
+        (Note: 220102 is NOT a new PID — it was already decoded as heat-exchanger temps + flags.)
+
+  dtcs:
+    B1285:
+      description: >
+        Direction Control Motor — AUTO Defog: the defog mode actuator did not
+        reach the position commanded by the A/C control module within 40 s.
+      causes: >
+        poor harness contact; open/short in the motor power circuit; faulty defog
+        mode actuator; faulty A/C control module.
+      source: "https://www.dtcdecode.com/Hyundai/B1285"
+      verified: false
+
+  # AMP (0x783) external amplifier — per-speaker-channel open-load faults. The
+  # full B2915/16/19/1A/1B/20/21 cluster maps 1:1 to the Infinity premium-audio
+  # channels, which is what identifies 0x783 as the amplifier.

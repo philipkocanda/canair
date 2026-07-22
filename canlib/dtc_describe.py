@@ -16,9 +16,6 @@ annotate each decoded record.
 
 from __future__ import annotations
 
-from functools import lru_cache
-from pathlib import Path
-
 CATEGORY = {
     "P": "Powertrain",
     "C": "Chassis",
@@ -162,25 +159,25 @@ def describe_dtc(code: str, defs: dict | None = None) -> dict:
 
 
 def _profile_dtc_defs() -> dict:
-    """Load the active profile's dtc.yaml (cached), or {} if unavailable."""
-    try:
-        from .profile import active
+    """Aggregate DTC meanings from the active profile, or {} if unavailable.
 
-        return _load_dtc_defs(str(active().root / "dtc.yaml"))
+    Per-ECU ``dtcs:`` sections (in each ``ecus/<name>.yaml``) are merged into a
+    single ``{base_code: entry}`` map; ``failure_types:`` comes from the
+    profile-wide ``profile.yaml``.
+    """
+    try:
+        from .pids import load_pids
+
+        data = load_pids()
     except Exception:
         return {}
 
-
-@lru_cache(maxsize=8)
-def _load_dtc_defs(path_str: str) -> dict:
-    """Parse a profile dtc.yaml into ``{"dtcs": {...}, "failure_types": {int: str}}``."""
-    import yaml
-
-    p = Path(path_str)
-    if not p.exists():
-        return {}
-    with open(p) as f:
-        data = yaml.safe_load(f) or {}
+    dtcs: dict[str, object] = {}
+    for _name, ecu_def in (data.get("ecus") or {}).items():
+        if not isinstance(ecu_def, dict):
+            continue
+        for code, entry in (ecu_def.get("dtcs") or {}).items():
+            dtcs[str(code).upper()] = entry
 
     ftb: dict[int, str] = {}
     for key, val in (data.get("failure_types") or {}).items():
@@ -189,5 +186,5 @@ def _load_dtc_defs(path_str: str) -> dict:
         except (TypeError, ValueError):
             continue
         ftb[byte] = val
-    dtcs = {str(k).upper(): v for k, v in (data.get("dtcs") or {}).items()}
+
     return {"dtcs": dtcs, "failure_types": ftb}

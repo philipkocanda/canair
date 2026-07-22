@@ -1184,8 +1184,8 @@ def run(args) -> int:
         print("Specify an ECU and PID to decode, e.g. `canair decode BMS 2101`.\n")
         print(ecu_hint())
         return 2
-    # Accept an ecus.yaml alias (e.g. LDC for OBC, ABS for ESC) or any case,
-    # matching `canair captures`. Canonicalises to the pids/ key before lookup.
+    # Accept an ECU-registry alias (e.g. LDC for OBC, ABS for ESC) or any case,
+    # matching `canair captures`. Canonicalises to the ecus/ key before lookup.
     from canlib.ecus import canonical_ecu_name_safe
 
     args.ecu = canonical_ecu_name_safe(args.ecu)
@@ -1239,7 +1239,7 @@ def run(args) -> int:
             print(f"PID '{args.pid}' not found for {ecu_key}. Available: {', '.join(sorted(ecu_pids))}")
             return 1
     elif not tolerate_missing:
-        print(f"ECU '{args.ecu}' not found in pids/. Available: {', '.join(sorted(ecu_index))}")
+        print(f"ECU '{args.ecu}' not found in ecus/. Available: {', '.join(sorted(ecu_index))}")
         return 1
 
     # Full (unfiltered) defined params for this PID — used by --plot to flag

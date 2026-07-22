@@ -30,7 +30,7 @@ async def mode_discover(
         addr_range: (start, end) TX IDs inclusive (e.g. 0x700, 0x7EF).
         delay: Seconds to wait between addresses to avoid overwhelming
             the WiCAN WebSocket. Default 0.2s.
-        register: Register newly-discovered ECUs into the profile's ecus.yaml.
+        register: Register newly-discovered ECUs as files in the profile's ecus/ directory.
         dry_run: With ``register``, preview additions without writing.
     """
     start, end = addr_range
@@ -124,7 +124,7 @@ async def mode_discover(
             suggest_discover_label,
         )
 
-        # Enrich alive list with ECU names from ecus.yaml
+        # Enrich alive list with ECU names from the registry
         from ..ecus import ecu_name as _ecu_name
 
         enriched = []
@@ -149,7 +149,7 @@ async def mode_discover(
             )
             save_session_journaled(session_dict)
 
-    # Auto-register newly-discovered ECUs into ecus.yaml
+    # Auto-register newly-discovered ECUs into ecus/
     if register:
         _register_discovered(alive, dry_run=dry_run)
 
@@ -157,7 +157,7 @@ async def mode_discover(
 
 
 def _register_discovered(alive: list[tuple[int, str, str]], dry_run: bool = False) -> None:
-    """Register alive TX ids that aren't yet in the profile's ecus.yaml.
+    """Register alive TX ids that don't yet have an ``ecus/<name>.yaml`` file.
 
     New entries get a placeholder ``Unknown-<TX>`` name and a provenance note;
     existing entries are left untouched. ``id_protocol`` is intentionally left
@@ -173,14 +173,11 @@ def _register_discovered(alive: list[tuple[int, str, str]], dry_run: bool = Fals
         print("  No alive ECUs to register.")
         return
 
-    try:
-        known = set(load_ecus().keys())
-    except FileNotFoundError:
-        known = set()  # fresh profile with no ecus.yaml yet
+    known = set(load_ecus().keys())
 
     new = [(tx, status) for tx, status, _ in alive if tx not in known]
     if not new:
-        print(f"  All {len(alive)} alive ECU(s) already in ecus.yaml.")
+        print(f"  All {len(alive)} alive ECU(s) already registered.")
         return
 
     if dry_run:

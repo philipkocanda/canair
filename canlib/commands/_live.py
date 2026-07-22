@@ -168,7 +168,7 @@ def _load_pids_for_completion():
 
 
 def ecu_completer(prefix, parsed_args=None, **kwargs):
-    """Complete ECU names from pids/*.yaml (e.g. BMS, IGPM, HVAC)."""
+    """Complete ECU names from ecus/*.yaml (e.g. BMS, IGPM, HVAC)."""
     data = _load_pids_for_completion()
     if not data:
         return []

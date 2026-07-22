@@ -1,0 +1,45 @@
+# ─── GSA (Gear Shift Assembly — Kostal) ────────────────────────────────────────
+GSA:
+  tx_id: 0x7B6
+  identity:
+    description: Gear Shift Assembly (gear selector module)
+    part_number: "46700-G7100"
+    mfg_date: "2016-05-26"
+    supplier: "KCI_KOSTAL"
+    hw_version: "KOSTAL_HW_G07"
+    sw_version: "KOSTAL_SW_G07"
+    id_protocol: UDS  # F1xx
+  availability: [acc, acc2, ready]
+  scan_log: # GSA (gear shift assembly)
+    - service: 0x22
+      range: "0101-010F,B001-B010,C001-C010,D001-D010"
+      date: 2026-07-22
+      hits: 0
+      state: ready
+      notes: "Also service 21 01-0F: all NRC. No live-data DIDs exposed via OBD — gear state is available via VCU 2101 DRIVE_MODE_* instead."
+  pids:
+    220100:
+      period: 5000
+      enabled: false
+      availability: [acc, acc2, ready]
+      parameters:
+        GSA_0100_UNKNOWN:
+          expression: ""
+          unit: ""
+          ha_class: ""
+          min: ""
+          max: ""
+          source: "DID scan 2026-04-17"
+          source_links: []
+          verified: false
+          notes: |
+            27 bytes. GSA (0x7B6) responds ONLY to 220100 (service 21 and 22 0101-0130 all NRC — scanned 2026-07-20).
+            Two P-gear captures compared:
+              2026-04-17 (P):     620100FF00000080AA010000000000930191940001000000000000
+              2026-07-20 (ACC2,P): 620100FF00000080AA010000000000770176780001000000000000
+            Changed bytes (both in P): B19 0x93->0x77 (147->119), B21 0x91->0x76 (145->118), B22 0x94->0x78 (148->120);
+            B20 constant 0x01. Three clustered values that drifted ~30 between captures (same gear) -> likely
+            shift-lever hall position sensors or temperature, NOT gear. Needs a gear-shift test to decode.
+            NOTE: GSA is the shift-lever assembly — likely holds gear/lever data. Drive mode (Eco/Normal/Sport)
+            button is on the centre console; regen paddles are steering-wheel mounted -> more likely in
+            SWRC-L/R (0x7A1/0x7A2) or the cluster (0x7C6). See TODO "Drive mode + regen" section.

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Report open reverse-engineering work from the pids/ `research:` sections.
+"""Report open reverse-engineering work from the ecus/ `research:` sections.
 
-Each ECU file in pids/ may carry a `research:` list tracking untested scans,
-undecoded captures, and unverified parameters (schema in pids/_schema.yaml).
+Each ECU file in ecus/ may carry a `research:` list tracking untested scans,
+undecoded captures, and unverified parameters (schema in pids_schema.yaml).
 This tool aggregates those entries across every ECU so you can answer
 "what should I reverse-engineer next?" at a glance.
 
@@ -19,7 +19,7 @@ Modes / filters (all combine with AND):
   --summary             Counts by status / type / priority / ECU
   --all                 Include done items (hidden by default)
   --json                Machine-readable output
-  --dir DIR             Override pids/ directory
+  --dir DIR             Override ecus/ directory
 
 Examples:
   python3 research.py                      # all open items, highest priority first
@@ -210,8 +210,8 @@ def cmd_list(records: list[dict]) -> None:
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
-        help="Report open reverse-engineering work from pids/ research: sections",
-        description="Report open reverse-engineering work from pids/ research: sections.",
+        help="Report open reverse-engineering work from ecus/ research: sections",
+        description="Report open reverse-engineering work from ecus/ research: sections.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__.split("Examples:")[1] if "Examples:" in __doc__ else "",
     )
@@ -231,7 +231,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
                         help="Include done items (hidden by default)")
     parser.add_argument("--json", action="store_true", help="Output as JSON")
     parser.add_argument("--dir", type=Path, default=None,
-                        help="pids/ directory (default: active profile)")
+                        help="ecus/ directory (default: active profile)")
     parser.set_defaults(func=run)
     return parser
 
@@ -239,7 +239,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
 def run(args) -> int:
     records = load_research(args.dir)
     if not records:
-        print("  No research entries found in pids/.")
+        print("  No research entries found in ecus/.")
         return 1
 
     filtered = filter_records(

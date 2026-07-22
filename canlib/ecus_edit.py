@@ -1,17 +1,19 @@
-"""Surgical, comment-preserving writes to the ECU registry (``ecus.yaml``).
+"""Surgical, comment-preserving writes to per-ECU definition files (``ecus/``).
 
-The registry is otherwise hand-authored. These helpers let discovery/identity
-flows register new ECUs and fill in metadata without clobbering human edits:
+Each ECU lives in its own ``ecus/<name>.yaml`` file (keyed by the ECU short
+name, carrying ``tx_id`` and an ``identity:`` block). These helpers let the
+discovery/identity flows register new ECUs and fill in identity metadata
+without clobbering hand-authored edits:
 
-* :func:`register_ecu` — add a new ``ecus:`` entry (keyed by TX id), or merge
-  missing fields into an existing one.
-* :func:`set_ecu_fields` — update metadata on an existing entry.
-* :func:`append_scan_log` — record a probe outcome under ``scan_log:``.
+* :func:`register_ecu` — create a new ``ecus/<name>.yaml`` (or merge missing
+  identity fields into the existing file for that TX id).
+* :func:`set_ecu_fields` — update identity fields on an existing ECU file.
+* :func:`append_scan_log` — record a probe outcome under the ECU's ``scan_log:``.
 
 All writes go through :func:`_safe_write`, which re-parses and schema-validates
-the file and reverts on failure — a broken edit never persists. Fields are
-validated against ``canlib/schema/ecus_schema.yaml`` so typos are rejected up
-front. Merges never overwrite existing non-empty values unless ``overwrite=True``.
+the file and reverts on failure — a broken edit never persists. Identity fields
+are validated against ``canlib/schema/pids_schema.yaml`` (``identity_fields``).
+Merges never overwrite existing non-empty values unless ``overwrite=True``.
 """
 
 from __future__ import annotations
@@ -26,9 +28,8 @@ from .yaml_rt import detect_sequence_indent as _detect_seq
 from .yaml_rt import dump as _dump
 from .yaml_rt import round_trip_yaml as _yaml
 
-# Order used when rendering a brand-new ECU entry (unknown fields appended last).
+# Order used when rendering a brand-new identity block (unknown fields last).
 CANONICAL_FIELD_ORDER = (
-    "name",
     "alias",
     "description",
     "part_number",
@@ -54,54 +55,74 @@ CANONICAL_FIELD_ORDER = (
 
 
 class EcusEditError(Exception):
-    """Raised when an ecus.yaml edit cannot be applied safely."""
+    """Raised when an ECU-file edit cannot be applied safely."""
 
 
 # ── helpers ───────────────────────────────────────────────────────────────
 
 
 def tx_key(tx_id: int) -> str:
-    """Human-readable ``ecus:`` map key for a TX id (e.g. ``0x7E0``).
-
-    Used for display/messages. The registry is keyed by the *integer* TX id
-    (see :func:`_hex_key`); YAML round-trips it back to ``0xNNN`` form.
-    """
+    """Human-readable display form for a TX id (e.g. ``0x7E0``)."""
     if not isinstance(tx_id, int) or isinstance(tx_id, bool) or tx_id < 0 or tx_id > 0x7FF:
         raise EcusEditError(f"tx_id must be an int in 0x000-0x7FF, got {tx_id!r}")
     return f"0x{tx_id:03X}"
 
 
-def _hex_key(tx_id: int) -> HexCapsInt:
-    """A hex-rendering integer map key so new entries look like ``0x7E0``."""
+def _hex_tx(tx_id: int) -> HexCapsInt:
+    """A hex-rendering integer so ``tx_id`` dumps as ``0x7E0``."""
     return HexCapsInt(tx_id, width=3)
 
 
-def _resolve_path(path: Path | None) -> Path:
-    if path is None:
+def _resolve_dir(ecus_dir: Path | None) -> Path:
+    if ecus_dir is None:
         from .profile import active
 
-        return active().ecus_file
-    return Path(path)
+        return active().ecus_dir
+    return Path(ecus_dir)
 
 
-def _allowed_fields() -> set[str]:
-    from .commands.validate import load_ecus_schema
+def _slug(name: str) -> str:
+    return name.strip().lower().replace(" ", "-") + ".yaml"
 
-    schema = load_ecus_schema()
-    return set(schema.get("required_fields", [])) | set(schema.get("optional_fields", []))
+
+def _allowed_identity_fields() -> set[str]:
+    from .commands.validate import load_schema
+
+    schema = load_schema()
+    ident = schema.get("identity_fields", {}) or {}
+    return set(ident.get("required", [])) | set(ident.get("optional", []))
 
 
 def _check_fields(fields: dict) -> None:
-    unknown = set(fields) - _allowed_fields()
+    unknown = set(fields) - _allowed_identity_fields()
     if unknown:
         raise EcusEditError(
-            f"unknown ECU field(s): {', '.join(sorted(unknown))}. "
-            f"See canlib/schema/ecus_schema.yaml."
+            f"unknown identity field(s): {', '.join(sorted(unknown))}. "
+            f"See identity_fields in canlib/schema/pids_schema.yaml."
         )
 
 
+def _find_file_by_tx(tx_id: int, ecus_dir: Path) -> tuple[Path | None, str | None]:
+    """Locate the ``ecus/<name>.yaml`` file whose ECU has ``tx_id``."""
+    y = _yaml()
+    for fpath in sorted(ecus_dir.glob("*.yaml")):
+        if fpath.name.startswith("_"):
+            continue
+        try:
+            with open(fpath) as f:
+                data = y.load(f)
+        except Exception:
+            continue
+        if not isinstance(data, dict):
+            continue
+        for name, ecu_def in data.items():
+            if isinstance(ecu_def, dict) and ecu_def.get("tx_id") == tx_id:
+                return fpath, name
+    return None, None
+
+
 def _load_doc(path: Path) -> CommentedMap:
-    """Round-trip load ``ecus.yaml`` (or a fresh doc if the file is absent/empty)."""
+    """Round-trip load an ECU file (or a fresh doc if absent/empty)."""
     y = _yaml()
     data = None
     if path.exists():
@@ -111,17 +132,11 @@ def _load_doc(path: Path) -> CommentedMap:
         data = CommentedMap()
     if not isinstance(data, dict):
         raise EcusEditError(f"{path} top-level must be a mapping")
-    if data.get("ecus") is None:
-        data["ecus"] = CommentedMap()
     return data
 
 
 def _merge_fields(entry: dict, updates: dict, overwrite: bool) -> bool:
-    """Merge ``updates`` into ``entry``; return True if anything changed.
-
-    A value is written when the field is absent, empty, or ``overwrite`` is set.
-    ``None`` update values are skipped (nothing to fill in).
-    """
+    """Merge ``updates`` into ``entry``; return True if anything changed."""
     changed = False
     for key, val in updates.items():
         if val is None:
@@ -134,33 +149,29 @@ def _merge_fields(entry: dict, updates: dict, overwrite: bool) -> bool:
     return changed
 
 
-def _new_entry(fields: dict) -> CommentedMap:
-    entry = CommentedMap()
+def _new_identity(fields: dict) -> CommentedMap:
+    ident = CommentedMap()
     for key in CANONICAL_FIELD_ORDER:
         if fields.get(key) is not None:
-            entry[key] = fields[key]
-    # Any non-canonical (but schema-allowed) fields, appended in call order.
+            ident[key] = fields[key]
     for key, val in fields.items():
-        if key not in entry and val is not None:
-            entry[key] = val
-    return entry
+        if key not in ident and val is not None:
+            ident[key] = val
+    return ident
 
 
 def _safe_write(path: Path, original: str | None, data) -> None:
-    """Write ``data``, then re-parse + schema-validate; revert on failure.
-
-    Block-sequence indentation is matched to the file's existing style (ecus.yaml
-    indents the dash 4/2) so an edit never reflows unrelated ``scan_log`` blocks.
-    """
+    """Write ``data``, then re-parse + schema-validate; revert on failure."""
     seq_off = _detect_seq(original or "") or (4, 2)
     with open(path, "w") as f:
         _dump(data, f, sequence=seq_off[0], offset=seq_off[1])
+    _invalidate()
     try:
-        from .commands.validate import validate_ecus_file
+        from .commands.validate import validate_pids_file
 
-        ok, msg = validate_ecus_file(path)
+        ok, msg = validate_pids_file(path)
         if not ok:
-            raise EcusEditError(f"ecus.yaml invalid after edit:\n{msg}")
+            raise EcusEditError(f"ECU file invalid after edit:\n{msg}")
     except EcusEditError:
         _restore(path, original)
         raise
@@ -174,6 +185,13 @@ def _restore(path: Path, original: str | None) -> None:
         path.unlink(missing_ok=True)
     else:
         path.write_text(original)
+    _invalidate()
+
+
+def _invalidate() -> None:
+    from .pids import clear_cache
+
+    clear_cache()
 
 
 # ── public API ──────────────────────────────────────────────────────────────
@@ -184,73 +202,90 @@ def register_ecu(
     name: str | None = None,
     *,
     overwrite: bool = False,
-    path: Path | None = None,
+    ecus_dir: Path | None = None,
     **fields,
 ) -> bool:
-    """Register an ECU under ``ecus:`` (keyed by TX id), or merge into existing.
+    """Register an ECU as ``ecus/<name>.yaml``, or merge into the existing file.
 
-    A new entry defaults its ``name`` to ``Unknown-<TX>`` when none is given.
-    Existing entries keep their human-authored fields; only missing/empty ones
-    are filled unless ``overwrite=True``. Returns True if the file changed.
+    A new file defaults its name to ``Unknown-<TX>`` when none is given. Existing
+    files keep their human-authored identity fields; only missing/empty ones are
+    filled unless ``overwrite=True``. ``fields`` are identity fields (see
+    ``identity_fields`` in the schema). Returns True if a file was written.
     """
-    if name is not None:
-        fields = {"name": name, **fields}
     _check_fields(fields)
+    disp = tx_key(tx_id)  # validates range
+    ecus_dir = _resolve_dir(ecus_dir)
 
-    path = _resolve_path(path)
-    original = path.read_text() if path.exists() else None
-    data = _load_doc(path)
-    ecus = data["ecus"]
-    disp = tx_key(tx_id)  # validates range + display form
+    fpath, existing_name = _find_file_by_tx(tx_id, ecus_dir)
 
-    if tx_id in ecus:
-        entry = ecus[tx_id]
-        if not isinstance(entry, dict):
-            raise EcusEditError(f"ecus[{disp}] is not a mapping")
-        changed = _merge_fields(entry, fields, overwrite)
-    else:
-        if fields.get("name") is None:
-            fields["name"] = f"Unknown-{tx_id:03X}"
-        ecus[_hex_key(tx_id)] = _new_entry(fields)
-        changed = True
+    if fpath is not None:
+        original = fpath.read_text()
+        data = _load_doc(fpath)
+        ecu_def = data[existing_name]
+        if not isinstance(ecu_def, dict):
+            raise EcusEditError(f"{fpath.name}/{existing_name} is not a mapping")
+        ident = ecu_def.get("identity")
+        if not isinstance(ident, dict):
+            ident = CommentedMap()
+            ecu_def["identity"] = ident
+        changed = _merge_fields(ident, fields, overwrite)
+        if changed:
+            _safe_write(fpath, original, data)
+        return changed
 
-    if changed:
-        _safe_write(path, original, data)
-    return changed
+    # New file
+    ecu_name = name or f"Unknown-{tx_id:03X}"
+    ecus_dir.mkdir(parents=True, exist_ok=True)
+    fpath = ecus_dir / _slug(ecu_name)
+    if fpath.exists():
+        raise EcusEditError(f"{fpath.name} already exists but has no tx_id {disp}")
+    data = CommentedMap()
+    ecu_def = CommentedMap()
+    ecu_def["tx_id"] = _hex_tx(tx_id)
+    ident = _new_identity(fields)
+    if len(ident):
+        ecu_def["identity"] = ident
+    data[ecu_name] = ecu_def
+    _safe_write(fpath, None, data)
+    return True
 
 
 def set_ecu_fields(
     tx_id: int,
     *,
     overwrite: bool = False,
-    path: Path | None = None,
+    ecus_dir: Path | None = None,
     **fields,
 ) -> bool:
-    """Update metadata fields on an existing ECU entry. Returns True if changed.
+    """Update identity fields on an existing ECU file. Returns True if changed.
 
-    Raises :class:`EcusEditError` if the ECU is not registered (use
+    Raises :class:`EcusEditError` if no ECU file has ``tx_id`` (use
     :func:`register_ecu` first).
     """
     _check_fields(fields)
-    path = _resolve_path(path)
-    original = path.read_text() if path.exists() else None
-    data = _load_doc(path)
-    ecus = data["ecus"]
     disp = tx_key(tx_id)
+    ecus_dir = _resolve_dir(ecus_dir)
 
-    if tx_id not in ecus:
+    fpath, name = _find_file_by_tx(tx_id, ecus_dir)
+    if fpath is None:
         raise EcusEditError(f"ECU {disp} not registered; call register_ecu first")
-    entry = ecus[tx_id]
-    if not isinstance(entry, dict):
-        raise EcusEditError(f"ecus[{disp}] is not a mapping")
 
-    changed = _merge_fields(entry, fields, overwrite)
+    original = fpath.read_text()
+    data = _load_doc(fpath)
+    ecu_def = data[name]
+    if not isinstance(ecu_def, dict):
+        raise EcusEditError(f"{fpath.name}/{name} is not a mapping")
+    ident = ecu_def.get("identity")
+    if not isinstance(ident, dict):
+        ident = CommentedMap()
+        ecu_def["identity"] = ident
+    changed = _merge_fields(ident, fields, overwrite)
     if changed:
-        _safe_write(path, original, data)
+        _safe_write(fpath, original, data)
     return changed
 
 
-# scan_log entry fields we accept (mirrors ecus_schema.yaml scan_log_entry_fields).
+# scan_log entry fields we accept (mirrors pids_schema scan_log_entry_fields).
 _SCAN_LOG_FIELDS = ("service", "range", "date", "hits", "probes", "state", "notes")
 
 
@@ -264,22 +299,29 @@ def append_scan_log(
     probes=None,
     state: str | None = None,
     notes: str | None = None,
-    path: Path | None = None,
+    ecus_dir: Path | None = None,
 ) -> None:
-    """Append a probe-outcome entry under ``scan_log.<tx>`` (date defaults to today)."""
-    path = _resolve_path(path)
-    original = path.read_text() if path.exists() else None
-    data = _load_doc(path)
+    """Append a probe-outcome entry under the ECU's ``scan_log:`` (date defaults to today)."""
+    disp = tx_key(tx_id)
+    ecus_dir = _resolve_dir(ecus_dir)
 
-    if data.get("scan_log") is None:
-        data["scan_log"] = CommentedMap()
-    log = data["scan_log"]
-    tx_key(tx_id)  # validate range
-    if log.get(tx_id) is None:
-        log[_hex_key(tx_id)] = []
+    fpath, name = _find_file_by_tx(tx_id, ecus_dir)
+    if fpath is None:
+        raise EcusEditError(f"ECU {disp} not registered; call register_ecu first")
+
+    original = fpath.read_text()
+    data = _load_doc(fpath)
+    ecu_def = data[name]
+    if not isinstance(ecu_def, dict):
+        raise EcusEditError(f"{fpath.name}/{name} is not a mapping")
+
+    if ecu_def.get("scan_log") is None:
+        ecu_def["scan_log"] = []
 
     values = {
-        "service": HexCapsInt(service) if isinstance(service, int) and not isinstance(service, bool) else service,
+        "service": HexCapsInt(service)
+        if isinstance(service, int) and not isinstance(service, bool)
+        else service,
         "range": range,
         "date": date if date is not None else _date.today().isoformat(),
         "hits": hits,
@@ -291,6 +333,6 @@ def append_scan_log(
     for field in _SCAN_LOG_FIELDS:
         if values[field] is not None:
             entry[field] = values[field]
-    log[tx_id].append(entry)
+    ecu_def["scan_log"].append(entry)
 
-    _safe_write(path, original, data)
+    _safe_write(fpath, original, data)
