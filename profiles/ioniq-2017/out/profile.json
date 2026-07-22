@@ -239,7 +239,8 @@
         "MCU_MOTOR_TORQUE": "[S12:S13]/100",
         "MCU_TEMP_1": "S20",
         "MCU_TEMP_2": "S21",
-        "MCU_INVERTER_TEMP": "B19"
+        "MCU_INVERTER_TEMP": "B19",
+        "MCU_ROTOR_ANGLE": "B9"
       }
     },
     {

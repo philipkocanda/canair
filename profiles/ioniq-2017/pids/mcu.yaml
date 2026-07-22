@@ -152,6 +152,15 @@ MCU:
           verified: false
           notes: >
             STRONG CANDIDATE, unverified. Inverter/IGBT power-module temperature at B19 (ISO-TP 0x0F), immediately before MCU_TEMP_1 (B20) / MCU_TEMP_2 (B21). Distinguished from those two by being strongly LOAD-responsive: rises to 23-32C while driving (r=0.66 vs |torque|, 0.60 vs phase current) while T1/T2 stay ~13-16C decoupled from load; decays slowly (thermal mass) when stopped (20->15C over the mid-drive stop) rather than dropping instantly like current -> confirms a temperature, not an instantaneous load metric. Per-state means: parked ~8-9C, charging ~20C, driving MT->KW mean 23 (10-32C). Raw byte = degrees C directly (no offset); cold-park 8C matches ambient. Needs verify: watch it climb on a sustained hard drive / hill climb and cross-check against a scan tool's inverter temp.
+        MCU_ROTOR_ANGLE:
+          expression: B9
+          unit: ""
+          min: "0"
+          max: "255"
+          source: RE 2026-07-22 MT->KW drive analysis
+          verified: false
+          notes: >
+            CANDIDATE, unverified — raw byte B9 (ISO-TP 0x06), immediately before MCU_MOTOR_RPM (B10:B11). Best interpretation: motor rotor/resolver ELECTRICAL ANGLE (0-255 = 0-360 deg, i.e. B9*360/255) OR the fractional low byte of motor speed. Signature from the 2026-07-22 drive: B9==0 at ALL 18 standstill (RPM=0) samples and spreads ~uniformly 26-253 (mean 127~=255/2) whenever |RPM|>500 — the classic aliased pattern of a fast-rotating quantity sampled at asynchronous 2s intervals. Left as the RAW byte (no scale) until a high-rate/SavvyCAN capture at a fixed low RPM shows whether it ramps linearly (absolute angle) or stays uniform (speed fraction). Weak |RPM| corr (0.42) is just the shared zero-anchor.
 
     2103:
       period: 0

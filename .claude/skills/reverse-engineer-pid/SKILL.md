@@ -118,13 +118,17 @@ decoded values (press `s` to edit metadata live). After saving, run
 canair captures MCU 2102                      # list captures + decoded
 canair captures MCU:2102 --diff               # unique payloads, byte-diff
 canair captures MCU:2102 --diff --since 2026-07-19   # scope by date
+canair captures MCU:2102 --diff --state 'MT->KW'     # scope to one drive/state
 canair captures MCU:2102 --step               # interactive step-through
 canair bix -1 --annotate 6101FFFF...          # map each byte -> Bnn/ISO-TP/Torque/role
 ```
 
 Byte-diff highlights which bytes moved between states — your candidate signal
-bytes. `canair bix --annotate` tells you each byte's WiCAN index and flags the PCI
-bytes you must not read across (see Reference below).
+bytes. Both `captures` and `decode` share the same scoping flags —
+`--since`/`--until`/`--date`, `--state SUBSTR`/`--label SUBSTR`, `--first`/
+`--last N` — so you can isolate a single drive (`--state 'MT->KW'`) before
+diffing/decoding. `canair bix --annotate` tells you each byte's WiCAN index and
+flags the PCI bytes you must not read across (see Reference below).
 
 ### 6. Hypothesize — form an expression
 
@@ -233,9 +237,12 @@ Then consider an upstream wican-fw PR (see parent skill goals).
 |------|------|
 | what to work on | `canair research`, `canair coverage` |
 | talk to the car | `canair query`/`scan`/`discover` (`--monitor`, `--save`) |
-| see captures | `canair captures` (`--diff`/`--step`/`--since`/`--until`) |
+| see captures | `canair captures` (`--diff`/`--step`/`--since`/`--until`/`--state`/`--label`) |
 | map bytes | `canair bix --annotate` |
 | test expressions | `canair decode --try` / `--stats` / `--corr` / `--plot` |
+| scope a drive | `--state 'MT->KW'` / `--since`/`--until`/`--date` / `--first`/`--last N` (both `captures` + `decode`) |
+| per-segment stats | `canair decode … --stats --group-by state` |
+| watch evolution | `canair decode … --compact --changes-only` |
 | write definitions | `canair pids upsert-param` / `add-research` / `set-status` |
 | validate | `canair validate pids`, `canair coverage` |
 | ship | `canair wican` |
