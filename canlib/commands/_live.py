@@ -78,6 +78,7 @@ CANREQ_DEFAULTS: dict = {
     "routines": None,
     "routines_scan": None,
     "iocontrol_scan": None,
+    "sessions_scan": None,
     "multi": None,
     # options
     "pid": None,
@@ -343,7 +344,7 @@ async def async_main(args):
 
     init_logging()
     log_command(
-        f"--- SESSION START (host={host}, mode={'interactive' if not any([args.param, args.ecu, args.raw, args.scan, args.discover, args.skm_wakeup, args.tester_present, args.identity, args.dtc, args.iocontrol, args.routines, args.routines_scan is not None, args.iocontrol_scan is not None]) else 'batch'}, unsafe={args.unsafe}, session={getattr(args, 'session', False)}) ---"
+        f"--- SESSION START (host={host}, mode={'interactive' if not any([args.param, args.ecu, args.raw, args.scan, args.discover, args.skm_wakeup, args.tester_present, args.identity, args.dtc, args.iocontrol, args.routines, args.routines_scan is not None, args.iocontrol_scan is not None, getattr(args, 'sessions_scan', None) is not None]) else 'batch'}, unsafe={args.unsafe}, session={getattr(args, 'session', False)}) ---"
     )
 
     if args.unsafe:
@@ -877,6 +878,23 @@ async def dispatch_mode(args, terminal, pids_data, host):
                 wake=_wake,
                 session_mode=_mode,
             )
+    elif getattr(args, "sessions_scan", None) is not None:
+        from canlib.modes.sessions_scan import mode_sessions_scan
+
+        modes = None
+        if getattr(args, "modes", None):
+            modes = tuple(
+                int(tok, 16) for tok in str(args.modes).replace(" ", "").split(",") if tok
+            )
+        await mode_sessions_scan(
+            terminal,
+            pids_data,
+            ecus=args.sessions_scan,
+            modes=modes,
+            throttle_ms=args.throttle_ms,
+            verbose=args.verbose,
+            write_yaml=True,
+        )
     elif args.discover:
         addr_range = parse_range(args.range) if args.range != "01-FF" else (0x700, 0x7EF)
         await mode_discover(

@@ -42,17 +42,18 @@ NAME = "scan"
 
 # Subcommand names under ``canair scan``. Kept in sync with ``cli._SCAN_KINDS``
 # (which injects "range" when the token after ``scan`` isn't one of these).
-SCAN_KINDS = ("range", "iocontrol", "routines")
+SCAN_KINDS = ("range", "iocontrol", "routines", "sessions")
 
 
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
-        help="Scan an ECU: range | iocontrol | routines",
+        help="Scan an ECU: range | iocontrol | routines | sessions",
         description="Scan an ECU. Choose a kind:\n"
         "  range      sweep a PID/DID range (general purpose)\n"
         "  iocontrol  SAFE IOControl discovery (UDS 0x2F / KWP2000 0x30, auto)\n"
-        "  routines   SAFE RoutineControl discovery (UDS 0x31 SF03 / KWP2000 0x33, auto)\n\n"
+        "  routines   SAFE RoutineControl discovery (UDS 0x31 SF03 / KWP2000 0x33, auto)\n"
+        "  sessions   SAFE diagnostic session-type discovery (0x10, auto UDS/KWP2000)\n\n"
         "A bare `canair scan BMS` (or `canair scan` alone) is shorthand for "
         "`canair scan range …`.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -61,6 +62,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     _add_range_parser(kinds)
     _add_iocontrol_parser(kinds)
     _add_routines_parser(kinds)
+    _add_sessions_parser(kinds)
     parser.set_defaults(func=_group_help, _scan_group_parser=parser)
     return parser
 
@@ -252,8 +254,43 @@ def _add_routines_parser(kinds) -> argparse.ArgumentParser:
 
 
 # ---------------------------------------------------------------------------
-# Resolution: turn friendly/absent --service/--range into concrete values
+# scan sessions — SAFE diagnostic session-type discovery (service 0x10)
 # ---------------------------------------------------------------------------
+
+
+def _add_sessions_parser(kinds) -> argparse.ArgumentParser:
+    parser = kinds.add_parser(
+        "sessions",
+        help="SAFE diagnostic session-type discovery (0x10, auto UDS/KWP2000)",
+        description="Probe which DiagnosticSessionControl (service 0x10) session types an "
+        "ECU supports. The session-mode set is auto-selected per ECU from its id_protocol: "
+        "UDS ECUs are probed with 01 (default) + 03 (extended); KWP2000 ECUs (BMS, VCU, MCU, "
+        "LDC, AAF) with 81 (standard) + 82 + 83 (extended). Only these SAFE read-only modes "
+        "are ever sent — the programming sessions (UDS 0x02, KWP2000 0x85) are NEVER probed. "
+        "Results are written to ecus/<ecu>.yaml under a sessions: section.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="examples:\n"
+        "  canair scan sessions IGPM             # UDS: probe 10 01 / 10 03\n"
+        "  canair scan sessions BMS              # KWP2000: probe 10 81 / 82 / 83 (auto)\n"
+        "  canair scan sessions BMS VCU MCU      # several ECUs in one run\n"
+        "  canair scan sessions IGPM --modes 01,03,10   # override the probed modes\n",
+    )
+    parser.add_argument(
+        "sessions_scan", nargs="+", metavar="ECU", help="ECUs to scan (at least one required)"
+    ).completer = ecu_completer
+    parser.add_argument(
+        "--modes",
+        metavar="HEX[,HEX...]",
+        default=None,
+        help="Comma-separated 0x10 sub-functions to probe, overriding the per-ECU "
+        "protocol default (e.g. 01,03 or 81,82,83). Programming modes 02/85 are refused.",
+    )
+    parser.add_argument(
+        "--throttle-ms", type=int, default=200, help="Delay in ms between probes (default 200)"
+    )
+    add_connection_args(parser)
+    finalize_live_parser(parser)
+    return parser
 
 
 def _fmt_range(rng: tuple[int, int], wide: bool) -> str:

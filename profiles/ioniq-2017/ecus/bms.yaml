@@ -1,13 +1,10 @@
 # ─── BMS (Battery Management System) ─────────────────────────────────
 #
 # KWP2000 diagnostic sessions (service 0x10) — probed 2026-07-22, car in READY:
-#   10 81 standardDiagnosticSession   → 50 81 (supported)
-#   10 82                             → NRC 0x12 subFunctionNotSupported
-#   10 83 extendedDiagnosticSession   → NRC 0x12 subFunctionNotSupported
-# Only 0x81 is accepted, and 21xx live-data reads work in the default session
-# anyway — no session unlocks extra data. Payload sizes are identical across
-# sessions: 2101=61B, 2102=38B, 2103=38B, 2104=38B, 2105=45B.
-# (TODO: replace with a structured `sessions:` field once the schema supports it.)
+# see the structured `sessions:` field at the end of this ECU block.
+# Only 0x81 (standardDiagnosticSession) is accepted; 21xx live-data reads work
+# in the default session anyway — no session unlocks extra data. Payload sizes
+# are identical across sessions: 2101=61B, 2102=38B, 2103=38B, 2104=38B, 2105=45B.
 BMS:
   tx_id: 0x7E4
   identity:
@@ -1752,3 +1749,18 @@ BMS:
       date: "2026-07-22"
       result: "Exhaustive service-21 LID sweep (ignition on): 01/02/03/04/05 (known 2101-2105) PLUS F2 (NEW - see 21F2 decode entry). All 250 others NRC. One new page discovered."
       notes: Hidden-page hunt. Only genuine new page found in the whole session.
+
+  sessions:
+    "81":
+      name: "standardDiagnosticSession"
+      supported: true
+    "82":
+      name: "periodicDiagnosticSession"
+      supported: false
+      nrc: 0x12
+      nrc_desc: "subFunctionNotSupported"
+    "83":
+      name: "extendedDiagnosticSession"
+      supported: false
+      nrc: 0x12
+      nrc_desc: "subFunctionNotSupported"

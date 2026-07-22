@@ -15,6 +15,16 @@
 #     availability: [...]  # optional — ECU-level session control (1001) availability
 #                          #   States: sleep, plugged, acc, acc2, ready, charging
 #     session: bool        # optional — requires extended diagnostic session (10 03)
+#     sessions:            # optional — supported diagnostic session types, keyed by the
+#                          #   DiagnosticSessionControl (service 0x10) sub-function.
+#                          #   Populated by `canair scan sessions`. See sessions_fields.
+#       "81":              # sub-function hex (UDS: 01/02/03…; KWP2000: 81/82/83…)
+#         name: standardDiagnosticSession
+#         supported: true  # 50 xx positive response
+#       "83":
+#         supported: false # NRC-based
+#         nrc: 0x12
+#         nrc_desc: subFunctionNotSupported
 #     scan_log:            # optional — probe-history audit (see scan_log_entry_fields)
 #       - service: 0x22
 #         range: "0101-010F"
@@ -58,6 +68,7 @@ optional_ecu_fields:
   - identity        # ECU identity (name/part-number/protocol) — see identity_fields
   - availability    # ECU-level: when the ECU responds to session control (10 01)
   - session
+  - sessions        # Supported diagnostic session types (service 0x10) — see sessions_fields
   - multi_did       # bool: attempt UDS service-22 multi-DID batching on this ECU
   - response_timeout_ms  # int: per-ECU UDS response budget in ms (slow ECUs get more;
                          #   overridden by the global --timeout flag). See canlib.timeouts.
@@ -142,6 +153,38 @@ dtcs_fields:
     - causes
     - source
     - source_links
+    - verified
+    - notes
+
+# sessions section (under ECU_NAME.sessions) — the diagnostic session types
+# (DiagnosticSessionControl, service 0x10) this ECU supports, as probed by
+# `canair scan sessions`. Keys are the 0x10 sub-function hex WITHOUT the 0x10
+# prefix, quoted so all-digit values keep their hex meaning:
+#   UDS      : 01 (default), 02 (programming — NOT probed), 03 (extended), …
+#   KWP2000  : 81 (standard), 82, 83 (extended), 85 (programming — NOT probed), …
+# Each entry records whether the mode is supported (a 50 xx positive response)
+# and, for unsupported modes, the negative response code that was returned.
+# Example:
+#   sessions:
+#     "81":
+#       name: standardDiagnosticSession   # optional human label
+#       supported: true                   # 50 81 positive
+#     "83":
+#       supported: false
+#       nrc: 0x12                         # subFunctionNotSupported
+#       nrc_desc: subFunctionNotSupported
+#       notes: "extended session not implemented on this ECU"
+# Exactly the safe read-only session modes are probed; programming sessions
+# (UDS 0x02, KWP2000 0x85) are never sent.
+sessions_fields:
+  optional:
+    - name
+    - supported
+    - nrc
+    - nrc_desc
+    - response
+    - state
+    - date
     - verified
     - notes
 

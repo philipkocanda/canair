@@ -15,13 +15,10 @@
 #   0x01 (34 bytes), 0x02 (62 bytes), 0x03 (27 bytes, all zeros), 0xF2 (69 bytes).
 #
 # KWP2000 diagnostic sessions (service 0x10) — probed 2026-07-22, car in READY:
-#   10 81 standardDiagnosticSession   → 50 81 (supported)
-#   10 82                             → NRC 0x12 subFunctionNotSupported
-#   10 83 extendedDiagnosticSession   → NRC 0x12 subFunctionNotSupported
+# see the structured `sessions:` field at the end of this ECU block.
 # Only 0x81 is accepted; 21xx reads work in the default session too — no session
 # unlocks extra data. Payload sizes are session-independent: 2101=30B, 2102=56B,
 # 2103=27B; 2104/2105 → NRC 0x12 (do not exist).
-# (TODO: replace with a structured `sessions:` field once the schema supports it.)
 MCU:
   tx_id: 0x7E3
   identity:
@@ -291,3 +288,18 @@ MCU:
       priority: P3
       prerequisite: [ready]
       notes: MCU 2102 B52/B53 tail bytes = message alive-counter / checksum, NOT a physical signal. B52 (ISO-TP 0x2E) is chaotic full-range 0-253 with ZERO correlation to RPM/torque/phase-current (r~0.01); B53 sits ~constant 0x31-0x33. Ruled out as a signal during 2026-07-22 drive analysis — do not chase. The remaining B27-B47 block is the known static calibration region (constant across the drive).
+
+  sessions:
+    "81":
+      name: "standardDiagnosticSession"
+      supported: true
+    "82":
+      name: "periodicDiagnosticSession"
+      supported: false
+      nrc: 0x12
+      nrc_desc: "subFunctionNotSupported"
+    "83":
+      name: "extendedDiagnosticSession"
+      supported: false
+      nrc: 0x12
+      nrc_desc: "subFunctionNotSupported"

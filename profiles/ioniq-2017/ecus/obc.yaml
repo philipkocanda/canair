@@ -20,13 +20,10 @@
 # Correct byte offsets decoded from live captures during AC charging (2026-04-14).
 #
 # KWP2000 diagnostic sessions (service 0x10) — probed 2026-07-22, car in READY:
-#   10 81 standardDiagnosticSession   → 50 81 (supported)
-#   10 82                             → NRC 0x12 subFunctionNotSupported
-#   10 83 extendedDiagnosticSession   → NRC 0x12 subFunctionNotSupported
+# see the structured `sessions:` field at the end of this ECU block.
 # Only 0x81 is accepted; 21xx reads work in the default session too — no session
 # unlocks extra data. Payload sizes are session-independent: 2101, 2102 present;
 # 2103/2104/2105 → NRC 0x12 (do not exist, consistent with the 2103 note above).
-# (TODO: replace with a structured `sessions:` field once the schema supports it.)
 #
 OBC:
   tx_id: 0x7E5
@@ -291,3 +288,18 @@ OBC:
       date: "2026-07-22"
       result: "Exhaustive service-21 LID sweep (ignition on, OBC idle): only 01/02 respond (= known 2101/2102), all 254 others NRC. No hidden pages; notably NO 21F2 (unlike BMS/MCU/VCU). OBC service-21 space fully mapped."
       notes: Hidden-page hunt 2026-07-22 (KWP2000 completion after BMS/MCU/VCU).
+
+  sessions:
+    "81":
+      name: "standardDiagnosticSession"
+      supported: true
+    "82":
+      name: "periodicDiagnosticSession"
+      supported: false
+      nrc: 0x12
+      nrc_desc: "subFunctionNotSupported"
+    "83":
+      name: "extendedDiagnosticSession"
+      supported: false
+      nrc: 0x12
+      nrc_desc: "subFunctionNotSupported"
