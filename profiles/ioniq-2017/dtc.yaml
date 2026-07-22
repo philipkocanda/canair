@@ -12,10 +12,11 @@
 dtcs:
   C182C:
     description: "DC fast-charge (CCS) charging / PLC communication failure"
-    ecu: PLC
+    ecu: CCM
     source: >
-      canair RE — stored on the PLC (Power Line Communication) charge-control
-      module; correlated with an owner-observed DC fast-charge (DCFC) abort.
+      canair RE — stored on the CCM (Charge Control Module, Power Line
+      Communication) charge controller; correlated with an owner-observed DC
+      fast-charge (DCFC) abort.
     verified: false
 
   B1285:
