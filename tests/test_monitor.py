@@ -149,6 +149,19 @@ class TestRenderResults:
         t = _render_results(results, verbose=False, cycle=1, elapsed=0.1, interval=5.0)
         assert "(unmapped)" in t.plain
 
+    def test_rulers_annotate_params_with_byte_index(self):
+        # With show_rulers, each param gets its payload byte-index column (like
+        # the diff view). B02 -> payload byte 1 for a single-frame reply.
+        params = [("VOLT", 12.3, "V", "B02", None, True)]
+        entry = self._make_pid_result(pid="2101", params=params, raw_hex="6101AB")
+        results = [("BMS (0x7E4)", [entry])]
+        with_r = _render_results(
+            results, verbose=False, cycle=1, elapsed=0.1, interval=5.0, show_rulers=True
+        ).plain
+        line = next(ln for ln in with_r.splitlines() if "VOLT" in ln)
+        # Byte-index annotation (payload index 1) trails the verified mark.
+        assert line.rstrip().endswith("✓  1")
+
     def test_keep_all_history_render_is_capped(self):
         # With --keep-all, a PID can accrue thousands of payloads; the render must
         # cap to the newest _RENDER_MAX_ROWS and summarize the rest.

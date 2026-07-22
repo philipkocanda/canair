@@ -161,7 +161,12 @@ def _render_results(
             text.append("\n")
 
             if params:
-                text.append_text(render_param_table(params, verbose=verbose))
+                # With rulers on, annotate each param with the payload byte
+                # index(es) it maps to (e.g. "16-17"), matching the diff view.
+                n_bytes = len(raw_hex) // 2 if (show_rulers and raw_hex) else None
+                text.append_text(
+                    render_param_table(params, verbose=verbose, n_bytes=n_bytes)
+                )
             elif decode:
                 text.append(f"      {decode}\n")
 
