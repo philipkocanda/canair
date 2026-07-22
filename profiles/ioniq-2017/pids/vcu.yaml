@@ -402,3 +402,9 @@ VCU:
       date: "2026-07-22"
       result: "Exhaustive service-21 LID sweep (ignition on): only 01/02/F2 respond (= known 2101/2102/21F2), all 253 others NRC. No hidden pages. Drive-mode/regen not exposed as a separate VCU service-21 page — must be bytes within 2101/2102 (or 21F2)."
       notes: Hidden-page hunt. Redirects the drive-mode/regen search back into the known 2101/2102 payloads.
+    - type: decode
+      target: "2101"
+      status: done
+      priority: P3
+      prerequisite: [ready]
+      notes: "VCU 2101 B13/B15 = accelerator/torque REQUEST echo (driver demand), essentially redundant with ACCEL_PEDAL_DEPTH so not worth a separate param. From 2026-07-22 drive: B13 and B15 both correlate ~0.99 with ACCEL_PEDAL_DEPTH; B13 = 2xB15 exactly; linear fit B13 = 0.263*pedal + 6.4 (residual std 0.44); both FLOOR at their idle value (B13=6, B15=3) during braking/regen (never go negative), confirming it is a >=0 request signal, not actual bidirectional motor torque (which lives in MCU 2102). Neighbouring unmapped B14/B21 are uncorrelated with speed/pedal (noise/other). Actual motor torque + regen must be read from MCU 2102 (MCU_MOTOR_TORQUE) — VCU 2101 does not expose signed motor torque."
