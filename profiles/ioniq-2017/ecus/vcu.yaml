@@ -163,12 +163,12 @@ VCU:
           verified: false
           notes: "Inverted from LDC_INHIBIT bit. 1=LDC active, 0=inhibited."
 
-        DEBUG_MCU_STATE_FLAGS:
+        VCU_STATE_FLAGS_RAW:
           expression: "B12"
           unit: ""
-          source: "AutoPID config (on device)"
-          verified: true
-          notes: "Present in AutoPID but not in vehicle profile"
+          verified: false
+          notes: >
+            To investigate
 
         CAR_READY:
           expression: "B26:3"
