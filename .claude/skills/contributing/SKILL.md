@@ -267,6 +267,13 @@ bolting on more:
 
 ## Before you finish
 
+- **Check whether the README needs updating.** If your change adds, removes, or
+  alters a user-facing capability (a new subcommand, a changed flag, a shifted
+  default, new setup/config steps, an updated command list or usage example),
+  update the repo `README.md` to match. Stale docs mislead as badly as stale
+  code — treat the README as part of the change, not an afterthought. If nothing
+  user-facing changed, no edit is needed; confirm rather than assume.
+
 ```bash
 uv run pytest -q                 # all tests green
 uv run canair <yourcmd> --help   # parser sane
