@@ -138,37 +138,47 @@ Through `uv run` the completion won't fire (it hooks the `canair` command word);
 
 ## Usage examples
 
+Roughly the order you'd work through them coming to the project fresh — confirm the connection, see what's on the bus, read data, then dig deeper.
+
 ```bash
-# Read specific parameters (decoded output)
-canair query --param SOC_BMS BATTERY_VOLTAGE BATTERY_POWER
+# Is the device reachable and in a usable mode?
+canair status
 
-# Query all parameters for an ECU (or a single PID)
-canair query BMS
-canair query BMS:2101
-
-# Live monitor — refresh and highlight changes
-canair query BMS:2101 --monitor
-
-# IOControl — interactive TUI for actuators, or a single command
-canair io IGPM
-canair io IGPM --did BC01           # turn on low beam (hold until Ctrl+C)
-
-# Scan for unknown DIDs on an ECU
-canair scan 7E4 --service 22 --range BC00-BCFF
-
-# Discover responding ECUs (add --register to auto-add new ones to ecus/)
+# See every ECU responding on the bus
 canair discover
 
-# Raw UDS request (hex in, hex out)
-canair raw 7E4:2101
+# Read one ECU's main PID, then all its known parameters (decoded)
+canair query BMS:2101
+canair query BMS
 
-# Multi-ECU pipeline: wake SKM, query IGPM and BCM
-canair query "skm-wake acc" "query IGPM:BC03" "query BCM:C00B"
+# Read specific named parameters across ECUs
+canair query --param SOC_BMS BATTERY_VOLTAGE BATTERY_POWER
+
+# Watch a value live — refreshes and highlights changed bytes
+canair query BMS:2101 --monitor
 
 # Read Diagnostic Trouble Codes across every ECU (logs changes since last scan)
 canair dtc --all
 
-# Passively sniff the CAN bus (device must be in slcan mode)
+# Save what you read for later analysis (prompts for context on exit)
+canair query BMS --save
+
+# Analyze the captures you've collected
+canair captures BMS --summary       # what have I captured?
+canair captures BMS:2101 --diff     # byte-level diff across captures
+canair decode BMS 2101 --stats      # value ranges/stats per parameter
+
+# Dig into unknowns: scan an ECU for undocumented DIDs
+canair scan 7E4 --service 22 --range BC00-BCFF
+
+# Actuate hardware via IOControl (auto-releases when the session ends)
+canair io IGPM                       # interactive TUI
+canair io IGPM --did BC01            # turn on low beam (hold until Ctrl+C)
+
+# Multi-step pipeline over one session: wake SKM, then read two ECUs
+canair query "skm-wake acc" "query IGPM:BC03" "query BCM:C00B"
+
+# Passively sniff broadcast frames the request/response path can't see
 canair sniff --duration 10 --save bus.asc
 ```
 
