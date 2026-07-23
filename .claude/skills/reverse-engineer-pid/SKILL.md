@@ -6,10 +6,25 @@ description: Reverse-engineer / decode a NEW Ioniq PID or DID end to end — dis
 # Reverse-engineering a new Ioniq PID
 
 This is the end-to-end workflow for taking a PID/DID from "unknown" to a
-verified, decoded parameter in the profile's `ecus/`. It assumes the broader project context
-from the **ioniq-reverse-engineering** skill — load that too for vehicle facts,
-the ECU status table, full `canair`/`wican-cli` flag reference, and MQTT/
-profile details. This skill owns the *decoding* procedure and reference.
+verified, decoded parameter in the profile's `ecus/`.
+
+**These two skills are complementary — load both.** They split the work, not the
+subject matter:
+
+- **`ioniq-reverse-engineering`** (the *parent*/context skill) — the vehicle
+  facts, ECU status table, safety rules, device/transport/MQTT details, and the
+  full `canair`/`wican-cli` command reference. It is the "what am I working on
+  and with what tools" skill.
+- **`reverse-engineer-pid`** (this skill) — the *decoding procedure* and
+  reference: the discover→capture→analyze→define→verify lifecycle, byte-index /
+  expression syntax, PCI boundaries, UDS conventions, and the analysis
+  reasoning (signal types, physics/EE, statistics) below.
+
+If you loaded **this** skill for an RE task, **also load `ioniq-reverse-engineering`**
+— you will need the ECU status table (which ECU carries which kind of signal),
+the safety rules, and the tool reference to do the workflow here. Conversely, the
+parent skill points back here whenever you actually decode a PID. Treat "load the
+reverse-engineering skill" as "load *both*."
 
 ## Safety first (non-negotiable)
 
@@ -25,6 +40,21 @@ profile details. This skill owns the *decoding* procedure and reference.
   brick or actuate hardware — out of scope for PID decoding.
 - Disable device sleep during a session: `wican sleep --disable` (re-enable
   after).
+
+## Working principles
+
+- **Be rigorous.** Reverse engineering is evidence, not vibes. Don't accept a
+  byte interpretation because it "looks about right" — confirm it with data
+  (range, distribution, correlation, physical plausibility across states). State
+  your confidence honestly: a hypothesis is a hypothesis until it's validated.
+  Prefer "unverified until proven" over an optimistic guess promoted to fact.
+- **Write notes to the point.** Notes on ECUs/PIDs/research are technical
+  records, not prose. State the facts — byte offset, observed range, per-state
+  values, correlation results, the decision and why — and stop. Cut filler,
+  hedging, and narration. **Hold off on speculation**: record what the data shows
+  and, at most, a one-line best interpretation; leave extended theorizing to the
+  reader. These files are read repeatedly and grow forever — every excess word is
+  a tax on everyone after you. Terse and factual beats thorough and unwieldy.
 
 ## The lifecycle
 
@@ -158,6 +188,140 @@ Cross-reference the Kia Soul/Niro sheets and the Obsidian vault; watch the
 PCI-boundary caution for `[Bnn:Bmm]`. See the Byte Index & Expression reference
 at the bottom.
 
+Hypothesizing is not just guessing a byte offset — it's reasoning from *domain
+knowledge* about what a signal must physically be, then confirming it in the
+data. Use every discipline you have.
+
+#### Let the ECU narrow the search space
+
+**What an ECU is tells you what signals to expect.** Consult the ECU status
+table in the parent skill and reason about the component's job before you look at
+bytes:
+
+- **BMS (battery)** — cell/pack voltages (tight clusters of similar 2-byte
+  values), currents (signed, symmetric about zero, charge vs discharge),
+  temperatures (slow, per-module), state-of-charge/health (bounded 0–100%),
+  contactor/relay states (enum/bit), cell-balancing flags (bitfields).
+- **MCU/inverter** — motor RPM (signed, ±, symmetric under regen), torque
+  (signed), phase currents (large, load-tracking), DC-link voltage, and *several
+  temperatures of different components* (see thermal-mass reasoning below).
+- **VCU** — gear/drive-mode (enum), vehicle speed, pedal positions (0–100%),
+  ready/charging state machine (enum/bits).
+- **OBC/LDC** — AC/DC input & output voltages/currents, charger/converter
+  temperatures, charge-state enums.
+- **BCM/IGPM (body)** — mostly *discrete* signals: lights, locks, doors,
+  switches → **bitfields and enums**, not continuous analog.
+- **HVAC/AAF** — temperatures (ambient/evaporator/heatsink), fan/compressor
+  states, flap positions.
+
+A byte's plausible identity is constrained by its ECU: a load-tracking current
+on the BCM is unlikely; a door-ajar bit on the MCU is unlikely.
+
+#### Reason from physics / electrical engineering / power electronics
+
+The *dynamics* of a signal reveal its nature even before you know its scale:
+
+- **Thermal mass (the most useful physics lever).** Temperatures change *slowly*
+  and are *decoupled from instantaneous load*: high lag-1 autocorrelation, tiny
+  per-sample step. Crucially, **thermal mass varies by component**, so *how
+  slowly* a temperature moves tells you *which* component it measures:
+  - A small-die IGBT **junction** temperature can rise/fall within ~1 s (low
+    thermal mass) yet still sit near coolant temp at idle — it looks *fast* but
+    keeps a temperature-like baseline.
+  - A **heatsink / coolant / motor-winding** temperature drifts over minutes
+    (large thermal mass) and lags load heavily.
+  - Which state a temperature is *hottest* in disambiguates the component: a byte
+    hottest while **charging** (motor idle) is inverter/charger/power-stage; one
+    that warms only with **driving** is motor/coolant. Use `--stats
+    --group-by state` to read these per-state means straight out.
+- **Signed vs unsigned & symmetry.** Motor RPM, torque, and battery current are
+  **signed** and roughly **symmetric about zero** (regen ≈ –drive). A value that
+  never goes negative and tracks |load| is a *magnitude* (current RMS, power),
+  not a signed torque.
+- **Conservation / relationships you can check.** Power ≈ V·I; DC-link current ≈
+  motor power / DC-link voltage; pack current integrates toward SOC change. A
+  candidate that violates a physical identity is wrong even if its range "looks
+  right." Validate these with `--corr` against an already-known signal.
+- **Rate limits.** Real physical quantities can't step arbitrarily fast — a
+  "temperature" that jumps 5 °C between two 5 s samples is a load/current metric,
+  not a temperature (a real example from this project).
+
+#### Reason from computer science (state machines, counters, logic)
+
+Not every byte is analog. Discrete/logic signals have distinct fingerprints:
+
+- **Enums / state machines** — a small set of distinct integer values (`--stats`
+  shows low `distinct`), transitions only between "adjacent" states (park→ready→
+  driving), and correlation with a known mode. Map with per-bit or whole-byte
+  reads and label each value.
+- **Bitfields** — individual bits toggle independently with discrete events
+  (a light, a door, a relay). Read bit-by-bit (`Bnn:k`); `canair coverage
+  --bitfields` flags bytes only partly decoded.
+- **Counters / alive / checksum** — monotonic wrap-around, or high-distinct noise
+  with *no* physical correlation to anything (a rolling counter or CRC). Don't
+  try to give these a physical unit; mark them as such.
+- **Constants / calibration** — never (or rarely) change across all states →
+  cal/identity block, not live data. Confirm with `--stats` (distinct = 1–2).
+
+#### Reason from statistics & mathematics
+
+The tooling exposes real statistical levers — use them as evidence, not decoration:
+
+- **Distribution shape** (`--stats`: n / distinct / mean / median / stdev) —
+  continuous vs enum vs constant; a bimodal/low-distinct byte is likely discrete.
+- **Correlation** (`--corr PARAM`, Pearson r) — the single strongest validation:
+  test a candidate against a *known* signal it should relate to (a temp vs
+  |torque| ≈ 0; a current vs |torque| ≈ high). Correlate against a *derived*
+  reference too (e.g. |Δbyte| vs |Δload|) to separate fast load-trackers from
+  slow temps.
+- **Autocorrelation / step size** — lag-1 autocorrelation and mean |Δ| per sample
+  separate slow (thermal, integrating) from fast (load, switching) signals.
+- **Differencing / transforms** (`--plot` `delta/abs/cumsum/normalize/smooth`) —
+  a byte whose *cumulative sum* tracks SOC is a current; a byte whose *delta*
+  correlates with load acceleration is a torque/power proxy.
+- **Endianness & word width sweeps** (`--plot` `t`/`e`) — try `u8/i8/u16/i16/…`
+  ×endianness; the physically-plausible, smooth, correctly-signed interpretation
+  is usually the right one. Beware readings that only look smooth because they
+  cross a PCI byte (garbage).
+- **Linear fit for scale/offset** — once a byte tracks a known engineering value,
+  a straight-line fit (value = a·byte + b) gives the scale and offset; sanity
+  check the intercept physically (a temperature's cold-park reading ≈ ambient).
+
+#### Expect thematic grouping (but don't rely on it)
+
+Related signals are **often** laid out contiguously — a run of cell voltages, a
+cluster of temperatures, a phase-current pair next to the temperatures that track
+it. Finding one member of a group is a strong hint the neighbors are related
+(e.g. the MCU B18–B21 "thermal cluster"). Use adjacency as a *lead*: if `Bn` is a
+temperature, probe `Bn±1` for more temperatures. **But grouping is a heuristic,
+not a rule** — manufacturers interleave unrelated bytes, pad with calibration
+constants, and reorder across DIDs. Always confirm each byte on its own evidence;
+never assume a neighbor's identity.
+
+#### Trust but verify existing PIDs
+
+Cross-referencing the profile's existing PIDs is essential, but **existing
+definitions can be wrong — even ones marked `verified: true`.** A "verified"
+flag records that *someone* checked it once, possibly against a single short
+drive, a cross-vehicle sheet with a byte offset, or a plausible-but-untested
+hypothesis. Sources of error to watch for:
+
+- **Offset-by-one / cross-vehicle drift** — Kia Soul/Niro sheets are offset by 1
+  byte from the Ioniq; a definition ported from them may read the wrong byte.
+- **Misclassified signal** — a byte labeled a temperature that is actually a
+  load/current metric (this project has real examples that were later demoted to
+  `enabled: false`).
+- **Right byte, wrong scale/sign/endianness** — plausible range but subtly wrong
+  transform.
+- **Stale after re-analysis** — a fuller capture corpus can overturn an earlier
+  single-drive conclusion.
+
+So: **use existing PIDs as priors and correlation references, but re-validate**
+when they contradict your data or physical reasoning. If you find a mistake in a
+`verified` param, that *is* the finding — demote it (`enabled: false` /
+`--unverified`), record the corrected reasoning in `notes:`, and open/adjust a
+`research:` lead rather than silently trusting it. Trust, but verify.
+
 ### 7. Test the expression WITHOUT committing
 
 `canair decode --try` evaluates a candidate against every capture — no YAML edit:
@@ -232,6 +396,11 @@ or an exact mirror of an already-mapped param). A plausible-but-unconfirmed
 hypothesis belongs enabled so you can watch it move. (Hand-editing `ecus/` is
 allowed, but the tool keeps field order/quoting correct and runs
 `canair validate pids` for you.)
+
+**Keep `--notes` terse and factual** (see Working principles). State the byte
+offset, observed range/per-state values, and the one key piece of evidence
+(e.g. correlation) — not a narrative. Record what the data shows; leave
+speculation to the reader.
 
 ### 9. Verify — confirm against reality
 
@@ -312,6 +481,7 @@ Then consider an upstream wican-fw PR (see parent skill goals).
 | talk to the car | `canair query`/`scan`/`discover` (`--monitor`, `--save`) |
 | see captures | `canair captures` (`--diff`/`--step`/`--rulers`/`--all`/`--latest`/`--summary`/`--since`/`--until`/`--state`/`--label`) |
 | map bytes | `canair bix --annotate` |
+| reason about a signal | step 6 Hypothesize — ECU context, physics/EE (thermal mass), CS (enums/counters), statistics (`--corr`/`--stats`/autocorr) |
 | test expressions | `canair decode --try` / `--stats` / `--corr` / `--plot` |
 | scope a drive | `--state driving` / `--since`/`--until`/`--date` / `--first`/`--last N` (both `captures` + `decode`) |
 | per-segment stats | `canair decode … --stats --group-by state` |

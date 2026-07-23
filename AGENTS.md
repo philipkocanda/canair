@@ -20,6 +20,12 @@ For **all** querying, capturing, analysis, and reverse-engineering, use the dedi
 - **Edit definitions** with `canair pids` (surgical, validated) — not by hand-editing `ecus/` YAML.
 - **Always pass `--save`** (with `--label`, `--state`, `--notes`) when reading from the device so every payload is recorded to `captures/`. See **Key Files → captures** below for the full flag set and examples. `--save` works with `query`/`scan`/`raw`/`discover`, positional query/raw steps, and `--monitor`. Saves are **journaled** (a write-ahead log under `captures/.journal/`) and reconciled into the dated capture file on exit, so a killed/crashed/disconnected session is never lost — recover leftovers with **`canair captures --recover`** (`--discard` to drop them). In `--monitor` press **`s`** to set/edit the label/state/notes live; the **vehicle state is auto-suggested** from decoded PID values via the profile's `states.yaml` (see `canair validate states`).
 
+## Boy Scout rule — leave it better than you found it
+
+When you notice something wrong while working — a bug, a typo, a stale comment, a small inconsistency, a missing validation, dead code — **be inclined to just fix it** as part of your change. Prefer improving the tree over walking past a defect.
+
+The exception: if the fix is **too much work** (a large refactor, a risky/behavior-changing edit, anything touching sensitive/irreversible operations, or something clearly outside the current task's scope), **ask first** before diving in. Surface what you spotted, describe the fix, and let the user decide. Don't silently balloon a small task into a large one.
+
 ## Tools
 
 > Reverse-engineering a new PID/DID end-to-end (discover → capture → analyze → define → verify) is documented in the **reverse-engineer-pid** skill; general project/device context is in the **ioniq-reverse-engineering** skill.

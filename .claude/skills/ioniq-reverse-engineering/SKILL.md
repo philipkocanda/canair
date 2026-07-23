@@ -6,11 +6,19 @@ description: Working with WiCAN OBD-II, Ioniq CAN bus, PID decoding, vehicle pro
 # Ioniq CAN Reverse Engineering Skill
 
 General project/device/tool context for the Hyundai Ioniq 2017 EV CAN
-reverse-engineering project. **Decoding a new PID/DID?** Load the companion
-**reverse-engineer-pid** skill (discover → capture → analyze → define → verify,
-plus the byte-index/expression and UDS-decoding reference). The full `canair`
-subcommand + flag reference lives in **AGENTS.md** and `canair <cmd> --help` —
-this skill covers project-specific facts and gotchas, not help text.
+reverse-engineering project.
+
+**This skill and `reverse-engineer-pid` are a pair — load both for any RE work.**
+This one is the *context* skill (vehicle facts, ECU status table, safety,
+device/transport details, and the `canair`/`wican-cli` command reference — "what
+am I working on, with what tools"). **`reverse-engineer-pid`** is the *decoding
+procedure and reference* — the discover→capture→analyze→define→verify lifecycle,
+byte-index/expression syntax, UDS conventions, and the signal-analysis reasoning
+(EE/power-electronics/physics/statistics). **Decoding, adding, fixing, or
+verifying any PID/DID? Load `reverse-engineer-pid` too** — don't work an RE task
+from this context skill alone. The full `canair` subcommand + flag reference
+lives in **AGENTS.md** and `canair <cmd> --help` — this skill covers
+project-specific facts and gotchas, not help text.
 
 ## Safety (non-negotiable)
 
