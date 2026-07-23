@@ -69,6 +69,24 @@ ESC:
           verified: true
           notes: >
             Individual wheel speed, 1 km/h/bit. ISO-TP 0x11. Right pair (B19/B21 track together). Front/rear by convention.
+        GEAR_SELECTOR:
+          expression: B14
+          unit: ""
+          min: "0"
+          max: "8"
+          source: canair investigate/hunt vs VCU:2101:DRIVE_MODE_P, 2026-07-22 drive
+          verified: false
+          notes: >
+            Transmission range / shifter position echoed on the ESC/ABS module. B14 (ISO-TP data). r=-1.000 vs VCU:2101:DRIVE_MODE_P over 117 co-polled driving points (fit y=-3*x+4: park->1, drive->4). Observed values 1=Park (n=100), 2 (n=4, brief P<->D shift transient = R or N), 4=Drive (n=277). Confirmed at drive start: stationary B14=1 at 09:02:19-28, flips to 4 at 09:02:38 as the car pulls away. Likely HKMC PRND encoding 1=P/2=R/3=N/4=D (N never observed). Verify with a capture that includes Reverse and Neutral.
+        LONG_ACCEL_RAW:
+          expression: S23-128
+          unit: ""
+          min: "-128"
+          max: "127"
+          source: canair hunt/investigate 2026-07-22 drive
+          verified: false
+          notes: >
+            Candidate longitudinal accelerometer / force sensor on the ESC/ABS module. B23 is centered at 127 (min 113, max 139, mean 127.29, median 127 over 381 driving pts) — the structural signature of a signed sensor with 0x7F/0x80 = zero. Moderately tracks acceleration (r=+0.49 vs delta(REAL_SPEED_KMH) at 2.5s join) and accel pedal (r=+0.70 vs VCU ACCEL_PEDAL_DEPTH) but the sign/scale are UNRESOLVED: correlation is unstable across join tolerances (+0.49 at 2.5s, -0.23 at 1.2s) because the sensor changes faster than the ~1s poll, and it also correlates with braking (r=-0.90 vs VCU NOT_BRAKING). Needs a high-rate synced capture with hard accel + hard braking to fix direction and g-scale.
     22C102:
       status: draft
       period: 2500
