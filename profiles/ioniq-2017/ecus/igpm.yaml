@@ -269,6 +269,15 @@ IGPM:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
           notes: "1=locked, 0=unlocked. Niro PR used inverted 1-B10:3 but Ioniq raw bit already has correct polarity. Verified 2026-04-15."
+        IGN_STATUS_MIRROR:
+          expression: B11:6
+          min: "0"
+          max: "1"
+          source: RE 2026-07-23 bit analysis (40 captures)
+          verified: false
+          notes: >
+            B11 bit6 == ACC2_IGN_ON (B11:5) EXACTLY across all 40 captures (diff=0 constant). Redundant ignition/ACC2-on status bit. Disabled: no new info beyond ACC2_IGN_ON. Documents B11:6. Remaining B11 bits 0,2,3,4,7 and B12 bits 0,1,6,7 are constant-0 across all captures (never observed active - no data to decode). SEATBELT_FR (B11:2) also constant-0 (pax belt never buckled in captures). B5=FD B6=EE B7=3C constant config; B13=0x00 constant.
+          enabled: false
 
     22BC04:
       status: active
@@ -300,6 +309,15 @@ IGPM:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
           notes: "1=locked, 0=unlocked. Verified 2026-04-15."
+        IGPM_BC04_B10_0:
+          expression: B10:0
+          min: "0"
+          max: "1"
+          source: RE 2026-07-23 bit analysis
+          verified: false
+          notes: >
+            Toggling bit at B10 bit0 (door locks are bits 2,3). n=29, distinct=2. Unidentified body signal. B10 other active: bits 2,3 (locks, mapped). B12:5 (0x20) and B13:6 (0x42 vs 0x02) also toggle. B5=B5 B6=3F B7=F4 B9=EA constant config. Enabled unverified — correlate with body actions to identify.
+          enabled: true
 
     22BC06:
       status: active
@@ -340,6 +358,15 @@ IGPM:
           source_links: []
           verified: true
           notes: "Right turn signal stalk. Bit flag — 1=on, persistent (not blinking state). Hazard lights do NOT register here. Verified 2026-04-15."
+        BRAKE_PEDAL_BITS:
+          expression: B10:2
+          min: "0"
+          max: "1"
+          source: RE 2026-07-23 bit analysis
+          verified: false
+          notes: >
+            Refines BRAKE_LIGHT (whole-byte B10). Brake-pressed payload B10=0x2D sets bits 2,3,5 together (0,1 = turn signals). Bit2 chosen as brake indicator candidate; bits 3+5 co-occur (could be brake-switch redundancy or brake-light-relay). Enabled unverified — press brake with turn signals OFF to isolate which single bit is the clean brake flag. Undecoded BC06 bits also active: B10:3, B10:5 (co-set with brake).
+          enabled: true
 
     22BC01:
       status: draft
@@ -354,8 +381,14 @@ IGPM:
         9 bytes. B03=0x40 (bit 6 set), B08=0x02 (bit 1 set), rest zeros. Static across
         deep sleep and ACC captures. Possibly immobilizer or key-related configuration flags.
         Sample: 62BC01400000000002.
-      parameters: {}
-
+      parameters:
+        IGPM_BC01_STATIC:
+          expression: B5
+          source: RE 2026-07-23 multi-state analysis
+          verified: false
+          notes: >
+            CONSTANT across all 6 power states (sleep/plugged/acc/acc2/ready/charging) and all captures: full data = 40 00 00 00 00 02 (B5=0x40; only trailing 0xAA ELM padding differs). Static config/version register, NO live signal. B5 is the representative byte; nothing to decode.
+          enabled: false
     22BC02:
       status: draft
       vehicle_states:
@@ -368,8 +401,14 @@ IGPM:
       notes: >
         4 data bytes, all zeros in every capture (deep sleep and ACC). May only populate
         during driving (speed pulse, wiper state?). Sample: 62BC0200000000.
-      parameters: {}
-
+      parameters:
+        IGPM_BC02_STATIC:
+          expression: B5
+          source: RE 2026-07-23 multi-state analysis
+          verified: false
+          notes: >
+            CONSTANT all-zero (62 BC 02 00 00 00 00) across every state/capture. B5=0x00. Carries no data. Nothing to decode.
+          enabled: false
     22BC05:
       status: draft
       vehicle_states:
@@ -383,9 +422,14 @@ IGPM:
         8 data bytes. B03=0x7F, B04=0x11, B05=0x20, rest zeros. Static across all power
         states. 0x7F11 could be a version or capability register. Purpose unknown.
         Sample: 62BC057F112000000000.
-      parameters: {}
-
-
+      parameters:
+        IGPM_BC05_STATIC:
+          expression: B5
+          source: RE 2026-07-23 multi-state analysis
+          verified: false
+          notes: >
+            CONSTANT across all states/captures: full data = 7F 11 20 00 00 00 00 00 (B5=0x7F). Static config/version register, no live signal. B5 representative; nothing to decode.
+          enabled: false
     22BC08:
       status: ignored
       vehicle_states:
@@ -841,7 +885,7 @@ IGPM:
   research:
     - type: decode
       target: "22BC01"
-      status: captured
+      status: done
       priority: P1
       vehicle_states:
         - sleep
@@ -857,9 +901,10 @@ IGPM:
         state monitoring; revisit only if a byte moves in some untested state (e.g. charging).
       sources:
         - "captures/ — 2026-04-14"
+      updated: "2026-07-23"
     - type: decode
       target: "22BC02"
-      status: captured
+      status: done
       priority: P1
       vehicle_states:
         - sleep
@@ -874,9 +919,10 @@ IGPM:
         Deprioritize unless a value appears in a charging/plugged state.
       sources:
         - "captures/ — 2026-04-14"
+      updated: "2026-07-23"
     - type: decode
       target: "22BC05"
-      status: captured
+      status: done
       priority: P1
       vehicle_states:
         - sleep
@@ -891,9 +937,10 @@ IGPM:
         not dynamic state. Low value for monitoring.
       sources:
         - "captures/ — 2026-04-14"
+      updated: "2026-07-23"
     - type: decode
       target: "22BC07"
-      status: captured
+      status: done
       priority: P2
       vehicle_states:
         - sleep
@@ -909,6 +956,7 @@ IGPM:
         needs a charging capture to see the charge-port bits toggle.
       sources:
         - "captures/ — 2026-04-14"
+      updated: "2026-07-23"
     - type: decode
       target: "22BC03 IGPM_CONFIG_BYTE (was POWER_MODE)"
       status: done
@@ -941,6 +989,14 @@ IGPM:
       date: "2026-07-22"
       result: "Full BC-family boundary sweep (ignition on): only BC01-BC07 respond; BC00 and BC08-BC1F all NRC. Confirms the readable BC family is exactly BC01-BC07 (BC08 already known absent). Note: BC09/BC0A/BC0C exist as 2F IOControl DIDs but do NOT answer service-22 reads — IOControl DID space != readable DID space here."
       notes: Hidden-page hunt 2026-07-22. Closes the question of readable pages beyond BC07.
+    - type: decode
+      target: 22BC04/BC06 body bits
+      status: captured
+      priority: P3
+      vehicle_states: [ready]
+      created: "2026-07-23"
+      updated: "2026-07-23"
+      notes: "Remaining undecoded TOGGLING bits in IGPM body DIDs (candidates registered, need physical correlation): BC04 B10:0 (unidentified, distinct from door locks B10:2/3), BC04 B12:5, BC04 B13:6; BC06 brake composite B10=0x2D sets bits 2,3,5 together (BRAKE_PEDAL_BITS=B10:2 candidate) — press brake with turn signals off to isolate the single clean brake bit vs brake-switch redundancy. All other BC03/BC04/BC06 unmapped bits are constant-0 across captures (no data). BC01/BC02/BC05 closed as static config. Verify by actuating each body function while capturing."
 
   iocontrol_discoveries:
     BC01:

@@ -102,6 +102,26 @@ AAF:
             27 bytes, same layout as 2180 but a richer variant (available in ACC2). 2026-07-20 live: identical
             to 2180 for ambient (B18) and the temp bytes, but exposes extra non-zero bytes where 2180 has zeros
             (B19, B22, B23, B24 populated). Likely additional temps/status. Payload: 6181FFFFC0002229000000000026778F523B5A5A981306969600 00
+        AAF_VEHICLE_SPEED_KMH:
+          expression: B13
+          unit: km/h
+          min: "0"
+          max: "250"
+          source: cross-ECU correlation vs ESC REAL_SPEED_KMH, 2026-07-22 drive
+          verified: false
+          notes: >
+            Vehicle speed in km/h. Discovered by cross-ECU correlation: r=0.997 vs ESC 22C101 REAL_SPEED_KMH across 66 joined points on the 2026-07-22 drive (B13 ~= ESC km/h directly: 40vs39, 25vs26). AAF (Active Air Flap) needs road speed for aero-flap control. Companion B12 = same speed in MPH. Verified-grade correlation; marked unverified pending a scale sanity-check at higher speed.
+          enabled: true
+        AAF_VEHICLE_SPEED_MPH:
+          expression: B12
+          unit: mph
+          min: "0"
+          max: "160"
+          source: cross-ECU correlation vs ESC REAL_SPEED_KMH, 2026-07-22 drive
+          verified: false
+          notes: >
+            Vehicle speed in MPH. Cross-ECU correlation r=0.997 vs ESC REAL_SPEED_KMH; slope 0.6244 (raw/kmh) matches the 0.6214 km/h->mph factor, mean residual 0.14 mph. Companion B13 = same speed in km/h. This car reports MPH internally (matches the VCU 2101 MPH speed finding).
+          enabled: true
 
   research:
     - type: scan
@@ -113,3 +133,11 @@ AAF:
       date: "2026-07-22"
       result: "Exhaustive service-21 LID sweep (ignition on): only 80/81 respond (= known 2180/2181), all 254 others NRC. Confirms AAF lives in the 0x80 page range (not 0x01); no hidden pages. Fully mapped."
       notes: Hidden-page hunt 2026-07-22 (KWP2000 completion).
+    - type: decode
+      target: 2180/2181 thermal bytes
+      status: captured
+      priority: P2
+      vehicle_states: [ready]
+      created: "2026-07-23"
+      updated: "2026-07-23"
+      notes: "AAF (Active Air Flap) identity docs say it exposes ambient/heater-element/heat-sink/compressor temps via 2180/2181 (community projects read external temp here). Speed bytes now decoded (2181 B12=MPH, B13=km/h via cross-ECU corr r=0.997 vs ESC). REMAINING: identify the temp bytes — needs an HVAC(ambient)+AAF co-polled session for a cross-ECU temperature correlation (current captures don't overlap HVAC 220100 AAT with timestamped AAF reads). Method: poll 'query HVAC:220100' 'query AAF:2180' 'query AAF:2181' together over a temperature-varying window, then correlate AAF bytes vs HVAC_AAT."

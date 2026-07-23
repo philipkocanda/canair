@@ -343,16 +343,17 @@ BMS:
           notes: "32-bit unsigned, ISO-TP bytes 48-51 (WiCAN B57-B60). Raw value is seconds, /3600 converts to hours. Live-verified 2026-04-14: 5902h. Was B57 (single byte = MSB of u32, always 0x01 = 1)."
 
         INVERTER_CAPACITOR_VOLTAGE:
-          expression: "B62*0.1"
+          expression: B62*0.1
           unit: V
           ha_class: voltage
           min: ""
           max: ""
-          source: "Original WiCAN config"
+          source: demoted 2026-07-23 historical audit
           source_links: []
-          verified: true
-          notes: ""
-
+          verified: false
+          notes: >
+            DEMOTED from verified + DISABLED 2026-07-23: B62 is CONSTANT 1 across all 69 BMS 2101 captures, so B62*0.1 = 0.10V always — structurally impossible for the inverter DC-link capacitor, which should sit near pack voltage (~380V) with the main relay closed (a single byte maxes at 25.5V anyway). The byte offset/scale is wrong. Correct byte unknown: all 69 captures have BMS_MAIN_RELAY=1 (closed) so there is no relay-open(0V) vs closed(~pack V) contrast in history to locate it. NEEDS a capture spanning relay open->closed (key off->READY) to find the real 16-bit DC-link field. Kept for research trail.
+          enabled: false
         DRIVE_MOTOR_SPEED:
           expression: "B65"
           unit: ""
@@ -1658,8 +1659,14 @@ BMS:
         inverter DC-link cap should sit near pack voltage (~388 V) once the main relay is
         closed (BMS_MAIN_RELAY=1). So its byte offset/scale is still wrong; the other two
         are single-point-plausible but need a moving capture (non-zero motor speed) to verify.
+        2026-07-23 (historical audit, 69 captures): INVERTER_CAPACITOR_VOLTAGE CONFIRMED WRONG and
+        DEMOTED from verified + disabled — B62 is CONSTANT 1 (a single byte can't hold ~388 V anyway).
+        All 69 captures have BMS_MAIN_RELAY=1, so there's NO relay-open(0 V) vs closed contrast in
+        history to locate the true 16-bit DC-link field. DRIVE_MOTOR_SPEED (B65) reads 0/18 at park and
+        ISOLATION_RESISTANCE (B69) is constant 3 (=3000 kOhm) — both single-point-plausible, still
+        need a moving/HV-varying capture. All remaining items require car access.
       what_to_test:
-        - "INVERTER_CAPACITOR_VOLTAGE — 0.10 V at READY is wrong (expect ~pack V); find correct byte/scale"
+        - "INVERTER_CAPACITOR_VOLTAGE — B62 disproven (constant 1); capture key-off->READY (relay open->closed) to find the real 16-bit DC-link byte that goes 0 V -> ~pack V"
         - "DRIVE_MOTOR_SPEED — 0 at park; confirm tracks motor RPM while driving (cross-check MCU 2102 [S10:S11])"
         - "ISOLATION_RESISTANCE — 3000 kOhm plausible; confirm it varies with HV state"
       sources:

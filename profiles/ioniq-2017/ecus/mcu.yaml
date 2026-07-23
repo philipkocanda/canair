@@ -41,7 +41,17 @@ MCU:
       notes: >
         34 bytes. Captured but not decoded.
         Raw payload (charging): 6101000003FF083801268D7F390000000A00460253044F397A007A000CFF...
-      parameters: {}
+      parameters:
+        MCU_INVERTER_TEMP:
+          expression: B22
+          unit: °C
+          min: "0"
+          max: "150"
+          source: cross-ECU + multi-state analysis 2026-07-23
+          verified: false
+          notes: >
+            Inverter/motor temperature (raw byte = degC directly, NO -40 offset). Discovered via cross-ECU correlation (r=+0.84 vs MCU 2102 motor RPM on the 2026-07-22 drive) then CONFIRMED thermal by multi-state contrast: charging (motor idle, cool)=16-26degC, READY parked=41-49, driving=7-104 (rises/varies with load). This is the clean temperature the MCU 2101 decode lead was hunting — earlier attempts failed because the July drive alone was cool; the charging-vs-driving contrast makes it obvious. -40 offset ruled out (would give -24degC while charging). Exact sensor (inverter vs motor vs heat-sink) unconfirmed; scale looks like plain degC. Neighbour B25 also thermal-ish but spikes to 249 (mixed signal).
+          enabled: true
 
     2102:
       status: active
@@ -281,6 +291,12 @@ MCU:
         so components barely warmed. Re-attempt temp mapping (Soul motor/MCU/heat-sink = val-40) after a
         longer drive that heats the inverter, comparing cold-soak vs warm bytes. Also search for HV DC-link
         voltage here (VCU 2102 has B17*2; MCU may carry its own).
+        2026-07-23 (cross-ECU + multi-state analysis): FOUND the temp — MCU_INVERTER_TEMP = B22 (raw = degC,
+        NO -40 offset). Surfaced by cross-ECU correlation r=+0.84 vs MCU 2102 motor RPM, then confirmed thermal
+        by state contrast: charging=16-26degC (motor idle), READY parked=41-49, driving=7-104 (load-driven).
+        The earlier READY-only attempt missed it because the drive was cool. Neighbour B25 is thermal-ish but
+        spikes to 249 (mixed). STILL OPEN: confirm which temp (inverter/motor/heat-sink) and pin B25; HV DC-link
+        voltage still not located here.
       sources:
         - "Kia Soul EV VMCU CSV — temps (w/x/y - 40)"
         - "Obsidian: MCU.md"

@@ -41,23 +41,16 @@ VCU:
         - charging
       parameters:
         VCU_VEHICLE_SPEED:
-          expression: "((S20*256)+B19)/60"
+          expression: ((S20*256)+B19)*1.609344/100
           unit: km/h
           ha_class: speed
           min: "0"
-          max: "255"
+          max: "250"
           verified: false
           notes: >
-            16-bit: high byte S20 (signed, for reverse/regen roll-back), low byte B19 (unsigned), divided by 60.
-            2026-07-20: divisor corrected to /60 (was *1.609344/100). The ITStromer community PID sheet gives
-            "Real Vehicle Speed = ((Signed(o)*256)+n)/60" (o=B20, n=B19) — /60 yields km/h directly, matching
-            the dashboard within ~1.5% (83/96/109 cluster vs 82.6/94.2/110.3 decoded). The earlier mph theory
-            (*1.609/100) read ~4-5% low — a contrived fit; /60 is the internal vehicle speed (≈ dash).
-            Reads exactly 0 at park (B19=B20=0 in all parked frames; B19 is a smooth 16-bit low byte while
-            accelerating). Original ((S20*256)+S19)/100 also had the low byte read *signed* (corrupting B19≥0x80).
-            WARNING: do NOT use B21 as the low byte — B21 is a separate signal, non-zero/jittery at standstill.
-            NOTE: a distinct wheel-speed source exists at ESC 0x7D1 22C101 REAL_SPEED_KMH (B12).
-
+            Vehicle speed. 16-bit MPH value (low byte B19 unsigned + high byte S20), *1.609344/100 => km/h. CROSS-ECU VERIFIED r=0.999 vs ESC 22C101 REAL_SPEED_KMH across 124 joined points on the 2026-07-22 drive, range 0-105.7 km/h. Finer than the coarse B20-only view (B20 = high byte alone = MPH/100-ish, r=0.998). Promotes the formula from the '2101 speed' research note to a live param. This car reports MPH internally (matches AAF 2181 B12=MPH finding).
+          source: VCU 2101 speed lead (MPH formula) + cross-ECU verification vs ESC, 2026-07-23
+          enabled: true
         ACCEL_PEDAL_DEPTH:
           expression: "B18/2"
           unit: "%"
@@ -389,10 +382,13 @@ VCU:
         B28-B31=0 (their "other" values only appear in the mislabeled 2101 frames). (4) Still-unmapped fast
         signals B19/B21/B23/B26 are max-entropy (all 256 values) — likely motor phase currents / resolver offset
         / angle per the Soul VMCU sheet (Int16 phase-current & resolver fields), aliasing at the 5s poll.
+        2026-07-23 (re-audit): DATA-INTEGRITY BUG RESOLVED — 0 misfiled 6101-under-2102 frames remain in any
+        capture file (all 1652 VCU 0x7EA + 1015 sibling 2102 payloads begin 6102). VCU_TORQUE_REQUEST [S12:S13]
+        now confirmed CONSTANT 0 across all 1652 genuine frames (kept disabled as the documented disproof). Only
+        car-access work remains (fast bytes need a synced high-rate MCU drive; temps need a cold/hot contrast).
       what_to_test:
         - "Re-map motor RPM/torque/temps under MCU 0x7E3 2101/2102 using the Soul VMCU scalings as a guide"
         - "Confirm B17 HV voltage with a same-instant BMS read while driving"
-        - "VCU_TORQUE_REQUEST [S12:S13] — DISPROVEN 2026-07-23 (B12:B13=0 in genuine 6102; ±31k was mislabeled 2101 frames). Purge the 22 misfiled 16:13-16:14 captures, then re-capture a clean high-rate synced VCU 2101+2102 drive if a VCU torque signal is still wanted."
         - "B19/B21/B23/B26 (max-entropy fast bytes) — try Int16 phase-current / resolver-offset reads per the Soul VMCU sheet (Int16(v:u) phase-current RMS, Int16(ad:ac) resolver offset) against a synced high-rate MCU motor-current/RPM capture; single-byte + 5s-poll cannot resolve them (weak r<0.33 vs speed/torque)."
         - "EWP (electric water pump) speed / target RPM — Soul VMCU exposes these (g,h); look for a 0..190 byte that spins up under load/charge (EPCU coolant loop exists even though the 28 kWh battery is air-cooled). B14~149/B20~58/B27~57 are near-constant here → not EWP-varying in this data."
         - "Coolant/EPCU temperature(s) — B20/B27 are ~57-58 raw in BOTH cold April park and warm July drive (flat), so NOT (value-40) temps in this data; confirm against a genuinely cold cold-soak vs hot fast-DC-charge contrast."
@@ -426,7 +422,7 @@ VCU:
         - "ChatGPT"
     - type: verify
       target: "2101 speed"
-      status: pending
+      status: done
       priority: P1
       vehicle_states:
         - ready
@@ -437,6 +433,7 @@ VCU:
         separate signal, 67–150 at standstill); reverted to B19. STILL PENDING: GPS + multi-point
         confirmation across full speed range. Also capture ESC 22C101 REAL_SPEED_KMH (B12)
         while driving to verify it as the true dashboard speed source.
+      updated: "2026-07-23"
     - type: scan
       target: "0x7E1 22 0101-0105"
       status: nrc

@@ -59,6 +59,45 @@ EPS:
           verified: false
           notes: >
             STRONG CANDIDATE, unverified. Little-endian signed 16-bit: low byte B10 (ISO-TP 0x07), signed high byte B11 (ISO-TP 0x08). Across the 2026-07-22 drive range -374..+299 deg (~1.5 turns each way), centered ~0, returns to centre at standstill; big-endian variant is bimodal (wrong). Scale /10 assumed from Ioniq5 EPS. NEEDS controlled stationary capture (centre/quarter/full-lock each way + lock-to-lock sweep) to confirm scale, zero, and sign convention. This car has active LKAS (lane-keep) so expect related steering-torque/LKAS-command signals nearby (B7/B12 swing signed +-full-scale = torque/rate/MDPS-current candidates).
+        EPS_STEERING_TORQUE:
+          expression: (B12+S13*256)
+          unit: ""
+          min: "-10000"
+          max: "10000"
+          source: RE 2026-07-23 analysis of 2026-07-22 MT->KW drive
+          verified: false
+          notes: >
+            STRONG candidate: little-endian signed 16-bit at ISO-TP 0x09:0x0A (low B12, signed high S13; no PCI between B12/B13). Range -9258..+9752 across the drive, symmetric ~0, ~0 at standstill. Correlates r=-0.64 with STEERING_ANGLE (OPPOSITE sign) and r=-0.43 with d(angle)/dt. Opposite-sign-to-angle + torque-like magnitude => most likely STEERING/MDPS TORQUE (self-centering opposes displacement), though a second column-angle representation isn't ruled out. Scale unknown (raw). NEEDS controlled stationary capture (hold torque at each wheel position) to confirm torque vs angle and units (Nm?).
+          enabled: true
+        EPS_MDPS_ASSIST:
+          expression: B17
+          unit: ""
+          min: "0"
+          max: "255"
+          source: RE 2026-07-23 analysis
+          verified: false
+          notes: >
+            MDPS motor assist effort candidate. ISO-TP 0x0D. Exactly 0 at ALL 16 standstill samples; swings 0-253 while moving (r=+0.53 vs VEHICLE_SPEED, noisy). Speed-gated + high during active steering => likely MDPS motor CURRENT or PWM/assist-duty (unsigned magnitude, no direction). Not a clean linear scalar; scale/units unknown. Verify with controlled steer-effort capture.
+          enabled: true
+        EPS_STEERING_TORQUE_ALT:
+          expression: S7
+          unit: ""
+          min: "-40"
+          max: "40"
+          source: RE 2026-07-23 analysis
+          verified: false
+          notes: >
+            Small signed steering signal, ISO-TP 0x05. Raw signed -36..+37, ~0 at rest (-10..-1), r=+0.34 vs STEERING_ANGLE. Candidate driver steering torque or angular rate (small-magnitude signed). Distinct from the larger EPS_STEERING_TORQUE (B12:S13). Disambiguate driver-torque vs rate vs MDPS with a controlled capture.
+          enabled: true
+        EPS_B9_FLAG:
+          expression: B9
+          min: "0"
+          max: "255"
+          source: RE 2026-07-23 analysis
+          verified: false
+          notes: >
+            BIMODAL 0x00/0xFF only (not a scalar) — status/validity flag at ISO-TP 0x06, immediately before the STEERING_ANGLE low byte B10. Likely an angle sign/validity or MDPS-status flag. Disabled (documents the byte; needs a targeted capture to confirm what toggles it). B05=0x8A B06=0x8E constant config. B18/B19 tail=0x1010 constant. B20/B21 = ISO-TP message counter (cycles 21->22).
+          enabled: false
     220102:
       status: draft
       period: 2500
@@ -97,13 +136,22 @@ EPS:
         deg (little-endian signed 16-bit, low byte B10 / signed high byte B11).
         Range -374..+299 deg across the 2026-07-22 MT->KW drive (~1.5 turns each
         way), centres ~0 and returns to centre at standstill; big-endian variant
-        is bimodal (wrong). Still to resolve in this region: MDPS motor current
-        and steering torque/rate — B7 and B12 both swing signed +-full-scale while
-        driving (~0 at rest). VEHICLE_SPEED (B14) already decoded.
+        is bimodal (wrong). VEHICLE_SPEED (B14) already decoded.
+        2026-07-23 analysis (376 captures) added three more enabled-unverified
+        candidates from the B05-B17 region: EPS_STEERING_TORQUE = (B12+S13*256) LE
+        signed-16 at ISO-TP 0x09:0x0A, range +-9500, ~0 at rest, r=-0.64 vs angle
+        (opposite sign => torque, or a 2nd angle rep); EPS_MDPS_ASSIST = B17,
+        exactly 0 at standstill and swinging 0-253 while moving (r=+0.53 vs speed)
+        => motor current/PWM assist; EPS_STEERING_TORQUE_ALT = S7 (small signed
+        +-36, r=+0.34 vs angle). B9 = bimodal 0/FF flag (EPS_B9_FLAG, disabled).
+        STILL TO CONFIRM with the controlled stationary capture below: (1) angle
+        scale/zero/sign, (2) which byte is torque vs angle-2 vs rate, (3) assist
+        units. All scales are raw/unverified.
       what_to_test:
         - "VERIFY STEERING_ANGLE scale (/10?), zero point, and left/right sign via controlled capture"
-        - "MDPS motor current (signed A) location (B7 or B12?)"
-        - "Steering torque/rate sign convention (B7 vs B12)"
+        - "EPS_STEERING_TORQUE (B12:S13) — torque vs 2nd angle? hold wheel against resistance at fixed positions to separate torque from displacement; find units"
+        - "EPS_MDPS_ASSIST (B17) — motor current/PWM? push wheel with engine on/off to vary assist effort at fixed speed"
+        - "EPS_STEERING_TORQUE_ALT (S7) vs B12:S13 — which is driver torque, which is rate/MDPS?"
       sources:
         - "captures/2026-07-22.yaml — driving capture, lots of steering"
         - "OBDb Ioniq 5"
