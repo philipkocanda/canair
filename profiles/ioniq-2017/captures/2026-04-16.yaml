@@ -7,332 +7,312 @@
 
 sessions:
 
-  - date: "2026-04-16"
-    vehicle_states:
-      - deep sleep
-      - parked
-    label: "IGPM deep-sleep baseline — all status registers"
-    notes: >-
-      Car fully asleep (WiCAN sleep mode, woke via terminal session). Queried all 7 known IGPM status DIDs (BC01-BC07) using --wake flag (sends 10 01 wake frame, then 10 03 extended session). All 7 DIDs respond successfully during deep sleep. BC01 responds here but returned NO DATA during earlier keyfob-wake test — timing issue. BC08-BC0A confirmed NRC 0x31 (requestOutOfRange) in earlier session.
-       [migrated state: deep sleep, parked, locked, no charging]
-    captures:
-      - ecu: '0x778'
-        pid: "22BC01"
-        payload: "62BC01400000000002AAAAAAAA"
-        notes: >
-          9 data bytes + 4 padding. Byte 3 = 0x40 (bit 6), byte 8 = 0x02 (bit 1).
-          Identical to ACC mode capture — appears static/config.
-          May contain immobilizer or key-related config.
+- date: "2026-04-16"
+  vehicle_states:
+  - deep sleep
+  - parked
+  label: "IGPM deep-sleep baseline — all status registers"
+  notes: >-
+    Car fully asleep (WiCAN sleep mode, woke via terminal session). Queried all 7 known IGPM status DIDs (BC01-BC07) using --wake flag (sends 10 01 wake frame, then 10 03 extended session). All 7 DIDs respond successfully during deep sleep. BC01 responds here but returned NO DATA during earlier keyfob-wake test — timing issue. BC08-BC0A confirmed NRC 0x31 (requestOutOfRange) in earlier session.
+     [migrated state: deep sleep, parked, locked, no charging]
+  captures:
+  - ecu: '0x778'
+    pid: "22BC01"
+    payload: "62BC01400000000002AAAAAAAA"
+    notes: >
+      9 data bytes + 4 padding. Byte 3 = 0x40 (bit 6), byte 8 = 0x02 (bit 1).
+      Identical to ACC mode capture — appears static/config.
+      May contain immobilizer or key-related config.
 
-      - ecu: '0x778'
-        pid: "22BC02"
-        payload: "62BC0200000000"
-        notes: >
-          4 data bytes, all zeros. Identical to ACC mode.
-          May only populate during driving (speed/wiper state?).
+  - ecu: '0x778'
+    pid: "22BC02"
+    payload: "62BC0200000000"
+    notes: >
+      4 data bytes, all zeros. Identical to ACC mode.
+      May only populate during driving (speed/wiper state?).
 
-      - ecu: '0x778'
-        pid: "22BC03"
-        payload: "62BC03FDEE3C730A000000AAAA"
-        notes: >
-          8 data bytes + 2 padding. Door/trunk/lock/light/ignition register.
-          Byte 7 = 0x0A (00001010) = deep sleep / keyfob-wake state.
-          Compare: 0x00 during charging, 0x20 in ACC mode. Bit 5 = ACC flag.
-          All doors closed, locked, lights off, ignition off.
+  - ecu: '0x778'
+    pid: "22BC03"
+    payload: "62BC03FDEE3C730A000000AAAA"
+    notes: >
+      8 data bytes + 2 padding. Door/trunk/lock/light/ignition register.
+      Byte 7 = 0x0A (00001010) = deep sleep / keyfob-wake state.
+      Compare: 0x00 during charging, 0x20 in ACC mode. Bit 5 = ACC flag.
+      All doors closed, locked, lights off, ignition off.
 
-      - ecu: '0x778'
-        pid: "22BC04"
-        payload: "62BC04B53FF4EA0C00000200"
-        notes: >
-          8 data bytes. Door lock register.
-          Byte 7 = 0x0C. Byte 10 = 0x02.
-          Compare: byte 7 = 0x00 charging, 0x01 ACC. Byte 10 = 0x00 charging, 0x42 ACC.
+  - ecu: '0x778'
+    pid: "22BC04"
+    payload: "62BC04B53FF4EA0C00000200"
+    notes: >
+      8 data bytes. Door lock register.
+      Byte 7 = 0x0C. Byte 10 = 0x02.
+      Compare: byte 7 = 0x00 charging, 0x01 ACC. Byte 10 = 0x00 charging, 0x42 ACC.
 
-      - ecu: '0x778'
-        pid: "22BC05"
-        payload: "62BC057F11200000000000AAAA"
-        notes: >
-          8 data bytes + 2 padding. Identical to ACC mode capture.
-          Appears static/config.
+  - ecu: '0x778'
+    pid: "22BC05"
+    payload: "62BC057F11200000000000AAAA"
+    notes: >
+      8 data bytes + 2 padding. Identical to ACC mode capture.
+      Appears static/config.
 
-      - ecu: '0x778'
-        pid: "22BC06"
-        payload: "62BC06B4800000000000AAAA"
-        notes: >
-          8 data bytes + 2 padding. Brake/turn signal register.
-          All zeros (no signals active). Consistent with parked car.
+  - ecu: '0x778'
+    pid: "22BC06"
+    payload: "62BC06B4800000000000AAAA"
+    notes: >
+      8 data bytes + 2 padding. Brake/turn signal register.
+      All zeros (no signals active). Consistent with parked car.
 
-      - ecu: '0x778'
-        pid: "22BC07"
-        payload: "62BC070841FBCC00001900AAAA"
-        notes: >
-          8 data bytes + 2 padding. Identical to ACC mode capture.
-          0x0841FBCC could be immobilizer/key ID or anti-theft code.
-          Static across all power states observed so far.
+  - ecu: '0x778'
+    pid: "22BC07"
+    payload: "62BC070841FBCC00001900AAAA"
+    notes: >
+      8 data bytes + 2 padding. Identical to ACC mode capture.
+      0x0841FBCC could be immobilizer/key ID or anti-theft code.
+      Static across all power states observed so far.
 
-  - date: "2026-04-16"
-    vehicle_states:
-      - deep sleep
-      - parked
-    label: "BCM deep-sleep DID range scan — B0xx and C0xx"
-    notes: >-
-      Car fully asleep. BCM (0x7A0) responds to wake (10 01 + 10 03). CLU (0x7C6) does NOT respond during deep sleep — NO DATA to wake and session. Scanned B0xx range: B001-B00A valid (10 DIDs), B000 and B00B+ = NRC 0x31. Scanned C0xx range: C001-C014 valid (20 DIDs), C000 and C015+ = NRC 0x31. BCM has 30 readable DIDs during deep sleep total. B004-B007 not probed individually in this session (gap — fill in next time). C003-C007 contain ASCII TPMS sensor names (DO01, NA01, NTPM, DO02, NA02). C008-C00A are empty TPMS slots (all FF payload).
-       [migrated state: deep sleep, parked, locked, no charging]
-    captures:
-      - ecu: '0x7A8'
-        pid: "22B001"
-        payload: "62B00140C0000000010000000000000201000000"
-        notes: "20 bytes. Unknown purpose. Mostly zeros."
+- date: "2026-04-16"
+  vehicle_states:
+  - deep sleep
+  - parked
+  label: "BCM deep-sleep DID range scan — B0xx and C0xx"
+  notes: >-
+    Car fully asleep. BCM (0x7A0) responds to wake (10 01 + 10 03). CLU (0x7C6) does NOT respond during deep sleep — NO DATA to wake and session. Scanned B0xx range: B001-B00A valid (10 DIDs), B000 and B00B+ = NRC 0x31. Scanned C0xx range: C001-C014 valid (20 DIDs), C000 and C015+ = NRC 0x31. BCM has 30 readable DIDs during deep sleep total. B004-B007 not probed individually in this session (gap — fill in next time). C003-C007 contain ASCII TPMS sensor names (DO01, NA01, NTPM, DO02, NA02). C008-C00A are empty TPMS slots (all FF payload).
+     [migrated state: deep sleep, parked, locked, no charging]
+  captures:
+  - ecu: '0x7A8'
+    pid: "22B001"
+    payload: "62B00140C0000000010000000000000201000000"
+    notes: "20 bytes. Unknown purpose. Mostly zeros."
 
-      - ecu: '0x7A8'
-        pid: "22B002"
-        payload: "62B002C00000000200AAAAAAAA"
-        notes: "13 bytes (6 data + padding). Sparse."
+  - ecu: '0x7A8'
+    pid: "22B002"
+    payload: "62B002C00000000200AAAAAAAA"
+    notes: "13 bytes (6 data + padding). Sparse."
 
-      - ecu: '0x7A8'
-        pid: "22B003"
-        payload: "62B003BF8B8000B73DF59CF9F8F9F83DF800000000000000AAAAAA"
-        notes: >
-          27 bytes. Dense bitfield. Byte 8 (stripped) = 0xF5 during deep sleep.
-          Compare: 0x09 in ACC, 0x0A in ACC+IGN1. Power-state-dependent.
+  - ecu: '0x7A8'
+    pid: "22B003"
+    payload: "62B003BF8B8000B73DF59CF9F8F9F83DF800000000000000AAAAAA"
+    notes: >
+      27 bytes. Dense bitfield. Byte 8 (stripped) = 0xF5 during deep sleep.
+      Compare: 0x09 in ACC, 0x0A in ACC+IGN1. Power-state-dependent.
 
-      - ecu: '0x7A8'
-        pid: "22B008"
-        payload: "62B00800510C2000880000AAAA"
-        notes: "13 bytes. Identical to ACC capture — static."
+  - ecu: '0x7A8'
+    pid: "22B008"
+    payload: "62B00800510C2000880000AAAA"
+    notes: "13 bytes. Identical to ACC capture — static."
 
-      - ecu: '0x7A8'
-        pid: "22B009"
-        payload: "62B009FEEEFEEE00000000AAAA"
-        notes: "13 bytes. Repeated 0xFEEE pattern — possibly sensor addresses."
+  - ecu: '0x7A8'
+    pid: "22B009"
+    payload: "62B009FEEEFEEE00000000AAAA"
+    notes: "13 bytes. Repeated 0xFEEE pattern — possibly sensor addresses."
 
-      - ecu: '0x7A8'
-        pid: "22B00A"
-        payload: "62B00AE3FEE30000400500AAAA"
-        notes: "13 bytes. Unknown."
+  - ecu: '0x7A8'
+    pid: "22B00A"
+    payload: "62B00AE3FEE30000400500AAAA"
+    notes: "13 bytes. Unknown."
 
-      - ecu: '0x7A8'
-        pid: "22C001"
-        payload: "62C001FFFF000001C0F80410C0F80BD2C0F81174C0F81188AAAA"
-        notes: "34 bytes. Contains 4x C0F8-prefixed addresses — TPMS receiver IDs."
+  - ecu: '0x7A8'
+    pid: "22C001"
+    payload: "62C001FFFF000001C0F80410C0F80BD2C0F81174C0F81188AAAA"
+    notes: "34 bytes. Contains 4x C0F8-prefixed addresses — TPMS receiver IDs."
 
-      - ecu: '0x7A8'
-        pid: "22C002"
-        payload: "62C002FFFF0000C0F81174C0F80410C0F80BD2C0F81188AAAAAAAA"
-        notes: "27 bytes. Same C0F8 addresses in different order — TPMS mapping."
+  - ecu: '0x7A8'
+    pid: "22C002"
+    payload: "62C002FFFF0000C0F81174C0F80410C0F80BD2C0F81188AAAAAAAA"
+    notes: "27 bytes. Same C0F8 addresses in different order — TPMS mapping."
 
-      - ecu: '0x7A8'
-        pid: "22C003"
-        payload: "62C00300000000444F303101002E2E02500706B5B50A098C3C0000000001FF0100AA"
-        notes: "34 bytes. ASCII 'DO01' at offset 7. TPMS sensor registration wheel 1."
+  - ecu: '0x7A8'
+    pid: "22C003"
+    payload: "62C00300000000444F303101002E2E02500706B5B50A098C3C0000000001FF0100AA"
+    notes: "34 bytes. ASCII 'DO01' at offset 7. TPMS sensor registration wheel 1."
 
-      - ecu: '0x7A8'
-        pid: "22C004"
-        payload: "62C004000000004E41303101002E2E024B0005B5B508088C3C0100000001FF0100AA"
-        notes: "34 bytes. ASCII 'NA01'. TPMS sensor registration wheel 2."
+  - ecu: '0x7A8'
+    pid: "22C004"
+    payload: "62C004000000004E41303101002E2E024B0005B5B508088C3C0100000001FF0100AA"
+    notes: "34 bytes. ASCII 'NA01'. TPMS sensor registration wheel 2."
 
-      - ecu: '0x7A8'
-        pid: "22C005"
-        payload: "62C005000000004E54504D0100302F02500000ABAB00008C3C0000030001FF0000AA"
-        notes: "34 bytes. ASCII 'NTPM'. Spare/reference TPMS sensor."
+  - ecu: '0x7A8'
+    pid: "22C005"
+    payload: "62C005000000004E54504D0100302F02500000ABAB00008C3C0000030001FF0000AA"
+    notes: "34 bytes. ASCII 'NTPM'. Spare/reference TPMS sensor."
 
-      - ecu: '0x7A8'
-        pid: "22C006"
-        payload: "62C00600000000444F303201002E2E02500706B5AB0A098C3C0000000001010100AA"
-        notes: "34 bytes. ASCII 'DO02'. TPMS sensor registration wheel 3."
+  - ecu: '0x7A8'
+    pid: "22C006"
+    payload: "62C00600000000444F303201002E2E02500706B5AB0A098C3C0000000001010100AA"
+    notes: "34 bytes. ASCII 'DO02'. TPMS sensor registration wheel 3."
 
-      - ecu: '0x7A8'
-        pid: "22C007"
-        payload: "62C007000000004E41303201002E2E024B0005B5AB08088C3C0100000001010100AA"
-        notes: "34 bytes. ASCII 'NA02'. TPMS sensor registration wheel 4."
+  - ecu: '0x7A8'
+    pid: "22C007"
+    payload: "62C007000000004E41303201002E2E024B0005B5AB08088C3C0100000001010100AA"
+    notes: "34 bytes. ASCII 'NA02'. TPMS sensor registration wheel 4."
 
-      - ecu: '0x7A8'
-        pid: "22C008"
-        payload: "62C00800000000303030350000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFAA"
-        notes: "34 bytes. ASCII '0005'. Empty TPMS slot (all FF)."
+  - ecu: '0x7A8'
+    pid: "22C008"
+    payload: "62C00800000000303030350000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFAA"
+    notes: "34 bytes. ASCII '0005'. Empty TPMS slot (all FF)."
 
-      - ecu: '0x7A8'
-        pid: "22C009"
-        payload: "62C00900000000303030360000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFAA"
-        notes: "34 bytes. ASCII '0006'. Empty TPMS slot."
+  - ecu: '0x7A8'
+    pid: "22C009"
+    payload: "62C00900000000303030360000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFAA"
+    notes: "34 bytes. ASCII '0006'. Empty TPMS slot."
 
-      - ecu: '0x7A8'
-        pid: "22C00A"
-        payload: "62C00A00000000303030370000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFAA"
-        notes: "34 bytes. ASCII '0007'. Empty TPMS slot."
+  - ecu: '0x7A8'
+    pid: "22C00A"
+    payload: "62C00A00000000303030370000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFAA"
+    notes: "34 bytes. ASCII '0007'. Empty TPMS slot."
 
-      - ecu: '0x7A8'
-        pid: "22C00B"
-        payload: "62C00BFFFF0000C9450200CB430100CF440100CB440100AAAAAAAA"
-        notes: >
-          27 bytes. Known TPMS pressure data. Already decoded in vehicle profile.
-          4 wheels: pressure values at 5-byte intervals.
+  - ecu: '0x7A8'
+    pid: "22C00B"
+    payload: "62C00BFFFF0000C9450200CB430100CF440100CB440100AAAAAAAA"
+    notes: >
+      27 bytes. Known TPMS pressure data. Already decoded in vehicle profile.
+      4 wheels: pressure values at 5-byte intervals.
 
-      - ecu: '0x7A8'
-        pid: "22C00C"
-        payload: "62C00CFFFF030001C0F8117499434119180000000000FFFF0000000000000000FFFF000000AAAAAAAA"
-        notes: "41 bytes. Extended TPMS — wheel 1 has live data, others empty (FFFF)."
+  - ecu: '0x7A8'
+    pid: "22C00C"
+    payload: "62C00CFFFF030001C0F8117499434119180000000000FFFF0000000000000000FFFF000000AAAAAAAA"
+    notes: "41 bytes. Extended TPMS — wheel 1 has live data, others empty (FFFF)."
 
-      - ecu: '0x7A8'
-        pid: "22C00D"
-        payload: "62C00DFFFF03000000000000FFFF0000000000000000FFFF0000000000000000FFFF000000AAAAAAAA"
-        notes: "41 bytes. Extended TPMS — all slots empty (FFFF/zeros)."
+  - ecu: '0x7A8'
+    pid: "22C00D"
+    payload: "62C00DFFFF03000000000000FFFF0000000000000000FFFF0000000000000000FFFF000000AAAAAAAA"
+    notes: "41 bytes. Extended TPMS — all slots empty (FFFF/zeros)."
 
-      - ecu: '0x7A8'
-        pid: "22C00E"
-        payload: "62C00EFFFF03000000000000FFFF0000000000000000FFFF0000000000000000FFFF000000AAAAAAAA"
-        notes: "41 bytes. Extended TPMS — all slots empty."
+  - ecu: '0x7A8'
+    pid: "22C00E"
+    payload: "62C00EFFFF03000000000000FFFF0000000000000000FFFF0000000000000000FFFF000000AAAAAAAA"
+    notes: "41 bytes. Extended TPMS — all slots empty."
 
-      - ecu: '0x7A8'
-        pid: "22C00F"
-        payload: "62C00FFFFF030001C0F8118801203B1E560000000000FFFF0000000000000000FFFF000000AAAAAAAA"
-        notes: "41 bytes. Extended TPMS — has one active entry with C0F8 address."
+  - ecu: '0x7A8'
+    pid: "22C00F"
+    payload: "62C00FFFFF030001C0F8118801203B1E560000000000FFFF0000000000000000FFFF000000AAAAAAAA"
+    notes: "41 bytes. Extended TPMS — has one active entry with C0F8 address."
 
-      - ecu: '0x7A8'
-        pid: "22C010"
-        payload: "62C010FC00000000AAAAAAAAAA"
-        notes: "13 bytes. Unknown — mostly zeros."
+  - ecu: '0x7A8'
+    pid: "22C010"
+    payload: "62C010FC00000000AAAAAAAAAA"
+    notes: "13 bytes. Unknown — mostly zeros."
 
-      - ecu: '0x7A8'
-        pid: "22C011"
-        payload: "62C011E000000000A2D3266BAA"
-        notes: "13 bytes. 0xA2D3266B could be hardware/module ID."
+  - ecu: '0x7A8'
+    pid: "22C011"
+    payload: "62C011E000000000A2D3266BAA"
+    notes: "13 bytes. 0xA2D3266B could be hardware/module ID."
 
-      - ecu: '0x7A8'
-        pid: "22C012"
-        payload: "62C01280000000444F3031AAAA"
-        notes: "13 bytes. ASCII 'DO01' — references wheel 1."
+  - ecu: '0x7A8'
+    pid: "22C012"
+    payload: "62C01280000000444F3031AAAA"
+    notes: "13 bytes. ASCII 'DO01' — references wheel 1."
 
-      - ecu: '0x7A8'
-        pid: "22C013"
-        payload: "62C01380000000307830363230"
-        notes: "13 bytes. ASCII '0x0620' — firmware version or config ID."
+  - ecu: '0x7A8'
+    pid: "22C013"
+    payload: "62C01380000000307830363230"
+    notes: "13 bytes. ASCII '0x0620' — firmware version or config ID."
 
-      - ecu: '0x7A8'
-        pid: "22C014"
-        payload: "62C014F00000000CAAAAAAAAAA"
-        notes: "13 bytes. Unknown — 0x0C at end."
+  - ecu: '0x7A8'
+    pid: "22C014"
+    payload: "62C014F00000000CAAAAAAAAAA"
+    notes: "13 bytes. Unknown — 0x0C at end."
 
 # ─── 2026-04-16 — BCM gap DIDs B004-B007 + identity DIDs (deep sleep) ────────
 # Probe: deep sleep, SKM wake not attempted, BCM inherently awake.
 # Note: B004-B007 were missed in the 2026-04-15 session.
 
-  - date: "2026-04-16"
-    label: "BCM gap DIDs B004-B007 & identity DIDs"
-    vehicle_states:
-      - deep sleep
-    notes: "Car parked at home, 12V battery resting. BCM inherently awake. Probed B004-B007 (missed in 2026-04-15 session) and standard UDS identity DIDs."
-    captures:
+- date: "2026-04-16"
+  label: "BCM gap DIDs B004-B007 & identity DIDs"
+  vehicle_states:
+  - deep sleep
+  notes: "Car parked at home, 12V battery resting. BCM inherently awake. Probed B004-B007 (missed in 2026-04-15 session) and standard UDS identity DIDs."
+  captures:
 
       # B004-B007 gap (missed in previous session)
-      - ecu: '0x7A8'
-        pid: "22B004"
-        payload: "62B0047402990C00008000AAAA"
-        notes: "13 bytes. Unknown — first 2 bytes 0x7402 may be a counter or flags."
+  - ecu: '0x7A8'
+    pid: "22B004"
+    payload: "62B0047402990C00008000AAAA"
+    notes: "13 bytes. Unknown — first 2 bytes 0x7402 may be a counter or flags."
 
-      - ecu: '0x7A8'
-        pid: "22B005"
-        payload: "62B0052000100000000800AAAA"
-        notes: "13 bytes. Sparse bitfield — purpose unknown."
+  - ecu: '0x7A8'
+    pid: "22B005"
+    payload: "62B0052000100000000800AAAA"
+    notes: "13 bytes. Sparse bitfield — purpose unknown."
 
-      - ecu: '0x7A8'
-        pid: "22B006"
-        payload: "62B0062000000000000000AAAA"
-        notes: "13 bytes. All zeros except 0x20 at start — likely empty/unused register."
+  - ecu: '0x7A8'
+    pid: "22B006"
+    payload: "62B0062000000000000000AAAA"
+    notes: "13 bytes. All zeros except 0x20 at start — likely empty/unused register."
 
-      - ecu: '0x7A8'
-        pid: "22B007"
-        payload: "62B007002001E000000000AAAA"
-        notes: "13 bytes. 0x01E0 = 480 decimal — could be a timeout or config value."
+  - ecu: '0x7A8'
+    pid: "22B007"
+    payload: "62B007002001E000000000AAAA"
+    notes: "13 bytes. 0x01E0 = 480 decimal — could be a timeout or config value."
 
       # Standard UDS identity DIDs
-      - ecu: '0x7A8'
-        pid: "22F100"
-        payload: "62F100313830"
-        notes: "6 bytes. ASCII '180' — hardware version string."
+  - ecu: '0x7A8'
+    pid: "22F100"
+    payload: "62F100313830"
+    notes: "6 bytes. ASCII '180' — hardware version string."
 
-      - ecu: '0x7A8'
-        pid: "22F188"
-        payload: "62F18739353430304737343730"
-        notes: "13 bytes. ASCII '95400G7470' — ECU part number (confirms BCM: 95400G7470)."
+  - ecu: '0x7A8'
+    pid: "22F188"
+    payload: "62F18739353430304737343730"
+    notes: "13 bytes. ASCII '95400G7470' — ECU part number (confirms BCM: 95400G7470)."
 
-      - ecu: '0x7A8'
-        pid: "22F18C"
-        payload: "62F18B20170531"
-        notes: "7 bytes. Manufacturing date in BCD: 2017-05-31."
+  - ecu: '0x7A8'
+    pid: "22F18C"
+    payload: "62F18B20170531"
+    notes: "7 bytes. Manufacturing date in BCD: 2017-05-31."
 
-      - ecu: '0x7A8'
-        pid: "22F18D"
-        payload: "62F18C3137303533313030373000000000000000000000AAAAAAAA"
-        notes: "27 bytes. ASCII '1705310070' padded with zeros — calibration/serial ID."
+  - ecu: '0x7A8'
+    pid: "22F18D"
+    payload: "62F18C3137303533313030373000000000000000000000AAAAAAAA"
+    notes: "27 bytes. ASCII '1705310070' padded with zeros — calibration/serial ID."
 
-      - ecu: '0x7A8'
-        pid: "22F195"
-        payload: "62F193313030"
-        notes: "6 bytes. ASCII '100' — software version component."
+- label: "BCM CAN bus wake test — no ACC needed"
+  date: "2026-04-16"
+  vehicle_states:
+  - deep sleep
+  notes: >-
+    Proved BCM wakes from CAN bus activity alone — no ACC relay needed. Only IGPM 1001 was sent (5x), no SKM involvement. BCM responded to 22C00B after ~1s delay.
+     [migrated state: deep sleep, unplugged, no SKM ACC, no extended session]
+  captures:
+  - ecu: '0x778'
+    pid: "1001"
+    payload: "NO DATA"
+    notes: "First attempt — wakes IGPM transceiver."
 
-      - ecu: '0x7A8'
-        pid: "22F196"
-        payload: "62F19430383830"
-        notes: "7 bytes. ASCII '0880' — software version component."
+  - ecu: '0x778'
+    pid: "1001"
+    payload: "5001"
+    notes: "Second attempt — IGPM responsive."
 
-      - ecu: '0x7A8'
-        pid: "22F197"
-        payload: "62F195323230"
-        notes: "6 bytes. ASCII '220' — calibration version."
+  - ecu: '0x7A8'
+    pid: "22C00B"
+    payload: "62C00BFFFF0000C9450200CB430100CF440100CB440100AAAAAAAA"
+    notes: "TPMS data. BCM woke from CAN bus activity without ACC power."
 
-      - ecu: '0x7A8'
-        pid: "22F1A4"
-        payload: "62F1A2363230"
-        notes: "6 bytes. ASCII '620' — hardware version component."
+- label: "SKM wake mechanism retest — sleep timer discovery"
+  date: "2026-04-16"
+  vehicle_states:
+  - deep sleep
+  notes: >-
+    Systematic SKM wake testing. Key finding: SKM wakes on 2nd 1001 frame but has ~2s sleep timer — falls asleep again if CAN traffic is too slow. 64ms ELM timeout keeps it awake; 600ms timeout does not.
+     [migrated state: deep sleep, unplugged, fob inside house]
+  captures:
+  - ecu: '0x7AD'
+    pid: "1001"
+    payload: "NO DATA"
+    notes: "Single 1001 at 600ms timeout — dead."
 
-  - label: "BCM CAN bus wake test — no ACC needed"
-    date: "2026-04-16"
-    vehicle_states:
-      - deep sleep
-    notes: >-
-      Proved BCM wakes from CAN bus activity alone — no ACC relay needed. Only IGPM 1001 was sent (5x), no SKM involvement. BCM responded to 22C00B after ~1s delay.
-       [migrated state: deep sleep, unplugged, no SKM ACC, no extended session]
-    captures:
-      - ecu: '0x778'
-        pid: "1001"
-        payload: "NO DATA"
-        notes: "First attempt — wakes IGPM transceiver."
+  - ecu: '0x7AD'
+    pid: "1001"
+    payload: "NO DATA x3"
+    notes: "3x 1001 at 600ms — still dead."
 
-      - ecu: '0x778'
-        pid: "1001"
-        payload: "5001"
-        notes: "Second attempt — IGPM responsive."
+  - ecu: '0x7AD'
+    pid: "1001"
+    payload: "5001 at attempts 2-4, NO DATA at 5-10"
+    notes: "10x 1001 at 600ms — woke briefly, fell asleep after ~2s gap."
 
-      - ecu: '0x7A8'
-        pid: "22C00B"
-        payload: "62C00BFFFF0000C9450200CB430100CF440100CB440100AAAAAAAA"
-        notes: "TPMS data. BCM woke from CAN bus activity without ACC power."
-
-  - label: "SKM wake mechanism retest — sleep timer discovery"
-    date: "2026-04-16"
-    vehicle_states:
-      - deep sleep
-    notes: >-
-      Systematic SKM wake testing. Key finding: SKM wakes on 2nd 1001 frame but has ~2s sleep timer — falls asleep again if CAN traffic is too slow. 64ms ELM timeout keeps it awake; 600ms timeout does not.
-       [migrated state: deep sleep, unplugged, fob inside house]
-    captures:
-      - ecu: '0x7AD'
-        pid: "1001"
-        payload: "NO DATA"
-        notes: "Single 1001 at 600ms timeout — dead."
-
-      - ecu: '0x7AD'
-        pid: "1001"
-        payload: "NO DATA x3"
-        notes: "3x 1001 at 600ms — still dead."
-
-      - ecu: '0x7AD'
-        pid: "1001"
-        payload: "5001 at attempts 2-4, NO DATA at 5-10"
-        notes: "10x 1001 at 600ms — woke briefly, fell asleep after ~2s gap."
-
-      - ecu: '0x7AD'
-        pid: "1001"
-        payload: "5001 at attempts 2-10"
-        notes: "10x 1001 at 64ms timeout — woke at #2, stayed awake."
+  - ecu: '0x7AD'
+    pid: "1001"
+    payload: "5001 at attempts 2-10"
+    notes: "10x 1001 at 64ms timeout — woke at #2, stayed awake."

@@ -477,12 +477,6 @@ sessions:
     notes: "13 bytes."
 
   - ecu: '0x7A8'
-    pid: "22B00B"
-    label: "BCM status register"
-    payload: "7E00"
-    notes: "2 bytes only — status register, same as IGPM BC status DIDs."
-
-  - ecu: '0x7A8'
     pid: "22B00C"
     label: "Preheat schedule — day-of-week bitmask"
     payload: "62B00C3F00000000000000AAAA"
