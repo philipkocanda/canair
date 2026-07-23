@@ -1,19 +1,30 @@
 """
-Generate WiCAN vehicle profile JSON from the ecus/ directory.
+Build and sync the WiCAN device's AutoPID vehicle profile.
 
-Produces the Vehicle Profile format (grouped parameters per PID) which is
-the format accepted by the WiCAN web UI for upload via POST /store_car_data.
+`canair wican` groups two families of device operations. Nothing is written
+until you ask for it — a bare `canair wican` just prints this help.
 
-Can also download current config from WiCAN and show diff, or upload directly.
+Terminology (deliberately disambiguated):
+  * the canair *profile bundle* — the `profiles/<name>/` directory (ecus/,
+    profile.yaml, captures/, …) managed by `canair profile`; and
+  * the WiCAN *AutoPID profile* — the JSON generated from that bundle's
+    ecus/ and stored on the device's AutoPID feature, managed here.
 
-Usage:
-  python3 generate-profile.py                    # Generate JSON file
-  python3 generate-profile.py --verified-only     # Only include verified PIDs
-  python3 generate-profile.py --download          # Download current config from WiCAN
-  python3 generate-profile.py --diff              # Download + diff against generated
-  python3 generate-profile.py --upload            # Generate + upload to WiCAN
-  python3 generate-profile.py --upload --reboot   # Upload + reboot WiCAN
-  python3 generate-profile.py --stats             # Show PID statistics table
+Subcommands:
+  autopid write               Generate AutoPID JSON to the bundle's out/
+  autopid upload              Generate + upload to the device (Pro only)
+  autopid download            Download the device's current AutoPID JSON (Pro)
+  autopid diff                Download + diff against the generated JSON (Pro)
+  autopid stats               Per-ECU/PID statistics table
+  mode show                   Show the device's active protocol
+  mode set MODE               Switch the device protocol/mode and reboot (Pro)
+
+Examples:
+  canair wican autopid write                  # write out/autopid.json
+  canair wican autopid write --verified-only  # only verified parameters
+  canair wican autopid upload --reboot        # upload + reboot to apply
+  canair wican autopid diff --wican home      # compare device vs generated
+  canair wican mode set slcan                 # raw CAN; `auto_pid` to restore
 """
 
 import argparse
@@ -34,6 +45,7 @@ except ImportError:
     requests = None  # Only needed for upload/download
 
 from canlib.constants import DEFAULT_WICAN, WICAN_ADDRESSES
+from canlib.pids import pid_status
 
 NAME = "wican"
 
@@ -43,11 +55,11 @@ WICAN_TIMEOUT = 10  # seconds
 def _require_pro(operation: str) -> int | None:
     """Return an error code if the configured WiCAN is not a Pro.
 
-    AutoPID vehicle profiles (upload/download/diff) and device protocol
-    switching are WiCAN Pro-only features. The classic (non-Pro) WiCAN has no
-    AutoPID support, so we refuse these device operations up front with a clear
-    message instead of letting them fail obscurely against the device. Returns
-    ``None`` when the model is Pro (proceed) or an int exit code to abort.
+    AutoPID profile sync (upload/download/diff) and device protocol switching
+    are WiCAN Pro-only features. The classic (non-Pro) WiCAN has no AutoPID
+    support, so we refuse these device operations up front with a clear message
+    instead of letting them fail obscurely against the device. Returns ``None``
+    when the model is Pro (proceed) or an int exit code to abort.
     """
     from canlib.config import is_wican_pro
 
@@ -56,8 +68,8 @@ def _require_pro(operation: str) -> int | None:
     print(
         f"error: `canair wican {operation}` needs a WiCAN Pro — the classic "
         "(non-Pro) WiCAN has no AutoPID / vehicle-profile support.\n"
-        "        Your config sets wican_model: classic. Generating profile JSON "
-        "still works — run `canair wican` (no device flags) to write out/profile.json.\n"
+        "        Your config sets wican_model: classic. Generating the AutoPID "
+        "JSON still works — run `canair wican autopid write` to write out/autopid.json.\n"
         "        If this device is actually a Pro, run: canair config set wican_model pro",
         file=sys.stderr,
     )
@@ -68,7 +80,7 @@ def _profile_out() -> "object":
     """Default output path for the generated WiCAN profile JSON."""
     from canlib.profile import active
 
-    return active().out_dir / "profile.json"
+    return active().out_dir / "autopid.json"
 
 
 def load_yaml() -> dict:
@@ -118,7 +130,10 @@ def generate_profile(data: dict, verified_only: bool = False) -> dict:
         pid_init = make_pid_init(tx_id, session=session)
 
         for pid_code, pid_data in (ecu.get("pids") or {}).items():
-            if not pid_data.get("enabled", True):
+            # Only `active` PIDs ship to the device. draft (unshipped placeholder),
+            # static (unchanging identity/cal) and ignored (dead) are all excluded
+            # — this is the single gate, replacing the old enabled/static/ignored mix.
+            if pid_status(pid_data) != "active":
                 continue
 
             parameters = {}
@@ -441,7 +456,7 @@ def print_stats(data: dict) -> None:
     for ecu_name, ecu in data["ecus"].items():
         tx_id = ecu["tx_id"]
         for pid_code, pid_data in (ecu.get("pids") or {}).items():
-            params = pid_data["parameters"]
+            params = pid_data.get("parameters") or {}
             n_params = len(params)
             n_verified = sum(1 for p in params.values() if p.get("verified", False))
             n_unverified = n_params - n_verified
@@ -463,62 +478,276 @@ def print_stats(data: dict) -> None:
     )
 
 
-def add_parser(subparsers) -> argparse.ArgumentParser:
-    parser = subparsers.add_parser(
-        NAME,
-        help="Generate/sync WiCAN vehicle-profile JSON",
-        description="Generate WiCAN vehicle profile JSON from YAML definitions",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=__doc__,
-    )
-    parser.add_argument(
-        "--verified-only", action="store_true", help="Only include verified parameters"
-    )
-    parser.add_argument(
-        "--download", action="store_true", help="Download current config from WiCAN"
-    )
-    parser.add_argument(
-        "--diff",
-        action="store_true",
-        help="Download current config and show diff against generated",
-    )
-    parser.add_argument("--upload", action="store_true", help="Upload generated profile to WiCAN")
-    parser.add_argument("--reboot", action="store_true", help="Reboot WiCAN after upload")
-    parser.add_argument("--stats", action="store_true", help="Show PID statistics table")
-    parser.add_argument(
-        "--set-protocol",
-        metavar="MODE",
-        choices=("elm327", "slcan", "savvycan", "realdash66", "auto_pid"),
-        default=None,
-        help="Set the WiCAN device protocol/mode and reboot (explicit; e.g. "
-        "'slcan' for raw CAN, 'auto_pid' to restore Home Assistant). Use --yes "
-        "to skip the confirmation prompt.",
-    )
-    parser.add_argument(
-        "--yes", action="store_true", help="Auto-confirm --set-protocol (no prompt)"
-    )
+_PROTOCOLS = ("elm327", "slcan", "savvycan", "realdash66", "auto_pid")
+
+
+def _add_wican_arg(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--wican",
         default=DEFAULT_WICAN,
         help=f"WiCAN address: {', '.join(WICAN_ADDRESSES.keys())} or URL (default: {DEFAULT_WICAN})",
     )
-    parser.add_argument(
-        "--no-write", action="store_true", help="Don't write output files (dry run)"
+
+
+def add_parser(subparsers) -> argparse.ArgumentParser:
+    parser = subparsers.add_parser(
+        NAME,
+        help="Build/sync the WiCAN AutoPID profile (autopid …, mode …)",
+        description="Build and sync the WiCAN device's AutoPID profile.\n\n"
+        "Nothing is written until you ask for it — a bare `canair wican` prints "
+        "this help. Choose a subcommand:\n"
+        "  autopid write     generate AutoPID JSON to the bundle's out/\n"
+        "  autopid upload    generate + upload to the device (Pro)\n"
+        "  autopid download  download the device's current AutoPID JSON (Pro)\n"
+        "  autopid diff      download + diff against the generated JSON (Pro)\n"
+        "  autopid stats     per-ECU/PID statistics table\n"
+        "  mode show         show the device's active protocol\n"
+        "  mode set MODE     switch the device protocol/mode and reboot (Pro)",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=__doc__,
     )
-    parser.set_defaults(func=run)
+    groups = parser.add_subparsers(dest="wican_command", metavar="<command>")
+
+    _add_autopid_parser(groups)
+    _add_mode_parser(groups)
+
+    parser.set_defaults(func=run, _wican_func=_group_help, _wican_group_parser=parser)
     return parser
 
 
-def _set_protocol(args) -> int:
-    """Explicitly set the WiCAN device protocol/mode (reboots). Opt-in only."""
-    from canlib.wican_mode import ModeError, current_protocol, set_protocol
+def _group_help(args) -> int:
+    """Fallback when ``canair wican`` (or a subgroup) is invoked with no leaf."""
+    parser = getattr(args, "_wican_group_parser", None)
+    if parser is not None:
+        parser.print_help()
+    return 1
 
-    guard = _require_pro("--set-protocol")
+
+# ---------------------------------------------------------------------------
+# canair wican autopid …
+# ---------------------------------------------------------------------------
+
+
+def _add_autopid_parser(groups) -> argparse.ArgumentParser:
+    parser = groups.add_parser(
+        "autopid",
+        help="Generate/sync the WiCAN AutoPID profile JSON",
+        description="Build the WiCAN AutoPID profile from the active bundle's "
+        "ecus/ and (optionally) sync it with the device.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    sub = parser.add_subparsers(dest="autopid_command", metavar="<action>")
+
+    write = sub.add_parser(
+        "write",
+        help="Generate the AutoPID JSON to the bundle's out/autopid.json",
+        description="Generate the WiCAN AutoPID profile JSON and write it to the "
+        "active bundle's out/autopid.json.",
+    )
+    write.add_argument(
+        "--verified-only", action="store_true", help="Only include verified parameters"
+    )
+    write.add_argument(
+        "--out",
+        metavar="PATH",
+        type=Path,
+        default=None,
+        help="Write to PATH instead of the bundle's out/autopid.json",
+    )
+    write.set_defaults(_wican_func=_cmd_autopid_write)
+
+    upload = sub.add_parser(
+        "upload",
+        help="Generate + upload the AutoPID profile to the device (Pro)",
+        description="Generate the AutoPID profile and upload it to the WiCAN "
+        "device (POST /store_car_data). WiCAN Pro only.",
+    )
+    upload.add_argument(
+        "--verified-only", action="store_true", help="Only include verified parameters"
+    )
+    upload.add_argument("--reboot", action="store_true", help="Reboot the device after upload")
+    _add_wican_arg(upload)
+    upload.set_defaults(_wican_func=_cmd_autopid_upload)
+
+    download = sub.add_parser(
+        "download",
+        help="Download the device's current AutoPID profile (Pro)",
+        description="Download the WiCAN device's current AutoPID profile "
+        "(GET /load_auto_pid_car_data) and print it, normalized. WiCAN Pro only.",
+    )
+    _add_wican_arg(download)
+    download.set_defaults(_wican_func=_cmd_autopid_download)
+
+    diff = sub.add_parser(
+        "diff",
+        help="Download + diff the device profile against the generated one (Pro)",
+        description="Download the device's current AutoPID profile and show a "
+        "parameter-level diff against the freshly generated one. WiCAN Pro only.",
+    )
+    diff.add_argument(
+        "--verified-only", action="store_true", help="Only include verified parameters"
+    )
+    _add_wican_arg(diff)
+    diff.set_defaults(_wican_func=_cmd_autopid_diff)
+
+    stats = sub.add_parser(
+        "stats",
+        help="Show a per-ECU/PID statistics table",
+        description="Print a per-ECU/PID statistics table for the active bundle.",
+    )
+    stats.set_defaults(_wican_func=_cmd_autopid_stats)
+
+    parser.set_defaults(_wican_func=_group_help, _wican_group_parser=parser)
+    return parser
+
+
+# ---------------------------------------------------------------------------
+# canair wican mode …
+# ---------------------------------------------------------------------------
+
+
+def _add_mode_parser(groups) -> argparse.ArgumentParser:
+    parser = groups.add_parser(
+        "mode",
+        help="Show or set the WiCAN device protocol/mode",
+        description="Inspect or switch the WiCAN device's operating protocol "
+        "(elm327/slcan/auto_pid/…). This is the device's own mode, distinct "
+        "from the AutoPID profile.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    sub = parser.add_subparsers(dest="mode_command", metavar="<action>")
+
+    show = sub.add_parser(
+        "show",
+        help="Show the device's active protocol",
+        description="Report the WiCAN device's currently active protocol/mode.",
+    )
+    _add_wican_arg(show)
+    show.set_defaults(_wican_func=_cmd_mode_show)
+
+    setp = sub.add_parser(
+        "set",
+        help="Switch the device protocol/mode and reboot (Pro)",
+        description="Switch the WiCAN device to MODE and reboot it (e.g. 'slcan' "
+        "for raw CAN, 'auto_pid' to restore Home Assistant). WiCAN Pro only.",
+    )
+    setp.add_argument("protocol", metavar="MODE", choices=_PROTOCOLS, help="Target protocol/mode")
+    setp.add_argument("--yes", action="store_true", help="Skip the confirmation prompt")
+    _add_wican_arg(setp)
+    setp.set_defaults(_wican_func=_cmd_mode_set)
+
+    parser.set_defaults(_wican_func=_group_help, _wican_group_parser=parser)
+    return parser
+
+
+# ---------------------------------------------------------------------------
+# Handlers
+# ---------------------------------------------------------------------------
+
+
+def _generate(args) -> tuple[dict, dict]:
+    """Load the active bundle and generate the AutoPID profile (grouped format)."""
+    from canlib.profile import active
+
+    print(f"Loading {active().ecus_dir}")
+    data = load_yaml()
+
+    label = " (verified only)" if getattr(args, "verified_only", False) else ""
+    print(f"\nGenerating AutoPID profile{label}...")
+    profile = generate_profile(data, getattr(args, "verified_only", False))
+    n_groups = len(profile["pids"])
+    n_params = sum(len(p["parameters"]) for p in profile["pids"])
+    print(f"  {n_groups} PID groups, {n_params} parameters")
+    return data, profile
+
+
+def _cmd_autopid_write(args) -> int:
+    _data, profile = _generate(args)
+    out = args.out if getattr(args, "out", None) else _profile_out()
+    print("\nWriting output...")
+    write_json(profile, out)
+    print("\nDone.")
+    return 0
+
+
+def _cmd_autopid_upload(args) -> int:
+    guard = _require_pro("autopid upload")
+    if guard is not None:
+        return guard
+
+    data, profile = _generate(args)
+    base_url = get_wican_url(args.wican)
+
+    print("\nConverting to device format...")
+    device_payload = to_device_format(profile, data)
+    n_pids = len(device_payload["cars"][0]["pids"])
+    n_dev_params = sum(len(p["parameters"]) for p in device_payload["cars"][0]["pids"])
+    print(f"  {n_pids} PID groups, {n_dev_params} parameters (array-of-objects)")
+
+    print(f"\nUploading to {base_url}...")
+    upload_profile(base_url, device_payload, reboot=args.reboot)
+    print("\nDone.")
+    return 0
+
+
+def _cmd_autopid_download(args) -> int:
+    guard = _require_pro("autopid download")
     if guard is not None:
         return guard
 
     base_url = get_wican_url(args.wican)
-    target = args.set_protocol
+    print(f"Downloading current AutoPID profile from {base_url}...")
+    current_raw = download_profile(base_url)
+    if current_raw:
+        normalized = normalize_device_profile(current_raw)
+        print("\n=== Current device profile (normalized) ===")
+        print(json.dumps(normalized, indent=2))
+    print("\nDone.")
+    return 0
+
+
+def _cmd_autopid_diff(args) -> int:
+    guard = _require_pro("autopid diff")
+    if guard is not None:
+        return guard
+
+    _data, profile = _generate(args)
+    base_url = get_wican_url(args.wican)
+    print(f"\nDownloading current AutoPID profile from {base_url}...")
+    current_raw = download_profile(base_url)
+    show_diff(current_raw, profile)
+    print("\nDone.")
+    return 0
+
+
+def _cmd_autopid_stats(args) -> int:
+    print_stats(load_yaml())
+    return 0
+
+
+def _cmd_mode_show(args) -> int:
+    from canlib.wican_mode import current_protocol
+
+    base_url = get_wican_url(args.wican)
+    try:
+        proto = current_protocol(base_url)
+    except Exception as e:
+        print(f"error: cannot reach WiCAN at {base_url}: {e}", file=sys.stderr)
+        return 1
+    print(f"WiCAN protocol: {proto or '?'}")
+    return 0
+
+
+def _cmd_mode_set(args) -> int:
+    """Explicitly set the WiCAN device protocol/mode (reboots). Opt-in only."""
+    from canlib.wican_mode import ModeError, current_protocol, set_protocol
+
+    guard = _require_pro("mode set")
+    if guard is not None:
+        return guard
+
+    base_url = get_wican_url(args.wican)
+    target = args.protocol
     try:
         cur = current_protocol(base_url)
     except Exception as e:
@@ -563,70 +792,4 @@ def _set_protocol(args) -> int:
 
 
 def run(args) -> int:
-    from canlib.profile import active
-
-    # Explicit device-mode switch — self-contained, no profile generation.
-    if args.set_protocol:
-        return _set_protocol(args)
-
-    # AutoPID device sync is Pro-only; refuse it on a classic WiCAN before we
-    # do any work. Plain JSON generation (below) works regardless of model.
-    if args.download or args.diff or args.upload:
-        guard = _require_pro(
-            "--upload" if args.upload else ("--diff" if args.diff else "--download")
-        )
-        if guard is not None:
-            return guard
-
-    profile_out = _profile_out()    # Load YAML
-    print(f"Loading {active().ecus_dir}")
-    data = load_yaml()
-
-    if args.stats:
-        print_stats(data)
-        return 0
-
-    # Generate profile
-    label = " (verified only)" if args.verified_only else ""
-    print(f"\nGenerating profile{label}...")
-
-    profile = generate_profile(data, args.verified_only)
-
-    n_groups = len(profile["pids"])
-    n_params = sum(len(p["parameters"]) for p in profile["pids"])
-    print(f"  {n_groups} PID groups, {n_params} parameters")
-
-    # Write file
-    if not args.no_write:
-        print("\nWriting output...")
-        write_json(profile, profile_out)
-
-    # Download / diff
-    base_url = get_wican_url(args.wican)
-
-    if args.download or args.diff:
-        print(f"\nDownloading current config from {base_url}...")
-        current_raw = download_profile(base_url)
-
-        if args.download and not args.diff:
-            if current_raw:
-                normalized = normalize_device_profile(current_raw)
-                print("\n=== Current device profile (normalized) ===")
-                print(json.dumps(normalized, indent=2))
-
-        if args.diff:
-            show_diff(current_raw, profile)
-
-    # Upload
-    if args.upload:
-        print("\nConverting to device format...")
-        device_payload = to_device_format(profile, data)
-        n_pids = len(device_payload["cars"][0]["pids"])
-        n_dev_params = sum(len(p["parameters"]) for p in device_payload["cars"][0]["pids"])
-        print(f"  {n_pids} PID groups, {n_dev_params} parameters (array-of-objects)")
-
-        print(f"\nUploading to {base_url}...")
-        upload_profile(base_url, device_payload, reboot=args.reboot)
-
-    print("\nDone.")
-    return 0
+    return args._wican_func(args)

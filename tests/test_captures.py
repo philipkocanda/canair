@@ -59,17 +59,17 @@ class TestResolveMetadata:
         # input() would raise if called — proving non-interactive.
         with patch("builtins.input", side_effect=AssertionError("should not prompt")):
             meta = resolve_metadata("My label", "ready, parked", "some notes")
-        assert meta == ("My label", "ready, parked", "some notes")
+        assert meta == ("My label", ["ready", "parked"], "some notes")
 
     def test_label_given_defaults_empty_state_notes(self):
         with patch("builtins.input", side_effect=AssertionError("should not prompt")):
             meta = resolve_metadata("Only label", None, None)
-        assert meta == ("Only label", "", "")
+        assert meta == ("Only label", [], "")
 
     def test_no_label_falls_back_to_prompt(self):
         with patch("builtins.input", side_effect=["Prompted", "charging", "n"]):
             meta = resolve_metadata(None, None, None, suggested_label="sugg")
-        assert meta == ("Prompted", "charging", "n")
+        assert meta == ("Prompted", ["charging"], "n")
 
     def test_no_label_prompt_cancelled(self):
         with patch("builtins.input", side_effect=KeyboardInterrupt):
@@ -84,9 +84,9 @@ class TestBuildQuerySession:
             ("0x7EB", "2102", "6102aabb", ""),   # MCU (0x7E3 + 8)
             ("0x7EA", "2101", "6101ccdd", "12:00:01"),  # VCU (0x7E2 + 8)
         ]
-        s = build_query_session(results, "lbl", "ready, parked", "notes here")
+        s = build_query_session(results, "lbl", ["ready", "parked"], "notes here")
         assert s["label"] == "lbl"
-        assert s["state"] == "ready, parked"
+        assert s["vehicle_states"] == ["ready", "parked"]
         assert s["notes"] == "notes here"
         assert "date" in s
         assert s["captures"][0] == {"ecu": "0x7EB", "pid": "2102", "payload": "6102AABB"}
@@ -95,13 +95,13 @@ class TestBuildQuerySession:
         assert s["captures"][1]["payload"] == "6101CCDD"
 
     def test_empty_state_notes_omitted(self):
-        s = build_query_session([("0x7EC", "2101", "6101", "")], "l", "", "")  # BMS
-        assert "state" not in s
+        s = build_query_session([("0x7EC", "2101", "6101", "")], "l", [], "")  # BMS
+        assert "vehicle_states" not in s
         assert "notes" not in s
 
     def test_roundtrips_and_appends_via_save_session(self, tmp_path):
         results = [("0x7EB", "2102", "6102AABB", "")]  # MCU
-        s = build_query_session(results, "Live ref", "ready, parked", "18C")
+        s = build_query_session(results, "Live ref", ["ready", "parked"], "18C")
         save_session(s, tmp_path)
         files = list(tmp_path.glob("*.yaml"))
         assert len(files) == 1
@@ -114,7 +114,7 @@ def _entry(**kw):
     """A minimal flat capture entry as load_all_captures would produce."""
     base = {
         "file": "2026-07-22.yaml", "date": "2026-07-22", "session_label": "",
-        "state": "", "session_notes": "", "ecu": "MCU", "ecu_addr": "0x7E3",
+        "vehicle_states": [], "session_notes": "", "ecu": "MCU", "ecu_addr": "0x7E3",
         "pid": "2102", "payload": "6102AA", "response": None, "scan_results": None,
         "notes": "", "time": "", "label": "", "_session_idx": 0, "_capture_idx": 0,
     }
@@ -137,10 +137,10 @@ class TestClean:
 class TestGroupSessions:
     def test_groups_by_file_and_session_idx(self):
         entries = [
-            _entry(_session_idx=0, session_label="drive A", state="driving", time="16:00:00"),
-            _entry(_session_idx=0, session_label="drive A", state="driving", time="16:00:05",
+            _entry(_session_idx=0, session_label="drive A", vehicle_states=["driving"], time="16:00:00"),
+            _entry(_session_idx=0, session_label="drive A", vehicle_states=["driving"], time="16:00:05",
                    ecu="VCU"),
-            _entry(_session_idx=1, session_label="park", state="ready", time="17:00:00"),
+            _entry(_session_idx=1, session_label="park", vehicle_states=["ready"], time="17:00:00"),
         ]
         sessions = _group_sessions(entries)
         assert len(sessions) == 2
@@ -177,21 +177,21 @@ class TestGroupSessions:
 class TestCmdSessions:
     def test_text_output_shows_metadata(self, capsys):
         entries = [
-            _entry(session_label="ESC drive", state="driving MT->KW",
+            _entry(session_label="ESC drive", vehicle_states=["driving"],
                    session_notes="highway then city", time="16:51:52.4"),
         ]
         cmd_sessions(entries)
         out = capsys.readouterr().out
-        assert "driving MT->KW" in out
+        assert "driving" in out
         assert "ESC drive" in out
         assert "highway then city" in out
         assert "1 captures" in out and "MCU" in out
 
     def test_json_output(self, capsys):
         entries = [
-            _entry(session_label="lbl", state="driving", session_notes="n",
+            _entry(session_label="lbl", vehicle_states=["driving"], session_notes="n",
                    time="16:00:00", ecu="MCU"),
-            _entry(session_label="lbl", state="driving", time="16:00:09", ecu="VCU"),
+            _entry(session_label="lbl", vehicle_states=["driving"], time="16:00:09", ecu="VCU"),
         ]
         cmd_sessions(entries, as_json=True)
         import json
@@ -201,7 +201,7 @@ class TestCmdSessions:
         assert s["captures"] == 2
         assert s["ecus"] == ["MCU", "VCU"]
         assert s["time_start"] == "16:00:00" and s["time_end"] == "16:00:09"
-        assert s["state"] == "driving" and s["notes"] == "n"
+        assert s["vehicle_states"] == ["driving"] and s["notes"] == "n"
 
     def test_json_empty(self, capsys):
         cmd_sessions([], as_json=True)
@@ -231,7 +231,7 @@ class TestCmdListJson:
         import json
 
         entries = [
-            _entry(ecu="BMS", pid="21F2", payload="61F2AABB", state="ready"),
+            _entry(ecu="BMS", pid="21F2", payload="61F2AABB", vehicle_states=["ready"]),
             _entry(ecu="VCU", pid="2101", payload="6101CC"),
         ]
         cmd_list(entries, "BMS:21F2 IGPM:BC03", as_json=True)
@@ -239,7 +239,7 @@ class TestCmdListJson:
         assert data["matched"] == 1
         assert data["captures"][0]["ecu"] == "BMS"
         assert data["captures"][0]["payload"] == "61F2AABB"
-        assert data["captures"][0]["state"] == "ready"
+        assert data["captures"][0]["vehicle_states"] == ["ready"]
         # IGPM:BC03 matched nothing → reported under unmatched.
         assert any("BC03" in u for u in data["unmatched"])
 

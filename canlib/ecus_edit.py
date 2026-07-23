@@ -286,7 +286,7 @@ def set_ecu_fields(
 
 
 # scan_log entry fields we accept (mirrors pids_schema scan_log_entry_fields).
-_SCAN_LOG_FIELDS = ("service", "range", "date", "hits", "probes", "state", "notes")
+_SCAN_LOG_FIELDS = ("service", "range", "date", "hits", "probes", "vehicle_states", "notes")
 
 
 def append_scan_log(
@@ -297,7 +297,7 @@ def append_scan_log(
     date=None,
     hits=None,
     probes=None,
-    state: str | None = None,
+    vehicle_states: list | None = None,
     notes: str | None = None,
     ecus_dir: Path | None = None,
 ) -> None:
@@ -326,7 +326,7 @@ def append_scan_log(
         "date": date if date is not None else _date.today().isoformat(),
         "hits": hits,
         "probes": probes,
-        "state": state,
+        "vehicle_states": vehicle_states,
         "notes": notes,
     }
     entry = CommentedMap()

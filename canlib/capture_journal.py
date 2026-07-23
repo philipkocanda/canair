@@ -13,7 +13,7 @@ survives and can be recovered later with ``canair captures --recover``.
 
 Journal format (one JSON object per line):
 
-    {"v": 1, "type": "meta", "date": "...", "label": "...", "state": "...",
+    {"v": 1, "type": "meta", "date": "...", "label": "...", "vehicle_states": [...],
      "notes": "...", "source": "monitor", "keep_mode": "unique"}
     {"type": "capture", "ecu": "0x7EC", "pid": "2101", "payload": "6101...",
      "time": "12:00:01"}
@@ -64,7 +64,7 @@ class CaptureJournal:
         captures_dir: Path,
         *,
         label: str | None = None,
-        state: str | None = None,
+        vehicle_states: list | None = None,
         notes: str | None = None,
         source: str = "query",
         keep_mode: str | None = None,
@@ -88,7 +88,7 @@ class CaptureJournal:
                 "type": "meta",
                 "date": datetime.now().strftime("%Y-%m-%d"),
                 "label": label or "",
-                "state": state or "",
+                "vehicle_states": list(vehicle_states or []),
                 "notes": notes or "",
                 "source": source,
                 "keep_mode": keep_mode,
@@ -135,19 +135,19 @@ class CaptureJournal:
     def update_meta(
         self,
         label: str | None = None,
-        state: str | None = None,
+        vehicle_states: list | None = None,
         notes: str | None = None,
     ) -> None:
         """Append a meta record with the provided fields (last-wins on reconcile).
 
-        Only non-None fields are written, so a partial update (e.g. state only)
+        Only non-None fields are written, so a partial update (e.g. states only)
         leaves the previously-recorded label/notes intact.
         """
         rec: dict = {"type": "meta"}
         if label is not None:
             rec["label"] = label
-        if state is not None:
-            rec["state"] = state
+        if vehicle_states is not None:
+            rec["vehicle_states"] = list(vehicle_states)
         if notes is not None:
             rec["notes"] = notes
         self._write(rec, durable=True)
@@ -233,19 +233,19 @@ def build_session_from_records(
 ) -> dict | None:
     """Build a capture session dict from journal records.
 
-    Uses the last ``meta`` record for label/state/notes and its ``keep_mode``
-    unless ``keep_mode`` is passed explicitly. Returns None when the journal has
-    no capture/session payloads.
+    Uses the last ``meta`` record for label/vehicle_states/notes and its
+    ``keep_mode`` unless ``keep_mode`` is passed explicitly. Returns None when
+    the journal has no capture/session payloads.
     """
     from .captures import build_query_session
 
-    meta = {"label": "", "state": "", "notes": "", "keep_mode": None}
+    meta = {"label": "", "vehicle_states": [], "notes": "", "keep_mode": None}
     session_records: list[dict] = []
     rows: list[tuple[str, str, str, str]] = []
     for rec in records:
         rtype = rec.get("type")
         if rtype == "meta":
-            for k in ("label", "state", "notes", "keep_mode"):
+            for k in ("label", "vehicle_states", "notes", "keep_mode"):
                 if k in rec:
                     meta[k] = rec[k]
         elif rtype == "session":
@@ -256,7 +256,7 @@ def build_session_from_records(
             )
 
     label = meta.get("label") or "Recovered session"
-    state = meta.get("state") or ""
+    vehicle_states = list(meta.get("vehicle_states") or [])
     notes = meta.get("notes") or ""
     if recovered:
         notes = f"{notes} [recovered]".strip()
@@ -267,10 +267,10 @@ def build_session_from_records(
         # Only the first session dict carries the base; append others' captures.
         base = dict(session_records[0])
         base["label"] = label
-        if state:
-            base["state"] = state
-        elif "state" in base:
-            del base["state"]
+        if vehicle_states:
+            base["vehicle_states"] = vehicle_states
+        elif "vehicle_states" in base:
+            del base["vehicle_states"]
         if notes:
             base["notes"] = notes
         elif "notes" in base:
@@ -283,7 +283,7 @@ def build_session_from_records(
         return None
 
     rows = _dedup(rows, effective_keep)
-    return build_query_session(rows, label, state, notes)
+    return build_query_session(rows, label, vehicle_states, notes)
 
 
 def reconcile_file(

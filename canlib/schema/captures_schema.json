@@ -24,7 +24,11 @@
           "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}(-.+)?$"
         },
         "label": { "type": "string" },
-        "state": { "type": "string" },
+        "vehicle_states": {
+          "description": "Power states the car was in during this session (vocabulary from states.yaml). Array of tokens, e.g. [ready, parked].",
+          "type": "array",
+          "items": { "type": "string" }
+        },
         "notes": { "type": "string" },
         "captures": {
           "type": "array",

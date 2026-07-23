@@ -19,6 +19,35 @@ except ImportError as e:
 # behavioural difference). Falls back to the pure-Python SafeLoader otherwise.
 _SafeLoader = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
 
+# ── PID visibility lifecycle ──────────────────────────────────────────────
+# A PID's `status:` is a single, mutually-exclusive lifecycle value that
+# replaces the old ignored/static/enabled booleans. It answers "where does
+# this PID show up?" on four surfaces (tooling index, bare-ECU polling sweep,
+# explicit query, and the shipped WiCAN device profile):
+#
+#   active   (default) — real & live: indexed, swept, queryable, shipped.
+#   draft              — discovered/undecoded placeholder or speculative work:
+#                        indexed, swept, queryable, but NOT shipped to the device.
+#   static             — unchanging identity/calibration block: indexed &
+#                        queryable & analysed, but skipped in a bare-ECU sweep
+#                        (needs --include-static) and NOT shipped.
+#   ignored            — dead/useless DID (NRC, no decodable data): a documented
+#                        tombstone excluded from ALL tooling.
+#
+# Confidence (`verified:`) is a SEPARATE, orthogonal axis and lives per-param.
+PID_STATUSES = ("active", "draft", "static", "ignored")
+DEFAULT_PID_STATUS = "active"
+
+
+def pid_status(pid_def: dict) -> str:
+    """Return a PID definition's lifecycle status, defaulting to ``active``.
+
+    Tolerant of unknown/missing values (treated as ``active``) so a malformed
+    file degrades to "visible" rather than silently disappearing.
+    """
+    status = str((pid_def or {}).get("status", DEFAULT_PID_STATUS)).strip().lower()
+    return status if status in PID_STATUSES else DEFAULT_PID_STATUS
+
 
 def _yaml_load(fh) -> dict:
     return yaml.load(fh, Loader=_SafeLoader)
@@ -89,7 +118,7 @@ def build_param_index(pids_data: dict) -> dict:
     for ecu_name, ecu_def in pids_data.get("ecus", {}).items():
         tx_id = ecu_def["tx_id"]
         for pid_code, pid_def in ecu_def.get("pids", {}).items():
-            if pid_def.get("ignored", False):
+            if pid_status(pid_def) == "ignored":
                 continue
             for param_name, param in pid_def.get("parameters", {}).items():
                 index[param_name.upper()] = {
@@ -205,12 +234,16 @@ def build_ecu_index(pids_data: dict) -> dict:
             "multi_did": bool(ecu_def.get("multi_did", default_batch)),
         }
         for pid_code, pid_def in ecu_def.get("pids", {}).items():
-            if pid_def.get("ignored", False):
+            status = pid_status(pid_def)
+            if status == "ignored":
                 continue
             index[ecu_name.upper()]["pids"][str(pid_code).upper()] = {
                 "parameters": pid_def.get("parameters", {}),
                 "period": pid_def.get("period", 5000),
-                "enabled": pid_def.get("enabled", True),
-                "static": bool(pid_def.get("static", False)),
+                "status": status,
+                # Derived visibility flags (single source: `status`) so callers
+                # never re-implement the lifecycle rules:
+                "shipped": status == "active",   # include in generated WiCAN profile
+                "swept": status != "static",     # include in a bare-ECU sweep
             }
     return index

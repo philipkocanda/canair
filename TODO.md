@@ -64,7 +64,7 @@ Multi-parameter PIDs that decode well but still have unmapped data bytes worth c
 ## MCU / VCU 2102 decode — Phase 2 (warm synced drive)
 
 Phase 1 (2026-07-20) mined the existing 332 MCU / 1347 VCU captures and added
-**unverified** candidates (all `verified: false`; speculative ones `enabled: false`):
+**unverified** candidates (all `verified: false`; speculative ones `status: draft`):
 
 - **MCU 2102**: `MCU_MOTOR_TORQUE_2` `[S14:S15]/100`, `MCU_PHASE_CURRENT_RMS` `[B17:B18]/10`
   (in addition to existing RPM ✓ / torque / temp1 / temp2). Calibration block B27–B33

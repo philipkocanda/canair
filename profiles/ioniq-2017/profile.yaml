@@ -1,6 +1,6 @@
 # Ioniq 2017 EV — vehicle profile settings
 # Profile-wide settings for the Ioniq 2017. Per-ECU definitions live in ecus/.
-# Run `canair wican` to produce WiCAN JSON profiles from the ecus/ definitions.
+# Run `canair wican autopid write` to produce the AutoPID JSON from the ecus/ definitions.
 #
 # ┌──────────────────────────────────────────────────────────────────────────┐
 # │ RECON GOTCHA — ECU WARM-UP (first request after idle is slow)             │

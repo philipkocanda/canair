@@ -32,7 +32,7 @@ Date scoping (inclusive, YYYY-MM-DD; combines with any mode):
   --date DATE           captures on DATE only (--since DATE --until DATE)
 
 State/label scoping (case-insensitive substring; combines with any mode):
-  --state SUBSTR        only sessions whose state contains SUBSTR (e.g. 'MT->KW')
+  --state SUBSTR        only sessions whose vehicle_states contain SUBSTR (e.g. driving)
   --label SUBSTR        only sessions/captures whose label contains SUBSTR
 
 Examples:
@@ -70,6 +70,7 @@ from canlib.capture_dates import (
     resolve_date_bounds,
 )
 from canlib.commands._hints import ecu_completer as _ecu_completer
+from canlib.states import join_states as _join_states
 
 NAME = "captures"
 
@@ -149,7 +150,7 @@ def _entry_to_dict(e: dict, *, decoded: bool = True) -> dict:
         "pid": str(e["pid"]) if e.get("pid") is not None else None,
         "date": e.get("date"),
         "time": e.get("time") or None,
-        "state": e.get("state") or None,
+        "vehicle_states": e.get("vehicle_states") or None,
         "label": e.get("label") or e.get("session_label") or None,
         "notes": (str(e["notes"]).strip() or None) if e.get("notes") else None,
         "payload": e.get("payload") or None,
@@ -202,7 +203,7 @@ def load_all_captures(captures_dir: Path | None = None) -> list[dict]:
         for s_idx, session in enumerate(data["sessions"]):
             date = session.get("date", "")
             label = session.get("label", "")
-            state = session.get("state", "")
+            vehicle_states = session.get("vehicle_states") or []
             session_notes = session.get("notes", "")
             for c_idx, cap in enumerate(session.get("captures", [])):
                 raw_ecu = cap.get("ecu", "")
@@ -210,7 +211,7 @@ def load_all_captures(captures_dir: Path | None = None) -> list[dict]:
                     "file": fpath.name,
                     "date": date,
                     "session_label": label,
-                    "state": state,
+                    "vehicle_states": list(vehicle_states),
                     "session_notes": session_notes,
                     "ecu": ecu_name_from_ref(raw_ecu, rx_index) if raw_ecu else "",
                     "ecu_addr": raw_ecu,
@@ -337,7 +338,7 @@ def _group_sessions(entries: list[dict]) -> list[dict]:
                 "file": e["file"],
                 "date": e.get("date", ""),
                 "label": e.get("session_label", ""),
-                "state": e.get("state", ""),
+                "vehicle_states": e.get("vehicle_states") or [],
                 "notes": e.get("session_notes", ""),
                 "n": 0,
                 "ecus": {},          # ordered set (dict) of ECU names
@@ -375,7 +376,7 @@ def cmd_sessions(entries: list[dict], as_json: bool = False, max_notes: int = 6)
         import json
         out = [{
             "file": s["file"], "date": s["date"], "label": s["label"],
-            "state": s["state"], "notes": s["notes"], "captures": s["n"],
+            "vehicle_states": s["vehicle_states"], "notes": s["notes"], "captures": s["n"],
             "ecus": list(s["ecus"]),
             "time_start": min(s["times"]) if s["times"] else None,
             "time_end": max(s["times"]) if s["times"] else None,
@@ -396,7 +397,8 @@ def cmd_sessions(entries: list[dict], as_json: bool = False, max_notes: int = 6)
             lo, hi = min(s["times"]), max(s["times"])
             lo, hi = lo.split(".")[0], hi.split(".")[0]
             span = lo if lo == hi else f"{lo}-{hi}"
-        state = f"  {_CYAN}{_clean(s['state'])}{_RESET}" if s["state"] else ""
+        state_str = _join_states(s["vehicle_states"])
+        state = f"  {_CYAN}{_clean(state_str)}{_RESET}" if state_str else ""
         print(f"  {_BOLD}{s['date']}{_RESET}{('  ' + _DIM + span + _RESET) if span else ''}{state}")
         if s["label"]:
             print(f"    {_clean(s['label'])}")
@@ -508,7 +510,8 @@ def cmd_latest(entries: list[dict], ecu_filter: str | None, as_json: bool = Fals
     for (ecu, pid), e in ordered:
         payload = e["payload"]
         date = e["date"]
-        state = f"  ({e['state']})" if e["state"] else ""
+        _st = _join_states(e.get("vehicle_states"))
+        state = f"  ({_st})" if _st else ""
         trunc = payload[:80] + "..." if len(payload) > 80 else payload
         print(f"  {_CYAN}{ecu:<10}{_RESET} {pid!s:<10} {_DIM}{date}{state}{_RESET}")
         print(f"    {trunc}")
@@ -846,7 +849,8 @@ def _render_step_frame(
     pid_display = escape(str(e["pid"]))
     tx_str = f" (0x{tx_id:03X})" if isinstance(tx_id, int) else ""
     ts = e.get("time") or e.get("date") or ""
-    state = f"  state={escape(e['state'])}" if e.get("state") else ""
+    _st = _join_states(e.get("vehicle_states"))
+    state = f"  states={escape(_st)}" if _st else ""
     label = f"  [{escape(e['label'])}]" if e.get("label") else ""
     file_str = f"  ({escape(e['file'])})" if e.get("file") else ""
 
@@ -1104,7 +1108,8 @@ def _print_entry(e: dict, show_ecu: bool = False) -> None:
     date = e["date"]
     time_str = e.get("time", "")
     ts = f"{date} {time_str}".strip()
-    state = f"  ({e['state']})" if e["state"] else ""
+    _st = _join_states(e.get("vehicle_states"))
+    state = f"  ({_st})" if _st else ""
     label = f"  [{e['label']}]" if e.get("label") else ""
 
     print(f"  {ecu_prefix}{_DIM}{ts}{state}{label}{_RESET}")

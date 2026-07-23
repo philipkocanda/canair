@@ -2,10 +2,10 @@
 # Validates the optional profiles/<name>/states.yaml.
 #
 # states.yaml declares a profile's canonical, ordered vehicle operating states.
-# The `state` field on a capture session should draw from these names (soft —
-# free text is still accepted, but `canair validate captures` warns on values
-# outside this vocabulary). Each state may carry a `when:` predicate used to
-# auto-suggest the state from decoded PID values (see canlib/states.py).
+# The `vehicle_states` field on a capture session should draw from these names
+# (soft — free text is still accepted, but `canair validate captures` warns on
+# values outside this vocabulary). Each state may carry a `when:` predicate used
+# to auto-suggest the state from decoded PID values (see canlib/states.py).
 #
 # Top-level structure:
 #   states:                 # ordered list; first matching `when` wins on suggest

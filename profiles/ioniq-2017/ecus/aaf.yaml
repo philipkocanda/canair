@@ -22,12 +22,15 @@ AAF:
       readings via PID 2180/2181 (ambient temp, heater element, heat sink, compressor),
       which is why community projects (OVMS, pioniq, EVNotiPi, JejuSoul) use this address
       for external temp.
-  availability: [ready, charging]
+  vehicle_states:
+    - ready
+    - charging
   pids:
     2180:
       period: 10000
-      enabled: true
-      availability: [ready, charging]  # TODO: verify sleep/acc availability
+      vehicle_states:
+        - ready
+        - charging
       parameters:
         AMBIENT_TEMP:
           expression: "(B18-80)/2"
@@ -83,9 +86,10 @@ AAF:
             A/C compressor temperature. 2026-07-20: from community sheet (p-40 = B21-40). Reads ≈ambient with
             AC off (live ACC2 = 19°C). Needs an AC-on capture to confirm behaviour. ISO-TP 0x11.
     2181:
+      status: draft
       period: 0
-      enabled: false
-      availability: [charging] # TODO: other states untested
+      vehicle_states:
+        - charging
       parameters:
         AAF_2181_UNKNOWN:
           expression: ""
@@ -103,7 +107,8 @@ AAF:
       target: 21 00-FF
       status: done
       priority: P3
-      prerequisite: [ready]
+      vehicle_states:
+        - ready
       date: "2026-07-22"
       result: "Exhaustive service-21 LID sweep (ignition on): only 80/81 respond (= known 2180/2181), all 254 others NRC. Confirms AAF lives in the 0x80 page range (not 0x01); no hidden pages. Fully mapped."
       notes: Hidden-page hunt 2026-07-22 (KWP2000 completion).

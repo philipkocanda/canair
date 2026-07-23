@@ -271,7 +271,7 @@ def _merge_history(
 def _write_merged(
     merged: dict[tuple[str, str], list[tuple[str, str]]],
     label: str,
-    state: str,
+    vehicle_states,
     notes: str,
     captures_dir: Path,
 ) -> Path:
@@ -291,7 +291,7 @@ def _write_merged(
         for hex_val, ts in entries:
             results.append((ecu_ref, pid, hex_val, ts))
 
-    session = build_query_session(results, label, state, notes)
+    session = build_query_session(results, label, vehicle_states, notes)
     return save_session(session, captures_dir)
 
 
@@ -878,24 +878,30 @@ class MonitorController:
             return None
         return suggest_state(self._state_rules, self.decoded_values, self.responded)
 
-    def save_now(self, label: str, state: str | None = None, notes: str | None = None) -> str:
+    def save_now(self, label: str, vehicle_states=None, notes: str | None = None) -> str:
         """Save the payloads captured so far (on-demand save from the TUI).
 
-        Uses the richest history available — the full ``--save`` history if
-        enabled, else the display (``--keep``) history, else just the latest
-        per-PID snapshot — merged with the current values. Returns a one-line
-        summary for display. Never writes to stdout (the TUI owns the screen).
+        ``vehicle_states`` may be a comma-separated string (as typed in the TUI
+        dialog) or a token list; it is normalized to a list. Uses the richest
+        history available — the full ``--save`` history if enabled, else the
+        display (``--keep``) history, else just the latest per-PID snapshot —
+        merged with the current values. Returns a one-line summary for display.
+        Never writes to stdout (the TUI owns the screen).
         """
         import contextlib
         import io
 
+        from ..states import parse_states
+
+        states = parse_states(vehicle_states)
+
         # Journal active (--save): payloads are already durably journaled and
         # reconciled on exit. The on-demand save just updates the metadata that
-        # the reconciled session will carry (label/state/notes), applied live.
+        # the reconciled session will carry (label/states/notes), applied live.
         if self.journal is not None:
             with contextlib.suppress(Exception):
-                self.journal.update_meta(label, state, notes)
-            if state:
+                self.journal.update_meta(label, states, notes)
+            if states:
                 self._state_explicit = True
             return f"Metadata set (label={label!r}); session auto-saves on exit."
 
@@ -913,7 +919,7 @@ class MonitorController:
         n_pids = len(merged)
         n_payloads = sum(len(v) for v in merged.values())
         with contextlib.redirect_stdout(io.StringIO()):
-            path = _write_merged(merged, label, state or "", notes or "", captures_dir)
+            path = _write_merged(merged, label, states, notes or "", captures_dir)
         return f"Saved {n_payloads} payload(s) across {n_pids} PID(s) → {path.name}"
 
     async def close(self) -> None:
@@ -965,7 +971,7 @@ async def mode_monitor(
     save: bool = False,
     show_rulers: bool = False,
     label: str | None = None,
-    state: str | None = None,
+    vehicle_states=None,
     notes: str | None = None,
     raw_client=None,
     include_static: bool = False,
@@ -1002,8 +1008,10 @@ async def mode_monitor(
     unverified/enabled/disabled), s save captures, q or Ctrl+C stop.
     """
     from ..profile import active
+    from ..states import parse_states
 
     captures_dir = active().captures_dir
+    states = parse_states(vehicle_states)
     controller = MonitorController(
         terminal,
         query_steps,
@@ -1030,7 +1038,7 @@ async def mode_monitor(
         controller.journal = CaptureJournal.open(
             captures_dir,
             label=journal_label,
-            state=state,
+            vehicle_states=states,
             notes=notes,
             source="monitor",
             keep_mode=keep,
@@ -1038,7 +1046,7 @@ async def mode_monitor(
         print(
             f"  --save: journaling to {controller.journal.path.name} "
             f"(label: {journal_label!r}); auto-saves on stop. "
-            "Press 's' to edit label/state/notes."
+            "Press 's' to edit label/states/notes."
         )
 
     try:
@@ -1068,10 +1076,10 @@ async def mode_monitor(
             with contextlib.suppress(Exception):
                 # If no state was set explicitly (flag or the TUI dialog), fall
                 # back to the auto-suggested state from decoded PID values.
-                if not state and not controller._state_explicit:
+                if not states and not controller._state_explicit:
                     suggested = controller.suggested_state()
                     if suggested:
-                        controller.journal.update_meta(state=suggested)
+                        controller.journal.update_meta(vehicle_states=[suggested])
                 written = controller.journal.reconcile()
                 if written is not None:
                     _console.print(f"  → Saved journaled captures to {written.name}")

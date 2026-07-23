@@ -12,13 +12,19 @@ PSM:
     sw_version: "100"
     boot_sw: "190"
     id_protocol: UDS  # F1xx
-  availability: [plugged, acc, acc2, ready, charging]
+  vehicle_states:
+    - plugged
+    - acc
+    - acc2
+    - ready
+    - charging
   scan_log: # PSM (power seat)
     - service: 0x22
       range: "0101-010F,B001-B010,C001-C010,D001-D010"
       date: 2026-07-22
       hits: 0
-      state: ready
+      vehicle_states:
+        - ready
       notes: "Also service 21 01-0F: all NRC. No live-data DIDs (seat position not exposed via OBD read)."
   pids: {}
 
@@ -28,73 +34,73 @@ PSM:
   # Usage: canair io PSM --did <DID>
   iocontrol:
     B401:
-      availability: []
+      vehicle_states: []
       label: Seat slide forward
       verified: true
-      on: "2FB40103"
-      off: "2FB40100"
+      true: "2FB40103"
+      false: "2FB40100"
       notes: >
         Continuous motor — send OFF to stop.
 
     B402:
-      availability: []
+      vehicle_states: []
       label: Seat slide backward
       verified: true
-      on: "2FB40203"
-      off: "2FB40200"
+      true: "2FB40203"
+      false: "2FB40200"
       notes: >
         Continuous motor — send OFF to stop.
 
     B403:
-      availability: []
+      vehicle_states: []
       label: Seat recline upright
       verified: true
-      on: "2FB40303"
-      off: "2FB40300"
+      true: "2FB40303"
+      false: "2FB40300"
       notes: >
         Continuous motor — send OFF to stop.
 
     B404:
-      availability: []
+      vehicle_states: []
       label: Seat recline backward
       verified: true
-      on: "2FB40403"
-      off: "2FB40400"
+      true: "2FB40403"
+      false: "2FB40400"
       notes: >
         Continuous motor — send OFF to stop.
 
     B405:
-      availability: []
+      vehicle_states: []
       label: Seat front height up
       verified: true
-      on: "2FB40503"
-      off: "2FB40500"
+      true: "2FB40503"
+      false: "2FB40500"
       notes: >
         Continuous motor — send OFF to stop.
 
     B406:
-      availability: []
+      vehicle_states: []
       label: Seat front height down
       verified: true
-      on: "2FB40603"
-      off: "2FB40600"
+      true: "2FB40603"
+      false: "2FB40600"
       notes: >
         Continuous motor — send OFF to stop.
 
     B407:
-      availability: []
+      vehicle_states: []
       label: Seat rear height up
       verified: true
-      on: "2FB40703"
-      off: "2FB40700"
+      true: "2FB40703"
+      false: "2FB40700"
       notes: >
         Continuous motor — send OFF to stop.
 
     B408:
-      availability: []
+      vehicle_states: []
       label: Seat rear height down
       verified: true
-      on: "2FB40803"
-      off: "2FB40800"
+      true: "2FB40803"
+      false: "2FB40800"
       notes: >
         Continuous motor — send OFF to stop.

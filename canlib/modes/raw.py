@@ -18,7 +18,7 @@ async def mode_raw(
     save: bool = False,
     pids_data: dict | None = None,
     label: str | None = None,
-    state: str | None = None,
+    vehicle_states=None,
     notes: str | None = None,
 ):
     """Send a raw UDS request specified as TX_ID:SERVICE_PID.
@@ -58,7 +58,7 @@ async def mode_raw(
             print_json_result(response)
             if not hold:
                 if save:
-                    _save_raw(tx_id, service_pid, response, pids_data, label, state, notes)
+                    _save_raw(tx_id, service_pid, response, pids_data, label, vehicle_states, notes)
                 return
         elif not response["ok"]:
             error = response.get("error") or response.get("nrc_desc", "unknown error")
@@ -69,7 +69,7 @@ async def mode_raw(
                 print(f"  Error: {error}")
             if not hold:
                 if save:
-                    _save_raw(tx_id, service_pid, response, pids_data, label, state, notes)
+                    _save_raw(tx_id, service_pid, response, pids_data, label, vehicle_states, notes)
                 return
         else:
             decode = decode_uds_response(response["bytes"])
@@ -91,7 +91,7 @@ async def mode_raw(
             except (KeyboardInterrupt, asyncio.CancelledError):
                 print("\n  Releasing session...")
         elif save:
-            _save_raw(tx_id, service_pid, response, pids_data, label, state, notes)
+            _save_raw(tx_id, service_pid, response, pids_data, label, vehicle_states, notes)
     finally:
         if tester_task:
             tester_task.cancel()
@@ -103,7 +103,7 @@ async def mode_raw(
 
 def _save_raw(
     tx_id: int, request: str, response: dict, pids_data: dict | None,
-    label: str | None = None, state: str | None = None, notes: str | None = None,
+    label: str | None = None, vehicle_states=None, notes: str | None = None,
 ) -> None:
     """Prompt (or use provided metadata) and save a raw request result to captures."""
     from ..captures import (
@@ -116,16 +116,16 @@ def _save_raw(
 
     ecu = ecu_name(tx_id)
     suggested = suggest_raw_label(ecu, request)
-    meta = resolve_metadata(label, state, notes, suggested_label=suggested)
+    meta = resolve_metadata(label, vehicle_states, notes, suggested_label=suggested)
     if meta:
-        label, state, notes = meta
+        label, vehicle_states, notes = meta
         session_dict = build_raw_session(
             ecu_ref=rx_addr_str(tx_id),
             tx_id=tx_id,
             request=request,
             response=response,
             label=label,
-            state=state,
+            vehicle_states=vehicle_states,
             notes=notes,
             pids_data=pids_data,
         )

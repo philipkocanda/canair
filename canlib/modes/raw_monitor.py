@@ -79,7 +79,7 @@ async def run_raw_monitor(args, host: str, port: int, bitrate: int, pids_data: d
         save=args.save,
         show_rulers=getattr(args, "rulers", False),
         label=args.label,
-        state=args.state,
+        vehicle_states=args.state,
         notes=args.notes,
         raw_client=client,
     )

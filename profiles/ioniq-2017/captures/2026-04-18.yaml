@@ -1,18 +1,18 @@
 sessions:
 - date: '2026-04-18'
   label: Service 21 PID scan during AC charging — powertrain ECUs
-  state: AC charging (240V, SOC ~63%, 14.7V battery)
-  notes: |
+  vehicle_states: []
+  notes: |-
     Full service 21 scan (01-FF) on 7 ECUs during AC charging.
     Goal: find new PIDs available during charging, especially on LDC/OBC/Charging.
     Key finding: 0x744 (Charging) and 0x733 (PLC) remain dead during AC charging.
     New PIDs discovered: LDC 2102, VCU 21F2, MCU 2101/2103/21F2.
+     [migrated state: AC charging (240V, SOC ~63%, 14.7V battery)]
   captures:
   - ecu: '0x7EE'
     pid: 2101-21FF
     label: Full service 21 scan on removed ECU 0x744
-    notes: "0x744 returned NO DATA on all 255 PIDs during active AC charging. ECU\
-      \ removed from ecus.yaml — likely does not exist on Ioniq 28kWh."
+    notes: "0x744 returned NO DATA on all 255 PIDs during active AC charging. ECU removed from ecus.yaml — likely does not exist on Ioniq 28kWh."
     response: NO DATA — 255 errors, address 0x744 dead
   - ecu: '0x7ED'
     pid: 2101-21FF
@@ -25,8 +25,7 @@ sessions:
         response: 34 bytes (NEW)
         notes: "Raw: 6102FFFC0000684F792A694A79286E847927650F791B7499791F7293792B"
       rejected: 253 DIDs returned NO DATA or NRC
-      notes: "PID 2102 is new — 34 bytes, undecoded. Many repeated 79xx values suggest\
-        \ voltage/current readings."
+      notes: "PID 2102 is new — 34 bytes, undecoded. Many repeated 79xx values suggest voltage/current readings."
   - ecu: '0x74E'
     pid: 2101-21FF
     label: Full service 21 scan
@@ -40,8 +39,7 @@ sessions:
     pid: 2101-21FF
     label: Full service 21 scan
     response: 255 NRCs — ECU dead during AC charging
-    notes: "PLC is CCS DC fast-charge controller — expected to be inactive during\
-      \ AC charging."
+    notes: "PLC is CCS DC fast-charge controller — expected to be inactive during AC charging."
   - ecu: '0x7EA'
     pid: 2101-21FF
     label: Full service 21 scan
@@ -70,8 +68,7 @@ sessions:
         response: 62 bytes (known)
       - did: '03'
         response: 27 bytes (NEW, all zeros)
-        notes: "Raw: 610300000000000000000000000000000000000000000000000000. May contain\
-          \ data during driving."
+        notes: "Raw: 610300000000000000000000000000000000000000000000000000. May contain data during driving."
       - did: F2
         response: 69 bytes (NEW)
         notes: "Raw: 61F2FFFFFF3FF8FFF6FF7DD609000000000000000000190500000B05CDAB..."
@@ -91,12 +88,14 @@ sessions:
       rejected: 253 DIDs returned NO DATA or NRC
 - date: '2026-04-18'
   label: SKM DID scan + IGPM key-in-car observation
-  state: "Deep sleep, key in unlocked car, unplugged, 12.4-12.6V battery"
-  notes: |
+  vehicle_states:
+  - deep sleep
+  notes: |-
     SKM B0xx range discovery: 9 responding DIDs (B002-B00B).
     B002 has 136 data bytes — massive status register, likely contains key presence.
     Also captured IGPM BC03 POWER_MODE=0x73 with key in car (vs 0x0A without key).
     SKM B1xx, 01xx, service 21 01-0F all returned NRC — B0xx is the right range.
+     [migrated state: Deep sleep, key in unlocked car, unplugged, 12.4-12.6V battery]
   captures:
   - ecu: '0x778'
     pid: 22BC03
@@ -104,8 +103,7 @@ sessions:
     payload: 62BC03FDEE3C7300000000AAAA
   - ecu: '0x7AD'
     pid: scan 22 B000-B020
-    notes: "9 responding DIDs. B002 = 136 data bytes (massive). Key in car, doors\
-      \ unlocked."
+    notes: "9 responding DIDs. B002 = 136 data bytes (massive). Key in car, doors unlocked."
     scan_results:
       responding:
       - did: B002
@@ -146,7 +144,8 @@ sessions:
     response: 0/15 responding
 - date: '2026-04-18'
   label: SKM with/wo keyfob
-  state: sleep
+  vehicle_states:
+  - sleep
   captures:
   - ecu: '0x7AD'
     pid: 22B002
@@ -202,7 +201,8 @@ sessions:
     time: "21:42:32"
 - date: '2026-04-18'
   label: unlock/lock/unlock/lock cycle
-  state: sleep
+  vehicle_states:
+  - sleep
   captures:
   - ecu: '0x778'
     pid: 22BC03
@@ -218,7 +218,8 @@ sessions:
     time: "22:07:28"
 - date: '2026-04-18'
   label: Keyfob unlock/lock/unlock/lock
-  state: sleep
+  vehicle_states:
+  - sleep
   captures:
   - ecu: '0x778'
     pid: 22BC01
@@ -246,7 +247,8 @@ sessions:
     time: "22:15:01"
 - date: '2026-04-18'
   label: bcm unlock signals
-  state: sleep
+  vehicle_states:
+  - sleep
   notes: >
     unlocked 22:26:51 - locked again at 22:27:01
   captures:
@@ -457,10 +459,12 @@ sessions:
 
 - date: '2026-04-18'
   label: IOControl scan — BCM + IGPM + SKM alternative ranges
-  state: sleep (plugged in, car unlocked)
-  notes: |
+  vehicle_states:
+  - sleep
+  notes: |-
     Scanned alternative IOControl (2F) ranges on BCM, IGPM, and SKM using
     returnControl (00) probe — safe, no actuation.
+     [migrated state: sleep (plugged in, car unlocked)]
   captures:
   - ecu: '0x7A8'
     pid: 2F B000-B0FF

@@ -556,7 +556,7 @@ class TestControllerJournal:
         data = yaml.safe_load(written.read_text())
         assert len(data["sessions"]) == 1
         assert data["sessions"][0]["label"] == "edited"
-        assert data["sessions"][0]["state"] == "ready"
+        assert data["sessions"][0]["vehicle_states"] == ["ready"]
 
 
 class TestControllerSuggestedState:

@@ -21,14 +21,14 @@ def _read_capture_file(captures_dir):
 
 class TestJournalBasics:
     def test_open_writes_meta_and_creates_dir(self, tmp_path):
-        j = CaptureJournal.open(tmp_path, label="L", state="ready", notes="n", source="monitor")
+        j = CaptureJournal.open(tmp_path, label="L", vehicle_states=["ready"], notes="n", source="monitor")
         assert j.path.exists()
         assert j.path.parent == tmp_path / ".journal"
         lines = j.path.read_text().splitlines()
         meta = json.loads(lines[0])
         assert meta["type"] == "meta"
         assert meta["label"] == "L"
-        assert meta["state"] == "ready"
+        assert meta["vehicle_states"] == ["ready"]
         assert meta["source"] == "monitor"
 
     def test_append_is_buffered_and_flush_syncs_once(self, tmp_path, monkeypatch):
@@ -59,7 +59,7 @@ class TestJournalBasics:
 
 class TestReconcile:
     def test_reconcile_builds_session_and_deletes_journal(self, tmp_path):
-        j = CaptureJournal.open(tmp_path, label="Live ref", state="ready, parked", notes="18C")
+        j = CaptureJournal.open(tmp_path, label="Live ref", vehicle_states=["ready", "parked"], notes="18C")
         j.append("0x7EB", "2102", "6102AABB")
         j.append("0x7EA", "2101", "6101CCDD", "12:00:01")
         written = j.reconcile()
@@ -68,18 +68,18 @@ class TestReconcile:
         data = yaml.safe_load(written.read_text())
         sess = data["sessions"][0]
         assert sess["label"] == "Live ref"
-        assert sess["state"] == "ready, parked"
+        assert sess["vehicle_states"] == ["ready", "parked"]
         assert sess["captures"][0]["payload"] == "6102AABB"
         assert sess["captures"][1]["time"] == "12:00:01"
 
     def test_meta_last_wins(self, tmp_path):
-        j = CaptureJournal.open(tmp_path, label="orig", state="acc")
+        j = CaptureJournal.open(tmp_path, label="orig", vehicle_states=["acc"])
         j.append("0x7EC", "2101", "6101")
-        j.update_meta(label="edited", state="ready", notes="final")
+        j.update_meta(label="edited", vehicle_states=["ready"], notes="final")
         written = j.reconcile()
         sess = yaml.safe_load(written.read_text())["sessions"][0]
         assert sess["label"] == "edited"
-        assert sess["state"] == "ready"
+        assert sess["vehicle_states"] == ["ready"]
         assert sess["notes"] == "final"
 
     def test_keep_mode_unique_dedups(self, tmp_path):
@@ -105,7 +105,7 @@ class TestReconcile:
         assert not j.path.exists()
 
     def test_append_session_roundtrips(self, tmp_path):
-        j = CaptureJournal.open(tmp_path, label="Scan", state="ready")
+        j = CaptureJournal.open(tmp_path, label="Scan", vehicle_states=["ready"])
         session = {
             "date": "2026-07-22",
             "label": "placeholder",
@@ -115,7 +115,7 @@ class TestReconcile:
         written = j.reconcile()
         sess = yaml.safe_load(written.read_text())["sessions"][0]
         assert sess["label"] == "Scan"
-        assert sess["state"] == "ready"
+        assert sess["vehicle_states"] == ["ready"]
         assert sess["captures"][0]["pid"] == "scan 21 01-FF"
 
 

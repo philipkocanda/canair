@@ -79,9 +79,9 @@ class TestFilterByDateRange:
 class TestFilterByText:
     def _entries(self):
         return [
-            {"state": "driving MT->KW", "session_label": "ESC drive", "label": ""},
-            {"state": "Driving KW->Home", "session_label": "ESC city", "label": ""},
-            {"state": "ready, parked", "session_label": "reference", "label": "cap-x"},
+            {"vehicle_states": ["driving"], "session_label": "ESC drive", "label": ""},
+            {"vehicle_states": ["driving"], "session_label": "ESC city", "label": ""},
+            {"vehicle_states": ["ready", "parked"], "session_label": "reference", "label": "cap-x"},
         ]
 
     def test_no_filter_returns_all(self):
@@ -89,8 +89,8 @@ class TestFilterByText:
         assert filter_by_text(e) is e
 
     def test_state_substring_case_insensitive(self):
-        out = filter_by_text(self._entries(), state="mt->kw")
-        assert len(out) == 1 and out[0]["state"] == "driving MT->KW"
+        out = filter_by_text(self._entries(), state="PARK")
+        assert len(out) == 1 and out[0]["vehicle_states"] == ["ready", "parked"]
 
     def test_state_matches_multiple(self):
         out = filter_by_text(self._entries(), state="driving")
@@ -98,11 +98,11 @@ class TestFilterByText:
 
     def test_label_matches_session_label(self):
         out = filter_by_text(self._entries(), label="city")
-        assert len(out) == 1 and out[0]["state"] == "Driving KW->Home"
+        assert len(out) == 1 and out[0]["session_label"] == "ESC city"
 
     def test_label_matches_capture_label(self):
         out = filter_by_text(self._entries(), label="cap-x")
-        assert len(out) == 1 and out[0]["state"] == "ready, parked"
+        assert len(out) == 1 and out[0]["vehicle_states"] == ["ready", "parked"]
 
     def test_state_and_label_anded(self):
         out = filter_by_text(self._entries(), state="driving", label="city")
@@ -139,10 +139,10 @@ class TestResolveDateBounds:
 
 def _caps():
     return [
-        {"date": "2026-07-22", "state": "driving MT->KW", "label": "", "id": i}
+        {"date": "2026-07-22", "vehicle_states": ["driving"], "label": "", "id": i}
         for i in range(5)
     ] + [
-        {"date": "2026-07-22", "state": "Driving KW->Home", "label": "", "id": 5},
+        {"date": "2026-07-22", "vehicle_states": ["parked"], "label": "", "id": 5},
     ]
 
 
@@ -152,8 +152,8 @@ class TestScopeCaptures:
         assert len(out) == 6
 
     def test_state_filter(self):
-        out = decode_script.scope_captures(_caps(), state="MT->KW")
-        assert len(out) == 5 and all("MT->KW" in c["state"] for c in out)
+        out = decode_script.scope_captures(_caps(), state="driving")
+        assert len(out) == 5 and all("driving" in c["vehicle_states"] for c in out)
 
     def test_first(self):
         out = decode_script.scope_captures(_caps(), first=2)
@@ -167,11 +167,11 @@ class TestScopeCaptures:
         assert decode_script.scope_captures(_caps(), last=0) == []
 
     def test_state_then_last(self):
-        out = decode_script.scope_captures(_caps(), state="MT->KW", last=2)
+        out = decode_script.scope_captures(_caps(), state="driving", last=2)
         assert [c["id"] for c in out] == [3, 4]
 
     def test_date_filters(self):
-        caps = [*_caps(), {"date": "2026-07-20", "state": "x", "label": "", "id": 9}]
+        caps = [*_caps(), {"date": "2026-07-20", "vehicle_states": ["parked"], "label": "", "id": 9}]
         out = decode_script.scope_captures(caps, since=date(2026, 7, 22))
         assert all(c["date"] == "2026-07-22" for c in out)
 
@@ -185,7 +185,8 @@ def _compact_results(rows):
     out = []
     for t, state, params in rows:
         decoded = {n: {"value": v, "unit": "", "verified": False} for n, v in params.items()}
-        out.append({"capture": {"date": "2026-07-22", "time": t, "state": state},
+        out.append({"capture": {"date": "2026-07-22", "time": t,
+                                "vehicle_states": [state] if state else []},
                     "decoded": decoded})
     return out
 

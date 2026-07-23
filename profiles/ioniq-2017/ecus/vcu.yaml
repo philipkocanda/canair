@@ -29,12 +29,15 @@ VCU:
     calibration: "C5210617"
     vin: "KMHCXXXXXXXXXXXX"
     id_protocol: KWP2000  # 1Axx
-  availability: [ready, charging]
+  vehicle_states:
+    - ready
+    - charging
   pids:
     2101:
       period: 2500
-      enabled: true
-      availability: [ready, charging]
+      vehicle_states:
+        - ready
+        - charging
       parameters:
         VEHICLE_SPEED:
           expression: "((S20*256)+B19)/60"
@@ -203,8 +206,9 @@ VCU:
 
     2102:
       period: 5000
-      enabled: true
-      availability: [ready, charging]
+      vehicle_states:
+        - ready
+        - charging
       parameters:
         VCU_INVERTER_INPUT_VOLTAGE:
           expression: "B17*2"
@@ -297,10 +301,10 @@ VCU:
         #     MCU/inverter temps are likely in MCU 0x7E3, not VCU 2102. Kept for research trail; excluded from profile.
 
     21F2:
+      status: static
       period: 0
-      enabled: false
-      static: true
-      availability: [charging]
+      vehicle_states:
+        - charging
       notes: >
         69 bytes. Discovered during charging PID scan (2026-04-18).
         Raw payload: 61F2FF000000084566003FC6AE1101877F00000000000000000000000000...
@@ -314,7 +318,8 @@ VCU:
       target: "2101"
       status: pending
       priority: P1
-      prerequisite: [acc]
+      vehicle_states:
+        - acc
       notes: >
         Several unverified params: CAR_READY (B26:3) causes OOB on 22-byte response, PARK_BRAKE (B26:5) same issue, ACCEL_PEDAL_DEPTH (B17), LDC_INHIBIT (B11:7),
         MCU_STATE (B11:6).
@@ -341,7 +346,9 @@ VCU:
       target: "2102"
       status: captured
       priority: P1
-      prerequisite: [ready, charging]
+      vehicle_states:
+        - ready
+        - charging
       notes: >
         27 bytes. 2026-07-20 (Kia Soul EV VMCU cross-ref, 0x7E2): mapped INVERTER_INPUT_VOLTAGE=B17*2
         (verified vs BMS pack ~369V) and AUX_BATTERY_VOLTAGE=B18/10 (~12–13.6V). KEY FINDING: the Ioniq
@@ -364,7 +371,8 @@ VCU:
       target: "22 E001-E010"
       status: nrc
       priority: P1
-      prerequisite: [acc]
+      vehicle_states:
+        - acc
       notes: >
         Ioniq 5 cross-ref: E001 vehicle speed, E002 motor RPM, E004 accel pedal/speed HD/aux voltage, E005 disconnector, E006 drive mode, E007 regen level, E008 torque request, E009 actual regen torque, E00A odometer, E00B motor temp, E00C inverter cooling temp, E010 gear state."
         2026-07-19: 22E001 -> NRC 0x12 (subFunctionNotSupported)
@@ -386,7 +394,8 @@ VCU:
       target: "2101 speed"
       status: pending
       priority: P1
-      prerequisite: [ready]
+      vehicle_states:
+        - ready
       notes: >
         2026-07-20: RESOLVED unit = MPH (not km/h) and low byte = B19 (unsigned), high byte = S20 (signed).
         Expression ((S20*256)+B19)*1.609344/100 reads 0 at park (verified live) and ~+4% under dashboard.
@@ -398,13 +407,15 @@ VCU:
       target: "0x7E1 22 0101-0105"
       status: nrc
       priority: P3
-      prerequisite: [acc]
+      vehicle_states:
+        - acc
       notes: "Powertrain address — test if anything responds."
     - type: scan
       target: 21 00-FF
       status: done
       priority: P2
-      prerequisite: [ready]
+      vehicle_states:
+        - ready
       date: "2026-07-22"
       result: "Exhaustive service-21 LID sweep (ignition on): only 01/02/F2 respond (= known 2101/2102/21F2), all 253 others NRC. No hidden pages. Drive-mode/regen not exposed as a separate VCU service-21 page — must be bytes within 2101/2102 (or 21F2)."
       notes: Hidden-page hunt. Redirects the drive-mode/regen search back into the known 2101/2102 payloads.
@@ -412,7 +423,8 @@ VCU:
       target: "2101"
       status: done
       priority: P3
-      prerequisite: [ready]
+      vehicle_states:
+        - ready
       notes: "VCU 2101 B13/B15 = accelerator/torque REQUEST echo (driver demand), essentially redundant with ACCEL_PEDAL_DEPTH so not worth a separate param. From 2026-07-22 drive: B13 and B15 both correlate ~0.99 with ACCEL_PEDAL_DEPTH; B13 = 2xB15 exactly; linear fit B13 = 0.263*pedal + 6.4 (residual std 0.44); both FLOOR at their idle value (B13=6, B15=3) during braking/regen (never go negative), confirming it is a >=0 request signal, not actual bidirectional motor torque (which lives in MCU 2102). Neighbouring unmapped B14/B21 are uncorrelated with speed/pedal (noise/other). Actual motor torque + regen must be read from MCU 2102 (MCU_MOTOR_TORQUE) — VCU 2101 does not expose signed motor torque."
 
   sessions:

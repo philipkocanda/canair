@@ -10,13 +10,17 @@ VESS:
     sw_version: "101"
     boot_sw: "060"
     id_protocol: UDS  # F1xx
-  availability: [acc, acc2, ready]
+  vehicle_states:
+    - acc
+    - acc2
+    - ready
   scan_log: # VESS
     - service: 0x22
       range: "0101-010F,B001-B010,C101-C10F"
       date: 2026-07-22
       hits: 0
-      state: ready
+      vehicle_states:
+        - ready
       notes: "No live-data DIDs found (VESS actuation is via IOControl, not read DIDs)."
   pids: {}
 
@@ -24,10 +28,10 @@ VESS:
   # Usage: canair io VESS --did <DID>
   iocontrol:
     F011:
-      availability: []
+      vehicle_states: []
       label: Play VESS sound
       verified: true
-      on: "2FF011030001"
-      off: "2FF01100"
+      true: "2FF011030001"
+      false: "2FF01100"
       notes: >
         Plays pedestrian warning sound for ~5 sec. Payload bytes after 03 unclear.

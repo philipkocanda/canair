@@ -66,7 +66,7 @@ class TestRequireProtocol:
     def test_raises_on_mismatch(self, monkeypatch):
         monkeypatch.setattr(wican_mode, "resolve_wican_url", lambda w: "http://d")
         monkeypatch.setattr(wican_mode, "current_protocol", lambda base, timeout=6.0: "auto_pid")
-        with pytest.raises(ModeError, match="set-protocol slcan"):
+        with pytest.raises(ModeError, match="mode set slcan"):
             require_protocol("vpn", "slcan")
 
     def test_noop_when_unreachable(self, monkeypatch):

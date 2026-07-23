@@ -299,12 +299,12 @@ class TestFinalizeJournal:
 
     def test_noninteractive_reconciles(self, tmp_path):
         j = self._journal(tmp_path)
-        _finalize_journal(j, 1, "My label", "ready", "note")
+        _finalize_journal(j, 1, "My label", ["ready"], "note")
         files = list(tmp_path.glob("*.yaml"))
         assert len(files) == 1
         sess = yaml.safe_load(files[0].read_text())["sessions"][0]
         assert sess["label"] == "My label"
-        assert sess["state"] == "ready"
+        assert sess["vehicle_states"] == ["ready"]
         assert not j.path.exists()
 
     def test_no_payloads_discards(self, tmp_path):
@@ -377,9 +377,9 @@ class TestBuildQueryPlanStatic:
             "tx_id": 0x7E4,
             "multi_did": False,
             "pids": {
-                "2101": {"parameters": {}, "period": 5000, "enabled": True, "static": False},
-                "2102": {"parameters": {}, "period": 5000, "enabled": True, "static": False},
-                "21F2": {"parameters": {}, "period": 0, "enabled": False, "static": True},
+                "2101": {"parameters": {}, "period": 5000, "status": "active", "swept": True},
+                "2102": {"parameters": {}, "period": 5000, "status": "active", "swept": True},
+                "21F2": {"parameters": {}, "period": 0, "status": "static", "swept": False},
             },
         }
 
@@ -412,18 +412,18 @@ class TestBuildQueryPlanStatic:
         info = {
             "tx_id": 0x770,
             "multi_did": False,
-            "pids": {"2101": {"parameters": {}, "period": 5000, "enabled": True, "static": False}},
+            "pids": {"2101": {"parameters": {}, "period": 5000, "status": "active", "swept": True}},
         }
         assert self._codes(build_query_plan(info, [])) == ["2101"]
 
     def test_missing_static_key_defaults_included(self):
         from canlib.modes.multi import build_query_plan
 
-        # PIDs from build_ecu_index always carry a static bool; a hand-built dict
-        # without it must still be treated as non-static (included).
+        # PIDs from build_ecu_index always carry a `swept` bool; a hand-built dict
+        # without it must still be treated as swept (included) by default.
         info = {
             "tx_id": 0x770,
             "multi_did": False,
-            "pids": {"BC03": {"parameters": {}, "period": 5000, "enabled": True}},
+            "pids": {"BC03": {"parameters": {}, "period": 5000, "status": "active"}},
         }
         assert "BC03" in self._codes(build_query_plan(info, []))

@@ -22,7 +22,7 @@ from collections import Counter
 
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.ecus import ecu_identity_confidence, load_ecus, resolve_tx, rx_addr_str
-from canlib.pids import load_pids
+from canlib.pids import load_pids, pid_status
 
 NAME = "ecu"
 
@@ -85,7 +85,10 @@ def _pids_def_for_tx(pids_data: dict, tx_id: int) -> tuple[str | None, dict | No
 def _pid_stats(ecu_def: dict) -> dict:
     """Compute PID/parameter/research/etc. counts for one ecus/ ECU entry."""
     pids = ecu_def.get("pids", {}) or {}
-    active_pids = {k: v for k, v in pids.items() if isinstance(v, dict) and not v.get("ignored")}
+    active_pids = {
+        k: v for k, v in pids.items()
+        if isinstance(v, dict) and pid_status(v) != "ignored"
+    }
     params = [
         pr
         for p in active_pids.values()
@@ -228,7 +231,7 @@ def _detail_record(info: dict, tx_id: int, pids_name: str | None, ecu_def: dict 
     }
     if ecu_def is not None:
         rec["stats"] = _pid_stats(ecu_def)
-        rec["availability"] = ecu_def.get("availability")
+        rec["vehicle_states"] = ecu_def.get("vehicle_states")
         per_pid, total = _captures_by_pid(name)
         rec["captures"] = total
         rec["pid_list"] = _pid_details(ecu_def, per_pid)
@@ -246,12 +249,13 @@ def _pid_details(ecu_def: dict, per_pid: Counter) -> list[dict]:
             continue
         params = pid_def.get("parameters", {}) or {}
         code = str(pid_code).upper()
+        status = pid_status(pid_def)
         out.append({
             "pid": code,
             "params": len(params),
             "verified": sum(1 for pr in params.values() if isinstance(pr, dict) and pr.get("verified")),
-            "ignored": bool(pid_def.get("ignored")),
-            "enabled": pid_def.get("enabled", True),
+            "status": status,
+            "ignored": status == "ignored",
             "captures": per_pid.get(code, 0),
         })
     out.sort(key=lambda p: p["pid"])
@@ -314,19 +318,18 @@ def cmd_detail(rec: dict, as_json: bool) -> int:
             print(f"    {'IO-control':<14} {stats['iocontrol']}{extra}")
         if stats["routines"]:
             print(f"    {'Routines':<14} {stats['routines']}")
-        if rec.get("availability"):
-            avail = ", ".join(str(a) for a in rec["availability"])
-            print(f"    {'Availability':<14} {avail}")
+        if rec.get("vehicle_states"):
+            avail = ", ".join(str(a) for a in rec["vehicle_states"])
+            print(f"    {'States':<14} {avail}")
 
     # Per-PID breakdown
     if rec["pid_list"]:
         print(f"\n  {_BOLD}PIDs{_RESET}")
         for p in rec["pid_list"]:
             flags = []
-            if p["ignored"]:
-                flags.append(f"{_DIM}ignored{_RESET}")
-            elif not p["enabled"]:
-                flags.append(f"{_DIM}disabled{_RESET}")
+            status = p.get("status", "active")
+            if status != "active":
+                flags.append(f"{_DIM}{status}{_RESET}")
             if not p["captures"]:
                 flags.append(f"{_YELLOW}no capture{_RESET}")
             flag_str = ("  " + " ".join(flags)) if flags else ""

@@ -11,12 +11,18 @@ RCAM:
     sw_version: "102"
     boot_sw: "CAN_15.11.01"
     id_protocol: UDS  # F1xx
-  availability: [plugged, acc, acc2, ready, charging]
+  vehicle_states:
+    - plugged
+    - acc
+    - acc2
+    - ready
+    - charging
   scan_log: # RCAM (rear camera)
     - service: 0x22
       range: "0101-010F,B001-B010,C101-C10F"
       date: 2026-07-22
       hits: 0
-      state: ready
+      vehicle_states:
+        - ready
       notes: "No live-data DIDs found. Camera likely exposes only identity/diagnostics via OBD."
   pids: {}

@@ -554,7 +554,7 @@ async def dispatch_mode(args, terminal, pids_data, host):
             save=args.save,
             show_rulers=args.rulers,
             label=args.label,
-            state=args.state,
+            vehicle_states=args.state,
             notes=args.notes,
             include_static=getattr(args, "include_static", False),
         )
@@ -567,7 +567,7 @@ async def dispatch_mode(args, terminal, pids_data, host):
             no_repl=not args.repl,
             save=args.save,
             label=args.label,
-            state=args.state,
+            vehicle_states=args.state,
             notes=args.notes,
             include_static=getattr(args, "include_static", False),
         )
@@ -686,7 +686,7 @@ async def dispatch_mode(args, terminal, pids_data, host):
             save=args.save,
             pids_data=pids_data,
             label=args.label,
-            state=args.state,
+            vehicle_states=args.state,
             notes=args.notes,
         )
     elif args.scan:
@@ -724,7 +724,7 @@ async def dispatch_mode(args, terminal, pids_data, host):
             wake=args.wake,
             save=args.save,
             label=args.label,
-            state=args.state,
+            vehicle_states=args.state,
             notes=args.notes,
         )
     elif args.iocontrol:
@@ -905,7 +905,7 @@ async def dispatch_mode(args, terminal, pids_data, host):
             delay=args.delay,
             save=args.save,
             label=args.label,
-            state=args.state,
+            vehicle_states=args.state,
             notes=args.notes,
             register=getattr(args, "register", False),
             dry_run=getattr(args, "dry_run", False),

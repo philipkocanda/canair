@@ -70,7 +70,7 @@ class SaveDialog(ModalScreen[tuple[str, str, str] | None]):
             yield Input(value=self._suggested, placeholder="Label (required)", id="f-label")
             yield Input(
                 value=self._suggested_state,
-                placeholder="State (e.g. ready, parked)",
+                placeholder="States (comma-separated, e.g. ready, parked)",
                 id="f-state",
             )
             yield Input(placeholder="Notes (optional)", id="f-notes")

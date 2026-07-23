@@ -55,8 +55,8 @@ class FakeController:
     def query_label(self) -> str:
         return self._query_label
 
-    def save_now(self, label, state=None, notes=None) -> str:
-        self.saved = (label, state, notes)
+    def save_now(self, label, vehicle_states=None, notes=None) -> str:
+        self.saved = (label, vehicle_states, notes)
         return "Saved 1 payload → foo.yaml"
 
 

@@ -13,7 +13,13 @@ IGPM:
     notes: >
       IGPM is the CAN gateway. OBD port connects directly to the IGPM, so all diagnostic requests are routed through it.
       It is also the main power distribution module, controlling ignition and accessory power to other ECUs.
-  availability: [sleep, plugged, acc, acc2, ready, charging]
+  vehicle_states:
+    - sleep
+    - plugged
+    - acc
+    - acc2
+    - ready
+    - charging
   # WARM-UP: the first request to IGPM after it's been idle is slow and may
   # time out / return NO DATA on the first try; retry (or prime) and subsequent
   # reads are fast. This is the ECU waking, not a bad PID. See profile.yaml
@@ -37,14 +43,21 @@ IGPM:
       date: 2026-04-20
       hits: 0
       probes: 768  # cut off at 0x00FF — battery died
-      state: asleep
+      vehicle_states:
+        - sleep
       notes: >
         All NRC 0x12 (subFunctionNotSupported) — IGPM does not support sub-function 03
         (requestRoutineResults). Sub-function 01 (startRoutine) untested (unsafe to scan blindly).
   pids:
     22BC07:
-      enabled: false
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      status: draft
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         B12:
           0x11 (power off + not charging)
@@ -79,8 +92,13 @@ IGPM:
 
     22BC03:
       period: 2500
-      enabled: true
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         B10 cross-state observations (all doors closed):
           Deep sleep locked: 0x0A (00001010) — lock bits 1,3 set
@@ -253,8 +271,13 @@ IGPM:
 
     22BC04:
       period: 2500
-      enabled: true
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       parameters:
         # TODO: All the other bytes on here!
         # Maybe window states?
@@ -278,8 +301,13 @@ IGPM:
 
     22BC06:
       period: 2500
-      enabled: true
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       parameters:
         BRAKE_LIGHT:
           expression: "B10"
@@ -311,8 +339,14 @@ IGPM:
           notes: "Right turn signal stalk. Bit flag — 1=on, persistent (not blinking state). Hazard lights do NOT register here. Verified 2026-04-15."
 
     22BC01:
-      enabled: false
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      status: draft
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         9 bytes. B03=0x40 (bit 6 set), B08=0x02 (bit 1 set), rest zeros. Static across
         deep sleep and ACC captures. Possibly immobilizer or key-related configuration flags.
@@ -320,16 +354,28 @@ IGPM:
       parameters: {}
 
     22BC02:
-      enabled: false
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      status: draft
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         4 data bytes, all zeros in every capture (deep sleep and ACC). May only populate
         during driving (speed pulse, wiper state?). Sample: 62BC0200000000.
       parameters: {}
 
     22BC05:
-      enabled: false
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      status: draft
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         8 data bytes. B03=0x7F, B04=0x11, B05=0x20, rest zeros. Static across all power
         states. 0x7F11 could be a version or capability register. Purpose unknown.
@@ -338,8 +384,14 @@ IGPM:
 
 
     22BC08:
-      ignored: true
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      status: ignored
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         NRC 0x31 (requestOutOfRange). DID does not exist on Ioniq 2017 IGPM.
         Tested 2026-04-14.
@@ -351,261 +403,435 @@ IGPM:
   # Usage: canair io IGPM --did <DID>
   iocontrol:
     BC01:
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       label: Low beam
       verified: true
-      on: "2FBC0103"
-      off: "2FBC0100"
+      true: "2FBC0103"
+      false: "2FBC0100"
       status_param: LOW_BEAM
       notes: >
         Headlights on.
 
     BC02:
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       label: High beam
       verified: true
-      on: "2FBC0203"
-      off: "2FBC0200"
+      true: "2FBC0203"
+      false: "2FBC0200"
       status_param: HIGH_BEAM
 
     BC03:
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       label: Front fog light
       verified: true
-      on: "2FBC0303"
-      off: "2FBC0300"
+      true: "2FBC0303"
+      false: "2FBC0300"
       notes: >
         No visible effect — Ioniq 2017 base trim has no fog light bulbs installed.
 
     BC04:
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       label: Tail / rear light
       verified: true
-      on: "2FBC0403"
-      off: "2FBC0400"
+      true: "2FBC0403"
+      false: "2FBC0400"
       status_param: TAIL_LIGHTS
 
     BC05:
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       label: Blue instrument LEDs
       verified: true
-      on: "2FBC0503"
-      off: "2FBC0500"
+      true: "2FBC0503"
+      false: "2FBC0500"
       notes: >
         Also turns on green indicator on dash.
 
     BC07:
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       label: Horn
       verified: true
-      on: "2FBC0703"
-      off: "2FBC0700"
+      true: "2FBC0703"
+      false: "2FBC0700"
       notes: >
         LOUD — be careful when testing! Not labeled in Soul/e-Niro tables but
         confirmed on Ioniq.
 
     BC08:
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       label: Rear fog light
       verified: true
-      on: "2FBC0803"
-      off: "2FBC0800"
+      true: "2FBC0803"
+      false: "2FBC0800"
 
     BC09:
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       label: Trunk unlock
       verified: true
-      on: "2FBC0903"
-      off: "2FBC0900"
+      true: "2FBC0903"
+      false: "2FBC0900"
       status_param: TRUNK_OPEN
       notes: >
         Triggers alarm if car is locked! Releases latch only (no lift motor).
 
     BC0A:
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       label: Welcome / approach light
       verified: false
-      on: "2FBC0A03"
-      off: "2FBC0A00"
+      true: "2FBC0A03"
+      false: "2FBC0A00"
       notes: >
         Likely puddle lights or DRL greeting on unlock.
         ACC: Tested, no visible result.
 
     BC0C:
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       label: Rear defogger relay
       verified: true
-      on: "2FBC0C03"
-      off: "2FBC0C00"
+      true: "2FBC0C03"
+      false: "2FBC0C00"
       notes: >
         Well-documented on e-Niro/Soul — defrosts rear window.
         ACC: Confirmed (loud click). Also lights button on HVAC controls.
 
     BC10:
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       label: Door LOCK all
       verified: true
-      on: "2FBC1003"
-      off: "2FBC1000"
+      true: "2FBC1003"
+      false: "2FBC1000"
       status_param: DOOR_LOCK_FL
       notes: >
         Does NOT arm alarm — only locks doors.
 
     BC11:
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       label: Door UNLOCK all
       verified: true
-      on: "2FBC1103"
-      off: "2FBC1100"
+      true: "2FBC1103"
+      false: "2FBC1100"
       status_param: DOOR_LOCK_FL
       notes: >
         Does NOT disarm alarm — opening door will trigger horn!
 
     BC12:
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       label: Heated mirror?
       verified: false
-      on: "2FBC1203"
-      off: "2FBC1200"
+      true: "2FBC1203"
+      false: "2FBC1200"
       status_param: DOOR_LOCK_FL
       notes: >
         Acc: clicking relay (click-clack). Heated mirror?
 
     BC13:
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       label: Unknown (conditional)
       verified: false
-      on: "2FBC1303"
-      off: "2FBC1300"
+      true: "2FBC1303"
+      false: "2FBC1300"
       notes: >
         Acc: same clicking relay sound as BC12 (click-clack). Works when car is asleep (though did not listen for relay).
 
     BC14:
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       label: Unknown (conditional)
       verified: false
-      on: "2FBC1403"
-      off: "2FBC1400"
+      true: "2FBC1403"
+      false: "2FBC1400"
       notes: >
         ConditionsNotCorrect in ACC. Only works in sleep!
 
     BC15:
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       label: Left turn indicator
       verified: true
-      on: "2FBC1503"
-      off: "2FBC1500"
+      true: "2FBC1503"
+      false: "2FBC1500"
       status_param: LEFT_TURN_SIGNAL
 
     BC16:
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       label: Right turn indicator
       verified: true
-      on: "2FBC1603"
-      off: "2FBC1600"
+      true: "2FBC1603"
+      false: "2FBC1600"
       status_param: RIGHT_TURN_SIGNAL
 
     BC18:
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       label: DRL lights
       verified: true
-      on: "2FBC1803"
-      off: "2FBC1800"
+      true: "2FBC1803"
+      false: "2FBC1800"
       status_param: DRL
 
     BC1B:
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       label: Unknown
       verified: false
-      on: "2FBC1B03"
-      off: "2FBC1B00"
+      true: "2FBC1B03"
+      false: "2FBC1B00"
       notes: >
         Acc: relay single click. tlTurns off dome light! (maybe cuts power to stuff?)
         NRC 0x22 — may be reverse light (only accepts when car is in reverse gear?).
 
     BC1C:
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       label: Luggage lamp
       verified: true
-      on: "2FBC1C03"
-      off: "2FBC1C00"
+      true: "2FBC1C03"
+      false: "2FBC1C00"
 
     BC25:
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       label: Unknown
       verified: false
-      on: "2FBC2503"
-      off: "2FBC2500"
+      true: "2FBC2503"
+      false: "2FBC2500"
       notes: >
         Accepted but no visible/audible effect. Tested 2026-04-15 (Ready mode).
 
     BC2B:
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       label: Rear left brake light
       verified: true
-      on: "2FBC2B03"
-      off: "2FBC2B00"
+      true: "2FBC2B03"
+      false: "2FBC2B00"
       status_param: BRAKE_LIGHT
 
     BC2C:
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       label: Rear right brake light
       verified: true
-      on: "2FBC2C03"
-      off: "2FBC2C00"
+      true: "2FBC2C03"
+      false: "2FBC2C00"
       status_param: BRAKE_LIGHT
 
     BC2D:
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       label: CHMSL (center brake light)
       verified: true
-      on: "2FBC2D03"
-      off: "2FBC2D00"
+      true: "2FBC2D03"
+      false: "2FBC2D00"
       status_param: BRAKE_LIGHT
       notes: >
         Center high-mount stop lamp. Confirmed 2026-04-15.
 
     BC3F:
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       label: Charge cable LOCK
       verified: true
-      on: "2FBC3F03"
-      off: "2FBC3F00"
+      true: "2FBC3F03"
+      false: "2FBC3F00"
 
     BC41:
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       label: Charge cable UNLOCK
       verified: true
-      on: "2FBC4103"
-      off: "2FBC4100"
+      true: "2FBC4103"
+      false: "2FBC4100"
       notes: >
         Car inmediately re-activates it. Safety?
         May not stop active charge session — test with caution!
 
     BC42:
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       label: Unknown
       verified: false
-      on: "2FBC4203"
-      off: "2FBC4200"
+      true: "2FBC4203"
+      false: "2FBC4200"
       notes: >
         Accepted but no visible/audible effect. Tested 2026-04-15 (Ready mode).
 
     BC43:
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       label: Unknown
       verified: false
-      on: "2FBC4303"
-      off: "2FBC4300"
+      true: "2FBC4303"
+      false: "2FBC4300"
       notes: >
         Accepted but no visible/audible effect. Tested 2026-04-15 (Ready mode).
 
     BC44:
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       label: Unknown
       verified: false
-      on: "2FBC4403"
-      off: "2FBC4400"
+      true: "2FBC4403"
+      false: "2FBC4400"
       notes: >
         Accepted but no visible/audible effect. Tested 2026-04-15 (Ready mode).
         ACC: ConditionsNotCorrect.
@@ -614,7 +840,13 @@ IGPM:
       target: "22BC01"
       status: captured
       priority: P1
-      prerequisite: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         Data bytes = 40 00 00 00 00 02. 2026-07-22 (READY, ignition on) contrast vs the
         deep-sleep 2026-04-14/16 captures: IDENTICAL data (only ISO-TP padding length
@@ -626,7 +858,13 @@ IGPM:
       target: "22BC02"
       status: captured
       priority: P1
-      prerequisite: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         All data bytes zero (62 BC 02 00 00 00 00). 2026-07-22 (READY) contrast: still
         all zeros — constant across deep-sleep and READY, carries no observable signal.
@@ -637,7 +875,13 @@ IGPM:
       target: "22BC05"
       status: captured
       priority: P1
-      prerequisite: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         Data bytes = 7F 11 20 00 00 00 00 00. 2026-07-22 (READY) contrast: IDENTICAL to
         the deep-sleep 2026-04-14/16 captures (only padding differs) — static config,
@@ -648,7 +892,13 @@ IGPM:
       target: "22BC07"
       status: captured
       priority: P2
-      prerequisite: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         Data = 08 41 FB CC 00 00 <b9> 00. Byte 9 varies (0x19 in deep-sleep & READY
         2026-07-22, 0x11 on 2026-04-17) — the CHARGE_PORT_LOCK/ACC2_RELATED bits already
@@ -660,7 +910,8 @@ IGPM:
       target: "22BC03 IGPM_CONFIG_BYTE (was POWER_MODE)"
       status: done
       priority: P2
-      prerequisite: [sleep]
+      vehicle_states:
+        - sleep
       notes: >
         RESOLVED 2026-04-18: POWER_MODE (B09) = 0x73 in all deep sleep states
         (key in/out, locked/unlocked). The earlier 0x0A attribution was a byte offset
@@ -672,7 +923,8 @@ IGPM:
       target: 22BC03 extended-session requirement
       status: done
       priority: P2
-      prerequisite: [ready]
+      vehicle_states:
+        - ready
       result: REFUTED — reads work in default session
       notes: "RESOLVED 2026-07-21: IGPM service-22 reads (22BC03/04/06) do NOT require extended session. Verified live in READY mode — bare ATSH770;ATFCSH770;22BC03 returned valid 62BC03, no 1003 sent, reconfirmed after 8s idle. Removed session:true from igpm.yaml; corrected 2026-04-15 capture notes. 2F IOControl still needs 1003 (handled per-command, not this flag)."
       sources:
@@ -681,7 +933,8 @@ IGPM:
       target: 22 BC00-BC1F
       status: nrc
       priority: P3
-      prerequisite: [ready]
+      vehicle_states:
+        - ready
       date: "2026-07-22"
       result: "Full BC-family boundary sweep (ignition on): only BC01-BC07 respond; BC00 and BC08-BC1F all NRC. Confirms the readable BC family is exactly BC01-BC07 (BC08 already known absent). Note: BC09/BC0A/BC0C exist as 2F IOControl DIDs but do NOT answer service-22 reads — IOControl DID space != readable DID space here."
       notes: Hidden-page hunt 2026-07-22. Closes the question of readable pages beyond BC07.

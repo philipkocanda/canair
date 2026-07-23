@@ -115,6 +115,32 @@ def check_pci_bytes(expr: str, param_name: str, pid: str, ecu: str) -> list[str]
     return warnings
 
 
+# Legacy PID fields removed in the status/vehicle_states consolidation. Presence
+# of any of these is a hard error (migrate with scripts/migrate_states_status.py).
+_LEGACY_PID_FIELDS = {
+    "enabled": "use status: draft (PID-level) — enabled is param-level only now",
+    "ignored": "use status: ignored",
+    "static": "use status: static",
+    "availability": "renamed to vehicle_states",
+}
+
+
+def _validate_state_list(value, label: str, field: str, errors: list, allowed: set) -> None:
+    """Validate a ``vehicle_states``-style token list against ``allowed``."""
+    if value is None:
+        return
+    if not isinstance(value, list):
+        errors.append(f"{label}: {field} must be a list")
+        return
+    for v in value:
+        if v not in allowed:
+            errors.append(
+                f"{label}: invalid {field} value '{v}' (allowed: {sorted(allowed)})"
+            )
+    if len(value) != len(set(value)):
+        errors.append(f"{label}: duplicate {field} values")
+
+
 def validate_ecu_file(
     path: Path,
     schema: dict,
@@ -123,6 +149,9 @@ def validate_ecu_file(
 
     Returns (errors, warnings, stats).
     """
+    from canlib.states import allowed_states
+
+    allowed_states_set = allowed_states()
     required_ecu_fields = set(schema.get("required_ecu_fields", []))
     optional_ecu_fields = set(schema.get("optional_ecu_fields", []))
     required_pid_fields = set(schema.get("required_pid_fields", []))
@@ -137,6 +166,7 @@ def validate_ecu_file(
     scan_log_fields = set((schema.get("scan_log_entry_fields", {}) or {}).get("optional", []))
     dtcs_fields = set((schema.get("dtcs_fields", {}) or {}).get("optional", []))
     sessions_fields = set((schema.get("sessions_fields", {}) or {}).get("optional", []))
+    valid_pid_status = set(schema.get("valid_pid_status", [])) or {"active", "draft", "static", "ignored"}
 
     errors = []
     warnings = []
@@ -184,6 +214,17 @@ def validate_ecu_file(
         for field in ecu_def:
             if field not in all_ecu_fields:
                 warnings.append(f"{path.name}/{ecu_name}: unknown ECU field '{field}'")
+
+        # Legacy ECU-level availability -> vehicle_states
+        if "availability" in ecu_def:
+            errors.append(
+                f"{path.name}/{ecu_name}: legacy field 'availability' — renamed to "
+                "vehicle_states (run scripts/migrate_states_status.py)"
+            )
+        _validate_state_list(
+            ecu_def.get("vehicle_states"), f"{path.name}/{ecu_name}",
+            "vehicle_states", errors, allowed_states_set,
+        )
 
         # Validate tx_id
         tx_id = ecu_def.get("tx_id")
@@ -234,33 +275,37 @@ def validate_ecu_file(
                         f"{path.name}/{ecu_name}/{pid_str}: unknown PID field '{field}'"
                     )
 
+            # Reject legacy visibility booleans (migrated to `status:`) and the
+            # renamed `availability:` — hard cut-over so no file straddles both.
+            for legacy, hint in _LEGACY_PID_FIELDS.items():
+                if legacy in pid_def:
+                    errors.append(
+                        f"{path.name}/{ecu_name}/{pid_str}: legacy field '{legacy}' — {hint} "
+                        "(run scripts/migrate_states_status.py)"
+                    )
+
             # Validate period
             period = pid_def.get("period")
             if period is not None and (not isinstance(period, int) or period < 0):
                 errors.append(f"{path.name}/{ecu_name}/{pid_str}: period must be positive int")
 
-            # Validate availability
-            VALID_AVAILABILITY = {"sleep", "plugged", "acc", "acc2", "ready", "charging"}
-            avail = pid_def.get("availability")
-            if avail is not None:
-                if not isinstance(avail, list):
-                    errors.append(
-                        f"{path.name}/{ecu_name}/{pid_str}: availability must be a list"
-                    )
-                else:
-                    for v in avail:
-                        if v not in VALID_AVAILABILITY:
-                            errors.append(
-                                f"{path.name}/{ecu_name}/{pid_str}: invalid availability "
-                                f"value '{v}' (allowed: {sorted(VALID_AVAILABILITY)})"
-                            )
-                    if len(avail) != len(set(avail)):
-                        errors.append(
-                            f"{path.name}/{ecu_name}/{pid_str}: duplicate availability values"
-                        )
+            # Validate status (PID lifecycle)
+            status = pid_def.get("status")
+            if status is not None and status not in valid_pid_status:
+                errors.append(
+                    f"{path.name}/{ecu_name}/{pid_str}: invalid status '{status}' "
+                    f"(allowed: {sorted(valid_pid_status)})"
+                )
+
+            # Validate vehicle_states
+            _validate_state_list(
+                pid_def.get("vehicle_states"),
+                f"{path.name}/{ecu_name}/{pid_str}", "vehicle_states",
+                errors, allowed_states_set,
+            )
 
             # Ignored PIDs — count and skip parameter validation
-            if pid_def.get("ignored", False):
+            if str(pid_def.get("status", "active")).lower() == "ignored":
                 stats["ignored"] += 1
                 continue
 
@@ -318,7 +363,7 @@ def validate_ecu_file(
                     "notes",
                     "session",
                     "hold",
-                    "availability",
+                    "vehicle_states",
                     "status_param",
                     True,
                     False,  # YAML bool keys from unquoted on/off
@@ -332,11 +377,22 @@ def validate_ecu_file(
                         warnings.append(
                             f"{path.name}/{ecu_name}/iocontrol/{did_str}: missing 'label'"
                         )
+                    if "availability" in did_def:
+                        errors.append(
+                            f"{path.name}/{ecu_name}/iocontrol/{did_str}: legacy field "
+                            "'availability' — renamed to vehicle_states "
+                            "(run scripts/migrate_states_status.py)"
+                        )
                     for field in did_def:
                         if field not in valid_fields:
                             warnings.append(
                                 f"{path.name}/{ecu_name}/iocontrol/{did_str}: unknown field '{field}'"
                             )
+                    _validate_state_list(
+                        did_def.get("vehicle_states"),
+                        f"{path.name}/{ecu_name}/iocontrol/{did_str}",
+                        "vehicle_states", errors, allowed_states_set,
+                    )
                     stats["iocontrol"] += 1
 
         # Validate research section
@@ -348,10 +404,11 @@ def validate_ecu_file(
                 valid_types = {"scan", "decode", "verify", "iocontrol_scan"}
                 valid_statuses = {"pending", "captured", "nrc", "done"}
                 valid_priorities = {"P1", "P2", "P3"}
-                valid_prereqs = {"sleep", "plugged", "acc", "acc2", "ready", "charging"}
                 research_optional = {
                     "priority",
-                    "prerequisite",
+                    "vehicle_states",
+                    "created",
+                    "updated",
                     "date",
                     "result",
                     "notes",
@@ -401,18 +458,18 @@ def validate_ecu_file(
                             f"(allowed: {sorted(valid_priorities)})"
                         )
 
-                    # Validate prerequisite
-                    prereq = entry.get("prerequisite")
-                    if prereq is not None:
-                        if not isinstance(prereq, list):
-                            errors.append(f"{label}: prerequisite must be a list")
-                        else:
-                            for v in prereq:
-                                if v not in valid_prereqs:
-                                    errors.append(
-                                        f"{label}: invalid prerequisite '{v}' "
-                                        f"(allowed: {sorted(valid_prereqs)})"
-                                    )
+                    # Reject legacy research prerequisite (renamed vehicle_states)
+                    if "prerequisite" in entry:
+                        errors.append(
+                            f"{label}: legacy field 'prerequisite' — renamed to "
+                            "vehicle_states (run scripts/migrate_states_status.py)"
+                        )
+
+                    # Validate vehicle_states
+                    _validate_state_list(
+                        entry.get("vehicle_states"), label, "vehicle_states",
+                        errors, allowed_states_set,
+                    )
 
                     stats["research"] += 1
 
@@ -894,12 +951,12 @@ def _run_captures() -> int:
 
 
 def _capture_state_warnings(path: Path, vocab: set[str]) -> list[str]:
-    """Soft warnings for session states outside the profile's declared vocabulary.
+    """Soft warnings for session vehicle_states outside the declared vocabulary.
 
-    A capture ``state`` is often a comma-separated composite (e.g.
-    "ready, parked"); a session is flagged only when *none* of its tokens is a
-    known state name (case-insensitive). Never an error — free text is still
-    accepted; this only nudges toward the standardized vocabulary.
+    A session's ``vehicle_states`` is a list of tokens (e.g. [ready, parked]); a
+    session is flagged only when *none* of its tokens is a known state name
+    (case-insensitive). Never an error — this only nudges toward the
+    standardized states.yaml vocabulary.
     """
     warnings: list[str] = []
     with open(path) as f:
@@ -909,13 +966,16 @@ def _capture_state_warnings(path: Path, vocab: set[str]) -> list[str]:
     for si, session in enumerate(data.get("sessions", []) or []):
         if not isinstance(session, dict):
             continue
-        state = session.get("state")
-        if not state:
+        states = session.get("vehicle_states")
+        if not states:
             continue
-        tokens = [t.strip().lower() for t in str(state).split(",") if t.strip()]
+        if not isinstance(states, list):
+            warnings.append(f"sessions[{si}]: vehicle_states must be a list")
+            continue
+        tokens = [str(t).strip().lower() for t in states if str(t).strip()]
         if tokens and not any(t in vocab for t in tokens):
             warnings.append(
-                f"sessions[{si}]: state '{state}' has no token in the "
+                f"sessions[{si}]: vehicle_states {states} has no token in the "
                 f"states.yaml vocabulary"
             )
     return warnings

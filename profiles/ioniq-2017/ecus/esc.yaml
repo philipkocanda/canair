@@ -7,12 +7,14 @@ ESC:
     serial: "GWLK7F01A986826"
     app_sw: "G7"
     id_protocol: UDS  # F1xx (limited — no part number DID)
-  availability: [acc, acc2, ready]
+  vehicle_states:
+    - acc
+    - acc2
+    - ready
   pids:
     22C101:
       period: 2500
-      enabled: true
-      availability: []
+      vehicle_states: []
       parameters:
         REAL_SPEED_KMH:
           expression: B12
@@ -63,9 +65,9 @@ ESC:
           notes: >
             Individual wheel speed, 1 km/h/bit. ISO-TP 0x11. Right pair (B19/B21 track together). Front/rear by convention.
     22C102:
+      status: draft
       period: 2500
-      enabled: false
-      availability: []
+      vehicle_states: []
       parameters:
         ESC_C102_UNKNOWN:
           expression: ""
@@ -82,7 +84,8 @@ ESC:
       target: "22C101"
       status: captured
       priority: P2
-      prerequisite: [acc]
+      vehicle_states:
+        - acc
       notes: >
         REAL_SPEED_KMH (B12) and 4 wheel speeds (B18-B21, FL/FR/RL/RR interleaved,
         1 km/h/bit) decoded + verified from the 2026-07-22 drive (r=+1.000). STILL
@@ -103,13 +106,15 @@ ESC:
       target: "22 C101-C10F"
       status: done
       priority: P2
-      prerequisite: [acc]
+      vehicle_states:
+        - acc
       notes: "ESC C1xx range scan."
     - type: scan
       target: "22 0101-010F"
       status: nrc
       priority: P2
-      prerequisite: [acc]
+      vehicle_states:
+        - acc
       notes: "ESC 01xx range. 0104 = individual wheel speeds FL/FR/RL/RR per Ioniq 5."
       sources:
         - "OBDb Ioniq 5"
@@ -117,7 +122,8 @@ ESC:
       target: "22 F010 (on 0x730)"
       status: nrc
       priority: P2
-      prerequisite: [ready]
+      vehicle_states:
+        - ready
       notes: "Ioniq 5 uses 0x730 for ESC with 22F010: 4 wheel speeds (16-bit/32), steering angle (/10), lateral/longitudinal accel, yaw rate. Try on both 0x7D1 and 0x730."
       sources:
         - "OBDb Ioniq 5"

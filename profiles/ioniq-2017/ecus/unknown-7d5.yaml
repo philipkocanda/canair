@@ -31,19 +31,24 @@ Unknown-7D5:
       (27 B), the same DID ESC 0x7D1 exposes. Combined with the shared "G7" app SW and the
       ESC/EPS-adjacent address, this reinforces the chassis/brake sub-module hypothesis.
       See this file's pids: 22C101. 01xx/B0xx/C0xx/D0xx/service-21 all NRC.
-  availability: [acc, acc2, ready]
+  vehicle_states:
+    - acc
+    - acc2
+    - ready
   scan_log: # Unknown-7D5 (candidate AHB/iBAU brake module)
     - service: 0x22
       range: "0101-010F,B001-B010,C101-C10F,C001-C010,D001-D010"
       date: 2026-07-22
       hits: "C101"
-      state: ready
+      vehicle_states:
+        - ready
       notes: "FIRST live-data DID found — C101 (27 B), same DID as ESC. Registered in this file's pids:. All other ranges NRC."
   pids:
     22C101:
+      status: draft
       period: 2500
-      enabled: false
-      availability: [ready]
+      vehicle_states:
+        - ready
       parameters:
         UNKNOWN_7D5_C101:
           expression: ""
@@ -65,7 +70,8 @@ Unknown-7D5:
       target: "22C101"
       status: captured
       priority: P2
-      prerequisite: [acc]
+      vehicle_states:
+        - acc
       notes: >
         2026-07-22: 7D5's only live-data DID (27 B). Identify whether 7D5 is AHB/iBAU brake
         module. Compare structure to ESC 22C101; capture while braking/driving for contrast.

@@ -15,7 +15,7 @@ async def mode_discover(
     delay: float = 0.2,
     save: bool = False,
     label: str | None = None,
-    state: str | None = None,
+    vehicle_states=None,
     notes: str | None = None,
     register: bool = False,
     dry_run: bool = False,
@@ -150,16 +150,16 @@ async def mode_discover(
 
         silent_count = total - len(alive) - len(errors)
         suggested = suggest_discover_label(addr_range)
-        meta = resolve_metadata(label, state, notes, suggested_label=suggested)
+        meta = resolve_metadata(label, vehicle_states, notes, suggested_label=suggested)
         if meta:
-            label, state, notes = meta
+            label, vehicle_states, notes = meta
             session_dict = build_discover_session(
                 alive=enriched,
                 silent_count=silent_count,
                 error_count=len(errors),
                 addr_range=addr_range,
                 label=label,
-                state=state,
+                vehicle_states=vehicle_states,
                 notes=notes,
             )
             save_session_journaled(session_dict)

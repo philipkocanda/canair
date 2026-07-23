@@ -33,7 +33,7 @@ Example screenshot of viewing capture diffs using `canair captures <query> --dif
 - 🔌 **`canair query`** — query ECUs live over WiFi or VPN: read battery stats, decode parameters, scan for unknown DIDs, and actuate hardware (lights, locks, horn, trunk) via IOControl. Companions: `canair scan`/`discover`/`io`/`routines`/`identity`/`raw`/`repl`
 - 🩺 **`canair dtc`** — read stored Diagnostic Trouble Codes (DTCs) across every ECU (UDS `0x19` / KWP2000 `0x18`), track what changed since the last scan, and clear fault memory (`0x14`)
 - 📡 **`canair sniff`** — passive CAN-bus sniffer (raw SLCAN mode): a live per-ID table of broadcast frames the request/response path can't see, with optional `.asc`/`.blf`/`.csv` logging
-- 📦 **`canair wican`** — turn YAML PID definitions into a WiCAN vehicle profile and upload it to the device in one command (device upload/download needs a WiCAN **Pro**; JSON generation works on any model)
+- 📦 **`canair wican`** — turn YAML PID definitions into the WiCAN AutoPID profile and upload it to the device in one command (device upload/download needs a WiCAN **Pro**; JSON generation works on any model)
 - 🔬 **`canair decode`** — replay captured UDS payloads against PID definitions to validate expressions and spot anomalies
 - 🗂️ **`canair captures`** — search and diff historical captures across dates and vehicle states
 - 🧮 **`canair bix`** — convert between the four byte-index notations used by WiCAN, ISO-TP, Torque, and OBDb
@@ -110,10 +110,10 @@ All functionality is exposed as `canair <subcommand>`.
 | `canair dtc` | Read stored Diagnostic Trouble Codes (UDS `0x19` / KWP2000 `0x18`) for one ECU or `--all`, log each scan to `dtc_log.yaml` and report what changed since the last scan, or clear fault memory with `--clear` (`0x14`). |
 | `canair identity` | Query and decode ECU identity data — part number, hardware/software version, serial, VIN — via UDS (`22 F1xx`) or KWP2000 (`1A 8x/9x`); protocol auto-selected from the registry. |
 | `canair sniff` | Passive CAN-bus sniffer (raw SLCAN-over-TCP). Live per-ID table (count/rate/last data/changed bytes) for discovering broadcast IDs the request/response path can't see; optional `.asc`/`.blf`/`.csv` frame logging. |
-| `canair wican` | Read all `ecus/*.yaml` definitions and produce a WiCAN-compatible JSON vehicle profile. Can upload directly to the device, diff against the current config, or switch the device protocol (`--set-protocol`). |
+| `canair wican` | Read all `ecus/*.yaml` definitions and produce the WiCAN device's AutoPID profile JSON (`autopid write`). Can upload directly to the device (`autopid upload`), diff against the current config (`autopid diff`), or switch the device protocol (`mode set`). |
 | `canair decode` | Parameter/value-centric decoding: shows each PID parameter's value range across all captures (default), plus statistics (`--stats`), correlation vs a reference signal (`--corr`), an interactive signal explorer (`--plot` — sweep ImHex-style byte interpretations and transforms, plot across captures), and candidate-expression testing without editing YAML (`--try`). |
 | `canair captures` | Search across all capture files — show summaries, diffs between dates, or latest values per ECU/PID. Scope any mode by date with `--since`/`--until`/`--date`. |
-| `canair research` | Report the open reverse-engineering backlog from the per-ECU `research:` sections (by type/status/priority/prerequisite). The "what should I decode next?" entry point. |
+| `canair research` | Report the open reverse-engineering backlog from the per-ECU `research:` sections (by type/status/priority/state). The "what should I decode next?" entry point. |
 | `canair coverage` | Audit PID definitions for decoding gaps — unmapped data bytes, partial bitfields, and PIDs with no captures yet. |
 | `canair pids` | Safely add/update `ecus/` parameters and research entries from the CLI (comment-preserving, schema-validated, auto-reverted on failure). |
 | `canair ecu` | List all ECUs in the profile, or show one ECU's details, identity confidence, and PID/parameter/capture stats. |
@@ -172,20 +172,24 @@ BMS — 278 captures
 
 Captures are saved by `canair query --save` during scanning, raw queries, and monitor sessions. You will be prompted to provide context on the scan when done. Use `canair captures` and `canair decode` after collecting new data to spot patterns not obvious during the live session (byte-level changes between vehicle states, new ECU/PID combinations, payload length differences).
 
-## Generating WiCAN vehicle profile
+## Generating the WiCAN AutoPID profile
 
-`canair wican` reads all PID definitions from the profile's `ecus/*.yaml` and produces a WiCAN-compatible JSON vehicle profile. It can also upload directly to the device or diff against the currently loaded config.
+`canair wican` reads all PID definitions from the profile bundle's `ecus/*.yaml` and produces the WiCAN device's AutoPID profile JSON. It can also upload directly to the device or diff against the currently loaded config. A bare `canair wican` prints help — nothing is written until you ask for it.
+
+> **Terminology:** the canair **profile bundle** (`profiles/<name>/`, managed by `canair profile`) is distinct from the WiCAN **AutoPID profile** (the JSON generated from the bundle's `ecus/` and stored on the device), managed by `canair wican autopid …`.
 
 ```bash
-canair wican                    # Generate JSON to the profile's out/profile.json
-canair wican --verified-only    # Only include verified parameters (113 vs 147 total)
-canair wican --no-write         # Dry run — show what would be generated without writing
-canair wican --stats            # Show per-ECU/PID statistics table
-canair wican --download         # Download current config from WiCAN device
-canair wican --diff             # Download + diff against locally generated profile
-canair wican --upload           # Generate + upload to WiCAN device
-canair wican --upload --reboot  # Upload + reboot device to apply changes
-canair wican --set-protocol slcan   # Switch device protocol/mode (reboots)
+canair wican                              # Print help (no implicit write)
+canair wican autopid write                # Generate JSON to the bundle's out/autopid.json
+canair wican autopid write --verified-only  # Only include verified parameters
+canair wican autopid write --out PATH     # Write to a custom path
+canair wican autopid stats                # Show per-ECU/PID statistics table
+canair wican autopid download             # Download current config from WiCAN device
+canair wican autopid diff                 # Download + diff against locally generated profile
+canair wican autopid upload               # Generate + upload to WiCAN device
+canair wican autopid upload --reboot      # Upload + reboot device to apply changes
+canair wican mode show                    # Show the device's active protocol
+canair wican mode set slcan               # Switch device protocol/mode (reboots)
 ```
 
 **Example output** (default mode):
@@ -193,14 +197,14 @@ canair wican --set-protocol slcan   # Switch device protocol/mode (reboots)
 ```
 Loading profiles/ioniq-2017/ecus/
 
-Generating profile...
+Generating AutoPID profile...
   18 PID groups, 147 parameters
 
 Writing output...
-  Written: profiles/ioniq-2017/out/profile.json (6530 bytes)
+  Written: profiles/ioniq-2017/out/autopid.json (6530 bytes)
 ```
 
-**`--stats` mode** shows a detailed breakdown per ECU and PID — parameter counts, verification status, polling period, and data source:
+**`autopid stats`** shows a detailed breakdown per ECU and PID — parameter counts, verification status, polling period, and data source:
 
 ```
 ECU        TX ID    PID        Period   Params   Verified   Source Summary
@@ -214,9 +218,9 @@ VCU        0x7E2    2101       2500     21       10/21      AutoPID config (on d
 ...
 ```
 
-**Device interaction flags** (`--download`, `--diff`, `--upload`, `--set-protocol`) require the WiCAN to be reachable on the network. Use `--wican home`, `--wican vpn`, or `--wican <ip>` to select the device address (defaults to your `default_wican` from `~/.config/canair/config.yaml`).
+**Device interaction subcommands** (`autopid download`, `autopid diff`, `autopid upload`, `mode set`) require the WiCAN to be reachable on the network. Use `--wican home`, `--wican vpn`, or `--wican <ip>` to select the device address (defaults to your `default_wican` from `~/.config/canair/config.yaml`).
 
-> **WiCAN Pro only.** AutoPID vehicle-profile sync (`--upload`/`--download`/`--diff`) and `--set-protocol` need a WiCAN **Pro**. On the regular WiCAN (`wican_model: classic` in your config) these are refused with a clear message — but plain `canair wican` (generate JSON), `--stats`, and `--no-write` still work. See [Getting started](#getting-started).
+> **WiCAN Pro only.** AutoPID profile sync (`autopid upload`/`download`/`diff`) and `mode set` need a WiCAN **Pro**. On the regular WiCAN (`wican_model: classic` in your config) these are refused with a clear message — but `canair wican autopid write` (generate JSON) and `autopid stats` still work. See [Getting started](#getting-started).
 
 The generated profile uses the **Vehicle Profile format** (grouped parameters per PID) — the format accepted by the WiCAN web UI and `POST /store_car_data`. The tool handles conversion to the device's internal array format automatically during upload.
 
@@ -439,14 +443,15 @@ canair config set wican_model classic   # regular / non-Pro WiCAN
 # canair config set wican_model pro      # WiCAN Pro (this is the default)
 ```
 
-> **Which model do I have?** The **Pro** adds AutoPID vehicle profiles and an
+> **Which model do I have?** The **Pro** adds AutoPID profiles and an
 > ELM327 WebSocket terminal. If you have the **regular (classic) WiCAN**, set
 > `wican_model: classic` — canair will then cleanly refuse the Pro-only features
-> (`canair wican --upload/--download/--diff/--set-protocol` and the `wican-ws`
-> transport) with a helpful message instead of failing against the device. **All
-> the reverse-engineering — `query`, `scan`, `discover`, `decode`, `dtc`,
-> `sniff`, and generating profile JSON with plain `canair wican` — works on both
-> models** over the default raw-SLCAN transport. The `--wican` flag on any
+> (`canair wican autopid upload/download/diff`, `canair wican mode set`, and the
+> `wican-ws` transport) with a helpful message instead of failing against the
+> device. **All the reverse-engineering — `query`, `scan`, `discover`, `decode`,
+> `dtc`, `sniff`, and generating the AutoPID JSON with `canair wican autopid
+> write` — works on both models** over the default raw-SLCAN transport. The
+> `--wican` flag on any
 > command selects which address to use (e.g. `--wican home`, `--wican vpn`, or
 > `--wican 192.168.80.1`). `config.example.yaml` in the repo documents every key.
 
@@ -495,7 +500,7 @@ to `192.168.80.1` (WiCAN's built-in AP).
 `canair` never talks CAN directly — it reaches the vehicle bus through the WiCAN
 dongle via one of two **explicitly-selected transports** (config `transport:`
 block or `--transport`; the device runs one protocol at a time — check with
-`canair status`, switch with `canair wican --set-protocol …`, never automatic):
+`canair status`, switch with `canair wican mode set …`, never automatic):
 
 - **`slcan-tcp`** (default) — a raw **SLCAN** frame stream over TCP (WiCAN Pro,
   classic WiCAN, or any gateway; requires the device in `slcan` mode). *canair*

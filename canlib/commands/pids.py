@@ -10,6 +10,7 @@ Subcommands:
   upsert-param ECU PID NAME EXPR   Add/update a parameter (expression required)
   add-research ECU ...             Append a research: entry
   set-status  ECU TARGET STATUS    Update a research item's status
+  set-pid-status ECU PID STATUS    Set a PID's lifecycle (active|draft|static|ignored)
 
 Examples:
   # Record a decoded parameter
@@ -28,13 +29,16 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from canlib.pids import PID_STATUSES
 from canlib.pids_edit import (
     PidsEditError,
     add_research_entry,
     find_ecu_file,
+    set_pid_status,
     set_research_status,
     upsert_parameter,
 )
+from canlib.states import POWER_STATES
 
 NAME = "pids"
 
@@ -94,7 +98,8 @@ def cmd_add_research(args: argparse.Namespace) -> int:
     def do():
         add_research_entry(
             args.ecu, type=args.type, target=args.target, status=args.status,
-            priority=args.priority, prerequisite=args.prereq or None,
+            priority=args.priority, vehicle_states=args.prereq or None,
+            created=args.created, updated=args.updated,
             date=args.date, result=args.result, notes=args.notes,
             sources=args.source or None, what_to_test=args.what_to_test or None,
             capture_protocol=args.capture_protocol,
@@ -116,6 +121,18 @@ def cmd_set_status(args: argparse.Namespace) -> int:
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
     print(
         f"{_GREEN}  ✓ {args.ecu} research {args.target} -> {args.status}{_RESET}  "
+        f"{_DIM}({fpath.name}){_RESET}"
+    )
+    return 0
+
+
+def cmd_set_pid_status(args: argparse.Namespace) -> int:
+    def do():
+        set_pid_status(args.ecu, args.pid, args.status, pids_dir=args.dir)
+
+    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
+    print(
+        f"{_GREEN}  ✓ {args.ecu} {args.pid} status -> {args.status}{_RESET}  "
         f"{_DIM}({fpath.name}){_RESET}"
     )
     return 0
@@ -161,10 +178,12 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     ar.add_argument("--status", required=True, choices=["pending", "captured", "nrc", "done"])
     ar.add_argument("--priority", choices=["P1", "P2", "P3"])
     ar.add_argument(
-        "--prereq", action="append",
-        choices=["sleep", "plugged", "acc", "acc2", "ready", "charging"],
+        "--prereq", "--vehicle-states", dest="prereq", action="append",
+        choices=list(POWER_STATES),
     )
     ar.add_argument("--date")
+    ar.add_argument("--created", metavar="YYYY-MM-DD", help="Override auto creation date (default: today)")
+    ar.add_argument("--updated", metavar="YYYY-MM-DD", help="Override auto updated date (default: today)")
     ar.add_argument("--result")
     ar.add_argument("--notes")
     ar.add_argument("--source", action="append", metavar="SRC")
@@ -183,6 +202,13 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     )
     _add_common(ss)
     ss.set_defaults(_pids_func=cmd_set_status)
+
+    sps = sub.add_parser("set-pid-status", help="Set a PID's lifecycle status")
+    sps.add_argument("ecu")
+    sps.add_argument("pid")
+    sps.add_argument("status", choices=list(PID_STATUSES))
+    _add_common(sps)
+    sps.set_defaults(_pids_func=cmd_set_pid_status)
 
     parser.set_defaults(func=run)
     return parser

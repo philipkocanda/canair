@@ -1,7 +1,9 @@
 sessions:
 - date: '2026-04-21'
   label: VCU in Park
-  state: READY, parked
+  vehicle_states:
+  - ready
+  - parked
   captures:
   - ecu: '0x7EA'
     pid: '2101'
@@ -905,7 +907,9 @@ sessions:
     time: "22:11:24"
 - date: '2026-04-21'
   label: MCU parked
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   captures:
   - ecu: '0x7EB'
     pid: '2101'
@@ -1325,7 +1329,9 @@ sessions:
     time: "22:12:57"
 - date: '2026-04-21'
   label: LDC parked and powered
-  state: READY, parked
+  vehicle_states:
+  - ready
+  - parked
   captures:
   - ecu: '0x7ED'
     pid: '2101'

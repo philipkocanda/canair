@@ -41,12 +41,17 @@ OBC:
       live even while driving with the OBC idle (OBC_DC_A=0) — confirming both functions live
       in this one ECU. The LDC *control* bits (enable/inhibit) live on the VCU (0x7E2, whose
       module code is "VLDC"), not here.
-  availability: [ready, charging, acc2]
+  vehicle_states:
+    - ready
+    - charging
+    - acc2
   pids:
     2101:
       period: 5000
-      enabled: true
-      availability: [ready, charging, acc2]
+      vehicle_states:
+        - ready
+        - charging
+        - acc2
       parameters:
         LDC_HV_INPUT_V:
           expression: "[B45:B46]/100"
@@ -193,9 +198,11 @@ OBC:
         # broadcast on this ECU/firmware.
 
     2102:
+      status: draft
       period: 5000
-      enabled: false
-      availability: [charging, acc2]
+      vehicle_states:
+        - charging
+        - acc2
       notes: >
         34 bytes. Also responds in ACC2 (not just charging). Returns NRC when car is fully off.
         Discovered during charging PID scan (2026-04-18).
@@ -208,7 +215,9 @@ OBC:
       target: "2101"
       status: captured
       priority: P1
-      prerequisite: [ready, charging]
+      vehicle_states:
+        - ready
+        - charging
       notes: >
         2026-07-20 (Kia Soul LDC/OBC CSV + live READY vs 10A-AC charging + BMS cross-check): LDC_HV_INPUT_V
         = [B45:B46]/100 (385.7V READY / 386.9V charging = BMS pack 385.6V), LDC_TEMP=B19-100 (21→65°C over 3h,
@@ -228,7 +237,8 @@ OBC:
       target: "2102"
       status: done
       priority: P3
-      prerequisite: [charging]
+      vehicle_states:
+        - charging
       date: "2026-04-19"
       notes: >
         34 bytes captured during charging. Payload identical across Apr 14 and Apr 19 sessions —
@@ -241,7 +251,8 @@ OBC:
       target: "22 E001-E011"
       status: done
       priority: P2
-      prerequisite: [charging]
+      vehicle_states:
+        - charging
       date: "2026-04-19"
       notes: "All 17 DIDs return NRC 0x12 (subFunctionNotSupported) — both default and extended session. LDC also rejects 10 03 with NRC 0x12. Service 22 not supported on Ioniq 2017 LDC. Ioniq 5 cross-ref does not apply."
       sources:
@@ -250,7 +261,8 @@ OBC:
       target: "21 01-20"
       status: done
       priority: P2
-      prerequisite: [charging]
+      vehicle_states:
+        - charging
       date: "2026-07-20"
       notes: >
         Service 21 scan 0x01-0x20 while charging (10A AC): ONLY 2101 (48B) and 2102 (34B, static calib) respond;
@@ -259,7 +271,8 @@ OBC:
       target: "2101 AC-side"
       status: pending
       priority: P3
-      prerequisite: [charging]
+      vehicle_states:
+        - charging
       date: "2026-07-20"
       notes: >
         Investigated the full 48-byte 2101 for AC-side data (grid V/A, frequency, power). NEGATIVE RESULT:
@@ -278,13 +291,15 @@ OBC:
       target: 2101 12V output current
       status: pending
       priority: P3
-      prerequisite: [ready]
+      vehicle_states:
+        - ready
       notes: "The LDC 12V output CURRENT is not exposed in OBC 2101. B15 (old LDC_OUTPUT_A=B15/10) DISPROVEN 2026-07-22 by a rear-defroster load step: LDC_OUTPUT_V sagged 14.5->13.6V but B15 (and every other 2101 byte) stayed flat, so no byte tracks the 12V load. Future: hunt an OBC DID that exposes output current, or accept it is not broadcast. (Same test CONFIRMED LDC_OUTPUT_V = 12V rail voltage.)"
     - type: scan
       target: 21 00-FF
       status: done
       priority: P3
-      prerequisite: [ready]
+      vehicle_states:
+        - ready
       date: "2026-07-22"
       result: "Exhaustive service-21 LID sweep (ignition on, OBC idle): only 01/02 respond (= known 2101/2102), all 254 others NRC. No hidden pages; notably NO 21F2 (unlike BMS/MCU/VCU). OBC service-21 space fully mapped."
       notes: Hidden-page hunt 2026-07-22 (KWP2000 completion after BMS/MCU/VCU).

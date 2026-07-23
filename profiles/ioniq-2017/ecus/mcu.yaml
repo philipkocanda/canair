@@ -29,12 +29,15 @@ MCU:
     sw_id: "EAEEHEL-MS2-D000"
     calibration: "00000001"
     id_protocol: KWP2000  # 1Axx
-  availability: [ready, charging]
+  vehicle_states:
+    - ready
+    - charging
   pids:
     2101:
+      status: draft
       period: 5000
-      enabled: false
-      availability: [charging]  # TODO: likely also ready — verify with ignition on
+      vehicle_states:
+        - charging
       notes: >
         34 bytes. Captured but not decoded.
         Raw payload (charging): 6101000003FF083801268D7F390000000A00460253044F397A007A000CFF...
@@ -42,8 +45,8 @@ MCU:
 
     2102:
       period: 5000
-      enabled: true
-      availability: [charging]  # TODO: likely also ready — verify with ignition on
+      vehicle_states:
+        - charging
       notes: >
         62 bytes. Layout (WiCAN B / ISO-TP): B10:B11 RPM (verified), B12:B13 & B14:B15 the two
         signed-16 torque fields (command/estimated), B17:B18 phase-current RMS candidate, B20/B21
@@ -167,9 +170,10 @@ MCU:
             CANDIDATE, unverified — raw byte B9 (ISO-TP 0x06), immediately before MCU_MOTOR_RPM (B10:B11). Best interpretation: motor rotor/resolver ELECTRICAL ANGLE (0-255 = 0-360 deg, i.e. B9*360/255) OR the fractional low byte of motor speed. Signature from the 2026-07-22 drive: B9==0 at ALL 18 standstill (RPM=0) samples and spreads ~uniformly 26-253 (mean 127~=255/2) whenever |RPM|>500 — the classic aliased pattern of a fast-rotating quantity sampled at asynchronous 2s intervals. Left as the RAW byte (no scale) until a high-rate/SavvyCAN capture at a fixed low RPM shows whether it ramps linearly (absolute angle) or stays uniform (speed fraction). Weak |RPM| corr (0.42) is just the shared zero-anchor.
 
     2103:
+      status: draft
       period: 0
-      enabled: false
-      availability: [charging]
+      vehicle_states:
+        - charging
       notes: >
         27 bytes, all zeros during AC charging.
         Raw payload: 610300000000000000000000000000000000000000000000000000
@@ -177,10 +181,10 @@ MCU:
       parameters: {}
 
     21F2:
+      status: static
       period: 0
-      enabled: false
-      static: true
-      availability: [charging]
+      vehicle_states:
+        - charging
       notes: >
         69 bytes. Discovered during charging PID scan (2026-04-18).
         Raw payload: 61F2FFFFFF3FF6FFF8FF7DD60900000000000000000003050000EE04CDABC2CD4C00F0F32B002A041D002900000012000F001100C1CD967393222D4548454C2D4D53320000
@@ -192,7 +196,8 @@ MCU:
       target: "2102"
       status: captured
       priority: P1
-      prerequisite: [charging]
+      vehicle_states:
+        - charging
       notes: >
         62 bytes. 2026-07-20 (Phase 1): MOTOR_RPM verified at [S10:S11]. Added UNVERIFIED candidates from
         variance + park/drive + dRPM-correlation over 332 captures: MCU_MOTOR_TORQUE_2 [S14:S15]/100 (second
@@ -221,7 +226,8 @@ MCU:
       target: "2101"
       status: captured
       priority: P1
-      prerequisite: [ready]
+      vehicle_states:
+        - ready
       notes: >
         34 bytes. 2026-07-20: live READY capture at ~18°C ambient did NOT yield clean temps —
         candidate bytes are bimodal/constant (B10 = 4 or 56, B15 ≈ constant 57, B13 tight ~150),
@@ -237,21 +243,24 @@ MCU:
       target: "2103"
       status: captured
       priority: P2
-      prerequisite: [charging]
+      vehicle_states:
+        - charging
       date: "2026-04-18"
       notes: "27 bytes, all zeros during charging. May contain data while driving."
     - type: decode
       target: "21F2"
       status: captured
       priority: P2
-      prerequisite: [charging]
+      vehicle_states:
+        - charging
       date: "2026-04-18"
       notes: "69 bytes. Discovered during charging scan. Undecoded."
     - type: scan
       target: "22 E001-E010"
       status: nrc
       priority: P1
-      prerequisite: [acc]
+      vehicle_states:
+        - acc
       date: "2026-07-22"
       notes: "Ioniq 5 cross-ref: E001 ignition voltage/motor RPM/torque/phase current/temps, E009 electric water pump/oil pump."
       result: >
@@ -266,13 +275,15 @@ MCU:
       target: "2F E000-E0FF"
       status: pending
       priority: P2
-      prerequisite: [acc]
+      vehicle_states:
+        - acc
       notes: "MCU IOControl E0xx range."
     - type: scan
       target: 21 00-FF
       status: done
       priority: P2
-      prerequisite: [ready]
+      vehicle_states:
+        - ready
       date: "2026-07-22"
       result: "Exhaustive service-21 LID sweep (ignition on): only 01/02/03/F2 respond (= known 2101/2102/2103/21F2), all 252 others NRC. No hidden pages. MCU service-21 space fully mapped."
       notes: Hidden-page hunt. Confirms the E0xx (service-22) dead end has no service-21 analogue beyond known pages.
@@ -280,13 +291,15 @@ MCU:
       target: "2102"
       status: captured
       priority: P2
-      prerequisite: [ready]
+      vehicle_states:
+        - ready
       notes: "MCU 2102 B9 (ISO-TP 0x06, immediately before MCU_MOTOR_RPM B10:B11) = candidate motor rotor/resolver electrical ANGLE or motor-speed sub-count/fraction. Signature from 2026-07-22 drive: B9==0 at ALL 18 standstill (RPM=0) samples, and spreads ~uniformly 26-253 (mean 127~=255/2) whenever |RPM|>500 — the classic aliased-angle pattern for a fast-rotating quantity sampled at asynchronous 2s intervals. Weak |RPM| corr (0.42) is just the shared zero-anchor. Cannot distinguish absolute rotor angle (0-255 = 0-360 elec deg) vs RPM fractional low byte without high-rate capture. TO TEST: log B9 with 1001-style fast polling or a SavvyCAN sniff at fixed low RPM to see if it ramps linearly (angle) or stays uniform (fraction)."
     - type: decode
       target: "2102"
       status: done
       priority: P3
-      prerequisite: [ready]
+      vehicle_states:
+        - ready
       notes: MCU 2102 B52/B53 tail bytes = message alive-counter / checksum, NOT a physical signal. B52 (ISO-TP 0x2E) is chaotic full-range 0-253 with ZERO correlation to RPM/torque/phase-current (r~0.01); B53 sits ~constant 0x31-0x33. Ruled out as a signal during 2026-07-22 drive analysis — do not chase. The remaining B27-B47 block is the known static calibration region (constant across the drive).
 
   sessions:

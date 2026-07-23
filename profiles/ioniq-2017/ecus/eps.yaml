@@ -9,12 +9,15 @@ EPS:
     firmware: "MDPS C 1.00/1.03"
     id_protocol: UDS  # F1xx
     notes: Steering column
-  availability: [acc, acc2, ready]
+  vehicle_states:
+    - acc
+    - acc2
+    - ready
   pids:
     220101:
       period: 2500
-      enabled: true
-      availability: [ready]
+      vehicle_states:
+        - ready
       parameters:
         EPS_0101_STEERING_UNMAPPED:
           expression: ""
@@ -56,9 +59,10 @@ EPS:
           notes: >
             STRONG CANDIDATE, unverified. Little-endian signed 16-bit: low byte B10 (ISO-TP 0x07), signed high byte B11 (ISO-TP 0x08). Across the 2026-07-22 drive range -374..+299 deg (~1.5 turns each way), centered ~0, returns to centre at standstill; big-endian variant is bimodal (wrong). Scale /10 assumed from Ioniq5 EPS. NEEDS controlled stationary capture (centre/quarter/full-lock each way + lock-to-lock sweep) to confirm scale, zero, and sign convention. This car has active LKAS (lane-keep) so expect related steering-torque/LKAS-command signals nearby (B7/B12 swing signed +-full-scale = torque/rate/MDPS-current candidates).
     220102:
+      status: draft
       period: 2500
-      enabled: false
-      availability: [ready]
+      vehicle_states:
+        - ready
       parameters:
         EPS_0102_UNKNOWN:
           expression: ""
@@ -75,7 +79,8 @@ EPS:
       target: "22 0101-0105"
       status: done
       priority: P2
-      prerequisite: [acc]
+      vehicle_states:
+        - acc
       notes: "0101 = steering wheel angle absolute (/10 deg), MDPS motor current (signed A) per Ioniq 5."
       sources:
         - "OBDb Ioniq 5"
@@ -84,7 +89,8 @@ EPS:
       target: "220101"
       status: captured
       priority: P1
-      prerequisite: [ready]
+      vehicle_states:
+        - ready
       notes: >
         STEERING_ANGLE now DEFINED as an unverified candidate: (B10+S11*256)/10
         deg (little-endian signed 16-bit, low byte B10 / signed high byte B11).
@@ -110,7 +116,8 @@ EPS:
       target: "220101"
       status: pending
       priority: P2
-      prerequisite: [ready]
+      vehicle_states:
+        - ready
       notes: >
         LKAS / lane-keep signals. This car has active LKAS (lane-keep assist steering)
         which commands the MDPS to apply torque — so EPS 220101 (or a sibling
@@ -132,7 +139,8 @@ EPS:
       target: 22 0100-0110
       status: nrc
       priority: P2
-      prerequisite: [ready]
+      vehicle_states:
+        - ready
       date: "2026-07-22"
       result: "22010x sibling sweep (ignition on): only 0101 (18B) and 0102 (8B) respond; 0100 and 0103-0110 all NRC. No hidden sibling pages -> any LKAS active/torque-command signal must live WITHIN 220101/220102 themselves (or is not OBD-exposed on EPS). Narrows the LKAS decode lead."
       notes: Hidden-page hunt 2026-07-22. Rules out sibling 22010x pages for the LKAS backlog.

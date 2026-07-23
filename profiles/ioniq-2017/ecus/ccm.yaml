@@ -21,13 +21,15 @@ CCM:
   # 0x744 removed — never responded positively. Discovery scan (2026-04-17) returned
   # CAN-level errors, service 21 scan during AC charging (2026-04-18) returned 255 NO DATA.
   # Cross-platform reference only; likely does not exist on Ioniq 28kWh.
-  availability: [charging]  # DC CCS only — likely inactive during AC
+  vehicle_states:
+    - charging
   scan_log: # CCM / PLC (DC fast-charge)
     - service: 0x22
       range: "0100-010F,B001-B010"
       date: 2026-07-22
       hits: 0
-      state: "ready, ignition on"
+      vehicle_states:
+        - ready, ignition on
       notes: "Charge Control Module alive (all NRC, 0 timeouts) but no live-data DIDs at ignition-on. Likely exposes PLC/charge data only during DC (CCS) fast charging — retry mid-DC-charge."
   pids: {}
   dtcs:

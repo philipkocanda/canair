@@ -146,12 +146,12 @@ class TestResearch:
     def test_add_entry_to_existing_section(self, pids_dir):
         add_research_entry(
             "TESTECU", type="scan", target="22 E001-E010", status="pending",
-            priority="P1", prerequisite=["acc"], notes="cross-ref", pids_dir=pids_dir,
+            priority="P1", vehicle_states=["acc"], notes="cross-ref", pids_dir=pids_dir,
         )
         research = _load(pids_dir)["TESTECU"]["research"]
         assert len(research) == 2
         new = next(e for e in research if e["target"] == "22 E001-E010")
-        assert new["type"] == "scan" and new["prerequisite"] == ["acc"]
+        assert new["type"] == "scan" and new["vehicle_states"] == ["acc"]
 
     def test_add_entry_creates_section(self, pids_dir):
         # Remove research section first by rewriting a section-less ECU.
@@ -198,6 +198,58 @@ class TestResearch:
     def test_set_status_not_found(self, pids_dir):
         with pytest.raises(PidsEditError):
             set_research_status("TESTECU", "9999", "done", pids_dir=pids_dir)
+
+    def test_add_entry_auto_timestamps(self, pids_dir):
+        import datetime
+
+        today = datetime.date.today().isoformat()
+        add_research_entry(
+            "TESTECU", type="scan", target="22 F001-F010", status="pending",
+            pids_dir=pids_dir,
+        )
+        new = next(
+            e for e in _load(pids_dir)["TESTECU"]["research"]
+            if e["target"] == "22 F001-F010"
+        )
+        assert new["created"] == today
+        assert new["updated"] == today
+
+    def test_add_entry_explicit_timestamps_override(self, pids_dir):
+        add_research_entry(
+            "TESTECU", type="scan", target="22 G001", status="pending",
+            created="2020-01-01", updated="2020-02-02", pids_dir=pids_dir,
+        )
+        new = next(
+            e for e in _load(pids_dir)["TESTECU"]["research"]
+            if e["target"] == "22 G001"
+        )
+        assert new["created"] == "2020-01-01"
+        assert new["updated"] == "2020-02-02"
+
+    def test_set_status_bumps_updated(self, pids_dir):
+        # Seed an entry with a stale updated date, then transition its status.
+        import datetime
+
+        add_research_entry(
+            "TESTECU", type="decode", target="22H001", status="captured",
+            updated="2020-01-01", pids_dir=pids_dir,
+        )
+        set_research_status("TESTECU", "22H001", "done", type="decode", pids_dir=pids_dir)
+        new = next(
+            e for e in _load(pids_dir)["TESTECU"]["research"]
+            if e["target"] == "22H001"
+        )
+        assert new["status"] == "done"
+        assert new["updated"] == datetime.date.today().isoformat()
+
+    def test_set_status_adds_updated_when_absent(self, pids_dir):
+        # The pre-seeded fixture entry has no `updated` field; set-status must add it.
+        import datetime
+
+        set_research_status("TESTECU", "2102", "done", pids_dir=pids_dir)
+        entry = _load(pids_dir)["TESTECU"]["research"][0]
+        assert entry["status"] == "done"
+        assert entry["updated"] == datetime.date.today().isoformat()
 
 
 def _load2(pids_dir):

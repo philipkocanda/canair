@@ -118,7 +118,7 @@ async def test_probe_refuses_unsafe_sub_functions():
 FIXTURE_YAML = """\
 TEST:
   tx_id: 0x770
-  availability:
+  vehicle_states:
     - acc2
   pids:
     BC03:
@@ -193,7 +193,7 @@ def test_append_iocontrol_discoveries_preserves_other_sections(pids_dir):
     data = yaml.safe_load((pids_dir / "test.yaml").read_text())
 
     assert data["TEST"]["tx_id"] == 0x770
-    assert data["TEST"]["availability"] == ["acc2"]
+    assert data["TEST"]["vehicle_states"] == ["acc2"]
     assert "BC03" in data["TEST"]["pids"]
     assert data["TEST"]["research"][0]["target"] == "22BC00-22BCFF"
 

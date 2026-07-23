@@ -1,19 +1,20 @@
 sessions:
 - date: '2026-04-19'
   label: HVAC deep dive — blower-only, AC charging, ACC2 mode
-  state: AC charging, ACC2, HVAC blower low/18°C/no compressor/no PTC
-  notes: |
+  vehicle_states:
+  - acc2
+  notes: |-
     Unique conditions: AC charging with ACC2 on (CLU+AVN lit), HVAC blower on lowest
     setting at 18°C, heating switch off, cooling switch off (compressor+PTC both off).
     Battery 14.2V. Scanned 01xx DID range and captured actuator DIDs A1-A3.
     Confirmed: service 0x21 PIDs 0101-010B all NRC 0x11 (serviceNotSupported).
     Service 0x22 range 0101-010B: only 0102 responds, rest NRC 0x31.
+     [migrated state: AC charging, ACC2, HVAC blower low/18°C/no compressor/no PTC]
   captures:
   - ecu: '0x7BB'
     pid: 210101-21010B
     label: Service 0x21 scan of 01xx range
-    notes: "All 11 PIDs returned NRC 0x11 (serviceNotSupported). HVAC ECU does not\
-      \ support service 0x21."
+    notes: "All 11 PIDs returned NRC 0x11 (serviceNotSupported). HVAC ECU does not support service 0x21."
     response: NRC 0x11 — all 11 PIDs rejected
   - ecu: '0x7BB'
     pid: 220101-22010B
@@ -65,8 +66,7 @@ sessions:
   - ecu: '0x7BB'
     pid: 2201A5
     label: "Actuator data page 5 — blower low, no compressor/PTC, charging"
-    notes: "52 data bytes. Same as A4/A6 except B42-B47 (FFFF 1212 0098 vs 3200 CA0A\
-      \ 0000). 0x98=152 appears again."
+    notes: "52 data bytes. Same as A4/A6 except B42-B47 (FFFF 1212 0098 vs 3200 CA0A 0000). 0x98=152 appears again."
     payload: "6201A56900CA7373783073736969285F5F000001000048280F820A0E0D00F60F010A00FFFF121200980000000000000000000000000000"
   - ecu: '0x7BB'
     pid: 2201A6
@@ -75,7 +75,8 @@ sessions:
     payload: "6201A66900CA7373783073736969285F5F000001000048280F820A0E0D00F60F010A003200CA0A00000000000000000000000000000000"
 - date: '2026-04-19'
   label: HVAC on 18C, fan speed lowest setting, ACC2 mode,
-  state: ACC2
+  vehicle_states:
+  - acc2
   notes: "while charging\e[D\e[D\e[D\e[D\e[D\e[D\e[D\e[D\n"
   captures:
   - ecu: '0x7BB'
@@ -2600,13 +2601,15 @@ sessions:
     time: "14:33:33"
 - date: '2026-04-19'
   label: HVAC fan speed 4 — all key DIDs
-  state: AC charging, ACC2, HVAC blower speed 4/18°C/no compressor/no PTC
-  notes: |
+  vehicle_states:
+  - acc2
+  notes: |-
     Fan changed from lowest (1) to speed 4. Key changes from fan 1:
     220100 B33: 0x26→0x2D (fan speed setting). Blower duty B15 unchanged at 0xEC.
     2201A0 B57: still 0x00 (no max flag). B07/B51 shift 0xD1→0xD4.
     2201A1 B22: 0xD1→0xD4 (mirrors A0), B68: 0x05→0x0A.
     2201A3 B41: 0x26→0x2D (mirrors 220100 B33).
+     [migrated state: AC charging, ACC2, HVAC blower speed 4/18°C/no compressor/no PTC]
   captures:
   - ecu: '0x7BB'
     pid: '220100'
@@ -2634,12 +2637,14 @@ sessions:
     payload: 6201A3009A0096FFFFFFFF000000B400A606000000000000000000EC10B7B60000BD2D00000000000000029E02BC000000000100000000
 - date: '2026-04-19'
   label: HVAC fan speed MAX — key DIDs
-  state: AC charging, ACC2, HVAC blower MAX/18°C/no compressor/no PTC
-  notes: |
+  vehicle_states:
+  - acc2
+  notes: |-
     Fan changed to MAX. Key changes from fan 4:
     220100 B33: still 0x2D (same as fan 4 — caps at 0x2D?).
     2201A0 B07/B51: 0xD4→0xDB (increasing). B57: 0x00→0xAE (max fan indicator!).
     2201A1 B22: 0xD4→0xDB (mirrors A0 B07).
+     [migrated state: AC charging, ACC2, HVAC blower MAX/18°C/no compressor/no PTC]
   captures:
   - ecu: '0x7BB'
     pid: '220100'
@@ -2659,8 +2664,9 @@ sessions:
     payload: 6201A3009A0097FFFFFFFF000000B400A906000000000000000000EC10B7B60000BD2D00000000000000029E02BC000000000100000000
 - date: '2026-04-19'
   label: CLU scan during AC charging + ACC2 mode
-  state: AC charging, ACC2, HVAC blower on, CLU fully lit showing charge % and remaining time
-  notes: |
+  vehicle_states:
+  - acc2
+  notes: |-
     Scanned all known CLU DIDs (22B001/B002/B003) plus wide DID ranges (B010-B0FF,
     C000-C010, E000-E010) and service 0x21 (01-10). Also probed AVN/head unit
     (0x7C0/0x7C1). Ran partial ECU discover.
@@ -2669,6 +2675,7 @@ sessions:
     non-charging captures. Charge % and remaining time displayed on CLU come from CAN
     broadcast messages, not UDS-queryable data. AVN/head unit still not on diagnostic
     CAN bus even with ACC2 on.
+     [migrated state: AC charging, ACC2, HVAC blower on, CLU fully lit showing charge % and remaining time]
   captures:
   - ecu: '0x7CE'
     pid: 22B001

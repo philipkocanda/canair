@@ -11,14 +11,18 @@ HVAC:
     id_protocol: UDS  # F1xx
     software: "AE_EV DATC(-)1.0"
     serial: "1705304705"
-  availability: [acc, acc2, ready]
+  vehicle_states:
+    - acc
+    - acc2
+    - ready
   scan_log: # HVAC
     - service: 0x31
       range: "E000-E0FF"
       date: 2026-04-20
       hits: 0
       probes: 256
-      state: asleep
+      vehicle_states:
+        - sleep
       notes: "256 errors — likely no service 31 support without ignition"
   # ─── 2026-07-22 read-DID (service 22) sweep, car in READY (parked) ───
   # Goal: find live-data DIDs on ECUs previously only identity-scanned.
@@ -27,8 +31,10 @@ HVAC:
   pids:
     220100:
       period: 5000
-      enabled: true
-      availability: [acc, acc2, ready]
+      vehicle_states:
+        - acc
+        - acc2
+        - ready
       notes: >
         41-byte ELM response (39 data bytes). Live HVAC sensor/actuator data.
         Monitored 2026-04-17 with HVAC on/off, fan speed changes, temp changes,
@@ -186,9 +192,8 @@ HVAC:
             actual compressor state. Kept for research trail.
 
     220102:
-      enabled: true
       period: 5000
-      availability: []
+      vehicle_states: []
       notes: >
         20-byte ELM response (17 data bytes). Secondary HVAC temps.
         Monitored 2026-04-17. B10/B11 are temps that rise with heating.
@@ -258,9 +263,11 @@ HVAC:
             in-cabin area), hence the neutral name. Was wrongly attributed to "compressor/PTC load".
 
     2201A0:
-      enabled: true
       period: 5000
-      availability: [acc, acc2, ready]
+      vehicle_states:
+        - acc
+        - acc2
+        - ready
       notes: >
         62 bytes. Primary HVAC control/status DID. Contains set temperature,
         HVAC on/off flags, heating mode, and defrost flags. Also contains
@@ -370,8 +377,11 @@ HVAC:
             only readable on the full 62-byte response. Verify against a full-length capture.
 
     2201A1:
-      enabled: false
-      availability: [acc, acc2, ready]
+      status: draft
+      vehicle_states:
+        - acc
+        - acc2
+        - ready
       notes: >
         62 bytes. Actuator control data. First 10 bytes very active during
         HVAC operation (RPM-like 16-bit values). ELM[9-10] = 01 01 when on,
@@ -381,14 +391,20 @@ HVAC:
       parameters: {}
 
     2201A2:
-      enabled: false
+      status: draft
       notes: "55 bytes. Similar structure to 01A1."
-      availability: [acc, acc2, ready]
+      vehicle_states:
+        - acc
+        - acc2
+        - ready
       parameters: {}
 
     2201A3:
-      enabled: false
-      availability: [acc, acc2, ready]
+      status: draft
+      vehicle_states:
+        - acc
+        - acc2
+        - ready
       notes: >
         55 bytes. Dynamic during HVAC operation (NOT static as initially
         thought from cold-read). Contains compressor RPM data, PTC heater
@@ -397,36 +413,45 @@ HVAC:
       parameters: {}
 
     2201A4:
-      enabled: false
+      status: draft
       notes: "55 bytes. Identical to 01A3."
-      availability: [acc, acc2, ready]
+      vehicle_states:
+        - acc
+        - acc2
+        - ready
       parameters: {}
 
     2201A5:
-      enabled: false
+      status: draft
       notes: "55 bytes. Identical to 01A3."
-      availability: [acc, acc2, ready]
+      vehicle_states:
+        - acc
+        - acc2
+        - ready
       parameters: {}
 
     2201A6:
-      enabled: false
+      status: draft
       notes: "55 bytes. Identical to 01A3."
-      availability: [acc, acc2, ready]
+      vehicle_states:
+        - acc
+        - acc2
+        - ready
       parameters: {}
   iocontrol:
     F011:
       label: "Unknown actuator 1"
       verified: false
-      on: ""
-      off: "2FF01100"
+      true: ""
+      false: "2FF01100"
       hold: false
       notes: >
         updated via TUI test
     F012:
       label: "Unknown actuator 2"
       verified: false
-      on: ""
-      off: ""
+      true: ""
+      false: ""
       hold: false
       notes: >
         Write-only: NRC 0x31 for ReturnControlToECU (00), but NRC 0x13 for
@@ -435,85 +460,85 @@ HVAC:
     F013:
       label: "Unknown actuator 3"
       verified: false
-      on: ""
-      off: "2FF01300"
+      true: ""
+      false: "2FF01300"
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
     F014:
       label: "Unknown actuator 4"
       verified: false
-      on: ""
-      off: "2FF01400"
+      true: ""
+      false: "2FF01400"
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
     F015:
       label: "Unknown actuator 5"
       verified: false
-      on: ""
-      off: "2FF01500"
+      true: ""
+      false: "2FF01500"
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
     F016:
       label: "Unknown actuator 6"
       verified: false
-      on: ""
-      off: "2FF01600"
+      true: ""
+      false: "2FF01600"
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
     F017:
       label: "Unknown actuator 7"
       verified: false
-      on: ""
-      off: "2FF01700"
+      true: ""
+      false: "2FF01700"
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
     F018:
       label: "Unknown actuator 8"
       verified: false
-      on: ""
-      off: "2FF01800"
+      true: ""
+      false: "2FF01800"
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
     F022:
       label: "Unknown actuator 9"
       verified: false
-      on: ""
-      off: "2FF02200"
+      true: ""
+      false: "2FF02200"
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
     F023:
       label: "Unknown actuator 10"
       verified: false
-      on: ""
-      off: "2FF02300"
+      true: ""
+      false: "2FF02300"
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
     F024:
       label: "Unknown actuator 11"
       verified: false
-      on: ""
-      off: "2FF02400"
+      true: ""
+      false: "2FF02400"
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
     F025:
       label: "Unknown actuator 12"
       verified: false
-      on: ""
-      off: "2FF02500"
+      true: ""
+      false: "2FF02500"
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
     F026:
       label: "Unknown actuator 13"
       verified: false
-      on: ""
-      off: "2FF02600"
+      true: ""
+      false: "2FF02600"
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
     F027:
       label: "Unknown actuator 14"
       verified: false
-      on: ""
-      off: "2FF02700"
+      true: ""
+      false: "2FF02700"
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
   research:
@@ -522,7 +547,9 @@ HVAC:
       status: done
       date: "2026-04-19"
       priority: P1
-      prerequisite: [acc, charging]
+      vehicle_states:
+        - acc
+        - charging
       result: >
         13 DIDs respond to ReturnControlToECU (00): F011, F013-F018, F022-F027.
         F012 accepts ShortTermAdjustment (03) but rejects ReturnControlToECU (00).
@@ -538,7 +565,8 @@ HVAC:
       target: "220100"
       status: pending
       priority: P1
-      prerequisite: [acc]
+      vehicle_states:
+        - acc
       notes: "HVAC_INVERTER_TEMP (B15, (x/2)-40) unverified. Additional undecoded bytes: driver vent temp (B28), driver legs vent temp (B29), evaporator temp alt (B31), unknown temps (B32-34). Vehicle speed at bix 232 (byte 29) per Ioniq 5."
       what_to_test:
         - "HVAC_INVERTER_TEMP (B15, (x/2)-40)"
@@ -550,7 +578,8 @@ HVAC:
       target: "22 0100-010B"
       status: done
       priority: P1
-      prerequisite: [acc]
+      vehicle_states:
+        - acc
       notes: >
         Scanned 2026-04-19. Service 0x21 for 0101-010B: all NRC 0x11.
         Service 0x22 for 0101-010B: only 0102 responds (already known),
@@ -561,7 +590,8 @@ HVAC:
       target: "climate power (console split)"
       status: pending
       priority: P2
-      prerequisite: [ready]
+      vehicle_states:
+        - ready
       notes: >
         The centre console shows a Drive/Climate/Electronics power split. Investigated 2026-07-22
         (READY, parked) with a steady PTC heat ~1kW load and, earlier, heat-pump ~1.5kW; contrasted

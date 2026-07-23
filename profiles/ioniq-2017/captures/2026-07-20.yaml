@@ -1,7 +1,9 @@
 sessions:
 - date: '2026-07-20'
   label: MCU/VCU live reference (parked READY, ~18C ambient)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: >
     Live canreq snapshot while parked in READY, ambient ~18C, cold-soaked (motor 0
     RPM, no torque). Used to anchor MCU 2102 motor RPM (0 at park) and as a cold reference
@@ -10,13 +12,11 @@ sessions:
   - ecu: '0x7EB'
     pid: '2101'
     payload: "6101000003FF0C380079969F380000000A003D024F04B238D0FF0000300000000000"
-    notes: "34 bytes. Parked READY. Candidate temp bytes ~ambient but bimodal/constant\
-      \ on review."
+    notes: "34 bytes. Parked READY. Candidate temp bytes ~ambient but bimodal/constant on review."
   - ecu: '0x7EB'
     pid: '2102'
     payload: "610207FFFFFF000000000000220007090D0DF8FFF6FF7DD6CDABC2CD6B0043FD3000C607F726F606C1CD0900D13100000000000000000000000000000000"
-    notes: "62 bytes. MOTOR_RPM [S10:S11]=0 at park. B27-B47 static calibration/offset\
-      \ block."
+    notes: "62 bytes. MOTOR_RPM [S10:S11]=0 at park. B27-B47 static calibration/offset block."
   - ecu: '0x7EB'
     pid: '2103'
     payload: '610300000000000000000000000000000000000000000000000000'
@@ -89,7 +89,8 @@ sessions:
       wrong vs aux 12.8).
 - date: '2026-07-20'
   label: parked
-  state: READY
+  vehicle_states:
+  - ready
   captures:
   - ecu: '0x7EA'
     pid: '2101'
@@ -213,7 +214,9 @@ sessions:
     time: "12:11:21"
 - date: '2026-07-20'
   label: HVAC fan-only speed 2 (no AC, charging)
-  state: ready, charging
+  vehicle_states:
+  - ready
+  - charging
   notes: >
     HVAC running FAN ONLY (no AC/compressor), blower speed 2, set temp 22C, ambient
     ~19.5C, interior ~29.5C. Confirmed no AC: COMPRESSOR_RELAY=0, COOLING_MODE=0,
@@ -223,8 +226,7 @@ sessions:
   - ecu: '0x7BB'
     pid: '220100'
     payload: "6201007E5007C8FF8B7781087149FFFF49FF11FFFFFFFFFFFFFFFFFF1FD7828200FFFF00FFFF000000"
-    notes: "41B. Blower duty=0x71(113), interior 29.5C, AAT 19.5C, evaporator 24.5C,\
-      \ duct 25C."
+    notes: "41B. Blower duty=0x71(113), interior 29.5C, AAT 19.5C, evaporator 24.5C, duct 25C."
   - ecu: '0x7BB'
     pid: '220102'
     payload: 620102FF80000085840000000000001B00000000
@@ -259,7 +261,9 @@ sessions:
     notes: 55B. Mirrors A3.
 - date: '2026-07-20'
   label: MCU/VCU parked reference (via --save)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: >
     ~18C ambient; end-to-end test of --multi query --save
   captures:
@@ -280,7 +284,8 @@ sessions:
     payload: 6101FFE000000921125B064A0300000000FB763406200000000000
 - date: '2026-07-20'
   label: AAT/EPCU thermal (ACC2, charge just finished)
-  state: acc2
+  vehicle_states:
+  - acc2
   notes: >
     ACC2 (was READY, switched to ACC2 during charging; charge finished 100% SoC). AC/heat off, ambient ~19.5C.
     Decodes 0x7E6 2180: AMBIENT=(B18-80)/2=19.5C, HEATER_ELEMENT=S17/2=19C, HEATSINK=B20-40=42C (still warm
@@ -296,7 +301,8 @@ sessions:
     notes: "27B. Same layout as 2180 but extra non-zero bytes (B19=8F, B22/B23=5A, B24=06) — richer variant."
 - date: '2026-07-20'
   label: GSA gear-shift assembly scan (ACC2)
-  state: acc2
+  vehicle_states:
+  - acc2
   notes: >
     GSA 0x7B6 scan (ACC2, gear P). Responds ONLY to 220100 (service 21 none; 22 0101-0130 all NRC).
     B19/B21/B22 = 0x77/0x76/0x78 (119/118/120) vs 2026-04-17 P capture 0x93/0x91/0x94 — drifted ~30 in
