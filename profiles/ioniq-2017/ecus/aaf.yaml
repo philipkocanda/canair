@@ -86,6 +86,15 @@ AAF:
           notes: >
             A/C compressor temperature. 2026-07-20: from community sheet (p-40 = B21-40). Reads ≈ambient with
             AC off (live ACC2 = 19°C). Needs an AC-on capture to confirm behaviour. ISO-TP 0x11.
+        AUX_BATTERY_VOLTAGE:
+          expression: B25/10
+          unit: V
+          min: "0"
+          max: "16"
+          source: canair correlate 2026-07-22 drive
+          verified: false
+          notes: >
+            Aux 12V battery voltage. B25/10 = 12.9-15.2 V (mean 13.4), r=+0.995 vs VCU:2102 VCU_AUX_BATTERY_VOLTAGE over 61 co-polled pts. CORRECTS an earlier guess that B25 was a (x-80)/2 temperature — it is the 12V rail voltage, /10 V/LSB.
     2181:
       status: draft
       period: 0
@@ -126,6 +135,33 @@ AAF:
             0.6214 km/h→mph, mean residual 0.14 mph. Companion B13 = km/h. Car
             reports MPH internally (cf. VCU 2101 speed).
           enabled: true
+        AUX_BATTERY_VOLTAGE:
+          expression: B25/10
+          unit: V
+          min: "0"
+          max: "16"
+          source: canair correlate 2026-07-22 drive
+          verified: false
+          notes: >
+            Aux 12V battery voltage. B25/10 = 12.9-15.2 V (mean 13.4), r=+0.995 vs VCU:2102 VCU_AUX_BATTERY_VOLTAGE over 61 co-polled pts. CORRECTS an earlier guess that B25 was a (x-80)/2 temperature — it is the 12V rail voltage, /10 V/LSB.
+        HEATSINK_TEMP:
+          expression: B20-40
+          unit: °C
+          min: "-40"
+          max: "150"
+          source: canair correlate 2026-07-22 drive
+          verified: false
+          notes: >
+            Inverter heat-sink temperature, mirrors AAF 2180 HEATSINK_TEMP (B20-40). r=+0.987 vs MCU:2102 MCU_INVERTER_TEMP over 61 co-polled driving pts — the AAF (HVAC/thermal ECU) exposes the powertrain-cooling-loop temps.
+        MOTOR_COOLANT_TEMP:
+          expression: B22-40
+          unit: °C
+          min: "-40"
+          max: "150"
+          source: canair correlate 2026-07-22 drive
+          verified: false
+          notes: >
+            Candidate motor/coolant temperature. B22-40, r=+0.958 vs MCU:2102 MCU_TEMP_2 over 61 co-polled driving pts. Distinct from the heat-sink temp (B20); likely the second powertrain-cooling temp the AAF thermal ECU monitors.
 
   research:
     - type: scan

@@ -61,6 +61,15 @@ MCU:
             (inverter/motor/heat-sink) unconfirmed. Neighbour B25 also thermal-ish
             but spikes to 249.
           enabled: true
+        MCU_HV_VOLTAGE:
+          expression: B13*2.56
+          unit: V
+          min: "0"
+          max: "500"
+          source: canair investigate/hunt 2026-07-22 drive
+          verified: false
+          notes: >
+            HV DC-link voltage at the motor inverter (coarse, ~2.56 V/LSB). B13*2.56 = 353-399 V over the drive — the correct HKMC HV pack range (nominal ~360, sag under load, rise on regen). r=+0.994 vs VCU:2102 coarse DC-link byte and r=+0.79 vs the verified VCU INVERTER_INPUT_VOLTAGE (B17*2); the moderate fine-voltage r reflects coarse 8-bit quantisation over a gentle drive's narrow voltage span. Exact scale approximate; verify against BMS BATTERY_VOLTAGE in a co-polled charge/drive with wider voltage swing.
 
     2102:
       status: active

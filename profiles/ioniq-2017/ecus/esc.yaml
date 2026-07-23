@@ -87,6 +87,15 @@ ESC:
           verified: false
           notes: >
             Candidate longitudinal accelerometer / force sensor on the ESC/ABS module. B23 is centered at 127 (min 113, max 139, mean 127.29, median 127 over 381 driving pts) — the structural signature of a signed sensor with 0x7F/0x80 = zero. Moderately tracks acceleration (r=+0.49 vs delta(REAL_SPEED_KMH) at 2.5s join) and accel pedal (r=+0.70 vs VCU ACCEL_PEDAL_DEPTH) but the sign/scale are UNRESOLVED: correlation is unstable across join tolerances (+0.49 at 2.5s, -0.23 at 1.2s) because the sensor changes faster than the ~1s poll, and it also correlates with braking (r=-0.90 vs VCU NOT_BRAKING). Needs a high-rate synced capture with hard accel + hard braking to fix direction and g-scale.
+        BRAKE_PRESSURE:
+          expression: B44
+          unit: ""
+          min: "0"
+          max: "255"
+          source: canair correlate/decode 2026-07-22 drive
+          verified: false
+          notes: >
+            Brake pressure (master-cylinder / wheel-circuit) on the ESC/ABS module. B44 continuous 0-53 (median 0 = off, distinct=32) — NOT a binary lamp. r=+0.973 vs VCU:2101 VEHICLE_STATE_BRAKE_LAMP and -0.973 vs NOT_BRAKING over 124 co-polled pts. At a stop (09:06:38-41) B44 ramps hard as speed hits 0 while the driver holds the pedal. B45 is a near-identical sibling (both 0-53, mean 11.4) — likely the second brake circuit. Raw units (bar/scale TBD); verify with a known brake-force capture.
     22C102:
       status: draft
       period: 2500
