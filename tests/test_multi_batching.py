@@ -14,6 +14,7 @@ from canlib.modes.multi import (
     BatchState,
     _did_data_len,
     _exec_query,
+    _read_single,
     split_multi_did,
 )
 
@@ -175,3 +176,48 @@ class TestBatchingExecutor:
         # learn→batch case above).
         asyncio.run(_exec_query(sm, "IGPM", [], idx, {}, False, return_results=True))
         assert calls == ["22BC03", "22BC06"]
+
+
+class TestReadSingleEchoValidation:
+    """_read_single derives + passes the response echo so a mislabeled/stale
+    frame (e.g. a 6101 response to a 2102 request) is rejected, not stored."""
+
+    def test_service_21_passes_pid_echo(self):
+        seen = {}
+
+        async def send_uds(req, *a, **k):
+            seen.update(k)
+            return {"ok": True, "hex": "6102F8F8", "bytes": bytes.fromhex("6102F8F8")}
+
+        sm = _mk_sm(send_uds)
+        asyncio.run(_read_single(sm, 0x7E2, "2102", {"parameters": {}}, [], None))
+        assert seen["expected_sid"] == 0x21
+        assert seen["expected_echo"] == b"\x02"
+
+    def test_service_22_passes_did_echo(self):
+        seen = {}
+
+        async def send_uds(req, *a, **k):
+            seen.update(k)
+            return {"ok": True, "hex": "62BC0300", "bytes": bytes.fromhex("62BC0300")}
+
+        sm = _mk_sm(send_uds)
+        asyncio.run(_read_single(sm, 0x770, "22BC03", {"parameters": {}}, [], None))
+        assert seen["expected_sid"] == 0x22
+        assert seen["expected_echo"] == b"\xbc\x03"
+
+    def test_mismatched_frame_becomes_error_not_stored(self):
+        # Simulate the parser rejecting a 6101 response to a 2102 request.
+        async def send_uds(req, *a, **k):
+            from canlib.uds_parse import parse_uds_response
+
+            return parse_uds_response(
+                "6101FFE0",
+                expected_sid=k.get("expected_sid"),
+                expected_echo=k.get("expected_echo"),
+            )
+
+        sm = _mk_sm(send_uds)
+        result = asyncio.run(_read_single(sm, 0x7E2, "2102", {"parameters": {}}, [], None))
+        assert "error" in result
+        assert "raw_hex" not in result  # not recorded as a valid payload

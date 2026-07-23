@@ -21,7 +21,9 @@ class FakeTerminal:
     async def enter_extended_session(self, wake=False):
         return True, None
 
-    async def send_uds(self, cmd, timeout=None, expected_sid=None, expected_did=None):
+    async def send_uds(
+        self, cmd, timeout=None, expected_sid=None, expected_did=None, expected_echo=None
+    ):
         self.sent.append(cmd)
         resp = self._responses.get(cmd, {"ok": False, "error": "NO DATA", "raw": "NO DATA"})
         return dict(resp)
@@ -47,7 +49,9 @@ class FlakyTerminal:
     async def enter_extended_session(self, wake=False):
         return True, None
 
-    async def send_uds(self, cmd, timeout=None, expected_sid=None, expected_did=None):
+    async def send_uds(
+        self, cmd, timeout=None, expected_sid=None, expected_did=None, expected_echo=None
+    ):
         self.sent.append(cmd)
         if cmd in self._recover and cmd in self._seen:
             return _ok(self._recover[cmd])

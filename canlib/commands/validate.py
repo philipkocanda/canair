@@ -952,6 +952,7 @@ def _run_captures() -> int:
     for path in files:
         errors = validate_captures_file(path, validator, rx_addrs)
         warnings = _capture_state_warnings(path, vocab) if vocab else []
+        warnings += _capture_echo_warnings(path)
         if errors:
             print(f"\n{path.name}: {len(errors)} errors")
             for e in errors:
@@ -964,7 +965,9 @@ def _run_captures() -> int:
         total_warnings += len(warnings)
 
     if total_warnings:
-        print(f"\n{total_warnings} state warning(s) — see `canair validate states` / states.yaml")
+        print(
+            f"\n{total_warnings} warning(s) — see `canair validate states` / echo mismatches above"
+        )
     if total_errors:
         print(f"\n{total_errors} total errors across {len(files)} files")
         return 1
@@ -1001,6 +1004,41 @@ def _capture_state_warnings(path: Path, vocab: set[str]) -> list[str]:
                 f"sessions[{si}]: vehicle_states {states} has no token in the "
                 f"states.yaml vocabulary"
             )
+    return warnings
+
+
+def _capture_echo_warnings(path: Path) -> list[str]:
+    """Soft warnings for captures whose payload doesn't echo their recorded PID.
+
+    A UDS positive response echoes the request SID (+0x40) and identifier bytes;
+    a ``6101…`` payload stored under a ``2102`` request is a stale/misfiled frame
+    (the ELM327 leaks a previous request's late response into the next read — see
+    ``uds_parse.payload_echo_mismatch``). Reported as a warning, never an error,
+    since free-form/raw captures and multi-frame quirks shouldn't hard-fail.
+    """
+    from canlib.uds_parse import payload_echo_mismatch
+
+    warnings: list[str] = []
+    with open(path) as f:
+        data = yaml.safe_load(f)
+    if not isinstance(data, dict):
+        return warnings
+    for si, session in enumerate(data.get("sessions", []) or []):
+        if not isinstance(session, dict):
+            continue
+        for ci, cap in enumerate(session.get("captures", []) or []):
+            if not isinstance(cap, dict):
+                continue
+            pid = cap.get("pid")
+            payload = cap.get("payload")
+            if not pid or not payload:
+                continue
+            reason = payload_echo_mismatch(str(pid), str(payload))
+            if reason:
+                warnings.append(
+                    f"sessions[{si}].captures[{ci}] ({cap.get('ecu', '?')} {pid} "
+                    f"@ {cap.get('time', '?')}): {reason}"
+                )
     return warnings
 
 

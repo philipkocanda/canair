@@ -70,10 +70,106 @@ def nrc_abbrev(nrc: int) -> str:
     return NRC_ABBREV.get(nrc, "?")
 
 
+def request_echo(request_hex: str) -> tuple[int, bytes] | None:
+    """Derive the (expected_sid, echo_bytes) a positive response must repeat.
+
+    A UDS positive response echoes the request SID (``+0x40``) followed by the
+    request's *identifier* bytes verbatim. Which bytes count as the identifier
+    is service-specific:
+
+    - ``21 xx``   (readDataByLocalId / mfr live data): 1-byte PID echo — the
+      response is ``61 xx …``. This is the case the ELM327 stale-frame bug hits
+      (a ``61 01`` response leaking into a ``2102`` request slot passes a
+      SID-only check because both PIDs share SID ``0x61``).
+    - ``22 xxxx`` (readDataByIdentifier): 2-byte DID echo — ``62 xx xx …``.
+
+    Returns ``(sid, echo_bytes)`` for those two services (``echo_bytes`` may be
+    empty if the request carried no identifier), or ``None`` when the request
+    isn't a plain identifier read we can validate (unknown length, sub-function
+    services, etc.) — callers should then skip echo validation.
+    """
+    cleaned = request_hex.replace(" ", "").strip()
+    if len(cleaned) < 2 or len(cleaned) % 2 != 0:
+        return None
+    try:
+        req = bytes.fromhex(cleaned)
+    except ValueError:
+        return None
+    sid = req[0]
+    if sid == 0x21:
+        # service 21 carries a 1-byte PID (a multi-DID 21 request is unusual;
+        # only validate the single-PID form we actually emit).
+        return (sid, req[1:2]) if len(req) == 2 else None
+    if sid == 0x22:
+        # service 22 carries one 2-byte DID (multi-DID batches skip validation).
+        return (sid, req[1:3]) if len(req) == 3 else None
+    return None
+
+
+def _hk_identity_offset(expected_sid: int, expected_id: bytes, got: bytes) -> bool:
+    """True when ``got`` is the expected identifier minus one — the Hyundai/Kia
+    identity-DID quirk (request 22F188 -> response 62F187). Expected ECU
+    behaviour on HK modules, not a stale/misfiled frame, so echo validation
+    tolerates it for F1xx DIDs.
+    """
+    return (
+        expected_sid == 0x22
+        and len(expected_id) == 2
+        and len(got) == 2
+        and expected_id[0] == 0xF1
+        and got[0] == 0xF1
+        and got[1] == (expected_id[1] - 1) & 0xFF
+    )
+
+
+def payload_echo_mismatch(request_pid: str, payload_hex: str) -> str | None:
+    """Cross-check a stored capture payload against the PID it was recorded for.
+
+    Returns a human-readable reason string when the payload's SID+identifier
+    echo does NOT match ``request_pid`` (e.g. a ``6101…`` payload filed under a
+    ``2102`` request — the ELM327 stale-frame bug), or ``None`` when it matches
+    or when we can't validate (non-identifier request, NRC/short payload, hex we
+    can't parse). Only known echo mismatches are reported, so this is safe to
+    surface as a soft lint warning.
+    """
+    echo = request_echo(request_pid)
+    if echo is None:
+        return None  # not a plain 21xx/22xxxx read — nothing to check
+    expected_sid, expected_id = echo
+    cleaned = payload_hex.replace(" ", "").strip()
+    if len(cleaned) < 2 or len(cleaned) % 2 != 0:
+        return None
+    try:
+        resp = bytes.fromhex(cleaned)
+    except ValueError:
+        return None
+    if resp[0] == 0x7F:
+        return None  # negative response — not an echo, leave to other checks
+    expected_resp_sid = (expected_sid + 0x40) & 0xFF
+    if resp[0] != expected_resp_sid:
+        return (
+            f"payload SID 0x{resp[0]:02X} != expected 0x{expected_resp_sid:02X} "
+            f"for request {request_pid}"
+        )
+    if expected_id and resp[1 : 1 + len(expected_id)] != expected_id:
+        got = resp[1 : 1 + len(expected_id)]
+        # Hyundai/Kia identity DIDs answer one *less* than requested (the HK -1
+        # offset: 22F188 -> 62F187, etc.). That's expected ECU behaviour, not a
+        # misfiled frame, so don't flag F1xx reads that are exactly off-by-one.
+        if _hk_identity_offset(expected_sid, expected_id, got):
+            return None
+        return (
+            f"payload echoes id 0x{got.hex().upper()} but request {request_pid} "
+            f"expects 0x{expected_id.hex().upper()} (stale/misfiled frame?)"
+        )
+    return None
+
+
 def parse_uds_response(
     raw: str,
     expected_sid: int | None = None,
     expected_did: int | None = None,
+    expected_echo: bytes | None = None,
 ) -> dict:
     """Parse a UDS response (as returned by any transport) into structured data.
 
@@ -93,6 +189,14 @@ def parse_uds_response(
             (big-endian). Used by services that carry a DID
             immediately after the SID: 0x22 ReadDataByIdentifier,
             0x2E WriteDataByIdentifier, 0x2F InputOutputControlByIdentifier.
+        expected_echo: If set AND ``expected_sid`` is set, the positive response
+            must echo these identifier bytes verbatim starting at byte 1. This
+            is the variable-width generalization of ``expected_did`` — a 1-byte
+            value validates the service-21 PID echo (catching a ``6101`` frame
+            returned for a ``2102`` request), a 2-byte value the service-22 DID.
+            Prefer :func:`request_echo` to derive it from the request. If both
+            ``expected_did`` and ``expected_echo`` are given, ``expected_echo``
+            takes precedence.
 
     Returns dict with keys:
         ok: bool - whether a positive and (if requested) echo-matching response was received
@@ -219,16 +323,24 @@ def parse_uds_response(
                 f"(for request SID 0x{expected_sid:02X})"
             )
             return result
-        if expected_did is not None:
-            if len(response_bytes) < 3:
+        # expected_echo is the variable-width generalization of expected_did;
+        # a 2-byte expected_did becomes a 2-byte echo when no explicit echo given.
+        echo = expected_echo
+        if echo is None and expected_did is not None:
+            echo = bytes([(expected_did >> 8) & 0xFF, expected_did & 0xFF])
+        if echo:
+            if len(response_bytes) < 1 + len(echo):
                 result["error"] = (
-                    f"Response too short for DID echo: got {len(response_bytes)} bytes, need >= 3"
+                    f"Response too short for echo: got {len(response_bytes)} bytes, "
+                    f"need >= {1 + len(echo)}"
                 )
                 return result
-            got_did = (response_bytes[1] << 8) | response_bytes[2]
-            if got_did != expected_did:
+            got = response_bytes[1 : 1 + len(echo)]
+            if got != echo and not _hk_identity_offset(expected_sid, echo, got):
                 result["error"] = (
-                    f"DID mismatch: response DID 0x{got_did:04X} != expected 0x{expected_did:04X}"
+                    f"Echo mismatch: response id 0x{got.hex().upper()} "
+                    f"!= expected 0x{echo.hex().upper()} "
+                    f"(for request SID 0x{expected_sid:02X})"
                 )
                 return result
 

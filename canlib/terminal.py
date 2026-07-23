@@ -285,6 +285,7 @@ class WiCANTerminal:
         timeout: float | None = None,
         expected_sid: int | None = None,
         expected_did: int | None = None,
+        expected_echo: bytes | None = None,
         retries: int = 0,
     ) -> dict:
         """Send a UDS request and parse the response.
@@ -296,6 +297,9 @@ class WiCANTerminal:
                 (catches stale frames from previous requests).
             expected_did: If set along with ``expected_sid``, the parser also
                 validates the DID echo in bytes 1..2 of the positive response.
+            expected_echo: Variable-width identifier echo (see
+                ``parse_uds_response``); validates the 1-byte service-21 PID or
+                2-byte service-22 DID a positive response must repeat.
             retries: Re-send on a *non-answer* (timeout / NO DATA / transport
                 error) up to this many extra times. A definitive negative
                 response (NRC) or a positive response is returned immediately —
@@ -315,6 +319,7 @@ class WiCANTerminal:
                 raw,
                 expected_sid=expected_sid,
                 expected_did=expected_did,
+                expected_echo=expected_echo,
             )
             if resp.get("ok") or resp.get("nrc") is not None or attempt >= retries:
                 return resp

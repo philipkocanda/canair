@@ -1,6 +1,6 @@
 """Tests for canlib.uds_parse — UDS response parsing and NRC handling."""
 
-from canlib.uds_parse import parse_uds_response
+from canlib.uds_parse import parse_uds_response, payload_echo_mismatch, request_echo
 
 
 class TestParseUdsResponse:
@@ -98,9 +98,9 @@ class TestEchoValidation:
         """The off-by-one: probe BC0A gets back BC09's late response."""
         r = parse_uds_response("6F BC 09 00", expected_sid=0x2F, expected_did=0xBC0A)
         assert r["ok"] is False
-        assert "DID mismatch" in r["error"]
-        assert "0xBC09" in r["error"]
-        assert "0xBC0A" in r["error"]
+        assert "Echo mismatch" in r["error"]
+        assert "BC09" in r["error"]
+        assert "BC0A" in r["error"]
 
     def test_response_too_short_for_did(self):
         r = parse_uds_response("6F BC", expected_sid=0x2F, expected_did=0xBC0A)
@@ -141,3 +141,97 @@ class TestEchoValidation:
         """expected_sid alone validates SID but not DID echo."""
         r = parse_uds_response("6F BC 99 00", expected_sid=0x2F)
         assert r["ok"] is True  # SID matches, DID not checked
+
+
+class TestRequestEcho:
+    """request_echo derives the (sid, echo bytes) a positive response must repeat."""
+
+    def test_service_21_single_pid(self):
+        assert request_echo("2102") == (0x21, b"\x02")
+
+    def test_service_22_did(self):
+        assert request_echo("22BC03") == (0x22, b"\xbc\x03")
+
+    def test_spaces_tolerated(self):
+        assert request_echo("21 01") == (0x21, b"\x01")
+
+    def test_service_21_multi_pid_not_validated(self):
+        # Unusual multi-PID 21 request — we don't validate it.
+        assert request_echo("210102") is None
+
+    def test_service_22_multi_did_not_validated(self):
+        assert request_echo("22BC03BC04") is None
+
+    def test_other_service_none(self):
+        assert request_echo("1003") is None
+
+    def test_garbage_none(self):
+        assert request_echo("ZZ") is None
+        assert request_echo("2") is None
+
+
+class TestParseServicePidEcho:
+    """1-byte service-21 PID echo — the VCU 6101-for-2102 stale-frame bug."""
+
+    def test_pid_echo_ok(self):
+        r = parse_uds_response("61 02 F8 F8", expected_sid=0x21, expected_echo=b"\x02")
+        assert r["ok"] is True
+
+    def test_pid_echo_mismatch_rejected(self):
+        # A 2101 response (6101…) arriving for a 2102 request.
+        r = parse_uds_response("61 01 FF E0", expected_sid=0x21, expected_echo=b"\x02")
+        assert r["ok"] is False
+        assert "Echo mismatch" in r["error"]
+        assert "01" in r["error"]
+
+    def test_expected_did_still_works(self):
+        # Backward-compat: expected_did (2-byte) still validated.
+        r = parse_uds_response("62 BC 03 00", expected_sid=0x22, expected_did=0xBC03)
+        assert r["ok"] is True
+        r = parse_uds_response("62 BC 04 00", expected_sid=0x22, expected_did=0xBC03)
+        assert r["ok"] is False
+        assert "Echo mismatch" in r["error"]
+
+    def test_hk_identity_offset_tolerated(self):
+        # 22F188 -> 62F187 is the expected Hyundai/Kia -1 offset, not a mismatch.
+        r = parse_uds_response("62 F1 87 00", expected_sid=0x22, expected_echo=b"\xf1\x88")
+        assert r["ok"] is True
+
+    def test_hk_offset_minus_two_still_rejected(self):
+        # -2 is a genuine stale/queue-lag frame, not the HK quirk.
+        r = parse_uds_response("62 F1 86 00", expected_sid=0x22, expected_echo=b"\xf1\x88")
+        assert r["ok"] is False
+        assert "Echo mismatch" in r["error"]
+
+
+class TestPayloadEchoMismatch:
+    """The capture lint: cross-check stored pid vs payload SID/identifier echo."""
+
+    def test_match_returns_none(self):
+        assert payload_echo_mismatch("2102", "6102F8F800") is None
+
+    def test_pid_mismatch_flagged(self):
+        reason = payload_echo_mismatch("2102", "6101FFE000")
+        assert reason is not None
+        assert "01" in reason and "2102" in reason
+
+    def test_did_mismatch_flagged(self):
+        reason = payload_echo_mismatch("22F195", "62F19300")
+        assert reason is not None
+        assert "F193" in reason
+
+    def test_hk_identity_offset_not_flagged(self):
+        # 22F188 -> 62F187 is expected HK behaviour.
+        assert payload_echo_mismatch("22F188", "62F18700") is None
+
+    def test_sid_mismatch_flagged(self):
+        reason = payload_echo_mismatch("2102", "7F2131")
+        # 0x7F negative response is not treated as an echo mismatch.
+        assert reason is None
+
+    def test_non_identifier_request_skipped(self):
+        assert payload_echo_mismatch("1003", "5003") is None
+
+    def test_unparseable_payload_skipped(self):
+        assert payload_echo_mismatch("2102", "ZZ") is None
+        assert payload_echo_mismatch("2102", "") is None

@@ -39,7 +39,7 @@ from ..formatting import (
 from ..pids import build_ecu_index, build_iocontrol_index, build_param_index
 from ..session_manager import SessionManager
 from ..terminal import WiCANTerminal
-from ..uds_parse import parse_uds_response
+from ..uds_parse import parse_uds_response, request_echo
 
 
 class BatchState:
@@ -364,7 +364,12 @@ async def _read_single(sm, tx_id, pid_code, pid_info, unmapped, batch_state):
     """
     await sm.keepalive_stale()
     await sm.terminal.set_header(tx_id)
-    resp = await sm.terminal.send_uds(pid_code, retries=1)
+    echo = request_echo(pid_code)
+    expected_sid = echo[0] if echo else None
+    expected_echo = echo[1] if echo else None
+    resp = await sm.terminal.send_uds(
+        pid_code, retries=1, expected_sid=expected_sid, expected_echo=expected_echo
+    )
     # Timestamp the moment the response arrived so sequentially-polled PIDs keep
     # their true sub-second acquisition skew.
     acquired_at = time.time()

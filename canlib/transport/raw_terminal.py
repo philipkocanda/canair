@@ -94,6 +94,7 @@ class RawTerminal:
         timeout: float | None = None,
         expected_sid: int | None = None,
         expected_did: int | None = None,
+        expected_echo: bytes | None = None,
         retries: int = 0,
     ) -> dict:
         await enforce_command_safety(service_pid, self.unsafe)
@@ -106,7 +107,12 @@ class RawTerminal:
             resp_bytes = await self._exchange(req, timeout)
             raw = "NO DATA" if resp_bytes is None else resp_bytes.hex().upper()
             log_response(service_pid, raw)
-            resp = parse_uds_response(raw, expected_sid=expected_sid, expected_did=expected_did)
+            resp = parse_uds_response(
+                raw,
+                expected_sid=expected_sid,
+                expected_did=expected_did,
+                expected_echo=expected_echo,
+            )
             # Retry only a non-answer (NO DATA / timeout); an NRC is definitive.
             if resp.get("ok") or resp.get("nrc") is not None or attempt >= retries:
                 return resp
