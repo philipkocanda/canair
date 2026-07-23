@@ -1,6 +1,6 @@
 [project]
 name = "canair"
-version = "0.1.0"
+version = "1.0.0"
 description = "General-purpose CAN/UDS/KWP2000 diagnostic reverse-engineering CLI (WiCAN over-the-air)"
 requires-python = ">=3.12"
 dependencies = [
@@ -58,6 +58,10 @@ select = [
 ]
 ignore = [
     "E501",  # line too long (handled by formatter)
+    # We use en-dashes deliberately in user-facing range displays ("00–FF",
+    # "viewing 1–20") and docstrings; don't force them down to ASCII hyphens.
+    "RUF001", # ambiguous unicode char in string
+    "RUF002", # ambiguous unicode char in docstring
 ]
 
 [tool.ruff.format]

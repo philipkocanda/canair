@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import sys
 
+from canlib import __version__
 from canlib.commands import iter_command_modules
 
 # Global options (before the subcommand) that consume a following value. Used by
@@ -51,7 +52,7 @@ def _inject_default_scan_kind(argv: list[str]) -> list[str]:
     if j < n and (argv[j] in _SCAN_KINDS or argv[j] in ("-h", "--help")):
         return argv
     # Otherwise inject "range" right after "scan".
-    return argv[:j] + ["range"] + argv[j:]
+    return [*argv[:j], "range", *argv[j:]]
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -60,6 +61,12 @@ def build_parser() -> argparse.ArgumentParser:
         prog="canair",
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
+        help="Show the canair version and exit.",
     )
     parser.add_argument(
         "--profile",
@@ -105,7 +112,10 @@ def main(argv: list[str] | None = None) -> int:
     from canlib.profile import ProfileError, set_active
 
     # Resolve the active vehicle profile before dispatching.
-    if getattr(args, "profile", None) is not None or getattr(args, "profiles_dir", None) is not None:
+    if (
+        getattr(args, "profile", None) is not None
+        or getattr(args, "profiles_dir", None) is not None
+    ):
         try:
             set_active(args.profile, args.profiles_dir)
         except ProfileError as e:
