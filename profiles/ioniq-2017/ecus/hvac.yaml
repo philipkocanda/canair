@@ -30,6 +30,7 @@ HVAC:
   # unless a hit is listed. Powertrain 22-DID probes are logged in each ECU's research:.
   pids:
     220100:
+      status: active
       period: 5000
       vehicle_states:
         - acc
@@ -192,6 +193,7 @@ HVAC:
             actual compressor state. Kept for research trail.
 
     220102:
+      status: active
       period: 5000
       vehicle_states: []
       notes: >
@@ -263,6 +265,7 @@ HVAC:
             in-cabin area), hence the neutral name. Was wrongly attributed to "compressor/PTC load".
 
     2201A0:
+      status: active
       period: 5000
       vehicle_states:
         - acc

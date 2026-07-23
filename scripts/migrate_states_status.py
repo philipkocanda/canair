@@ -100,11 +100,18 @@ def _rename_key(m, old: str, new: str) -> bool:
 
 
 def _set_status(pid) -> None:
-    """Collapse legacy ignored/static/enabled booleans into a single status key."""
+    """Give every PID an explicit `status:` (active|draft|static|ignored).
+
+    Collapses the legacy ignored/static/enabled booleans, preserves an existing
+    `status:` on a re-run (so draft/static/ignored aren't clobbered), and always
+    writes the resolved value at the top of the block — idempotent and
+    explicit-everywhere.
+    """
+    existing = str(pid.get("status", "")).strip().lower() or None
     ignored = pid.get("ignored") is True
     static = pid.get("static") is True
     enabled = pid.get("enabled")
-    for k in ("ignored", "static", "enabled"):
+    for k in ("ignored", "static", "enabled", "status"):
         if k in pid:
             del pid[k]
     if ignored:
@@ -113,10 +120,11 @@ def _set_status(pid) -> None:
         status = "static"
     elif enabled is False:
         status = "draft"
+    elif existing in ("active", "draft", "static", "ignored"):
+        status = existing  # already migrated — keep it
     else:
-        status = "active"  # implicit default — no key
-    if status != "active":
-        pid.insert(0, "status", status)
+        status = "active"
+    pid.insert(0, "status", status)
 
 
 def migrate_ecu(data) -> None:

@@ -1085,7 +1085,7 @@ def upsert_parameter(
         if not pidb:
             # New PID block appended to the pids: section.
             param_lines = _format_param_block(param_name, fields, indent=8)
-            block = [f"    {pid_u}:", "      parameters:", *param_lines]
+            block = [f"    {pid_u}:", "      status: active", "      parameters:", *param_lines]
             return _insert_lines(text, pids_body_start, pids_body_end, block)
 
         _, _, pid_body_start, pid_body_end, _ = pidb
@@ -1153,10 +1153,9 @@ def _remove_field_line(block: str, field: str, indent: int) -> str:
 def set_pid_status(ecu_name: str, pid: str, status: str, *, pids_dir: Path | None = None) -> Path:
     """Set a PID's ``status:`` — one of active/draft/static/ignored.
 
-    ``active`` is the implicit default, so it is applied by *removing* any
-    explicit ``status:`` line rather than emitting a redundant one. Any other
-    value is written as the first field under the PID header. The write is
-    verified by a YAML re-parse; on failure the original file is restored.
+    ``status:`` is required and explicit on every PID, so the value is always
+    written (as the first field under the PID header), including ``active``. The
+    write is verified by a YAML re-parse; on failure the original file is restored.
     """
     from canlib.pids import PID_STATUSES
 
@@ -1181,9 +1180,8 @@ def set_pid_status(ecu_name: str, pid: str, status: str, *, pids_dir: Path | Non
         p_hdr, _p_line_end, _p_body_start, p_body_end, _inline = pidb
         block_text = text[p_hdr:p_body_end]
         block_text = _remove_field_line(block_text, "status", indent=6)
-        if status != "active":
-            lines = block_text.splitlines(keepends=True)
-            block_text = lines[0] + f"      status: {status}\n" + "".join(lines[1:])
+        lines = block_text.splitlines(keepends=True)
+        block_text = lines[0] + f"      status: {status}\n" + "".join(lines[1:])
         return text[:p_hdr] + block_text + text[p_body_end:]
 
     def checker(ecu_def: dict) -> None:

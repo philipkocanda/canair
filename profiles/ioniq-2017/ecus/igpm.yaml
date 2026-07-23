@@ -91,6 +91,7 @@ IGPM:
             1=ACC2, 0=all other modes. Verified 2026-07-18.
 
     22BC03:
+      status: active
       period: 2500
       vehicle_states:
         - sleep
@@ -270,6 +271,7 @@ IGPM:
           notes: "1=locked, 0=unlocked. Niro PR used inverted 1-B10:3 but Ioniq raw bit already has correct polarity. Verified 2026-04-15."
 
     22BC04:
+      status: active
       period: 2500
       vehicle_states:
         - sleep
@@ -300,6 +302,7 @@ IGPM:
           notes: "1=locked, 0=unlocked. Verified 2026-04-15."
 
     22BC06:
+      status: active
       period: 2500
       vehicle_states:
         - sleep

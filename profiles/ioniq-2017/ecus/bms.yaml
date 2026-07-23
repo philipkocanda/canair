@@ -20,6 +20,7 @@ BMS:
     - charging
   pids:
     2101:
+      status: active
       period: 2500
       vehicle_states:
         - ready
@@ -396,6 +397,7 @@ BMS:
             b7=Charging active (CHARGING).
 
     2105:
+      status: active
       period: 5000
       vehicle_states:
         - ready

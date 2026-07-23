@@ -44,6 +44,7 @@ MCU:
       parameters: {}
 
     2102:
+      status: active
       period: 5000
       vehicle_states:
         - charging

@@ -35,6 +35,7 @@ BCM:
         TODO: Resume scan from 0xC8D3. Also re-scan 0x95CE-0xC8D2 to capture hits to log.
   pids:
     22C00B:
+      status: active
       period: 15000
       vehicle_states:
         - sleep
@@ -154,6 +155,7 @@ BCM:
       parameters: {}
 
     22B00E:
+      status: active
       period: 5000
       vehicle_states:
         - sleep

@@ -13,6 +13,7 @@ ESC:
     - ready
   pids:
     22C101:
+      status: active
       period: 2500
       vehicle_states: []
       parameters:

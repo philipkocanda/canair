@@ -15,6 +15,7 @@ CLU:
     - ready
   pids:
     22B002:
+      status: active
       period: 10000
       vehicle_states:
         - acc

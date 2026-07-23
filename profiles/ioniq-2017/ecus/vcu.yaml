@@ -34,6 +34,7 @@ VCU:
     - charging
   pids:
     2101:
+      status: active
       period: 2500
       vehicle_states:
         - ready
@@ -242,6 +243,7 @@ VCU:
             VCU/EPCU power-mode enum. B25 = 4 when EV ready/driving, 7 when charging/sleep/off (r=-1.000 vs VEHICLE_STATE_EV_READY and VEHICLE_STATE_POWER_ENABLE across 773 captures; only value seen besides a single transient 6). 4=Ready(HV up, drive-capable), 7=Standby(HV down, charge/off). Complements the B11 state bitfield from an independent byte.
 
     2102:
+      status: active
       period: 5000
       vehicle_states:
         - ready

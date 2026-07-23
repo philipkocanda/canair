@@ -73,6 +73,7 @@ TEST:
     - ready
   pids:
     2101:
+      status: active
       parameters:
         TEST_PARAM:
           expression: B4

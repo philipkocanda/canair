@@ -27,6 +27,7 @@ AAF:
     - charging
   pids:
     2180:
+      status: active
       period: 10000
       vehicle_states:
         - ready

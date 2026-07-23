@@ -151,12 +151,14 @@ SOC_BMS:
   enabled: true            # ship this param to the device (param-level; default true)
 ```
 
-A PID carries a lifecycle **`status:`** (default `active`) — the single field that
-replaced the old `ignored`/`static`/`enabled` booleans:
+Every PID carries a **required, explicit** lifecycle **`status:`** — the single
+field that replaced the old `ignored`/`static`/`enabled` booleans:
 `active` (indexed, swept, queryable, shipped) · `draft` (tracked/queryable but
 not shipped — RE placeholders/speculative) · `static` (unchanging cal/identity;
 skipped in bare-ECU sweeps and not shipped) · `ignored` (dead DID, excluded
-everywhere). Set it with `canair pids set-pid-status ECU PID STATUS`. Power
+everywhere). `validate` errors if a PID omits it; set it with
+`canair pids set-pid-status ECU PID STATUS` (and `canair pids upsert-param`
+seeds `status: active` on a newly-created PID). Power
 states in which a PID/ECU responds, and those a research lead needs, use the
 shared **`vehicle_states:`** list (`sleep, plugged, acc, acc2, ready, charging`;
 a profile's states.yaml may add composites like `parked`/`driving`).

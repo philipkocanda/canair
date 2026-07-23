@@ -15,6 +15,7 @@ EPS:
     - ready
   pids:
     220101:
+      status: active
       period: 2500
       vehicle_states:
         - ready

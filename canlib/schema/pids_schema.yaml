@@ -37,7 +37,7 @@
 #     pids:                # optional — readable PIDs (identity-only modules omit this)
 #       PID_CODE:          # e.g. 22C00B, 2101
 #         period: N        # polling interval in ms (optional, default 5000)
-#         status: STR      # PID lifecycle (optional, default "active"). One of:
+#         status: STR      # REQUIRED — PID lifecycle, explicit on every PID. One of:
 #                          #   active  — real & live: indexed, swept, queryable, shipped
 #                          #             to the WiCAN device profile. (the default)
 #                          #   draft   — discovered/undecoded placeholder or speculative
@@ -190,11 +190,10 @@ sessions_fields:
     - verified
     - notes
 
-required_pid_fields: []
-
-optional_pid_fields:
-  - period
-  - status           # PID lifecycle: active (default) | draft | static | ignored.
+required_pid_fields:
+  - status           # PID lifecycle: active | draft | static | ignored.
+                     #   Required + explicit on every PID (no implicit default in
+                     #   the data). Semantics:
                      #   active  — indexed, swept, queryable, shipped to the device.
                      #   draft   — indexed/swept/queryable but NOT shipped (placeholder
                      #             or speculative work not yet ready for the device).
@@ -203,6 +202,9 @@ optional_pid_fields:
                      #             --include-static) and NOT shipped.
                      #   ignored — dead/useless DID: documented tombstone, excluded
                      #             from ALL tooling (index/query/coverage/profile).
+
+optional_pid_fields:
+  - period
   - vehicle_states   # Power states in which this PID responds. Array of tokens:
                      #   sleep    — deep sleep, 12V standby only (unplugged)
                      #   plugged  — charge cable connected (AC or DC)

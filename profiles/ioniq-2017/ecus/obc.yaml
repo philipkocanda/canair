@@ -47,6 +47,7 @@ OBC:
     - acc2
   pids:
     2101:
+      status: active
       period: 5000
       vehicle_states:
         - ready

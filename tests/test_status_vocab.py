@@ -175,6 +175,23 @@ TEST:
         errors, _w, _s = collect_pids_validation([path])
         assert any("invalid status 'bogus'" in e for e in errors), errors
 
+    def test_missing_status_is_error(self, tmp_path):
+        # status is required on every PID (explicit lifecycle, no implicit default).
+        path = _write(
+            tmp_path,
+            """\
+TEST:
+  tx_id: 0x7E0
+  pids:
+    2101:
+      parameters:
+        A:
+          expression: B0
+""",
+        )
+        errors, _w, _s = collect_pids_validation([path])
+        assert any("missing required PID field 'status'" in e for e in errors), errors
+
     def test_clean_status_and_vehicle_states_pass(self, tmp_path):
         path = _write(
             tmp_path,
@@ -234,9 +251,10 @@ class TestSetPidStatus:
         set_pid_status("TEST", "2101", "static", pids_dir=pids_dir)
         assert self._load(pids_dir)["TEST"]["pids"][2101]["status"] == "static"
 
-    def test_active_removes_key(self, pids_dir):
+    def test_active_writes_key(self, pids_dir):
+        # status is required + explicit, so setting active writes the key.
         set_pid_status("TEST", "2102", "active", pids_dir=pids_dir)
-        assert "status" not in self._load(pids_dir)["TEST"]["pids"][2102]
+        assert self._load(pids_dir)["TEST"]["pids"][2102]["status"] == "active"
 
     def test_rejects_bad_value(self, pids_dir):
         with pytest.raises(PidsEditError):
