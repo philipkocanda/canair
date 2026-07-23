@@ -909,6 +909,7 @@ async def dispatch_mode(args, terminal, pids_data, host):
             notes=args.notes,
             register=getattr(args, "register", False),
             dry_run=getattr(args, "dry_run", False),
+            identify=getattr(args, "identify", False),
         )
     else:
         await mode_interactive(terminal, pids_data, args.verbose)

@@ -19,6 +19,7 @@ async def mode_discover(
     notes: str | None = None,
     register: bool = False,
     dry_run: bool = False,
+    identify: bool = False,
 ):
     """Sweep a range of CAN arbitration IDs to find responding ECUs.
 
@@ -32,6 +33,8 @@ async def mode_discover(
             the WiCAN WebSocket. Default 0.2s.
         register: Register newly-discovered ECUs as files in the profile's ecus/ directory.
         dry_run: With ``register``, preview additions without writing.
+        identify: Run ``canair identity`` on each alive ECU after the sweep
+            (skips the interactive prompt). When unset, offer interactively.
     """
     start, end = addr_range
     total = end - start + 1
@@ -94,10 +97,14 @@ async def mode_discover(
     print(f"  Errors: {len(errors)}")
 
     if alive:
+        known, new = _classify_alive(alive)
+        names = {tx: name for tx, _, _, name in known}
         print("\n  Responding addresses:")
         for tx_id, status, detail in alive:
             rx_id = tx_id + 8
-            print(f"    0x{tx_id:03X} (RX 0x{rx_id:03X}) — {status}: {detail}")
+            tag = names.get(tx_id) or "NEW"
+            print(f"    0x{tx_id:03X} (RX 0x{rx_id:03X}) [{tag}] — {status}: {detail}")
+        print(f"\n  Cross-reference: {len(known)} known, {len(new)} new (not in ECU registry).")
 
     if errors:
         print("\n  Errors:")
@@ -105,10 +112,18 @@ async def mode_discover(
             print(f"    0x{tx_id:03X}: {err}")
 
     if as_json:
+        names = {tx: name for tx, _, _, name in _classify_alive(alive)[0]}
         out = {
             "range": f"0x{start:03X}-0x{end:03X}",
             "alive": [
-                {"tx": f"0x{t:03X}", "rx": f"0x{t + 8:03X}", "status": s, "detail": d}
+                {
+                    "tx": f"0x{t:03X}",
+                    "rx": f"0x{t + 8:03X}",
+                    "status": s,
+                    "detail": d,
+                    "name": names.get(t),
+                    "known": t in names,
+                }
                 for t, s, d in alive
             ],
             "errors": [{"tx": f"0x{t:03X}", "error": e} for t, e in errors],
@@ -153,7 +168,70 @@ async def mode_discover(
     if register:
         _register_discovered(alive, dry_run=dry_run)
 
+    # Offer to identify the discovered ECUs (the natural next RE step).
+    await _offer_identify(terminal, alive, identify, as_json)
+
     print()
+
+
+def _classify_alive(
+    alive: list[tuple[int, str, str]],
+) -> tuple[list[tuple[int, str, str, str]], list[tuple[int, str, str, None]]]:
+    """Split alive probes into (known, new) against the profile's ECU registry.
+
+    ``known`` items carry the registered ECU name; ``new`` items are addresses
+    with no ``ecus/`` entry yet. TX ids are matched against the registry, which
+    is keyed by TX-id int.
+    """
+    from ..ecus import load_ecus
+
+    ecus = load_ecus()
+    known: list[tuple[int, str, str, str]] = []
+    new: list[tuple[int, str, str, None]] = []
+    for tx, status, detail in alive:
+        entry = ecus.get(tx)
+        if entry:
+            known.append((tx, status, detail, entry["name"]))
+        else:
+            new.append((tx, status, detail, None))
+    return known, new
+
+
+async def _offer_identify(
+    terminal: WiCANTerminal,
+    alive: list[tuple[int, str, str]],
+    identify: bool,
+    as_json: bool,
+) -> None:
+    """Offer to run ``canair identity`` on each alive ECU as the next RE step.
+
+    Runs unconditionally when ``identify`` is set (the ``--identify`` flag);
+    otherwise prompts interactively on a TTY. Skipped for ``--json`` output and
+    non-interactive stdin so scripted/piped runs stay non-blocking.
+    """
+    if not alive or as_json:
+        return
+
+    run = identify
+    if not run:
+        if not sys.stdin.isatty():
+            return
+        print(
+            f"\n  Identify {len(alive)} discovered ECU(s) now "
+            "(read identity DIDs via UDS/KWP2000)? [y/N] ",
+            end="",
+            flush=True,
+        )
+        answer = sys.stdin.readline().strip().lower()
+        run = answer in ("y", "yes")
+    if not run:
+        return
+
+    # Local import avoids a module-load cycle (identity imports from ecus/decode).
+    from .identity import mode_identity
+
+    for tx_id, _status, _detail in alive:
+        await mode_identity(terminal, tx_id, session=False, wake=False, as_json=False)
 
 
 def _register_discovered(alive: list[tuple[int, str, str]], dry_run: bool = False) -> None:
@@ -199,4 +277,4 @@ def _register_discovered(alive: list[tuple[int, str, str]], dry_run: bool = Fals
         except EcusEditError as e:
             print(f"    ! 0x{tx:03X}: {e}")
     print(f"  Registered {added} new ECU(s); {len(alive) - len(new)} already known.")
-    print("  Next: name them, then run `canair identity --write` to fill in metadata.")
+    print("  Next: name them, then run `canair identity <ecu>` to fill in metadata.")

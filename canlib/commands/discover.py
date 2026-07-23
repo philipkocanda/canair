@@ -22,6 +22,7 @@ examples:
   canair discover --delay 0.5         Slower pacing
   canair discover --register          Auto-add newly-found ECUs to ecus/
   canair discover --register --dry-run  Preview what would be registered
+  canair discover --identify          Read identity DIDs from each ECU found
 """,
     )
     parser.add_argument(
@@ -37,6 +38,11 @@ examples:
     parser.add_argument(
         "--dry-run", action="store_true",
         help="With --register: show what would be added without writing",
+    )
+    parser.add_argument(
+        "--identify", action="store_true",
+        help="Run `canair identity` on each alive ECU after the sweep "
+             "(otherwise offer interactively)",
     )
     parser.add_argument("--save", action="store_true", help="Save results to captures/")
     parser.add_argument("--label", metavar="TEXT", default=None, help="Session label for --save")
