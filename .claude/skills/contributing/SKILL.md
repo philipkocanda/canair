@@ -13,6 +13,22 @@ vehicle/PID work load the **ioniq-reverse-engineering** and
 Always run and test the tree with `uv run …` from the repo root (never a
 globally-installed `canair`). See `AGENTS.md` for why.
 
+## First principle — describe intent, not code that will drift
+
+**Avoid baking concrete code into this skill (or any doc).** Snippets,
+signatures, line numbers, and verbatim names go stale silently; an agent that
+trusts them builds on a false premise.
+
+- **Describe intent and *where* to look, don't paste code.** Point at the file
+  to read now ("follow `commands/dtc.py` + `modes/dtc.py`"; "the guard is in
+  `canlib/safety.py`") — paths are cheap to re-verify, snippets rot invisibly.
+- **Never mirror signatures, method lists, arg names, or blocklist contents**
+  here; they belong in the source.
+- **Treat any specific as a pointer to verify, not a fact.** Confirm against the
+  tree; if this skill has drifted, fix it (Boy Scout rule).
+- Applies to this skill itself: keep it intent-level, not a snapshot of today's
+  code.
+
 ## Non-negotiables
 
 0. **canair is a CLI built for both human *and* agentic use.** Every capability
@@ -34,6 +50,11 @@ globally-installed `canair`). See `AGENTS.md` for why.
 4. **Tests pass and cover the change.** Run `uv run pytest -q`; add tests for
    new behavior. `uv run canair validate all` must stay green after data-schema
    touching changes.
+5. **Two data domains, one tool: don't hardwire to WiCAN or to diagnostics.**
+   canair analyzes both **diagnostic responses** (request/response UDS/KWP2000)
+   *and* **raw CAN frame captures** (passive broadcast traffic). Treat raw
+   frames as first-class, and the WiCAN as a *replaceable transport* — not a
+   baked-in assumption. See "Two data domains" and "Keep the WiCAN replaceable".
 
 ## Transports — the most important architectural rule
 
@@ -70,6 +91,72 @@ ELM path (`async_main`) and the raw path (`modes/raw_ops.py::run_raw`) call.
   (`canlib/transport/raw_terminal.py`) with matching signatures, and keep the
   returned dict shape identical (both funnel through
   `elm327.parse_elm_response`).
+
+## Two data domains — diagnostics *and* raw CAN frames
+
+canair grew up request/response (UDS/KWP2000), but the bus is also full of
+**passive broadcast traffic** no diagnostic request elicits. Both are
+first-class, parallel domains — not one bolted onto the other.
+
+| Domain | What it is | Today's surface | Maturity |
+|--------|-----------|-----------------|----------|
+| **Diagnostics** | request/response UDS/KWP2000 over ISO-TP | `query`/`scan`/`dtc`/`identity`/…, captures decoded via `ecus/*` PID params | mature |
+| **Raw frames** | passively-sniffed broadcast frames | `canair sniff` → live table + python-can `.asc`/`.blf`/`.csv` log | **under-developed** — logs externally, not into the profile |
+
+`SlcanTcpBus` (`transport/slcan_tcp.py`) is already a clean, vehicle-neutral
+`can.BusABC` — the seam to build the raw-frame domain on.
+
+**Extending raw-frame support, keep the two domains symmetric — don't fork a
+parallel half-baked stack:**
+
+- **Capture parity.** Frame captures use the *same code path* as diagnostic
+  captures — recorded into the profile via the shared capture/journal machinery
+  (scoped, schema-validated, journaled) and queryable/diff-able/time-alignable
+  through the same loaders, not a second bespoke path. (The user-facing
+  record/label *workflow* is RE — see the reverse-engineering skills.)
+- **Analysis parity.** A broadcast signal (arbitration-ID + bit/byte field)
+  flows into the existing `decode`/`correlate`/`hunt`/`align`/`xanalysis`
+  tools, not a bespoke analyzer.
+- **Definition parity.** A broadcast signal map (arbitration ID → named signals,
+  DBC-like) is the frame-domain analogue of a PID's parameters — model it in the
+  profile with the same edit-via-tool/schema-validated discipline, never
+  hand-edited YAML.
+- **Shared primitives, separate concerns.** Frame parsing/signal extraction is
+  its own module (mirror `uds_parse.py`), not grown inside a UDS file. Shared
+  logic (byte/bit extraction, expression eval, correlation) goes in a neutral
+  helper both call.
+
+If diagnostics assumptions leak into shared code (e.g. a capture loader
+assuming an ISO-TP `payload` + `pid`), generalize the shared layer rather than
+special-casing frames.
+
+## Keep the WiCAN replaceable
+
+The WiCAN is **one device we reach the bus through**, not the tool's definition.
+The transport abstraction already reflects this (`slcan-tcp` is plain
+SLCAN-over-TCP against any WiCAN or gateway; `SlcanTcpBus` is a generic
+`can.BusABC`). Preserve and deepen it:
+
+- **Bus access goes through the transport layer** (`transport/`), never a
+  WiCAN assumption baked into a command or mode. A future `socketcan`,
+  serial-SLCAN, `.asc`/`.blf` *replay*, or other-gateway transport should slot
+  in by implementing the transport surface — commands must not need edits.
+- **Isolate WiCAN-specifics.** Device-management (mode switch, datarate/port
+  discovery, reboot, AutoPID, AP-mode default IP) lives in the `wican_*` modules
+  and `commands/wican.py`, not spread into generic commands. `sniff.py` today
+  reaches into the WiCAN modules for port/bitrate/mode; when you touch it, route
+  that through the transport/config layer so a non-WiCAN backend needs no WiCAN
+  calls.
+- **`wican-ws` is WiCAN-coupled by nature** (device-side ELM327); fine, because
+  it lives *behind* the transport surface. Keep the coupling there — don't let
+  it leak upward.
+- **Naming:** generic bus/frame/analysis code is named for what it does
+  (`slcan`, `can`, `frame`, `bus`); reserve `wican_*` for device-specific code.
+
+Litmus test for a bus-touching feature: *would it still make sense from a
+SocketCAN interface or a replayed `.asc` instead of a WiCAN?* If it works "only
+with edits to the command," push the device-specific part into the transport
+layer.
 
 ## Adding a CLI subcommand
 
@@ -112,8 +199,11 @@ Follow an existing command as a template: `commands/routines.py` +
 
 - `profiles/*/ecus/` is the source of truth — edit via `canair pids` (validated,
   comment-preserving), not by hand.
-- `profiles/*/captures/*.yaml` are **never** hand-written; record with
-  `canair … --save`. Edit/remove via `canlib.captures` helpers.
+- `profiles/*/captures/*.yaml` are **never** hand-written; they are recorded by
+  the tool (the `--save` path) and edited/removed via `canlib.captures` helpers
+  — the recording/labelling *workflow* is covered by the RE skills. Raw-frame
+  captures (see "Two data domains") must go through the same shared
+  capture/journal machinery, not an external-only file.
 - `profiles/*/out/*.json` is generated by `canair wican autopid write` — never hand-edit;
   regenerate.
 - Schemas are tool-owned in `canlib/schema/`. Validate with `canair validate`.
