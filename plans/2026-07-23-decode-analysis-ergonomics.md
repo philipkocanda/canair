@@ -304,8 +304,26 @@ over existing captures** — no device, no transport, no schema-of-record change
 
 ## Status
 
-- [ ] Tranche 1 — discriminate `--bytes` (1.1); transform-aware hunt/correlate
+- [x] Tranche 1 — discriminate `--bytes` (1.1); transform-aware hunt/correlate
       (1.2); `--promote` on correlate/discriminate (1.3).
+      - 1.1: `decode --discriminate state --bytes` ranks every varying, non-PCI
+        raw byte (`min_distinct=2`, so near-binary relay bytes survive) alongside
+        params (`_byte_state_buckets` in `decode.py`). Verified: AAF 2180 B28/B29
+        (the thermal mirror the byte-series bug hid) now top the ranking (F=6646)
+        with no `--try`.
+      - 1.2: `--transform {raw,delta,abs,cumsum,normalize,smooth}` on `hunt` and
+        `correlate --against`, applied to the reference via `xanalysis.transform_ref`
+        (sorts by time first). Verified: `hunt MCU 2102 --against
+        MCU:2102:MCU_MOTOR_RPM --transform delta` *discovers* the torque byte
+        `[S12:S13]` (r=0.60) from the raw sweep vs angular acceleration.
+      - 1.3: `correlate --against --promote NAME` promotes the top *raw-byte* hit
+        via the shared `commands/_promote.py::write_candidate` (guarded, schema-
+        validated, auto-reverted); `hunt._promote` refactored onto the same helper.
+        Discriminate-promote deferred (its hit has only an F-score, no expression —
+        lower value; `--bytes` output already lists the byte to `--try`).
+      - Tests: `test_xanalysis.py` (TransformRef, CorrelatePromote, parser flags),
+        `test_decode_try.py` (discriminate `--bytes` surfaces/skip-PCI). Full suite
+        (1721) + ruff + `validate all` green.
 - [ ] Tranche 2 — spearman `--method` (2.1); lag-scan (2.2); gated/`--where`
       correlation (2.3); bit-level correlation & discrimination (2.4).
 - [ ] Tranche 3 — co-poll overlap matrix (3.1); `investigate` verb (3.2); output

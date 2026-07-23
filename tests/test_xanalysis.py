@@ -72,6 +72,23 @@ class TestSniffUnit:
         assert xanalysis.sniff_unit([1], [1]) is None
 
 
+class TestTransformRef:
+    """T1.2 — transform the reference series (level vs rate) for hunt/correlate."""
+
+    def test_raw_and_none_passthrough(self):
+        ref = [_tp(0, 1.0), _tp(1, 2.0)]
+        assert xanalysis.transform_ref(ref, "raw") is ref
+        assert xanalysis.transform_ref(ref, None) is ref
+        assert xanalysis.transform_ref([], "delta") == []
+
+    def test_delta_sorts_by_time_then_differences(self):
+        # deliberately out of time order; delta must sort first
+        ref = [_tp(2, 4.0), _tp(0, 0.0), _tp(1, 1.0)]
+        out = xanalysis.transform_ref(ref, "delta")
+        assert [tp.value for tp in out] == [0.0, 1.0, 3.0]  # delta of [0,1,4]
+        assert [tp.dt for tp in out] == sorted(tp.dt for tp in ref)
+
+
 # ---------------------------------------------------------------------------
 # build_byte_series
 # ---------------------------------------------------------------------------
@@ -208,6 +225,25 @@ class TestCommandParsers:
         assert hunt.NAME == "hunt"
         assert hasattr(hunt, "run") and hasattr(hunt, "add_parser")
 
+    def test_hunt_has_transform_flag(self):
+        import argparse
+
+        from canlib.commands import hunt
+
+        p = hunt.add_parser(argparse.ArgumentParser().add_subparsers())
+        args = p.parse_args(["MCU", "2102", "--against", "X:Y:Z", "--transform", "delta"])
+        assert args.transform == "delta"
+        assert p.parse_args(["MCU", "2102", "--against", "X:Y:Z"]).transform == "raw"
+
+    def test_correlate_has_transform_flag(self):
+        import argparse
+
+        from canlib.commands import correlate
+
+        p = correlate.add_parser(argparse.ArgumentParser().add_subparsers())
+        args = p.parse_args(["--against", "X:Y:Z", "--transform", "abs"])
+        assert args.transform == "abs"
+
 
 class TestHuntPromote:
     """Tranche 2.5 — promoting a hunt hit to a candidate param."""
@@ -297,3 +333,56 @@ class TestHuntPromote:
         assert p["enabled"] is True
         assert p["verified"] is False
         assert "r=+0.997" in p["notes"]
+
+
+class TestCorrelatePromote:
+    """T1.3 — promote the top raw-byte hit from correlate --against."""
+
+    def _rows_and_series(self):
+        # ranked rows: a defined param first, then a raw byte hit
+        ramp = [_tp(i, i) for i in range(20)]
+        series = {"MCU:2102:MCU_MOTOR_RPM": ramp, "AAF:2181:B12": [_tp(i, i) for i in range(20)]}
+        rows = [("MCU:2102:MCU_MOTOR_RPM", 0.99, 20), ("AAF:2181:B12", 0.95, 20)]
+        return rows, series, ramp
+
+    def test_promote_picks_first_raw_byte(self, tmp_path, monkeypatch):
+        import textwrap
+
+        import canlib.pids_edit as pe
+        from canlib.commands import correlate, pids
+
+        (tmp_path / "aaf.yaml").write_text(
+            textwrap.dedent(
+                """\
+                AAF:
+                  tx_id: 0x7EA
+                  pids:
+                    2181:
+                      status: active
+                      parameters: {}
+                """
+            )
+        )
+        f = tmp_path / "aaf.yaml"
+        monkeypatch.setattr(pids, "find_ecu_file", lambda ecu, pids_dir=None: f)
+        monkeypatch.setattr(pe, "_resolve_pids_dir", lambda d: tmp_path)
+
+        rows, series, ref = self._rows_and_series()
+        rc = correlate._promote_top_byte("AAF_CAND", rows, series, ref, "MCU:2102:MCU_MOTOR_RPM", 1.0)
+        assert rc == 0
+        doc = yaml.safe_load(f.read_text())
+        pid_block = doc["AAF"]["pids"].get(2181) or doc["AAF"]["pids"].get("2181")
+        p = pid_block["parameters"]["AAF_CAND"]
+        assert p["expression"] == "B12"  # the raw byte, not the param
+        assert p["enabled"] is True and p["verified"] is False
+        assert "r=+0.950" in p["notes"]
+
+    def test_promote_refuses_when_no_byte_hit(self, capsys):
+        from canlib.commands import correlate
+
+        # only a defined-param hit — nothing raw to promote
+        rows = [("MCU:2102:MCU_MOTOR_RPM", 0.99, 20)]
+        series = {"MCU:2102:MCU_MOTOR_RPM": [_tp(i, i) for i in range(20)]}
+        rc = correlate._promote_top_byte("X", rows, series, [], "REF", 1.0)
+        assert rc == 1
+        assert "no raw-byte hit" in capsys.readouterr().err

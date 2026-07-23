@@ -18,7 +18,7 @@ import sys
 
 from canlib.align import DEFAULT_JOIN_TOL_S, load_signal_captures
 from canlib.capture_dates import add_scope_args, resolve_date_bounds
-from canlib.xanalysis import hunt_byte, load_ref
+from canlib.xanalysis import hunt_byte, load_ref, transform_ref
 
 NAME = "hunt"
 
@@ -52,6 +52,14 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "--min-n", type=int, default=10, metavar="N", help="Min aligned points (default 10)"
     )
     parser.add_argument("--top", type=int, default=12, metavar="N", help="Max hits (default 12)")
+    parser.add_argument(
+        "--transform",
+        choices=["raw", "delta", "abs", "cumsum", "normalize", "smooth"],
+        default="raw",
+        metavar="MODE",
+        help="Transform the reference before aligning (e.g. delta to hunt the "
+        "byte that tracks the reference's *rate* — torque vs acceleration)",
+    )
     parser.add_argument(
         "--join-tol",
         type=float,
@@ -90,6 +98,10 @@ def run(args) -> int:
     except ValueError as e:
         print(f"--against error: {e}", file=sys.stderr)
         return 1
+
+    if args.transform and args.transform != "raw":
+        ref_series = transform_ref(ref_series, args.transform)
+        ref_label = f"{args.transform}({ref_label})"
 
     loaded = load_signal_captures(
         [(ecu, pid)], since=since, until=until, state=args.state, label=args.label
@@ -159,13 +171,12 @@ def run(args) -> int:
 def _promote(name: str, ecu: str, pid: str, hits, ref_label: str) -> int:
     """Write the top hit as an enabled, unverified candidate param.
 
-    Routes through the same snapshot → edit → schema-validate → auto-revert gate
-    as ``canair pids upsert-param`` (via ``pids._guarded``), so a promoted
-    expression that fails schema validation (e.g. a PCI-crossing multibyte read)
-    is rejected and rolled back rather than committed.
+    Routes through the shared guarded write (``_promote.write_candidate``) — the
+    same snapshot → edit → schema-validate → auto-revert gate as ``canair pids
+    upsert-param`` — so a PCI-crossing expression is rejected and rolled back.
     """
-    from canlib.commands.pids import _guarded
-    from canlib.pids_edit import PidsEditError, upsert_parameter
+    from canlib.commands._promote import print_promoted, write_candidate
+    from canlib.pids_edit import PidsEditError
 
     if not hits:
         print("Nothing to promote — no correlating byte found.", file=sys.stderr)
@@ -185,27 +196,12 @@ def _promote(name: str, ecu: str, pid: str, hits, ref_label: str) -> int:
         "Enabled unverified — confirm scale/sign against reality."
     )
 
-    def do():
-        upsert_parameter(
-            ecu,
-            pid,
-            name,
-            top.expr,
-            source=f"canair hunt vs {ref_label}",
-            notes=notes,
-            verified=False,
-            enabled=True,
-        )
-
     try:
-        fpath = _guarded(ecu, None, do, validate=True)
+        fpath = write_candidate(
+            ecu, pid, name, top.expr, source=f"canair hunt vs {ref_label}", notes=notes
+        )
     except (PidsEditError, SystemExit) as e:
         print(f"promote failed: {e}", file=sys.stderr)
         return 1
-    print(
-        f"{_GREEN}✓ promoted{_RESET} {ecu} {pid} {name} = {_BOLD}{top.expr}{_RESET} "
-        f"{_DIM}(r={top.r:+.3f}, {fpath.name}){_RESET}"
-    )
-    print(f"  {_DIM}Review + verify, then: canair pids upsert-param {ecu} {pid} {name} "
-          f'"{top.expr}" --verified{_RESET}')
+    print_promoted(ecu, pid, name, top.expr, top.r, fpath)
     return 0

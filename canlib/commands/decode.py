@@ -674,18 +674,67 @@ def _discriminability(groups: dict[str, list[float]]) -> float | None:
     return msb / msw
 
 
+def _byte_state_buckets(
+    all_results: list[dict], field: str, *, min_distinct: int = 2
+) -> dict[str, dict[str, list[float]]]:
+    """Bucket each varying, non-PCI raw byte value by session ``field``.
+
+    The raw-byte analogue of the param buckets in :func:`print_discriminate`.
+    Uses a low ``min_distinct`` (2) on purpose: the highest-value discrimination
+    targets are near-binary relay/mode bytes (e.g. 0x00/0x34) that the default
+    correlation floor (4) would drop. Reads every capture (incl. untimed —
+    discrimination buckets by state, not time) and skips PCI framing bytes via
+    the canonical :func:`byteindex.wican_to_isotp` detector.
+    """
+    from canlib.byteindex import payload_to_wican_bytes, wican_to_isotp
+
+    frames: list[tuple[bytes, str]] = []
+    max_len = 0
+    for r in all_results:
+        cap = r["capture"]
+        try:
+            fr = payload_to_wican_bytes(cap["payload"])
+        except Exception:
+            continue
+        state = _join_states(cap.get("vehicle_states")) or "(no state)"
+        frames.append((fr, state))
+        max_len = max(max_len, len(fr))
+
+    buckets: dict[str, dict[str, list[float]]] = {}
+    for off in range(max_len):
+        if wican_to_isotp(off) is None:
+            continue  # PCI framing byte, not data
+        per_state: dict[str, list[float]] = {}
+        distinct: set[float] = set()
+        for fr, state in frames:
+            if off < len(fr):
+                v = float(fr[off])
+                per_state.setdefault(state, []).append(v)
+                distinct.add(v)
+        if len(distinct) >= min_distinct:
+            buckets[f"B{off}"] = per_state
+    return buckets
+
+
 def print_discriminate(
     all_results: list[dict],
     param_names: list[str],
     parameters: dict,
     candidate_names: set[str],
     field: str,
+    *,
+    include_bytes: bool = False,
 ) -> None:
-    """Rank params by how cleanly they separate across session ``field`` groups.
+    """Rank params (and optionally raw bytes) by how cleanly they separate across
+    session ``field`` groups.
 
     The confirmation lever for state-dependent signals (thermal/mode/relay) that
     a driving-anchor correlation misses — e.g. MCU inverter temp reads distinctly
     across charging/ready/driving. Uses an F-like between/within variance ratio.
+
+    With ``include_bytes`` (``--bytes``), every varying non-PCI raw byte is ranked
+    alongside the params — finding a state-dependent byte without first defining a
+    ``--try`` candidate for it.
     """
     buckets: dict[str, dict[str, list[float]]] = {name: {} for name in param_names}
     for r in all_results:
@@ -695,18 +744,28 @@ def print_discriminate(
             if v is not None:
                 buckets[name].setdefault(key, []).append(v)
 
+    byte_names: set[str] = set()
+    if include_bytes:
+        byte_buckets = _byte_state_buckets(all_results, field)
+        byte_names = set(byte_buckets)
+        buckets.update(byte_buckets)
+
     rows = []
-    for name in param_names:
+    for name in list(buckets):
         score = _discriminability(buckets[name])
         rows.append((name, score, buckets[name]))
     rows.sort(key=lambda t: (t[1] is None, -(t[1] if t[1] is not None else 0)))
 
+    hdr_extra = " (params + bytes)" if include_bytes else ""
     print(
-        f"  {_BOLD}Discriminability by {field}{_RESET} "
+        f"  {_BOLD}Discriminability by {field}{hdr_extra}{_RESET} "
         f"{_DIM}(between/within variance F; higher = cleaner separation){_RESET}"
     )
     for name, score, groups in rows:
-        mark = _mark_for(name, parameters, candidate_names)
+        if name in byte_names:
+            mark = f"{_DIM}·{_RESET}"
+        else:
+            mark = _mark_for(name, parameters, candidate_names)
         try_tag = f" {_CYAN}(try){_RESET}" if name in candidate_names else ""
         if score is None:
             print(f"    {mark} {name}{try_tag}  {_DIM}F=n/a{_RESET}")
@@ -938,6 +997,12 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "--bits",
         action="store_true",
         help="With --find-mirrors: also compare individual bits (Bn:k)",
+    )
+    parser.add_argument(
+        "--bytes",
+        action="store_true",
+        help="With --discriminate: also rank every varying raw byte (Bn), not "
+        "just defined params — finds state-dependent bytes without a --try",
     )
     parser.add_argument(
         "--first", type=int, metavar="N", help="Only the first N matching captures (chronological)"
@@ -1299,7 +1364,8 @@ def run(args) -> int:
         printed = True
     if args.discriminate:
         print_discriminate(
-            all_results, param_names, parameters, candidate_names, args.discriminate
+            all_results, param_names, parameters, candidate_names, args.discriminate,
+            include_bytes=args.bytes,
         )
         printed = True
     if corr_ref:

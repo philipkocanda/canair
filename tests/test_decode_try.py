@@ -242,6 +242,43 @@ class TestDiscriminate:
         assert "Discriminability by state" in out
         assert "charging=20" in out and "driving=91" in out
 
+    def test_discriminate_bytes_surfaces_state_byte(self, capsys):
+        # T1.1: a raw byte that is state-dependent (and near-binary: 2 distinct
+        # values) should be ranked WITHOUT any --try. Payload 62 B0 04 <d0> <d1>
+        # -> WiCAN B4=d0, B5=d1 (B0=PCI). B4 splits cleanly by state; B5 is noise.
+        def cap(state, d0, d1):
+            return {
+                "capture": {"vehicle_states": [state], "payload": f"62B004{d0:02X}{d1:02X}"},
+                "decoded": {},
+            }
+
+        results = [
+            cap("ready", 0x34, 0x10),
+            cap("ready", 0x34, 0x99),
+            cap("charging", 0x00, 0x12),
+            cap("charging", 0x00, 0x77),
+        ]
+        decode_script.print_discriminate(results, [], {}, set(), "state", include_bytes=True)
+        out = capsys.readouterr().out
+        assert "params + bytes" in out
+        assert "B4" in out  # the near-binary state byte is surfaced
+        # B4 (clean split) must rank above B5 (noise): appears earlier in output
+        assert out.index("B4") < out.index("B5")
+
+    def test_discriminate_bytes_skips_pci(self, capsys):
+        # B0/B1 are PCI on a multi-frame frame; must never be ranked.
+        def cap(state, tail):
+            # 16-byte raw payload (multi-frame); vary a data byte + rely on PCI skip
+            return {
+                "capture": {"vehicle_states": [state], "payload": "6181" + "00" * 13 + f"{tail:02X}"},
+                "decoded": {},
+            }
+
+        results = [cap("ready", 1), cap("ready", 2), cap("charging", 200), cap("charging", 201)]
+        decode_script.print_discriminate(results, [], {}, set(), "state", include_bytes=True)
+        out = capsys.readouterr().out
+        assert " B0 " not in out and " B1 " not in out
+
 
 class TestCorrTransform:
     """Tranche 2.2 — transform-aware correlation (level vs rate)."""

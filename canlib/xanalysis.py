@@ -32,6 +32,7 @@ __all__ = [
     "linear_fit",
     "pearson",
     "sniff_unit",
+    "transform_ref",
 ]
 
 
@@ -122,6 +123,23 @@ def sniff_unit(xs: list[float], ys: list[float]) -> str | None:
 # ---------------------------------------------------------------------------
 # Series construction
 # ---------------------------------------------------------------------------
+def transform_ref(ref: list[TimePoint], mode: str | None) -> list[TimePoint]:
+    """Apply a post-transform (``delta``/``abs``/``cumsum``/…) to a reference
+    series, preserving timestamps.
+
+    Order-sensitive transforms (``delta``/``cumsum``) require time order, so the
+    series is sorted by timestamp first. Lets ``hunt``/``correlate --against``
+    test "is this byte the signal or its *rate*?" — e.g. torque vs acceleration.
+    """
+    if not mode or mode == "raw" or not ref:
+        return ref
+    from .commands._decode_plot import apply_transform
+
+    ordered = sorted(ref, key=lambda tp: tp.dt)
+    vals = apply_transform([tp.value for tp in ordered], mode)
+    return [TimePoint(tp.dt, v) for tp, v in zip(ordered, vals, strict=True)]
+
+
 def build_param_series(
     loaded: LoadedPid, parameters: dict
 ) -> dict[str, list[TimePoint]]:

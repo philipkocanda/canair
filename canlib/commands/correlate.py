@@ -23,6 +23,7 @@ from canlib.xanalysis import (
     correlate_matrix,
     load_ref,
     pearson,
+    transform_ref,
 )
 
 NAME = "correlate"
@@ -57,6 +58,14 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "(e.g. ESC:22C101:REAL_SPEED_KMH) instead of the full matrix",
     )
     parser.add_argument(
+        "--transform",
+        choices=["raw", "delta", "abs", "cumsum", "normalize", "smooth"],
+        default="raw",
+        metavar="MODE",
+        help="With --against: transform the reference before aligning (e.g. "
+        "delta to rank signals against the reference's *rate*)",
+    )
+    parser.add_argument(
         "--matrix",
         action="store_true",
         help="Print a labelled r-matrix instead of a ranked pair list",
@@ -81,6 +90,13 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         help=f"Nearest-timestamp join window (default {DEFAULT_JOIN_TOL_S}s)",
     )
     parser.add_argument("--bytes", action="store_true", help="Include raw varying bytes (Bn)")
+    parser.add_argument(
+        "--promote",
+        metavar="NAME",
+        help="With --against: write the top raw-byte hit to ecus/ as an enabled, "
+        "unverified candidate param NAME (via pids upsert-param), with the "
+        "correlation evidence auto-filled into notes",
+    )
     parser.add_argument("--json", action="store_true", help="Machine-readable output")
     add_scope_args(parser)
     parser.set_defaults(func=run)
@@ -167,6 +183,9 @@ def run(args) -> int:
         except ValueError as e:
             print(f"--against error: {e}", file=sys.stderr)
             return 1
+        if args.transform and args.transform != "raw":
+            ref_series = transform_ref(ref_series, args.transform)
+            ref_label = f"{args.transform}({ref_label})"
         rows = []
         for name, s in series.items():
             xs, ys, n = join_nearest(ref_series, s, tol_s=args.join_tol)
@@ -177,6 +196,10 @@ def run(args) -> int:
                 continue
             rows.append((name, r, n))
         rows.sort(key=lambda t: -abs(t[1]))
+        if args.promote:
+            return _promote_top_byte(
+                args.promote, rows, series, ref_series, ref_label, args.join_tol
+            )
         rows = rows[: args.top]
         if args.json:
             _json.dump(
@@ -227,4 +250,52 @@ def run(args) -> int:
     for h in hits:
         print(f"    {_color_r(h.r)}  {h.a}  {_DIM}⟷{_RESET}  {h.b}  {_DIM}n={h.n}{_RESET}")
     print()
+    return 0
+
+
+def _promote_top_byte(name, rows, series, ref_series, ref_label, tol) -> int:
+    """Promote the strongest raw-byte hit vs the reference to a candidate param.
+
+    Only raw bytes (``Bn``) are promotable — an already-defined param needs no
+    promotion. Routes through the shared guarded write, with a fresh linear fit
+    and unit guess added to the evidence notes.
+    """
+    import re
+
+    from canlib.commands._promote import print_promoted, write_candidate
+    from canlib.pids_edit import PidsEditError
+    from canlib.xanalysis import linear_fit, sniff_unit
+
+    byte_hit = None
+    for sig, r, n in rows:
+        parts = sig.split(":")
+        if len(parts) == 3 and re.fullmatch(r"B\d+", parts[2]):
+            byte_hit = (sig, parts[0], parts[1], parts[2], r, n)
+            break
+    if byte_hit is None:
+        print(
+            "Nothing to promote — no raw-byte hit in the ranked list. "
+            "Re-run with --bytes so undecoded bytes are considered.",
+            file=sys.stderr,
+        )
+        return 1
+
+    sig, ecu, pid, expr, r, n = byte_hit
+    xs, ys, _ = join_nearest(ref_series, series[sig], tol_s=tol)
+    fit = linear_fit(xs, ys)
+    fit_note = f", fit y={fit[0]:.4f}·x{fit[1]:+.2f}, resid={fit[2]:.2f}" if fit else ""
+    unit = sniff_unit(xs, ys)
+    unit_note = f" {unit}" if unit else ""
+    notes = (
+        f"Candidate from `canair correlate --against {ref_label}`: r={r:+.3f} (n={n})"
+        f"{fit_note}.{unit_note} Enabled unverified — confirm scale/sign against reality."
+    )
+    try:
+        fpath = write_candidate(
+            ecu, pid, name, expr, source=f"canair correlate vs {ref_label}", notes=notes
+        )
+    except (PidsEditError, SystemExit) as e:
+        print(f"promote failed: {e}", file=sys.stderr)
+        return 1
+    print_promoted(ecu, pid, name, expr, r, fpath)
     return 0
