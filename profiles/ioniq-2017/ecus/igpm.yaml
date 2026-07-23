@@ -348,7 +348,7 @@ IGPM:
   # ─── IOControl (service 2F) ──────────────────────────────────────────
   # All require extended session (10 03). Actuators release on session drop.
   # Wake with --wake flag if car is in deep sleep.
-  # Usage: python3 canreq.py --raw 770:<on_command> --hold [--wake]
+  # Usage: canair io IGPM --did <DID>
   iocontrol:
     BC01:
       availability: [sleep, plugged, acc, acc2, ready, charging]

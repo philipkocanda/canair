@@ -21,7 +21,7 @@ VESS:
   pids: {}
 
   # ─── IOControl (service 2F) ──────────────────────────────────────────
-  # Usage: python3 canreq.py --raw 736:<on_command> --hold
+  # Usage: canair io VESS --did <DID>
   iocontrol:
     F011:
       availability: []

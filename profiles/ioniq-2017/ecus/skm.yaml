@@ -150,7 +150,7 @@ SKM:
   # SKM returns positive UDS response even without fob, but relay doesn't latch.
   # ACC does NOT latch — relay stays on only while session is held (TesterPresent).
   # Magic bytes 0A 0A 05 from Kia Soul, confirmed working on Ioniq 2017.
-  # Usage: python3 canreq.py --raw 7A5:<on_command> --session
+  # Usage: canair io SKM --did <DID>
   #
   # Scan status (2026-04-18):
   #   B000-B0FF: not scanned (session dropped on B0xx — SKM may sleep mid-scan)

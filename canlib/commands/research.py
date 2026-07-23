@@ -7,8 +7,8 @@ This tool aggregates those entries across every ECU so you can answer
 "what should I reverse-engineer next?" at a glance.
 
 It complements the other audit tools:
-  - pid-coverage.py  finds undecoded *bytes* in PIDs that already have captures
-  - research.py      surfaces *planned* work (scans/decodes/verifies) still to do
+  - `canair coverage`  finds undecoded *bytes* in PIDs that already have captures
+  - `canair research`  surfaces *planned* work (scans/decodes/verifies) still to do
 
 Modes / filters (all combine with AND):
   --ecu ECU             Only this ECU
@@ -22,13 +22,13 @@ Modes / filters (all combine with AND):
   --dir DIR             Override ecus/ directory
 
 Examples:
-  python3 research.py                      # all open items, highest priority first
-  python3 research.py --summary            # overview counts
-  python3 research.py --ecu MCU            # just the MCU backlog
-  python3 research.py --type decode        # captured-but-undecoded work
-  python3 research.py --priority P1        # high-value items only
-  python3 research.py --prerequisite acc   # what needs ACC power to test
-  python3 research.py --json               # for further processing
+  canair research                      # all open items, highest priority first
+  canair research --summary            # overview counts
+  canair research --ecu MCU            # just the MCU backlog
+  canair research --type decode        # captured-but-undecoded work
+  canair research --priority P1        # high-value items only
+  canair research --prerequisite acc   # what needs ACC power to test
+  canair research --json               # for further processing
 """
 
 import argparse

@@ -5,7 +5,7 @@ Takes an ECU+PID, loads all matching captures, applies WiCAN expressions
 from the YAML PID definitions, and reports how each decoded *parameter value*
 behaves across the full capture history. Parameter/value-centric and focused
 on validating expressions — for payload/byte-level views (hex, byte-diff,
-dedup, cross-ECU, dates) use query-captures.py instead.
+dedup, cross-ECU, dates) use `canair captures` instead.
 
 By default it prints each parameter's value range (min-max, or constant) across
 all captures. Use --compact for a chronological one-line-per-capture view, or
@@ -17,23 +17,23 @@ or label — the natural unit of drive analysis). --first/--last N slice the
 matching captures chronologically.
 
 Examples:
-  python3 decode.py BMS 2101              # Value range of every param across captures
-  python3 decode.py BMS 2101 --param SOC_BMS SOC_DISP  # Only specific params
-  python3 decode.py IGPM 22BC03           # Decode IGPM DID BC03
-  python3 decode.py BMS 2101 --verified   # Only verified parameters
-  python3 decode.py BMS 2101 --unverified # Only unverified parameters (validation focus)
-  python3 decode.py BMS 2101 --compact    # One line per capture (value evolution)
-  python3 decode.py ESC 22C101 --state 'MT->KW' --compact --changes-only  # One drive, stationary runs collapsed
-  python3 decode.py MCU 2102 --stats --group-by state  # Per-drive-segment statistics
-  python3 decode.py VCU 2101 --date 2026-07-22 --last 20  # Last 20 captures of one day
-  python3 decode.py BMS 2101 --json       # JSON (per-capture decoded values)
-  python3 decode.py MCU 2102 --stats      # Descriptive stats per param (mean/median/stdev/distinct)
-  python3 decode.py MCU 2102 --corr MCU_MOTOR_RPM   # Correlate every param vs a known signal
-  python3 decode.py MCU 2102 --plot                      # sweep interpretations, find the signal
-  python3 decode.py MCU 2102 --plot --corr MCU_MOTOR_RPM # overlay a known signal + live r
-  python3 decode.py MCU 2102 --try "TORQUE:Nm=[S12:S13]/100"   # Test a candidate expression
-  python3 decode.py MCU 2102 --try "T=[S17:S18]" --corr MCU_MOTOR_RPM  # Validate a candidate by correlation
-  python3 decode.py MCU 21F2 --try "X=B9" --try "Y=[S10:S11]"  # Multiple candidates, undefined PID OK
+  canair decode BMS 2101              # Value range of every param across captures
+  canair decode BMS 2101 --param SOC_BMS SOC_DISP  # Only specific params
+  canair decode IGPM 22BC03           # Decode IGPM DID BC03
+  canair decode BMS 2101 --verified   # Only verified parameters
+  canair decode BMS 2101 --unverified # Only unverified parameters (validation focus)
+  canair decode BMS 2101 --compact    # One line per capture (value evolution)
+  canair decode ESC 22C101 --state 'MT->KW' --compact --changes-only  # One drive, stationary runs collapsed
+  canair decode MCU 2102 --stats --group-by state  # Per-drive-segment statistics
+  canair decode VCU 2101 --date 2026-07-22 --last 20  # Last 20 captures of one day
+  canair decode BMS 2101 --json       # JSON (per-capture decoded values)
+  canair decode MCU 2102 --stats      # Descriptive stats per param (mean/median/stdev/distinct)
+  canair decode MCU 2102 --corr MCU_MOTOR_RPM   # Correlate every param vs a known signal
+  canair decode MCU 2102 --plot                      # sweep interpretations, find the signal
+  canair decode MCU 2102 --plot --corr MCU_MOTOR_RPM # overlay a known signal + live r
+  canair decode MCU 2102 --try "TORQUE:Nm=[S12:S13]/100"   # Test a candidate expression
+  canair decode MCU 2102 --try "T=[S17:S18]" --corr MCU_MOTOR_RPM  # Validate a candidate by correlation
+  canair decode MCU 21F2 --try "X=B9" --try "Y=[S10:S11]"  # Multiple candidates, undefined PID OK
 """
 
 import argparse

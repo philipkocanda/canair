@@ -25,7 +25,7 @@ PSM:
   # ─── IOControl (service 2F) ──────────────────────────────────────────
   # All from e-Niro — untested on Ioniq 2017.
   # Continuous motors: send ON, wait desired duration, send OFF.
-  # Usage: python3 canreq.py --raw 7A3:<on_command> --hold
+  # Usage: canair io PSM --did <DID>
   iocontrol:
     B401:
       availability: []
