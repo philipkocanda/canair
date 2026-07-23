@@ -1074,14 +1074,14 @@ BCM:
         - "IOControl scan 2026-04-15, 2026-04-18"
     - type: scan
       target: 27 SecurityAccess
-      status: nrc
+      status: done
       priority: P2
       date: "2026-07-22"
       result: present; all 48 built-in algos NRC 0x35 invalidKey
       notes: "BCM supports SecurityAccess (0x27) in the 10 03 extended session: 27 01 returns a fresh random 4-byte seed each request; 27 02 with any of the 48 built-in key algorithms returns NRC 0x35 (invalidKey) — correct key length, wrong value. So the BCM uses a non-trivial HKMC seed-key (likely SA2 bytecode/secret), not a simple transform. Aggressive lockout (~2 attempts -> NRC 0x37 11s delay). Cracking it needs a sniffed seed->key pair from a working tool, then canair query --pair SEED:KEY. Validates the security tooling end-to-end."
       sources:
         - on-car 2026-07-22; canair query security BCM
-
+      updated: "2026-07-23"
   iocontrol_discoveries:
     B003:
       response: "6FB00300"

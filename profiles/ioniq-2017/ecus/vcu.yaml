@@ -409,7 +409,7 @@ VCU:
 
     - type: scan
       target: "22 E001-E010"
-      status: nrc
+      status: done
       priority: P1
       vehicle_states:
         - acc
@@ -430,6 +430,7 @@ VCU:
       sources:
         - "OBDb Ioniq 5"
         - "ChatGPT"
+      updated: "2026-07-23"
     - type: verify
       target: "2101 speed"
       status: done

@@ -993,13 +993,14 @@ IGPM:
         - captures/2026-07-21.yaml — default-session read test
     - type: scan
       target: 22 BC00-BC1F
-      status: nrc
+      status: done
       priority: P3
       vehicle_states:
         - ready
       date: "2026-07-22"
       result: "Full BC-family boundary sweep (ignition on): only BC01-BC07 respond; BC00 and BC08-BC1F all NRC. Confirms the readable BC family is exactly BC01-BC07 (BC08 already known absent). Note: BC09/BC0A/BC0C exist as 2F IOControl DIDs but do NOT answer service-22 reads — IOControl DID space != readable DID space here."
       notes: Hidden-page hunt 2026-07-22. Closes the question of readable pages beyond BC07.
+      updated: "2026-07-23"
     - type: decode
       target: 22BC04/BC06 body bits
       status: captured

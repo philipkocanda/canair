@@ -102,10 +102,11 @@ SCC:
   research:
     - type: scan
       target: 22 0104-0110
-      status: nrc
+      status: done
       priority: P3
       vehicle_states:
         - ready
       date: "2026-07-22"
       result: "22010x gap sweep (ignition on): only 0105 (5B, 6201050307) responds in 0104-0110; 0104 and 0106-0110 all NRC. SCC readable pages remain 0100-0103,0105 — no hidden pages found."
       notes: Hidden-page hunt 2026-07-22.
+      updated: "2026-07-23"

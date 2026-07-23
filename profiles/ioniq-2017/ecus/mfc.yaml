@@ -74,10 +74,11 @@ MFC:
   research:
     - type: scan
       target: 21 00-20
-      status: nrc
+      status: done
       priority: P3
       vehicle_states:
         - ready
       date: "2026-07-22"
       result: "Service-21 (KWP-style) probe 00-20: all NRC. MFC is a pure UDS ECU and does not implement service 21. Any LKAS/camera data is via service 22 (0100/0101/0102 already registered; higher 01xx + B0xx already NRC per ecus.yaml scan_log)."
       notes: Hidden-page hunt 2026-07-22. Rules out a KWP live-data path on the ADAS camera.
+      updated: "2026-07-23"

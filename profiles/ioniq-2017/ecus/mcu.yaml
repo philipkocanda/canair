@@ -320,7 +320,7 @@ MCU:
       notes: "69 bytes. Discovered during charging scan. Undecoded."
     - type: scan
       target: "22 E001-E010"
-      status: nrc
+      status: done
       priority: P1
       vehicle_states:
         - acc
@@ -334,6 +334,7 @@ MCU:
         Pivot: sweep 21 00-FF for undocumented pages instead.
       sources:
         - "OBDb Ioniq 5"
+      updated: "2026-07-23"
     - type: iocontrol_scan
       target: "2F E000-E0FF"
       status: pending

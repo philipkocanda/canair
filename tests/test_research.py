@@ -115,3 +115,36 @@ class TestSort:
         prios = [r.get("priority") for r in out]
         assert prios == sorted(prios, key=lambda p: research._PRIO_RANK.get(p, 99))
         assert out[0]["priority"] == "P1"
+
+
+class TestFormatting:
+    def test_test_preview_caps_and_counts(self):
+        preview = research._test_preview(["a", "b", "c", "d"], limit=2)
+        assert preview.startswith("a; b")
+        assert "+2 more" in preview
+
+    def test_test_preview_no_tail_when_within_limit(self):
+        assert research._test_preview(["x", "y"], limit=2) == "x; y"
+
+    def test_wrapped_uncapped_keeps_all_lines(self):
+        text = "word " * 200
+        lines = research._wrapped("notes", text)
+        assert not any("for full" in ln for ln in lines)
+
+    def test_wrapped_caps_with_marker(self):
+        text = "word " * 200
+        lines = research._wrapped("notes", text, max_lines=3)
+        assert any("lines, -v for full" in ln for ln in lines)
+
+    def test_list_reports_hidden_done(self, pids_dir, capsys):
+        recs = research.load_research(pids_dir)
+        research.cmd_list(research.filter_records(recs), hidden_done=5)
+        out = capsys.readouterr().out
+        assert "5 done hidden" in out
+
+    def test_list_verbose_expands_what_to_test(self, pids_dir, capsys):
+        recs = research.load_research(pids_dir)
+        research.cmd_list(research.filter_records(recs), verbose=True)
+        out = capsys.readouterr().out
+        # The MCU decode 2102 item carries what_to_test ["a", "b"].
+        assert "- a" in out and "- b" in out

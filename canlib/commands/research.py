@@ -19,6 +19,7 @@ Modes / filters (all combine with AND):
                         (aliases: --vehicle-states / --prerequisite / --prereq)
   --summary             Counts by status / type / priority / ECU
   --all                 Include done items (hidden by default)
+  --verbose             Show full notes/results (default caps long prose)
   --json                Machine-readable output
   --dir DIR             Override ecus/ directory
 
@@ -34,7 +35,9 @@ Examples:
 
 import argparse
 import json
+import shutil
 import sys
+import textwrap
 from collections import Counter
 from pathlib import Path
 
@@ -140,9 +143,46 @@ def _sort_key(r: dict) -> tuple:
     return (prio, stat, str(r.get("ecu", "")), str(r.get("target", "")))
 
 
-def _truncate(text: str, width: int = 140) -> str:
+def _term_width() -> int:
+    """Usable text width, clamped to a sane range for wrapping prose."""
+    cols = shutil.get_terminal_size(fallback=(100, 24)).columns
+    return max(60, min(cols, 120))
+
+
+def _wrapped(label: str, text: str, indent: int = 7, max_lines: int | None = None) -> list[str]:
+    """Render a labelled prose block, wrapped to the terminal width.
+
+    The first line carries the dim ``label:``; continuation lines hang-indent
+    to align under the text (not the label). When ``max_lines`` is set, the
+    block is capped and a dim ``… (+N lines, -v for full)`` marker is appended.
+    """
     text = " ".join(str(text).split())
-    return text if len(text) <= width else text[: width - 1] + "…"
+    pad = " " * indent
+    lead = f"{pad}{_DIM}{label}:{_RESET} "
+    cont = pad + " " * (len(label) + 2)
+    body_width = _term_width() - len(cont)
+    lines = textwrap.wrap(text, width=max(20, body_width)) or [""]
+
+    hidden = 0
+    if max_lines is not None and len(lines) > max_lines:
+        hidden = len(lines) - max_lines
+        lines = lines[:max_lines]
+
+    out = [lead + lines[0]]
+    out.extend(cont + ln for ln in lines[1:])
+    if hidden:
+        out.append(f"{cont}{_DIM}… (+{hidden} lines, -v for full){_RESET}")
+    return out
+
+
+def _test_preview(items: list, limit: int = 2) -> str:
+    """One-line preview of the first ``what_to_test`` items, '+N more' tail."""
+    heads = [" ".join(str(i).split()) for i in items[:limit]]
+    # Trim each head so the preview stays to a single readable line.
+    heads = [h if len(h) <= 60 else h[:59] + "…" for h in heads]
+    extra = len(items) - len(heads)
+    joined = "; ".join(heads)
+    return f"{joined}  {_DIM}(+{extra} more){_RESET}" if extra > 0 else joined
 
 
 def cmd_summary(records: list[dict]) -> None:
@@ -175,46 +215,75 @@ def cmd_summary(records: list[dict]) -> None:
     print()
 
 
-def cmd_list(records: list[dict]) -> None:
+def cmd_list(records: list[dict], hidden_done: int = 0, verbose: bool = False) -> None:
     """Print the filtered research items, highest priority first."""
     if not records:
         print("  No research items match the filter criteria.")
         return
 
+    # Cap prose blocks in the default view; -v shows the full text.
+    cap = None if verbose else 4
     records = sorted(records, key=_sort_key)
-    print(f"\n  {_BOLD}Research backlog{_RESET} — {len(records)} items\n")
+    hint = (
+        f"  {_DIM}({hidden_done} done hidden — use --all){_RESET}" if hidden_done else ""
+    )
+    print(f"\n  {_BOLD}Research backlog{_RESET} — {len(records)} items{hint}")
 
+    prio = None
     for r in records:
+        # Blank-line divider between priority bands for scannability.
+        if r.get("priority") != prio:
+            prio = r.get("priority")
+            print()
+
         ecu = str(r.get("ecu", "?"))
         rtype = str(r.get("type", "?"))
         target = str(r.get("target", "?"))
         status = str(r.get("status", "?"))
-        prio = r.get("priority")
 
         prio_str = (
             f"{_PRIO_COLOR.get(prio, _DIM)}[{prio}]{_RESET}" if prio else f"{_DIM}[--]{_RESET}"
         )
-        status_str = f"{_STATUS_COLOR.get(status, '')}{status}{_RESET}"
+        status_str = f"{_STATUS_COLOR.get(status, '')}{status:<8}{_RESET}"
 
-        prereqs = r.get("vehicle_states") or []
-        prereq_str = f"  {_DIM}states: {','.join(prereqs)}{_RESET}" if prereqs else ""
-        when = r.get("updated") or r.get("date")
-        date_str = f"  {_DIM}{when}{_RESET}" if when else ""
-
+        # Aligned, scannable header row; target (variable width) ends the line.
         print(
-            f"  {prio_str} {_CYAN}{ecu:<10}{_RESET} {rtype:<14} {_BOLD}{target}{_RESET}"
-            f"  {status_str}{prereq_str}{date_str}"
+            f"  {prio_str} {status_str} {rtype:<14} {_CYAN}{ecu:<11}{_RESET} "
+            f"{_BOLD}{target}{_RESET}"
         )
 
+        # Dim meta line: where it can be tested + when it was last touched.
+        meta = []
+        prereqs = r.get("vehicle_states") or []
+        if prereqs:
+            meta.append(f"states: {','.join(prereqs)}")
+        when = r.get("updated") or r.get("date")
+        if when:
+            meta.append(f"updated {when}")
+        if meta:
+            print(f"       {_DIM}{'  ·  '.join(meta)}{_RESET}")
+
         if r.get("result"):
-            print(f"       {_DIM}result:{_RESET} {_truncate(r['result'])}")
+            for line in _wrapped("result", r["result"], max_lines=cap):
+                print(line)
         if r.get("notes"):
-            print(f"       {_DIM}notes:{_RESET}  {_truncate(r['notes'])}")
+            for line in _wrapped("notes", r["notes"], max_lines=cap):
+                print(line)
         wtt = r.get("what_to_test")
         if isinstance(wtt, list) and wtt:
-            print(f"       {_DIM}what_to_test: {len(wtt)} item(s){_RESET}")
+            if verbose:
+                print(f"       {_DIM}to test:{_RESET}")
+                width = _term_width() - 11
+                for item in wtt:
+                    body = textwrap.wrap(" ".join(str(item).split()), width=max(20, width))
+                    for i, ln in enumerate(body or [""]):
+                        print(f"         {'-' if i == 0 else ' '} {ln}")
+            else:
+                for line in _wrapped("to test", _test_preview(wtt)):
+                    print(line)
         if r.get("capture_protocol"):
-            print(f"       {_DIM}capture:{_RESET} {_truncate(r['capture_protocol'])}")
+            for line in _wrapped("capture", r["capture_protocol"], max_lines=cap):
+                print(line)
     print()
 
 
@@ -252,6 +321,12 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     parser.add_argument(
         "--all", "-a", action="store_true", help="Include done items (hidden by default)"
     )
+    parser.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        help="Show full notes/results (default caps long prose)",
+    )
     parser.add_argument("--json", action="store_true", help="Output as JSON")
     parser.add_argument(
         "--dir", type=Path, default=None, help="ecus/ directory (default: active profile)"
@@ -284,5 +359,10 @@ def run(args) -> int:
     if args.summary:
         cmd_summary(filtered)
     else:
-        cmd_list(filtered)
+        # Count done items suppressed by the default view (not when the user
+        # explicitly asked for --all or filtered on a specific status).
+        hidden_done = 0
+        if not args.all and args.status is None:
+            hidden_done = sum(1 for r in records if r.get("status") == "done")
+        cmd_list(filtered, hidden_done=hidden_done, verbose=args.verbose)
     return 0
