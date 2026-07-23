@@ -10,7 +10,7 @@ Recognized keys:
   wican_addresses:  mapping of alias -> IP/host for the --wican flag
   default_wican:    default --wican alias
   wican_model:      "pro" or "classic" — the WiCAN hardware model. AutoPID
-                    vehicle-profile features (canair wican device sync) and the
+                    profile features (canair wican device sync) and the
                     wican-ws ELM327 terminal are WiCAN Pro-only. Defaults to
                     "pro".
   transport:        transport-selection block (type/host/port/bitrate); see
@@ -75,9 +75,9 @@ _STARTER_CONFIG = """\
 # default_wican: ap
 
 # WiCAN hardware model: "pro" (default) or "classic" (non-Pro). The classic
-# WiCAN has no AutoPID vehicle-profile support and no ELM327 WebSocket terminal,
-# so `canair wican --upload/--download/--diff/--set-protocol` and the wican-ws
-# transport are refused for it. Raw slcan-tcp works on both.
+# WiCAN has no AutoPID profile support and no ELM327 WebSocket terminal, so
+# `canair wican autopid upload/download/diff`, `canair wican mode set`, and the
+# wican-ws transport are refused for it. Raw slcan-tcp works on both.
 # wican_model: pro
 """
 

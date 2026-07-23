@@ -58,8 +58,8 @@ def require_protocol(
         msg = (
             f"canair is configured for the {tname} transport, so the WiCAN also "
             f"needs to be in '{expected}' mode — but it's currently in '{proto}'.\n"
-            f"  • put the device in '{expected}':  canair wican --set-protocol {expected}\n"
-            f"    (restore afterwards with:         canair wican --set-protocol {proto})"
+            f"  • put the device in '{expected}':  canair wican mode set {expected}\n"
+            f"    (restore afterwards with:         canair wican mode set {proto})"
         )
         if expected == "slcan":
             msg += (
