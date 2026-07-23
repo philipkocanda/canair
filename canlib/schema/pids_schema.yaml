@@ -248,9 +248,9 @@ required_meta_fields:
 #   03 = shortTermAdjustment (ON)
 #   00 = returnControl (OFF / release)
 #
-# Usage with canreq.py:
-#   python3 canreq.py --raw <TX_ID>:<on_command> --hold
-#   e.g.: python3 canreq.py --raw 770:2FBC0103 --hold
+# Usage with canair:
+#   canair io <ECU> --did <DID>
+#   e.g.: canair io IGPM --did BC01
 iocontrol_fields:
   - label
   - verified
