@@ -113,6 +113,15 @@ EPS:
             Verify what toggles it. B05=0x8A B06=0x8E constant; B18/B19 tail=0x1010
             constant; B20/B21 = ISO-TP message counter (cycles 21→22).
           enabled: false
+        EPS_SPEED_BAND:
+          expression: B15
+          unit: ""
+          min: "0"
+          max: "3"
+          source: canair correlate/decode analysis of 2026-07-22 MT->KW drive
+          verified: false
+          notes: >
+            Speed-sensitive MDPS assist band. ISO-TP 0x0C (WiCAN B15). Discrete step counter 0-3 that increases with vehicle speed (r=+0.953 vs EPS_VEHICLE_SPEED/B14 over 360 driving captures). Steps 0->1 at ~26-27 km/h with hysteresis (returns to 0 below ~25 km/h); bands 2 and 3 at higher speeds. Only ever 0/1/2/3 (219/85/23/33 samples) so NOT a speed high byte. Consistent with a speed-band selector that discretely reduces steering assist as speed rises. Verify: sustained-speed sweep to pin each band's threshold.
     220102:
       status: draft
       period: 2500
