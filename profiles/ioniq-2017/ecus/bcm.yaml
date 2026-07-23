@@ -154,10 +154,11 @@ BCM:
 
     22B00F:
       enabled: false
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      availability: [acc, acc2, ready, charging]
       notes: >
         13 bytes. Identical payload to B00D (0xFCFC E0...) — possibly mirrored register
-        or preheat config overflow. B010+ did not respond in DID scan.
+        or preheat config overflow. B010+ did not respond in DID scan. 
+        Does not respond when vehicle is asleep.
         Sample: 62B00FFCFCE00000000000AAAA.
       parameters: {}
 
@@ -178,11 +179,9 @@ BCM:
           max: "1"
           source: "Fob lock/unlock test 2026-04-18"
           source_links: []
-          verified: true
+          verified: false
           notes: >
-            1=locked, 0=unlocked. Same representation as IGPM door locks.
-            Confirmed by correlating with B005 (courtesy light) and B006
-            (turn signal flash) transitions during fob lock/unlock.
+            Needs further testing to confirm
 
     22B005:
       enabled: false
@@ -200,7 +199,7 @@ BCM:
           max: "255"
           source: "Fob lock/unlock test 2026-04-18"
           source_links: []
-          verified: true
+          verified: false
           notes: >
             Correlated with B004 lock state. Bits 2,3 (0x0C) set during unlock.
             Possibly courtesy lamp or interior lighting trigger. Base value 0xA0.
@@ -221,7 +220,7 @@ BCM:
           max: "255"
           source: "Fob lock/unlock test 2026-04-18"
           source_links: []
-          verified: true
+          verified: false
           notes: >
             Correlated with B004 lock state. Bit 2 (0x04) set during unlock.
             Possibly turn signal confirmation flash.
@@ -270,11 +269,10 @@ BCM:
 
     22B00B:
       enabled: false
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      availability: [acc, acc2, ready, charging]
       notes: >
         NRC 0x31 (requestOutOfRange) in deep sleep. Only 2-byte response (7E00) on some
-        attempts — may be a status register that requires ACC/IGN on. Needs retest with
-        ignition active.
+        attempts — may be a status register that requires ACC/IGN on.
       parameters: {}
 
     22B00C:
@@ -514,7 +512,6 @@ BCM:
   # ─── IOControl (service 2F) ──────────────────────────────────────────
   # BCM requires extended diagnostic session (10 03) AND SKM ACC+IGN1 power.
   # Scan status: B000-B0FF fully scanned (24 DIDs), C000-C0FF (6 DIDs), E000-E0FF (0). 2026-04-18.
-  # Usage: python3 canreq.py --raw 7A0:<on_command> --hold
   iocontrol:
     B003:
       availability: []
