@@ -15,6 +15,13 @@ globally-installed `canair`). See `AGENTS.md` for why.
 
 ## Non-negotiables
 
+0. **canair is a CLI built for both human *and* agentic use.** Every capability
+   is a composable, scriptable subcommand; keep it that way. New features must
+   work non-interactively (a flag escape hatch for any prompt, e.g. `--yes`) and
+   offer structured `--json` output where a result is consumed programmatically,
+   so an AI agent (e.g. Claude) can drive the tool autonomously just as a human
+   would at a terminal. Don't add capabilities reachable *only* through an
+   interactive TUI.
 1. **Both transports must always work.** Every feature that talks to the CAN
    bus MUST function over **both** transports (see the Transports section).
 2. **`slcan-tcp` is the canonical default.** It runs on both the WiCAN Pro and

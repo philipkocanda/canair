@@ -8,6 +8,8 @@ canair interfaces with a [WiCAN](https://www.meatpi.com/products/wican-pro) OBD-
 
 Everything ships as a single installable CLI, **`canair`**. Vehicle data lives in a *profile* bundle; the repo ships `profiles/ioniq-2017/` (a 2017 Hyundai Ioniq Electric) as the default/example. The tooling itself is vehicle-agnostic — create your own profile with `canair profile create`.
 
+**canair is deliberately built as a CLI to enable both human *and* agentic use.** Every capability is a composable, scriptable subcommand with structured (`--json`) output, so it works equally well driven by a person at a terminal or by an AI coding agent (e.g. Claude) autonomously discovering, capturing, analyzing, and documenting a vehicle's diagnostics. The reverse-engineering workflows are captured as agent skills in `.claude/skills/`.
+
 **Both the WiCAN Pro and the regular (classic, non-Pro) WiCAN are supported.** All the core reverse-engineering — query, scan, discover, decode, DTCs, sniff, and generating AutoPID JSON — works on both over the default raw-SLCAN transport. A few features are **Pro-only**: AutoPID profile device sync (`canair wican autopid upload`/`download`/`diff`), `canair wican mode set`, and the `wican-ws` ELM327 WebSocket transport. Set `wican_model: classic` in your config and canair cleanly refuses those with a helpful message instead of failing against the device.
 
 | | |
