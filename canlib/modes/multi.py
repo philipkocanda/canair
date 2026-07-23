@@ -1314,7 +1314,8 @@ async def mode_multi(
             elif cmd_type == "repl":
                 print(f"\n{step} Entering REPL...")
                 repl_executed = True
-                await _multi_repl(sm, ecu_index, pids_data, verbose)
+                await _multi_repl(sm, ecu_index, pids_data, verbose,
+                                  include_static=include_static)
 
             elif cmd_type == "iocontrol":
                 action = "OFF" if cmd["off"] else "ON"
@@ -1337,7 +1338,8 @@ async def mode_multi(
             if sessions_str:
                 print(f"\n  Active sessions: {sessions_str}")
             print("\n  Pipeline complete. Entering REPL...")
-            await _multi_repl(sm, ecu_index, pids_data, verbose)
+            await _multi_repl(sm, ecu_index, pids_data, verbose,
+                              include_static=include_static)
 
     except KeyboardInterrupt:
         print("\n  Interrupted.")
@@ -1355,7 +1357,8 @@ async def mode_multi(
             pass
 
 
-async def _multi_repl(sm: SessionManager, ecu_index: dict, pids_data: dict, verbose: bool):
+async def _multi_repl(sm: SessionManager, ecu_index: dict, pids_data: dict, verbose: bool,
+                      include_static: bool = False):
     """Interactive REPL with multi-ECU session awareness.
 
     Extends the standard REPL with session keepalives and multi-ECU commands.
