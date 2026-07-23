@@ -227,9 +227,10 @@ Follow an existing command as a template: `commands/routines.py` +
 
 ## Refactor proactively — no monoliths
 
-Do not silently pile onto a design that no longer fits. When you touch an area,
-leave it better than you found it, and **speak up** when a structural change is
-warranted rather than bolting on more:
+Do not silently pile onto a design that no longer fits. **Boy Scout rule:** when
+you touch an area, leave it better than you found it (fix the defect you walked
+past), and **speak up** when a structural change is warranted rather than
+bolting on more:
 
 - **File size is a smell.** As a file approaches ~500 lines — and *well* before
   1000 — stop and split it by concern (separate the pure helpers, the async
