@@ -10,6 +10,7 @@
 - Various:
   - [ ] Web UI for viewing and querying captures (similar to https://github.com/deanlee/openpilot-cabana used by https://www.projectgus.com/2023/10/kona-can-decoding/, but focused on UDS/KWP2000)
   - [ ] Store captures in CAN log files in the "gvret/SavvyCAN" CSV format, as supported by SavvyCAN? Or DBC? Not sure what is best here.
+  - [ ] Test the `discover` -> cross-reference -> `--identify` workflow on the car end-to-end using a fresh throwaway/fake profile (`canair profile create`), so registration + identity write-back can be exercised without touching the real ioniq-2017 profile.
 
 ## PID coverage gaps (audit 2026-07-20)
 
