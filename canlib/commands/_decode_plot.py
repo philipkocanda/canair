@@ -28,6 +28,7 @@ from canlib.byteindex import (
     payload_to_wican_frame,
 )
 from canlib.states import join_states as _join_states
+from canlib.stats import pearson as _pearson
 
 # Terminal colors — mirror decode's palette. Kept local (not imported from
 # decode) so this leaf module has no import-time dependency on decode, which
@@ -50,21 +51,6 @@ def _fmt_num(x: float) -> str:
     if not math.isfinite(x):
         return "nan" if math.isnan(x) else ("inf" if x > 0 else "-inf")
     return str(int(x)) if x == int(x) else f"{x:.2f}"
-
-
-def _pearson(xs: list[float], ys: list[float]) -> float | None:
-    """Pearson correlation of paired series, or None if undefined."""
-    n = len(xs)
-    if n < 2:
-        return None
-    mx = sum(xs) / n
-    my = sum(ys) / n
-    sx = sum((x - mx) ** 2 for x in xs)
-    sy = sum((y - my) ** 2 for y in ys)
-    if sx == 0 or sy == 0:
-        return None
-    cov = sum((x - mx) * (y - my) for x, y in zip(xs, ys, strict=True))
-    return cov / (sx**0.5 * sy**0.5)
 
 
 def _mean(xs: list[float]) -> float:

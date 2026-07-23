@@ -61,6 +61,12 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "byte that tracks the reference's *rate* — torque vs acceleration)",
     )
     parser.add_argument(
+        "--method",
+        choices=["pearson", "spearman"],
+        default="pearson",
+        help="Ranking coefficient: pearson (linear, default) or spearman (rank)",
+    )
+    parser.add_argument(
         "--join-tol",
         type=float,
         default=DEFAULT_JOIN_TOL_S,
@@ -116,7 +122,7 @@ def run(args) -> int:
         return 1
 
     hits = hunt_byte(
-        lp, ref_series, tol_s=args.join_tol, min_n=args.min_n, top=args.top
+        lp, ref_series, tol_s=args.join_tol, min_n=args.min_n, top=args.top, method=args.method
     )
 
     if args.promote:

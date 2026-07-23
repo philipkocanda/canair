@@ -15,14 +15,16 @@ import argparse
 import json as _json
 import sys
 
-from canlib.align import DEFAULT_JOIN_TOL_S, join_nearest, load_signal_captures
+from canlib.align import DEFAULT_JOIN_TOL_S, align_many, join_nearest, load_signal_captures
 from canlib.capture_dates import add_scope_args, resolve_date_bounds
 from canlib.xanalysis import (
+    build_bit_series,
     build_byte_series,
     build_param_series,
     correlate_matrix,
+    correlation,
+    lag_scan,
     load_ref,
-    pearson,
     transform_ref,
 )
 
@@ -83,6 +85,13 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     )
     parser.add_argument("--top", type=int, default=40, metavar="N", help="Max hits (default 40)")
     parser.add_argument(
+        "--method",
+        choices=["pearson", "spearman"],
+        default="pearson",
+        help="Correlation coefficient: pearson (linear, default) or spearman "
+        "(rank — catches monotone-but-nonlinear/quantized/saturating links)",
+    )
+    parser.add_argument(
         "--join-tol",
         type=float,
         default=DEFAULT_JOIN_TOL_S,
@@ -90,6 +99,28 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         help=f"Nearest-timestamp join window (default {DEFAULT_JOIN_TOL_S}s)",
     )
     parser.add_argument("--bytes", action="store_true", help="Include raw varying bytes (Bn)")
+    parser.add_argument(
+        "--bits",
+        action="store_true",
+        help="Include individual toggling bits (Bn:k) — point-biserial vs analog "
+        "signals, φ vs other bits (cross-ECU); finds body-status/relay bits",
+    )
+    parser.add_argument(
+        "--lag-scan",
+        type=int,
+        default=0,
+        metavar="N",
+        help="With --against: shift each signal by ±N sample-intervals and report "
+        "the lag maximising |r| (apparent lag incl. poll offset — not proven "
+        "causality). Reveals command→response ordering across ECUs",
+    )
+    parser.add_argument(
+        "--gate",
+        metavar="'[SIGNAL] OP VALUE'",
+        help="With --against: only count points where a predicate holds, e.g. "
+        "'> 0' (reference itself — 'while moving') or 'MCU:2102:MCU_MOTOR_RPM > 0' "
+        "(a named signal). Isolates a regime whole-history correlation dilutes",
+    )
     parser.add_argument(
         "--promote",
         metavar="NAME",
@@ -132,8 +163,8 @@ def _discover_specs(query, since, until, state, label):
     return sorted(specs)
 
 
-def _gather_series(specs, since, until, state, label, want_bytes):
-    """Build all signal series (params + optionally varying bytes) for specs."""
+def _gather_series(specs, since, until, state, label, want_bytes, want_bits=False):
+    """Build all signal series (params + optionally varying bytes/bits) for specs."""
     from canlib.pids import build_ecu_index, load_pids
 
     loaded = load_signal_captures(
@@ -148,12 +179,62 @@ def _gather_series(specs, since, until, state, label, want_bytes):
         series.update(build_param_series(lp, params))
         if want_bytes:
             series.update(build_byte_series(lp))
+        if want_bits:
+            series.update(build_bit_series(lp))
     return series
 
 
 def _color_r(r: float) -> str:
     c = _GREEN if abs(r) >= 0.7 else _YELLOW if abs(r) >= 0.3 else _DIM
     return f"{c}r={r:+.3f}{_RESET}"
+
+
+_GATE_OPS = {
+    ">=": lambda a, b: a >= b,
+    "<=": lambda a, b: a <= b,
+    "!=": lambda a, b: a != b,
+    "==": lambda a, b: a == b,
+    ">": lambda a, b: a > b,
+    "<": lambda a, b: a < b,
+}
+
+
+def _parse_gate(expr: str):
+    """Parse a gate ``'[SIGNAL] OP VALUE'`` → ``(signal_or_None, op_fn, value, label)``.
+
+    ``SIGNAL`` (empty ⇒ the reference itself) is a cross-signal ``ECU:PID:PARAM``.
+    Raises ``ValueError`` on a malformed gate.
+    """
+    import re
+
+    m = re.match(r"^\s*(.*?)\s*(>=|<=|==|!=|>|<)\s*(-?\d+(?:\.\d+)?)\s*$", expr)
+    if not m:
+        raise ValueError(
+            f"invalid --gate {expr!r} (expected '[SIGNAL] OP VALUE', e.g. '> 0' or "
+            "'MCU:2102:MCU_MOTOR_RPM > 0')"
+        )
+    signal = m.group(1).strip() or None
+    return signal, _GATE_OPS[m.group(2)], float(m.group(3)), expr.strip()
+
+
+def _apply_gate(ref_series, gate_expr, tol, *, since, until, state, label):
+    """Filter ``ref_series`` to the points where the gate predicate holds.
+
+    An omitted signal gates on the reference's own value; a named
+    ``ECU:PID:PARAM`` signal is loaded and aligned onto the reference by nearest
+    timestamp. Returns the filtered (time-sorted) reference series.
+    """
+    signal, op_fn, value, _lbl = _parse_gate(gate_expr)
+    if signal is None:
+        return [tp for tp in ref_series if op_fn(tp.value, value)]
+    gate_series, _ = load_ref(signal, since=since, until=until, state=state, label=label)
+    _, cols = align_many(ref_series, {"g": gate_series}, tol_s=tol)
+    ref_sorted = sorted(ref_series, key=lambda tp: tp.dt)
+    return [
+        tp
+        for tp, g in zip(ref_sorted, cols["g"], strict=True)
+        if g is not None and op_fn(g, value)
+    ]
 
 
 def run(args) -> int:
@@ -169,6 +250,7 @@ def run(args) -> int:
         args.state,
         args.label,
         args.bytes,
+        args.bits,
     )
     if not series:
         print("No time-aligned signals found in scope.", file=sys.stderr)
@@ -186,36 +268,72 @@ def run(args) -> int:
         if args.transform and args.transform != "raw":
             ref_series = transform_ref(ref_series, args.transform)
             ref_label = f"{args.transform}({ref_label})"
+        if args.gate:
+            try:
+                ref_series = _apply_gate(
+                    ref_series, args.gate, args.join_tol,
+                    since=since, until=until, state=args.state, label=args.label,
+                )
+            except ValueError as e:
+                print(f"--gate error: {e}", file=sys.stderr)
+                return 1
+            ref_label = f"{ref_label} [gate: {args.gate.strip()}]"
+            if not ref_series:
+                print(f"--gate '{args.gate.strip()}' left no reference points in scope.",
+                      file=sys.stderr)
+                return 1
         rows = []
         for name, s in series.items():
-            xs, ys, n = join_nearest(ref_series, s, tol_s=args.join_tol)
-            if n < args.min_n:
-                continue
-            r = pearson(xs, ys)
-            if r is None or abs(r) < args.min_r:
-                continue
-            rows.append((name, r, n))
+            if args.lag_scan:
+                hit = lag_scan(
+                    ref_series, s, tol_s=args.join_tol, max_lag=args.lag_scan, method=args.method
+                )
+                if hit is None or abs(hit.r) < args.min_r or hit.n < args.min_n:
+                    continue
+                rows.append((name, hit.r, hit.n, hit.lag_seconds))
+            else:
+                xs, ys, n = join_nearest(ref_series, s, tol_s=args.join_tol)
+                if n < args.min_n:
+                    continue
+                r = correlation(xs, ys, args.method)
+                if r is None or abs(r) < args.min_r:
+                    continue
+                rows.append((name, r, n, None))
         rows.sort(key=lambda t: -abs(t[1]))
         if args.promote:
             return _promote_top_byte(
-                args.promote, rows, series, ref_series, ref_label, args.join_tol
+                args.promote, [(n, r, nn) for n, r, nn, _ in rows], series,
+                ref_series, ref_label, args.join_tol
             )
         rows = rows[: args.top]
         if args.json:
             _json.dump(
                 {
                     "reference": ref_label,
+                    "method": args.method,
                     "join_tol_s": args.join_tol,
-                    "hits": [{"signal": n, "r": r, "n": nn} for n, r, nn in rows],
+                    "lag_scan": args.lag_scan,
+                    "hits": [
+                        {"signal": n, "r": r, "n": nn, "lag_seconds": lag}
+                        for n, r, nn, lag in rows
+                    ],
                 },
                 sys.stdout,
                 indent=2,
             )
             print()
             return 0
-        print(f"\n  {_BOLD}vs {ref_label}{_RESET} {_DIM}(nearest-join ≤{args.join_tol:g}s){_RESET}")
-        for name, r, n in rows:
-            print(f"    {_color_r(r)}  {name}  {_DIM}n={n}{_RESET}")
+        lag_hdr = (
+            f", lag ±{args.lag_scan} samples (apparent, incl. poll offset)"
+            if args.lag_scan else ""
+        )
+        print(
+            f"\n  {_BOLD}vs {ref_label}{_RESET} "
+            f"{_DIM}(nearest-join ≤{args.join_tol:g}s{lag_hdr}){_RESET}"
+        )
+        for name, r, n, lag in rows:
+            lag_str = f"  {_DIM}lag={lag:+.1f}s{_RESET}" if lag is not None else ""
+            print(f"    {_color_r(r)}  {name}  {_DIM}n={n}{_RESET}{lag_str}")
         print()
         return 0
 
@@ -225,6 +343,7 @@ def run(args) -> int:
         min_r=args.min_r,
         min_n=args.min_n,
         include_intra=args.include_intra,
+        method=args.method,
     )
     hits = hits[: args.top]
     if args.json:

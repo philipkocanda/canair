@@ -57,6 +57,7 @@ from canlib.commands._hints import pid_completer as _pid_completer
 from canlib.expression import evaluate_expression
 from canlib.pids import build_ecu_index, load_pids
 from canlib.states import join_states as _join_states
+from canlib.stats import correlation as _correlation
 
 NAME = "decode"
 
@@ -428,20 +429,6 @@ def _stdev(xs: list[float]) -> float:
     return (sum((x - m) ** 2 for x in xs) / (len(xs) - 1)) ** 0.5
 
 
-def _pearson(xs: list[float], ys: list[float]) -> float | None:
-    """Pearson correlation of paired series, or None if undefined."""
-    n = len(xs)
-    if n < 2:
-        return None
-    mx, my = _mean(xs), _mean(ys)
-    sx = sum((x - mx) ** 2 for x in xs)
-    sy = sum((y - my) ** 2 for y in ys)
-    if sx == 0 or sy == 0:
-        return None
-    cov = sum((x - mx) * (y - my) for x, y in zip(xs, ys, strict=True))
-    return cov / (sx**0.5 * sy**0.5)
-
-
 def _series(all_results: list[dict], name: str) -> list[float]:
     """Decoded values for one param across captures (capture order, None dropped)."""
     return [
@@ -675,7 +662,7 @@ def _discriminability(groups: dict[str, list[float]]) -> float | None:
 
 
 def _byte_state_buckets(
-    all_results: list[dict], field: str, *, min_distinct: int = 2
+    all_results: list[dict], field: str, *, min_distinct: int = 2, include_bits: bool = False
 ) -> dict[str, dict[str, list[float]]]:
     """Bucket each varying, non-PCI raw byte value by session ``field``.
 
@@ -684,7 +671,8 @@ def _byte_state_buckets(
     targets are near-binary relay/mode bytes (e.g. 0x00/0x34) that the default
     correlation floor (4) would drop. Reads every capture (incl. untimed —
     discrimination buckets by state, not time) and skips PCI framing bytes via
-    the canonical :func:`byteindex.wican_to_isotp` detector.
+    the canonical :func:`byteindex.wican_to_isotp` detector. With ``include_bits``,
+    each varying bit ``Bn:k`` is also bucketed (the body-status/relay finder).
     """
     from canlib.byteindex import payload_to_wican_bytes, wican_to_isotp
 
@@ -713,6 +701,17 @@ def _byte_state_buckets(
                 distinct.add(v)
         if len(distinct) >= min_distinct:
             buckets[f"B{off}"] = per_state
+        if include_bits:
+            for k in range(8):
+                bit_state: dict[str, list[float]] = {}
+                bit_distinct: set[float] = set()
+                for fr, state in frames:
+                    if off < len(fr):
+                        b = float((fr[off] >> k) & 1)
+                        bit_state.setdefault(state, []).append(b)
+                        bit_distinct.add(b)
+                if len(bit_distinct) >= 2:
+                    buckets[f"B{off}:{k}"] = bit_state
     return buckets
 
 
@@ -724,17 +723,18 @@ def print_discriminate(
     field: str,
     *,
     include_bytes: bool = False,
+    include_bits: bool = False,
 ) -> None:
-    """Rank params (and optionally raw bytes) by how cleanly they separate across
-    session ``field`` groups.
+    """Rank params (and optionally raw bytes/bits) by how cleanly they separate
+    across session ``field`` groups.
 
     The confirmation lever for state-dependent signals (thermal/mode/relay) that
     a driving-anchor correlation misses — e.g. MCU inverter temp reads distinctly
     across charging/ready/driving. Uses an F-like between/within variance ratio.
 
-    With ``include_bytes`` (``--bytes``), every varying non-PCI raw byte is ranked
-    alongside the params — finding a state-dependent byte without first defining a
-    ``--try`` candidate for it.
+    With ``include_bytes`` (``--bytes``) every varying non-PCI raw byte is ranked
+    alongside the params; with ``include_bits`` (``--bits``) so is every varying
+    bit (``Bn:k``) — finding a state-dependent byte/bit without a ``--try``.
     """
     buckets: dict[str, dict[str, list[float]]] = {name: {} for name in param_names}
     for r in all_results:
@@ -745,8 +745,8 @@ def print_discriminate(
                 buckets[name].setdefault(key, []).append(v)
 
     byte_names: set[str] = set()
-    if include_bytes:
-        byte_buckets = _byte_state_buckets(all_results, field)
+    if include_bytes or include_bits:
+        byte_buckets = _byte_state_buckets(all_results, field, include_bits=include_bits)
         byte_names = set(byte_buckets)
         buckets.update(byte_buckets)
 
@@ -756,7 +756,13 @@ def print_discriminate(
         rows.append((name, score, buckets[name]))
     rows.sort(key=lambda t: (t[1] is None, -(t[1] if t[1] is not None else 0)))
 
-    hdr_extra = " (params + bytes)" if include_bytes else ""
+    hdr_extra = ""
+    if include_bytes and include_bits:
+        hdr_extra = " (params + bytes + bits)"
+    elif include_bytes:
+        hdr_extra = " (params + bytes)"
+    elif include_bits:
+        hdr_extra = " (params + bits)"
     print(
         f"  {_BOLD}Discriminability by {field}{hdr_extra}{_RESET} "
         f"{_DIM}(between/within variance F; higher = cleaner separation){_RESET}"
@@ -856,8 +862,9 @@ def print_correlations(
     cross_ref_label: str | None = None,
     tol_s: float | None = None,
     transform: str | None = None,
+    method: str = "pearson",
 ) -> None:
-    """Pearson correlation of every parameter against ``ref`` across captures.
+    """Correlation of every parameter against ``ref`` across captures.
 
     The key reverse-engineering lever: correlate a candidate expression against
     a known signal (e.g. a torque guess vs MCU_MOTOR_RPM) to confirm it tracks.
@@ -865,7 +872,8 @@ def print_correlations(
     When ``cross_ref_series`` (a list[TimePoint] from another ECU/PID) is given,
     every local param is time-aligned against it by nearest timestamp instead of
     the fast same-payload positional pairing. ``transform`` optionally reshapes
-    the reference series first (e.g. ``delta`` to test level vs rate).
+    the reference series first (e.g. ``delta`` to test level vs rate); ``method``
+    selects pearson (linear) or spearman (monotone/rank).
     """
     from canlib.align import DEFAULT_JOIN_TOL_S, join_nearest
 
@@ -884,7 +892,7 @@ def print_correlations(
             local = _local_series(all_results, name)
             # join_nearest(ref, cand): keep ref as the external signal
             xs, ys, n = join_nearest(cross_ref_series, local, tol_s=tol)
-            r = _pearson(xs, ys)
+            r = _correlation(xs, ys, method)
             rows.append((name, r, n))
         else:
             if transform and transform != "raw":
@@ -894,12 +902,13 @@ def print_correlations(
                 xs = apply_transform(xs, transform)
             else:
                 xs, ys = _paired(all_results, ref, name)
-            r = _pearson(xs, ys)
+            r = _correlation(xs, ys, method)
             rows.append((name, r, len(xs)))
     # Strongest absolute correlations first; undefined (None) last.
     rows.sort(key=lambda t: (t[1] is None, -abs(t[1]) if t[1] is not None else 0))
 
-    header = f"  {_BOLD}Correlation vs {ref_label}{_RESET} {_DIM}(Pearson r"
+    coeff = "Spearman ρ" if method == "spearman" else "Pearson r"
+    header = f"  {_BOLD}Correlation vs {ref_label}{_RESET} {_DIM}({coeff}"
     if transform and transform != "raw":
         header += f", ref {transform}"
     if cross:
@@ -996,7 +1005,8 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     parser.add_argument(
         "--bits",
         action="store_true",
-        help="With --find-mirrors: also compare individual bits (Bn:k)",
+        help="With --find-mirrors: compare individual bits (Bn:k). "
+        "With --discriminate: also rank individual toggling bits by state",
     )
     parser.add_argument(
         "--bytes",
@@ -1033,6 +1043,13 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         help="Transform the --corr reference before pairing "
         "(raw/delta/abs/cumsum/normalize/smooth) — e.g. --corr-transform delta "
         "to test whether a signal tracks a reference's RATE rather than its level",
+    )
+    parser.add_argument(
+        "--method",
+        choices=["pearson", "spearman"],
+        default="pearson",
+        help="Correlation coefficient for --corr: pearson (linear, default) or "
+        "spearman (rank — catches monotone-but-nonlinear/quantized/saturating links)",
     )
     parser.add_argument(
         "--plot",
@@ -1280,6 +1297,7 @@ def run(args) -> int:
                 }
             if corr_ref:
                 out["reference"] = corr_ref
+                out["method"] = args.method
                 out["correlations"] = {}
                 if cross_ref_series is not None:
                     from canlib.align import DEFAULT_JOIN_TOL_S, join_nearest
@@ -1289,13 +1307,17 @@ def run(args) -> int:
                     for name in param_names:
                         local = _local_series(all_results, name)
                         xs, ys, n = join_nearest(cross_ref_series, local, tol_s=tol)
-                        out["correlations"][name] = {"r": _pearson(xs, ys), "n": n}
+                        out["correlations"][name] = {
+                            "r": _correlation(xs, ys, args.method), "n": n
+                        }
                 else:
                     for name in param_names:
                         if name == corr_ref:
                             continue
                         xs, ys = _paired(all_results, corr_ref, name)
-                        out["correlations"][name] = {"r": _pearson(xs, ys), "n": len(xs)}
+                        out["correlations"][name] = {
+                            "r": _correlation(xs, ys, args.method), "n": len(xs)
+                        }
             json.dump(out, sys.stdout, indent=2, default=str)
             print()
             return 0
@@ -1365,7 +1387,7 @@ def run(args) -> int:
     if args.discriminate:
         print_discriminate(
             all_results, param_names, parameters, candidate_names, args.discriminate,
-            include_bytes=args.bytes,
+            include_bytes=args.bytes, include_bits=args.bits,
         )
         printed = True
     if corr_ref:
@@ -1379,6 +1401,7 @@ def run(args) -> int:
             cross_ref_label=cross_ref_label,
             tol_s=args.join_tol,
             transform=args.corr_transform,
+            method=args.method,
         )
         printed = True
     if not printed:

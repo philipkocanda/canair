@@ -100,12 +100,16 @@ class TestStatistics:
         assert round(decode_script._stdev([1, 2, 3, 4, 5]), 4) == 1.5811
 
     def test_pearson_perfect_positive_and_negative(self):
-        assert round(decode_script._pearson([1, 2, 3], [2, 4, 6]), 6) == 1.0
-        assert round(decode_script._pearson([1, 2, 3], [6, 4, 2]), 6) == -1.0
+        from canlib.stats import pearson
+
+        assert round(pearson([1, 2, 3], [2, 4, 6]), 6) == 1.0
+        assert round(pearson([1, 2, 3], [6, 4, 2]), 6) == -1.0
 
     def test_pearson_undefined_cases(self):
-        assert decode_script._pearson([1], [1]) is None  # too few points
-        assert decode_script._pearson([2, 2, 2], [1, 2, 3]) is None  # zero variance
+        from canlib.stats import pearson
+
+        assert pearson([1], [1]) is None  # too few points
+        assert pearson([2, 2, 2], [1, 2, 3]) is None  # zero variance
 
     def test_compute_stats(self):
         s = decode_script.compute_stats([1, 1, 2, 3])
@@ -278,6 +282,23 @@ class TestDiscriminate:
         decode_script.print_discriminate(results, [], {}, set(), "state", include_bytes=True)
         out = capsys.readouterr().out
         assert " B0 " not in out and " B1 " not in out
+
+    def test_discriminate_bits_surfaces_state_bit(self, capsys):
+        # T2.4: a bit that flips cleanly by state ranks; header notes bits.
+        def cap(state, d0):
+            return {
+                "capture": {"vehicle_states": [state], "payload": f"62B004{d0:02X}"},
+                "decoded": {},
+            }
+
+        # B4 bit0 = 1 in ready, 0 in charging -> clean state split
+        results = [cap("ready", 0x01), cap("ready", 0x01), cap("charging", 0x00), cap("charging", 0x00)]
+        decode_script.print_discriminate(
+            results, [], {}, set(), "state", include_bits=True
+        )
+        out = capsys.readouterr().out
+        assert "params + bits" in out
+        assert "B4:0" in out
 
 
 class TestCorrTransform:

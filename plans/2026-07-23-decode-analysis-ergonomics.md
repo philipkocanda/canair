@@ -324,8 +324,25 @@ over existing captures** — no device, no transport, no schema-of-record change
       - Tests: `test_xanalysis.py` (TransformRef, CorrelatePromote, parser flags),
         `test_decode_try.py` (discriminate `--bytes` surfaces/skip-PCI). Full suite
         (1721) + ruff + `validate all` green.
-- [ ] Tranche 2 — spearman `--method` (2.1); lag-scan (2.2); gated/`--where`
+- [x] Tranche 2 — spearman `--method` (2.1); lag-scan (2.2); gated/`--where`
       correlation (2.3); bit-level correlation & discrimination (2.4).
+      - 2.1: consolidated the three `pearson` copies into `canlib/stats.py`
+        (`pearson`/`rank`/`spearman`/`correlation`); `--method {pearson,spearman}`
+        on `decode --corr`, `correlate`, `hunt`. Header shows the coefficient.
+      - 2.2: `correlate --against --lag-scan N` (`xanalysis.lag_scan`) shifts each
+        signal ±N sample-intervals, reports the lag maximising |r|, labelled
+        "apparent lag (incl. poll offset)". Verified: inverter temp peaks at +7.3s
+        vs speed (thermal inertia).
+      - 2.3: `correlate --against --gate '[SIGNAL] OP VALUE'` filters the reference
+        to a regime (`'> 0'` = while-moving, or a named cross-signal). `--state`
+        already covered session-state gating.
+      - 2.4: `correlate --bits` and `decode --discriminate state --bits`
+        (`xanalysis.build_bit_series`, `_byte_state_buckets(include_bits=)`).
+        0/1-coded bit series feed the same pearson (point-biserial vs analog, φ
+        vs bit). Reused decode's existing `--bits` flag.
+      - Tests: `test_stats.py` (pearson/rank/spearman/dispatch), `test_xanalysis.py`
+        (LagScan, CorrelateGate, build_bit_series), `test_decode_try.py`
+        (discriminate `--bits`). Full suite (1738) + ruff + `validate all` green.
 - [ ] Tranche 3 — co-poll overlap matrix (3.1); `investigate` verb (3.2); output
       clustering/interp-collapse/self-match hygiene (3.3); preserve YAML note
       wrapping in `pids upsert-param` (3.4).

@@ -22,13 +22,18 @@ from .align import (
     join_nearest,
     load_signal_captures,
 )
+from .stats import correlation, pearson
 
 __all__ = [
     "CorrHit",
+    "LagHit",
+    "build_bit_series",
     "build_byte_series",
     "build_param_series",
     "correlate_matrix",
+    "correlation",
     "hunt_byte",
+    "lag_scan",
     "linear_fit",
     "pearson",
     "sniff_unit",
@@ -37,22 +42,8 @@ __all__ = [
 
 
 # ---------------------------------------------------------------------------
-# Stats (hand-rolled, no numpy — matches decode.py conventions)
+# Stats: linear fit + unit sniffing (pearson/spearman live in canlib.stats)
 # ---------------------------------------------------------------------------
-def pearson(xs: list[float], ys: list[float]) -> float | None:
-    n = len(xs)
-    if n < 2:
-        return None
-    mx = sum(xs) / n
-    my = sum(ys) / n
-    sx = sum((x - mx) ** 2 for x in xs)
-    sy = sum((y - my) ** 2 for y in ys)
-    if sx == 0 or sy == 0:
-        return None
-    cov = sum((x - mx) * (y - my) for x, y in zip(xs, ys, strict=True))
-    return cov / (sx**0.5 * sy**0.5)
-
-
 def linear_fit(xs: list[float], ys: list[float]) -> tuple[float, float, float] | None:
     """Least-squares fit ``y = m*x + c``; returns ``(m, c, mean_abs_resid)``.
 
@@ -200,6 +191,104 @@ def build_byte_series(
     return out
 
 
+def build_bit_series(
+    loaded: LoadedPid, *, skip_pci: bool = True
+) -> dict[str, list[TimePoint]]:
+    """One 0/1 series per individual data bit (``Bn:k``) that actually toggles.
+
+    The bit-level companion to :func:`build_byte_series`. Only bits with ≥2
+    distinct values are kept (a constant bit can't correlate), which bounds the
+    otherwise-large bit space. Feeding a 0/1 series into the same Pearson yields
+    the point-biserial coefficient (bit vs analog) or φ (bit vs bit). PCI framing
+    bytes are skipped by default.
+    """
+    from datetime import datetime
+
+    from .byteindex import payload_to_wican_bytes, wican_to_isotp
+    from .capture_dates import entry_datetime
+
+    frames: list[tuple[datetime, bytes]] = []
+    max_len = 0
+    for cap in loaded.captures:
+        dt = entry_datetime(cap)
+        if dt is None:
+            continue
+        try:
+            fr = payload_to_wican_bytes(cap["payload"])
+        except Exception:
+            continue
+        frames.append((dt, fr))
+        max_len = max(max_len, len(fr))
+
+    out: dict[str, list[TimePoint]] = {}
+    for off in range(max_len):
+        if skip_pci and wican_to_isotp(off) is None:
+            continue
+        for k in range(8):
+            series = [
+                TimePoint(dt, float((fr[off] >> k) & 1)) for dt, fr in frames if off < len(fr)
+            ]
+            if len({tp.value for tp in series}) >= 2:
+                out[f"{loaded.ecu}:{loaded.pid}:B{off}:{k}"] = series
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Lead/lag cross-correlation
+# ---------------------------------------------------------------------------
+@dataclass
+class LagHit:
+    """Result of a lead/lag sweep: the sample offset that maximises |r|."""
+
+    lag_samples: int
+    lag_seconds: float
+    r: float
+    n: int
+
+
+def lag_scan(
+    ref: list[TimePoint],
+    cand: list[TimePoint],
+    *,
+    tol_s: float = DEFAULT_JOIN_TOL_S,
+    max_lag: int = 3,
+    method: str = "pearson",
+) -> LagHit | None:
+    """Shift ``cand`` by ±k sample-intervals and return the lag maximising |r|.
+
+    ``lag_seconds`` is the time shift *applied to the candidate* to best align it
+    with the reference (interval unit = the reference's median inter-sample
+    spacing). A negative applied shift means the candidate's events occur *later*
+    than the reference's (candidate lags). **Apparent lag only:** with sequential
+    single-connection polling the result is ``true_lag + fixed_poll_offset`` — it
+    shows ordering *relative to the acquisition offset*, not proven causality
+    (needs a same-ECU pair or a synced capture). None if no lag yields a defined
+    correlation.
+    """
+    from datetime import timedelta
+
+    if not ref or not cand:
+        return None
+    ref_sorted = sorted(ref, key=lambda tp: tp.dt)
+    diffs = sorted(
+        (ref_sorted[i + 1].dt - ref_sorted[i].dt).total_seconds()
+        for i in range(len(ref_sorted) - 1)
+    )
+    step = diffs[len(diffs) // 2] if diffs else 0.0
+    if step <= 0:
+        step = 1.0
+    best: LagHit | None = None
+    for k in range(-max_lag, max_lag + 1):
+        shifted = [TimePoint(tp.dt + timedelta(seconds=k * step), tp.value) for tp in cand]
+        xs, ys, n = join_nearest(ref, shifted, tol_s=tol_s)
+        r = correlation(xs, ys, method)
+        if r is None:
+            continue
+        if best is None or abs(r) > abs(best.r):
+            best = LagHit(lag_samples=k, lag_seconds=k * step, r=r, n=n)
+    return best
+
+
 # ---------------------------------------------------------------------------
 # Correlation matrix
 # ---------------------------------------------------------------------------
@@ -218,12 +307,14 @@ def correlate_matrix(
     min_r: float = 0.6,
     min_n: int = 15,
     include_intra: bool = False,
+    method: str = "pearson",
 ) -> list[CorrHit]:
-    """Pairwise Pearson across all series, time-aligned by nearest timestamp.
+    """Pairwise correlation across all series, time-aligned by nearest timestamp.
 
     Returns hits with ``|r| >= min_r`` and ``n >= min_n``, strongest first.
-    Same-(ECU,PID) pairs are dropped unless ``include_intra`` (they're already
-    covered by ``decode --corr`` and dominate the ranking).
+    ``method`` selects Pearson (linear) or Spearman (monotone/rank). Same-(ECU,
+    PID) pairs are dropped unless ``include_intra`` (they're already covered by
+    ``decode --corr`` and dominate the ranking).
     """
     names = list(series)
     hits: list[CorrHit] = []
@@ -235,7 +326,7 @@ def correlate_matrix(
             xs, ys, n = join_nearest(series[a], series[b], tol_s=tol_s)
             if n < min_n:
                 continue
-            r = pearson(xs, ys)
+            r = correlation(xs, ys, method)
             if r is None or abs(r) < min_r:
                 continue
             hits.append(CorrHit(a, b, r, n))
@@ -274,13 +365,15 @@ def hunt_byte(
     tol_s: float = DEFAULT_JOIN_TOL_S,
     min_n: int = 10,
     top: int = 12,
+    method: str = "pearson",
 ) -> list[HuntHit]:
     """Sweep every byte offset × interpretation, rank by |r| vs ``ref``.
 
     Reuses the plot explorer's interpretation machinery (``INSPECT_TYPES``,
     ``interpret_bytes``, ``wican_expr``) so hunt and plot agree on how bytes are
-    read and expressed. PCI-crossing multi-byte reads are skipped. For each top
-    hit, reports the best linear fit + a unit guess.
+    read and expressed. PCI-crossing multi-byte reads are skipped. Ranking uses
+    ``method`` (pearson/spearman); the reported linear fit is always least-squares
+    on the raw values regardless.
     """
     from .byteindex import payload_to_wican_bytes
     from .capture_dates import entry_datetime
@@ -322,7 +415,7 @@ def hunt_byte(
                 xs, ys, n = join_nearest(ref, cand, tol_s=tol_s)
                 if n < min_n:
                     continue
-                r = pearson(xs, ys)
+                r = correlation(xs, ys, method)
                 if r is None:
                     continue
                 fit = linear_fit(xs, ys)

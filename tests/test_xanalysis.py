@@ -89,6 +89,63 @@ class TestTransformRef:
         assert [tp.dt for tp in out] == sorted(tp.dt for tp in ref)
 
 
+class TestLagScan:
+    """T2.2 — lead/lag cross-correlation."""
+
+    def test_finds_positive_lag(self):
+        # cand is ref shifted +2 samples (1 s spacing): best lag ≈ +2 samples
+        ref = [_tp(i, float(i % 7)) for i in range(30)]
+        cand = [_tp(i + 2, float(i % 7)) for i in range(30)]
+        hit = xanalysis.lag_scan(ref, cand, tol_s=0.6, max_lag=3)
+        assert hit is not None
+        assert hit.lag_samples == -2  # shift cand back 2 to align with ref
+        assert hit.r == pytest.approx(1.0, abs=1e-6)
+
+    def test_zero_lag_when_aligned(self):
+        ref = [_tp(i, float(i % 5)) for i in range(20)]
+        cand = [_tp(i, float(i % 5)) for i in range(20)]
+        hit = xanalysis.lag_scan(ref, cand, tol_s=0.4, max_lag=3)
+        assert hit is not None and hit.lag_samples == 0
+
+    def test_empty_returns_none(self):
+        assert xanalysis.lag_scan([], [_tp(0, 1.0)], tol_s=1.0) is None
+
+
+class TestCorrelateGate:
+    """T2.3 — signal-predicate gating on correlate --against."""
+
+    def test_parse_gate_reference_form(self):
+        from canlib.commands import correlate
+
+        signal, op_fn, value, _ = correlate._parse_gate("> 0")
+        assert signal is None and value == 0.0
+        assert op_fn(1, 0) and not op_fn(-1, 0)
+
+    def test_parse_gate_named_signal(self):
+        from canlib.commands import correlate
+
+        signal, op_fn, value, _ = correlate._parse_gate("MCU:2102:MCU_MOTOR_RPM >= 100")
+        assert signal == "MCU:2102:MCU_MOTOR_RPM" and value == 100.0
+        assert op_fn(100, 100)
+
+    def test_parse_gate_invalid(self):
+        import pytest
+
+        from canlib.commands import correlate
+
+        with pytest.raises(ValueError):
+            correlate._parse_gate("not a gate")
+
+    def test_apply_gate_reference_value(self):
+        from canlib.commands import correlate
+
+        ref = [_tp(0, -5.0), _tp(1, 0.0), _tp(2, 10.0), _tp(3, 20.0)]
+        kept = correlate._apply_gate(
+            ref, "> 0", 1.0, since=None, until=None, state=None, label=None
+        )
+        assert [tp.value for tp in kept] == [10.0, 20.0]
+
+
 # ---------------------------------------------------------------------------
 # build_byte_series
 # ---------------------------------------------------------------------------
@@ -131,6 +188,15 @@ class TestBuildByteSeries:
         pci = {i for i in range(wlen) if wican_to_isotp(i) is None}
         assert pci  # multi-frame frame has PCI bytes
         assert not (offsets & pci), f"PCI offsets leaked into series: {offsets & pci}"
+
+    def test_build_bit_series_only_toggling_bits(self):
+        # single-frame payload 62 C1 01 00 -> WiCAN 04 62 C1 01 00: B0=PCI, B1=SID,
+        # B4=last data byte. d0 toggles bit0 only (0x00 <-> 0x01); all else const.
+        lp = self._loaded(["62C10100", "62C10101", "62C10100", "62C10101"])
+        bits = xanalysis.build_bit_series(lp)
+        keys = set(bits)
+        assert "BMS:2101:B4:0" in keys
+        assert all(k.endswith(":0") for k in keys)  # only bit 0 varies
 
 
 # ---------------------------------------------------------------------------
