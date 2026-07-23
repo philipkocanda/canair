@@ -4,10 +4,8 @@ sessions:
   vehicle_states:
   - ready
   - parked
-  notes: >
-    Live canreq snapshot while parked in READY, ambient ~18C, cold-soaked (motor 0
-    RPM, no torque). Used to anchor MCU 2102 motor RPM (0 at park) and as a cold reference
-    for future temp mapping.
+  notes: >-
+    Live canair snapshot while parked in READY, ambient ~18C, cold-soaked (motor 0 RPM, no torque). Used to anchor MCU 2102 motor RPM (0 at park) and as a cold reference for future temp mapping.
   captures:
   - ecu: '0x7EB'
     pid: '2101'

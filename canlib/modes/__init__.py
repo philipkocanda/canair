@@ -1,4 +1,4 @@
-"""Mode implementations for canreq.py."""
+"""Mode implementations for canair live commands."""
 
 from .discover import mode_discover
 from .dtc import mode_dtc_clear, mode_dtc_read, mode_dtc_scan_all

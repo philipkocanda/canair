@@ -5,7 +5,7 @@
   - [ ] VCU/MCU while driving (canair query "query VCU:2101" "query MCU:2102" --monitor 1 --keep-all --save --wican vpn)
   - [ ] More HVAC PIDs in various states
   - [ ] Drive-mode button (Eco/Normal/Sport) + regen paddle (0-3) toggle test while monitoring VCU 2101 (see "Drive mode + regen" section below)
-- Canreq:
+- canair:
   - [ ] simplify usage by making the "multi" mode the default, removing the complexity of maintaining both single and multi modes
 - Various:
   - [ ] Web UI for viewing and querying captures (similar to https://github.com/deanlee/openpilot-cabana used by https://www.projectgus.com/2023/10/kona-can-decoding/, but focused on UDS/KWP2000)

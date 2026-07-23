@@ -3839,7 +3839,7 @@ sessions:
   label: "ECU discovery scan — full address sweep 0x700-0x7EF"
   vehicle_states:
   - ready
-  notes: "Used canreq.py --discover to sweep all 240 addresses. 200ms delay between probes. 30 alive, 210 silent, 0 errors. [migrated state: ready mode (ACC on, 14.7V)]"
+  notes: "Used canair discover to sweep all 240 addresses. 200ms delay between probes. 30 alive, 210 silent, 0 errors. [migrated state: ready mode (ACC on, 14.7V)]"
   captures:
   - ecu: '0x7EE'
     pid: "1001"

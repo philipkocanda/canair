@@ -1,7 +1,7 @@
 """Scan progress state files.
 
 Scanners write a small JSON state file every N probes so that if the scan
-is killed or interrupted, the next canreq invocation can warn the user and
+is killed or interrupted, the next canair invocation can warn the user and
 show where the scan left off.
 
 File location: /tmp/wican-scan-<type>-<ecu>.json
@@ -24,7 +24,7 @@ State file format::
 
 The file is deleted by the scanner on clean completion (or successful
 Ctrl+C handling in ``mode_iocontrol_scan`` / ``mode_routines_scan``).  If
-it still exists when the next ``canreq`` starts, it was abandoned mid-run.
+it still exists when the next ``canair`` starts, it was abandoned mid-run.
 """
 
 from __future__ import annotations
@@ -135,7 +135,7 @@ def find_aborted_scans() -> list[dict]:
     """Return a list of state dicts for any scan state files that exist.
 
     A state file that belongs to a still-running process is skipped
-    (the lock file already handles the "another canreq is running" case,
+    (the lock file already handles the "another canair is running" case,
     but this is a belt-and-suspenders check).
     """
     results = []

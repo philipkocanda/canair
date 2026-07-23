@@ -341,14 +341,14 @@ class TestScanAll:
         # No --log flag in the args: dispatch must log by default (dtc_log unset
         # -> getattr default True).
         from canlib import dtc_log
-        from canlib.commands._live import CANREQ_DEFAULTS, dispatch_mode
+        from canlib.commands._live import CANAIR_DEFAULTS, dispatch_mode
 
         logp = tmp_path / "dtc_log.yaml"
         monkeypatch.setattr(dtc_log, "log_path", lambda path=None: logp if path is None else path)
         monkeypatch.setattr(dtc, "resolve_protocol", lambda proto, tx: "uds")
         monkeypatch.setattr("canlib.ecus.load_ecus", lambda: {0x7A0: {"name": "BCM"}})
         t = FakeTerminal({"1902FF": _ok("5902FF" + "0123002F")})  # BCM: 1 DTC
-        args = argparse.Namespace(**{**CANREQ_DEFAULTS, "dtc_all": True, "mask": "FF"})
+        args = argparse.Namespace(**{**CANAIR_DEFAULTS, "dtc_all": True, "mask": "FF"})
         assert not hasattr(args, "dtc_log")  # nothing opted in
         await dispatch_mode(args, t, {}, "1.2.3.4")
         out = capsys.readouterr().out
@@ -397,11 +397,11 @@ class TestDispatchTransportAgnostic:
     """
 
     def _args(self, **kw):
-        from canlib.commands._live import CANREQ_DEFAULTS
+        from canlib.commands._live import CANAIR_DEFAULTS
 
         # Routing tests: default --no-log (dtc_log=False) so they never touch the
         # real profile's dtc_log.yaml. Logging-by-default is covered separately.
-        return argparse.Namespace(**{**CANREQ_DEFAULTS, "dtc_log": False, **kw})
+        return argparse.Namespace(**{**CANAIR_DEFAULTS, "dtc_log": False, **kw})
 
     @pytest.mark.asyncio
     async def test_dispatch_read(self, capsys):

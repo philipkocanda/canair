@@ -3,7 +3,7 @@
 All live subcommands talk to the vehicle over the configured transport (raw
 SLCAN-over-TCP by default, or the WebSocket ELM327 terminal — see
 :mod:`canlib.transport.config`). They share one connection lifecycle and one
-dispatcher (``async_main``, moved here verbatim from the old ``canreq.py``).
+dispatcher (``async_main``, the shared live-command runtime for the CLI).
 Each subcommand is a thin argparse surface that populates the same attribute
 names ``async_main`` expects, then calls :func:`run_live`.
 """
@@ -57,12 +57,12 @@ except ImportError:  # pragma: no cover
 
 
 # ---------------------------------------------------------------------------
-# canreq default namespace — every attribute async_main reads, with the same
-# defaults the old flat parser used. Live subcommands only expose a subset of
-# these as real arguments; finalize_live_parser fills in the rest.
+# canair live default namespace — every attribute async_main reads, with the
+# same defaults the original flat parser used. Live subcommands only expose a
+# subset of these as real arguments; finalize_live_parser fills in the rest.
 # ---------------------------------------------------------------------------
 
-CANREQ_DEFAULTS: dict = {
+CANAIR_DEFAULTS: dict = {
     # mode selectors
     "param": None,
     "ecu": None,
@@ -274,13 +274,13 @@ def add_connection_args(parser: argparse.ArgumentParser) -> None:
 
 
 def finalize_live_parser(parser: argparse.ArgumentParser, **active_mode) -> None:
-    """Fill in every canreq default attribute the parser does not already expose.
+    """Fill in every canair live default attribute the parser does not already expose.
 
     ``active_mode`` sets the mode selector(s) for this subcommand (e.g.
     ``scan=True`` or ``discover=True``). Also wires ``func=run``.
     """
     exposed = {a.dest for a in parser._actions}
-    for dest, default in CANREQ_DEFAULTS.items():
+    for dest, default in CANAIR_DEFAULTS.items():
         if dest in exposed or dest in active_mode:
             continue
         parser.set_defaults(**{dest: default})
@@ -288,7 +288,7 @@ def finalize_live_parser(parser: argparse.ArgumentParser, **active_mode) -> None
 
 
 # ---------------------------------------------------------------------------
-# Connection lifecycle + dispatcher (moved verbatim from canreq.async_main)
+# Connection lifecycle + dispatcher (the shared live-command runtime)
 # ---------------------------------------------------------------------------
 
 

@@ -1,8 +1,8 @@
 """ECU / PID selection mini-language.
 
 A small, source-agnostic query syntax for picking ECUs and PIDs on the command
-line. Shared by the capture tools (``query-captures.py``) and intended for reuse
-anywhere an ECU/PID selection is needed (e.g. ``canreq.py``).
+line. Shared by the capture tools (``canair captures``) and intended for reuse
+anywhere an ECU/PID selection is needed (e.g. ``canair query``).
 
 Grammar
 -------
