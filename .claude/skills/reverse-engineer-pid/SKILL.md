@@ -108,7 +108,10 @@ canair query "query MCU 2102" --monitor 1 --keep-all --save
 
 Capture the SAME PID in DIFFERENT states (park vs drive, cold vs warm, charging
 vs ready) — contrast is what lets you separate signal bytes from constants.
-**Never hand-edit `captures/`.** Saves are journaled to `captures/.journal/` and
+**Never hand-edit `captures/` — and never read the raw `captures/*.yaml` files
+directly.** Always inspect captures through `canair captures`/`canair decode`
+(next step): reading the YAML by hand gives you undecoded raw payloads and skips
+byte-diffing, decoding, and state/date scoping. Saves are journaled to `captures/.journal/` and
 reconciled on exit (a killed/disconnected `--monitor` session is recoverable with
 `canair captures --recover`); in `--monitor` the `state` is auto-suggested from
 decoded values (press `s` to edit metadata live). After saving, run
@@ -119,19 +122,31 @@ decoded values (press `s` to edit metadata live). After saving, run
 ```bash
 canair captures --sessions                    # what's in the captures? (TOC: date/state/label/notes/ECUs)
 canair captures --sessions --state driving    # index of every drive
+canair captures --sessions --json             # machine-readable TOC
+canair captures --summary                     # overview: captures per ECU / per date / totals
+canair captures --latest MCU                  # most recent payload per PID (optionally per-ECU)
 canair captures MCU 2102                      # list captures + decoded
 canair captures MCU:2102 --diff               # unique payloads, byte-diff
+canair captures MCU:2102 --diff --all         # every payload, not just unique ones
+canair captures MCU:2102 --diff --rulers      # add the idx/wican byte-index ruler above the hex
 canair captures MCU:2102 --diff --since 2026-07-19   # scope by date
 canair captures MCU:2102 --diff --state driving       # scope to one drive/state
-canair captures MCU:2102 --step               # interactive step-through
+canair captures MCU:2102 --step               # interactive step-through (e=note, d=delete)
+canair captures --recover                     # reconcile orphaned journals (--discard to drop)
 canair bix -1 --annotate 6101FFFF...          # map each byte -> Bnn/ISO-TP/Torque/role
 ```
+
+The QUERY mini-language is shared with `canair decode`: `MCU 2102` (one PID),
+`MCU:2102,2103` (several PIDs), `MCU` (all PIDs for an ECU), `"VCU:2101 BMS:2101"`
+(cross-ECU — quote the space), and `BCM:22` (substring PID match — all `22xxxx`
+DIDs on an ECU).
 
 Start with `canair captures --sessions` to see what data exists (labels, states,
 notes per session — no payloads) and pick a drive/state to analyze; `--json`
 gives a machine-readable index.
 Byte-diff highlights which bytes moved between states — your candidate signal
-bytes. Both `captures` and `decode` share the same scoping flags —
+bytes; add `--rulers` to overlay the byte-index ruler and `--all` to include
+duplicate payloads. Both `captures` and `decode` share the same scoping flags —
 `--since`/`--until`/`--date`, `--state SUBSTR`/`--label SUBSTR`, `--first`/
 `--last N` — so you can isolate a single drive (`--state driving`) before
 diffing/decoding. `canair bix --annotate` tells you each byte's WiCAN index and
@@ -207,8 +222,16 @@ canair pids upsert-param MCU 2102 MCU_MOTOR_RPM "[S10:S11]" \
     --source "Kia Soul VMCU CSV" --notes "signed 16-bit BE at B10:B11 (ISO-TP 0x07:0x08)"
 ```
 
-New params start `--unverified`. (Hand-editing `ecus/` is allowed, but the tool
-keeps field order/quoting correct and runs `canair validate pids` for you.)
+New params start **`--unverified` and `--enabled`** — this is the default.
+Enabled+unverified means the candidate is generated into the WiCAN profile and
+streams live, so it's easy to test against reality (that's the whole point of a
+candidate). Do **not** add candidates as `--disabled`; only reach for
+`--disabled` (or `enabled: false`) when a byte is *proven* bogus/redundant and
+you're keeping it solely for the research trail (e.g. a constant/FF-padding byte,
+or an exact mirror of an already-mapped param). A plausible-but-unconfirmed
+hypothesis belongs enabled so you can watch it move. (Hand-editing `ecus/` is
+allowed, but the tool keeps field order/quoting correct and runs
+`canair validate pids` for you.)
 
 ### 9. Verify — confirm against reality
 
@@ -218,6 +241,8 @@ state, then flip to verified:
 ```bash
 canair decode MCU 2102                      # ranges (default) — sanity across captures
 canair decode MCU 2102 --stats              # distribution / enum detection
+canair decode MCU 2102 --param MCU_MOTOR_RPM  # isolate the one param you're verifying
+canair decode MCU 2102 --unverified         # validation focus: only not-yet-verified params
 canair coverage MCU 2102                    # any bytes still unmapped?
 canair validate pids                        # schema + PCI-boundary checks
 
@@ -227,6 +252,46 @@ canair pids set-status MCU 2102 done --type decode                       # close
 
 A parameter is `verified: true` only when validated against real data / known
 state (physical correlation, matching a scan tool, or a definitive constant).
+
+### Always mark off a worked lead (do not leave it open)
+
+**Every time you touch a `research:` lead you MUST update its status before moving
+on** — a lead you investigated but left `pending`/`captured` will be re-surfaced by
+`canair research` and re-worked from scratch, wasting effort (and risking
+re-probing the car). Close it to match reality. Valid statuses are
+`pending → captured → done` (plus `nrc` for a dead scan); a lead awaiting live
+confirmation is a `verify`-**type** item that stays `captured` until confirmed,
+then goes `done`:
+
+```bash
+canair pids set-status <ECU> "<target>" done      --type decode   # decoded + a param now exists
+canair pids set-status <ECU> "<target>" captured  --type verify   # candidate defined, awaiting live check
+canair pids set-status <ECU> "<target>" nrc       --type scan     # probed, ECU said no / silent
+```
+
+This applies to **every** outcome, not just success:
+
+- **Fully decoded / verified → `done`** (a real `parameters:` entry exists,
+  promoted to `verified` where possible; for a `verify`-type lead, `done` once
+  confirmed against reality).
+- **Decoded a candidate but it still needs a live/physical check → keep it
+  `captured`** (as a `decode`- or `verify`-type item) with the enabled+unverified
+  param in place, and note exactly what to test.
+- **"Nothing to decode here" is also a result → mark it `done`.** If analysis proves
+  the unmapped bytes are constants/padding, message counters, checksums, or exact
+  mirrors of an already-mapped param, record that finding in the lead's `notes`
+  (with the evidence) and set it `done` — the negative result is the deliverable
+  (e.g. MCU 2102 B52/B53 = counter/checksum, HVAC 220100 FF-padding tail). Do NOT
+  silently drop it.
+- **Only part done → keep it open, but add a follow-up.** If you did part of the
+  work (e.g. registered candidates but they need a drive to verify), update the
+  `notes`/`what_to_test` to reflect exactly what's left so the next pass starts where
+  you stopped, rather than re-deriving it.
+
+Rule of thumb: after any analysis or capture session, run `canair research --ecu
+<ECU>` and confirm no lead you touched is still showing its old status. Prefer
+`canair pids set-status` (surgical, validated) over hand-editing the `research:`
+block.
 
 ### 10. Integrate
 
@@ -245,7 +310,7 @@ Then consider an upstream wican-fw PR (see parent skill goals).
 | what to work on | `canair research`, `canair coverage` |
 | what's captured | `canair captures --sessions` (TOC: date/state/label/notes/ECUs; `--json`) |
 | talk to the car | `canair query`/`scan`/`discover` (`--monitor`, `--save`) |
-| see captures | `canair captures` (`--diff`/`--step`/`--since`/`--until`/`--state`/`--label`) |
+| see captures | `canair captures` (`--diff`/`--step`/`--rulers`/`--all`/`--latest`/`--summary`/`--since`/`--until`/`--state`/`--label`) |
 | map bytes | `canair bix --annotate` |
 | test expressions | `canair decode --try` / `--stats` / `--corr` / `--plot` |
 | scope a drive | `--state driving` / `--since`/`--until`/`--date` / `--first`/`--last N` (both `captures` + `decode`) |
