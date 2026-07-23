@@ -123,7 +123,7 @@ EPS:
           notes: >
             Speed-sensitive MDPS assist band. ISO-TP 0x0C (WiCAN B15). Discrete step counter 0-3 that increases with vehicle speed (r=+0.953 vs EPS_VEHICLE_SPEED/B14 over 360 driving captures). Steps 0->1 at ~26-27 km/h with hysteresis (returns to 0 below ~25 km/h); bands 2 and 3 at higher speeds. Only ever 0/1/2/3 (219/85/23/33 samples) so NOT a speed high byte. Consistent with a speed-band selector that discretely reduces steering assist as speed rises. Verify: sustained-speed sweep to pin each band's threshold.
     220102:
-      status: draft
+      status: static
       period: 2500
       vehicle_states:
         - ready

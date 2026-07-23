@@ -236,6 +236,15 @@ MCU:
             vs phase current, +0.06 vs |torque|, autocorrelation 0.975, step 0.11/sample. Per-state:
             parked 5.4, charging 8.0 (motor idle), driving 16.3. Raw = °C (cold-park ≈ ambient).
             Likely motor winding/stator or coolant-inlet temp. Verify: scan-tool motor temp + long warm drive.
+        MCU_CURRENT_RELATED:
+          expression: B21
+          unit: ""
+          min: "0"
+          max: "255"
+          source: canair hunt vs MCU_PHASE_CURRENT_RMS, 2026-07-22 drive
+          verified: false
+          notes: >
+            Load/current-related signal. B21 (distinct=16, range 13-34, median 16) tracks MCU_PHASE_CURRENT_RMS at r=+0.859 over 477 driving pts (resid 1.1) — genuinely dynamic, not a low-variance artifact. Likely a scaled/filtered current or a DC-bus current proxy (slope 0.065, offset ~15). Exact quantity/scale TBD; verify against a high-load capture.
 
     2103:
       status: draft
