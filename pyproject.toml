@@ -37,6 +37,7 @@ dev = [
     "pytest>=8.0",
     "pytest-asyncio>=1.0",
     "ruff>=0.9",
+    "ty>=0.0.1a1",
 ]
 
 [tool.pytest.ini_options]
@@ -67,3 +68,11 @@ ignore = [
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+
+[tool.ty.src]
+# Type-check the library package only. Tests lean heavily on fakes/fixtures
+# where strict typing is high-noise, low-value; the CI gate targets canlib/.
+include = ["canlib"]
+
+[tool.ty.environment]
+python-version = "3.12"

@@ -40,7 +40,8 @@ def decode_date(stripped: bytes) -> str | None:
     """
     if len(stripped) == 4:
         d0, d1, d2, d3 = (_bcd_byte(x) for x in stripped)
-        if None not in (d0, d1, d2, d3):
+        # Explicit is-not-None guards (not tuple membership) so ty narrows d0..d3.
+        if d0 is not None and d1 is not None and d2 is not None and d3 is not None:
             year = d0 * 100 + d1
             if _MIN_YEAR <= year <= _MAX_YEAR and _valid_md(d2, d3):
                 return f"{year:04d}-{d2:02d}-{d3:02d}"
@@ -50,7 +51,8 @@ def decode_date(stripped: bytes) -> str | None:
         return None
     if len(stripped) == 3:
         d0, d1, d2 = (_bcd_byte(x) for x in stripped)  # BCD YY MM DD
-        if None not in (d0, d1, d2) and _valid_md(d1, d2):
+        # Explicit is-not-None guards (not tuple membership) so ty narrows d0..d2.
+        if d0 is not None and d1 is not None and d2 is not None and _valid_md(d1, d2):
             return f"{2000 + d0:04d}-{d1:02d}-{d2:02d}"
         return None
     return None

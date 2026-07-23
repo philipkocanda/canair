@@ -60,7 +60,7 @@ def _schema_validate(fpath: Path) -> tuple[bool, str]:
     return validate_pids_file(fpath)
 
 
-def _guarded(ecu: str, pids_dir: Path, do_edit, *, validate: bool):
+def _guarded(ecu: str, pids_dir: Path | None, do_edit, *, validate: bool):
     """Snapshot -> edit -> schema-validate -> commit or roll back."""
     fpath = find_ecu_file(ecu, pids_dir=pids_dir)
     snapshot = fpath.read_text()

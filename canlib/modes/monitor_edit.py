@@ -231,10 +231,19 @@ class MonitorEditor:
         new_val = not bool(pdef.get(field, default))
         from ..pids_edit import PidsEditError, upsert_parameter
 
+        # `field` is only ever "verified" or "enabled" (see toggle_* below), both
+        # bool params of upsert_parameter. Pass explicitly so the value type is
+        # bool (a dynamic **{field: new_val} splat is checked against every kwarg,
+        # including the str|None ones, and rejected).
         try:
-            upsert_parameter(
-                ecu, pid, name, expression, pids_dir=self.c.pids_dir, **{field: new_val}
-            )
+            if field == "verified":
+                upsert_parameter(
+                    ecu, pid, name, expression, pids_dir=self.c.pids_dir, verified=new_val
+                )
+            else:
+                upsert_parameter(
+                    ecu, pid, name, expression, pids_dir=self.c.pids_dir, enabled=new_val
+                )
         except (PidsEditError, Exception) as exc:
             return f"Toggle failed: {exc}"
         self.c.reload_pids()

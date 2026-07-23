@@ -40,6 +40,7 @@ import argparse
 import json
 import math
 import sys
+from typing import TYPE_CHECKING
 
 from canlib.capture_dates import (
     add_scope_args,
@@ -58,6 +59,9 @@ from canlib.expression import evaluate_expression
 from canlib.pids import build_ecu_index, load_pids
 from canlib.states import join_states as _join_states
 from canlib.stats import correlation as _correlation
+
+if TYPE_CHECKING:
+    from canlib.align import TimePoint
 
 NAME = "decode"
 
@@ -858,7 +862,7 @@ def print_correlations(
     candidate_names: set[str],
     ref: str,
     *,
-    cross_ref_series=None,
+    cross_ref_series: "list[TimePoint] | None" = None,
     cross_ref_label: str | None = None,
     tol_s: float | None = None,
     transform: str | None = None,
@@ -890,6 +894,8 @@ def print_correlations(
             continue
         if cross:
             local = _local_series(all_results, name)
+            # cross implies cross_ref_series is not None (set together above)
+            assert cross_ref_series is not None
             # join_nearest(ref, cand): keep ref as the external signal
             xs, ys, n = join_nearest(cross_ref_series, local, tol_s=tol)
             r = _correlation(xs, ys, method)
@@ -932,8 +938,6 @@ def _transform_series(series, mode: str):
 
     vals = apply_transform([tp.value for tp in series], mode)
     return [TimePoint(tp.dt, v) for tp, v in zip(series, vals, strict=True)]
-
-
 
 
 # ---------------------------------------------------------------------------
@@ -1033,8 +1037,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         type=float,
         default=None,
         metavar="SECONDS",
-        help="Nearest-timestamp join window for a cross-signal --corr "
-        "(default 2.5s)",
+        help="Nearest-timestamp join window for a cross-signal --corr (default 2.5s)",
     )
     parser.add_argument(
         "--corr-transform",
@@ -1229,8 +1232,7 @@ def run(args) -> int:
             corr_ref = resolve_ref(args.corr, list(parameters.keys()))
             if corr_ref is None:
                 print(
-                    f"--corr reference '{args.corr}' not found. "
-                    f"Available: {', '.join(parameters)}"
+                    f"--corr reference '{args.corr}' not found. Available: {', '.join(parameters)}"
                 )
                 return 1
 
@@ -1244,7 +1246,7 @@ def run(args) -> int:
         return 1
 
     # Decode all captures
-    all_results = []
+    all_results: list[dict] = []
     for cap in captures:
         try:
             wican_bytes = payload_to_wican_bytes(cap["payload"])
@@ -1307,16 +1309,15 @@ def run(args) -> int:
                     for name in param_names:
                         local = _local_series(all_results, name)
                         xs, ys, n = join_nearest(cross_ref_series, local, tol_s=tol)
-                        out["correlations"][name] = {
-                            "r": _correlation(xs, ys, args.method), "n": n
-                        }
+                        out["correlations"][name] = {"r": _correlation(xs, ys, args.method), "n": n}
                 else:
                     for name in param_names:
                         if name == corr_ref:
                             continue
                         xs, ys = _paired(all_results, corr_ref, name)
                         out["correlations"][name] = {
-                            "r": _correlation(xs, ys, args.method), "n": len(xs)
+                            "r": _correlation(xs, ys, args.method),
+                            "n": len(xs),
                         }
             json.dump(out, sys.stdout, indent=2, default=str)
             print()
@@ -1386,8 +1387,13 @@ def run(args) -> int:
         printed = True
     if args.discriminate:
         print_discriminate(
-            all_results, param_names, parameters, candidate_names, args.discriminate,
-            include_bytes=args.bytes, include_bits=args.bits,
+            all_results,
+            param_names,
+            parameters,
+            candidate_names,
+            args.discriminate,
+            include_bytes=args.bytes,
+            include_bits=args.bits,
         )
         printed = True
     if corr_ref:

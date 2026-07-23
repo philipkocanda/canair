@@ -302,6 +302,8 @@ async def _read_kwp(terminal: WiCANTerminal, tx_id: int, timeout: float = 3.0) -
         if response.get("nrc") is None:
             break
 
+    # _KWP_READ_REQUESTS is non-empty, so the loop always ran and set `response`.
+    assert response is not None
     base = {"ecu": ecu, "tx": f"0x{tx_id:03X}", "protocol": "kwp", "command": cmd}
     if response["ok"]:
         data = response["bytes"]
@@ -467,6 +469,8 @@ async def mode_dtc_scan_all(
             "results": results,
         }
         if log:
+            # log_path is set by _log_scan() in the identical `if log:` block above.
+            assert log_path is not None
             out["log"] = {"file": log_path.name, "diff": log_diff}
         print(json.dumps(out, indent=2))
         return

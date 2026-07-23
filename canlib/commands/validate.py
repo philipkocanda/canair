@@ -24,6 +24,7 @@ from pathlib import Path
 
 import yaml
 from jsonschema import Draft202012Validator
+from jsonschema.protocols import Validator
 
 from canlib.byteindex import wican_to_isotp
 from canlib.constants import SCHEMA_DIR
@@ -874,9 +875,7 @@ def _path_str(abs_path) -> str:
     return out or "<root>"
 
 
-def validate_captures_file(
-    path: Path, validator: Draft202012Validator, rx_addrs: set[int]
-) -> list[str]:
+def validate_captures_file(path: Path, validator: Validator, rx_addrs: set[int]) -> list[str]:
     from canlib.ecus import SENTINELS, parse_ecu_ref
 
     errors: list[str] = []

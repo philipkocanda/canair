@@ -32,6 +32,7 @@ import json
 import sys
 import time
 from pathlib import Path
+from types import ModuleType
 
 try:
     import yaml  # noqa: F401
@@ -39,13 +40,23 @@ except ImportError:
     print("ERROR: PyYAML not installed. Run: pip3 install pyyaml", file=sys.stderr)
     sys.exit(1)
 
-try:
-    import requests
-except ImportError:
-    requests = None  # Only needed for upload/download
-
 from canlib.constants import DEFAULT_WICAN, WICAN_ADDRESSES
 from canlib.pids import pid_status
+
+
+# Declared optional so the ImportError fallback to None is type-legal. The
+# import is isolated in a helper so the module name isn't rebound to None
+# (which would conflict with its module-typed import binding).
+def _try_import_requests() -> ModuleType | None:
+    try:
+        import requests  # Only needed for upload/download
+
+        return requests
+    except ImportError:
+        return None
+
+
+requests: ModuleType | None = _try_import_requests()
 
 NAME = "wican"
 
@@ -85,7 +96,7 @@ def _require_pro(operation: str) -> int | None:
     return 2
 
 
-def _profile_out() -> "object":
+def _profile_out() -> Path:
     """Default output path for the generated WiCAN profile JSON."""
     from canlib.profile import active
 
@@ -329,28 +340,29 @@ def get_wican_url(address: str) -> str:
     return addr
 
 
-def require_requests():
-    """Check requests library is available."""
+def require_requests() -> ModuleType:
+    """Check requests library is available; return the narrowed module."""
     if requests is None:
         print(
             "ERROR: 'requests' library not installed. Run: pip3 install requests",
             file=sys.stderr,
         )
         sys.exit(1)
+    return requests
 
 
 def download_profile(base_url: str) -> dict | None:
     """Download current vehicle profile from WiCAN device (raw device format)."""
-    require_requests()
+    req = require_requests()
     url = f"{base_url}/load_auto_pid_car_data"
     try:
-        resp = requests.get(url, timeout=WICAN_TIMEOUT)
+        resp = req.get(url, timeout=WICAN_TIMEOUT)
         resp.raise_for_status()
         data = resp.json()
         n_entries = len(data.get("cars", [{}])[0].get("pids", []))
         print(f"  Downloaded from {url} ({n_entries} entries)")
         return data
-    except requests.RequestException as e:
+    except req.RequestException as e:
         print(f"  FAILED to download from {url}: {e}", file=sys.stderr)
         return None
 
@@ -448,7 +460,7 @@ def upload_profile(base_url: str, device_payload: dict, reboot: bool = False) ->
       {"cars": [{"car_model": "...", "init": "...", "pids": [...]}]}
     with parameters as array-of-objects. Use to_device_format() to convert.
     """
-    require_requests()
+    req = require_requests()
 
     n_pids = len(device_payload.get("cars", [{}])[0].get("pids", []))
     n_params = sum(
@@ -457,10 +469,10 @@ def upload_profile(base_url: str, device_payload: dict, reboot: bool = False) ->
 
     url = f"{base_url}/store_car_data"
     try:
-        resp = requests.post(url, json=device_payload, timeout=WICAN_TIMEOUT)
+        resp = req.post(url, json=device_payload, timeout=WICAN_TIMEOUT)
         resp.raise_for_status()
         print(f"  Uploaded to {url} — {resp.status_code} ({n_pids} PIDs, {n_params} params)")
-    except requests.RequestException as e:
+    except req.RequestException as e:
         print(f"  FAILED to upload to {url}: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -468,9 +480,9 @@ def upload_profile(base_url: str, device_payload: dict, reboot: bool = False) ->
         time.sleep(0.3)
         url = f"{base_url}/system_reboot"
         try:
-            resp = requests.post(url, data="reboot", timeout=WICAN_TIMEOUT)
+            resp = req.post(url, data="reboot", timeout=WICAN_TIMEOUT)
             print(f"  Rebooting WiCAN... ({resp.status_code})")
-        except requests.RequestException as e:
+        except req.RequestException as e:
             print(f"  FAILED to reboot: {e}", file=sys.stderr)
 
 

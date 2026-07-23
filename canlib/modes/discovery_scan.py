@@ -26,8 +26,14 @@ from ..terminal import WiCANTerminal
 
 
 @dataclass(frozen=True)
-class DiscoveryProbe:
-    """Everything that distinguishes one discovery scanner from another."""
+class DiscoveryProbe[HitT]:
+    """Everything that distinguishes one discovery scanner from another.
+
+    Generic over ``HitT``, the scanner-specific hit NamedTuple: ``make_hit``
+    produces a ``HitT`` and ``write_hit`` consumes exactly that type, so a
+    scanner's concrete ``write_hit(ecu, hit: IOControlHit)`` is accepted (a
+    ``Callable[[str, object], None]`` param would reject it by contravariance).
+    """
 
     name: str  # human title for headers/summary, e.g. "IOControl (0x2F)"
     scan_type: str  # ScanStateWriter type / aborted-scan key, e.g. "iocontrol"
@@ -41,20 +47,20 @@ class DiscoveryProbe:
     # "positive" | "exists" | "absent" | "service-absent" | "wrong-session" | "error".
     classify: Callable[[dict], tuple[str, int | None]]
     # Build the scanner-specific hit NamedTuple.
-    make_hit: Callable[..., object]
+    make_hit: Callable[..., HitT]
     # Human-readable request preview for the progress line, e.g. "2F 00A0 00".
     request_display: Callable[[int], str]
     # Persist a single hit incrementally (survives disconnects). None = don't write.
-    write_hit: Callable[[str, object], None] | None = None
+    write_hit: Callable[[str, HitT], None] | None = None
 
     def id_fmt(self) -> str:
         """Zero-padded hex format spec matching the id width (e.g. ``04X``)."""
         return f"0{self.id_width * 2}X"
 
 
-async def scan_ecu(
+async def scan_ecu[HitT](
     terminal: WiCANTerminal,
-    probe: DiscoveryProbe,
+    probe: DiscoveryProbe[HitT],
     ecu_name: str,
     tx_id: int,
     id_range: tuple[int, int],
@@ -63,7 +69,7 @@ async def scan_ecu(
     session: bool = False,
     wake: bool = False,
     session_mode: str = "03",
-) -> list:
+) -> list[HitT]:
     """Scan one ECU over ``id_range`` (inclusive) using ``probe``.
 
     If ``session`` or ``wake`` is set, a diagnostic session (``session_mode``,
@@ -82,7 +88,7 @@ async def scan_ecu(
     )
     await terminal.set_header(tx_id)
 
-    hits: list = []
+    hits: list[HitT] = []
     absent = 0
     errors = 0
     tester_task: asyncio.Task | None = None
@@ -174,9 +180,9 @@ async def scan_ecu(
     return hits
 
 
-async def mode_discovery_scan(
+async def mode_discovery_scan[HitT](
     terminal: WiCANTerminal,
-    probe: DiscoveryProbe,
+    probe: DiscoveryProbe[HitT],
     pids_data: dict,
     ecus: list[str],
     id_range: tuple[int, int] | None = None,
@@ -188,7 +194,7 @@ async def mode_discovery_scan(
     session: bool = False,
     wake: bool = False,
     session_mode: str = "03",
-) -> dict[str, list]:
+) -> dict[str, list[HitT]]:
     """Run ``probe`` across one or more ECUs.
 
     Args:
@@ -211,7 +217,7 @@ async def mode_discovery_scan(
         if isinstance(fdata, dict):
             ecu_defs[fname.upper()] = fdata
 
-    results: dict[str, list] = {}
+    results: dict[str, list[HitT]] = {}
     for ecu in ecus:
         key = ecu.upper()
         if key not in ecu_defs:
@@ -227,7 +233,7 @@ async def mode_discovery_scan(
         else:
             ranges = (default_ranges or {}).get(key, [default_range])
 
-        ecu_hits: list = []
+        ecu_hits: list[HitT] = []
         for rng in ranges:
             ecu_hits.extend(
                 await scan_ecu(

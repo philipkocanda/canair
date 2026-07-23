@@ -261,12 +261,18 @@ def build_session_from_records(
                 )
             )
 
-    label = meta.get("label") or "Recovered session"
+    # meta values come from a loosely-typed journal dict; the label/notes fields
+    # are always strings at runtime, so coerce to satisfy build_query_session.
+    label = str(meta.get("label") or "Recovered session")
     vehicle_states = list(meta.get("vehicle_states") or [])
-    notes = meta.get("notes") or ""
+    notes = str(meta.get("notes") or "")
     if recovered:
         notes = f"{notes} [recovered]".strip()
-    effective_keep = keep_mode if keep_mode is not None else meta.get("keep_mode")
+    _keep = meta.get("keep_mode")
+    if keep_mode is not None:
+        effective_keep: str | None = keep_mode
+    else:
+        effective_keep = _keep if isinstance(_keep, str) else None
 
     # One-shot producer stored a complete session; merge its captures in.
     if session_records:

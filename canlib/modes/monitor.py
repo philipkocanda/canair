@@ -282,7 +282,9 @@ def _write_merged(
     name_index = build_name_tx_index()
     results: list[tuple[str, str, str, str]] = []
     for (ecu_label, pid), entries in sorted(merged.items()):
-        ecu_short = re.match(r"(\w+)", ecu_label).group(1)
+        m = re.match(r"(\w+)", ecu_label)
+        assert m is not None  # ecu_label is an ECU name/label, always starts with a word char
+        ecu_short = m.group(1)
         ecu_ref = rx_from_name(ecu_short, name_index) or ecu_short
         for hex_val, ts in entries:
             results.append((ecu_ref, pid, hex_val, ts))
@@ -442,6 +444,7 @@ class MonitorController:
             # that need them are opened best-effort before polling.
             from .multi import build_query_plan
 
+            assert self.raw_client is not None  # self.raw is True ⟺ raw_client was provided
             for step in session_steps or []:
                 if step["type"] == "session":
                     tgt = step["target"].upper()
@@ -470,6 +473,7 @@ class MonitorController:
 
         from .multi import BatchState, _exec_session, _exec_skm_wake, build_query_plan
 
+        assert self.sm is not None  # not self.raw ⟺ sm was constructed
         self._batch_state = BatchState()
         for step in session_steps or []:
             stype = step["type"]
@@ -572,6 +576,10 @@ class MonitorController:
 
         from .multi import _exec_query
 
+        # The ELM poll path only runs on the non-raw backend, where setup() has
+        # constructed sm and built the ECU index.
+        assert self.sm is not None
+        assert self._ecu_index is not None
         cmds0 = self.terminal.cmd_count
         elm0 = self.terminal.cmd_time
         # Seed the frame from last cycle so ECUs not yet re-polled keep showing
@@ -629,6 +637,8 @@ class MonitorController:
         """
         from .multi import _is_did22, build_query_plan
 
+        # Only reached during polling, after setup() built the ECU index.
+        assert self._ecu_index is not None
         submissions: list[dict] = []
         plan_by_ecu: list[tuple[str, int, list]] = []
         for step in self.query_steps:
@@ -693,6 +703,9 @@ class MonitorController:
         """
         import time as _t
 
+        # The raw poll path only runs on the raw backend, where raw_client is set.
+        assert self.raw_client is not None
+        raw_client = self.raw_client  # local binding: narrowing doesn't reach the closure below
         submissions, plan_by_ecu = self._build_raw_submissions()
         requests = [(s["ecu"], s["req"]) for s in submissions]
         sub_by_req = {(s["ecu"], s["req"]): s for s in submissions}
@@ -706,7 +719,7 @@ class MonitorController:
 
         def _run():
             try:
-                return self.raw_client.poll(requests, on_result=_on_result)
+                return raw_client.poll(requests, on_result=_on_result)
             finally:
                 loop.call_soon_threadsafe(q.put_nowait, sentinel)
 
@@ -852,7 +865,9 @@ class MonitorController:
 
         if self._name_index is None:
             self._name_index = build_name_tx_index()
-        ecu_short = re.match(r"(\w+)", ecu_label).group(1)
+        m = re.match(r"(\w+)", ecu_label)
+        assert m is not None  # ecu_label is an ECU name/label, always starts with a word char
+        ecu_short = m.group(1)
         return rx_from_name(ecu_short, self._name_index) or ecu_short
 
     def query_label(self) -> str:
@@ -935,9 +950,11 @@ class MonitorController:
         """Stop keepalives and close all open sessions / the raw client (best-effort)."""
         if self.raw:
             print("  Closing raw CAN client...")
+            assert self.raw_client is not None  # self.raw is True ⟺ raw_client was provided
             with contextlib.suppress(Exception):
                 self.raw_client.close()
             return
+        assert self.sm is not None  # not self.raw ⟺ sm was constructed
         self.sm.stop_background_keepalive()
         print("  Closing sessions...")
         try:

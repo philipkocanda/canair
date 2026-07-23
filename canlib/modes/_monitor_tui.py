@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, ClassVar
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, VerticalScroll
+from textual.content import Content
 from textual.css.query import NoMatches
 from textual.screen import ModalScreen
 from textual.widgets import Button, Checkbox, Input, Label, Static
@@ -457,7 +458,11 @@ class MonitorApp(App):
             body = self.query_one("#body", Static)
         except NoMatches:
             return
-        plain = body.render().plain
+        rendered = body.render()
+        # A Static's render() returns the visualized Content (str updates are
+        # visualized into a Content too), which exposes .plain.
+        assert isinstance(rendered, Content)
+        plain = rendered.plain
         line = next((i for i, ln in enumerate(plain.splitlines()) if "▶" in ln), None)
         if line is None:
             return

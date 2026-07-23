@@ -5,24 +5,33 @@ import json
 import re
 import sys
 import time
+from types import ModuleType
 
 try:
     import websockets
+    from websockets.asyncio.client import ClientConnection
 except ImportError as e:
     raise ImportError("websockets not installed. Run: pip3 install websockets") from e
-
-try:
-    import requests as _requests_mod
-
-    HAS_REQUESTS = True
-except ImportError:
-    _requests_mod = None
-    HAS_REQUESTS = False
 
 from .log import log_command, log_response
 from .safety import enforce_command_safety
 from .timing import TimingRecorder
 from .uds_parse import parse_uds_response
+
+
+# The import is isolated in a helper so the module name isn't rebound to None
+# (which would conflict with its module-typed import binding).
+def _try_import_requests() -> ModuleType | None:
+    try:
+        import requests
+
+        return requests
+    except ImportError:
+        return None
+
+
+_requests_mod: ModuleType | None = _try_import_requests()
+HAS_REQUESTS = _requests_mod is not None
 
 
 class WiCANTerminal:
@@ -40,7 +49,7 @@ class WiCANTerminal:
         self.timeout = timeout
         self.verbose = verbose
         self.unsafe = unsafe
-        self.ws = None
+        self.ws: ClientConnection | None = None
         self._buffer = ""
         self.elm_timeout_cmd = "ATST96"  # current ELM327 timeout command
         self._cmd_lock = asyncio.Lock()  # serialize all ELM327 commands
@@ -91,6 +100,7 @@ class WiCANTerminal:
         """Read and discard any pending messages."""
         while True:
             try:
+                assert self.ws is not None  # connected before use
                 msg = await asyncio.wait_for(self.ws.recv(), timeout=0.2)
                 if self.verbose:
                     print(f"  [ws] Drained: {msg!r}", file=sys.stderr)
@@ -135,6 +145,7 @@ class WiCANTerminal:
 
         self.cmd_count += 1
         _t0 = time.monotonic()
+        assert self.ws is not None  # connected before use
         await self.ws.send(cmd + "\r")
         if self.verbose:
             print(f"  [ws] Sent: {cmd!r}", file=sys.stderr)
@@ -419,6 +430,7 @@ def reboot_wican(host: str):
         )
         return False
 
+    assert _requests_mod is not None  # guaranteed by HAS_REQUESTS check above
     url = f"http://{host}/system_reboot"
     try:
         resp = _requests_mod.post(url, data="reboot", timeout=5)

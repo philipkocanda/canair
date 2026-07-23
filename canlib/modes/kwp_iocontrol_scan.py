@@ -92,8 +92,8 @@ async def probe_kwp_iocontrol(
     # The LID echoes in response byte 1 (70 {LID} ...). Guard against the
     # stale-frame -1 shift seen on the 0x2F scanner: reject an echo mismatch.
     if resp.get("ok"):
-        b = resp.get("bytes") or b""
-        if len(b) >= 2 and b[1] != lid:
+        b = resp.get("bytes")
+        if b and len(b) >= 2 and b[1] != lid:
             return {
                 "raw": resp.get("raw", ""),
                 "ok": False,

@@ -263,6 +263,17 @@ bolting on more:
 
 - Self-documenting code; comments explain *why*, not *what*.
 - Match the surrounding style; type hints as used elsewhere in `canlib/`.
+- **Type-hint the critical paths.** Where a mistake is easy to make and costly —
+  UDS/CAN byte handling (`bytes`/`int` offsets, PID/DID IDs), the terminal
+  surface and its returned dict shapes, expression eval, capture/schema records,
+  and anything crossing the transport boundary — add explicit type hints (and a
+  `TypedDict`/dataclass over a bare `dict` where the shape matters). CI runs the
+  `ty` type checker over `canlib/` (`uv run ty check`), so hints are **enforced**
+  — a new `int`-vs-`bytes` or wrong-key slip fails the build. Prefer narrowing a
+  nullable (`assert x is not None` where the invariant holds) or a precise
+  annotation over `# type: ignore`; reserve ignores for genuine stdlib
+  false-positives with a comment. Prioritize hints where they prevent accidental
+  errors, not as blanket ceremony on trivial locals.
 - Keep new files single-purpose from the start rather than growing a grab-bag.
 
 ## Before you finish
@@ -276,6 +287,8 @@ bolting on more:
 
 ```bash
 uv run pytest -q                 # all tests green
+uv run ruff check . && uv run ruff format --check .   # lint + format
+uv run ty check                  # type check (canlib/) — must be clean
 uv run canair <yourcmd> --help   # parser sane
 uv run canair validate all       # if you touched ecus/captures/schema
 ```

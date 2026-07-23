@@ -487,7 +487,7 @@ def _append_hit_block(
     hits,
     section_name: str,
     key_attr: str,
-    pids_dir: Path,
+    pids_dir: Path | None = None,
     key_width: int = 4,
 ) -> Path:
     """Shared implementation for writing a scanner-generated YAML section.

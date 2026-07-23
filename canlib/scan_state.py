@@ -124,7 +124,7 @@ class ScanStateWriter:
         self.open()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
         if exc_type is None:
             self.close()
         # On exception (including KeyboardInterrupt): leave the file in place

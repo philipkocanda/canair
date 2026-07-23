@@ -216,6 +216,8 @@ async def mode_skm_wakeup(terminal: WiCANTerminal, level: str, verbose: bool):
             if remaining <= 0:
                 break
             try:
+                # The terminal is connected at this point, so ws is not None.
+                assert terminal.ws is not None
                 msg = await asyncio.wait_for(terminal.ws.recv(), timeout=min(remaining, 1.0))
                 if isinstance(msg, str):
                     try:

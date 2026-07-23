@@ -1111,7 +1111,10 @@ def _rx_addr_for_ecu_label(ecu_label: str, ecu_index: dict) -> str:
     """
     from ..ecus import rx_addr_str
 
-    ecu_short = re.match(r"(\w+)", ecu_label).group(1)
+    # An ECU label always starts with a word char (e.g. "BMS" / "BMS (0x7E4)").
+    m = re.match(r"(\w+)", ecu_label)
+    assert m is not None
+    ecu_short = m.group(1)
     info = ecu_index.get(ecu_short.upper())
     if info and info.get("tx_id") is not None:
         return rx_addr_str(info["tx_id"])

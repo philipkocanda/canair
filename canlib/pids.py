@@ -222,7 +222,7 @@ def build_routines_index(pids_data: dict) -> dict:
 
 def build_ecu_index(pids_data: dict) -> dict:
     """Build lookup: ECU_NAME -> {tx_id, pids: {PID: {parameters: ...}}}."""
-    index = {}
+    index: dict[str, dict] = {}
     default_batch = bool(pids_data.get("multi_did_batching", False))
     for ecu_name, ecu_def in pids_data.get("ecus", {}).items():
         index[ecu_name.upper()] = {

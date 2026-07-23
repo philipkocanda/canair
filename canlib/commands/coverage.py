@@ -26,6 +26,7 @@ import argparse
 import json
 import re
 import sys
+from typing import NotRequired, TypedDict
 
 import yaml
 
@@ -35,6 +36,37 @@ from canlib.commands._hints import pid_completer as _pid_completer
 from canlib.pids import build_ecu_index, load_pids
 
 NAME = "coverage"
+
+
+class BitfieldGap(TypedDict):
+    """One byte read only bit-by-bit with some bits still undecoded."""
+
+    byte: int
+    have: list[int]
+    missing: list[int]
+
+
+class PidAnalysis(TypedDict):
+    """Coverage findings for one PID's parameters against a payload."""
+
+    data_bytes: int
+    unmapped: list[int]
+    incomplete_bitfields: list[BitfieldGap]
+
+
+class CoverageEntry(TypedDict):
+    """A per-PID coverage audit result (fields depend on capture availability)."""
+
+    ecu: str
+    pid: str
+    params: int
+    verified: int
+    no_capture: NotRequired[bool]
+    capture: NotRequired[dict[str, str]]
+    data_bytes: NotRequired[int]
+    unmapped: NotRequired[list[int]]
+    incomplete_bitfields: NotRequired[list[BitfieldGap]]
+
 
 # ANSI colors
 _BOLD = "\033[1m"
@@ -124,7 +156,7 @@ def references_full_byte(expr: str, idx: int) -> bool:
     return re.search(rf"(?<!\[)[BS]0*{idx}(?![0-9:])", expr) is not None
 
 
-def analyze_pid(parameters: dict, payload_hex: str, sfb: int) -> dict:
+def analyze_pid(parameters: dict, payload_hex: str, sfb: int) -> PidAnalysis:
     """Return coverage findings for one PID's parameters against a payload."""
     data_idx = mappable_data_indices(payload_hex, sfb)
     covered: set[int] = set()
@@ -139,7 +171,7 @@ def analyze_pid(parameters: dict, payload_hex: str, sfb: int) -> dict:
 
     unmapped = [i for i in data_idx if i not in covered]
 
-    incomplete = []
+    incomplete: list[BitfieldGap] = []
     for b, bits in sorted(all_bits.items()):
         if b not in data_idx:
             continue
@@ -195,7 +227,7 @@ def run(args) -> int:
     ecu_filter = canonical_ecu_name_safe(args.ecu).upper() if args.ecu else None
     pid_filter = args.pid.upper() if args.pid else None
 
-    results = []
+    results: list[CoverageEntry] = []
     for ecu in sorted(ecu_index):
         if ecu_filter and ecu != ecu_filter:
             continue
@@ -206,7 +238,7 @@ def run(args) -> int:
             if not parameters:
                 continue
             cap = payloads.get((ecu, pid))
-            entry = {
+            entry: CoverageEntry = {
                 "ecu": ecu,
                 "pid": pid,
                 "params": len(parameters),

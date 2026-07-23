@@ -170,7 +170,7 @@ def _parse_datarate(value) -> int | None:
         return None
 
 
-def _resolve_device_defaults(host: str | None, port: int | None, bitrate: int | None):
+def _resolve_device_defaults(host: str, port: int | None, bitrate: int | None):
     """Fill port/bitrate from the device's live config when not given on the CLI."""
     if port is not None and bitrate is not None:
         return port, bitrate
@@ -203,6 +203,8 @@ def run(args) -> int:
 
     t = resolve_transport(args)
     host = t.host
+    # The raw SLCAN sniffer always resolves a host to connect to.
+    assert host is not None
     try:
         filters = _parse_filters(args.filter)
     except ValueError:

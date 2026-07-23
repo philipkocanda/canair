@@ -86,8 +86,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     parser.add_argument(
         "--include-self",
         action="store_true",
-        help="With --against: keep the reference's own signal (trivial r=1.0; "
-        "dropped by default)",
+        help="With --against: keep the reference's own signal (trivial r=1.0; dropped by default)",
     )
     parser.add_argument(
         "--min-r", type=float, default=0.6, metavar="R", help="Min |r| to report (default 0.6)"
@@ -192,9 +191,7 @@ def _gather_series(specs, since, until, state, label, want_bytes, want_bits=Fals
     """Build all signal series (params + optionally varying bytes/bits) for specs."""
     from canlib.pids import build_ecu_index, load_pids
 
-    loaded = load_signal_captures(
-        specs, since=since, until=until, state=state, label=label
-    )
+    loaded = load_signal_captures(specs, since=since, until=until, state=state, label=label)
     ecu_index = build_ecu_index(load_pids())
     series: dict = {}
     for (ecu, pid), lp in loaded.items():
@@ -219,7 +216,7 @@ def _print_overlap(specs, since, until, state, label, tol, min_n, as_json) -> in
     loaded = load_signal_captures(specs, since=since, until=until, state=state, label=label)
     stamps: dict[str, list] = {}
     for (ecu, pid), lp in loaded.items():
-        ts = [TimePoint(entry_datetime(c), 0.0) for c in lp.captures if entry_datetime(c)]
+        ts = [TimePoint(dt, 0.0) for c in lp.captures if (dt := entry_datetime(c)) is not None]
         if ts:
             stamps[f"{ecu}:{pid}"] = sorted(ts, key=lambda tp: tp.dt)
 
@@ -342,9 +339,7 @@ def _apply_gate(ref_series, gate_expr, tol, *, since, until, state, label):
     _, cols = align_many(ref_series, {"g": gate_series}, tol_s=tol)
     ref_sorted = sorted(ref_series, key=lambda tp: tp.dt)
     return [
-        tp
-        for tp, g in zip(ref_sorted, cols["g"], strict=True)
-        if g is not None and op_fn(g, value)
+        tp for tp, g in zip(ref_sorted, cols["g"], strict=True) if g is not None and op_fn(g, value)
     ]
 
 
@@ -389,16 +384,23 @@ def run(args) -> int:
         if args.gate:
             try:
                 ref_series = _apply_gate(
-                    ref_series, args.gate, args.join_tol,
-                    since=since, until=until, state=args.state, label=args.label,
+                    ref_series,
+                    args.gate,
+                    args.join_tol,
+                    since=since,
+                    until=until,
+                    state=args.state,
+                    label=args.label,
                 )
             except ValueError as e:
                 print(f"--gate error: {e}", file=sys.stderr)
                 return 1
             ref_label = f"{ref_label} [gate: {args.gate.strip()}]"
             if not ref_series:
-                print(f"--gate '{args.gate.strip()}' left no reference points in scope.",
-                      file=sys.stderr)
+                print(
+                    f"--gate '{args.gate.strip()}' left no reference points in scope.",
+                    file=sys.stderr,
+                )
                 return 1
         rows = []
         for name, s in series.items():
@@ -422,8 +424,12 @@ def run(args) -> int:
         rows.sort(key=lambda t: -abs(t[1]))
         if args.promote:
             return _promote_top_byte(
-                args.promote, [(n, r, nn) for n, r, nn, _ in rows], series,
-                ref_series, ref_label, args.join_tol
+                args.promote,
+                [(n, r, nn) for n, r, nn, _ in rows],
+                series,
+                ref_series,
+                ref_label,
+                args.join_tol,
             )
         rows = rows[: args.top]
         if args.json:
@@ -434,8 +440,7 @@ def run(args) -> int:
                     "join_tol_s": args.join_tol,
                     "lag_scan": args.lag_scan,
                     "hits": [
-                        {"signal": n, "r": r, "n": nn, "lag_seconds": lag}
-                        for n, r, nn, lag in rows
+                        {"signal": n, "r": r, "n": nn, "lag_seconds": lag} for n, r, nn, lag in rows
                     ],
                 },
                 sys.stdout,
@@ -444,8 +449,7 @@ def run(args) -> int:
             print()
             return 0
         lag_hdr = (
-            f", lag ±{args.lag_scan} samples (apparent, incl. poll offset)"
-            if args.lag_scan else ""
+            f", lag ±{args.lag_scan} samples (apparent, incl. poll offset)" if args.lag_scan else ""
         )
         print(
             f"\n  {_BOLD}vs {ref_label}{_RESET} "
@@ -485,8 +489,13 @@ def run(args) -> int:
     clustered = {sig for c in clusters for sig in c}
     # Pairs fully inside a collapsed cluster are hidden (represented by the
     # cluster summary); everything else prints normally.
-    remaining = [h for h in hits if not (h.a in clustered and h.b in clustered
-                 and any(h.a in c and h.b in c for c in clusters))]
+    remaining = [
+        h
+        for h in hits
+        if not (
+            h.a in clustered and h.b in clustered and any(h.a in c and h.b in c for c in clusters)
+        )
+    ]
     remaining = remaining[: args.top]
     print(
         f"\n  {_BOLD}Cross-signal correlations{_RESET} "

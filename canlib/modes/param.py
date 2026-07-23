@@ -82,6 +82,8 @@ async def mode_param(
                     )
     finally:
         for task in tester_tasks:
+            if task is None:
+                continue
             task.cancel()
             try:
                 await task

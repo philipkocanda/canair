@@ -12,13 +12,18 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import io
 import re
 import sys
 
-# Force line-buffered stdout so output appears immediately when piped
+# Force line-buffered stdout so output appears immediately when piped.
+# reconfigure() only exists on TextIOWrapper; guard so it's safe (and
+# type-correct) when stdout/stderr are redirected to a plain stream.
 if not sys.stdout.isatty():
-    sys.stdout.reconfigure(line_buffering=True)
-    sys.stderr.reconfigure(line_buffering=True)
+    if isinstance(sys.stdout, io.TextIOWrapper):
+        sys.stdout.reconfigure(line_buffering=True)
+    if isinstance(sys.stderr, io.TextIOWrapper):
+        sys.stderr.reconfigure(line_buffering=True)
 
 from canlib import (
     DEFAULT_WICAN,
@@ -359,6 +364,10 @@ async def async_main(args):
         from canlib.modes.raw_ops import run_raw
 
         return await run_raw(args, transport, pids_data)
+
+    # Past the raw early-return we're on the WebSocket (WiCANTerminal) path,
+    # which always resolves a host (via --wican/config/default_wican).
+    assert host is not None
 
     # Warn about any aborted scans from a previous interrupted session — but
     # only in the scan subcommand that produces that scan type, so unrelated

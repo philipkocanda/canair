@@ -185,7 +185,9 @@ def _list_records(ecus: dict, pids_data: dict, with_captures: bool = False) -> l
             if with_captures:
                 rec["captures"] = cap_counts.get(name.upper(), 0)
         records.append(rec)
-    records.sort(key=lambda r: r["name"].upper())
+    # name is always a str at runtime; the record dict's inferred value union
+    # includes int (tx_id) so narrow explicitly for the sort key.
+    records.sort(key=lambda r: str(r["name"]).upper())
     return records
 
 
@@ -430,6 +432,8 @@ def run(args) -> int:
     if info is None:
         return _unknown_ecu(args.ecu, _list_records(ecus, pids_data))
 
+    # info is only non-None when tx_id resolved (see the guarded .get above).
+    assert tx_id is not None
     pids_name, ecu_def = _pids_def_for_tx(pids_data, tx_id)
     rec = _detail_record(info, tx_id, pids_name, ecu_def)
     return cmd_detail(rec, args.json)

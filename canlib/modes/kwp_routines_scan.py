@@ -65,8 +65,8 @@ async def probe_kwp_routine_results(terminal: WiCANTerminal, lid: int) -> dict:
     req = f"33{lid:02X}"
     resp = await terminal.send_uds(req, timeout=2.0, expected_sid=0x33)
     if resp.get("ok"):
-        b = resp.get("bytes") or b""
-        if len(b) >= 2 and b[1] != lid:
+        b = resp.get("bytes")
+        if b and len(b) >= 2 and b[1] != lid:
             return {
                 "raw": resp.get("raw", ""),
                 "ok": False,

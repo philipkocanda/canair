@@ -138,6 +138,9 @@ class RawTerminal:
         targets the ECU that was current at entry.
         """
         tx = self._cur
+        # set_header must have run before a session is entered (send_uds below
+        # would raise otherwise), so the keepalive target is always known.
+        assert tx is not None
         if wake:
             await self.send_uds("1001", timeout=3.0)
             await asyncio.sleep(0.3)
