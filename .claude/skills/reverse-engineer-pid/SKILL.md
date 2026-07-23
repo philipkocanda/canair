@@ -295,16 +295,30 @@ The tooling exposes real statistical levers — use them as evidence, not decora
   drive:
   - `canair decode <ECU> <PID> --corr ESC:22C101:REAL_SPEED_KMH` — correlate a
     PID's params against a *cross-ECU* reference (`ECU:PID:PARAM` or
-    `ECU:PID:EXPR`). Add `--corr-transform delta` to test level-vs-rate.
+    `ECU:PID:EXPR`). Add `--corr-transform delta` to test level-vs-rate, or
+    `--method spearman` for monotone-but-nonlinear/quantized links Pearson misses.
   - `canair hunt <ECU> <PID> --against ESC:22C101:REAL_SPEED_KMH` — "which byte
     *is* this known signal?": sweeps every byte×interpretation, ranks by |r|,
     and prints the linear fit + a unit guess (`×1.609 mph→km/h`, `raw−40 °C`).
-    `--promote NAME` writes the winner into `ecus/` as an enabled-unverified
-    candidate. This is the fastest path from "unknown byte" to "candidate param".
+    Collapses to the best interpretation per offset (`--all-interps` to expand).
+    `--transform delta` hunts the byte tracking the reference's *rate* (torque vs
+    acceleration); `--promote NAME` writes the winner into `ecus/` as an
+    enabled-unverified candidate. Fastest path from "unknown byte" to "candidate".
   - `canair correlate --state driving` — rank *every* strong cross-signal
-    relationship in a drive at once (`--against REF` to focus one, `--bytes` to
-    include raw bytes). The "show me everything that moves together" entry point.
-- **State discrimination** (`canair decode … --discriminate state`) — ranks
+    relationship in a drive at once (`--against REF` to focus one, `--bytes`/
+    `--bits` to include raw bytes/toggling bits, `--promote NAME` on the top
+    raw-byte hit). `--lag-scan N` reports the apparent lead/lag (command→response
+    ordering; "apparent" because sequential polling adds a fixed offset);
+    `--gate '> 0'` restricts to a regime (while-moving); near-perfect co-linear
+    groups collapse to one line. Run `canair correlate --overlap` **first** to see
+    which ECU:PID pairs actually share time-aligned samples (pick a viable
+    `--against` reference instead of guessing).
+  - `canair investigate <ECU> <PID>` — the one-shot "explain this PID": per byte,
+    is it mapped?, its state-discriminability F, and its strongest co-polled
+    anchor (r + fit + unit) in a single ranked table. Point it at an unknown PID
+    before hand-running the loop below.
+- **State discrimination** (`canair decode … --discriminate state`, add `--bytes`
+  for raw bytes / `--bits` for toggling bits — no `--try` needed) — ranks
   bytes/params by between-state vs within-state variance (F). Surfaces
   thermal/mode/relay signals that shift by *power state* (charging vs ready vs
   driving) rather than by a driving anchor — how the MCU inverter-temp byte was
@@ -543,9 +557,11 @@ Then consider an upstream wican-fw PR (see parent skill goals).
 | map bytes | `canair bix --annotate` |
 | reason about a signal | step 6 Hypothesize — ECU context, physics/EE (thermal mass), CS (enums/counters), statistics (`--corr`/`--stats`/autocorr) |
 | test expressions | `canair decode --try` / `--stats` / `--corr` / `--plot` |
-| cross-ECU correlate | `canair decode … --corr ECU:PID:PARAM` (+ `--corr-transform`); `canair correlate [--against REF] [--bytes]` |
-| which byte is signal Y | `canair hunt <ECU> <PID> --against ECU:PID:PARAM` (linear fit + unit guess; `--promote NAME`) |
-| find state-dependent signals | `canair decode … --discriminate state` |
+| explain an unknown PID | `canair investigate <ECU> <PID>` (mapped? / state F / best anchor + unit, one table) |
+| what's co-polled here | `canair correlate --overlap` (which ECU:PID pairs share timed samples) |
+| cross-ECU correlate | `canair decode … --corr ECU:PID:PARAM` (+ `--corr-transform`, `--method spearman`); `canair correlate [--against REF] [--bytes/--bits] [--lag-scan N] [--gate '>0'] [--promote NAME]` |
+| which byte is signal Y | `canair hunt <ECU> <PID> --against ECU:PID:PARAM` (linear fit + unit guess; `--transform delta`, `--promote NAME`, `--all-interps`) |
+| find state-dependent signals | `canair decode … --discriminate state [--bytes] [--bits]` |
 | find redundant mirrors | `canair decode … --find-mirrors [--bits]` |
 | scope a drive | `--state driving` / `--since`/`--until`/`--date` / `--first`/`--last N` (both `captures` + `decode`) |
 | per-segment stats | `canair decode … --stats --group-by state` |

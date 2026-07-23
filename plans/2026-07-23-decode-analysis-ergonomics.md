@@ -364,8 +364,31 @@ over existing captures** — no device, no transport, no schema-of-record change
         notes land as readable multi-line text.
       - Tests: `test_investigate.py`, `test_xanalysis.py` (Overlap, OutputHygiene),
         `test_pids_edit.py` (note wrapping). Full suite (1756) + ruff + validate green.
-- [ ] Docs — `AGENTS.md` + reverse-engineer-pid skill updated.
-- [ ] Acceptance — the four history-only checks above reproduce from single
-      commands.
+- [x] Docs — `AGENTS.md` tool list (decode `--method` + discriminate `--bytes`/
+      `--bits`; correlate `--overlap`/`--lag-scan`/`--gate`/`--bits`/`--promote`/
+      `--no-cluster`/`--method`/`--transform`; hunt `--transform`/`--method`/
+      `--all-interps`; new `investigate`) and the reverse-engineer-pid skill
+      (cross-ECU techniques block + cheat-sheet rows).
+- [x] Acceptance — history-only checks reproduce from single commands:
+      `decode AAF 2180 --discriminate state --bytes` (B28 F=6646, B25 surfaced,
+      no `--try`); `hunt MCU 2102 --against MCU:2102:MCU_MOTOR_RPM --transform
+      delta` (torque byte [S12:S13] r=0.60); `correlate --overlap --date
+      2026-07-22 --state driving` (EPS⟷ESC n=337, BMS 2101 absent). Bit analysis
+      validated by synthetic fixtures (body ECUs lack a timed co-poll — capture
+      lead noted). Full suite (1756) + ruff + `validate all` green.
+
+## Deviations from the plan (with rationale)
+
+- **2.3 gate** landed on `correlate --against` only (the clean all-TimePoint
+  surface), not `decode --corr`. Session-state gating was already covered by the
+  existing `--state`; the new value is the signal-value predicate, delivered where
+  it's cleanest.
+- **1.3 discriminate-promote** deferred: a discriminate hit has only an F-score
+  (no expression/scale), so promoting a bare `Bn` is low-value when `--bytes`
+  output already names the byte to `--try`. `correlate --against --promote` and
+  `hunt --promote` cover the expression-bearing surfaces.
+- **2.2 lag-scan** applied to `correlate --against` (the "hunt one reference"
+  surface), not `hunt` (a byte sweep, not a chosen pair) — matches the plan's
+  "chosen pair (or --against)" scoping.
 </content>
 </invoke>
