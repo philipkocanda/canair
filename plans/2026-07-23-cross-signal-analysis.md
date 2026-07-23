@@ -24,9 +24,23 @@ persisted).
 - **Sequencing:** Tranche 0 → 1 → 2 → 3. Tranche 0 (alignment) is a hard
   prerequisite for everything else and ships standalone with tests.
 - **Alignment key:** parse `(date, time)` into a real `datetime` once at load
-  (new `capture_dates.entry_datetime`). Captures with no usable `time` (date-only
-  rows) are **excluded from time-aligned analysis** but still counted/reported, so
-  a sparse ECU never silently poisons a join.
+  (new `capture_dates.entry_datetime`). Captures with no usable `time` are
+  **excluded from time-aligned analysis** (with a reported count) but **retained**
+  and still used by non-time views (`--stats`, `--group-by state`,
+  `--discriminate`), so a sparse ECU never silently poisons a join and no existing
+  RE evidence is lost.
+- **Timestamp policy (locked after review):** `time` becomes **required for
+  monitored / multi-sample captures** (drives, thermal ramps, `--monitor`,
+  `--keep-all`) and is **exempt for one-shot scan / probe / identity / IOControl
+  reads** where a timestamp was never meaningful. Rationale: of the 489 (4.3%)
+  no-time captures today, ~208 are irreplaceable one-shot discovery reads
+  (`scan 22 …`, `F187`, `2F…`, `21F2` page finds) and ~281 are early
+  single-DID reads that still hold valid multi-state data — a blanket drop would
+  destroy scan/IOControl history that only exists as no-time rows. So: **enforce
+  going forward, keep everything existing, no archive/delete.** (Enforcement =
+  writer stamps `time` unconditionally on `payload` captures + a validator
+  soft-warn — see 2.6; this closes the gap where the current `if ts` writer let
+  one-shot single-DID reads slip through untimed.)
 - **Join semantics:** **nearest-neighbour within a tolerance** (default 2.5 s,
   `--join-tol` to override), asymmetric onto a chosen reference series. This
   matches the sequential single-connection polling model (per-cycle timestamps,
@@ -62,6 +76,14 @@ persisted).
   (`capture_dates.py:39`); the per-capture `time` field is free text, sorted
   **lexicographically** (`captures.py:592`). There is **no datetime join key** —
   the primary thing to add.
+- **`time` is written conditionally** — `capture["time"] = ts` only `if ts`
+  (`captures.py:117`; journal `capture_journal.py:127`) and the schema marks it
+  optional (`captures_schema.json:58`). This is the gap that let one-shot reads
+  land untimed. **Scan/probe captures are cleanly distinguishable**: they carry a
+  `scan_results` dict (`captures.py:155,264`) instead of a single `payload`, so a
+  validator can require `time` for `payload` captures while exempting
+  `scan_results` ones. Today: 489/11389 (4.3%) untimed — ~208 scan/probe/identity
+  (exempt), ~281 early single-DID reads (grandfathered).
 - Scope filters (`--since/--until/--date/--state/--label/--first/--last`) are
   shared via `add_scope_args()` (`capture_dates.py`), reused by `decode` and
   `captures`. New commands must reuse them verbatim.
@@ -210,6 +232,23 @@ the cross-signal case.
   `validate pids` stays green; PCI-crossing expression is refused (mirrors the
   existing PCI test).
 
+**2.6 Enforce `time` on time-series captures (writer + validator).**
+- **Writer:** always stamp `time` for `payload` captures on the monitor/query/save
+  paths (`captures.py:117`, `capture_journal.py:127`) — drop the `if ts` guard for
+  payload rows so a monitored/one-shot single-DID read can never land untimed.
+  Leave `scan_results` captures exempt.
+- **Validator:** `canair validate captures` soft-warns (not a hard error, to keep
+  the historical 281 grandfathered) when a **`payload`** capture lacks a usable
+  `time`; `scan_results` captures are exempt. Add a `--strict` flag that promotes
+  the warning to an error for CI / new-data gates.
+- **Analysis:** `align.load_signal_captures` (0.2) drops no-time rows from
+  time-aligned joins and reports the dropped count; `--stats`/`--group-by`/
+  `--discriminate` continue to use them. No archive, no delete — existing evidence
+  is retained.
+- **Test:** a `payload` capture without `time` → soft warning (and error under
+  `--strict`); a `scan_results` capture without `time` → clean; the monitor writer
+  always emits `time`.
+
 ---
 
 ## Tranche 3 — Consolidation & hygiene (small, independent)
@@ -254,7 +293,14 @@ Behaviour-preserving; guarded by `test_decode_plot.py`.
   high-rate synced capture ever lands).
 - No persisted/precomputed decode cache on disk (values stay regenerated).
 - No numpy hard dependency.
-- No changes to capture on-disk schema, the writer, or the monitor render path.
+- No change to the capture **on-disk schema shape** or the monitor **render**
+  path. (2.6 does tighten the *writer* to always stamp `time` on `payload`
+  captures and adds a *validator* warning — but the schema stays back-compatible
+  and no existing capture is rewritten, archived, or deleted.)
+- **No retroactive drop/archive of the 489 untimed captures** — they hold
+  irreplaceable one-shot scan/probe/identity/IOControl evidence (~208) plus valid
+  early multi-state reads (~281). Policy is enforce-going-forward +
+  grandfather-existing; time-aligned analysis simply skips no-time rows.
 - Not solving the *acquisition* skew (sequential polling) — that's the companion
   pipeline/timeout work; here we just align what's already recorded and always
   surface the realised `n`/tolerance so skew is visible.
@@ -272,14 +318,42 @@ Behaviour-preserving; guarded by `test_decode_plot.py`.
 
 ## Status
 
-- [ ] Tranche 0 — datetime parsing (0.1), multi-signal loader (0.2), nearest-join
-      primitive (0.3) in `canlib/align.py` + tests.
-- [ ] Tranche 1 — cross-signal `--corr` ref (1.1); `canair correlate` matrix
-      (1.2); `canair hunt --against` with linear fit (1.3) + tests.
-- [ ] Tranche 2 — `--discriminate state` (2.1); transform-aware corr (2.2);
-      `--find-mirrors` (2.3); unit sniffer (2.4); `--promote` (2.5) + tests.
-- [ ] Tranche 3 — one capture loader (3.1); note/route PCI path (3.2); split plot
-      TUI out of `decode.py` (3.3) + regression tests.
-- [ ] Docs — `AGENTS.md` tool list + reverse-engineer-pid skill cheat-sheet/step 7.
-- [ ] Acceptance — 2026-07-23 finds (AAF/VCU speed, MCU B22 temp) reproducible from
-      single commands over existing captures.
+- [x] Tranche 0 — `entry_datetime` (0.1); `load_signal_captures` (0.2);
+      `join_nearest`/`align_many` (0.3) in `canlib/align.py` + tests
+      (`test_align.py`, `TestEntryDatetime`).
+- [x] Tranche 1 — cross-signal `--corr ECU:PID:PARAM|EXPR` (1.1); `canair
+      correlate` (matrix / `--against` / `--json`) (1.2); `canair hunt --against`
+      with linear fit + unit guess (1.3). New `canlib/xanalysis.py` +
+      `commands/correlate.py` + `commands/hunt.py` + `test_xanalysis.py`.
+- [x] Tranche 2 — `--discriminate state` (2.1); `--corr-transform` (2.2);
+      `--find-mirrors [--bits]` (2.3); unit sniffer on hunt hits (2.4);
+      `hunt --promote NAME` (2.5); `time` always stamped on payload captures +
+      `validate captures` untimed soft-warn + `--strict` (2.6). Tests added.
+- [x] Tranche 3 — one canonical capture loader (`decode.load_captures` now wraps
+      `load_all_captures`) (3.1); single PCI path (`byteindex.payload_to_wican_bytes`
+      used by decode/align/xanalysis) (3.2); plot TUI extracted to
+      `commands/_decode_plot.py`, decode.py 1885→~1290 lines (3.3). Regression
+      tests green.
+- [x] Docs — `AGENTS.md` tool list (decode cross-signal flags + `correlate`/`hunt`
+      + validate `--strict`) and reverse-engineer-pid skill (cross-ECU techniques
+      block + cheat-sheet rows).
+- [x] Acceptance — all three 2026-07-23 finds reproduce from single commands over
+      existing captures: `hunt AAF 2181 --against ESC:22C101:REAL_SPEED_KMH`
+      (B12=MPH r=0.997, unit-guessed), `decode VCU 2101 --corr
+      ESC:22C101:REAL_SPEED_KMH` (r=0.999), `decode MCU 2101 --discriminate state`
+      (MCU_INVERTER_TEMP F=88.3). Full suite (1689) + `validate all` green.
+
+## Deviations from the plan (with rationale)
+
+- **2.4 (unit sniffer)** landed *inside* Tranche 1's `hunt` (it attaches to hunt
+  hits), so it was effectively done with 1.3 rather than as a separate step.
+- **Plot primitives home (3.3):** `INSPECT_TYPES`/`interpret_bytes`/`wican_expr`/
+  `apply_transform`/`POST_TRANSFORMS` moved to `_decode_plot.py` (leaf) and are
+  imported by both `decode` (top-level) and `xanalysis`. `_decode_plot` keeps its
+  *own* tiny `_pearson`/`_mean`/`_fmt_num`/colors rather than importing decode, so
+  there is no import cycle (decode imports plot, not vice-versa). `test_decode_plot.py`
+  now targets `_decode_plot` directly.
+- **2.6 enforcement** stamps `time` at the *writer* (`captures.py`,
+  `capture_journal.py`) by defaulting to `now()` for payload rows, rather than
+  making the schema field required — keeps the schema back-compatible and all 489
+  historical untimed rows valid (soft-warn, `--strict` to gate).
