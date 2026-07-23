@@ -183,9 +183,17 @@ AAF:
       notes: "Speed bytes decoded (2181 B12=MPH, B13=km/h; r=0.997 vs ESC). Identity docs list ambient/heater-element/heat-sink/compressor temps on 2180/2181; temp bytes not yet located. Existing captures don't overlap HVAC 220100 AAT with timestamped AAF reads. Method: co-poll 'query HVAC:220100' 'query AAF:2180' 'query AAF:2181' over a temperature-varying window; correlate AAF bytes vs HVAC_AAT."
     - type: decode
       target: "2180"
-      status: captured
+      status: done
       priority: P3
       vehicle_states: [ready]
       created: "2026-07-23"
       updated: "2026-07-23"
       notes: "AAF 2180 has two more varying bytes beyond the 4 defined temps: B25 (raw 129-152) and B28==B29 (mirror pair, raw 141-152). Both plausibly temperatures at the same (x-80)/2 scale AMBIENT_TEMP uses on B18: B25->24.5-36C, B28->30.5-36C. Only 77 captures in a narrow ambient band and B25 does NOT track AMBIENT_TEMP (r=0.26), so it is a distinct signal (evaporator / in-car / coolant?). Needs a wide-thermal-range capture (cold morning + hot cabin + A/C on) with a temp anchor to assign. B28==B29 exact mirror suggests a duplicated/unit-variant temp."
+    - type: decode
+      target: 2180 B28/B29 mirror
+      status: captured
+      priority: P3
+      vehicle_states: [ready]
+      created: "2026-07-23"
+      updated: "2026-07-23"
+      notes: "AAF 2180 B25 RESOLVED = AUX_BATTERY_VOLTAGE (B25/10, r=0.995 vs VCU aux) — was mis-guessed as a temp. Remaining: B28==B29 mirror pair (raw 141-152, distinct=3 among timed caps) still undecoded; near-constant, not a temp (doesn't track ambient). Low priority; needs a wider-range capture."
