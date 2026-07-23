@@ -89,12 +89,16 @@ Plug the WiCAN into the OBD-II port and power on ignition/accessory. Get your co
 
 ### 2. Install
 
+canair isn't published to PyPI yet, so install from a clone of this repo:
+
 ```bash
+git clone https://github.com/philipkocanda/canair.git
+cd canair
 uv tool install .    # install the `canair` CLI globally
 canair --help        # first run auto-creates ~/.config/canair/ + a starter config.yaml
 ```
 
-(For a quick try without installing, `uv run canair …` works from the repo. For development, use `uv sync`.)
+(For a quick try without installing, `uv run canair …` works from the repo checkout. For development, use `uv sync`.)
 
 ### 3. Configure your device
 
