@@ -180,6 +180,7 @@ def render_param_table(
     verbose: bool = False,
     indent: str = "      ",
     n_bytes: int | None = None,
+    selected_name: str | None = None,
 ) -> Text:
     """Render decoded parameter rows as an aligned Rich Text block.
 
@@ -190,6 +191,10 @@ def render_param_table(
     When ``n_bytes`` is given, a dimmed byte-index column is appended after the
     mark, showing which payload byte position(s) each parameter reads (aligned
     with the hex view's ruler). Returns an empty ``Text`` when there are no params.
+
+    When ``selected_name`` matches a row's parameter name, that row is marked
+    with a ``▶`` cursor and reverse-styled — used by the live monitor to show the
+    parameter currently targeted for in-place editing.
     """
     t = Text()
     if not params:
@@ -218,13 +223,18 @@ def render_param_table(
         display = row[6] if len(row) > 6 else ""
         mark_style = "green" if verified else "yellow"
         mark_char = "✓" if verified else "?"
+        is_sel = selected_name is not None and name == selected_name
+        # Replace the last two indent columns with a "▶ " cursor so the selected
+        # row's value/mark columns stay aligned with its neighbours.
+        name_prefix = (indent[:-2] + "▶ ") if is_sel and len(indent) >= 2 else indent
+        name_style = "reverse bold" if is_sel else ""
         if perr:
-            t.append(f"{indent}{name:<{max_name}}  ")
+            t.append(f"{name_prefix}{name:<{max_name}}  ", style=name_style)
             t.append(f"ERROR: {perr}\n", style="red")
             continue
 
         val_str = format_value(value, unit, display)
-        t.append(f"{indent}{name:<{max_name}}  ")
+        t.append(f"{name_prefix}{name:<{max_name}}  ", style=name_style)
         t.append(f"{val_str:<{max_val}}  ")
         t.append(mark_char, style=mark_style)
         if n_bytes is not None:

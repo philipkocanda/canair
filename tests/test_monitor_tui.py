@@ -17,7 +17,7 @@ class FakeController:
     """Stand-in for MonitorController: canned render + counting poll."""
 
     def __init__(self, *, keep_mode=None, n_lines=50, disconnect_after=None, has_captures=True,
-                 query_label="BMS:2101"):
+                 query_label="BMS:2101", editor=None):
         self.cycle = 0
         self.elapsed = 0.0
         self.interval = 0.05
@@ -31,6 +31,8 @@ class FakeController:
         self._query_label = query_label
         self.saved = None
         self.show_rulers = False
+        self.editor = editor
+        self.last_queries = []
 
     async def poll_once(self):
         self.cycle += 1
@@ -60,6 +62,62 @@ class FakeController:
 
 def _plain(renderable) -> str:
     return renderable.plain if hasattr(renderable, "plain") else str(renderable)
+
+
+class FakeEditor:
+    """Records calls from the TUI without touching disk or the CAN bus."""
+
+    _ITEMS = [("BMS (0x7E4)", "2101", "SOC"), ("BMS (0x7E4)", "2101", "TEMP")]
+    _FILTERS = ("all", "verified", "unverified", "enabled", "disabled")
+
+    def __init__(self):
+        self.selected = None
+        self.filter_mode = "all"
+        self.applied = None
+        self.verified_toggles = 0
+        self.enabled_toggles = 0
+
+    def move(self, _last_queries, delta):
+        if self.selected is None:
+            self.selected = self._ITEMS[0] if delta >= 0 else self._ITEMS[-1]
+        else:
+            i = self._ITEMS.index(self.selected)
+            self.selected = self._ITEMS[max(0, min(len(self._ITEMS) - 1, i + delta))]
+        return self.selected
+
+    def cycle_filter(self, _last_queries=None):
+        self.filter_mode = self._FILTERS[
+            (self._FILTERS.index(self.filter_mode) + 1) % len(self._FILTERS)
+        ]
+        return self.filter_mode
+
+    def ensure_valid(self, _last_queries):
+        pass
+
+    def selection_label(self):
+        if self.selected is None:
+            return ""
+        ecu, pid, name = self.selected
+        return f"{ecu.split()[0]} {pid} {name}"
+
+    def edit_target(self):
+        if self.selected is None:
+            return None
+        return {"ecu": "BMS", "pid": "2101", "name": self.selected[2],
+                "expression": "B4", "unit": "%", "min": "", "max": "",
+                "notes": "", "verified": False, "enabled": True}
+
+    def apply_edit(self, fields):
+        self.applied = fields
+        return "Saved BMS 2101 SOC"
+
+    def toggle_verified(self):
+        self.verified_toggles += 1
+        return "SOC verified=true"
+
+    def toggle_enabled(self):
+        self.enabled_toggles += 1
+        return "SOC enabled=false"
 
 
 class TestMonitorApp:
@@ -207,4 +265,122 @@ class TestMonitorApp:
             await pilot.pause(0.1)
             assert not isinstance(app.screen, SaveDialog)
             assert ctrl.saved is None
+            await pilot.press("q")
+
+
+class TestMonitorEditing:
+    @pytest.mark.asyncio
+    async def test_select_moves_cursor_and_shows_in_status(self):
+        ed = FakeEditor()
+        app = MonitorApp(FakeController(editor=ed))
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause(0.1)
+            await pilot.press("down")
+            await pilot.pause(0.05)
+            assert ed.selected == ("BMS (0x7E4)", "2101", "SOC")
+            await pilot.press("down")
+            await pilot.pause(0.05)
+            assert ed.selected == ("BMS (0x7E4)", "2101", "TEMP")
+            status = _plain(app.query_one("#status").render())
+            assert "BMS 2101 TEMP" in status
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
+    async def test_cycle_filter(self):
+        ed = FakeEditor()
+        app = MonitorApp(FakeController(editor=ed))
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause(0.1)
+            await pilot.press("F")
+            await pilot.pause(0.05)
+            assert ed.filter_mode == "verified"
+            status = _plain(app.query_one("#status").render())
+            assert "verified" in status
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
+    async def test_verify_and_disable_toggles(self):
+        ed = FakeEditor()
+        app = MonitorApp(FakeController(editor=ed))
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause(0.1)
+            await pilot.press("down")  # select SOC
+            await pilot.press("v")
+            await pilot.pause(0.05)
+            assert ed.verified_toggles == 1
+            await pilot.press("d")
+            await pilot.pause(0.05)
+            assert ed.enabled_toggles == 1
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
+    async def test_verify_without_selection_flashes(self):
+        ed = FakeEditor()
+        app = MonitorApp(FakeController(editor=ed))
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause(0.1)
+            await pilot.press("v")  # nothing selected
+            await pilot.pause(0.05)
+            assert ed.verified_toggles == 0
+            status = _plain(app.query_one("#status").render())
+            assert "Select a parameter" in status
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
+    async def test_edit_dialog_pauses_and_applies(self):
+        from canlib.modes._monitor_tui import EditParamDialog
+
+        ed = FakeEditor()
+        app = MonitorApp(FakeController(editor=ed))
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause(0.1)
+            await pilot.press("down")  # select SOC
+            await pilot.press("e")
+            await pilot.pause(0.1)
+            assert isinstance(app.screen, EditParamDialog)
+            assert app.paused is True  # polling auto-paused during edit
+            # Change the expression and save.
+            expr = app.screen.query_one("#e-expr")
+            expr.value = "B4/4"
+            await pilot.press("enter")
+            await pilot.pause(0.1)
+            assert not isinstance(app.screen, EditParamDialog)
+            assert ed.applied is not None
+            assert ed.applied["expression"] == "B4/4"
+            assert app.paused is False  # restored
+            status = _plain(app.query_one("#status").render())
+            assert "Saved" in status
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
+    async def test_edit_without_selection_flashes(self):
+        from canlib.modes._monitor_tui import EditParamDialog
+
+        ed = FakeEditor()
+        app = MonitorApp(FakeController(editor=ed))
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause(0.1)
+            await pilot.press("e")  # nothing selected
+            await pilot.pause(0.1)
+            assert not isinstance(app.screen, EditParamDialog)
+            assert ed.applied is None
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
+    async def test_edit_cancel_restores_pause_state(self):
+        from canlib.modes._monitor_tui import EditParamDialog
+
+        ed = FakeEditor()
+        app = MonitorApp(FakeController(editor=ed))
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause(0.1)
+            await pilot.press("down")
+            await pilot.press("e")
+            await pilot.pause(0.1)
+            assert isinstance(app.screen, EditParamDialog)
+            await pilot.press("escape")
+            await pilot.pause(0.1)
+            assert not isinstance(app.screen, EditParamDialog)
+            assert ed.applied is None
+            assert app.paused is False
             await pilot.press("q")

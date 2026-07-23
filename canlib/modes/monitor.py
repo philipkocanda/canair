@@ -105,12 +105,17 @@ def _render_results(
     hex_history: dict[tuple[str, str], list[tuple[str, str]]] | None = None,
     show_rulers: bool = False,
     footer: bool = True,
+    selected: tuple[str, str, str] | None = None,
 ) -> Text:
     """Render all ECU query results as a Rich Text object for display.
 
     ``footer`` appends the "Press Ctrl+C to stop" hint (kept for callers that
     render a single static block). The scrolling monitor passes ``footer=False``
     and draws its own fixed status line below the scroll viewport.
+
+    ``selected`` is an ``(ecu_label, pid, param_name)`` triple naming the
+    parameter row the monitor is targeting for in-place editing; that row is
+    drawn with a ``▶`` cursor.
     """
     text = Text()
 
@@ -172,8 +177,15 @@ def _render_results(
                 # With rulers on, annotate each param with the payload byte
                 # index(es) it maps to (e.g. "16-17"), matching the diff view.
                 n_bytes = len(raw_hex) // 2 if (show_rulers and raw_hex) else None
+                sel_name = (
+                    selected[2]
+                    if selected is not None and selected[0] == ecu_label and selected[1] == pid
+                    else None
+                )
                 entry_text.append_text(
-                    render_param_table(params, verbose=verbose, n_bytes=n_bytes)
+                    render_param_table(
+                        params, verbose=verbose, n_bytes=n_bytes, selected_name=sel_name
+                    )
                 )
             elif decode:
                 entry_text.append(f"      {decode}\n")
@@ -403,6 +415,26 @@ class MonitorController:
         # True once the user sets a non-empty state via the TUI save dialog, so
         # the end-of-run auto-suggest fallback doesn't clobber their choice.
         self._state_explicit = False
+        # In-place editing / filtering of PID definitions from the TUI. The
+        # editor owns the selection cursor + display filter and writes edits
+        # through canlib.pids_edit; this controller reloads on its request.
+        from .monitor_edit import MonitorEditor
+
+        self.pids_dir = None  # None -> active profile's ecus/ (tests override)
+        self.editor = MonitorEditor(self)
+
+    def reload_pids(self) -> None:
+        """Re-read PID definitions after an in-place edit and rebuild the index.
+
+        ``canlib.pids_edit`` clears the memoized load on every write, so this
+        picks up the just-edited expression/flags; the rebuilt ECU index makes
+        the next poll decode with the new definition.
+        """
+        from ..pids import build_ecu_index, load_pids
+
+        self.pids_data = load_pids(self.pids_dir)
+        self._ecu_index = build_ecu_index(self.pids_data)
+
 
     async def setup(self, session_steps: list[dict] | None) -> None:
         """Build the ECU index, run one-shot session setup, start keepalives."""
@@ -782,8 +814,9 @@ class MonitorController:
 
     def render(self) -> Text:
         """The current view as a Rich Text (rendered by the TUI / printed on exit)."""
+        self.editor.ensure_valid(self.last_queries)
         return _render_results(
-            self.last_queries,
+            self.editor.visible_queries(self.last_queries),
             self.verbose,
             self.cycle,
             self.elapsed,
@@ -792,6 +825,7 @@ class MonitorController:
             self.hex_history,
             show_rulers=self.show_rulers,
             footer=False,
+            selected=self.editor.selected,
         )
 
     def has_captures(self) -> bool:
@@ -961,9 +995,11 @@ async def mode_monitor(
                         notes (auto-suggested when omitted) and the TUI 's' key.
         show_rulers:    Show byte-index rulers (idx/wican) once per PID.
 
-    TUI keys: ↑/↓ or j/k scroll, PgUp/PgDn page, g/Home top, G/End bottom,
-    f toggle follow-tail, space pause/resume polling, s save captures, q or
-    Ctrl+C stop.
+    TUI keys: ↑/↓ move the parameter-selection cursor, j/k scroll, PgUp/PgDn
+    page, g/Home top, G/End bottom, f toggle follow-tail, space pause/resume
+    polling, e edit the selected parameter, v toggle its verified flag, d
+    toggle enabled/disabled, F cycle the display filter (all/verified/
+    unverified/enabled/disabled), s save captures, q or Ctrl+C stop.
     """
     from ..profile import active
 
