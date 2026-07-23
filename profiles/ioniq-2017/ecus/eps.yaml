@@ -41,7 +41,7 @@ EPS:
             LE value show they are NOT clean little-endian pairs. Needs a controlled
             capture (see research entry) to pin down angle vs torque vs MDPS current.
             B14 = vehicle speed (decoded). B18/B19 tail = 0x1010 constant.
-        VEHICLE_SPEED:
+        EPS_VEHICLE_SPEED:
           expression: B14
           unit: km/h
           min: "0"

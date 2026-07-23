@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from canlib.commands.validate import collect_pids_validation
-from canlib.commands.wican import generate_profile
+from canlib.commands.wican import DuplicateParameterError, generate_profile
 from canlib.pids_edit import PidsEditError, set_pid_status
 from canlib.states import POWER_STATES, allowed_states, join_states, parse_states
 
@@ -83,6 +83,135 @@ class TestGenerateProfileShipping:
         prof = generate_profile(self._data())
         names = {n for p in prof["pids"] for n in p["parameters"]}
         assert names == {"A"}
+
+
+# ── generate_profile rejects duplicate parameter names ─────────────────────
+
+
+class TestGenerateProfileDuplicateNames:
+    def _data(self, ecus):
+        return {"car_model": "Test", "init": "ATZ;", "ecus": ecus}
+
+    def test_duplicate_across_pids_same_ecu_raises(self):
+        data = self._data(
+            {
+                "TEST": {
+                    "tx_id": 0x7E0,
+                    "pids": {
+                        "2101": {
+                            "status": "active",
+                            "parameters": {"SOC": {"expression": "B0"}},
+                        },
+                        "2102": {
+                            "status": "active",
+                            "parameters": {"SOC": {"expression": "B1"}},
+                        },
+                    },
+                }
+            }
+        )
+        with pytest.raises(DuplicateParameterError) as exc:
+            generate_profile(data)
+        msg = str(exc.value)
+        assert "SOC" in msg
+        assert "TEST 2101" in msg and "TEST 2102" in msg
+
+    def test_duplicate_across_ecus_raises(self):
+        data = self._data(
+            {
+                "A": {
+                    "tx_id": 0x7E0,
+                    "pids": {
+                        "2101": {"status": "active", "parameters": {"TEMP": {"expression": "B0"}}}
+                    },
+                },
+                "B": {
+                    "tx_id": 0x7E4,
+                    "pids": {
+                        "2101": {"status": "active", "parameters": {"TEMP": {"expression": "B1"}}}
+                    },
+                },
+            }
+        )
+        with pytest.raises(DuplicateParameterError):
+            generate_profile(data)
+
+    def test_reports_all_collisions_at_once(self):
+        data = self._data(
+            {
+                "TEST": {
+                    "tx_id": 0x7E0,
+                    "pids": {
+                        "2101": {
+                            "status": "active",
+                            "parameters": {"X": {"expression": "B0"}, "Y": {"expression": "B1"}},
+                        },
+                        "2102": {
+                            "status": "active",
+                            "parameters": {"X": {"expression": "B2"}, "Y": {"expression": "B3"}},
+                        },
+                    },
+                }
+            }
+        )
+        with pytest.raises(DuplicateParameterError) as exc:
+            generate_profile(data)
+        msg = str(exc.value)
+        assert "X" in msg and "Y" in msg
+
+    def test_non_active_pids_do_not_collide(self):
+        # A draft/static/ignored PID that reuses a name is fine — it never ships.
+        data = self._data(
+            {
+                "TEST": {
+                    "tx_id": 0x7E0,
+                    "pids": {
+                        "2101": {"status": "active", "parameters": {"SOC": {"expression": "B0"}}},
+                        "2102": {"status": "draft", "parameters": {"SOC": {"expression": "B1"}}},
+                    },
+                }
+            }
+        )
+        prof = generate_profile(data)  # no raise
+        assert [p["pid"] for p in prof["pids"]] == ["2101"]
+
+    def test_verified_only_filtered_name_does_not_collide(self):
+        # With --verified-only, an unverified twin is dropped before the check.
+        data = self._data(
+            {
+                "TEST": {
+                    "tx_id": 0x7E0,
+                    "pids": {
+                        "2101": {
+                            "status": "active",
+                            "parameters": {"SOC": {"expression": "B0", "verified": True}},
+                        },
+                        "2102": {
+                            "status": "active",
+                            "parameters": {"SOC": {"expression": "B1", "verified": False}},
+                        },
+                    },
+                }
+            }
+        )
+        prof = generate_profile(data, verified_only=True)  # no raise
+        assert [p["pid"] for p in prof["pids"]] == ["2101"]
+
+    def test_unique_names_pass(self):
+        data = self._data(
+            {
+                "TEST": {
+                    "tx_id": 0x7E0,
+                    "pids": {
+                        "2101": {"status": "active", "parameters": {"A": {"expression": "B0"}}},
+                        "2102": {"status": "active", "parameters": {"B": {"expression": "B1"}}},
+                    },
+                }
+            }
+        )
+        prof = generate_profile(data)
+        names = {n for p in prof["pids"] for n in p["parameters"]}
+        assert names == {"A", "B"}
 
 
 # ── validate rejects legacy fields (hard cut-over) ──────────────────────────

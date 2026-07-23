@@ -52,6 +52,15 @@ NAME = "wican"
 WICAN_TIMEOUT = 10  # seconds
 
 
+class DuplicateParameterError(Exception):
+    """Two shipped parameters share the same name across the AutoPID profile.
+
+    Parameter names become distinct signals/entities on the device, so a
+    collision means one silently shadows the other. We refuse to generate such
+    a profile rather than ship an ambiguous one.
+    """
+
+
 def _require_pro(operation: str) -> int | None:
     """Return an error code if the configured WiCAN is not a Pro.
 
@@ -124,7 +133,13 @@ def generate_profile(data: dict, verified_only: bool = False) -> dict:
         "can_filters": [],
     }
 
-    for _ecu_name, ecu in data["ecus"].items():
+    # Where each shipped parameter name was first seen, so a collision can name
+    # both origins. Populated as we build; checked after the full pass so every
+    # duplicate is reported at once.
+    name_origin: dict[str, str] = {}
+    collisions: dict[str, list[str]] = {}
+
+    for ecu_name, ecu in data["ecus"].items():
         tx_id = ecu["tx_id"]
         session = ecu.get("session", False)
         pid_init = make_pid_init(tx_id, session=session)
@@ -144,6 +159,12 @@ def generate_profile(data: dict, verified_only: bool = False) -> dict:
                     continue
                 parameters[param_name] = param["expression"]
 
+                origin = f"{ecu_name} {pid_code}"
+                if param_name in name_origin:
+                    collisions.setdefault(param_name, [name_origin[param_name]]).append(origin)
+                else:
+                    name_origin[param_name] = origin
+
             if not parameters:
                 continue
 
@@ -156,6 +177,17 @@ def generate_profile(data: dict, verified_only: bool = False) -> dict:
                     "parameters": parameters,
                 }
             )
+
+    if collisions:
+        lines = [
+            f"  '{name}' shipped by {', '.join(origins)}"
+            for name, origins in sorted(collisions.items())
+        ]
+        raise DuplicateParameterError(
+            "duplicate parameter name(s) in the AutoPID profile — each name must "
+            "be unique across all shipped PIDs (they become distinct signals on "
+            "the device):\n" + "\n".join(lines)
+        )
 
     return profile
 
@@ -654,7 +686,11 @@ def _generate(args) -> tuple[dict, dict]:
 
     label = " (verified only)" if getattr(args, "verified_only", False) else ""
     print(f"\nGenerating AutoPID profile{label}...")
-    profile = generate_profile(data, getattr(args, "verified_only", False))
+    try:
+        profile = generate_profile(data, getattr(args, "verified_only", False))
+    except DuplicateParameterError as e:
+        print(f"error: {e}", file=sys.stderr)
+        sys.exit(1)
     n_groups = len(profile["pids"])
     n_params = sum(len(p["parameters"]) for p in profile["pids"])
     print(f"  {n_groups} PID groups, {n_params} parameters")

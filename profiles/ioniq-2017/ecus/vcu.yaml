@@ -40,7 +40,7 @@ VCU:
         - ready
         - charging
       parameters:
-        VEHICLE_SPEED:
+        VCU_VEHICLE_SPEED:
           expression: "((S20*256)+B19)/60"
           unit: km/h
           ha_class: speed
