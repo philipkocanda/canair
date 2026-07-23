@@ -12,6 +12,9 @@ QUERY.
   QUERY --step          Interactive: step through captures one at a time with
                         arrow keys, decoded params + byte-diff vs previous
                         capture; e adds/edits a note, d deletes a capture
+  QUERY --step --pair   Interactive: compare two ECU:PID selections side by
+                        side, joining captures by nearest timestamp within
+                        --join-tol (query must resolve to exactly two keys)
   --summary             Overview: captures per ECU, per date, total payloads
   --sessions            Session table of contents: date/time-span/state/label/
                         notes/ECUs per session (no payloads); --json for machine
@@ -44,6 +47,8 @@ Examples:
   canair captures BMS 2102 --step           # Step through one PID
   canair captures "BMS:2102,2103" --step    # Step two PIDs interleaved
   canair captures "VCU:2101 BMS:2101" --step  # Cross-ECU step-through
+  canair captures "VCU:2101 BMS:2101" --step --pair  # Compare two ECUs side by side
+  canair captures "VCU:2101 BMS:2101" --step --pair --join-tol 1.0  # Tighter pairing
   canair captures --diff VCU:2101 --all     # One PID, every payload
   canair captures --summary                 # Overview stats
   canair captures --sessions                # Session table of contents
@@ -60,198 +65,35 @@ import re
 import sys
 from collections import defaultdict
 from pathlib import Path
+from typing import TypedDict
 
-import yaml
-
+from canlib.align import DEFAULT_JOIN_TOL_S
 from canlib.capture_dates import (
     add_scope_args,
     filter_by_date_range,
     filter_by_text,
     resolve_date_bounds,
 )
+from canlib.commands._captures_query import (
+    _BOLD,
+    _CYAN,
+    _DIM,
+    _RESET,
+    _YELLOW,
+    _decoded_preview,
+    _dedupe_payloads,
+    _dump_json,
+    _entry_to_dict,
+    _gather_query,
+    _group_by_key,
+    _parse_query,
+    load_all_captures,
+)
+from canlib.commands._captures_step import cmd_step, cmd_step_pair
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.states import join_states as _join_states
 
 NAME = "captures"
-
-# ANSI color helpers
-_RED = "\033[91m"
-_GREEN = "\033[92m"
-_YELLOW = "\033[93m"
-_CYAN = "\033[96m"
-_DIM = "\033[2m"
-_BOLD = "\033[1m"
-_RESET = "\033[0m"
-
-
-# ---------------------------------------------------------------------------
-# On-the-fly decoding
-# ---------------------------------------------------------------------------
-#
-# Decoded parameter values are NOT stored in capture files (they are derived
-# data). We regenerate them on demand from the payload + PID definitions when
-# displaying previews. The PID index is built once and cached.
-
-_ecu_index = None
-_decode_fn = None
-
-
-def _decoded_preview(entry: dict) -> dict | None:
-    """Regenerate decoded parameter values for a capture entry, or None.
-
-    Lazily loads PID definitions on first use. Returns a dict of
-    ``param_name -> "value unit (formatted)"`` strings, matching the format
-    previously stored in the (now removed) ``decoded`` field.
-    """
-    global _ecu_index, _decode_fn
-
-    payload = entry.get("payload")
-    ecu = entry.get("ecu")
-    pid = entry.get("pid")
-    if not payload or not ecu or not pid:
-        return None
-
-    if _decode_fn is None:
-        try:
-            from canlib.captures import _decode_payload
-            from canlib.pids import build_ecu_index, load_pids
-
-            _decode_fn = _decode_payload
-            _ecu_index = build_ecu_index(load_pids())
-        except Exception:
-            _decode_fn = False  # sentinel: decoding unavailable
-            return None
-    if _decode_fn is False:
-        return None
-
-    try:
-        return _decode_fn(ecu, str(pid), payload, {}, ecu_index=_ecu_index)
-    except Exception:
-        return None
-
-
-def _dump_json(obj) -> None:
-    """Write ``obj`` to stdout as pretty JSON (dates/other objects via str())."""
-    import json
-
-    json.dump(obj, sys.stdout, indent=2, default=str)
-    print()
-
-
-def _entry_to_dict(e: dict, *, decoded: bool = True) -> dict:
-    """Serialize a capture entry to a clean, JSON-ready dict.
-
-    Includes the regenerated ``decoded`` preview (param -> formatted value) when
-    ``decoded`` is set and a PID definition exists.
-    """
-    d = {
-        "ecu": e.get("ecu"),
-        "ecu_addr": e.get("ecu_addr"),
-        "pid": str(e["pid"]) if e.get("pid") is not None else None,
-        "date": e.get("date"),
-        "time": e.get("time") or None,
-        "vehicle_states": e.get("vehicle_states") or None,
-        "label": e.get("label") or e.get("session_label") or None,
-        "notes": (str(e["notes"]).strip() or None) if e.get("notes") else None,
-        "payload": e.get("payload") or None,
-        "response": e.get("response") or None,
-        "scan_results": e.get("scan_results") or None,
-    }
-    if decoded:
-        d["decoded"] = _decoded_preview(e)
-    return d
-
-
-# ---------------------------------------------------------------------------
-# Loader
-# ---------------------------------------------------------------------------
-
-
-def load_all_captures(captures_dir: Path | None = None) -> list[dict]:
-    """Load all capture files and return a flat list of (session, capture) tuples.
-
-    Each entry is a dict with keys:
-        file, date, label, state, ecu, ecu_addr, pid, payload, response,
-        scan_results, notes, time
-
-    The capture ``ecu`` field stores the ECU CAN response address (e.g.
-    ``"0x7EC"``); it is resolved to the canonical short name in ``ecu`` for
-    display/joins, with the raw address preserved in ``ecu_addr``.
-
-    Plus internal locator keys (``_session_idx``, ``_capture_idx``) that address
-    the capture within its source file, for in-place edits/deletes.
-    """
-    from canlib.ecus import build_rx_index, ecu_name_from_ref
-
-    if captures_dir is None:
-        from canlib.profile import active
-
-        captures_dir = active().captures_dir
-
-    try:
-        rx_index = build_rx_index()
-    except Exception:
-        rx_index = {}
-
-    entries = []
-    for fpath in sorted(captures_dir.glob("*.yaml")):
-        if fpath.name.startswith(("SCHEMA", "_")):
-            continue
-        with open(fpath) as f:
-            data = yaml.safe_load(f)
-        if not data or "sessions" not in data:
-            continue
-        for s_idx, session in enumerate(data["sessions"]):
-            date = session.get("date", "")
-            label = session.get("label", "")
-            vehicle_states = session.get("vehicle_states") or []
-            session_notes = session.get("notes", "")
-            for c_idx, cap in enumerate(session.get("captures", [])):
-                raw_ecu = cap.get("ecu", "")
-                entry = {
-                    "file": fpath.name,
-                    "date": date,
-                    "session_label": label,
-                    "vehicle_states": list(vehicle_states),
-                    "session_notes": session_notes,
-                    "ecu": ecu_name_from_ref(raw_ecu, rx_index) if raw_ecu else "",
-                    "ecu_addr": raw_ecu,
-                    "pid": cap.get("pid", ""),
-                    "payload": cap.get("payload"),
-                    "response": cap.get("response"),
-                    "scan_results": cap.get("scan_results"),
-                    "notes": cap.get("notes", ""),
-                    "time": cap.get("time", ""),
-                    "label": cap.get("label", ""),
-                    "_session_idx": s_idx,
-                    "_capture_idx": c_idx,
-                }
-                entries.append(entry)
-    return entries
-
-
-# ---------------------------------------------------------------------------
-# Query parsing (alias-aware)
-# ---------------------------------------------------------------------------
-
-
-def _parse_query(query):
-    """Parse a QUERY and canonicalize selector ECUs (aliases -> primary name).
-
-    So `canair captures SMK` resolves to the SKM module. Falls back to the raw
-    parse if the ECU registry is unavailable; :class:`EcuNameCollision` from an
-    ambiguous registry is allowed to propagate.
-    """
-    from canlib.query import parse_query
-
-    q = parse_query(query)
-    try:
-        from canlib.ecus import build_canonical_name_index
-
-        name_index = build_canonical_name_index()
-    except FileNotFoundError:
-        return q
-    return q.canonicalize_ecus(lambda ecu: name_index.get(ecu, ecu).upper())
 
 
 # ---------------------------------------------------------------------------
@@ -326,7 +168,21 @@ def _clean(text) -> str:
     return " ".join(_CTRL_RE.sub("", str(text)).split())
 
 
-def _group_sessions(entries: list[dict]) -> list[dict]:
+class _SessionGroup(TypedDict):
+    """Rolled-up per-session accumulator built by ``_group_sessions``."""
+
+    file: str
+    date: str
+    label: str
+    vehicle_states: list
+    notes: str
+    n: int
+    ecus: dict  # ordered set (dict) of ECU names
+    times: list
+    cap_notes: list  # distinct capture-level notes, first-seen order
+
+
+def _group_sessions(entries: list[dict]) -> list[_SessionGroup]:
     """Reconstruct per-session metadata from flat capture entries.
 
     Groups by ``(file, _session_idx)`` — the true session identity — and rolls
@@ -334,12 +190,12 @@ def _group_sessions(entries: list[dict]) -> list[dict]:
     the distinct ECUs touched, the time span, and any distinct capture-level
     notes. Sessions are returned in chronological order (date, then first time).
     """
-    groups: dict[tuple[str, int], dict] = {}
+    groups: dict[tuple[str, int], _SessionGroup] = {}
     for e in entries:
         key = (e["file"], e.get("_session_idx", 0))
-        g = groups.get(key)
+        g: _SessionGroup | None = groups.get(key)
         if g is None:
-            g = groups[key] = {
+            g = {
                 "file": e["file"],
                 "date": e.get("date", ""),
                 "label": e.get("session_label", ""),
@@ -350,6 +206,7 @@ def _group_sessions(entries: list[dict]) -> list[dict]:
                 "times": [],
                 "cap_notes": [],  # distinct capture-level notes, first-seen order
             }
+            groups[key] = g
         g["n"] += 1
         ecu = e.get("ecu") or e.get("ecu_addr") or ""
         if ecu:
@@ -538,160 +395,8 @@ def cmd_latest(entries: list[dict], ecu_filter: str | None, as_json: bool = Fals
 
 
 # ---------------------------------------------------------------------------
-# Query gathering (shared by --diff and --step)
+# Diff mode (monitor-style byte-diff, one block per ECU+PID)
 # ---------------------------------------------------------------------------
-
-# A resolved PID definition: (parameters, tx_id) for one (ECU, PID) pair.
-PidDefs = tuple[dict, "int | None"]
-
-
-def _load_ecu_index() -> dict:
-    """Load + build the ECU/PID definition index once (empty dict on failure)."""
-    try:
-        from canlib.pids import build_ecu_index, load_pids
-
-        return build_ecu_index(load_pids())
-    except Exception:
-        return {}
-
-
-def _resolve_defs(ecu_index: dict, ecu: str, pid: str) -> PidDefs:
-    """Look up ``(parameters, tx_id)`` for one ECU+PID from the index.
-
-    Parameters come from an *exact* PID key match (substring-matched captures
-    with no exact definition render as raw hex, i.e. empty parameters).
-    """
-    info = ecu_index.get(str(ecu).upper())
-    if not info:
-        return {}, None
-    tx_id = info.get("tx_id")
-    pid_info = info.get("pids", {}).get(str(pid).upper())
-    parameters = (pid_info or {}).get("parameters", {}) or {}
-    return parameters, tx_id
-
-
-def _gather_query(
-    entries: list[dict], query, *, warn: bool = True
-) -> tuple[list[dict], dict[tuple[str, str], PidDefs]]:
-    """Select payload captures matching ``query`` (a canlib.query string/Query).
-
-    Returns ``(captures, defs)``:
-      - ``captures`` — payload-bearing entries matching any selector, sorted
-        chronologically ``(date, time)``.
-      - ``defs`` — cache mapping ``(ECU_UPPER, PID_UPPER)`` to ``(parameters,
-        tx_id)`` for every distinct pair present in ``captures``.
-
-    When ``warn`` is set, prints a note for any selector that matched nothing
-    (with an ``ECU:PID`` hint when a bare selector looks like a DID).
-    """
-    q = _parse_query(query)
-    payloads = [e for e in entries if _is_hex_payload(e.get("payload"))]
-    matched, empty = q.filter(payloads, ecu_of=lambda e: e["ecu"], pid_of=lambda e: e["pid"])
-
-    # Chronological order (date, then time within a session).
-    matched.sort(key=lambda e: (str(e.get("date", "")), str(e.get("time", ""))))
-
-    ecu_index = _load_ecu_index()
-    defs: dict[tuple[str, str], PidDefs] = {}
-    for e in matched:
-        key = (e["ecu"].upper(), str(e["pid"]).upper())
-        if key not in defs:
-            defs[key] = _resolve_defs(ecu_index, *key)
-
-    if warn and empty:
-        known_ecus = {e["ecu"].upper() for e in payloads}
-        for sel in empty:
-            hint = ""
-            # Bare selector whose "ECU" isn't a real ECU but looks like a DID —
-            # likely the old `ECU PID` space form; nudge toward `ECU:PID`.
-            if not sel.pids and sel.ecu not in known_ecus and any(c.isdigit() for c in sel.ecu):
-                hint = "  (did you mean to attach it as a PID, e.g. ECU:PID?)"
-            print(f"  {_YELLOW}No captures matched selector '{sel}'{_RESET}{hint}")
-        avail = ", ".join(sorted(known_ecus))
-        print(f"  {_DIM}Available ECUs: {avail}{_RESET}")
-
-    return matched, defs
-
-
-def _is_hex_payload(payload) -> bool:
-    """True if ``payload`` is a byte-diffable hex string.
-
-    The byte-level views (``--diff``/``--step``) render payloads as hex. Some
-    legacy captures store a human outcome (e.g. ``"NO DATA"``) under ``payload``
-    instead of ``response``; those aren't hex and must be excluded here so the
-    hex renderer never chokes on them. Spaces are tolerated (payloads are
-    normally stored space-free, uppercase).
-    """
-    if not payload:
-        return False
-    s = str(payload).replace(" ", "")
-    if not s or len(s) % 2 != 0:
-        return False
-    try:
-        bytes.fromhex(s)
-    except ValueError:
-        return False
-    return True
-
-
-def _capture_key(e: dict) -> tuple[str, str]:
-    """The (ECU, PID) grouping/diff key for a capture (upper-cased)."""
-    return e["ecu"].upper(), str(e["pid"]).upper()
-
-
-def _dedupe_payloads(payloads: list[dict]) -> list[dict]:
-    """Drop duplicate payloads per (ECU, PID), keeping first-seen order.
-
-    Deduping is scoped to each ECU+PID so identical hex under different PIDs is
-    never collapsed together.
-    """
-    seen: set[tuple[str, str, str]] = set()
-    unique: list[dict] = []
-    for e in payloads:
-        ecu, pid = _capture_key(e)
-        norm = e["payload"].upper().replace(" ", "")
-        key = (ecu, pid, norm)
-        if key not in seen:
-            seen.add(key)
-            unique.append(e)
-    return unique
-
-
-def _prev_same_index(captures: list[dict]) -> list[int | None]:
-    """Per position, the nearest earlier index sharing the same (ECU, PID).
-
-    Used by the interleaved step view so byte-diffing compares a capture against
-    the previous capture *of the same PID*, not merely the adjacent frame.
-    """
-    last: dict[tuple[str, str], int] = {}
-    out: list[int | None] = []
-    for idx, e in enumerate(captures):
-        key = _capture_key(e)
-        out.append(last.get(key))
-        last[key] = idx
-    return out
-
-
-def _key_ordinals(captures: list[dict]) -> list[tuple[int, int]]:
-    """Per position, its 1-based ordinal within its (ECU, PID) and that group's total."""
-    totals: dict[tuple[str, str], int] = {}
-    for e in captures:
-        totals[_capture_key(e)] = totals.get(_capture_key(e), 0) + 1
-    seen: dict[tuple[str, str], int] = {}
-    out: list[tuple[int, int]] = []
-    for e in captures:
-        key = _capture_key(e)
-        seen[key] = seen.get(key, 0) + 1
-        out.append((seen[key], totals[key]))
-    return out
-
-
-def _group_by_key(captures: list[dict]) -> dict[tuple[str, str], list[dict]]:
-    """Group captures by (ECU, PID), preserving first-appearance order of keys."""
-    groups: dict[tuple[str, str], list[dict]] = {}
-    for e in captures:
-        groups.setdefault(_capture_key(e), []).append(e)
-    return groups
 
 
 def _render_diff_group(
@@ -807,325 +512,6 @@ def cmd_diff(
         _render_diff_group(console, group, parameters, tx_id, show_all, rulers)
 
     console.print()
-
-
-# ---------------------------------------------------------------------------
-# Step mode (interactive)
-# ---------------------------------------------------------------------------
-
-
-def _read_key(fd: int) -> str:
-    """Read a single keypress (or escape sequence) from a raw/cbreak stdin."""
-    from canlib.tui import read_key_raw
-
-    return read_key_raw(fd)
-
-
-def _render_step_frame(
-    console,
-    captures: list[dict],
-    i: int,
-    defs: dict[tuple[str, str], PidDefs],
-    prev_idx: list[int | None],
-    ordinals: list[tuple[int, int]],
-    status: str = "",
-    prompt: str | None = None,
-    rulers: bool = False,
-) -> None:
-    """Render one capture full-screen: header, decoded params, optional ruler, diff hex.
-
-    PID definitions (``parameters``/``tx_id``) are resolved per-capture from
-    ``defs``, so a single interleaved list can span multiple PIDs/ECUs. The
-    byte-diff compares the current payload against the previous capture of the
-    *same* (ECU, PID) — via ``prev_idx`` — rendered dimmed above for reference.
-
-    ``prompt`` (when set) replaces the status line with a bold input prompt, used
-    by the note-edit and delete-confirm sub-loops.
-    """
-    from rich.markup import escape
-
-    from canlib.decoding import decode_param_rows
-    from canlib.formatting import _render_hex_line, render_byte_rulers, render_param_table
-
-    e = captures[i]
-    key = _capture_key(e)
-    parameters, tx_id = defs.get(key, ({}, None))
-    multi = len(defs) > 1
-
-    pj = prev_idx[i]
-    prev = captures[pj] if pj is not None else None
-
-    norm = e["payload"].upper().replace(" ", "")
-    prev_norm = prev["payload"].upper().replace(" ", "") if prev else ""
-    n_bytes = len(norm) // 2
-
-    # Decode the *current* capture (drives the table + byte colours for this frame).
-    rows = decode_param_rows(e["payload"], parameters)
-    unmapped = not rows
-
-    # Header: ECU / PID + position, timestamp, state, label, file.
-    ecu_display = escape(e["ecu"])
-    pid_display = escape(str(e["pid"]))
-    tx_str = f" (0x{tx_id:03X})" if isinstance(tx_id, int) else ""
-    ts = e.get("time") or e.get("date") or ""
-    _st = _join_states(e.get("vehicle_states"))
-    state = f"  states={escape(_st)}" if _st else ""
-    label = f"  [{escape(e['label'])}]" if e.get("label") else ""
-    file_str = f"  ({escape(e['file'])})" if e.get("file") else ""
-
-    ord_n, ord_m = ordinals[i]
-    per_pid = f" · this PID {ord_n}/{ord_m}" if multi else ""
-
-    console.print(f"\n  [bold cyan]{ecu_display}{tx_str}[/bold cyan]")
-    console.print(
-        f"    [yellow]{pid_display}[/yellow]  [dim]capture {i + 1}/{len(captures)}{per_pid}[/dim]"
-    )
-    console.print(f"    [bold]{escape(ts)}[/bold][dim]{state}{label}{file_str}[/dim]")
-
-    # Capture note (if any).
-    note = (e.get("notes") or "").strip()
-    if note:
-        console.print(f"    [dim]note:[/dim] {escape(note)}")
-
-    # Decoded-parameter block (aligned columns, verification marks, byte indices).
-    if rows:
-        console.print(render_param_table(rows, n_bytes=n_bytes), end="")
-
-    # Byte-index ruler (opt-in via --rulers), aligned with the hex byte columns below.
-    prev_ts = (prev.get("time") or prev.get("date") or "") if prev else ""
-    max_ts = max(len(ts), len(prev_ts))
-    if rulers and n_bytes:
-        console.print(
-            render_byte_rulers(n_bytes, rows, prefix_width=8 + max_ts), end="", soft_wrap=True
-        )
-
-    # Previous same-PID capture (dimmed, no highlight) for visual reference, then
-    # the current capture with per-byte change highlighting against it.
-    if prev is not None:
-        prev_prefix = f"      {prev_ts:<{max_ts}}  "
-        console.print(
-            _render_hex_line(prev_norm, rows, unmapped, prefix=prev_prefix, prefix_style="dim"),
-            end="",
-            soft_wrap=True,
-        )
-    prefix = f"    > {ts:<{max_ts}}  "
-    console.print(
-        _render_hex_line(norm, rows, unmapped, prev_raw=prev_norm, prefix=prefix),
-        end="",
-        soft_wrap=True,
-    )
-
-    # Footer: key hints, then either an input prompt or a transient status.
-    console.print(
-        "\n  [dim]←/h/p prev   →/l/n/space next   PgUp/PgDn ±100   g/G first/last   "
-        ": goto   e note   d delete   q quit[/dim]"
-    )
-    if prompt is not None:
-        console.print(f"  [bold yellow]{escape(prompt)}[/bold yellow]")
-    elif status:
-        console.print(f"  [yellow]{escape(status)}[/yellow]")
-
-
-def cmd_step(
-    entries: list[dict],
-    query,
-    show_all: bool = False,
-    captures_dir: Path | None = None,
-    rulers: bool = False,
-) -> None:
-    """Interactively step through captures matching ``query``, one at a time.
-
-    ``query`` is a canlib.query selection (``"VCU"``, ``"VCU:2101,2102"``,
-    ``"VCU:2101 BMS:2101"``). Captures are interleaved chronologically across the
-    selected PIDs; the byte-diff for each frame is computed against the previous
-    capture of the same (ECU, PID).
-
-    Arrow keys (or vim ``h``/``l``) move between captures; PgUp/PgDn skip ±100;
-    ``:`` jumps to a capture number; ``g``/``G`` go to first/last. ``e``
-    edits/adds the current capture's note; ``d`` deletes it (y/N confirm). Both
-    mutate the source YAML and reload in place.
-
-    Steps through *unique* payloads (per PID) by default; ``show_all=True`` walks
-    every capture. Falls back to ``cmd_diff`` when stdin/stdout is not a TTY.
-    """
-    import sys
-
-    from rich.console import Console
-
-    from canlib.captures import delete_capture, set_capture_note
-
-    if captures_dir is None:
-        from canlib.profile import active
-
-        captures_dir = active().captures_dir
-
-    def build_list(src: list[dict], warn: bool):
-        caps, defs = _gather_query(src, query, warn=warn)
-        if not show_all:
-            caps = _dedupe_payloads(caps)
-        prev_idx = _prev_same_index(caps)
-        ordinals = _key_ordinals(caps)
-        return caps, defs, prev_idx, ordinals
-
-    captures, defs, prev_idx, ordinals = build_list(entries, warn=True)
-    if not captures:
-        return
-
-    # Non-interactive (piped) — fall back to the static diff view.
-    if not (sys.stdin.isatty() and sys.stdout.isatty()):
-        print("  (not a TTY — falling back to --diff view)")
-        cmd_diff(entries, query, show_all=show_all, rulers=rulers)
-        return
-
-    import termios
-    import tty
-
-    console = Console(highlight=False)
-    fd = sys.stdin.fileno()
-    old_settings = termios.tcgetattr(fd)
-
-    i = len(captures) - 1  # start at the most recent capture
-    status = ""
-    final_msg = ""
-
-    def redraw(prompt: str | None = None) -> None:
-        sys.stdout.write("\033[2J\033[H")  # clear + home
-        _render_step_frame(
-            console,
-            captures,
-            i,
-            defs,
-            prev_idx,
-            ordinals,
-            status=status,
-            prompt=prompt,
-            rulers=rulers,
-        )
-
-    def reload() -> bool:
-        """Re-read captures from disk and rebuild the list. False if empty."""
-        nonlocal captures, defs, prev_idx, ordinals, i
-        fresh = load_all_captures(captures_dir)
-        captures, defs, prev_idx, ordinals = build_list(fresh, warn=False)
-        if not captures:
-            return False
-        i = min(i, len(captures) - 1)
-        return True
-
-    # Alternate screen buffer + hidden cursor for clean redraws.
-    sys.stdout.write("\033[?1049h\033[?25l")
-    sys.stdout.flush()
-    try:
-        tty.setcbreak(fd)
-        while True:
-            redraw()
-            status = ""
-
-            key = _read_key(fd)
-            if key in ("q", "Q", "\x1b\x1b", "\x1b", "\x03"):  # q / Esc / Ctrl-C
-                break
-            elif key in ("\x1b[D", "h", "p"):  # left / prev
-                if i > 0:
-                    i -= 1
-                else:
-                    status = "At first capture"
-            elif key in ("\x1b[C", "l", "n", " "):  # right / next
-                if i < len(captures) - 1:
-                    i += 1
-                else:
-                    status = "At last capture"
-            elif key in ("\x1b[H", "g"):  # Home / g — first
-                i = 0
-            elif key in ("\x1b[F", "G"):  # End / G — last
-                i = len(captures) - 1
-            elif key in ("\x1b[6~", "]"):  # PageDown / ] — forward 100
-                i = min(i + 100, len(captures) - 1)
-            elif key in ("\x1b[5~", "["):  # PageUp / [ — back 100
-                i = max(i - 100, 0)
-            elif key in (":", "#"):  # jump to a specific capture number
-                buf = ""
-                cancelled = False
-                while True:
-                    redraw(
-                        prompt=f"go to capture # (1-{len(captures)}, Enter=go · Esc=cancel): {buf}\u2588"
-                    )
-                    k = _read_key(fd)
-                    if k in ("\r", "\n"):
-                        break
-                    if k in ("\x1b", "\x03"):
-                        cancelled = True
-                        break
-                    if k in ("\x7f", "\x08"):  # backspace
-                        buf = buf[:-1]
-                    elif k.isdigit():
-                        buf += k
-                if cancelled or not buf:
-                    status = "Jump cancelled"
-                else:
-                    n = int(buf)
-                    if 1 <= n <= len(captures):
-                        i = n - 1
-                    else:
-                        i = max(0, min(n - 1, len(captures) - 1))
-                        status = f"Clamped to {i + 1} (valid: 1-{len(captures)})"
-            elif key in ("e", "E"):  # edit / add note
-                cap = captures[i]
-                buf = (cap.get("notes") or "").replace("\n", " ").strip()
-                cancelled = False
-                while True:
-                    redraw(prompt=f"note (Enter=save · Esc=cancel): {buf}\u2588")
-                    k = _read_key(fd)
-                    if k in ("\r", "\n"):
-                        break
-                    if k in ("\x1b", "\x03"):
-                        cancelled = True
-                        break
-                    if k in ("\x7f", "\x08"):  # backspace
-                        buf = buf[:-1]
-                    elif len(k) == 1 and k.isprintable():
-                        buf += k
-                if cancelled:
-                    status = "Note edit cancelled"
-                else:
-                    try:
-                        set_capture_note(
-                            captures_dir / cap["file"],
-                            cap["_session_idx"],
-                            cap["_capture_idx"],
-                            buf,
-                        )
-                        saved = "Note saved" if buf.strip() else "Note cleared"
-                        if not reload():
-                            final_msg = saved + " — no captures left"
-                            break
-                        status = saved
-                    except Exception as ex:
-                        status = f"Note save failed: {ex}"
-            elif key in ("d", "D"):  # delete current capture (confirmed)
-                cap = captures[i]
-                redraw(prompt="Delete this capture? (y/N)")
-                if _read_key(fd) in ("y", "Y"):
-                    try:
-                        delete_capture(
-                            captures_dir / cap["file"],
-                            cap["_session_idx"],
-                            cap["_capture_idx"],
-                        )
-                        if not reload():
-                            final_msg = "Capture deleted — no captures left"
-                            break
-                        status = "Capture deleted"
-                    except Exception as ex:
-                        status = f"Delete failed: {ex}"
-                else:
-                    status = "Delete cancelled"
-    finally:
-        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-        sys.stdout.write("\033[?25h\033[?1049l")  # show cursor, leave alt screen
-        sys.stdout.flush()
-
-    if final_msg:
-        print(f"  {final_msg}")
 
 
 def _print_entry(e: dict, show_ecu: bool = False) -> None:
@@ -1322,6 +708,24 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        "--pair",
+        "-P",
+        action="store_true",
+        help="For --step: compare two ECU:PID selections side by side, joining "
+        "captures by nearest timestamp within --join-tol (query must resolve "
+        'to exactly two keys, e.g. "VCU:2101 BMS:2101")',
+    )
+
+    parser.add_argument(
+        "--join-tol",
+        type=float,
+        default=DEFAULT_JOIN_TOL_S,
+        metavar="SECONDS",
+        help=f"For --step --pair: max timestamp difference to pair two captures "
+        f"(default {DEFAULT_JOIN_TOL_S:g}s)",
+    )
+
+    parser.add_argument(
         "--json",
         action="store_true",
         help="Machine-readable JSON output (summary/sessions/latest/diff and the "
@@ -1350,6 +754,10 @@ def run(args) -> int:
 
     if args.json and args.step:
         print("error: --json cannot be combined with --step (interactive mode)", file=sys.stderr)
+        return 2
+
+    if args.pair and not args.step:
+        print("error: --pair requires --step", file=sys.stderr)
         return 2
 
     # A QUERY and the standalone modes are mutually exclusive; --diff/--step are
@@ -1434,7 +842,19 @@ def run(args) -> int:
         elif args.diff:
             cmd_diff(entries, query, show_all=args.all, rulers=args.rulers, as_json=args.json)
         elif args.step:
-            cmd_step(entries, query, show_all=args.all, captures_dir=args.dir, rulers=args.rulers)
+            if args.pair:
+                cmd_step_pair(
+                    entries,
+                    query,
+                    show_all=args.all,
+                    captures_dir=args.dir,
+                    rulers=args.rulers,
+                    tol_s=args.join_tol,
+                )
+            else:
+                cmd_step(
+                    entries, query, show_all=args.all, captures_dir=args.dir, rulers=args.rulers
+                )
         else:
             cmd_list(entries, query, as_json=args.json)
     except QueryError as ex:

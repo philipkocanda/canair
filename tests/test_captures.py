@@ -10,11 +10,16 @@ from canlib.captures import (
     resolve_metadata,
     save_session,
 )
+from canlib.commands._captures_query import (
+    _build_pair_frames,
+    _gather_query,
+    _is_hex_payload,
+    _pair_by_time,
+)
+from canlib.commands._captures_step import _render_step_pair_frame, cmd_step_pair
 from canlib.commands.captures import (
     _clean,
-    _gather_query,
     _group_sessions,
-    _is_hex_payload,
     cmd_diff,
     cmd_latest,
     cmd_list,
@@ -351,9 +356,7 @@ class TestTimeEnforcement:
         import json
 
         lines = [
-            json.loads(ln)
-            for f in tmp_path.rglob("*.jsonl")
-            for ln in f.read_text().splitlines()
+            json.loads(ln) for f in tmp_path.rglob("*.jsonl") for ln in f.read_text().splitlines()
         ]
         cap = next(r for r in lines if r.get("type") == "capture")
         assert cap.get("time")
@@ -380,13 +383,133 @@ class TestTimeEnforcement:
         assert "captures[0]" in warns[0]
 
 
+class TestPairByTime:
+    def test_pairs_within_tolerance(self):
+        from datetime import datetime
+
+        dts = {0: datetime(2026, 7, 22, 12, 0, 0), 1: datetime(2026, 7, 22, 12, 0, 1)}
+        frames = _pair_by_time([0], [1], dts, tol_s=2.5)
+        assert frames == [(0, 1)]
+
+    def test_out_of_tolerance_are_singletons_in_time_order(self):
+        from datetime import datetime
+
+        # A@00, B@10 — 10s apart, tol 2.5 → each alone, earlier first.
+        dts = {0: datetime(2026, 7, 22, 12, 0, 0), 1: datetime(2026, 7, 22, 12, 0, 10)}
+        frames = _pair_by_time([0], [1], dts, tol_s=2.5)
+        assert frames == [(0, None), (None, 1)]
+
+    def test_leftover_tail_appended(self):
+        from datetime import datetime
+
+        # A0@00 pairs B@01; A1@10 has no B left → appended as a left singleton.
+        dts = {
+            0: datetime(2026, 7, 22, 12, 0, 0),
+            2: datetime(2026, 7, 22, 12, 0, 10),
+            1: datetime(2026, 7, 22, 12, 0, 1),
+        }
+        frames = _pair_by_time([0, 2], [1], dts, tol_s=2.5)
+        assert frames == [(0, 1), (2, None)]
+
+    def test_empty_sides(self):
+        from datetime import datetime
+
+        dts = {0: datetime(2026, 7, 22, 12, 0, 0)}
+        assert _pair_by_time([0], [], dts, tol_s=2.5) == [(0, None)]
+        assert _pair_by_time([], [0], dts, tol_s=2.5) == [(None, 0)]
+        assert _pair_by_time([], [], {}, tol_s=2.5) == []
+
+
+class TestBuildPairFrames:
+    def test_pairs_two_keys_within_tolerance(self):
+        caps = [
+            _entry(ecu="VCU", pid="2101", payload="6101AA", time="12:00:00"),
+            _entry(ecu="BMS", pid="2101", payload="6101BB", time="12:00:01"),
+            _entry(ecu="VCU", pid="2101", payload="6101CC", time="12:00:10"),
+        ]
+        frames, key_a, key_b, n_no_time = _build_pair_frames(caps, tol_s=2.5)
+        assert key_a == ("VCU", "2101") and key_b == ("BMS", "2101")
+        assert n_no_time == 0
+        # VCU@00 pairs BMS@01; VCU@10 is a left-only frame.
+        assert frames == [(0, 1), (2, None)]
+
+    def test_tighter_tolerance_splits_the_pair(self):
+        caps = [
+            _entry(ecu="VCU", pid="2101", payload="6101AA", time="12:00:00"),
+            _entry(ecu="BMS", pid="2101", payload="6101BB", time="12:00:01"),
+        ]
+        frames, _, _, _ = _build_pair_frames(caps, tol_s=0.5)
+        assert frames == [(0, None), (None, 1)]
+
+    def test_untimed_captures_excluded_and_counted(self):
+        caps = [
+            _entry(ecu="VCU", pid="2101", payload="6101AA", time="12:00:00"),
+            _entry(ecu="BMS", pid="2101", payload="6101BB", time=""),  # no time
+        ]
+        frames, _, _, n_no_time = _build_pair_frames(caps, tol_s=2.5)
+        assert n_no_time == 1
+        assert frames == [(0, None)]
+
+
+class TestCmdStepPair:
+    def test_requires_exactly_two_keys(self, capsys):
+        # A single-key query cannot be paired.
+        entries = [_entry(ecu="BMS", pid="2101", payload="6101AA", time="12:00:00")]
+        cmd_step_pair(entries, "BMS:2101", captures_dir="unused")
+        out = capsys.readouterr().out
+        assert "two distinct ECU:PID" in out
+
+    def _render(self, caps, tol_s=2.5, frame=0):
+        import io
+
+        from rich.console import Console
+
+        frames, key_a, key_b, _ = _build_pair_frames(caps, tol_s=tol_s)
+        buf = io.StringIO()
+        console = Console(file=buf, highlight=False, width=100)
+        _render_step_pair_frame(
+            console,
+            caps,
+            frames,
+            frame,
+            defs={key_a: ({}, None), key_b: ({}, None)},
+            prev_idx=[None] * len(caps),
+            ordinals=[(1, 1)] * len(caps),
+            key_a=key_a,
+            key_b=key_b,
+            tol_s=tol_s,
+        )
+        return buf.getvalue()
+
+    def test_render_pair_frame_shows_both_ecus_and_delta(self):
+        caps = [
+            _entry(ecu="VCU", pid="2101", payload="6101AA", time="12:00:00"),
+            _entry(ecu="BMS", pid="2101", payload="6101BB", time="12:00:01"),
+        ]
+        text = self._render(caps)
+        assert "VCU" in text and "BMS" in text
+        assert "pair 1/1" in text
+        assert "Δt=1.00s" in text
+
+    def test_render_pair_frame_shows_missing_side(self):
+        caps = [
+            _entry(ecu="VCU", pid="2101", payload="6101AA", time="12:00:00"),
+            _entry(ecu="BMS", pid="2101", payload="6101BB", time="12:00:10"),
+        ]
+        # First frame is VCU-only (BMS is 10s away, out of tolerance).
+        text = self._render(caps, frame=0)
+        assert "no BMS:2101 capture within" in text
+
+
 class TestSetSessionNote:
     """set_session_note: canonical way to edit a session's notes (not hand-edit)."""
 
     def _write(self, tmp_path):
         from canlib.captures import save_session
 
-        s = build_query_session([("0x7EC", "2101", "6101AA", "12:00:00")], "L", ["ready"], "old note")
+        s = build_query_session(
+            [("0x7EC", "2101", "6101AA", "12:00:00")], "L", ["ready"], "old note"
+        )
         return save_session(s, tmp_path)
 
     def test_set_note(self, tmp_path):
