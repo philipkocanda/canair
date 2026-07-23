@@ -196,7 +196,8 @@ sessions:
 
 - date: "2026-04-15"
   label: "Ready mode — SKM IOControl & IGPM scans"
-  state: "Ready mode (ACC on), then off+locked for SKM deep sleep test. Fob nearby."
+  vehicle_states:
+  - ready
   captures:
 
       # SKM IOControl (0x7A5) — Ready mode (ACC already on)
@@ -335,9 +336,10 @@ sessions:
     response: "accepted"
     notes: "No visible or audible effect."
 
+  notes: '[migrated state: Ready mode (ACC on), then off+locked for SKM deep sleep test. Fob nearby.]'
 - date: "2026-04-15"
   label: "SKM rapid-fire wake & ECU sweep"
-  state: "car off, locked, unplugged, fob ~10m away inside house"
+  vehicle_states: []
   captures:
   - ecu: '0x7AD'
     pid: "1001"
@@ -407,10 +409,11 @@ sessions:
 
   # ─── 2026-04-15 — BCM read scan (deep sleep, SKM ACC+IGN1 held) ───────────
 
+  notes: '[migrated state: car off, locked, unplugged, fob ~10m away inside house]'
 - date: "2026-04-15"
   label: "BCM read scan — deep sleep, SKM ACC+IGN1 held"
-  state: "Car off, locked, deep sleep. SKM ACC+IGN1 held via IOControl."
-  notes: "Method: canreq.py --scan --tx 7A0 --service 22 --range B001-B012 --wake"
+  vehicle_states: []
+  notes: "Method: canreq.py --scan --tx 7A0 --service 22 --range B001-B012 --wake [migrated state: Car off, locked, deep sleep. SKM ACC+IGN1 held via IOControl.]"
   captures:
       # B-range: BCM body data
   - ecu: '0x7A8'
@@ -598,8 +601,8 @@ sessions:
 
 - date: "2026-04-15"
   label: "BCM IOControl scan — deep sleep, SKM ACC+IGN1 held"
-  state: "Car off, deep sleep. SKM ACC+IGN1 held via IOControl."
-  notes: "Method: BCM IOControl scan: 2F B0xx 00 (returnControlToECU, safe)"
+  vehicle_states: []
+  notes: "Method: BCM IOControl scan: 2F B0xx 00 (returnControlToECU, safe) [migrated state: Car off, deep sleep. SKM ACC+IGN1 held via IOControl.]"
   captures:
   - ecu: '0x7A8'
     pid: "2F B0xx"
@@ -618,7 +621,7 @@ sessions:
     notes: "requestOutOfRange — B061 not supported on Ioniq 2017. This was also tried earlier without ACC (got 0x7F then). Definitively not a supported DID."
 
 - date: "2026-04-15"
-  state: "deep sleep → SKM ACC only (IOControl B108), no fob"
+  vehicle_states: []
   label: "BCM power state comparison — ACC only"
   captures:
   - ecu: '0x7A8'
@@ -639,8 +642,9 @@ sessions:
     payload: "62B00800510C2000880000AAAA"
     notes: "Identical to earlier ACC+IGN1 read — B008 does not change with power state."
 
+  notes: '[migrated state: deep sleep → SKM ACC only (IOControl B108), no fob]'
 - date: "2026-04-15"
-  state: "deep sleep → SKM ACC + IGN1 (IOControl B108+B109), no fob"
+  vehicle_states: []
   label: "BCM power state comparison — ACC + IGN1"
   captures:
   - ecu: '0x7A8'
@@ -648,3 +652,4 @@ sessions:
     label: "BCM dense bitfield — ACC + IGN1"
     payload: "62B003BF8B8000973D0AB8F9F8F9F73DF800000000000000AAAAAA"
     notes: "Byte 8 (stripped) = 0x0A (0b00001010). Changed from 0x09 in ACC-only. Bits 0→0, 1→1 compared to ACC state. Power mode tracking confirmed."
+  notes: '[migrated state: deep sleep → SKM ACC + IGN1 (IOControl B108+B109), no fob]'

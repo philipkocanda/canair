@@ -54,8 +54,9 @@ which ECUs are worth probing.
 
 ### 2. Prerequisites — power state & access
 
-Decide the car power state the PID needs (`availability`/`prerequisite`:
-`sleep, plugged, acc, acc2, ready, charging`) and whether the ECU needs waking /
+Decide the car power state the PID needs (`vehicle_states`:
+`sleep, plugged, acc, acc2, ready, charging` — the same field on PIDs/ECUs and
+in `research:` entries) and whether the ECU needs waking /
 an extended session. IGPM (0x770) and BCM (0x7A0) wake from CAN activity;
 powertrain ECUs (BMS/VCU/MCU) generally need ACC/ignition or charging.
 
@@ -80,14 +81,15 @@ canair pids add-research MCU --type decode --target 2102 \
 
 **Always record the scan outcome — a discovered DID must never be lost:**
 
-- **New responding DID → register it immediately** as an `enabled: false` placeholder
+- **New responding DID → register it immediately** as a `status: draft` placeholder
   PID in `ecus/<ecu>.yaml`, with the raw payload pasted into `notes` (and an empty
   `expression`), then add a `decode` research lead. This is the established project
   convention (e.g. `ESC 22C102`, `EPS 220101/220102`, `CLU 22B001/B003` are all such
-  placeholders). Keeping it `enabled: false` means it is tracked and captured but stays
-  out of the generated WiCAN profile until it's actually decoded. Before adding, always
-  check whether the DID is already registered — a re-scan of a known DID should just
-  refresh the payload/notes, not create a duplicate.
+  placeholders). `status: draft` means it is tracked, queryable and captured but stays
+  out of the generated WiCAN profile until it's actually decoded (set `canair pids
+  set-pid-status <ECU> <PID> active` to ship it, or `ignored` for a dead DID). Before
+  adding, always check whether the DID is already registered — a re-scan of a known DID
+  should just refresh the payload/notes, not create a duplicate.
 - **Negative probe (NRC / no response) → close the scan lead** with
   `canair pids set-status <ECU> "<target>" nrc --type scan` so nobody re-probes it.
   Use `nrc` for "probed, ECU said no / silent" and `done` for "scan complete, responders
@@ -120,7 +122,7 @@ canair captures --sessions --state driving    # index of every drive
 canair captures MCU 2102                      # list captures + decoded
 canair captures MCU:2102 --diff               # unique payloads, byte-diff
 canair captures MCU:2102 --diff --since 2026-07-19   # scope by date
-canair captures MCU:2102 --diff --state 'MT->KW'     # scope to one drive/state
+canair captures MCU:2102 --diff --state driving       # scope to one drive/state
 canair captures MCU:2102 --step               # interactive step-through
 canair bix -1 --annotate 6101FFFF...          # map each byte -> Bnn/ISO-TP/Torque/role
 ```
@@ -131,7 +133,7 @@ gives a machine-readable index.
 Byte-diff highlights which bytes moved between states — your candidate signal
 bytes. Both `captures` and `decode` share the same scoping flags —
 `--since`/`--until`/`--date`, `--state SUBSTR`/`--label SUBSTR`, `--first`/
-`--last N` — so you can isolate a single drive (`--state 'MT->KW'`) before
+`--last N` — so you can isolate a single drive (`--state driving`) before
 diffing/decoding. `canair bix --annotate` tells you each byte's WiCAN index and
 flags the PCI bytes you must not read across (see Reference below).
 
@@ -158,14 +160,14 @@ canair decode MCU 2102 --plot --corr MCU_MOTOR_RPM # overlay a known signal + li
 **Scope the captures** so a candidate is judged on the relevant drive/state, not
 the whole history (shared with `canair captures`): `--since`/`--until`/`--date`,
 `--state SUBSTR`/`--label SUBSTR` (case-insensitive; the natural unit of drive
-analysis, e.g. `--state 'MT->KW'`), and `--first N`/`--last N`. Combine with
+analysis, e.g. `--state driving`), and `--first N`/`--last N`. Combine with
 `--stats --group-by state` to contrast a candidate across drive segments, or
 `--compact --changes-only` to watch it evolve with stationary runs collapsed:
 
 ```bash
-canair decode MCU 2102 --try "T=[S12:S13]/100" --state 'MT->KW' --stats  # one drive
+canair decode MCU 2102 --try "T=[S12:S13]/100" --state driving --stats  # one drive
 canair decode MCU 2102 --stats --group-by state --state driving          # per-segment
-canair decode ESC 22C101 --param REAL_SPEED_KMH --state 'MT->KW' --compact --changes-only
+canair decode ESC 22C101 --param REAL_SPEED_KMH --state driving --compact --changes-only
 ```
 
 Iterate until the range is physical, the distribution makes sense (constant?
@@ -229,8 +231,8 @@ state (physical correlation, matching a scan tool, or a definitive constant).
 ### 10. Integrate
 
 ```bash
-canair wican                     # regenerate the profile's out/profile.json
-canair wican --diff --wican home # compare to device (optional)
+canair wican autopid write               # regenerate the bundle's out/autopid.json
+canair wican autopid diff --wican home   # compare to device (optional)
 python3 -m pytest -q             # keep the suite green
 ```
 
@@ -246,12 +248,12 @@ Then consider an upstream wican-fw PR (see parent skill goals).
 | see captures | `canair captures` (`--diff`/`--step`/`--since`/`--until`/`--state`/`--label`) |
 | map bytes | `canair bix --annotate` |
 | test expressions | `canair decode --try` / `--stats` / `--corr` / `--plot` |
-| scope a drive | `--state 'MT->KW'` / `--since`/`--until`/`--date` / `--first`/`--last N` (both `captures` + `decode`) |
+| scope a drive | `--state driving` / `--since`/`--until`/`--date` / `--first`/`--last N` (both `captures` + `decode`) |
 | per-segment stats | `canair decode … --stats --group-by state` |
 | watch evolution | `canair decode … --compact --changes-only` |
 | write definitions | `canair pids upsert-param` / `add-research` / `set-status` |
 | validate | `canair validate pids`, `canair coverage` |
-| ship | `canair wican` |
+| ship | `canair wican autopid write` |
 
 ---
 

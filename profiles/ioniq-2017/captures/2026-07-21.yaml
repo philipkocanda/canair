@@ -1,7 +1,8 @@
 sessions:
 - date: '2026-07-21'
   label: HVAC
-  state: READY
+  vehicle_states:
+  - ready
   notes: AC turned on, changed fan speed from 3 to 6 (AC is cooling, I can hear compressor spin up)
   captures:
   - ecu: '0x7BB'
@@ -1015,7 +1016,8 @@ sessions:
 
 - date: '2026-07-21'
   label: HVAC
-  state: READY
+  vehicle_states:
+  - ready
   notes: Changed from AC ON, 21C, Fan speed (8/8 - max) -> AC OFF, 22C, Fan speed (3/8)
   captures:
   - ecu: '0x7BB'
@@ -1452,7 +1454,8 @@ sessions:
     time: '12:23:06.951'
 - date: '2026-07-21'
   label: AAF and HVAC
-  state: READY
+  vehicle_states:
+  - ready
   notes: AC ON (steady state, 22C, fan 3)
   captures:
   - ecu: '0x7EE'
@@ -1809,7 +1812,8 @@ sessions:
     time: '12:37:36.365'
 - date: '2026-07-21'
   label: VCU,BCM,IGPM
-  state: READY
+  vehicle_states:
+  - ready
   notes: parked
   captures:
   - ecu: '0x7A8'
@@ -2914,7 +2918,8 @@ sessions:
     time: '12:43:18.377'
 - date: '2026-07-21'
   label: BMS
-  state: READY
+  vehicle_states:
+  - ready
   notes: Park -> Drive -> Park
   captures:
   - ecu: '0x7EC'
@@ -3119,8 +3124,9 @@ sessions:
     time: '12:44:45.982'
 - date: '2026-07-21'
   label: Drive mode
-  state: READY (D)
-  notes: Normal (regen 1) -> Sport (regen 2) -> ECO (regen 1) -> Normal (regen 1) -> change regen to 0
+  vehicle_states:
+  - ready
+  notes: 'Normal (regen 1) -> Sport (regen 2) -> ECO (regen 1) -> Normal (regen 1) -> change regen to 0 [migrated state: READY (D)]'
   captures:
   - ecu: '0x7A8'
     pid: 22B001
@@ -4052,8 +4058,10 @@ sessions:
     time: '12:53:17.404'
 - date: '2026-07-21'
   label: IGPM 22BC03 default-session read test
-  state: ready, parked, doors closed/unlocked
-  notes: 'Verifies IGPM service-22 reads do NOT need extended session (1003). Wire trace: ATSH770;ATFCSH770;22BC03 only, no 1003 sent. Valid 62BC03 returned. Reconfirmed after 8s idle (S3 expired). Refutes 2026-04-15 note. NOTE: 2F IOControl still needs 1003 (untested here).'
+  vehicle_states:
+  - ready
+  - parked
+  notes: 'Verifies IGPM service-22 reads do NOT need extended session (1003). Wire trace: ATSH770;ATFCSH770;22BC03 only, no 1003 sent. Valid 62BC03 returned. Reconfirmed after 8s idle (S3 expired). Refutes 2026-04-15 note. NOTE: 2F IOControl still needs 1003 (untested here). [migrated state: ready, parked, doors closed/unlocked]'
   captures:
   - ecu: '0x778'
     pid: 22BC03
@@ -4090,8 +4098,10 @@ sessions:
     time: '23:19:05.396'
 - date: '2026-07-21'
   label: READY powertrain reference (parked, not charging)
-  state: ready, parked, not charging
-  notes: Fully powered/READY, parked, ~SOC90%. For verify/decode of MCU 2101 temps, VCU 2101/2102, LDC 2101, motor RPM at rest.
+  vehicle_states:
+  - ready
+  - parked
+  notes: 'Fully powered/READY, parked, ~SOC90%. For verify/decode of MCU 2101 temps, VCU 2101/2102, LDC 2101, motor RPM at rest. [migrated state: ready, parked, not charging]'
   captures:
   - ecu: '0x7EC'
     pid: '2101'
@@ -4116,8 +4126,10 @@ sessions:
     payload: 6101FFFFF8000002A001B7032100007F003301BD05AD4100000000000D0000600000000001F39808023D0000
 - date: '2026-07-21'
   label: READY body/chassis reference (parked)
-  state: ready, parked, not charging
-  notes: Fully powered/READY, parked. For ESC 22C101 speed/wheel decode, HVAC 220100 temps verify, CLU 22B002 odometer + extras verify.
+  vehicle_states:
+  - ready
+  - parked
+  notes: 'Fully powered/READY, parked. For ESC 22C101 speed/wheel decode, HVAC 220100 temps verify, CLU 22B002 odometer + extras verify. [migrated state: ready, parked, not charging]'
   captures:
   - ecu: '0x7D9'
     pid: 22C101
@@ -4130,7 +4142,9 @@ sessions:
     payload: 62B002E000000000AD011D16000000
 - date: '2026-07-21'
   label: ESC 22 C101-C10F scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   captures:
   - ecu: '0x7D9'
     pid: scan 22 C101-C10F
@@ -4145,7 +4159,9 @@ sessions:
       rejected: 13 DIDs returned 13 NRC
 - date: '2026-07-21'
   label: ESC 22 0101-010F scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   captures:
   - ecu: '0x7D9'
     pid: scan 22 0101-010F
@@ -4153,7 +4169,9 @@ sessions:
       rejected: 15 DIDs returned 15 NRC
 - date: '2026-07-21'
   label: EPS 22 0101-010F scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: Steering angle/MDPS current per Ioniq5 cross-ref
   captures:
   - ecu: '0x7DC'
@@ -4169,7 +4187,9 @@ sessions:
       rejected: 13 DIDs returned 13 NRC
 - date: '2026-07-21'
   label: CLU 22 B001-B010 scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: Cluster range scan; B002 odometer known
   captures:
   - ecu: '0x7CE'
@@ -4188,7 +4208,9 @@ sessions:
       rejected: 13 DIDs returned 13 errors
 - date: '2026-07-21'
   label: Head-unit 0x7C0 22 B001-B005 probe (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: Retry with power on; was NO DATA in deep sleep
   captures:
   - ecu: '0x7C8'

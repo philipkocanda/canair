@@ -64,7 +64,7 @@ Vehicle data lives in a *profile* bundle: `ecus/` (one file per ECU — the
 **source of truth**, each carrying identity/scan_log/dtcs/pids), `profile.yaml`
 (car_model/init/failure_types), `captures/` (dated UDS payloads), `states.yaml`
 (canonical operating states + auto-suggest predicates), `references/` (reference
-data), and **generated** `out/` (never hand-edit — run `canair wican`). The repo ships
+data), and **generated** `out/` (never hand-edit — run `canair wican autopid write`). The repo ships
 `profiles/ioniq-2017/` as the default. Local (uncommitted) profiles live in
 `~/.config/canair/profiles/` and shadow bundled ones by name; precedence:
 `--profile NAME|PATH` > `CANAIR_PROFILE` > `default_profile` > single discovered.
@@ -119,12 +119,12 @@ Most of this is wrapped by `canair` and `wican-cli` — prefer those over raw HT
 
 ### Two profile formats (don't confuse them)
 
-1. **Vehicle Profile format** (`out/profile.json`) — grouped params per PID
+1. **Vehicle Profile format** (`out/autopid.json`) — grouped params per PID
    (`"PARAM": "expression"`), used for upstream PRs. **Generated** by
-   `canair wican` from `ecus/`; never hand-edit.
+   `canair wican autopid write` from `ecus/`; never hand-edit.
 2. **Device format** — what the firmware parses: params as an array of objects
    (`[{"name":…, "expression":…, "unit":…, "period":…}]`) wrapped in
-   `{"cars":[{"car_model":…, "init":…, "pids":[…]}]}`. `canair wican --upload`
+   `{"cars":[{"car_model":…, "init":…, "pids":[…]}]}`. `canair wican autopid upload`
    converts grouped → device format automatically.
 
 **Firmware gotcha:** `load_all_pids()` in `autopid.c` requires `parameters` as an
@@ -147,13 +147,23 @@ SOC_BMS:
   min: "0"
   max: "100"
   source: "Original WiCAN config"
-  verified: true           # tested on this car?
-  enabled: true            # include in generated profile
+  verified: true           # tested on this car? (per-param confidence axis)
+  enabled: true            # ship this param to the device (param-level; default true)
 ```
 
-Edit with `canair pids upsert-param / add-research / set-status` (surgical,
-comment-preserving, schema-validated, auto-reverted on failure) — prefer it over
-hand-editing. After changes: `canair validate pids` then `canair wican`.
+A PID carries a lifecycle **`status:`** (default `active`) — the single field that
+replaced the old `ignored`/`static`/`enabled` booleans:
+`active` (indexed, swept, queryable, shipped) · `draft` (tracked/queryable but
+not shipped — RE placeholders/speculative) · `static` (unchanging cal/identity;
+skipped in bare-ECU sweeps and not shipped) · `ignored` (dead DID, excluded
+everywhere). Set it with `canair pids set-pid-status ECU PID STATUS`. Power
+states in which a PID/ECU responds, and those a research lead needs, use the
+shared **`vehicle_states:`** list (`sleep, plugged, acc, acc2, ready, charging`;
+a profile's states.yaml may add composites like `parked`/`driving`).
+
+Edit with `canair pids upsert-param / add-research / set-status / set-pid-status`
+(surgical, comment-preserving, schema-validated, auto-reverted on failure) — prefer it over
+hand-editing. After changes: `canair validate pids` then `canair wican autopid write`.
 
 ## Transports
 
@@ -170,7 +180,7 @@ auto-switched). Registered in `canlib/transport/config.py`; today there are two:
 Select via the `transport:` block (`type`/`host`/`port`/`bitrate`) or per-command
 `--transport`/`--wican`. **`canair status`** shows the resolved transport and
 warns on a mode mismatch with the exact fix. Switch modes explicitly:
-`canair wican --set-protocol slcan|auto_pid [--yes]` (never automatic).
+`canair wican mode set slcan|auto_pid [--yes]` (never automatic).
 
 **On this car, passive sniffing sees ~nothing:** the OBD-II port is
 gateway-isolated — only diagnostic request/response reaches it, no internal

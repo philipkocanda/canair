@@ -2,7 +2,14 @@
 
 import pytest
 
-from canlib.pids import build_ecu_index, build_param_index, load_pids
+from canlib.pids import (
+    DEFAULT_PID_STATUS,
+    PID_STATUSES,
+    build_ecu_index,
+    build_param_index,
+    load_pids,
+    pid_status,
+)
 
 
 @pytest.fixture(scope="module")
@@ -68,3 +75,56 @@ class TestBuildEcuIndex:
         idx = build_ecu_index(pids_data)
         for key in idx:
             assert key == key.upper()
+
+
+class TestPidStatus:
+    def test_default_is_active(self):
+        assert pid_status({}) == "active"
+        assert pid_status({"period": 5000}) == "active"
+        assert DEFAULT_PID_STATUS == "active"
+
+    def test_reads_explicit_status(self):
+        for s in PID_STATUSES:
+            assert pid_status({"status": s}) == s
+
+    def test_unknown_status_degrades_to_active(self):
+        assert pid_status({"status": "bogus"}) == "active"
+
+    def test_case_insensitive(self):
+        assert pid_status({"status": "DRAFT"}) == "draft"
+
+
+class TestStatusVisibility:
+    """build_*_index apply the lifecycle rules derived from `status:`."""
+
+    def _data(self):
+        return {
+            "ecus": {
+                "TEST": {
+                    "tx_id": 0x7E0,
+                    "pids": {
+                        "2101": {"status": "active", "parameters": {"A": {"expression": "B0"}}},
+                        "2102": {"status": "draft", "parameters": {"B": {"expression": "B1"}}},
+                        "21F2": {"status": "static", "parameters": {"C": {"expression": "B2"}}},
+                        "22DEAD": {"status": "ignored", "parameters": {"D": {"expression": "B3"}}},
+                    },
+                }
+            }
+        }
+
+    def test_ignored_excluded_from_ecu_index(self):
+        idx = build_ecu_index(self._data())
+        pids = idx["TEST"]["pids"]
+        assert set(pids) == {"2101", "2102", "21F2"}  # ignored dropped
+
+    def test_ignored_excluded_from_param_index(self):
+        idx = build_param_index(self._data())
+        assert "D" not in idx  # param of an ignored PID
+        assert {"A", "B", "C"} <= set(idx)
+
+    def test_derived_flags(self):
+        pids = build_ecu_index(self._data())["TEST"]["pids"]
+        assert pids["2101"]["shipped"] and pids["2101"]["swept"]
+        assert not pids["2102"]["shipped"] and pids["2102"]["swept"]   # draft: swept, unshipped
+        assert not pids["21F2"]["shipped"] and not pids["21F2"]["swept"]  # static: neither
+

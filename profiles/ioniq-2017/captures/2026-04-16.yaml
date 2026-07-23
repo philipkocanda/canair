@@ -8,15 +8,13 @@
 sessions:
 
   - date: "2026-04-16"
-    state: "deep sleep, parked, locked, no charging"
+    vehicle_states:
+      - deep sleep
+      - parked
     label: "IGPM deep-sleep baseline — all status registers"
-    notes: >
-      Car fully asleep (WiCAN sleep mode, woke via terminal session).
-      Queried all 7 known IGPM status DIDs (BC01-BC07) using --wake flag
-      (sends 10 01 wake frame, then 10 03 extended session).
-      All 7 DIDs respond successfully during deep sleep.
-      BC01 responds here but returned NO DATA during earlier keyfob-wake test — timing issue.
-      BC08-BC0A confirmed NRC 0x31 (requestOutOfRange) in earlier session.
+    notes: >-
+      Car fully asleep (WiCAN sleep mode, woke via terminal session). Queried all 7 known IGPM status DIDs (BC01-BC07) using --wake flag (sends 10 01 wake frame, then 10 03 extended session). All 7 DIDs respond successfully during deep sleep. BC01 responds here but returned NO DATA during earlier keyfob-wake test — timing issue. BC08-BC0A confirmed NRC 0x31 (requestOutOfRange) in earlier session.
+       [migrated state: deep sleep, parked, locked, no charging]
     captures:
       - ecu: '0x778'
         pid: "22BC01"
@@ -73,17 +71,13 @@ sessions:
           Static across all power states observed so far.
 
   - date: "2026-04-16"
-    state: "deep sleep, parked, locked, no charging"
+    vehicle_states:
+      - deep sleep
+      - parked
     label: "BCM deep-sleep DID range scan — B0xx and C0xx"
-    notes: >
-      Car fully asleep. BCM (0x7A0) responds to wake (10 01 + 10 03).
-      CLU (0x7C6) does NOT respond during deep sleep — NO DATA to wake and session.
-      Scanned B0xx range: B001-B00A valid (10 DIDs), B000 and B00B+ = NRC 0x31.
-      Scanned C0xx range: C001-C014 valid (20 DIDs), C000 and C015+ = NRC 0x31.
-      BCM has 30 readable DIDs during deep sleep total.
-      B004-B007 not probed individually in this session (gap — fill in next time).
-      C003-C007 contain ASCII TPMS sensor names (DO01, NA01, NTPM, DO02, NA02).
-      C008-C00A are empty TPMS slots (all FF payload).
+    notes: >-
+      Car fully asleep. BCM (0x7A0) responds to wake (10 01 + 10 03). CLU (0x7C6) does NOT respond during deep sleep — NO DATA to wake and session. Scanned B0xx range: B001-B00A valid (10 DIDs), B000 and B00B+ = NRC 0x31. Scanned C0xx range: C001-C014 valid (20 DIDs), C000 and C015+ = NRC 0x31. BCM has 30 readable DIDs during deep sleep total. B004-B007 not probed individually in this session (gap — fill in next time). C003-C007 contain ASCII TPMS sensor names (DO01, NA01, NTPM, DO02, NA02). C008-C00A are empty TPMS slots (all FF payload).
+       [migrated state: deep sleep, parked, locked, no charging]
     captures:
       - ecu: '0x7A8'
         pid: "22B001"
@@ -225,7 +219,8 @@ sessions:
 
   - date: "2026-04-16"
     label: "BCM gap DIDs B004-B007 & identity DIDs"
-    state: "deep sleep"
+    vehicle_states:
+      - deep sleep
     notes: "Car parked at home, 12V battery resting. BCM inherently awake. Probed B004-B007 (missed in 2026-04-15 session) and standard UDS identity DIDs."
     captures:
 
@@ -293,11 +288,11 @@ sessions:
 
   - label: "BCM CAN bus wake test — no ACC needed"
     date: "2026-04-16"
-    state: "deep sleep, unplugged, no SKM ACC, no extended session"
-    notes: >
-      Proved BCM wakes from CAN bus activity alone — no ACC relay needed.
-      Only IGPM 1001 was sent (5x), no SKM involvement.
-      BCM responded to 22C00B after ~1s delay.
+    vehicle_states:
+      - deep sleep
+    notes: >-
+      Proved BCM wakes from CAN bus activity alone — no ACC relay needed. Only IGPM 1001 was sent (5x), no SKM involvement. BCM responded to 22C00B after ~1s delay.
+       [migrated state: deep sleep, unplugged, no SKM ACC, no extended session]
     captures:
       - ecu: '0x778'
         pid: "1001"
@@ -316,11 +311,11 @@ sessions:
 
   - label: "SKM wake mechanism retest — sleep timer discovery"
     date: "2026-04-16"
-    state: "deep sleep, unplugged, fob inside house"
-    notes: >
-      Systematic SKM wake testing. Key finding: SKM wakes on 2nd 1001 frame
-      but has ~2s sleep timer — falls asleep again if CAN traffic is too slow.
-      64ms ELM timeout keeps it awake; 600ms timeout does not.
+    vehicle_states:
+      - deep sleep
+    notes: >-
+      Systematic SKM wake testing. Key finding: SKM wakes on 2nd 1001 frame but has ~2s sleep timer — falls asleep again if CAN traffic is too slow. 64ms ELM timeout keeps it awake; 600ms timeout does not.
+       [migrated state: deep sleep, unplugged, fob inside house]
     captures:
       - ecu: '0x7AD'
         pid: "1001"

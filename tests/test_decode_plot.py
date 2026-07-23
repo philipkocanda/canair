@@ -20,9 +20,9 @@ _MAP_DEFS = {
 }
 
 _VIEW_CAPS = [
-    {"date": "2026-07-19", "time": "22:12:07", "state": "driving",
+    {"date": "2026-07-19", "time": "22:12:07", "vehicle_states": ["driving"],
      "label": "launch", "notes": "hard accel\nregen", "file": "a.yaml"},
-    {"date": "2026-07-20", "time": "14:03:11", "state": "ready",
+    {"date": "2026-07-20", "time": "14:03:11", "vehicle_states": ["ready"],
      "label": "", "notes": "", "file": "b.yaml"},
 ]
 

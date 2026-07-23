@@ -18,14 +18,14 @@ MCU:
       target: "2102"
       status: captured
       priority: P1
-      prerequisite: [charging]
+      vehicle_states: [charging]
       notes: "motor torque candidate"
       what_to_test: ["a", "b"]
     - type: scan
       target: "22 E001-E010"
       status: pending
       priority: P2
-      prerequisite: [acc]
+      vehicle_states: [acc]
     - type: verify
       target: "OLD"
       status: done
@@ -42,7 +42,7 @@ BMS:
       target: "2F E000-E0FF"
       status: pending
       priority: P1
-      prerequisite: [acc]
+      vehicle_states: [acc]
 """
     )
     # A file with no research: section must be tolerated.
@@ -98,13 +98,13 @@ class TestFilters:
 
     def test_filter_by_prerequisite(self, pids_dir):
         recs = research.load_research(pids_dir)
-        out = research.filter_records(recs, prerequisite="acc")
+        out = research.filter_records(recs, state="acc")
         assert {r["ecu"] for r in out} == {"MCU", "BMS"}
-        assert all("acc" in r["prerequisite"] for r in out)
+        assert all("acc" in r["vehicle_states"] for r in out)
 
     def test_filters_combine_and(self, pids_dir):
         recs = research.load_research(pids_dir)
-        out = research.filter_records(recs, ecu="MCU", prerequisite="acc")
+        out = research.filter_records(recs, ecu="MCU", state="acc")
         assert len(out) == 1 and out[0]["type"] == "scan"
 
 

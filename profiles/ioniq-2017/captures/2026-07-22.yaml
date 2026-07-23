@@ -1,8 +1,9 @@
 sessions:
 - date: '2026-07-22'
   label: ESC EPS AAF MCU VCU
-  state: Driving from kidswijs to home
-  notes: 'Steering: left then right after driving away'
+  vehicle_states:
+  - driving
+  notes: 'Steering: left then right after driving away [migrated state: Driving from kidswijs to home]'
   captures:
   - ecu: '0x7EE'
     pid: '2180'
@@ -3790,7 +3791,9 @@ sessions:
     time: '09:07:43.600'
 - date: '2026-07-22'
   label: MCU 22 E001-E010 probe (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: Ioniq5 cross-ref; expect NRC (Ioniq 2017 MCU is KWP2000/service 21)
   captures:
   - ecu: '0x7EB'
@@ -3799,7 +3802,9 @@ sessions:
       rejected: 16 DIDs returned 16 NRC
 - date: '2026-07-22'
   label: VCU 22 E001-E010 probe (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: Ioniq5 cross-ref; expect NRC (VCU is KWP2000/service 21)
   captures:
   - ecu: '0x7EA'
@@ -3808,7 +3813,9 @@ sessions:
       rejected: 16 DIDs returned 16 NRC
 - date: '2026-07-22'
   label: BMS 22 BC01-BC0B probe (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: ChatGPT-sourced DIDs; expect NRC (BMS is KWP2000/service 21)
   captures:
   - ecu: '0x7EC'
@@ -3817,7 +3824,9 @@ sessions:
       rejected: 11 DIDs returned 11 NRC
 - date: '2026-07-22'
   label: BMS 22 E003-E005 probe (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: range/time-to-full; expect NRC
   captures:
   - ecu: '0x7EC'
@@ -3826,7 +3835,9 @@ sessions:
       rejected: 3 DIDs returned 3 NRC
 - date: '2026-07-22'
   label: BMS 22 B002-B005 probe (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: ChatGPT-sourced; expect NRC
   captures:
   - ecu: '0x7EC'
@@ -3835,7 +3846,9 @@ sessions:
       rejected: 4 DIDs returned 4 NRC
 - date: '2026-07-22'
   label: BCM 22 B001-B010 scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: Body/preheat pages incl B007/B00C/B00D preheat DIDs, fresh READY capture
   captures:
   - ecu: '0x7A8'
@@ -3884,16 +3897,20 @@ sessions:
       rejected: 3 DIDs returned 3 NRC
 - date: '2026-07-22'
   label: SKM 22B002 (READY, fob present)
-  state: ready, parked, fob present
-  notes: 136-byte smart key payload; fob is present (car is READY). Baseline for key-present state.
+  vehicle_states:
+  - ready
+  - parked
+  notes: '136-byte smart key payload; fob is present (car is READY). Baseline for key-present state. [migrated state: ready, parked, fob present]'
   captures:
   - ecu: '0x7AD'
     pid: 22B002
     payload: 62B002000000003C0A462C3F75FEFF1EC89664FA14323205061403073246141E1E1E2C3F75FE00000000FFFAC896649612080F0A14100AC864030F3CC8146428081010031E326464C800000000051E1EC4BCC81E1E050A1E031680100F10E0051003050A0A0A1E0F6414C48C0000000014320007120A0A1910E016800403320503090A1E32320205320F00140000000000000000000000000001020000001000000000000000000000000000000000000000
 - date: '2026-07-22'
   label: IGPM BC01-BC07 (READY, ignition on)
-  state: ready, parked, ignition on
-  notes: Fully powered/READY contrast vs prior deep-sleep BC0x captures. Doors closed, locked, lights off.
+  vehicle_states:
+  - ready
+  - parked
+  notes: 'Fully powered/READY contrast vs prior deep-sleep BC0x captures. Doors closed, locked, lights off. [migrated state: ready, parked, ignition on]'
   captures:
   - ecu: '0x778'
     pid: 22BC01
@@ -3918,7 +3935,9 @@ sessions:
     payload: 62BC070841FBCC00001900
 - date: '2026-07-22'
   label: GSA 22 0101-010F scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: Gear shift assembly / gear selector - first-ever PID scan
   captures:
   - ecu: '0x7BE'
@@ -3927,7 +3946,9 @@ sessions:
       rejected: 15 DIDs returned 15 NRC
 - date: '2026-07-22'
   label: PSM 22 0101-010F scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: First-ever live-data PID scan
   captures:
   - ecu: '0x7AB'
@@ -3936,7 +3957,9 @@ sessions:
       rejected: 15 DIDs returned 15 NRC
 - date: '2026-07-22'
   label: SKM 22 0101-010F scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: First-ever live-data PID scan
   captures:
   - ecu: '0x7AD'
@@ -3945,7 +3968,9 @@ sessions:
       rejected: 15 DIDs returned 15 NRC
 - date: '2026-07-22'
   label: SCC 22 0101-010F scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: First-ever live-data PID scan
   captures:
   - ecu: '0x7D8'
@@ -3967,7 +3992,9 @@ sessions:
       rejected: 11 DIDs returned 11 NRC
 - date: '2026-07-22'
   label: MFC 22 0101-010F scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: First-ever live-data PID scan
   captures:
   - ecu: '0x7CC'
@@ -3983,7 +4010,9 @@ sessions:
       rejected: 13 DIDs returned 13 NRC
 - date: '2026-07-22'
   label: RCAM 22 0101-010F scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: First-ever live-data PID scan
   captures:
   - ecu: '0x79E'
@@ -3992,7 +4021,9 @@ sessions:
       rejected: 15 DIDs returned 15 NRC
 - date: '2026-07-22'
   label: WPC 22 0101-010F scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: First-ever live-data PID scan
   captures:
   - ecu: '0x72D'
@@ -4001,7 +4032,9 @@ sessions:
       rejected: 15 DIDs returned 15 NRC
 - date: '2026-07-22'
   label: BSD-L 22 0101-010F scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: First-ever live-data PID scan
   captures:
   - ecu: '0x75D'
@@ -4010,7 +4043,9 @@ sessions:
       rejected: 15 DIDs returned 15 NRC
 - date: '2026-07-22'
   label: BSD-R 22 0101-010F scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: First-ever live-data PID scan
   captures:
   - ecu: '0x7BF'
@@ -4019,7 +4054,9 @@ sessions:
       rejected: 15 DIDs returned 15 NRC
 - date: '2026-07-22'
   label: SWRC-L 22 0101-010F scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: First-ever live-data PID scan
   captures:
   - ecu: '0x7A9'
@@ -4028,7 +4065,9 @@ sessions:
       rejected: 15 DIDs returned 15 NRC
 - date: '2026-07-22'
   label: SWRC-R 22 0101-010F scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: First-ever live-data PID scan
   captures:
   - ecu: '0x7AA'
@@ -4037,7 +4076,9 @@ sessions:
       rejected: 15 DIDs returned 15 NRC
 - date: '2026-07-22'
   label: VESS 22 0101-010F scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: First-ever live-data PID scan
   captures:
   - ecu: '0x73E'
@@ -4046,7 +4087,9 @@ sessions:
       rejected: 15 DIDs returned 15 NRC
 - date: '2026-07-22'
   label: 7D5 22 0101-010F scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: First-ever live-data PID scan
   captures:
   - ecu: '0x7DD'
@@ -4055,7 +4098,9 @@ sessions:
       rejected: 15 DIDs returned 15 NRC
 - date: '2026-07-22'
   label: GSA 22 B001-B010 scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: Live-data PID scan (B0xx range)
   captures:
   - ecu: '0x7BE'
@@ -4064,7 +4109,9 @@ sessions:
       rejected: 16 DIDs returned 16 NRC
 - date: '2026-07-22'
   label: PSM 22 B001-B010 scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: Live-data PID scan (B0xx range)
   captures:
   - ecu: '0x7AB'
@@ -4073,7 +4120,9 @@ sessions:
       rejected: 16 DIDs returned 16 NRC
 - date: '2026-07-22'
   label: SKM 22 B001-B010 scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: Live-data PID scan (B0xx range)
   captures:
   - ecu: '0x7AD'
@@ -4104,7 +4153,9 @@ sessions:
       rejected: 9 DIDs returned 9 NRC
 - date: '2026-07-22'
   label: RCAM 22 B001-B010 scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: Live-data PID scan (B0xx range)
   captures:
   - ecu: '0x79E'
@@ -4113,7 +4164,9 @@ sessions:
       rejected: 16 DIDs returned 16 NRC
 - date: '2026-07-22'
   label: WPC 22 B001-B010 scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: Live-data PID scan (B0xx range)
   captures:
   - ecu: '0x72D'
@@ -4122,7 +4175,9 @@ sessions:
       rejected: 16 DIDs returned 16 NRC
 - date: '2026-07-22'
   label: BSD-L 22 B001-B010 scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: Live-data PID scan (B0xx range)
   captures:
   - ecu: '0x75D'
@@ -4131,7 +4186,9 @@ sessions:
       rejected: 16 DIDs returned 16 NRC
 - date: '2026-07-22'
   label: BSD-R 22 B001-B010 scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: Live-data PID scan (B0xx range)
   captures:
   - ecu: '0x7BF'
@@ -4140,7 +4197,9 @@ sessions:
       rejected: 16 DIDs returned 16 NRC
 - date: '2026-07-22'
   label: SWRC-L 22 B001-B010 scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: Live-data PID scan (B0xx range)
   captures:
   - ecu: '0x7A9'
@@ -4149,7 +4208,9 @@ sessions:
       rejected: 16 DIDs returned 16 NRC
 - date: '2026-07-22'
   label: SWRC-R 22 B001-B010 scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: Live-data PID scan (B0xx range)
   captures:
   - ecu: '0x7AA'
@@ -4158,7 +4219,9 @@ sessions:
       rejected: 16 DIDs returned 16 NRC
 - date: '2026-07-22'
   label: VESS 22 B001-B010 scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: Live-data PID scan (B0xx range)
   captures:
   - ecu: '0x73E'
@@ -4167,7 +4230,9 @@ sessions:
       rejected: 16 DIDs returned 16 NRC
 - date: '2026-07-22'
   label: 7D5 22 B001-B010 scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: Live-data PID scan (B0xx range)
   captures:
   - ecu: '0x7DD'
@@ -4176,7 +4241,9 @@ sessions:
       rejected: 16 DIDs returned 16 NRC
 - date: '2026-07-22'
   label: SCC 22 B001-B010 scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: Live-data PID scan (B0xx range)
   captures:
   - ecu: '0x7D8'
@@ -4185,7 +4252,9 @@ sessions:
       rejected: 16 DIDs returned 16 NRC
 - date: '2026-07-22'
   label: MFC 22 B001-B010 scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: Live-data PID scan (B0xx range)
   captures:
   - ecu: '0x7CC'
@@ -4194,8 +4263,10 @@ sessions:
       rejected: 16 DIDs returned 16 NRC
 - date: '2026-07-22'
   label: SKM 22 B001-B010 scan (READY)
-  state: ready, parked, fob present
-  notes: Smart Key Module live-data range map
+  vehicle_states:
+  - ready
+  - parked
+  notes: 'Smart Key Module live-data range map [migrated state: ready, parked, fob present]'
   captures:
   - ecu: '0x7AD'
     pid: scan 22 B001-B010
@@ -4222,7 +4293,9 @@ sessions:
       rejected: 10 DIDs returned 10 NRC
 - date: '2026-07-22'
   label: SCC 22 0106-0120 scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: Extend SCC 01xx range
   captures:
   - ecu: '0x7D8'
@@ -4231,7 +4304,9 @@ sessions:
       rejected: 27 DIDs returned 27 NRC
 - date: '2026-07-22'
   label: MFC 22 0103-0120 scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: Extend MFC 01xx range
   captures:
   - ecu: '0x7CC'
@@ -4240,7 +4315,9 @@ sessions:
       rejected: 30 DIDs returned 30 NRC
 - date: '2026-07-22'
   label: GSA 22 C101-C10F scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   captures:
   - ecu: '0x7BE'
     pid: scan 22 C101-C10F
@@ -4248,7 +4325,9 @@ sessions:
       rejected: 15 DIDs returned 15 NRC
 - date: '2026-07-22'
   label: PSM 22 C101-C10F scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   captures:
   - ecu: '0x7AB'
     pid: scan 22 C101-C10F
@@ -4256,7 +4335,9 @@ sessions:
       rejected: 15 DIDs returned 15 NRC
 - date: '2026-07-22'
   label: RCAM 22 C101-C10F scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   captures:
   - ecu: '0x79E'
     pid: scan 22 C101-C10F
@@ -4264,7 +4345,9 @@ sessions:
       rejected: 15 DIDs returned 15 NRC
 - date: '2026-07-22'
   label: WPC 22 C101-C10F scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   captures:
   - ecu: '0x72D'
     pid: scan 22 C101-C10F
@@ -4272,7 +4355,9 @@ sessions:
       rejected: 15 DIDs returned 15 NRC
 - date: '2026-07-22'
   label: BSD-L 22 C101-C10F scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   captures:
   - ecu: '0x75D'
     pid: scan 22 C101-C10F
@@ -4280,7 +4365,9 @@ sessions:
       rejected: 15 DIDs returned 15 NRC
 - date: '2026-07-22'
   label: BSD-R 22 C101-C10F scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   captures:
   - ecu: '0x7BF'
     pid: scan 22 C101-C10F
@@ -4288,7 +4375,9 @@ sessions:
       rejected: 15 DIDs returned 15 NRC
 - date: '2026-07-22'
   label: SWRC-L 22 C101-C10F scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   captures:
   - ecu: '0x7A9'
     pid: scan 22 C101-C10F
@@ -4296,7 +4385,9 @@ sessions:
       rejected: 15 DIDs returned 15 NRC
 - date: '2026-07-22'
   label: SWRC-R 22 C101-C10F scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   captures:
   - ecu: '0x7AA'
     pid: scan 22 C101-C10F
@@ -4304,7 +4395,9 @@ sessions:
       rejected: 15 DIDs returned 15 NRC
 - date: '2026-07-22'
   label: VESS 22 C101-C10F scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   captures:
   - ecu: '0x73E'
     pid: scan 22 C101-C10F
@@ -4312,7 +4405,9 @@ sessions:
       rejected: 15 DIDs returned 15 NRC
 - date: '2026-07-22'
   label: 7D5 22 C101-C10F scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   captures:
   - ecu: '0x7DD'
     pid: scan 22 C101-C10F
@@ -4324,7 +4419,9 @@ sessions:
       rejected: 14 DIDs returned 14 NRC
 - date: '2026-07-22'
   label: Unknown-7D5 22 C101-C10F scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: 7D5 identify - C1xx range hit
   captures:
   - ecu: '0x7DD'
@@ -4337,7 +4434,9 @@ sessions:
       rejected: 14 DIDs returned 14 NRC
 - date: '2026-07-22'
   label: GSA 22 C001-C010 scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   captures:
   - ecu: '0x7BE'
     pid: scan 22 C001-C010
@@ -4345,7 +4444,9 @@ sessions:
       rejected: 16 DIDs returned 16 NRC
 - date: '2026-07-22'
   label: PSM 22 C001-C010 scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   captures:
   - ecu: '0x7AB'
     pid: scan 22 C001-C010
@@ -4353,7 +4454,9 @@ sessions:
       rejected: 16 DIDs returned 16 NRC
 - date: '2026-07-22'
   label: GSA 22 D001-D010 scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   captures:
   - ecu: '0x7BE'
     pid: scan 22 D001-D010
@@ -4361,7 +4464,9 @@ sessions:
       rejected: 16 DIDs returned 16 NRC
 - date: '2026-07-22'
   label: PSM 22 D001-D010 scan (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   captures:
   - ecu: '0x7AB'
     pid: scan 22 D001-D010
@@ -4369,7 +4474,9 @@ sessions:
       rejected: 16 DIDs returned 16 NRC
 - date: '2026-07-22'
   label: GSA 21 01-0F probe (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   captures:
   - ecu: '0x7BE'
     pid: scan 21 01-0F
@@ -4377,7 +4484,9 @@ sessions:
       rejected: 15 DIDs returned 15 NRC
 - date: '2026-07-22'
   label: PSM 21 01-0F probe (READY)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   captures:
   - ecu: '0x7AB'
     pid: scan 21 01-0F
@@ -4385,7 +4494,9 @@ sessions:
       rejected: 15 DIDs returned 15 NRC
 - date: '2026-07-22'
   label: Verify LDC/VCU ecu_id (1A8C)
-  state: ready, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: Double-check 0x7E5=EOBC vs 0x7E2=VLDC attribution
   captures:
   - ecu: '0x7ED'
@@ -4396,8 +4507,10 @@ sessions:
     payload: 5A8C4145564C44433533
 - date: '2026-07-22'
   label: OBC 2101 READY parked (LDC_OUTPUT_A analysis)
-  state: ready, parked, not charging
-  notes: 12V-load baseline; sampling B15 stability at idle
+  vehicle_states:
+  - ready
+  - parked
+  notes: '12V-load baseline; sampling B15 stability at idle [migrated state: ready, parked, not charging]'
   captures:
   - ecu: '0x7ED'
     pid: '2101'
@@ -4410,8 +4523,10 @@ sessions:
     payload: 6101FFFFF80000029B01B2031800007D003301BD05AA4100000000000D0000600000000001F494C8023C0000
 - date: '2026-07-22'
   label: OBC 2101 READY + rear defroster ON (LDC_OUTPUT_A load test)
-  state: ready, parked, rear defroster on
-  notes: 12V load step from ~2.3A baseline; testing B15 = LDC output current
+  vehicle_states:
+  - ready
+  - parked
+  notes: '12V load step from ~2.3A baseline; testing B15 = LDC output current [migrated state: ready, parked, rear defroster on]'
   captures:
   - ecu: '0x7ED'
     pid: '2101'
@@ -4421,8 +4536,10 @@ sessions:
     payload: 6101FFFFF80000029C01B5031B00007D003301BD05504100000000000D0000600000000001F494B702390000
 - date: '2026-07-22'
   label: OBC 2101 READY, defroster OFF again (A/B/A confirm)
-  state: ready, parked, not charging
-  notes: 'defroster off: confirm LDC_OUTPUT_V recovers and B15 returns to baseline'
+  vehicle_states:
+  - ready
+  - parked
+  notes: 'defroster off: confirm LDC_OUTPUT_V recovers and B15 returns to baseline [migrated state: ready, parked, not charging]'
   captures:
   - ecu: '0x7ED'
     pid: '2101'
@@ -4432,7 +4549,8 @@ sessions:
     payload: 6101FFFFF80000029D01B3031B00007D003301BD05AA4100000000000D0000600000000001F494B0023D0000
 - date: '2026-07-22'
   label: HVAC/BMS/VCU/OBC
-  state: READY
+  vehicle_states:
+  - ready
   notes: PTC heater on (30C), center console reading ~1.2 kW for climate, ~0.4-0.5 kW for electronics.
   captures:
   - ecu: '0x7EC'
@@ -7169,8 +7287,10 @@ sessions:
     time: '11:16:43.241'
 - date: '2026-07-22'
   label: 'Heater ON: HVAC 220100/101/102 + BMS (climate power hunt)'
-  state: ready, parked, climate heating 30C
-  notes: ~1.5kW BMS discharge; probe HVAC 220101/220102 for PTC/compressor power
+  vehicle_states:
+  - ready
+  - parked
+  notes: '~1.5kW BMS discharge; probe HVAC 220101/220102 for PTC/compressor power [migrated state: ready, parked, climate heating 30C]'
   captures:
   - ecu: '0x7BB'
     pid: '220100'
@@ -7183,8 +7303,10 @@ sessions:
     payload: 6101FFFFFFFFA1264626480300040ED2121112121111110012C502C50100008F00055FF800055DE70001F29D0001E2DF015243AD0D017B0000000003E8
 - date: '2026-07-22'
   label: 'Climate steady ~1kW (console): HVAC 220102/220100 + BMS'
-  state: ready, parked, climate ~1kW steady, electronics ~0.5kW
-  notes: 'console: climate 1kW + electronics 0.5kW; decode 220102 climate power vs idle FF800000AE7300000000000018'
+  vehicle_states:
+  - ready
+  - parked
+  notes: 'console: climate 1kW + electronics 0.5kW; decode 220102 climate power vs idle FF800000AE7300000000000018 [migrated state: ready, parked, climate ~1kW steady, electronics ~0.5kW]'
   captures:
   - ecu: '0x7BB'
     pid: '220102'
@@ -7200,7 +7322,9 @@ sessions:
     payload: 6201007E5007C8FF7C6F5C111049FFFF49FF10FFFFFFFFFFFFFFFFFF1BE2616500FFFF01FFFF
 - date: '2026-07-22'
   label: 0x783 deep scan — capture DTCs + mask/length probes
-  state: READY, parked
+  vehicle_states:
+  - ready
+  - parked
   notes: Capture positive 1902FF (availability mask + 7 DTCs); test 3-byte 190AFF (supported-DTC length hypothesis); enumerate by mask 08/04/01
   captures:
   - ecu: '0x78B'
@@ -7505,8 +7629,9 @@ sessions:
     time: '16:50:56.206'
 - date: '2026-07-22'
   label: ESC EPS MCU:2101,2102 VCU:2101,2102
-  state: driving MT->KW
-  notes: standstill -> highway -> long decel -> roubdabout -> city slow -> park
+  vehicle_states:
+  - driving
+  notes: 'standstill -> highway -> long decel -> roubdabout -> city slow -> park [migrated state: driving MT->KW]'
   captures:
   - ecu: '0x7D9'
     pid: 22C101
@@ -10557,8 +10682,9 @@ sessions:
     time: '17:12:40.036'
 - date: '2026-07-22'
   label: ESC EPS MCU:2102 VCU:2102
-  state: Driving KW->Home
-  notes: city driving only, one full stop halfway through
+  vehicle_states:
+  - driving
+  notes: 'city driving only, one full stop halfway through [migrated state: Driving KW->Home]'
   captures:
   - ecu: '0x7D9'
     pid: 22C101
@@ -12518,7 +12644,8 @@ sessions:
     time: '17:19:38.405'
 - date: '2026-07-22'
   label: BMS 2101-2105 in KWP session 1083
-  state: ready
+  vehicle_states:
+  - ready
   notes: extended diagnostic session (10 83) with periodic tester present; comparing payloads/sizes vs default session
   captures:
   - ecu: '0x7EC'
@@ -12538,7 +12665,8 @@ sessions:
     payload: 6105FFFFFFFF00000000001212121212131326482648000150121203E80203E801860029000000000000000000
 - date: '2026-07-22'
   label: BMS 2101-2105 in KWP session 1082
-  state: ready
+  vehicle_states:
+  - ready
   notes: periodic/EOL diagnostic session (10 82) with tester present; comparing payloads/sizes vs default/83
   captures:
   - ecu: '0x7EC'
@@ -12558,7 +12686,8 @@ sessions:
     payload: 6105FFFFFFFF0000000000121212121213132648264800014B121203E80203E801860029000000000000000000
 - date: '2026-07-22'
   label: BMS 2101-2105 in KWP session 1081
-  state: ready
+  vehicle_states:
+  - ready
   notes: standardDiagnosticSession (10 81) with tester present; comparing payloads/sizes vs 82/83/default
   captures:
   - ecu: '0x7EC'
@@ -12578,7 +12707,8 @@ sessions:
     payload: 6105FFFFFFFF00000000001212121212131326482648000150111203E80203E801860029000000000000000000
 - date: '2026-07-22'
   label: VCU 2101-2105 in KWP session 1081
-  state: ready
+  vehicle_states:
+  - ready
   notes: standardDiagnosticSession (10 81) with tester present; VCU rejects 82/83 (NRC 0x12), testing whether 81 changes payload sizes
   captures:
   - ecu: '0x7EA'
@@ -12589,7 +12719,8 @@ sessions:
     payload: 6102F8F800000101000000920EB687E8386705DE8DA638
 - date: '2026-07-22'
   label: MCU 2101-2105 in KWP session 1081
-  state: ready
+  vehicle_states:
+  - ready
   notes: standardDiagnosticSession (10 81) with tester present; MCU rejects 82/83 (NRC 0x12)
   captures:
   - ecu: '0x7EB'
@@ -12603,7 +12734,8 @@ sessions:
     payload: '610300000000000000000000000000000000000000000000000000'
 - date: '2026-07-22'
   label: OBC 2101-2105 in KWP session 1081
-  state: ready
+  vehicle_states:
+  - ready
   notes: standardDiagnosticSession (10 81) with tester present; OBC/LDC rejects 82/83 (NRC 0x12)
   captures:
   - ecu: '0x7ED'
@@ -12614,8 +12746,9 @@ sessions:
     payload: 6102FFFC0000684F792A694A79286E847927650F791B7499791F7293792B74827931
 - date: '2026-07-22'
   label: IGPM BC-family gap sweep
-  state: ready, ignition on
-  notes: 'Hidden-page hunt: fill gaps around known BC01-BC08. BC09/BC0A/BC0C have IOControl slots so likely readable via 22.'
+  vehicle_states:
+  - ready
+  notes: 'Hidden-page hunt: fill gaps around known BC01-BC08. BC09/BC0A/BC0C have IOControl slots so likely readable via 22. [migrated state: ready, ignition on]'
   captures:
   - ecu: '0x778'
     pid: scan 22 BC00-BC1F
@@ -12645,8 +12778,9 @@ sessions:
       rejected: 25 DIDs returned 25 NRC
 - date: '2026-07-22'
   label: MCU E0xx hidden-page hunt (ACC)
-  state: ready, ignition on
-  notes: 'P1 backlog retry with ignition on (was NRC at rest). Ioniq5 cross-ref: E001 ignition V/motor RPM/torque/phase current/temps, E009 water/oil pump.'
+  vehicle_states:
+  - ready
+  notes: 'P1 backlog retry with ignition on (was NRC at rest). Ioniq5 cross-ref: E001 ignition V/motor RPM/torque/phase current/temps, E009 water/oil pump. [migrated state: ready, ignition on]'
   captures:
   - ecu: '0x7EB'
     pid: scan 22 E001-E010
@@ -12654,8 +12788,9 @@ sessions:
       rejected: 16 DIDs returned 16 NRC
 - date: '2026-07-22'
   label: VCU E0xx hidden-page hunt (ACC)
-  state: ready, ignition on
-  notes: P1 backlog retry with ignition on. KWP2000 ECU - expecting NRC 0x12 like MCU.
+  vehicle_states:
+  - ready
+  notes: 'P1 backlog retry with ignition on. KWP2000 ECU - expecting NRC 0x12 like MCU. [migrated state: ready, ignition on]'
   captures:
   - ecu: '0x7EA'
     pid: scan 22 E001-E010
@@ -12663,8 +12798,9 @@ sessions:
       rejected: 16 DIDs returned 16 NRC
 - date: '2026-07-22'
   label: EPS 22010x sibling sweep (LKAS hunt)
-  state: ready, ignition on
-  notes: 'Hidden-page hunt: known 220101/220102. LKAS backlog wants sibling 22010x pages carrying LKAS active/torque command.'
+  vehicle_states:
+  - ready
+  notes: 'Hidden-page hunt: known 220101/220102. LKAS backlog wants sibling 22010x pages carrying LKAS active/torque command. [migrated state: ready, ignition on]'
   captures:
   - ecu: '0x7DC'
     pid: scan 22 0100-0110
@@ -12679,8 +12815,9 @@ sessions:
       rejected: 15 DIDs returned 15 NRC
 - date: '2026-07-22'
   label: SCC 22010x gap sweep
-  state: ready, ignition on
-  notes: 'Hidden-page hunt: known 220100-0103,0105. Fill 0104 + 0106-0110.'
+  vehicle_states:
+  - ready
+  notes: 'Hidden-page hunt: known 220100-0103,0105. Fill 0104 + 0106-0110. [migrated state: ready, ignition on]'
   captures:
   - ecu: '0x7D8'
     pid: scan 22 0104-0110
@@ -12692,8 +12829,9 @@ sessions:
       rejected: 12 DIDs returned 12 NRC
 - date: '2026-07-22'
   label: MCU 21 00-FF hidden-page sweep
-  state: ready, ignition on
-  notes: Service-21 full LID sweep after 22 E0xx dead end. Hunting undocumented live-data pages beyond 2101-2103,21F2.
+  vehicle_states:
+  - ready
+  notes: 'Service-21 full LID sweep after 22 E0xx dead end. Hunting undocumented live-data pages beyond 2101-2103,21F2. [migrated state: ready, ignition on]'
   captures:
   - ecu: '0x7EB'
     pid: scan 21 00-FF
@@ -12714,8 +12852,9 @@ sessions:
       rejected: 252 DIDs returned 252 NRC
 - date: '2026-07-22'
   label: VCU 21 00-FF hidden-page sweep
-  state: ready, ignition on
-  notes: Service-21 full LID sweep after 22 E0xx dead end. Hunting undocumented live-data pages beyond 2101/2102. Looking for drive mode / regen / speed.
+  vehicle_states:
+  - ready
+  notes: 'Service-21 full LID sweep after 22 E0xx dead end. Hunting undocumented live-data pages beyond 2101/2102. Looking for drive mode / regen / speed. [migrated state: ready, ignition on]'
   captures:
   - ecu: '0x7EA'
     pid: scan 21 00-FF
@@ -12733,8 +12872,9 @@ sessions:
       rejected: 253 DIDs returned 253 NRC
 - date: '2026-07-22'
   label: BMS 21 00-FF hidden-page sweep
-  state: ready, ignition on
-  notes: Service-21 full LID sweep. Hunting undocumented live-data pages beyond 2101-2105.
+  vehicle_states:
+  - ready
+  notes: 'Service-21 full LID sweep. Hunting undocumented live-data pages beyond 2101-2105. [migrated state: ready, ignition on]'
   captures:
   - ecu: '0x7EC'
     pid: scan 21 00-FF
@@ -12761,16 +12901,18 @@ sessions:
       rejected: 250 DIDs returned 250 NRC
 - date: '2026-07-22'
   label: BMS 21F2 new page (discovered via 21 sweep)
-  state: ready, ignition on
-  notes: Undocumented BMS service-21 page found in 21 00-FF sweep. 123 bytes. Likely calibration/identity (cf. MCU 21F2 = cal data).
+  vehicle_states:
+  - ready
+  notes: 'Undocumented BMS service-21 page found in 21 00-FF sweep. 123 bytes. Likely calibration/identity (cf. MCU 21F2 = cal data). [migrated state: ready, ignition on]'
   captures:
   - ecu: '0x7EC'
     pid: 21F2
     payload: 61F2FFFFFFFF3430363400210000000000000A16000000000000000B02000BB8C201002D017401620041001A000C00000000FFFFFFFF0000000007DC00000000000000000000000000000000000000000000000000001400FF000000000002E602B500000000000100044E37495A001EFFFFFFFF06E8018D010001
 - date: '2026-07-22'
   label: OBC 21 00-FF hidden-page sweep
-  state: ready, ignition on
-  notes: Service-21 full LID sweep on KWP2000 OBC/LDC. Known pages 2101/2102. Hunting hidden pages (cf. BMS 21F2 find).
+  vehicle_states:
+  - ready
+  notes: 'Service-21 full LID sweep on KWP2000 OBC/LDC. Known pages 2101/2102. Hunting hidden pages (cf. BMS 21F2 find). [migrated state: ready, ignition on]'
   captures:
   - ecu: '0x7ED'
     pid: scan 21 00-FF
@@ -12785,8 +12927,9 @@ sessions:
       rejected: 254 DIDs returned 254 NRC
 - date: '2026-07-22'
   label: AAF 21 00-FF hidden-page sweep
-  state: ready, ignition on
-  notes: 'Service-21 full LID sweep on KWP2000 Active Air Flap. Known pages 2180/2181 (note: 0x80 range, not 0x01). Hunting hidden pages.'
+  vehicle_states:
+  - ready
+  notes: 'Service-21 full LID sweep on KWP2000 Active Air Flap. Known pages 2180/2181 (note: 0x80 range, not 0x01). Hunting hidden pages. [migrated state: ready, ignition on]'
   captures:
   - ecu: '0x7EE'
     pid: scan 21 00-FF
@@ -12801,8 +12944,9 @@ sessions:
       rejected: 254 DIDs returned 254 NRC
 - date: '2026-07-22'
   label: Unknown-746 21 00-FF hidden-page sweep
-  state: ready, ignition on
-  notes: Service-21 full LID sweep on mysterious KWP2000 0x746. Only known page 21F2 (00000007). Hunting any other pages to identify function.
+  vehicle_states:
+  - ready
+  notes: 'Service-21 full LID sweep on mysterious KWP2000 0x746. Only known page 21F2 (00000007). Hunting any other pages to identify function. [migrated state: ready, ignition on]'
   captures:
   - ecu: '0x74E'
     pid: scan 21 00-FF
@@ -12810,8 +12954,9 @@ sessions:
       rejected: 256 DIDs returned 255 NRC + 1 errors
 - date: '2026-07-22'
   label: MFC service-21 liveness probe
-  state: ready, ignition on
-  notes: 'Long-shot: MFC is UDS (ADAS camera). Check if it answers any KWP-style service-21 page (LKAS data). Expect NRC.'
+  vehicle_states:
+  - ready
+  notes: 'Long-shot: MFC is UDS (ADAS camera). Check if it answers any KWP-style service-21 page (LKAS data). Expect NRC. [migrated state: ready, ignition on]'
   captures:
   - ecu: '0x7CC'
     pid: scan 21 00-20
@@ -12819,8 +12964,9 @@ sessions:
       rejected: 33 DIDs returned 33 NRC
 - date: '2026-07-22'
   label: AVN live-data probe (ignition on)
-  state: ready, ignition on
-  notes: Head unit never probed for live-data DIDs. Try 22 01xx.
+  vehicle_states:
+  - ready
+  notes: 'Head unit never probed for live-data DIDs. Try 22 01xx. [migrated state: ready, ignition on]'
   captures:
   - ecu: '0x788'
     pid: scan 22 0100-010F
@@ -12828,8 +12974,9 @@ sessions:
       rejected: 16 DIDs returned 16 NRC
 - date: '2026-07-22'
   label: AVN B0xx probe
-  state: ready, ignition on
-  notes: Head unit B0xx range.
+  vehicle_states:
+  - ready
+  notes: 'Head unit B0xx range. [migrated state: ready, ignition on]'
   captures:
   - ecu: '0x788'
     pid: scan 22 B001-B010
@@ -12837,8 +12984,9 @@ sessions:
       rejected: 16 DIDs returned 16 NRC
 - date: '2026-07-22'
   label: CCM live-data probe (ignition on)
-  state: ready, ignition on
-  notes: Charge Control Module (DC PLC) never probed for live-data. Try 22 01xx (may be dormant unless DC charging).
+  vehicle_states:
+  - ready
+  notes: 'Charge Control Module (DC PLC) never probed for live-data. Try 22 01xx (may be dormant unless DC charging). [migrated state: ready, ignition on]'
   captures:
   - ecu: '0x73B'
     pid: scan 22 0100-010F
@@ -12846,8 +12994,9 @@ sessions:
       rejected: 16 DIDs returned 16 NRC
 - date: '2026-07-22'
   label: CCM B0xx probe
-  state: ready, ignition on
-  notes: CCM B0xx range.
+  vehicle_states:
+  - ready
+  notes: 'CCM B0xx range. [migrated state: ready, ignition on]'
   captures:
   - ecu: '0x73B'
     pid: scan 22 B001-B010
@@ -12855,8 +13004,9 @@ sessions:
       rejected: 16 DIDs returned 16 NRC
 - date: '2026-07-22'
   label: Unknown-7C0 live-data probe
-  state: ready, ignition on
-  notes: Dormant module (session-only, no identity). Probe 22 01xx for any data.
+  vehicle_states:
+  - ready
+  notes: 'Dormant module (session-only, no identity). Probe 22 01xx for any data. [migrated state: ready, ignition on]'
   captures:
   - ecu: '0x7C8'
     pid: scan 22 0100-010F
@@ -12864,24 +13014,27 @@ sessions:
       rejected: 16 DIDs returned 16 errors
 - date: '2026-07-22'
   label: 'BMS 21F2 stability check #1'
-  state: ready, ignition on
-  notes: Read-to-read stability at ignition-on to classify static vs dynamic bytes.
+  vehicle_states:
+  - ready
+  notes: 'Read-to-read stability at ignition-on to classify static vs dynamic bytes. [migrated state: ready, ignition on]'
   captures:
   - ecu: '0x7EC'
     pid: 21F2
     payload: 61F2FFFFFFFF3430363400210000000000000A16000000000000000B02000BB8C201002D017401620041001A000C00000000FFFFFFFF0000000007DC00000000000000000000000000000000000000000000000000001400FF000000000002E602B500000000000100044E37495A001EFFFFFFFF06E8018D010001
 - date: '2026-07-22'
   label: 'BMS 21F2 stability check #2'
-  state: ready, ignition on
-  notes: Read-to-read stability at ignition-on to classify static vs dynamic bytes.
+  vehicle_states:
+  - ready
+  notes: 'Read-to-read stability at ignition-on to classify static vs dynamic bytes. [migrated state: ready, ignition on]'
   captures:
   - ecu: '0x7EC'
     pid: 21F2
     payload: 61F2FFFFFFFF3430363400210000000000000A16000000000000000B02000BB8C201002D017401620041001A000C00000000FFFFFFFF0000000007DC00000000000000000000000000000000000000000000000000001400FF000000000002E602B500000000000100044E37495A001EFFFFFFFF06E8018D010001
 - date: '2026-07-22'
   label: 'BMS 21F2 stability check #3'
-  state: ready, ignition on
-  notes: Read-to-read stability at ignition-on to classify static vs dynamic bytes.
+  vehicle_states:
+  - ready
+  notes: 'Read-to-read stability at ignition-on to classify static vs dynamic bytes. [migrated state: ready, ignition on]'
   captures:
   - ecu: '0x7EC'
     pid: 21F2

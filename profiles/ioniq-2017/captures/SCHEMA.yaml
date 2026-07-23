@@ -11,7 +11,8 @@
 # sessions:
 #   - date: "YYYY-MM-DD"           # required, ISO 8601
 #     label: "short description"    # required
-#     state: "vehicle state"        # optional (e.g. "deep sleep", "ACC", "charging")
+#     vehicle_states: [ready, parked]  # optional list of power-state tokens
+#                                   #   (vocabulary from states.yaml; soft-validated)
 #     notes: "..."                  # optional, session-level notes
 #     captures:
 #       - <capture entry>

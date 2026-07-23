@@ -28,13 +28,16 @@ Unknown-746:
       Previously labelled OBC-746 speculatively (address proximity to 0x744).
       No evidence of OBC function. Only data PID: 21F2 → 00000007 (4 bytes).
       Responds to 1001 with NRC 0x12 but alive. Most identity fields FFFFFFFF.
-  availability: [ready, charging]
+  vehicle_states:
+  - ready
+  - charging
   pids:
     21F2:
+      status: static
       period: 10000
-      enabled: false
-      static: true
-      availability: [ready, charging]
+      vehicle_states:
+      - ready
+      - charging
       notes: >
         6 bytes. Responds both during AC charging and when car is off (?) (TODO: test response when car is off!)
         Payload: 61F200000007 — meaning unknown (tested both on 2026-04-18 and 2026-07-19, same response).

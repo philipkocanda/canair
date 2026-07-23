@@ -6,19 +6,24 @@ SCC:
     part_number: "96400-G7000"
     boot_sw: "AEev SCC F-CUP 1.00 1.00"
     id_protocol: UDS  # F1xx (3 DIDs)
-  availability: [acc, acc2, ready]
+  vehicle_states:
+    - acc
+    - acc2
+    - ready
   scan_log: # SCC (smart cruise control)
     - service: 0x22
       range: "0101-010F,0106-0120,B001-B010"
       date: 2026-07-22
       hits: "0101,0102,0103,0105"
-      state: ready
+      vehicle_states:
+        - ready
       notes: "Re-confirmed the 01xx block (already registered). 0106-0120 and B0xx all NRC."
   pids:
     220100:
+      status: draft
       period: 2500
-      enabled: false
-      availability: [ready]
+      vehicle_states:
+        - ready
       parameters:
         SCC_0100_UNKNOWN:
           expression: ""
@@ -31,9 +36,9 @@ SCC:
           verified: false
           notes: "6 bytes: 620100030200. Likely cruise control mode/state. Needs driving captures."
     220101:
+      status: draft
       period: 2500
-      enabled: false
-      availability: []
+      vehicle_states: []
       parameters:
         SCC_0101_UNKNOWN:
           expression: ""
@@ -46,9 +51,9 @@ SCC:
           verified: false
           notes: "6 bytes: 620101081401. Possibly target speed or gap setting."
     220102:
+      status: draft
       period: 2500
-      enabled: false
-      availability: []
+      vehicle_states: []
       parameters:
         SCC_0102_UNKNOWN:
           expression: ""
@@ -61,9 +66,9 @@ SCC:
           verified: false
           notes: "6 bytes: 6201020D000C. Possibly distance or relative speed."
     220103:
+      status: draft
       period: 2500
-      enabled: false
-      availability: []
+      vehicle_states: []
       parameters:
         SCC_0103_UNKNOWN:
           expression: ""
@@ -76,9 +81,9 @@ SCC:
           verified: false
           notes: "7 bytes: 62010328543521. Radar data — target distance or closing speed."
     220105:
+      status: draft
       period: 2500
-      enabled: false
-      availability: []
+      vehicle_states: []
       parameters:
         SCC_0105_UNKNOWN:
           expression: ""
@@ -96,7 +101,8 @@ SCC:
       target: 22 0104-0110
       status: nrc
       priority: P3
-      prerequisite: [ready]
+      vehicle_states:
+        - ready
       date: "2026-07-22"
       result: "22010x gap sweep (ignition on): only 0105 (5B, 6201050307) responds in 0104-0110; 0104 and 0106-0110 all NRC. SCC readable pages remain 0100-0103,0105 — no hidden pages found."
       notes: Hidden-page hunt 2026-07-22.

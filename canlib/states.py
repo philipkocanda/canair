@@ -36,10 +36,16 @@ from pathlib import Path
 
 import yaml
 
-# The canonical base power-state vocabulary, shared across vehicle profiles.
-# Mirrors the `availability:` states in pids_schema.yaml. Profiles may define
-# additional composite states on top of these.
-BASE_STATES = ("sleep", "plugged", "acc", "acc2", "ready", "charging")
+# The canonical base power-state vocabulary, shared across every vehicle
+# profile. This is THE single definition — schema validators, the research
+# backlog, and the `pids`/`research` CLIs all derive their accepted tokens from
+# here (via `allowed_states`) rather than keeping their own hardcoded copies.
+# A profile's states.yaml may declare additional composite states on top of
+# these (e.g. `parked`, `driving`); `allowed_states` returns the union.
+POWER_STATES = ("sleep", "plugged", "acc", "acc2", "ready", "charging")
+
+# Backwards-compatible alias (older code/imports referred to BASE_STATES).
+BASE_STATES = POWER_STATES
 
 
 class StatePredicateError(Exception):
@@ -214,6 +220,43 @@ def state_names(profile=None) -> list[str]:
         return [r.name for r in load_states(profile)]
     except StatePredicateError:
         return []
+
+
+def allowed_states(profile=None) -> set[str]:
+    """The set of accepted state tokens: base ``POWER_STATES`` plus states.yaml names.
+
+    This is the single vocabulary that every validator/CLI should check against
+    (PID/ECU/iocontrol/research declarations *and* capture/scan_log
+    observations), so a profile can extend the shared base with its own
+    composite states in one place (states.yaml) without editing the tool.
+    """
+    return set(POWER_STATES) | set(state_names(profile))
+
+
+def parse_states(value) -> list[str]:
+    """Normalize a ``vehicle_states`` value into a lower-cased token list.
+
+    Accepts a comma-separated string (as typed on ``--state``), a list/tuple of
+    tokens, or None. Tokens are stripped and lower-cased; empties are dropped.
+    Kept deliberately permissive (no vocabulary check) — validation soft-warns
+    on unknown tokens elsewhere.
+    """
+    if value is None:
+        return []
+    if isinstance(value, (list, tuple)):
+        toks = [str(v).strip() for v in value]
+    else:
+        toks = [t.strip() for t in str(value).split(",")]
+    return [t.lower() for t in toks if t]
+
+
+def join_states(states) -> str:
+    """Human-readable join of a ``vehicle_states`` list (``", "``-separated)."""
+    if not states:
+        return ""
+    if isinstance(states, str):
+        return states
+    return ", ".join(str(s) for s in states)
 
 
 def suggest_state(rules: list[StateRule], values: dict, responded: set) -> str | None:

@@ -1,16 +1,12 @@
 sessions:
 - date: '2026-04-17'
-  state: deep sleep, parked, locked, no charging
+  vehicle_states:
+  - deep sleep
+  - parked
   label: BCM 22B003/22B004 live voltage monitoring
-  notes: >
-    Observed 22B003 and 22B004 changing every few seconds in monitor mode. 22B003
-    contains slowly decrementing ADC-like values u2014 likely 12V battery voltage
-    measurements across multiple points (battery terminals, fuse box, BCM internal
-    rail). B07 drifts fastest (~2 LSB/min), B10/B12/B14 follow. Static bytes (B03-B06,
-    B08, B15) may be config/thresholds. 22B004 has a single bit (B09 bit 6) toggling
-    0x00u21940x40 every ~12-15s u2014 periodic heartbeat/watchdog flag. Rest of B004
-    is static. BCM likely uses these readings to decide when to activate the LDC (DC-DC
-    converter) to top up the 12V from the HV traction battery.
+  notes: >-
+    Observed 22B003 and 22B004 changing every few seconds in monitor mode. 22B003 contains slowly decrementing ADC-like values u2014 likely 12V battery voltage measurements across multiple points (battery terminals, fuse box, BCM internal rail). B07 drifts fastest (~2 LSB/min), B10/B12/B14 follow. Static bytes (B03-B06, B08, B15) may be config/thresholds. 22B004 has a single bit (B09 bit 6) toggling 0x00u21940x40 every ~12-15s u2014 periodic heartbeat/watchdog flag. Rest of B004 is static. BCM likely uses these readings to decide when to activate the LDC (DC-DC converter) to top up the 12V from the HV traction battery.
+     [migrated state: deep sleep, parked, locked, no charging]
   captures:
   - ecu: '0x7A8'
     pid: 22B003
@@ -41,25 +37,26 @@ sessions:
     notes: B09=0x40 (bit 6 set)
     payload: 62B00474029900C004080000AAAA
 - date: '2026-04-17'
-  state: deep sleep, parked, locked, no charging
+  vehicle_states:
+  - deep sleep
+  - parked
   label: BCM 22B001 — static config DID
-  notes: >
-    22B001 consistently returns NO DATA on the first query attempt, then responds
-    on subsequent retries. 17 data bytes. All values appear static across multiple
-    monitor cycles — no changes observed.
+  notes: >-
+    22B001 consistently returns NO DATA on the first query attempt, then responds on subsequent retries. 17 data bytes. All values appear static across multiple monitor cycles — no changes observed.
+     [migrated state: deep sleep, parked, locked, no charging]
   captures:
   - ecu: '0x7A8'
     pid: 22B001
-    notes: "deep sleep, after session 1003. First attempt returns NO DATA, second\
-      \ succeeds."
+    notes: "deep sleep, after session 1003. First attempt returns NO DATA, second succeeds."
     payload: 62B00140C0000000010000000000000201000000
 - date: '2026-04-17'
-  state: deep sleep, parked, locked, no charging
+  vehicle_states:
+  - deep sleep
+  - parked
   label: IGPM 22BC07 — status DID, unknown decode
-  notes: >
-    10 data bytes. Not yet decoded. IOControl 2FBC0703 confirmed as Horn (see docs/IOControl
-    CLI commands.md). Contents unknown \u2014 possibly horn status, VESS, or unrelated
-    body state.
+  notes: >-
+    10 data bytes. Not yet decoded. IOControl 2FBC0703 confirmed as Horn (see docs/IOControl CLI commands.md). Contents unknown \u2014 possibly horn status, VESS, or unrelated body state.
+     [migrated state: deep sleep, parked, locked, no charging]
   captures:
   - ecu: '0x778'
     pid: 22BC07
@@ -67,7 +64,8 @@ sessions:
     payload: 62BC070841FBCC00001100AAAA
 - date: '2026-04-17'
   label: testing save feature
-  state: deep sleep
+  vehicle_states:
+  - deep sleep
   captures:
   - ecu: '0x7A8'
     pid: 22B003
@@ -91,7 +89,8 @@ sessions:
     payload: 62C00BFFFF0000C9450200CB430100CF440100CB440100AAAAAAAA
 - date: '2026-04-17'
   label: testing save feature
-  state: deep sleep
+  vehicle_states:
+  - deep sleep
   captures:
   - ecu: '0x7A8'
     pid: 22B003
@@ -115,7 +114,8 @@ sessions:
     time: "15:25:28"
 - date: '2026-04-17'
   label: testing
-  state: deep sleep
+  vehicle_states:
+  - deep sleep
   captures:
   - ecu: '0x7A8'
     pid: 22B003
@@ -164,7 +164,8 @@ sessions:
     time: "15:26:50"
 - date: '2026-04-17'
   label: test
-  state: sleep
+  vehicle_states:
+  - sleep
   captures:
   - ecu: '0x7A8'
     pid: 22B003
@@ -184,7 +185,8 @@ sessions:
     time: "15:33:55"
 - date: '2026-04-17'
   label: car on
-  state: ready
+  vehicle_states:
+  - ready
   captures:
   - ecu: '0x7CE'
     pid: 22B002
@@ -192,7 +194,8 @@ sessions:
     time: "16:42:39"
 - date: '2026-04-17'
   label: ready
-  state: ready
+  vehicle_states:
+  - ready
   captures:
   - ecu: '0x7EC'
     pid: '2101'
@@ -268,7 +271,8 @@ sessions:
     time: "16:43:31"
 - date: '2026-04-17'
   label: chg shedule adjust
-  state: ready
+  vehicle_states:
+  - ready
   captures:
   - ecu: '0x7A8'
     pid: 22B001
@@ -708,18 +712,17 @@ sessions:
     time: "16:48:10"
 - date: '2026-04-17'
   label: HVAC read scan (ACC on, HVAC off)
-  state: ACC on, HVAC off, parked
-  notes: >
-    Full DID scan of HVAC ECU (0x7B3). Service 0x21 range 01-10 returned no positives.
-    Service 0x22 range 0100-01FF found 9 responding DIDs. E000-E020 range empty. Identity:
-    part 97250-G7060 (DATC), cal date 1705304705. 01A3-01A6 appear identical — possibly
-    paged config or zone data.
+  vehicle_states:
+  - acc
+  - parked
+  notes: >-
+    Full DID scan of HVAC ECU (0x7B3). Service 0x21 range 01-10 returned no positives. Service 0x22 range 0100-01FF found 9 responding DIDs. E000-E020 range empty. Identity: part 97250-G7060 (DATC), cal date 1705304705. 01A3-01A6 appear identical — possibly paged config or zone data.
+     [migrated state: ACC on, HVAC off, parked]
   captures:
   - ecu: '0x7BB'
     pid: 220100
     payload: "6201007E5007C8FF86757B061010FFFF10FF11FFFFFFFFFFFFFFFFFF25EF00001000000050FFFFFF0009"
-    notes: "Main HVAC data — 41 bytes. Known params: IAT (B11), AAT (B12), evaporator\
-      \ (B13)."
+    notes: "Main HVAC data — 41 bytes. Known params: IAT (B11), AAT (B12), evaporator (B13)."
   - ecu: '0x7BB'
     pid: 220102
     payload: 620102FF80000078770000000000001700000000
@@ -739,8 +742,7 @@ sessions:
   - ecu: '0x7BB'
     pid: 2201A3
     payload: "6201A3010400E4FFFFFFFF000000CA00C707000000000000000000101110121713131413FF1D1D1D1D0000160013001400130013001400130000000000000000000000000000"
-    notes: "55 bytes. Pattern: 10 11 10 12 17 13 13 14 13 — could be temp sensor data\
-      \ or zone config."
+    notes: "55 bytes. Pattern: 10 11 10 12 17 13 13 14 13 — could be temp sensor data or zone config."
   - ecu: '0x7BB'
     pid: 2201A4
     payload: "6201A4010400E4FFFFFFFF000000CA00C707000000000000000000101110121713131413FF1D1D1D1D0000160013001400130013001400130000000000000000000000000000"
@@ -763,7 +765,8 @@ sessions:
     notes: "Part number 97250-G7060, DATC (Digital Automatic Temperature Control)"
 - date: '2026-04-17'
   label: DID discovery scan — 12 ECUs, service 22
-  state: ready
+  vehicle_states:
+  - ready
   notes: >
     Systematic scan of untested DID ranges across all known ECUs plus 6 unverified
     addresses. Car in ready mode (ACC on), 14.2-14.3V battery. BMS, VCU, MCU, LDC
@@ -777,8 +780,7 @@ sessions:
     pid: scan
     scan_results:
       responding: []
-      rejected: "BC01-BC0B (11 DIDs): all NRC 0x31. B002-B005 (4 DIDs): all NRC 0x31.\
-        \ E003-E005 (3 DIDs): all NRC 0x31."
+      rejected: "BC01-BC0B (11 DIDs): all NRC 0x31. B002-B005 (4 DIDs): all NRC 0x31. E003-E005 (3 DIDs): all NRC 0x31."
     notes: No service 22 DIDs found beyond existing 21xx PIDs
   - ecu: '0x7EA'
     pid: scan
@@ -828,8 +830,7 @@ sessions:
         notes: Already documented
       - did: C102
         response: 62C1023FE00000FFFFFFFFFFFF01010000A9AA000000C0C0D4D400
-        notes: "NEW — 27 bytes. Rich data: 0x3FE0 prefix, FF blocks, 0xA9AA, 0xC0C0D4D4.\
-          \ Likely wheel speeds or ABS sensor data."
+        notes: "NEW — 27 bytes. Rich data: 0x3FE0 prefix, FF blocks, 0xA9AA, 0xC0C0D4D4. Likely wheel speeds or ABS sensor data."
       rejected: "C103-C10F (13 DIDs): all NRC 0x31. 0101-010F (15 DIDs): all NRC 0x31."
     notes: 1 new DID discovered (C102)
   - ecu: '0x7DC'
@@ -843,8 +844,7 @@ sessions:
         response: '62010200000003000000000000'
         notes: 13 bytes. Byte 6=0x03, rest zeros. Status/config register.
       rejected: "0103-0105 (3 DIDs): all NRC 0x31"
-    notes: "EPS (Electric Power Steering) confirmed as responding ECU at 0x7D4. 2\
-      \ DIDs found."
+    notes: "EPS (Electric Power Steering) confirmed as responding ECU at 0x7D4. 2 DIDs found."
   - ecu: '0x7ED'
     pid: scan
     scan_results:
@@ -858,11 +858,11 @@ sessions:
   - ecu: '0x7EE'
     pid: probe
     response: NO DATA
-    notes: "Probed 6 unverified ECU IDs with 1001 default session: 0x730, 0x79C, 0x7CD,\
-      \ 0x7E0, 0x7E1, 0x7C1 — all returned NO DATA. None on bus."
+    notes: "Probed 6 unverified ECU IDs with 1001 default session: 0x730, 0x79C, 0x7CD, 0x7E0, 0x7E1, 0x7C1 — all returned NO DATA. None on bus."
 - date: '2026-04-17'
   label: Identity scan (F1xx) — 13 ECUs
-  state: ready
+  vehicle_states:
+  - ready
   notes: >
     Queried UDS identity DIDs (F187/F18B/F100 etc) on all ECUs not yet identified.
     7 ECUs responded with part numbers/dates. 6 ECUs (BMS, VCU, MCU, LDC, Gateway,
@@ -971,7 +971,8 @@ sessions:
     notes: Does not support F1xx identity DIDs
 - date: '2026-04-17'
   label: HVAC tests
-  state: ready
+  vehicle_states:
+  - ready
   notes: >
     hvac off at the end, i enabled defogger before the defrost. temp started at 20C.
     Then up to 30 and down to 15C. Fan speed also max/min.
@@ -3559,7 +3560,8 @@ sessions:
 
 - date: "2026-04-17"
   label: "KWP2000 identity scan (1Axx) — BMS, VCU, MCU, LDC, Gateway"
-  state: ready
+  vehicle_states:
+  - ready
   notes: >
     Powertrain ECUs (BMS, VCU, MCU, LDC, Gateway) don't support UDS F1xx identity DIDs
     but respond to KWP2000 ReadEcuIdentification service 1A. Scanned 1A80-1A9F on each.
@@ -3567,378 +3569,381 @@ sessions:
     CarScanner uses the same service 1A approach.
   captures:
     # ── BMS 0x7E4 ──
-    - ecu: '0x7EC'
-      pid: 1A80
-      payload: "5A800A0B0C0D0E0A0B0C0D0E20080709414545565F5F20424D53200000000000005645522E322E3320202020000A0B0C0D0E0A0B0C0D0E0000000034363034111111110000"
-      notes: "69 bytes. ECU name: AEEV__ BMS, firmware: VER.2.3, build date: 2008-07-09, suffix: 4604"
-    - ecu: '0x7EC'
-      pid: 1A8C
-      response: "CGBMSE305AE1000A"
-      notes: "Software identifier"
-    - ecu: '0x7EC'
-      pid: 1A8D
-      response: "4604"
-      notes: "Calibration/part suffix"
-    - ecu: '0x7EC'
-      pid: 1A90
-      response: "AEEV__ BMS"
-      notes: "ECU name"
-    - ecu: '0x7EC'
-      pid: 1A91
-      response: "VER.2.3"
-      notes: "Firmware version"
-    - ecu: '0x7EC'
-      pid: scan
-      scan_results:
-        responding:
-          - did: "80"
-            response: "5A80... (69 bytes)"
-            notes: "General identification"
-          - did: "8A"
-            response: "5A8A2020202020202020202000 (13 bytes)"
-            notes: "Blank/spaces"
-          - did: "8B"
-            response: "5A8B00000000 (6 bytes)"
-            notes: "Date field — all zeros on BMS"
-          - did: "8C"
-            response: "CGBMSE305AE1000A (20 bytes)"
-            notes: "SW ID"
-          - did: "8D"
-            response: "4604 (6 bytes)"
-            notes: "Calibration"
-          - did: "8E"
-            response: "11111111 (6 bytes)"
-            notes: "Unknown — 0x11 repeated"
-          - did: "90"
-            response: "AEEV__ BMS (20 bytes)"
-            notes: "ECU name"
-          - did: "91"
-            response: "VER.2.3 (20 bytes)"
-            notes: "Version"
-          - did: "98"
-            response: "spaces (13 bytes)"
-            notes: "Blank"
-          - did: "99"
-            response: "00000000 (6 bytes)"
-            notes: "All zeros"
-          - did: "9A"
-            response: "0000000000000000000000 (13 bytes)"
-            notes: "All zeros"
-        rejected: "81-89 (excl 8A), 8F, 92-97, 9B-9F: NRC"
-      notes: "11/32 responding. KWP2000 service 1A works where UDS F1xx failed."
+  - ecu: '0x7EC'
+    pid: 1A80
+    payload: "5A800A0B0C0D0E0A0B0C0D0E20080709414545565F5F20424D53200000000000005645522E322E3320202020000A0B0C0D0E0A0B0C0D0E0000000034363034111111110000"
+    notes: "69 bytes. ECU name: AEEV__ BMS, firmware: VER.2.3, build date: 2008-07-09, suffix: 4604"
+  - ecu: '0x7EC'
+    pid: 1A8C
+    response: "CGBMSE305AE1000A"
+    notes: "Software identifier"
+  - ecu: '0x7EC'
+    pid: 1A8D
+    response: "4604"
+    notes: "Calibration/part suffix"
+  - ecu: '0x7EC'
+    pid: 1A90
+    response: "AEEV__ BMS"
+    notes: "ECU name"
+  - ecu: '0x7EC'
+    pid: 1A91
+    response: "VER.2.3"
+    notes: "Firmware version"
+  - ecu: '0x7EC'
+    pid: scan
+    scan_results:
+      responding:
+      - did: "80"
+        response: "5A80... (69 bytes)"
+        notes: "General identification"
+      - did: "8A"
+        response: "5A8A2020202020202020202000 (13 bytes)"
+        notes: "Blank/spaces"
+      - did: "8B"
+        response: "5A8B00000000 (6 bytes)"
+        notes: "Date field — all zeros on BMS"
+      - did: "8C"
+        response: "CGBMSE305AE1000A (20 bytes)"
+        notes: "SW ID"
+      - did: "8D"
+        response: "4604 (6 bytes)"
+        notes: "Calibration"
+      - did: "8E"
+        response: "11111111 (6 bytes)"
+        notes: "Unknown — 0x11 repeated"
+      - did: "90"
+        response: "AEEV__ BMS (20 bytes)"
+        notes: "ECU name"
+      - did: "91"
+        response: "VER.2.3 (20 bytes)"
+        notes: "Version"
+      - did: "98"
+        response: "spaces (13 bytes)"
+        notes: "Blank"
+      - did: "99"
+        response: "00000000 (6 bytes)"
+        notes: "All zeros"
+      - did: "9A"
+        response: "0000000000000000000000 (13 bytes)"
+        notes: "All zeros"
+      rejected: "81-89 (excl 8A), 8F, 92-97, 9B-9F: NRC"
+    notes: "11/32 responding. KWP2000 service 1A works where UDS F1xx failed."
 
     # ── VCU 0x7E2 ──
-    - ecu: '0x7EA'
-      pid: 1A90
-      response: "KMHCXXXXXXXXXXXX"
-      notes: "Full VIN (redacted)"
-    - ecu: '0x7EA'
-      pid: 1A91
-      response: "36601-0E250"
-      notes: "Part number"
-    - ecu: '0x7EA'
-      pid: 1A8C
-      response: "AEVLDC53"
-      notes: "ECU ID — oddly reports LDC identifier, not VCU"
-    - ecu: '0x7EA'
-      pid: 1A8D
-      response: "EAEEO5L-NS7-D060"
-      notes: "Software identifier"
-    - ecu: '0x7EA'
-      pid: 1A8E
-      response: "C5210617"
-      notes: "Calibration identifier"
-    - ecu: '0x7EA'
-      pid: scan
-      scan_results:
-        responding:
-          - did: "80"
-            response: "69 bytes — general ID with VIN"
-            notes: "Contains VIN prefix"
-          - did: "8A"
-            response: "13 bytes — spaces"
-            notes: "Blank"
-          - did: "8B"
-            response: "1E090D14 (6 bytes)"
-            notes: "Date/version field — encoding unclear"
-          - did: "8C"
-            response: "AEVLDC53"
-            notes: "ECU ID (misreports as LDC)"
-          - did: "8D"
-            response: "EAEEO5L-NS7-D060"
-            notes: "SW ID"
-          - did: "8E"
-            response: "C5210617"
-            notes: "Calibration"
-          - did: "90"
-            response: "KMHCXXXXXXXXXXXX"
-            notes: "VIN (redacted)"
-          - did: "91"
-            response: "36601-0E250"
-            notes: "Part number"
-          - did: "92"
-            response: "13 bytes — all zeros"
-            notes: "Empty"
-          - did: "98"
-            response: "13 bytes — spaces"
-            notes: "Blank"
-          - did: "99"
-            response: "1E090D14 (6 bytes)"
-            notes: "Same as 8B"
-        rejected: "81-89 (excl 8A), 8F, 93-97, 9A-9F: NRC"
-      notes: "11/32 responding"
+  - ecu: '0x7EA'
+    pid: 1A90
+    response: "KMHCXXXXXXXXXXXX"
+    notes: "Full VIN (redacted)"
+  - ecu: '0x7EA'
+    pid: 1A91
+    response: "36601-0E250"
+    notes: "Part number"
+  - ecu: '0x7EA'
+    pid: 1A8C
+    response: "AEVLDC53"
+    notes: "ECU ID — oddly reports LDC identifier, not VCU"
+  - ecu: '0x7EA'
+    pid: 1A8D
+    response: "EAEEO5L-NS7-D060"
+    notes: "Software identifier"
+  - ecu: '0x7EA'
+    pid: 1A8E
+    response: "C5210617"
+    notes: "Calibration identifier"
+  - ecu: '0x7EA'
+    pid: scan
+    scan_results:
+      responding:
+      - did: "80"
+        response: "69 bytes — general ID with VIN"
+        notes: "Contains VIN prefix"
+      - did: "8A"
+        response: "13 bytes — spaces"
+        notes: "Blank"
+      - did: "8B"
+        response: "1E090D14 (6 bytes)"
+        notes: "Date/version field — encoding unclear"
+      - did: "8C"
+        response: "AEVLDC53"
+        notes: "ECU ID (misreports as LDC)"
+      - did: "8D"
+        response: "EAEEO5L-NS7-D060"
+        notes: "SW ID"
+      - did: "8E"
+        response: "C5210617"
+        notes: "Calibration"
+      - did: "90"
+        response: "KMHCXXXXXXXXXXXX"
+        notes: "VIN (redacted)"
+      - did: "91"
+        response: "36601-0E250"
+        notes: "Part number"
+      - did: "92"
+        response: "13 bytes — all zeros"
+        notes: "Empty"
+      - did: "98"
+        response: "13 bytes — spaces"
+        notes: "Blank"
+      - did: "99"
+        response: "1E090D14 (6 bytes)"
+        notes: "Same as 8B"
+      rejected: "81-89 (excl 8A), 8F, 93-97, 9A-9F: NRC"
+    notes: "11/32 responding"
 
     # ── MCU 0x7E3 ──
-    - ecu: '0x7EB'
-      pid: 1A8C
-      response: "AEEMCU83"
-      notes: "ECU ID"
-    - ecu: '0x7EB'
-      pid: 1A91
-      response: "36600-0E250"
-      notes: "Part number"
-    - ecu: '0x7EB'
-      pid: 1A8D
-      response: "EAEEHEL-MS2-D000"
-      notes: "Software identifier"
-    - ecu: '0x7EB'
-      pid: scan
-      scan_results:
-        responding:
-          - did: "80"
-            response: "69 bytes"
-            notes: "General ID"
-          - did: "8A"
-            response: "13 bytes — spaces"
-            notes: "Blank"
-          - did: "8B"
-            response: "1E060A14 (6 bytes)"
-            notes: "Date/version field"
-          - did: "8C"
-            response: "AEEMCU83"
-            notes: "ECU ID"
-          - did: "8D"
-            response: "EAEEHEL-MS2-D000"
-            notes: "SW ID"
-          - did: "8E"
-            response: "00000001"
-            notes: "Calibration"
-          - did: "90"
-            response: "20 bytes — spaces"
-            notes: "Blank (no VIN)"
-          - did: "91"
-            response: "36600-0E250"
-            notes: "Part number"
-          - did: "98"
-            response: "13 bytes — spaces"
-            notes: "Blank"
-          - did: "99"
-            response: "1E060A14 (6 bytes)"
-            notes: "Same as 8B"
-        rejected: "81-89 (excl 8A), 8F, 92-97, 9A-9F: NRC"
-      notes: "10/32 responding"
+  - ecu: '0x7EB'
+    pid: 1A8C
+    response: "AEEMCU83"
+    notes: "ECU ID"
+  - ecu: '0x7EB'
+    pid: 1A91
+    response: "36600-0E250"
+    notes: "Part number"
+  - ecu: '0x7EB'
+    pid: 1A8D
+    response: "EAEEHEL-MS2-D000"
+    notes: "Software identifier"
+  - ecu: '0x7EB'
+    pid: scan
+    scan_results:
+      responding:
+      - did: "80"
+        response: "69 bytes"
+        notes: "General ID"
+      - did: "8A"
+        response: "13 bytes — spaces"
+        notes: "Blank"
+      - did: "8B"
+        response: "1E060A14 (6 bytes)"
+        notes: "Date/version field"
+      - did: "8C"
+        response: "AEEMCU83"
+        notes: "ECU ID"
+      - did: "8D"
+        response: "EAEEHEL-MS2-D000"
+        notes: "SW ID"
+      - did: "8E"
+        response: "00000001"
+        notes: "Calibration"
+      - did: "90"
+        response: "20 bytes — spaces"
+        notes: "Blank (no VIN)"
+      - did: "91"
+        response: "36600-0E250"
+        notes: "Part number"
+      - did: "98"
+        response: "13 bytes — spaces"
+        notes: "Blank"
+      - did: "99"
+        response: "1E060A14 (6 bytes)"
+        notes: "Same as 8B"
+      rejected: "81-89 (excl 8A), 8F, 92-97, 9A-9F: NRC"
+    notes: "10/32 responding"
 
     # ── LDC/OBC 0x7E5 ──
-    - ecu: '0x7ED'
-      pid: 1A80
-      payload: "5A8033363430302D30453135304145454F45533038523000000000"
-      notes: "27 bytes. Part 36400-0E150, ID AEEOES08R0"
-    - ecu: '0x7ED'
-      pid: 1A87
-      payload: "5A87FF"
-      notes: "3 bytes — 0xFF. Supports 1A87 but returns FF"
-    - ecu: '0x7ED'
-      pid: 1A8C
-      response: "AEEOBC51"
-      notes: "ECU ID — identifies as OBC (On-Board Charger)"
-    - ecu: '0x7ED'
-      pid: 1A91
-      response: "36400-0E150"
-      notes: "Part number"
-    - ecu: '0x7ED'
-      pid: 1A8D
-      response: "EAEEH5L-OS3-D000"
-      notes: "Software identifier"
-    - ecu: '0x7ED'
-      pid: scan
-      scan_results:
-        responding:
-          - did: "80"
-            response: "27 bytes — shorter than others"
-            notes: "Part# + ID"
-          - did: "87"
-            response: "FF (3 bytes)"
-            notes: "Exists but returns 0xFF"
-          - did: "8A"
-            response: "13 bytes — spaces"
-            notes: "Blank"
-          - did: "8B"
-            response: "1E090D14 (6 bytes)"
-            notes: "Date/version field"
-          - did: "8C"
-            response: "AEEOBC51"
-            notes: "ECU ID"
-          - did: "8D"
-            response: "EAEEH5L-OS3-D000"
-            notes: "SW ID"
-          - did: "8E"
-            response: "00000001"
-            notes: "Calibration"
-          - did: "90"
-            response: "20 bytes — spaces"
-            notes: "Blank"
-          - did: "91"
-            response: "36400-0E150"
-            notes: "Part number"
-          - did: "98"
-            response: "13 bytes — mostly zeros"
-            notes: "Near-empty"
-          - did: "99"
-            response: "1E090D14 (6 bytes)"
-            notes: "Same as 8B"
-        rejected: "81-86, 88-89, 8F, 92-97, 9A-9F: NRC"
-      notes: "11/32 responding. LDC uniquely supports 1A87."
+  - ecu: '0x7ED'
+    pid: 1A80
+    payload: "5A8033363430302D30453135304145454F45533038523000000000"
+    notes: "27 bytes. Part 36400-0E150, ID AEEOES08R0"
+  - ecu: '0x7ED'
+    pid: 1A87
+    payload: "5A87FF"
+    notes: "3 bytes — 0xFF. Supports 1A87 but returns FF"
+  - ecu: '0x7ED'
+    pid: 1A8C
+    response: "AEEOBC51"
+    notes: "ECU ID — identifies as OBC (On-Board Charger)"
+  - ecu: '0x7ED'
+    pid: 1A91
+    response: "36400-0E150"
+    notes: "Part number"
+  - ecu: '0x7ED'
+    pid: 1A8D
+    response: "EAEEH5L-OS3-D000"
+    notes: "Software identifier"
+  - ecu: '0x7ED'
+    pid: scan
+    scan_results:
+      responding:
+      - did: "80"
+        response: "27 bytes — shorter than others"
+        notes: "Part# + ID"
+      - did: "87"
+        response: "FF (3 bytes)"
+        notes: "Exists but returns 0xFF"
+      - did: "8A"
+        response: "13 bytes — spaces"
+        notes: "Blank"
+      - did: "8B"
+        response: "1E090D14 (6 bytes)"
+        notes: "Date/version field"
+      - did: "8C"
+        response: "AEEOBC51"
+        notes: "ECU ID"
+      - did: "8D"
+        response: "EAEEH5L-OS3-D000"
+        notes: "SW ID"
+      - did: "8E"
+        response: "00000001"
+        notes: "Calibration"
+      - did: "90"
+        response: "20 bytes — spaces"
+        notes: "Blank"
+      - did: "91"
+        response: "36400-0E150"
+        notes: "Part number"
+      - did: "98"
+        response: "13 bytes — mostly zeros"
+        notes: "Near-empty"
+      - did: "99"
+        response: "1E090D14 (6 bytes)"
+        notes: "Same as 8B"
+      rejected: "81-86, 88-89, 8F, 92-97, 9A-9F: NRC"
+    notes: "11/32 responding. LDC uniquely supports 1A87."
 
     # ── Gateway 0x7E6 ──
-    - ecu: '0x7EE'
-      pid: 1A80
-      payload: "5A804D33303632303030333037204541454141465032303107E003024541"
-      notes: "48 bytes. Part M3062000307, firmware EAEAAFP201"
-    - ecu: '0x7EE'
-      pid: 1A91
-      response: "M3062000307"
-      notes: "Part number"
-    - ecu: '0x7EE'
-      pid: 1A8D
-      response: "EAE16AAFB30001"
-      notes: "Software identifier"
-    - ecu: '0x7EE'
-      pid: 1A98
-      response: "EAEAAFP201"
-      notes: "Firmware identifier"
-    - ecu: '0x7EE'
-      pid: scan
-      scan_results:
-        responding:
-          - did: "80"
-            response: "48 bytes"
-            notes: "General ID"
-          - did: "8D"
-            response: "EAE16AAFB30001"
-            notes: "SW ID"
-          - did: "91"
-            response: "M3062000307"
-            notes: "Part number"
-          - did: "98"
-            response: "EAEAAFP201"
-            notes: "Firmware ID"
-          - did: "99"
-            response: "07E00302 (6 bytes)"
-            notes: "Contains 0x7E0 and 0x0302 — possibly routing/address info"
-        rejected: "81-8C, 8E-90, 92-97, 9A-9F: NRC"
-      notes: "5/32 responding. Fewest identity DIDs of all powertrain ECUs."
+  - ecu: '0x7EE'
+    pid: 1A80
+    payload: "5A804D33303632303030333037204541454141465032303107E003024541"
+    notes: "48 bytes. Part M3062000307, firmware EAEAAFP201"
+  - ecu: '0x7EE'
+    pid: 1A91
+    response: "M3062000307"
+    notes: "Part number"
+  - ecu: '0x7EE'
+    pid: 1A8D
+    response: "EAE16AAFB30001"
+    notes: "Software identifier"
+  - ecu: '0x7EE'
+    pid: 1A98
+    response: "EAEAAFP201"
+    notes: "Firmware identifier"
+  - ecu: '0x7EE'
+    pid: scan
+    scan_results:
+      responding:
+      - did: "80"
+        response: "48 bytes"
+        notes: "General ID"
+      - did: "8D"
+        response: "EAE16AAFB30001"
+        notes: "SW ID"
+      - did: "91"
+        response: "M3062000307"
+        notes: "Part number"
+      - did: "98"
+        response: "EAEAAFP201"
+        notes: "Firmware ID"
+      - did: "99"
+        response: "07E00302 (6 bytes)"
+        notes: "Contains 0x7E0 and 0x0302 — possibly routing/address info"
+      rejected: "81-8C, 8E-90, 92-97, 9A-9F: NRC"
+    notes: "5/32 responding. Fewest identity DIDs of all powertrain ECUs."
 
 - date: "2026-04-17"
   label: "Gateway broader DID scan — service 21 (80-9F) + service 22 (B/C ranges)"
-  state: "ready"
+  vehicle_states:
+  - ready
   notes: "Gateway is KWP2000. Service 22 returns NO DATA (not supported). Service 21 range 80-9F found 2180 (known) and 2181 (new)."
   captures:
-    - ecu: '0x7EE'
-      pid: "2181"
-      scan_results:
-        responding:
-          - did: "81"
-            response: "6181FFFFC0000229000000000024757E4339494986130798980000"
-            notes: "27 bytes, very similar structure to 2180 (ambient temp). Bytes 4-7 differ (FFFF vs C366). Possibly freeze-frame or alternate measurement."
-        rejected: "82-9F: NRC 0x12. Service 22 B001-B010, C001-C010: NO DATA (not supported). Service 21 01-0F: all NRC."
+  - ecu: '0x7EE'
+    pid: "2181"
+    scan_results:
+      responding:
+      - did: "81"
+        response: "6181FFFFC0000229000000000024757E4339494986130798980000"
+        notes: "27 bytes, very similar structure to 2180 (ambient temp). Bytes 4-7 differ (FFFF vs C366). Possibly freeze-frame or alternate measurement."
+      rejected: "82-9F: NRC 0x12. Service 22 B001-B010, C001-C010: NO DATA (not supported). Service 21 01-0F: all NRC."
 
 - date: "2026-04-17"
   label: "ECU discovery scan — full address sweep 0x700-0x7EF"
-  state: "ready mode (ACC on, 14.7V)"
-  notes: "Used canreq.py --discover to sweep all 240 addresses. 200ms delay between probes. 30 alive, 210 silent, 0 errors."
+  vehicle_states:
+  - ready
+  notes: "Used canreq.py --discover to sweep all 240 addresses. 200ms delay between probes. 30 alive, 210 silent, 0 errors. [migrated state: ready mode (ACC on, 14.7V)]"
   captures:
-    - ecu: '0x7EE'
-      pid: "1001"
-      notes: |
-        Full address sweep 0x700-0x7EF — 30 responding addresses:
-        Known (16): 0x736(VESS), 0x744(errors-only, removed), 0x770(IGPM), 0x7A0(BCM), 0x7A3(PSM), 0x7A5(SKM),
-          0x7B3(HVAC), 0x7C0(AVN), 0x7C6(CLU), 0x7D1(ESC), 0x7D4(EPS), 0x7E2(VCU), 0x7E3(MCU),
-          0x7E4(BMS), 0x7E5(LDC), 0x7E6(Gateway)
-        Newly discovered (14): 0x725(SAS), 0x733(PLC), 0x746(unknown), 0x755(FCAM), 0x780(TCU), 0x783(unknown),
-          0x796(AVM), 0x7A1(SWRC-L), 0x7A2(SWRC-R), 0x7B6(PTC), 0x7B7(RCAM), 0x7C4(MFC), 0x7D0(SCC),
-          0x7D2(unknown), 0x7D5(unknown)
-        Broadcast: 0x7DF (OBD-II, skipped)
-      response: "30 alive, 210 silent, 0 errors"
+  - ecu: '0x7EE'
+    pid: "1001"
+    notes: |
+      Full address sweep 0x700-0x7EF — 30 responding addresses:
+      Known (16): 0x736(VESS), 0x744(errors-only, removed), 0x770(IGPM), 0x7A0(BCM), 0x7A3(PSM), 0x7A5(SKM),
+        0x7B3(HVAC), 0x7C0(AVN), 0x7C6(CLU), 0x7D1(ESC), 0x7D4(EPS), 0x7E2(VCU), 0x7E3(MCU),
+        0x7E4(BMS), 0x7E5(LDC), 0x7E6(Gateway)
+      Newly discovered (14): 0x725(SAS), 0x733(PLC), 0x746(unknown), 0x755(FCAM), 0x780(TCU), 0x783(unknown),
+        0x796(AVM), 0x7A1(SWRC-L), 0x7A2(SWRC-R), 0x7B6(PTC), 0x7B7(RCAM), 0x7C4(MFC), 0x7D0(SCC),
+        0x7D2(unknown), 0x7D5(unknown)
+      Broadcast: 0x7DF (OBD-II, skipped)
+    response: "30 alive, 210 silent, 0 errors"
 
 - date: "2026-04-17"
   label: "Identity scans on 15 newly discovered ECUs"
-  state: "ready mode (ACC on, 14.7V)"
-  notes: "UDS F1xx identity on all 15 new addresses. KWP2000 1A 80-9F fallback on 0x746, 0x783, 0x7D2."
+  vehicle_states:
+  - ready
+  notes: "UDS F1xx identity on all 15 new addresses. KWP2000 1A 80-9F fallback on 0x746, 0x783, 0x7D2. [migrated state: ready mode (ACC on, 14.7V)]"
   captures:
-    - ecu: '0x72D'
-      pid: "F187"
-      payload: "62F18739353536304737303030"
-      notes: "Part 95560G7000. Boot SW 1.6, HW 1.00.00 (v100), SW 1.02.00 (v102)."
-    - ecu: '0x73B'
-      pid: "F187"
-      payload: "62F18739313935304737323030"
-      notes: "Part 91950G7200 (PLC Charge Control Module). Mfg 2017-05-21. App SW 1104, HW 101, SW 103."
-    - ecu: '0x74E'
-      pid: "1A80-9F"
-      notes: |
-        KWP2000 identity scan. 10/32 responding. UDS F1xx: no response.
-        1A80: 5A80FFFFFFFF (general ID, all FF)
-        1A8C: 5A8C312E3130 = "1.10" (ECU ID)
-        1A8D: 5A8D5A333131 = "Z311" (SW ID)
-        1A8E: 5A8E5A333131 = "Z311" (calibration)
-        1A92: 5A92332E3500 = "3.5" (HW/SW version)
-        1A8A/8B/91/98/99: all FFFFFFFF
-      response: "10 positive, 22 NRC 0x12"
-    - ecu: '0x75D'
-      pid: "F191"
-      payload: "62F19139353832314732303030"
-      notes: "Part 95821G2000 (HW version). Serial 31114851712211429. Many FF-padded identity fields."
-    - ecu: '0x788'
-      pid: "F101"
-      payload: "62F10141455F45560000455552534F5000313200003031372E31000000000000AAAA"
-      notes: "App SW: AE_EV EURSOP 12 017.1. Serial 00000076FE0085-003240. Limited identity (3 DIDs)."
-    - ecu: '0x78B'
-      pid: "1001"
-      notes: "Responds to 1001 (session control) but NRC 0x11 on ALL UDS F1xx DIDs and ALL KWP2000 1A 80-9F. Completely unidentifiable."
-      response: "alive but no identity"
-    - ecu: '0x79E'
-      pid: "F187"
-      payload: "62F18739353736304732303030"
-      notes: "Part 95760G2000. Mfg 2017-05-30 (ASCII-encoded). Boot SW CAN_15.11.01, HW 100, SW 102."
-    - ecu: '0x7A9'
-      pid: "F187"
-      payload: "62F18739333537304732313130"
-      notes: "Part 93570G2110. Mfg 2017-06-02. Very chatty — 21 F1xx DIDs responded. Echoes part# in many fields."
-    - ecu: '0x7AA'
-      pid: "F187"
-      payload: "62F18739333537354732313630"
-      notes: "Part 93575G2160. Mfg 2017-06-05. Same chatty pattern as SWRC-L (21 DIDs). HW/SW both v100."
-    - ecu: '0x7BE'
-      pid: "F187"
-      payload: "62F18734363730302D4737313030"
-      notes: "Part 46700-G7100. Mfg 2016-05-26. Supplier KCI_KOSTAL. HW KOSTAL_HW_G07, SW KOSTAL_SW_G07."
-    - ecu: '0x7BF'
-      pid: "F191"
-      payload: "62F19139353831314732303030"
-      notes: "Part 95811G2000 (HW version). Serial 31114851713802876. Same FF-padded format as FCAM 0x755."
-    - ecu: '0x7CC'
-      pid: "F100"
-      payload: "62F100414545204D46432020415420455552204C484420312E303020312E30302039353734302D473232303020313631303134AAAAAAAA"
-      notes: "AEE MFC AT EUR LHD 1.00 1.00 95740-G2200 161014. Only 1 identity DID responded (F100)."
-    - ecu: '0x7D8'
-      pid: "F100"
-      payload: "62F100414565762053434320462D435550202020202020312E303020312E30302039363430302D4737303030202020202020202020AAAA"
-      notes: "AEev SCC F-CUP 1.00 1.00 96400-G7000. 3 identity DIDs (F100, F110, F18C)."
-    - ecu: '0x7DA'
-      pid: "1001"
-      notes: "Responds to 1001. NRC 0x11 on all KWP2000 1A 80-9F. No UDS F1xx response. Alive but unidentifiable."
-      response: "alive but no identity"
-    - ecu: '0x7DD'
-      pid: "F18C"
-      notes: "Serial raw: 17060100003900000000. App SW (F101): G7. Only 2 identity DIDs responded."
-      response: "2 DIDs responding"
+  - ecu: '0x72D'
+    pid: "F187"
+    payload: "62F18739353536304737303030"
+    notes: "Part 95560G7000. Boot SW 1.6, HW 1.00.00 (v100), SW 1.02.00 (v102)."
+  - ecu: '0x73B'
+    pid: "F187"
+    payload: "62F18739313935304737323030"
+    notes: "Part 91950G7200 (PLC Charge Control Module). Mfg 2017-05-21. App SW 1104, HW 101, SW 103."
+  - ecu: '0x74E'
+    pid: "1A80-9F"
+    notes: |
+      KWP2000 identity scan. 10/32 responding. UDS F1xx: no response.
+      1A80: 5A80FFFFFFFF (general ID, all FF)
+      1A8C: 5A8C312E3130 = "1.10" (ECU ID)
+      1A8D: 5A8D5A333131 = "Z311" (SW ID)
+      1A8E: 5A8E5A333131 = "Z311" (calibration)
+      1A92: 5A92332E3500 = "3.5" (HW/SW version)
+      1A8A/8B/91/98/99: all FFFFFFFF
+    response: "10 positive, 22 NRC 0x12"
+  - ecu: '0x75D'
+    pid: "F191"
+    payload: "62F19139353832314732303030"
+    notes: "Part 95821G2000 (HW version). Serial 31114851712211429. Many FF-padded identity fields."
+  - ecu: '0x788'
+    pid: "F101"
+    payload: "62F10141455F45560000455552534F5000313200003031372E31000000000000AAAA"
+    notes: "App SW: AE_EV EURSOP 12 017.1. Serial 00000076FE0085-003240. Limited identity (3 DIDs)."
+  - ecu: '0x78B'
+    pid: "1001"
+    notes: "Responds to 1001 (session control) but NRC 0x11 on ALL UDS F1xx DIDs and ALL KWP2000 1A 80-9F. Completely unidentifiable."
+    response: "alive but no identity"
+  - ecu: '0x79E'
+    pid: "F187"
+    payload: "62F18739353736304732303030"
+    notes: "Part 95760G2000. Mfg 2017-05-30 (ASCII-encoded). Boot SW CAN_15.11.01, HW 100, SW 102."
+  - ecu: '0x7A9'
+    pid: "F187"
+    payload: "62F18739333537304732313130"
+    notes: "Part 93570G2110. Mfg 2017-06-02. Very chatty — 21 F1xx DIDs responded. Echoes part# in many fields."
+  - ecu: '0x7AA'
+    pid: "F187"
+    payload: "62F18739333537354732313630"
+    notes: "Part 93575G2160. Mfg 2017-06-05. Same chatty pattern as SWRC-L (21 DIDs). HW/SW both v100."
+  - ecu: '0x7BE'
+    pid: "F187"
+    payload: "62F18734363730302D4737313030"
+    notes: "Part 46700-G7100. Mfg 2016-05-26. Supplier KCI_KOSTAL. HW KOSTAL_HW_G07, SW KOSTAL_SW_G07."
+  - ecu: '0x7BF'
+    pid: "F191"
+    payload: "62F19139353831314732303030"
+    notes: "Part 95811G2000 (HW version). Serial 31114851713802876. Same FF-padded format as FCAM 0x755."
+  - ecu: '0x7CC'
+    pid: "F100"
+    payload: "62F100414545204D46432020415420455552204C484420312E303020312E30302039353734302D473232303020313631303134AAAAAAAA"
+    notes: "AEE MFC AT EUR LHD 1.00 1.00 95740-G2200 161014. Only 1 identity DID responded (F100)."
+  - ecu: '0x7D8'
+    pid: "F100"
+    payload: "62F100414565762053434320462D435550202020202020312E303020312E30302039363430302D4737303030202020202020202020AAAA"
+    notes: "AEev SCC F-CUP 1.00 1.00 96400-G7000. 3 identity DIDs (F100, F110, F18C)."
+  - ecu: '0x7DA'
+    pid: "1001"
+    notes: "Responds to 1001. NRC 0x11 on all KWP2000 1A 80-9F. No UDS F1xx response. Alive but unidentifiable."
+    response: "alive but no identity"
+  - ecu: '0x7DD'
+    pid: "F18C"
+    notes: "Serial raw: 17060100003900000000. App SW (F101): G7. Only 2 identity DIDs responded."
+    response: "2 DIDs responding"

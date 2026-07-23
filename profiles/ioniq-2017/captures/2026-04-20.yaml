@@ -1,7 +1,7 @@
 sessions:
 - date: '2026-04-20'
   label: "\x03"
-  state: C
+  vehicle_states: []
   captures:
   - ecu: '0x7A8'
     pid: 22B001
@@ -139,3 +139,4 @@ sessions:
     pid: 22C011
     payload: 62C011E0000000009C0B267CAA
     time: "20:25:13"
+  notes: '[migrated state: C]'

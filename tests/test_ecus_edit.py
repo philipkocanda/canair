@@ -127,7 +127,7 @@ class TestSetEcuFields:
 class TestAppendScanLog:
     def test_appends_entry_with_date_default(self, ecus_dir):
         append_scan_log(
-            0x770, service=0x22, range="F100-F1FF", hits=3, state="acc", ecus_dir=ecus_dir
+            0x770, service=0x22, range="F100-F1FF", hits=3, vehicle_states=["acc"], ecus_dir=ecus_dir
         )
         entry = _load_ecu(ecus_dir, "igpm.yaml")["IGPM"]
         entries = entry["scan_log"]

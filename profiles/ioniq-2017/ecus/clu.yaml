@@ -9,12 +9,17 @@ CLU:
     sw_version: "201"
     boot_sw: "625"
     id_protocol: UDS  # F1xx
-  availability: [acc, acc2, ready]
+  vehicle_states:
+    - acc
+    - acc2
+    - ready
   pids:
     22B002:
       period: 10000
-      enabled: true
-      availability: [acc, acc2, ready] # TODO: test during charging
+      vehicle_states:
+        - acc
+        - acc2
+        - ready
       parameters:
         ODOMETER:
           expression: "[B12:B14]"
@@ -27,9 +32,9 @@ CLU:
           verified: true
           notes: "3-byte odometer value"
     22B001:
+      status: draft
       period: 10000
-      enabled: false
-      availability: []
+      vehicle_states: []
       parameters:
         CLU_B001_UNKNOWN:
           expression: ""
@@ -42,9 +47,9 @@ CLU:
           verified: false
           notes: "13 bytes, all zeros when stationary. Purpose unknown. Payload: 62B00100000000000000000000"
     22B003:
+      status: draft
       period: 10000
-      enabled: false
-      availability: []
+      vehicle_states: []
       parameters:
         CLU_B003_UNKNOWN:
           expression: ""
@@ -61,7 +66,8 @@ CLU:
       target: "22B002"
       status: done
       priority: P1
-      prerequisite: [acc]
+      vehicle_states:
+        - acc
       notes: >
         Odometer (ODOMETER = [B12:B14]) confirmed = 72982 km in READY (2026-07-22).
         NEGATIVE result on the e-Niro extras: 22B002 returns only 15 bytes on the Ioniq
@@ -79,13 +85,15 @@ CLU:
       target: "22 B001-B010"
       status: done
       priority: P2
-      prerequisite: [acc]
+      vehicle_states:
+        - acc
       notes: "CLU cluster range scan."
     - type: scan
       target: "0x7C0/0x7C1 probes"
       status: nrc
       priority: P2
-      prerequisite: [acc]
+      vehicle_states:
+        - acc
       notes: "Head unit — NO DATA during deep sleep (probed 2026-04-16). May be on M-CAN bus. Retry with ACC on: scan 21 01-05, 22 B001-B010."
       sources:
         - "Hyundai/Kia convention: 0x7C0 = AVN"

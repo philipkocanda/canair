@@ -8,14 +8,21 @@ BCM:
     part_number: "95400G7470"
     mfg_date: "2017-05-31"
     id_protocol: UDS  # F1xx
-  availability: [sleep, plugged, acc, acc2, ready, charging]  # Wakes from CAN bus activity
+  vehicle_states:
+    - sleep
+    - plugged
+    - acc
+    - acc2
+    - ready
+    - charging
   scan_log: # BCM
     - service: 0x31
       range: "0000-FFFF"
       date: 2026-04-20
       hits: "~71+ (screen only, not in log — connection dropped)"
       probes: 49813  # cut off at 0xC8D2 — WiCAN sleep/disconnect
-      state: asleep
+      vehicle_states:
+        - sleep
       notes: >
         BCM supports service 31 (sub-fn 03 requestRoutineResults).
         Two clusters of positive responses seen on screen (not saved to log — connection dropped):
@@ -29,8 +36,13 @@ BCM:
   pids:
     22C00B:
       period: 15000
-      enabled: true
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       parameters:
         TYRE_PRESSURE_FL:
           expression: "B10/72.52"
@@ -125,8 +137,14 @@ BCM:
           verified: true
           notes: ""
     22B00D:
-      enabled: false
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      status: draft
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         13 bytes. Previously guessed as preheat timer config, but LIKELY INCORRECT:
         B03-B05=0xFCFCE0 are constant across all captures; the only bytes that vary are
@@ -137,8 +155,13 @@ BCM:
 
     22B00E:
       period: 5000
-      enabled: true
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       parameters:
         CHARGE_PORT_OPEN:
           expression: "B10:5"
@@ -153,18 +176,27 @@ BCM:
           notes: "Bit flag — 1=open, 0=closed. Niro PR had B10:4 — wrong for Ioniq, actual bit is B10:5. BCM does NOT require extended diagnostic session. Verified 2026-04-15."
 
     22B00F:
-      enabled: false
-      availability: [acc, acc2, ready, charging]
+      status: draft
+      vehicle_states:
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         13 bytes. Identical payload to B00D (0xFCFC E0...) — possibly mirrored register
-        or preheat config overflow. B010+ did not respond in DID scan. 
-        Does not respond when vehicle is asleep.
+        or preheat config overflow. B010+ did not respond in DID scan.  Does not respond when vehicle is asleep.
         Sample: 62B00FFCFCE00000000000AAAA.
       parameters: {}
 
     22B004:
-      enabled: false
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      status: draft
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         13 bytes. B11:6 = door lock state (1=locked, 0=unlocked) — confirmed via
         fob lock/unlock test (0x40↔0x00 transition correlates with B005/B006 changes).
@@ -184,8 +216,14 @@ BCM:
             Needs further testing to confirm
 
     22B005:
-      enabled: false
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      status: draft
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         13 bytes. B10 changes A0↔AC during fob lock/unlock (bits 2,3 = 0x0C).
         Correlated with B004 lock state and B006 indicator flash.
@@ -205,8 +243,14 @@ BCM:
             Possibly courtesy lamp or interior lighting trigger. Base value 0xA0.
 
     22B006:
-      enabled: false
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      status: draft
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         13 bytes. B12 changes 00↔04 during fob lock/unlock (bit 2).
         Correlated with B004 lock state and B005 unlock bits.
@@ -226,9 +270,15 @@ BCM:
             Possibly turn signal confirmation flash.
 
     22B007:
+      status: draft
       period: 60000
-      enabled: false
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       parameters:
         PREHEAT_DEPARTURE_TIME:
           expression: (B07 << 8) | B09
@@ -243,8 +293,14 @@ BCM:
           notes: >
             LIKELY INCORRECT / UNVERIFIED. Decodes to a constant 480 across all 25 captures (2026-04-15, spanning sleep/ACC/charging) and was never observed to change. 0x01E0=480=08:00 was pattern-matched, not confirmed by changing the departure time. The bytes that DO vary between captures (payload B08/B09 area) are not the ones this reads; 0x01E0 sits among static BCM config registers (cf. B008/B009), so it is probably a fixed config/format constant, not the live preheat time. Re-capture after actually changing the departure setting to see which bytes move.
     22B008:
-      enabled: false
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      status: draft
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         13 bytes. Static across deep sleep and ACC captures — configuration register.
         B03=0x00, B04=0x51, B05=0x0C, B06=0x20, B07=0x00, B08=0x88.
@@ -252,33 +308,55 @@ BCM:
       parameters: {}
 
     22B009:
-      enabled: false
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      status: draft
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         13 bytes. Repeating 0xFEEE pattern (B03-B06) — possibly sensor addresses or
         calibration references. Rest zeros. Static. Sample: 62B009FEEEFEEE00000000AAAA.
       parameters: {}
 
     22B00A:
-      enabled: false
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      status: draft
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         13 bytes. B03=0xE3, B04=0xFE, B05=0xE3, B07=0x40, B08=0x05. Purpose unknown.
         Static across captures. Sample: 62B00AE3FEE30000400500AAAA.
       parameters: {}
 
     22B00B:
-      enabled: false
-      availability: [acc, acc2, ready, charging]
+      status: draft
+      vehicle_states:
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         NRC 0x31 (requestOutOfRange) in deep sleep. Only 2-byte response (7E00) on some
         attempts — may be a status register that requires ACC/IGN on.
       parameters: {}
 
     22B00C:
+      status: draft
       period: 60000
-      enabled: false
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       parameters:
         PREHEAT_SCHEDULE_DAYS:
           expression: B05
@@ -293,8 +371,14 @@ BCM:
           notes: >
             LIKELY INCORRECT / UNVERIFIED. Constant 0x3F (=63) across all 23 captures and never observed to change. 0x3F=0b111111 was pattern-matched to '6 days set' but never confirmed by toggling days, and the bit mapping is unknown. Probably a static config/format byte, not the live schedule. Re-capture after changing schedule days to confirm which bytes move.
     22B001:
-      enabled: false
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      status: draft
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         20 bytes. Mostly zeros with config-like flags. Returns NO DATA on first attempt
         after wake, then responds on retry. B20 changes with power state: 0x02 (ACC, Apr 14)
@@ -303,17 +387,29 @@ BCM:
       parameters: {}
 
     22B002:
-      enabled: false
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      status: draft
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         13 bytes. Sparse data with 0xAA padding. Purpose unknown.
         Sample: 62B002C00000000200AAAAAAAA.
       parameters: {}
 
     22B003:
+      status: draft
       period: 10000
-      enabled: false
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       parameters:
         BCM_12V_BATTERY:
           expression: "B10*0.08"
@@ -351,24 +447,42 @@ BCM:
     # C00B (above) has live tyre pressure/temp readings.
 
     22C001:
-      ignored: true
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      status: ignored
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         34 bytes. Contains 4× C0F8-prefixed TPMS receiver addresses — one per wheel.
         Static configuration. Sample: 62C001FFFF000001C0F80410C0F80BD2C0F81174C0F81188AAAA.
       parameters: {}
 
     22C002:
-      ignored: true
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      status: ignored
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         27 bytes. Same C0F8 addresses as C001 but in different order — wheel-to-receiver
         mapping table. Sample: 62C002FFFF0000C0F81174C0F80410C0F80BD2C0F81188AAAAAAAA.
       parameters: {}
 
     22C003:
-      ignored: true
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      status: ignored
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         34 bytes. TPMS sensor registration for wheel 1. ASCII 'DO01' at offset 7.
         Contains pressure limits, sensor ID, calibration data.
@@ -376,64 +490,112 @@ BCM:
       parameters: {}
 
     22C004:
-      ignored: true
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      status: ignored
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         34 bytes. TPMS sensor registration for wheel 2. ASCII 'NA01'.
         Sample: 62C004000000004E41303101002E2E024B0005B5B508088C3C0100000001FF0100AA.
       parameters: {}
 
     22C005:
-      ignored: true
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      status: ignored
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         34 bytes. Spare/reference TPMS sensor. ASCII 'NTPM'.
         Sample: 62C005000000004E54504D0100302F02500000ABAB00008C3C0000030001FF0000AA.
       parameters: {}
 
     22C006:
-      ignored: true
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      status: ignored
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         34 bytes. TPMS sensor registration for wheel 3. ASCII 'DO02'.
         Sample: 62C00600000000444F303201002E2E02500706B5AB0A098C3C0000000001010100AA.
       parameters: {}
 
     22C007:
-      ignored: true
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      status: ignored
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         34 bytes. TPMS sensor registration for wheel 4. ASCII 'NA02'.
         Sample: 62C007000000004E41303201002E2E024B0005B5AB08088C3C0100000001010100AA.
       parameters: {}
 
     22C008:
-      ignored: true
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      status: ignored
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         34 bytes. Empty TPMS slot (all FF after ASCII '0005').
         Sample: 62C00800000000303030350000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFAA.
       parameters: {}
 
     22C009:
-      ignored: true
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      status: ignored
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         34 bytes. Empty TPMS slot (ASCII '0006').
         Sample: 62C00900000000303030360000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFAA.
       parameters: {}
 
     22C00A:
-      ignored: true
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      status: ignored
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         34 bytes. Empty TPMS slot (ASCII '0007').
         Sample: 62C00A00000000303030370000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFAA.
       parameters: {}
 
     22C00C:
-      ignored: true
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      status: ignored
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         41 bytes. Extended TPMS data — wheel 1 has live data with C0F8 address,
         other slots empty (FFFF). May contain per-wheel signal quality or sensor history.
@@ -441,40 +603,70 @@ BCM:
       parameters: {}
 
     22C00D:
-      ignored: true
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      status: ignored
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         41 bytes. Extended TPMS data — all slots empty (FFFF/zeros).
         Sample: 62C00DFFFF03000000000000FFFF0000000000000000FFFF000000...
       parameters: {}
 
     22C00E:
-      ignored: true
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      status: ignored
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         41 bytes. Extended TPMS data — all slots empty.
         Sample: 62C00EFFFF03000000000000FFFF0000000000000000FFFF000000...
       parameters: {}
 
     22C00F:
-      ignored: true
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      status: ignored
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         41 bytes. Extended TPMS data — one active entry with C0F8 address (C0F81188).
         Sample: 62C00FFFFF030001C0F8118801203B1E560000000000FFFF000000...
       parameters: {}
 
     22C010:
-      ignored: true
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      status: ignored
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         13 bytes. Mostly zeros. B03=0xFC. Purpose unknown.
         Sample: 62C010FC00000000AAAAAAAAAA.
       parameters: {}
 
     22C011:
-      enabled: false
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      status: draft
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         13 bytes. NOT static — bytes 8-9 (ELM index) change rapidly every 2s. Byte 8
         drifts slowly (~0xA2, occasionally 0xA1), byte 9 jumps 20-100 counts per read
@@ -486,24 +678,42 @@ BCM:
       parameters: {}
 
     22C012:
-      ignored: true
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      status: ignored
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         13 bytes. ASCII 'DO01' at B07-B10 — references wheel 1 sensor ID.
         Sample: 62C01280000000444F3031AAAA.
       parameters: {}
 
     22C013:
-      ignored: true
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      status: ignored
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         13 bytes. ASCII '0x0620' — possibly TPMS firmware version or config revision.
         Sample: 62C01380000000307830363230.
       parameters: {}
 
     22C014:
-      ignored: true
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      status: ignored
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       notes: >
         13 bytes. B10=0x0C. Purpose unknown — last responding DID in C0xx range.
         Sample: 62C014F00000000CAAAAAAAAAA.
@@ -514,272 +724,300 @@ BCM:
   # Scan status: B000-B0FF fully scanned (24 DIDs), C000-C0FF (6 DIDs), E000-E0FF (0). 2026-04-18.
   iocontrol:
     B003:
-      availability: []
+      vehicle_states: []
       label: Unknown
       verified: false
-      on: "2FB00303"
-      off: "2FB00300"
+      true: "2FB00303"
+      false: "2FB00300"
       notes: >
         Sleep (locked): NRC 0x22: conditionsNotCorrect
 
     B006:
-      availability: [acc, ready]
+      vehicle_states:
+        - acc
+        - ready
       label: Parking sensors
       verified: true
-      on: "2FB00603"
-      off: "2FB00600"
+      true: "2FB00603"
+      false: "2FB00600"
       notes: >
         Turns on parking sensors switch (LED)
         Sleep (locked): NRC 0x22: conditionsNotCorrect
 
     B008:
-      availability: []
+      vehicle_states: []
       label: Wiper Motor (slow)
       verified: true
-      on: "2FB00803"
-      off: "2FB00800"
+      true: "2FB00803"
+      false: "2FB00800"
       notes: >
         Sleep (locked): NRC 0x22: conditionsNotCorrect
 
     B009:
-      availability: []
+      vehicle_states: []
       label: Wiper Motor (fast)
       verified: true
-      on: "2FB00903"
-      off: "2FB00900"
+      true: "2FB00903"
+      false: "2FB00900"
       notes: >
         Sleep (locked): NRC 0x22: conditionsNotCorrect
 
     B00A:
-      availability: []
+      vehicle_states: []
       label: Unknown
       verified: false
-      on: "2FB00A03"
-      off: "2FB00A00"
+      true: "2FB00A03"
+      false: "2FB00A00"
       notes: >
         Sleep (locked): NRC 0x22: conditionsNotCorrect
 
     B00F:
-      availability: []
+      vehicle_states: []
       label: Unknown
       verified: false
-      on: "2FB00F03"
-      off: "2FB00F00"
+      true: "2FB00F03"
+      false: "2FB00F00"
       notes: >
         Sleep (locked): No visible effect, but no NRC
 
     B019:
-      availability: []
+      vehicle_states: []
       label: Room lamp (interior)
       verified: true
-      on: "2FB01903"
-      off: "2FB01900"
+      true: "2FB01903"
+      false: "2FB01900"
       notes: >
         Sleep (locked): No visible effect, but no NRC
         ACC: Confirmed
 
     B01A:
-      availability: []
+      vehicle_states: []
       label: Unknown
       verified: false
-      on: "2FB01A03"
-      off: "2FB01A00"
+      true: "2FB01A03"
+      false: "2FB01A00"
       notes: >
         Adjacent to room lamp — may be reading lamp or trunk lamp?
 
     B025:
-      availability: [sleep, plugged]
+      vehicle_states:
+        - sleep
+        - plugged
       label: Puddle lights
       verified: true
-      on: "2FB02503"
-      off: "2FB02500"
+      true: "2FB02503"
+      false: "2FB02500"
 
     B028:
-      availability: []
+      vehicle_states: []
       label: Unknown
       verified: false
-      on: "2FB02803"
-      off: "2FB02800"
+      true: "2FB02803"
+      false: "2FB02800"
       notes: >
         ACC: ConditionsNotCorrect
 
     B029:
-      availability: []
+      vehicle_states: []
       label: Unknown
       verified: false
-      on: "2FB02903"
-      off: "2FB02900"
+      true: "2FB02903"
+      false: "2FB02900"
       notes: >
         Possibly window or wiper motor.
 
     B030:
-      availability: []
+      vehicle_states: []
       label: Unknown
       verified: false
-      on: "2FB03003"
-      off: "2FB03000"
+      true: "2FB03003"
+      false: "2FB03000"
       notes: >
         Possibly wiper/washer pump.
 
     B038:
-      availability: []
+      vehicle_states: []
       label: Seatbelt warn driver
       verified: true
-      on: "2FB03803"
-      off: "2FB03800"
+      true: "2FB03803"
+      false: "2FB03800"
 
     B039:
-      availability: []
+      vehicle_states: []
       label: Seatbelt warn pass 1
       verified: true
-      on: "2FB03903"
-      off: "2FB03900"
+      true: "2FB03903"
+      false: "2FB03900"
 
     B03A:
-      availability: []
+      vehicle_states: []
       label: Seatbelt warn pass 2
       verified: true
-      on: "2FB03A03"
-      off: "2FB03A00"
+      true: "2FB03A03"
+      false: "2FB03A00"
 
     B03B:
-      availability: []
+      vehicle_states: []
       label: Seatbelt warn pass 3
       verified: true
-      on: "2FB03B03"
-      off: "2FB03B00"
+      true: "2FB03B03"
+      false: "2FB03B00"
 
     B04D:
-      availability: []
+      vehicle_states: []
       label: Unknown
       verified: false
-      on: "2FB04D03"
-      off: "2FB04D00"
+      true: "2FB04D03"
+      false: "2FB04D00"
 
     B057:
-      availability: []
+      vehicle_states: []
       label: Unknown
       verified: false
-      on: "2FB05703"
-      off: "2FB05700"
+      true: "2FB05703"
+      false: "2FB05700"
       notes: >
         Mirror/handle region.
 
     B059:
-      availability: []
+      vehicle_states: []
       label: Heated steering wheel
       verified: true
-      on: "2FB05903"
-      off: "2FB05900"
+      true: "2FB05903"
+      false: "2FB05900"
       notes: >
         Sleep (locked): NRC 0x22: conditionsNotCorrect
         e-Niro labels as heated door handle. May refer to heated steering wheel on Ioniq?
 
     B05A:
-      availability: []
+      vehicle_states: []
       label: Heated steering wheel LED
       verified: true
-      on: "2FB05A03"
-      off: "2FB05A00"
+      true: "2FB05A03"
+      false: "2FB05A00"
       notes: >
         Sleep (locked): NRC 0x22: conditionsNotCorrect
 
     B05B:
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       label: Mirror fold
       verified: true
-      on: "2FB05B03"
-      off: "2FB05B00"
+      true: "2FB05B03"
+      false: "2FB05B00"
       notes: >
         Fold side mirrors in. From e-Niro, confirmed on Ioniq.
         Must be turned off again for the mirror unfold command (B05C) to work!
 
     B05C:
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       label: Mirror unfold
       verified: true
-      on: "2FB05C03"
-      off: "2FB05C00"
+      true: "2FB05C03"
+      false: "2FB05C00"
       notes: >
         Unfold side mirrors. From e-Niro, confirmed on Ioniq.
 
     B061:
-      availability: []
+      vehicle_states: []
       label: N/A
       verified: false
-      on: "2FB06103"
-      off: "2FB06100"
+      true: "2FB06103"
+      false: "2FB06100"
       notes: >
         NRC 0x31: requestoutotRange (Tested with and without ACC power)
 
     B071:
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       label: Unknown
       verified: false
-      on: "2FB07103"
-      off: "2FB07100"
+      true: "2FB07103"
+      false: "2FB07100"
 
     B072:
-      availability: [sleep, plugged, acc, acc2, ready, charging]
+      vehicle_states:
+        - sleep
+        - plugged
+        - acc
+        - acc2
+        - ready
+        - charging
       label: Unknown
       verified: false
-      on: "2FB07203"
-      off: "2FB07200"
+      true: "2FB07203"
+      false: "2FB07200"
 
     C001:
-      availability: []
+      vehicle_states: []
       label: Unknown (TPMS region)
       verified: false
-      on: "2FC00103"
-      off: "2FC00100"
+      true: "2FC00103"
+      false: "2FC00100"
       notes: >
         WARNING: C0xx is the TPMS/body-comfort DID range. C001-C006 may be TPMS sensor
         registration or reset commands. Do NOT activate (03) without understanding —
         could reset TPMS pairing. Discovered via returnControl (00) probe only.
 
     C002:
-      availability: []
+      vehicle_states: []
       label: Unknown (TPMS region)
       verified: false
-      on: "2FC00203"
-      off: "2FC00200"
+      true: "2FC00203"
+      false: "2FC00200"
       notes: >
         WARNING: TPMS region. See C001 notes. Do not activate without understanding.
 
     C003:
-      availability: []
+      vehicle_states: []
       label: Unknown (TPMS region)
       verified: false
-      on: "2FC00303"
-      off: "2FC00300"
+      true: "2FC00303"
+      false: "2FC00300"
       notes: >
         WARNING: TPMS region. See C001 notes. Do not activate without understanding.
 
     C004:
-      availability: []
+      vehicle_states: []
       label: Unknown (TPMS region)
       verified: false
-      on: "2FC00403"
-      off: "2FC00400"
+      true: "2FC00403"
+      false: "2FC00400"
       notes: >
         WARNING: TPMS region. See C001 notes. C004-C007 are the 4 TPMS sensor
         registration read DIDs — IOControl on these could trigger sensor re-learn.
 
     C005:
-      availability: []
+      vehicle_states: []
       label: Unknown (TPMS region)
       verified: false
-      on: "2FC00503"
-      off: "2FC00500"
+      true: "2FC00503"
+      false: "2FC00500"
       notes: >
         WARNING: TPMS region. See C004 notes.
 
     C006:
-      availability: []
+      vehicle_states: []
       label: Unknown (TPMS region)
       verified: false
-      on: "2FC00603"
-      off: "2FC00600"
+      true: "2FC00603"
+      false: "2FC00600"
       notes: >
         WARNING: TPMS region. See C004 notes.
 
@@ -788,7 +1026,8 @@ BCM:
       target: "22B00C"
       status: captured
       priority: P2
-      prerequisite: [acc]
+      vehicle_states:
+        - acc
       notes: "LIKELY INCORRECT. Reads B05=0x3F (=63), constant across all 23 captures; never observed to change. '6 days set' is an unverified pattern-match, likely a static config/format byte rather than the live schedule. Re-capture after toggling schedule days to find which bytes actually move."
       sources:
         - "Captured 2026-04-15"
@@ -796,7 +1035,8 @@ BCM:
       target: "22B00D"
       status: captured
       priority: P2
-      prerequisite: [acc]
+      vehicle_states:
+        - acc
       notes: "LIKELY NOT PREHEAT. B03-B05=0xFCFCE0 constant across all 23 captures; the only bytes that vary are B07 (0x00->0x03) and B08 (0x00->0x10). Preheat-timer interpretation is unverified and probably incorrect. Re-capture after changing preheat settings to see whether any byte tracks the change."
       sources:
         - "Captured 2026-04-15"
@@ -804,7 +1044,8 @@ BCM:
       target: "22B007"
       status: captured
       priority: P2
-      prerequisite: [acc]
+      vehicle_states:
+        - acc
       notes: "LIKELY INCORRECT. 0x01E0 (=480) is constant across all 25 captures and never changed; 480=08:00 is an unverified pattern-match. The bytes that vary between captures are elsewhere (payload B08/B09 area), not the 0x01E0 this reads. Probably a fixed config/format constant, not the departure time. Re-capture after changing the departure time to confirm."
       sources:
         - "Captured 2026-04-15"
@@ -812,7 +1053,8 @@ BCM:
       target: "22B001-B00A, B00F"
       status: captured
       priority: P3
-      prerequisite: [acc]
+      vehicle_states:
+        - acc
       notes: "BCM body data pages, all responding, mostly undecoded. B001 config flags (20B), B003 dense bitfields (27B), B004 voltage/current, B009 repeating FEEE."
       sources:
         - "Captured 2026-04-15"
@@ -820,7 +1062,8 @@ BCM:
       target: "2F B073-B0FF"
       status: done
       priority: P2
-      prerequisite: [acc]
+      vehicle_states:
+        - acc
       notes: "B000-B0FF complete (24 DIDs, all in B000-B072). B100-B1FF empty. C000-C0FF has 6 new (C001-C006, TPMS region). E000-E0FF empty. Scanned 2026-04-18."
       sources:
         - "IOControl scan 2026-04-15, 2026-04-18"

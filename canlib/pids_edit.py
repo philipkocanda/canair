@@ -23,6 +23,7 @@ accidentally editing similarly-named keys elsewhere in the file.
 
 from __future__ import annotations
 
+import datetime
 import re
 from pathlib import Path
 
@@ -854,8 +855,9 @@ PARAM_FIELD_ORDER = (
 
 # Canonical field order for a rendered research entry.
 RESEARCH_FIELD_ORDER = (
-    "type", "target", "status", "priority", "prerequisite",
-    "date", "result", "notes", "sources", "what_to_test", "capture_protocol",
+    "type", "target", "status", "priority", "vehicle_states",
+    "created", "updated", "date", "result", "notes", "sources",
+    "what_to_test", "capture_protocol",
 )
 
 
@@ -939,7 +941,7 @@ def _format_research_item(fields: dict, indent: int = 4) -> list[str]:
             continue
         val = fields[key]
         prefix = dash if not lines else fld  # first field sits on the dash line
-        if key == "prerequisite":
+        if key == "vehicle_states":
             joined = ", ".join(str(v) for v in val) if isinstance(val, (list, tuple)) else str(val)
             lines.append(f"{prefix}{key}: [{joined}]")
         elif key in ("notes", "result") and "\n" in str(val):
@@ -1112,6 +1114,64 @@ def upsert_parameter(
     return fpath
 
 
+def _remove_field_line(block: str, field: str, indent: int) -> str:
+    """Drop a scalar ``field:`` line at ``indent`` spaces from ``block``."""
+    field_re = re.compile(rf"^ {{{indent}}}{re.escape(field)}:")
+    return "".join(
+        ln for ln in block.splitlines(keepends=True) if not field_re.match(ln)
+    )
+
+
+def set_pid_status(ecu_name: str, pid: str, status: str, *, pids_dir: Path | None = None) -> Path:
+    """Set a PID's ``status:`` — one of active/draft/static/ignored.
+
+    ``active`` is the implicit default, so it is applied by *removing* any
+    explicit ``status:`` line rather than emitting a redundant one. Any other
+    value is written as the first field under the PID header. The write is
+    verified by a YAML re-parse; on failure the original file is restored.
+    """
+    from canlib.pids import PID_STATUSES
+
+    status = str(status).strip().lower()
+    if status not in PID_STATUSES:
+        raise PidsEditError(f"status must be one of {PID_STATUSES}, got {status!r}")
+
+    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
+    original = fpath.read_text()
+    ecu_key = ecu_name.strip().upper()
+    pid_u = str(pid).strip().upper()
+
+    def transform(text: str) -> str:
+        ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
+        pids = _keyed_block(text, "pids", 2, ecu_start, ecu_end)
+        if not pids:
+            raise PidsEditError(f"ECU {ecu_name!r} has no pids: section")
+        _, _, pids_body_start, pids_body_end, _ = pids
+        pidb = _keyed_block(text, pid_u, 4, pids_body_start, pids_body_end)
+        if not pidb:
+            raise PidsEditError(f"PID {pid_u!r} not found under {ecu_name!r}")
+        p_hdr, _p_line_end, _p_body_start, p_body_end, _inline = pidb
+        block_text = text[p_hdr:p_body_end]
+        block_text = _remove_field_line(block_text, "status", indent=6)
+        if status != "active":
+            lines = block_text.splitlines(keepends=True)
+            block_text = lines[0] + f"      status: {status}\n" + "".join(lines[1:])
+        return text[:p_hdr] + block_text + text[p_body_end:]
+
+    def checker(ecu_def: dict) -> None:
+        pids_map = ecu_def.get("pids", {}) or {}
+        pdef = next((v for k, v in pids_map.items() if str(k).upper() == pid_u), None)
+        if pdef is None:
+            raise PidsEditError(f"PID {pid_u!r} missing after edit")
+        got = str((pdef or {}).get("status", "active")).lower()
+        if got != status:
+            raise PidsEditError(f"status mismatch after edit: {got!r} != {status!r}")
+
+    new_text = transform(original)
+    _safe_write(fpath, original, new_text, ecu_key, checker)
+    return fpath
+
+
 def _replace_param_field_line(indent: str, key: str, value) -> str:
     """One rendered scalar/bool line for a param field (used on existing blocks)."""
     return _format_scalar_field(indent, key, value)
@@ -1169,6 +1229,11 @@ def _replace_field_in_block_at(block: str, field: str, new_line_or_lines, indent
     return result
 
 
+def _today() -> str:
+    """Today's date as ``YYYY-MM-DD`` (local time) for research timestamps."""
+    return datetime.date.today().isoformat()
+
+
 def add_research_entry(
     ecu_name: str,
     *,
@@ -1176,7 +1241,9 @@ def add_research_entry(
     target: str,
     status: str,
     priority: str | None = None,
-    prerequisite: list | None = None,
+    vehicle_states: list | None = None,
+    created: str | None = None,
+    updated: str | None = None,
     date: str | None = None,
     result: str | None = None,
     notes: str | None = None,
@@ -1185,10 +1252,16 @@ def add_research_entry(
     capture_protocol: str | None = None,
     pids_dir: Path | None = None,
 ) -> Path:
-    """Append a new item to the ECU's ``research:`` list (creating it if absent)."""
+    """Append a new item to the ECU's ``research:`` list (creating it if absent).
+
+    ``created`` and ``updated`` default to today's date (``YYYY-MM-DD``) so every
+    entry is timestamped without the caller having to pass anything.
+    """
+    today = _today()
     provided = {
         "type": type, "target": target, "status": status, "priority": priority,
-        "prerequisite": prerequisite, "date": date, "result": result,
+        "vehicle_states": vehicle_states, "created": created or today,
+        "updated": updated or today, "date": date, "result": result,
         "notes": notes, "sources": sources, "what_to_test": what_to_test,
         "capture_protocol": capture_protocol,
     }
@@ -1236,6 +1309,9 @@ def set_research_status(
 ) -> Path:
     """Update the ``status:`` of the research item matching ``target`` (and ``type``).
 
+    Also refreshes the item's ``updated`` timestamp to today's date so status
+    transitions are dated automatically.
+
     Raises ``PidsEditError`` if no matching item is found or the match is
     ambiguous (multiple items share the target and no ``type`` was given).
     """
@@ -1243,6 +1319,7 @@ def set_research_status(
     original = fpath.read_text()
     ecu_key = ecu_name.strip().upper()
     target_norm = str(target).strip().strip('"').strip("'")
+    today = _today()
 
     def transform(text: str) -> str:
         ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
@@ -1282,12 +1359,14 @@ def set_research_status(
         s, e = matches[0]
         item = text[s:e]
         new_item = _replace_field_in_block_at(item, "status", f"      status: {status}", indent=6)
+        new_item = _replace_field_in_block_at(new_item, "updated", f'      updated: "{today}"', indent=6)
         return text[:s] + new_item + text[e:]
 
     def checker(ecu_def: dict) -> None:
         research = ecu_def.get("research") or []
         ok = any(
             e.get("target") == target_norm and e.get("status") == status
+            and e.get("updated") == today
             and (type is None or e.get("type") == type)
             for e in research
         )

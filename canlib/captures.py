@@ -8,6 +8,8 @@ monitor modes.
 from datetime import datetime
 from pathlib import Path
 
+from .states import join_states as _join_states
+from .states import parse_states as _parse_states
 from .yaml_rt import dump as _dump
 from .yaml_rt import round_trip_yaml as _yaml
 
@@ -17,14 +19,16 @@ from .yaml_rt import round_trip_yaml as _yaml
 
 def prompt_metadata(
     suggested_label: str = "",
-    last_state: str | None = None,
-) -> tuple[str, str, str] | None:
-    """Prompt user for session label, state, notes.
+    last_state: list | str | None = None,
+) -> tuple[str, list, str] | None:
+    """Prompt user for session label, vehicle_states, notes.
 
-    Returns (label, state, notes) or None if cancelled.
-    The suggested_label is shown in brackets and accepted on Enter.
-    last_state is shown as default for state (re-use across saves).
+    Returns ``(label, vehicle_states, notes)`` (vehicle_states is a token list)
+    or None if cancelled. The suggested_label is shown in brackets and accepted
+    on Enter. last_state (a list or string) is shown as the default and re-used
+    across saves when the user just presses Enter.
     """
+    last_str = _join_states(last_state)
     try:
         if suggested_label:
             label = input(f"  Session label [{suggested_label}]: ").strip()
@@ -36,35 +40,39 @@ def prompt_metadata(
                 print("  Cancelled (empty label).")
                 return None
 
-        state_prompt = f"  State [{last_state}]: " if last_state else "  State (e.g. deep sleep, ACC, charging) []: "
-        state = input(state_prompt).strip()
-        if not state and last_state:
-            state = last_state
+        state_prompt = (
+            f"  States [{last_str}]: " if last_str
+            else "  States (comma-separated, e.g. sleep, acc, charging) []: "
+        )
+        raw = input(state_prompt).strip()
+        if not raw and last_str:
+            raw = last_str
 
         notes = input("  Notes []: ").strip()
     except (KeyboardInterrupt, EOFError):
         print("\n  Cancelled.")
         return None
 
-    return label, state, notes
+    return label, _parse_states(raw), notes
 
 
 def resolve_metadata(
     label: str | None,
-    state: str | None,
+    vehicle_states: list | str | None,
     notes: str | None,
     suggested_label: str = "",
-    last_state: str | None = None,
-) -> tuple[str, str, str] | None:
+    last_state: list | str | None = None,
+) -> tuple[str, list, str] | None:
     """Resolve session metadata, non-interactively when a label is supplied.
 
     If ``label`` is given (e.g. from the ``--label`` CLI flag), use the flag
     values directly and do NOT prompt — this is what agents/scripts use. When
     ``label`` is None, fall back to the interactive :func:`prompt_metadata`.
-    Returns (label, state, notes) or None if cancelled.
+    Returns ``(label, vehicle_states, notes)`` (vehicle_states as a token list)
+    or None if cancelled.
     """
     if label is not None:
-        return label, (state or ""), (notes or "")
+        return label, _parse_states(vehicle_states), (notes or "")
     return prompt_metadata(suggested_label=suggested_label, last_state=last_state)
 
 
@@ -75,7 +83,7 @@ def resolve_metadata(
 def build_query_session(
     results: list[tuple[str, str, str, str]],
     label: str,
-    state: str,
+    vehicle_states: list,
     notes: str,
 ) -> dict:
     """Build a capture session dict from query/raw payload results.
@@ -90,8 +98,8 @@ def build_query_session(
         "date": datetime.now().strftime("%Y-%m-%d"),
         "label": label,
     }
-    if state:
-        session["state"] = state
+    if vehicle_states:
+        session["vehicle_states"] = list(vehicle_states)
     if notes:
         session["notes"] = notes
 
@@ -118,7 +126,7 @@ def build_scan_session(
     negative: list[tuple[int, int, str]],
     errors: list[tuple[int, str]],
     label: str,
-    state: str,
+    vehicle_states: list,
     notes: str,
     append_bytes: str = "",
     session_flag: bool = False,
@@ -135,8 +143,8 @@ def build_scan_session(
         "date": datetime.now().strftime("%Y-%m-%d"),
         "label": label,
     }
-    if state:
-        session["state"] = state
+    if vehicle_states:
+        session["vehicle_states"] = list(vehicle_states)
     if notes:
         session["notes"] = notes
 
@@ -181,7 +189,7 @@ def build_raw_session(
     request: str,
     response: dict,
     label: str,
-    state: str,
+    vehicle_states: list,
     notes: str,
     pids_data: dict | None = None,
 ) -> dict:
@@ -195,8 +203,8 @@ def build_raw_session(
         "date": datetime.now().strftime("%Y-%m-%d"),
         "label": label,
     }
-    if state:
-        session["state"] = state
+    if vehicle_states:
+        session["vehicle_states"] = list(vehicle_states)
     if notes:
         session["notes"] = notes
 
@@ -223,7 +231,7 @@ def build_discover_session(
     error_count: int,
     addr_range: tuple[int, int],
     label: str,
-    state: str,
+    vehicle_states: list,
     notes: str,
 ) -> dict:
     """Build a capture session dict from discovery scan results.
@@ -239,8 +247,8 @@ def build_discover_session(
         "date": datetime.now().strftime("%Y-%m-%d"),
         "label": label,
     }
-    if state:
-        session["state"] = state
+    if vehicle_states:
+        session["vehicle_states"] = list(vehicle_states)
     if notes:
         session["notes"] = notes
 
@@ -324,7 +332,7 @@ def save_session_journaled(session: dict, captures_dir: Path | None = None) -> P
     journal = CaptureJournal.open(
         captures_dir,
         label=session.get("label", ""),
-        state=session.get("state"),
+        vehicle_states=session.get("vehicle_states"),
         notes=session.get("notes"),
         source="oneshot",
     )

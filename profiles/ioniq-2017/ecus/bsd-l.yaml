@@ -8,12 +8,16 @@ BSD-L:
     part_number: "95821G2000"
     serial: "31114851712211429"
     id_protocol: UDS  # F1xx (many FF-padded fields)
-  availability: [acc, acc2, ready]
+  vehicle_states:
+    - acc
+    - acc2
+    - ready
   scan_log: # BSD-L (blind spot radar, left)
     - service: 0x22
       range: "0101-010F,B001-B010,C101-C10F"
       date: 2026-07-22
       hits: 0
-      state: ready
+      vehicle_states:
+        - ready
       notes: "No live-data DIDs found (radar object data may need driving / a different range)."
   pids: {}

@@ -96,7 +96,7 @@ def test_nrc_sets_dont_overlap():
 FIXTURE_YAML = """\
 TEST:
   tx_id: 0x770
-  availability:
+  vehicle_states:
     - acc2
   pids:
     BC03:
@@ -148,7 +148,7 @@ def test_append_routines_preserves_existing_sections(pids_dir):
 
     # Original sections intact
     assert data["TEST"]["tx_id"] == 0x770
-    assert data["TEST"]["availability"] == ["acc2"]
+    assert data["TEST"]["vehicle_states"] == ["acc2"]
     assert "BC03" in data["TEST"]["pids"]
     assert data["TEST"]["pids"]["BC03"]["label"] == "TEST_PID"
     assert data["TEST"]["research"][0]["target"] == "22BC00-22BCFF"

@@ -80,21 +80,24 @@ def filter_by_date_range(
 def filter_by_text(
     entries: list[dict], state: str | None = None, label: str | None = None
 ) -> list[dict]:
-    """Keep entries whose session ``state``/``label`` contain the given substrings.
+    """Keep entries whose session ``vehicle_states``/``label`` match the substrings.
 
-    Matching is case-insensitive and substring-based (the natural unit of drive
-    analysis is the session ``state``, e.g. ``"driving MT->KW"``). ``label`` is
-    matched against both the session label (stored as ``session_label`` by
-    ``captures`` and ``label`` by ``decode``) and any per-capture ``label``.
-    Both filters are ANDed; ``None`` means "don't filter on this field".
+    Matching is case-insensitive and substring-based against the joined
+    ``vehicle_states`` list (the natural unit of drive analysis, e.g. a session
+    tagged ``[driving]``). ``label`` is matched against both the session label
+    (stored as ``session_label`` by ``captures`` and ``label`` by ``decode``)
+    and any per-capture ``label``. Both filters are ANDed; ``None`` means "don't
+    filter on this field".
     """
+    from .states import join_states
+
     if not state and not label:
         return entries
     s_needle = state.lower() if state else None
     l_needle = label.lower() if label else None
     out = []
     for e in entries:
-        if s_needle is not None and s_needle not in str(e.get("state", "")).lower():
+        if s_needle is not None and s_needle not in join_states(e.get("vehicle_states")).lower():
             continue
         if l_needle is not None:
             haystack = f"{e.get('session_label', '')} {e.get('label', '')}".lower()
@@ -129,8 +132,8 @@ def add_scope_args(parser: argparse.ArgumentParser) -> None:
     )
     date_group.add_argument(
         "--state", metavar="SUBSTR",
-        help="Only captures whose session state contains SUBSTR (case-insensitive), "
-             "e.g. --state 'MT->KW'",
+        help="Only captures whose session vehicle_states contain SUBSTR "
+             "(case-insensitive), e.g. --state driving",
     )
     date_group.add_argument(
         "--label", metavar="SUBSTR",

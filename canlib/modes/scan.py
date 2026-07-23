@@ -19,7 +19,7 @@ async def mode_scan(
     wake: bool = False,
     save: bool = False,
     label: str | None = None,
-    state: str | None = None,
+    vehicle_states=None,
     notes: str | None = None,
 ):
     """Scan a range of PIDs and show which respond positively.
@@ -202,9 +202,9 @@ async def mode_scan(
         n_pos = len(positive)
         n_neg = len(negative)
         console.print(f"\n  Save: {n_pos} positive, {n_neg} negative responses.")
-        meta = resolve_metadata(label, state, notes, suggested_label=suggested)
+        meta = resolve_metadata(label, vehicle_states, notes, suggested_label=suggested)
         if meta:
-            label, state, notes = meta
+            label, vehicle_states, notes = meta
             session_dict = build_scan_session(
                 ecu_ref=rx_addr_str(tx_id),
                 tx_id=tx_id,
@@ -214,7 +214,7 @@ async def mode_scan(
                 negative=negative,
                 errors=errors,
                 label=label,
-                state=state,
+                vehicle_states=vehicle_states,
                 notes=notes,
                 append_bytes=append_bytes,
                 session_flag=session,

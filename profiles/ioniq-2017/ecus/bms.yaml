@@ -15,12 +15,15 @@ BMS:
     calibration: "4604"  # KWP2000 1A8D
     id_protocol: KWP2000  # 1Axx
     notes: "1A80 firmware build date 2008-07-09 (likely platform date, not unit manufacture)"
-  availability: [ready, charging]
+  vehicle_states:
+    - ready
+    - charging
   pids:
     2101:
       period: 2500
-      enabled: true
-      availability: [ready, charging]
+      vehicle_states:
+        - ready
+        - charging
       parameters:
         SOC_BMS:
           expression: "B09/2"
@@ -394,8 +397,9 @@ BMS:
 
     2105:
       period: 5000
-      enabled: true
-      availability: [ready, charging]
+      vehicle_states:
+        - ready
+        - charging
       parameters:
         AVAIL_CHARGE_POWER:
           expression: "[B22:B23]/100"
@@ -619,9 +623,11 @@ BMS:
     # Cells 1-32 in 2102, 33-64 in 2103, 65-96 in 2104
     # Only a subset are defined here; add more as needed.
     2102:
+      status: draft
       period: 10000
-      enabled: false
-      availability: [ready, charging]
+      vehicle_states:
+        - ready
+        - charging
       parameters:
         CELL_01_VOLTAGE:
           expression: "B9*0.02"
@@ -950,9 +956,11 @@ BMS:
           notes: "Last cell in PID 2102."
 
     2103:
+      status: draft
       period: 10000
-      enabled: false
-      availability: [ready, charging]
+      vehicle_states:
+        - ready
+        - charging
       parameters:
         CELL_33_VOLTAGE:
           expression: "B9*0.02"
@@ -1276,9 +1284,11 @@ BMS:
           notes: "Last cell in PID 2103."
 
     2104:
+      status: draft
       period: 10000
-      enabled: false
-      availability: [ready, charging]
+      vehicle_states:
+        - ready
+        - charging
       parameters:
         CELL_65_VOLTAGE:
           expression: "B9*0.02"
@@ -1602,10 +1612,10 @@ BMS:
           notes: "Last cell. Total: 96 cells across PIDs 2102/2103/2104."
 
     21F2:
+      status: static
       period: 0
-      enabled: false
-      static: true
-      availability: [ready]
+      vehicle_states:
+        - ready
       notes: |
         BMS identity / calibration block — 121 data bytes (123 incl. 61 F2 header), STATIC.
         Discovered via the 21 00-FF hidden-page sweep (2026-07-22); the only BMS service-21
@@ -1635,7 +1645,8 @@ BMS:
       target: "2101 extended bytes"
       status: captured
       priority: P1
-      prerequisite: [ready]
+      vehicle_states:
+        - ready
       notes: >
         2026-07-22 (READY, parked): BMS 2101 payload is 61-62 bytes (varies by state; a
         07-21 monitor run saw 62 B). The three "extended" params are NOT out of bounds —
@@ -1656,7 +1667,9 @@ BMS:
       target: "22 BC01-BC0B"
       status: nrc
       priority: P2
-      prerequisite: [ready, charging]
+      vehicle_states:
+        - ready
+        - charging
       notes: "ChatGPT-sourced: BC01 battery voltage, BC02 current, BC03 SoC, BC04 display SoC, BC05 charging status, BC06 temp, BC07 max cell V, BC08 min cell V, BC09 max/min cell temp, BC0A SoH, BC0B avg cell V."
       sources:
         - "ChatGPT"
@@ -1664,7 +1677,9 @@ BMS:
       target: "22 B002-B005"
       status: nrc
       priority: P3
-      prerequisite: [ready, charging]
+      vehicle_states:
+        - ready
+        - charging
       notes: "ChatGPT-sourced: B002 max charge power, B003 max discharge power, B004 internal temp, B005 status flags."
       sources:
         - "ChatGPT"
@@ -1672,7 +1687,9 @@ BMS:
       target: "22 E003-E005"
       status: nrc
       priority: P2
-      prerequisite: [ready, charging]
+      vehicle_states:
+        - ready
+        - charging
       notes: "E003 estimated range, E005 time to full charge (charging only)."
       sources:
         - "ChatGPT"
@@ -1680,7 +1697,8 @@ BMS:
       target: "30 00-FF"
       status: nrc
       priority: P1
-      prerequisite: [acc]
+      vehicle_states:
+        - acc
       notes: >
         Looking for the battery fan / EWP control local identifier. The BMS is a
         KWP2000 ECU, so IOControl is service 0x30 InputOutputControlByLocalIdentifier
@@ -1692,13 +1710,15 @@ BMS:
       target: "2F BC00-BCFF"
       status: pending
       priority: P2
-      prerequisite: [acc]
+      vehicle_states:
+        - acc
       notes: "BMS IOControl body/comfort-style DIDs (UDS 0x2F). Likely NRC 0x11 — BMS is KWP2000; kept as a cross-check."
     - type: scan
       target: 33 00-FF
       status: nrc
       priority: P2
-      prerequisite: [acc]
+      vehicle_states:
+        - acc
       date: "2026-07-22"
       result: NRC 0x11 serviceNotSupported
       notes: "KWP2000 RequestRoutineResultsByLocalIdentifier (0x33) not implemented on BMS (every LID would NRC 0x11; scan aborts on first). Companion findings same session: 30 00 00 IOControl-by-LID -> NRC 0x11; and 10 03 (UDS extended session) -> NRC 0x12 subFunctionNotSupported (BMS does not accept the UDS extended-session mode byte). Conclusion: BMS exposes neither actuator service (0x2F/0x30) nor routine services (0x31/0x33) over OBD in the default session, and the UDS extended session is rejected. Next: (1) sniff a Kingbolen fan actuator test with SavvyCAN/candump to capture the exact ECU + diagnostic session + security(0x27) + service + LID; (2) do NOT blind-sweep 10 xx session modes (KWP programming/development modes are dangerous). Fan control likely requires a manufacturer KWP2000 diagnostic session + security access, or is not the BMS at all."
@@ -1708,7 +1728,8 @@ BMS:
       target: 10 81 session
       status: done
       priority: P1
-      prerequisite: [acc]
+      vehicle_states:
+        - acc
       date: "2026-07-22"
       result: ACCEPTED (positive 50 81)
       notes: "The BMS accepts the KWP2000 standard diagnostic session 10 81 (unlike UDS 10 03, which returns NRC 0x12 subFunctionNotSupported). This is the session byte to use for BMS diagnostics. 27 01 (SecurityAccess) inside 10 81 returns NRC 0x11 (not exposed). NOTE: earlier 0x30/0x33/0x2F NRC 0x11 results were in the DEFAULT session, not 10 81 — re-probe those services inside a 10 81 session before concluding they are unsupported."
@@ -1718,13 +1739,15 @@ BMS:
       target: 30/33 in 1081
       status: nrc
       priority: P1
-      prerequisite: [acc]
+      vehicle_states:
+        - acc
       notes: "Re-probe IOControl 0x30 and RoutineResults 0x33 on the BMS INSIDE the confirmed 10 81 session (earlier NRC 0x11 was in the default session). If they respond, the battery fan may be actuatable via 10 81 + IOControl/StartRoutine without security. Use: canair scan iocontrol BMS --session --mode 81 (and scan routines BMS --session --mode 81). Never send 0x31 StartRoutine as a blind probe."
     - type: scan
       target: fan actuation (sniff needed)
       status: pending
       priority: P2
-      prerequisite: [acc]
+      vehicle_states:
+        - acc
       date: "2026-07-22"
       result: safe avenues exhausted
       notes: "Battery fan actuation not reachable via safe OBD probing: in the confirmed 10 81 session, 0x27/0x30/0x33 all return NRC 0x11. NOTE 0x33 (RoutineResults) NRC 0x11 does NOT rule out 0x31 StartRoutineByLocalIdentifier — HKMC actuator tests are often fire-and-forget StartRoutine with no results service, but 0x31 actuates so we will NOT blind-probe it. Remaining leads (all need external info): (1) sniff Kingbolen/GDS fan actuation to capture the exact session+service+LID+params; (2) a Hyundai-specific 10 8x session mode (blocked by safety guard). PAUSED pending scanner sniff access."
@@ -1734,7 +1757,8 @@ BMS:
       target: 21F2
       status: captured
       priority: P2
-      prerequisite: [ready]
+      vehicle_states:
+        - ready
       date: "2026-07-22"
       result: "NEW PAGE found via 21 00-FF sweep 2026-07-22 (ignition on): BMS answers 21F2 with 121 data bytes, previously undocumented (BMS defined pages were 2101-2105 only). Payload starts 61F2 FFFFFFFF 34303634('4064') ... with embedded ASCII 'N7IZ' -> looks like a calibration/identity/version block (cf. MCU 21F2 = cal data with 'EHEL-MS2' cal ID), NOT live sensor data. Static content expected."
       notes: "Decode candidate: identify the ASCII part/cal IDs and any static config fields. Compare against MCU/VCU/OBC 21F2 layout."
@@ -1745,7 +1769,8 @@ BMS:
       target: 21 00-FF
       status: done
       priority: P2
-      prerequisite: [ready]
+      vehicle_states:
+        - ready
       date: "2026-07-22"
       result: "Exhaustive service-21 LID sweep (ignition on): 01/02/03/04/05 (known 2101-2105) PLUS F2 (NEW - see 21F2 decode entry). All 250 others NRC. One new page discovered."
       notes: Hidden-page hunt. Only genuine new page found in the whole session.

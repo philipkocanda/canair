@@ -463,7 +463,8 @@ def build_query_plan(ecu_info: dict, pid_filter: list[str], quiet: bool = False,
     elif not include_static:
         # Bare ECU selector = all PIDs. Skip static config/identity PIDs (21F2 &c.)
         # — they never change, so polling them in a sweep is wasted bus time.
-        pids_to_query = {k: v for k, v in pids_to_query.items() if not v.get("static")}
+        # `swept` is derived from the PID's status in build_ecu_index.
+        pids_to_query = {k: v for k, v in pids_to_query.items() if v.get("swept", True)}
 
     query_plan = [(pid_code, pid_info, False) for pid_code, pid_info in pids_to_query.items()]
     query_plan += [(raw_pid, None, True) for raw_pid in raw_pids]
@@ -1115,8 +1116,8 @@ def _finalize_journal(
     journal,
     count: int,
     label: str | None,
-    state: str | None,
-    notes: str | None,
+    vehicle_states=None,
+    notes: str | None = None,
     prompt: bool = True,
     suggested_state: str | None = None,
 ) -> None:
@@ -1140,14 +1141,14 @@ def _finalize_journal(
     print(f"\n  --save: {count} payload(s) captured.")
     if prompt:
         meta = resolve_metadata(
-            label, state, notes, suggested_label="Multi query session",
+            label, vehicle_states, notes, suggested_label="Multi query session",
             last_state=suggested_state,
         )
         if meta is None:
             journal.discard()
             return
-        lbl, st, nt = meta
-        journal.update_meta(lbl, st, nt)
+        lbl, states, nt = meta
+        journal.update_meta(lbl, states, nt)
     journal.reconcile()
 
 
@@ -1159,7 +1160,7 @@ async def mode_multi(
     no_repl: bool = False,
     save: bool = False,
     label: str | None = None,
-    state: str | None = None,
+    vehicle_states=None,
     notes: str | None = None,
     include_static: bool = False,
 ):
@@ -1195,7 +1196,7 @@ async def mode_multi(
         journal = CaptureJournal.open(
             active().captures_dir,
             label=label or "Multi query session",
-            state=state,
+            vehicle_states=vehicle_states,
             notes=notes,
             source="query",
         )
@@ -1325,7 +1326,7 @@ async def mode_multi(
         # Save collected payloads before any REPL handoff
         if save:
             _finalize_journal(
-                journal, len(collected), label, state, notes,
+                journal, len(collected), label, vehicle_states, notes,
                 suggested_state=_suggest_pipeline_state(),
             )
             journal = None
@@ -1342,7 +1343,7 @@ async def mode_multi(
         print("\n  Interrupted.")
         # Reconcile whatever was captured before the interrupt (no prompt).
         if save and journal is not None:
-            _finalize_journal(journal, len(collected), label, state, notes, prompt=False)
+            _finalize_journal(journal, len(collected), label, vehicle_states, notes, prompt=False)
             journal = None
 
     finally:

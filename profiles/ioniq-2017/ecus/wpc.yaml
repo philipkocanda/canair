@@ -8,19 +8,26 @@ WPC:
     sw_version: "102"
     boot_sw: "1.6"
     id_protocol: UDS  # F1xx
-  availability: [acc, acc2, ready]
+  vehicle_states:
+    - acc
+    - acc2
+    - ready
   scan_log: # WPC (wireless phone charging)
     - service: 0x22
       range: "0101-010F,B001-B010,C101-C10F"
       date: 2026-07-22
       hits: 0
-      state: ready
+      vehicle_states:
+        - ready
       notes: "No live-data DIDs found."
   pids:
     220100:
+      status: draft
       period: 5000
-      enabled: false
-      availability: [acc, acc2, ready]
+      vehicle_states:
+        - acc
+        - acc2
+        - ready
       parameters:
         WPC_0100_B03_B04:
           expression: "[S03:S04]"

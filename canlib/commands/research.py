@@ -15,7 +15,8 @@ Modes / filters (all combine with AND):
   --type TYPE           scan | decode | verify | iocontrol_scan
   --status STATUS       pending | captured | nrc | done
   --priority PRIO       P1 | P2 | P3
-  --prerequisite STATE  sleep | plugged | acc | acc2 | ready | charging
+  --states STATE        sleep | plugged | acc | acc2 | ready | charging
+                        (aliases: --vehicle-states / --prerequisite / --prereq)
   --summary             Counts by status / type / priority / ECU
   --all                 Include done items (hidden by default)
   --json                Machine-readable output
@@ -27,7 +28,7 @@ Examples:
   canair research --ecu MCU            # just the MCU backlog
   canair research --type decode        # captured-but-undecoded work
   canair research --priority P1        # high-value items only
-  canair research --prerequisite acc   # what needs ACC power to test
+  canair research --states acc         # what needs ACC power to test
   canair research --json               # for further processing
 """
 
@@ -39,6 +40,7 @@ from pathlib import Path
 
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.pids import load_pids
+from canlib.states import POWER_STATES
 
 NAME = "research"
 
@@ -54,7 +56,6 @@ _RESET = "\033[0m"
 VALID_TYPES = ("scan", "decode", "verify", "iocontrol_scan")
 VALID_STATUSES = ("pending", "captured", "nrc", "done")
 VALID_PRIORITIES = ("P1", "P2", "P3")
-VALID_PREREQS = ("sleep", "plugged", "acc", "acc2", "ready", "charging")
 
 # Rank for sorting: lower sorts first. Unknown/missing priority sorts last.
 _PRIO_RANK = {"P1": 0, "P2": 1, "P3": 2}
@@ -104,7 +105,7 @@ def filter_records(
     rtype: str | None = None,
     status: str | None = None,
     priority: str | None = None,
-    prerequisite: str | None = None,
+    state: str | None = None,
     include_done: bool = False,
 ) -> list[dict]:
     """Apply the AND-combined CLI filters to the flattened research records.
@@ -124,9 +125,9 @@ def filter_records(
             continue
         if priority and r.get("priority") != priority:
             continue
-        if prerequisite:
-            prereqs = r.get("prerequisite") or []
-            if not isinstance(prereqs, list) or prerequisite not in prereqs:
+        if state:
+            entry_states = r.get("vehicle_states") or []
+            if not isinstance(entry_states, list) or state not in entry_states:
                 continue
         out.append(r)
     return out
@@ -188,9 +189,10 @@ def cmd_list(records: list[dict]) -> None:
         prio_str = f"{_PRIO_COLOR.get(prio, _DIM)}[{prio}]{_RESET}" if prio else f"{_DIM}[--]{_RESET}"
         status_str = f"{_STATUS_COLOR.get(status, '')}{status}{_RESET}"
 
-        prereqs = r.get("prerequisite") or []
-        prereq_str = f"  {_DIM}prereq: {','.join(prereqs)}{_RESET}" if prereqs else ""
-        date_str = f"  {_DIM}{r['date']}{_RESET}" if r.get("date") else ""
+        prereqs = r.get("vehicle_states") or []
+        prereq_str = f"  {_DIM}states: {','.join(prereqs)}{_RESET}" if prereqs else ""
+        when = r.get("updated") or r.get("date")
+        date_str = f"  {_DIM}{when}{_RESET}" if when else ""
 
         print(f"  {prio_str} {_CYAN}{ecu:<10}{_RESET} {rtype:<14} {_BOLD}{target}{_RESET}"
               f"  {status_str}{prereq_str}{date_str}")
@@ -223,7 +225,8 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     parser.add_argument("--status", choices=VALID_STATUSES, help="Filter by status")
     parser.add_argument("--priority", "-p", choices=VALID_PRIORITIES,
                         help="Filter by priority")
-    parser.add_argument("--prerequisite", "--prereq", choices=VALID_PREREQS,
+    parser.add_argument("--states", "--vehicle-states", "--prerequisite", "--prereq",
+                        dest="state", choices=POWER_STATES,
                         help="Filter to items needing this car power state")
     parser.add_argument("--summary", "-s", action="store_true",
                         help="Show aggregate counts instead of the item list")
@@ -248,7 +251,7 @@ def run(args) -> int:
         rtype=args.rtype,
         status=args.status,
         priority=args.priority,
-        prerequisite=args.prerequisite,
+        state=args.state,
         include_done=args.all,
     )
 

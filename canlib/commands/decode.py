@@ -55,6 +55,7 @@ from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.commands._hints import pid_completer as _pid_completer
 from canlib.expression import evaluate_expression
 from canlib.pids import build_ecu_index, load_pids
+from canlib.states import join_states as _join_states
 
 NAME = "decode"
 
@@ -95,7 +96,7 @@ def load_captures(ecu: str, pid: str) -> list[dict]:
         for session in data["sessions"]:
             date = session.get("date", "")
             label = session.get("label", "")
-            state = session.get("state", "")
+            vehicle_states = session.get("vehicle_states") or []
             for cap in session.get("captures", []):
                 cap_ecu = ecu_name_from_ref(cap.get("ecu", ""), rx_index)
                 cap_pid = str(cap.get("pid", "")).upper()
@@ -110,7 +111,7 @@ def load_captures(ecu: str, pid: str) -> list[dict]:
                     "file": fpath.name,
                     "date": str(date),
                     "label": label,
-                    "state": state,
+                    "vehicle_states": list(vehicle_states),
                     "payload": payload,
                     "notes": cap.get("notes", ""),
                     "time": cap.get("time", ""),
@@ -286,7 +287,7 @@ def print_compact(
     cur_date = None
     for r in all_results:
         cap = r["capture"]
-        state = cap.get("state", "")
+        state = _join_states(cap.get("vehicle_states"))
         if state != prev_state:
             label = state if state else "(no state)"
             print(f"  {_DIM}── [{label}] ─────{_RESET}")
@@ -537,7 +538,11 @@ def print_stats_grouped(
     """
     groups: dict[str, list[dict]] = {}
     for r in all_results:
-        key = str(r["capture"].get(field, "")) or "(no state)"
+        cap = r["capture"]
+        if field in ("state", "vehicle_states"):
+            key = _join_states(cap.get("vehicle_states")) or "(no state)"
+        else:
+            key = str(cap.get(field, "")) or "(no state)"
         groups.setdefault(key, []).append(r)
 
     for gi, (key, rows) in enumerate(groups.items()):
@@ -875,7 +880,7 @@ def _info_lines(ecu_key: str, pid_key: str, caps_view: list[dict], i0: int,
         "",
     ]
     for n, cap in enumerate(caps_view[:max_rows]):
-        state = cap.get("state", "")
+        state = _join_states(cap.get("vehicle_states"))
         label = cap.get("label", "")
         meta = "  ".join(x for x in [f"[{state}]" if state else "", label] if x)
         out.append(f"  {_CYAN}{i0 + n:>4}{_RESET}  {_BOLD}{_cap_ts(cap) or '?':<20}{_RESET}  "
@@ -1154,7 +1159,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
                              "unchanged from the previous row (collapses stationary runs)")
     parser.add_argument("--stats", action="store_true",
                         help="Descriptive statistics per param (n, distinct, mean, median, stdev)")
-    parser.add_argument("--group-by", choices=["state"], metavar="FIELD",
+    parser.add_argument("--group-by", choices=["state", "vehicle_states"], metavar="FIELD",
                         help="With --stats: compute statistics per session FIELD "
                              "(currently 'state') instead of pooling all captures")
     parser.add_argument("--first", type=int, metavar="N",
@@ -1368,7 +1373,7 @@ def run(args) -> int:
         for r in all_results:
             entry = {
                 "date": r["capture"]["date"],
-                "state": r["capture"]["state"],
+                "vehicle_states": r["capture"].get("vehicle_states") or [],
                 "file": r["capture"]["file"],
             }
             if r["capture"].get("time"):
