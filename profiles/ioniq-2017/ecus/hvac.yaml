@@ -44,14 +44,12 @@ HVAC:
         status. Settings likely in a different DID (01Ax range or undiscovered).
         Static bytes: ELM[3]=0x7E, ELM[4]=0x50, ELM[5]=0x07, ELM[6]=0xC8
         (purpose unknown — possibly sensor IDs or config flags).
-        2026-07-23 coverage triage (230 captures): the remaining unmapped bytes are
-        overwhelmingly CONSTANTS/padding — B5=0x7E, B6=0x50, B7=0x07, B9=0xC8, and the
-        FF-padding tail B10/B18/B19/B21/B23/B25-B31 (all constant 0xFF), plus near-constant
-        flags B39/B41/B43 (~0xFF), B42 (0/1), B45/B46/B47 (~0), B49 (single sample). Only
-        THREE bytes carry a real varying signal: B14 (0-59, weak corr, unidentified — likely
-        a valve/PWM position), B34 (see HVAC_HEAT_DEMAND), and B35 (86-255, noisy, INVERSE to
-        blower feedback r=-0.80 — looks like a fast actuator-current/position feedback, not a
-        clean scalar). B34/B35 kept as leads; the rest are documented constants, not gaps.
+        2026-07-23 (230 captures): remaining unmapped bytes are mostly constants/padding —
+        B5=0x7E, B6=0x50, B7=0x07, B9=0xC8, FF-padding tail B10/B18/B19/B21/B23/B25-B31,
+        near-constant flags B39/B41/B43 (~0xFF), B42 (0/1), B45/B46/B47 (~0), B49 (single
+        sample). Only 3 varying bytes: B14 (0-59, weak corr, likely valve/PWM position),
+        B34 (HVAC_HEAT_DEMAND), B35 (86-255, noisy, r=-0.80 vs blower feedback; likely fast
+        actuator current/position). B34/B35 kept as leads; rest are documented constants.
       parameters:
         HVAC_INTERIOR_TEMP:
           expression: "(B11/2)-40"
@@ -206,7 +204,10 @@ HVAC:
           source: coverage analysis 2026-07-23
           verified: false
           notes: >
-            Varying internal control value, raw 0-73. Strong INVERSE correlation with ambient temp (r=-0.74 vs HVAC_AAT) and interior temp (r=-0.60), POSITIVE with blower duty (r=+0.49): rises when cabin is cold / heating is demanded. Likely a heat-demand percent or blend-door heat target (NOT a raw temperature). By state: cooling/AC session ~31-39, cold PTC-heating session 8-59. Enabled unverified for live testing (vary heat setpoint and observe). Exact semantic unconfirmed.
+            Control value, raw 0-73. r=-0.74 vs HVAC_AAT, r=-0.60 vs interior temp,
+            r=+0.49 vs blower duty: rises when cabin is cold. Likely heat-demand
+            percent or blend-door heat target (not a raw temperature). By state:
+            AC ~31-39, PTC-heating 8-59. Verify: vary heat setpoint.
           enabled: true
         HVAC_ACTUATOR_B14:
           expression: B14
@@ -215,7 +216,8 @@ HVAC:
           source: coverage analysis 2026-07-23
           verified: false
           notes: >
-            Varying byte, raw 0-59 (distinct=31), weak correlations with all known signals. Likely a valve/PWM/blend-door position. Enabled unverified for live testing — actuate mode/temp doors and watch. Semantic unconfirmed.
+            Raw 0-59 (distinct=31), weak correlations. Likely valve/PWM/blend-door
+            position. Verify: actuate mode/temp doors.
           enabled: true
         HVAC_ACTUATOR_B35:
           expression: B35
@@ -224,7 +226,9 @@ HVAC:
           source: coverage analysis 2026-07-23
           verified: false
           notes: >
-            Varying byte, raw 86-255 (distinct=38), noisy. Strong INVERSE to blower feedback (r=-0.80 vs HVAC_BLOWER_FAN_FEEDBACK/DUTY_3). Looks like a fast actuator current/position feedback, not a clean scalar. Enabled unverified for live testing. Semantic unconfirmed.
+            Raw 86-255 (distinct=38), noisy. r=-0.80 vs
+            HVAC_BLOWER_FAN_FEEDBACK/DUTY_3. Likely fast actuator current/position
+            feedback, not a clean scalar. Verify live.
           enabled: true
     220102:
       status: active
@@ -302,7 +306,10 @@ HVAC:
           source: coverage analysis 2026-07-23
           verified: false
           notes: >
-            B12==B13==B15==B18 (HEATER_MODE_FLAG) EXACTLY across 197 captures — redundant status mirror (r=0.924 vs HVAC_COMPRESSOR_ON B17; differ from B17 in only 5 samples). Documents B12/B13/B15. Enabled unverified for live confirmation. 220102 constants: B5=0xFF B6=0x80 B7/B9/B14=0x00 B20-B23=0x00 padding.
+            B12==B13==B15==B18 (HEATER_MODE_FLAG) exactly across 197 captures —
+            redundant status mirror (r=0.924 vs HVAC_COMPRESSOR_ON B17, differ in 5
+            samples). Documents B12/B13/B15. 220102 constants: B5=0xFF B6=0x80
+            B7/B9/B14=0x00 B20-B23=0x00 padding.
           enabled: true
           min: "0"
           max: "1"
@@ -319,15 +326,13 @@ HVAC:
         actuator target values (ELM[3-9]) that track requested heat output,
         and mirrored values at ELM[43-45]. ELM[24]=0x28 is a constant (not
         set temp). Fan speed byte and HVAC mode selector not yet identified.
-        2026-07-23 coverage triage (277 captures, now full-length 62B): the bulk of the
-        unmapped bytes are HVAC ACTUATOR data (door position targets + feedbacks + motor
-        drive values) needing physical actuation to label individually. Confirmed: B9==B10
-        EXACTLY (paired driver/pax actuator target) and B19≈B20 (paired). Actuator target
-        cluster B5/B7/B9(=B10)/B11 (36-221). Position-feedback cluster B13/B14/B15/B17
-        (steady ~104-143); B17 is mode-dependent (r=-0.63 vs HVAC_COOLING_MODE) — likely the
-        mode/recirc door. High-churn bytes B47/B50/B52/B66 (distinct 58-88) are the fast
-        motor-drive/RPM-like values noted on 01A1. Confirmed constants/padding: B54=B55=0x00
-        and tail B69/B70/B71=0x00; low-activity flags B26/B29/B37/B38/B46/B53/B61-B63.
+        2026-07-23 (277 captures, full-length 62B): most unmapped bytes are actuator data
+        (door target/feedback/motor drive) needing physical actuation to label. Confirmed:
+        B9==B10 exactly (paired driver/pax target), B19≈B20 (paired). Target cluster
+        B5/B7/B9(=B10)/B11 (36-221). Feedback cluster B13/B14/B15/B17 (~104-143); B17
+        mode-dependent (r=-0.63 vs HVAC_COOLING_MODE, likely mode/recirc door). High-churn
+        B47/B50/B52/B66 (distinct 58-88) = fast motor-drive/RPM-like (cf. 01A1). Constants:
+        B54=B55=0x00, tail B69/B70/B71=0x00; low-activity flags B26/B29/B37/B38/B46/B53/B61-B63.
       parameters:
         HVAC_SET_TEMP_DRIVER:
           expression: "B44"
@@ -436,7 +441,8 @@ HVAC:
           source: coverage analysis 2026-07-23
           verified: false
           notes: >
-            Actuator target, raw 27-209 (distinct=51). Part of the ELM[3-9] 'requested heat output' target cluster. Enabled unverified — sweep temp/mode to identify which door.
+            Actuator target, raw 27-209 (distinct=51). ELM[3-9] target cluster.
+            Verify: sweep temp/mode to identify which door.
           enabled: true
         HVAC_ACTUATOR_TARGET_2:
           expression: B7
@@ -444,8 +450,7 @@ HVAC:
           max: "255"
           source: coverage analysis 2026-07-23
           verified: false
-          notes: >
-            Actuator target, raw 0-219 (distinct=58). ELM[3-9] target cluster. Enabled unverified.
+          notes: "Actuator target, raw 0-219 (distinct=58). ELM[3-9] target cluster."
           enabled: true
         HVAC_ACTUATOR_TARGET_3:
           expression: B9
@@ -453,8 +458,7 @@ HVAC:
           max: "255"
           source: coverage analysis 2026-07-23
           verified: false
-          notes: >
-            Actuator target, raw 36-218 (distinct=57). B9==B10 EXACTLY (paired driver/pax). ELM[3-9] target cluster. Enabled unverified.
+          notes: "Actuator target, raw 36-218 (distinct=57). B9==B10 exactly (paired driver/pax). ELM[3-9] target cluster."
           enabled: true
         HVAC_ACTUATOR_TARGET_4:
           expression: B11
@@ -462,8 +466,7 @@ HVAC:
           max: "255"
           source: coverage analysis 2026-07-23
           verified: false
-          notes: >
-            Actuator target, raw 39-221 (distinct=56). ELM[3-9] target cluster. Enabled unverified.
+          notes: "Actuator target, raw 39-221 (distinct=56). ELM[3-9] target cluster."
           enabled: true
         HVAC_MODE_DOOR_FEEDBACK:
           expression: B17
@@ -472,7 +475,9 @@ HVAC:
           source: coverage analysis 2026-07-23
           verified: false
           notes: >
-            Position feedback, steady ~104-125. MODE-DEPENDENT: r=-0.63 vs HVAC_COOLING_MODE. Likely the mode/recirc door feedback. Enabled unverified — cycle face/feet/defrost and recirc to confirm.
+            Position feedback, steady ~104-125. Mode-dependent: r=-0.63 vs
+            HVAC_COOLING_MODE. Likely mode/recirc door feedback. Verify: cycle
+            face/feet/defrost and recirc.
           enabled: true
         HVAC_DOOR_FEEDBACK_B13:
           expression: B13
@@ -481,7 +486,7 @@ HVAC:
           source: coverage analysis 2026-07-23
           verified: false
           notes: >
-            Position feedback cluster, steady ~114-143. Enabled unverified — actuate doors to identify.
+            Position feedback cluster, steady ~114-143. Verify: actuate doors.
           enabled: true
         HVAC_DOOR_FEEDBACK_B15:
           expression: B15
@@ -489,8 +494,7 @@ HVAC:
           max: "255"
           source: coverage analysis 2026-07-23
           verified: false
-          notes: >
-            Position feedback cluster, steady ~104-134. Enabled unverified.
+          notes: "Position feedback cluster, steady ~104-134."
           enabled: true
         HVAC_MOTOR_DRIVE_B47:
           expression: B47
@@ -498,8 +502,7 @@ HVAC:
           max: "255"
           source: coverage analysis 2026-07-23
           verified: false
-          notes: >
-            High-churn byte (distinct=70, 0-253) — fast motor-drive/RPM-like value (matches 01A1 note). Enabled unverified.
+          notes: "High-churn (distinct=70, 0-253) — fast motor-drive/RPM-like (cf. 01A1)."
           enabled: true
         HVAC_MOTOR_DRIVE_B50:
           expression: B50
@@ -507,8 +510,7 @@ HVAC:
           max: "255"
           source: coverage analysis 2026-07-23
           verified: false
-          notes: >
-            High-churn byte (distinct=88, 0-242) — fast motor-drive/RPM-like value. Enabled unverified.
+          notes: "High-churn (distinct=88, 0-242) — fast motor-drive/RPM-like."
           enabled: true
 
     2201A1:
@@ -745,7 +747,7 @@ HVAC:
       vehicle_states: [ready]
       created: "2026-07-23"
       updated: "2026-07-23"
-      notes: "2201A0 unmapped bytes are HVAC mix/mode/vent door actuators (targets B5/B7/B9=B10/B11 36-221; feedbacks B13/B14/B15/B17 ~104-143, B17 mode-dependent; motor-drive B47/B50/B52/B66). Decoding requires PHYSICAL actuation while capturing: sweep temp blend 15->32, cycle mode (face/feet/defrost), toggle recirc, run fan 1->MAX, and diff which byte cluster moves with each. Cross-ref 2201A1-A6 (share structure). Not decodable from passive history alone."
+      notes: "2201A0 unmapped bytes are mix/mode/vent door actuators (targets B5/B7/B9=B10/B11 36-221; feedbacks B13/B14/B15/B17 ~104-143, B17 mode-dependent; motor-drive B47/B50/B52/B66). Needs physical actuation while capturing: sweep temp blend 15→32, cycle mode (face/feet/defrost), toggle recirc, run fan 1→MAX; diff which byte cluster moves with each. Cross-ref 2201A1-A6 (shared structure). Not decodable from passive history."
     - type: decode
       target: 220100 B14/B35 signals
       status: captured
@@ -753,7 +755,7 @@ HVAC:
       vehicle_states: [ready]
       created: "2026-07-23"
       updated: "2026-07-23"
-      notes: "220100 has only 3 non-constant unmapped bytes, all now registered as ENABLED unverified candidates: HVAC_ACTUATOR_B14 (B14, 0-59, weak corr, likely valve/PWM position), HVAC_HEAT_DEMAND (B34, inverse to ambient r=-0.74), HVAC_ACTUATOR_B35 (B35, 86-255, noisy inverse to blower feedback r=-0.80, likely fast actuator current/position). All other 220100 unmapped bytes are confirmed constants/FF-padding (B5=0x7E B6=0x50 B7=0x07 B9=0xC8; B10/B18-B31 tail=0xFF) - no signal, do not chase. REMAINING: verify B14/B34/B35 live by actuating heat/fan and observing which moves."
+      notes: "220100 has 3 non-constant unmapped bytes, all registered as enabled-unverified candidates: HVAC_ACTUATOR_B14 (0-59, weak corr, likely valve/PWM), HVAC_HEAT_DEMAND (B34, r=-0.74 vs ambient), HVAC_ACTUATOR_B35 (86-255, noisy, r=-0.80 vs blower feedback). Other unmapped bytes are constants/FF-padding (B5=0x7E B6=0x50 B7=0x07 B9=0xC8; B10/B18-B31 tail=0xFF). Verify: actuate heat/fan and observe which moves."
   dtcs:
     B1285:
       description: >

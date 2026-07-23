@@ -48,7 +48,11 @@ VCU:
           max: "250"
           verified: false
           notes: >
-            Vehicle speed. 16-bit MPH value (low byte B19 unsigned + high byte S20), *1.609344/100 => km/h. CROSS-ECU VERIFIED r=0.999 vs ESC 22C101 REAL_SPEED_KMH across 124 joined points on the 2026-07-22 drive, range 0-105.7 km/h. Finer than the coarse B20-only view (B20 = high byte alone = MPH/100-ish, r=0.998). Promotes the formula from the '2101 speed' research note to a live param. This car reports MPH internally (matches AAF 2181 B12=MPH finding).
+            Speed. 16-bit MPH (low byte B19 unsigned, high byte S20), *1.609344/100
+            → km/h. r=0.999 vs ESC 22C101 REAL_SPEED_KMH (124 joined points,
+            2026-07-22 drive, 0-105.7 km/h). Finer than B20 alone (high byte,
+            r=0.998). Do NOT use B21 as low byte (separate signal). Car reports MPH
+            internally (cf. AAF 2181 B12).
           source: VCU 2101 speed lead (MPH formula) + cross-ECU verification vs ESC, 2026-07-23
           enabled: true
         ACCEL_PEDAL_DEPTH:
@@ -382,10 +386,11 @@ VCU:
         B28-B31=0 (their "other" values only appear in the mislabeled 2101 frames). (4) Still-unmapped fast
         signals B19/B21/B23/B26 are max-entropy (all 256 values) — likely motor phase currents / resolver offset
         / angle per the Soul VMCU sheet (Int16 phase-current & resolver fields), aliasing at the 5s poll.
-        2026-07-23 (re-audit): DATA-INTEGRITY BUG RESOLVED — 0 misfiled 6101-under-2102 frames remain in any
-        capture file (all 1652 VCU 0x7EA + 1015 sibling 2102 payloads begin 6102). VCU_TORQUE_REQUEST [S12:S13]
-        now confirmed CONSTANT 0 across all 1652 genuine frames (kept disabled as the documented disproof). Only
-        car-access work remains (fast bytes need a synced high-rate MCU drive; temps need a cold/hot contrast).
+        2026-07-23 (re-audit): 0 misfiled 6101-under-2102 frames remain (all 1652 VCU
+        0x7EA + 1015 sibling 2102 payloads begin 6102). VCU_TORQUE_REQUEST [S12:S13]
+        constant 0 across all 1652 genuine frames (kept disabled as the disproof). Only
+        car-access work remains (fast bytes need a synced high-rate MCU drive; temps need
+        a cold/hot contrast).
       what_to_test:
         - "Re-map motor RPM/torque/temps under MCU 0x7E3 2101/2102 using the Soul VMCU scalings as a guide"
         - "Confirm B17 HV voltage with a same-instant BMS read while driving"

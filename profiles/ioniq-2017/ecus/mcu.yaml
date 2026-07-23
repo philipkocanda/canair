@@ -50,7 +50,12 @@ MCU:
           source: cross-ECU + multi-state analysis 2026-07-23
           verified: false
           notes: >
-            Inverter/motor temperature (raw byte = degC directly, NO -40 offset). Discovered via cross-ECU correlation (r=+0.84 vs MCU 2102 motor RPM on the 2026-07-22 drive) then CONFIRMED thermal by multi-state contrast: charging (motor idle, cool)=16-26degC, READY parked=41-49, driving=7-104 (rises/varies with load). This is the clean temperature the MCU 2101 decode lead was hunting — earlier attempts failed because the July drive alone was cool; the charging-vs-driving contrast makes it obvious. -40 offset ruled out (would give -24degC while charging). Exact sensor (inverter vs motor vs heat-sink) unconfirmed; scale looks like plain degC. Neighbour B25 also thermal-ish but spikes to 249 (mixed signal).
+            Inverter/motor temperature, raw byte = °C (no -40 offset; -40 would
+            give -24 °C while charging). r=+0.84 vs MCU 2102 motor RPM
+            (2026-07-22 drive), confirmed thermal by state contrast: charging
+            (motor idle) 16-26, READY parked 41-49, driving 7-104. Sensor
+            (inverter/motor/heat-sink) unconfirmed. Neighbour B25 also thermal-ish
+            but spikes to 249.
           enabled: true
 
     2102:
@@ -61,23 +66,19 @@ MCU:
       notes: >
         62 bytes. Layout (WiCAN B / ISO-TP): B10:B11 RPM (verified), B12:B13 & B14:B15 the two
         signed-16 torque fields (command/estimated), B17:B18 phase-current RMS candidate, B20/B21
-        temperatures. STATIC CALIBRATION BLOCK at ~B27–B33 (raw pattern 7D D6 CD AB C2 CD …) — these
-        are per-unit resolver + U/V phase current-sensor offsets (Soul VMCU: static Int16 "Resolver
-        Offset" / "U/V Phase Current Sensor Offset"). Constant across all captures and the same bytes
-        recur in 21F2 next to the "EHEL-MS2" cal ID, confirming they are calibration data, not live
-        signals — intentionally NOT mapped as pollable parameters. Tail B54+ is zero padding.
-        2026-07-23 LOAD-vs-TEMPERATURE re-analysis (574 captures, 477 driving; per-byte load correlation +
-        Δ-responsiveness + per-state means). The B18-B21 "thermal cluster" splits cleanly into two kinds:
-        SLOW TEMPERATURES — B20 (MCU_TEMP_1) and the newly-found B18 (MCU_TEMP_3): load-decoupled
-        (r≈0 vs |torque|), high autocorrelation (>0.93), tiny per-sample step (~0.1). B20 is hottest during
-        CHARGING (22°C, motor idle) → inverter/power-stage temp; B18 is coolest during charging (8°C) and warms
-        with driving → motor/coolant temp. LOAD-TRACKING — B21 (was MCU_TEMP_2) and B19 (was MCU_INVERTER_TEMP):
-        step with instantaneous torque (r(Δbyte,Δ|torque|)=0.90 and 0.79) so they are NOT slow temps. B21 is a
-        pure inverter-load/current scalar (r=0.875 vs |torque|, 0.859 vs phase current, no thermal lag); B19 is
-        ambiguous — an IGBT JUNCTION-temperature estimate (fast, low die thermal mass, keeps a cold-park baseline)
-        or a current-derived quantity. B21 & B19 demoted to enabled:false pending disambiguation. Confirmed the
-        B22–B51 block is static/near-static (2-value calibration/status, incl. B22:B23=0xF7FF/0xF8FF); B52 is the
-        only dynamic byte there (233 distinct, no signal correlation) = alive-counter/checksum.
+        temperatures. Static calibration block ~B27-B33 (raw 7D D6 CD AB C2 CD …): per-unit resolver
+        + U/V phase current-sensor offsets (Soul VMCU: Int16 "Resolver Offset" / "U/V Phase Current
+        Sensor Offset"). Constant across captures; same bytes recur in 21F2 by the "EHEL-MS2" cal ID
+        → calibration data, not mapped as parameters. Tail B54+ is zero padding.
+        2026-07-23 load-vs-temperature analysis (574 captures, 477 driving): the B18-B21 cluster splits.
+        Slow temps — B20 (MCU_TEMP_1) and B18 (MCU_TEMP_3): load-decoupled (r≈0 vs |torque|),
+        autocorrelation >0.93, step ~0.1/sample. B20 hottest during charging (22 °C, motor idle) →
+        inverter/power-stage; B18 coolest charging (8 °C), warms with driving → motor/coolant. Load-tracking
+        — B21 (was MCU_TEMP_2) and B19 (was MCU_INVERTER_TEMP): step with instantaneous torque
+        (r(Δbyte,Δ|torque|)=0.90, 0.79), not temps. B21 = inverter-load/current scalar (r=0.875 vs |torque|,
+        0.859 vs phase current); B19 = IGBT junction-temp estimate or current (ambiguous). Both demoted
+        enabled:false. B22-B51 static/near-static (incl. B22:B23=0xF7FF/0xF8FF); B52 dynamic (233 distinct,
+        no signal correlation) = alive-counter/checksum.
       parameters:
         MCU_MOTOR_RPM:
           expression: "[S10:S11]"
@@ -160,13 +161,11 @@ MCU:
             Candidate motor/inverter temperature (community sheet 'temp?', Signed byte). 2026-07-20: reads
             13°C at park (~ambient 18°C, cold-soaked), 10-22°C range — plausible but barely warmed on a short
             cool drive. ISO-TP 0x10.
-            2026-07-23 load-vs-temp classification (477 driving samples) CONFIRMS this is a genuine, slow
-            temperature: near-zero load correlation (r=-0.10 vs |torque|), high lag-1 autocorrelation (0.933),
-            tiny mean step (0.13/sample). Distinctive per-state signature: HOTTEST during charging (mean 22.0)
-            while the motor is idle, vs 11.6 parked and 13.8 driving — i.e. it heats when the inverter/on-board-
-            charger power stage is active regardless of motoring. Strong INVERTER / power-module (heatsink or
-            coolant) temperature interpretation. The genuine slow temps are B20 (here) and B18 (MCU_TEMP_3);
-            the load-tracking bytes B19/B21 are NOT slow temps.
+            2026-07-23 (477 driving samples): genuine slow temperature — r=-0.10 vs |torque|,
+            autocorrelation 0.933, step 0.13/sample. Per-state: hottest charging (mean 22.0,
+            motor idle), 11.6 parked, 13.8 driving → heats with inverter/charger power stage.
+            Likely inverter/power-module (heatsink or coolant) temp. Slow temps are B20 (here)
+            and B18 (MCU_TEMP_3); B19/B21 are load-tracking, not temps.
 
         MCU_TEMP_2:
           expression: "B21"
@@ -178,15 +177,12 @@ MCU:
           source: "RE 2026-07-23 load-vs-temp classification (driving captures)"
           verified: false
           notes: >
-            RECLASSIFIED 2026-07-23 — this is NOT a temperature. Raw byte B21 (ISO-TP 0x11). Over 477 driving
-            samples it tracks load almost instantaneously: r=+0.875 vs |torque| and r=+0.859 vs phase current
-            ([B17:B18]), and crucially r(Δbyte, Δ|torque|)=+0.90 — it steps up/down within a single 5s sample as
-            load changes (e.g. phaseI 786→19 A drops B21 22→17 in the next frame). A real temperature cannot rise
-            and fall 5°C in 5s; low lag-1 autocorrelation (0.49) confirms it is fast/noisy, not thermal. So the old
-            "MCU_TEMP_2 = warmer inverter/IGBT temp" reading was wrong (it correlated with load, not warmed slowly).
-            Best interpretation: an INVERTER LOAD / current-magnitude metric (a second phase-current or modulation-
-            depth/power scalar) — it has a small cold-park baseline (~12.6) like the other power bytes but no thermal
-            lag. Kept enabled:false (raw byte) pending a scale + which quantity. Previously ha_class:temperature — removed.
+            Reclassified 2026-07-23 — not a temperature. Raw byte B21 (ISO-TP 0x11). Over 477
+            driving samples it tracks load: r=+0.875 vs |torque|, r=+0.859 vs phase current
+            ([B17:B18]), r(Δbyte,Δ|torque|)=+0.90 — steps within one 5s sample (phaseI 786→19 A
+            drops B21 22→17 next frame). Autocorrelation 0.49 → fast, not thermal. Likely inverter
+            load/current scalar (2nd phase-current or modulation-depth/power); small cold-park
+            baseline ~12.6. Kept enabled:false pending scale + quantity.
         MCU_INVERTER_TEMP:
           expression: B19
           unit: °C
@@ -196,16 +192,14 @@ MCU:
           source: RE 2026-07-22 MT->KW drive analysis; revised 2026-07-23 (full driving corpus)
           verified: false
           notes: >
-            AMBIGUOUS — revised 2026-07-23. Raw byte B19 (ISO-TP 0x0F), between MCU_PHASE_CURRENT_RMS ([B17:B18])
-            and MCU_TEMP_1 (B20). The original 2026-07-22 single-drive read called this a slowly-decaying inverter
-            temperature, but the full 477-sample driving corpus (both July-19 drives + July-22) shows it ALSO tracks
-            load fast: r=+0.456 vs |torque|, and r(Δbyte, Δ|torque|)=+0.79 — it steps with instantaneous torque
-            (mean |Δ|=1.87/sample), unlike the genuine temps B18/B20 (r(Δ,Δload)≈0, |Δ|≈0.1). It does keep a
-            temperature-like cold baseline: ready,parked mean 8.7, charging 20.1, driving 21.2. Physically consistent
-            with an IGBT JUNCTION-TEMPERATURE ESTIMATE (low die thermal mass → tracks load within ~1s while sitting
-            near coolant temp at idle) — a real, distinct signal from the heatsink/coolant temps — OR a load-current
-            derived quantity. Demoted to enabled:false until a scan-tool cross-check disambiguates junction-temp vs
-            current. Contrast: the SLOW temps are B20 (MCU_TEMP_1) and the new B18 (MCU_TEMP_3).
+            Ambiguous (revised 2026-07-23). Raw byte B19 (ISO-TP 0x0F), between
+            MCU_PHASE_CURRENT_RMS ([B17:B18]) and MCU_TEMP_1 (B20). The 2026-07-22 single-drive
+            read called it a slow inverter temp, but the 477-sample corpus shows it also tracks
+            load: r=+0.456 vs |torque|, r(Δbyte,Δ|torque|)=+0.79 (mean |Δ|=1.87/sample), unlike
+            the genuine temps B18/B20 (r(Δ,Δload)≈0, |Δ|≈0.1). Keeps a temp-like baseline:
+            parked 8.7, charging 20.1, driving 21.2. Either an IGBT junction-temp estimate (low
+            die thermal mass) or a current-derived quantity. enabled:false pending scan-tool
+            cross-check. Slow temps are B20 and B18 (MCU_TEMP_3).
         MCU_ROTOR_ANGLE:
           expression: B9
           unit: ""
@@ -214,7 +208,12 @@ MCU:
           source: RE 2026-07-22 MT->KW drive analysis
           verified: false
           notes: >
-            CANDIDATE, unverified — raw byte B9 (ISO-TP 0x06), immediately before MCU_MOTOR_RPM (B10:B11). Best interpretation: motor rotor/resolver ELECTRICAL ANGLE (0-255 = 0-360 deg, i.e. B9*360/255) OR the fractional low byte of motor speed. Signature from the 2026-07-22 drive: B9==0 at ALL 18 standstill (RPM=0) samples and spreads ~uniformly 26-253 (mean 127~=255/2) whenever |RPM|>500 — the classic aliased pattern of a fast-rotating quantity sampled at asynchronous 2s intervals. Left as the RAW byte (no scale) until a high-rate/SavvyCAN capture at a fixed low RPM shows whether it ramps linearly (absolute angle) or stays uniform (speed fraction). Weak |RPM| corr (0.42) is just the shared zero-anchor.
+            Candidate, unverified — raw byte B9 (ISO-TP 0x06), before MCU_MOTOR_RPM (B10:B11).
+            Likely motor rotor/resolver electrical angle (0-255 = 0-360°, B9*360/255) or the
+            fractional low byte of motor speed. B9==0 at all 18 standstill (RPM=0) samples,
+            spreads ~uniformly 26-253 (mean 127) when |RPM|>500 — aliased fast-rotating quantity
+            at 2s intervals. Kept raw until a high-rate capture at fixed low RPM shows linear ramp
+            (angle) vs uniform (speed fraction). |RPM| corr 0.42 is the shared zero-anchor.
         MCU_TEMP_3:
           expression: S18
           unit: °C
@@ -223,7 +222,11 @@ MCU:
           source: RE 2026-07-23 load-vs-temp classification (driving+charging captures)
           verified: false
           notes: >
-            STRONG TEMPERATURE candidate at B18 (ISO-TP 0x0E), the unmapped byte between MCU_PHASE_CURRENT_RMS ([B17:B18]) and MCU_INVERTER_TEMP (B19). Classified as a true temperature (not a load metric) by its dynamics across 477 driving samples: near-zero correlation with load (r=+0.06 vs phase current, +0.06 vs |torque|), very high lag-1 autocorrelation (0.975), and tiny mean step (0.11/sample) - i.e. it drifts slowly and is decoupled from instantaneous torque, the opposite of B19/B21. Per-state means: ready,parked 5.4C (cold), charging 8.0C (motor idle so stays cool), driving 16.3C (warms with sustained motoring). Reads degrees C directly (cold-park ~ambient). Best interpretation: MOTOR winding/stator or coolant-inlet temperature (low during charge when only the inverter/charger stage is hot, high after driving). Needs verify against a scan tool motor-temp and a long warm drive.
+            Temperature candidate at B18 (ISO-TP 0x0E), between MCU_PHASE_CURRENT_RMS ([B17:B18])
+            and MCU_INVERTER_TEMP (B19). Slow temperature by dynamics (477 driving samples): r=+0.06
+            vs phase current, +0.06 vs |torque|, autocorrelation 0.975, step 0.11/sample. Per-state:
+            parked 5.4, charging 8.0 (motor idle), driving 16.3. Raw = °C (cold-park ≈ ambient).
+            Likely motor winding/stator or coolant-inlet temp. Verify: scan-tool motor temp + long warm drive.
 
     2103:
       status: draft
@@ -291,12 +294,10 @@ MCU:
         so components barely warmed. Re-attempt temp mapping (Soul motor/MCU/heat-sink = val-40) after a
         longer drive that heats the inverter, comparing cold-soak vs warm bytes. Also search for HV DC-link
         voltage here (VCU 2102 has B17*2; MCU may carry its own).
-        2026-07-23 (cross-ECU + multi-state analysis): FOUND the temp — MCU_INVERTER_TEMP = B22 (raw = degC,
-        NO -40 offset). Surfaced by cross-ECU correlation r=+0.84 vs MCU 2102 motor RPM, then confirmed thermal
-        by state contrast: charging=16-26degC (motor idle), READY parked=41-49, driving=7-104 (load-driven).
-        The earlier READY-only attempt missed it because the drive was cool. Neighbour B25 is thermal-ish but
-        spikes to 249 (mixed). STILL OPEN: confirm which temp (inverter/motor/heat-sink) and pin B25; HV DC-link
-        voltage still not located here.
+        2026-07-23: MCU_INVERTER_TEMP = B22 (raw = °C, no -40 offset). r=+0.84 vs MCU 2102
+        motor RPM, confirmed thermal by state contrast: charging 16-26 °C (motor idle),
+        READY parked 41-49, driving 7-104. Neighbour B25 thermal-ish but spikes to 249.
+        Open: which temp (inverter/motor/heat-sink); pin B25; HV DC-link voltage not located.
       sources:
         - "Kia Soul EV VMCU CSV — temps (w/x/y - 40)"
         - "Obsidian: MCU.md"
@@ -370,7 +371,7 @@ MCU:
       vehicle_states: [ready]
       created: "2026-07-23"
       updated: "2026-07-23"
-      notes: "2026-07-23 load-vs-temp classification (574 caps): SPLIT the B18-B21 thermal cluster. RESOLVED framing: B20=MCU_TEMP_1 and NEW B18=MCU_TEMP_3 are the genuine SLOW temps (load-decoupled, autocorr>0.93); B20 hottest while charging (inverter/power-stage), B18 warms with driving (motor/coolant). B21 (old MCU_TEMP_2) and B19 (old MCU_INVERTER_TEMP) are LOAD-TRACKING (r(dByte,d|tq|)=0.90/0.79) -> NOT slow temps; both set enabled:false. OPEN: (1) disambiguate B19 = IGBT junction-temp estimate vs current metric (needs scan-tool inverter/junction temp); (2) find B21 scale + which load quantity (2nd phase current / modulation depth / power); (3) verify B18/B20 vs scan-tool motor & inverter temps on a long warm drive; (4) B22:B23=0xF7FF/F8FF near-constant, likely status/cal not live. Method: sustained hard drive + hill climb to heat the inverter and separate junction(fast) from heatsink(slow); cross-check a scan tool."
+      notes: "2026-07-23 (574 caps): B18-B21 cluster split. B20=MCU_TEMP_1, B18=MCU_TEMP_3 are slow temps (load-decoupled, autocorr>0.93); B20 hottest charging (inverter/power-stage), B18 warms with driving (motor/coolant). B21 (was MCU_TEMP_2) and B19 (was MCU_INVERTER_TEMP) are load-tracking (r(Δbyte,Δ|tq|)=0.90/0.79), not temps; both enabled:false. Open: (1) B19 junction-temp estimate vs current (needs scan-tool inverter/junction temp); (2) B21 scale + load quantity (2nd phase current / modulation depth / power); (3) verify B18/B20 vs scan-tool temps on a long warm drive; (4) B22:B23=0xF7FF/F8FF near-constant, likely status/cal. Method: sustained hard drive + hill climb to separate junction (fast) from heatsink (slow); cross-check scan tool."
 
   sessions:
     "81":

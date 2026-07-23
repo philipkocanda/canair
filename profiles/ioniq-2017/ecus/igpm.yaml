@@ -276,7 +276,10 @@ IGPM:
           source: RE 2026-07-23 bit analysis (40 captures)
           verified: false
           notes: >
-            B11 bit6 == ACC2_IGN_ON (B11:5) EXACTLY across all 40 captures (diff=0 constant). Redundant ignition/ACC2-on status bit. Disabled: no new info beyond ACC2_IGN_ON. Documents B11:6. Remaining B11 bits 0,2,3,4,7 and B12 bits 0,1,6,7 are constant-0 across all captures (never observed active - no data to decode). SEATBELT_FR (B11:2) also constant-0 (pax belt never buckled in captures). B5=FD B6=EE B7=3C constant config; B13=0x00 constant.
+            B11 bit6 == ACC2_IGN_ON (B11:5) exactly across all 40 captures.
+            Redundant; no new info. Documents B11:6. B11 bits 0,2,3,4,7 and B12
+            bits 0,1,6,7 constant-0 across captures. SEATBELT_FR (B11:2) constant-0
+            (pax belt never buckled). B5=FD B6=EE B7=3C constant; B13=0x00 constant.
           enabled: false
 
     22BC04:
@@ -316,7 +319,9 @@ IGPM:
           source: RE 2026-07-23 bit analysis
           verified: false
           notes: >
-            Toggling bit at B10 bit0 (door locks are bits 2,3). n=29, distinct=2. Unidentified body signal. B10 other active: bits 2,3 (locks, mapped). B12:5 (0x20) and B13:6 (0x42 vs 0x02) also toggle. B5=B5 B6=3F B7=F4 B9=EA constant config. Enabled unverified — correlate with body actions to identify.
+            Toggling bit at B10 bit0 (door locks are bits 2,3). n=29, distinct=2.
+            Unidentified body signal. B12:5 (0x20) and B13:6 also toggle. B5=B5
+            B6=3F B7=F4 B9=EA constant. Verify: correlate with body actions.
           enabled: true
 
     22BC06:
@@ -365,7 +370,10 @@ IGPM:
           source: RE 2026-07-23 bit analysis
           verified: false
           notes: >
-            Refines BRAKE_LIGHT (whole-byte B10). Brake-pressed payload B10=0x2D sets bits 2,3,5 together (0,1 = turn signals). Bit2 chosen as brake indicator candidate; bits 3+5 co-occur (could be brake-switch redundancy or brake-light-relay). Enabled unverified — press brake with turn signals OFF to isolate which single bit is the clean brake flag. Undecoded BC06 bits also active: B10:3, B10:5 (co-set with brake).
+            Refines BRAKE_LIGHT (whole-byte B10). Brake-pressed B10=0x2D sets bits
+            2,3,5 (bits 0,1 = turn signals). Bit2 = brake candidate; bits 3,5
+            co-occur (redundancy or brake-light-relay). Verify: press brake with
+            turn signals off to isolate the clean brake bit.
           enabled: true
 
     22BC01:
@@ -387,7 +395,8 @@ IGPM:
           source: RE 2026-07-23 multi-state analysis
           verified: false
           notes: >
-            CONSTANT across all 6 power states (sleep/plugged/acc/acc2/ready/charging) and all captures: full data = 40 00 00 00 00 02 (B5=0x40; only trailing 0xAA ELM padding differs). Static config/version register, NO live signal. B5 is the representative byte; nothing to decode.
+            Constant across all 6 power states and captures: data = 40 00 00 00 00
+            02 (B5=0x40). Static config/version register, no live signal.
           enabled: false
     22BC02:
       status: draft
@@ -407,7 +416,8 @@ IGPM:
           source: RE 2026-07-23 multi-state analysis
           verified: false
           notes: >
-            CONSTANT all-zero (62 BC 02 00 00 00 00) across every state/capture. B5=0x00. Carries no data. Nothing to decode.
+            Constant all-zero (62 BC 02 00 00 00 00) across every state/capture.
+            No data.
           enabled: false
     22BC05:
       status: draft
@@ -428,7 +438,8 @@ IGPM:
           source: RE 2026-07-23 multi-state analysis
           verified: false
           notes: >
-            CONSTANT across all states/captures: full data = 7F 11 20 00 00 00 00 00 (B5=0x7F). Static config/version register, no live signal. B5 representative; nothing to decode.
+            Constant across all states/captures: data = 7F 11 20 00 00 00 00 00
+            (B5=0x7F). Static config/version register, no live signal.
           enabled: false
     22BC08:
       status: ignored
@@ -996,7 +1007,7 @@ IGPM:
       vehicle_states: [ready]
       created: "2026-07-23"
       updated: "2026-07-23"
-      notes: "Remaining undecoded TOGGLING bits in IGPM body DIDs (candidates registered, need physical correlation): BC04 B10:0 (unidentified, distinct from door locks B10:2/3), BC04 B12:5, BC04 B13:6; BC06 brake composite B10=0x2D sets bits 2,3,5 together (BRAKE_PEDAL_BITS=B10:2 candidate) — press brake with turn signals off to isolate the single clean brake bit vs brake-switch redundancy. All other BC03/BC04/BC06 unmapped bits are constant-0 across captures (no data). BC01/BC02/BC05 closed as static config. Verify by actuating each body function while capturing."
+      notes: "Undecoded toggling bits in IGPM body DIDs (candidates registered, need physical correlation): BC04 B10:0 (distinct from door locks B10:2/3), BC04 B12:5, BC04 B13:6; BC06 brake composite B10=0x2D sets bits 2,3,5 (BRAKE_PEDAL_BITS=B10:2 candidate). Other BC03/BC04/BC06 unmapped bits constant-0. BC01/BC02/BC05 closed as static config. Verify: actuate each body function while capturing; press brake with turn signals off to isolate the brake bit."
 
   iocontrol_discoveries:
     BC01:

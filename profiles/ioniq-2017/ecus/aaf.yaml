@@ -110,7 +110,9 @@ AAF:
           source: cross-ECU correlation vs ESC REAL_SPEED_KMH, 2026-07-22 drive
           verified: false
           notes: >
-            Vehicle speed in km/h. Discovered by cross-ECU correlation: r=0.997 vs ESC 22C101 REAL_SPEED_KMH across 66 joined points on the 2026-07-22 drive (B13 ~= ESC km/h directly: 40vs39, 25vs26). AAF (Active Air Flap) needs road speed for aero-flap control. Companion B12 = same speed in MPH. Verified-grade correlation; marked unverified pending a scale sanity-check at higher speed.
+            Speed km/h. r=0.997 vs ESC 22C101 REAL_SPEED_KMH (66 joined points,
+            2026-07-22 drive; B13 ≈ ESC km/h, e.g. 40 vs 39, 25 vs 26). Companion
+            B12 = MPH. Unverified: scale not checked at high speed.
           enabled: true
         AAF_VEHICLE_SPEED_MPH:
           expression: B12
@@ -120,7 +122,9 @@ AAF:
           source: cross-ECU correlation vs ESC REAL_SPEED_KMH, 2026-07-22 drive
           verified: false
           notes: >
-            Vehicle speed in MPH. Cross-ECU correlation r=0.997 vs ESC REAL_SPEED_KMH; slope 0.6244 (raw/kmh) matches the 0.6214 km/h->mph factor, mean residual 0.14 mph. Companion B13 = same speed in km/h. This car reports MPH internally (matches the VCU 2101 MPH speed finding).
+            Speed MPH. r=0.997 vs ESC REAL_SPEED_KMH; slope 0.6244 raw/km/h ≈
+            0.6214 km/h→mph, mean residual 0.14 mph. Companion B13 = km/h. Car
+            reports MPH internally (cf. VCU 2101 speed).
           enabled: true
 
   research:
@@ -140,4 +144,4 @@ AAF:
       vehicle_states: [ready]
       created: "2026-07-23"
       updated: "2026-07-23"
-      notes: "AAF (Active Air Flap) identity docs say it exposes ambient/heater-element/heat-sink/compressor temps via 2180/2181 (community projects read external temp here). Speed bytes now decoded (2181 B12=MPH, B13=km/h via cross-ECU corr r=0.997 vs ESC). REMAINING: identify the temp bytes — needs an HVAC(ambient)+AAF co-polled session for a cross-ECU temperature correlation (current captures don't overlap HVAC 220100 AAT with timestamped AAF reads). Method: poll 'query HVAC:220100' 'query AAF:2180' 'query AAF:2181' together over a temperature-varying window, then correlate AAF bytes vs HVAC_AAT."
+      notes: "Speed bytes decoded (2181 B12=MPH, B13=km/h; r=0.997 vs ESC). Identity docs list ambient/heater-element/heat-sink/compressor temps on 2180/2181; temp bytes not yet located. Existing captures don't overlap HVAC 220100 AAT with timestamped AAF reads. Method: co-poll 'query HVAC:220100' 'query AAF:2180' 'query AAF:2181' over a temperature-varying window; correlate AAF bytes vs HVAC_AAT."

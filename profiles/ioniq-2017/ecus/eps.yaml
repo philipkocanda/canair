@@ -67,7 +67,12 @@ EPS:
           source: RE 2026-07-23 analysis of 2026-07-22 MT->KW drive
           verified: false
           notes: >
-            STRONG candidate: little-endian signed 16-bit at ISO-TP 0x09:0x0A (low B12, signed high S13; no PCI between B12/B13). Range -9258..+9752 across the drive, symmetric ~0, ~0 at standstill. Correlates r=-0.64 with STEERING_ANGLE (OPPOSITE sign) and r=-0.43 with d(angle)/dt. Opposite-sign-to-angle + torque-like magnitude => most likely STEERING/MDPS TORQUE (self-centering opposes displacement), though a second column-angle representation isn't ruled out. Scale unknown (raw). NEEDS controlled stationary capture (hold torque at each wheel position) to confirm torque vs angle and units (Nm?).
+            Candidate steering/MDPS torque. LE signed 16-bit at ISO-TP 0x09:0x0A
+            (low B12, signed high S13; no PCI between). Range -9258..+9752,
+            symmetric ~0, ~0 at standstill. r=-0.64 vs STEERING_ANGLE (opposite
+            sign → self-centering torque), r=-0.43 vs d(angle)/dt. 2nd column-angle
+            rep not ruled out. Scale raw. Verify: hold torque at fixed wheel
+            positions.
           enabled: true
         EPS_MDPS_ASSIST:
           expression: B17
@@ -77,7 +82,11 @@ EPS:
           source: RE 2026-07-23 analysis
           verified: false
           notes: >
-            MDPS motor assist effort candidate. ISO-TP 0x0D. Exactly 0 at ALL 16 standstill samples; swings 0-253 while moving (r=+0.53 vs VEHICLE_SPEED, noisy). Speed-gated + high during active steering => likely MDPS motor CURRENT or PWM/assist-duty (unsigned magnitude, no direction). Not a clean linear scalar; scale/units unknown. Verify with controlled steer-effort capture.
+            Candidate MDPS motor assist. ISO-TP 0x0D. 0 at all 16 standstill
+            samples; 0-253 while moving, r=+0.53 vs VEHICLE_SPEED (noisy).
+            Speed-gated unsigned magnitude → likely motor current or PWM/assist
+            duty. Not clean-linear; scale raw. Verify with controlled steer-effort
+            capture.
           enabled: true
         EPS_STEERING_TORQUE_ALT:
           expression: S7
@@ -87,7 +96,10 @@ EPS:
           source: RE 2026-07-23 analysis
           verified: false
           notes: >
-            Small signed steering signal, ISO-TP 0x05. Raw signed -36..+37, ~0 at rest (-10..-1), r=+0.34 vs STEERING_ANGLE. Candidate driver steering torque or angular rate (small-magnitude signed). Distinct from the larger EPS_STEERING_TORQUE (B12:S13). Disambiguate driver-torque vs rate vs MDPS with a controlled capture.
+            Small signed steering signal, ISO-TP 0x05. Raw -36..+37, ~0 at rest
+            (-10..-1), r=+0.34 vs STEERING_ANGLE. Candidate driver torque or
+            angular rate. Distinct from EPS_STEERING_TORQUE (B12:S13). Verify:
+            disambiguate driver-torque vs rate vs MDPS with a controlled capture.
           enabled: true
         EPS_B9_FLAG:
           expression: B9
@@ -96,7 +108,10 @@ EPS:
           source: RE 2026-07-23 analysis
           verified: false
           notes: >
-            BIMODAL 0x00/0xFF only (not a scalar) — status/validity flag at ISO-TP 0x06, immediately before the STEERING_ANGLE low byte B10. Likely an angle sign/validity or MDPS-status flag. Disabled (documents the byte; needs a targeted capture to confirm what toggles it). B05=0x8A B06=0x8E constant config. B18/B19 tail=0x1010 constant. B20/B21 = ISO-TP message counter (cycles 21->22).
+            Bimodal 0x00/0xFF status/validity flag at ISO-TP 0x06, before the
+            STEERING_ANGLE low byte B10. Likely angle sign/validity or MDPS status.
+            Verify what toggles it. B05=0x8A B06=0x8E constant; B18/B19 tail=0x1010
+            constant; B20/B21 = ISO-TP message counter (cycles 21→22).
           enabled: false
     220102:
       status: draft
@@ -137,16 +152,13 @@ EPS:
         Range -374..+299 deg across the 2026-07-22 MT->KW drive (~1.5 turns each
         way), centres ~0 and returns to centre at standstill; big-endian variant
         is bimodal (wrong). VEHICLE_SPEED (B14) already decoded.
-        2026-07-23 analysis (376 captures) added three more enabled-unverified
-        candidates from the B05-B17 region: EPS_STEERING_TORQUE = (B12+S13*256) LE
-        signed-16 at ISO-TP 0x09:0x0A, range +-9500, ~0 at rest, r=-0.64 vs angle
-        (opposite sign => torque, or a 2nd angle rep); EPS_MDPS_ASSIST = B17,
-        exactly 0 at standstill and swinging 0-253 while moving (r=+0.53 vs speed)
-        => motor current/PWM assist; EPS_STEERING_TORQUE_ALT = S7 (small signed
-        +-36, r=+0.34 vs angle). B9 = bimodal 0/FF flag (EPS_B9_FLAG, disabled).
-        STILL TO CONFIRM with the controlled stationary capture below: (1) angle
-        scale/zero/sign, (2) which byte is torque vs angle-2 vs rate, (3) assist
-        units. All scales are raw/unverified.
+        2026-07-23 (376 captures) added three enabled-unverified candidates from
+        B05-B17: EPS_STEERING_TORQUE = (B12+S13*256) LE signed-16 at ISO-TP
+        0x09:0x0A, range ±9500, ~0 at rest, r=-0.64 vs angle (torque or 2nd angle
+        rep); EPS_MDPS_ASSIST = B17, 0 at standstill, 0-253 moving, r=+0.53 vs
+        speed (motor current/PWM); EPS_STEERING_TORQUE_ALT = S7 (small signed ±36,
+        r=+0.34 vs angle). B9 = bimodal 0/FF flag (EPS_B9_FLAG, disabled). Open:
+        angle scale/zero/sign, torque vs angle-2 vs rate, assist units. Scales raw.
       what_to_test:
         - "VERIFY STEERING_ANGLE scale (/10?), zero point, and left/right sign via controlled capture"
         - "EPS_STEERING_TORQUE (B12:S13) — torque vs 2nd angle? hold wheel against resistance at fixed positions to separate torque from displacement; find units"

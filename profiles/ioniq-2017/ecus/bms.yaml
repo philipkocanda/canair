@@ -352,7 +352,13 @@ BMS:
           source_links: []
           verified: false
           notes: >
-            DEMOTED from verified + DISABLED 2026-07-23: B62 is CONSTANT 1 across all 69 BMS 2101 captures, so B62*0.1 = 0.10V always — structurally impossible for the inverter DC-link capacitor, which should sit near pack voltage (~380V) with the main relay closed (a single byte maxes at 25.5V anyway). The byte offset/scale is wrong. Correct byte unknown: all 69 captures have BMS_MAIN_RELAY=1 (closed) so there is no relay-open(0V) vs closed(~pack V) contrast in history to locate it. NEEDS a capture spanning relay open->closed (key off->READY) to find the real 16-bit DC-link field. Kept for research trail.
+            Disproven + disabled 2026-07-23: B62 is constant 1 across all 69 BMS
+            2101 captures, so B62*0.1 = 0.10 V always. A single byte maxes at
+            25.5 V, but the DC-link cap should sit near pack voltage (~380 V) with
+            the main relay closed. Byte/scale wrong; correct byte unknown. All 69
+            captures have BMS_MAIN_RELAY=1 (closed), so history has no relay-open
+            (0 V) vs closed contrast to locate the real 16-bit field. Needs a
+            key-off→READY capture. Kept for research trail.
           enabled: false
         DRIVE_MOTOR_SPEED:
           expression: "B65"
@@ -1659,14 +1665,14 @@ BMS:
         inverter DC-link cap should sit near pack voltage (~388 V) once the main relay is
         closed (BMS_MAIN_RELAY=1). So its byte offset/scale is still wrong; the other two
         are single-point-plausible but need a moving capture (non-zero motor speed) to verify.
-        2026-07-23 (historical audit, 69 captures): INVERTER_CAPACITOR_VOLTAGE CONFIRMED WRONG and
-        DEMOTED from verified + disabled — B62 is CONSTANT 1 (a single byte can't hold ~388 V anyway).
-        All 69 captures have BMS_MAIN_RELAY=1, so there's NO relay-open(0 V) vs closed contrast in
-        history to locate the true 16-bit DC-link field. DRIVE_MOTOR_SPEED (B65) reads 0/18 at park and
-        ISOLATION_RESISTANCE (B69) is constant 3 (=3000 kOhm) — both single-point-plausible, still
-        need a moving/HV-varying capture. All remaining items require car access.
+        2026-07-23 (69-capture audit): INVERTER_CAPACITOR_VOLTAGE disproven + disabled —
+        B62 is constant 1 (a single byte can't hold ~388 V). All 69 captures have
+        BMS_MAIN_RELAY=1, so history has no relay-open (0 V) vs closed contrast to locate
+        the true 16-bit DC-link field. DRIVE_MOTOR_SPEED (B65) reads 0/18 at park;
+        ISOLATION_RESISTANCE (B69) is constant 3 (=3000 kOhm) — both single-point-plausible,
+        need a moving/HV-varying capture. Remaining items require car access.
       what_to_test:
-        - "INVERTER_CAPACITOR_VOLTAGE — B62 disproven (constant 1); capture key-off->READY (relay open->closed) to find the real 16-bit DC-link byte that goes 0 V -> ~pack V"
+        - "INVERTER_CAPACITOR_VOLTAGE — B62 disproven (constant 1); capture key-off→READY (relay open→closed) to find the real 16-bit DC-link byte (0 V → ~pack V)"
         - "DRIVE_MOTOR_SPEED — 0 at park; confirm tracks motor RPM while driving (cross-check MCU 2102 [S10:S11])"
         - "ISOLATION_RESISTANCE — 3000 kOhm plausible; confirm it varies with HV state"
       sources:
