@@ -209,6 +209,17 @@ class TestLetterNotation:
         with pytest.raises(ValueError):
             letter_to_torque_idx("ABC")
 
+    def test_idx_to_letter_last_two_letter(self):
+        assert torque_idx_to_letter(701) == "ZZ"
+
+    def test_idx_to_letter_out_of_range_raises(self):
+        with pytest.raises(ValueError):
+            torque_idx_to_letter(702)
+
+    def test_idx_to_letter_negative_raises(self):
+        with pytest.raises(ValueError):
+            torque_idx_to_letter(-1)
+
 
 class TestExtractByteIndices:
     """Test WiCAN expression byte index extraction."""

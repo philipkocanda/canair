@@ -31,7 +31,11 @@ input formats:
 
 subfunction modes:
   -1          1-byte subfunction (21xx PIDs) — default
-  -2          2-byte subfunction (22xxxx DIDs)"""
+  -2          2-byte subfunction (22xxxx DIDs)
+
+note: with --annotate/-a, put the mode flag (-1/-2) BEFORE the hex bytes,
+      e.g. `bix -2 -a 62 01 A0 ...` — a mode flag after the bytes is
+      consumed as another argument."""
 
 
 def add_parser(subparsers) -> argparse.ArgumentParser:
@@ -63,8 +67,10 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "--annotate",
         "-a",
         metavar="HEX",
+        nargs="+",
         help="Annotate a hex payload with all index representations "
-        '(e.g. 62B0047402990C0040A000AAAA or "62 B0 04 ...")',
+        "(e.g. 62B0047402990C0040A000AAAA, or space-separated bytes "
+        "62 B0 04 ... quoted or unquoted)",
     )
     parser.add_argument(
         "--max", type=int, default=71, help="Max WiCAN index for table (default: 71)"
@@ -172,11 +178,15 @@ def _parse_hex_payload(raw: str) -> list[int]:
     if len(cleaned) % 2 != 0:
         print(f"Error: odd number of hex characters in '{raw}'.", file=sys.stderr)
         sys.exit(1)
-    try:
-        return [int(cleaned[i : i + 2], 16) for i in range(0, len(cleaned), 2)]
-    except ValueError:
-        print(f"Error: invalid hex in '{raw}'.", file=sys.stderr)
-        sys.exit(1)
+    payload = []
+    for i in range(0, len(cleaned), 2):
+        token = cleaned[i : i + 2]
+        try:
+            payload.append(int(token, 16))
+        except ValueError:
+            print(f"Error: invalid hex byte '{token}' in '{raw}'.", file=sys.stderr)
+            sys.exit(1)
+    return payload
 
 
 def _annotate_payload(payload_hex: str, sub_bytes: int):
@@ -218,7 +228,7 @@ def run(args) -> int:
         return 0
 
     if args.annotate:
-        _annotate_payload(args.annotate, args.sub_bytes)
+        _annotate_payload(" ".join(args.annotate), args.sub_bytes)
         return 0
 
     if not args.value:

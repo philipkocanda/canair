@@ -134,12 +134,19 @@ def torque_idx_to_letter(idx: int) -> str:
     """Convert Torque byte index to letter notation.
 
     0→A, 1→B, ..., 25→Z, 26→AA, 27→AB, ..., 51→AZ, 52→BA, ...
+
+    Only 1- and 2-letter notation is supported (index 0–701), matching
+    :func:`letter_to_torque_idx`.
     """
+    if idx < 0:
+        raise ValueError(f"Torque byte index out of range: {idx}")
     if idx < 26:
         return chr(ord("A") + idx)
-    first = chr(ord("A") + (idx // 26) - 1)
-    second = chr(ord("A") + (idx % 26))
-    return first + second
+    if idx < 702:
+        first = chr(ord("A") + (idx // 26) - 1)
+        second = chr(ord("A") + (idx % 26))
+        return first + second
+    raise ValueError(f"Torque byte index out of range for 2-letter notation: {idx}")
 
 
 def letter_to_torque_idx(letter: str) -> int:
