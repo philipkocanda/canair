@@ -2,6 +2,7 @@
 
 from unittest.mock import patch
 
+import pytest
 import yaml
 
 from canlib.captures import (
@@ -89,7 +90,11 @@ class TestBuildQuerySession:
         assert s["vehicle_states"] == ["ready", "parked"]
         assert s["notes"] == "notes here"
         assert "date" in s
-        assert s["captures"][0] == {"ecu": "0x7EB", "pid": "2102", "payload": "6102AABB"}
+        # A payload capture always gets a timestamp (Tranche 2.6): explicit
+        # time preserved, missing time backfilled with the current HH:MM:SS.
+        cap0 = s["captures"][0]
+        assert cap0["ecu"] == "0x7EB" and cap0["pid"] == "2102" and cap0["payload"] == "6102AABB"
+        assert cap0.get("time")  # backfilled, non-empty
         # time preserved when present
         assert s["captures"][1]["time"] == "12:00:01"
         assert s["captures"][1]["payload"] == "6101CCDD"
@@ -327,3 +332,90 @@ class TestCmdDiffJson:
 
         cmd_diff([], "BMS:21F2", as_json=True)
         assert json.loads(capsys.readouterr().out) == []
+
+
+class TestTimeEnforcement:
+    """Tranche 2.6 — payload captures always timestamped; validator gate."""
+
+    def test_payload_capture_backfills_time(self):
+        s = build_query_session([("0x7EC", "2101", "6101AA", "")], "l", [], "")
+        assert s["captures"][0].get("time")  # never untimed
+
+    def test_journal_append_stamps_time(self, tmp_path):
+        from canlib.capture_journal import CaptureJournal
+
+        j = CaptureJournal.open(tmp_path, label="L")
+        j.append("0x7EC", "2101", "6101AA")  # no explicit time
+        j.flush()
+        # read back the journal line
+        import json
+
+        lines = [
+            json.loads(ln)
+            for f in tmp_path.rglob("*.jsonl")
+            for ln in f.read_text().splitlines()
+        ]
+        cap = next(r for r in lines if r.get("type") == "capture")
+        assert cap.get("time")
+
+    def test_validator_warns_missing_time_on_payload(self, tmp_path):
+        from canlib.commands.validate import _capture_missing_time_warnings
+
+        doc = {
+            "sessions": [
+                {
+                    "date": "2026-07-22",
+                    "captures": [
+                        {"ecu": "0x7EC", "pid": "2101", "payload": "6101AA"},  # no time
+                        {"ecu": "0x7EC", "pid": "2101", "payload": "6101BB", "time": "09:00:00"},
+                        {"ecu": "0x7EC", "pid": "scan 22 0100", "scan_results": {}},  # exempt
+                    ],
+                }
+            ]
+        }
+        p = tmp_path / "2026-07-22.yaml"
+        p.write_text(yaml.safe_dump(doc))
+        warns = _capture_missing_time_warnings(p)
+        assert len(warns) == 1
+        assert "captures[0]" in warns[0]
+
+
+class TestSetSessionNote:
+    """set_session_note: canonical way to edit a session's notes (not hand-edit)."""
+
+    def _write(self, tmp_path):
+        from canlib.captures import save_session
+
+        s = build_query_session([("0x7EC", "2101", "6101AA", "12:00:00")], "L", ["ready"], "old note")
+        return save_session(s, tmp_path)
+
+    def test_set_note(self, tmp_path):
+        from canlib.captures import set_session_note
+
+        f = self._write(tmp_path)
+        set_session_note(f, 0, "new note text")
+        doc = yaml.safe_load(f.read_text())
+        assert doc["sessions"][0]["notes"] == "new note text"
+
+    def test_clear_note(self, tmp_path):
+        from canlib.captures import set_session_note
+
+        f = self._write(tmp_path)
+        set_session_note(f, 0, "   ")
+        doc = yaml.safe_load(f.read_text())
+        assert "notes" not in doc["sessions"][0]
+
+    def test_bad_index_raises(self, tmp_path):
+        from canlib.captures import set_session_note
+
+        f = self._write(tmp_path)
+        with pytest.raises(IndexError):
+            set_session_note(f, 5, "x")
+
+    def test_preserves_captures(self, tmp_path):
+        from canlib.captures import set_session_note
+
+        f = self._write(tmp_path)
+        set_session_note(f, 0, "edited")
+        doc = yaml.safe_load(f.read_text())
+        assert doc["sessions"][0]["captures"][0]["payload"] == "6101AA"

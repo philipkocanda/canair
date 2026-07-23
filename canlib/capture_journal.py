@@ -124,8 +124,9 @@ class CaptureJournal:
     def append(self, ecu_ref: str, pid: str, hex_val: str, time: str = "") -> None:
         """Append one captured payload row (buffered; caller flushes per cycle)."""
         rec: dict = {"type": "capture", "ecu": ecu_ref, "pid": pid, "payload": hex_val.upper()}
-        if time:
-            rec["time"] = time
+        # Payload rows are time-series samples: always stamp a time so
+        # cross-signal alignment can use them (Tranche 2.6).
+        rec["time"] = time or datetime.now().strftime("%H:%M:%S")
         self._write(rec)
 
     def append_session(self, session: dict) -> None:

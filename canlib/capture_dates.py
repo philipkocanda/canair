@@ -17,6 +17,7 @@ from datetime import date, datetime
 __all__ = [
     "add_scope_args",
     "entry_date",
+    "entry_datetime",
     "filter_by_date_range",
     "filter_by_text",
     "parse_iso_date",
@@ -51,6 +52,31 @@ def entry_date(entry: dict) -> date | None:
             return datetime.strptime(candidate, "%Y-%m-%d").date()
         except ValueError:
             continue
+    return None
+
+
+def entry_datetime(entry: dict) -> datetime | None:
+    """Combine a capture entry's session ``date`` + per-capture ``time`` into a
+    ``datetime``, or ``None`` if either is absent/unparseable.
+
+    This is the join key for time-aligned cross-signal analysis (``canair
+    correlate``/``hunt`` and cross-ECU ``--corr``). Captures with no usable
+    ``time`` — one-shot scan/probe/identity reads where a timestamp was never
+    meaningful — return ``None`` and are dropped from time joins (but retained
+    for value/state analysis). Accepts ``HH:MM:SS`` and ``HH:MM:SS.fff``.
+    """
+    d = entry_date(entry)
+    if d is None:
+        return None
+    raw = str(entry.get("time", "")).strip()
+    if not raw:
+        return None
+    for fmt in ("%H:%M:%S.%f", "%H:%M:%S", "%H:%M"):
+        try:
+            t = datetime.strptime(raw, fmt).time()
+        except ValueError:
+            continue
+        return datetime.combine(d, t)
     return None
 
 

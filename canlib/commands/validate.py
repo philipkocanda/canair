@@ -926,7 +926,7 @@ def validate_captures_file(
     return errors
 
 
-def _run_captures() -> int:
+def _run_captures(strict: bool = False) -> int:
     with open(CAPTURES_SCHEMA_FILE) as f:
         schema = json.load(f)
     Draft202012Validator.check_schema(schema)
@@ -949,11 +949,20 @@ def _run_captures() -> int:
 
     total_errors = 0
     total_warnings = 0
+    total_time_gaps = 0
     for path in files:
         errors = validate_captures_file(path, validator, rx_addrs)
         warnings = _capture_state_warnings(path, vocab) if vocab else []
         warnings += _capture_echo_warnings(path)
         warnings += _capture_nonhex_warnings(path)
+        # Missing-time on payload captures: an error under --strict (new-data
+        # gate), otherwise a soft warning (existing rows grandfathered).
+        time_gaps = _capture_missing_time_warnings(path)
+        total_time_gaps += len(time_gaps)
+        if strict:
+            errors = list(errors) + time_gaps
+        else:
+            warnings += time_gaps
         if errors:
             print(f"\n{path.name}: {len(errors)} errors")
             for e in errors:
@@ -968,6 +977,11 @@ def _run_captures() -> int:
     if total_warnings:
         print(
             f"\n{total_warnings} warning(s) — see `canair validate states` / echo mismatches above"
+        )
+    if not strict and total_time_gaps:
+        print(
+            f"  ({total_time_gaps} untimed payload capture(s); run "
+            "`canair validate captures --strict` to treat as errors)"
         )
     if total_errors:
         print(f"\n{total_errors} total errors across {len(files)} files")
@@ -1076,6 +1090,39 @@ def _capture_nonhex_warnings(path: Path) -> list[str]:
     return warnings
 
 
+def _capture_missing_time_warnings(path: Path) -> list[str]:
+    """Soft warnings for time-series (``payload``) captures with no usable ``time``.
+
+    A payload capture is a time-series sample and should carry a timestamp so
+    cross-signal time-alignment (``canair correlate``/``hunt``) can use it. One-shot
+    ``scan_results``/``response`` captures are exempt — a timestamp was never
+    meaningful there. Existing untimed payload rows are grandfathered (warning,
+    not error, unless ``validate captures --strict``). See Tranche 2.6.
+    """
+    from canlib.capture_dates import entry_datetime
+
+    warnings: list[str] = []
+    with open(path) as f:
+        data = yaml.safe_load(f)
+    if not isinstance(data, dict):
+        return warnings
+    for si, session in enumerate(data.get("sessions", []) or []):
+        if not isinstance(session, dict):
+            continue
+        date = session.get("date", "")
+        for ci, cap in enumerate(session.get("captures", []) or []):
+            if not isinstance(cap, dict) or not cap.get("payload"):
+                continue  # only payload (time-series) captures; scans exempt
+            # entry_datetime needs the session date + capture time.
+            if entry_datetime({"date": date, "time": cap.get("time", "")}) is None:
+                warnings.append(
+                    f"sessions[{si}].captures[{ci}] ({cap.get('ecu', '?')} "
+                    f"{cap.get('pid', '?')}): payload capture has no usable time "
+                    "(excluded from time-aligned analysis)"
+                )
+    return warnings
+
+
 # ── CLI interface ─────────────────────────────────────────────────────────
 
 
@@ -1148,21 +1195,28 @@ def add_parser(subparsers):
         "files", nargs="*", help="Specific ecus/ files (only with target=pids/ecus)"
     )
     parser.add_argument("--stats", action="store_true", help="Show parameter statistics (pids)")
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Treat soft warnings that gate new data (currently: untimed payload "
+        "captures) as errors — for CI / new-capture checks",
+    )
     parser.set_defaults(func=run)
     return parser
 
 
 def run(args) -> int:
+    strict = getattr(args, "strict", False)
     if args.target in ("pids", "ecus"):
         return _run_pids(args.files or None, args.stats)
     if args.target == "captures":
-        return _run_captures()
+        return _run_captures(strict=strict)
     if args.target == "states":
         return _run_states()
     # all: the ecus/ files are validated once via _run_pids (they are the registry).
     rc_p = _run_pids(None, args.stats)
     print()
-    rc_c = _run_captures()
+    rc_c = _run_captures(strict=strict)
     print()
     rc_s = _run_states()
     return rc_p or rc_c or rc_s

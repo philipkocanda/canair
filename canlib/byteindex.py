@@ -253,6 +253,17 @@ def payload_to_wican_frame(payload_bytes: list[int]) -> list[tuple[int, int | No
 _payload_to_wican_frame = payload_to_wican_frame
 
 
+def payload_to_wican_bytes(payload_hex: str) -> bytes:
+    """Raw UDS payload hex → WiCAN frame bytes (PCI inserted).
+
+    The single canonical hex→frame converter used by ``decode``, ``align``, and
+    the cross-signal analysis engine, so byte indexing is identical everywhere.
+    """
+    payload_hex = payload_hex.replace(" ", "")
+    payload_bytes = [int(payload_hex[i : i + 2], 16) for i in range(0, len(payload_hex), 2)]
+    return bytes(b for b, _ in payload_to_wican_frame(payload_bytes))
+
+
 # ---------------------------------------------------------------------------
 # Bulk conversion / table generation
 # ---------------------------------------------------------------------------

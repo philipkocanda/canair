@@ -2,7 +2,7 @@
 
 import math
 
-from canlib.commands import decode as dp
+from canlib.commands import _decode_plot as dp
 
 U8 = ("u8", 1, "int", False)
 I8 = ("i8", 1, "int", True)

@@ -113,8 +113,10 @@ def build_query_session(
             "pid": pid,
             "payload": hex_val.upper(),
         }
-        if ts:
-            capture["time"] = ts
+        # A payload capture is a time-series sample: it must always carry a
+        # timestamp so cross-signal time-alignment can use it (Tranche 2.6). Fall
+        # back to the current time when the caller didn't supply one.
+        capture["time"] = ts or datetime.now().strftime("%H:%M:%S")
         captures.append(capture)
 
     session["captures"] = captures
@@ -365,6 +367,24 @@ def set_capture_note(fpath: Path, session_idx: int, capture_idx: int, note: str)
         cap["notes"] = note
     else:
         cap.pop("notes", None)
+    _write_captures_file(fpath, data)
+
+
+def set_session_note(fpath: Path, session_idx: int, note: str) -> None:
+    """Set (or clear) the ``notes`` field on one session, addressed by index.
+
+    A non-empty ``note`` is stored verbatim; an empty/blank note removes the
+    field entirely. Raises IndexError if the index doesn't resolve. Use this
+    instead of hand-editing a session's ``notes`` in a capture file.
+    """
+    with open(fpath) as f:
+        data = _yaml().load(f)
+    session = data["sessions"][session_idx]
+    note = note.strip()
+    if note:
+        session["notes"] = note
+    else:
+        session.pop("notes", None)
     _write_captures_file(fpath, data)
 
 

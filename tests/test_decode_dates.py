@@ -1,12 +1,13 @@
 """Tests for decode/captures shared scoping (date/state/label, first/last) and
 the redesigned --compact renderer + --group-by state stats."""
 
-from datetime import date
+from datetime import date, datetime
 
 import pytest
 
 from canlib.capture_dates import (
     entry_date,
+    entry_datetime,
     filter_by_date_range,
     filter_by_text,
     parse_iso_date,
@@ -44,6 +45,34 @@ class TestEntryDate:
     def test_missing_is_none(self):
         assert entry_date({}) is None
         assert entry_date({"date": ""}) is None
+
+
+class TestEntryDatetime:
+    def test_seconds(self):
+        dt = entry_datetime({"date": "2026-07-22", "time": "09:02:19"})
+        assert dt == datetime(2026, 7, 22, 9, 2, 19)
+
+    def test_milliseconds(self):
+        dt = entry_datetime({"date": "2026-07-22", "time": "12:14:52.432"})
+        assert dt == datetime(2026, 7, 22, 12, 14, 52, 432000)
+
+    def test_hh_mm_only(self):
+        dt = entry_datetime({"date": "2026-07-22", "time": "09:02"})
+        assert dt == datetime(2026, 7, 22, 9, 2, 0)
+
+    def test_date_suffix_still_combines(self):
+        dt = entry_datetime({"date": "2026-04-17-b", "time": "17:43:35"})
+        assert dt == datetime(2026, 4, 17, 17, 43, 35)
+
+    def test_missing_time_is_none(self):
+        assert entry_datetime({"date": "2026-07-22"}) is None
+        assert entry_datetime({"date": "2026-07-22", "time": ""}) is None
+
+    def test_missing_date_is_none(self):
+        assert entry_datetime({"time": "09:02:19"}) is None
+
+    def test_garbage_time_is_none(self):
+        assert entry_datetime({"date": "2026-07-22", "time": "NO DATA"}) is None
 
 
 class TestFilterByDateRange:

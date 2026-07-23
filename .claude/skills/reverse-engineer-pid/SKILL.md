@@ -137,7 +137,12 @@ canair query "query MCU 2102" --monitor 1 --keep-all --save
 ```
 
 Capture the SAME PID in DIFFERENT states (park vs drive, cold vs warm, charging
-vs ready) — contrast is what lets you separate signal bytes from constants.
+vs ready) — contrast is what lets you separate signal bytes from constants. For
+**cross-signal analysis** (step 7), co-poll the target PID *together with* an ECU
+carrying a known reference (speed on ESC, RPM on MCU) in one `canair query` /
+`--monitor` run — they'll share a drive so `hunt`/`correlate`/cross-ECU `--corr`
+can time-align them. Every payload capture is now timestamped automatically, so
+any co-polled drive is joinable; only one-shot scans/identity reads stay untimed.
 **Never hand-edit `captures/` — and never read the raw `captures/*.yaml` files
 directly.** Always inspect captures through `canair captures`/`canair decode`
 (next step): reading the YAML by hand gives you undecoded raw payloads and skips
@@ -274,6 +279,30 @@ The tooling exposes real statistical levers — use them as evidence, not decora
   |torque| ≈ 0; a current vs |torque| ≈ high). Correlate against a *derived*
   reference too (e.g. |Δbyte| vs |Δload|) to separate fast load-trackers from
   slow temps.
+- **Cross-ECU correlation** — a signal on one ECU often mirrors a *verified*
+  signal on another (speed appears on ESC/EPS/VCU/AAF; RPM on MCU/VCU). Three
+  ways to exploit it, all time-aligned by nearest timestamp over a co-polled
+  drive:
+  - `canair decode <ECU> <PID> --corr ESC:22C101:REAL_SPEED_KMH` — correlate a
+    PID's params against a *cross-ECU* reference (`ECU:PID:PARAM` or
+    `ECU:PID:EXPR`). Add `--corr-transform delta` to test level-vs-rate.
+  - `canair hunt <ECU> <PID> --against ESC:22C101:REAL_SPEED_KMH` — "which byte
+    *is* this known signal?": sweeps every byte×interpretation, ranks by |r|,
+    and prints the linear fit + a unit guess (`×1.609 mph→km/h`, `raw−40 °C`).
+    `--promote NAME` writes the winner into `ecus/` as an enabled-unverified
+    candidate. This is the fastest path from "unknown byte" to "candidate param".
+  - `canair correlate --state driving` — rank *every* strong cross-signal
+    relationship in a drive at once (`--against REF` to focus one, `--bytes` to
+    include raw bytes). The "show me everything that moves together" entry point.
+- **State discrimination** (`canair decode … --discriminate state`) — ranks
+  bytes/params by between-state vs within-state variance (F). Surfaces
+  thermal/mode/relay signals that shift by *power state* (charging vs ready vs
+  driving) rather than by a driving anchor — how the MCU inverter-temp byte was
+  confirmed (charging 22 °C vs driving 90 °C). Complements correlation.
+- **Mirror detection** (`canair decode … --find-mirrors [--bits]`) — reports
+  byte/bit positions exactly equal across all captures: redundant status mirrors
+  and unit-variants (the km/h-vs-MPH speed pair, an ignition bit echoed in two
+  places). A fast way to prune "new" bytes that are just copies.
 - **Autocorrelation / step size** — lag-1 autocorrelation and mean |Δ| per sample
   separate slow (thermal, integrating) from fast (load, switching) signals.
 - **Differencing / transforms** (`--plot` `delta/abs/cumsum/normalize/smooth`) —
@@ -336,6 +365,22 @@ canair decode MCU 2102 --plot                      # sweep interpretations, find
 canair decode MCU 2102 --plot --corr MCU_MOTOR_RPM # overlay a known signal + live r
 ```
 
+**Cross-ECU / cross-PID** — the fastest lever when a *known* signal on another
+ECU (speed on ESC, RPM on MCU) should relate to your unknown byte. All three
+time-align by nearest timestamp over a co-polled drive (see the "Cross-ECU
+correlation" bullet in step 6 for the full detail):
+
+```bash
+# "Which byte on this PID IS the known signal?" — sweeps every byte×interp,
+# ranks by |r|, prints the linear fit + a physical-unit guess.
+canair hunt AAF 2181 --against ESC:22C101:REAL_SPEED_KMH --state driving
+canair hunt AAF 2181 --against ESC:22C101:REAL_SPEED_KMH --promote AAF_SPEED  # → candidate param
+# Correlate this PID's params against a cross-ECU reference (level or rate):
+canair decode MCU 2101 --corr MCU:2102:[S10:S11] --corr-transform delta
+# Rank EVERY strong relationship in a drive at once:
+canair correlate --state driving --against ESC:22C101:REAL_SPEED_KMH
+```
+
 **Scope the captures** so a candidate is judged on the relevant drive/state, not
 the whole history (shared with `canair captures`): `--since`/`--until`/`--date`,
 `--state SUBSTR`/`--label SUBSTR` (case-insensitive; the natural unit of drive
@@ -385,6 +430,11 @@ canair pids upsert-param MCU 2102 MCU_MOTOR_RPM "[S10:S11]" \
     --unit RPM --min -10500 --max 10500 --unverified \
     --source "Kia Soul VMCU CSV" --notes "signed 16-bit BE at B10:B11 (ISO-TP 0x07:0x08)"
 ```
+
+If you found the byte with `canair hunt`, skip the manual step: `hunt … --promote
+NAME` writes the top hit straight to `ecus/` as an enabled, unverified candidate
+(same validated path) with the correlation r/n, linear fit, and unit guess
+auto-filled into `notes`.
 
 New params start **`--unverified` and `--enabled`** — this is the default.
 Enabled+unverified means the candidate is generated into the WiCAN profile and
@@ -483,6 +533,10 @@ Then consider an upstream wican-fw PR (see parent skill goals).
 | map bytes | `canair bix --annotate` |
 | reason about a signal | step 6 Hypothesize — ECU context, physics/EE (thermal mass), CS (enums/counters), statistics (`--corr`/`--stats`/autocorr) |
 | test expressions | `canair decode --try` / `--stats` / `--corr` / `--plot` |
+| cross-ECU correlate | `canair decode … --corr ECU:PID:PARAM` (+ `--corr-transform`); `canair correlate [--against REF] [--bytes]` |
+| which byte is signal Y | `canair hunt <ECU> <PID> --against ECU:PID:PARAM` (linear fit + unit guess; `--promote NAME`) |
+| find state-dependent signals | `canair decode … --discriminate state` |
+| find redundant mirrors | `canair decode … --find-mirrors [--bits]` |
 | scope a drive | `--state driving` / `--since`/`--until`/`--date` / `--first`/`--last N` (both `captures` + `decode`) |
 | per-segment stats | `canair decode … --stats --group-by state` |
 | watch evolution | `canair decode … --compact --changes-only` |

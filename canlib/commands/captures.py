@@ -759,7 +759,7 @@ def _render_diff_group(
 def cmd_diff(
     entries: list[dict], query, show_all: bool = False, rulers: bool = False, as_json: bool = False
 ) -> None:
-    """Show payloads matching ``query`` in canreq monitor style, per ECU+PID.
+    """Show payloads matching ``query`` in monitor style, per ECU+PID.
 
     ``query`` is a canlib.query selection (``"VCU"``, ``"VCU:2101,2102"``,
     ``"VCU:2101 BMS:2101"`` — see canlib.query). One block is rendered per
