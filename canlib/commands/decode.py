@@ -465,6 +465,30 @@ def _paired(all_results: list[dict], ref: str, name: str) -> tuple[list[float], 
     return xs, ys
 
 
+def _paired_timed(all_results: list[dict], ref: str, name: str) -> tuple[list[float], list[float]]:
+    """Like :func:`_paired` but ordered by capture timestamp.
+
+    Needed for order-sensitive reference transforms (``delta``/``cumsum``): the
+    capture-list order is not guaranteed to be chronological (recovered journals,
+    edits), so a positional pairing would corrupt a rate. Undated captures sort
+    last (``datetime.max``) so they never split a dated run.
+    """
+    from datetime import datetime
+
+    from canlib.capture_dates import entry_datetime
+
+    triples: list[tuple[datetime, float, float]] = []
+    for r in all_results:
+        d = r["decoded"]
+        rv = d.get(ref, {}).get("value")
+        pv = d.get(name, {}).get("value")
+        if rv is None or pv is None:
+            continue
+        triples.append((entry_datetime(r.get("capture") or {}) or datetime.max, rv, pv))
+    triples.sort(key=lambda t: t[0])
+    return [t[1] for t in triples], [t[2] for t in triples]
+
+
 def _local_series(all_results: list[dict], name: str) -> list:
     """A time-stamped series (list[TimePoint]) for one local param.
 
@@ -804,9 +828,13 @@ def print_correlations(
             r = _pearson(xs, ys)
             rows.append((name, r, n))
         else:
-            xs, ys = _paired(all_results, ref, name)
             if transform and transform != "raw":
+                # delta/cumsum are order-sensitive: pair in time order, not
+                # capture-list order, so the reference transform is meaningful.
+                xs, ys = _paired_timed(all_results, ref, name)
                 xs = apply_transform(xs, transform)
+            else:
+                xs, ys = _paired(all_results, ref, name)
             r = _pearson(xs, ys)
             rows.append((name, r, len(xs)))
     # Strongest absolute correlations first; undefined (None) last.

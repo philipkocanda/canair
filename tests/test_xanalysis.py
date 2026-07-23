@@ -49,8 +49,71 @@ class TestSniffUnit:
         guess = xanalysis.sniff_unit(xs, ys)
         assert guess is not None and "×1" in guess
 
+    def test_hk_minus40_temp_offset(self):
+        # Hyundai/Kia raw-40 temperature: raw byte = temp_degC + 40.
+        # Regression: the offset candidate used to be dead code (slope-only
+        # match), so a -40 temp was mislabeled as a plain x1 scaling.
+        xs = [float(t) for t in range(-10, 40)]  # reference temperature degC
+        ys = [x + 40 for x in xs]  # raw byte
+        guess = xanalysis.sniff_unit(xs, ys)
+        assert guess is not None
+        assert "−40" in guess or "-40" in guess
+        assert "×1)" not in guess  # must NOT collapse to the plain x1 label
+
+    def test_hk_half_minus40_temp(self):
+        # physical = raw/2 - 40  =>  raw = (temp + 40) * 2
+        xs = [float(t) for t in range(-10, 40)]
+        ys = [(x + 40) * 2 for x in xs]
+        guess = xanalysis.sniff_unit(xs, ys)
+        assert guess is not None
+        assert "raw/2−40" in guess or "raw/2-40" in guess
+
     def test_no_fit_returns_none(self):
         assert xanalysis.sniff_unit([1], [1]) is None
+
+
+# ---------------------------------------------------------------------------
+# build_byte_series
+# ---------------------------------------------------------------------------
+class TestBuildByteSeries:
+    def _loaded(self, payloads):
+        from canlib.align import LoadedPid
+
+        lp = LoadedPid("BMS", "2101")
+        lp.captures = [
+            {"date": "2026-07-22", "time": f"09:00:{i:02d}", "payload": p}
+            for i, p in enumerate(payloads)
+        ]
+        return lp
+
+    def test_covers_wican_tail_beyond_raw_length(self):
+        # Regression: build_byte_series used the RAW payload length for max_len,
+        # but Bn indexes the longer WiCAN frame (PCI bytes inserted). The tail
+        # bytes of a multi-frame response were never generated.
+        # 20-byte raw payload (multi-frame); only the LAST raw byte varies.
+        payloads = ["6181" + "00" * 17 + f"{i * 10:02X}" for i in range(8)]
+        raw_len = len(payloads[0]) // 2
+        assert raw_len == 20
+        series = xanalysis.build_byte_series(self._loaded(payloads), min_distinct=2)
+        offsets = sorted(int(k.rsplit(":B", 1)[1]) for k in series)
+        assert offsets, "the varying tail byte must produce a series"
+        # The only varying byte lands in the WiCAN tail beyond the raw length.
+        assert max(offsets) >= raw_len
+
+    def test_skips_pci_offsets(self):
+        from canlib.byteindex import payload_to_wican_bytes, wican_to_isotp
+
+        # Vary EVERY byte so nothing is filtered by min_distinct; then assert no
+        # PCI offset (wican_to_isotp is None) appears in the output.
+        payloads = [
+            "61" + "".join(f"{(i + k) & 0xFF:02X}" for k in range(19)) for i in range(8)
+        ]
+        series = xanalysis.build_byte_series(self._loaded(payloads), min_distinct=2)
+        offsets = {int(k.rsplit(":B", 1)[1]) for k in series}
+        wlen = len(payload_to_wican_bytes(payloads[0]))
+        pci = {i for i in range(wlen) if wican_to_isotp(i) is None}
+        assert pci  # multi-frame frame has PCI bytes
+        assert not (offsets & pci), f"PCI offsets leaked into series: {offsets & pci}"
 
 
 # ---------------------------------------------------------------------------

@@ -127,6 +127,32 @@ class TestStatistics:
         xs, ys = decode_script._paired(results, "A", "B")
         assert xs == [1.0] and ys == [10.0]  # only the first row has both
 
+    def test_paired_timed_sorts_by_capture_time(self):
+        # Regression: same-PID --corr-transform delta paired in capture-list
+        # order; an out-of-order capture would corrupt the rate. _paired_timed
+        # must reorder chronologically before the transform.
+        results = [
+            {"capture": {"date": "2026-07-22", "time": "09:00:02"},
+             "decoded": {"A": {"value": 2.0}, "B": {"value": 20.0}}},
+            {"capture": {"date": "2026-07-22", "time": "09:00:00"},
+             "decoded": {"A": {"value": 1.0}, "B": {"value": 10.0}}},
+            {"capture": {"date": "2026-07-22", "time": "09:00:01"},
+             "decoded": {"A": {"value": 3.0}, "B": {"value": 30.0}}},
+        ]
+        xs, ys = decode_script._paired_timed(results, "A", "B")
+        assert xs == [1.0, 3.0, 2.0]  # ordered by 09:00:00, :01, :02
+        assert ys == [10.0, 30.0, 20.0]
+
+    def test_paired_timed_undated_sorts_last(self):
+        results = [
+            {"capture": {"date": "2026-07-22"},  # untimed -> datetime.max -> last
+             "decoded": {"A": {"value": 9.0}, "B": {"value": 90.0}}},
+            {"capture": {"date": "2026-07-22", "time": "09:00:00"},
+             "decoded": {"A": {"value": 1.0}, "B": {"value": 10.0}}},
+        ]
+        xs, ys = decode_script._paired_timed(results, "A", "B")
+        assert xs == [1.0, 9.0] and ys == [10.0, 90.0]
+
 
 class TestCrossSignalCorrelation:
     """Tranche 1.1 — cross-ECU/PID --corr via time-aligned nearest-join."""

@@ -92,9 +92,13 @@ _UNIT_CANDIDATES = [
 def sniff_unit(xs: list[float], ys: list[float]) -> str | None:
     """Guess the physical scaling of candidate ``ys`` vs reference ``xs``.
 
-    Fits ``y = m*x + c`` then reports which common scaling best explains the
-    reference→candidate slope. Advisory only — returns a short human string
-    (e.g. "≈ km/h ÷ 1.609 ⇒ mph") or None when nothing fits well.
+    For each known scaling ``physical = raw*factor + offset`` (``xs`` is the
+    reference in physical units, ``ys`` the raw candidate byte), measure how well
+    that formula reproduces the reference and pick the closest. Using the
+    ``offset`` — not just the slope — is what lets a Hyundai/Kia ``raw−40`` temp
+    byte be identified as a temperature rather than a plain ``×1`` scaling.
+    Advisory only — returns a short human string (e.g. "≈ km/h ÷ 1.609 ⇒ mph")
+    or None when nothing fits well.
     """
     fit = linear_fit(xs, ys)
     if fit is None:
@@ -102,16 +106,15 @@ def sniff_unit(xs: list[float], ys: list[float]) -> str | None:
     m, _c, _ = fit
     if m == 0:
         return None
-    # The candidate ≈ m·ref. So ref ≈ candidate/m; a unit factor f means
-    # candidate = ref/f (candidate in ref-units scaled by 1/f). Compare 1/m to
-    # each known factor.
-    inv = 1.0 / m
-    best = None
-    for factor, _off, label in _UNIT_CANDIDATES:
-        err = abs(inv - factor) / (abs(factor) or 1.0)
-        if best is None or err < best[0]:
-            best = (err, label, factor)
-    if best is None or best[0] > 0.05:  # >5% off — no confident unit
+    n = len(xs)
+    ref_span = (max(xs) - min(xs)) or 1.0
+    best = None  # (normalised_residual, label)
+    for factor, offset, label in _UNIT_CANDIDATES:
+        resid = sum(abs((y * factor + offset) - x) for x, y in zip(xs, ys, strict=True)) / n
+        norm = resid / ref_span
+        if best is None or norm < best[0]:
+            best = (norm, label)
+    if best is None or best[0] > 0.05:  # >5% of the reference range — no confident unit
         return None
     return f"slope≈{m:.4f} ⇒ {best[1]}"
 
@@ -138,22 +141,36 @@ def build_byte_series(
     *,
     min_distinct: int = 4,
     skip_offsets: set[int] | None = None,
+    skip_pci: bool = True,
 ) -> dict[str, list[TimePoint]]:
     """One series per single raw data byte (``Bn``) that varies enough to matter.
 
     Skips near-constant bytes (``distinct < min_distinct``) — they can't
     correlate and only add noise. Uses raw unsigned bytes (``Bn``); the byte-hunt
     (:func:`hunt_byte`) sweeps richer interpretations.
-    """
 
-    skip_offsets = skip_offsets or set()
-    # Determine the frame length from the longest capture.
+    ``Bn`` indexes the reconstructed WiCAN frame (with ISO-TP PCI bytes
+    re-inserted), which is longer than the raw payload, so the frame length is
+    taken from :func:`payload_to_wican_bytes` — not the raw payload hex — or the
+    tail bytes of a multi-frame response (e.g. BMS 2101 B62+) would never be
+    generated. PCI byte offsets are framing, not data, and are skipped by default
+    (``skip_pci``) using the canonical :func:`byteindex.wican_to_isotp` detector
+    (which handles the first-frame 2-byte PCI and every consecutive-frame PCI).
+    """
+    from .byteindex import payload_to_wican_bytes, wican_to_isotp
+
+    skip_offsets = set(skip_offsets or set())
+    # Frame length = longest reconstructed WiCAN frame across captures.
     max_len = 0
     for cap in loaded.captures:
-        pl = cap["payload"].replace(" ", "")
-        max_len = max(max_len, len(pl) // 2)
+        try:
+            max_len = max(max_len, len(payload_to_wican_bytes(cap["payload"])))
+        except Exception:
+            continue
     if not max_len:
         return {}
+    if skip_pci:
+        skip_offsets |= {i for i in range(max_len) if wican_to_isotp(i) is None}
     out: dict[str, list[TimePoint]] = {}
     for bn in range(max_len):
         if bn in skip_offsets:
@@ -364,7 +381,7 @@ def load_ref(
     params: dict = {}
     ecu_pids = build_ecu_index(load_pids()).get(sref.ecu.upper(), {}).get("pids", {})
     if sref.pid.upper() in ecu_pids:
-        params = ecu_pids[sref.pid.upper()]["parameters"]
+        params = ecu_pids[sref.pid.upper()].get("parameters", {})
     series = extract_series(lp, sref.name_or_expr, parameters=params)
     if not series:
         raise ValueError(f"reference {sref.label} decoded no numeric values in scope")
