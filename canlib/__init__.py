@@ -1,5 +1,13 @@
 """CAN/UDS library for WiCAN ELM327 terminal communication."""
 
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _pkg_version
+
+try:
+    __version__ = _pkg_version("canair")
+except PackageNotFoundError:  # not installed (e.g. running from a bare source tree)
+    __version__ = "0+unknown"
+
 from .constants import SCRIPT_DIR
 from .decoding import decode_param_rows
 from .ecus import (
@@ -39,6 +47,7 @@ __all__ = [
     "SCRIPT_DIR",
     "WICAN_ADDRESSES",
     "WiCANTerminal",
+    "__version__",
     "build_ecu_index",
     "build_name_tx_index",
     "build_param_index",
