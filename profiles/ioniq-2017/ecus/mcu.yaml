@@ -111,6 +111,9 @@ MCU:
             byte) and its ÷10 scale gave ±3226 Nm across all captures — 10× the motor's ~295 Nm limit.
             [S12:S13]/100 reads −249..+324 Nm (cruise small +ve, hard accel ~+300, regen ~−250) — physical.
             Scale/bytes inferred from range; not yet correlated with pedal/accel, so still unverified.
+            2026-07-23 cross-signal analysis (canair decode --corr): r=+0.600 vs d(MCU_MOTOR_RPM)/dt over 477
+            driving captures — torque tracks angular acceleration (τ≈J·dω/dt), the expected physical relation,
+            corroborating this as a genuine torque byte. Full verification still needs a pedal-synced drive.
 
         MCU_MOTOR_TORQUE_2:
           expression: "[S14:S15]/100"
@@ -123,14 +126,7 @@ MCU:
           source_links: []
           verified: false
           notes: >
-            UNVERIFIED CANDIDATE (Phase 1, 2026-07-20) — needs Phase 2 validation. Second signed-16-bit
-            big-endian pair at B14:B15 (ISO-TP 0x0B:0x0C), immediately after MCU_MOTOR_TORQUE [S12:S13].
-            The Soul VMCU exposes BOTH a Motor Torque Command AND an Estimated Motor Torque as separate
-            signed-16 fields; [S12:S13] and [S14:S15] are the two zero/near-zero-at-park ±32k pairs here, so
-            this is the likely second torque. Park ≈ 0.27–0.40 Nm (raw 27–40, small idle bias), driving
-            −314..+326 Nm. Which is command vs estimated (and the exact scale) is unconfirmed — kept out of
-            the profile (enabled:false) until a synced drive correlates it against MCU_MOTOR_TORQUE and pedal.
-
+            UNVERIFIED CANDIDATE. Second signed-16-bit big-endian pair at B14:B15 (ISO-TP 0x0B:0x0C), immediately after MCU_MOTOR_TORQUE [S12:S13]. The Soul VMCU exposes BOTH a Motor Torque Command AND an Estimated Motor Torque as separate signed-16 fields; [S12:S13] and [S14:S15] are the two zero/near-zero-at-park pairs here. 2026-07-23 cross-signal analysis (canair decode --corr): r=+0.969 vs MCU_MOTOR_TORQUE and r=+0.566 vs d(MCU_MOTOR_RPM)/dt over 477 driving captures (torque tracks angular acceleration, physically correct; the near-but-not-unity coupling to [S12:S13] is consistent with command-vs-estimated). Park ~0.27-0.40 Nm idle bias. Which is command vs estimated (and exact scale) still unconfirmed - kept enabled:false until a pedal-synced drive resolves command vs estimated and pins the scale.
         MCU_PHASE_CURRENT_RMS:
           expression: "[B17:B18]/10"
           unit: A
@@ -372,6 +368,14 @@ MCU:
       created: "2026-07-23"
       updated: "2026-07-23"
       notes: "2026-07-23 (574 caps): B18-B21 cluster split. B20=MCU_TEMP_1, B18=MCU_TEMP_3 are slow temps (load-decoupled, autocorr>0.93); B20 hottest charging (inverter/power-stage), B18 warms with driving (motor/coolant). B21 (was MCU_TEMP_2) and B19 (was MCU_INVERTER_TEMP) are load-tracking (r(Δbyte,Δ|tq|)=0.90/0.79), not temps; both enabled:false. Open: (1) B19 junction-temp estimate vs current (needs scan-tool inverter/junction temp); (2) B21 scale + load quantity (2nd phase current / modulation depth / power); (3) verify B18/B20 vs scan-tool temps on a long warm drive; (4) B22:B23=0xF7FF/F8FF near-constant, likely status/cal. Method: sustained hard drive + hill climb to separate junction (fast) from heatsink (slow); cross-check scan tool."
+    - type: verify
+      target: "2102"
+      status: pending
+      priority: P2
+      vehicle_states: [ready]
+      created: "2026-07-23"
+      updated: "2026-07-23"
+      notes: "Verify MCU_MOTOR_TORQUE [S12:S13]/100 and MCU_MOTOR_TORQUE_2 [S14:S15]/100 (command vs estimated) with a PEDAL-SYNCED drive co-polling VCU 2101 (ACCEL_PEDAL_DEPTH). 2026-07-23 cross-signal evidence: TORQUE r=+0.60 and TORQUE_2 r=+0.57 vs d(MCU_MOTOR_RPM)/dt; TORQUE<->TORQUE_2 r=+0.969 (coupled but distinct). Needed to confirm which field is command vs estimated, pin the /100 scale, and enable TORQUE_2. Hard accel + strong regen events required (this drive was gentle, only reached -10..+18 Nm)."
 
   sessions:
     "81":

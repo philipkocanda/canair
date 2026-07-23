@@ -214,3 +214,11 @@ EPS:
       date: "2026-07-22"
       result: "22010x sibling sweep (ignition on): only 0101 (18B) and 0102 (8B) respond; 0100 and 0103-0110 all NRC. No hidden sibling pages -> any LKAS active/torque-command signal must live WITHIN 220101/220102 themselves (or is not OBD-exposed on EPS). Narrows the LKAS decode lead."
       notes: Hidden-page hunt 2026-07-22. Rules out sibling 22010x pages for the LKAS backlog.
+    - type: verify
+      target: "220101"
+      status: pending
+      priority: P3
+      vehicle_states: [ready]
+      created: "2026-07-23"
+      updated: "2026-07-23"
+      notes: "Verify EPS_SPEED_BAND (B15). 2026-07-23: discrete 0-3 band, r=+0.953 vs speed, steps 0->1 at ~26-27 km/h with hysteresis. Confirm thresholds with a sustained-speed sweep (hold 15/25/35/50/70/90 km/h) and check whether steering assist/effort changes at each band edge."
