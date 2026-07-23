@@ -870,10 +870,6 @@ sessions:
     HVAC (97250-G7060).
   captures:
   - ecu: '0x778'
-    pid: F187
-    payload: 62F18791950G7510
-    notes: Part number 91950G7510
-  - ecu: '0x778'
     pid: F18B
     response: '20170606'
     notes: Manufacture date 2017-06-06
@@ -881,10 +877,6 @@ sessions:
     pid: F100
     response: "Boot SW: 20, App SW: 160205, HW: 100, SW: 109"
     notes: Software/hardware version info
-  - ecu: '0x7CE'
-    pid: F187
-    payload: 62F18794003G7300
-    notes: Part number 94003G7300
   - ecu: '0x7CE'
     pid: F18B
     response: '20170601'
@@ -902,10 +894,6 @@ sessions:
     response: G7
     notes: App SW identifier
   - ecu: '0x7DC'
-    pid: F187
-    payload: 62F18756310G7300
-    notes: Part number 56310G7300
-  - ecu: '0x7DC'
     pid: F18B
     response: '20170601'
     notes: Manufacture date 2017-06-01
@@ -922,10 +910,6 @@ sessions:
     response: "Diag addr: 190, HW: 10000, SW: 10200"
     notes: "No standard part number DID. 21 DIDs responded to identity query."
   - ecu: '0x7AB'
-    pid: F187
-    payload: 62F18795450G7000
-    notes: Part number 95450G7000
-  - ecu: '0x7AB'
     pid: F18B
     response: '20170601'
     notes: Manufacture date 2017-06-01
@@ -933,10 +917,6 @@ sessions:
     pid: F100
     response: "Boot SW: 190, HW: 100, SW: 100"
     notes: Very chatty — 21 DIDs responded to identity scan
-  - ecu: '0x73E'
-    pid: F187
-    payload: 62F18796390G7000
-    notes: Part number 96390G7000
   - ecu: '0x73E'
     pid: F18B
     response: '20160608'

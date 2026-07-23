@@ -276,11 +276,6 @@ sessions:
   captures:
   - ecu: '0x778'
     pid: "1001"
-    payload: "NO DATA"
-    notes: "First attempt — wakes IGPM transceiver."
-
-  - ecu: '0x778'
-    pid: "1001"
     payload: "5001"
     notes: "Second attempt — IGPM responsive."
 
@@ -289,30 +284,3 @@ sessions:
     payload: "62C00BFFFF0000C9450200CB430100CF440100CB440100AAAAAAAA"
     notes: "TPMS data. BCM woke from CAN bus activity without ACC power."
 
-- label: "SKM wake mechanism retest — sleep timer discovery"
-  date: "2026-04-16"
-  vehicle_states:
-  - deep sleep
-  notes: >-
-    Systematic SKM wake testing. Key finding: SKM wakes on 2nd 1001 frame but has ~2s sleep timer — falls asleep again if CAN traffic is too slow. 64ms ELM timeout keeps it awake; 600ms timeout does not.
-     [migrated state: deep sleep, unplugged, fob inside house]
-  captures:
-  - ecu: '0x7AD'
-    pid: "1001"
-    payload: "NO DATA"
-    notes: "Single 1001 at 600ms timeout — dead."
-
-  - ecu: '0x7AD'
-    pid: "1001"
-    payload: "NO DATA x3"
-    notes: "3x 1001 at 600ms — still dead."
-
-  - ecu: '0x7AD'
-    pid: "1001"
-    payload: "5001 at attempts 2-4, NO DATA at 5-10"
-    notes: "10x 1001 at 600ms — woke briefly, fell asleep after ~2s gap."
-
-  - ecu: '0x7AD'
-    pid: "1001"
-    payload: "5001 at attempts 2-10"
-    notes: "10x 1001 at 64ms timeout — woke at #2, stayed awake."
