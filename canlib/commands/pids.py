@@ -11,6 +11,7 @@ Subcommands:
   add-research ECU ...             Append a research: entry
   set-status  ECU TARGET STATUS    Update a research item's status
   set-pid-status ECU PID STATUS    Set a PID's lifecycle (active|draft|static|ignored)
+  set-identity ECU FIELD VALUE     Set a curated identity field (e.g. notes)
 
 Examples:
   # Record a decoded parameter
@@ -22,6 +23,9 @@ Examples:
   canair pids add-research MCU --type decode --target 2103 \\
       --status captured --priority P2 --prereq charging --notes "27 bytes, zeros"
   canair pids set-status MCU 2103 done --type decode
+
+  # Set an ECU's curated identity notes (comment/format-preserving)
+  canair pids set-identity BMS notes "Battery Management System — see sessions:."
 """
 
 from __future__ import annotations
@@ -34,6 +38,7 @@ from canlib.pids_edit import (
     PidsEditError,
     add_research_entry,
     find_ecu_file,
+    set_identity_field,
     set_pid_status,
     set_research_status,
     upsert_parameter,
@@ -156,6 +161,18 @@ def cmd_set_pid_status(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_set_identity(args: argparse.Namespace) -> int:
+    def do():
+        set_identity_field(args.ecu, args.field, args.value, pids_dir=args.dir)
+
+    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
+    print(
+        f"{_GREEN}  ✓ {args.ecu} identity.{args.field} updated{_RESET}  "
+        f"{_DIM}({fpath.name}){_RESET}"
+    )
+    return 0
+
+
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
@@ -235,6 +252,13 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     sps.add_argument("status", choices=list(PID_STATUSES))
     _add_common(sps)
     sps.set_defaults(_pids_func=cmd_set_pid_status)
+
+    si = sub.add_parser("set-identity", help="Set a curated identity field (e.g. notes)")
+    si.add_argument("ecu")
+    si.add_argument("field", help="Identity field name, e.g. notes or description")
+    si.add_argument("value", help="New value (notes are stored as a folded block scalar)")
+    _add_common(si)
+    si.set_defaults(_pids_func=cmd_set_identity)
 
     parser.set_defaults(func=run)
     return parser

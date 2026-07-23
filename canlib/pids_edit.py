@@ -1336,6 +1336,68 @@ def add_research_entry(
     return fpath
 
 
+# ── Identity field editor ─────────────────────────────────────────────────────
+#
+# The ``identity:`` block (part number, versions, protocol, notes, …) is normally
+# populated by ``canair discover``/``identity`` from decoded DIDs, but a few
+# fields — notably free-text ``notes`` and the human ``description`` — are curated
+# by hand. This editor keeps those surgical/validated too, so nothing has to be
+# hand-edited in the YAML.
+
+
+def set_identity_field(
+    ecu_name: str,
+    field: str,
+    value: str,
+    *,
+    pids_dir: Path | None = None,
+) -> Path:
+    """Set a single field under ``ECU.identity`` (e.g. ``notes``/``description``).
+
+    Adds the field if missing, replaces it in place if present. ``notes`` is
+    rendered as a folded block scalar (multi-line safe); all other fields are
+    written as quoted scalars. The write is verified by a YAML re-parse; on any
+    failure the original file is restored.
+    """
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", field or ""):
+        raise PidsEditError(f"invalid identity field name {field!r}")
+    if value is None or not str(value).strip():
+        raise PidsEditError("value must not be empty")
+
+    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
+    original = fpath.read_text()
+    ecu_key = ecu_name.strip().upper()
+
+    def transform(text: str) -> str:
+        ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
+        identity = _keyed_block(text, "identity", 2, ecu_start, ecu_end)
+        if not identity:
+            raise PidsEditError(f"ECU {ecu_name!r} has no identity: section")
+        _, _, id_body_start, id_body_end, _ = identity
+        block = text[id_body_start:id_body_end]
+        if field == "notes":
+            repl = _format_block_scalar(" " * 4, "notes", str(value))
+        else:
+            repl = _format_scalar_field(" " * 4, field, str(value))
+        new_block = _replace_field_in_block_at(block, field, repl, indent=4)
+        return text[:id_body_start] + new_block + text[id_body_end:]
+
+    def checker(ecu_def: dict) -> None:
+        identity = ecu_def.get("identity")
+        if not isinstance(identity, dict):
+            raise PidsEditError("identity: section missing after edit")
+        got = identity.get(field)
+        if got is None:
+            raise PidsEditError(f"identity.{field} missing after edit")
+        # Folded block scalars collapse newlines to spaces; compare normalized.
+        if " ".join(str(got).split()) != " ".join(str(value).split()):
+            raise PidsEditError(f"identity.{field} mismatch after edit")
+
+    new_text = transform(original)
+    _safe_write(fpath, original, new_text, ecu_key, checker)
+    return fpath
+
+
 def set_research_status(
     ecu_name: str,
     target: str,
