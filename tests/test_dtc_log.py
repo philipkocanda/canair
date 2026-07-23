@@ -22,6 +22,23 @@ def test_load_missing_is_empty(tmp_path):
     assert dtc_log.load_log(tmp_path / "nope.yaml") == {"scans": []}
 
 
+def test_build_scan_records_vehicle_states(tmp_path):
+    p = tmp_path / "dtc_log.yaml"
+    entry = dtc_log.build_scan(
+        "all", {}, label="on-charge", vehicle_states=["plugged", "charging"],
+        timestamp="2026-07-22T10:00:00",
+    )
+    assert entry["vehicle_states"] == ["plugged", "charging"]
+    dtc_log.append_scan(entry, path=p)
+    assert dtc_log.load_log(p)["scans"][0]["vehicle_states"] == ["plugged", "charging"]
+
+
+def test_build_scan_omits_empty_vehicle_states():
+    # No states (None or []) → the field is left off the entry entirely.
+    assert "vehicle_states" not in dtc_log.build_scan("all", {}, timestamp="t")
+    assert "vehicle_states" not in dtc_log.build_scan("all", {}, vehicle_states=[], timestamp="t")
+
+
 def test_latest_matching_by_scope(tmp_path):
     p = tmp_path / "dtc_log.yaml"
     dtc_log.append_scan(dtc_log.build_scan("all", {}, timestamp="t1"), path=p)
