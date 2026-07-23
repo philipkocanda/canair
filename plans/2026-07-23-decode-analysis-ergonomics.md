@@ -343,9 +343,27 @@ over existing captures** — no device, no transport, no schema-of-record change
       - Tests: `test_stats.py` (pearson/rank/spearman/dispatch), `test_xanalysis.py`
         (LagScan, CorrelateGate, build_bit_series), `test_decode_try.py`
         (discriminate `--bits`). Full suite (1738) + ruff + `validate all` green.
-- [ ] Tranche 3 — co-poll overlap matrix (3.1); `investigate` verb (3.2); output
+- [x] Tranche 3 — co-poll overlap matrix (3.1); `investigate` verb (3.2); output
       clustering/interp-collapse/self-match hygiene (3.3); preserve YAML note
       wrapping in `pids upsert-param` (3.4).
+      - 3.1: `correlate --overlap` (`_print_overlap`) reports which ECU:PID pairs
+        share time-aligned samples (and how many) — the "which reference can I
+        use here?" index. Verified: shows ESC/EPS/MCU/VCU/AAF co-polled on the
+        drive, BMS 2101 absent.
+      - 3.2: new `canair investigate ECU PID` command — one ranked per-byte report
+        (mapped-by-param? / state-discriminability F / best co-polled anchor with
+        r+fit+unit). Bundles coverage→discriminate→correlate→hunt into one call.
+      - 3.3: `hunt` collapses to best-per-offset (was u8/i16/u24 spam), `--all-interps`
+        to expand; `correlate --against` drops the trivial self-match (`--include-self`
+        to keep) and shows the reference's sample count; matrix collapses
+        near-perfectly-correlated (|r|≥0.995) groups to one summary line
+        (`_colinear_clusters`, `--no-cluster` to disable) — the 66-cell-voltage
+        charging flood becomes one line.
+      - 3.4: `pids` `_format_notes_block` word-wraps long notes (folded scalar →
+        value-preserving; long URLs/tokens not broken), so `upsert-param`/`--promote`
+        notes land as readable multi-line text.
+      - Tests: `test_investigate.py`, `test_xanalysis.py` (Overlap, OutputHygiene),
+        `test_pids_edit.py` (note wrapping). Full suite (1756) + ruff + validate green.
 - [ ] Docs — `AGENTS.md` + reverse-engineer-pid skill updated.
 - [ ] Acceptance — the four history-only checks above reproduce from single
       commands.

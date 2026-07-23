@@ -168,6 +168,26 @@ class TestUpdateNotes:
         # Did not mutate other DIDs' notes
         assert "Single-line note." in data["TEST"]["iocontrol"]["AA01"]["notes"]
 
+    def test_long_note_wraps_but_preserves_value(self, tmp_pids_dir: Path):
+        # T3.4: a long single-line note is word-wrapped for readability but the
+        # folded-scalar value round-trips unchanged, and long tokens/URLs are not
+        # broken (which would corrupt the folded value).
+        note = (
+            "Candidate from canair hunt vs ESC:22C101:REAL_SPEED_KMH: r=+0.997 "
+            "(n=66), fit y=0.6243*x+0.00. See "
+            "https://docs.google.com/spreadsheets/d/1R2dW_4-ANg04TQdkHH52-8wdYItBkWDfppXcsqOc-m1M "
+            "for the reference data. Enabled unverified pending scale confirmation."
+        )
+        update_iocontrol_field("TEST", "AA02", "notes", note, pids_dir=tmp_pids_dir)
+        raw = (tmp_pids_dir / "test.yaml").read_text()
+        # readability: at least one wrapped continuation line ≤ ~101 cols
+        note_lines = [ln for ln in raw.splitlines() if ln.startswith("        ") and "http" not in ln]
+        assert note_lines and max(len(ln) for ln in note_lines) <= 101
+        # value preserved + URL intact
+        got = _reload(tmp_pids_dir / "test.yaml")["TEST"]["iocontrol"]["AA02"]["notes"].strip()
+        assert got == note
+        assert "1R2dW_4-ANg04TQdkHH52-8wdYItBkWDfppXcsqOc-m1M" in got
+
 
 class TestGuards:
     def test_unknown_field(self, tmp_pids_dir: Path):

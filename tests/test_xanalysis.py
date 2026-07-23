@@ -311,6 +311,81 @@ class TestCommandParsers:
         assert args.transform == "abs"
 
 
+class TestOutputHygiene:
+    """T3.3 — interpretation collapse + co-linear clustering."""
+
+    def test_hunt_collapses_to_one_per_offset(self, tmp_path):
+        from canlib.align import load_signal_captures
+
+        # target byte B4 ramps; hunt should not emit u8+u16+u24 all at offset 4
+        caps, refs = [], []
+        for i in range(20):
+            t = f"09:00:{i:02d}"
+            caps.append({"ecu": "AAF", "pid": "2181", "payload": f"618100{i:02X}", "time": t})
+            refs.append({"ecu": "ESC", "pid": "22C101", "payload": f"62C10100{i:02X}", "time": t})
+        doc = {"sessions": [{"date": "2026-07-22", "vehicle_states": ["driving"],
+                             "captures": caps + refs}]}
+        (tmp_path / "2026-07-22.yaml").write_text(yaml.safe_dump(doc))
+        loaded = load_signal_captures([("AAF", "2181"), ("ESC", "22C101")], captures_dir=tmp_path)
+        from canlib.align import extract_series
+
+        ref = extract_series(loaded[("ESC", "22C101")], "B5")
+        collapsed = xanalysis.hunt_byte(loaded[("AAF", "2181")], ref, tol_s=1.0, min_n=10)
+        offsets = [h.offset for h in collapsed]
+        assert len(offsets) == len(set(offsets))  # one row per offset
+        expanded = xanalysis.hunt_byte(
+            loaded[("AAF", "2181")], ref, tol_s=1.0, min_n=10, all_interps=True
+        )
+        assert len(expanded) >= len(collapsed)  # --all-interps shows more
+
+    def test_colinear_clusters_groups_mutual(self):
+        from canlib.commands import correlate
+        from canlib.xanalysis import CorrHit
+
+        # A,B,C mutually ~1.0 -> one cluster of 3; D unrelated
+        hits = [
+            CorrHit("A", "B", 0.999, 30),
+            CorrHit("B", "C", 0.998, 30),
+            CorrHit("A", "C", 0.997, 30),
+            CorrHit("A", "D", 0.5, 30),
+        ]
+        clusters = correlate._colinear_clusters(hits)
+        assert len(clusters) == 1
+        assert clusters[0] == {"A", "B", "C"}
+
+
+class TestOverlap:
+    """T3.1 — co-poll overlap matrix."""
+
+    def test_reports_overlapping_pairs(self, capsys, monkeypatch):
+        from canlib.align import LoadedPid
+        from canlib.commands import correlate
+
+        def lp(ecu, pid, secs):
+            x = LoadedPid(ecu, pid)
+            x.captures = [
+                {"date": "2026-07-22", "time": f"09:00:{s:02d}", "payload": "62C10100"}
+                for s in secs
+            ]
+            return x
+
+        # A & B co-polled (near-simultaneous); C polled at a disjoint time
+        fake = {
+            ("ESC", "22C101"): lp("ESC", "22C101", [0, 2, 4, 6]),
+            ("MCU", "2102"): lp("MCU", "2102", [0, 2, 4, 6]),
+            ("BMS", "2101"): lp("BMS", "2101", [40, 42]),
+        }
+        monkeypatch.setattr(correlate, "load_signal_captures", lambda *a, **k: fake)
+        rc = correlate._print_overlap(
+            list(fake), None, None, None, None, 1.0, 2, as_json=False
+        )
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "ESC:22C101" in out and "MCU:2102" in out
+        # ESC⟷MCU overlap (4) shown; BMS shares nothing within tol
+        assert "BMS:2101  ⟷" not in out and "⟷  BMS:2101" not in out
+
+
 class TestHuntPromote:
     """Tranche 2.5 — promoting a hunt hit to a candidate param."""
 

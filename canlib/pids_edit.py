@@ -163,15 +163,28 @@ def _format_verified(value: bool) -> str:
 
 
 def _format_notes_block(value: str, indent: str = "        ") -> list[str]:
-    """Render notes as a block-scalar: ``notes: >`` followed by indented lines.
+    """Render notes as a folded block-scalar: ``notes: >`` + indented lines.
 
-    Always uses block-scalar form so multi-line notes are preserved. Single-
-    line notes get one indented continuation line, which YAML accepts.
+    Long lines are word-wrapped (default ~92 cols after the indent) so a note
+    passed as one long string — e.g. from ``pids upsert-param --notes`` or an
+    analysis ``--promote`` — lands as readable multi-line text instead of a single
+    overlong line. Because ``>`` is a *folded* scalar (consecutive non-blank lines
+    fold back to spaces), wrapping is value-preserving; blank lines are kept as
+    paragraph breaks.
     """
-    lines = value.strip("\n").splitlines() or [""]
+    import textwrap
+
+    width = max(20, 100 - len(indent))
     out = ["      notes: >"]
-    for ln in lines:
-        out.append(f"{indent}{ln.rstrip()}")
+    for ln in value.strip("\n").splitlines() or [""]:
+        stripped = ln.rstrip()
+        if not stripped:
+            out.append("")  # paragraph break (folded scalar → newline)
+            continue
+        for piece in textwrap.wrap(
+            stripped, width=width, break_long_words=False, break_on_hyphens=False
+        ) or [""]:
+            out.append(f"{indent}{piece}")
     return out
 
 

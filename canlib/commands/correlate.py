@@ -15,8 +15,14 @@ import argparse
 import json as _json
 import sys
 
-from canlib.align import DEFAULT_JOIN_TOL_S, align_many, join_nearest, load_signal_captures
-from canlib.capture_dates import add_scope_args, resolve_date_bounds
+from canlib.align import (
+    DEFAULT_JOIN_TOL_S,
+    TimePoint,
+    align_many,
+    join_nearest,
+    load_signal_captures,
+)
+from canlib.capture_dates import add_scope_args, entry_datetime, resolve_date_bounds
 from canlib.xanalysis import (
     build_bit_series,
     build_byte_series,
@@ -78,12 +84,24 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         help="Include same-ECU+PID pairs (default: cross-PID/ECU only)",
     )
     parser.add_argument(
+        "--include-self",
+        action="store_true",
+        help="With --against: keep the reference's own signal (trivial r=1.0; "
+        "dropped by default)",
+    )
+    parser.add_argument(
         "--min-r", type=float, default=0.6, metavar="R", help="Min |r| to report (default 0.6)"
     )
     parser.add_argument(
         "--min-n", type=int, default=15, metavar="N", help="Min aligned points (default 15)"
     )
     parser.add_argument("--top", type=int, default=40, metavar="N", help="Max hits (default 40)")
+    parser.add_argument(
+        "--no-cluster",
+        action="store_true",
+        help="Don't collapse near-perfectly-correlated (|r|≥0.995) signal groups "
+        "into a single summary line (e.g. balanced cell voltages while charging)",
+    )
     parser.add_argument(
         "--method",
         choices=["pearson", "spearman"],
@@ -129,6 +147,13 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "correlation evidence auto-filled into notes",
     )
     parser.add_argument("--json", action="store_true", help="Machine-readable output")
+    parser.add_argument(
+        "--overlap",
+        action="store_true",
+        help="Instead of correlating, report which ECU:PID pairs share "
+        "time-aligned samples (and how many) in scope — pick a viable "
+        "--against reference without trial and error",
+    )
     add_scope_args(parser)
     parser.set_defaults(func=run)
     return parser
@@ -184,9 +209,95 @@ def _gather_series(specs, since, until, state, label, want_bytes, want_bits=Fals
     return series
 
 
+def _print_overlap(specs, since, until, state, label, tol, min_n, as_json) -> int:
+    """Report which ECU:PID pairs share time-aligned samples (and how many).
+
+    The "which reference can I actually use here?" index — answers the repeated
+    "no timed captures for reference in scope" surprise before choosing an
+    ``--against`` anchor. Overlap ``n`` is the nearest-join count within ``tol``.
+    """
+    loaded = load_signal_captures(specs, since=since, until=until, state=state, label=label)
+    stamps: dict[str, list] = {}
+    for (ecu, pid), lp in loaded.items():
+        ts = [TimePoint(entry_datetime(c), 0.0) for c in lp.captures if entry_datetime(c)]
+        if ts:
+            stamps[f"{ecu}:{pid}"] = sorted(ts, key=lambda tp: tp.dt)
+
+    names = sorted(stamps)
+    pairs = []
+    for i in range(len(names)):
+        for j in range(i + 1, len(names)):
+            _, _, n = join_nearest(stamps[names[i]], stamps[names[j]], tol_s=tol)
+            if n:
+                pairs.append((names[i], names[j], n))
+    pairs.sort(key=lambda t: -t[2])
+
+    if as_json:
+        _json.dump(
+            {
+                "join_tol_s": tol,
+                "signals": {k: len(v) for k, v in stamps.items()},
+                "overlaps": [{"a": a, "b": b, "n": n} for a, b, n in pairs],
+            },
+            sys.stdout,
+            indent=2,
+            default=str,
+        )
+        print()
+        return 0
+
+    if not stamps:
+        print("No timed captures in scope.", file=sys.stderr)
+        return 1
+    print(f"\n  {_BOLD}Co-poll overlap{_RESET} {_DIM}(nearest-join ≤{tol:g}s){_RESET}")
+    for name in names:
+        print(f"    {_DIM}{name}: {len(stamps[name])} timed samples{_RESET}")
+    print()
+    shown = [p for p in pairs if p[2] >= min_n]
+    if not shown:
+        print(f"    {_DIM}no pair shares ≥{min_n} aligned samples{_RESET}")
+    for a, b, n in shown:
+        color = _GREEN if n >= 50 else _YELLOW if n >= min_n else _DIM
+        print(f"    {color}n={n:<4}{_RESET} {a}  {_DIM}⟷{_RESET}  {b}")
+    print()
+    return 0
+
+
 def _color_r(r: float) -> str:
     c = _GREEN if abs(r) >= 0.7 else _YELLOW if abs(r) >= 0.3 else _DIM
     return f"{c}r={r:+.3f}{_RESET}"
+
+
+_CLUSTER_THRESHOLD = 0.995
+
+
+def _colinear_clusters(hits, threshold: float = _CLUSTER_THRESHOLD):
+    """Union-find signals joined by ``|r| >= threshold`` into co-linear groups.
+
+    Returns the list of clusters (sets of signal labels) with ≥3 members — the
+    near-perfectly-correlated bundles (e.g. every balanced cell voltage during
+    charging) that otherwise flood the ranked pair list with redundant rows.
+    """
+    parent: dict[str, str] = {}
+
+    def find(x: str) -> str:
+        parent.setdefault(x, x)
+        root = x
+        while parent[root] != root:
+            root = parent[root]
+        while parent[x] != root:
+            parent[x], x = root, parent[x]
+        return root
+
+    for h in hits:
+        if abs(h.r) >= threshold:
+            ra, rb = find(h.a), find(h.b)
+            if ra != rb:
+                parent[ra] = rb
+    groups: dict[str, set] = {}
+    for sig in parent:
+        groups.setdefault(find(sig), set()).add(sig)
+    return [g for g in groups.values() if len(g) >= 3]
 
 
 _GATE_OPS = {
@@ -243,8 +354,15 @@ def run(args) -> int:
         print(f"error: {err}", file=sys.stderr)
         return 2
 
+    specs = _discover_specs(args.query, since, until, args.state, args.label)
+
+    if args.overlap:
+        return _print_overlap(
+            specs, since, until, args.state, args.label, args.join_tol, args.min_n, args.json
+        )
+
     series = _gather_series(
-        _discover_specs(args.query, since, until, args.state, args.label),
+        specs,
         since,
         until,
         args.state,
@@ -284,6 +402,8 @@ def run(args) -> int:
                 return 1
         rows = []
         for name, s in series.items():
+            if not args.include_self and name == args.against:
+                continue  # the reference vs itself — trivial r=1.0
             if args.lag_scan:
                 hit = lag_scan(
                     ref_series, s, tol_s=args.join_tol, max_lag=args.lag_scan, method=args.method
@@ -329,7 +449,7 @@ def run(args) -> int:
         )
         print(
             f"\n  {_BOLD}vs {ref_label}{_RESET} "
-            f"{_DIM}(nearest-join ≤{args.join_tol:g}s{lag_hdr}){_RESET}"
+            f"{_DIM}(nearest-join ≤{args.join_tol:g}s, ref {len(ref_series)} samples{lag_hdr}){_RESET}"
         )
         for name, r, n, lag in rows:
             lag_str = f"  {_DIM}lag={lag:+.1f}s{_RESET}" if lag is not None else ""
@@ -345,12 +465,11 @@ def run(args) -> int:
         include_intra=args.include_intra,
         method=args.method,
     )
-    hits = hits[: args.top]
     if args.json:
         _json.dump(
             {
                 "join_tol_s": args.join_tol,
-                "hits": [{"a": h.a, "b": h.b, "r": h.r, "n": h.n} for h in hits],
+                "hits": [{"a": h.a, "b": h.b, "r": h.r, "n": h.n} for h in hits[: args.top]],
             },
             sys.stdout,
             indent=2,
@@ -361,12 +480,27 @@ def run(args) -> int:
     if not hits:
         print(f"No cross-signal correlations with |r| ≥ {args.min_r} (n ≥ {args.min_n}).")
         return 0
+
+    clusters = [] if args.no_cluster else _colinear_clusters(hits)
+    clustered = {sig for c in clusters for sig in c}
+    # Pairs fully inside a collapsed cluster are hidden (represented by the
+    # cluster summary); everything else prints normally.
+    remaining = [h for h in hits if not (h.a in clustered and h.b in clustered
+                 and any(h.a in c and h.b in c for c in clusters))]
+    remaining = remaining[: args.top]
     print(
         f"\n  {_BOLD}Cross-signal correlations{_RESET} "
         f"{_DIM}({len(series)} signals, |r|≥{args.min_r}, n≥{args.min_n}, "
         f"≤{args.join_tol:g}s){_RESET}"
     )
-    for h in hits:
+    for c in sorted(clusters, key=len, reverse=True):
+        members = sorted(c)
+        shown = ", ".join(members[:4]) + (f", +{len(members) - 4} more" if len(members) > 4 else "")
+        print(
+            f"    {_GREEN}≈ cluster{_RESET} {_DIM}(|r|≥{_CLUSTER_THRESHOLD:g}, "
+            f"{len(members)} signals){_RESET}  {shown}"
+        )
+    for h in remaining:
         print(f"    {_color_r(h.r)}  {h.a}  {_DIM}⟷{_RESET}  {h.b}  {_DIM}n={h.n}{_RESET}")
     print()
     return 0

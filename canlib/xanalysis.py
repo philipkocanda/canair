@@ -366,6 +366,7 @@ def hunt_byte(
     min_n: int = 10,
     top: int = 12,
     method: str = "pearson",
+    all_interps: bool = False,
 ) -> list[HuntHit]:
     """Sweep every byte offset × interpretation, rank by |r| vs ``ref``.
 
@@ -447,11 +448,13 @@ def hunt_byte(
         return (-round(abs(h.r), 3), h.width, h.expr == "<no-expr>", rel_resid)
 
     hits.sort(key=_rank)
-    # De-dupe by (offset, interp) keeping the strongest, then trim.
-    seen: set[str] = set()
+    # Collapse to the best hit per starting offset (default) so one real signal
+    # doesn't emit a wall of near-identical u8/i16/u24/… rows; --all-interps
+    # (all_interps=True) keeps every (offset, interp). Then trim to ``top``.
+    seen: set = set()
     unique: list[HuntHit] = []
     for h in hits:
-        key = f"{h.offset}:{h.interp}"
+        key = h.offset if not all_interps else f"{h.offset}:{h.interp}"
         if key in seen:
             continue
         seen.add(key)

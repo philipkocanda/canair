@@ -75,6 +75,12 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     )
     parser.add_argument("--json", action="store_true", help="Machine-readable output")
     parser.add_argument(
+        "--all-interps",
+        action="store_true",
+        help="Show every interpretation per offset (u8/i16/u24/…); default "
+        "collapses to the best interpretation per byte offset",
+    )
+    parser.add_argument(
         "--promote",
         metavar="NAME",
         help="Write the top hit's expression to ecus/ as an enabled, unverified "
@@ -122,7 +128,8 @@ def run(args) -> int:
         return 1
 
     hits = hunt_byte(
-        lp, ref_series, tol_s=args.join_tol, min_n=args.min_n, top=args.top, method=args.method
+        lp, ref_series, tol_s=args.join_tol, min_n=args.min_n, top=args.top,
+        method=args.method, all_interps=args.all_interps,
     )
 
     if args.promote:
