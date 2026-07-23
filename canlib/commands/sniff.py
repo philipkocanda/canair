@@ -7,7 +7,7 @@ Optionally logs every frame to a python-can file (``.asc``/``.blf``/``.csv``).
 
 The device must already be in ``slcan`` mode — sniff never switches it. If it's
 in another mode, sniff errors with the exact command to fix it
-(``canair wican --set-protocol slcan``). See ``canair status``.
+(``canair wican mode set slcan``). See ``canair status``.
 """
 
 from __future__ import annotations

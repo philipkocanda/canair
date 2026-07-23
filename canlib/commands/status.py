@@ -149,7 +149,7 @@ def _gather(args) -> dict:
         if mismatch:
             info["warnings"].append(
                 f"device is in '{device_protocol}' mode but the raw transport needs 'slcan' — "
-                f"set it with: canair wican --set-protocol slcan"
+                f"set it with: canair wican mode set slcan"
             )
             info["exit"] = _MISCONFIGURED
         if not raw_ok:

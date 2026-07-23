@@ -29,13 +29,14 @@ wican_addresses:
 default_wican: ap
 
 # WiCAN hardware model: "pro" (default) or "classic" (the regular, non-Pro WiCAN).
-# The classic WiCAN has no AutoPID vehicle-profile support and no ELM327
+# The classic WiCAN has no AutoPID profile support and no ELM327
 # WebSocket terminal, so with wican_model: classic canair refuses:
-#   - `canair wican --upload/--download/--diff/--set-protocol` (AutoPID sync), and
+#   - `canair wican autopid upload/download/diff` and `canair wican mode set`
+#     (AutoPID sync / mode switch), and
 #   - the `wican-ws` transport (ELM327 WebSocket terminal).
 # Everything else — reading/scanning/decoding over the default slcan-tcp
-# transport, and generating profile JSON with plain `canair wican` — works on
-# both models. Leave unset (or "pro") if you have a WiCAN Pro.
+# transport, and generating AutoPID JSON with `canair wican autopid write` —
+# works on both models. Leave unset (or "pro") if you have a WiCAN Pro.
 # wican_model: pro
 
 # CAN transport selection (advanced). Chosen explicitly; never auto-detected.
