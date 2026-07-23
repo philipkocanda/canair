@@ -207,7 +207,9 @@ def _annotate_payload(payload_hex: str, sub_bytes: int):
         iso_str = f"0x{isotp:02X}" if isotp is not None else "—"
         t_str = letter if letter else "—"
         b_str = str(bix) if bix is not None else "—"
-        print(f"  {w_str:>5} | 0x{byte_val:02X} |  {iso_str:>5} |  {t_str:>5} | {b_str:>5} | {role}")
+        print(
+            f"  {w_str:>5} | 0x{byte_val:02X} |  {iso_str:>5} |  {t_str:>5} | {b_str:>5} | {role}"
+        )
 
 
 def run(args) -> int:

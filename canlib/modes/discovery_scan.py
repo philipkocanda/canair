@@ -18,8 +18,8 @@ from __future__ import annotations
 import asyncio
 import dataclasses
 import sys
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Awaitable, Callable
 
 from ..scan_state import ScanStateWriter
 from ..terminal import WiCANTerminal

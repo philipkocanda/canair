@@ -32,11 +32,7 @@ def _row(name, value=1.0, unit="", expr="B0", verified=False):
 
 def _pids_data(params):
     """Wrap a {param_name: pdef} map into a pids_data dict for BMS 2101."""
-    return {
-        "ecus": {
-            "BMS": {"tx_id": 0x7E4, "pids": {"2101": {"parameters": params}}}
-        }
-    }
+    return {"ecus": {"BMS": {"tx_id": 0x7E4, "pids": {"2101": {"parameters": params}}}}}
 
 
 # ── filtering ────────────────────────────────────────────────────────────────
@@ -74,29 +70,45 @@ class TestFilter:
     def test_verified_filter(self):
         ed = self._editor()
         ed.filter_mode = "verified"
-        names = [r[0] for _, entries in ed.visible_queries(ed.c.last_queries)
-                 for e in entries for r in e["params"]]
+        names = [
+            r[0]
+            for _, entries in ed.visible_queries(ed.c.last_queries)
+            for e in entries
+            for r in e["params"]
+        ]
         assert names == ["SOC"]
 
     def test_unverified_filter(self):
         ed = self._editor()
         ed.filter_mode = "unverified"
-        names = [r[0] for _, entries in ed.visible_queries(ed.c.last_queries)
-                 for e in entries for r in e["params"]]
+        names = [
+            r[0]
+            for _, entries in ed.visible_queries(ed.c.last_queries)
+            for e in entries
+            for r in e["params"]
+        ]
         assert names == ["TEMP", "GUESS"]
 
     def test_disabled_filter(self):
         ed = self._editor()
         ed.filter_mode = "disabled"
-        names = [r[0] for _, entries in ed.visible_queries(ed.c.last_queries)
-                 for e in entries for r in e["params"]]
+        names = [
+            r[0]
+            for _, entries in ed.visible_queries(ed.c.last_queries)
+            for e in entries
+            for r in e["params"]
+        ]
         assert names == ["GUESS"]
 
     def test_enabled_filter(self):
         ed = self._editor()
         ed.filter_mode = "enabled"
-        names = [r[0] for _, entries in ed.visible_queries(ed.c.last_queries)
-                 for e in entries for r in e["params"]]
+        names = [
+            r[0]
+            for _, entries in ed.visible_queries(ed.c.last_queries)
+            for e in entries
+            for r in e["params"]
+        ]
         assert names == ["SOC", "TEMP"]
 
     def test_cycle_filter(self):
@@ -207,8 +219,15 @@ class TestApplyEdit:
     def test_apply_edit_changes_expression_and_flags(self, ecus_dir):
         ed = _editor_on_disk(ecus_dir)
         msg = ed.apply_edit(
-            {"expression": "B4", "unit": "%", "min": "0", "max": "100",
-             "notes": "recalibrated", "verified": True, "enabled": True}
+            {
+                "expression": "B4",
+                "unit": "%",
+                "min": "0",
+                "max": "100",
+                "notes": "recalibrated",
+                "verified": True,
+                "enabled": True,
+            }
         )
         assert "Saved" in msg
         assert ed.c.reloaded == 1
@@ -220,8 +239,17 @@ class TestApplyEdit:
 
     def test_apply_edit_empty_optional_preserves(self, ecus_dir):
         ed = _editor_on_disk(ecus_dir)
-        ed.apply_edit({"expression": "B4/2", "unit": "", "min": "", "max": "",
-                       "notes": "", "verified": False, "enabled": True})
+        ed.apply_edit(
+            {
+                "expression": "B4/2",
+                "unit": "",
+                "min": "",
+                "max": "",
+                "notes": "",
+                "verified": False,
+                "enabled": True,
+            }
+        )
         soc = _saved_soc(ecus_dir)
         assert soc["unit"] == "%"  # empty didn't clobber
 

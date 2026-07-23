@@ -125,6 +125,5 @@ class TestStatusVisibility:
     def test_derived_flags(self):
         pids = build_ecu_index(self._data())["TEST"]["pids"]
         assert pids["2101"]["shipped"] and pids["2101"]["swept"]
-        assert not pids["2102"]["shipped"] and pids["2102"]["swept"]   # draft: swept, unshipped
+        assert not pids["2102"]["shipped"] and pids["2102"]["swept"]  # draft: swept, unshipped
         assert not pids["21F2"]["shipped"] and not pids["21F2"]["swept"]  # static: neither
-

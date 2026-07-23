@@ -243,7 +243,7 @@ def build_ecu_index(pids_data: dict) -> dict:
                 "status": status,
                 # Derived visibility flags (single source: `status`) so callers
                 # never re-implement the lifecycle rules:
-                "shipped": status == "active",   # include in generated WiCAN profile
-                "swept": status != "static",     # include in a bare-ECU sweep
+                "shipped": status == "active",  # include in generated WiCAN profile
+                "swept": status != "static",  # include in a bare-ECU sweep
             }
     return index

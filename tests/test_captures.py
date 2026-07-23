@@ -81,7 +81,7 @@ class TestBuildQuerySession:
     def test_groups_and_uppercases(self):
         # ecu_ref is the ECU CAN response address (RX = request TX + 8).
         results = [
-            ("0x7EB", "2102", "6102aabb", ""),   # MCU (0x7E3 + 8)
+            ("0x7EB", "2102", "6102aabb", ""),  # MCU (0x7E3 + 8)
             ("0x7EA", "2101", "6101ccdd", "12:00:01"),  # VCU (0x7E2 + 8)
         ]
         s = build_query_session(results, "lbl", ["ready", "parked"], "notes here")
@@ -113,10 +113,22 @@ class TestBuildQuerySession:
 def _entry(**kw):
     """A minimal flat capture entry as load_all_captures would produce."""
     base = {
-        "file": "2026-07-22.yaml", "date": "2026-07-22", "session_label": "",
-        "vehicle_states": [], "session_notes": "", "ecu": "MCU", "ecu_addr": "0x7E3",
-        "pid": "2102", "payload": "6102AA", "response": None, "scan_results": None,
-        "notes": "", "time": "", "label": "", "_session_idx": 0, "_capture_idx": 0,
+        "file": "2026-07-22.yaml",
+        "date": "2026-07-22",
+        "session_label": "",
+        "vehicle_states": [],
+        "session_notes": "",
+        "ecu": "MCU",
+        "ecu_addr": "0x7E3",
+        "pid": "2102",
+        "payload": "6102AA",
+        "response": None,
+        "scan_results": None,
+        "notes": "",
+        "time": "",
+        "label": "",
+        "_session_idx": 0,
+        "_capture_idx": 0,
     }
     base.update(kw)
     return base
@@ -137,9 +149,16 @@ class TestClean:
 class TestGroupSessions:
     def test_groups_by_file_and_session_idx(self):
         entries = [
-            _entry(_session_idx=0, session_label="drive A", vehicle_states=["driving"], time="16:00:00"),
-            _entry(_session_idx=0, session_label="drive A", vehicle_states=["driving"], time="16:00:05",
-                   ecu="VCU"),
+            _entry(
+                _session_idx=0, session_label="drive A", vehicle_states=["driving"], time="16:00:00"
+            ),
+            _entry(
+                _session_idx=0,
+                session_label="drive A",
+                vehicle_states=["driving"],
+                time="16:00:05",
+                ecu="VCU",
+            ),
             _entry(_session_idx=1, session_label="park", vehicle_states=["ready"], time="17:00:00"),
         ]
         sessions = _group_sessions(entries)
@@ -177,8 +196,12 @@ class TestGroupSessions:
 class TestCmdSessions:
     def test_text_output_shows_metadata(self, capsys):
         entries = [
-            _entry(session_label="ESC drive", vehicle_states=["driving"],
-                   session_notes="highway then city", time="16:51:52.4"),
+            _entry(
+                session_label="ESC drive",
+                vehicle_states=["driving"],
+                session_notes="highway then city",
+                time="16:51:52.4",
+            ),
         ]
         cmd_sessions(entries)
         out = capsys.readouterr().out
@@ -189,12 +212,18 @@ class TestCmdSessions:
 
     def test_json_output(self, capsys):
         entries = [
-            _entry(session_label="lbl", vehicle_states=["driving"], session_notes="n",
-                   time="16:00:00", ecu="MCU"),
+            _entry(
+                session_label="lbl",
+                vehicle_states=["driving"],
+                session_notes="n",
+                time="16:00:00",
+                ecu="MCU",
+            ),
             _entry(session_label="lbl", vehicle_states=["driving"], time="16:00:09", ecu="VCU"),
         ]
         cmd_sessions(entries, as_json=True)
         import json
+
         data = json.loads(capsys.readouterr().out)
         assert len(data) == 1
         s = data[0]
@@ -206,6 +235,7 @@ class TestCmdSessions:
     def test_json_empty(self, capsys):
         cmd_sessions([], as_json=True)
         import json
+
         assert json.loads(capsys.readouterr().out) == []
 
 

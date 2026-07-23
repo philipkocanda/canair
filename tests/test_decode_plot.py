@@ -20,10 +20,22 @@ _MAP_DEFS = {
 }
 
 _VIEW_CAPS = [
-    {"date": "2026-07-19", "time": "22:12:07", "vehicle_states": ["driving"],
-     "label": "launch", "notes": "hard accel\nregen", "file": "a.yaml"},
-    {"date": "2026-07-20", "time": "14:03:11", "vehicle_states": ["ready"],
-     "label": "", "notes": "", "file": "b.yaml"},
+    {
+        "date": "2026-07-19",
+        "time": "22:12:07",
+        "vehicle_states": ["driving"],
+        "label": "launch",
+        "notes": "hard accel\nregen",
+        "file": "a.yaml",
+    },
+    {
+        "date": "2026-07-20",
+        "time": "14:03:11",
+        "vehicle_states": ["ready"],
+        "label": "",
+        "notes": "",
+        "file": "b.yaml",
+    },
 ]
 
 
@@ -33,7 +45,7 @@ class TestInterpretBytes:
         assert dp.interpret_bytes(FRAME, 3, I8) == -85.0
 
     def test_endianness(self):
-        assert dp.interpret_bytes(FRAME, 3, U16) == 0xABCD          # big-endian
+        assert dp.interpret_bytes(FRAME, 3, U16) == 0xABCD  # big-endian
         assert dp.interpret_bytes(FRAME, 3, U16, little=True) == 0xCDAB
         assert dp.interpret_bytes(FRAME, 3, I16) == 0xABCD - 0x10000  # signed BE
 
@@ -42,11 +54,12 @@ class TestInterpretBytes:
         assert dp.interpret_bytes(FRAME, 2, U32) == 0x01ABCD00
 
     def test_out_of_range_returns_none(self):
-        assert dp.interpret_bytes(FRAME, 5, U16) is None   # only 1 byte left
+        assert dp.interpret_bytes(FRAME, 5, U16) is None  # only 1 byte left
         assert dp.interpret_bytes(FRAME, -1, U8) is None
 
     def test_float_roundtrips(self):
         import struct
+
         raw = struct.pack(">f", 3.5)
         assert dp.interpret_bytes(raw, 0, F32) == 3.5
 
@@ -65,8 +78,8 @@ class TestWicanExpr:
         assert dp.wican_expr(3, U16, little=True) == "B3 | (B4 << 8)"
 
     def test_inexpressible_cases_return_none(self):
-        assert dp.wican_expr(3, I16, little=True) is None   # LE signed
-        assert dp.wican_expr(3, F32) is None                # float
+        assert dp.wican_expr(3, I16, little=True) is None  # LE signed
+        assert dp.wican_expr(3, F32) is None  # float
 
 
 class TestTransforms:
@@ -96,7 +109,7 @@ class TestTransforms:
 class TestRendering:
     def test_norm01(self):
         assert dp._norm01([0, 5, 10]) == [0.0, 0.5, 1.0]
-        assert dp._norm01([7, 7]) == [0.0, 0.0]   # zero span -> all 0
+        assert dp._norm01([7, 7]) == [0.0, 0.0]  # zero span -> all 0
 
     def test_pci_positions(self):
         # 6101ABCD -> frame 04 61 01 AB CD; only B0 is PCI.
@@ -104,7 +117,7 @@ class TestRendering:
 
     def test_render_plot_shape(self):
         lines = dp.render_plot([1, 2, 3, 2, 1], width=20, height=6)
-        assert len(lines) == 8            # height + axis + caption
+        assert len(lines) == 8  # height + axis + caption
         assert any("\u2802" <= ch <= "\u28ff" for ch in "".join(lines))  # has braille
 
     def test_render_plot_empty(self):
@@ -194,14 +207,21 @@ class TestCaptureView:
         assert dp._view_time_range([{"date": "", "time": ""}]) == ("", "")
 
     def test_info_lines_contents(self):
-        lines = dp._info_lines("MCU", "2102", _VIEW_CAPS, i0=40, total=332,
-                               ts_range="2026-07-19 → 2026-07-20", max_rows=20)
+        lines = dp._info_lines(
+            "MCU",
+            "2102",
+            _VIEW_CAPS,
+            i0=40,
+            total=332,
+            ts_range="2026-07-19 → 2026-07-20",
+            max_rows=20,
+        )
         body = "\n".join(lines)
         assert "captures in view" in body
         assert "launch" in body and "driving" in body
-        assert "hard accel regen" in body          # notes flattened
+        assert "hard accel regen" in body  # notes flattened
         assert "a.yaml" in body and "b.yaml" in body
-        assert "40" in body and "41" in body        # global indices (i0 + n)
+        assert "40" in body and "41" in body  # global indices (i0 + n)
 
     def test_info_lines_truncates(self):
         many = [dict(_VIEW_CAPS[0], label=f"c{i}") for i in range(50)]
@@ -212,9 +232,9 @@ class TestCaptureView:
 class TestOverlayCycle:
     def test_cycles_through_all_and_wraps(self):
         cyc = [None, "A", "B"]
-        assert dp._cycle_overlay(None, cyc) == "A"    # off -> first param
+        assert dp._cycle_overlay(None, cyc) == "A"  # off -> first param
         assert dp._cycle_overlay("A", cyc) == "B"
-        assert dp._cycle_overlay("B", cyc) is None     # wraps back to off
+        assert dp._cycle_overlay("B", cyc) is None  # wraps back to off
 
     def test_works_without_corr_when_params_exist(self):
         # The reported bug: `o` did nothing without --corr. Any numeric param is

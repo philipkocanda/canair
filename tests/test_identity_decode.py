@@ -1,9 +1,6 @@
 """Tests for canlib.modes.identity_decode — pure decode + protocol selection."""
 
-import pytest
-
 from canlib.modes import identity_decode as idec
-
 
 # --- decode_identity_payload ---
 

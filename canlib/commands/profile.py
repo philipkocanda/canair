@@ -56,7 +56,8 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         help="Create at this directory instead of ~/.config/canair/profiles/<name>",
     )
     crt.add_argument(
-        "--set-default", action="store_true",
+        "--set-default",
+        action="store_true",
         help="Set this profile as default_profile in the user config",
     )
     crt.add_argument("--force", action="store_true", help="Allow a non-empty target directory")
@@ -74,7 +75,7 @@ def _cmd_list(args) -> int:
     profiles = discover_profiles(getattr(args, "profiles_dir", None))
     if not profiles:
         print("No profiles found.")
-        print("Create one with `canair profile create <name> --car-model \"...\"`,")
+        print('Create one with `canair profile create <name> --car-model "..."`,')
         print(f"or add a bundle under {config_dir_hint()}.")
         return 0
     try:
@@ -95,7 +96,9 @@ def _cmd_show(args) -> int:
     print(f"car_model:  {meta.get('car_model', '?')}")
     print(f"init:       {meta.get('init', '?')}")
     print(f"ecus:       {prof.ecus_dir}  ({'ok' if prof.ecus_dir.is_dir() else 'MISSING'})")
-    print(f"profile:    {prof.root / 'profile.yaml'}  ({'ok' if (prof.root / 'profile.yaml').exists() else 'MISSING'})")
+    print(
+        f"profile:    {prof.root / 'profile.yaml'}  ({'ok' if (prof.root / 'profile.yaml').exists() else 'MISSING'})"
+    )
     print(f"captures:   {prof.captures_dir}  ({'ok' if prof.captures_dir.is_dir() else 'MISSING'})")
     print(f"out:        {prof.out_dir}")
 

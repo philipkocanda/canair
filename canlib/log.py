@@ -13,7 +13,6 @@ Directory structure:
 import logging
 import re
 from datetime import UTC, datetime
-from pathlib import Path
 
 from .constants import SCRIPT_DIR
 
@@ -34,6 +33,7 @@ def _load_ecu_lookup() -> dict[int, str]:
         return _ecu_lookup
     try:
         from .ecus import load_ecus
+
         ecus = load_ecus()
         _ecu_lookup = {tx_id: info["name"] for tx_id, info in ecus.items()}
     except Exception:
@@ -51,9 +51,7 @@ def _get_ecu_logger(ecu_name: str) -> logging.Logger:
     logger.setLevel(logging.INFO)
     logger.propagate = False
     if not logger.handlers:
-        fh = logging.FileHandler(
-            ECU_LOG_DIR / f"{ecu_name}-{_date_str}.log", encoding="utf-8"
-        )
+        fh = logging.FileHandler(ECU_LOG_DIR / f"{ecu_name}-{_date_str}.log", encoding="utf-8")
         fh.setFormatter(logging.Formatter("%(message)s"))
         logger.addHandler(fh)
     _ecu_loggers[ecu_name] = logger

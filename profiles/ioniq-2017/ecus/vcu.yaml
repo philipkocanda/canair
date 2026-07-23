@@ -170,23 +170,44 @@ VCU:
           notes: >
             To investigate
 
-        CAR_READY:
+        DEBUG_GEAR_STATE_FLAGS:
+          expression: "B26"
+          unit: ""
+          verified: true
+          source: "canair historical analysis 2026-07-23"
+          notes: >
+            Raw B26 gear/shifter bitfield — a second copy of the gear state that parallels B10
+            (DEBUG_DRIVE_MODE_FLAGS) in a different byte. Across 773 captures B26 takes only two
+            values: 0x20 (Park) and 0x08 (Drive). Bit 3 (0x08) tracks Drive (r=+0.984 vs DRIVE_MODE_D),
+            bit 5 (0x20) tracks Park (r=+1.000 vs DRIVE_MODE_P). Bits 0,1,2,4,6,7 are constant 0 in all
+            captured data (R/N almost never sampled, so any R/N bits are unconfirmed). See the individual
+            bits below.
+
+        GEAR_DRIVE:
           expression: "B26:3"
           unit: ""
-          source: "Kia Niro EV WiCAN PR#716"
+          source: "canair historical analysis 2026-07-23 (was mislabeled CAR_READY, Kia Niro PR#716)"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
-          verified: false
-          notes: ""
+          verified: true
+          notes: >
+            Gear = Drive. RENAMED from CAR_READY 2026-07-23: B26:3 is NOT car-ready (DISPROVEN — read 0 in
+            full READY when the car was definitely ready; VEHICLE_STATE_EV_READY B11:3 already covers ready).
+            B26:3 correlates r=+0.984 with DRIVE_MODE_D (B10:3) across 773 captures — it is the drive-gear
+            bit mirrored into B26. Niro's CAR_READY offset does not transfer to the Ioniq.
 
-        PARK_BRAKE:
+        GEAR_PARK:
           expression: "B26:5"
           unit: ""
-          source: "Kia Niro EV WiCAN PR#716"
+          source: "canair historical analysis 2026-07-23 (was mislabeled PARK_BRAKE, Kia Niro PR#716)"
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
-          verified: false
-          notes: ""
+          verified: true
+          notes: >
+            Gear = Park. RENAMED from PARK_BRAKE 2026-07-23: B26:5 correlates r=+1.000 with DRIVE_MODE_P
+            (B10:0) across 773 captures — it is the park-gear bit mirrored into B26, NOT the electronic
+            park brake (EPB). The earlier PARK_BRAKE guess (Niro PR#716) coincidentally matched because the
+            EPB is typically engaged whenever the car is in Park; the true signal is gear=P.
 
         VCU_UNKNOWN:
           expression: "B20/2"
@@ -203,6 +224,22 @@ VCU:
             ((S20*256)+B19) — so B20/2 is just half the speed high byte, not an independent signal, and it
             exceeds its 100% max (observed 127.5%). Ioniq5 OBDb suggested bix 96 = B18, but that never
             validated either ("fixed at 17% during charging", implausible). Kept for research only.
+        VCU_INVERTER_ENABLED:
+          expression: B23:2
+          unit: ""
+          source: canair historical analysis 2026-07-23
+          verified: true
+          notes: >
+            Inverter/HV-power-active flag. B23 = 0x34 (52) when EV_READY/driving, 0x00 when charging/sleep (r=+0.997 vs VEHICLE_STATE_EV_READY across 776 captures). 0x34 = bit2|bit4|bit5 set; bit2 chosen as the boolean. Redundant with VEHICLE_STATE_EV_READY (B11:3) but sourced from a different byte — useful as a cross-check. Raw byte B23 itself only ever 0 or 52.
+        VCU_POWER_STATE:
+          expression: B25
+          unit: ""
+          min: "0"
+          max: "255"
+          source: canair historical analysis 2026-07-23
+          verified: true
+          notes: >
+            VCU/EPCU power-mode enum. B25 = 4 when EV ready/driving, 7 when charging/sleep/off (r=-1.000 vs VEHICLE_STATE_EV_READY and VEHICLE_STATE_POWER_ENABLE across 773 captures; only value seen besides a single transient 6). 4=Ready(HV up, drive-capable), 7=Standby(HV down, charge/off). Complements the B11 state bitfield from an independent byte.
 
     2102:
       period: 5000
@@ -253,52 +290,34 @@ VCU:
           source_links: []
           verified: false
           notes: >
-            UNVERIFIED CANDIDATE (Phase 1, 2026-07-20) — needs Phase 2 validation. Signed 16-bit
-            big-endian at B12:B13 (ISO-TP 0x09:0x0A). Reads exactly 0 at park and swings ±~31000 while
-            driving — a genuine dynamic powertrain signal, most likely a VCU-level torque request /
-            available-torque or power value (the VCU coordinates torque demand). Showed r=−0.65 vs the
-            (2101) vehicle speed proxy, but that cross-PID join was loose, so both the physical meaning and
-            the scale/units are UNKNOWN. Raw signed value only for now; enabled:false until a synced VCU
-            2101+2102 drive capture pins it down (torque request vs motor torque vs power). Do not publish.
+            DISPROVEN 2026-07-23 — this candidate was an ARTIFACT of mislabeled captures. In genuine 6102
+            responses B12 and B13 are constant 0x00 (n=1652), including at speed during the 2026-07-19 drive,
+            so [S12:S13] is always 0. The dramatic "0 at park, ±31000 while driving" signal came entirely from
+            22 captures at 16:13–16:14 on 2026-07-19 that were actually VCU 2101 responses (they begin 61 01,
+            not 61 02) misfiled under 2102; reading 2101's accelerator-echo/speed bytes as a signed 16-bit
+            produced the ±30000 garbage (and simultaneously made INVERTER_INPUT_VOLTAGE read 0/252 and the
+            structural bytes B4/B5/B9/B10/B11 flip to their 2101 values 0xFF/0xE0/09/28/5A in those rows).
+            ACTION: purge/relabel those 22 frames from the 2102 dataset (canlib.captures.delete_capture) and
+            re-capture a clean synced VCU 2101+2102 drive. VCU-level torque request, if exposed at all, is not
+            at B12:B13. Actual motor torque lives in MCU 2102 (MCU_MOTOR_TORQUE). Do not publish.
 
-        # VCU_MOTOR_RPM:
-        #   expression: "((S7<<8)|B6)"
-        #   unit: RPM
-        #   enabled: false
-        #   source: "JejuSoul Torque Pro CSV"
-        #   verified: false
-        #   notes: >
-        #     DISABLED 2026-07-20: B6/B7 (ISO-TP 4,5) are always 0x00 across all VCU captures → always 0.
-        #     The Ioniq splits the inverter into a separate MCU ECU (0x7E3); live motor RPM/torque/phase-current
-        #     are in MCU 2102 (see MCU_MOTOR_RPM), not VCU 2102. Kept for research trail; excluded from profile.
-
-        # VCU_HEAT_SINK_TEMP:
-        #   expression: "B16"
-        #   unit: "°C"
-        #   ha_class: temperature
-        #   min: "-40"
-        #   max: "215"
-        #   enabled: false
-        #   source: "JejuSoul Torque Pro CSV"
-        #   verified: false
-        #   notes: >
-        #     DISABLED 2026-07-20: B16 is an ISO-TP PCI byte (0x22), not data — the 34°C it "reads" is the
-        #     frame header, coincidental garbage. No valid heat-sink temp found in VCU 2102: candidate bytes
-        #     (B14/B20/B25/B27) are identical between a cold April parked capture and a hot July drive → constants,
-        #     not temps. Inverter/motor temps are likely in MCU 0x7E3. Kept for research trail; excluded from profile.
-
-        # VCU_MCU_TEMP:
-        #   expression: "B22"
-        #   unit: "°C"
-        #   ha_class: temperature
-        #   min: "-40"
-        #   max: "215"
-        #   enabled: false
-        #   source: "JejuSoul Torque Pro CSV"
-        #   verified: false
-        #   notes: >
-        #     DISABLED 2026-07-20: B22 is dynamic (0–120, correlates weakly with speed), not a stable temperature.
-        #     MCU/inverter temps are likely in MCU 0x7E3, not VCU 2102. Kept for research trail; excluded from profile.
+        VCU_DCLINK_VOLTAGE_COARSE:
+          expression: "B25*2.56"
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "450"
+          enabled: false
+          source: "canair historical analysis 2026-07-23"
+          verified: false
+          notes: >
+            Coarse (8-bit, ~2.56 V/LSB) copy of the HV DC-link voltage. B25 correlates r=+0.950 with the
+            verified INVERTER_INPUT_VOLTAGE (B17*2) across 1672 captures; B25*2.56 tracks B17*2 with a median
+            residual of ~1V (larger stdev only across the mislabeled 16:13 shutdown frames, see VCU_TORQUE_REQUEST).
+            Redundant with the full-resolution B17*2 — kept disabled as a research note / integrity cross-check.
+            The remaining dynamic 2102 bytes (B14~149, B27~57, B20~58 are near-constant config/status; B19/B21/
+            B23/B26 are max-entropy fast signals — motor phase currents / resolver angle per the Soul VMCU sheet —
+            that alias at the 5s poll rate and need a synced high-rate VCU+MCU drive capture to resolve).
 
     21F2:
       status: static
@@ -333,13 +352,16 @@ VCU:
         scan entry below — Ioniq 5 exposes drive mode / regen level there); (2) re-capture WHILE DRIVING,
         holding one mode per labelled session, or --monitor a single PID fast while cycling modes.
       what_to_test:
-        - "CAR_READY (B26:3) — DISPROVEN 2026-07-22: read 0 in full READY (car definitely ready), so B26:3 is NOT car-ready on the Ioniq (Niro offset does not transfer). VEHICLE_STATE_EV_READY (B11:3, verified) already covers this — recommend disabling CAR_READY."
-        - "PARK_BRAKE (B26:5) — read 1 in READY+Park (2026-07-22); plausible if EPB engaged but unconfirmed. B26=0x20 in the reassembled frame (not truly OOB). Needs EPB on/off contrast to verify."
+        - "CAR_READY (B26:3) — RESOLVED 2026-07-23: RENAMED to GEAR_DRIVE. B26:3 is the drive-gear bit (r=+0.984 vs DRIVE_MODE_D), not car-ready. Now verified:true."
+        - "PARK_BRAKE (B26:5) — RESOLVED 2026-07-23: RENAMED to GEAR_PARK. B26:5 is the park-gear bit (r=+1.000 vs DRIVE_MODE_P), not EPB (it just co-occurs with EPB in Park). Now verified:true."
+        - "B23 / B25 — RESOLVED 2026-07-23: added VCU_INVERTER_ENABLED (B23:2; B23=0x34 ready / 0 charge, r=+0.997 vs EV_READY) and VCU_POWER_STATE (B25=4 ready / 7 standby, r=-1.000 vs EV_READY). Both verified:true, independent-byte cross-checks of the B11 state bitfield."
         - "ECO/Sport/Normal mode — NOT in B10 upper nibble (disproven 2026-07-21 stationary); try 22 E006 or capture while driving"
         - "Regen mode (off/1/2/3) — not in any 2101/2102 byte stationary; try 22 E007 or capture while coasting/braking (regen torque only appears in motion)"
+        - "B14 / B21 (still unmapped, dynamic) — 2026-07-23: B14 sits ~82 at pedal=0 and swings both above (232) and below (11) with pedal (r~0.30, noisy); B21 is high at rest (108-158), low while moving (r=-0.46 vs speed) but jumps to ~248 at sustained high speed. Both are fast-cycling (currents/angle/power) that alias at the 2.5s poll — need a high-rate --monitor capture to resolve. B22 is constant 119 (0x77) in ready/drive (not a temp)."
         - "ACCEL_PEDAL — Kia Soul VMCU has 'Accel Pedal Related=i' + 'Accel Pedal Depth=j/2' (%). In our 2101, B17 and B18 are 0 when truly parked (P) and active while driving — strong candidates. Press pedal while stationary in Ready to confirm which is depth (÷2 for %) and the raw-related byte."
       sources:
-        - "Kia Niro PR — CAR_READY/PARK_BRAKE"
+        - "canair historical analysis 2026-07-23 — B23/B25/B26 state & gear bits"
+        - "Kia Niro PR — CAR_READY/PARK_BRAKE (offset disproven, bits are gear state)"
         - "Kia Soul EV VMCU CSV — accel pedal (i, j/2), drive-mode/state bits"
         - "Obsidian: VCU.md"
     - type: decode
@@ -356,12 +378,22 @@ VCU:
         in VCU 2102 (candidate temp bytes are constant across cold/hot sessions; no byte tracks speed like RPM).
         Those live in the separate MCU ECU (0x7E3). Soul letter positions also don't transfer 1:1
         (Soul e/f = our B18/B17, transposed). Disabled the old bogus params (MOTOR_RPM/HEAT_SINK/MCU_TEMP).
+        2026-07-23 (canair historical byte analysis, 1674 captures): (1) DATA-INTEGRITY BUG — 22 captures at
+        16:13–16:14 on 2026-07-19 filed under 2102 are actually VCU 2101 responses (begin 61 01). They are the
+        SOLE source of the VCU_TORQUE_REQUEST "±31k while driving" signal, which is now DISPROVEN — in real 6102
+        frames B12=B13=0x00 always (even at speed). Purge/relabel those frames. (2) B25 is a coarse 8-bit copy
+        of the HV DC-link voltage (B25*2.56 ≈ B17*2, r=+0.950) → added disabled VCU_DCLINK_VOLTAGE_COARSE.
+        (3) Constants in ready/drive: B4/B5=0xF8, B6/B7=0, B9=1, B10=1, B11=0, B14~149, B20~58, B27~57, B22 low,
+        B28-B31=0 (their "other" values only appear in the mislabeled 2101 frames). (4) Still-unmapped fast
+        signals B19/B21/B23/B26 are max-entropy (all 256 values) — likely motor phase currents / resolver offset
+        / angle per the Soul VMCU sheet (Int16 phase-current & resolver fields), aliasing at the 5s poll.
       what_to_test:
         - "Re-map motor RPM/torque/temps under MCU 0x7E3 2101/2102 using the Soul VMCU scalings as a guide"
         - "Confirm B17 HV voltage with a same-instant BMS read while driving"
-        - "VCU_TORQUE_REQUEST [S12:S13] (Phase 1 candidate, 0 at park, ±31k driving) — determine physical meaning + scale; is it torque request, available torque, or power? Join with VCU 2101 speed/pedal + MCU 2102 torque."
-        - "EWP (electric water pump) speed / target RPM — Soul VMCU exposes these; look for a 0..190 byte that spins up under load/charge (EPCU coolant loop exists even though the 28 kWh battery is air-cooled). Candidates among the dynamic bytes B22/B25/B26."
-        - "Coolant/EPCU temperature(s) — B20/B27 sit ~51 raw at cold park (≈11°C if value−40); confirm with a warm drive."
+        - "VCU_TORQUE_REQUEST [S12:S13] — DISPROVEN 2026-07-23 (B12:B13=0 in genuine 6102; ±31k was mislabeled 2101 frames). Purge the 22 misfiled 16:13-16:14 captures, then re-capture a clean high-rate synced VCU 2101+2102 drive if a VCU torque signal is still wanted."
+        - "B19/B21/B23/B26 (max-entropy fast bytes) — try Int16 phase-current / resolver-offset reads per the Soul VMCU sheet (Int16(v:u) phase-current RMS, Int16(ad:ac) resolver offset) against a synced high-rate MCU motor-current/RPM capture; single-byte + 5s-poll cannot resolve them (weak r<0.33 vs speed/torque)."
+        - "EWP (electric water pump) speed / target RPM — Soul VMCU exposes these (g,h); look for a 0..190 byte that spins up under load/charge (EPCU coolant loop exists even though the 28 kWh battery is air-cooled). B14~149/B20~58/B27~57 are near-constant here → not EWP-varying in this data."
+        - "Coolant/EPCU temperature(s) — B20/B27 are ~57-58 raw in BOTH cold April park and warm July drive (flat), so NOT (value-40) temps in this data; confirm against a genuinely cold cold-soak vs hot fast-DC-charge contrast."
       sources:
         - "Kia Soul EV VMCU CSV — 0x7E2 (Inverter f*2, Aux e/10, temps w/x/y-40, RPM/torque 16-bit)"
         - "Obsidian: VCU.md — 23 bytes captured 2025-08-07"

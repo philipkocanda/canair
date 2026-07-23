@@ -22,7 +22,7 @@ def env(monkeypatch):
     monkeypatch.setattr(const_mod, "DEFAULT_WICAN", "vpn", raising=False)
 
     def set_block(block):
-        monkeypatch.setattr(cfg_mod, "load_config", lambda: ({"transport": block} if block else {}))
+        monkeypatch.setattr(cfg_mod, "load_config", lambda: {"transport": block} if block else {})
 
     set_block(None)
     return set_block
@@ -84,7 +84,9 @@ class TestTransportConfigProps:
     def test_describe(self):
         from canlib.transport.config import TransportConfig
 
-        assert TransportConfig("slcan-tcp", "1.2.3.4", 3333).describe() == "slcan-tcp (1.2.3.4:3333)"
+        assert (
+            TransportConfig("slcan-tcp", "1.2.3.4", 3333).describe() == "slcan-tcp (1.2.3.4:3333)"
+        )
 
 
 class TestStatusGather:

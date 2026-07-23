@@ -52,6 +52,7 @@ def _conf_cell(rec: dict) -> str:
     text = ("" if explicit else "~") + code
     return f"{color}{text:<6}{_RESET}"
 
+
 # Identity fields to surface in the detail view, in display order.
 # (name/alias/description/id_protocol are handled separately in the header.)
 _IDENTITY_FIELDS = [
@@ -86,8 +87,7 @@ def _pid_stats(ecu_def: dict) -> dict:
     """Compute PID/parameter/research/etc. counts for one ecus/ ECU entry."""
     pids = ecu_def.get("pids", {}) or {}
     active_pids = {
-        k: v for k, v in pids.items()
-        if isinstance(v, dict) and pid_status(v) != "ignored"
+        k: v for k, v in pids.items() if isinstance(v, dict) and pid_status(v) != "ignored"
     }
     params = [
         pr
@@ -101,7 +101,9 @@ def _pid_stats(ecu_def: dict) -> dict:
         "ignored": len(pids) - len(active_pids),
         "params": len(params),
         "verified": sum(1 for pr in params if pr.get("verified")),
-        "research_open": sum(1 for r in research if isinstance(r, dict) and r.get("status") != "done"),
+        "research_open": sum(
+            1 for r in research if isinstance(r, dict) and r.get("status") != "done"
+        ),
         "research_total": len(research),
         "iocontrol": len(ecu_def.get("iocontrol", {}) or {}),
         "iocontrol_discoveries": len(ecu_def.get("iocontrol_discoveries", {}) or {}),
@@ -148,7 +150,7 @@ def _list_records(ecus: dict, pids_data: dict, with_captures: bool = False) -> l
         if not isinstance(info, dict):
             continue
         name = info.get("name") or f"0x{tx_id:03X}"
-        pids_name, ecu_def = _pids_def_for_tx(pids_data, tx_id)
+        _pids_name, ecu_def = _pids_def_for_tx(pids_data, tx_id)
         conf, conf_explicit = ecu_identity_confidence(info)
         rec = {
             "name": name,
@@ -178,22 +180,25 @@ def cmd_list(records: list[dict], as_json: bool) -> int:
         return 0
 
     n_pids = sum(1 for r in records if r["has_pids"])
-    print(f"\n  {_BOLD}ECUs{_RESET} — {len(records)} in registry, "
-          f"{n_pids} with PID definitions\n")
+    print(f"\n  {_BOLD}ECUs{_RESET} — {len(records)} in registry, {n_pids} with PID definitions\n")
 
     # Column header.
-    print(f"  {_DIM}{'NAME':<12} {'TX':<6} {'PROTO':<8} {'IDENT':<6} "
-          f"{'PIDS':>4} {'PARM':>5} {'VERIF':>7} {'CAPS':>5}{_RESET}")
+    print(
+        f"  {_DIM}{'NAME':<12} {'TX':<6} {'PROTO':<8} {'IDENT':<6} "
+        f"{'PIDS':>4} {'PARM':>5} {'VERIF':>7} {'CAPS':>5}{_RESET}"
+    )
 
     for r in records:
         name = r["name"]
         alias = f" {_DIM}({r['alias']}){_RESET}" if r.get("alias") else ""
-        proto = (r.get("id_protocol") or "?")
+        proto = r.get("id_protocol") or "?"
         conf = _conf_cell(r)
         if not r["has_pids"]:
             # Registry-only module: no PID data to summarise.
-            print(f"  {_CYAN}{name:<12}{_RESET} {r['tx']:<6} {proto:<8} {conf} "
-                  f"{_DIM}{'—':>4} {'—':>5} {'—':>7} {'—':>5}{_RESET}{alias}")
+            print(
+                f"  {_CYAN}{name:<12}{_RESET} {r['tx']:<6} {proto:<8} {conf} "
+                f"{_DIM}{'—':>4} {'—':>5} {'—':>7} {'—':>5}{_RESET}{alias}"
+            )
             continue
         params = r["params"]
         verified = r["verified"]
@@ -201,13 +206,17 @@ def cmd_list(records: list[dict], as_json: bool) -> int:
         vstr = f"{verified}/{params}"
         caps = r.get("captures", 0)
         cstr = f"{caps:>5}" if caps else f"{_YELLOW}{'0':>5}{_RESET}"
-        print(f"  {_CYAN}{name:<12}{_RESET} {r['tx']:<6} {proto:<8} {conf} "
-              f"{r['pids']:>4} {params:>5} {vcolor}{vstr:>7}{_RESET} "
-              f"{cstr}{alias}")
+        print(
+            f"  {_CYAN}{name:<12}{_RESET} {r['tx']:<6} {proto:<8} {conf} "
+            f"{r['pids']:>4} {params:>5} {vcolor}{vstr:>7}{_RESET} "
+            f"{cstr}{alias}"
+        )
     print()
-    print(f"  {_DIM}IDENT = identity confidence: "
-          f"{_GREEN}conf{_DIM}irmed · {_CYAN}prob{_DIM}able · {_YELLOW}tent{_DIM}ative · "
-          f"{_RED}spec{_DIM}ulative   (~ = derived from evidence, else set in registry){_RESET}")
+    print(
+        f"  {_DIM}IDENT = identity confidence: "
+        f"{_GREEN}conf{_DIM}irmed · {_CYAN}prob{_DIM}able · {_YELLOW}tent{_DIM}ative · "
+        f"{_RED}spec{_DIM}ulative   (~ = derived from evidence, else set in registry){_RESET}"
+    )
     return 0
 
 
@@ -250,14 +259,18 @@ def _pid_details(ecu_def: dict, per_pid: Counter) -> list[dict]:
         params = pid_def.get("parameters", {}) or {}
         code = str(pid_code).upper()
         status = pid_status(pid_def)
-        out.append({
-            "pid": code,
-            "params": len(params),
-            "verified": sum(1 for pr in params.values() if isinstance(pr, dict) and pr.get("verified")),
-            "status": status,
-            "ignored": status == "ignored",
-            "captures": per_pid.get(code, 0),
-        })
+        out.append(
+            {
+                "pid": code,
+                "params": len(params),
+                "verified": sum(
+                    1 for pr in params.values() if isinstance(pr, dict) and pr.get("verified")
+                ),
+                "status": status,
+                "ignored": status == "ignored",
+                "captures": per_pid.get(code, 0),
+            }
+        )
     out.sort(key=lambda p: p["pid"])
     return out
 
@@ -278,13 +291,17 @@ def cmd_detail(rec: dict, as_json: bool) -> int:
 
     # Addresses / protocol
     proto = rec.get("id_protocol") or "?"
-    print(f"\n  {_DIM}TX{_RESET} {rec['tx']}    {_DIM}RX{_RESET} {rec['rx']}    "
-          f"{_DIM}protocol{_RESET} {proto}")
+    print(
+        f"\n  {_DIM}TX{_RESET} {rec['tx']}    {_DIM}RX{_RESET} {rec['rx']}    "
+        f"{_DIM}protocol{_RESET} {proto}"
+    )
 
     # Identity confidence
     conf = rec.get("identity_confidence") or ""
     _code, ccolor = _CONF_STYLE.get(conf, ("", _DIM))
-    origin = "set in registry" if rec.get("identity_confidence_explicit") else "derived from evidence"
+    origin = (
+        "set in registry" if rec.get("identity_confidence_explicit") else "derived from evidence"
+    )
     print(f"  {_DIM}identity confidence{_RESET} {ccolor}{conf}{_RESET} {_DIM}({origin}){_RESET}")
 
     # Identity fields
@@ -297,24 +314,33 @@ def cmd_detail(rec: dict, as_json: bool) -> int:
     # Stats
     stats = rec.get("stats")
     if stats is None:
-        print(f"\n  {_YELLOW}No PID definitions{_RESET} "
-              f"{_DIM}(no pids: — identity-only module){_RESET}")
+        print(
+            f"\n  {_YELLOW}No PID definitions{_RESET} "
+            f"{_DIM}(no pids: — identity-only module){_RESET}"
+        )
     else:
         print(f"\n  {_BOLD}Stats{_RESET}")
         verified = stats["verified"]
         params = stats["params"]
         vcolor = _GREEN if params and verified == params else (_YELLOW if verified else _DIM)
-        print(f"    {'PIDs':<14} {stats['pids']}"
-              + (f"  {_DIM}(+{stats['ignored']} ignored){_RESET}" if stats["ignored"] else ""))
+        print(
+            f"    {'PIDs':<14} {stats['pids']}"
+            + (f"  {_DIM}(+{stats['ignored']} ignored){_RESET}" if stats["ignored"] else "")
+        )
         print(f"    {'Parameters':<14} {params}")
         print(f"    {'Verified':<14} {vcolor}{verified}/{params}{_RESET}")
         print(f"    {'Captures':<14} {rec['captures']}")
         if stats["research_total"]:
-            print(f"    {'Research':<14} {stats['research_open']} open "
-                  f"{_DIM}/ {stats['research_total']} total{_RESET}")
+            print(
+                f"    {'Research':<14} {stats['research_open']} open "
+                f"{_DIM}/ {stats['research_total']} total{_RESET}"
+            )
         if stats["iocontrol"] or stats["iocontrol_discoveries"]:
-            extra = f"  {_DIM}(+{stats['iocontrol_discoveries']} discoveries){_RESET}" \
-                if stats["iocontrol_discoveries"] else ""
+            extra = (
+                f"  {_DIM}(+{stats['iocontrol_discoveries']} discoveries){_RESET}"
+                if stats["iocontrol_discoveries"]
+                else ""
+            )
             print(f"    {'IO-control':<14} {stats['iocontrol']}{extra}")
         if stats["routines"]:
             print(f"    {'Routines':<14} {stats['routines']}")
@@ -334,9 +360,11 @@ def cmd_detail(rec: dict, as_json: bool) -> int:
                 flags.append(f"{_YELLOW}no capture{_RESET}")
             flag_str = ("  " + " ".join(flags)) if flags else ""
             vcolor = _GREEN if p["params"] and p["verified"] == p["params"] else _DIM
-            print(f"    {_CYAN}{p['pid']:<8}{_RESET} "
-                  f"{p['params']:>2}p  {vcolor}{p['verified']:>2} verified{_RESET}  "
-                  f"{_DIM}{p['captures']} cap{_RESET}{flag_str}")
+            print(
+                f"    {_CYAN}{p['pid']:<8}{_RESET} "
+                f"{p['params']:>2}p  {vcolor}{p['verified']:>2} verified{_RESET}  "
+                f"{_DIM}{p['captures']} cap{_RESET}{flag_str}"
+            )
 
     # Notes last (can be long/multiline)
     if rec.get("notes"):

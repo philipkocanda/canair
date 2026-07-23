@@ -32,17 +32,20 @@ examples:
         "--delay", type=float, default=0.2, help="Delay between probes in seconds (default 0.2)"
     )
     parser.add_argument(
-        "--register", action="store_true",
+        "--register",
+        action="store_true",
         help="Register newly-discovered ECUs as files in the profile's ecus/ directory",
     )
     parser.add_argument(
-        "--dry-run", action="store_true",
+        "--dry-run",
+        action="store_true",
         help="With --register: show what would be added without writing",
     )
     parser.add_argument(
-        "--identify", action="store_true",
+        "--identify",
+        action="store_true",
         help="Run `canair identity` on each alive ECU after the sweep "
-             "(otherwise offer interactively)",
+        "(otherwise offer interactively)",
     )
     parser.add_argument("--save", action="store_true", help="Save results to captures/")
     parser.add_argument("--label", metavar="TEXT", default=None, help="Session label for --save")

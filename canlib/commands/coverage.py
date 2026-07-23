@@ -101,12 +101,10 @@ def mappable_data_indices(payload_hex: str, sfb: int) -> list[int]:
     A WiCAN byte is mappable when it has a payload index (not a PCI byte) and
     that index is past the UDS header (payload index 0 = SID, 1..sfb = sub/DID).
     """
-    payload_bytes = [int(payload_hex[i:i + 2], 16) for i in range(0, len(payload_hex), 2)]
+    payload_bytes = [int(payload_hex[i : i + 2], 16) for i in range(0, len(payload_hex), 2)]
     frame = payload_to_wican_frame(payload_bytes)
     return [
-        wican_idx
-        for wican_idx, (_val, pidx) in enumerate(frame)
-        if pidx is not None and pidx > sfb
+        wican_idx for wican_idx, (_val, pidx) in enumerate(frame) if pidx is not None and pidx > sfb
     ]
 
 
@@ -171,14 +169,16 @@ def add_parser(subparsers):
     parser.add_argument(
         "pid", nargs="?", help="Filter to one PID (e.g. 22BC03)"
     ).completer = _pid_completer
-    parser.add_argument("--all", action="store_true",
-                        help="Include fully-mapped PIDs (no gaps)")
-    parser.add_argument("--unmapped", action="store_true",
-                        help="Only report unmapped-byte findings")
-    parser.add_argument("--bitfields", action="store_true",
-                        help="Only report incomplete-bitfield findings")
-    parser.add_argument("--no-capture", action="store_true",
-                        help="Only report PIDs with params but no capture")
+    parser.add_argument("--all", action="store_true", help="Include fully-mapped PIDs (no gaps)")
+    parser.add_argument(
+        "--unmapped", action="store_true", help="Only report unmapped-byte findings"
+    )
+    parser.add_argument(
+        "--bitfields", action="store_true", help="Only report incomplete-bitfield findings"
+    )
+    parser.add_argument(
+        "--no-capture", action="store_true", help="Only report PIDs with params but no capture"
+    )
     parser.add_argument("--json", action="store_true", help="Output as JSON")
     parser.set_defaults(func=run)
     return parser
@@ -248,24 +248,26 @@ def run(args) -> int:
 
     n_nocap = sum(1 for e in results if e.get("no_capture"))
     n_gaps = len(results) - n_nocap
-    print(f"\n{_BOLD}PID coverage audit{_RESET} — {n_gaps} PID(s) with gaps, "
-          f"{n_nocap} without captures\n")
+    print(
+        f"\n{_BOLD}PID coverage audit{_RESET} — {n_gaps} PID(s) with gaps, "
+        f"{n_nocap} without captures\n"
+    )
 
     for e in results:
-        header = (f"  {_BOLD}{_CYAN}{e['ecu']} {e['pid']}{_RESET} "
-                  f"{_DIM}({e['params']}p, {e['verified']} verified){_RESET}")
+        header = (
+            f"  {_BOLD}{_CYAN}{e['ecu']} {e['pid']}{_RESET} "
+            f"{_DIM}({e['params']}p, {e['verified']} verified){_RESET}"
+        )
         if e.get("no_capture"):
             print(f"{header}  {_YELLOW}NO CAPTURE{_RESET}")
             continue
-        print(f"{header}  {_DIM}{e['data_bytes']} data bytes, "
-              f"{e['capture']['date']}{_RESET}")
+        print(f"{header}  {_DIM}{e['data_bytes']} data bytes, {e['capture']['date']}{_RESET}")
         if e["unmapped"]:
             byts = ",".join(f"B{i}" for i in e["unmapped"])
             print(f"      {_YELLOW}UNMAPPED{_RESET} {byts}")
         for bf in e["incomplete_bitfields"]:
             have = ",".join(map(str, bf["have"]))
             miss = ",".join(map(str, bf["missing"]))
-            print(f"      {_RED}BITS{_RESET} B{bf['byte']} "
-                  f"have{{{have}}} missing{{{miss}}}")
+            print(f"      {_RED}BITS{_RESET} B{bf['byte']} have{{{have}}} missing{{{miss}}}")
     print()
     return 0

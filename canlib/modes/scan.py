@@ -123,8 +123,7 @@ async def mode_scan(
 
                             named = service_name(nrc_svc)
                             svc_note = (
-                                f" [dim](rejecting {named or 'service'} "
-                                f"0x{nrc_svc:02X})[/dim]"
+                                f" [dim](rejecting {named or 'service'} 0x{nrc_svc:02X})[/dim]"
                             )
                         progress.console.print(
                             f"  [dim]- 0x{pid_val:{did_fmt}}: NRC 0x{nrc:02X} ({desc})[/dim]"

@@ -150,8 +150,10 @@ def cmd_summary(records: list[dict]) -> None:
     open_records = [r for r in records if r.get("status") != "done"]
 
     print(f"\n  {_BOLD}Research Summary{_RESET}")
-    print(f"  Items: {len(records)} total ({len(open_records)} open, "
-          f"{len(records) - len(open_records)} done)")
+    print(
+        f"  Items: {len(records)} total ({len(open_records)} open, "
+        f"{len(records) - len(open_records)} done)"
+    )
 
     def _dump(title: str, counter: Counter, order=None) -> None:
         if not counter:
@@ -164,8 +166,11 @@ def cmd_summary(records: list[dict]) -> None:
 
     _dump("By status:", Counter(r.get("status", "?") for r in records), VALID_STATUSES)
     _dump("By type:", Counter(r.get("type", "?") for r in records), VALID_TYPES)
-    _dump("By priority:", Counter(r.get("priority", "—") for r in open_records),
-          [*VALID_PRIORITIES, "—"])
+    _dump(
+        "By priority:",
+        Counter(r.get("priority", "—") for r in open_records),
+        [*VALID_PRIORITIES, "—"],
+    )
     _dump("By ECU (open):", Counter(r.get("ecu", "?") for r in open_records))
     print()
 
@@ -186,7 +191,9 @@ def cmd_list(records: list[dict]) -> None:
         status = str(r.get("status", "?"))
         prio = r.get("priority")
 
-        prio_str = f"{_PRIO_COLOR.get(prio, _DIM)}[{prio}]{_RESET}" if prio else f"{_DIM}[--]{_RESET}"
+        prio_str = (
+            f"{_PRIO_COLOR.get(prio, _DIM)}[{prio}]{_RESET}" if prio else f"{_DIM}[--]{_RESET}"
+        )
         status_str = f"{_STATUS_COLOR.get(status, '')}{status}{_RESET}"
 
         prereqs = r.get("vehicle_states") or []
@@ -194,8 +201,10 @@ def cmd_list(records: list[dict]) -> None:
         when = r.get("updated") or r.get("date")
         date_str = f"  {_DIM}{when}{_RESET}" if when else ""
 
-        print(f"  {prio_str} {_CYAN}{ecu:<10}{_RESET} {rtype:<14} {_BOLD}{target}{_RESET}"
-              f"  {status_str}{prereq_str}{date_str}")
+        print(
+            f"  {prio_str} {_CYAN}{ecu:<10}{_RESET} {rtype:<14} {_BOLD}{target}{_RESET}"
+            f"  {status_str}{prereq_str}{date_str}"
+        )
 
         if r.get("result"):
             print(f"       {_DIM}result:{_RESET} {_truncate(r['result'])}")
@@ -220,21 +229,33 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     parser.add_argument(
         "--ecu", "-e", metavar="ECU", help="Filter by ECU name"
     ).completer = _ecu_completer
-    parser.add_argument("--type", "-t", dest="rtype", choices=VALID_TYPES,
-                        help="Filter by research type")
+    parser.add_argument(
+        "--type", "-t", dest="rtype", choices=VALID_TYPES, help="Filter by research type"
+    )
     parser.add_argument("--status", choices=VALID_STATUSES, help="Filter by status")
-    parser.add_argument("--priority", "-p", choices=VALID_PRIORITIES,
-                        help="Filter by priority")
-    parser.add_argument("--states", "--vehicle-states", "--prerequisite", "--prereq",
-                        dest="state", choices=POWER_STATES,
-                        help="Filter to items needing this car power state")
-    parser.add_argument("--summary", "-s", action="store_true",
-                        help="Show aggregate counts instead of the item list")
-    parser.add_argument("--all", "-a", action="store_true",
-                        help="Include done items (hidden by default)")
+    parser.add_argument("--priority", "-p", choices=VALID_PRIORITIES, help="Filter by priority")
+    parser.add_argument(
+        "--states",
+        "--vehicle-states",
+        "--prerequisite",
+        "--prereq",
+        dest="state",
+        choices=POWER_STATES,
+        help="Filter to items needing this car power state",
+    )
+    parser.add_argument(
+        "--summary",
+        "-s",
+        action="store_true",
+        help="Show aggregate counts instead of the item list",
+    )
+    parser.add_argument(
+        "--all", "-a", action="store_true", help="Include done items (hidden by default)"
+    )
     parser.add_argument("--json", action="store_true", help="Output as JSON")
-    parser.add_argument("--dir", type=Path, default=None,
-                        help="ecus/ directory (default: active profile)")
+    parser.add_argument(
+        "--dir", type=Path, default=None, help="ecus/ directory (default: active profile)"
+    )
     parser.set_defaults(func=run)
     return parser
 

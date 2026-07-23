@@ -57,8 +57,14 @@ def _probe(service=0x30):
 async def test_session_opened_upfront_with_mode():
     term = _FakeTerminal()
     await scan_ecu(
-        term, _probe(), "BMS", 0x7E4, (0x00, 0x02),
-        throttle_ms=0, session=True, session_mode="81",
+        term,
+        _probe(),
+        "BMS",
+        0x7E4,
+        (0x00, 0x02),
+        throttle_ms=0,
+        session=True,
+        session_mode="81",
     )
     # Session opened exactly once, up front, with the requested KWP mode.
     assert term.sessions == [(False, "81")]
@@ -77,7 +83,12 @@ async def test_lazy_escalation_uses_session_mode():
     # First probe returns NRC 0x7F → engine should escalate using session_mode.
     term = _FakeTerminal(responses={"300000": {"ok": False, "nrc": 0x7F}})
     await scan_ecu(
-        term, _probe(), "BMS", 0x7E4, (0x00, 0x01),
-        throttle_ms=0, session_mode="81",
+        term,
+        _probe(),
+        "BMS",
+        0x7E4,
+        (0x00, 0x01),
+        throttle_ms=0,
+        session_mode="81",
     )
     assert term.sessions == [(False, "81")]

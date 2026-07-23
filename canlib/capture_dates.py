@@ -119,24 +119,32 @@ def add_scope_args(parser: argparse.ArgumentParser) -> None:
         "and/or by session state/label substring",
     )
     date_group.add_argument(
-        "--since", type=parse_iso_date, metavar="YYYY-MM-DD",
+        "--since",
+        type=parse_iso_date,
+        metavar="YYYY-MM-DD",
         help="Only captures on or after this date",
     )
     date_group.add_argument(
-        "--until", type=parse_iso_date, metavar="YYYY-MM-DD",
+        "--until",
+        type=parse_iso_date,
+        metavar="YYYY-MM-DD",
         help="Only captures on or before this date",
     )
     date_group.add_argument(
-        "--date", type=parse_iso_date, metavar="YYYY-MM-DD",
+        "--date",
+        type=parse_iso_date,
+        metavar="YYYY-MM-DD",
         help="Only captures on this exact date (shorthand for --since X --until X)",
     )
     date_group.add_argument(
-        "--state", metavar="SUBSTR",
+        "--state",
+        metavar="SUBSTR",
         help="Only captures whose session vehicle_states contain SUBSTR "
-             "(case-insensitive), e.g. --state driving",
+        "(case-insensitive), e.g. --state driving",
     )
     date_group.add_argument(
-        "--label", metavar="SUBSTR",
+        "--label",
+        metavar="SUBSTR",
         help="Only captures whose session/capture label contains SUBSTR (case-insensitive)",
     )
 

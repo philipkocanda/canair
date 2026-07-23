@@ -71,7 +71,9 @@ class TestRequireProtocol:
 
     def test_noop_when_unreachable(self, monkeypatch):
         monkeypatch.setattr(wican_mode, "resolve_wican_url", lambda w: "http://d")
+
         def boom(base, timeout=6.0):
             raise OSError("unreachable")
+
         monkeypatch.setattr(wican_mode, "current_protocol", boom)
         require_protocol("vpn", "slcan")  # no raise (connect will surface it)

@@ -171,8 +171,11 @@ async def mode_dtc_read(
 
     try:
         if not as_json:
-            fam = "UDS 19 02 (reportDTCByStatusMask)" if proto == "uds" else \
-                "KWP2000 18 (readDTCByStatus)"
+            fam = (
+                "UDS 19 02 (reportDTCByStatusMask)"
+                if proto == "uds"
+                else "KWP2000 18 (readDTCByStatus)"
+            )
             print(f"\n  DTC read: {ecu_display(tx_id)}")
             print(f"  Protocol: {fam}\n")
 
@@ -261,14 +264,12 @@ async def _read_uds(
 
     # Mask fallback: some ECUs reject 0xFF with requestOutOfRange (0x31) and only
     # accept a mask within their availability bits. Retry once with confirmedDTC.
-    if (
-        not response["ok"]
-        and response.get("nrc") == 0x31
-        and (mask & 0xFF) != _MASK_FALLBACK
-    ):
+    if not response["ok"] and response.get("nrc") == 0x31 and (mask & 0xFF) != _MASK_FALLBACK:
         if verbose:
-            print(f"  mask 0x{mask & 0xFF:02X} rejected (0x31); retrying with "
-                  f"0x{_MASK_FALLBACK:02X}", flush=True)
+            print(
+                f"  mask 0x{mask & 0xFF:02X} rejected (0x31); retrying with 0x{_MASK_FALLBACK:02X}",
+                flush=True,
+            )
         cmd = f"1902{_MASK_FALLBACK:02X}"
         response = await terminal.send_uds(cmd, timeout=timeout, expected_sid=0x19)
 
@@ -310,7 +311,6 @@ async def _read_kwp(terminal: WiCANTerminal, tx_id: int, timeout: float = 3.0) -
     if response.get("nrc") is not None:
         return {**base, "nrc": f"0x{response['nrc']:02X}", "nrc_desc": response["nrc_desc"]}
     return {**base, "error": response.get("error", "unknown")}
-
 
 
 def _jsonable(records: list[dict]) -> list[dict]:
@@ -410,8 +410,10 @@ async def mode_dtc_scan_all(
     name_w = max((len(ecu_display(t)) for t in tx_ids), default=12) if not as_json else 0
 
     if not as_json:
-        print(f"\n  Scanning {len(tx_ids)} ECUs for DTCs "
-              f"(protocol={protocol}, mask=0x{mask & 0xFF:02X})...\n")
+        print(
+            f"\n  Scanning {len(tx_ids)} ECUs for DTCs "
+            f"(protocol={protocol}, mask=0x{mask & 0xFF:02X})...\n"
+        )
 
     results = []
     for tx_id in tx_ids:
@@ -426,15 +428,21 @@ async def mode_dtc_scan_all(
     if retry and retry_idx:
         retry_timeout = max(timeout * 3, 5.0)
         if not as_json:
-            print(f"\n  {_C_DIM}Retrying {len(retry_idx)} unresponsive ECU(s) "
-                  f"with wake + {retry_timeout:.0f}s timeout...{_C_RST}\n")
+            print(
+                f"\n  {_C_DIM}Retrying {len(retry_idx)} unresponsive ECU(s) "
+                f"with wake + {retry_timeout:.0f}s timeout...{_C_RST}\n"
+            )
         for i in retry_idx:
             res2 = await _wake_read(terminal, tx_ids[i], mask, protocol, verbose, retry_timeout)
             recovered = _classify(res2) != "no_response"
             if recovered:
                 results[i] = res2
             if not as_json:
-                mark = f"{_C_GRN}↻ recovered{_C_RST}" if recovered else f"{_C_DIM}↻ still silent{_C_RST}"
+                mark = (
+                    f"{_C_GRN}↻ recovered{_C_RST}"
+                    if recovered
+                    else f"{_C_DIM}↻ still silent{_C_RST}"
+                )
                 print(f"  {_scan_line(results[i], name_w)}  {mark}")
 
     faulty = [r for r in results if _classify(r) == "faulty"]
@@ -471,8 +479,10 @@ async def mode_dtc_scan_all(
         summary += f", {_C_YEL}{len(no_resp)} no response{_C_RST}"
     print(summary)
     if no_resp:
-        print(f"  {_C_YEL}⚠ no response{_C_RST} {_C_DIM}(skipped — asleep/unpowered?):{_C_RST} "
-              + ", ".join(r["ecu"] for r in no_resp))
+        print(
+            f"  {_C_YEL}⚠ no response{_C_RST} {_C_DIM}(skipped — asleep/unpowered?):{_C_RST} "
+            + ", ".join(r["ecu"] for r in no_resp)
+        )
     print()
 
     if faulty:
@@ -544,8 +554,12 @@ async def mode_dtc_clear(
 
         response = await terminal.send_uds(cmd, timeout=5.0, expected_sid=0x14)
 
-        base = {"ecu": ecu_display(tx_id), "protocol": proto, "command": cmd,
-                "group": f"0x{g:0{4 if proto == 'kwp' else 6}X}"}
+        base = {
+            "ecu": ecu_display(tx_id),
+            "protocol": proto,
+            "command": cmd,
+            "group": f"0x{g:0{4 if proto == 'kwp' else 6}X}",
+        }
         if response["ok"]:
             if log:
                 _log_manual_clear(tx_id, proto, base["group"], pre_codes, label)
@@ -562,9 +576,16 @@ async def mode_dtc_clear(
                 print()
         elif response.get("nrc") is not None:
             if as_json:
-                print(json.dumps({**base, "cleared": False,
-                                  "nrc": f"0x{response['nrc']:02X}",
-                                  "nrc_desc": response["nrc_desc"]}))
+                print(
+                    json.dumps(
+                        {
+                            **base,
+                            "cleared": False,
+                            "nrc": f"0x{response['nrc']:02X}",
+                            "nrc_desc": response["nrc_desc"],
+                        }
+                    )
+                )
             else:
                 print(f"  ✗ NRC 0x{response['nrc']:02X}: {response['nrc_desc']}\n")
         else:
@@ -590,13 +611,23 @@ def _log_manual_clear(tx_id, proto, group, pre_codes, label):
     from ..dtc_log import append_clear, append_scan, build_clear, build_scan
 
     ecu = ecu_display(tx_id)
-    append_clear(build_clear(
-        "manual", ecu, ecu=ecu, protocol=proto, group=group,
-        codes=(pre_codes if pre_codes else None), label=label,
-    ))
+    append_clear(
+        build_clear(
+            "manual",
+            ecu,
+            ecu=ecu,
+            protocol=proto,
+            group=group,
+            codes=(pre_codes if pre_codes else None),
+            label=label,
+        )
+    )
     # The ECU is clean now — record it so the next scan's diff is correct and
     # doesn't re-report these as a self-clear.
-    append_scan(build_scan(
-        ecu, {ecu: {"tx": f"0x{tx_id:03X}", "protocol": proto, "dtcs": []}},
-        label="post-clear",
-    ))
+    append_scan(
+        build_scan(
+            ecu,
+            {ecu: {"tx": f"0x{tx_id:03X}", "protocol": proto, "dtcs": []}},
+            label="post-clear",
+        )
+    )

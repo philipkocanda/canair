@@ -1,7 +1,5 @@
 """Tests for validate-pids.py PCI-byte detection (check_pci_bytes)."""
 
-from pathlib import Path
-
 import pytest
 
 from canlib.commands import validate as validate_pids

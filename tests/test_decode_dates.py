@@ -18,6 +18,7 @@ from canlib.commands import decode as decode_script
 # capture_dates helpers
 # ---------------------------------------------------------------------------
 
+
 class TestParseIsoDate:
     def test_valid(self):
         assert parse_iso_date("2026-07-22") == date(2026, 7, 22)
@@ -28,6 +29,7 @@ class TestParseIsoDate:
     @pytest.mark.parametrize("bad", ["2026/07/22", "not-a-date", "2026-13-01"])
     def test_invalid_raises_argparse_error(self, bad):
         import argparse
+
         with pytest.raises(argparse.ArgumentTypeError):
             parse_iso_date(bad)
 
@@ -137,6 +139,7 @@ class TestResolveDateBounds:
 # decode.scope_captures (date/text + first/last slicing)
 # ---------------------------------------------------------------------------
 
+
 def _caps():
     return [
         {"date": "2026-07-22", "vehicle_states": ["driving"], "label": "", "id": i}
@@ -171,7 +174,10 @@ class TestScopeCaptures:
         assert [c["id"] for c in out] == [3, 4]
 
     def test_date_filters(self):
-        caps = [*_caps(), {"date": "2026-07-20", "vehicle_states": ["parked"], "label": "", "id": 9}]
+        caps = [
+            *_caps(),
+            {"date": "2026-07-20", "vehicle_states": ["parked"], "label": "", "id": 9},
+        ]
         out = decode_script.scope_captures(caps, since=date(2026, 7, 22))
         assert all(c["date"] == "2026-07-22" for c in out)
 
@@ -180,23 +186,33 @@ class TestScopeCaptures:
 # Redesigned --compact renderer
 # ---------------------------------------------------------------------------
 
+
 def _compact_results(rows):
     """rows = list of (time, state, {param: value}); build all_results shape."""
     out = []
     for t, state, params in rows:
         decoded = {n: {"value": v, "unit": "", "verified": False} for n, v in params.items()}
-        out.append({"capture": {"date": "2026-07-22", "time": t,
-                                "vehicle_states": [state] if state else []},
-                    "decoded": decoded})
+        out.append(
+            {
+                "capture": {
+                    "date": "2026-07-22",
+                    "time": t,
+                    "vehicle_states": [state] if state else [],
+                },
+                "decoded": decoded,
+            }
+        )
     return out
 
 
 class TestPrintCompact:
     def test_header_printed_once(self, capsys):
-        results = _compact_results([
-            ("16:00:00", "drive", {"SPEED": 0}),
-            ("16:00:01", "drive", {"SPEED": 10}),
-        ])
+        results = _compact_results(
+            [
+                ("16:00:00", "drive", {"SPEED": 0}),
+                ("16:00:01", "drive", {"SPEED": 10}),
+            ]
+        )
         decode_script.print_compact(results, ["SPEED"], {"SPEED": {"unit": "km/h"}}, set())
         out = capsys.readouterr().out
         # Param name appears once (header), NOT on every data row.
@@ -204,23 +220,27 @@ class TestPrintCompact:
         assert "SPEED[km/h]" in out
 
     def test_state_divider_only_on_change(self, capsys):
-        results = _compact_results([
-            ("16:00:00", "drive A", {"SPEED": 0}),
-            ("16:00:01", "drive A", {"SPEED": 5}),
-            ("16:00:02", "drive B", {"SPEED": 8}),
-        ])
+        results = _compact_results(
+            [
+                ("16:00:00", "drive A", {"SPEED": 0}),
+                ("16:00:01", "drive A", {"SPEED": 5}),
+                ("16:00:02", "drive B", {"SPEED": 8}),
+            ]
+        )
         decode_script.print_compact(results, ["SPEED"], {"SPEED": {"unit": ""}}, set())
         out = capsys.readouterr().out
         assert out.count("[drive A]") == 1
         assert out.count("[drive B]") == 1
 
     def test_changes_only_collapses_repeats(self, capsys):
-        results = _compact_results([
-            ("16:00:00", "s", {"SPEED": 0}),
-            ("16:00:01", "s", {"SPEED": 0}),
-            ("16:00:02", "s", {"SPEED": 0}),
-            ("16:00:03", "s", {"SPEED": 7}),
-        ])
+        results = _compact_results(
+            [
+                ("16:00:00", "s", {"SPEED": 0}),
+                ("16:00:01", "s", {"SPEED": 0}),
+                ("16:00:02", "s", {"SPEED": 0}),
+                ("16:00:03", "s", {"SPEED": 7}),
+            ]
+        )
         decode_script.print_compact(
             results, ["SPEED"], {"SPEED": {"unit": ""}}, set(), changes_only=True
         )
@@ -242,16 +262,17 @@ class TestPrintCompact:
 # --group-by state stats
 # ---------------------------------------------------------------------------
 
+
 class TestPrintStatsGrouped:
     def test_groups_by_state(self, capsys):
-        results = _compact_results([
-            ("16:00:00", "drive A", {"P": 1}),
-            ("16:00:01", "drive A", {"P": 3}),
-            ("16:00:02", "drive B", {"P": 100}),
-        ])
-        decode_script.print_stats_grouped(
-            results, ["P"], {"P": {"unit": ""}}, set(), "state"
+        results = _compact_results(
+            [
+                ("16:00:00", "drive A", {"P": 1}),
+                ("16:00:01", "drive A", {"P": 3}),
+                ("16:00:02", "drive B", {"P": 100}),
+            ]
         )
+        decode_script.print_stats_grouped(results, ["P"], {"P": {"unit": ""}}, set(), "state")
         out = capsys.readouterr().out
         assert "[drive A]" in out and "[drive B]" in out
         # Group A max is 3, group B max is 100 — proves per-group stats.
@@ -262,6 +283,7 @@ class TestPrintStatsGrouped:
 # ---------------------------------------------------------------------------
 # captures/decode share the one scoping surface (regression guard)
 # ---------------------------------------------------------------------------
+
 
 class TestSharedScopingWiring:
     def test_captures_uses_shared_helpers(self):

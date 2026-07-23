@@ -105,7 +105,9 @@ def _run_pair_solver(pair: str) -> int:
     if ":" not in pair:
         print("Error: --pair expects SEED:KEY (hex), e.g. 1A2B3C4D:5E6F7A8B", file=sys.stderr)
         return 2
-    seed_str, key_str = (p.strip().removeprefix("0x").removeprefix("0X") for p in pair.split(":", 1))
+    seed_str, key_str = (
+        p.strip().removeprefix("0x").removeprefix("0X") for p in pair.split(":", 1)
+    )
     try:
         seed = int(seed_str, 16)
         key = int(key_str, 16)
@@ -120,7 +122,9 @@ def _run_pair_solver(pair: str) -> int:
         print(f"  {len(matches)} algorithm(s) reproduce this key:\n")
         for name, desc in matches:
             print(f"    ✓ {name:<20} {desc}")
-        print("\n  Use the winning algorithm name with: canair query \"session ECU\" \"security ECU <name>\"")
+        print(
+            '\n  Use the winning algorithm name with: canair query "session ECU" "security ECU <name>"'
+        )
     else:
         print("  No built-in algorithm reproduces this key.")
         print("  It may use a different constant/transform — add it to SECURITY_ALGORITHMS,")

@@ -20,8 +20,7 @@ from canlib.modes.iocontrol_scan import (
     classify,
     probe_iocontrol,
 )
-from canlib.pids_edit import append_iocontrol_discoveries_block
-
+from canlib.pids_edit import PidsEditError, append_iocontrol_discoveries_block
 
 # ── classify() ───────────────────────────────────────────────────────────────
 
@@ -146,10 +145,16 @@ def pids_dir(tmp_path: Path) -> Path:
 
 def test_append_iocontrol_discoveries_adds_new_section(pids_dir):
     hits = [
-        IOControlHit(did=0xB010, session="extended",
-                     response_hex="6F B0 10 00", nrc=None, nrc_desc=None),
-        IOControlHit(did=0xB02A, session="default",
-                     response_hex="", nrc=0x33, nrc_desc="securityAccessDenied"),
+        IOControlHit(
+            did=0xB010, session="extended", response_hex="6F B0 10 00", nrc=None, nrc_desc=None
+        ),
+        IOControlHit(
+            did=0xB02A,
+            session="default",
+            response_hex="",
+            nrc=0x33,
+            nrc_desc="securityAccessDenied",
+        ),
     ]
     path = append_iocontrol_discoveries_block("TEST", hits, pids_dir=pids_dir)
     data = yaml.safe_load(path.read_text())
@@ -168,17 +173,22 @@ def test_append_iocontrol_discoveries_adds_new_section(pids_dir):
 def test_append_iocontrol_discoveries_preserves_curated_iocontrol(pids_dir):
     """Critical: the discovery writer MUST NOT touch the curated iocontrol: block."""
     hits = [
-        IOControlHit(did=0xB099, session="default",
-                     response_hex="", nrc=0x22, nrc_desc="conditionsNotCorrect"),
+        IOControlHit(
+            did=0xB099,
+            session="default",
+            response_hex="",
+            nrc=0x22,
+            nrc_desc="conditionsNotCorrect",
+        ),
     ]
     path = append_iocontrol_discoveries_block("TEST", hits, pids_dir=pids_dir)
     # Check raw text: PyYAML parses `on:`/`off:` as boolean keys (YAML 1.1
     # quirk) so we can't rely on yaml.safe_load to preserve those field names.
     text = path.read_text()
-    assert 'label: EXISTING_ACTUATOR' in text
+    assert "label: EXISTING_ACTUATOR" in text
     assert 'on: "2F B0 01 03 01"' in text
     assert 'off: "2F B0 01 00"' in text
-    assert 'verified: true' in text
+    assert "verified: true" in text
     # New discoveries in separate section
     data = yaml.safe_load(text)
     assert "B099" in data["TEST"]["iocontrol_discoveries"]
@@ -186,8 +196,13 @@ def test_append_iocontrol_discoveries_preserves_curated_iocontrol(pids_dir):
 
 def test_append_iocontrol_discoveries_preserves_other_sections(pids_dir):
     hits = [
-        IOControlHit(did=0xB050, session="default",
-                     response_hex="", nrc=0x33, nrc_desc="securityAccessDenied"),
+        IOControlHit(
+            did=0xB050,
+            session="default",
+            response_hex="",
+            nrc=0x33,
+            nrc_desc="securityAccessDenied",
+        ),
     ]
     append_iocontrol_discoveries_block("TEST", hits, pids_dir=pids_dir)
     data = yaml.safe_load((pids_dir / "test.yaml").read_text())
@@ -200,12 +215,26 @@ def test_append_iocontrol_discoveries_preserves_other_sections(pids_dir):
 
 def test_append_iocontrol_discoveries_merges_with_existing(pids_dir):
     """Prior discoveries outside the new hit set must be preserved (merge)."""
-    first = [IOControlHit(did=0xB001, session="default", response_hex="",
-                          nrc=0x33, nrc_desc="securityAccessDenied")]
+    first = [
+        IOControlHit(
+            did=0xB001,
+            session="default",
+            response_hex="",
+            nrc=0x33,
+            nrc_desc="securityAccessDenied",
+        )
+    ]
     append_iocontrol_discoveries_block("TEST", first, pids_dir=pids_dir)
 
-    second = [IOControlHit(did=0xB002, session="default", response_hex="",
-                           nrc=0x22, nrc_desc="conditionsNotCorrect")]
+    second = [
+        IOControlHit(
+            did=0xB002,
+            session="default",
+            response_hex="",
+            nrc=0x22,
+            nrc_desc="conditionsNotCorrect",
+        )
+    ]
     append_iocontrol_discoveries_block("TEST", second, pids_dir=pids_dir)
 
     data = yaml.safe_load((pids_dir / "test.yaml").read_text())
@@ -219,13 +248,23 @@ def test_append_iocontrol_discoveries_merges_with_existing(pids_dir):
 
 def test_append_iocontrol_discoveries_upserts_same_did(pids_dir):
     """Re-scanning a DID overwrites its prior entry (latest result wins)."""
-    first = [IOControlHit(did=0xB001, session="default", response_hex="",
-                          nrc=0x33, nrc_desc="securityAccessDenied")]
+    first = [
+        IOControlHit(
+            did=0xB001,
+            session="default",
+            response_hex="",
+            nrc=0x33,
+            nrc_desc="securityAccessDenied",
+        )
+    ]
     append_iocontrol_discoveries_block("TEST", first, pids_dir=pids_dir)
 
     # Same DID, different response (e.g., session-state changed between runs)
-    second = [IOControlHit(did=0xB001, session="extended",
-                           response_hex="6FB00100", nrc=None, nrc_desc=None)]
+    second = [
+        IOControlHit(
+            did=0xB001, session="extended", response_hex="6FB00100", nrc=None, nrc_desc=None
+        )
+    ]
     append_iocontrol_discoveries_block("TEST", second, pids_dir=pids_dir)
 
     data = yaml.safe_load((pids_dir / "test.yaml").read_text())
@@ -243,16 +282,24 @@ def test_append_iocontrol_discoveries_empty_is_noop(pids_dir):
 
 
 def test_append_iocontrol_discoveries_unknown_ecu_raises(pids_dir):
-    hits = [IOControlHit(did=0xB010, session="default", response_hex="",
-                         nrc=0x22, nrc_desc="conditionsNotCorrect")]
-    with pytest.raises(Exception):
+    hits = [
+        IOControlHit(
+            did=0xB010,
+            session="default",
+            response_hex="",
+            nrc=0x22,
+            nrc_desc="conditionsNotCorrect",
+        )
+    ]
+    with pytest.raises(PidsEditError):
         append_iocontrol_discoveries_block("NONEXISTENT", hits, pids_dir=pids_dir)
 
 
 def test_append_iocontrol_discoveries_yaml_round_trip(pids_dir):
     hits = [
-        IOControlHit(did=i, session="default", response_hex="",
-                     nrc=0x33, nrc_desc="securityAccessDenied")
+        IOControlHit(
+            did=i, session="default", response_hex="", nrc=0x33, nrc_desc="securityAccessDenied"
+        )
         for i in (0xB000, 0xB001, 0xB050, 0xBFFF)
     ]
     path = append_iocontrol_discoveries_block("TEST", hits, pids_dir=pids_dir)
@@ -266,10 +313,24 @@ def test_routines_and_discoveries_coexist(pids_dir):
     from canlib.modes.routines_scan import RoutineHit
     from canlib.pids_edit import append_routines_block
 
-    r_hits = [RoutineHit(rid=0xF010, session="default", response_hex="",
-                         nrc=0x24, nrc_desc="requestSequenceError")]
-    d_hits = [IOControlHit(did=0xB020, session="default", response_hex="",
-                           nrc=0x33, nrc_desc="securityAccessDenied")]
+    r_hits = [
+        RoutineHit(
+            rid=0xF010,
+            session="default",
+            response_hex="",
+            nrc=0x24,
+            nrc_desc="requestSequenceError",
+        )
+    ]
+    d_hits = [
+        IOControlHit(
+            did=0xB020,
+            session="default",
+            response_hex="",
+            nrc=0x33,
+            nrc_desc="securityAccessDenied",
+        )
+    ]
 
     append_routines_block("TEST", r_hits, pids_dir=pids_dir)
     append_iocontrol_discoveries_block("TEST", d_hits, pids_dir=pids_dir)

@@ -62,8 +62,14 @@ def _params(pids_dir, pid):
 class TestUpsertParameterNew:
     def test_add_into_existing_parameters_block(self, pids_dir):
         upsert_parameter(
-            "TESTECU", "2101", "NEWP", "[S10:S11]/100",
-            unit="Nm", verified=False, source="test", pids_dir=pids_dir,
+            "TESTECU",
+            "2101",
+            "NEWP",
+            "[S10:S11]/100",
+            unit="Nm",
+            verified=False,
+            source="test",
+            pids_dir=pids_dir,
         )
         params = _params(pids_dir, "2101")
         assert "EXISTING" in params  # preserved
@@ -88,7 +94,13 @@ class TestUpsertParameterNew:
 
     def test_create_new_pid_block(self, pids_dir):
         upsert_parameter(
-            "TESTECU", "22C00B", "TPMS", "B7", unit="kPa", min="0", max="500",
+            "TESTECU",
+            "22C00B",
+            "TPMS",
+            "B7",
+            unit="kPa",
+            min="0",
+            max="500",
             pids_dir=pids_dir,
         )
         params = _params(pids_dir, "22C00B")
@@ -102,8 +114,9 @@ class TestUpsertParameterNew:
         assert 'expression: "[S4:S5]"' in raw
 
     def test_notes_render_as_block_scalar(self, pids_dir):
-        upsert_parameter("TESTECU", "2101", "WITHNOTE", "B3",
-                         notes="line one\nline two", pids_dir=pids_dir)
+        upsert_parameter(
+            "TESTECU", "2101", "WITHNOTE", "B3", notes="line one\nline two", pids_dir=pids_dir
+        )
         assert _params(pids_dir, "2101")["WITHNOTE"]["notes"].strip().startswith("line one")
 
 
@@ -111,9 +124,9 @@ class TestUpsertParameterUpdate:
     def test_update_single_field_preserves_others(self, pids_dir):
         upsert_parameter("TESTECU", "2101", "EXISTING", "B5", pids_dir=pids_dir)
         p = _params(pids_dir, "2101")["EXISTING"]
-        assert p["expression"] == "B5"     # changed
-        assert p["unit"] == "%"            # preserved
-        assert p["verified"] is True       # preserved
+        assert p["expression"] == "B5"  # changed
+        assert p["unit"] == "%"  # preserved
+        assert p["verified"] is True  # preserved
         assert "original note" in p["notes"]  # preserved
 
     def test_update_flips_verified(self, pids_dir):
@@ -138,6 +151,7 @@ class TestUpsertValidation:
         upsert_parameter("TESTECU", "2101", "NEWP", "B6", unit="A", pids_dir=pids_dir)
         # Whole file must still round-trip through the real loader.
         from canlib.pids import build_ecu_index, load_pids
+
         idx = build_ecu_index(load_pids(pids_dir))
         assert "NEWP" in idx["TESTECU"]["pids"]["2101"]["parameters"]
 
@@ -145,8 +159,14 @@ class TestUpsertValidation:
 class TestResearch:
     def test_add_entry_to_existing_section(self, pids_dir):
         add_research_entry(
-            "TESTECU", type="scan", target="22 E001-E010", status="pending",
-            priority="P1", vehicle_states=["acc"], notes="cross-ref", pids_dir=pids_dir,
+            "TESTECU",
+            type="scan",
+            target="22 E001-E010",
+            status="pending",
+            priority="P1",
+            vehicle_states=["acc"],
+            notes="cross-ref",
+            pids_dir=pids_dir,
         )
         research = _load(pids_dir)["TESTECU"]["research"]
         assert len(research) == 2
@@ -156,21 +176,26 @@ class TestResearch:
     def test_add_entry_creates_section(self, pids_dir):
         # Remove research section first by rewriting a section-less ECU.
         (pids_dir / "test2.yaml").write_text("OTHER:\n  tx_id: 0x700\n  pids: {}\n")
-        add_research_entry("OTHER", type="verify", target="B002", status="pending",
-                           pids_dir=pids_dir)
+        add_research_entry(
+            "OTHER", type="verify", target="B002", status="pending", pids_dir=pids_dir
+        )
         assert _load2(pids_dir)["OTHER"]["research"][0]["target"] == "B002"
 
     def test_add_entry_requires_core_fields(self, pids_dir):
         with pytest.raises(PidsEditError):
-            add_research_entry("TESTECU", type="scan", target="", status="pending",
-                               pids_dir=pids_dir)
+            add_research_entry(
+                "TESTECU", type="scan", target="", status="pending", pids_dir=pids_dir
+            )
 
     def test_numeric_target_stays_string(self, pids_dir):
         # Regression: all-digit targets (e.g. "220101") must be quoted so YAML
         # re-parses them as strings, not ints — otherwise the post-edit checker
         # (str target vs int parsed value) fails with "research entry missing".
         add_research_entry(
-            "TESTECU", type="decode", target="220101", status="captured",
+            "TESTECU",
+            type="decode",
+            target="220101",
+            status="captured",
             pids_dir=pids_dir,
         )
         raw = (pids_dir / "test.yaml").read_text()
@@ -182,7 +207,10 @@ class TestResearch:
 
     def test_capture_protocol_field(self, pids_dir):
         add_research_entry(
-            "TESTECU", type="decode", target="22C101", status="captured",
+            "TESTECU",
+            type="decode",
+            target="22C101",
+            status="captured",
             capture_protocol="Hold wheel at centre, full-lock each way.",
             pids_dir=pids_dir,
         )
@@ -204,25 +232,29 @@ class TestResearch:
 
         today = datetime.date.today().isoformat()
         add_research_entry(
-            "TESTECU", type="scan", target="22 F001-F010", status="pending",
+            "TESTECU",
+            type="scan",
+            target="22 F001-F010",
+            status="pending",
             pids_dir=pids_dir,
         )
         new = next(
-            e for e in _load(pids_dir)["TESTECU"]["research"]
-            if e["target"] == "22 F001-F010"
+            e for e in _load(pids_dir)["TESTECU"]["research"] if e["target"] == "22 F001-F010"
         )
         assert new["created"] == today
         assert new["updated"] == today
 
     def test_add_entry_explicit_timestamps_override(self, pids_dir):
         add_research_entry(
-            "TESTECU", type="scan", target="22 G001", status="pending",
-            created="2020-01-01", updated="2020-02-02", pids_dir=pids_dir,
+            "TESTECU",
+            type="scan",
+            target="22 G001",
+            status="pending",
+            created="2020-01-01",
+            updated="2020-02-02",
+            pids_dir=pids_dir,
         )
-        new = next(
-            e for e in _load(pids_dir)["TESTECU"]["research"]
-            if e["target"] == "22 G001"
-        )
+        new = next(e for e in _load(pids_dir)["TESTECU"]["research"] if e["target"] == "22 G001")
         assert new["created"] == "2020-01-01"
         assert new["updated"] == "2020-02-02"
 
@@ -231,14 +263,15 @@ class TestResearch:
         import datetime
 
         add_research_entry(
-            "TESTECU", type="decode", target="22H001", status="captured",
-            updated="2020-01-01", pids_dir=pids_dir,
+            "TESTECU",
+            type="decode",
+            target="22H001",
+            status="captured",
+            updated="2020-01-01",
+            pids_dir=pids_dir,
         )
         set_research_status("TESTECU", "22H001", "done", type="decode", pids_dir=pids_dir)
-        new = next(
-            e for e in _load(pids_dir)["TESTECU"]["research"]
-            if e["target"] == "22H001"
-        )
+        new = next(e for e in _load(pids_dir)["TESTECU"]["research"] if e["target"] == "22H001")
         assert new["status"] == "done"
         assert new["updated"] == datetime.date.today().isoformat()
 

@@ -185,8 +185,10 @@ def _process(path: Path, migrate_fn, apply: bool) -> bool:
     if new == original:
         return False
     diff = difflib.unified_diff(
-        original.splitlines(keepends=True), new.splitlines(keepends=True),
-        fromfile=str(path), tofile=str(path) + " (migrated)",
+        original.splitlines(keepends=True),
+        new.splitlines(keepends=True),
+        fromfile=str(path),
+        tofile=str(path) + " (migrated)",
     )
     sys.stdout.writelines(diff)
     if apply:
@@ -195,13 +197,15 @@ def _process(path: Path, migrate_fn, apply: bool) -> bool:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("--profile", default=None, help="Profile name (default: active)")
     ap.add_argument("--apply", action="store_true", help="Write changes (default: dry run)")
     args = ap.parse_args()
 
     from canlib.profile import active, resolve_profile
+
     prof = resolve_profile(args.profile) if args.profile else active()
     print(f"Profile: {prof.name}  ({'APPLY' if args.apply else 'DRY RUN'})\n")
 

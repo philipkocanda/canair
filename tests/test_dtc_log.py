@@ -25,7 +25,10 @@ def test_load_missing_is_empty(tmp_path):
 def test_build_scan_records_vehicle_states(tmp_path):
     p = tmp_path / "dtc_log.yaml"
     entry = dtc_log.build_scan(
-        "all", {}, label="on-charge", vehicle_states=["plugged", "charging"],
+        "all",
+        {},
+        label="on-charge",
+        vehicle_states=["plugged", "charging"],
         timestamp="2026-07-22T10:00:00",
     )
     assert entry["vehicle_states"] == ["plugged", "charging"]
@@ -85,8 +88,13 @@ def test_append_clear_and_coexist_with_scans(tmp_path):
     dtc_log.append_scan(dtc_log.build_scan("all", {}, timestamp="t1"), path=p)
     dtc_log.append_clear(
         dtc_log.build_clear(
-            "manual", "BMS (0x7E4)", ecu="BMS (0x7E4)", protocol="kwp",
-            group="0xFFFF", codes=["P1AAA-00"], timestamp="t2",
+            "manual",
+            "BMS (0x7E4)",
+            ecu="BMS (0x7E4)",
+            protocol="kwp",
+            group="0xFFFF",
+            codes=["P1AAA-00"],
+            timestamp="t2",
         ),
         path=p,
     )

@@ -17,6 +17,7 @@ from .yaml_rt import round_trip_yaml as _yaml
 # Metadata prompt
 # ---------------------------------------------------------------------------
 
+
 def prompt_metadata(
     suggested_label: str = "",
     last_state: list | str | None = None,
@@ -41,7 +42,8 @@ def prompt_metadata(
                 return None
 
         state_prompt = (
-            f"  States [{last_str}]: " if last_str
+            f"  States [{last_str}]: "
+            if last_str
             else "  States (comma-separated, e.g. sleep, acc, charging) []: "
         )
         raw = input(state_prompt).strip()
@@ -80,6 +82,7 @@ def resolve_metadata(
 # Session builders
 # ---------------------------------------------------------------------------
 
+
 def build_query_session(
     results: list[tuple[str, str, str, str]],
     label: str,
@@ -116,6 +119,7 @@ def build_query_session(
 
     session["captures"] = captures
     return session
+
 
 def build_scan_session(
     ecu_ref: str,
@@ -282,6 +286,7 @@ def build_discover_session(
 # File I/O
 # ---------------------------------------------------------------------------
 
+
 def save_session(session: dict, captures_dir: Path | None = None) -> Path:
     """Append a session dict to captures/YYYY-MM-DD.yaml. Returns the file path.
 
@@ -381,6 +386,7 @@ def delete_capture(fpath: Path, session_idx: int, capture_idx: int) -> bool:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _decode_payload(
     ecu_name: str,

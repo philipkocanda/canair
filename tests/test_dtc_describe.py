@@ -1,5 +1,7 @@
 """Tests for canlib.dtc_describe — structural DTC interpretation."""
 
+from typing import ClassVar
+
 from canlib.dtc_describe import describe_dtc, dtc_kind
 
 
@@ -66,7 +68,7 @@ class TestDescribeDtc:
 class TestProfileDefinitions:
     """Manufacturer meanings + failure-type bytes come from the profile's per-ECU dtcs: + failure_types:."""
 
-    DEFS = {
+    DEFS: ClassVar = {
         "dtcs": {
             "C182C": {"description": "DC fast-charge (CCS) charging / PLC communication failure"},
             "B1285": {"description": "Direction Control Motor — AUTO Defog"},

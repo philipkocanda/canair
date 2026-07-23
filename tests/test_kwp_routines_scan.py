@@ -14,7 +14,6 @@ from canlib.modes.kwp_routines_scan import (
 )
 from canlib.pids_edit import append_routines_block
 
-
 # ── probe: 0x33 read-only, never 0x31 ────────────────────────────────────────
 
 

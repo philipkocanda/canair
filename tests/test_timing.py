@@ -46,7 +46,9 @@ def test_resolve_ecu_hex_label(monkeypatch):
     # Hex request-id labels are resolved to names at render time.
     import canlib.ecus as ecus_mod
 
-    monkeypatch.setattr(ecus_mod, "ecu_name", lambda tx, e=None: "BMS" if tx == 0x7E4 else f"0x{tx:03X}")
+    monkeypatch.setattr(
+        ecus_mod, "ecu_name", lambda tx, e=None: "BMS" if tx == 0x7E4 else f"0x{tx:03X}"
+    )
     assert timing_mod._resolve_ecu("0x7E4") == "BMS"
     assert timing_mod._resolve_ecu("VCU") == "VCU"  # non-hex passes through
 
@@ -58,7 +60,9 @@ def test_render_timings_empty_is_none():
 def test_render_timings_table(monkeypatch):
     import canlib.ecus as ecus_mod
 
-    monkeypatch.setattr(ecus_mod, "ecu_name", lambda tx, e=None: "BMS" if tx == 0x7E4 else f"0x{tx:03X}")
+    monkeypatch.setattr(
+        ecus_mod, "ecu_name", lambda tx, e=None: "BMS" if tx == 0x7E4 else f"0x{tx:03X}"
+    )
     rec = TimingRecorder()
     rec.record("0x7E4", "2101", 0.05)
     table = render_timings(rec)
@@ -69,7 +73,9 @@ def test_render_timings_table(monkeypatch):
 def test_print_timings_json_to_stderr(capsys, monkeypatch):
     import canlib.ecus as ecus_mod
 
-    monkeypatch.setattr(ecus_mod, "ecu_name", lambda tx, e=None: "VCU" if tx == 0x7E2 else f"0x{tx:03X}")
+    monkeypatch.setattr(
+        ecus_mod, "ecu_name", lambda tx, e=None: "VCU" if tx == 0x7E2 else f"0x{tx:03X}"
+    )
     rec = TimingRecorder()
     rec.record("0x7E2", "2101", 0.4)
     print_timings(rec, as_json=True)

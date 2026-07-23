@@ -130,6 +130,7 @@ def _yaml_reinterprets(value: str) -> bool:
     Such values must be quoted to stay strings.
     """
     import yaml
+
     try:
         return not isinstance(yaml.safe_load(value), str)
     except yaml.YAMLError:
@@ -282,7 +283,9 @@ def _find_ecu_block(text: str, ecu_name: str) -> tuple[int, int]:
     return ecu_start, len(text)
 
 
-def append_routines_block(ecu_name: str, hits, pids_dir: Path | None = None, key_width: int = 4) -> Path:
+def append_routines_block(
+    ecu_name: str, hits, pids_dir: Path | None = None, key_width: int = 4
+) -> Path:
     """Write/overwrite a ``routines:`` section at the end of the ECU block.
 
     If a ``routines:`` section already exists for this ECU, it is replaced
@@ -379,7 +382,7 @@ def append_sessions_block(ecu_name: str, hits, pids_dir: Path | None = None) -> 
         tail_re = re.compile(r"^ {0,2}[A-Za-z_]", re.MULTILINE)
         tail = tail_re.search(ecu_block, pos=m.end())
         sec_end = tail.start() if tail else len(ecu_block)
-        section_body = ecu_block[m.end():sec_end]
+        section_body = ecu_block[m.end() : sec_end]
         entry_re = re.compile(r'^ {4}"?([0-9A-Fa-f]{1,2})"?:\s*$', re.MULTILINE)
         matches = list(entry_re.finditer(section_body))
         for i, em in enumerate(matches):
@@ -407,7 +410,6 @@ def append_sessions_block(ecu_name: str, hits, pids_dir: Path | None = None) -> 
     fpath.write_text(new_text)
     _invalidate()
     return fpath
-
 
 
 def _format_hit_entry(hit, key_attr: str, key_width: int = 4) -> list[str]:
@@ -456,9 +458,7 @@ def _parse_existing_entries(section_body: str, key_width: int = 4) -> dict[str, 
     """
     entries: dict[str, list[str]] = {}
     # Each entry starts with "    <HEX>:\n" at 4-space indent (key optionally quoted)
-    entry_re = re.compile(
-        r'^ {4}"?([0-9A-Fa-f]{' + str(key_width) + r'})"?:\s*$', re.MULTILINE
-    )
+    entry_re = re.compile(r'^ {4}"?([0-9A-Fa-f]{' + str(key_width) + r'})"?:\s*$', re.MULTILINE)
     matches = list(entry_re.finditer(section_body))
     for i, m in enumerate(matches):
         key = m.group(1).upper()
@@ -494,15 +494,13 @@ def _append_hit_block(
 
     # Parse any pre-existing ``  <section_name>:`` section within the ECU block
     existing_entries: dict[str, list[str]] = {}
-    existing_re = re.compile(
-        r"^ {2}" + re.escape(section_name) + r":\s*$", re.MULTILINE
-    )
+    existing_re = re.compile(r"^ {2}" + re.escape(section_name) + r":\s*$", re.MULTILINE)
     m = existing_re.search(ecu_block)
     if m:
         tail_re = re.compile(r"^ {0,2}[A-Za-z_]", re.MULTILINE)
         tail = tail_re.search(ecu_block, pos=m.end())
         sec_end = tail.start() if tail else len(ecu_block)
-        section_body = ecu_block[m.end():sec_end]
+        section_body = ecu_block[m.end() : sec_end]
         existing_entries = _parse_existing_entries(section_body, key_width=key_width)
         # Strip the old section out; we'll reappend a merged one.
         ecu_block = ecu_block[: m.start()] + ecu_block[sec_end:]
@@ -695,7 +693,7 @@ def _count_discovery_entries(text: str) -> int:
     tail_m = tail_re.search(text, pos=sec_m.end() + 1)
     sec_end = tail_m.start() if tail_m else len(text)
     did_re = re.compile(r"^ {4}[A-Za-z0-9]+:\s*$", re.MULTILINE)
-    return len(did_re.findall(text[sec_m.end():sec_end]))
+    return len(did_re.findall(text[sec_m.end() : sec_end]))
 
 
 def _remove_discovery_section(text: str) -> str:
@@ -820,14 +818,14 @@ def promote_discovery(
         # Insert before c_end, preserving any trailing blank line.
         insertion_point = c_end
         # Back up over trailing blank lines so entry sits adjacent to siblings.
-        while insertion_point > cm.end() and without_disc[insertion_point - 1] == "\n" \
-                and insertion_point >= 2 and without_disc[insertion_point - 2] == "\n":
+        while (
+            insertion_point > cm.end()
+            and without_disc[insertion_point - 1] == "\n"
+            and insertion_point >= 2
+            and without_disc[insertion_point - 2] == "\n"
+        ):
             insertion_point -= 1
-        new_block = (
-            without_disc[:insertion_point]
-            + new_entry
-            + without_disc[insertion_point:]
-        )
+        new_block = without_disc[:insertion_point] + new_entry + without_disc[insertion_point:]
     else:
         # No iocontrol: section — create one at end of ECU block.
         body = without_disc.rstrip("\n")
@@ -849,15 +847,35 @@ def promote_discovery(
 
 # Canonical field order for a rendered parameter (matches pids/_schema.yaml).
 PARAM_FIELD_ORDER = (
-    "expression", "unit", "ha_class", "mqtt_topic", "min", "max",
-    "source", "source_links", "verified", "notes", "enabled", "display",
+    "expression",
+    "unit",
+    "ha_class",
+    "mqtt_topic",
+    "min",
+    "max",
+    "source",
+    "source_links",
+    "verified",
+    "notes",
+    "enabled",
+    "display",
 )
 
 # Canonical field order for a rendered research entry.
 RESEARCH_FIELD_ORDER = (
-    "type", "target", "status", "priority", "vehicle_states",
-    "created", "updated", "date", "result", "notes", "sources",
-    "what_to_test", "capture_protocol",
+    "type",
+    "target",
+    "status",
+    "priority",
+    "vehicle_states",
+    "created",
+    "updated",
+    "date",
+    "result",
+    "notes",
+    "sources",
+    "what_to_test",
+    "capture_protocol",
 )
 
 
@@ -925,7 +943,9 @@ def _format_param_block(name: str, fields: dict, indent: int = 8) -> list[str]:
         if key == "notes":
             lines.extend(_format_block_scalar(fld, key, str(val)))
         elif key == "source_links":
-            lines.extend(_format_list_field(fld, key, val if isinstance(val, (list, tuple)) else [val]))
+            lines.extend(
+                _format_list_field(fld, key, val if isinstance(val, (list, tuple)) else [val])
+            )
         else:
             lines.append(_format_scalar_field(fld, key, val))
     return lines
@@ -946,25 +966,26 @@ def _format_research_item(fields: dict, indent: int = 4) -> list[str]:
             lines.append(f"{prefix}{key}: [{joined}]")
         elif key in ("notes", "result") and "\n" in str(val):
             block = _format_block_scalar(fld, key, str(val))
-            block[0] = prefix + block[0][len(fld):]
+            block[0] = prefix + block[0][len(fld) :]
             lines.extend(block)
         elif key == "capture_protocol":
             block = _format_block_scalar(fld, key, str(val))
-            block[0] = prefix + block[0][len(fld):]
+            block[0] = prefix + block[0][len(fld) :]
             lines.extend(block)
         elif key in ("sources", "what_to_test"):
             block = _format_list_field(fld, key, val if isinstance(val, (list, tuple)) else [val])
-            block[0] = prefix + block[0][len(fld):]
+            block[0] = prefix + block[0][len(fld) :]
             lines.extend(block)
         else:
             line = _format_scalar_field(fld, key, val)
-            lines.append(prefix + line[len(fld):])
+            lines.append(prefix + line[len(fld) :])
     return lines
 
 
 def _reparse_or_raise(fpath: Path) -> dict:
     """Re-read the file as YAML; raise ``PidsEditError`` if it no longer parses."""
     import yaml
+
     try:
         data = yaml.safe_load(fpath.read_text())
     except yaml.YAMLError as e:
@@ -1033,10 +1054,18 @@ def upsert_parameter(
         raise PidsEditError("expression must not be empty")
 
     provided = {
-        "expression": expression, "unit": unit, "ha_class": ha_class,
-        "mqtt_topic": mqtt_topic, "min": min, "max": max, "source": source,
-        "source_links": source_links, "verified": verified, "notes": notes,
-        "enabled": enabled, "display": display,
+        "expression": expression,
+        "unit": unit,
+        "ha_class": ha_class,
+        "mqtt_topic": mqtt_topic,
+        "min": min,
+        "max": max,
+        "source": source,
+        "source_links": source_links,
+        "verified": verified,
+        "notes": notes,
+        "enabled": enabled,
+        "display": display,
     }
     fields = {k: v for k, v in provided.items() if v is not None}
 
@@ -1072,7 +1101,7 @@ def upsert_parameter(
         if p_inline in ("{}", "{ }"):
             # Convert inline empty map to block form, then add the param.
             new_header = "      parameters:\n" + "".join(ln + "\n" for ln in param_lines)
-            return text[:p_hdr] + new_header + text[p_line_end + 1:]
+            return text[:p_hdr] + new_header + text[p_line_end + 1 :]
 
         existing = _keyed_block(text, param_name, 8, p_body_start, p_body_end)
         if existing:
@@ -1087,8 +1116,9 @@ def upsert_parameter(
                     repl = _format_block_scalar(" " * 10, "notes", str(fields[key]))
                 elif key == "source_links":
                     v = fields[key]
-                    repl = _format_list_field(" " * 10, "source_links",
-                                              v if isinstance(v, (list, tuple)) else [v])
+                    repl = _format_list_field(
+                        " " * 10, "source_links", v if isinstance(v, (list, tuple)) else [v]
+                    )
                 else:
                     repl = _replace_param_field_line(" " * 10, key, fields[key])
                 block_text = _replace_field_in_block_at(block_text, key, repl, indent=10)
@@ -1117,9 +1147,7 @@ def upsert_parameter(
 def _remove_field_line(block: str, field: str, indent: int) -> str:
     """Drop a scalar ``field:`` line at ``indent`` spaces from ``block``."""
     field_re = re.compile(rf"^ {{{indent}}}{re.escape(field)}:")
-    return "".join(
-        ln for ln in block.splitlines(keepends=True) if not field_re.match(ln)
-    )
+    return "".join(ln for ln in block.splitlines(keepends=True) if not field_re.match(ln))
 
 
 def set_pid_status(ecu_name: str, pid: str, status: str, *, pids_dir: Path | None = None) -> Path:
@@ -1196,7 +1224,9 @@ def _replace_field_in_block_at(block: str, field: str, new_line_or_lines, indent
     Replaces ``field:`` (and any block-scalar continuation) at ``indent`` spaces
     within ``block``; appends the field if absent.
     """
-    replacement_lines = [new_line_or_lines] if isinstance(new_line_or_lines, str) else list(new_line_or_lines)
+    replacement_lines = (
+        [new_line_or_lines] if isinstance(new_line_or_lines, str) else list(new_line_or_lines)
+    )
     lines = block.splitlines()
     out: list[str] = []
     i = 0
@@ -1210,7 +1240,9 @@ def _replace_field_in_block_at(block: str, field: str, new_line_or_lines, indent
             i += 1
             if rest in (">", "|", ">-", "|-", ">+", "|+"):
                 # Skip block-scalar continuation (indented deeper than field).
-                while i < len(lines) and (lines[i] == "" or lines[i].startswith(" " * (indent + 1))):
+                while i < len(lines) and (
+                    lines[i] == "" or lines[i].startswith(" " * (indent + 1))
+                ):
                     if re.match(rf"^ {{{indent}}}[A-Za-z_]", lines[i]):
                         break
                     i += 1
@@ -1259,10 +1291,18 @@ def add_research_entry(
     """
     today = _today()
     provided = {
-        "type": type, "target": target, "status": status, "priority": priority,
-        "vehicle_states": vehicle_states, "created": created or today,
-        "updated": updated or today, "date": date, "result": result,
-        "notes": notes, "sources": sources, "what_to_test": what_to_test,
+        "type": type,
+        "target": target,
+        "status": status,
+        "priority": priority,
+        "vehicle_states": vehicle_states,
+        "created": created or today,
+        "updated": updated or today,
+        "date": date,
+        "result": result,
+        "notes": notes,
+        "sources": sources,
+        "what_to_test": what_to_test,
         "capture_protocol": capture_protocol,
     }
     fields = {k: v for k, v in provided.items() if v is not None}
@@ -1289,8 +1329,7 @@ def add_research_entry(
     def checker(ecu_def: dict) -> None:
         research = ecu_def.get("research")
         if not isinstance(research, list) or not any(
-            str(e.get("target")) == str(target) and e.get("type") == type
-            for e in research
+            str(e.get("target")) == str(target) and e.get("type") == type for e in research
         ):
             raise PidsEditError("research entry missing after edit")
 
@@ -1351,21 +1390,25 @@ def set_research_status(
             matches.append((s, e))
 
         if not matches:
-            raise PidsEditError(f"no research item with target {target!r}"
-                                + (f" and type {type!r}" if type else ""))
+            raise PidsEditError(
+                f"no research item with target {target!r}" + (f" and type {type!r}" if type else "")
+            )
         if len(matches) > 1:
             raise PidsEditError(f"ambiguous target {target!r} ({len(matches)} matches); pass type=")
 
         s, e = matches[0]
         item = text[s:e]
         new_item = _replace_field_in_block_at(item, "status", f"      status: {status}", indent=6)
-        new_item = _replace_field_in_block_at(new_item, "updated", f'      updated: "{today}"', indent=6)
+        new_item = _replace_field_in_block_at(
+            new_item, "updated", f'      updated: "{today}"', indent=6
+        )
         return text[:s] + new_item + text[e:]
 
     def checker(ecu_def: dict) -> None:
         research = ecu_def.get("research") or []
         ok = any(
-            e.get("target") == target_norm and e.get("status") == status
+            e.get("target") == target_norm
+            and e.get("status") == status
             and e.get("updated") == today
             and (type is None or e.get("type") == type)
             for e in research

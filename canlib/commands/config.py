@@ -73,7 +73,9 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     st.add_argument("key", help="Config key, e.g. transport.type or wican_addresses.home")
     st.add_argument("value", help="Value (coerced to int/bool where unambiguous)")
     st.add_argument(
-        "-s", "--string", action="store_true",
+        "-s",
+        "--string",
+        action="store_true",
         help="Store the value verbatim as a string (skip int/bool coercion)",
     )
     st.set_defaults(_config_func=_cmd_set)

@@ -104,7 +104,7 @@ class TestStatistics:
         assert round(decode_script._pearson([1, 2, 3], [6, 4, 2]), 6) == -1.0
 
     def test_pearson_undefined_cases(self):
-        assert decode_script._pearson([1], [1]) is None       # too few points
+        assert decode_script._pearson([1], [1]) is None  # too few points
         assert decode_script._pearson([2, 2, 2], [1, 2, 3]) is None  # zero variance
 
     def test_compute_stats(self):
@@ -120,9 +120,9 @@ class TestStatistics:
     def test_series_and_paired_skip_missing(self):
         results = [
             {"decoded": {"A": {"value": 1.0}, "B": {"value": 10.0}}},
-            {"decoded": {"A": {"value": 2.0}}},              # B missing
+            {"decoded": {"A": {"value": 2.0}}},  # B missing
             {"decoded": {"A": {"value": None, "error": "x"}, "B": {"value": 30.0}}},  # A None
         ]
         assert decode_script._series(results, "A") == [1.0, 2.0]
         xs, ys = decode_script._paired(results, "A", "B")
-        assert xs == [1.0] and ys == [10.0]   # only the first row has both
+        assert xs == [1.0] and ys == [10.0]  # only the first row has both

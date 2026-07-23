@@ -34,8 +34,12 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("--transport", choices=_valid_transports(), default=None,
-                        help="Override the configured transport type")
+    parser.add_argument(
+        "--transport",
+        choices=_valid_transports(),
+        default=None,
+        help="Override the configured transport type",
+    )
     parser.add_argument("--wican", default=None, help="Override device host (alias or IP)")
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
     parser.set_defaults(func=run)
@@ -153,7 +157,9 @@ def _gather(args) -> dict:
             )
             info["exit"] = _MISCONFIGURED
         if not raw_ok:
-            hint = "" if device_protocol == "slcan" else " (likely because it's not in 'slcan' mode)"
+            hint = (
+                "" if device_protocol == "slcan" else " (likely because it's not in 'slcan' mode)"
+            )
             info["errors"].append(f"SLCAN port {host}:{raw_port} not reachable{hint}")
             if info["exit"] == _OK:
                 info["exit"] = _UNREACHABLE
@@ -187,7 +193,9 @@ def _render(info: dict) -> None:
     if d:
         if d["http_reachable"]:
             c.print("\n  [bold]WiCAN[/bold]")
-            c.print(f"    protocol   [cyan]{d['protocol']}[/cyan]  [dim](socket port {d['socket_port']})[/dim]")
+            c.print(
+                f"    protocol   [cyan]{d['protocol']}[/cyan]  [dim](socket port {d['socket_port']})[/dim]"
+            )
             slp = d.get("sleep")
             if slp is not None:
                 c.print(f"    sleep      {slp}  [dim](threshold {d.get('sleep_volt')}V)[/dim]")
@@ -196,8 +204,10 @@ def _render(info: dict) -> None:
             if d.get("ip"):
                 c.print(f"    ip         {d['ip']}")
         else:
-            c.print("\n  [bold]WiCAN[/bold]   [yellow]HTTP config API not reachable[/yellow] "
-                    "[dim](non-WiCAN gateway, offline, or wrong host)[/dim]")
+            c.print(
+                "\n  [bold]WiCAN[/bold]   [yellow]HTTP config API not reachable[/yellow] "
+                "[dim](non-WiCAN gateway, offline, or wrong host)[/dim]"
+            )
 
     for w in info.get("warnings", []):
         c.print(f"  [yellow]⚠ {w}[/yellow]")

@@ -229,10 +229,7 @@ def build_canonical_name_index(ecus: dict | None = None) -> dict[str, str]:
     """
     if ecus is None:
         ecus = load_ecus()
-    return {
-        key: ecu_name(tx_id, ecus)
-        for key, tx_id in build_name_tx_index(ecus).items()
-    }
+    return {key: ecu_name(tx_id, ecus) for key, tx_id in build_name_tx_index(ecus).items()}
 
 
 def canonical_ecu_name(
@@ -308,4 +305,3 @@ def ecu_display(tx_id: int, ecus: dict | None = None) -> str:
     """Human-friendly label for a TX id, e.g. 'BMS (0x7E4)' or '0x7E4'."""
     name = ecu_name(tx_id, ecus)
     return f"0x{tx_id:03X}" if name.startswith("0x") else f"{name} (0x{tx_id:03X})"
-

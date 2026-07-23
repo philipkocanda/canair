@@ -1,6 +1,5 @@
 """Tests for canlib.modes.monitor — rendering and helper functions."""
 
-
 import yaml
 
 from canlib.modes.monitor import (
@@ -453,9 +452,7 @@ class TestControllerSnapshot:
     """MonitorController must diff against the *previous* cycle, not the just-recorded one."""
 
     def _controller(self):
-        return MonitorController(
-            terminal=None, query_steps=[], pids_data={}, verbose=False
-        )
+        return MonitorController(terminal=None, query_steps=[], pids_data={}, verbose=False)
 
     def test_prev_snapshot_lags_one_cycle(self):
         c = self._controller()
@@ -505,9 +502,7 @@ class TestControllerJournal:
     """--save wires a write-ahead journal that survives a dropped connection."""
 
     def _controller(self):
-        c = MonitorController(
-            terminal=None, query_steps=[], pids_data={}, verbose=False, save=True
-        )
+        c = MonitorController(terminal=None, query_steps=[], pids_data={}, verbose=False, save=True)
         return c
 
     def test_record_appends_to_journal(self, tmp_path):
@@ -577,8 +572,18 @@ class TestControllerSuggestedState:
         c = self._controller(monkeypatch, rules)
         # Decoded param rows: (name, value, unit, expr, error, verified, display)
         c._record(
-            [("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101",
-                               "params": [("BATTERY_CURRENT", -5.0, "A", "", None, True, "")]}])]
+            [
+                (
+                    "BMS (0x7E4)",
+                    [
+                        {
+                            "pid": "2101",
+                            "raw_hex": "6101",
+                            "params": [("BATTERY_CURRENT", -5.0, "A", "", None, True, "")],
+                        }
+                    ],
+                )
+            ]
         )
         assert c.suggested_state() == "charging"
 
@@ -594,12 +599,9 @@ class TestControllerSuggestedState:
         assert c.suggested_state() is None
 
 
-
 class TestQueryLabel:
     def _controller(self, steps):
-        return MonitorController(
-            terminal=None, query_steps=steps, pids_data={}, verbose=False
-        )
+        return MonitorController(terminal=None, query_steps=steps, pids_data={}, verbose=False)
 
     def test_bare_ecu_and_pid_selector(self):
         c = self._controller(
@@ -649,5 +651,3 @@ class TestQueryEcuError:
         ]
         err = query_ecu_error(steps, self._pids())
         assert err.split("\n")[0].count("ECS") + err.split("\n")[0].count("ecs") == 1
-
-

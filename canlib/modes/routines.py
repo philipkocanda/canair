@@ -40,8 +40,8 @@ _LOG_FILE = _LOGS_DIR / "routines-tui.log"
 _tui_logger = logging.getLogger("routines-tui")
 
 # UDS RoutineControl sub-functions
-SF_START = 0x01   # startRoutine — use with care
-SF_STOP = 0x02    # stopRoutine
+SF_START = 0x01  # startRoutine — use with care
+SF_STOP = 0x02  # stopRoutine
 SF_RESULTS = 0x03  # requestRoutineResults — safe, read-only
 
 
@@ -56,9 +56,11 @@ def _truncate_text(text: str, width: int) -> str:
 
 
 def _sf_label(sf: int) -> str:
-    return {SF_START: "startRoutine", SF_STOP: "stopRoutine", SF_RESULTS: "requestRoutineResults"}.get(
-        sf, f"0x{sf:02X}"
-    )
+    return {
+        SF_START: "startRoutine",
+        SF_STOP: "stopRoutine",
+        SF_RESULTS: "requestRoutineResults",
+    }.get(sf, f"0x{sf:02X}")
 
 
 # ── Offline list ──────────────────────────────────────────────────────────────
@@ -113,9 +115,7 @@ def mode_routines_list(pids_data: dict, ecu_name: str, as_json: bool = False):
     if fixed_w > term_w:
         scan_w = max(10, scan_w - (fixed_w - term_w))
 
-    hdr = (
-        f"  {'RID':<{rid_w}}  {'Label':<{label_w}}  {'Scan result':<{scan_w}}  Verified"
-    )
+    hdr = f"  {'RID':<{rid_w}}  {'Label':<{label_w}}  {'Scan result':<{scan_w}}  Verified"
     print(hdr)
     print(f"  {'─' * (len(hdr) - 2)}")
 
@@ -253,7 +253,9 @@ class _RoutinesTUI:
         self.terminal = terminal
         self.ecu_key = ecu_key
         self.tx_id = ecu_info["tx_id"]
-        self.routines = ecu_info["routines"]  # {RID: {label, nrc, nrc_desc, response, verified, notes}}
+        self.routines = ecu_info[
+            "routines"
+        ]  # {RID: {label, nrc, nrc_desc, response, verified, notes}}
         self.rids = list(self.routines.keys())
         self.pids_data = pids_data
         self.verbose = verbose
@@ -261,7 +263,7 @@ class _RoutinesTUI:
         self.cursor = 0
 
         # Per-RID state: None=idle, "ok"=positive, "nrc"=NRC, "error"=failed
-        self.state: dict[str, str | None] = {r: None for r in self.rids}
+        self.state: dict[str, str | None] = dict.fromkeys(self.rids)
         self.last_response: dict[str, str] = {}
         self.last_sf: dict[str, int] = {}  # which sub-function was last sent
 
@@ -285,7 +287,10 @@ class _RoutinesTUI:
         term_w = _terminal_columns()
         rid_w = max((len(r) for r in self.rids), default=4)
         raw_label_w = max((len(self.routines[r]["label"]) for r in self.rids), default=5)
-        last_sf_w = max((len(_sf_label(self.last_sf[r])) for r in self.rids if r in self.last_sf), default=len("Sub-fn"))
+        last_sf_w = max(
+            (len(_sf_label(self.last_sf[r])) for r in self.rids if r in self.last_sf),
+            default=len("Sub-fn"),
+        )
         last_sf_w = max(last_sf_w, len("Sub-fn"))
 
         non_flex = 5 + rid_w + 2 + 3 + 2 + last_sf_w + 2 + 2 + 13
@@ -360,9 +365,7 @@ class _RoutinesTUI:
 
             resp_part = f"  \033[2m{resp}\033[0m" if resp else ""
 
-            lines.append(
-                f"{prefix}{v_mark}{rid_label}  {res_part}  {sf_part}{resp_part}"
-            )
+            lines.append(f"{prefix}{v_mark}{rid_label}  {res_part}  {sf_part}{resp_part}")
 
         # Scroll indicator
         if n_rids > viewport_rows:
@@ -390,9 +393,7 @@ class _RoutinesTUI:
         elif self._edit_input is not None:
             rid = self.rids[self.cursor]
             field, buf = self._edit_input
-            lines.append(
-                f"  \033[1;33m{field.capitalize()} for {rid}: \033[0m{buf}\033[5m▏\033[0m"
-            )
+            lines.append(f"  \033[1;33m{field.capitalize()} for {rid}: \033[0m{buf}\033[5m▏\033[0m")
             lines.append(
                 "\033[2m  Type new value, Enter to save to ecus/*.yaml, Esc to cancel\033[0m"
             )
@@ -461,6 +462,7 @@ class _RoutinesTUI:
             self.pids_data.clear()
             self.pids_data.update(fresh)
             from ..pids import build_routines_index
+
             idx = build_routines_index(self.pids_data)
             self.routines = idx[self.ecu_key]["routines"]
             self.rids = list(self.routines.keys())
@@ -530,7 +532,7 @@ class _RoutinesTUI:
             while not self._quit:
                 try:
                     key = await asyncio.wait_for(key_queue.get(), timeout=0.5)
-                except (asyncio.TimeoutError, TimeoutError):
+                except TimeoutError:
                     self._draw()
                     continue
 
@@ -561,7 +563,9 @@ class _RoutinesTUI:
                         else:
                             self._confirm_start = None
                             self._confirm_buf = ""
-                            self._status = "\033[33mstartRoutine not confirmed — type 'yes' to execute\033[0m"
+                            self._status = (
+                                "\033[33mstartRoutine not confirmed — type 'yes' to execute\033[0m"
+                            )
                     elif key in ("\x7f", "\x08"):
                         self._confirm_buf = self._confirm_buf[:-1]
                     elif len(key) == 1 and key.isprintable():
@@ -657,7 +661,5 @@ async def mode_routines_tui(
             print(f"  ECUs with routines: {', '.join(available)}")
         return
 
-    tui = _RoutinesTUI(
-        terminal, ecu_key, rindex[ecu_key], pids_data=pids_data, verbose=verbose
-    )
+    tui = _RoutinesTUI(terminal, ecu_key, rindex[ecu_key], pids_data=pids_data, verbose=verbose)
     await tui.run()

@@ -19,7 +19,6 @@ from canlib.pids_edit import (
     update_iocontrol_field,
 )
 
-
 FIXTURE_YAML = """\
 # ─── Fake ECU for pids_edit tests ─────────────────────────────────────
 TEST:
@@ -134,7 +133,7 @@ class TestUpdateLabel:
         update_iocontrol_field("TEST", "AA01", "label", "Changed", pids_dir=tmp_pids_dir)
         updated = (tmp_pids_dir / "test.yaml").read_text()
         # The blank line between AA01 and AA02 must remain (readability).
-        assert '\n\n    AA02:' in updated
+        assert "\n\n    AA02:" in updated
 
 
 class TestUpdateVerified:
@@ -156,9 +155,7 @@ class TestUpdateNotes:
         assert data["TEST"]["iocontrol"]["AA01"]["notes"].strip() == "Updated."
 
     def test_replace_block_scalar_notes(self, tmp_pids_dir: Path):
-        update_iocontrol_field(
-            "TEST", "AA02", "notes", "Line A\nLine B", pids_dir=tmp_pids_dir
-        )
+        update_iocontrol_field("TEST", "AA02", "notes", "Line A\nLine B", pids_dir=tmp_pids_dir)
         data = _reload(tmp_pids_dir / "test.yaml")
         got = data["TEST"]["iocontrol"]["AA02"]["notes"]
         # YAML block scalar folds newlines to spaces; ensure both lines survive

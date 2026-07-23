@@ -72,9 +72,7 @@ class Profile:
 
 
 def _looks_like_profile(path: Path) -> bool:
-    return path.is_dir() and (
-        (path / "ecus").is_dir() or (path / "profile.yaml").exists()
-    )
+    return path.is_dir() and ((path / "ecus").is_dir() or (path / "profile.yaml").exists())
 
 
 def profiles_roots(profiles_dir: str | os.PathLike | None = None) -> list[Path]:
@@ -132,7 +130,7 @@ def resolve_profile(
     if not profiles:
         raise ProfileError(
             "No vehicle profiles found. Create one with "
-            "`canair profile create <name> --car-model \"...\"`, or add a bundle "
+            '`canair profile create <name> --car-model "..."`, or add a bundle '
             f"under {config_dir() / 'profiles'} or {BUNDLED_PROFILES_DIR}."
         )
     raise ProfileError(

@@ -232,8 +232,9 @@ class MonitorEditor:
         from ..pids_edit import PidsEditError, upsert_parameter
 
         try:
-            upsert_parameter(ecu, pid, name, expression, pids_dir=self.c.pids_dir,
-                             **{field: new_val})
+            upsert_parameter(
+                ecu, pid, name, expression, pids_dir=self.c.pids_dir, **{field: new_val}
+            )
         except (PidsEditError, Exception) as exc:
             return f"Toggle failed: {exc}"
         self.c.reload_pids()

@@ -45,10 +45,11 @@ Usage
 
 from __future__ import annotations
 
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
-from typing import Callable, Iterable, Sequence, TypeVar
+from typing import TypeVar
 
-__all__ = ["Selector", "Query", "QueryError", "parse_query", "parse_selector"]
+__all__ = ["Query", "QueryError", "Selector", "parse_query", "parse_selector"]
 
 T = TypeVar("T")
 
@@ -96,7 +97,7 @@ class Query:
         """True if any selector matches ``(ecu, pid)``."""
         return any(s.matches(ecu, pid) for s in self.selectors)
 
-    def canonicalize_ecus(self, resolver: Callable[[str], str]) -> "Query":
+    def canonicalize_ecus(self, resolver: Callable[[str], str]) -> Query:
         """Return a copy with each selector's ECU mapped through ``resolver``.
 
         ``resolver`` maps a selector ECU token (already upper-cased) to a
@@ -104,9 +105,7 @@ class Query:
         module's primary name. Source-agnostic: the caller supplies the mapping
         (see :func:`canlib.ecus.canonical_ecu_name`).
         """
-        return Query(
-            tuple(Selector(resolver(s.ecu), s.pids) for s in self.selectors)
-        )
+        return Query(tuple(Selector(resolver(s.ecu), s.pids) for s in self.selectors))
 
     def filter(
         self,
@@ -139,7 +138,7 @@ class Query:
                     hit = True
             if hit:
                 matched.append(rec)
-        empty = [sel for sel, ok in zip(self.selectors, used) if not ok]
+        empty = [sel for sel, ok in zip(self.selectors, used, strict=True) if not ok]
         return matched, empty
 
     def __str__(self) -> str:

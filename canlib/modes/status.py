@@ -6,7 +6,7 @@ to show a live status column alongside each actuator.
 """
 
 from ..expression import evaluate_expression
-from ..pids import build_ecu_index, build_param_index
+from ..pids import build_param_index
 from ..terminal import WiCANTerminal
 from ..wican_bytes import uds_hex_to_wican_bytes
 

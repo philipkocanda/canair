@@ -16,6 +16,7 @@ from canlib.states import POWER_STATES, allowed_states, join_states, parse_state
 
 # ── vocabulary single source ───────────────────────────────────────────────
 
+
 class TestVocabularySource:
     def test_power_states_base(self):
         assert POWER_STATES == ("sleep", "plugged", "acc", "acc2", "ready", "charging")
@@ -41,6 +42,7 @@ class TestVocabularySource:
 
 # ── generate_profile ships only `active` PIDs (the leak fix) ────────────────
 
+
 class TestGenerateProfileShipping:
     def _data(self):
         return {
@@ -50,14 +52,22 @@ class TestGenerateProfileShipping:
                 "TEST": {
                     "tx_id": 0x7E0,
                     "pids": {
-                        "2101": {"status": "active",
-                                 "parameters": {"A": {"expression": "B0", "verified": True}}},
-                        "2102": {"status": "draft",
-                                 "parameters": {"B": {"expression": "B1", "verified": True}}},
-                        "21F2": {"status": "static",
-                                 "parameters": {"C": {"expression": "B2", "verified": True}}},
-                        "22DEAD": {"status": "ignored",
-                                   "parameters": {"D": {"expression": "B3", "verified": True}}},
+                        "2101": {
+                            "status": "active",
+                            "parameters": {"A": {"expression": "B0", "verified": True}},
+                        },
+                        "2102": {
+                            "status": "draft",
+                            "parameters": {"B": {"expression": "B1", "verified": True}},
+                        },
+                        "21F2": {
+                            "status": "static",
+                            "parameters": {"C": {"expression": "B2", "verified": True}},
+                        },
+                        "22DEAD": {
+                            "status": "ignored",
+                            "parameters": {"D": {"expression": "B3", "verified": True}},
+                        },
                     },
                 }
             },
@@ -77,6 +87,7 @@ class TestGenerateProfileShipping:
 
 # ── validate rejects legacy fields (hard cut-over) ──────────────────────────
 
+
 def _write(tmp_path: Path, body: str) -> Path:
     p = tmp_path / "ecu.yaml"
     p.write_text(body)
@@ -84,13 +95,18 @@ def _write(tmp_path: Path, body: str) -> Path:
 
 
 class TestLegacyFieldRejection:
-    @pytest.mark.parametrize("field,value", [
-        ("ignored", "true"),
-        ("static", "true"),
-        ("enabled", "false"),
-    ])
+    @pytest.mark.parametrize(
+        "field,value",
+        [
+            ("ignored", "true"),
+            ("static", "true"),
+            ("enabled", "false"),
+        ],
+    )
     def test_legacy_pid_boolean_is_error(self, tmp_path, field, value):
-        path = _write(tmp_path, f"""\
+        path = _write(
+            tmp_path,
+            f"""\
 TEST:
   tx_id: 0x7E0
   pids:
@@ -99,12 +115,15 @@ TEST:
       parameters:
         A:
           expression: B0
-""")
+""",
+        )
         errors, _w, _s = collect_pids_validation([path])
         assert any(f"legacy field '{field}'" in e for e in errors), errors
 
     def test_legacy_availability_is_error(self, tmp_path):
-        path = _write(tmp_path, """\
+        path = _write(
+            tmp_path,
+            """\
 TEST:
   tx_id: 0x7E0
   availability: [ready]
@@ -113,12 +132,15 @@ TEST:
       parameters:
         A:
           expression: B0
-""")
+""",
+        )
         errors, _w, _s = collect_pids_validation([path])
         assert any("legacy field 'availability'" in e for e in errors), errors
 
     def test_legacy_prerequisite_is_error(self, tmp_path):
-        path = _write(tmp_path, """\
+        path = _write(
+            tmp_path,
+            """\
 TEST:
   tx_id: 0x7E0
   pids:
@@ -131,12 +153,15 @@ TEST:
       target: "22 E0"
       status: pending
       prerequisite: [acc]
-""")
+""",
+        )
         errors, _w, _s = collect_pids_validation([path])
         assert any("legacy field 'prerequisite'" in e for e in errors), errors
 
     def test_invalid_status_value_is_error(self, tmp_path):
-        path = _write(tmp_path, """\
+        path = _write(
+            tmp_path,
+            """\
 TEST:
   tx_id: 0x7E0
   pids:
@@ -145,12 +170,15 @@ TEST:
       parameters:
         A:
           expression: B0
-""")
+""",
+        )
         errors, _w, _s = collect_pids_validation([path])
         assert any("invalid status 'bogus'" in e for e in errors), errors
 
     def test_clean_status_and_vehicle_states_pass(self, tmp_path):
-        path = _write(tmp_path, """\
+        path = _write(
+            tmp_path,
+            """\
 TEST:
   tx_id: 0x7E0
   vehicle_states: [ready, charging]
@@ -166,7 +194,8 @@ TEST:
       target: "22 E0"
       status: pending
       vehicle_states: [acc]
-""")
+""",
+        )
         errors, _w, _s = collect_pids_validation([path])
         assert errors == [], errors
 
@@ -193,6 +222,7 @@ TEST:
 class TestSetPidStatus:
     def _load(self, d: Path):
         import yaml
+
         return yaml.safe_load((d / "test.yaml").read_text())
 
     @pytest.fixture
