@@ -159,6 +159,7 @@ async def mode_dtc_read(
     verbose: bool = False,
     log: bool = False,
     label: str | None = None,
+    vehicle_states=None,
 ):
     """Read stored DTCs, auto-selecting UDS 0x19 or KWP2000 0x18 by protocol."""
     proto = resolve_protocol(protocol, tx_id)
@@ -178,7 +179,7 @@ async def mode_dtc_read(
         result = await _read_one(terminal, tx_id, mask, protocol, verbose)
         _report_read(as_json, result)
         if log and "dtcs" in result:
-            path, previous, diff = _log_scan(result["ecu"], [result], label)
+            path, previous, diff = _log_scan(result["ecu"], [result], label, vehicle_states)
             if not as_json:
                 _print_log_result(path, previous, diff)
     finally:
@@ -190,7 +191,7 @@ async def mode_dtc_read(
                 pass
 
 
-def _log_scan(scope: str, results: list[dict], label: str | None):
+def _log_scan(scope: str, results: list[dict], label: str | None, vehicle_states=None):
     """Append this scan to the DTC log; return (path, previous_scan, diff).
 
     Codes that disappeared since the last same-scope scan (car self-cleared or
@@ -215,7 +216,7 @@ def _log_scan(scope: str, results: list[dict], label: str | None):
         if scope != "all" or codes:
             ecus[r["ecu"]] = {"tx": r.get("tx"), "protocol": r["protocol"], "dtcs": codes}
 
-    current = build_scan(scope, ecus, label=label)
+    current = build_scan(scope, ecus, label=label, vehicle_states=vehicle_states)
     previous = latest_matching(scope)
     diff = diff_scans(previous, current) if previous else None
     path = append_scan(current)
@@ -390,6 +391,7 @@ async def mode_dtc_scan_all(
     retry: bool = True,
     log: bool = False,
     label: str | None = None,
+    vehicle_states=None,
 ):
     """Sweep every ECU in the profile registry and read its stored DTCs.
 
@@ -444,7 +446,7 @@ async def mode_dtc_scan_all(
     # Record to the DTC history log and compute the diff vs the last full sweep.
     log_path = log_prev = log_diff = None
     if log:
-        log_path, log_prev, log_diff = _log_scan("all", results, label)
+        log_path, log_prev, log_diff = _log_scan("all", results, label, vehicle_states)
 
     if as_json:
         out = {
@@ -556,7 +558,7 @@ async def mode_dtc_clear(
                 elif pre_codes == []:
                     print("    (no codes were present)")
                 if log:
-                    print(f"  \033[2mLogged clear to dtc_log.yaml\033[0m")
+                    print("  \033[2mLogged clear to dtc_log.yaml\033[0m")
                 print()
         elif response.get("nrc") is not None:
             if as_json:

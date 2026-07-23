@@ -28,6 +28,7 @@ examples:
   canair dtc --all                     Scan every ECU (logs + shows changes since last scan)
   canair dtc --all --no-log            Scan every ECU without recording to the history log
   canair dtc BMS --label fixed         Read + log a single-ECU scan with a label
+  canair dtc --all --state ready       Log a full scan tagged with the vehicle state
   canair dtc BMS --mask 08             Read confirmed DTCs only (mask 0x08)
   canair dtc IGPM --session --wake     Wake + read in extended session
   canair dtc BMS --json                Machine-readable output
@@ -65,6 +66,14 @@ examples:
         "--label",
         default=None,
         help="Optional label for the logged scan entry (e.g. 'before clearing')",
+    )
+    parser.add_argument(
+        "--state", "--vehicle-states",
+        dest="state",
+        metavar="STATES",
+        default=None,
+        help="Vehicle power state(s) during the scan, recorded on the log entry "
+        "(comma-separated, e.g. 'ready' or 'sleep, plugged'). Vocabulary from states.yaml.",
     )
     parser.add_argument(
         "--mask",

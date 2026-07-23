@@ -47,6 +47,7 @@ from canlib.modes.iocontrol import mode_iocontrol_execute, mode_iocontrol_list
 from canlib.modes.iocontrol_scan import mode_iocontrol_scan
 from canlib.modes.routines import mode_routines_execute, mode_routines_list
 from canlib.modes.routines_scan import mode_routines_scan
+from canlib.states import parse_states
 from canlib.transport.config import DEFAULT_TRANSPORT, VALID_TRANSPORTS
 
 try:
@@ -605,6 +606,7 @@ async def dispatch_mode(args, terminal, pids_data, host):
                 as_json=args.json, verbose=args.verbose,
                 retry=getattr(args, "dtc_retry", True),
                 log=getattr(args, "dtc_log", True), label=args.label,
+                vehicle_states=parse_states(getattr(args, "state", None)),
             )
             return
 
@@ -652,6 +654,7 @@ async def dispatch_mode(args, terminal, pids_data, host):
                 session=args.session, wake=args.wake,
                 as_json=args.json, verbose=args.verbose,
                 log=getattr(args, "dtc_log", True), label=args.label,
+                vehicle_states=parse_states(getattr(args, "state", None)),
             )
     elif args.param:
         await mode_param(
