@@ -249,15 +249,6 @@ Requires extended session + SKM ACC power.
 | Sensors | Parking sensor buzzer |
 | Warnings | Seatbelt warning (driver + 3 passengers) |
 
-### SKM (Smart Key Module, `0x7A5`)
-
-Requires keyfob proximity for physical relay engagement.
-
-| Relay | Effect |
-|-------|--------|
-| ACC (`B108`) | Turns on accessories, dash, infotainment, unlocks doors |
-| IGN1 (`B109`) | Wakes HV system (untested, use with caution) |
-
 ### HVAC (`0x7B3`) — work in progress
 
 14+ actuator DIDs discovered but unverified. Goal: remote cabin pre-conditioning (heat/cool before driving). Research ongoing.
