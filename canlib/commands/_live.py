@@ -41,7 +41,6 @@ from canlib.modes import (
     mode_raw,
     mode_scan,
     mode_skm_wakeup,
-    mode_tester_present,
 )
 from canlib.modes.iocontrol import mode_iocontrol_execute, mode_iocontrol_list
 from canlib.modes.iocontrol_scan import mode_iocontrol_scan
@@ -70,7 +69,6 @@ CANREQ_DEFAULTS: dict = {
     "raw": None,
     "scan": False,
     "skm_wakeup": False,
-    "tester_present": False,
     "identity": False,
     "discover": False,
     "dtc": None,
@@ -345,7 +343,7 @@ async def async_main(args):
 
     init_logging()
     log_command(
-        f"--- SESSION START (host={host}, mode={'interactive' if not any([args.param, args.ecu, args.raw, args.scan, args.discover, args.skm_wakeup, args.tester_present, args.identity, args.dtc, args.iocontrol, args.routines, args.routines_scan is not None, args.iocontrol_scan is not None, getattr(args, 'sessions_scan', None) is not None]) else 'batch'}, unsafe={args.unsafe}, session={getattr(args, 'session', False)}) ---"
+        f"--- SESSION START (host={host}, mode={'interactive' if not any([args.param, args.ecu, args.raw, args.scan, args.discover, args.skm_wakeup, args.identity, args.dtc, args.iocontrol, args.routines, args.routines_scan is not None, args.iocontrol_scan is not None, getattr(args, 'sessions_scan', None) is not None]) else 'batch'}, unsafe={args.unsafe}, session={getattr(args, 'session', False)}) ---"
     )
 
     if args.unsafe:
@@ -571,8 +569,6 @@ async def dispatch_mode(args, terminal, pids_data, host):
         )
     elif args.skm_wakeup:
         await mode_skm_wakeup(terminal, args.level, args.verbose)
-    elif args.tester_present:
-        await mode_tester_present(terminal, args.target, args.interval, args.verbose)
     elif args.identity:
         from canlib.ecus import resolve_tx
 

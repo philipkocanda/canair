@@ -29,7 +29,6 @@ COMMAND_NAMES: list[str] = [
     "routines",
     "identity",
     "dtc",
-    "tester_present",
     "repl",
     # offline analysis
     "captures",

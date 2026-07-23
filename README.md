@@ -75,7 +75,6 @@ All functionality is exposed as `canair <subcommand>`; run `canair <cmd> --help`
 | `canair status` | Snapshot of the configured transport, device mode, and reachability. |
 | `canair config` | View/manage user config (`~/.config/canair/config.yaml`). |
 | `canair validate` | Validate `ecus/`, `profile.yaml`, and `captures/` against their schemas. |
-| `canair tester-present` | Send TesterPresent (`3E00`) to keep a diagnostic session alive. |
 
 > Separate package [`wican-cli`](https://github.com/philipkocanda/wican-cli) handles WiCAN *device* management (config, sleep/power, status, reboots). `pip install wican-cli`.
 
@@ -202,6 +201,8 @@ Live query commands accept `--wican home|vpn|<ip>`, `--transport slcan-tcp|wican
 ```bash
 canair query "session IGPM --wake" "query IGPM:BC03,BC06"
 ```
+
+> **Keeping a session alive is automatic — there is no `tester-present` command or flag.** Once a `session <ECU>` step (or any command's `--session`) opens an extended diagnostic session, canair keeps it alive by sending TesterPresent (`3E00`) whenever the session goes idle past the S3 timeout; real request traffic resets that timer, so a hot polling loop injects no redundant keepalives. TesterPresent (SID `0x3E`, sub-function `0x00`) is shared by UDS and KWP2000, so it is sent identically regardless of the ECU's protocol. To send one by hand, use a query step (`canair query BMS:3E00`); for a manual repeating loop, the `repl`'s `!tester [id]` command still exists.
 
 ## Profiles
 
