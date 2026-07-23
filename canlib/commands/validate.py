@@ -953,6 +953,7 @@ def _run_captures() -> int:
         errors = validate_captures_file(path, validator, rx_addrs)
         warnings = _capture_state_warnings(path, vocab) if vocab else []
         warnings += _capture_echo_warnings(path)
+        warnings += _capture_nonhex_warnings(path)
         if errors:
             print(f"\n{path.name}: {len(errors)} errors")
             for e in errors:
@@ -1038,6 +1039,39 @@ def _capture_echo_warnings(path: Path) -> list[str]:
                 warnings.append(
                     f"sessions[{si}].captures[{ci}] ({cap.get('ecu', '?')} {pid} "
                     f"@ {cap.get('time', '?')}): {reason}"
+                )
+    return warnings
+
+
+def _capture_nonhex_warnings(path: Path) -> list[str]:
+    """Soft warnings for captures whose payload isn't a valid UDS byte string.
+
+    Payloads are recorded by the tool as raw response hex, so a non-hex one
+    (an ELM327 status string like ``NO DATA``, free-text notes, or a mixed
+    hex+ASCII transcription) signals a mis-recorded capture — see
+    ``uds_parse.payload_not_hex``. Reported as a warning, never an error.
+    """
+    from canlib.uds_parse import payload_not_hex
+
+    warnings: list[str] = []
+    with open(path) as f:
+        data = yaml.safe_load(f)
+    if not isinstance(data, dict):
+        return warnings
+    for si, session in enumerate(data.get("sessions", []) or []):
+        if not isinstance(session, dict):
+            continue
+        for ci, cap in enumerate(session.get("captures", []) or []):
+            if not isinstance(cap, dict):
+                continue
+            payload = cap.get("payload")
+            if not payload:
+                continue
+            reason = payload_not_hex(str(payload))
+            if reason:
+                warnings.append(
+                    f"sessions[{si}].captures[{ci}] ({cap.get('ecu', '?')} "
+                    f"{cap.get('pid', '?')} @ {cap.get('time', '?')}): {reason}"
                 )
     return warnings
 

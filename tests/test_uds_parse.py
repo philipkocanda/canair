@@ -1,6 +1,11 @@
 """Tests for canlib.uds_parse — UDS response parsing and NRC handling."""
 
-from canlib.uds_parse import parse_uds_response, payload_echo_mismatch, request_echo
+from canlib.uds_parse import (
+    parse_uds_response,
+    payload_echo_mismatch,
+    payload_not_hex,
+    request_echo,
+)
 
 
 class TestParseUdsResponse:
@@ -235,3 +240,44 @@ class TestPayloadEchoMismatch:
     def test_unparseable_payload_skipped(self):
         assert payload_echo_mismatch("2102", "ZZ") is None
         assert payload_echo_mismatch("2102", "") is None
+
+
+class TestPayloadNotHex:
+    """The non-hex payload lint: flag captures that aren't valid UDS byte strings."""
+
+    def test_valid_hex_ok(self):
+        assert payload_not_hex("6102F8F800") is None
+
+    def test_valid_hex_with_spaces_ok(self):
+        assert payload_not_hex("61 02 F8 F8") is None
+
+    def test_empty_or_none_skipped(self):
+        assert payload_not_hex("") is None
+        assert payload_not_hex(None) is None
+
+    def test_error_string_flagged(self):
+        reason = payload_not_hex("NO DATA")
+        assert reason is not None
+        assert "not hex" in reason
+
+    def test_free_text_flagged(self):
+        reason = payload_not_hex("5001 at attempts 2-4, NO DATA at 5-10")
+        assert reason is not None
+        assert "not hex" in reason
+
+    def test_mixed_hex_ascii_flagged(self):
+        # Part-number transcription: the 'G' breaks pure hex.
+        reason = payload_not_hex("62F18791950G7510")
+        assert reason is not None
+        assert "not hex" in reason
+        assert "G" in reason
+
+    def test_odd_length_flagged(self):
+        reason = payload_not_hex("6102F")
+        assert reason is not None
+        assert "odd" in reason
+
+    def test_too_short_flagged(self):
+        reason = payload_not_hex("6")
+        assert reason is not None
+        assert "too short" in reason

@@ -165,6 +165,30 @@ def payload_echo_mismatch(request_pid: str, payload_hex: str) -> str | None:
     return None
 
 
+def payload_not_hex(payload: str) -> str | None:
+    """Reason a stored capture payload is not a valid UDS byte string, else None.
+
+    A capture payload should be an even-length run of hex digits (the raw
+    response bytes). Anything else is a mis-recorded capture: an ELM327/status
+    string kept verbatim (``NO DATA``, ``CAN ERROR``, ``5001 at attempts …``),
+    free-text notes, or a mixed hex+ASCII transcription (e.g. a part-number
+    ``62F18791950G7510`` where the ``G`` breaks pure-hex). Reported as a soft
+    lint warning, never an error — payloads are recorded by the tool, so a
+    non-hex one signals a bug/manual edit rather than a schema violation.
+    """
+    if not payload:
+        return None
+    cleaned = str(payload).replace(" ", "").strip()
+    if len(cleaned) < 2:
+        return f"payload too short to be a UDS response: {payload!r}"
+    bad = {c for c in cleaned.upper() if c not in "0123456789ABCDEF"}
+    if bad:
+        return f"payload is not hex (contains {''.join(sorted(bad))!r}): {str(payload)[:40]!r}"
+    if len(cleaned) % 2 != 0:
+        return f"payload has an odd hex length ({len(cleaned)} nibbles): {str(payload)[:40]!r}"
+    return None
+
+
 def parse_uds_response(
     raw: str,
     expected_sid: int | None = None,
