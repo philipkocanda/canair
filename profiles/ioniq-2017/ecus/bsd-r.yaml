@@ -8,6 +8,8 @@ BSD-R:
     part_number: "95811G2000"
     serial: "31114851713802876"
     id_protocol: UDS  # F1xx (many FF-padded fields, same format as BSD-L 0x755)
+    notes: >
+      Right blind-spot detection radar. No readable live-data DIDs found.
   vehicle_states:
     - acc
     - acc2

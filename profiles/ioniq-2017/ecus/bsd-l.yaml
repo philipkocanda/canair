@@ -8,6 +8,9 @@ BSD-L:
     part_number: "95821G2000"
     serial: "31114851712211429"
     id_protocol: UDS  # F1xx (many FF-padded fields)
+    notes: >
+      Left blind-spot detection radar. No readable live-data DIDs found (radar
+      object data may need driving or a different range).
   vehicle_states:
     - acc
     - acc2

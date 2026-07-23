@@ -10,6 +10,9 @@ SWRC-L:
     hw_version: "100"
     sw_version: "100"
     id_protocol: UDS  # F1xx (very chatty — 21 DIDs, echoes part# in many fields)
+    notes: >
+      Left steering-wheel remote-control buttons. No readable live-data DIDs
+      (button states not exposed as DIDs).
   vehicle_states:
     - plugged
     - acc

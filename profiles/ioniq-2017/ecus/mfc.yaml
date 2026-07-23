@@ -6,6 +6,9 @@ MFC:
     part_number: "95740-G2200"
     boot_sw: "AEE MFC AT EUR LHD 1.00 1.00 95740-G2200 161014"
     id_protocol: UDS  # F1xx (only 1 DID: F100)
+    notes: >
+      Multi-Function Camera (ADAS / LKAS — lane detection, speed-sign
+      recognition). Pure UDS ECU (no service 21); live data via 220100/0101/0102.
   vehicle_states:
     - acc
     - acc2

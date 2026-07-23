@@ -286,11 +286,12 @@ class MonitorApp(App):
         follow = "[green]follow[/]" if self.follow_enabled else "[yellow]manual[/]"
         paused = " · [reverse] PAUSED [/]" if self.paused else ""
         # ELM path reports commands + time spent in the ELM327; the raw path
-        # reports UDS requests (no ELM involved).
+        # reports UDS requests (no ELM involved). Kept compact to leave room for
+        # the live state / flash message on the same line.
         if getattr(c, "raw", False):
-            metric = f"{c.last_cmds}[dim] reqs ·[/]"
+            metric = f"{c.last_cmds}[dim] req[/]"
         else:
-            metric = f"{c.last_cmds}[dim] cmds/[/]{c.last_elm_time:.1f}[dim]s ELM ·[/]"
+            metric = f"{c.last_cmds}[dim] cmds ·[/] {c.last_elm_time:.1f}[dim]s ELM[/]"
         flash = ""
         if self._flash_msg:
             if time.monotonic() < self._flash_expires:
@@ -308,7 +309,7 @@ class MonitorApp(App):
             if s:
                 state_txt = f"[dim]· state[/] [cyan]{s}[/] "
         status.update(
-            f"[dim]cycle[/] {c.cycle} [dim]· every[/] {c.interval:.1f}[dim]s · last[/] "
+            f"[dim]cycle[/] {c.cycle} [dim]·[/] {c.interval:.1f}[dim]s ·[/] "
             f"{c.elapsed:.1f}[dim]s ·[/] {metric} "
             f"{state_txt}{follow}{paused}"
             f"{flash}\n"

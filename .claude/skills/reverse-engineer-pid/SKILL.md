@@ -43,6 +43,16 @@ reverse-engineering skill" as "load *both*."
 
 ## Working principles
 
+- **Put yourself in the shoes of the ECU's automotive systems engineer.** Before
+  guessing at bytes, ask: *if I designed this module, what would it need to
+  measure, report, and control?* A BMS engineer thinks in cell voltages, pack
+  current, temperatures, SOC, contactor and relay states, isolation resistance;
+  an ESC engineer thinks in wheel speeds, yaw rate, lateral/longitudinal accel,
+  brake pressure. Signals cluster by the ECU's job, come in physically sensible
+  units and ranges, are laid out in orderly blocks (e.g. four wheel speeds in a
+  row), and are scaled to fit their field width. Let that domain model generate
+  your hypotheses and sanity-check your results — a decode that no real systems
+  engineer would design is probably wrong.
 - **Be rigorous.** Reverse engineering is evidence, not vibes. Don't accept a
   byte interpretation because it "looks about right" — confirm it with data
   (range, distribution, correlation, physical plausibility across states). State

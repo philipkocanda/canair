@@ -7,6 +7,10 @@ ESC:
     serial: "GWLK7F01A986826"
     app_sw: "G7"
     id_protocol: UDS  # F1xx (limited — no part number DID)
+    notes: >
+      Electronic Stability Control (ABS). Exposes vehicle speed and the four
+      individual wheel speeds via 22C101; candidate yaw-rate / accel dynamics
+      still undecoded.
   vehicle_states:
     - acc
     - acc2

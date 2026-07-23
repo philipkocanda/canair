@@ -6,6 +6,9 @@ SCC:
     part_number: "96400-G7000"
     boot_sw: "AEev SCC F-CUP 1.00 1.00"
     id_protocol: UDS  # F1xx (3 DIDs)
+    notes: >
+      Smart Cruise Control (front radar). Live data via 220100-0103/0105
+      (mode/target/gap/radar), all still undecoded — needs driving captures.
   vehicle_states:
     - acc
     - acc2

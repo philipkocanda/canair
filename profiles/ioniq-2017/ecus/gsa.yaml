@@ -9,6 +9,10 @@ GSA:
     hw_version: "KOSTAL_HW_G07"
     sw_version: "KOSTAL_SW_G07"
     id_protocol: UDS  # F1xx
+    notes: >
+      Gear Shift Assembly (Kostal shift-lever module). Responds only to 220100
+      (all other service 21/22 ranges NRC); gear state is better read via
+      VCU 2101 DRIVE_MODE_*.
   vehicle_states:
     - acc
     - acc2

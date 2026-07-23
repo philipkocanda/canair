@@ -11,6 +11,9 @@ RCAM:
     sw_version: "102"
     boot_sw: "CAN_15.11.01"
     id_protocol: UDS  # F1xx
+    notes: >
+      Rear-view (parking) camera. Exposes only identity/diagnostics via OBD —
+      no live-data DIDs found.
   vehicle_states:
     - plugged
     - acc

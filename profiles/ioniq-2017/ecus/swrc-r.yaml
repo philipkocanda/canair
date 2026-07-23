@@ -10,6 +10,9 @@ SWRC-R:
     hw_version: "100"
     sw_version: "100"
     id_protocol: UDS  # F1xx (same pattern as SWRC-L)
+    notes: >
+      Right steering-wheel remote-control buttons. No readable live-data DIDs
+      (button states not exposed as DIDs).
   vehicle_states:
     - plugged
     - acc

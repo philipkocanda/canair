@@ -67,6 +67,8 @@ All functionality is exposed as `canair <subcommand>`; run `canair <cmd> --help`
 | `canair identity` | Decode ECU identity DIDs — part number, hardware/software version, serial, VIN. |
 | `canair sniff` | Passive CAN-bus sniffer (raw SLCAN): live per-ID table + optional `.asc`/`.blf`/`.csv` logging. |
 | `canair decode` | Value-centric decoding of captures — value ranges, `--stats`, correlation (`--corr`), an interactive signal explorer (`--plot`), and candidate-expression testing (`--try`). |
+| `canair correlate` | Time-align every decoded signal across a drive/session and rank the strongest cross-signal relationships — the "show me every strong relationship in this drive" entry point. |
+| `canair hunt` | "Which byte on ECU:PID *is* this known signal?" Sweep every byte offset × interpretation against a known reference signal, rank by correlation, and optionally `--promote` the best fit into `ecus/`. |
 | `canair captures` | Search/diff/step through saved captures; `--summary`, `--latest`, date scoping. |
 | `canair coverage` | Audit PID definitions for decoding gaps (unmapped bytes, partial bitfields, no-capture PIDs). |
 | `canair research` | Report the open reverse-engineering backlog from per-ECU `research:` sections. |
@@ -168,6 +170,10 @@ canair query BMS --save
 canair captures BMS --summary       # what have I captured?
 canair captures BMS:2101 --diff     # byte-level diff across captures
 canair decode BMS 2101 --stats      # value ranges/stats per parameter
+
+# Find relationships in a drive, then locate a known signal on an unknown byte
+canair correlate --state driving             # rank strongest cross-signal pairs
+canair hunt ESC:22C102 --against ESC:22C101:REAL_SPEED_KMH  # which byte is speed?
 
 # Dig into unknowns: scan an ECU for undocumented DIDs
 canair scan 7E4 --service 22 --range BC00-BCFF

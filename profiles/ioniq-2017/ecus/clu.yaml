@@ -9,6 +9,10 @@ CLU:
     sw_version: "201"
     boot_sw: "625"
     id_protocol: UDS  # F1xx
+    notes: >
+      Cluster / instrument panel. Odometer is read via 22B002 (3-byte value at
+      [B12:B14]); the imperial odometer / range / cruise fields the e-Niro
+      exposes are absent on this car (15-byte response).
   vehicle_states:
     - acc
     - acc2

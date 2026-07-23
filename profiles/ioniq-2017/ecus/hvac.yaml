@@ -11,6 +11,9 @@ HVAC:
     id_protocol: UDS  # F1xx
     software: "AE_EV DATC(-)1.0"
     serial: "1705304705"
+    notes: >
+      Climate control unit (DATC — Digital Automatic Temperature Control).
+      Exposes climate/compressor live data via service 22 (e.g. 220102).
   vehicle_states:
     - acc
     - acc2

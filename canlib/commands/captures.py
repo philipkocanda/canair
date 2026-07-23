@@ -36,23 +36,23 @@ State/label scoping (case-insensitive substring; combines with any mode):
   --label SUBSTR        only sessions/captures whose label contains SUBSTR
 
 Examples:
-  python3 query-captures.py BMS 2102                  # ECU + PID (most useful)
-  python3 query-captures.py BMS                       # All BMS captures
-  python3 query-captures.py "BMS:2102,2103"           # Several PIDs
-  python3 query-captures.py IGPM 22BC03 --diff        # Byte-diff for one ECU+PID
-  python3 query-captures.py "BMS:2102,2103" --diff    # Byte-diff, one block per PID
-  python3 query-captures.py BMS 2102 --step           # Step through one PID
-  python3 query-captures.py "BMS:2102,2103" --step    # Step two PIDs interleaved
-  python3 query-captures.py "VCU:2101 BMS:2101" --step  # Cross-ECU step-through
-  python3 query-captures.py --diff VCU:2101 --all     # One PID, every payload
-  python3 query-captures.py --summary                 # Overview stats
-  python3 query-captures.py --sessions                # Session table of contents
-  python3 query-captures.py --sessions --state driving # Index of every drive
-  python3 query-captures.py --sessions --json          # Machine-readable TOC
-  python3 query-captures.py --latest BMS              # Latest payload per BMS PID
-  python3 query-captures.py --summary --since 2026-04-19            # Stats since a date
-  python3 query-captures.py BMS 2101 --diff --date 2026-04-19       # One day only
-  python3 query-captures.py VCU --since 2026-04-14 --until 2026-04-21  # Range
+  canair captures BMS 2102                  # ECU + PID (most useful)
+  canair captures BMS                       # All BMS captures
+  canair captures "BMS:2102,2103"           # Several PIDs
+  canair captures IGPM 22BC03 --diff        # Byte-diff for one ECU+PID
+  canair captures "BMS:2102,2103" --diff    # Byte-diff, one block per PID
+  canair captures BMS 2102 --step           # Step through one PID
+  canair captures "BMS:2102,2103" --step    # Step two PIDs interleaved
+  canair captures "VCU:2101 BMS:2101" --step  # Cross-ECU step-through
+  canair captures --diff VCU:2101 --all     # One PID, every payload
+  canair captures --summary                 # Overview stats
+  canair captures --sessions                # Session table of contents
+  canair captures --sessions --state driving # Index of every drive
+  canair captures --sessions --json          # Machine-readable TOC
+  canair captures --latest BMS              # Latest payload per BMS PID
+  canair captures --summary --since 2026-04-19            # Stats since a date
+  canair captures BMS 2101 --diff --date 2026-04-19       # One day only
+  canair captures VCU --since 2026-04-14 --until 2026-04-21  # Range
 """
 
 import argparse

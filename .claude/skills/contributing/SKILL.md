@@ -198,7 +198,14 @@ Follow an existing command as a template: `commands/routines.py` +
 ## Data & generated artifacts
 
 - `profiles/*/ecus/` is the source of truth — edit via `canair pids` (validated,
-  comment-preserving), not by hand.
+  comment-preserving), not by hand. This covers parameters (`upsert-param`),
+  research entries (`add-research`/`set-status`), PID lifecycle
+  (`set-pid-status`), **and curated identity fields** like `notes`/`description`
+  (`set-identity`). **Keep this coverage complete:** if you ever find yourself
+  hand-editing a field of `ecus/` because no `canair pids` subcommand reaches it,
+  the fix is to add the surgical/validated editor (a `canlib.pids_edit` helper +
+  a `canair pids` subcommand) — not to normalize hand-editing. A gap in the CLI
+  editor is a bug to close, so new hand-curated fields must gain tool support.
 - `profiles/*/captures/*.yaml` are **never** hand-written; they are recorded by
   the tool (the `--save` path) and edited/removed via `canlib.captures` helpers
   — the recording/labelling *workflow* is covered by the RE skills. Raw-frame

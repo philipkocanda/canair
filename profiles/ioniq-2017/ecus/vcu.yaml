@@ -29,6 +29,11 @@ VCU:
     calibration: "C5210617"
     vin: "KMHCXXXXXXXXXXXX"
     id_protocol: KWP2000  # 1Axx
+    notes: >
+      Vehicle Control Unit (aka VMCU) with integrated LDC — the logical brain
+      of the EV powertrain: torque requests, drive-mode logic, regen strength
+      and brake blending, and coordination between motor, inverter and battery.
+      Shares the EPCU (Electronic Powertrain Control Unit) housing with the MCU.
   vehicle_states:
     - ready
     - charging

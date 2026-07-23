@@ -13,6 +13,10 @@ SKM:
     sw_version: "10200"
     id_protocol: UDS  # F1xx
     part_number: ""
+    notes: >
+      Smart Key Module (self-identifies as "SMK") — key-fob detection,
+      immobiliser and remote functions. Slow to wake (>1s, needs two or more
+      CAN requests) and sleeps after ~60s of bus inactivity.
   vehicle_states:
     - sleep
     - plugged

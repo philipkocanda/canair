@@ -13,6 +13,22 @@ Examples:
   canair ecu 0x7E4           # hex TX id also works
   canair ecu BMS --json      # machine-readable
   canair ecu --json          # all ECUs as JSON
+
+Columns & legend:
+  IDENT  identity confidence — how sure we are the ECU is correctly
+         identified (name/part/role), NOT how complete its decoding is:
+           confirmed (conf)   — verified by part number / firmware / behaviour
+           probable (prob)    — strong circumstantial evidence
+           tentative (tent)   — plausible but unverified
+           speculative (spec) — a guess, e.g. borrowed from another vehicle
+         A leading `~` means the level was DERIVED from the available evidence;
+         without it, the level was set explicitly in the ECU registry.
+  PIDS   number of active (non-ignored) PIDs/DIDs defined.
+  PARM   number of decoded parameters defined across those PIDs.
+  VERIF  verified/total parameters (green when all verified).
+  CAPS   number of saved captures for the ECU.
+  cap    in the per-PID detail view, "N cap" = number of saved captures for
+         that individual PID.
 """
 
 import argparse

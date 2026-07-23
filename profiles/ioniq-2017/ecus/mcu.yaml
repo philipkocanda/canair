@@ -29,6 +29,10 @@ MCU:
     sw_id: "EAEEHEL-MS2-D000"
     calibration: "00000001"
     id_protocol: KWP2000  # 1Axx
+    notes: >
+      Motor Control Unit — inverter / power electronics and control loops for
+      the traction motor. Shares the EPCU (Electronic Powertrain Control Unit)
+      physical housing with the VCU.
   vehicle_states:
     - ready
     - charging

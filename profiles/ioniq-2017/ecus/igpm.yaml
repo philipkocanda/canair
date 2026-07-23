@@ -116,8 +116,7 @@ IGPM:
           expression: "B10:6"
           verified: false
           notes: >
-            Bit flag likely, meaning unknown.
-            maybe hood?
+            Bit flag, meaning unknown — possibly hood.
 
         DOOR_DRV_OPEN:
           expression: "B10:5"
@@ -744,8 +743,9 @@ IGPM:
       true: "2FBC1B03"
       false: "2FBC1B00"
       notes: >
-        Acc: relay single click. tlTurns off dome light! (maybe cuts power to stuff?)
-        NRC 0x22 — may be reverse light (only accepts when car is in reverse gear?).
+        ACC: relay single click, turns off the dome light (may cut power to
+        other loads). NRC 0x22 otherwise — possibly reverse light (only accepted
+        when the car is in reverse gear?).
 
     BC1C:
       vehicle_states:

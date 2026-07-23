@@ -18,6 +18,10 @@ CCM:
     sw_version: "103"
     app_sw: "1104"
     id_protocol: UDS  # F1xx
+    notes: >
+      Charge Control Module (Power Line Communication for DC CCS fast-charging).
+      Alive at ignition-on (responds to identity/DTC) but exposes PLC/charge
+      live-data DIDs only during an actual DC fast charge — retry mid-DC-charge.
   # 0x744 removed — never responded positively. Discovery scan (2026-04-17) returned
   # CAN-level errors, service 21 scan during AC charging (2026-04-18) returned 255 NO DATA.
   # Cross-platform reference only; likely does not exist on Ioniq 28kWh.

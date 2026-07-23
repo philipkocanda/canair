@@ -8,6 +8,9 @@ BCM:
     part_number: "95400G7470"
     mfg_date: "2017-05-31"
     id_protocol: UDS  # F1xx
+    notes: >
+      Body Control Module. Shares TX ID 0x7A0 with TPMS (same physical ECU,
+      part 95400G7470); TPMS data is read via DID 22C00B on the BCM.
   vehicle_states:
     - sleep
     - plugged

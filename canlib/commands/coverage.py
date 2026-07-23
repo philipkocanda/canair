@@ -12,14 +12,14 @@ including PCI bytes). PCI, SID, and subfunction/DID-echo bytes are excluded
 from the "mappable data" set, so they never show up as UNMAPPED.
 
 Examples:
-  python3 pid-coverage.py                 # audit every ECU/PID
-  python3 pid-coverage.py IGPM            # only the IGPM ECU
-  python3 pid-coverage.py IGPM 22BC03     # a single ECU/PID
-  python3 pid-coverage.py --bitfields     # only incomplete-bitfield findings
-  python3 pid-coverage.py --unmapped      # only unmapped-byte findings
-  python3 pid-coverage.py --no-capture    # only PIDs missing captures
-  python3 pid-coverage.py --all           # include fully-mapped PIDs too
-  python3 pid-coverage.py --json          # machine-readable output
+  canair coverage                 # audit every ECU/PID
+  canair coverage IGPM            # only the IGPM ECU
+  canair coverage IGPM 22BC03     # a single ECU/PID
+  canair coverage --bitfields     # only incomplete-bitfield findings
+  canair coverage --unmapped      # only unmapped-byte findings
+  canair coverage --no-capture    # only PIDs missing captures
+  canair coverage --all           # include fully-mapped PIDs too
+  canair coverage --json          # machine-readable output
 """
 
 import argparse

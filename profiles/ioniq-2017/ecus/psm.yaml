@@ -1,5 +1,5 @@
 # ─── PSM (Power Seat Module) ──────────────────────────────────────────
-# From e-Niro — untested on Ioniq 2017 (Premium trim has power seats).
+# From e-Niro — confirmed on Ioniq 2017 (Premium trim has power seats).
 # Likely requires ACC/IGN on. Actuators are continuous motors — hold command
 # active for desired duration, send OFF to stop.
 PSM:
@@ -12,6 +12,10 @@ PSM:
     sw_version: "100"
     boot_sw: "190"
     id_protocol: UDS  # F1xx
+    notes: >
+      Power Seat Module. No readable live-data DIDs (seat position not exposed
+      via OBD); seat actuators are driven via IOControl (service 2F) — continuous
+      motors, send OFF to stop.
   vehicle_states:
     - plugged
     - acc
@@ -29,7 +33,6 @@ PSM:
   pids: {}
 
   # ─── IOControl (service 2F) ──────────────────────────────────────────
-  # All from e-Niro — untested on Ioniq 2017.
   # Continuous motors: send ON, wait desired duration, send OFF.
   # Usage: canair io PSM --did <DID>
   iocontrol:

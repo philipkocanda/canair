@@ -8,6 +8,9 @@ WPC:
     sw_version: "102"
     boot_sw: "1.6"
     id_protocol: UDS  # F1xx
+    notes: >
+      Wireless Phone Charging pad. 220100 exposes two signed 16-bit fields
+      (B03:B04, B05:B06) of unknown purpose — re-examine with a phone on/off pad.
   vehicle_states:
     - acc
     - acc2

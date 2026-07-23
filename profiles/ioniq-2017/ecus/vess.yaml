@@ -10,6 +10,9 @@ VESS:
     sw_version: "101"
     boot_sw: "060"
     id_protocol: UDS  # F1xx
+    notes: >
+      Virtual Engine Sound System (pedestrian-warning buzzer). Actuated via
+      IOControl (F011); no readable live-data DIDs.
   vehicle_states:
     - acc
     - acc2
