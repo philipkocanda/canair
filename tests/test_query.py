@@ -3,7 +3,6 @@
 import pytest
 
 from canlib.query import (
-    Query,
     QueryError,
     Selector,
     parse_query,
@@ -138,7 +137,7 @@ class TestQueryFilter:
         assert empty == []
 
     def test_single_pid(self):
-        matched, empty = self._filter("VCU:2101")
+        matched, _empty = self._filter("VCU:2101")
         assert [r["x"] for r in matched] == [1]
 
     def test_multi_pid(self):

@@ -118,7 +118,7 @@ class TestLoadStates:
             "states:\n"
             "  - name: charging\n"
             "    description: charging\n"
-            "    when: \"BMS.BATTERY_CURRENT < -1\"\n"
+            '    when: "BMS.BATTERY_CURRENT < -1"\n'
             "  - name: parked\n",
         )
         rules = load_states(prof)
@@ -127,9 +127,7 @@ class TestLoadStates:
         assert rules[1].predicate is None
 
     def test_invalid_predicate_raises(self, tmp_path):
-        prof = self._write(
-            tmp_path, "states:\n  - name: x\n    when: \"A.X.foo()\"\n"
-        )
+        prof = self._write(tmp_path, 'states:\n  - name: x\n    when: "A.X.foo()"\n')
         with pytest.raises(StatePredicateError):
             load_states(prof)
 
@@ -139,5 +137,5 @@ class TestLoadStates:
             load_states(prof)
 
     def test_state_names_swallows_errors(self, tmp_path):
-        prof = self._write(tmp_path, "states:\n  - name: x\n    when: \"bad(\"\n")
+        prof = self._write(tmp_path, 'states:\n  - name: x\n    when: "bad("\n')
         assert state_names(prof) == []

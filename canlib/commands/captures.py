@@ -166,6 +166,7 @@ def _entry_to_dict(e: dict, *, decoded: bool = True) -> dict:
 # Loader
 # ---------------------------------------------------------------------------
 
+
 def load_all_captures(captures_dir: Path | None = None) -> list[dict]:
     """Load all capture files and return a flat list of (session, capture) tuples.
 
@@ -233,6 +234,7 @@ def load_all_captures(captures_dir: Path | None = None) -> list[dict]:
 # Query parsing (alias-aware)
 # ---------------------------------------------------------------------------
 
+
 def _parse_query(query):
     """Parse a QUERY and canonicalize selector ECUs (aliases -> primary name).
 
@@ -256,6 +258,7 @@ def _parse_query(query):
 # Summary mode
 # ---------------------------------------------------------------------------
 
+
 def cmd_summary(entries: list[dict], as_json: bool = False) -> None:
     """Print overview statistics."""
     by_ecu = defaultdict(int)
@@ -275,16 +278,18 @@ def cmd_summary(entries: list[dict], as_json: bool = False) -> None:
             responses += 1
 
     if as_json:
-        _dump_json({
-            "files": len({e["file"] for e in entries}),
-            "sessions": len({(e["file"], e["session_label"]) for e in entries}),
-            "entries": len(entries),
-            "payloads": payloads,
-            "scans": scans,
-            "responses": responses,
-            "by_ecu": dict(sorted(by_ecu.items(), key=lambda x: -x[1])),
-            "by_date": dict(sorted(by_date.items())),
-        })
+        _dump_json(
+            {
+                "files": len({e["file"] for e in entries}),
+                "sessions": len({(e["file"], e["session_label"]) for e in entries}),
+                "entries": len(entries),
+                "payloads": payloads,
+                "scans": scans,
+                "responses": responses,
+                "by_ecu": dict(sorted(by_ecu.items(), key=lambda x: -x[1])),
+                "by_date": dict(sorted(by_date.items())),
+            }
+        )
         return
 
     print(f"\n  {_BOLD}Capture Summary{_RESET}")
@@ -341,9 +346,9 @@ def _group_sessions(entries: list[dict]) -> list[dict]:
                 "vehicle_states": e.get("vehicle_states") or [],
                 "notes": e.get("session_notes", ""),
                 "n": 0,
-                "ecus": {},          # ordered set (dict) of ECU names
+                "ecus": {},  # ordered set (dict) of ECU names
                 "times": [],
-                "cap_notes": [],     # distinct capture-level notes, first-seen order
+                "cap_notes": [],  # distinct capture-level notes, first-seen order
             }
         g["n"] += 1
         ecu = e.get("ecu") or e.get("ecu_addr") or ""
@@ -374,14 +379,22 @@ def cmd_sessions(entries: list[dict], as_json: bool = False, max_notes: int = 6)
 
     if as_json:
         import json
-        out = [{
-            "file": s["file"], "date": s["date"], "label": s["label"],
-            "vehicle_states": s["vehicle_states"], "notes": s["notes"], "captures": s["n"],
-            "ecus": list(s["ecus"]),
-            "time_start": min(s["times"]) if s["times"] else None,
-            "time_end": max(s["times"]) if s["times"] else None,
-            "capture_notes": s["cap_notes"],
-        } for s in sessions]
+
+        out = [
+            {
+                "file": s["file"],
+                "date": s["date"],
+                "label": s["label"],
+                "vehicle_states": s["vehicle_states"],
+                "notes": s["notes"],
+                "captures": s["n"],
+                "ecus": list(s["ecus"]),
+                "time_start": min(s["times"]) if s["times"] else None,
+                "time_end": max(s["times"]) if s["times"] else None,
+                "capture_notes": s["cap_notes"],
+            }
+            for s in sessions
+        ]
         json.dump(out, sys.stdout, indent=2, default=str)
         print()
         return
@@ -420,6 +433,7 @@ def cmd_sessions(entries: list[dict], as_json: bool = False, max_notes: int = 6)
 # List mode (default view for a QUERY)
 # ---------------------------------------------------------------------------
 
+
 def cmd_list(entries: list[dict], query, as_json: bool = False) -> None:
     """List captures matching ``query`` (canlib.query selection).
 
@@ -429,17 +443,17 @@ def cmd_list(entries: list[dict], query, as_json: bool = False) -> None:
     Selectors that matched nothing are reported (with the available ECUs).
     """
     q = _parse_query(query)
-    matched, empty = q.filter(
-        entries, ecu_of=lambda e: e["ecu"], pid_of=lambda e: str(e["pid"])
-    )
+    matched, empty = q.filter(entries, ecu_of=lambda e: e["ecu"], pid_of=lambda e: str(e["pid"]))
 
     if as_json:
-        _dump_json({
-            "query": str(q),
-            "matched": len(matched),
-            "unmatched": [str(sel) for sel in empty],
-            "captures": [_entry_to_dict(e) for e in matched],
-        })
+        _dump_json(
+            {
+                "query": str(q),
+                "matched": len(matched),
+                "unmatched": [str(sel) for sel in empty],
+                "captures": [_entry_to_dict(e) for e in matched],
+            }
+        )
         return
 
     if empty:
@@ -471,6 +485,7 @@ def cmd_list(entries: list[dict], query, as_json: bool = False) -> None:
 # ---------------------------------------------------------------------------
 # Latest mode
 # ---------------------------------------------------------------------------
+
 
 def cmd_latest(entries: list[dict], ecu_filter: str | None, as_json: bool = False) -> None:
     """Show latest payload per ECU+PID."""
@@ -571,9 +586,7 @@ def _gather_query(
     """
     q = _parse_query(query)
     payloads = [e for e in entries if _is_hex_payload(e.get("payload"))]
-    matched, empty = q.filter(
-        payloads, ecu_of=lambda e: e["ecu"], pid_of=lambda e: e["pid"]
-    )
+    matched, empty = q.filter(payloads, ecu_of=lambda e: e["ecu"], pid_of=lambda e: e["pid"])
 
     # Chronological order (date, then time within a session).
     matched.sort(key=lambda e: (str(e.get("date", "")), str(e.get("time", ""))))
@@ -673,7 +686,6 @@ def _key_ordinals(captures: list[dict]) -> list[tuple[int, int]]:
     return out
 
 
-
 def _group_by_key(captures: list[dict]) -> dict[tuple[str, str], list[dict]]:
     """Group captures by (ECU, PID), preserving first-appearance order of keys."""
     groups: dict[tuple[str, str], list[dict]] = {}
@@ -683,7 +695,11 @@ def _group_by_key(captures: list[dict]) -> dict[tuple[str, str], list[dict]]:
 
 
 def _render_diff_group(
-    console, payloads: list[dict], parameters: dict, tx_id: int | None, show_all: bool,
+    console,
+    payloads: list[dict],
+    parameters: dict,
+    tx_id: int | None,
+    show_all: bool,
     rulers: bool = False,
 ) -> None:
     """Render one ECU+PID block: header, decoded params, optional ruler, byte-diff hex."""
@@ -740,8 +756,9 @@ def _render_diff_group(
         prev_norm = norm
 
 
-def cmd_diff(entries: list[dict], query, show_all: bool = False, rulers: bool = False,
-             as_json: bool = False) -> None:
+def cmd_diff(
+    entries: list[dict], query, show_all: bool = False, rulers: bool = False, as_json: bool = False
+) -> None:
     """Show payloads matching ``query`` in canreq monitor style, per ECU+PID.
 
     ``query`` is a canlib.query selection (``"VCU"``, ``"VCU:2101,2102"``,
@@ -767,15 +784,17 @@ def cmd_diff(entries: list[dict], query, show_all: bool = False, rulers: bool = 
             parameters, tx_id = defs.get(key, ({}, None))
             unique = _dedupe_payloads(group)
             render_list = group if show_all else unique
-            out.append({
-                "ecu": group[0]["ecu"],
-                "pid": str(group[0]["pid"]),
-                "tx_id": f"0x{tx_id:03X}" if isinstance(tx_id, int) else None,
-                "total": len(group),
-                "unique": len(unique),
-                "payloads": [e["payload"].upper().replace(" ", "") for e in render_list],
-                "decoded": _decoded_preview(group[-1]),
-            })
+            out.append(
+                {
+                    "ecu": group[0]["ecu"],
+                    "pid": str(group[0]["pid"]),
+                    "tx_id": f"0x{tx_id:03X}" if isinstance(tx_id, int) else None,
+                    "total": len(group),
+                    "unique": len(unique),
+                    "payloads": [e["payload"].upper().replace(" ", "") for e in render_list],
+                    "decoded": _decoded_preview(group[-1]),
+                }
+            )
         _dump_json(out)
         return
 
@@ -790,10 +809,10 @@ def cmd_diff(entries: list[dict], query, show_all: bool = False, rulers: bool = 
     console.print()
 
 
-
 # ---------------------------------------------------------------------------
 # Step mode (interactive)
 # ---------------------------------------------------------------------------
+
 
 def _read_key(fd: int) -> str:
     """Read a single keypress (or escape sequence) from a raw/cbreak stdin."""
@@ -859,12 +878,9 @@ def _render_step_frame(
 
     console.print(f"\n  [bold cyan]{ecu_display}{tx_str}[/bold cyan]")
     console.print(
-        f"    [yellow]{pid_display}[/yellow]  "
-        f"[dim]capture {i + 1}/{len(captures)}{per_pid}[/dim]"
+        f"    [yellow]{pid_display}[/yellow]  [dim]capture {i + 1}/{len(captures)}{per_pid}[/dim]"
     )
-    console.print(
-        f"    [bold]{escape(ts)}[/bold][dim]{state}{label}{file_str}[/dim]"
-    )
+    console.print(f"    [bold]{escape(ts)}[/bold][dim]{state}{label}{file_str}[/dim]")
 
     # Capture note (if any).
     note = (e.get("notes") or "").strip()
@@ -908,7 +924,6 @@ def _render_step_frame(
         console.print(f"  [bold yellow]{escape(prompt)}[/bold yellow]")
     elif status:
         console.print(f"  [yellow]{escape(status)}[/yellow]")
-
 
 
 def cmd_step(
@@ -976,7 +991,14 @@ def cmd_step(
     def redraw(prompt: str | None = None) -> None:
         sys.stdout.write("\033[2J\033[H")  # clear + home
         _render_step_frame(
-            console, captures, i, defs, prev_idx, ordinals, status=status, prompt=prompt,
+            console,
+            captures,
+            i,
+            defs,
+            prev_idx,
+            ordinals,
+            status=status,
+            prompt=prompt,
             rulers=rulers,
         )
 
@@ -1024,7 +1046,9 @@ def cmd_step(
                 buf = ""
                 cancelled = False
                 while True:
-                    redraw(prompt=f"go to capture # (1-{len(captures)}, Enter=go · Esc=cancel): {buf}\u2588")
+                    redraw(
+                        prompt=f"go to capture # (1-{len(captures)}, Enter=go · Esc=cancel): {buf}\u2588"
+                    )
                     k = _read_key(fd)
                     if k in ("\r", "\n"):
                         break
@@ -1066,7 +1090,9 @@ def cmd_step(
                     try:
                         set_capture_note(
                             captures_dir / cap["file"],
-                            cap["_session_idx"], cap["_capture_idx"], buf,
+                            cap["_session_idx"],
+                            cap["_capture_idx"],
+                            buf,
                         )
                         saved = "Note saved" if buf.strip() else "Note cleared"
                         if not reload():
@@ -1082,7 +1108,8 @@ def cmd_step(
                     try:
                         delete_capture(
                             captures_dir / cap["file"],
-                            cap["_session_idx"], cap["_capture_idx"],
+                            cap["_session_idx"],
+                            cap["_capture_idx"],
                         )
                         if not reload():
                             final_msg = "Capture deleted — no captures left"
@@ -1099,7 +1126,6 @@ def cmd_step(
 
     if final_msg:
         print(f"  {final_msg}")
-
 
 
 def _print_entry(e: dict, show_ecu: bool = False) -> None:
@@ -1144,6 +1170,7 @@ def _print_entry(e: dict, show_ecu: bool = False) -> None:
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+
 
 def build_query(tokens: list[str]) -> str:
     """Turn positional CLI tokens into a query string for ``canlib.query``.
@@ -1227,19 +1254,25 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        "query", nargs="*", metavar="QUERY",
+        "query",
+        nargs="*",
+        metavar="QUERY",
         help="ECU/PID selection: 'BMS 2102', 'BMS:2102,2103', 'BMS' (all PIDs), "
-             "or a quoted cross-ECU query 'VCU:2101 BMS:2101'",
+        "or a quoted cross-ECU query 'VCU:2101 BMS:2101'",
     ).completer = _ecu_completer
 
     # View modifiers for a QUERY (default is the list view).
     view = parser.add_mutually_exclusive_group()
     view.add_argument(
-        "--diff", "-d", action="store_true",
+        "--diff",
+        "-d",
+        action="store_true",
         help="Monitor-style view (decoded params + colored byte-diff), one block per ECU+PID",
     )
     view.add_argument(
-        "--step", "-S", action="store_true",
+        "--step",
+        "-S",
+        action="store_true",
         help="Interactively step through matching captures (arrow keys; e=note, d=delete)",
     )
 
@@ -1247,45 +1280,60 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     standalone = parser.add_mutually_exclusive_group()
     standalone.add_argument("--summary", "-s", action="store_true", help="Overview statistics")
     standalone.add_argument(
-        "--sessions", "-n", action="store_true",
+        "--sessions",
+        "-n",
+        action="store_true",
         help="List sessions with their metadata (date/state/label/notes/ECUs) — a "
-             "searchable table of contents; no payloads. Honors the scope filters.",
+        "searchable table of contents; no payloads. Honors the scope filters.",
     )
     standalone.add_argument(
-        "--latest", "-l", nargs="?", const="", metavar="ECU",
+        "--latest",
+        "-l",
+        nargs="?",
+        const="",
+        metavar="ECU",
         help="Latest payload per PID (optionally filtered by ECU)",
     )
     standalone.add_argument(
-        "--recover", action="store_true",
+        "--recover",
+        action="store_true",
         help="Reconcile orphaned capture journals (from a killed/crashed session) "
-             "into capture files. Add --discard to delete them without saving.",
+        "into capture files. Add --discard to delete them without saving.",
     )
 
     parser.add_argument(
-        "--discard", action="store_true",
+        "--discard",
+        action="store_true",
         help="With --recover: delete orphaned journals without saving them",
     )
 
     parser.add_argument(
-        "--all", "-a", action="store_true",
+        "--all",
+        "-a",
+        action="store_true",
         help="For --diff/--step: use every payload instead of unique-only",
     )
 
     parser.add_argument(
-        "--rulers", "-r", action="store_true",
+        "--rulers",
+        "-r",
+        action="store_true",
         help="For --diff/--step: show the byte-index ruler (idx/wican) above the hex",
     )
 
     parser.add_argument(
-        "--json", action="store_true",
+        "--json",
+        action="store_true",
         help="Machine-readable JSON output (summary/sessions/latest/diff and the "
-             "default QUERY list; not --step, which is interactive)",
+        "default QUERY list; not --step, which is interactive)",
     )
 
     add_scope_args(parser)
 
     parser.add_argument(
-        "--dir", type=Path, default=None,
+        "--dir",
+        type=Path,
+        default=None,
         help="Captures directory (default: active profile)",
     )
 
@@ -1308,12 +1356,15 @@ def run(args) -> int:
     # view modifiers that require a QUERY.
     if standalone_mode:
         if query:
-            print("error: --summary/--sessions/--latest do not take a QUERY argument",
-                  file=sys.stderr)
+            print(
+                "error: --summary/--sessions/--latest do not take a QUERY argument", file=sys.stderr
+            )
             return 2
         if args.diff or args.step:
-            print("error: --diff/--step cannot be combined with --summary/--sessions/--latest",
-                  file=sys.stderr)
+            print(
+                "error: --diff/--step cannot be combined with --summary/--sessions/--latest",
+                file=sys.stderr,
+            )
             return 2
     elif not query:
         from canlib.commands._hints import ecu_hint
@@ -1361,10 +1412,12 @@ def run(args) -> int:
                 print("[]")
                 return 0
             crit = ", ".join(
-                x for x in [
+                x
+                for x in [
                     f"state~'{args.state}'" if args.state else "",
                     f"label~'{args.label}'" if args.label else "",
-                ] if x
+                ]
+                if x
             )
             print(f"  No captures matching {crit}.")
             return 1

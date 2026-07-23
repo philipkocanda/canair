@@ -325,6 +325,7 @@ class WiCANTerminal:
                     f" — retry {attempt}/{retries}",
                     file=sys.stderr,
                 )
+
     async def enter_extended_session(
         self, wake: bool = False, mode: str = "03"
     ) -> tuple[bool, asyncio.Task | None]:

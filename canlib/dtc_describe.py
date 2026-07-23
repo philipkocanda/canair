@@ -140,9 +140,7 @@ def describe_dtc(code: str, defs: dict | None = None) -> dict:
     if description:
         description = " ".join(description.split())  # collapse folded-YAML newlines
 
-    base_summary = description or " · ".join(
-        p for p in (category, kind) if p and p != "unknown"
-    )
+    base_summary = description or " · ".join(p for p in (category, kind) if p and p != "unknown")
     parts = [base_summary]
     if ftb is not None and ftb != 0x00:
         parts.append(f"FTB 0x{ftb:02X}: {ftb_desc}" if ftb_desc else f"failure type 0x{ftb:02X}")

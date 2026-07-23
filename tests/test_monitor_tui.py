@@ -5,6 +5,7 @@ no CAN connection or TTY required.
 """
 
 import asyncio
+from typing import ClassVar
 
 import pytest
 from rich.text import Text
@@ -16,8 +17,16 @@ from canlib.modes._monitor_tui import MonitorApp
 class FakeController:
     """Stand-in for MonitorController: canned render + counting poll."""
 
-    def __init__(self, *, keep_mode=None, n_lines=50, disconnect_after=None, has_captures=True,
-                 query_label="BMS:2101", editor=None):
+    def __init__(
+        self,
+        *,
+        keep_mode=None,
+        n_lines=50,
+        disconnect_after=None,
+        has_captures=True,
+        query_label="BMS:2101",
+        editor=None,
+    ):
         self.cycle = 0
         self.elapsed = 0.0
         self.interval = 0.05
@@ -67,7 +76,7 @@ def _plain(renderable) -> str:
 class FakeEditor:
     """Records calls from the TUI without touching disk or the CAN bus."""
 
-    _ITEMS = [("BMS (0x7E4)", "2101", "SOC"), ("BMS (0x7E4)", "2101", "TEMP")]
+    _ITEMS: ClassVar = [("BMS (0x7E4)", "2101", "SOC"), ("BMS (0x7E4)", "2101", "TEMP")]
     _FILTERS = ("all", "verified", "unverified", "enabled", "disabled")
 
     def __init__(self):
@@ -103,9 +112,18 @@ class FakeEditor:
     def edit_target(self):
         if self.selected is None:
             return None
-        return {"ecu": "BMS", "pid": "2101", "name": self.selected[2],
-                "expression": "B4", "unit": "%", "min": "", "max": "",
-                "notes": "", "verified": False, "enabled": True}
+        return {
+            "ecu": "BMS",
+            "pid": "2101",
+            "name": self.selected[2],
+            "expression": "B4",
+            "unit": "%",
+            "min": "",
+            "max": "",
+            "notes": "",
+            "verified": False,
+            "enabled": True,
+        }
 
     def apply_edit(self, fields):
         self.applied = fields

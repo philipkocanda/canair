@@ -14,8 +14,7 @@ from canlib.modes.routines_scan import (
     RoutineHit,
     classify,
 )
-from canlib.pids_edit import append_routines_block
-
+from canlib.pids_edit import PidsEditError, append_routines_block
 
 # ── classify() ───────────────────────────────────────────────────────────────
 
@@ -118,10 +117,16 @@ def pids_dir(tmp_path: Path) -> Path:
 
 def test_append_routines_block_adds_new_section(pids_dir):
     hits = [
-        RoutineHit(rid=0xF010, session="extended", response_hex="71 03 F0 10 00",
-                   nrc=None, nrc_desc=None),
-        RoutineHit(rid=0xF02A, session="default", response_hex="",
-                   nrc=0x24, nrc_desc="requestSequenceError"),
+        RoutineHit(
+            rid=0xF010, session="extended", response_hex="71 03 F0 10 00", nrc=None, nrc_desc=None
+        ),
+        RoutineHit(
+            rid=0xF02A,
+            session="default",
+            response_hex="",
+            nrc=0x24,
+            nrc_desc="requestSequenceError",
+        ),
     ]
     path = append_routines_block("TEST", hits, pids_dir=pids_dir)
     text = path.read_text()
@@ -140,8 +145,13 @@ def test_append_routines_block_adds_new_section(pids_dir):
 
 def test_append_routines_preserves_existing_sections(pids_dir):
     hits = [
-        RoutineHit(rid=0xF010, session="default", response_hex="",
-                   nrc=0x33, nrc_desc="securityAccessDenied"),
+        RoutineHit(
+            rid=0xF010,
+            session="default",
+            response_hex="",
+            nrc=0x33,
+            nrc_desc="securityAccessDenied",
+        ),
     ]
     append_routines_block("TEST", hits, pids_dir=pids_dir)
     data = yaml.safe_load((pids_dir / "test.yaml").read_text())
@@ -157,14 +167,24 @@ def test_append_routines_preserves_existing_sections(pids_dir):
 def test_append_routines_merges_with_existing(pids_dir):
     """Running the scanner twice preserves old entries and upserts new ones."""
     first = [
-        RoutineHit(rid=0xF001, session="default", response_hex="",
-                   nrc=0x24, nrc_desc="requestSequenceError"),
+        RoutineHit(
+            rid=0xF001,
+            session="default",
+            response_hex="",
+            nrc=0x24,
+            nrc_desc="requestSequenceError",
+        ),
     ]
     append_routines_block("TEST", first, pids_dir=pids_dir)
 
     second = [
-        RoutineHit(rid=0xF002, session="default", response_hex="",
-                   nrc=0x33, nrc_desc="securityAccessDenied"),
+        RoutineHit(
+            rid=0xF002,
+            session="default",
+            response_hex="",
+            nrc=0x33,
+            nrc_desc="securityAccessDenied",
+        ),
     ]
     append_routines_block("TEST", second, pids_dir=pids_dir)
 
@@ -183,16 +203,24 @@ def test_append_empty_hits_is_noop(pids_dir):
 
 
 def test_append_unknown_ecu_raises(pids_dir):
-    hits = [RoutineHit(rid=0xF010, session="default", response_hex="",
-                       nrc=0x24, nrc_desc="requestSequenceError")]
-    with pytest.raises(Exception):
+    hits = [
+        RoutineHit(
+            rid=0xF010,
+            session="default",
+            response_hex="",
+            nrc=0x24,
+            nrc_desc="requestSequenceError",
+        )
+    ]
+    with pytest.raises(PidsEditError):
         append_routines_block("NONEXISTENT", hits, pids_dir=pids_dir)
 
 
 def test_append_yaml_is_still_valid_after_write(pids_dir):
     hits = [
-        RoutineHit(rid=i, session="default", response_hex="",
-                   nrc=0x24, nrc_desc="requestSequenceError")
+        RoutineHit(
+            rid=i, session="default", response_hex="", nrc=0x24, nrc_desc="requestSequenceError"
+        )
         for i in (0xF000, 0xF001, 0xF010, 0xF0FF)
     ]
     path = append_routines_block("TEST", hits, pids_dir=pids_dir)

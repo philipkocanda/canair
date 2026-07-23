@@ -252,7 +252,12 @@ def build_session_from_records(
             session_records.append(rec["session"])
         elif rtype == "capture":
             rows.append(
-                (rec.get("ecu", ""), rec.get("pid", ""), rec.get("payload", ""), rec.get("time", ""))
+                (
+                    rec.get("ecu", ""),
+                    rec.get("pid", ""),
+                    rec.get("payload", ""),
+                    rec.get("time", ""),
+                )
             )
 
     label = meta.get("label") or "Recovered session"

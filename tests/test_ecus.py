@@ -227,7 +227,9 @@ class TestEcuDisplay:
 
 class TestIdentityConfidence:
     def test_part_number_is_confirmed(self):
-        assert derive_identity_confidence({"name": "PLC", "part_number": "91950G7200"}) == "confirmed"
+        assert (
+            derive_identity_confidence({"name": "PLC", "part_number": "91950G7200"}) == "confirmed"
+        )
 
     def test_identity_fields_uds_is_probable(self):
         info = {"name": "AVN", "id_protocol": "UDS", "app_sw": "AE_EV EURSOP 12 017.1"}

@@ -58,9 +58,7 @@ class TestRenderParamTable:
         assert "B09/2" not in render_param_table(rows, verbose=False).plain
 
     def test_display_field(self):
-        rows = [
-            ("PREHEAT", 480.0, "min", "B07", None, True, "f'{int(v)//60:02d}:{int(v)%60:02d}'")
-        ]
+        rows = [("PREHEAT", 480.0, "min", "B07", None, True, "f'{int(v)//60:02d}:{int(v)%60:02d}'")]
         assert "480 min (08:00)" in render_param_table(rows).plain
 
     def test_columns_aligned(self):

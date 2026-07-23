@@ -182,9 +182,7 @@ class TestConfigCommand:
         from canlib import config
 
         _reset()
-        config_cmd._cmd_set(
-            argparse.Namespace(key="some_id", value="007", string=True)
-        )
+        config_cmd._cmd_set(argparse.Namespace(key="some_id", value="007", string=True))
         _reset()
         assert config.load_config()["some_id"] == "007"
 

@@ -387,9 +387,7 @@ async def async_main(args):
                     f"  ({_s['hits']} hits / {_s['total']} total)"
                     f"  started {_s.get('started', '?')}"
                 )
-            print(
-                "!! To resume, re-run with the same ECU and range starting at the last probe."
-            )
+            print("!! To resume, re-run with the same ECU and range starting at the last probe.")
             print()
 
     # List-only mode: no CAN connection needed (--json or explicit list)
@@ -522,7 +520,6 @@ def run(args) -> int:
     return run_live(args)
 
 
-
 async def dispatch_mode(args, terminal, pids_data, host):
     """Dispatch a live subcommand to its mode handler over ``terminal``.
 
@@ -588,7 +585,11 @@ async def dispatch_mode(args, terminal, pids_data, host):
             )
             sys.exit(1)
         await mode_identity(
-            terminal, tx_id, session=args.session, wake=args.wake, as_json=args.json,
+            terminal,
+            tx_id,
+            session=args.session,
+            wake=args.wake,
+            as_json=args.json,
             protocol=getattr(args, "protocol", "auto"),
         )
     elif args.dtc or getattr(args, "dtc_all", False):
@@ -602,10 +603,14 @@ async def dispatch_mode(args, terminal, pids_data, host):
                 print(f"Error: --mask must be hex (e.g. FF), got {args.mask!r}", file=sys.stderr)
                 sys.exit(1)
             await mode_dtc_scan_all(
-                terminal, mask=mask, protocol=args.protocol,
-                as_json=args.json, verbose=args.verbose,
+                terminal,
+                mask=mask,
+                protocol=args.protocol,
+                as_json=args.json,
+                verbose=args.verbose,
                 retry=getattr(args, "dtc_retry", True),
-                log=getattr(args, "dtc_log", True), label=args.label,
+                log=getattr(args, "dtc_log", True),
+                label=args.label,
                 vehicle_states=parse_states(getattr(args, "state", None)),
             )
             return
@@ -622,7 +627,9 @@ async def dispatch_mode(args, terminal, pids_data, host):
             try:
                 group = int(str(args.group).removeprefix("0x").removeprefix("0X"), 16)
             except ValueError:
-                print(f"Error: --group must be hex (e.g. FFFFFF), got {args.group!r}", file=sys.stderr)
+                print(
+                    f"Error: --group must be hex (e.g. FFFFFF), got {args.group!r}", file=sys.stderr
+                )
                 sys.exit(1)
             if not getattr(args, "yes", False):
                 from canlib.ecus import ecu_display
@@ -638,10 +645,16 @@ async def dispatch_mode(args, terminal, pids_data, host):
                     print("Aborted.", file=sys.stderr)
                     return
             await mode_dtc_clear(
-                terminal, tx_id, group=group, protocol=args.protocol,
-                session=args.session, wake=args.wake,
-                as_json=args.json, verbose=args.verbose,
-                log=getattr(args, "dtc_log", True), label=args.label,
+                terminal,
+                tx_id,
+                group=group,
+                protocol=args.protocol,
+                session=args.session,
+                wake=args.wake,
+                as_json=args.json,
+                verbose=args.verbose,
+                log=getattr(args, "dtc_log", True),
+                label=args.label,
             )
         else:
             try:
@@ -650,10 +663,16 @@ async def dispatch_mode(args, terminal, pids_data, host):
                 print(f"Error: --mask must be hex (e.g. FF), got {args.mask!r}", file=sys.stderr)
                 sys.exit(1)
             await mode_dtc_read(
-                terminal, tx_id, mask=mask, protocol=args.protocol,
-                session=args.session, wake=args.wake,
-                as_json=args.json, verbose=args.verbose,
-                log=getattr(args, "dtc_log", True), label=args.label,
+                terminal,
+                tx_id,
+                mask=mask,
+                protocol=args.protocol,
+                session=args.session,
+                wake=args.wake,
+                as_json=args.json,
+                verbose=args.verbose,
+                log=getattr(args, "dtc_log", True),
+                label=args.label,
                 vehicle_states=parse_states(getattr(args, "state", None)),
             )
     elif args.param:

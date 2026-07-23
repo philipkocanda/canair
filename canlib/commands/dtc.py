@@ -68,7 +68,8 @@ examples:
         help="Optional label for the logged scan entry (e.g. 'before clearing')",
     )
     parser.add_argument(
-        "--state", "--vehicle-states",
+        "--state",
+        "--vehicle-states",
         dest="state",
         metavar="STATES",
         default=None,

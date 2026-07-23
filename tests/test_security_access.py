@@ -7,7 +7,6 @@ import pytest
 from canlib.modes.multi import SECURITY_ALGORITHMS, _exec_security, solve_key_pair
 from canlib.safety import check_command_safety
 
-
 # ── solve_key_pair (offline algorithm identification) ────────────────────────
 
 
@@ -109,8 +108,11 @@ class _FakeTerminal:
 
     async def send_uds(self, req, timeout=5.0, **kw):
         if req == "2701":
-            return {"ok": True, "bytes": bytes([0x67, 0x01]) + self._seed_bytes,
-                    "hex": (bytes([0x67, 0x01]) + self._seed_bytes).hex().upper()}
+            return {
+                "ok": True,
+                "bytes": bytes([0x67, 0x01]) + self._seed_bytes,
+                "hex": (bytes([0x67, 0x01]) + self._seed_bytes).hex().upper(),
+            }
         if req.startswith("2702"):
             self.key_requests.append(req)
             return {"ok": True, "bytes": bytes([0x67, 0x02])}  # accepted
@@ -157,6 +159,6 @@ async def test_exec_security_all_zero_seed_reports_unlocked():
 
 def test_all_algorithms_are_callable():
     # Guard: every registered algorithm runs without error on a sample seed.
-    for name, (desc, fn) in SECURITY_ALGORITHMS.items():
+    for _name, (desc, fn) in SECURITY_ALGORITHMS.items():
         assert isinstance(desc, str)
         fn(0x12345678)  # must not raise

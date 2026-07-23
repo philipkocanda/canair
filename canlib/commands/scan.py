@@ -514,7 +514,12 @@ def _resolve_ecu_selection(sel: str, choices: list[tuple[str, int, str]]) -> str
 
 
 def _equiv_command(args) -> str:
-    parts = ["canair scan range", str(args.tx), f"--service {args.service}", f"--range {args.range}"]
+    parts = [
+        "canair scan range",
+        str(args.tx),
+        f"--service {args.service}",
+        f"--range {args.range}",
+    ]
     if args.append:
         parts.append(f"--append {args.append}")
     if args.session:

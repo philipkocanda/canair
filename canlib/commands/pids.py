@@ -81,11 +81,21 @@ def _add_common(sp: argparse.ArgumentParser) -> None:
 def cmd_upsert_param(args: argparse.Namespace) -> int:
     def do():
         upsert_parameter(
-            args.ecu, args.pid, args.name, args.expression,
-            unit=args.unit, ha_class=args.ha_class, mqtt_topic=args.mqtt_topic,
-            min=args.min, max=args.max, source=args.source,
-            source_links=args.source_link or None, verified=args.verified,
-            notes=args.notes, enabled=args.enabled, display=args.display,
+            args.ecu,
+            args.pid,
+            args.name,
+            args.expression,
+            unit=args.unit,
+            ha_class=args.ha_class,
+            mqtt_topic=args.mqtt_topic,
+            min=args.min,
+            max=args.max,
+            source=args.source,
+            source_links=args.source_link or None,
+            verified=args.verified,
+            notes=args.notes,
+            enabled=args.enabled,
+            display=args.display,
             pids_dir=args.dir,
         )
 
@@ -97,11 +107,19 @@ def cmd_upsert_param(args: argparse.Namespace) -> int:
 def cmd_add_research(args: argparse.Namespace) -> int:
     def do():
         add_research_entry(
-            args.ecu, type=args.type, target=args.target, status=args.status,
-            priority=args.priority, vehicle_states=args.prereq or None,
-            created=args.created, updated=args.updated,
-            date=args.date, result=args.result, notes=args.notes,
-            sources=args.source or None, what_to_test=args.what_to_test or None,
+            args.ecu,
+            type=args.type,
+            target=args.target,
+            status=args.status,
+            priority=args.priority,
+            vehicle_states=args.prereq or None,
+            created=args.created,
+            updated=args.updated,
+            date=args.date,
+            result=args.result,
+            notes=args.notes,
+            sources=args.source or None,
+            what_to_test=args.what_to_test or None,
             capture_protocol=args.capture_protocol,
             pids_dir=args.dir,
         )
@@ -178,12 +196,19 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     ar.add_argument("--status", required=True, choices=["pending", "captured", "nrc", "done"])
     ar.add_argument("--priority", choices=["P1", "P2", "P3"])
     ar.add_argument(
-        "--prereq", "--vehicle-states", dest="prereq", action="append",
+        "--prereq",
+        "--vehicle-states",
+        dest="prereq",
+        action="append",
         choices=list(POWER_STATES),
     )
     ar.add_argument("--date")
-    ar.add_argument("--created", metavar="YYYY-MM-DD", help="Override auto creation date (default: today)")
-    ar.add_argument("--updated", metavar="YYYY-MM-DD", help="Override auto updated date (default: today)")
+    ar.add_argument(
+        "--created", metavar="YYYY-MM-DD", help="Override auto creation date (default: today)"
+    )
+    ar.add_argument(
+        "--updated", metavar="YYYY-MM-DD", help="Override auto updated date (default: today)"
+    )
     ar.add_argument("--result")
     ar.add_argument("--notes")
     ar.add_argument("--source", action="append", metavar="SRC")
@@ -197,7 +222,8 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     ss.add_argument("target")
     ss.add_argument("status", choices=["pending", "captured", "nrc", "done"])
     ss.add_argument(
-        "--type", choices=["scan", "decode", "verify", "iocontrol_scan"],
+        "--type",
+        choices=["scan", "decode", "verify", "iocontrol_scan"],
         help="Disambiguate when multiple items share the target",
     )
     _add_common(ss)

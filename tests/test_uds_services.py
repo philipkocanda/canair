@@ -50,9 +50,7 @@ class TestServiceResponseName:
         assert service_response_name(0x2F + RESPONSE_SID_OFFSET) == (
             "InputOutputControlByIdentifier (response)"
         )
-        assert service_response_name(0x70) == (
-            "InputOutputControlByLocalIdentifier (response)"
-        )
+        assert service_response_name(0x70) == ("InputOutputControlByLocalIdentifier (response)")
 
     def test_negative_response_marker(self):
         assert service_response_name(0x7F) == "NegativeResponse"

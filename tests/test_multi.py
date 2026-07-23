@@ -260,7 +260,10 @@ class TestExecQueryTimestamp:
 
     def test_acquired_at_attached_per_pid(self):
         ecu_index = {
-            "MCU": {"tx_id": 0x7E3, "pids": {"2101": {"parameters": {}}, "2102": {"parameters": {}}}}
+            "MCU": {
+                "tx_id": 0x7E3,
+                "pids": {"2101": {"parameters": {}}, "2102": {"parameters": {}}},
+            }
         }
         sm = self._make_sm(latency=0.02)
         _label, results = asyncio.run(

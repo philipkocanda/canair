@@ -107,21 +107,29 @@ def load_captures(ecu: str, pid: str) -> list[dict]:
                 payload = cap.get("payload")
                 if not payload:
                     continue
-                entries.append({
-                    "file": fpath.name,
-                    "date": str(date),
-                    "label": label,
-                    "vehicle_states": list(vehicle_states),
-                    "payload": payload,
-                    "notes": cap.get("notes", ""),
-                    "time": cap.get("time", ""),
-                })
+                entries.append(
+                    {
+                        "file": fpath.name,
+                        "date": str(date),
+                        "label": label,
+                        "vehicle_states": list(vehicle_states),
+                        "payload": payload,
+                        "notes": cap.get("notes", ""),
+                        "time": cap.get("time", ""),
+                    }
+                )
     return entries
 
 
 def scope_captures(
-    entries: list[dict], *, since=None, until=None, state=None, label=None,
-    first=None, last=None,
+    entries: list[dict],
+    *,
+    since=None,
+    until=None,
+    state=None,
+    label=None,
+    first=None,
+    last=None,
 ) -> list[dict]:
     """Apply date/state/label range and first/last slicing to loaded captures.
 
@@ -143,7 +151,7 @@ def scope_captures(
 def payload_to_wican_bytes(payload_hex: str) -> bytes:
     """Convert raw UDS payload hex to WiCAN frame bytes (with PCI inserted)."""
     payload_hex = payload_hex.replace(" ", "")
-    payload_bytes = [int(payload_hex[i:i+2], 16) for i in range(0, len(payload_hex), 2)]
+    payload_bytes = [int(payload_hex[i : i + 2], 16) for i in range(0, len(payload_hex), 2)]
     frame = payload_to_wican_frame(payload_bytes)
     return bytes(b for b, _ in frame)
 
@@ -250,8 +258,7 @@ def print_compact(
         shown params) to the previous printed row — collapsing stationary runs.
     """
     # Only params that actually appear in the decoded results, in definition order.
-    present = [n for n in param_names
-               if any(n in r["decoded"] for r in all_results)]
+    present = [n for n in param_names if any(n in r["decoded"] for r in all_results)]
     if not present:
         print(f"  {_DIM}(no decodable parameters in scope){_RESET}\n")
         return
@@ -261,20 +268,28 @@ def print_compact(
     headers = {n: (f"{n}[{units[n]}]" if units[n] else n) for n in present}
     widths = {}
     for n in present:
-        vals = [_compact_cell(r["decoded"].get(n, {}).get("value")) for r in all_results
-                if n in r["decoded"]]
+        vals = [
+            _compact_cell(r["decoded"].get(n, {}).get("value"))
+            for r in all_results
+            if n in r["decoded"]
+        ]
         widths[n] = max([len(headers[n]), *(len(v) for v in vals)] or [len(headers[n])])
 
     # Are all captures the same date? If so, rows show time only.
     dates = {r["capture"].get("date", "") for r in all_results}
     single_day = len(dates) <= 1
     day = next(iter(dates)) if single_day else ""
-    ts_w = max((len((r["capture"].get("time") or r["capture"].get("date") or ""))
-                for r in all_results), default=8)
+    ts_w = max(
+        (len((r["capture"].get("time") or r["capture"].get("date") or "")) for r in all_results),
+        default=8,
+    )
 
     def _colored_header(n: str) -> str:
-        color = _CYAN if n in candidate_names else (
-            _GREEN if parameters.get(n, {}).get("verified") else _YELLOW)
+        color = (
+            _CYAN
+            if n in candidate_names
+            else (_GREEN if parameters.get(n, {}).get("verified") else _YELLOW)
+        )
         return f"{color}{headers[n]:>{widths[n]}}{_RESET}"
 
     if single_day and day:
@@ -366,8 +381,10 @@ def print_value_ranges(
         is_cand = name in candidate_names
         verified = parameters[name].get("verified", False)
         mark = (
-            f"{_CYAN}»{_RESET}" if is_cand
-            else f"{_GREEN}✓{_RESET}" if verified
+            f"{_CYAN}»{_RESET}"
+            if is_cand
+            else f"{_GREEN}✓{_RESET}"
+            if verified
             else f"{_YELLOW}?{_RESET}"
         )
         try_tag = f"  {_CYAN}(try){_RESET}" if is_cand else ""
@@ -380,8 +397,11 @@ def print_value_ranges(
         ]
         if not values:
             err = next(
-                (r["decoded"][name]["error"] for r in all_results
-                 if name in r["decoded"] and r["decoded"][name].get("error")),
+                (
+                    r["decoded"][name]["error"]
+                    for r in all_results
+                    if name in r["decoded"] and r["decoded"][name].get("error")
+                ),
                 None,
             )
             msg = f"{_RED}ERROR: {err}{_RESET}" if err else f"{_DIM}no value{_RESET}"
@@ -393,11 +413,15 @@ def print_value_ranges(
         warn = check_range(mn, mm) or check_range(mx, mm)
         warn_str = f"  {_RED}⚠ {warn}{_RESET}" if warn else ""
         if mn == mx:
-            print(f"    {mark} {name:<{name_w}}  {format_value(mn, unit):>14}  "
-                  f"{_DIM}(constant){_RESET}{try_tag}{warn_str}")
+            print(
+                f"    {mark} {name:<{name_w}}  {format_value(mn, unit):>14}  "
+                f"{_DIM}(constant){_RESET}{try_tag}{warn_str}"
+            )
         else:
-            print(f"    {mark} {name:<{name_w}}  {format_value(mn, unit):>14} — "
-                  f"{format_value(mx, unit)}{try_tag}{warn_str}")
+            print(
+                f"    {mark} {name:<{name_w}}  {format_value(mn, unit):>14} — "
+                f"{format_value(mx, unit)}{try_tag}{warn_str}"
+            )
     print()
 
 
@@ -487,7 +511,9 @@ def compute_stats(values: list[float]) -> dict:
 def _mark_for(name: str, parameters: dict, candidate_names: set[str]) -> str:
     if name in candidate_names:
         return f"{_CYAN}»{_RESET}"
-    return f"{_GREEN}✓{_RESET}" if parameters[name].get("verified", False) else f"{_YELLOW}?{_RESET}"
+    return (
+        f"{_GREEN}✓{_RESET}" if parameters[name].get("verified", False) else f"{_YELLOW}?{_RESET}"
+    )
 
 
 def print_stats_table(
@@ -526,8 +552,11 @@ def print_stats_table(
 
 
 def print_stats_grouped(
-    all_results: list[dict], param_names: list[str], parameters: dict,
-    candidate_names: set[str], field: str,
+    all_results: list[dict],
+    param_names: list[str],
+    parameters: dict,
+    candidate_names: set[str],
+    field: str,
 ) -> None:
     """Per-group descriptive statistics: split captures by session ``field`` first.
 
@@ -561,8 +590,11 @@ def resolve_ref(ref: str, param_names: list[str]) -> str | None:
 
 
 def print_correlations(
-    all_results: list[dict], param_names: list[str], parameters: dict,
-    candidate_names: set[str], ref: str,
+    all_results: list[dict],
+    param_names: list[str],
+    parameters: dict,
+    candidate_names: set[str],
+    ref: str,
 ) -> None:
     """Pearson correlation of every parameter against ``ref`` across captures.
 
@@ -606,19 +638,26 @@ def print_correlations(
 
 # name, byte width, kind ("int"/"float"), signed (ints only)
 INSPECT_TYPES = [
-    ("u8", 1, "int", False), ("i8", 1, "int", True),
-    ("u16", 2, "int", False), ("i16", 2, "int", True),
-    ("u24", 3, "int", False), ("i24", 3, "int", True),
-    ("u32", 4, "int", False), ("i32", 4, "int", True),
-    ("u64", 8, "int", False), ("i64", 8, "int", True),
-    ("f16", 2, "float", True), ("f32", 4, "float", True), ("f64", 8, "float", True),
+    ("u8", 1, "int", False),
+    ("i8", 1, "int", True),
+    ("u16", 2, "int", False),
+    ("i16", 2, "int", True),
+    ("u24", 3, "int", False),
+    ("i24", 3, "int", True),
+    ("u32", 4, "int", False),
+    ("i32", 4, "int", True),
+    ("u64", 8, "int", False),
+    ("i64", 8, "int", True),
+    ("f16", 2, "float", True),
+    ("f32", 4, "float", True),
+    ("f64", 8, "float", True),
 ]
 
 POST_TRANSFORMS = ("raw", "delta", "abs", "cumsum", "normalize", "smooth")
 
-_V_AXIS = "\u2502"   # box vertical
-_CORNER = "\u2514"   # box corner
-_HLINE = "\u2500"    # box horizontal
+_V_AXIS = "\u2502"  # box vertical
+_CORNER = "\u2514"  # box corner
+_HLINE = "\u2500"  # box horizontal
 
 
 def interpret_bytes(frame: bytes, offset: int, spec: tuple, little: bool = False) -> float | None:
@@ -630,11 +669,12 @@ def interpret_bytes(frame: bytes, offset: int, spec: tuple, little: bool = False
     _, width, kind, signed = spec
     if offset < 0 or offset + width > len(frame):
         return None
-    bs = frame[offset:offset + width]
+    bs = frame[offset : offset + width]
     if kind == "int":
         order = "little" if (little and width > 1) else "big"
         return float(int.from_bytes(bs, order, signed=signed))
     import struct
+
     fmt = {2: "e", 4: "f", 8: "d"}[width]
     try:
         return float(struct.unpack(("<" if little else ">") + fmt, bs)[0])
@@ -717,8 +757,7 @@ class _Braille:
                 x0, y0 = prev
                 steps = max(abs(px - x0), abs(py - y0), 1)
                 for s in range(steps + 1):
-                    self._set(round(x0 + (px - x0) * s / steps),
-                              round(y0 + (py - y0) * s / steps))
+                    self._set(round(x0 + (px - x0) * s / steps), round(y0 + (py - y0) * s / steps))
             else:
                 self._set(px, py)
             prev = (px, py)
@@ -731,12 +770,19 @@ def _to_pixels(values: list[float], w: int, h: int, lo: float, hi: float) -> lis
     span = hi - lo or 1.0
     px_max, py_max = 2 * w - 1, 4 * h - 1
     den = max(len(values) - 1, 1)
-    return [(round(i / den * px_max), round((1 - (v - lo) / span) * py_max))
-            for i, v in enumerate(values)]
+    return [
+        (round(i / den * px_max), round((1 - (v - lo) / span) * py_max))
+        for i, v in enumerate(values)
+    ]
 
 
-def render_plot(values: list[float], ref: list[float] | None = None,
-                width: int = 74, height: int = 16, caption: str | None = None) -> list[str]:
+def render_plot(
+    values: list[float],
+    ref: list[float] | None = None,
+    width: int = 74,
+    height: int = 16,
+    caption: str | None = None,
+) -> list[str]:
     """Render a braille line chart (list of rows) with a y-axis min/max gutter.
 
     When ``ref`` is given, both series are normalized to [0,1] and overlaid
@@ -795,8 +841,9 @@ def _window(seq: list, xlo: float, xhi: float) -> tuple[list, int, int]:
     return seq[i0:i1], i0, i1
 
 
-def _mapping_for_offset(defined_params: dict, offset: int, width: int,
-                        current_expr: str | None) -> tuple[list, list]:
+def _mapping_for_offset(
+    defined_params: dict, offset: int, width: int, current_expr: str | None
+) -> tuple[list, list]:
     """Which defined parameters read the byte range ``[offset, offset+width)``.
 
     Returns ``(exact, overlap)`` lists of ``(name, expression, verified)``:
@@ -828,7 +875,7 @@ def _pci_positions(payload_hex: str) -> set[int]:
     """WiCAN byte indices that are ISO-TP PCI bytes for a payload (role is None)."""
     ph = payload_hex.replace(" ", "")
     try:
-        pb = [int(ph[i:i + 2], 16) for i in range(0, len(ph), 2)]
+        pb = [int(ph[i : i + 2], 16) for i in range(0, len(ph), 2)]
         frame = payload_to_wican_frame(pb)
     except Exception:
         return set()
@@ -837,14 +884,17 @@ def _pci_positions(payload_hex: str) -> set[int]:
 
 def _read_key(fd: int) -> str:
     import os
+
     return os.read(fd, 16).decode("utf-8", errors="ignore")
 
 
 def _series_stats_str(values: list[float]) -> str:
     if not values:
         return "n=0"
-    return (f"n={len(values)}  min={_fmt_num(min(values))} max={_fmt_num(max(values))} "
-            f"mean={_fmt_num(_mean(values))}")
+    return (
+        f"n={len(values)}  min={_fmt_num(min(values))} max={_fmt_num(max(values))} "
+        f"mean={_fmt_num(_mean(values))}"
+    )
 
 
 def _cap_ts(cap: dict) -> str:
@@ -870,8 +920,15 @@ def _cycle_overlay(overlay_ref: str | None, ov_cycle: list) -> str | None:
     return ov_cycle[(idx + 1) % len(ov_cycle)]
 
 
-def _info_lines(ecu_key: str, pid_key: str, caps_view: list[dict], i0: int,
-                total: int, ts_range: str, max_rows: int) -> list[str]:
+def _info_lines(
+    ecu_key: str,
+    pid_key: str,
+    caps_view: list[dict],
+    i0: int,
+    total: int,
+    ts_range: str,
+    max_rows: int,
+) -> list[str]:
     """Modal body: list the captures backing the current view (date/state/label/notes/file)."""
     out = [
         f"{_BOLD}{ecu_key} {pid_key}{_RESET}  {_DIM}·  captures in view{_RESET}",
@@ -883,20 +940,31 @@ def _info_lines(ecu_key: str, pid_key: str, caps_view: list[dict], i0: int,
         state = _join_states(cap.get("vehicle_states"))
         label = cap.get("label", "")
         meta = "  ".join(x for x in [f"[{state}]" if state else "", label] if x)
-        out.append(f"  {_CYAN}{i0 + n:>4}{_RESET}  {_BOLD}{_cap_ts(cap) or '?':<20}{_RESET}  "
-                   f"{_DIM}{cap.get('file', '')}{_RESET}" + (f"  {meta}" if meta else ""))
+        out.append(
+            f"  {_CYAN}{i0 + n:>4}{_RESET}  {_BOLD}{_cap_ts(cap) or '?':<20}{_RESET}  "
+            f"{_DIM}{cap.get('file', '')}{_RESET}" + (f"  {meta}" if meta else "")
+        )
         notes = (cap.get("notes", "") or "").replace("\n", " ").strip()
         if notes:
             out.append(f"        {_DIM}{notes[:100]}{_RESET}")
     if len(caps_view) > max_rows:
-        out.append(f"  {_DIM}... and {len(caps_view) - max_rows} more — "
-                   f"zoom in (+ or ,/.) to narrow the window{_RESET}")
+        out.append(
+            f"  {_DIM}... and {len(caps_view) - max_rows} more — "
+            f"zoom in (+ or ,/.) to narrow the window{_RESET}"
+        )
     return out
 
 
-def cmd_plot(all_results: list[dict], param_names: list[str], parameters: dict,
-             candidate_names: set[str], corr_ref: str | None,
-             ecu_key: str, pid_key: str, defined_params: dict | None = None) -> None:
+def cmd_plot(
+    all_results: list[dict],
+    param_names: list[str],
+    parameters: dict,
+    candidate_names: set[str],
+    corr_ref: str | None,
+    ecu_key: str,
+    pid_key: str,
+    defined_params: dict | None = None,
+) -> None:
     """Interactive signal explorer: sweep byte interpretations / params and plot.
 
     Byte mode is the ImHex-style inspector (offset x type x endianness over the
@@ -916,14 +984,19 @@ def cmd_plot(all_results: list[dict], param_names: list[str], parameters: dict,
         except Exception:
             frames.append(None)
     valid = [f for f in frames if f]
-    longest_payload = max((r["capture"]["payload"] for r in all_results
-                           if r["capture"].get("payload")), key=len, default="")
+    longest_payload = max(
+        (r["capture"]["payload"] for r in all_results if r["capture"].get("payload")),
+        key=len,
+        default="",
+    )
     pci = _pci_positions(longest_payload)
     max_off = (max((len(f) for f in valid), default=1)) - 1
 
-    plottable_params = [n for n in param_names
-                        if len([1 for r in all_results
-                                if r["decoded"].get(n, {}).get("value") is not None]) >= 2]
+    plottable_params = [
+        n
+        for n in param_names
+        if len([1 for r in all_results if r["decoded"].get(n, {}).get("value") is not None]) >= 2
+    ]
 
     # Overlay reference is selectable at runtime (cycled with `o`), seeded by
     # --corr when given. Any numeric param can be overlaid — no --corr required.
@@ -935,14 +1008,14 @@ def cmd_plot(all_results: list[dict], param_names: list[str], parameters: dict,
 
     # ---- state ----
     mode = "bytes" if valid else "param"
-    offset = min(max_off, 3)           # skip PCI/SID/echo by default
-    ti = 0                              # INSPECT_TYPES index
+    offset = min(max_off, 3)  # skip PCI/SID/echo by default
+    ti = 0  # INSPECT_TYPES index
     little = False
-    tmode = "raw"                       # post-transform
-    pi = 0                              # param index (param mode)
-    overlay_ref = corr_ref              # overlay reference param (None = off)
-    xlo, xhi = 0.0, 1.0                 # fractional x-axis window (zoom/pan)
-    show_info = False                   # captures-in-view modal
+    tmode = "raw"  # post-transform
+    pi = 0  # param index (param mode)
+    overlay_ref = corr_ref  # overlay reference param (None = off)
+    xlo, xhi = 0.0, 1.0  # fractional x-axis window (zoom/pan)
+    show_info = False  # captures-in-view modal
 
     def frame_lines() -> list[str]:
         spec = INSPECT_TYPES[ti]
@@ -971,8 +1044,10 @@ def cmd_plot(all_results: list[dict], param_names: list[str], parameters: dict,
                 map_line = f"  {_DIM}unmapped{_RESET}"
         else:
             if not plottable_params:
-                return [f"{_BOLD}{ecu_key} {pid_key}{_RESET}",
-                        "  No numeric parameters to plot — press m for byte mode."]
+                return [
+                    f"{_BOLD}{ecu_key} {pid_key}{_RESET}",
+                    "  No numeric parameters to plot — press m for byte mode.",
+                ]
             name = plottable_params[pi % len(plottable_params)]
             per_cap = [r["decoded"].get(name, {}).get("value") for r in all_results]
             expr_line = f"expr: {parameters.get(name, {}).get('expression', '')}"
@@ -980,24 +1055,31 @@ def cmd_plot(all_results: list[dict], param_names: list[str], parameters: dict,
 
         # Overlay reference resolved from runtime state (cycled with `o`).
         overlay = overlay_ref is not None
-        ref_per_cap = ([r["decoded"].get(overlay_ref, {}).get("value") for r in all_results]
-                       if overlay else None)
+        ref_per_cap = (
+            [r["decoded"].get(overlay_ref, {}).get("value") for r in all_results]
+            if overlay
+            else None
+        )
 
         # Drop missing (None) and non-finite (NaN/Inf) values — float byte
         # interpretations routinely yield NaN/Inf, which can't be plotted or
         # averaged. Keep each retained value's capture aligned for the modal.
         caps_all = [r["capture"] for r in all_results]
         if overlay and ref_per_cap is not None:
-            triples = [(cap, rf, cv)
-                       for cap, rf, cv in zip(caps_all, ref_per_cap, per_cap, strict=True)
-                       if rf is not None and cv is not None
-                       and math.isfinite(rf) and math.isfinite(cv)]
+            triples = [
+                (cap, rf, cv)
+                for cap, rf, cv in zip(caps_all, ref_per_cap, per_cap, strict=True)
+                if rf is not None and cv is not None and math.isfinite(rf) and math.isfinite(cv)
+            ]
             caps_full = [t[0] for t in triples]
             ref_full = [t[1] for t in triples]
             cur_full = apply_transform([t[2] for t in triples], tmode)
         else:
-            kept = [(cap, v) for cap, v in zip(caps_all, per_cap, strict=True)
-                    if v is not None and math.isfinite(v)]
+            kept = [
+                (cap, v)
+                for cap, v in zip(caps_all, per_cap, strict=True)
+                if v is not None and math.isfinite(v)
+            ]
             caps_full = [k[0] for k in kept]
             ref_full = None
             cur_full = apply_transform([k[1] for k in kept], tmode)
@@ -1020,15 +1102,21 @@ def cmd_plot(all_results: list[dict], param_names: list[str], parameters: dict,
 
         if overlay and refseries is not None:
             r = _pearson(refseries, series)
-            rstr = f"  {_CYAN}r={r:+.3f} vs {overlay_ref}{_RESET}" if r is not None \
+            rstr = (
+                f"  {_CYAN}r={r:+.3f} vs {overlay_ref}{_RESET}"
+                if r is not None
                 else f"  {_DIM}r=n/a vs {overlay_ref}{_RESET}"
+            )
         else:
             rstr = ""
 
         zoomed = (i0, i1) != (0, total)
-        caption = (f"captures {i0}-{i1 - 1} of {total}" if total else "no data") \
-            + f"  ·  {ts_range}" + ("  (zoomed)" if zoomed else "") \
+        caption = (
+            (f"captures {i0}-{i1 - 1} of {total}" if total else "no data")
+            + f"  ·  {ts_range}"
+            + ("  (zoomed)" if zoomed else "")
             + ("  · normalized 0-1" if overlay else "")
+        )
 
         out = [
             f"{_BOLD}{ecu_key} {pid_key}{_RESET}  {_DIM}·  {mode} mode{_RESET}",
@@ -1063,10 +1151,14 @@ def cmd_plot(all_results: list[dict], param_names: list[str], parameters: dict,
         while True:
             sys.stdout.write("\033[2J\033[H")
             sys.stdout.write("\r\n".join(frame_lines()))
-            common = "  +/- zoom · ,/. pan · 0 reset-x · f transform · o overlay · i captures · q quit"
-            hint = ("←/→ offset · t/T type · e endian · m param" + common
-                    if mode == "bytes"
-                    else "←/→ param · m bytes" + common)
+            common = (
+                "  +/- zoom · ,/. pan · 0 reset-x · f transform · o overlay · i captures · q quit"
+            )
+            hint = (
+                "←/→ offset · t/T type · e endian · m param" + common
+                if mode == "bytes"
+                else "←/→ param · m bytes" + common
+            )
             sys.stdout.write(f"\r\n\r\n  {_DIM}{hint}{_RESET}\r\n")
             if status:
                 sys.stdout.write(f"  {_YELLOW}{status}{_RESET}\r\n")
@@ -1074,11 +1166,11 @@ def cmd_plot(all_results: list[dict], param_names: list[str], parameters: dict,
 
             status = ""
             k = _read_key(fd)
-            if k in ("i", "I"):                         # toggle captures-in-view modal
+            if k in ("i", "I"):  # toggle captures-in-view modal
                 show_info = not show_info
             elif k in ("q", "Q", "\x03"):
                 break
-            elif k in ("\x1b", "\x1b\x1b"):             # Esc closes the modal, else quits
+            elif k in ("\x1b", "\x1b\x1b"):  # Esc closes the modal, else quits
                 if show_info:
                     show_info = False
                 else:
@@ -1103,26 +1195,26 @@ def cmd_plot(all_results: list[dict], param_names: list[str], parameters: dict,
                 tmode = POST_TRANSFORMS[(POST_TRANSFORMS.index(tmode) + 1) % len(POST_TRANSFORMS)]
             elif k == "m":
                 mode = "param" if mode == "bytes" else "bytes"
-            elif k in ("o", "O"):                       # cycle overlay reference param
+            elif k in ("o", "O"):  # cycle overlay reference param
                 if len(ov_cycle) > 1:
                     overlay_ref = _cycle_overlay(overlay_ref, ov_cycle)
                     status = f"overlay: {overlay_ref}" if overlay_ref else "overlay: off"
                 else:
                     status = "no numeric param to overlay (define one or use --try)"
-            elif k in ("+", "="):                       # zoom in (halve window)
+            elif k in ("+", "="):  # zoom in (halve window)
                 c, half = (xlo + xhi) / 2, (xhi - xlo) / 4
                 if (xhi - xlo) > 0.02:
                     xlo, xhi = max(0.0, c - half), min(1.0, c + half)
-            elif k in ("-", "_"):                       # zoom out (double window)
+            elif k in ("-", "_"):  # zoom out (double window)
                 c, half = (xlo + xhi) / 2, (xhi - xlo)
                 xlo, xhi = max(0.0, c - half), min(1.0, c + half)
-            elif k in (",", "<"):                       # pan left
+            elif k in (",", "<"):  # pan left
                 d = min(xlo, 0.1 * (xhi - xlo))
                 xlo, xhi = xlo - d, xhi - d
-            elif k in (".", ">"):                       # pan right
+            elif k in (".", ">"):  # pan right
                 d = min(1.0 - xhi, 0.1 * (xhi - xlo))
                 xlo, xhi = xlo + d, xhi + d
-            elif k == "0":                              # reset x-window
+            elif k == "0":  # reset x-window
                 xlo, xhi = 0.0, 1.0
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old)
@@ -1144,38 +1236,63 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     parser.add_argument(
         "pid", nargs="?", help="PID code (e.g., 2101, 22BC03)"
     ).completer = _pid_completer
-    parser.add_argument("--param", nargs="+", metavar="NAME",
-                        help="Show only specific parameters")
-    parser.add_argument("--verified", action="store_true",
-                        help="Show only verified parameters")
-    parser.add_argument("--unverified", action="store_true",
-                        help="Show only unverified parameters")
-    parser.add_argument("--json", action="store_true",
-                        help="Output as JSON (per-capture decoded values)")
-    parser.add_argument("--compact", action="store_true",
-                        help="One line per capture (chronological param=value pairs)")
-    parser.add_argument("--changes-only", "-c", action="store_true",
-                        help="With --compact: skip rows where all shown params are "
-                             "unchanged from the previous row (collapses stationary runs)")
-    parser.add_argument("--stats", action="store_true",
-                        help="Descriptive statistics per param (n, distinct, mean, median, stdev)")
-    parser.add_argument("--group-by", choices=["state", "vehicle_states"], metavar="FIELD",
-                        help="With --stats: compute statistics per session FIELD "
-                             "(currently 'state') instead of pooling all captures")
-    parser.add_argument("--first", type=int, metavar="N",
-                        help="Only the first N matching captures (chronological)")
-    parser.add_argument("--last", type=int, metavar="N",
-                        help="Only the last N matching captures (chronological)")
-    parser.add_argument("--corr", metavar="PARAM",
-                        help="Correlate every param (incl. --try) against PARAM (Pearson r)")
-    parser.add_argument("--plot", action="store_true",
-                        help="Interactive signal explorer: sweep byte interpretations "
-                             "(u8/i16/f32/... and endianness) and params, plot across captures, "
-                             "apply transforms (delta/abs/normalize/...), zoom/pan the x-axis, "
-                             "overlay a --corr signal, and flag bytes already mapped by a param")
-    parser.add_argument("--try", dest="try_expr", action="append", metavar="NAME[:unit]=EXPR",
-                        help="Evaluate a candidate expression against captures without editing "
-                             "YAML (repeatable; works even if the PID has no params defined yet)")
+    parser.add_argument("--param", nargs="+", metavar="NAME", help="Show only specific parameters")
+    parser.add_argument("--verified", action="store_true", help="Show only verified parameters")
+    parser.add_argument("--unverified", action="store_true", help="Show only unverified parameters")
+    parser.add_argument(
+        "--json", action="store_true", help="Output as JSON (per-capture decoded values)"
+    )
+    parser.add_argument(
+        "--compact",
+        action="store_true",
+        help="One line per capture (chronological param=value pairs)",
+    )
+    parser.add_argument(
+        "--changes-only",
+        "-c",
+        action="store_true",
+        help="With --compact: skip rows where all shown params are "
+        "unchanged from the previous row (collapses stationary runs)",
+    )
+    parser.add_argument(
+        "--stats",
+        action="store_true",
+        help="Descriptive statistics per param (n, distinct, mean, median, stdev)",
+    )
+    parser.add_argument(
+        "--group-by",
+        choices=["state", "vehicle_states"],
+        metavar="FIELD",
+        help="With --stats: compute statistics per session FIELD "
+        "(currently 'state') instead of pooling all captures",
+    )
+    parser.add_argument(
+        "--first", type=int, metavar="N", help="Only the first N matching captures (chronological)"
+    )
+    parser.add_argument(
+        "--last", type=int, metavar="N", help="Only the last N matching captures (chronological)"
+    )
+    parser.add_argument(
+        "--corr",
+        metavar="PARAM",
+        help="Correlate every param (incl. --try) against PARAM (Pearson r)",
+    )
+    parser.add_argument(
+        "--plot",
+        action="store_true",
+        help="Interactive signal explorer: sweep byte interpretations "
+        "(u8/i16/f32/... and endianness) and params, plot across captures, "
+        "apply transforms (delta/abs/normalize/...), zoom/pan the x-axis, "
+        "overlay a --corr signal, and flag bytes already mapped by a param",
+    )
+    parser.add_argument(
+        "--try",
+        dest="try_expr",
+        action="append",
+        metavar="NAME[:unit]=EXPR",
+        help="Evaluate a candidate expression against captures without editing "
+        "YAML (repeatable; works even if the PID has no params defined yet)",
+    )
     add_scope_args(parser)
     parser.set_defaults(func=run)
     return parser
@@ -1241,7 +1358,9 @@ def run(args) -> int:
         if pid_key in ecu_pids:
             parameters = ecu_pids[pid_key]["parameters"]
         elif not tolerate_missing:
-            print(f"PID '{args.pid}' not found for {ecu_key}. Available: {', '.join(sorted(ecu_pids))}")
+            print(
+                f"PID '{args.pid}' not found for {ecu_key}. Available: {', '.join(sorted(ecu_pids))}"
+            )
             return 1
     elif not tolerate_missing:
         print(f"ECU '{args.ecu}' not found in ecus/. Available: {', '.join(sorted(ecu_index))}")
@@ -1270,8 +1389,12 @@ def run(args) -> int:
     # Scope arguments shared by every capture load in this run (date/state/label
     # range + first/last slice). Resolved once so all paths stay consistent.
     scope = {
-        "since": since, "until": until, "state": args.state, "label": args.label,
-        "first": args.first, "last": args.last,
+        "since": since,
+        "until": until,
+        "state": args.state,
+        "label": args.label,
+        "first": args.first,
+        "last": args.last,
     }
     scoped = any(v is not None for v in scope.values())
 
@@ -1285,18 +1408,25 @@ def run(args) -> int:
         if defined_params:
             # Params exist for this PID; the active --param/--verified/--unverified
             # filters just excluded them all.
-            print(f"No parameters match the filter criteria "
-                  f"({len(defined_params)} defined for {ecu_key} {pid_key}).")
+            print(
+                f"No parameters match the filter criteria "
+                f"({len(defined_params)} defined for {ecu_key} {pid_key})."
+            )
         elif caps:
             # Captured but not yet decoded — signpost the byte-level tools.
-            print(f"{_BOLD}{ecu_key} {pid_key}{_RESET} — no parameters defined yet, "
-                  f"but {len(caps)} capture(s) exist.")
-            print(f"  {_DIM}·{_RESET} Inspect raw bytes:  "
-                  f"query-captures.py {ecu_key} {pid_key} --diff")
-            print(f"  {_DIM}·{_RESET} Explore signals:    "
-                  f"decode.py {ecu_key} {pid_key} --plot")
-            print(f"  {_DIM}·{_RESET} Test a candidate:   "
-                  f"decode.py {ecu_key} {pid_key} --try \"NAME:unit=EXPR\"")
+            print(
+                f"{_BOLD}{ecu_key} {pid_key}{_RESET} — no parameters defined yet, "
+                f"but {len(caps)} capture(s) exist."
+            )
+            print(
+                f"  {_DIM}·{_RESET} Inspect raw bytes:  "
+                f"query-captures.py {ecu_key} {pid_key} --diff"
+            )
+            print(f"  {_DIM}·{_RESET} Explore signals:    decode.py {ecu_key} {pid_key} --plot")
+            print(
+                f"  {_DIM}·{_RESET} Test a candidate:   "
+                f'decode.py {ecu_key} {pid_key} --try "NAME:unit=EXPR"'
+            )
         else:
             # Neither defined nor captured.
             print(f"No parameters defined and no captures found for {ecu_key} {pid_key}.")
@@ -1307,8 +1437,7 @@ def run(args) -> int:
     if args.corr:
         corr_ref = resolve_ref(args.corr, list(parameters.keys()))
         if corr_ref is None:
-            print(f"--corr reference '{args.corr}' not found. "
-                  f"Available: {', '.join(parameters)}")
+            print(f"--corr reference '{args.corr}' not found. Available: {', '.join(parameters)}")
             return 1
 
     # Load captures (with any date/state/label/first/last scoping applied).
@@ -1326,23 +1455,35 @@ def run(args) -> int:
         try:
             wican_bytes = payload_to_wican_bytes(cap["payload"])
         except Exception as e:
-            all_results.append({
-                "capture": cap,
-                "decoded": {},
-                "error": f"payload parse error: {e}",
-            })
+            all_results.append(
+                {
+                    "capture": cap,
+                    "decoded": {},
+                    "error": f"payload parse error: {e}",
+                }
+            )
             continue
 
         decoded = decode_payload(wican_bytes, parameters)
-        all_results.append({
-            "capture": cap,
-            "decoded": decoded,
-        })
+        all_results.append(
+            {
+                "capture": cap,
+                "decoded": decoded,
+            }
+        )
 
     # Interactive signal explorer (byte interpretations + params + transforms).
     if args.plot:
-        cmd_plot(all_results, list(parameters.keys()), parameters,
-                 candidate_names, corr_ref, ecu_key, pid_key, defined_params=defined_params)
+        cmd_plot(
+            all_results,
+            list(parameters.keys()),
+            parameters,
+            candidate_names,
+            corr_ref,
+            ecu_key,
+            pid_key,
+            defined_params=defined_params,
+        )
         return 0
 
     if args.json:
@@ -1352,9 +1493,13 @@ def run(args) -> int:
             out: dict = {}
             if args.stats:
                 out["stats"] = {
-                    name: {k: v for k, v in compute_stats(_series(all_results, name)).items()
-                           if k != "values"}
-                    for name in param_names if _series(all_results, name)
+                    name: {
+                        k: v
+                        for k, v in compute_stats(_series(all_results, name)).items()
+                        if k != "values"
+                    }
+                    for name in param_names
+                    if _series(all_results, name)
                 }
             if corr_ref:
                 out["reference"] = corr_ref
@@ -1400,17 +1545,22 @@ def run(args) -> int:
     # Header
     n_verified = sum(1 for p in parameters.values() if p.get("verified", False))
     n_total = len(parameters)
-    try_note = f", {_CYAN}{len(candidate_names)} candidate (--try){_RESET}" if candidate_names else ""
-    print(f"\n{_BOLD}{ecu_key} PID {pid_key}{_RESET} — "
-          f"{n_total} parameters ({n_verified} verified, {n_total - n_verified} unverified){try_note}, "
-          f"{len(captures)} captures\n")
+    try_note = (
+        f", {_CYAN}{len(candidate_names)} candidate (--try){_RESET}" if candidate_names else ""
+    )
+    print(
+        f"\n{_BOLD}{ecu_key} PID {pid_key}{_RESET} — "
+        f"{n_total} parameters ({n_verified} verified, {n_total - n_verified} unverified){try_note}, "
+        f"{len(captures)} captures\n"
+    )
     scope_banner = _scope_banner(since, until, args.state, args.label, args.first, args.last)
     if scope_banner:
         print(f"  {_DIM}scope: {scope_banner}{_RESET}\n")
 
     if args.compact:
-        print_compact(all_results, param_names, parameters, candidate_names,
-                      changes_only=args.changes_only)
+        print_compact(
+            all_results, param_names, parameters, candidate_names, changes_only=args.changes_only
+        )
         return 0
 
     # Default view: parameter value ranges across all captures (validation-focused).

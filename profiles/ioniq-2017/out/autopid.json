@@ -282,9 +282,12 @@
         "VEHICLE_STATE_MAIN_RELAY_ON": "1-B11:5",
         "VEHICLE_STATE_POWER_ENABLE": "B11:6",
         "VEHICLE_STATE_LDC_ENABLED": "1-B11:7",
-        "DEBUG_MCU_STATE_FLAGS": "B12",
-        "CAR_READY": "B26:3",
-        "PARK_BRAKE": "B26:5"
+        "VCU_STATE_FLAGS_RAW": "B12",
+        "DEBUG_GEAR_STATE_FLAGS": "B26",
+        "GEAR_DRIVE": "B26:3",
+        "GEAR_PARK": "B26:5",
+        "VCU_INVERTER_ENABLED": "B23:2",
+        "VCU_POWER_STATE": "B25"
       }
     },
     {

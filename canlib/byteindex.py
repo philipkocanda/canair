@@ -206,7 +206,6 @@ def elm_to_wican_idx(elm_idx: int, payload_len: int) -> int:
     return isotp_to_wican(elm_idx)
 
 
-
 # ---------------------------------------------------------------------------
 # UDS payload → WiCAN frame reconstruction
 # ---------------------------------------------------------------------------

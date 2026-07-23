@@ -131,9 +131,7 @@ class TestModeRead:
 
     @pytest.mark.asyncio
     async def test_read_nrc(self, capsys):
-        t = FakeTerminal(
-            {"1902FF": {"ok": False, "nrc": 0x11, "nrc_desc": "serviceNotSupported"}}
-        )
+        t = FakeTerminal({"1902FF": {"ok": False, "nrc": 0x11, "nrc_desc": "serviceNotSupported"}})
         await dtc.mode_dtc_read(t, 0x7E4, protocol="uds", as_json=True)
         data = json.loads(capsys.readouterr().out)
         assert data["nrc"] == "0x11"
@@ -155,9 +153,7 @@ class TestModeRead:
 
     @pytest.mark.asyncio
     async def test_no_fallback_when_mask_already_08(self, capsys):
-        t = FakeTerminal(
-            {"190208": {"ok": False, "nrc": 0x31, "nrc_desc": "requestOutOfRange"}}
-        )
+        t = FakeTerminal({"190208": {"ok": False, "nrc": 0x31, "nrc_desc": "requestOutOfRange"}})
         await dtc.mode_dtc_read(t, 0x770, mask=0x08, protocol="uds", as_json=True)
         # No infinite/duplicate retry — one request only.
         assert t.sent == ["190208"]
@@ -257,7 +253,8 @@ class TestScanAll:
     async def test_scan_all_json(self, monkeypatch, capsys):
         # Registry: a UDS ECU (BCM 0x7A0) and a KWP ECU (BMS 0x7E4).
         monkeypatch.setattr(
-            dtc, "resolve_protocol",
+            dtc,
+            "resolve_protocol",
             lambda proto, tx: "kwp" if tx == 0x7E4 else "uds",
         )
         monkeypatch.setattr(
@@ -270,7 +267,7 @@ class TestScanAll:
         t = FakeTerminal(
             {
                 "1902FF": _ok("5902FF" + "0123002F"),  # BCM: 1 DTC
-                "1800FF00": _ok("5800"),               # BMS: clean
+                "1800FF00": _ok("5800"),  # BMS: clean
             }
         )
         await dtc.mode_dtc_scan_all(t, as_json=True)
@@ -278,7 +275,6 @@ class TestScanAll:
         assert data["scanned"] == 2
         assert data["with_dtcs"] == 1
         assert data["total_codes"] == 1
-        by_ecu = {r["ecu"]: r for r in data["results"]}
         assert any(r.get("count") == 1 for r in data["results"])
         assert any(r["protocol"] == "kwp" for r in data["results"])
 
@@ -322,9 +318,9 @@ class TestScanAll:
         t = FlakyTerminal({"1902FF": "5902FF0123002F"})
         await dtc.mode_dtc_scan_all(t, as_json=True, timeout=0.1, retry=True)
         data = json.loads(capsys.readouterr().out)
-        assert data["no_response"] == []      # recovered on retry
+        assert data["no_response"] == []  # recovered on retry
         assert data["with_dtcs"] == 1
-        assert "1001" in t.sent               # wake was attempted
+        assert "1001" in t.sent  # wake was attempted
 
     @pytest.mark.asyncio
     async def test_scan_all_no_retry_leaves_no_response(self, monkeypatch, capsys):
@@ -334,7 +330,7 @@ class TestScanAll:
         await dtc.mode_dtc_scan_all(t, as_json=True, timeout=0.1, retry=False)
         data = json.loads(capsys.readouterr().out)
         assert data["no_response"] == ["BCM (0x7A0)"]
-        assert "1001" not in t.sent           # no retry -> no wake
+        assert "1001" not in t.sent  # no retry -> no wake
 
     @pytest.mark.asyncio
     async def test_scan_all_dispatch_logs_by_default(self, monkeypatch, tmp_path, capsys):
@@ -422,4 +418,3 @@ class TestDispatchTransportAgnostic:
         await dispatch_mode(args, t, {}, "1.2.3.4")
         assert t.sent == ["14FFFFFF"]
         assert "cleared" in capsys.readouterr().out.lower()
-

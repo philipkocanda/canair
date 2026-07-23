@@ -17,7 +17,6 @@ from canlib.modes.kwp_iocontrol_scan import (
 )
 from canlib.pids_edit import append_iocontrol_discoveries_block
 
-
 # ── safety guard ─────────────────────────────────────────────────────────────
 
 

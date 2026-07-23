@@ -81,11 +81,7 @@ def query_ecu_error(query_steps: list[dict], pids_data: dict) -> str | None:
     if not unknown:
         return None
     available = ", ".join(sorted(ecu_index.keys()))
-    return (
-        f"unknown ECU(s) in query: {', '.join(unknown)}.\n"
-        f"  Available ECUs: {available}"
-    )
-
+    return f"unknown ECU(s) in query: {', '.join(unknown)}.\n  Available ECUs: {available}"
 
 
 # Cap how many history rows a single PID renders per cycle. With --keep-all a
@@ -435,7 +431,6 @@ class MonitorController:
         self.pids_data = load_pids(self.pids_dir)
         self._ecu_index = build_ecu_index(self.pids_data)
 
-
     async def setup(self, session_steps: list[dict] | None) -> None:
         """Build the ECU index, run one-shot session setup, start keepalives."""
         from ..pids import build_ecu_index
@@ -460,11 +455,17 @@ class MonitorController:
                 info = self._ecu_index.get(step["ecu"].upper())
                 if not info:
                     continue
-                plan = build_query_plan(info, step.get("pids", []), quiet=True,
-                                        include_static=self.include_static) or []
+                plan = (
+                    build_query_plan(
+                        info, step.get("pids", []), quiet=True, include_static=self.include_static
+                    )
+                    or []
+                )
                 if plan:
                     with contextlib.suppress(Exception):
-                        self.raw_client.read(step["ecu"].upper(), bytes.fromhex(plan[0][0]), timeout=3.0)
+                        self.raw_client.read(
+                            step["ecu"].upper(), bytes.fromhex(plan[0][0]), timeout=3.0
+                        )
             return
 
         from .multi import BatchState, _exec_session, _exec_skm_wake, build_query_plan
@@ -488,8 +489,12 @@ class MonitorController:
             info = self._ecu_index.get(step["ecu"].upper())
             if not info:
                 continue
-            plan = build_query_plan(info, step.get("pids", []), quiet=True,
-                                    include_static=self.include_static) or []
+            plan = (
+                build_query_plan(
+                    info, step.get("pids", []), quiet=True, include_static=self.include_static
+                )
+                or []
+            )
             if plan:
                 with contextlib.suppress(Exception):
                     await self.sm.terminal.set_header(info["tx_id"])
@@ -631,8 +636,12 @@ class MonitorController:
             info = self._ecu_index.get(ecu)
             if info is None:
                 continue
-            plan = build_query_plan(info, step.get("pids", []), quiet=True,
-                                    include_static=self.include_static) or []
+            plan = (
+                build_query_plan(
+                    info, step.get("pids", []), quiet=True, include_static=self.include_static
+                )
+                or []
+            )
             plan_by_ecu.append((ecu, info["tx_id"], plan))
             batchable = info.get("multi_did", False) and ecu not in self._raw_nobatch
             i, n = 0, len(plan)

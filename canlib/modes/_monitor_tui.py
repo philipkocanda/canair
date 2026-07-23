@@ -215,7 +215,6 @@ class MonitorApp(App):
         self._flash_msg = ""
         self._flash_expires = 0.0
 
-
     # -- layout ------------------------------------------------------------
     def compose(self) -> ComposeResult:
         with VerticalScroll(id="scroll"):
@@ -324,7 +323,9 @@ class MonitorApp(App):
         """Second status line: current selection, active filter, and edit keys."""
         ed = self._editor()
         if ed is None:
-            return "[dim]↑↓/jk PgUp/PgDn g/G · f follow · space pause · r rulers · s save · q quit[/]"
+            return (
+                "[dim]↑↓/jk PgUp/PgDn g/G · f follow · space pause · r rulers · s save · q quit[/]"
+            )
         filt = getattr(ed, "filter_mode", "all")
         filt_txt = f"[cyan]{filt}[/]" if filt != "all" else "[dim]all[/]"
         sel = ""

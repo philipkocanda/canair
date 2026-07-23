@@ -134,9 +134,7 @@ def _validate_state_list(value, label: str, field: str, errors: list, allowed: s
         return
     for v in value:
         if v not in allowed:
-            errors.append(
-                f"{label}: invalid {field} value '{v}' (allowed: {sorted(allowed)})"
-            )
+            errors.append(f"{label}: invalid {field} value '{v}' (allowed: {sorted(allowed)})")
     if len(value) != len(set(value)):
         errors.append(f"{label}: duplicate {field} values")
 
@@ -166,7 +164,12 @@ def validate_ecu_file(
     scan_log_fields = set((schema.get("scan_log_entry_fields", {}) or {}).get("optional", []))
     dtcs_fields = set((schema.get("dtcs_fields", {}) or {}).get("optional", []))
     sessions_fields = set((schema.get("sessions_fields", {}) or {}).get("optional", []))
-    valid_pid_status = set(schema.get("valid_pid_status", [])) or {"active", "draft", "static", "ignored"}
+    valid_pid_status = set(schema.get("valid_pid_status", [])) or {
+        "active",
+        "draft",
+        "static",
+        "ignored",
+    }
 
     errors = []
     warnings = []
@@ -222,8 +225,11 @@ def validate_ecu_file(
                 "vehicle_states (run scripts/migrate_states_status.py)"
             )
         _validate_state_list(
-            ecu_def.get("vehicle_states"), f"{path.name}/{ecu_name}",
-            "vehicle_states", errors, allowed_states_set,
+            ecu_def.get("vehicle_states"),
+            f"{path.name}/{ecu_name}",
+            "vehicle_states",
+            errors,
+            allowed_states_set,
         )
 
         # Validate tx_id
@@ -234,8 +240,14 @@ def validate_ecu_file(
 
         # Validate identity block
         _validate_identity(
-            ecu_def, path, ecu_name, identity_fields, valid_protocols,
-            valid_confidence, errors, warnings,
+            ecu_def,
+            path,
+            ecu_name,
+            identity_fields,
+            valid_protocols,
+            valid_confidence,
+            errors,
+            warnings,
         )
 
         # Validate scan_log
@@ -300,8 +312,10 @@ def validate_ecu_file(
             # Validate vehicle_states
             _validate_state_list(
                 pid_def.get("vehicle_states"),
-                f"{path.name}/{ecu_name}/{pid_str}", "vehicle_states",
-                errors, allowed_states_set,
+                f"{path.name}/{ecu_name}/{pid_str}",
+                "vehicle_states",
+                errors,
+                allowed_states_set,
             )
 
             # Ignored PIDs — count and skip parameter validation
@@ -391,7 +405,9 @@ def validate_ecu_file(
                     _validate_state_list(
                         did_def.get("vehicle_states"),
                         f"{path.name}/{ecu_name}/iocontrol/{did_str}",
-                        "vehicle_states", errors, allowed_states_set,
+                        "vehicle_states",
+                        errors,
+                        allowed_states_set,
                     )
                     stats["iocontrol"] += 1
 
@@ -467,8 +483,11 @@ def validate_ecu_file(
 
                     # Validate vehicle_states
                     _validate_state_list(
-                        entry.get("vehicle_states"), label, "vehicle_states",
-                        errors, allowed_states_set,
+                        entry.get("vehicle_states"),
+                        label,
+                        "vehicle_states",
+                        errors,
+                        allowed_states_set,
                     )
 
                     stats["research"] += 1
@@ -478,9 +497,7 @@ def validate_ecu_file(
         # with 4-hex-digit DID keys, or KWP2000 0x30 IOCP 00 with 2-hex-digit LID
         # keys). Each entry maps an id to
         # {session, response, nrc, nrc_desc, label, verified, notes}.
-        _validate_hit_section(
-            ecu_def, "routines", path, ecu_name, errors, warnings, stats
-        )
+        _validate_hit_section(ecu_def, "routines", path, ecu_name, errors, warnings, stats)
         _validate_hit_section(
             ecu_def,
             "iocontrol_discoveries",
@@ -495,8 +512,14 @@ def validate_ecu_file(
 
 
 def _validate_identity(
-    ecu_def, path, ecu_name, identity_fields, valid_protocols, valid_confidence,
-    errors, warnings,
+    ecu_def,
+    path,
+    ecu_name,
+    identity_fields,
+    valid_protocols,
+    valid_confidence,
+    errors,
+    warnings,
 ) -> None:
     """Validate the ECU's identity: block (field names, id_protocol, confidence)."""
     identity = ecu_def.get("identity")
@@ -642,8 +665,7 @@ def _validate_hit_section(
         rsession = entry.get("session")
         if rsession is not None and rsession not in valid_sessions:
             errors.append(
-                f"{label}: invalid session '{rsession}' "
-                f"(allowed: {sorted(valid_sessions)})"
+                f"{label}: invalid session '{rsession}' (allowed: {sorted(valid_sessions)})"
             )
         has_resp = bool(entry.get("response"))
         has_nrc = entry.get("nrc") is not None
@@ -815,8 +837,7 @@ def _duplicate_name_errors(file_paths: list[Path]) -> list[str]:
                 key = str(nm).upper()
                 if key in seen and seen[key] != fpath.name:
                     errors.append(
-                        f"duplicate ECU name/alias '{nm}' in {fpath.name} "
-                        f"(also {seen[key]})"
+                        f"duplicate ECU name/alias '{nm}' in {fpath.name} (also {seen[key]})"
                     )
                 else:
                     seen[key] = fpath.name
@@ -886,7 +907,9 @@ def validate_captures_file(
                 except ValueError:
                     errors.append(f"sessions[{si}]: date '{date}' is not a valid calendar date")
                 if path.stem != date:
-                    errors.append(f"sessions[{si}]: date '{date}' doesn't match filename '{path.stem}'")
+                    errors.append(
+                        f"sessions[{si}]: date '{date}' doesn't match filename '{path.stem}'"
+                    )
 
             for ci, cap in enumerate(session.get("captures", []) or []):
                 if not isinstance(cap, dict):
@@ -1052,9 +1075,7 @@ def add_parser(subparsers):
     parser.add_argument(
         "files", nargs="*", help="Specific ecus/ files (only with target=pids/ecus)"
     )
-    parser.add_argument(
-        "--stats", action="store_true", help="Show parameter statistics (pids)"
-    )
+    parser.add_argument("--stats", action="store_true", help="Show parameter statistics (pids)")
     parser.set_defaults(func=run)
     return parser
 

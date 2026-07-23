@@ -149,9 +149,7 @@ def resolve_transport(args=None) -> TransportConfig:
 
     ttype = arg("transport") or block.get("type") or DEFAULT_TRANSPORT
     if ttype not in VALID_TRANSPORTS:
-        raise TransportError(
-            f"Unknown transport '{ttype}'. Valid: {', '.join(VALID_TRANSPORTS)}."
-        )
+        raise TransportError(f"Unknown transport '{ttype}'. Valid: {', '.join(VALID_TRANSPORTS)}.")
 
     # The wican-ws ELM327 terminal is a WiCAN Pro-only feature; the classic
     # (non-Pro) WiCAN only speaks raw SLCAN. Refuse it early with a clear hint.

@@ -31,7 +31,7 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 _STATE_DIR = Path("/tmp")
@@ -83,7 +83,7 @@ class ScanStateWriter:
         self._end = end
         self._write_every = write_every
         self._probe_count = 0
-        self._started = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        self._started = datetime.now(UTC).isoformat(timespec="seconds")
 
     def open(self) -> None:
         """Write the initial state file."""
@@ -120,7 +120,7 @@ class ScanStateWriter:
         except OSError:
             pass
 
-    def __enter__(self) -> "ScanStateWriter":
+    def __enter__(self) -> ScanStateWriter:
         self.open()
         return self
 

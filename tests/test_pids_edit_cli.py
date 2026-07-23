@@ -1,6 +1,5 @@
 """Tests for `canair pids` CLI orchestration (snapshot -> edit -> validate gate)."""
 
-
 import pytest
 
 from canlib.commands import pids as cli
@@ -17,8 +16,9 @@ def pids_dir(tmp_path):
 def test_guarded_commits_when_gate_passes(pids_dir, monkeypatch):
     fp = pids_dir / "e.yaml"
     monkeypatch.setattr(cli, "_schema_validate", lambda p: (True, ""))
-    cli._guarded("TESTECU", pids_dir, lambda: fp.write_text(fp.read_text() + "# ok\n"),
-                 validate=True)
+    cli._guarded(
+        "TESTECU", pids_dir, lambda: fp.write_text(fp.read_text() + "# ok\n"), validate=True
+    )
     assert "# ok" in fp.read_text()
 
 

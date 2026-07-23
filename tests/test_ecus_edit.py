@@ -74,9 +74,7 @@ class TestRegisterEcu:
 
     def test_merge_fills_blank_identity(self, ecus_dir):
         # Existing IGPM (found by tx) — merge fills its identity, keeps the key.
-        changed = register_ecu(
-            0x770, "SHOULD_NOT_WIN", part_number="91950G7510", ecus_dir=ecus_dir
-        )
+        changed = register_ecu(0x770, "SHOULD_NOT_WIN", part_number="91950G7510", ecus_dir=ecus_dir)
         assert changed is True
         entry = _load_ecu(ecus_dir, "igpm.yaml")["IGPM"]
         assert entry["identity"]["part_number"] == "91950G7510"
@@ -127,7 +125,12 @@ class TestSetEcuFields:
 class TestAppendScanLog:
     def test_appends_entry_with_date_default(self, ecus_dir):
         append_scan_log(
-            0x770, service=0x22, range="F100-F1FF", hits=3, vehicle_states=["acc"], ecus_dir=ecus_dir
+            0x770,
+            service=0x22,
+            range="F100-F1FF",
+            hits=3,
+            vehicle_states=["acc"],
+            ecus_dir=ecus_dir,
         )
         entry = _load_ecu(ecus_dir, "igpm.yaml")["IGPM"]
         entries = entry["scan_log"]
@@ -177,9 +180,7 @@ class TestIdentityValidation:
 
     def test_identity_only_ecu_is_valid(self, tmp_path):
         # No pids: block — an identity-only module (AMP/SRS) must validate.
-        p = self._write(
-            tmp_path, "AMP:\n  tx_id: 0x783\n  identity:\n    id_protocol: none\n"
-        )
+        p = self._write(tmp_path, "AMP:\n  tx_id: 0x783\n  identity:\n    id_protocol: none\n")
         errors, _, _ = collect_pids_validation([p])
         assert errors == []
 
@@ -219,7 +220,7 @@ class TestIndentationPreserved:
         set_ecu_fields(0x770, overwrite=True, ecus_dir=d, identity_confidence="confirmed")
         after = p.read_text()
         # The scan_log block (unrelated to the edit) must be byte-identical.
-        before_scanlog = before[before.index("scan_log:"):]
-        after_scanlog = after[after.index("scan_log:"):]
+        before_scanlog = before[before.index("scan_log:") :]
+        after_scanlog = after[after.index("scan_log:") :]
         assert before_scanlog == after_scanlog
         assert "identity_confidence: confirmed" in after

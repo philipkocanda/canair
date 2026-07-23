@@ -413,8 +413,9 @@ async def _read_batch(sm, tx_id, group, out, batch_state) -> bool:
     return True
 
 
-def build_query_plan(ecu_info: dict, pid_filter: list[str], quiet: bool = False,
-                     include_static: bool = False):
+def build_query_plan(
+    ecu_info: dict, pid_filter: list[str], quiet: bool = False, include_static: bool = False
+):
     """Resolve an ECU + PID filter into a sorted query plan.
 
     Returns ``[(pid_code, pid_info_or_None, unmapped)]`` sorted by DID, or None
@@ -1141,7 +1142,10 @@ def _finalize_journal(
     print(f"\n  --save: {count} payload(s) captured.")
     if prompt:
         meta = resolve_metadata(
-            label, vehicle_states, notes, suggested_label="Multi query session",
+            label,
+            vehicle_states,
+            notes,
+            suggested_label="Multi query session",
             last_state=suggested_state,
         )
         if meta is None:
@@ -1243,7 +1247,9 @@ async def mode_multi(
 
             elif cmd_type == "session":
                 print(f"\n{step} Session on {cmd['target']}...")
-                await _exec_session(sm, cmd["target"], cmd["wake"], ecu_index, cmd.get("mode", "03"))
+                await _exec_session(
+                    sm, cmd["target"], cmd["wake"], ecu_index, cmd.get("mode", "03")
+                )
 
             elif cmd_type == "query":
                 pids_str = " ".join(cmd["pids"]) if cmd["pids"] else "all"
@@ -1314,8 +1320,7 @@ async def mode_multi(
             elif cmd_type == "repl":
                 print(f"\n{step} Entering REPL...")
                 repl_executed = True
-                await _multi_repl(sm, ecu_index, pids_data, verbose,
-                                  include_static=include_static)
+                await _multi_repl(sm, ecu_index, pids_data, verbose, include_static=include_static)
 
             elif cmd_type == "iocontrol":
                 action = "OFF" if cmd["off"] else "ON"
@@ -1327,7 +1332,11 @@ async def mode_multi(
         # Save collected payloads before any REPL handoff
         if save:
             _finalize_journal(
-                journal, len(collected), label, vehicle_states, notes,
+                journal,
+                len(collected),
+                label,
+                vehicle_states,
+                notes,
                 suggested_state=_suggest_pipeline_state(),
             )
             journal = None
@@ -1338,8 +1347,7 @@ async def mode_multi(
             if sessions_str:
                 print(f"\n  Active sessions: {sessions_str}")
             print("\n  Pipeline complete. Entering REPL...")
-            await _multi_repl(sm, ecu_index, pids_data, verbose,
-                              include_static=include_static)
+            await _multi_repl(sm, ecu_index, pids_data, verbose, include_static=include_static)
 
     except KeyboardInterrupt:
         print("\n  Interrupted.")
@@ -1357,8 +1365,13 @@ async def mode_multi(
             pass
 
 
-async def _multi_repl(sm: SessionManager, ecu_index: dict, pids_data: dict, verbose: bool,
-                      include_static: bool = False):
+async def _multi_repl(
+    sm: SessionManager,
+    ecu_index: dict,
+    pids_data: dict,
+    verbose: bool,
+    include_static: bool = False,
+):
     """Interactive REPL with multi-ECU session awareness.
 
     Extends the standard REPL with session keepalives and multi-ECU commands.
@@ -1492,8 +1505,9 @@ async def _multi_repl(sm: SessionManager, ecu_index: dict, pids_data: dict, verb
                     continue
                 sm.stop_background_keepalive()
                 for ecu, pids in selectors:
-                    await _exec_query(sm, ecu, pids, ecu_index, pids_data, verbose,
-                                      include_static=include_static)
+                    await _exec_query(
+                        sm, ecu, pids, ecu_index, pids_data, verbose, include_static=include_static
+                    )
                 sm.start_background_keepalive(interval=2.0)
                 continue
 

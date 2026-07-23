@@ -51,7 +51,6 @@ PENDING_RECV_TIMEOUT = 5.0  # per follow-up wait after a 0x78
 PENDING_TOTAL_TIMEOUT = 20.0  # overall cap while the ECU keeps saying "pending"
 
 
-
 class RawUdsClient:
     """UDS reads over raw CAN with per-ECU ISO-TP stacks and pipelined polling."""
 
@@ -178,7 +177,12 @@ class RawUdsClient:
                     self._stacks[ecu].send(req)
                     # Per-ECU budget applies unless the caller forced a timeout.
                     ecu_t = t if explicit else self.ecu_timeouts.get(ecu, t)
-                    pending[ecu] = {"req": req, "sent_at": now, "deadline": now + ecu_t, "cap": None}
+                    pending[ecu] = {
+                        "req": req,
+                        "sent_at": now,
+                        "deadline": now + ecu_t,
+                        "cap": None,
+                    }
             # Harvest whichever completes first; each ECU only spends its own budget.
             while pending:
                 progressed = False
@@ -204,7 +208,9 @@ class RawUdsClient:
                             info["deadline"] = min(now + PENDING_RECV_TIMEOUT, info["cap"])
                             progressed = True
                             continue
-                        self.timings.record(ecu, req.hex().upper(), time.monotonic() - info["sent_at"])
+                        self.timings.record(
+                            ecu, req.hex().upper(), time.monotonic() - info["sent_at"]
+                        )
                         _finish(ecu, req, resp)
                         del pending[ecu]
                         progressed = True

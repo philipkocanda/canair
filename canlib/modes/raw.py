@@ -102,8 +102,13 @@ async def mode_raw(
 
 
 def _save_raw(
-    tx_id: int, request: str, response: dict, pids_data: dict | None,
-    label: str | None = None, vehicle_states=None, notes: str | None = None,
+    tx_id: int,
+    request: str,
+    response: dict,
+    pids_data: dict | None,
+    label: str | None = None,
+    vehicle_states=None,
+    notes: str | None = None,
 ) -> None:
     """Prompt (or use provided metadata) and save a raw request result to captures."""
     from ..captures import (

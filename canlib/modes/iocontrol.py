@@ -11,7 +11,6 @@ import os
 import sys
 import termios
 import tty
-from datetime import datetime
 from pathlib import Path
 
 from ..pids import build_iocontrol_index, load_pids
@@ -300,7 +299,7 @@ class _IOControlTUI:
         self.cursor = 0
 
         # Per-DID state: None=idle, "on"=active, "off"=sent off, "error"=failed
-        self.state: dict[str, str | None] = {d: None for d in self.dids}
+        self.state: dict[str, str | None] = dict.fromkeys(self.dids)
         self.last_response: dict[str, str] = {}  # DID → last response text
         self.last_value: dict[str, bytes] = {}  # DID → last ShortTermAdjustment value bytes
 
@@ -308,7 +307,7 @@ class _IOControlTUI:
         # 0x2F response for this DID, rendered as hex. Populated by both the
         # background poll loop (2F {DID} 00 returnControlToECU) and by every
         # ON/OFF/ADJUST send. None = never seen a response yet.
-        self.status_bytes: dict[str, str | None] = {d: None for d in self.dids}
+        self.status_bytes: dict[str, str | None] = dict.fromkeys(self.dids)
         self._status_polling = False  # True while background poll loop is running
 
         self._session_active = False
@@ -392,12 +391,12 @@ class _IOControlTUI:
         # Fixed column widths (ANSI codes don't count toward padding — we pad
         # the *text* content to the desired width, then wrap in colour codes).
         term_w = _terminal_columns()
-        did_w   = max((len(d) for d in self.dids), default=4)
+        did_w = max((len(d) for d in self.dids), default=4)
         raw_label_w = max((len(self.cmds[d]["label"]) for d in self.dids), default=5)
 
         # "Cmd" column: what we sent (ON / OFF / idle) — always 3 visible chars
         cmd_hdr = "Cmd"
-        cmd_hdr_w = len(cmd_hdr)   # 3
+        cmd_hdr_w = len(cmd_hdr)  # 3
 
         # "Status" column: trailing bytes of the last 0x2F response for this
         # DID (controlStatusRecord). Populated by background 2F{DID}00 polling
@@ -416,7 +415,9 @@ class _IOControlTUI:
         min_status_w = max(len(status_hdr), 5)
         avail = max(0, term_w - non_flex - min_status_w)
         label_w = min(raw_label_w, max(8, avail)) if avail else max(8, raw_label_w)
-        status_w = min(max(status_vals_w, len(status_hdr)), 40, max(min_status_w, term_w - non_flex - label_w))
+        status_w = min(
+            max(status_vals_w, len(status_hdr)), 40, max(min_status_w, term_w - non_flex - label_w)
+        )
 
         # Separator widths for the ruler. The header line starts at column 0
         # (5-space prefix is part of its content); the ruler line is inset by
@@ -427,7 +428,7 @@ class _IOControlTUI:
         # Header row — plain text, dim
         # Layout: 3 (prefix) + 2 (verified mark) + did_w + 2 + label_w + 2 + cmd_hdr_w + 2 + status_w + 2 + …
         hdr = (
-            f"     "                                  # 3 (prefix) + 2 (verified)
+            f"     "  # 3 (prefix) + 2 (verified)
             f"{'DID':<{did_w}}  "
             f"{'Label':<{label_w}}  "
             f"{cmd_hdr:<{cmd_hdr_w}}  "
@@ -510,9 +511,7 @@ class _IOControlTUI:
             # Response column — raw hex, dimmed
             resp_part = f"  \033[2m{resp}\033[0m" if resp else ""
 
-            lines.append(
-                f"{prefix}{v_mark}{did_label}  {cmd_part}  {status_part}{resp_part}"
-            )
+            lines.append(f"{prefix}{v_mark}{did_label}  {cmd_part}  {status_part}{resp_part}")
 
         # Scroll indicator: show position + ↑/↓ hints when list overflows.
         if n_dids > viewport_rows:
@@ -528,8 +527,12 @@ class _IOControlTUI:
             lines.append("")
         if self._hex_input is not None:
             did = self.dids[self.cursor]
-            lines.append(f"  \033[1;33mValue for {did} (hex): \033[0m{self._hex_input}\033[5m▏\033[0m")
-            lines.append("\033[2m  Type hex bytes, Enter to send 2F{DID}03{value}, Esc to cancel\033[0m")
+            lines.append(
+                f"  \033[1;33mValue for {did} (hex): \033[0m{self._hex_input}\033[5m▏\033[0m"
+            )
+            lines.append(
+                "\033[2m  Type hex bytes, Enter to send 2F{DID}03{value}, Esc to cancel\033[0m"
+            )
         elif self._edit_input is not None:
             did = self.dids[self.cursor]
             field, buf = self._edit_input
@@ -871,8 +874,7 @@ class _IOControlTUI:
             _tui_logger.warning("reload after promote failed: %s", exc)
 
         self._status = (
-            f"\033[32mPromoted {did} → curated (on/off inferred) — "
-            f"verify & refine via 'e'\033[0m"
+            f"\033[32mPromoted {did} → curated (on/off inferred) — verify & refine via 'e'\033[0m"
         )
         _tui_logger.info("promote %s label=%r -> %s", did, label, fpath)
 
@@ -896,8 +898,9 @@ class _IOControlTUI:
         handler.setFormatter(logging.Formatter("%(asctime)s  %(message)s", datefmt="%H:%M:%S"))
         _tui_logger.addHandler(handler)
         _tui_logger.setLevel(logging.DEBUG)
-        _tui_logger.info("TUI session start — %s (0x%03X), %d DIDs",
-                         self.ecu_key, self.tx_id, len(self.dids))
+        _tui_logger.info(
+            "TUI session start — %s (0x%03X), %d DIDs", self.ecu_key, self.tx_id, len(self.dids)
+        )
 
         # Set up raw terminal for keypress reading
         fd = sys.stdin.fileno()
@@ -942,7 +945,7 @@ class _IOControlTUI:
                 # Wait for keypress with timeout (allows periodic redraw)
                 try:
                     key = await asyncio.wait_for(key_queue.get(), timeout=0.5)
-                except (asyncio.TimeoutError, TimeoutError):
+                except TimeoutError:
                     self._draw()
                     continue
 

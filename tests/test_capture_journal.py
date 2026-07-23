@@ -21,7 +21,9 @@ def _read_capture_file(captures_dir):
 
 class TestJournalBasics:
     def test_open_writes_meta_and_creates_dir(self, tmp_path):
-        j = CaptureJournal.open(tmp_path, label="L", vehicle_states=["ready"], notes="n", source="monitor")
+        j = CaptureJournal.open(
+            tmp_path, label="L", vehicle_states=["ready"], notes="n", source="monitor"
+        )
         assert j.path.exists()
         assert j.path.parent == tmp_path / ".journal"
         lines = j.path.read_text().splitlines()
@@ -59,7 +61,9 @@ class TestJournalBasics:
 
 class TestReconcile:
     def test_reconcile_builds_session_and_deletes_journal(self, tmp_path):
-        j = CaptureJournal.open(tmp_path, label="Live ref", vehicle_states=["ready", "parked"], notes="18C")
+        j = CaptureJournal.open(
+            tmp_path, label="Live ref", vehicle_states=["ready", "parked"], notes="18C"
+        )
         j.append("0x7EB", "2102", "6102AABB")
         j.append("0x7EA", "2101", "6101CCDD", "12:00:01")
         written = j.reconcile()
@@ -109,7 +113,9 @@ class TestReconcile:
         session = {
             "date": "2026-07-22",
             "label": "placeholder",
-            "captures": [{"ecu": "0x7EC", "pid": "scan 21 01-FF", "scan_results": {"rejected": "x"}}],
+            "captures": [
+                {"ecu": "0x7EC", "pid": "scan 21 01-FF", "scan_results": {"rejected": "x"}}
+            ],
         }
         j.append_session(session)
         written = j.reconcile()

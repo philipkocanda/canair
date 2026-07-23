@@ -18,7 +18,6 @@ from canlib.modes.sessions_scan import (
 )
 from canlib.pids_edit import append_sessions_block
 
-
 # ── classify() ───────────────────────────────────────────────────────────────
 
 
@@ -94,10 +93,16 @@ def pids_dir(tmp_path: Path) -> Path:
 
 def test_append_sessions_adds_section(pids_dir):
     hits = [
-        SessionHit(mode=0x81, name="standardDiagnosticSession", supported=True,
-                   nrc=None, nrc_desc=None),
-        SessionHit(mode=0x83, name="extendedDiagnosticSession", supported=False,
-                   nrc=0x12, nrc_desc="subFunctionNotSupported"),
+        SessionHit(
+            mode=0x81, name="standardDiagnosticSession", supported=True, nrc=None, nrc_desc=None
+        ),
+        SessionHit(
+            mode=0x83,
+            name="extendedDiagnosticSession",
+            supported=False,
+            nrc=0x12,
+            nrc_desc="subFunctionNotSupported",
+        ),
     ]
     path = append_sessions_block("TEST", hits, pids_dir=pids_dir)
     data = yaml.safe_load(path.read_text())
@@ -116,8 +121,9 @@ def test_append_sessions_keys_stay_hex_strings(pids_dir):
     """All-digit modes like '03' must not be read as YAML ints/octal."""
     hits = [
         SessionHit(mode=0x01, name="defaultSession", supported=True, nrc=None, nrc_desc=None),
-        SessionHit(mode=0x03, name="extendedDiagnosticSession", supported=True,
-                   nrc=None, nrc_desc=None),
+        SessionHit(
+            mode=0x03, name="extendedDiagnosticSession", supported=True, nrc=None, nrc_desc=None
+        ),
     ]
     path = append_sessions_block("TEST", hits, pids_dir=pids_dir)
     data = yaml.safe_load(path.read_text())
@@ -160,8 +166,11 @@ def test_append_sessions_upserts_on_conflict(pids_dir):
     )
     append_sessions_block(
         "TEST",
-        [SessionHit(mode=0x81, name="standardDiagnosticSession", supported=True,
-                    nrc=None, nrc_desc=None)],
+        [
+            SessionHit(
+                mode=0x81, name="standardDiagnosticSession", supported=True, nrc=None, nrc_desc=None
+            )
+        ],
         pids_dir=pids_dir,
     )
     data = yaml.safe_load((pids_dir / "test.yaml").read_text())
@@ -177,10 +186,16 @@ def test_append_empty_hits_is_noop(pids_dir):
 
 def test_written_sessions_pass_schema_validation(pids_dir):
     hits = [
-        SessionHit(mode=0x81, name="standardDiagnosticSession", supported=True,
-                   nrc=None, nrc_desc=None),
-        SessionHit(mode=0x83, name="extendedDiagnosticSession", supported=False,
-                   nrc=0x12, nrc_desc="subFunctionNotSupported"),
+        SessionHit(
+            mode=0x81, name="standardDiagnosticSession", supported=True, nrc=None, nrc_desc=None
+        ),
+        SessionHit(
+            mode=0x83,
+            name="extendedDiagnosticSession",
+            supported=False,
+            nrc=0x12,
+            nrc_desc="subFunctionNotSupported",
+        ),
     ]
     path = append_sessions_block("TEST", hits, pids_dir=pids_dir)
     errors, _warnings, stats = collect_pids_validation([path])
@@ -200,7 +215,7 @@ def _write_ecu(tmp_path: Path, body: str) -> Path:
 def test_schema_rejects_supported_with_nrc(tmp_path):
     p = _write_ecu(
         tmp_path,
-        "E:\n  tx_id: 0x7E0\n  sessions:\n    \"81\":\n      supported: true\n      nrc: 0x12\n",
+        'E:\n  tx_id: 0x7E0\n  sessions:\n    "81":\n      supported: true\n      nrc: 0x12\n',
     )
     errors, _w, _s = collect_pids_validation([p])
     assert any("must not also carry an 'nrc'" in e for e in errors)
@@ -209,7 +224,7 @@ def test_schema_rejects_supported_with_nrc(tmp_path):
 def test_schema_rejects_bad_session_key(tmp_path):
     p = _write_ecu(
         tmp_path,
-        "E:\n  tx_id: 0x7E0\n  sessions:\n    \"XYZ\":\n      supported: true\n",
+        'E:\n  tx_id: 0x7E0\n  sessions:\n    "XYZ":\n      supported: true\n',
     )
     errors, _w, _s = collect_pids_validation([p])
     assert any("session key must be a 1-2 digit hex" in e for e in errors)
@@ -218,7 +233,7 @@ def test_schema_rejects_bad_session_key(tmp_path):
 def test_schema_warns_unsupported_without_nrc(tmp_path):
     p = _write_ecu(
         tmp_path,
-        "E:\n  tx_id: 0x7E0\n  sessions:\n    \"83\":\n      supported: false\n",
+        'E:\n  tx_id: 0x7E0\n  sessions:\n    "83":\n      supported: false\n',
     )
     _e, warnings, _s = collect_pids_validation([p])
     assert any("unsupported session has no 'nrc'" in w for w in warnings)
@@ -227,7 +242,7 @@ def test_schema_warns_unsupported_without_nrc(tmp_path):
 def test_schema_accepts_valid_sessions(tmp_path):
     p = _write_ecu(
         tmp_path,
-        'E:\n  tx_id: 0x7E0\n  sessions:\n'
+        "E:\n  tx_id: 0x7E0\n  sessions:\n"
         '    "01":\n      supported: true\n'
         '    "03":\n      supported: false\n      nrc: 0x12\n      nrc_desc: subFunctionNotSupported\n',
     )
@@ -258,16 +273,25 @@ class _FakeTerminal:
     async def send_uds(self, req, **kw):
         self.reqs.append(req)
         # Default: subFunctionNotSupported.
-        return self._responses.get(req, {"ok": False, "nrc": 0x12, "nrc_desc": "subFunctionNotSupported"})
+        return self._responses.get(
+            req, {"ok": False, "nrc": 0x12, "nrc_desc": "subFunctionNotSupported"}
+        )
 
 
 @pytest.mark.asyncio
 async def test_scan_ecu_sessions_records_supported_and_unsupported():
-    term = _FakeTerminal(responses={
-        "1081": {"ok": True, "hex": "50 81", "bytes": [0x50, 0x81]},
-    })
+    term = _FakeTerminal(
+        responses={
+            "1081": {"ok": True, "hex": "50 81", "bytes": [0x50, 0x81]},
+        }
+    )
     hits = await scan_ecu_sessions(
-        term, "BMS", 0x7E4, KWP_SESSION_MODES, throttle_ms=0, write_yaml=False,
+        term,
+        "BMS",
+        0x7E4,
+        KWP_SESSION_MODES,
+        throttle_ms=0,
+        write_yaml=False,
     )
     by_mode = {h.mode: h for h in hits}
     assert by_mode[0x81].supported is True
@@ -279,11 +303,18 @@ async def test_scan_ecu_sessions_records_supported_and_unsupported():
 
 @pytest.mark.asyncio
 async def test_scan_ecu_sessions_aborts_on_service_absent():
-    term = _FakeTerminal(responses={
-        "1001": {"ok": False, "nrc": 0x11, "nrc_desc": "serviceNotSupported"},
-    })
+    term = _FakeTerminal(
+        responses={
+            "1001": {"ok": False, "nrc": 0x11, "nrc_desc": "serviceNotSupported"},
+        }
+    )
     hits = await scan_ecu_sessions(
-        term, "X", 0x7E0, UDS_SESSION_MODES, throttle_ms=0, write_yaml=False,
+        term,
+        "X",
+        0x7E0,
+        UDS_SESSION_MODES,
+        throttle_ms=0,
+        write_yaml=False,
     )
     assert hits == []
     # Aborted after the first probe returned 0x11.
@@ -293,15 +324,21 @@ async def test_scan_ecu_sessions_aborts_on_service_absent():
 @pytest.mark.asyncio
 async def test_mode_sessions_scan_autoselects_by_protocol(tmp_path):
     (tmp_path / "test.yaml").write_text(FIXTURE_YAML)
-    term = _FakeTerminal(responses={
-        "1081": {"ok": True, "hex": "50 81", "bytes": [0x50, 0x81]},
-    })
+    term = _FakeTerminal(
+        responses={
+            "1081": {"ok": True, "hex": "50 81", "bytes": [0x50, 0x81]},
+        }
+    )
     pids_data = {"ecus": {"test": yaml.safe_load(FIXTURE_YAML)["TEST"]}}
     # Give the ECU a tx_id/identity so protocol auto-select picks KWP modes.
     pids_data["ecus"]["test"]["tx_id"] = 0x7E4
 
     results = await mode_sessions_scan(
-        term, pids_data, ecus=["TEST"], throttle_ms=0, write_yaml=False,
+        term,
+        pids_data,
+        ecus=["TEST"],
+        throttle_ms=0,
+        write_yaml=False,
     )
     # KWP2000 id_protocol → probes 81/82/83, not the UDS 01/03.
     assert term.reqs == ["1081", "1082", "1083"]
@@ -313,15 +350,21 @@ async def test_mode_sessions_scan_write_yaml_false_does_not_write(tmp_path):
     """With write_yaml=False the scanner must not touch any YAML file."""
     (tmp_path / "test.yaml").write_text(FIXTURE_YAML)
     original = (tmp_path / "test.yaml").read_text()
-    term = _FakeTerminal(responses={
-        "1081": {"ok": True, "hex": "50 81", "bytes": [0x50, 0x81]},
-    })
+    term = _FakeTerminal(
+        responses={
+            "1081": {"ok": True, "hex": "50 81", "bytes": [0x50, 0x81]},
+        }
+    )
     ecu_def = yaml.safe_load(FIXTURE_YAML)["TEST"]
     ecu_def["tx_id"] = 0x7E4
     pids_data = {"ecus": {"test": ecu_def}}
 
     await mode_sessions_scan(
-        term, pids_data, ecus=["TEST"], throttle_ms=0, write_yaml=False,
+        term,
+        pids_data,
+        ecus=["TEST"],
+        throttle_ms=0,
+        write_yaml=False,
     )
     assert (tmp_path / "test.yaml").read_text() == original
 
@@ -331,10 +374,12 @@ def test_sessions_writeback_round_trips_through_writer(tmp_path):
     (tmp_path / "test.yaml").write_text(FIXTURE_YAML)
     append_sessions_block(
         "TEST",
-        [SessionHit(mode=0x81, name="standardDiagnosticSession", supported=True,
-                    nrc=None, nrc_desc=None)],
+        [
+            SessionHit(
+                mode=0x81, name="standardDiagnosticSession", supported=True, nrc=None, nrc_desc=None
+            )
+        ],
         pids_dir=tmp_path,
     )
     data = yaml.safe_load((tmp_path / "test.yaml").read_text())
     assert data["TEST"]["sessions"]["81"]["supported"] is True
-

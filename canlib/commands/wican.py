@@ -761,8 +761,7 @@ def _cmd_mode_set(args) -> int:
     if not args.yes:
         if not sys.stdin.isatty():
             print(
-                f"error: refusing to switch '{cur}' -> '{target}' without --yes "
-                f"(non-interactive).",
+                f"error: refusing to switch '{cur}' -> '{target}' without --yes (non-interactive).",
                 file=sys.stderr,
             )
             return 2

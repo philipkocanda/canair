@@ -106,8 +106,6 @@ def param_byte_index_str(expression: str, n_bytes: int) -> str:
     return " ".join(parts)
 
 
-
-
 def format_value(value: float, unit: str, display: str = "") -> str:
     """Format a decoded value with unit and optional display expression.
 
@@ -202,11 +200,7 @@ def render_param_table(
 
     max_name = max(len(r[0]) for r in params)
     max_val = max(
-        len(
-            format_value(r[1], r[2], r[6] if len(r) > 6 else "")
-            if r[1] is not None
-            else "ERROR"
-        )
+        len(format_value(r[1], r[2], r[6] if len(r) > 6 else "") if r[1] is not None else "ERROR")
         for r in params
     )
 
@@ -379,9 +373,7 @@ def print_hexdump(data: bytes, prefix: str = "  "):
     for row_start in range(0, len(data), 16):
         row_end = min(row_start + 16, len(data))
         hex_part = " ".join(f"{data[j]:02X}" for j in range(row_start, row_end))
-        bnn_part = " ".join(
-            f"B{isotp_to_wican(j):02d}" for j in range(row_start, row_end)
-        )
+        bnn_part = " ".join(f"B{isotp_to_wican(j):02d}" for j in range(row_start, row_end))
         print(f"{prefix}Bnn:  {bnn_part}")
         print(f"{prefix}Hex:   {hex_part}")
         print()

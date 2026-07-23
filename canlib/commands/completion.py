@@ -110,11 +110,7 @@ def _ensure_zshrc_fpath(comp_dir: Path) -> bool:
     existing = zshrc.read_text() if zshrc.exists() else ""
     if _ZSHRC_MARKER in existing:
         return False
-    block = (
-        f"\n{_ZSHRC_MARKER}\n"
-        f"fpath=({comp_dir} $fpath)\n"
-        "autoload -Uz compinit && compinit\n"
-    )
+    block = f"\n{_ZSHRC_MARKER}\nfpath=({comp_dir} $fpath)\nautoload -Uz compinit && compinit\n"
     with open(zshrc, "a") as f:
         f.write(block)
     return True

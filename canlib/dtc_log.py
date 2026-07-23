@@ -171,8 +171,7 @@ def format_diff(diff: dict, previous: dict) -> list[str]:
         )
     if new:
         lines.append(
-            f"    \033[91m+ new ({len(new)})\033[0m: "
-            + ", ".join(f"{e} {c}" for e, c in new)
+            f"    \033[91m+ new ({len(new)})\033[0m: " + ", ".join(f"{e} {c}" for e, c in new)
         )
     lines.append(f"    = still present: {len(diff['persisting'])}")
     if not cleared and not new:
