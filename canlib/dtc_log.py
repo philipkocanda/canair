@@ -67,7 +67,7 @@ def build_scan(
     ecus: dict,
     *,
     label: str | None = None,
-    state: str | None = None,
+    vehicle_states: list | None = None,
     notes: str | None = None,
     timestamp: str | None = None,
 ) -> dict:
@@ -78,8 +78,8 @@ def build_scan(
     }
     if label:
         entry["label"] = label
-    if state:
-        entry["state"] = state
+    if vehicle_states:
+        entry["vehicle_states"] = list(vehicle_states)
     if notes:
         entry["notes"] = notes
     entry["ecus"] = ecus
