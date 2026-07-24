@@ -260,3 +260,32 @@ fixed** (2026-07-24):
 
 All shipped with tests (`test_ecu_add.py`, `test_first_run.py`) and green
 `pytest`/`ruff`/`ty`.
+
+---
+
+## Status update (2026-07-24, later)
+
+Beyond the initial docs pass, the following shipped:
+
+- **CLI reference is now generated** from `--help` (`scripts/gen_cli_reference.py`
+  → `docs/reference/cli/*.md`), with a `--check` gate in CI. No more hand-written
+  per-command flag docs to drift.
+- **MkDocs Material stood up** (`mkdocs.yml`, `docs` dependency group). Nav covers
+  getting-started → bring-your-own-car → concepts → reference (incl. generated
+  CLI pages) → bundled profile → contributing. CI builds `--strict`; a
+  `.github/workflows/docs.yml` deploys to GitHub Pages
+  (`philipkocanda.github.io/canair`). *(Requires enabling Pages in repo settings,
+  source = GitHub Actions.)*
+- **Contributing docs are no longer deferred.** Reframed around the priority-1
+  **profile/PID contributor**: repo-root `CONTRIBUTING.md` (GitHub-surfaced) +
+  `docs/contributing/index.md`, both leading with "contribute a profile/PIDs,"
+  with code-contribution as a secondary section pointing at the contributing
+  skill. Contribution encouragement is now repeated across README, docs index,
+  the capture step, define-&-verify, and the Share page.
+- **`reverse-engineer-pid` skill made explicitly generic** (vehicle- and
+  PID-agnostic, whole-flow), with the `ioniq-reverse-engineering` skill reframed
+  as the Ioniq-specific *data/context* companion.
+
+Remaining open: `docs/reference/schemas.md` (planned, unwritten); a doc-numbers
+freshness check for the bundled-profile stats; the emoji/anchor housekeeping is
+done.

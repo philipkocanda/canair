@@ -39,6 +39,9 @@ dev = [
     "ruff>=0.9",
     "ty>=0.0.1a1",
 ]
+docs = [
+    "mkdocs-material>=9.5",
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

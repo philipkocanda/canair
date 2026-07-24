@@ -1,0 +1,111 @@
+site_name: canair
+site_description: CLI for reverse-engineering CAN/OBD diagnostics over-the-air with a WiCAN dongle
+site_url: https://philipkocanda.github.io/canair/
+repo_url: https://github.com/philipkocanda/canair
+repo_name: philipkocanda/canair
+edit_uri: edit/main/docs/
+docs_dir: docs
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - content.code.copy
+    - search.suggest
+    - search.highlight
+    - toc.follow
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - Install: getting-started/install.md
+      - Connect your dongle: getting-started/connect-device.md
+      - Read live data: getting-started/first-read.md
+  - Bring your own car:
+      - Overview: bring-your-own-car/overview.md
+      - 1. Create a profile: bring-your-own-car/01-create-profile.md
+      - 2. Discover ECUs: bring-your-own-car/02-discover-ecus.md
+      - 3. Read identity: bring-your-own-car/03-identity.md
+      - 4. Scan for data: bring-your-own-car/04-scan.md
+      - 5. Capture: bring-your-own-car/05-capture.md
+      - 6. Analyze: bring-your-own-car/06-analyze.md
+      - 7. Define & verify: bring-your-own-car/07-define-and-verify.md
+      - 8. Share: bring-your-own-car/08-share.md
+  - Concepts:
+      - Architecture: concepts/architecture.md
+      - Profiles: concepts/profiles.md
+      - Query mini-language: concepts/query-mini-language.md
+      - Byte indexing: concepts/byte-indexing.md
+      - Captures & states: concepts/captures-and-states.md
+      - Safety: concepts/safety.md
+  - Reference:
+      - Configuration: reference/config.md
+      - CLI:
+          - Overview: reference/cli/index.md
+          - canair status: reference/cli/status.md
+          - canair query: reference/cli/query.md
+          - canair scan: reference/cli/scan.md
+          - canair discover: reference/cli/discover.md
+          - canair raw: reference/cli/raw.md
+          - canair sniff: reference/cli/sniff.md
+          - canair io: reference/cli/io.md
+          - canair routines: reference/cli/routines.md
+          - canair identity: reference/cli/identity.md
+          - canair dtc: reference/cli/dtc.md
+          - canair repl: reference/cli/repl.md
+          - canair captures: reference/cli/captures.md
+          - canair decode: reference/cli/decode.md
+          - canair correlate: reference/cli/correlate.md
+          - canair hunt: reference/cli/hunt.md
+          - canair investigate: reference/cli/investigate.md
+          - canair coverage: reference/cli/coverage.md
+          - canair research: reference/cli/research.md
+          - canair pids: reference/cli/pids.md
+          - canair validate: reference/cli/validate.md
+          - canair wican: reference/cli/wican.md
+          - canair ecu: reference/cli/ecu.md
+          - canair profile: reference/cli/profile.md
+          - canair config: reference/cli/config.md
+          - canair bix: reference/cli/bix.md
+          - canair completion: reference/cli/completion.md
+  - Bundled profile:
+      - Ioniq 2017: profiles/ioniq-2017.md
+  - Contributing: contributing/index.md

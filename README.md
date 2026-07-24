@@ -12,7 +12,7 @@ Everything ships as a single installable CLI, **`canair`**. Vehicle data lives i
 
 **Both the WiCAN Pro and the classic (non-Pro) WiCAN are supported** over the default raw-SLCAN transport. A few features are Pro-only (AutoPID device sync, `wican mode set`, the `wican-ws` transport); set `wican_model: classic` and canair cleanly refuses them. See [connecting your dongle](docs/getting-started/connect-device.md).
 
-> **📖 Documentation** lives in [`docs/`](docs/index.md):
+> **📖 Documentation** lives in [`docs/`](docs/index.md) (also rendered at [philipkocanda.github.io/canair](https://philipkocanda.github.io/canair/)):
 > [Getting started](docs/getting-started/install.md) · [**Bring your own car**](docs/bring-your-own-car/overview.md) (the full new-vehicle walkthrough) · [Concepts](docs/concepts/architecture.md) · [Reference](docs/reference/config.md).
 
 | | |
@@ -136,7 +136,7 @@ See [docs/profiles/ioniq-2017](docs/profiles/ioniq-2017.md) for the full tour, o
 
 ## Contributing 🎉
 
-**Reverse-engineered your car? Please contribute it back!** A profile you share means the next person with the same vehicle starts with a head start instead of from zero — it's how canair grows beyond one car. Whole profiles, a few decoded parameters, corrected offsets, or fixes to canair itself are all welcome as pull requests. See [Bring your own car → Share](docs/bring-your-own-car/08-share.md#contribute-your-profile-back) for how.
+**Reverse-engineered your car? Please contribute it back!** A profile you share means the next person with the same vehicle starts with a head start instead of from zero — it's how canair grows beyond one car. Whole profiles, a few decoded parameters, corrected offsets, or fixes to canair itself are all welcome as pull requests. See [CONTRIBUTING.md](CONTRIBUTING.md) and [Bring your own car → Share](docs/bring-your-own-car/08-share.md#contribute-your-profile-back).
 
 ## License
 

@@ -19,6 +19,9 @@ dist/
 # NodeJS
 node_modules
 
+# MkDocs build output
+site/
+
 # Project-specific
 wican-fw/
 logs/

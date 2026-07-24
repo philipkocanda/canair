@@ -50,4 +50,5 @@ reverse-engineer *your* vehicle — a whole profile, a few decoded parameters, o
 fix — **please contribute it back via a pull request** to
 [`philipkocanda/canair`](https://github.com/philipkocanda/canair). It's the
 single best way to help others with the same car. See
+[Contributing](contributing/index.md) and
 [Share your profile](bring-your-own-car/08-share.md#contribute-your-profile-back).
