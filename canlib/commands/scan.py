@@ -11,7 +11,7 @@ Three kinds of scan live under one command:
     (probes requestRoutineResults only).
 
 For convenience, a bare ``canair scan <ECU>`` (or ``canair scan`` with no args)
-is treated as ``canair scan range …`` — see ``_inject_default_scan_kind`` in
+is treated as ``canair scan range …`` — see ``_inject_default_subcommand`` in
 ``canlib/cli.py``.
 """
 
@@ -40,8 +40,9 @@ from canlib.scan_presets import (
 
 NAME = "scan"
 
-# Subcommand names under ``canair scan``. Kept in sync with ``cli._SCAN_KINDS``
-# (which injects "range" when the token after ``scan`` isn't one of these).
+# Subcommand names under ``canair scan``. Kept in sync with the ``scan`` entry in
+# ``cli._GROUP_DEFAULTS`` (which injects "range" when the token after ``scan``
+# isn't one of these).
 SCAN_KINDS = ("range", "iocontrol", "routines", "sessions")
 
 

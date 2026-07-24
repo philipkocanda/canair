@@ -82,24 +82,29 @@ _STARTER_CONFIG = """\
 """
 
 
-def ensure_config_dir(seed_config: bool = True) -> Path:
+def ensure_config_dir(seed_config: bool = True) -> bool:
     """Create ``~/.config/canair`` (and ``profiles/``) if missing.
 
     When ``seed_config`` is True and no config file exists yet, a commented
     starter ``config.yaml`` is written so users have a discoverable place to
     configure the tool without any manual setup. Best-effort: filesystem errors
     are swallowed so a read-only HOME never breaks the CLI.
+
+    Returns True when it just seeded a fresh config file (a genuine first run),
+    False otherwise.
     """
     cfg_dir = config_dir()
+    seeded = False
     try:
         cfg_dir.mkdir(parents=True, exist_ok=True)
         user_profiles_dir().mkdir(parents=True, exist_ok=True)
         cfg_file = user_config_file()
         if seed_config and not cfg_file.exists():
             cfg_file.write_text(_STARTER_CONFIG)
+            seeded = True
     except OSError:
         pass
-    return cfg_dir
+    return seeded
 
 
 def coerce_scalar(value: str):

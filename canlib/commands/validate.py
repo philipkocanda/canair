@@ -140,17 +140,40 @@ def _validate_state_list(value, label: str, field: str, errors: list, allowed: s
         errors.append(f"{label}: duplicate {field} values")
 
 
+def _profile_for_ecu_file(path: Path):
+    """Build a Profile rooted at an ECU file's grandparent (``<root>/ecus/x.yaml``).
+
+    Scopes state-vocabulary validation to the profile the file belongs to,
+    independent of the globally-active profile. A bare test/tmp file (no
+    ``states.yaml`` at that root) simply yields the base ``POWER_STATES``.
+    """
+    from canlib.profile import Profile
+
+    root = path.resolve().parent.parent
+    return Profile(root.name, root)
+
+
 def validate_ecu_file(
     path: Path,
     schema: dict,
+    profile=None,
 ) -> tuple[list[str], list[str], dict]:
     """Validate a single ECU YAML file.
+
+    ``profile`` scopes the accepted vehicle-state vocabulary to that profile's
+    ``states.yaml``. When omitted, it is derived from the file's own location
+    (an ECU file lives at ``<root>/ecus/<name>.yaml``, so its profile root is the
+    grandparent dir) rather than the globally-*active* profile — so validating a
+    file in a non-active profile works even when several profiles are discovered
+    (avoids a spurious "Multiple profiles found").
 
     Returns (errors, warnings, stats).
     """
     from canlib.states import allowed_states
 
-    allowed_states_set = allowed_states()
+    if profile is None:
+        profile = _profile_for_ecu_file(path)
+    allowed_states_set = allowed_states(profile)
     required_ecu_fields = set(schema.get("required_ecu_fields", []))
     optional_ecu_fields = set(schema.get("optional_ecu_fields", []))
     required_pid_fields = set(schema.get("required_pid_fields", []))
@@ -694,10 +717,12 @@ def validate_meta(path: Path, required_fields: set) -> list[str]:
     return errors
 
 
-def collect_pids_validation(files: list[Path]) -> tuple[list[str], list[str], dict]:
+def collect_pids_validation(files: list[Path], profile=None) -> tuple[list[str], list[str], dict]:
     """Return (errors, warnings, total_stats) for the given ECU yaml files.
 
     Skips underscore-prefixed files; runs validate_ecu_file on the rest.
+    ``profile`` scopes the accepted vehicle-state vocabulary (see
+    :func:`validate_ecu_file`).
     """
     schema = load_schema()
 
@@ -723,7 +748,7 @@ def collect_pids_validation(files: list[Path]) -> tuple[list[str], list[str], di
         if fpath.name.startswith("_"):
             continue
 
-        errors, warnings, stats = validate_ecu_file(fpath, schema)
+        errors, warnings, stats = validate_ecu_file(fpath, schema, profile)
         all_errors.extend(errors)
         all_warnings.extend(warnings)
         for k in total_stats:
@@ -732,8 +757,8 @@ def collect_pids_validation(files: list[Path]) -> tuple[list[str], list[str], di
     return all_errors, all_warnings, total_stats
 
 
-def validate_pids_file(fpath: Path) -> tuple[bool, str]:
-    errors, warnings, _ = collect_pids_validation([fpath])
+def validate_pids_file(fpath: Path, profile=None) -> tuple[bool, str]:
+    errors, warnings, _ = collect_pids_validation([fpath], profile)
     lines = [f"  WARN: {w}" for w in warnings]
     lines += [f"  ERROR: {e}" for e in errors]
     if errors:

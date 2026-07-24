@@ -169,6 +169,9 @@ def _safe_write(path: Path, original: str | None, data) -> None:
     try:
         from .commands.validate import validate_pids_file
 
+        # validate_pids_file derives the profile from the file's own path (so a
+        # write to a non-active profile validates without a resolvable active
+        # one — avoids a spurious "Multiple profiles found").
         ok, msg = validate_pids_file(path)
         if not ok:
             raise EcusEditError(f"ECU file invalid after edit:\n{msg}")

@@ -16,22 +16,26 @@ from canlib import __version__
 from canlib.commands import iter_command_modules
 
 # Global options (before the subcommand) that consume a following value. Used by
-# _inject_default_scan_kind to find the command token.
+# _inject_default_subcommand to find the command token.
 _GLOBAL_OPTS_WITH_VALUE = {"--profile", "--profiles-dir"}
-# Subcommands under `canair scan`. Kept in sync with commands/scan.SCAN_KINDS.
-_SCAN_KINDS = {"range", "iocontrol", "routines", "sessions"}
+# Command groups that default to a kind when the token after them isn't a known
+# sub-kind. Maps command -> (known kinds, default kind).
+_GROUP_DEFAULTS = {
+    "scan": ({"range", "iocontrol", "routines", "sessions"}, "range"),
+    "ecu": ({"show", "add"}, "show"),
+}
 
 
-def _inject_default_scan_kind(argv: list[str]) -> list[str]:
-    """Make `canair scan …` default to the `range` kind.
+def _inject_default_subcommand(argv: list[str]) -> list[str]:
+    """Make command groups default to a kind when none is given.
 
-    `canair scan BMS`  -> `canair scan range BMS`
-    `canair scan`      -> `canair scan range`   (opens the range wizard)
-    `canair scan -h`   -> unchanged (show the scan group help)
-    `canair scan iocontrol/routines …` -> unchanged.
+    `canair scan BMS`  -> `canair scan range BMS`   (bare = range wizard/sweep)
+    `canair ecu BMS`   -> `canair ecu show BMS`      (bare = list/detail)
+    `canair scan -h`   -> unchanged (show the group help)
+    `canair ecu add …` -> unchanged (explicit kind).
 
-    This keeps the pre-group muscle memory (`canair scan <ECU>`) working now that
-    `scan` is a command group.
+    This keeps the pre-group muscle memory (`canair scan/ecu <ECU>`) working now
+    that those are command groups.
     """
     i = 0
     n = len(argv)
@@ -45,14 +49,18 @@ def _inject_default_scan_kind(argv: list[str]) -> list[str]:
             i += 1
             continue
         break
-    if i >= n or argv[i] != "scan":
+    if i >= n:
         return argv
+    group = _GROUP_DEFAULTS.get(argv[i])
+    if group is None:
+        return argv
+    kinds, default_kind = group
     j = i + 1
     # A kind or a help flag already present → leave as-is.
-    if j < n and (argv[j] in _SCAN_KINDS or argv[j] in ("-h", "--help")):
+    if j < n and (argv[j] in kinds or argv[j] in ("-h", "--help")):
         return argv
-    # Otherwise inject "range" right after "scan".
-    return [*argv[:j], "range", *argv[j:]]
+    # Otherwise inject the default kind right after the command.
+    return [*argv[:j], default_kind, *argv[j:]]
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -93,7 +101,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if argv is None:
         argv = sys.argv[1:]
-    argv = _inject_default_scan_kind(argv)
+    argv = _inject_default_subcommand(argv)
 
     try:
         import argcomplete
@@ -107,7 +115,14 @@ def main(argv: list[str] | None = None) -> int:
     # Ensure ~/.config/canair (and profiles/) exists so no manual setup is needed.
     from canlib.config import ensure_config_dir
 
-    ensure_config_dir()
+    seeded = ensure_config_dir()
+
+    # On a genuine first run, offer to pick or create a vehicle profile (only
+    # when interactive and the command actually needs one).
+    from canlib.first_run import run_first_run_setup, should_offer
+
+    if should_offer(args, seeded=seeded):
+        run_first_run_setup(args)
 
     from canlib.profile import ProfileError, set_active
 

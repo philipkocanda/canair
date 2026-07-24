@@ -6,6 +6,7 @@ import argparse
 import sys
 from pathlib import Path
 
+from canlib.config import user_config_file
 from canlib.profile import (
     ProfileError,
     active,
@@ -178,23 +179,59 @@ states:
 """
 
 
-def _cmd_create(args) -> int:
+def create_profile(
+    name: str,
+    *,
+    car_model: str,
+    init: str | None = None,
+    path=None,
+    set_default: bool = False,
+    force: bool = False,
+) -> Path:
+    """Scaffold a new profile bundle. Returns its root; raises on error.
+
+    Pure of argparse — callable from the CLI and the first-run wizard alike.
+    """
     from canlib.config import set_config_value, user_profiles_dir
 
+    name = name.strip()
+    if not name:
+        raise ValueError("profile name cannot be empty")
+
+    root = Path(path) if path else user_profiles_dir() / name
+    if root.exists() and any(root.iterdir()) and not force:
+        raise FileExistsError(f"{root} already exists and is not empty (use force to proceed).")
+
+    car_model = car_model.strip()
+    if not car_model:
+        raise ValueError("car_model is required")
+
+    init = init or DEFAULT_INIT
+
+    (root / "ecus").mkdir(parents=True, exist_ok=True)
+    (root / "captures").mkdir(parents=True, exist_ok=True)
+    (root / "out").mkdir(parents=True, exist_ok=True)
+
+    (root / "profile.yaml").write_text(
+        f"# {car_model} — vehicle profile settings (created by `canair profile create`)\n"
+        f"# Per-ECU definitions live in ecus/. Populate with `canair discover --register`\n"
+        f"# (add --identify to read identity DIDs), then `canair pids ...`. Validate with\n"
+        f"# `canair validate`.\n"
+        f'car_model: "{car_model}"\n'
+        f'init: "{init}"\n'
+    )
+    (root / "states.yaml").write_text(_STATES_TEMPLATE.format(car_model=car_model))
+
+    if set_default:
+        set_config_value("default_profile", name)
+    return root
+
+
+def _cmd_create(args) -> int:
     name = args.name.strip()
     if not name:
         print("error: profile name cannot be empty", file=sys.stderr)
         return 2
-
-    root = args.path if args.path else user_profiles_dir() / name
-    root = Path(root)
-
-    if root.exists() and any(root.iterdir()) and not args.force:
-        print(
-            f"error: {root} already exists and is not empty (use --force to proceed).",
-            file=sys.stderr,
-        )
-        return 1
 
     # car_model: flag, else prompt when interactive, else error.
     car_model = args.car_model
@@ -208,25 +245,25 @@ def _cmd_create(args) -> int:
             print("error: --car-model is required", file=sys.stderr)
             return 2
 
+    try:
+        root = create_profile(
+            name,
+            car_model=car_model,
+            init=args.init,
+            path=args.path,
+            set_default=args.set_default,
+            force=args.force,
+        )
+    except FileExistsError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    except ValueError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+
     init = args.init or DEFAULT_INIT
-
-    # Scaffold the bundle.
-    (root / "ecus").mkdir(parents=True, exist_ok=True)
-    (root / "captures").mkdir(parents=True, exist_ok=True)
-    (root / "out").mkdir(parents=True, exist_ok=True)
-
-    (root / "profile.yaml").write_text(
-        f"# {car_model} — vehicle profile settings (created by `canair profile create`)\n"
-        f"# Per-ECU definitions live in ecus/. Populate with `canair discover --register`,\n"
-        f"# `canair identity --write`, or by hand. Validate with `canair validate`.\n"
-        f'car_model: "{car_model}"\n'
-        f'init: "{init}"\n'
-    )
-    (root / "states.yaml").write_text(_STATES_TEMPLATE.format(car_model=car_model))
-
     if args.set_default:
-        cfg = set_config_value("default_profile", name)
-        default_note = f"\nSet as default_profile in {cfg}."
+        default_note = f"\nSet as default_profile in {user_config_file()}."
     else:
         default_note = (
             f"\nSelect it with `canair --profile {name} ...`, "

@@ -35,6 +35,7 @@ import argparse
 import json
 import sys
 from collections import Counter
+from pathlib import Path
 
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.ecus import ecu_identity_confidence, load_ecus, resolve_tx, rx_addr_str
@@ -403,6 +404,31 @@ def _unknown_ecu(value: str, records: list[dict]) -> int:
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
+        help="Inspect ECUs (list/detail) or add one: show | add",
+        description="Inspect or edit the profile's ECU registry.\n"
+        "  show   list ECUs, or show one ECU's details and PID stats (default)\n"
+        "  add    register a new ECU in the active profile's ecus/ (offline)\n\n"
+        "A bare `canair ecu` or `canair ecu BMS` is shorthand for `canair ecu show …`.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=__doc__.split("Examples:")[1] if "Examples:" in __doc__ else "",
+    )
+    kinds = parser.add_subparsers(dest="ecu_kind", metavar="<kind>")
+    _add_show_parser(kinds)
+    _add_add_parser(kinds)
+    parser.set_defaults(func=_group_help, _ecu_group_parser=parser)
+    return parser
+
+
+def _group_help(args) -> int:
+    parser = getattr(args, "_ecu_group_parser", None)
+    if parser is not None:
+        parser.print_help()
+    return 1
+
+
+def _add_show_parser(kinds) -> argparse.ArgumentParser:
+    parser = kinds.add_parser(
+        "show",
         help="List ECUs, or show one ECU's details and PID stats",
         description="List ECUs, or show one ECU's details and PID stats.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -414,6 +440,79 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     parser.add_argument("--json", action="store_true", help="Output as JSON")
     parser.set_defaults(func=run)
     return parser
+
+
+def _add_add_parser(kinds) -> argparse.ArgumentParser:
+    parser = kinds.add_parser(
+        "add",
+        help="Register a new ECU in the active profile (offline; no device)",
+        description="Register a new ECU as ecus/<name>.yaml in the active profile.\n\n"
+        "Offline counterpart to `canair discover --register` (which needs a live "
+        "bus): use this to seed a known ECU into a blank profile — e.g. one shared "
+        "with another model-year — ready for contributions. The write is validated "
+        "and comment-preserving (never hand-edit ecus/).",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="examples:\n"
+        "  canair ecu add 7C6 --name CLU --description 'Cluster (instrument panel)'\n"
+        "  canair ecu add 0x7E4 --name BMS --id-protocol KWP2000\n"
+        "  canair ecu add 770 --name IGPM --notes 'Seeded offline; no PIDs yet'\n",
+    )
+    parser.add_argument("tx", metavar="TX", help="ECU TX id (hex, e.g. 7C6 or 0x7C6)")
+    parser.add_argument("--name", help="ECU short name (default: Unknown-<TX>)")
+    parser.add_argument("--description", help="Human description")
+    parser.add_argument(
+        "--id-protocol", dest="id_protocol", help="Identity protocol (UDS | KWP2000)"
+    )
+    parser.add_argument("--notes", help="Free-text notes")
+    parser.add_argument(
+        "--overwrite", action="store_true", help="Overwrite existing identity fields"
+    )
+    parser.add_argument(
+        "--dir", type=Path, default=None, help="ecus/ directory (default: active profile)"
+    )
+    parser.set_defaults(func=cmd_add)
+    return parser
+
+
+def cmd_add(args) -> int:
+    from canlib.ecus_edit import EcusEditError, register_ecu, tx_key
+
+    try:
+        tx_id = int(str(args.tx), 16)
+    except ValueError:
+        print(
+            f"{_RED}Invalid TX id {args.tx!r} — expected hex (e.g. 7C6).{_RESET}", file=sys.stderr
+        )
+        return 1
+
+    fields = {
+        k: v
+        for k, v in (
+            ("description", args.description),
+            ("id_protocol", args.id_protocol),
+            ("notes", args.notes),
+        )
+        if v is not None
+    }
+    try:
+        wrote = register_ecu(
+            tx_id,
+            name=args.name,
+            overwrite=args.overwrite,
+            ecus_dir=args.dir,
+            **fields,
+        )
+    except EcusEditError as e:
+        print(f"{_RED}{e}{_RESET}", file=sys.stderr)
+        return 1
+
+    disp = tx_key(tx_id)
+    label = args.name or f"Unknown-{tx_id:03X}"
+    if wrote:
+        print(f"{_GREEN}  ✓ registered {label} ({disp}){_RESET}")
+    else:
+        print(f"{_DIM}  {label} ({disp}) already registered; nothing to change.{_RESET}")
+    return 0
 
 
 def run(args) -> int:
