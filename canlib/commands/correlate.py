@@ -46,12 +46,48 @@ _RESET = "\033[0m"
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
-        help="Cross-signal correlation matrix across co-polled ECUs in a drive",
+        help="Find every strong cross-signal relationship in a drive/session",
         description=(
-            "Time-align every decoded param + varying raw byte across the "
-            "co-polled ECU/PIDs in scope and rank the strongest cross-signal "
-            "correlations. Use --against to hunt one reference (ECU:PID:PARAM)."
+            "Show me every strong relationship across a whole drive.\n\n"
+            "Builds every decoded parameter (and, with --bytes, every varying raw\n"
+            "byte; --bits for toggling bits) across all co-polled ECU/PIDs in scope,\n"
+            "time-aligns them by nearest timestamp, and ranks the strongest\n"
+            "cross-signal correlations. This is how the AAF-speed and MCU-temp links\n"
+            "were originally found by hand.\n\n"
+            "Three ways to use it:\n"
+            "  (default)     ranked list of the strongest cross-ECU/PID pairs\n"
+            "  --against R   rank every signal against one reference R=ECU:PID:PARAM\n"
+            "  --matrix      a labelled correlation r-matrix\n\n"
+            "Use --overlap first to see which ECU:PID pairs actually share aligned\n"
+            "samples (so you pick a viable --against). --gate isolates a regime\n"
+            "(e.g. 'while moving'), --lag-scan reveals command->response ordering,\n"
+            "and --promote writes the top raw-byte hit into ecus/.\n\n"
+            "Read-only: analyses captures/ only, never talks to the device. To pin\n"
+            "down *which byte* a relationship lives in, follow up with `canair hunt`."
         ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""\
+examples:
+  # every strong relationship in the most recent drive
+  canair correlate --state driving
+
+  # which ECU:PID pairs even share aligned samples? (pick an --against target)
+  canair correlate --overlap --state driving
+
+  # rank every signal against a known speed reference
+  canair correlate --against ESC:22C101:REAL_SPEED_KMH --state driving
+
+  # include raw bytes + bits (finds undecoded status/relay signals)
+  canair correlate --against ESC:22C101:REAL_SPEED_KMH --bytes --bits
+
+  # only while moving (isolate a regime whole-history correlation dilutes)
+  canair correlate --against ESC:22C101:REAL_SPEED_KMH --gate '> 0'
+
+  # restrict to a couple of ECUs and show the full r-matrix
+  canair correlate "MCU VCU" --matrix
+
+  # spearman ranks catch monotone-but-nonlinear links
+  canair correlate --against ESC:22C101:REAL_SPEED_KMH --method spearman""",
     )
     parser.add_argument(
         "query",

@@ -24,9 +24,27 @@ DEFAULT_INIT = "ATSP6;ATS0;ATAL;ATST96;"
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
-        help="Inspect and manage vehicle profiles",
-        description="List, inspect, and create vehicle profiles.",
+        help="List, inspect, and create vehicle profiles",
+        description="List, inspect, and create vehicle profiles — the per-vehicle\n"
+        "bundles (ecus/, profile.yaml, captures/, states.yaml, out/) that hold all\n"
+        "the reverse-engineering data.\n\n"
+        "Subcommands:\n"
+        "  list            list every discovered profile (bundled + user)\n"
+        "  show [NAME]     details of a profile (ECU/PID counts, paths); default active\n"
+        "  path [NAME]     print a profile's root directory (handy for scripting)\n"
+        "  create NAME     scaffold a new empty profile bundle\n\n"
+        "A bare `canair profile` lists profiles. Select the active profile with the\n"
+        "global --profile flag, CANAIR_PROFILE, or default_profile in config.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""\
+examples:
+  canair profile                              # list discovered profiles
+  canair profile show                         # details of the active profile
+  canair profile show ioniq-2017              # details of a named profile
+  canair profile path                         # print the active profile's directory
+  canair profile create ev6 --car-model "Kia EV6 2022"
+  canair profile create ev6 --car-model "Kia EV6 2022" --set-default
+""",
     )
     sub = parser.add_subparsers(dest="profile_command")
 

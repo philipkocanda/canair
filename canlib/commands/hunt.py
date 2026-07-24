@@ -33,12 +33,42 @@ _RESET = "\033[0m"
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
-        help="Find which byte/interpretation on ECU:PID matches a known signal",
+        help="Identify which byte on a PID *is* a known signal (e.g. which byte is speed?)",
         description=(
-            "Sweep every byte offset × interpretation on ECU PID, time-align "
-            "each against --against (a known signal on another ECU/PID), and "
-            "rank by |r| with a linear fit + unit guess."
+            "Answer 'which byte on this PID carries a signal I already know?'\n\n"
+            "Sweeps every byte offset of the target PID under every interpretation\n"
+            "(u8/i16/u24/f32/... x endianness), time-aligns each candidate against a\n"
+            "known reference signal on another ECU/PID (--against), and ranks them by\n"
+            "|Pearson r|. Each top hit reports a linear fit (y=m·x+c), the residual,\n"
+            "and a physical-unit guess — so you learn not just which byte, but its\n"
+            "scale and offset.\n\n"
+            "This automates the 'which byte tracks vehicle speed / motor RPM?' scratch\n"
+            "work. Use --transform delta to hunt the byte tracking the reference's\n"
+            "*rate* (e.g. torque vs acceleration), and --promote to write the top hit\n"
+            "straight into ecus/ as an enabled, unverified candidate parameter.\n\n"
+            "Read-only: analyses captures/ only, never talks to the device."
         ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""\
+examples:
+  # which byte on AAF 2181 is vehicle speed (known on ESC 22C101)?
+  canair hunt AAF 2181 --against ESC:22C101:REAL_SPEED_KMH
+
+  # restrict to drive captures and only strong linear fits
+  canair hunt AAF 2181 --against ESC:22C101:REAL_SPEED_KMH --state driving --min-n 30
+
+  # hunt the byte that tracks the reference's *rate* (acceleration, not speed)
+  canair hunt MCU 2102 --against ESC:22C101:REAL_SPEED_KMH --transform delta
+
+  # rank by rank-correlation (catches quantized / saturating links)
+  canair hunt MCU 2102 --against ESC:22C101:REAL_SPEED_KMH --method spearman
+
+  # write the winning byte into ecus/ as an unverified candidate param
+  canair hunt AAF 2181 --against ESC:22C101:REAL_SPEED_KMH --promote WHEEL_SPEED_KMH
+
+tip: --against takes a known signal ECU:PID:PARAM (or a raw ECU:PID:EXPR). Use
+     `canair correlate --overlap` first to find a reference that actually shares
+     time-aligned samples with your target.""",
     )
     parser.add_argument("ecu", help="Target ECU to hunt on (e.g. AAF)")
     parser.add_argument("pid", help="Target PID to hunt on (e.g. 2181)")

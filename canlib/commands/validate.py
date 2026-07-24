@@ -1179,9 +1179,32 @@ def _run_states() -> int:
 def add_parser(subparsers):
     parser = subparsers.add_parser(
         NAME,
-        help="Validate a profile's ecus/, profile.yaml, and captures/ against their schemas",
-        description="Validate a profile's ecus/, profile.yaml, and captures/ against their schemas.",
+        help="Check a profile's ecus/, profile.yaml, and captures/ against their schemas",
+        description="Validate a profile's data files against their schemas and\n"
+        "report problems.\n\n"
+        "Pick a target (default: all):\n"
+        "  pids      the per-ECU ecus/ files (identity/scan_log/dtcs/pids/...)\n"
+        "  captures  the captures/ payload files (+ soft warnings, see below)\n"
+        "  ecus      alias for pids\n"
+        "  states    states.yaml (vehicle power-state vocabulary + predicates)\n"
+        "  all       everything above\n\n"
+        "`validate captures` also emits soft warnings for out-of-vocabulary vehicle\n"
+        "states, SID/PID/DID echo mismatches (misfiled frames), non-hex payloads\n"
+        "(e.g. a stored 'NO DATA'), and untimed payload captures. Pass --strict to\n"
+        "promote the untimed-payload warning to an error — the CI / new-data gate.\n\n"
+        "Run this after editing ecus/ or adding captures; `canair pids` already\n"
+        "validates each edit, so this is the whole-profile check.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""\
+examples:
+  canair validate                     # validate everything (pids + captures + states)
+  canair validate --stats             # + a count summary (ECUs/PIDs/params/verified)
+  canair validate pids                # just the ecus/ definition files
+  canair validate captures            # just captures/ (with soft warnings)
+  canair validate captures --strict   # treat untimed-payload warnings as errors (CI)
+  canair validate states              # just states.yaml
+  canair validate pids ecus/bms.yaml  # a specific ECU file only
+""",
     )
     parser.add_argument(
         "target",

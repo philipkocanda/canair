@@ -57,6 +57,16 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "A bare `canair scan BMS` (or `canair scan` alone) is shorthand for "
         "`canair scan range …`.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""\
+examples:
+  canair scan BMS                         # sweep a PID range on BMS (bare = range)
+  canair scan range                       # interactive wizard (pick ECU/service/range)
+  canair scan range IGPM --range BC01-BC0B  # scan a specific DID range
+  canair scan iocontrol IGPM              # SAFE actuator (IOControl) discovery
+  canair scan routines BCM                # SAFE routine discovery
+  canair scan sessions BMS                # SAFE diagnostic session-type discovery
+
+Run `canair scan <kind> --help` for the flags of each kind.""",
     )
     kinds = parser.add_subparsers(dest="scan_kind", metavar="<kind>")
     _add_range_parser(kinds)

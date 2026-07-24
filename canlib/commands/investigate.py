@@ -40,13 +40,38 @@ _RESET = "\033[0m"
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
-        help="One-shot per-byte report for a PID (mapped? / state F / best anchor / unit)",
+        help="Explain an unknown PID: one ranked per-byte report (mapped? / state / anchor / unit)",
         description=(
-            "For every varying data byte of ECU PID: whether a param already maps "
-            "it, how cleanly it separates by power state, its strongest co-polled "
-            "cross-signal anchor (r + linear fit + unit guess). The 'explain this "
-            "unknown PID' entry point."
+            "Point this at an unknown PID and get one ranked table telling you\n"
+            "everything worth knowing about each of its bytes — the fastest way to\n"
+            "start decoding.\n\n"
+            "For every varying data byte of ECU PID it reports, in one pass:\n"
+            "  - mapped?   whether a defined parameter already decodes this byte\n"
+            "  - stateF    how cleanly the byte separates across power states\n"
+            "              (sleep/acc/ready/charging) — high F = a mode/relay/thermal\n"
+            "              signal a driving correlation would miss\n"
+            "  - anchor    the strongest-correlating known signal on another\n"
+            "              co-polled ECU/PID (Pearson r + linear fit y=m·x+c)\n"
+            "  - unit      a physical-unit guess for that fit (e.g. raw-40 degC,\n"
+            "              x1.609 mph->km/h)\n\n"
+            "Bytes are ranked strongest-anchor-first, then by state separation, so\n"
+            "the most decodable bytes float to the top. This bundles the manual\n"
+            "coverage -> discriminate -> correlate -> hunt loop into a single call.\n\n"
+            "Read-only: analyses captures/ only, never talks to the device. Once a\n"
+            "byte looks promising, confirm the exact expression with `canair hunt\n"
+            "ECU PID --against ...` and write it with `canair pids upsert-param`."
         ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""\
+examples:
+  canair investigate MCU 2102              # rank every unmapped byte of MCU 2102
+  canair investigate MCU 2102 --all        # include bytes an existing param already maps
+  canair investigate BMS 2101 --state driving   # only consider drive captures
+  canair investigate ESC 22C101 --min-r 0.8      # only show strong anchors (|r| >= 0.8)
+  canair investigate AAF 2181 --json       # machine-readable output
+
+tip: no anchors found? widen scope (drop --state), lower --min-r, or grow the
+     capture set — an anchor needs another co-polled signal it can align to.""",
     )
     parser.add_argument("ecu", help="Target ECU (e.g. MCU)")
     parser.add_argument("pid", help="Target PID (e.g. 2102)")

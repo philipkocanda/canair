@@ -33,6 +33,14 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         help="Show the configured transport, device mode, and reachability",
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""\
+examples:
+  canair status                       # what am I talking to, in what mode, is it up?
+  canair status --wican vpn           # check the device at the 'vpn' address
+  canair status --json                # machine-readable (for scripts/CI)
+
+exit codes: 0 = reachable & usable, 1 = unreachable, 2 = misconfigured.
+""",
     )
     parser.add_argument(
         "--transport",
