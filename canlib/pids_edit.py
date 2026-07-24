@@ -1056,8 +1056,9 @@ def upsert_parameter(
     New parameters are rendered from the provided fields in canonical order.
     Existing parameters have only the *provided* fields replaced in place
     (other fields and formatting are preserved). Creates the ``PID`` block
-    and/or ``parameters:`` map if missing. Requires the ECU to already exist
-    with a ``pids:`` section.
+    and/or ``parameters:`` map if missing, and scaffolds a whole ``pids:``
+    section if the ECU has none yet (upsert is the create path — e.g. a
+    freshly registered, PID-less ECU). Requires only that the ECU exists.
 
     The write is verified by a YAML re-parse; on failure the file is restored.
     """
@@ -1091,8 +1092,36 @@ def upsert_parameter(
         ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
         pids = _keyed_block(text, "pids", 2, ecu_start, ecu_end)
         if not pids:
-            raise PidsEditError(f"ECU {ecu_name!r} has no pids: section")
+            # ECU exists but has no pids: section yet (e.g. a freshly registered
+            # ECU). upsert is the create path, so scaffold the whole
+            # pids: -> PID -> parameters: -> param chain at the end of the ECU
+            # block.
+            param_lines = _format_param_block(param_name, fields, indent=8)
+            block = [
+                "  pids:",
+                f"    {pid_u}:",
+                "      status: active",
+                "      parameters:",
+                *param_lines,
+            ]
+            return _insert_lines(text, ecu_start, ecu_end, block)
         _, _, pids_body_start, pids_body_end, _ = pids
+
+        # An inline-empty pids: (``pids: {}`` / ``pids:``) has no block body to
+        # append into; rewrite the header to block form and add the PID chain.
+        pids_inline = pids[4]
+        if pids_body_start >= pids_body_end or pids_inline in ("{}", "{ }"):
+            param_lines = _format_param_block(param_name, fields, indent=8)
+            chain = "\n".join(
+                [
+                    "  pids:",
+                    f"    {pid_u}:",
+                    "      status: active",
+                    "      parameters:",
+                    *param_lines,
+                ]
+            )
+            return text[: pids[0]] + chain + "\n" + text[pids[1] + 1 :]
 
         pidb = _keyed_block(text, pid_u, 4, pids_body_start, pids_body_end)
         if not pidb:

@@ -120,6 +120,77 @@ class TestUpsertParameterNew:
         assert _params(pids_dir, "2101")["WITHNOTE"]["notes"].strip().startswith("line one")
 
 
+class TestUpsertCreatesPidsSection:
+    """upsert-param is the create path: it scaffolds a missing pids: section
+    (e.g. on a freshly registered, PID-less ECU)."""
+
+    def _write(self, tmp_path, body):
+        (tmp_path / "_meta.yaml").write_text('car_model: "Test"\ninit: "ATSP6;"\n')
+        (tmp_path / "e.yaml").write_text(textwrap.dedent(body))
+        return tmp_path
+
+    def _ecu(self, d):
+        return yaml.safe_load((d / "e.yaml").read_text())["NEWECU"]
+
+    def test_no_pids_section_at_all(self, tmp_path):
+        d = self._write(
+            tmp_path,
+            """\
+            # keep me
+            NEWECU:
+              tx_id: 0x7C6
+              identity:
+                description: Cluster
+            """,
+        )
+        upsert_parameter("NEWECU", "B002", "ODOMETER", "B6*65536+B7", unit="km", pids_dir=d)
+        ecu = self._ecu(d)
+        assert ecu["pids"]["B002"]["status"] == "active"
+        assert ecu["pids"]["B002"]["parameters"]["ODOMETER"]["expression"] == "B6*65536+B7"
+        assert ecu["identity"]["description"] == "Cluster"  # sibling preserved
+        assert "# keep me" in (d / "e.yaml").read_text()  # comment preserved
+
+    def test_empty_block_form_pids(self, tmp_path):
+        d = self._write(
+            tmp_path,
+            """\
+            NEWECU:
+              tx_id: 0x7C6
+              pids:
+            """,
+        )
+        upsert_parameter("NEWECU", "B002", "ODO", "B6", unit="km", pids_dir=d)
+        assert self._ecu(d)["pids"]["B002"]["parameters"]["ODO"]["expression"] == "B6"
+
+    def test_inline_empty_map_pids(self, tmp_path):
+        d = self._write(
+            tmp_path,
+            """\
+            NEWECU:
+              tx_id: 0x7C6
+              pids: {}
+            """,
+        )
+        upsert_parameter("NEWECU", "B002", "ODO", "B6", unit="km", pids_dir=d)
+        assert self._ecu(d)["pids"]["B002"]["parameters"]["ODO"]["expression"] == "B6"
+
+    def test_result_round_trips_through_loader(self, tmp_path):
+        d = self._write(
+            tmp_path,
+            """\
+            NEWECU:
+              tx_id: 0x7C6
+              identity:
+                description: Cluster
+            """,
+        )
+        upsert_parameter("NEWECU", "B002", "ODO", "B6", unit="km", pids_dir=d)
+        from canlib.pids import build_ecu_index, load_pids
+
+        idx = build_ecu_index(load_pids(d))
+        assert "NEWECU" in idx
+
+
 class TestUpsertParameterUpdate:
     def test_update_single_field_preserves_others(self, pids_dir):
         upsert_parameter("TESTECU", "2101", "EXISTING", "B5", pids_dir=pids_dir)
