@@ -1,0 +1,162 @@
+"""Tests for canlib.notation — the typed ByteRef model + display notation."""
+
+import pytest
+
+from canlib.byteindex import wican_to_isotp
+from canlib.notation import (
+    ByteNotation,
+    ByteRef,
+    ByteSpace,
+    relabel_signal,
+    subfunction_bytes_for_pid,
+)
+
+
+class TestByteRefConstruction:
+    def test_from_wican_roundtrips_to_wican_offset(self):
+        # B09 is the first data byte of the first consecutive frame (ISO-TP 6).
+        ref = ByteRef.from_wican(9)
+        assert ref.space is ByteSpace.ISOTP
+        assert ref.offset == 6  # ISO-TP index
+        assert ref.wican_offset == 9  # back to WiCAN
+
+    def test_from_wican_rejects_pci_bytes(self):
+        # B00/B01 (FF PCI) and B08/B16 (CF PCI) have no ISO-TP position.
+        for pci in (0, 1, 8, 16, 24):
+            assert wican_to_isotp(pci) is None
+            with pytest.raises(ValueError, match="PCI byte"):
+                ByteRef.from_wican(pci)
+
+    def test_from_isotp_is_canonical(self):
+        ref = ByteRef.from_isotp(6)
+        assert ref.offset == 6
+        assert ref.wican_offset == 9
+
+    def test_raw_can_has_no_wican_view(self):
+        ref = ByteRef.from_raw_can(3)
+        assert ref.space is ByteSpace.RAW_CAN
+        with pytest.raises(ValueError):
+            _ = ref.wican_offset
+        assert ref.to_wican_expression() is None
+
+
+class TestToWicanExpression:
+    def test_single_unsigned_byte(self):
+        assert ByteRef.from_wican(9).to_wican_expression() == "B9"
+
+    def test_single_signed_byte(self):
+        assert ByteRef.from_wican(9, signed=True).to_wican_expression() == "S9"
+
+    def test_bit(self):
+        assert ByteRef.from_wican(14, bit=5).to_wican_expression() == "B14:5"
+
+    def test_contiguous_big_endian_range(self):
+        # WiCAN B04,B05 are contiguous (ISO-TP 2,3) -> range form.
+        ref = ByteRef.from_wican(4, width=2)
+        assert ref.to_wican_expression() == "[B4:B5]"
+
+    def test_contiguous_signed_range(self):
+        ref = ByteRef.from_wican(4, width=2, signed=True)
+        assert ref.to_wican_expression() == "[S4:S5]"
+
+    def test_little_endian_unsigned_shift_composition(self):
+        # LE unsigned -> shift form (matches _decode_plot.wican_expr).
+        ref = ByteRef.from_wican(4, width=2, little=True)
+        assert ref.to_wican_expression() == "B4 | (B5 << 8)"
+
+    def test_little_endian_signed_has_no_expression(self):
+        ref = ByteRef.from_wican(4, width=2, signed=True, little=True)
+        assert ref.to_wican_expression() is None
+
+    def test_pci_straddling_range_uses_shift_composition(self):
+        # ISO-TP bytes 5 and 6 are WiCAN B07 and B09 (B08 is a CF PCI byte).
+        # Contiguous in ISO-TP, NOT in WiCAN -> must shift-compose, never [B07:B09].
+        ref = ByteRef.from_isotp(5, width=2)
+        assert ByteRef.from_isotp(5).wican_offset == 7
+        assert ByteRef.from_isotp(6).wican_offset == 9
+        expr = ref.to_wican_expression()
+        assert expr == "(B7 << 8) | B9"
+        assert "[" not in expr  # never a PCI-spanning range
+
+    def test_matches_decode_plot_wican_expr_for_common_cases(self):
+        # Parity with the existing inspector expression generator.
+        from canlib.commands._decode_plot import INSPECT_TYPES, wican_expr
+
+        by_name = {spec[0]: spec for spec in INSPECT_TYPES}
+        for name, width, signed, little in [
+            ("u8", 1, False, False),
+            ("i8", 1, True, False),
+            ("u16", 2, False, False),
+            ("i16", 2, True, False),
+            ("u16", 2, False, True),  # LE unsigned
+        ]:
+            spec = by_name[name]
+            # Use a WiCAN offset whose window stays within one contiguous frame.
+            ref = ByteRef.from_wican(9, width=width, signed=signed, little=little)
+            assert ref.to_wican_expression() == wican_expr(9, spec, little=little), (
+                name,
+                little,
+            )
+
+
+class TestRender:
+    def test_wican_default_matches_expression(self):
+        assert ByteRef.from_wican(9).render(ByteNotation.WICAN) == "B9"
+        assert ByteRef.from_wican(14, bit=5).render(ByteNotation.WICAN) == "B14:5"
+
+    def test_isotp_view(self):
+        assert ByteRef.from_wican(9).render(ByteNotation.ISOTP) == "i6"
+        assert ByteRef.from_wican(14, bit=5).render(ByteNotation.ISOTP) == "i11.5"
+
+    def test_torque_view_sub1_vs_sub2(self):
+        # B09 -> ISO-TP 6. Torque 1 (sub=1) skips SID+1 => byte 4 => "E".
+        assert ByteRef.from_wican(9).render(ByteNotation.TORQUE, sub_bytes=1) == "E"
+        # sub=2 skips SID+2 => byte 3 => "D".
+        assert ByteRef.from_wican(9).render(ByteNotation.TORQUE, sub_bytes=2) == "D"
+
+    def test_bix_view_includes_bit(self):
+        # ISO-TP 6, sub=1 -> Torque byte 4 -> bix 32; bit 3 -> 35.
+        assert ByteRef.from_wican(9).render(ByteNotation.BIX, sub_bytes=1) == "32"
+        assert ByteRef.from_wican(9, bit=3).render(ByteNotation.BIX, sub_bytes=1) == "35"
+
+    def test_torque_dash_for_header_byte(self):
+        # WiCAN B02 = SID (ISO-TP 0): no Torque index.
+        assert ByteRef.from_wican(2).render(ByteNotation.TORQUE) == "—"
+        assert ByteRef.from_wican(2).render(ByteNotation.BIX) == "—"
+
+    def test_raw_can_render(self):
+        assert ByteRef.from_raw_can(3).render(ByteNotation.WICAN) == "r3"
+        assert ByteRef.from_raw_can(3, bit=2).render(ByteNotation.ISOTP) == "r3.2"
+
+
+class TestRelabelSignal:
+    def test_wican_is_noop(self):
+        assert relabel_signal("BMS:2101:B9", ByteNotation.WICAN) == "BMS:2101:B9"
+
+    def test_relabels_byte_with_prefix(self):
+        assert relabel_signal("BMS:2101:B9", ByteNotation.ISOTP) == "BMS:2101:i6"
+
+    def test_relabels_bit(self):
+        assert relabel_signal("BMS:2101:B14:5", ByteNotation.ISOTP) == "BMS:2101:i11.5"
+
+    def test_relabels_bare_byte(self):
+        assert relabel_signal("B9", ByteNotation.TORQUE, sub_bytes=1) == "E"
+
+    def test_named_param_unchanged(self):
+        assert relabel_signal("BMS:2101:SOC_BMS", ByteNotation.ISOTP) == "BMS:2101:SOC_BMS"
+        assert relabel_signal("ESC:22C101:REAL_SPEED_KMH", ByteNotation.BIX) == (
+            "ESC:22C101:REAL_SPEED_KMH"
+        )
+
+    def test_pci_byte_label_left_unchanged(self):
+        # B08 is a PCI byte -> from_wican raises -> label passes through.
+        assert relabel_signal("X:Y:B8", ByteNotation.ISOTP) == "X:Y:B8"
+
+
+class TestSubfunctionBytesForPid:
+    def test_service_21_is_one(self):
+        assert subfunction_bytes_for_pid("2101") == 1
+
+    def test_service_22_is_two(self):
+        assert subfunction_bytes_for_pid("22BC03") == 2
+        assert subfunction_bytes_for_pid("22c101") == 2
