@@ -82,6 +82,11 @@ canair hunt MyECU:2101 --against ESC:22C101:REAL_SPEED_KMH
 # → B12  r=0.99  y = 1.00·x + 0.3   (looks like km/h)
 ```
 
+> `ESC:22C101:REAL_SPEED_KMH` here is a *known* speed signal from the bundled
+> Ioniq profile, used purely to illustrate. On your car the reference is
+> whatever signal *you've* already verified (or an external anchor like
+> GPS-logged speed) — the technique is the same.
+
 An `r` near 1.0 on byte 12 with a ~1:1 linear fit is strong evidence that **byte
 12 is speed in km/h**. That's our hypothesis, confirmed by data.
 

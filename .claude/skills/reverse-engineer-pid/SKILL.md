@@ -1,43 +1,43 @@
 ---
 name: reverse-engineer-pid
-description: Reverse-engineer / decode a NEW Ioniq PID or DID end to end — discover via scans, capture payloads, analyze bytes (WiCAN Bnn / ISO-TP / PCI boundaries, expression syntax, conversion table), hypothesize and test expressions, write & validate parameter definitions, verify, integrate. Use when adding a new PID or parameter, decoding an unknown/undecoded payload, writing or fixing a WiCAN expression, working out a byte offset, or working the research: backlog. For general device/tool/ECU-status reference use the ioniq-reverse-engineering skill.
+description: Generic, vehicle-agnostic reverse-engineering workflow for canair — the whole flow from orient/discover through capture, analyze, define, verify, integrate, for ANY signal (a PID/DID parameter, a raw broadcast frame field, a routine, an IOControl actuator) on ANY car. Covers WiCAN Bnn / ISO-TP / PCI byte indexing, expression syntax, the analysis reasoning (signal types, physics/EE, statistics), and writing/validating definitions. Use when discovering, decoding, or verifying anything on a vehicle bus, writing or fixing an expression, working out a byte offset, or working a research: backlog — on the bundled Ioniq profile or a profile you built for another car. Examples use the Ioniq for concreteness; the method is generic.
 ---
 
-# Reverse-engineering a new Ioniq PID
+# Reverse-engineering a vehicle signal (generic)
 
-This is the end-to-end workflow for taking a PID/DID from "unknown" to a
-verified, decoded parameter in the profile's `ecus/`.
+This is the **vehicle-agnostic, end-to-end** workflow for taking a signal from
+"unknown" to a verified, decoded parameter in a profile's `ecus/`. It is **not
+Ioniq-specific and not PID-specific**: the same orient → discover → capture →
+inspect → hypothesize → define → validate → verify → integrate loop applies to
+any car and any kind of signal — a service-`22`/`21` PID/DID, a passively-sniffed
+broadcast frame field, a routine, or an IOControl actuator. The concrete
+examples below use the bundled 2017 Ioniq profile because it's a fully-worked
+reference, but treat the *method* as the transferable part, not the byte offsets.
 
-**These two skills are complementary — load both.** They split the work, not the
-subject matter:
+For **vehicle-specific** facts (which ECU carries which signal, marque quirks,
+the exact addresses) consult the active profile's `ecus/` and, for the bundled
+car, the `ioniq-reverse-engineering` skill. This skill is the *procedure*; the
+profile is the *data*.
 
-- **`ioniq-reverse-engineering`** (the *parent*/context skill) — the vehicle
-  facts, ECU status table, safety rules, device/transport/MQTT details, and the
-  full `canair`/`wican-cli` command reference. It is the "what am I working on
-  and with what tools" skill.
-- **`reverse-engineer-pid`** (this skill) — the *decoding procedure* and
-  reference: the discover→capture→analyze→define→verify lifecycle, byte-index /
-  expression syntax, PCI boundaries, UDS conventions, and the analysis
-  reasoning (signal types, physics/EE, statistics) below.
-
-If you loaded **this** skill for an RE task, **also load `ioniq-reverse-engineering`**
-— you will need the ECU status table (which ECU carries which kind of signal),
-the safety rules, and the tool reference to do the workflow here. Conversely, the
-parent skill points back here whenever you actually decode a PID. Treat "load the
-reverse-engineering skill" as "load *both*."
+> Related skills: **`ioniq-reverse-engineering`** carries the bundled-car facts
+> (ECU status table, device/transport details, the `canair`/`wican-cli` command
+> reference) — load it too when working the *Ioniq* specifically. When working
+> **another** car, this skill plus that car's profile is what you need; the Ioniq
+> skill is then just an illustrative example of a finished profile.
 
 ## Safety first (non-negotiable)
 
 - **NEVER** use UDS programming session (`10 02`) or any firmware write/upload.
-  This is a real, un-brickable car.
-- Be gentle: old, slow ECUs. **One `canair` connection at a time, any transport**
-  — canair enforces a `flock` mutex (`/tmp/wican-connection.lock`); a second
+  A car's ECUs can be bricked — treat every bus as a real, in-use vehicle.
+- Be gentle: ECUs vary in speed and some are finicky, especially the first
+  request after idle. **One `canair` connection at a time, any transport** —
+  canair enforces a `flock` mutex (`/tmp/wican-connection.lock`); a second
   `slcan-tcp` client hangs unserved and a second `wican-ws` WebSocket can lock up
-  the WiCAN (power-cycle to recover). No concurrent requests to the same ECU.
-- **Never reboot the WiCAN without asking.** Using the WebSocket terminal
-  overrides AutoPID; ask before rebooting to restore the MQTT feed.
+  the device (power-cycle to recover). No concurrent requests to the same ECU.
+- **Never reboot the device without asking.** Using the WebSocket terminal
+  overrides AutoPID; ask before rebooting to restore the AutoPID/MQTT feed.
 - Treat `0x22Fxxx` (flash/cal) as read-only. `2E` writes and `2F` IOControl can
-  brick or actuate hardware — out of scope for PID decoding.
+  brick or actuate hardware — out of scope for signal decoding.
 - Disable device sleep during a session: `wican sleep --disable` (re-enable
   after).
 
@@ -89,8 +89,9 @@ canair coverage --unmapped                # captured PIDs with undecoded bytes
 ```
 
 `canair research` surfaces *planned* work; `canair coverage` surfaces *undecoded
-bytes* in PIDs you already capture. The ECU status table (parent skill) shows
-which ECUs are worth probing.
+bytes* in PIDs you already capture. `canair ecu` (and, for the bundled car, the
+`ioniq-reverse-engineering` skill's ECU status table) shows which ECUs carry
+which kind of signal and are worth probing.
 
 ### 2. Prerequisites — power state & access
 
@@ -133,8 +134,9 @@ canair pids add-research MCU --type decode --target 2102 \
 - **Negative probe (NRC / no response) → close the scan lead** with
   `canair pids set-status <ECU> "<target>" nrc --type scan` so nobody re-probes it.
   Use `nrc` for "probed, ECU said no / silent" and `done` for "scan complete, responders
-  found and registered". Powertrain ECUs (BMS/VCU/MCU/LDC) are KWP2000/service-21 and
-  reliably NRC every `22 xxxx` (Ioniq-5-sourced) DID — confirm once, mark `nrc`, move on.
+  found and registered". (Example: on the Ioniq the powertrain ECUs — BMS/VCU/MCU/LDC —
+  are KWP2000/service-21 and reliably NRC every `22 xxxx` DID ported from the Ioniq 5;
+  confirm once, mark `nrc`, move on. Watch for the analogous mismatch on your own car.)
 
 ### 4. Capture — record real payloads across states
 
@@ -202,9 +204,10 @@ an expression.
 
 ### 6. Hypothesize — form an expression
 
-Cross-reference the Kia Soul/Niro sheets and the Obsidian vault; watch the
-PCI-boundary caution for `[Bnn:Bmm]`. See the Byte Index & Expression reference
-at the bottom.
+Cross-reference any external signal maps you have for this car or a close
+relative (for the Ioniq: the Kia Soul/Niro PID sheets in
+`profiles/ioniq-2017/references/` and the Obsidian vault); watch the PCI-boundary
+caution for `[Bnn:Bmm]`. See the Byte Index & Expression reference at the bottom.
 
 Hypothesizing is not just guessing a byte offset — it's reasoning from *domain
 knowledge* about what a signal must physically be, then confirming it in the
@@ -212,9 +215,9 @@ data. Use every discipline you have.
 
 #### Let the ECU narrow the search space
 
-**What an ECU is tells you what signals to expect.** Consult the ECU status
-table in the parent skill and reason about the component's job before you look at
-bytes:
+**What an ECU is tells you what signals to expect.** Reason about the
+component's job before you look at bytes (the examples below are EV modules; the
+same "reason from the ECU's role" applies to any powertrain):
 
 - **BMS (battery)** — cell/pack voltages (tight clusters of similar 2-byte
   values), currents (signed, symmetric about zero, charge vs discharge),
@@ -564,7 +567,8 @@ canair wican autopid diff --wican home   # compare to device (optional)
 python3 -m pytest -q             # keep the suite green
 ```
 
-Then consider an upstream wican-fw PR (see parent skill goals).
+Then consider contributing the profile back (and, for the bundled car, an
+upstream wican-fw PR — see the `ioniq-reverse-engineering` skill's goals).
 
 ## Tool cheat-sheet (this workflow)
 
@@ -736,9 +740,14 @@ subfunctions (service `22xxxx`).
 | 70    | 0x3C   | BG       | 464   | BF       | 456   |
 | 71    | 0x3D   | BH       | 472   | BG       | 464   |
 
-## Reference: UDS decoding conventions (Hyundai/Kia)
+## Reference: UDS decoding conventions (Hyundai/Kia example)
 
-Source: `KB/EV/Hyundai Ioniq/Reverse engineering/Hyundai Kia UDS DID Conventions.md`
+**These are marque-specific conventions, not universal.** They're included as a
+worked example of the kind of manufacturer patterns worth discovering for *your*
+car — DID range semantics, paging vs indexing, identity-DID offsets all vary by
+OEM. For the bundled Ioniq they hold; for another car, expect a different scheme
+and re-derive it. Source:
+`KB/EV/Hyundai Ioniq/Reverse engineering/Hyundai Kia UDS DID Conventions.md`
 
 ### PID categories
 

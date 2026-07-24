@@ -45,13 +45,15 @@ Select a transport with `--transport` or the config `transport:` block.
 
 ## Protocols
 
-- **UDS** (ISO 14229) — body/comfort ECUs.
-- **KWP2000** (ISO 14230) — powertrain ECUs (BMS, VCU, MCU, OBC).
+- **UDS** (ISO 14229) — the modern diagnostic protocol.
+- **KWP2000** (ISO 14230) — the older protocol some ECUs still speak.
 - **ISO-TP** (ISO 15765-2) — multi-frame transport underneath both.
 - **SLCAN-over-TCP** and **ELM327 AT** — the host↔dongle link.
 
-canair auto-selects UDS vs. KWP2000 per ECU based on the profile registry or an
-on-device probe.
+Which ECUs speak which protocol is **vehicle-specific** — canair auto-selects UDS
+vs. KWP2000 per ECU based on the profile registry or an on-device probe. (On the
+bundled Ioniq, for example, the powertrain ECUs — BMS, VCU, MCU, OBC — are
+KWP2000 while body/comfort ECUs are UDS; another car may split differently.)
 
 ## Two data domains
 

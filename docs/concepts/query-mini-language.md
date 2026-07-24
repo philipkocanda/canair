@@ -5,7 +5,9 @@ small, consistent syntax.
 
 ## Selectors
 
-A **selector** is `ECU[:PIDLIST]`:
+A **selector** is `ECU[:PIDLIST]`. (The `BMS`/`IGPM`/`VCU` names below are from
+the bundled Ioniq profile, used as examples — the ECU and PID names available are
+whatever the *active* profile defines; see `canair ecu`.)
 
 | Selector | Meaning |
 |---|---|
