@@ -8,6 +8,7 @@ from canlib.states import (
     compile_predicate,
     load_states,
     state_names,
+    state_options,
     suggest_state,
 )
 
@@ -139,3 +140,40 @@ class TestLoadStates:
     def test_state_names_swallows_errors(self, tmp_path):
         prof = self._write(tmp_path, 'states:\n  - name: x\n    when: "bad("\n')
         assert state_names(prof) == []
+
+
+class TestStateOptions:
+    def _write(self, tmp_path, text):
+        (tmp_path / "states.yaml").write_text(text)
+
+        class _P:
+            states_file = tmp_path / "states.yaml"
+
+        return _P()
+
+    def test_declared_states_first_then_base(self, tmp_path):
+        prof = self._write(
+            tmp_path,
+            "states:\n"
+            "  - name: charging\n"
+            "    description: HV charging\n"
+            "  - name: parked\n",
+        )
+        opts = state_options(prof)
+        names = [n for n, _ in opts]
+        # Declared states keep file order and come before base-only states.
+        assert names[:2] == ["charging", "parked"]
+        assert opts[0] == ("charging", "HV charging")
+        # Base POWER_STATES not already declared are appended (e.g. ready, sleep).
+        assert "ready" in names
+        assert "sleep" in names
+        # No duplicates.
+        assert len(names) == len(set(names))
+
+    def test_absent_states_file_returns_base(self, tmp_path):
+        class _P:
+            states_file = tmp_path / "nope.yaml"
+
+        names = [n for n, _ in state_options(_P())]
+        assert set(names) == {"sleep", "plugged", "acc", "acc2", "ready", "charging"}
+

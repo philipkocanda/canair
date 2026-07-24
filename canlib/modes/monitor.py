@@ -902,6 +902,15 @@ class MonitorController:
             return None
         return suggest_state(self._state_rules, self.decoded_values, self.responded)
 
+    def state_options(self) -> list[tuple[str, str]]:
+        """The profile's ordered ``(state, description)`` vocabulary for the save dialog."""
+        from ..states import state_options
+
+        try:
+            return state_options()
+        except Exception:
+            return []
+
     def save_now(self, label: str, vehicle_states=None, notes: str | None = None) -> str:
         """Save the payloads captured so far (on-demand save from the TUI).
 

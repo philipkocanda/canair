@@ -28,7 +28,8 @@ from textual.containers import Horizontal, VerticalScroll
 from textual.content import Content
 from textual.css.query import NoMatches
 from textual.screen import ModalScreen
-from textual.widgets import Button, Checkbox, Input, Label, Static
+from textual.widgets import Button, Checkbox, Input, Label, OptionList, Static
+from textual.widgets.option_list import Option
 
 if TYPE_CHECKING:
     from .monitor import MonitorController
@@ -38,10 +39,52 @@ import time
 from datetime import datetime
 
 
+def _split_state_tokens(value: str) -> tuple[list[str], str]:
+    """Split a comma-separated state string into (completed tokens, active token).
+
+    The *active token* is the trailing fragment after the last comma — the one
+    being typed and thus the one autocomplete filters against. Completed tokens
+    are everything before it, stripped of surrounding whitespace. A trailing
+    comma yields an empty active token (nothing being typed yet).
+    """
+    parts = value.split(",")
+    active = parts[-1].strip()
+    completed = [p.strip() for p in parts[:-1] if p.strip()]
+    return completed, active
+
+
+def _complete_state_token(value: str, choice: str) -> str:
+    """Return ``value`` with its active (last) token replaced by ``choice``.
+
+    Preserves the already-typed tokens and appends a ``", "`` so the caret is
+    ready for the next state — e.g. ``("ready, pa", "parked") -> "ready, parked, "``.
+    """
+    completed, _active = _split_state_tokens(value)
+    return ", ".join([*completed, choice]) + ", "
+
+
+def _unknown_state_tokens(value: str, vocabulary: set[str]) -> list[str]:
+    """Tokens in ``value`` (comma-separated) that aren't in ``vocabulary``.
+
+    Case-insensitive; the trailing token still being typed is ignored while it
+    remains a prefix of some known state (so the warning doesn't flicker mid-word).
+    """
+    completed, active = _split_state_tokens(value)
+    unknown = [t for t in completed if t.lower() not in vocabulary]
+    if active and active.lower() not in vocabulary:
+        if not any(name.startswith(active.lower()) for name in vocabulary):
+            unknown.append(active)
+    return unknown
+
+
 class SaveDialog(ModalScreen[tuple[str, str, str] | None]):
     """Modal prompt for capture metadata (label / state / notes).
 
-    Dismisses with ``(label, state, notes)`` on save, or ``None`` on cancel.
+    The state field is a free-text ``Input`` (states are comma-separated and may
+    be composite, e.g. ``ready, parked``) augmented with a filtering autocomplete
+    dropdown of the profile's known states and a live warning for any token
+    outside the vocabulary. Dismisses with ``(label, state, notes)`` on save, or
+    ``None`` on cancel.
     """
 
     CSS = """
@@ -51,17 +94,39 @@ class SaveDialog(ModalScreen[tuple[str, str, str] | None]):
         border: round $accent; background: $surface;
     }
     #dialog-title { text-style: bold; margin-bottom: 1; }
-    #dialog Input { margin-bottom: 1; }
+    #dialog Input { margin-bottom: 0; }
+    #state-hint { color: $text-muted; height: 1; margin-bottom: 0; }
+    #state-warning { color: $warning; height: auto; margin-bottom: 1; display: none; }
+    #state-warning.visible { display: block; }
+    #state-options {
+        height: auto; max-height: 6; margin-bottom: 1;
+        border: round $panel; background: $panel; display: none;
+    }
+    #state-options.visible { display: block; }
     #dialog-buttons { height: auto; align-horizontal: right; }
     #dialog-buttons Button { margin-left: 2; }
     """
 
     BINDINGS: ClassVar[list[Binding]] = [Binding("escape", "cancel", "cancel")]
 
-    def __init__(self, suggested_label: str, suggested_state: str = ""):
+    def __init__(
+        self,
+        suggested_label: str,
+        suggested_state: str = "",
+        state_options: list[tuple[str, str]] | None = None,
+    ):
         super().__init__()
         self._suggested = suggested_label
         self._suggested_state = suggested_state
+        if state_options is None:
+            from ..states import state_options as load_state_options
+
+            try:
+                state_options = load_state_options()
+            except Exception:
+                state_options = []
+        self._state_options = state_options
+        self._vocabulary = {name for name, _desc in state_options}
 
     def compose(self) -> ComposeResult:
         from textual.containers import Vertical
@@ -74,6 +139,9 @@ class SaveDialog(ModalScreen[tuple[str, str, str] | None]):
                 placeholder="States (comma-separated, e.g. ready, parked)",
                 id="f-state",
             )
+            yield Label("↑/↓ + enter to pick a state · type to filter", id="state-hint")
+            yield OptionList(id="state-options")
+            yield Label("", id="state-warning")
             yield Input(placeholder="Notes (optional)", id="f-notes")
             with Horizontal(id="dialog-buttons"):
                 yield Button("Save", variant="primary", id="save")
@@ -81,6 +149,47 @@ class SaveDialog(ModalScreen[tuple[str, str, str] | None]):
 
     def on_mount(self) -> None:
         self.query_one("#f-label", Input).focus()
+        self._refresh_state_ui(self._suggested_state)
+
+    def _option_for(self, name: str, desc: str) -> Option:
+        prompt = name if not desc else f"{name} — {desc}"
+        return Option(prompt, id=name)
+
+    def _refresh_state_ui(self, value: str) -> None:
+        """Repopulate the dropdown for the active token and update the warning."""
+        _completed, active = _split_state_tokens(value)
+        needle = active.lower()
+        matches = [
+            (name, desc)
+            for name, desc in self._state_options
+            if needle in name or needle in desc.lower()
+        ]
+
+        options = self.query_one("#state-options", OptionList)
+        options.clear_options()
+        for name, desc in matches:
+            options.add_option(self._option_for(name, desc))
+        options.set_class(bool(matches), "visible")
+
+        warning = self.query_one("#state-warning", Label)
+        unknown = _unknown_state_tokens(value, self._vocabulary)
+        if unknown:
+            warning.update("unknown state(s): " + ", ".join(unknown))
+            warning.set_class(True, "visible")
+        else:
+            warning.update("")
+            warning.set_class(False, "visible")
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        if event.input.id == "f-state":
+            self._refresh_state_ui(event.value)
+
+    def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
+        state_input = self.query_one("#f-state", Input)
+        state_input.value = _complete_state_token(state_input.value, event.option.id or "")
+        state_input.cursor_position = len(state_input.value)
+        state_input.focus()
+        self._refresh_state_ui(state_input.value)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "save":
@@ -88,12 +197,21 @@ class SaveDialog(ModalScreen[tuple[str, str, str] | None]):
         else:
             self.dismiss(None)
 
-    def on_input_submitted(self, _event: Input.Submitted) -> None:
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        # In the state field, enter first drops focus into the dropdown so a
+        # match can be picked; only submit from the other fields.
+        if event.input.id == "f-state":
+            options = self.query_one("#state-options", OptionList)
+            if "visible" in options.classes and options.option_count:
+                options.focus()
+                if options.highlighted is None:
+                    options.highlighted = 0
+                return
         self._submit()
 
     def _submit(self) -> None:
         label = self.query_one("#f-label", Input).value.strip() or self._suggested
-        state = self.query_one("#f-state", Input).value.strip()
+        state = self.query_one("#f-state", Input).value.strip().rstrip(",").strip()
         notes = self.query_one("#f-notes", Input).value.strip()
         self.dismiss((label, state, notes))
 
@@ -501,6 +619,14 @@ class MonitorApp(App):
             except Exception:
                 suggested_state = ""
 
+        state_options = None
+        options_fn = getattr(self.controller, "state_options", None)
+        if callable(options_fn):
+            try:
+                state_options = options_fn()
+            except Exception:
+                state_options = None
+
         def _done(result: tuple[str, str, str] | None) -> None:
             if result is None:
                 self._flash("Save cancelled.")
@@ -512,7 +638,7 @@ class MonitorApp(App):
                 msg = f"Save failed: {exc}"
             self._flash(msg)
 
-        self.push_screen(SaveDialog(suggested, suggested_state), _done)
+        self.push_screen(SaveDialog(suggested, suggested_state, state_options), _done)
 
 
 async def run_monitor_app(controller: MonitorController) -> None:

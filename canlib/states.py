@@ -233,6 +233,35 @@ def allowed_states(profile=None) -> set[str]:
     return set(POWER_STATES) | set(state_names(profile))
 
 
+def state_options(profile=None) -> list[tuple[str, str]]:
+    """Ordered ``(name, description)`` pairs for the profile's state vocabulary.
+
+    The list is what a picker (e.g. the monitor save dialog) offers: every
+    declared state from states.yaml first, in file order, each with its
+    ``description``, followed by any base ``POWER_STATES`` not already declared
+    (so the shared base is always selectable even in a bare profile). Names are
+    unique and lower-cased to match :func:`parse_states`/:func:`allowed_states`.
+    """
+    seen: set[str] = set()
+    options: list[tuple[str, str]] = []
+    try:
+        rules = load_states(profile)
+    except StatePredicateError:
+        rules = []
+    for rule in rules:
+        name = rule.name.lower()
+        if name in seen:
+            continue
+        seen.add(name)
+        options.append((name, rule.description))
+    for name in POWER_STATES:
+        if name in seen:
+            continue
+        seen.add(name)
+        options.append((name, ""))
+    return options
+
+
 def parse_states(value) -> list[str]:
     """Normalize a ``vehicle_states`` value into a lower-cased token list.
 

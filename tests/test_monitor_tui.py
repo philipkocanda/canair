@@ -64,6 +64,14 @@ class FakeController:
     def query_label(self) -> str:
         return self._query_label
 
+    def state_options(self):
+        return [
+            ("charging", "HV battery actively charging."),
+            ("ready", "HV active, driveable."),
+            ("parked", "Stationary, gear in Park."),
+            ("sleep", ""),
+        ]
+
     def save_now(self, label, vehicle_states=None, notes=None) -> str:
         self.saved = (label, vehicle_states, notes)
         return "Saved 1 payload → foo.yaml"
@@ -283,6 +291,113 @@ class TestMonitorApp:
             await pilot.pause(0.1)
             assert not isinstance(app.screen, SaveDialog)
             assert ctrl.saved is None
+            await pilot.press("q")
+
+
+class TestSaveDialogStateHelpers:
+    def test_split_state_tokens(self):
+        from canlib.modes._monitor_tui import _split_state_tokens
+
+        assert _split_state_tokens("") == ([], "")
+        assert _split_state_tokens("ready") == ([], "ready")
+        assert _split_state_tokens("ready, pa") == (["ready"], "pa")
+        assert _split_state_tokens("ready, parked, ") == (["ready", "parked"], "")
+
+    def test_complete_state_token(self):
+        from canlib.modes._monitor_tui import _complete_state_token
+
+        assert _complete_state_token("", "ready") == "ready, "
+        assert _complete_state_token("re", "ready") == "ready, "
+        assert _complete_state_token("ready, pa", "parked") == "ready, parked, "
+
+    def test_unknown_state_tokens(self):
+        from canlib.modes._monitor_tui import _unknown_state_tokens
+
+        vocab = {"ready", "parked", "charging"}
+        # A completed token outside the vocabulary is flagged.
+        assert _unknown_state_tokens("bogus, ready", vocab) == ["bogus"]
+        # The active token is not flagged while it's still a prefix of a state.
+        assert _unknown_state_tokens("ready, pa", vocab) == []
+        # ...but is flagged once it can't complete to any known state.
+        assert _unknown_state_tokens("ready, zzz", vocab) == ["zzz"]
+        # All known → no warning.
+        assert _unknown_state_tokens("ready, parked", vocab) == []
+
+
+class TestSaveDialogStateUI:
+    @pytest.mark.asyncio
+    async def test_dropdown_filters_and_completes(self):
+        from textual.widgets import Input, OptionList
+
+        from canlib.modes._monitor_tui import SaveDialog
+
+        ctrl = FakeController()
+        app = MonitorApp(ctrl)
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause(0.1)
+            await pilot.press("s")
+            await pilot.pause(0.1)
+            assert isinstance(app.screen, SaveDialog)
+            state = app.screen.query_one("#f-state", Input)
+            options = app.screen.query_one("#state-options", OptionList)
+            # Typing a prefix filters the dropdown to matching states.
+            state.value = "cha"
+            await pilot.pause(0.05)
+            assert "visible" in options.classes
+            assert options.option_count == 1
+            assert options.get_option_at_index(0).id == "charging"
+            # Selecting the highlighted option completes the token.
+            options.focus()
+            options.highlighted = 0
+            await pilot.press("enter")
+            await pilot.pause(0.05)
+            assert state.value == "charging, "
+            await pilot.press("escape")
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
+    async def test_live_warning_for_unknown_state(self):
+        from textual.widgets import Input, Label
+
+        ctrl = FakeController()
+        app = MonitorApp(ctrl)
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause(0.1)
+            await pilot.press("s")
+            await pilot.pause(0.1)
+            state = app.screen.query_one("#f-state", Input)
+            warning = app.screen.query_one("#state-warning", Label)
+            state.value = "bogus, ready"
+            await pilot.pause(0.05)
+            assert "visible" in warning.classes
+            assert "bogus" in _plain(warning.render())
+            # Clearing the unknown token hides the warning.
+            state.value = "ready"
+            await pilot.pause(0.05)
+            assert "visible" not in warning.classes
+            await pilot.press("escape")
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
+    async def test_state_trailing_comma_stripped_on_save(self):
+        from textual.widgets import Input
+
+        from canlib.modes._monitor_tui import SaveDialog
+
+        ctrl = FakeController()
+        app = MonitorApp(ctrl)
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause(0.1)
+            await pilot.press("s")
+            await pilot.pause(0.1)
+            assert isinstance(app.screen, SaveDialog)
+            app.screen.query_one("#f-state", Input).value = "ready, parked, "
+            # Submit from the label field so enter doesn't hop into the dropdown.
+            app.screen.query_one("#f-label", Input).focus()
+            await pilot.press("enter")
+            await pilot.pause(0.1)
+            assert ctrl.saved is not None
+            assert ctrl.saved[1] == "ready, parked"
             await pilot.press("q")
 
 
