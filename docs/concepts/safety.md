@@ -40,9 +40,11 @@ Note the difference between *discovering* a capability and *using* it:
 
 ## Be gentle
 
-ECUs are old and slow, and canair holds a single connection at a time (a mutex
-prevents concurrent sessions that could lock up the dongle). Don't hammer an ECU
-with concurrent requests.
+ECUs vary in how quickly and reliably they respond — some are slow or finicky,
+especially the first request after they've been idle. canair holds a single
+connection at a time (a mutex prevents concurrent sessions that could lock up the
+dongle), and you should never hammer an ECU with concurrent requests. When a
+first read looks unresponsive, retry once before concluding the PID/ECU is dead.
 
 ## The bottom line
 
