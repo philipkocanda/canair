@@ -110,9 +110,7 @@ class TestBuildQuerySession:
         assert "notes" not in s
 
     def test_keep_mode_unique_persisted(self):
-        s = build_query_session(
-            [("0x7EC", "2101", "6101", "")], "l", [], "", keep_mode="unique"
-        )
+        s = build_query_session([("0x7EC", "2101", "6101", "")], "l", [], "", keep_mode="unique")
         assert s["keep_mode"] == "unique"
 
     def test_keep_mode_all_not_persisted(self):

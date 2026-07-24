@@ -179,9 +179,7 @@ class TestBuildByteSeries:
 
         # Vary EVERY byte so nothing is filtered by min_distinct; then assert no
         # PCI offset (wican_to_isotp is None) appears in the output.
-        payloads = [
-            "61" + "".join(f"{(i + k) & 0xFF:02X}" for k in range(19)) for i in range(8)
-        ]
+        payloads = ["61" + "".join(f"{(i + k) & 0xFF:02X}" for k in range(19)) for i in range(8)]
         series = xanalysis.build_byte_series(self._loaded(payloads), min_distinct=2)
         offsets = {int(k.rsplit(":B", 1)[1]) for k in series}
         wlen = len(payload_to_wican_bytes(payloads[0]))
@@ -262,9 +260,7 @@ class TestHuntByte:
         from canlib.align import extract_series, load_signal_captures
 
         _write_hunt_fixture(tmp_path)
-        loaded = load_signal_captures(
-            [("AAF", "2181"), ("ESC", "22C101")], captures_dir=tmp_path
-        )
+        loaded = load_signal_captures([("AAF", "2181"), ("ESC", "22C101")], captures_dir=tmp_path)
         ref = extract_series(loaded[("ESC", "22C101")], "B5")
         hits = xanalysis.hunt_byte(loaded[("AAF", "2181")], ref, tol_s=1.0, min_n=10)
         assert hits
@@ -323,8 +319,11 @@ class TestOutputHygiene:
             t = f"09:00:{i:02d}"
             caps.append({"ecu": "AAF", "pid": "2181", "payload": f"618100{i:02X}", "time": t})
             refs.append({"ecu": "ESC", "pid": "22C101", "payload": f"62C10100{i:02X}", "time": t})
-        doc = {"sessions": [{"date": "2026-07-22", "vehicle_states": ["driving"],
-                             "captures": caps + refs}]}
+        doc = {
+            "sessions": [
+                {"date": "2026-07-22", "vehicle_states": ["driving"], "captures": caps + refs}
+            ]
+        }
         (tmp_path / "2026-07-22.yaml").write_text(yaml.safe_dump(doc))
         loaded = load_signal_captures([("AAF", "2181"), ("ESC", "22C101")], captures_dir=tmp_path)
         from canlib.align import extract_series
@@ -376,9 +375,7 @@ class TestOverlap:
             ("BMS", "2101"): lp("BMS", "2101", [40, 42]),
         }
         monkeypatch.setattr(correlate, "load_signal_captures", lambda *a, **k: fake)
-        rc = correlate._print_overlap(
-            list(fake), None, None, None, None, 1.0, 2, as_json=False
-        )
+        rc = correlate._print_overlap(list(fake), None, None, None, None, 1.0, 2, as_json=False)
         assert rc == 0
         out = capsys.readouterr().out
         assert "ESC:22C101" in out and "MCU:2102" in out
@@ -509,7 +506,9 @@ class TestCorrelatePromote:
         monkeypatch.setattr(pe, "_resolve_pids_dir", lambda d: tmp_path)
 
         rows, series, ref = self._rows_and_series()
-        rc = correlate._promote_top_byte("AAF_CAND", rows, series, ref, "MCU:2102:MCU_MOTOR_RPM", 1.0)
+        rc = correlate._promote_top_byte(
+            "AAF_CAND", rows, series, ref, "MCU:2102:MCU_MOTOR_RPM", 1.0
+        )
         assert rc == 0
         doc = yaml.safe_load(f.read_text())
         pid_block = doc["AAF"]["pids"].get(2181) or doc["AAF"]["pids"].get("2181")

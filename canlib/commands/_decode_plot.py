@@ -641,4 +641,3 @@ def cmd_plot(
         termios.tcsetattr(fd, termios.TCSADRAIN, old)
         sys.stdout.write("\033[?25h\033[?1049l")
         sys.stdout.flush()
-

@@ -45,9 +45,9 @@ class TestKeepFilter:
         monkeypatch.setattr(coverage, "load_longest_payloads", lambda: payloads)
         monkeypatch.setattr(coverage, "load_pids", lambda *_: {})
         monkeypatch.setattr(
-            coverage, "build_ecu_index",
-            lambda *_: {"MCU": {"pids": {"2102": {"parameters": {
-                "GUESS": {"expression": "B4"}}}}}},
+            coverage,
+            "build_ecu_index",
+            lambda *_: {"MCU": {"pids": {"2102": {"parameters": {"GUESS": {"expression": "B4"}}}}}},
         )
         monkeypatch.setattr("canlib.ecus.canonical_ecu_name_safe", lambda n: n)
         p = coverage.add_parser(argparse.ArgumentParser().add_subparsers())
@@ -56,15 +56,27 @@ class TestKeepFilter:
         return rc, capsys.readouterr().out
 
     def test_unverified_shown_by_default(self, tmp_path, monkeypatch, capsys):
-        payloads = {("MCU", "2102"): {"payload": "6102AABB", "date": "2026-07-01",
-                                      "label": "", "file": "x.yaml"}}
+        payloads = {
+            ("MCU", "2102"): {
+                "payload": "6102AABB",
+                "date": "2026-07-01",
+                "label": "",
+                "file": "x.yaml",
+            }
+        }
         rc, out = self._run(tmp_path, monkeypatch, capsys, ["MCU", "2102"], payloads)
         assert rc == 0
         assert "UNVERIFIED" in out and "B4" in out
 
     def test_unverified_flag_isolates(self, tmp_path, monkeypatch, capsys):
-        payloads = {("MCU", "2102"): {"payload": "6102AABB", "date": "2026-07-01",
-                                      "label": "", "file": "x.yaml"}}
+        payloads = {
+            ("MCU", "2102"): {
+                "payload": "6102AABB",
+                "date": "2026-07-01",
+                "label": "",
+                "file": "x.yaml",
+            }
+        }
         rc, out = self._run(
             tmp_path, monkeypatch, capsys, ["MCU", "2102", "--unverified"], payloads
         )

@@ -224,9 +224,7 @@ def cmd_list(records: list[dict], hidden_done: int = 0, verbose: bool = False) -
     # Cap prose blocks in the default view; -v shows the full text.
     cap = None if verbose else 4
     records = sorted(records, key=_sort_key)
-    hint = (
-        f"  {_DIM}({hidden_done} done hidden — use --all){_RESET}" if hidden_done else ""
-    )
+    hint = f"  {_DIM}({hidden_done} done hidden — use --all){_RESET}" if hidden_done else ""
     print(f"\n  {_BOLD}Research backlog{_RESET} — {len(records)} items{hint}")
 
     prio = None

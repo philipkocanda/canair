@@ -215,7 +215,8 @@ def add_parser(subparsers):
         "--unmapped", action="store_true", help="Only report unmapped-byte findings"
     )
     parser.add_argument(
-        "--unverified", action="store_true",
+        "--unverified",
+        action="store_true",
         help="Only report bytes mapped by an unverified param (needs confirming)",
     )
     parser.add_argument(

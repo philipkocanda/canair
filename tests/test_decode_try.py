@@ -136,12 +136,18 @@ class TestStatistics:
         # order; an out-of-order capture would corrupt the rate. _paired_timed
         # must reorder chronologically before the transform.
         results = [
-            {"capture": {"date": "2026-07-22", "time": "09:00:02"},
-             "decoded": {"A": {"value": 2.0}, "B": {"value": 20.0}}},
-            {"capture": {"date": "2026-07-22", "time": "09:00:00"},
-             "decoded": {"A": {"value": 1.0}, "B": {"value": 10.0}}},
-            {"capture": {"date": "2026-07-22", "time": "09:00:01"},
-             "decoded": {"A": {"value": 3.0}, "B": {"value": 30.0}}},
+            {
+                "capture": {"date": "2026-07-22", "time": "09:00:02"},
+                "decoded": {"A": {"value": 2.0}, "B": {"value": 20.0}},
+            },
+            {
+                "capture": {"date": "2026-07-22", "time": "09:00:00"},
+                "decoded": {"A": {"value": 1.0}, "B": {"value": 10.0}},
+            },
+            {
+                "capture": {"date": "2026-07-22", "time": "09:00:01"},
+                "decoded": {"A": {"value": 3.0}, "B": {"value": 30.0}},
+            },
         ]
         xs, ys = decode_script._paired_timed(results, "A", "B")
         assert xs == [1.0, 3.0, 2.0]  # ordered by 09:00:00, :01, :02
@@ -149,10 +155,14 @@ class TestStatistics:
 
     def test_paired_timed_undated_sorts_last(self):
         results = [
-            {"capture": {"date": "2026-07-22"},  # untimed -> datetime.max -> last
-             "decoded": {"A": {"value": 9.0}, "B": {"value": 90.0}}},
-            {"capture": {"date": "2026-07-22", "time": "09:00:00"},
-             "decoded": {"A": {"value": 1.0}, "B": {"value": 10.0}}},
+            {
+                "capture": {"date": "2026-07-22"},  # untimed -> datetime.max -> last
+                "decoded": {"A": {"value": 9.0}, "B": {"value": 90.0}},
+            },
+            {
+                "capture": {"date": "2026-07-22", "time": "09:00:00"},
+                "decoded": {"A": {"value": 1.0}, "B": {"value": 10.0}},
+            },
         ]
         xs, ys = decode_script._paired_timed(results, "A", "B")
         assert xs == [1.0, 9.0] and ys == [10.0, 90.0]
@@ -274,7 +284,10 @@ class TestDiscriminate:
         def cap(state, tail):
             # 16-byte raw payload (multi-frame); vary a data byte + rely on PCI skip
             return {
-                "capture": {"vehicle_states": [state], "payload": "6181" + "00" * 13 + f"{tail:02X}"},
+                "capture": {
+                    "vehicle_states": [state],
+                    "payload": "6181" + "00" * 13 + f"{tail:02X}",
+                },
                 "decoded": {},
             }
 
@@ -292,10 +305,13 @@ class TestDiscriminate:
             }
 
         # B4 bit0 = 1 in ready, 0 in charging -> clean state split
-        results = [cap("ready", 0x01), cap("ready", 0x01), cap("charging", 0x00), cap("charging", 0x00)]
-        decode_script.print_discriminate(
-            results, [], {}, set(), "state", include_bits=True
-        )
+        results = [
+            cap("ready", 0x01),
+            cap("ready", 0x01),
+            cap("charging", 0x00),
+            cap("charging", 0x00),
+        ]
+        decode_script.print_discriminate(results, [], {}, set(), "state", include_bits=True)
         out = capsys.readouterr().out
         assert "params + bits" in out
         assert "B4:0" in out
@@ -324,9 +340,7 @@ class TestCorrTransform:
             {"decoded": {"REF": {"value": 6.0}, "B": {"value": 3.0}}},
         ]
         # delta(REF) = [0,1,2,3] which equals B exactly -> r=+1
-        decode_script.print_correlations(
-            results, ["B"], {"B": {}}, set(), "REF", transform="delta"
-        )
+        decode_script.print_correlations(results, ["B"], {"B": {}}, set(), "REF", transform="delta")
         out = capsys.readouterr().out
         assert "ref delta" in out
         assert "r=+1.000" in out

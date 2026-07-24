@@ -158,8 +158,13 @@ def run(args) -> int:
         return 1
 
     hits = hunt_byte(
-        lp, ref_series, tol_s=args.join_tol, min_n=args.min_n, top=args.top,
-        method=args.method, all_interps=args.all_interps,
+        lp,
+        ref_series,
+        tol_s=args.join_tol,
+        min_n=args.min_n,
+        top=args.top,
+        method=args.method,
+        all_interps=args.all_interps,
     )
 
     if args.promote:

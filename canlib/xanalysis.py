@@ -131,9 +131,7 @@ def transform_ref(ref: list[TimePoint], mode: str | None) -> list[TimePoint]:
     return [TimePoint(tp.dt, v) for tp, v in zip(ordered, vals, strict=True)]
 
 
-def build_param_series(
-    loaded: LoadedPid, parameters: dict
-) -> dict[str, list[TimePoint]]:
+def build_param_series(loaded: LoadedPid, parameters: dict) -> dict[str, list[TimePoint]]:
     """One time series per defined (non-empty-expression) param on this PID."""
     out: dict[str, list[TimePoint]] = {}
     for name, pdef in parameters.items():
@@ -191,9 +189,7 @@ def build_byte_series(
     return out
 
 
-def build_bit_series(
-    loaded: LoadedPid, *, skip_pci: bool = True
-) -> dict[str, list[TimePoint]]:
+def build_bit_series(loaded: LoadedPid, *, skip_pci: bool = True) -> dict[str, list[TimePoint]]:
     """One 0/1 series per individual data bit (``Bn:k``) that actually toggles.
 
     The bit-level companion to :func:`build_byte_series`. Only bits with ≥2
@@ -439,6 +435,7 @@ def hunt_byte(
                         width=width,
                     )
                 )
+
     # Rank: strongest |r| first; among near-equal r, prefer the narrowest read
     # (a single byte that *is* the signal beats any wider window that merely
     # contains it) and the lowest relative residual. Also demote reads with no

@@ -154,10 +154,7 @@ class TestStateOptions:
     def test_declared_states_first_then_base(self, tmp_path):
         prof = self._write(
             tmp_path,
-            "states:\n"
-            "  - name: charging\n"
-            "    description: HV charging\n"
-            "  - name: parked\n",
+            "states:\n  - name: charging\n    description: HV charging\n  - name: parked\n",
         )
         opts = state_options(prof)
         names = [n for n, _ in opts]
@@ -176,4 +173,3 @@ class TestStateOptions:
 
         names = [n for n, _ in state_options(_P())]
         assert set(names) == {"sleep", "plugged", "acc", "acc2", "ready", "charging"}
-

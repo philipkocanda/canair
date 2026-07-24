@@ -138,9 +138,7 @@ def _write_captures(tmp_path):
 class TestLoadSignalCaptures:
     def test_groups_and_counts_no_time(self, tmp_path):
         _write_captures(tmp_path)
-        loaded = load_signal_captures(
-            [("ESC", "22C101"), ("AAF", "2181")], captures_dir=tmp_path
-        )
+        loaded = load_signal_captures([("ESC", "22C101"), ("AAF", "2181")], captures_dir=tmp_path)
         esc = loaded[("ESC", "22C101")]
         aaf = loaded[("AAF", "2181")]
         assert len(esc.captures) == 2
@@ -149,9 +147,7 @@ class TestLoadSignalCaptures:
 
     def test_scope_state_filter(self, tmp_path):
         _write_captures(tmp_path)
-        loaded = load_signal_captures(
-            [("ESC", "22C101")], state="charging", captures_dir=tmp_path
-        )
+        loaded = load_signal_captures([("ESC", "22C101")], state="charging", captures_dir=tmp_path)
         assert len(loaded[("ESC", "22C101")].captures) == 0
 
 
@@ -173,9 +169,7 @@ class TestExtractSeries:
 
     def test_cross_ecu_join_end_to_end(self, tmp_path):
         _write_captures(tmp_path)
-        loaded = load_signal_captures(
-            [("ESC", "22C101"), ("AAF", "2181")], captures_dir=tmp_path
-        )
+        loaded = load_signal_captures([("ESC", "22C101"), ("AAF", "2181")], captures_dir=tmp_path)
         esc = extract_series(loaded[("ESC", "22C101")], "B5")
         aaf = extract_series(loaded[("AAF", "2181")], "B4")
         xs, ys, n = join_nearest(esc, aaf, tol_s=1.0)

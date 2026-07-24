@@ -19,9 +19,7 @@ _BOLD = "\033[1m"
 _RESET = "\033[0m"
 
 
-def write_candidate(
-    ecu: str, pid: str, name: str, expr: str, *, source: str, notes: str
-) -> Path:
+def write_candidate(ecu: str, pid: str, name: str, expr: str, *, source: str, notes: str) -> Path:
     """Guarded upsert of one enabled, unverified candidate param.
 
     Returns the written file path. Raises ``PidsEditError``/``SystemExit`` (from
@@ -32,8 +30,14 @@ def write_candidate(
 
     def do():
         upsert_parameter(
-            ecu, pid, name, expr,
-            source=source, notes=notes, verified=False, enabled=True,
+            ecu,
+            pid,
+            name,
+            expr,
+            source=source,
+            notes=notes,
+            verified=False,
+            enabled=True,
         )
 
     return _guarded(ecu, None, do, validate=True)

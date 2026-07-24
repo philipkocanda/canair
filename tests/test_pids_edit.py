@@ -181,7 +181,9 @@ class TestUpdateNotes:
         update_iocontrol_field("TEST", "AA02", "notes", note, pids_dir=tmp_pids_dir)
         raw = (tmp_pids_dir / "test.yaml").read_text()
         # readability: at least one wrapped continuation line ≤ ~101 cols
-        note_lines = [ln for ln in raw.splitlines() if ln.startswith("        ") and "http" not in ln]
+        note_lines = [
+            ln for ln in raw.splitlines() if ln.startswith("        ") and "http" not in ln
+        ]
         assert note_lines and max(len(ln) for ln in note_lines) <= 101
         # value preserved + URL intact
         got = _reload(tmp_pids_dir / "test.yaml")["TEST"]["iocontrol"]["AA02"]["notes"].strip()

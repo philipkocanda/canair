@@ -446,7 +446,13 @@ class TestHistoryOffline:
         dtc_log.append_scan(
             dtc_log.build_scan(
                 "all",
-                {"AMP (0x783)": {"tx": "0x783", "protocol": "uds", "dtcs": ["B2915-00", "B2916-00"]}},
+                {
+                    "AMP (0x783)": {
+                        "tx": "0x783",
+                        "protocol": "uds",
+                        "dtcs": ["B2915-00", "B2916-00"],
+                    }
+                },
                 timestamp="2026-07-22T10:00:00",
             )
         )
@@ -475,9 +481,7 @@ class TestHistoryOffline:
         tx = resolve_tx("BMS")
         assert tx is not None
         scope = ecu_display(tx)
-        dtc_log.append_scan(
-            dtc_log.build_scan(scope, {}, timestamp="2026-07-22T09:00:00")
-        )
+        dtc_log.append_scan(dtc_log.build_scan(scope, {}, timestamp="2026-07-22T09:00:00"))
         rc = dtc_cmd.run(self._args(dtc="BMS"))
         out = capsys.readouterr().out
         assert rc == 0
