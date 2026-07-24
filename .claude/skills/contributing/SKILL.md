@@ -59,6 +59,10 @@ trusts them builds on a false premise.
    captures, docs, tests, and git history are public/shareable — nothing that
    could identify or locate the author (or any owner) belongs in the tree. See
    "No PII or location data".
+7. **Never share ECU security keys, seeds, or unlock algorithms.** Distributing
+   the material that defeats an ECU's SecurityAccess (0x27) is *illegal* in many
+   jurisdictions and unsafe — it must never land in the tree, not even by
+   accident. See "Never share security keys".
 
 ## Transports — the most important architectural rule
 
@@ -259,6 +263,45 @@ Watch for these leaks (not exhaustive — reason about the *class*, not the list
   that bakes the resolved device IP into a committed artifact, or auto-fills a
   real address into shareable data. Default to redaction; require an explicit
   opt-in to include anything identifying.
+
+## Never share security keys — it's illegal
+
+**Sharing the material that unlocks an ECU's SecurityAccess (UDS/KWP2000 `0x27`)
+is illegal in many jurisdictions, and dangerous — it never belongs in this tree,
+not even by accident.** Security access gates the services that can reflash,
+reprogram, or otherwise alter an ECU; the ability to defeat it is exactly what
+manufacturers restrict to authorized dealers and licensed repairers. canair can
+*compute* a key from a seed at runtime (the `0x27` pair-solver in
+`canlib/modes/multi.py`), which is precisely why we must be disciplined about
+never *persisting* or *distributing* the result.
+
+**Forbidden in code, data, profiles, captures, docs, tests, fixtures, commit
+messages, and history:**
+
+- **Keys / seed→key pairs / unlock responses** — a captured `27 02 <key>` request
+  or `67 01 <seed>` response, a seed paired with the key that unlocked it, or any
+  recorded successful-unlock exchange.
+- **Unlock algorithms & secrets** — the seed→key transform for a specific ECU
+  (beyond the generic, already-public toy algorithms the solver ships to *try*),
+  PINs, passwords, certificates, or any manufacturer secret.
+- **Anything that lets a reader reconstruct the above**, including a "worked
+  example" in a doc or a realistic test fixture built from a real ECU's seed/key.
+
+**Practices:**
+
+- **The solver stays runtime-only.** It may derive a key in memory to open a
+  session; it must never write the seed, the key, or the winning algorithm into
+  the profile, a capture, a log, or any committed artifact. If you add security
+  tooling, ensure its output is ephemeral by default and never auto-saved.
+- **Tests use synthetic seeds/keys only** (as `tests/test_security_access.py`
+  does — invented values run through generic transforms), never a real ECU's.
+- **If a user needs a capability that requires security access** (dealer-level
+  reprogramming, coding, or an ECU-specific unlock), **do not attempt to source,
+  derive, or share the key** — direct them to their **local authorized dealer or
+  a licensed repairer**, who are permitted to perform it.
+- **If key material already reached the tree, treat it as a security incident**
+  (as with PII above): flag it to the user immediately — a plain delete does not
+  purge git history, and the key may need rotating — don't just delete-and-move-on.
 
 ## Test coverage
 
