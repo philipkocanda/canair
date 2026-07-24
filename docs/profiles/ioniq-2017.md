@@ -103,3 +103,29 @@ request after a pause is slow and can even time out — retry once before
 concluding a PID/ECU is dead. The OBD-II port is also gateway-isolated: ECUs
 answer request/response, but there's almost no unsolicited broadcast traffic to
 sniff passively. These are captured in `profiles/ioniq-2017/profile.yaml`.
+
+## Sources & attribution
+
+This profile stands on the shoulders of the wider Hyundai/Kia EV
+reverse-engineering community. Many parameters were seeded, cross-checked, or
+corrected against the following public sources — thank you to their authors.
+(Cross-vehicle sheets often differ by a byte or two, so everything here was
+re-validated against the actual car — see [Define & verify](../bring-your-own-car/07-define-and-verify.md).)
+
+- [uhi22/Ioniq28Investigations](https://github.com/uhi22/Ioniq28Investigations)
+  — detailed investigations of the same 28 kWh Ioniq Electric.
+- [Hyundai Ioniq EV PID spreadsheet](https://docs.google.com/spreadsheets/d/1eT2R8hmsD1hC__9LtnkZ3eDjLcdib9JR-3Myc97jy8M)
+  — community PID reference.
+- [JejuSoul/OBD-PIDs-for-HKMC-EVs — Ioniq EV 28 kWh VMCU CSV](https://github.com/JejuSoul/OBD-PIDs-for-HKMC-EVs/blob/master/Ioniq%20EV%20-%2028kWh/extendedpids/Hyundai_Ioniq_EV_VMCU_data.csv)
+  — VMCU/VCU extended-PID definitions for this exact car.
+- [JejuSoul/OBD-PIDs-for-HKMC-EVs — Kia Soul EV 27 kWh](https://github.com/JejuSoul/OBD-PIDs-for-HKMC-EVs/tree/master/Soul%20EV%20-%2027kWh/extendedpids)
+  — close cousin (note the ~1-byte offset vs the Ioniq).
+- [projectgus/kona-ev-dbc — Diagnostics.md](https://raw.githubusercontent.com/projectgus/kona-ev-dbc/main/Diagnostics.md)
+  — Kona EV diagnostics, useful cross-reference for shared HKMC modules.
+- [abstractionnl/wican-esphome — wican-ioniq.yaml](https://github.com/abstractionnl/wican-esphome/blob/main/wican-ioniq.yaml)
+  — an ESPHome/WiCAN Ioniq PID config.
+
+If your work is referenced here and you'd like different attribution (or you
+spot a decode that traces back to a source not listed), please
+[open a PR or issue](https://github.com/philipkocanda/canair) — see
+[Contributing](../contributing/index.md).
