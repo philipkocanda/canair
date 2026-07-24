@@ -532,3 +532,44 @@ def test_bare_overview_hints_at_torque_flag(capsys):
     # and the "Go further" block.
     assert "--torque" in out
     assert "add the Torque / bix (OBDb) columns" in out
+
+
+# ── large payloads / high indices must not crash (Torque letter past ZZ) ──
+
+
+def _big_payload(data_bytes: int, sid_did: str = "62B004") -> str:
+    return sid_did + "00" * data_bytes
+
+
+def test_annotate_large_payload_default_does_not_crash(capsys):
+    # >702 data bytes pushes the Torque index past ZZ (701). The default path
+    # hides Torque, so it must render cleanly — it previously crashed because the
+    # letter was computed (and raised) even when unused.
+    args = _parse(["-2", "-a", _big_payload(800)])
+    assert bix.run(args) == 0
+    out = capsys.readouterr().out
+    assert "B900" in out  # rendered well past the ZZ boundary
+    assert "Torque" not in out  # hidden by default
+
+
+def test_annotate_large_payload_torque_shows_numeric_past_zz(capsys):
+    # With --torque past ZZ, the Torque column falls back to the numeric index
+    # instead of crashing.
+    args = _parse(["-2", "--torque", "-a", _big_payload(800)])
+    assert bix.run(args) == 0
+    out = capsys.readouterr().out
+    b914 = _row(out, "B914")  # ISO-TP 0x31E → torque 795 (past ZZ=701)
+    assert "795" in b914
+
+
+def test_table_large_max_does_not_crash(capsys):
+    for args in (["--table", "--max", "5000"], ["--table", "--torque", "--max", "5000"]):
+        assert bix.run(_parse(args)) == 0
+        capsys.readouterr()
+
+
+def test_lookup_high_index_does_not_crash(capsys):
+    # A byte-index lookup past ZZ must show the numeric Torque index, not crash.
+    for token in ("b99999", "i99999", "w100000"):
+        assert bix.run(_parse([token])) == 0
+        capsys.readouterr()

@@ -16,6 +16,7 @@ from canlib.byteindex import (
     mapped_offsets,
     payload_to_wican_frame,
     torque_idx_to_letter,
+    torque_label,
     torque_to_bix,
     torque_to_wican,
     wican_to_bix,
@@ -225,6 +226,28 @@ class TestLetterNotation:
     def test_idx_to_letter_negative_raises(self):
         with pytest.raises(ValueError):
             torque_idx_to_letter(-1)
+
+
+class TestTorqueLabel:
+    """torque_label: display wrapper — letter in-range, numeric string past ZZ."""
+
+    def test_none_index(self):
+        assert torque_label(None) is None
+
+    def test_in_range_matches_letter(self):
+        assert torque_label(0) == "A"
+        assert torque_label(26) == "AA"
+        assert torque_label(701) == "ZZ"
+
+    def test_past_zz_falls_back_to_number(self):
+        # torque_idx_to_letter(702) raises; the label must not — it shows the index.
+        assert torque_label(702) == "702"
+        assert torque_label(12499) == "12499"
+
+    def test_never_raises_over_wide_range(self):
+        for idx in range(0, 5000):
+            label = torque_label(idx)
+            assert isinstance(label, str) and label
 
 
 class TestExtractByteIndices:

@@ -149,6 +149,23 @@ def torque_idx_to_letter(idx: int) -> str:
     raise ValueError(f"Torque byte index out of range for 2-letter notation: {idx}")
 
 
+def torque_label(torque_idx: int | None) -> str | None:
+    """Display label for a Torque byte index: the letter, or the number past ``ZZ``.
+
+    :func:`torque_idx_to_letter` models only Torque's 1–2 letter notation
+    (``A``..``ZZ``, index 0–701) and *raises* beyond it. This presentation-layer
+    wrapper falls back to the raw Torque byte-index string for larger indices
+    rather than crash — letters past ``ZZ`` aren't a notation Torque/OBDb sheets
+    use anyway. Returns ``None`` for a ``None`` index (a PCI/header byte).
+    """
+    if torque_idx is None:
+        return None
+    try:
+        return torque_idx_to_letter(torque_idx)
+    except ValueError:
+        return str(torque_idx)
+
+
 def letter_to_torque_idx(letter: str) -> int:
     """Convert Torque letter notation to byte index.
 
@@ -422,7 +439,7 @@ def conversion_table(
                 "wican": w,
                 "isotp": isotp,
                 "torque": torque,
-                "torque_letter": torque_idx_to_letter(torque) if torque is not None else None,
+                "torque_letter": torque_label(torque),
                 "bix": torque_to_bix(torque) if torque is not None else None,
             }
         )

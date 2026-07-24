@@ -13,7 +13,7 @@ from canlib.byteindex import (
     isotp_to_wican,
     letter_to_torque_idx,
     payload_to_wican_frame,
-    torque_idx_to_letter,
+    torque_label,
     torque_to_bix,
     torque_to_wican,
     wican_to_bix,
@@ -197,7 +197,7 @@ def _print_result(notation: str, idx: int, sub_bytes: int):
     isotp = wican_to_isotp(w)
     torque = wican_to_torque(w, sub_bytes)
     bix = wican_to_bix(w, sub_bytes)
-    letter = torque_idx_to_letter(torque) if torque is not None else None
+    letter = torque_label(torque)
 
     sub_label = f"sub={sub_bytes}"
     print(f"  WiCAN:    B{w:02d}  (raw CAN frame index)")
@@ -532,9 +532,13 @@ def _annotate_payload(
         # wican_to_isotp() assumes the multi-frame layout and is off-by-one for
         # single-frame responses — using pi keeps this column in step with Role.
         isotp = pi
-        torque = isotp_to_torque(pi, sub_bytes) if pi is not None else None
-        bix = torque_to_bix(torque) if torque is not None else None
-        letter = torque_idx_to_letter(torque) if torque is not None else None
+        # Torque/bix are only rendered when show_torque; skip the work otherwise.
+        if show_torque:
+            torque = isotp_to_torque(pi, sub_bytes) if pi is not None else None
+            bix = torque_to_bix(torque) if torque is not None else None
+            letter = torque_label(torque)
+        else:
+            torque = bix = letter = None
 
         role = ""
         if pi is None:

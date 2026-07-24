@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`canair bix` no longer crashes on large payloads / high byte indices.** The
+  Torque letter notation only models 1–2 letters (`A`..`ZZ`, index 0–701); past
+  that, `bix --annotate`/`--table` on a long multi-frame payload and plain index
+  lookups (`bix b99999`) raised an unhandled `ValueError`. The display now falls
+  back to the numeric Torque index beyond `ZZ` (via a new `torque_label` helper),
+  and the default (Torque-hidden) path no longer computes the letter at all.
+
 ### Added
 
 - **`canair bix --torque` (alias `--obdb`)** shows the Torque and bix (OBDb)
