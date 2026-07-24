@@ -48,40 +48,42 @@ frame.**
 ## See it at a glance (`canair bix`)
 
 Don't take the layout on faith. `canair bix` with no arguments prints a
-plain-language legend for the four notations followed by a compact two-frame
-table. The `Role` column marks every framing byte, so you can *see* exactly where
-the PCI bytes fall:
+plain-language legend followed by a compact two-frame table. By default it shows
+the two indices you reach for most — **WiCAN** and **ISO-TP** — alongside each
+byte's framing `Role`, so you can *see* exactly where the PCI bytes fall:
 
 ```text
 $ canair bix        # (a plain-language legend is printed first, omitted here)
 
-| WiCAN | ISO-TP | Torque 1 |   bix | Role   |
-|-------|--------|----------|-------|--------|
-|── Frame 0 ──────────────────────────────────|
-|   B00 |        |          |       | FF PCI |
-|   B01 |        |          |       | FF PCI |
-|   B02 |   0x00 |          |       | SID    |
-|   B03 |   0x01 |          |       | PID    |
-|   B04 |   0x02 |        A |     0 |        |
-|   B05 |   0x03 |        B |     8 |        |
-|   B06 |   0x04 |        C |    16 |        |
-|   B07 |   0x05 |        D |    24 |        |
-|── Frame 1 ──────────────────────────────────|
-|   B08 |        |          |       | CF PCI |
-|   B09 |   0x06 |        E |    32 |        |
-|   B10 |   0x07 |        F |    40 |        |
-|   B11 |   0x08 |        G |    48 |        |
-|   B12 |   0x09 |        H |    56 |        |
-|   B13 |   0x0A |        I |    64 |        |
-|   B14 |   0x0B |        J |    72 |        |
-|   B15 |   0x0C |        K |    80 |        |
+| WiCAN | ISO-TP | Role   |
+|-------|--------|--------|
+|── Frame 0 ───────────────|
+|   B00 |        | FF PCI |
+|   B01 |        | FF PCI |
+|   B02 |   0x00 | SID    |
+|   B03 |   0x01 | PID    |
+|   B04 |   0x02 |        |
+|   B05 |   0x03 |        |
+|   B06 |   0x04 |        |
+|   B07 |   0x05 |        |
+|── Frame 1 ───────────────|
+|   B08 |        | CF PCI |
+|   B09 |   0x06 |        |
+|   B10 |   0x07 |        |
+|   B11 |   0x08 |        |
+|   B12 |   0x09 |        |
+|   B13 |   0x0A |        |
+|   B14 |   0x0B |        |
+|   B15 |   0x0C |        |
 ```
 
-Read **across** any data row and you have the same byte in all four notations at
-once. Read **down** the `Role` column and the framing jumps out: **B00/B01** are
-the First-Frame PCI, then **B08** (and B16, B24, …) is a Consecutive-Frame PCI
-byte. Notice how ISO-TP `0x05` → `0x06` is a smooth run, but the WiCAN index jumps
+Read **down** the `Role` column and the framing jumps out: **B00/B01** are the
+First-Frame PCI, then **B08** (and B16, B24, …) is a Consecutive-Frame PCI byte.
+Notice how ISO-TP `0x05` → `0x06` is a smooth run, but the WiCAN index jumps
 **B07 → B09** across that boundary — the skipped `B08` is the framing byte.
+
+Add `--torque` for two more columns — the **Torque** letter and the OBDb **bix**
+(bit index) — when you need to cross-reference a third-party Torque/OBDb PID sheet.
 `canair bix --table` prints the whole table out to `--max`.
 
 ## What the WiCAN index actually is (firmware truth)
@@ -174,37 +176,35 @@ line up 1:1. Two nuances only:
 
 `canair bix --annotate` maps a real payload; add `--ecu`/`--pid` to overlay which
 defined parameter reads each byte and to flag data bytes nothing maps yet. Below is
-a genuine `BMS 2101` battery-status response from the bundled Ioniq profile (a
-`21xx` PID → 1-byte subfunction → `-1`, the default mode):
+a genuine `BMS 2101` battery-status response from the bundled Ioniq profile:
 
 ```text
 $ canair bix -a 6101FFFFFFFF80264826480300050E32 --ecu BMS --pid 2101
-  Torque column = Torque 1 (skips SID + 1 PID byte); pass -2 for the other variant.
-  WiCAN |  Hex | ISO-TP | Torque |   bix | Role | Param
-  ──────┼──────┼────────┼────────┼───────┼────────────┼─────────────
-  ── Frame 0 ────────────────────
-    B00 | 0x10 |      — |      — |     — | PCI |
-    B01 | 0x10 |      — |      — |     — | PCI |
-    B02 | 0x61 |   0x00 |      — |     — | SID |
-    B03 | 0x01 |   0x01 |      — |     — | PID |
-    B04 | 0xFF |   0x02 |      A |     0 |  | unmapped
-    B05 | 0xFF |   0x03 |      B |     8 |  | unmapped
-    B06 | 0xFF |   0x04 |      C |    16 |  | unmapped
-    B07 | 0xFF |   0x05 |      D |    24 |  | unmapped
-  ── Frame 1 ────────────────────
-    B08 | 0x21 |      — |      — |     — | PCI |
-    B09 | 0x80 |   0x06 |      E |    32 |  | [SOC_BMS]
-    B10 | 0x26 |   0x07 |      F |    40 |  | unmapped
-    B11 | 0x48 |   0x08 |      G |    48 |  | unmapped
-    B12 | 0x26 |   0x09 |      H |    56 |  | unmapped
-    B13 | 0x48 |   0x0A |      I |    64 |  | unmapped
-    B14 | 0x03 |   0x0B |      J |    72 |  | [BMS_MAIN_RELAY:0] [CHARGER_CONNECTED:5] [CHARGING_DC:6] [CHARGING:7]
-    B15 | 0x00 |   0x0C |      K |    80 |  | [BATTERY_POWER]
-  ── Frame 2 ────────────────────
-    B16 | 0x22 |      — |      — |     — | PCI |
-    B17 | 0x05 |   0x0D |      L |    88 |  | [BATTERY_POWER]
-    B18 | 0x0E |   0x0E |      M |    96 |  | [BATTERY_POWER]
-    B19 | 0x32 |   0x0F |      N |   104 |  | [BATTERY_POWER]
+  WiCAN |  Hex | ISO-TP | Role   | Param
+  ──────┼──────┼────────┼────────┼─────────────
+  ── Frame 0 ───────────────────
+    B00 | 0x10 |      — | PCI    |
+    B01 | 0x10 |      — | PCI    |
+    B02 | 0x61 |   0x00 | SID    |
+    B03 | 0x01 |   0x01 | PID    |
+    B04 | 0xFF |   0x02 |        | unmapped
+    B05 | 0xFF |   0x03 |        | unmapped
+    B06 | 0xFF |   0x04 |        | unmapped
+    B07 | 0xFF |   0x05 |        | unmapped
+  ── Frame 1 ───────────────────
+    B08 | 0x21 |      — | PCI    |
+    B09 | 0x80 |   0x06 |        | [SOC_BMS]
+    B10 | 0x26 |   0x07 |        | unmapped
+    B11 | 0x48 |   0x08 |        | unmapped
+    B12 | 0x26 |   0x09 |        | unmapped
+    B13 | 0x48 |   0x0A |        | unmapped
+    B14 | 0x03 |   0x0B |        | [BMS_MAIN_RELAY:0] [CHARGER_CONNECTED:5] [CHARGING_DC:6] [CHARGING:7]
+    B15 | 0x00 |   0x0C |        | [BATTERY_POWER]
+  ── Frame 2 ───────────────────
+    B16 | 0x22 |      — | PCI    |
+    B17 | 0x05 |   0x0D |        | [BATTERY_POWER]
+    B18 | 0x0E |   0x0E |        | [BATTERY_POWER]
+    B19 | 0x32 |   0x0F |        | [BATTERY_POWER]
 ```
 
 Everything the rest of this document claims is visible in one screen:
@@ -214,17 +214,19 @@ Everything the rest of this document claims is visible in one screen:
 - **`SOC_BMS = B09/2`** reads the state-of-charge byte at **B09** — the very first
   byte *after* the Frame 1 PCI byte at B08. Here `B09 = 0x80 = 128`, so
   `128 / 2 = 64 %`.
-- That same physical byte is **ISO-TP `0x06`**, **Torque `E`**, **bix `32`**. If
-  you had copied a "byte 6" offset from a SavvyCAN/ISO-TP view and written `B06`,
-  you would instead read `0xFF` — one of the `FF FF FF FF` bytes at B04–B07 —
-  giving `127.5 %`. A silent, plausible-looking bug. **That off-by-PCI shift is the
-  entire trap this document is about**, and the overlay makes it obvious.
+- That same physical byte is **ISO-TP `0x06`** (and, under `--torque`, **Torque
+  `E`** / **bix `32`**). If you had copied a "byte 6" offset from a SavvyCAN/ISO-TP
+  view and written `B06`, you would instead read `0xFF` — one of the `FF FF FF FF`
+  bytes at B04–B07 — giving `127.5 %`. A silent, plausible-looking bug. **That
+  off-by-PCI shift is the entire trap this document is about**, and the overlay
+  makes it obvious.
 - Bit-level params can share one byte (`B14`: four flags at bits 0/5/6/7 via
   `B14:k`), and a multi-byte value can span several (`BATTERY_POWER` over B15–B19).
   `unmapped` flags data bytes still open for reverse-engineering.
 
-For a `22xxxx` DID, pass `-2`: the Torque/bix column then also skips the **second**
-DID byte, so the first real data byte is `Torque A` at **B05** (not B04).
+For a `22xxxx` DID, pass `-2` so the two subfunction bytes are labelled `DID`
+(B03–B04); the first real data byte is then **B05**, not B04 (also where `Torque A`
+lands under `--torque`).
 
 ## Multi-byte and bit forms (same buffer, same rule)
 
@@ -283,7 +285,8 @@ Use the tooling instead of converting by hand:
 
 ```bash
 canair bix                                     # guided overview: legend + 2-frame table
-canair bix w9                                  # one lookup: WiCAN B09 across notations
+canair bix w9                                  # one lookup: WiCAN B09 across notations (incl. Torque/bix)
+canair bix --torque                            # also show the Torque letter + OBDb bix columns
 canair bix --table                             # the full conversion table
 canair bix -a 6101FFFF… --ecu BMS --pid 2101   # annotate a payload + overlay defined params
 ```
