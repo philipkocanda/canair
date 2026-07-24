@@ -12,6 +12,10 @@ Everything ships as a single installable CLI, **`canair`**. Vehicle data lives i
 
 **Both the WiCAN Pro and the regular (classic, non-Pro) WiCAN are supported.** All the core reverse-engineering — query, scan, discover, decode, DTCs, sniff, and generating AutoPID JSON — works on both over the default raw-SLCAN transport. A few features are **Pro-only**: AutoPID profile device sync (`canair wican autopid upload`/`download`/`diff`), `canair wican mode set`, and the `wican-ws` ELM327 WebSocket transport. Set `wican_model: classic` in your config and canair cleanly refuses those with a helpful message instead of failing against the device.
 
+> **📖 Documentation** lives in [`docs/`](docs/index.md). Start there:
+> [Getting started](docs/getting-started/install.md) · [**Bring your own car**](docs/bring-your-own-car/overview.md) (the full new-vehicle walkthrough) · [Concepts](docs/concepts/architecture.md) · [Reference](docs/reference/config.md).
+
+
 | | |
 |---|---|
 | ![decode plot](https://github.com/user-attachments/assets/7cab4e56-550a-4443-83dd-2f96bb5eedc7) | Analyzing/decoding a captured signal with `canair decode <query> --plot` |
@@ -150,7 +154,7 @@ Through `uv run` the completion won't fire (it hooks the `canair` command word);
 
 ## Bring your own car
 
-The bundled Ioniq profile is just an *example* — canair's tooling is vehicle-agnostic. To reverse-engineer *your* car, you build your own **profile** and let the discovery/scan commands populate it as you go. The arc, end to end:
+The bundled Ioniq profile is just an *example* — canair's tooling is vehicle-agnostic. To reverse-engineer *your* car, you build your own **profile** and let the discovery/scan commands populate it as you go. The arc, end to end (see the full walkthrough in [**docs/bring-your-own-car**](docs/bring-your-own-car/overview.md)):
 
 ```mermaid
 flowchart LR
@@ -196,7 +200,7 @@ flowchart LR
    canair wican autopid write
    ```
 
-This is the headline workflow; the [Usage examples](#usage-examples) below expand each step, and every command has `--help`.
+This is the headline workflow; each step has a dedicated page under [docs/bring-your-own-car](docs/bring-your-own-car/overview.md) ([create](docs/bring-your-own-car/01-create-profile.md) · [discover](docs/bring-your-own-car/02-discover-ecus.md) · [identity](docs/bring-your-own-car/03-identity.md) · [scan](docs/bring-your-own-car/04-scan.md) · [capture](docs/bring-your-own-car/05-capture.md) · [analyze](docs/bring-your-own-car/06-analyze.md) · [define & verify](docs/bring-your-own-car/07-define-and-verify.md) · [share](docs/bring-your-own-car/08-share.md)), the [Usage examples](#usage-examples) below expand each step, and every command has `--help`.
 
 ## Usage examples
 
