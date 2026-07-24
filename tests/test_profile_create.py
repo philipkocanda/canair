@@ -4,10 +4,28 @@ from __future__ import annotations
 
 import argparse
 
+import pytest
 import yaml
 
-from canlib.commands.profile import DEFAULT_INIT, _cmd_create
+from canlib.commands.profile import DEFAULT_INIT, _cmd_create, _cmd_list, _cmd_use
 from canlib.commands.validate import collect_pids_validation
+
+
+@pytest.fixture(autouse=True)
+def _isolate_profile_state():
+    """Reset the memoized active profile and config cache around each test.
+
+    `_cmd_list`/`active()` memoize a Profile into a module global; when the test
+    points it at a tmp_path that's later deleted, it would pollute unrelated
+    tests that resolve the active profile.
+    """
+    from canlib import config, profile
+
+    profile._active = None
+    config.load_config.cache_clear()
+    yield
+    profile._active = None
+    config.load_config.cache_clear()
 
 
 def _args(**kw) -> argparse.Namespace:
@@ -117,3 +135,72 @@ class TestSetConfigValue:
         text = path.read_text()
         assert "# default_profile:" in text  # commented example preserved
         assert "default_profile: foo" in text
+
+
+def _scaffold(tmp_path, name):
+    """Create a minimal discoverable profile bundle under a profiles dir."""
+    root = tmp_path / "profiles" / name
+    (root / "ecus").mkdir(parents=True)
+    (root / "profile.yaml").write_text(f'car_model: "{name}"\n')
+    return root
+
+
+class TestProfileUse:
+    def test_sets_default_profile(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
+        monkeypatch.setenv("CANAIR_PROFILES_DIR", str(tmp_path / "profiles"))
+        from canlib import config
+
+        config.load_config.cache_clear()
+        _scaffold(tmp_path, "ev6")
+        args = argparse.Namespace(name="ev6", profiles_dir=None)
+        assert _cmd_use(args) == 0
+        cfg = yaml.safe_load((tmp_path / "cfg" / "canair" / "config.yaml").read_text())
+        assert cfg["default_profile"] == "ev6"
+
+    def test_rejects_unknown_profile(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
+        monkeypatch.setenv("CANAIR_PROFILES_DIR", str(tmp_path / "profiles"))
+        from canlib import config
+
+        config.load_config.cache_clear()
+        _scaffold(tmp_path, "ev6")
+        args = argparse.Namespace(name="nope", profiles_dir=None)
+        assert _cmd_use(args) == 1
+        err = capsys.readouterr().err
+        assert "not found" in err
+        # Nothing written.
+        cfg_file = tmp_path / "cfg" / "canair" / "config.yaml"
+        if cfg_file.exists():
+            cfg = yaml.safe_load(cfg_file.read_text()) or {}
+            assert cfg.get("default_profile") is None
+
+
+class TestProfileListHint:
+    def test_hint_when_no_default(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
+        monkeypatch.setenv("CANAIR_PROFILES_DIR", str(tmp_path / "profiles"))
+        from canlib import config, profile
+
+        config.load_config.cache_clear()
+        profile._active = None
+        _scaffold(tmp_path, "ev6")
+        _scaffold(tmp_path, "leaf")
+        _cmd_list(argparse.Namespace(profiles_dir=None))
+        out = capsys.readouterr().out
+        assert "No default_profile set" in out
+        assert "canair profile use" in out
+
+    def test_no_hint_when_default_set(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
+        monkeypatch.setenv("CANAIR_PROFILES_DIR", str(tmp_path / "profiles"))
+        from canlib import config, profile
+
+        config.load_config.cache_clear()
+        profile._active = None
+        _scaffold(tmp_path, "ev6")
+        config.set_config_value("default_profile", "ev6")
+        config.load_config.cache_clear()
+        _cmd_list(argparse.Namespace(profiles_dir=None))
+        out = capsys.readouterr().out
+        assert "No default_profile set" not in out

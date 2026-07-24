@@ -48,7 +48,7 @@ Precedence (first match wins):
 
 1. `--profile NAME|PATH` (global flag, before the subcommand)
 2. `CANAIR_PROFILE` environment variable
-3. `default_profile` in your config
+3. `default_profile` in your config (set it with `canair profile use NAME`)
 4. the single discovered profile, if there's only one
 
 ## Where profiles are discovered
@@ -61,5 +61,6 @@ ones by name** and are not committed to the repo.
 ```bash
 canair profile list          # discovered profiles; active one marked
 canair profile show [NAME]    # a profile's paths and settings
+canair profile use NAME       # set NAME as the default profile
 canair profile create NAME --car-model "…" [--set-default]
 ```

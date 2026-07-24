@@ -80,7 +80,8 @@ data), and **generated** `out/` (never hand-edit — run `canair wican autopid w
 `~/.config/canair/profiles/` and shadow bundled ones by name; precedence:
 `--profile NAME|PATH` > `CANAIR_PROFILE` > `default_profile` > single discovered.
 Inspect with `canair profile list|show|path`, `canair ecu`, and
-`canair validate pids --stats` (current counts).
+`canair validate pids --stats` (current counts). Set the default profile with
+`canair profile use NAME` (alias for `canair config set default_profile NAME`).
 
 ## WiCAN device
 

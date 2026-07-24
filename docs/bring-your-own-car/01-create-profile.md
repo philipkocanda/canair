@@ -34,8 +34,9 @@ elsewhere.
 
     Once you have **more than one** profile and no `default_profile` set, every
     command needs `--profile NAME` (or `CANAIR_PROFILE=NAME`) — canair won't
-    guess. Set a default with `canair config set default_profile NAME` if you'll
-    be working on one profile for a while.
+    guess. Set a default with `canair profile use NAME` (an alias for `canair
+    config set default_profile NAME`) if you'll be working on one profile for a
+    while.
 
 ## What you get
 

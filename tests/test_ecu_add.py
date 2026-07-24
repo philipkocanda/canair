@@ -23,11 +23,15 @@ from canlib.pids import clear_cache
 
 @pytest.fixture(autouse=True)
 def _restore_active_profile():
+    from canlib import config
+
     saved = profile._active
     clear_cache()
+    config.load_config.cache_clear()
     yield
     profile._active = saved
     clear_cache()
+    config.load_config.cache_clear()
 
 
 def _mk_profile(tmp_path, name="prof"):
@@ -96,8 +100,13 @@ class TestOfflineValidationProfileScoping:
         # Two discoverable profiles + no default => active() would raise.
         root_a = _mk_profile(tmp_path, "car-a")
         _mk_profile(tmp_path, "car-b")
+        # Isolate config so a real ~/.config/canair default_profile can't leak in.
+        from canlib import config
+
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
         monkeypatch.setenv("CANAIR_PROFILES_DIR", str(tmp_path))
         monkeypatch.delenv("CANAIR_PROFILE", raising=False)
+        config.load_config.cache_clear()
         profile._active = None
 
         # active() is genuinely ambiguous here...

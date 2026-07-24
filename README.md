@@ -124,7 +124,7 @@ Each step has a dedicated page under [**Bring your own car**](https://philipkoca
 
 ## Profiles
 
-A *profile* bundles one vehicle's data — `ecus/` (one file per ECU, the source of truth), `profile.yaml`, `captures/`, `references/`, and generated `out/`. The repo ships `profiles/ioniq-2017/` as the default. Manage them with `canair profile list` / `create`, and select with `--profile` / `CANAIR_PROFILE` / `default_profile`. See [Profiles](https://philipkocanda.github.io/canair/concepts/profiles/) for the layout, precedence, and discovery order.
+A *profile* bundles one vehicle's data — `ecus/` (one file per ECU, the source of truth), `profile.yaml`, `captures/`, `references/`, and generated `out/`. The repo ships `profiles/ioniq-2017/` as the default. Manage them with `canair profile list` / `create` / `use`, and select with `--profile` / `CANAIR_PROFILE` / `default_profile`. See [Profiles](https://philipkocanda.github.io/canair/concepts/profiles/) for the layout, precedence, and discovery order.
 
 ## The bundled Ioniq profile
 

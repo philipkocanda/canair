@@ -3,7 +3,7 @@
 # `canair profile`
 
 ```
-usage: canair profile [-h] {list,show,path,create,init,new} ...
+usage: canair profile [-h] {list,show,path,use,create,init,new} ...
 
 List, inspect, and create vehicle profiles — the per-vehicle
 bundles (ecus/, profile.yaml, captures/, states.yaml, out/) that hold all
@@ -13,16 +13,20 @@ Subcommands:
   list            list every discovered profile (bundled + user)
   show [NAME]     details of a profile (ECU/PID counts, paths); default active
   path [NAME]     print a profile's root directory (handy for scripting)
+  use NAME        set NAME as the default profile (default_profile in config)
   create NAME     scaffold a new empty profile bundle
 
 A bare `canair profile` lists profiles. Select the active profile with the
-global --profile flag, CANAIR_PROFILE, or default_profile in config.
+global --profile flag, CANAIR_PROFILE, or default_profile in config (set the
+last with `canair profile use NAME`).
 
 positional arguments:
-  {list,show,path,create,init,new}
+  {list,show,path,use,create,init,new}
     list                List discovered profiles
     show                Show details of a profile (default: active)
     path                Print the root directory of a profile
+    use                 Set the default profile (default_profile in the user
+                        config)
     create (init, new)  Scaffold a new empty profile
 
 options:
@@ -33,6 +37,7 @@ examples:
   canair profile show                         # details of the active profile
   canair profile show ioniq-2017              # details of a named profile
   canair profile path                         # print the active profile's directory
+  canair profile use ioniq-2017               # set the default profile
   canair profile create ev6 --car-model "Kia EV6 2022"
   canair profile create ev6 --car-model "Kia EV6 2022" --set-default
 ```
@@ -65,6 +70,21 @@ usage: canair profile path [-h] [name]
 
 positional arguments:
   name        Profile name (default: active)
+
+options:
+  -h, --help  show this help message and exit
+```
+
+## `canair profile use`
+
+```
+usage: canair profile use [-h] name
+
+Set NAME as the default profile — an alias for `canair config set
+default_profile NAME`. The name must be a discovered profile.
+
+positional arguments:
+  name        Profile name to set as default
 
 options:
   -h, --help  show this help message and exit

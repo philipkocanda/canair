@@ -6,7 +6,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from canlib.config import user_config_file
+from canlib.config import load_config, user_config_file
 from canlib.profile import (
     ProfileError,
     active,
@@ -33,9 +33,11 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "  list            list every discovered profile (bundled + user)\n"
         "  show [NAME]     details of a profile (ECU/PID counts, paths); default active\n"
         "  path [NAME]     print a profile's root directory (handy for scripting)\n"
+        "  use NAME        set NAME as the default profile (default_profile in config)\n"
         "  create NAME     scaffold a new empty profile bundle\n\n"
         "A bare `canair profile` lists profiles. Select the active profile with the\n"
-        "global --profile flag, CANAIR_PROFILE, or default_profile in config.",
+        "global --profile flag, CANAIR_PROFILE, or default_profile in config (set the\n"
+        "last with `canair profile use NAME`).",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
 examples:
@@ -43,6 +45,7 @@ examples:
   canair profile show                         # details of the active profile
   canair profile show ioniq-2017              # details of a named profile
   canair profile path                         # print the active profile's directory
+  canair profile use ioniq-2017               # set the default profile
   canair profile create ev6 --car-model "Kia EV6 2022"
   canair profile create ev6 --car-model "Kia EV6 2022" --set-default
 """,
@@ -59,6 +62,16 @@ examples:
     pth = sub.add_parser("path", help="Print the root directory of a profile")
     pth.add_argument("name", nargs="?", help="Profile name (default: active)")
     pth.set_defaults(_profile_func=_cmd_path)
+
+    use = sub.add_parser(
+        "use",
+        help="Set the default profile (default_profile in the user config)",
+        description="Set NAME as the default profile — an alias for "
+        "`canair config set default_profile NAME`. The name must be a discovered "
+        "profile.",
+    )
+    use.add_argument("name", help="Profile name to set as default")
+    use.set_defaults(_profile_func=_cmd_use)
 
     crt = sub.add_parser(
         "create",
@@ -104,6 +117,14 @@ def _cmd_list(args) -> int:
     for name, root in profiles.items():
         marker = "*" if name == active_name else " "
         print(f"{marker} {name}\t{root}")
+
+    if not load_config().get("default_profile"):
+        print()
+        if len(profiles) == 1:
+            print("No default_profile set (the single discovered profile is used).")
+        else:
+            print("No default_profile set.")
+        print("Set one with `canair profile use <name>`.")
     return 0
 
 
@@ -139,6 +160,21 @@ def _cmd_show(args) -> int:
 
 def _cmd_path(args) -> int:
     print(_resolve(args.name).root)
+    return 0
+
+
+def _cmd_use(args) -> int:
+    from canlib.config import set_config_value
+
+    name = args.name.strip()
+    profiles = discover_profiles(getattr(args, "profiles_dir", None))
+    if name not in profiles:
+        avail = ", ".join(profiles) or "none"
+        print(f"error: profile '{name}' not found. Available: {avail}.", file=sys.stderr)
+        return 1
+    path = set_config_value("default_profile", name)
+    print(f"default_profile = {name}")
+    print(f"Saved to {path}")
     return 0
 
 
