@@ -134,6 +134,10 @@ The `ioniq-2017` profile makes canair a ready-to-use diagnostics toolkit for the
 
 See [docs/profiles/ioniq-2017](docs/profiles/ioniq-2017.md) for the full tour, or the per-ECU files under `profiles/ioniq-2017/ecus/`.
 
+## Contributing 🎉
+
+**Reverse-engineered your car? Please contribute it back!** A profile you share means the next person with the same vehicle starts with a head start instead of from zero — it's how canair grows beyond one car. Whole profiles, a few decoded parameters, corrected offsets, or fixes to canair itself are all welcome as pull requests. See [Bring your own car → Share](docs/bring-your-own-car/08-share.md#contribute-your-profile-back) for how.
+
 ## License
 
 Public domain — see [LICENSE](LICENSE) (Unlicense).

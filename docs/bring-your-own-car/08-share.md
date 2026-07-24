@@ -24,18 +24,36 @@ canair wican autopid upload    # push the profile to the dongle
 
 `out/*.json` is generated — never hand-edit it; regenerate.
 
-## Contribute the profile
+## Contribute your profile back
 
-A finished profile is a directory others can drop in and use. To share it:
+**Please do — this is the single most valuable thing you can do for the
+project.** 🎉 Every profile you contribute means the next person with your car
+gets a head start instead of starting from zero — that's how canair becomes
+useful beyond one vehicle. Contributions are genuinely wanted and warmly
+welcomed, whether it's a whole new car, a handful of newly-decoded parameters, or
+a fix to an existing one.
 
-- **Keep it clean.** `ecus/` is the source of truth; `captures/` are your raw
-  data (useful evidence, but large). Decide whether to include captures.
-- **Validate first.** `canair validate all` must pass — including the
-  duplicate-signal-name check.
-- **Verify what you claim.** Prefer `--verified` parameters with a `--source`
-  recording your evidence. An unverified guess should say so.
-- **Note the vehicle precisely.** `car_model` should pin down model/year/market/
-  battery so someone can tell if it matches theirs.
+**How to contribute** (a standard GitHub pull request):
+
+1. Fork [`philipkocanda/canair`](https://github.com/philipkocanda/canair) and
+   put your profile under `profiles/<your-car>/` (see
+   [step 1](01-create-profile.md) — create it there with `--path`).
+2. Make sure it's clean and honest:
+   - **Validate:** `canair validate all` must pass (including the
+     duplicate-signal-name check).
+   - **Verify what you claim.** Prefer `--verified` parameters with a `--source`
+     recording your evidence; an unverified guess should say so.
+   - **Name the vehicle precisely.** `car_model` should pin down
+     model/year/market/battery so someone can tell if it matches theirs.
+   - **Decide on `captures/`.** They're great evidence but large — include a
+     representative subset rather than everything if size is a concern.
+3. Open a PR. Even a *partial* profile is welcome — a few verified signals beats
+   nothing, and others can build on it.
+
+Not ready for a full profile? **Individual PID/parameter contributions are just
+as valuable** — a single verified signal, a corrected offset, or a new
+`research:` lead all help. And if you find a bug or a rough edge in canair
+itself, an issue or PR is appreciated too.
 
 ## Keep going
 

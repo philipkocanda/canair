@@ -58,6 +58,11 @@ canair validate all           # schema + duplicate-name checks
 Unmapped bytes are your next research leads — loop back to
 [capture](05-capture.md) and [analyze](06-analyze.md).
 
+> **Verified a signal? Consider contributing it back.** You don't have to wait
+> for a "finished" profile — a single verified parameter (or a corrected one) is
+> a welcome pull request that helps everyone with your car. See
+> [Share](08-share.md#contribute-your-profile-back).
+
 ---
 
 Next: **[8. Share →](08-share.md)**

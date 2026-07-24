@@ -42,3 +42,12 @@ Reading data is safe and free — canair only *reads* unless you explicitly ask 
 to actuate hardware, and every state-changing action confirms first. That said,
 **interacting with a vehicle's CAN bus carries real risk**. See
 [Safety](concepts/safety.md) for what canair will and won't do, and why.
+
+## Contribute back 🎉
+
+canair gets more useful with every car and signal people share. If you
+reverse-engineer *your* vehicle — a whole profile, a few decoded parameters, or a
+fix — **please contribute it back via a pull request** to
+[`philipkocanda/canair`](https://github.com/philipkocanda/canair). It's the
+single best way to help others with the same car. See
+[Share your profile](bring-your-own-car/08-share.md#contribute-your-profile-back).

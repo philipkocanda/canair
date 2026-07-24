@@ -51,6 +51,12 @@ canair captures MyECU:2101 --diff  # byte-level diff across captures
     by `--save` and managed by canair. See
     [Captures & states](../concepts/captures-and-states.md).
 
+!!! tip "Captures are shareable evidence"
+    Well-labelled captures are valuable to the whole project — they're the raw
+    material others use to decode and cross-check signals on the same car.
+    Consider [contributing](08-share.md#contribute-your-profile-back)
+    a representative subset alongside your profile.
+
 ---
 
 Next: **[6. Analyze →](06-analyze.md)**
