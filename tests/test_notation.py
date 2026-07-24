@@ -152,6 +152,48 @@ class TestRelabelSignal:
         # B08 is a PCI byte -> from_wican raises -> label passes through.
         assert relabel_signal("X:Y:B8", ByteNotation.ISOTP) == "X:Y:B8"
 
+    def test_auto_derives_sub_bytes_from_pid(self):
+        # Torque view depends on subfunction width, taken from the label's PID.
+        # ISO-TP 6: sub=1 (21xx) -> "E"; sub=2 (22xxxx) -> "D".
+        assert relabel_signal("BMS:2101:B9", ByteNotation.TORQUE) == "BMS:2101:E"
+        assert relabel_signal("ESC:22C101:B9", ByteNotation.TORQUE) == "ESC:22C101:D"
+
+
+class TestResolveNotation:
+    def test_explicit_value_wins(self):
+        from canlib.notation import resolve_notation
+
+        assert resolve_notation("isotp") is ByteNotation.ISOTP
+        assert resolve_notation("torque") is ByteNotation.TORQUE
+
+    def test_defaults_to_wican(self, monkeypatch):
+        from canlib import notation
+
+        monkeypatch.setattr(notation, "get_config_key", lambda k: None, raising=False)
+        # No flag, no config -> wican.
+        import canlib.config as cfg
+
+        monkeypatch.setattr(cfg, "get_config_key", lambda k: None)
+        assert notation.resolve_notation(None) is ByteNotation.WICAN
+
+    def test_config_default_used_when_no_flag(self, monkeypatch):
+        import canlib.config as cfg
+
+        monkeypatch.setattr(
+            cfg, "get_config_key", lambda k: "isotp" if k == "display.byte_notation" else None
+        )
+        from canlib.notation import resolve_notation
+
+        assert resolve_notation(None) is ByteNotation.ISOTP
+
+    def test_invalid_config_falls_back_to_wican(self, monkeypatch):
+        import canlib.config as cfg
+
+        monkeypatch.setattr(cfg, "get_config_key", lambda k: "bogus")
+        from canlib.notation import resolve_notation
+
+        assert resolve_notation(None) is ByteNotation.WICAN
+
 
 class TestSubfunctionBytesForPid:
     def test_service_21_is_one(self):
@@ -160,3 +202,44 @@ class TestSubfunctionBytesForPid:
     def test_service_22_is_two(self):
         assert subfunction_bytes_for_pid("22BC03") == 2
         assert subfunction_bytes_for_pid("22c101") == 2
+
+
+class TestCommandsAcceptNotationFlag:
+    """Every analysis command exposes --notation (default None -> resolve to wican)."""
+
+    def test_all_analysis_commands_accept_notation(self):
+        import argparse
+
+        from canlib.commands import correlate, coverage, decode, hunt, investigate
+
+        # Minimal required positionals/flags per command to reach a parseable state.
+        cases = [
+            (hunt, ["MCU", "2102", "--against", "X:Y:Z", "--notation", "isotp"]),
+            (correlate, ["--notation", "torque"]),
+            (investigate, ["BCM", "22B003", "--notation", "bix"]),
+            (coverage, ["--notation", "isotp"]),
+            (decode, ["BMS", "2101", "--notation", "isotp"]),
+        ]
+        for module, argv in cases:
+            p = module.add_parser(argparse.ArgumentParser().add_subparsers())
+            args = p.parse_args(argv)
+            assert args.notation == argv[argv.index("--notation") + 1]
+
+    def test_notation_defaults_to_none(self):
+        import argparse
+
+        from canlib.commands import coverage
+
+        p = coverage.add_parser(argparse.ArgumentParser().add_subparsers())
+        assert p.parse_args([]).notation is None
+
+    def test_invalid_notation_rejected(self):
+        import argparse
+
+        import pytest
+
+        from canlib.commands import coverage
+
+        p = coverage.add_parser(argparse.ArgumentParser().add_subparsers())
+        with pytest.raises(SystemExit):
+            p.parse_args(["--notation", "bogus"])

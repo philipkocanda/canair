@@ -103,7 +103,7 @@ class TestInvestigate:
         class _LP:
             captures = (1, 2, 3)
 
-        args = argparse.Namespace(join_tol=2.5, min_r=0.6, all=True, bits=False)
+        args = argparse.Namespace(join_tol=2.5, min_r=0.6, all=True, bits=False, notation=None)
         investigate._print_report("AAF", "2181", rpts, args, _LP(), True)
         out = capsys.readouterr().out
         assert "B12" in out and "ESC:22C101:REAL_SPEED_KMH" in out and "r=+0.997" in out

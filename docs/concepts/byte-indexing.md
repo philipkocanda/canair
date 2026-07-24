@@ -75,6 +75,32 @@ offset in an expression:
 canair bix --annotate 62B004… --ecu MyECU --pid B004
 ```
 
+## Switch the notation in analysis output
+
+The analysis commands — `correlate`, `hunt`, `investigate`, `coverage`, and
+`decode` (`--discriminate`/`--find-mirrors`) — label raw bytes as WiCAN `Bnn` by
+default. Pass **`--notation`** to re-render those labels in whichever notation you
+find easiest to read or need for cross-referencing:
+
+```bash
+canair correlate --against ESC:22C101:REAL_SPEED_KMH --bytes   # B10, B14 … (default)
+canair correlate --against ESC:22C101:REAL_SPEED_KMH --bytes --notation isotp   # i7, i11 …
+canair coverage BMS 2101 --unmapped --notation torque          # A, B, F …
+```
+
+`--notation` takes `wican` (default), `isotp`, `torque`, or `bix`. It only
+changes **display** — named parameters are untouched, and the machine-readable
+`--json` output and `--promote` always use the canonical WiCAN form (the
+promotable/firmware expression). Set a persistent default with:
+
+```bash
+canair config set display.byte_notation isotp
+```
+
+Internally canair models a byte position in **ISO-TP** space (the canonical,
+framing-free payload index) and derives the WiCAN / Torque / bix views from it —
+so WiCAN is treated as one *view* of the byte, not the tool's native unit.
+
 ## Further reading
 
 For the deep, firmware-grounded reference — exactly how the WiCAN `Bnn` index maps

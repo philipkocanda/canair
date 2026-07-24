@@ -19,6 +19,17 @@ default_profile: ioniq-2017
 # placed here are never committed to the repo.
 # profiles_dir: ~/vehicles
 
+# Display preferences.
+#   byte_notation — default byte-index notation for analysis output labels
+#   (correlate / hunt / investigate / coverage / decode). One of:
+#     wican  — WiCAN Bnn frame index (default; the promotable/firmware form)
+#     isotp  — ISO-TP payload index (iN)
+#     torque — Torque/OBDb letter notation
+#     bix    — Torque bit index
+#   Overridden per-command by --notation. See docs/concepts/byte-indexing.md.
+# display:
+#   byte_notation: wican
+
 # WiCAN device addresses for the --wican flag. Values can be IPs or hostnames.
 # --wican accepts any alias defined here, or an arbitrary URL/IP.
 wican_addresses:

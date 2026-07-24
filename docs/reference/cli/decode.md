@@ -9,9 +9,9 @@ usage: canair decode [-h] [--param NAME [NAME ...]] [--verified]
                      [--find-mirrors] [--bits] [--bytes] [--first N]
                      [--last N] [--corr PARAM] [--join-tol SECONDS]
                      [--corr-transform MODE] [--method {pearson,spearman}]
-                     [--plot] [--try NAME[:unit]=EXPR] [--since YYYY-MM-DD]
-                     [--until YYYY-MM-DD] [--date YYYY-MM-DD] [--state SUBSTR]
-                     [--label SUBSTR]
+                     [--plot] [--try NAME[:unit]=EXPR] [--notation NAME]
+                     [--since YYYY-MM-DD] [--until YYYY-MM-DD]
+                     [--date YYYY-MM-DD] [--state SUBSTR] [--label SUBSTR]
                      [ecu] [pid]
 
 Decode captured UDS payloads using PID parameter definitions.
@@ -76,6 +76,9 @@ options:
                         Evaluate a candidate expression against captures
                         without editing YAML (repeatable; works even if the
                         PID has no params defined yet)
+  --notation NAME       byte-index notation for output labels: wican
+                        (default), isotp, torque, bix. Overrides the
+                        display.byte_notation config key.
 
 scoping:
   Restrict to captures within a date range (inclusive, YYYY-MM-DD) and/or by session state/label substring

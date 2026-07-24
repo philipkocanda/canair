@@ -329,6 +329,36 @@ class TestCommandParsers:
         assert args.transform == "delta"
         assert p.parse_args(["MCU", "2102", "--against", "X:Y:Z"]).transform == "raw"
 
+    def test_hunt_notation_flag_and_label_rendering(self):
+        import argparse
+
+        from canlib.commands import hunt
+        from canlib.notation import ByteNotation
+        from canlib.xanalysis import HuntHit
+
+        p = hunt.add_parser(argparse.ArgumentParser().add_subparsers())
+        # Flag parses; default is None (resolved to wican downstream).
+        assert p.parse_args(["M", "2102", "--against", "X:Y:Z"]).notation is None
+        assert p.parse_args(
+            ["M", "2102", "--against", "X:Y:Z", "--notation", "isotp"]
+        ).notation == ("isotp")
+        # Label rendering: WiCAN keeps the promotable expr; others render position.
+        hit = HuntHit(
+            expr="B9",
+            interp="u8",
+            offset=9,
+            r=1.0,
+            n=15,
+            slope=1.0,
+            intercept=0.0,
+            resid=0.0,
+            unit_guess=None,
+            width=1,
+        )
+        assert hunt._hit_label(hit, ByteNotation.WICAN, 1) == "B9"
+        assert hunt._hit_label(hit, ByteNotation.ISOTP, 1) == "i6"
+        assert hunt._hit_label(hit, ByteNotation.TORQUE, 1) == "E"
+
     def test_correlate_has_transform_flag(self):
         import argparse
 

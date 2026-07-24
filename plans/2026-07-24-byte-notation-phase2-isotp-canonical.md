@@ -255,10 +255,38 @@ analysis stops piggybacking on synthesized WiCAN expression strings.
 
 ## Status
 
-- [ ] Design signed off (open decisions 1–5 resolved)
-- [ ] `ByteRef`/`ByteSpace`/`notation.py` + tests
-- [ ] `bix` reimplemented on the layer
-- [ ] `to_wican_expression` + promote edge + tests
-- [ ] analysis verbs rewired (per-command, golden-gated)
-- [ ] `--notation` flag + TUI toggle + config
-- [ ] docs / AGENTS.md / skills / CHANGELOG
+Split into **Phase 2a (shipped)** and **Phase 2b (deferred)** during
+implementation, to keep each change golden-gated and manage the large blast
+radius. 2a delivers the user-facing goals (typed model, switchable display
+notation, raw-CAN-ready `ByteSpace`); 2b is the deeper internal re-homing that
+changes every default label and is best done per-command with golden tests.
+
+### Phase 2a — shipped
+
+- [x] `ByteRef`/`ByteSpace`/`ByteNotation` + `render`/`to_wican_expression`/
+  `relabel_signal` in `canlib/notation.py` + 35 unit tests (incl. parity with
+  `_decode_plot.wican_expr` and PCI-straddling shift-composition).
+- [x] `--notation {wican,isotp,torque,bix}` wired into `correlate`, `hunt`,
+  `investigate`, `coverage`, `decode` (`--discriminate`/`--find-mirrors`).
+  Default `wican` is byte-identical to before (golden-preserving); `--json` /
+  `--promote` stay canonical WiCAN.
+- [x] `display.byte_notation` config key (`resolve_notation`) + `config.example.yaml`.
+- [x] Docs: `byte-indexing.md`, regenerated CLI reference, `AGENTS.md`, CHANGELOG.
+
+### Phase 2b — deferred (follow-up)
+
+- [ ] **Reimplement `canair bix` on `notation.py`** (pure internal dedup; deferred
+  to avoid re-churning code Phase 1 just touched, and because the 35 notation
+  tests already prove the renderer).
+- [ ] **Re-home the analysis engine to read ISO-TP directly** — retire the
+  synthesized-`"B{bn}"`-expression trick in `build_byte_series`/`build_bit_series`
+  so series carry `ByteRef`s and PCI-skipping disappears from the engine. This
+  changes internal series keys and is the largest blast radius → do it
+  per-command, each gated by default-`wican` golden output. Unlocks the
+  PCI-straddling-signal find and true raw-CAN analysis.
+- [ ] **TUI live notation toggle** in `decode --plot` / `--monitor` (a key to
+  cycle notation). Not a TUI-*only* capability — the scriptable `--notation` flag
+  already covers non-interactive use — so this is a convenience, low priority.
+- [ ] **Raw-CAN analysis path** (`ByteSpace.RAW_CAN` end-to-end) once the `sniff`
+  broadcast-frame use-case is real; `byteindex.framed_to_wican_frame` +
+  `ByteRef.from_raw_can` are the seams already in place.

@@ -230,21 +230,60 @@ class ByteRef:
 _WICAN_BYTE_LABEL = re.compile(r"^(?P<prefix>.*:)?B(?P<off>\d+)(?::(?P<bit>\d+))?$")
 
 
-def relabel_signal(label: str, notation: ByteNotation, *, sub_bytes: int = 1) -> str:
+def relabel_signal(label: str, notation: ByteNotation, *, sub_bytes: int | None = None) -> str:
     """Re-render a raw-byte analysis label (``…:Bn`` / ``…:Bn:k``) in ``notation``.
 
     Whole-signal labels for *named parameters* (``ECU:PID:SOC_BMS``) and anything
     not ending in a WiCAN byte token pass through unchanged. WiCAN is a no-op fast
     path, so the default keeps every existing label byte-for-byte identical.
+
+    ``sub_bytes`` (needed only for Torque/bix) is auto-derived from an
+    ``ECU:PID:`` prefix when present (``22xxxx`` DID → 2, else 1), so callers can
+    relabel with just ``(label, notation)``.
     """
     if notation is ByteNotation.WICAN:
         return label
     m = _WICAN_BYTE_LABEL.match(label)
     if m is None:
         return label
+    prefix = m.group("prefix") or ""
+    if sub_bytes is None:
+        parts = prefix.rstrip(":").split(":")
+        sub_bytes = subfunction_bytes_for_pid(parts[-1]) if len(parts) >= 2 and parts[-1] else 1
     bit = int(m.group("bit")) if m.group("bit") is not None else None
     try:
         ref = ByteRef.from_wican(int(m.group("off")), bit=bit)
     except ValueError:
         return label
-    return (m.group("prefix") or "") + ref.render(notation, sub_bytes=sub_bytes)
+    return prefix + ref.render(notation, sub_bytes=sub_bytes)
+
+
+def add_notation_arg(parser) -> None:
+    """Register the shared ``--notation`` flag on an analysis command's parser.
+
+    Default is ``None`` so :func:`resolve_notation` can fall back to the
+    ``display.byte_notation`` config key (then ``wican``).
+    """
+    parser.add_argument(
+        "--notation",
+        choices=[n.value for n in ByteNotation],
+        default=None,
+        metavar="NAME",
+        help="byte-index notation for output labels: wican (default), isotp, "
+        "torque, bix. Overrides the display.byte_notation config key.",
+    )
+
+
+def resolve_notation(value: str | None) -> ByteNotation:
+    """Effective notation: explicit ``--notation`` > ``display.byte_notation`` > wican."""
+    if value:
+        return ByteNotation(value)
+    from .config import get_config_key
+
+    configured = get_config_key("display.byte_notation")
+    if configured:
+        try:
+            return ByteNotation(str(configured))
+        except ValueError:
+            pass
+    return ByteNotation.WICAN

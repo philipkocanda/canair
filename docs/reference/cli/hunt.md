@@ -6,8 +6,9 @@
 usage: canair hunt [-h] --against ECU:PID:PARAM [--min-n N] [--top N]
                    [--transform MODE] [--method {pearson,spearman}]
                    [--join-tol SECONDS] [--json] [--all-interps]
-                   [--promote NAME] [--since YYYY-MM-DD] [--until YYYY-MM-DD]
-                   [--date YYYY-MM-DD] [--state SUBSTR] [--label SUBSTR]
+                   [--promote NAME] [--notation NAME] [--since YYYY-MM-DD]
+                   [--until YYYY-MM-DD] [--date YYYY-MM-DD] [--state SUBSTR]
+                   [--label SUBSTR]
                    ecu pid
 
 Answer 'which byte on this PID carries a signal I already know?'
@@ -52,6 +53,9 @@ options:
                         unverified candidate param NAME (via pids upsert-
                         param), with the correlation evidence auto-filled into
                         notes
+  --notation NAME       byte-index notation for output labels: wican
+                        (default), isotp, torque, bix. Overrides the
+                        display.byte_notation config key.
 
 scoping:
   Restrict to captures within a date range (inclusive, YYYY-MM-DD) and/or by session state/label substring

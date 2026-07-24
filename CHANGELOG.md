@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`--notation {wican,isotp,torque,bix}` on the analysis commands.**
+  `correlate`, `hunt`, `investigate`, `coverage`, and `decode`
+  (`--discriminate`/`--find-mirrors`) can now render raw-byte labels in the
+  notation you prefer — ISO-TP payload index (`iN`), Torque/OBDb letters, or bix —
+  instead of only WiCAN `Bnn`. It is **display-only**: named parameters are
+  untouched, and `--json` / `--promote` always emit the canonical WiCAN expression
+  (the promotable/firmware form). Set a persistent default with
+  `canair config set display.byte_notation NAME`. Backed by a new typed byte model
+  (`canlib/notation.py`: `ByteRef`, canonical in ISO-TP space, with WiCAN/Torque/bix
+  as derived views and a `RAW_CAN` space reserved for future raw-frame analysis) —
+  the first step of de-conflating WiCAN's PCI-interleaved indexing from the tool's
+  internal byte space (`plans/2026-07-24-byte-notation-phase2-isotp-canonical.md`).
+
 ### Fixed
 
 - **`canair hunt` no longer surfaces (or promotes) ISO-TP framing bytes.** Its

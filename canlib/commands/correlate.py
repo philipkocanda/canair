@@ -25,6 +25,7 @@ from canlib.align import (
 from canlib.capture_dates import add_scope_args, entry_datetime, resolve_date_bounds
 from canlib.keepmode import BANNER as KEEP_BANNER
 from canlib.keepmode import scope_is_keep_unique
+from canlib.notation import ByteNotation, add_notation_arg, relabel_signal, resolve_notation
 from canlib.xanalysis import (
     build_bit_series,
     build_byte_series,
@@ -199,6 +200,7 @@ examples:
         "mirrored in BCM. Use with --bits for bit-level. Cross-ECU companion to "
         "`decode --find-mirrors` (which is single-PID)",
     )
+    add_notation_arg(parser)
     add_scope_args(parser)
     parser.set_defaults(func=run)
     return parser
@@ -312,7 +314,9 @@ def _print_overlap(specs, since, until, state, label, tol, min_n, as_json) -> in
     return 0
 
 
-def _print_cross_mirrors(specs, since, until, state, label, tol, min_n, bits, as_json) -> int:
+def _print_cross_mirrors(
+    specs, since, until, state, label, tol, min_n, bits, as_json, notation=ByteNotation.WICAN
+) -> int:
     """Report byte/bit positions equal across co-polled ECU/PIDs (time-aligned).
 
     The cross-ECU companion to ``decode --find-mirrors`` (single-PID). Builds a
@@ -372,7 +376,10 @@ def _print_cross_mirrors(specs, since, until, state, label, tol, min_n, bits, as
         )
         return 0
     for a, b, n in mirrors:
-        print(f"    {_GREEN}n={n:<4}{_RESET} {a}  {_DIM}=={_RESET}  {b}")
+        print(
+            f"    {_GREEN}n={n:<4}{_RESET} {relabel_signal(a, notation)}  "
+            f"{_DIM}=={_RESET}  {relabel_signal(b, notation)}"
+        )
     print()
     return 0
 
@@ -466,6 +473,7 @@ def run(args) -> int:
         print(f"error: {err}", file=sys.stderr)
         return 2
 
+    notation = resolve_notation(args.notation)
     specs = _discover_specs(args.query, since, until, args.state, args.label)
 
     if args.overlap:
@@ -484,6 +492,7 @@ def run(args) -> int:
             args.min_n,
             args.bits,
             args.json,
+            notation,
         )
 
     keep_unique = _scope_keep_unique(specs, since, until, args.state, args.label)
@@ -602,7 +611,9 @@ def run(args) -> int:
         )
         for name, r, n, lag in rows:
             lag_str = f"  {_DIM}lag={lag:+.1f}s{_RESET}" if lag is not None else ""
-            print(f"    {_color_r(r)}  {name}  {_DIM}n={n}{_RESET}{lag_str}")
+            print(
+                f"    {_color_r(r)}  {relabel_signal(name, notation)}  {_DIM}n={n}{_RESET}{lag_str}"
+            )
         print()
         return 0
 
@@ -649,13 +660,19 @@ def run(args) -> int:
     )
     for c in sorted(clusters, key=len, reverse=True):
         members = sorted(c)
-        shown = ", ".join(members[:4]) + (f", +{len(members) - 4} more" if len(members) > 4 else "")
+        shown_members = [relabel_signal(m, notation) for m in members[:4]]
+        shown = ", ".join(shown_members) + (
+            f", +{len(members) - 4} more" if len(members) > 4 else ""
+        )
         print(
             f"    {_GREEN}≈ cluster{_RESET} {_DIM}(|r|≥{_CLUSTER_THRESHOLD:g}, "
             f"{len(members)} signals){_RESET}  {shown}"
         )
     for h in remaining:
-        print(f"    {_color_r(h.r)}  {h.a}  {_DIM}⟷{_RESET}  {h.b}  {_DIM}n={h.n}{_RESET}")
+        print(
+            f"    {_color_r(h.r)}  {relabel_signal(h.a, notation)}  {_DIM}⟷{_RESET}  "
+            f"{relabel_signal(h.b, notation)}  {_DIM}n={h.n}{_RESET}"
+        )
     print()
     return 0
 

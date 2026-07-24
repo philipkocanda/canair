@@ -58,6 +58,13 @@ from canlib.commands._hints import pid_completer as _pid_completer
 from canlib.expression import evaluate_expression
 from canlib.keepmode import BANNER as KEEP_BANNER
 from canlib.keepmode import scope_is_keep_unique
+from canlib.notation import (
+    ByteNotation,
+    add_notation_arg,
+    relabel_signal,
+    resolve_notation,
+    subfunction_bytes_for_pid,
+)
 from canlib.pids import build_ecu_index, load_pids
 from canlib.states import join_states as _join_states
 from canlib.stats import correlation as _correlation
@@ -731,6 +738,8 @@ def print_discriminate(
     *,
     include_bytes: bool = False,
     include_bits: bool = False,
+    notation: ByteNotation = ByteNotation.WICAN,
+    sub_bytes: int = 1,
 ) -> None:
     """Rank params (and optionally raw bytes/bits) by how cleanly they separate
     across session ``field`` groups.
@@ -779,14 +788,15 @@ def print_discriminate(
             mark = f"{_DIM}·{_RESET}"
         else:
             mark = _mark_for(name, parameters, candidate_names)
+        disp = relabel_signal(name, notation, sub_bytes=sub_bytes)
         try_tag = f" {_CYAN}(try){_RESET}" if name in candidate_names else ""
         if score is None:
-            print(f"    {mark} {name}{try_tag}  {_DIM}F=n/a{_RESET}")
+            print(f"    {mark} {disp}{try_tag}  {_DIM}F=n/a{_RESET}")
             continue
         color = _GREEN if score >= 10 or score == float("inf") else _YELLOW if score >= 2 else _DIM
         fstr = "∞" if score == float("inf") else f"{score:.1f}"
         means = "  ".join(f"{g}={sum(v) / len(v):.1f}" for g, v in groups.items() if v)
-        print(f"    {mark} {name}{try_tag}  {color}F={fstr}{_RESET}  {_DIM}{means}{_RESET}")
+        print(f"    {mark} {disp}{try_tag}  {color}F={fstr}{_RESET}  {_DIM}{means}{_RESET}")
     print()
 
 
@@ -837,7 +847,13 @@ def find_mirrors(all_results: list[dict], *, bits: bool = False) -> list[tuple[s
     return mirrors
 
 
-def print_mirrors(all_results: list[dict], *, bits: bool = False) -> None:
+def print_mirrors(
+    all_results: list[dict],
+    *,
+    bits: bool = False,
+    notation: ByteNotation = ByteNotation.WICAN,
+    sub_bytes: int = 1,
+) -> None:
     """Print exact byte/bit mirrors (redundant signals) found across captures."""
     mirrors = find_mirrors(all_results, bits=bits)
     print(f"  {_BOLD}Exact mirrors{_RESET} {_DIM}(positions equal across all captures){_RESET}")
@@ -846,7 +862,9 @@ def print_mirrors(all_results: list[dict], *, bits: bool = False) -> None:
         print()
         return
     for a, b, n in mirrors:
-        print(f"    {_GREEN}{a} == {b}{_RESET}  {_DIM}(n={n}){_RESET}")
+        da = relabel_signal(a, notation, sub_bytes=sub_bytes)
+        db = relabel_signal(b, notation, sub_bytes=sub_bytes)
+        print(f"    {_GREEN}{da} == {db}{_RESET}  {_DIM}(n={n}){_RESET}")
     print()
 
 
@@ -1073,6 +1091,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         help="Evaluate a candidate expression against captures without editing "
         "YAML (repeatable; works even if the PID has no params defined yet)",
     )
+    add_notation_arg(parser)
     add_scope_args(parser)
     parser.set_defaults(func=run)
     return parser
@@ -1388,9 +1407,11 @@ def run(args) -> int:
 
     # Default view: parameter value ranges across all captures (validation-focused).
     # --stats and --corr add/replace it with statistics and correlation tables.
+    _notation = resolve_notation(args.notation)
+    _sub_bytes = subfunction_bytes_for_pid(pid_key)
     printed = False
     if args.find_mirrors:
-        print_mirrors(all_results, bits=args.bits)
+        print_mirrors(all_results, bits=args.bits, notation=_notation, sub_bytes=_sub_bytes)
         printed = True
     if args.stats:
         if args.group_by == "state":
@@ -1407,6 +1428,8 @@ def run(args) -> int:
             args.discriminate,
             include_bytes=args.bytes,
             include_bits=args.bits,
+            notation=_notation,
+            sub_bytes=_sub_bytes,
         )
         printed = True
     if corr_ref:

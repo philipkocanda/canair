@@ -18,6 +18,13 @@ import sys
 
 from canlib.align import DEFAULT_JOIN_TOL_S, load_signal_captures
 from canlib.capture_dates import add_scope_args, resolve_date_bounds
+from canlib.notation import (
+    ByteNotation,
+    ByteRef,
+    add_notation_arg,
+    resolve_notation,
+    subfunction_bytes_for_pid,
+)
 from canlib.xanalysis import hunt_byte, load_ref, transform_ref
 
 NAME = "hunt"
@@ -117,9 +124,22 @@ tip: --against takes a known signal ECU:PID:PARAM (or a raw ECU:PID:EXPR). Use
         "candidate param NAME (via pids upsert-param), with the correlation "
         "evidence auto-filled into notes",
     )
+    add_notation_arg(parser)
     add_scope_args(parser)
     parser.set_defaults(func=run)
     return parser
+
+
+def _hit_label(h, notation: ByteNotation, sub_bytes: int) -> str:
+    """Render a hunt hit's byte in ``notation``.
+
+    WiCAN shows the promotable expression as-is (``h.expr``); other notations
+    render the byte position (the expression stays available via --json/--promote,
+    which always emit the canonical WiCAN form).
+    """
+    if notation is ByteNotation.WICAN:
+        return h.expr
+    return ByteRef.from_wican(h.offset, width=h.width).render(notation, sub_bytes=sub_bytes)
 
 
 def run(args) -> int:
@@ -200,6 +220,8 @@ def run(args) -> int:
     if not hits:
         print(f"No byte on {ecu} {pid} correlates with {ref_label} in scope.")
         return 0
+    notation = resolve_notation(args.notation)
+    sub_bytes = subfunction_bytes_for_pid(pid)
     print(
         f"\n  {_BOLD}Hunt {ecu} {pid} vs {ref_label}{_RESET} "
         f"{_DIM}(nearest-join ≤{args.join_tol:g}s){_RESET}"
@@ -207,8 +229,9 @@ def run(args) -> int:
     for h in hits:
         color = _GREEN if abs(h.r) >= 0.7 else _YELLOW if abs(h.r) >= 0.3 else _DIM
         unit = f"  {_CYAN}{h.unit_guess}{_RESET}" if h.unit_guess else ""
+        label = _hit_label(h, notation, sub_bytes)
         print(
-            f"    {color}r={h.r:+.3f}{_RESET}  {_BOLD}{h.expr}{_RESET} "
+            f"    {color}r={h.r:+.3f}{_RESET}  {_BOLD}{label}{_RESET} "
             f"{_DIM}({h.interp}){_RESET}  fit y={h.slope:.4f}·x{h.intercept:+.2f} "
             f"{_DIM}resid={h.resid:.2f} n={h.n}{_RESET}{unit}"
         )

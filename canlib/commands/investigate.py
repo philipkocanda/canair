@@ -20,6 +20,12 @@ from canlib.align import DEFAULT_JOIN_TOL_S, join_nearest, load_signal_captures
 from canlib.byteindex import mapped_bits, mapped_offsets
 from canlib.capture_dates import add_scope_args, resolve_date_bounds
 from canlib.keepmode import scope_is_keep_unique
+from canlib.notation import (
+    add_notation_arg,
+    relabel_signal,
+    resolve_notation,
+    subfunction_bytes_for_pid,
+)
 from canlib.xanalysis import (
     build_bit_series,
     build_byte_series,
@@ -117,6 +123,7 @@ tip: no anchors found? widen scope (drop --state), lower --min-r, or grow the
         "the nearest capture note (the narrated event timeline)",
     )
     parser.add_argument("--json", action="store_true", help="Machine-readable output")
+    add_notation_arg(parser)
     add_scope_args(parser)
     parser.set_defaults(func=run)
     return parser
@@ -299,6 +306,8 @@ def _best_anchor(series, anchors, tol, min_n):
 
 
 def _print_report(ecu, pid, reports, args, lp, has_anchors: bool) -> None:
+    notation = resolve_notation(args.notation)
+    sub_bytes = subfunction_bytes_for_pid(pid)
     print(
         f"\n  {_BOLD}Investigate {ecu} {pid}{_RESET} "
         f"{_DIM}({len(lp.captures)} timed captures, ≤{args.join_tol:g}s join){_RESET}"
@@ -326,8 +335,12 @@ def _print_report(ecu, pid, reports, args, lp, has_anchors: bool) -> None:
             rc = _GREEN if abs(r.anchor_r) >= 0.7 else _YELLOW
             fit = f" fit y={r.slope:.4f}·x{r.intercept:+.2f}" if r.slope is not None else ""
             unit = f" {_CYAN}{r.unit_guess}{_RESET}" if r.unit_guess else ""
-            anchor = f"  {rc}r={r.anchor_r:+.3f}{_RESET} vs {r.anchor} {_DIM}n={r.anchor_n}{fit}{_RESET}{unit}"
-        print(f"    {_BOLD}{r.label}{_RESET} {tag}{f_str}{anchor}")
+            anchor_label = relabel_signal(r.anchor, notation)
+            anchor = f"  {rc}r={r.anchor_r:+.3f}{_RESET} vs {anchor_label} {_DIM}n={r.anchor_n}{fit}{_RESET}{unit}"
+        print(
+            f"    {_BOLD}{relabel_signal(r.label, notation, sub_bytes=sub_bytes)}{_RESET} "
+            f"{tag}{f_str}{anchor}"
+        )
     if not has_anchors:
         # Body/comfort PIDs have no co-polled partner, so there is no anchor
         # column — that's expected, not "nothing here". Point at the right tool.
@@ -465,6 +478,8 @@ def _print_events(ecu, pid, lp, mapped, mapped_bit, args) -> None:
     if not edges:
         print(f"    {_DIM}no transitions in scope.{_RESET}\n")
         return
+    notation = resolve_notation(args.notation)
+    sub_bytes = subfunction_bytes_for_pid(pid)
     for dt, label, before, after, mapped_by, verified, cap, _kind in edges:
         if mapped_by is None:
             tag = f"{_YELLOW}candidate{_RESET}"
@@ -477,8 +492,9 @@ def _print_events(ecu, pid, lp, mapped, mapped_bit, args) -> None:
         arrow = (
             f"{_BOLD}{before:#04x}→{after:#04x}{_RESET}" if _kind == "byte" else f"{before}→{after}"
         )
+        shown = relabel_signal(label, notation, sub_bytes=sub_bytes)
         print(
-            f"    {_DIM}{dt.strftime('%H:%M:%S')}{_RESET}  {_BOLD}{label}{_RESET} {arrow}  {tag}{note_str}"
+            f"    {_DIM}{dt.strftime('%H:%M:%S')}{_RESET}  {_BOLD}{shown}{_RESET} {arrow}  {tag}{note_str}"
         )
     print()
 

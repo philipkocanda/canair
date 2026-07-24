@@ -5,9 +5,9 @@
 ```
 usage: canair investigate [-h] [--min-r R] [--min-n N] [--join-tol SECONDS]
                           [--all] [--bits] [--events] [--json]
-                          [--since YYYY-MM-DD] [--until YYYY-MM-DD]
-                          [--date YYYY-MM-DD] [--state SUBSTR]
-                          [--label SUBSTR]
+                          [--notation NAME] [--since YYYY-MM-DD]
+                          [--until YYYY-MM-DD] [--date YYYY-MM-DD]
+                          [--state SUBSTR] [--label SUBSTR]
                           ecu pid
 
 Point this at an unknown PID and get one ranked table telling you
@@ -51,6 +51,9 @@ options:
                       timestamp, aligned to the nearest capture note (the
                       narrated event timeline)
   --json              Machine-readable output
+  --notation NAME     byte-index notation for output labels: wican (default),
+                      isotp, torque, bix. Overrides the display.byte_notation
+                      config key.
 
 scoping:
   Restrict to captures within a date range (inclusive, YYYY-MM-DD) and/or by session state/label substring

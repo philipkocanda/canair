@@ -9,9 +9,9 @@ usage: canair correlate [-h] [--against ECU:PID:PARAM] [--transform MODE]
                         [--method {pearson,spearman}] [--join-tol SECONDS]
                         [--bytes] [--bits] [--lag-scan N] [--gate '[SIGNAL] OP
                         VALUE'] [--promote NAME] [--json] [--overlap]
-                        [--find-mirrors] [--since YYYY-MM-DD]
-                        [--until YYYY-MM-DD] [--date YYYY-MM-DD]
-                        [--state SUBSTR] [--label SUBSTR]
+                        [--find-mirrors] [--notation NAME]
+                        [--since YYYY-MM-DD] [--until YYYY-MM-DD]
+                        [--date YYYY-MM-DD] [--state SUBSTR] [--label SUBSTR]
                         [query]
 
 Show me every strong relationship across a whole drive.
@@ -93,6 +93,9 @@ options:
                         ECU/PIDs — e.g. a door bit in IGPM mirrored in BCM.
                         Use with --bits for bit-level. Cross-ECU companion to
                         `decode --find-mirrors` (which is single-PID)
+  --notation NAME       byte-index notation for output labels: wican
+                        (default), isotp, torque, bix. Overrides the
+                        display.byte_notation config key.
 
 scoping:
   Restrict to captures within a date range (inclusive, YYYY-MM-DD) and/or by session state/label substring

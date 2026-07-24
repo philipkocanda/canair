@@ -35,6 +35,12 @@ import yaml
 from canlib.byteindex import extract_byte_indices, mapped_offsets, payload_to_wican_frame
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.commands._hints import pid_completer as _pid_completer
+from canlib.notation import (
+    add_notation_arg,
+    relabel_signal,
+    resolve_notation,
+    subfunction_bytes_for_pid,
+)
 from canlib.pids import build_ecu_index, load_pids
 
 NAME = "coverage"
@@ -226,6 +232,7 @@ def add_parser(subparsers):
         "--no-capture", action="store_true", help="Only report PIDs with params but no capture"
     )
     parser.add_argument("--json", action="store_true", help="Output as JSON")
+    add_notation_arg(parser)
     parser.set_defaults(func=run)
     return parser
 
@@ -302,7 +309,10 @@ def run(args) -> int:
         f"{n_nocap} without captures\n"
     )
 
+    notation = resolve_notation(args.notation)
+
     for e in results:
+        sub_bytes = subfunction_bytes_for_pid(e["pid"])
         header = (
             f"  {_BOLD}{_CYAN}{e['ecu']} {e['pid']}{_RESET} "
             f"{_DIM}({e['params']}p, {e['verified']} verified){_RESET}"
@@ -312,14 +322,20 @@ def run(args) -> int:
             continue
         print(f"{header}  {_DIM}{e['data_bytes']} data bytes, {e['capture']['date']}{_RESET}")
         if e["unmapped"]:
-            byts = ",".join(f"B{i}" for i in e["unmapped"])
+            byts = ",".join(
+                relabel_signal(f"B{i}", notation, sub_bytes=sub_bytes) for i in e["unmapped"]
+            )
             print(f"      {_YELLOW}UNMAPPED{_RESET} {byts}")
         if e.get("unverified_mapped"):
-            byts = ",".join(f"B{i}" for i in e["unverified_mapped"])
+            byts = ",".join(
+                relabel_signal(f"B{i}", notation, sub_bytes=sub_bytes)
+                for i in e["unverified_mapped"]
+            )
             print(f"      {_YELLOW}UNVERIFIED{_RESET} {byts}")
         for bf in e["incomplete_bitfields"]:
             have = ",".join(map(str, bf["have"]))
             miss = ",".join(map(str, bf["missing"]))
-            print(f"      {_RED}BITS{_RESET} B{bf['byte']} have{{{have}}} missing{{{miss}}}")
+            byte_label = relabel_signal(f"B{bf['byte']}", notation, sub_bytes=sub_bytes)
+            print(f"      {_RED}BITS{_RESET} {byte_label} have{{{have}}} missing{{{miss}}}")
     print()
     return 0
