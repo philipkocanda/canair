@@ -92,16 +92,21 @@ class TestReconcile:
         j.append("0x7EC", "2101", "6101AA")  # dup
         j.append("0x7EC", "2101", "6101BB")
         written = j.reconcile()
-        caps = yaml.safe_load(written.read_text())["sessions"][0]["captures"]
-        assert [c["payload"] for c in caps] == ["6101AA", "6101BB"]
+        sess = yaml.safe_load(written.read_text())["sessions"][0]
+        assert [c["payload"] for c in sess["captures"]] == ["6101AA", "6101BB"]
+        # keep_mode must be persisted so later analysis knows return-to-previous
+        # states may be absent (only rising-edge transitions were stored).
+        assert sess["keep_mode"] == "unique"
 
     def test_keep_all_keeps_duplicates(self, tmp_path):
         j = CaptureJournal.open(tmp_path, label="L", keep_mode="all")
         j.append("0x7EC", "2101", "6101AA")
         j.append("0x7EC", "2101", "6101AA")
         written = j.reconcile()
-        caps = yaml.safe_load(written.read_text())["sessions"][0]["captures"]
-        assert len(caps) == 2
+        sess = yaml.safe_load(written.read_text())["sessions"][0]
+        assert len(sess["captures"]) == 2
+        # "all" is not a dedup mode — don't clutter the session with it.
+        assert "keep_mode" not in sess
 
     def test_empty_journal_reconcile_returns_none_and_removes(self, tmp_path):
         j = CaptureJournal.open(tmp_path, label="L")

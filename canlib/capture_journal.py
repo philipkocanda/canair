@@ -295,7 +295,9 @@ def build_session_from_records(
         return None
 
     rows = _dedup(rows, effective_keep)
-    return build_query_session(rows, label, vehicle_states, notes)
+    return build_query_session(
+        rows, label, vehicle_states, notes, keep_mode=effective_keep
+    )
 
 
 def reconcile_file(

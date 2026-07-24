@@ -858,3 +858,4 @@ sessions:
     pid: 22BC07
     payload: 62BC070841FBCC10001100AAAA
     time: '09:37:09.084'
+  keep_mode: unique

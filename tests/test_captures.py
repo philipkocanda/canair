@@ -109,6 +109,18 @@ class TestBuildQuerySession:
         assert "vehicle_states" not in s
         assert "notes" not in s
 
+    def test_keep_mode_unique_persisted(self):
+        s = build_query_session(
+            [("0x7EC", "2101", "6101", "")], "l", [], "", keep_mode="unique"
+        )
+        assert s["keep_mode"] == "unique"
+
+    def test_keep_mode_all_not_persisted(self):
+        # Only "unique" changes interpretation; don't clutter with keep-all/last.
+        for mode in ("all", "last", None):
+            s = build_query_session([("0x7EC", "2101", "6101", "")], "l", [], "", keep_mode=mode)
+            assert "keep_mode" not in s
+
     def test_roundtrips_and_appends_via_save_session(self, tmp_path):
         results = [("0x7EB", "2102", "6102AABB", "")]  # MCU
         s = build_query_session(results, "Live ref", ["ready", "parked"], "18C")
@@ -247,6 +259,24 @@ class TestCmdSessions:
         import json
 
         assert json.loads(capsys.readouterr().out) == []
+
+    def test_keep_mode_shown_in_text(self, capsys):
+        entries = [_entry(session_label="unlock events", keep_mode="unique", time="09:36:00")]
+        cmd_sessions(entries)
+        out = capsys.readouterr().out
+        assert "keep:unique" in out
+
+    def test_keep_mode_absent_when_not_unique(self, capsys):
+        entries = [_entry(session_label="drive", time="16:00:00")]
+        cmd_sessions(entries)
+        assert "keep:" not in capsys.readouterr().out
+
+    def test_keep_mode_in_json(self, capsys):
+        entries = [_entry(session_label="lbl", keep_mode="unique", time="16:00:00")]
+        cmd_sessions(entries, as_json=True)
+        import json
+
+        assert json.loads(capsys.readouterr().out)[0]["keep_mode"] == "unique"
 
 
 class TestCmdSummaryJson:
@@ -542,3 +572,37 @@ class TestSetSessionNote:
         set_session_note(f, 0, "edited")
         doc = yaml.safe_load(f.read_text())
         assert doc["sessions"][0]["captures"][0]["payload"] == "6101AA"
+
+
+class TestSetSessionKeepMode:
+    """set_session_keep_mode: backfill keep_mode on pre-existing sessions."""
+
+    def _write(self, tmp_path):
+        from canlib.captures import save_session
+
+        s = build_query_session([("0x7EC", "2101", "6101AA", "12:00:00")], "L", ["sleep"], "n")
+        return save_session(s, tmp_path)
+
+    def test_set_unique(self, tmp_path):
+        from canlib.captures import set_session_keep_mode
+
+        f = self._write(tmp_path)
+        set_session_keep_mode(f, 0, "unique")
+        doc = yaml.safe_load(f.read_text())
+        assert doc["sessions"][0]["keep_mode"] == "unique"
+
+    def test_non_unique_clears(self, tmp_path):
+        from canlib.captures import set_session_keep_mode
+
+        f = self._write(tmp_path)
+        set_session_keep_mode(f, 0, "unique")
+        set_session_keep_mode(f, 0, "all")  # not meaningful → cleared
+        doc = yaml.safe_load(f.read_text())
+        assert "keep_mode" not in doc["sessions"][0]
+
+    def test_bad_index_raises(self, tmp_path):
+        from canlib.captures import set_session_keep_mode
+
+        f = self._write(tmp_path)
+        with pytest.raises(IndexError):
+            set_session_keep_mode(f, 5, "unique")

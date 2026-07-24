@@ -30,6 +30,10 @@
           "items": { "type": "string" }
         },
         "notes": { "type": "string" },
+        "keep_mode": {
+          "description": "How the monitor deduplicated payloads: 'unique' stores only payloads that differ from any seen before (rising-edge transitions; return-to-previous states are dropped). Absent/other = every polled payload kept.",
+          "type": "string"
+        },
         "captures": {
           "type": "array",
           "items": { "$ref": "#/$defs/capture" }

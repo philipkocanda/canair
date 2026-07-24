@@ -77,7 +77,7 @@ AAF:
             A/C compressor temperature. 2026-07-20: from community sheet (p-40 = B21-40). Reads ≈ambient with
             AC off (live ACC2 = 19°C). Needs an AC-on capture to confirm behaviour. ISO-TP 0x11.
 
-        AUX_BATTERY_VOLTAGE:
+        AAF_AUX_BATTERY_VOLTAGE:
           expression: B25/10
           unit: V
           min: "0"
@@ -126,7 +126,7 @@ AAF:
             0.6214 km/h→mph, mean residual 0.14 mph. Companion B13 = km/h. Car
             reports MPH internally (cf. VCU 2101 speed).
           enabled: true
-        AUX_BATTERY_VOLTAGE:
+        AAF_AUX_BATTERY_VOLTAGE:
           expression: B25/10
           unit: V
           min: "0"
@@ -187,4 +187,4 @@ AAF:
       vehicle_states: [ready]
       created: "2026-07-23"
       updated: "2026-07-23"
-      notes: "AAF 2180 B25 RESOLVED = AUX_BATTERY_VOLTAGE (B25/10, r=0.995 vs VCU aux) — was mis-guessed as a temp. Remaining: B28==B29 mirror pair (raw 141-152, distinct=3 among timed caps) still undecoded; near-constant, not a temp (doesn't track ambient). Low priority; needs a wider-range capture."
+      notes: "AAF 2180 B25 RESOLVED = AAF_AUX_BATTERY_VOLTAGE (B25/10, r=0.995 vs VCU aux) — was mis-guessed as a temp. Renamed from AUX_BATTERY_VOLTAGE to AAF_AUX_BATTERY_VOLTAGE 2026-07-24 to avoid a shipped-signal-name collision with BMS 2101 AUX_BATTERY_VOLTAGE. Remaining: B28==B29 mirror pair (raw 141-152, distinct=3 among timed caps) still undecoded; near-constant, not a temp (doesn't track ambient). Low priority; needs a wider-range capture."

@@ -88,6 +88,7 @@ def build_query_session(
     label: str,
     vehicle_states: list,
     notes: str,
+    keep_mode: str | None = None,
 ) -> dict:
     """Build a capture session dict from query/raw payload results.
 
@@ -96,6 +97,12 @@ def build_query_session(
     hex string (e.g. ``"0x7EC"``). Captures are grouped by ECU then PID in the
     order given. Decoded parameter values are intentionally NOT stored — they
     are regenerated on demand from the payload + PID definitions.
+
+    ``keep_mode`` records how the monitor deduplicated payloads. Only
+    ``"unique"`` is persisted (it drops repeated values, so only rising-edge
+    transitions are stored); it is recorded on the session so later analysis
+    knows return-to-previous states may be absent. ``"all"``/``"last"`` keep
+    every polled sample and are not flagged.
     """
     session: dict = {
         "date": datetime.now().strftime("%Y-%m-%d"),
@@ -105,6 +112,8 @@ def build_query_session(
         session["vehicle_states"] = list(vehicle_states)
     if notes:
         session["notes"] = notes
+    if keep_mode == "unique":
+        session["keep_mode"] = keep_mode
 
     captures: list[dict] = []
     for ecu_ref, pid, hex_val, ts in results:
@@ -385,6 +394,24 @@ def set_session_note(fpath: Path, session_idx: int, note: str) -> None:
         session["notes"] = note
     else:
         session.pop("notes", None)
+    _write_captures_file(fpath, data)
+
+
+def set_session_keep_mode(fpath: Path, session_idx: int, keep_mode: str | None) -> None:
+    """Set (or clear) the ``keep_mode`` field on one session, addressed by index.
+
+    Only ``"unique"`` is meaningful (repeated payloads were dropped, so the
+    session holds rising-edge transitions only); any other value clears the
+    field. Use this to backfill sessions captured before ``keep_mode`` was
+    persisted, instead of hand-editing a capture file.
+    """
+    with open(fpath) as f:
+        data = _yaml().load(f)
+    session = data["sessions"][session_idx]
+    if keep_mode == "unique":
+        session["keep_mode"] = keep_mode
+    else:
+        session.pop("keep_mode", None)
     _write_captures_file(fpath, data)
 
 

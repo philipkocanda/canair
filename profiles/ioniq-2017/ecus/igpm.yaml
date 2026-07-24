@@ -116,23 +116,20 @@ IGPM:
           expression: "B10:6"
           verified: false
           notes: >
-            Bit flag, meaning unknown — possibly hood.
+            Bit flag, meaning unknown. NOT hood — the hood/bonnet sensor is
+            B11:0 (HOOD_OPEN), confirmed 2026-07-24 when B10:6 stayed 0 through
+            the open-hood event. B10:6 was constant 0 across the whole
+            2026-07-24 door/lock/hood event sequence; still undecoded.
 
         DOOR_DRV_OPEN:
-          expression: "B10:5"
+          expression: B10:5
           ha_class: door
-          source: "Kia Niro EV WiCAN PR#716"
+          source: Kia Niro EV WiCAN PR#716; confirmed by timed event capture 2026-07-24
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           verified: true
           notes: >
-            SUSPECT — may NOT be driver door open. B10:5 (0x20) was set during
-            ACC mode with doors CLOSED (Apr 14), cleared in deep sleep locked
-            (Apr 16, B10=0x0A) and ACC2+charging unlocked (Apr 19, B10=0x00).
-            Pattern suggests bit 5 is an ACC power state flag, not door open.
-            Original Apr 15 verification may have conflated ACC toggle with
-            door open/close. Needs retesting: toggle door with ACC constantly on.
-
+            Bit flag — 1=open. CONFIRMED 2026-07-24: B10:5 went 0->1 only when the driver door was opened during a narrated sleep-mode event sequence (fob unlock -> trunk -> pax door -> driver door -> hood), with no ACC power present. Refutes the earlier SUSPECT hypothesis that bit5 was an ACC power-state flag.
         DOOR_PAS_OPEN:
           expression: "B10:4"
           ha_class: door
@@ -280,6 +277,14 @@ IGPM:
             bits 0,1,6,7 constant-0 across captures. SEATBELT_FR (B11:2) constant-0
             (pax belt never buckled). B5=FD B6=EE B7=3C constant; B13=0x00 constant.
           enabled: false
+        HOOD_OPEN:
+          expression: B11:0
+          min: "0"
+          max: "1"
+          source: Timed event capture 2026-07-24
+          verified: false
+          notes: >
+            Hood/bonnet ajar sensor. 1=open. Discovered 2026-07-24: B11 flipped 0x00->0x01 exactly at the narrated 'open hood' step (09:38:03), while the driver door was still open, in sleep mode with no ACC power. Single clean event so far — verify with a second open/close cycle. Note: this also reassigns 'possible hood' away from B10:6 (UNKNOWN_B10_6), which did NOT change on hood open.
 
     22BC04:
       status: active
@@ -428,9 +433,12 @@ IGPM:
         - ready
         - charging
       notes: >
-        8 data bytes. B03=0x7F, B04=0x11, B05=0x20, rest zeros. Static across all power
-        states. 0x7F11 could be a version or capability register. Purpose unknown.
-        Sample: 62BC057F112000000000.
+        8 data bytes. B05=0x7F, B06=0x11, B07=0x20 are static (config/version).
+        The trailing bytes are NOT static: during the 2026-07-24 event sequence
+        B09 went 0x00->0xF0 at fob unlock (09:36:50) and B10 went 0x00->0x08 at
+        trunk open (09:37:08). Earlier "static across all power states" conclusion
+        was drawn from steady-state-only captures with no live door/lock events.
+        Sample (idle): 62BC057F112000000000.
       parameters:
         IGPM_BC05_STATIC:
           expression: B5
@@ -440,6 +448,14 @@ IGPM:
             Constant across all states/captures: data = 7F 11 20 00 00 00 00 00
             (B5=0x7F). Static config/version register, no live signal.
           enabled: false
+        UNLOCK_FLASH_BITS:
+          expression: B09
+          min: "0"
+          max: "255"
+          source: Timed event capture 2026-07-24
+          verified: false
+          notes: >
+            NOT static — earlier 'static register' conclusion was from steady-state-only captures. B09 = 0x00 -> 0xF0 (top 4 bits) exactly at the fob-unlock event (09:36:50). Candidate unlock/hazard-flash confirmation indicator. B10 also toggles on trunk open (see BC05 note). Single event; needs a repeat lock/unlock cycle to confirm.
     22BC08:
       status: ignored
       vehicle_states:

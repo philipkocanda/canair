@@ -11,7 +11,8 @@
         "AMBIENT_TEMP": "(B18-80)/2",
         "HEATER_ELEMENT_TEMP": "S17/2",
         "HEATSINK_TEMP": "B20-40",
-        "COMPRESSOR_TEMP": "B21-40"
+        "COMPRESSOR_TEMP": "B21-40",
+        "AAF_AUX_BATTERY_VOLTAGE": "B25/10"
       }
     },
     {
@@ -125,7 +126,8 @@
         "STEERING_ANGLE": "(B10+S11*256)/10",
         "EPS_STEERING_TORQUE": "(B12+S13*256)",
         "EPS_MDPS_ASSIST": "B17",
-        "EPS_STEERING_TORQUE_ALT": "S7"
+        "EPS_STEERING_TORQUE_ALT": "S7",
+        "EPS_SPEED_BAND": "B15"
       }
     },
     {
@@ -138,7 +140,10 @@
         "WHEEL_SPEED_FL": "B18",
         "WHEEL_SPEED_FR": "B19",
         "WHEEL_SPEED_RL": "B20",
-        "WHEEL_SPEED_RR": "B21"
+        "WHEEL_SPEED_RR": "B21",
+        "GEAR_SELECTOR": "B14",
+        "LONG_ACCEL_RAW": "S23-128",
+        "BRAKE_PRESSURE": "B44"
       }
     },
     {
@@ -220,7 +225,8 @@
         "SEATBELT_FL": "B11:1",
         "SEATBELT_FR": "B11:2",
         "DOOR_LOCK_RL": "B10:1",
-        "DOOR_LOCK_RR": "B10:3"
+        "DOOR_LOCK_RR": "B10:3",
+        "HOOD_OPEN": "B11:0"
       }
     },
     {
@@ -256,7 +262,8 @@
         "MCU_MOTOR_TORQUE": "[S12:S13]/100",
         "MCU_TEMP_1": "S20",
         "MCU_ROTOR_ANGLE": "B9",
-        "MCU_TEMP_3": "S18"
+        "MCU_TEMP_3": "S18",
+        "MCU_CURRENT_RELATED": "B21"
       }
     },
     {

@@ -235,18 +235,16 @@ BCM:
         B05=0x20, B07=0x10, B12=0x08.
       parameters:
         BCM_B005_UNLOCK_BITS:
-          expression: "B12"
+          expression: B10
           unit: ""
           ha_class: ""
           min: "0"
           max: "255"
-          source: "Fob lock/unlock test 2026-04-18"
+          source: Fob lock/unlock test 2026-04-18; byte offset corrected 2026-07-24
           source_links: []
           verified: false
           notes: >
-            Correlated with B004 lock state. Bits 2,3 (0x0C) set during unlock.
-            Possibly courtesy lamp or interior lighting trigger. Base value 0xA0.
-
+            Unlock indicator bits. B10 = 0x00 locked -> 0x0C (bits 2,3) on fob unlock. Corrected 2026-07-24: expression was reading B12 (constant 0x08) but the byte that actually toggles on unlock is B10 (0x00<->0x0C), matching the DID note and reconfirmed by the 2026-07-24 fob-unlock event at 09:36:51. Possibly courtesy lamp / interior lighting trigger.
     22B006:
       status: draft
       vehicle_states:
@@ -262,18 +260,16 @@ BCM:
         B05=0x20, rest normally zeros.
       parameters:
         BCM_B006_UNLOCK_BITS:
-          expression: "B12"
+          expression: B10
           unit: ""
           ha_class: ""
           min: "0"
           max: "255"
-          source: "Fob lock/unlock test 2026-04-18"
+          source: Fob lock/unlock test 2026-04-18; byte offset corrected 2026-07-24
           source_links: []
           verified: false
           notes: >
-            Correlated with B004 lock state. Bit 2 (0x04) set during unlock.
-            Possibly turn signal confirmation flash.
-
+            Unlock indicator bit. B10 = 0x00 locked -> 0x04 (bit 2) on fob unlock. Corrected 2026-07-24: expression was reading B12 (constant 0) but the byte that actually toggles is B10 (0x00<->0x04), matching the DID note and reconfirmed by the 2026-07-24 fob-unlock event at 09:36:52. Possibly turn-signal confirmation flash.
     22B007:
       status: draft
       period: 60000

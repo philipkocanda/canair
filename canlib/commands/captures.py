@@ -176,6 +176,7 @@ class _SessionGroup(TypedDict):
     label: str
     vehicle_states: list
     notes: str
+    keep_mode: str
     n: int
     ecus: dict  # ordered set (dict) of ECU names
     times: list
@@ -201,6 +202,7 @@ def _group_sessions(entries: list[dict]) -> list[_SessionGroup]:
                 "label": e.get("session_label", ""),
                 "vehicle_states": e.get("vehicle_states") or [],
                 "notes": e.get("session_notes", ""),
+                "keep_mode": e.get("keep_mode", ""),
                 "n": 0,
                 "ecus": {},  # ordered set (dict) of ECU names
                 "times": [],
@@ -244,6 +246,7 @@ def cmd_sessions(entries: list[dict], as_json: bool = False, max_notes: int = 6)
                 "label": s["label"],
                 "vehicle_states": s["vehicle_states"],
                 "notes": s["notes"],
+                "keep_mode": s["keep_mode"],
                 "captures": s["n"],
                 "ecus": list(s["ecus"]),
                 "time_start": min(s["times"]) if s["times"] else None,
@@ -275,7 +278,9 @@ def cmd_sessions(entries: list[dict], as_json: bool = False, max_notes: int = 6)
         if s["notes"]:
             print(f"    {_DIM}{_clean(s['notes'])}{_RESET}")
         ecus = ", ".join(s["ecus"]) or "—"
-        print(f"    {_DIM}{s['n']} captures · {ecus} · {s['file']}{_RESET}")
+        keep = s.get("keep_mode")
+        keep_tag = f" · {_CYAN}keep:{keep}{_RESET}{_DIM}" if keep else ""
+        print(f"    {_DIM}{s['n']} captures · {ecus}{keep_tag} · {s['file']}{_RESET}")
         # Distinct capture-level notes (RE annotations) — the other place notes live.
         for cn in s["cap_notes"][:max_notes]:
             clean = _clean(cn)

@@ -270,6 +270,7 @@ def _write_merged(
     vehicle_states,
     notes: str,
     captures_dir: Path,
+    keep_mode: str | None = None,
 ) -> Path:
     """Build a query-capture session from merged payloads and save it to disk.
 
@@ -289,7 +290,9 @@ def _write_merged(
         for hex_val, ts in entries:
             results.append((ecu_ref, pid, hex_val, ts))
 
-    session = build_query_session(results, label, vehicle_states, notes)
+    session = build_query_session(
+        results, label, vehicle_states, notes, keep_mode=keep_mode
+    )
     return save_session(session, captures_dir)
 
 
@@ -952,7 +955,9 @@ class MonitorController:
         n_pids = len(merged)
         n_payloads = sum(len(v) for v in merged.values())
         with contextlib.redirect_stdout(io.StringIO()):
-            path = _write_merged(merged, label, states, notes or "", captures_dir)
+            path = _write_merged(
+                merged, label, states, notes or "", captures_dir, keep_mode=self.keep_mode
+            )
         return f"Saved {n_payloads} payload(s) across {n_pids} PID(s) → {path.name}"
 
     async def close(self) -> None:
