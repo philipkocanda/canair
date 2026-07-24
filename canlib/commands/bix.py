@@ -28,6 +28,7 @@ NAME = "bix"
 _BOLD = "\033[1m"
 _DIM = "\033[2m"
 _CYAN = "\033[96m"
+_YELLOW = "\033[93m"
 _RESET = "\033[0m"
 
 
@@ -38,6 +39,11 @@ def _use_color() -> bool:
 def _c(text: str, code: str) -> str:
     """Wrap ``text`` in an ANSI ``code`` when stdout is a TTY, else return it plain."""
     return f"{code}{text}{_RESET}" if _use_color() else text
+
+
+def _cerr(text: str, code: str) -> str:
+    """Like :func:`_c`, but gated on stderr's TTY-ness (warnings go to stderr)."""
+    return f"{code}{text}{_RESET}" if sys.stderr.isatty() else text
 
 
 _EPILOG = """\
@@ -257,9 +263,9 @@ def _print_legend(sub_bytes: int):
     print(f"    {_pad('CF PCI', 8, _DIM)}  Consecutive-Frame framing (1 byte at B08, B16, B24…)")
     print("    SID       UDS Service ID (the response service byte)")
     if sub_bytes == 2:
-        print("    DID       the 2 Data Identifier bytes that echo the request")
+        print("    DID       the 2 Data Identifier bytes (UDS subfunction) echoing the request")
     else:
-        print("    PID       the Parameter ID byte that echoes the request")
+        print("    PID       the Parameter ID byte (UDS subfunction) echoing the request")
     print("    (blank)   real data — the bytes your expression reads")
     print()
     print(
@@ -349,6 +355,22 @@ def _looks_like_uds_sid(b: int) -> bool:
     return 0x40 <= b <= 0x7F
 
 
+def _emit_warning(headline: str, *detail_lines: str):
+    """Print an emphasized, visually separated warning to stderr.
+
+    A blank line above and below sets it apart from the table that follows on
+    stdout; a bold-yellow ``⚠ WARNING`` banner and an indented rule draw the eye.
+    """
+    bar = _cerr("⚠ WARNING", _BOLD + _YELLOW)
+    rule = _cerr("  " + "─" * 68, _YELLOW)
+    print("", file=sys.stderr)
+    print(f"  {bar}  {_cerr(headline, _BOLD)}", file=sys.stderr)
+    print(rule, file=sys.stderr)
+    for line in detail_lines:
+        print(f"  {line}", file=sys.stderr)
+    print("", file=sys.stderr)
+
+
 def _warn_payload_kind_mismatch(first_byte: int, raw_frame: bool):
     """Warn (reliably) when the input's first byte contradicts the chosen mode.
 
@@ -358,22 +380,16 @@ def _warn_payload_kind_mismatch(first_byte: int, raw_frame: bool):
     shouldn't be blocked outright — but it names the likely fix.
     """
     if not raw_frame and _looks_like_pci_first_byte(first_byte):
-        print(
-            f"  Warning: first byte 0x{first_byte:02X} looks like an ISO-TP PCI "
-            "byte, not a UDS response SID.\n"
-            "  --annotate expects the reassembled UDS payload (SID-first, PCI "
-            "stripped). If this is a raw\n"
-            "  CAN frame straight off the bus, pass --raw.",
-            file=sys.stderr,
+        _emit_warning(
+            f"first byte 0x{first_byte:02X} looks like an ISO-TP PCI byte, not a UDS response SID.",
+            "--annotate expects the reassembled UDS payload (SID-first, PCI stripped).",
+            f"If this is a raw CAN frame straight off the bus, pass {_cerr('--raw', _BOLD)}.",
         )
     elif raw_frame and _looks_like_uds_sid(first_byte):
-        print(
-            f"  Warning: first byte 0x{first_byte:02X} looks like a UDS response "
-            "SID, not an ISO-TP PCI byte.\n"
-            "  --raw expects an already-framed CAN payload (PCI present). If this "
-            "is a PCI-stripped UDS\n"
-            "  payload, drop --raw.",
-            file=sys.stderr,
+        _emit_warning(
+            f"first byte 0x{first_byte:02X} looks like a UDS response SID, not an ISO-TP PCI byte.",
+            "--raw expects an already-framed CAN payload (PCI present).",
+            f"If this is a PCI-stripped UDS payload, drop {_cerr('--raw', _BOLD)}.",
         )
 
 

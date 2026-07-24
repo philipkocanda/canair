@@ -17,12 +17,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   an ISO-TP PCI first byte (`0x00`–`0x3F`) occupy disjoint ranges — so a raw frame
   fed without `--raw` (or a PCI-stripped payload passed with `--raw`) is caught
   rather than silently mislabelled; a Flow-Control/invalid frame under `--raw`
-  errors.
+  errors. The warning is emphasized (a `⚠ WARNING` banner + rule) and separated
+  from the table below.
 - **`canair bix` (no arguments) now prints a guided overview** instead of an
   error: a plain-language legend explaining each notation (WiCAN / ISO-TP /
   Torque / bix) and the `PCI`/`FF`/`CF`/`SID`/`PID`/`DID` Role labels, a compact
-  2-frame table (B00–B15), and next-step hints. `--table` remains the full table
-  and now prints the same legend above it.
+  2-frame table (B00–B15), and next-step hints. The legend ties the `PID`/`DID`
+  row to the UDS subfunction (the same byte the `-1`/`-2` flags select). `--table`
+  remains the full table and now prints the same legend above it.
 
 ### Changed
 

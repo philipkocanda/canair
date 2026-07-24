@@ -187,6 +187,15 @@ def test_c_helper_wraps_only_on_tty(monkeypatch):
     assert bix._c("X", bix._CYAN) == "X"
 
 
+def test_cerr_helper_gates_on_stderr_tty(monkeypatch):
+    # Warnings go to stderr, so their color must follow stderr's TTY-ness — not
+    # stdout's (which may be redirected to a file/pipe independently).
+    monkeypatch.setattr("sys.stderr.isatty", lambda: True)
+    assert bix._cerr("X", bix._YELLOW) == f"{bix._YELLOW}X{bix._RESET}"
+    monkeypatch.setattr("sys.stderr.isatty", lambda: False)
+    assert bix._cerr("X", bix._YELLOW) == "X"
+
+
 def test_table_role_multiframe_layout():
     # sub=1 (21xx): B00/B01 FF PCI, B02 SID, B03 PID, B04.. data; B08 CF PCI.
     assert bix._table_role(0, 1) == "FF PCI"
@@ -235,6 +244,17 @@ def test_bare_bix_sub2_legend_describes_did(capsys):
     out = capsys.readouterr().out
     assert "DID" in out
     assert "2 DID bytes" in out  # Torque column note reflects the 2-byte subfunction
+
+
+def test_legend_ties_pid_did_row_to_uds_subfunction(capsys):
+    # The -1/-2 help calls that byte the "subfunction"; the Role legend must
+    # cross-reference it so PID/DID and subfunction read as the same slot.
+    a1 = _parse([])
+    assert bix.run(a1) == 0
+    assert "PID       the Parameter ID byte (UDS subfunction)" in capsys.readouterr().out
+    a2 = _parse(["-2"])
+    assert bix.run(a2) == 0
+    assert "DID       the 2 Data Identifier bytes (UDS subfunction)" in capsys.readouterr().out
 
 
 def test_full_table_shows_more_than_two_frames(capsys):
@@ -422,16 +442,29 @@ def test_annotate_warns_when_uds_payload_passed_with_raw(capsys):
     assert "drop --raw" in err
 
 
+def test_warning_is_emphasized_and_separated(capsys):
+    # The warning must stand out: a WARNING banner, a rule, and a blank line of
+    # separation before the table caption that follows on stdout.
+    args = _parse(["-2", "-a", "0662B004"])
+    assert bix.run(args) == 0
+    captured = capsys.readouterr()
+    err = captured.err
+    assert "⚠ WARNING" in err  # emphasized banner
+    assert "─" * 20 in err  # horizontal rule under the banner
+    assert err.startswith("\n")  # blank line above sets it apart
+    assert err.endswith("\n\n")  # blank line below separates it from the table
+
+
 def test_annotate_no_warning_for_wellformed_uds_payload(capsys):
     args = _parse(["-2", "-a", "62B004740299"])
     assert bix.run(args) == 0
-    assert "Warning" not in capsys.readouterr().err
+    assert "WARNING" not in capsys.readouterr().err
 
 
 def test_annotate_no_warning_for_wellformed_raw_frame(capsys):
     args = _parse(["-2", "--raw", "-a", "0662B004740299"])
     assert bix.run(args) == 0
-    assert "Warning" not in capsys.readouterr().err
+    assert "WARNING" not in capsys.readouterr().err
 
 
 def test_looks_like_predicates_are_disjoint():
