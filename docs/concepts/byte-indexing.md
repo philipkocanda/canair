@@ -49,6 +49,6 @@ canair bix --annotate 62B004… --ecu MyECU --pid B004
 
 ## Further reading
 
-The full conversion table and worked examples live in the repo's local reference
-note `docs-ignored/wican-iso-tp-index-conversion.md`, and upstream discussion is
-in [meatpiHQ/wican-fw#514](https://github.com/meatpiHQ/wican-fw/issues/514).
+The full conversion table is available any time via `canair bix --table`, and the
+upstream discussion of the notation differences is in
+[meatpiHQ/wican-fw#514](https://github.com/meatpiHQ/wican-fw/issues/514).
