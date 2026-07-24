@@ -52,3 +52,27 @@ class TestUdsHexToWicanBytes:
         assert result[8] == 0x21  # B08 = CF1 PCI
         assert result[16] == 0x22  # B16 = CF2 PCI
         assert result[24] == 0x23  # B24 = CF3 PCI
+
+    def test_matches_payload_to_wican_bytes_up_to_padding(self):
+        """Consolidation guard: uds_hex_to_wican_bytes now delegates the PCI
+        insertion to byteindex.payload_to_wican_bytes (the single source of truth)
+        and only re-applies the multi-frame zero-padding. So the two must agree
+        byte-for-byte up to payload_to_wican_bytes's length, differing only by
+        trailing 0x00 padding that completes the final consecutive frame.
+        """
+        from canlib.byteindex import payload_to_wican_bytes
+
+        cases = [
+            "6101FF",  # single frame (no padding)
+            "61010203040506",  # exactly 7 = single-frame max (no padding)
+            bytes(range(0x40, 0x40 + 13)).hex(),  # 13 -> FF + one full CF (no padding)
+            "6101AABBCCDDEEFF",  # 8 -> multi-frame, partial last CF (padded)
+            "61" + "AA" * 20,  # 22 -> multi-frame, partial last CF (padded)
+            bytes(range(0x61, 0x61 + 30)).hex(),  # 30 -> multi-frame
+        ]
+        for hexs in cases:
+            w = uds_hex_to_wican_bytes(hexs)
+            base = payload_to_wican_bytes(hexs)
+            assert w[: len(base)] == base, f"prefix mismatch for {hexs}"
+            assert set(w[len(base) :]) <= {0}, f"non-zero padding for {hexs}"
+            assert len(w) - len(base) < 8, f"padding >= a full frame for {hexs}"

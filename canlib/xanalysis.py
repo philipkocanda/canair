@@ -372,7 +372,7 @@ def hunt_byte(
     ``method`` (pearson/spearman); the reported linear fit is always least-squares
     on the raw values regardless.
     """
-    from .byteindex import payload_to_wican_bytes
+    from .byteindex import payload_to_wican_bytes, wican_to_isotp
     from .capture_dates import entry_datetime
     from .commands._decode_plot import INSPECT_TYPES, interpret_bytes, wican_expr
 
@@ -389,9 +389,11 @@ def hunt_byte(
     if not frames:
         return []
 
-    # PCI byte positions in the WiCAN frame (0, 8, 16, ...): a multi-byte read
-    # spanning one is garbage.
-    pci = {i for i in range(max_len) if i % 8 == 0}
+    # PCI (ISO-TP framing) byte positions in the WiCAN frame: a read spanning one
+    # is garbage. Use the canonical detector (not `i % 8 == 0`, which misses the
+    # first frame's second PCI byte at index 1) so hunt matches build_byte_series,
+    # coverage, validate, etc.
+    pci = {i for i in range(max_len) if wican_to_isotp(i) is None}
 
     hits: list[HuntHit] = []
     for spec in INSPECT_TYPES:

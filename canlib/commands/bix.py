@@ -200,7 +200,7 @@ def _print_result(notation: str, idx: int, sub_bytes: int):
     letter = torque_label(torque)
 
     sub_label = f"sub={sub_bytes}"
-    print(f"  WiCAN:    B{w:02d}  (raw CAN frame index)")
+    print(f"  WiCAN:    B{w:02d}  (WiCAN AutoPID frame index: ISO-TP + PCI)")
     if isotp is not None:
         print(f"  ISO-TP:   0x{isotp:02X}  (payload index {isotp})")
     else:
@@ -213,16 +213,23 @@ def _print_result(notation: str, idx: int, sub_bytes: int):
         print(f"  Torque:   —  ({role} byte, {sub_label})")
         print("  bix:      —")
 
-    pci_indices = set(range(0, w + 10, 8))  # PCI at 0, 8, 16, 24, ...
+    # A neighbour being a PCI (ISO-TP framing) byte means a naive [Bx:By] range
+    # would fold it in. Detect PCI with the canonical wican_to_isotp (shared with
+    # the table/annotate/analysis paths) rather than a hand-rolled `% 8` heuristic,
+    # so every PCI position — including the first frame's second byte at B01 — is
+    # covered consistently.
+    def _is_pci(idx: int) -> bool:
+        return idx >= 0 and wican_to_isotp(idx) is None
+
     if isotp is not None:
-        if (w + 1) in pci_indices:
+        if _is_pci(w + 1):
             pci = w + 1
-            after = w + 2 if (w + 2) not in pci_indices else w + 3
+            after = w + 2 if not _is_pci(w + 2) else w + 3
             print(f"\n  ⚠ B{pci:02d} is a PCI byte — [B{w:02d}:B{after:02d}] would include it!")
             print(f"    Use (B{w:02d} << 8) | B{after:02d} instead of [B{w:02d}:B{after:02d}]")
-        if (w - 1) in pci_indices and w > 0:
+        if _is_pci(w - 1) and w > 0:
             pci = w - 1
-            before = w - 2 if (w - 2) not in pci_indices else w - 3
+            before = w - 2 if not _is_pci(w - 2) else w - 3
             if before >= 0:
                 print(
                     f"\n  ⚠ B{pci:02d} is a PCI byte — [B{before:02d}:B{w:02d}] would include it!"

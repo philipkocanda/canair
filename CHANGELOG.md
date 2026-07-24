@@ -9,12 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`canair hunt` no longer surfaces (or promotes) ISO-TP framing bytes.** Its
+  PCI-skip guard used a simplified `index % 8 == 0` test that missed the first
+  frame's *second* PCI byte at WiCAN index 1, so a byte window overlapping B1
+  (e.g. one tracking the multi-frame length byte) could be ranked as a signal and
+  written by `--promote` — caught only later by `validate`'s PCI check. It now
+  uses the canonical `wican_to_isotp` detector shared with `build_byte_series`,
+  `coverage`, and `validate`, so every PCI position is excluded consistently.
 - **`canair bix` no longer crashes on large payloads / high byte indices.** The
   Torque letter notation only models 1–2 letters (`A`..`ZZ`, index 0–701); past
   that, `bix --annotate`/`--table` on a long multi-frame payload and plain index
   lookups (`bix b99999`) raised an unhandled `ValueError`. The display now falls
   back to the numeric Torque index beyond `ZZ` (via a new `torque_label` helper),
   and the default (Torque-hidden) path no longer computes the letter at all.
+
+### Changed
+
+- **Internal: consolidated the two WiCAN-byte reconstruction paths.**
+  `wican_bytes.uds_hex_to_wican_bytes` now delegates the PCI-insertion to
+  `byteindex.payload_to_wican_bytes` (the single source of truth) and only
+  re-applies the multi-frame zero-padding, removing a duplicate implementation
+  that had to stay byte-identical by hand. Output is unchanged (guarded by a new
+  equivalence test). `bix`'s single-index PCI-neighbour warning also now uses the
+  canonical `wican_to_isotp` detector instead of a hand-rolled `% 8` heuristic
+  (behaviour unchanged; removes the copy-paste trap that produced the `hunt`
+  bug). Docstrings on the expression evaluator and `byteindex` now state the
+  byte-space contract explicitly — ISO-TP is canonical, WiCAN is a firmware-only
+  view, convert at the edges — and user-facing "raw CAN frame index" wording was
+  corrected to "WiCAN AutoPID frame index (ISO-TP + PCI)".
 
 ### Added
 

@@ -2,6 +2,14 @@
 
 Protocol stack: CAN → ISO-TP → UDS
 
+**Which space is canonical:** ISO-TP (the reassembled UDS payload, no framing) is
+the natural byte space — it's what every transport returns and what SavvyCAN /
+ImHex show. The **WiCAN index is a firmware-specific *view*** (ISO-TP with the
+ISO-TP PCI bytes re-inserted) that only exists because WiCAN AutoPID expressions
+address that interleaved buffer. Keep analysis reasoning in ISO-TP where you can;
+convert to WiCAN only at the edges that must feed the firmware — evaluating a
+stored expression (:func:`payload_to_wican_bytes`) and persisting/promoting one.
+
 - **WiCAN index**: Index into CAN frame data including PCI bytes.
   PCI bytes sit at positions 0 (single-frame), 0-1 (multi-frame first frame),
   and 8, 16, 24, ... (consecutive frames).
@@ -12,7 +20,9 @@ Protocol stack: CAN → ISO-TP → UDS
 - **bix (bit index)**: Torque byte index x 8. Used by Torque app and OBDb.
 - **Torque letter**: A=byte 0, B=byte 1, ..., Z=byte 25, AA=byte 26, AB=byte 27, ...
 
-See ``docs/wican-iso-tp-index-conversion.md`` for the full reference table.
+See ``docs/concepts/byte-indexing.md`` (primer) and
+``docs/concepts/wican-byte-index.md`` (firmware-grounded reference) for the full
+conversion tables.
 """
 
 from __future__ import annotations

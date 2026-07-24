@@ -250,7 +250,7 @@ the neighbouring B08 is a framing byte:
 
 ```text
 $ canair bix w9
-  WiCAN:    B09  (raw CAN frame index)
+  WiCAN:    B09  (WiCAN AutoPID frame index: ISO-TP + PCI)
   ISO-TP:   0x06  (payload index 6)
   Torque:   E  (byte 4, sub=1)
   bix:      32  (bit index, sub=1)

@@ -5,6 +5,13 @@ Transport-independent and usable offline: byte-index expressions (``B09``,
 transport hands us the reassembled UDS payload *without* PCI. This module
 re-inserts the PCI bytes so those expressions evaluate correctly, whether the
 payload came live from a device or from a stored capture.
+
+The PCI-insertion math itself lives in :mod:`canlib.byteindex`
+(:func:`~canlib.byteindex.payload_to_wican_bytes`), the single source of truth
+shared with ``bix``/``coverage``/the analysis engine. This module is a thin
+adapter over it that additionally re-applies the multi-frame **zero-padding** of
+the final consecutive frame — matching the on-wire firmware buffer, where every
+CAN frame carries a full 8 data bytes.
 """
 
 
@@ -13,47 +20,23 @@ def uds_hex_to_wican_bytes(hex_str: str) -> bytes:
 
     WiCAN AutoPID runs with ELM327 headers ON and spaces ON. Its
     parse_elm327_response() copies ALL 8 CAN data bytes from each frame
-    (including PCI bytes) sequentially into response.data. This means:
+    (including PCI bytes) sequentially into response.data, so byte indices in
+    expressions (``B09``, ``B37``, …) reference that interleaved layout:
+    ``B0=PCI``, ``B1=length_lo``, ``B2=SID``, ``B8=PCI_CF1``,
+    ``B9=first_data_byte_CF1``, …
 
-      Frame 0 (First Frame):  [10 LL] [SID SUB d d d d]  -> 8 bytes
-      Frame 1 (Consecutive):  [21]    [d d d d d d d]    -> 8 bytes
-      Frame 2 (Consecutive):  [22]    [d d d d d d d]    -> 8 bytes
-      ...
-
-    Byte indices in expressions (B09, B37, etc.) reference this interleaved
-    format. B0=PCI, B1=length_lo, B2=SID, B8=PCI_CF1, B9=first_data_byte_CF1.
-
-    Our transports return ONLY the reassembled UDS payload without PCI. We must
-    reconstruct the AutoPID layout by re-inserting the PCI bytes at the correct
-    positions.
-
-    For single-frame responses (<=7 UDS bytes): PCI is 1 byte (0x0N).
-    For multi-frame responses (>6 UDS bytes):
-      - First frame PCI: 2 bytes (0x10 | (len>>8), len & 0xFF)
-      - Consecutive frame PCI: 1 byte each (0x20 | (seq & 0x0F))
+    Delegates the PCI insertion to
+    :func:`canlib.byteindex.payload_to_wican_bytes` (the shared implementation),
+    then zero-pads the final consecutive frame out to a full 8-byte CAN frame for
+    multi-frame responses — the padding the firmware buffer carries but the
+    PCI-stripped payload does not. Single-frame responses (≤7 UDS bytes) are not
+    padded.
     """
-    data = bytes.fromhex(hex_str)
-    payload_len = len(data)
+    from .byteindex import payload_to_wican_bytes
 
-    if payload_len <= 7:
-        return bytes([payload_len]) + data
-    else:
-        result = bytearray()
-        pci_hi = 0x10 | ((payload_len >> 8) & 0x0F)
-        pci_lo = payload_len & 0xFF
-        result.extend([pci_hi, pci_lo])
-        result.extend(data[:6])
-
-        offset = 6
-        seq = 1
-        while offset < payload_len:
-            pci_cf = 0x20 | (seq & 0x0F)
-            result.append(pci_cf)
-            chunk = data[offset : offset + 7]
-            result.extend(chunk)
-            if len(chunk) < 7:
-                result.extend(b"\x00" * (7 - len(chunk)))
-            offset += 7
-            seq += 1
-
-        return bytes(result)
+    wican = bytearray(payload_to_wican_bytes(hex_str))
+    payload_len = len(hex_str.replace(" ", "")) // 2
+    if payload_len > 7:
+        # Multi-frame: pad the final consecutive frame to a full 8-byte CAN frame.
+        wican.extend(b"\x00" * ((-len(wican)) % 8))
+    return bytes(wican)

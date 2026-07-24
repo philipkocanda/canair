@@ -1,6 +1,15 @@
 """WiCAN expression evaluator.
 
 Faithful Python port of wican-fw/main/expression_parser.c evaluate_expression().
+
+**Byte-space contract (important):** this evaluator is *byte-space-agnostic* — it
+indexes the ``data`` argument literally (``data[idx]``) with no PCI-awareness.
+The WiCAN indexing convention (``B0=PCI``, ``B9=first consecutive-frame data
+byte``, …) is therefore imposed entirely by the *caller*, which must pass bytes
+in the WiCAN AutoPID layout (PCI re-inserted) — see
+:func:`canlib.byteindex.payload_to_wican_bytes` /
+:func:`canlib.wican_bytes.uds_hex_to_wican_bytes`. Feeding a raw ISO-TP payload
+(PCI stripped) would silently misalign every index past the first PCI byte.
 """
 
 import re
@@ -8,6 +17,9 @@ import re
 
 def evaluate_expression(expression: str, data: bytes, V: float = 0.0) -> float:
     """Evaluate a WiCAN expression against a byte array.
+
+    ``data`` must be in the WiCAN AutoPID layout (PCI bytes re-inserted); indices
+    are read literally (see the module docstring's byte-space contract).
 
     Supported syntax:
         Bn      — unsigned byte at index n

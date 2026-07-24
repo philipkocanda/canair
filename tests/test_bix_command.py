@@ -211,6 +211,18 @@ def test_table_role_multiframe_layout():
     assert bix._table_role(5, 2) == ""
 
 
+def test_lookup_warns_when_neighbor_is_pci(capsys):
+    """`bix w9` (WiCAN B09, first data byte after the CF PCI at B08) must warn
+    that a `[B07:B09]` range would fold in the PCI byte B08 and suggest the
+    shift-composition form. Characterization lock for the PCI-neighbor warning
+    after unifying its detector on `wican_to_isotp`."""
+    args = _parse(["w9"])
+    assert bix.run(args) == 0
+    out = capsys.readouterr().out
+    assert "B08 is a PCI byte" in out
+    assert "(B07 << 8) | B09" in out
+
+
 # ── bare `bix` friendly overview (legend + compact 2-frame table) ──
 
 

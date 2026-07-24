@@ -396,7 +396,8 @@ def cmd_plot(
     static chart when stdin/stdout is not a TTY.
     """
     defined_params = defined_params or {}
-    # Raw WiCAN frames per capture (offset space matches Bnn / expressions).
+    # WiCAN AutoPID frames per capture (ISO-TP + re-inserted PCI; offset space
+    # matches Bnn / expressions) — not raw CAN frames (no arbitration ID/DLC).
     frames: list[bytes | None] = []
     for r in all_results:
         payload = r["capture"].get("payload")

@@ -270,6 +270,38 @@ class TestHuntByte:
         assert top.slope == pytest.approx(1.0)
         assert top.width == 1
 
+    def test_skips_pci_bytes_including_index_1(self):
+        """hunt_byte must never surface a byte window overlapping an ISO-TP PCI
+        byte — including WiCAN index 1 (the first frame's *second* PCI byte).
+
+        Regression for the `i % 8 == 0` PCI guard, which flagged 0/8/16/… but
+        missed index 1, unlike the canonical `wican_to_isotp` detector used
+        everywhere else. Fixture: a multi-frame target whose only varying byte is
+        the length-low byte at B1, ramped to correlate perfectly with the
+        reference. The buggy guard surfaces a B1 hit; the fix drops it.
+        """
+        from datetime import date, datetime, time
+
+        from canlib.align import LoadedPid
+        from canlib.byteindex import wican_to_isotp
+
+        lp = LoadedPid("AAF", "2181")
+        ref: list[TimePoint] = []
+        for i in range(15):
+            # 9..23-byte payloads -> multi-frame; B1 (length-low) = 9+i ramps, all
+            # other bytes constant (SID 0x61 + zero data).
+            payload = "61" + "00" * (8 + i)
+            lp.captures.append({"date": "2026-07-22", "time": f"09:00:{i:02d}", "payload": payload})
+            ref.append(TimePoint(datetime.combine(date(2026, 7, 22), time(9, 0, i)), float(i)))
+
+        hits = xanalysis.hunt_byte(lp, ref, tol_s=1.0, min_n=10)
+        pci = {j for j in range(64) if wican_to_isotp(j) is None}
+        spanning = [h for h in hits if any((h.offset + k) in pci for k in range(h.width))]
+        assert not spanning, (
+            f"hunt surfaced PCI-spanning hit(s): {[(h.expr, h.offset, h.width) for h in spanning]}"
+        )
+        assert 1 not in {h.offset for h in hits}  # B1 is a PCI byte, never a signal
+
 
 # ---------------------------------------------------------------------------
 # command smoke tests (parser wiring)
