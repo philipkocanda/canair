@@ -1,0 +1,16 @@
+{
+  "car_model": "Hyundai Ioniq 5 2022",
+  "init": "ATSP6;ATS0;ATAL;ATST96;",
+  "pids": [
+    {
+      "pid_init": "ATSH7C6;ATFCSH7C6;",
+      "pid": "B002",
+      "enabled": true,
+      "period": "5000",
+      "parameters": {
+        "ODOMETER": "B6*65536+B7*256+B8"
+      }
+    }
+  ],
+  "can_filters": []
+}
