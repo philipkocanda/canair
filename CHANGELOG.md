@@ -7,8 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-07-24
+
 ### Added
 
+- **`canair ecu add TX`** — register an ECU into a profile **offline** (no live
+  bus), the counterpart to `discover --register` for seeding a known ECU into a
+  blank/contributable profile. `ecu` is now a command group (`show` default +
+  `add`). Validated and comment-preserving.
+- **First-run profile chooser.** On the first interactive run that needs a
+  profile, canair offers to pick a discovered profile or create a new one, with
+  explicit path messaging, and records the choice as `default_profile`. Never
+  fires when scripted/piped or when `--profile`/`CANAIR_PROFILE` is set.
 - **`canair investigate --bits`** — rank individual toggling bits (`Bn:k`), not
   just bytes, so body/comfort-ECU status signals surface. Also fixes the
   no-co-polled-anchor case to rank by state separation with a hint (instead of
@@ -37,6 +47,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`canair validate pids`** now flags a duplicate *shipped* parameter name
   across PIDs (a device signal-name collision) as an error — previously this
   only surfaced at `wican autopid write` time.
+- **ECU-file validation is profile-scoped.** Validating (and thus writing via
+  `canair pids`/`ecu add`) an ECU file now resolves the vehicle-state vocabulary
+  from the file's own profile rather than the globally-active one, so edits to a
+  non-active profile work even when several profiles are discovered.
 
 ### Removed
 
@@ -47,6 +61,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`canair query BMS:3E00`); the interactive `repl`'s `!tester [id]` loop
   remains for manual keepalive spamming. TesterPresent (SID `0x3E`) is shared by
   UDS and KWP2000 and is sent identically for both.
+
+### Docs
+
+- **Task-first documentation site** under `docs/`, published with MkDocs Material
+  to [philipkocanda.github.io/canair](https://philipkocanda.github.io/canair/):
+  getting-started, the full **Bring your own car** walkthrough, concepts, a
+  reference, the bundled-profile tour, and a contributing guide.
+- **Generated CLI reference** (`scripts/gen_cli_reference.py` →
+  `docs/reference/cli/`) rendered from each command's `--help`, with a CI
+  `--check` gate so it can't drift.
+- **`CONTRIBUTING.md`** and prominent "contribute your profile/PIDs back"
+  encouragement across the README and docs.
+- README trimmed to a compact, high-level gateway that links into the docs site.
 
 ## [1.0.0] - 2026-07-23
 
@@ -83,5 +110,6 @@ dongle (both the WiCAN Pro and the classic/non-Pro WiCAN are supported).
 - Command safety blocklist preventing UDS programming/write sessions against a
   real vehicle.
 
-[Unreleased]: https://github.com/philipkocanda/canair/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/philipkocanda/canair/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/philipkocanda/canair/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/philipkocanda/canair/releases/tag/v1.0.0
