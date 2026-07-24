@@ -46,8 +46,7 @@ This plan does **not** write all the docs yet. It decides *what* docs exist,
   agent-facing and not discoverable by a human.
 - **`plans/`** — design/implementation plans (git-tracked). Historical/decision
   record, not user docs.
-- **`docs-ignored/`** — freeform local research notes (just un-tracked; formerly
-  `docs/`). Scratch space, not published docs.
+- **local research notes** — freeform, un-tracked scratch space, not published docs.
 - **`CHANGELOG.md`, `RELEASING.md`, `LICENSE`** — present and fine.
 - **No `CONTRIBUTING.md`, no `docs/` site, no per-command reference.**
 
@@ -93,8 +92,8 @@ Warning, the license. These are strengths.
 
 ## Target documentation architecture
 
-Un-ignore a **real, git-tracked `docs/`** (separate from the now-ignored
-`docs-ignored/` scratch). Structure it task-first, not command-first. Proposed
+Un-ignore a **real, git-tracked `docs/`** (separate from the un-tracked local
+research scratch). Structure it task-first, not command-first. Proposed
 layout (Markdown; can back a static site later — see "Tooling"):
 
 ```
@@ -118,7 +117,7 @@ docs/
     architecture.md            # transports, ISO-TP/UDS/KWP2000, the two data domains
     profiles.md                # bundle layout, ecus/ source of truth, discovery/precedence
     query-mini-language.md     # selectors, pipeline steps, sessions/keepalive
-    byte-indexing.md           # WiCAN vs ISO-TP vs Torque vs bix (from docs-ignored ref)
+    byte-indexing.md           # WiCAN vs ISO-TP vs Torque vs bix
     captures-and-states.md     # capture model, journaling, states.yaml
     safety.md                  # blocklist, confirmations, what canair won't do
   reference/
@@ -164,7 +163,7 @@ Much content already exists and can be adapted rather than invented:
 | `bring-your-own-car/*` | `plans/2026-07-21-new-profile-bootstrap.md` + the RE skills |
 | `concepts/architecture.md` | README "How it connects" + `contributing` skill Transports section |
 | `concepts/query-mini-language.md` | README "Query mini-language" section |
-| `concepts/byte-indexing.md` | `docs-ignored/wican-iso-tp-index-conversion.md` |
+| `concepts/byte-indexing.md` | `canair bix --table` + local byte-index research notes |
 | `concepts/captures-and-states.md` | AGENTS.md captures/states notes |
 | `reference/cli/*` | `canair <cmd> --help` (generate) + AGENTS.md command notes |
 | `reference/config.md` | `config.example.yaml` |

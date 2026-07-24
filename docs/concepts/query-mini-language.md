@@ -35,7 +35,7 @@ canair query "session IGPM --wake" "query IGPM:BC03,BC06"
 ```
 
 Step verbs include: `query`, `session <ECU> [--wake]`, `skm-wake [acc|ign1|ign2]`,
-`raw <TX:PID>`, `scan`, `iocontrol`, `security`, `sleep`, `repl`. This lets you,
+`raw <TX:PID>`, `scan`, `iocontrol`, `sleep`, `repl`. This lets you,
 for example, wake an ECU, open a session, and read several PIDs in one command
 over one connection.
 

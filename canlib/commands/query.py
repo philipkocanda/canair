@@ -20,7 +20,7 @@ from canlib.commands._live import (
 
 NAME = "query"
 
-_VERBS = ("skm-wake", "session", "query", "raw", "scan", "security", "iocontrol", "sleep", "repl")
+_VERBS = ("skm-wake", "session", "query", "raw", "scan", "iocontrol", "sleep", "repl")
 
 
 def add_parser(subparsers) -> argparse.ArgumentParser:
@@ -49,13 +49,6 @@ examples:
     ).completer = param_completer
     parser.add_argument("--session", action="store_true", help="Enter extended session (10 03)")
     parser.add_argument("--wake", action="store_true", help="Wake ECUs from deep sleep (10 01)")
-    parser.add_argument(
-        "--pair",
-        metavar="SEED:KEY",
-        default=None,
-        help="Offline: identify the SecurityAccess algorithm from a known seed:key "
-        "pair (hex, e.g. 1A2B3C4D:5E6F7A8B). No device connection.",
-    )
     parser.add_argument("--repl", action="store_true", help="Drop into REPL after the pipeline")
     parser.add_argument(
         "--monitor",
@@ -98,43 +91,7 @@ def _to_step(selector: str) -> str:
     return f"query {selector}"
 
 
-def _run_pair_solver(pair: str) -> int:
-    """Offline: identify the SecurityAccess algorithm from a seed:key pair."""
-    from canlib.modes.multi import solve_key_pair
-
-    if ":" not in pair:
-        print("Error: --pair expects SEED:KEY (hex), e.g. 1A2B3C4D:5E6F7A8B", file=sys.stderr)
-        return 2
-    seed_str, key_str = (
-        p.strip().removeprefix("0x").removeprefix("0X") for p in pair.split(":", 1)
-    )
-    try:
-        seed = int(seed_str, 16)
-        key = int(key_str, 16)
-    except ValueError:
-        print(f"Error: seed and key must be hex (got {pair!r})", file=sys.stderr)
-        return 2
-    # Seed byte width drives the mask; infer from the seed hex string length.
-    seed_len = max(1, (len(seed_str) + 1) // 2)
-    matches = solve_key_pair(seed, key, seed_len=seed_len)
-    print(f"\n  Seed 0x{seed_str.upper()} ({seed_len} byte(s))  →  Key 0x{key_str.upper()}")
-    if matches:
-        print(f"  {len(matches)} algorithm(s) reproduce this key:\n")
-        for name, desc in matches:
-            print(f"    ✓ {name:<20} {desc}")
-        print(
-            '\n  Use the winning algorithm name with: canair query "session ECU" "security ECU <name>"'
-        )
-    else:
-        print("  No built-in algorithm reproduces this key.")
-        print("  It may use a different constant/transform — add it to SECURITY_ALGORITHMS,")
-        print("  or capture more seed/key pairs to constrain the algorithm.")
-    return 0
-
-
 def run(args) -> int:
-    if getattr(args, "pair", None):
-        return _run_pair_solver(args.pair)
     if args.steps:
         args.multi = [_to_step(s) for s in args.steps]
         # Validate the mini-language up front so ambiguous/malformed steps fail

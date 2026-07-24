@@ -270,10 +270,15 @@ Watch for these leaks (not exhaustive — reason about the *class*, not the list
 is illegal in many jurisdictions, and dangerous — it never belongs in this tree,
 not even by accident.** Security access gates the services that can reflash,
 reprogram, or otherwise alter an ECU; the ability to defeat it is exactly what
-manufacturers restrict to authorized dealers and licensed repairers. canair can
-*compute* a key from a seed at runtime (the `0x27` pair-solver in
-`canlib/modes/multi.py`), which is precisely why we must be disciplined about
-never *persisting* or *distributing* the result.
+manufacturers restrict to authorized dealers and licensed repairers.
+
+**canair deliberately ships no key-cracking / seed→key solver.** A `0x27`
+pair-solver existed once and was removed; do **not** re-add one (nor a bank of
+per-marque unlock algorithms, a `--pair` seed:key identifier, or a `security`
+pipeline step). canair stays a read/diagnostics tool. It stays *aware* of `0x27`
+at the protocol level — the service table entry, the `securityAccessDenied`
+(NRC 0x33) classification in scanners, and the response pretty-printer are fine —
+but it does not attempt to *break* security access.
 
 **Forbidden in code, data, profiles, captures, docs, tests, fixtures, commit
 messages, and history:**
@@ -281,20 +286,18 @@ messages, and history:**
 - **Keys / seed→key pairs / unlock responses** — a captured `27 02 <key>` request
   or `67 01 <seed>` response, a seed paired with the key that unlocked it, or any
   recorded successful-unlock exchange.
-- **Unlock algorithms & secrets** — the seed→key transform for a specific ECU
-  (beyond the generic, already-public toy algorithms the solver ships to *try*),
-  PINs, passwords, certificates, or any manufacturer secret.
+- **Unlock algorithms & secrets** — a seed→key transform for any ECU, PINs,
+  passwords, certificates, or any manufacturer secret.
+- **Key-cracking tooling** — a pair-solver, algorithm bank, or brute-forcer, in
+  any form (see above: the removed solver must not come back).
 - **Anything that lets a reader reconstruct the above**, including a "worked
   example" in a doc or a realistic test fixture built from a real ECU's seed/key.
 
 **Practices:**
 
-- **The solver stays runtime-only.** It may derive a key in memory to open a
-  session; it must never write the seed, the key, or the winning algorithm into
-  the profile, a capture, a log, or any committed artifact. If you add security
-  tooling, ensure its output is ephemeral by default and never auto-saved.
-- **Tests use synthetic seeds/keys only** (as `tests/test_security_access.py`
-  does — invented values run through generic transforms), never a real ECU's.
+- **Tests use synthetic seeds/keys only** — invented values, never a real ECU's —
+  and only where protocol *awareness* (NRC classification, response formatting)
+  needs coverage, never to exercise a solver.
 - **If a user needs a capability that requires security access** (dealer-level
   reprogramming, coding, or an ECU-specific unlock), **do not attempt to source,
   derive, or share the key** — direct them to their **local authorized dealer or

@@ -4,7 +4,7 @@
 
 ```
 usage: canair query [-h] [--param NAME [NAME ...]] [--session] [--wake]
-                    [--pair SEED:KEY] [--repl] [--monitor [INTERVAL]]
+                    [--repl] [--monitor [INTERVAL]]
                     [--keep-unique | --keep-all | --keep N] [--save]
                     [--label TEXT] [--state TEXT] [--notes TEXT] [--rulers]
                     [--include-static] [--wican WICAN]
@@ -24,9 +24,6 @@ options:
                         Query named parameters instead of selectors
   --session             Enter extended session (10 03)
   --wake                Wake ECUs from deep sleep (10 01)
-  --pair SEED:KEY       Offline: identify the SecurityAccess algorithm from a
-                        known seed:key pair (hex, e.g. 1A2B3C4D:5E6F7A8B). No
-                        device connection.
   --repl                Drop into REPL after the pipeline
   --monitor [INTERVAL]  Repeatedly poll query steps in a scrollable live view
                         (default interval 5.0s). On a terminal this opens a

@@ -74,7 +74,6 @@ Vehicle data lives in a **profile** bundle — a directory with `ecus/` (one fil
 - **`canair pids`** edits the `ecus/` files (parameters + research); ECU identity/scan_log are written by `canair discover --register` / `canair identity`.
 - (There is no longer a top-level `ecus.yaml` or `dtc.yaml` — both were folded into the per-ECU `ecus/` files.)
 - **`canair bix`** — Byte index converter: WiCAN ↔ ISO-TP ↔ Torque ↔ bix. Use `canair bix w9` or `canair bix E` for quick lookups, `--table` for full table. **`--annotate HEX` (`-a`)** maps a raw UDS response payload to a table with WiCAN Bnn, ISO-TP index, Torque letter, bix, and role per byte. The hex may be a no-space blob (`62B004…`), a quoted space-separated string (`"62 B0 04 …"`), or **unquoted space-separated bytes** (`-a 62 B0 04 …`) — all equivalent. Put the mode flag `-1` (21xx, default) / `-2` (22xxxx) **before** the bytes. Add **`--ecu ECU --pid PID`** to overlay which defined parameter (and bit `[NAME:k]`) maps each byte and flag `unmapped` data bytes — the fastest way to spot a wrong byte offset in an expression (how the BC05 `B09`→`B10` bug was caught).
-- **`docs-ignored/wican-iso-tp-index-conversion.md`** — Reference table for byte index notation differences (local only, not tracked in git)
 
 ## WiCAN Access
 

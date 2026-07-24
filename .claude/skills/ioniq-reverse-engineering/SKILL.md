@@ -55,8 +55,7 @@ reference lives in **AGENTS.md**, `docs/reference/cli/`, and `canair <cmd>
 2. **Remote control** — remote pre-heat, door locks, etc. Likely needs direct CAN
    write access, not just OBD-II reads.
 
-Backlog: `canair research --summary` (per-ECU `research:` sections) and
-`docs-ignored/TODO.md`.
+Backlog: `canair research --summary` (per-ECU `research:` sections).
 
 ## Vehicle
 
@@ -251,13 +250,8 @@ canair query "query BCM" --monitor 2 --keep-unique   # live refresh, unique payl
 
 Step verbs: `skm-wake [acc|ign1|ign2|start]`, `session <ECU> [--wake] [--mode XX]`,
 `query <ECU>[:PIDLIST] …`, `raw <TX:PID> [--hold]`, `scan <TX> <SVC> <RANGE> [APPEND]`,
-`security <ECU> [algo …]`, `iocontrol <ECU> <DID> [--off]`, `sleep <s>`, `repl`.
+`iocontrol <ECU> <DID> [--off]`, `sleep <s>`, `repl`.
 ECUs resolve by name (`IGPM`) or hex TX ID (`770`).
-
-`security` tries UDS Security Access (`27 01`→`27 02`) with ~40 built-in
-Hyundai/Kia key algorithms (needs an open extended session; read-only seed/key
-computation — a prerequisite for `2E` writes but doesn't itself change anything).
-Handles NRC 0x36 (lockout, stops) / 0x37 (delay, waits + retries).
 
 ### `--monitor`
 
