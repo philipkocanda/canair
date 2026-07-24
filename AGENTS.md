@@ -26,6 +26,17 @@ When you notice something wrong while working — a bug, a typo, a stale comment
 
 The exception: if the fix is **too much work** (a large refactor, a risky/behavior-changing edit, anything touching sensitive/irreversible operations, or something clearly outside the current task's scope), **ask first** before diving in. Surface what you spotted, describe the fix, and let the user decide. Don't silently balloon a small task into a large one.
 
+## Keep docs & README current — every user-facing change
+
+Docs are part of the change, not an afterthought — **any** change that adds, removes, or alters a user-facing capability (a new/renamed subcommand, a changed/added/removed flag, a shifted default, new setup/config steps, a changed workflow, a new profile field) MUST update the user-facing docs in the same change. Stale docs mislead as badly as stale code. If nothing user-facing changed, confirm that rather than assume.
+
+**Respect the README ↔ `docs/` split:**
+
+- **`README.md` stays compact and high-level** — the landing/gateway page: intro, the connection diagram, the command *map* (one crisp line per subcommand), a short quick-start, the bring-your-own-car *arc*, bundled-profile highlights, license, warning. **Detail does not belong here**; every section links *into* `docs/`. It was deliberately trimmed (311→143 lines) — keep it lean, don't re-expand it into a manual.
+- **`docs/` carries the detail** — task-first, for **new-car users** and **PID/profile contributors**: `getting-started/`, the `bring-your-own-car/` journey, `concepts/`, `reference/`. New walkthroughs, worked examples, and per-command flag detail go here. `docs/` is the human-facing rendering of the same knowledge in this file and the skills — it should *reference* them, not duplicate; where a fact is authoritative elsewhere (`config.example.yaml`, `--help`, `canlib/schema/`), point at / derive from it so it can't drift.
+
+When you touch a user-facing surface, update as needed: (1) the relevant **`docs/`** page(s) — deep detail; (2) **`README.md`** — the high-level pointer only, terse and linking into `docs/`; (3) **this `AGENTS.md`** — the exhaustive agent-facing command/file reference; (4) the **skills** if the workflow changed. Verify internal doc links still resolve (relative `.md` links and README→`docs/` links) — a broken cross-link is a defect (Boy Scout: fix stale paths). Policy recorded in `plans/2026-07-24-documentation-strategy.md`.
+
 ## Tools
 
 > Reverse-engineering a new PID/DID end-to-end (discover → capture → analyze → define → verify) is documented in the **reverse-engineer-pid** skill; general project/device context is in the **ioniq-reverse-engineering** skill.

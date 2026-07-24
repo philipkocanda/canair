@@ -276,14 +276,49 @@ bolting on more:
   errors, not as blanket ceremony on trivial locals.
 - Keep new files single-purpose from the start rather than growing a grab-bag.
 
-## Before you finish
+## Keep the docs and README current — non-negotiable
 
-- **Check whether the README needs updating.** If your change adds, removes, or
-  alters a user-facing capability (a new subcommand, a changed flag, a shifted
-  default, new setup/config steps, an updated command list or usage example),
-  update the repo `README.md` to match. Stale docs mislead as badly as stale
-  code — treat the README as part of the change, not an afterthought. If nothing
-  user-facing changed, no edit is needed; confirm rather than assume.
+**User-facing docs are part of the change, not an afterthought.** Any change that
+adds, removes, or alters a user-facing capability — a new/renamed subcommand, a
+changed/added/removed flag, a shifted default, new setup/config steps, a changed
+workflow, a new profile field — MUST update the docs in the same change. Stale
+docs mislead as badly as stale code. If nothing user-facing changed, confirm that
+rather than assume it.
+
+**The README vs `docs/` split (respect it):**
+
+- **`README.md` stays compact and high-level.** It's the landing page /
+  gateway: what canair is, the connection diagram, the command *map* (one crisp
+  line per subcommand), a short quick-start, the bring-your-own-car *arc*, the
+  bundled-profile highlights, license, warning. **Detail does not belong here** —
+  every section links *into* `docs/`. Do not re-expand it into a manual (it was
+  deliberately cut 311→143 lines; keep it lean).
+- **`docs/` carries the detail.** It's task-first, optimized for **new-car users**
+  and **PID/profile contributors**: `getting-started/`, the
+  `bring-your-own-car/` journey (create → discover → identity → scan → capture →
+  analyze → define/verify → share), `concepts/`, and `reference/`. New detail,
+  worked examples, per-command flags, and walkthroughs go here.
+- **`docs/` is the human-facing rendering of the same knowledge in AGENTS.md and
+  the skills** — it should *reference* them, not duplicate them. Where a fact is
+  authoritative elsewhere (config keys in `config.example.yaml`, flags in
+  `--help`, schema in `canlib/schema/`), point at / derive from it rather than
+  copy it, so it can't drift.
+
+**Concretely, when you touch a user-facing surface, check and update as needed:**
+
+1. the relevant **`docs/`** page(s) — the deep detail;
+2. the **`README.md`** command map / quick-start / arc — only the high-level
+   pointer, kept terse and linking into `docs/`;
+3. **`AGENTS.md`** — the exhaustive agent-facing command reference (keep the
+   tool list, flags, and file map accurate);
+4. the **skills** (`.claude/skills/`) if the RE/contributing *workflow* changed.
+
+Verify every internal doc link still resolves (relative `.md` links and
+README→`docs/` links); a broken cross-link is a defect (Boy Scout: fix stale
+paths you pass). The docs strategy and the README/`docs/` policy are recorded in
+`plans/2026-07-24-documentation-strategy.md`.
+
+## Before you finish
 
 ```bash
 uv run pytest -q                 # all tests green
@@ -292,3 +327,6 @@ uv run ty check                  # type check (canlib/) — must be clean
 uv run canair <yourcmd> --help   # parser sane
 uv run canair validate all       # if you touched ecus/captures/schema
 ```
+
+Then confirm the **docs + README** reflect any user-facing change (see the
+policy above) and that internal doc links still resolve.

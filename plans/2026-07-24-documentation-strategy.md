@@ -125,6 +125,8 @@ docs/
     cli/                       # one page per subcommand (or generated) — the deep flags
     config.md                  # every config key (fold in config.example.yaml)
     schemas.md                 # ecus/ , captures, states schema shapes
+  profiles/
+    ioniq-2017.md              # the bundled reference profile — what it decodes, ECUs, IOControl
   # DEFERRED (tool-code contributor — not a priority-1 audience):
   #   contributing/ + repo-root CONTRIBUTING.md — humanize the contributing skill
   #   later. The agent-facing .claude/skills/contributing/SKILL.md already covers it.

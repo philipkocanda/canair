@@ -25,6 +25,9 @@ command list (that lives in the [CLI reference](reference/cli/index.md)).
 - **Want the details? →** [Concepts](concepts/architecture.md) explain *how* it
   works; the [Reference](reference/config.md) documents every flag, config key,
   and schema.
+- **Just want to use the bundled Ioniq? →** [The Ioniq 2017
+  profile](profiles/ioniq-2017.md) — what the shipped profile decodes, its ECUs,
+  and its IOControl actuators.
 
 ## What you'll need
 

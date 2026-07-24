@@ -366,3 +366,6 @@ fitted on every trim).
 - [Kia Niro 64 kWh PID sheet](https://docs.google.com/spreadsheets/d/1eT2R8hmsD1hC__9LtnkZ3eDjLcdib9JR-3Myc97jy8M)
   and local `profiles/ioniq-2017/references/` spreadsheets (Kia Soul PIDs are
   offset by 1).
+- **User-facing docs:** `docs/` (task-first, for humans) — `docs/profiles/ioniq-2017.md`
+  documents the bundled profile. Keep it and the README current when you change a
+  user-facing capability; see the README↔`docs/` policy in `AGENTS.md`.
