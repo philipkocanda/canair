@@ -16,8 +16,14 @@ Journal format (one JSON object per line):
     {"v": 1, "type": "meta", "date": "...", "label": "...", "vehicle_states": [...],
      "notes": "...", "source": "monitor", "keep_mode": "unique"}
     {"type": "capture", "ecu": "0x7EC", "pid": "2101", "payload": "6101...",
-     "time": "12:00:01"}
+     "date": "2026-07-22", "time": "12:00:01"}
     ...
+
+Each ``capture`` row carries its own ``date`` (the acquisition date), so a
+session that spans midnight reconciles into the correct per-day capture files
+rather than being lumped under a single date fixed at reconcile time. The
+``meta`` ``date`` (session start) is the fallback for rows written before
+per-record dates existed.
 
 Multiple ``meta`` lines may appear (metadata edited mid-session); reconcile uses
 the **last** one. For one-shot producers that already build a full session dict
@@ -121,12 +127,20 @@ class CaptureJournal:
 
     # -- streaming API -----------------------------------------------------
 
-    def append(self, ecu_ref: str, pid: str, hex_val: str, time: str = "") -> None:
-        """Append one captured payload row (buffered; caller flushes per cycle)."""
+    def append(self, ecu_ref: str, pid: str, hex_val: str, time: str = "", date: str = "") -> None:
+        """Append one captured payload row (buffered; caller flushes per cycle).
+
+        Payload rows are time-series samples, so each stamps both a ``date`` and
+        a ``time`` (the moment the response arrived). The per-record ``date`` is
+        what lets a session spanning midnight reconcile into the correct per-day
+        capture files — the session's date is no longer a single value fixed at
+        reconcile time. Callers pass the acquisition timestamp; both fall back to
+        "now" when omitted.
+        """
         rec: dict = {"type": "capture", "ecu": ecu_ref, "pid": pid, "payload": hex_val.upper()}
-        # Payload rows are time-series samples: always stamp a time so
-        # cross-signal alignment can use them (Tranche 2.6).
-        rec["time"] = time or datetime.now().strftime("%H:%M:%S")
+        now = datetime.now()
+        rec["date"] = date or now.strftime("%Y-%m-%d")
+        rec["time"] = time or now.strftime("%H:%M:%S")
         self._write(rec)
 
     def append_session(self, session: dict) -> None:
@@ -209,9 +223,9 @@ def _read_records(path: Path) -> list[dict]:
 
 
 def _dedup(
-    rows: list[tuple[str, str, str, str]], keep_mode: str | None
-) -> list[tuple[str, str, str, str]]:
-    """Apply keep-mode dedup to (ecu, pid, hex, time) rows, preserving order.
+    rows: list[tuple[str, str, str, str, str]], keep_mode: str | None
+) -> list[tuple[str, str, str, str, str]]:
+    """Apply keep-mode dedup to (ecu, pid, hex, time, date) rows, preserving order.
 
     ``None``/``last`` keep every row as-is; ``unique`` drops rows whose
     (ecu, pid, payload) has already been seen.
@@ -219,36 +233,42 @@ def _dedup(
     if keep_mode not in ("unique",):
         return rows
     seen: set[tuple[str, str, str]] = set()
-    out: list[tuple[str, str, str, str]] = []
-    for ecu, pid, hex_val, ts in rows:
-        key = (ecu, pid, hex_val)
+    out: list[tuple[str, str, str, str, str]] = []
+    for row in rows:
+        key = (row[0], row[1], row[2])
         if key in seen:
             continue
         seen.add(key)
-        out.append((ecu, pid, hex_val, ts))
+        out.append(row)
     return out
 
 
 def build_session_from_records(
     records: list[dict], keep_mode: str | None = None, recovered: bool = False
-) -> dict | None:
-    """Build a capture session dict from journal records.
+) -> list[dict]:
+    """Build capture session dicts from journal records — one per capture date.
 
     Uses the last ``meta`` record for label/vehicle_states/notes and its
-    ``keep_mode`` unless ``keep_mode`` is passed explicitly. Returns None when
-    the journal has no capture/session payloads.
+    ``keep_mode`` unless ``keep_mode`` is passed explicitly. Payload rows are
+    grouped by their per-record ``date`` so a session spanning midnight yields
+    one session per calendar day (each landing in the correct ``YYYY-MM-DD.yaml``
+    on save); rows missing a date fall back to the ``meta`` date. Returns an
+    empty list when the journal has no capture/session payloads.
     """
     from .captures import build_query_session
 
-    meta = {"label": "", "vehicle_states": [], "notes": "", "keep_mode": None}
+    meta = {"label": "", "vehicle_states": [], "notes": "", "keep_mode": None, "date": ""}
     session_records: list[dict] = []
-    rows: list[tuple[str, str, str, str]] = []
+    rows: list[tuple[str, str, str, str, str]] = []
+    meta_date = ""
     for rec in records:
         rtype = rec.get("type")
         if rtype == "meta":
-            for k in ("label", "vehicle_states", "notes", "keep_mode"):
+            for k in ("label", "vehicle_states", "notes", "keep_mode", "date"):
                 if k in rec:
                     meta[k] = rec[k]
+            if rec.get("date"):
+                meta_date = str(rec["date"])
         elif rtype == "session":
             session_records.append(rec["session"])
         elif rtype == "capture":
@@ -258,6 +278,7 @@ def build_session_from_records(
                     rec.get("pid", ""),
                     rec.get("payload", ""),
                     rec.get("time", ""),
+                    str(rec.get("date") or meta_date),
                 )
             )
 
@@ -274,7 +295,8 @@ def build_session_from_records(
     else:
         effective_keep = _keep if isinstance(_keep, str) else None
 
-    # One-shot producer stored a complete session; merge its captures in.
+    # One-shot producer stored a complete session; merge its captures in. These
+    # carry their own session date, so they are not day-split here.
     if session_records:
         # Only the first session dict carries the base; append others' captures.
         base = dict(session_records[0])
@@ -289,15 +311,32 @@ def build_session_from_records(
             del base["notes"]
         for extra in session_records[1:]:
             base.setdefault("captures", []).extend(extra.get("captures", []))
-        return base
+        return [base]
 
     if not rows:
-        return None
+        return []
 
     rows = _dedup(rows, effective_keep)
-    return build_query_session(
-        rows, label, vehicle_states, notes, keep_mode=effective_keep
-    )
+
+    # Group by capture date so each day becomes its own session. Preserve the
+    # order dates first appear so the earliest day is saved first.
+    by_date: dict[str, list[tuple[str, str, str, str]]] = {}
+    for ecu, pid, hex_val, ts, rdate in rows:
+        by_date.setdefault(rdate, []).append((ecu, pid, hex_val, ts))
+
+    sessions: list[dict] = []
+    for rdate, day_rows in by_date.items():
+        sessions.append(
+            build_query_session(
+                day_rows,
+                label,
+                vehicle_states,
+                notes,
+                keep_mode=effective_keep,
+                date=rdate or None,
+            )
+        )
+    return sessions
 
 
 def reconcile_file(
@@ -306,7 +345,9 @@ def reconcile_file(
     """Reconcile a single journal file into its captures dir, then delete it.
 
     The captures dir is the journal's grandparent (``.../captures/.journal/x`` →
-    ``.../captures``). Returns the written capture file path, or None if empty.
+    ``.../captures``). A journal spanning midnight yields one session per day,
+    each saved to its own ``YYYY-MM-DD.yaml``. Returns the last capture file
+    path written (they land in per-day files), or None if empty.
     """
     from .captures import save_session
 
@@ -314,12 +355,15 @@ def reconcile_file(
         return None
     captures_dir = path.parent.parent
     records = _read_records(path)
-    session = build_session_from_records(records, keep_mode=keep_mode, recovered=recovered)
-    if session is None or not session.get("captures"):
+    sessions = build_session_from_records(records, keep_mode=keep_mode, recovered=recovered)
+    sessions = [s for s in sessions if s and s.get("captures")]
+    if not sessions:
         # Nothing worth keeping — drop the journal.
         path.unlink(missing_ok=True)
         return None
-    written = save_session(session, captures_dir)
+    written: Path | None = None
+    for session in sessions:
+        written = save_session(session, captures_dir)
     path.unlink(missing_ok=True)
     return written
 

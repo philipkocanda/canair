@@ -50,13 +50,14 @@ class TestJournalBasics:
         assert calls["n"] == base + 1  # a single fsync for the batch
 
         recs = [json.loads(x) for x in j.path.read_text().splitlines()]
-        assert recs[-1] == {
-            "type": "capture",
-            "ecu": "0x7EC",
-            "pid": "2102",
-            "payload": "6102CCDD",
-            "time": "12:00:02",
-        }
+        # append() stamps a per-record date (for midnight-correct day-splitting)
+        # alongside the time.
+        assert recs[-1]["type"] == "capture"
+        assert recs[-1]["ecu"] == "0x7EC"
+        assert recs[-1]["pid"] == "2102"
+        assert recs[-1]["payload"] == "6102CCDD"
+        assert recs[-1]["time"] == "12:00:02"
+        assert "date" in recs[-1]
 
 
 class TestReconcile:
@@ -130,6 +131,44 @@ class TestReconcile:
         assert sess["captures"][0]["pid"] == "scan 21 01-FF"
 
 
+class TestMidnightSplit:
+    def test_reconcile_splits_across_midnight_into_per_day_files(self, tmp_path):
+        # A monitor/query session spanning midnight must land in the correct
+        # per-day capture files (date derived from each payload, not from
+        # reconcile time) so time-aligned analysis keeps the right calendar day.
+        j = CaptureJournal.open(tmp_path, label="overnight drive")
+        j.append("0x7EC", "2101", "6101AA", "23:59:58.100", "2026-07-22")
+        j.append("0x7EC", "2101", "6101BB", "00:00:03.200", "2026-07-23")
+        written = j.reconcile()
+        assert written is not None
+        assert not j.path.exists()
+
+        f22 = tmp_path / "2026-07-22.yaml"
+        f23 = tmp_path / "2026-07-23.yaml"
+        assert f22.exists() and f23.exists()
+
+        s22 = yaml.safe_load(f22.read_text())["sessions"][0]
+        s23 = yaml.safe_load(f23.read_text())["sessions"][0]
+        assert s22["date"] == "2026-07-22"
+        assert s23["date"] == "2026-07-23"
+        assert s22["captures"][0]["payload"] == "6101AA"
+        assert s22["captures"][0]["time"] == "23:59:58.100"
+        assert s23["captures"][0]["payload"] == "6101BB"
+
+    def test_recovery_uses_capture_date_not_today(self, tmp_path):
+        # A journal recovered days later must be dated to when the payloads were
+        # captured, not the recovery day.
+        j = CaptureJournal.open(tmp_path, label="L", notes="orig")
+        j.append("0x7EC", "2101", "6101", "12:00:00", "2020-01-01")
+        j._close_fh()
+        written = recover(j.path)
+        assert written is not None
+        assert written.name == "2020-01-01.yaml"
+        sess = yaml.safe_load(written.read_text())["sessions"][0]
+        assert sess["date"] == "2020-01-01"
+        assert "[recovered]" in sess["notes"]
+
+
 class TestContextManager:
     def test_clean_exit_reconciles(self, tmp_path):
         with CaptureJournal.open(tmp_path, label="ctx") as j:
@@ -195,12 +234,62 @@ class TestOrphanRecovery:
 class TestBuildSessionFromRecords:
     def test_default_label_when_missing(self):
         recs = [{"type": "capture", "ecu": "0x7EC", "pid": "2101", "payload": "6101"}]
-        sess = build_session_from_records(recs)
-        assert sess["label"] == "Recovered session"
+        sessions = build_session_from_records(recs)
+        assert len(sessions) == 1
+        assert sessions[0]["label"] == "Recovered session"
 
     def test_none_when_no_payloads(self):
         recs = [{"type": "meta", "label": "L"}]
-        assert build_session_from_records(recs) is None
+        assert build_session_from_records(recs) == []
+
+    def test_splits_sessions_by_capture_date(self):
+        # A journal spanning midnight must reconcile into one session per
+        # calendar day, each carrying its own date + the shared metadata.
+        recs = [
+            {"type": "meta", "label": "overnight", "vehicle_states": ["driving"]},
+            {
+                "type": "capture",
+                "ecu": "0x7EC",
+                "pid": "2101",
+                "payload": "6101AA",
+                "date": "2026-07-22",
+                "time": "23:59:58.100",
+            },
+            {
+                "type": "capture",
+                "ecu": "0x7EC",
+                "pid": "2101",
+                "payload": "6101BB",
+                "date": "2026-07-23",
+                "time": "00:00:03.200",
+            },
+        ]
+        sessions = build_session_from_records(recs)
+        assert len(sessions) == 2
+        by_date = {s["date"]: s for s in sessions}
+        assert set(by_date) == {"2026-07-22", "2026-07-23"}
+        for s in sessions:
+            assert s["label"] == "overnight"
+            assert s["vehicle_states"] == ["driving"]
+        assert by_date["2026-07-22"]["captures"][0]["payload"] == "6101AA"
+        assert by_date["2026-07-22"]["captures"][0]["time"] == "23:59:58.100"
+        assert by_date["2026-07-23"]["captures"][0]["payload"] == "6101BB"
+
+    def test_record_date_falls_back_to_meta_date(self):
+        # Older/partial journals without per-record dates use the meta date.
+        recs = [
+            {"type": "meta", "label": "L", "date": "2026-01-05"},
+            {
+                "type": "capture",
+                "ecu": "0x7EC",
+                "pid": "2101",
+                "payload": "6101",
+                "time": "08:00:00",
+            },
+        ]
+        sessions = build_session_from_records(recs)
+        assert len(sessions) == 1
+        assert sessions[0]["date"] == "2026-01-05"
 
 
 class TestRecoverCommand:

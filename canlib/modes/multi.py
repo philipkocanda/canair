@@ -29,6 +29,7 @@ import asyncio
 import re
 import shlex
 import time
+from datetime import datetime
 
 from ..decoding import decode_param_rows
 from ..formatting import (
@@ -327,6 +328,19 @@ async def _exec_session(
 def _is_did22(pid_code: str) -> bool:
     """True for a full 6-char service-22 DID request like ``22BC03``."""
     return len(pid_code) == 6 and pid_code[:2] == "22"
+
+
+def _capture_stamp(acquired_at: float | None) -> tuple[str, str]:
+    """Split an acquisition epoch into ``(date, time)`` for a saved capture.
+
+    ``time`` keeps millisecond precision (``HH:MM:SS.fff``) so sequentially
+    polled PIDs retain their true sub-second skew — the skew cross-signal
+    correlate/hunt/--corr rely on. ``date`` is the acquisition date, so a
+    session spanning midnight reconciles into the correct per-day files. Falls
+    back to "now" when no timestamp is available.
+    """
+    dt = datetime.fromtimestamp(acquired_at) if acquired_at else datetime.now()
+    return dt.strftime("%Y-%m-%d"), dt.strftime("%H:%M:%S.%f")[:-3]
 
 
 def _decode_pid_result(pid_code, pid_info, unmapped, hex_str, bytes_val, acquired_at):
@@ -1218,9 +1232,14 @@ async def mode_multi(
         for entry in pid_results or []:
             raw_hex = entry.get("raw_hex", "")
             if raw_hex:
-                collected.append((ecu_ref, entry["pid"], raw_hex, ""))
+                # Preserve the per-PID acquisition timestamp (moment the response
+                # arrived) at millisecond precision, mirroring the monitor — so
+                # sequentially-polled PIDs keep their true sub-second skew that
+                # cross-signal correlate/hunt/--corr rely on.
+                cap_date, cap_time = _capture_stamp(entry.get("acquired_at"))
+                collected.append((ecu_ref, entry["pid"], raw_hex, cap_time))
                 if journal is not None:
-                    journal.append(ecu_ref, entry["pid"], raw_hex)
+                    journal.append(ecu_ref, entry["pid"], raw_hex, cap_time, cap_date)
         # Accumulate decoded values for end-of-pipeline state auto-suggestion.
         if save:
             from ..states import collect_values
@@ -1299,9 +1318,10 @@ async def mode_multi(
                     tx_id, req, resp = raw_result
                     if resp.get("ok") and resp.get("hex"):
                         ecu_ref = _rx_addr_for_tx(tx_id)
-                        collected.append((ecu_ref, req, resp["hex"], ""))
+                        cap_date, cap_time = _capture_stamp(None)
+                        collected.append((ecu_ref, req, resp["hex"], cap_time))
                         if journal is not None:
-                            journal.append(ecu_ref, req, resp["hex"])
+                            journal.append(ecu_ref, req, resp["hex"], cap_time, cap_date)
 
             elif cmd_type == "scan":
                 print(f"\n{step} Scan {cmd['tx']} service {cmd['service']} range {cmd['range']}...")

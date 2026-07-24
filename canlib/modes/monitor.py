@@ -290,9 +290,7 @@ def _write_merged(
         for hex_val, ts in entries:
             results.append((ecu_ref, pid, hex_val, ts))
 
-    session = build_query_session(
-        results, label, vehicle_states, notes, keep_mode=keep_mode
-    )
+    session = build_query_session(results, label, vehicle_states, notes, keep_mode=keep_mode)
     return save_session(session, captures_dir)
 
 
@@ -530,18 +528,20 @@ class MonitorController:
                 self.prev_hex[key] = raw
                 # Per-PID acquisition timestamp (moment the response arrived),
                 # millisecond precision, so sequentially-polled PIDs keep skew.
+                # Also carry the acquisition date so a monitor session crossing
+                # midnight reconciles into the correct per-day capture files.
                 acq = entry.get("acquired_at")
-                ts = (
-                    datetime.fromtimestamp(acq).strftime("%H:%M:%S.%f")[:-3]
-                    if acq
-                    else datetime.now().strftime("%H:%M:%S.%f")[:-3]
-                )
+                dt = datetime.fromtimestamp(acq) if acq else datetime.now()
+                ts = dt.strftime("%H:%M:%S.%f")[:-3]
+                ts_date = dt.strftime("%Y-%m-%d")
                 if self.save_history is not None:  # --save
                     if self.journal is not None:
                         # Journaled: the write-ahead log is the source of truth on
                         # exit, so skip the redundant in-memory save_history growth.
                         with contextlib.suppress(Exception):
-                            self.journal.append(self._ecu_ref(ecu_label), entry["pid"], raw, ts)
+                            self.journal.append(
+                                self._ecu_ref(ecu_label), entry["pid"], raw, ts, ts_date
+                            )
                     else:
                         self.save_history.setdefault(key, []).append((raw, ts))
                 if self.hex_history is not None:  # --keep display history

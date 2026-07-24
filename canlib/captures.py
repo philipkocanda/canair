@@ -89,6 +89,7 @@ def build_query_session(
     vehicle_states: list,
     notes: str,
     keep_mode: str | None = None,
+    date: str | None = None,
 ) -> dict:
     """Build a capture session dict from query/raw payload results.
 
@@ -98,6 +99,11 @@ def build_query_session(
     order given. Decoded parameter values are intentionally NOT stored — they
     are regenerated on demand from the payload + PID definitions.
 
+    ``date`` sets the session date (the acquisition date, from the journal's
+    per-record dates); it falls back to today when omitted, for the direct
+    (non-journaled) callers. Persisting the true capture date keeps a
+    midnight-crossing session's samples aligned to the right calendar day.
+
     ``keep_mode`` records how the monitor deduplicated payloads. Only
     ``"unique"`` is persisted (it drops repeated values, so only rising-edge
     transitions are stored); it is recorded on the session so later analysis
@@ -105,7 +111,7 @@ def build_query_session(
     every polled sample and are not flagged.
     """
     session: dict = {
-        "date": datetime.now().strftime("%Y-%m-%d"),
+        "date": date or datetime.now().strftime("%Y-%m-%d"),
         "label": label,
     }
     if vehicle_states:
@@ -301,16 +307,23 @@ def build_discover_session(
 def save_session(session: dict, captures_dir: Path | None = None) -> Path:
     """Append a session dict to captures/YYYY-MM-DD.yaml. Returns the file path.
 
-    Existing content (including comments) is preserved via a ruamel round-trip;
-    only the newly appended session is rendered fresh. When ``captures_dir`` is
-    None, the active vehicle profile's captures/ directory is used.
+    The file is named after the session's own ``date`` (falling back to today),
+    so a session captured on — or recovered from — a different day lands in the
+    correct per-day file rather than today's. Existing content (including
+    comments) is preserved via a ruamel round-trip; only the newly appended
+    session is rendered fresh. When ``captures_dir`` is None, the active vehicle
+    profile's captures/ directory is used.
     """
     if captures_dir is None:
         from .profile import active
 
         captures_dir = active().captures_dir
-    today = datetime.now().strftime("%Y-%m-%d")
-    capture_file = captures_dir / f"{today}.yaml"
+    # Use the session's own date (leading YYYY-MM-DD, tolerating a same-day
+    # suffix like "2026-04-17-b") so the file matches when the payloads were
+    # actually acquired; only fall back to "now" when the session has no date.
+    raw_date = str(session.get("date") or "").strip()
+    file_date = raw_date[:10] if len(raw_date) >= 10 else datetime.now().strftime("%Y-%m-%d")
+    capture_file = captures_dir / f"{file_date}.yaml"
 
     y = _yaml()
     if capture_file.exists():
