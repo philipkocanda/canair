@@ -37,7 +37,15 @@ jobs:
         run: uv run ty check
 
       - name: Validate bundled profile data
-        run: uv run canair validate all
+        # The repo bundles more than one profile, so `validate all` can't
+        # auto-resolve a single one — validate each bundled profile explicitly.
+        run: |
+          for p in profiles/*/; do
+            name="$(basename "$p")"
+            echo "::group::validate $name"
+            uv run canair --profile "$name" validate all
+            echo "::endgroup::"
+          done
 
       - name: CLI reference is current
         run: uv run python scripts/gen_cli_reference.py --check
