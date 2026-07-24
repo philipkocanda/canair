@@ -4,6 +4,7 @@ For every ECU/PID in ecus/, this cross-references the parameter expressions
 against the *longest* captured payload for that PID and reports:
 
   - UNMAPPED  data bytes present in the payload that no expression reads
+  - UNVERIFIED data bytes mapped only by an unverified param (needs confirming)
   - BITS      bytes read only bit-by-bit (Bn:k) with some bits still undecoded
   - NO CAPTURE PIDs that have parameters defined but no payload captured yet
 
@@ -17,6 +18,7 @@ Examples:
   canair coverage IGPM 22BC03     # a single ECU/PID
   canair coverage --bitfields     # only incomplete-bitfield findings
   canair coverage --unmapped      # only unmapped-byte findings
+  canair coverage --unverified    # only bytes mapped by an unverified param
   canair coverage --no-capture    # only PIDs missing captures
   canair coverage --all           # include fully-mapped PIDs too
   canair coverage --json          # machine-readable output
@@ -30,7 +32,7 @@ from typing import NotRequired, TypedDict
 
 import yaml
 
-from canlib.byteindex import extract_byte_indices, payload_to_wican_frame
+from canlib.byteindex import extract_byte_indices, mapped_offsets, payload_to_wican_frame
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.commands._hints import pid_completer as _pid_completer
 from canlib.pids import build_ecu_index, load_pids
@@ -51,6 +53,7 @@ class PidAnalysis(TypedDict):
 
     data_bytes: int
     unmapped: list[int]
+    unverified_mapped: list[int]
     incomplete_bitfields: list[BitfieldGap]
 
 
@@ -65,6 +68,7 @@ class CoverageEntry(TypedDict):
     capture: NotRequired[dict[str, str]]
     data_bytes: NotRequired[int]
     unmapped: NotRequired[list[int]]
+    unverified_mapped: NotRequired[list[int]]
     incomplete_bitfields: NotRequired[list[BitfieldGap]]
 
 
@@ -171,6 +175,10 @@ def analyze_pid(parameters: dict, payload_hex: str, sfb: int) -> PidAnalysis:
 
     unmapped = [i for i in data_idx if i not in covered]
 
+    # Bytes covered only by unverified params — mapped, but still needing confirmation.
+    verified_covered = set(mapped_offsets(parameters, include_unverified=False))
+    unverified_mapped = [i for i in data_idx if i in covered and i not in verified_covered]
+
     incomplete: list[BitfieldGap] = []
     for b, bits in sorted(all_bits.items()):
         if b not in data_idx:
@@ -183,6 +191,7 @@ def analyze_pid(parameters: dict, payload_hex: str, sfb: int) -> PidAnalysis:
     return {
         "data_bytes": len(data_idx),
         "unmapped": unmapped,
+        "unverified_mapped": unverified_mapped,
         "incomplete_bitfields": incomplete,
     }
 
@@ -204,6 +213,10 @@ def add_parser(subparsers):
     parser.add_argument("--all", action="store_true", help="Include fully-mapped PIDs (no gaps)")
     parser.add_argument(
         "--unmapped", action="store_true", help="Only report unmapped-byte findings"
+    )
+    parser.add_argument(
+        "--unverified", action="store_true",
+        help="Only report bytes mapped by an unverified param (needs confirming)",
     )
     parser.add_argument(
         "--bitfields", action="store_true", help="Only report incomplete-bitfield findings"
@@ -254,18 +267,21 @@ def run(args) -> int:
     # Apply category filters
     def keep(e):
         if e.get("no_capture"):
-            return not (args.unmapped or args.bitfields)
+            return not (args.unmapped or args.unverified or args.bitfields)
         if args.no_capture:
             return False
         has_unmapped = bool(e.get("unmapped"))
+        has_unverified = bool(e.get("unverified_mapped"))
         has_bits = bool(e.get("incomplete_bitfields"))
         if args.unmapped:
             return has_unmapped
+        if args.unverified:
+            return has_unverified
         if args.bitfields:
             return has_bits
         if args.all:
             return True
-        return has_unmapped or has_bits
+        return has_unmapped or has_unverified or has_bits
 
     results = [e for e in results if keep(e)]
 
@@ -297,6 +313,9 @@ def run(args) -> int:
         if e["unmapped"]:
             byts = ",".join(f"B{i}" for i in e["unmapped"])
             print(f"      {_YELLOW}UNMAPPED{_RESET} {byts}")
+        if e.get("unverified_mapped"):
+            byts = ",".join(f"B{i}" for i in e["unverified_mapped"])
+            print(f"      {_YELLOW}UNVERIFIED{_RESET} {byts}")
         for bf in e["incomplete_bitfields"]:
             have = ",".join(map(str, bf["have"]))
             miss = ",".join(map(str, bf["missing"]))

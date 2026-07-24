@@ -73,13 +73,15 @@ class TestInvestigate:
 
         rpts = [
             investigate._ByteReport(
-                offset=12, mapped_by=None, state_f=3.2, anchor="ESC:22C101:REAL_SPEED_KMH",
+                offset=12, mapped_by=None, mapped_verified=False, state_f=3.2,
+                anchor="ESC:22C101:REAL_SPEED_KMH",
                 anchor_r=0.997, anchor_n=66, slope=0.6243, intercept=0.0,
                 unit_guess="slope≈0.6243 ⇒ raw×1.609 (mph→km/h)",
             ),
             investigate._ByteReport(
-                offset=20, mapped_by="VCU_VEHICLE_SPEED", state_f=None, anchor=None,
-                anchor_r=None, anchor_n=0, slope=None, intercept=None, unit_guess=None,
+                offset=20, mapped_by="VCU_VEHICLE_SPEED", mapped_verified=True, state_f=None,
+                anchor=None, anchor_r=None, anchor_n=0, slope=None, intercept=None,
+                unit_guess=None,
             ),
         ]
 

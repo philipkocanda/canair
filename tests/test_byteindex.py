@@ -9,6 +9,7 @@ from canlib.byteindex import (
     extract_byte_indices,
     isotp_to_wican,
     letter_to_torque_idx,
+    mapped_offsets,
     torque_idx_to_letter,
     torque_to_bix,
     torque_to_wican,
@@ -249,6 +250,41 @@ class TestExtractByteIndices:
 
     def test_empty(self):
         assert extract_byte_indices("42") == set()
+
+
+class TestMappedOffsets:
+    """Test verified-aware byte-offset mapping."""
+
+    def _params(self):
+        return {
+            "SPEED": {"expression": "B04", "verified": True},
+            "GUESS": {"expression": "B05"},  # unverified (no flag)
+            "MAYBE": {"expression": "B06", "verified": False},
+            "BLANK": {"expression": ""},  # no expression — ignored
+        }
+
+    def test_includes_all_by_default(self):
+        m = mapped_offsets(self._params())
+        assert set(m) == {4, 5, 6}
+        assert m[4] == ("SPEED", True)
+        assert m[5] == ("GUESS", False)
+        assert m[6] == ("MAYBE", False)
+
+    def test_exclude_unverified(self):
+        m = mapped_offsets(self._params(), include_unverified=False)
+        assert set(m) == {4}
+        assert m[4] == ("SPEED", True)
+
+    def test_verified_upgrades_shared_offset(self):
+        params = {
+            "GUESS": {"expression": "B07"},  # unverified, seen first
+            "CONFIRMED": {"expression": "B07", "verified": True},
+        }
+        m = mapped_offsets(params)
+        assert m[7] == ("CONFIRMED", True)
+
+    def test_empty_expression_ignored(self):
+        assert mapped_offsets({"X": {"expression": ""}}) == {}
 
 
 class TestWicanToElmIdx:

@@ -17,7 +17,7 @@ import sys
 from dataclasses import dataclass
 
 from canlib.align import DEFAULT_JOIN_TOL_S, join_nearest, load_signal_captures
-from canlib.byteindex import extract_byte_indices
+from canlib.byteindex import mapped_offsets
 from canlib.capture_dates import add_scope_args, resolve_date_bounds
 from canlib.xanalysis import (
     build_byte_series,
@@ -47,6 +47,8 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
             "start decoding.\n\n"
             "For every varying data byte of ECU PID it reports, in one pass:\n"
             "  - mapped?   whether a defined parameter already decodes this byte\n"
+            "              (a verified param hides the byte by default; an\n"
+            "              unverified [param?] mapping is shown as still-open work)\n"
             "  - stateF    how cleanly the byte separates across power states\n"
             "              (sleep/acc/ready/charging) — high F = a mode/relay/thermal\n"
             "              signal a driving correlation would miss\n"
@@ -64,8 +66,8 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
 examples:
-  canair investigate MCU 2102              # rank every unmapped byte of MCU 2102
-  canair investigate MCU 2102 --all        # include bytes an existing param already maps
+  canair investigate MCU 2102              # rank unmapped + unverified-mapped bytes of MCU 2102
+  canair investigate MCU 2102 --all        # include bytes a verified param already maps
   canair investigate BMS 2101 --state driving   # only consider drive captures
   canair investigate ESC 22C101 --min-r 0.8      # only show strong anchors (|r| >= 0.8)
   canair investigate AAF 2181 --json       # machine-readable output
@@ -87,7 +89,8 @@ tip: no anchors found? widen scope (drop --state), lower --min-r, or grow the
         help=f"Nearest-timestamp join window (default {DEFAULT_JOIN_TOL_S}s)",
     )
     parser.add_argument(
-        "--all", action="store_true", help="Include already-mapped bytes too (default: skip them)"
+        "--all", action="store_true",
+        help="Include bytes a verified param already maps (default: hide only verified-mapped)",
     )
     parser.add_argument("--json", action="store_true", help="Machine-readable output")
     add_scope_args(parser)
@@ -99,6 +102,7 @@ tip: no anchors found? widen scope (drop --state), lower --min-r, or grow the
 class _ByteReport:
     offset: int
     mapped_by: str | None
+    mapped_verified: bool
     state_f: float | None
     anchor: str | None
     anchor_r: float | None
@@ -142,14 +146,10 @@ def run(args) -> int:
     # Target byte series (min_distinct=2 so near-binary relay bytes count).
     target = build_byte_series(lp, min_distinct=2)
 
-    # Which offsets are already mapped by a defined param.
+    # Which offsets are already mapped by a defined param, and at what confidence.
     ecu_index = build_ecu_index(load_pids())
     params_def = ecu_index.get(ecu.upper(), {}).get("pids", {}).get(pid, {}).get("parameters", {})
-    mapped: dict[int, str] = {}
-    for pname, pdef in params_def.items():
-        expr = pdef.get("expression") or ""
-        for off in extract_byte_indices(expr):
-            mapped.setdefault(off, pname)
+    mapped = mapped_offsets(params_def)
 
     # State buckets per byte (F score) — reuse decode's bucketer over a lite
     # all_results (only needs r["capture"]).
@@ -173,10 +173,12 @@ def run(args) -> int:
         off = int(key.rsplit(":B", 1)[1])
         best = _best_anchor(series, anchors, args.join_tol, args.min_n)
         sb = state_buckets.get(f"B{off}")
+        m = mapped.get(off)
         reports.append(
             _ByteReport(
                 offset=off,
-                mapped_by=mapped.get(off),
+                mapped_by=m[0] if m else None,
+                mapped_verified=m[1] if m else False,
                 state_f=_state_f(sb) if sb else None,
                 anchor=best[0] if best else None,
                 anchor_r=best[1] if best else None,
@@ -188,7 +190,9 @@ def run(args) -> int:
         )
 
     if not args.all:
-        reports = [r for r in reports if r.mapped_by is None]
+        # Hide only bytes a *verified* param already decodes; unverified-mapped
+        # bytes are unfinished work, so surface them alongside unmapped ones.
+        reports = [r for r in reports if not r.mapped_verified]
     # Rank: strongest anchor first, then state separation.
     reports.sort(key=lambda r: (-(abs(r.anchor_r or 0)), -(r.state_f or 0)))
 
@@ -230,7 +234,12 @@ def _print_report(ecu, pid, reports, args, lp) -> None:
         print(f"    {_DIM}no {'varying ' if not args.all else ''}bytes to report{_RESET}\n")
         return
     for r in reports:
-        tag = f"{_DIM}[{r.mapped_by}]{_RESET}" if r.mapped_by else f"{_YELLOW}unmapped{_RESET}"
+        if r.mapped_by is None:
+            tag = f"{_YELLOW}unmapped{_RESET}"
+        elif r.mapped_verified:
+            tag = f"{_DIM}[{r.mapped_by}]{_RESET}"
+        else:
+            tag = f"{_YELLOW}[{r.mapped_by}?]{_RESET}"  # mapped but unverified — still open
         f_str = ""
         if r.state_f is not None:
             fc = _GREEN if r.state_f >= 10 else _YELLOW if r.state_f >= 2 else _DIM

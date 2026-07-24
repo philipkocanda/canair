@@ -184,6 +184,35 @@ def extract_byte_indices(expression: str) -> set[int]:
     return indices
 
 
+def mapped_offsets(
+    parameters: dict, *, include_unverified: bool = True
+) -> dict[int, tuple[str, bool]]:
+    """Which WiCAN byte offsets a PID's parameters cover, and at what confidence.
+
+    Returns ``{offset: (param_name, verified)}`` where ``verified`` reflects the
+    covering param's ``verified`` flag. The first param encountered for an offset
+    wins, but a *verified* mapping is preferred over an unverified one for the
+    same offset (so a byte confirmed by any param reads as confirmed).
+
+    With ``include_unverified=False``, bytes covered only by unverified params
+    are treated as unmapped and omitted — the caller sees them as still-open work.
+    """
+    mapped: dict[int, tuple[str, bool]] = {}
+    for name, pdef in parameters.items():
+        expr = pdef.get("expression") or ""
+        if not expr:
+            continue
+        verified = bool(pdef.get("verified", False))
+        if not verified and not include_unverified:
+            continue
+        for off in extract_byte_indices(expr):
+            prev = mapped.get(off)
+            # First writer wins, but a verified mapping upgrades an unverified one.
+            if prev is None or (verified and not prev[1]):
+                mapped[off] = (name, verified)
+    return mapped
+
+
 def wican_to_elm_idx(wican_idx: int, payload_len: int) -> int | None:
     """Map a WiCAN AutoPID byte index to an ELM payload byte index.
 
