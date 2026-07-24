@@ -319,6 +319,75 @@ def payload_to_wican_frame(payload_bytes: list[int]) -> list[tuple[int, int | No
 _payload_to_wican_frame = payload_to_wican_frame
 
 
+class NotAFrameError(ValueError):
+    """Raised when bytes given as an already-framed CAN payload aren't one.
+
+    The ISO-TP frame type lives in the first byte's high nibble: ``0`` Single
+    Frame, ``1`` First Frame, ``2`` Consecutive Frame, ``3`` Flow Control. A
+    Flow-Control frame is never a response payload, and an empty input has no
+    frame type — both are rejected so ``bix --annotate --raw`` fails loudly
+    rather than mislabelling garbage.
+    """
+
+
+def framed_to_wican_frame(framed_bytes: list[int]) -> list[tuple[int, int | None]]:
+    """Index an ALREADY-FRAMED CAN payload (ISO-TP PCI bytes present).
+
+    The inverse companion to :func:`payload_to_wican_frame`: instead of *inserting*
+    PCI bytes into a PCI-stripped UDS payload, this walks a payload that already
+    carries its framing (e.g. a raw response copied straight off the bus, PCI and
+    all) and marks which bytes are PCI. Returns the same
+    ``[(byte_value, isotp_index_or_None)]`` shape, so every downstream column
+    (ISO-TP / Torque / bix / Role) works identically for both input kinds.
+
+    The frame layout is read from the ISO-TP PCI itself (first-byte high nibble),
+    so it is exact — no length guessing:
+
+      - ``0x0N`` Single Frame → 1 PCI byte at index 0, data follows.
+      - ``0x1N NN`` First Frame → 2 PCI bytes, 6 data bytes, then one CF PCI byte
+        (``0x2x``) at the start of every following 8-byte block.
+      - ``0x2N`` Consecutive Frame (a lone CF) → 1 PCI byte, then data.
+
+    Raises :class:`NotAFrameError` for an empty input or a Flow-Control (``0x3N``)
+    first byte.
+    """
+    if not framed_bytes:
+        raise NotAFrameError("empty input is not a CAN frame")
+    ftype = (framed_bytes[0] >> 4) & 0x0F
+    frame: list[tuple[int, int | None]] = []
+    pi = 0  # running ISO-TP payload index
+
+    if ftype == 0x0:  # Single Frame: [PCI] [data...]
+        frame.append((framed_bytes[0], None))
+        for b in framed_bytes[1:]:
+            frame.append((b, pi))
+            pi += 1
+        return frame
+
+    if ftype == 0x2:  # lone Consecutive Frame: [PCI] [data...]
+        frame.append((framed_bytes[0], None))
+        for b in framed_bytes[1:]:
+            frame.append((b, pi))
+            pi += 1
+        return frame
+
+    if ftype == 0x1:  # First Frame: [PCI PCI] [6 data] then CF PCI every 8 bytes
+        for w, b in enumerate(framed_bytes):
+            in_frame_pos = w % 8
+            is_pci = (w < 2) if w < 8 else (in_frame_pos == 0)
+            if is_pci:
+                frame.append((b, None))
+            else:
+                frame.append((b, pi))
+                pi += 1
+        return frame
+
+    raise NotAFrameError(
+        f"first byte 0x{framed_bytes[0]:02X} is a Flow-Control/unknown ISO-TP "
+        "frame type, not a response payload"
+    )
+
+
 def payload_to_wican_bytes(payload_hex: str) -> bytes:
     """Raw UDS payload hex → WiCAN frame bytes (PCI inserted).
 

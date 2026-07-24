@@ -3,7 +3,7 @@
 # `canair bix`
 
 ```
-usage: canair bix [-h] [-1] [-2] [--table] [--annotate HEX [HEX ...]]
+usage: canair bix [-h] [-1] [-2] [--table] [--annotate HEX [HEX ...]] [--raw]
                   [--max MAX] [--ecu ECU] [--pid PID]
                   [value]
 
@@ -20,7 +20,13 @@ options:
   --annotate HEX [HEX ...], -a HEX [HEX ...]
                         Annotate a hex payload with all index representations
                         (e.g. 62B0047402990C0040A000AAAA, or space-separated
-                        bytes 62 B0 04 ... quoted or unquoted)
+                        bytes 62 B0 04 ... quoted or unquoted). Expects the
+                        reassembled UDS response payload (SID-first, ISO-TP
+                        PCI stripped) unless --raw.
+  --raw, --frame        With --annotate: the hex is an ALREADY-FRAMED CAN
+                        payload (ISO-TP PCI bytes present, e.g. straight off
+                        the bus) — index it as-is instead of reconstructing
+                        the framing from a PCI-stripped UDS payload.
   --max MAX             Max WiCAN index for table (default: 71)
   --ecu ECU             With --annotate: overlay which defined parameter maps
                         each byte (and flag unmapped bytes). Requires --pid.

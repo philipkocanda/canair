@@ -3,15 +3,18 @@
 import pytest
 
 from canlib.byteindex import (
+    NotAFrameError,
     bix_to_torque,
     conversion_table,
     elm_to_wican_idx,
     extract_bit_indices,
     extract_byte_indices,
+    framed_to_wican_frame,
     isotp_to_wican,
     letter_to_torque_idx,
     mapped_bits,
     mapped_offsets,
+    payload_to_wican_frame,
     torque_idx_to_letter,
     torque_to_bix,
     torque_to_wican,
@@ -386,3 +389,54 @@ class TestMappedBits:
     def test_whole_byte_param_ignored(self):
         params = {"BYTE": {"expression": "B10", "verified": True}}
         assert mapped_bits(params) == {}
+
+
+class TestFramedToWicanFrame:
+    """framed_to_wican_frame: index an ALREADY-framed CAN payload (PCI present)."""
+
+    def test_single_frame_pci_then_data(self):
+        # 0x06 SF PCI (len=6), then 62 B0 04 74 02 99
+        frame = framed_to_wican_frame([0x06, 0x62, 0xB0, 0x04, 0x74, 0x02, 0x99])
+        assert frame[0] == (0x06, None)  # PCI byte, no ISO-TP index
+        assert frame[1] == (0x62, 0)  # SID at ISO-TP 0
+        assert frame[2] == (0xB0, 1)
+        assert frame[-1] == (0x99, 5)
+
+    def test_first_frame_two_pci_then_six_data(self):
+        # 0x10 0x12 FF PCI (len=0x012=18), 6 data bytes, then a CF PCI at index 8.
+        framed = [0x10, 0x12, 0x62, 0xB0, 0x04, 0x74, 0x02, 0x99, 0x21, *range(7)]
+        frame = framed_to_wican_frame(framed)
+        assert frame[0] == (0x10, None)  # FF PCI hi
+        assert frame[1] == (0x12, None)  # FF PCI lo
+        assert frame[2] == (0x62, 0)  # SID
+        assert frame[7] == (0x99, 5)  # last data byte of frame 0
+        assert frame[8] == (0x21, None)  # CF PCI at B08
+        assert frame[9][1] == 6  # first data byte of frame 1 → ISO-TP 6
+
+    def test_consecutive_frame_alone(self):
+        frame = framed_to_wican_frame([0x21, 0xAA, 0xBB])
+        assert frame[0] == (0x21, None)
+        assert frame[1] == (0xAA, 0)
+        assert frame[2] == (0xBB, 1)
+
+    def test_round_trip_with_payload_to_wican_frame(self):
+        # Reconstructing a PCI-stripped payload and re-parsing the framed bytes
+        # must yield the same (value, isotp_index) sequence.
+        payload = [0x62, 0xB0, 0x04, 0x74, 0x02, 0x99]  # 6 bytes → single frame
+        reconstructed = payload_to_wican_frame(payload)
+        framed_bytes = [v for v, _ in reconstructed]
+        assert framed_to_wican_frame(framed_bytes) == reconstructed
+
+    def test_round_trip_multi_frame(self):
+        payload = list(range(20))  # >7 → multi-frame
+        reconstructed = payload_to_wican_frame(payload)
+        framed_bytes = [v for v, _ in reconstructed]
+        assert framed_to_wican_frame(framed_bytes) == reconstructed
+
+    def test_flow_control_frame_rejected(self):
+        with pytest.raises(NotAFrameError):
+            framed_to_wican_frame([0x30, 0x00, 0x0A])
+
+    def test_empty_rejected(self):
+        with pytest.raises(NotAFrameError):
+            framed_to_wican_frame([])

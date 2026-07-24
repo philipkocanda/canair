@@ -94,7 +94,17 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         nargs="+",
         help="Annotate a hex payload with all index representations "
         "(e.g. 62B0047402990C0040A000AAAA, or space-separated bytes "
-        "62 B0 04 ... quoted or unquoted)",
+        "62 B0 04 ... quoted or unquoted). Expects the reassembled UDS "
+        "response payload (SID-first, ISO-TP PCI stripped) unless --raw.",
+    )
+    parser.add_argument(
+        "--raw",
+        "--frame",
+        dest="raw_frame",
+        action="store_true",
+        help="With --annotate: the hex is an ALREADY-FRAMED CAN payload (ISO-TP "
+        "PCI bytes present, e.g. straight off the bus) — index it as-is instead "
+        "of reconstructing the framing from a PCI-stripped UDS payload.",
     )
     parser.add_argument(
         "--max", type=int, default=71, help="Max WiCAN index for table (default: 71)"
@@ -319,8 +329,64 @@ def _parse_hex_payload(raw: str) -> list[int]:
     return payload
 
 
-def _annotate_payload(payload_hex: str, sub_bytes: int, params: dict | None = None):
+def _looks_like_pci_first_byte(b: int) -> bool:
+    """True if ``b`` looks like an ISO-TP PCI byte (SF/FF/CF/FC frame type).
+
+    The high nibble encodes the frame type (0/1/2/3), so a PCI first byte is
+    ``0x00``–``0x3F``. UDS positive-response SIDs are request SID + 0x40, landing
+    in ``0x50``–``0x7F`` (0x7F = negative response) — a disjoint range. So a
+    first byte < 0x40 is reliably a framing byte, not a UDS response SID.
+    """
+    return b < 0x40
+
+
+def _looks_like_uds_sid(b: int) -> bool:
+    """True if ``b`` looks like a UDS response SID (positive 0x40–0x7E, or 0x7F).
+
+    Disjoint from :func:`_looks_like_pci_first_byte` — used to warn when a
+    PCI-stripped UDS payload is passed to ``--raw`` (which expects framing).
+    """
+    return 0x40 <= b <= 0x7F
+
+
+def _warn_payload_kind_mismatch(first_byte: int, raw_frame: bool):
+    """Warn (reliably) when the input's first byte contradicts the chosen mode.
+
+    Ranges are disjoint (see the two predicates), so this never false-positives on
+    a well-formed input: a raw frame always starts < 0x40, a UDS response payload
+    always starts 0x40–0x7F. It's a warning, not a hard error — an odd fragment
+    shouldn't be blocked outright — but it names the likely fix.
+    """
+    if not raw_frame and _looks_like_pci_first_byte(first_byte):
+        print(
+            f"  Warning: first byte 0x{first_byte:02X} looks like an ISO-TP PCI "
+            "byte, not a UDS response SID.\n"
+            "  --annotate expects the reassembled UDS payload (SID-first, PCI "
+            "stripped). If this is a raw\n"
+            "  CAN frame straight off the bus, pass --raw.",
+            file=sys.stderr,
+        )
+    elif raw_frame and _looks_like_uds_sid(first_byte):
+        print(
+            f"  Warning: first byte 0x{first_byte:02X} looks like a UDS response "
+            "SID, not an ISO-TP PCI byte.\n"
+            "  --raw expects an already-framed CAN payload (PCI present). If this "
+            "is a PCI-stripped UDS\n"
+            "  payload, drop --raw.",
+            file=sys.stderr,
+        )
+
+
+def _annotate_payload(
+    payload_hex: str, sub_bytes: int, params: dict | None = None, *, raw_frame: bool = False
+) -> int:
     """Annotate each byte of a UDS response payload with WiCAN Bnn indices.
+
+    By default ``payload_hex`` is the **reassembled UDS response payload**
+    (SID-first, ISO-TP PCI bytes stripped — what the transport/captures hand
+    back); the framing is reconstructed to show the WiCAN indices. With
+    ``raw_frame=True`` the hex is an **already-framed CAN payload** (PCI present,
+    e.g. copied straight off the bus) and is indexed as-is.
 
     When ``params`` (a PID's ``parameters`` dict) is given, add a ``Param`` column
     showing which defined parameter maps each byte (``[NAME]`` verified,
@@ -328,10 +394,19 @@ def _annotate_payload(payload_hex: str, sub_bytes: int, params: dict | None = No
     param reads as ``unmapped`` — the overlay that makes a wrong byte offset
     obvious at a glance.
     """
-    from canlib.byteindex import mapped_bits, mapped_offsets
+    from canlib.byteindex import NotAFrameError, framed_to_wican_frame, mapped_bits, mapped_offsets
 
     payload_bytes = _parse_hex_payload(payload_hex)
-    frame = payload_to_wican_frame(payload_bytes)
+    if payload_bytes:
+        _warn_payload_kind_mismatch(payload_bytes[0], raw_frame)
+    if raw_frame:
+        try:
+            frame = framed_to_wican_frame(payload_bytes)
+        except NotAFrameError as e:
+            print(f"Error: {e}.", file=sys.stderr)
+            return 1
+    else:
+        frame = payload_to_wican_frame(payload_bytes)
 
     header_size = 1 + sub_bytes
     overlay = params is not None
@@ -395,6 +470,7 @@ def _annotate_payload(payload_hex: str, sub_bytes: int, params: dict | None = No
         if overlay:
             line += f" | {_param_cell(w, byte_val, role, mapped, mbits)}"
         print(_c(line, _DIM) if role == "PCI" else line)
+    return 0
 
 
 def _param_cell(offset: int, byte_val: int, role: str, mapped: dict, mbits: dict) -> str:
@@ -456,8 +532,13 @@ def run(args) -> int:
         elif args.pid:
             print("Error: --pid requires --ecu.", file=sys.stderr)
             return 1
-        _annotate_payload(" ".join(args.annotate), args.sub_bytes, params)
-        return 0
+        return _annotate_payload(
+            " ".join(args.annotate), args.sub_bytes, params, raw_frame=args.raw_frame
+        )
+
+    if args.raw_frame:
+        print("Error: --raw only applies to --annotate.", file=sys.stderr)
+        return 1
 
     if not args.value:
         _print_overview(args.sub_bytes)

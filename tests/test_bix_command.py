@@ -357,3 +357,91 @@ def test_table_max_limits_rendered_frames(capsys):
     assert "Frame 1" not in out
     assert "|   B07 |" in out
     assert "|   B08 |" not in out
+
+
+# ── --annotate --raw: index an already-framed CAN payload (PCI present) ──
+
+
+def test_annotate_raw_frame_indexes_as_is(capsys):
+    # 0x06 SF PCI + 62 B0 04 74 02 99: SID must land at B01 (the byte after the
+    # single PCI byte), NOT be treated as data and re-framed.
+    args = _parse(["-2", "--raw", "-a", "0662B004740299"])
+    assert bix.run(args) == 0
+    out = capsys.readouterr().out
+    assert "SID" in _row(out, "B01")
+    assert "0x62" in _row(out, "B01")  # the real SID sits at B01
+    assert "0x06" in _row(out, "B00")  # PCI byte stays at B00
+
+
+def test_annotate_raw_matches_reconstructed(capsys):
+    # Annotating a raw single-frame payload (--raw) and the equivalent PCI-stripped
+    # payload (default) must agree on every data byte's WiCAN index.
+    a_raw = _parse(["-2", "--raw", "-a", "0662B004740299"])
+    assert bix.run(a_raw) == 0
+    raw_out = capsys.readouterr().out
+
+    a_uds = _parse(["-2", "-a", "62B004740299"])
+    assert bix.run(a_uds) == 0
+    uds_out = capsys.readouterr().out
+
+    for wican in ("B01", "B04", "B06"):
+        assert _row(raw_out, wican).split("|")[1:] == _row(uds_out, wican).split("|")[1:]
+
+
+def test_annotate_raw_flow_control_frame_errors(capsys):
+    args = _parse(["--raw", "-a", "30000A"])
+    assert bix.run(args) == 1
+    assert "Flow-Control" in capsys.readouterr().err
+
+
+def test_raw_without_annotate_errors(capsys):
+    args = _parse(["--raw"])
+    assert bix.run(args) == 1
+    assert "--raw only applies to --annotate" in capsys.readouterr().err
+
+
+# ── reliable payload-kind mismatch warnings (disjoint SID / PCI ranges) ──
+
+
+def test_annotate_warns_when_raw_frame_passed_without_raw(capsys):
+    # 0x06 first byte is a PCI byte (< 0x40), not a UDS SID → warn, suggest --raw.
+    args = _parse(["-2", "-a", "0662B004"])
+    assert bix.run(args) == 0
+    err = capsys.readouterr().err
+    assert "looks like an ISO-TP PCI byte" in err
+    assert "--raw" in err
+
+
+def test_annotate_warns_when_uds_payload_passed_with_raw(capsys):
+    # 0x62 first byte is a UDS SID (0x40-0x7F), not a PCI byte, so warn + suggest
+    # dropping --raw. (It also then errors because 0x62 isn't a valid frame type.)
+    args = _parse(["-2", "--raw", "-a", "62B004740299"])
+    assert bix.run(args) == 1
+    err = capsys.readouterr().err
+    assert "looks like a UDS response SID" in err
+    assert "drop --raw" in err
+
+
+def test_annotate_no_warning_for_wellformed_uds_payload(capsys):
+    args = _parse(["-2", "-a", "62B004740299"])
+    assert bix.run(args) == 0
+    assert "Warning" not in capsys.readouterr().err
+
+
+def test_annotate_no_warning_for_wellformed_raw_frame(capsys):
+    args = _parse(["-2", "--raw", "-a", "0662B004740299"])
+    assert bix.run(args) == 0
+    assert "Warning" not in capsys.readouterr().err
+
+
+def test_looks_like_predicates_are_disjoint():
+    # The reliability guarantee: no byte value is both a plausible PCI first byte
+    # and a plausible UDS response SID.
+    for b in range(256):
+        assert not (bix._looks_like_pci_first_byte(b) and bix._looks_like_uds_sid(b))
+    assert bix._looks_like_pci_first_byte(0x06)  # SF PCI
+    assert bix._looks_like_pci_first_byte(0x10)  # FF PCI
+    assert bix._looks_like_pci_first_byte(0x21)  # CF PCI
+    assert bix._looks_like_uds_sid(0x62)  # 22xxxx response
+    assert bix._looks_like_uds_sid(0x61)  # 21xx response
+    assert bix._looks_like_uds_sid(0x7F)  # negative response

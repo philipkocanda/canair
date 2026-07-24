@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`canair bix --annotate --raw` (alias `--frame`)** annotates an already-framed
+  CAN payload (ISO-TP PCI bytes present, e.g. copied straight off the bus),
+  indexing the bytes as-is instead of reconstructing the framing from a
+  PCI-stripped UDS payload. `--annotate` also now reliably warns when the input's
+  first byte contradicts the chosen mode — a UDS response SID (`0x40`–`0x7F`) and
+  an ISO-TP PCI first byte (`0x00`–`0x3F`) occupy disjoint ranges — so a raw frame
+  fed without `--raw` (or a PCI-stripped payload passed with `--raw`) is caught
+  rather than silently mislabelled; a Flow-Control/invalid frame under `--raw`
+  errors.
 - **`canair bix` (no arguments) now prints a guided overview** instead of an
   error: a plain-language legend explaining each notation (WiCAN / ISO-TP /
   Torque / bix) and the `PCI`/`FF`/`CF`/`SID`/`PID`/`DID` Role labels, a compact

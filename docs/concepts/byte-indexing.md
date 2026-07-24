@@ -42,8 +42,18 @@ the `PCI`/`SID`/`PID`/`DID` Role labels, plus a compact 2-frame table:
 canair bix                       # guided overview: legend + a compact 2-frame table
 canair bix w9                    # quick lookup for WiCAN byte 9
 canair bix --table               # the full conversion table, grouped by CAN frame
-canair bix --annotate 62B004…    # map a raw payload: WiCAN/ISO-TP/Torque/bix per byte
+canair bix --annotate 62B004…    # map a reassembled UDS payload (SID-first, PCI stripped)
+canair bix --annotate 1012… --raw  # map an already-framed CAN payload (PCI present)
 ```
+
+`--annotate` expects the **reassembled UDS response payload** — SID-first, with
+the ISO-TP PCI bytes already stripped (what the transport and captures hand back);
+it reconstructs the framing to show the WiCAN indices. If instead you have a **raw
+CAN frame** straight off the bus (PCI bytes still present), pass `--raw` and it
+indexes the bytes as-is. `bix` reliably warns when the input's first byte
+contradicts the chosen mode — a UDS response SID (`0x40`–`0x7F`) and an ISO-TP PCI
+first byte (`0x00`–`0x3F`) occupy disjoint ranges — so a raw frame fed without
+`--raw` (or vice versa) is caught rather than silently mislabelled.
 
 `--table` groups its rows by 8-byte CAN frame with `── Frame N ──` dividers and a
 `Role` column that marks the ISO-TP framing (`FF PCI` / `CF PCI`) and UDS header
