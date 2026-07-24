@@ -184,6 +184,43 @@ def extract_byte_indices(expression: str) -> set[int]:
     return indices
 
 
+def extract_bit_indices(expression: str) -> set[tuple[int, int]]:
+    """Extract ``(byte_offset, bit)`` pairs a WiCAN expression reads bit-wise.
+
+    Only explicit bit accessors ``Bn:k`` / ``Sn:k`` are returned (e.g. ``B10:5``
+    → ``(10, 5)``). Whole-byte and multi-byte reads produce no bit pairs — use
+    :func:`extract_byte_indices` for byte-level coverage.
+    """
+    bits: set[tuple[int, int]] = set()
+    for m in re.finditer(r"(?<!\[)[BS](\d+):(\d+)(?!\d)", expression):
+        bits.add((int(m.group(1)), int(m.group(2))))
+    return bits
+
+
+def mapped_bits(
+    parameters: dict, *, include_unverified: bool = True
+) -> dict[tuple[int, int], tuple[str, bool]]:
+    """Which ``(offset, bit)`` positions a PID's params cover, and at what confidence.
+
+    Returns ``{(offset, bit): (param_name, verified)}`` for params that read an
+    individual bit (``Bn:k``). First writer wins, but a verified mapping upgrades
+    an unverified one for the same bit — mirroring :func:`mapped_offsets`.
+    """
+    mapped: dict[tuple[int, int], tuple[str, bool]] = {}
+    for name, pdef in parameters.items():
+        expr = pdef.get("expression") or ""
+        if not expr:
+            continue
+        verified = bool(pdef.get("verified", False))
+        if not verified and not include_unverified:
+            continue
+        for pos in extract_bit_indices(expr):
+            prev = mapped.get(pos)
+            if prev is None or (verified and not prev[1]):
+                mapped[pos] = (name, verified)
+    return mapped
+
+
 def mapped_offsets(
     parameters: dict, *, include_unverified: bool = True
 ) -> dict[int, tuple[str, bool]]:

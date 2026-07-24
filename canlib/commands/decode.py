@@ -56,6 +56,8 @@ from canlib.commands._decode_plot import (
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.commands._hints import pid_completer as _pid_completer
 from canlib.expression import evaluate_expression
+from canlib.keepmode import BANNER as KEEP_BANNER
+from canlib.keepmode import scope_is_keep_unique
 from canlib.pids import build_ecu_index, load_pids
 from canlib.states import join_states as _join_states
 from canlib.stats import correlation as _correlation
@@ -103,6 +105,7 @@ def load_captures(ecu: str, pid: str) -> list[dict]:
                 "payload": e["payload"],
                 "notes": e.get("notes", ""),
                 "time": e.get("time", ""),
+                "keep_mode": e.get("keep_mode", ""),
             }
         )
     return entries
@@ -1366,6 +1369,16 @@ def run(args) -> int:
     scope_banner = _scope_banner(since, until, args.state, args.label, args.first, args.last)
     if scope_banner:
         print(f"  {_DIM}scope: {scope_banner}{_RESET}\n")
+
+    if scope_is_keep_unique(captures):
+        print(f"  {_YELLOW}⚠ {KEEP_BANNER}.{_RESET}")
+        if args.corr_transform in ("delta", "cumsum"):
+            print(
+                f"  {_YELLOW}  ⚠ --corr-transform {args.corr_transform} on keep:unique data is "
+                f"unreliable — the time gaps between stored rows are dedup artifacts, not "
+                f"real sampling intervals.{_RESET}"
+            )
+        print()
 
     if args.compact:
         print_compact(

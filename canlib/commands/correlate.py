@@ -23,6 +23,8 @@ from canlib.align import (
     load_signal_captures,
 )
 from canlib.capture_dates import add_scope_args, entry_datetime, resolve_date_bounds
+from canlib.keepmode import BANNER as KEEP_BANNER
+from canlib.keepmode import scope_is_keep_unique
 from canlib.xanalysis import (
     build_bit_series,
     build_byte_series,
@@ -189,6 +191,14 @@ examples:
         "time-aligned samples (and how many) in scope — pick a viable "
         "--against reference without trial and error",
     )
+    parser.add_argument(
+        "--find-mirrors",
+        action="store_true",
+        help="Instead of ranking correlations, report byte/bit positions that are "
+        "time-aligned equal ACROSS co-polled ECU/PIDs — e.g. a door bit in IGPM "
+        "mirrored in BCM. Use with --bits for bit-level. Cross-ECU companion to "
+        "`decode --find-mirrors` (which is single-PID)",
+    )
     add_scope_args(parser)
     parser.set_defaults(func=run)
     return parser
@@ -221,6 +231,12 @@ def _discover_specs(query, since, until, state, label):
             continue
         specs.add((ecu, pid))
     return sorted(specs)
+
+
+def _scope_keep_unique(specs, since, until, state, label) -> bool:
+    """True if any capture in scope came from a keep:unique session."""
+    loaded = load_signal_captures(specs, since=since, until=until, state=state, label=label)
+    return any(scope_is_keep_unique(lp.captures) for lp in loaded.values())
 
 
 def _gather_series(specs, since, until, state, label, want_bytes, want_bits=False):
@@ -292,6 +308,71 @@ def _print_overlap(specs, since, until, state, label, tol, min_n, as_json) -> in
     for a, b, n in shown:
         color = _GREEN if n >= 50 else _YELLOW if n >= min_n else _DIM
         print(f"    {color}n={n:<4}{_RESET} {a}  {_DIM}⟷{_RESET}  {b}")
+    print()
+    return 0
+
+
+def _print_cross_mirrors(specs, since, until, state, label, tol, min_n, bits, as_json) -> int:
+    """Report byte/bit positions equal across co-polled ECU/PIDs (time-aligned).
+
+    The cross-ECU companion to ``decode --find-mirrors`` (single-PID). Builds a
+    varying byte (and, with ``bits``, bit) series per ECU:PID, time-aligns every
+    cross-PID pair by nearest timestamp, and reports pairs equal in *all* aligned
+    samples — a status bit an ECU exposes that another mirrors (e.g. an IGPM door
+    bit also present in BCM). Same-PID pairs are excluded (that's decode's job).
+    """
+    loaded = load_signal_captures(specs, since=since, until=until, state=state, label=label)
+    series: dict[str, list[TimePoint]] = {}
+    for lp in loaded.values():
+        if not lp.captures:
+            continue
+        series.update(build_byte_series(lp, min_distinct=2))
+        if bits:
+            series.update(build_bit_series(lp))
+
+    def pid_of(sig_label: str) -> tuple[str, str]:
+        ecu, pid, *_ = sig_label.split(":")
+        return ecu, pid
+
+    names = sorted(series)
+    mirrors: list[tuple[str, str, int]] = []
+    for i in range(len(names)):
+        for j in range(i + 1, len(names)):
+            a, b = names[i], names[j]
+            if pid_of(a) == pid_of(b):
+                continue  # same PID — that's `decode --find-mirrors`
+            xs, ys, n = join_nearest(series[a], series[b], tol_s=tol)
+            if n < min_n:
+                continue
+            if all(x == y for x, y in zip(xs, ys, strict=True)):
+                mirrors.append((a, b, n))
+    mirrors.sort(key=lambda t: -t[2])
+
+    if as_json:
+        _json.dump(
+            {
+                "join_tol_s": tol,
+                "bits": bits,
+                "mirrors": [{"a": a, "b": b, "n": n} for a, b, n in mirrors],
+            },
+            sys.stdout,
+            indent=2,
+            default=str,
+        )
+        print()
+        return 0
+
+    print(
+        f"\n  {_BOLD}Cross-ECU mirrors{_RESET} "
+        f"{_DIM}(time-aligned equal across PIDs, ≤{tol:g}s join, n≥{min_n}){_RESET}"
+    )
+    if not mirrors:
+        print(
+            f"    {_DIM}no cross-PID byte/bit position is equal across all aligned samples{_RESET}\n"
+        )
+        return 0
+    for a, b, n in mirrors:
+        print(f"    {_GREEN}n={n:<4}{_RESET} {a}  {_DIM}=={_RESET}  {b}")
     print()
     return 0
 
@@ -391,6 +472,34 @@ def run(args) -> int:
         return _print_overlap(
             specs, since, until, args.state, args.label, args.join_tol, args.min_n, args.json
         )
+
+    if args.find_mirrors:
+        return _print_cross_mirrors(
+            specs,
+            since,
+            until,
+            args.state,
+            args.label,
+            args.join_tol,
+            args.min_n,
+            args.bits,
+            args.json,
+        )
+
+    keep_unique = _scope_keep_unique(specs, since, until, args.state, args.label)
+    if keep_unique and not args.json:
+        print(f"  {_YELLOW}⚠ {KEEP_BANNER}.{_RESET}")
+        if args.transform in ("delta", "cumsum") or args.lag_scan:
+            what = (
+                f"--transform {args.transform}"
+                if args.transform in ("delta", "cumsum")
+                else "--lag-scan"
+            )
+            print(
+                f"  {_YELLOW}  ⚠ {what} on keep:unique data is unreliable — stored-row time "
+                f"gaps are dedup artifacts, not real sampling intervals.{_RESET}"
+            )
+        print()
 
     series = _gather_series(
         specs,

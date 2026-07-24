@@ -761,6 +761,10 @@ def _run_pids(files: list[str] | None, stats: bool) -> int:
 
         # Cross-file: an ECU short name (or alias) must be unique across ecus/.
         all_errors.extend(_duplicate_name_errors(file_paths))
+        # Cross-file: a shipped parameter name must be unique across all PIDs
+        # (the device turns each into a distinct signal). Caught here, not just
+        # at `wican autopid write`.
+        all_errors.extend(_duplicate_param_errors(file_paths))
 
     # Print results
     if all_warnings:
@@ -845,7 +849,47 @@ def _duplicate_name_errors(file_paths: list[Path]) -> list[str]:
     return errors
 
 
-# ── ecus validation (alias for pids — the per-ECU files are the registry) ──
+def _duplicate_param_errors(file_paths: list[Path]) -> list[str]:
+    """Flag a parameter NAME shipped by more than one PID (a device collision).
+
+    Mirrors the wican profile-generation gate (``active`` PID + ``enabled``
+    param): those params become distinct signals on the device and their names
+    must be globally unique. Catching it here means CI/`validate` fails before
+    `wican autopid write` does. See ``wican.generate_profile``.
+    """
+    from canlib.pids import pid_status
+
+    errors: list[str] = []
+    origin: dict[str, str] = {}
+    for fpath in file_paths:
+        if fpath.name.startswith("_"):
+            continue
+        try:
+            with open(fpath) as f:
+                data = yaml.safe_load(f) or {}
+        except (OSError, yaml.YAMLError):
+            continue
+        if not isinstance(data, dict):
+            continue
+        for ecu_name, ecu_def in data.items():
+            if not isinstance(ecu_def, dict):
+                continue
+            for pid_code, pid_def in (ecu_def.get("pids") or {}).items():
+                if not isinstance(pid_def, dict) or pid_status(pid_def) != "active":
+                    continue
+                for pname, param in (pid_def.get("parameters") or {}).items():
+                    if not isinstance(param, dict) or not param.get("enabled", True):
+                        continue
+                    where = f"{ecu_name} {pid_code}"
+                    if pname in origin and origin[pname] != where:
+                        errors.append(
+                            f"duplicate shipped parameter name '{pname}' in {where} "
+                            f"(also {origin[pname]}) — each shipped signal name must be "
+                            f"unique across all PIDs (rename one via `canair pids rename-param`)"
+                        )
+                    else:
+                        origin[pname] = where
+    return errors
 
 
 def _run_ecus() -> int:

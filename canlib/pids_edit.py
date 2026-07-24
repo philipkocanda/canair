@@ -1157,6 +1157,109 @@ def upsert_parameter(
     return fpath
 
 
+def rename_parameter(
+    ecu_name: str, pid: str, old_name: str, new_name: str, *, pids_dir: Path | None = None
+) -> Path:
+    """Rename a parameter's key under ``ECU.pids.<PID>.parameters``.
+
+    Only the mapping key is changed; the param's fields and formatting are
+    preserved. Fails if ``old_name`` is absent or ``new_name`` already exists.
+    Verified by YAML re-parse; the file is restored on failure.
+    """
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", new_name or ""):
+        raise PidsEditError(f"invalid parameter name {new_name!r}")
+
+    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
+    original = fpath.read_text()
+    ecu_key = ecu_name.strip().upper()
+    pid_u = str(pid).strip().upper()
+
+    def transform(text: str) -> str:
+        e_start, e_end = _find_ecu_block(text, ecu_name)
+        pids = _keyed_block(text, "pids", 2, e_start, e_end)
+        if not pids:
+            raise PidsEditError(f"ECU {ecu_name!r} has no pids: section")
+        pidb = _keyed_block(text, pid_u, 4, pids[2], pids[3])
+        if not pidb:
+            raise PidsEditError(f"PID {pid!r} not found on {ecu_name}")
+        params = _keyed_block(text, "parameters", 6, pidb[2], pidb[3])
+        if not params:
+            raise PidsEditError(f"PID {pid!r} has no parameters:")
+        if _keyed_block(text, new_name, 8, params[2], params[3]):
+            raise PidsEditError(f"parameter {new_name!r} already exists on {ecu_name} {pid}")
+        existing = _keyed_block(text, old_name, 8, params[2], params[3])
+        if not existing:
+            raise PidsEditError(f"parameter {old_name!r} not found on {ecu_name} {pid}")
+        hdr = existing[0]
+        renamed = re.sub(
+            rf"^( {{8}}){re.escape(old_name)}:",
+            rf"\g<1>{new_name}:",
+            text[hdr : existing[1] + 1],
+            count=1,
+        )
+        return text[:hdr] + renamed + text[existing[1] + 1 :]
+
+    def checker(ecu_def: dict) -> None:
+        pids_map = ecu_def.get("pids", {})
+        match = next((v for k, v in pids_map.items() if str(k).upper() == pid_u), None)
+        params = (match or {}).get("parameters") or {}
+        if new_name not in params:
+            raise PidsEditError(f"parameter {new_name!r} missing after rename")
+        if old_name in params:
+            raise PidsEditError(f"old parameter {old_name!r} still present after rename")
+
+    new_text = transform(original)
+    _safe_write(fpath, original, new_text, ecu_key, checker)
+    return fpath
+
+
+def delete_parameter(
+    ecu_name: str, pid: str, param_name: str, *, pids_dir: Path | None = None
+) -> Path:
+    """Remove a parameter block from ``ECU.pids.<PID>.parameters``.
+
+    Fails if the parameter is absent. Verified by YAML re-parse; the file is
+    restored on failure.
+    """
+    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
+    original = fpath.read_text()
+    ecu_key = ecu_name.strip().upper()
+    pid_u = str(pid).strip().upper()
+
+    def transform(text: str) -> str:
+        e_start, e_end = _find_ecu_block(text, ecu_name)
+        pids = _keyed_block(text, "pids", 2, e_start, e_end)
+        if not pids:
+            raise PidsEditError(f"ECU {ecu_name!r} has no pids: section")
+        pidb = _keyed_block(text, pid_u, 4, pids[2], pids[3])
+        if not pidb:
+            raise PidsEditError(f"PID {pid!r} not found on {ecu_name}")
+        params = _keyed_block(text, "parameters", 6, pidb[2], pidb[3])
+        if not params:
+            raise PidsEditError(f"PID {pid!r} has no parameters:")
+        existing = _keyed_block(text, param_name, 8, params[2], params[3])
+        if not existing:
+            raise PidsEditError(f"parameter {param_name!r} not found on {ecu_name} {pid}")
+        start, end = existing[0], existing[3]
+        # _keyed_block's body_end absorbs trailing blank lines that visually
+        # separate this param from the next sibling. Keep them so removing a
+        # param doesn't silently collapse the spacing around neighbours.
+        block = text[start:end]
+        trailing = block[len(block.rstrip("\n")) :]
+        return text[:start] + trailing + text[end:]
+
+    def checker(ecu_def: dict) -> None:
+        pids_map = ecu_def.get("pids", {})
+        match = next((v for k, v in pids_map.items() if str(k).upper() == pid_u), None)
+        params = (match or {}).get("parameters") or {}
+        if param_name in params:
+            raise PidsEditError(f"parameter {param_name!r} still present after delete")
+
+    new_text = transform(original)
+    _safe_write(fpath, original, new_text, ecu_key, checker)
+    return fpath
+
+
 def _remove_field_line(block: str, field: str, indent: int) -> str:
     """Drop a scalar ``field:`` line at ``indent`` spaces from ``block``."""
     field_re = re.compile(rf"^ {{{indent}}}{re.escape(field)}:")

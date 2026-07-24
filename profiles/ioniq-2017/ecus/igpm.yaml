@@ -286,6 +286,7 @@ IGPM:
           notes: >
             Hood/bonnet ajar sensor. 1=open. Discovered 2026-07-24: B11 flipped 0x00->0x01 exactly at the narrated 'open hood' step (09:38:03), while the driver door was still open, in sleep mode with no ACC power. Single clean event so far — verify with a second open/close cycle. Note: this also reassigns 'possible hood' away from B10:6 (UNKNOWN_B10_6), which did NOT change on hood open.
 
+
     22BC04:
       status: active
       period: 2500

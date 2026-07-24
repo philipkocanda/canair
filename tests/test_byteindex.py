@@ -6,9 +6,11 @@ from canlib.byteindex import (
     bix_to_torque,
     conversion_table,
     elm_to_wican_idx,
+    extract_bit_indices,
     extract_byte_indices,
     isotp_to_wican,
     letter_to_torque_idx,
+    mapped_bits,
     mapped_offsets,
     torque_idx_to_letter,
     torque_to_bix,
@@ -337,3 +339,50 @@ class TestConversionTable:
         table = conversion_table(max_wican=71)
         pci_wican = [r["wican"] for r in table if r["isotp"] is None]
         assert pci_wican == [0, 1, 8, 16, 24, 32, 40, 48, 56, 64]
+
+
+class TestExtractBitIndices:
+    """extract_bit_indices returns only explicit (offset, bit) accessors."""
+
+    def test_single_bit(self):
+        assert extract_bit_indices("B10:5") == {(10, 5)}
+
+    def test_signed_bit(self):
+        assert extract_bit_indices("S11:0") == {(11, 0)}
+
+    def test_multiple_bits(self):
+        assert extract_bit_indices("B10:0 | B10:7 | B11:3") == {(10, 0), (10, 7), (11, 3)}
+
+    def test_whole_byte_has_no_bits(self):
+        assert extract_bit_indices("B10") == set()
+
+    def test_multibyte_range_has_no_bits(self):
+        assert extract_bit_indices("[B10:B11]") == set()
+
+
+class TestMappedBits:
+    """mapped_bits maps (offset, bit) -> (param, verified)."""
+
+    def test_maps_bits(self):
+        params = {
+            "DOOR": {"expression": "B10:5", "verified": True},
+            "HOOD": {"expression": "B11:0", "verified": False},
+        }
+        m = mapped_bits(params)
+        assert m[(10, 5)] == ("DOOR", True)
+        assert m[(11, 0)] == ("HOOD", False)
+
+    def test_verified_upgrades(self):
+        params = {
+            "A": {"expression": "B10:5", "verified": False},
+            "B": {"expression": "B10:5", "verified": True},
+        }
+        assert mapped_bits(params)[(10, 5)] == ("B", True)
+
+    def test_exclude_unverified(self):
+        params = {"A": {"expression": "B10:5", "verified": False}}
+        assert mapped_bits(params, include_unverified=False) == {}
+
+    def test_whole_byte_param_ignored(self):
+        params = {"BYTE": {"expression": "B10", "verified": True}}
+        assert mapped_bits(params) == {}

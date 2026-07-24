@@ -287,3 +287,80 @@ class TestResearch:
 
 def _load2(pids_dir):
     return yaml.safe_load((pids_dir / "test2.yaml").read_text())
+
+
+class TestRenameParameter:
+    def test_rename_preserves_fields(self, pids_dir):
+        from canlib.pids_edit import rename_parameter
+
+        rename_parameter("TESTECU", "2101", "EXISTING", "RENAMED", pids_dir=pids_dir)
+        params = _load(pids_dir)["TESTECU"]["pids"][2101]["parameters"]
+        assert "EXISTING" not in params
+        assert params["RENAMED"]["expression"] == "B3"
+        assert params["RENAMED"]["unit"] == "%"
+        assert params["RENAMED"]["verified"] is True
+
+    def test_rename_preserves_header_comment(self, pids_dir):
+        from canlib.pids_edit import rename_parameter
+
+        rename_parameter("TESTECU", "2101", "EXISTING", "RENAMED", pids_dir=pids_dir)
+        assert "Header comment that must survive edits" in (pids_dir / "test.yaml").read_text()
+
+    def test_rename_missing_raises(self, pids_dir):
+        from canlib.pids_edit import rename_parameter
+
+        with pytest.raises(PidsEditError, match="not found"):
+            rename_parameter("TESTECU", "2101", "NOPE", "X", pids_dir=pids_dir)
+
+    def test_rename_collision_raises(self, pids_dir):
+        from canlib.pids_edit import rename_parameter, upsert_parameter
+
+        upsert_parameter("TESTECU", "2101", "OTHER", "B4", pids_dir=pids_dir)
+        with pytest.raises(PidsEditError, match="already exists"):
+            rename_parameter("TESTECU", "2101", "EXISTING", "OTHER", pids_dir=pids_dir)
+
+    def test_rename_invalid_name_raises(self, pids_dir):
+        from canlib.pids_edit import rename_parameter
+
+        with pytest.raises(PidsEditError, match="invalid parameter name"):
+            rename_parameter("TESTECU", "2101", "EXISTING", "bad name", pids_dir=pids_dir)
+
+
+class TestDeleteParameter:
+    def test_delete_removes(self, pids_dir):
+        from canlib.pids_edit import delete_parameter
+
+        delete_parameter("TESTECU", "2101", "EXISTING", pids_dir=pids_dir)
+        params = _load(pids_dir)["TESTECU"]["pids"][2101]["parameters"] or {}
+        assert "EXISTING" not in params
+
+    def test_delete_missing_raises(self, pids_dir):
+        from canlib.pids_edit import delete_parameter
+
+        with pytest.raises(PidsEditError, match="not found"):
+            delete_parameter("TESTECU", "2101", "NOPE", pids_dir=pids_dir)
+
+    def test_delete_preserves_other_params(self, pids_dir):
+        from canlib.pids_edit import delete_parameter, upsert_parameter
+
+        upsert_parameter("TESTECU", "2101", "KEEP", "B5", pids_dir=pids_dir)
+        delete_parameter("TESTECU", "2101", "EXISTING", pids_dir=pids_dir)
+        params = _load(pids_dir)["TESTECU"]["pids"][2101]["parameters"]
+        assert "KEEP" in params and "EXISTING" not in params
+
+    def test_delete_preserves_following_pid_separator(self, pids_dir):
+        # Deleting a PID's last param must not collapse the blank line separating
+        # it from the next PID header (the whitespace-drift bug this guards).
+        from canlib.pids_edit import delete_parameter
+
+        # Insert a blank line before 2102 (mirrors real files' spacing).
+        text = (pids_dir / "test.yaml").read_text().replace("\n    2102:", "\n\n    2102:", 1)
+        (pids_dir / "test.yaml").write_text(text)
+        assert "\n\n    2102:" in text  # precondition
+        delete_parameter("TESTECU", "2101", "EXISTING", pids_dir=pids_dir)
+        after = (pids_dir / "test.yaml").read_text()
+        assert "\n\n    2102:" in after  # blank separator preserved
+        assert yaml.safe_load(after)["TESTECU"]["pids"][2102] == {
+            "enabled": False,
+            "parameters": {},
+        }

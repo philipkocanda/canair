@@ -60,3 +60,55 @@ class TestRealPidsHaveNoPciBytes:
                         expr = pmeta.get("expression", "") or ""
                         offenders += check_pci_bytes(expr, pname, str(pid), ecu)
         assert not offenders, "PCI bytes referenced:\n" + "\n".join(offenders)
+
+
+class TestDuplicateParamNames:
+    """_duplicate_param_errors flags a shipped signal name used by >1 PID."""
+
+    def _write(self, tmp_path, second_status="active", second_enabled=True):
+        import textwrap
+
+        (tmp_path / "a.yaml").write_text(
+            textwrap.dedent(
+                """\
+                ECUA:
+                  tx_id: 0x7E0
+                  pids:
+                    2101:
+                      status: active
+                      parameters:
+                        SHARED:
+                          expression: "B3"
+                          verified: true
+                """
+            )
+        )
+        (tmp_path / "b.yaml").write_text(
+            textwrap.dedent(
+                f"""\
+                ECUB:
+                  tx_id: 0x7E1
+                  pids:
+                    2102:
+                      status: {second_status}
+                      parameters:
+                        SHARED:
+                          expression: "B3"
+                          verified: true
+                          enabled: {"true" if second_enabled else "false"}
+                """
+            )
+        )
+        return sorted(tmp_path.glob("*.yaml"))
+
+    def test_flags_duplicate_shipped_name(self, tmp_path):
+        errs = validate_pids._duplicate_param_errors(self._write(tmp_path))
+        assert any("SHARED" in e and "ECUB 2102" in e for e in errs)
+
+    def test_ignores_when_second_pid_not_active(self, tmp_path):
+        errs = validate_pids._duplicate_param_errors(self._write(tmp_path, second_status="draft"))
+        assert not errs
+
+    def test_ignores_when_second_param_disabled(self, tmp_path):
+        errs = validate_pids._duplicate_param_errors(self._write(tmp_path, second_enabled=False))
+        assert not errs

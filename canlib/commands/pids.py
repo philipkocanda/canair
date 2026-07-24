@@ -37,7 +37,9 @@ from canlib.pids import PID_STATUSES
 from canlib.pids_edit import (
     PidsEditError,
     add_research_entry,
+    delete_parameter,
     find_ecu_file,
+    rename_parameter,
     set_identity_field,
     set_pid_status,
     set_research_status,
@@ -106,6 +108,30 @@ def cmd_upsert_param(args: argparse.Namespace) -> int:
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
     print(f"{_GREEN}  ✓ {args.ecu} {args.pid} {args.name}{_RESET}  {_DIM}({fpath.name}){_RESET}")
+    return 0
+
+
+def cmd_rename_param(args: argparse.Namespace) -> int:
+    def do():
+        rename_parameter(args.ecu, args.pid, args.old, args.new, pids_dir=args.dir)
+
+    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
+    print(
+        f"{_GREEN}  ✓ {args.ecu} {args.pid} {args.old} → {args.new}{_RESET}  "
+        f"{_DIM}({fpath.name}){_RESET}"
+    )
+    return 0
+
+
+def cmd_rm_param(args: argparse.Namespace) -> int:
+    def do():
+        delete_parameter(args.ecu, args.pid, args.name, pids_dir=args.dir)
+
+    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
+    print(
+        f"{_GREEN}  ✓ removed {args.ecu} {args.pid} {args.name}{_RESET}  "
+        f"{_DIM}({fpath.name}){_RESET}"
+    )
     return 0
 
 
@@ -205,6 +231,21 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     en.add_argument("--disabled", dest="enabled", action="store_false")
     _add_common(up)
     up.set_defaults(_pids_func=cmd_upsert_param)
+
+    rn = sub.add_parser("rename-param", help="Rename a parameter (key only; fields preserved)")
+    rn.add_argument("ecu")
+    rn.add_argument("pid")
+    rn.add_argument("old", help="Current parameter name")
+    rn.add_argument("new", help="New parameter name")
+    _add_common(rn)
+    rn.set_defaults(_pids_func=cmd_rename_param)
+
+    rm = sub.add_parser("rm-param", help="Remove a parameter")
+    rm.add_argument("ecu")
+    rm.add_argument("pid")
+    rm.add_argument("name")
+    _add_common(rm)
+    rm.set_defaults(_pids_func=cmd_rm_param)
 
     ar = sub.add_parser("add-research", help="Append a research: entry")
     ar.add_argument("ecu")

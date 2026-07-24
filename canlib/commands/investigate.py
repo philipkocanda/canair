@@ -17,9 +17,11 @@ import sys
 from dataclasses import dataclass
 
 from canlib.align import DEFAULT_JOIN_TOL_S, join_nearest, load_signal_captures
-from canlib.byteindex import mapped_offsets
+from canlib.byteindex import mapped_bits, mapped_offsets
 from canlib.capture_dates import add_scope_args, resolve_date_bounds
+from canlib.keepmode import scope_is_keep_unique
 from canlib.xanalysis import (
+    build_bit_series,
     build_byte_series,
     build_param_series,
     correlation,
@@ -68,29 +70,51 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
 examples:
   canair investigate MCU 2102              # rank unmapped + unverified-mapped bytes of MCU 2102
   canair investigate MCU 2102 --all        # include bytes a verified param already maps
+  canair investigate IGPM 22BC03 --bits    # rank toggling bits (body/status-ECU work)
+  canair investigate IGPM 22BC03 --events  # bit/byte edges aligned to the event timeline
   canair investigate BMS 2101 --state driving   # only consider drive captures
   canair investigate ESC 22C101 --min-r 0.8      # only show strong anchors (|r| >= 0.8)
   canair investigate AAF 2181 --json       # machine-readable output
 
 tip: no anchors found? widen scope (drop --state), lower --min-r, or grow the
-     capture set — an anchor needs another co-polled signal it can align to.""",
+     capture set — an anchor needs another co-polled signal it can align to. For
+     a body/comfort PID with no co-polled partner, use --bits / --events (the
+     signals are toggling status bits, ranked by state separation + edge time).""",
     )
     parser.add_argument("ecu", help="Target ECU (e.g. MCU)")
     parser.add_argument("pid", help="Target PID (e.g. 2102)")
     parser.add_argument(
-        "--min-r", type=float, default=0.6, metavar="R",
+        "--min-r",
+        type=float,
+        default=0.6,
+        metavar="R",
         help="Only report an anchor when |r| ≥ this (default 0.6)",
     )
     parser.add_argument(
         "--min-n", type=int, default=15, metavar="N", help="Min aligned points (default 15)"
     )
     parser.add_argument(
-        "--join-tol", type=float, default=DEFAULT_JOIN_TOL_S, metavar="SECONDS",
+        "--join-tol",
+        type=float,
+        default=DEFAULT_JOIN_TOL_S,
+        metavar="SECONDS",
         help=f"Nearest-timestamp join window (default {DEFAULT_JOIN_TOL_S}s)",
     )
     parser.add_argument(
-        "--all", action="store_true",
+        "--all",
+        action="store_true",
         help="Include bytes a verified param already maps (default: hide only verified-mapped)",
+    )
+    parser.add_argument(
+        "--bits",
+        action="store_true",
+        help="Also analyse individual toggling bits (Bn:k) — the body/status-ECU finder",
+    )
+    parser.add_argument(
+        "--events",
+        action="store_true",
+        help="Report each bit/byte rising/falling edge with its timestamp, aligned to "
+        "the nearest capture note (the narrated event timeline)",
     )
     parser.add_argument("--json", action="store_true", help="Machine-readable output")
     add_scope_args(parser)
@@ -110,6 +134,11 @@ class _ByteReport:
     slope: float | None
     intercept: float | None
     unit_guess: str | None
+    bit: int | None = None  # None = whole byte; 0-7 = a single bit Bn:k
+
+    @property
+    def label(self) -> str:
+        return f"B{self.offset}:{self.bit}" if self.bit is not None else f"B{self.offset}"
 
 
 def _state_f(frames_by_state: dict[str, list[float]]):
@@ -146,20 +175,29 @@ def run(args) -> int:
     # Target byte series (min_distinct=2 so near-binary relay bytes count).
     target = build_byte_series(lp, min_distinct=2)
 
-    # Which offsets are already mapped by a defined param, and at what confidence.
+    # Which offsets/bits are already mapped by a defined param, and at what confidence.
     ecu_index = build_ecu_index(load_pids())
     params_def = ecu_index.get(ecu.upper(), {}).get("pids", {}).get(pid, {}).get("parameters", {})
     mapped = mapped_offsets(params_def)
+    mapped_bit = mapped_bits(params_def)
 
-    # State buckets per byte (F score) — reuse decode's bucketer over a lite
+    # State buckets per byte/bit (F score) — reuse decode's bucketer over a lite
     # all_results (only needs r["capture"]).
     all_results = [{"capture": c} for c in lp.captures]
-    state_buckets = _byte_state_buckets(all_results, "state")
+    state_buckets = _byte_state_buckets(all_results, "state", include_bits=args.bits)
+
+    # --events short-circuits to the edge/timeline view (no anchor correlation).
+    if args.events:
+        _print_events(ecu, pid, lp, mapped, mapped_bit, args)
+        return 0
 
     # Anchor signals: every param on the OTHER co-polled ECU/PIDs in scope.
     anchors: dict[str, list] = {}
-    other_specs = [s for s in _discover_specs(None, since, until, args.state, args.label)
-                   if s != (ecu.upper(), pid)]
+    other_specs = [
+        s
+        for s in _discover_specs(None, since, until, args.state, args.label)
+        if s != (ecu.upper(), pid)
+    ]
     if other_specs:
         aloaded = load_signal_captures(other_specs, **scope)
         for (aecu, apid), alp in aloaded.items():
@@ -189,23 +227,58 @@ def run(args) -> int:
             )
         )
 
+    if args.bits:
+        for key, series in build_bit_series(lp).items():
+            off, bit = _parse_bit_key(key)
+            best = _best_anchor(series, anchors, args.join_tol, args.min_n)
+            sb = state_buckets.get(f"B{off}:{bit}")
+            m = mapped_bit.get((off, bit))
+            reports.append(
+                _ByteReport(
+                    offset=off,
+                    mapped_by=m[0] if m else None,
+                    mapped_verified=m[1] if m else False,
+                    state_f=_state_f(sb) if sb else None,
+                    anchor=best[0] if best else None,
+                    anchor_r=best[1] if best else None,
+                    anchor_n=best[2] if best else 0,
+                    slope=best[3] if best else None,
+                    intercept=best[4] if best else None,
+                    unit_guess=best[5] if best else None,
+                    bit=bit,
+                )
+            )
+
     if not args.all:
-        # Hide only bytes a *verified* param already decodes; unverified-mapped
-        # bytes are unfinished work, so surface them alongside unmapped ones.
+        # Hide only positions a *verified* param already decodes; unverified-mapped
+        # positions are unfinished work, so surface them alongside unmapped ones.
         reports = [r for r in reports if not r.mapped_verified]
     # Rank: strongest anchor first, then state separation.
     reports.sort(key=lambda r: (-(abs(r.anchor_r or 0)), -(r.state_f or 0)))
 
     if args.json:
         _json.dump(
-            {"target": f"{ecu}:{pid}", "join_tol_s": args.join_tol, "bytes": [vars(r) for r in reports]},
-            sys.stdout, indent=2, default=str,
+            {
+                "target": f"{ecu}:{pid}",
+                "join_tol_s": args.join_tol,
+                "keep_unique": scope_is_keep_unique(lp.captures),
+                "bytes": [vars(r) for r in reports],
+            },
+            sys.stdout,
+            indent=2,
+            default=str,
         )
         print()
         return 0
 
-    _print_report(ecu, pid, reports, args, lp)
+    _print_report(ecu, pid, reports, args, lp, bool(anchors))
     return 0
+
+
+def _parse_bit_key(key: str) -> tuple[int, int]:
+    """``ECU:PID:B10:5`` → ``(10, 5)`` — the last two colon fields are offset:bit."""
+    _, off, bit = key.rsplit(":", 2)
+    return int(off.lstrip("B")), int(bit)
 
 
 def _best_anchor(series, anchors, tol, min_n):
@@ -225,13 +298,16 @@ def _best_anchor(series, anchors, tol, min_n):
     return best
 
 
-def _print_report(ecu, pid, reports, args, lp) -> None:
+def _print_report(ecu, pid, reports, args, lp, has_anchors: bool) -> None:
     print(
         f"\n  {_BOLD}Investigate {ecu} {pid}{_RESET} "
         f"{_DIM}({len(lp.captures)} timed captures, ≤{args.join_tol:g}s join){_RESET}"
     )
+    _print_keep_banner(lp.captures)
     if not reports:
-        print(f"    {_DIM}no {'varying ' if not args.all else ''}bytes to report{_RESET}\n")
+        what = "varying " if not args.all else ""
+        unit = "bytes/bits" if args.bits else "bytes"
+        print(f"    {_DIM}no {what}{unit} to report{_RESET}\n")
         return
     for r in reports:
         if r.mapped_by is None:
@@ -251,5 +327,162 @@ def _print_report(ecu, pid, reports, args, lp) -> None:
             fit = f" fit y={r.slope:.4f}·x{r.intercept:+.2f}" if r.slope is not None else ""
             unit = f" {_CYAN}{r.unit_guess}{_RESET}" if r.unit_guess else ""
             anchor = f"  {rc}r={r.anchor_r:+.3f}{_RESET} vs {r.anchor} {_DIM}n={r.anchor_n}{fit}{_RESET}{unit}"
-        print(f"    {_BOLD}B{r.offset}{_RESET} {tag}{f_str}{anchor}")
+        print(f"    {_BOLD}{r.label}{_RESET} {tag}{f_str}{anchor}")
+    if not has_anchors:
+        # Body/comfort PIDs have no co-polled partner, so there is no anchor
+        # column — that's expected, not "nothing here". Point at the right tool.
+        print(
+            f"    {_DIM}no co-polled anchor in scope — ranked by state separation. "
+            f"For status bits try {_BOLD}--events{_RESET}{_DIM} (edge timeline).{_RESET}"
+        )
     print()
+
+
+def _print_keep_banner(captures) -> None:
+    """Warn when the scope includes keep:unique sessions (rising-edge-only data)."""
+    if scope_is_keep_unique(captures):
+        print(
+            f"    {_YELLOW}⚠ scope includes keep:unique sessions — only rising-edge "
+            f"transitions were stored; falling edges/durations are absent.{_RESET}"
+        )
+
+
+def _iter_edges(lp, mapped, mapped_bit, *, bits: bool):
+    """Yield (dt, label, before, after, mapped_by, verified) for every value change.
+
+    Walks each varying byte (and, with ``bits``, each toggling bit) in time order
+    and emits one row per transition — the raw material for the event timeline.
+    """
+    from canlib.byteindex import payload_to_wican_bytes, wican_to_isotp
+    from canlib.capture_dates import entry_datetime
+
+    frames = []
+    max_len = 0
+    for cap in lp.captures:
+        dt = entry_datetime(cap)
+        if dt is None:
+            continue
+        try:
+            fr = payload_to_wican_bytes(cap["payload"])
+        except Exception:
+            continue
+        frames.append((dt, fr, cap))
+        max_len = max(max_len, len(fr))
+    frames.sort(key=lambda t: t[0])
+
+    edges = []
+    for off in range(max_len):
+        if wican_to_isotp(off) is None:
+            continue
+        prev_byte: int | None = None
+        prev_bit: dict[int, int] = {}
+        for dt, fr, cap in frames:
+            if off >= len(fr):
+                continue
+            val = fr[off]
+            bit_edges_here = []
+            if bits:
+                for k in range(8):
+                    b = (val >> k) & 1
+                    pb = prev_bit.get(k)
+                    if pb is not None and b != pb:
+                        mb = mapped_bit.get((off, k))
+                        bit_edges_here.append(
+                            (
+                                dt,
+                                f"B{off}:{k}",
+                                pb,
+                                b,
+                                mb[0] if mb else None,
+                                mb[1] if mb else False,
+                                cap,
+                                "bit",
+                            )
+                        )
+                    prev_bit[k] = b
+            if prev_byte is not None and val != prev_byte:
+                if bit_edges_here:
+                    # The bit rows carry the same information at finer resolution;
+                    # keep them and drop the redundant whole-byte edge.
+                    edges.extend(bit_edges_here)
+                elif bits:
+                    # --bits on but no isolated bit mapped/toggling here — show the
+                    # byte edge unattributed (a byte may hold many params).
+                    edges.append((dt, f"B{off}", prev_byte, val, None, False, cap, "byte"))
+                else:
+                    # Byte-only mode: attribute to the covering param if any.
+                    m = mapped.get(off)
+                    edges.append(
+                        (
+                            dt,
+                            f"B{off}",
+                            prev_byte,
+                            val,
+                            m[0] if m else None,
+                            m[1] if m else False,
+                            cap,
+                            "byte",
+                        )
+                    )
+            elif bit_edges_here:
+                edges.extend(bit_edges_here)
+            prev_byte = val
+    edges.sort(key=lambda e: e[0])
+    return edges
+
+
+def _print_events(ecu, pid, lp, mapped, mapped_bit, args) -> None:
+    """Edge/event-timeline view: each transition with its time and nearest note."""
+    edges = _iter_edges(lp, mapped, mapped_bit, bits=args.bits)
+    if args.json:
+        _json.dump(
+            {
+                "target": f"{ecu}:{pid}",
+                "keep_unique": scope_is_keep_unique(lp.captures),
+                "events": [
+                    {
+                        "time": e[0].strftime("%H:%M:%S"),
+                        "signal": e[1],
+                        "before": e[2],
+                        "after": e[3],
+                        "mapped_by": e[4],
+                        "verified": e[5],
+                        "note": _cap_note(e[6]),
+                    }
+                    for e in edges
+                ],
+            },
+            sys.stdout,
+            indent=2,
+            default=str,
+        )
+        print()
+        return
+    print(
+        f"\n  {_BOLD}Events {ecu} {pid}{_RESET} {_DIM}({len(lp.captures)} timed captures){_RESET}"
+    )
+    _print_keep_banner(lp.captures)
+    if not edges:
+        print(f"    {_DIM}no transitions in scope.{_RESET}\n")
+        return
+    for dt, label, before, after, mapped_by, verified, cap, _kind in edges:
+        if mapped_by is None:
+            tag = f"{_YELLOW}candidate{_RESET}"
+        elif verified:
+            tag = f"{_DIM}[{mapped_by}]{_RESET}"
+        else:
+            tag = f"{_YELLOW}[{mapped_by}?]{_RESET}"
+        note = _cap_note(cap)
+        note_str = f"  {_DIM}~ note: {_CYAN}{note}{_RESET}" if note else ""
+        arrow = (
+            f"{_BOLD}{before:#04x}→{after:#04x}{_RESET}" if _kind == "byte" else f"{before}→{after}"
+        )
+        print(
+            f"    {_DIM}{dt.strftime('%H:%M:%S')}{_RESET}  {_BOLD}{label}{_RESET} {arrow}  {tag}{note_str}"
+        )
+    print()
+
+
+def _cap_note(cap) -> str:
+    """The best free-text note for a capture: its own note, else the session's."""
+    return str(cap.get("notes") or cap.get("session_notes") or "").strip()

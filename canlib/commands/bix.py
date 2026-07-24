@@ -75,6 +75,15 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     parser.add_argument(
         "--max", type=int, default=71, help="Max WiCAN index for table (default: 71)"
     )
+    parser.add_argument(
+        "--ecu",
+        help="With --annotate: overlay which defined parameter maps each byte "
+        "(and flag unmapped bytes). Requires --pid.",
+    )
+    parser.add_argument(
+        "--pid",
+        help="With --annotate --ecu: the PID whose parameters to overlay (e.g. 22BC03).",
+    )
     parser.set_defaults(func=run)
     return parser
 
@@ -189,15 +198,32 @@ def _parse_hex_payload(raw: str) -> list[int]:
     return payload
 
 
-def _annotate_payload(payload_hex: str, sub_bytes: int):
-    """Annotate each byte of a UDS response payload with WiCAN Bnn indices."""
+def _annotate_payload(payload_hex: str, sub_bytes: int, params: dict | None = None):
+    """Annotate each byte of a UDS response payload with WiCAN Bnn indices.
+
+    When ``params`` (a PID's ``parameters`` dict) is given, add a ``Param`` column
+    showing which defined parameter maps each byte (``[NAME]`` verified,
+    ``[NAME?]`` unverified, ``[NAME:k]`` a specific bit), and mark data bytes no
+    param reads as ``unmapped`` — the overlay that makes a wrong byte offset
+    obvious at a glance.
+    """
+    from canlib.byteindex import mapped_bits, mapped_offsets
+
     payload_bytes = _parse_hex_payload(payload_hex)
     frame = payload_to_wican_frame(payload_bytes)
 
     header_size = 1 + sub_bytes
+    overlay = params is not None
+    mapped = mapped_offsets(params) if overlay else {}
+    mbits = mapped_bits(params) if overlay else {}
 
-    print(f"  {'WiCAN':>5} | {'Hex':>4} | {'ISO-TP':>6} | {'Torque':>6} | {'bix':>5} | Role")
-    print(f"  {'─' * 5}─┼─{'─' * 4}─┼─{'─' * 6}─┼─{'─' * 6}─┼─{'─' * 5}─┼─{'─' * 10}")
+    hdr = f"  {'WiCAN':>5} | {'Hex':>4} | {'ISO-TP':>6} | {'Torque':>6} | {'bix':>5} | Role"
+    sep = f"  {'─' * 5}─┼─{'─' * 4}─┼─{'─' * 6}─┼─{'─' * 6}─┼─{'─' * 5}─┼─{'─' * 10}"
+    if overlay:
+        hdr += " | Param"
+        sep += "─┼─" + "─" * 12
+    print(hdr)
+    print(sep)
 
     for w, (byte_val, pi) in enumerate(frame):
         isotp = wican_to_isotp(w)
@@ -217,9 +243,28 @@ def _annotate_payload(payload_hex: str, sub_bytes: int):
         iso_str = f"0x{isotp:02X}" if isotp is not None else "—"
         t_str = letter if letter else "—"
         b_str = str(bix) if bix is not None else "—"
-        print(
+        line = (
             f"  {w_str:>5} | 0x{byte_val:02X} |  {iso_str:>5} |  {t_str:>5} | {b_str:>5} | {role}"
         )
+        if overlay:
+            line += f" | {_param_cell(w, byte_val, role, mapped, mbits)}"
+        print(line)
+
+
+def _param_cell(offset: int, byte_val: int, role: str, mapped: dict, mbits: dict) -> str:
+    """The Param-overlay cell for one byte: covering param(s), or 'unmapped'."""
+    if role in ("PCI", "SID", "DID", "PID"):
+        return ""  # framing byte — never a parameter
+    bit_hits = sorted((k, mbits[(offset, k)]) for k in range(8) if (offset, k) in mbits)
+    parts = []
+    byte_map = mapped.get(offset)
+    if byte_map and not bit_hits:
+        parts.append(f"[{byte_map[0]}]" if byte_map[1] else f"[{byte_map[0]}?]")
+    for k, (name, verified) in bit_hits:
+        parts.append(f"[{name}:{k}]" if verified else f"[{name}?:{k}]")
+    if not parts:
+        return "unmapped"
+    return " ".join(parts)
 
 
 def run(args) -> int:
@@ -228,7 +273,28 @@ def run(args) -> int:
         return 0
 
     if args.annotate:
-        _annotate_payload(" ".join(args.annotate), args.sub_bytes)
+        params = None
+        if args.ecu:
+            if not args.pid:
+                print("Error: --ecu requires --pid.", file=sys.stderr)
+                return 1
+            from canlib.ecus import canonical_ecu_name_safe
+            from canlib.pids import build_ecu_index, load_pids
+
+            ecu = canonical_ecu_name_safe(args.ecu).upper()
+            pid = args.pid.upper()
+            idx = build_ecu_index(load_pids())
+            params = idx.get(ecu, {}).get("pids", {}).get(pid, {}).get("parameters", {})
+            if not params:
+                print(
+                    f"Note: no defined parameters for {ecu} {pid} — showing unmapped overlay.",
+                    file=sys.stderr,
+                )
+                params = {}
+        elif args.pid:
+            print("Error: --pid requires --ecu.", file=sys.stderr)
+            return 1
+        _annotate_payload(" ".join(args.annotate), args.sub_bytes, params)
         return 0
 
     if not args.value:

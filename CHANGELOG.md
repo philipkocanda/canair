@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`canair investigate --bits`** — rank individual toggling bits (`Bn:k`), not
+  just bytes, so body/comfort-ECU status signals surface. Also fixes the
+  no-co-polled-anchor case to rank by state separation with a hint (instead of
+  misleadingly reporting "no varying bytes").
+- **`canair investigate --events`** — the bit/byte edge timeline: each
+  rising/falling transition with its timestamp and value, aligned to the nearest
+  capture note (the narrated event log). Automates decoding event-driven captures
+  (door/lock/hood etc.).
+- **`canair correlate --find-mirrors`** — cross-ECU byte/bit mirror finder
+  (time-aligned equal positions across co-polled PIDs); the cross-ECU companion
+  to `decode --find-mirrors` (single-PID). Use with `--bits` for bit-level.
+- **`canair bix --annotate --ecu ECU --pid PID`** — overlay which defined
+  parameter (and bit) maps each byte, flagging unmapped data bytes. Makes a wrong
+  byte offset obvious at a glance.
+- **`canair pids rename-param` / `rm-param`** — rename or remove a parameter
+  (comment-preserving, schema-validated, auto-reverted on failure). Removes the
+  last "must hand-edit YAML" case for parameter maintenance.
+- **`keep_mode` awareness in analysis.** `decode`, `correlate`, and `investigate`
+  now warn when the scope includes `keep:unique` sessions (only rising-edge
+  transitions were stored; falling edges/durations are absent) and caveat
+  rate/duration transforms (`--corr-transform delta|cumsum`, `--lag-scan`) on
+  such data.
+
+### Changed
+
+- **`canair validate pids`** now flags a duplicate *shipped* parameter name
+  across PIDs (a device signal-name collision) as an error — previously this
+  only surfaced at `wican autopid write` time.
+
 ### Removed
 
 - **`canair tester-present` command.** It duplicated behavior already provided
