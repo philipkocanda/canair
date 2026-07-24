@@ -177,3 +177,55 @@ def format_diff(diff: dict, previous: dict) -> list[str]:
     if not cleared and not new:
         lines.append("    \033[2m(no change since last scan)\033[0m")
     return lines
+
+
+def prior_matching(scope: str, before: str, path: Path | None = None) -> dict | None:
+    """The most recent same-scope scan logged strictly *before* the ``before``
+    timestamp — the entry a stored scan was diffed against when it was recorded."""
+    match = None
+    for entry in load_log(path).get("scans", []):
+        if entry.get("scope") == scope and entry.get("timestamp", "") < before:
+            match = entry
+    return match
+
+
+def render_scan(entry: dict, previous: dict | None = None) -> list[str]:
+    """Human-readable, decoded view of a logged scan entry (offline; no device).
+
+    Shows the scan's timestamp/scope/label/state, every ECU's codes with their
+    decoded meaning, and — when a ``previous`` same-scope scan is given — the
+    change since it. This is what ``canair dtc --history`` prints."""
+    from .dtc_describe import describe_dtc
+
+    lines = [f"\n  DTC history: {entry.get('scope', '?')}"]
+    lines.append(f"  Scanned:     {entry.get('timestamp', '?')}")
+    if entry.get("label"):
+        lines.append(f"  Label:       {entry['label']}")
+    if entry.get("vehicle_states"):
+        lines.append(f"  State:       {', '.join(entry['vehicle_states'])}")
+    if entry.get("notes"):
+        lines.append(f"  Notes:       {entry['notes']}")
+    lines.append("")
+
+    ecus = entry.get("ecus") or {}
+    total = sum(len((info or {}).get("dtcs") or []) for info in ecus.values())
+    if not total:
+        lines.append("  \033[92mNo DTCs stored in this scan.\033[0m")
+    else:
+        for ecu in sorted(ecus):
+            codes = (ecus[ecu] or {}).get("dtcs") or []
+            if not codes:
+                continue
+            lines.append(f"  {ecu} — {len(codes)} DTC(s):")
+            code_w = max(len(c) for c in codes)
+            for code in codes:
+                meaning = describe_dtc(code).get("meaning") or ""
+                lines.append(f"    {code:<{code_w}}  {meaning}".rstrip())
+            lines.append("")
+
+    if previous is not None:
+        lines.extend(format_diff(diff_scans(previous, entry), previous))
+    else:
+        lines.append("  \033[2m(no earlier scan of this scope to compare against)\033[0m")
+    lines.append("")
+    return lines

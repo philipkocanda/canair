@@ -422,3 +422,80 @@ class TestDispatchTransportAgnostic:
         await dispatch_mode(args, t, {}, "1.2.3.4")
         assert t.sent == ["14FFFFFF"]
         assert "cleared" in capsys.readouterr().out.lower()
+
+
+class TestHistoryOffline:
+    """``canair dtc --history`` reads dtc_log.yaml without touching the device."""
+
+    def _args(self, **kw):
+        base = {"dtc": None, "dtc_all": False, "dtc_history": True}
+        return argparse.Namespace(**{**base, **kw})
+
+    def _seed(self, monkeypatch, tmp_path):
+        from canlib import dtc_log
+
+        logp = tmp_path / "dtc_log.yaml"
+        monkeypatch.setattr(dtc_log, "log_path", lambda path=None: logp if path is None else path)
+        return logp
+
+    def test_history_all_shows_latest_and_diff(self, monkeypatch, tmp_path, capsys):
+        from canlib import dtc_log
+        from canlib.commands import dtc as dtc_cmd
+
+        self._seed(monkeypatch, tmp_path)
+        dtc_log.append_scan(
+            dtc_log.build_scan(
+                "all",
+                {"AMP (0x783)": {"tx": "0x783", "protocol": "uds", "dtcs": ["B2915-00", "B2916-00"]}},
+                timestamp="2026-07-22T10:00:00",
+            )
+        )
+        dtc_log.append_scan(
+            dtc_log.build_scan(
+                "all",
+                {"AMP (0x783)": {"tx": "0x783", "protocol": "uds", "dtcs": ["B2915-00"]}},
+                timestamp="2026-07-22T11:00:00",
+            )
+        )
+        rc = dtc_cmd.run(self._args())
+        out = capsys.readouterr().out
+        assert rc == 0
+        assert "DTC history: all" in out
+        assert "2026-07-22T11:00:00" in out  # latest, not the earlier one
+        assert "B2915-00" in out
+        assert "cleared" in out  # diff vs the previous 'all' scan
+        assert "B2916-00" in out
+
+    def test_history_single_ecu_scope(self, monkeypatch, tmp_path, capsys):
+        from canlib import dtc_log
+        from canlib.commands import dtc as dtc_cmd
+        from canlib.ecus import ecu_display, resolve_tx
+
+        self._seed(monkeypatch, tmp_path)
+        tx = resolve_tx("BMS")
+        assert tx is not None
+        scope = ecu_display(tx)
+        dtc_log.append_scan(
+            dtc_log.build_scan(scope, {}, timestamp="2026-07-22T09:00:00")
+        )
+        rc = dtc_cmd.run(self._args(dtc="BMS"))
+        out = capsys.readouterr().out
+        assert rc == 0
+        assert f"DTC history: {scope}" in out
+        assert "No DTCs stored" in out
+
+    def test_history_no_log_entry(self, monkeypatch, tmp_path, capsys):
+        from canlib.commands import dtc as dtc_cmd
+
+        self._seed(monkeypatch, tmp_path)
+        rc = dtc_cmd.run(self._args())
+        assert rc == 1
+        assert "No logged DTC scan" in capsys.readouterr().out
+
+    def test_history_unknown_ecu(self, monkeypatch, tmp_path, capsys):
+        from canlib.commands import dtc as dtc_cmd
+
+        self._seed(monkeypatch, tmp_path)
+        rc = dtc_cmd.run(self._args(dtc="ZZZNOPE"))
+        assert rc == 2
+        assert "Unknown ECU" in capsys.readouterr().out

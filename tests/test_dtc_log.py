@@ -113,3 +113,54 @@ def test_build_clear_omits_none_fields():
     assert "codes" not in e
     assert e["type"] == "detected"
     assert e["cleared"] == [["PLC (0x733)", "C182C-00"]]
+
+
+def test_prior_matching_returns_scan_before_timestamp(tmp_path):
+    p = tmp_path / "dtc_log.yaml"
+    dtc_log.append_scan(dtc_log.build_scan("all", {}, timestamp="t1"), path=p)
+    dtc_log.append_scan(dtc_log.build_scan("BMS (0x7E4)", {}, timestamp="t2"), path=p)
+    dtc_log.append_scan(dtc_log.build_scan("all", {}, timestamp="t3"), path=p)
+    # The scan the t3 'all' entry was diffed against is the t1 'all' entry.
+    assert dtc_log.prior_matching("all", "t3", path=p)["timestamp"] == "t1"
+    # Nothing earlier of the same scope.
+    assert dtc_log.prior_matching("all", "t1", path=p) is None
+    assert dtc_log.prior_matching("BMS (0x7E4)", "t2", path=p) is None
+
+
+def test_render_scan_decodes_and_shows_metadata():
+    entry = dtc_log.build_scan(
+        "all",
+        {"AMP (0x783)": {"tx": "0x783", "protocol": "uds", "dtcs": ["B2915-00"]}},
+        label="baseline",
+        vehicle_states=["ready"],
+        timestamp="2026-07-22T10:00:00",
+    )
+    text = "\n".join(dtc_log.render_scan(entry, previous=None))
+    assert "DTC history: all" in text
+    assert "2026-07-22T10:00:00" in text
+    assert "baseline" in text
+    assert "ready" in text
+    assert "B2915-00" in text
+    assert "no earlier scan" in text
+
+
+def test_render_scan_reports_no_dtcs():
+    entry = dtc_log.build_scan("BMS (0x7E4)", {}, timestamp="t")
+    text = "\n".join(dtc_log.render_scan(entry))
+    assert "No DTCs stored" in text
+
+
+def test_render_scan_includes_diff_against_previous():
+    previous = dtc_log.build_scan(
+        "all",
+        {"AMP (0x783)": {"dtcs": ["B2915-00", "B2916-00"]}},
+        timestamp="t1",
+    )
+    current = dtc_log.build_scan(
+        "all",
+        {"AMP (0x783)": {"dtcs": ["B2915-00"]}},
+        timestamp="t2",
+    )
+    text = "\n".join(dtc_log.render_scan(current, previous))
+    assert "cleared" in text
+    assert "B2916-00" in text

@@ -94,12 +94,14 @@ def describe_dtc(code: str, defs: dict | None = None) -> dict:
     Accepts ``"B2915-00"`` (UDS, with failure-type byte) or ``"P0420"`` (KWP /
     no failure type). Reports the standardized structural interpretation
     (category, generic-vs-manufacturer, failure-type byte) and layers on any
-    known *meaning*: the profile's ``dtc.yaml`` definitions first, then the small
-    bundled generic (ISO/SAE) table. Manufacturer meanings are never invented —
-    they come only from those curated sources.
+    known *meaning*: the profile's definitions first (per-ECU ``dtcs:`` sections
+    plus profile-wide ``failure_types:``), then the small bundled generic
+    (ISO/SAE) table. Manufacturer meanings are never invented — they come only
+    from those curated sources.
 
     ``defs`` is the profile definitions mapping (``{"dtcs":…, "failure_types":…}``);
-    it defaults to the active profile's ``dtc.yaml`` (pass ``{}`` for none).
+    it defaults to the active profile's aggregated definitions (pass ``{}`` for
+    none).
     """
     if defs is None:
         defs = _profile_dtc_defs()

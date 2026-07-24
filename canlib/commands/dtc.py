@@ -35,6 +35,8 @@ examples:
   canair dtc BMS --clear               Clear all DTCs (asks to confirm)
   canair dtc BMS --clear --yes         Clear without the confirmation prompt
   canair dtc BMS --protocol kwp        Force KWP2000 readDTCByStatus (0x18)
+  canair dtc --history                 Show the last logged full-sweep scan (offline, no device)
+  canair dtc BMS --history             Show the last logged scan for one ECU (offline)
 """,
     )
     parser.add_argument(
@@ -45,6 +47,15 @@ examples:
         dest="dtc_all",
         action="store_true",
         help="Scan every ECU in the profile for DTCs (protocol auto-selected per ECU)",
+    )
+    parser.add_argument(
+        "--history",
+        dest="dtc_history",
+        action="store_true",
+        help="Show the most recent logged scan from dtc_log.yaml without touching "
+        "the device (useful when the WiCAN is offline). Decodes each code and "
+        "reports the change since the previous scan. Scope is --all by default, "
+        "or a single ECU when one is named.",
     )
     parser.add_argument(
         "--no-log",
@@ -113,6 +124,8 @@ examples:
 
 
 def run(args) -> int:
+    if getattr(args, "dtc_history", False):
+        return _run_history(args)
     if not args.dtc and not getattr(args, "dtc_all", False):
         from canlib.commands._hints import ecu_hint
 
@@ -120,3 +133,37 @@ def run(args) -> int:
         print(ecu_hint())
         return 2
     return run_live(args)
+
+
+def _run_history(args) -> int:
+    """Offline: print the most recent logged scan for the requested scope."""
+    from canlib.dtc_log import latest_matching, prior_matching, render_scan
+
+    if args.dtc:
+        from canlib.ecus import ecu_display, resolve_tx
+
+        tx_id = resolve_tx(args.dtc)
+        if tx_id is None:
+            from canlib.commands._hints import ecu_hint
+
+            print(f"Unknown ECU '{args.dtc}'.\n")
+            print(ecu_hint())
+            return 2
+        scope = ecu_display(tx_id)
+    else:
+        scope = "all"
+
+    entry = latest_matching(scope)
+    if entry is None:
+        print(
+            f"No logged DTC scan for scope '{scope}'. "
+            "Run `canair dtc "
+            + (args.dtc if args.dtc else "--all")
+            + "` while connected to record one."
+        )
+        return 1
+
+    previous = prior_matching(scope, entry.get("timestamp", ""))
+    for line in render_scan(entry, previous):
+        print(line)
+    return 0
