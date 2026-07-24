@@ -39,7 +39,7 @@ When you touch a user-facing surface, update as needed: (1) the relevant **`docs
 
 ## Tools
 
-> Reverse-engineering a new PID/DID end-to-end (discover → capture → analyze → define → verify) is documented in the **reverse-engineer-pid** skill; general project/device context is in the **ioniq-reverse-engineering** skill.
+> Reverse-engineering a new PID/DID end-to-end (discover → capture → analyze → define → verify) is documented in the **reverse-engineer-signal** skill; general project/device context is in the **ioniq-reverse-engineering** skill.
 
 All functionality is exposed through a single installable CLI, **`canair`** — but in this repo you **always** invoke it as **`uv run canair …` from the repo root** (see "Running the CLI" above). `uv tool install .` exists for end users, not for agents working in the tree.
 

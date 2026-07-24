@@ -72,6 +72,7 @@ nav:
   - Concepts:
       - Architecture: concepts/architecture.md
       - Profiles: concepts/profiles.md
+      - ECU protocols & PID prefixes: concepts/ecu-protocols.md
       - Query mini-language: concepts/query-mini-language.md
       - Byte indexing: concepts/byte-indexing.md
       - Captures & states: concepts/captures-and-states.md

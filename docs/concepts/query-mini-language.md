@@ -16,6 +16,10 @@ whatever the *active* profile defines; see `canair ecu`.)
 | `IGPM:BC03,BC06` | two IGPM DIDs (comma-separated) |
 | `VCU:2101 BMS:2101` | cross-ECU — a **space separates independent selectors** |
 
+A PID like `2101` vs `22B002` differs by its service-byte prefix — see
+[ECU protocols & PID prefixes](ecu-protocols.md) for what the `21`/`22` means and
+why canair can resolve a bare identifier.
+
 !!! warning "Bind each PID to its ECU with a colon, never a space"
     `IGPM 22BC07` means "all of IGPM **plus** a bogus ECU `22BC07`" — write
     `IGPM:22BC07`. A bare PID in the ECU slot is rejected with a hint. In a query

@@ -1,6 +1,6 @@
 ---
 name: contributing
-description: Guidelines for agents making code or architecture changes to the canair codebase (CLI subcommands, transports, modes, library code, tests). Load this whenever you are adding, refactoring, or removing canair Python code — NOT for reverse-engineering PIDs or editing vehicle data (use the ioniq-reverse-engineering / reverse-engineer-pid skills for that).
+description: Guidelines for agents making code or architecture changes to the canair codebase (CLI subcommands, transports, modes, library code, tests). Load this whenever you are adding, refactoring, or removing canair Python code — NOT for reverse-engineering PIDs or editing vehicle data (use the ioniq-reverse-engineering / reverse-engineer-signal skills for that).
 ---
 
 # Contributing to canair
@@ -8,7 +8,7 @@ description: Guidelines for agents making code or architecture changes to the ca
 Guidelines for changing canair's own code (the `canlib/` package: CLI,
 transports, modes, library, tests). This is about *engineering* the tool — for
 vehicle/PID work load the **ioniq-reverse-engineering** and
-**reverse-engineer-pid** skills instead.
+**reverse-engineer-signal** skills instead.
 
 Always run and test the tree with `uv run …` from the repo root (never a
 globally-installed `canair`). See `AGENTS.md` for why.

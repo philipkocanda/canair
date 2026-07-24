@@ -8,16 +8,16 @@ description: Working with WiCAN OBD-II, Ioniq CAN bus, PID decoding, vehicle pro
 General project/device/tool context for the Hyundai Ioniq 2017 EV CAN
 reverse-engineering project.
 
-**This skill is the Ioniq-specific *context*; `reverse-engineer-pid` is the
+**This skill is the Ioniq-specific *context*; `reverse-engineer-signal` is the
 generic *procedure* — load both for Ioniq RE work.** This one carries the
 vehicle-specific facts (ECU status table, safety, device/transport details, and
 the `canair`/`wican-cli` command reference — "what am I working on, with what
-tools"). **`reverse-engineer-pid`** is the **vehicle-agnostic** decoding
+tools"). **`reverse-engineer-signal`** is the **vehicle-agnostic** decoding
 procedure and reference — the discover→capture→analyze→define→verify lifecycle,
 byte-index/expression syntax, UDS conventions, and the signal-analysis reasoning
 (EE/power-electronics/physics/statistics) — written to apply to *any* car, using
 the Ioniq only as its worked example. **Decoding, adding, fixing, or verifying
-any PID/DID on the Ioniq? Load `reverse-engineer-pid` too** for the method, and
+any PID/DID on the Ioniq? Load `reverse-engineer-signal` too** for the method, and
 use this skill for the Ioniq facts it needs. (Working a *different* car? That
 generic skill plus that car's profile is what you want; this Ioniq skill is then
 just an example of a finished profile.) The full `canair` subcommand + flag
@@ -152,7 +152,7 @@ Per-ECU YAML under `ecus/` (one ECU per file, with its `tx_id`, `identity:`, and
 
 ```yaml
 SOC_BMS:
-  expression: "B09/2"      # WiCAN formula (see reverse-engineer-pid skill)
+  expression: "B09/2"      # WiCAN formula (see reverse-engineer-signal skill)
   unit: "%"
   ha_class: battery        # downstream device_class
   mqtt_topic: soc_bms
@@ -280,7 +280,7 @@ multi-DID batching (IGPM 3 DIDs: 11→5→1 cmds/cycle). `--elm-timeout` overrid
 ### `canair identity`
 
 Queries standard + Hyundai/Kia identity DIDs (see the F1xx `-1` offset in the
-reverse-engineer-pid skill) and prints decoded results. `--session` for most
+reverse-engineer-signal skill) and prints decoded results. `--session` for most
 ECUs, `--wake` for deep-sleepers (IGPM). Known deep-sleep results:
 
 - **BCM (0x7A0):** F18C=`1705310070`, F18B=`2017-05-31`, F100=`180`, F194=`100`
@@ -333,7 +333,7 @@ Decode findings are recorded in each `ecus/<ecu>.yaml` `notes:`. Highlights:
 ## UDS notes
 
 Security Access, PID/DID conventions, byte-index notation, and the F1xx `-1`
-offset are in the **reverse-engineer-pid** skill. Quick reference:
+offset are in the **reverse-engineer-signal** skill. Quick reference:
 
 - Standard UDS: `27 01` (seed) → compute key → `27 02 <key>`. Most `21`/`22` reads
   need no security; `2E` writes may need Security Access L1/L2.

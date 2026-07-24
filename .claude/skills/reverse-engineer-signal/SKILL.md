@@ -1,5 +1,5 @@
 ---
-name: reverse-engineer-pid
+name: reverse-engineer-signal
 description: Generic, vehicle-agnostic reverse-engineering workflow for canair — the whole flow from orient/discover through capture, analyze, define, verify, integrate, for ANY signal (a PID/DID parameter, a raw broadcast frame field, a routine, an IOControl actuator) on ANY car. Covers WiCAN Bnn / ISO-TP / PCI byte indexing, expression syntax, the analysis reasoning (signal types, physics/EE, statistics), and writing/validating definitions. Use when discovering, decoding, or verifying anything on a vehicle bus, writing or fixing an expression, working out a byte offset, or working a research: backlog — on the bundled Ioniq profile or a profile you built for another car. Examples use the Ioniq for concreteness; the method is generic.
 ---
 
@@ -58,6 +58,17 @@ profile is the *data*.
   (range, distribution, correlation, physical plausibility across states). State
   your confidence honestly: a hypothesis is a hypothesis until it's validated.
   Prefer "unverified until proven" over an optimistic guess promoted to fact.
+- **NEVER mark a parameter `verified: true` without proof.** `verified` is a
+  factual claim that the decode was checked against *real data from this vehicle*
+  — a capture whose values match known physical state, a scan-tool cross-check, or
+  a definitive constant. It is **not** a statement that the expression looks
+  plausible, was copied from another car's sheet, or "should" be right. With **no
+  capture, there is no proof, so it stays `--unverified`** — no exceptions, even
+  when porting a structure that's verified on a *different* profile (a sibling
+  car's byte offset is a *hypothesis* here, not a verification). Marking something
+  verified on a guess is a correctness bug that poisons every downstream user and
+  every correlation that trusts it. When in doubt, leave it unverified and record
+  what proof is still missing in `notes:`.
 - **Write notes to the point.** Notes on ECUs/PIDs/research are technical
   records, not prose. State the facts — byte offset, observed range, per-state
   values, correlation results, the decision and why — and stop. Cut filler,
@@ -518,6 +529,8 @@ canair pids set-status MCU 2102 done --type decode                       # close
 
 A parameter is `verified: true` only when validated against real data / known
 state (physical correlation, matching a scan tool, or a definitive constant).
+**No capture ⇒ no proof ⇒ stays `--unverified`** (see Working principles) — never
+promote on a plausible guess or a byte offset ported from another car's profile.
 
 ### Always mark off a worked lead (do not leave it open)
 
@@ -660,127 +673,20 @@ prints each byte's WiCAN Bnn, ISO-TP index, Torque letter, bix, and role. Use
 
 ### Conversion table (WiCAN ↔ ISO-TP ↔ Torque ↔ bix)
 
-Each CAN frame has 8 data bytes. PCI bytes (WiCAN indices 0, 8, 16, 24, ...) are
-consumed by ISO-TP framing and have no ISO-TP/Torque/bix equivalent. Torque
-1/bix 1 are for 1-byte subfunctions (service `21xx`), Torque 2/bix 2 for 2-byte
-subfunctions (service `22xxxx`).
-
-| WiCAN | ISO-TP | Torque 1 | bix 1 | Torque 2 | bix 2 |
-| ----- | ------ | -------- | ----- | -------- | ----- |
-| 0     |        |          |       |          |       |
-| 1     |        |          |       |          |       |
-| 2     | 0x00   |          |       |          |       |
-| 3     | 0x01   |          |       |          |       |
-| 4     | 0x02   | A        | 0     |          |       |
-| 5     | 0x03   | B        | 8     | A        | 0     |
-| 6     | 0x04   | C        | 16    | B        | 8     |
-| 7     | 0x05   | D        | 24    | C        | 16    |
-| 8     |        |          |       |          |       |
-| 9     | 0x06   | E        | 32    | D        | 24    |
-| 10    | 0x07   | F        | 40    | E        | 32    |
-| 11    | 0x08   | G        | 48    | F        | 40    |
-| 12    | 0x09   | H        | 56    | G        | 48    |
-| 13    | 0x0A   | I        | 64    | H        | 56    |
-| 14    | 0x0B   | J        | 72    | I        | 64    |
-| 15    | 0x0C   | K        | 80    | J        | 72    |
-| 16    |        |          |       |          |       |
-| 17    | 0x0D   | L        | 88    | K        | 80    |
-| 18    | 0x0E   | M        | 96    | L        | 88    |
-| 19    | 0x0F   | N        | 104   | M        | 96    |
-| 20    | 0x10   | O        | 112   | N        | 104   |
-| 21    | 0x11   | P        | 120   | O        | 112   |
-| 22    | 0x12   | Q        | 128   | P        | 120   |
-| 23    | 0x13   | R        | 136   | Q        | 128   |
-| 24    |        |          |       |          |       |
-| 25    | 0x14   | S        | 144   | R        | 136   |
-| 26    | 0x15   | T        | 152   | S        | 144   |
-| 27    | 0x16   | U        | 160   | T        | 152   |
-| 28    | 0x17   | V        | 168   | U        | 160   |
-| 29    | 0x18   | W        | 176   | V        | 168   |
-| 30    | 0x19   | X        | 184   | W        | 176   |
-| 31    | 0x1A   | Y        | 192   | X        | 184   |
-| 32    |        |          |       |          |       |
-| 33    | 0x1B   | Z        | 200   | Y        | 192   |
-| 34    | 0x1C   | AA       | 208   | Z        | 200   |
-| 35    | 0x1D   | AB       | 216   | AA       | 208   |
-| 36    | 0x1E   | AC       | 224   | AB       | 216   |
-| 37    | 0x1F   | AD       | 232   | AC       | 224   |
-| 38    | 0x20   | AE       | 240   | AD       | 232   |
-| 39    | 0x21   | AF       | 248   | AE       | 240   |
-| 40    |        |          |       |          |       |
-| 41    | 0x22   | AG       | 256   | AF       | 248   |
-| 42    | 0x23   | AH       | 264   | AG       | 256   |
-| 43    | 0x24   | AI       | 272   | AH       | 264   |
-| 44    | 0x25   | AJ       | 280   | AI       | 272   |
-| 45    | 0x26   | AK       | 288   | AJ       | 280   |
-| 46    | 0x27   | AL       | 296   | AK       | 288   |
-| 47    | 0x28   | AM       | 304   | AL       | 296   |
-| 48    |        |          |       |          |       |
-| 49    | 0x29   | AN       | 312   | AM       | 304   |
-| 50    | 0x2A   | AO       | 320   | AN       | 312   |
-| 51    | 0x2B   | AP       | 328   | AO       | 320   |
-| 52    | 0x2C   | AQ       | 336   | AP       | 328   |
-| 53    | 0x2D   | AR       | 344   | AQ       | 336   |
-| 54    | 0x2E   | AS       | 352   | AR       | 344   |
-| 55    | 0x2F   | AT       | 360   | AS       | 352   |
-| 56    |        |          |       |          |       |
-| 57    | 0x30   | AU       | 368   | AT       | 360   |
-| 58    | 0x31   | AV       | 376   | AU       | 368   |
-| 59    | 0x32   | AW       | 384   | AV       | 376   |
-| 60    | 0x33   | AX       | 392   | AW       | 384   |
-| 61    | 0x34   | AY       | 400   | AX       | 392   |
-| 62    | 0x35   | AZ       | 408   | AY       | 400   |
-| 63    | 0x36   | BA       | 416   | AZ       | 408   |
-| 64    |        |          |       |          |       |
-| 65    | 0x37   | BB       | 424   | BA       | 416   |
-| 66    | 0x38   | BC       | 432   | BB       | 424   |
-| 67    | 0x39   | BD       | 440   | BC       | 432   |
-| 68    | 0x3A   | BE       | 448   | BD       | 440   |
-| 69    | 0x3B   | BF       | 456   | BE       | 448   |
-| 70    | 0x3C   | BG       | 464   | BF       | 456   |
-| 71    | 0x3D   | BH       | 472   | BG       | 464   |
+You rarely need the raw table — **`canair bix` does the conversion**
+(`canair bix w9`, `canair bix --table`, `canair bix --annotate <payload>`). The
+full lookup table lives in the sibling file
+[`byte-index-conversion-table.md`](byte-index-conversion-table.md); load it only
+when converting by hand.
 
 ## Reference: UDS decoding conventions (Hyundai/Kia example)
 
-**These are marque-specific conventions, not universal.** They're included as a
-worked example of the kind of manufacturer patterns worth discovering for *your*
-car — DID range semantics, paging vs indexing, identity-DID offsets all vary by
-OEM. For the bundled Ioniq they hold; for another car, expect a different scheme
-and re-derive it. Source:
-`KB/EV/Hyundai Ioniq/Reverse engineering/Hyundai Kia UDS DID Conventions.md`
-
-### PID categories
-
-- **`0x21xx`** — fast live-data snapshots; no session/security; multiple params
-  per response; manufacturer function byte `0x21`.
-- **`0x22xx`** — structured; may need extended session (`10 03`); standard UDS
-  ReadDataByIdentifier (`22`); some DIDs writable via `2E` — handle with care.
-
-### DID paging vs indexing
-
-- **Paging** (e.g. BMS): `2101`, `2102`, `2103`, `2104` each return a different
-  block (the `xx` is a page number, not a DID).
-- **Indexing**: `2101`, `2102` are sub-functions/pages within one dataset.
-
-### DID range semantics
-
-- `0x21xx` — live data, manufacturer-specific
-- `0x22Bxxx` — cluster/display data
-- `0x22Cxxx` — body/comfort (BCM, TPMS)
-- `0x22Exxx` — powertrain (BMS, MCU, VCU, HVAC)
-- `0x22Fxxx` — often flash/calibration — **do not write**
-
-### Hyundai/Kia DID -1 offset (F1xx identity DIDs)
-
-HK ECUs shift identity DIDs by **-1** from the UDS spec. When reading identity
-DIDs, use the HK DID:
-
-| Standard UDS DID | HK DID | Field            |
-|------------------|--------|------------------|
-| F188             | F187   | ECU Part Number  |
-| F18C             | F18B   | Manufacture Date |
-| F192             | F191   | Supplier HW No   |
-
-`canair identity` queries both. The ECU answers the HK DID (e.g. `22F187` →
-`62F187 <part number>`) while the standard DID may NRC. If a scan finds data
-echoing a DID one less than requested, try the -1 DID directly.
+Marque-specific DID conventions for the bundled Ioniq (and other Hyundai/Kia) —
+PID categories, DID paging vs indexing, DID range semantics (`22Bxxx` cluster,
+`22Cxxx` body, `22Fxxx` flash), and the Hyundai/Kia identity-DID `-1` offset — are
+in the sibling file
+[`hyundai-kia-uds-conventions.md`](hyundai-kia-uds-conventions.md). **These are
+marque-specific, not universal**; for another car, expect a different scheme and
+re-derive it. The generic UDS-`0x22`-vs-KWP2000-`0x21` distinction (per each ECU's
+`id_protocol`) is summarized in the skill body above and in
+`docs/concepts/ecu-protocols.md`.

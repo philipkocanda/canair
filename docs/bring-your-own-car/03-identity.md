@@ -3,9 +3,8 @@
 Once ECUs are [registered](02-discover-ecus.md), `canair identity` reads an
 ECU's standard identity data — part number, hardware/software version, serial
 number, and VIN — and decodes it for display. It queries UDS (`22 F1xx`) or
-KWP2000 (`1A 8x/9x`) automatically based on what the ECU speaks.
-
-```bash
+KWP2000 (`1A 8x/9x`) automatically based on what the ECU speaks (see
+[ECU protocols & PID prefixes](../concepts/ecu-protocols.md)).```bash
 canair identity MyECU
 canair identity 770              # by address instead of name
 canair identity MyECU --session  # some ECUs only answer in an extended session

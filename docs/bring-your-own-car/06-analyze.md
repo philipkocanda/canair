@@ -132,8 +132,8 @@ as **unverified**.
 
 > The full reasoning toolkit — thermal-mass tricks, signed/symmetry tests,
 > conservation laws (P ≈ V·I), enum/counter fingerprints, endianness sweeps — is
-> documented in depth in the `reverse-engineer-pid` agent skill
-> (`.claude/skills/reverse-engineer-pid/`). This page is the human-facing tour of
+> documented in depth in the `reverse-engineer-signal` agent skill
+> (`.claude/skills/reverse-engineer-signal/`). This page is the human-facing tour of
 > the same workflow.
 
 ---

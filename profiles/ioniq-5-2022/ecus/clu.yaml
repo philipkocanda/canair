@@ -2,4 +2,15 @@ CLU:
   tx_id: 0x7C6
   identity:
     description: Cluster (instrument panel)
-    notes: Shares 0x7C6 with the 2017 Ioniq CLU. No PIDs decoded yet — ready for contributions.
+    notes: Shares 0x7C6 with the 2017 Ioniq CLU.
+  pids:
+    B002:
+      status: active
+      parameters:
+        ODOMETER:
+          expression: B6*65536+B7*256+B8
+          unit: km
+          ha_class: distance
+          verified: false
+          notes: >
+            Copied structure from 2017 Ioniq odometer; UNVERIFIED for Ioniq 5 — no captures yet. Byte offsets (B6/B7/B8) and PID key are guesses; B8 collides with ISO-TP PCI header per validator. 2017 reads [B12:B14].

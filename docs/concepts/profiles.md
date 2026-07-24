@@ -23,7 +23,9 @@ profile](../profiles/ioniq-2017.md) for what a mature profile looks like.
 
 `ecus/` is the heart of it: each `ecus/<name>.yaml` fully describes one ECU — its
 identity, the history of what's been probed on it, DTC meanings, its PIDs and
-decoded parameters, and a `research:` backlog of what's left to do.
+decoded parameters, and a `research:` backlog of what's left to do. Each ECU also
+records its `id_protocol` (UDS vs KWP2000) — see
+[ECU protocols & PID prefixes](ecu-protocols.md).
 
 ## Editing rules
 
