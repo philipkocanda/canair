@@ -116,6 +116,8 @@ re-validated against the actual car — see [Define & verify](../bring-your-own-
   — detailed investigations of the same 28 kWh Ioniq Electric.
 - [Hyundai Ioniq EV PID spreadsheet](https://docs.google.com/spreadsheets/d/1eT2R8hmsD1hC__9LtnkZ3eDjLcdib9JR-3Myc97jy8M)
   — community PID reference.
+- [Hyundai Ioniq EV PID spreadsheet (2)](https://docs.google.com/spreadsheets/d/1YYlZ-IcTQlz-LzaYkHO-7a4SFM8QYs2BGNXiSU5_EwI/edit)
+  — another community PID reference.
 - [JejuSoul/OBD-PIDs-for-HKMC-EVs — Ioniq EV 28 kWh VMCU CSV](https://github.com/JejuSoul/OBD-PIDs-for-HKMC-EVs/blob/master/Ioniq%20EV%20-%2028kWh/extendedpids/Hyundai_Ioniq_EV_VMCU_data.csv)
   — VMCU/VCU extended-PID definitions for this exact car.
 - [JejuSoul/OBD-PIDs-for-HKMC-EVs — Kia Soul EV 27 kWh](https://github.com/JejuSoul/OBD-PIDs-for-HKMC-EVs/tree/master/Soul%20EV%20-%2027kWh/extendedpids)
