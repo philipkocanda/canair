@@ -4,7 +4,7 @@
 
 ```
 usage: canair bix [-h] [-1] [-2] [--table] [--annotate HEX [HEX ...]] [--raw]
-                  [--max MAX] [--ecu ECU] [--pid PID]
+                  [--torque] [--max MAX] [--ecu ECU] [--pid PID]
                   [value]
 
 Convert byte indices between WiCAN, ISO-TP, Torque, and OBDb notations.
@@ -27,6 +27,10 @@ options:
                         payload (ISO-TP PCI bytes present, e.g. straight off
                         the bus) — index it as-is instead of reconstructing
                         the framing from a PCI-stripped UDS payload.
+  --torque, --obdb      Show the Torque and bix (OBDb) columns too. Hidden by
+                        default — WiCAN and ISO-TP are the notations canair
+                        expressions use; Torque/bix are for cross-referencing
+                        third-party Torque/OBDb PID sheets.
   --max MAX             Max WiCAN index for table (default: 71)
   --ecu ECU             With --annotate: overlay which defined parameter maps
                         each byte (and flag unmapped bytes). Requires --pid.

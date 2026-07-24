@@ -113,6 +113,15 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "of reconstructing the framing from a PCI-stripped UDS payload.",
     )
     parser.add_argument(
+        "--torque",
+        "--obdb",
+        dest="show_torque",
+        action="store_true",
+        help="Show the Torque and bix (OBDb) columns too. Hidden by default — "
+        "WiCAN and ISO-TP are the notations canair expressions use; Torque/bix "
+        "are for cross-referencing third-party Torque/OBDb PID sheets.",
+    )
+    parser.add_argument(
         "--max", type=int, default=71, help="Max WiCAN index for table (default: 71)"
     )
     parser.add_argument(
@@ -229,16 +238,18 @@ def _pad(text: str, width: int, code: str) -> str:
     return _c(f"{text:<{width}}", code)
 
 
-def _print_legend(sub_bytes: int):
-    """Explain the four notations and the Role labels in plain language.
+def _print_legend(sub_bytes: int, *, show_torque: bool = False):
+    """Explain the notations and the Role labels in plain language.
 
     Printed above the compact overview and the full ``--table`` so both are
     self-documenting — a first-time reader never has to guess what ``FF PCI`` or
-    ``bix`` mean.
+    ``bix`` mean. The Torque/bix columns (and their explanation) are shown only
+    when ``show_torque`` is set, matching the table's default-hidden columns.
     """
     sub_desc = "SID + 2 DID bytes" if sub_bytes == 2 else "SID + 1 PID byte"
     variant = "Torque 2" if sub_bytes == 2 else "Torque 1"
-    print(_c("How a UDS response is counted four different ways", _BOLD))
+    count = "four" if show_torque else "these"
+    print(_c(f"How a UDS response is counted {count} different ways", _BOLD))
     print(
         "  A response rides on CAN frames (8 bytes each) → ISO-TP → UDS. Where you\n"
         "  start counting, and whether you include the transport framing, changes a\n"
@@ -247,16 +258,21 @@ def _print_legend(sub_bytes: int):
     print(_c("  Columns", _BOLD))
     print(f"    {_pad('WiCAN', 8, _CYAN)}  byte # in the raw CAN frames, framing INCLUDED (Bnn)")
     print("    ISO-TP    byte # in the reassembled payload, framing stripped")
-    print(f"    Torque    UDS data byte, letter notation ({variant} here: skips {sub_desc})")
-    print("    bix       Torque byte × 8 (bit index; used by Torque / OBDb)")
-    print(
-        _c(
-            "              ↳ Torque/OBDb count from the first UDS data byte, so the\n"
-            "                mapping shifts with the subfunction width: use -1 for\n"
-            "                21xx PIDs (Torque 1) and -2 for 22xxxx DIDs (Torque 2).",
-            _DIM,
+    if show_torque:
+        print(f"    Torque    UDS data byte, letter notation ({variant} here: skips {sub_desc})")
+        print("    bix       Torque byte × 8 (bit index; used by Torque / OBDb)")
+        print(
+            _c(
+                "              ↳ Torque/OBDb count from the first UDS data byte, so the\n"
+                "                mapping shifts with the subfunction width: use -1 for\n"
+                "                21xx PIDs (Torque 1) and -2 for 22xxxx DIDs (Torque 2).",
+                _DIM,
+            )
         )
-    )
+    else:
+        print(
+            _c("    (add --torque for the Torque / bix (OBDb) columns)", _DIM),
+        )
     print()
     print(_c("  Role — what a WiCAN row actually is", _BOLD))
     print(f"    {_pad('FF PCI', 8, _DIM)}  First-Frame framing (bytes B00–B01: type + length)")
@@ -278,7 +294,9 @@ def _print_legend(sub_bytes: int):
     print()
 
 
-def _print_table(sub_bytes: int, max_wican: int = 71, *, legend: bool = False):
+def _print_table(
+    sub_bytes: int, max_wican: int = 71, *, legend: bool = False, show_torque: bool = False
+):
     """Print the conversion table, grouped by CAN frame.
 
     Each 8-byte CAN frame is separated by a ``── Frame N ──`` divider and a
@@ -286,17 +304,23 @@ def _print_table(sub_bytes: int, max_wican: int = 71, *, legend: bool = False):
     (``SID``/``PID``/``DID``) bytes, so the reader can see where the raw CAN
     frame boundaries fall and which rows are framing vs. real data. With
     ``legend=True`` a plain-language key to the columns and Role labels is
-    printed first.
+    printed first. The Torque and bix columns are shown only when ``show_torque``
+    is set (WiCAN/ISO-TP are the primary notations).
     """
     if legend:
-        _print_legend(sub_bytes)
+        _print_legend(sub_bytes, show_torque=show_torque)
     table = conversion_table(max_wican=max_wican, subfunction_bytes=sub_bytes)
 
     sub_label = f"Torque {sub_bytes}" if sub_bytes in (1, 2) else f"Torque (sub={sub_bytes})"
-    header = f"| {'WiCAN':>5} | {'ISO-TP':>6} | {sub_label:>8} | {'bix':>5} | {'Role':<6} |"
+    if show_torque:
+        header = f"| {'WiCAN':>5} | {'ISO-TP':>6} | {sub_label:>8} | {'bix':>5} | {'Role':<6} |"
+        rule = f"|{'-' * 7}|{'-' * 8}|{'-' * 10}|{'-' * 7}|{'-' * 8}|"
+    else:
+        header = f"| {'WiCAN':>5} | {'ISO-TP':>6} | {'Role':<6} |"
+        rule = f"|{'-' * 7}|{'-' * 8}|{'-' * 8}|"
     width = len(header)
     print(header)
-    print(f"|{'-' * 7}|{'-' * 8}|{'-' * 10}|{'-' * 7}|{'-' * 8}|")
+    print(rule)
 
     prev_frame = -1
     for row in table:
@@ -311,9 +335,12 @@ def _print_table(sub_bytes: int, max_wican: int = 71, *, legend: bool = False):
         role = _table_role(w_idx, sub_bytes)
         w = f"B{w_idx:02d}"
         isotp = f"0x{row['isotp']:02X}" if row["isotp"] is not None else ""
-        letter = row["torque_letter"] or ""
-        bix = str(row["bix"]) if row["bix"] is not None else ""
-        line = f"| {w:>5} | {isotp:>6} | {letter:>8} | {bix:>5} | {role:<6} |"
+        if show_torque:
+            letter = row["torque_letter"] or ""
+            bix = str(row["bix"]) if row["bix"] is not None else ""
+            line = f"| {w:>5} | {isotp:>6} | {letter:>8} | {bix:>5} | {role:<6} |"
+        else:
+            line = f"| {w:>5} | {isotp:>6} | {role:<6} |"
         # Dim the ISO-TP framing (PCI) rows so real data stands out.
         print(_c(line, _DIM) if role.endswith("PCI") else line)
 
@@ -394,7 +421,12 @@ def _warn_payload_kind_mismatch(first_byte: int, raw_frame: bool):
 
 
 def _annotate_payload(
-    payload_hex: str, sub_bytes: int, params: dict | None = None, *, raw_frame: bool = False
+    payload_hex: str,
+    sub_bytes: int,
+    params: dict | None = None,
+    *,
+    raw_frame: bool = False,
+    show_torque: bool = False,
 ) -> int:
     """Annotate each byte of a UDS response payload with WiCAN Bnn indices.
 
@@ -403,6 +435,9 @@ def _annotate_payload(
     back); the framing is reconstructed to show the WiCAN indices. With
     ``raw_frame=True`` the hex is an **already-framed CAN payload** (PCI present,
     e.g. copied straight off the bus) and is indexed as-is.
+
+    The Torque and bix (OBDb) columns are shown only when ``show_torque`` is set —
+    WiCAN and ISO-TP are the notations canair expressions use.
 
     When ``params`` (a PID's ``parameters`` dict) is given, add a ``Param`` column
     showing which defined parameter maps each byte (``[NAME]`` verified,
@@ -429,33 +464,66 @@ def _annotate_payload(
     mapped = mapped_offsets(params) if overlay else {}
     mbits = mapped_bits(params) if overlay else {}
 
-    # Name the active Torque variant so it's clear the Torque/bix mapping is not
-    # fixed — it depends on the subfunction width (Torque 1 for 21xx, Torque 2 for
-    # 22xxxx). Torque/OBDb count from the first UDS *data* byte, after SID + this.
-    variant = "Torque 2" if sub_bytes == 2 else "Torque 1"
-    skipped = "SID + 2 DID bytes" if sub_bytes == 2 else "SID + 1 PID byte"
-    print(
-        _c(
-            f"  Torque column = {variant} (skips {skipped}); "
-            f"pass -{3 - sub_bytes} for the other variant.",
-            _DIM,
+    if show_torque:
+        # Name the active Torque variant so it's clear the Torque/bix mapping is
+        # not fixed — it depends on the subfunction width (Torque 1 for 21xx,
+        # Torque 2 for 22xxxx). Torque/OBDb count from the first UDS *data* byte.
+        variant = "Torque 2" if sub_bytes == 2 else "Torque 1"
+        skipped = "SID + 2 DID bytes" if sub_bytes == 2 else "SID + 1 PID byte"
+        print(
+            _c(
+                f"  Torque column = {variant} (skips {skipped}); "
+                f"pass -{3 - sub_bytes} for the other variant.",
+                _DIM,
+            )
         )
-    )
 
-    hdr = f"  {'WiCAN':>5} | {'Hex':>4} | {'ISO-TP':>6} | {'Torque':>6} | {'bix':>5} | Role"
-    sep = f"  {'─' * 5}─┼─{'─' * 4}─┼─{'─' * 6}─┼─{'─' * 6}─┼─{'─' * 5}─┼─{'─' * 10}"
+    # Column widths, shared by header / separator / data rows so everything lines
+    # up (the Role cell must be padded to width, else the trailing Param divider
+    # floats). Torque is a letter (A, AB…), bix up to 3 digits, Role up to 6 (FF
+    # PCI / CF PCI). Torque + bix are omitted entirely unless show_torque.
+    W_WICAN, W_HEX, W_ISOTP, W_TORQUE, W_BIX, W_ROLE = 5, 4, 6, 6, 5, 6
+
+    def _row(wican, hex_, isotp, role, param=None, *, torque=None, bix=None):
+        line = f"  {wican:>{W_WICAN}} | {hex_:>{W_HEX}} | {isotp:>{W_ISOTP}} | "
+        if show_torque:
+            line += f"{torque:>{W_TORQUE}} | {bix:>{W_BIX}} | "
+        line += f"{role:<{W_ROLE}}"
+        if param is not None:
+            line += f" | {param}"
+        return line.rstrip()
+
+    def _seg():
+        parts = [f"{'─' * W_WICAN}─", f"─{'─' * W_HEX}─", f"─{'─' * W_ISOTP}─"]
+        if show_torque:
+            parts += [f"─{'─' * W_TORQUE}─", f"─{'─' * W_BIX}─"]
+        parts.append(f"─{'─' * W_ROLE}")
+        return "  " + "┼".join(parts)
+
+    hdr = _row(
+        "WiCAN",
+        "Hex",
+        "ISO-TP",
+        "Role",
+        "Param" if overlay else None,
+        torque="Torque",
+        bix="bix",
+    )
+    seg = _seg()
+    divider_width = len(seg)  # span the fixed columns (up to Role), before Param
     if overlay:
-        hdr += " | Param"
-        sep += "─┼─" + "─" * 12
+        seg += "─┼─" + "─" * 12
     print(hdr)
-    print(sep)
+    print(seg)
 
     prev_frame = -1
     for w, (byte_val, pi) in enumerate(frame):
         cur_frame = w // 8
         if cur_frame != prev_frame and len(frame) > 8:
             # Only mark boundaries for genuinely multi-frame responses.
-            print(_c(f"  ── Frame {cur_frame} " + "─" * 20, _CYAN))
+            label = f"  ── Frame {cur_frame} "
+            label += "─" * max(0, divider_width - len(label))
+            print(_c(label, _CYAN))
             prev_frame = cur_frame
 
         # Derive every notation from the byte's ACTUAL ISO-TP index (pi) in the
@@ -476,15 +544,16 @@ def _annotate_payload(
         elif pi < header_size:
             role = "DID" if sub_bytes == 2 else "PID"
 
-        w_str = f"B{w:02d}"
-        iso_str = f"0x{isotp:02X}" if isotp is not None else "—"
-        t_str = letter if letter else "—"
-        b_str = str(bix) if bix is not None else "—"
-        line = (
-            f"  {w_str:>5} | 0x{byte_val:02X} |  {iso_str:>5} |  {t_str:>5} | {b_str:>5} | {role}"
+        param = _param_cell(w, byte_val, role, mapped, mbits) if overlay else None
+        line = _row(
+            f"B{w:02d}",
+            f"0x{byte_val:02X}",
+            f"0x{isotp:02X}" if isotp is not None else "—",
+            role,
+            param,
+            torque=letter if letter else "—",
+            bix=str(bix) if bix is not None else "—",
         )
-        if overlay:
-            line += f" | {_param_cell(w, byte_val, role, mapped, mbits)}"
         print(_c(line, _DIM) if role == "PCI" else line)
     return 0
 
@@ -505,25 +574,27 @@ def _param_cell(offset: int, byte_val: int, role: str, mapped: dict, mbits: dict
     return " ".join(parts)
 
 
-def _print_overview(sub_bytes: int):
+def _print_overview(sub_bytes: int, *, show_torque: bool = False):
     """The friendly bare-``bix`` landing view: legend + a compact 2-frame table.
 
     Shows just the first two CAN frames (B00–B15) — enough to see the FF/CF PCI
     boundary — and points at the ways to go deeper.
     """
-    _print_table(sub_bytes, max_wican=15, legend=True)
+    _print_table(sub_bytes, max_wican=15, legend=True, show_torque=show_torque)
     print()
     print(_c("  Go further", _BOLD))
     print("    canair bix --table          full table (all frames, up to --max)")
     print("    canair bix w9               convert one index (WiCAN B09) to every notation")
     print("    canair bix E                convert a Torque letter; also i6, b32, or a number")
     print("    canair bix --annotate HEX   map a real response payload, byte by byte")
+    if not show_torque:
+        print("    canair bix --torque         add the Torque / bix (OBDb) columns")
     print(_c("    canair bix -2 …             same, for 22xxxx DIDs (2-byte subfunction)", _DIM))
 
 
 def run(args) -> int:
     if args.table:
-        _print_table(args.sub_bytes, args.max, legend=True)
+        _print_table(args.sub_bytes, args.max, legend=True, show_torque=args.show_torque)
         return 0
 
     if args.annotate:
@@ -549,7 +620,11 @@ def run(args) -> int:
             print("Error: --pid requires --ecu.", file=sys.stderr)
             return 1
         return _annotate_payload(
-            " ".join(args.annotate), args.sub_bytes, params, raw_frame=args.raw_frame
+            " ".join(args.annotate),
+            args.sub_bytes,
+            params,
+            raw_frame=args.raw_frame,
+            show_torque=args.show_torque,
         )
 
     if args.raw_frame:
@@ -557,7 +632,7 @@ def run(args) -> int:
         return 1
 
     if not args.value:
-        _print_overview(args.sub_bytes)
+        _print_overview(args.sub_bytes, show_torque=args.show_torque)
         return 0
 
     notation, idx = _parse_input(args.value)

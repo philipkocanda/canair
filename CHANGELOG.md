@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`canair bix --torque` (alias `--obdb`)** shows the Torque and bix (OBDb)
+  columns, which are now **hidden by default** in `--annotate`, `--table`, and
+  the bare-`bix` overview. WiCAN and ISO-TP are the notations canair expressions
+  use; Torque/bix are opt-in for cross-referencing third-party Torque-app / OBDb
+  PID sheets. The overview and legend point at the flag.
+
 - **`canair bix --annotate --raw` (alias `--frame`)** annotates an already-framed
   CAN payload (ISO-TP PCI bytes present, e.g. copied straight off the bus),
   indexing the bytes as-is instead of reconstructing the framing from a
