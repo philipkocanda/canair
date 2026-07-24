@@ -264,6 +264,11 @@ payloads with a metadata modal, `q` quit); piped, it polls silently until
 Ctrl+C. Hex view highlights bytes changed since the previous cycle, colors bytes
 by verification state, and shows ASCII for unmapped PIDs. `--keep-unique` keeps
 distinct payloads per PID; `--keep-all` keeps every cycle with timestamps.
+`--keep-unique` is ideal for **event captures** (door/lock/hood): each stored row
+is a rising-edge transition, so `investigate --events` reconstructs the timeline
+cleanly — but return-to-previous states (falling edges) and durations are dropped,
+so the session is tagged `keep_mode: unique` and analysis tools (`decode`/
+`correlate`/`investigate`) warn and caveat rate/duration math on that scope.
 Throughput is governed by ELM commands/cycle — cut via header caching + service-22
 multi-DID batching (IGPM 3 DIDs: 11→5→1 cmds/cycle). `--elm-timeout` overrides
 `response_timeout_ms`.

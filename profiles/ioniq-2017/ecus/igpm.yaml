@@ -450,13 +450,21 @@ IGPM:
             (B5=0x7F). Static config/version register, no live signal.
           enabled: false
         UNLOCK_FLASH_BITS:
-          expression: B09
+          expression: B10
           min: "0"
           max: "255"
-          source: Timed event capture 2026-07-24
+          source: Timed event capture 2026-07-24; byte offset corrected via bix --annotate overlay 2026-07-24
           verified: false
           notes: >
-            NOT static — earlier 'static register' conclusion was from steady-state-only captures. B09 = 0x00 -> 0xF0 (top 4 bits) exactly at the fob-unlock event (09:36:50). Candidate unlock/hazard-flash confirmation indicator. B10 also toggles on trunk open (see BC05 note). Single event; needs a repeat lock/unlock cycle to confirm.
+            Unlock/hazard-flash indicator bits. B10 = 0x00 -> 0xF0 (top 4 bits) at fob unlock (09:36:50), back to 0x00 at first door/trunk event. CORRECTED 2026-07-24: was defined as B09 (which stays 0x00) — the toggling byte is B10, confirmed by 'investigate --events --bits' (B10:4-7 toggled) and 'bix --annotate --ecu IGPM --pid 22BC05' param overlay. Not static (earlier 'static register' conclusion was steady-state-only).
+        TRUNK_INDICATOR:
+          expression: B11:3
+          min: "0"
+          max: "1"
+          source: canair correlate --find-mirrors + investigate --events 2026-07-24
+          verified: false
+          notes: >
+            Trunk/tailgate indicator bit on BC05. B11:3 went 0->1 at the narrated 'open trunk' event (09:37:08), and 'canair correlate --find-mirrors --bits' reports IGPM:22BC05:B11:3 == IGPM:22BC03:B10:7 (TRUNK_OPEN) across the session — i.e. BC05 mirrors the confirmed BC03 trunk bit. Single event under keep:unique (rising edge only); verify with a repeat open/close cycle.
     22BC08:
       status: ignored
       vehicle_states:
