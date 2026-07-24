@@ -16,7 +16,7 @@ options:
   -h, --help            show this help message and exit
   -1                    1-byte subfunction mode (default)
   -2                    2-byte subfunction mode (22xxxx DIDs)
-  --table, -t           Print full conversion table
+  --table, -t           Print the full conversion table (all frames)
   --annotate HEX [HEX ...], -a HEX [HEX ...]
                         Annotate a hex payload with all index representations
                         (e.g. 62B0047402990C0040A000AAAA, or space-separated
@@ -26,6 +26,9 @@ options:
                         each byte (and flag unmapped bytes). Requires --pid.
   --pid PID             With --annotate --ecu: the PID whose parameters to
                         overlay (e.g. 22BC03).
+
+run `canair bix` with no arguments for a guided overview (a legend explaining
+each notation + a compact 2-frame table); `--table` prints the full table.
 
 input formats:
   w9, W09     WiCAN byte index (prefix w)

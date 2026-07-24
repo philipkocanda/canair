@@ -7,8 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`canair bix` (no arguments) now prints a guided overview** instead of an
+  error: a plain-language legend explaining each notation (WiCAN / ISO-TP /
+  Torque / bix) and the `PCI`/`FF`/`CF`/`SID`/`PID`/`DID` Role labels, a compact
+  2-frame table (B00–B15), and next-step hints. `--table` remains the full table
+  and now prints the same legend above it.
+
 ### Changed
 
+- **`canair bix --annotate` is now length-aware.** The ISO-TP / Torque / bix
+  columns are derived from each byte's actual position in the reconstructed
+  frame, so single-frame (≤7-byte) responses — one PCI byte at B00, SID at B01 —
+  are mapped correctly. Previously these columns assumed the multi-frame ISO-TP
+  layout and were off-by-one for single-frame payloads (disagreeing with the
+  `Role` column). `--table` and single-index lookups remain the canonical
+  multi-frame reference.
+- **Torque 1 vs Torque 2 is now discoverable.** `--annotate` names the active
+  Torque variant (Torque 1 for `21xx` PIDs / `-1`, Torque 2 for `22xxxx` DIDs /
+  `-2`) and points at the other, and the `bix` legend explains that the
+  Torque/OBDb mapping counts from the first UDS data byte and therefore shifts
+  with the subfunction width — so it's clear the mapping isn't fixed.
 - **`canair bix --table` now shows CAN frame boundaries.** Rows are grouped by
   8-byte CAN frame with `── Frame N ──` dividers, and a new `Role` column marks
   the ISO-TP framing (`FF PCI`/`CF PCI`) and UDS header (`SID`/`PID`/`DID`) bytes,

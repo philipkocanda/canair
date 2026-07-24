@@ -9,10 +9,12 @@ import sys
 from canlib.byteindex import (
     bix_to_wican,
     conversion_table,
+    isotp_to_torque,
     isotp_to_wican,
     letter_to_torque_idx,
     payload_to_wican_frame,
     torque_idx_to_letter,
+    torque_to_bix,
     torque_to_wican,
     wican_to_bix,
     wican_to_isotp,
@@ -23,6 +25,7 @@ NAME = "bix"
 
 # ANSI colors (match the sibling tools: decode, coverage, research).
 # Emitted only when stdout is a TTY so piped/redirected output stays plain.
+_BOLD = "\033[1m"
 _DIM = "\033[2m"
 _CYAN = "\033[96m"
 _RESET = "\033[0m"
@@ -38,6 +41,9 @@ def _c(text: str, code: str) -> str:
 
 
 _EPILOG = """\
+run `canair bix` with no arguments for a guided overview (a legend explaining
+each notation + a compact 2-frame table); `--table` prints the full table.
+
 input formats:
   w9, W09     WiCAN byte index (prefix w)
   i6, i0x06   ISO-TP payload index (prefix i)
@@ -78,7 +84,9 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         const=2,
         help="2-byte subfunction mode (22xxxx DIDs)",
     )
-    parser.add_argument("--table", "-t", action="store_true", help="Print full conversion table")
+    parser.add_argument(
+        "--table", "-t", action="store_true", help="Print the full conversion table (all frames)"
+    )
     parser.add_argument(
         "--annotate",
         "-a",
@@ -199,14 +207,73 @@ def _print_result(notation: str, idx: int, sub_bytes: int):
                 )
 
 
-def _print_table(sub_bytes: int, max_wican: int = 71):
-    """Print the full conversion table, grouped by CAN frame.
+def _pad(text: str, width: int, code: str) -> str:
+    """Left-justify ``text`` to ``width`` then color it, so ANSI codes don't
+    break the column alignment (padding is applied to the visible text first)."""
+    return _c(f"{text:<{width}}", code)
+
+
+def _print_legend(sub_bytes: int):
+    """Explain the four notations and the Role labels in plain language.
+
+    Printed above the compact overview and the full ``--table`` so both are
+    self-documenting — a first-time reader never has to guess what ``FF PCI`` or
+    ``bix`` mean.
+    """
+    sub_desc = "SID + 2 DID bytes" if sub_bytes == 2 else "SID + 1 PID byte"
+    variant = "Torque 2" if sub_bytes == 2 else "Torque 1"
+    print(_c("How a UDS response is counted four different ways", _BOLD))
+    print(
+        "  A response rides on CAN frames (8 bytes each) → ISO-TP → UDS. Where you\n"
+        "  start counting, and whether you include the transport framing, changes a\n"
+        "  byte's index. canair expressions use the WiCAN index.\n"
+    )
+    print(_c("  Columns", _BOLD))
+    print(f"    {_pad('WiCAN', 8, _CYAN)}  byte # in the raw CAN frames, framing INCLUDED (Bnn)")
+    print("    ISO-TP    byte # in the reassembled payload, framing stripped")
+    print(f"    Torque    UDS data byte, letter notation ({variant} here: skips {sub_desc})")
+    print("    bix       Torque byte × 8 (bit index; used by Torque / OBDb)")
+    print(
+        _c(
+            "              ↳ Torque/OBDb count from the first UDS data byte, so the\n"
+            "                mapping shifts with the subfunction width: use -1 for\n"
+            "                21xx PIDs (Torque 1) and -2 for 22xxxx DIDs (Torque 2).",
+            _DIM,
+        )
+    )
+    print()
+    print(_c("  Role — what a WiCAN row actually is", _BOLD))
+    print(f"    {_pad('FF PCI', 8, _DIM)}  First-Frame framing (bytes B00–B01: type + length)")
+    print(f"    {_pad('CF PCI', 8, _DIM)}  Consecutive-Frame framing (1 byte at B08, B16, B24…)")
+    print("    SID       UDS Service ID (the response service byte)")
+    if sub_bytes == 2:
+        print("    DID       the 2 Data Identifier bytes that echo the request")
+    else:
+        print("    PID       the Parameter ID byte that echoes the request")
+    print("    (blank)   real data — the bytes your expression reads")
+    print()
+    print(
+        _c(
+            "  PCI = ISO-TP framing bytes. They are NOT data — never index them in an\n"
+            "  expression, and never let a multi-byte range straddle one.",
+            _DIM,
+        )
+    )
+    print()
+
+
+def _print_table(sub_bytes: int, max_wican: int = 71, *, legend: bool = False):
+    """Print the conversion table, grouped by CAN frame.
 
     Each 8-byte CAN frame is separated by a ``── Frame N ──`` divider and a
     ``Role`` column marks the ISO-TP framing (``FF/CF PCI``) and UDS header
     (``SID``/``PID``/``DID``) bytes, so the reader can see where the raw CAN
-    frame boundaries fall and which rows are framing vs. real data.
+    frame boundaries fall and which rows are framing vs. real data. With
+    ``legend=True`` a plain-language key to the columns and Role labels is
+    printed first.
     """
+    if legend:
+        _print_legend(sub_bytes)
     table = conversion_table(max_wican=max_wican, subfunction_bytes=sub_bytes)
 
     sub_label = f"Torque {sub_bytes}" if sub_bytes in (1, 2) else f"Torque (sub={sub_bytes})"
@@ -271,6 +338,19 @@ def _annotate_payload(payload_hex: str, sub_bytes: int, params: dict | None = No
     mapped = mapped_offsets(params) if overlay else {}
     mbits = mapped_bits(params) if overlay else {}
 
+    # Name the active Torque variant so it's clear the Torque/bix mapping is not
+    # fixed — it depends on the subfunction width (Torque 1 for 21xx, Torque 2 for
+    # 22xxxx). Torque/OBDb count from the first UDS *data* byte, after SID + this.
+    variant = "Torque 2" if sub_bytes == 2 else "Torque 1"
+    skipped = "SID + 2 DID bytes" if sub_bytes == 2 else "SID + 1 PID byte"
+    print(
+        _c(
+            f"  Torque column = {variant} (skips {skipped}); "
+            f"pass -{3 - sub_bytes} for the other variant.",
+            _DIM,
+        )
+    )
+
     hdr = f"  {'WiCAN':>5} | {'Hex':>4} | {'ISO-TP':>6} | {'Torque':>6} | {'bix':>5} | Role"
     sep = f"  {'─' * 5}─┼─{'─' * 4}─┼─{'─' * 6}─┼─{'─' * 6}─┼─{'─' * 5}─┼─{'─' * 10}"
     if overlay:
@@ -287,9 +367,14 @@ def _annotate_payload(payload_hex: str, sub_bytes: int, params: dict | None = No
             print(_c(f"  ── Frame {cur_frame} " + "─" * 20, _CYAN))
             prev_frame = cur_frame
 
-        isotp = wican_to_isotp(w)
-        torque = wican_to_torque(w, sub_bytes)
-        bix = wican_to_bix(w, sub_bytes)
+        # Derive every notation from the byte's ACTUAL ISO-TP index (pi) in the
+        # reconstructed frame, so single-frame (1 PCI byte) and multi-frame
+        # (2 FF + 1/CF PCI bytes) payloads are both correct. The length-agnostic
+        # wican_to_isotp() assumes the multi-frame layout and is off-by-one for
+        # single-frame responses — using pi keeps this column in step with Role.
+        isotp = pi
+        torque = isotp_to_torque(pi, sub_bytes) if pi is not None else None
+        bix = torque_to_bix(torque) if torque is not None else None
         letter = torque_idx_to_letter(torque) if torque is not None else None
 
         role = ""
@@ -328,9 +413,25 @@ def _param_cell(offset: int, byte_val: int, role: str, mapped: dict, mbits: dict
     return " ".join(parts)
 
 
+def _print_overview(sub_bytes: int):
+    """The friendly bare-``bix`` landing view: legend + a compact 2-frame table.
+
+    Shows just the first two CAN frames (B00–B15) — enough to see the FF/CF PCI
+    boundary — and points at the ways to go deeper.
+    """
+    _print_table(sub_bytes, max_wican=15, legend=True)
+    print()
+    print(_c("  Go further", _BOLD))
+    print("    canair bix --table          full table (all frames, up to --max)")
+    print("    canair bix w9               convert one index (WiCAN B09) to every notation")
+    print("    canair bix E                convert a Torque letter; also i6, b32, or a number")
+    print("    canair bix --annotate HEX   map a real response payload, byte by byte")
+    print(_c("    canair bix -2 …             same, for 22xxxx DIDs (2-byte subfunction)", _DIM))
+
+
 def run(args) -> int:
     if args.table:
-        _print_table(args.sub_bytes, args.max)
+        _print_table(args.sub_bytes, args.max, legend=True)
         return 0
 
     if args.annotate:
@@ -359,8 +460,8 @@ def run(args) -> int:
         return 0
 
     if not args.value:
-        print("Error: provide an index to convert, --table, or --annotate.", file=sys.stderr)
-        return 1
+        _print_overview(args.sub_bytes)
+        return 0
 
     notation, idx = _parse_input(args.value)
     _print_result(notation, idx, args.sub_bytes)
