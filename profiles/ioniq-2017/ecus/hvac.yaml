@@ -175,19 +175,15 @@ HVAC:
             byte. (The earlier "tracks evaporator" note was a coincidence on one session.) Kept for research trail.
 
         HVAC_FAN_SPEED_LEVEL:
-          expression: "B33"
+          expression: B33
           unit: ""
           min: "0"
           max: "255"
           enabled: false
-          source: "Fan speed test 2026-04-19"
+          source: Fan speed test 2026-04-19; resolved via off-by-one hunt 2026-07-24
           verified: false
           notes: >
-            DISABLED 2026-07-20: B33 is constant 0xFF (255) across ALL 143 220100 captures — including a
-            confirmed fan-only speed-2 charge. It sits in the FF-padding tail (B30-B44) and is NOT the fan
-            level. The 2026-04-19 note (fan 1=0x26 ... 2=0x29) must have referenced a different byte/state and
-            does not reproduce. Use HVAC_BLOWER_FAN_DUTY (B15) for blower activity. Kept for research trail.
-
+            DEAD MAPPING (kept disabled for research trail). B33 is constant 0xFF across all 220100 captures — NOT the fan level. RESOLVED 2026-07-24 (bix --annotate overlay + decode --try over the 2026-04-19 fan 1/4/MAX sessions): the fan-setting value the 2026-04-19 note saw (0x26 fan1 -> 0x2D fan4/MAX) is on B34, currently mapped as HVAC_HEAT_DEMAND (B34 reads 40/41 fan1 -> 45 fan4/MAX). B34 also correlates with cabin cold (r=-0.74 vs ambient), so B34 is a combined fan/heat demand — see research lead to disambiguate. Fan LEVEL 1-8 not yet isolated.
         HVAC_AC_COMPRESSOR_ON:
           expression: "B44"
           unit: ""
@@ -759,6 +755,14 @@ HVAC:
       created: "2026-07-23"
       updated: "2026-07-23"
       notes: "220100 has 3 non-constant unmapped bytes, all registered as enabled-unverified candidates: HVAC_ACTUATOR_B14 (0-59, weak corr, likely valve/PWM), HVAC_HEAT_DEMAND (B34, r=-0.74 vs ambient), HVAC_ACTUATOR_B35 (86-255, noisy, r=-0.80 vs blower feedback). Other unmapped bytes are constants/FF-padding (B5=0x7E B6=0x50 B7=0x07 B9=0xC8; B10/B18-B31 tail=0xFF). Verify: actuate heat/fan and observe which moves."
+    - type: decode
+      target: 220100 B34 (fan vs heat demand)
+      status: captured
+      priority: P3
+      vehicle_states: [ready]
+      created: "2026-07-24"
+      updated: "2026-07-24"
+      notes: "B34 moves with BOTH fan setting (40/41 fan1 -> 45 fan4/MAX, 2026-04-19) and cabin-cold (r=-0.74 vs ambient) — likely a combined blower/heat demand, not a clean fan LEVEL. Disambiguate with a captures varying fan at constant temp AND temp at constant fan. Note: B33 (old HVAC_FAN_SPEED_LEVEL) is dead 0xFF; the true fan-speed 1-8 level byte is still unidentified."
   dtcs:
     B1285:
       description: >
