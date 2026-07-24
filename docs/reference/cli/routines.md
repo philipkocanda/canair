@@ -19,8 +19,8 @@ options:
   --rid RID             Routine ID to execute (e.g. 12A1)
   --sf SF               Sub-function: results (0x03, safe default), start
                         (0x01, actuates), stop (0x02)
-  --wican WICAN         WiCAN address: home, vpn or IP (default: config
-                        transport.host / default_wican=vpn)
+  --wican WICAN         WiCAN address: ap or IP (default: config
+                        transport.host / default_wican=ap)
   --transport {slcan-tcp,wican-ws}
                         CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327
                         terminal). Overrides the config `transport.type`

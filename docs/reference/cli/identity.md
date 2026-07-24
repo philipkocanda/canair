@@ -22,8 +22,8 @@ options:
                         Identity protocol: uds (22 F1xx), kwp (1A 8x/9x
                         KWP2000), or auto (registry hint, else on-device
                         probe). Default: auto
-  --wican WICAN         WiCAN address: home, vpn or IP (default: config
-                        transport.host / default_wican=vpn)
+  --wican WICAN         WiCAN address: ap or IP (default: config
+                        transport.host / default_wican=ap)
   --transport {slcan-tcp,wican-ws}
                         CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327
                         terminal). Overrides the config `transport.type`

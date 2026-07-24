@@ -52,8 +52,8 @@ options:
   --yes, -y             Skip the clear confirmation prompt
   --session             Enter extended session (10 03)
   --wake                Wake ECU from deep sleep (10 01)
-  --wican WICAN         WiCAN address: home, vpn or IP (default: config
-                        transport.host / default_wican=vpn)
+  --wican WICAN         WiCAN address: ap or IP (default: config
+                        transport.host / default_wican=ap)
   --transport {slcan-tcp,wican-ws}
                         CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327
                         terminal). Overrides the config `transport.type`

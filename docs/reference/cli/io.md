@@ -22,8 +22,8 @@ options:
                         2F{DID}00 (returnControlToECU) to every DID every 3s.
                         This can actuate relay/solenoid-backed DIDs (audible
                         click) — off by default.
-  --wican WICAN         WiCAN address: home, vpn or IP (default: config
-                        transport.host / default_wican=vpn)
+  --wican WICAN         WiCAN address: ap or IP (default: config
+                        transport.host / default_wican=ap)
   --transport {slcan-tcp,wican-ws}
                         CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327
                         terminal). Overrides the config `transport.type`

@@ -45,8 +45,8 @@ options:
                         bare-ECU sweep. By default `canair query ECU` omits
                         PIDs flagged static:true; naming one explicitly
                         (ECU:21F2) always queries it.
-  --wican WICAN         WiCAN address: home, vpn or IP (default: config
-                        transport.host / default_wican=vpn)
+  --wican WICAN         WiCAN address: ap or IP (default: config
+                        transport.host / default_wican=ap)
   --transport {slcan-tcp,wican-ws}
                         CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327
                         terminal). Overrides the config `transport.type`

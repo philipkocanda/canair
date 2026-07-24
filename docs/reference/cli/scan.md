@@ -68,8 +68,8 @@ options:
   --label TEXT          Session label for --save
   --state TEXT          Session state for --save
   --notes TEXT          Session notes for --save
-  --wican WICAN         WiCAN address: home, vpn or IP (default: config
-                        transport.host / default_wican=vpn)
+  --wican WICAN         WiCAN address: ap or IP (default: config
+                        transport.host / default_wican=ap)
   --transport {slcan-tcp,wican-ws}
                         CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327
                         terminal). Overrides the config `transport.type`
@@ -144,8 +144,8 @@ options:
   --wake                Wake ECU from deep sleep first
   --mode HEX            Session mode for --session (default 03 = UDS extended;
                         81 = KWP2000 standard, e.g. BMS)
-  --wican WICAN         WiCAN address: home, vpn or IP (default: config
-                        transport.host / default_wican=vpn)
+  --wican WICAN         WiCAN address: ap or IP (default: config
+                        transport.host / default_wican=ap)
   --transport {slcan-tcp,wican-ws}
                         CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327
                         terminal). Overrides the config `transport.type`
@@ -200,8 +200,8 @@ options:
   --wake                Wake ECU from deep sleep first
   --mode HEX            Session mode for --session (default 03 = UDS extended;
                         81 = KWP2000 standard, e.g. BMS)
-  --wican WICAN         WiCAN address: home, vpn or IP (default: config
-                        transport.host / default_wican=vpn)
+  --wican WICAN         WiCAN address: ap or IP (default: config
+                        transport.host / default_wican=ap)
   --transport {slcan-tcp,wican-ws}
                         CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327
                         terminal). Overrides the config `transport.type`
@@ -251,8 +251,8 @@ options:
                         81,82,83). Programming modes 02/85 are refused.
   --throttle-ms THROTTLE_MS
                         Delay in ms between probes (default 200)
-  --wican WICAN         WiCAN address: home, vpn or IP (default: config
-                        transport.host / default_wican=vpn)
+  --wican WICAN         WiCAN address: ap or IP (default: config
+                        transport.host / default_wican=ap)
   --transport {slcan-tcp,wican-ws}
                         CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327
                         terminal). Overrides the config `transport.type`
