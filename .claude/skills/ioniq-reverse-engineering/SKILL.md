@@ -52,7 +52,7 @@ project-specific facts and gotchas, not help text.
    write access, not just OBD-II reads.
 
 Backlog: `canair research --summary` (per-ECU `research:` sections) and
-`docs/TODO.md`.
+`docs-ignored/TODO.md`.
 
 ## Vehicle
 

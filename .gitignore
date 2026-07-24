@@ -22,7 +22,7 @@ node_modules
 # Project-specific
 wican-fw/
 logs/
-docs/
+docs-ignored/
 archive/
 css-electronics/
 

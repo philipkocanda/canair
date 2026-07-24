@@ -1,0 +1,31 @@
+# Hyundai Ioniq 5 2022 — vehicle operating states
+#
+# Canonical, ordered operating states for capture sessions (`state:` field).
+# Add a `when:` predicate over decoded PID values to auto-suggest the state at
+# save time (first match wins). See canlib/schema/states_schema.yaml and
+# `canair validate states`. Predicate grammar: ECU.PARAM names, and/or/not,
+# == != < <= > >=, numeric/'string' literals, and the sentinels
+# __no_response__ / __responded__.
+
+states:
+  - name: charging
+    description: HV battery actively charging (implies plugged).
+    # when: "BMS.BATTERY_CURRENT < -1"
+  - name: ready
+    description: HV active, driveable.
+    # when: "VCU.EV_READY == 1"
+  - name: deep sleep
+    description: No ECU responded (12V standby only).
+    when: "__no_response__"
+  - name: sleep
+    description: Light sleep / 12V standby (unplugged).
+  - name: plugged
+    description: Charge cable connected, not necessarily charging.
+  - name: acc
+    description: Accessory power (ACC1).
+  - name: acc2
+    description: Full ignition, no HV (ACC2/IGN).
+  - name: parked
+    description: Stationary, gear in Park.
+  - name: driving
+    description: In motion.

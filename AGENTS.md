@@ -46,7 +46,7 @@ All functionality is exposed through a single installable CLI, **`canair`** — 
 - **`canair dtc`** — Read stored Diagnostic Trouble Codes (DTCs) for one ECU or `--all` (UDS `0x19` / KWP2000 `0x18`, auto-selected by `id_protocol`). Logs each scan to the profile's `dtc_log.yaml` (tag the entry with `--label` and the vehicle power state with `--state`, e.g. `--state 'plugged, charging'`) and reports what **changed** since the last scan (DTC *meanings* live per-ECU in each `ecus/<name>.yaml` `dtcs:` section; profile-wide `failure_types:` in `profile.yaml`); clear fault memory with `--clear` (`0x14`). Read-only unless `--clear` is passed.
 - **`canair sniff`** — Passive CAN-bus sniffer (raw `slcan-tcp` backend **only** — asks to switch the device to `slcan` if needed). Live per-ID table (count/rate/last data/changed bytes) for discovering broadcast IDs the request/response path can't see; optional `.asc`/`.blf`/`.csv` frame logging via `--save`, plus `--filter`/`--listen-only`/`--duration`. Complements the active request/response tools which can't observe passive broadcasts.
 - **`canair status`** — Read-only snapshot of the configured transport, device mode, and reachability: "what am I talking to, in what mode, is it usable?". Use before a session to confirm the device is in the expected protocol (`slcan` vs `auto_pid`).
-- **`canair ecu`** — Inspect the profile's ECU registry (aggregated from the per-ECU `ecus/` files) and per-ECU stats (PID/param/verified counts, protocol, addresses). Companion to `canair validate ecus`.
+- **`canair ecu`** — Inspect the profile's ECU registry (aggregated from the per-ECU `ecus/` files) and per-ECU stats (PID/param/verified counts, protocol, addresses) via `canair ecu` / `canair ecu <ECU>` (the `show` kind). **`canair ecu add TX [--name --description --id-protocol --notes --overwrite --dir]`** registers a new ECU offline (no device) — the counterpart to `canair discover --register` for seeding a known ECU into a blank profile; the write is validated + comment-preserving. Companion to `canair validate ecus`.
 
 ### Profiles
 
@@ -63,8 +63,7 @@ Vehicle data lives in a **profile** bundle — a directory with `ecus/` (one fil
 - **`canair pids`** edits the `ecus/` files (parameters + research); ECU identity/scan_log are written by `canair discover --register` / `canair identity`.
 - (There is no longer a top-level `ecus.yaml` or `dtc.yaml` — both were folded into the per-ECU `ecus/` files.)
 - **`canair bix`** — Byte index converter: WiCAN ↔ ISO-TP ↔ Torque ↔ bix. Use `canair bix w9` or `canair bix E` for quick lookups, `--table` for full table. **`--annotate HEX` (`-a`)** maps a raw UDS response payload to a table with WiCAN Bnn, ISO-TP index, Torque letter, bix, and role per byte. The hex may be a no-space blob (`62B004…`), a quoted space-separated string (`"62 B0 04 …"`), or **unquoted space-separated bytes** (`-a 62 B0 04 …`) — all equivalent. Put the mode flag `-1` (21xx, default) / `-2` (22xxxx) **before** the bytes. Add **`--ecu ECU --pid PID`** to overlay which defined parameter (and bit `[NAME:k]`) maps each byte and flag `unmapped` data bytes — the fastest way to spot a wrong byte offset in an expression (how the BC05 `B09`→`B10` bug was caught).
-- **`docs/wican-iso-tp-index-conversion.md`** — Reference table for byte index notation differences (local only, not tracked in git)
-- **`docs/CLI commands.md`** — Reference for `canair query` usage and examples (local only, not tracked in git)
+- **`docs-ignored/wican-iso-tp-index-conversion.md`** — Reference table for byte index notation differences (local only, not tracked in git)
 
 ## WiCAN Access
 

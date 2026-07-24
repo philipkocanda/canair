@@ -87,6 +87,10 @@ All functionality is exposed as `canair <subcommand>`; run `canair <cmd> --help`
 
 You need a **WiCAN dongle** (Pro *or* classic), a car with an OBD-II port, and [`uv`](https://docs.astral.sh/uv/).
 
+> **You don't need to be a CAN expert to start.** Reading data is safe and free — canair only *reads* unless you explicitly ask it to actuate something, and every state-changing action (clearing DTCs, IOControl, config writes) confirms first. The one hard rule: interacting with a vehicle bus carries real risk, so read the [Warning](#warning) at the bottom.
+
+Steps 1–4 below get you **reading the bundled 2017 Ioniq profile** in a few minutes. If you own a *different* car, do the same setup, then follow **[Bring your own car](#bring-your-own-car)** to build a profile for it.
+
 ### 1. Connect to the dongle
 
 Plug the WiCAN into the OBD-II port and power on ignition/accessory. Get your computer on the same network — either join the WiCAN's built-in `WiCAN_xxxx` WiFi access point (reachable at `192.168.80.1`, canair's default when no config exists), or put the WiCAN on your home WiFi via its web UI so it gets a normal LAN IP.
@@ -125,10 +129,14 @@ canair status        # what am I talking to, in what mode, is it usable?
 
 ### 4. Read something
 
+The bundled profile targets the 2017 Ioniq, so these read *its* ECUs (`discover` works on any car):
+
 ```bash
-canair query BMS:2101              # read the battery ECU's main PID
-canair discover                    # list every ECU responding on the bus
+canair query BMS:2101              # read the battery ECU's main PID (Ioniq)
+canair discover                    # list every ECU responding on the bus (any car)
 ```
+
+> On a **different car**, `discover` still works, but `BMS:2101` may not — the ECU names/PIDs come from the active profile. See [Bring your own car](#bring-your-own-car) to build your own.
 
 ### 5. (Optional) Tab-completion
 
@@ -139,6 +147,56 @@ canair completion --install    # auto-detects your shell; open a new shell after
 ```
 
 Through `uv run` the completion won't fire (it hooks the `canair` command word); activate the venv first with `uv sync && source .venv/bin/activate`, then install.
+
+## Bring your own car
+
+The bundled Ioniq profile is just an *example* — canair's tooling is vehicle-agnostic. To reverse-engineer *your* car, you build your own **profile** and let the discovery/scan commands populate it as you go. The arc, end to end:
+
+```mermaid
+flowchart LR
+    A["profile create"] --> B["discover --register"]
+    B --> C["identity"]
+    C --> D["scan"]
+    D --> E["capture<br/>(--save while driving/charging)"]
+    E --> F["decode · correlate · hunt · investigate"]
+    F --> G["pids upsert-param"]
+    G --> H["coverage · verify"]
+    H --> I["wican autopid write<br/>· share the profile"]
+```
+
+1. **Create a profile** — scaffolds a valid bundle you can build on.
+   ```bash
+   canair profile create my-car --car-model "VW e-Golf 2019" --set-default
+   ```
+2. **Discover ECUs** — sweep the bus and *write* every responder into `ecus/` (add `--identify` to also read each one's part number / VIN / versions).
+   ```bash
+   canair discover --register --identify
+   ```
+   No car handy? Seed a known ECU offline with `canair ecu add 7C6 --name CLU` (validated, comment-preserving).
+3. **Scan for data** — probe an ECU's DID/PID ranges to find what it answers, seeding leads.
+   ```bash
+   canair scan range MyECU --range 2100-21FF --save
+   ```
+4. **Capture** — record payloads with context (`--label`/`--state`) while the car is doing something interesting (driving, charging, locking), so you have real data to analyze.
+   ```bash
+   canair query MyECU --save --label "highway" --state driving
+   ```
+5. **Analyze** — find which byte *is* a known signal, rank cross-signal relationships, and get a per-byte report.
+   ```bash
+   canair investigate MyECU 2101 --state driving
+   canair hunt MyECU:2102 --against MyECU:2101:SPEED_KMH
+   ```
+6. **Define & verify** — write the decoded parameter into `ecus/` (validated, comment-preserving), then audit for gaps.
+   ```bash
+   canair pids upsert-param MyECU 2101 SPEED_KMH "[B12]" --unit km/h --unverified
+   canair coverage MyECU
+   ```
+7. **Share** — generate the WiCAN AutoPID JSON and/or contribute the profile back.
+   ```bash
+   canair wican autopid write
+   ```
+
+This is the headline workflow; the [Usage examples](#usage-examples) below expand each step, and every command has `--help`.
 
 ## Usage examples
 

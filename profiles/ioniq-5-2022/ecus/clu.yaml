@@ -1,0 +1,5 @@
+CLU:
+  tx_id: 0x7C6
+  identity:
+    description: Cluster (instrument panel)
+    notes: Shares 0x7C6 with the 2017 Ioniq CLU. No PIDs decoded yet — ready for contributions.

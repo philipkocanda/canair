@@ -1,0 +1,6 @@
+# Hyundai Ioniq 5 2022 — vehicle profile settings (created by `canair profile create`)
+# Per-ECU definitions live in ecus/. Populate with `canair discover --register`
+# (add --identify to read identity DIDs), then `canair pids ...`. Validate with
+# `canair validate`.
+car_model: "Hyundai Ioniq 5 2022"
+init: "ATSP6;ATS0;ATAL;ATST96;"
