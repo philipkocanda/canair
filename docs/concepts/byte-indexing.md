@@ -75,6 +75,12 @@ offset in an expression:
 canair bix --annotate 62B004… --ecu MyECU --pid B004
 ```
 
+## Further reading
+
+For the deep, firmware-grounded reference — exactly how the WiCAN `Bnn` index maps
+onto the raw CAN frame buffer, verified against `wican-fw` source with file/line
+citations — see [WiCAN byte index (firmware reference)](wican-byte-index.md).
+
 The full conversion table is available any time via `canair bix --table`, and the
 upstream discussion of the notation differences is in
 [meatpiHQ/wican-fw#514](https://github.com/meatpiHQ/wican-fw/issues/514).
