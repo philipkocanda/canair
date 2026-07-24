@@ -10,6 +10,16 @@ It's also the best thing to *study*: it shows what a mature profile looks like
 (verified parameters with sources, `research:` backlogs, IOControl actuators,
 scan logs), which is exactly the shape you're building toward for your own car.
 
+!!! warning "Your car may differ"
+    This profile was built and verified against **one specific vehicle** (a 2017
+    28 kWh Ioniq Electric, NL market). PIDs, byte layouts, and available signals
+    can differ across **model years and markets** — and even between two cars of
+    the *same* year running **different ECU firmware/part numbers**. Treat this
+    profile as a strong starting point, not a guarantee: if a value looks wrong
+    on your car, re-verify it against your own captures rather than trusting the
+    label (see [Define & verify](../bring-your-own-car/07-define-and-verify.md)).
+    Check an ECU's part/firmware with `canair identity <ECU>`.
+
 ## At a glance
 
 | | |
