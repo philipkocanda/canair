@@ -1,8 +1,10 @@
 # 7. Define & verify
 
-Analysis produced a hypothesis: "byte 12 of `MyECU:2101` is speed in km/h." Now
-you turn that into a named **parameter** stored in the profile — the unit that
-makes `canair query MyECU` decode the value for anyone using your profile.
+[Analysis](06-analyze.md) gave you a hypothesis confirmed by data — say,
+*"byte 12 of `MyECU:2101` correlates with a known speed signal at r=0.99, ~1:1,
+so it's speed in km/h."* Now you turn that into a named **parameter** stored in
+the profile — the unit that makes `canair query MyECU` decode the value for
+anyone using your profile.
 
 This is the heart of **contributing PIDs**: a raw byte becomes a documented,
 validated, shareable signal.
