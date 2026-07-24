@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`canair bix --table` now shows CAN frame boundaries.** Rows are grouped by
+  8-byte CAN frame with `── Frame N ──` dividers, and a new `Role` column marks
+  the ISO-TP framing (`FF PCI`/`CF PCI`) and UDS header (`SID`/`PID`/`DID`) bytes,
+  so it's clear where frame boundaries fall and which rows are framing vs. data.
+  `--annotate` gains the same frame dividers on multi-frame payloads. Frame
+  dividers and PCI rows are color-highlighted on a TTY and plain when piped.
+
 ## [1.1.0] - 2026-07-24
 
 ### Added

@@ -21,6 +21,22 @@ from canlib.byteindex import (
 
 NAME = "bix"
 
+# ANSI colors (match the sibling tools: decode, coverage, research).
+# Emitted only when stdout is a TTY so piped/redirected output stays plain.
+_DIM = "\033[2m"
+_CYAN = "\033[96m"
+_RESET = "\033[0m"
+
+
+def _use_color() -> bool:
+    return sys.stdout.isatty()
+
+
+def _c(text: str, code: str) -> str:
+    """Wrap ``text`` in an ANSI ``code`` when stdout is a TTY, else return it plain."""
+    return f"{code}{text}{_RESET}" if _use_color() else text
+
+
 _EPILOG = """\
 input formats:
   w9, W09     WiCAN byte index (prefix w)
@@ -86,6 +102,24 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     )
     parser.set_defaults(func=run)
     return parser
+
+
+def _table_role(wican_idx: int, sub_bytes: int) -> str:
+    """Framing role of a WiCAN byte in the canonical multi-frame layout.
+
+    Returns ``"FF PCI"``/``"CF PCI"`` for ISO-TP framing bytes, ``"SID"`` /
+    ``"PID"`` / ``"DID"`` for the UDS header bytes, or ``""`` for a data byte.
+    The table has no concrete payload, so the role is derived purely from the
+    fixed multi-frame ISO-TP/UDS layout (matching ``wican_to_isotp``).
+    """
+    isotp = wican_to_isotp(wican_idx)
+    if isotp is None:
+        return "FF PCI" if wican_idx < 8 else "CF PCI"
+    if isotp == 0:
+        return "SID"
+    if isotp < 1 + sub_bytes:
+        return "DID" if sub_bytes == 2 else "PID"
+    return ""
 
 
 def _parse_input(value: str) -> tuple[str, int]:
@@ -166,19 +200,39 @@ def _print_result(notation: str, idx: int, sub_bytes: int):
 
 
 def _print_table(sub_bytes: int, max_wican: int = 71):
-    """Print the full conversion table."""
+    """Print the full conversion table, grouped by CAN frame.
+
+    Each 8-byte CAN frame is separated by a ``── Frame N ──`` divider and a
+    ``Role`` column marks the ISO-TP framing (``FF/CF PCI``) and UDS header
+    (``SID``/``PID``/``DID``) bytes, so the reader can see where the raw CAN
+    frame boundaries fall and which rows are framing vs. real data.
+    """
     table = conversion_table(max_wican=max_wican, subfunction_bytes=sub_bytes)
 
     sub_label = f"Torque {sub_bytes}" if sub_bytes in (1, 2) else f"Torque (sub={sub_bytes})"
-    print(f"| {'WiCAN':>5} | {'ISO-TP':>6} | {sub_label:>8} | {'bix':>5} |")
-    print(f"|{'-' * 7}|{'-' * 8}|{'-' * 10}|{'-' * 7}|")
+    header = f"| {'WiCAN':>5} | {'ISO-TP':>6} | {sub_label:>8} | {'bix':>5} | {'Role':<6} |"
+    width = len(header)
+    print(header)
+    print(f"|{'-' * 7}|{'-' * 8}|{'-' * 10}|{'-' * 7}|{'-' * 8}|")
 
+    prev_frame = -1
     for row in table:
-        w = f"B{row['wican']:02d}"
+        w_idx = row["wican"]
+        frame = w_idx // 8
+        if frame != prev_frame:
+            label = f"── Frame {frame} "
+            label += "─" * (width - 1 - len(label))  # fill to the table's right border
+            print(_c(f"|{label}|", _CYAN))
+            prev_frame = frame
+
+        role = _table_role(w_idx, sub_bytes)
+        w = f"B{w_idx:02d}"
         isotp = f"0x{row['isotp']:02X}" if row["isotp"] is not None else ""
         letter = row["torque_letter"] or ""
         bix = str(row["bix"]) if row["bix"] is not None else ""
-        print(f"| {w:>5} | {isotp:>6} | {letter:>8} | {bix:>5} |")
+        line = f"| {w:>5} | {isotp:>6} | {letter:>8} | {bix:>5} | {role:<6} |"
+        # Dim the ISO-TP framing (PCI) rows so real data stands out.
+        print(_c(line, _DIM) if role.endswith("PCI") else line)
 
 
 def _parse_hex_payload(raw: str) -> list[int]:
@@ -225,7 +279,14 @@ def _annotate_payload(payload_hex: str, sub_bytes: int, params: dict | None = No
     print(hdr)
     print(sep)
 
+    prev_frame = -1
     for w, (byte_val, pi) in enumerate(frame):
+        cur_frame = w // 8
+        if cur_frame != prev_frame and len(frame) > 8:
+            # Only mark boundaries for genuinely multi-frame responses.
+            print(_c(f"  ── Frame {cur_frame} " + "─" * 20, _CYAN))
+            prev_frame = cur_frame
+
         isotp = wican_to_isotp(w)
         torque = wican_to_torque(w, sub_bytes)
         bix = wican_to_bix(w, sub_bytes)
@@ -248,7 +309,7 @@ def _annotate_payload(payload_hex: str, sub_bytes: int, params: dict | None = No
         )
         if overlay:
             line += f" | {_param_cell(w, byte_val, role, mapped, mbits)}"
-        print(line)
+        print(_c(line, _DIM) if role == "PCI" else line)
 
 
 def _param_cell(offset: int, byte_val: int, role: str, mapped: dict, mbits: dict) -> str:

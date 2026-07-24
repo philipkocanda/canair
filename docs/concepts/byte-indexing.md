@@ -35,9 +35,15 @@ annotates a real payload so you can *see* which byte is which:
 
 ```bash
 canair bix w9                    # quick lookup for WiCAN byte 9
-canair bix --table               # the full conversion table
+canair bix --table               # the full conversion table, grouped by CAN frame
 canair bix --annotate 62B004…    # map a raw payload: WiCAN/ISO-TP/Torque/bix per byte
 ```
+
+`--table` groups its rows by 8-byte CAN frame with `── Frame N ──` dividers and a
+`Role` column that marks the ISO-TP framing (`FF PCI` / `CF PCI`) and UDS header
+(`SID` / `PID` / `DID`) bytes, so you can see exactly where the raw CAN frame
+boundaries fall and which rows are framing rather than data. `--annotate` marks the
+same frame boundaries on a concrete payload.
 
 Add `--ecu ECU --pid PID` to `--annotate` to overlay which defined parameter maps
 each byte and flag `unmapped` data bytes — the fastest way to catch a wrong
