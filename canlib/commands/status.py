@@ -172,6 +172,14 @@ def _gather(args) -> dict:
             if info["exit"] == _OK:
                 info["exit"] = _UNREACHABLE
 
+    # Cached update notice (local-only; no network on the status hot path).
+    try:
+        from ..update_check import pending_notice
+
+        info["update_notice"] = pending_notice()
+    except Exception:
+        info["update_notice"] = None
+
     return info
 
 
@@ -223,6 +231,9 @@ def _render(info: dict) -> None:
         c.print(f"  [red]✖ {e}[/red]")
     if not info.get("warnings") and not info.get("errors") and t and t.get("usable"):
         c.print("\n  [green]Ready.[/green]")
+    notice = info.get("update_notice")
+    if notice:
+        c.print(f"\n  [dim yellow]↑ {notice}[/dim yellow]")
     c.print()
 
 

@@ -45,6 +45,7 @@ COMMAND_NAMES: list[str] = [
     "ecu",
     "profile",
     "config",
+    "update",
     # interop (import/export external CAN data)
     "import_",
     "capture_import",

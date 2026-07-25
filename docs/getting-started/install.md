@@ -32,6 +32,27 @@ uv run canair --help
 `uv run canair …` executes the code in the current repo checkout. This is also
 what you'll use if you're hacking on canair itself.
 
+## Staying up to date
+
+canair checks GitHub once a day (in a background thread — it never blocks a
+command, and any network failure is silently ignored) for a newer released
+version. When one is available it prints a one-line notice with a link to the
+[changelog](https://github.com/philipkocanda/canair/blob/main/CHANGELOG.md) and
+how to upgrade.
+
+Upgrade with a single command — it fast-forwards your clone and reinstalls the
+CLI from it (keeping the git-clone install intact):
+
+```bash
+canair update            # check, confirm, then git pull + uv tool install . --reinstall
+canair update --check    # report current/latest + changelog only, change nothing
+canair update --yes      # skip the confirmation prompt (automation)
+```
+
+If canair can't find your clone or `uv` (e.g. a different install method), it
+prints the exact manual commands instead. To silence the automatic check, set
+`check_for_updates: false` in your config (or export `CANAIR_NO_UPDATE_CHECK=1`).
+
 ## Tab-completion (optional)
 
 Completion covers subcommands, flags, and ECU/PID names from your active profile:

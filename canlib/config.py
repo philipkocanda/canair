@@ -15,6 +15,9 @@ Recognized keys:
                     "pro".
   transport:        transport-selection block (type/host/port/bitrate); see
                     canlib.transport.config
+  check_for_updates: set to false to disable the automatic once-a-day check for
+                    a newer released version (also disabled by the
+                    CANAIR_NO_UPDATE_CHECK env var). See canlib.update_check.
 
 View and edit config from the CLI with ``canair config`` (show/get/set/unset/
 edit/path).
@@ -79,6 +82,11 @@ _STARTER_CONFIG = """\
 # `canair wican autopid upload/download/diff`, `canair wican mode set`, and the
 # wican-ws transport are refused for it. Raw slcan-tcp works on both.
 # wican_model: pro
+
+# Automatic update check: canair checks GitHub once a day (in the background,
+# never blocking) for a newer released version and prints a one-line notice.
+# Set to false to disable it (the CANAIR_NO_UPDATE_CHECK env var does the same).
+# check_for_updates: true
 """
 
 

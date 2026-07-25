@@ -83,6 +83,7 @@ All functionality is exposed as `canair <subcommand>`; run `canair <cmd> --help`
 | `canair profile` | Manage profile bundles — create/list/show/path. |
 | `canair status` | Snapshot of transport, device mode, and reachability. |
 | `canair config` | View/manage user config. |
+| `canair update` | Update canair from its git clone (`git pull` + reinstall); links the changelog. |
 | `canair validate` | Validate `ecus/`, `profile.yaml`, and `captures/` against their schemas. |
 
 > Separate package [`wican-cli`](https://github.com/philipkocanda/wican-cli) handles WiCAN *device* management (config, sleep/power, status, reboots). `pip install wican-cli`.
@@ -103,6 +104,8 @@ canair query BMS:2101                   # read a PID (Ioniq profile)
 ```
 
 Full setup — installing, connecting the dongle (Pro vs classic, AP vs LAN), tab-completion, and your first read — is in [Getting started](https://philipkocanda.github.io/canair/getting-started/install/).
+
+canair checks once a day for a newer release (offline-safe, never blocking) and points you at the changelog; upgrade in place with `canair update` (`git pull` + reinstall). See [staying up to date](https://philipkocanda.github.io/canair/getting-started/install/#staying-up-to-date).
 
 > **You don't need to be a CAN expert to start.** Reading is safe and free — canair only *reads* unless you explicitly actuate something, and every state-changing action confirms first. Interacting with a vehicle bus still carries real risk: see the [Warning](#warning).
 

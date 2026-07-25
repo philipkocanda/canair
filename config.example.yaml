@@ -39,6 +39,14 @@ wican_addresses:
 
 default_wican: ap
 
+# Automatic update check. canair checks GitHub once a day (in a background
+# thread, never blocking a command) for a newer released version and prints a
+# one-line notice with a changelog link and how to update (`canair update`).
+# The check is offline-safe (any failure is silently ignored) and only runs in
+# interactive terminals. Set to false to disable it entirely; the
+# CANAIR_NO_UPDATE_CHECK environment variable does the same.
+# check_for_updates: true
+
 # WiCAN hardware model: "pro" (default) or "classic" (the regular, non-Pro WiCAN).
 # The classic WiCAN has no AutoPID profile support and no ELM327
 # WebSocket terminal, so with wican_model: classic canair refuses:

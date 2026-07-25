@@ -1,0 +1,251 @@
+"""``canair update`` — update the CLI from its git-clone install.
+
+canair is installed from a git clone (``git clone`` + ``uv tool install .``), so
+updating means: fast-forward the clone, then reinstall the tool from it. This
+command locates that source clone (via uv's tool receipt, falling back to the
+package's own repo root), reports the current vs latest released version with a
+changelog link, and — after confirmation — runs ``git pull --ff-only`` +
+``uv tool install <clone> --reinstall``.
+
+It never mutates anything without an interactive confirmation or ``--yes``, and
+degrades gracefully to printing manual instructions when it can't find a git
+clone or ``uv`` (e.g. a pip/editable install). ``--check`` reports only;
+``--json`` emits a machine-readable summary.
+"""
+
+from __future__ import annotations
+
+import argparse
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+from ..update_check import (
+    CHANGELOG_URL,
+    _is_newer,
+    fetch_latest_release,
+    write_cache,
+)
+
+NAME = "update"
+
+# Exit codes.
+_OK = 0
+_FAILED = 1
+_CANNOT = 2
+
+
+def add_parser(subparsers) -> argparse.ArgumentParser:
+    parser = subparsers.add_parser(
+        NAME,
+        help="Update canair from its git-clone install (git pull + reinstall)",
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""\
+examples:
+  canair update            # check, confirm, then git pull + reinstall
+  canair update --check    # report current/latest + changelog, change nothing
+  canair update --yes      # update without the confirmation prompt (automation)
+  canair update --json     # machine-readable version/clone summary
+""",
+    )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Only report the current/latest version and changelog; make no changes",
+    )
+    parser.add_argument(
+        "-y",
+        "--yes",
+        action="store_true",
+        help="Skip the confirmation prompt (git pull + reinstall)",
+    )
+    parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
+    parser.set_defaults(func=run)
+    return parser
+
+
+def _find_clone_dir() -> Path | None:
+    """Locate the source git clone canair was installed from.
+
+    Preference order:
+      1. uv's tool receipt (``~/.local/share/uv/tools/canair/uv-receipt.toml``),
+         which records the ``directory`` a ``uv tool install .`` came from.
+      2. The package's own repo root (``canlib.constants.SCRIPT_DIR``), covering
+         editable / ``uv run`` dev checkouts.
+    Returns the first that is an existing git working tree, else ``None``.
+    """
+    candidates: list[Path] = []
+    receipt = _uv_receipt_directory()
+    if receipt is not None:
+        candidates.append(receipt)
+    try:
+        from ..constants import SCRIPT_DIR
+
+        candidates.append(Path(SCRIPT_DIR))
+    except Exception:
+        pass
+    for path in candidates:
+        if (path / ".git").exists():
+            return path
+    return None
+
+
+def _uv_receipt_directory() -> Path | None:
+    """Read the source directory from uv's tool receipt, if present."""
+    import os
+
+    data_home = os.environ.get("XDG_DATA_HOME") or (Path.home() / ".local" / "share")
+    receipt = Path(data_home) / "uv" / "tools" / "canair" / "uv-receipt.toml"
+    try:
+        import tomllib
+
+        parsed = tomllib.loads(receipt.read_text())
+    except (OSError, ValueError, ModuleNotFoundError):
+        return None
+    for req in parsed.get("tool", {}).get("requirements", []):
+        directory = req.get("directory") if isinstance(req, dict) else None
+        if directory:
+            return Path(directory)
+    return None
+
+
+def _git(clone: Path, *args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        ["git", "-C", str(clone), *args],
+        capture_output=True,
+        text=True,
+    )
+
+
+def _git_dirty(clone: Path) -> bool:
+    """True when the clone has uncommitted changes (don't clobber contributor work)."""
+    res = _git(clone, "status", "--porcelain")
+    return res.returncode == 0 and bool(res.stdout.strip())
+
+
+def _manual_instructions(clone: Path | None) -> str:
+    loc = str(clone) if clone else "<your canair clone>"
+    return (
+        "  To update manually:\n"
+        f"    cd {loc}\n"
+        "    git pull --ff-only\n"
+        "    uv tool install . --reinstall\n"
+    )
+
+
+def run(args) -> int:
+    from .. import __version__
+
+    clone = _find_clone_dir()
+    release = fetch_latest_release()
+    latest = release["tag"] if release else None
+    changelog = (release or {}).get("url") or CHANGELOG_URL
+
+    update_available = _is_newer(latest, __version__)
+
+    if args.json:
+        import json
+
+        print(
+            json.dumps(
+                {
+                    "current": __version__,
+                    "latest": latest,
+                    "update_available": update_available,
+                    "clone_dir": str(clone) if clone else None,
+                    "changelog_url": changelog,
+                },
+                indent=2,
+            )
+        )
+        return _OK
+
+    from rich.console import Console
+
+    c = Console()
+    c.print(f"\n  [bold]canair[/bold]  current: {__version__}")
+    if latest is None:
+        c.print("  [yellow]could not reach GitHub to check the latest release[/yellow]")
+        c.print("  [dim](offline, or GitHub unreachable — the update itself may still work)[/dim]")
+    elif update_available:
+        c.print(f"          latest:  [green]{latest}[/green]  (update available)")
+    else:
+        c.print(f"          latest:  {latest}  [green](up to date)[/green]")
+    c.print(f"  changelog: [dim]{changelog}[/dim]\n")
+
+    # Refresh the cache so any pending auto-notice clears after an explicit check.
+    write_cache(latest, changelog)
+
+    if args.check:
+        return _OK
+
+    if latest is not None and not update_available:
+        c.print("  Already up to date. Nothing to do.\n")
+        return _OK
+
+    if clone is None:
+        c.print("  [yellow]Couldn't locate a git clone to update from.[/yellow]")
+        c.print(_manual_instructions(None))
+        return _CANNOT
+
+    if _git_dirty(clone):
+        c.print(
+            f"  [yellow]The clone at {clone} has uncommitted changes.[/yellow]\n"
+            "  Refusing to touch it so your work isn't clobbered. Commit or stash first,\n"
+            "  then re-run, or update manually:\n"
+        )
+        c.print(_manual_instructions(clone))
+        return _CANNOT
+
+    uv = shutil.which("uv")
+    if uv is None:
+        c.print("  [yellow]`uv` not found on PATH — can't reinstall automatically.[/yellow]")
+        c.print(_manual_instructions(clone))
+        return _CANNOT
+
+    c.print(f"  This will update the clone at [bold]{clone}[/bold]:")
+    c.print("    git pull --ff-only  &&  uv tool install . --reinstall\n")
+
+    if not args.yes:
+        if not (sys.stdin.isatty() and sys.stdout.isatty()):
+            c.print("  Non-interactive; pass --yes to proceed. Nothing changed.\n")
+            return _CANNOT
+        try:
+            answer = input("  Proceed? [y/N]: ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            answer = ""
+        if answer not in ("y", "yes"):
+            c.print("  Aborted. Nothing changed.\n")
+            return _CANNOT
+
+    c.print("\n  Pulling latest changes …")
+    pull = _git(clone, "pull", "--ff-only")
+    if pull.returncode != 0:
+        c.print("  [red]git pull failed:[/red]")
+        c.print(f"  [dim]{(pull.stderr or pull.stdout).strip()}[/dim]\n")
+        c.print(
+            "  The clone may have diverged or has local commits. Resolve it, then\n"
+            "  re-run, or update manually:\n"
+        )
+        c.print(_manual_instructions(clone))
+        return _FAILED
+    if pull.stdout.strip():
+        c.print(f"  [dim]{pull.stdout.strip()}[/dim]")
+
+    c.print("  Reinstalling the CLI …")
+    install = subprocess.run(
+        [uv, "tool", "install", str(clone), "--reinstall"],
+        capture_output=True,
+        text=True,
+    )
+    if install.returncode != 0:
+        c.print("  [red]reinstall failed:[/red]")
+        c.print(f"  [dim]{(install.stderr or install.stdout).strip()}[/dim]\n")
+        c.print(_manual_instructions(clone))
+        return _FAILED
+
+    c.print("\n  [green]✓ Updated.[/green] Run `canair --version` to confirm.\n")
+    return _OK

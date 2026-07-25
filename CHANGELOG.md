@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`canair update` + automatic update checker.** canair now checks GitHub once
+  a day (in a background daemon thread — never blocking a command, and fully
+  offline-safe: any network failure is silently ignored) for a newer released
+  version, caches the result to `~/.config/canair/update_check.json`, and prints
+  a one-line "update available" notice with a changelog link on the next run
+  (also surfaced in `canair status`). The new **`canair update`** command
+  upgrades in place while keeping the git-clone install: it locates the source
+  clone (via uv's tool receipt, falling back to the package repo root), reports
+  current vs latest version, and — after confirmation — runs `git pull --ff-only`
+  + `uv tool install . --reinstall`. Flags: `--check` (report only), `--yes`
+  (skip the prompt), `--json`. Refuses a dirty clone and degrades to manual
+  instructions when no clone/`uv` is found. Disable the auto-check with
+  `check_for_updates: false` in config or the `CANAIR_NO_UPDATE_CHECK` env var.
+  New library module `canlib/update_check.py`.
+
 - **`canair correlate --can-log FILE` — correlate raw broadcast-CAN frame bytes
   (Stage 2).** Reads a native frame log's per-byte series (`0xID:rN`, `--bits` for
   `0xID:rN.k`, `--id` to filter arbitration IDs) and runs the *same* correlation

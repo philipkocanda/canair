@@ -36,6 +36,7 @@ _KNOWN_KEYS = (
     "default_wican",
     "wican_addresses.<alias>",
     "wican_model",
+    "check_for_updates",
     "transport.type",
     "transport.host",
     "transport.port",

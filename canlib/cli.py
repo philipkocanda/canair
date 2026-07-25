@@ -25,6 +25,26 @@ _GROUP_DEFAULTS = {
     "ecu": ({"show", "add"}, "show"),
 }
 
+# Commands that manage/report versions themselves or shouldn't be interrupted by
+# an update notice (they have their own output contract or run non-interactively).
+_UPDATE_CHECK_SKIP_COMMANDS = {"update", "completion", "config"}
+
+
+def _update_check_allowed(args) -> bool:
+    """Whether to run the background update check / print a notice this run.
+
+    Conservative, mirroring the first-run gate: interactive TTY only, a command
+    that actually dispatches (not bare ``canair`` / ``--help`` / ``--version``),
+    and not one of the self-managing commands.
+    """
+    if not (sys.stdin.isatty() and sys.stderr.isatty()):
+        return False
+    if getattr(args, "func", None) is None:
+        return False
+    if getattr(args, "command", None) in _UPDATE_CHECK_SKIP_COMMANDS:
+        return False
+    return True
+
 
 def _inject_default_subcommand(argv: list[str]) -> list[str]:
     """Make command groups default to a kind when none is given.
@@ -141,11 +161,22 @@ def main(argv: list[str] | None = None) -> int:
     if func is None:
         parser.print_help()
         return 1
+
+    # Fire a non-blocking, cached update check (interactive only; opt-out via
+    # config/env). Never blocks or affects the command's outcome.
+    from canlib import update_check
+
+    check_updates = _update_check_allowed(args)
+    if check_updates:
+        update_check.maybe_check_in_background()
+
     try:
         result = func(args)
     except ProfileError as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
+    if check_updates:
+        update_check.print_notice_if_any()
     return result if isinstance(result, int) else 0
 
 
