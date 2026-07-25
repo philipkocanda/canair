@@ -198,7 +198,8 @@ directly.** Always inspect captures through `canair captures`/`canair decode`
 byte-diffing, decoding, and state/date scoping. Saves are journaled to `captures/.journal/` and
 reconciled on exit (a killed/disconnected `--monitor` session is recoverable with
 `canair captures uds --recover`); in `--monitor` the `state` is auto-suggested from
-decoded values (press `s` to edit metadata live). After saving, run
+decoded values (press `s` to edit the current session's metadata live, `n` to start
+a fresh labelled segment; a `● REC` blinks while recording). After saving, run
 `canair captures uds --summary`.
 
 ### 5. Inspect — see the bytes

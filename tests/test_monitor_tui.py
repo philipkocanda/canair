@@ -26,6 +26,7 @@ class FakeController:
         has_captures=True,
         query_label="BMS:2101",
         editor=None,
+        journal=None,
     ):
         self.cycle = 0
         self.elapsed = 0.0
@@ -39,6 +40,8 @@ class FakeController:
         self._has_captures = has_captures
         self._query_label = query_label
         self.saved = None
+        self.new_seg = None
+        self.journal = journal
         self.show_rulers = False
         self.editor = editor
         self.last_queries = []
@@ -75,6 +78,10 @@ class FakeController:
     def save_now(self, label, vehicle_states=None, notes=None) -> str:
         self.saved = (label, vehicle_states, notes)
         return "Saved 1 payload → foo.yaml"
+
+    def new_segment(self, label, vehicle_states=None, notes=None) -> str:
+        self.new_seg = (label, vehicle_states, notes)
+        return "Segment saved → foo.yaml; recording new segment."
 
 
 def _plain(renderable) -> str:
@@ -291,6 +298,61 @@ class TestMonitorApp:
             await pilot.pause(0.1)
             assert not isinstance(app.screen, SaveDialog)
             assert ctrl.saved is None
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
+    async def test_new_segment_opens_dialog_and_rotates(self):
+        from textual.widgets import Input
+
+        from canlib.modes._monitor_tui import SaveDialog
+
+        ctrl = FakeController(journal=object())  # journal present ⇒ recording
+        app = MonitorApp(ctrl)
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause(0.1)
+            await pilot.press("n")
+            await pilot.pause(0.1)
+            assert isinstance(app.screen, SaveDialog)
+            app.screen.query_one("#f-label", Input).value = "seg2"
+            await pilot.press("enter")
+            await pilot.pause(0.1)
+            assert ctrl.new_seg is not None
+            assert ctrl.new_seg[0] == "seg2"
+            assert ctrl.saved is None  # 'n' is distinct from 's'
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
+    async def test_new_segment_without_save_flashes_no_dialog(self):
+        from canlib.modes._monitor_tui import SaveDialog
+
+        ctrl = FakeController(journal=None)  # not recording
+        app = MonitorApp(ctrl)
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause(0.1)
+            await pilot.press("n")
+            await pilot.pause(0.1)
+            assert not isinstance(app.screen, SaveDialog)
+            assert ctrl.new_seg is None
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
+    async def test_rec_indicator_shown_when_recording(self):
+        ctrl = FakeController(journal=object())
+        app = MonitorApp(ctrl)
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause(0.1)
+            plain = _plain(app.query_one("#status").render())
+            assert "REC" in plain
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
+    async def test_no_rec_indicator_when_not_recording(self):
+        ctrl = FakeController(journal=None)
+        app = MonitorApp(ctrl)
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause(0.1)
+            plain = _plain(app.query_one("#status").render())
+            assert "REC" not in plain
             await pilot.press("q")
 
 

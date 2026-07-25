@@ -36,6 +36,21 @@ canair captures uds --recover      # reconcile orphaned journals into capture fi
 canair captures uds --recover --discard   # or drop them unsaved
 ```
 
+## Recording in the live monitor
+
+`canair query … --monitor --save` records continuously: every poll cycle is
+journaled as it arrives. The scrollable live view shows a blinking `● REC`
+whenever a `--save` recording is active, and two keys control the session:
+
+- **`s`** — set or edit the label / state / notes for the **current** session
+  (the modal states which segment you're labelling). This only updates metadata;
+  payloads are already being recorded. The vehicle state is auto-suggested from
+  decoded values.
+- **`n`** — close the current segment (save it to its own capture file) and start
+  a **fresh** one, labelled via the same modal. One monitor run can thus produce
+  several independently-labelled sessions — press `n` at each phase change (e.g.
+  parked → driving → charging) rather than stopping and restarting.
+
 ## Vehicle states
 
 A byte's meaning often only becomes clear *relative to what the car is doing*. A

@@ -497,6 +497,43 @@ class TestControllerSnapshot:
         assert "nothing to save" in c.save_now("x").lower()
         assert list(tmp_path.glob("*.yaml")) == []
 
+    def test_repeated_save_dedupes(self, tmp_path):
+        """Pressing 's' twice with no new data doesn't re-save the same payloads."""
+        c = self._controller()
+        c.captures_dir = tmp_path
+        c.prev_hex[("BMS (0x7E4)", "2101")] = "6101AA"
+        first = c.save_now("ref")
+        assert "Saved 1 payload" in first
+        # Nothing changed since — a second press writes nothing new.
+        second = c.save_now("ref")
+        assert "Nothing new since last save" in second
+        payloads = [
+            cap["payload"]
+            for f in tmp_path.glob("*.yaml")
+            for s in yaml.safe_load(f.read_text())["sessions"]
+            for cap in s["captures"]
+        ]
+        assert payloads == ["6101AA"]  # exactly once
+
+    def test_repeated_save_writes_only_new(self, tmp_path):
+        """A second save records only payloads that arrived after the first."""
+        c = MonitorController(
+            terminal=None, query_steps=[], pids_data={}, verbose=False, keep_mode="all"
+        )
+        c.captures_dir = tmp_path
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
+        c.save_now("ref")
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101BB"}])])
+        msg = c.save_now("ref")
+        assert "Saved 1 payload" in msg  # only the new BB row
+        payloads = sorted(
+            cap["payload"]
+            for f in tmp_path.glob("*.yaml")
+            for s in yaml.safe_load(f.read_text())["sessions"]
+            for cap in s["captures"]
+        )
+        assert payloads == ["6101AA", "6101BB"]  # each once, no duplicate AA
+
 
 class TestControllerJournal:
     """--save wires a write-ahead journal that survives a dropped connection."""
@@ -552,6 +589,43 @@ class TestControllerJournal:
         assert len(data["sessions"]) == 1
         assert data["sessions"][0]["label"] == "edited"
         assert data["sessions"][0]["vehicle_states"] == ["ready"]
+
+    def test_new_segment_rotates_journal(self, tmp_path):
+        """'n' reconciles the current segment and opens a fresh, newly-labelled one."""
+        from canlib.capture_journal import CaptureJournal
+
+        c = self._controller()
+        c.captures_dir = tmp_path
+        c.journal = CaptureJournal.open(tmp_path, label="seg1", source="monitor")
+        first_path = c.journal.path
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
+
+        msg = c.new_segment("seg2", "ready", "note")
+        assert "Segment saved" in msg
+        # A fresh journal is now active for the new segment.
+        assert c.journal is not None
+        assert not first_path.exists()  # the closed segment's journal was reconciled away
+        # Segment 1 already landed on disk with its own label.
+        seg1 = yaml.safe_load(next(tmp_path.glob("*.yaml")).read_text())["sessions"]
+        assert any(s["label"] == "seg1" for s in seg1)
+
+        # Record into segment 2, then reconcile as exit would.
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101BB"}])])
+        c.journal.reconcile()
+        labels = {
+            s["label"]
+            for f in tmp_path.glob("*.yaml")
+            for s in yaml.safe_load(f.read_text())["sessions"]
+        }
+        assert {"seg1", "seg2"} <= labels
+
+    def test_new_segment_requires_save(self):
+        c = MonitorController(
+            terminal=None, query_steps=[], pids_data={}, verbose=False, save=False
+        )
+        assert c.journal is None
+        msg = c.new_segment("x")
+        assert "requires --save" in msg
 
 
 class TestControllerSuggestedState:

@@ -16,6 +16,10 @@ cursor over the decoded parameter rows, ``e`` opens an in-place edit dialog
 quick-toggle the selected parameter's verified/enabled flags, and ``F`` cycles
 a display filter (all / verified / unverified / enabled / disabled). Edits are
 written through :mod:`canlib.pids_edit` and picked up on the next poll.
+
+With ``--save`` a blinking ``● REC`` marks the active recording; ``s`` labels the
+current session and ``n`` closes the current segment and starts a fresh one (one
+run can thus yield several independently-labelled capture sessions).
 """
 
 from __future__ import annotations
@@ -94,6 +98,7 @@ class SaveDialog(ModalScreen[tuple[str, str, str] | None]):
         border: round $accent; background: $surface;
     }
     #dialog-title { text-style: bold; margin-bottom: 1; }
+    #dialog-caption { color: $text-muted; margin-bottom: 1; }
     #dialog Input { margin-bottom: 0; }
     #state-hint { color: $text-muted; height: 1; margin-bottom: 0; }
     #state-warning { color: $warning; height: auto; margin-bottom: 1; display: none; }
@@ -114,10 +119,14 @@ class SaveDialog(ModalScreen[tuple[str, str, str] | None]):
         suggested_label: str,
         suggested_state: str = "",
         state_options: list[tuple[str, str]] | None = None,
+        title: str = "Save captures to profile",
+        caption: str = "",
     ):
         super().__init__()
         self._suggested = suggested_label
         self._suggested_state = suggested_state
+        self._title = title
+        self._caption = caption
         if state_options is None:
             from ..states import state_options as load_state_options
 
@@ -132,7 +141,9 @@ class SaveDialog(ModalScreen[tuple[str, str, str] | None]):
         from textual.containers import Vertical
 
         with Vertical(id="dialog"):
-            yield Label("Save captures to profile", id="dialog-title")
+            yield Label(self._title, id="dialog-title")
+            if self._caption:
+                yield Label(self._caption, id="dialog-caption")
             yield Input(value=self._suggested, placeholder="Label (required)", id="f-label")
             yield Input(
                 value=self._suggested_state,
@@ -307,6 +318,7 @@ class MonitorApp(App):
         Binding("q", "quit", "quit"),
         Binding("ctrl+c", "quit", "quit", show=False, priority=True),
         Binding("s", "save", "save"),
+        Binding("n", "new_segment", "new segment"),
         Binding("f", "toggle_follow", "follow"),
         Binding("r", "toggle_rulers", "rulers"),
         Binding("space", "toggle_pause", "pause"),
@@ -404,6 +416,14 @@ class MonitorApp(App):
         c = self.controller
         follow = "[green]follow[/]" if self.follow_enabled else "[yellow]manual[/]"
         paused = " · [reverse] PAUSED [/]" if self.paused else ""
+        # Blinking ● REC while a --save journal is active. The dot pulses ~1s
+        # on / 1s off, derived from wall-clock time so the rate is independent of
+        # the status tick (0.25s); the label stays put so it doesn't jump layout.
+        rec = ""
+        if getattr(c, "journal", None) is not None:
+            on = int(time.monotonic()) % 2 == 0
+            dot = "[b red]●[/]" if on else "[dim red]●[/]"
+            rec = f"{dot} [red]REC[/] [dim]·[/] "
         # ELM path reports commands + time spent in the ELM327; the raw path
         # reports UDS requests (no ELM involved). Kept compact to leave room for
         # the live state / flash message on the same line.
@@ -428,7 +448,7 @@ class MonitorApp(App):
             if s:
                 state_txt = f"[dim]· state[/] [cyan]{s}[/] "
         status.update(
-            f"[dim]cycle[/] {c.cycle} [dim]·[/] {c.interval:.1f}[dim]s ·[/] "
+            f"{rec}[dim]cycle[/] {c.cycle} [dim]·[/] {c.interval:.1f}[dim]s ·[/] "
             f"{c.elapsed:.1f}[dim]s ·[/] {metric} "
             f"{state_txt}{follow}{paused}"
             f"{flash}\n"
@@ -441,10 +461,13 @@ class MonitorApp(App):
 
     def _edit_status_line(self) -> str:
         """Second status line: current selection, active filter, and edit keys."""
+        # Only advertise the segment key while a --save recording is active.
+        seg = " · n new-seg" if getattr(self.controller, "journal", None) is not None else ""
         ed = self._editor()
         if ed is None:
             return (
-                "[dim]↑↓/jk PgUp/PgDn g/G · f follow · space pause · r rulers · s save · q quit[/]"
+                "[dim]↑↓/jk PgUp/PgDn g/G · f follow · space pause · r rulers · "
+                f"s save{seg} · q quit[/]"
             )
         filt = getattr(ed, "filter_mode", "all")
         filt_txt = f"[cyan]{filt}[/]" if filt != "all" else "[dim]all[/]"
@@ -454,7 +477,8 @@ class MonitorApp(App):
             sel = f"[b]▶ {label}[/]  "
         return (
             f"{sel}[dim]filter[/] {filt_txt} "
-            "[dim]· ↑↓ select · e edit · v verify · d en/disable · F filter · s save · q quit[/]"
+            "[dim]· ↑↓ select · e edit · v verify · d en/disable · F filter · "
+            f"s save{seg} · q quit[/]"
         )
 
     # -- actions -----------------------------------------------------------
@@ -597,13 +621,12 @@ class MonitorApp(App):
         self._flash_expires = time.monotonic() + secs
         self._update_status()
 
-    def action_save(self) -> None:
-        """Prompt for metadata and save the captured payloads to the profile."""
-        if not self.controller.has_captures():
-            self._flash("No payloads captured yet — nothing to save.")
-            return
-        # Pre-fill the label with the active query (e.g. "BCM VCU:2101"),
-        # falling back to a timestamp when it can't be derived.
+    def _suggested_metadata(self) -> tuple[str, str, list[tuple[str, str]] | None]:
+        """Gather (suggested_label, suggested_state, state_options) for a dialog.
+
+        Label pre-fills from the active query (e.g. "BCM VCU:2101"), falling back
+        to a timestamp; state is the profile's auto-suggestion from decoded values.
+        """
         suggested = ""
         label_fn = getattr(self.controller, "query_label", None)
         if callable(label_fn):
@@ -626,6 +649,20 @@ class MonitorApp(App):
                 state_options = options_fn()
             except Exception:
                 state_options = None
+        return suggested, suggested_state, state_options
+
+    def action_save(self) -> None:
+        """Prompt for metadata and save/label the current session."""
+        if not self.controller.has_captures():
+            self._flash("No payloads captured yet — nothing to save.")
+            return
+        suggested, suggested_state, state_options = self._suggested_metadata()
+        recording = getattr(self.controller, "journal", None) is not None
+        caption = (
+            "Labels the CURRENT recording segment (auto-saves on stop / new segment)."
+            if recording
+            else "Saves the payloads captured so far to a new capture file."
+        )
 
         def _done(result: tuple[str, str, str] | None) -> None:
             if result is None:
@@ -638,7 +675,45 @@ class MonitorApp(App):
                 msg = f"Save failed: {exc}"
             self._flash(msg)
 
-        self.push_screen(SaveDialog(suggested, suggested_state, state_options), _done)
+        self.push_screen(
+            SaveDialog(
+                suggested,
+                suggested_state,
+                state_options,
+                title="Save / label session",
+                caption=caption,
+            ),
+            _done,
+        )
+
+    def action_new_segment(self) -> None:
+        """Close the current --save segment and start a fresh, newly-labelled one."""
+        if getattr(self.controller, "journal", None) is None:
+            self._flash("New segment requires --save (nothing is being recorded).")
+            return
+        suggested, suggested_state, state_options = self._suggested_metadata()
+
+        def _done(result: tuple[str, str, str] | None) -> None:
+            if result is None:
+                self._flash("New segment cancelled.")
+                return
+            label, state, notes = result
+            try:
+                msg = self.controller.new_segment(label, state, notes)
+            except Exception as exc:  # keep the TUI alive on any error
+                msg = f"New segment failed: {exc}"
+            self._flash(msg)
+
+        self.push_screen(
+            SaveDialog(
+                suggested,
+                suggested_state,
+                state_options,
+                title="Start new segment",
+                caption="Saves the CURRENT segment, then labels the NEW segment you start now.",
+            ),
+            _done,
+        )
 
 
 async def run_monitor_app(controller: MonitorController) -> None:

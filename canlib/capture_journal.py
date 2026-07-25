@@ -78,8 +78,11 @@ class CaptureJournal:
         """Create a fresh journal under ``captures_dir/.journal/`` and write meta."""
         jdir = _journal_dir(captures_dir)
         jdir.mkdir(parents=True, exist_ok=True)
-        ts = datetime.now().strftime("%Y%m%dT%H%M%S")
-        # Include PID for uniqueness if two runs start in the same second.
+        # Microsecond precision + PID keeps the stem unique across rapid opens —
+        # e.g. rotating to a new segment in the same second the previous journal
+        # was reconciled away (a second-granularity stem would collide, since the
+        # existence guard below can't see an already-deleted file).
+        ts = datetime.now().strftime("%Y%m%dT%H%M%S%f")
         stem = f"{ts}-{os.getpid()}"
         path = jdir / f"{stem}{JOURNAL_SUFFIX}"
         n = 1

@@ -215,8 +215,11 @@ Full reference: **AGENTS.md** + `canair <cmd> --help`. Key project behaviors:
   `--label` it prompts. Saves are **journaled** to `captures/.journal/` as they
   stream and reconciled into the dated file on exit, so a killed/disconnected
   session isn't lost — recover leftovers with `canair captures uds --recover`
-  (`--discard` to drop). In `--monitor` press `s` to set/edit label/state/notes
-  live; the **state is auto-suggested** from decoded PID values via the profile's
+  (`--discard` to drop). In `--monitor` press `s` to set/edit the current
+  session's label/state/notes live (the modal names the segment it labels), or
+  `n` to close the current segment and start a fresh one (several labelled
+  sessions per run); a `● REC` blinks while `--save` is recording. The **state is
+  auto-suggested** from decoded PID values via the profile's
   `states.yaml`. For edits/removals use `canlib.captures`
   (`set_capture_note`/`delete_capture`). After saving, run `canair captures uds
   --summary` to spot patterns missed live, or `canair captures uds --sessions` for a

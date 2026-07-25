@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Live-monitor recording controls.** `canair query --monitor --save` now shows a
+  blinking `● REC` in the status line while a recording is active, and adds an
+  **`n`** key to close the current capture segment (reconciling it to its own
+  capture file) and start a fresh, newly-labelled one — so one monitor run can
+  produce several independently-labelled sessions (e.g. parked → driving →
+  charging) without stopping. The existing **`s`** save modal now states which
+  segment it is labelling. Journal stems gained microsecond precision so a
+  same-second segment rotation can't collide.
+
 - **`canair update` + automatic update checker.** canair now checks GitHub once
   a day (in a background daemon thread — never blocking a command, and fully
   offline-safe: any network failure is silently ignored) for a newer released
@@ -97,6 +106,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   internal byte space (`plans/2026-07-24-byte-notation-phase2-isotp-canonical.md`).
 
 ### Fixed
+
+- **Repeated on-demand saves in the live monitor no longer duplicate payloads.**
+  Pressing `s` twice in a non-`--save` monitor session used to re-write the entire
+  history each time; it now writes only the payloads captured **since the last
+  save** (and reports "Nothing new since last save" when there's nothing new).
+  (`--save`/journal sessions were already de-duplicated.)
 
 - **`canair hunt` no longer surfaces (or promotes) ISO-TP framing bytes.** Its
   PCI-skip guard used a simplified `index % 8 == 0` test that missed the first

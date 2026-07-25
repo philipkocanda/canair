@@ -294,6 +294,27 @@ def _write_merged(
     return save_session(session, captures_dir)
 
 
+def _open_journal(controller, label: str | None, vehicle_states, notes: str | None):
+    """Open a write-ahead capture journal for a monitor --save run/segment.
+
+    Shared by ``mode_monitor`` (run start) and ``MonitorController.new_segment``
+    (segment rotate) so their open args can't drift. ``keep_mode="unique"`` is
+    carried through from the display keep-mode; other modes journal every row.
+    """
+    from ..capture_journal import CaptureJournal
+
+    journal_label = label or controller.query_label() or "Monitor session"
+    keep = "unique" if controller.keep_mode == "unique" else None
+    return CaptureJournal.open(
+        controller.captures_dir,
+        label=journal_label,
+        vehicle_states=list(vehicle_states or []),
+        notes=notes,
+        source="monitor",
+        keep_mode=keep,
+    )
+
+
 def _raw_pid_result(pid_code, pid_info, unmapped, value, acquired_at):
     """Turn a raw-CAN poll result (bytes / Exception / None) into a result dict.
 
@@ -399,6 +420,10 @@ class MonitorController:
         self.save_history: dict[tuple[str, str], list[tuple[str, str]]] | None = (
             {} if save else None
         )
+        # High-water mark of payloads already written by a non-journal on-demand
+        # save (the fallback --save-off path), per PID key. Repeated 's' presses
+        # only write rows beyond this, so a payload is never saved twice in one run.
+        self._saved_counts: dict[tuple[str, str], int] = {}
         self.disconnected = False
         # Write-ahead journal (durability): when --save is on, every polled
         # payload is appended here as it arrives and reconciled into a capture
@@ -946,19 +971,71 @@ class MonitorController:
         if not merged:
             return "No payloads captured yet — nothing to save."
 
+        # Only write rows that appeared since the last on-demand save. Repeated
+        # 's' presses re-merge the full history, so without this a payload would
+        # be written once per press. The high-water mark is per PID; advance it
+        # by the number of rows written so the next press starts after them.
+        new_merged: dict[tuple[str, str], list[tuple[str, str]]] = {}
+        for key, entries in merged.items():
+            already = self._saved_counts.get(key, 0)
+            fresh = entries[already:]
+            if fresh:
+                new_merged[key] = fresh
+        if not new_merged:
+            return "Nothing new since last save."
+
         captures_dir = self.captures_dir
         if captures_dir is None:
             from ..profile import active
 
             captures_dir = active().captures_dir
 
-        n_pids = len(merged)
-        n_payloads = sum(len(v) for v in merged.values())
+        n_pids = len(new_merged)
+        n_payloads = sum(len(v) for v in new_merged.values())
         with contextlib.redirect_stdout(io.StringIO()):
             path = _write_merged(
-                merged, label, states, notes or "", captures_dir, keep_mode=self.keep_mode
+                new_merged, label, states, notes or "", captures_dir, keep_mode=self.keep_mode
             )
+        for key, entries in merged.items():
+            self._saved_counts[key] = len(entries)
         return f"Saved {n_payloads} payload(s) across {n_pids} PID(s) → {path.name}"
+
+    def new_segment(self, label: str, vehicle_states=None, notes: str | None = None) -> str:
+        """Close the current --save segment and start a fresh one (journal rotate).
+
+        Reconciles the current journal into a capture file, then opens a new empty
+        journal carrying the provided label/states/notes. One monitor run can thus
+        produce several independently-labelled sessions. A no-op (with a message)
+        when --save is off, since there is no journal to rotate. Returns a one-line
+        summary; never writes to stdout (the TUI owns the screen).
+        """
+        import contextlib
+
+        from ..states import parse_states
+
+        if self.journal is None:
+            return "New segment requires --save (nothing is being recorded)."
+
+        states = parse_states(vehicle_states)
+
+        # Give the closing segment its auto-suggested state when none was set
+        # explicitly, mirroring the end-of-run reconcile in mode_monitor.
+        if not self._state_explicit:
+            with contextlib.suppress(Exception):
+                suggested = self.suggested_state()
+                if suggested:
+                    self.journal.update_meta(vehicle_states=[suggested])
+
+        written = None
+        with contextlib.suppress(Exception):
+            written = self.journal.reconcile()
+
+        self.journal = _open_journal(self, label, states, notes)
+        self._state_explicit = bool(states)
+
+        if written is not None:
+            return f"Segment saved → {written.name}; recording new segment ({label!r})."
+        return f"Recording new segment ({label!r})."
 
     async def close(self) -> None:
         """Stop keepalives and close all open sessions / the raw client (best-effort)."""
@@ -1038,14 +1115,17 @@ async def mode_monitor(
         save:           Journal every polled payload as it arrives and reconcile
                         into captures/ on stop (crash/disconnect leaves a
                         recoverable journal). Metadata comes from label/state/
-                        notes (auto-suggested when omitted) and the TUI 's' key.
+                        notes (auto-suggested when omitted) and the TUI 's' key;
+                        'n' rotates to a fresh segment mid-run.
         show_rulers:    Show byte-index rulers (idx/wican) once per PID.
 
     TUI keys: ↑/↓ move the parameter-selection cursor, j/k scroll, PgUp/PgDn
     page, g/Home top, G/End bottom, f toggle follow-tail, space pause/resume
     polling, e edit the selected parameter, v toggle its verified flag, d
     toggle enabled/disabled, F cycle the display filter (all/verified/
-    unverified/enabled/disabled), s save captures, q or Ctrl+C stop.
+    unverified/enabled/disabled), s save/label the current session, n close the
+    current --save segment and start a new one, q or Ctrl+C stop. A blinking
+    ``● REC`` in the status line marks an active --save recording.
     """
     from ..profile import active
     from ..states import parse_states
@@ -1071,22 +1151,12 @@ async def mode_monitor(
     # durably recorded as it arrives. On a clean stop we reconcile it into a
     # capture file; a disconnect/crash leaves it on disk for `--recover`.
     if save:
-        from ..capture_journal import CaptureJournal
-
+        controller.journal = _open_journal(controller, label, states, notes)
         journal_label = label or controller.query_label() or "Monitor session"
-        keep = "unique" if keep_mode == "unique" else None
-        controller.journal = CaptureJournal.open(
-            captures_dir,
-            label=journal_label,
-            vehicle_states=states,
-            notes=notes,
-            source="monitor",
-            keep_mode=keep,
-        )
         print(
             f"  --save: journaling to {controller.journal.path.name} "
             f"(label: {journal_label!r}); auto-saves on stop. "
-            "Press 's' to edit label/states/notes."
+            "Press 's' to edit label/states/notes, 'n' to start a new segment."
         )
 
     try:
