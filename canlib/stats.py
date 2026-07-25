@@ -10,23 +10,40 @@ copies.
 
 from __future__ import annotations
 
+import math
+
 CORRELATION_METHODS = ("pearson", "spearman")
 
 
 def pearson(xs: list[float], ys: list[float]) -> float | None:
-    """Pearson product-moment correlation, or None if undefined (<2 points or a
-    zero-variance series)."""
+    """Pearson product-moment correlation, or None if undefined (<2 points, a
+    zero-variance series, or non-finite/overflowing values).
+
+    Robust to the pathological inputs the byte-sweep hunters feed it: reading raw
+    CAN bytes as ``f64``/``f32`` can yield ``inf``/``nan`` or values near the
+    float max whose squared deviations overflow. Rather than raise
+    ``OverflowError`` mid-sweep (which aborts the whole hunt), such a series is
+    simply reported as undefined (``None``).
+    """
     n = len(xs)
     if n < 2:
         return None
+    if not all(math.isfinite(v) for v in xs) or not all(math.isfinite(v) for v in ys):
+        return None
     mx = sum(xs) / n
     my = sum(ys) / n
-    sx = sum((x - mx) ** 2 for x in xs)
-    sy = sum((y - my) ** 2 for y in ys)
-    if sx == 0 or sy == 0:
+    try:
+        sx = math.fsum((x - mx) ** 2 for x in xs)
+        sy = math.fsum((y - my) ** 2 for y in ys)
+        if sx == 0 or sy == 0:
+            return None
+        cov = math.fsum((x - mx) * (y - my) for x, y in zip(xs, ys, strict=True))
+        r = cov / (sx**0.5 * sy**0.5)
+    except (OverflowError, ValueError):
         return None
-    cov = sum((x - mx) * (y - my) for x, y in zip(xs, ys, strict=True))
-    return cov / (sx**0.5 * sy**0.5)
+    if not math.isfinite(r):
+        return None
+    return r
 
 
 def rank(values: list[float]) -> list[float]:

@@ -9,8 +9,10 @@ from canlib.align import (
     SignalRef,
     TimePoint,
     align_many,
+    aligned_all_equal,
     extract_series,
     join_nearest,
+    join_nearest_presorted,
     load_signal_captures,
 )
 
@@ -76,6 +78,31 @@ class TestJoinNearest:
     def test_empty_inputs(self):
         assert join_nearest([], [_tp(0, 1)]) == ([], [], 0)
         assert join_nearest([_tp(0, 1)], []) == ([], [], 0)
+
+    def test_presorted_matches_join_nearest(self):
+        ref = [_tp(0.0, 10.0), _tp(1.0, 20.0)]
+        cand = [_tp(1.2, 200.0), _tp(0.3, 100.0)]  # unsorted
+        cand_sorted = sorted(cand, key=lambda tp: tp.dt)
+        assert join_nearest_presorted(ref, cand_sorted, tol_s=1.0) == join_nearest(
+            ref, cand, tol_s=1.0
+        )
+
+
+class TestAlignedAllEqual:
+    def test_equal_series_returns_overlap(self):
+        a = [_tp(i, i % 4) for i in range(20)]
+        b = [_tp(i + 0.1, i % 4) for i in range(20)]  # same values, small skew
+        assert aligned_all_equal(a, sorted(b, key=lambda tp: tp.dt), tol_s=0.5, min_n=10) == 20
+
+    def test_first_mismatch_returns_zero(self):
+        a = [_tp(i, i % 4) for i in range(20)]
+        b = [_tp(i + 0.1, (i % 4) + 1) for i in range(20)]  # off by one everywhere
+        assert aligned_all_equal(a, sorted(b, key=lambda tp: tp.dt), tol_s=0.5, min_n=10) == 0
+
+    def test_below_min_n_returns_zero(self):
+        a = [_tp(i, i % 4) for i in range(5)]
+        b = [_tp(i + 0.1, i % 4) for i in range(5)]
+        assert aligned_all_equal(a, sorted(b, key=lambda tp: tp.dt), tol_s=0.5, min_n=10) == 0
 
 
 # ---------------------------------------------------------------------------

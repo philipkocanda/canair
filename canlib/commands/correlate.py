@@ -19,6 +19,7 @@ from canlib.align import (
     DEFAULT_JOIN_TOL_S,
     TimePoint,
     align_many,
+    aligned_all_equal,
     join_nearest,
     load_signal_captures,
 )
@@ -83,7 +84,7 @@ def _add_can_parser(kinds) -> argparse.ArgumentParser:
         description=(
             "Correlate the per-byte series of a raw broadcast-CAN frame log "
             "(.asc/.blf/candump .log/.trc/GVRET .csv) — bytes are labelled 0xID:rN. "
-            "--against/--bits/--id/--min-r/--top all apply."
+            "--against/--bits/--id/--min-r/--top/--find-mirrors all apply."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -107,6 +108,13 @@ def _add_can_parser(kinds) -> argparse.ArgumentParser:
         "--include-intra",
         action="store_true",
         help="Include same-arbitration-ID pairs (default: cross-ID only)",
+    )
+    parser.add_argument(
+        "--find-mirrors",
+        action="store_true",
+        help="Instead of ranking correlations, report byte/bit positions that are "
+        "time-aligned equal ACROSS arbitration IDs — a signal mirrored on two IDs "
+        "(e.g. wheel speed on 0x386 and 0x331). Use with --bits for bit-level",
     )
     parser.add_argument(
         "--no-cluster",
@@ -544,14 +552,82 @@ def _apply_gate(ref_series, gate_expr, tol, *, since, until, state, label):
     ]
 
 
+def _print_can_mirrors(series: dict, path, args) -> int:
+    """Report frame-byte/bit positions time-aligned equal ACROSS arbitration IDs.
+
+    The domain-B analogue of the uds ``--find-mirrors``: a signal broadcast on two
+    arbitration IDs (e.g. wheel speed on 0x386 and 0x331) shows up as two ``0xID:rN``
+    series equal in every aligned sample. Same-ID pairs are skipped (intra-frame
+    equality is not a mirror across messages).
+    """
+
+    def id_of(label: str) -> str:
+        return label.split(":", 1)[0]
+
+    # Pairwise time-join is the correct semantics (mirrors sampled at slightly
+    # different times must still align within tolerance — a shared-timeline bucket
+    # key is too strict and misses them). Two speedups keep it tractable:
+    #   1. pre-sort each series once (join_nearest re-sorts its candidate on every
+    #      call — with ~10^5 pairs that dominates);
+    #   2. prune by sample-count overlap: a pair can't reach min_n aligned points
+    #      if either series has fewer than min_n samples;
+    #   3. a fused join+compare (aligned_all_equal) that bails at the first value
+    #      mismatch — most non-mirror pairs differ on an early sample.
+    names = [k for k in sorted(series) if len(series[k]) >= args.min_n]
+    presorted = {name: sorted(series[name], key=lambda tp: tp.dt) for name in names}
+
+    mirrors: list[tuple[str, str, int]] = []
+    for i in range(len(names)):
+        a = names[i]
+        for j in range(i + 1, len(names)):
+            b = names[j]
+            if id_of(a) == id_of(b):
+                continue  # same arbitration ID — not a cross-message mirror
+            n = aligned_all_equal(presorted[a], presorted[b], args.join_tol, args.min_n)
+            if n:
+                mirrors.append((a, b, n))
+    mirrors.sort(key=lambda t: -t[2])
+    mirrors = mirrors[: args.top]
+
+    if args.json:
+        _json.dump(
+            {
+                "can_log": path.name,
+                "join_tol_s": args.join_tol,
+                "bits": args.bits,
+                "mirrors": [{"a": a, "b": b, "n": n} for a, b, n in mirrors],
+            },
+            sys.stdout,
+            indent=2,
+        )
+        print()
+        return 0
+
+    print(
+        f"\n  {_BOLD}Cross-ID frame mirrors{_RESET} "
+        f"{_DIM}({path.name}, time-aligned equal across IDs, "
+        f"≤{args.join_tol:g}s join, n≥{args.min_n}){_RESET}"
+    )
+    if not mirrors:
+        print(
+            f"    {_DIM}no cross-ID byte/bit position is equal across all aligned samples{_RESET}\n"
+        )
+        return 0
+    for a, b, n in mirrors:
+        print(f"    {_GREEN}n={n:<4}{_RESET} {a}  {_DIM}=={_RESET}  {b}")
+    print()
+    return 0
+
+
 def _run_can_log(args) -> int:
     """Correlate a raw broadcast-CAN frame log's per-byte (and --bits) series.
 
     Domain B: reads the native frame log into ``0xID:rN`` series and runs the
     *same* correlate core as the diagnostic path — ranked cross-ID pairs by
-    default, or every byte vs an ``--against 0xID:rN`` reference. Series sharing an
-    arbitration ID are intra (dropped unless --include-intra), so cross-ID
-    relationships surface first.
+    default, every byte vs an ``--against 0xID:rN`` reference, or (with
+    ``--find-mirrors``) byte/bit positions time-aligned equal across IDs. Series
+    sharing an arbitration ID are intra (dropped unless --include-intra), so
+    cross-ID relationships surface first.
     """
     from pathlib import Path
 
@@ -570,7 +646,7 @@ def _run_can_log(args) -> int:
             series = frame_series.build_frame_series(
                 path, args.can_format, id_filter=id_filter, min_distinct=4
             )
-    except CanLogError as e:
+    except (ValueError, CanLogError) as e:
         print(f"correlate can: {e}", file=sys.stderr)
         return 1
     if not series:
@@ -578,6 +654,9 @@ def _run_can_log(args) -> int:
         return 1
 
     src = f"{path.name} ({len(series)} varying {'bits' if args.bits else 'bytes'})"
+
+    if args.find_mirrors:
+        return _print_can_mirrors(series, path, args)
 
     # --against: rank every series vs one reference label present in the log.
     if args.against:

@@ -92,14 +92,23 @@ def build_frame_bit_series(
 
 
 def parse_id_filter(spec: str | None) -> set[int] | None:
-    """Parse a comma-separated arbitration-ID filter (``0x220,0x386``) to ints."""
+    """Parse a comma-separated arbitration-ID filter (``0x220,0x386``) to ints.
+
+    Raises ``ValueError`` with a user-facing message on a non-hex token (rather
+    than leaking Python's ``invalid literal for int()``).
+    """
     if not spec:
         return None
     out: set[int] = set()
     for tok in spec.split(","):
         tok = tok.strip()
         if tok:
-            out.add(int(tok, 16))  # hex arbitration ID, with or without 0x prefix
+            try:
+                out.add(int(tok, 16))  # hex arbitration ID, with or without 0x prefix
+            except ValueError:
+                raise ValueError(
+                    f"invalid arbitration ID {tok!r} — expected hex like 0x386 or 386"
+                ) from None
     return out or None
 
 

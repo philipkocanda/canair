@@ -1,5 +1,7 @@
 """Tests for the consolidated correlation statistics (canlib.stats)."""
 
+import math
+
 import pytest
 
 from canlib.stats import correlation, pearson, rank, spearman
@@ -13,6 +15,19 @@ class TestPearson:
     def test_degenerate(self):
         assert pearson([1], [1]) is None
         assert pearson([2, 2, 2], [1, 2, 3]) is None  # zero variance
+
+    def test_non_finite_is_none(self):
+        # f64/f32 byte interpretations can produce inf/nan — must not raise.
+        assert pearson([1.0, 2.0, math.inf], [1.0, 2.0, 3.0]) is None
+        assert pearson([1.0, 2.0, 3.0], [1.0, math.nan, 3.0]) is None
+
+    def test_huge_values_no_overflow(self):
+        # Reading raw bytes as f64 yields values near the float max; squaring
+        # their deviations overflows a naive sum. Must return a value, not raise.
+        xs = [1e308, 2e307, 1.5e308, 5e307]
+        ys = [1.0, 2.0, 3.0, 4.0]
+        r = pearson(xs, ys)
+        assert r is None or math.isfinite(r)
 
 
 class TestRank:

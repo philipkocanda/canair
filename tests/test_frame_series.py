@@ -54,6 +54,10 @@ class TestBuildFrameSeries:
         assert frame_series.parse_id_filter(None) is None
         assert frame_series.parse_id_filter("") is None
 
+    def test_parse_id_filter_bad_hex(self):
+        with pytest.raises(ValueError, match="invalid arbitration ID"):
+            frame_series.parse_id_filter("0xZZZ")
+
 
 class TestCorrelateCanLog:
     def _run(self, argv):
@@ -88,6 +92,13 @@ class TestCorrelateCanLog:
         assert self._run([str(tmp_path / "nope.log")]) == 1
         assert "no such file" in capsys.readouterr().err
 
+    def test_bad_id_filter_clean_error(self, tmp_path, capsys):
+        log = _write_log(tmp_path)
+        assert self._run([str(log), "--id", "0xZZZ"]) == 1
+        err = capsys.readouterr().err
+        assert "invalid arbitration ID" in err
+        assert "invalid literal" not in err  # no raw Python ValueError leak
+
     def test_bad_against_label(self, tmp_path, capsys):
         log = _write_log(tmp_path)
         assert self._run([str(log), "--against", "0xNOPE:r0"]) == 1
@@ -99,6 +110,47 @@ class TestCorrelateCanLog:
         rc = self._run([str(log), "--id", "0x220", "--min-r", "0.9"])
         assert rc == 0
         assert "No cross-ID" in capsys.readouterr().out
+
+    def test_find_mirrors_cross_id(self, tmp_path, capsys):
+        # 0x386:r0 and 0x387:r0 carry the *same* value each frame -> a mirror;
+        # 0x2B0:r0 is unrelated noise and must not be reported.
+        lines = []
+        for i in range(40):
+            t = i * 0.1
+            v = i % 256
+            lines.append(f"({t:.6f}) can0 386#{v:02X}00000000000000")
+            lines.append(f"({t:.6f}) can0 387#{v:02X}00000000000000")
+            lines.append(f"({t:.6f}) can0 2B0#{(i * 7) % 5:02X}00000000000000")
+        log = tmp_path / "mirror.log"
+        log.write_text("\n".join(lines) + "\n")
+        rc = self._run([str(log), "--find-mirrors", "--min-n", "10", "--join-tol", "0.05"])
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "0x386:r0" in out and "0x387:r0" in out
+        assert "0x2B0:r0" not in out
+
+    def test_find_mirrors_json(self, tmp_path, capsys):
+        lines = []
+        for i in range(40):
+            t = i * 0.1
+            v = i % 256
+            lines.append(f"({t:.6f}) can0 386#{v:02X}00000000000000")
+            lines.append(f"({t:.6f}) can0 387#{v:02X}00000000000000")
+        log = tmp_path / "mirror.log"
+        log.write_text("\n".join(lines) + "\n")
+        assert (
+            self._run(
+                [str(log), "--find-mirrors", "--min-n", "10", "--join-tol", "0.05", "--json"]
+            )
+            == 0
+        )
+        import json
+
+        payload = json.loads(capsys.readouterr().out)
+        assert {payload["mirrors"][0]["a"], payload["mirrors"][0]["b"]} == {
+            "0x386:r0",
+            "0x387:r0",
+        }
 
 
 def _write_hunt_log(tmp_path, n=40):
