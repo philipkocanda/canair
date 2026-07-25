@@ -1,0 +1,19 @@
+messages:
+  '0x386':
+    name: WHL_SPD11
+    tx_ecu: ESC
+    signals:
+      WHL_SPD_FL:
+        start_bit: 0
+        length: 14
+        byte_order: little
+        scale: 0.03125
+        offset: 0
+        unit: km/h
+        verified: false
+      WHL_SPD_FR:
+        start_bit: 16
+        length: 14
+        byte_order: little
+        scale: 0.03125
+        unit: km/h
