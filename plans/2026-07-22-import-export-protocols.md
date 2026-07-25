@@ -1,7 +1,16 @@
 # Plan: Import/Export protocol support (interop with external CAN formats)
 
-Status: DRAFT — not started. Design/scoping doc; decisions marked **(OPEN)** need
-sign-off before implementation.
+Status: DRAFT — **partially superseded.** The **domain-B** scope of this plan
+(raw-frame import, the `broadcast:` signal-def model — now a `signals/` sidecar,
+DBC import/export, `import can`, the `captures/can/` store) has been **merged
+into `plans/2026-07-24-raw-can-analysis.md`**, which owns the whole raw-CAN
+broadcast domain (import + data model + analysis wiring) as one plan. This plan
+is left owning only its **domain-A** scope: exporting decoded UDS parameter
+time-series (`export csv` / `export json`). Read the raw-CAN plan for anything
+frame-related; the two are cross-referenced.
+
+Design/scoping doc; decisions marked **(OPEN)** need sign-off before
+implementation.
 
 > **Interpretation of the request.** "Additional protocol support (import and export)"
 > is read here as **file / data-interchange formats** — DBC, SavvyCAN/GVRET CSV,
