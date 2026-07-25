@@ -55,6 +55,10 @@ canair correlate can drive.blf --min-r 0.9
 # Which byte of arbitration ID 0x220 tracks a byte you already know (e.g. wheel
 # speed on 0x386)?  Sweeps every byte × interpretation and ranks by correlation.
 canair hunt can drive.blf --id 0x220 --against 0x386:r0
+
+# Which positions are the SAME signal broadcast on two arbitration IDs?
+# (e.g. wheel speed mirrored on 0x386 and 0x331). --bits for bit-level.
+canair correlate can drive.blf --find-mirrors
 ```
 
 Both reuse the correlation / interpretation-sweep / linear-fit machinery of the

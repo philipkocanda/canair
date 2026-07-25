@@ -94,7 +94,9 @@ PIDs, freeform WiCAN `Bnn` expressions). For **domain B** — passively-broadcas
 CAN frames (no request elicits them; drive-mode/regen/thermal signals often live
 here) — the shape differs: `import can <log>` a frame log into `captures/can/`,
 find fields with `correlate can <log>` / `hunt can <log> --id 0xID --against
-0xREF:rN` (frame bytes are `0xID:rN`, raw-CAN, no PCI), and *define* them in the
+0xREF:rN` (frame bytes are `0xID:rN`, raw-CAN, no PCI; `correlate can
+--find-mirrors [--bits]` reports the same signal broadcast on two arbitration
+IDs, e.g. wheel speed on 0x386 and 0x331), and *define* them in the
 DBC-compatible **linear** `signals/<bus>.yaml` via `canair signals upsert` (or
 `import dbc`). See `docs/concepts/broadcast-frames.md`. The `uds`/`can` kind is
 the domain selector across ingest/list/analyze (`import uds`/`import can`,
