@@ -13,7 +13,8 @@ messages:
         max: 511.969
         unit: km/h
         verified: false
-        notes: 'Front-left wheel speed. Confirmed on uhi22 Ioniq-28 drive log: 0-9.3 km/h, four wheels (r0/r2/r4/r6) correlate >=0.985. Unverified pending owner-car confirmation.'
+        source: 'uhi22 Ioniq28Investigations: IONIQ_PCAN_drive_fwd_neutral_drive_reverse_neutral.csv (fetch: scripts/fetch_can_corpus.py)'
+        notes: 'Front-left wheel speed. Confirmed on the source log: 0-9.3 km/h; four wheels (r0/r2/r4/r6) correlate >=0.985 over 1678 samples. Unverified pending owner-car confirmation.'
       WHL_SPD_FR:
         start_bit: 16
         length: 14
@@ -30,7 +31,8 @@ messages:
         min: 0.0
         max: 15.0
         verified: false
-        notes: 'Gear lever position, low nibble of byte 5. Enum P=1,R=2,N=3,D=4 (ascending PRND). Evidence: uhi22 Ioniq-28 fwd/N/rev/N drive log — codes 1&3 always stationary (wheel speed 0), 2&4 moving (2=reverse phase, 4=drive phase); code 3 = the two neutral phases. Mirrored (mixed w/ other bits) on VCU200 0x200 r1. Unverified pending owner-car confirmation.'
+        source: 'uhi22 Ioniq28Investigations: IONIQ_PCAN_drive_fwd_neutral_drive_reverse_neutral.csv (fetch: scripts/fetch_can_corpus.py)'
+        notes: "Gear lever, low nibble of byte 5. Enum P=1,R=2,N=3,D=4 (ascending PRND). Data evidence: codes 1&3 always stationary (wheel speed 0 over 460/397 samples), 2&4 moving (2=reverse phase 66%, 4=drive phase 67%); code 3 = both neutral phases. Byte 1 of VCU200 (0x200) changed in lockstep but is FCO's MSB per the upstream DBC, so treated as a loose correlate, not a confirmed mirror. Unverified pending owner-car confirmation."
   '0x331':
     name: TCS_331
     tx_ecu: ESC
@@ -45,4 +47,5 @@ messages:
         max: 511.969
         unit: km/h
         verified: false
-        notes: 'ESC/TCS wheel-speed echo (byte 2-3, 14-bit LE x0.03125). Confirmed on uhi22 Ioniq-28 log: 0-9.3 km/h, r=1.00 with 0x386 WHL_SPD_FL over 1678 samples. Not in the upstream DBC. Unverified pending owner-car confirmation.'
+        source: 'uhi22 Ioniq28Investigations: IONIQ_PCAN_drive_fwd_neutral_drive_reverse_neutral.csv (fetch: scripts/fetch_can_corpus.py)'
+        notes: ESC/TCS wheel-speed echo (byte 2-3, 14-bit LE). r=1.00 vs 0x386 WHL_SPD_FL over 1678 samples; 0-9.3 km/h. Not in the upstream DBC. Unverified pending owner-car confirmation.
