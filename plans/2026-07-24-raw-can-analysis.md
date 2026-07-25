@@ -292,7 +292,11 @@ here (Stage 4). It realises the broadcast-decoding decision of
   `signals_schema.yaml`) + `validate signals`/`validate can` (graceful-absent) +
   profile path accessors + `import` command stub (`can`/`dbc`). cantools deferred
   to Stage 4. (2026-07-24)
-- [ ] Stage 1 — `import can` (LogReader) + index + `captures` listing + fixtures
+- [x] Stage 1 — `import can` (python-can readers → `captures/can/` verbatim +
+  `index.yaml`) + `canair captures --can` listing + `canlib/can_logs.py` +
+  `scripts/fetch_can_corpus.py` + fixtures/tests. GVRET CSV deferred to Stage 3.
+  (2026-07-25)
+- [ ] Stage 2 — generalize the analysis seam (pluggable reconstructor/skip-set + arb-ID source); golden-gated
 - [ ] Stage 2 — generalize the analysis seam (pluggable reconstructor/skip-set + arb-ID source); golden-gated
 - [ ] Stage 3 — frames in `correlate`/`hunt`/`align`/`decode`/`coverage`
 - [ ] Stage 4 — `signals/` editor + `import dbc`/`export dbc`; domain-A `export csv`/`json`

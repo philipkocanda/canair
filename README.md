@@ -73,6 +73,7 @@ All functionality is exposed as `canair <subcommand>`; run `canair <cmd> --help`
 | `canair hunt` | "Which byte *is* this known signal?" — sweep, correlate, fit, unit-guess. |
 | `canair investigate` | One-shot per-byte report for an unknown PID. |
 | `canair captures` | Search/diff/step through saved captures. |
+| `canair import` | Import raw broadcast-CAN frame logs (`.asc`/`.blf`/candump/…) into the profile; list with `captures --can`. |
 | `canair import-capture` | Record externally-provided UDS payloads into the profile (device-free). |
 | `canair coverage` | Audit PID definitions for decoding gaps. |
 | `canair research` | Report the open reverse-engineering backlog. |

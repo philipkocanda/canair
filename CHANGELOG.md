@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`canair import can` — raw broadcast-CAN frame-log import (Stage 1).** Reads a
+  raw frame log (`.asc`/`.blf`/python-can `.csv`/candump `.log`/`.trc`, auto-detected
+  by extension) via python-can's readers, stores it **verbatim** in the profile's
+  `captures/can/` and indexes its metadata (frame count, distinct arbitration IDs,
+  bitrate, date, label/state/notes/source) in `captures/can/index.yaml` — high-volume
+  logs stay native rather than exploding into the `captures/*.yaml` schema. Flags:
+  `--format`/`--label`/`--state`/`--notes`/`--source`/`--bitrate`/`--date`/`--force`/`--json`.
+  List imported logs with **`canair captures --can`**. SavvyCAN GVRET CSV import is
+  Stage 3; `import dbc` is Stage 4. `scripts/fetch_can_corpus.py` fetches the
+  reference Ioniq-28 corpus into a gitignored `references/can/`. New library module
+  `canlib/can_logs.py` (`plans/2026-07-24-raw-can-analysis.md`).
 - **Raw-CAN broadcast domain — Stage 0 scaffolding.** Groundwork for analysing
   passively-broadcast CAN frames (`plans/2026-07-24-raw-can-analysis.md`): two new
   tool-owned schemas (`canlib/schema/signals_schema.yaml` for DBC-compatible

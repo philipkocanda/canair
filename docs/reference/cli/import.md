@@ -7,17 +7,16 @@ usage: canair import [-h] {can,dbc} ...
 
 Import external CAN data into the active profile.
 
-  can   raw broadcast-CAN frame log (.asc/.blf/.csv/candump/gvret)
-        → captures/can/ native store + index.yaml   (Stage 1)
-  dbc   DBC signal definitions → the profile's signals/ model (Stage 4)
+  can   raw broadcast-CAN frame log (.asc/.blf/.csv/candump .log/.trc)
+        -> captures/can/ native store + index.yaml
+  dbc   DBC signal definitions -> the profile's signals/ model (Stage 4)
 
-Scaffold only: the command surface is registered, but the handlers are
-not implemented yet (see plans/2026-07-24-raw-can-analysis.md).
+Frame logs are stored verbatim and indexed (they are not exploded into
+the captures/*.yaml schema). SavvyCAN GVRET CSV import is Stage 3.
 
 positional arguments:
   {can,dbc}
-    can       Import a raw broadcast-CAN frame log (Stage 1 — not yet
-              implemented)
+    can       Import a raw broadcast-CAN frame log into captures/can/
     dbc       Import DBC signal definitions (Stage 4 — not yet implemented)
 
 options:
@@ -29,20 +28,27 @@ options:
 ```
 usage: canair import can [-h] [--format {auto,asc,blf,csv,log,gvret}]
                          [--label LABEL] [--state STATE] [--notes NOTES]
-                         [--bitrate BITRATE]
+                         [--source SOURCE] [--bitrate BITRATE] [--date DATE]
+                         [--force] [--json]
                          file
 
 positional arguments:
-  file                  Path to a .asc/.blf/.csv/candump/gvret log
+  file                  Path to a .asc/.blf/.csv/candump .log/.trc frame log
 
 options:
   -h, --help            show this help message and exit
   --format {auto,asc,blf,csv,log,gvret}
-                        Log format (default: auto-detect by extension)
+                        Log format (default: auto-detect by extension). gvret
+                        is Stage 3.
   --label LABEL         Session label for the index entry
-  --state STATE         Vehicle power state(s) while logging
+  --state STATE         Vehicle power state(s) while logging (comma-separated,
+                        e.g. 'driving')
   --notes NOTES         Free-text notes for the index entry
+  --source SOURCE       Provenance (capture tool, or upstream URL)
   --bitrate BITRATE     Bus bitrate in bit/s (e.g. 500000)
+  --date DATE           Log date YYYY-MM-DD (default: from log, else omitted)
+  --force               Overwrite an already-imported log of the same name
+  --json                Machine-readable result
 ```
 
 ## `canair import dbc`

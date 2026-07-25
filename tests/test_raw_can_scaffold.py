@@ -157,7 +157,7 @@ class TestValidateTargets:
         assert p.parse_args(["can"]).target == "can"
 
 
-# ── import command stub ───────────────────────────────────────────────────
+# ── import command surface (can implemented in Stage 1; dbc still a stub) ──
 
 
 class TestImportStub:
@@ -183,8 +183,8 @@ class TestImportStub:
         assert args._import_kind == "dbc"
         assert args.dry_run is True
 
-    def test_run_not_implemented_returns_2(self, capsys):
-        args = self._parse(["can", "x.blf"])
+    def test_dbc_still_not_implemented(self, capsys):
+        args = self._parse(["dbc", "car.dbc"])
         assert import_cmd.run(args) == 2
         assert "not yet implemented" in capsys.readouterr().err
 

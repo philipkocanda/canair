@@ -4,8 +4,8 @@
 
 ```
 usage: canair captures [-h] [--diff | --step]
-                       [--summary | --sessions | --latest [ECU] | --recover]
-                       [--discard] [--all] [--rulers] [--pair]
+                       [--summary | --sessions | --latest [ECU] | --recover |
+                       --can] [--discard] [--all] [--rulers] [--pair]
                        [--join-tol SECONDS] [--json] [--since YYYY-MM-DD]
                        [--until YYYY-MM-DD] [--date YYYY-MM-DD]
                        [--state SUBSTR] [--label SUBSTR] [--dir DIR]
@@ -33,6 +33,9 @@ options:
   --recover             Reconcile orphaned capture journals (from a
                         killed/crashed session) into capture files. Add
                         --discard to delete them without saving.
+  --can                 List imported raw broadcast-CAN frame logs
+                        (captures/can/index.yaml) instead of UDS captures —
+                        file/format/frames/IDs per log.
   --discard             With --recover: delete orphaned journals without
                         saving them
   --all, -a             For --diff/--step: use every payload instead of
