@@ -13,9 +13,9 @@ CLU:
           ha_class: distance
           verified: true
           notes: >
-            3-byte odometer at WiCAN [B12:B14] (ISO-TP data bytes g:h:i, Torque Int24). Verified by dhi20: 62B002E0000000FFB7008D08000000 -> 0x008D08 = 36104 km, matched the dash. Same layout as the 2017 Ioniq CLU (shares 0x7C6).
+            3-byte odometer at WiCAN [B12:B14] (ISO-TP data bytes g:h:i, Torque Int24). Verified by timwelchnz: 62B002E0000000FFB7008D08000000 -> 0x008D08 = 36104 km, matched the dash. Same layout as the 2017 Ioniq CLU (shares 0x7C6).
           min: "0"
           max: "16777215"
-          source: GitHub meatpiHQ/wican-fw#478 (dhi20)
+          source: GitHub meatpiHQ/wican-fw#478 (timwelchnz)
           source_links:
             - https://github.com/meatpiHQ/wican-fw/issues/478#issuecomment-5074723016

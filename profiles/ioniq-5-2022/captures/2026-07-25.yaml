@@ -1,7 +1,7 @@
 sessions:
 - date: '2026-07-25'
   label: Odometer
-  notes: Odometer verified at 36104 km on dash by dhi20 (GitHub wican-fw#478).
+  notes: Odometer verified at 36104 km on dash by timwelchnz (GitHub wican-fw#478).
   captures:
   - ecu: '0x7CE'
     pid: 22B002

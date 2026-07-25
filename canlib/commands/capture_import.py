@@ -16,7 +16,7 @@ Examples:
   # One verified odometer reading with context
   canair import-capture CLU:22B002=62B002E0000000FFB7008D08000000 \\
       --label "Odometer" --state acc2 --time 09:38:15 \\
-      --notes "Verified 36104 km on dash (GitHub wican-fw#478)"
+      --notes "Verified 36104 km on dash by timwelchnz (GitHub wican-fw#478)"
 
   # Several PIDs captured together into one session
   canair import-capture BMS:2101=6101FFF8... BMS:2102=6102... --label "SOC snapshot"
