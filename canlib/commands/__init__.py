@@ -47,6 +47,7 @@ COMMAND_NAMES: list[str] = [
     "config",
     # interop (import/export external CAN data)
     "import_",
+    "capture_import",
     # utilities
     "bix",
     "completion",

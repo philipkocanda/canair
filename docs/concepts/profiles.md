@@ -2,8 +2,10 @@
 
 A **profile** is a directory bundling everything canair knows about one vehicle.
 The tooling is vehicle-agnostic; a profile is where the vehicle-specific
-knowledge lives. The repo ships `profiles/ioniq-2017/` (a 2017 Hyundai Ioniq
-Electric) as the default/example — see [the Ioniq 2017
+knowledge lives. The repo ships one or more profiles under
+[`profiles/`](https://github.com/philipkocanda/canair/tree/main/profiles) — see
+[Bundled profiles](../profiles/index.md) for the current list. The most developed
+is `profiles/ioniq-2017/` (a 2017 Hyundai Ioniq Electric); see [the Ioniq 2017
 profile](../profiles/ioniq-2017.md) for what a mature profile looks like.
 
 ## Bundle layout

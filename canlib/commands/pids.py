@@ -8,6 +8,10 @@ engineering workflow. Every edit is:
 
 Subcommands:
   upsert-param ECU PID NAME EXPR   Add/update a parameter (expression required)
+  rename-param ECU PID OLD NEW     Rename a parameter key (fields preserved)
+  rm-param     ECU PID NAME        Remove a parameter
+  rename-pid   ECU OLD NEW         Rename a PID key (e.g. B002 -> 22B002)
+  rm-pid       ECU PID             Remove a whole PID (header, status, parameters)
   add-research ECU ...             Append a research: entry
   set-status  ECU TARGET STATUS    Update a research item's status
   set-pid-status ECU PID STATUS    Set a PID's lifecycle (active|draft|static|ignored)
@@ -38,8 +42,10 @@ from canlib.pids_edit import (
     PidsEditError,
     add_research_entry,
     delete_parameter,
+    delete_pid,
     find_ecu_file,
     rename_parameter,
+    rename_pid,
     set_identity_field,
     set_pid_status,
     set_research_status,
@@ -132,6 +138,24 @@ def cmd_rm_param(args: argparse.Namespace) -> int:
         f"{_GREEN}  ✓ removed {args.ecu} {args.pid} {args.name}{_RESET}  "
         f"{_DIM}({fpath.name}){_RESET}"
     )
+    return 0
+
+
+def cmd_rename_pid(args: argparse.Namespace) -> int:
+    def do():
+        rename_pid(args.ecu, args.old, args.new, pids_dir=args.dir)
+
+    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
+    print(f"{_GREEN}  ✓ {args.ecu} {args.old} → {args.new}{_RESET}  {_DIM}({fpath.name}){_RESET}")
+    return 0
+
+
+def cmd_rm_pid(args: argparse.Namespace) -> int:
+    def do():
+        delete_pid(args.ecu, args.pid, pids_dir=args.dir)
+
+    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
+    print(f"{_GREEN}  ✓ removed {args.ecu} {args.pid}{_RESET}  {_DIM}({fpath.name}){_RESET}")
     return 0
 
 
@@ -246,6 +270,19 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     rm.add_argument("name")
     _add_common(rm)
     rm.set_defaults(_pids_func=cmd_rm_param)
+
+    rnp = sub.add_parser("rename-pid", help="Rename a PID key (e.g. B002 -> 22B002)")
+    rnp.add_argument("ecu")
+    rnp.add_argument("old", help="Current PID code")
+    rnp.add_argument("new", help="New PID code (hex, e.g. 22B002)")
+    _add_common(rnp)
+    rnp.set_defaults(_pids_func=cmd_rename_pid)
+
+    rmp = sub.add_parser("rm-pid", help="Remove a whole PID (header, status, parameters)")
+    rmp.add_argument("ecu")
+    rmp.add_argument("pid")
+    _add_common(rmp)
+    rmp.set_defaults(_pids_func=cmd_rm_pid)
 
     ar = sub.add_parser("add-research", help="Append a research: entry")
     ar.add_argument("ecu")

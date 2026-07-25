@@ -4,16 +4,18 @@
 
 ```
 usage: canair pids [-h]
-                   {upsert-param,rename-param,rm-param,add-research,set-status,set-pid-status,set-identity}
+                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-research,set-status,set-pid-status,set-identity}
                    ...
 
 Safely edit ecus/ parameters and research entries.
 
 positional arguments:
-  {upsert-param,rename-param,rm-param,add-research,set-status,set-pid-status,set-identity}
+  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-research,set-status,set-pid-status,set-identity}
     upsert-param        Add or update a parameter
     rename-param        Rename a parameter (key only; fields preserved)
     rm-param            Remove a parameter
+    rename-pid          Rename a PID key (e.g. B002 -> 22B002)
+    rm-pid              Remove a whole PID (header, status, parameters)
     add-research        Append a research: entry
     set-status          Update a research item's status
     set-pid-status      Set a PID's lifecycle status
@@ -100,6 +102,37 @@ positional arguments:
   ecu
   pid
   name
+
+options:
+  -h, --help     show this help message and exit
+  --dir DIR      ecus/ directory (default: active profile)
+  --no-validate  Skip the post-edit schema validation gate
+```
+
+## `canair pids rename-pid`
+
+```
+usage: canair pids rename-pid [-h] [--dir DIR] [--no-validate] ecu old new
+
+positional arguments:
+  ecu
+  old            Current PID code
+  new            New PID code (hex, e.g. 22B002)
+
+options:
+  -h, --help     show this help message and exit
+  --dir DIR      ecus/ directory (default: active profile)
+  --no-validate  Skip the post-edit schema validation gate
+```
+
+## `canair pids rm-pid`
+
+```
+usage: canair pids rm-pid [-h] [--dir DIR] [--no-validate] ecu pid
+
+positional arguments:
+  ecu
+  pid
 
 options:
   -h, --help     show this help message and exit

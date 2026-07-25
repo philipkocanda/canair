@@ -23,7 +23,7 @@
 # │ passively (see `canair sniff`). Reads are request/response only.           │
 # └──────────────────────────────────────────────────────────────────────────┘
 
-car_model: "Hyundai: Ioniq2017"
+car_model: "Hyundai Ioniq 2017"
 init: "ATSP6;ATS0;ATAL;ATST96;"
 
 # ELM327 response timeout in ms (applied as ATSTxx after init; --elm-timeout

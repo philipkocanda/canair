@@ -304,6 +304,33 @@ def build_discover_session(
 # ---------------------------------------------------------------------------
 
 
+def build_manual_session(
+    captures: list[dict],
+    *,
+    label: str,
+    date: str | None = None,
+    vehicle_states: list[str] | None = None,
+    notes: str | None = None,
+) -> dict:
+    """Assemble a session dict from manually-supplied captures (the import path).
+
+    Mirrors the shape produced by the ``--save`` streaming path so an imported
+    session is indistinguishable from a device-recorded one. ``date`` defaults to
+    today; ``vehicle_states``/``notes`` are omitted when empty. Field order
+    follows the schema (date, label, [vehicle_states], [notes], captures).
+    """
+    session: dict = {
+        "date": date or datetime.now().strftime("%Y-%m-%d"),
+        "label": label,
+    }
+    if vehicle_states:
+        session["vehicle_states"] = list(vehicle_states)
+    if notes:
+        session["notes"] = notes
+    session["captures"] = list(captures)
+    return session
+
+
 def save_session(session: dict, captures_dir: Path | None = None) -> Path:
     """Append a session dict to captures/YYYY-MM-DD.yaml. Returns the file path.
 

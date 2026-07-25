@@ -23,6 +23,24 @@ canair query MyECU:2101 --save --label "highway 100 km/h" --state driving
 **journaled** as they stream, so a crashed or disconnected session is never
 lost — recover leftovers with `canair captures --recover`.
 
+## No device on hand? Import a reading
+
+Got a payload from elsewhere — a forum post, a GitHub issue, a reading someone
+took on another tool — and want it in your profile? `canair import-capture`
+records it through the same machinery as `--save`, so it's indistinguishable from
+a device-recorded capture and immediately decodable:
+
+```bash
+canair import-capture CLU:22B002=62B002E0000000FFB7008D08000000 \
+    --label "Odometer" --state acc2 --notes "Verified 36104 km on dash"
+```
+
+Each capture is `ECU:PID=PAYLOAD` (ECU short name or hex TX id; the PID/DID; the
+reassembled UDS payload, SID-first). Pass several to group them into one session.
+canair resolves the ECU address, rejects non-hex payloads, and warns if the
+payload's SID/DID echo doesn't match the PID (a misfiled frame). This is how
+community-contributed readings get onboarded without a live bus.
+
 ## Capture *contrast*, not just data
 
 The single most useful thing you can do is capture the **same PID in different
@@ -48,7 +66,7 @@ canair captures MyECU:2101 --diff  # byte-level diff across captures
 
 !!! note
     Capture files under `captures/` are **never hand-edited** — they're written
-    by `--save` and managed by canair. See
+    by `--save` / `import-capture` and managed by canair. See
     [Captures & states](../concepts/captures-and-states.md).
 
 !!! tip "Captures are shareable evidence"

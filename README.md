@@ -10,7 +10,7 @@
 
 canair interfaces with a [WiCAN](https://www.meatpi.com/products/wican-pro) OBD-II WiFi dongle to talk to a vehicle's ECUs over UDS and KWP2000. It discovers, decodes, analyzes and documents a car's internal diagnostic data — turning it into a [WiCAN vehicle profile](https://meatpihq.github.io/wican-fw/config/automate/new_vehicle_profiles) or shareable documentation.
 
-Everything ships as a single installable CLI, **`canair`**. Vehicle data lives in a *profile* bundle; the repo ships `profiles/ioniq-2017/` (a 2017 Hyundai Ioniq Electric) as the default/example. The tooling is vehicle-agnostic — build one for your car (see [Bring your own car](https://philipkocanda.github.io/canair/bring-your-own-car/overview/)).
+Everything ships as a single installable CLI, **`canair`**. Vehicle data lives in a *profile* bundle; the repo ships profiles under [`profiles/`](profiles/) (the mature `profiles/ioniq-2017/`, a 2017 Hyundai Ioniq Electric, is the default). The tooling is vehicle-agnostic — build one for your car (see [Bring your own car](https://philipkocanda.github.io/canair/bring-your-own-car/overview/)).
 
 **Built for both human *and* agentic use.** Every capability is a composable, scriptable subcommand with structured (`--json`) output, so it works equally well driven by a person at a terminal or by an AI coding agent (e.g. Claude). The reverse-engineering workflows are captured as agent skills in `.claude/skills/`.
 
@@ -73,6 +73,7 @@ All functionality is exposed as `canair <subcommand>`; run `canair <cmd> --help`
 | `canair hunt` | "Which byte *is* this known signal?" — sweep, correlate, fit, unit-guess. |
 | `canair investigate` | One-shot per-byte report for an unknown PID. |
 | `canair captures` | Search/diff/step through saved captures. |
+| `canair import-capture` | Record externally-provided UDS payloads into the profile (device-free). |
 | `canair coverage` | Audit PID definitions for decoding gaps. |
 | `canair research` | Report the open reverse-engineering backlog. |
 | `canair pids` | Add/update `ecus/` parameters and research entries (validated). |
@@ -124,7 +125,7 @@ Each step has a dedicated page under [**Bring your own car**](https://philipkoca
 
 ## Profiles
 
-A *profile* bundles one vehicle's data — `ecus/` (one file per ECU, the source of truth), `profile.yaml`, `captures/`, `references/`, and generated `out/`. The repo ships `profiles/ioniq-2017/` as the default. Manage them with `canair profile list` / `create` / `use`, and select with `--profile` / `CANAIR_PROFILE` / `default_profile`. See [Profiles](https://philipkocanda.github.io/canair/concepts/profiles/) for the layout, precedence, and discovery order.
+A *profile* bundles one vehicle's data — `ecus/` (one file per ECU, the source of truth), `profile.yaml`, `captures/`, `references/`, and generated `out/`. The repo ships one or more profiles under [`profiles/`](profiles/) (the mature `profiles/ioniq-2017/` is the default). Manage them with `canair profile list` / `create` / `use`, and select with `--profile` / `CANAIR_PROFILE` / `default_profile`. See [Bundled profiles](https://philipkocanda.github.io/canair/profiles/) for the full list and [Profiles](https://philipkocanda.github.io/canair/concepts/profiles/) for the layout, precedence, and discovery order.
 
 ## The bundled Ioniq profile
 

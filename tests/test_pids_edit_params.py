@@ -435,3 +435,99 @@ class TestDeleteParameter:
             "enabled": False,
             "parameters": {},
         }
+
+
+class TestRenamePid:
+    def test_rename_preserves_status_and_params(self, pids_dir):
+        from canlib.pids_edit import rename_pid
+
+        rename_pid("TESTECU", "2101", "22B002", pids_dir=pids_dir)
+        pids = _load(pids_dir)["TESTECU"]["pids"]
+        keys = {str(k).upper() for k in pids}
+        assert "22B002" in keys and "2101" not in keys
+        renamed = next(v for k, v in pids.items() if str(k).upper() == "22B002")
+        assert renamed["period"] == 5000
+        assert renamed["parameters"]["EXISTING"]["expression"] == "B3"
+
+    def test_rename_preserves_header_comment(self, pids_dir):
+        from canlib.pids_edit import rename_pid
+
+        rename_pid("TESTECU", "2101", "22B002", pids_dir=pids_dir)
+        assert "Header comment that must survive edits" in (pids_dir / "test.yaml").read_text()
+
+    def test_rename_missing_raises(self, pids_dir):
+        from canlib.pids_edit import rename_pid
+
+        with pytest.raises(PidsEditError, match="not found"):
+            rename_pid("TESTECU", "9999", "22B002", pids_dir=pids_dir)
+
+    def test_rename_collision_raises(self, pids_dir):
+        from canlib.pids_edit import rename_pid
+
+        with pytest.raises(PidsEditError, match="already exists"):
+            rename_pid("TESTECU", "2101", "2102", pids_dir=pids_dir)
+
+    def test_rename_invalid_code_raises(self, pids_dir):
+        from canlib.pids_edit import rename_pid
+
+        with pytest.raises(PidsEditError, match="invalid PID code"):
+            rename_pid("TESTECU", "2101", "ZZTOP", pids_dir=pids_dir)
+
+    def test_rename_does_not_touch_substring_sibling(self, pids_dir):
+        # Renaming B002 must not clobber a sibling 22B002 that contains it.
+        from canlib.pids_edit import rename_pid, upsert_parameter
+
+        upsert_parameter("TESTECU", "B002", "SHORT", "B1", pids_dir=pids_dir)
+        upsert_parameter("TESTECU", "22B002", "LONG", "B2", pids_dir=pids_dir)
+        rename_pid("TESTECU", "B002", "B003", pids_dir=pids_dir)
+        keys = {str(k).upper() for k in _load(pids_dir)["TESTECU"]["pids"]}
+        assert "B003" in keys and "B002" not in keys and "22B002" in keys
+
+
+class TestDeletePid:
+    def test_delete_removes_whole_pid(self, pids_dir):
+        from canlib.pids_edit import delete_pid
+
+        delete_pid("TESTECU", "2101", pids_dir=pids_dir)
+        keys = {str(k).upper() for k in _load(pids_dir)["TESTECU"]["pids"]}
+        assert "2101" not in keys
+        assert "2102" in keys and "2103" in keys  # siblings preserved
+
+    def test_delete_missing_raises(self, pids_dir):
+        from canlib.pids_edit import delete_pid
+
+        with pytest.raises(PidsEditError, match="not found"):
+            delete_pid("TESTECU", "9999", pids_dir=pids_dir)
+
+    def test_delete_preserves_header_comment(self, pids_dir):
+        from canlib.pids_edit import delete_pid
+
+        delete_pid("TESTECU", "2102", pids_dir=pids_dir)
+        assert "Header comment that must survive edits" in (pids_dir / "test.yaml").read_text()
+
+    def test_delete_only_pid_drops_pids_section(self, tmp_path):
+        # An ECU with a single PID: rm-pid should remove the whole pids: block
+        # (leaving an identity-only ECU), not an invalid empty mapping.
+        from canlib.pids_edit import delete_pid
+
+        (tmp_path / "_meta.yaml").write_text('car_model: "T"\ninit: "ATSP6;"\n')
+        (tmp_path / "solo.yaml").write_text(
+            textwrap.dedent(
+                """\
+                SOLO:
+                  tx_id: 0x7E0
+                  identity:
+                    description: Solo ECU
+                  pids:
+                    22B002:
+                      status: active
+                      parameters:
+                        ODO:
+                          expression: "[B12:B14]"
+                """
+            )
+        )
+        delete_pid("SOLO", "22B002", pids_dir=tmp_path)
+        doc = yaml.safe_load((tmp_path / "solo.yaml").read_text())["SOLO"]
+        assert "pids" not in doc
+        assert doc["identity"]["description"] == "Solo ECU"

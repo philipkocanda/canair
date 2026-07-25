@@ -1343,6 +1343,96 @@ def set_pid_status(ecu_name: str, pid: str, status: str, *, pids_dir: Path | Non
     return fpath
 
 
+def rename_pid(ecu_name: str, old_pid: str, new_pid: str, *, pids_dir: Path | None = None) -> Path:
+    """Rename a PID key under ``ECU.pids`` (e.g. ``B002`` -> ``22B002``).
+
+    Only the mapping key is changed; the PID's status, parameters, and formatting
+    are preserved. Fails if ``old_pid`` is absent or ``new_pid`` already exists.
+    Verified by YAML re-parse; the file is restored on failure.
+    """
+    old_u = str(old_pid).strip().upper()
+    new_u = str(new_pid).strip().upper()
+    if not re.fullmatch(r"[0-9A-F]+", new_u):
+        raise PidsEditError(f"invalid PID code {new_pid!r} (expected hex, e.g. 22B002)")
+
+    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
+    original = fpath.read_text()
+    ecu_key = ecu_name.strip().upper()
+
+    def transform(text: str) -> str:
+        e_start, e_end = _find_ecu_block(text, ecu_name)
+        pids = _keyed_block(text, "pids", 2, e_start, e_end)
+        if not pids:
+            raise PidsEditError(f"ECU {ecu_name!r} has no pids: section")
+        if new_u != old_u and _keyed_block(text, new_u, 4, pids[2], pids[3]):
+            raise PidsEditError(f"PID {new_u!r} already exists on {ecu_name}")
+        existing = _keyed_block(text, old_u, 4, pids[2], pids[3])
+        if not existing:
+            raise PidsEditError(f"PID {old_pid!r} not found on {ecu_name}")
+        hdr = existing[0]
+        renamed = re.sub(
+            rf"^( {{4}}){re.escape(old_u)}:",
+            rf"\g<1>{new_u}:",
+            text[hdr : existing[1] + 1],
+            count=1,
+        )
+        return text[:hdr] + renamed + text[existing[1] + 1 :]
+
+    def checker(ecu_def: dict) -> None:
+        keys = {str(k).upper() for k in (ecu_def.get("pids") or {})}
+        if new_u not in keys:
+            raise PidsEditError(f"PID {new_u!r} missing after rename")
+        if new_u != old_u and old_u in keys:
+            raise PidsEditError(f"old PID {old_u!r} still present after rename")
+
+    new_text = transform(original)
+    _safe_write(fpath, original, new_text, ecu_key, checker)
+    return fpath
+
+
+def delete_pid(ecu_name: str, pid: str, *, pids_dir: Path | None = None) -> Path:
+    """Remove an entire PID block from ``ECU.pids`` (header, status, parameters).
+
+    Fails if the PID is absent. Removing the ECU's *only* PID drops the whole
+    ``pids:`` section (leaving an identity-only ECU) rather than an invalid empty
+    mapping. Verified by YAML re-parse; the file is restored on failure.
+    """
+    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
+    original = fpath.read_text()
+    ecu_key = ecu_name.strip().upper()
+    pid_u = str(pid).strip().upper()
+
+    def transform(text: str) -> str:
+        e_start, e_end = _find_ecu_block(text, ecu_name)
+        pids = _keyed_block(text, "pids", 2, e_start, e_end)
+        if not pids:
+            raise PidsEditError(f"ECU {ecu_name!r} has no pids: section")
+        existing = _keyed_block(text, pid_u, 4, pids[2], pids[3])
+        if not existing:
+            raise PidsEditError(f"PID {pid!r} not found on {ecu_name}")
+        # If this is the only PID, drop the whole `pids:` section so the ECU
+        # becomes identity-only (an empty `pids:` is not a valid mapping); a
+        # PID header is the only thing at 4-space indent under pids:.
+        pid_headers = re.findall(r"^ {4}[^\s#]", text[pids[2] : pids[3]], re.MULTILINE)
+        if len(pid_headers) <= 1:
+            start, end = pids[0], pids[3]
+        else:
+            start, end = existing[0], existing[3]
+        # body_end absorbs trailing blank lines separating this block from the
+        # next sibling; keep them so removal doesn't collapse spacing.
+        block = text[start:end]
+        trailing = block[len(block.rstrip("\n")) :]
+        return text[:start] + trailing + text[end:]
+
+    def checker(ecu_def: dict) -> None:
+        if any(str(k).upper() == pid_u for k in (ecu_def.get("pids") or {})):
+            raise PidsEditError(f"PID {pid_u!r} still present after delete")
+
+    new_text = transform(original)
+    _safe_write(fpath, original, new_text, ecu_key, checker)
+    return fpath
+
+
 def _replace_param_field_line(indent: str, key: str, value) -> str:
     """One rendered scalar/bool line for a param field (used on existing blocks)."""
     return _format_scalar_field(indent, key, value)

@@ -4,13 +4,18 @@ CLU:
     description: Cluster (instrument panel)
     notes: Shares 0x7C6 with the 2017 Ioniq CLU.
   pids:
-    B002:
+    22B002:
       status: active
       parameters:
         ODOMETER:
-          expression: B6*65536+B7*256+B8
+          expression: "[B12:B14]"
           unit: km
           ha_class: distance
-          verified: false
+          verified: true
           notes: >
-            Copied structure from 2017 Ioniq odometer; UNVERIFIED for Ioniq 5 — no captures yet. Byte offsets (B6/B7/B8) and PID key are guesses; B8 collides with ISO-TP PCI header per validator. 2017 reads [B12:B14].
+            3-byte odometer at WiCAN [B12:B14] (ISO-TP data bytes g:h:i, Torque Int24). Verified by dhi20: 62B002E0000000FFB7008D08000000 -> 0x008D08 = 36104 km, matched the dash. Same layout as the 2017 Ioniq CLU (shares 0x7C6).
+          min: "0"
+          max: "16777215"
+          source: GitHub meatpiHQ/wican-fw#478 (dhi20)
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/issues/478#issuecomment-5074723016

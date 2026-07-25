@@ -45,6 +45,23 @@ canair pids upsert-param MyECU 2101 SPEED_KMH "[B12]" --verified   # promote
 The discipline: **read and capture freely, define conservatively.** Optimistic
 guesses promoted to "fact" are how bad profiles spread.
 
+## Fixing and renaming
+
+Got a byte offset wrong, mis-keyed a PID, or need to drop a dead one? Use the
+surgical `canair pids` editors rather than touching the YAML — every edit is
+comment-preserving and schema-validated (auto-reverted on failure):
+
+```bash
+canair pids rename-pid   MyECU B002 22B002   # re-key a PID (e.g. add the 22 service prefix)
+canair pids rename-param MyECU 2101 OLD NEW   # rename a parameter (fields preserved)
+canair pids rm-param     MyECU 2101 NAME      # remove one parameter
+canair pids rm-pid       MyECU 22B002         # remove a whole PID (drops pids: if it was the last)
+```
+
+If you ever find yourself reaching for a text editor because no `canair pids`
+subcommand covers a field, that's a [bug to report](../contributing/index.md) —
+not a reason to hand-edit.
+
 ## Audit for gaps
 
 `canair coverage` cross-references your parameter expressions against the longest

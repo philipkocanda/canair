@@ -1,10 +1,14 @@
 # The bundled Ioniq 2017 profile
 
-The repo ships one fully-developed profile, `ioniq-2017`, as both the **default**
-and a **worked reference example** for the [bring-your-own-car](../bring-your-own-car/overview.md)
-journey. It turns canair into a ready-to-use diagnostics toolkit for the
+The repo's most developed profile, `ioniq-2017`, is both the **default** and a
+**worked reference example** for the [bring-your-own-car](../bring-your-own-car/overview.md)
+journey (see [Bundled profiles](index.md) for the full list of what ships). It
+turns canair into a ready-to-use diagnostics toolkit for the
 **2017 Hyundai Ioniq Electric (28 kWh, `AE` platform)** — read live battery,
 motor, charging, climate, and body data over WiFi with no dealer tools.
+
+Browse it on GitHub:
+[`profiles/ioniq-2017/`](https://github.com/philipkocanda/canair/tree/main/profiles/ioniq-2017).
 
 It's also the best thing to *study*: it shows what a mature profile looks like
 (verified parameters with sources, `research:` backlogs, IOControl actuators,
@@ -102,9 +106,11 @@ canair --profile ioniq-2017 coverage               # what's still undecoded
 canair --profile ioniq-2017 research --summary     # the open RE backlog
 ```
 
-The source of truth is `profiles/ioniq-2017/ecus/` — one file per ECU, each
-carrying that ECU's identity, scan log, DTC meanings, PIDs, parameters, and
-research leads. See [Profiles](../concepts/profiles.md) for the bundle layout.
+The source of truth is
+[`profiles/ioniq-2017/ecus/`](https://github.com/philipkocanda/canair/tree/main/profiles/ioniq-2017/ecus)
+— one file per ECU, each carrying that ECU's identity, scan log, DTC meanings,
+PIDs, parameters, and research leads. See [Profiles](../concepts/profiles.md) for
+the bundle layout.
 
 ## A note on the hardware quirks
 

@@ -94,6 +94,7 @@ nav:
           - canair dtc: reference/cli/dtc.md
           - canair repl: reference/cli/repl.md
           - canair captures: reference/cli/captures.md
+          - canair import-capture: reference/cli/import-capture.md
           - canair decode: reference/cli/decode.md
           - canair correlate: reference/cli/correlate.md
           - canair hunt: reference/cli/hunt.md
@@ -109,6 +110,7 @@ nav:
           - canair import: reference/cli/import.md
           - canair bix: reference/cli/bix.md
           - canair completion: reference/cli/completion.md
-  - Bundled profile:
+  - Bundled profiles:
+      - Overview: profiles/index.md
       - Ioniq 2017: profiles/ioniq-2017.md
   - Contributing: contributing/index.md
