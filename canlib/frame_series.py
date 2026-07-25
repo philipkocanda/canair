@@ -116,17 +116,24 @@ def _frame_expr(off: int, spec: tuple, little: bool) -> str | None:
     """Raw-CAN label for an interpretation of a frame at ``off``.
 
     Frames have no ISO-TP/PCI and no WiCAN expression language: a byte is ``rN``,
-    a big-endian multi-byte read a ``[rN:rM]`` range. Little-endian / float reads
-    have no simple raw label (``None`` → ranked/demoted like the diagnostic hunt's
-    ``<no-expr>``). Definitions ultimately live in the linear ``signals/`` model
-    (Stage 4), not an expression — this is a display label for analysis.
+    a big-endian multi-byte read a ``[rN:rM]`` range, and a little-endian *unsigned*
+    read a shift-composition (``r0 | (r1 << 8)``) — mirroring the diagnostic
+    ``wican_expr``. Only floats and little-endian *signed* reads have no simple raw
+    label (``None`` → ranked/demoted as the diagnostic hunt's ``<no-expr>``).
+    Definitions ultimately live in the linear ``signals/`` model (Stage 4), not an
+    expression — this is a display label for analysis.
     """
-    _, width, kind, _signed = spec
-    if kind == "float" or (little and width > 1):
+    _, width, kind, signed = spec
+    if kind == "float":
         return None
     if width == 1:
         return f"r{off}"
-    return f"[r{off}:r{off + width - 1}]"
+    if not little:
+        return f"[r{off}:r{off + width - 1}]"
+    if signed:
+        return None
+    terms = [f"r{off}"] + [f"(r{off + k} << {8 * k})" for k in range(1, width)]
+    return " | ".join(terms)
 
 
 def hunt_frame(

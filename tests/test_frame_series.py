@@ -59,6 +59,30 @@ class TestBuildFrameSeries:
             frame_series.parse_id_filter("0xZZZ")
 
 
+class TestFrameExpr:
+    """_frame_expr labels mirror the diagnostic wican_expr (rN space, no PCI)."""
+
+    def test_single_byte(self):
+        assert frame_series._frame_expr(2, ("u8", 1, "int", False), False) == "r2"
+
+    def test_big_endian_range(self):
+        assert frame_series._frame_expr(1, ("u16", 2, "int", False), False) == "[r1:r2]"
+
+    def test_little_endian_unsigned_is_shift_composition(self):
+        # Previously "<no-expr>" — now an actionable shift form (matches wican_expr).
+        assert (
+            frame_series._frame_expr(1, ("u16", 2, "int", False), True) == "r1 | (r2 << 8)"
+        )
+        assert (
+            frame_series._frame_expr(0, ("u24", 3, "int", False), True)
+            == "r0 | (r1 << 8) | (r2 << 16)"
+        )
+
+    def test_float_and_le_signed_have_no_label(self):
+        assert frame_series._frame_expr(0, ("f32", 4, "float", True), False) is None
+        assert frame_series._frame_expr(0, ("i16", 2, "int", True), True) is None
+
+
 class TestCorrelateCanLog:
     def _run(self, argv):
         p = correlate.add_parser(argparse.ArgumentParser().add_subparsers())
