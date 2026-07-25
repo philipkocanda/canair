@@ -19,6 +19,10 @@ from canlib.profile import Profile
 FIXTURE = Path(__file__).parent / "fixtures" / "can" / "ioniq28_drive_slice.log"
 EXPECT_IDS = ["0x200", "0x220", "0x2B0", "0x386"]
 
+# A verbatim slice of the real uhi22 GVRET drive log (attribution in the fixture
+# dir README): 0x354 gear lever + 0x386 wheel speeds, all four gear codes.
+GVRET_FIXTURE = Path(__file__).parent / "fixtures" / "can" / "ioniq28_gear_drive_slice.csv"
+
 
 @pytest.fixture
 def temp_profile(tmp_path):
@@ -42,6 +46,10 @@ class TestDetectFormat:
     def test_gvret_explicit(self):
         # GVRET is now a supported format (Stage 3), forced by --format even on .csv.
         assert can_logs.detect_format(Path("x.csv"), "gvret") == "gvret"
+
+    def test_real_gvret_fixture_autodetects(self):
+        # The committed real-log slice sniffs as gvret from its header on auto.
+        assert can_logs.detect_format(GVRET_FIXTURE) == "gvret"
 
     def test_unknown_format_rejected(self):
         with pytest.raises(can_logs.CanLogError, match="unknown format"):
@@ -74,6 +82,22 @@ class TestImportLog:
         assert validate._run_can() == 0  # written index passes the schema
         logs = can_logs.list_logs(temp_profile)
         assert len(logs) == 1 and logs[0]["file"] == FIXTURE.name
+
+    def test_real_gvret_fixture_import(self, temp_profile):
+        # Guards the RE'd powertrain signals: the real-log slice imports as gvret
+        # and carries the gear-lever (0x354) and wheel-speed (0x386) frames.
+        res = can_logs.import_log(
+            GVRET_FIXTURE, temp_profile, fmt="gvret", label="uhi22 gear+speed slice"
+        )
+        assert res.entry["format"] == "gvret"
+        assert "0x354" in res.entry["id_set"] and "0x386" in res.entry["id_set"]
+        # all four gear codes (P/R/N/D) survive the trim
+        gears = {
+            m.data[5] for m in can_logs.iter_frames(GVRET_FIXTURE, "gvret")
+            if m.arbitration_id == 0x354
+        }
+        assert gears == {1, 2, 3, 4}
+        assert validate._run_can() == 0
 
     def test_states_split_and_source(self, temp_profile):
         res = can_logs.import_log(
