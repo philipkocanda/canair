@@ -241,16 +241,16 @@ class _ByteReport:
 
 
 def _state_f(frames_by_state: dict[str, list[float]]):
-    from canlib.commands.decode import _discriminability
+    from canlib.xanalysis import discriminability
 
-    return _discriminability(frames_by_state)
+    return discriminability(frames_by_state)
 
 
 def run(args) -> int:
     from canlib.commands.correlate import _discover_specs
-    from canlib.commands.decode import _byte_state_buckets
     from canlib.ecus import canonical_ecu_name_safe
     from canlib.pids import build_ecu_index, load_pids
+    from canlib.xanalysis import byte_state_buckets as _byte_state_buckets
 
     since, until, err = resolve_date_bounds(args)
     if err:

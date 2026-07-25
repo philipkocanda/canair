@@ -63,3 +63,33 @@ class TestCorrelationDispatch:
         assert correlation(xs, ys, "pearson") == pytest.approx(pearson(xs, ys))
         assert correlation(xs, ys, "spearman") == pytest.approx(spearman(xs, ys))
         assert correlation(xs, ys) == pytest.approx(pearson(xs, ys))  # default
+
+
+class TestDescriptiveStats:
+    def test_mean_median_stdev(self):
+        from canlib.stats import mean, median, stdev
+
+        assert mean([1, 2, 3, 4]) == 2.5
+        assert mean([]) == 0.0  # empty guard
+        assert median([1, 2, 3, 4]) == 2.5
+        assert median([1, 2, 3]) == 2
+        assert stdev([2, 2, 2]) == 0.0
+        assert stdev([1]) == 0.0
+        assert round(stdev([1, 2, 3, 4, 5]), 4) == 1.5811
+
+    def test_compute_stats(self):
+        from canlib.stats import compute_stats
+
+        s = compute_stats([1, 1, 2, 3])
+        assert s["n"] == 4 and s["distinct"] == 3
+        assert s["min"] == 1 and s["max"] == 3
+        assert s["values"] == [1, 2, 3]
+
+    def test_fmt_num(self):
+        from canlib.stats import fmt_num
+
+        assert fmt_num(3.0) == "3"
+        assert fmt_num(3.5) == "3.50"
+        assert fmt_num(float("nan")) == "nan"
+        assert fmt_num(float("inf")) == "inf"
+        assert fmt_num(float("-inf")) == "-inf"

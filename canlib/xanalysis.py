@@ -30,8 +30,10 @@ __all__ = [
     "build_bit_series",
     "build_byte_series",
     "build_param_series",
+    "byte_state_buckets",
     "correlate_matrix",
     "correlation",
+    "discriminability",
     "hunt_byte",
     "lag_scan",
     "linear_fit",
@@ -227,6 +229,92 @@ def build_bit_series(loaded: LoadedPid, *, skip_pci: bool = True) -> dict[str, l
             if len({tp.value for tp in series}) >= 2:
                 out[f"{loaded.ecu}:{loaded.pid}:B{off}:{k}"] = series
     return out
+
+
+# ---------------------------------------------------------------------------
+# State discrimination (F-like separation of a signal across power states)
+# ---------------------------------------------------------------------------
+def discriminability(groups: dict[str, list[float]]) -> float | None:
+    """F-like score: between-group variance / within-group (pooled) variance.
+
+    High when a signal is nearly constant within each state but differs across
+    states (a mode/thermal/relay signal). ``None`` when undefined (too few
+    groups/points).
+    """
+    pops = [vals for vals in groups.values() if len(vals) >= 2]
+    if len(pops) < 2:
+        return None
+    all_vals = [v for vals in pops for v in vals]
+    n = len(all_vals)
+    grand = sum(all_vals) / n
+    between = sum(len(vals) * (sum(vals) / len(vals) - grand) ** 2 for vals in pops)
+    within = sum((v - sum(vals) / len(vals)) ** 2 for vals in pops for v in vals)
+    df_between = len(pops) - 1
+    df_within = n - len(pops)
+    if df_between <= 0 or df_within <= 0:
+        return None
+    msb = between / df_between
+    msw = within / df_within
+    if msw == 0:
+        # Perfect separation with zero within-group spread: rank very high but
+        # finite ordering falls back to between-group spread.
+        return float("inf") if msb > 0 else None
+    return msb / msw
+
+
+def byte_state_buckets(
+    all_results: list[dict], field: str, *, min_distinct: int = 2, include_bits: bool = False
+) -> dict[str, dict[str, list[float]]]:
+    """Bucket each varying, non-PCI raw byte value by session ``field``.
+
+    The raw-byte analogue of the param buckets in ``decode.print_discriminate``.
+    Uses a low ``min_distinct`` (2) on purpose: the highest-value discrimination
+    targets are near-binary relay/mode bytes (e.g. 0x00/0x34) that the default
+    correlation floor (4) would drop. Reads every capture (incl. untimed —
+    discrimination buckets by state, not time) and skips PCI framing bytes via
+    the canonical :func:`byteindex.wican_to_isotp` detector. With ``include_bits``,
+    each varying bit ``Bn:k`` is also bucketed (the body-status/relay finder).
+    """
+    from .byteindex import payload_to_wican_bytes, wican_to_isotp
+    from .states import join_states
+
+    frames: list[tuple[bytes, str]] = []
+    max_len = 0
+    for r in all_results:
+        cap = r["capture"]
+        try:
+            fr = payload_to_wican_bytes(cap["payload"])
+        except Exception:
+            continue
+        state = join_states(cap.get("vehicle_states")) or "(no state)"
+        frames.append((fr, state))
+        max_len = max(max_len, len(fr))
+
+    buckets: dict[str, dict[str, list[float]]] = {}
+    for off in range(max_len):
+        if wican_to_isotp(off) is None:
+            continue  # PCI framing byte, not data
+        per_state: dict[str, list[float]] = {}
+        distinct: set[float] = set()
+        for fr, state in frames:
+            if off < len(fr):
+                v = float(fr[off])
+                per_state.setdefault(state, []).append(v)
+                distinct.add(v)
+        if len(distinct) >= min_distinct:
+            buckets[f"B{off}"] = per_state
+        if include_bits:
+            for k in range(8):
+                bit_state: dict[str, list[float]] = {}
+                bit_distinct: set[float] = set()
+                for fr, state in frames:
+                    if off < len(fr):
+                        b = float((fr[off] >> k) & 1)
+                        bit_state.setdefault(state, []).append(b)
+                        bit_distinct.add(b)
+                if len(bit_distinct) >= 2:
+                    buckets[f"B{off}:{k}"] = bit_state
+    return buckets
 
 
 # ---------------------------------------------------------------------------

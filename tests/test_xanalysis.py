@@ -33,6 +33,27 @@ class TestStats:
         assert resid == pytest.approx(0.0)
 
 
+class TestDiscriminability:
+    def test_clean_separation_high(self):
+        # Two states, tight within each, far apart between -> large F.
+        groups = {"a": [1.0, 1.0, 1.1], "b": [9.0, 9.1, 9.0]}
+        f = xanalysis.discriminability(groups)
+        assert f is not None and f > 100
+
+    def test_noise_low(self):
+        # Overlapping, noisy groups -> small F.
+        groups = {"a": [1.0, 5.0, 9.0], "b": [2.0, 6.0, 8.0]}
+        f = xanalysis.discriminability(groups)
+        assert f is not None and f < 1
+
+    def test_single_group_none(self):
+        assert xanalysis.discriminability({"a": [1.0, 2.0, 3.0]}) is None
+
+    def test_zero_within_is_inf(self):
+        groups = {"a": [1.0, 1.0], "b": [2.0, 2.0]}
+        assert xanalysis.discriminability(groups) == float("inf")
+
+
 class TestSniffUnit:
     def test_mph_scaling(self):
         # candidate = speed / 1.609 (MPH), so slope ≈ 0.6214

@@ -92,12 +92,14 @@ class TestValueRanges:
 
 class TestStatistics:
     def test_mean_median_stdev(self):
-        assert decode_script._mean([1, 2, 3, 4]) == 2.5
-        assert decode_script._median([1, 2, 3, 4]) == 2.5
-        assert decode_script._median([1, 2, 3]) == 2
-        assert decode_script._stdev([2, 2, 2]) == 0.0
-        assert decode_script._stdev([1]) == 0.0
-        assert round(decode_script._stdev([1, 2, 3, 4, 5]), 4) == 1.5811
+        from canlib.stats import mean, median, stdev
+
+        assert mean([1, 2, 3, 4]) == 2.5
+        assert median([1, 2, 3, 4]) == 2.5
+        assert median([1, 2, 3]) == 2
+        assert stdev([2, 2, 2]) == 0.0
+        assert stdev([1]) == 0.0
+        assert round(stdev([1, 2, 3, 4, 5]), 4) == 1.5811
 
     def test_pearson_perfect_positive_and_negative(self):
         from canlib.stats import pearson

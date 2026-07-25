@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Correlation statistics — the single home for the hand-rolled (numpy-free)
-coefficients used across the analysis suite (``decode``, ``correlate``,
+"""Statistics — the single home for the hand-rolled (numpy-free) coefficients
+and descriptive stats used across the analysis suite (``decode``, ``correlate``,
 ``hunt``, the plot overlay).
 
 Kept dependency-free and leaf (imports nothing from ``canlib``) so every caller
 can import it without a cycle. Consolidates what were three separate ``pearson``
-copies.
+copies and the duplicated ``mean``/``median``/``stdev``/``fmt_num`` helpers.
 """
 
 from __future__ import annotations
@@ -83,3 +83,53 @@ def correlation(xs: list[float], ys: list[float], method: str = "pearson") -> fl
     if method == "spearman":
         return spearman(xs, ys)
     return pearson(xs, ys)
+
+
+# ── Descriptive statistics ───────────────────────────────────────────────────
+# Also numpy-free and leaf, shared by decode's stats table and the plot overlay.
+
+
+def mean(xs: list[float]) -> float:
+    """Arithmetic mean (0.0 for an empty series)."""
+    return sum(xs) / len(xs) if xs else 0.0
+
+
+def median(xs: list[float]) -> float:
+    """Median (assumes a non-empty series)."""
+    s = sorted(xs)
+    n = len(s)
+    return s[n // 2] if n % 2 else (s[n // 2 - 1] + s[n // 2]) / 2
+
+
+def stdev(xs: list[float]) -> float:
+    """Sample standard deviation (0.0 for fewer than two points)."""
+    if len(xs) < 2:
+        return 0.0
+    m = mean(xs)
+    return (sum((x - m) ** 2 for x in xs) / (len(xs) - 1)) ** 0.5
+
+
+def compute_stats(values: list[float]) -> dict:
+    """Descriptive statistics for one parameter's value series."""
+    distinct = sorted(set(values))
+    return {
+        "n": len(values),
+        "distinct": len(distinct),
+        "min": min(values),
+        "max": max(values),
+        "mean": mean(values),
+        "median": median(values),
+        "stdev": stdev(values),
+        "values": distinct,
+    }
+
+
+def fmt_num(x: float) -> str:
+    """Compact numeric formatting: integers stay integral, else 2 decimals.
+
+    Non-finite values (which float byte-interpretations routinely produce) are
+    rendered as text rather than crashing ``int()``.
+    """
+    if not math.isfinite(x):
+        return "nan" if math.isnan(x) else ("inf" if x > 0 else "-inf")
+    return str(int(x)) if x == int(x) else f"{x:.2f}"

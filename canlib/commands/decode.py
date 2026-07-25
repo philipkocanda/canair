@@ -38,7 +38,6 @@ Examples:
 
 import argparse
 import json
-import math
 import sys
 from typing import TYPE_CHECKING
 
@@ -67,7 +66,11 @@ from canlib.notation import (
 )
 from canlib.pids import build_ecu_index, load_pids
 from canlib.states import join_states as _join_states
+from canlib.stats import compute_stats
 from canlib.stats import correlation as _correlation
+from canlib.stats import fmt_num as _fmt_num
+from canlib.xanalysis import byte_state_buckets as _byte_state_buckets
+from canlib.xanalysis import discriminability as _discriminability
 
 if TYPE_CHECKING:
     from canlib.align import TimePoint
@@ -425,24 +428,6 @@ def print_value_ranges(
     print()
 
 
-def _mean(xs: list[float]) -> float:
-    return sum(xs) / len(xs)
-
-
-def _median(xs: list[float]) -> float:
-    s = sorted(xs)
-    n = len(s)
-    return s[n // 2] if n % 2 else (s[n // 2 - 1] + s[n // 2]) / 2
-
-
-def _stdev(xs: list[float]) -> float:
-    """Sample standard deviation (0.0 for fewer than two points)."""
-    if len(xs) < 2:
-        return 0.0
-    m = _mean(xs)
-    return (sum((x - m) ** 2 for x in xs) / (len(xs) - 1)) ** 0.5
-
-
 def _series(all_results: list[dict], name: str) -> list[float]:
     """Decoded values for one param across captures (capture order, None dropped)."""
     return [
@@ -547,34 +532,6 @@ def load_cross_ref_series(ref: str, *, scope: dict, tol_s: float):
     return series, sref.label
 
 
-def _fmt_num(x: float) -> str:
-    """Compact numeric formatting: integers stay integral, else 2 decimals.
-
-    Non-finite values (which float byte-interpretations routinely produce) are
-    rendered as text rather than crashing ``int()``.
-    """
-    if not math.isfinite(x):
-        return "nan" if math.isnan(x) else ("inf" if x > 0 else "-inf")
-    if x == int(x):
-        return str(int(x))
-    return f"{x:.2f}"
-
-
-def compute_stats(values: list[float]) -> dict:
-    """Descriptive statistics for one parameter's value series."""
-    distinct = sorted(set(values))
-    return {
-        "n": len(values),
-        "distinct": len(distinct),
-        "min": min(values),
-        "max": max(values),
-        "mean": _mean(values),
-        "median": _median(values),
-        "stdev": _stdev(values),
-        "values": distinct,
-    }
-
-
 def _mark_for(name: str, parameters: dict, candidate_names: set[str]) -> str:
     if name in candidate_names:
         return f"{_CYAN}»{_RESET}"
@@ -645,88 +602,6 @@ def print_stats_grouped(
             print()
         print(f"  {_BOLD}[{key}]{_RESET} {_DIM}— {len(rows)} captures{_RESET}")
         print_stats_table(rows, param_names, parameters, candidate_names)
-
-
-def _discriminability(groups: dict[str, list[float]]) -> float | None:
-    """F-like score: between-group variance / within-group (pooled) variance.
-
-    High when a signal is nearly constant within each state but differs across
-    states (a mode/thermal/relay signal). ``None`` when undefined (too few
-    groups/points).
-    """
-    pops = [vals for vals in groups.values() if len(vals) >= 2]
-    if len(pops) < 2:
-        return None
-    all_vals = [v for vals in pops for v in vals]
-    n = len(all_vals)
-    grand = sum(all_vals) / n
-    between = sum(len(vals) * (sum(vals) / len(vals) - grand) ** 2 for vals in pops)
-    within = sum((v - sum(vals) / len(vals)) ** 2 for vals in pops for v in vals)
-    df_between = len(pops) - 1
-    df_within = n - len(pops)
-    if df_between <= 0 or df_within <= 0:
-        return None
-    msb = between / df_between
-    msw = within / df_within
-    if msw == 0:
-        # Perfect separation with zero within-group spread: rank very high but
-        # finite ordering falls back to between-group spread.
-        return float("inf") if msb > 0 else None
-    return msb / msw
-
-
-def _byte_state_buckets(
-    all_results: list[dict], field: str, *, min_distinct: int = 2, include_bits: bool = False
-) -> dict[str, dict[str, list[float]]]:
-    """Bucket each varying, non-PCI raw byte value by session ``field``.
-
-    The raw-byte analogue of the param buckets in :func:`print_discriminate`.
-    Uses a low ``min_distinct`` (2) on purpose: the highest-value discrimination
-    targets are near-binary relay/mode bytes (e.g. 0x00/0x34) that the default
-    correlation floor (4) would drop. Reads every capture (incl. untimed —
-    discrimination buckets by state, not time) and skips PCI framing bytes via
-    the canonical :func:`byteindex.wican_to_isotp` detector. With ``include_bits``,
-    each varying bit ``Bn:k`` is also bucketed (the body-status/relay finder).
-    """
-    from canlib.byteindex import payload_to_wican_bytes, wican_to_isotp
-
-    frames: list[tuple[bytes, str]] = []
-    max_len = 0
-    for r in all_results:
-        cap = r["capture"]
-        try:
-            fr = payload_to_wican_bytes(cap["payload"])
-        except Exception:
-            continue
-        state = _join_states(cap.get("vehicle_states")) or "(no state)"
-        frames.append((fr, state))
-        max_len = max(max_len, len(fr))
-
-    buckets: dict[str, dict[str, list[float]]] = {}
-    for off in range(max_len):
-        if wican_to_isotp(off) is None:
-            continue  # PCI framing byte, not data
-        per_state: dict[str, list[float]] = {}
-        distinct: set[float] = set()
-        for fr, state in frames:
-            if off < len(fr):
-                v = float(fr[off])
-                per_state.setdefault(state, []).append(v)
-                distinct.add(v)
-        if len(distinct) >= min_distinct:
-            buckets[f"B{off}"] = per_state
-        if include_bits:
-            for k in range(8):
-                bit_state: dict[str, list[float]] = {}
-                bit_distinct: set[float] = set()
-                for fr, state in frames:
-                    if off < len(fr):
-                        b = float((fr[off] >> k) & 1)
-                        bit_state.setdefault(state, []).append(b)
-                        bit_distinct.add(b)
-                if len(bit_distinct) >= 2:
-                    buckets[f"B{off}:{k}"] = bit_state
-    return buckets
 
 
 def print_discriminate(

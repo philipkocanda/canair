@@ -28,6 +28,8 @@ from canlib.byteindex import (
     payload_to_wican_frame,
 )
 from canlib.states import join_states as _join_states
+from canlib.stats import fmt_num as _fmt_num
+from canlib.stats import mean as _mean
 from canlib.stats import pearson as _pearson
 
 # Terminal colors — mirror decode's palette. Kept local (not imported from
@@ -40,21 +42,6 @@ _YELLOW = "\033[93m"
 _CYAN = "\033[96m"
 _RED = "\033[91m"
 _RESET = "\033[0m"
-
-
-def _fmt_num(x: float) -> str:
-    """Compact numeric formatting: integers stay integral, else 2 decimals.
-
-    Non-finite values (which float byte-interpretations routinely produce) are
-    rendered as text rather than crashing ``int()``.
-    """
-    if not math.isfinite(x):
-        return "nan" if math.isnan(x) else ("inf" if x > 0 else "-inf")
-    return str(int(x)) if x == int(x) else f"{x:.2f}"
-
-
-def _mean(xs: list[float]) -> float:
-    return sum(xs) / len(xs) if xs else 0.0
 
 
 # name, byte width, kind ("int"/"float"), signed (ints only)
