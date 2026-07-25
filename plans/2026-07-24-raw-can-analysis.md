@@ -297,7 +297,13 @@ here (Stage 4). It realises the broadcast-decoding decision of
   `scripts/fetch_can_corpus.py` + fixtures/tests. GVRET CSV deferred to Stage 3.
   (2026-07-25)
 - [ ] Stage 2 — generalize the analysis seam (pluggable reconstructor/skip-set + arb-ID source); golden-gated
-- [ ] Stage 2 — generalize the analysis seam (pluggable reconstructor/skip-set + arb-ID source); golden-gated
+- [~] Stage 2 — analysis-seam generalization. **Done (2a):** `canlib/frame_series.py`
+  builds `0xID:rN` byte/bit `TimePoint` series from a frame log and feeds the
+  *same* `correlate_matrix`/`join_nearest` core via `canair correlate --can-log`
+  (ranked cross-ID + `--against` + clusters). Additive — the WiCAN diagnostic path
+  is byte-identical (verified on ioniq-2017). **Remaining (2b):** frame source in
+  `hunt`/`investigate` ("which frame byte is speed?"), and the fuller
+  `LoadedSignal`/arb-ID loader unification if desired. (2026-07-25)
 - [ ] Stage 3 — frames in `correlate`/`hunt`/`align`/`decode`/`coverage`
 - [ ] Stage 4 — `signals/` editor + `import dbc`/`export dbc`; domain-A `export csv`/`json`
 - [ ] Stage 5 — docs / README / AGENTS.md / skills / CHANGELOG

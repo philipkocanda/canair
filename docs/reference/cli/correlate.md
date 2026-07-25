@@ -12,6 +12,8 @@ usage: canair correlate [-h] [--against ECU:PID:PARAM] [--transform MODE]
                         [--find-mirrors] [--notation NAME]
                         [--since YYYY-MM-DD] [--until YYYY-MM-DD]
                         [--date YYYY-MM-DD] [--state SUBSTR] [--label SUBSTR]
+                        [--can-log FILE] [--can-format {auto,asc,blf,csv,log}]
+                        [--id IDS]
                         [query]
 
 Show me every strong relationship across a whole drive.
@@ -96,6 +98,15 @@ options:
   --notation NAME       byte-index notation for output labels: wican
                         (default), isotp, torque, bix. Overrides the
                         display.byte_notation config key.
+  --can-log FILE        Correlate the per-byte series of a raw broadcast-CAN
+                        frame log (.asc/.blf/candump .log/.trc) instead of
+                        diagnostic captures. Bytes are labelled 0xID:rN;
+                        --against/--bits/--id/--min-r/--top all apply.
+  --can-format {auto,asc,blf,csv,log}
+                        With --can-log: log format (default: auto-detect by
+                        extension)
+  --id IDS              With --can-log: restrict to comma-separated
+                        arbitration IDs (e.g. 0x220,0x386)
 
 scoping:
   Restrict to captures within a date range (inclusive, YYYY-MM-DD) and/or by session state/label substring

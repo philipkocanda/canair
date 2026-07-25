@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`canair correlate --can-log FILE` — correlate raw broadcast-CAN frame bytes
+  (Stage 2).** Reads a native frame log's per-byte series (`0xID:rN`, `--bits` for
+  `0xID:rN.k`, `--id` to filter arbitration IDs) and runs the *same* correlation
+  core as diagnostic captures — ranked cross-arbitration-ID pairs (clustered),
+  or every byte vs an `--against 0xID:rN` reference — so broadcast frames flow
+  into the analyzer (`--json`, `--min-r`/`--min-n`/`--top`/`--method`/`--join-tol`).
+  The WiCAN `Bn` diagnostic path is untouched (byte-identical); frame bytes are a
+  distinct raw-CAN space (no PCI, no WiCAN expression). New module
+  `canlib/frame_series.py` (`plans/2026-07-24-raw-can-analysis.md`).
 - **`canair import can` — raw broadcast-CAN frame-log import (Stage 1).** Reads a
   raw frame log (`.asc`/`.blf`/python-can `.csv`/candump `.log`/`.trc`, auto-detected
   by extension) via python-can's readers, stores it **verbatim** in the profile's

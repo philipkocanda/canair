@@ -92,22 +92,32 @@ def scan_log(path: Path, fmt: str) -> FrameLogSummary:
     """
     summary = FrameLogSummary()
     ids: set[int] = set()
+    for msg in iter_frames(path, fmt):
+        summary.frame_count += 1
+        ids.add(msg.arbitration_id)
+        ts = getattr(msg, "timestamp", None)
+        if ts:
+            if summary.first_timestamp is None:
+                summary.first_timestamp = ts
+            summary.last_timestamp = ts
+    summary.id_set = [f"0x{i:X}" for i in sorted(ids)]
+    return summary
+
+
+def iter_frames(path: Path, fmt: str):
+    """Yield every ``can.Message`` in ``path`` (format ``fmt``), once.
+
+    Wraps python-can's readers behind one seam so both :func:`scan_log` and the
+    frame-series analysis layer read logs identically. Parse/format errors are
+    re-raised as :class:`CanLogError`.
+    """
     try:
         with _reader(path, fmt) as reader:
-            for msg in reader:
-                summary.frame_count += 1
-                ids.add(msg.arbitration_id)
-                ts = getattr(msg, "timestamp", None)
-                if ts:
-                    if summary.first_timestamp is None:
-                        summary.first_timestamp = ts
-                    summary.last_timestamp = ts
+            yield from reader
     except CanLogError:
         raise
     except Exception as e:  # python-can raises assorted parse errors
         raise CanLogError(f"failed to read {path.name} as {fmt}: {e}") from e
-    summary.id_set = [f"0x{i:X}" for i in sorted(ids)]
-    return summary
 
 
 def _epoch_to_date(ts: float | None) -> str | None:
