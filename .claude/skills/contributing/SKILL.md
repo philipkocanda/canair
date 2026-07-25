@@ -409,6 +409,29 @@ README→`docs/` links); a broken cross-link is a defect (Boy Scout: fix stale
 paths you pass). The docs strategy and the README/`docs/` policy are recorded in
 `plans/2026-07-24-documentation-strategy.md`.
 
+## Cutting a release
+
+Version is single-sourced in `pyproject.toml` (`canlib.__version__` reads it via
+`importlib.metadata`); bump only there. Tags are annotated `vX.Y.Z`; publish via
+`gh release create`. Match the existing tag/release style (`git tag -a`, one
+GitHub release per tag) — inspect the previous tag/release first.
+
+**Write release notes for the *reader*, not the committer:**
+
+- **Never expose internal development scaffolding** — plan-doc "Stage N", phase
+  numbers, internal milestone names, or private branch/ticket IDs mean nothing
+  to a user and read as noise. Describe the *capability that shipped*
+  (subcommands, flags, behavior), grouped by theme.
+- **When a feature is one thread of a larger effort, reference the plan doc
+  explicitly** (e.g. link/name `plans/2026-07-24-raw-can-analysis.md`) instead of
+  citing the internal stage numbers — the plan is the durable, self-describing
+  pointer; "Stages 0–5" is not.
+- Keep the same categorized shape as prior releases (Highlights → themed
+  sections → Fixes & docs → full-changelog compare link). Derive the content
+  from `git log vPREV..HEAD`, not from raw commit subjects verbatim.
+- Group breaking changes under an explicit heading **only if** you're keeping
+  them in the notes; if the user asks to drop a note, drop it cleanly.
+
 ## Before you finish
 
 ```bash
