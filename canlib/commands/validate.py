@@ -31,6 +31,8 @@ from canlib.constants import SCHEMA_DIR
 
 SCHEMA_FILE = SCHEMA_DIR / "pids_schema.yaml"
 CAPTURES_SCHEMA_FILE = SCHEMA_DIR / "captures_schema.json"
+CAN_INDEX_SCHEMA_FILE = SCHEMA_DIR / "can_index_schema.json"
+SIGNALS_SCHEMA_FILE = SCHEMA_DIR / "signals_schema.yaml"
 
 NAME = "validate"
 
@@ -1245,6 +1247,129 @@ def _run_states() -> int:
     return 0
 
 
+_ARB_ID_RE = re.compile(r"^0x[0-9A-Fa-f]+$")
+
+
+def _run_signals() -> int:
+    """Validate the profile's optional signals/ broadcast signal-definition files.
+
+    Domain-B (broadcast frame) signal maps: one signals/<bus>.yaml per CAN bus,
+    keyed by arbitration ID, each signal a DBC-compatible linear model. Structural
+    checks mirror the signals_schema.yaml companion; deeper semantic checks (bit
+    ranges vs frame length) arrive with the Stage-4 editor.
+    """
+    from canlib.profile import active
+
+    sig_dir = active().signals_dir
+    if not sig_dir.exists():
+        print("No signals/ (optional) — skipping.")
+        return 0
+    files = sorted(sig_dir.glob("*.yaml"))
+    if not files:
+        print("signals/: no files — skipping.")
+        return 0
+
+    valid_byte_orders = {"little", "big"}
+    total_errors = 0
+    total_signals = 0
+    for path in files:
+        errors: list[str] = []
+        data = yaml.safe_load(path.read_text()) or {}
+        if not isinstance(data, dict):
+            print(f"\n{path.name}: top level must be a mapping")
+            total_errors += 1
+            continue
+        for extra in set(data) - {"bus", "bitrate", "messages"}:
+            errors.append(f"unknown top-level field '{extra}'")
+        if "bitrate" in data and not isinstance(data["bitrate"], int):
+            errors.append("'bitrate' must be an integer")
+        messages = data.get("messages") or {}
+        if not isinstance(messages, dict):
+            errors.append("'messages' must be a mapping keyed by arbitration ID")
+            messages = {}
+        n_signals = 0
+        for mid, msg in messages.items():
+            if not _ARB_ID_RE.match(str(mid)):
+                errors.append(f"message id '{mid}' is not a hex arbitration ID (e.g. 0x220)")
+            if not isinstance(msg, dict):
+                errors.append(f"message '{mid}': must be a mapping")
+                continue
+            for extra in set(msg) - {"name", "tx_ecu", "signals"}:
+                errors.append(f"message '{mid}': unknown field '{extra}'")
+            signals = msg.get("signals") or {}
+            if not isinstance(signals, dict):
+                errors.append(f"message '{mid}': 'signals' must be a mapping")
+                continue
+            for sname, sig in signals.items():
+                n_signals += 1
+                if not isinstance(sig, dict):
+                    errors.append(f"{mid}/{sname}: must be a mapping")
+                    continue
+                allowed = {
+                    "start_bit",
+                    "length",
+                    "byte_order",
+                    "scale",
+                    "offset",
+                    "min",
+                    "max",
+                    "unit",
+                    "verified",
+                    "notes",
+                }
+                for extra in set(sig) - allowed:
+                    errors.append(f"{mid}/{sname}: unknown field '{extra}'")
+                for req in ("start_bit", "length"):
+                    if req not in sig:
+                        errors.append(f"{mid}/{sname}: missing required '{req}'")
+                if isinstance(sig.get("start_bit"), int) and sig["start_bit"] < 0:
+                    errors.append(f"{mid}/{sname}: start_bit must be >= 0")
+                if isinstance(sig.get("length"), int) and sig["length"] < 1:
+                    errors.append(f"{mid}/{sname}: length must be >= 1")
+                bo = sig.get("byte_order")
+                if bo is not None and bo not in valid_byte_orders:
+                    errors.append(f"{mid}/{sname}: byte_order must be little|big (got '{bo}')")
+        total_signals += n_signals
+        if errors:
+            print(f"\n{path.name}: {len(errors)} errors")
+            for e in errors:
+                print(f"  - {e}")
+            total_errors += len(errors)
+        else:
+            print(f"{path.name}: OK ({n_signals} signals)")
+
+    if total_errors:
+        print(f"\n{total_errors} total errors across {len(files)} signals file(s)")
+        return 1
+    print(f"\nAll {len(files)} signals file(s) valid ({total_signals} signals).")
+    return 0
+
+
+def _run_can() -> int:
+    """Validate the profile's optional captures/can/index.yaml (raw-CAN log index)."""
+    from canlib.profile import active
+
+    path = active().can_index_file
+    if not path.exists():
+        print("No captures/can/index.yaml (optional) — skipping.")
+        return 0
+    with open(CAN_INDEX_SCHEMA_FILE) as f:
+        schema = json.load(f)
+    Draft202012Validator.check_schema(schema)
+    validator = Draft202012Validator(schema)
+    data = yaml.safe_load(path.read_text()) or {}
+    errors = sorted(validator.iter_errors(data), key=lambda e: list(e.path))
+    if errors:
+        print(f"captures/can/index.yaml: {len(errors)} errors")
+        for e in errors:
+            loc = "/".join(str(p) for p in e.path) or "(root)"
+            print(f"  - {loc}: {e.message}")
+        return 1
+    n = len(data.get("logs") or [])
+    print(f"captures/can/index.yaml: OK ({n} log(s))")
+    return 0
+
+
 def add_parser(subparsers):
     parser = subparsers.add_parser(
         NAME,
@@ -1256,6 +1381,8 @@ def add_parser(subparsers):
         "  captures  the captures/ payload files (+ soft warnings, see below)\n"
         "  ecus      alias for pids\n"
         "  states    states.yaml (vehicle power-state vocabulary + predicates)\n"
+        "  signals   signals/ broadcast signal-definition files (domain B)\n"
+        "  can       captures/can/index.yaml (raw-CAN log index)\n"
         "  all       everything above\n\n"
         "`validate captures` also emits soft warnings for out-of-vocabulary vehicle\n"
         "states, SID/PID/DID echo mismatches (misfiled frames), non-hex payloads\n"
@@ -1278,7 +1405,7 @@ examples:
     parser.add_argument(
         "target",
         nargs="?",
-        choices=["pids", "captures", "ecus", "states", "all"],
+        choices=["pids", "captures", "ecus", "states", "signals", "can", "all"],
         default="all",
         help="What to validate (default: all)",
     )
@@ -1304,10 +1431,18 @@ def run(args) -> int:
         return _run_captures(strict=strict)
     if args.target == "states":
         return _run_states()
+    if args.target == "signals":
+        return _run_signals()
+    if args.target == "can":
+        return _run_can()
     # all: the ecus/ files are validated once via _run_pids (they are the registry).
     rc_p = _run_pids(None, args.stats)
     print()
     rc_c = _run_captures(strict=strict)
     print()
     rc_s = _run_states()
-    return rc_p or rc_c or rc_s
+    print()
+    rc_sig = _run_signals()
+    print()
+    rc_can = _run_can()
+    return rc_p or rc_c or rc_s or rc_sig or rc_can

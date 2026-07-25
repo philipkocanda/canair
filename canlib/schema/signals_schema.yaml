@@ -1,0 +1,64 @@
+# Broadcast Signal Definition Schema (human-readable companion)
+# Validates profiles/<name>/signals/<bus>.yaml — the domain-B analogue of a PID's
+# `parameters:` for periodic broadcast CAN frames.
+#
+# Where domain-A diagnostic PIDs use a freeform WiCAN `expression` over Bnn byte
+# indices, a broadcast signal uses a **DBC-compatible linear model**
+# (physical = raw * scale + offset) over a contiguous bit range — deliberately, so
+# it round-trips to/from DBC losslessly (`canair import dbc` / `export dbc`,
+# Stage 4). One file per CAN bus (e.g. signals/powertrain.yaml), keyed by
+# arbitration ID — NOT under a per-ECU section, because a broadcast ID has no
+# request TX address (RX = TX+8).
+#
+# Top-level structure:
+#   bus: str                # optional — logical bus name (powertrain/body/chassis)
+#   bitrate: int            # optional — bus bitrate in bit/s (e.g. 500000)
+#   messages:               # mapping keyed by arbitration ID (hex string, e.g. "0x220")
+#     "0x220":
+#       name: str           # optional — message name (DBC BO_ name)
+#       tx_ecu: str         # optional — transmitting ECU (annotation; not a request TX)
+#       signals:            # mapping keyed by signal name
+#         GEAR:
+#           start_bit: int  # required — bit offset (0 = first bit of byte 0)
+#           length: int     # required — bit length (>= 1)
+#           byte_order: str # optional — little | big (DBC @1 / @0); default little
+#           scale: number   # optional — physical = raw*scale + offset; default 1
+#           offset: number  # optional — default 0
+#           min: number     # optional
+#           max: number     # optional
+#           unit: str        # optional
+#           verified: bool  # optional — confirmed on THIS car (default false)
+#           notes: str       # optional
+#
+# Arbitration IDs match ^0x[0-9A-Fa-f]+$ (11-bit standard or 29-bit extended).
+# Validated structurally by `canair validate signals` (canlib/commands/validate.py).
+
+message_id_pattern: "^0x[0-9A-Fa-f]+$"
+
+optional_toplevel_fields:
+  - bus
+  - bitrate
+  - messages
+
+optional_message_fields:
+  - name
+  - tx_ecu
+  - signals
+
+required_signal_fields:
+  - start_bit
+  - length
+
+optional_signal_fields:
+  - byte_order
+  - scale
+  - offset
+  - min
+  - max
+  - unit
+  - verified
+  - notes
+
+byte_order_values:
+  - little
+  - big

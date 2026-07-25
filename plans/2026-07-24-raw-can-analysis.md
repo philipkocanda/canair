@@ -252,28 +252,29 @@ that isn't the author's to share.
 
 ## Open questions (need sign-off before Stage 0)
 
-1. **(OPEN)** `cantools` as a hard dep vs an optional extra (`canair[dbc]`).
-   Lean: hard dep (small, pure-Python) — but DBC is only Stage 4, so it could be
-   deferred/optional.
-2. **(OPEN)** Native storage: normalise imported logs to `.blf` (compact,
-   lossless) vs keep the original file verbatim + index it. Lean: keep verbatim,
-   index (simplest, no conversion surprises).
-3. **(OPEN)** `signals/` file granularity: one file per bus
-   (`signals/<bus>.yaml`) vs one per profile (`signals.yaml`). Lean: per-bus
-   (a profile may span powertrain/body/chassis buses).
-4. **(OPEN)** Does frame analysis read the native log **live each run** (via
-   `can.LogReader`, simplest) or build a cached per-ID time-series index (faster
-   for large logs)? Lean: live first; add a cache only if needed.
-5. **(OPEN)** `import` / `export` as dedicated commands vs folding into
-   `captures`/`sniff`/`decode`. Lean: dedicated `import`/`export` (clear surface).
-6. **(OPEN)** Redistribution of the `uhi22/Ioniq28Investigations` corpus: vendor
-   trimmed slices into `tests/fixtures/can/` vs a **fetch script** into a
-   gitignored `references/can/` (like `wican-fw/`). The upstream repo ships **no
-   license file** (owner assessed acceptable to use); note that "no license" is
-   technically all-rights-reserved, so the low-risk default remains
-   **fetch-on-demand + attribution** rather than vendoring third-party data into
-   this public repo. Either way the 38 MB `EPCU_torquePro.csv` must **not** enter
-   git history verbatim (size); only tiny trimmed slices as fixtures.
+## Decisions locked (Stage 0, 2026-07-24)
+
+1. **cantools** — **deferred to Stage 4** (don't add an unused dependency; DBC
+   isn't touched until then). Revisit hard-dep-vs-extra when Stage 4 lands.
+2. **Native storage** — keep imported logs **verbatim** + index them (no
+   normalise-to-`.blf`); simplest, no conversion surprises. (Stage 1.)
+3. **`signals/` granularity** — **per-bus** `signals/<bus>.yaml`.
+4. **Frame analysis read** — **live each run** via `can.LogReader` first; add a
+   cache only if large logs prove slow. (Stage 2.)
+5. **CLI surface** — **dedicated `import`/`export` commands**. `import` stub
+   (`can`/`dbc`) registered now; `export` at Stage 4.
+6. **Corpus** — **fetch-on-demand + attribution**; no third-party data committed
+   (no upstream license = all-rights-reserved); the 38 MB CSV never enters git.
+   Only tiny trimmed fixtures under `tests/fixtures/can/`.
+
+## Open questions (resolved above; kept for history)
+
+1. ~~`cantools` hard dep vs optional extra.~~ → deferred to Stage 4.
+2. ~~Native storage: `.blf` vs verbatim.~~ → verbatim + index.
+3. ~~`signals/` per-bus vs per-profile.~~ → per-bus.
+4. ~~Frame analysis live vs cached.~~ → live first.
+5. ~~`import`/`export` dedicated vs folded.~~ → dedicated.
+6. ~~Corpus vendor vs fetch.~~ → fetch-on-demand + attribution.
 
 ## Absorbed / superseded
 
@@ -287,7 +288,10 @@ here (Stage 4). It realises the broadcast-decoding decision of
 
 ## Status
 
-- [ ] Stage 0 — decisions locked; `captures/can/` + `signals/` stores + schemas + validate
+- [x] Stage 0 — decisions locked; schemas (`can_index_schema.json`,
+  `signals_schema.yaml`) + `validate signals`/`validate can` (graceful-absent) +
+  profile path accessors + `import` command stub (`can`/`dbc`). cantools deferred
+  to Stage 4. (2026-07-24)
 - [ ] Stage 1 — `import can` (LogReader) + index + `captures` listing + fixtures
 - [ ] Stage 2 — generalize the analysis seam (pluggable reconstructor/skip-set + arb-ID source); golden-gated
 - [ ] Stage 3 — frames in `correlate`/`hunt`/`align`/`decode`/`coverage`

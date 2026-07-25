@@ -50,6 +50,21 @@ class Profile:
         return self.root / "captures"
 
     @property
+    def can_dir(self) -> Path:
+        """Native raw-CAN frame-log store (imported .blf/.asc/.csv/... logs)."""
+        return self.captures_dir / "can"
+
+    @property
+    def can_index_file(self) -> Path:
+        """Per-file metadata index for the raw-CAN log store."""
+        return self.can_dir / "index.yaml"
+
+    @property
+    def signals_dir(self) -> Path:
+        """Broadcast signal-definition sidecar (one <bus>.yaml per CAN bus)."""
+        return self.root / "signals"
+
+    @property
     def states_file(self) -> Path:
         return self.root / "states.yaml"
 

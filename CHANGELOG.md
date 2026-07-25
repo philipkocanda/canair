@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Raw-CAN broadcast domain — Stage 0 scaffolding.** Groundwork for analysing
+  passively-broadcast CAN frames (`plans/2026-07-24-raw-can-analysis.md`): two new
+  tool-owned schemas (`canlib/schema/signals_schema.yaml` for DBC-compatible
+  linear broadcast signal maps under `signals/<bus>.yaml`, and
+  `can_index_schema.json` for the `captures/can/index.yaml` raw-log index),
+  `canair validate signals` / `canair validate can` targets (both gracefully skip
+  when absent, included in `validate all`), `Profile.signals_dir` / `.can_dir` /
+  `.can_index_file` path accessors, and a `canair import` command scaffold
+  (`import can` / `import dbc` — surface registered; handlers land in Stages 1/4).
 - **`--notation {wican,isotp,torque,bix}` on the analysis commands.**
   `correlate`, `hunt`, `investigate`, `coverage`, and `decode`
   (`--discriminate`/`--find-mirrors`) can now render raw-byte labels in the
