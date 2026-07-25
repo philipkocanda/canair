@@ -306,6 +306,10 @@ here (Stage 4). It realises the broadcast-decoding decision of
   Additive — the WiCAN diagnostic path is byte-identical (verified on ioniq-2017).
   **Remaining (2c, optional):** `investigate --can-log`, and the fuller
   `LoadedSignal`/arb-ID loader unification. (2026-07-25)
-- [ ] Stage 3 — frames in `correlate`/`hunt`/`align`/`decode`/`coverage`
+- [x] Stage 3 — SavvyCAN **GVRET** CSV reader in `can_logs` (`_iter_gvret`,
+  header-sniffed auto-detect vs python-can CSV); `import can`/`correlate`/`hunt`
+  `--can-log` all read GVRET. Verified end-to-end on the real uhi22 Ioniq-28 drive
+  log (75k frames, 86 IDs). (2026-07-25)
+- [ ] Stage 4 — `signals/` editor + `import dbc`/`export dbc`; domain-A `export csv`/`json`
 - [ ] Stage 4 — `signals/` editor + `import dbc`/`export dbc`; domain-A `export csv`/`json`
 - [ ] Stage 5 — docs / README / AGENTS.md / skills / CHANGELOG

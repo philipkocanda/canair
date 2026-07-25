@@ -6,8 +6,9 @@
 usage: canair hunt [-h] --against REF [--min-n N] [--top N] [--transform MODE]
                    [--method {pearson,spearman}] [--join-tol SECONDS] [--json]
                    [--all-interps] [--promote NAME] [--notation NAME]
-                   [--can-log FILE] [--can-format {auto,asc,blf,csv,log}]
-                   [--id ID] [--since YYYY-MM-DD] [--until YYYY-MM-DD]
+                   [--can-log FILE]
+                   [--can-format {auto,asc,blf,csv,log,gvret}] [--id ID]
+                   [--since YYYY-MM-DD] [--until YYYY-MM-DD]
                    [--date YYYY-MM-DD] [--state SUBSTR] [--label SUBSTR]
                    [ecu] [pid]
 
@@ -61,7 +62,7 @@ options:
                         --id's frames vs --against. Bytes are labelled 0xID:rN
                         (raw-CAN, no WiCAN expr). --promote is not supported
                         yet.
-  --can-format {auto,asc,blf,csv,log}
+  --can-format {auto,asc,blf,csv,log,gvret}
                         With --can-log: log format (default: auto-detect by
                         extension)
   --id ID               With --can-log: the arbitration ID to hunt on (e.g.

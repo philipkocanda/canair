@@ -135,7 +135,7 @@ tip: --against takes a known signal ECU:PID:PARAM (or a raw ECU:PID:EXPR). Use
     )
     parser.add_argument(
         "--can-format",
-        choices=["auto", "asc", "blf", "csv", "log"],
+        choices=["auto", "asc", "blf", "csv", "log", "gvret"],
         default="auto",
         help="With --can-log: log format (default: auto-detect by extension)",
     )

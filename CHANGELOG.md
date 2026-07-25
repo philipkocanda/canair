@@ -24,6 +24,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `check_for_updates: false` in config or the `CANAIR_NO_UPDATE_CHECK` env var.
   New library module `canlib/update_check.py`.
 
+- **SavvyCAN GVRET CSV import (Stage 3).** `canair import can` (and
+  `correlate`/`hunt --can-log`) now read SavvyCAN **GVRET** frame logs — the
+  `Time Stamp,ID,Extended,Dir,Bus,LEN,D1..D8` format (microsecond timestamps).
+  Since GVRET also uses `.csv`, the format is auto-detected by header sniff
+  (distinguished from python-can CSV) or forced with `--format gvret`. This
+  unlocks importing the real `uhi22/Ioniq28Investigations` Ioniq-28 drive logs
+  (verified: a 75k-frame, 86-ID log imports and analyses end-to-end).
 - **`canair hunt --can-log FILE --id 0xID --against 0xREF:rN` — "which frame byte
   is this signal?" (Stage 2b).** Sweeps every byte offset × interpretation
   (u8/i16/f32/… × endianness) of one arbitration ID's frames in a raw broadcast-CAN

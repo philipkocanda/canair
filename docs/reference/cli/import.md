@@ -12,7 +12,7 @@ Import external CAN data into the active profile.
   dbc   DBC signal definitions -> the profile's signals/ model (Stage 4)
 
 Frame logs are stored verbatim and indexed (they are not exploded into
-the captures/*.yaml schema). SavvyCAN GVRET CSV import is Stage 3.
+the captures/*.yaml schema). SavvyCAN GVRET (.csv) is auto-detected by header.
 
 positional arguments:
   {can,dbc}
@@ -38,8 +38,8 @@ positional arguments:
 options:
   -h, --help            show this help message and exit
   --format {auto,asc,blf,csv,log,gvret}
-                        Log format (default: auto-detect by extension). gvret
-                        is Stage 3.
+                        Log format (default: auto-detect by extension; .csv is
+                        sniffed for GVRET).
   --label LABEL         Session label for the index entry
   --state STATE         Vehicle power state(s) while logging (comma-separated,
                         e.g. 'driving')

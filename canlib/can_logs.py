@@ -25,17 +25,19 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .profile import Profile
 
-# On-disk log formats we can read into the store. GVRET (SavvyCAN CSV) needs a
-# custom adapter and lands in Stage 3; `csv` here is python-can's own CSV.
-SUPPORTED_FORMATS = ("asc", "blf", "csv", "log", "trc")
-_DEFERRED_FORMATS = {"gvret": "Stage 3 (SavvyCAN GVRET adapter)"}
+# On-disk log formats we can read into the store. GVRET (SavvyCAN CSV) has a
+# custom adapter here; `csv` is python-can's own CSV. Both use the .csv extension,
+# so `detect_format` content-sniffs the header to tell them apart on auto.
+SUPPORTED_FORMATS = ("asc", "blf", "csv", "log", "trc", "gvret")
 _EXT_TO_FORMAT = {
     ".asc": "asc",
     ".blf": "blf",
-    ".csv": "csv",
+    ".csv": "csv",  # may be re-resolved to gvret by header sniff
     ".log": "log",  # candump
     ".trc": "trc",
 }
+# SavvyCAN GVRET CSV header (microsecond timestamps, hex ID, D1..D8 data columns).
+_GVRET_HEADER_TOKENS = ("time stamp", "id", "extended", "len", "d1")
 
 
 class CanLogError(Exception):
@@ -55,14 +57,18 @@ class FrameLogSummary:
 def detect_format(path: Path, explicit: str | None = None) -> str:
     """Resolve the log format from ``explicit`` (``--format``) or the extension.
 
-    Raises :class:`CanLogError` for a deferred format (e.g. gvret) or an
-    unrecognised extension.
+    For a ``.csv`` on auto, sniffs the header to distinguish SavvyCAN **GVRET**
+    from python-can CSV. Raises :class:`CanLogError` on an unrecognised extension.
     """
-    fmt = explicit if explicit and explicit != "auto" else _EXT_TO_FORMAT.get(path.suffix.lower())
-    if fmt in _DEFERRED_FORMATS:
-        raise CanLogError(
-            f"{fmt!r} import is not implemented yet — planned for {_DEFERRED_FORMATS[fmt]}."
-        )
+    if explicit and explicit != "auto":
+        if explicit not in SUPPORTED_FORMATS:
+            raise CanLogError(
+                f"unknown format {explicit!r} (one of {', '.join(SUPPORTED_FORMATS)})"
+            )
+        return explicit
+    fmt = _EXT_TO_FORMAT.get(path.suffix.lower())
+    if fmt == "csv" and _looks_like_gvret(path):
+        return "gvret"
     if fmt not in SUPPORTED_FORMATS:
         raise CanLogError(
             f"cannot determine log format for {path.name!r} "
@@ -107,10 +113,13 @@ def scan_log(path: Path, fmt: str) -> FrameLogSummary:
 def iter_frames(path: Path, fmt: str):
     """Yield every ``can.Message`` in ``path`` (format ``fmt``), once.
 
-    Wraps python-can's readers behind one seam so both :func:`scan_log` and the
-    frame-series analysis layer read logs identically. Parse/format errors are
-    re-raised as :class:`CanLogError`.
+    Wraps python-can's readers (and the GVRET adapter) behind one seam so both
+    :func:`scan_log` and the frame-series analysis layer read logs identically.
+    Parse/format errors are re-raised as :class:`CanLogError`.
     """
+    if fmt == "gvret":
+        yield from _iter_gvret(path)
+        return
     try:
         with _reader(path, fmt) as reader:
             yield from reader
@@ -118,6 +127,62 @@ def iter_frames(path: Path, fmt: str):
         raise
     except Exception as e:  # python-can raises assorted parse errors
         raise CanLogError(f"failed to read {path.name} as {fmt}: {e}") from e
+
+
+def _looks_like_gvret(path: Path) -> bool:
+    """True if ``path``'s first line is a SavvyCAN GVRET CSV header."""
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            header = f.readline().lower()
+    except OSError:
+        return False
+    cols = {c.strip() for c in header.split(",")}
+    return all(tok in cols for tok in _GVRET_HEADER_TOKENS)
+
+
+def _iter_gvret(path: Path):
+    """Parse a SavvyCAN GVRET CSV into ``can.Message`` records.
+
+    Columns: ``Time Stamp`` (microseconds), ``ID`` (hex), ``Extended``, ``Dir``,
+    ``Bus``, ``LEN``, ``D1``..``D8`` (hex data bytes). Timestamps are microseconds
+    (converted to seconds); only the first ``LEN`` data columns are used.
+    """
+    import csv
+
+    import can
+
+    try:
+        with open(path, encoding="utf-8", errors="replace", newline="") as f:
+            reader = csv.DictReader(f)
+            if reader.fieldnames is None or not all(
+                tok in {c.strip().lower() for c in reader.fieldnames}
+                for tok in _GVRET_HEADER_TOKENS
+            ):
+                raise CanLogError(f"{path.name} is not a SavvyCAN GVRET CSV (unexpected header)")
+            # Map lower-cased header -> actual key (SavvyCAN uses 'Time Stamp', 'ID', …).
+            key = {c.strip().lower(): c for c in reader.fieldnames}
+            ts_k, id_k, ext_k, len_k = key["time stamp"], key["id"], key["extended"], key["len"]
+            data_ks = [key[f"d{i}"] for i in range(1, 9) if f"d{i}" in key]
+            for row in reader:
+                try:
+                    ts_us = int(row[ts_k])
+                    arb_id = int(row[id_k], 16)
+                    dlc = int(row[len_k])
+                    data = bytes(int(row[dk], 16) for dk in data_ks[:dlc] if row.get(dk))
+                except (ValueError, TypeError, KeyError):
+                    continue  # skip malformed rows
+                ext = str(row.get(ext_k, "")).strip().lower() in ("true", "1")
+                yield can.Message(
+                    arbitration_id=arb_id,
+                    data=data,
+                    dlc=dlc,
+                    is_extended_id=ext,
+                    timestamp=ts_us / 1_000_000.0,
+                )
+    except CanLogError:
+        raise
+    except OSError as e:
+        raise CanLogError(f"failed to read {path.name} as gvret: {e}") from e
 
 
 def _epoch_to_date(ts: float | None) -> str | None:

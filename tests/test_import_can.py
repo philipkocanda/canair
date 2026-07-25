@@ -39,9 +39,13 @@ class TestDetectFormat:
     def test_explicit_overrides(self):
         assert can_logs.detect_format(Path("x.dat"), "asc") == "asc"
 
-    def test_gvret_deferred(self):
-        with pytest.raises(can_logs.CanLogError, match="Stage 3"):
-            can_logs.detect_format(Path("x.csv"), "gvret")
+    def test_gvret_explicit(self):
+        # GVRET is now a supported format (Stage 3), forced by --format even on .csv.
+        assert can_logs.detect_format(Path("x.csv"), "gvret") == "gvret"
+
+    def test_unknown_format_rejected(self):
+        with pytest.raises(can_logs.CanLogError, match="unknown format"):
+            can_logs.detect_format(Path("x.csv"), "bogus")
 
     def test_unknown_extension(self):
         with pytest.raises(can_logs.CanLogError, match="format"):
@@ -121,6 +125,46 @@ class TestImportLog:
         assert res.entry["format"] == "asc"
         assert res.entry["frame_count"] == 5
         assert res.entry["id_set"] == ["0x220"]
+
+
+def _write_gvret(tmp_path, n=20):
+    """A SavvyCAN GVRET CSV slice matching the uhi22 layout (µs timestamps)."""
+    header = "Time Stamp,ID,Extended,Dir,Bus,LEN,D1,D2,D3,D4,D5,D6,D7,D8"
+    rows = [header]
+    for i in range(n):
+        ts = 97637502 + i * 10000
+        rows.append(f"{ts},0000010C,false,Rx,0,8,04,00,55,54,15,80,01,{i % 256:02X},")
+        rows.append(f"{ts},0000057F,false,Rx,0,8,80,0A,66,00,00,00,00,00,")
+    p = tmp_path / "IONIQ_PCAN_drive.csv"
+    p.write_text("\n".join(rows) + "\n")
+    return p
+
+
+class TestGvret:
+    def test_auto_detect_by_header(self, tmp_path):
+        # A .csv with a GVRET header auto-resolves to gvret, not python-can csv.
+        assert can_logs.detect_format(_write_gvret(tmp_path)) == "gvret"
+
+    def test_parse_fields(self, tmp_path):
+        msgs = list(can_logs.iter_frames(_write_gvret(tmp_path, n=3), "gvret"))
+        assert len(msgs) == 6
+        m0 = msgs[0]
+        assert m0.arbitration_id == 0x10C
+        assert m0.data.hex() == "0400555415800100"
+        assert m0.dlc == 8
+        assert m0.timestamp == pytest.approx(97.637502)  # microseconds -> seconds
+
+    def test_import(self, temp_profile, tmp_path):
+        res = can_logs.import_log(_write_gvret(tmp_path), temp_profile, label="gvret drive")
+        assert res.entry["format"] == "gvret"
+        assert res.entry["frame_count"] == 40
+        assert res.entry["id_set"] == ["0x10C", "0x57F"]
+
+    def test_non_gvret_csv_not_misdetected(self, tmp_path):
+        # A python-can CSV header must NOT sniff as gvret.
+        p = tmp_path / "pycan.csv"
+        p.write_text("timestamp,arbitration_id,extended,remote,error,dlc,data\n")
+        assert can_logs.detect_format(p) == "csv"
 
 
 # ── import command ────────────────────────────────────────────────────────

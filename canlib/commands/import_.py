@@ -6,7 +6,7 @@ Front door for the raw-CAN broadcast domain (see
 
 - ``import can <FILE>``  — a raw broadcast-CAN frame log (``.asc``/``.blf``/
   python-can ``.csv``/candump ``.log``/``.trc``) → the native ``captures/can/``
-  store + an ``index.yaml`` entry. (Implemented; SavvyCAN GVRET is Stage 3.)
+  store + an ``index.yaml`` entry. Reads .asc/.blf/python-can .csv/candump/SavvyCAN GVRET.
 - ``import dbc <FILE>``  — a DBC → the profile's ``signals/`` broadcast
   signal-definition model, via cantools, with a ``--dry-run`` diff.
   (Stage 4 — not yet implemented.)
@@ -31,7 +31,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
             "        -> captures/can/ native store + index.yaml\n"
             "  dbc   DBC signal definitions -> the profile's signals/ model (Stage 4)\n\n"
             "Frame logs are stored verbatim and indexed (they are not exploded into\n"
-            "the captures/*.yaml schema). SavvyCAN GVRET CSV import is Stage 3."
+            "the captures/*.yaml schema). SavvyCAN GVRET (.csv) is auto-detected by header."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -46,7 +46,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "--format",
         choices=["auto", "asc", "blf", "csv", "log", "gvret"],
         default="auto",
-        help="Log format (default: auto-detect by extension). gvret is Stage 3.",
+        help="Log format (default: auto-detect by extension; .csv is sniffed for GVRET).",
     )
     p_can.add_argument("--label", help="Session label for the index entry")
     p_can.add_argument(

@@ -12,8 +12,8 @@ usage: canair correlate [-h] [--against ECU:PID:PARAM] [--transform MODE]
                         [--find-mirrors] [--notation NAME]
                         [--since YYYY-MM-DD] [--until YYYY-MM-DD]
                         [--date YYYY-MM-DD] [--state SUBSTR] [--label SUBSTR]
-                        [--can-log FILE] [--can-format {auto,asc,blf,csv,log}]
-                        [--id IDS]
+                        [--can-log FILE]
+                        [--can-format {auto,asc,blf,csv,log,gvret}] [--id IDS]
                         [query]
 
 Show me every strong relationship across a whole drive.
@@ -102,7 +102,7 @@ options:
                         frame log (.asc/.blf/candump .log/.trc) instead of
                         diagnostic captures. Bytes are labelled 0xID:rN;
                         --against/--bits/--id/--min-r/--top all apply.
-  --can-format {auto,asc,blf,csv,log}
+  --can-format {auto,asc,blf,csv,log,gvret}
                         With --can-log: log format (default: auto-detect by
                         extension)
   --id IDS              With --can-log: restrict to comma-separated
