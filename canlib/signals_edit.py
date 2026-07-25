@@ -191,6 +191,9 @@ def remove_signal(
     del sigs[name]
     if not sigs:  # drop the now-signal-less message
         del data["messages"][mid]
+    if not data.get("messages"):  # no messages left → remove the empty file
+        path.unlink()
+        return path
     _safe_write(path, original, data, check_signals_doc)
     return path
 

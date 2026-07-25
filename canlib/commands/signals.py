@@ -132,6 +132,7 @@ def cmd_list(args) -> int:
 
 
 def cmd_upsert(args) -> int:
+    from canlib.profile import active
     from canlib.signals_edit import SignalsEditError, upsert_signal
 
     try:
@@ -155,17 +156,21 @@ def cmd_upsert(args) -> int:
     except SignalsEditError as e:
         print(f"signals upsert: {e}", file=sys.stderr)
         return 1
-    print(f"{_GREEN}✓{_RESET} {args.bus}: {args.arb_id} {args.name} → {path.name}")
+    print(
+        f"{_GREEN}✓{_RESET} [{_CYAN}{active().name}{_RESET}] {args.bus}: "
+        f"{args.arb_id} {args.name} → {path}"
+    )
     return 0
 
 
 def cmd_rm(args) -> int:
+    from canlib.profile import active
     from canlib.signals_edit import SignalsEditError, remove_signal
 
     try:
-        path = remove_signal(args.bus, args.arb_id, args.name)
+        remove_signal(args.bus, args.arb_id, args.name)
     except SignalsEditError as e:
         print(f"signals rm: {e}", file=sys.stderr)
         return 1
-    print(f"{_GREEN}✓{_RESET} removed {args.arb_id} {args.name} from {path.name}")
+    print(f"{_GREEN}✓{_RESET} [{_CYAN}{active().name}{_RESET}] removed {args.arb_id} {args.name}")
     return 0

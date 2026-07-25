@@ -83,10 +83,8 @@ class TestSignalsEdit:
     def test_remove_last_drops_message(self, temp_profile):
         signals_edit.upsert_signal("b", "0x386", "FL", start_bit=0, length=14, profile=temp_profile)
         signals_edit.remove_signal("b", "0x386", "FL", profile=temp_profile)
-        import yaml
-
-        data = yaml.safe_load((temp_profile.signals_dir / "b.yaml").read_text())
-        assert "0x386" not in (data.get("messages") or {})
+        # Removing the last signal (and message) leaves no empty stub — file gone.
+        assert not (temp_profile.signals_dir / "b.yaml").exists()
 
     def test_invalid_rejected(self, temp_profile):
         with pytest.raises(signals_edit.SignalsEditError):
