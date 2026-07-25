@@ -33,6 +33,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `check_for_updates: false` in config or the `CANAIR_NO_UPDATE_CHECK` env var.
   New library module `canlib/update_check.py`.
 
+- **`canair investigate can FILE --id 0xID` — explain one arbitration ID
+  (Stage 2c).** The domain-B analogue of `investigate uds`: for every varying data
+  byte of one arbitration ID in a raw broadcast-CAN frame log, reports its
+  strongest cross-ID anchor (Pearson r + linear fit `y=m·x+c`) and a physical-unit
+  guess, ranked strongest first (`--bits` for toggling bits, `--json`). Frames have
+  no defined-param mapping or power-state metadata, so the report is anchor-centric.
+  `investigate` becomes a `uds`/`can` kind group like `correlate`/`hunt`; a bare
+  `canair investigate MCU 2102` still defaults to the diagnostic (`uds`) path.
+- **`canair correlate can --find-mirrors` — cross-arbitration-ID frame mirrors.**
+  Reports frame byte/bit positions time-aligned *equal* ACROSS arbitration IDs —
+  a signal broadcast on two IDs (e.g. wheel speed on `0x386` and `0x331`, verified
+  on the real uhi22 Ioniq-28 log). The domain-B analogue of the diagnostic
+  `correlate --find-mirrors`; `--bits` for bit-level.
 - **Broadcast signal definitions + DBC interop (Stage 4).** The domain-B analogue
   of a PID's parameters — a DBC-compatible **linear** signal model in
   `signals/<bus>.yaml` (arbitration ID → named signals: `start_bit`/`length`/
@@ -48,13 +61,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     Wireshark (`--bus`/`--verified-only`/`-o`); round-trips losslessly with
     `import dbc`. Adds `cantools` as a dependency.
 - **SavvyCAN GVRET CSV import (Stage 3).** `canair import can` (and
-  `correlate`/`hunt --can-log`) now read SavvyCAN **GVRET** frame logs — the
+  `correlate can`/`hunt can`) now read SavvyCAN **GVRET** frame logs — the
   `Time Stamp,ID,Extended,Dir,Bus,LEN,D1..D8` format (microsecond timestamps).
   Since GVRET also uses `.csv`, the format is auto-detected by header sniff
   (distinguished from python-can CSV) or forced with `--format gvret`. This
   unlocks importing the real `uhi22/Ioniq28Investigations` Ioniq-28 drive logs
   (verified: a 75k-frame, 86-ID log imports and analyses end-to-end).
-- **`canair hunt --can-log FILE --id 0xID --against 0xREF:rN` — "which frame byte
+- **`canair hunt can FILE --id 0xID --against 0xREF:rN` — "which frame byte
   is this signal?" (Stage 2b).** Sweeps every byte offset × interpretation
   (u8/i16/f32/… × endianness) of one arbitration ID's frames in a raw broadcast-CAN
   log, time-aligns each against a reference frame byte in the same log, and ranks
@@ -63,7 +76,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   are raw-CAN `rN` labels (no PCI, no WiCAN expression); `--promote` is not
   supported for frames yet (they're defined in the linear `signals/` model, Stage 4).
   The diagnostic WiCAN hunt path is unchanged.
-- **`canair correlate --can-log FILE` — correlate raw broadcast-CAN frame bytes
+- **`canair correlate can FILE` — correlate raw broadcast-CAN frame bytes
   (Stage 2).** Reads a native frame log's per-byte series (`0xID:rN`, `--bits` for
   `0xID:rN.k`, `--id` to filter arbitration IDs) and runs the *same* correlation
   core as diagnostic captures — ranked cross-arbitration-ID pairs (clustered),
@@ -79,7 +92,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bitrate, date, label/state/notes/source) in `captures/can/index.yaml` — high-volume
   logs stay native rather than exploding into the `captures/*.yaml` schema. Flags:
   `--format`/`--label`/`--state`/`--notes`/`--source`/`--bitrate`/`--date`/`--force`/`--json`.
-  List imported logs with **`canair captures --can`**. SavvyCAN GVRET CSV import is
+  List imported logs with **`canair captures can`**. SavvyCAN GVRET CSV import is
   Stage 3; `import dbc` is Stage 4. `scripts/fetch_can_corpus.py` fetches the
   reference Ioniq-28 corpus into a gitignored `references/can/`. New library module
   `canlib/can_logs.py` (`plans/2026-07-24-raw-can-analysis.md`).
@@ -106,6 +119,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   internal byte space (`plans/2026-07-24-byte-notation-phase2-isotp-canonical.md`).
 
 ### Fixed
+
+- **`hunt can` / `correlate can` hardened on real logs.** Shaking the frame
+  tooling out against the 75k/61k-frame uhi22 Ioniq-28 GVRET logs surfaced three
+  issues: (1) `hunt can` aborted with `OverflowError` when a wide `f64`/`f32` byte
+  interpretation produced values near the float max — `stats.pearson` now guards
+  non-finite/overflowing inputs and returns undefined (`None`) instead of raising;
+  (2) a bad `--id`/`--against` arbitration ID leaked Python's `invalid literal for
+  int()` — now a clean `invalid arbitration ID` message; (3) `hunt can` printed
+  opaque `<no-expr>` rows for little-endian multi-byte reads — they now render an
+  actionable shift composition (`r1 | (r2 << 8)`), matching the diagnostic
+  `wican_expr` (only floats / LE-signed stay `<no-expr>`). Also a large
+  `correlate can --find-mirrors --bits` sweep no longer hangs (fused
+  join+compare + pre-sort: a >3 min run drops to ~40 s over 60k frames).
 
 - **Repeated on-demand saves in the live monitor no longer duplicate payloads.**
   Pressing `s` twice in a non-`--save` monitor session used to re-write the entire

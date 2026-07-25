@@ -1,8 +1,10 @@
 # Raw-CAN Broadcast-Frame Support — Import, Data Model & Analysis
 
-Status: **DRAFT — not started.** Design/scoping doc; decisions marked **(OPEN)**
-need sign-off before implementation. Frame changes land per-stage, each
-golden-gated so the existing diagnostic path stays byte-identical.
+Status: **Stages 0–5 DONE** (see the Status checklist near the end). Two Stage-4
+items remain **deferred** by design — frame `--promote` and a `signals/`-driven
+frame `decode`/`coverage` (both need a scale/offset-vs-reference decision, not
+just code). Frame changes landed per-stage, each golden-gated so the existing
+diagnostic path stays byte-identical.
 
 One plan for the whole **raw-CAN broadcast domain**: getting broadcast frames
 *in* (import), storing/defining them (data model), and — the point of the
@@ -296,20 +298,30 @@ here (Stage 4). It realises the broadcast-decoding decision of
   `index.yaml`) + `canair captures --can` listing + `canlib/can_logs.py` +
   `scripts/fetch_can_corpus.py` + fixtures/tests. GVRET CSV deferred to Stage 3.
   (2026-07-25)
-- [ ] Stage 2 — generalize the analysis seam (pluggable reconstructor/skip-set + arb-ID source); golden-gated
-- [~] Stage 2 — analysis-seam generalization. **Done (2a):** `canlib/frame_series.py`
+- [x] Stage 2 — analysis-seam generalization. **Done (2a):** `canlib/frame_series.py`
   builds `0xID:rN` byte/bit `TimePoint` series from a frame log and feeds the
-  *same* `correlate_matrix`/`join_nearest` core via `canair correlate --can-log`
-  (ranked cross-ID + `--against` + clusters). **Done (2b):** `canair hunt --can-log
-  --id 0xID --against 0xREF:rN` sweeps a frame's byte offsets × interpretations vs
-  a reference frame byte, reusing the shared interpretation sweep + `_rank_and_collapse`.
-  Additive — the WiCAN diagnostic path is byte-identical (verified on ioniq-2017).
-  **Remaining (2c, optional):** `investigate --can-log`, and the fuller
-  `LoadedSignal`/arb-ID loader unification. (2026-07-25)
+  *same* `correlate_matrix`/`join_nearest` core via `canair correlate can`
+  (ranked cross-ID + `--against` + clusters + `--find-mirrors`). **Done (2b):**
+  `canair hunt can --id 0xID --against 0xREF:rN` sweeps a frame's byte offsets ×
+  interpretations vs a reference frame byte, reusing the shared interpretation sweep
+  + `_rank_and_collapse`. **Done (2c):** `canair investigate can FILE --id 0xID`
+  (per-byte best cross-ID anchor + fit + unit; `--bits`, `--json`) — `investigate`
+  is now a `uds`/`can` kind group like `correlate`/`hunt`. Additive — the WiCAN
+  diagnostic path is byte-identical (verified on ioniq-2017). **Loader
+  unification (was 2c) — declined:** the `LoadedSignal`/arb-ID loader merge was
+  optional "if the second consumer forces the abstraction". It didn't — domain A
+  (ISO-TP payload reassembly + PCI-skip) and domain B (raw `data[k]`) have
+  genuinely different byte extraction, and both already converge on
+  `dict[str, list[TimePoint]]` feeding the shared core. `frame_series` as a
+  parallel builder is the clean seam; forcing one loader would add indirection
+  without removing duplication. (2026-07-25)
 - [x] Stage 3 — SavvyCAN **GVRET** CSV reader in `can_logs` (`_iter_gvret`,
   header-sniffed auto-detect vs python-can CSV); `import can`/`correlate`/`hunt`
-  `--can-log` all read GVRET. Verified end-to-end on the real uhi22 Ioniq-28 drive
-  log (75k frames, 86 IDs). (2026-07-25)
+  `can` all read GVRET. Verified end-to-end on the real uhi22 Ioniq-28 drive
+  log (75k frames, 86 IDs). Hardened `hunt can`/`correlate can` on the real corpus
+  (pearson overflow/non-finite guard, clean bad-ID errors, LE-unsigned frame hunt
+  labels instead of `<no-expr>`, `--find-mirrors --bits` no longer hangs).
+  (2026-07-25)
 - [ ] Stage 4 — `signals/` editor + `import dbc`/`export dbc`; domain-A `export csv`/`json`
 - [x] Stage 4 — the linear `signals/` model editor (`canlib/signals_edit.py` +
   `canair signals` list/upsert/rm, validated + auto-reverted) and DBC interop
@@ -318,7 +330,21 @@ here (Stage 4). It realises the broadcast-decoding decision of
   dep. **Deferred:** frame `--promote` (hunt/correlate hit → `signals/` candidate;
   scale/offset-vs-reference semantics need thought) and frame `decode`/`coverage`
   (a signals/-driven frame decoder). (2026-07-25)
-- [ ] Stage 5 — docs / README / AGENTS.md / skills / CHANGELOG
+- [x] Stage 5 — docs. `docs/concepts/broadcast-frames.md` (model + storage/
+  licensing + LFS policy), a `docs/bring-your-own-car/09-broadcast-frames.md`
+  optional side-journey (import → analyze → define → interop) wired into the nav +
+  overview, `AGENTS.md` tool notes (`import`/`captures`/`correlate`/`hunt`/
+  `investigate` `can` kinds, `signals`, `find-mirrors`), the RE skills
+  (reverse-engineer-signal + storage policy), and CHANGELOG (Stages 1–4 + the
+  `uds`/`can` spine + `investigate can`/`correlate can --find-mirrors` + the
+  real-log hardening). Stale `--can-log`/`captures --can` CHANGELOG references
+  corrected to the current `correlate can`/`captures can` surface. (2026-07-25)
+
+## Remaining (deferred — see below)
+
+- **Stage 4 deferred items** — frame `--promote` and a `signals/`-driven frame
+  `decode`/`coverage` (both need design, not just code — see the Stage-4 status
+  line for why).
 
 ## Addendum (2026-07-25): the `uds` / `can` naming spine
 

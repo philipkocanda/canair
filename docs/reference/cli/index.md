@@ -21,7 +21,7 @@ Every capability is a `canair <subcommand>`. These pages are generated from each
 - [`canair decode`](decode.md) — Decode captured UDS payloads using PID parameter definitions.
 - [`canair correlate`](correlate.md) — Find every strong cross-signal relationship across a drive/session.
 - [`canair hunt`](hunt.md) — Answer 'which byte carries a signal I already know?' Choose a domain kind:
-- [`canair investigate`](investigate.md) — Point this at an unknown PID and get one ranked table telling you
+- [`canair investigate`](investigate.md) — Point this at an unknown signal and get one ranked table telling you
 - [`canair coverage`](coverage.md) — Audit PID definitions for decoding gaps.
 - [`canair research`](research.md) — Report open reverse-engineering work from ecus/ research: sections.
 - [`canair pids`](pids.md) — Safely edit ecus/ parameters and research entries (domain A — diagnostic UDS PIDs, freeform WiCAN expressions). The broadcast-frame (domain B) authoring counterpart is `canair signals` (linear signals/ maps).

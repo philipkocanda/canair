@@ -34,6 +34,12 @@ flowchart LR
 | [7. Define & verify](07-define-and-verify.md) | `canair pids upsert-param`, `coverage` | Named parameters in `ecus/` |
 | [8. Share](08-share.md) | `canair wican autopid write` | WiCAN AutoPID JSON; a profile to contribute |
 
+Optional side-journey: [9. Broadcast CAN frames](09-broadcast-frames.md) decodes
+signals that are *broadcast* on the internal bus (drive mode, regen, wheel
+speeds) rather than answered on request — a parallel import → analyze → define
+arc for when you have a raw frame log. See also
+[Broadcast CAN frames](../concepts/broadcast-frames.md).
+
 ## It's a loop, not a line
 
 Reverse-engineering is iterative. You'll often capture some data, analyze it,

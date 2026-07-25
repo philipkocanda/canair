@@ -3,12 +3,37 @@
 # `canair investigate`
 
 ```
-usage: canair investigate [-h] [--min-r R] [--min-n N] [--join-tol SECONDS]
-                          [--all] [--bits] [--events] [--json]
-                          [--notation NAME] [--since YYYY-MM-DD]
-                          [--until YYYY-MM-DD] [--date YYYY-MM-DD]
-                          [--state SUBSTR] [--label SUBSTR]
-                          ecu pid
+usage: canair investigate [-h] <kind> ...
+
+Point this at an unknown signal and get one ranked table telling you
+everything worth knowing about each of its bytes. Choose a domain kind:
+  uds   a diagnostic PID (default) — per byte: mapped? / state F /
+        best co-polled anchor / unit guess (domain A). A bare
+        `canair investigate MCU 2102` is shorthand for this.
+  can   an arbitration ID in a raw broadcast-CAN frame log (domain B) —
+        per byte: best cross-ID anchor + linear fit + unit guess.
+
+Read-only: analyses captures/ only, never talks to the device.
+
+positional arguments:
+  <kind>
+    uds       Explain a diagnostic PID (domain A)
+    can       Explain an arbitration ID in a raw broadcast-CAN frame log
+              (domain B)
+
+options:
+  -h, --help  show this help message and exit
+```
+
+## `canair investigate uds`
+
+```
+usage: canair investigate uds [-h] [--min-r R] [--min-n N]
+                              [--join-tol SECONDS] [--all] [--bits] [--events]
+                              [--json] [--notation NAME] [--since YYYY-MM-DD]
+                              [--until YYYY-MM-DD] [--date YYYY-MM-DD]
+                              [--state SUBSTR] [--label SUBSTR]
+                              ecu pid
 
 Point this at an unknown PID and get one ranked table telling you
 everything worth knowing about each of its bytes — the fastest way to
@@ -80,4 +105,46 @@ tip: no anchors found? widen scope (drop --state), lower --min-r, or grow the
      capture set — an anchor needs another co-polled signal it can align to. For
      a body/comfort PID with no co-polled partner, use --bits / --events (the
      signals are toggling status bits, ranked by state separation + edge time).
+```
+
+## `canair investigate can`
+
+```
+usage: canair investigate can [-h] --id ID
+                              [--can-format {auto,asc,blf,csv,log,gvret}]
+                              [--min-r R] [--min-n N] [--join-tol SECONDS]
+                              [--bits] [--json]
+                              FILE
+
+Explain one arbitration ID in a raw broadcast-CAN frame log: for every
+varying data byte, report its strongest cross-ID anchor (Pearson r +
+linear fit y=m·x+c) and a physical-unit guess, ranked strongest first.
+
+The domain-B analogue of `investigate uds`: frames have no defined-param
+mapping (signals live in signals/, decoded via Stage-4 tooling) and no
+power-state metadata, so the report is anchor-centric. Bytes are
+labelled 0xID:rN (raw-CAN space, no PCI). Read-only.
+
+To pin the exact byte against a known reference use `canair hunt can`;
+to see every relationship at once use `canair correlate can`.
+
+positional arguments:
+  FILE                  Path to a raw broadcast-CAN frame log
+                        (.asc/.blf/candump .log/.trc/GVRET .csv)
+
+options:
+  -h, --help            show this help message and exit
+  --id ID               Arbitration ID to explain (e.g. 0x386)
+  --can-format {auto,asc,blf,csv,log,gvret}
+                        Log format (default: auto-detect by extension)
+  --min-r R             Only report an anchor when |r| ≥ this (default 0.6)
+  --min-n N             Min aligned points (default 15)
+  --join-tol SECONDS    Nearest-timestamp join window (default 2.5s)
+  --bits                Also analyse individual toggling bits (rN:k)
+  --json                Machine-readable output
+
+examples:
+  canair investigate can drive.blf --id 0x386        # rank each byte of 0x386 by best cross-ID anchor
+  canair investigate can drive.csv --id 0x220 --bits # include toggling bits
+  canair investigate can drive.asc --id 0x386 --json # machine-readable
 ```

@@ -69,6 +69,7 @@ nav:
       - 6. Analyze: bring-your-own-car/06-analyze.md
       - 7. Define & verify: bring-your-own-car/07-define-and-verify.md
       - 8. Share: bring-your-own-car/08-share.md
+      - 9. Broadcast CAN frames (optional): bring-your-own-car/09-broadcast-frames.md
   - Concepts:
       - Architecture: concepts/architecture.md
       - Profiles: concepts/profiles.md
