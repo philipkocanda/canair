@@ -86,7 +86,7 @@ orient → prerequisites → discover → capture → inspect → hypothesize
 
 Progress is tracked per-ECU in the `research:` block of the profile's `ecus/<ecu>.yaml`
 (schema in `canlib/schema/pids_schema.yaml`), graduating:
-`pending → captured → (decoded) → verify → done`, at which point a real
+`pending → captured → done` (plus `nrc` for a dead scan), at which point a real
 `parameters:` entry exists and is marked `verified: true`.
 
 **Two domains.** The above is **domain A** (diagnostic request/response: `ecus/`

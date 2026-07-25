@@ -161,14 +161,14 @@ examples:
 
 ```
 usage: canair correlate can [-h] [--can-format {auto,asc,blf,csv,log,gvret}]
-                            [--id IDS] [--include-intra] [--no-cluster]
-                            [--against ECU:PID:PARAM] [--min-r R] [--min-n N]
-                            [--top N] [--method {pearson,spearman}]
-                            [--join-tol SECONDS] [--bits] [--json]
-                            [--notation NAME]
+                            [--id IDS] [--include-intra] [--find-mirrors]
+                            [--no-cluster] [--against ECU:PID:PARAM]
+                            [--min-r R] [--min-n N] [--top N]
+                            [--method {pearson,spearman}] [--join-tol SECONDS]
+                            [--bits] [--json] [--notation NAME]
                             FILE
 
-Correlate the per-byte series of a raw broadcast-CAN frame log (.asc/.blf/candump .log/.trc/GVRET .csv) — bytes are labelled 0xID:rN. --against/--bits/--id/--min-r/--top all apply.
+Correlate the per-byte series of a raw broadcast-CAN frame log (.asc/.blf/candump .log/.trc/GVRET .csv) — bytes are labelled 0xID:rN. --against/--bits/--id/--min-r/--top/--find-mirrors all apply.
 
 positional arguments:
   FILE                  Path to a raw broadcast-CAN frame log
@@ -182,6 +182,11 @@ options:
                         0x220,0x386)
   --include-intra       Include same-arbitration-ID pairs (default: cross-ID
                         only)
+  --find-mirrors        Instead of ranking correlations, report byte/bit
+                        positions that are time-aligned equal ACROSS
+                        arbitration IDs — a signal mirrored on two IDs (e.g.
+                        wheel speed on 0x386 and 0x331). Use with --bits for
+                        bit-level
   --no-cluster          Don't collapse near-perfectly-correlated (|r|≥0.995)
                         byte groups into one line
   --against ECU:PID:PARAM

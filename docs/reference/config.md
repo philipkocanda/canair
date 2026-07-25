@@ -26,6 +26,8 @@ canair config edit           # open in $EDITOR
 | `wican_addresses` | Named device addresses for the `--wican` flag (IPs or hostnames). |
 | `default_wican` | Which `wican_addresses` alias to use by default. |
 | `wican_model` | `pro` (default) or `classic`. `classic` makes canair cleanly refuse Pro-only features. |
+| `check_for_updates` | `true` (default) or `false`. Disables the automatic once-a-day update check (also disabled by `CANAIR_NO_UPDATE_CHECK`). |
+| `display.byte_notation` | Default byte-index notation for analysis output labels: `wican` (default), `isotp`, `torque`, or `bix`. Overridden per-command by `--notation`. |
 | `transport` | Advanced: explicit CAN transport selection (see below). |
 
 ## The `transport` block

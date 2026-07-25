@@ -308,7 +308,8 @@ WiCAN to sleep mid-session), re-enable after.
 ## ECU status
 
 Live status: `canair ecu` (registry + per-ECU stats + identity confidence) and
-`canair research` (open backlog). Registry = 30 ECUs (27 with PID defs).
+`canair research` (open backlog). Registry = 30 ECUs (18 with live PIDs; 27
+files carry a `pids:` section).
 Decode findings are recorded in each `ecus/<ecu>.yaml` `notes:`. Highlights:
 
 | ECU | TX ID | Status | Key notes |

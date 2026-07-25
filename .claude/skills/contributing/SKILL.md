@@ -45,7 +45,7 @@ trusts them builds on a false premise.
    reintroduce a `wican-ws`-only default or a `wican-ws`-only code path.
 3. **Never break the real car.** No UDS programming session (`10 02`), no
    firmware/write/upload services. The command blocklist in
-   `canlib/elm327.py` (`BLOCKED_UDS_SERVICES` / `check_command_safety`) exists
+   `canlib/safety.py` (`BLOCKED_UDS_SERVICES` / `check_command_safety`) exists
    for this reason — extend it, never quietly bypass it.
 4. **Tests pass and cover the change.** Run `uv run pytest -q`; add tests for
    new behavior. `uv run canair validate all` must stay green after data-schema
@@ -98,7 +98,7 @@ ELM path (`async_main`) and the raw path (`modes/raw_ops.py::run_raw`) call.
   (`canlib/terminal.py`) and `RawTerminal`
   (`canlib/transport/raw_terminal.py`) with matching signatures, and keep the
   returned dict shape identical (both funnel through
-  `elm327.parse_elm_response`).
+  `uds_parse.parse_uds_response`).
 
 ## Two data domains — diagnostics *and* raw CAN frames
 
@@ -182,8 +182,9 @@ help order).
 
 - Call `add_connection_args(parser)` and `finalize_live_parser(parser, …)` from
   `canlib/commands/_live.py`. `finalize_live_parser` backfills every attribute
-  in `CANREQ_DEFAULTS` the parser doesn't expose and wires `func=run_live`.
-- Add any **new mode-selector attribute** to `CANREQ_DEFAULTS` with a falsy
+  in `CANAIR_DEFAULTS` the parser doesn't expose and wires `func=run` (which
+  delegates to `run_live`).
+- Add any **new mode-selector attribute** to `CANAIR_DEFAULTS` with a falsy
   default. `dispatch_mode`'s `elif` chain reads `args.<selector>` for *every*
   command, so a missing default will `AttributeError` on unrelated commands.
 - Add the dispatch branch in `dispatch_mode` (keep options read *inside* the
@@ -341,7 +342,7 @@ bolting on more:
   it to one shared home and have both call it. That guard now lives in
   `canlib/safety.py::enforce_command_safety`; both terminals await it, so the
   policy is identical on every transport. Blocklist data itself stays in
-  `elm327.py` (`BLOCKED_UDS_SERVICES`).
+  `safety.py` (`BLOCKED_UDS_SERVICES`).
 - **When incremental changes are compounding complexity, propose a redesign**
   before adding another layer. Surface the tradeoff to the user (a short "this
   is drifting; here's the cleaner shape" note) instead of quietly extending a
