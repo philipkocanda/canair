@@ -215,6 +215,44 @@ class TestRawTerminalSendCommand:
         await t.close()
 
 
+class TestRawTerminalSession:
+    """enter_extended_session must accept a `mode` kwarg like WiCANTerminal and
+    emit 10<mode> (regression: RawTerminal previously hardcoded 1003 and rejected
+    `mode=`, breaking `scan --session` on the default slcan-tcp transport)."""
+
+    @pytest.mark.asyncio
+    async def test_default_mode_sends_1003(self, make_terminal):
+        t = make_terminal({(0x7E4, bytes.fromhex("1003")): bytes.fromhex("500300320032")})
+        await t.set_header(0x7E4)
+        ok, task = await t.enter_extended_session()
+        assert ok is True
+        if task:
+            task.cancel()
+        await t.close()
+
+    @pytest.mark.asyncio
+    async def test_kwp_mode_81_sends_1081(self, make_terminal):
+        # BMS rejects 10 03 and needs the KWP2000 standardDiagnosticSession (10 81).
+        t = make_terminal({(0x7E4, bytes.fromhex("1081")): bytes.fromhex("50810032")})
+        await t.set_header(0x7E4)
+        ok, task = await t.enter_extended_session(mode="81")
+        assert ok is True
+        if task:
+            task.cancel()
+        await t.close()
+
+    @pytest.mark.asyncio
+    async def test_mode_is_normalized(self, make_terminal):
+        # "0x03"/"3" normalize to the same 1003 request as the default.
+        t = make_terminal({(0x7E4, bytes.fromhex("1003")): bytes.fromhex("500300320032")})
+        await t.set_header(0x7E4)
+        ok, task = await t.enter_extended_session(mode="0x3")
+        assert ok is True
+        if task:
+            task.cancel()
+        await t.close()
+
+
 class TestRawTerminalSafety:
     @pytest.mark.asyncio
     async def test_blocked_service_raises_without_unsafe(self, make_terminal):

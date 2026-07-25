@@ -131,12 +131,22 @@ class RawTerminal:
         resp = await self._exchange(req, timeout)
         return "NO DATA" if resp is None else resp.hex().upper()
 
-    async def enter_extended_session(self, wake: bool = False) -> tuple[bool, asyncio.Task | None]:
-        """Enter extended session (10 03) on the current ECU + start keepalive.
+    async def enter_extended_session(
+        self, wake: bool = False, mode: str = "03"
+    ) -> tuple[bool, asyncio.Task | None]:
+        """Enter a diagnostic session (default 10 03) on the current ECU + keepalive.
 
         Mirrors WiCANTerminal.enter_extended_session; the TesterPresent loop
         targets the ECU that was current at entry.
+
+        Args:
+            wake: If True, send a default session request (10 01) first to wake the
+                ECU from deep sleep before entering the session.
+            mode: DiagnosticSessionControl sub-function (hex, no 0x). Default
+                ``"03"`` (UDS extendedDiagnosticSession); use ``"81"`` for the
+                KWP2000 standardDiagnosticSession on ECUs that reject 10 03.
         """
+        mode = mode.upper().removeprefix("0X").zfill(2)
         tx = self._cur
         # set_header must have run before a session is entered (send_uds below
         # would raise otherwise), so the keepalive target is always known.
@@ -144,9 +154,9 @@ class RawTerminal:
         if wake:
             await self.send_uds("1001", timeout=3.0)
             await asyncio.sleep(0.3)
-        resp = await self.send_uds("1003", timeout=3.0)
+        resp = await self.send_uds(f"10{mode}", timeout=3.0)
         if resp.get("ok"):
-            print("  Extended session (10 03) established.")
+            print(f"  Session (10 {mode}) established.")
         elif resp.get("nrc") is not None:
             print(f"  WARNING: session NRC 0x{resp['nrc']:02X} ({resp['nrc_desc']}) — continuing.")
 

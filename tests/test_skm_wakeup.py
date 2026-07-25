@@ -1,6 +1,29 @@
-"""Tests for canlib.modes.skm_wakeup — parsing helpers."""
+"""Tests for canlib.modes.skm_wakeup — parsing helpers + transport guard."""
+
+import argparse
+
+import pytest
 
 from canlib.modes.skm_wakeup import parse_bcm_b003, parse_igpm_bc03
+
+
+class TestSkmWakeTransportGuard:
+    """skm-wake needs ELM327 (WiCANTerminal) multi-frame text semantics. On the
+    raw (slcan-tcp) transport dispatch_mode must refuse it with a clear error
+    rather than an opaque AttributeError on terminal._drain / terminal.ws."""
+
+    @pytest.mark.asyncio
+    async def test_skm_wake_refused_on_non_elm_terminal(self, capsys):
+        from canlib.commands._live import CANAIR_DEFAULTS, dispatch_mode
+
+        class NotWiCAN:  # not a WiCANTerminal -> raw path
+            pass
+
+        args = argparse.Namespace(**{**CANAIR_DEFAULTS, "skm_wakeup": True})
+        with pytest.raises(SystemExit):
+            await dispatch_mode(args, NotWiCAN(), {}, "1.2.3.4")
+        assert "wican-ws" in capsys.readouterr().err
+
 
 # ── parse_igpm_bc03 ──────────────────────────────────────────────────────────
 

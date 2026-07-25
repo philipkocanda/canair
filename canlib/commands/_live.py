@@ -577,6 +577,16 @@ async def dispatch_mode(args, terminal, pids_data, host):
             include_static=getattr(args, "include_static", False),
         )
     elif args.skm_wakeup:
+        # skm-wake relies on ELM327 multi-frame text semantics (terminal._drain /
+        # terminal.ws) that only WiCANTerminal exposes; guard explicitly so the raw
+        # transport reports a clear error instead of an opaque AttributeError.
+        if not isinstance(terminal, WiCANTerminal):
+            print(
+                "Error: skm-wake is only supported on the wican-ws (ELM327) transport, "
+                "not slcan-tcp.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
         await mode_skm_wakeup(terminal, args.level, args.verbose)
     elif args.identity:
         from canlib.ecus import resolve_tx
