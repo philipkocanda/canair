@@ -48,8 +48,8 @@ usage: canair signals upsert [-h] --start-bit START_BIT --length LENGTH
                              [--byte-order {little,big}] [--scale SCALE]
                              [--offset OFFSET] [--min MIN] [--max MAX]
                              [--unit UNIT] [--verified] [--unverified]
-                             [--notes NOTES] [--msg-name MSG_NAME]
-                             [--tx-ecu TX_ECU]
+                             [--source SOURCE] [--notes NOTES]
+                             [--msg-name MSG_NAME] [--tx-ecu TX_ECU]
                              bus arb_id name
 
 positional arguments:
@@ -69,10 +69,17 @@ options:
   --unit UNIT
   --verified
   --unverified
+  --source SOURCE       Provenance (DBC, log file, or RE evidence)
   --notes NOTES
   --msg-name MSG_NAME   Message name (DBC BO_ name)
   --tx-ecu TX_ECU       Transmitting ECU (annotation)
 ```
+
+`--source` records **where the signal came from** — a reproducible provenance
+string such as a DBC file (`dbc:<file>`, filled automatically by
+`canair import dbc`), the exact log used to reverse-engineer it, or a reference
+sheet. Keep it terse and reproducible; the supporting *evidence* (correlations,
+sample counts, reasoning) belongs in `--notes`.
 
 ## `canair signals rm`
 

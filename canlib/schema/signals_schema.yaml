@@ -28,6 +28,7 @@
 #           max: number     # optional
 #           unit: str        # optional
 #           verified: bool  # optional — confirmed on THIS car (default false)
+#           source: str      # optional — provenance (DBC, log file, RE evidence)
 #           notes: str       # optional
 #
 # Arbitration IDs match ^0x[0-9A-Fa-f]+$ (11-bit standard or 29-bit extended).
@@ -57,6 +58,7 @@ optional_signal_fields:
   - max
   - unit
   - verified
+  - source
   - notes
 
 byte_order_values:

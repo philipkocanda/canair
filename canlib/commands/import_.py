@@ -135,12 +135,12 @@ def _run_can(args) -> int:
     return 0
 
 
-def _dbc_to_signals(db, id_filter: set[int] | None, tx_ecu: str | None) -> dict:
+def _dbc_to_signals(db, id_filter: set[int] | None, tx_ecu: str | None, source: str | None) -> dict:
     """Map a cantools Database to the linear signals/ import shape.
 
     ``{mid: {"name", "tx_ecu", "signals": {sig: {start_bit, length, byte_order,
-    scale, offset, min, max, unit}}}}``. cantools byte_order (little_endian/
-    big_endian) → little/big.
+    scale, offset, min, max, unit, source}}}}``. cantools byte_order (little_endian/
+    big_endian) → little/big. ``source`` records provenance on each imported signal.
     """
     imported: dict = {}
     for msg in db.messages:
@@ -163,6 +163,8 @@ def _dbc_to_signals(db, id_filter: set[int] | None, tx_ecu: str | None) -> dict:
                 fields["max"] = s.maximum
             if s.unit:
                 fields["unit"] = s.unit
+            if source:
+                fields["source"] = source
             signals[s.name] = fields
         if signals:
             imported[f"0x{msg.frame_id:X}"] = {
@@ -195,7 +197,7 @@ def _run_dbc(args) -> int:
     id_filter = None
     if args.ids:
         id_filter = {int(t.strip(), 16) for t in args.ids.split(",") if t.strip()}
-    imported = _dbc_to_signals(db, id_filter, args.tx_ecu)
+    imported = _dbc_to_signals(db, id_filter, args.tx_ecu, f"dbc:{path.name}")
     if not imported:
         print(
             f"import dbc: no messages to import from {path.name}"

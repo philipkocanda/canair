@@ -52,6 +52,25 @@ class TestSignalsEdit:
         assert data["messages"]["0x386"]["name"] == "WHL_SPD11"
         assert validate._run_signals() == 0
 
+    def test_source_provenance_field(self, temp_profile):
+        signals_edit.upsert_signal(
+            "b",
+            "0x354",
+            "GEAR",
+            start_bit=40,
+            length=4,
+            source="uhi22 drive.csv (fetch: scripts/fetch_can_corpus.py)",
+            notes="P=1/R=2/N=3/D=4",
+            profile=temp_profile,
+        )
+        import yaml
+
+        sig = yaml.safe_load((temp_profile.signals_dir / "b.yaml").read_text())[
+            "messages"
+        ]["0x354"]["signals"]["GEAR"]
+        assert sig["source"].startswith("uhi22")
+        assert validate._run_signals() == 0  # source is an accepted field
+
     def test_int_arb_id_normalized(self, temp_profile):
         signals_edit.upsert_signal("b", 0x220, "S", start_bit=0, length=8, profile=temp_profile)
         import yaml

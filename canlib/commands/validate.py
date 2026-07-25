@@ -1279,6 +1279,7 @@ def check_signals_doc(data: object) -> tuple[list[str], int]:
         "max",
         "unit",
         "verified",
+        "source",
         "notes",
     }
     for mid, msg in messages.items():

@@ -58,6 +58,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     p_up.add_argument("--unit")
     p_up.add_argument("--verified", dest="verified", action="store_true", default=None)
     p_up.add_argument("--unverified", dest="verified", action="store_false")
+    p_up.add_argument("--source", help="Provenance (DBC, log file, or RE evidence)")
     p_up.add_argument("--notes")
     p_up.add_argument("--msg-name", dest="msg_name", help="Message name (DBC BO_ name)")
     p_up.add_argument("--tx-ecu", dest="tx_ecu", help="Transmitting ECU (annotation)")
@@ -149,6 +150,7 @@ def cmd_upsert(args) -> int:
             max=args.max,
             unit=args.unit,
             verified=args.verified,
+            source=args.source,
             notes=args.notes,
             msg_name=args.msg_name,
             tx_ecu=args.tx_ecu,

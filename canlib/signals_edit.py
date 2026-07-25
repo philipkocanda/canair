@@ -26,6 +26,7 @@ _SIGNAL_FIELD_ORDER = (
     "max",
     "unit",
     "verified",
+    "source",
     "notes",
 )
 
@@ -68,6 +69,7 @@ def upsert_signal(
     max: float | None = None,
     unit: str | None = None,
     verified: bool | None = None,
+    source: str | None = None,
     notes: str | None = None,
     msg_name: str | None = None,
     tx_ecu: str | None = None,
@@ -117,6 +119,7 @@ def upsert_signal(
             "max": max,
             "unit": unit,
             "verified": verified,
+            "source": source,
             "notes": notes,
         }
     )

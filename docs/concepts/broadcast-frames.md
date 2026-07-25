@@ -70,13 +70,19 @@ offset` over a contiguous bit range), deliberately DBC-compatible.
 
 ```bash
 canair signals upsert powertrain 0x386 WHL_SPD_FL \
-    --start-bit 0 --length 14 --byte-order little --scale 0.03125 --unit km/h
+    --start-bit 0 --length 14 --byte-order little --scale 0.03125 --unit km/h \
+    --source "IONIQ_PCAN_drive.csv (fetch: scripts/fetch_can_corpus.py)"
 canair signals list                    # review
 canair validate signals                # structural check
 ```
 
 Edits are surgical, comment-preserving, validated, and auto-reverted on failure
 (via `canair signals` / `canlib/signals_edit.py`) — never hand-edit `signals/`.
+
+Record **where the signal came from** in `--source` (a reproducible provenance
+string — the log used, a reference sheet, or `dbc:<file>` when it came from a DBC
+import); keep the supporting *evidence* (correlations, sample counts, reasoning)
+in `--notes`.
 
 ### 4. Interop — DBC import / export
 
