@@ -6,11 +6,16 @@ so they are never committed to this (public) repo — the upstream repo ships no
 license, so we don't redistribute its data; we fetch it on demand + attribute it.
 Only tiny hand-trimmed slices live in ``tests/fixtures/can/`` for unit tests.
 
+This is the **unlicensed / no-clear-license** arm of the raw-CAN log policy
+(docs/concepts/broadcast-frames.md → "Storing raw-CAN logs"): third-party logs
+are committed only when their license permits redistribution; unlicensed ones
+stay fetch-on-demand here. Our own captured logs are committed fully (via Git
+LFS when large).
+
 Current corpus: the near-identical Hyundai **Ioniq 28 kWh** internal-bus logs
 from https://github.com/uhi22/Ioniq28Investigations (a WiCAN-less PCAN tap) — the
 drive-mode/regen/thermal broadcast data the OBD port can't see. The CSVs are
-SavvyCAN **GVRET** format (``canair import can`` GVRET support is Stage 3; until
-then these are for reference/inspection).
+SavvyCAN **GVRET** format, importable with ``canair import can``.
 
 Usage:
     python3 scripts/fetch_can_corpus.py            # fetch all

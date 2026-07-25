@@ -1,0 +1,25 @@
+# Git LFS — large raw-CAN frame logs
+#
+# Policy (see docs/concepts/broadcast-frames.md → "Storing raw-CAN logs"):
+#   • Our OWN captured logs (profiles/*/captures/can/**) are committed FULLY,
+#     via LFS when large/binary.
+#   • THIRD-PARTY logs are committed only when their license permits
+#     redistribution (recorded alongside); unlicensed corpora (e.g. uhi22) stay
+#     fetch-on-demand in the gitignored references/can/ + a tiny fair-use excerpt
+#     under tests/fixtures/.
+#
+# Rules are last-match-wins: track the large binary frame-log formats by
+# extension and everything under a profile's captures/can/, then explicitly
+# UN-track the tiny committed test fixtures so they stay plain, diffable git.
+
+# Binary / high-volume frame-log formats, wherever they live
+*.blf filter=lfs diff=lfs merge=lfs -text
+*.asc filter=lfs diff=lfs merge=lfs -text
+*.trc filter=lfs diff=lfs merge=lfs -text
+
+# A profile's own raw-CAN capture store (any format, incl. large .csv logs)
+profiles/*/captures/can/** filter=lfs diff=lfs merge=lfs -text
+
+# Keep the tiny hand-trimmed test fixtures in plain git (must stay diffable /
+# inspectable; they are only KB-sized excerpts).
+tests/fixtures/** !filter !diff !merge text=auto

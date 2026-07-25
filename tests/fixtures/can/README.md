@@ -5,6 +5,11 @@ minimal on purpose — the **full** third-party corpora are never committed to
 this (public) repo; fetch them on demand with `scripts/fetch_can_corpus.py`
 (destination `references/can/`, gitignored).
 
+These excerpts stay in **plain git** (not Git LFS) so they remain small and
+diffable — `.gitattributes` explicitly excludes `tests/fixtures/**` from LFS.
+See [`docs/concepts/broadcast-frames.md` → "Storing raw-CAN logs"](../../../docs/concepts/broadcast-frames.md)
+for the full committed-vs-fetched / licensing / LFS policy.
+
 ## `ioniq28_drive_slice.log`
 
 Synthetic candump-format slice (fabricated IDs/data) for exercising the

@@ -103,6 +103,16 @@ defaults to `uds` (domain A). The analysis reasoning
 below (physics/EE/statistics) applies to both; only the byte-notation and the
 definition model differ.
 
+**Storing the log you imported.** Your **own** captured frame logs are committed
+**fully** (via Git LFS when large — `.gitattributes` tracks `*.blf`/`*.asc`/`*.trc`
++ `profiles/*/captures/can/**`; run `git lfs install` on a fresh clone). A
+**third-party** log goes in the repo **only if its license permits
+redistribution**; an unlicensed corpus (e.g. uhi22 Ioniq-28) stays
+fetch-on-demand in gitignored `references/can/` (`scripts/fetch_can_corpus.py`)
+with just a tiny fair-use excerpt committed under `tests/fixtures/can/`. LFS is
+storage only — it grants no redistribution right. Full policy:
+`docs/concepts/broadcast-frames.md` → "Storing raw-CAN logs".
+
 ### 1. Orient — pick a target
 
 ```bash

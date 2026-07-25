@@ -68,3 +68,18 @@ Completion hooks the literal `canair` command word, so it won't fire through
 uv sync && source .venv/bin/activate
 canair completion --install
 ```
+
+## Git LFS (for raw-CAN logs)
+
+Large raw-CAN broadcast logs (`.blf`/`.asc`/`.trc` and a profile's
+`captures/can/`) are stored with [Git LFS](https://git-lfs.com). Install it once
+so a clone fetches the real log contents instead of pointer files:
+
+```bash
+git lfs install    # one-time, per machine
+```
+
+Without it the tiny bundled fixtures still work (they're plain git), but any
+committed large log will appear as an LFS pointer. See
+[Broadcast frames → Storing raw-CAN logs](../concepts/broadcast-frames.md) for
+what is committed vs. fetched on demand.
