@@ -4,11 +4,11 @@
   "pids": [
     {
       "pid_init": "ATSH7C6;ATFCSH7C6;",
-      "pid": "B002",
+      "pid": "22B002",
       "enabled": true,
       "period": "5000",
       "parameters": {
-        "ODOMETER": "B6*65536+B7*256+B8"
+        "ODOMETER": "[B12:B14]"
       }
     }
   ],
