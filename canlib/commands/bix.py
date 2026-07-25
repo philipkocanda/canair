@@ -53,13 +53,17 @@ each notation + a compact 2-frame table); `--table` prints the full table.
 input formats:
   w9, W09     WiCAN byte index (prefix w)
   i6, i0x06   ISO-TP payload index (prefix i)
-  b32         Torque bit index / bix (prefix b)
-  E, AA       Torque letter notation
+  b32         OBDb bix / bit index (prefix b)
+  E, AA       Torque letter notation (Torque app, Car Scanner & similar apps)
   9           Plain number (assumed WiCAN)
 
 subfunction modes:
   -1          1-byte subfunction (21xx PIDs) — default
   -2          2-byte subfunction (22xxxx DIDs)
+
+optional columns (--table / --annotate; both hidden by default):
+  --torque    add the Torque letter column (Torque app, Car Scanner & similar)
+  --obdb      add the OBDb bix (bit-index) column — a distinct notation
 
 note: with --annotate/-a, put the mode flag (-1/-2) BEFORE the hex bytes,
       e.g. `bix -2 -a 62 01 A0 ...` — a mode flag after the bytes is
@@ -114,12 +118,20 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--torque",
-        "--obdb",
         dest="show_torque",
         action="store_true",
-        help="Show the Torque and bix (OBDb) columns too. Hidden by default — "
-        "WiCAN and ISO-TP are the notations canair expressions use; Torque/bix "
-        "are for cross-referencing third-party Torque/OBDb PID sheets.",
+        help="Show the Torque byte-letter column (--table/--annotate). Hidden by "
+        "default. Torque notation (A, B, C… from the first UDS data byte) is what "
+        "the Torque app, Car Scanner, and similar OBD apps use — handy for porting "
+        "their PID sheets.",
+    )
+    parser.add_argument(
+        "--obdb",
+        dest="show_obdb",
+        action="store_true",
+        help="Show the OBDb bix (bit-index) column (--table/--annotate). Hidden by "
+        "default. bix is a distinct notation from Torque (data-byte index × 8) — "
+        "request it independently of --torque.",
     )
     parser.add_argument(
         "--max", type=int, default=71, help="Max WiCAN index for table (default: 71)"
@@ -199,19 +211,27 @@ def _print_result(notation: str, idx: int, sub_bytes: int):
     bix = wican_to_bix(w, sub_bytes)
     letter = torque_label(torque)
 
+    frame = w // 8
+    lo, hi = frame * 8, frame * 8 + 7
     sub_label = f"sub={sub_bytes}"
-    print(f"  WiCAN:    B{w:02d}  (WiCAN AutoPID frame index: ISO-TP + PCI)")
+    print(f"  {'WiCAN:':<11}B{w:02d}  (WiCAN AutoPID frame index: ISO-TP + PCI)")
+    print(
+        f"  {'CAN frame:':<11}{frame}   "
+        f"(B{w:02d} is in CAN frame {frame}: B{lo:02d}–B{hi:02d}, 8 bytes per frame)"
+    )
     if isotp is not None:
-        print(f"  ISO-TP:   0x{isotp:02X}  (payload index {isotp})")
+        print(f"  {'ISO-TP:':<11}0x{isotp:02X}  (payload index {isotp})")
     else:
-        print("  ISO-TP:   —  (PCI byte)")
+        print(f"  {'ISO-TP:':<11}—  (PCI framing byte)")
     if torque is not None:
-        print(f"  Torque:   {letter}  (byte {torque}, {sub_label})")
-        print(f"  bix:      {bix}  (bit index, {sub_label})")
+        print(
+            f"  {'Torque:':<11}{letter}  (data byte {torque}, {sub_label}; Torque app / Car Scanner)"
+        )
+        print(f"  {'bix:':<11}{bix}  (OBDb bit index, {sub_label})")
     else:
         role = "PCI" if isotp is None else "UDS header"
-        print(f"  Torque:   —  ({role} byte, {sub_label})")
-        print("  bix:      —")
+        print(f"  {'Torque:':<11}—  ({role} byte, {sub_label})")
+        print(f"  {'bix:':<11}—")
 
     # A neighbour being a PCI (ISO-TP framing) byte means a naive [Bx:By] range
     # would fold it in. Detect PCI with the canonical wican_to_isotp (shared with
@@ -245,17 +265,19 @@ def _pad(text: str, width: int, code: str) -> str:
     return _c(f"{text:<{width}}", code)
 
 
-def _print_legend(sub_bytes: int, *, show_torque: bool = False):
+def _print_legend(sub_bytes: int, *, show_torque: bool = False, show_obdb: bool = False):
     """Explain the notations and the Role labels in plain language.
 
     Printed above the compact overview and the full ``--table`` so both are
     self-documenting — a first-time reader never has to guess what ``FF PCI`` or
-    ``bix`` mean. The Torque/bix columns (and their explanation) are shown only
-    when ``show_torque`` is set, matching the table's default-hidden columns.
+    ``bix`` mean. The Torque and bix (OBDb) columns are distinct notations, each
+    shown only when its flag (``show_torque`` / ``show_obdb``) is set — matching
+    the table's default-hidden columns.
     """
     sub_desc = "SID + 2 DID bytes" if sub_bytes == 2 else "SID + 1 PID byte"
     variant = "Torque 2" if sub_bytes == 2 else "Torque 1"
-    count = "four" if show_torque else "these"
+    n_extra = int(show_torque) + int(show_obdb)
+    count = {0: "these", 1: "three", 2: "four"}[n_extra]
     print(_c(f"How a UDS response is counted {count} different ways", _BOLD))
     print(
         "  A response rides on CAN frames (8 bytes each) → ISO-TP → UDS. Where you\n"
@@ -267,7 +289,10 @@ def _print_legend(sub_bytes: int, *, show_torque: bool = False):
     print("    ISO-TP    byte # in the reassembled payload, framing stripped")
     if show_torque:
         print(f"    Torque    UDS data byte, letter notation ({variant} here: skips {sub_desc})")
-        print("    bix       Torque byte × 8 (bit index; used by Torque / OBDb)")
+        print(_c("              ↳ used by the Torque app, Car Scanner & similar OBD apps", _DIM))
+    if show_obdb:
+        print("    bix       OBDb bit index — the UDS data-byte index × 8")
+    if show_torque or show_obdb:
         print(
             _c(
                 "              ↳ Torque/OBDb count from the first UDS data byte, so the\n"
@@ -278,7 +303,10 @@ def _print_legend(sub_bytes: int, *, show_torque: bool = False):
         )
     else:
         print(
-            _c("    (add --torque for the Torque / bix (OBDb) columns)", _DIM),
+            _c(
+                "    (add --torque for the Torque letter column, --obdb for the OBDb bix column)",
+                _DIM,
+            ),
         )
     print()
     print(_c("  Role — what a WiCAN row actually is", _BOLD))
@@ -302,7 +330,12 @@ def _print_legend(sub_bytes: int, *, show_torque: bool = False):
 
 
 def _print_table(
-    sub_bytes: int, max_wican: int = 71, *, legend: bool = False, show_torque: bool = False
+    sub_bytes: int,
+    max_wican: int = 71,
+    *,
+    legend: bool = False,
+    show_torque: bool = False,
+    show_obdb: bool = False,
 ):
     """Print the conversion table, grouped by CAN frame.
 
@@ -311,20 +344,36 @@ def _print_table(
     (``SID``/``PID``/``DID``) bytes, so the reader can see where the raw CAN
     frame boundaries fall and which rows are framing vs. real data. With
     ``legend=True`` a plain-language key to the columns and Role labels is
-    printed first. The Torque and bix columns are shown only when ``show_torque``
-    is set (WiCAN/ISO-TP are the primary notations).
+    printed first. The Torque and bix columns are independent opt-ins
+    (``show_torque`` / ``show_obdb``); WiCAN/ISO-TP are the primary notations.
     """
     if legend:
-        _print_legend(sub_bytes, show_torque=show_torque)
+        _print_legend(sub_bytes, show_torque=show_torque, show_obdb=show_obdb)
     table = conversion_table(max_wican=max_wican, subfunction_bytes=sub_bytes)
 
     sub_label = f"Torque {sub_bytes}" if sub_bytes in (1, 2) else f"Torque (sub={sub_bytes})"
+
+    # Columns: WiCAN | ISO-TP | [Torque] | [bix] | Role. Torque and bix are
+    # separate notations (Torque letter vs OBDb bit-index), each enabled on its
+    # own flag; build every row from the enabled columns so header/rule/data
+    # widths stay in lockstep (and the frame divider spans the right border).
+    def _cells(wican_c, isotp_c, role_c, *, torque_c="", bix_c=""):
+        parts = [f"{wican_c:>5}", f"{isotp_c:>6}"]
+        if show_torque:
+            parts.append(f"{torque_c:>8}")
+        if show_obdb:
+            parts.append(f"{bix_c:>5}")
+        parts.append(f"{role_c:<6}")
+        return "| " + " | ".join(parts) + " |"
+
+    rule_parts = ["-" * 7, "-" * 8]
     if show_torque:
-        header = f"| {'WiCAN':>5} | {'ISO-TP':>6} | {sub_label:>8} | {'bix':>5} | {'Role':<6} |"
-        rule = f"|{'-' * 7}|{'-' * 8}|{'-' * 10}|{'-' * 7}|{'-' * 8}|"
-    else:
-        header = f"| {'WiCAN':>5} | {'ISO-TP':>6} | {'Role':<6} |"
-        rule = f"|{'-' * 7}|{'-' * 8}|{'-' * 8}|"
+        rule_parts.append("-" * 10)
+    if show_obdb:
+        rule_parts.append("-" * 7)
+    rule_parts.append("-" * 8)
+    header = _cells("WiCAN", "ISO-TP", "Role", torque_c=sub_label, bix_c="bix")
+    rule = "|" + "|".join(rule_parts) + "|"
     width = len(header)
     print(header)
     print(rule)
@@ -340,14 +389,13 @@ def _print_table(
             prev_frame = frame
 
         role = _table_role(w_idx, sub_bytes)
-        w = f"B{w_idx:02d}"
-        isotp = f"0x{row['isotp']:02X}" if row["isotp"] is not None else ""
-        if show_torque:
-            letter = row["torque_letter"] or ""
-            bix = str(row["bix"]) if row["bix"] is not None else ""
-            line = f"| {w:>5} | {isotp:>6} | {letter:>8} | {bix:>5} | {role:<6} |"
-        else:
-            line = f"| {w:>5} | {isotp:>6} | {role:<6} |"
+        line = _cells(
+            f"B{w_idx:02d}",
+            f"0x{row['isotp']:02X}" if row["isotp"] is not None else "",
+            role,
+            torque_c=row["torque_letter"] or "",
+            bix_c=str(row["bix"]) if row["bix"] is not None else "",
+        )
         # Dim the ISO-TP framing (PCI) rows so real data stands out.
         print(_c(line, _DIM) if role.endswith("PCI") else line)
 
@@ -434,6 +482,7 @@ def _annotate_payload(
     *,
     raw_frame: bool = False,
     show_torque: bool = False,
+    show_obdb: bool = False,
 ) -> int:
     """Annotate each byte of a UDS response payload with WiCAN Bnn indices.
 
@@ -443,8 +492,9 @@ def _annotate_payload(
     ``raw_frame=True`` the hex is an **already-framed CAN payload** (PCI present,
     e.g. copied straight off the bus) and is indexed as-is.
 
-    The Torque and bix (OBDb) columns are shown only when ``show_torque`` is set —
-    WiCAN and ISO-TP are the notations canair expressions use.
+    The Torque letter and OBDb bix columns are distinct notations, each shown
+    only when its flag (``show_torque`` / ``show_obdb``) is set — WiCAN and
+    ISO-TP are the notations canair expressions use.
 
     When ``params`` (a PID's ``parameters`` dict) is given, add a ``Param`` column
     showing which defined parameter maps each byte (``[NAME]`` verified,
@@ -471,30 +521,37 @@ def _annotate_payload(
     mapped = mapped_offsets(params) if overlay else {}
     mbits = mapped_bits(params) if overlay else {}
 
-    if show_torque:
-        # Name the active Torque variant so it's clear the Torque/bix mapping is
-        # not fixed — it depends on the subfunction width (Torque 1 for 21xx,
-        # Torque 2 for 22xxxx). Torque/OBDb count from the first UDS *data* byte.
+    if show_torque or show_obdb:
+        # The Torque/OBDb numbering isn't fixed — it counts from the first UDS
+        # *data* byte, so it shifts with the subfunction width (Torque 1 for 21xx,
+        # Torque 2 for 22xxxx). Name the active variant and point at the other.
         variant = "Torque 2" if sub_bytes == 2 else "Torque 1"
         skipped = "SID + 2 DID bytes" if sub_bytes == 2 else "SID + 1 PID byte"
-        print(
-            _c(
-                f"  Torque column = {variant} (skips {skipped}); "
-                f"pass -{3 - sub_bytes} for the other variant.",
-                _DIM,
+        other = 3 - sub_bytes
+        if show_torque:
+            cols = "Torque + bix columns" if show_obdb else "Torque column"
+            caption = (
+                f"  {cols} = {variant} (skips {skipped}); pass -{other} for the other variant."
             )
-        )
+        else:  # bix only — describe it without leaning on the Torque label
+            caption = (
+                f"  bix column = OBDb bit index from the first UDS data byte "
+                f"(skips {skipped}); pass -{other} for the other variant."
+            )
+        print(_c(caption, _DIM))
 
     # Column widths, shared by header / separator / data rows so everything lines
     # up (the Role cell must be padded to width, else the trailing Param divider
     # floats). Torque is a letter (A, AB…), bix up to 3 digits, Role up to 6 (FF
-    # PCI / CF PCI). Torque + bix are omitted entirely unless show_torque.
+    # PCI / CF PCI). Torque and bix are independent opt-ins (--torque / --obdb).
     W_WICAN, W_HEX, W_ISOTP, W_TORQUE, W_BIX, W_ROLE = 5, 4, 6, 6, 5, 6
 
     def _row(wican, hex_, isotp, role, param=None, *, torque=None, bix=None):
         line = f"  {wican:>{W_WICAN}} | {hex_:>{W_HEX}} | {isotp:>{W_ISOTP}} | "
         if show_torque:
-            line += f"{torque:>{W_TORQUE}} | {bix:>{W_BIX}} | "
+            line += f"{torque:>{W_TORQUE}} | "
+        if show_obdb:
+            line += f"{bix:>{W_BIX}} | "
         line += f"{role:<{W_ROLE}}"
         if param is not None:
             line += f" | {param}"
@@ -503,7 +560,9 @@ def _annotate_payload(
     def _seg():
         parts = [f"{'─' * W_WICAN}─", f"─{'─' * W_HEX}─", f"─{'─' * W_ISOTP}─"]
         if show_torque:
-            parts += [f"─{'─' * W_TORQUE}─", f"─{'─' * W_BIX}─"]
+            parts.append(f"─{'─' * W_TORQUE}─")
+        if show_obdb:
+            parts.append(f"─{'─' * W_BIX}─")
         parts.append(f"─{'─' * W_ROLE}")
         return "  " + "┼".join(parts)
 
@@ -539,8 +598,9 @@ def _annotate_payload(
         # wican_to_isotp() assumes the multi-frame layout and is off-by-one for
         # single-frame responses — using pi keeps this column in step with Role.
         isotp = pi
-        # Torque/bix are only rendered when show_torque; skip the work otherwise.
-        if show_torque:
+        # Torque/bix are only rendered when their column is enabled; skip the
+        # work otherwise (and avoid computing the letter past the ZZ boundary).
+        if show_torque or show_obdb:
             torque = isotp_to_torque(pi, sub_bytes) if pi is not None else None
             bix = torque_to_bix(torque) if torque is not None else None
             letter = torque_label(torque)
@@ -585,13 +645,13 @@ def _param_cell(offset: int, byte_val: int, role: str, mapped: dict, mbits: dict
     return " ".join(parts)
 
 
-def _print_overview(sub_bytes: int, *, show_torque: bool = False):
+def _print_overview(sub_bytes: int, *, show_torque: bool = False, show_obdb: bool = False):
     """The friendly bare-``bix`` landing view: legend + a compact 2-frame table.
 
     Shows just the first two CAN frames (B00–B15) — enough to see the FF/CF PCI
     boundary — and points at the ways to go deeper.
     """
-    _print_table(sub_bytes, max_wican=15, legend=True, show_torque=show_torque)
+    _print_table(sub_bytes, max_wican=15, legend=True, show_torque=show_torque, show_obdb=show_obdb)
     print()
     print(_c("  Go further", _BOLD))
     print("    canair bix --table          full table (all frames, up to --max)")
@@ -599,13 +659,23 @@ def _print_overview(sub_bytes: int, *, show_torque: bool = False):
     print("    canair bix E                convert a Torque letter; also i6, b32, or a number")
     print("    canair bix --annotate HEX   map a real response payload, byte by byte")
     if not show_torque:
-        print("    canair bix --torque         add the Torque / bix (OBDb) columns")
+        print(
+            "    canair bix --torque         add the Torque letter column (Torque app, Car Scanner)"
+        )
+    if not show_obdb:
+        print("    canair bix --obdb           add the OBDb bix (bit-index) column")
     print(_c("    canair bix -2 …             same, for 22xxxx DIDs (2-byte subfunction)", _DIM))
 
 
 def run(args) -> int:
     if args.table:
-        _print_table(args.sub_bytes, args.max, legend=True, show_torque=args.show_torque)
+        _print_table(
+            args.sub_bytes,
+            args.max,
+            legend=True,
+            show_torque=args.show_torque,
+            show_obdb=args.show_obdb,
+        )
         return 0
 
     if args.annotate:
@@ -636,6 +706,7 @@ def run(args) -> int:
             params,
             raw_frame=args.raw_frame,
             show_torque=args.show_torque,
+            show_obdb=args.show_obdb,
         )
 
     if args.raw_frame:
@@ -643,7 +714,7 @@ def run(args) -> int:
         return 1
 
     if not args.value:
-        _print_overview(args.sub_bytes, show_torque=args.show_torque)
+        _print_overview(args.sub_bytes, show_torque=args.show_torque, show_obdb=args.show_obdb)
         return 0
 
     notation, idx = _parse_input(args.value)

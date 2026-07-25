@@ -109,8 +109,8 @@ def test_annotate_single_frame_torque_starts_after_header(capsys):
     # 21 01 response, single frame (≤7 payload bytes): PCI at B00, SID at B01,
     # PID at B02, first DATA byte at B03. Torque A / bix 0 must land on B03 —
     # the Torque column must agree with the Role column, not the multi-frame
-    # (off-by-one) layout that put Torque A at B04. (--torque reveals the column.)
-    args = _parse(["-1", "--torque", "-a", "6101FFEEDDCC"])
+    # (off-by-one) layout that put Torque A at B04. (--torque/--obdb reveal them.)
+    args = _parse(["-1", "--torque", "--obdb", "-a", "6101FFEEDDCC"])
     assert bix.run(args) == 0
     lines = capsys.readouterr().out.splitlines()
     b03 = next(ln for ln in lines if ln.strip().startswith("B03"))
@@ -122,7 +122,7 @@ def test_annotate_single_frame_torque_starts_after_header(capsys):
 def test_annotate_multi_frame_torque_unchanged(capsys):
     # Multi-frame (>7 payload bytes) keeps the 2-byte FF PCI layout: for a 22xxxx
     # DID, the first data byte / Torque A is at B05.
-    args = _parse(["-2", "--torque", "-a", "62B004FFEEDDCCBBAA9988776655"])
+    args = _parse(["-2", "--torque", "--obdb", "-a", "62B004FFEEDDCCBBAA9988776655"])
     assert bix.run(args) == 0
     lines = capsys.readouterr().out.splitlines()
     b05 = next(ln for ln in lines if ln.strip().startswith("B05"))
@@ -221,6 +221,27 @@ def test_lookup_warns_when_neighbor_is_pci(capsys):
     out = capsys.readouterr().out
     assert "B08 is a PCI byte" in out
     assert "(B07 << 8) | B09" in out
+
+
+# ── single-index lookup reports the CAN frame the byte lands in ──
+
+
+def test_lookup_prints_can_frame_number(capsys):
+    # A single-index lookup must surface which 8-byte CAN frame the byte lands in.
+    # B09 (= bix 32 = ISO-TP 6) is the first data byte after the CF PCI at B08,
+    # i.e. CAN frame 1 (B08-B15) — every input notation resolves to the same byte.
+    for token in ("w9", "b32", "i6"):
+        args = _parse([token])
+        assert bix.run(args) == 0
+        out = capsys.readouterr().out
+        assert "CAN frame: 1" in out
+        assert "B08–B15" in out
+
+
+def test_lookup_frame_zero_for_first_frame_byte(capsys):
+    args = _parse(["w3"])  # B03 sits in the first CAN frame
+    assert bix.run(args) == 0
+    assert "CAN frame: 0" in capsys.readouterr().out
 
 
 # ── bare `bix` friendly overview (legend + compact 2-frame table) ──
@@ -493,7 +514,7 @@ def test_looks_like_predicates_are_disjoint():
     assert bix._looks_like_uds_sid(0x7F)  # negative response
 
 
-# ── Torque + bix (OBDb) columns are hidden by default, shown with --torque ──
+# ── Torque letter and OBDb bix columns are independent opt-ins ──
 
 
 def test_annotate_hides_torque_bix_by_default(capsys):
@@ -505,18 +526,32 @@ def test_annotate_hides_torque_bix_by_default(capsys):
     assert "bix" not in out
 
 
-def test_annotate_shows_torque_bix_with_flag(capsys):
+def test_annotate_torque_flag_shows_torque_only(capsys):
+    # --torque adds ONLY the Torque letter column — bix stays hidden. They are
+    # distinct notations; someone porting a Torque/Car Scanner sheet wants Torque.
     args = _parse(["-1", "--torque", "-a", "6101FFEEDD"])
     assert bix.run(args) == 0
     out = capsys.readouterr().out
     assert "Torque" in out
-    assert "bix" in out
+    assert "bix" not in out
 
 
-def test_annotate_obdb_is_alias_for_torque(capsys):
+def test_annotate_obdb_flag_shows_bix_only(capsys):
+    # --obdb adds ONLY the OBDb bix column — the Torque letter column stays hidden
+    # (and the bix caption avoids the word "Torque").
     args = _parse(["-1", "--obdb", "-a", "6101FFEEDD"])
     assert bix.run(args) == 0
-    assert "Torque" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "bix" in out
+    assert "Torque" not in out
+
+
+def test_annotate_both_flags_show_both_columns(capsys):
+    args = _parse(["-1", "--torque", "--obdb", "-a", "6101FFEEDD"])
+    assert bix.run(args) == 0
+    out = capsys.readouterr().out
+    assert "Torque" in out
+    assert "bix" in out
 
 
 def test_table_hides_torque_bix_by_default(capsys):
@@ -528,22 +563,34 @@ def test_table_hides_torque_bix_by_default(capsys):
     assert "Torque 1" not in out  # the sub-labelled Torque header is gone
 
 
-def test_table_shows_torque_bix_with_flag(capsys):
+def _header_row(out: str) -> str:
+    """The table's header row (starts with the WiCAN column)."""
+    return next(ln for ln in out.splitlines() if ln.lstrip().startswith("| WiCAN"))
+
+
+def test_table_torque_flag_adds_torque_column_only(capsys):
     args = _parse(["--table", "--torque", "--max", "7"])
     assert bix.run(args) == 0
-    out = capsys.readouterr().out
-    assert "Torque 1" in out
-    assert "bix" in out
+    hdr = _header_row(capsys.readouterr().out)
+    assert "Torque 1" in hdr
+    assert "bix" not in hdr
 
 
-def test_bare_overview_hints_at_torque_flag(capsys):
+def test_table_obdb_flag_adds_bix_column_only(capsys):
+    args = _parse(["--table", "--obdb", "--max", "7"])
+    assert bix.run(args) == 0
+    hdr = _header_row(capsys.readouterr().out)
+    assert "bix" in hdr
+    assert "Torque" not in hdr
+
+
+def test_bare_overview_hints_at_both_flags(capsys):
     args = _parse([])
     assert bix.run(args) == 0
     out = capsys.readouterr().out
-    # Default overview points the reader at the opt-in flag, in both the legend
-    # and the "Go further" block.
+    # Default overview points the reader at both opt-in column flags.
     assert "--torque" in out
-    assert "add the Torque / bix (OBDb) columns" in out
+    assert "--obdb" in out
 
 
 # ── large payloads / high indices must not crash (Torque letter past ZZ) ──

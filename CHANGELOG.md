@@ -55,11 +55,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **`canair bix --torque` (alias `--obdb`)** shows the Torque and bix (OBDb)
-  columns, which are now **hidden by default** in `--annotate`, `--table`, and
-  the bare-`bix` overview. WiCAN and ISO-TP are the notations canair expressions
-  use; Torque/bix are opt-in for cross-referencing third-party Torque-app / OBDb
-  PID sheets. The overview and legend point at the flag.
+- **`canair bix --torque` and `--obdb`** show the Torque letter column and the
+  OBDb `bix` (bit-index) column, respectively, in `--annotate`, `--table`, and the
+  bare-`bix` overview. Both are **hidden by default** and are now **independent
+  flags** (Torque and OBDb `bix` are distinct notations — request either or both;
+  `--obdb` is no longer an alias of `--torque`). WiCAN and ISO-TP are the notations
+  canair expressions use; Torque/bix are opt-in for cross-referencing third-party
+  PID sheets. Torque notation is what the **Torque app, Car Scanner**, and similar
+  OBD apps use. The overview and legend point at the flags.
+
+- **`canair bix <index>` now reports the CAN frame the byte lands in.** A
+  single-index lookup (`bix w9`, `bix b32`, `bix E`, …) adds a `CAN frame:` line
+  naming the byte's 8-byte CAN frame and its span (e.g.
+  `CAN frame: 1 (B08–B15)`) — handy for spotting which bytes share a frame and
+  where the PCI boundaries fall.
 
 - **`canair bix --annotate --raw` (alias `--frame`)** annotates an already-framed
   CAN payload (ISO-TP PCI bytes present, e.g. copied straight off the bus),

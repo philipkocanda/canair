@@ -44,13 +44,16 @@ canair bix w9                    # quick lookup for WiCAN byte 9
 canair bix --table               # the full conversion table, grouped by CAN frame
 canair bix --annotate 62B004…    # map a reassembled UDS payload (SID-first, PCI stripped)
 canair bix --annotate 1012… --raw  # map an already-framed CAN payload (PCI present)
-canair bix --annotate 62B004… --torque  # also show the Torque / bix (OBDb) columns
+canair bix --annotate 62B004… --torque  # add the Torque letter column
+canair bix --annotate 62B004… --obdb     # add the OBDb bix (bit-index) column
 ```
 
 By default `--annotate` and `--table` show only the **WiCAN**, **ISO-TP**, and
-**Role** columns — WiCAN and ISO-TP are the notations canair expressions use. Add
-`--torque` (alias `--obdb`) to also show the **Torque** and **bix** columns for
-cross-referencing third-party Torque-app / OBDb PID sheets.
+**Role** columns — WiCAN and ISO-TP are the notations canair expressions use. The
+**Torque** letter column (`--torque`) and the OBDb **bix** column (`--obdb`) are
+distinct notations, each opt-in on its own flag, for cross-referencing third-party
+PID sheets. Torque notation is what the Torque app, Car Scanner, and similar OBD
+apps use; OBDb `bix` is a separate bit-index scheme.
 
 `--annotate` expects the **reassembled UDS response payload** — SID-first, with
 the ISO-TP PCI bytes already stripped (what the transport and captures hand back);

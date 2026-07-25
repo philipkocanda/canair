@@ -82,9 +82,11 @@ First-Frame PCI, then **B08** (and B16, B24, …) is a Consecutive-Frame PCI byt
 Notice how ISO-TP `0x05` → `0x06` is a smooth run, but the WiCAN index jumps
 **B07 → B09** across that boundary — the skipped `B08` is the framing byte.
 
-Add `--torque` for two more columns — the **Torque** letter and the OBDb **bix**
-(bit index) — when you need to cross-reference a third-party Torque/OBDb PID sheet.
-`canair bix --table` prints the whole table out to `--max`.
+`canair bix` shows WiCAN and ISO-TP by default. Add `--torque` for the **Torque**
+letter column (the notation the Torque app, Car Scanner, and similar OBD apps use)
+or `--obdb` for the OBDb **bix** (bit-index) column — they're distinct notations,
+so request whichever you're cross-referencing (or both). `canair bix --table`
+prints the whole table out to `--max`.
 
 ## What the WiCAN index actually is (firmware truth)
 
@@ -214,12 +216,12 @@ Everything the rest of this document claims is visible in one screen:
 - **`SOC_BMS = B09/2`** reads the state-of-charge byte at **B09** — the very first
   byte *after* the Frame 1 PCI byte at B08. Here `B09 = 0x80 = 128`, so
   `128 / 2 = 64 %`.
-- That same physical byte is **ISO-TP `0x06`** (and, under `--torque`, **Torque
-  `E`** / **bix `32`**). If you had copied a "byte 6" offset from a SavvyCAN/ISO-TP
-  view and written `B06`, you would instead read `0xFF` — one of the `FF FF FF FF`
-  bytes at B04–B07 — giving `127.5 %`. A silent, plausible-looking bug. **That
-  off-by-PCI shift is the entire trap this document is about**, and the overlay
-  makes it obvious.
+- That same physical byte is **ISO-TP `0x06`** (with `--torque`: **Torque `E`**;
+  with `--obdb`: **bix `32`**). If you had copied a "byte 6" offset from a
+  SavvyCAN/ISO-TP view and written `B06`, you would instead read `0xFF` — one of
+  the `FF FF FF FF` bytes at B04–B07 — giving `127.5 %`. A silent, plausible-looking
+  bug. **That off-by-PCI shift is the entire trap this document is about**, and the
+  overlay makes it obvious.
 - Bit-level params can share one byte (`B14`: four flags at bits 0/5/6/7 via
   `B14:k`), and a multi-byte value can span several (`BATTERY_POWER` over B15–B19).
   `unmapped` flags data bytes still open for reverse-engineering.
@@ -245,15 +247,17 @@ Because the indices go straight into the PCI-inclusive buffer, **a multi-byte
 range must not straddle a PCI byte** (B08/B16/B24/…) or it will fold a framing
 byte into the value. `canair validate pids` flags ranges that span a PCI byte.
 
-`canair bix` warns you at lookup time, too. Ask it about B09 and it points out that
-the neighbouring B08 is a framing byte:
+`canair bix` warns you at lookup time, too — and names the CAN frame each byte
+lives in. Ask it about B09 and it reports the frame and points out that the
+neighbouring B08 is a framing byte:
 
 ```text
 $ canair bix w9
-  WiCAN:    B09  (WiCAN AutoPID frame index: ISO-TP + PCI)
-  ISO-TP:   0x06  (payload index 6)
-  Torque:   E  (byte 4, sub=1)
-  bix:      32  (bit index, sub=1)
+  WiCAN:     B09  (WiCAN AutoPID frame index: ISO-TP + PCI)
+  CAN frame: 1   (B09 is in CAN frame 1: B08–B15, 8 bytes per frame)
+  ISO-TP:    0x06  (payload index 6)
+  Torque:    E  (data byte 4, sub=1; Torque app / Car Scanner)
+  bix:       32  (OBDb bit index, sub=1)
 
   ⚠ B08 is a PCI byte — [B07:B09] would include it!
     Use (B07 << 8) | B09 instead of [B07:B09]
@@ -285,8 +289,9 @@ Use the tooling instead of converting by hand:
 
 ```bash
 canair bix                                     # guided overview: legend + 2-frame table
-canair bix w9                                  # one lookup: WiCAN B09 across notations (incl. Torque/bix)
-canair bix --torque                            # also show the Torque letter + OBDb bix columns
+canair bix w9                                  # one lookup: every notation + the CAN frame it's in
+canair bix --torque                            # add the Torque letter column (Torque app, Car Scanner)
+canair bix --obdb                              # add the OBDb bix (bit-index) column
 canair bix --table                             # the full conversion table
 canair bix -a 6101FFFF… --ecu BMS --pid 2101   # annotate a payload + overlay defined params
 ```

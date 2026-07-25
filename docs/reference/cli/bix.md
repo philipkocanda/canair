@@ -4,7 +4,7 @@
 
 ```
 usage: canair bix [-h] [-1] [-2] [--table] [--annotate HEX [HEX ...]] [--raw]
-                  [--torque] [--max MAX] [--ecu ECU] [--pid PID]
+                  [--torque] [--obdb] [--max MAX] [--ecu ECU] [--pid PID]
                   [value]
 
 Convert byte indices between WiCAN, ISO-TP, Torque, and OBDb notations.
@@ -27,10 +27,15 @@ options:
                         payload (ISO-TP PCI bytes present, e.g. straight off
                         the bus) — index it as-is instead of reconstructing
                         the framing from a PCI-stripped UDS payload.
-  --torque, --obdb      Show the Torque and bix (OBDb) columns too. Hidden by
-                        default — WiCAN and ISO-TP are the notations canair
-                        expressions use; Torque/bix are for cross-referencing
-                        third-party Torque/OBDb PID sheets.
+  --torque              Show the Torque byte-letter column
+                        (--table/--annotate). Hidden by default. Torque
+                        notation (A, B, C… from the first UDS data byte) is
+                        what the Torque app, Car Scanner, and similar OBD apps
+                        use — handy for porting their PID sheets.
+  --obdb                Show the OBDb bix (bit-index) column
+                        (--table/--annotate). Hidden by default. bix is a
+                        distinct notation from Torque (data-byte index × 8) —
+                        request it independently of --torque.
   --max MAX             Max WiCAN index for table (default: 71)
   --ecu ECU             With --annotate: overlay which defined parameter maps
                         each byte (and flag unmapped bytes). Requires --pid.
@@ -43,13 +48,17 @@ each notation + a compact 2-frame table); `--table` prints the full table.
 input formats:
   w9, W09     WiCAN byte index (prefix w)
   i6, i0x06   ISO-TP payload index (prefix i)
-  b32         Torque bit index / bix (prefix b)
-  E, AA       Torque letter notation
+  b32         OBDb bix / bit index (prefix b)
+  E, AA       Torque letter notation (Torque app, Car Scanner & similar apps)
   9           Plain number (assumed WiCAN)
 
 subfunction modes:
   -1          1-byte subfunction (21xx PIDs) — default
   -2          2-byte subfunction (22xxxx DIDs)
+
+optional columns (--table / --annotate; both hidden by default):
+  --torque    add the Torque letter column (Torque app, Car Scanner & similar)
+  --obdb      add the OBDb bix (bit-index) column — a distinct notation
 
 note: with --annotate/-a, put the mode flag (-1/-2) BEFORE the hex bytes,
       e.g. `bix -2 -a 62 01 A0 ...` — a mode flag after the bytes is
