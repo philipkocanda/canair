@@ -114,11 +114,11 @@ tip: --against takes a known signal ECU:PID:PARAM (or a raw ECU:PID:EXPR). Use
 ## `canair hunt can`
 
 ```
-usage: canair hunt can [-h] --id ID --against 0xID:rN
-                       [--can-format {auto,asc,blf,csv,log,gvret}] [--min-n N]
-                       [--top N] [--transform MODE]
-                       [--method {pearson,spearman}] [--join-tol SECONDS]
-                       [--json] [--all-interps] [--notation NAME]
+usage: canair hunt can [-h] [--can-format {auto,asc,blf,csv,log,gvret}] --id
+                       ID --against 0xID:rN [--min-n N] [--top N]
+                       [--transform MODE] [--method {pearson,spearman}]
+                       [--join-tol SECONDS] [--json] [--all-interps]
+                       [--notation NAME]
                        FILE
 
 Hunt on a raw broadcast-CAN frame log: sweep every byte/interpretation of --id's frames vs --against (a frame byte 0xID:rN in the same log). Hits are raw-CAN rN labels (no WiCAN expr); --promote is not supported for frames yet (frame signals are defined in signals/).
@@ -129,10 +129,10 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-  --id ID               The arbitration ID to hunt on (e.g. 0x220)
-  --against 0xID:rN     Reference frame byte in the same log (e.g. 0x386:r0)
   --can-format {auto,asc,blf,csv,log,gvret}
                         Log format (default: auto-detect by extension)
+  --id ID               The arbitration ID to hunt on (e.g. 0x220)
+  --against 0xID:rN     Reference frame byte in the same log (e.g. 0x386:r0)
   --min-n N             Min aligned points (default 10)
   --top N               Max hits (default 12)
   --transform MODE      Transform the reference before aligning (e.g. delta to

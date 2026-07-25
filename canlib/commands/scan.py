@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import sys
 
+from canlib.commands._group import group_help
 from canlib.commands._live import (
     add_connection_args,
     ecu_completer,
@@ -74,16 +75,8 @@ Run `canair scan <kind> --help` for the flags of each kind.""",
     _add_iocontrol_parser(kinds)
     _add_routines_parser(kinds)
     _add_sessions_parser(kinds)
-    parser.set_defaults(func=_group_help, _scan_group_parser=parser)
+    parser.set_defaults(func=group_help("_scan_group_parser"), _scan_group_parser=parser)
     return parser
-
-
-def _group_help(args) -> int:
-    """Fallback when ``canair scan`` is invoked with no resolvable kind."""
-    parser = getattr(args, "_scan_group_parser", None)
-    if parser is not None:
-        parser.print_help()
-    return 1
 
 
 # ---------------------------------------------------------------------------

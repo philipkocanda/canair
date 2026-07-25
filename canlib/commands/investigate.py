@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from canlib.align import DEFAULT_JOIN_TOL_S, join_nearest, load_signal_captures
 from canlib.byteindex import mapped_bits, mapped_offsets
 from canlib.capture_dates import add_scope_args, resolve_date_bounds
+from canlib.commands._group import group_help
 from canlib.keepmode import scope_is_keep_unique
 from canlib.notation import (
     add_notation_arg,
@@ -64,15 +65,10 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     kinds = parser.add_subparsers(dest="investigate_kind", metavar="<kind>")
     _add_uds_parser(kinds)
     _add_can_parser(kinds)
-    parser.set_defaults(func=_group_help, _investigate_group_parser=parser)
+    parser.set_defaults(
+        func=group_help("_investigate_group_parser"), _investigate_group_parser=parser
+    )
     return parser
-
-
-def _group_help(args) -> int:
-    parser = getattr(args, "_investigate_group_parser", None)
-    if parser is not None:
-        parser.print_help()
-    return 1
 
 
 def _add_uds_parser(kinds) -> argparse.ArgumentParser:

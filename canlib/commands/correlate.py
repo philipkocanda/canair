@@ -24,6 +24,8 @@ from canlib.align import (
     load_signal_captures,
 )
 from canlib.capture_dates import add_scope_args, entry_datetime, resolve_date_bounds
+from canlib.commands._can_args import add_can_log_source_args
+from canlib.commands._group import group_help
 from canlib.keepmode import BANNER as KEEP_BANNER
 from canlib.keepmode import scope_is_keep_unique
 from canlib.notation import ByteNotation, add_notation_arg, relabel_signal, resolve_notation
@@ -66,15 +68,8 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     kinds = parser.add_subparsers(dest="correlate_kind", metavar="<kind>")
     _add_uds_parser(kinds)
     _add_can_parser(kinds)
-    parser.set_defaults(func=_group_help, _correlate_group_parser=parser)
+    parser.set_defaults(func=group_help("_correlate_group_parser"), _correlate_group_parser=parser)
     return parser
-
-
-def _group_help(args) -> int:
-    parser = getattr(args, "_correlate_group_parser", None)
-    if parser is not None:
-        parser.print_help()
-    return 1
 
 
 def _add_can_parser(kinds) -> argparse.ArgumentParser:
@@ -88,17 +83,7 @@ def _add_can_parser(kinds) -> argparse.ArgumentParser:
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument(
-        "file",
-        metavar="FILE",
-        help="Path to a raw broadcast-CAN frame log (.asc/.blf/candump .log/.trc/GVRET .csv)",
-    )
-    parser.add_argument(
-        "--can-format",
-        choices=["auto", "asc", "blf", "csv", "log", "gvret"],
-        default="auto",
-        help="Log format (default: auto-detect by extension)",
-    )
+    add_can_log_source_args(parser)
     parser.add_argument(
         "--id",
         metavar="IDS",

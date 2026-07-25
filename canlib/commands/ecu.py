@@ -37,6 +37,7 @@ import sys
 from collections import Counter
 from pathlib import Path
 
+from canlib.commands._group import group_help
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.ecus import ecu_identity_confidence, load_ecus, resolve_tx, rx_addr_str
 from canlib.pids import load_pids, pid_status
@@ -415,15 +416,8 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     kinds = parser.add_subparsers(dest="ecu_kind", metavar="<kind>")
     _add_show_parser(kinds)
     _add_add_parser(kinds)
-    parser.set_defaults(func=_group_help, _ecu_group_parser=parser)
+    parser.set_defaults(func=group_help("_ecu_group_parser"), _ecu_group_parser=parser)
     return parser
-
-
-def _group_help(args) -> int:
-    parser = getattr(args, "_ecu_group_parser", None)
-    if parser is not None:
-        parser.print_help()
-    return 1
 
 
 def _add_show_parser(kinds) -> argparse.ArgumentParser:

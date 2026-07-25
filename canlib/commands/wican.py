@@ -40,6 +40,7 @@ except ImportError:
     print("ERROR: PyYAML not installed. Run: pip3 install pyyaml", file=sys.stderr)
     sys.exit(1)
 
+from canlib.commands._group import group_help
 from canlib.constants import DEFAULT_WICAN, WICAN_ADDRESSES
 from canlib.pids import pid_status
 
@@ -555,16 +556,10 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     _add_autopid_parser(groups)
     _add_mode_parser(groups)
 
-    parser.set_defaults(func=run, _wican_func=_group_help, _wican_group_parser=parser)
+    parser.set_defaults(
+        func=run, _wican_func=group_help("_wican_group_parser"), _wican_group_parser=parser
+    )
     return parser
-
-
-def _group_help(args) -> int:
-    """Fallback when ``canair wican`` (or a subgroup) is invoked with no leaf."""
-    parser = getattr(args, "_wican_group_parser", None)
-    if parser is not None:
-        parser.print_help()
-    return 1
 
 
 # ---------------------------------------------------------------------------
@@ -641,7 +636,7 @@ def _add_autopid_parser(groups) -> argparse.ArgumentParser:
     )
     stats.set_defaults(_wican_func=_cmd_autopid_stats)
 
-    parser.set_defaults(_wican_func=_group_help, _wican_group_parser=parser)
+    parser.set_defaults(_wican_func=group_help("_wican_group_parser"), _wican_group_parser=parser)
     return parser
 
 
@@ -680,7 +675,7 @@ def _add_mode_parser(groups) -> argparse.ArgumentParser:
     _add_wican_arg(setp)
     setp.set_defaults(_wican_func=_cmd_mode_set)
 
-    parser.set_defaults(_wican_func=_group_help, _wican_group_parser=parser)
+    parser.set_defaults(_wican_func=group_help("_wican_group_parser"), _wican_group_parser=parser)
     return parser
 
 

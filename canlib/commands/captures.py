@@ -91,6 +91,7 @@ from canlib.commands._captures_query import (
     load_all_captures,
 )
 from canlib.commands._captures_step import cmd_step, cmd_step_pair
+from canlib.commands._group import group_help
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.states import join_states as _join_states
 
@@ -694,16 +695,8 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     kinds = parser.add_subparsers(dest="captures_kind", metavar="<kind>")
     _add_uds_parser(kinds)
     _add_can_parser(kinds)
-    parser.set_defaults(func=_group_help, _captures_group_parser=parser)
+    parser.set_defaults(func=group_help("_captures_group_parser"), _captures_group_parser=parser)
     return parser
-
-
-def _group_help(args) -> int:
-    """Fallback when ``canair captures`` is invoked with no resolvable kind."""
-    parser = getattr(args, "_captures_group_parser", None)
-    if parser is not None:
-        parser.print_help()
-    return 1
 
 
 def _add_can_parser(kinds) -> argparse.ArgumentParser:

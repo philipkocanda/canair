@@ -48,15 +48,15 @@ class TestParserWiring:
     def test_bare_wican_is_group_help(self):
         args = _parse("wican")
         assert args.func is wican.run
-        assert args._wican_func is wican._group_help
+        assert args._wican_func(args) == 1  # group-help fallback prints help, returns 1
 
     def test_bare_autopid_is_group_help(self):
         args = _parse("wican", "autopid")
-        assert args._wican_func is wican._group_help
+        assert args._wican_func(args) == 1
 
     def test_bare_mode_is_group_help(self):
         args = _parse("wican", "mode")
-        assert args._wican_func is wican._group_help
+        assert args._wican_func(args) == 1
 
     def test_autopid_write_dispatch(self):
         args = _parse("wican", "autopid", "write", "--verified-only")

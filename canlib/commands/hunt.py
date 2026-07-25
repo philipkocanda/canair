@@ -18,6 +18,8 @@ import sys
 
 from canlib.align import DEFAULT_JOIN_TOL_S, load_signal_captures
 from canlib.capture_dates import add_scope_args, resolve_date_bounds
+from canlib.commands._can_args import add_can_log_source_args
+from canlib.commands._group import group_help
 from canlib.notation import (
     ByteNotation,
     ByteRef,
@@ -54,15 +56,8 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     kinds = parser.add_subparsers(dest="hunt_kind", metavar="<kind>")
     _add_uds_parser(kinds)
     _add_can_parser(kinds)
-    parser.set_defaults(func=_group_help, _hunt_group_parser=parser)
+    parser.set_defaults(func=group_help("_hunt_group_parser"), _hunt_group_parser=parser)
     return parser
-
-
-def _group_help(args) -> int:
-    parser = getattr(args, "_hunt_group_parser", None)
-    if parser is not None:
-        parser.print_help()
-    return 1
 
 
 def _add_shared_hunt_args(parser) -> None:
@@ -113,11 +108,7 @@ def _add_can_parser(kinds) -> argparse.ArgumentParser:
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument(
-        "file",
-        metavar="FILE",
-        help="Path to a raw broadcast-CAN frame log (.asc/.blf/candump .log/.trc/GVRET .csv)",
-    )
+    add_can_log_source_args(parser)
     parser.add_argument(
         "--id",
         required=True,
@@ -129,12 +120,6 @@ def _add_can_parser(kinds) -> argparse.ArgumentParser:
         required=True,
         metavar="0xID:rN",
         help="Reference frame byte in the same log (e.g. 0x386:r0)",
-    )
-    parser.add_argument(
-        "--can-format",
-        choices=["auto", "asc", "blf", "csv", "log", "gvret"],
-        default="auto",
-        help="Log format (default: auto-detect by extension)",
     )
     _add_shared_hunt_args(parser)
     add_notation_arg(parser)
