@@ -19,7 +19,6 @@ import sys
 
 async def run_raw(args, transport, pids_data) -> int:
     """Entry point for a live command over a raw (slcan-tcp) transport."""
-    from ..commands.sniff import _resolve_device_defaults
     from ..wican_mode import ModeError, require_protocol
 
     host = transport.host
@@ -34,7 +33,7 @@ async def run_raw(args, transport, pids_data) -> int:
         print(f"error: {e}", file=sys.stderr)
         return 2
 
-    port, bitrate = _resolve_device_defaults(host, transport.port, transport.bitrate)
+    port, bitrate = transport.resolve_device_defaults()
 
     # Monitor: optimized pipelined + batched backend.
     if args.multi and args.monitor:

@@ -88,6 +88,43 @@ class TestTransportConfigProps:
             TransportConfig("slcan-tcp", "1.2.3.4", 3333).describe() == "slcan-tcp (1.2.3.4:3333)"
         )
 
+    def test_resolve_device_defaults_uses_explicit(self):
+        from canlib.transport.config import TransportConfig
+
+        # Both explicit -> no device probe, values passed through.
+        t = TransportConfig("slcan-tcp", "1.2.3.4", port=35000, bitrate=250000)
+        assert t.resolve_device_defaults() == (35000, 250000)
+
+    def test_resolve_device_defaults_no_host_falls_back(self):
+        from canlib.transport.config import TransportConfig
+
+        # No host -> not is_wican_http -> conventional SLCAN defaults, no probe.
+        t = TransportConfig("slcan-tcp", host=None)
+        assert t.resolve_device_defaults() == (3333, 500000)
+
+    def test_resolve_device_defaults_probes_wican(self, monkeypatch):
+        from canlib.transport.config import TransportConfig
+
+        # Gaps + a WiCAN host -> query the live device config for port/bitrate.
+        monkeypatch.setattr(
+            TransportConfig,
+            "_wican_device_config",
+            lambda self: {"port": 3333, "can_datarate": "500K"},
+        )
+        t = TransportConfig("slcan-tcp", "1.2.3.4")
+        assert t.resolve_device_defaults() == (3333, 500000)
+
+
+class TestParseDatarate:
+    def test_suffixes_and_garbage(self):
+        from canlib.transport.config import _parse_datarate
+
+        assert _parse_datarate("500K") == 500_000
+        assert _parse_datarate("1M") == 1_000_000
+        assert _parse_datarate("250000") == 250_000
+        assert _parse_datarate(None) is None
+        assert _parse_datarate("fast") is None
+
 
 class TestStatusGather:
     @pytest.fixture

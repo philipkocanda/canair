@@ -16,6 +16,9 @@ class T:
         self.port = port
         self.bitrate = bitrate
 
+    def resolve_device_defaults(self):
+        return self.port or 3333, self.bitrate or 500000
+
 
 class Args:
     def __init__(self, **kw):
@@ -40,10 +43,6 @@ class FakeRawTerminal:
 def routed(monkeypatch):
     calls = []
     monkeypatch.setattr(wican_mode, "require_protocol", lambda host, expected, **kw: None)
-
-    import canlib.commands.sniff as sniff
-
-    monkeypatch.setattr(sniff, "_resolve_device_defaults", lambda h, p, b: (35000, 500000))
 
     async def _mon(args, host, port, bitrate, pids):
         calls.append("monitor")

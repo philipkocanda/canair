@@ -117,6 +117,57 @@ class TransportConfig:
             loc = f"{loc}:{self.port}"
         return f"{self.type} ({loc})"
 
+    def resolve_device_defaults(self) -> tuple[int, int]:
+        """Effective ``(port, bitrate)`` for a raw-CAN connection.
+
+        Prefers the explicit config ``transport:`` values; for the gaps, queries
+        the device's live config **only when it's a WiCAN reachable over HTTP**
+        (:attr:`is_wican_http`) — a non-WiCAN SLCAN gateway (e.g. socketcan/other)
+        has no such endpoint, so it falls straight back to the conventional
+        SLCAN defaults (port 3333, 500 kbit/s). This keeps the WiCAN-specific
+        probing behind the transport seam instead of in generic commands.
+        """
+        port, bitrate = self.port, self.bitrate
+        if (port is None or bitrate is None) and self.is_wican_http and self.host is not None:
+            cfg = self._wican_device_config()
+            if port is None:
+                try:
+                    port = int(cfg.get("port", 3333) or 3333)
+                except (TypeError, ValueError):
+                    port = 3333
+            if bitrate is None:
+                bitrate = _parse_datarate(cfg.get("can_datarate"))
+        return port or 3333, bitrate or 500000
+
+    def _wican_device_config(self) -> dict:
+        """Best-effort read of a WiCAN's live ``/load_config`` (empty on failure)."""
+        import sys
+
+        from ..wican_api import resolve_wican_url
+        from ..wican_mode import load_config
+
+        assert self.host is not None  # only called when is_wican_http (host set)
+        try:
+            return load_config(resolve_wican_url(self.host)) or {}
+        except Exception as e:  # best-effort — fall back to conventional defaults
+            print(f"  (could not read device config for defaults: {e})", file=sys.stderr)
+            return {}
+
+
+def _parse_datarate(value) -> int | None:
+    """Parse a WiCAN ``can_datarate`` like '500K' / '1M' / '250000' to an int bitrate."""
+    if value is None:
+        return None
+    s = str(value).strip().upper().replace("BIT", "").rstrip("/S")
+    try:
+        if s.endswith("M"):
+            return int(float(s[:-1]) * 1_000_000)
+        if s.endswith("K"):
+            return int(float(s[:-1]) * 1_000)
+        return int(s)
+    except ValueError:
+        return None
+
 
 def _resolve_host(name: str | None) -> str | None:
     """Map a ``--wican`` alias to its IP, or pass an IP/host through."""

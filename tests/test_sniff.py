@@ -1,6 +1,7 @@
 """Tests for canair sniff aggregation + rendering (pure, no device)."""
 
-from canlib.commands.sniff import SniffStats, _parse_datarate, _parse_filters, render_sniff_table
+from canlib.commands.sniff import SniffStats, _parse_filters, render_sniff_table
+from canlib.transport.config import _parse_datarate
 
 
 class TestSniffStats:
