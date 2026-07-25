@@ -213,11 +213,11 @@ class TestCommandsAcceptNotationFlag:
         from canlib.commands import correlate, coverage, decode, hunt, investigate
 
         # Minimal required positionals/flags per command to reach a parseable state.
-        # correlate/hunt are uds/can groups — the notation flag lives on each kind.
+        # correlate/hunt/investigate are uds/can groups — the notation flag lives on each kind.
         cases = [
             (hunt, ["uds", "MCU", "2102", "--against", "X:Y:Z", "--notation", "isotp"]),
             (correlate, ["uds", "--notation", "torque"]),
-            (investigate, ["BCM", "22B003", "--notation", "bix"]),
+            (investigate, ["uds", "BCM", "22B003", "--notation", "bix"]),
             (coverage, ["--notation", "isotp"]),
             (decode, ["BMS", "2101", "--notation", "isotp"]),
         ]

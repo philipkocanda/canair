@@ -48,7 +48,37 @@ _RESET = "\033[0m"
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
-        help="Explain an unknown PID: one ranked per-byte report (mapped? / state / anchor / unit)",
+        help="Explain an unknown signal: uds (a PID) | can (an arbitration ID in a frame log)",
+        description=(
+            "Point this at an unknown signal and get one ranked table telling you\n"
+            "everything worth knowing about each of its bytes. Choose a domain kind:\n"
+            "  uds   a diagnostic PID (default) — per byte: mapped? / state F /\n"
+            "        best co-polled anchor / unit guess (domain A). A bare\n"
+            "        `canair investigate MCU 2102` is shorthand for this.\n"
+            "  can   an arbitration ID in a raw broadcast-CAN frame log (domain B) —\n"
+            "        per byte: best cross-ID anchor + linear fit + unit guess.\n\n"
+            "Read-only: analyses captures/ only, never talks to the device."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    kinds = parser.add_subparsers(dest="investigate_kind", metavar="<kind>")
+    _add_uds_parser(kinds)
+    _add_can_parser(kinds)
+    parser.set_defaults(func=_group_help, _investigate_group_parser=parser)
+    return parser
+
+
+def _group_help(args) -> int:
+    parser = getattr(args, "_investigate_group_parser", None)
+    if parser is not None:
+        parser.print_help()
+    return 1
+
+
+def _add_uds_parser(kinds) -> argparse.ArgumentParser:
+    parser = kinds.add_parser(
+        "uds",
+        help="Explain a diagnostic PID (domain A)",
         description=(
             "Point this at an unknown PID and get one ranked table telling you\n"
             "everything worth knowing about each of its bytes — the fastest way to\n"
@@ -126,6 +156,72 @@ tip: no anchors found? widen scope (drop --state), lower --min-r, or grow the
     add_notation_arg(parser)
     add_scope_args(parser)
     parser.set_defaults(func=run)
+    return parser
+
+
+def _add_can_parser(kinds) -> argparse.ArgumentParser:
+    parser = kinds.add_parser(
+        "can",
+        help="Explain an arbitration ID in a raw broadcast-CAN frame log (domain B)",
+        description=(
+            "Explain one arbitration ID in a raw broadcast-CAN frame log: for every\n"
+            "varying data byte, report its strongest cross-ID anchor (Pearson r +\n"
+            "linear fit y=m·x+c) and a physical-unit guess, ranked strongest first.\n\n"
+            "The domain-B analogue of `investigate uds`: frames have no defined-param\n"
+            "mapping (signals live in signals/, decoded via Stage-4 tooling) and no\n"
+            "power-state metadata, so the report is anchor-centric. Bytes are\n"
+            "labelled 0xID:rN (raw-CAN space, no PCI). Read-only.\n\n"
+            "To pin the exact byte against a known reference use `canair hunt can`;\n"
+            "to see every relationship at once use `canair correlate can`."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""\
+examples:
+  canair investigate can drive.blf --id 0x386        # rank each byte of 0x386 by best cross-ID anchor
+  canair investigate can drive.csv --id 0x220 --bits # include toggling bits
+  canair investigate can drive.asc --id 0x386 --json # machine-readable""",
+    )
+    parser.add_argument(
+        "file",
+        metavar="FILE",
+        help="Path to a raw broadcast-CAN frame log (.asc/.blf/candump .log/.trc/GVRET .csv)",
+    )
+    parser.add_argument(
+        "--id",
+        required=True,
+        metavar="ID",
+        help="Arbitration ID to explain (e.g. 0x386)",
+    )
+    parser.add_argument(
+        "--can-format",
+        choices=["auto", "asc", "blf", "csv", "log", "gvret"],
+        default="auto",
+        help="Log format (default: auto-detect by extension)",
+    )
+    parser.add_argument(
+        "--min-r",
+        type=float,
+        default=0.6,
+        metavar="R",
+        help="Only report an anchor when |r| ≥ this (default 0.6)",
+    )
+    parser.add_argument(
+        "--min-n", type=int, default=15, metavar="N", help="Min aligned points (default 15)"
+    )
+    parser.add_argument(
+        "--join-tol",
+        type=float,
+        default=DEFAULT_JOIN_TOL_S,
+        metavar="SECONDS",
+        help=f"Nearest-timestamp join window (default {DEFAULT_JOIN_TOL_S}s)",
+    )
+    parser.add_argument(
+        "--bits",
+        action="store_true",
+        help="Also analyse individual toggling bits (rN:k)",
+    )
+    parser.add_argument("--json", action="store_true", help="Machine-readable output")
+    parser.set_defaults(func=_run_can)
     return parser
 
 
@@ -279,6 +375,111 @@ def run(args) -> int:
         return 0
 
     _print_report(ecu, pid, reports, args, lp, bool(anchors))
+    return 0
+
+
+def _run_can(args) -> int:
+    """Explain one arbitration ID in a frame log — per-byte best cross-ID anchor.
+
+    Domain-B analogue of ``run``: build the target ID's byte (and, with --bits,
+    bit) series and every OTHER ID's series as anchors, then rank each target
+    byte by its strongest cross-ID correlation (r + linear fit + unit guess).
+    """
+    from pathlib import Path
+
+    from canlib import frame_series
+    from canlib.can_logs import CanLogError
+
+    path = Path(args.file)
+    if not path.is_file():
+        print(f"investigate can: no such file: {path}", file=sys.stderr)
+        return 1
+    try:
+        target_ids = frame_series.parse_id_filter(args.id)
+        if target_ids is None or len(target_ids) != 1:
+            print(
+                f"investigate can: --id must be a single arbitration ID, got {args.id!r}",
+                file=sys.stderr,
+            )
+            return 1
+        # Build ALL varying series once (target + anchors share the single read).
+        if args.bits:
+            all_series = frame_series.build_frame_bit_series(path, args.can_format)
+        else:
+            all_series = frame_series.build_frame_series(path, args.can_format, min_distinct=4)
+    except (ValueError, CanLogError) as e:
+        print(f"investigate can: {e}", file=sys.stderr)
+        return 1
+
+    target_label = frame_series._id_label(next(iter(target_ids)))
+    target = {n: s for n, s in all_series.items() if n.split(":", 1)[0] == target_label}
+    anchors = {n: s for n, s in all_series.items() if n.split(":", 1)[0] != target_label}
+    if not target:
+        print(
+            f"investigate can: {target_label} has no varying "
+            f"{'bits' if args.bits else 'bytes'} in {path.name}.",
+            file=sys.stderr,
+        )
+        return 1
+
+    rows = []
+    for name, series in sorted(target.items()):
+        best = _best_anchor(series, anchors, args.join_tol, args.min_n)
+        rows.append((name, best))
+    # Rank strongest anchor first; unanchored bytes last.
+    rows.sort(key=lambda t: -(abs(t[1][1]) if t[1] else 0.0))
+
+    if args.json:
+        _json.dump(
+            {
+                "can_log": path.name,
+                "id": target_label,
+                "join_tol_s": args.join_tol,
+                "bytes": [
+                    {
+                        "signal": name,
+                        "anchor": best[0] if best else None,
+                        "r": best[1] if best else None,
+                        "n": best[2] if best else 0,
+                        "slope": best[3] if best else None,
+                        "intercept": best[4] if best else None,
+                        "unit_guess": best[5] if best else None,
+                    }
+                    for name, best in rows
+                ],
+            },
+            sys.stdout,
+            indent=2,
+            default=str,
+        )
+        print()
+        return 0
+
+    print(
+        f"\n  {_BOLD}Investigate {target_label}{_RESET} "
+        f"{_DIM}({path.name}, {len(target)} varying "
+        f"{'bits' if args.bits else 'bytes'}, ≤{args.join_tol:g}s join){_RESET}"
+    )
+    shown = False
+    for name, best in rows:
+        if best and best[1] is not None and abs(best[1]) >= args.min_r:
+            _label, r, n, m, c, unit = best
+            rc = _GREEN if abs(r) >= 0.7 else _YELLOW
+            fit = f" fit y={m:.4f}·x{c:+.2f}" if m is not None else ""
+            unit_s = f" {_CYAN}{unit}{_RESET}" if unit else ""
+            print(
+                f"    {_BOLD}{name}{_RESET}  {rc}r={r:+.3f}{_RESET} vs {best[0]} "
+                f"{_DIM}n={n}{fit}{_RESET}{unit_s}"
+            )
+            shown = True
+        else:
+            print(f"    {_BOLD}{name}{_RESET}  {_DIM}no cross-ID anchor ≥ {args.min_r}{_RESET}")
+    if not shown:
+        print(
+            f"    {_DIM}no byte cleared |r| ≥ {args.min_r} — lower --min-r, or the ID may "
+            f"carry only counters/constants.{_RESET}"
+        )
+    print()
     return 0
 
 

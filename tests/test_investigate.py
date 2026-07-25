@@ -63,7 +63,7 @@ class TestInvestigate:
         )
 
         p = investigate.add_parser(argparse.ArgumentParser().add_subparsers())
-        args = p.parse_args(["AAF", "2181", "--min-r", "0.5", "--min-n", "10"])
+        args = p.parse_args(["uds", "AAF", "2181", "--min-r", "0.5", "--min-n", "10"])
         rc = investigate.run(args)
         assert rc == 0
         out = capsys.readouterr().out
@@ -153,7 +153,7 @@ def _run(tmp_path, monkeypatch, argv, specs):
     )
     monkeypatch.setattr("canlib.commands.correlate._discover_specs", lambda *a, **k: specs)
     p = investigate.add_parser(argparse.ArgumentParser().add_subparsers())
-    return investigate.run(p.parse_args(argv))
+    return investigate.run(p.parse_args(["uds", *argv]))
 
 
 class TestInvestigateBitsEvents:
@@ -204,3 +204,64 @@ class TestInvestigateBitsEvents:
         _run(tmp_path, monkeypatch, ["IGPM", "22BC03", "--bits", "--all"], [("IGPM", "22BC03")])
         out = capsys.readouterr().out
         assert "no co-polled anchor" in out and "--events" in out
+
+
+def _write_can_log(tmp_path):
+    """0x386:r0 and 0x331:r2 ramp together (a mirror); 0x386 other bytes are noise/const."""
+    lines = []
+    for i in range(30):
+        t = i * 0.1
+        v = i % 256
+        lines.append(f"({t:.6f}) can0 386#{v:02X}FF{v:02X}00000000")
+        lines.append(f"({t:.6f}) can0 331#0000{v:02X}00000000")
+    p = tmp_path / "drive.log"
+    p.write_text("\n".join(lines) + "\n")
+    return p
+
+
+class TestInvestigateCan:
+    def _run(self, argv):
+        import argparse
+
+        p = investigate.add_parser(argparse.ArgumentParser().add_subparsers())
+        args = p.parse_args(["can", *argv])
+        return args.func(args)
+
+    def test_ranks_byte_by_cross_id_anchor(self, tmp_path, capsys):
+        log = _write_can_log(tmp_path)
+        rc = self._run([str(log), "--id", "0x386", "--min-r", "0.9", "--join-tol", "0.05"])
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "Investigate 0x386" in out
+        assert "0x386:r0" in out and "0x331:r2" in out  # the mirror is found
+
+    def test_json(self, tmp_path, capsys):
+        import json
+
+        log = _write_can_log(tmp_path)
+        assert (
+            self._run(
+                [str(log), "--id", "0x386", "--min-r", "0.9", "--join-tol", "0.05", "--json"]
+            )
+            == 0
+        )
+        data = json.loads(capsys.readouterr().out)
+        assert data["id"] == "0x386"
+        top = data["bytes"][0]
+        assert top["signal"] == "0x386:r0" and top["anchor"] == "0x331:r2"
+
+    def test_missing_file(self, tmp_path, capsys):
+        assert self._run([str(tmp_path / "nope.log"), "--id", "0x386"]) == 1
+        assert "no such file" in capsys.readouterr().err
+
+    def test_bad_id_clean_error(self, tmp_path, capsys):
+        log = _write_can_log(tmp_path)
+        assert self._run([str(log), "--id", "0xZZZ"]) == 1
+        err = capsys.readouterr().err
+        assert "invalid arbitration ID" in err
+        assert "invalid literal" not in err
+
+    def test_unknown_id_no_frames(self, tmp_path, capsys):
+        log = _write_can_log(tmp_path)
+        assert self._run([str(log), "--id", "0x999"]) == 1
+        assert "no varying" in capsys.readouterr().err

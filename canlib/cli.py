@@ -28,6 +28,7 @@ _GROUP_DEFAULTS = {
     "captures": ({"uds", "can"}, "uds"),
     "correlate": ({"uds", "can"}, "uds"),
     "hunt": ({"uds", "can"}, "uds"),
+    "investigate": ({"uds", "can"}, "uds"),
 }
 
 # Commands that manage/report versions themselves or shouldn't be interrupted by
