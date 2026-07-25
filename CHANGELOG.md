@@ -24,6 +24,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `check_for_updates: false` in config or the `CANAIR_NO_UPDATE_CHECK` env var.
   New library module `canlib/update_check.py`.
 
+- **`canair hunt --can-log FILE --id 0xID --against 0xREF:rN` — "which frame byte
+  is this signal?" (Stage 2b).** Sweeps every byte offset × interpretation
+  (u8/i16/f32/… × endianness) of one arbitration ID's frames in a raw broadcast-CAN
+  log, time-aligns each against a reference frame byte in the same log, and ranks
+  by |r| with a linear fit + physical-unit guess — the frame-domain analogue of
+  the diagnostic byte hunt, reusing the same interpretation sweep and ranking. Hits
+  are raw-CAN `rN` labels (no PCI, no WiCAN expression); `--promote` is not
+  supported for frames yet (they're defined in the linear `signals/` model, Stage 4).
+  The diagnostic WiCAN hunt path is unchanged.
 - **`canair correlate --can-log FILE` — correlate raw broadcast-CAN frame bytes
   (Stage 2).** Reads a native frame log's per-byte series (`0xID:rN`, `--bits` for
   `0xID:rN.k`, `--id` to filter arbitration IDs) and runs the *same* correlation

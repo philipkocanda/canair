@@ -441,15 +441,24 @@ def hunt_byte(
     # Rank: strongest |r| first; among near-equal r, prefer the narrowest read
     # (a single byte that *is* the signal beats any wider window that merely
     # contains it) and the lowest relative residual. Also demote reads with no
-    # WiCAN expression (float / LE-signed) — not directly usable as a param.
+    # expression (float / LE-signed) — not directly usable as a param.
+    return _rank_and_collapse(hits, top=top, all_interps=all_interps)
+
+
+def _rank_and_collapse(hits: list[HuntHit], *, top: int, all_interps: bool) -> list[HuntHit]:
+    """Shared hit ranking + per-offset collapse for byte/frame hunts.
+
+    Sorts strongest |r| first; among near-equal r prefers the narrowest read and
+    lowest relative residual, and demotes ``<no-expr>`` (float / LE-signed) hits.
+    Collapses to the best hit per starting offset (``all_interps`` keeps every
+    ``offset:interp``), then trims to ``top``.
+    """
+
     def _rank(h: HuntHit) -> tuple:
         rel_resid = h.resid / (abs(h.slope) or 1.0)
         return (-round(abs(h.r), 3), h.width, h.expr == "<no-expr>", rel_resid)
 
     hits.sort(key=_rank)
-    # Collapse to the best hit per starting offset (default) so one real signal
-    # doesn't emit a wall of near-identical u8/i16/u24/… rows; --all-interps
-    # (all_interps=True) keeps every (offset, interp). Then trim to ``top``.
     seen: set = set()
     unique: list[HuntHit] = []
     for h in hits:

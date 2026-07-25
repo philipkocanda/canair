@@ -101,3 +101,100 @@ def parse_id_filter(spec: str | None) -> set[int] | None:
         if tok:
             out.add(int(tok, 16))  # hex arbitration ID, with or without 0x prefix
     return out or None
+
+
+def _frame_expr(off: int, spec: tuple, little: bool) -> str | None:
+    """Raw-CAN label for an interpretation of a frame at ``off``.
+
+    Frames have no ISO-TP/PCI and no WiCAN expression language: a byte is ``rN``,
+    a big-endian multi-byte read a ``[rN:rM]`` range. Little-endian / float reads
+    have no simple raw label (``None`` → ranked/demoted like the diagnostic hunt's
+    ``<no-expr>``). Definitions ultimately live in the linear ``signals/`` model
+    (Stage 4), not an expression — this is a display label for analysis.
+    """
+    _, width, kind, _signed = spec
+    if kind == "float" or (little and width > 1):
+        return None
+    if width == 1:
+        return f"r{off}"
+    return f"[r{off}:r{off + width - 1}]"
+
+
+def hunt_frame(
+    path,
+    fmt: str | None,
+    target_id: int,
+    ref: list[TimePoint],
+    *,
+    tol_s: float,
+    min_n: int = 10,
+    top: int = 12,
+    method: str = "pearson",
+    all_interps: bool = False,
+):
+    """ "Which byte/interpretation of frame ``target_id`` *is* ``ref``?"
+
+    The frame-domain analogue of :func:`canlib.xanalysis.hunt_byte`: sweeps every
+    byte offset × interpretation (u8/i16/f32/… × endianness) of one arbitration
+    ID's frames, time-aligns each against ``ref``, and ranks by |r| — reusing the
+    plot inspector's ``INSPECT_TYPES``/``interpret_bytes`` and the shared
+    ranking/collapse. No PCI to skip (frames are contiguous). Returns
+    :class:`~canlib.xanalysis.HuntHit` with raw-CAN ``rN`` labels.
+    """
+    from pathlib import Path
+
+    from .align import join_nearest
+    from .commands._decode_plot import INSPECT_TYPES, interpret_bytes
+    from .xanalysis import HuntHit, _rank_and_collapse, correlation, linear_fit, sniff_unit
+
+    p = Path(path)
+    resolved = detect_format(p, fmt)
+    frames: list[tuple[datetime, bytes]] = []
+    max_len = 0
+    for msg in iter_frames(p, resolved):
+        if msg.arbitration_id != target_id or not msg.timestamp:
+            continue
+        frames.append((datetime.fromtimestamp(msg.timestamp), bytes(msg.data)))
+        max_len = max(max_len, len(msg.data))
+    if not frames:
+        return []
+
+    hits: list[HuntHit] = []
+    for spec in INSPECT_TYPES:
+        _, width, _kind, _signed = spec
+        for little in (False, True) if width > 1 else (False,):
+            for off in range(max_len):
+                if off + width > max_len:
+                    continue
+                cand: list[TimePoint] = []
+                for dt, data in frames:
+                    v = interpret_bytes(data, off, spec, little=little)
+                    if v is not None:
+                        cand.append(TimePoint(dt, v))
+                if len({tp.value for tp in cand}) < 3:
+                    continue
+                xs, ys, n = join_nearest(ref, cand, tol_s=tol_s)
+                if n < min_n:
+                    continue
+                r = correlation(xs, ys, method)
+                if r is None:
+                    continue
+                fit = linear_fit(xs, ys)
+                if fit is None:
+                    continue
+                m, c, resid = fit
+                hits.append(
+                    HuntHit(
+                        expr=_frame_expr(off, spec, little) or "<no-expr>",
+                        interp=spec[0] + (" LE" if little and width > 1 else ""),
+                        offset=off,
+                        r=r,
+                        n=n,
+                        slope=m,
+                        intercept=c,
+                        resid=resid,
+                        unit_guess=sniff_unit(xs, ys),
+                        width=width,
+                    )
+                )
+    return _rank_and_collapse(hits, top=top, all_interps=all_interps)

@@ -77,13 +77,14 @@ tip: --against takes a known signal ECU:PID:PARAM (or a raw ECU:PID:EXPR). Use
      `canair correlate --overlap` first to find a reference that actually shares
      time-aligned samples with your target.""",
     )
-    parser.add_argument("ecu", help="Target ECU to hunt on (e.g. AAF)")
-    parser.add_argument("pid", help="Target PID to hunt on (e.g. 2181)")
+    parser.add_argument("ecu", nargs="?", help="Target ECU to hunt on (e.g. AAF)")
+    parser.add_argument("pid", nargs="?", help="Target PID to hunt on (e.g. 2181)")
     parser.add_argument(
         "--against",
         required=True,
-        metavar="ECU:PID:PARAM",
-        help="Reference signal, e.g. ESC:22C101:REAL_SPEED_KMH (param or EXPR)",
+        metavar="REF",
+        help="Reference signal: a diagnostic ECU:PID:PARAM (or EXPR), or — with "
+        "--can-log — a frame byte 0xID:rN in the same log",
     )
     parser.add_argument(
         "--min-n", type=int, default=10, metavar="N", help="Min aligned points (default 10)"
@@ -125,6 +126,24 @@ tip: --against takes a known signal ECU:PID:PARAM (or a raw ECU:PID:EXPR). Use
         "evidence auto-filled into notes",
     )
     add_notation_arg(parser)
+    parser.add_argument(
+        "--can-log",
+        metavar="FILE",
+        help="Hunt on a raw broadcast-CAN frame log instead of a diagnostic PID: "
+        "sweep every byte/interpretation of --id's frames vs --against. Bytes are "
+        "labelled 0xID:rN (raw-CAN, no WiCAN expr). --promote is not supported yet.",
+    )
+    parser.add_argument(
+        "--can-format",
+        choices=["auto", "asc", "blf", "csv", "log"],
+        default="auto",
+        help="With --can-log: log format (default: auto-detect by extension)",
+    )
+    parser.add_argument(
+        "--id",
+        metavar="ID",
+        help="With --can-log: the arbitration ID to hunt on (e.g. 0x220)",
+    )
     add_scope_args(parser)
     parser.set_defaults(func=run)
     return parser
@@ -142,8 +161,132 @@ def _hit_label(h, notation: ByteNotation, sub_bytes: int) -> str:
     return ByteRef.from_wican(h.offset, width=h.width).render(notation, sub_bytes=sub_bytes)
 
 
+def _run_can_log(args) -> int:
+    """Hunt on a raw broadcast-CAN frame log: which byte of --id tracks --against?
+
+    ``--against`` is a frame byte ``0xID:rN`` in the same log (resolved from the
+    log's frame series). Reuses the frame-domain sweep (frame_series.hunt_frame)
+    and the shared ranking; hits are raw-CAN ``rN`` labels (no WiCAN expression,
+    so --promote is rejected — frame signals are defined in signals/, Stage 4).
+    """
+    from pathlib import Path
+
+    from canlib import frame_series
+    from canlib.can_logs import CanLogError
+
+    if args.promote:
+        print(
+            "hunt --can-log: --promote is not supported for frames yet (Stage 4).", file=sys.stderr
+        )
+        return 2
+    if not args.id:
+        print("hunt --can-log: --id ARBITRATION_ID is required (e.g. --id 0x220).", file=sys.stderr)
+        return 2
+
+    path = Path(args.can_log)
+    if not path.is_file():
+        print(f"--can-log: no such file: {path}", file=sys.stderr)
+        return 1
+    try:
+        target = int(args.id, 16)
+        id_filter = (
+            frame_series.parse_id_filter(args.against.split(":")[0])
+            if ":" in args.against
+            else None
+        )
+        # Reference: a frame byte 0xID:rN in the same log.
+        ref_series_map = frame_series.build_frame_series(
+            path, args.can_format, min_distinct=2, id_filter=id_filter
+        )
+    except (ValueError, CanLogError) as e:
+        print(f"--can-log: {e}", file=sys.stderr)
+        return 1
+
+    ref = ref_series_map.get(args.against)
+    if ref is None:
+        avail = ", ".join(sorted(ref_series_map)[:6])
+        print(
+            f"--against {args.against!r}: not a varying byte in {path.name}. "
+            f"Expected a frame label like 0x386:r0. Available e.g.: {avail} …",
+            file=sys.stderr,
+        )
+        return 1
+    ref_label = args.against
+    if args.transform and args.transform != "raw":
+        ref = transform_ref(ref, args.transform)
+        ref_label = f"{args.transform}({ref_label})"
+
+    try:
+        hits = frame_series.hunt_frame(
+            path,
+            args.can_format,
+            target,
+            ref,
+            tol_s=args.join_tol,
+            min_n=args.min_n,
+            top=args.top,
+            method=args.method,
+            all_interps=args.all_interps,
+        )
+    except CanLogError as e:
+        print(f"--can-log: {e}", file=sys.stderr)
+        return 1
+
+    if args.json:
+        _json.dump(
+            {
+                "can_log": path.name,
+                "target": f"0x{target:X}",
+                "reference": ref_label,
+                "hits": [
+                    {
+                        "expr": h.expr,
+                        "interp": h.interp,
+                        "offset": h.offset,
+                        "r": h.r,
+                        "n": h.n,
+                        "slope": h.slope,
+                        "intercept": h.intercept,
+                        "resid": h.resid,
+                        "unit_guess": h.unit_guess,
+                    }
+                    for h in hits
+                ],
+            },
+            sys.stdout,
+            indent=2,
+        )
+        print()
+        return 0
+
+    if not hits:
+        print(f"No byte of 0x{target:X} correlates with {ref_label} in {path.name}.")
+        return 0
+    print(
+        f"\n  {_BOLD}Hunt 0x{target:X} vs {ref_label}{_RESET} "
+        f"{_DIM}({path.name}, nearest-join ≤{args.join_tol:g}s){_RESET}"
+    )
+    for h in hits:
+        color = _GREEN if abs(h.r) >= 0.7 else _YELLOW if abs(h.r) >= 0.3 else _DIM
+        unit = f"  {_CYAN}{h.unit_guess}{_RESET}" if h.unit_guess else ""
+        print(
+            f"    {color}r={h.r:+.3f}{_RESET}  {_BOLD}{h.expr}{_RESET} "
+            f"{_DIM}({h.interp}){_RESET}  fit y={h.slope:.4f}·x{h.intercept:+.2f} "
+            f"{_DIM}resid={h.resid:.2f} n={h.n}{_RESET}{unit}"
+        )
+    print()
+    return 0
+
+
 def run(args) -> int:
     from canlib.ecus import canonical_ecu_name_safe
+
+    if args.can_log:
+        return _run_can_log(args)
+
+    if not args.ecu or not args.pid:
+        print("hunt: ECU and PID are required (or use --can-log FILE --id).", file=sys.stderr)
+        return 2
 
     since, until, err = resolve_date_bounds(args)
     if err:

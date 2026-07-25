@@ -3,13 +3,13 @@
 # `canair hunt`
 
 ```
-usage: canair hunt [-h] --against ECU:PID:PARAM [--min-n N] [--top N]
-                   [--transform MODE] [--method {pearson,spearman}]
-                   [--join-tol SECONDS] [--json] [--all-interps]
-                   [--promote NAME] [--notation NAME] [--since YYYY-MM-DD]
-                   [--until YYYY-MM-DD] [--date YYYY-MM-DD] [--state SUBSTR]
-                   [--label SUBSTR]
-                   ecu pid
+usage: canair hunt [-h] --against REF [--min-n N] [--top N] [--transform MODE]
+                   [--method {pearson,spearman}] [--join-tol SECONDS] [--json]
+                   [--all-interps] [--promote NAME] [--notation NAME]
+                   [--can-log FILE] [--can-format {auto,asc,blf,csv,log}]
+                   [--id ID] [--since YYYY-MM-DD] [--until YYYY-MM-DD]
+                   [--date YYYY-MM-DD] [--state SUBSTR] [--label SUBSTR]
+                   [ecu] [pid]
 
 Answer 'which byte on this PID carries a signal I already know?'
 
@@ -33,9 +33,9 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-  --against ECU:PID:PARAM
-                        Reference signal, e.g. ESC:22C101:REAL_SPEED_KMH
-                        (param or EXPR)
+  --against REF         Reference signal: a diagnostic ECU:PID:PARAM (or
+                        EXPR), or — with --can-log — a frame byte 0xID:rN in
+                        the same log
   --min-n N             Min aligned points (default 10)
   --top N               Max hits (default 12)
   --transform MODE      Transform the reference before aligning (e.g. delta to
@@ -56,6 +56,16 @@ options:
   --notation NAME       byte-index notation for output labels: wican
                         (default), isotp, torque, bix. Overrides the
                         display.byte_notation config key.
+  --can-log FILE        Hunt on a raw broadcast-CAN frame log instead of a
+                        diagnostic PID: sweep every byte/interpretation of
+                        --id's frames vs --against. Bytes are labelled 0xID:rN
+                        (raw-CAN, no WiCAN expr). --promote is not supported
+                        yet.
+  --can-format {auto,asc,blf,csv,log}
+                        With --can-log: log format (default: auto-detect by
+                        extension)
+  --id ID               With --can-log: the arbitration ID to hunt on (e.g.
+                        0x220)
 
 scoping:
   Restrict to captures within a date range (inclusive, YYYY-MM-DD) and/or by session state/label substring

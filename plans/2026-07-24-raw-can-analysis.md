@@ -300,10 +300,12 @@ here (Stage 4). It realises the broadcast-decoding decision of
 - [~] Stage 2 — analysis-seam generalization. **Done (2a):** `canlib/frame_series.py`
   builds `0xID:rN` byte/bit `TimePoint` series from a frame log and feeds the
   *same* `correlate_matrix`/`join_nearest` core via `canair correlate --can-log`
-  (ranked cross-ID + `--against` + clusters). Additive — the WiCAN diagnostic path
-  is byte-identical (verified on ioniq-2017). **Remaining (2b):** frame source in
-  `hunt`/`investigate` ("which frame byte is speed?"), and the fuller
-  `LoadedSignal`/arb-ID loader unification if desired. (2026-07-25)
+  (ranked cross-ID + `--against` + clusters). **Done (2b):** `canair hunt --can-log
+  --id 0xID --against 0xREF:rN` sweeps a frame's byte offsets × interpretations vs
+  a reference frame byte, reusing the shared interpretation sweep + `_rank_and_collapse`.
+  Additive — the WiCAN diagnostic path is byte-identical (verified on ioniq-2017).
+  **Remaining (2c, optional):** `investigate --can-log`, and the fuller
+  `LoadedSignal`/arb-ID loader unification. (2026-07-25)
 - [ ] Stage 3 — frames in `correlate`/`hunt`/`align`/`decode`/`coverage`
 - [ ] Stage 4 — `signals/` editor + `import dbc`/`export dbc`; domain-A `export csv`/`json`
 - [ ] Stage 5 — docs / README / AGENTS.md / skills / CHANGELOG
