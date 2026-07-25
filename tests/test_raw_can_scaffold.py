@@ -183,10 +183,10 @@ class TestImportStub:
         assert args._import_kind == "dbc"
         assert args.dry_run is True
 
-    def test_dbc_still_not_implemented(self, capsys):
-        args = self._parse(["dbc", "car.dbc"])
-        assert import_cmd.run(args) == 2
-        assert "not yet implemented" in capsys.readouterr().err
+    def test_dbc_missing_file(self, capsys):
+        args = self._parse(["dbc", "/nonexistent/car.dbc"])
+        assert import_cmd.run(args) == 1
+        assert "no such file" in capsys.readouterr().err
 
     def test_subcommand_required(self):
         with pytest.raises(SystemExit):

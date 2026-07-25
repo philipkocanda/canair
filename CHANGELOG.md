@@ -24,6 +24,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `check_for_updates: false` in config or the `CANAIR_NO_UPDATE_CHECK` env var.
   New library module `canlib/update_check.py`.
 
+- **Broadcast signal definitions + DBC interop (Stage 4).** The domain-B analogue
+  of a PID's parameters — a DBC-compatible **linear** signal model in
+  `signals/<bus>.yaml` (arbitration ID → named signals: `start_bit`/`length`/
+  `byte_order`/`scale`/`offset`/`min`/`max`/`unit`/`verified`):
+  - **`canair signals`** (`list` / `upsert` / `rm`) — surgical, comment-preserving,
+    validated + auto-reverted editing (via `canlib/signals_edit.py`); never
+    hand-edit the sidecar.
+  - **`canair import dbc <FILE>`** — import a DBC's broadcast signals into
+    `signals/` (cantools, `strict=False` for real-world overlapping-signal DBCs;
+    `--bus`/`--tx-ecu`/`--ids`/`--dry-run`). Verified on the real
+    `uhi22/Ioniq28Investigations` DBC (287 signals).
+  - **`canair export dbc`** — write `signals/` back to a DBC for SavvyCAN/cabana/
+    Wireshark (`--bus`/`--verified-only`/`-o`); round-trips losslessly with
+    `import dbc`. Adds `cantools` as a dependency.
 - **SavvyCAN GVRET CSV import (Stage 3).** `canair import can` (and
   `correlate`/`hunt --can-log`) now read SavvyCAN **GVRET** frame logs — the
   `Time Stamp,ID,Extended,Dir,Bus,LEN,D1..D8` format (microsecond timestamps).

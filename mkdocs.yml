@@ -102,12 +102,14 @@ nav:
           - canair coverage: reference/cli/coverage.md
           - canair research: reference/cli/research.md
           - canair pids: reference/cli/pids.md
+          - canair signals: reference/cli/signals.md
           - canair validate: reference/cli/validate.md
           - canair wican: reference/cli/wican.md
           - canair ecu: reference/cli/ecu.md
           - canair profile: reference/cli/profile.md
           - canair config: reference/cli/config.md
           - canair import: reference/cli/import.md
+          - canair export: reference/cli/export.md
           - canair bix: reference/cli/bix.md
           - canair completion: reference/cli/completion.md
   - Bundled profiles:

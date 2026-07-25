@@ -25,6 +25,7 @@ Every capability is a `canair <subcommand>`. These pages are generated from each
 - [`canair coverage`](coverage.md) — Audit PID definitions for decoding gaps.
 - [`canair research`](research.md) — Report open reverse-engineering work from ecus/ research: sections.
 - [`canair pids`](pids.md) — Safely edit ecus/ parameters and research entries.
+- [`canair signals`](signals.md) — ``canair signals`` — view/edit broadcast signal definitions (domain B).
 - [`canair validate`](validate.md) — Validate a profile's data files against their schemas and
 - [`canair wican`](wican.md) — Build and sync the WiCAN device's AutoPID profile.
 - [`canair ecu`](ecu.md) — Inspect or edit the profile's ECU registry.
@@ -32,6 +33,7 @@ Every capability is a `canair <subcommand>`. These pages are generated from each
 - [`canair config`](config.md) — ``canair config`` — view and manage user configuration.
 - [`canair update`](update.md) — ``canair update`` — update the CLI from its git-clone install.
 - [`canair import`](import.md) — Import external CAN data into the active profile.
+- [`canair export`](export.md) — ``canair export`` — export canair data to interchange formats.
 - [`canair import-capture`](import-capture.md) — Record externally-provided UDS payloads into the active profile (device-free capture import).
 - [`canair bix`](bix.md) — Convert byte indices between WiCAN, ISO-TP, Torque, and OBDb notations.
 - [`canair completion`](completion.md) — Enable `canair` tab-completion (subcommands, flags, ECU/PID names).

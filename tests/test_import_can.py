@@ -198,9 +198,9 @@ class TestImportCanCommand:
         assert self._run(["can", "/nonexistent/x.log"]) == 1
         assert "no such file" in capsys.readouterr().err
 
-    def test_dbc_still_not_implemented(self, temp_profile, capsys):
-        assert self._run(["dbc", "car.dbc"]) == 2
-        assert "not yet implemented" in capsys.readouterr().err
+    def test_dbc_missing_file(self, temp_profile, capsys):
+        assert self._run(["dbc", "/nonexistent/car.dbc"]) == 1
+        assert "no such file" in capsys.readouterr().err
 
 
 # ── captures --can listing ────────────────────────────────────────────────

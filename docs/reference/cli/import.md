@@ -17,7 +17,7 @@ the captures/*.yaml schema). SavvyCAN GVRET (.csv) is auto-detected by header.
 positional arguments:
   {can,dbc}
     can       Import a raw broadcast-CAN frame log into captures/can/
-    dbc       Import DBC signal definitions (Stage 4 — not yet implemented)
+    dbc       Import DBC broadcast signal definitions into the signals/ model
 
 options:
   -h, --help  show this help message and exit
@@ -54,14 +54,18 @@ options:
 ## `canair import dbc`
 
 ```
-usage: canair import dbc [-h] [--ecu ECU] [--ids IDS] [--dry-run] file
+usage: canair import dbc [-h] [--bus BUS] [--tx-ecu TX_ECU] [--ids IDS]
+                         [--dry-run] [--json]
+                         file
 
 positional arguments:
-  file        Path to a .dbc file
+  file             Path to a .dbc file
 
 options:
-  -h, --help  show this help message and exit
-  --ecu ECU   Associate imported messages with this ECU/bus
-  --ids IDS   Comma-separated arbitration IDs to import (default: all)
-  --dry-run   Print the diff without writing
+  -h, --help       show this help message and exit
+  --bus BUS        Target bus (signals/<bus>.yaml; default: DBC filename)
+  --tx-ecu TX_ECU  Annotate imported messages with this ECU
+  --ids IDS        Comma-separated arbitration IDs to import (default: all)
+  --dry-run        Print the diff without writing
+  --json           Machine-readable result
 ```

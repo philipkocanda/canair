@@ -40,6 +40,7 @@ COMMAND_NAMES: list[str] = [
     "research",
     # authoring / maintenance
     "pids",
+    "signals",
     "validate",
     "wican",
     "ecu",
@@ -48,6 +49,7 @@ COMMAND_NAMES: list[str] = [
     "update",
     # interop (import/export external CAN data)
     "import_",
+    "export",
     "capture_import",
     # utilities
     "bix",

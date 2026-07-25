@@ -311,5 +311,11 @@ here (Stage 4). It realises the broadcast-decoding decision of
   `--can-log` all read GVRET. Verified end-to-end on the real uhi22 Ioniq-28 drive
   log (75k frames, 86 IDs). (2026-07-25)
 - [ ] Stage 4 — `signals/` editor + `import dbc`/`export dbc`; domain-A `export csv`/`json`
-- [ ] Stage 4 — `signals/` editor + `import dbc`/`export dbc`; domain-A `export csv`/`json`
+- [x] Stage 4 — the linear `signals/` model editor (`canlib/signals_edit.py` +
+  `canair signals` list/upsert/rm, validated + auto-reverted) and DBC interop
+  (`canair import dbc` / `export dbc` via cantools, `strict=False`; round-trips
+  losslessly — verified on the real uhi22 DBC, 287 signals). cantools added as a
+  dep. **Deferred:** frame `--promote` (hunt/correlate hit → `signals/` candidate;
+  scale/offset-vs-reference semantics need thought) and frame `decode`/`coverage`
+  (a signals/-driven frame decoder). (2026-07-25)
 - [ ] Stage 5 — docs / README / AGENTS.md / skills / CHANGELOG
