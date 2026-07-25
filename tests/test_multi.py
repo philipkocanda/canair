@@ -341,7 +341,7 @@ class TestMultiSaveTimestamp:
     def test_capture_stamp_millisecond_precision_and_date(self):
         from datetime import datetime
 
-        from canlib.modes.multi import _capture_stamp
+        from canlib.modes.multi_batch import _capture_stamp
 
         # A known epoch → its exact date + HH:MM:SS.fff.
         acq = datetime(2026, 7, 22, 23, 59, 58, 123000).timestamp()
@@ -350,7 +350,7 @@ class TestMultiSaveTimestamp:
         assert ts == "23:59:58.123"
 
     def test_capture_stamp_preserves_skew(self):
-        from canlib.modes.multi import _capture_stamp
+        from canlib.modes.multi_batch import _capture_stamp
 
         _d0, t0 = _capture_stamp(1000.010)
         _d1, t1 = _capture_stamp(1000.040)
@@ -359,7 +359,7 @@ class TestMultiSaveTimestamp:
         assert t0 != t1
 
     def test_capture_stamp_falls_back_to_now(self):
-        from canlib.modes.multi import _capture_stamp
+        from canlib.modes.multi_batch import _capture_stamp
 
         date, ts = _capture_stamp(None)
         assert "." in ts  # still millisecond precision

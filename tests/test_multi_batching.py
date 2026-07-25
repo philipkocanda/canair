@@ -11,10 +11,12 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 from canlib.modes.multi import (
-    BatchState,
-    _did_data_len,
     _exec_query,
     _read_single,
+)
+from canlib.modes.multi_batch import (
+    BatchState,
+    _did_data_len,
     split_multi_did,
 )
 

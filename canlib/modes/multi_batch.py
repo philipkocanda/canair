@@ -1,0 +1,143 @@
+"""Multi-DID batching + UDS result-shaping kernel.
+
+The pure (device-free) core shared by the ``multi`` pipeline mode and the
+``monitor`` mode: service-22 multi-DID batching state, response splitting, and
+building the result/error dicts both modes emit. Kept free of any terminal /
+session-manager dependency so both async orchestrators import the same kernel
+rather than each other.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+
+from ..decoding import decode_param_rows
+from ..formatting import decode_uds_response
+
+
+class BatchState:
+    """Per-session UDS service-22 multi-DID batching state.
+
+    Multi-DID support is per-ECU (some Hyundai ECUs answer ``22 D1 D2`` with
+    ``62 D1 <data> D2 <data>``; others reject it with NRC 0x13). We learn each
+    DID's data length from its first single read, batch once all target DIDs
+    have known lengths, and permanently disable batching for an ECU that ever
+    rejects it (or whose response fails to split) for the rest of the session.
+    """
+
+    def __init__(self):
+        self.lengths: dict[tuple[int, str], int] = {}  # (tx_id, DID4) -> data bytes
+        self.disabled: set[int] = set()  # tx_ids that don't support batching
+
+    def learn(self, tx_id: int, did4: str, resp_hex: str) -> None:
+        """Record a DID's data length from a single-DID ``62 DID <data>`` response."""
+        dlen = _did_data_len(resp_hex, did4)
+        if dlen is not None:
+            self.lengths[(tx_id, did4.upper())] = dlen
+
+
+def _strip_trailing_padding(data: bytes, pad: int = 0xAA) -> bytes:
+    """Drop trailing ISO-TP padding bytes (Hyundai pads with 0xAA)."""
+    i = len(data)
+    while i > 0 and data[i - 1] == pad:
+        i -= 1
+    return data[:i]
+
+
+def _did_data_len(resp_hex: str, did4: str) -> int | None:
+    """Length (bytes) of a single-DID response's data, padding stripped.
+
+    ``resp_hex`` is a ``62 <DID> <data> [AA…]`` positive response. Returns the
+    number of data bytes after the 2-byte DID, or None if it doesn't parse.
+    """
+    try:
+        b = bytes.fromhex(resp_hex)
+        did = bytes.fromhex(did4)
+    except ValueError:
+        return None
+    if len(b) < 3 or b[0] != 0x62 or b[1:3] != did:
+        return None
+    return len(_strip_trailing_padding(b[3:]))
+
+
+def split_multi_did(resp_hex: str, dids_lengths: list[tuple[str, int]]) -> dict[str, str] | None:
+    """Split a ``62`` multi-DID response into per-DID single-style responses.
+
+    Args:
+        resp_hex: reassembled UDS payload, ``62 D1 <data1> D2 <data2> … [AA…]``.
+        dids_lengths: ordered ``(DID4, data_len_bytes)`` as requested.
+
+    Returns ``{DID4: "62"+DID+data hex}`` (each looking like a normal single-DID
+    response so existing decoders work unchanged), or ``None`` if the response
+    doesn't match the expected DIDs/lengths (→ caller falls back to per-DID).
+    """
+    try:
+        b = bytes.fromhex(resp_hex)
+    except ValueError:
+        return None
+    if not b or b[0] != 0x62:
+        return None
+    pos = 1
+    out: dict[str, str] = {}
+    for did4, dlen in dids_lengths:
+        try:
+            did = bytes.fromhex(did4)
+        except ValueError:
+            return None
+        if b[pos : pos + 2] != did or len(did) != 2:
+            return None
+        pos += 2
+        data = b[pos : pos + dlen]
+        if len(data) != dlen:
+            return None
+        pos += dlen
+        out[did4.upper()] = (b"\x62" + did + data).hex().upper()
+    # Anything left over must be padding only.
+    if any(x != 0xAA for x in b[pos:]):
+        return None
+    return out
+
+
+def _is_did22(pid_code: str) -> bool:
+    """True for a full 6-char service-22 DID request like ``22BC03``."""
+    return len(pid_code) == 6 and pid_code[:2] == "22"
+
+
+def _capture_stamp(acquired_at: float | None) -> tuple[str, str]:
+    """Split an acquisition epoch into ``(date, time)`` for a saved capture.
+
+    ``time`` keeps millisecond precision (``HH:MM:SS.fff``) so sequentially
+    polled PIDs retain their true sub-second skew — the skew cross-signal
+    correlate/hunt/--corr rely on. ``date`` is the acquisition date, so a
+    session spanning midnight reconciles into the correct per-day files. Falls
+    back to "now" when no timestamp is available.
+    """
+    dt = datetime.fromtimestamp(acquired_at) if acquired_at else datetime.now()
+    return dt.strftime("%Y-%m-%d"), dt.strftime("%H:%M:%S.%f")[:-3]
+
+
+def _decode_pid_result(pid_code, pid_info, unmapped, hex_str, bytes_val, acquired_at):
+    """Build a result dict from a successful (single or split-out) response."""
+    if pid_info:
+        return {
+            "pid": pid_code,
+            "params": decode_param_rows(hex_str, pid_info["parameters"]),
+            "raw_hex": hex_str,
+            "acquired_at": acquired_at,
+        }
+    return {
+        "pid": pid_code,
+        "params": [],
+        "raw_hex": hex_str,
+        "decode": decode_uds_response(bytes_val),
+        "unmapped": True,
+        "acquired_at": acquired_at,
+    }
+
+
+def _error_result(pid_code, unmapped, resp, acquired_at):
+    error = resp.get("error") or resp.get("nrc_desc", "unknown")
+    nrc = resp.get("nrc")
+    if nrc is not None:
+        error = f"NRC 0x{nrc:02X} ({resp['nrc_desc']})"
+    return {"pid": pid_code, "error": error, "unmapped": unmapped, "acquired_at": acquired_at}

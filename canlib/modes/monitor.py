@@ -320,7 +320,7 @@ def _raw_pid_result(pid_code, pid_info, unmapped, value, acquired_at):
 
     Mirrors the ELM path's result shape so the renderer/decoder are unchanged.
     """
-    from .multi import _decode_pid_result
+    from .multi_batch import _decode_pid_result
 
     if value is None or isinstance(value, Exception):
         err = "timeout" if value is None or isinstance(value, TimeoutError) else str(value)
@@ -497,7 +497,8 @@ class MonitorController:
                         )
             return
 
-        from .multi import BatchState, _exec_session, _exec_skm_wake, build_query_plan
+        from .multi import _exec_session, _exec_skm_wake, build_query_plan
+        from .multi_batch import BatchState
 
         assert self.sm is not None  # not self.raw ⟺ sm was constructed
         self._batch_state = BatchState()
@@ -663,7 +664,8 @@ class MonitorController:
         already learned are combined (≤3, single-frame request); everything else
         is a single request (and 22-DID lengths are learned from single reads).
         """
-        from .multi import _is_did22, build_query_plan
+        from .multi import build_query_plan
+        from .multi_batch import _is_did22
 
         # Only reached during polling, after setup() built the ECU index.
         assert self._ecu_index is not None
@@ -793,7 +795,7 @@ class MonitorController:
     def _apply_raw_submission(self, s: dict, val, acquired: float, by_pid: dict) -> None:
         """Fold one completed submission's response into ``by_pid`` (split batches,
         learn 22-DID lengths, track ECUs that can't batch)."""
-        from .multi import _did_data_len, _is_did22, split_multi_did
+        from .multi_batch import _did_data_len, _is_did22, split_multi_did
 
         ecu = s["ecu"]
         resp = bytes(val) if isinstance(val, (bytes, bytearray)) else None
