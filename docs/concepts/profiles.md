@@ -17,7 +17,9 @@ profile](../profiles/ioniq-2017.md) for what a mature profile looks like.
     igpm.yaml
     …
   captures/        # recorded UDS payloads, split by date (never hand-edited)
+    can/           # (optional) imported raw broadcast-CAN frame logs + index.yaml
   references/      # external reference material (other cars' logs, spreadsheets)
+  signals/         # (optional) broadcast signal maps, one <bus>.yaml per CAN bus
   out/             # generated AutoPID JSON (never hand-edited; regenerate)
 ```
 
@@ -26,6 +28,12 @@ identity, the history of what's been probed on it, DTC meanings, its PIDs and
 decoded parameters, and a `research:` backlog of what's left to do. Each ECU also
 records its `id_protocol` (UDS vs KWP2000) — see
 [ECU protocols & PID prefixes](ecu-protocols.md).
+
+The optional `signals/` and `captures/can/` directories belong to the raw-CAN
+**broadcast** domain (passively-observed frames and their DBC-style linear signal
+maps), which is separate from the diagnostic request/response `captures/`. Both
+are absent unless you import broadcast data; `canair validate signals` and
+`canair validate can` check them and quietly skip when they don't exist.
 
 ## Editing rules
 

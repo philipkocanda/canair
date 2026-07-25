@@ -4,7 +4,8 @@
 
 ```
 usage: canair validate [-h] [--stats] [--strict]
-                       [{pids,captures,ecus,states,all}] [files ...]
+                       [{pids,captures,ecus,states,signals,can,all}]
+                       [files ...]
 
 Validate a profile's data files against their schemas and
 report problems.
@@ -14,6 +15,8 @@ Pick a target (default: all):
   captures  the captures/ payload files (+ soft warnings, see below)
   ecus      alias for pids
   states    states.yaml (vehicle power-state vocabulary + predicates)
+  signals   signals/ broadcast signal-definition files (domain B)
+  can       captures/can/index.yaml (raw-CAN log index)
   all       everything above
 
 `validate captures` also emits soft warnings for out-of-vocabulary vehicle
@@ -25,7 +28,7 @@ Run this after editing ecus/ or adding captures; `canair pids` already
 validates each edit, so this is the whole-profile check.
 
 positional arguments:
-  {pids,captures,ecus,states,all}
+  {pids,captures,ecus,states,signals,can,all}
                         What to validate (default: all)
   files                 Specific ecus/ files (only with target=pids/ecus)
 

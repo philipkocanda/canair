@@ -87,6 +87,19 @@ def _render_command(name: str, parser: argparse.ArgumentParser) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def _command_names() -> list[str]:
+    """Registered subcommand names, in help-display order.
+
+    A command's *module* name (``COMMAND_NAMES``) is not always its registered
+    subcommand ``NAME`` — e.g. the ``import_`` module registers ``import`` (the
+    trailing underscore avoids shadowing the ``import`` keyword). The parser
+    registers under ``NAME``, so the reference pages must key off ``NAME`` too.
+    """
+    from canlib.commands import iter_command_modules
+
+    return [module.NAME for module in iter_command_modules()]
+
+
 def _index_page(names: list[str]) -> str:
     """Rewrite the cli/ index to list the generated per-command pages."""
     from canlib.cli import build_parser
@@ -120,19 +133,19 @@ def _index_page(names: list[str]) -> str:
 def generate() -> dict[str, str]:
     """Build the full set of {relative_path: content} for the cli/ reference."""
     from canlib.cli import build_parser
-    from canlib.commands import COMMAND_NAMES
 
     parser = build_parser()
     sub = _subparsers_action(parser)
     assert sub is not None, "top-level parser has no subcommands"
 
+    names = _command_names()
     pages: dict[str, str] = {}
-    for name in COMMAND_NAMES:
+    for name in names:
         subparser = sub.choices.get(name)
         if subparser is None:
             continue
         pages[f"{name}.md"] = _render_command(name, subparser)
-    pages["index.md"] = _index_page(COMMAND_NAMES)
+    pages["index.md"] = _index_page(names)
     return pages
 
 

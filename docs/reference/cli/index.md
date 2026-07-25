@@ -30,5 +30,6 @@ Every capability is a `canair <subcommand>`. These pages are generated from each
 - [`canair ecu`](ecu.md) — Inspect or edit the profile's ECU registry.
 - [`canair profile`](profile.md) — List, inspect, and create vehicle profiles — the per-vehicle
 - [`canair config`](config.md) — ``canair config`` — view and manage user configuration.
+- [`canair import`](import.md) — Import external CAN data into the active profile.
 - [`canair bix`](bix.md) — Convert byte indices between WiCAN, ISO-TP, Torque, and OBDb notations.
 - [`canair completion`](completion.md) — Enable `canair` tab-completion (subcommands, flags, ECU/PID names).

@@ -106,6 +106,7 @@ nav:
           - canair ecu: reference/cli/ecu.md
           - canair profile: reference/cli/profile.md
           - canair config: reference/cli/config.md
+          - canair import: reference/cli/import.md
           - canair bix: reference/cli/bix.md
           - canair completion: reference/cli/completion.md
   - Bundled profile:
