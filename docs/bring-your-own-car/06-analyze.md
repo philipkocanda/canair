@@ -20,9 +20,13 @@ A byte that never changes across your captures can't be a live signal. Start by
 diffing captures of the same PID taken in different conditions:
 
 ```bash
-canair captures MyECU:2101 --diff --state driving   # byte-level diff across a drive
-canair captures MyECU:2101 --diff --rulers          # overlay the byte-index ruler
+canair captures uds MyECU:2101 --diff --state driving   # byte-level diff across a drive
+canair captures uds MyECU:2101 --diff --rulers          # overlay the byte-index ruler
 ```
+
+(`captures`, `correlate`, and `hunt` are `uds`/`can` groups — `uds` is the
+diagnostic domain and the default, so a bare `canair captures MyECU:2101 …`
+works too; the `can` kind targets raw broadcast-CAN frame logs.)
 
 The bytes that **change** are your candidates. The ones highlighted as you go
 from parked to driving are the ones carrying motion-related information. Map the
@@ -78,7 +82,7 @@ sweeps every byte offset and interpretation on the PID, correlates each against
 the reference, and reports the best fit with a physical-unit guess:
 
 ```bash
-canair hunt MyECU:2101 --against ESC:22C101:REAL_SPEED_KMH
+canair hunt uds MyECU:2101 --against ESC:22C101:REAL_SPEED_KMH
 # → B12  r=0.99  y = 1.00·x + 0.3   (looks like km/h)
 ```
 
@@ -94,8 +98,8 @@ An `r` near 1.0 on byte 12 with a ~1:1 linear fit is strong evidence that **byte
 strong cross-signal relationship in the drive, then focus:
 
 ```bash
-canair correlate --overlap --state driving   # which PIDs share a timeline?
-canair correlate --state driving              # rank the strongest pairs
+canair correlate uds --overlap --state driving   # which PIDs share a timeline?
+canair correlate uds --state driving              # rank the strongest pairs
 ```
 
 **Test an exact expression** against all captures without editing any YAML:

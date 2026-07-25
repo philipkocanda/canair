@@ -1,7 +1,7 @@
 """Stage-1 tests: `canair import can` (raw broadcast-CAN frame-log import).
 
 Covers the log-store layer (`canlib.can_logs`), the `import can` command, and the
-`canair captures --can` listing. Fixtures use a tiny candump slice with real
+`canair captures can` listing. Fixtures use a tiny candump slice with real
 Ioniq-28 arbitration IDs (tests/fixtures/can/) plus formats generated in-test.
 """
 
@@ -93,7 +93,8 @@ class TestImportLog:
         assert "0x354" in res.entry["id_set"] and "0x386" in res.entry["id_set"]
         # all four gear codes (P/R/N/D) survive the trim
         gears = {
-            m.data[5] for m in can_logs.iter_frames(GVRET_FIXTURE, "gvret")
+            m.data[5]
+            for m in can_logs.iter_frames(GVRET_FIXTURE, "gvret")
             if m.arbitration_id == 0x354
         }
         assert gears == {1, 2, 3, 4}
@@ -227,7 +228,7 @@ class TestImportCanCommand:
         assert "no such file" in capsys.readouterr().err
 
 
-# ── captures --can listing ────────────────────────────────────────────────
+# ── captures can listing ──────────────────────────────────────────────────
 
 
 class TestCapturesCanListing:
@@ -237,21 +238,22 @@ class TestCapturesCanListing:
         from canlib.commands import captures
 
         p = captures.add_parser(argparse.ArgumentParser().add_subparsers())
-        return captures.run(p.parse_args(argv))
+        args = p.parse_args(argv)
+        return args.func(args)
 
     def test_empty(self, temp_profile, capsys):
-        assert self._run_captures(["--can"]) == 0
+        assert self._run_captures(["can"]) == 0
         assert "No imported CAN frame logs" in capsys.readouterr().out
 
     def test_lists_after_import(self, temp_profile, capsys):
         can_logs.import_log(FIXTURE, temp_profile, label="drive slice", bitrate=500000)
-        assert self._run_captures(["--can"]) == 0
+        assert self._run_captures(["can"]) == 0
         out = capsys.readouterr().out
         assert FIXTURE.name in out and "8 frames" in out and "drive slice" in out
 
     def test_json(self, temp_profile, capsys):
         can_logs.import_log(FIXTURE, temp_profile)
-        assert self._run_captures(["--can", "--json"]) == 0
+        assert self._run_captures(["can", "--json"]) == 0
         import json
 
         logs = json.loads(capsys.readouterr().out)

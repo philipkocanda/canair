@@ -47,10 +47,9 @@ COMMAND_NAMES: list[str] = [
     "profile",
     "config",
     "update",
-    # interop (import/export external CAN data)
+    # interop (import/export external CAN data — uds/can/dbc kinds)
     "import_",
     "export",
-    "capture_import",
     # utilities
     "bix",
     "completion",

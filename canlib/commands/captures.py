@@ -38,26 +38,27 @@ State/label scoping (case-insensitive substring; combines with any mode):
   --state SUBSTR        only sessions whose vehicle_states contain SUBSTR (e.g. driving)
   --label SUBSTR        only sessions/captures whose label contains SUBSTR
 
-Examples:
-  canair captures BMS 2102                  # ECU + PID (most useful)
-  canair captures BMS                       # All BMS captures
-  canair captures "BMS:2102,2103"           # Several PIDs
-  canair captures IGPM 22BC03 --diff        # Byte-diff for one ECU+PID
-  canair captures "BMS:2102,2103" --diff    # Byte-diff, one block per PID
-  canair captures BMS 2102 --step           # Step through one PID
-  canair captures "BMS:2102,2103" --step    # Step two PIDs interleaved
-  canair captures "VCU:2101 BMS:2101" --step  # Cross-ECU step-through
-  canair captures "VCU:2101 BMS:2101" --step --pair  # Compare two ECUs side by side
-  canair captures "VCU:2101 BMS:2101" --step --pair --join-tol 1.0  # Tighter pairing
-  canair captures --diff VCU:2101 --all     # One PID, every payload
-  canair captures --summary                 # Overview stats
-  canair captures --sessions                # Session table of contents
-  canair captures --sessions --state driving # Index of every drive
-  canair captures --sessions --json          # Machine-readable TOC
-  canair captures --latest BMS              # Latest payload per BMS PID
-  canair captures --summary --since 2026-04-19            # Stats since a date
-  canair captures BMS 2101 --diff --date 2026-04-19       # One day only
-  canair captures VCU --since 2026-04-14 --until 2026-04-21  # Range
+Examples (a bare `canair captures …` is shorthand for `canair captures uds …`):
+  canair captures uds BMS 2102              # ECU + PID (most useful)
+  canair captures uds BMS                   # All BMS captures
+  canair captures uds "BMS:2102,2103"       # Several PIDs
+  canair captures uds IGPM 22BC03 --diff    # Byte-diff for one ECU+PID
+  canair captures uds "BMS:2102,2103" --diff  # Byte-diff, one block per PID
+  canair captures uds BMS 2102 --step       # Step through one PID
+  canair captures uds "BMS:2102,2103" --step  # Step two PIDs interleaved
+  canair captures uds "VCU:2101 BMS:2101" --step  # Cross-ECU step-through
+  canair captures uds "VCU:2101 BMS:2101" --step --pair  # Compare two ECUs side by side
+  canair captures uds "VCU:2101 BMS:2101" --step --pair --join-tol 1.0  # Tighter pairing
+  canair captures uds --diff VCU:2101 --all  # One PID, every payload
+  canair captures uds --summary             # Overview stats
+  canair captures uds --sessions            # Session table of contents
+  canair captures uds --sessions --state driving # Index of every drive
+  canair captures uds --sessions --json      # Machine-readable TOC
+  canair captures uds --latest BMS          # Latest payload per BMS PID
+  canair captures uds --summary --since 2026-04-19        # Stats since a date
+  canair captures uds BMS 2101 --diff --date 2026-04-19   # One day only
+  canair captures uds VCU --since 2026-04-14 --until 2026-04-21  # Range
+  canair captures can                       # List imported raw broadcast-CAN frame logs
 """
 
 import argparse
@@ -673,14 +674,55 @@ def orphan_notice(captures_dir: Path | None = None) -> None:
     if orphans:
         print(
             f"  Note: {len(orphans)} orphaned capture journal(s) from a previous "
-            "session \u2014 run `canair captures --recover` to save (or --discard)."
+            "session \u2014 run `canair captures uds --recover` to save (or --discard)."
         )
 
 
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
-        help="Query captured UDS payloads across all capture files",
+        help="Query captured data: uds (diagnostic payloads) | can (raw frame logs)",
+        description="Query captured data. Choose a kind:\n"
+        "  uds   diagnostic UDS payloads (captures/*.yaml) — the QUERY/diff/step/\n"
+        "        summary/sessions/latest/recover surface (domain A)\n"
+        "  can   imported raw broadcast-CAN frame logs (captures/can/index.yaml,\n"
+        "        domain B)\n\n"
+        "A bare `canair captures BMS 2102` (or any of the --summary/--sessions/… "
+        "flags) is shorthand for `canair captures uds …`.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    kinds = parser.add_subparsers(dest="captures_kind", metavar="<kind>")
+    _add_uds_parser(kinds)
+    _add_can_parser(kinds)
+    parser.set_defaults(func=_group_help, _captures_group_parser=parser)
+    return parser
+
+
+def _group_help(args) -> int:
+    """Fallback when ``canair captures`` is invoked with no resolvable kind."""
+    parser = getattr(args, "_captures_group_parser", None)
+    if parser is not None:
+        parser.print_help()
+    return 1
+
+
+def _add_can_parser(kinds) -> argparse.ArgumentParser:
+    parser = kinds.add_parser(
+        "can",
+        help="List imported raw broadcast-CAN frame logs (captures/can/index.yaml)",
+        description="List imported raw broadcast-CAN frame logs (domain B) — "
+        "file/format/frames/IDs per log. Import them with `canair import can`.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument("--json", action="store_true", help="Machine-readable JSON output")
+    parser.set_defaults(func=lambda args: cmd_can_logs(as_json=args.json))
+    return parser
+
+
+def _add_uds_parser(kinds) -> argparse.ArgumentParser:
+    parser = kinds.add_parser(
+        "uds",
+        help="Query captured diagnostic UDS payloads across all capture files",
         description="Query captured UDS payloads.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
@@ -732,12 +774,6 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         action="store_true",
         help="Reconcile orphaned capture journals (from a killed/crashed session) "
         "into capture files. Add --discard to delete them without saving.",
-    )
-    standalone.add_argument(
-        "--can",
-        action="store_true",
-        help="List imported raw broadcast-CAN frame logs (captures/can/index.yaml) "
-        "instead of UDS captures — file/format/frames/IDs per log.",
     )
 
     parser.add_argument(
@@ -801,9 +837,6 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
 def run(args) -> int:
     if args.recover:
         return cmd_recover(args.dir, discard=args.discard)
-
-    if args.can:
-        return cmd_can_logs(as_json=args.json)
 
     query = build_query(args.query)
     standalone_mode = args.summary or args.sessions or args.latest is not None

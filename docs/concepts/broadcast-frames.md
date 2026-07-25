@@ -36,7 +36,7 @@ native — they are **not** exploded into the `captures/*.yaml` schema.
 canair import can drive.blf --label "drive fwd/N/rev" --bitrate 500000
 canair import can drive.asc            # .asc / .blf / candump .log / .trc
 canair import can savvycan.csv         # SavvyCAN GVRET (.csv, auto-detected)
-canair captures --can                  # list imported logs
+canair captures can                    # list imported logs
 ```
 
 Formats: `.asc`, `.blf`, python-can `.csv`, candump `.log`, `.trc`, and **SavvyCAN
@@ -50,16 +50,18 @@ PCI, distinct from WiCAN `Bnn`).
 
 ```bash
 # Which broadcast bytes move together across a drive?
-canair correlate --can-log drive.blf --min-r 0.9
+canair correlate can drive.blf --min-r 0.9
 
 # Which byte of arbitration ID 0x220 tracks a byte you already know (e.g. wheel
 # speed on 0x386)?  Sweeps every byte × interpretation and ranks by correlation.
-canair hunt --can-log drive.blf --id 0x220 --against 0x386:r0
+canair hunt can drive.blf --id 0x220 --against 0x386:r0
 ```
 
 Both reuse the correlation / interpretation-sweep / linear-fit machinery of the
-diagnostic `correlate`/`hunt`, so the output (ranked `|r|`, fit, unit guess) reads
-the same. `--bits`, `--id`, `--min-r`, `--json`, etc. apply.
+diagnostic `correlate uds` / `hunt uds`, so the output (ranked `|r|`, fit, unit
+guess) reads the same. `--bits`, `--id`, `--min-r`, `--json`, etc. apply. (The
+`can` kind is the domain-B counterpart of the default `uds` kind — a bare
+`canair correlate …` / `hunt …` still targets diagnostic captures.)
 
 ### 3. Define signals
 
@@ -98,10 +100,46 @@ canair export dbc --bus powertrain -o mycar.dbc        # signals/ → DBC
 Real-world DBCs (with overlapping signals) load in non-strict mode; the linear
 model round-trips losslessly.
 
+## Storing raw-CAN logs (what's committed vs. fetched)
+
+Raw frame logs get large (a few minutes of one bus is megabytes), and some come
+from other people's cars under unclear licenses. canair splits them by
+**origin** and **license**:
+
+| Origin | License | Where it lives | Committed? |
+| --- | --- | --- | --- |
+| **Your own capture** | yours | `profiles/<car>/captures/can/` | **Yes, fully** — via Git LFS when large |
+| **Third-party, redistributable** (CC0/CC-BY/MIT/public-domain/explicit permission) | permits redistribution | `profiles/<car>/captures/can/` (or `references/can/`) with the license recorded next to it | **Yes** — via Git LFS when large |
+| **Third-party, no / unclear license** (e.g. the uhi22 Ioniq-28 corpus) | none | gitignored `references/can/` | **No** — fetch on demand (`scripts/fetch_can_corpus.py`) + a tiny fair-use excerpt under `tests/fixtures/can/` |
+
+The rule of thumb: **your data goes in; other people's data goes in only if the
+license lets you redistribute it.** A partial slice of unlicensed data is still
+unlicensed — what makes the committed `tests/fixtures/can/` excerpts acceptable
+is that they are *minimal, hand-trimmed fair-use* samples, not that they're
+"only part" of the log. Git LFS is a storage mechanism only; it does **not**
+grant any redistribution right, so it never changes the license question.
+
+### Git LFS
+
+Large binary/high-volume frame logs are tracked by [Git LFS](https://git-lfs.com)
+so the repository history stays small. The tracking rules live in
+`.gitattributes`:
+
+- `*.blf`, `*.asc`, `*.trc` and everything under `profiles/*/captures/can/**`
+  are stored in LFS.
+- the tiny `tests/fixtures/**` excerpts are explicitly kept in **plain git** so
+  they stay diffable and inspectable.
+
+Contributors need Git LFS installed (`git lfs install`) or a fresh clone will
+show pointer files instead of the log contents. GitHub's free tier caps LFS
+storage/bandwidth, another reason unlicensed corpora stay fetch-on-demand rather
+than committed.
+
 ## Where things live
 
 - **`captures/can/`** — imported frame logs, native, indexed by `index.yaml`
-  (schema `canlib/schema/can_index_schema.json`).
+  (schema `canlib/schema/can_index_schema.json`). Large logs are stored via Git
+  LFS (see [Storing raw-CAN logs](#storing-raw-can-logs-whats-committed-vs-fetched)).
 - **`signals/<bus>.yaml`** — broadcast signal maps, one file per bus (schema
   `canlib/schema/signals_schema.yaml`).
 

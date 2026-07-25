@@ -53,7 +53,8 @@ def _run(tmp_path, monkeypatch, argv):
         lambda *a, **k: [("IGPM", "22BC03"), ("IGPM", "22BC05")],
     )
     p = correlate.add_parser(argparse.ArgumentParser().add_subparsers())
-    return correlate.run(p.parse_args(argv))
+    args = p.parse_args(["uds", *argv])
+    return args.func(args)
 
 
 class TestCrossMirrors:

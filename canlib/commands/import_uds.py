@@ -1,4 +1,5 @@
-"""``canair import-capture`` — record externally-provided UDS payloads.
+#!/usr/bin/env python3
+"""``canair import uds`` — record externally-provided UDS payloads (domain A).
 
 The device-free counterpart to the ``--save`` path: adds a capture you already
 have (e.g. pasted from a forum/GitHub issue, or read on another tool) into the
@@ -12,14 +13,17 @@ stripped). One command call records one session; pass several pairs to group
 them. Payloads are validated as hex and cross-checked against the PID's expected
 SID/DID echo (a mismatch warns but does not block — you may know better).
 
+This is the UDS (domain-A, request/response) half of ``canair import``; the
+raw broadcast-frame (domain-B) half is ``import can`` / ``import dbc``.
+
 Examples:
   # One verified odometer reading with context
-  canair import-capture CLU:22B002=62B002E0000000FFB7008D08000000 \\
+  canair import uds CLU:22B002=62B002E0000000FFB7008D08000000 \\
       --label "Odometer" --state acc2 --time 09:38:15 \\
       --notes "Verified 36104 km on dash by timwelchnz (GitHub wican-fw#478)"
 
   # Several PIDs captured together into one session
-  canair import-capture BMS:2101=6101FFF8... BMS:2102=6102... --label "SOC snapshot"
+  canair import uds BMS:2101=6101FFF8... BMS:2102=6102... --label "SOC snapshot"
 """
 
 from __future__ import annotations
@@ -28,8 +32,6 @@ import argparse
 import json
 import sys
 from pathlib import Path
-
-NAME = "import-capture"
 
 _GREEN = "\033[92m"
 _YELLOW = "\033[93m"
@@ -122,10 +124,11 @@ def run(args) -> int:
     return 0
 
 
-def add_parser(subparsers) -> argparse.ArgumentParser:
+def add_uds_parser(subparsers) -> argparse.ArgumentParser:
+    """Register the ``uds`` kind under ``canair import``."""
     parser = subparsers.add_parser(
-        NAME,
-        help="Record externally-provided UDS capture payloads into the profile",
+        "uds",
+        help="Record externally-provided UDS payloads into captures/ (device-free)",
         description="Record externally-provided UDS payloads into the active profile "
         "(device-free capture import).",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -159,5 +162,5 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     parser.add_argument(
         "--dir", type=Path, default=None, help="Captures directory (default: active profile)"
     )
-    parser.set_defaults(func=run)
+    parser.set_defaults(_import_kind="uds", func=run)
     return parser

@@ -49,7 +49,117 @@ _RESET = "\033[0m"
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
-        help="Find every strong cross-signal relationship in a drive/session",
+        help="Find every strong cross-signal relationship: uds (captures) | can (frame log)",
+        description=(
+            "Find every strong cross-signal relationship across a drive/session.\n"
+            "Choose a domain kind:\n"
+            "  uds   diagnostic captures (default) — co-polled ECU/PID params/bytes\n"
+            "        (domain A). A bare `canair correlate …` is shorthand for this.\n"
+            "  can   a raw broadcast-CAN frame log's per-byte series (domain B),\n"
+            "        bytes labelled 0xID:rN.\n\n"
+            "Read-only: analyses captures/ only, never talks to the device. To pin\n"
+            "down *which byte* a relationship lives in, follow up with `canair hunt`."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    kinds = parser.add_subparsers(dest="correlate_kind", metavar="<kind>")
+    _add_uds_parser(kinds)
+    _add_can_parser(kinds)
+    parser.set_defaults(func=_group_help, _correlate_group_parser=parser)
+    return parser
+
+
+def _group_help(args) -> int:
+    parser = getattr(args, "_correlate_group_parser", None)
+    if parser is not None:
+        parser.print_help()
+    return 1
+
+
+def _add_can_parser(kinds) -> argparse.ArgumentParser:
+    parser = kinds.add_parser(
+        "can",
+        help="Correlate a raw broadcast-CAN frame log's per-byte series (domain B)",
+        description=(
+            "Correlate the per-byte series of a raw broadcast-CAN frame log "
+            "(.asc/.blf/candump .log/.trc/GVRET .csv) — bytes are labelled 0xID:rN. "
+            "--against/--bits/--id/--min-r/--top all apply."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "file",
+        metavar="FILE",
+        help="Path to a raw broadcast-CAN frame log (.asc/.blf/candump .log/.trc/GVRET .csv)",
+    )
+    parser.add_argument(
+        "--can-format",
+        choices=["auto", "asc", "blf", "csv", "log", "gvret"],
+        default="auto",
+        help="Log format (default: auto-detect by extension)",
+    )
+    parser.add_argument(
+        "--id",
+        metavar="IDS",
+        help="Restrict to comma-separated arbitration IDs (e.g. 0x220,0x386)",
+    )
+    parser.add_argument(
+        "--include-intra",
+        action="store_true",
+        help="Include same-arbitration-ID pairs (default: cross-ID only)",
+    )
+    parser.add_argument(
+        "--no-cluster",
+        action="store_true",
+        help="Don't collapse near-perfectly-correlated (|r|≥0.995) byte groups into one line",
+    )
+    _add_shared_analysis_args(parser)
+    add_notation_arg(parser)
+    parser.set_defaults(func=_run_can_log)
+    return parser
+
+
+def _add_shared_analysis_args(parser) -> None:
+    """Flags common to both the uds and can correlate kinds."""
+    parser.add_argument(
+        "--against",
+        metavar="ECU:PID:PARAM",
+        help="Correlate every signal against this one reference "
+        "(e.g. ESC:22C101:REAL_SPEED_KMH) instead of the full matrix",
+    )
+    parser.add_argument(
+        "--min-r", type=float, default=0.6, metavar="R", help="Min |r| to report (default 0.6)"
+    )
+    parser.add_argument(
+        "--min-n", type=int, default=15, metavar="N", help="Min aligned points (default 15)"
+    )
+    parser.add_argument("--top", type=int, default=40, metavar="N", help="Max hits (default 40)")
+    parser.add_argument(
+        "--method",
+        choices=["pearson", "spearman"],
+        default="pearson",
+        help="Correlation coefficient: pearson (linear, default) or spearman "
+        "(rank — catches monotone-but-nonlinear/quantized/saturating links)",
+    )
+    parser.add_argument(
+        "--join-tol",
+        type=float,
+        default=DEFAULT_JOIN_TOL_S,
+        metavar="SECONDS",
+        help=f"Nearest-timestamp join window (default {DEFAULT_JOIN_TOL_S}s)",
+    )
+    parser.add_argument(
+        "--bits",
+        action="store_true",
+        help="Include individual toggling bits (rN:k / Bn:k)",
+    )
+    parser.add_argument("--json", action="store_true", help="Machine-readable output")
+
+
+def _add_uds_parser(kinds) -> argparse.ArgumentParser:
+    parser = kinds.add_parser(
+        "uds",
+        help="Correlate co-polled diagnostic captures (domain A)",
         description=(
             "Show me every strong relationship across a whole drive.\n\n"
             "Builds every decoded parameter (and, with --bytes, every varying raw\n"
@@ -99,12 +209,6 @@ examples:
         "(e.g. 'MCU VCU' or 'ESC:22C101'); default = all co-polled in scope",
     )
     parser.add_argument(
-        "--against",
-        metavar="ECU:PID:PARAM",
-        help="Correlate every signal against this one reference "
-        "(e.g. ESC:22C101:REAL_SPEED_KMH) instead of the full matrix",
-    )
-    parser.add_argument(
         "--transform",
         choices=["raw", "delta", "abs", "cumsum", "normalize", "smooth"],
         default="raw",
@@ -127,40 +231,14 @@ examples:
         action="store_true",
         help="With --against: keep the reference's own signal (trivial r=1.0; dropped by default)",
     )
-    parser.add_argument(
-        "--min-r", type=float, default=0.6, metavar="R", help="Min |r| to report (default 0.6)"
-    )
-    parser.add_argument(
-        "--min-n", type=int, default=15, metavar="N", help="Min aligned points (default 15)"
-    )
-    parser.add_argument("--top", type=int, default=40, metavar="N", help="Max hits (default 40)")
+    _add_shared_analysis_args(parser)
     parser.add_argument(
         "--no-cluster",
         action="store_true",
         help="Don't collapse near-perfectly-correlated (|r|≥0.995) signal groups "
         "into a single summary line (e.g. balanced cell voltages while charging)",
     )
-    parser.add_argument(
-        "--method",
-        choices=["pearson", "spearman"],
-        default="pearson",
-        help="Correlation coefficient: pearson (linear, default) or spearman "
-        "(rank — catches monotone-but-nonlinear/quantized/saturating links)",
-    )
-    parser.add_argument(
-        "--join-tol",
-        type=float,
-        default=DEFAULT_JOIN_TOL_S,
-        metavar="SECONDS",
-        help=f"Nearest-timestamp join window (default {DEFAULT_JOIN_TOL_S}s)",
-    )
     parser.add_argument("--bytes", action="store_true", help="Include raw varying bytes (Bn)")
-    parser.add_argument(
-        "--bits",
-        action="store_true",
-        help="Include individual toggling bits (Bn:k) — point-biserial vs analog "
-        "signals, φ vs other bits (cross-ECU); finds body-status/relay bits",
-    )
     parser.add_argument(
         "--lag-scan",
         type=int,
@@ -184,7 +262,6 @@ examples:
         "unverified candidate param NAME (via pids upsert-param), with the "
         "correlation evidence auto-filled into notes",
     )
-    parser.add_argument("--json", action="store_true", help="Machine-readable output")
     parser.add_argument(
         "--overlap",
         action="store_true",
@@ -202,28 +279,6 @@ examples:
     )
     add_notation_arg(parser)
     add_scope_args(parser)
-
-    # Raw broadcast-CAN frame source (domain B). When set, correlate operates on a
-    # frame log's per-byte series (labelled 0xID:rN) instead of diagnostic captures.
-    parser.add_argument(
-        "--can-log",
-        metavar="FILE",
-        help="Correlate the per-byte series of a raw broadcast-CAN frame log "
-        "(.asc/.blf/candump .log/.trc) instead of diagnostic captures. Bytes are "
-        "labelled 0xID:rN; --against/--bits/--id/--min-r/--top all apply.",
-    )
-    parser.add_argument(
-        "--can-format",
-        choices=["auto", "asc", "blf", "csv", "log", "gvret"],
-        default="auto",
-        help="With --can-log: log format (default: auto-detect by extension)",
-    )
-    parser.add_argument(
-        "--id",
-        metavar="IDS",
-        help="With --can-log: restrict to comma-separated arbitration IDs (e.g. 0x220,0x386)",
-    )
-
     parser.set_defaults(func=run)
     return parser
 
@@ -503,9 +558,9 @@ def _run_can_log(args) -> int:
     from canlib import frame_series
     from canlib.can_logs import CanLogError
 
-    path = Path(args.can_log)
+    path = Path(args.file)
     if not path.is_file():
-        print(f"--can-log: no such file: {path}", file=sys.stderr)
+        print(f"correlate can: no such file: {path}", file=sys.stderr)
         return 1
     try:
         id_filter = frame_series.parse_id_filter(args.id)
@@ -516,7 +571,7 @@ def _run_can_log(args) -> int:
                 path, args.can_format, id_filter=id_filter, min_distinct=4
             )
     except CanLogError as e:
-        print(f"--can-log: {e}", file=sys.stderr)
+        print(f"correlate can: {e}", file=sys.stderr)
         return 1
     if not series:
         print("No varying frame bytes found in scope.", file=sys.stderr)
@@ -619,9 +674,6 @@ def _run_can_log(args) -> int:
 
 
 def run(args) -> int:
-    if args.can_log:
-        return _run_can_log(args)
-
     since, until, err = resolve_date_bounds(args)
     if err:
         print(f"error: {err}", file=sys.stderr)

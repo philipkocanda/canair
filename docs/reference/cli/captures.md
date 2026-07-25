@@ -3,13 +3,36 @@
 # `canair captures`
 
 ```
-usage: canair captures [-h] [--diff | --step]
-                       [--summary | --sessions | --latest [ECU] | --recover |
-                       --can] [--discard] [--all] [--rulers] [--pair]
-                       [--join-tol SECONDS] [--json] [--since YYYY-MM-DD]
-                       [--until YYYY-MM-DD] [--date YYYY-MM-DD]
-                       [--state SUBSTR] [--label SUBSTR] [--dir DIR]
-                       [QUERY ...]
+usage: canair captures [-h] <kind> ...
+
+Query captured data. Choose a kind:
+  uds   diagnostic UDS payloads (captures/*.yaml) — the QUERY/diff/step/
+        summary/sessions/latest/recover surface (domain A)
+  can   imported raw broadcast-CAN frame logs (captures/can/index.yaml,
+        domain B)
+
+A bare `canair captures BMS 2102` (or any of the --summary/--sessions/… flags) is shorthand for `canair captures uds …`.
+
+positional arguments:
+  <kind>
+    uds       Query captured diagnostic UDS payloads across all capture files
+    can       List imported raw broadcast-CAN frame logs
+              (captures/can/index.yaml)
+
+options:
+  -h, --help  show this help message and exit
+```
+
+## `canair captures uds`
+
+```
+usage: canair captures uds [-h] [--diff | --step]
+                           [--summary | --sessions | --latest [ECU] |
+                           --recover] [--discard] [--all] [--rulers] [--pair]
+                           [--join-tol SECONDS] [--json] [--since YYYY-MM-DD]
+                           [--until YYYY-MM-DD] [--date YYYY-MM-DD]
+                           [--state SUBSTR] [--label SUBSTR] [--dir DIR]
+                           [QUERY ...]
 
 Query captured UDS payloads.
 
@@ -33,9 +56,6 @@ options:
   --recover             Reconcile orphaned capture journals (from a
                         killed/crashed session) into capture files. Add
                         --discard to delete them without saving.
-  --can                 List imported raw broadcast-CAN frame logs
-                        (captures/can/index.yaml) instead of UDS captures —
-                        file/format/frames/IDs per log.
   --discard             With --recover: delete orphaned journals without
                         saving them
   --all, -a             For --diff/--step: use every payload instead of
@@ -104,24 +124,37 @@ State/label scoping (case-insensitive substring; combines with any mode):
   --state SUBSTR        only sessions whose vehicle_states contain SUBSTR (e.g. driving)
   --label SUBSTR        only sessions/captures whose label contains SUBSTR
 
-Examples:
-  canair captures BMS 2102                  # ECU + PID (most useful)
-  canair captures BMS                       # All BMS captures
-  canair captures "BMS:2102,2103"           # Several PIDs
-  canair captures IGPM 22BC03 --diff        # Byte-diff for one ECU+PID
-  canair captures "BMS:2102,2103" --diff    # Byte-diff, one block per PID
-  canair captures BMS 2102 --step           # Step through one PID
-  canair captures "BMS:2102,2103" --step    # Step two PIDs interleaved
-  canair captures "VCU:2101 BMS:2101" --step  # Cross-ECU step-through
-  canair captures "VCU:2101 BMS:2101" --step --pair  # Compare two ECUs side by side
-  canair captures "VCU:2101 BMS:2101" --step --pair --join-tol 1.0  # Tighter pairing
-  canair captures --diff VCU:2101 --all     # One PID, every payload
-  canair captures --summary                 # Overview stats
-  canair captures --sessions                # Session table of contents
-  canair captures --sessions --state driving # Index of every drive
-  canair captures --sessions --json          # Machine-readable TOC
-  canair captures --latest BMS              # Latest payload per BMS PID
-  canair captures --summary --since 2026-04-19            # Stats since a date
-  canair captures BMS 2101 --diff --date 2026-04-19       # One day only
-  canair captures VCU --since 2026-04-14 --until 2026-04-21  # Range
+Examples (a bare `canair captures …` is shorthand for `canair captures uds …`):
+  canair captures uds BMS 2102              # ECU + PID (most useful)
+  canair captures uds BMS                   # All BMS captures
+  canair captures uds "BMS:2102,2103"       # Several PIDs
+  canair captures uds IGPM 22BC03 --diff    # Byte-diff for one ECU+PID
+  canair captures uds "BMS:2102,2103" --diff  # Byte-diff, one block per PID
+  canair captures uds BMS 2102 --step       # Step through one PID
+  canair captures uds "BMS:2102,2103" --step  # Step two PIDs interleaved
+  canair captures uds "VCU:2101 BMS:2101" --step  # Cross-ECU step-through
+  canair captures uds "VCU:2101 BMS:2101" --step --pair  # Compare two ECUs side by side
+  canair captures uds "VCU:2101 BMS:2101" --step --pair --join-tol 1.0  # Tighter pairing
+  canair captures uds --diff VCU:2101 --all  # One PID, every payload
+  canair captures uds --summary             # Overview stats
+  canair captures uds --sessions            # Session table of contents
+  canair captures uds --sessions --state driving # Index of every drive
+  canair captures uds --sessions --json      # Machine-readable TOC
+  canair captures uds --latest BMS          # Latest payload per BMS PID
+  canair captures uds --summary --since 2026-04-19        # Stats since a date
+  canair captures uds BMS 2101 --diff --date 2026-04-19   # One day only
+  canair captures uds VCU --since 2026-04-14 --until 2026-04-21  # Range
+  canair captures can                       # List imported raw broadcast-CAN frame logs
+```
+
+## `canair captures can`
+
+```
+usage: canair captures can [-h] [--json]
+
+List imported raw broadcast-CAN frame logs (domain B) — file/format/frames/IDs per log. Import them with `canair import can`.
+
+options:
+  -h, --help  show this help message and exit
+  --json      Machine-readable JSON output
 ```

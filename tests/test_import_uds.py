@@ -1,4 +1,4 @@
-"""Tests for canair import-capture (device-free capture import)."""
+"""Tests for canair import uds (device-free capture import)."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import pytest
 import yaml
 
 from canlib.captures import build_manual_session
-from canlib.commands.capture_import import _build_capture, _parse_spec, run
+from canlib.commands.import_uds import _build_capture, _parse_spec, run
 
 _NAME_INDEX = {"CLU": 0x7C6}
 

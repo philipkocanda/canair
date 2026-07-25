@@ -1,4 +1,4 @@
-"""Stage-2 tests: raw broadcast-CAN frame time-series + `correlate --can-log`.
+"""Stage-2 tests: raw broadcast-CAN frame time-series + `correlate can` / `hunt can`.
 
 Frame byte/bit series (`canlib.frame_series`) feed the *same* correlate core as
 diagnostic captures. Logs are generated in-test (candump text) with real Ioniq-28
@@ -58,30 +58,26 @@ class TestBuildFrameSeries:
 class TestCorrelateCanLog:
     def _run(self, argv):
         p = correlate.add_parser(argparse.ArgumentParser().add_subparsers())
-        return correlate.run(p.parse_args(argv))
+        args = p.parse_args(["can", *argv])
+        return args.func(args)
 
     def test_ranked_finds_cross_id_pair(self, tmp_path, capsys):
         log = _write_log(tmp_path)
-        assert self._run(["--can-log", str(log), "--min-r", "0.9", "--join-tol", "0.05"]) == 0
+        assert self._run([str(log), "--min-r", "0.9", "--join-tol", "0.05"]) == 0
         out = capsys.readouterr().out
         assert "0x220:r0" in out and "0x386:r0" in out
         assert "0x2B0:r0" not in out  # noise byte excluded
 
     def test_against(self, tmp_path, capsys):
         log = _write_log(tmp_path)
-        rc = self._run(
-            ["--can-log", str(log), "--against", "0x386:r0", "--min-r", "0.5", "--join-tol", "0.05"]
-        )
+        rc = self._run([str(log), "--against", "0x386:r0", "--min-r", "0.5", "--join-tol", "0.05"])
         assert rc == 0
         out = capsys.readouterr().out
         assert "0x220:r0" in out and "r=+1.000" in out
 
     def test_json(self, tmp_path, capsys):
         log = _write_log(tmp_path)
-        assert (
-            self._run(["--can-log", str(log), "--min-r", "0.9", "--join-tol", "0.05", "--json"])
-            == 0
-        )
+        assert self._run([str(log), "--min-r", "0.9", "--join-tol", "0.05", "--json"]) == 0
         import json
 
         payload = json.loads(capsys.readouterr().out)
@@ -89,18 +85,18 @@ class TestCorrelateCanLog:
         assert {payload["hits"][0]["a"], payload["hits"][0]["b"]} == {"0x220:r0", "0x386:r0"}
 
     def test_missing_file(self, tmp_path, capsys):
-        assert self._run(["--can-log", str(tmp_path / "nope.log")]) == 1
+        assert self._run([str(tmp_path / "nope.log")]) == 1
         assert "no such file" in capsys.readouterr().err
 
     def test_bad_against_label(self, tmp_path, capsys):
         log = _write_log(tmp_path)
-        assert self._run(["--can-log", str(log), "--against", "0xNOPE:r0"]) == 1
+        assert self._run([str(log), "--against", "0xNOPE:r0"]) == 1
         assert "not a varying byte" in capsys.readouterr().err
 
     def test_id_filter_flag(self, tmp_path, capsys):
         log = _write_log(tmp_path)
         # Restrict to one ID -> no cross-ID pair -> no correlations.
-        rc = self._run(["--can-log", str(log), "--id", "0x220", "--min-r", "0.9"])
+        rc = self._run([str(log), "--id", "0x220", "--min-r", "0.9"])
         assert rc == 0
         assert "No cross-ID" in capsys.readouterr().out
 
@@ -144,12 +140,13 @@ class TestHuntCanLogCommand:
         from canlib.commands import hunt
 
         p = hunt.add_parser(argparse.ArgumentParser().add_subparsers())
-        return hunt.run(p.parse_args(argv))
+        args = p.parse_args(argv)
+        return args.func(args)
 
     def test_human_and_json(self, tmp_path, capsys):
         log = _write_hunt_log(tmp_path)
         base = [
-            "--can-log",
+            "can",
             str(log),
             "--id",
             "0x220",
@@ -171,22 +168,25 @@ class TestHuntCanLogCommand:
 
     def test_bad_against(self, tmp_path, capsys):
         log = _write_hunt_log(tmp_path)
-        assert self._run(["--can-log", str(log), "--id", "0x220", "--against", "0x386:r7"]) == 1
+        assert self._run(["can", str(log), "--id", "0x220", "--against", "0x386:r7"]) == 1
         assert "not a varying byte" in capsys.readouterr().err
 
     def test_missing_id(self, tmp_path, capsys):
         log = _write_hunt_log(tmp_path)
-        assert self._run(["--can-log", str(log), "--against", "0x386:r0"]) == 2
+        # --id is a required flag on the `can` kind: argparse rejects (exit 2).
+        with pytest.raises(SystemExit) as ei:
+            self._run(["can", str(log), "--against", "0x386:r0"])
+        assert ei.value.code == 2
         assert "--id" in capsys.readouterr().err
 
-    def test_promote_rejected(self, tmp_path, capsys):
+    def test_promote_not_available_on_can(self, tmp_path, capsys):
         log = _write_hunt_log(tmp_path)
-        rc = self._run(
-            ["--can-log", str(log), "--id", "0x220", "--against", "0x386:r0", "--promote", "X"]
-        )
-        assert rc == 2
-        assert "not supported for frames" in capsys.readouterr().err
+        # --promote does not exist on the frame (can) kind: argparse rejects it.
+        with pytest.raises(SystemExit) as ei:
+            self._run(["can", str(log), "--id", "0x220", "--against", "0x386:r0", "--promote", "X"])
+        assert ei.value.code == 2
+        assert "promote" in capsys.readouterr().err.lower()
 
     def test_diagnostic_path_requires_ecu_pid(self, capsys):
-        assert self._run(["--against", "X:Y:Z"]) == 2
+        assert self._run(["uds", "--against", "X:Y:Z"]) == 2
         assert "ECU and PID are required" in capsys.readouterr().err

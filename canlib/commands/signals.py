@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """``canair signals`` — view/edit broadcast signal definitions (domain B).
 
-The frame-domain analogue of ``canair pids``: manage the ``signals/<bus>.yaml``
+The broadcast-frame (domain-B) authoring counterpart to ``canair pids`` (which
+authors domain-A diagnostic UDS PID params): manage the ``signals/<bus>.yaml``
 sidecar (arbitration ID → named linear signals) with surgical, validated,
 comment-preserving edits (via :mod:`canlib.signals_edit`). Never hand-edit the
 sidecar. See ``plans/2026-07-24-raw-can-analysis.md``.
@@ -31,7 +32,7 @@ _RESET = "\033[0m"
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
-        help="View/edit broadcast signal definitions (signals/<bus>.yaml)",
+        help="Author broadcast signal defs in signals/ (domain B; see `pids` for domain A)",
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )

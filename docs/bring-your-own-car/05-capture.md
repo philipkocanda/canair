@@ -21,17 +21,17 @@ canair query MyECU:2101 --save --label "highway 100 km/h" --state driving
 
 `--save` works with `query`, `scan`, `discover`, and live `--monitor`. Saves are
 **journaled** as they stream, so a crashed or disconnected session is never
-lost — recover leftovers with `canair captures --recover`.
+lost — recover leftovers with `canair captures uds --recover`.
 
 ## No device on hand? Import a reading
 
 Got a payload from elsewhere — a forum post, a GitHub issue, a reading someone
-took on another tool — and want it in your profile? `canair import-capture`
+took on another tool — and want it in your profile? `canair import uds`
 records it through the same machinery as `--save`, so it's indistinguishable from
 a device-recorded capture and immediately decodable:
 
 ```bash
-canair import-capture CLU:22B002=62B002E0000000FFB7008D08000000 \
+canair import uds CLU:22B002=62B002E0000000FFB7008D08000000 \
     --label "Odometer" --state acc2 --notes "Verified 36104 km on dash"
 ```
 
@@ -59,14 +59,18 @@ GPS-confirmed speed, or a known speed PID) — that reference is what makes
 ## Review what you've collected
 
 ```bash
-canair captures --sessions       # table of contents: when, what state, which ECUs
-canair captures MyECU --summary  # stats per PID
-canair captures MyECU:2101 --diff  # byte-level diff across captures
+canair captures uds --sessions       # table of contents: when, what state, which ECUs
+canair captures uds MyECU --summary  # stats per PID
+canair captures uds MyECU:2101 --diff  # byte-level diff across captures
 ```
+
+A bare `canair captures MyECU 2101` still works — it's shorthand for
+`canair captures uds …` (the diagnostic domain). `canair captures can` lists
+imported raw broadcast-CAN frame logs instead.
 
 !!! note
     Capture files under `captures/` are **never hand-edited** — they're written
-    by `--save` / `import-capture` and managed by canair. See
+    by `--save` / `import uds` and managed by canair. See
     [Captures & states](../concepts/captures-and-states.md).
 
 !!! tip "Captures are shareable evidence"

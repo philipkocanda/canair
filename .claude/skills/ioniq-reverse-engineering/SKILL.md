@@ -214,12 +214,12 @@ Full reference: **AGENTS.md** + `canair <cmd> --help`. Key project behaviors:
   `--label` (+ optional `--state`/`--notes`) for non-interactive save; without
   `--label` it prompts. Saves are **journaled** to `captures/.journal/` as they
   stream and reconciled into the dated file on exit, so a killed/disconnected
-  session isn't lost — recover leftovers with `canair captures --recover`
+  session isn't lost — recover leftovers with `canair captures uds --recover`
   (`--discard` to drop). In `--monitor` press `s` to set/edit label/state/notes
   live; the **state is auto-suggested** from decoded PID values via the profile's
   `states.yaml`. For edits/removals use `canlib.captures`
-  (`set_capture_note`/`delete_capture`). After saving, run `canair captures
-  --summary` to spot patterns missed live, or `canair captures --sessions` for a
+  (`set_capture_note`/`delete_capture`). After saving, run `canair captures uds
+  --summary` to spot patterns missed live, or `canair captures uds --sessions` for a
   metadata table of contents (date/state/label/notes/ECUs per session; `--json`).
 - **`--session` / `--wake`.** `--session` = extended session (`10 03`) + 2s
   TesterPresent keepalive; required for IGPM `22BCxx`/`2FBCxx`. `--wake` sends

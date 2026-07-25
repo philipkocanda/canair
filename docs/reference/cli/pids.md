@@ -7,7 +7,7 @@ usage: canair pids [-h]
                    {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-research,set-status,set-pid-status,set-identity}
                    ...
 
-Safely edit ecus/ parameters and research entries.
+Safely edit ecus/ parameters and research entries (domain A — diagnostic UDS PIDs, freeform WiCAN expressions). The broadcast-frame (domain B) authoring counterpart is `canair signals` (linear signals/ maps).
 
 positional arguments:
   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-research,set-status,set-pid-status,set-identity}

@@ -32,8 +32,8 @@ as they stream, and reconciled into the dated capture file when the session
 exits. A killed, crashed, or disconnected session is therefore never lost:
 
 ```bash
-canair captures --recover      # reconcile orphaned journals into capture files
-canair captures --recover --discard   # or drop them unsaved
+canair captures uds --recover      # reconcile orphaned journals into capture files
+canair captures uds --recover --discard   # or drop them unsaved
 ```
 
 ## Vehicle states
@@ -57,10 +57,11 @@ canair validate states     # check the vocabulary
 ## Reviewing captures
 
 ```bash
-canair captures --sessions       # table of contents: date, state, label, ECUs
-canair captures MyECU --summary  # stats per PID
-canair captures MyECU:2101 --diff  # byte-level diff across captures
-canair captures MyECU --latest    # most recent payload per PID
+canair captures uds --sessions       # table of contents: date, state, label, ECUs
+canair captures uds MyECU --summary  # stats per PID
+canair captures uds MyECU:2101 --diff  # byte-level diff across captures
+canair captures uds MyECU --latest    # most recent payload per PID
+canair captures can                  # list imported raw broadcast-CAN frame logs
 ```
 
 Scope any of these by date (`--since`/`--until`/`--date`) or by

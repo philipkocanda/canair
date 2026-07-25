@@ -3,24 +3,68 @@
 # `canair import`
 
 ```
-usage: canair import [-h] {can,dbc} ...
+usage: canair import [-h] {uds,can,dbc} ...
 
-Import external CAN data into the active profile.
+Import external CAN data into the active profile. Choose a kind:
 
+  uds   device-free UDS capture (ECU:PID=PAYLOAD, domain A)
+        -> captures/*.yaml via the shared save machinery
   can   raw broadcast-CAN frame log (.asc/.blf/.csv/candump .log/.trc)
-        -> captures/can/ native store + index.yaml
-  dbc   DBC signal definitions -> the profile's signals/ model (Stage 4)
+        -> captures/can/ native store + index.yaml (domain B)
+  dbc   DBC signal definitions -> the profile's signals/ model (domain B)
 
-Frame logs are stored verbatim and indexed (they are not exploded into
-the captures/*.yaml schema). SavvyCAN GVRET (.csv) is auto-detected by header.
+uds is the domain-A (request/response) half; can/dbc are the domain-B
+(passive broadcast) half. Frame logs are stored verbatim and indexed (not
+exploded into the captures/*.yaml schema). SavvyCAN GVRET (.csv) is
+auto-detected by header.
 
 positional arguments:
-  {can,dbc}
-    can       Import a raw broadcast-CAN frame log into captures/can/
-    dbc       Import DBC broadcast signal definitions into the signals/ model
+  {uds,can,dbc}
+    uds          Record externally-provided UDS payloads into captures/
+                 (device-free)
+    can          Import a raw broadcast-CAN frame log into captures/can/
+    dbc          Import DBC broadcast signal definitions into the signals/
+                 model
 
 options:
-  -h, --help  show this help message and exit
+  -h, --help     show this help message and exit
+```
+
+## `canair import uds`
+
+```
+usage: canair import uds [-h] --label LABEL [--state STATE] [--notes NOTES]
+                         [--capture-note CAPTURE_NOTE] [--time HH:MM:SS]
+                         [--date YYYY-MM-DD] [--json] [--dir DIR]
+                         ECU:PID=PAYLOAD [ECU:PID=PAYLOAD ...]
+
+Record externally-provided UDS payloads into the active profile (device-free capture import).
+
+positional arguments:
+  ECU:PID=PAYLOAD       One or more captures, e.g. CLU:22B002=62B002... (ECU
+                        short name or hex TX id; PID/DID; reassembled UDS
+                        payload, SID-first)
+
+options:
+  -h, --help            show this help message and exit
+  --label LABEL         Session label (what this reading is)
+  --state STATE         Vehicle power state(s) during capture (e.g. acc2,
+                        ready). Repeatable.
+  --notes NOTES         Session notes (context, source/attribution)
+  --capture-note CAPTURE_NOTE
+                        Per-capture note applied to each imported payload
+  --time HH:MM:SS       Capture time (optional)
+  --date YYYY-MM-DD     Capture date (default: today; sets the target file)
+  --json                Machine-readable JSON output
+  --dir DIR             Captures directory (default: active profile)
+
+  # One verified odometer reading with context
+  canair import uds CLU:22B002=62B002E0000000FFB7008D08000000 \
+      --label "Odometer" --state acc2 --time 09:38:15 \
+      --notes "Verified 36104 km on dash by timwelchnz (GitHub wican-fw#478)"
+
+  # Several PIDs captured together into one session
+  canair import uds BMS:2101=6101FFF8... BMS:2102=6102... --label "SOC snapshot"
 ```
 
 ## `canair import can`

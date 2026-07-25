@@ -3,16 +3,36 @@
 # `canair hunt`
 
 ```
-usage: canair hunt [-h] --against REF [--min-n N] [--top N] [--transform MODE]
-                   [--method {pearson,spearman}] [--join-tol SECONDS] [--json]
-                   [--all-interps] [--promote NAME] [--notation NAME]
-                   [--can-log FILE]
-                   [--can-format {auto,asc,blf,csv,log,gvret}] [--id ID]
-                   [--since YYYY-MM-DD] [--until YYYY-MM-DD]
-                   [--date YYYY-MM-DD] [--state SUBSTR] [--label SUBSTR]
-                   [ecu] [pid]
+usage: canair hunt [-h] <kind> ...
 
-Answer 'which byte on this PID carries a signal I already know?'
+Answer 'which byte carries a signal I already know?' Choose a domain kind:
+  uds   sweep a diagnostic PID's bytes vs a known signal (domain A).
+        A bare `canair hunt AAF 2181 --against …` is shorthand for this.
+  can   sweep a raw broadcast-CAN frame ID's bytes vs a reference frame
+        byte in the same log (domain B), bytes labelled 0xID:rN.
+
+Read-only: analyses captures/ only, never talks to the device.
+
+positional arguments:
+  <kind>
+    uds       Hunt a diagnostic PID's bytes vs a known signal (domain A)
+    can       Hunt a raw broadcast-CAN frame ID's bytes vs a reference (domain
+              B)
+
+options:
+  -h, --help  show this help message and exit
+```
+
+## `canair hunt uds`
+
+```
+usage: canair hunt uds [-h] --against ECU:PID:PARAM [--min-n N] [--top N]
+                       [--transform MODE] [--method {pearson,spearman}]
+                       [--join-tol SECONDS] [--json] [--all-interps]
+                       [--promote NAME] [--notation NAME] [--since YYYY-MM-DD]
+                       [--until YYYY-MM-DD] [--date YYYY-MM-DD]
+                       [--state SUBSTR] [--label SUBSTR]
+                       [ecu] [pid]
 
 Sweeps every byte offset of the target PID under every interpretation
 (u8/i16/u24/f32/... x endianness), time-aligns each candidate against a
@@ -34,9 +54,9 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-  --against REF         Reference signal: a diagnostic ECU:PID:PARAM (or
-                        EXPR), or — with --can-log — a frame byte 0xID:rN in
-                        the same log
+  --against ECU:PID:PARAM
+                        Reference signal: a diagnostic ECU:PID:PARAM (or
+                        ECU:PID:EXPR)
   --min-n N             Min aligned points (default 10)
   --top N               Max hits (default 12)
   --transform MODE      Transform the reference before aligning (e.g. delta to
@@ -57,16 +77,6 @@ options:
   --notation NAME       byte-index notation for output labels: wican
                         (default), isotp, torque, bix. Overrides the
                         display.byte_notation config key.
-  --can-log FILE        Hunt on a raw broadcast-CAN frame log instead of a
-                        diagnostic PID: sweep every byte/interpretation of
-                        --id's frames vs --against. Bytes are labelled 0xID:rN
-                        (raw-CAN, no WiCAN expr). --promote is not supported
-                        yet.
-  --can-format {auto,asc,blf,csv,log,gvret}
-                        With --can-log: log format (default: auto-detect by
-                        extension)
-  --id ID               With --can-log: the arbitration ID to hunt on (e.g.
-                        0x220)
 
 scoping:
   Restrict to captures within a date range (inclusive, YYYY-MM-DD) and/or by session state/label substring
@@ -99,4 +109,44 @@ examples:
 tip: --against takes a known signal ECU:PID:PARAM (or a raw ECU:PID:EXPR). Use
      `canair correlate --overlap` first to find a reference that actually shares
      time-aligned samples with your target.
+```
+
+## `canair hunt can`
+
+```
+usage: canair hunt can [-h] --id ID --against 0xID:rN
+                       [--can-format {auto,asc,blf,csv,log,gvret}] [--min-n N]
+                       [--top N] [--transform MODE]
+                       [--method {pearson,spearman}] [--join-tol SECONDS]
+                       [--json] [--all-interps] [--notation NAME]
+                       FILE
+
+Hunt on a raw broadcast-CAN frame log: sweep every byte/interpretation of --id's frames vs --against (a frame byte 0xID:rN in the same log). Hits are raw-CAN rN labels (no WiCAN expr); --promote is not supported for frames yet (frame signals are defined in signals/).
+
+positional arguments:
+  FILE                  Path to a raw broadcast-CAN frame log
+                        (.asc/.blf/candump .log/.trc/GVRET .csv)
+
+options:
+  -h, --help            show this help message and exit
+  --id ID               The arbitration ID to hunt on (e.g. 0x220)
+  --against 0xID:rN     Reference frame byte in the same log (e.g. 0x386:r0)
+  --can-format {auto,asc,blf,csv,log,gvret}
+                        Log format (default: auto-detect by extension)
+  --min-n N             Min aligned points (default 10)
+  --top N               Max hits (default 12)
+  --transform MODE      Transform the reference before aligning (e.g. delta to
+                        hunt the byte that tracks the reference's *rate* —
+                        torque vs acceleration)
+  --method {pearson,spearman}
+                        Ranking coefficient: pearson (linear, default) or
+                        spearman (rank)
+  --join-tol SECONDS    Nearest-timestamp join window (default 2.5s)
+  --json                Machine-readable output
+  --all-interps         Show every interpretation per offset (u8/i16/u24/…);
+                        default collapses to the best interpretation per byte
+                        offset
+  --notation NAME       byte-index notation for output labels: wican
+                        (default), isotp, torque, bix. Overrides the
+                        display.byte_notation config key.
 ```

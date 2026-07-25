@@ -226,8 +226,10 @@ def cmd_set_identity(args: argparse.Namespace) -> int:
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
-        help="Safely edit ecus/ parameters and research entries",
-        description="Safely edit ecus/ parameters and research entries.",
+        help="Author diagnostic PID params/research in ecus/ (domain A; see `signals` for domain B)",
+        description="Safely edit ecus/ parameters and research entries (domain A — "
+        "diagnostic UDS PIDs, freeform WiCAN expressions). The broadcast-frame "
+        "(domain B) authoring counterpart is `canair signals` (linear signals/ maps).",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__.split("Examples:")[1] if "Examples:" in __doc__ else "",
     )

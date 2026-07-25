@@ -95,7 +95,6 @@ nav:
           - canair dtc: reference/cli/dtc.md
           - canair repl: reference/cli/repl.md
           - canair captures: reference/cli/captures.md
-          - canair import-capture: reference/cli/import-capture.md
           - canair decode: reference/cli/decode.md
           - canair correlate: reference/cli/correlate.md
           - canair hunt: reference/cli/hunt.md

@@ -325,9 +325,9 @@ class TestCommandParsers:
         from canlib.commands import hunt
 
         p = hunt.add_parser(argparse.ArgumentParser().add_subparsers())
-        args = p.parse_args(["MCU", "2102", "--against", "X:Y:Z", "--transform", "delta"])
+        args = p.parse_args(["uds", "MCU", "2102", "--against", "X:Y:Z", "--transform", "delta"])
         assert args.transform == "delta"
-        assert p.parse_args(["MCU", "2102", "--against", "X:Y:Z"]).transform == "raw"
+        assert p.parse_args(["uds", "MCU", "2102", "--against", "X:Y:Z"]).transform == "raw"
 
     def test_hunt_notation_flag_and_label_rendering(self):
         import argparse
@@ -338,9 +338,9 @@ class TestCommandParsers:
 
         p = hunt.add_parser(argparse.ArgumentParser().add_subparsers())
         # Flag parses; default is None (resolved to wican downstream).
-        assert p.parse_args(["M", "2102", "--against", "X:Y:Z"]).notation is None
+        assert p.parse_args(["uds", "M", "2102", "--against", "X:Y:Z"]).notation is None
         assert p.parse_args(
-            ["M", "2102", "--against", "X:Y:Z", "--notation", "isotp"]
+            ["uds", "M", "2102", "--against", "X:Y:Z", "--notation", "isotp"]
         ).notation == ("isotp")
         # Label rendering: WiCAN keeps the promotable expr; others render position.
         hit = HuntHit(
@@ -365,7 +365,7 @@ class TestCommandParsers:
         from canlib.commands import correlate
 
         p = correlate.add_parser(argparse.ArgumentParser().add_subparsers())
-        args = p.parse_args(["--against", "X:Y:Z", "--transform", "abs"])
+        args = p.parse_args(["uds", "--against", "X:Y:Z", "--transform", "abs"])
         assert args.transform == "abs"
 
 

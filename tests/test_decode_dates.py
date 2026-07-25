@@ -332,11 +332,18 @@ class TestSharedScopingWiring:
         from canlib.commands import captures as cap
         from canlib.commands import decode as dec
 
-        for mod in (cap, dec):
-            sub = argparse.ArgumentParser().add_subparsers()
-            parser = mod.add_parser(sub)
-            opts = {a for action in parser._actions for a in action.option_strings}
-            assert {"--since", "--until", "--date", "--state", "--label"} <= opts, mod.NAME
+        # decode is flat; captures is a uds/can group — its scope flags live on
+        # the uds kind (parsed via a resolved sub-namespace).
+        sub = argparse.ArgumentParser().add_subparsers()
+        dec_parser = dec.add_parser(sub)
+        dec_opts = {a for action in dec_parser._actions for a in action.option_strings}
+        assert {"--since", "--until", "--date", "--state", "--label"} <= dec_opts, dec.NAME
+
+        sub2 = argparse.ArgumentParser().add_subparsers()
+        cap_group = cap.add_parser(sub2)
+        cap_uds = cap_group.parse_args(["uds", "BMS"])
+        for flag in ("since", "until", "date", "state", "label"):
+            assert hasattr(cap_uds, flag), f"captures uds missing --{flag}"
 
     def test_decode_has_analysis_modifiers(self):
         import argparse

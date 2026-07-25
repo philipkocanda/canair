@@ -114,6 +114,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`uds` / `can` domain-kind spine (breaking CLI rename, no aliases).** The two
+  data domains — **`uds`** (request/response diagnostics) and **`can`** (passive
+  broadcast frames) — are now expressed consistently as a named subcommand
+  *kind* wherever the split surfaces (ingest / list / analyze), following the
+  `validate <target>` model, so it's obvious which domain a command touches:
+    - `canair import-capture …` → **`canair import uds …`** (alongside the
+      existing `import can` / `import dbc`).
+    - `canair captures --can` → **`canair captures can`**; the diagnostic surface
+      is **`canair captures uds …`** (QUERY/diff/step/summary/sessions/latest/
+      recover).
+    - `canair correlate --can-log FILE` → **`canair correlate can FILE`**;
+      `canair hunt --can-log FILE --id …` → **`canair hunt can FILE --id …`**.
+      Their diagnostic path is the default **`uds`** kind.
+  Bare-invocation muscle memory is preserved (`captures BMS 2102`, `correlate …`,
+  `hunt AAF 2181 --against …` all default to `uds`, like `scan`/`ecu`). `pids`
+  (domain A) and `signals` (domain B) authoring are unchanged, but their `--help`
+  now cross-references each other as the A/B pair. See the naming-spine addendum
+  in `plans/2026-07-24-raw-can-analysis.md`.
+
 - **Internal: consolidated the two WiCAN-byte reconstruction paths.**
   `wican_bytes.uds_hex_to_wican_bytes` now delegates the PCI-insertion to
   `byteindex.payload_to_wican_bytes` (the single source of truth) and only

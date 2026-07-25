@@ -403,7 +403,7 @@ class MonitorController:
         # Write-ahead journal (durability): when --save is on, every polled
         # payload is appended here as it arrives and reconciled into a capture
         # file on exit. Set by mode_monitor. A dropped connection or crash leaves
-        # the journal on disk for `canair captures --recover`.
+        # the journal on disk for `canair captures uds --recover`.
         self.journal = None
         self._name_index: dict | None = None
         # Auto-suggest state: latest decoded {ECU.PARAM: value} + responded ECUs,

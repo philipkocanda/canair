@@ -319,3 +319,40 @@ here (Stage 4). It realises the broadcast-decoding decision of
   scale/offset-vs-reference semantics need thought) and frame `decode`/`coverage`
   (a signals/-driven frame decoder). (2026-07-25)
 - [ ] Stage 5 — docs / README / AGENTS.md / skills / CHANGELOG
+
+## Addendum (2026-07-25): the `uds` / `can` naming spine
+
+Decision #5 ("dedicated `import`/`export` commands") is **extended**, not
+contradicted: the two domains are now expressed *consistently* wherever the
+split surfaces (ingest / list / analyze) as a named subcommand **kind** — `uds`
+(domain A, request/response diagnostics) or `can` (domain B, passive broadcast
+frames) — following the proven `validate <target>` model. The old, mixed
+surface (a top-level `import-capture`, a `captures --can` flag, `correlate`/`hunt
+--can-log` flags) was invisible about which domain a command touched.
+
+Concretely (hard rename, no aliases):
+
+- **Ingest** — `import-capture` → **`import uds`** (a kind alongside the existing
+  `import can` / `import dbc`). Logic moved to `commands/import_uds.py`.
+- **List** — `captures --can` → **`captures can`**; the diagnostic surface is
+  **`captures uds`** (all the QUERY/diff/step/summary/sessions/latest/recover
+  modes). `captures` is now a group host.
+- **Analyze** — `correlate --can-log FILE` → **`correlate can FILE`**; `hunt
+  --can-log FILE --id …` → **`hunt can FILE --id …`**. The diagnostic path is the
+  default **`uds`** kind on each.
+- **Bare-invocation muscle memory preserved** via `cli._GROUP_DEFAULTS` (the same
+  mechanism as `scan`/`ecu`): `captures`/`correlate`/`hunt` default to `uds`, so
+  `canair captures BMS 2102`, `correlate …`, `hunt AAF 2181 --against …` are
+  unchanged.
+- **Authoring left as-is** (`pids` = domain A, `signals` = domain B): they carry
+  asymmetric UDS-only subcommands (research/identity/pid-status) with no `can`
+  analogue, so a forced `define uds`/`define can` unification would relocate the
+  confusion rather than remove it. Their `--help` now cross-references each other
+  as the A/B authoring pair.
+- **`investigate`/`decode`/`coverage`** stay bare (A-only) until a `can`
+  counterpart exists (Stage 2c/4) — no lone `uds` kind with no sibling.
+- **`validate`** already used this shape (`validate signals`/`can`/`pids`/…) and
+  is unchanged; it was the model the spine generalizes.
+
+The domain words `uds`/`can` were chosen for being short and on-the-wire, and
+because domain B already used `can` throughout (`import can`, `captures/can/`).

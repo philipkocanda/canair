@@ -7,7 +7,8 @@ usage: canair signals [-h] {list,upsert,rm} ...
 
 ``canair signals`` — view/edit broadcast signal definitions (domain B).
 
-The frame-domain analogue of ``canair pids``: manage the ``signals/<bus>.yaml``
+The broadcast-frame (domain-B) authoring counterpart to ``canair pids`` (which
+authors domain-A diagnostic UDS PID params): manage the ``signals/<bus>.yaml``
 sidecar (arbitration ID → named linear signals) with surgical, validated,
 comment-preserving edits (via :mod:`canlib.signals_edit`). Never hand-edit the
 sidecar. See ``plans/2026-07-24-raw-can-analysis.md``.
@@ -74,12 +75,6 @@ options:
   --msg-name MSG_NAME   Message name (DBC BO_ name)
   --tx-ecu TX_ECU       Transmitting ECU (annotation)
 ```
-
-`--source` records **where the signal came from** — a reproducible provenance
-string such as a DBC file (`dbc:<file>`, filled automatically by
-`canair import dbc`), the exact log used to reverse-engineer it, or a reference
-sheet. Keep it terse and reproducible; the supporting *evidence* (correlations,
-sample counts, reasoning) belongs in `--notes`.
 
 ## `canair signals rm`
 

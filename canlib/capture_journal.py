@@ -9,7 +9,7 @@ sidecar under ``captures/.journal/``, flushed (and fsync'd) per write. On a clea
 exit the journal is *reconciled* — its records are folded into a single session
 appended to ``captures/YYYY-MM-DD.yaml`` (via the same builders used elsewhere),
 and the journal file is deleted. If the process dies uncleanly the journal
-survives and can be recovered later with ``canair captures --recover``.
+survives and can be recovered later with ``canair captures uds --recover``.
 
 Journal format (one JSON object per line):
 

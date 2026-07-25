@@ -93,10 +93,13 @@ Progress is tracked per-ECU in the `research:` block of the profile's `ecus/<ecu
 PIDs, freeform WiCAN `Bnn` expressions). For **domain B** — passively-broadcast
 CAN frames (no request elicits them; drive-mode/regen/thermal signals often live
 here) — the shape differs: `import can <log>` a frame log into `captures/can/`,
-find fields with `correlate --can-log` / `hunt --can-log --id 0xID --against
+find fields with `correlate can <log>` / `hunt can <log> --id 0xID --against
 0xREF:rN` (frame bytes are `0xID:rN`, raw-CAN, no PCI), and *define* them in the
 DBC-compatible **linear** `signals/<bus>.yaml` via `canair signals upsert` (or
-`import dbc`). See `docs/concepts/broadcast-frames.md`. The analysis reasoning
+`import dbc`). See `docs/concepts/broadcast-frames.md`. The `uds`/`can` kind is
+the domain selector across ingest/list/analyze (`import uds`/`import can`,
+`captures uds`/`captures can`, `correlate`/`hunt` `uds`/`can`); a bare invocation
+defaults to `uds` (domain A). The analysis reasoning
 below (physics/EE/statistics) applies to both; only the byte-notation and the
 definition model differ.
 
@@ -182,26 +185,31 @@ directly.** Always inspect captures through `canair captures`/`canair decode`
 (next step): reading the YAML by hand gives you undecoded raw payloads and skips
 byte-diffing, decoding, and state/date scoping. Saves are journaled to `captures/.journal/` and
 reconciled on exit (a killed/disconnected `--monitor` session is recoverable with
-`canair captures --recover`); in `--monitor` the `state` is auto-suggested from
+`canair captures uds --recover`); in `--monitor` the `state` is auto-suggested from
 decoded values (press `s` to edit metadata live). After saving, run
-`canair captures --summary`.
+`canair captures uds --summary`.
 
 ### 5. Inspect — see the bytes
 
+`canair captures` is a `uds`/`can` group: `captures uds …` is the diagnostic
+domain (below); `captures can` lists raw broadcast-CAN frame logs. A bare
+`canair captures MCU 2102` still works — it's shorthand for `captures uds …`.
+
 ```bash
-canair captures --sessions                    # what's in the captures? (TOC: date/state/label/notes/ECUs)
-canair captures --sessions --state driving    # index of every drive
-canair captures --sessions --json             # machine-readable TOC
-canair captures --summary                     # overview: captures per ECU / per date / totals
-canair captures --latest MCU                  # most recent payload per PID (optionally per-ECU)
-canair captures MCU 2102                      # list captures + decoded
-canair captures MCU:2102 --diff               # unique payloads, byte-diff
-canair captures MCU:2102 --diff --all         # every payload, not just unique ones
-canair captures MCU:2102 --diff --rulers      # add the idx/wican byte-index ruler above the hex
-canair captures MCU:2102 --diff --since 2026-07-19   # scope by date
-canair captures MCU:2102 --diff --state driving       # scope to one drive/state
-canair captures MCU:2102 --step               # interactive step-through (e=note, d=delete)
-canair captures --recover                     # reconcile orphaned journals (--discard to drop)
+canair captures uds --sessions                # what's in the captures? (TOC: date/state/label/notes/ECUs)
+canair captures uds --sessions --state driving  # index of every drive
+canair captures uds --sessions --json         # machine-readable TOC
+canair captures uds --summary                 # overview: captures per ECU / per date / totals
+canair captures uds --latest MCU              # most recent payload per PID (optionally per-ECU)
+canair captures uds MCU 2102                  # list captures + decoded
+canair captures uds MCU:2102 --diff           # unique payloads, byte-diff
+canair captures uds MCU:2102 --diff --all     # every payload, not just unique ones
+canair captures uds MCU:2102 --diff --rulers  # add the idx/wican byte-index ruler above the hex
+canair captures uds MCU:2102 --diff --since 2026-07-19   # scope by date
+canair captures uds MCU:2102 --diff --state driving       # scope to one drive/state
+canair captures uds MCU:2102 --step           # interactive step-through (e=note, d=delete)
+canair captures uds --recover                 # reconcile orphaned journals (--discard to drop)
+canair captures can                           # list imported raw broadcast-CAN frame logs (domain B)
 canair bix -1 --annotate 6101FFFF...          # map each byte -> Bnn/ISO-TP/Torque/role
 ```
 
@@ -210,7 +218,7 @@ The QUERY mini-language is shared with `canair decode`: `MCU 2102` (one PID),
 (cross-ECU — quote the space), and `BCM:22` (substring PID match — all `22xxxx`
 DIDs on an ECU).
 
-Start with `canair captures --sessions` to see what data exists (labels, states,
+Start with `canair captures uds --sessions` to see what data exists (labels, states,
 notes per session — no payloads) and pick a drive/state to analyze; `--json`
 gives a machine-readable index.
 Byte-diff highlights which bytes moved between states — your candidate signal
@@ -599,7 +607,7 @@ upstream wican-fw PR — see the `ioniq-reverse-engineering` skill's goals).
 | Step | Tool |
 |------|------|
 | what to work on | `canair research`, `canair coverage` |
-| what's captured | `canair captures --sessions` (TOC: date/state/label/notes/ECUs; `--json`) |
+| what's captured | `canair captures uds --sessions` (TOC: date/state/label/notes/ECUs; `--json`) |
 | talk to the car | `canair query`/`scan`/`discover` (`--monitor`, `--save`) |
 | see captures | `canair captures` (`--diff`/`--step`/`--rulers`/`--all`/`--latest`/`--summary`/`--since`/`--until`/`--state`/`--label`) |
 | map bytes | `canair bix --annotate` (+ `--ecu ECU --pid PID` to overlay which param maps each byte / flag unmapped) |

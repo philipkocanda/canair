@@ -40,9 +40,113 @@ _RESET = "\033[0m"
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
-        help="Identify which byte on a PID *is* a known signal (e.g. which byte is speed?)",
+        help="Identify which byte *is* a known signal: uds (a PID) | can (a frame ID)",
         description=(
-            "Answer 'which byte on this PID carries a signal I already know?'\n\n"
+            "Answer 'which byte carries a signal I already know?' Choose a domain kind:\n"
+            "  uds   sweep a diagnostic PID's bytes vs a known signal (domain A).\n"
+            "        A bare `canair hunt AAF 2181 --against …` is shorthand for this.\n"
+            "  can   sweep a raw broadcast-CAN frame ID's bytes vs a reference frame\n"
+            "        byte in the same log (domain B), bytes labelled 0xID:rN.\n\n"
+            "Read-only: analyses captures/ only, never talks to the device."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    kinds = parser.add_subparsers(dest="hunt_kind", metavar="<kind>")
+    _add_uds_parser(kinds)
+    _add_can_parser(kinds)
+    parser.set_defaults(func=_group_help, _hunt_group_parser=parser)
+    return parser
+
+
+def _group_help(args) -> int:
+    parser = getattr(args, "_hunt_group_parser", None)
+    if parser is not None:
+        parser.print_help()
+    return 1
+
+
+def _add_shared_hunt_args(parser) -> None:
+    """Flags common to both the uds and can hunt kinds."""
+    parser.add_argument(
+        "--min-n", type=int, default=10, metavar="N", help="Min aligned points (default 10)"
+    )
+    parser.add_argument("--top", type=int, default=12, metavar="N", help="Max hits (default 12)")
+    parser.add_argument(
+        "--transform",
+        choices=["raw", "delta", "abs", "cumsum", "normalize", "smooth"],
+        default="raw",
+        metavar="MODE",
+        help="Transform the reference before aligning (e.g. delta to hunt the "
+        "byte that tracks the reference's *rate* — torque vs acceleration)",
+    )
+    parser.add_argument(
+        "--method",
+        choices=["pearson", "spearman"],
+        default="pearson",
+        help="Ranking coefficient: pearson (linear, default) or spearman (rank)",
+    )
+    parser.add_argument(
+        "--join-tol",
+        type=float,
+        default=DEFAULT_JOIN_TOL_S,
+        metavar="SECONDS",
+        help=f"Nearest-timestamp join window (default {DEFAULT_JOIN_TOL_S}s)",
+    )
+    parser.add_argument("--json", action="store_true", help="Machine-readable output")
+    parser.add_argument(
+        "--all-interps",
+        action="store_true",
+        help="Show every interpretation per offset (u8/i16/u24/…); default "
+        "collapses to the best interpretation per byte offset",
+    )
+
+
+def _add_can_parser(kinds) -> argparse.ArgumentParser:
+    parser = kinds.add_parser(
+        "can",
+        help="Hunt a raw broadcast-CAN frame ID's bytes vs a reference (domain B)",
+        description=(
+            "Hunt on a raw broadcast-CAN frame log: sweep every byte/interpretation "
+            "of --id's frames vs --against (a frame byte 0xID:rN in the same log). "
+            "Hits are raw-CAN rN labels (no WiCAN expr); --promote is not supported "
+            "for frames yet (frame signals are defined in signals/)."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "file",
+        metavar="FILE",
+        help="Path to a raw broadcast-CAN frame log (.asc/.blf/candump .log/.trc/GVRET .csv)",
+    )
+    parser.add_argument(
+        "--id",
+        required=True,
+        metavar="ID",
+        help="The arbitration ID to hunt on (e.g. 0x220)",
+    )
+    parser.add_argument(
+        "--against",
+        required=True,
+        metavar="0xID:rN",
+        help="Reference frame byte in the same log (e.g. 0x386:r0)",
+    )
+    parser.add_argument(
+        "--can-format",
+        choices=["auto", "asc", "blf", "csv", "log", "gvret"],
+        default="auto",
+        help="Log format (default: auto-detect by extension)",
+    )
+    _add_shared_hunt_args(parser)
+    add_notation_arg(parser)
+    parser.set_defaults(func=_run_can_log)
+    return parser
+
+
+def _add_uds_parser(kinds) -> argparse.ArgumentParser:
+    parser = kinds.add_parser(
+        "uds",
+        help="Hunt a diagnostic PID's bytes vs a known signal (domain A)",
+        description=(
             "Sweeps every byte offset of the target PID under every interpretation\n"
             "(u8/i16/u24/f32/... x endianness), time-aligns each candidate against a\n"
             "known reference signal on another ECU/PID (--against), and ranks them by\n"
@@ -82,42 +186,10 @@ tip: --against takes a known signal ECU:PID:PARAM (or a raw ECU:PID:EXPR). Use
     parser.add_argument(
         "--against",
         required=True,
-        metavar="REF",
-        help="Reference signal: a diagnostic ECU:PID:PARAM (or EXPR), or — with "
-        "--can-log — a frame byte 0xID:rN in the same log",
+        metavar="ECU:PID:PARAM",
+        help="Reference signal: a diagnostic ECU:PID:PARAM (or ECU:PID:EXPR)",
     )
-    parser.add_argument(
-        "--min-n", type=int, default=10, metavar="N", help="Min aligned points (default 10)"
-    )
-    parser.add_argument("--top", type=int, default=12, metavar="N", help="Max hits (default 12)")
-    parser.add_argument(
-        "--transform",
-        choices=["raw", "delta", "abs", "cumsum", "normalize", "smooth"],
-        default="raw",
-        metavar="MODE",
-        help="Transform the reference before aligning (e.g. delta to hunt the "
-        "byte that tracks the reference's *rate* — torque vs acceleration)",
-    )
-    parser.add_argument(
-        "--method",
-        choices=["pearson", "spearman"],
-        default="pearson",
-        help="Ranking coefficient: pearson (linear, default) or spearman (rank)",
-    )
-    parser.add_argument(
-        "--join-tol",
-        type=float,
-        default=DEFAULT_JOIN_TOL_S,
-        metavar="SECONDS",
-        help=f"Nearest-timestamp join window (default {DEFAULT_JOIN_TOL_S}s)",
-    )
-    parser.add_argument("--json", action="store_true", help="Machine-readable output")
-    parser.add_argument(
-        "--all-interps",
-        action="store_true",
-        help="Show every interpretation per offset (u8/i16/u24/…); default "
-        "collapses to the best interpretation per byte offset",
-    )
+    _add_shared_hunt_args(parser)
     parser.add_argument(
         "--promote",
         metavar="NAME",
@@ -126,24 +198,6 @@ tip: --against takes a known signal ECU:PID:PARAM (or a raw ECU:PID:EXPR). Use
         "evidence auto-filled into notes",
     )
     add_notation_arg(parser)
-    parser.add_argument(
-        "--can-log",
-        metavar="FILE",
-        help="Hunt on a raw broadcast-CAN frame log instead of a diagnostic PID: "
-        "sweep every byte/interpretation of --id's frames vs --against. Bytes are "
-        "labelled 0xID:rN (raw-CAN, no WiCAN expr). --promote is not supported yet.",
-    )
-    parser.add_argument(
-        "--can-format",
-        choices=["auto", "asc", "blf", "csv", "log", "gvret"],
-        default="auto",
-        help="With --can-log: log format (default: auto-detect by extension)",
-    )
-    parser.add_argument(
-        "--id",
-        metavar="ID",
-        help="With --can-log: the arbitration ID to hunt on (e.g. 0x220)",
-    )
     add_scope_args(parser)
     parser.set_defaults(func=run)
     return parser
@@ -174,18 +228,9 @@ def _run_can_log(args) -> int:
     from canlib import frame_series
     from canlib.can_logs import CanLogError
 
-    if args.promote:
-        print(
-            "hunt --can-log: --promote is not supported for frames yet (Stage 4).", file=sys.stderr
-        )
-        return 2
-    if not args.id:
-        print("hunt --can-log: --id ARBITRATION_ID is required (e.g. --id 0x220).", file=sys.stderr)
-        return 2
-
-    path = Path(args.can_log)
+    path = Path(args.file)
     if not path.is_file():
-        print(f"--can-log: no such file: {path}", file=sys.stderr)
+        print(f"hunt can: no such file: {path}", file=sys.stderr)
         return 1
     try:
         target = int(args.id, 16)
@@ -199,7 +244,7 @@ def _run_can_log(args) -> int:
             path, args.can_format, min_distinct=2, id_filter=id_filter
         )
     except (ValueError, CanLogError) as e:
-        print(f"--can-log: {e}", file=sys.stderr)
+        print(f"hunt can: {e}", file=sys.stderr)
         return 1
 
     ref = ref_series_map.get(args.against)
@@ -229,7 +274,7 @@ def _run_can_log(args) -> int:
             all_interps=args.all_interps,
         )
     except CanLogError as e:
-        print(f"--can-log: {e}", file=sys.stderr)
+        print(f"hunt can: {e}", file=sys.stderr)
         return 1
 
     if args.json:
@@ -281,11 +326,11 @@ def _run_can_log(args) -> int:
 def run(args) -> int:
     from canlib.ecus import canonical_ecu_name_safe
 
-    if args.can_log:
-        return _run_can_log(args)
-
     if not args.ecu or not args.pid:
-        print("hunt: ECU and PID are required (or use --can-log FILE --id).", file=sys.stderr)
+        print(
+            "hunt uds: ECU and PID are required (e.g. `hunt AAF 2181 --against …`).",
+            file=sys.stderr,
+        )
         return 2
 
     since, until, err = resolve_date_bounds(args)

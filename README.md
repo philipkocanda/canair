@@ -69,12 +69,11 @@ All functionality is exposed as `canair <subcommand>`; run `canair <cmd> --help`
 | `canair identity` | Decode ECU identity DIDs — part number, versions, serial, VIN. |
 | `canair sniff` | Passive CAN-bus sniffer (raw SLCAN) with optional frame logging. |
 | `canair decode` | Value-centric decoding of captures — stats, correlation, `--plot`, candidate-expression testing. |
-| `canair correlate` | Rank the strongest cross-signal relationships across a drive. |
-| `canair hunt` | "Which byte *is* this known signal?" — sweep, correlate, fit, unit-guess. |
+| `canair correlate` | Rank the strongest cross-signal relationships across a drive (`uds` captures \| `can` frame log). |
+| `canair hunt` | "Which byte *is* this known signal?" — sweep, correlate, fit, unit-guess (`uds` PID \| `can` frame ID). |
 | `canair investigate` | One-shot per-byte report for an unknown PID. |
-| `canair captures` | Search/diff/step through saved captures. |
-| `canair import` | Import raw broadcast-CAN frame logs (`.asc`/`.blf`/candump/GVRET) and DBC signal defs into the profile. |
-| `canair import-capture` | Record externally-provided UDS payloads into the profile (device-free). |
+| `canair captures` | Search/diff/step saved diagnostic captures (`captures uds`) or list raw-CAN frame logs (`captures can`). |
+| `canair import` | Bring data into the profile: `import uds` (device-free UDS payload), `import can` (raw frame log), `import dbc` (signal defs). |
 | `canair coverage` | Audit PID definitions for decoding gaps. |
 | `canair research` | Report the open reverse-engineering backlog. |
 | `canair pids` | Add/update `ecus/` parameters and research entries (validated). |
