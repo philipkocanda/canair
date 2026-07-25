@@ -488,9 +488,9 @@ def _decode_payload(
     regenerate them on demand for display (see query-captures.py). Pass a
     prebuilt ``ecu_index`` to avoid rebuilding it on every call.
     """
+    from .autopid_layout import uds_hex_to_wican_bytes
     from .expression import evaluate_expression
     from .pids import build_ecu_index
-    from .wican_bytes import uds_hex_to_wican_bytes
 
     if ecu_index is None:
         ecu_index = build_ecu_index(pids_data)

@@ -2,12 +2,12 @@
 
 import re
 
+from ..autopid_layout import uds_hex_to_wican_bytes
 from ..expression import evaluate_expression
 from ..formatting import print_decoded_params, print_hexdump
 from ..pids import build_ecu_index
 from ..terminal import WiCANTerminal, reboot_wican
 from ..uds_parse import parse_uds_response
-from ..wican_bytes import uds_hex_to_wican_bytes
 
 
 async def mode_interactive(terminal: WiCANTerminal, pids_data: dict, verbose: bool):

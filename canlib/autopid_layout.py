@@ -1,10 +1,11 @@
 """Reconstruct the WiCAN AutoPID byte layout from a reassembled UDS payload.
 
-Transport-independent and usable offline: byte-index expressions (``B09``,
-``B37``, …) reference the interleaved AutoPID layout (with PCI bytes), but every
-transport hands us the reassembled UDS payload *without* PCI. This module
-re-inserts the PCI bytes so those expressions evaluate correctly, whether the
-payload came live from a device or from a stored capture.
+This is an **analysis/decoding** concern, not device management: byte-index
+expressions (``B09``, ``B37``, …) reference the interleaved AutoPID layout (with
+PCI bytes), but every transport hands us the reassembled UDS payload *without*
+PCI. This module re-inserts the PCI bytes so those expressions evaluate
+correctly, whether the payload came live from a device or from a stored capture.
+Transport-independent and usable offline.
 
 The PCI-insertion math itself lives in :mod:`canlib.byteindex`
 (:func:`~canlib.byteindex.payload_to_wican_bytes`), the single source of truth

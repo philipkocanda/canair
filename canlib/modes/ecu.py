@@ -3,11 +3,11 @@
 import asyncio
 import json
 
+from ..autopid_layout import uds_hex_to_wican_bytes
 from ..expression import evaluate_expression
 from ..formatting import print_decoded_params
 from ..pids import build_ecu_index
 from ..terminal import WiCANTerminal
-from ..wican_bytes import uds_hex_to_wican_bytes
 
 
 async def mode_ecu(

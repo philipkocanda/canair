@@ -169,7 +169,7 @@ line up 1:1. Two nuances only:
 - It is a **single running index** across frames, not a `(frame, 0..7)` pair; the
   PCI bytes sit at 0/1, 8, 16, 24, … exactly as they do on the wire.
 - canair **reconstructs** this buffer offline from the PCI-less payload
-  (`canlib/wican_bytes.py:11`, `uds_hex_to_wican_bytes`) and **zero-pads** the
+  (`canlib/autopid_layout.py`, `uds_hex_to_wican_bytes`) and **zero-pads** the
   trailing consecutive frame, whereas a real bus pads with whatever the ECU emits
   (often `0xAA` / `0x00` / `0x55`). So trailing *padding byte values* can differ —
   never the index. Don't reference padding bytes in expressions anyway.
@@ -281,7 +281,7 @@ canair's transports hand back the **PCI-stripped** payload, so before evaluating
 any `Bnn` expression it **re-inserts** the PCI bytes to reconstruct the exact
 buffer the firmware sees:
 
-- `canlib/wican_bytes.py:11` — `uds_hex_to_wican_bytes()` (the reconstruction).
+- `canlib/autopid_layout.py` — `uds_hex_to_wican_bytes()` (the reconstruction).
 - `canlib/byteindex.py` — all four notations and their conversions
   (`wican_to_isotp`, `wican_to_torque`, `torque_*`, `conversion_table`).
 

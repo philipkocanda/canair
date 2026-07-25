@@ -8,8 +8,8 @@ payload + PID definitions.
 
 from functools import lru_cache
 
+from .autopid_layout import uds_hex_to_wican_bytes
 from .expression import evaluate_expression
-from .wican_bytes import uds_hex_to_wican_bytes
 
 # A decoded parameter row, as consumed by ``formatting.render_param_table`` and
 # ``formatting._build_byte_colors`` / ``_render_hex_line``:
