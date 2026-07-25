@@ -73,11 +73,12 @@ All functionality is exposed as `canair <subcommand>`; run `canair <cmd> --help`
 | `canair hunt` | "Which byte *is* this known signal?" — sweep, correlate, fit, unit-guess. |
 | `canair investigate` | One-shot per-byte report for an unknown PID. |
 | `canair captures` | Search/diff/step through saved captures. |
-| `canair import` | Import raw broadcast-CAN frame logs (`.asc`/`.blf`/candump/…) into the profile; list with `captures --can`. |
+| `canair import` | Import raw broadcast-CAN frame logs (`.asc`/`.blf`/candump/GVRET) and DBC signal defs into the profile. |
 | `canair import-capture` | Record externally-provided UDS payloads into the profile (device-free). |
 | `canair coverage` | Audit PID definitions for decoding gaps. |
 | `canair research` | Report the open reverse-engineering backlog. |
 | `canair pids` | Add/update `ecus/` parameters and research entries (validated). |
+| `canair signals` | Add/update broadcast signal definitions (`signals/`, DBC-compatible linear model). |
 | `canair ecu` | Inspect ECUs, or register one offline (`ecu add`). |
 | `canair wican` | Generate the WiCAN AutoPID JSON; upload/download/diff (Pro). |
 | `canair profile` | Manage profile bundles — create/list/show/path. |
@@ -85,6 +86,7 @@ All functionality is exposed as `canair <subcommand>`; run `canair <cmd> --help`
 | `canair config` | View/manage user config. |
 | `canair update` | Update canair from its git clone (`git pull` + reinstall); links the changelog. |
 | `canair validate` | Validate `ecus/`, `profile.yaml`, and `captures/` against their schemas. |
+| `canair export` | Export broadcast signal defs (`signals/`) to DBC for SavvyCAN/cabana/Wireshark. |
 
 > Separate package [`wican-cli`](https://github.com/philipkocanda/wican-cli) handles WiCAN *device* management (config, sleep/power, status, reboots). `pip install wican-cli`.
 

@@ -89,6 +89,17 @@ Progress is tracked per-ECU in the `research:` block of the profile's `ecus/<ecu
 `pending → captured → (decoded) → verify → done`, at which point a real
 `parameters:` entry exists and is marked `verified: true`.
 
+**Two domains.** The above is **domain A** (diagnostic request/response: `ecus/`
+PIDs, freeform WiCAN `Bnn` expressions). For **domain B** — passively-broadcast
+CAN frames (no request elicits them; drive-mode/regen/thermal signals often live
+here) — the shape differs: `import can <log>` a frame log into `captures/can/`,
+find fields with `correlate --can-log` / `hunt --can-log --id 0xID --against
+0xREF:rN` (frame bytes are `0xID:rN`, raw-CAN, no PCI), and *define* them in the
+DBC-compatible **linear** `signals/<bus>.yaml` via `canair signals upsert` (or
+`import dbc`). See `docs/concepts/broadcast-frames.md`. The analysis reasoning
+below (physics/EE/statistics) applies to both; only the byte-notation and the
+definition model differ.
+
 ### 1. Orient — pick a target
 
 ```bash
