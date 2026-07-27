@@ -332,6 +332,51 @@ class TestCmdLatestJson:
         assert json.loads(capsys.readouterr().out) == []
 
 
+class TestCmdListLimit:
+    def _many(self, n):
+        # n captures for one PID, chronologically increasing timestamps.
+        return [
+            _entry(ecu="BMS", pid="2101", payload=f"6101{i:02X}", time=f"12:00:{i:02d}")
+            for i in range(n)
+        ]
+
+    def test_json_truncates_to_latest_n(self, capsys):
+        import json
+
+        cmd_list(self._many(10), "BMS:2101", as_json=True, limit=3)
+        data = json.loads(capsys.readouterr().out)
+        assert data["matched"] == 10
+        assert data["shown"] == 3
+        assert data["truncated"] is True
+        assert data["limit"] == 3
+        # Keeps the most recent 3 (tail of the chronological list).
+        assert [c["payload"] for c in data["captures"]] == ["610107", "610108", "610109"]
+
+    def test_json_no_cap_when_limit_zero(self, capsys):
+        import json
+
+        cmd_list(self._many(10), "BMS:2101", as_json=True, limit=0)
+        data = json.loads(capsys.readouterr().out)
+        assert data["matched"] == 10
+        assert data["shown"] == 10
+        assert data["truncated"] is False
+
+    def test_json_not_truncated_when_under_limit(self, capsys):
+        import json
+
+        cmd_list(self._many(3), "BMS:2101", as_json=True, limit=50)
+        data = json.loads(capsys.readouterr().out)
+        assert data["shown"] == 3 and data["truncated"] is False
+
+    def test_text_footer_reports_hidden_history(self, capsys):
+        cmd_list(self._many(10), "BMS:2101", as_json=False, limit=3)
+        out = capsys.readouterr().out
+        # Loud, always-printed truncation notice (not TTY-gated).
+        assert "7 more not shown" in out
+        assert "--limit 0" in out
+        assert "latest 3 of 10" in out
+
+
 class TestCmdDiffJson:
     def test_json_groups_unique_payloads(self, capsys):
         import json

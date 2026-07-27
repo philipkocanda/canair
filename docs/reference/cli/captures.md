@@ -28,8 +28,8 @@ options:
 
 ```
 usage: canair captures uds [-h] [--diff | --step]
-                           [--summary | --sessions | --latest [ECU] |
-                           --recover] [--discard] [--all] [--rulers] [--pair]
+                           [--summary | --sessions | --latest | --recover]
+                           [--discard] [--all] [--limit N] [--rulers] [--pair]
                            [--join-tol SECONDS] [--json] [--since WHEN]
                            [--until WHEN] [--date YYYY-MM-DD] [--today]
                            [--last-sessions [N]] [--last-session]
@@ -39,70 +39,73 @@ usage: canair captures uds [-h] [--diff | --step]
 Query captured UDS payloads.
 
 positional arguments:
-  QUERY                 ECU/PID selection: 'BMS 2102', 'BMS:2102,2103', 'BMS'
-                        (all PIDs), or a quoted cross-ECU query 'VCU:2101
-                        BMS:2101'
+  QUERY                ECU/PID selection: 'BMS 2102', 'BMS:2102,2103', 'BMS'
+                       (all PIDs), or a quoted cross-ECU query 'VCU:2101
+                       BMS:2101'
 
 options:
-  -h, --help            show this help message and exit
-  --diff, -d            Monitor-style view (decoded params + colored byte-
-                        diff), one block per ECU+PID
-  --step, -S            Interactively step through matching captures (arrow
-                        keys; e=note, d=delete)
-  --summary, -s         Overview statistics
-  --sessions, -n        List sessions with their metadata
-                        (date/state/label/notes/ECUs) — a searchable table of
-                        contents; no payloads. Honors the scope filters.
-  --latest [ECU], -l [ECU]
-                        Latest payload per PID (optionally filtered by ECU)
-  --recover             Reconcile orphaned capture journals (from a
-                        killed/crashed session) into capture files. Add
-                        --discard to delete them without saving.
-  --discard             With --recover: delete orphaned journals without
-                        saving them
-  --all, -a             For --diff/--step: use every payload instead of
-                        unique-only
-  --rulers, -r          For --diff/--step: show the byte-index ruler
-                        (idx/wican) above the hex
-  --pair, -P            For --step: compare two ECU:PID selections side by
-                        side, joining captures by nearest timestamp within
-                        --join-tol (query must resolve to exactly two keys,
-                        e.g. "VCU:2101 BMS:2101")
-  --join-tol SECONDS    For --step --pair: max timestamp difference to pair
-                        two captures (default 2.5s)
-  --json                Machine-readable JSON output
-                        (summary/sessions/latest/diff and the default QUERY
-                        list; not --step, which is interactive)
-  --dir DIR             Captures directory (default: active profile)
+  -h, --help           show this help message and exit
+  --diff, -d           Monitor-style view (decoded params + colored byte-
+                       diff), one block per ECU+PID
+  --step, -S           Interactively step through matching captures (arrow
+                       keys; e=note, d=delete)
+  --summary, -s        Overview statistics
+  --sessions, -n       List sessions with their metadata
+                       (date/state/label/notes/ECUs) — a searchable table of
+                       contents; no payloads. Honors the scope filters.
+  --latest, -l         Latest payload per PID (ECU/PID taken from the QUERY,
+                       e.g. `BMS --latest`)
+  --recover            Reconcile orphaned capture journals (from a
+                       killed/crashed session) into capture files. Add
+                       --discard to delete them without saving.
+  --discard            With --recover: delete orphaned journals without saving
+                       them
+  --all, -a            For --diff/--step: use every payload instead of unique-
+                       only
+  --limit N, -L N      Default list view: show only the most recent N captures
+                       (default 50; 0 = no cap). A loud footer reports any
+                       hidden history.
+  --rulers, -r         For --diff/--step: show the byte-index ruler
+                       (idx/wican) above the hex
+  --pair, -P           For --step: compare two ECU:PID selections side by
+                       side, joining captures by nearest timestamp within
+                       --join-tol (query must resolve to exactly two keys,
+                       e.g. "VCU:2101 BMS:2101")
+  --join-tol SECONDS   For --step --pair: max timestamp difference to pair two
+                       captures (default 2.5s)
+  --json               Machine-readable JSON output
+                       (summary/sessions/latest/diff and the default QUERY
+                       list; not --step, which is interactive)
+  --dir DIR            Captures directory (default: active profile)
 
 scoping:
   Restrict to captures within a date/time range (inclusive) and/or by session state/label substring. --since/--until accept a date (YYYY-MM-DD) or a timestamp (YYYY-MM-DD HH:MM[:SS[.ffffff]])
 
-  --since WHEN          Only captures on or after this date/time (YYYY-MM-DD[
-                        HH:MM:SS])
-  --until WHEN          Only captures on or before this date/time (YYYY-MM-DD[
-                        HH:MM:SS])
-  --date YYYY-MM-DD     Only captures on this exact date (shorthand for
-                        --since X --until X)
-  --today               Only captures recorded today (shorthand for --date
-                        <today>)
-  --last-sessions [N]   Only the most recent N recorded sessions in scope (N
-                        defaults to 1)
-  --last-session        Only the most recent recorded session in scope (alias
-                        for --last-sessions 1)
-  --state SUBSTR        Only captures whose session vehicle_states contain
-                        SUBSTR (case-insensitive), e.g. --state driving
-  --label SUBSTR        Only captures whose session/capture label contains
-                        SUBSTR (case-insensitive)
+  --since WHEN         Only captures on or after this date/time (YYYY-MM-DD[
+                       HH:MM:SS])
+  --until WHEN         Only captures on or before this date/time (YYYY-MM-DD[
+                       HH:MM:SS])
+  --date YYYY-MM-DD    Only captures on this exact date (shorthand for --since
+                       X --until X)
+  --today              Only captures recorded today (shorthand for --date
+                       <today>)
+  --last-sessions [N]  Only the most recent N recorded sessions in scope (N
+                       defaults to 1)
+  --last-session       Only the most recent recorded session in scope (alias
+                       for --last-sessions 1)
+  --state SUBSTR       Only captures whose session vehicle_states contain
+                       SUBSTR (case-insensitive), e.g. --state driving
+  --label SUBSTR       Only captures whose session/capture label contains
+                       SUBSTR (case-insensitive)
 
 Query captured UDS payloads across all capture files.
 
-A QUERY selects the ECU(s) and PID(s) to show (see the mini-language below).
-By default the matching captures are listed; add --diff or --step to change how
-they are rendered. --summary and --latest are standalone modes that take no
-QUERY.
+QUERY selects the ECU(s) and PID(s) to show (see the mini-language below).
+By default the matching captures are listed (most recent --limit, default 50);
+add --diff or --step to change how they are rendered. --summary and --sessions
+are aggregate modes that take no QUERY.
 
-  QUERY                 List matching captures (default view)
+  QUERY                 List matching captures (default view; latest --limit)
   QUERY --diff          Monitor-style view (decoded params + colored byte-diff),
                         one block per ECU+PID (unique payloads only; --all = all)
   QUERY --step          Interactive: step through captures one at a time with
@@ -111,11 +114,18 @@ QUERY.
   QUERY --step --pair   Interactive: compare two ECU:PID selections side by
                         side, joining captures by nearest timestamp within
                         --join-tol (query must resolve to exactly two keys)
+  QUERY --latest        Most recent payload per PID for the QUERY selection
+  --latest              Most recent payload per PID (all ECUs; no QUERY)
   --summary             Overview: captures per ECU, per date, total payloads
   --sessions            Session table of contents: date/time-span/state/label/
                         notes/ECUs per session (no payloads); --json for machine
                         output. Honors the scope filters.
-  --latest [ECU]        Most recent payload per PID (optionally filtered by ECU)
+
+Output size (default list view):
+  --limit N             Show only the most recent N captures (default 50; 0 =
+                        no cap). A loud footer reports any hidden history — use
+                        --limit 0 or a tighter scope (--since/--last-session) to
+                        see the rest.
 
 QUERY mini-language (see canlib/query.py):
   ECU PID               one PID (bare ECU + PID)       e.g. BMS 2102
@@ -150,7 +160,10 @@ Examples (a bare `canair captures …` is shorthand for `canair captures uds …
   canair captures uds --sessions            # Session table of contents
   canair captures uds --sessions --state driving # Index of every drive
   canair captures uds --sessions --json      # Machine-readable TOC
-  canair captures uds --latest BMS          # Latest payload per BMS PID
+  canair captures uds BMS --latest          # Latest payload per BMS PID
+  canair captures uds --latest              # Latest payload per PID (all ECUs)
+  canair captures uds BMS 2102 --limit 200  # Widen the default 50-row cap
+  canair captures uds BMS 2102 --limit 0    # Every matching capture (no cap)
   canair captures uds --summary --since 2026-04-19        # Stats since a date
   canair captures uds BMS 2101 --diff --date 2026-04-19   # One day only
   canair captures uds VCU --since 2026-04-14 --until 2026-04-21  # Range

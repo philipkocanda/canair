@@ -110,7 +110,7 @@ canair validate states     # check the vocabulary
 
 ```bash
 canair captures uds --sessions       # table of contents: date, state, label, ECUs
-canair captures uds MyECU --summary  # stats per PID
+canair captures uds --summary        # stats per ECU/PID/date
 canair captures uds MyECU:2101 --diff  # byte-level diff across captures
 canair captures uds MyECU --latest    # most recent payload per PID
 canair captures can                  # list imported raw broadcast-CAN frame logs

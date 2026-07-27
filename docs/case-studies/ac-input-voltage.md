@@ -109,9 +109,9 @@ mains-voltage band AND is active only while charging?* — across everything on 
 bus, not just OBC:
 
 ```bash
-canair captures uds --latest BMS      # what else is co-polled during the charge?
-canair captures uds --latest OBC
-canair captures uds --latest VCU
+canair captures uds BMS --latest      # what else is co-polled during the charge?
+canair captures uds OBC --latest
+canair captures uds VCU --latest
 #  → swept every byte/word × scaling (/1 /10 /100 ×2 ×√2, ~50 Hz) on BMS 2101–2105,
 #    OBC 2101, VCU 2101/2102 for a value in a named physical band
 #  → OBC [isotp11:12]/100 ≈ 222 V, sitting between OBC_OUTPUT_V and OBC_DC_A

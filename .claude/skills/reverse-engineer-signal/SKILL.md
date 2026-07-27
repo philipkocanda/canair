@@ -213,8 +213,8 @@ canair captures uds --sessions                # what's in the captures? (TOC: da
 canair captures uds --sessions --state driving  # index of every drive
 canair captures uds --sessions --json         # machine-readable TOC
 canair captures uds --summary                 # overview: captures per ECU / per date / totals
-canair captures uds --latest MCU              # most recent payload per PID (optionally per-ECU)
-canair captures uds MCU 2102                  # list captures + decoded
+canair captures uds MCU --latest              # most recent payload per PID (ECU/PID from the QUERY)
+canair captures uds MCU 2102                  # list captures + decoded (latest --limit; --limit 0 for all)
 canair captures uds MCU:2102 --diff           # unique payloads, byte-diff
 canair captures uds MCU:2102 --diff --all     # every payload, not just unique ones
 canair captures uds MCU:2102 --diff --rulers  # add the idx/wican byte-index ruler above the hex

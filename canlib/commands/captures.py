@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Query captured UDS payloads across all capture files.
 
-A QUERY selects the ECU(s) and PID(s) to show (see the mini-language below).
-By default the matching captures are listed; add --diff or --step to change how
-they are rendered. --summary and --latest are standalone modes that take no
-QUERY.
+QUERY selects the ECU(s) and PID(s) to show (see the mini-language below).
+By default the matching captures are listed (most recent --limit, default 50);
+add --diff or --step to change how they are rendered. --summary and --sessions
+are aggregate modes that take no QUERY.
 
-  QUERY                 List matching captures (default view)
+  QUERY                 List matching captures (default view; latest --limit)
   QUERY --diff          Monitor-style view (decoded params + colored byte-diff),
                         one block per ECU+PID (unique payloads only; --all = all)
   QUERY --step          Interactive: step through captures one at a time with
@@ -15,11 +15,18 @@ QUERY.
   QUERY --step --pair   Interactive: compare two ECU:PID selections side by
                         side, joining captures by nearest timestamp within
                         --join-tol (query must resolve to exactly two keys)
+  QUERY --latest        Most recent payload per PID for the QUERY selection
+  --latest              Most recent payload per PID (all ECUs; no QUERY)
   --summary             Overview: captures per ECU, per date, total payloads
   --sessions            Session table of contents: date/time-span/state/label/
                         notes/ECUs per session (no payloads); --json for machine
                         output. Honors the scope filters.
-  --latest [ECU]        Most recent payload per PID (optionally filtered by ECU)
+
+Output size (default list view):
+  --limit N             Show only the most recent N captures (default 50; 0 =
+                        no cap). A loud footer reports any hidden history — use
+                        --limit 0 or a tighter scope (--since/--last-session) to
+                        see the rest.
 
 QUERY mini-language (see canlib/query.py):
   ECU PID               one PID (bare ECU + PID)       e.g. BMS 2102
@@ -54,7 +61,10 @@ Examples (a bare `canair captures …` is shorthand for `canair captures uds …
   canair captures uds --sessions            # Session table of contents
   canair captures uds --sessions --state driving # Index of every drive
   canair captures uds --sessions --json      # Machine-readable TOC
-  canair captures uds --latest BMS          # Latest payload per BMS PID
+  canair captures uds BMS --latest          # Latest payload per BMS PID
+  canair captures uds --latest              # Latest payload per PID (all ECUs)
+  canair captures uds BMS 2102 --limit 200  # Widen the default 50-row cap
+  canair captures uds BMS 2102 --limit 0    # Every matching capture (no cap)
   canair captures uds --summary --since 2026-04-19        # Stats since a date
   canair captures uds BMS 2101 --diff --date 2026-04-19   # One day only
   canair captures uds VCU --since 2026-04-14 --until 2026-04-21  # Range
@@ -340,24 +350,37 @@ def cmd_sessions(entries: list[dict], as_json: bool = False, max_notes: int = 6)
 # ---------------------------------------------------------------------------
 
 
-def cmd_list(entries: list[dict], query, as_json: bool = False) -> None:
+def cmd_list(entries: list[dict], query, as_json: bool = False, limit: int = 0) -> None:
     """List captures matching ``query`` (canlib.query selection).
 
     The default view: unlike --diff/--step (payload-only), this lists *every*
     matching entry — payloads, text responses and scan results alike — with
     timestamps, state, notes and a decoded preview where a PID definition exists.
     Selectors that matched nothing are reported (with the available ECUs).
+
+    ``limit`` caps the human view to the most recent ``limit`` captures (0 = no
+    cap). Truncation is reported loudly (in both text and JSON) so hidden history
+    is never silent — the full set is still available with ``--limit 0`` or a
+    tighter scope (``--since``/``--last-session``/…).
     """
     q = _parse_query(query)
     matched, empty = q.filter(entries, ecu_of=lambda e: e["ecu"], pid_of=lambda e: str(e["pid"]))
+
+    total = len(matched)
+    truncated = limit > 0 and total > limit
+    # matched is chronological (date-sorted files) — keep the most recent `limit`.
+    shown = matched[-limit:] if truncated else matched
 
     if as_json:
         _dump_json(
             {
                 "query": str(q),
-                "matched": len(matched),
+                "matched": total,
+                "shown": len(shown),
+                "truncated": truncated,
+                "limit": limit,
                 "unmatched": [str(sel) for sel in empty],
-                "captures": [_entry_to_dict(e) for e in matched],
+                "captures": [_entry_to_dict(e) for e in shown],
             }
         )
         return
@@ -374,13 +397,24 @@ def cmd_list(entries: list[dict], query, as_json: bool = False) -> None:
     if not matched:
         return
 
-    print(f"\n  {_BOLD}{q}{_RESET} — {len(matched)} captures\n")
+    header = f"{total} captures"
+    if truncated:
+        header = f"latest {len(shown)} of {total} captures"
+    print(f"\n  {_BOLD}{q}{_RESET} — {header}\n")
 
     # Show the ECU column only when the results span more than one ECU.
-    show_ecu = len({e["ecu"] for e in matched}) > 1
-    for e in matched:
+    show_ecu = len({e["ecu"] for e in shown}) > 1
+    for e in shown:
         _print_entry(e, show_ecu=show_ecu)
     print()
+    if truncated:
+        # Loud, always-printed (not TTY-gated) so an agent sees hidden history.
+        print(
+            f"  {_YELLOW}… {total - len(shown)} more not shown{_RESET} "
+            f"(showing latest {len(shown)} of {total}). "
+            f"Use {_BOLD}--limit 0{_RESET} for all, or narrow with "
+            f"--since/--last-session/--state.\n"
+        )
     if sys.stdout.isatty():
         print(
             f"  {_DIM}Tip: add --step to interactively step through these captures "
@@ -831,10 +865,8 @@ def _add_uds_parser(kinds) -> argparse.ArgumentParser:
     standalone.add_argument(
         "--latest",
         "-l",
-        nargs="?",
-        const="",
-        metavar="ECU",
-        help="Latest payload per PID (optionally filtered by ECU)",
+        action="store_true",
+        help="Latest payload per PID (ECU/PID taken from the QUERY, e.g. `BMS --latest`)",
     )
     standalone.add_argument(
         "--recover",
@@ -854,6 +886,16 @@ def _add_uds_parser(kinds) -> argparse.ArgumentParser:
         "-a",
         action="store_true",
         help="For --diff/--step: use every payload instead of unique-only",
+    )
+
+    parser.add_argument(
+        "--limit",
+        "-L",
+        type=int,
+        default=50,
+        metavar="N",
+        help="Default list view: show only the most recent N captures (default 50; "
+        "0 = no cap). A loud footer reports any hidden history.",
     )
 
     parser.add_argument(
@@ -906,7 +948,7 @@ def run(args) -> int:
         return cmd_recover(args.dir, discard=args.discard)
 
     query = build_query(args.query)
-    standalone_mode = args.summary or args.sessions or args.latest is not None
+    standalone_mode = args.summary or args.sessions
 
     if args.json and args.step:
         print("error: --json cannot be combined with --step (interactive mode)", file=sys.stderr)
@@ -916,21 +958,33 @@ def run(args) -> int:
         print("error: --pair requires --step", file=sys.stderr)
         return 2
 
-    # A QUERY and the standalone modes are mutually exclusive; --diff/--step are
-    # view modifiers that require a QUERY.
+    if args.limit < 0:
+        print("error: --limit must be >= 0 (0 = no cap)", file=sys.stderr)
+        return 2
+
+    # --summary/--sessions are aggregate modes that take no QUERY. --latest is a
+    # dedup-per-PID *view* that reads its ECU/PID selection from the QUERY (like
+    # the default list view), so it's handled with the QUERY path below.
     if standalone_mode:
         if query:
+            print("error: --summary/--sessions do not take a QUERY argument", file=sys.stderr)
+            return 2
+        if args.latest:
             print(
-                "error: --summary/--sessions/--latest do not take a QUERY argument", file=sys.stderr
+                "error: --latest cannot be combined with --summary/--sessions",
+                file=sys.stderr,
             )
             return 2
         if args.diff or args.step:
             print(
-                "error: --diff/--step cannot be combined with --summary/--sessions/--latest",
+                "error: --diff/--step cannot be combined with --summary/--sessions",
                 file=sys.stderr,
             )
             return 2
-    elif not query:
+    elif args.latest and (args.diff or args.step):
+        print("error: --latest cannot be combined with --diff/--step", file=sys.stderr)
+        return 2
+    elif not query and not args.latest:
         from canlib.commands._hints import ecu_hint
 
         print(
@@ -993,8 +1047,15 @@ def run(args) -> int:
             cmd_summary(entries, as_json=args.json)
         elif args.sessions:
             cmd_sessions(entries, as_json=args.json)
-        elif args.latest is not None:
-            cmd_latest(entries, args.latest or None, as_json=args.json)
+        elif args.latest:
+            # ECU/PID selection comes from the QUERY (e.g. `BMS --latest`,
+            # `BMS:2102 --latest`); a bare `--latest` shows every PID's latest.
+            if query:
+                q = _parse_query(query)
+                entries, _empty = q.filter(
+                    entries, ecu_of=lambda e: e["ecu"], pid_of=lambda e: str(e["pid"])
+                )
+            cmd_latest(entries, None, as_json=args.json)
         elif args.diff:
             cmd_diff(entries, query, show_all=args.all, rulers=args.rulers, as_json=args.json)
         elif args.step:
@@ -1012,7 +1073,7 @@ def run(args) -> int:
                     entries, query, show_all=args.all, captures_dir=args.dir, rulers=args.rulers
                 )
         else:
-            cmd_list(entries, query, as_json=args.json)
+            cmd_list(entries, query, as_json=args.json, limit=args.limit)
     except QueryError as ex:
         print(f"error: invalid query: {ex}", file=sys.stderr)
         return 2
