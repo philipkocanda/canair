@@ -23,7 +23,7 @@ from canlib.align import (
     join_nearest,
     load_signal_captures,
 )
-from canlib.capture_dates import add_scope_args, entry_datetime, resolve_date_bounds
+from canlib.capture_dates import add_scope_args, entry_datetime, resolve_scope_bounds
 from canlib.commands._can_args import add_can_log_source_args
 from canlib.commands._group import group_help
 from canlib.keepmode import BANNER as KEEP_BANNER
@@ -740,7 +740,7 @@ def _run_can_log(args) -> int:
 
 
 def run(args) -> int:
-    since, until, err = resolve_date_bounds(args)
+    since, until, err = resolve_scope_bounds(args)
     if err:
         print(f"error: {err}", file=sys.stderr)
         return 2

@@ -218,6 +218,15 @@ class MonitorController:
         self.elapsed = 0.0
         self.last_cmds = 0  # ELM commands issued during the last poll cycle
         self.last_elm_time = 0.0  # seconds spent in ELM commands last cycle
+        # Frame accounting (surfaced in the status line). total_frames counts every
+        # fresh (non-stale) payload received across all cycles — the "captured"
+        # figure; unique_frames counts distinct (ecu, pid, payload) values seen,
+        # which is what a keep:unique session actually stores/displays. These two
+        # differ from the number of on-screen rows (one per polled PID), so the
+        # status line shows them explicitly.
+        self.total_frames = 0
+        self.unique_frames = 0
+        self._seen_payloads: set[tuple[tuple[str, str], str]] = set()
         self.last_queries: list[tuple[str, list]] = []
         self.prev_hex: dict[tuple[str, str], str] = {}
         # Payloads as of the *previous* poll cycle, snapshotted before prev_hex is
@@ -366,6 +375,14 @@ class MonitorController:
                     continue
                 key = (ecu_label, entry["pid"])
                 self.prev_hex[key] = raw
+                # Frame accounting: every fresh payload is a captured frame; track
+                # distinct (key, payload) so the status line can show captured vs
+                # unique (which is what keep:unique stores).
+                self.total_frames += 1
+                sig = (key, raw)
+                if sig not in self._seen_payloads:
+                    self._seen_payloads.add(sig)
+                    self.unique_frames += 1
                 # Per-PID acquisition timestamp (moment the response arrived),
                 # millisecond precision, so sequentially-polled PIDs keep skew.
                 # Also carry the acquisition date so a monitor session crossing

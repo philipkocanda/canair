@@ -12,7 +12,7 @@ usage: canair dtc [-h] [--all] [--history] [--no-log] [--no-retry]
                   [--reboot] [--unsafe] [--force]
                   [ECU]
 
-Read stored Diagnostic Trouble Codes with UDS 0x19 (reportDTCByStatusMask), or clear them with UDS 0x14. Clearing mutates ECU fault memory and prompts for confirmation unless --yes is given.
+[UDS] Read stored Diagnostic Trouble Codes with UDS 0x19 (reportDTCByStatusMask), or clear them with UDS 0x14. Clearing mutates ECU fault memory and prompts for confirmation unless --yes is given.
 
 positional arguments:
   ECU                   ECU name or TX ID (e.g. BMS or 7E4)

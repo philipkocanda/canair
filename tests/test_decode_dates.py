@@ -11,7 +11,9 @@ from canlib.capture_dates import (
     filter_by_date_range,
     filter_by_text,
     parse_iso_date,
+    parse_iso_datetime,
     resolve_date_bounds,
+    resolve_scope_bounds,
 )
 from canlib.commands import decode as decode_script
 
@@ -105,6 +107,176 @@ class TestFilterByDateRange:
     def test_undated_dropped_when_bound_active(self):
         out = filter_by_date_range(self._entries(), since=date(2026, 1, 1))
         assert all(x["id"] != 4 for x in out)
+
+
+class TestParseIsoDatetime:
+    def test_date_only_returns_date(self):
+        assert parse_iso_datetime("2026-07-22") == date(2026, 7, 22)
+        assert not isinstance(parse_iso_datetime("2026-07-22"), datetime)
+
+    def test_hh_mm(self):
+        assert parse_iso_datetime("2026-07-22 09:02") == datetime(2026, 7, 22, 9, 2)
+
+    def test_hh_mm_ss(self):
+        assert parse_iso_datetime("2026-07-22 09:02:19") == datetime(2026, 7, 22, 9, 2, 19)
+
+    def test_microseconds(self):
+        assert parse_iso_datetime("2026-07-22 09:02:19.123456") == datetime(
+            2026, 7, 22, 9, 2, 19, 123456
+        )
+
+    def test_iso_t_separator(self):
+        assert parse_iso_datetime("2026-07-22T09:02:19") == datetime(2026, 7, 22, 9, 2, 19)
+
+    def test_whitespace_trimmed(self):
+        assert parse_iso_datetime("  2026-07-22T09:02  ") == datetime(2026, 7, 22, 9, 2)
+
+    @pytest.mark.parametrize("bad", ["2026/07/22", "not-a-date", "2026-07-22 25:00"])
+    def test_invalid_raises_argparse_error(self, bad):
+        import argparse
+
+        with pytest.raises(argparse.ArgumentTypeError):
+            parse_iso_datetime(bad)
+
+
+class TestFilterByDateRangeTimeAware:
+    def _entries(self):
+        return [
+            {"date": "2026-07-22", "time": "08:00:00", "id": 1},
+            {"date": "2026-07-22", "time": "12:30:00", "id": 2},
+            {"date": "2026-07-22", "time": "18:15:30", "id": 3},
+            {"date": "2026-07-22", "id": 4},  # untimed
+        ]
+
+    def test_since_datetime_narrows_within_day(self):
+        out = filter_by_date_range(self._entries(), since=datetime(2026, 7, 22, 12, 0))
+        assert [x["id"] for x in out] == [2, 3]
+
+    def test_until_datetime_inclusive(self):
+        out = filter_by_date_range(self._entries(), until=datetime(2026, 7, 22, 12, 30))
+        assert [x["id"] for x in out] == [1, 2]
+
+    def test_datetime_window(self):
+        out = filter_by_date_range(
+            self._entries(),
+            since=datetime(2026, 7, 22, 9, 0),
+            until=datetime(2026, 7, 22, 18, 0),
+        )
+        assert [x["id"] for x in out] == [2]
+
+    def test_untimed_dropped_in_time_aware_mode(self):
+        out = filter_by_date_range(self._entries(), since=datetime(2026, 7, 22, 0, 0))
+        assert all(x["id"] != 4 for x in out)
+
+    def test_microsecond_precision(self):
+        entries = [
+            {"date": "2026-07-22", "time": "09:00:00.100000", "id": 1},
+            {"date": "2026-07-22", "time": "09:00:00.500000", "id": 2},
+        ]
+        out = filter_by_date_range(entries, since=datetime(2026, 7, 22, 9, 0, 0, 300000))
+        assert [x["id"] for x in out] == [2]
+
+    def test_mixed_date_and_datetime_bounds(self):
+        # since date-only (start of day) + until datetime -> time-aware.
+        out = filter_by_date_range(
+            self._entries(),
+            since=date(2026, 7, 22),
+            until=datetime(2026, 7, 22, 12, 30),
+        )
+        assert [x["id"] for x in out] == [1, 2]
+
+
+class TestResolveDateBoundsTimestamps:
+    def _args(self, **kw):
+        import argparse
+
+        ns = argparse.Namespace(date=None, since=None, until=None)
+        for k, v in kw.items():
+            setattr(ns, k, v)
+        return ns
+
+    def test_datetime_ordering_ok(self):
+        since, _until, err = resolve_date_bounds(
+            self._args(
+                since=datetime(2026, 7, 22, 9, 0),
+                until=datetime(2026, 7, 22, 17, 0),
+            )
+        )
+        assert err is None
+        assert since == datetime(2026, 7, 22, 9, 0)
+
+    def test_datetime_reversed_errors(self):
+        _, _, err = resolve_date_bounds(
+            self._args(
+                since=datetime(2026, 7, 22, 17, 0),
+                until=datetime(2026, 7, 22, 9, 0),
+            )
+        )
+        assert err is not None
+
+    def test_same_day_date_until_after_since_datetime_ok(self):
+        # until is a whole day (end-of-day) so a same-day since time is fine.
+        _, _, err = resolve_date_bounds(
+            self._args(since=datetime(2026, 7, 22, 17, 0), until=date(2026, 7, 22))
+        )
+        assert err is None
+
+
+class TestResolveScopeBounds:
+    def _args(self, **kw):
+        import argparse
+
+        ns = argparse.Namespace(
+            date=None,
+            since=None,
+            until=None,
+            today=False,
+            last_sessions=None,
+            state=None,
+            label=None,
+        )
+        for k, v in kw.items():
+            setattr(ns, k, v)
+        return ns
+
+    def test_today_sets_whole_day(self):
+        since, until, err = resolve_scope_bounds(self._args(today=True))
+        assert err is None
+        assert since == date.today()
+        assert until == date.today()
+
+    def test_today_conflicts_with_since(self):
+        _, _, err = resolve_scope_bounds(self._args(today=True, since=date(2026, 1, 1)))
+        assert err is not None
+
+    def test_no_flags_passthrough(self):
+        since, until, err = resolve_scope_bounds(self._args())
+        assert (since, until, err) == (None, None, None)
+
+    def test_last_sessions_cutoff(self, monkeypatch, tmp_path):
+        # Two sessions on different days; --last-session picks the later start.
+        entries = [
+            {"file": "a.yaml", "_session_idx": 0, "date": "2026-07-20", "time": "08:00:00"},
+            {"file": "a.yaml", "_session_idx": 0, "date": "2026-07-20", "time": "08:05:00"},
+            {"file": "b.yaml", "_session_idx": 0, "date": "2026-07-22", "time": "14:00:00"},
+            {"file": "b.yaml", "_session_idx": 0, "date": "2026-07-22", "time": "14:10:00"},
+        ]
+        monkeypatch.setattr("canlib.commands.captures.load_all_captures", lambda *a, **k: entries)
+        since, _until, err = resolve_scope_bounds(self._args(last_sessions=1))
+        assert err is None
+        assert since == datetime(2026, 7, 22, 14, 0, 0)
+        # Last 2 sessions -> cutoff at the earlier session's start.
+        since2, _, _ = resolve_scope_bounds(self._args(last_sessions=2))
+        assert since2 == datetime(2026, 7, 20, 8, 0, 0)
+
+    def test_last_sessions_more_than_available(self, monkeypatch):
+        entries = [
+            {"file": "a.yaml", "_session_idx": 0, "date": "2026-07-20", "time": "08:00:00"},
+        ]
+        monkeypatch.setattr("canlib.commands.captures.load_all_captures", lambda *a, **k: entries)
+        since, _, err = resolve_scope_bounds(self._args(last_sessions=5))
+        assert err is None
+        assert since == datetime(2026, 7, 20, 8, 0, 0)
 
 
 class TestFilterByText:
@@ -323,7 +495,7 @@ class TestSharedScopingWiring:
 
         assert cap.filter_by_date_range is capture_dates.filter_by_date_range
         assert cap.filter_by_text is capture_dates.filter_by_text
-        assert cap.resolve_date_bounds is capture_dates.resolve_date_bounds
+        assert cap.resolve_scope_bounds is capture_dates.resolve_scope_bounds
         assert cap.add_scope_args is capture_dates.add_scope_args
 
     def test_both_commands_register_scope_flags(self):
@@ -337,7 +509,16 @@ class TestSharedScopingWiring:
         sub = argparse.ArgumentParser().add_subparsers()
         dec_parser = dec.add_parser(sub)
         dec_opts = {a for action in dec_parser._actions for a in action.option_strings}
-        assert {"--since", "--until", "--date", "--state", "--label"} <= dec_opts, dec.NAME
+        assert {
+            "--since",
+            "--until",
+            "--date",
+            "--state",
+            "--label",
+            "--today",
+            "--last-sessions",
+            "--last-session",
+        } <= dec_opts, dec.NAME
 
         sub2 = argparse.ArgumentParser().add_subparsers()
         cap_group = cap.add_parser(sub2)

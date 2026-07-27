@@ -33,6 +33,8 @@ class FakeController:
         self.interval = 0.05
         self.last_cmds = 0
         self.last_elm_time = 0.0
+        self.total_frames = 0
+        self.unique_frames = 0
         self.keep_mode = keep_mode
         self.disconnected = False
         self._n_lines = n_lines
@@ -51,6 +53,8 @@ class FakeController:
         self.elapsed = 0.01
         self.last_cmds = 3
         self.last_elm_time = 0.02
+        self.total_frames += 2
+        self.unique_frames += 1
         if self._disconnect_after and self.cycle >= self._disconnect_after:
             self.disconnected = True
 
@@ -353,6 +357,74 @@ class TestMonitorApp:
             await pilot.pause(0.1)
             plain = _plain(app.query_one("#status").render())
             assert "REC" not in plain
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
+    async def test_help_modal_opens_with_question_mark(self):
+        from canlib.tui_help import HelpModal
+
+        ctrl = FakeController()
+        app = MonitorApp(ctrl)
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause(0.1)
+            await pilot.press("question_mark")
+            await pilot.pause(0.1)
+            assert isinstance(app.screen, HelpModal)
+            # A known monitor binding is listed.
+            from textual.widgets import Static
+
+            text = "\n".join(_plain(s.render()) for s in app.screen.query(Static))
+            assert "save" in text and "follow" in text
+            await pilot.press("escape")
+            await pilot.pause(0.1)
+            assert not isinstance(app.screen, HelpModal)
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
+    async def test_status_line_advertises_help(self):
+        ctrl = FakeController()
+        app = MonitorApp(ctrl)
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause(0.1)
+            assert "? help" in _plain(app.query_one("#status").render())
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
+    async def test_status_line_shows_frame_counter(self):
+        ctrl = FakeController()
+        app = MonitorApp(ctrl)
+        async with app.run_test(size=(120, 30)) as pilot:
+            await pilot.pause(0.2)
+            status = _plain(app.query_one("#status").render())
+            assert "captured" in status and "uniq" in status
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
+    async def test_polling_rate_adjustable_live(self):
+        ctrl = FakeController()
+        ctrl.interval = 4.0
+        app = MonitorApp(ctrl)
+        async with app.run_test(size=(120, 30)) as pilot:
+            await pilot.pause(0.1)
+            await pilot.press("minus")  # slower
+            await pilot.pause(0.05)
+            assert ctrl.interval == pytest.approx(6.0)
+            await pilot.press("equals_sign")  # faster
+            await pilot.pause(0.05)
+            assert ctrl.interval == pytest.approx(4.0)
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
+    async def test_polling_rate_clamped(self):
+        ctrl = FakeController()
+        ctrl.interval = 0.1
+        app = MonitorApp(ctrl)
+        async with app.run_test(size=(120, 30)) as pilot:
+            await pilot.pause(0.1)
+            for _ in range(5):
+                await pilot.press("equals_sign")  # faster, but clamped
+                await pilot.pause(0.02)
+            assert ctrl.interval >= 0.1
             await pilot.press("q")
 
 

@@ -5,7 +5,7 @@
 ```
 usage: canair wican [-h] <command> ...
 
-Build and sync the WiCAN device's AutoPID profile.
+[UDS] Build and sync the WiCAN device's AutoPID profile.
 
 Nothing is written until you ask for it — a bare `canair wican` prints this help. Choose a subcommand:
   autopid write     generate AutoPID JSON to the bundle's out/

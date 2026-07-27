@@ -62,8 +62,16 @@ examples:
         "PgUp-PgDn / g-G scroll, f toggles follow-tail, space pauses, q quits.",
     )
     keep = parser.add_mutually_exclusive_group()
-    keep.add_argument("--keep-unique", action="store_true", help="Monitor: retain unique payloads")
-    keep.add_argument("--keep-all", action="store_true", help="Monitor: retain every payload")
+    keep.add_argument(
+        "--keep-unique",
+        action="store_true",
+        help="Monitor: retain only unique payloads (rising-edge) — the default",
+    )
+    keep.add_argument(
+        "--keep-all",
+        action="store_true",
+        help="Monitor: retain every polled payload (full time-series; larger capture files)",
+    )
     keep.add_argument("--keep", type=int, metavar="N", help="Monitor: keep last N payloads per PID")
     parser.add_argument("--save", action="store_true", help="Save results to captures/")
     parser.add_argument("--label", metavar="TEXT", default=None, help="Session label for --save")

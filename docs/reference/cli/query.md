@@ -13,7 +13,7 @@ usage: canair query [-h] [--param NAME [NAME ...]] [--session] [--wake]
                     [--reboot] [--unsafe] [--force]
                     [STEP ...]
 
-Query ECUs/parameters live. Positional STEPs use the multi mini-language.
+[UDS] Query ECUs/parameters live. Positional STEPs use the multi mini-language.
 
 positional arguments:
   STEP                  Query selector(s) or multi mini-language step(s)
@@ -30,8 +30,10 @@ options:
                         Textual UI: mouse wheel / scrollbar / arrows-jk /
                         PgUp-PgDn / g-G scroll, f toggles follow-tail, space
                         pauses, q quits.
-  --keep-unique         Monitor: retain unique payloads
-  --keep-all            Monitor: retain every payload
+  --keep-unique         Monitor: retain only unique payloads (rising-edge) —
+                        the default
+  --keep-all            Monitor: retain every polled payload (full time-
+                        series; larger capture files)
   --keep N              Monitor: keep last N payloads per PID
   --save                Save results to captures/
   --label TEXT          Session label for --save

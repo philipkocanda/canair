@@ -11,11 +11,12 @@ usage: canair decode [-h] [--param NAME [NAME ...]] [--verified]
                      [--corr-transform MODE]
                      [--method {pearson,spearman,cramers_v,mutual_info}]
                      [--plot] [--try NAME[:unit]=EXPR] [--notation NAME]
-                     [--since YYYY-MM-DD] [--until YYYY-MM-DD]
-                     [--date YYYY-MM-DD] [--state SUBSTR] [--label SUBSTR]
+                     [--since WHEN] [--until WHEN] [--date YYYY-MM-DD]
+                     [--today] [--last-sessions [N]] [--last-session]
+                     [--state SUBSTR] [--label SUBSTR]
                      [ecu] [pid]
 
-Decode captured UDS payloads using PID parameter definitions.
+[UDS] Decode captured UDS payloads using PID parameter definitions.
 
 positional arguments:
   ecu                   ECU name (e.g., BMS, IGPM, BCM)
@@ -85,12 +86,20 @@ options:
                         display.byte_notation config key.
 
 scoping:
-  Restrict to captures within a date range (inclusive, YYYY-MM-DD) and/or by session state/label substring
+  Restrict to captures within a date/time range (inclusive) and/or by session state/label substring. --since/--until accept a date (YYYY-MM-DD) or a timestamp (YYYY-MM-DD HH:MM[:SS[.ffffff]])
 
-  --since YYYY-MM-DD    Only captures on or after this date
-  --until YYYY-MM-DD    Only captures on or before this date
+  --since WHEN          Only captures on or after this date/time (YYYY-MM-DD[
+                        HH:MM:SS])
+  --until WHEN          Only captures on or before this date/time (YYYY-MM-DD[
+                        HH:MM:SS])
   --date YYYY-MM-DD     Only captures on this exact date (shorthand for
                         --since X --until X)
+  --today               Only captures recorded today (shorthand for --date
+                        <today>)
+  --last-sessions [N]   Only the most recent N recorded sessions in scope (N
+                        defaults to 1)
+  --last-session        Only the most recent recorded session in scope (alias
+                        for --last-sessions 1)
   --state SUBSTR        Only captures whose session vehicle_states contain
                         SUBSTR (case-insensitive), e.g. --state driving
   --label SUBSTR        Only captures whose session/capture label contains

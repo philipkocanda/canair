@@ -194,6 +194,25 @@ help order).
 Follow an existing command as a template: `commands/routines.py` +
 `modes/routines.py`, or `commands/dtc.py` + `modes/dtc.py`.
 
+## Time & scoping conventions
+
+Capture-consuming commands (`captures`/`decode`/`correlate`/`hunt`/`investigate`)
+share one scoping surface via `canlib/capture_dates.py::add_scope_args`
+(`--since`/`--until`/`--date`/`--state`/`--label`). Two standing rules for any
+**new** time-bound or scope flag:
+
+- **Time-bound flags accept a timestamp down to microseconds by default, not a
+  date only.** `--since`/`--until` parse `YYYY-MM-DD` *or*
+  `YYYY-MM-DD[ T]HH:MM[:SS[.ffffff]]` (see `parse_iso_datetime`). A bare date
+  keeps its whole-day meaning (start-of-day for a lower bound, end-of-day for an
+  upper bound); a timestamp narrows to the instant. Don't ship a date-only bound
+  and force users back to the tool later — reach for `parse_iso_datetime`, not
+  `parse_iso_date`, whenever a flag bounds *when* something happened.
+- **Add shared scope flags to `add_scope_args`, not per-command.** A new scope
+  affordance that several analysis commands should share belongs in the shared
+  helper so every consumer gains it consistently — don't re-declare it in one
+  command's parser.
+
 ## Mutative / sensitive operations
 
 - Anything that changes ECU or device state (clearing DTCs, IOControl,

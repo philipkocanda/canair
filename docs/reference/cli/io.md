@@ -9,7 +9,7 @@ usage: canair io [-h] [--did DID] [--off] [--poll] [--wican WICAN]
                  [--reboot] [--unsafe] [--force]
                  [ECU]
 
-IOControl (0x2F): interactive TUI, or single actuator command with --did.
+[UDS] IOControl (0x2F): interactive TUI, or single actuator command with --did.
 
 positional arguments:
   ECU                   ECU name (e.g. IGPM)

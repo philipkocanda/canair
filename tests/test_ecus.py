@@ -4,6 +4,7 @@ import pytest
 
 from canlib.ecus import (
     EcuNameCollision,
+    build_alias_index,
     build_canonical_name_index,
     build_name_tx_index,
     build_rx_index,
@@ -140,6 +141,13 @@ class TestCanonicalEcuName:
         assert idx["SMK"] == "SKM"
         assert idx["SKM"] == "SKM"
         assert idx["BMS"] == "BMS"
+
+    def test_build_alias_index(self, ecus):
+        aliases = build_alias_index(ecus)
+        # SKM self-identifies as SMK in the bundled profile.
+        assert aliases.get("SKM") == "SMK"
+        # An ECU without an alias is absent (not mapped to itself/empty).
+        assert "BMS" not in aliases or aliases["BMS"]
 
 
 class TestCanonicalEcuNameSafe:

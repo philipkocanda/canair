@@ -10,7 +10,7 @@ usage: canair research [-h] [--ecu ECU]
                        [--states {sleep,plugged,acc,acc2,ready,charging}]
                        [--summary] [--all] [--verbose] [--json] [--dir DIR]
 
-Report open reverse-engineering work from ecus/ research: sections.
+[UDS] Report open reverse-engineering work from ecus/ research: sections.
 
 options:
   -h, --help            show this help message and exit

@@ -52,6 +52,46 @@ def _update_check_allowed(args) -> bool:
     return True
 
 
+def _rewrite_help_tokens(argv: list[str]) -> list[str]:
+    """Accept a bare ``help`` word as a universal alias for ``-h``/``--help``.
+
+    ``canair help``            -> ``canair -h``            (top-level help)
+    ``canair help decode``     -> ``canair decode -h``     (command help)
+    ``canair decode help``     -> ``canair decode -h``     (command help)
+    ``canair captures uds help`` -> ``canair captures uds -h`` (kind help)
+
+    Only a leading ``help`` (after any global options) or a trailing ``help``
+    token is treated specially, so an argument that merely *contains* "help"
+    (an ECU/PID/label value) is never clobbered. If ``-h``/``--help`` is already
+    present, argv is returned unchanged.
+    """
+    if not argv or any(tok in ("-h", "--help") for tok in argv):
+        return argv
+
+    # Skip leading global options to find the first meaningful token.
+    i = 0
+    n = len(argv)
+    while i < n:
+        tok = argv[i]
+        if tok in _GLOBAL_OPTS_WITH_VALUE:
+            i += 2
+            continue
+        if tok.startswith("--") and "=" in tok:  # --profile=NAME
+            i += 1
+            continue
+        break
+
+    # Leading `help [rest...]` -> `[rest...] -h` (rest may be empty = top-level).
+    if i < n and argv[i] == "help":
+        return [*argv[:i], *argv[i + 1 :], "-h"]
+
+    # Trailing `... help` -> `... -h`.
+    if argv[-1] == "help":
+        return [*argv[:-1], "-h"]
+
+    return argv
+
+
 def _inject_default_subcommand(argv: list[str]) -> list[str]:
     """Make command groups default to a kind when none is given.
 
@@ -119,6 +159,10 @@ def build_parser() -> argparse.ArgumentParser:
     for module in iter_command_modules():
         module.add_parser(subparsers)
 
+    from canlib.commands._domain import apply_domain_tags
+
+    apply_domain_tags(subparsers)
+
     return parser
 
 
@@ -127,6 +171,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if argv is None:
         argv = sys.argv[1:]
+    argv = _rewrite_help_tokens(argv)
     argv = _inject_default_subcommand(argv)
 
     try:

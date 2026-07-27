@@ -479,6 +479,26 @@ class TestControllerSnapshot:
         c.prev_hex[("BMS (0x7E4)", "2101")] = "6101AA"
         assert c.has_captures() is True
 
+    def test_frame_counters_captured_vs_unique(self):
+        c = self._controller()
+        assert c.total_frames == 0 and c.unique_frames == 0
+        # Same payload twice: two captured, one unique.
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
+        assert c.total_frames == 2
+        assert c.unique_frames == 1
+        # A new value bumps both.
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101BB"}])])
+        assert c.total_frames == 3
+        assert c.unique_frames == 2
+
+    def test_frame_counters_ignore_stale_and_empty(self):
+        c = self._controller()
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA", "stale": True}])])
+        c._record([("BMS (0x7E4)", [{"pid": "2102", "raw_hex": ""}])])
+        assert c.total_frames == 0
+        assert c.unique_frames == 0
+
     def test_save_now(self, tmp_path):
         c = self._controller()
         c.captures_dir = tmp_path

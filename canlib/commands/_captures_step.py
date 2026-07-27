@@ -37,6 +37,16 @@ def _read_key(fd: int) -> str:
     return read_key_raw(fd)
 
 
+def _safe_alias_index() -> dict[str, str]:
+    """Canonical-name -> alias map for display, or {} if the registry is unavailable."""
+    from canlib.ecus import build_alias_index
+
+    try:
+        return build_alias_index()
+    except Exception:
+        return {}
+
+
 @contextmanager
 def _raw_fullscreen(fd: int):
     """Enter cbreak input on the alternate screen buffer, restoring on exit.
@@ -70,6 +80,7 @@ def _render_capture_block(
     *,
     rulers: bool = False,
     position: str = "",
+    aliases: dict[str, str] | None = None,
 ) -> None:
     """Render one capture: header, decoded params, optional ruler, byte-diff hex.
 
@@ -105,6 +116,8 @@ def _render_capture_block(
     ecu_display = escape(e["ecu"])
     pid_display = escape(str(e["pid"]))
     tx_str = f" (0x{tx_id:03X})" if isinstance(tx_id, int) else ""
+    alias = (aliases or {}).get(e["ecu"])
+    alias_str = f"  [dim](alias {escape(alias)})[/dim]" if alias else ""
     ts = e.get("time") or e.get("date") or ""
     _st = _join_states(e.get("vehicle_states"))
     state = f"  states={escape(_st)}" if _st else ""
@@ -116,7 +129,7 @@ def _render_capture_block(
     pos = f"{escape(position)}{per_pid}".strip()
     pos_str = f"  [dim]{pos}[/dim]" if pos else ""
 
-    console.print(f"\n  [bold cyan]{ecu_display}{tx_str}[/bold cyan]")
+    console.print(f"\n  [bold cyan]{ecu_display}{tx_str}[/bold cyan]{alias_str}")
     console.print(f"    [yellow]{pid_display}[/yellow]{pos_str}")
     console.print(f"    [bold]{escape(ts)}[/bold][dim]{state}{label}{file_str}[/dim]")
 
@@ -164,6 +177,7 @@ def _render_step_frame(
     status: str = "",
     prompt: str | None = None,
     rulers: bool = False,
+    aliases: dict[str, str] | None = None,
 ) -> None:
     """Render one capture full-screen with the interactive footer/prompt.
 
@@ -181,6 +195,7 @@ def _render_step_frame(
         ordinals,
         rulers=rulers,
         position=f"capture {i + 1}/{len(captures)}",
+        aliases=aliases,
     )
 
     # Footer: key hints, then either an input prompt or a transient status.
@@ -207,6 +222,7 @@ def _render_step_pair_frame(
     tol_s: float,
     status: str = "",
     rulers: bool = False,
+    aliases: dict[str, str] | None = None,
 ) -> None:
     """Render one two-capture pair frame: two stacked capture blocks + footer.
 
@@ -230,7 +246,15 @@ def _render_step_pair_frame(
     def _side(idx: int | None, key: tuple[str, str], position: str) -> None:
         if idx is not None:
             _render_capture_block(
-                console, captures, idx, defs, prev_idx, ordinals, rulers=rulers, position=position
+                console,
+                captures,
+                idx,
+                defs,
+                prev_idx,
+                ordinals,
+                rulers=rulers,
+                position=position,
+                aliases=aliases,
             )
         else:
             label = escape(f"{key[0]}:{key[1]}")
@@ -302,6 +326,8 @@ def cmd_step(
     console = Console(highlight=False)
     fd = sys.stdin.fileno()
 
+    aliases = _safe_alias_index()
+
     i = len(captures) - 1  # start at the most recent capture
     status = ""
     final_msg = ""
@@ -318,6 +344,7 @@ def cmd_step(
             status=status,
             prompt=prompt,
             rulers=rulers,
+            aliases=aliases,
         )
 
     def reload() -> bool:
@@ -497,6 +524,8 @@ def cmd_step_pair(
     console = Console(highlight=False)
     fd = sys.stdin.fileno()
 
+    aliases = _safe_alias_index()
+
     f = len(frames) - 1  # start at the most recent pair
     status = f"{n_no_time} untimed capture(s) excluded from pairing" if n_no_time else ""
 
@@ -515,6 +544,7 @@ def cmd_step_pair(
             tol_s,
             status=status,
             rulers=rulers,
+            aliases=aliases,
         )
 
     with _raw_fullscreen(fd):
@@ -564,6 +594,7 @@ def cmd_step_pair(
                         tol_s,
                         status=redraw_prompt,
                         rulers=rulers,
+                        aliases=aliases,
                     )
                     k = _read_key(fd)
                     if k in ("\r", "\n"):

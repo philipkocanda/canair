@@ -290,12 +290,6 @@ def _pci_positions(payload_hex: str) -> set[int]:
     return {i for i, (_, role) in enumerate(frame) if role is None}
 
 
-def _read_key(fd: int) -> str:
-    import os
-
-    return os.read(fd, 16).decode("utf-8", errors="ignore")
-
-
 def _series_stats_str(values: list[float]) -> str:
     if not values:
         return "n=0"
@@ -372,6 +366,8 @@ def cmd_plot(
     ecu_key: str,
     pid_key: str,
     defined_params: dict | None = None,
+    reload_pid=None,
+    pid_options: list[tuple[str, str]] | None = None,
 ) -> None:
     """Interactive signal explorer: sweep byte interpretations / params and plot.
 
@@ -381,66 +377,131 @@ def cmd_plot(
     shows the equivalent WiCAN expression and flags bytes already mapped by a
     defined parameter. The x-axis can be zoomed/panned. Falls back to a single
     static chart when stdin/stdout is not a TTY.
+
+    ``reload_pid``/``pid_options`` (optional) enable in-TUI PID switching: a
+    callback ``(ecu, pid) -> PlotModel | None`` and the list of switchable
+    ``(ecu, pid)`` pairs.
     """
-    defined_params = defined_params or {}
-    # WiCAN AutoPID frames per capture (ISO-TP + re-inserted PCI; offset space
-    # matches Bnn / expressions) — not raw CAN frames (no arbitration ID/DLC).
-    frames: list[bytes | None] = []
-    for r in all_results:
-        payload = r["capture"].get("payload")
-        try:
-            frames.append(payload_to_wican_bytes(payload) if payload else None)
-        except Exception:
-            frames.append(None)
-    valid = [f for f in frames if f]
-    longest_payload = max(
-        (r["capture"]["payload"] for r in all_results if r["capture"].get("payload")),
-        key=len,
-        default="",
+    model = PlotModel(
+        all_results,
+        param_names,
+        parameters,
+        candidate_names,
+        corr_ref,
+        ecu_key,
+        pid_key,
+        defined_params=defined_params,
     )
-    pci = _pci_positions(longest_payload)
-    max_off = (max((len(f) for f in valid), default=1)) - 1
-
-    plottable_params = [
-        n
-        for n in param_names
-        if len([1 for r in all_results if r["decoded"].get(n, {}).get("value") is not None]) >= 2
-    ]
-
-    # Overlay reference is selectable at runtime (cycled with `o`), seeded by
-    # --corr when given. Any numeric param can be overlaid — no --corr required.
-    ov_cycle = [None, *dict.fromkeys(([corr_ref] if corr_ref else []) + plottable_params)]
-
-    if not valid and not plottable_params:
+    if model.empty:
         print("  Nothing to plot (no decodable payloads or numeric params).")
         return
 
-    # ---- state ----
-    mode = "bytes" if valid else "param"
-    offset = min(max_off, 3)  # skip PCI/SID/echo by default
-    ti = 0  # INSPECT_TYPES index
-    little = False
-    tmode = "raw"  # post-transform
-    pi = 0  # param index (param mode)
-    overlay_ref = corr_ref  # overlay reference param (None = off)
-    xlo, xhi = 0.0, 1.0  # fractional x-axis window (zoom/pan)
-    show_info = False  # captures-in-view modal
+    # Non-interactive: print one static frame and return.
+    if not (sys.stdin.isatty() and sys.stdout.isatty()):
+        print("\n".join(model.render_lines()))
+        print("  (interactive --plot needs a TTY for navigation)")
+        return
 
-    def frame_lines() -> list[str]:
-        spec = INSPECT_TYPES[ti]
+    from canlib.commands._decode_plot_tui import run_plot_app
+
+    run_plot_app(model, reload_pid=reload_pid, pid_options=pid_options)
+
+
+class PlotModel:
+    """State + rendering for the ``decode --plot`` signal explorer.
+
+    Holds the capture-derived data and the mutable view state (byte/param mode,
+    offset, interpretation type, endianness, transform, overlay reference, x-axis
+    window, info modal). :meth:`render_lines` produces the ANSI-colored frame; the
+    Textual app (``_decode_plot_tui``) binds keys to the mutator methods. Kept
+    UI-framework-free so the non-TTY path can render one frame without Textual.
+    """
+
+    def __init__(
+        self,
+        all_results: list[dict],
+        param_names: list[str],
+        parameters: dict,
+        candidate_names: set[str],
+        corr_ref: str | None,
+        ecu_key: str,
+        pid_key: str,
+        defined_params: dict | None = None,
+    ) -> None:
+        self.all_results = all_results
+        self.param_names = param_names
+        self.parameters = parameters
+        self.candidate_names = candidate_names
+        self.ecu_key = ecu_key
+        self.pid_key = pid_key
+        self.defined_params = defined_params or {}
+
+        # WiCAN AutoPID frames per capture (ISO-TP + re-inserted PCI; offset space
+        # matches Bnn / expressions) — not raw CAN frames (no arbitration ID/DLC).
+        self.frames: list[bytes | None] = []
+        for r in all_results:
+            payload = r["capture"].get("payload")
+            try:
+                self.frames.append(payload_to_wican_bytes(payload) if payload else None)
+            except Exception:
+                self.frames.append(None)
+        self.valid = [f for f in self.frames if f]
+        longest_payload = max(
+            (r["capture"]["payload"] for r in all_results if r["capture"].get("payload")),
+            key=len,
+            default="",
+        )
+        self.pci = _pci_positions(longest_payload)
+        self.max_off = (max((len(f) for f in self.valid), default=1)) - 1
+
+        self.plottable_params = [
+            n
+            for n in param_names
+            if len([1 for r in all_results if r["decoded"].get(n, {}).get("value") is not None])
+            >= 2
+        ]
+
+        # Overlay reference is selectable at runtime (cycled with `o`), seeded by
+        # --corr when given. Any numeric param can be overlaid — no --corr required.
+        self.ov_cycle = [
+            None,
+            *dict.fromkeys(([corr_ref] if corr_ref else []) + self.plottable_params),
+        ]
+
+        # ---- view state ----
+        self.mode = "bytes" if self.valid else "param"
+        self.offset = min(self.max_off, 3)  # skip PCI/SID/echo by default
+        self.ti = 0  # INSPECT_TYPES index
+        self.little = False
+        self.tmode = "raw"  # post-transform
+        self.pi = 0  # param index (param mode)
+        self.overlay_ref = corr_ref  # overlay reference param (None = off)
+        self.xlo, self.xhi = 0.0, 1.0  # fractional x-axis window (zoom/pan)
+        self.show_info = False  # captures-in-view modal
+
+    @property
+    def empty(self) -> bool:
+        return not self.valid and not self.plottable_params
+
+    # -- rendering ---------------------------------------------------------
+    def render_lines(self) -> list[str]:
+        spec = INSPECT_TYPES[self.ti]
         warn = ""
         map_line = None
-        if mode == "bytes":
-            per_cap = [interpret_bytes(f, offset, spec, little) if f else None for f in frames]
-            expr = wican_expr(offset, spec, little)
+        if self.mode == "bytes":
+            per_cap = [
+                interpret_bytes(f, self.offset, spec, self.little) if f else None
+                for f in self.frames
+            ]
+            expr = wican_expr(self.offset, spec, self.little)
             width = spec[1]
-            if any((offset + k) in pci for k in range(width)):
+            if any((self.offset + k) in self.pci for k in range(width)):
                 warn = "crosses PCI byte — likely garbage"
-            endian = "" if width == 1 else ("  LE" if little else "  BE")
-            src = f"B{offset} as {spec[0]}{endian}"
+            endian = "" if width == 1 else ("  LE" if self.little else "  BE")
+            src = f"B{self.offset} as {spec[0]}{endian}"
             expr_line = f"expr: {expr}" if expr else "expr: (no direct WiCAN expression)"
             # Feature: flag bytes already mapped by a defined parameter.
-            exact, overlap = _mapping_for_offset(defined_params, offset, width, expr)
+            exact, overlap = _mapping_for_offset(self.defined_params, self.offset, width, expr)
             if exact:
                 n_, e_, v_ = exact[0]
                 mk = f"{_GREEN}✓{_RESET}" if v_ else f"{_YELLOW}?{_RESET}"
@@ -448,24 +509,24 @@ def cmd_plot(
             elif overlap:
                 shown = "  ".join(f"{n_} {_DIM}({e_}){_RESET}" for n_, e_, _ in overlap[:3])
                 more = f" +{len(overlap) - 3}" if len(overlap) > 3 else ""
-                map_line = f"  {_YELLOW}~ reads B{offset}:{_RESET} {shown}{more}"
+                map_line = f"  {_YELLOW}~ reads B{self.offset}:{_RESET} {shown}{more}"
             else:
                 map_line = f"  {_DIM}unmapped{_RESET}"
         else:
-            if not plottable_params:
+            if not self.plottable_params:
                 return [
-                    f"{_BOLD}{ecu_key} {pid_key}{_RESET}",
+                    f"{_BOLD}{self.ecu_key} {self.pid_key}{_RESET}",
                     "  No numeric parameters to plot — press m for byte mode.",
                 ]
-            name = plottable_params[pi % len(plottable_params)]
-            per_cap = [r["decoded"].get(name, {}).get("value") for r in all_results]
-            expr_line = f"expr: {parameters.get(name, {}).get('expression', '')}"
+            name = self.plottable_params[self.pi % len(self.plottable_params)]
+            per_cap = [r["decoded"].get(name, {}).get("value") for r in self.all_results]
+            expr_line = f"expr: {self.parameters.get(name, {}).get('expression', '')}"
             src = name
 
         # Overlay reference resolved from runtime state (cycled with `o`).
-        overlay = overlay_ref is not None
+        overlay = self.overlay_ref is not None
         ref_per_cap = (
-            [r["decoded"].get(overlay_ref, {}).get("value") for r in all_results]
+            [r["decoded"].get(self.overlay_ref, {}).get("value") for r in self.all_results]
             if overlay
             else None
         )
@@ -473,7 +534,7 @@ def cmd_plot(
         # Drop missing (None) and non-finite (NaN/Inf) values — float byte
         # interpretations routinely yield NaN/Inf, which can't be plotted or
         # averaged. Keep each retained value's capture aligned for the modal.
-        caps_all = [r["capture"] for r in all_results]
+        caps_all = [r["capture"] for r in self.all_results]
         if overlay and ref_per_cap is not None:
             triples = [
                 (cap, rf, cv)
@@ -482,7 +543,7 @@ def cmd_plot(
             ]
             caps_full = [t[0] for t in triples]
             ref_full = [t[1] for t in triples]
-            cur_full = apply_transform([t[2] for t in triples], tmode)
+            cur_full = apply_transform([t[2] for t in triples], self.tmode)
         else:
             kept = [
                 (cap, v)
@@ -491,10 +552,10 @@ def cmd_plot(
             ]
             caps_full = [k[0] for k in kept]
             ref_full = None
-            cur_full = apply_transform([k[1] for k in kept], tmode)
+            cur_full = apply_transform([k[1] for k in kept], self.tmode)
 
         # Apply the x-axis window (zoom/pan), keeping ref + captures aligned.
-        series, i0, i1 = _window(cur_full, xlo, xhi)
+        series, i0, i1 = _window(cur_full, self.xlo, self.xhi)
         caps_view = caps_full[i0:i1]
         refseries = ref_full[i0:i1] if ref_full is not None else None
 
@@ -505,16 +566,16 @@ def cmd_plot(
         total = len(cur_full)
 
         # Captures-in-view modal takes over the frame when toggled.
-        if show_info:
+        if self.show_info:
             max_rows = max(4, shutil.get_terminal_size((80, 24)).lines - 8)
-            return _info_lines(ecu_key, pid_key, caps_view, i0, total, ts_range, max_rows)
+            return _info_lines(self.ecu_key, self.pid_key, caps_view, i0, total, ts_range, max_rows)
 
         if overlay and refseries is not None:
             r = _pearson(refseries, series)
             rstr = (
-                f"  {_CYAN}r={r:+.3f} vs {overlay_ref}{_RESET}"
+                f"  {_CYAN}r={r:+.3f} vs {self.overlay_ref}{_RESET}"
                 if r is not None
-                else f"  {_DIM}r=n/a vs {overlay_ref}{_RESET}"
+                else f"  {_DIM}r=n/a vs {self.overlay_ref}{_RESET}"
             )
         else:
             rstr = ""
@@ -528,104 +589,92 @@ def cmd_plot(
         )
 
         out = [
-            f"{_BOLD}{ecu_key} {pid_key}{_RESET}  {_DIM}·  {mode} mode{_RESET}",
+            f"{_BOLD}{self.ecu_key} {self.pid_key}{_RESET}  {_DIM}·  {self.mode} mode{_RESET}",
             f"  {_CYAN}{src}{_RESET}   {_DIM}{expr_line}{_RESET}",
         ]
         if map_line:
             out.append(map_line)
         out.append(
-            f"  transform={_YELLOW}{tmode}{_RESET}  {_series_stats_str(series)}{rstr}"
+            f"  transform={_YELLOW}{self.tmode}{_RESET}  {_series_stats_str(series)}{rstr}"
             + (f"   {_RED}\u26a0 {warn}{_RESET}" if warn else "")
         )
         out.append("")
         out.extend(render_plot(series, ref=refseries if overlay else None, caption=caption))
         return out
 
-    # Non-interactive: print one static frame and return.
-    if not (sys.stdin.isatty() and sys.stdout.isatty()):
-        print("\n".join(frame_lines()))
-        print("  (interactive --plot needs a TTY for navigation)")
-        return
+    def hint(self) -> str:
+        """The one-line key hint for the current mode."""
+        common = "  +/- zoom · ,/. pan · 0 reset-x · f transform · o overlay · i captures · ? help · q quit"
+        if self.mode == "bytes":
+            return "←/→ offset · t/T type · e endian · m param" + common
+        return "←/→ param · m bytes" + common
 
-    import termios
-    import tty
+    # -- current-interpretation accessors (for annotation / promotion) -----
+    def current_expr(self) -> str | None:
+        """The WiCAN expression for the current byte-mode interpretation, if any."""
+        if self.mode != "bytes":
+            return None
+        return wican_expr(self.offset, INSPECT_TYPES[self.ti], self.little)
 
-    fd = sys.stdin.fileno()
-    old = termios.tcgetattr(fd)
-    sys.stdout.write("\033[?1049h\033[?25l")
-    sys.stdout.flush()
-    status = ""
-    try:
-        tty.setcbreak(fd)
-        while True:
-            sys.stdout.write("\033[2J\033[H")
-            sys.stdout.write("\r\n".join(frame_lines()))
-            common = (
-                "  +/- zoom · ,/. pan · 0 reset-x · f transform · o overlay · i captures · q quit"
-            )
-            hint = (
-                "←/→ offset · t/T type · e endian · m param" + common
-                if mode == "bytes"
-                else "←/→ param · m bytes" + common
-            )
-            sys.stdout.write(f"\r\n\r\n  {_DIM}{hint}{_RESET}\r\n")
-            if status:
-                sys.stdout.write(f"  {_YELLOW}{status}{_RESET}\r\n")
-            sys.stdout.flush()
+    def current_param_name(self) -> str | None:
+        """The parameter currently plotted in param mode, if any."""
+        if self.mode != "param" or not self.plottable_params:
+            return None
+        return self.plottable_params[self.pi % len(self.plottable_params)]
 
-            status = ""
-            k = _read_key(fd)
-            if k in ("i", "I"):  # toggle captures-in-view modal
-                show_info = not show_info
-            elif k in ("q", "Q", "\x03"):
-                break
-            elif k in ("\x1b", "\x1b\x1b"):  # Esc closes the modal, else quits
-                if show_info:
-                    show_info = False
-                else:
-                    break
-            elif k in ("\x1b[D", "h"):
-                if mode == "bytes":
-                    offset = max(0, offset - 1)
-                elif plottable_params:
-                    pi = (pi - 1) % len(plottable_params)
-            elif k in ("\x1b[C", "l"):
-                if mode == "bytes":
-                    offset = min(max_off, offset + 1)
-                elif plottable_params:
-                    pi = (pi + 1) % len(plottable_params)
-            elif k == "t":
-                ti = (ti + 1) % len(INSPECT_TYPES)
-            elif k == "T":
-                ti = (ti - 1) % len(INSPECT_TYPES)
-            elif k == "e":
-                little = not little
-            elif k == "f":
-                tmode = POST_TRANSFORMS[(POST_TRANSFORMS.index(tmode) + 1) % len(POST_TRANSFORMS)]
-            elif k == "m":
-                mode = "param" if mode == "bytes" else "bytes"
-            elif k in ("o", "O"):  # cycle overlay reference param
-                if len(ov_cycle) > 1:
-                    overlay_ref = _cycle_overlay(overlay_ref, ov_cycle)
-                    status = f"overlay: {overlay_ref}" if overlay_ref else "overlay: off"
-                else:
-                    status = "no numeric param to overlay (define one or use --try)"
-            elif k in ("+", "="):  # zoom in (halve window)
-                c, half = (xlo + xhi) / 2, (xhi - xlo) / 4
-                if (xhi - xlo) > 0.02:
-                    xlo, xhi = max(0.0, c - half), min(1.0, c + half)
-            elif k in ("-", "_"):  # zoom out (double window)
-                c, half = (xlo + xhi) / 2, (xhi - xlo)
-                xlo, xhi = max(0.0, c - half), min(1.0, c + half)
-            elif k in (",", "<"):  # pan left
-                d = min(xlo, 0.1 * (xhi - xlo))
-                xlo, xhi = xlo - d, xhi - d
-            elif k in (".", ">"):  # pan right
-                d = min(1.0 - xhi, 0.1 * (xhi - xlo))
-                xlo, xhi = xlo + d, xhi + d
-            elif k == "0":  # reset x-window
-                xlo, xhi = 0.0, 1.0
-    finally:
-        termios.tcsetattr(fd, termios.TCSADRAIN, old)
-        sys.stdout.write("\033[?25h\033[?1049l")
-        sys.stdout.flush()
+    # -- mutators (return an optional status message) ----------------------
+    def move_left(self) -> None:
+        if self.mode == "bytes":
+            self.offset = max(0, self.offset - 1)
+        elif self.plottable_params:
+            self.pi = (self.pi - 1) % len(self.plottable_params)
+
+    def move_right(self) -> None:
+        if self.mode == "bytes":
+            self.offset = min(self.max_off, self.offset + 1)
+        elif self.plottable_params:
+            self.pi = (self.pi + 1) % len(self.plottable_params)
+
+    def type_next(self) -> None:
+        self.ti = (self.ti + 1) % len(INSPECT_TYPES)
+
+    def type_prev(self) -> None:
+        self.ti = (self.ti - 1) % len(INSPECT_TYPES)
+
+    def toggle_endian(self) -> None:
+        self.little = not self.little
+
+    def cycle_transform(self) -> None:
+        self.tmode = POST_TRANSFORMS[(POST_TRANSFORMS.index(self.tmode) + 1) % len(POST_TRANSFORMS)]
+
+    def toggle_mode(self) -> None:
+        self.mode = "param" if self.mode == "bytes" else "bytes"
+
+    def cycle_overlay(self) -> str:
+        if len(self.ov_cycle) > 1:
+            self.overlay_ref = _cycle_overlay(self.overlay_ref, self.ov_cycle)
+            return f"overlay: {self.overlay_ref}" if self.overlay_ref else "overlay: off"
+        return "no numeric param to overlay (define one or use --try)"
+
+    def zoom_in(self) -> None:
+        c, half = (self.xlo + self.xhi) / 2, (self.xhi - self.xlo) / 4
+        if (self.xhi - self.xlo) > 0.02:
+            self.xlo, self.xhi = max(0.0, c - half), min(1.0, c + half)
+
+    def zoom_out(self) -> None:
+        c, half = (self.xlo + self.xhi) / 2, (self.xhi - self.xlo)
+        self.xlo, self.xhi = max(0.0, c - half), min(1.0, c + half)
+
+    def pan_left(self) -> None:
+        d = min(self.xlo, 0.1 * (self.xhi - self.xlo))
+        self.xlo, self.xhi = self.xlo - d, self.xhi - d
+
+    def pan_right(self) -> None:
+        d = min(1.0 - self.xhi, 0.1 * (self.xhi - self.xlo))
+        self.xlo, self.xhi = self.xlo + d, self.xhi + d
+
+    def reset_x(self) -> None:
+        self.xlo, self.xhi = 0.0, 1.0
+
+    def toggle_info(self) -> None:
+        self.show_info = not self.show_info

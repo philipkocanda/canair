@@ -5,7 +5,7 @@
 ```
 usage: canair captures [-h] <kind> ...
 
-Query captured data. Choose a kind:
+[UDS+CAN] Query captured data. Choose a kind:
   uds   diagnostic UDS payloads (captures/*.yaml) — the QUERY/diff/step/
         summary/sessions/latest/recover surface (domain A)
   can   imported raw broadcast-CAN frame logs (captures/can/index.yaml,
@@ -29,8 +29,9 @@ options:
 usage: canair captures uds [-h] [--diff | --step]
                            [--summary | --sessions | --latest [ECU] |
                            --recover] [--discard] [--all] [--rulers] [--pair]
-                           [--join-tol SECONDS] [--json] [--since YYYY-MM-DD]
-                           [--until YYYY-MM-DD] [--date YYYY-MM-DD]
+                           [--join-tol SECONDS] [--json] [--since WHEN]
+                           [--until WHEN] [--date YYYY-MM-DD] [--today]
+                           [--last-sessions [N]] [--last-session]
                            [--state SUBSTR] [--label SUBSTR] [--dir DIR]
                            [QUERY ...]
 
@@ -74,12 +75,20 @@ options:
   --dir DIR             Captures directory (default: active profile)
 
 scoping:
-  Restrict to captures within a date range (inclusive, YYYY-MM-DD) and/or by session state/label substring
+  Restrict to captures within a date/time range (inclusive) and/or by session state/label substring. --since/--until accept a date (YYYY-MM-DD) or a timestamp (YYYY-MM-DD HH:MM[:SS[.ffffff]])
 
-  --since YYYY-MM-DD    Only captures on or after this date
-  --until YYYY-MM-DD    Only captures on or before this date
+  --since WHEN          Only captures on or after this date/time (YYYY-MM-DD[
+                        HH:MM:SS])
+  --until WHEN          Only captures on or before this date/time (YYYY-MM-DD[
+                        HH:MM:SS])
   --date YYYY-MM-DD     Only captures on this exact date (shorthand for
                         --since X --until X)
+  --today               Only captures recorded today (shorthand for --date
+                        <today>)
+  --last-sessions [N]   Only the most recent N recorded sessions in scope (N
+                        defaults to 1)
+  --last-session        Only the most recent recorded session in scope (alias
+                        for --last-sessions 1)
   --state SUBSTR        Only captures whose session vehicle_states contain
                         SUBSTR (case-insensitive), e.g. --state driving
   --label SUBSTR        Only captures whose session/capture label contains

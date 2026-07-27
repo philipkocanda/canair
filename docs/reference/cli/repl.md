@@ -7,7 +7,7 @@ usage: canair repl [-h] [--wican WICAN] [--transport {slcan-tcp,wican-ws}]
                    [--elm-timeout MS] [--timeout SECONDS] [--json] [--verbose]
                    [--timings] [--reboot] [--unsafe] [--force]
 
-Drop into an interactive live terminal (REPL) over the WiCAN
+[UDS] Drop into an interactive live terminal (REPL) over the WiCAN
 connection — type raw ELM327 (AT...) and UDS requests by hand and see the
 decoded response, for exploratory poking the one-shot commands don't cover.
 

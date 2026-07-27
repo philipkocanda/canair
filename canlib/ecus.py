@@ -232,6 +232,24 @@ def build_canonical_name_index(ecus: dict | None = None) -> dict[str, str]:
     return {key: ecu_name(tx_id, ecus) for key, tx_id in build_name_tx_index(ecus).items()}
 
 
+def build_alias_index(ecus: dict | None = None) -> dict[str, str]:
+    """Map canonical ECU short name -> its declared alias (only ECUs that have one).
+
+    Used for display (e.g. the captures stepper shows ``SKM (alias SMK)``) so the
+    secondary name an ECU self-identifies as is visible alongside the canonical
+    short name.
+    """
+    if ecus is None:
+        ecus = load_ecus()
+    out: dict[str, str] = {}
+    for info in ecus.values():
+        name = info.get("name")
+        alias = info.get("alias")
+        if name and alias:
+            out[name] = alias
+    return out
+
+
 def canonical_ecu_name(
     name,
     name_index: dict[str, str] | None = None,

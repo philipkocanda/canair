@@ -35,6 +35,8 @@ from textual.screen import ModalScreen
 from textual.widgets import Button, Checkbox, Input, Label, OptionList, Static
 from textual.widgets.option_list import Option
 
+from canlib.tui_help import HelpMixin
+
 if TYPE_CHECKING:
     from .monitor import MonitorController
 
@@ -304,8 +306,10 @@ class EditParamDialog(ModalScreen[dict | None]):
         self.dismiss(None)
 
 
-class MonitorApp(App):
+class MonitorApp(HelpMixin, App):
     """Scrollable, in-place live-value monitor."""
+
+    HELP_TITLE = "canair monitor — keyboard shortcuts"
 
     CSS = """
     Screen { layout: vertical; background: transparent; }
@@ -317,11 +321,16 @@ class MonitorApp(App):
     BINDINGS: ClassVar[list[Binding]] = [
         Binding("q", "quit", "quit"),
         Binding("ctrl+c", "quit", "quit", show=False, priority=True),
+        Binding("question_mark", "help", "help"),
         Binding("s", "save", "save"),
         Binding("n", "new_segment", "new segment"),
         Binding("f", "toggle_follow", "follow"),
         Binding("r", "toggle_rulers", "rulers"),
         Binding("space", "toggle_pause", "pause"),
+        Binding("equals_sign", "faster", "poll faster"),
+        Binding("plus", "faster", "poll faster", show=False),
+        Binding("minus", "slower", "poll slower"),
+        Binding("underscore", "slower", "poll slower", show=False),
         Binding("down", "select(1)", "select down", show=False, priority=True),
         Binding("up", "select(-1)", "select up", show=False, priority=True),
         Binding("e", "edit", "edit"),
@@ -431,6 +440,11 @@ class MonitorApp(App):
             metric = f"{c.last_cmds}[dim] req[/]"
         else:
             metric = f"{c.last_cmds}[dim] cmds ·[/] {c.last_elm_time:.1f}[dim]s ELM[/]"
+        # Captured (all fresh payloads) vs unique (distinct values kept) — the two
+        # differ from the on-screen row count (one row per polled PID).
+        captured = getattr(c, "total_frames", 0)
+        uniq = getattr(c, "unique_frames", 0)
+        frames = f"[dim]· captured[/] {captured}[dim]/uniq[/] {uniq} "
         flash = ""
         if self._flash_msg:
             if time.monotonic() < self._flash_expires:
@@ -450,7 +464,7 @@ class MonitorApp(App):
         status.update(
             f"{rec}[dim]cycle[/] {c.cycle} [dim]·[/] {c.interval:.1f}[dim]s ·[/] "
             f"{c.elapsed:.1f}[dim]s ·[/] {metric} "
-            f"{state_txt}{follow}{paused}"
+            f"{frames}{state_txt}{follow}{paused}"
             f"{flash}\n"
             f"{self._edit_status_line()}"
         )
@@ -467,7 +481,7 @@ class MonitorApp(App):
         if ed is None:
             return (
                 "[dim]↑↓/jk PgUp/PgDn g/G · f follow · space pause · r rulers · "
-                f"s save{seg} · q quit[/]"
+                f"s save{seg} · ? help · q quit[/]"
             )
         filt = getattr(ed, "filter_mode", "all")
         filt_txt = f"[cyan]{filt}[/]" if filt != "all" else "[dim]all[/]"
@@ -478,7 +492,7 @@ class MonitorApp(App):
         return (
             f"{sel}[dim]filter[/] {filt_txt} "
             "[dim]· ↑↓ select · e edit · v verify · d en/disable · F filter · "
-            f"s save{seg} · q quit[/]"
+            f"s save{seg} · ? help · q quit[/]"
         )
 
     # -- actions -----------------------------------------------------------
@@ -500,6 +514,21 @@ class MonitorApp(App):
     def action_toggle_pause(self) -> None:
         self.paused = not self.paused
         self._update_status()
+
+    # Live poll-rate control. The poll loop reads controller.interval each cycle,
+    # so mutating it takes effect on the next sleep. Clamped to a sane range.
+    _MIN_INTERVAL = 0.1
+    _MAX_INTERVAL = 300.0
+
+    def action_faster(self) -> None:
+        self._set_interval(max(self._MIN_INTERVAL, round(self.controller.interval / 1.5, 1)))
+
+    def action_slower(self) -> None:
+        self._set_interval(min(self._MAX_INTERVAL, round(self.controller.interval * 1.5, 1)))
+
+    def _set_interval(self, value: float) -> None:
+        self.controller.interval = value
+        self._flash(f"Poll interval: {value:.1f}s", secs=2.0)
 
     def action_toggle_rulers(self) -> None:
         self.controller.show_rulers = not self.controller.show_rulers

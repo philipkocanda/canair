@@ -5,7 +5,7 @@
 ```
 usage: canair import [-h] {uds,can,dbc} ...
 
-Import external CAN data into the active profile. Choose a kind:
+[UDS+CAN] Import external CAN data into the active profile. Choose a kind:
 
   uds   device-free UDS capture (ECU:PID=PAYLOAD, domain A)
         -> captures/*.yaml via the shared save machinery

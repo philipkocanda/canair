@@ -6,7 +6,7 @@
 usage: canair sniff [-h] [--wican WICAN] [--listen-only] [--filter IDS]
                     [--duration DURATION] [--save FILE] [--force]
 
-``canair sniff`` — passive CAN bus sniffer (raw SLCAN-over-TCP backend).
+[CAN] ``canair sniff`` — passive CAN bus sniffer (raw SLCAN-over-TCP backend).
 
 Opens the WiCAN's SLCAN socket via python-can and shows a live per-ID table
 (count / rate / last data / which bytes have changed). Great for discovering

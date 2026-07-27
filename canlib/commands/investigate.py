@@ -18,7 +18,7 @@ from dataclasses import dataclass
 
 from canlib.align import DEFAULT_JOIN_TOL_S, join_nearest, load_signal_captures
 from canlib.byteindex import mapped_bits, mapped_offsets
-from canlib.capture_dates import add_scope_args, resolve_date_bounds
+from canlib.capture_dates import add_scope_args, resolve_scope_bounds
 from canlib.commands._group import group_help
 from canlib.keepmode import scope_is_keep_unique
 from canlib.notation import (
@@ -260,7 +260,7 @@ def run(args) -> int:
     from canlib.pids import build_ecu_index, load_pids
     from canlib.xanalysis import byte_state_buckets as _byte_state_buckets
 
-    since, until, err = resolve_date_bounds(args)
+    since, until, err = resolve_scope_bounds(args)
     if err:
         print(f"error: {err}", file=sys.stderr)
         return 2

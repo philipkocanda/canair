@@ -7,7 +7,7 @@ usage: canair validate [-h] [--stats] [--strict]
                        [{pids,captures,ecus,states,signals,can,all}]
                        [files ...]
 
-Validate a profile's data files against their schemas and
+[UDS+CAN] Validate a profile's data files against their schemas and
 report problems.
 
 Pick a target (default: all):

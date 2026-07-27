@@ -201,9 +201,10 @@ OBC:
           min: "0"
           max: "300"
           source: Live 16A AC charge 2026-07-26 + calibrated grid voltage
-          verified: false
+          verified: true
           notes: >
-            AC mains input (RMS) at the OBC inlet. ~222V during charging (218-228V across all charging history), idles ~8.5V in READY with EVSE disconnected (B14=3), like the other OBC senses. B14 high byte steps 85-88 with voltage; B15 is the low byte (was the mystery OBC_UNKNOWN_B15). Mean 221.8V vs calibrated grid 225.5V = ~3V IR drop at ~15A (cable R~0.2ohm), consistent. UNVERIFIED: magnitude + on/off proven; fine tracking vs grid only weakly confirmed against a 3-point reference. ISO-TP 0x0B-0x0C.
+            AC mains input (RMS) at the OBC inlet. ~222V during charging (218-228V across all charging history), idles ~8.5V in READY with EVSE disconnected (B14=3), like the other OBC senses.
+            Confirmed against calibrated measurements from grid connection meter.
         AC_CURRENT_SETPOINT:
           expression: B28
           unit: A
@@ -214,6 +215,7 @@ OBC:
           verified: false
           notes: >
             Commanded/negotiated AC charge current setpoint. Reads {0,9,16} — 16A during the steady 16A-pilot charge (=EVSE pilot limit), ramps 0->9->16 at start. Not the measured AC draw (that tracks OBC_DC_A and can't be separated on a steady charge). ISO-TP 0x17 (WiCAN B28).
+            NOTE: Not correct, remains at "16" while switching from 10-13-16A.
 
     2102:
       status: draft

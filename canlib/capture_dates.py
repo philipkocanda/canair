@@ -12,7 +12,7 @@ and (for captures) ``session_label`` keys, so any capture-shaped dict works.
 """
 
 import argparse
-from datetime import date, datetime
+from datetime import date, datetime, time
 
 __all__ = [
     "add_scope_args",
@@ -21,8 +21,18 @@ __all__ = [
     "filter_by_date_range",
     "filter_by_text",
     "parse_iso_date",
+    "parse_iso_datetime",
     "resolve_date_bounds",
+    "resolve_scope_bounds",
 ]
+
+# Accepted time-of-day precisions for --since/--until, most-precise first. The
+# date-with-space form and the ISO ``T``-separated form are both accepted.
+_DATETIME_FORMATS = (
+    "%Y-%m-%d %H:%M:%S.%f",
+    "%Y-%m-%d %H:%M:%S",
+    "%Y-%m-%d %H:%M",
+)
 
 
 def parse_iso_date(s: str) -> date:
@@ -35,6 +45,44 @@ def parse_iso_date(s: str) -> date:
         return datetime.strptime(s.strip(), "%Y-%m-%d").date()
     except ValueError:
         raise argparse.ArgumentTypeError(f"invalid date {s!r} (expected YYYY-MM-DD)") from None
+
+
+def parse_iso_datetime(s: str) -> date | datetime:
+    """Parse ``YYYY-MM-DD`` **or** ``YYYY-MM-DD[ T]HH:MM[:SS[.ffffff]]``.
+
+    Returns a bare ``date`` when no time-of-day is given (so the value keeps its
+    whole-day, backward-compatible meaning) and a ``datetime`` when a time is
+    present (so ``--since``/``--until`` can narrow to a sub-day instant, down to
+    microseconds). For argparse ``type=``; raises ``ArgumentTypeError`` on a
+    malformed value.
+    """
+    raw = s.strip()
+    for fmt in _DATETIME_FORMATS:
+        for f in (fmt, fmt.replace(" ", "T")):
+            try:
+                return datetime.strptime(raw, f)
+            except ValueError:
+                continue
+    try:
+        return datetime.strptime(raw, "%Y-%m-%d").date()
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"invalid date/time {s!r} (expected YYYY-MM-DD[ HH:MM[:SS[.ffffff]]])"
+        ) from None
+
+
+def _as_lower_datetime(x: date | datetime) -> datetime:
+    """Normalize a bound to its earliest instant (date -> start of day)."""
+    if isinstance(x, datetime):
+        return x
+    return datetime.combine(x, time.min)
+
+
+def _as_upper_datetime(x: date | datetime) -> datetime:
+    """Normalize a bound to its latest instant (date -> end of day, inclusive)."""
+    if isinstance(x, datetime):
+        return x
+    return datetime.combine(x, time.max)
 
 
 def entry_date(entry: dict) -> date | None:
@@ -81,23 +129,49 @@ def entry_datetime(entry: dict) -> datetime | None:
 
 
 def filter_by_date_range(
-    entries: list[dict], since: date | None = None, until: date | None = None
+    entries: list[dict],
+    since: date | datetime | None = None,
+    until: date | datetime | None = None,
 ) -> list[dict]:
-    """Keep entries whose session date falls within ``[since, until]`` (inclusive).
+    """Keep entries whose session date/time falls within ``[since, until]`` (inclusive).
 
-    Either bound may be ``None`` (open-ended). Entries without a parseable date
-    are dropped whenever a bound is active, since they cannot be placed in range.
+    Either bound may be ``None`` (open-ended). A bound may be a ``date`` (whole
+    day) or a ``datetime`` (a sub-day instant, down to microseconds).
+
+    When **neither** bound carries a time-of-day, comparison is date-only:
+    entries without a parseable date are dropped, but untimed captures within
+    the day range (one-shot scan/identity reads) are kept — the original
+    behavior. When **either** bound carries a time-of-day, comparison is
+    time-aware against each capture's ``date``+``time``: captures with no usable
+    timestamp cannot be placed on the timeline and are dropped.
     """
     if since is None and until is None:
         return entries
+
+    time_aware = isinstance(since, datetime) or isinstance(until, datetime)
+    if not time_aware:
+        out = []
+        for e in entries:
+            d = entry_date(e)
+            if d is None:
+                continue
+            if since is not None and d < since:
+                continue
+            if until is not None and d > until:
+                continue
+            out.append(e)
+        return out
+
+    lo = _as_lower_datetime(since) if since is not None else None
+    hi = _as_upper_datetime(until) if until is not None else None
     out = []
     for e in entries:
-        d = entry_date(e)
-        if d is None:
+        dt = entry_datetime(e)
+        if dt is None:
             continue
-        if since is not None and d < since:
+        if lo is not None and dt < lo:
             continue
-        if until is not None and d > until:
+        if hi is not None and dt > hi:
             continue
         out.append(e)
     return out
@@ -141,26 +215,49 @@ def add_scope_args(parser: argparse.ArgumentParser) -> None:
     """
     date_group = parser.add_argument_group(
         "scoping",
-        "Restrict to captures within a date range (inclusive, YYYY-MM-DD) "
-        "and/or by session state/label substring",
+        "Restrict to captures within a date/time range (inclusive) and/or by "
+        "session state/label substring. --since/--until accept a date "
+        "(YYYY-MM-DD) or a timestamp (YYYY-MM-DD HH:MM[:SS[.ffffff]])",
     )
     date_group.add_argument(
         "--since",
-        type=parse_iso_date,
-        metavar="YYYY-MM-DD",
-        help="Only captures on or after this date",
+        type=parse_iso_datetime,
+        metavar="WHEN",
+        help="Only captures on or after this date/time (YYYY-MM-DD[ HH:MM:SS])",
     )
     date_group.add_argument(
         "--until",
-        type=parse_iso_date,
-        metavar="YYYY-MM-DD",
-        help="Only captures on or before this date",
+        type=parse_iso_datetime,
+        metavar="WHEN",
+        help="Only captures on or before this date/time (YYYY-MM-DD[ HH:MM:SS])",
     )
     date_group.add_argument(
         "--date",
         type=parse_iso_date,
         metavar="YYYY-MM-DD",
         help="Only captures on this exact date (shorthand for --since X --until X)",
+    )
+    date_group.add_argument(
+        "--today",
+        action="store_true",
+        help="Only captures recorded today (shorthand for --date <today>)",
+    )
+    date_group.add_argument(
+        "--last-sessions",
+        nargs="?",
+        type=int,
+        const=1,
+        default=None,
+        metavar="N",
+        dest="last_sessions",
+        help="Only the most recent N recorded sessions in scope (N defaults to 1)",
+    )
+    date_group.add_argument(
+        "--last-session",
+        action="store_const",
+        const=1,
+        dest="last_sessions",
+        help="Only the most recent recorded session in scope (alias for --last-sessions 1)",
     )
     date_group.add_argument(
         "--state",
@@ -175,21 +272,88 @@ def add_scope_args(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def resolve_date_bounds(args) -> tuple[date | None, date | None, str | None]:
-    """Resolve ``--date``/``--since``/``--until`` into ``(since, until, error)``.
+def resolve_date_bounds(args) -> tuple[date | datetime | None, date | datetime | None, str | None]:
+    """Resolve ``--date``/``--since``/``--until``/``--today`` into ``(since, until, error)``.
 
-    ``--date`` is shorthand for an equal since/until pair and is mutually
-    exclusive with ``--since``/``--until``. Returns an error message string (for
-    the caller to print and exit non-zero) instead of raising, or ``None`` on
-    success.
+    ``--date`` is shorthand for an equal since/until pair (a whole day) and
+    ``--today`` for ``--date <today>``; both are mutually exclusive with
+    ``--since``/``--until``. ``--since``/``--until`` may each be a ``date`` or a
+    ``datetime`` (see ``parse_iso_datetime``). Returns an error message string
+    (for the caller to print and exit non-zero) instead of raising, or ``None``
+    on success.
     """
     date_ = getattr(args, "date", None)
     since = getattr(args, "since", None)
     until = getattr(args, "until", None)
+    today = getattr(args, "today", False)
+    if today:
+        if date_ or since or until:
+            return None, None, "--today cannot be combined with --since/--until/--date"
+        date_ = date.today()
     if date_ and (since or until):
         return None, None, "--date cannot be combined with --since/--until"
     since = date_ or since
     until = date_ or until
-    if since and until and since > until:
+    if since and until and _as_lower_datetime(since) > _as_upper_datetime(until):
         return None, None, f"--since ({since}) is after --until ({until})"
+    return since, until, None
+
+
+def _session_starts(
+    since: date | datetime | None,
+    until: date | datetime | None,
+    state: str | None,
+    label: str | None,
+    captures_dir=None,
+) -> list[datetime]:
+    """Start instant of each recorded session in scope, chronological.
+
+    A session's start is the earliest capture timestamp in it (falling back to
+    start-of-day for a session with only untimed captures). Sessions with no
+    placeable timestamp are skipped, so they can't anchor a --last-sessions
+    window (consistent with time-aware date filtering dropping untimed data).
+    """
+    from .commands.captures import load_all_captures
+
+    entries = load_all_captures(captures_dir)
+    entries = filter_by_date_range(entries, since, until)
+    entries = filter_by_text(entries, state=state, label=label)
+
+    starts: dict[tuple, datetime] = {}
+    for e in entries:
+        key = (e.get("file", ""), e.get("_session_idx", 0))
+        dt = entry_datetime(e)
+        if dt is None:
+            d = entry_date(e)
+            if d is None:
+                continue
+            dt = _as_lower_datetime(d)
+        if key not in starts or dt < starts[key]:
+            starts[key] = dt
+    return sorted(starts.values())
+
+
+def resolve_scope_bounds(
+    args, captures_dir=None
+) -> tuple[date | datetime | None, date | datetime | None, str | None]:
+    """Resolve the full scope surface into ``(since, until, error)``.
+
+    Extends :func:`resolve_date_bounds` (``--since``/``--until``/``--date``/
+    ``--today``) with ``--last-sessions``/``--last-session``: the requested
+    number of most-recent sessions (within any date/state/label scope) is turned
+    into an effective ``since`` cutoff — the start of the Nth-from-last session —
+    so every capture-consuming command inherits the behavior through its existing
+    ``since`` plumbing. ``--last-sessions`` is applied *after* the date/state/label
+    scope, so ``--state driving --last-session`` means "the last driving session".
+    """
+    since, until, err = resolve_date_bounds(args)
+    if err:
+        return since, until, err
+    n = getattr(args, "last_sessions", None)
+    if n:
+        state = getattr(args, "state", None)
+        label = getattr(args, "label", None)
+        starts = _session_starts(since, until, state, label, captures_dir)
+        if starts:
+            since = starts[-n] if n <= len(starts) else starts[0]
     return since, until, None

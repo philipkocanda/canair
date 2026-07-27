@@ -7,7 +7,7 @@ usage: canair coverage [-h] [--all] [--unmapped] [--unverified] [--bitfields]
                        [--no-capture] [--json] [--notation NAME]
                        [ecu] [pid]
 
-Audit PID definitions for decoding gaps.
+[UDS] Audit PID definitions for decoding gaps.
 
 positional arguments:
   ecu              Filter to one ECU (e.g. IGPM)

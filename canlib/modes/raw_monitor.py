@@ -24,13 +24,9 @@ def query_ecu_addresses(query_steps: list[dict], ecu_index: dict) -> dict[str, t
 
 
 def _keep_mode(args) -> str | None:
-    if getattr(args, "keep_unique", False):
-        return "unique"
-    if getattr(args, "keep_all", False):
-        return "all"
-    if getattr(args, "keep", None):
-        return "last"
-    return None
+    from ..keepmode import keep_mode_from_args
+
+    return keep_mode_from_args(args)
 
 
 async def run_raw_monitor(args, host: str, port: int, bitrate: int, pids_data: dict) -> int:

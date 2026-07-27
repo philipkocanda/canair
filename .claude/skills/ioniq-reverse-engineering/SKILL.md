@@ -261,16 +261,24 @@ ECUs resolve by name (`IGPM`) or hex TX ID (`770`).
 
 Live-refreshing poll: non-query steps run once as setup, `query` steps poll in a
 background worker with TesterPresent keepalives. On a TTY it's a scrollable
-Textual TUI (`↑↓/j/k`/wheel scroll, `f` follow-tail, `space` pause, `s` save
-payloads with a metadata modal, `q` quit); piped, it polls silently until
+Textual TUI (`↑↓/j/k`/wheel scroll, `f` follow-tail, `space` pause, `=`/`-` poll
+faster/slower live, `s` save payloads with a metadata modal, `?` a keybinding
+help modal, `q` quit); piped, it polls silently until
 Ctrl+C. Hex view highlights bytes changed since the previous cycle, colors bytes
-by verification state, and shows ASCII for unmapped PIDs. `--keep-unique` keeps
-distinct payloads per PID; `--keep-all` keeps every cycle with timestamps.
-`--keep-unique` is ideal for **event captures** (door/lock/hood): each stored row
+by verification state, and shows ASCII for unmapped PIDs. The status line shows a
+**`captured N/uniq M`** frame counter — total fresh payloads received vs distinct
+values kept (both differ from the on-screen row count of one row per PID). **Keep-mode default is
+`--keep-unique`** — the monitor stores only distinct payloads per PID, so a
+`--save` session doesn't balloon its capture file with every polled duplicate;
+pass `--keep-all` to retain every cycle with timestamps (full time-series, larger
+files), or `--keep N` for the last N per PID. `--keep-unique` (the default) is
+ideal for **event captures** (door/lock/hood): each stored row
 is a rising-edge transition, so `investigate --events` reconstructs the timeline
 cleanly — but return-to-previous states (falling edges) and durations are dropped,
 so the session is tagged `keep_mode: unique` and analysis tools (`decode`/
 `correlate`/`investigate`) warn and caveat rate/duration math on that scope.
+**When you need real timing/rate** (e.g. a continuous drive log for
+`correlate --transform delta`), use `--keep-all`.
 Throughput is governed by ELM commands/cycle — cut via header caching + service-22
 multi-DID batching (IGPM 3 DIDs: 11→5→1 cmds/cycle). `--elm-timeout` overrides
 `response_timeout_ms`.

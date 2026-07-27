@@ -17,7 +17,7 @@ import json as _json
 import sys
 
 from canlib.align import DEFAULT_JOIN_TOL_S, load_signal_captures
-from canlib.capture_dates import add_scope_args, resolve_date_bounds
+from canlib.capture_dates import add_scope_args, resolve_scope_bounds
 from canlib.commands._can_args import add_can_log_source_args
 from canlib.commands._group import group_help
 from canlib.notation import (
@@ -318,7 +318,7 @@ def run(args) -> int:
         )
         return 2
 
-    since, until, err = resolve_date_bounds(args)
+    since, until, err = resolve_scope_bounds(args)
     if err:
         print(f"error: {err}", file=sys.stderr)
         return 2
