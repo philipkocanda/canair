@@ -322,7 +322,15 @@ VCU:
             The remaining dynamic 2102 bytes (B14~149, B27~57, B20~58 are near-constant config/status; B19/B21/
             B23/B26 are max-entropy fast signals — motor phase currents / resolver angle per the Soul VMCU sheet —
             that alias at the 5s poll rate and need a synced high-rate VCU+MCU drive capture to resolve).
-
+        VCU_CHARGE_TIME_REMAINING:
+          expression: "[B22:B23]/10"
+          unit: min
+          min: "0"
+          max: "6000"
+          source: Live EVSE current step 10/13/16A (2026-07-27) + steady-16A charge SOC cross-check
+          verified: false
+          notes: >
+            Estimated charge time remaining (time-to-full, to 100% — this car has no built-in SOC charge limit). [B22:B23]/10 = minutes. Confirmed as time=energy/power by four lines: byte*charge_current constant (CV 0.008) across a 10/13/16A EVSE step (242/180/146 min); r=-0.77 vs SOC over the steady 16A charge (falls as SOC rises); collapses to ~0 when charging stops; ~4h at 10A from 67% SOC (owner-confirmed plausible). UNVERIFIED: exact /10=min scale not pinned (afternoon reads ~25% below the naive kWh/kW estimate — the car's algorithm likely accounts for CV taper). Coarser/related estimates on B19 and VCU-2101 B21. ISO-TP 0x12-0x13.
     21F2:
       status: static
       period: 0
@@ -468,6 +476,14 @@ VCU:
       vehicle_states:
         - ready
       notes: "VCU 2101 B13/B15 = accelerator/torque REQUEST echo (driver demand), essentially redundant with ACCEL_PEDAL_DEPTH so not worth a separate param. From 2026-07-22 drive: B13 and B15 both correlate ~0.99 with ACCEL_PEDAL_DEPTH; B13 = 2xB15 exactly; linear fit B13 = 0.263*pedal + 6.4 (residual std 0.44); both FLOOR at their idle value (B13=6, B15=3) during braking/regen (never go negative), confirming it is a >=0 request signal, not actual bidirectional motor torque (which lives in MCU 2102). Neighbouring unmapped B14/B21 are uncorrelated with speed/pedal (noise/other). Actual motor torque + regen must be read from MCU 2102 (MCU_MOTOR_TORQUE) — VCU 2101 does not expose signed motor torque."
+    - type: verify
+      target: 2102 charge-time estimates
+      status: captured
+      priority: P3
+      vehicle_states: [charging]
+      created: "2026-07-27"
+      updated: "2026-07-27"
+      notes: "VCU_CHARGE_TIME_REMAINING = [B22:B23]/10 min found 2026-07-27 (time=energy/power: byte*I const CV 0.008; -0.77 vs SOC; ~0 at stop). TODO: (1) verify the /10=min scale against a known dash time-to-full readout; (2) decode the coarser/related inverse estimates on B19 (2102) and B21 (2101) — likely a second time-to-full or a to-target estimate; (3) no clean charge-power byte found on VCU 2101/2102 (positive-vs-current correlators were weak drift)."
 
   sessions:
     "81":

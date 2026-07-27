@@ -323,7 +323,8 @@
       "enabled": true,
       "period": "5000",
       "parameters": {
-        "VCU_INVERTER_INPUT_VOLTAGE": "B17*2"
+        "VCU_INVERTER_INPUT_VOLTAGE": "B17*2",
+        "VCU_CHARGE_TIME_REMAINING": "[B22:B23]/10"
       }
     }
   ],
