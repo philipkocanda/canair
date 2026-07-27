@@ -6,7 +6,8 @@
 usage: canair profile [-h] {list,show,path,use,create,init,new} ...
 
 List, inspect, and create vehicle profiles — the per-vehicle
-bundles (ecus/, profile.yaml, captures/, states.yaml, out/) that hold all
+bundles (ecus/, profile.yaml, captures/, states.yaml, can_buses.yaml,
+out/) that hold all
 the reverse-engineering data.
 
 Subcommands:

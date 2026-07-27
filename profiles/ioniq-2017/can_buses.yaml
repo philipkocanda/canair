@@ -1,0 +1,14 @@
+# Hyundai Ioniq 2017 — physical CAN bus segment vocabulary
+#
+# Codes accepted by each ECU's `can_bus:` field (in ecus/). Hyundai/Kia split
+# the vehicle bus into functional segments bridged by the gateway (the IGPM
+# here). See canlib/schema/can_buses_schema.yaml and `canair validate can-buses`.
+# Edit an ECU's segment(s) with `canair pids set-can-bus ECU CODE [CODE ...]`.
+
+can_buses:
+  - All   # the gateway (IGPM) — bridges every segment
+  - B     # Body CAN
+  - P     # Powertrain CAN
+  - C     # Chassis CAN
+  - M     # Multimedia CAN
+  - H     # Hybrid CAN

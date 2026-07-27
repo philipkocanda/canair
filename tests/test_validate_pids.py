@@ -169,12 +169,18 @@ class TestTypedParamValidation:
 
 
 class TestCanBusValidation:
-    """validate_ecu_file — top-level can_bus list vs valid_can_bus_codes."""
+    """validate_ecu_file — top-level can_bus list vs the profile's can_buses.yaml."""
 
-    def _errors(self, tmp_path, can_bus_yaml):
+    def _errors(self, tmp_path, can_bus_yaml, *, vocab="[B, P, C, M, H, All]"):
         import textwrap
 
-        p = tmp_path / "x.yaml"
+        from canlib.profile import Profile
+
+        ecus = tmp_path / "ecus"
+        ecus.mkdir(exist_ok=True)
+        if vocab is not None:
+            (tmp_path / "can_buses.yaml").write_text(f"can_buses: {vocab}\n")
+        p = ecus / "x.yaml"
         p.write_text(
             textwrap.dedent(
                 f"""\
@@ -189,7 +195,8 @@ class TestCanBusValidation:
             )
         )
         schema = validate_pids.load_schema()
-        errors, _warnings, _stats = validate_pids.validate_ecu_file(p, schema)
+        profile = Profile(tmp_path.name, tmp_path)
+        errors, _warnings, _stats = validate_pids.validate_ecu_file(p, schema, profile)
         return errors
 
     def test_valid_codes_ok(self, tmp_path):
@@ -206,3 +213,7 @@ class TestCanBusValidation:
     def test_duplicate_codes_error(self, tmp_path):
         errs = self._errors(tmp_path, "[B, B]")
         assert any("duplicate can_bus" in e for e in errs)
+
+    def test_no_vocabulary_skips_membership(self, tmp_path):
+        # No can_buses.yaml declared → any code accepted (shape/dup still checked).
+        assert self._errors(tmp_path, "[ZZ]", vocab=None) == []

@@ -1,0 +1,22 @@
+# CAN Bus Vocabulary Schema (human-readable companion)
+# Validates the optional profiles/<name>/can_buses.yaml.
+#
+# can_buses.yaml declares a profile's physical CAN bus segment vocabulary — the
+# codes accepted by each ECU's top-level `can_bus:` field (in ecus/). Bus naming
+# is VENDOR-SPECIFIC, so it lives per profile rather than in a global enum:
+#   Hyundai/Kia   B / P / C / M / H  (Body, Powertrain, Chassis, Multimedia, Hybrid)
+#   Ford          HS / MS            (High-/Medium-speed CAN)
+#   BMW           PT-CAN / K-CAN / F-CAN
+#   VW/Audi       Antriebs / Komfort / Infotainment (German domain names)
+# Pick whatever matches your vehicle's service documentation.
+#
+# Top-level structure (commit-1 shape — a list of codes):
+#   can_buses:              # ordered list of bus codes
+#     - All                 # convention: the gateway that bridges every segment
+#     - B                   # a physical segment code
+#
+# `canair pids set-can-bus ECU CODE [CODE ...]` accepts only codes declared here,
+# and `canair validate pids` errors on an ECU can_bus value outside this list.
+
+required_top_fields:
+  - can_buses

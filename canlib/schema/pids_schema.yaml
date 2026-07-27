@@ -12,9 +12,11 @@
 #       part_number: str   # from F187/F188 (UDS) or 1A 8x (KWP2000)
 #       id_protocol: UDS   # how identity DIDs are read (see valid_id_protocols)
 #       ...                # see identity_fields below
-#     can_bus: [...]       # optional — physical CAN bus segment(s) the ECU sits on
-#                          #   (see valid_can_bus_codes: B/P/C/M/H/All). A list, since
-#                          #   some ECUs bridge/span more than one segment (e.g. [H, P]).
+#     can_bus: [...]       # optional — physical CAN bus segment(s) the ECU sits on.
+#                          #   A list of codes drawn from the profile's own
+#                          #   can_buses.yaml vocabulary (vendor-specific: Hyundai
+#                          #   B/P/C/M/H, Ford HS/MS, …). Some ECUs span more than
+#                          #   one segment (e.g. [H, P]); the gateway is [All].
 #     vehicle_states: [...]  # optional — ECU-level power states in which this
 #                          #   ECU responds to session control (1001).
 #                          #   Tokens: sleep, plugged, acc, acc2, ready, charging
@@ -113,24 +115,10 @@ identity_fields:
     - identity_confidence  # how sure we are of this ECU's identity (see valid_identity_confidence)
     - notes
 
-# Accepted values for the top-level `can_bus:` list — the physical CAN bus
-# segment(s) an ECU sits on. Hyundai/Kia split the vehicle bus into functional
-# segments bridged by the gateway (the IGPM here); an ECU is normally on one,
-# but some span two (e.g. the motor/hybrid ECUs on H & P). `All` marks the
-# gateway itself, which bridges every segment.
-#   B    — Body CAN
-#   P    — Powertrain CAN
-#   C    — Chassis CAN
-#   M    — Multimedia CAN
-#   H    — Hybrid CAN
-#   All  — bridges every segment (the gateway)
-valid_can_bus_codes:
-  - B
-  - P
-  - C
-  - M
-  - H
-  - All
+# Accepted values for the top-level `can_bus:` list are NOT fixed here — bus
+# naming is vendor-specific, so each profile declares its own vocabulary in
+# `<profile>/can_buses.yaml` (schema: can_buses_schema.yaml). `validate pids`
+# checks each ECU's `can_bus` values against that per-profile list.
 
 # Accepted values for identity.id_protocol.
 valid_id_protocols:

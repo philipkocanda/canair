@@ -70,16 +70,6 @@ def _schema_validate(fpath: Path) -> tuple[bool, str]:
     return validate_pids_file(fpath)
 
 
-def _valid_can_bus_codes() -> list[str]:
-    """Load the accepted CAN bus segment codes from the schema (avoids drift)."""
-    import yaml
-
-    from canlib.commands.validate._common import SCHEMA_FILE
-
-    schema = yaml.safe_load(SCHEMA_FILE.read_text()) or {}
-    return list(schema.get("valid_can_bus_codes", []))
-
-
 def _guarded(ecu: str, pids_dir: Path | None, do_edit, *, validate: bool):
     """Snapshot -> edit -> schema-validate -> commit or roll back."""
     fpath = find_ecu_file(ecu, pids_dir=pids_dir)
@@ -267,6 +257,24 @@ def cmd_set_identity(args: argparse.Namespace) -> int:
 
 
 def cmd_set_can_bus(args: argparse.Namespace) -> int:
+    from canlib.can_buses import allowed_can_buses
+    from canlib.profile import Profile, active
+
+    # Resolve the vocabulary from the profile owning the target ecus/ dir
+    # (or the active profile). Enforced only when the profile declares one.
+    if args.dir:
+        root = Path(args.dir).resolve().parent
+        allowed = allowed_can_buses(Profile(root.name, root))
+    else:
+        allowed = allowed_can_buses(active())
+    if allowed:
+        bad = [c for c in args.codes if c not in allowed]
+        if bad:
+            raise SystemExit(
+                f"{_RED}  Error: unknown CAN bus code(s) {bad} — "
+                f"declared in can_buses.yaml: {sorted(allowed)}{_RESET}"
+            )
+
     def do():
         set_can_bus(args.ecu, args.codes, pids_dir=args.dir)
 
@@ -422,8 +430,8 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "codes",
         nargs="+",
         metavar="CODE",
-        choices=_valid_can_bus_codes(),
-        help="One or more bus codes (B/P/C/M/H/All); some ECUs span two, e.g. H P",
+        help="One or more bus codes from the profile's can_buses.yaml "
+        "(Hyundai: B/P/C/M/H/All); some ECUs span two, e.g. H P",
     )
     _add_common(scb)
     scb.set_defaults(_pids_func=cmd_set_can_bus)

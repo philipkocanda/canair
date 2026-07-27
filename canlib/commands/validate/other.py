@@ -63,6 +63,44 @@ def _run_states() -> int:
 _ARB_ID_RE = re.compile(r"^0x[0-9A-Fa-f]+$")
 
 
+def _run_can_buses() -> int:
+    """Validate the profile's optional can_buses.yaml (CAN bus vocabulary)."""
+    from canlib.profile import active
+
+    path = active().can_buses_file
+    if not path.exists():
+        print("No can_buses.yaml (optional) — skipping.")
+        return 0
+
+    data = yaml.safe_load(path.read_text()) or {}
+    if not isinstance(data, dict) or "can_buses" not in data:
+        print("can_buses.yaml: missing top-level 'can_buses:' list")
+        return 1
+    codes = data.get("can_buses")
+    if not isinstance(codes, list):
+        print("can_buses.yaml: 'can_buses' must be a list")
+        return 1
+
+    errors: list[str] = []
+    seen: set[str] = set()
+    for i, entry in enumerate(codes):
+        code = str(entry).strip()
+        if not code:
+            errors.append(f"can_buses[{i}]: empty code")
+        elif code in seen:
+            errors.append(f"can_buses[{i}]: duplicate code '{code}'")
+        else:
+            seen.add(code)
+
+    if errors:
+        print(f"can_buses.yaml: {len(errors)} errors")
+        for e in errors:
+            print(f"  - {e}")
+        return 1
+    print(f"can_buses.yaml: OK ({len(seen)} bus codes)")
+    return 0
+
+
 def check_signals_doc(data: object) -> tuple[list[str], int]:
     """Structural check of one parsed signals/<bus>.yaml doc.
 
