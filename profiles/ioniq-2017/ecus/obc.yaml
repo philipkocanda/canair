@@ -138,44 +138,28 @@ OBC:
           notes: "OBC DC output current during charging. ~2.85A (close to BMS charging current ~2.6A), 0A idle. ISO-TP bytes 13-14."
 
         OBC_PILOT_DUTY:
-          expression: "B47/3"
+          expression: "[B35:B36]/10"
           unit: "%"
           ha_class: ""
           min: "0"
           max: "100"
-          source: "Ioniq PID sheet (Torque am); Kia Soul OBC (Pilot Duty = r/3)"
+          source: Live EVSE current step 10/13/16A (2026-07-27)
           source_links:
             - https://docs.google.com/spreadsheets/d/1R2dW_4-ANg04TQdkHH52-8wdYItBkWDfppcsqOc-m1M
-          verified: false
+          verified: true
           notes: >
-            J1772 control-pilot duty cycle (÷3 matches Soul OBC "r/3"). EVSE-ADVERTISED current = duty×0.6
-            (see OBC_PILOT_AMPS), i.e. it reports the charger's max, NOT the actual draw (that's OBC_DC_A).
-            2026-07-20 — WHY IT "WOBBLES" (two independent causes):
-            1. It is genuinely dynamic. Live sampling at a steady 5.2A DC charge showed B47/3 ramping/settling
-               between ~4% and ~41% while OBC_DC_A stayed flat. B47 sits LOW right after a diagnostic session
-               starts (a single clean query at steady 12A read only 3.67% — impossible for a real pilot while
-               drawing ~11A) and ramps to its steady ~41% only under continuous polling — i.e. opening the OBD
-               session itself perturbs the reading. Steady ~41% = EVSE advertising ~24A (car draws less).
-            2. B47 is the LAST meaningful data byte (ISO-TP 0x28 = reassembled byte 42). The response declares
-               length 0x2C (44 B) padded to 48 with trailing zeros. ALL 583 historical captures were stored as
-               only 40 bytes, so B47 was out-of-bounds — on a short/truncated frame the firmware reads a stale
-               or zero byte, making the decoded duty jump to 0/garbage. This adds spurious jumps on top of (1).
-            Only trustworthy after continuous polling has let it settle; instantaneous reads are unreliable.
-
+            J1772 control-pilot duty %. Verified 2026-07-27 EVSE step: 16.5/21.5/26.5% at 10/13/16A pilot (J1772 amps/0.6 = 16.7/21.7/26.7%). REPLACES the old B47/3, which was a noisy instantaneous pilot ADC sample (read ~28-40% regardless of the real duty). [B35:B36] is the clean filtered value; ISO-TP 0x1D-0x1E.
         OBC_PILOT_AMPS:
-          expression: "B47/5"
+          expression: "[B35:B36]*0.06"
           unit: A
           ha_class: current
           min: "0"
           max: "80"
-          source: "Kia Soul OBC (Amps_Limit = Pilot_Duty × 0.6); B47/3 × 0.6 = B47/5"
+          source: Live EVSE current step 10/13/16A (2026-07-27); J1772 duty x 0.6
           source_links: []
-          verified: false
+          verified: true
           notes: >
-            EVSE-advertised max AC current = pilot-duty × 0.6 (J1772). Same source byte as OBC_PILOT_DUTY,
-            so it shares the same dynamic + truncation caveats. Observed settling ~8A → ~24.6A during a
-            10A-set charge (pilot advertises charger capacity, not the car's actual draw).
-
+            EVSE-advertised max AC current (the negotiated pilot setpoint) = pilot-duty x 0.6. Verified 2026-07-27 EVSE step: 9.9/12.9/15.9A at 10/13/16A pilot. The car's ACTUAL draw is AC_INPUT_A (~0.6A less). REPLACES the old B47/5 (noisy instantaneous). Same source bytes as OBC_PILOT_DUTY (ISO-TP 0x1D-0x1E).
         # OBC heatsink/inside/water temps (Soul OBC: Signed(S)/(T)/(U)) are NOT exposed on the Ioniq LDC 2101.
         # Previous S15/S16/S17 guesses were bogus: S15/S17 read current bytes (B15/B17), S16 reads the ISO-TP
         # PCI byte 0x22 (=34) — the "static 34°C" was the frame header, not a temperature.
@@ -205,17 +189,17 @@ OBC:
           notes: >
             AC mains input (RMS) at the OBC inlet. ~222V during charging (218-228V across all charging history), idles ~8.5V in READY with EVSE disconnected (B14=3), like the other OBC senses.
             Confirmed against calibrated measurements from grid connection meter.
-        AC_CURRENT_SETPOINT:
-          expression: B28
+        AC_INPUT_A:
+          expression: "[B33:B34]/100"
           unit: A
           ha_class: current
           min: "0"
           max: "40"
-          source: Live 16A AC charge 2026-07-26
-          verified: false
+          source: Live EVSE current step 10/13/16A (2026-07-27) + AC power balance
+          verified: true
           notes: >
-            Commanded/negotiated AC charge current setpoint. Reads {0,9,16} — 16A during the steady 16A-pilot charge (=EVSE pilot limit), ramps 0->9->16 at start. Not the measured AC draw (that tracks OBC_DC_A and can't be separated on a steady charge). ISO-TP 0x17 (WiCAN B28).
-            NOTE: Not correct, remains at "16" while switching from 10-13-16A.
+            Measured AC input current (actual grid draw). Verified 2026-07-27 EVSE pilot step 10/13/16A -> 9.3/12.4/15.4A: tracks the pilot ~0.6A below the advertised limit and matches the power balance V_dc*I_dc/eff/V_ac. Low byte B34 is the ex-'constant 250 (0xFA)' from the steady 16A charge — it only varied once the current stepped. ISO-TP 0x1B-0x1C.
+
 
     2102:
       status: draft
@@ -249,7 +233,7 @@ OBC:
       what_to_test:
         - "Confirm LDC_HV_INPUT_V [B45:B46] tracks pack across a wider SOC range (only cross-checked at ~85%)"
         - "Confirm OBC_OUTPUT_V ([B12:B13]) vs OBC_CHARGE_V ([B10:B11]) semantics against a DC meter"
-        - "RESOLVED 2026-07-20: pilot duty=B47/3 (J1772), advertised A=duty*0.6=B47/5. Wobble = dynamic EVSE ramp (13-41%) + B47 OOB on truncated 40B captures. B47 is the last data byte (ISO-TP 0x28); needs a full >=44B response."
+        - "CORRECTED 2026-07-27: pilot duty/amps are [B35:B36]/10 and [B35:B36]*0.06 (clean; verified by a 10/13/16A EVSE step), NOT B47/3-B47/5. B47 was a noisy instantaneous pilot ADC sample that never tracked the real duty."
       sources:
         - "Kia Soul EV LDC CSV (0x7C5 2101) + OBC CSV (0x794 2102)"
         - "Kia Niro PR#660"
@@ -300,14 +284,16 @@ OBC:
         integer byte (steps 85-88 = 218-228V), and B15 is the low byte (the ex-OBC_UNKNOWN_B15). Reads
         ~222V during charging (218-228V across all charging history), idles ~8.5V in READY (EVSE off).
         Mean 221.8V vs calibrated grid 225.5V = ~3V IR drop at ~15A — why the 2026-07-20 constant-voltage
-        hunt missed it (wrong absolute level; the byte tracks the inlet, not the grid connection). B28=16
-        = AC current SETPOINT (=16A pilot, see AC_CURRENT_SETPOINT), not a measured draw. Measured AC
-        current still unresolved on a steady charge — split to its own lead "2101 AC input current".
-        B34 (see result) sits constant ~250 under steady charge; B29=32/B31=200/B37=118 meaning still
-        unknown (B31=200 is NOT a 20A limit — OBC rated 29A/2017, 32A/2019 facelift).
+        hunt missed it (wrong absolute level; the byte tracks the inlet, not the grid connection).
+        2026-07-27 EVSE current step (10/13/16/20A) resolved the rest: PILOT DUTY = [B35:B36]/10
+        (16.5/21.5/26.5% — clean; REPLACES the noisy B47/3), advertised setpoint = duty*0.6 = [B35:B36]*0.06
+        (OBC_PILOT_AMPS), and MEASURED AC current = [B33:B34]/100 (AC_INPUT_A: 9.3/12.4/15.4A, ~0.6A below
+        the pilot, matches the power balance). B34 is the low byte of that current word — it looked
+        "constant 250" on the steady 16A charge only because the current never moved. B28 (was
+        AC_CURRENT_SETPOINT) is BOGUS — fixed at 16 across 10/13/16A, so removed. B29=32/B31=200/B37=118
+        meaning still unknown (B31=200 is NOT a 20A limit — OBC rated 29A/2017, 32A/2019 facelift).
       what_to_test:
-        - "Verify AC_INPUT_V fine tracking against a high-resolution inlet-voltage log (magnitude + on/off already proven)"
-        - "Identify meaning of charging-only constants B29=32, B31=200, B37=118, and B34~250 (charge state/config?)"
+        - "Identify meaning of charging-only constants B28=16, B29=32, B31=200, B37=118 (charge state/config?)"
       updated: "2026-07-27"
       result: >
         2026-07-26 steady 16A AC charge (OBC_DC_A ~8.7A, DC power ~3.33kW held for ~90min):
@@ -336,12 +322,12 @@ OBC:
       notes: Hidden-page hunt 2026-07-22 (KWP2000 completion after BMS/MCU/VCU).
     - type: decode
       target: 2101 AC input current
-      status: pending
+      status: done
       priority: P3
       vehicle_states: [charging]
       created: "2026-07-27"
       updated: "2026-07-27"
-      notes: "Measured AC input current not resolved from the steady 2026-07-26 16A charge (draw ~constant, tracks OBC_DC_A, can't be separated). AC_CURRENT_SETPOINT (B28) is the commanded 16A, not the measured draw. To pin the measured AC current: capture a charge where AC current VARIES (step the EVSE limit across 6/8/10/16A, or catch the CV taper at high SOC) then hunt a byte tracking AC power / AC voltage. Note OBC rated ~29A (2017); 32A on 2019 facelift."
+      notes: "RESOLVED 2026-07-27 via an EVSE current step (10/13/16/20A). MEASURED AC input current = [B33:B34]/100 (AC_INPUT_A): 9.3/12.4/15.4A at 10/13/16A pilot — the actual draw, ~0.6A under the advertised limit, matching the power balance V_dc*I_dc/eff/V_ac. Its low byte B34 was the ex-'constant 250' from the steady 16A charge (only varied once the current stepped). The EVSE-advertised setpoint/pilot = [B35:B36] (duty [B35:B36]/10, amps [B35:B36]*0.06 = OBC_PILOT_AMPS). B28 (old AC_CURRENT_SETPOINT) was BOGUS (fixed 16) and removed."
 
   sessions:
     "81":

@@ -279,11 +279,11 @@
         "OBC_CHARGE_V": "[B10:B11]/100",
         "OBC_OUTPUT_V": "[B12:B13]/100",
         "OBC_DC_A": "[B17:B18]/100",
-        "OBC_PILOT_DUTY": "B47/3",
-        "OBC_PILOT_AMPS": "B47/5",
+        "OBC_PILOT_DUTY": "[B35:B36]/10",
+        "OBC_PILOT_AMPS": "[B35:B36]*0.06",
         "OBC_DC_POWER": "[B10:B11]*[B17:B18]/10000000",
         "AC_INPUT_V": "[B14:B15]/100",
-        "AC_CURRENT_SETPOINT": "B28"
+        "AC_INPUT_A": "[B33:B34]/100"
       }
     },
     {
