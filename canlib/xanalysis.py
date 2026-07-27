@@ -12,6 +12,7 @@ Pure analysis over ``captures/`` — no device, no numpy.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date, datetime
 
 from .align import (
     DEFAULT_JOIN_TOL_S,
@@ -172,7 +173,6 @@ def build_byte_series(
     (``skip_pci``) using the canonical :func:`byteindex.wican_to_isotp` detector
     (which handles the first-frame 2-byte PCI and every consecutive-frame PCI).
     """
-    from datetime import datetime
 
     from .byteindex import payload_to_wican_bytes, wican_to_isotp
     from .capture_dates import entry_datetime
@@ -218,7 +218,6 @@ def build_bit_series(loaded: LoadedPid, *, skip_pci: bool = True) -> dict[str, l
     the point-biserial coefficient (bit vs analog) or φ (bit vs bit). PCI framing
     bytes are skipped by default.
     """
-    from datetime import datetime
 
     from .byteindex import payload_to_wican_bytes, wican_to_isotp
     from .capture_dates import entry_datetime
@@ -508,7 +507,7 @@ def hunt_byte(
     from .stats import partial_correlation
 
     # Precompute (datetime, frame) for each timed capture.
-    frames: list[tuple] = []
+    frames: list[tuple[datetime, bytes]] = []
     max_len = 0
     for cap in loaded.captures:
         dt = entry_datetime(cap)
@@ -593,12 +592,12 @@ def _rank_and_collapse(hits: list[HuntHit], *, top: int, all_interps: bool) -> l
     ``offset:interp``), then trims to ``top``.
     """
 
-    def _rank(h: HuntHit) -> tuple:
+    def _rank(h: HuntHit) -> tuple[float, int, bool, float]:
         rel_resid = h.resid / (abs(h.slope) or 1.0)
         return (-round(abs(h.r), 3), h.width, h.expr == "<no-expr>", rel_resid)
 
     hits.sort(key=_rank)
-    seen: set = set()
+    seen: set[int | str] = set()
     unique: list[HuntHit] = []
     for h in hits:
         key = h.offset if not all_interps else f"{h.offset}:{h.interp}"
@@ -614,10 +613,10 @@ def _rank_and_collapse(hits: list[HuntHit], *, top: int, all_interps: bool) -> l
 def load_ref(
     ref_spec: str,
     *,
-    since=None,
-    until=None,
-    state=None,
-    label=None,
+    since: date | datetime | None = None,
+    until: date | datetime | None = None,
+    state: str | None = None,
+    label: str | None = None,
 ) -> tuple[list[TimePoint], str]:
     """Load an ``ECU:PID:PARAM|EXPR`` reference series (shared by hunt/correlate).
 

@@ -18,6 +18,8 @@ from dataclasses import dataclass
 
 from canlib.align import (
     DEFAULT_JOIN_TOL_S,
+    PreparedSeries,
+    TimePoint,
     join_prepared,
     load_signal_captures,
     prepare_series,
@@ -32,7 +34,7 @@ from canlib.notation import (
     resolve_notation,
     subfunction_bytes_for_pid,
 )
-from canlib.triage import detect_words, triage_byte
+from canlib.triage import WordCandidate, detect_words, triage_byte
 from canlib.xanalysis import (
     build_bit_series,
     build_byte_series,
@@ -615,7 +617,16 @@ def _parse_bit_key(key: str) -> tuple[int, int]:
     return int(off.lstrip("B")), int(bit)
 
 
-def _best_anchor(series, anchors_prepared, tol, min_n):
+# The strongest-anchor result: (label, r, n, slope, intercept, unit_guess).
+_AnchorHit = tuple[str, float, int, float | None, float | None, str | None]
+
+
+def _best_anchor(
+    series: list[TimePoint],
+    anchors_prepared: dict[str, PreparedSeries],
+    tol: float,
+    min_n: int,
+) -> _AnchorHit | None:
     """The strongest-correlating anchor for one byte series → (label,r,n,m,c,unit).
 
     ``anchors_prepared`` maps label → :class:`PreparedSeries` (built once by the
@@ -625,7 +636,7 @@ def _best_anchor(series, anchors_prepared, tol, min_n):
     if not anchors_prepared:
         return None
     ps = prepare_series(series)
-    best = None
+    best: _AnchorHit | None = None
     for label, aprep in anchors_prepared.items():
         xs, ys, n = join_prepared(aprep, ps, tol_s=tol)
         if n < min_n:
@@ -640,7 +651,12 @@ def _best_anchor(series, anchors_prepared, tol, min_n):
     return best
 
 
-def _driver_r(series, driver_prepared, tol, min_n) -> float | None:
+def _driver_r(
+    series: list[TimePoint],
+    driver_prepared: PreparedSeries | None,
+    tol: float,
+    min_n: int,
+) -> float | None:
     """Correlation of one byte/bit series vs the --independent-of driver, or None.
 
     ``driver_prepared`` is a :class:`PreparedSeries` (built once) or ``None``.
@@ -653,7 +669,7 @@ def _driver_r(series, driver_prepared, tol, min_n) -> float | None:
     return correlation(xs, ys)
 
 
-def _word_expr(word) -> str | None:
+def _word_expr(word: WordCandidate) -> str | None:
     """WiCAN big-endian word expression for a detected (hi, lo) offset pair.
 
     Returns ``None`` when the pair is **not** ISO-TP-adjacent (a gap byte sits
@@ -664,8 +680,11 @@ def _word_expr(word) -> str | None:
     from canlib.byteindex import wican_to_isotp
     from canlib.notation import ByteRef
 
-    hi_iso = wican_to_isotp(int(word.hi_key))
-    lo_iso = wican_to_isotp(int(word.lo_key))
+    hi_key, lo_key = word.hi_key, word.lo_key
+    if not (isinstance(hi_key, int) and isinstance(lo_key, int)):
+        return None  # only int byte-offset keys form a UDS word expression
+    hi_iso = wican_to_isotp(hi_key)
+    lo_iso = wican_to_isotp(lo_key)
     if hi_iso is None or lo_iso is None or lo_iso != hi_iso + 1:
         return None
     return ByteRef.from_isotp(hi_iso, width=2).to_wican_expression()
