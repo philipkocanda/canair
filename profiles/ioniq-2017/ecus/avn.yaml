@@ -1,8 +1,22 @@
 # ─── AVN (Audio/Video/Navigation) ─────────────────────────────────────
 # Head unit at 0x780. Firmware: AE_EV EURSOP 12 017.1
 # No live data DIDs discovered yet. Service 22 ranges untested.
+# 
+# Runs Hyundai/MOBIS D-Audio 2V software, see:
+# https://programmingwithstyle.com/posts/howihackedmycar
+#
+# This unit is what is used to set:
+# - The two cabin preconditioning schedules
+# - The two AC charging schedules
+# - Station AC charging power 
+# - Portable ("granny charger") AC charging power
+# - Default/Eco/Sport profiles (regen level and climate ECO setting)
+#
+# TODO: Add details on how schedules are defined
+# 
 AVN:
   tx_id: 0x780
+  alias: IVI # In-Vehicle Infotainment 
   identity:
     description: Audio/Video/Navigation head unit
     serial: "00000076FE0085-003240"
