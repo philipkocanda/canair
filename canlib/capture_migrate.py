@@ -1,9 +1,10 @@
 """Capture-store migration: legacy per-day YAML → JSON.
 
-One-time conversion of ``captures/YYYY-MM-DD.yaml`` → ``captures/YYYY-MM-DD.json``
+Converts a profile's ``captures/YYYY-MM-DD.yaml`` → ``captures/YYYY-MM-DD.json``
 for the JSON capture-store cutover (``plans/2026-07-27-captures-json-storage.md``).
-Shared by the dev script (``scripts/migrate_captures_to_json.py``) and the
-user-facing ``canair captures migrate`` subcommand.
+Capture data is JSON-only (no dual-format read path), so this is the supported
+path for a profile created before the cutover; it backs the user-facing
+``canair captures migrate`` subcommand.
 
 Each file is round-trip verified before anything is written or deleted: the
 YAML is parsed, re-encoded as JSON, decoded again, and asserted structurally

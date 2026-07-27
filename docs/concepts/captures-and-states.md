@@ -8,12 +8,49 @@ more useful.
 
 A capture is a recorded ECU response payload, tagged with context (when, which
 ECU/PID, what the car was doing). They live under `captures/`, split by date
-(e.g. `captures/2026-04-19.yaml`).
+(e.g. `captures/2026-04-19.json`).
 
 !!! warning "Never hand-edit capture files"
     Capture files are written by the tool (`--save`) and edited/removed via
     canair's own helpers. Hand-editing them corrupts the record. Add data via
     `canair … --save`; review it with `canair captures`.
+
+## File format
+
+Each `captures/YYYY-MM-DD.json` holds one day, as sessions of captures:
+
+```json
+{
+  "sessions": [
+    {
+      "date": "2026-04-19",
+      "label": "highway pull",
+      "vehicle_states": ["driving"],
+      "captures": [
+        { "ecu": "0x7EC", "pid": "2101", "payload": "6101FFE0…", "time": "14:02:11.480" }
+      ]
+    }
+  ]
+}
+```
+
+- **`ecu`** is the CAN **response** address (RX = request TX + 8) as a hex string
+  (`"broadcast"` for multi-ECU discovery scans); tools resolve it back to the
+  short name via the profile's [`ecus/`](profiles.md) registry, so you still
+  query by name.
+- **`pid`** / **`payload`** are the request DID and the reassembled UDS response
+  (SID-first, ISO-TP framing stripped). Decoded *values* are **not** stored —
+  they're regenerated on demand from `payload` + the PID definitions, so a
+  refined expression re-decodes old captures for free.
+- Stored as JSON because it parses ~60× faster than YAML — the dominant cost of
+  every history-consuming command (`ecu`, `coverage`, `decode`, `correlate`,
+  `hunt`, `investigate`).
+
+The **authoritative, machine-checked** schema (all fields, `scan_results`,
+deprecated fields) is `canlib/schema/captures_schema.json`; `canair validate
+captures` checks every file against it. A profile created before the JSON
+cutover is converted once with `canair captures migrate`.
+
 
 ## Recording captures
 
