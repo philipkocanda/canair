@@ -111,17 +111,24 @@ def param_byte_index_str(expression: str, n_bytes: int) -> str:
     return " ".join(parts)
 
 
-def format_value(value: float, unit: str, display: str = "") -> str:
+def format_value(value: float | None, unit: str, display: str = "") -> str:
     """Format a decoded value with unit and optional display expression.
 
     If display is set, evaluates it as an f-string with v=value and appends
     the formatted result in parentheses: "480 min (08:00)".
+
+    ``value`` is a ``ParamRow`` value, so it may be ``None`` (a decode that
+    produced no numeric result); that (and any stray non-numeric) is rendered
+    as-is rather than crashing the render.
     """
+    if not isinstance(value, (int, float)):
+        # None (a decode with no numeric result) or a non-numeric typed/enum
+        # label / stray string — render as-is rather than crashing compose().
+        return f"{value} {unit}".strip()
     try:
         is_int = value == int(value)
-    except (TypeError, ValueError):
-        # Non-numeric value (e.g. a typed/enum label or a stray string) — render
-        # it as-is rather than crashing the whole (TUI) render in compose().
+    except (ValueError, OverflowError):
+        # NaN / inf aren't representable as int — render the float form as-is.
         return f"{value} {unit}".strip()
     if is_int:
         base = f"{int(value)} {unit}".strip()
