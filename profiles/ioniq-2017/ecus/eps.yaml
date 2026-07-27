@@ -49,7 +49,7 @@ EPS:
           source: RE 2026-07-22 driving capture
           verified: true
           notes: >
-            EPS-side vehicle speed echo (speed-dependent steering assist). ISO-TP 0x0B. Tracks ESC REAL_SPEED_KMH within +-1 km/h across 0-39 km/h drive; 0 at standstill.
+            EPS-side vehicle speed echo (speed-dependent steering assist). ISO-TP 0x0B. Tracks ESC REAL_SPEED_KMH within +-1 km/h across 0-39 km/h drive; 0 at standstill. UNSIGNED magnitude — reads positive when reversing (like ESC REAL_SPEED_KMH); single byte, no sign. EPS carries no gear/direction, so a directional speed can't be derived from this PID alone — use ESC GEAR_SELECTOR for direction.
         EPS_STEERING_FAST:
           expression: (B10+S11*256)/10
           unit: deg

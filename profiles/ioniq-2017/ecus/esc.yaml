@@ -33,6 +33,7 @@ ESC:
           verified: true
           notes: >
             ESC vehicle-speed estimate, 1 km/h/bit at ISO-TP 0x09. Verified against 4 wheel speeds (B18-B21, r=+1.000) and driving profile 0-39 km/h. Reads 0 at standstill.
+            UNSIGNED magnitude — reads POSITIVE when reversing (2026-07-26: gear=Reverse segments show +1..2 km/h). This is correct wheel-speed-sensor behaviour, NOT a decode bug: there is no sign and no high byte — the neighbours B10/B11/B13 are constant 0xFF padding (distinct=1). Direction of travel is carried separately by GEAR_SELECTOR (B14). A signed/directional speed must be derived downstream (magnitude x gear-direction); it can't be expressed as single-frame WiCAN arithmetic (no conditional, and the gear enum->sign isn't clean arithmetic).
         WHEEL_SPEED_FL:
           expression: B18
           unit: km/h
@@ -74,10 +75,10 @@ ESC:
           unit: ""
           min: "0"
           max: "8"
-          source: canair investigate/hunt vs VCU:2101:DRIVE_MODE_P, 2026-07-22 drive
-          verified: false
+          source: canair investigate/hunt vs VCU:2101:DRIVE_MODE_P, 2026-07-22 drive; Reverse confirmed 2026-07-26
+          verified: true
           notes: >
-            Transmission range / shifter position echoed on the ESC/ABS module. B14 (ISO-TP data). r=-1.000 vs VCU:2101:DRIVE_MODE_P over 117 co-polled driving points (fit y=-3*x+4: park->1, drive->4). Observed values 1=Park (n=100), 2 (n=4, brief P<->D shift transient = R or N), 4=Drive (n=277). Confirmed at drive start: stationary B14=1 at 09:02:19-28, flips to 4 at 09:02:38 as the car pulls away. Likely HKMC PRND encoding 1=P/2=R/3=N/4=D (N never observed). Verify with a capture that includes Reverse and Neutral.
+            Transmission range / shifter position echoed on the ESC/ABS module. B14 (ISO-TP data). Sequential PRND encoding 1=Park, 2=Reverse, 4=Drive (3=Neutral assumed, still unobserved). r=-1.000 vs VCU:2101:DRIVE_MODE_P over the 2026-07-22 drive (fit park->1, drive->4). VERIFIED 2026-07-26 driveway back-and-forth: value 2 tracked the reverse segments exactly (n=52 while backing up at 17:00:20-43 and 17:01:06-17:03:03), value 4 the forward pulls, 1 at rest — real-driving confirmation of R=2/D=4/P=1. NOTE: this is the direction source for vehicle speed (REAL_SPEED_KMH/wheel speeds are unsigned magnitudes). Neutral (expected 3) still needs a capture.
         LONG_ACCEL_RAW:
           expression: S23-128
           unit: ""
@@ -140,13 +141,20 @@ ESC:
         capture can't resolve them; need a real moving drive. Also B18-B21
         front/rear within a side is by convention only. B22/B27 = low-rate
         status/counter.
+        SPEED SIGN (2026-07-26): REAL_SPEED_KMH (B12) and the wheel speeds are
+        UNSIGNED magnitudes and read positive in reverse — confirmed correct (not a
+        bug): neighbours B10/B11/B13 are constant 0xFF (no high/sign byte). Direction
+        is GEAR_SELECTOR (B14, 2=Reverse now verified). A signed vehicle speed would
+        have to be a derived signal (magnitude x gear-direction), not decodable as a
+        single WiCAN arithmetic expression — deferred to a downstream/typed approach.
       what_to_test:
         - "STEERING_ANGLE (B35:B36): confirm zero point / sign / exact scale with a known-straight-wheel reference (rest sat at +24 deg on 2026-07-26)"
         - "B37:B38 and (B39<<8)|B41 centred ~2048 — lateral/longitudinal accel (needs a real moving drive; stayed at centre on the stationary driveway capture)"
         - "Confirm wheel front/rear assignment (needs known-corner reference)"
+        - "GEAR_SELECTOR Neutral value (expected 3) still unobserved — capture a shift through N"
       sources:
         - "captures/2026-07-22.yaml — driving capture, lots of steering"
-        - "captures/2026-07-26.yaml — driveway steer-and-hold capture (resolved B35:B36 = steering angle)"
+        - "captures/2026-07-26.yaml — driveway steer-and-hold capture (resolved B35:B36 = steering angle; verified GEAR_SELECTOR Reverse=2; confirmed speed is unsigned magnitude)"
         - "OBDb Ioniq 5"
     - type: scan
       target: "22 C101-C10F"
