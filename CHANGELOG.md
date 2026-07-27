@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Cross-signal analysis is much faster on mature profiles.** `investigate`,
+  `correlate`, and `hunt` share a time-alignment engine whose O(P²) pairwise
+  joins dominated wall-clock time. Three fixes remove the bulk of it: (1) series
+  are joined on pre-sorted float epoch arrays instead of re-sorting and doing
+  `datetime` arithmetic on every pair (`canlib/align.py` `PreparedSeries`);
+  (2) `build_byte_series` reconstructs each capture frame once and indexes it,
+  instead of re-parsing every payload once per byte offset; (3) capture
+  timestamps parse via a direct fast-path (with a small date cache) rather than
+  `strptime` in the hot loop. `investigate <ECU> <PID>` drops from ~20 s to
+  ~0.2 s, `investigate … --bits` from >2 min to ~0.2 s, and
+  `correlate --find-mirrors` from >2 min to ~14 s (with an early-exit
+  equality join). Output is unchanged.
+
 ## [1.3.2] - 2026-07-27
 
 ### Changed

@@ -16,7 +16,12 @@ import json as _json
 import sys
 from dataclasses import dataclass
 
-from canlib.align import DEFAULT_JOIN_TOL_S, join_nearest, load_signal_captures
+from canlib.align import (
+    DEFAULT_JOIN_TOL_S,
+    join_prepared,
+    load_signal_captures,
+    prepare_series,
+)
 from canlib.byteindex import mapped_bits, mapped_offsets
 from canlib.capture_dates import add_scope_args, resolve_scope_bounds
 from canlib.commands._group import group_help
@@ -384,14 +389,20 @@ def run(args) -> int:
             aparams = ecu_index.get(aecu, {}).get("pids", {}).get(apid, {}).get("parameters", {})
             anchors.update(build_param_series(alp, aparams))
 
+    # Prepare anchor + driver series ONCE (sort + flatten to float epoch arrays);
+    # _best_anchor/_driver_r are called per target byte/bit, so re-preparing these
+    # inside them would re-sort every anchor for every byte (O(bytes * anchors)).
+    anchors_prepared = {label: prepare_series(s) for label, s in anchors.items()}
+    driver_prepared = prepare_series(driver_series) if driver_series is not None else None
+
     reports: list[_ByteReport] = []
     for key, series in target.items():
         off = int(key.rsplit(":B", 1)[1])
-        best = _best_anchor(series, anchors, args.join_tol, args.min_n)
+        best = _best_anchor(series, anchors_prepared, args.join_tol, args.min_n)
         sb = state_buckets.get(f"B{off}")
         m = mapped.get(off)
         sf = _state_f(sb) if sb else None
-        dr = _driver_r(series, driver_series, args.join_tol, args.min_n)
+        dr = _driver_r(series, driver_prepared, args.join_tol, args.min_n)
         tri = triage_byte([int(tp.value) for tp in series])
         reports.append(
             _ByteReport(
@@ -432,11 +443,11 @@ def run(args) -> int:
     if args.bits:
         for key, series in build_bit_series(lp).items():
             off, bit = _parse_bit_key(key)
-            best = _best_anchor(series, anchors, args.join_tol, args.min_n)
+            best = _best_anchor(series, anchors_prepared, args.join_tol, args.min_n)
             sb = state_buckets.get(f"B{off}:{bit}")
             m = mapped_bit.get((off, bit))
             sf = _state_f(sb) if sb else None
-            dr = _driver_r(series, driver_series, args.join_tol, args.min_n)
+            dr = _driver_r(series, driver_prepared, args.join_tol, args.min_n)
             reports.append(
                 _ByteReport(
                     offset=off,
@@ -537,8 +548,9 @@ def _run_can(args) -> int:
         return 1
 
     rows = []
+    anchors_prepared = {label: prepare_series(s) for label, s in anchors.items()}
     for name, series in sorted(target.items()):
-        best = _best_anchor(series, anchors, args.join_tol, args.min_n)
+        best = _best_anchor(series, anchors_prepared, args.join_tol, args.min_n)
         rows.append((name, best))
     # Rank strongest anchor first; unanchored bytes last.
     rows.sort(key=lambda t: -(abs(t[1][1]) if t[1] else 0.0))
@@ -603,11 +615,19 @@ def _parse_bit_key(key: str) -> tuple[int, int]:
     return int(off.lstrip("B")), int(bit)
 
 
-def _best_anchor(series, anchors, tol, min_n):
-    """The strongest-correlating anchor for one byte series → (label,r,n,m,c,unit)."""
+def _best_anchor(series, anchors_prepared, tol, min_n):
+    """The strongest-correlating anchor for one byte series → (label,r,n,m,c,unit).
+
+    ``anchors_prepared`` maps label → :class:`PreparedSeries` (built once by the
+    caller); the target ``series`` is prepared once here and joined against each
+    anchor, so the same anchor is never re-sorted/re-flattened per target byte.
+    """
+    if not anchors_prepared:
+        return None
+    ps = prepare_series(series)
     best = None
-    for label, asig in anchors.items():
-        xs, ys, n = join_nearest(asig, series, tol_s=tol)
+    for label, aprep in anchors_prepared.items():
+        xs, ys, n = join_prepared(aprep, ps, tol_s=tol)
         if n < min_n:
             continue
         r = correlation(xs, ys)
@@ -620,11 +640,14 @@ def _best_anchor(series, anchors, tol, min_n):
     return best
 
 
-def _driver_r(series, driver, tol, min_n) -> float | None:
-    """Correlation of one byte/bit series vs the --independent-of driver, or None."""
-    if driver is None:
+def _driver_r(series, driver_prepared, tol, min_n) -> float | None:
+    """Correlation of one byte/bit series vs the --independent-of driver, or None.
+
+    ``driver_prepared`` is a :class:`PreparedSeries` (built once) or ``None``.
+    """
+    if driver_prepared is None:
         return None
-    xs, ys, n = join_nearest(driver, series, tol_s=tol)
+    xs, ys, n = join_prepared(driver_prepared, prepare_series(series), tol_s=tol)
     if n < min_n:
         return None
     return correlation(xs, ys)

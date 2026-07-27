@@ -27,6 +27,7 @@ from .expression import evaluate_expression
 
 __all__ = [
     "DEFAULT_JOIN_TOL_S",
+    "PreparedSeries",
     "SignalRef",
     "TimePoint",
     "align_many",
@@ -35,8 +36,12 @@ __all__ = [
     "join_nearest",
     "join_nearest_presorted",
     "join_nearest_triple",
+    "join_prepared",
     "load_reference_file",
     "load_signal_captures",
+    "mirror_aligned_count",
+    "prepare_series",
+    "series_time_ranges_disjoint",
 ]
 
 # Default nearest-neighbour join window. Chosen from the observed 0.3-3 s
@@ -300,23 +305,123 @@ def join_nearest_presorted(
     """
     if not ref or not cand_sorted:
         return [], [], 0
-    cand_ts = [tp.dt for tp in cand_sorted]
+    return join_prepared(prepare_series(ref), prepare_series(cand_sorted), tol_s)
+
+
+@dataclass
+class PreparedSeries:
+    """A time series flattened to parallel float arrays for fast joins.
+
+    ``datetime`` arithmetic (``timedelta.total_seconds()``) dominates the O(n²)
+    pairwise join sweeps (``correlate_matrix``, the mirror/overlap scans): the
+    same series is subtracted against many others, and each subtraction builds a
+    ``timedelta`` then converts it. Converting each timestamp to POSIX epoch
+    *seconds* once lets the inner join use plain float subtraction + a float
+    ``bisect``, so a whole-corpus ``correlate`` drops from ~30 s to a few
+    seconds. ``ts`` is sorted ascending and parallel to ``values``.
+    """
+
+    ts: list[float]  # POSIX epoch seconds, sorted ascending
+    values: list[float]
+
+
+def prepare_series(points: list[TimePoint]) -> PreparedSeries:
+    """Sort ``points`` by time and flatten to epoch-seconds + value arrays."""
+    ordered = sorted(points, key=lambda tp: tp.dt)
+    return PreparedSeries(
+        ts=[tp.dt.timestamp() for tp in ordered],
+        values=[tp.value for tp in ordered],
+    )
+
+
+def series_time_ranges_disjoint(a: PreparedSeries, b: PreparedSeries, tol_s: float) -> bool:
+    """True when ``a`` and ``b`` can't share a nearest pair within ``tol_s``.
+
+    A cheap O(1) guard for the O(P²) pairwise sweeps: if the two series' time
+    spans don't overlap (even after padding each end by ``tol_s``), every
+    nearest-neighbour join is empty, so the whole per-pair join can be skipped.
+    """
+    if not a.ts or not b.ts:
+        return True
+    return a.ts[0] - tol_s > b.ts[-1] or b.ts[0] - tol_s > a.ts[-1]
+
+
+def join_prepared(
+    ref: PreparedSeries,
+    cand: PreparedSeries,
+    tol_s: float = DEFAULT_JOIN_TOL_S,
+) -> tuple[list[float], list[float], int]:
+    """Nearest-neighbour join over :class:`PreparedSeries` (float epoch clock).
+
+    Equivalent to :func:`join_nearest` but on pre-flattened, pre-sorted float
+    arrays — no per-call sort and no ``datetime`` arithmetic in the inner loop.
+    """
+    ref_ts = ref.ts
+    if not ref_ts or not cand.ts:
+        return [], [], 0
+    cand_ts = cand.ts
+    cand_vals = cand.values
+    n_cand = len(cand_ts)
+    bisect_left = bisect.bisect_left
     xs: list[float] = []
     ys: list[float] = []
-    for rp in ref:
-        i = bisect.bisect_left(cand_ts, rp.dt)
+    for k, rt in enumerate(ref_ts):
+        i = bisect_left(cand_ts, rt)
         best_val: float | None = None
         best_dt = tol_s + 1.0
         for j in (i - 1, i):
-            if 0 <= j < len(cand_sorted):
-                delta = abs((cand_ts[j] - rp.dt).total_seconds())
+            if 0 <= j < n_cand:
+                delta = cand_ts[j] - rt
+                if delta < 0.0:
+                    delta = -delta
                 if delta < best_dt:
                     best_dt = delta
-                    best_val = cand_sorted[j].value
+                    best_val = cand_vals[j]
         if best_val is not None and best_dt <= tol_s:
-            xs.append(rp.value)
+            xs.append(ref.values[k])
             ys.append(best_val)
     return xs, ys, len(xs)
+
+
+def mirror_aligned_count(
+    a: PreparedSeries,
+    b: PreparedSeries,
+    tol_s: float = DEFAULT_JOIN_TOL_S,
+) -> int:
+    """Aligned-sample count if ``a`` and ``b`` are *equal* on every aligned pair, else ``-1``.
+
+    A fast path for mirror detection (``--find-mirrors``): it bails on the first
+    value mismatch instead of building full aligned lists and comparing them
+    afterwards, and never allocates the ``xs``/``ys`` lists. Returns ``-1`` as
+    soon as a nearest-neighbour pair disagrees, otherwise the number of aligned
+    (and equal) samples.
+    """
+    ref_ts = a.ts
+    if not ref_ts or not b.ts:
+        return 0
+    cand_ts = b.ts
+    cand_vals = b.values
+    a_vals = a.values
+    n_cand = len(cand_ts)
+    bisect_left = bisect.bisect_left
+    n = 0
+    for k, rt in enumerate(ref_ts):
+        i = bisect_left(cand_ts, rt)
+        best_val: float | None = None
+        best_dt = tol_s + 1.0
+        for j in (i - 1, i):
+            if 0 <= j < n_cand:
+                delta = cand_ts[j] - rt
+                if delta < 0.0:
+                    delta = -delta
+                if delta < best_dt:
+                    best_dt = delta
+                    best_val = cand_vals[j]
+        if best_val is not None and best_dt <= tol_s:
+            if a_vals[k] != best_val:
+                return -1  # not a mirror — stop early
+            n += 1
+    return n
 
 
 def join_nearest_triple(

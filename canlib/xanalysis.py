@@ -20,7 +20,10 @@ from .align import (
     TimePoint,
     extract_series,
     join_nearest,
+    join_prepared,
     load_signal_captures,
+    prepare_series,
+    series_time_ranges_disjoint,
 )
 from .stats import correlation, pearson
 
@@ -169,16 +172,28 @@ def build_byte_series(
     (``skip_pci``) using the canonical :func:`byteindex.wican_to_isotp` detector
     (which handles the first-frame 2-byte PCI and every consecutive-frame PCI).
     """
+    from datetime import datetime
+
     from .byteindex import payload_to_wican_bytes, wican_to_isotp
+    from .capture_dates import entry_datetime
 
     skip_offsets = set(skip_offsets or set())
-    # Frame length = longest reconstructed WiCAN frame across captures.
+    # Reconstruct each capture's WiCAN frame + timestamp ONCE, then read every
+    # byte offset by indexing the frame. Calling extract_series per offset would
+    # re-parse (payload_to_wican_bytes + evaluate_expression + entry_datetime)
+    # every capture once per byte — O(bytes * captures) redundant parsing.
+    frames: list[tuple[datetime, bytes]] = []
     max_len = 0
     for cap in loaded.captures:
+        dt = entry_datetime(cap)
+        if dt is None:
+            continue
         try:
-            max_len = max(max_len, len(payload_to_wican_bytes(cap["payload"])))
+            fr = payload_to_wican_bytes(cap["payload"])
         except Exception:
             continue
+        frames.append((dt, fr))
+        max_len = max(max_len, len(fr))
     if not max_len:
         return {}
     if skip_pci:
@@ -187,7 +202,7 @@ def build_byte_series(
     for bn in range(max_len):
         if bn in skip_offsets:
             continue
-        series = extract_series(loaded, f"B{bn}")
+        series = [TimePoint(dt, float(fr[bn])) for dt, fr in frames if bn < len(fr)]
         if len({tp.value for tp in series}) < min_distinct:
             continue
         out[f"{loaded.ecu}:{loaded.pid}:B{bn}"] = series
@@ -405,12 +420,23 @@ def correlate_matrix(
     """
     names = list(series)
     hits: list[CorrHit] = []
+    # Prepare each series once (sort + flatten to float epoch arrays); the O(P²)
+    # pairwise join below then avoids re-sorting and datetime arithmetic per pair.
+    prepared = {name: prepare_series(series[name]) for name in names}
     for i in range(len(names)):
+        a = names[i]
+        pa = prepared[a]
+        if len(pa.ts) < min_n:
+            continue  # can never reach min_n overlap
         for j in range(i + 1, len(names)):
-            a, b = names[i], names[j]
+            b = names[j]
             if not include_intra and _same_pid(a, b):
                 continue
-            xs, ys, n = join_nearest(series[a], series[b], tol_s=tol_s)
+            pb = prepared[b]
+            # O(1) prune: too few samples, or non-overlapping time spans → empty join.
+            if len(pb.ts) < min_n or series_time_ranges_disjoint(pa, pb, tol_s):
+                continue
+            xs, ys, n = join_prepared(pa, pb, tol_s=tol_s)
             if n < min_n:
                 continue
             r = correlation(xs, ys, method)

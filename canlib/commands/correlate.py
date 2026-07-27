@@ -21,7 +21,11 @@ from canlib.align import (
     align_many,
     aligned_all_equal,
     join_nearest,
+    join_prepared,
     load_signal_captures,
+    mirror_aligned_count,
+    prepare_series,
+    series_time_ranges_disjoint,
 )
 from canlib.capture_dates import add_scope_args, entry_datetime, resolve_scope_bounds
 from canlib.commands._can_args import add_can_log_source_args
@@ -378,10 +382,15 @@ def _print_overlap(specs, since, until, state, label, tol, min_n, as_json) -> in
             stamps[f"{ecu}:{pid}"] = sorted(ts, key=lambda tp: tp.dt)
 
     names = sorted(stamps)
+    prepared = {name: prepare_series(stamps[name]) for name in names}
     pairs = []
     for i in range(len(names)):
+        pa = prepared[names[i]]
         for j in range(i + 1, len(names)):
-            _, _, n = join_nearest(stamps[names[i]], stamps[names[j]], tol_s=tol)
+            pb = prepared[names[j]]
+            if series_time_ranges_disjoint(pa, pb, tol):
+                continue
+            _, _, n = join_prepared(pa, pb, tol_s=tol)
             if n:
                 pairs.append((names[i], names[j], n))
     pairs.sort(key=lambda t: -t[2])
@@ -442,16 +451,21 @@ def _print_cross_mirrors(
         return ecu, pid
 
     names = sorted(series)
+    prepared = {name: prepare_series(series[name]) for name in names}
     mirrors: list[tuple[str, str, int]] = []
     for i in range(len(names)):
+        a = names[i]
+        pa = prepared[a]
+        pid_a = pid_of(a)
         for j in range(i + 1, len(names)):
-            a, b = names[i], names[j]
-            if pid_of(a) == pid_of(b):
+            b = names[j]
+            if pid_a == pid_of(b):
                 continue  # same PID — that's `decode --find-mirrors`
-            xs, ys, n = join_nearest(series[a], series[b], tol_s=tol)
-            if n < min_n:
+            pb = prepared[b]
+            if series_time_ranges_disjoint(pa, pb, tol):
                 continue
-            if all(x == y for x, y in zip(xs, ys, strict=True)):
+            n = mirror_aligned_count(pa, pb, tol_s=tol)
+            if n >= min_n:
                 mirrors.append((a, b, n))
     mirrors.sort(key=lambda t: -t[2])
 
@@ -688,10 +702,11 @@ def _run_can_log(args) -> int:
             )
             return 1
         rows = []
+        ref_prepared = prepare_series(ref)
         for name, s in series.items():
             if name == args.against:
                 continue
-            xs, ys, n = join_nearest(ref, s, tol_s=args.join_tol)
+            xs, ys, n = join_prepared(ref_prepared, prepare_series(s), tol_s=args.join_tol)
             if n < args.min_n:
                 continue
             r = correlation(xs, ys, args.method)
@@ -902,6 +917,7 @@ def run(args) -> int:
             ref_label = f"{ref_label} · control {control_label}"
 
         rows = []
+        ref_prepared = prepare_series(ref_series)
         for name, s in series.items():
             if not args.include_self and name == args.against:
                 continue  # the reference vs itself — trivial r=1.0
@@ -926,7 +942,7 @@ def run(args) -> int:
                     continue
                 rows.append((name, r, n, None))
             else:
-                xs, ys, n = join_nearest(ref_series, s, tol_s=args.join_tol)
+                xs, ys, n = join_prepared(ref_prepared, prepare_series(s), tol_s=args.join_tol)
                 if n < args.min_n:
                     continue
                 r = correlation(xs, ys, args.method)

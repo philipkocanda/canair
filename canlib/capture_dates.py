@@ -95,6 +95,34 @@ def entry_date(entry: dict) -> date | None:
     raw = str(entry.get("date", "")).strip()
     if not raw:
         return None
+    return _parse_date_cached(raw)
+
+
+# Session dates repeat across every capture in a file; time-aligned analysis
+# parses them millions of times, so memoize the (small, bounded) date strings.
+# strptime is comparatively slow (it recompiles format regexes internally), so a
+# direct fast-path parse plus this cache removes it from the hot loop.
+_date_cache: dict[str, date | None] = {}
+
+
+def _parse_date_cached(raw: str) -> date | None:
+    if raw in _date_cache:
+        return _date_cache[raw]
+    result = _parse_date(raw)
+    _date_cache[raw] = result
+    return result
+
+
+def _parse_date(raw: str) -> date | None:
+    """Fast ``YYYY-MM-DD`` parse (tolerating a trailing suffix), strptime fallback."""
+    head = raw[:10]
+    if len(head) == 10 and head[4] == "-" and head[7] == "-":
+        y, m, d = head[:4], head[5:7], head[8:10]
+        if y.isdigit() and m.isdigit() and d.isdigit():
+            try:
+                return date(int(y), int(m), int(d))
+            except ValueError:
+                return None
     for candidate in (raw, raw[:10]):
         try:
             return datetime.strptime(candidate, "%Y-%m-%d").date()
@@ -119,12 +147,41 @@ def entry_datetime(entry: dict) -> datetime | None:
     raw = str(entry.get("time", "")).strip()
     if not raw:
         return None
+    t = _parse_time(raw)
+    if t is None:
+        return None
+    return datetime.combine(d, t)
+
+
+def _parse_time(raw: str) -> time | None:
+    """Fast ``HH:MM:SS[.ffffff]`` / ``HH:MM`` parse, strptime fallback.
+
+    strptime dominates time-aligned analysis (called once per capture per build
+    pass, i.e. millions of times); the fixed capture formats parse directly with
+    no regex, and only exotic inputs fall through to strptime.
+    """
+    parts = raw.split(":")
+    try:
+        if len(parts) == 3:
+            hh, mm = int(parts[0]), int(parts[1])
+            sec = parts[2]
+            if "." in sec:
+                whole, frac = sec.split(".", 1)
+                ss = int(whole)
+                # Right-pad/truncate the fraction to microseconds (6 digits).
+                micro = int((frac + "000000")[:6])
+            else:
+                ss, micro = int(sec), 0
+            return time(hh, mm, ss, micro)
+        if len(parts) == 2:
+            return time(int(parts[0]), int(parts[1]))
+    except (ValueError, IndexError):
+        pass
     for fmt in ("%H:%M:%S.%f", "%H:%M:%S", "%H:%M"):
         try:
-            t = datetime.strptime(raw, fmt).time()
+            return datetime.strptime(raw, fmt).time()
         except ValueError:
             continue
-        return datetime.combine(d, t)
     return None
 
 

@@ -28,7 +28,7 @@ class TestInvestigate:
     def test_best_anchor_picks_strongest(self):
         from datetime import datetime, timedelta
 
-        from canlib.align import TimePoint
+        from canlib.align import TimePoint, prepare_series
 
         def s(vals):
             base = datetime(2026, 7, 22, 9, 0, 0)
@@ -36,8 +36,8 @@ class TestInvestigate:
 
         target = s([float(i) for i in range(20)])
         anchors = {
-            "E:P:MATCH": s([float(i) for i in range(20)]),  # perfect
-            "E:P:NOISE": s([(i * 7) % 5 for i in range(20)]),
+            "E:P:MATCH": prepare_series(s([float(i) for i in range(20)])),  # perfect
+            "E:P:NOISE": prepare_series(s([(i * 7) % 5 for i in range(20)])),
         }
         best = investigate._best_anchor(target, anchors, tol=1.0, min_n=10)
         assert best is not None
