@@ -1,6 +1,12 @@
 # canair — Reverse-Engineering Analysis Enhancements
 
-Status: implementation plan (backlog). Gathered 2026-07-27 from (a) a proposed
+Status: **Phases 1–3 DONE** (commits: phase 1 byte-matrix export + external
+reference files; phase 2 confounder control / physical bands / independence;
+phase 3 byte-triage in `investigate`). Tier-2 items (domain-B periodicity/counter
+detector, CUSUM segmentation) remain deferred; the "considered & rejected" set
+(Transfer Entropy, HMM, BOCPD, Hamming clustering) stands.
+
+Gathered 2026-07-27 from (a) a proposed
 list of statistical/RE techniques and (b) the concrete tooling gaps surfaced by
 the [AC input voltage case study](../docs/case-studies/ac-input-voltage.md).
 Implemented in **three phases as separate, individually-scoped PRs** (Phase 1 →

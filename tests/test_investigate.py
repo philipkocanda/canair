@@ -385,3 +385,51 @@ class TestIndependentOf:
         b4 = next(b for b in data["bytes"] if b["offset"] == 4)
         b5 = next(b for b in data["bytes"] if b["offset"] == 5)
         assert abs(b4["driver_r"]) > abs(b5["driver_r"])
+
+
+class TestTriageIntegration:
+    def _write(self, tmp_path):
+        # A word hides across [B4:B5]: hi byte barely moves (85-86), lo byte
+        # sweeps 5..255 (the fraction). Multi-frame payload (SID@B2, word@B4:B5).
+        pairs = [(85, 10), (85, 250), (86, 40), (85, 200), (86, 80), (85, 255), (86, 5), (85, 180)]
+        caps = []
+        for i, (hi, lo) in enumerate(pairs):
+            caps.append(
+                {
+                    "ecu": "OBC",
+                    "pid": "2101",
+                    "payload": f"6101{hi:02X}{lo:02X}00000000",
+                    "time": f"09:00:0{i}",
+                }
+            )
+        doc = {
+            "sessions": [{"date": "2026-07-24", "vehicle_states": ["charging"], "captures": caps}]
+        }
+        (tmp_path / "2026-07-24.yaml").write_text(yaml.safe_dump(doc))
+
+    def test_word_candidates_and_kind(self, tmp_path, monkeypatch, capsys):
+        import argparse
+
+        self._write(tmp_path)
+        import canlib.align as align
+
+        orig = align.load_signal_captures
+        monkeypatch.setattr(
+            "canlib.commands.investigate.load_signal_captures",
+            lambda specs, **kw: orig(
+                specs, captures_dir=tmp_path, **{k: v for k, v in kw.items() if k != "captures_dir"}
+            ),
+        )
+        monkeypatch.setattr(
+            "canlib.commands.correlate._discover_specs", lambda *a, **k: [("OBC", "2101")]
+        )
+        p = investigate.add_parser(argparse.ArgumentParser().add_subparsers())
+        args = p.parse_args(["uds", "OBC", "2101", "--min-n", "3", "--json"])
+        rc = investigate.run(args)
+        assert rc == 0
+        data = json.loads(capsys.readouterr().out)
+        # The [B4:B5] word (near-constant hi + wide lo) should be detected.
+        exprs = [w["expr"] for w in data["word_candidates"]]
+        assert "[B4:B5]" in exprs
+        # Every byte carries a triage classification.
+        assert all(b["kind"] for b in data["bytes"])

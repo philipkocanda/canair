@@ -136,10 +136,11 @@ necessary.** Concrete tooling gaps this surfaced, roughly in priority order:
    --independent-of ECU:PID:PARAM` ranks bytes that separate by state yet *don't*
    track the named driver — exactly the AC-voltage fingerprint.
 
-5. **Multi-byte candidate detection.** The value hid as *constant-ish hi byte +
-   full-range lo byte* on two bytes dismissed separately. `investigate`/`coverage`
-   could heuristically flag adjacent `[Bn:Bn+1]` where `Bn` is near-constant and
-   `Bn+1` spans 0–255 as a probable scaled word, and suggest testing the pair.
+5. **Multi-byte candidate detection.** ✅ **Shipped** — `canair investigate`
+   now flags adjacent `[Bn:Bn+1]` pairs where a near-constant high byte sits next
+   to a full-range low byte as a **probable scaled word**, and classifies each
+   byte (constant/counter/checksum/enum) — so a value split as "constant" +
+   "garbage" across a boundary is surfaced, not dismissed.
 
 6. **A structured byte-matrix export.** ✅ **Shipped** — `canair decode
    --dump-bytes` emits a `timestamp × byte-offset` matrix (CSV, or `--json`),

@@ -27,6 +27,7 @@ from canlib.notation import (
     resolve_notation,
     subfunction_bytes_for_pid,
 )
+from canlib.triage import detect_words, triage_byte
 from canlib.xanalysis import (
     build_bit_series,
     build_byte_series,
@@ -261,6 +262,9 @@ class _ByteReport:
     driver_r: float | None = None  # |r| vs the --independent-of driver, if set
     independence: float | None = None  # state_f weighted by (1 - |driver_r|)
     physical: str | None = None  # named physical band this byte's value lands in
+    kind: str | None = None  # triage class: constant/counter/checksum/enum/continuous
+    entropy: float | None = None  # Shannon entropy (bits) of the byte's values
+    lag1: float | None = None  # lag-1 (sample) autocorrelation
 
     @property
     def label(self) -> str:
@@ -383,6 +387,7 @@ def run(args) -> int:
         m = mapped.get(off)
         sf = _state_f(sb) if sb else None
         dr = _driver_r(series, driver_series, args.join_tol, args.min_n)
+        tri = triage_byte([int(tp.value) for tp in series])
         reports.append(
             _ByteReport(
                 offset=off,
@@ -398,8 +403,20 @@ def run(args) -> int:
                 driver_r=dr,
                 independence=_independence_score(sf, dr),
                 physical=physical_by_off.get(off),
+                kind=tri.kind,
+                entropy=tri.entropy,
+                lag1=tri.lag1,
             )
         )
+
+    # Probable multi-byte words: a near-constant hi byte next to a full-range lo
+    # byte (how a scaled voltage hides across a byte boundary). Built from the
+    # data bytes in offset order so PCI-straddling pairs are still caught.
+    ordered_cols = [
+        (int(k.rsplit(":B", 1)[1]), [int(tp.value) for tp in s])
+        for k, s in sorted(target.items(), key=lambda kv: int(kv[0].rsplit(":B", 1)[1]))
+    ]
+    word_candidates = detect_words(ordered_cols)
 
     if args.bits:
         for key, series in build_bit_series(lp).items():
@@ -447,6 +464,9 @@ def run(args) -> int:
                 "independent_of": driver_label,
                 "keep_unique": scope_is_keep_unique(lp.captures),
                 "bytes": [vars(r) for r in reports],
+                "word_candidates": [
+                    {"expr": _word_expr(w, pid), "score": w.score} for w in word_candidates
+                ],
             },
             sys.stdout,
             indent=2,
@@ -455,7 +475,9 @@ def run(args) -> int:
         print()
         return 0
 
-    _print_report(ecu, pid, reports, args, lp, bool(anchors), driver_label=driver_label)
+    _print_report(
+        ecu, pid, reports, args, lp, bool(anchors), driver_label=driver_label, words=word_candidates
+    )
     return 0
 
 
@@ -597,7 +619,26 @@ def _driver_r(series, driver, tol, min_n) -> float | None:
     return correlation(xs, ys)
 
 
-def _print_report(ecu, pid, reports, args, lp, has_anchors: bool, *, driver_label=None) -> None:
+def _word_expr(word, pid: str) -> str:
+    """WiCAN big-endian word expression for a detected (hi, lo) offset pair.
+
+    Uses :class:`ByteRef` so a PCI-straddling pair renders as the correct
+    shift-composition rather than an invalid ``[Bhi:Blo]`` range.
+    """
+    from canlib.byteindex import wican_to_isotp
+    from canlib.notation import ByteRef
+
+    hi_iso = wican_to_isotp(int(word.hi_key))
+    lo_iso = wican_to_isotp(int(word.lo_key))
+    if hi_iso is None or lo_iso is None or lo_iso != hi_iso + 1:
+        return f"[B{word.hi_key}:B{word.lo_key}]"
+    expr = ByteRef.from_isotp(hi_iso, width=2).to_wican_expression()
+    return expr or f"[B{word.hi_key}:B{word.lo_key}]"
+
+
+def _print_report(
+    ecu, pid, reports, args, lp, has_anchors: bool, *, driver_label=None, words=None
+) -> None:
     notation = resolve_notation(args.notation)
     sub_bytes = subfunction_bytes_for_pid(pid)
     print(
@@ -636,10 +677,23 @@ def _print_report(ecu, pid, reports, args, lp, has_anchors: bool, *, driver_labe
             dc = _GREEN if (r.driver_r is None or abs(r.driver_r) < 0.3) else _DIM
             drv = f"  {dc}drv={dv}{_RESET}"
         phys = f"  {_CYAN}{r.physical}{_RESET}" if r.physical else ""
+        kind = ""
+        if r.kind and r.bit is None and r.kind != "continuous":
+            # Flag the non-analog byte classes (constant/counter/checksum/enum);
+            # "continuous" is the unremarkable default, left unlabelled.
+            kind = f"  {_DIM}{r.kind}{_RESET}"
         print(
             f"    {_BOLD}{relabel_signal(r.label, notation, sub_bytes=sub_bytes)}{_RESET} "
-            f"{tag}{f_str}{drv}{anchor}{phys}"
+            f"{tag}{f_str}{drv}{anchor}{phys}{kind}"
         )
+    if words:
+        print(
+            f"\n    {_BOLD}probable multi-byte words{_RESET} "
+            f"{_DIM}(near-constant hi byte + full-range lo byte){_RESET}"
+        )
+        for w in words[:6]:
+            expr = _word_expr(w, pid)
+            print(f"      {_CYAN}{expr}{_RESET}  {_DIM}score={w.score:.2f}{_RESET}")
     if driver_label is not None:
         print(
             f"    {_DIM}ranked by state separation × independence from {driver_label} "

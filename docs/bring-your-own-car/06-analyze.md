@@ -166,6 +166,13 @@ canair investigate MyECU 2101 --bits     # rank toggling bits too (body/discrete
 canair investigate MyECU 2101 --events   # edge timeline for narrated door/lock/hood captures
 ```
 
+Each byte also carries a one-word **triage class** — `constant` / `counter` /
+`checksum` / `enum` (a live analog byte is left unlabelled) — a cheap first read
+of what kind of field it is. And a **probable multi-byte words** section flags
+adjacent `[Bn:Bn+1]` pairs shaped like a scaled 16-bit value (a near-constant
+high byte next to a full-range low byte) — the exact shape a scaled voltage takes
+when it hides across a byte boundary.
+
 It's the fastest way to get oriented; the individual tools above are how you
 follow up on what it surfaces.
 

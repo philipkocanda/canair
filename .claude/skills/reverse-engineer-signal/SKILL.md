@@ -645,11 +645,15 @@ upstream wican-fw PR — see the `ioniq-reverse-engineering` skill's goals).
 | map bytes | `canair bix --annotate` (+ `--ecu ECU --pid PID` to overlay which param maps each byte / flag unmapped) |
 | reason about a signal | step 6 Hypothesize — ECU context, physics/EE (thermal mass), CS (enums/counters), statistics (`--corr`/`--stats`/autocorr) |
 | test expressions | `canair decode --try` / `--stats` / `--corr` / `--plot` |
-| explain an unknown PID | `canair investigate <ECU> <PID>` (mapped? / state F / best anchor + unit, one table; `--bits` for toggling bits, `--events` for the edge timeline) |
+| explain an unknown PID | `canair investigate <ECU> <PID>` (mapped? / state F / best anchor + unit / triage class / physical band, one table; `--bits`, `--events`; flags probable multi-byte `[Bn:Bn+1]` words) |
 | decode a body event capture | `canair investigate <ECU> <PID> --events --bits` (edge timeline vs capture notes) + `canair correlate --find-mirrors --bits` (cross-ECU bit mirrors) |
 | what's co-polled here | `canair correlate --overlap` (which ECU:PID pairs share timed samples) |
 | cross-ECU correlate | `canair decode … --corr ECU:PID:PARAM` (+ `--corr-transform`, `--method spearman`); `canair correlate [--against REF] [--bytes/--bits] [--lag-scan N] [--gate '>0'] [--promote NAME]` |
 | which byte is signal Y | `canair hunt <ECU> <PID> --against ECU:PID:PARAM` (linear fit + unit guess; `--transform delta`, `--promote NAME`, `--all-interps`) |
+| reference an external log | `canair hunt/correlate … --against-file series.csv` (timestamp,value; absolute clock) |
+| a signal with no bus anchor | `canair hunt <ECU> <PID> --physical` (named physical bands); `canair investigate … --independent-of ECU:PID:PARAM` (active-but-independent) |
+| remove a confounder | `canair hunt/correlate … --against REF --control ECU:PID:PARAM` (partial correlation) |
+| dump raw bytes for external analysis | `canair decode <ECU> <PID> --dump-bytes [--json]` (timestamp × byte matrix) |
 | find state-dependent signals | `canair decode … --discriminate state [--bytes] [--bits]` |
 | find redundant mirrors | `canair decode … --find-mirrors [--bits]` (single-PID); `canair correlate --find-mirrors [--bits]` (cross-ECU) |
 | scope a drive | `--state driving` / `--since`/`--until`/`--date` / `--first`/`--last N` (both `captures` + `decode`) |
