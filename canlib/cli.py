@@ -25,7 +25,7 @@ _GROUP_DEFAULTS = {
     "ecu": ({"show", "add"}, "show"),
     # The uds/can domain-kind spine (ingest/list/analyze). A bare invocation
     # defaults to the mature domain-A (uds) surface, preserving muscle memory.
-    "captures": ({"uds", "can"}, "uds"),
+    "captures": ({"uds", "can", "migrate"}, "uds"),
     "correlate": ({"uds", "can"}, "uds"),
     "hunt": ({"uds", "can"}, "uds"),
     "investigate": ({"uds", "can"}, "uds"),

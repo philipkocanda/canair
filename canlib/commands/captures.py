@@ -663,6 +663,54 @@ def cmd_recover(captures_dir: Path | None, discard: bool = False) -> int:
     return 0
 
 
+def cmd_migrate(captures_dir: Path | None, *, dry_run: bool = False, as_json: bool = False) -> int:
+    """Convert legacy captures/*.yaml → *.json for the active profile (or --dir)."""
+    import json as _json
+
+    from canlib.capture_migrate import MigrationError, migrate_dir
+
+    cdir = _resolve_captures_dir(captures_dir)
+    try:
+        results = migrate_dir(cdir, dry_run=dry_run)
+    except MigrationError as e:
+        if as_json:
+            _json.dump({"error": str(e)}, sys.stdout)
+            print()
+        else:
+            print(f"  {_YELLOW}migration aborted:{_RESET} {e}", file=sys.stderr)
+        return 1
+
+    if as_json:
+        _json.dump(
+            {
+                "dry_run": dry_run,
+                "captures_dir": str(cdir),
+                "migrated": [
+                    {"from": r.yaml_path.name, "to": r.json_path.name, "captures": r.captures}
+                    for r in results
+                ],
+            },
+            sys.stdout,
+            indent=2,
+        )
+        print()
+        return 0
+
+    if not results:
+        print(f"  No legacy .yaml capture files in {cdir} (already JSON).")
+        return 0
+    caps = sum(r.captures for r in results)
+    verb = "Would convert" if dry_run else "Converted"
+    print(f"  {verb} {len(results)} file(s), {caps} capture(s):")
+    for r in results:
+        print(
+            f"    {r.yaml_path.name} \u2192 {r.json_path.name}  {_DIM}({r.captures} caps){_RESET}"
+        )
+    if dry_run:
+        print("  Re-run without --dry-run to write.")
+    return 0
+
+
 def orphan_notice(captures_dir: Path | None = None) -> None:
     """Print a one-line notice if orphaned journals exist (best-effort, silent on error)."""
     try:
@@ -695,7 +743,33 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     kinds = parser.add_subparsers(dest="captures_kind", metavar="<kind>")
     _add_uds_parser(kinds)
     _add_can_parser(kinds)
+    _add_migrate_parser(kinds)
     parser.set_defaults(func=group_help("_captures_group_parser"), _captures_group_parser=parser)
+    return parser
+
+
+def _add_migrate_parser(kinds) -> argparse.ArgumentParser:
+    parser = kinds.add_parser(
+        "migrate",
+        help="Convert legacy captures/*.yaml to JSON (captures/*.json)",
+        description="Convert the active profile's legacy per-day capture files "
+        "(captures/YYYY-MM-DD.yaml) to JSON (captures/YYYY-MM-DD.json).\n\n"
+        "Capture data is stored as JSON (parses ~60x faster than YAML); this is "
+        "the supported one-time migration for a profile created before the "
+        "cutover. Each file is round-trip verified before the YAML is replaced. "
+        "Performs the migration by default; pass --dry-run to preview.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Preview conversions without writing"
+    )
+    parser.add_argument("--json", action="store_true", help="Machine-readable JSON output")
+    parser.add_argument(
+        "--dir", type=Path, default=None, help="Captures directory (default: active profile)"
+    )
+    parser.set_defaults(
+        func=lambda args: cmd_migrate(args.dir, dry_run=args.dry_run, as_json=args.json)
+    )
     return parser
 
 

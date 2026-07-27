@@ -16,7 +16,8 @@ from canlib.cli import _GROUP_DEFAULTS, _inject_default_subcommand
 class TestGroupDefaults:
     def test_registered_kinds(self):
         # The spine groups default to uds; scan/ecu keep their own defaults.
-        assert _GROUP_DEFAULTS["captures"] == ({"uds", "can"}, "uds")
+        # `captures` also carries a `migrate` kind (YAML→JSON store migration).
+        assert _GROUP_DEFAULTS["captures"] == ({"uds", "can", "migrate"}, "uds")
         assert _GROUP_DEFAULTS["correlate"] == ({"uds", "can"}, "uds")
         assert _GROUP_DEFAULTS["hunt"] == ({"uds", "can"}, "uds")
 
@@ -33,6 +34,8 @@ class TestInjectDefaultSubcommand:
             # Explicit kind → left untouched.
             (["captures", "can"], ["captures", "can"]),
             (["captures", "uds", "BMS"], ["captures", "uds", "BMS"]),
+            (["captures", "migrate"], ["captures", "migrate"]),
+            (["captures", "migrate", "--dry-run"], ["captures", "migrate", "--dry-run"]),
             (["correlate", "can", "drive.log"], ["correlate", "can", "drive.log"]),
             (["hunt", "can", "drive.log"], ["hunt", "can", "drive.log"]),
             # Help flag → left untouched (show group help).
