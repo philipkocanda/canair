@@ -732,7 +732,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         NAME,
         help="Query captured data: uds (diagnostic payloads) | can (raw frame logs)",
         description="Query captured data. Choose a kind:\n"
-        "  uds   diagnostic UDS payloads (captures/*.yaml) — the QUERY/diff/step/\n"
+        "  uds   diagnostic UDS payloads (captures/*.json) — the QUERY/diff/step/\n"
         "        summary/sessions/latest/recover surface (domain A)\n"
         "  can   imported raw broadcast-CAN frame logs (captures/can/index.yaml,\n"
         "        domain B)\n\n"

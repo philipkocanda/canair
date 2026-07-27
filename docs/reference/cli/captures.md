@@ -6,7 +6,7 @@
 usage: canair captures [-h] <kind> ...
 
 [UDS+CAN] Query captured data. Choose a kind:
-  uds   diagnostic UDS payloads (captures/*.yaml) — the QUERY/diff/step/
+  uds   diagnostic UDS payloads (captures/*.json) — the QUERY/diff/step/
         summary/sessions/latest/recover surface (domain A)
   can   imported raw broadcast-CAN frame logs (captures/can/index.yaml,
         domain B)
@@ -18,6 +18,7 @@ positional arguments:
     uds       Query captured diagnostic UDS payloads across all capture files
     can       List imported raw broadcast-CAN frame logs
               (captures/can/index.yaml)
+    migrate   Convert legacy captures/*.yaml to JSON (captures/*.json)
 
 options:
   -h, --help  show this help message and exit
@@ -166,4 +167,20 @@ List imported raw broadcast-CAN frame logs (domain B) — file/format/frames/IDs
 options:
   -h, --help  show this help message and exit
   --json      Machine-readable JSON output
+```
+
+## `canair captures migrate`
+
+```
+usage: canair captures migrate [-h] [--dry-run] [--json] [--dir DIR]
+
+Convert the active profile's legacy per-day capture files (captures/YYYY-MM-DD.yaml) to JSON (captures/YYYY-MM-DD.json).
+
+Capture data is stored as JSON (parses ~60x faster than YAML); this is the supported one-time migration for a profile created before the cutover. Each file is round-trip verified before the YAML is replaced. Performs the migration by default; pass --dry-run to preview.
+
+options:
+  -h, --help  show this help message and exit
+  --dry-run   Preview conversions without writing
+  --json      Machine-readable JSON output
+  --dir DIR   Captures directory (default: active profile)
 ```

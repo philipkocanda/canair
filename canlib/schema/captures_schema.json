@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://canair/captures/schema.json",
   "title": "canair capture file",
-  "description": "Machine schema for captures/*.yaml. Authoritative; SCHEMA.yaml is the human-readable companion. Cross-checks that can't be expressed here (ecu address must exist in ecus.yaml, filename must match session date) live in validate-captures.py.",
+  "description": "Machine schema for captures/*.json (format-agnostic — validates the parsed structure). Authoritative; captures/SCHEMA.md is the human-readable companion. Cross-checks that can't be expressed here (ecu address must resolve via ecus/, filename must match session date) live in canlib/commands/validate/captures.py.",
   "type": "object",
   "required": ["sessions"],
   "additionalProperties": false,
