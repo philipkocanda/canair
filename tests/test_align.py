@@ -1,9 +1,9 @@
 """Tests for the time-aligned cross-signal analysis primitives (canlib.align)."""
 
+import json
 from datetime import datetime
 
 import pytest
-import yaml
 
 from canlib.align import (
     SignalRef,
@@ -159,7 +159,7 @@ def _write_captures(tmp_path):
             }
         ]
     }
-    (tmp_path / "2026-07-22.yaml").write_text(yaml.safe_dump(doc))
+    (tmp_path / "2026-07-22.json").write_text(json.dumps(doc))
     return tmp_path
 
 

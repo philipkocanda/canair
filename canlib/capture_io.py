@@ -31,6 +31,15 @@ LEGACY_SUFFIX = ".yaml"
 _SKIP_PREFIXES = ("SCHEMA", "_")
 
 
+class LegacyCaptureError(Exception):
+    """Raised when a profile still has legacy YAML capture files.
+
+    Capture data is JSON-only; there is no dual-format read path. The supported
+    fix is ``canair captures migrate`` (see
+    ``plans/2026-07-27-captures-json-storage.md``).
+    """
+
+
 def _is_capture_file(path: Path) -> bool:
     return not path.name.startswith(_SKIP_PREFIXES)
 
@@ -47,6 +56,22 @@ def find_legacy_yaml(captures_dir: Path) -> list[Path]:
     JSON-only, and the supported migration path is ``canair captures migrate``.
     """
     return [p for p in sorted(captures_dir.glob(f"*{LEGACY_SUFFIX}")) if _is_capture_file(p)]
+
+
+def ensure_migrated(captures_dir: Path) -> None:
+    """Raise :class:`LegacyCaptureError` if ``captures_dir`` holds legacy YAML.
+
+    Called by the capture readers so a pre-migration profile fails fast with an
+    actionable message instead of silently reading nothing (JSON is the only
+    on-disk format). No-op once the profile is migrated.
+    """
+    legacy = find_legacy_yaml(captures_dir)
+    if legacy:
+        names = ", ".join(p.name for p in legacy[:3]) + (" …" if len(legacy) > 3 else "")
+        raise LegacyCaptureError(
+            f"{len(legacy)} legacy YAML capture file(s) in {captures_dir} ({names}). "
+            "Capture data is stored as JSON now — run `canair captures migrate` to convert."
+        )
 
 
 def load_capture_file(path: Path) -> Any:

@@ -1,10 +1,10 @@
 """Tests for canlib.modes.multi — parse_sub_commands, resolve_tx_id."""
 
 import asyncio
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-import yaml
 
 from canlib.capture_journal import CaptureJournal
 from canlib.modes.multi import (
@@ -303,9 +303,9 @@ class TestFinalizeJournal:
     def test_noninteractive_reconciles(self, tmp_path):
         j = self._journal(tmp_path)
         _finalize_journal(j, 1, "My label", ["ready"], "note")
-        files = list(tmp_path.glob("*.yaml"))
+        files = list(tmp_path.glob("*.json"))
         assert len(files) == 1
-        sess = yaml.safe_load(files[0].read_text())["sessions"][0]
+        sess = json.loads(files[0].read_text())["sessions"][0]
         assert sess["label"] == "My label"
         assert sess["vehicle_states"] == ["ready"]
         assert not j.path.exists()
@@ -314,21 +314,21 @@ class TestFinalizeJournal:
         j = CaptureJournal.open(tmp_path, label="prov", source="query")
         _finalize_journal(j, 0, "L", None, None)
         assert not j.path.exists()
-        assert list(tmp_path.glob("*.yaml")) == []
+        assert list(tmp_path.glob("*.json")) == []
 
     def test_cancelled_prompt_discards(self, tmp_path):
         j = self._journal(tmp_path)
         with patch("canlib.captures.resolve_metadata", return_value=None):
             _finalize_journal(j, 1, None, None, None)
         assert not j.path.exists()
-        assert list(tmp_path.glob("*.yaml")) == []
+        assert list(tmp_path.glob("*.json")) == []
 
     def test_no_prompt_uses_existing_meta(self, tmp_path):
         # Interrupted-pipeline path: reconcile with provisional metadata, no stdin.
         j = self._journal(tmp_path)
         with patch("builtins.input", side_effect=AssertionError("should not prompt")):
             _finalize_journal(j, 1, None, None, None, prompt=False)
-        sess = yaml.safe_load(next(tmp_path.glob("*.yaml")).read_text())["sessions"][0]
+        sess = json.loads(next(tmp_path.glob("*.json")).read_text())["sessions"][0]
         assert sess["label"] == "prov"
 
 

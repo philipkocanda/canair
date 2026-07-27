@@ -8,10 +8,9 @@ monitor modes.
 from datetime import datetime
 from pathlib import Path
 
+from . import capture_io
 from .states import join_states as _join_states
 from .states import parse_states as _parse_states
-from .yaml_rt import dump as _dump
-from .yaml_rt import round_trip_yaml as _yaml
 
 # ---------------------------------------------------------------------------
 # Metadata prompt
@@ -332,14 +331,12 @@ def build_manual_session(
 
 
 def save_session(session: dict, captures_dir: Path | None = None) -> Path:
-    """Append a session dict to captures/YYYY-MM-DD.yaml. Returns the file path.
+    """Append a session dict to captures/YYYY-MM-DD.json. Returns the file path.
 
     The file is named after the session's own ``date`` (falling back to today),
     so a session captured on — or recovered from — a different day lands in the
-    correct per-day file rather than today's. Existing content (including
-    comments) is preserved via a ruamel round-trip; only the newly appended
-    session is rendered fresh. When ``captures_dir`` is None, the active vehicle
-    profile's captures/ directory is used.
+    correct per-day file rather than today's. When ``captures_dir`` is None, the
+    active vehicle profile's captures/ directory is used.
     """
     if captures_dir is None:
         from .profile import active
@@ -350,20 +347,17 @@ def save_session(session: dict, captures_dir: Path | None = None) -> Path:
     # actually acquired; only fall back to "now" when the session has no date.
     raw_date = str(session.get("date") or "").strip()
     file_date = raw_date[:10] if len(raw_date) >= 10 else datetime.now().strftime("%Y-%m-%d")
-    capture_file = captures_dir / f"{file_date}.yaml"
+    capture_file = captures_dir / f"{file_date}{capture_io.CAPTURE_SUFFIX}"
 
-    y = _yaml()
     if capture_file.exists():
-        with open(capture_file) as f:
-            data = y.load(f)
+        data = capture_io.load_capture_file(capture_file)
         if not data or "sessions" not in data:
             data = {"sessions": []}
         data["sessions"].append(session)
     else:
         data = {"sessions": [session]}
 
-    with open(capture_file, "w") as f:
-        _dump(data, f)
+    capture_io.dump_capture_file(capture_file, data)
 
     n_captures = len(session.get("captures", []))
     print(f"  \u2192 Saved {n_captures} capture(s) to {capture_file.name}")
@@ -397,9 +391,8 @@ def save_session_journaled(session: dict, captures_dir: Path | None = None) -> P
 
 
 def _write_captures_file(fpath: Path, data: dict) -> None:
-    """Serialize a capture-file dict back to disk (comment-preserving)."""
-    with open(fpath, "w") as f:
-        _dump(data, f)
+    """Serialize a capture-file dict back to disk (JSON)."""
+    capture_io.dump_capture_file(fpath, data)
 
 
 def set_capture_note(fpath: Path, session_idx: int, capture_idx: int, note: str) -> None:
@@ -408,8 +401,7 @@ def set_capture_note(fpath: Path, session_idx: int, capture_idx: int, note: str)
     A non-empty ``note`` is stored verbatim; an empty/blank note removes the
     field entirely. Raises IndexError if the indices don't resolve.
     """
-    with open(fpath) as f:
-        data = _yaml().load(f)
+    data = capture_io.load_capture_file(fpath)
     cap = data["sessions"][session_idx]["captures"][capture_idx]
     note = note.strip()
     if note:
@@ -426,8 +418,7 @@ def set_session_note(fpath: Path, session_idx: int, note: str) -> None:
     field entirely. Raises IndexError if the index doesn't resolve. Use this
     instead of hand-editing a session's ``notes`` in a capture file.
     """
-    with open(fpath) as f:
-        data = _yaml().load(f)
+    data = capture_io.load_capture_file(fpath)
     session = data["sessions"][session_idx]
     note = note.strip()
     if note:
@@ -445,8 +436,7 @@ def set_session_keep_mode(fpath: Path, session_idx: int, keep_mode: str | None) 
     field. Use this to backfill sessions captured before ``keep_mode`` was
     persisted, instead of hand-editing a capture file.
     """
-    with open(fpath) as f:
-        data = _yaml().load(f)
+    data = capture_io.load_capture_file(fpath)
     session = data["sessions"][session_idx]
     if keep_mode == "unique":
         session["keep_mode"] = keep_mode
@@ -459,8 +449,7 @@ def delete_capture(fpath: Path, session_idx: int, capture_idx: int) -> bool:
     """Delete one capture, addressed by index. Returns True if its (now empty)
     session was removed too. Raises IndexError if the indices don't resolve.
     """
-    with open(fpath) as f:
-        data = _yaml().load(f)
+    data = capture_io.load_capture_file(fpath)
     captures = data["sessions"][session_idx]["captures"]
     del captures[capture_idx]
     removed_session = not captures

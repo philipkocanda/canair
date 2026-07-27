@@ -7,7 +7,7 @@ from pathlib import Path
 from jsonschema import Draft202012Validator
 from jsonschema.protocols import Validator
 
-from canlib import yaml_io
+from canlib import capture_io
 
 from ._common import CAPTURES_SCHEMA_FILE, DEPRECATED_FIELDS
 
@@ -34,8 +34,7 @@ def validate_captures_file(path: Path, validator: Validator, rx_addrs: set[int])
     from canlib.ecus import SENTINELS, parse_ecu_ref
 
     errors: list[str] = []
-    with open(path) as f:
-        data = yaml_io.safe_load(f)
+    data = capture_io.load_capture_file(path)
 
     # Schema validation (structure, types, required/allowed fields, patterns).
     for err in sorted(validator.iter_errors(data), key=lambda e: list(e.absolute_path)):
@@ -89,8 +88,9 @@ def _run_captures(strict: bool = False) -> int:
 
     from canlib.profile import active
 
-    files = sorted(active().captures_dir.glob("*.yaml"))
-    files = [f for f in files if f.name != "SCHEMA.yaml"]
+    captures_dir = active().captures_dir
+    capture_io.ensure_migrated(captures_dir)
+    files = capture_io.iter_capture_files(captures_dir)
 
     if not files:
         print("No capture files found.")
@@ -154,8 +154,7 @@ def _capture_state_warnings(path: Path, vocab: set[str]) -> list[str]:
     standardized states.yaml vocabulary.
     """
     warnings: list[str] = []
-    with open(path) as f:
-        data = yaml_io.safe_load(f)
+    data = capture_io.load_capture_file(path)
     if not isinstance(data, dict):
         return warnings
     for si, session in enumerate(data.get("sessions", []) or []):
@@ -188,8 +187,7 @@ def _capture_echo_warnings(path: Path) -> list[str]:
     from canlib.uds_parse import payload_echo_mismatch
 
     warnings: list[str] = []
-    with open(path) as f:
-        data = yaml_io.safe_load(f)
+    data = capture_io.load_capture_file(path)
     if not isinstance(data, dict):
         return warnings
     for si, session in enumerate(data.get("sessions", []) or []):
@@ -222,8 +220,7 @@ def _capture_nonhex_warnings(path: Path) -> list[str]:
     from canlib.uds_parse import payload_not_hex
 
     warnings: list[str] = []
-    with open(path) as f:
-        data = yaml_io.safe_load(f)
+    data = capture_io.load_capture_file(path)
     if not isinstance(data, dict):
         return warnings
     for si, session in enumerate(data.get("sessions", []) or []):
@@ -256,8 +253,7 @@ def _capture_missing_time_warnings(path: Path) -> list[str]:
     from canlib.capture_dates import entry_datetime
 
     warnings: list[str] = []
-    with open(path) as f:
-        data = yaml_io.safe_load(f)
+    data = capture_io.load_capture_file(path)
     if not isinstance(data, dict):
         return warnings
     for si, session in enumerate(data.get("sessions", []) or []):

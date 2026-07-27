@@ -1,6 +1,6 @@
 """Tests for canlib.modes.monitor — rendering and helper functions."""
 
-import yaml
+import json
 
 from canlib.modes.monitor import (
     _HIGHLIGHT_STYLE,
@@ -660,9 +660,9 @@ class TestControllerSnapshot:
         c.prev_hex[("BMS (0x7E4)", "2101")] = "6101AA"
         msg = c.save_now("Live ref", "ready", "note")
         assert "Saved" in msg
-        files = list(tmp_path.glob("*.yaml"))
+        files = list(tmp_path.glob("*.json"))
         assert len(files) == 1
-        s = yaml.safe_load(files[0].read_text())["sessions"][0]
+        s = json.loads(files[0].read_text())["sessions"][0]
         assert s["label"] == "Live ref"
         assert s["captures"][0]["payload"] == "6101AA"
 
@@ -670,7 +670,7 @@ class TestControllerSnapshot:
         c = self._controller()
         c.captures_dir = tmp_path
         assert "nothing to save" in c.save_now("x").lower()
-        assert list(tmp_path.glob("*.yaml")) == []
+        assert list(tmp_path.glob("*.json")) == []
 
     def test_repeated_save_dedupes(self, tmp_path):
         """Pressing 's' twice with no new data doesn't re-save the same payloads."""
@@ -684,8 +684,8 @@ class TestControllerSnapshot:
         assert "Nothing new since last save" in second
         payloads = [
             cap["payload"]
-            for f in tmp_path.glob("*.yaml")
-            for s in yaml.safe_load(f.read_text())["sessions"]
+            for f in tmp_path.glob("*.json")
+            for s in json.loads(f.read_text())["sessions"]
             for cap in s["captures"]
         ]
         assert payloads == ["6101AA"]  # exactly once
@@ -703,8 +703,8 @@ class TestControllerSnapshot:
         assert "Saved 1 payload" in msg  # only the new BB row
         payloads = sorted(
             cap["payload"]
-            for f in tmp_path.glob("*.yaml")
-            for s in yaml.safe_load(f.read_text())["sessions"]
+            for f in tmp_path.glob("*.json")
+            for s in json.loads(f.read_text())["sessions"]
             for cap in s["captures"]
         )
         assert payloads == ["6101AA", "6101BB"]  # each once, no duplicate AA
@@ -727,7 +727,7 @@ class TestControllerJournal:
         # Reconcile as the mode_monitor finally-block would (even on disconnect).
         written = c.journal.reconcile()
         assert written is not None
-        s = yaml.safe_load(written.read_text())["sessions"][0]
+        s = json.loads(written.read_text())["sessions"][0]
         assert s["label"] == "L"
         # ECU label resolved to its CAN response address (0x7E4 + 8 = 0x7EC).
         assert s["captures"][0]["ecu"] == "0x7EC"
@@ -758,9 +758,9 @@ class TestControllerJournal:
         msg = c.save_now("edited", "ready", "note")
         assert "Metadata set" in msg
         # No immediate write — journal reconciles once on exit.
-        assert list(tmp_path.glob("*.yaml")) == []
+        assert list(tmp_path.glob("*.json")) == []
         written = c.journal.reconcile()
-        data = yaml.safe_load(written.read_text())
+        data = json.loads(written.read_text())
         assert len(data["sessions"]) == 1
         assert data["sessions"][0]["label"] == "edited"
         assert data["sessions"][0]["vehicle_states"] == ["ready"]
@@ -781,7 +781,7 @@ class TestControllerJournal:
         assert c.journal is not None
         assert not first_path.exists()  # the closed segment's journal was reconciled away
         # Segment 1 already landed on disk with its own label.
-        seg1 = yaml.safe_load(next(tmp_path.glob("*.yaml")).read_text())["sessions"]
+        seg1 = json.loads(next(tmp_path.glob("*.json")).read_text())["sessions"]
         assert any(s["label"] == "seg1" for s in seg1)
 
         # Record into segment 2, then reconcile as exit would.
@@ -789,8 +789,8 @@ class TestControllerJournal:
         c.journal.reconcile()
         labels = {
             s["label"]
-            for f in tmp_path.glob("*.yaml")
-            for s in yaml.safe_load(f.read_text())["sessions"]
+            for f in tmp_path.glob("*.json")
+            for s in json.loads(f.read_text())["sessions"]
         }
         assert {"seg1", "seg2"} <= labels
 

@@ -1,9 +1,9 @@
 """Tests for capture session builders and metadata resolution."""
 
+import json
 from unittest.mock import patch
 
 import pytest
-import yaml
 
 from canlib.captures import (
     build_query_session,
@@ -123,9 +123,9 @@ class TestBuildQuerySession:
         results = [("0x7EB", "2102", "6102AABB", "")]  # MCU
         s = build_query_session(results, "Live ref", ["ready", "parked"], "18C")
         save_session(s, tmp_path)
-        files = list(tmp_path.glob("*.yaml"))
+        files = list(tmp_path.glob("*.json"))
         assert len(files) == 1
-        data = yaml.safe_load(files[0].read_text())
+        data = json.loads(files[0].read_text())
         assert data["sessions"][0]["label"] == "Live ref"
         assert data["sessions"][0]["captures"][0]["payload"] == "6102AABB"
 
@@ -133,7 +133,7 @@ class TestBuildQuerySession:
 def _entry(**kw):
     """A minimal flat capture entry as load_all_captures would produce."""
     base = {
-        "file": "2026-07-22.yaml",
+        "file": "2026-07-22.json",
         "date": "2026-07-22",
         "session_label": "",
         "vehicle_states": [],
@@ -404,8 +404,8 @@ class TestTimeEnforcement:
                 }
             ]
         }
-        p = tmp_path / "2026-07-22.yaml"
-        p.write_text(yaml.safe_dump(doc))
+        p = tmp_path / "2026-07-22.json"
+        p.write_text(json.dumps(doc))
         warns = _capture_missing_time_warnings(p)
         assert len(warns) == 1
         assert "captures[0]" in warns[0]
@@ -556,7 +556,7 @@ class TestSetSessionNote:
 
         f = self._write(tmp_path)
         set_session_note(f, 0, "new note text")
-        doc = yaml.safe_load(f.read_text())
+        doc = json.loads(f.read_text())
         assert doc["sessions"][0]["notes"] == "new note text"
 
     def test_clear_note(self, tmp_path):
@@ -564,7 +564,7 @@ class TestSetSessionNote:
 
         f = self._write(tmp_path)
         set_session_note(f, 0, "   ")
-        doc = yaml.safe_load(f.read_text())
+        doc = json.loads(f.read_text())
         assert "notes" not in doc["sessions"][0]
 
     def test_bad_index_raises(self, tmp_path):
@@ -579,7 +579,7 @@ class TestSetSessionNote:
 
         f = self._write(tmp_path)
         set_session_note(f, 0, "edited")
-        doc = yaml.safe_load(f.read_text())
+        doc = json.loads(f.read_text())
         assert doc["sessions"][0]["captures"][0]["payload"] == "6101AA"
 
 
@@ -597,7 +597,7 @@ class TestSetSessionKeepMode:
 
         f = self._write(tmp_path)
         set_session_keep_mode(f, 0, "unique")
-        doc = yaml.safe_load(f.read_text())
+        doc = json.loads(f.read_text())
         assert doc["sessions"][0]["keep_mode"] == "unique"
 
     def test_non_unique_clears(self, tmp_path):
@@ -606,7 +606,7 @@ class TestSetSessionKeepMode:
         f = self._write(tmp_path)
         set_session_keep_mode(f, 0, "unique")
         set_session_keep_mode(f, 0, "all")  # not meaningful → cleared
-        doc = yaml.safe_load(f.read_text())
+        doc = json.loads(f.read_text())
         assert "keep_mode" not in doc["sessions"][0]
 
     def test_bad_index_raises(self, tmp_path):

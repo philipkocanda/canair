@@ -2,8 +2,6 @@
 
 import json
 
-import yaml
-
 from canlib.commands import investigate
 
 
@@ -17,7 +15,7 @@ def _write(tmp_path):
     doc = {
         "sessions": [{"date": "2026-07-22", "vehicle_states": ["driving"], "captures": caps + refs}]
     }
-    (tmp_path / "2026-07-22.yaml").write_text(yaml.safe_dump(doc))
+    (tmp_path / "2026-07-22.json").write_text(json.dumps(doc))
 
 
 class TestInvestigate:
@@ -138,7 +136,7 @@ def _write_events(tmp_path):
             }
         ]
     }
-    (tmp_path / "2026-07-24.yaml").write_text(yaml.safe_dump(doc))
+    (tmp_path / "2026-07-24.json").write_text(json.dumps(doc))
 
 
 def _run(tmp_path, monkeypatch, argv, specs):
@@ -351,7 +349,7 @@ class TestIndependentOf:
                 {"date": "2026-07-24", "vehicle_states": ["charging"], "captures": charging},
             ]
         }
-        (tmp_path / "2026-07-24.yaml").write_text(yaml.safe_dump(doc))
+        (tmp_path / "2026-07-24.json").write_text(json.dumps(doc))
 
     def test_independent_of_file_ranks_and_labels(self, tmp_path, monkeypatch, capsys):
         import argparse
@@ -405,7 +403,7 @@ class TestTriageIntegration:
         doc = {
             "sessions": [{"date": "2026-07-24", "vehicle_states": ["charging"], "captures": caps}]
         }
-        (tmp_path / "2026-07-24.yaml").write_text(yaml.safe_dump(doc))
+        (tmp_path / "2026-07-24.json").write_text(json.dumps(doc))
 
     def test_word_candidates_and_kind(self, tmp_path, monkeypatch, capsys):
         import argparse
@@ -450,7 +448,7 @@ class TestTriageIntegration:
         doc = {
             "sessions": [{"date": "2026-07-24", "vehicle_states": ["charging"], "captures": caps}]
         }
-        (tmp_path / "2026-07-24.yaml").write_text(yaml.safe_dump(doc))
+        (tmp_path / "2026-07-24.json").write_text(json.dumps(doc))
 
         import canlib.align as align
 

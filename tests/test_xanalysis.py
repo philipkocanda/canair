@@ -1,6 +1,7 @@
 """Tests for the cross-signal analysis engine (canlib.xanalysis) and the
 correlate/hunt commands."""
 
+import json
 from datetime import datetime, timedelta
 
 import pytest
@@ -273,7 +274,7 @@ def _write_hunt_fixture(tmp_path):
             }
         ]
     }
-    (tmp_path / "2026-07-22.yaml").write_text(yaml.safe_dump(doc))
+    (tmp_path / "2026-07-22.json").write_text(json.dumps(doc))
 
 
 class TestHuntByte:
@@ -407,7 +408,7 @@ class TestOutputHygiene:
                 {"date": "2026-07-22", "vehicle_states": ["driving"], "captures": caps + refs}
             ]
         }
-        (tmp_path / "2026-07-22.yaml").write_text(yaml.safe_dump(doc))
+        (tmp_path / "2026-07-22.json").write_text(json.dumps(doc))
         loaded = load_signal_captures([("AAF", "2181"), ("ESC", "22C101")], captures_dir=tmp_path)
         from canlib.align import extract_series
 

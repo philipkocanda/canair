@@ -10,14 +10,19 @@ flags payloads that aren't valid UDS byte strings (error strings, free text,
 mixed hex+ASCII).
 """
 
+import json
 import textwrap
+
+import yaml
 
 from canlib.commands.validate import _capture_echo_warnings, _capture_nonhex_warnings
 
 
 def _write(tmp_path, body: str):
-    p = tmp_path / "2026-07-19.yaml"
-    p.write_text(textwrap.dedent(body))
+    # Test bodies stay readable YAML; capture files on disk are JSON, so parse
+    # the body and dump it as JSON (matching the JSON capture store).
+    p = tmp_path / "2026-07-19.json"
+    p.write_text(json.dumps(yaml.safe_load(textwrap.dedent(body))))
     return p
 
 

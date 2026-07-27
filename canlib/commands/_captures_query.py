@@ -16,7 +16,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from canlib import yaml_io
+from canlib import capture_io
 from canlib.capture_dates import entry_datetime
 
 # ANSI color helpers (shared across the captures command family).
@@ -139,11 +139,9 @@ def load_all_captures(captures_dir: Path | None = None) -> list[dict]:
         rx_index = {}
 
     entries = []
-    for fpath in sorted(captures_dir.glob("*.yaml")):
-        if fpath.name.startswith(("SCHEMA", "_")):
-            continue
-        with open(fpath) as f:
-            data = yaml_io.safe_load(f)
+    capture_io.ensure_migrated(captures_dir)
+    for fpath in capture_io.iter_capture_files(captures_dir):
+        data = capture_io.load_capture_file(fpath)
         if not data or "sessions" not in data:
             continue
         for s_idx, session in enumerate(data["sessions"]):

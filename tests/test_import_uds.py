@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import json
 
 import pytest
-import yaml
 
 from canlib.captures import build_manual_session
 from canlib.commands.import_uds import _build_capture, _parse_spec, run
@@ -110,7 +110,7 @@ class TestRun:
             )
         )
         assert rc == 0
-        data = yaml.safe_load((tmp_path / "2026-07-25.yaml").read_text())
+        data = json.loads((tmp_path / "2026-07-25.json").read_text())
         sess = data["sessions"][0]
         assert sess["label"] == "Odometer"
         assert sess["vehicle_states"] == ["acc2"]
@@ -132,11 +132,11 @@ class TestRun:
             )
         )
         assert rc == 0
-        data = yaml.safe_load((tmp_path / "2026-01-01.yaml").read_text())
+        data = json.loads((tmp_path / "2026-01-01.json").read_text())
         assert len(data["sessions"]) == 1
         assert len(data["sessions"][0]["captures"]) == 2
 
     def test_unknown_ecu_returns_error_code(self, tmp_path):
         rc = run(_args(spec=["NOPE:2101=6101"], label="x", dir=tmp_path))
         assert rc == 2
-        assert not list(tmp_path.glob("*.yaml"))  # nothing written
+        assert not list(tmp_path.glob("*.json"))  # nothing written

@@ -1,8 +1,7 @@
 """Tests for `canair correlate` cross-ECU mirror finding (T1.3)."""
 
 import argparse
-
-import yaml
+import json
 
 from canlib.commands import correlate
 
@@ -35,7 +34,7 @@ def _write(tmp_path):
             }
         ]
     }
-    (tmp_path / "2026-07-24.yaml").write_text(yaml.safe_dump(doc))
+    (tmp_path / "2026-07-24.json").write_text(json.dumps(doc))
 
 
 def _run(tmp_path, monkeypatch, argv):
@@ -96,7 +95,7 @@ def _write_ramp(tmp_path):
             {"ecu": "IGPM", "pid": "22BC03", "payload": f"62BC03FDEE3C73{v:02X}0000", "time": t}
         )
     doc = {"sessions": [{"date": "2026-07-24", "vehicle_states": ["ready"], "captures": caps}]}
-    (tmp_path / "2026-07-24.yaml").write_text(yaml.safe_dump(doc))
+    (tmp_path / "2026-07-24.json").write_text(json.dumps(doc))
 
 
 class TestAgainstFile:
@@ -163,8 +162,8 @@ class TestControl:
             }
             for i in range(8)
         ]
-        (tmp_path / "2026-07-24.yaml").write_text(
-            yaml.safe_dump({"sessions": [{"date": "2026-07-24", "captures": caps}]})
+        (tmp_path / "2026-07-24.json").write_text(
+            json.dumps({"sessions": [{"date": "2026-07-24", "captures": caps}]})
         )
         x = tmp_path / "ref.csv"
         x.write_text("".join(f"2026-07-24 09:00:0{i},{z[i] + w[i]}\n" for i in range(8)))

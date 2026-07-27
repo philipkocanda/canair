@@ -197,6 +197,7 @@ def main(argv: list[str] | None = None) -> int:
     if should_offer(args, seeded=seeded):
         run_first_run_setup(args)
 
+    from canlib.capture_io import LegacyCaptureError
     from canlib.profile import ProfileError, set_active
 
     # Resolve the active vehicle profile before dispatching.
@@ -225,7 +226,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         result = func(args)
-    except ProfileError as e:
+    except (ProfileError, LegacyCaptureError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
     if check_updates:

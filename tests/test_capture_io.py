@@ -71,3 +71,57 @@ def test_load_capture_file_rejects_nonjson(tmp_path):
     p.write_text("not: json: at all")
     with pytest.raises(json.JSONDecodeError):
         capture_io.load_capture_file(p)
+
+
+class TestEnsureMigrated:
+    def test_ok_when_only_json(self, tmp_path):
+        (tmp_path / "2026-01-01.json").write_text("{}")
+        capture_io.ensure_migrated(tmp_path)  # no raise
+
+    def test_ok_when_empty(self, tmp_path):
+        capture_io.ensure_migrated(tmp_path)  # no raise
+
+    def test_raises_on_legacy_yaml(self, tmp_path):
+        (tmp_path / "2026-01-01.yaml").write_text("sessions: []\n")
+        with pytest.raises(capture_io.LegacyCaptureError, match="captures migrate"):
+            capture_io.ensure_migrated(tmp_path)
+
+    def test_ignores_schema_yaml_doc(self, tmp_path):
+        (tmp_path / "SCHEMA.yaml").write_text("# doc\n")
+        capture_io.ensure_migrated(tmp_path)  # SCHEMA is a doc, not a capture file
+
+
+def test_load_all_captures_fails_fast_on_legacy_yaml(tmp_path):
+    # The bulk reader raises the actionable error rather than silently skipping.
+    from canlib.commands._captures_query import load_all_captures
+
+    (tmp_path / "2026-01-01.yaml").write_text("sessions: []\n")
+    with pytest.raises(capture_io.LegacyCaptureError):
+        load_all_captures(tmp_path)
+
+
+def test_migrate_then_load_all_captures_roundtrip(tmp_path):
+    # End-to-end: a YAML fixture migrated to JSON is read identically by the
+    # production bulk loader (the Stage-2 reader path).
+    import yaml
+
+    from canlib.capture_migrate import migrate_dir
+    from canlib.commands._captures_query import load_all_captures
+
+    doc = {
+        "sessions": [
+            {
+                "date": "2026-01-01",
+                "label": "x",
+                "captures": [
+                    {"ecu": "0x7EC", "pid": "2101", "payload": "6101AA", "time": "09:00:00"},
+                    {"ecu": "0x7EC", "pid": "2102", "payload": "6102BB", "time": "09:00:01"},
+                ],
+            }
+        ]
+    }
+    (tmp_path / "2026-01-01.yaml").write_text(yaml.safe_dump(doc))
+    migrate_dir(tmp_path)
+    entries = load_all_captures(tmp_path)
+    assert [e["pid"] for e in entries] == ["2101", "2102"]
+    assert [e["payload"] for e in entries] == ["6101AA", "6102BB"]

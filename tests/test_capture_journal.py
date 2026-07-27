@@ -2,8 +2,6 @@
 
 import json
 
-import yaml
-
 from canlib.capture_journal import (
     CaptureJournal,
     build_session_from_records,
@@ -14,9 +12,9 @@ from canlib.capture_journal import (
 
 
 def _read_capture_file(captures_dir):
-    files = list(captures_dir.glob("*.yaml"))
+    files = list(captures_dir.glob("*.json"))
     assert len(files) == 1
-    return yaml.safe_load(files[0].read_text())
+    return json.loads(files[0].read_text())
 
 
 class TestJournalBasics:
@@ -70,7 +68,7 @@ class TestReconcile:
         written = j.reconcile()
         assert written is not None
         assert not j.path.exists()  # journal removed after reconcile
-        data = yaml.safe_load(written.read_text())
+        data = json.loads(written.read_text())
         sess = data["sessions"][0]
         assert sess["label"] == "Live ref"
         assert sess["vehicle_states"] == ["ready", "parked"]
@@ -82,7 +80,7 @@ class TestReconcile:
         j.append("0x7EC", "2101", "6101")
         j.update_meta(label="edited", vehicle_states=["ready"], notes="final")
         written = j.reconcile()
-        sess = yaml.safe_load(written.read_text())["sessions"][0]
+        sess = json.loads(written.read_text())["sessions"][0]
         assert sess["label"] == "edited"
         assert sess["vehicle_states"] == ["ready"]
         assert sess["notes"] == "final"
@@ -93,7 +91,7 @@ class TestReconcile:
         j.append("0x7EC", "2101", "6101AA")  # dup
         j.append("0x7EC", "2101", "6101BB")
         written = j.reconcile()
-        sess = yaml.safe_load(written.read_text())["sessions"][0]
+        sess = json.loads(written.read_text())["sessions"][0]
         assert [c["payload"] for c in sess["captures"]] == ["6101AA", "6101BB"]
         # keep_mode must be persisted so later analysis knows return-to-previous
         # states may be absent (only rising-edge transitions were stored).
@@ -104,7 +102,7 @@ class TestReconcile:
         j.append("0x7EC", "2101", "6101AA")
         j.append("0x7EC", "2101", "6101AA")
         written = j.reconcile()
-        sess = yaml.safe_load(written.read_text())["sessions"][0]
+        sess = json.loads(written.read_text())["sessions"][0]
         assert len(sess["captures"]) == 2
         # "all" is not a dedup mode — don't clutter the session with it.
         assert "keep_mode" not in sess
@@ -125,7 +123,7 @@ class TestReconcile:
         }
         j.append_session(session)
         written = j.reconcile()
-        sess = yaml.safe_load(written.read_text())["sessions"][0]
+        sess = json.loads(written.read_text())["sessions"][0]
         assert sess["label"] == "Scan"
         assert sess["vehicle_states"] == ["ready"]
         assert sess["captures"][0]["pid"] == "scan 21 01-FF"
@@ -143,12 +141,12 @@ class TestMidnightSplit:
         assert written is not None
         assert not j.path.exists()
 
-        f22 = tmp_path / "2026-07-22.yaml"
-        f23 = tmp_path / "2026-07-23.yaml"
+        f22 = tmp_path / "2026-07-22.json"
+        f23 = tmp_path / "2026-07-23.json"
         assert f22.exists() and f23.exists()
 
-        s22 = yaml.safe_load(f22.read_text())["sessions"][0]
-        s23 = yaml.safe_load(f23.read_text())["sessions"][0]
+        s22 = json.loads(f22.read_text())["sessions"][0]
+        s23 = json.loads(f23.read_text())["sessions"][0]
         assert s22["date"] == "2026-07-22"
         assert s23["date"] == "2026-07-23"
         assert s22["captures"][0]["payload"] == "6101AA"
@@ -163,8 +161,8 @@ class TestMidnightSplit:
         j._close_fh()
         written = recover(j.path)
         assert written is not None
-        assert written.name == "2020-01-01.yaml"
-        sess = yaml.safe_load(written.read_text())["sessions"][0]
+        assert written.name == "2020-01-01.json"
+        sess = json.loads(written.read_text())["sessions"][0]
         assert sess["date"] == "2020-01-01"
         assert "[recovered]" in sess["notes"]
 
@@ -186,7 +184,7 @@ class TestContextManager:
         except RuntimeError:
             pass
         assert path.exists()  # preserved for recovery
-        assert not list(tmp_path.glob("*.yaml"))  # not saved yet
+        assert not list(tmp_path.glob("*.json"))  # not saved yet
 
 
 class TestTruncatedLine:
@@ -198,7 +196,7 @@ class TestTruncatedLine:
         with open(j.path, "a") as f:
             f.write('{"type": "capture", "ecu": "0x7E')
         written = reconcile_file(j.path)
-        caps = yaml.safe_load(written.read_text())["sessions"][0]["captures"]
+        caps = json.loads(written.read_text())["sessions"][0]["captures"]
         assert [c["payload"] for c in caps] == ["6101AA"]
 
 
@@ -218,7 +216,7 @@ class TestOrphanRecovery:
         written = recover(j.path)
         assert written is not None
         assert not j.path.exists()
-        sess = yaml.safe_load(written.read_text())["sessions"][0]
+        sess = json.loads(written.read_text())["sessions"][0]
         assert "[recovered]" in sess["notes"]
         assert "orig" in sess["notes"]
 
@@ -228,7 +226,7 @@ class TestOrphanRecovery:
         j._close_fh()
         assert recover(j.path, discard=True) is None
         assert not j.path.exists()
-        assert not list(tmp_path.glob("*.yaml"))
+        assert not list(tmp_path.glob("*.json"))
 
 
 class TestBuildSessionFromRecords:
@@ -310,7 +308,7 @@ class TestRecoverCommand:
         assert rc == 0
         out = capsys.readouterr().out
         assert "Recovered 1 session" in out
-        assert list(tmp_path.glob("*.yaml"))
+        assert list(tmp_path.glob("*.json"))
         assert list_orphans(tmp_path) == []
 
     def test_cmd_recover_discard(self, tmp_path, capsys):
@@ -323,7 +321,7 @@ class TestRecoverCommand:
         assert rc == 0
         assert "discarded" in capsys.readouterr().out
         assert list_orphans(tmp_path) == []
-        assert not list(tmp_path.glob("*.yaml"))
+        assert not list(tmp_path.glob("*.json"))
 
     def test_orphan_notice(self, tmp_path, capsys):
         from canlib.commands.captures import orphan_notice

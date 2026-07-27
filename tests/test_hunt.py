@@ -3,8 +3,6 @@
 import argparse
 import json
 
-import yaml
-
 from canlib.commands import hunt
 
 
@@ -16,7 +14,7 @@ def _write_ramp(tmp_path):
         v = 10 + i * 10  # 10,20,30,40,50 — ≥3 distinct
         caps.append({"ecu": "AAF", "pid": "2181", "payload": f"6181{v:02X}0000", "time": t})
     doc = {"sessions": [{"date": "2026-07-24", "vehicle_states": ["driving"], "captures": caps}]}
-    (tmp_path / "2026-07-24.yaml").write_text(yaml.safe_dump(doc))
+    (tmp_path / "2026-07-24.json").write_text(json.dumps(doc))
 
 
 def _run(tmp_path, monkeypatch, argv):
@@ -96,7 +94,7 @@ class TestHuntPhysical:
         doc = {
             "sessions": [{"date": "2026-07-24", "vehicle_states": ["charging"], "captures": caps}]
         }
-        (tmp_path / "2026-07-24.yaml").write_text(yaml.safe_dump(doc))
+        (tmp_path / "2026-07-24.json").write_text(json.dumps(doc))
 
     def test_physical_flags_mains_band(self, tmp_path, monkeypatch, capsys):
         self._write_voltage(tmp_path)
@@ -148,7 +146,7 @@ class TestHuntControlBehaviour:
             payload = f"6101{z[i]:02X}000000{w[i]:02X}00"
             caps.append({"ecu": "OBC", "pid": "2101", "payload": payload, "time": f"09:00:0{i}"})
         doc = {"sessions": [{"date": "2026-07-24", "captures": caps}]}
-        (tmp_path / "2026-07-24.yaml").write_text(yaml.safe_dump(doc))
+        (tmp_path / "2026-07-24.json").write_text(json.dumps(doc))
         x_csv = tmp_path / "ref.csv"
         x_csv.write_text("".join(f"2026-07-24 09:00:0{i},{z[i] + w[i]}\n" for i in range(8)))
         z_csv = tmp_path / "ctrl.csv"
