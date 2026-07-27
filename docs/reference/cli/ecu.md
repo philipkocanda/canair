@@ -23,6 +23,7 @@ options:
   canair ecu BMS             # details + stats for the BMS
   canair ecu MDPS            # aliases resolve too (MDPS -> EPS)
   canair ecu 0x7E4           # hex TX id also works
+  canair ecu 0x7EC           # hex RX id resolves too (RX = TX + 8)
   canair ecu BMS --json      # machine-readable
   canair ecu --json          # all ECUs as JSON
 
@@ -51,7 +52,7 @@ usage: canair ecu show [-h] [--json] [ecu]
 List ECUs, or show one ECU's details and PID stats.
 
 positional arguments:
-  ecu         ECU name, alias, or hex TX id (omit to list all)
+  ecu         ECU name, alias, or hex TX/RX id (omit to list all)
 
 options:
   -h, --help  show this help message and exit
@@ -61,6 +62,7 @@ options:
   canair ecu BMS             # details + stats for the BMS
   canair ecu MDPS            # aliases resolve too (MDPS -> EPS)
   canair ecu 0x7E4           # hex TX id also works
+  canair ecu 0x7EC           # hex RX id resolves too (RX = TX + 8)
   canair ecu BMS --json      # machine-readable
   canair ecu --json          # all ECUs as JSON
 

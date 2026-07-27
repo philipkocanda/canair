@@ -296,10 +296,16 @@ def rx_from_name(name: str, name_index: dict[str, int] | None = None) -> str | N
     return rx_addr_str(tx_id) if tx_id is not None else None
 
 
-def resolve_tx(value, name_index: dict[str, int] | None = None) -> int | None:
-    """Resolve an ECU name/alias or hex TX ID to a TX id int, or None.
+def resolve_tx(
+    value,
+    name_index: dict[str, int] | None = None,
+    ecus: dict | None = None,
+) -> int | None:
+    """Resolve an ECU name/alias or hex TX/RX ID to a TX id int, or None.
 
-    Accepts an ECU name/alias ('BMS', 'igpm') or a hex TX id ('7E4', '0x770').
+    Accepts an ECU name/alias ('BMS', 'igpm'), a hex TX id ('7E4', '0x770'),
+    or a hex RX id ('0x7EA' resolves to VCU's TX 0x7E2, since RX = TX + 8).
+    A known TX id always wins over an RX interpretation of the same value.
     """
     if value is None:
         return None
@@ -314,9 +320,16 @@ def resolve_tx(value, name_index: dict[str, int] | None = None) -> int | None:
     if tx_id is not None:
         return tx_id
     try:
-        return int(s.removeprefix("0x").removeprefix("0X"), 16)
+        parsed = int(s.removeprefix("0x").removeprefix("0X"), 16)
     except ValueError:
         return None
+    if ecus is None:
+        ecus = load_ecus()
+    # A hex value is a TX id if it's a registered ECU; otherwise fall back to
+    # interpreting it as an RX address (RX = TX + 8) and resolving to its TX id.
+    if parsed not in ecus and (parsed - 8) in ecus:
+        return parsed - 8
+    return parsed
 
 
 def ecu_display(tx_id: int, ecus: dict | None = None) -> str:

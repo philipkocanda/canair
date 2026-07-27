@@ -2,7 +2,7 @@
 
 With no argument this prints a plain, pipeable list of every ECU in the active
 profile's ``ecus/`` files (one name per line). Given an ECU name, alias,
-or hex TX id it prints that ECU's identity fields plus reverse-engineering stats
+or hex TX/RX id it prints that ECU's identity fields plus reverse-engineering stats
 (PIDs, parameters, verified count, captures, research backlog, IO-control,
 routines) and a per-PID breakdown.
 
@@ -11,6 +11,7 @@ Examples:
   canair ecu BMS             # details + stats for the BMS
   canair ecu MDPS            # aliases resolve too (MDPS -> EPS)
   canair ecu 0x7E4           # hex TX id also works
+  canair ecu 0x7EC           # hex RX id resolves too (RX = TX + 8)
   canair ecu BMS --json      # machine-readable
   canair ecu --json          # all ECUs as JSON
 
@@ -429,7 +430,9 @@ def _add_show_parser(kinds) -> argparse.ArgumentParser:
         epilog=__doc__.split("Examples:")[1] if "Examples:" in __doc__ else "",
     )
     parser.add_argument(
-        "ecu", nargs="?", help="ECU name, alias, or hex TX id (omit to list all)"
+        "ecu",
+        nargs="?",
+        help="ECU name, alias, or hex TX/RX id (omit to list all)",
     ).completer = _ecu_completer
     parser.add_argument("--json", action="store_true", help="Output as JSON")
     parser.set_defaults(func=run)

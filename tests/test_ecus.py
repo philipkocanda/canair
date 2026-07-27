@@ -217,8 +217,22 @@ class TestResolveTx:
     def test_int_passthrough(self):
         assert resolve_tx(0x7E4) == 0x7E4
 
+    def test_rx_addr_resolves_to_tx(self):
+        # VCU: TX 0x7E2, RX 0x7EA (= TX + 8) — the RX addr resolves to the TX id.
+        assert resolve_tx("0x7EA") == 0x7E2
+        assert resolve_tx("7EA") == 0x7E2
+
+    def test_known_tx_wins_over_rx_interpretation(self):
+        # BMS TX 0x7E4 is itself a registered TX; it must resolve to itself, not
+        # be reinterpreted as some other ECU's RX.
+        assert resolve_tx("0x7E4") == 0x7E4
+
     def test_unknown_name_is_none(self):
         assert resolve_tx("NOPE") is None
+
+    def test_unknown_hex_passthrough(self):
+        # An unregistered hex that is neither a TX nor an RX is returned as-is.
+        assert resolve_tx("0x123") == 0x123
 
     def test_empty_is_none(self):
         assert resolve_tx("") is None
