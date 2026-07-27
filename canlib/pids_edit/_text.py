@@ -1,0 +1,477 @@
+"""Shared primitives for surgical in-place editing of per-ECU PID YAML files.
+
+These helpers locate ECU/DID/param blocks and mutate a single field without
+rewriting the whole file — preserving comments, anchors, block-scalar styles,
+and hand-curated ordering that a ``yaml.safe_dump`` round-trip would destroy.
+The domain editors (``hits`` for scanner sections, ``params`` for the
+hand-authored pids:/research:/identity: structures) build on these.
+
+Assumptions about file layout (all current ecus/*.yaml files conform):
+
+    ECU:                           <- 0-space indent
+      tx_id: 0x770
+      iocontrol:                   <- 2-space indent
+        DID:                       <- 4-space indent
+          label: "..."             <- 6-space indent
+          verified: true
+          notes: "..."
+          notes: >                 <- block-scalar form
+            multi-line text        <- 8+-space indent
+
+The matchers below are intentionally anchored on indentation to avoid
+accidentally editing similarly-named keys elsewhere in the file.
+"""
+
+from __future__ import annotations
+
+import datetime
+import re
+from pathlib import Path
+
+
+def _resolve_pids_dir(pids_dir: Path | None) -> Path:
+    """Resolve the per-ECU definitions directory, defaulting to the active profile's."""
+    if pids_dir is None:
+        from ..profile import active
+
+        return active().ecus_dir
+    return Path(pids_dir)
+
+
+def _invalidate() -> None:
+    """Drop the memoized ECU-definition load after a file write."""
+    from ..pids import clear_cache
+
+    clear_cache()
+
+
+class PidsEditError(Exception):
+    """Raised when a DID or file cannot be located / edited safely."""
+
+
+# ── File discovery ───────────────────────────────────────────────────────────
+
+
+def find_ecu_file(ecu_name: str, pids_dir: Path | None = None) -> Path:
+    """Return the pids/<ecu>.yaml file that defines ``ecu_name``.
+
+    Scans every non-underscore YAML in ``pids_dir`` for a top-level
+    ``<ecu_name>:`` key (0-space indent, case-insensitive on the name).
+    """
+    pids_dir = _resolve_pids_dir(pids_dir)
+    target = ecu_name.strip().upper()
+    # Match a top-level key like "IGPM:" — no leading whitespace.
+    pattern = re.compile(r"^([A-Za-z][A-Za-z0-9_\-]*):\s*$", re.MULTILINE)
+    for fpath in sorted(pids_dir.glob("*.yaml")):
+        if fpath.name.startswith("_"):
+            continue
+        text = fpath.read_text()
+        for m in pattern.finditer(text):
+            if m.group(1).upper() == target:
+                return fpath
+    raise PidsEditError(f"ECU {ecu_name!r} not found in any ecus/*.yaml")
+
+
+# ── DID block location ───────────────────────────────────────────────────────
+
+
+def _find_did_block(text: str, did: str) -> tuple[int, int]:
+    """Find the character range of a DID block in the file.
+
+    Returns (start, end) offsets spanning from the DID key line up to (but
+    not including) the next sibling line at the same or lower indent.
+    """
+    did_u = did.strip().upper()
+    # Match "    DID:" where the indent must be exactly 4 spaces (DID lives
+    # under ECU.iocontrol at depth 2 blocks in).
+    start_re = re.compile(rf"^( {{4}}){re.escape(did_u)}:\s*$", re.MULTILINE)
+    m = start_re.search(text)
+    if not m:
+        raise PidsEditError(f"DID {did_u!r} not found (expected 4-space indent)")
+
+    start = m.start()
+    # Find end: next line that starts with <=4 spaces of content (sibling DID
+    # at same depth, or a new parent key at shallower indent). Blank lines
+    # don't count as boundaries.
+    end_re = re.compile(r"^( {0,4})[^\s#]", re.MULTILINE)
+    for m2 in end_re.finditer(text, pos=m.end()):
+        return start, m2.start()
+    return start, len(text)
+
+
+# ── Field reads (for diffing / initial values) ───────────────────────────────
+
+
+_FIELD_RE_CACHE: dict[str, re.Pattern] = {}
+
+
+def _field_line_re(field: str) -> re.Pattern:
+    """Regex that matches ``      field: <value>`` within a DID block."""
+    if field not in _FIELD_RE_CACHE:
+        _FIELD_RE_CACHE[field] = re.compile(
+            rf"^( {{6}}){re.escape(field)}:[ \t]*(.*)$",
+            re.MULTILINE,
+        )
+    return _FIELD_RE_CACHE[field]
+
+
+# ── Value formatting ─────────────────────────────────────────────────────────
+
+
+def _yaml_reinterprets(value: str) -> bool:
+    """True if YAML would parse the bare scalar as a non-string.
+
+    Bare scalars like ``220101`` (int), ``1.5`` (float), ``true`` (bool),
+    ``null`` or ``2026-04-15`` (date) round-trip to a non-``str`` type, which
+    breaks downstream string comparisons (e.g. a numeric research ``target``).
+    Such values must be quoted to stay strings.
+    """
+    import yaml
+
+    try:
+        return not isinstance(yaml.safe_load(value), str)
+    except yaml.YAMLError:
+        return True
+
+
+def _format_label(value: str) -> str:
+    """Render a label value as a YAML scalar line body."""
+    value = value.strip()
+    if not value:
+        return '""'
+    # Quote if it contains characters that are special at the start of a
+    # YAML scalar, or a ': ' sequence, or leading/trailing whitespace, or if a
+    # bare scalar would be re-parsed as a non-string (int/float/bool/null/date).
+    needs_quote = (
+        not value
+        or value[0] in "!&*[]{}|>%@`\"'#,"
+        or ": " in value
+        or " #" in value
+        or value != value.strip()
+        or _yaml_reinterprets(value)
+    )
+    if needs_quote:
+        return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    return value
+
+
+def _format_verified(value: bool) -> str:
+    return "true" if value else "false"
+
+
+def _format_notes_block(value: str, indent: str = "        ") -> list[str]:
+    """Render notes as a folded block-scalar: ``notes: >`` + indented lines.
+
+    Long lines are word-wrapped (default ~92 cols after the indent) so a note
+    passed as one long string — e.g. from ``pids upsert-param --notes`` or an
+    analysis ``--promote`` — lands as readable multi-line text instead of a single
+    overlong line. Because ``>`` is a *folded* scalar (consecutive non-blank lines
+    fold back to spaces), wrapping is value-preserving; blank lines are kept as
+    paragraph breaks.
+    """
+    import textwrap
+
+    width = max(20, 100 - len(indent))
+    out = ["      notes: >"]
+    for ln in value.strip("\n").splitlines() or [""]:
+        stripped = ln.rstrip()
+        if not stripped:
+            out.append("")  # paragraph break (folded scalar → newline)
+            continue
+        for piece in textwrap.wrap(
+            stripped, width=width, break_long_words=False, break_on_hyphens=False
+        ) or [""]:
+            out.append(f"{indent}{piece}")
+    return out
+
+
+# ── Block mutation ───────────────────────────────────────────────────────────
+
+
+def _replace_field_in_block(block: str, field: str, new_line_or_lines: str | list[str]) -> str:
+    """Return ``block`` with ``field:`` replaced, or the field added if missing.
+
+    ``new_line_or_lines`` is either a complete replacement line (no trailing
+    newline) or a list of full lines for multi-line values (notes).
+    """
+    if isinstance(new_line_or_lines, str):
+        replacement = new_line_or_lines
+        replacement_lines = [replacement]
+    else:
+        replacement_lines = new_line_or_lines
+        replacement = "\n".join(replacement_lines)
+
+    lines = block.splitlines()
+    out: list[str] = []
+    i = 0
+    replaced = False
+    while i < len(lines):
+        line = lines[i]
+        m = re.match(rf"^( {{6}}){re.escape(field)}:(.*)$", line)
+        if m and not replaced:
+            # Skip this line + any continuation lines (for block scalars the
+            # continuation is indented deeper than 6 spaces).
+            rest = m.group(2)
+            is_block = rest.strip() in (">", "|", ">-", "|-", ">+", "|+")
+            i += 1
+            if is_block:
+                while i < len(lines) and (lines[i] == "" or lines[i].startswith("       ")):
+                    # Stop when we hit a sibling field at 6-space indent.
+                    if re.match(r"^ {6}[A-Za-z_]", lines[i]):
+                        break
+                    i += 1
+            out.extend(replacement_lines)
+            replaced = True
+            continue
+        out.append(line)
+        i += 1
+
+    if not replaced:
+        # Append before the trailing blank lines of the block, if any.
+        # Find position just after the DID header line (first line).
+        # Simplest: append at end (strip trailing blanks), then re-add one.
+        while out and out[-1].strip() == "":
+            out.pop()
+        out.extend(replacement_lines)
+
+    # Preserve exact trailing whitespace (splitlines() + "\n".join drops the
+    # final newline/blank-line structure otherwise).
+    trailing = ""
+    i = len(block)
+    while i > 0 and block[i - 1] == "\n":
+        trailing += "\n"
+        i -= 1
+    result = "\n".join(out)
+    if not result.endswith("\n") and trailing:
+        result += trailing
+    elif trailing and not result.endswith(trailing):
+        # Top up to match original trailing newlines.
+        stripped = result.rstrip("\n")
+        result = stripped + trailing
+    return result
+
+
+def _find_ecu_block(text: str, ecu_name: str) -> tuple[int, int]:
+    """Return (start, end) of the ECU's top-level block in ``text``.
+
+    start = offset of the ``ECU:`` line.
+    end   = offset just before the next top-level sibling (or EOF).
+    """
+    target = ecu_name.strip().upper()
+    # Top-level ECU key — 0-space indent
+    start_re = re.compile(r"^([A-Za-z][A-Za-z0-9_\-]*):\s*$", re.MULTILINE)
+    ecu_start = None
+    for m in start_re.finditer(text):
+        if m.group(1).upper() == target:
+            ecu_start = m.start()
+            break
+    if ecu_start is None:
+        raise PidsEditError(f"ECU {ecu_name!r} not found at top level")
+
+    # Next top-level sibling (not indented, not a comment-only line)
+    # Start the search after the ECU's header line, not mid-token.
+    header_end = text.find("\n", ecu_start)
+    if header_end == -1:
+        return ecu_start, len(text)
+    search_from = header_end + 1
+    after = text[search_from:]
+    sibling_re = re.compile(r"^[A-Za-z][A-Za-z0-9_\-]*:\s*$", re.MULTILINE)
+    m2 = sibling_re.search(after)
+    if m2:
+        return ecu_start, search_from + m2.start()
+    return ecu_start, len(text)
+
+
+def _keyed_block(text: str, name: str, indent: int, win_start: int, win_end: int):
+    """Locate ``<indent spaces><name>:`` within ``[win_start, win_end)``.
+
+    Returns ``(hdr_start, line_end, body_start, body_end, inline)`` or ``None``:
+      - ``hdr_start``  offset of the key line
+      - ``line_end``   offset of the newline ending the key line
+      - ``body_start`` offset of the first child line
+      - ``body_end``   offset just before the next same-or-shallower sibling
+      - ``inline``     any text after ``name:`` on the header line (e.g. ``{}``)
+    """
+    pat = re.compile(rf"^ {{{indent}}}{re.escape(name)}:[ \t]*(.*)$", re.MULTILINE)
+    m = pat.search(text, win_start, win_end)
+    if not m:
+        return None
+    inline = m.group(1).strip()
+    line_end = text.find("\n", m.start())
+    if line_end == -1:
+        line_end = win_end
+    body_start = min(line_end + 1, win_end)
+    tail = re.compile(rf"^ {{0,{indent}}}[^\s#]", re.MULTILINE).search(text, body_start, win_end)
+    body_end = tail.start() if tail else win_end
+    return (m.start(), line_end, body_start, body_end, inline)
+
+
+def _format_scalar_field(indent: str, key: str, value) -> str:
+    """Render one ``key: value`` scalar line with schema-appropriate quoting."""
+    if isinstance(value, bool):
+        return f"{indent}{key}: {'true' if value else 'false'}"
+    if key in ("min", "max"):
+        return f'{indent}{key}: "{value}"'  # schema convention: quoted strings
+    return f"{indent}{key}: {_format_label(str(value))}"
+
+
+def _format_block_scalar(indent: str, key: str, value: str) -> list[str]:
+    """Render ``key: >`` followed by the folded body, indented two deeper."""
+    body_indent = indent + "  "
+    out = [f"{indent}{key}: >"]
+    for ln in str(value).strip("\n").splitlines() or [""]:
+        out.append(f"{body_indent}{ln.rstrip()}")
+    return out
+
+
+def _format_list_field(indent: str, key: str, values) -> list[str]:
+    """Render a block list ``key:`` / ``  - item`` (empty -> ``key: []``)."""
+    if not values:
+        return [f"{indent}{key}: []"]
+    out = [f"{indent}{key}:"]
+    for item in values:
+        out.append(f"{indent}  - {_format_label(str(item))}")
+    return out
+
+
+def _format_map_field(indent: str, key: str, mapping: dict) -> list[str]:
+    """Render a nested ``key:`` mapping (``values:``/``bits:`` typed-decode maps).
+
+    Keys are emitted as integers (sorted numerically) and labels quoted, e.g.::
+
+        values:
+          40: "fan1"
+          45: "fanMAX"
+    """
+    if not mapping:
+        return [f"{indent}{key}: {{}}"]
+    out = [f"{indent}{key}:"]
+    try:
+        items = sorted(mapping.items(), key=lambda kv: int(kv[0]))
+    except (ValueError, TypeError):
+        items = list(mapping.items())
+    for k, v in items:
+        out.append(f"{indent}  {int(k)}: {_format_label(str(v))}")
+    return out
+
+
+def _reparse_or_raise(fpath: Path) -> dict:
+    """Re-read the file as YAML; raise ``PidsEditError`` if it no longer parses."""
+    import yaml
+
+    try:
+        data = yaml.safe_load(fpath.read_text())
+    except yaml.YAMLError as e:
+        raise PidsEditError(f"edit produced invalid YAML: {e}") from e
+    if not isinstance(data, dict):
+        raise PidsEditError("edit produced a non-mapping top-level document")
+    return data
+
+
+def _safe_write(fpath: Path, original: str, new_text: str, ecu: str, checker) -> None:
+    """Write ``new_text``, re-parse, and run ``checker(data[ecu])``.
+
+    Restores ``original`` and raises ``PidsEditError`` if the result is invalid
+    YAML or ``checker`` fails — so a broken surgical edit never persists.
+    """
+    fpath.write_text(new_text)
+    _invalidate()
+    try:
+        data = _reparse_or_raise(fpath)
+        ecu_def = data.get(ecu)
+        if not isinstance(ecu_def, dict):
+            raise PidsEditError(f"ECU {ecu!r} missing after edit")
+        checker(ecu_def)
+    except PidsEditError:
+        fpath.write_text(original)
+        _invalidate()
+        raise
+    except Exception as e:  # pragma: no cover - defensive
+        fpath.write_text(original)
+        _invalidate()
+        raise PidsEditError(f"edit failed post-check, reverted: {e}") from e
+
+
+def _remove_field_line(block: str, field: str, indent: int) -> str:
+    """Drop a scalar ``field:`` line at ``indent`` spaces from ``block``."""
+    field_re = re.compile(rf"^ {{{indent}}}{re.escape(field)}:")
+    return "".join(ln for ln in block.splitlines(keepends=True) if not field_re.match(ln))
+
+
+def _insert_lines(text: str, region_start: int, region_end: int, lines: list[str]) -> str:
+    """Insert ``lines`` at the end of ``[region_start, region_end)``.
+
+    Backs up over trailing blank lines so the insertion sits adjacent to the
+    last real content line rather than after a gap.
+    """
+    ins = region_end
+    while ins > region_start and text[ins - 1] == "\n" and (ins < 2 or text[ins - 2] == "\n"):
+        ins -= 1
+    payload = "".join(ln + "\n" for ln in lines)
+    return text[:ins] + payload + text[ins:]
+
+
+def _is_list_or_map_lines(lines: list[str]) -> bool:
+    """True when a rendered field is a multi-line block (list/map) rather than a
+    single ``key: value`` scalar — i.e. its header line ends with ``:`` (no
+    inline value)."""
+    if not lines:
+        return False
+    head = lines[0].rstrip()
+    return head.endswith(":") and len(lines) > 1
+
+
+def _replace_field_in_block_at(block: str, field: str, new_line_or_lines, indent: int) -> str:
+    """Like ``_replace_field_in_block`` but for an arbitrary field indent.
+
+    Replaces ``field:`` (and any block-scalar or nested list/map continuation)
+    at ``indent`` spaces within ``block``; appends the field if absent.
+    """
+    replacement_lines = (
+        [new_line_or_lines] if isinstance(new_line_or_lines, str) else list(new_line_or_lines)
+    )
+    lines = block.splitlines()
+    out: list[str] = []
+    i = 0
+    replaced = False
+    field_re = re.compile(rf"^ {{{indent}}}{re.escape(field)}:(.*)$")
+    while i < len(lines):
+        line = lines[i]
+        m = field_re.match(line)
+        if m and not replaced:
+            rest = m.group(1).strip()
+            i += 1
+            if rest in (">", "|", ">-", "|-", ">+", "|+"):
+                # Skip block-scalar continuation (indented deeper than field).
+                while i < len(lines) and (
+                    lines[i] == "" or lines[i].startswith(" " * (indent + 1))
+                ):
+                    if re.match(rf"^ {{{indent}}}[A-Za-z_]", lines[i]):
+                        break
+                    i += 1
+            elif rest == "" and _is_list_or_map_lines(replacement_lines):
+                # The field is a nested block (list/map, e.g. values:/bits:) with
+                # an empty header rest — skip its deeper-indented body so the
+                # whole old block is replaced, not just the header line.
+                while i < len(lines) and (
+                    lines[i] == "" or lines[i].startswith(" " * (indent + 1))
+                ):
+                    i += 1
+            out.extend(replacement_lines)
+            replaced = True
+            continue
+        out.append(line)
+        i += 1
+    if not replaced:
+        while out and out[-1].strip() == "":
+            out.pop()
+        out.extend(replacement_lines)
+    result = "\n".join(out)
+    if block.endswith("\n") and not result.endswith("\n"):
+        result += "\n"
+    return result
+
+
+def _today() -> str:
+    """Today's date as ``YYYY-MM-DD`` (local time) for research timestamps."""
+    return datetime.date.today().isoformat()

@@ -523,7 +523,6 @@ class TestHuntPromote:
         """Real guarded write into a temp ecus/ dir: schema-validated + committed."""
         import textwrap
 
-        import canlib.pids_edit as pe
         from canlib.commands import hunt, pids
 
         (tmp_path / "test.yaml").write_text(
@@ -541,7 +540,7 @@ class TestHuntPromote:
         f = tmp_path / "test.yaml"
         # Point the guard + editor at our temp file/dir.
         monkeypatch.setattr(pids, "find_ecu_file", lambda ecu, pids_dir=None: f)
-        monkeypatch.setattr(pe, "_resolve_pids_dir", lambda d: tmp_path)
+        monkeypatch.setattr("canlib.pids_edit._text._resolve_pids_dir", lambda d: tmp_path)
 
         rc = hunt._promote("AAF_SPEED", "AAF", "2181", [self._hit(expr="B12")], "ESC:22C101:X")
         assert rc == 0
@@ -569,7 +568,6 @@ class TestCorrelatePromote:
     def test_promote_picks_first_raw_byte(self, tmp_path, monkeypatch):
         import textwrap
 
-        import canlib.pids_edit as pe
         from canlib.commands import correlate, pids
 
         (tmp_path / "aaf.yaml").write_text(
@@ -586,7 +584,7 @@ class TestCorrelatePromote:
         )
         f = tmp_path / "aaf.yaml"
         monkeypatch.setattr(pids, "find_ecu_file", lambda ecu, pids_dir=None: f)
-        monkeypatch.setattr(pe, "_resolve_pids_dir", lambda d: tmp_path)
+        monkeypatch.setattr("canlib.pids_edit._text._resolve_pids_dir", lambda d: tmp_path)
 
         rows, series, ref = self._rows_and_series()
         rc = correlate._promote_top_byte(
