@@ -40,14 +40,20 @@ version. When one is available it prints a one-line notice with a link to the
 [changelog](https://github.com/philipkocanda/canair/blob/main/CHANGELOG.md) and
 how to upgrade.
 
-Upgrade with a single command — it fast-forwards your clone and reinstalls the
-CLI from it (keeping the git-clone install intact):
+Upgrade with a single command — it checks out the latest release tag in your
+clone and reinstalls the CLI from it (keeping the git-clone install intact):
 
 ```bash
-canair update            # check, confirm, then git pull + uv tool install . --reinstall
+canair update            # check, confirm, then checkout <tag> + uv tool install . --reinstall
 canair update --check    # report current/latest + changelog only, change nothing
 canair update --yes      # skip the confirmation prompt (automation)
 ```
+
+Because it checks out the advertised **release tag** (rather than fast-forwarding
+`main`), the installed code is exactly the released version — never unreleased
+commits sitting on the branch. If the latest release tag can't be determined
+(GitHub unreachable), `canair update` reports the offline state and makes no
+changes rather than guessing a version.
 
 If canair can't find your clone or `uv` (e.g. a different install method), it
 prints the exact manual commands instead. To silence the automatic check, set

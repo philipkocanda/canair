@@ -8,11 +8,15 @@ usage: canair update [-h] [--check] [-y] [--json]
 ``canair update`` — update the CLI from its git-clone install.
 
 canair is installed from a git clone (``git clone`` + ``uv tool install .``), so
-updating means: fast-forward the clone, then reinstall the tool from it. This
-command locates that source clone (via uv's tool receipt, falling back to the
-package's own repo root), reports the current vs latest released version with a
-changelog link, and — after confirmation — runs ``git pull --ff-only`` +
-``uv tool install <clone> --reinstall``.
+updating means: check out the latest **release tag** in the clone, then reinstall
+the tool from it. This command locates that source clone (via uv's tool receipt,
+falling back to the package's own repo root), reports the current vs latest
+released version with a changelog link, and — after confirmation — runs
+``git fetch --tags`` + ``git checkout <tag>`` + ``uv tool install <clone> --reinstall``.
+
+Checking out the advertised release tag (rather than fast-forwarding a branch to
+its HEAD) means the installed code is exactly the released version — never
+whatever unreleased commits happen to sit on ``main``.
 
 It never mutates anything without an interactive confirmation or ``--yes``, and
 degrades gracefully to printing manual instructions when it can't find a git
@@ -29,11 +33,11 @@ options:
   -h, --help  show this help message and exit
   --check     Only report the current/latest version and changelog; make no
               changes
-  -y, --yes   Skip the confirmation prompt (git pull + reinstall)
+  -y, --yes   Skip the confirmation prompt (checkout release tag + reinstall)
   --json      Emit machine-readable JSON
 
 examples:
-  canair update            # check, confirm, then git pull + reinstall
+  canair update            # check, confirm, then checkout release tag + reinstall
   canair update --check    # report current/latest + changelog, change nothing
   canair update --yes      # update without the confirmation prompt (automation)
   canair update --json     # machine-readable version/clone summary

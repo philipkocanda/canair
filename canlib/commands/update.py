@@ -1,11 +1,15 @@
 """``canair update`` — update the CLI from its git-clone install.
 
 canair is installed from a git clone (``git clone`` + ``uv tool install .``), so
-updating means: fast-forward the clone, then reinstall the tool from it. This
-command locates that source clone (via uv's tool receipt, falling back to the
-package's own repo root), reports the current vs latest released version with a
-changelog link, and — after confirmation — runs ``git pull --ff-only`` +
-``uv tool install <clone> --reinstall``.
+updating means: check out the latest **release tag** in the clone, then reinstall
+the tool from it. This command locates that source clone (via uv's tool receipt,
+falling back to the package's own repo root), reports the current vs latest
+released version with a changelog link, and — after confirmation — runs
+``git fetch --tags`` + ``git checkout <tag>`` + ``uv tool install <clone> --reinstall``.
+
+Checking out the advertised release tag (rather than fast-forwarding a branch to
+its HEAD) means the installed code is exactly the released version — never
+whatever unreleased commits happen to sit on ``main``.
 
 It never mutates anything without an interactive confirmation or ``--yes``, and
 degrades gracefully to printing manual instructions when it can't find a git
@@ -46,12 +50,12 @@ _CANNOT = 2
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
-        help="Update canair from its git-clone install (git pull + reinstall)",
+        help="Update canair from its git-clone install (checkout release tag + reinstall)",
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
 examples:
-  canair update            # check, confirm, then git pull + reinstall
+  canair update            # check, confirm, then checkout release tag + reinstall
   canair update --check    # report current/latest + changelog, change nothing
   canair update --yes      # update without the confirmation prompt (automation)
   canair update --json     # machine-readable version/clone summary
@@ -66,7 +70,7 @@ examples:
         "-y",
         "--yes",
         action="store_true",
-        help="Skip the confirmation prompt (git pull + reinstall)",
+        help="Skip the confirmation prompt (checkout release tag + reinstall)",
     )
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
     parser.set_defaults(func=run)
@@ -132,12 +136,14 @@ def _git_dirty(clone: Path) -> bool:
     return res.returncode == 0 and bool(res.stdout.strip())
 
 
-def _manual_instructions(clone: Path | None) -> str:
+def _manual_instructions(clone: Path | None, tag: str | None = None) -> str:
     loc = str(clone) if clone else "<your canair clone>"
+    ref = tag or "<latest release tag>"
     return (
         "  To update manually:\n"
         f"    cd {loc}\n"
-        "    git pull --ff-only\n"
+        "    git fetch --tags\n"
+        f"    git checkout {ref}\n"
         "    uv tool install . --reinstall\n"
     )
 
@@ -218,7 +224,7 @@ def run(args) -> int:
     c.print(f"\n  [bold]canair[/bold]  current: {__version__}")
     if latest is None:
         c.print("  [yellow]could not reach GitHub to check the latest release[/yellow]")
-        c.print("  [dim](offline, or GitHub unreachable — the update itself may still work)[/dim]")
+        c.print("  [dim](offline, or GitHub unreachable — a release tag is needed to update)[/dim]")
     elif update_available:
         c.print(f"          latest:  [green]{latest}[/green]  (update available)")
     else:
@@ -239,7 +245,16 @@ def run(args) -> int:
 
     if clone is None:
         c.print("  [yellow]Couldn't locate a git clone to update from.[/yellow]")
-        c.print(_manual_instructions(None))
+        c.print(_manual_instructions(None, latest))
+        return _CANNOT
+
+    if latest is None:
+        c.print(
+            "  [yellow]Couldn't determine the latest release tag (GitHub unreachable).[/yellow]\n"
+            "  Refusing to guess a version to check out. Try again when online, or\n"
+            "  update manually:\n"
+        )
+        c.print(_manual_instructions(clone, None))
         return _CANNOT
 
     if _git_dirty(clone):
@@ -248,17 +263,17 @@ def run(args) -> int:
             "  Refusing to touch it so your work isn't clobbered. Commit or stash first,\n"
             "  then re-run, or update manually:\n"
         )
-        c.print(_manual_instructions(clone))
+        c.print(_manual_instructions(clone, latest))
         return _CANNOT
 
     uv = shutil.which("uv")
     if uv is None:
         c.print("  [yellow]`uv` not found on PATH — can't reinstall automatically.[/yellow]")
-        c.print(_manual_instructions(clone))
+        c.print(_manual_instructions(clone, latest))
         return _CANNOT
 
-    c.print(f"  This will update the clone at [bold]{clone}[/bold]:")
-    c.print("    git pull --ff-only  &&  uv tool install . --reinstall\n")
+    c.print(f"  This will check out [bold]{latest}[/bold] in the clone at [bold]{clone}[/bold]:")
+    c.print(f"    git fetch --tags  &&  git checkout {latest}  &&  uv tool install . --reinstall\n")
 
     if not args.yes:
         if not (sys.stdin.isatty() and sys.stdout.isatty()):
@@ -273,19 +288,27 @@ def run(args) -> int:
             c.print("  Aborted. Nothing changed.\n")
             return _CANNOT
 
-    c.print("\n  Pulling latest changes …")
-    pull = _git(clone, "pull", "--ff-only")
-    if pull.returncode != 0:
-        c.print("  [red]git pull failed:[/red]")
-        c.print(f"  [dim]{(pull.stderr or pull.stdout).strip()}[/dim]\n")
-        c.print(
-            "  The clone may have diverged or has local commits. Resolve it, then\n"
-            "  re-run, or update manually:\n"
-        )
-        c.print(_manual_instructions(clone))
+    c.print("\n  Fetching tags …")
+    fetch = _git(clone, "fetch", "--tags", "--force")
+    if fetch.returncode != 0:
+        c.print("  [red]git fetch failed:[/red]")
+        c.print(f"  [dim]{(fetch.stderr or fetch.stdout).strip()}[/dim]\n")
+        c.print(_manual_instructions(clone, latest))
         return _FAILED
-    if pull.stdout.strip():
-        c.print(f"  [dim]{pull.stdout.strip()}[/dim]")
+
+    c.print(f"  Checking out [bold]{latest}[/bold] …")
+    checkout = _git(clone, "checkout", latest)
+    if checkout.returncode != 0:
+        c.print("  [red]git checkout failed:[/red]")
+        c.print(f"  [dim]{(checkout.stderr or checkout.stdout).strip()}[/dim]\n")
+        c.print(
+            f"  The tag {latest} may not exist locally, or the checkout was blocked.\n"
+            "  Resolve it, then re-run, or update manually:\n"
+        )
+        c.print(_manual_instructions(clone, latest))
+        return _FAILED
+    if checkout.stderr.strip():
+        c.print(f"  [dim]{checkout.stderr.strip()}[/dim]")
 
     c.print("  Reinstalling the CLI …")
     install = subprocess.run(
@@ -296,7 +319,7 @@ def run(args) -> int:
     if install.returncode != 0:
         c.print("  [red]reinstall failed:[/red]")
         c.print(f"  [dim]{(install.stderr or install.stdout).strip()}[/dim]\n")
-        c.print(_manual_instructions(clone))
+        c.print(_manual_instructions(clone, latest))
         return _FAILED
 
     c.print("\n  [green]✓ Updated.[/green] Run `canair --version` to confirm.\n")

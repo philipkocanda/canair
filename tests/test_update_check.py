@@ -229,7 +229,8 @@ class TestUpdateCommand:
         rc = update_cmd.run(self._args(yes=True))
         assert rc == update_cmd._CANNOT
         out = capsys.readouterr().out
-        assert "git pull --ff-only" in out
+        assert "git checkout" in out
+        assert "git fetch --tags" in out
 
     def test_offline_still_offers_update(self, monkeypatch, capsys):
         from canlib.commands import update as update_cmd
@@ -244,3 +245,102 @@ class TestUpdateCommand:
         assert rc == 0
         out = capsys.readouterr().out
         assert "could not reach GitHub" in out
+
+    def test_offline_refuses_to_update(self, monkeypatch, capsys, tmp_path):
+        """Without a known release tag there is nothing to check out; refuse."""
+        from canlib.commands import update as update_cmd
+
+        monkeypatch.setattr(update_cmd, "fetch_latest_release", lambda *a, **k: None)
+        import canlib
+
+        monkeypatch.setattr(canlib, "__version__", "1.0.0")
+        monkeypatch.setattr(update_cmd, "_find_clone_dir", lambda: tmp_path)
+
+        git_calls: list[tuple[str, ...]] = []
+        monkeypatch.setattr(
+            update_cmd,
+            "_git",
+            lambda clone, *a: git_calls.append(a),  # pragma: no cover - should not run
+        )
+
+        rc = update_cmd.run(self._args(yes=True))
+        assert rc == update_cmd._CANNOT
+        assert git_calls == []  # never touched git without a tag
+
+    def test_checks_out_release_tag(self, monkeypatch, capsys, tmp_path):
+        """The happy path fetches tags and checks out the advertised release tag."""
+        from canlib.commands import update as update_cmd
+
+        monkeypatch.setattr(
+            update_cmd,
+            "fetch_latest_release",
+            lambda *a, **k: {"tag": "v9.9.9", "url": "https://example/rel"},
+        )
+        import canlib
+
+        monkeypatch.setattr(canlib, "__version__", "1.0.0")
+        monkeypatch.setattr(update_cmd, "_find_clone_dir", lambda: tmp_path)
+        monkeypatch.setattr(update_cmd, "_git_dirty", lambda clone: False)
+        monkeypatch.setattr(update_cmd.shutil, "which", lambda name: "/usr/bin/uv")
+
+        git_calls: list[tuple[str, ...]] = []
+
+        class _CP:
+            returncode = 0
+            stdout = ""
+            stderr = ""
+
+        def _git(clone, *a):
+            git_calls.append(a)
+            return _CP()
+
+        monkeypatch.setattr(update_cmd, "_git", _git)
+
+        install_calls: list[list[str]] = []
+
+        def _run(cmd, *a, **k):
+            install_calls.append(cmd)
+            return _CP()
+
+        monkeypatch.setattr(update_cmd.subprocess, "run", _run)
+
+        rc = update_cmd.run(self._args(yes=True))
+        assert rc == 0
+
+        # It fetched tags and checked out the release tag — never a branch pull.
+        assert ("fetch", "--tags", "--force") in git_calls
+        assert ("checkout", "v9.9.9") in git_calls
+        assert not any(a[:1] == ("pull",) for a in git_calls)
+        # And reinstalled the tool from the clone.
+        assert any("install" in cmd and "--reinstall" in cmd for cmd in install_calls)
+
+    def test_checkout_failure_reports(self, monkeypatch, capsys, tmp_path):
+        from canlib.commands import update as update_cmd
+
+        monkeypatch.setattr(
+            update_cmd,
+            "fetch_latest_release",
+            lambda *a, **k: {"tag": "v9.9.9", "url": "https://example/rel"},
+        )
+        import canlib
+
+        monkeypatch.setattr(canlib, "__version__", "1.0.0")
+        monkeypatch.setattr(update_cmd, "_find_clone_dir", lambda: tmp_path)
+        monkeypatch.setattr(update_cmd, "_git_dirty", lambda clone: False)
+        monkeypatch.setattr(update_cmd.shutil, "which", lambda name: "/usr/bin/uv")
+
+        class _CP:
+            def __init__(self, rc):
+                self.returncode = rc
+                self.stdout = ""
+                self.stderr = "no such tag" if rc else ""
+
+        def _git(clone, *a):
+            # fetch succeeds, checkout fails.
+            return _CP(0 if a[:1] == ("fetch",) else 1)
+
+        monkeypatch.setattr(update_cmd, "_git", _git)
+
+        rc = update_cmd.run(self._args(yes=True))
+        assert rc == update_cmd._FAILED
+        assert "git checkout failed" in capsys.readouterr().out
