@@ -25,6 +25,10 @@
 # unlocks extra data. Payload sizes are session-independent: 2101, 2102 present;
 # 2103/2104/2105 → NRC 0x12 (do not exist, consistent with the 2103 note above).
 #
+# OBC Specs:
+# - Max charging current: 29A (the 2019 facelift can do 32A, but this is from the 2017 model)
+# - Max charging power: 6.6kW
+#
 OBC:
   tx_id: 0x7E5
   identity:

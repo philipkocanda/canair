@@ -76,7 +76,7 @@ HVAC:
           verified: true
           notes: "Ambient Air Temperature (HVAC sensor). Stable at ~18.5°C during session."
 
-        HVAC_EVAPORATOR_TEMP:
+        HVAC_HEAT_PUMP_TEMP:
           expression: "(B13/2)-40"
           unit: "°C"
           ha_class: temperature
@@ -87,21 +87,20 @@ HVAC:
           notes: >
             Confirmed: 21.5°C at rest, drops to ~5°C with compressor running,
             recovers when compressor cycles off. Clear thermal lag vs IAT.
+            Renamed from evaporator to HVAC_HEAT_PUMP_TEMP, it's measuring something under the hood most likely but not sure what.
+            Could be evaporator, heat-pump inlet/outlet, or heat-exchanger temp. Needs verification.
 
-        HVAC_BLOWER_FAN_DUTY:
+        HVAC_UNKNOWN_B15:
           expression: "B15"
           unit: ""
           min: "0"
           max: "255"
           source: "Monitor session 2026-04-17"
-          verified: true
+          verified: false
           notes: >
-            NOT inverter temp — this is blower fan PWM duty cycle.
-            0x10=16 at idle/off, spikes to 0x45/0xB6/0xEF during fan
-            activity. 0xEF=239 is max fan. Previously misidentified as
-            HVAC_INVERTER_TEMP with formula (x/2)-40.
+            Unsure, unlikely to be blower fan duty though.
 
-        HVAC_BLOWER_FAN_FEEDBACK:
+        HVAC_UNKNOWN_B17:
           expression: "B17"
           unit: ""
           min: "0"
@@ -109,8 +108,7 @@ HVAC:
           source: "Monitor session 2026-04-17"
           verified: false
           notes: >
-            Mirrors B15 (blower duty) almost exactly. Could be commanded
-            vs actual, or feedback from fan speed sensor.
+            Mirrors B15 almost exactly.
 
         HVAC_BLOWER_FAN_DUTY_3:
           expression: "B20"
@@ -183,7 +181,7 @@ HVAC:
           source: Fan speed test 2026-04-19; resolved via off-by-one hunt 2026-07-24
           verified: false
           notes: >
-            DEAD MAPPING (kept disabled for research trail). B33 is constant 0xFF across all 220100 captures — NOT the fan level. RESOLVED 2026-07-24 (bix --annotate overlay + decode --try over the 2026-04-19 fan 1/4/MAX sessions): the fan-setting value the 2026-04-19 note saw (0x26 fan1 -> 0x2D fan4/MAX) is on B34, currently mapped as HVAC_HEAT_DEMAND (B34 reads 40/41 fan1 -> 45 fan4/MAX). B34 also correlates with cabin cold (r=-0.74 vs ambient), so B34 is a combined fan/heat demand — see research lead to disambiguate. Fan LEVEL 1-8 not yet isolated.
+            DEAD MAPPING (kept disabled for research trail). B33 is constant 0xFF across all 220100 captures — NOT the fan level. RESOLVED 2026-07-24 (bix --annotate overlay + decode --try over the 2026-04-19 fan 1/4/MAX sessions): the fan-setting value the 2026-04-19 note saw (0x26 fan1 -> 0x2D fan4/MAX) is on B34, currently mapped as HVAC_HEAT_DEMAND (B34 reads 40/41 fan1 -> 45 fan4/MAX). B34 also correlates with cabin cold (r=-0.74 vs ambient), so B34 is a combined fan/heat demand — see research lead to disambiguate. Fan LEVEL 1-8 RESOLVED 2026-07-27: it is 2201A0 B18 (HVAC_BLOWER_FAN_SPEED, verified), 8 plateaus 40/52/65/77/90/102/111/121 for fan 1..8/MAX.
         HVAC_AC_COMPRESSOR_ON:
           expression: "B44"
           unit: ""
@@ -285,7 +283,7 @@ HVAC:
           verified: false
           notes: "0x00/0x01 toggle. Possibly heater vs cooler mode flag."
 
-        HVAC_UNKNOWN_TEMP:
+        HVAC_TEMP_B19:
           expression: "B19"
           unit: "°C"
           ha_class: temperature
@@ -300,6 +298,7 @@ HVAC:
             offset), reading a few degrees above the heat exchanger — consistent with the user's report of
             ~40°C after AC off for hours on a hot day. Exact sensor identity unconfirmed (heater-core / mix /
             in-cabin area), hence the neutral name. Was wrongly attributed to "compressor/PTC load".
+
         HVAC_HEATER_MODE_FLAG_MIRROR:
           expression: B12
           source: coverage analysis 2026-07-23
@@ -437,19 +436,19 @@ HVAC:
           expression: B5
           min: "0"
           max: "255"
-          source: coverage analysis 2026-07-23
+          source: coverage analysis 2026-07-23; mode-cycle capture 2026-07-26
           verified: false
           notes: >
-            Actuator target, raw 27-209 (distinct=51). ELM[3-9] target cluster.
-            Verify: sweep temp/mode to identify which door.
+            Airflow-direction door actuator position. Locked trio B5/B9/B11 (B9=B5+5, B11=B5+8) moving together per direction change (2026-07-26, temp fixed). Slow monotonic drift 102->93 across session (hysteresis/thermal comp, not temp setpoint). Paired with B7 (independent mode door). Discrete direction->value map needs a dwell-per-mode capture.
           enabled: true
         HVAC_ACTUATOR_TARGET_2:
           expression: B7
           min: "0"
           max: "255"
-          source: coverage analysis 2026-07-23
+          source: coverage analysis 2026-07-23; mode-cycle capture 2026-07-26
           verified: false
-          notes: "Actuator target, raw 0-219 (distinct=58). ELM[3-9] target cluster."
+          notes: >
+            Airflow-direction (mode) door actuator position. 2026-07-26 fan-only capture (temp fixed 21C, so moves are direction-driven not temp): repositions on each airflow-direction change with a physically-sensible monotonic sweep face<bi-level<floor<floor+windshield -> face~122, face+legs~137-157, legs(floor)~230, legs+windshield~237. Analog/hysteretic (face+legs read 157 then 137 on the two visits, ~+/-20 drift). B5/B9/B11 (TARGET_1/3/4) are a locked trio (+5/+8) that move together per direction = a second linked door. Discrete direction->value map + verification needs a dwell-per-mode capture with per-action notes.
           enabled: true
         HVAC_ACTUATOR_TARGET_3:
           expression: B9
@@ -511,7 +510,14 @@ HVAC:
           verified: false
           notes: "High-churn (distinct=88, 0-242) — fast motor-drive/RPM-like."
           enabled: true
-
+        HVAC_BLOWER_FAN_SPEED:
+          expression: B18
+          min: "0"
+          max: "121"
+          source: HVAC fan-only + fan 1->MAX->1 sweep captures 2026-07-26
+          verified: true
+          notes: >
+            Actual blower fan speed indicator. Verified by a deliberate fan 1->MAX->1 sweep (2026-07-26 heater-high session): 8 clean symmetric monotonic plateaus L1=40 L2=52 L3=65 L4=77 L5=90 L6=102 L7=111 L8/MAX=121 (~+12/level, compresses at top). Fan-only session steps matched (52/65/90 on the 3->5 change). Reads actual (not rigid setpoint): small off-plateau values (85-93) appear as a transient when vents/recirc change airflow load; steady when load fixed. 0 = glitch frames.
     2201A1:
       status: draft
       vehicle_states:
@@ -745,8 +751,8 @@ HVAC:
       priority: P3
       vehicle_states: [ready]
       created: "2026-07-23"
-      updated: "2026-07-23"
-      notes: "2201A0 unmapped bytes are mix/mode/vent door actuators (targets B5/B7/B9=B10/B11 36-221; feedbacks B13/B14/B15/B17 ~104-143, B17 mode-dependent; motor-drive B47/B50/B52/B66). Needs physical actuation while capturing: sweep temp blend 15→32, cycle mode (face/feet/defrost), toggle recirc, run fan 1→MAX; diff which byte cluster moves with each. Cross-ref 2201A1-A6 (shared structure). Not decodable from passive history."
+      updated: "2026-07-27"
+      notes: "PROGRESS 2026-07-27 (mode-cycle capture 2026-07-26): FAN resolved = B18 (HVAC_BLOWER_FAN_SPEED, verified). Airflow-DIRECTION door = the B5/B7/B9/B11 actuator cluster: they reposition on every direction change (temp fixed 21C, so mode-driven). B7 sweeps monotonically face~122 < face+legs~137-157 < legs(floor)~230 < legs+windshield~237; B5/B9/B11 a locked trio (+5/+8). Analog/hysteretic (~+/-20 on repeat visits) so discrete direction->value map still needs a DWELL-per-mode capture (hold each direction ~30s, note each). STILL OPEN: recirc + driver-only produce NO clean flag/enum on 2201A0 or 220100 in this capture (small B18 fan dips at 17:13 are consistent with recirc/driver-only altering airflow load, reinforcing B18=actual feedback). motor-drive B47/B50 = 0-255 sawtooth (position/commutation counter), not load. Cross-ref 2201A1-A6."
     - type: decode
       target: 220100 B14/B35 signals
       status: captured
@@ -756,13 +762,21 @@ HVAC:
       updated: "2026-07-23"
       notes: "220100 has 3 non-constant unmapped bytes, all registered as enabled-unverified candidates: HVAC_ACTUATOR_B14 (0-59, weak corr, likely valve/PWM), HVAC_HEAT_DEMAND (B34, r=-0.74 vs ambient), HVAC_ACTUATOR_B35 (86-255, noisy, r=-0.80 vs blower feedback). Other unmapped bytes are constants/FF-padding (B5=0x7E B6=0x50 B7=0x07 B9=0xC8; B10/B18-B31 tail=0xFF). Verify: actuate heat/fan and observe which moves."
     - type: decode
-      target: 220100 B34 (fan vs heat demand)
+      target: 220100 B34 (heat demand, NOT fan)
       status: captured
       priority: P3
       vehicle_states: [ready]
       created: "2026-07-24"
-      updated: "2026-07-24"
-      notes: "B34 moves with BOTH fan setting (40/41 fan1 -> 45 fan4/MAX, 2026-04-19) and cabin-cold (r=-0.74 vs ambient) — likely a combined blower/heat demand, not a clean fan LEVEL. Disambiguate with a captures varying fan at constant temp AND temp at constant fan. Note: B33 (old HVAC_FAN_SPEED_LEVEL) is dead 0xFF; the true fan-speed 1-8 level byte is still unidentified."
+      updated: "2026-07-27"
+      notes: "RESOLVED-fan-question 2026-07-27: B34 is NOT the fan. Against the now-confirmed actual fan (2201A0 B18) over the 2026-07-26 fan-only+heater session, B34 r=-0.07 (no relation); the 2026-04-19 'fan1->MAX' co-movement was coincidental (fan-up accompanies demand). Old B33 HVAC_FAN_SPEED_LEVEL dead 0xFF; B20 HVAC_BLOWER_FAN_DUTY_3 also r=+0.09 vs real fan (not fan, stays disabled). REMAINING: B34 vs ambient r=-0.74 historically + weak vs PTC (r=-0.21) => heat/climate-demand candidate; confirm with a heat sweep at constant fan."
+    - type: verify
+      target: 2201A0 B18 blower fan speed
+      status: done
+      priority: P2
+      vehicle_states: [ready]
+      created: "2026-07-27"
+      updated: "2026-07-27"
+      notes: "HVAC_BLOWER_FAN_SPEED (2201A0 B18) registered enabled-unverified from the 2026-07-26 fan-only capture: stepped 52/65/90 for fan 3/4/5, load-sensitive analog wobble = likely ACTUAL blower feedback not setpoint. TO VERIFY: clean fan-level sweep 1..MAX at constant temp/airflow to build the level<->value map and confirm scale/units (RPM? voltage x10? %). Also settle setpoint-vs-feedback: hold fan fixed and change only airflow/recirc — if B18 moves it's actual feedback. Check B18 at MAX fan (max~121 seen as outlier)."
   dtcs:
     B1285:
       description: >

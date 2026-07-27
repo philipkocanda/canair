@@ -154,9 +154,9 @@
       "parameters": {
         "HVAC_INTERIOR_TEMP": "(B11/2)-40",
         "HVAC_AAT": "(B12/2)-40",
-        "HVAC_EVAPORATOR_TEMP": "(B13/2)-40",
-        "HVAC_BLOWER_FAN_DUTY": "B15",
-        "HVAC_BLOWER_FAN_FEEDBACK": "B17",
+        "HVAC_HEAT_PUMP_TEMP": "(B13/2)-40",
+        "HVAC_UNKNOWN_B15": "B15",
+        "HVAC_UNKNOWN_B17": "B17",
         "HVAC_COMPRESSOR_TRANSITION": "B22",
         "HVAC_DUCT_TEMP_1": "(B36/2)-40",
         "HVAC_DUCT_TEMP_2": "(B37/2)-40",
@@ -175,7 +175,7 @@
         "HVAC_HEAT_EXCHANGER_TEMP_2": "(B11/2)-40",
         "HVAC_COMPRESSOR_ON": "B17",
         "HVAC_HEATER_MODE_FLAG": "B18",
-        "HVAC_UNKNOWN_TEMP": "B19",
+        "HVAC_TEMP_B19": "B19",
         "HVAC_HEATER_MODE_FLAG_MIRROR": "B12"
       }
     },
@@ -201,7 +201,8 @@
         "HVAC_DOOR_FEEDBACK_B13": "B13",
         "HVAC_DOOR_FEEDBACK_B15": "B15",
         "HVAC_MOTOR_DRIVE_B47": "B47",
-        "HVAC_MOTOR_DRIVE_B50": "B50"
+        "HVAC_MOTOR_DRIVE_B50": "B50",
+        "HVAC_BLOWER_FAN_SPEED": "B18"
       }
     },
     {
