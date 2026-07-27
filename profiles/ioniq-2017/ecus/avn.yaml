@@ -22,7 +22,11 @@ AVN:
     serial: "00000076FE0085-003240"
     app_sw: "AE_EV EURSOP 12 017.1"
     id_protocol: UDS  # F1xx (limited — 3 DIDs)
-    notes: "Firmware ID 'AE_EV EUR.SOP' matches Ioniq head unit firmware/map updates. Previously misidentified as TCU."
+    notes: >
+      Firmware ID 'AE_EV EUR.SOP' matches Ioniq head unit firmware/map updates. 
+      Previously misidentified as TCU, likely not present since 
+      BlueLink is not on this car and wasnt sold in the NL (and possibly entire EU?) market at the time (2016-2018).
+
   vehicle_states:
     - plugged
     - acc
@@ -36,5 +40,7 @@ AVN:
       hits: 0
       vehicle_states:
         - ready, ignition on
-      notes: "Head unit alive (all NRC, 0 timeouts) but exposes NO live-data DIDs — identity DIDs only. Hidden-page hunt."
+      notes: >
+        Head unit alive (all NRC, 0 timeouts) but exposes NO live-data DIDs — identity DIDs only. Hidden-page hunt.
+
   pids: {}
