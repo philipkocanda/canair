@@ -10,13 +10,21 @@
 #   VW/Audi       Antriebs / Komfort / Infotainment (German domain names)
 # Pick whatever matches your vehicle's service documentation.
 #
-# Top-level structure (commit-1 shape — a list of codes):
-#   can_buses:              # ordered list of bus codes
-#     - All                 # convention: the gateway that bridges every segment
-#     - B                   # a physical segment code
+# Top-level structure — each bare code maps to a human name + description:
+#   can_buses:
+#     All:                  # the bare code (used in ecus/ can_bus: lists)
+#       name: str           # optional — human label shown by `canair ecu`
+#       description: str    # optional — what sits on / characterises the segment
+#     B:
+#       name: Body CAN
+#       description: Comfort/body electronics.
+#
+# The legacy list form (`can_buses: [All, B]`) is still accepted; those codes
+# just carry no name/description.
 #
 # `canair pids set-can-bus ECU CODE [CODE ...]` accepts only codes declared here,
 # and `canair validate pids` errors on an ECU can_bus value outside this list.
 
-required_top_fields:
-  - can_buses
+optional_bus_fields:
+  - name
+  - description

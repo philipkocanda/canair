@@ -74,23 +74,38 @@ def _run_can_buses() -> int:
 
     data = yaml.safe_load(path.read_text()) or {}
     if not isinstance(data, dict) or "can_buses" not in data:
-        print("can_buses.yaml: missing top-level 'can_buses:' list")
+        print("can_buses.yaml: missing top-level 'can_buses:' mapping")
         return 1
-    codes = data.get("can_buses")
-    if not isinstance(codes, list):
-        print("can_buses.yaml: 'can_buses' must be a list")
-        return 1
+    buses = data.get("can_buses")
 
     errors: list[str] = []
     seen: set[str] = set()
-    for i, entry in enumerate(codes):
-        code = str(entry).strip()
+
+    def _check_code(i, code) -> None:
+        code = str(code).strip()
         if not code:
             errors.append(f"can_buses[{i}]: empty code")
         elif code in seen:
-            errors.append(f"can_buses[{i}]: duplicate code '{code}'")
+            errors.append(f"can_buses: duplicate code '{code}'")
         else:
             seen.add(code)
+
+    if isinstance(buses, dict):
+        for i, (code, meta) in enumerate(buses.items()):
+            _check_code(i, code)
+            if meta is not None and not isinstance(meta, (dict, str)):
+                errors.append(
+                    f"can_buses['{code}']: must be a mapping (name/description) or omitted"
+                )
+            elif isinstance(meta, dict):
+                for extra in set(meta) - {"name", "description"}:
+                    errors.append(f"can_buses['{code}']: unknown field '{extra}'")
+    elif isinstance(buses, list):  # legacy list form
+        for i, code in enumerate(buses):
+            _check_code(i, code)
+    else:
+        print("can_buses.yaml: 'can_buses' must be a mapping (or legacy list)")
+        return 1
 
     if errors:
         print(f"can_buses.yaml: {len(errors)} errors")

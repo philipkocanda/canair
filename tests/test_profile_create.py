@@ -57,7 +57,8 @@ class TestProfileCreate:
         cb = root / "can_buses.yaml"
         assert cb.exists()
         data = yaml.safe_load(cb.read_text())
-        assert data["can_buses"] == ["All"]
+        assert "All" in data["can_buses"]
+        assert data["can_buses"]["All"]["name"]
 
     def test_meta_contents(self, tmp_path):
         root = tmp_path / "prof"

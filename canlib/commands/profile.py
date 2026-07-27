@@ -222,18 +222,23 @@ states:
 _CAN_BUSES_TEMPLATE = """\
 # {car_model} — physical CAN bus segment vocabulary
 #
-# Codes accepted by each ECU's `can_bus:` field (in ecus/). Add your vehicle's
-# segments — naming is vendor-specific: Hyundai/Kia use B/P/C/M/H (Body,
-# Powertrain, Chassis, Multimedia, Hybrid); Ford uses HS/MS; BMW PT-CAN/K-CAN.
-# See canlib/schema/can_buses_schema.yaml and `canair validate can-buses`.
-# Set an ECU's segment(s) with `canair pids set-can-bus ECU CODE [CODE ...]`.
+# Codes accepted by each ECU's `can_bus:` field (in ecus/). Each bare code maps
+# to a human name + description. Naming is vendor-specific: Hyundai/Kia use
+# B/P/C/M/H (Body, Powertrain, Chassis, Multimedia, Hybrid); Ford uses HS/MS;
+# BMW PT-CAN/K-CAN. See canlib/schema/can_buses_schema.yaml and
+# `canair validate can-buses`. Set an ECU's segment(s) with
+# `canair pids set-can-bus ECU CODE [CODE ...]`.
 
 can_buses:
-  - All   # convention: the gateway that bridges every segment
-  # - B   # e.g. Body CAN
-  # - P   # e.g. Powertrain CAN
-  # - C   # e.g. Chassis CAN
-  # - M   # e.g. Multimedia CAN
+  All:
+    name: All segments
+    description: Convention for the gateway that bridges every segment.
+  # B:
+  #   name: Body CAN
+  #   description: Comfort/body electronics.
+  # P:
+  #   name: Powertrain CAN
+  #   description: Engine/drivetrain control.
 """
 
 
