@@ -2,7 +2,9 @@
 
 import pytest
 
+from canlib.commands import _decode_calc
 from canlib.commands import decode as decode_script
+from canlib.xanalysis import discriminability as _discriminability
 
 parse_try_expr = decode_script.parse_try_expr
 build_try_params = decode_script.build_try_params
@@ -151,7 +153,7 @@ class TestStatistics:
                 "decoded": {"A": {"value": 3.0}, "B": {"value": 30.0}},
             },
         ]
-        xs, ys = decode_script._paired_timed(results, "A", "B")
+        xs, ys = _decode_calc._paired_timed(results, "A", "B")
         assert xs == [1.0, 3.0, 2.0]  # ordered by 09:00:00, :01, :02
         assert ys == [10.0, 30.0, 20.0]
 
@@ -166,7 +168,7 @@ class TestStatistics:
                 "decoded": {"A": {"value": 1.0}, "B": {"value": 10.0}},
             },
         ]
-        xs, ys = decode_script._paired_timed(results, "A", "B")
+        xs, ys = _decode_calc._paired_timed(results, "A", "B")
         assert xs == [1.0, 9.0] and ys == [10.0, 90.0]
 
 
@@ -231,20 +233,20 @@ class TestDiscriminate:
     def test_discriminability_clean_separation(self):
         # nearly constant within each group, very different across => high F
         groups = {"a": [10.0, 10.1, 9.9], "b": [50.0, 50.1, 49.9]}
-        f = decode_script._discriminability(groups)
+        f = _discriminability(groups)
         assert f is not None and f > 100
 
     def test_discriminability_noise_low(self):
         groups = {"a": [10.0, 50.0, 30.0], "b": [12.0, 48.0, 31.0]}
-        f = decode_script._discriminability(groups)
+        f = _discriminability(groups)
         assert f is not None and f < 2
 
     def test_discriminability_single_group_none(self):
-        assert decode_script._discriminability({"a": [1.0, 2.0, 3.0]}) is None
+        assert _discriminability({"a": [1.0, 2.0, 3.0]}) is None
 
     def test_discriminability_perfect_zero_within(self):
         groups = {"a": [10.0, 10.0], "b": [50.0, 50.0]}
-        assert decode_script._discriminability(groups) == float("inf")
+        assert _discriminability(groups) == float("inf")
 
     def test_print_discriminate(self, capsys):
         results = [
@@ -328,7 +330,7 @@ class TestCorrTransform:
         from canlib.align import TimePoint
 
         s = [TimePoint(datetime(2026, 7, 22, 9, 0, i), float(i * i)) for i in range(4)]
-        out = decode_script._transform_series(s, "delta")
+        out = _decode_calc._transform_series(s, "delta")
         # delta of [0,1,4,9] = [0,1,3,5]
         assert [tp.value for tp in out] == [0.0, 1.0, 3.0, 5.0]
         assert [tp.dt for tp in out] == [tp.dt for tp in s]  # times preserved
@@ -358,7 +360,7 @@ class TestFindMirrors:
         # payload 62 B0 04 <d0> <d1> <d2> -> WiCAN B4=d0, B5=d1, B6=d2 (B0=PCI)
         # d0 and d1 always equal; d2 varies independently
         results = self._results("62B0040A0A01", "62B004141405", "62B0040909FF")
-        mirrors = decode_script.find_mirrors(results)
+        mirrors = _decode_calc.find_mirrors(results)
         pairs = {(a, b) for a, b, _ in mirrors}
         assert ("B4", "B5") in pairs
         assert ("B4", "B6") not in pairs
@@ -366,15 +368,15 @@ class TestFindMirrors:
     def test_constant_bytes_not_reported(self):
         # d0 constant 0x00 in all -> WiCAN B4 excluded (only varying positions)
         results = self._results("62B00400AA", "62B00400BB", "62B00400CC")
-        mirrors = decode_script.find_mirrors(results)
+        mirrors = _decode_calc.find_mirrors(results)
         assert all("B4" not in (a, b) for a, b, _ in mirrors)
 
     def test_bit_mirror(self):
         # payload 62 B0 04 <d0> -> WiCAN B4=d0; bits 0 and 2 co-vary (0x00/0x05)
         results = self._results("62B00400", "62B00405", "62B00400", "62B00405")
-        mirrors = decode_script.find_mirrors(results, bits=True)
+        mirrors = _decode_calc.find_mirrors(results, bits=True)
         pairs = {(a, b) for a, b, _ in mirrors}
         assert ("B4:0", "B4:2") in pairs
 
     def test_too_few_captures(self):
-        assert decode_script.find_mirrors(self._results("62B00401")) == []
+        assert _decode_calc.find_mirrors(self._results("62B00401")) == []
