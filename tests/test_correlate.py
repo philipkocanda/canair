@@ -85,3 +85,65 @@ class TestCrossMirrors:
         _write(tmp_path)
         _run(tmp_path, monkeypatch, ["IGPM", "--min-n", "3"])
         assert "keep:unique" in capsys.readouterr().out
+
+
+def _write_ramp(tmp_path):
+    """One PID whose B10 ramps over four timed captures (≥4 distinct → byte series)."""
+    caps = []
+    for i, t in enumerate(["09:00:00", "09:00:02", "09:00:04", "09:00:06"]):
+        v = 10 + i * 20  # 10,30,50,70
+        caps.append(
+            {"ecu": "IGPM", "pid": "22BC03", "payload": f"62BC03FDEE3C73{v:02X}0000", "time": t}
+        )
+    doc = {"sessions": [{"date": "2026-07-24", "vehicle_states": ["ready"], "captures": caps}]}
+    (tmp_path / "2026-07-24.yaml").write_text(yaml.safe_dump(doc))
+
+
+class TestAgainstFile:
+    def test_external_reference_ranks_byte(self, tmp_path, monkeypatch, capsys):
+        _write_ramp(tmp_path)
+        csv = tmp_path / "meter.csv"
+        csv.write_text(
+            "timestamp,value\n"
+            "2026-07-24 09:00:00,1.0\n"
+            "2026-07-24 09:00:02,3.0\n"
+            "2026-07-24 09:00:04,5.0\n"
+            "2026-07-24 09:00:06,7.0\n"
+        )
+        monkeypatch.setattr(
+            "canlib.commands.correlate._discover_specs",
+            lambda *a, **k: [("IGPM", "22BC03")],
+        )
+        rc = _run(
+            tmp_path,
+            monkeypatch,
+            [
+                "IGPM",
+                "--against-file",
+                str(csv),
+                "--bytes",
+                "--min-n",
+                "3",
+                "--min-r",
+                "0.5",
+                "--json",
+            ],
+        )
+        assert rc == 0
+        import json
+
+        data = json.loads(capsys.readouterr().out)
+        assert data["reference"] == "meter.csv"
+        assert any("B10" in h["signal"] for h in data["hits"])
+
+    def test_against_and_against_file_mutually_exclusive(self, tmp_path, monkeypatch, capsys):
+        _write_ramp(tmp_path)
+        csv = tmp_path / "meter.csv"
+        csv.write_text("2026-07-24 09:00:00,1.0\n")
+        rc = _run(
+            tmp_path,
+            monkeypatch,
+            ["--against", "IGPM:22BC03:B10", "--against-file", str(csv)],
+        )
+        assert rc == 2
+        assert "mutually exclusive" in capsys.readouterr().err

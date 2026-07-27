@@ -115,12 +115,11 @@ This took a detour into hand-written Python to parse `captures --diff` text and
 correlate bytes against an external series. **None of that should have been
 necessary.** Concrete tooling gaps this surfaced, roughly in priority order:
 
-1. **External reference series for `hunt`/`correlate`.** The single biggest gap.
-   `--against` only accepts an *in-capture* `ECU:PID:PARAM`. There is no way to
-   hunt against a calibrated meter log, a GPS speed track, or a grid-voltage
-   export. A `--against-file series.csv` (columns `timestamp,value`, joined by
-   nearest timestamp like the existing cross-ECU join) would have turned this
-   entire investigation into one command.
+1. **External reference series for `hunt`/`correlate`.** ✅ **Shipped** —
+   `hunt`/`correlate` now take `--against-file series.csv` (columns
+   `timestamp,value`), joined by nearest timestamp like the cross-ECU join. A
+   calibrated grid-voltage export can now be the reference directly. *(This was
+   the single biggest gap.)*
 
 2. **Confounder control / partial correlation.** `hunt`/`correlate` rank by raw
    correlation, which the IR-drop term (Trap 2) sabotages. A
@@ -147,14 +146,13 @@ necessary.** Concrete tooling gaps this surfaced, roughly in priority order:
    could heuristically flag adjacent `[Bn:Bn+1]` where `Bn` is near-constant and
    `Bn+1` spans 0–255 as a probable scaled word, and suggest testing the pair.
 
-6. **A structured byte-matrix export.** This analysis parsed the text of
-   `captures uds --diff --all` with a regex — brittle and slow. A first-class
-   `canair decode --dump-bytes --json` (or `--csv`) emitting a
-   `timestamp × byte-offset` matrix would make ad-hoc analysis (and the Python
-   escape hatch, when genuinely needed) safe and trivial.
+6. **A structured byte-matrix export.** ✅ **Shipped** — `canair decode
+   --dump-bytes` emits a `timestamp × byte-offset` matrix (CSV, or `--json`),
+   PCI bytes skipped by default, so ad-hoc analysis no longer needs to regex the
+   `captures --diff` text.
 
-7. **Minor:** `bix --annotate` produced *empty output* on a truncated/partial
-   payload instead of erroring — a silent failure that cost a round-trip.
+7. **Minor:** ✅ **Fixed** — `bix --annotate` now errors on a truncated/partial
+   payload instead of producing empty output.
 
 ## Takeaways
 

@@ -29,9 +29,9 @@ options:
 
 ```
 usage: canair correlate uds [-h] [--transform MODE] [--matrix]
-                            [--include-intra] [--include-self]
-                            [--against ECU:PID:PARAM] [--min-r R] [--min-n N]
-                            [--top N]
+                            [--against-file FILE] [--include-intra]
+                            [--include-self] [--against ECU:PID:PARAM]
+                            [--min-r R] [--min-n N] [--top N]
                             [--method {pearson,spearman,cramers_v,mutual_info}]
                             [--join-tol SECONDS] [--bits] [--json]
                             [--no-cluster] [--bytes] [--lag-scan N]
@@ -75,6 +75,12 @@ options:
                         reference's *rate*)
   --matrix              Print a labelled r-matrix instead of a ranked pair
                         list
+  --against-file FILE   Rank every signal against an external CSV
+                        (timestamp,value) reference instead of a bus signal —
+                        a calibrated meter log, GPS track, grid-voltage
+                        export. Joined by nearest timestamp; the file must be
+                        on the same absolute clock as the captures
+                        (relative/zero-based logs won't align)
   --include-intra       Include same-ECU+PID pairs (default: cross-PID/ECU
                         only)
   --include-self        With --against: keep the reference's own signal

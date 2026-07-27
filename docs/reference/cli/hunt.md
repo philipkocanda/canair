@@ -26,13 +26,13 @@ options:
 ## `canair hunt uds`
 
 ```
-usage: canair hunt uds [-h] --against ECU:PID:PARAM [--min-n N] [--top N]
-                       [--transform MODE] [--method {pearson,spearman}]
-                       [--join-tol SECONDS] [--json] [--all-interps]
-                       [--promote NAME] [--notation NAME] [--since WHEN]
-                       [--until WHEN] [--date YYYY-MM-DD] [--today]
-                       [--last-sessions [N]] [--last-session] [--state SUBSTR]
-                       [--label SUBSTR]
+usage: canair hunt uds [-h] (--against ECU:PID:PARAM | --against-file FILE)
+                       [--min-n N] [--top N] [--transform MODE]
+                       [--method {pearson,spearman}] [--join-tol SECONDS]
+                       [--json] [--all-interps] [--promote NAME]
+                       [--notation NAME] [--since WHEN] [--until WHEN]
+                       [--date YYYY-MM-DD] [--today] [--last-sessions [N]]
+                       [--last-session] [--state SUBSTR] [--label SUBSTR]
                        [ecu] [pid]
 
 Sweeps every byte offset of the target PID under every interpretation
@@ -58,6 +58,11 @@ options:
   --against ECU:PID:PARAM
                         Reference signal: a diagnostic ECU:PID:PARAM (or
                         ECU:PID:EXPR)
+  --against-file FILE   Reference from an external CSV (timestamp,value)
+                        instead of a bus signal — a calibrated meter log, GPS
+                        track, grid-voltage export. Joined by nearest
+                        timestamp; the file must be on the same absolute clock
+                        as the captures (relative/zero-based logs won't align)
   --min-n N             Min aligned points (default 10)
   --top N               Max hits (default 12)
   --transform MODE      Transform the reference before aligning (e.g. delta to

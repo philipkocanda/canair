@@ -91,6 +91,19 @@ canair hunt uds MyECU:2101 --against ESC:22C101:REAL_SPEED_KMH
 > whatever signal *you've* already verified (or an external anchor like
 > GPS-logged speed) — the technique is the same.
 
+**Reference an external log** (a calibrated meter, a GPS speed track, a
+grid-voltage export) with `--against-file` — a two-column `timestamp,value` CSV,
+joined by nearest timestamp exactly like an on-bus reference. This is the only
+way to hunt a signal that has *no* correlate on the bus:
+
+```bash
+canair hunt uds MyECU:2101 --against-file gps_speed.csv    # vs an external track
+canair correlate uds --against-file grid_voltage.csv       # rank every byte vs it
+```
+
+> The CSV must be on the same absolute wall clock as your captures. A
+> relative/zero-based log will parse but join to nothing (reported as `n=0`).
+
 An `r` near 1.0 on byte 12 with a ~1:1 linear fit is strong evidence that **byte
 12 is speed in km/h**. That's our hypothesis, confirmed by data.
 
@@ -108,6 +121,15 @@ canair correlate uds --state driving              # rank the strongest pairs
 canair decode MyECU 2101 --try "SPEED_KMH=[B12]" --stats
 canair decode MyECU 2101 --try "SPEED_KMH=[B12]" --corr ESC:22C101:REAL_SPEED_KMH
 canair decode MyECU 2101 --plot               # interactive: sweep interpretations visually
+```
+
+**Dump the raw bytes** as a `timestamp × byte-offset` matrix when you want to
+analyze outside canair (a spreadsheet, a scratch script) — the structured escape
+hatch, CSV by default or `--json`:
+
+```bash
+canair decode MyECU 2101 --dump-bytes                 # CSV to stdout (PCI skipped)
+canair decode MyECU 2101 --dump-bytes --json          # same, as JSON
 ```
 
 ## The one-shot shortcut: `investigate`

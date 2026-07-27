@@ -217,6 +217,15 @@ examples:
         help="Print a labelled r-matrix instead of a ranked pair list",
     )
     parser.add_argument(
+        "--against-file",
+        dest="against_file",
+        metavar="FILE",
+        help="Rank every signal against an external CSV (timestamp,value) reference "
+        "instead of a bus signal — a calibrated meter log, GPS track, grid-voltage "
+        "export. Joined by nearest timestamp; the file must be on the same absolute "
+        "clock as the captures (relative/zero-based logs won't align)",
+    )
+    parser.add_argument(
         "--include-intra",
         action="store_true",
         help="Include same-ECU+PID pairs (default: cross-PID/ECU only)",
@@ -745,6 +754,10 @@ def run(args) -> int:
         print(f"error: {err}", file=sys.stderr)
         return 2
 
+    if args.against and args.against_file:
+        print("error: --against and --against-file are mutually exclusive", file=sys.stderr)
+        return 2
+
     notation = resolve_notation(args.notation)
     specs = _discover_specs(args.query, since, until, args.state, args.label)
 
@@ -795,14 +808,20 @@ def run(args) -> int:
         print("No time-aligned signals found in scope.", file=sys.stderr)
         return 1
 
-    # --against: rank every signal vs one reference.
-    if args.against:
+    # --against / --against-file: rank every signal vs one reference.
+    if args.against or args.against_file:
         try:
-            ref_series, ref_label = load_ref(
-                args.against, since=since, until=until, state=args.state, label=args.label
-            )
+            if args.against_file:
+                from canlib.align import load_reference_file
+
+                ref_series, ref_label = load_reference_file(args.against_file)
+            else:
+                ref_series, ref_label = load_ref(
+                    args.against, since=since, until=until, state=args.state, label=args.label
+                )
         except ValueError as e:
-            print(f"--against error: {e}", file=sys.stderr)
+            flag = "--against-file" if args.against_file else "--against"
+            print(f"{flag} error: {e}", file=sys.stderr)
             return 1
         if args.transform and args.transform != "raw":
             ref_series = transform_ref(ref_series, args.transform)

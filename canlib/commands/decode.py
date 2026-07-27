@@ -932,6 +932,107 @@ def _transform_series(series, mode: str):
 # _decode_plot.py (leaf module) and are imported at the top of this file.
 
 
+def _entry_dt(cap: dict):
+    """Real datetime for a capture (session date + per-capture time), or None."""
+    from canlib.capture_dates import entry_datetime
+
+    return entry_datetime(cap)
+
+
+def _dump_column_label(off: int, include_pci: bool, notation: ByteNotation, sub_bytes: int) -> str:
+    """Column label for WiCAN offset ``off`` in the byte-matrix export."""
+    from canlib.byteindex import wican_to_isotp
+    from canlib.notation import ByteRef
+
+    if wican_to_isotp(off) is None:
+        return f"B{off}"  # PCI framing byte — no ISO-TP position, WiCAN label only
+    try:
+        return ByteRef.from_wican(off).render(notation, sub_bytes=sub_bytes)
+    except ValueError:
+        return f"B{off}"
+
+
+def _dump_bytes(
+    all_results: list[dict],
+    ecu_key: str,
+    pid_key: str,
+    *,
+    as_json: bool,
+    include_pci: bool,
+    notation: ByteNotation,
+    sub_bytes: int,
+) -> int:
+    """Emit a ``timestamp × byte-offset`` matrix, one row per capture.
+
+    The first-class, structured replacement for regex-scraping ``captures --diff``
+    text: dump the raw byte values of every scoped capture as CSV (default) or
+    JSON for ad-hoc analysis. Columns are WiCAN ``Bnn`` (relabelled by
+    ``--notation``); ISO-TP PCI framing bytes are skipped unless ``include_pci``.
+    A capture shorter than the widest frame leaves trailing cells blank/null.
+    """
+    from canlib.byteindex import wican_to_isotp
+
+    rows: list[tuple[dict, bytes]] = []
+    max_len = 0
+    for r in all_results:
+        cap = r["capture"]
+        try:
+            fr = payload_to_wican_bytes(cap["payload"])
+        except Exception:
+            fr = b""
+        rows.append((cap, fr))
+        max_len = max(max_len, len(fr))
+
+    offsets = [off for off in range(max_len) if include_pci or wican_to_isotp(off) is not None]
+    labels = [_dump_column_label(off, include_pci, notation, sub_bytes) for off in offsets]
+
+    def _row_time(cap: dict) -> str:
+        dt = _entry_dt(cap)
+        if dt is not None:
+            return dt.isoformat()
+        return f"{cap.get('date', '')} {cap.get('time', '')}".strip()
+
+    if as_json:
+        out = {
+            "ecu": ecu_key,
+            "pid": pid_key,
+            "notation": notation.value,
+            "include_pci": include_pci,
+            "columns": labels,
+            "offsets": offsets,
+            "rows": [
+                {
+                    "time": _row_time(cap),
+                    "date": str(cap.get("date", "")),
+                    "vehicle_states": cap.get("vehicle_states") or [],
+                    "bytes": {
+                        lbl: (fr[off] if off < len(fr) else None)
+                        for lbl, off in zip(labels, offsets, strict=True)
+                    },
+                }
+                for cap, fr in rows
+            ],
+        }
+        json.dump(out, sys.stdout, indent=2, default=str)
+        print()
+        return 0
+
+    import csv
+
+    writer = csv.writer(sys.stdout)
+    writer.writerow(["time", "ecu", "pid", *labels])
+    for cap, fr in rows:
+        writer.writerow(
+            [
+                _row_time(cap),
+                ecu_key,
+                pid_key,
+                *[(fr[off] if off < len(fr) else "") for off in offsets],
+            ]
+        )
+    return 0
+
+
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
@@ -1056,6 +1157,21 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         help="Evaluate a candidate expression against captures without editing "
         "YAML (repeatable; works even if the PID has no params defined yet)",
     )
+    parser.add_argument(
+        "--dump-bytes",
+        dest="dump_bytes",
+        action="store_true",
+        help="Emit a timestamp × byte-offset matrix (one row per capture) instead "
+        "of decoding params — the escape hatch for ad-hoc byte analysis. CSV by "
+        "default; add --json for JSON. PCI framing bytes are skipped unless "
+        "--include-pci. Honours --notation for column labels and all scope flags",
+    )
+    parser.add_argument(
+        "--include-pci",
+        dest="include_pci",
+        action="store_true",
+        help="With --dump-bytes: include ISO-TP PCI framing bytes (skipped by default)",
+    )
     add_notation_arg(parser)
     add_scope_args(parser)
     parser.set_defaults(func=run)
@@ -1151,7 +1267,7 @@ def run(args) -> int:
         return 2
 
     # --plot and --try tolerate a not-yet-defined ECU/PID (raw byte inspection).
-    tolerate_missing = bool(args.try_expr) or args.plot or args.find_mirrors
+    tolerate_missing = bool(args.try_expr) or args.plot or args.find_mirrors or args.dump_bytes
 
     # Resolve date scoping (--date shorthand for equal since/until; validated here).
     since, until, err = resolve_scope_bounds(args)
@@ -1233,7 +1349,7 @@ def run(args) -> int:
     }
     scoped = any(v is not None for v in scope.values())
 
-    if not parameters and not args.plot:
+    if not parameters and not args.plot and not args.dump_bytes:
         # Be capture-aware and split the two cases that used to collapse into one
         # misleading message: filters excluded everything vs. nothing defined yet.
         # (This is a terminating error path, so loading captures here doesn't
@@ -1321,6 +1437,18 @@ def run(args) -> int:
                 "capture": cap,
                 "decoded": decoded,
             }
+        )
+
+    # Byte-matrix export: timestamp × byte-offset, independent of param defs.
+    if args.dump_bytes:
+        return _dump_bytes(
+            all_results,
+            ecu_key,
+            pid_key,
+            as_json=args.json,
+            include_pci=args.include_pci,
+            notation=resolve_notation(args.notation),
+            sub_bytes=subfunction_bytes_for_pid(pid_key),
         )
 
     # Interactive signal explorer (byte interpretations + params + transforms).

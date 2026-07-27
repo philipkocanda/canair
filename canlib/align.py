@@ -17,6 +17,7 @@ Nothing here talks to the device; it is pure analysis over ``captures/``.
 from __future__ import annotations
 
 import bisect
+import csv
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -33,6 +34,7 @@ __all__ = [
     "extract_series",
     "join_nearest",
     "join_nearest_presorted",
+    "load_reference_file",
     "load_signal_captures",
 ]
 
@@ -172,6 +174,87 @@ def extract_series(
             out.append(TimePoint(dt, float(val)))
     out.sort(key=lambda tp: tp.dt)
     return out
+
+
+def _parse_reference_timestamp(raw: str) -> datetime | None:
+    """Parse one external-reference timestamp cell into a **naive** datetime.
+
+    Accepts ISO-8601 (``2026-07-22T09:06:37`` / ``…09:06:37.007`` / with a space),
+    ``YYYY-MM-DD HH:MM:SS[.fff]``, and epoch seconds (``1753171597`` /
+    ``1753171597.5``). Timezone-aware ISO strings are converted to local wall
+    clock and made naive, because capture timestamps
+    (:func:`capture_dates.entry_datetime`) are naive local — mixing the two would
+    raise on comparison. Returns ``None`` when nothing parses (e.g. a header cell).
+    """
+    raw = raw.strip()
+    if not raw:
+        return None
+    # Epoch seconds (bare number). A tiny/relative value still parses here and
+    # simply won't align to wall-clock captures — that is the documented caveat.
+    try:
+        epoch = float(raw)
+    except ValueError:
+        pass
+    else:
+        try:
+            return datetime.fromtimestamp(epoch)
+        except (OverflowError, OSError, ValueError):
+            return None
+    try:
+        dt = datetime.fromisoformat(raw)
+    except ValueError:
+        return None
+    if dt.tzinfo is not None:
+        dt = dt.astimezone().replace(tzinfo=None)
+    return dt
+
+
+def load_reference_file(path, *, label: str | None = None) -> tuple[list[TimePoint], str]:
+    """Load an external reference series from a two-column ``timestamp,value`` file.
+
+    The escape hatch for correlating against data that isn't on the bus — a
+    calibrated meter log, a GPS speed track, a grid-voltage export. The file is a
+    CSV (or any single-delimiter text) whose first two columns are a timestamp and
+    a numeric value; a non-numeric header row is skipped automatically, and any
+    later unparseable row is dropped. The series is fed through the *same*
+    nearest-timestamp join as an in-capture ``ECU:PID:PARAM`` reference.
+
+    **The timestamps must be on the same absolute wall clock as the captures**
+    (session ``date`` + ``time``). A relative/zero-based log (many raw-CAN
+    exporters start at 0) will parse but join to nothing — the caller reports the
+    realised ``n`` so that shows up as ``n=0`` rather than a silent empty result.
+
+    Returns ``(series, label)``. Raises :class:`ValueError` when the file can't be
+    read or yields no usable ``(timestamp, value)`` rows.
+    """
+    from pathlib import Path
+
+    p = Path(path)
+    try:
+        text = p.read_text()
+    except OSError as e:
+        raise ValueError(f"cannot read reference file {p}: {e}") from e
+
+    out: list[TimePoint] = []
+    for row in csv.reader(text.splitlines()):
+        if len(row) < 2:
+            continue
+        dt = _parse_reference_timestamp(row[0])
+        if dt is None:
+            continue  # header or malformed timestamp
+        try:
+            value = float(row[1].strip())
+        except ValueError:
+            continue
+        out.append(TimePoint(dt, value))
+
+    if not out:
+        raise ValueError(
+            f"reference file {p} has no usable 'timestamp,value' rows "
+            "(expected an absolute-clock timestamp in column 1 and a number in column 2)"
+        )
+    out.sort(key=lambda tp: tp.dt)
+    return out, label or p.name
 
 
 def join_nearest(

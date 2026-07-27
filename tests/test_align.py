@@ -13,6 +13,7 @@ from canlib.align import (
     extract_series,
     join_nearest,
     join_nearest_presorted,
+    load_reference_file,
     load_signal_captures,
 )
 
@@ -203,3 +204,56 @@ class TestExtractSeries:
         assert n == 2
         assert xs == [10.0, 20.0]
         assert ys == [10.0, 20.0]
+
+
+# ---------------------------------------------------------------------------
+# load_reference_file — external timestamp,value series
+# ---------------------------------------------------------------------------
+class TestLoadReferenceFile:
+    def test_iso_timestamps_with_header(self, tmp_path):
+        p = tmp_path / "grid.csv"
+        p.write_text(
+            "timestamp,value\n"
+            "2026-07-22T09:00:00,225.0\n"
+            "2026-07-22 09:00:01.500,231.0\n"
+            "2026-07-22T09:00:03,222.0\n"
+        )
+        series, label = load_reference_file(p)
+        assert label == "grid.csv"
+        assert [tp.value for tp in series] == [225.0, 231.0, 222.0]
+        # header row skipped, sorted by time
+        assert series[0].dt < series[1].dt < series[2].dt
+        assert series[0].dt == datetime(2026, 7, 22, 9, 0, 0)
+
+    def test_epoch_seconds(self, tmp_path):
+        p = tmp_path / "epoch.csv"
+        base = datetime(2026, 7, 22, 9, 0, 0)
+        epoch = base.timestamp()
+        p.write_text(f"{epoch},1.0\n{epoch + 2},2.0\n")
+        series, _ = load_reference_file(p)
+        assert [tp.value for tp in series] == [1.0, 2.0]
+        assert series[0].dt == base
+
+    def test_naive_datetimes_join_with_captures(self, tmp_path):
+        # External ref timestamps must be naive so they compare with capture
+        # datetimes (which are naive local); a tz-aware ISO string is coerced.
+        p = tmp_path / "tz.csv"
+        p.write_text("2026-07-22T09:00:00+00:00,5.0\n")
+        series, _ = load_reference_file(p)
+        assert series[0].dt.tzinfo is None
+
+    def test_malformed_rows_skipped(self, tmp_path):
+        p = tmp_path / "messy.csv"
+        p.write_text("not,a,timestamp\n2026-07-22T09:00:00,3.0\nbad,line\n,\n")
+        series, _ = load_reference_file(p)
+        assert [tp.value for tp in series] == [3.0]
+
+    def test_no_usable_rows_raises(self, tmp_path):
+        p = tmp_path / "empty.csv"
+        p.write_text("timestamp,value\nfoo,bar\n")
+        with pytest.raises(ValueError, match="no usable"):
+            load_reference_file(p)
+
+    def test_missing_file_raises(self, tmp_path):
+        with pytest.raises(ValueError, match="cannot read"):
+            load_reference_file(tmp_path / "nope.csv")

@@ -168,11 +168,20 @@ tip: --against takes a known signal ECU:PID:PARAM (or a raw ECU:PID:EXPR). Use
     )
     parser.add_argument("ecu", nargs="?", help="Target ECU to hunt on (e.g. AAF)")
     parser.add_argument("pid", nargs="?", help="Target PID to hunt on (e.g. 2181)")
-    parser.add_argument(
+    ref_group = parser.add_mutually_exclusive_group(required=True)
+    ref_group.add_argument(
         "--against",
-        required=True,
         metavar="ECU:PID:PARAM",
         help="Reference signal: a diagnostic ECU:PID:PARAM (or ECU:PID:EXPR)",
+    )
+    ref_group.add_argument(
+        "--against-file",
+        dest="against_file",
+        metavar="FILE",
+        help="Reference from an external CSV (timestamp,value) instead of a bus "
+        "signal — a calibrated meter log, GPS track, grid-voltage export. Joined "
+        "by nearest timestamp; the file must be on the same absolute clock as the "
+        "captures (relative/zero-based logs won't align)",
     )
     _add_shared_hunt_args(parser)
     parser.add_argument(
@@ -327,11 +336,17 @@ def run(args) -> int:
     pid = args.pid.upper()
 
     try:
-        ref_series, ref_label = load_ref(
-            args.against, since=since, until=until, state=args.state, label=args.label
-        )
+        if args.against_file:
+            from canlib.align import load_reference_file
+
+            ref_series, ref_label = load_reference_file(args.against_file)
+        else:
+            ref_series, ref_label = load_ref(
+                args.against, since=since, until=until, state=args.state, label=args.label
+            )
     except ValueError as e:
-        print(f"--against error: {e}", file=sys.stderr)
+        flag = "--against-file" if args.against_file else "--against"
+        print(f"{flag} error: {e}", file=sys.stderr)
         return 1
 
     if args.transform and args.transform != "raw":

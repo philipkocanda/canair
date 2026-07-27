@@ -10,10 +10,11 @@ usage: canair decode [-h] [--param NAME [NAME ...]] [--verified]
                      [--last N] [--corr PARAM] [--join-tol SECONDS]
                      [--corr-transform MODE]
                      [--method {pearson,spearman,cramers_v,mutual_info}]
-                     [--plot] [--try NAME[:unit]=EXPR] [--notation NAME]
-                     [--since WHEN] [--until WHEN] [--date YYYY-MM-DD]
-                     [--today] [--last-sessions [N]] [--last-session]
-                     [--state SUBSTR] [--label SUBSTR]
+                     [--plot] [--try NAME[:unit]=EXPR] [--dump-bytes]
+                     [--include-pci] [--notation NAME] [--since WHEN]
+                     [--until WHEN] [--date YYYY-MM-DD] [--today]
+                     [--last-sessions [N]] [--last-session] [--state SUBSTR]
+                     [--label SUBSTR]
                      [ecu] [pid]
 
 [UDS] Decode captured UDS payloads using PID parameter definitions.
@@ -81,6 +82,14 @@ options:
                         Evaluate a candidate expression against captures
                         without editing YAML (repeatable; works even if the
                         PID has no params defined yet)
+  --dump-bytes          Emit a timestamp × byte-offset matrix (one row per
+                        capture) instead of decoding params — the escape hatch
+                        for ad-hoc byte analysis. CSV by default; add --json
+                        for JSON. PCI framing bytes are skipped unless
+                        --include-pci. Honours --notation for column labels
+                        and all scope flags
+  --include-pci         With --dump-bytes: include ISO-TP PCI framing bytes
+                        (skipped by default)
   --notation NAME       byte-index notation for output labels: wican
                         (default), isotp, torque, bix. Overrides the
                         display.byte_notation config key.
