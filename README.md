@@ -163,6 +163,7 @@ The `ioniq-2017` profile makes canair a ready-to-use diagnostics toolkit for the
 - Battery SOC / voltage / current / power, all 96 individual cell voltages, and State of Health
 - Motor gear, torque, and temperatures; vehicle speed and **individual wheel speeds** (from the ESC module)
 - Charging state (AC / DC CCS) and charge-port lock
+- On-board charger AC/DC (input/output) voltage and current, EVSE pilot current.
 - Electric power steering, tyre pressures/temperatures, HVAC/climate, and body controls (locks, trunk, lights, indicators)
 - **IOControl** actuators (UDS `0x2F`) for hardware you can safely toggle — lights, horn, locks, charge-cable lock, mirrors, wipers (all auto-release when the session ends)
 
