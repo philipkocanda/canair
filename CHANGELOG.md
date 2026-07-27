@@ -7,7 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`canair wican autopid write`/`upload`/`diff` now default to verified-only.**
+  Emitting the AutoPID profile previously defaulted to *all* parameters and you
+  opted in to a verified subset with `--verified-only`. The safer default is
+  reversed: only **verified** parameters ship by default, and you opt in to
+  in-progress candidates with the new **`--include-unverified`** flag. The old
+  `--verified-only` flag is still accepted as a no-op for back-compat.
+
+## [1.3.0] - 2026-07-27
+
 ### Added
+
+- **`canair update` reports the install context and warns on drift.** With both
+  a `uv tool install` copy and a working clone on the machine, a bare `canair`
+  runs the installed snapshot while `uv run canair` runs the repo working tree —
+  and the two silently drift once you edit/pull the clone. `canair update` now
+  reports **which copy is running** (repo working tree vs the `uv tool install`
+  snapshot vs another install) and **warns when the installed tool copy's
+  version differs from the source clone's `pyproject.toml`** ("out of sync": a
+  bare `canair` would run different code than `uv run canair`). `--json` gains an
+  `install` block (`running_origin`/`running_version`/`clone_version`/
+  `tool_version`/`out_of_sync`); the same out-of-sync warning also surfaces in
+  `canair status`. New library module `canlib/install_context.py`.
 
 - **Typed (multi-modal) signal analysis.** Parameters can now declare an optional
   **`type:`** (`enum`/`bitmask`/`ascii`/`date`/`bcd`/`struct`) with companion
@@ -45,6 +68,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   charging) without stopping. The existing **`s`** save modal now states which
   segment it is labelling. Journal stems gained microsecond precision so a
   same-second segment rotation can't collide.
+
+## [1.2.0] - 2026-07-25
+
+### Added
 
 - **`canair update` + automatic update checker.** canair now checks GitHub once
   a day (in a background daemon thread — never blocking a command, and fully

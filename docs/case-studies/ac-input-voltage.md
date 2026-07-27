@@ -3,8 +3,7 @@
 A worked account of decoding the OBC's **AC mains input voltage** on the bundled
 Ioniq 2017 — a signal that had been written off as "not exposed" in the profile's
 research notes, and took several wrong turns to find. It's here because the
-*mistakes* are as instructive as the result, and because it exposed real gaps in
-canair's tooling (see [What would have made this easy](#what-would-have-made-this-easy)).
+*mistakes* are as instructive as the result — see [the command trail](#the-hunt-step-by-step).
 
 **Result:** `AC_INPUT_V = [B14:B15]/100` on `OBC 2101` (~222 V while charging,
 idles ~8.5 V in READY). It also solved a long-standing mystery byte
@@ -59,6 +58,84 @@ word split across two bytes that had each been dismissed *separately*:
 
 Neither byte is interesting alone. Together, `[B14:B15]/100` is a clean voltage.
 
+## The hunt, step by step
+
+The actual command trail — three dead ends before the pivot (boring re-scoping and
+scratch-script glue omitted).
+
+**Round 0 — orient.** What's in the charging captures, and what's already decoded?
+
+```bash
+canair captures uds --sessions --date 2026-07-26
+canair decode OBC 2101 --state charging --stats
+```
+
+**Round 1 — "find a constant ~230 V byte" (dead end).** AC current *should* track
+the charge current; AC voltage *should* be a charging-only byte near 230:
+
+```bash
+canair hunt OBC 2101 --against OBC:2101:OBC_DC_A --state charging   # AC current?
+#  → only the self-match; every other strong hit is NEGATIVE (control/duty bytes)
+canair decode OBC 2101 --bytes --discriminate state                # AC volts ~230?
+#  → no charging-active byte parks near 230
+canair captures uds OBC:2102 --diff --state charging               # hidden on 2102?
+#  → static (factory calibration)
+```
+
+Verdict: reproduced the old "not exposed" negative — more rigorously, still wrong.
+
+**Round 2 — correlate against the grid log (dead end).** The owner supplied a
+calibrated grid-voltage log that *varied* over the session (225 → 231 V peak at
+11:33 → 222 V) — now there was a distinctive shape to match:
+
+```bash
+canair captures uds OBC:2101 --diff --all --date 2026-07-26 --state charging
+#  → dumped the byte stream; correlated every byte/word (all scalings) against the
+#    3-point grid profile in a scratch script
+```
+
+Verdict: nothing reproduced the 11:33 peak; no byte sat in the 222–231 band.
+
+**Round 3 — account for the inlet IR drop (dead end).** The owner noted the OBC
+senses voltage at its *inlet*, below the grid by `k·I_charge`. So regress out the
+current and sweep the cable resistance: `V_inlet = V_grid − k·I`.
+
+Verdict: best partial correlation ≈ 0.22 — the only "hits" were the current bytes
+themselves at an absurd cable resistance.
+
+**Round 4 — widen to every co-polled ECU + physical value bands (the win).** Drop
+the correlation lens; ask instead: *which byte, at any sane scaling, lands in a
+mains-voltage band AND is active only while charging?* — across everything on the
+bus, not just OBC:
+
+```bash
+canair captures uds --latest BMS      # what else is co-polled during the charge?
+canair captures uds --latest OBC
+canair captures uds --latest VCU
+#  → swept every byte/word × scaling (/1 /10 /100 ×2 ×√2, ~50 Hz) on BMS 2101–2105,
+#    OBC 2101, VCU 2101/2102 for a value in a named physical band
+#  → OBC [isotp11:12]/100 ≈ 222 V, sitting between OBC_OUTPUT_V and OBC_DC_A
+```
+
+Then a few quick confirmations turned the candidate into a fact:
+
+```bash
+canair bix -1 --annotate <charging-payload>        # isotp 11:12 → WiCAN [B14:B15]
+canair decode OBC 2101 --try "V=[B14:B15]/100" --state charging --stats  # ~222 V
+canair decode OBC 2101 --try "V=[B14:B15]/100" --state ready    --stats  # ~8.5 V idle
+```
+
+(B14 stepped 85→88 with the voltage; the mean sat ~3 V below the grid — the IR
+drop, now *confirming* Trap 2 rather than hiding the signal.)
+
+**Define & close.**
+
+```bash
+canair pids upsert-param OBC 2101 AC_INPUT_V "[B14:B15]/100" --unit V --unverified …
+canair pids rm-param OBC 2101 OBC_UNKNOWN_B15      # it was just the low byte
+canair validate pids && canair wican autopid write
+```
+
 ## What finally cracked it
 
 Three things, in order:
@@ -99,56 +176,9 @@ turned a guess into a fact:
 | **Integer byte steps** | `B14` marches 85→86→87→88 with voltage — not a stuck status byte |
 | **IR-drop consistency** | mean 221.8 V vs calibrated grid 225.5 V ⇒ ~3 V drop at ~15 A ⇒ R≈0.2 Ω — physically sane, and it *explains Trap 2* |
 
-Final confirmation used canair's own evaluator across *all* charging history — not
-just the one session — so the finding wasn't overfit to a single drive:
-
-```bash
-canair decode OBC 2101 --try "AC_INPUT_V:V=[B14:B15]/100" --state charging --stats
-#  → mean 221.8 V, median 222.1 V   (218–228 V active)
-canair decode OBC 2101 --try "AC_INPUT_V:V=[B14:B15]/100" --state ready --stats
-#  → mean 9.4 V   (idle — AC absent)
-```
-
-## What would have made this easy
-
-This took a detour into hand-written Python to parse `captures --diff` text and
-correlate bytes against an external series. **None of that should have been
-necessary.** Concrete tooling gaps this surfaced, roughly in priority order:
-
-1. **External reference series for `hunt`/`correlate`.** ✅ **Shipped** —
-   `hunt`/`correlate` now take `--against-file series.csv` (columns
-   `timestamp,value`), joined by nearest timestamp like the cross-ECU join. A
-   calibrated grid-voltage export can now be the reference directly. *(This was
-   the single biggest gap.)*
-
-2. **Confounder control / partial correlation.** ✅ **Shipped** —
-   `hunt`/`correlate` take `--control ECU:PID:PARAM` (or `--control-file`),
-   regressing out a nuisance signal and ranking by the *partial* correlation, so
-   a link hidden behind a dominant driver (the IR-drop current) becomes visible.
-
-3. **A "physical-value" hunt.** ✅ **Shipped** — `canair hunt uds ECU PID
-   --physical` sweeps common scalings (`/1 /10 /100 ×2 ×√2`) and flags bytes
-   whose value lands in a **named physical band** (mains RMS/peak, line
-   frequency, 12 V rail, HV pack), needing no reference — it flags
-   `[B14:B15]/100 ≈ 222 V` directly. (Also surfaced as an `investigate` column.)
-
-4. **An "active-but-independent" finder.** ✅ **Shipped** — `investigate
-   --independent-of ECU:PID:PARAM` ranks bytes that separate by state yet *don't*
-   track the named driver — exactly the AC-voltage fingerprint.
-
-5. **Multi-byte candidate detection.** ✅ **Shipped** — `canair investigate`
-   now flags adjacent `[Bn:Bn+1]` pairs where a near-constant high byte sits next
-   to a full-range low byte as a **probable scaled word**, and classifies each
-   byte (constant/counter/checksum/enum) — so a value split as "constant" +
-   "garbage" across a boundary is surfaced, not dismissed.
-
-6. **A structured byte-matrix export.** ✅ **Shipped** — `canair decode
-   --dump-bytes` emits a `timestamp × byte-offset` matrix (CSV, or `--json`),
-   PCI bytes skipped by default, so ad-hoc analysis no longer needs to regex the
-   `captures --diff` text.
-
-7. **Minor:** ✅ **Fixed** — `bix --annotate` now errors on a truncated/partial
-   payload instead of producing empty output.
+Final confirmation ran `--try "[B14:B15]/100"` across *all* charging history (mean
+221.8 V, 218–228 V active) and in READY (~9.4 V idle) — so the finding wasn't
+overfit to a single drive. (Exact commands in the trail above.)
 
 ## Takeaways
 
@@ -167,11 +197,15 @@ necessary.** Concrete tooling gaps this surfaced, roughly in priority order:
 
 ## Where it landed
 
-- `profiles/ioniq-2017/ecus/obc.yaml` — `AC_INPUT_V` and `AC_CURRENT_SETPOINT`
-  params on `OBC 2101`; the `2101 AC-side` research lead updated (negative
-  overturned); a new `2101 AC input current` lead opened (a *measured* AC current
-  still needs a charge where the current actually **varies** — a steady charge
-  can't separate it from the DC current).
+- `profiles/ioniq-2017/ecus/obc.yaml` — `AC_INPUT_V` added to `OBC 2101`,
+  `OBC_UNKNOWN_B15` removed (it was the low byte), and the `2101 AC-side` research
+  lead flipped from its negative to found.
+- **Follow-on work built directly on this:** a later charge with a *stepped* EVSE
+  current (10/13/16 A) decoded the **measured AC draw** (`AC_INPUT_A = [B33:B34]/100`)
+  and the **pilot/setpoint** (`OBC_PILOT_AMPS`/`_DUTY` from `[B35:B36]`, replacing a
+  noisy earlier guess), and surfaced the VCU's **charge time-to-full**
+  (`VCU_CHARGE_TIME_REMAINING`). Finding the voltage was the thread that unravelled
+  the rest of the AC side.
 
 The end-to-end method this case study illustrates is the
 [Analyze](../bring-your-own-car/06-analyze.md) workflow and the
