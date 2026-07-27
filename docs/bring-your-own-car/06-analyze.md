@@ -14,6 +14,53 @@ canair's analysis tools support each of those steps, and all work over your save
 captures — no live car needed. Below is the workflow, worked through on a real
 example: finding vehicle speed.
 
+## First, two families of signal: continuous vs discrete
+
+Before reasoning about any byte, work out which of two broad families it belongs
+to — they need **different analysis tools**, and getting this wrong sends you
+down a dead end (e.g. Pearson-correlating a gear enum against speed).
+
+**Continuous signals** are a value on a number line: speed, voltage, current,
+temperature, RPM, state-of-charge. Neighbouring values are meaningfully "close"
+(91 km/h is just above 90) and arithmetic is valid — mean, min/max, and a linear
+`scale·x + offset` all make sense. This is what Pearson correlation, `--stats`
+distributions, and linear fits are built for. Most powertrain sensor bytes are
+continuous.
+
+**Discrete signals** take a value from a fixed set where the number is a *label*,
+not a quantity:
+
+- **Enums / state machines** — gear, drive mode, fan level, charge state. A small
+  set of distinct integers; `Drive=3` is not "one more than" `Neutral=2`, so
+  spacing, averages, and min/max are meaningless.
+- **Bitfields / flags** — doors, locks, lights, relays: individual bits toggle
+  independently with discrete physical events.
+- **Counters / checksums** — a rolling frame counter or CRC: high-distinct, but
+  with *no* physical quantity to decode. Recognise them so you don't waste time
+  fitting a scale to noise.
+
+Body and comfort modules (BCM/IGPM/HVAC) are mostly discrete; powertrain modules
+(BMS/MCU/VCU) are mostly continuous, with a few enum/flag bytes (contactor state,
+drive mode) mixed in.
+
+Why the split drives the tooling:
+
+| | Continuous | Discrete (enum / flag) |
+|---|---|---|
+| Fingerprint | many values, smooth motion | few distinct values, or independent bit toggles |
+| Right statistic | Pearson/Spearman `r`, mean/stdev, variance-F | Cramér's V, mutual information, edge timelines |
+| canair tools | `hunt`, `correlate`, `decode --stats` / `--corr` / `--discriminate` | `correlate --method cramers_v`, `investigate --bits` / `--events`, `decode --discriminate` |
+| Model | linear `expression` (scale + offset) | `type: enum`/`bitmask` + a `values:`/`bits:` map |
+
+Your quickest classifier is the `--stats` **`distinct`** count over a varied
+drive: 2–8 distinct values (or a byte whose bits toggle independently) is almost
+certainly an enum/flag; dozens of smoothly-changing values is continuous.
+
+The worked example below (finding vehicle speed) follows the **continuous** path.
+The **discrete** path — typed parameters and categorical statistics — is covered
+under [Categorical signals](#categorical-signals-modes-flags-schedules) further
+down.
+
 ## Step 1 — Inspect: which bytes move?
 
 A byte that never changes across your captures can't be a live signal. Start by
@@ -178,11 +225,10 @@ follow up on what it surfaces.
 
 ## Categorical signals: modes, flags, schedules
 
-The workflow above assumes a **continuous** signal — a value on a line where
-correlation and min/max are meaningful. Many signals aren't: a fan level, a
-climate mode, a gear, a day-of-week schedule mask. For these the numeric spacing
-is meaningless (`Drive=3` isn't "one more than" `Neutral=2`), so Pearson
-correlation and the variance-F don't apply.
+This is the **discrete** family from the taxonomy above — a fan level, a climate
+mode, a gear, a day-of-week schedule mask. The worked speed example took the
+continuous path; here the numeric spacing is meaningless (`Drive=3` isn't "one
+more than" `Neutral=2`), so Pearson correlation and the variance-F don't apply.
 
 canair models these as **typed** parameters (`enum`/`bitmask`/`ascii`/`date`/
 `struct`) and analyzes them with *categorical* statistics — see
