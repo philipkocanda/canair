@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-07-27
+
+### Added
+
+- **Per-profile physical CAN bus vocabulary.** ECUs can now declare which CAN
+  bus segment(s) they sit on via a `can_bus:` field (edited with the new
+  `canair pids set-can-bus ECU CODE …`), validated against a per-profile
+  `can_buses.yaml` that maps each bare code to a human name + description (bus
+  naming is vendor-specific, so it lives per profile — Hyundai/Kia use
+  `B`/`P`/`C`/`M`/`H`/`All`). `canair ecu` gains a **BUS** column with
+  `--sort {name,bus}`, and the detail view resolves each code to its full name.
+  `canair validate can-buses` checks the vocabulary; `profile create` scaffolds a
+  starter `can_buses.yaml`. Loader `canlib/can_buses.py`, schema
+  `canlib/schema/can_buses_schema.yaml`.
+
 ### Changed
 
 - **`canair wican autopid write`/`upload`/`diff` now default to verified-only.**
@@ -15,6 +30,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reversed: only **verified** parameters ship by default, and you opt in to
   in-progress candidates with the new **`--include-unverified`** flag. The old
   `--verified-only` flag is still accepted as a no-op for back-compat.
+- **`canair --help` groups the command list by category.** The top-level command
+  map is now organised under bold headers (Live device / Analysis / Authoring /
+  Import · export / Setup), with anything uncategorised under Other. The
+  `[UDS]`/`[CAN]` domain tags were dropped from this overview (and the generated
+  CLI reference index) — the list is grouped and each command's own `--help`
+  still states its domain, so repeating the tag there was redundant. Grouping is
+  driven by a single central map (`canlib/commands/_categories.py`).
+- **`canair update` checks out the advertised release tag** instead of
+  fast-forwarding the current branch to its HEAD, so the installed code is
+  exactly the released version rather than whatever unreleased commits sit on
+  `main`. When the latest tag can't be determined (GitHub unreachable) it now
+  refuses to update rather than guess.
+
+### Fixed
+
+- **`pids` verified/enabled toggle preserves expression quoting.** The query
+  TUI's toggle re-rendered the whole param when flipping a boolean, stripping
+  hand-added quotes on the untouched `expression` field (e.g. `"B10:1"` →
+  `B10:1`). A new surgical single-field editor rewrites only the boolean line.
+- **`hunt` skips implausible float-reinterpretation noise.** Reading integer byte
+  runs as IEEE floats produced absurd magnitudes (~5e-36 / ~1e30) that surfaced
+  as weak spurious hits in the ranking; such float interpretations are now
+  filtered (integer reads are never filtered).
 
 ## [1.3.0] - 2026-07-27
 
@@ -400,6 +438,9 @@ dongle (both the WiCAN Pro and the classic/non-Pro WiCAN are supported).
 - Command safety blocklist preventing UDS programming/write sessions against a
   real vehicle.
 
-[Unreleased]: https://github.com/philipkocanda/canair/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/philipkocanda/canair/compare/v1.3.1...HEAD
+[1.3.1]: https://github.com/philipkocanda/canair/compare/v1.3.0...v1.3.1
+[1.3.0]: https://github.com/philipkocanda/canair/compare/v1.2.0...v1.3.0
+[1.2.0]: https://github.com/philipkocanda/canair/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/philipkocanda/canair/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/philipkocanda/canair/releases/tag/v1.0.0
