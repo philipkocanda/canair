@@ -291,6 +291,70 @@ def upsert_parameter(
     return fpath
 
 
+# Boolean param fields a surgical single-field set is allowed to touch.
+_PARAM_BOOL_FIELDS = ("verified", "enabled")
+
+
+def set_param_field(
+    ecu_name: str,
+    pid: str,
+    param_name: str,
+    field: str,
+    value: bool,
+    *,
+    pids_dir: Path | None = None,
+) -> Path:
+    """Set a single boolean field (``verified``/``enabled``) on an existing param.
+
+    Unlike :func:`upsert_parameter`, this rewrites *only* the ``field:`` line and
+    leaves every other field — including ``expression`` — byte-for-byte untouched.
+    A toggle must not re-render (and thus re-normalize the quoting of) fields the
+    user didn't change. The write is verified by a YAML re-parse; on failure the
+    original file is restored.
+    """
+    if field not in _PARAM_BOOL_FIELDS:
+        raise PidsEditError(f"field must be one of {_PARAM_BOOL_FIELDS}, got {field!r}")
+
+    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
+    original = fpath.read_text()
+    ecu_key = ecu_name.strip().upper()
+    pid_u = str(pid).strip().upper()
+
+    def transform(text: str) -> str:
+        ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
+        pids = _keyed_block(text, "pids", 2, ecu_start, ecu_end)
+        if not pids:
+            raise PidsEditError(f"ECU {ecu_name!r} has no pids: section")
+        pidb = _keyed_block(text, pid_u, 4, pids[2], pids[3])
+        if not pidb:
+            raise PidsEditError(f"PID {pid_u!r} not found under {ecu_name!r}")
+        params = _keyed_block(text, "parameters", 6, pidb[2], pidb[3])
+        if not params:
+            raise PidsEditError(f"PID {pid_u!r} has no parameters:")
+        existing = _keyed_block(text, param_name, 8, params[2], params[3])
+        if not existing:
+            raise PidsEditError(f"parameter {param_name!r} not found on {ecu_name} {pid_u}")
+        e_start, e_end = existing[0], existing[3]
+        block_text = text[e_start:e_end]
+        repl = _format_scalar_field(" " * 10, field, value)
+        block_text = _replace_field_in_block_at(block_text, field, repl, indent=10)
+        return text[:e_start] + block_text + text[e_end:]
+
+    def checker(ecu_def: dict) -> None:
+        pids_map = ecu_def.get("pids", {}) or {}
+        pdef = next((v for k, v in pids_map.items() if str(k).upper() == pid_u), None)
+        params = (pdef or {}).get("parameters") or {}
+        pm = params.get(param_name)
+        if pm is None:
+            raise PidsEditError(f"parameter {param_name!r} missing after edit")
+        if bool(pm.get(field)) != bool(value):
+            raise PidsEditError(f"{field} mismatch after edit")
+
+    new_text = transform(original)
+    _safe_write(fpath, original, new_text, ecu_key, checker)
+    return fpath
+
+
 def rename_parameter(
     ecu_name: str, pid: str, old_name: str, new_name: str, *, pids_dir: Path | None = None
 ) -> Path:

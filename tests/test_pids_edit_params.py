@@ -205,6 +205,43 @@ class TestUpsertParameterUpdate:
         assert _params(pids_dir, "2101")["EXISTING"]["verified"] is False
 
 
+class TestSetParamField:
+    def test_flips_verified(self, pids_dir):
+        from canlib.pids_edit import set_param_field
+
+        set_param_field("TESTECU", "2101", "EXISTING", "verified", False, pids_dir=pids_dir)
+        assert _params(pids_dir, "2101")["EXISTING"]["verified"] is False
+
+    def test_appends_enabled_when_absent(self, pids_dir):
+        from canlib.pids_edit import set_param_field
+
+        # EXISTING has no `enabled:` — the setter should add it.
+        set_param_field("TESTECU", "2101", "EXISTING", "enabled", False, pids_dir=pids_dir)
+        assert _params(pids_dir, "2101")["EXISTING"]["enabled"] is False
+
+    def test_preserves_expression_quoting(self, pids_dir):
+        from canlib.pids_edit import set_param_field
+
+        before = (pids_dir / "test.yaml").read_text()
+        assert 'expression: "B3"' in before  # hand-quoted on disk
+        set_param_field("TESTECU", "2101", "EXISTING", "verified", False, pids_dir=pids_dir)
+        after = (pids_dir / "test.yaml").read_text()
+        # The expression line — and its (unnecessary) quotes — must be untouched.
+        assert 'expression: "B3"' in after
+
+    def test_rejects_non_boolean_field(self, pids_dir):
+        from canlib.pids_edit import set_param_field
+
+        with pytest.raises(PidsEditError):
+            set_param_field("TESTECU", "2101", "EXISTING", "expression", True, pids_dir=pids_dir)
+
+    def test_missing_param_raises(self, pids_dir):
+        from canlib.pids_edit import set_param_field
+
+        with pytest.raises(PidsEditError):
+            set_param_field("TESTECU", "2101", "NOPE", "verified", True, pids_dir=pids_dir)
+
+
 class TestUpsertValidation:
     def test_bad_name_raises(self, pids_dir):
         with pytest.raises(PidsEditError):

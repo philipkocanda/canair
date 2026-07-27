@@ -283,3 +283,19 @@ class TestToggles:
         ed = _editor_on_disk(ecus_dir)
         ed.selected = None
         assert "No parameter selected" in ed.toggle_verified()
+
+    def test_toggle_preserves_expression_quoting(self, ecus_dir):
+        """A verified/enabled toggle must rewrite only the boolean line.
+
+        Regression: toggling a param used to re-send its expression through
+        upsert_parameter, which re-rendered (and re-normalized the quoting of)
+        the expression line — turning a hand-quoted `expression: "B4/2"` into a
+        bare `expression: B4/2` on an unrelated toggle.
+        """
+        ed = _editor_on_disk(ecus_dir)
+        before = (ecus_dir / "bms.yaml").read_text()
+        assert 'expression: "B4/2"' in before  # hand-quoted on disk
+        ed.toggle_verified()
+        after = (ecus_dir / "bms.yaml").read_text()
+        assert 'expression: "B4/2"' in after  # quoting untouched
+        assert _saved_soc(ecus_dir)["verified"] is True
