@@ -35,10 +35,12 @@ usage: canair correlate uds [-h] [--transform MODE] [--matrix]
                             [--method {pearson,spearman,cramers_v,mutual_info}]
                             [--join-tol SECONDS] [--bits] [--json]
                             [--no-cluster] [--bytes] [--lag-scan N]
-                            [--gate '[SIGNAL] OP VALUE'] [--promote NAME]
-                            [--overlap] [--find-mirrors] [--notation NAME]
-                            [--since WHEN] [--until WHEN] [--date YYYY-MM-DD]
-                            [--today] [--last-sessions [N]] [--last-session]
+                            [--gate '[SIGNAL] OP VALUE']
+                            [--control ECU:PID:PARAM] [--control-file FILE]
+                            [--promote NAME] [--overlap] [--find-mirrors]
+                            [--notation NAME] [--since WHEN] [--until WHEN]
+                            [--date YYYY-MM-DD] [--today]
+                            [--last-sessions [N]] [--last-session]
                             [--state SUBSTR] [--label SUBSTR]
                             [query]
 
@@ -115,6 +117,16 @@ options:
                         holds, e.g. '> 0' (reference itself — 'while moving')
                         or 'MCU:2102:MCU_MOTOR_RPM > 0' (a named signal).
                         Isolates a regime whole-history correlation dilutes
+  --control ECU:PID:PARAM
+                        With --against: regress out this nuisance signal and
+                        rank by the PARTIAL correlation (what remains after
+                        removing the control's linear influence) — surfaces
+                        signals visible only once the dominant driver is
+                        removed. --control-file takes an external
+                        timestamp,value CSV instead
+  --control-file FILE   Like --control, but the nuisance signal is an external
+                        timestamp,value CSV (mutually exclusive with
+                        --control)
   --promote NAME        With --against: write the top raw-byte hit to ecus/ as
                         an enabled, unverified candidate param NAME (via pids
                         upsert-param), with the correlation evidence auto-

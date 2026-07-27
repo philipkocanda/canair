@@ -607,3 +607,44 @@ class TestCorrelatePromote:
         rc = correlate._promote_top_byte("X", rows, series, [], "REF", 1.0)
         assert rc == 1
         assert "no raw-byte hit" in capsys.readouterr().err
+
+
+# ---------------------------------------------------------------------------
+# physical_scan — reference-free physical-value band detection
+# ---------------------------------------------------------------------------
+class TestPhysicalScan:
+    def _loaded(self, payloads):
+        from canlib.align import LoadedPid
+
+        lp = LoadedPid("OBC", "2101")
+        lp.captures = [
+            {"date": "2026-07-22", "time": f"09:00:{i:02d}", "payload": p}
+            for i, p in enumerate(payloads)
+        ]
+        return lp
+
+    def test_finds_centivolt_word_in_mains_band(self):
+        # A 16-bit centivolt AC-voltage word ~218-228 V -> raw 21800..22800.
+        # 8-byte payload reconstructs multi-frame: SID@B2, echo@B3, word@[B4:B5].
+        payloads = [f"6101{cv:04X}00000000" for cv in (21850, 22100, 22400, 22750, 22200)]
+        hits = xanalysis.physical_scan(self._loaded(payloads), min_n=3)
+        # The [B4:B5]/100 word should land in the mains-RMS band at /100.
+        mains = [h for h in hits if h.band == "mains RMS V"]
+        assert mains, f"expected a mains-RMS hit, got {[(h.expr, h.band) for h in hits]}"
+        top = mains[0]
+        assert top.scaling == "/100"
+        assert 200 <= top.median <= 250
+
+    def test_no_hit_when_out_of_all_bands(self):
+        # Small values (~3-7) stay out of every band (>=11 V) at every scaling,
+        # including the /100 and x-sqrt2 words. Multi-frame payload at B2.
+        payloads = [f"6101{v:02X}0{v}0000000" for v in (3, 4, 5, 6, 7)]
+        hits = xanalysis.physical_scan(self._loaded(payloads), min_n=3)
+        assert hits == []
+
+    def test_skips_protocol_header_bytes(self):
+        # The SID (B2) and PID-echo (B3) are never sensor data — a constant echo
+        # byte must not join a data byte into a spurious in-band word.
+        payloads = [f"6101{cv:04X}00000000" for cv in (21850, 22100, 22400, 22750)]
+        hits = xanalysis.physical_scan(self._loaded(payloads), min_n=3)
+        assert all(h.offset >= 4 for h in hits)  # nothing at/below the echo byte B3

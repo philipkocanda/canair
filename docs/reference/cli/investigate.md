@@ -30,8 +30,9 @@ options:
 ```
 usage: canair investigate uds [-h] [--min-r R] [--min-n N]
                               [--join-tol SECONDS] [--all] [--bits] [--events]
-                              [--field NAME] [--json] [--notation NAME]
-                              [--since WHEN] [--until WHEN]
+                              [--field NAME] [--independent-of ECU:PID:PARAM]
+                              [--independent-of-file FILE] [--json]
+                              [--notation NAME] [--since WHEN] [--until WHEN]
                               [--date YYYY-MM-DD] [--today]
                               [--last-sessions [N]] [--last-session]
                               [--state SUBSTR] [--label SUBSTR]
@@ -62,51 +63,62 @@ byte looks promising, confirm the exact expression with `canair hunt
 ECU PID --against ...` and write it with `canair pids upsert-param`.
 
 positional arguments:
-  ecu                  Target ECU (e.g. MCU)
-  pid                  Target PID (e.g. 2102)
+  ecu                   Target ECU (e.g. MCU)
+  pid                   Target PID (e.g. 2102)
 
 options:
-  -h, --help           show this help message and exit
-  --min-r R            Only report an anchor when |r| ≥ this (default 0.6)
-  --min-n N            Min aligned points (default 15)
-  --join-tol SECONDS   Nearest-timestamp join window (default 2.5s)
-  --all                Include bytes a verified param already maps (default:
-                       hide only verified-mapped)
-  --bits               Also analyse individual toggling bits (Bn:k) — the
-                       body/status-ECU finder
-  --events             Report each bit/byte rising/falling edge with its
-                       timestamp, aligned to the nearest capture note (the
-                       narrated event timeline)
-  --field NAME         With --events: track ONE defined param (a typed
-                       enum/bitmask/struct date field) as a single logical
-                       signal — emit one transition per change of its DECODED
-                       value (e.g. {Mon 08:00}->{Tue 07:30}), not scattered
-                       per-byte edges. NAME is a parameter of the target
-                       ECU:PID.
-  --json               Machine-readable output
-  --notation NAME      byte-index notation for output labels: wican (default),
-                       isotp, torque, bix. Overrides the display.byte_notation
-                       config key.
+  -h, --help            show this help message and exit
+  --min-r R             Only report an anchor when |r| ≥ this (default 0.6)
+  --min-n N             Min aligned points (default 15)
+  --join-tol SECONDS    Nearest-timestamp join window (default 2.5s)
+  --all                 Include bytes a verified param already maps (default:
+                        hide only verified-mapped)
+  --bits                Also analyse individual toggling bits (Bn:k) — the
+                        body/status-ECU finder
+  --events              Report each bit/byte rising/falling edge with its
+                        timestamp, aligned to the nearest capture note (the
+                        narrated event timeline)
+  --field NAME          With --events: track ONE defined param (a typed
+                        enum/bitmask/struct date field) as a single logical
+                        signal — emit one transition per change of its DECODED
+                        value (e.g. {Mon 08:00}->{Tue 07:30}), not scattered
+                        per-byte edges. NAME is a parameter of the target
+                        ECU:PID.
+  --independent-of ECU:PID:PARAM
+                        Rank bytes that separate by state yet DON'T track this
+                        driver signal — the 'active-but-independent' finder
+                        (e.g. AC voltage: varies while charging but is
+                        uncorrelated with charge current). Adds a driver-r
+                        column and re-ranks by state separation weighted by
+                        independence from the driver
+  --independent-of-file FILE
+                        Like --independent-of, but the driver is an external
+                        timestamp,value CSV (mutually exclusive with
+                        --independent-of)
+  --json                Machine-readable output
+  --notation NAME       byte-index notation for output labels: wican
+                        (default), isotp, torque, bix. Overrides the
+                        display.byte_notation config key.
 
 scoping:
   Restrict to captures within a date/time range (inclusive) and/or by session state/label substring. --since/--until accept a date (YYYY-MM-DD) or a timestamp (YYYY-MM-DD HH:MM[:SS[.ffffff]])
 
-  --since WHEN         Only captures on or after this date/time (YYYY-MM-DD[
-                       HH:MM:SS])
-  --until WHEN         Only captures on or before this date/time (YYYY-MM-DD[
-                       HH:MM:SS])
-  --date YYYY-MM-DD    Only captures on this exact date (shorthand for --since
-                       X --until X)
-  --today              Only captures recorded today (shorthand for --date
-                       <today>)
-  --last-sessions [N]  Only the most recent N recorded sessions in scope (N
-                       defaults to 1)
-  --last-session       Only the most recent recorded session in scope (alias
-                       for --last-sessions 1)
-  --state SUBSTR       Only captures whose session vehicle_states contain
-                       SUBSTR (case-insensitive), e.g. --state driving
-  --label SUBSTR       Only captures whose session/capture label contains
-                       SUBSTR (case-insensitive)
+  --since WHEN          Only captures on or after this date/time (YYYY-MM-DD[
+                        HH:MM:SS])
+  --until WHEN          Only captures on or before this date/time (YYYY-MM-DD[
+                        HH:MM:SS])
+  --date YYYY-MM-DD     Only captures on this exact date (shorthand for
+                        --since X --until X)
+  --today               Only captures recorded today (shorthand for --date
+                        <today>)
+  --last-sessions [N]   Only the most recent N recorded sessions in scope (N
+                        defaults to 1)
+  --last-session        Only the most recent recorded session in scope (alias
+                        for --last-sessions 1)
+  --state SUBSTR        Only captures whose session vehicle_states contain
+                        SUBSTR (case-insensitive), e.g. --state driving
+  --label SUBSTR        Only captures whose session/capture label contains
+                        SUBSTR (case-insensitive)
 
 examples:
   canair investigate MCU 2102              # rank unmapped + unverified-mapped bytes of MCU 2102

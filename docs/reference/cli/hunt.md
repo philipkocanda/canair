@@ -26,10 +26,12 @@ options:
 ## `canair hunt uds`
 
 ```
-usage: canair hunt uds [-h] (--against ECU:PID:PARAM | --against-file FILE)
+usage: canair hunt uds [-h]
+                       (--against ECU:PID:PARAM | --against-file FILE | --physical)
                        [--min-n N] [--top N] [--transform MODE]
                        [--method {pearson,spearman}] [--join-tol SECONDS]
-                       [--json] [--all-interps] [--promote NAME]
+                       [--json] [--all-interps] [--control ECU:PID:PARAM]
+                       [--control-file FILE] [--promote NAME]
                        [--notation NAME] [--since WHEN] [--until WHEN]
                        [--date YYYY-MM-DD] [--today] [--last-sessions [N]]
                        [--last-session] [--state SUBSTR] [--label SUBSTR]
@@ -63,6 +65,10 @@ options:
                         track, grid-voltage export. Joined by nearest
                         timestamp; the file must be on the same absolute clock
                         as the captures (relative/zero-based logs won't align)
+  --physical            No reference: flag bytes whose (scaled) value lands in
+                        a named physical band (mains RMS/peak, line freq, 12V
+                        rail, HV pack) at some scaling (/1 /10 /100 ×2 ×√2).
+                        Finds anchorless signals by plausibility
   --min-n N             Min aligned points (default 10)
   --top N               Max hits (default 12)
   --transform MODE      Transform the reference before aligning (e.g. delta to
@@ -76,6 +82,16 @@ options:
   --all-interps         Show every interpretation per offset (u8/i16/u24/…);
                         default collapses to the best interpretation per byte
                         offset
+  --control ECU:PID:PARAM
+                        Confounder control: regress out this nuisance signal
+                        and rank by the PARTIAL correlation (what remains
+                        after removing the control's linear influence).
+                        Surfaces a byte whose link to --against only shows
+                        once the dominant driver is removed (e.g. AC voltage
+                        behind the IR-drop current)
+  --control-file FILE   Like --control, but the nuisance signal is an external
+                        timestamp,value CSV (mutually exclusive with
+                        --control)
   --promote NAME        Write the top hit's expression to ecus/ as an enabled,
                         unverified candidate param NAME (via pids upsert-
                         param), with the correlation evidence auto-filled into

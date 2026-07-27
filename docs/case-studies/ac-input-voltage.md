@@ -121,25 +121,20 @@ necessary.** Concrete tooling gaps this surfaced, roughly in priority order:
    calibrated grid-voltage export can now be the reference directly. *(This was
    the single biggest gap.)*
 
-2. **Confounder control / partial correlation.** `hunt`/`correlate` rank by raw
-   correlation, which the IR-drop term (Trap 2) sabotages. A
-   `--control ECU:PID:PARAM` flag that regresses out a nuisance signal (here,
-   `OBC_DC_A`) and correlates the *residual* would expose signals that are only
-   visible once the dominant driver is removed. (`--gate` restricts to a regime;
-   this is the complementary "subtract a regime" operation.)
+2. **Confounder control / partial correlation.** ✅ **Shipped** —
+   `hunt`/`correlate` take `--control ECU:PID:PARAM` (or `--control-file`),
+   regressing out a nuisance signal and ranking by the *partial* correlation, so
+   a link hidden behind a dominant driver (the IR-drop current) becomes visible.
 
-3. **A "physical-value" hunt.** `hunt --physical` (or an `investigate` column)
-   that sweeps common scalings (`/1 /10 /100 ×2 ×√2`) and flags bytes whose value
-   lands in a **named physical band** — mains RMS (200–250 V), mains peak
-   (300–340 V), line frequency (49–51 Hz), 12 V rail, HV pack (300–450 V). This
-   alone would have flagged `[B14:B15]/100 ≈ 222 V` on the first pass, no external
-   reference needed.
+3. **A "physical-value" hunt.** ✅ **Shipped** — `canair hunt uds ECU PID
+   --physical` sweeps common scalings (`/1 /10 /100 ×2 ×√2`) and flags bytes
+   whose value lands in a **named physical band** (mains RMS/peak, line
+   frequency, 12 V rail, HV pack), needing no reference — it flags
+   `[B14:B15]/100 ≈ 222 V` directly. (Also surfaced as an `investigate` column.)
 
-4. **An "active-but-independent" finder.** The exact fingerprint of AC voltage was
-   *"varies within a state, but is uncorrelated with the state's obvious driver."*
-   A mode like `discriminate state --independent-of OBC:2101:OBC_DC_A` — rank
-   bytes that separate by state yet *don't* track a named reference — would
-   directly surface signals that current-anchored tools miss.
+4. **An "active-but-independent" finder.** ✅ **Shipped** — `investigate
+   --independent-of ECU:PID:PARAM` ranks bytes that separate by state yet *don't*
+   track the named driver — exactly the AC-voltage fingerprint.
 
 5. **Multi-byte candidate detection.** The value hid as *constant-ish hi byte +
    full-range lo byte* on two bytes dismissed separately. `investigate`/`coverage`

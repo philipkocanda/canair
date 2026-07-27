@@ -257,3 +257,29 @@ class TestLoadReferenceFile:
     def test_missing_file_raises(self, tmp_path):
         with pytest.raises(ValueError, match="cannot read"):
             load_reference_file(tmp_path / "nope.csv")
+
+
+# ---------------------------------------------------------------------------
+# join_nearest_triple — three-way alignment for partial correlation
+# ---------------------------------------------------------------------------
+class TestJoinNearestTriple:
+    def test_keeps_only_full_triples(self):
+        from canlib.align import join_nearest_triple
+
+        ref = [_tp(0.0, 1.0), _tp(1.0, 2.0), _tp(2.0, 3.0)]
+        cand = [_tp(0.1, 10.0), _tp(1.1, 20.0)]  # no candidate near t=2
+        ctrl = [_tp(0.2, 100.0), _tp(1.2, 200.0), _tp(2.1, 300.0)]
+        xs, ys, zs, n = join_nearest_triple(ref, cand, ctrl, tol_s=0.5)
+        assert n == 2  # t=2 dropped (no candidate)
+        assert xs == [1.0, 2.0]
+        assert ys == [10.0, 20.0]
+        assert zs == [100.0, 200.0]
+
+    def test_empty_when_control_missing(self):
+        from canlib.align import join_nearest_triple
+
+        ref = [_tp(0.0, 1.0)]
+        cand = [_tp(0.1, 10.0)]
+        xs, ys, zs, n = join_nearest_triple(ref, cand, [], tol_s=0.5)
+        assert n == 0
+        assert (xs, ys, zs) == ([], [], [])

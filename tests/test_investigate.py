@@ -1,5 +1,7 @@
 """Tests for the `canair investigate` one-shot per-byte report (T3.2)."""
 
+import json
+
 import yaml
 
 from canlib.commands import investigate
@@ -311,3 +313,75 @@ class TestFieldEvents:
         investigate._print_events("HVAC", "220100", LP(), {}, {}, args, {})
         err = capsys.readouterr().err
         assert "no parameter" in err
+
+
+class TestIndependenceScore:
+    def test_high_statef_low_driver_wins(self):
+        # A byte that separates by state (high F) but barely tracks the driver
+        # scores higher than one that separates equally but tracks it strongly.
+        indep = investigate._independence_score(10.0, 0.05)
+        dependent = investigate._independence_score(10.0, 0.95)
+        assert indep > dependent
+
+    def test_none_state_f_is_none(self):
+        assert investigate._independence_score(None, 0.1) is None
+
+    def test_missing_driver_counts_as_independent(self):
+        assert investigate._independence_score(4.0, None) == 4.0
+
+
+class TestIndependentOf:
+    def _write(self, tmp_path):
+        # AAF 2181: B4 ramps (tracks the driver), B5 flips by state (independent).
+        # State comes from the session, so split into a ready and a charging
+        # session interleaved in time (B5=0 while ready, 100 while charging).
+        ready, charging = [], []
+        for i in range(6):
+            b4 = 10 + i * 10  # 10..60, tracks the driver
+            cap = {
+                "ecu": "AAF",
+                "pid": "2181",
+                "payload": f"6181{b4:02X}{0 if i % 2 == 0 else 100:02X}00000000",
+                "time": f"09:00:0{i}",
+            }
+            (ready if i % 2 == 0 else charging).append(cap)
+        doc = {
+            "sessions": [
+                {"date": "2026-07-24", "vehicle_states": ["ready"], "captures": ready},
+                {"date": "2026-07-24", "vehicle_states": ["charging"], "captures": charging},
+            ]
+        }
+        (tmp_path / "2026-07-24.yaml").write_text(yaml.safe_dump(doc))
+
+    def test_independent_of_file_ranks_and_labels(self, tmp_path, monkeypatch, capsys):
+        import argparse
+
+        self._write(tmp_path)
+        csv = tmp_path / "driver.csv"
+        csv.write_text("".join(f"2026-07-24 09:00:0{i},{10 + i * 10}\n" for i in range(6)))
+        import canlib.align as align
+
+        orig = align.load_signal_captures
+        monkeypatch.setattr(
+            "canlib.commands.investigate.load_signal_captures",
+            lambda specs, **kw: orig(
+                specs, captures_dir=tmp_path, **{k: v for k, v in kw.items() if k != "captures_dir"}
+            ),
+        )
+        monkeypatch.setattr(
+            "canlib.commands.correlate._discover_specs", lambda *a, **k: [("AAF", "2181")]
+        )
+        p = investigate.add_parser(argparse.ArgumentParser().add_subparsers())
+        args = p.parse_args(
+            ["uds", "AAF", "2181", "--independent-of-file", str(csv), "--min-n", "3", "--json"]
+        )
+        rc = investigate.run(args)
+        assert rc == 0
+        data = json.loads(capsys.readouterr().out)
+        assert data["independent_of"] == "driver.csv"
+        # B5 (state-separating, driver-independent) should rank above B4 (tracks driver).
+        offs = [b["offset"] for b in data["bytes"]]
+        assert offs.index(5) < offs.index(4)
+        b4 = next(b for b in data["bytes"] if b["offset"] == 4)
+        b5 = next(b for b in data["bytes"] if b["offset"] == 5)
+        assert abs(b4["driver_r"]) > abs(b5["driver_r"])

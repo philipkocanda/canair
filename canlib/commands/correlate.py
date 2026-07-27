@@ -260,6 +260,21 @@ examples:
         "(a named signal). Isolates a regime whole-history correlation dilutes",
     )
     parser.add_argument(
+        "--control",
+        metavar="ECU:PID:PARAM",
+        help="With --against: regress out this nuisance signal and rank by the "
+        "PARTIAL correlation (what remains after removing the control's linear "
+        "influence) — surfaces signals visible only once the dominant driver is "
+        "removed. --control-file takes an external timestamp,value CSV instead",
+    )
+    parser.add_argument(
+        "--control-file",
+        dest="control_file",
+        metavar="FILE",
+        help="Like --control, but the nuisance signal is an external "
+        "timestamp,value CSV (mutually exclusive with --control)",
+    )
+    parser.add_argument(
         "--promote",
         metavar="NAME",
         help="With --against: write the top raw-byte hit to ecus/ as an enabled, "
@@ -847,6 +862,38 @@ def run(args) -> int:
                     file=sys.stderr,
                 )
                 return 1
+
+        # --control: rank by partial correlation with a nuisance signal removed.
+        control_series = None
+        if args.control and args.control_file:
+            print("error: --control and --control-file are mutually exclusive", file=sys.stderr)
+            return 2
+        if args.control or args.control_file:
+            if args.method in ("cramers_v", "mutual_info"):
+                print(
+                    "error: --control (partial correlation) is undefined for a "
+                    "categorical --method (cramers_v/mutual_info)",
+                    file=sys.stderr,
+                )
+                return 2
+            if args.lag_scan:
+                print("error: --control cannot be combined with --lag-scan", file=sys.stderr)
+                return 2
+            try:
+                if args.control_file:
+                    from canlib.align import load_reference_file
+
+                    control_series, control_label = load_reference_file(args.control_file)
+                else:
+                    control_series, control_label = load_ref(
+                        args.control, since=since, until=until, state=args.state, label=args.label
+                    )
+            except ValueError as e:
+                flag = "--control-file" if args.control_file else "--control"
+                print(f"{flag} error: {e}", file=sys.stderr)
+                return 1
+            ref_label = f"{ref_label} · control {control_label}"
+
         rows = []
         for name, s in series.items():
             if not args.include_self and name == args.against:
@@ -858,6 +905,19 @@ def run(args) -> int:
                 if hit is None or abs(hit.r) < args.min_r or hit.n < args.min_n:
                     continue
                 rows.append((name, hit.r, hit.n, hit.lag_seconds))
+            elif control_series is not None:
+                from canlib.align import join_nearest_triple
+                from canlib.stats import partial_correlation
+
+                xs, ys, zs, n = join_nearest_triple(
+                    ref_series, s, control_series, tol_s=args.join_tol
+                )
+                if n < args.min_n:
+                    continue
+                r = partial_correlation(xs, ys, zs, args.method)
+                if r is None or abs(r) < args.min_r:
+                    continue
+                rows.append((name, r, n, None))
             else:
                 xs, ys, n = join_nearest(ref_series, s, tol_s=args.join_tol)
                 if n < args.min_n:

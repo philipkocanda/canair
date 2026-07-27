@@ -93,3 +93,59 @@ class TestDescriptiveStats:
         assert fmt_num(float("nan")) == "nan"
         assert fmt_num(float("inf")) == "inf"
         assert fmt_num(float("-inf")) == "-inf"
+
+
+class TestPartialCorrelation:
+    def test_matches_closed_form(self):
+        from canlib.stats import partial_correlation, pearson
+
+        # Verify the implementation equals the textbook closed form computed from
+        # the three pairwise Pearson coefficients.
+        x = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0]
+        y = [2.0, 1.0, 4.0, 3.0, 6.0, 5.0, 8.0]
+        z = [1.0, 3.0, 2.0, 5.0, 4.0, 7.0, 6.0]
+        r_xy, r_xz, r_yz = pearson(x, y), pearson(x, z), pearson(y, z)
+        expected = (r_xy - r_xz * r_yz) / (((1 - r_xz**2) * (1 - r_yz**2)) ** 0.5)
+        assert partial_correlation(x, y, z) == pytest.approx(expected)
+
+    def test_removes_a_pure_confounder(self):
+        from canlib.stats import partial_correlation, pearson
+
+        # z drives both x and y; the residuals are orthogonal to z and to each
+        # other, so the apparent x-y link is entirely spurious; partial approx 0.
+        z = [-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]
+        a = [5.0, 0.0, -3.0, -4.0, -3.0, 0.0, 5.0]  # even, orthogonal to odd z
+        b = [-5.0, 0.0, 3.0, 4.0, 3.0, 0.0, -5.0]  # also even, orthogonal to z
+        # Make b orthogonal to a: use a different even shape.
+        b = [-1.0, 4.0, -1.0, -4.0, -1.0, 4.0, -1.0]
+        x = [zz + aa for zz, aa in zip(z, a, strict=True)]
+        y = [zz + bb for zz, bb in zip(z, b, strict=True)]
+        assert pearson(x, y) > 0.4  # apparent link through z
+        r = partial_correlation(x, y, z)
+        assert r is not None
+        assert abs(r) < 0.25  # partial well below the apparent link
+
+    def test_preserves_independent_link(self):
+        from canlib.stats import partial_correlation
+
+        # x tracks y directly; z is unrelated noise → partial ≈ full correlation.
+        x = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+        y = [1.1, 1.9, 3.2, 3.9, 5.1, 5.8]
+        z = [7.0, 1.0, 9.0, 2.0, 8.0, 3.0]
+        r = partial_correlation(x, y, z)
+        assert r is not None
+        assert r > 0.9
+
+    def test_collinear_control_returns_none(self):
+        from canlib.stats import partial_correlation
+
+        x = [1.0, 2.0, 3.0, 4.0]
+        y = [2.0, 4.0, 6.0, 8.0]
+        z = list(x)  # control identical to reference → denominator 0
+        assert partial_correlation(x, y, z) is None
+
+    def test_categorical_method_raises(self):
+        from canlib.stats import partial_correlation
+
+        with pytest.raises(ValueError):
+            partial_correlation([1, 2], [1, 2], [1, 2], method="cramers_v")

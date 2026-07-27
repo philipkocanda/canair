@@ -34,6 +34,7 @@ __all__ = [
     "extract_series",
     "join_nearest",
     "join_nearest_presorted",
+    "join_nearest_triple",
     "load_reference_file",
     "load_signal_captures",
 ]
@@ -304,6 +305,34 @@ def join_nearest_presorted(
             xs.append(rp.value)
             ys.append(best_val)
     return xs, ys, len(xs)
+
+
+def join_nearest_triple(
+    ref: list[TimePoint],
+    cand: list[TimePoint],
+    control: list[TimePoint],
+    tol_s: float = DEFAULT_JOIN_TOL_S,
+) -> tuple[list[float], list[float], list[float], int]:
+    """Three-way nearest join: keep points where ``ref`` has a nearest ``cand``
+    **and** a nearest ``control`` within ``tol_s``.
+
+    Returns ``(ref_vals, cand_vals, control_vals, n)`` aligned triples — the input
+    a partial correlation needs (reference, candidate, and the nuisance signal
+    regressed out, all sampled at the same reference instants). Reference points
+    missing either neighbour are dropped, and the realised ``n`` is reported so a
+    thin three-way overlap is visible.
+    """
+    _ref_vals, cols = align_many(ref, {"c": cand, "z": control}, tol_s)
+    xs: list[float] = []
+    ys: list[float] = []
+    zs: list[float] = []
+    ref_sorted = sorted(ref, key=lambda tp: tp.dt)
+    for rp, cy, cz in zip(ref_sorted, cols["c"], cols["z"], strict=True):
+        if cy is not None and cz is not None:
+            xs.append(rp.value)
+            ys.append(cy)
+            zs.append(cz)
+    return xs, ys, zs, len(xs)
 
 
 def aligned_all_equal(

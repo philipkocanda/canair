@@ -95,6 +95,40 @@ def correlation(xs: list[float], ys: list[float], method: str = "pearson") -> fl
     return pearson(xs, ys)
 
 
+def partial_correlation(
+    xs: list[float],
+    ys: list[float],
+    zs: list[float],
+    method: str = "pearson",
+) -> float | None:
+    """Partial correlation of ``xs`` and ``ys`` controlling for ``zs``.
+
+    The correlation that *remains* between ``xs`` (reference) and ``ys``
+    (candidate) once the linear influence of the nuisance signal ``zs`` (the
+    control/confounder) is removed from both. Uses the closed form
+    ``r_xy·z = (r_xy − r_xz·r_yz) / √((1−r_xz²)(1−r_yz²))`` — three pairwise
+    coefficients, so it stays numpy-free and exact.
+
+    All three series must be **aligned** (same length, same sample points).
+    ``method`` is ``pearson`` (product-moment) or ``spearman`` (rank); the
+    categorical methods are undefined here. Returns ``None`` when a pairwise
+    coefficient is undefined, or when the control is (near-)collinear with the
+    reference or candidate (denominator → 0, so the partial is unidentifiable).
+    """
+    if method in CATEGORICAL_METHODS:
+        raise ValueError(f"partial correlation is undefined for method {method!r}")
+    r_xy = correlation(xs, ys, method)
+    r_xz = correlation(xs, zs, method)
+    r_yz = correlation(ys, zs, method)
+    if r_xy is None or r_xz is None or r_yz is None:
+        return None
+    denom = ((1.0 - r_xz**2) * (1.0 - r_yz**2)) ** 0.5
+    if denom <= 1e-9:
+        return None  # control collinear with reference or candidate — unidentifiable
+    r = (r_xy - r_xz * r_yz) / denom
+    return max(-1.0, min(1.0, r))
+
+
 # ── Categorical association ──────────────────────────────────────────────────
 # Pearson/Spearman assume ordered, interval-scaled data — invalid for a nominal
 # signal (an enum mode, a flag set, a gear). These measure association between

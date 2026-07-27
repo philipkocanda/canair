@@ -183,7 +183,29 @@ tip: --against takes a known signal ECU:PID:PARAM (or a raw ECU:PID:EXPR). Use
         "by nearest timestamp; the file must be on the same absolute clock as the "
         "captures (relative/zero-based logs won't align)",
     )
+    ref_group.add_argument(
+        "--physical",
+        action="store_true",
+        help="No reference: flag bytes whose (scaled) value lands in a named "
+        "physical band (mains RMS/peak, line freq, 12V rail, HV pack) at some "
+        "scaling (/1 /10 /100 ×2 ×√2). Finds anchorless signals by plausibility",
+    )
     _add_shared_hunt_args(parser)
+    parser.add_argument(
+        "--control",
+        metavar="ECU:PID:PARAM",
+        help="Confounder control: regress out this nuisance signal and rank by the "
+        "PARTIAL correlation (what remains after removing the control's linear "
+        "influence). Surfaces a byte whose link to --against only shows once the "
+        "dominant driver is removed (e.g. AC voltage behind the IR-drop current)",
+    )
+    parser.add_argument(
+        "--control-file",
+        dest="control_file",
+        metavar="FILE",
+        help="Like --control, but the nuisance signal is an external "
+        "timestamp,value CSV (mutually exclusive with --control)",
+    )
     parser.add_argument(
         "--promote",
         metavar="NAME",
@@ -335,6 +357,13 @@ def run(args) -> int:
     ecu = canonical_ecu_name_safe(args.ecu)
     pid = args.pid.upper()
 
+    if args.physical:
+        return _run_physical(args, ecu, pid, since, until)
+
+    if args.control and args.control_file:
+        print("error: --control and --control-file are mutually exclusive", file=sys.stderr)
+        return 2
+
     try:
         if args.against_file:
             from canlib.align import load_reference_file
@@ -352,6 +381,23 @@ def run(args) -> int:
     if args.transform and args.transform != "raw":
         ref_series = transform_ref(ref_series, args.transform)
         ref_label = f"{args.transform}({ref_label})"
+
+    control_series = None
+    if args.control or args.control_file:
+        try:
+            if args.control_file:
+                from canlib.align import load_reference_file
+
+                control_series, control_label = load_reference_file(args.control_file)
+            else:
+                control_series, control_label = load_ref(
+                    args.control, since=since, until=until, state=args.state, label=args.label
+                )
+        except ValueError as e:
+            flag = "--control-file" if args.control_file else "--control"
+            print(f"{flag} error: {e}", file=sys.stderr)
+            return 1
+        ref_label = f"{ref_label} · control {control_label}"
 
     loaded = load_signal_captures(
         [(ecu, pid)], since=since, until=until, state=args.state, label=args.label
@@ -373,6 +419,7 @@ def run(args) -> int:
         top=args.top,
         method=args.method,
         all_interps=args.all_interps,
+        control=control_series,
     )
 
     if args.promote:
@@ -422,6 +469,75 @@ def run(args) -> int:
             f"    {color}r={h.r:+.3f}{_RESET}  {_BOLD}{label}{_RESET} "
             f"{_DIM}({h.interp}){_RESET}  fit y={h.slope:.4f}·x{h.intercept:+.2f} "
             f"{_DIM}resid={h.resid:.2f} n={h.n}{_RESET}{unit}"
+        )
+    print()
+    return 0
+
+
+def _run_physical(args, ecu: str, pid: str, since, until) -> int:
+    """Reference-free physical-value band scan on one PID."""
+    from canlib.xanalysis import physical_scan
+
+    loaded = load_signal_captures(
+        [(ecu, pid)], since=since, until=until, state=args.state, label=args.label
+    )
+    lp = loaded[(ecu.upper(), pid)]
+    if not lp.captures:
+        print(
+            f"No timed captures for {ecu} {pid} in scope"
+            + (f" ({lp.n_no_time} untimed skipped)." if lp.n_no_time else "."),
+            file=sys.stderr,
+        )
+        return 1
+
+    hits = physical_scan(lp, min_n=args.min_n, top=args.top)
+
+    if args.json:
+        _json.dump(
+            {
+                "target": f"{ecu}:{pid}",
+                "mode": "physical",
+                "hits": [
+                    {
+                        "expr": h.expr,
+                        "interp": h.interp,
+                        "offset": h.offset,
+                        "scaling": h.scaling,
+                        "band": h.band,
+                        "frac": h.frac,
+                        "median": h.median,
+                        "n": h.n,
+                    }
+                    for h in hits
+                ],
+            },
+            sys.stdout,
+            indent=2,
+        )
+        print()
+        return 0
+
+    if not hits:
+        print(f"No byte on {ecu} {pid} lands in a known physical band in scope.")
+        return 0
+    notation = resolve_notation(args.notation)
+    sub_bytes = subfunction_bytes_for_pid(pid)
+    print(
+        f"\n  {_BOLD}Physical-band scan {ecu} {pid}{_RESET} "
+        f"{_DIM}({len(lp.captures)} timed captures){_RESET}"
+    )
+    for h in hits:
+        color = _GREEN if h.frac >= 0.9 else _YELLOW if h.frac >= 0.7 else _DIM
+        if notation is ByteNotation.WICAN:
+            label = h.expr
+        else:
+            label = ByteRef.from_wican(h.offset, width=h.width).render(
+                notation, sub_bytes=sub_bytes
+            )
+        print(
+            f"    {color}{h.frac * 100:3.0f}% in-band{_RESET}  {_BOLD}{h.scaling}·{label}{_RESET} "
+            f"{_DIM}({h.interp}){_RESET}  {_CYAN}{h.band}{_RESET} "
+            f"{_DIM}median≈{h.median:.1f} n={h.n}{_RESET}"
         )
     print()
     return 0

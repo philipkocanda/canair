@@ -78,3 +78,57 @@ class TestHuntAgainstFile:
             raise AssertionError("expected SystemExit from mutually-exclusive group")
         except SystemExit:
             pass
+
+
+class TestHuntPhysical:
+    def _write_voltage(self, tmp_path):
+        # OBC 2101 multi-frame: a centivolt AC-voltage word at [B4:B5].
+        caps = []
+        for i, cv in enumerate((21850, 22100, 22400, 22750, 22200)):
+            caps.append(
+                {
+                    "ecu": "OBC",
+                    "pid": "2101",
+                    "payload": f"6101{cv:04X}00000000",
+                    "time": f"09:00:0{i}",
+                }
+            )
+        doc = {
+            "sessions": [{"date": "2026-07-24", "vehicle_states": ["charging"], "captures": caps}]
+        }
+        (tmp_path / "2026-07-24.yaml").write_text(yaml.safe_dump(doc))
+
+    def test_physical_flags_mains_band(self, tmp_path, monkeypatch, capsys):
+        self._write_voltage(tmp_path)
+        rc = _run(tmp_path, monkeypatch, ["OBC", "2101", "--physical", "--min-n", "3", "--json"])
+        assert rc == 0
+        data = json.loads(capsys.readouterr().out)
+        assert data["mode"] == "physical"
+        assert any(h["band"] == "mains RMS V" and h["scaling"] == "/100" for h in data["hits"])
+
+    def test_physical_needs_no_reference(self, tmp_path, monkeypatch):
+        # --physical is a valid member of the required reference group.
+        self._write_voltage(tmp_path)
+        rc = _run(tmp_path, monkeypatch, ["OBC", "2101", "--physical", "--min-n", "3"])
+        assert rc == 0
+
+
+class TestHuntControl:
+    def test_control_and_control_file_mutually_exclusive(self, tmp_path, monkeypatch, capsys):
+        _write_ramp(tmp_path)
+        rc = _run(
+            tmp_path,
+            monkeypatch,
+            [
+                "AAF",
+                "2181",
+                "--against",
+                "ESC:22C101:X",
+                "--control",
+                "A:B:C",
+                "--control-file",
+                "f",
+            ],
+        )
+        assert rc == 2
+        assert "mutually exclusive" in capsys.readouterr().err

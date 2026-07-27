@@ -156,6 +156,22 @@ tip: no anchors found? widen scope (drop --state), lower --min-r, or grow the
         "its DECODED value (e.g. {Mon 08:00}->{Tue 07:30}), not scattered per-byte "
         "edges. NAME is a parameter of the target ECU:PID.",
     )
+    parser.add_argument(
+        "--independent-of",
+        dest="independent_of",
+        metavar="ECU:PID:PARAM",
+        help="Rank bytes that separate by state yet DON'T track this driver signal "
+        "— the 'active-but-independent' finder (e.g. AC voltage: varies while "
+        "charging but is uncorrelated with charge current). Adds a driver-r column "
+        "and re-ranks by state separation weighted by independence from the driver",
+    )
+    parser.add_argument(
+        "--independent-of-file",
+        dest="independent_of_file",
+        metavar="FILE",
+        help="Like --independent-of, but the driver is an external timestamp,value "
+        "CSV (mutually exclusive with --independent-of)",
+    )
     parser.add_argument("--json", action="store_true", help="Machine-readable output")
     add_notation_arg(parser)
     add_scope_args(parser)
@@ -242,10 +258,27 @@ class _ByteReport:
     intercept: float | None
     unit_guess: str | None
     bit: int | None = None  # None = whole byte; 0-7 = a single bit Bn:k
+    driver_r: float | None = None  # |r| vs the --independent-of driver, if set
+    independence: float | None = None  # state_f weighted by (1 - |driver_r|)
+    physical: str | None = None  # named physical band this byte's value lands in
 
     @property
     def label(self) -> str:
         return f"B{self.offset}:{self.bit}" if self.bit is not None else f"B{self.offset}"
+
+
+def _independence_score(state_f: float | None, driver_r: float | None) -> float | None:
+    """State separation weighted by independence from the driver.
+
+    High when a byte separates cleanly by state (large ``state_f``) *and* barely
+    tracks the driver (small ``|driver_r|``) — the "active but independent"
+    fingerprint. ``None`` when there is no state separation to rank by. A missing
+    ``driver_r`` (no time overlap with the driver) counts as fully independent.
+    """
+    if state_f is None:
+        return None
+    f = 1e6 if state_f == float("inf") else state_f
+    return f * (1.0 - min(1.0, abs(driver_r or 0.0)))
 
 
 def _state_f(frames_by_state: dict[str, list[float]]):
@@ -282,6 +315,11 @@ def run(args) -> int:
     # Target byte series (min_distinct=2 so near-binary relay bytes count).
     target = build_byte_series(lp, min_distinct=2)
 
+    # Physical-band hits per starting offset (plausibility, needs no reference).
+    from canlib.xanalysis import physical_scan
+
+    physical_by_off = {h.offset: f"{h.scaling}·{h.expr} ≈ {h.band}" for h in physical_scan(lp)}
+
     # Which offsets/bits are already mapped by a defined param, and at what confidence.
     ecu_index = build_ecu_index(load_pids())
     params_def = ecu_index.get(ecu.upper(), {}).get("pids", {}).get(pid, {}).get("parameters", {})
@@ -297,6 +335,30 @@ def run(args) -> int:
     if args.events:
         _print_events(ecu, pid, lp, mapped, mapped_bit, args, params_def)
         return 0
+
+    # --independent-of: load a driver signal to rank bytes by independence from.
+    driver_series = None
+    driver_label = None
+    if args.independent_of and args.independent_of_file:
+        print(
+            "error: --independent-of and --independent-of-file are mutually exclusive",
+            file=sys.stderr,
+        )
+        return 2
+    if args.independent_of or args.independent_of_file:
+        from canlib.xanalysis import load_ref
+
+        try:
+            if args.independent_of_file:
+                from canlib.align import load_reference_file
+
+                driver_series, driver_label = load_reference_file(args.independent_of_file)
+            else:
+                driver_series, driver_label = load_ref(args.independent_of, **scope)
+        except ValueError as e:
+            flag = "--independent-of-file" if args.independent_of_file else "--independent-of"
+            print(f"{flag} error: {e}", file=sys.stderr)
+            return 1
 
     # Anchor signals: every param on the OTHER co-polled ECU/PIDs in scope.
     anchors: dict[str, list] = {}
@@ -319,18 +381,23 @@ def run(args) -> int:
         best = _best_anchor(series, anchors, args.join_tol, args.min_n)
         sb = state_buckets.get(f"B{off}")
         m = mapped.get(off)
+        sf = _state_f(sb) if sb else None
+        dr = _driver_r(series, driver_series, args.join_tol, args.min_n)
         reports.append(
             _ByteReport(
                 offset=off,
                 mapped_by=m[0] if m else None,
                 mapped_verified=m[1] if m else False,
-                state_f=_state_f(sb) if sb else None,
+                state_f=sf,
                 anchor=best[0] if best else None,
                 anchor_r=best[1] if best else None,
                 anchor_n=best[2] if best else 0,
                 slope=best[3] if best else None,
                 intercept=best[4] if best else None,
                 unit_guess=best[5] if best else None,
+                driver_r=dr,
+                independence=_independence_score(sf, dr),
+                physical=physical_by_off.get(off),
             )
         )
 
@@ -340,12 +407,14 @@ def run(args) -> int:
             best = _best_anchor(series, anchors, args.join_tol, args.min_n)
             sb = state_buckets.get(f"B{off}:{bit}")
             m = mapped_bit.get((off, bit))
+            sf = _state_f(sb) if sb else None
+            dr = _driver_r(series, driver_series, args.join_tol, args.min_n)
             reports.append(
                 _ByteReport(
                     offset=off,
                     mapped_by=m[0] if m else None,
                     mapped_verified=m[1] if m else False,
-                    state_f=_state_f(sb) if sb else None,
+                    state_f=sf,
                     anchor=best[0] if best else None,
                     anchor_r=best[1] if best else None,
                     anchor_n=best[2] if best else 0,
@@ -353,6 +422,8 @@ def run(args) -> int:
                     intercept=best[4] if best else None,
                     unit_guess=best[5] if best else None,
                     bit=bit,
+                    driver_r=dr,
+                    independence=_independence_score(sf, dr),
                 )
             )
 
@@ -360,14 +431,20 @@ def run(args) -> int:
         # Hide only positions a *verified* param already decodes; unverified-mapped
         # positions are unfinished work, so surface them alongside unmapped ones.
         reports = [r for r in reports if not r.mapped_verified]
-    # Rank: strongest anchor first, then state separation.
-    reports.sort(key=lambda r: (-(abs(r.anchor_r or 0)), -(r.state_f or 0)))
+    if driver_series is not None:
+        # Independence ranking: state separation, discounted by how much the byte
+        # tracks the named driver (the active-but-independent finder).
+        reports.sort(key=lambda r: -(r.independence or 0))
+    else:
+        # Rank: strongest anchor first, then state separation.
+        reports.sort(key=lambda r: (-(abs(r.anchor_r or 0)), -(r.state_f or 0)))
 
     if args.json:
         _json.dump(
             {
                 "target": f"{ecu}:{pid}",
                 "join_tol_s": args.join_tol,
+                "independent_of": driver_label,
                 "keep_unique": scope_is_keep_unique(lp.captures),
                 "bytes": [vars(r) for r in reports],
             },
@@ -378,7 +455,7 @@ def run(args) -> int:
         print()
         return 0
 
-    _print_report(ecu, pid, reports, args, lp, bool(anchors))
+    _print_report(ecu, pid, reports, args, lp, bool(anchors), driver_label=driver_label)
     return 0
 
 
@@ -510,7 +587,17 @@ def _best_anchor(series, anchors, tol, min_n):
     return best
 
 
-def _print_report(ecu, pid, reports, args, lp, has_anchors: bool) -> None:
+def _driver_r(series, driver, tol, min_n) -> float | None:
+    """Correlation of one byte/bit series vs the --independent-of driver, or None."""
+    if driver is None:
+        return None
+    xs, ys, n = join_nearest(driver, series, tol_s=tol)
+    if n < min_n:
+        return None
+    return correlation(xs, ys)
+
+
+def _print_report(ecu, pid, reports, args, lp, has_anchors: bool, *, driver_label=None) -> None:
     notation = resolve_notation(args.notation)
     sub_bytes = subfunction_bytes_for_pid(pid)
     print(
@@ -542,9 +629,21 @@ def _print_report(ecu, pid, reports, args, lp, has_anchors: bool) -> None:
             unit = f" {_CYAN}{r.unit_guess}{_RESET}" if r.unit_guess else ""
             anchor_label = relabel_signal(r.anchor, notation)
             anchor = f"  {rc}r={r.anchor_r:+.3f}{_RESET} vs {anchor_label} {_DIM}n={r.anchor_n}{fit}{_RESET}{unit}"
+        drv = ""
+        if driver_label is not None:
+            # Low |driver r| = independent of the driver (the signal we want).
+            dv = "—" if r.driver_r is None else f"{r.driver_r:+.3f}"
+            dc = _GREEN if (r.driver_r is None or abs(r.driver_r) < 0.3) else _DIM
+            drv = f"  {dc}drv={dv}{_RESET}"
+        phys = f"  {_CYAN}{r.physical}{_RESET}" if r.physical else ""
         print(
             f"    {_BOLD}{relabel_signal(r.label, notation, sub_bytes=sub_bytes)}{_RESET} "
-            f"{tag}{f_str}{anchor}"
+            f"{tag}{f_str}{drv}{anchor}{phys}"
+        )
+    if driver_label is not None:
+        print(
+            f"    {_DIM}ranked by state separation × independence from {driver_label} "
+            f"(drv = |r| vs that driver; low drv + high stateF = the target).{_RESET}"
         )
     if not has_anchors:
         # Body/comfort PIDs have no co-polled partner, so there is no anchor

@@ -1439,7 +1439,7 @@ def run(args) -> int:
             }
         )
 
-    # Byte-matrix export: timestamp × byte-offset, independent of param defs.
+    # Byte-matrix export: timestamp x byte-offset, independent of param defs.
     if args.dump_bytes:
         return _dump_bytes(
             all_results,

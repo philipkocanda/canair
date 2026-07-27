@@ -132,6 +132,27 @@ canair decode MyECU 2101 --dump-bytes                 # CSV to stdout (PCI skipp
 canair decode MyECU 2101 --dump-bytes --json          # same, as JSON
 ```
 
+## When a signal fights back: confounders, plausibility, independence
+
+Correlation-based tools fail on a signal that has **no clean anchor on the bus** —
+one that's masked by a dominant driver, or that correlates with nothing at all.
+Three levers for those cases (all worked through in the
+[AC input voltage case study](../case-studies/ac-input-voltage.md)):
+
+```bash
+# Confounder control: rank by the PARTIAL correlation, with a nuisance signal
+# regressed out — surfaces a link hidden behind a dominant driver.
+canair hunt uds OBC:2101 --against-file grid_v.csv --control OBC:2101:OBC_DC_A
+
+# Physical plausibility: no reference at all — flag bytes whose scaled value
+# lands in a named band (mains RMS/peak, line freq, 12V rail, HV pack).
+canair hunt uds OBC 2101 --physical --state charging
+
+# Active-but-independent: rank bytes that separate by state yet DON'T track a
+# named driver (the fingerprint of AC voltage vs charge current).
+canair investigate MyECU 2101 --independent-of OBC:2101:OBC_DC_A --state charging
+```
+
 ## The one-shot shortcut: `investigate`
 
 `canair investigate` bundles inspect + reason + correlate into a single report:

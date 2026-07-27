@@ -25,8 +25,10 @@ from .align import (
 from .stats import correlation, pearson
 
 __all__ = [
+    "PHYSICAL_BANDS",
     "CorrHit",
     "LagHit",
+    "PhysicalHit",
     "build_bit_series",
     "build_byte_series",
     "build_param_series",
@@ -38,6 +40,7 @@ __all__ = [
     "lag_scan",
     "linear_fit",
     "pearson",
+    "physical_scan",
     "sniff_unit",
     "transform_ref",
 ]
@@ -451,6 +454,7 @@ def hunt_byte(
     top: int = 12,
     method: str = "pearson",
     all_interps: bool = False,
+    control: list[TimePoint] | None = None,
 ) -> list[HuntHit]:
     """Sweep every byte offset × interpretation, rank by |r| vs ``ref``.
 
@@ -459,10 +463,18 @@ def hunt_byte(
     read and expressed. PCI-crossing multi-byte reads are skipped. Ranking uses
     ``method`` (pearson/spearman); the reported linear fit is always least-squares
     on the raw values regardless.
+
+    With ``control`` (a nuisance/confounder series), each candidate is ranked by
+    the **partial** correlation ``r_(ref,cand)·control`` over the three-way
+    time-aligned points — surfacing a byte whose relationship to ``ref`` only
+    appears once the dominant driver is regressed out (and demoting bytes that
+    merely track the control). The linear fit stays on the raw (ref, cand) pairs.
     """
+    from .align import join_nearest_triple
     from .byteindex import payload_to_wican_bytes, wican_to_isotp
     from .capture_dates import entry_datetime
     from .commands._decode_plot import INSPECT_TYPES, interpret_bytes, wican_expr
+    from .stats import partial_correlation
 
     # Precompute (datetime, frame) for each timed capture.
     frames: list[tuple] = []
@@ -499,10 +511,16 @@ def hunt_byte(
                         cand.append(TimePoint(dt, v))
                 if len({tp.value for tp in cand}) < 3:
                     continue
-                xs, ys, n = join_nearest(ref, cand, tol_s=tol_s)
-                if n < min_n:
-                    continue
-                r = correlation(xs, ys, method)
+                if control is not None:
+                    xs, ys, zs, n = join_nearest_triple(ref, cand, control, tol_s=tol_s)
+                    if n < min_n:
+                        continue
+                    r = partial_correlation(xs, ys, zs, method)
+                else:
+                    xs, ys, n = join_nearest(ref, cand, tol_s=tol_s)
+                    if n < min_n:
+                        continue
+                    r = correlation(xs, ys, method)
                 if r is None:
                     continue
                 fit = linear_fit(xs, ys)
@@ -596,3 +614,147 @@ def load_ref(
     if not series:
         raise ValueError(f"reference {sref.label} decoded no numeric values in scope")
     return series, sref.label
+
+
+# ---------------------------------------------------------------------------
+# Physical-value band scan — find bytes whose value lands in a known band
+# ---------------------------------------------------------------------------
+# Named physical bands: (label, low, high) in the band's natural unit. A byte's
+# raw value is multiplied by a candidate scaling before the band test, so e.g. a
+# 16-bit centivolt word (raw ~22200) is caught by the mains-RMS band at x0.01.
+# Bands are car-class assumptions (mains/HV/12V are EV/region-typical); a
+# conservative built-in set - profile overrides are future work.
+PHYSICAL_BANDS: list[tuple[str, float, float]] = [
+    ("mains RMS V", 200.0, 250.0),
+    ("mains peak V", 300.0, 340.0),
+    ("line freq Hz", 49.0, 51.0),
+    ("12V rail V", 11.0, 15.0),
+    ("HV pack V", 300.0, 450.0),
+]
+
+# Candidate scalings (factor, label): physical = raw * factor.
+_PHYSICAL_SCALINGS: list[tuple[float, str]] = [
+    (1.0, "×1"),
+    (0.1, "/10"),
+    (0.01, "/100"),
+    (2.0, "×2"),
+    (0.5, "/2"),
+    (2.0**0.5, "×√2"),
+]
+
+# Interpretations swept for the physical scan — the common WiCAN-expressible
+# integer widths (BE). Floats/LE are excluded: a physical sensor field is a
+# scaled integer, and they only add noise.
+_PHYSICAL_INTERPS = ("u8", "u16", "u24", "i16")
+
+
+@dataclass
+class PhysicalHit:
+    expr: str  # WiCAN expression (or "<no-expr>")
+    interp: str
+    offset: int
+    scaling: str
+    band: str
+    frac: float  # fraction of samples landing in the band
+    median: float  # median scaled value
+    n: int
+    width: int = 1
+
+
+def physical_scan(
+    loaded: LoadedPid,
+    *,
+    min_frac: float = 0.6,
+    min_n: int = 10,
+    top: int = 12,
+) -> list[PhysicalHit]:
+    """Find bytes whose (scaled) value lands in a named physical band.
+
+    Sweeps every byte offset × interpretation × candidate scaling and reports the
+    ones a majority (``min_frac``) of whose samples fall inside a
+    :data:`PHYSICAL_BANDS` range — a plausibility hunt that needs **no reference
+    signal**, which is the only way to find a signal (like AC mains voltage) that
+    has no correlate on the bus. Collapses to the best (highest-fraction) hit per
+    starting offset; ranks by fraction.
+    """
+    from .byteindex import isotp_to_wican, payload_to_wican_bytes, wican_to_isotp
+    from .commands._decode_plot import INSPECT_TYPES, interpret_bytes, wican_expr
+    from .notation import subfunction_bytes_for_pid
+
+    frames: list[bytes] = []
+    max_len = 0
+    for cap in loaded.captures:
+        try:
+            fr = payload_to_wican_bytes(cap["payload"])
+        except Exception:
+            continue
+        frames.append(fr)
+        max_len = max(max_len, len(fr))
+    if not frames:
+        return []
+    # Skip PCI framing bytes AND the protocol header (SID + PID/DID echo): a
+    # physical sensor value is never in those, and letting a constant echo byte
+    # join a data byte into a wide 16-bit word manufactures false band hits.
+    skip = {i for i in range(max_len) if wican_to_isotp(i) is None}
+    header_isotp = 1 + subfunction_bytes_for_pid(loaded.pid)  # SID + echo bytes
+    skip |= {isotp_to_wican(i) for i in range(header_isotp)}
+
+    hits: list[PhysicalHit] = []
+    for spec in INSPECT_TYPES:
+        name, width, _kind, _signed = spec
+        if name not in _PHYSICAL_INTERPS:
+            continue
+        for off in range(max_len):
+            if off + width > max_len:
+                continue
+            if any((off + k) in skip for k in range(width)):
+                continue
+            vals = [
+                v
+                for fr in frames
+                if (v := interpret_bytes(fr, off, spec, little=False)) is not None
+            ]
+            if len(vals) < min_n or len({round(v, 6) for v in vals}) < 3:
+                continue
+            best: PhysicalHit | None = None
+            for factor, slabel in _PHYSICAL_SCALINGS:
+                scaled = [v * factor for v in vals]
+                for blabel, lo, hi in PHYSICAL_BANDS:
+                    inband = sum(1 for v in scaled if lo <= v <= hi)
+                    frac = inband / len(scaled)
+                    if frac < min_frac:
+                        continue
+                    if best is None or frac > best.frac:
+                        expr = wican_expr(off, spec, little=False) or "<no-expr>"
+                        best = PhysicalHit(
+                            expr=expr,
+                            interp=name,
+                            offset=off,
+                            scaling=slabel,
+                            band=blabel,
+                            frac=frac,
+                            median=_median_scaled(scaled),
+                            n=len(scaled),
+                            width=width,
+                        )
+            if best is not None:
+                hits.append(best)
+
+    # Collapse to the best hit per starting offset, then rank by fraction.
+    hits.sort(key=lambda h: (-h.frac, h.width))
+    seen: set[int] = set()
+    unique: list[PhysicalHit] = []
+    for h in hits:
+        if h.offset in seen:
+            continue
+        seen.add(h.offset)
+        unique.append(h)
+        if len(unique) >= top:
+            break
+    return unique
+
+
+def _median_scaled(values: list[float]) -> float:
+    s = sorted(values)
+    n = len(s)
+    return s[n // 2] if n % 2 else (s[n // 2 - 1] + s[n // 2]) / 2.0
