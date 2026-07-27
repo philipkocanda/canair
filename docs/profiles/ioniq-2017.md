@@ -86,7 +86,7 @@ canair --profile ioniq-2017 io IGPM --did BC01  # e.g. low beam (held until Ctrl
 | HVAC | 0x7B3 | Climate control |
 | CLU | 0x7C6 | Cluster / instrument panel (odometer) |
 
-…plus AAF, AMP, AVN, BSD-L/R, CCM, GSA, MFC, PSM, RCAM, SCC, SKM, SRS, SWRC-L/R,
+…plus AAF, ADM, AMP, AVN, BSD-L/R, CCM, DDM, GSA, MFC, PSM, RCAM, SCC, SKM, SRS,
 VESS, WPC, and a few still-`Unknown-*` modules. List them all with:
 
 ```bash

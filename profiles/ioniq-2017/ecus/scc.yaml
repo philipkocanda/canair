@@ -110,3 +110,13 @@ SCC:
       result: "22010x gap sweep (ignition on): only 0105 (5B, 6201050307) responds in 0104-0110; 0104 and 0106-0110 all NRC. SCC readable pages remain 0100-0103,0105 — no hidden pages found."
       notes: Hidden-page hunt 2026-07-22.
       updated: "2026-07-23"
+    - type: decode
+      target: 220102 speed byte
+      status: pending
+      priority: P3
+      vehicle_states: [ready]
+      created: "2026-07-27"
+      updated: "2026-07-27"
+      notes: "e-Niro AEB 0x7D0 22 02 00: byte 3 of the 62 02 xx response = vehicle Speed. Ioniq SCC/AEB is also 0x7D0 (220100-220105 defined, NO captures yet). LEAD: capture SCC 220102/220100 while driving and hunt for the speed byte vs ESC:22C101:REAL_SPEED_KMH. e-Niro is single-frame so the offset is a hint, not a map."
+      sources:
+        - kia-e-niro-can-messages.xlsx (AEB sheet)

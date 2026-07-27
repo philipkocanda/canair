@@ -52,5 +52,6 @@ GSA:
             B20 constant 0x01. Three clustered values that drifted ~30 between captures (same gear) -> likely
             shift-lever hall position sensors or temperature, NOT gear. Needs a gear-shift test to decode.
             NOTE: GSA is the shift-lever assembly — likely holds gear/lever data. Drive mode (Eco/Normal/Sport)
-            button is on the centre console; regen paddles are steering-wheel mounted -> more likely in
-            SWRC-L/R (0x7A1/0x7A2) or the cluster (0x7C6). See TODO "Drive mode + regen" section.
+            button is on the centre console; regen paddles are steering-wheel mounted -> most likely in
+            the cluster (0x7C6) or an SCU/steering-wheel controller (0x7A1/0x7A2 are the DDM/ADM door
+            modules, NOT steering-wheel remotes — corrected 2026-07-27). See TODO "Drive mode + regen" section.

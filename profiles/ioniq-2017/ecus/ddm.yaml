@@ -1,0 +1,5039 @@
+# ─── DDM (Driver Door Module) ─────────────────────────────────────────
+# Driver door module at 0x7A1. Part: 93570G2110
+# (Previously misidentified as "SWRC-L" / steering-wheel remote — corrected 2026-07-27.)
+# No readable live-data DIDs (service 22) found. IOControl (service 2F) scan
+# 2026-07-27 found 244 returnControlToECU responders in B100-B1xx (door/window
+# actuators) — see iocontrol_discoveries below.
+DDM:
+  tx_id: 0x7A1
+  identity:
+    description: Driver Door Module
+    part_number: "93570G2110"
+    mfg_date: "2017-06-02"
+    hw_version: "100"
+    sw_version: "100"
+    id_protocol: UDS  # F1xx (very chatty — 21 DIDs, echoes part# in many fields)
+    notes: >
+      Driver door module. No readable live-data DIDs discovered yet.
+      Previously misidentified as "SWRC-L" (steering-wheel remote, left) —
+      corrected to DDM 2026-07-27.
+  vehicle_states:
+    - plugged
+    - acc
+    - acc2
+    - ready
+    - charging
+  scan_log: # DDM (driver door module)
+    - service: 0x22
+      range: "0101-010F,B001-B010,C101-C10F"
+      date: 2026-07-22
+      hits: 0
+      vehicle_states:
+        - ready
+      notes: "No live-data DIDs found."
+    - service: 0x2F
+      range: "B000-B524"
+      date: 2026-07-27
+      hits: 244
+      vehicle_states:
+        - ready
+      notes: >
+        IOControl returnControlToECU (2F …00) sweep. 244 positive 6F responders
+        (mostly B100-B1xx, response 6FB1xx00FF000C00 — door/window actuators),
+        ~1065 NRC 0x22 conditionsNotCorrect. See iocontrol_discoveries. Values
+        for ShortTermAdjustment (03) not yet determined; do NOT blind-actuate.
+  pids: {}
+
+  iocontrol_discoveries:
+    B000:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B001:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B002:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B003:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B004:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B005:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B006:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B007:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B008:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B009:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B00A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B00B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B00C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B00D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B00E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B00F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B010:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B011:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B012:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B013:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B014:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B015:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B016:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B017:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B018:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B019:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B01A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B01B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B01C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B01D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B01E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B01F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B020:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B021:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B022:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B023:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B024:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B025:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B026:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B027:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B028:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B029:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B02A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B02B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B02C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B02D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B02E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B02F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B030:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B031:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B032:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B033:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B034:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B035:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B036:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B037:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B038:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B039:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B03A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B03B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B03C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B03D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B03E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B03F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B040:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B041:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B042:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B043:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B044:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B045:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B046:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B047:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B048:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B049:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B04A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B04B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B04C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B04D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B04E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B04F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B050:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B051:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B052:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B053:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B054:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B055:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B056:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B057:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B058:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B059:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B05A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B05B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B05C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B05D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B05E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B05F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B060:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B061:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B062:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B063:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B064:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B065:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B066:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B067:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B068:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B069:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B06A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B06B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B06C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B06D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B06E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B06F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B070:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B071:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B072:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B073:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B074:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B075:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B076:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B077:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B078:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B079:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B07A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B07B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B07C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B07D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B07E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B07F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B080:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B081:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B082:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B083:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B084:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B085:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B086:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B087:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B088:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B089:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B08A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B08B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B08C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B08D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B08E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B08F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B090:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B091:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B092:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B093:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B094:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B095:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B096:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B097:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B098:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B099:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B09A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B09B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B09C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B09D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B09E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B09F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0A0:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0A1:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0A2:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0A3:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0A4:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0A5:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0A6:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0A7:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0A8:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0A9:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0AA:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0AB:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0AC:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0AD:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0AE:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0AF:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0B0:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0B1:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0B2:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0B3:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0B4:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0B5:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0B6:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0B7:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0B8:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0B9:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0BA:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0BB:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0BC:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0BD:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0BE:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0BF:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0C0:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0C1:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0C2:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0C3:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0C4:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0C5:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0C6:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0C7:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0C8:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0C9:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0CA:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0CB:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0CC:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0CD:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0CE:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0CF:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0D0:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0D1:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0D2:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0D3:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0D4:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0D5:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0D6:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0D7:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0D8:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0D9:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0DA:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0DB:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0DC:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0DD:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0DE:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0DF:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0E0:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0E1:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0E2:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0E3:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0E4:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0E5:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0E6:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0E7:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0E8:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0E9:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0EA:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0EB:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0EC:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0ED:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0EE:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0EF:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0F0:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0F1:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0F2:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0F3:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0F4:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0F5:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0F6:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0F7:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0F8:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0F9:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0FA:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0FB:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0FC:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0FD:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0FE:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B0FF:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B100:
+      response: "6FB10000FF000C00"
+      notes: ""
+    B101:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B102:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B103:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B104:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B105:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B106:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B107:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B108:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B109:
+      response: "6FB10900FF000C00"
+      notes: ""
+    B10A:
+      response: "6FB10A00FF000C00"
+      notes: ""
+    B10B:
+      response: "6FB10B00FF000C00"
+      notes: ""
+    B10C:
+      response: "6FB10C00FF000C00"
+      notes: ""
+    B10D:
+      response: "6FB10D00FF000C00"
+      notes: ""
+    B10E:
+      response: "6FB10E00FF000C00"
+      notes: ""
+    B10F:
+      response: "6FB10F00FF000C00"
+      notes: ""
+    B110:
+      response: "6FB11000FF000C00"
+      notes: ""
+    B111:
+      response: "6FB11100FF000C00"
+      notes: ""
+    B112:
+      response: "6FB11200FF000C00"
+      notes: ""
+    B113:
+      response: "6FB11300FF000C00"
+      notes: ""
+    B114:
+      response: "6FB11400FF000C00"
+      notes: ""
+    B115:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B116:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B117:
+      response: "6FB11700FF000C00"
+      notes: ""
+    B118:
+      response: "6FB11800FF000C00"
+      notes: ""
+    B119:
+      response: "6FB11900FF000C00"
+      notes: ""
+    B11A:
+      response: "6FB11A00FF000C00"
+      notes: ""
+    B11B:
+      response: "6FB11B00FF000C00"
+      notes: ""
+    B11C:
+      response: "6FB11C00FF000C00"
+      notes: ""
+    B11D:
+      response: "6FB11D00FF000C00"
+      notes: ""
+    B11E:
+      response: "6FB11E00FF000C00"
+      notes: ""
+    B11F:
+      response: "6FB11F00FF000C00"
+      notes: ""
+    B120:
+      response: "6FB1200000000000"
+      notes: ""
+    B121:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B122:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B123:
+      response: "6FB12300FF000C00"
+      notes: ""
+    B124:
+      response: "6FB12400FF000C00"
+      notes: ""
+    B125:
+      response: "6FB12500FF000C00"
+      notes: ""
+    B126:
+      response: "6FB12600FF000C00"
+      notes: ""
+    B127:
+      response: "6FB12700FF000C00"
+      notes: ""
+    B128:
+      response: "6FB12800FF000C00"
+      notes: ""
+    B129:
+      response: "6FB12900FF000C00"
+      notes: ""
+    B12A:
+      response: "6FB12A00FF000C00"
+      notes: ""
+    B12B:
+      response: "6FB12B00FF000C00"
+      notes: ""
+    B12C:
+      response: "6FB12C00FF000C00"
+      notes: ""
+    B12D:
+      response: "6FB12D00FF000C00"
+      notes: ""
+    B12E:
+      response: "6FB12E00FF000C00"
+      notes: ""
+    B12F:
+      response: "6FB12F00FF000C00"
+      notes: ""
+    B130:
+      response: "6FB13000FF000C00"
+      notes: ""
+    B131:
+      response: "6FB13100FF000C00"
+      notes: ""
+    B132:
+      response: "6FB13200FF000C00"
+      notes: ""
+    B133:
+      response: "6FB13300FF000C00"
+      notes: ""
+    B134:
+      response: "6FB13400FF000C00"
+      notes: ""
+    B135:
+      response: "6FB13500FF000C00"
+      notes: ""
+    B136:
+      response: "6FB13600FF000C00"
+      notes: ""
+    B137:
+      response: "6FB13700FF000C00"
+      notes: ""
+    B138:
+      response: "6FB13800FF000C00"
+      notes: ""
+    B139:
+      response: "6FB13900FF000C00"
+      notes: ""
+    B13A:
+      response: "6FB13A00FF000C00"
+      notes: ""
+    B13B:
+      response: "6FB13B00FF000C00"
+      notes: ""
+    B13C:
+      response: "6FB13C00FF000C00"
+      notes: ""
+    B13D:
+      response: "6FB13D00FF000C00"
+      notes: ""
+    B13E:
+      response: "6FB13E00FF000C00"
+      notes: ""
+    B13F:
+      response: "6FB13F00FF000C00"
+      notes: ""
+    B140:
+      response: "6FB14000FF000C00"
+      notes: ""
+    B141:
+      response: "6FB14100FF000C00"
+      notes: ""
+    B142:
+      response: "6FB14200FF000C00"
+      notes: ""
+    B143:
+      response: "6FB14300FF000C00"
+      notes: ""
+    B144:
+      response: "6FB14400FF000C00"
+      notes: ""
+    B145:
+      response: "6FB14500FF000C00"
+      notes: ""
+    B146:
+      response: "6FB14600FF000C00"
+      notes: ""
+    B147:
+      response: "6FB14700FF000C00"
+      notes: ""
+    B148:
+      response: "6FB14800FF000C00"
+      notes: ""
+    B149:
+      response: "6FB14900FF000C00"
+      notes: ""
+    B14A:
+      response: "6FB14A00FF000C00"
+      notes: ""
+    B14B:
+      response: "6FB14B00FF000C00"
+      notes: ""
+    B14C:
+      response: "6FB14C00FF000C00"
+      notes: ""
+    B14D:
+      response: "6FB14D00FF000C00"
+      notes: ""
+    B14E:
+      response: "6FB14E00FF000C00"
+      notes: ""
+    B14F:
+      response: "6FB14F00FF000C00"
+      notes: ""
+    B150:
+      response: "6FB15000FF000C00"
+      notes: ""
+    B151:
+      response: "6FB15100FF000C00"
+      notes: ""
+    B152:
+      response: "6FB15200FF000C00"
+      notes: ""
+    B153:
+      response: "6FB15300FF000C00"
+      notes: ""
+    B154:
+      response: "6FB15400FF000C00"
+      notes: ""
+    B155:
+      response: "6FB15500FF000C00"
+      notes: ""
+    B156:
+      response: "6FB15600FF000C00"
+      notes: ""
+    B157:
+      response: "6FB15700FF000C00"
+      notes: ""
+    B158:
+      response: "6FB15800FF000C00"
+      notes: ""
+    B159:
+      response: "6FB15900FF000C00"
+      notes: ""
+    B15A:
+      response: "6FB15A00FF000C00"
+      notes: ""
+    B15B:
+      response: "6FB15B00FF000C00"
+      notes: ""
+    B15C:
+      response: "6FB15C00FF000C00"
+      notes: ""
+    B15D:
+      response: "6FB15D00FF000C00"
+      notes: ""
+    B15E:
+      response: "6FB15E00FF000C00"
+      notes: ""
+    B15F:
+      response: "6FB15F00FF000C00"
+      notes: ""
+    B160:
+      response: "6FB16000FF000C00"
+      notes: ""
+    B161:
+      response: "6FB16100FF000C00"
+      notes: ""
+    B162:
+      response: "6FB16200FF000C00"
+      notes: ""
+    B163:
+      response: "6FB16300FF000C00"
+      notes: ""
+    B164:
+      response: "6FB16400FF000C00"
+      notes: ""
+    B165:
+      response: "6FB16500FF000C00"
+      notes: ""
+    B166:
+      response: "6FB16600FF000C00"
+      notes: ""
+    B167:
+      response: "6FB16700FF000C00"
+      notes: ""
+    B168:
+      response: "6FB16800FF000C00"
+      notes: ""
+    B169:
+      response: "6FB16900FF000C00"
+      notes: ""
+    B16A:
+      response: "6FB16A00FF000C00"
+      notes: ""
+    B16B:
+      response: "6FB16B00FF000C00"
+      notes: ""
+    B16C:
+      response: "6FB16C00FF000C00"
+      notes: ""
+    B16D:
+      response: "6FB16D00FF000C00"
+      notes: ""
+    B16E:
+      response: "6FB16E00FF000C00"
+      notes: ""
+    B16F:
+      response: "6FB16F00FF000C00"
+      notes: ""
+    B170:
+      response: "6FB17000FF000C00"
+      notes: ""
+    B171:
+      response: "6FB17100FF000C00"
+      notes: ""
+    B172:
+      response: "6FB17200FF000C00"
+      notes: ""
+    B173:
+      response: "6FB17300FF000C00"
+      notes: ""
+    B174:
+      response: "6FB17400FF000C00"
+      notes: ""
+    B175:
+      response: "6FB17500FF000C00"
+      notes: ""
+    B176:
+      response: "6FB17600FF000C00"
+      notes: ""
+    B177:
+      response: "6FB17700FF000C00"
+      notes: ""
+    B178:
+      response: "6FB17800FF000C00"
+      notes: ""
+    B179:
+      response: "6FB17900FF000C00"
+      notes: ""
+    B17A:
+      response: "6FB17A00FF000C00"
+      notes: ""
+    B17B:
+      response: "6FB17B00FF000C00"
+      notes: ""
+    B17C:
+      response: "6FB17C00FF000C00"
+      notes: ""
+    B17D:
+      response: "6FB17D00FF000C00"
+      notes: ""
+    B17E:
+      response: "6FB17E00FF000C00"
+      notes: ""
+    B17F:
+      response: "6FB17F00FF000C00"
+      notes: ""
+    B180:
+      response: "6FB18000FF000C00"
+      notes: ""
+    B181:
+      response: "6FB18100FF000C00"
+      notes: ""
+    B182:
+      response: "6FB18200FF000C00"
+      notes: ""
+    B183:
+      response: "6FB18300FF000C00"
+      notes: ""
+    B184:
+      response: "6FB18400FF000C00"
+      notes: ""
+    B185:
+      response: "6FB18500FF000C00"
+      notes: ""
+    B186:
+      response: "6FB18600FF000C00"
+      notes: ""
+    B187:
+      response: "6FB18700FF000C00"
+      notes: ""
+    B188:
+      response: "6FB18800FF000C00"
+      notes: ""
+    B189:
+      response: "6FB18900FF000C00"
+      notes: ""
+    B18A:
+      response: "6FB18A00FF000C00"
+      notes: ""
+    B18B:
+      response: "6FB18B00FF000C00"
+      notes: ""
+    B18C:
+      response: "6FB18C00FF000C00"
+      notes: ""
+    B18D:
+      response: "6FB18D00FF000C00"
+      notes: ""
+    B18E:
+      response: "6FB18E00FF000C00"
+      notes: ""
+    B18F:
+      response: "6FB18F00FF000C00"
+      notes: ""
+    B190:
+      response: "6FB19000FF000C00"
+      notes: ""
+    B191:
+      response: "6FB19100FF000C00"
+      notes: ""
+    B192:
+      response: "6FB19200FF000C00"
+      notes: ""
+    B193:
+      response: "6FB19300FF000C00"
+      notes: ""
+    B194:
+      response: "6FB19400FF000C00"
+      notes: ""
+    B195:
+      response: "6FB19500FF000C00"
+      notes: ""
+    B196:
+      response: "6FB19600FF000C00"
+      notes: ""
+    B197:
+      response: "6FB19700FF000C00"
+      notes: ""
+    B198:
+      response: "6FB19800FF000C00"
+      notes: ""
+    B199:
+      response: "6FB19900FF000C00"
+      notes: ""
+    B19A:
+      response: "6FB19A00FF000C00"
+      notes: ""
+    B19B:
+      response: "6FB19B00FF000C00"
+      notes: ""
+    B19C:
+      response: "6FB19C00FF000C00"
+      notes: ""
+    B19D:
+      response: "6FB19D00FF000C00"
+      notes: ""
+    B19E:
+      response: "6FB19E00FF000C00"
+      notes: ""
+    B19F:
+      response: "6FB19F00FF000C00"
+      notes: ""
+    B1A0:
+      response: "6FB1A000FF000C00"
+      notes: ""
+    B1A1:
+      response: "6FB1A100FF000C00"
+      notes: ""
+    B1A2:
+      response: "6FB1A200FF000C00"
+      notes: ""
+    B1A3:
+      response: "6FB1A300FF000C00"
+      notes: ""
+    B1A4:
+      response: "6FB1A400FF000C00"
+      notes: ""
+    B1A5:
+      response: "6FB1A500FF000C00"
+      notes: ""
+    B1A6:
+      response: "6FB1A600FF000C00"
+      notes: ""
+    B1A7:
+      response: "6FB1A700FF000C00"
+      notes: ""
+    B1A8:
+      response: "6FB1A800FF000C00"
+      notes: ""
+    B1A9:
+      response: "6FB1A900FF000C00"
+      notes: ""
+    B1AA:
+      response: "6FB1AA00FF000C00"
+      notes: ""
+    B1AB:
+      response: "6FB1AB00FF000C00"
+      notes: ""
+    B1AC:
+      response: "6FB1AC00FF000C00"
+      notes: ""
+    B1AD:
+      response: "6FB1AD00FF000C00"
+      notes: ""
+    B1AE:
+      response: "6FB1AE00FF000C00"
+      notes: ""
+    B1AF:
+      response: "6FB1AF00FF000C00"
+      notes: ""
+    B1B0:
+      response: "6FB1B000FF000C00"
+      notes: ""
+    B1B1:
+      response: "6FB1B100FF000C00"
+      notes: ""
+    B1B2:
+      response: "6FB1B200FF000C00"
+      notes: ""
+    B1B3:
+      response: "6FB1B300FF000C00"
+      notes: ""
+    B1B4:
+      response: "6FB1B400FF000C00"
+      notes: ""
+    B1B5:
+      response: "6FB1B500FF000C00"
+      notes: ""
+    B1B6:
+      response: "6FB1B600FF000C00"
+      notes: ""
+    B1B7:
+      response: "6FB1B700FF000C00"
+      notes: ""
+    B1B8:
+      response: "6FB1B800FF000C00"
+      notes: ""
+    B1B9:
+      response: "6FB1B900FF000C00"
+      notes: ""
+    B1BA:
+      response: "6FB1BA00FF000C00"
+      notes: ""
+    B1BB:
+      response: "6FB1BB00FF000C00"
+      notes: ""
+    B1BC:
+      response: "6FB1BC00FF000C00"
+      notes: ""
+    B1BD:
+      response: "6FB1BD00FF000C00"
+      notes: ""
+    B1BE:
+      response: "6FB1BE00FF000C00"
+      notes: ""
+    B1BF:
+      response: "6FB1BF00FF000C00"
+      notes: ""
+    B1C0:
+      response: "6FB1C000FF000C00"
+      notes: ""
+    B1C1:
+      response: "6FB1C100FF000C00"
+      notes: ""
+    B1C2:
+      response: "6FB1C200FF000C00"
+      notes: ""
+    B1C3:
+      response: "6FB1C300FF000C00"
+      notes: ""
+    B1C4:
+      response: "6FB1C400FF000C00"
+      notes: ""
+    B1C5:
+      response: "6FB1C500FF000C00"
+      notes: ""
+    B1C6:
+      response: "6FB1C600FF000C00"
+      notes: ""
+    B1C7:
+      response: "6FB1C700FF000C00"
+      notes: ""
+    B1C8:
+      response: "6FB1C800FF000C00"
+      notes: ""
+    B1C9:
+      response: "6FB1C900FF000C00"
+      notes: ""
+    B1CA:
+      response: "6FB1CA00FF000C00"
+      notes: ""
+    B1CB:
+      response: "6FB1CB00FF000C00"
+      notes: ""
+    B1CC:
+      response: "6FB1CC00FF000C00"
+      notes: ""
+    B1CD:
+      response: "6FB1CD00FF000C00"
+      notes: ""
+    B1CE:
+      response: "6FB1CE00FF000C00"
+      notes: ""
+    B1CF:
+      response: "6FB1CF00FF000C00"
+      notes: ""
+    B1D0:
+      response: "6FB1D000FF000C00"
+      notes: ""
+    B1D1:
+      response: "6FB1D100FF000C00"
+      notes: ""
+    B1D2:
+      response: "6FB1D200FF000C00"
+      notes: ""
+    B1D3:
+      response: "6FB1D300FF000C00"
+      notes: ""
+    B1D4:
+      response: "6FB1D400FF000C00"
+      notes: ""
+    B1D5:
+      response: "6FB1D500FF000C00"
+      notes: ""
+    B1D6:
+      response: "6FB1D600FF000C00"
+      notes: ""
+    B1D7:
+      response: "6FB1D700FF000C00"
+      notes: ""
+    B1D8:
+      response: "6FB1D800FF000C00"
+      notes: ""
+    B1D9:
+      response: "6FB1D900FF000C00"
+      notes: ""
+    B1DA:
+      response: "6FB1DA00FF000C00"
+      notes: ""
+    B1DB:
+      response: "6FB1DB00FF000C00"
+      notes: ""
+    B1DC:
+      response: "6FB1DC00FF000C00"
+      notes: ""
+    B1DD:
+      response: "6FB1DD00FF000C00"
+      notes: ""
+    B1DE:
+      response: "6FB1DE00FF000C00"
+      notes: ""
+    B1DF:
+      response: "6FB1DF00FF000C00"
+      notes: ""
+    B1E0:
+      response: "6FB1E000FF000C00"
+      notes: ""
+    B1E1:
+      response: "6FB1E100FF000C00"
+      notes: ""
+    B1E2:
+      response: "6FB1E200FF000C00"
+      notes: ""
+    B1E3:
+      response: "6FB1E300FF000C00"
+      notes: ""
+    B1E4:
+      response: "6FB1E400FF000C00"
+      notes: ""
+    B1E5:
+      response: "6FB1E500FF000C00"
+      notes: ""
+    B1E6:
+      response: "6FB1E600FF000C00"
+      notes: ""
+    B1E7:
+      response: "6FB1E700FF000C00"
+      notes: ""
+    B1E8:
+      response: "6FB1E800FF000C00"
+      notes: ""
+    B1E9:
+      response: "6FB1E900FF000C00"
+      notes: ""
+    B1EA:
+      response: "6FB1EA00FF000C00"
+      notes: ""
+    B1EB:
+      response: "6FB1EB00FF000C00"
+      notes: ""
+    B1EC:
+      response: "6FB1EC00FF000C00"
+      notes: ""
+    B1ED:
+      response: "6FB1ED00FF000C00"
+      notes: ""
+    B1EE:
+      response: "6FB1EE00FF000C00"
+      notes: ""
+    B1EF:
+      response: "6FB1EF00FF000C00"
+      notes: ""
+    B1F0:
+      response: "6FB1F000FF000C00"
+      notes: ""
+    B1F1:
+      response: "6FB1F100FF000C00"
+      notes: ""
+    B1F2:
+      response: "6FB1F200FF000C00"
+      notes: ""
+    B1F3:
+      response: "6FB1F300FF000C00"
+      notes: ""
+    B1F4:
+      response: "6FB1F400FF000C00"
+      notes: ""
+    B1F5:
+      response: "6FB1F500FF000C00"
+      notes: ""
+    B1F6:
+      response: "6FB1F600FF000C00"
+      notes: ""
+    B1F7:
+      response: "6FB1F700FF000C00"
+      notes: ""
+    B1F8:
+      response: "6FB1F800FF000C00"
+      notes: ""
+    B1F9:
+      response: "6FB1F900FF000C00"
+      notes: ""
+    B1FA:
+      response: "6FB1FA00FF000C00"
+      notes: ""
+    B1FB:
+      response: "6FB1FB00FF000C00"
+      notes: ""
+    B1FC:
+      response: "6FB1FC00FF000C00"
+      notes: ""
+    B1FD:
+      response: "6FB1FD00FF000C00"
+      notes: ""
+    B1FE:
+      response: "6FB1FE00FF000C00"
+      notes: ""
+    B1FF:
+      response: "6FB1FF00FF000C00"
+      notes: ""
+    B200:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B201:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B202:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B203:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B204:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B205:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B206:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B207:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B208:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B209:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B20A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B20B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B20C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B20D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B20E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B20F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B210:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B211:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B212:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B213:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B214:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B215:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B216:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B217:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B218:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B219:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B21A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B21B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B21C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B21D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B21E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B21F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B220:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B221:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B222:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B223:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B224:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B225:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B226:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B227:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B228:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B229:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B22A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B22B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B22C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B22D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B22E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B22F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B230:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B231:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B232:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B233:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B234:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B235:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B236:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B237:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B238:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B239:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B23A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B23B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B23C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B23D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B23E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B23F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B240:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B241:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B242:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B243:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B244:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B246:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B247:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B248:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B249:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B24A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B24B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B24C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B24D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B24E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B24F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B250:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B251:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B252:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B253:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B254:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B255:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B256:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B257:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B258:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B259:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B25A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B25B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B25C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B25D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B25E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B25F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B260:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B261:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B262:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B263:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B264:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B265:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B266:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B267:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B268:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B269:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B26A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B26B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B26C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B26D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B26E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B26F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B270:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B271:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B272:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B273:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B274:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B275:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B276:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B277:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B278:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B279:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B27A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B27B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B27C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B27D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B27E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B27F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B280:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B281:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B282:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B283:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B284:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B285:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B286:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B287:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B288:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B289:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B28A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B28B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B28C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B28D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B28E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B28F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B290:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B291:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B292:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B293:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B294:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B295:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B296:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B297:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B298:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B299:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B29A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B29B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B29C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B29D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B29E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B29F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2A0:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2A1:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2A2:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2A3:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2A4:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2A5:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2A6:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2A7:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2A8:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2A9:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2AA:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2AB:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2AC:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2AD:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2AE:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2AF:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2B0:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2B1:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2B2:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2B3:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2B4:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2B5:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2B6:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2B7:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2B8:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2B9:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2BA:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2BB:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2BC:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2BD:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2BE:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2BF:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2C0:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2C1:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2C2:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2C3:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2C4:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2C5:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2C6:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2C7:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2C8:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2C9:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2CA:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2CB:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2CC:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2CD:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2CE:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2CF:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2D0:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2D1:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2D2:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2D3:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2D4:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2D5:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2D6:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2D7:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2D8:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2D9:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2DA:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2DB:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2DC:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2DD:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2DE:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2DF:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2E0:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2E1:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2E2:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2E3:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2E4:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2E5:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2E6:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2E7:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2E8:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2E9:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2EA:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2EB:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2EC:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2ED:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2EE:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2EF:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2F0:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2F1:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2F2:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2F3:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2F4:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2F5:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2F6:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2F7:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2F8:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2F9:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2FA:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2FB:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2FC:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2FD:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2FE:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B2FF:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B300:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B301:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B302:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B303:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B304:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B305:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B306:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B307:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B308:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B309:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B30A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B30B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B30C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B30D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B30E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B30F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B310:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B311:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B312:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B313:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B314:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B315:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B316:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B317:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B318:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B319:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B31A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B31B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B31C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B31D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B31E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B31F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B320:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B321:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B322:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B323:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B324:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B325:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B326:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B327:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B328:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B329:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B32A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B32B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B32C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B32D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B32E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B32F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B330:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B331:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B332:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B333:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B334:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B335:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B336:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B337:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B338:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B339:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B33A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B33B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B33C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B33D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B33E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B33F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B341:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B342:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B343:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B344:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B345:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B346:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B347:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B348:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B349:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B34A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B34B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B34C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B34D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B34E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B34F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B350:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B351:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B352:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B353:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B354:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B355:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B356:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B357:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B358:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B359:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B35A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B35B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B35C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B35D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B35E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B35F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B360:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B361:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B362:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B363:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B364:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B365:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B366:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B367:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B368:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B369:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B36A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B36B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B36C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B36D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B36E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B36F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B370:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B371:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B372:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B373:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B374:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B375:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B376:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B377:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B379:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B37A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B37B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B37C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B37D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B37E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B37F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B380:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B381:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B382:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B383:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B384:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B385:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B386:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B387:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B388:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B389:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B38A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B38B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B38C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B38D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B38E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B38F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B390:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B391:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B392:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B393:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B394:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B395:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B396:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B397:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B398:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B399:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B39A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B39B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B39C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B39D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B39E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B39F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3A0:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3A1:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3A2:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3A3:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3A4:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3A5:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3A6:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3A8:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3A9:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3AA:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3AB:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3AC:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3AD:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3AE:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3AF:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3B0:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3B1:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3B2:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3B3:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3B4:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3B5:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3B6:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3B7:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3B8:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3B9:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3BA:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3BB:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3BC:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3BD:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3BE:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3BF:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3C0:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3C1:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3C2:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3C3:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3C4:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3C5:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3C6:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3C7:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3C8:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3C9:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3CA:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3CB:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3CC:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3CD:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3CE:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3CF:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3D0:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3D1:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3D2:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3D3:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3D4:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3D5:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3D6:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3D7:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3D8:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3D9:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3DA:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3DB:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3DC:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3DD:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3DE:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3DF:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3E0:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3E1:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3E2:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3E3:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3E4:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3E5:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3E6:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3E7:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3E8:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3E9:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3EA:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3EB:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3EC:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3ED:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3EE:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3EF:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3F0:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3F1:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3F2:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3F3:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3F4:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3F6:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3F7:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3F8:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3F9:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3FA:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3FB:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3FC:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3FD:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3FE:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B3FF:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B400:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B401:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B402:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B403:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B404:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B405:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B406:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B407:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B408:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B409:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B40A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B40B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B40C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B40D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B40E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B40F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B410:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B411:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B412:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B413:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B414:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B415:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B416:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B418:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B419:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B41A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B41B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B41C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B41D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B41E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B41F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B420:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B421:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B422:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B424:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B425:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B426:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B427:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B428:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B429:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B42A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B42B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B42C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B42D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B42E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B42F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B430:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B431:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B432:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B433:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B434:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B435:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B436:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B437:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B438:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B439:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B43A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B43B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B43C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B43D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B43E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B43F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B440:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B441:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B442:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B443:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B444:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B445:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B446:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B447:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B448:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B449:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B44A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B44B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B44C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B44D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B44E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B44F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B450:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B451:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B452:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B453:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B454:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B455:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B456:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B457:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B458:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B459:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B45A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B45B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B45C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B45D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B45E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B45F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B460:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B461:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B462:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B463:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B464:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B465:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B467:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B468:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B469:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B46A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B46B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B46C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B46D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B46E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B46F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B470:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B471:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B472:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B473:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B474:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B475:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B476:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B477:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B478:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B479:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B47A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B47B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B47C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B47D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B47E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B47F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B480:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B481:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B482:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B483:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B484:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B485:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B486:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B487:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B488:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B489:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B48A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B48B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B48C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B48D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B48E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B48F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B490:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B491:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B492:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B493:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B494:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B495:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B496:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B497:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B498:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B499:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B49A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B49B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B49C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B49D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B49E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B49F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4A0:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4A1:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4A2:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4A3:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4A4:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4A5:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4A6:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4A7:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4A8:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4A9:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4AA:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4AB:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4AC:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4AD:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4AE:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4AF:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4B0:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4B1:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4B2:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4B3:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4B4:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4B5:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4B6:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4B7:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4B8:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4B9:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4BA:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4BB:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4BC:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4BD:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4BE:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4BF:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4C0:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4C1:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4C2:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4C3:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4C4:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4C5:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4C6:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4C7:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4C8:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4C9:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4CA:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4CB:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4CC:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4CD:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4CE:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4CF:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4D0:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4D1:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4D2:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4D3:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4D4:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4D5:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4D6:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4D7:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4D8:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4D9:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4DA:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4DB:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4DC:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4DD:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4DE:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4DF:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4E0:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4E1:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4E2:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4E3:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4E4:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4E5:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4E6:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4E7:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4E8:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4E9:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4EA:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4EB:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4EC:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4ED:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4EE:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4EF:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4F0:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4F1:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4F2:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4F3:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4F4:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4F5:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4F6:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4F7:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4F8:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4F9:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4FA:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4FB:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4FC:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4FD:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4FE:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B4FF:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B500:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B501:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B502:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B503:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B504:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B505:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B506:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B507:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B508:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B509:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B50A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B50B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B50C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B50D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B50E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B50F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B510:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B511:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B512:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B513:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B514:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B515:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B516:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B517:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B518:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B519:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B51A:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B51B:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B51C:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B51D:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B51E:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B51F:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B520:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B521:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B522:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B523:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""
+    B524:
+      nrc: 0x22
+      nrc_desc: "conditionsNotCorrect"
+      notes: ""

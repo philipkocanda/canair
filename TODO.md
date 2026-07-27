@@ -53,12 +53,12 @@ Status: NOT located in any polled PID as of 2026-07-20.
 ### Where it might be
 - **CLU cluster 0x7C6** (dash shows mode + regen): only `22B002` (odo) decoded; `22B001`/`22B003`
   return live-but-undecoded bytes -> prime candidate.
-- **SWRC-L/R 0x7A1/0x7A2** (steering-wheel controls): regen paddles are steering-wheel mounted ->
-  strongest lead for regen level. Not yet scanned for paddle state.
+- ~~**SWRC-L/R 0x7A1/0x7A2**~~ — CORRECTED 2026-07-27: 0x7A1/0x7A2 are the DDM/ADM **door modules**,
+  not steering-wheel remotes. Regen paddles are NOT here. Steering-wheel controller address TBD.
 - **GSA 0x7B6** (gear shift assembly): SCANNED 2026-07-20 — responds ONLY to `220100`. Bytes
   B19/B21/B22 drifted ~30 between two P-gear captures (likely lever hall sensors or temp, not gear).
   Holds gear/lever data; drive-mode button is centre-console (could route here or via BCM/IGPM),
-  regen paddles are NOT here (steering wheel -> SWRC).
+  regen paddles are NOT here (steering wheel).
 - Unscanned VCU/MCU `21 03-FF` or a 2017-specific 22xxxx PID. (Ioniq 5 `22E006` drive mode /
   `22E007` regen return NRC 0x12 here.)
 - May not be exposed via OBD reads at all (only broadcast on internal CAN).
@@ -68,7 +68,6 @@ Status: NOT located in any polled PID as of 2026-07-20.
    0x28->0x08?) or any bit flip -> confirms/locates the mode bit.
 2. Monitor VCU 2101 + MCU 2101/2102 while cycling regen paddles 0->1->2->3; watch for a byte stepping 0-3.
 3. If nothing there: scan CLU 0x7C6 `22B000-22B0FF` in each mode/regen state and diff to find the byte.
-   Also scan SWRC-L/R (0x7A1/0x7A2) while pulling the regen paddles.
 4. Also monitor GSA 0x7B6 `220100` while shifting P/R/N/D (decode lever sensors B19/B21/B22) and while
    pressing the drive-mode button.
 5. Broaden: `21 03-FF` scan on VCU (0x7E2) and MCU (0x7E3).
