@@ -7,8 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-07-27
+
 ### Changed
 
+- **Diagnostic captures are now stored as JSON** (`captures/YYYY-MM-DD.json`)
+  instead of YAML. JSON parses ~60x faster, which was the dominant cost of every
+  history-consuming command — `ecu`, `coverage`, `decode`, `correlate`, `hunt`,
+  `investigate`, `captures`, `validate captures`. On the bundled profile
+  `ecu <name> --captures` drops from ~1.0 s to ~0.3 s and `coverage` from ~0.9 s
+  to ~0.2 s. There is **no dual-format read path**: a profile created before this
+  release fails fast with a clear error pointing at the new migration command
+  (below). Capture files are still written/edited only by the tool; the schema
+  (`canlib/schema/captures_schema.json`) is unchanged (it validates the parsed
+  structure), and the human companion doc moved to `captures/SCHEMA.md`. See
+  `plans/2026-07-27-captures-json-storage.md`.
 - **The live `monitor` TUI repaints far more cheaply.** The monitor rebuilt its
   entire body — every ECU, PID, parameter table and hex/history line — on every
   poll cycle *and* every mid-cycle partial resolve, re-running the per-byte Rich
@@ -18,6 +31,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   are reused instead of re-rendered (a ~7x cheaper repaint when nothing changed
   between paints — the common case for a slow-timeout or partial-resolve tick).
   Output is byte-identical.
+- **`canair ecu` list defaults to grouping by CAN bus** and gains per-column
+  sorting (`--sort {bus,name,tx,proto,pids,verif,caps}`); the list was trimmed
+  (dropped the redundant alias suffix and PARM column). Capture-count columns are
+  now opt-in via **`--captures`** (they require reading the capture store), so a
+  bare `canair ecu`/`ecu <name>` is instant.
+
+### Added
+
+- **`canair captures migrate`** — one-time conversion of a profile's legacy
+  per-day capture files (`captures/*.yaml`) to JSON. Each file is round-trip
+  verified before its YAML is replaced (`--dry-run` to preview, `--json` for
+  machine output). `scripts/migrate_captures_to_json.py` does the same across all
+  discovered profiles.
+
+### Fixed
+
+- **`format_value` no longer crashes on `None`/`inf`.** A decoded value of `inf`
+  raised an uncaught `OverflowError` during a render; `None` and non-numeric
+  values are now handled explicitly.
 
 ## [1.3.3] - 2026-07-27
 
@@ -480,7 +512,8 @@ dongle (both the WiCAN Pro and the classic/non-Pro WiCAN are supported).
 - Command safety blocklist preventing UDS programming/write sessions against a
   real vehicle.
 
-[Unreleased]: https://github.com/philipkocanda/canair/compare/v1.3.3...HEAD
+[Unreleased]: https://github.com/philipkocanda/canair/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/philipkocanda/canair/compare/v1.3.3...v1.4.0
 [1.3.3]: https://github.com/philipkocanda/canair/compare/v1.3.2...v1.3.3
 [1.3.2]: https://github.com/philipkocanda/canair/compare/v1.3.1...v1.3.2
 [1.3.1]: https://github.com/philipkocanda/canair/compare/v1.3.0...v1.3.1
