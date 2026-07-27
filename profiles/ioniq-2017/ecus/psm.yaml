@@ -4,6 +4,8 @@
 # active for desired duration, send OFF to stop.
 PSM:
   tx_id: 0x7A3
+  can_bus:
+    - B
   identity:
     description: Power Seat Module
     part_number: "95450G7000"

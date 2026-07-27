@@ -16,6 +16,7 @@ Subcommands:
   set-status  ECU TARGET STATUS    Update a research item's status
   set-pid-status ECU PID STATUS    Set a PID's lifecycle (active|draft|static|ignored)
   set-identity ECU FIELD VALUE     Set a curated identity field (e.g. notes)
+  set-can-bus  ECU CODE [CODE ...] Set the physical CAN bus segment(s) (B/P/C/M/H/All)
 
 Examples:
   # Record a decoded parameter
@@ -46,6 +47,7 @@ from canlib.pids_edit import (
     find_ecu_file,
     rename_parameter,
     rename_pid,
+    set_can_bus,
     set_identity_field,
     set_pid_status,
     set_research_status,
@@ -66,6 +68,16 @@ def _schema_validate(fpath: Path) -> tuple[bool, str]:
     from canlib.commands.validate import validate_pids_file
 
     return validate_pids_file(fpath)
+
+
+def _valid_can_bus_codes() -> list[str]:
+    """Load the accepted CAN bus segment codes from the schema (avoids drift)."""
+    import yaml
+
+    from canlib.commands.validate._common import SCHEMA_FILE
+
+    schema = yaml.safe_load(SCHEMA_FILE.read_text()) or {}
+    return list(schema.get("valid_can_bus_codes", []))
 
 
 def _guarded(ecu: str, pids_dir: Path | None, do_edit, *, validate: bool):
@@ -254,6 +266,18 @@ def cmd_set_identity(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_set_can_bus(args: argparse.Namespace) -> int:
+    def do():
+        set_can_bus(args.ecu, args.codes, pids_dir=args.dir)
+
+    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
+    print(
+        f"{_GREEN}  ✓ {args.ecu} can_bus -> [{', '.join(args.codes)}]{_RESET}  "
+        f"{_DIM}({fpath.name}){_RESET}"
+    )
+    return 0
+
+
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
@@ -391,6 +415,18 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     si.add_argument("value", help="New value (notes are stored as a folded block scalar)")
     _add_common(si)
     si.set_defaults(_pids_func=cmd_set_identity)
+
+    scb = sub.add_parser("set-can-bus", help="Set the physical CAN bus segment(s) the ECU sits on")
+    scb.add_argument("ecu")
+    scb.add_argument(
+        "codes",
+        nargs="+",
+        metavar="CODE",
+        choices=_valid_can_bus_codes(),
+        help="One or more bus codes (B/P/C/M/H/All); some ECUs span two, e.g. H P",
+    )
+    _add_common(scb)
+    scb.set_defaults(_pids_func=cmd_set_can_bus)
 
     parser.set_defaults(func=run)
     return parser

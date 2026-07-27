@@ -212,6 +212,7 @@ class _SchemaFields:
     identity: set
     valid_protocols: set
     valid_confidence: set
+    valid_can_bus: set
     scan_log: set
     dtcs: set
     sessions: set
@@ -236,6 +237,7 @@ class _SchemaFields:
             identity=set(identity.get("optional", [])) | set(identity.get("required", [])),
             valid_protocols=set(schema.get("valid_id_protocols", [])),
             valid_confidence=set(schema.get("valid_identity_confidence", [])),
+            valid_can_bus=set(schema.get("valid_can_bus_codes", [])),
             scan_log=set((schema.get("scan_log_entry_fields", {}) or {}).get("optional", [])),
             dtcs=set((schema.get("dtcs_fields", {}) or {}).get("optional", [])),
             sessions=set((schema.get("sessions_fields", {}) or {}).get("optional", [])),
@@ -337,6 +339,9 @@ def _validate_ecu_entry(
     _validate_state_list(
         ecu_def.get("vehicle_states"), label, "vehicle_states", errors, allowed_states_set
     )
+
+    # can_bus: physical CAN bus segment(s), validated against valid_can_bus_codes.
+    _validate_state_list(ecu_def.get("can_bus"), label, "can_bus", errors, fields.valid_can_bus)
 
     # Validate tx_id
     tx_id = ecu_def.get("tx_id")

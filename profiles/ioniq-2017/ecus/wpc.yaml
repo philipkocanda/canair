@@ -1,6 +1,8 @@
 # ─── WPC (Wireless Phone Charging unit) ────────────────────────────────────────
 WPC:
   tx_id: 0x725
+  can_bus:
+    - B
   identity:
     description: Wireless Phone Charging unit
     part_number: "95560G7000"

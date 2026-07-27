@@ -24,6 +24,8 @@ Columns & legend:
            speculative (spec) — a guess, e.g. borrowed from another vehicle
          A leading `~` means the level was DERIVED from the available evidence;
          without it, the level was set explicitly in the ECU registry.
+  BUS    physical CAN bus segment(s) the ECU sits on (B/P/C/M/H/All);
+         some ECUs span two (shown `H/P`). Blank (`—`) when unknown.
   PIDS   number of active (non-ignored) PIDs/DIDs defined.
   PARM   number of decoded parameters defined across those PIDs.
   VERIF  verified/total parameters (green when all verified).
@@ -179,6 +181,7 @@ def _list_records(ecus: dict, pids_data: dict, with_captures: bool = False) -> l
             "rx": rx_addr_str(tx_id),
             "description": info.get("description", ""),
             "id_protocol": info.get("id_protocol"),
+            "can_bus": info.get("can_bus"),
             "identity_confidence": conf,
             "identity_confidence_explicit": conf_explicit,
             "has_pids": ecu_def is not None,
@@ -205,7 +208,7 @@ def cmd_list(records: list[dict], as_json: bool) -> int:
 
     # Column header.
     print(
-        f"  {_DIM}{'NAME':<12} {'TX':<6} {'PROTO':<8} {'IDENT':<6} "
+        f"  {_DIM}{'NAME':<12} {'TX':<6} {'PROTO':<8} {'BUS':<7} {'IDENT':<6} "
         f"{'PIDS':>4} {'PARM':>5} {'VERIF':>7} {'CAPS':>5}{_RESET}"
     )
 
@@ -213,11 +216,12 @@ def cmd_list(records: list[dict], as_json: bool) -> int:
         name = r["name"]
         alias = f" {_DIM}({r['alias']}){_RESET}" if r.get("alias") else ""
         proto = r.get("id_protocol") or "?"
+        bus = "/".join(r["can_bus"]) if r.get("can_bus") else "—"
         conf = _conf_cell(r)
         if not r["has_pids"]:
             # Registry-only module: no PID data to summarise.
             print(
-                f"  {_CYAN}{name:<12}{_RESET} {r['tx']:<6} {proto:<8} {conf} "
+                f"  {_CYAN}{name:<12}{_RESET} {r['tx']:<6} {proto:<8} {_DIM}{bus:<7}{_RESET} {conf} "
                 f"{_DIM}{'—':>4} {'—':>5} {'—':>7} {'—':>5}{_RESET}{alias}"
             )
             continue
@@ -228,7 +232,7 @@ def cmd_list(records: list[dict], as_json: bool) -> int:
         caps = r.get("captures", 0)
         cstr = f"{caps:>5}" if caps else f"{_YELLOW}{'0':>5}{_RESET}"
         print(
-            f"  {_CYAN}{name:<12}{_RESET} {r['tx']:<6} {proto:<8} {conf} "
+            f"  {_CYAN}{name:<12}{_RESET} {r['tx']:<6} {proto:<8} {_DIM}{bus:<7}{_RESET} {conf} "
             f"{r['pids']:>4} {params:>5} {vcolor}{vstr:>7}{_RESET} "
             f"{cstr}{alias}"
         )
@@ -252,6 +256,7 @@ def _detail_record(info: dict, tx_id: int, pids_name: str | None, ecu_def: dict 
         "alias": info.get("alias"),
         "description": info.get("description", ""),
         "id_protocol": info.get("id_protocol"),
+        "can_bus": info.get("can_bus"),
         "identity_confidence": conf,
         "identity_confidence_explicit": conf_explicit,
         "tx": f"0x{tx_id:03X}",
@@ -316,6 +321,8 @@ def cmd_detail(rec: dict, as_json: bool) -> int:
         f"\n  {_DIM}TX{_RESET} {rec['tx']}    {_DIM}RX{_RESET} {rec['rx']}    "
         f"{_DIM}protocol{_RESET} {proto}"
     )
+    if rec.get("can_bus"):
+        print(f"  {_DIM}CAN bus{_RESET} {'/'.join(rec['can_bus'])}")
 
     # Identity confidence
     conf = rec.get("identity_confidence") or ""

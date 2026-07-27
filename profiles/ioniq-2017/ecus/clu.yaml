@@ -1,6 +1,9 @@
 # ─── CLU (Cluster / Instrument Panel) ─────────────────────────────────
 CLU:
   tx_id: 0x7C6
+  can_bus:
+    - C
+    - M
   identity:
     description: Cluster (instrument panel)
     part_number: "94003G7300"

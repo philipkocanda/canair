@@ -4,6 +4,8 @@
 # No live data DIDs discovered yet. Service 22 ranges untested.
 ADM:
   tx_id: 0x7A2
+  can_bus:
+    - B
   identity:
     description: Assist Door Module
     part_number: "93575G2160"
