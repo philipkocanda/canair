@@ -530,11 +530,20 @@ HVAC:
         00 00 when off. ELM[13-14]: 00 78 at rest, 01 3C during PTC heater.
         B22 mirrors 2201A0 B07 exactly (target value, drifts over time).
         B68: coarse fan step — 0x05 at fan 1-2, 0x0A at fan 4/MAX.
+        2026-07-27: B22↔A0 B07 mode-door mirror re-confirmed (r=0.972, ≈raw). Fan
+        LEVEL (2201A0 B18) is NOT present on this page (r≈-0.5). Temps present
+        (B65/B20 track heat-exchanger temp) but co-move under heating — unresolved.
       parameters: {}
 
     2201A2:
       status: draft
-      notes: "55 bytes. Similar structure to 01A1."
+      notes: >
+        55 bytes. Actuator-detail page (16-bit BE words), similar structure to 01A1.
+        2026-07-27 (mode-cycle capture 2026-07-26): B20 mirrors 2201A0 B07 mode-door
+        position (r=0.978, fit y=0.978x+1.93 ≈ raw). Fan speed (2201A0 B18) is NOT
+        present here (r≈-0.5). B18|B19 (u16 LE) tracks temp/blend (r~0.97) but temps
+        co-move under heating so the specific sensor is unresolved — needs a
+        single-variable capture (one temp/actuator at a time).
       vehicle_states:
         - acc
         - acc2
@@ -550,13 +559,18 @@ HVAC:
       notes: >
         55 bytes. Dynamic during HVAC operation (NOT static as initially
         thought from cold-read). Contains compressor RPM data, PTC heater
-        info (ELM[12] shows 0x39/0x3A during PTC activation). 01A3-01A6
-        may still share structure but diverge under load.
+        info (ELM[12] shows 0x39/0x3A during PTC activation). CANONICAL of the
+        01A3-01A6 group: 2026-07-27 confirmed 01A4/01A5/01A6 are byte-identical
+        aliases of 01A3 at every timestamp, including under PTC heater load
+        (session 2) — the earlier "may diverge under load" worry is disproven,
+        so 01A4-01A6 are status:ignored. Temps present (B29 tracks heat-exchanger
+        temp, fit ~0.905x-23.5) but co-move under heating so the specific sensor
+        is unresolved — needs a single-variable capture.
       parameters: {}
 
     2201A4:
-      status: draft
-      notes: "55 bytes. Identical to 01A3."
+      status: ignored
+      notes: "55 bytes. Byte-identical alias of 2201A3 (confirmed 2026-07-27 across fan-only + PTC-heat load). Redundant — ignored; decode 2201A3 instead."
       vehicle_states:
         - acc
         - acc2
@@ -564,8 +578,8 @@ HVAC:
       parameters: {}
 
     2201A5:
-      status: draft
-      notes: "55 bytes. Identical to 01A3."
+      status: ignored
+      notes: "55 bytes. Byte-identical alias of 2201A3 (confirmed 2026-07-27). Redundant — ignored; decode 2201A3 instead."
       vehicle_states:
         - acc
         - acc2
@@ -573,8 +587,8 @@ HVAC:
       parameters: {}
 
     2201A6:
-      status: draft
-      notes: "55 bytes. Identical to 01A3."
+      status: ignored
+      notes: "55 bytes. Byte-identical alias of 2201A3 (confirmed 2026-07-27). Redundant — ignored; decode 2201A3 instead."
       vehicle_states:
         - acc
         - acc2
@@ -777,6 +791,14 @@ HVAC:
       created: "2026-07-27"
       updated: "2026-07-27"
       notes: "HVAC_BLOWER_FAN_SPEED (2201A0 B18) registered enabled-unverified from the 2026-07-26 fan-only capture: stepped 52/65/90 for fan 3/4/5, load-sensitive analog wobble = likely ACTUAL blower feedback not setpoint. TO VERIFY: clean fan-level sweep 1..MAX at constant temp/airflow to build the level<->value map and confirm scale/units (RPM? voltage x10? %). Also settle setpoint-vs-feedback: hold fan fixed and change only airflow/recirc — if B18 moves it's actual feedback. Check B18 at MAX fan (max~121 seen as outlier)."
+    - type: decode
+      target: 2201A1/A2/A3 sensor pages
+      status: captured
+      priority: P3
+      vehicle_states: [ready]
+      created: "2026-07-27"
+      updated: "2026-07-27"
+      notes: "01Ax higher pages surveyed 2026-07-27 (2026-07-26 HVAC capture). STRUCTURE: A0=actuators/fan(decoded); A1(62B)/A2(55B)/A3(55B)=distinct 16-bit sensor/actuator detail pages; A4/A5/A6=byte-identical aliases of A3 (now ignored). CONFIRMED: mode-door position mirrored on A1 B22 & A2 B20 (r~0.97 vs A0 B07, ~raw). Fan level (A0 B18) NOT on any sibling page. OPEN: multiple temperatures on A1(B65,B20)/A2(B18|B19)/A3(B29~heat-exch, 0.905x-23.5) all co-move under heating so specific sensors unresolved. TO DECODE: single-variable capture — vary ONE temp/actuator at a time (e.g. evap vs heat-exch vs duct), hold, note; then hunt each A-page word against the isolated reference."
   dtcs:
     B1285:
       description: >

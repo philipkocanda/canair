@@ -124,24 +124,7 @@ OBC:
             — which is why it is NOT the LDC HV input (see LDC_HV_INPUT_V = B23*2). Was previously mislabelled
             LDC_HV_INPUT_V. ISO-TP bytes 9-10.
 
-        OBC_UNKNOWN_B15:
-          expression: "B15"
-          unit: ""
-          min: "0"
-          max: "255"
-          enabled: false
-          source: "Live rear-defroster load test (2026-07-22)"
-          source_links: []
-          verified: false
-          notes: >
-            Was LDC_OUTPUT_A ("B15/10 = 12V output current") — DISPROVEN 2026-07-22 by a controlled
-            12V load step (car in READY, parked). Switching the rear defroster (~15-20A) ON→OFF→ON
-            moved LDC_OUTPUT_V 14.5→13.6→14.5V (a real, large 12V load), yet B15 stayed ~2.3-2.9A the
-            whole time and NO byte in 2101 rose to track the load. So B15 is not the LDC output current,
-            and the 12V output current does not appear to be broadcast in OBC 2101 at all.
-            B15 idles 2-4 (0x14-0x2A), reads ~40-47 driving, and saturates at 0xFF during charging —
-            likely an OBC-side status/duty or HV-side value. Meaning unknown; kept disabled as a
-            research candidate. (Also previously mis-used for OBC_AC_INPUT_V / OBC_TEMP_HEATSINK.)
+
 
         OBC_DC_A:
           expression: "[B17:B18]/100"
@@ -201,6 +184,36 @@ OBC:
         # 3h charge → fixed values/status, not sensors); B21-40 drifts 31→38°C charging but reads implausibly
         # (10°C READY, 14°C after a hot drive) → not a reliable sensor. OBC internal temps likely just aren't
         # broadcast on this ECU/firmware.
+        OBC_DC_POWER:
+          expression: "[B10:B11]*[B17:B18]/10000000"
+          unit: kW
+          ha_class: power
+          min: "0"
+          max: "10"
+          source: Derived OBC_CHARGE_V*OBC_DC_A; validated vs wattmeter 2026-07-26
+          verified: true
+          notes: >
+            OBC DC output power to the HV bus = OBC_CHARGE_V * OBC_DC_A ([B10:B11]/100 * [B17:B18]/100 / 1000). Steady 3.30-3.36 kW across the 2026-07-26 16A AC charge, 0 when idle. Energy balance: OBC DC out 3.33kW = BMS BATTERY_POWER 3.10kW (into pack) + ~0.15kW LDC 12V load (14.5V*~10A); AC input measured 3.44-3.56kW => ~95% AC/DC charger efficiency. Both input params verified, product matches the external wattmeter.
+        AC_INPUT_V:
+          expression: "[B14:B15]/100"
+          unit: V
+          ha_class: voltage
+          min: "0"
+          max: "300"
+          source: Live 16A AC charge 2026-07-26 + calibrated grid voltage
+          verified: false
+          notes: >
+            AC mains input (RMS) at the OBC inlet. ~222V during charging (218-228V across all charging history), idles ~8.5V in READY with EVSE disconnected (B14=3), like the other OBC senses. B14 high byte steps 85-88 with voltage; B15 is the low byte (was the mystery OBC_UNKNOWN_B15). Mean 221.8V vs calibrated grid 225.5V = ~3V IR drop at ~15A (cable R~0.2ohm), consistent. UNVERIFIED: magnitude + on/off proven; fine tracking vs grid only weakly confirmed against a 3-point reference. ISO-TP 0x0B-0x0C.
+        AC_CURRENT_SETPOINT:
+          expression: B28
+          unit: A
+          ha_class: current
+          min: "0"
+          max: "40"
+          source: Live 16A AC charge 2026-07-26
+          verified: false
+          notes: >
+            Commanded/negotiated AC charge current setpoint. Reads {0,9,16} — 16A during the steady 16A-pilot charge (=EVSE pilot limit), ramps 0->9->16 at start. Not the measured AC draw (that tracks OBC_DC_A and can't be separated on a steady charge). ISO-TP 0x17 (WiCAN B28).
 
     2102:
       status: draft
@@ -274,24 +287,35 @@ OBC:
         all others NRC. No hidden OBC/charging PIDs on 0x7E5.
     - type: decode
       target: "2101 AC-side"
-      status: pending
+      status: done
       priority: P3
       vehicle_states:
         - charging
       date: "2026-07-20"
       notes: >
-        Investigated the full 48-byte 2101 for AC-side data (grid V/A, frequency, power). NEGATIVE RESULT:
-        no ~230V AC voltage, no clean AC current, no 50Hz value is exposed. 2026-07-20 stepped the AC charge
-        limit 10A→12A live: OBC_DC_A rose 5.2→6.02A (tracks the step), and the fixed status bytes B14=~87-91,
-        B28=16, B29=32, B31=200, B37=118 stayed PUT — confirming they are NOT current/power signals.
-        The one byte that moved is B34 (161 @5A → 104 @6A → 18 @14A): a real charge-dynamic value that falls as
-        charge current rises (NOT the SOC-taper confound — confirmed by the independent 10A→12A step). But the
-        relationship is non-linear/noisy (my rapid queries caught an unsettled post-step state, pilot wobbling),
-        so no clean mapping yet — likely an OBC control/duty/headroom value. Session-long ±1 correlations
-        (B23/B41/B44/B45) are just the SOC taper (current falls as pack V/temp rise) — not real.
+        AC INPUT VOLTAGE FOUND 2026-07-26 = [B14:B15]/100 (see AC_INPUT_V param). This OVERTURNS the
+        2026-07-20 "no ~230V AC voltage" negative: B14 is NOT a fixed status byte — it is the voltage
+        integer byte (steps 85-88 = 218-228V), and B15 is the low byte (the ex-OBC_UNKNOWN_B15). Reads
+        ~222V during charging (218-228V across all charging history), idles ~8.5V in READY (EVSE off).
+        Mean 221.8V vs calibrated grid 225.5V = ~3V IR drop at ~15A — why the 2026-07-20 constant-voltage
+        hunt missed it (wrong absolute level; the byte tracks the inlet, not the grid connection). B28=16
+        = AC current SETPOINT (=16A pilot, see AC_CURRENT_SETPOINT), not a measured draw. Measured AC
+        current still unresolved on a steady charge — split to its own lead "2101 AC input current".
+        B34 (see result) sits constant ~250 under steady charge; B29=32/B31=200/B37=118 meaning still
+        unknown (B31=200 is NOT a 20A limit — OBC rated 29A/2017, 32A/2019 facelift).
       what_to_test:
-        - "Let charge settle after each step, then sample B34 at 6/8/10/12/16A (SETTLED, pilot stable) to map it"
-        - "Identify meaning of charging-only constants B28=16, B29=32, B31=200, B37=118 (charge state/limits?)"
+        - "Verify AC_INPUT_V fine tracking against a high-resolution inlet-voltage log (magnitude + on/off already proven)"
+        - "Identify meaning of charging-only constants B29=32, B31=200, B37=118, and B34~250 (charge state/config?)"
+      updated: "2026-07-27"
+      result: >
+        2026-07-26 steady 16A AC charge (OBC_DC_A ~8.7A, DC power ~3.33kW held for ~90min):
+        B34 sat essentially CONSTANT at ~250 (0xFA) — distinct=7, median 250 across 1160 caps
+        (the few non-250 values are the charge start/stop transitions). This does NOT continue
+        the earlier 161@5A / 104@6A / 18@14A downward trend, confirming those earlier readings
+        were unsettled post-step transients (as suspected). Under steady charge B34 pins high
+        (~250); still unresolved (OBC control/duty/headroom candidate). Also validated the new
+        OBC_DC_POWER = OBC_CHARGE_V*OBC_DC_A = 3.33kW against the external wattmeter (3.44-3.56kW
+        AC => ~95% AC/DC efficiency; DC out = BMS pack intake 3.10kW + ~0.15kW LDC 12V load).
     - type: decode
       target: 2101 12V output current
       status: pending
@@ -308,6 +332,14 @@ OBC:
       date: "2026-07-22"
       result: "Exhaustive service-21 LID sweep (ignition on, OBC idle): only 01/02 respond (= known 2101/2102), all 254 others NRC. No hidden pages; notably NO 21F2 (unlike BMS/MCU/VCU). OBC service-21 space fully mapped."
       notes: Hidden-page hunt 2026-07-22 (KWP2000 completion after BMS/MCU/VCU).
+    - type: decode
+      target: 2101 AC input current
+      status: pending
+      priority: P3
+      vehicle_states: [charging]
+      created: "2026-07-27"
+      updated: "2026-07-27"
+      notes: "Measured AC input current not resolved from the steady 2026-07-26 16A charge (draw ~constant, tracks OBC_DC_A, can't be separated). AC_CURRENT_SETPOINT (B28) is the commanded 16A, not the measured draw. To pin the measured AC current: capture a charge where AC current VARIES (step the EVSE limit across 6/8/10/16A, or catch the CV taper at high SOC) then hunt a byte tracking AC power / AC voltage. Note OBC rated ~29A (2017); 32A on 2019 facelift."
 
   sessions:
     "81":
