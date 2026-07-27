@@ -361,14 +361,12 @@ fitted on every trim).
 
 ## Key references
 
-- **Obsidian vault:** `~/obsidian-vault/KB/EV/Hyundai Ioniq/Reverse engineering/`
-  — `PIDs by ECU/`, `Ioniq OBD-II CAN modules.md`, `Hyundai Kia UDS DID
-  Conventions.md`, fan-control tests.
 - [wican-fw repo](https://github.com/meatpiHQ/wican-fw) ·
   [WiCAN docs](https://meatpihq.github.io/wican-fw/)
-- [Kia Niro 64 kWh PID sheet](https://docs.google.com/spreadsheets/d/1eT2R8hmsD1hC__9LtnkZ3eDjLcdib9JR-3Myc97jy8M)
-  and local `profiles/ioniq-2017/references/` spreadsheets (Kia Soul PIDs are
-  offset by 1).
+- local `profiles/ioniq-2017/references/` spreadsheets (Kia Soul and Kia e-niro XLSX-format spreadsheets pulled from Google Docs):
+  - [Kia Niro 64 kWh sheet](https://docs.google.com/spreadsheets/d/1eT2R8hmsD1hC__9LtnkZ3eDjLcdib9JR-3Myc97jy8M)
+  - [Kia Soul EV sheet](https://docs.google.com/spreadsheets/d/1YYlZ-IcTQlz-LzaYkHO-7a4SFM8QYs2BGNXiSU5_EwI)
+  - Both contain a lot of raw CAN logs and PID decoding information, SKM commands and ECU mappings. 
 - **User-facing docs:** `docs/` (task-first, for humans) — `docs/profiles/ioniq-2017.md`
   documents the bundled profile. Keep it and the README current when you change a
   user-facing capability; see the README↔`docs/` policy in `AGENTS.md`.
