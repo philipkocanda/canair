@@ -18,9 +18,10 @@ clone or ``uv`` (e.g. a pip/editable install). ``--check`` reports only;
 
 It also reports the **install context**: which copy is running — the repo
 working tree (``uv run`` / dev checkout) vs the ``uv tool install`` snapshot
-(bare ``canair``) — and warns when the installed tool copy's version has drifted
-out of sync with the source clone's ``pyproject.toml`` (so a bare ``canair``
-would run different code than ``uv run canair``).
+(bare ``canair``) — the clone's current git HEAD (branch name, e.g. ``main``, or
+``detached at <tag>`` after an update), and warns when the installed tool copy's
+version has drifted out of sync with the source clone's ``pyproject.toml`` (so a
+bare ``canair`` would run different code than ``uv run canair``).
 """
 
 from __future__ import annotations
@@ -136,6 +137,27 @@ def _git_dirty(clone: Path) -> bool:
     return res.returncode == 0 and bool(res.stdout.strip())
 
 
+def _git_head(clone: Path) -> str | None:
+    """Describe the clone's current HEAD for display.
+
+    Returns the branch name when on a branch (e.g. ``main``), or a
+    ``detached at <tag-or-commit>`` string when in detached-HEAD state (which is
+    where ``canair update`` leaves the clone after checking out a release tag).
+    ``None`` if git can't be queried.
+    """
+    branch = _git(clone, "symbolic-ref", "--quiet", "--short", "HEAD")
+    if branch is not None and branch.returncode == 0 and branch.stdout.strip():
+        return branch.stdout.strip()
+    # Detached HEAD — prefer an exact tag name, else the short commit.
+    tag = _git(clone, "describe", "--tags", "--exact-match", "HEAD")
+    if tag is not None and tag.returncode == 0 and tag.stdout.strip():
+        return f"detached at {tag.stdout.strip()}"
+    commit = _git(clone, "rev-parse", "--short", "HEAD")
+    if commit is not None and commit.returncode == 0 and commit.stdout.strip():
+        return f"detached at {commit.stdout.strip()}"
+    return None
+
+
 def _manual_instructions(clone: Path | None, tag: str | None = None) -> str:
     loc = str(clone) if clone else "<your canair clone>"
     ref = tag or "<latest release tag>"
@@ -198,6 +220,7 @@ def run(args) -> int:
     latest = release["tag"] if release else None
     changelog = (release or {}).get("url") or CHANGELOG_URL
 
+    clone_head = _git_head(clone) if clone else None
     update_available = _is_newer(latest, __version__)
 
     if args.json:
@@ -210,6 +233,7 @@ def run(args) -> int:
                     "latest": latest,
                     "update_available": update_available,
                     "clone_dir": str(clone) if clone else None,
+                    "clone_head": clone_head,
                     "changelog_url": changelog,
                     "install": install,
                 },
@@ -232,6 +256,10 @@ def run(args) -> int:
     c.print(f"  changelog: [dim]{changelog}[/dim]\n")
 
     _print_install_context(c, install)
+
+    if clone is not None and clone_head is not None:
+        c.print(f"  clone:    {clone}")
+        c.print(f"  on:       [cyan]{clone_head}[/cyan]\n")
 
     # Refresh the cache so any pending auto-notice clears after an explicit check.
     write_cache(latest, changelog)

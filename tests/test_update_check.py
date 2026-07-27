@@ -164,6 +164,65 @@ class TestPendingNotice:
         assert update_check.pending_notice() is None
 
 
+class TestGitHead:
+    """The clone HEAD describer: branch name on a branch, tag/commit when detached."""
+
+    def _init_repo(self, path):
+        import subprocess
+
+        def git(*a):
+            subprocess.run(
+                ["git", "-C", str(path), *a],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+        git("init", "-q", "-b", "main")
+        git("config", "user.email", "t@example.com")
+        git("config", "user.name", "Test")
+        git("commit", "-q", "--allow-empty", "-m", "initial")
+        return git
+
+    def test_reports_branch_name(self, tmp_path):
+        from canlib.commands import update as update_cmd
+
+        self._init_repo(tmp_path)
+        assert update_cmd._git_head(tmp_path) == "main"
+
+    def test_reports_detached_tag(self, tmp_path):
+        from canlib.commands import update as update_cmd
+
+        git = self._init_repo(tmp_path)
+        git("tag", "v1.2.3")
+        git("checkout", "-q", "v1.2.3")
+        assert update_cmd._git_head(tmp_path) == "detached at v1.2.3"
+
+    def test_reports_detached_commit_without_tag(self, tmp_path):
+        import subprocess
+
+        from canlib.commands import update as update_cmd
+
+        git = self._init_repo(tmp_path)
+        git("commit", "-q", "--allow-empty", "-m", "second")
+        # Detach onto the first commit, which carries no tag.
+        first = subprocess.run(
+            ["git", "-C", str(tmp_path), "rev-parse", "HEAD~1"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        git("checkout", "-q", first)
+        head = update_cmd._git_head(tmp_path)
+        assert head is not None
+        assert head.startswith("detached at ")
+
+    def test_none_when_not_a_repo(self, tmp_path):
+        from canlib.commands import update as update_cmd
+
+        assert update_cmd._git_head(tmp_path) is None
+
+
 class TestUpdateCommand:
     def _args(self, **kw):
         base = {"check": False, "yes": False, "json": False}
@@ -190,14 +249,65 @@ class TestUpdateCommand:
         assert out["latest"] == "v9.9.9"
         assert out["update_available"] is True
         assert out["clone_dir"] is None
+        assert out["clone_head"] is None
+
+    def test_json_reports_clone_head(self, monkeypatch, capsys, tmp_path):
+        from canlib.commands import update as update_cmd
+
+        monkeypatch.setattr(
+            update_cmd,
+            "fetch_latest_release",
+            lambda *a, **k: {"tag": "v9.9.9", "url": "https://example/rel"},
+        )
+        import canlib
+
+        monkeypatch.setattr(canlib, "__version__", "1.0.0")
+        monkeypatch.setattr(update_cmd, "_find_clone_dir", lambda: tmp_path)
+        monkeypatch.setattr(update_cmd, "_git_head", lambda clone: "main")
+
+        rc = update_cmd.run(self._args(json=True))
+        assert rc == 0
+        out = json.loads(capsys.readouterr().out)
+        assert out["clone_head"] == "main"
+
+    def test_shows_branch_in_console(self, monkeypatch, capsys, tmp_path):
+        """The clone's current branch is surfaced in the human-readable report."""
+        from canlib.commands import update as update_cmd
+
+        monkeypatch.setattr(
+            update_cmd,
+            "fetch_latest_release",
+            lambda *a, **k: {"tag": "v9.9.9", "url": "https://example/rel"},
+        )
+        import canlib
+
+        monkeypatch.setattr(canlib, "__version__", "1.0.0")
+        monkeypatch.setattr(update_cmd, "_find_clone_dir", lambda: tmp_path)
+        monkeypatch.setattr(update_cmd, "_git_head", lambda clone: "main")
+        monkeypatch.setattr(update_cmd, "_git_dirty", lambda clone: False)
+        monkeypatch.setattr(update_cmd.shutil, "which", lambda name: None)
+
+        rc = update_cmd.run(self._args(check=True))
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "on:" in out
+        assert "main" in out
 
     def test_check_makes_no_changes(self, monkeypatch, capsys):
         from canlib.commands import update as update_cmd
 
-        called = {"git": False}
+        # --check may issue read-only git queries (e.g. reading the clone's HEAD)
+        # but must never run a mutating command (fetch/checkout).
+        git_args: list[tuple[str, ...]] = []
 
-        def _git(*a, **k):
-            called["git"] = True
+        class _CP:
+            returncode = 0
+            stdout = "main"
+            stderr = ""
+
+        def _git(clone, *a):
+            git_args.append(a)
+            return _CP()
 
         monkeypatch.setattr(update_cmd, "_git", _git)
         monkeypatch.setattr(
@@ -211,7 +321,8 @@ class TestUpdateCommand:
 
         rc = update_cmd.run(self._args(check=True))
         assert rc == 0
-        assert called["git"] is False
+        mutating = {"fetch", "checkout", "pull", "reset", "merge"}
+        assert not any(a and a[0] in mutating for a in git_args)
 
     def test_no_clone_prints_manual_instructions(self, monkeypatch, capsys):
         from canlib.commands import update as update_cmd
@@ -255,17 +366,18 @@ class TestUpdateCommand:
 
         monkeypatch.setattr(canlib, "__version__", "1.0.0")
         monkeypatch.setattr(update_cmd, "_find_clone_dir", lambda: tmp_path)
+        monkeypatch.setattr(update_cmd, "_git_head", lambda clone: "main")
 
         git_calls: list[tuple[str, ...]] = []
         monkeypatch.setattr(
             update_cmd,
             "_git",
-            lambda clone, *a: git_calls.append(a),  # pragma: no cover - should not run
+            lambda clone, *a: git_calls.append(a),
         )
 
         rc = update_cmd.run(self._args(yes=True))
         assert rc == update_cmd._CANNOT
-        assert git_calls == []  # never touched git without a tag
+        assert git_calls == []  # never ran a git command without a tag
 
     def test_checks_out_release_tag(self, monkeypatch, capsys, tmp_path):
         """The happy path fetches tags and checks out the advertised release tag."""
