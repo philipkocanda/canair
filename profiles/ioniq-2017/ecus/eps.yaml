@@ -50,7 +50,7 @@ EPS:
           verified: true
           notes: >
             EPS-side vehicle speed echo (speed-dependent steering assist). ISO-TP 0x0B. Tracks ESC REAL_SPEED_KMH within +-1 km/h across 0-39 km/h drive; 0 at standstill.
-        STEERING_ANGLE:
+        EPS_STEERING_FAST:
           expression: (B10+S11*256)/10
           unit: deg
           min: "-500"
@@ -58,7 +58,8 @@ EPS:
           source: RE 2026-07-22 MT->KW drive; Ioniq5 /10 deg convention
           verified: false
           notes: >
-            STRONG CANDIDATE, unverified. Little-endian signed 16-bit: low byte B10 (ISO-TP 0x07), signed high byte B11 (ISO-TP 0x08). Across the 2026-07-22 drive range -374..+299 deg (~1.5 turns each way), centered ~0, returns to centre at standstill; big-endian variant is bimodal (wrong). Scale /10 assumed from Ioniq5 EPS. NEEDS controlled stationary capture (centre/quarter/full-lock each way + lock-to-lock sweep) to confirm scale, zero, and sign convention. This car has active LKAS (lane-keep) so expect related steering-torque/LKAS-command signals nearby (B7/B12 swing signed +-full-scale = torque/rate/MDPS-current candidates).
+            DISPROVEN as absolute steering angle (was STEERING_ANGLE, renamed+disabled 2026-07-26). B10:B11 is a FAST steering signal (rate / MDPS motor position / torque; exact identity unresolved), NOT absolute wheel angle. Proof: 2026-07-26 driveway capture — while the wheel was held (ESC STEERING_ANGLE rock-steady at -461 deg 17:01:11-50, then +24 deg 17:03:31+), this value FLIP-FLOPPED 0/-25.6 deg every sample and never held. The +-25.6 flip is the +-256/10 artifact of a non-clean-LE byte pair (see prior note). The true absolute steering wheel angle is ESC 22C101 STEERING_ANGLE (B35:B36, offset-binary /10).
+          enabled: false
         EPS_STEERING_TORQUE:
           expression: (B12+S13*256)
           unit: ""
@@ -156,32 +157,36 @@ EPS:
       vehicle_states:
         - ready
       notes: >
-        STEERING_ANGLE now DEFINED as an unverified candidate: (B10+S11*256)/10
-        deg (little-endian signed 16-bit, low byte B10 / signed high byte B11).
-        Range -374..+299 deg across the 2026-07-22 MT->KW drive (~1.5 turns each
-        way), centres ~0 and returns to centre at standstill; big-endian variant
-        is bimodal (wrong). VEHICLE_SPEED (B14) already decoded.
+        2026-07-26: the B10:B11 "STEERING_ANGLE" candidate is DISPROVEN as the
+        absolute wheel angle and was renamed EPS_STEERING_FAST + disabled. On the
+        2026-07-26 driveway steer-and-hold capture it flip-flopped 0/-25.6 deg
+        every sample while the wheel was held (the +-256/10 non-clean-LE artifact),
+        never holding — whereas the true absolute steering wheel angle, found the
+        same session on ESC 22C101 B35:B36 (offset-binary /10), held rock-steady at
+        -461 then +24 deg. B10:B11 is a fast steering signal (rate / MDPS motor
+        position / torque), exact identity unresolved. VEHICLE_SPEED (B14) decoded.
         2026-07-23 (376 captures) added three enabled-unverified candidates from
         B05-B17: EPS_STEERING_TORQUE = (B12+S13*256) LE signed-16 at ISO-TP
-        0x09:0x0A, range ±9500, ~0 at rest, r=-0.64 vs angle (torque or 2nd angle
-        rep); EPS_MDPS_ASSIST = B17, 0 at standstill, 0-253 moving, r=+0.53 vs
-        speed (motor current/PWM); EPS_STEERING_TORQUE_ALT = S7 (small signed ±36,
-        r=+0.34 vs angle). B9 = bimodal 0/FF flag (EPS_B9_FLAG, disabled). Open:
-        angle scale/zero/sign, torque vs angle-2 vs rate, assist units. Scales raw.
+        0x09:0x0A, range ±9500, ~0 at rest, r=-0.64 vs the old angle candidate
+        (torque or 2nd steering rep); EPS_MDPS_ASSIST = B17, 0 at standstill, 0-253
+        moving, r=+0.53 vs speed (motor current/PWM); EPS_STEERING_TORQUE_ALT = S7
+        (small signed ±36). B9 = bimodal 0/FF flag (EPS_B9_FLAG, disabled). Open:
+        what EPS_STEERING_FAST (B10:B11) actually is; torque vs rate; assist units.
       what_to_test:
-        - "VERIFY STEERING_ANGLE scale (/10?), zero point, and left/right sign via controlled capture"
+        - "EPS_STEERING_FAST (B10:B11) — rate vs MDPS motor position vs torque? correlate d(ESC STEERING_ANGLE)/dt vs this on a real drive"
         - "EPS_STEERING_TORQUE (B12:S13) — torque vs 2nd angle? hold wheel against resistance at fixed positions to separate torque from displacement; find units"
         - "EPS_MDPS_ASSIST (B17) — motor current/PWM? push wheel with engine on/off to vary assist effort at fixed speed"
         - "EPS_STEERING_TORQUE_ALT (S7) vs B12:S13 — which is driver torque, which is rate/MDPS?"
       sources:
         - "captures/2026-07-22.yaml — driving capture, lots of steering"
+        - "captures/2026-07-26.yaml — driveway steer-and-hold (disproved B10:B11 as absolute angle; ESC 22C101 B35:B36 is the real one)"
         - "OBDb Ioniq 5"
       capture_protocol: >
         Car stationary in ACC/ready. Hold wheel steady ~5s at each of: centre,
         quarter-turn left, quarter-turn right, full-lock left, full-lock right;
         then a slow lock-to-lock sweep. Save each with --label/--state, then
-        'canair decode EPS 220101 --plot' to sweep u16/i16 x endianness and read
-        off scaling. Cross-check STEERING_ANGLE against wheel position at each hold.
+        'canair decode ESC 22C101 --param STEERING_ANGLE --compact' to confirm the
+        SAS zero/scale, and diff EPS_STEERING_FAST against d(angle)/dt.
     - type: decode
       target: "220101"
       status: pending

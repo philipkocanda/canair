@@ -96,6 +96,15 @@ ESC:
           verified: false
           notes: >
             Brake pressure (master-cylinder / wheel-circuit) on the ESC/ABS module. B44 continuous 0-53 (median 0 = off, distinct=32) — NOT a binary lamp. r=+0.973 vs VCU:2101 VEHICLE_STATE_BRAKE_LAMP and -0.973 vs NOT_BRAKING over 124 co-polled pts. At a stop (09:06:38-41) B44 ramps hard as speed hits 0 while the driver holds the pedal. B45 is a near-identical sibling (both 0-53, mean 11.4) — likely the second brake circuit. Raw units (bar/scale TBD); verify with a known brake-force capture.
+        STEERING_ANGLE:
+          expression: ([B35:B36]-32768)/10
+          unit: deg
+          min: "-600"
+          max: "600"
+          source: RE 2026-07-26 driveway steering capture (stationary, wheel held)
+          verified: false
+          notes: >
+            Absolute steering wheel angle sensor (SAS) echoed on ESC/ABS. Big-endian offset-binary 16-bit at ISO-TP 0x1D:0x1E (WiCAN B35:B36, both in CAN frame 4 — no PCI between), zero at 0x8000, scale /10 deg. 2026-07-26 driveway capture (speed=0 throughout): HOLDS steady while wheel held (-461 deg ~40s at 17:01:11-50; +24 deg ~2.5min at 17:03:31-17:06:12) and swings smoothly -466..+408 deg (~+-1.3 turns) during steering. Holds large non-zero values while stationary => steering ANGLE, not yaw rate (yaw pins to center at 0 km/h). Resolves the esc.yaml B35:B36 'yaw rate vs steering angle' candidate. Zero/sign/exact scale need a known-straight-wheel reference (rest sat at +24 deg here). Distinct from EPS 220101 B10:B11 which only spikes (fast rate/torque).
     22C102:
       status: draft
       period: 2500
@@ -120,19 +129,24 @@ ESC:
         - acc
       notes: >
         REAL_SPEED_KMH (B12) and 4 wheel speeds (B18-B21, FL/FR/RL/RR interleaved,
-        1 km/h/bit) decoded + verified from the 2026-07-22 drive (r=+1.000). STILL
-        UNDECODED: candidate ESC dynamics at B35:B36 (signed, centred ~0x8000 →
-        yaw rate or steering angle?), B37:B38 (~2048 = offset-binary accel?), and
-        B39/B41 (~2048, spans PCI B40 so use (B39<<8)|B41 → 2nd accel axis?). All
-        three sit near their centre at standstill and deviate while driving; they
-        did NOT correlate with speed (expected). Also B18-B21 front/rear within a
-        side is by convention only. B22/B27 = low-rate status/counter.
+        1 km/h/bit) decoded + verified from the 2026-07-22 drive (r=+1.000).
+        B35:B36 RESOLVED 2026-07-26 = STEERING_ANGLE (absolute SAS, big-endian
+        offset-binary centred 0x8000, /10 deg): on the 2026-07-26 driveway capture
+        (speed=0 throughout) it HELD steady at -461 deg then +24 deg while the wheel
+        was held, ruling out yaw rate — see the STEERING_ANGLE param. STILL
+        UNDECODED: B37:B38 (~2048 = offset-binary accel?), and B39/B41 (~2048, spans
+        PCI B40 so use (B39<<8)|B41 → 2nd accel axis?) — both sit near centre at
+        standstill (as expected for accel/yaw when stationary) so this driveway
+        capture can't resolve them; need a real moving drive. Also B18-B21
+        front/rear within a side is by convention only. B22/B27 = low-rate
+        status/counter.
       what_to_test:
-        - "B35:B36 signed centred ~0x8000 — yaw rate vs steering angle"
-        - "B37:B38 and (B39<<8)|B41 centred ~2048 — lateral/longitudinal accel"
+        - "STEERING_ANGLE (B35:B36): confirm zero point / sign / exact scale with a known-straight-wheel reference (rest sat at +24 deg on 2026-07-26)"
+        - "B37:B38 and (B39<<8)|B41 centred ~2048 — lateral/longitudinal accel (needs a real moving drive; stayed at centre on the stationary driveway capture)"
         - "Confirm wheel front/rear assignment (needs known-corner reference)"
       sources:
         - "captures/2026-07-22.yaml — driving capture, lots of steering"
+        - "captures/2026-07-26.yaml — driveway steer-and-hold capture (resolved B35:B36 = steering angle)"
         - "OBDb Ioniq 5"
     - type: scan
       target: "22 C101-C10F"

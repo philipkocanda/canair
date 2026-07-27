@@ -123,7 +123,6 @@
       "parameters": {
         "EPS_0101_STEERING_UNMAPPED": "",
         "EPS_VEHICLE_SPEED": "B14",
-        "STEERING_ANGLE": "(B10+S11*256)/10",
         "EPS_STEERING_TORQUE": "(B12+S13*256)",
         "EPS_MDPS_ASSIST": "B17",
         "EPS_STEERING_TORQUE_ALT": "S7",
@@ -143,7 +142,8 @@
         "WHEEL_SPEED_RR": "B21",
         "GEAR_SELECTOR": "B14",
         "LONG_ACCEL_RAW": "S23-128",
-        "BRAKE_PRESSURE": "B44"
+        "BRAKE_PRESSURE": "B44",
+        "STEERING_ANGLE": "([B35:B36]-32768)/10"
       }
     },
     {
