@@ -21,13 +21,23 @@ import argparse
 CATEGORIES: list[tuple[str, tuple[str, ...]]] = [
     (
         "Live device",
-        ("status", "query", "scan", "discover", "raw", "sniff", "io",
-         "routines", "identity", "dtc", "repl"),
+        (
+            "status",
+            "query",
+            "scan",
+            "discover",
+            "raw",
+            "sniff",
+            "io",
+            "routines",
+            "identity",
+            "dtc",
+            "repl",
+        ),
     ),
     (
         "Analysis",
-        ("captures", "decode", "correlate", "hunt", "investigate",
-         "coverage", "research"),
+        ("captures", "decode", "correlate", "hunt", "investigate", "coverage", "research"),
     ),
     ("Authoring", ("pids", "signals", "ecu", "wican", "validate")),
     ("Import / export", ("import", "export")),
