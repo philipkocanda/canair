@@ -160,7 +160,7 @@ def hunt_frame(
     from pathlib import Path
 
     from .align import join_nearest
-    from .commands._decode_plot import INSPECT_TYPES, interpret_bytes
+    from .commands._decode_plot import INSPECT_TYPES, float_series_is_noise, interpret_bytes
     from .xanalysis import HuntHit, _rank_and_collapse, correlation, linear_fit, sniff_unit
 
     p = Path(path)
@@ -177,7 +177,7 @@ def hunt_frame(
 
     hits: list[HuntHit] = []
     for spec in INSPECT_TYPES:
-        _, width, _kind, _signed = spec
+        _, width, kind, _signed = spec
         for little in (False, True) if width > 1 else (False,):
             for off in range(max_len):
                 if off + width > max_len:
@@ -189,6 +189,8 @@ def hunt_frame(
                         cand.append(TimePoint(dt, v))
                 if len({tp.value for tp in cand}) < 3:
                     continue
+                if kind == "float" and float_series_is_noise([tp.value for tp in cand]):
+                    continue  # implausible float reinterpretation (denormal/huge) — skip
                 xs, ys, n = join_nearest(ref, cand, tol_s=tol_s)
                 if n < min_n:
                     continue

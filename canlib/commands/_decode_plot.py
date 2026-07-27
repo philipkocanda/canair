@@ -90,6 +90,24 @@ def interpret_bytes(frame: bytes, offset: int, spec: tuple, little: bool = False
         return None
 
 
+def float_series_is_noise(values: list[float]) -> bool:
+    """True if a float-interpretation series is implausible reinterpretation noise.
+
+    Reading integer-looking byte runs as IEEE floats routinely yields values with
+    absurd magnitudes — a denormal-ish ``5e-36`` or a ``1e30`` — that vary
+    nonlinearly and produce weak spurious correlations in the hunt sweep. A real
+    physical float (temperature, speed, voltage, energy) sits in a sane range, so
+    a series whose values are *all* essentially zero (``|v| < 1e-6``) or *all*
+    astronomically large (``|v| > 1e15``) is treated as noise and skipped. Only
+    applied to float interpretations — integer reads are never filtered.
+    """
+    mags = [abs(v) for v in values if v == v]  # drop NaN (v != v)
+    if not mags:
+        return True
+    hi = max(mags)
+    return hi < 1e-6 or hi > 1e15
+
+
 def wican_expr(offset: int, spec: tuple, little: bool = False) -> str | None:
     """Equivalent WiCAN expression for an interpretation, or None if not expressible.
 
