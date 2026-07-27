@@ -238,12 +238,16 @@ VCU:
           expression: B25
           unit: ""
           min: "0"
-          max: "255"
-          source: canair historical analysis 2026-07-23
+          max: "7"
+          source: canair historical analysis 2026-07-23; enum + value 6 confirmed 2026-07-27 charge-stop
           verified: true
           notes: >
-            VCU/EPCU power-mode enum. B25 = 4 when EV ready/driving, 7 when charging/sleep/off (r=-1.000 vs VEHICLE_STATE_EV_READY and VEHICLE_STATE_POWER_ENABLE across 773 captures; only value seen besides a single transient 6). 4=Ready(HV up, drive-capable), 7=Standby(HV down, charge/off). Complements the B11 state bitfield from an independent byte.
-
+            VCU/EPCU power-mode state machine (B25). 4=drive_ready (EV READY, inverter/drive path enabled), 7=charge_standby (drive path down — AC charging OR key-off standby), 6=transition (caught at charge termination 2026-07-27, HV spinning down). r=-1.000 vs VEHICLE_STATE_EV_READY across the fleet of captures. Independent of the B11 state bitfield.
+          type: enum
+          values:
+            4: drive_ready
+            6: transition
+            7: charge_standby
     2102:
       status: active
       period: 5000
@@ -484,6 +488,14 @@ VCU:
       created: "2026-07-27"
       updated: "2026-07-27"
       notes: "VCU_CHARGE_TIME_REMAINING = [B22:B23]/10 min found 2026-07-27 (time=energy/power: byte*I const CV 0.008; -0.77 vs SOC; ~0 at stop). TODO: (1) verify the /10=min scale against a known dash time-to-full readout; (2) decode the coarser/related inverse estimates on B19 (2102) and B21 (2101) — likely a second time-to-full or a to-target estimate; (3) no clean charge-power byte found on VCU 2101/2102 (positive-vs-current correlators were weak drift)."
+    - type: decode
+      target: 2101 charge/drive state bits
+      status: captured
+      priority: P3
+      vehicle_states: [ready]
+      created: "2026-07-27"
+      updated: "2026-07-27"
+      notes: "State-discrimination 2026-07-27 surfaced: (1) B22:3 = charge-active indicator — set 98% during AC charging, 0% ready-parked, but ~34% during driving; hypothesis = 'battery charge current flowing' (EVSE + regen), UNCONFIRMED (driveway drive had negligible regen; vs BMS current join n/a, vs MCU torque r~0.01). Retest on a highway drive with strong regen + co-polled BMS:2101 BATTERY_CURRENT. (2) B23 = drive-path-enable bitmask = 52 (bits 2/4/5) ready/drive, 0 charging; B23:2 is VCU_INVERTER_ENABLED, B23:4/B23:5 undecoded companions (same pattern, no ready-vs-drive distinction). (3) VCU_POWER_STATE now enum 4/6/7."
 
   sessions:
     "81":
