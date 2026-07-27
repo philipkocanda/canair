@@ -30,6 +30,180 @@ _RENDER_MAX_ROWS = 200
 _RENDER_DEFAULT_ROWS = 4
 
 
+class RenderCache:
+    """Per-PID rendered-block cache for the live monitor.
+
+    A monitor repaints its whole body on every poll cycle *and* on every
+    mid-cycle partial resolve, but between paints most PIDs are unchanged. Each
+    PID entry's rendered :class:`~rich.text.Text` is deterministic in its
+    inputs, so we key the block on a signature of everything that affects its
+    output and reuse the cached block on a hit — skipping the per-byte
+    ``Text.append`` churn and the expression byte-index re-parsing that
+    dominated render cost.
+
+    A cached ``Text`` is only ever appended into a parent via
+    ``Text.append_text`` (which copies, not mutates), so sharing one cached
+    instance across many renders is safe. Held by the monitor controller so it
+    persists across paints; a fresh cache renders everything once.
+    """
+
+    def __init__(self) -> None:
+        self._blocks: dict[tuple[str, str], tuple[tuple, Text]] = {}
+
+    def get(self, key: tuple[str, str], sig: tuple) -> Text | None:
+        hit = self._blocks.get(key)
+        if hit is not None and hit[0] == sig:
+            return hit[1]
+        return None
+
+    def put(self, key: tuple[str, str], sig: tuple, block: Text) -> None:
+        self._blocks[key] = (sig, block)
+
+    def prune(self, live_keys: set[tuple[str, str]]) -> None:
+        """Drop cached blocks for PIDs no longer polled (e.g. after a filter change)."""
+        for key in [k for k in self._blocks if k not in live_keys]:
+            del self._blocks[key]
+
+
+def _entry_signature(
+    entry: dict,
+    *,
+    changed: bool,
+    verbose: bool,
+    show_rulers: bool,
+    is_selected: bool,
+    sel_name: str | None,
+    row_cap: int,
+    prev_raw: str,
+    history: list[tuple[str, str]] | None,
+) -> tuple:
+    """A hashable signature of everything that affects one PID entry's render.
+
+    Two renders with equal signatures produce byte-identical output, so a match
+    lets :class:`RenderCache` reuse the prior block. ``params`` are flattened to
+    a tuple (name/value/unit/expr/error/verified/display) because their values
+    and verification state drive both the table and the per-byte colours.
+    """
+    params = tuple(tuple(row) for row in entry.get("params", []))
+    return (
+        entry.get("pid", ""),
+        entry.get("raw_hex", ""),
+        entry.get("error"),
+        entry.get("decode"),
+        bool(entry.get("unmapped", False)),
+        bool(entry.get("stale", False)),
+        changed,
+        verbose,
+        show_rulers,
+        is_selected,
+        sel_name if is_selected else None,
+        row_cap,
+        prev_raw,
+        tuple(history) if history is not None else None,
+        params,
+    )
+
+
+def _render_entry(
+    entry: dict,
+    ecu_label: str,
+    *,
+    changed: bool,
+    verbose: bool,
+    show_rulers: bool,
+    sel_name: str | None,
+    row_cap: int,
+    prev_raw: str,
+    history: list[tuple[str, str]] | None,
+) -> Text:
+    """Render one PID entry (mark line, param table, hex/history) to its own Text.
+
+    Rendered as a self-contained block so a stale (timed-out) PID can be dimmed
+    as a unit — its last-good values stay on screen (greyed) instead of
+    collapsing to an error line and jolting layout.
+    """
+    pid = entry["pid"]
+    error = entry.get("error")
+    params = entry.get("params", [])
+    raw_hex = entry.get("raw_hex", "")
+    decode = entry.get("decode")
+    unmapped = entry.get("unmapped", False)
+    stale = entry.get("stale", False)
+
+    entry_text = Text()
+    entry_text.append("    ")
+    entry_text.append(pid, style="yellow")
+    if changed and not stale:
+        entry_text.append(" ●", style="bright_green")
+    if stale:
+        entry_text.append(" (stale)", style="dim")
+    if unmapped:
+        entry_text.append(" (unmapped)", style="dim")
+    # Show history count when keeping history
+    if history is not None:
+        n_entries = len(history)
+        if raw_hex and raw_hex not in [h for h, _ts in history]:
+            n_entries += 1  # current not yet added
+        if n_entries > 1:
+            entry_text.append(f"  ({n_entries} entries)", style="dim")
+    if error:
+        entry_text.append(f"  {error}\n", style="red")
+        return entry_text
+    entry_text.append("\n")
+
+    if params:
+        # With rulers on, annotate each param with the payload byte index(es) it
+        # maps to (e.g. "16-17"), matching the diff view.
+        n_bytes = len(raw_hex) // 2 if (show_rulers and raw_hex) else None
+        entry_text.append_text(
+            render_param_table(params, verbose=verbose, n_bytes=n_bytes, selected_name=sel_name)
+        )
+    elif decode:
+        entry_text.append(f"      {decode}\n")
+
+    if raw_hex:
+        # Byte-index ruler, once per PID, above the hex lines.
+        if show_rulers:
+            ruler_pw = 16 if history is not None else 6
+            entry_text.append_text(
+                render_byte_rulers(len(raw_hex) // 2, params, prefix_width=ruler_pw)
+            )
+        if history is not None:
+            # Show all unique payloads chronologically, each diffed against predecessor
+            history_hexes = [h for h, _ts in history]
+            # Include current if not yet in history (first cycle edge case)
+            if raw_hex not in history_hexes:
+                all_entries = [*history, (raw_hex, "")]
+            else:
+                all_entries = list(history)
+            # Bound the rendered rows to the newest ``row_cap`` so a long
+            # --keep-all (or noisy --keep-unique) run stays cheap to render (full
+            # data is retained in memory / the journal).
+            if len(all_entries) > row_cap:
+                omitted = len(all_entries) - row_cap
+                all_entries = all_entries[-row_cap:]
+                entry_text.append(f"      … {omitted} earlier entries hidden\n", style="dim")
+            for i, (payload, ts) in enumerate(all_entries):
+                prev_row = all_entries[i - 1][0] if i > 0 else ""
+                prefix = f"      {ts}  " if ts else "                "
+                entry_text.append_text(
+                    _render_hex_line(
+                        payload,
+                        params,
+                        unmapped,
+                        prev_raw=prev_row,
+                        prefix=prefix,
+                        prefix_style="dim" if ts else "",
+                    )
+                )
+        else:
+            entry_text.append_text(_render_hex_line(raw_hex, params, unmapped, prev_raw=prev_raw))
+
+    if stale:
+        entry_text.stylize("dim")  # grey the whole PID block
+    return entry_text
+
+
 def _render_results(
     queries: list[tuple[str, list]],
     verbose: bool,
@@ -42,6 +216,7 @@ def _render_results(
     footer: bool = True,
     selected: tuple[str, str, str] | None = None,
     max_history_rows: int | None = None,
+    cache: RenderCache | None = None,
 ) -> Text:
     """Render all ECU query results as a Rich Text object for display.
 
@@ -55,6 +230,10 @@ def _render_results(
 
     ``max_history_rows`` bounds how many history rows each PID renders (newest
     kept); ``None`` falls back to :data:`_RENDER_MAX_ROWS`.
+
+    ``cache`` (a :class:`RenderCache`) reuses per-PID blocks whose inputs are
+    unchanged since the last render, avoiding the per-byte Text churn and
+    expression re-parsing for static PIDs. ``None`` renders everything fresh.
     """
     row_cap = _RENDER_MAX_ROWS if max_history_rows is None else max(1, max_history_rows)
     text = Text()
@@ -67,6 +246,7 @@ def _render_results(
     if prev_hex is None:
         prev_hex = {}
 
+    live_keys: set[tuple[str, str]] = set()
     for ecu_label, pid_results in queries:
         if not pid_results:
             continue
@@ -77,107 +257,59 @@ def _render_results(
 
         for entry in pid_results:
             pid = entry["pid"]
-            error = entry.get("error")
-            params = entry.get("params", [])
             raw_hex = entry.get("raw_hex", "")
-            decode = entry.get("decode")
-            unmapped = entry.get("unmapped", False)
-            stale = entry.get("stale", False)
-
-            # Detect change from previous cycle
             hex_key = (ecu_label, pid)
+            live_keys.add(hex_key)
+
+            # Change from the previous cycle (drives the "●" fresh-data marker).
             changed = cycle > 1 and raw_hex and hex_key in prev_hex and prev_hex[hex_key] != raw_hex
+            is_selected = selected is not None and selected[0] == ecu_label and selected[1] == pid
+            sel_name = selected[2] if is_selected else None
+            prev_raw = prev_hex.get(hex_key, "") if cycle > 1 else ""
+            history = hex_history[hex_key] if hex_history and hex_key in hex_history else None
 
-            # Render the whole entry into its own Text so a stale (timed-out) PID
-            # can be dimmed as a unit — its last-good values stay on screen
-            # (greyed) instead of collapsing to an error line and jolting layout.
-            entry_text = Text()
-            entry_text.append("    ")
-            entry_text.append(pid, style="yellow")
-            if changed and not stale:
-                entry_text.append(" ●", style="bright_green")
-            if stale:
-                entry_text.append(" (stale)", style="dim")
-            if unmapped:
-                entry_text.append(" (unmapped)", style="dim")
-            # Show history count when keeping history
-            if hex_history and hex_key in hex_history:
-                n_entries = len(hex_history[hex_key])
-                if raw_hex and raw_hex not in [h for h, _ts in hex_history[hex_key]]:
-                    n_entries += 1  # current not yet added
-                if n_entries > 1:
-                    entry_text.append(f"  ({n_entries} entries)", style="dim")
-            if error:
-                entry_text.append(f"  {error}\n", style="red")
-                text.append_text(entry_text)
-                continue
-            entry_text.append("\n")
-
-            if params:
-                # With rulers on, annotate each param with the payload byte
-                # index(es) it maps to (e.g. "16-17"), matching the diff view.
-                n_bytes = len(raw_hex) // 2 if (show_rulers and raw_hex) else None
-                sel_name = (
-                    selected[2]
-                    if selected is not None and selected[0] == ecu_label and selected[1] == pid
-                    else None
+            if cache is not None:
+                sig = _entry_signature(
+                    entry,
+                    changed=bool(changed),
+                    verbose=verbose,
+                    show_rulers=show_rulers,
+                    is_selected=is_selected,
+                    sel_name=sel_name,
+                    row_cap=row_cap,
+                    prev_raw=prev_raw,
+                    history=history,
                 )
-                entry_text.append_text(
-                    render_param_table(
-                        params, verbose=verbose, n_bytes=n_bytes, selected_name=sel_name
+                block = cache.get(hex_key, sig)
+                if block is None:
+                    block = _render_entry(
+                        entry,
+                        ecu_label,
+                        changed=bool(changed),
+                        verbose=verbose,
+                        show_rulers=show_rulers,
+                        sel_name=sel_name,
+                        row_cap=row_cap,
+                        prev_raw=prev_raw,
+                        history=history,
                     )
+                    cache.put(hex_key, sig, block)
+            else:
+                block = _render_entry(
+                    entry,
+                    ecu_label,
+                    changed=bool(changed),
+                    verbose=verbose,
+                    show_rulers=show_rulers,
+                    sel_name=sel_name,
+                    row_cap=row_cap,
+                    prev_raw=prev_raw,
+                    history=history,
                 )
-            elif decode:
-                entry_text.append(f"      {decode}\n")
+            text.append_text(block)
 
-            if raw_hex:
-                # Byte-index ruler, once per PID, above the hex lines.
-                if show_rulers:
-                    ruler_pw = 16 if hex_history is not None else 6
-                    entry_text.append_text(
-                        render_byte_rulers(len(raw_hex) // 2, params, prefix_width=ruler_pw)
-                    )
-                if hex_history and hex_key in hex_history:
-                    # Show all unique payloads chronologically, each diffed against predecessor
-                    history = hex_history[hex_key]  # list of (hex, timestamp)
-                    history_hexes = [h for h, _ts in history]
-                    # Include current if not yet in history (first cycle edge case)
-                    if raw_hex not in history_hexes:
-                        all_entries = [*history, (raw_hex, "")]
-                    else:
-                        all_entries = list(history)
-                    # Bound the rendered rows to the newest ``row_cap`` so a long
-                    # --keep-all (or noisy --keep-unique) run stays cheap to
-                    # render (full data is retained in memory / the journal).
-                    if len(all_entries) > row_cap:
-                        omitted = len(all_entries) - row_cap
-                        all_entries = all_entries[-row_cap:]
-                        entry_text.append(
-                            f"      … {omitted} earlier entries hidden\n",
-                            style="dim",
-                        )
-                    for i, (payload, ts) in enumerate(all_entries):
-                        prev_raw = all_entries[i - 1][0] if i > 0 else ""
-                        prefix = f"      {ts}  " if ts else "                "
-                        entry_text.append_text(
-                            _render_hex_line(
-                                payload,
-                                params,
-                                unmapped,
-                                prev_raw=prev_raw,
-                                prefix=prefix,
-                                prefix_style="dim" if ts else "",
-                            )
-                        )
-                else:
-                    prev_raw = prev_hex.get(hex_key, "") if prev_hex and cycle > 1 else ""
-                    entry_text.append_text(
-                        _render_hex_line(raw_hex, params, unmapped, prev_raw=prev_raw)
-                    )
-
-            if stale:
-                entry_text.stylize("dim")  # grey the whole PID block
-            text.append_text(entry_text)
+    if cache is not None:
+        cache.prune(live_keys)
 
     if footer:
         text.append("\n  Press Ctrl+C to stop monitoring\n", style="dim")

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **The live `monitor` TUI repaints far more cheaply.** The monitor rebuilt its
+  entire body — every ECU, PID, parameter table and hex/history line — on every
+  poll cycle *and* every mid-cycle partial resolve, re-running the per-byte Rich
+  `Text` assembly and re-parsing each parameter's byte-index expression every
+  time, even for PIDs whose values were unchanged. Each PID's rendered block is
+  now cached and keyed on the inputs that affect its output, so unchanged PIDs
+  are reused instead of re-rendered (a ~7x cheaper repaint when nothing changed
+  between paints — the common case for a slow-timeout or partial-resolve tick).
+  Output is byte-identical.
+
 ## [1.3.3] - 2026-07-27
 
 ### Changed

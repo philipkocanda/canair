@@ -38,16 +38,23 @@ from ..formatting import (
     _render_hex_line,
 )
 from ..session_manager import SessionManager
-from ._monitor_render import _RENDER_DEFAULT_ROWS, _RENDER_MAX_ROWS, _render_results
+from ._monitor_render import (
+    _RENDER_DEFAULT_ROWS,
+    _RENDER_MAX_ROWS,
+    RenderCache,
+    _render_results,
+)
 from .monitor_raw import MonitorRawPoller, _raw_pid_result
 
 # _HIGHLIGHT_STYLE, _bytes_to_ascii and _render_hex_line moved to canlib.formatting;
-# _render_results/_RENDER_MAX_ROWS to _monitor_render; _raw_pid_result to monitor_raw.
-# All re-exported here for backward-compatible imports (e.g. tests/test_monitor.py).
+# _render_results/_RENDER_MAX_ROWS/RenderCache to _monitor_render; _raw_pid_result to
+# monitor_raw. All re-exported here for backward-compatible imports (e.g.
+# tests/test_monitor.py).
 __all__ = [
     "_HIGHLIGHT_STYLE",
     "_RENDER_MAX_ROWS",
     "MonitorController",
+    "RenderCache",
     "_bytes_to_ascii",
     "_raw_pid_result",
     "_render_hex_line",
@@ -276,6 +283,10 @@ class MonitorController:
 
         self.pids_dir = None  # None -> active profile's ecus/ (tests override)
         self.editor = MonitorEditor(self)
+        # Per-PID rendered-block cache: the body repaints every poll cycle and
+        # every mid-cycle partial, but most PIDs are unchanged between paints, so
+        # reuse their rendered Text instead of rebuilding it each time.
+        self._render_cache = RenderCache()
 
     def reload_pids(self) -> None:
         """Re-read PID definitions after an in-place edit and rebuild the index.
@@ -550,6 +561,7 @@ class MonitorController:
             footer=False,
             selected=self.editor.selected,
             max_history_rows=self._history_render_limit(),
+            cache=self._render_cache,
         )
 
     def _history_render_limit(self) -> int:

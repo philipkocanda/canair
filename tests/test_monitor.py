@@ -5,6 +5,7 @@ import yaml
 from canlib.modes.monitor import (
     _HIGHLIGHT_STYLE,
     MonitorController,
+    RenderCache,
     _bytes_to_ascii,
     _merge_history,
     _render_hex_line,
@@ -329,6 +330,100 @@ class TestRenderResults:
             results, verbose=False, cycle=2, elapsed=0.1, interval=5.0, prev_hex=prev
         )
         assert "●" not in t.plain
+
+
+class TestRenderCache:
+    """The per-PID render cache must be transparent — identical output, reused blocks."""
+
+    def _queries(self, val=1.0, raw="620102030405"):
+        params = [
+            ("SOC", val, "%", "B1", None, True, ""),
+            ("V", val + 1, "V", "B2", None, False, ""),
+        ]
+        return [
+            (
+                "BMS",
+                [
+                    {
+                        "pid": "2101",
+                        "params": params,
+                        "raw_hex": raw,
+                        "error": None,
+                        "unmapped": False,
+                    }
+                ],
+            ),
+            (
+                "VCU",
+                [
+                    {
+                        "pid": "2102",
+                        "params": params,
+                        "raw_hex": raw,
+                        "error": None,
+                        "unmapped": False,
+                    }
+                ],
+            ),
+        ]
+
+    def _render(self, queries, cache, cycle=2, prev=None, sel=None):
+        return _render_results(
+            queries,
+            verbose=False,
+            cycle=cycle,
+            elapsed=0.1,
+            interval=5.0,
+            prev_hex=prev or {},
+            selected=sel,
+            cache=cache,
+        )
+
+    def test_cached_output_matches_uncached(self):
+        q = self._queries()
+        cached = self._render(q, RenderCache())
+        uncached = self._render(q, None)
+        assert cached.plain == uncached.plain
+        assert cached.spans == uncached.spans
+
+    def test_cache_hit_reuses_same_block_object(self):
+        cache = RenderCache()
+        q = self._queries()
+        self._render(q, cache)
+        first_block = cache.get(("BMS", "2101"), cache._blocks[("BMS", "2101")][0])
+        # Re-render with identical inputs: the cached block object is returned as-is.
+        self._render(q, cache)
+        second_block = cache.get(("BMS", "2101"), cache._blocks[("BMS", "2101")][0])
+        assert first_block is second_block
+
+    def test_changed_data_invalidates_and_matches_uncached(self):
+        cache = RenderCache()
+        self._render(self._queries(val=1.0), cache)
+        q2 = self._queries(val=2.0, raw="62AABBCCDDEE")
+        cached = self._render(q2, cache)
+        uncached = self._render(q2, None)
+        assert cached.plain == uncached.plain
+        assert cached.spans == uncached.spans
+
+    def test_selection_change_rerenders(self):
+        cache = RenderCache()
+        q = self._queries()
+        self._render(q, cache)
+        # Move the edit cursor onto a param: output must reflect the ▶ cursor.
+        cached = self._render(q, cache, sel=("BMS", "2101", "SOC"))
+        uncached = self._render(q, None, sel=("BMS", "2101", "SOC"))
+        assert cached.plain == uncached.plain
+        assert "▶" in cached.plain
+
+    def test_prune_drops_stale_keys(self):
+        cache = RenderCache()
+        self._render(self._queries(), cache)
+        assert ("VCU", "2102") in cache._blocks
+        # A subsequent render polling only BMS should evict VCU's cached block.
+        bms_only = [self._queries()[0]]
+        self._render(bms_only, cache)
+        assert ("VCU", "2102") not in cache._blocks
+        assert ("BMS", "2101") in cache._blocks
 
 
 class TestKeepHistory:
