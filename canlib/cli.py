@@ -131,10 +131,12 @@ def _inject_default_subcommand(argv: list[str]) -> list[str]:
 
 def build_parser() -> argparse.ArgumentParser:
     """Build the top-level argument parser with all subcommands registered."""
+    from canlib.commands._categories import CategorizedHelpFormatter
+
     parser = argparse.ArgumentParser(
         prog="canair",
         description=__doc__,
-        formatter_class=argparse.RawDescriptionHelpFormatter,
+        formatter_class=CategorizedHelpFormatter,
     )
     parser.add_argument(
         "--version",

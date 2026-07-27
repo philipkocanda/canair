@@ -101,8 +101,14 @@ def _command_names() -> list[str]:
 
 
 def _index_page(names: list[str]) -> str:
-    """Rewrite the cli/ index to list the generated per-command pages."""
+    """Rewrite the cli/ index to list the generated per-command pages.
+
+    Commands are grouped under the same categories the top-level ``canair
+    --help`` uses (``canlib.commands._categories``); anything absent from a
+    category falls under a trailing "Other" heading, so the two never drift.
+    """
     from canlib.cli import build_parser
+    from canlib.commands._categories import CATEGORIES, OTHER_TITLE
 
     parser = build_parser()
     sub = _subparsers_action(parser)
@@ -123,10 +129,30 @@ def _index_page(names: list[str]) -> str:
         "## Commands",
         "",
     ]
-    for n in names:
+
+    def _bullet(n: str) -> str:
         summary = help_by_name.get(n, "")
-        lines.append(f"- [`canair {n}`]({n}.md)" + (f" — {summary}" if summary else ""))
-    lines.append("")
+        return f"- [`canair {n}`]({n}.md)" + (f" — {summary}" if summary else "")
+
+    available = set(names)
+    emitted: set[str] = set()
+    for title, group in CATEGORIES:
+        members = [n for n in group if n in available]
+        if not members:
+            continue
+        lines += [f"### {title}", ""]
+        for n in members:
+            lines.append(_bullet(n))
+            emitted.add(n)
+        lines.append("")
+
+    # Preserve registration order for anything not placed in a category.
+    leftover = [n for n in names if n not in emitted]
+    if leftover:
+        lines += [f"### {OTHER_TITLE}", ""]
+        lines += [_bullet(n) for n in leftover]
+        lines.append("")
+
     return "\n".join(lines)
 
 

@@ -61,31 +61,55 @@ Responses are decoded into named parameters using the active profile's definitio
 
 All functionality is exposed as `canair <subcommand>`; run `canair <cmd> --help` for details, or see the [CLI reference](https://philipkocanda.github.io/canair/reference/cli/).
 
+**Live device**
+
 | Subcommand | Purpose |
 |--------|---------|
+| `canair status` | Snapshot of transport, device mode, and reachability. |
 | `canair query` | Send UDS/KWP2000 requests — parameter queries, multi-ECU pipelines, live `--monitor`. Companions: `discover`, `io`, `routines`, `raw`, `repl`. |
 | `canair scan` | Probe DID/routine/iocontrol/session ranges for responses. |
 | `canair dtc` | Read/clear Diagnostic Trouble Codes; report changes since the last scan. |
 | `canair identity` | Decode ECU identity DIDs — part number, versions, serial, VIN. |
 | `canair sniff` | Passive CAN-bus sniffer (raw SLCAN) with optional frame logging. |
+
+**Analysis**
+
+| Subcommand | Purpose |
+|--------|---------|
+| `canair captures` | Search/diff/step saved diagnostic captures (`captures uds`) or list raw-CAN frame logs (`captures can`). |
 | `canair decode` | Value-centric decoding of captures — stats, correlation, `--plot`, candidate-expression testing. |
 | `canair correlate` | Rank the strongest cross-signal relationships across a drive (`uds` captures \| `can` frame log). |
 | `canair hunt` | "Which byte *is* this known signal?" — sweep, correlate, fit, unit-guess (`uds` PID \| `can` frame ID). |
 | `canair investigate` | One-shot per-byte report for an unknown PID. |
-| `canair captures` | Search/diff/step saved diagnostic captures (`captures uds`) or list raw-CAN frame logs (`captures can`). |
-| `canair import` | Bring data into the profile: `import uds` (device-free UDS payload), `import can` (raw frame log), `import dbc` (signal defs). |
 | `canair coverage` | Audit PID definitions for decoding gaps. |
 | `canair research` | Report the open reverse-engineering backlog. |
+
+**Authoring**
+
+| Subcommand | Purpose |
+|--------|---------|
 | `canair pids` | Add/update `ecus/` parameters and research entries (validated). |
 | `canair signals` | Add/update broadcast signal definitions (`signals/`, DBC-compatible linear model). |
 | `canair ecu` | Inspect ECUs, or register one offline (`ecu add`). |
 | `canair wican` | Generate the WiCAN AutoPID JSON; upload/download/diff (Pro). |
+| `canair validate` | Validate `ecus/`, `profile.yaml`, and `captures/` against their schemas. |
+
+**Import / export**
+
+| Subcommand | Purpose |
+|--------|---------|
+| `canair import` | Bring data into the profile: `import uds` (device-free UDS payload), `import can` (raw frame log), `import dbc` (signal defs). |
+| `canair export` | Export broadcast signal defs (`signals/`) to DBC for SavvyCAN/cabana/Wireshark. |
+
+**Setup**
+
+| Subcommand | Purpose |
+|--------|---------|
 | `canair profile` | Manage profile bundles — create/list/show/path. |
-| `canair status` | Snapshot of transport, device mode, and reachability. |
 | `canair config` | View/manage user config. |
 | `canair update` | Update canair from its git clone (`git pull` + reinstall); links the changelog. |
-| `canair validate` | Validate `ecus/`, `profile.yaml`, and `captures/` against their schemas. |
-| `canair export` | Export broadcast signal defs (`signals/`) to DBC for SavvyCAN/cabana/Wireshark. |
+
+> The byte-index converter `canair bix` (WiCAN ↔ ISO-TP ↔ Torque ↔ OBDb) and `canair completion` round out the utilities.
 
 > Separate package [`wican-cli`](https://github.com/philipkocanda/wican-cli) handles WiCAN *device* management (config, sleep/power, status, reboots). `pip install wican-cli`.
 
