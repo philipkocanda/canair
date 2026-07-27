@@ -34,6 +34,8 @@ Examples:
   canair decode MCU 2102 --try "TORQUE:Nm=[S12:S13]/100"   # Test a candidate expression
   canair decode MCU 2102 --try "T=[S17:S18]" --corr MCU_MOTOR_RPM  # Validate a candidate by correlation
   canair decode MCU 21F2 --try "X=B9" --try "Y=[S10:S11]"  # Multiple candidates, undefined PID OK
+  canair decode BMS 2101 --dump-bytes         # timestamp x byte-offset matrix (CSV, PCI skipped)
+  canair decode BMS 2101 --dump-bytes --json  # same matrix as JSON (ad-hoc analysis escape hatch)
 """
 
 import argparse

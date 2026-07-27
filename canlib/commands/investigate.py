@@ -109,6 +109,10 @@ examples:
   canair investigate ESC 22C101 --min-r 0.8      # only show strong anchors (|r| >= 0.8)
   canair investigate AAF 2181 --json       # machine-readable output
 
+  # active-but-independent: rank bytes that separate by state yet DON'T track a
+  # named driver — the fingerprint of AC voltage vs charge current
+  canair investigate OBC 2101 --independent-of OBC:2101:OBC_DC_A --state charging
+
 tip: no anchors found? widen scope (drop --state), lower --min-r, or grow the
      capture set — an anchor needs another co-polled signal it can align to. For
      a body/comfort PID with no co-polled partner, use --bits / --events (the

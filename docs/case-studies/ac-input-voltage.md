@@ -136,6 +136,37 @@ canair pids rm-param OBC 2101 OBC_UNKNOWN_B15      # it was just the low byte
 canair validate pids && canair wican autopid write
 ```
 
+### The same hunt today — no scratch scripts
+
+Rounds 2–4 above leaned on hand-written glue (parsing `captures --diff` text,
+regressing out current, sweeping scalings). Those are now first-class flags — the
+whole detour collapses to three commands:
+
+```bash
+# Round 2 — correlate every byte against the calibrated grid log directly
+# (nearest-timestamp join on the captures' absolute clock; no scratch script)
+canair correlate --against-file grid_voltage.csv --bytes --state charging
+
+# Round 3 — regress out the charge current (the IR-drop confounder) and rank by
+# the PARTIAL correlation, instead of hand-rolling V_inlet = V_grid − k·I
+canair hunt OBC 2101 --against-file grid_voltage.csv --control OBC:2101:OBC_DC_A --state charging
+
+# Round 4 — the winning lens needed NO reference at all: flag bytes whose scaled
+# value lands in a named physical band, active only while charging
+canair hunt OBC 2101 --physical --state charging
+#  → [B14:B15]/100 ≈ 222 V  (mains RMS band)
+
+# and the structured byte matrix that replaced the captures --diff regex:
+canair decode OBC 2101 --dump-bytes --json --state charging
+```
+
+The `--independent-of` finder captures Trap 3 directly — rank the bytes that
+separate by state yet *don't* track the obvious driver:
+
+```bash
+canair investigate OBC 2101 --independent-of OBC:2101:OBC_DC_A --state charging
+```
+
 ## What finally cracked it
 
 Three things, in order:

@@ -194,6 +194,13 @@ examples:
   # restrict to a couple of ECUs and show the full r-matrix
   canair correlate "MCU VCU" --matrix
 
+  # rank every byte against an EXTERNAL log (meter/GPS/grid), nearest-timestamp join
+  canair correlate --against-file grid_voltage.csv --bytes --state charging
+
+  # partial correlation: rank every byte vs the grid with the charge current
+  # regressed out — surfaces a signal only visible once the driver is removed
+  canair correlate --against-file grid_voltage.csv --control OBC:2101:OBC_DC_A --bytes
+
   # spearman ranks catch monotone-but-nonlinear links
   canair correlate --against ESC:22C101:REAL_SPEED_KMH --method spearman""",
     )

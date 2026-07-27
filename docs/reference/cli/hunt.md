@@ -136,6 +136,18 @@ examples:
   # write the winning byte into ecus/ as an unverified candidate param
   canair hunt AAF 2181 --against ESC:22C101:REAL_SPEED_KMH --promote WHEEL_SPEED_KMH
 
+  # reference an EXTERNAL log (calibrated meter / GPS / grid-voltage export),
+  # joined by nearest timestamp on the captures' absolute clock
+  canair hunt OBC 2101 --against-file grid_voltage.csv --state charging
+
+  # confounder control: which byte tracks the grid once the IR-drop current is
+  # regressed out? (partial correlation — surfaces links a dominant driver hides)
+  canair hunt OBC 2101 --against-file grid_voltage.csv --control OBC:2101:OBC_DC_A
+
+  # no reference at all: flag bytes whose scaled value lands in a physical band
+  # (mains RMS/peak, line freq, 12V rail, HV pack) — finds an anchorless signal
+  canair hunt OBC 2101 --physical --state charging
+
 tip: --against takes a known signal ECU:PID:PARAM (or a raw ECU:PID:EXPR). Use
      `canair correlate --overlap` first to find a reference that actually shares
      time-aligned samples with your target.
