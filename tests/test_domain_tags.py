@@ -36,12 +36,13 @@ class TestApplyDomainTags:
             if parser.description:
                 assert parser.description.lstrip().startswith(tag), name
 
-    def test_command_map_help_prefixed(self):
+    def test_command_map_help_not_prefixed(self):
+        # The overview command map is grouped by category and each command's own
+        # help states its domain, so the one-liners must NOT carry the tag.
         sub = self._subparsers()
         for action in sub._choices_actions:
-            tag = tag_for(action.dest)
-            if tag and action.help:
-                assert action.help.startswith(tag), action.dest
+            if action.help:
+                assert not action.help.startswith("["), action.dest
 
     def test_idempotent(self):
         # Applying twice must not double-prefix.
