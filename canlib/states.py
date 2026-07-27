@@ -33,8 +33,12 @@ import ast
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from canlib import yaml_io
+
+if TYPE_CHECKING:
+    from canlib.modes.multi_batch import EcuFrame
 
 # The canonical base power-state vocabulary, shared across every vehicle
 # profile. This is THE single definition — schema validators, the research
@@ -307,7 +311,7 @@ def suggest_state(rules: list[StateRule], values: dict, responded: set) -> str |
     return None
 
 
-def collect_values(new_queries) -> tuple[dict, set]:
+def collect_values(new_queries: list[EcuFrame]) -> tuple[dict[str, float], set[str]]:
     """Extract ``{ECU.PARAM: value}`` + responded-ECU set from decoded results.
 
     ``new_queries`` is a list of ``(ecu_label, pid_results)`` where each result

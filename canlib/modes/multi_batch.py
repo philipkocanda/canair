@@ -10,9 +10,38 @@ rather than each other.
 from __future__ import annotations
 
 from datetime import datetime
+from typing import NotRequired, TypedDict
 
-from ..decoding import decode_param_rows
+from ..decoding import ParamRow, decode_param_rows
 from ..formatting import decode_uds_response
+
+
+class ResultEntry(TypedDict):
+    """One PID's shaped poll result, as emitted by the multi/monitor pipeline.
+
+    The single dict shape shared across the live monitor renderer
+    (:mod:`canlib.modes._monitor_render`), the compact printer
+    (:func:`canlib.formatting.print_ecu_results`), the capture collectors
+    (:mod:`canlib.modes.multi`), and state auto-suggestion
+    (:func:`canlib.states.collect_values`). ``pid`` is always present; the rest
+    depend on the outcome — a successful decode carries ``params``/``raw_hex``,
+    an unmapped PID adds ``decode``/``unmapped``, a failed query carries
+    ``error``, and the monitor tags a timed-out-but-retained row ``stale``.
+    """
+
+    pid: str
+    params: NotRequired[list[ParamRow]]
+    raw_hex: NotRequired[str]
+    acquired_at: NotRequired[float | None]
+    decode: NotRequired[str | None]
+    unmapped: NotRequired[bool]
+    error: NotRequired[str]
+    stale: NotRequired[bool]
+
+
+# One render/collect frame: per-ECU ``(label, results)`` pairs, where ``label``
+# is e.g. ``"BMS (0x7E4)"`` and ``results`` is that ECU's PID entries in order.
+EcuFrame = tuple[str, list[ResultEntry]]
 
 
 class BatchState:
@@ -116,7 +145,14 @@ def _capture_stamp(acquired_at: float | None) -> tuple[str, str]:
     return dt.strftime("%Y-%m-%d"), dt.strftime("%H:%M:%S.%f")[:-3]
 
 
-def _decode_pid_result(pid_code, pid_info, unmapped, hex_str, bytes_val, acquired_at):
+def _decode_pid_result(
+    pid_code: str,
+    pid_info: dict | None,
+    unmapped: bool,
+    hex_str: str,
+    bytes_val: bytes,
+    acquired_at: float | None,
+) -> ResultEntry:
     """Build a result dict from a successful (single or split-out) response."""
     if pid_info:
         return {
@@ -135,7 +171,9 @@ def _decode_pid_result(pid_code, pid_info, unmapped, hex_str, bytes_val, acquire
     }
 
 
-def _error_result(pid_code, unmapped, resp, acquired_at):
+def _error_result(
+    pid_code: str, unmapped: bool, resp: dict, acquired_at: float | None
+) -> ResultEntry:
     error = resp.get("error") or resp.get("nrc_desc", "unknown")
     nrc = resp.get("nrc")
     if nrc is not None:

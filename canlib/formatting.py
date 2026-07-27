@@ -1,11 +1,16 @@
 """Output formatting helpers."""
 
 import json
+from typing import TYPE_CHECKING
 
 from rich.console import Console
 from rich.text import Text
 
 from .byteindex import extract_byte_indices, wican_to_elm_idx
+from .decoding import ParamRow
+
+if TYPE_CHECKING:
+    from .modes.multi_batch import ResultEntry
 
 _console = Console(highlight=False)
 
@@ -23,7 +28,7 @@ def _bytes_to_ascii(raw_hex: str) -> str:
     return "".join(chr(b) if 32 <= b < 127 else "." for b in data)
 
 
-def _build_byte_colors(params: list, n_bytes: int) -> list[str]:
+def _build_byte_colors(params: list[ParamRow], n_bytes: int) -> list[str]:
     """Return a per-ELM-byte colour list based on parameter coverage and verification.
 
     Priority: green (covered by verified param) > yellow (covered by unverified) >
@@ -134,7 +139,7 @@ def format_value(value: float, unit: str, display: str = "") -> str:
 
 def _render_hex_line(
     raw_hex: str,
-    params: list,
+    params: list[ParamRow],
     unmapped: bool,
     *,
     prev_raw: str = "",
@@ -179,7 +184,7 @@ def _render_hex_line(
 
 
 def render_param_table(
-    params: list,
+    params: list[ParamRow],
     *,
     verbose: bool = False,
     indent: str = "      ",
@@ -228,9 +233,9 @@ def render_param_table(
         # row's value/mark columns stay aligned with its neighbours.
         name_prefix = (indent[:-2] + "▶ ") if is_sel and len(indent) >= 2 else indent
         name_style = "reverse bold" if is_sel else ""
-        if perr:
+        if perr or value is None:
             t.append(f"{name_prefix}{name:<{max_name}}  ", style=name_style)
-            t.append(f"ERROR: {perr}\n", style="red")
+            t.append(f"ERROR: {perr or 'no value'}\n", style="red")
             continue
 
         val_str = format_value(value, unit, display)
@@ -248,7 +253,7 @@ def render_param_table(
     return t
 
 
-def render_byte_rulers(n_bytes: int, params: list, *, prefix_width: int = 8) -> Text:
+def render_byte_rulers(n_bytes: int, params: list[ParamRow], *, prefix_width: int = 8) -> Text:
     """Return a two-row byte-index ruler (``idx`` + ``wican``) as Rich Text.
 
     ``idx`` = payload byte position; ``wican`` = WiCAN Bnn index (which skips PCI
@@ -316,7 +321,7 @@ def print_decoded_params(params_results: list, verbose: bool = False):
 
 def print_ecu_results(
     ecu_label: str,
-    pid_results: list,
+    pid_results: "list[ResultEntry]",
     verbose: bool = False,
 ):
     """Print all PID results for an ECU in a grouped, compact layout.

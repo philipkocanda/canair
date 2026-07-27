@@ -45,6 +45,7 @@ from ._monitor_render import (
     _render_results,
 )
 from .monitor_raw import MonitorRawPoller, _raw_pid_result
+from .multi_batch import EcuFrame, ResultEntry
 
 # _HIGHLIGHT_STYLE, _bytes_to_ascii and _render_hex_line moved to canlib.formatting;
 # _render_results/_RENDER_MAX_ROWS/RenderCache to _monitor_render; _raw_pid_result to
@@ -218,7 +219,7 @@ class MonitorController:
         # this (marked stale → dimmed) so its values stay on screen instead of
         # collapsing to an error line and jolting the layout; a pending PID (raw,
         # mid-cycle) shows it too until its own result lands.
-        self._last_good: dict[tuple[str, str], dict] = {}
+        self._last_good: dict[tuple[str, str], ResultEntry] = {}
 
         # Live state (read by the renderer).
         self.cycle = 0
@@ -234,7 +235,7 @@ class MonitorController:
         self.total_frames = 0
         self.unique_frames = 0
         self._seen_payloads: set[tuple[tuple[str, str], str]] = set()
-        self.last_queries: list[tuple[str, list]] = []
+        self.last_queries: list[EcuFrame] = []
         self.prev_hex: dict[tuple[str, str], str] = {}
         # Payloads as of the *previous* poll cycle, snapshotted before prev_hex is
         # overwritten each cycle. Rendering diffs against this so byte-level change
@@ -372,7 +373,7 @@ class MonitorController:
                     await self.sm.terminal.set_header(info["tx_id"])
                     await self.sm.terminal.send_uds(plan[0][0], retries=1)
 
-    def _record(self, new_queries: list[tuple[str, list]]) -> None:
+    def _record(self, new_queries: list[EcuFrame]) -> None:
         """Record freshly-polled payloads into prev_hex / display / save history."""
         # Refresh the decoded-value snapshot used for state auto-suggestion.
         from ..states import collect_values
@@ -464,7 +465,7 @@ class MonitorController:
         # their values (no flicker); overwrite each as it completes this cycle.
         frame = dict(self.last_queries)
         order = [label for label, _ in self.last_queries]
-        new_queries: list[tuple[str, list]] = []
+        new_queries: list[EcuFrame] = []
         last_render = 0.0
         for step in self.query_steps:
             try:
@@ -521,10 +522,12 @@ class MonitorController:
     async def _poll_raw(self) -> None:
         await self.raw_poller.poll()
 
-    def _apply_raw_submission(self, s: dict, val, acquired: float, by_pid: dict) -> None:
+    def _apply_raw_submission(
+        self, s: dict, val, acquired: float, by_pid: dict[tuple[str, str], ResultEntry]
+    ) -> None:
         self.raw_poller.apply_submission(s, val, acquired, by_pid)
 
-    def _displayify(self, key: tuple[str, str], entry: dict) -> dict:
+    def _displayify(self, key: tuple[str, str], entry: ResultEntry) -> ResultEntry:
         """Map a freshly-resolved entry to what should be shown for that PID.
 
         - good (has ``raw_hex``): remembered as the last-good, shown as-is.
@@ -543,7 +546,9 @@ class MonitorController:
             return {**last, "stale": True}
         return entry
 
-    def _raw_build_queries(self, plan_by_ecu, by_pid: dict) -> list[tuple[str, list]]:
+    def _raw_build_queries(
+        self, plan_by_ecu, by_pid: dict[tuple[str, str], ResultEntry]
+    ) -> list[EcuFrame]:
         return self.raw_poller.build_queries(plan_by_ecu, by_pid)
 
     def render(self) -> Text:

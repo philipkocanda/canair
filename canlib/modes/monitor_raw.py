@@ -13,11 +13,23 @@ testable unit rather than another arm of the controller god object. The
 controller keeps thin delegating methods for the tested public surface.
 """
 
+from __future__ import annotations
+
 import asyncio
 import contextlib
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .multi_batch import EcuFrame, ResultEntry
 
 
-def _raw_pid_result(pid_code, pid_info, unmapped, value, acquired_at):
+def _raw_pid_result(
+    pid_code: str,
+    pid_info: dict | None,
+    unmapped: bool,
+    value: bytes | Exception | None,
+    acquired_at: float | None,
+) -> ResultEntry:
     """Turn a raw-CAN poll result (bytes / Exception / None) into a result dict.
 
     Mirrors the ELM path's result shape so the renderer/decoder are unchanged.
@@ -167,7 +179,7 @@ class MonitorRawPoller:
 
         fut = loop.run_in_executor(None, _run)
 
-        by_pid: dict[tuple[str, str], dict] = {}
+        by_pid: dict[tuple[str, str], ResultEntry] = {}
         applied: set = set()
         last_render = 0.0
         while True:
@@ -204,7 +216,9 @@ class MonitorRawPoller:
         c.last_cmds = len(requests)
         c.last_elm_time = 0.0
 
-    def apply_submission(self, s: dict, val, acquired: float, by_pid: dict) -> None:
+    def apply_submission(
+        self, s: dict, val, acquired: float, by_pid: dict[tuple[str, str], ResultEntry]
+    ) -> None:
         """Fold one completed submission's response into ``by_pid`` (split batches,
         learn 22-DID lengths, track ECUs that can't batch)."""
         from .multi_batch import _did_data_len, _is_did22, split_multi_did
@@ -238,12 +252,12 @@ class MonitorRawPoller:
             if dlen is not None:
                 self.lengths[(ecu, code[2:])] = dlen
 
-    def build_queries(self, plan_by_ecu, by_pid: dict) -> list[tuple[str, list]]:
+    def build_queries(self, plan_by_ecu, by_pid: dict[tuple[str, str], ResultEntry]) -> list[EcuFrame]:
         """Build the render frame in plan order. A PID resolved as a timeout keeps
         its last-good values (stale/dimmed); a PID not yet resolved this cycle
         shows its last-good values so the view neither flickers nor stutters."""
         c = self.c
-        new_queries: list[tuple[str, list]] = []
+        new_queries: list[EcuFrame] = []
         for ecu, tx_id, plan in plan_by_ecu:
             label = f"{ecu} (0x{tx_id:03X})"
             pid_results = []

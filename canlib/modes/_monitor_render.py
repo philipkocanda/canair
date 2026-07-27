@@ -14,6 +14,7 @@ from ..formatting import (
     render_byte_rulers,
     render_param_table,
 )
+from .multi_batch import EcuFrame, ResultEntry
 
 # Cap how many history rows a single PID renders per cycle. With --keep-all a
 # long drive accrues thousands of payloads per PID; rendering them all every
@@ -66,7 +67,7 @@ class RenderCache:
 
 
 def _entry_signature(
-    entry: dict,
+    entry: ResultEntry,
     *,
     changed: bool,
     verbose: bool,
@@ -105,7 +106,7 @@ def _entry_signature(
 
 
 def _render_entry(
-    entry: dict,
+    entry: ResultEntry,
     ecu_label: str,
     *,
     changed: bool,
@@ -205,7 +206,7 @@ def _render_entry(
 
 
 def _render_results(
-    queries: list[tuple[str, list]],
+    queries: list[EcuFrame],
     verbose: bool,
     cycle: int,
     elapsed: float,

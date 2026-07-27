@@ -21,7 +21,9 @@ import re
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from ..decoding import ParamRow
     from .monitor import MonitorController
+    from .multi_batch import EcuFrame, ResultEntry
 
 # Ordered display filters cycled by the TUI's filter key.
 FILTERS = ("all", "verified", "unverified", "enabled", "disabled")
@@ -50,7 +52,7 @@ class MonitorEditor:
         pdef = self._lookup_pdef(_ecu_name(ecu_label), pid, name)
         return True if pdef is None else bool(pdef.get("enabled", True))
 
-    def _row_matches(self, ecu_label: str, pid: str, row) -> bool:
+    def _row_matches(self, ecu_label: str, pid: str, row: ParamRow) -> bool:
         name = row[0]
         verified = bool(row[5]) if len(row) > 5 else False
         mode = self.filter_mode
@@ -66,7 +68,7 @@ class MonitorEditor:
             return not self._param_enabled(ecu_label, pid, name)
         return True
 
-    def visible_queries(self, last_queries: list[tuple[str, list]]) -> list[tuple[str, list]]:
+    def visible_queries(self, last_queries: list[EcuFrame]) -> list[EcuFrame]:
         """Return ``last_queries`` narrowed to rows matching the active filter.
 
         ``all`` returns the input untouched. Any other filter drops parameter
@@ -76,9 +78,9 @@ class MonitorEditor:
         """
         if self.filter_mode == "all":
             return last_queries
-        out: list[tuple[str, list]] = []
+        out: list[EcuFrame] = []
         for ecu_label, entries in last_queries:
-            filtered_entries = []
+            filtered_entries: list[ResultEntry] = []
             for entry in entries:
                 params = entry.get("params") or []
                 if not params:
@@ -91,7 +93,7 @@ class MonitorEditor:
         return out
 
     # ── selection ─────────────────────────────────────────────────────────
-    def selectable(self, last_queries: list[tuple[str, list]]) -> list[SelectionKey]:
+    def selectable(self, last_queries: list[EcuFrame]) -> list[SelectionKey]:
         """Ordered selection keys for every visible, decoded parameter row."""
         items: list[SelectionKey] = []
         for ecu_label, entries in self.visible_queries(last_queries):
@@ -100,7 +102,7 @@ class MonitorEditor:
                     items.append((ecu_label, entry["pid"], row[0]))
         return items
 
-    def move(self, last_queries: list[tuple[str, list]], delta: int) -> SelectionKey | None:
+    def move(self, last_queries: list[EcuFrame], delta: int) -> SelectionKey | None:
         """Move the cursor by ``delta`` rows (clamped); return the new selection.
 
         A first move (or a move after the selected row vanished) snaps to the
@@ -118,12 +120,12 @@ class MonitorEditor:
         self.selected = items[idx]
         return self.selected
 
-    def ensure_valid(self, last_queries: list[tuple[str, list]]) -> None:
+    def ensure_valid(self, last_queries: list[EcuFrame]) -> None:
         """Drop the selection if it's no longer among the visible rows."""
         if self.selected is not None and self.selected not in self.selectable(last_queries):
             self.selected = None
 
-    def cycle_filter(self, last_queries: list[tuple[str, list]] | None = None) -> str:
+    def cycle_filter(self, last_queries: list[EcuFrame] | None = None) -> str:
         """Advance to the next display filter; keep the selection valid."""
         self.filter_mode = FILTERS[(FILTERS.index(self.filter_mode) + 1) % len(FILTERS)]
         if last_queries is not None:

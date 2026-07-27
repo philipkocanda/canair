@@ -43,6 +43,7 @@ from ..session_manager import SessionManager
 from ..terminal import WiCANTerminal
 from .multi_batch import (
     BatchState,
+    ResultEntry,
     _capture_stamp,
 )
 from .multi_exec import (
@@ -183,7 +184,7 @@ async def mode_multi(
             source="query",
         )
 
-    def _collect_query(ecu_label: str, pid_results: list[dict]) -> None:
+    def _collect_query(ecu_label: str, pid_results: list[ResultEntry]) -> None:
         ecu_ref = _rx_addr_for_ecu_label(ecu_label, ecu_index)
         for entry in pid_results or []:
             raw_hex = entry.get("raw_hex", "")
