@@ -180,6 +180,22 @@ def _gather(args) -> dict:
     except Exception:
         info["update_notice"] = None
 
+    # Install context (local-only): warn when a bare `canair` would run a
+    # different version than `uv run canair` in the source clone.
+    try:
+        from ..commands.update import _find_clone_dir
+        from ..install_context import describe as describe_install
+
+        install = describe_install(_find_clone_dir())
+        info["install"] = install
+        if install["out_of_sync"]:
+            info["warnings"].append(
+                f"installed `canair` ({install['tool_version']}) is out of sync with the "
+                f"source clone ({install['clone_version']}) — run `canair update` to reinstall"
+            )
+    except Exception:
+        info["install"] = None
+
     return info
 
 

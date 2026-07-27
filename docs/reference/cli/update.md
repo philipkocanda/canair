@@ -19,6 +19,12 @@ degrades gracefully to printing manual instructions when it can't find a git
 clone or ``uv`` (e.g. a pip/editable install). ``--check`` reports only;
 ``--json`` emits a machine-readable summary.
 
+It also reports the **install context**: which copy is running — the repo
+working tree (``uv run`` / dev checkout) vs the ``uv tool install`` snapshot
+(bare ``canair``) — and warns when the installed tool copy's version has drifted
+out of sync with the source clone's ``pyproject.toml`` (so a bare ``canair``
+would run different code than ``uv run canair``).
+
 options:
   -h, --help  show this help message and exit
   --check     Only report the current/latest version and changelog; make no

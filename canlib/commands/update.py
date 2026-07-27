@@ -11,6 +11,12 @@ It never mutates anything without an interactive confirmation or ``--yes``, and
 degrades gracefully to printing manual instructions when it can't find a git
 clone or ``uv`` (e.g. a pip/editable install). ``--check`` reports only;
 ``--json`` emits a machine-readable summary.
+
+It also reports the **install context**: which copy is running — the repo
+working tree (``uv run`` / dev checkout) vs the ``uv tool install`` snapshot
+(bare ``canair``) — and warns when the installed tool copy's version has drifted
+out of sync with the source clone's ``pyproject.toml`` (so a bare ``canair``
+would run different code than ``uv run canair``).
 """
 
 from __future__ import annotations
@@ -21,6 +27,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from ..install_context import describe as describe_install
 from ..update_check import (
     CHANGELOG_URL,
     _is_newer,
@@ -135,10 +142,52 @@ def _manual_instructions(clone: Path | None) -> str:
     )
 
 
+def _origin_label(origin: str) -> str:
+    return {
+        "repo": "repo working tree (uv run / dev checkout)",
+        "uv-tool": "uv tool install copy (bare `canair`)",
+        "other": "other install (pip / site-packages)",
+    }.get(origin, origin)
+
+
+def _print_install_context(c, install: dict) -> None:
+    """Render which copy is running and whether the tool copy is out of sync."""
+    origin = install["running_origin"]
+    c.print(f"  running:  {_origin_label(origin)}")
+    c.print(f"  [dim]  from {install['running_package_dir']}[/dim]")
+
+    tool_version = install["tool_version"]
+    clone_version = install["clone_version"]
+    if tool_version is not None:
+        c.print(f"  installed `canair`: {tool_version}  [dim](uv tool copy)[/dim]")
+
+    if install["out_of_sync"]:
+        c.print(
+            "\n  [yellow]⚠ out of sync:[/yellow] the installed `canair` "
+            f"([bold]{tool_version}[/bold]) differs from the source clone "
+            f"([bold]{clone_version}[/bold])."
+        )
+        if origin == "repo":
+            c.print(
+                "  [dim]`uv run canair` runs the clone; a bare `canair` runs the older "
+                "installed copy.[/dim]"
+            )
+        else:
+            c.print(
+                "  [dim]a bare `canair` runs this installed copy; `uv run canair` in the "
+                "clone runs newer code.[/dim]"
+            )
+        c.print(
+            "  [dim]run `canair update` (or `uv tool install <clone> --reinstall`) to sync.[/dim]"
+        )
+    c.print("")
+
+
 def run(args) -> int:
     from .. import __version__
 
     clone = _find_clone_dir()
+    install = describe_install(clone)
     release = fetch_latest_release()
     latest = release["tag"] if release else None
     changelog = (release or {}).get("url") or CHANGELOG_URL
@@ -156,6 +205,7 @@ def run(args) -> int:
                     "update_available": update_available,
                     "clone_dir": str(clone) if clone else None,
                     "changelog_url": changelog,
+                    "install": install,
                 },
                 indent=2,
             )
@@ -174,6 +224,8 @@ def run(args) -> int:
     else:
         c.print(f"          latest:  {latest}  [green](up to date)[/green]")
     c.print(f"  changelog: [dim]{changelog}[/dim]\n")
+
+    _print_install_context(c, install)
 
     # Refresh the cache so any pending auto-notice clears after an explicit check.
     write_cache(latest, changelog)

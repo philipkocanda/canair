@@ -53,6 +53,26 @@ If canair can't find your clone or `uv` (e.g. a different install method), it
 prints the exact manual commands instead. To silence the automatic check, set
 `check_for_updates: false` in your config (or export `CANAIR_NO_UPDATE_CHECK=1`).
 
+### The two installs can drift out of sync
+
+Running `uv tool install .` **and** working in a clone means you have *two*
+copies of canair on the machine:
+
+- a bare `canair` runs the **installed snapshot** (uv's tool venv), taken at the
+  last `uv tool install`;
+- `uv run canair` runs the **repo working tree** — whatever you've currently
+  checked out or edited.
+
+Edit the repo (or pull new commits that bump the version) and the two drift: a
+bare `canair` keeps reporting the old version while `uv run canair` reports the
+new one. `canair update` detects this — it reports **which copy is running** and
+warns when the installed snapshot's version differs from the source clone's
+`pyproject.toml`, telling you to reinstall to sync (the same warning also shows
+up in `canair status`). `canair update --json` includes the full `install`
+block (`running_origin`, `tool_version`, `clone_version`, `out_of_sync`) for
+scripts.
+
+
 ## Tab-completion (optional)
 
 Completion covers subcommands, flags, and ECU/PID names from your active profile:
