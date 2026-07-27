@@ -1,14 +1,36 @@
 # ─── AVN (Audio/Video/Navigation) ─────────────────────────────────────
 # Head unit at 0x780. Firmware: AE_EV EURSOP 12 017.1
 # No live data DIDs discovered yet. Service 22 ranges untested.
+# 
+# Runs Hyundai/MOBIS D-Audio 2V.
+# Linux kernel, Yocto-based root filesystem, systemd for service management.
+#
+# This unit is what is used to set:
+# - The two cabin preconditioning schedules
+# - The two AC charging schedules
+# - Station AC charging power 
+# - Portable ("granny charger") AC charging power
+# - Default/Eco/Sport profiles (regen level and climate ECO setting)
+#
+# TODO: Add details on how schedules are defined exactly!
+# 
+# Links/sources: 
+# - Connector pinouts: https://gitlab.com/g4933/wideopen/-/wikis/Unit/Pinouts
+# - Firmware update hacking: https://programmingwithstyle.com/posts/howihackedmycar
+#
 AVN:
   tx_id: 0x780
+  alias: IVI # In-Vehicle Infotainment 
   identity:
     description: Audio/Video/Navigation head unit
     serial: "00000076FE0085-003240"
     app_sw: "AE_EV EURSOP 12 017.1"
     id_protocol: UDS  # F1xx (limited — 3 DIDs)
-    notes: "Firmware ID 'AE_EV EUR.SOP' matches Ioniq head unit firmware/map updates. Previously misidentified as TCU."
+    notes: >
+      Firmware ID 'AE_EV EUR.SOP' matches Ioniq head unit firmware/map updates. 
+      Previously misidentified as TCU, likely not present since 
+      BlueLink is not on this car and wasnt sold in the NL (and possibly entire EU?) market at the time (2016-2018).
+
   vehicle_states:
     - plugged
     - acc
@@ -22,5 +44,7 @@ AVN:
       hits: 0
       vehicle_states:
         - ready, ignition on
-      notes: "Head unit alive (all NRC, 0 timeouts) but exposes NO live-data DIDs — identity DIDs only. Hidden-page hunt."
+      notes: >
+        Head unit alive (all NRC, 0 timeouts) but exposes NO live-data DIDs — identity DIDs only. Hidden-page hunt.
+
   pids: {}
