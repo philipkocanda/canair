@@ -29,8 +29,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from canlib import yaml_io
+
+if TYPE_CHECKING:
+    from canlib.profile import Profile
 
 
 @dataclass(frozen=True)
@@ -47,13 +51,13 @@ class BusDef:
         return self.name or self.code
 
 
-def _can_buses_path(profile=None) -> Path:
+def _can_buses_path(profile: Profile | None = None) -> Path:
     from .profile import active
 
     return (profile or active()).can_buses_file
 
 
-def load_can_buses(profile=None) -> list[BusDef]:
+def load_can_buses(profile: Profile | None = None) -> list[BusDef]:
     """Ordered list of declared buses. Empty when no can_buses.yaml.
 
     Accepts both the ``code: {name, description}`` mapping form and the legacy
@@ -93,16 +97,16 @@ def load_can_buses(profile=None) -> list[BusDef]:
     return out
 
 
-def load_can_bus_codes(profile=None) -> list[str]:
+def load_can_bus_codes(profile: Profile | None = None) -> list[str]:
     """Ordered list of declared bus codes. Empty when no can_buses.yaml."""
     return [b.code for b in load_can_buses(profile)]
 
 
-def allowed_can_buses(profile=None) -> set[str]:
+def allowed_can_buses(profile: Profile | None = None) -> set[str]:
     """The set of accepted CAN bus codes for a profile (empty when undeclared)."""
     return {b.code for b in load_can_buses(profile)}
 
 
-def bus_names(profile=None) -> dict[str, str]:
+def bus_names(profile: Profile | None = None) -> dict[str, str]:
     """Map each declared code to its human label (name, or the code itself)."""
     return {b.code: b.label for b in load_can_buses(profile)}

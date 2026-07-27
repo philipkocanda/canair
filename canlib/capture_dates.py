@@ -13,6 +13,7 @@ and (for captures) ``session_label`` keys, so any capture-shaped dict works.
 
 import argparse
 from datetime import date, datetime, time
+from pathlib import Path
 
 __all__ = [
     "add_scope_args",
@@ -329,7 +330,9 @@ def add_scope_args(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def resolve_date_bounds(args) -> tuple[date | datetime | None, date | datetime | None, str | None]:
+def resolve_date_bounds(
+    args: argparse.Namespace,
+) -> tuple[date | datetime | None, date | datetime | None, str | None]:
     """Resolve ``--date``/``--since``/``--until``/``--today`` into ``(since, until, error)``.
 
     ``--date`` is shorthand for an equal since/until pair (a whole day) and
@@ -361,7 +364,7 @@ def _session_starts(
     until: date | datetime | None,
     state: str | None,
     label: str | None,
-    captures_dir=None,
+    captures_dir: Path | None = None,
 ) -> list[datetime]:
     """Start instant of each recorded session in scope, chronological.
 
@@ -376,7 +379,7 @@ def _session_starts(
     entries = filter_by_date_range(entries, since, until)
     entries = filter_by_text(entries, state=state, label=label)
 
-    starts: dict[tuple, datetime] = {}
+    starts: dict[tuple[str, int], datetime] = {}
     for e in entries:
         key = (e.get("file", ""), e.get("_session_idx", 0))
         dt = entry_datetime(e)
@@ -391,7 +394,7 @@ def _session_starts(
 
 
 def resolve_scope_bounds(
-    args, captures_dir=None
+    args: argparse.Namespace, captures_dir: Path | None = None
 ) -> tuple[date | datetime | None, date | datetime | None, str | None]:
     """Resolve the full scope surface into ``(since, until, error)``.
 

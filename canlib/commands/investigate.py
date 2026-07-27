@@ -315,9 +315,10 @@ def run(args) -> int:
 
     ecu = canonical_ecu_name_safe(args.ecu)
     pid = args.pid.upper()
-    scope = {"since": since, "until": until, "state": args.state, "label": args.label}
 
-    loaded = load_signal_captures([(ecu, pid)], **scope)
+    loaded = load_signal_captures(
+        [(ecu, pid)], since=since, until=until, state=args.state, label=args.label
+    )
     lp = loaded[(ecu.upper(), pid)]
     if not lp.captures:
         print(
@@ -370,7 +371,9 @@ def run(args) -> int:
 
                 driver_series, driver_label = load_reference_file(args.independent_of_file)
             else:
-                driver_series, driver_label = load_ref(args.independent_of, **scope)
+                driver_series, driver_label = load_ref(
+                    args.independent_of, since=since, until=until, state=args.state, label=args.label
+                )
         except ValueError as e:
             flag = "--independent-of-file" if args.independent_of_file else "--independent-of"
             print(f"{flag} error: {e}", file=sys.stderr)
@@ -384,7 +387,9 @@ def run(args) -> int:
         if s != (ecu.upper(), pid)
     ]
     if other_specs:
-        aloaded = load_signal_captures(other_specs, **scope)
+        aloaded = load_signal_captures(
+            other_specs, since=since, until=until, state=args.state, label=args.label
+        )
         for (aecu, apid), alp in aloaded.items():
             if not alp.captures:
                 continue

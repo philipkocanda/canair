@@ -19,7 +19,8 @@ from __future__ import annotations
 import bisect
 import csv
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
+from pathlib import Path
 
 from .byteindex import payload_to_wican_bytes as _payload_to_wican_bytes
 from .capture_dates import entry_datetime, filter_by_date_range, filter_by_text
@@ -104,11 +105,11 @@ class LoadedPid:
 def load_signal_captures(
     specs: list[tuple[str, str]],
     *,
-    since=None,
-    until=None,
+    since: date | datetime | None = None,
+    until: date | datetime | None = None,
     state: str | None = None,
     label: str | None = None,
-    captures_dir=None,
+    captures_dir: Path | None = None,
 ) -> dict[tuple[str, str], LoadedPid]:
     """Load ``payload`` captures grouped by ``(ecu, pid)`` for a set of specs.
 
@@ -215,7 +216,7 @@ def _parse_reference_timestamp(raw: str) -> datetime | None:
     return dt
 
 
-def load_reference_file(path, *, label: str | None = None) -> tuple[list[TimePoint], str]:
+def load_reference_file(path: Path | str, *, label: str | None = None) -> tuple[list[TimePoint], str]:
     """Load an external reference series from a two-column ``timestamp,value`` file.
 
     The escape hatch for correlating against data that isn't on the bus — a
