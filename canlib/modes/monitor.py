@@ -36,17 +36,20 @@ from ..formatting import (
     _HIGHLIGHT_STYLE,
     _bytes_to_ascii,
     _render_hex_line,
-    render_byte_rulers,
-    render_param_table,
 )
 from ..session_manager import SessionManager
+from ._monitor_render import _RENDER_MAX_ROWS, _render_results
+from .monitor_raw import MonitorRawPoller, _raw_pid_result
 
 # _HIGHLIGHT_STYLE, _bytes_to_ascii and _render_hex_line moved to canlib.formatting;
-# re-exported here for backward-compatible imports (e.g. tests/test_monitor.py).
+# _render_results/_RENDER_MAX_ROWS to _monitor_render; _raw_pid_result to monitor_raw.
+# All re-exported here for backward-compatible imports (e.g. tests/test_monitor.py).
 __all__ = [
     "_HIGHLIGHT_STYLE",
+    "_RENDER_MAX_ROWS",
     "MonitorController",
     "_bytes_to_ascii",
+    "_raw_pid_result",
     "_render_hex_line",
     "_render_results",
     "mode_monitor",
@@ -82,162 +85,6 @@ def query_ecu_error(query_steps: list[dict], pids_data: dict) -> str | None:
         return None
     available = ", ".join(sorted(ecu_index.keys()))
     return f"unknown ECU(s) in query: {', '.join(unknown)}.\n  Available ECUs: {available}"
-
-
-# Cap how many history rows a single PID renders per cycle. With --keep-all a
-# long drive accrues thousands of payloads per PID; rendering them all every
-# cycle is O(cycles²·PIDs) and unbounded. The full history still lives in the
-# journal (--save) — this only bounds the on-screen buffer to the newest rows.
-_RENDER_MAX_ROWS = 200
-
-
-def _render_results(
-    queries: list[tuple[str, list]],
-    verbose: bool,
-    cycle: int,
-    elapsed: float,
-    interval: float,
-    prev_hex: dict[tuple[str, str], str] | None = None,
-    hex_history: dict[tuple[str, str], list[tuple[str, str]]] | None = None,
-    show_rulers: bool = False,
-    footer: bool = True,
-    selected: tuple[str, str, str] | None = None,
-) -> Text:
-    """Render all ECU query results as a Rich Text object for display.
-
-    ``footer`` appends the "Press Ctrl+C to stop" hint (kept for callers that
-    render a single static block). The scrolling monitor passes ``footer=False``
-    and draws its own fixed status line below the scroll viewport.
-
-    ``selected`` is an ``(ecu_label, pid, param_name)`` triple naming the
-    parameter row the monitor is targeting for in-place editing; that row is
-    drawn with a ``▶`` cursor.
-    """
-    text = Text()
-
-    text.append(
-        f"  Monitor — cycle {cycle}  (last: {elapsed:.1f}s, interval: {interval:.1f}s)\n",
-        style="dim",
-    )
-
-    if prev_hex is None:
-        prev_hex = {}
-
-    for ecu_label, pid_results in queries:
-        if not pid_results:
-            continue
-
-        text.append("\n  ")
-        text.append(ecu_label, style="bold cyan")
-        text.append("\n")
-
-        for entry in pid_results:
-            pid = entry["pid"]
-            error = entry.get("error")
-            params = entry.get("params", [])
-            raw_hex = entry.get("raw_hex", "")
-            decode = entry.get("decode")
-            unmapped = entry.get("unmapped", False)
-            stale = entry.get("stale", False)
-
-            # Detect change from previous cycle
-            hex_key = (ecu_label, pid)
-            changed = cycle > 1 and raw_hex and hex_key in prev_hex and prev_hex[hex_key] != raw_hex
-
-            # Render the whole entry into its own Text so a stale (timed-out) PID
-            # can be dimmed as a unit — its last-good values stay on screen
-            # (greyed) instead of collapsing to an error line and jolting layout.
-            entry_text = Text()
-            entry_text.append("    ")
-            entry_text.append(pid, style="yellow")
-            if changed and not stale:
-                entry_text.append(" ●", style="bright_green")
-            if stale:
-                entry_text.append(" (stale)", style="dim")
-            if unmapped:
-                entry_text.append(" (unmapped)", style="dim")
-            # Show history count when keeping history
-            if hex_history and hex_key in hex_history:
-                n_entries = len(hex_history[hex_key])
-                if raw_hex and raw_hex not in [h for h, _ts in hex_history[hex_key]]:
-                    n_entries += 1  # current not yet added
-                if n_entries > 1:
-                    entry_text.append(f"  ({n_entries} entries)", style="dim")
-            if error:
-                entry_text.append(f"  {error}\n", style="red")
-                text.append_text(entry_text)
-                continue
-            entry_text.append("\n")
-
-            if params:
-                # With rulers on, annotate each param with the payload byte
-                # index(es) it maps to (e.g. "16-17"), matching the diff view.
-                n_bytes = len(raw_hex) // 2 if (show_rulers and raw_hex) else None
-                sel_name = (
-                    selected[2]
-                    if selected is not None and selected[0] == ecu_label and selected[1] == pid
-                    else None
-                )
-                entry_text.append_text(
-                    render_param_table(
-                        params, verbose=verbose, n_bytes=n_bytes, selected_name=sel_name
-                    )
-                )
-            elif decode:
-                entry_text.append(f"      {decode}\n")
-
-            if raw_hex:
-                # Byte-index ruler, once per PID, above the hex lines.
-                if show_rulers:
-                    ruler_pw = 16 if hex_history is not None else 6
-                    entry_text.append_text(
-                        render_byte_rulers(len(raw_hex) // 2, params, prefix_width=ruler_pw)
-                    )
-                if hex_history and hex_key in hex_history:
-                    # Show all unique payloads chronologically, each diffed against predecessor
-                    history = hex_history[hex_key]  # list of (hex, timestamp)
-                    history_hexes = [h for h, _ts in history]
-                    # Include current if not yet in history (first cycle edge case)
-                    if raw_hex not in history_hexes:
-                        all_entries = [*history, (raw_hex, "")]
-                    else:
-                        all_entries = list(history)
-                    # Bound the rendered rows to the newest _RENDER_MAX_ROWS so a
-                    # long --keep-all run stays cheap to render (full data is in
-                    # the journal). Older rows are summarized, not walked.
-                    if len(all_entries) > _RENDER_MAX_ROWS:
-                        omitted = len(all_entries) - _RENDER_MAX_ROWS
-                        all_entries = all_entries[-_RENDER_MAX_ROWS:]
-                        entry_text.append(
-                            f"      … {omitted} earlier entries omitted (in journal)\n",
-                            style="dim",
-                        )
-                    for i, (payload, ts) in enumerate(all_entries):
-                        prev_raw = all_entries[i - 1][0] if i > 0 else ""
-                        prefix = f"      {ts}  " if ts else "                "
-                        entry_text.append_text(
-                            _render_hex_line(
-                                payload,
-                                params,
-                                unmapped,
-                                prev_raw=prev_raw,
-                                prefix=prefix,
-                                prefix_style="dim" if ts else "",
-                            )
-                        )
-                else:
-                    prev_raw = prev_hex.get(hex_key, "") if prev_hex and cycle > 1 else ""
-                    entry_text.append_text(
-                        _render_hex_line(raw_hex, params, unmapped, prev_raw=prev_raw)
-                    )
-
-            if stale:
-                entry_text.stylize("dim")  # grey the whole PID block
-            text.append_text(entry_text)
-
-    if footer:
-        text.append("\n  Press Ctrl+C to stop monitoring\n", style="dim")
-    return text
 
 
 def _merge_history(
@@ -315,37 +162,6 @@ def _open_journal(controller, label: str | None, vehicle_states, notes: str | No
     )
 
 
-def _raw_pid_result(pid_code, pid_info, unmapped, value, acquired_at):
-    """Turn a raw-CAN poll result (bytes / Exception / None) into a result dict.
-
-    Mirrors the ELM path's result shape so the renderer/decoder are unchanged.
-    """
-    from .multi_batch import _decode_pid_result
-
-    if value is None or isinstance(value, Exception):
-        err = "timeout" if value is None or isinstance(value, TimeoutError) else str(value)
-        return {"pid": pid_code, "error": err, "unmapped": unmapped, "acquired_at": acquired_at}
-    resp = bytes(value)
-    if not resp:
-        return {
-            "pid": pid_code,
-            "error": "empty response",
-            "unmapped": unmapped,
-            "acquired_at": acquired_at,
-        }
-    if resp[0] == 0x7F:  # negative response: 7F <sid> <nrc>
-        from ..uds_parse import nrc_abbrev
-
-        nrc = resp[2] if len(resp) >= 3 else 0
-        return {
-            "pid": pid_code,
-            "error": f"NRC 0x{nrc:02X} ({nrc_abbrev(nrc)})",
-            "unmapped": unmapped,
-            "acquired_at": acquired_at,
-        }
-    return _decode_pid_result(pid_code, pid_info, unmapped, resp.hex().upper(), resp, acquired_at)
-
-
 class MonitorController:
     """Polls a set of ECU PIDs on an interval and renders/records the results.
 
@@ -385,10 +201,8 @@ class MonitorController:
         self.sm = SessionManager(terminal, verbose=verbose) if not self.raw else None
         self._ecu_index: dict | None = None
         self._batch_state = None  # multi.BatchState, created in setup()
-        # Raw-backend multi-DID batching state (learned per-DID lengths + ECUs
-        # that rejected batching this session).
-        self._raw_lengths: dict[tuple[str, str], int] = {}
-        self._raw_nobatch: set[str] = set()
+        # Raw-backend poll cycle + multi-DID batching state lives in the poller.
+        self.raw_poller = MonitorRawPoller(self)
         # Incremental rendering: a hook the TUI sets to refresh the body mid-cycle
         # so a slow/timing-out PID doesn't freeze the whole view. Left None for
         # the non-interactive path (results are only rendered once, on exit).
@@ -654,177 +468,26 @@ class MonitorController:
         self.last_cmds = self.terminal.cmd_count - cmds0
         self.last_elm_time = self.terminal.cmd_time - elm0
 
+    # --- Raw-CAN backend: delegated to the MonitorRawPoller collaborator. The
+    # per-session batch state (_raw_lengths / _raw_nobatch) lives on the poller;
+    # these facades keep the tested public surface stable. See monitor_raw.py.
+
+    @property
+    def _raw_lengths(self) -> dict[tuple[str, str], int]:
+        return self.raw_poller.lengths
+
+    @property
+    def _raw_nobatch(self) -> set[str]:
+        return self.raw_poller.nobatch
+
     def _build_raw_submissions(self):
-        """Plan this cycle's raw requests, batching multi-DID ECUs.
-
-        Returns ``(submissions, plan_by_ecu)``. Each submission is a dict with
-        ``ecu``, ``req`` (bytes to send), ``members`` [(pid_code, pid_info,
-        unmapped)], and ``lengths`` ([(did4, data_len)] for a batch, else None).
-        Consecutive service-22 DIDs on a ``multi_did`` ECU whose lengths are
-        already learned are combined (≤3, single-frame request); everything else
-        is a single request (and 22-DID lengths are learned from single reads).
-        """
-        from .multi import build_query_plan
-        from .multi_batch import _is_did22
-
-        # Only reached during polling, after setup() built the ECU index.
-        assert self._ecu_index is not None
-        submissions: list[dict] = []
-        plan_by_ecu: list[tuple[str, int, list]] = []
-        for step in self.query_steps:
-            ecu = step["ecu"].upper()
-            info = self._ecu_index.get(ecu)
-            if info is None:
-                continue
-            plan = (
-                build_query_plan(
-                    info, step.get("pids", []), quiet=True, include_static=self.include_static
-                )
-                or []
-            )
-            plan_by_ecu.append((ecu, info["tx_id"], plan))
-            batchable = info.get("multi_did", False) and ecu not in self._raw_nobatch
-            i, n = 0, len(plan)
-            while i < n:
-                code = plan[i][0]
-                if batchable and _is_did22(code) and (ecu, code[2:]) in self._raw_lengths:
-                    group = []
-                    while (
-                        i < n
-                        and len(group) < 3
-                        and _is_did22(plan[i][0])
-                        and (ecu, plan[i][0][2:]) in self._raw_lengths
-                    ):
-                        group.append(plan[i])
-                        i += 1
-                    if len(group) > 1:
-                        dids = [g[0][2:] for g in group]
-                        submissions.append(
-                            {
-                                "ecu": ecu,
-                                "req": bytes.fromhex("22" + "".join(dids)),
-                                "members": group,
-                                "lengths": [(d, self._raw_lengths[(ecu, d)]) for d in dids],
-                            }
-                        )
-                        continue
-                    g = group[0]
-                    submissions.append(
-                        {"ecu": ecu, "req": bytes.fromhex(g[0]), "members": [g], "lengths": None}
-                    )
-                    continue
-                submissions.append(
-                    {"ecu": ecu, "req": bytes.fromhex(code), "members": [plan[i]], "lengths": None}
-                )
-                i += 1
-        return submissions, plan_by_ecu
+        return self.raw_poller.build_submissions()
 
     async def _poll_raw(self) -> None:
-        """Pipelined UDS read over raw CAN (blocking client run in a thread).
-
-        Multi-DID ECUs are batched (one ISO-TP request per group); results are
-        split back per-DID. Per-ECU 22-DID lengths are learned from single reads,
-        and an ECU that rejects batching (NRC 0x13/0x31) or returns an
-        unsplittable response is dropped to single reads for the session.
-
-        Results are consumed **incrementally**: the client fires a callback as
-        each request resolves, so fast PIDs render immediately and a slow/timing-
-        out PID only holds up its own row — the view never freezes for a cycle.
-        """
-        import time as _t
-
-        # The raw poll path only runs on the raw backend, where raw_client is set.
-        assert self.raw_client is not None
-        raw_client = self.raw_client  # local binding: narrowing doesn't reach the closure below
-        submissions, plan_by_ecu = self._build_raw_submissions()
-        requests = [(s["ecu"], s["req"]) for s in submissions]
-        sub_by_req = {(s["ecu"], s["req"]): s for s in submissions}
-
-        loop = asyncio.get_event_loop()
-        q: asyncio.Queue = asyncio.Queue()
-        sentinel = object()
-
-        def _on_result(key, value):  # fired from the executor thread
-            loop.call_soon_threadsafe(q.put_nowait, (key, value))
-
-        def _run():
-            try:
-                return raw_client.poll(requests, on_result=_on_result)
-            finally:
-                loop.call_soon_threadsafe(q.put_nowait, sentinel)
-
-        fut = loop.run_in_executor(None, _run)
-
-        by_pid: dict[tuple[str, str], dict] = {}
-        applied: set = set()
-        last_render = 0.0
-        while True:
-            item = await q.get()
-            if item is sentinel:
-                break
-            key, val = item
-            s = sub_by_req.get(key)
-            if s is None:
-                continue
-            self._apply_raw_submission(s, val, _t.time(), by_pid)
-            applied.add(key)
-            self.last_queries = self._raw_build_queries(plan_by_ecu, by_pid)
-            # Throttle mid-cycle repaints so a burst of fast PIDs doesn't thrash.
-            now = _t.monotonic()
-            if self._on_partial is not None and (now - last_render) >= 0.12:
-                last_render = now
-                with contextlib.suppress(Exception):
-                    self._on_partial()
-        try:
-            result_dict = await fut  # surface a bus-level failure (connection dropped)
-        except Exception:
-            self.disconnected = True
-            return
-
-        # Completeness net: fold in any results not delivered via the callback
-        # (a client may return the dict without implementing on_result).
-        for s in submissions:
-            key = (s["ecu"], s["req"])
-            if key not in applied and key in result_dict:
-                self._apply_raw_submission(s, result_dict[key], _t.time(), by_pid)
-
-        self.last_queries = self._raw_build_queries(plan_by_ecu, by_pid)
-        self.last_cmds = len(requests)
-        self.last_elm_time = 0.0
+        await self.raw_poller.poll()
 
     def _apply_raw_submission(self, s: dict, val, acquired: float, by_pid: dict) -> None:
-        """Fold one completed submission's response into ``by_pid`` (split batches,
-        learn 22-DID lengths, track ECUs that can't batch)."""
-        from .multi_batch import _did_data_len, _is_did22, split_multi_did
-
-        ecu = s["ecu"]
-        resp = bytes(val) if isinstance(val, (bytes, bytearray)) else None
-
-        if s["lengths"] is not None:  # batched request
-            split = None
-            if resp and resp[0] != 0x7F:
-                split = split_multi_did(resp.hex().upper(), s["lengths"])
-            elif resp and resp[0] == 0x7F and (resp[2] if len(resp) >= 3 else 0) in (0x13, 0x31):
-                self._raw_nobatch.add(ecu)  # ECU can't batch — fall back next cycle
-            if split is None:
-                if resp and resp[0] != 0x7F:
-                    self._raw_nobatch.add(ecu)  # positive but unsplittable
-                for code, pi, un in s["members"]:
-                    by_pid[(ecu, code)] = _raw_pid_result(
-                        code, pi, un, val if resp is None else resp, acquired
-                    )
-            else:
-                for code, pi, un in s["members"]:
-                    sub = bytes.fromhex(split[code[2:]])
-                    by_pid[(ecu, code)] = _raw_pid_result(code, pi, un, sub, acquired)
-            return
-
-        code, pi, un = s["members"][0]
-        by_pid[(ecu, code)] = _raw_pid_result(code, pi, un, val, acquired)
-        if _is_did22(code) and resp and resp[0] != 0x7F:  # learn length for batching
-            dlen = _did_data_len(resp.hex().upper(), code[2:])
-            if dlen is not None:
-                self._raw_lengths[(ecu, code[2:])] = dlen
+        self.raw_poller.apply_submission(s, val, acquired, by_pid)
 
     def _displayify(self, key: tuple[str, str], entry: dict) -> dict:
         """Map a freshly-resolved entry to what should be shown for that PID.
@@ -846,23 +509,7 @@ class MonitorController:
         return entry
 
     def _raw_build_queries(self, plan_by_ecu, by_pid: dict) -> list[tuple[str, list]]:
-        """Build the render frame in plan order. A PID resolved as a timeout keeps
-        its last-good values (stale/dimmed); a PID not yet resolved this cycle
-        shows its last-good values so the view neither flickers nor stutters."""
-        new_queries: list[tuple[str, list]] = []
-        for ecu, tx_id, plan in plan_by_ecu:
-            label = f"{ecu} (0x{tx_id:03X})"
-            pid_results = []
-            for c, _pi, _un in plan:
-                entry = by_pid.get((ecu, c))
-                if entry is None:  # pending this cycle → show last good if any
-                    last = self._last_good.get((label, c))
-                    if last is not None:
-                        pid_results.append(last)
-                    continue
-                pid_results.append(self._displayify((label, c), entry))
-            new_queries.append((label, pid_results))
-        return new_queries
+        return self.raw_poller.build_queries(plan_by_ecu, by_pid)
 
     def render(self) -> Text:
         """The current view as a Rich Text (rendered by the TUI / printed on exit)."""

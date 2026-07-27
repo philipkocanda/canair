@@ -371,7 +371,7 @@ class TestExecIocontrolSession:
     SessionManager API (open_session), not the non-existent ensure_session."""
 
     def test_opens_session_when_required(self, monkeypatch):
-        from canlib.modes import multi
+        from canlib.modes import multi_exec
 
         idx = {
             "IGPM": {
@@ -390,7 +390,7 @@ class TestExecIocontrolSession:
                 },
             }
         }
-        monkeypatch.setattr(multi, "build_iocontrol_index", lambda _pids: idx)
+        monkeypatch.setattr(multi_exec, "build_iocontrol_index", lambda _pids: idx)
 
         sm = MagicMock()
         sm.active_sessions = []  # no active session yet
