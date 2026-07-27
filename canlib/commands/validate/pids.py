@@ -7,6 +7,7 @@ from pathlib import Path
 
 import yaml
 
+from canlib import yaml_io
 from canlib.byteindex import wican_to_isotp
 
 from ._common import EXPR_TOKEN_RE, SCHEMA_FILE
@@ -15,7 +16,7 @@ from ._common import EXPR_TOKEN_RE, SCHEMA_FILE
 def load_schema(path: Path = SCHEMA_FILE) -> dict:
     """Load schema definition from _schema.yaml."""
     with open(path) as f:
-        schema = yaml.safe_load(f)
+        schema = yaml_io.safe_load(f)
     if not schema or not isinstance(schema, dict):
         print(f"ERROR: {path} is empty or invalid", file=sys.stderr)
         sys.exit(1)
@@ -324,7 +325,7 @@ def validate_ecu_file(
 
     try:
         with open(path) as f:
-            data = yaml.safe_load(f)
+            data = yaml_io.safe_load(f)
     except yaml.YAMLError as e:
         return [f"{path.name}: YAML parse error: {e}"], [], stats
 
@@ -825,7 +826,7 @@ def validate_meta(path: Path, required_fields: set) -> list[str]:
     errors = []
     try:
         with open(path) as f:
-            data = yaml.safe_load(f)
+            data = yaml_io.safe_load(f)
     except yaml.YAMLError as e:
         return [f"profile.yaml: YAML parse error: {e}"]
 
@@ -974,7 +975,7 @@ def _duplicate_name_errors(file_paths: list[Path]) -> list[str]:
             continue
         try:
             with open(fpath) as f:
-                data = yaml.safe_load(f) or {}
+                data = yaml_io.safe_load(f) or {}
         except (OSError, yaml.YAMLError):
             continue
         if not isinstance(data, dict):
@@ -1013,7 +1014,7 @@ def _duplicate_param_errors(file_paths: list[Path]) -> list[str]:
             continue
         try:
             with open(fpath) as f:
-                data = yaml.safe_load(f) or {}
+                data = yaml_io.safe_load(f) or {}
         except (OSError, yaml.YAMLError):
             continue
         if not isinstance(data, dict):

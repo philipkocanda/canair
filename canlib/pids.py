@@ -10,14 +10,7 @@ settings (``car_model``, ``init``, ``failure_types``, ...) live one level up in
 
 from pathlib import Path
 
-try:
-    import yaml
-except ImportError as e:
-    raise ImportError("PyYAML not installed. Run: pip3 install pyyaml") from e
-
-# Prefer the libyaml-backed C loader when available (3-10x faster parse, no
-# behavioural difference). Falls back to the pure-Python SafeLoader otherwise.
-_SafeLoader = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+from canlib import yaml_io
 
 # ── PID visibility lifecycle ──────────────────────────────────────────────
 # A PID's `status:` is a single, mutually-exclusive lifecycle value that
@@ -50,7 +43,7 @@ def pid_status(pid_def: dict) -> str:
 
 
 def _yaml_load(fh) -> dict:
-    return yaml.load(fh, Loader=_SafeLoader)
+    return yaml_io.safe_load(fh)
 
 
 # ── per-process memoization ───────────────────────────────────────────────

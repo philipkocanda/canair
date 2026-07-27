@@ -30,7 +30,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-import yaml
+from canlib import yaml_io
 
 
 @dataclass(frozen=True)
@@ -62,7 +62,7 @@ def load_can_buses(profile=None) -> list[BusDef]:
     path = _can_buses_path(profile)
     if not path.exists():
         return []
-    data = yaml.safe_load(path.read_text()) or {}
+    data = yaml_io.safe_load(path.read_text()) or {}
     raw = data.get("can_buses")
     out: list[BusDef] = []
     seen: set[str] = set()

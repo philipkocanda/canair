@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
 
-import yaml
+from canlib import yaml_io
 
 from .config import config_dir, load_config
 from .constants import BUNDLED_PROFILES_DIR
@@ -87,7 +87,7 @@ class Profile:
         meta_path = self.root / "profile.yaml"
         if meta_path.exists():
             with open(meta_path) as f:
-                return yaml.safe_load(f) or {}
+                return yaml_io.safe_load(f) or {}
         return {}
 
 

@@ -299,12 +299,12 @@ def _append_index_entry(index_path: Path, entry: dict, *, replace_file: str | No
 
 def load_index(profile: Profile) -> dict:
     """The parsed ``captures/can/index.yaml`` (``{}`` when absent)."""
-    import yaml
+    from canlib import yaml_io
 
     path = profile.can_index_file
     if not path.exists():
         return {}
-    return yaml.safe_load(path.read_text()) or {}
+    return yaml_io.safe_load(path.read_text()) or {}
 
 
 def list_logs(profile: Profile) -> list[dict]:

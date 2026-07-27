@@ -4,9 +4,10 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-import yaml
 from jsonschema import Draft202012Validator
 from jsonschema.protocols import Validator
+
+from canlib import yaml_io
 
 from ._common import CAPTURES_SCHEMA_FILE, DEPRECATED_FIELDS
 
@@ -34,7 +35,7 @@ def validate_captures_file(path: Path, validator: Validator, rx_addrs: set[int])
 
     errors: list[str] = []
     with open(path) as f:
-        data = yaml.safe_load(f)
+        data = yaml_io.safe_load(f)
 
     # Schema validation (structure, types, required/allowed fields, patterns).
     for err in sorted(validator.iter_errors(data), key=lambda e: list(e.absolute_path)):
@@ -154,7 +155,7 @@ def _capture_state_warnings(path: Path, vocab: set[str]) -> list[str]:
     """
     warnings: list[str] = []
     with open(path) as f:
-        data = yaml.safe_load(f)
+        data = yaml_io.safe_load(f)
     if not isinstance(data, dict):
         return warnings
     for si, session in enumerate(data.get("sessions", []) or []):
@@ -188,7 +189,7 @@ def _capture_echo_warnings(path: Path) -> list[str]:
 
     warnings: list[str] = []
     with open(path) as f:
-        data = yaml.safe_load(f)
+        data = yaml_io.safe_load(f)
     if not isinstance(data, dict):
         return warnings
     for si, session in enumerate(data.get("sessions", []) or []):
@@ -222,7 +223,7 @@ def _capture_nonhex_warnings(path: Path) -> list[str]:
 
     warnings: list[str] = []
     with open(path) as f:
-        data = yaml.safe_load(f)
+        data = yaml_io.safe_load(f)
     if not isinstance(data, dict):
         return warnings
     for si, session in enumerate(data.get("sessions", []) or []):
@@ -256,7 +257,7 @@ def _capture_missing_time_warnings(path: Path) -> list[str]:
 
     warnings: list[str] = []
     with open(path) as f:
-        data = yaml.safe_load(f)
+        data = yaml_io.safe_load(f)
     if not isinstance(data, dict):
         return warnings
     for si, session in enumerate(data.get("sessions", []) or []):

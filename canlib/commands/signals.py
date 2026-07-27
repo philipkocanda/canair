@@ -81,8 +81,7 @@ def run(args) -> int:
 
 def _load_all(bus_filter: str | None):
     """(bus, data) for each signals/<bus>.yaml (optionally one bus)."""
-    import yaml
-
+    from canlib import yaml_io
     from canlib.profile import active
 
     sig_dir = active().signals_dir
@@ -93,7 +92,7 @@ def _load_all(bus_filter: str | None):
         bus = path.stem
         if bus_filter and bus != bus_filter:
             continue
-        out.append((bus, yaml.safe_load(path.read_text()) or {}))
+        out.append((bus, yaml_io.safe_load(path.read_text()) or {}))
     return out
 
 

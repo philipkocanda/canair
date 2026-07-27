@@ -55,8 +55,7 @@ def _run_dbc(args) -> int:
         print("export dbc: cantools is required (pip install cantools).", file=sys.stderr)
         return 1
 
-    import yaml
-
+    from canlib import yaml_io
     from canlib.profile import active
 
     sig_dir = active().signals_dir
@@ -72,7 +71,7 @@ def _run_dbc(args) -> int:
 
     messages: list = []
     for path in files:
-        data = yaml.safe_load(path.read_text()) or {}
+        data = yaml_io.safe_load(path.read_text()) or {}
         for mid, msg in (data.get("messages") or {}).items():
             msg = msg or {}
             sigs = []

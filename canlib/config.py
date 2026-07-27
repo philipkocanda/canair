@@ -29,8 +29,7 @@ import os
 from functools import lru_cache
 from pathlib import Path
 
-import yaml
-
+from . import yaml_io
 from .constants import CONFIG_FILE
 
 # Fallback WiCAN address when nothing is configured (WiCAN AP mode).
@@ -239,7 +238,7 @@ def set_config_value(key: str, value: str) -> Path:
 def _read_yaml(path: Path) -> dict:
     if path.exists():
         with open(path) as f:
-            return yaml.safe_load(f) or {}
+            return yaml_io.safe_load(f) or {}
     return {}
 
 

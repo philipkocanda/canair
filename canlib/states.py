@@ -34,7 +34,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-import yaml
+from canlib import yaml_io
 
 # The canonical base power-state vocabulary, shared across every vehicle
 # profile. This is THE single definition — schema validators, the research
@@ -196,7 +196,7 @@ def load_states(profile=None) -> list[StateRule]:
     path = _states_path(profile)
     if not path.exists():
         return []
-    data = yaml.safe_load(path.read_text()) or {}
+    data = yaml_io.safe_load(path.read_text()) or {}
     rules: list[StateRule] = []
     for entry in data.get("states", []) or []:
         if not isinstance(entry, dict) or "name" not in entry:

@@ -30,8 +30,7 @@ import re
 import sys
 from typing import NotRequired, TypedDict
 
-import yaml
-
+from canlib import yaml_io
 from canlib.byteindex import extract_byte_indices, mapped_offsets, payload_to_wican_frame
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.commands._hints import pid_completer as _pid_completer
@@ -109,7 +108,7 @@ def load_longest_payloads() -> dict[tuple[str, str], dict]:
     for fpath in sorted(captures_dir.glob("*.yaml")):
         if fpath.name.startswith(("SCHEMA", "_")):
             continue
-        data = yaml.safe_load(fpath.read_text()) or {}
+        data = yaml_io.safe_load(fpath.read_text()) or {}
         for session in data.get("sessions", []):
             for cap in session.get("captures", []):
                 payload = cap.get("payload")

@@ -3,8 +3,9 @@
 import json
 import re
 
-import yaml
 from jsonschema import Draft202012Validator
+
+from canlib import yaml_io
 
 from ._common import CAN_INDEX_SCHEMA_FILE
 
@@ -19,7 +20,7 @@ def _run_states() -> int:
         print("No states.yaml (optional) — skipping.")
         return 0
 
-    data = yaml.safe_load(path.read_text()) or {}
+    data = yaml_io.safe_load(path.read_text()) or {}
     errors: list[str] = []
     if not isinstance(data, dict) or "states" not in data:
         print("states.yaml: missing top-level 'states:' list")
@@ -72,7 +73,7 @@ def _run_can_buses() -> int:
         print("No can_buses.yaml (optional) — skipping.")
         return 0
 
-    data = yaml.safe_load(path.read_text()) or {}
+    data = yaml_io.safe_load(path.read_text()) or {}
     if not isinstance(data, dict) or "can_buses" not in data:
         print("can_buses.yaml: missing top-level 'can_buses:' mapping")
         return 1
@@ -203,7 +204,7 @@ def _run_signals() -> int:
     total_errors = 0
     total_signals = 0
     for path in files:
-        data = yaml.safe_load(path.read_text()) or {}
+        data = yaml_io.safe_load(path.read_text()) or {}
         errors, n_signals = check_signals_doc(data)
         total_signals += n_signals
         if errors:
@@ -233,7 +234,7 @@ def _run_can() -> int:
         schema = json.load(f)
     Draft202012Validator.check_schema(schema)
     validator = Draft202012Validator(schema)
-    data = yaml.safe_load(path.read_text()) or {}
+    data = yaml_io.safe_load(path.read_text()) or {}
     errors = sorted(validator.iter_errors(data), key=lambda e: list(e.path))
     if errors:
         print(f"captures/can/index.yaml: {len(errors)} errors")

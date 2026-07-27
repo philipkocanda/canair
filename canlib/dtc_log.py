@@ -50,13 +50,13 @@ def log_path(path: Path | None = None) -> Path:
 
 def load_log(path: Path | None = None) -> dict:
     """Load the DTC log, or an empty ``{"scans": []}`` when absent."""
-    import yaml
+    from canlib import yaml_io
 
     p = log_path(path)
     if not p.exists():
         return {"scans": []}
     with open(p) as f:
-        data = yaml.safe_load(f) or {}
+        data = yaml_io.safe_load(f) or {}
     if not isinstance(data.get("scans"), list):
         data["scans"] = []
     return data
