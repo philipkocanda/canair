@@ -531,3 +531,55 @@ class TestDeletePid:
         doc = yaml.safe_load((tmp_path / "solo.yaml").read_text())["SOLO"]
         assert "pids" not in doc
         assert doc["identity"]["description"] == "Solo ECU"
+
+
+class TestUpsertTypedParameter:
+    """Typed (multi-modal) param fields: type/values/bits round-trip + in-place."""
+
+    def test_new_enum_param(self, pids_dir):
+        upsert_parameter(
+            "TESTECU",
+            "2101",
+            "FAN",
+            "B5",
+            type="enum",
+            values={40: "fan1", 45: "fanMAX"},
+            pids_dir=pids_dir,
+        )
+        p = _params(pids_dir, "2101")["FAN"]
+        assert p["type"] == "enum"
+        assert p["values"] == {40: "fan1", 45: "fanMAX"}
+
+    def test_new_bitmask_param(self, pids_dir):
+        upsert_parameter(
+            "TESTECU",
+            "2101",
+            "DAYS",
+            "B4",
+            type="bitmask",
+            bits={0: "mon", 5: "sat"},
+            pids_dir=pids_dir,
+        )
+        p = _params(pids_dir, "2101")["DAYS"]
+        assert p["type"] == "bitmask"
+        assert p["bits"] == {0: "mon", 5: "sat"}
+
+    def test_update_enum_map_in_place(self, pids_dir):
+        upsert_parameter(
+            "TESTECU", "2101", "FAN", "B5", type="enum", values={40: "a"}, pids_dir=pids_dir
+        )
+        # Re-upsert with a larger map — the old nested block must be replaced,
+        # not appended-to (exercises _replace_field_in_block_at nested-map skip).
+        upsert_parameter(
+            "TESTECU",
+            "2101",
+            "FAN",
+            "B5",
+            type="enum",
+            values={40: "a", 45: "b", 50: "c"},
+            pids_dir=pids_dir,
+        )
+        p = _params(pids_dir, "2101")["FAN"]
+        assert p["values"] == {40: "a", 45: "b", 50: "c"}
+        # Neighbouring param untouched.
+        assert "EXISTING" in _params(pids_dir, "2101")

@@ -45,7 +45,10 @@ usage: canair pids upsert-param [-h] [--unit UNIT] [--ha-class HA_CLASS]
                                 [--mqtt-topic MQTT_TOPIC] [--min MIN]
                                 [--max MAX] [--source SOURCE]
                                 [--source-link URL] [--display DISPLAY]
-                                [--notes NOTES] [--verified | --unverified]
+                                [--notes NOTES]
+                                [--type {numeric,enum,bitmask,ascii,date,bcd}]
+                                [--value RAW=LABEL] [--bit INDEX=LABEL]
+                                [--verified | --unverified]
                                 [--enabled | --disabled] [--dir DIR]
                                 [--no-validate]
                                 ecu pid name expression
@@ -67,6 +70,14 @@ options:
   --source-link URL
   --display DISPLAY
   --notes NOTES
+  --type {numeric,enum,bitmask,ascii,date,bcd}
+                        Typed decoding: enum/bitmask/ascii/date/bcd (default
+                        numeric). See --value / --bit for the enum/bitmask
+                        maps.
+  --value RAW=LABEL     Enum mapping (repeatable), e.g. --value 40=fan1
+                        --value 45=fanMAX
+  --bit INDEX=LABEL     Bitmask mapping (repeatable, 0=LSB), e.g. --bit 0=mon
+                        --bit 5=sat
   --verified
   --unverified
   --enabled

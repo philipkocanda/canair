@@ -126,6 +126,71 @@ canair investigate MyECU 2101 --events   # edge timeline for narrated door/lock/
 It's the fastest way to get oriented; the individual tools above are how you
 follow up on what it surfaces.
 
+## Categorical signals: modes, flags, schedules
+
+The workflow above assumes a **continuous** signal — a value on a line where
+correlation and min/max are meaningful. Many signals aren't: a fan level, a
+climate mode, a gear, a day-of-week schedule mask. For these the numeric spacing
+is meaningless (`Drive=3` isn't "one more than" `Neutral=2`), so Pearson
+correlation and the variance-F don't apply.
+
+canair models these as **typed** parameters (`enum`/`bitmask`/`ascii`/`date`/
+`struct`) and analyzes them with *categorical* statistics — see
+[Typed signals](../concepts/typed-signals.md) for the model. The analysis levers:
+
+```bash
+# "Which byte is the fan setting?" — rank by nominal association, not linear r
+canair correlate uds HVAC --against HVAC:220100:HVAC_FAN_LEVEL --method cramers_v
+
+# "Which byte separates the power states?" — Cramér's V for typed params
+canair decode HVAC 220100 --discriminate state
+
+# Once defined as an enum, see the transitions as labels over time
+canair investigate HVAC 220100 --events --field HVAC_FAN_LEVEL
+# → 10:05:00  fanMAX (45) → fan1 (40)
+```
+
+`--method cramers_v` / `--method mutual_info` treat each distinct value as a
+nominal category — the right question for a mode/flag/enum byte. For a body
+module's discrete bits, `investigate --bits` and `--events` remain the entry
+points.
+
+## Decoding "set" commands: toggle and diff
+
+Some of the most interesting signals aren't *read* — they're **written** by the
+car (the head unit setting a preheat schedule, a clock, a charge timer). Two
+things make these harder:
+
+1. On a gateway-isolated OBD port you often can't *sniff* the write itself (see
+   [Broadcast frames](../concepts/broadcast-frames.md) for the raw-CAN path when
+   you can).
+2. The result is a **structured record** (day-mask + time), not one byte.
+
+The reliable device-only workflow is **toggle → re-read → diff**:
+
+```bash
+# 1. Read the DID that stores the setting, before the change
+canair query BCM:22B00C --save --label "schedule: before" --state ready
+
+# 2. Change the setting on the car (set preheat to a different day/time)
+
+# 3. Re-read the same DID, after
+canair query BCM:22B00C --save --label "schedule: after" --state ready
+
+# 4. Diff the two payloads to see exactly which bytes moved
+canair captures uds BCM:22B00C --diff
+
+# 5. Model the changed bytes as a typed field and test it
+canair pids upsert-param BCM 22B00C PREHEAT_DAYS B3 \
+    --type bitmask --bit 0=mon --bit 1=tue --bit 2=wed --bit 3=thu \
+    --bit 4=fri --bit 5=sat --bit 6=sun --unverified
+canair decode BCM 22B00C
+```
+
+For a whole schedule record, define a `struct` param whose ordered `fields:`
+cover the day-mask, hour, and minute — `investigate --events --field` then reads
+each schedule change as one logical `{days=…, hour=…, minute=…}` transition.
+
 ## Be rigorous
 
 A hypothesis is a hypothesis until the data confirms it. Don't accept a byte

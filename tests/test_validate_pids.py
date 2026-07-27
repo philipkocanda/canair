@@ -112,3 +112,57 @@ class TestDuplicateParamNames:
     def test_ignores_when_second_param_disabled(self, tmp_path):
         errs = validate_pids._duplicate_param_errors(self._write(tmp_path, second_enabled=False))
         assert not errs
+
+
+class TestTypedParamValidation:
+    """validate._validate_param_type — typed-decoding field rules."""
+
+    VALID = frozenset({"numeric", "enum", "bitmask", "ascii", "date", "bcd", "struct"})
+
+    def _v(self, param):
+        return validate_pids._validate_param_type(param, "P", "2101", "ECU", self.VALID)
+
+    def test_numeric_untyped_ok(self):
+        assert self._v({"expression": "B3"}) == []
+
+    def test_companion_map_without_type_errors(self):
+        errs = self._v({"expression": "B3", "values": {1: "a"}})
+        assert errs and "requires a 'type:'" in errs[0]
+
+    def test_unknown_type_errors(self):
+        errs = self._v({"expression": "B3", "type": "bogus"})
+        assert any("invalid type" in e for e in errs)
+
+    def test_enum_requires_values(self):
+        assert any(
+            "requires a 'values:'" in e for e in self._v({"expression": "B3", "type": "enum"})
+        )
+
+    def test_enum_non_int_key_errors(self):
+        errs = self._v({"expression": "B3", "type": "enum", "values": {"x": "a"}})
+        assert any("must be an integer" in e for e in errs)
+
+    def test_enum_ok(self):
+        assert self._v({"expression": "B3", "type": "enum", "values": {40: "a"}}) == []
+
+    def test_bitmask_index_range(self):
+        errs = self._v({"expression": "B3", "type": "bitmask", "bits": {64: "x"}})
+        assert any("out of range" in e for e in errs)
+
+    def test_values_only_with_enum(self):
+        errs = self._v(
+            {"expression": "B3", "type": "bitmask", "bits": {0: "a"}, "values": {1: "b"}}
+        )
+        assert any("only valid with type 'enum'" in e for e in errs)
+
+    def test_struct_requires_named_fields(self):
+        errs = self._v({"expression": "0", "type": "struct", "fields": [{"expression": "B3"}]})
+        assert any("missing 'name'" in e for e in errs)
+
+    def test_struct_ok(self):
+        param = {
+            "expression": "0",
+            "type": "struct",
+            "fields": [{"name": "h", "expression": "B4"}],
+        }
+        assert self._v(param) == []

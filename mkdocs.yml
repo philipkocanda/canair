@@ -78,6 +78,7 @@ nav:
       - Byte indexing: concepts/byte-indexing.md
       - WiCAN byte index (firmware reference): concepts/wican-byte-index.md
       - Broadcast CAN frames: concepts/broadcast-frames.md
+      - Typed (multi-modal) signals: concepts/typed-signals.md
       - Captures & states: concepts/captures-and-states.md
       - Safety: concepts/safety.md
   - Reference:

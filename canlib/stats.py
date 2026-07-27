@@ -79,10 +79,117 @@ def spearman(xs: list[float], ys: list[float]) -> float | None:
 
 
 def correlation(xs: list[float], ys: list[float], method: str = "pearson") -> float | None:
-    """Dispatch to :func:`pearson` or :func:`spearman` by ``method`` name."""
+    """Dispatch to a correlation/association coefficient by ``method`` name.
+
+    ``pearson``/``spearman`` measure ordered/linear correlation (the default,
+    for continuous signals). ``cramers_v``/``mutual_info`` measure *categorical*
+    association: the series are treated as nominal categories (each distinct
+    value is a level), which is the right question for a mode/flag/enum byte
+    where numeric spacing is meaningless. All return a comparable 0..1-ish
+    magnitude, so callers can rank uniformly.
+    """
     if method == "spearman":
         return spearman(xs, ys)
+    if method in CATEGORICAL_METHODS:
+        return categorical_association(xs, ys, method)
     return pearson(xs, ys)
+
+
+# ── Categorical association ──────────────────────────────────────────────────
+# Pearson/Spearman assume ordered, interval-scaled data — invalid for a nominal
+# signal (an enum mode, a flag set, a gear). These measure association between
+# *categorical* series (or a low-cardinality byte binned as categorical), which
+# is the right question for "which byte encodes the fan setting / climate mode?".
+# Both are leaf/numpy-free like the rest of this module.
+
+CATEGORICAL_METHODS = ("cramers_v", "mutual_info")
+
+
+def _contingency(xs: list, ys: list) -> tuple[dict, dict, dict, int]:
+    """Build a contingency table over two aligned categorical series.
+
+    Returns ``(joint, row_tot, col_tot, n)`` where ``joint[(a, b)]`` is the
+    co-occurrence count. Values are compared by equality (hashable categories:
+    ints, strings, tuples), so numeric levels and string labels both work.
+    """
+    joint: dict[tuple, int] = {}
+    row_tot: dict = {}
+    col_tot: dict = {}
+    n = 0
+    for a, b in zip(xs, ys, strict=False):
+        joint[(a, b)] = joint.get((a, b), 0) + 1
+        row_tot[a] = row_tot.get(a, 0) + 1
+        col_tot[b] = col_tot.get(b, 0) + 1
+        n += 1
+    return joint, row_tot, col_tot, n
+
+
+def cramers_v(xs: list, ys: list) -> float | None:
+    """Bias-corrected Cramér's V — association between two categorical series.
+
+    Ranges 0 (no association) to 1 (perfect). Symmetric. Uses the bias
+    correction of Bergsma (2013) so small tables don't inflate. Returns None
+    when undefined (fewer than 2 points, or a degenerate single-category
+    series).
+    """
+    if len(xs) < 2 or len(ys) < 2:
+        return None
+    joint, row_tot, col_tot, n = _contingency(xs, ys)
+    r, k = len(row_tot), len(col_tot)
+    if r < 2 or k < 2 or n == 0:
+        return None
+    # Chi-square statistic.
+    chi2 = 0.0
+    for a, rt in row_tot.items():
+        for b, ct in col_tot.items():
+            expected = rt * ct / n
+            observed = joint.get((a, b), 0)
+            chi2 += (observed - expected) ** 2 / expected
+    phi2 = chi2 / n
+    # Bergsma bias correction.
+    phi2corr = max(0.0, phi2 - (r - 1) * (k - 1) / (n - 1))
+    rcorr = r - (r - 1) ** 2 / (n - 1)
+    kcorr = k - (k - 1) ** 2 / (n - 1)
+    denom = min(rcorr - 1, kcorr - 1)
+    if denom <= 0:
+        return None
+    return (phi2corr / denom) ** 0.5
+
+
+def mutual_information(xs: list, ys: list, *, normalized: bool = True) -> float | None:
+    """Mutual information between two categorical series (in nats).
+
+    With ``normalized=True`` (default) returns the symmetric normalized MI
+    (0..1), so it is comparable across pairs like a correlation coefficient.
+    Returns None for fewer than 2 points or a degenerate series.
+    """
+    if len(xs) < 2 or len(ys) < 2:
+        return None
+    joint, row_tot, col_tot, n = _contingency(xs, ys)
+    if n == 0 or len(row_tot) < 2 or len(col_tot) < 2:
+        return None
+    mi = 0.0
+    for (a, b), c in joint.items():
+        pxy = c / n
+        px = row_tot[a] / n
+        py = col_tot[b] / n
+        if pxy > 0:
+            mi += pxy * math.log(pxy / (px * py))
+    if not normalized:
+        return mi
+    hx = -sum((rt / n) * math.log(rt / n) for rt in row_tot.values())
+    hy = -sum((ct / n) * math.log(ct / n) for ct in col_tot.values())
+    denom = (hx * hy) ** 0.5
+    if denom <= 0:
+        return None
+    return max(0.0, min(1.0, mi / denom))
+
+
+def categorical_association(xs: list, ys: list, method: str = "cramers_v") -> float | None:
+    """Dispatch to :func:`cramers_v` or :func:`mutual_information` by name."""
+    if method == "mutual_info":
+        return mutual_information(xs, ys)
+    return cramers_v(xs, ys)
 
 
 # ── Descriptive statistics ───────────────────────────────────────────────────

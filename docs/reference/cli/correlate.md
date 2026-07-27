@@ -31,7 +31,8 @@ options:
 usage: canair correlate uds [-h] [--transform MODE] [--matrix]
                             [--include-intra] [--include-self]
                             [--against ECU:PID:PARAM] [--min-r R] [--min-n N]
-                            [--top N] [--method {pearson,spearman}]
+                            [--top N]
+                            [--method {pearson,spearman,cramers_v,mutual_info}]
                             [--join-tol SECONDS] [--bits] [--json]
                             [--no-cluster] [--bytes] [--lag-scan N]
                             [--gate '[SIGNAL] OP VALUE'] [--promote NAME]
@@ -85,10 +86,13 @@ options:
   --min-r R             Min |r| to report (default 0.6)
   --min-n N             Min aligned points (default 15)
   --top N               Max hits (default 40)
-  --method {pearson,spearman}
-                        Correlation coefficient: pearson (linear, default) or
+  --method {pearson,spearman,cramers_v,mutual_info}
+                        Association coefficient: pearson (linear, default) or
                         spearman (rank — catches monotone-but-
-                        nonlinear/quantized/saturating links)
+                        nonlinear/quantized/saturating links), or the
+                        categorical cramers_v / mutual_info (treat each value
+                        as a nominal category — for mode/flag/enum bytes where
+                        numeric spacing is meaningless)
   --join-tol SECONDS    Nearest-timestamp join window (default 2.5s)
   --bits                Include individual toggling bits (rN:k / Bn:k)
   --json                Machine-readable output
@@ -164,8 +168,9 @@ usage: canair correlate can [-h] [--can-format {auto,asc,blf,csv,log,gvret}]
                             [--id IDS] [--include-intra] [--find-mirrors]
                             [--no-cluster] [--against ECU:PID:PARAM]
                             [--min-r R] [--min-n N] [--top N]
-                            [--method {pearson,spearman}] [--join-tol SECONDS]
-                            [--bits] [--json] [--notation NAME]
+                            [--method {pearson,spearman,cramers_v,mutual_info}]
+                            [--join-tol SECONDS] [--bits] [--json]
+                            [--notation NAME]
                             FILE
 
 Correlate the per-byte series of a raw broadcast-CAN frame log (.asc/.blf/candump .log/.trc/GVRET .csv) — bytes are labelled 0xID:rN. --against/--bits/--id/--min-r/--top/--find-mirrors all apply.
@@ -196,10 +201,13 @@ options:
   --min-r R             Min |r| to report (default 0.6)
   --min-n N             Min aligned points (default 15)
   --top N               Max hits (default 40)
-  --method {pearson,spearman}
-                        Correlation coefficient: pearson (linear, default) or
+  --method {pearson,spearman,cramers_v,mutual_info}
+                        Association coefficient: pearson (linear, default) or
                         spearman (rank — catches monotone-but-
-                        nonlinear/quantized/saturating links)
+                        nonlinear/quantized/saturating links), or the
+                        categorical cramers_v / mutual_info (treat each value
+                        as a nominal category — for mode/flag/enum bytes where
+                        numeric spacing is meaningless)
   --join-tol SECONDS    Nearest-timestamp join window (default 2.5s)
   --bits                Include individual toggling bits (rN:k / Bn:k)
   --json                Machine-readable output

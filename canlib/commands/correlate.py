@@ -129,10 +129,12 @@ def _add_shared_analysis_args(parser) -> None:
     parser.add_argument("--top", type=int, default=40, metavar="N", help="Max hits (default 40)")
     parser.add_argument(
         "--method",
-        choices=["pearson", "spearman"],
+        choices=["pearson", "spearman", "cramers_v", "mutual_info"],
         default="pearson",
-        help="Correlation coefficient: pearson (linear, default) or spearman "
-        "(rank — catches monotone-but-nonlinear/quantized/saturating links)",
+        help="Association coefficient: pearson (linear, default) or spearman "
+        "(rank — catches monotone-but-nonlinear/quantized/saturating links), or "
+        "the categorical cramers_v / mutual_info (treat each value as a nominal "
+        "category — for mode/flag/enum bytes where numeric spacing is meaningless)",
     )
     parser.add_argument(
         "--join-tol",

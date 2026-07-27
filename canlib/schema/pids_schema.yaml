@@ -241,6 +241,34 @@ optional_param_fields:
   - notes
   - enabled
   - display
+  # --- typed (multi-modal) decoding ---------------------------------------
+  # A param is a numeric scalar by default. Declaring `type:` (and its
+  # companion map) attaches a PARALLEL typed decoding: the WiCAN `expression`
+  # still yields the raw integer the device ships/analyses, and the typed layer
+  # (canlib/decode_value.py) interprets that raw value for display/analysis.
+  # This never changes the device output or the numeric analysis path.
+  #   type: numeric   — (default) the expression's float value, as today.
+  #   type: enum      — a discrete mode; `values:` maps raw int -> label.
+  #   type: bitmask   — a set of flags; `bits:` maps bit index (0=LSB) -> label.
+  #   type: ascii     — the payload bytes rendered as text.
+  #   type: date      — a manufacture/schedule date (BCD or binary; YYYY-MM-DD).
+  #   type: bcd       — a binary-coded-decimal integer.
+  #   type: struct    — an ordered set of typed sub-`fields:` (e.g. a schedule
+  #                     record: day-of-week bitmask + hour + minute).
+  - type
+  - values          # enum: {raw_int: "label", ...}
+  - bits            # bitmask: {bit_index: "label", ...}  (0 = LSB)
+  - fields          # struct: [{name, type, expression, values/bits/...}, ...]
+
+# Accepted values for a param's optional `type:` field (typed decoding).
+valid_param_types:
+  - numeric
+  - enum
+  - bitmask
+  - ascii
+  - date
+  - bcd
+  - struct
 
 required_meta_fields:
   - car_model

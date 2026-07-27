@@ -9,6 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Typed (multi-modal) signal analysis.** Parameters can now declare an optional
+  **`type:`** (`enum`/`bitmask`/`ascii`/`date`/`bcd`/`struct`) with companion
+  `values:`/`bits:`/`fields:` maps, giving canair a first-class model for signals
+  that aren't a number on a line — fan/mode enums, day-of-week schedule masks,
+  part-number strings, manufacture/schedule dates, and multi-field records. The
+  WiCAN `expression` stays a pure float (device output and numeric analysis are
+  unchanged); the type is a **parallel decoding** produced by the new
+  `canlib/decode_value.py` (which also becomes the shared home for the date/BCD/
+  ASCII logic previously siloed in the identity reader). Author with
+  `canair pids upsert-param --type … --value RAW=LABEL / --bit INDEX=LABEL`
+  (passing only `--value`/`--bit` infers the type); `canair decode` renders the
+  decoded labels/flags/dates. `canair validate pids` enforces the new fields.
+- **Categorical statistics.** `canlib/stats.py` gains **Cramér's V** and
+  (normalized) **mutual information** for nominal association — the right measure
+  for a mode/flag/enum byte, where Pearson/Spearman don't apply. Wired in as
+  `--method cramers_v|mutual_info` on `canair correlate` and `canair decode
+  --corr`, and used automatically by `canair decode --discriminate state` for
+  typed enum/bitmask params (Cramér's V vs the interval-scale F).
+- **`canair investigate --events --field NAME`.** Collapses a single typed param
+  into one logical signal, emitting one transition per change of its *decoded*
+  value (e.g. `fanMAX (45) → fan1 (40)`) instead of scattered per-byte edges —
+  the fastest way to read a schedule/mode/date field's timeline. Struct-typed
+  params render as a single record (`{days=tue, hour=7, minute=30}`).
+- New concept doc `docs/concepts/typed-signals.md` and an expanded
+  `docs/bring-your-own-car/06-analyze.md` (categorical analysis + the
+  toggle→re-read→diff workflow for decoding settings the head unit *writes*).
+  Design in `plans/2026-07-25-multimodal-signal-analysis.md`.
+
 - **Live-monitor recording controls.** `canair query --monitor --save` now shows a
   blinking `● REC` in the status line while a recording is active, and adds an
   **`n`** key to close the current capture segment (reconciling it to its own

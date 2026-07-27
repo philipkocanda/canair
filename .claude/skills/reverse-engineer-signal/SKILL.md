@@ -282,6 +282,22 @@ same "reason from the ECU's role" applies to any powertrain):
   find the same bit exposed on a second ECU (e.g. an IGPM door bit mirrored in
   BCM). This is how DOOR_DRV_OPEN / HOOD_OPEN / the BC05 unlock+trunk bits were
   decoded (2026-07-24).
+
+> **Typed (multi-modal) signals.** A byte that is a *mode/flag/schedule/date*,
+> not a number on a line, is modelled with a param **`type:`**
+> (`enum`/`bitmask`/`ascii`/`date`/`bcd`/`struct`) + a companion `values:`/`bits:`
+> map (author via `canair pids upsert-param --type … --value RAW=LABEL / --bit
+> INDEX=LABEL`). The WiCAN `expression` stays the pure-float device value; the
+> type is a parallel decoding (`canlib/decode_value.py`). Analyse them with
+> **categorical** stats, not Pearson: `canair decode … --discriminate state`
+> (Cramér's V for typed params), `canair correlate … --method cramers_v` ("which
+> byte is this mode?"), and `canair investigate … --events --field NAME` (one
+> logical transition per decoded-value change, e.g. `fanMAX (45) → fan1 (40)`).
+> For a setting the *head unit writes* (schedule/clock), use **toggle → re-read →
+> `captures uds --diff`** on the storing DID. See
+> `plans/2026-07-25-multimodal-signal-analysis.md` and
+> `docs/concepts/typed-signals.md`.
+
 - **HVAC/AAF** — temperatures (ambient/evaporator/heatsink), fan/compressor
   states, flap positions.
 

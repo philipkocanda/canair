@@ -240,9 +240,7 @@ class TestInvestigateCan:
 
         log = _write_can_log(tmp_path)
         assert (
-            self._run(
-                [str(log), "--id", "0x386", "--min-r", "0.9", "--join-tol", "0.05", "--json"]
-            )
+            self._run([str(log), "--id", "0x386", "--min-r", "0.9", "--join-tol", "0.05", "--json"])
             == 0
         )
         data = json.loads(capsys.readouterr().out)
@@ -265,3 +263,51 @@ class TestInvestigateCan:
         log = _write_can_log(tmp_path)
         assert self._run([str(log), "--id", "0x999"]) == 1
         assert "no varying" in capsys.readouterr().err
+
+
+class TestFieldEvents:
+    """investigate --events --field NAME: one logical transition per decoded
+    value change of a typed param (Layer 3)."""
+
+    def test_field_transition_timeline(self, capsys):
+        # Two timed captures where B5 (a fan enum) changes 0x2D -> 0x28.
+        caps = [
+            {
+                "ecu": "HVAC",
+                "pid": "220100",
+                "payload": "620001042D",
+                "time": "10:00:00",
+                "date": "2026-07-25",
+            },
+            {
+                "ecu": "HVAC",
+                "pid": "220100",
+                "payload": "6200010428",
+                "time": "10:05:00",
+                "date": "2026-07-25",
+            },
+        ]
+        param = {
+            "expression": "B5",
+            "type": "enum",
+            "values": {0x28: "fan1", 0x2D: "fanMAX"},
+        }
+
+        class LP:
+            captures = caps
+            n_no_time = 0
+
+        args = type("A", (), {"field": "FAN", "json": False})()
+        investigate._print_events("HVAC", "220100", LP(), {}, {}, args, {"FAN": param})
+        out = capsys.readouterr().out
+        assert "fanMAX (45)" in out and "fan1 (40)" in out
+        assert "→" in out
+
+    def test_missing_field_reports_error(self, capsys):
+        class LP:
+            captures = ()
+
+        args = type("A", (), {"field": "NOPE", "json": False})()
+        investigate._print_events("HVAC", "220100", LP(), {}, {}, args, {})
+        err = capsys.readouterr().err
+        assert "no parameter" in err

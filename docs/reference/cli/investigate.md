@@ -30,9 +30,10 @@ options:
 ```
 usage: canair investigate uds [-h] [--min-r R] [--min-n N]
                               [--join-tol SECONDS] [--all] [--bits] [--events]
-                              [--json] [--notation NAME] [--since YYYY-MM-DD]
-                              [--until YYYY-MM-DD] [--date YYYY-MM-DD]
-                              [--state SUBSTR] [--label SUBSTR]
+                              [--field NAME] [--json] [--notation NAME]
+                              [--since YYYY-MM-DD] [--until YYYY-MM-DD]
+                              [--date YYYY-MM-DD] [--state SUBSTR]
+                              [--label SUBSTR]
                               ecu pid
 
 Point this at an unknown PID and get one ranked table telling you
@@ -75,6 +76,12 @@ options:
   --events            Report each bit/byte rising/falling edge with its
                       timestamp, aligned to the nearest capture note (the
                       narrated event timeline)
+  --field NAME        With --events: track ONE defined param (a typed
+                      enum/bitmask/struct date field) as a single logical
+                      signal — emit one transition per change of its DECODED
+                      value (e.g. {Mon 08:00}->{Tue 07:30}), not scattered
+                      per-byte edges. NAME is a parameter of the target
+                      ECU:PID.
   --json              Machine-readable output
   --notation NAME     byte-index notation for output labels: wican (default),
                       isotp, torque, bix. Overrides the display.byte_notation

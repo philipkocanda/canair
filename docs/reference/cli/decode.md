@@ -8,7 +8,8 @@ usage: canair decode [-h] [--param NAME [NAME ...]] [--verified]
                      [--stats] [--group-by FIELD] [--discriminate FIELD]
                      [--find-mirrors] [--bits] [--bytes] [--first N]
                      [--last N] [--corr PARAM] [--join-tol SECONDS]
-                     [--corr-transform MODE] [--method {pearson,spearman}]
+                     [--corr-transform MODE]
+                     [--method {pearson,spearman,cramers_v,mutual_info}]
                      [--plot] [--try NAME[:unit]=EXPR] [--notation NAME]
                      [--since YYYY-MM-DD] [--until YYYY-MM-DD]
                      [--date YYYY-MM-DD] [--state SUBSTR] [--label SUBSTR]
@@ -62,10 +63,13 @@ options:
                         (raw/delta/abs/cumsum/normalize/smooth) — e.g. --corr-
                         transform delta to test whether a signal tracks a
                         reference's RATE rather than its level
-  --method {pearson,spearman}
-                        Correlation coefficient for --corr: pearson (linear,
-                        default) or spearman (rank — catches monotone-but-
-                        nonlinear/quantized/saturating links)
+  --method {pearson,spearman,cramers_v,mutual_info}
+                        Coefficient for --corr: pearson (linear, default) or
+                        spearman (rank — catches monotone-but-
+                        nonlinear/quantized/saturating links), or the
+                        categorical cramers_v / mutual_info (nominal
+                        association — for mode/flag/enum references where
+                        numeric spacing is meaningless)
   --plot                Interactive signal explorer: sweep byte
                         interpretations (u8/i16/f32/... and endianness) and
                         params, plot across captures, apply transforms

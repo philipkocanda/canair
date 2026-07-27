@@ -91,7 +91,35 @@ def _add_common(sp: argparse.ArgumentParser) -> None:
     )
 
 
+def _parse_pairs(raw: list[str] | None, kind: str) -> dict | None:
+    """Parse repeatable ``KEY=LABEL`` CLI args into an int-keyed dict."""
+    if not raw:
+        return None
+    out: dict[int, str] = {}
+    for item in raw:
+        if "=" not in item:
+            raise SystemExit(f"{_RED}  Error: --{kind} expects KEY=LABEL, got {item!r}{_RESET}")
+        k, _, v = item.partition("=")
+        try:
+            out[int(k.strip(), 0)] = v.strip()
+        except ValueError:
+            raise SystemExit(
+                f"{_RED}  Error: --{kind} key must be an integer, got {k!r}{_RESET}"
+            ) from None
+    return out
+
+
 def cmd_upsert_param(args: argparse.Namespace) -> int:
+    values = _parse_pairs(args.values, "value")
+    bits = _parse_pairs(args.bits, "bit")
+    ptype = args.ptype
+    # Infer type from the map if only --value/--bit was given.
+    if ptype is None:
+        if values is not None:
+            ptype = "enum"
+        elif bits is not None:
+            ptype = "bitmask"
+
     def do():
         upsert_parameter(
             args.ecu,
@@ -109,6 +137,9 @@ def cmd_upsert_param(args: argparse.Namespace) -> int:
             notes=args.notes,
             enabled=args.enabled,
             display=args.display,
+            type=ptype,
+            values=values,
+            bits=bits,
             pids_dir=args.dir,
         )
 
@@ -249,6 +280,27 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     up.add_argument("--source-link", action="append", metavar="URL")
     up.add_argument("--display")
     up.add_argument("--notes")
+    up.add_argument(
+        "--type",
+        dest="ptype",
+        choices=["numeric", "enum", "bitmask", "ascii", "date", "bcd"],
+        help="Typed decoding: enum/bitmask/ascii/date/bcd (default numeric). "
+        "See --value / --bit for the enum/bitmask maps.",
+    )
+    up.add_argument(
+        "--value",
+        dest="values",
+        action="append",
+        metavar="RAW=LABEL",
+        help="Enum mapping (repeatable), e.g. --value 40=fan1 --value 45=fanMAX",
+    )
+    up.add_argument(
+        "--bit",
+        dest="bits",
+        action="append",
+        metavar="INDEX=LABEL",
+        help="Bitmask mapping (repeatable, 0=LSB), e.g. --bit 0=mon --bit 5=sat",
+    )
     ver = up.add_mutually_exclusive_group()
     ver.add_argument("--verified", dest="verified", action="store_true", default=None)
     ver.add_argument("--unverified", dest="verified", action="store_false")

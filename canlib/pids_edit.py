@@ -861,6 +861,9 @@ def promote_discovery(
 # Canonical field order for a rendered parameter (matches pids/_schema.yaml).
 PARAM_FIELD_ORDER = (
     "expression",
+    "type",
+    "values",
+    "bits",
     "unit",
     "ha_class",
     "mqtt_topic",
@@ -944,6 +947,27 @@ def _format_list_field(indent: str, key: str, values) -> list[str]:
     return out
 
 
+def _format_map_field(indent: str, key: str, mapping: dict) -> list[str]:
+    """Render a nested ``key:`` mapping (``values:``/``bits:`` typed-decode maps).
+
+    Keys are emitted as integers (sorted numerically) and labels quoted, e.g.::
+
+        values:
+          40: "fan1"
+          45: "fanMAX"
+    """
+    if not mapping:
+        return [f"{indent}{key}: {{}}"]
+    out = [f"{indent}{key}:"]
+    try:
+        items = sorted(mapping.items(), key=lambda kv: int(kv[0]))
+    except (ValueError, TypeError):
+        items = list(mapping.items())
+    for k, v in items:
+        out.append(f"{indent}  {int(k)}: {_format_label(str(v))}")
+    return out
+
+
 def _format_param_block(name: str, fields: dict, indent: int = 8) -> list[str]:
     """Render a full ``PARAM_NAME:`` block (key at ``indent``, fields +2)."""
     ind = " " * indent
@@ -959,6 +983,8 @@ def _format_param_block(name: str, fields: dict, indent: int = 8) -> list[str]:
             lines.extend(
                 _format_list_field(fld, key, val if isinstance(val, (list, tuple)) else [val])
             )
+        elif key in ("values", "bits"):
+            lines.extend(_format_map_field(fld, key, val if isinstance(val, dict) else {}))
         else:
             lines.append(_format_scalar_field(fld, key, val))
     return lines
@@ -1049,6 +1075,9 @@ def upsert_parameter(
     notes: str | None = None,
     enabled: bool | None = None,
     display: str | None = None,
+    type: str | None = None,
+    values: dict | None = None,
+    bits: dict | None = None,
     pids_dir: Path | None = None,
 ) -> Path:
     """Add or update one parameter under ``ECU.pids.<PID>.parameters``.
@@ -1069,6 +1098,9 @@ def upsert_parameter(
 
     provided = {
         "expression": expression,
+        "type": type,
+        "values": values,
+        "bits": bits,
         "unit": unit,
         "ha_class": ha_class,
         "mqtt_topic": mqtt_topic,
@@ -1161,6 +1193,9 @@ def upsert_parameter(
                     repl = _format_list_field(
                         " " * 10, "source_links", v if isinstance(v, (list, tuple)) else [v]
                     )
+                elif key in ("values", "bits"):
+                    v = fields[key]
+                    repl = _format_map_field(" " * 10, key, v if isinstance(v, dict) else {})
                 else:
                     repl = _replace_param_field_line(" " * 10, key, fields[key])
                 block_text = _replace_field_in_block_at(block_text, key, repl, indent=10)
@@ -1451,11 +1486,21 @@ def _insert_lines(text: str, region_start: int, region_end: int, lines: list[str
     return text[:ins] + payload + text[ins:]
 
 
+def _is_list_or_map_lines(lines: list[str]) -> bool:
+    """True when a rendered field is a multi-line block (list/map) rather than a
+    single ``key: value`` scalar — i.e. its header line ends with ``:`` (no
+    inline value)."""
+    if not lines:
+        return False
+    head = lines[0].rstrip()
+    return head.endswith(":") and len(lines) > 1
+
+
 def _replace_field_in_block_at(block: str, field: str, new_line_or_lines, indent: int) -> str:
     """Like ``_replace_field_in_block`` but for an arbitrary field indent.
 
-    Replaces ``field:`` (and any block-scalar continuation) at ``indent`` spaces
-    within ``block``; appends the field if absent.
+    Replaces ``field:`` (and any block-scalar or nested list/map continuation)
+    at ``indent`` spaces within ``block``; appends the field if absent.
     """
     replacement_lines = (
         [new_line_or_lines] if isinstance(new_line_or_lines, str) else list(new_line_or_lines)
@@ -1478,6 +1523,14 @@ def _replace_field_in_block_at(block: str, field: str, new_line_or_lines, indent
                 ):
                     if re.match(rf"^ {{{indent}}}[A-Za-z_]", lines[i]):
                         break
+                    i += 1
+            elif rest == "" and _is_list_or_map_lines(replacement_lines):
+                # The field is a nested block (list/map, e.g. values:/bits:) with
+                # an empty header rest — skip its deeper-indented body so the
+                # whole old block is replaced, not just the header line.
+                while i < len(lines) and (
+                    lines[i] == "" or lines[i].startswith(" " * (indent + 1))
+                ):
                     i += 1
             out.extend(replacement_lines)
             replaced = True

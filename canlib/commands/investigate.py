@@ -148,6 +148,14 @@ tip: no anchors found? widen scope (drop --state), lower --min-r, or grow the
         help="Report each bit/byte rising/falling edge with its timestamp, aligned to "
         "the nearest capture note (the narrated event timeline)",
     )
+    parser.add_argument(
+        "--field",
+        metavar="NAME",
+        help="With --events: track ONE defined param (a typed enum/bitmask/struct "
+        "date field) as a single logical signal — emit one transition per change of "
+        "its DECODED value (e.g. {Mon 08:00}->{Tue 07:30}), not scattered per-byte "
+        "edges. NAME is a parameter of the target ECU:PID.",
+    )
     parser.add_argument("--json", action="store_true", help="Machine-readable output")
     add_notation_arg(parser)
     add_scope_args(parser)
@@ -287,7 +295,7 @@ def run(args) -> int:
 
     # --events short-circuits to the edge/timeline view (no anchor correlation).
     if args.events:
-        _print_events(ecu, pid, lp, mapped, mapped_bit, args)
+        _print_events(ecu, pid, lp, mapped, mapped_bit, args, params_def)
         return 0
 
     # Anchor signals: every param on the OTHER co-polled ECU/PIDs in scope.
@@ -641,8 +649,96 @@ def _iter_edges(lp, mapped, mapped_bit, *, bits: bool):
     return edges
 
 
-def _print_events(ecu, pid, lp, mapped, mapped_bit, args) -> None:
+def _iter_field_edges(lp, param: dict):
+    """Yield (dt, before_display, after_display, cap) per change of a typed param's
+    DECODED value across timed captures — one logical transition per field change.
+
+    This collapses a multi-byte/enum/bitmask/struct field into a single signal,
+    so a schedule/mode change reads as ``{Mon 08:00}->{Tue 07:30}`` rather than
+    scattered per-byte edges.
+    """
+    from canlib.byteindex import payload_to_wican_bytes
+    from canlib.capture_dates import entry_datetime
+    from canlib.decode_value import decode_typed, render
+
+    frames = []
+    for cap in lp.captures:
+        dt = entry_datetime(cap)
+        if dt is None:
+            continue
+        try:
+            fr = payload_to_wican_bytes(cap["payload"])
+        except Exception:
+            continue
+        frames.append((dt, fr, cap))
+    frames.sort(key=lambda t: t[0])
+
+    edges = []
+    prev: str | None = None
+    for dt, fr, cap in frames:
+        disp = render(decode_typed(param, fr), param.get("unit", ""))
+        if prev is not None and disp != prev:
+            edges.append((dt, prev, disp, cap))
+        prev = disp
+    return edges
+
+
+def _print_field_events(ecu, pid, lp, args, param: dict) -> None:
+    """Logical-transition timeline for one typed field (--events --field NAME)."""
+    edges = _iter_field_edges(lp, param)
+    if args.json:
+        _json.dump(
+            {
+                "target": f"{ecu}:{pid}",
+                "field": args.field,
+                "keep_unique": scope_is_keep_unique(lp.captures),
+                "events": [
+                    {
+                        "time": e[0].strftime("%H:%M:%S"),
+                        "before": e[1],
+                        "after": e[2],
+                        "note": _cap_note(e[3]),
+                    }
+                    for e in edges
+                ],
+            },
+            sys.stdout,
+            indent=2,
+            default=str,
+        )
+        print()
+        return
+    print(
+        f"\n  {_BOLD}Events {ecu} {pid} · {args.field}{_RESET} "
+        f"{_DIM}({len(lp.captures)} timed captures){_RESET}"
+    )
+    _print_keep_banner(lp.captures)
+    if not edges:
+        print(f"    {_DIM}no transitions of {args.field} in scope.{_RESET}\n")
+        return
+    for dt, before, after, cap in edges:
+        note = _cap_note(cap)
+        note_str = f"  {_DIM}~ note: {_CYAN}{note}{_RESET}" if note else ""
+        print(
+            f"    {_DIM}{dt.strftime('%H:%M:%S')}{_RESET}  "
+            f"{_BOLD}{before}{_RESET} → {_BOLD}{after}{_RESET}{note_str}"
+        )
+    print()
+
+
+def _print_events(ecu, pid, lp, mapped, mapped_bit, args, params_def=None) -> None:
     """Edge/event-timeline view: each transition with its time and nearest note."""
+    if args.field:
+        params_def = params_def or {}
+        param = params_def.get(args.field)
+        if param is None:
+            print(
+                f"\n  {_YELLOW}investigate: no parameter {args.field!r} on {ecu} {pid}.{_RESET}\n",
+                file=sys.stderr,
+            )
+            return
+        _print_field_events(ecu, pid, lp, args, param)
+        return
     edges = _iter_edges(lp, mapped, mapped_bit, bits=args.bits)
     if args.json:
         _json.dump(

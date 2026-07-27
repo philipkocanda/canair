@@ -163,22 +163,37 @@ def decode_payload(wican_bytes: bytes, parameters: dict) -> dict[str, dict]:
     """Evaluate all parameter expressions against a WiCAN frame.
 
     Returns dict: param_name -> {value, expression, unit, verified, error}.
+
+    For a param declaring a ``type:`` (enum/bitmask/ascii/date/bcd/struct) the
+    result also carries ``display`` (the rendered typed string) and ``category``
+    (a nominal key for categorical stats). ``value`` remains the raw float so
+    every numeric consumer (min/max/corr/stats) is unaffected.
     """
+    from canlib.decode_value import decode_typed, render
+
     results = {}
     for name, param in parameters.items():
         expr = param.get("expression", "")
-        if not expr:
+        ptype = (param.get("type") or "numeric").lower()
+        if not expr and ptype in ("numeric", "enum", "bitmask", "bcd"):
             continue
         try:
-            value = evaluate_expression(expr, wican_bytes)
-            results[name] = {
-                "value": value,
+            entry: dict = {
                 "expression": expr,
                 "unit": param.get("unit", ""),
                 "verified": param.get("verified", False),
                 "min": param.get("min"),
                 "max": param.get("max"),
             }
+            if ptype != "numeric":
+                dv = decode_typed(param, wican_bytes)
+                entry["value"] = dv.raw
+                entry["type"] = ptype
+                entry["display"] = render(dv, param.get("unit", ""))
+                entry["category"] = dv.category()
+            else:
+                entry["value"] = evaluate_expression(expr, wican_bytes)
+            results[name] = entry
         except Exception as e:
             results[name] = {
                 "value": None,
@@ -398,6 +413,26 @@ def print_value_ranges(
             for r in all_results
             if name in r["decoded"] and r["decoded"][name].get("value") is not None
         ]
+        ptype = (parameters[name].get("type") or "numeric").lower()
+
+        # Typed params whose display doesn't depend on a numeric raw (ascii/date/
+        # struct): render distinct decoded labels directly.
+        if ptype in ("ascii", "date", "struct"):
+            seen_a: list[str] = []
+            for r in all_results:
+                d = r["decoded"].get(name)
+                if d and d.get("display") is not None and d["display"] not in seen_a:
+                    seen_a.append(d["display"])
+            if seen_a:
+                shown_a = "  ".join(seen_a[:8]) + ("  …" if len(seen_a) > 8 else "")
+                tag_a = (
+                    f"{_DIM}(constant){_RESET}"
+                    if len(seen_a) == 1
+                    else f"{_DIM}({len(seen_a)} values){_RESET}"
+                )
+                print(f"    {mark} {name:<{name_w}}  {shown_a}  {tag_a}{try_tag}")
+                continue
+
         if not values:
             err = next(
                 (
@@ -415,6 +450,24 @@ def print_value_ranges(
         mm = {"min": parameters[name].get("min"), "max": parameters[name].get("max")}
         warn = check_range(mn, mm) or check_range(mx, mm)
         warn_str = f"  {_RED}⚠ {warn}{_RESET}" if warn else ""
+
+        if ptype in ("enum", "bitmask", "bcd"):
+            # Categorical/typed: show the distinct decoded labels, not a numeric
+            # range (min-max of the raw byte is meaningless for a mode/flag set).
+            seen: list[str] = []
+            for r in all_results:
+                d = r["decoded"].get(name)
+                if d and d.get("display") is not None and d["display"] not in seen:
+                    seen.append(d["display"])
+            shown = "  ".join(seen[:8]) + ("  …" if len(seen) > 8 else "")
+            tag = (
+                f"{_DIM}(constant){_RESET}"
+                if len(seen) == 1
+                else f"{_DIM}({len(seen)} values){_RESET}"
+            )
+            print(f"    {mark} {name:<{name_w}}  {shown}  {tag}{try_tag}{warn_str}")
+            continue
+
         if mn == mx:
             print(
                 f"    {mark} {name:<{name_w}}  {format_value(mn, unit):>14}  "
@@ -628,12 +681,22 @@ def print_discriminate(
     bit (``Bn:k``) — finding a state-dependent byte/bit without a ``--try``.
     """
     buckets: dict[str, dict[str, list[float]]] = {name: {} for name in param_names}
+    # Parallel categorical view: for typed enum/bitmask params, collect the
+    # nominal category per capture alongside its state, so we can score them with
+    # Cramér's V (F assumes interval scale — invalid for a mode/flag set).
+    cat_pairs: dict[str, tuple[list, list]] = {}
     for r in all_results:
         key = _join_states(r["capture"].get("vehicle_states")) or "(no state)"
         for name in param_names:
-            v = r["decoded"].get(name, {}).get("value")
+            d = r["decoded"].get(name, {})
+            v = d.get("value")
             if v is not None:
                 buckets[name].setdefault(key, []).append(v)
+            cat = d.get("category")
+            if cat is not None:
+                xs, ys = cat_pairs.setdefault(name, ([], []))
+                xs.append(cat)
+                ys.append(key)
 
     byte_names: set[str] = set()
     if include_bytes or include_bits:
@@ -656,7 +719,8 @@ def print_discriminate(
         hdr_extra = " (params + bits)"
     print(
         f"  {_BOLD}Discriminability by {field}{hdr_extra}{_RESET} "
-        f"{_DIM}(between/within variance F; higher = cleaner separation){_RESET}"
+        f"{_DIM}(numeric: between/within variance F; categorical: Cramér's V — "
+        f"higher = cleaner separation){_RESET}"
     )
     for name, score, groups in rows:
         if name in byte_names:
@@ -665,6 +729,25 @@ def print_discriminate(
             mark = _mark_for(name, parameters, candidate_names)
         disp = relabel_signal(name, notation, sub_bytes=sub_bytes)
         try_tag = f" {_CYAN}(try){_RESET}" if name in candidate_names else ""
+
+        # Categorical params: report Cramér's V vs state (nominal association)
+        # instead of the interval-scale F, which doesn't apply to a mode/flag set.
+        if name in cat_pairs:
+            from canlib.stats import cramers_v
+
+            xs, ys = cat_pairs[name]
+            v = cramers_v(xs, ys)
+            if v is None:
+                print(f"    {mark} {disp}{try_tag}  {_DIM}V=n/a{_RESET}")
+                continue
+            vcolor = _GREEN if v >= 0.6 else _YELLOW if v >= 0.3 else _DIM
+            distinct = "  ".join(sorted({str(c) for c in xs})[:6])
+            print(
+                f"    {mark} {disp}{try_tag}  {vcolor}V={v:.2f}{_RESET}  "
+                f"{_DIM}(categorical: {distinct}){_RESET}"
+            )
+            continue
+
         if score is None:
             print(f"    {mark} {disp}{try_tag}  {_DIM}F=n/a{_RESET}")
             continue
@@ -809,7 +892,11 @@ def print_correlations(
     # Strongest absolute correlations first; undefined (None) last.
     rows.sort(key=lambda t: (t[1] is None, -abs(t[1]) if t[1] is not None else 0))
 
-    coeff = "Spearman ρ" if method == "spearman" else "Pearson r"
+    coeff = {
+        "spearman": "Spearman ρ",
+        "cramers_v": "Cramér's V",
+        "mutual_info": "norm. MI",
+    }.get(method, "Pearson r")
     header = f"  {_BOLD}Correlation vs {ref_label}{_RESET} {_DIM}({coeff}"
     if transform and transform != "raw":
         header += f", ref {transform}"
@@ -945,10 +1032,12 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--method",
-        choices=["pearson", "spearman"],
+        choices=["pearson", "spearman", "cramers_v", "mutual_info"],
         default="pearson",
-        help="Correlation coefficient for --corr: pearson (linear, default) or "
-        "spearman (rank — catches monotone-but-nonlinear/quantized/saturating links)",
+        help="Coefficient for --corr: pearson (linear, default) or spearman "
+        "(rank — catches monotone-but-nonlinear/quantized/saturating links), or "
+        "the categorical cramers_v / mutual_info (nominal association — for "
+        "mode/flag/enum references where numeric spacing is meaningless)",
     )
     parser.add_argument(
         "--plot",

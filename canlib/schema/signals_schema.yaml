@@ -60,6 +60,22 @@ optional_signal_fields:
   - verified
   - source
   - notes
+  # --- typed (multi-modal) decoding — parity with domain-A PID params ------
+  # A broadcast signal is a linear scalar by default. Declaring `type:` attaches
+  # the same parallel typed decoding as a diagnostic PID param (see
+  # canlib/decode_value.py + pids_schema.yaml). The linear scale/offset still
+  # yields the raw value the typed layer interprets.
+  - type            # numeric (default) | enum | bitmask | ascii | date | bcd
+  - values          # enum: {raw_int: "label", ...}
+  - bits            # bitmask: {bit_index: "label", ...}  (0 = LSB)
+
+valid_signal_types:
+  - numeric
+  - enum
+  - bitmask
+  - ascii
+  - date
+  - bcd
 
 byte_order_values:
   - little

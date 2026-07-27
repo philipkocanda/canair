@@ -78,6 +78,86 @@ def validate_expression(expr: str, param_name: str, pid: str, ecu: str) -> list[
     return errors
 
 
+def _validate_param_type(
+    param: dict,
+    param_name: str,
+    pid: str,
+    ecu: str,
+    valid_param_types: set,
+) -> list[str]:
+    """Validate a param's optional typed-decoding fields (type/values/bits/fields).
+
+    Untyped (numeric) params are unaffected — all checks are gated on a declared
+    ``type:``. Enforces: a known ``type``; ``values`` only with ``enum`` (int
+    keys); ``bits`` only with ``bitmask`` (0-63 int keys); ``fields`` only with
+    ``struct`` (list of named sub-params).
+    """
+    errors: list[str] = []
+    ptype = param.get("type")
+    where = f"{ecu}/{pid}/{param_name}"
+
+    has_values = "values" in param
+    has_bits = "bits" in param
+    has_fields = "fields" in param
+
+    if ptype is None:
+        # Untyped: companion maps make no sense without a type.
+        for fld in ("values", "bits", "fields"):
+            if fld in param:
+                errors.append(f"{where}: '{fld}' requires a 'type:'")
+        return errors
+
+    if ptype not in valid_param_types:
+        errors.append(f"{where}: invalid type '{ptype}' (allowed: {sorted(valid_param_types)})")
+
+    if ptype == "enum":
+        if not has_values:
+            errors.append(f"{where}: type 'enum' requires a 'values:' map")
+        elif not isinstance(param["values"], dict):
+            errors.append(f"{where}: 'values' must be a mapping of raw_int -> label")
+        else:
+            for k in param["values"]:
+                try:
+                    int(k)
+                except (ValueError, TypeError):
+                    errors.append(f"{where}: enum 'values' key '{k}' must be an integer")
+    elif has_values:
+        errors.append(f"{where}: 'values' is only valid with type 'enum'")
+
+    if ptype == "bitmask":
+        if not has_bits:
+            errors.append(f"{where}: type 'bitmask' requires a 'bits:' map")
+        elif not isinstance(param["bits"], dict):
+            errors.append(f"{where}: 'bits' must be a mapping of bit_index -> label")
+        else:
+            for k in param["bits"]:
+                try:
+                    bi = int(k)
+                except (ValueError, TypeError):
+                    errors.append(f"{where}: bitmask 'bits' key '{k}' must be an integer")
+                    continue
+                if not 0 <= bi <= 63:
+                    errors.append(f"{where}: bitmask 'bits' index {bi} out of range (0-63)")
+    elif has_bits:
+        errors.append(f"{where}: 'bits' is only valid with type 'bitmask'")
+
+    if ptype == "struct":
+        if not has_fields:
+            errors.append(f"{where}: type 'struct' requires a 'fields:' list")
+        elif not isinstance(param["fields"], list):
+            errors.append(f"{where}: 'fields' must be a list of sub-field mappings")
+        else:
+            for i, sub in enumerate(param["fields"]):
+                if not isinstance(sub, dict):
+                    errors.append(f"{where}: fields[{i}] must be a mapping")
+                elif not sub.get("name"):
+                    errors.append(f"{where}: fields[{i}] missing 'name'")
+    elif has_fields:
+        errors.append(f"{where}: 'fields' is only valid with type 'struct'")
+
+    return errors
+
+
 def check_pci_bytes(expr: str, param_name: str, pid: str, ecu: str) -> list[str]:
     """Warn if an expression reads ISO-TP PCI bytes.
 
@@ -195,6 +275,15 @@ def validate_ecu_file(
         "draft",
         "static",
         "ignored",
+    }
+    valid_param_types = set(schema.get("valid_param_types", [])) or {
+        "numeric",
+        "enum",
+        "bitmask",
+        "ascii",
+        "date",
+        "bcd",
+        "struct",
     }
 
     errors = []
@@ -382,6 +471,11 @@ def validate_ecu_file(
                 if expr:
                     errors.extend(validate_expression(expr, param_name, pid_str, ecu_name))
                     warnings.extend(check_pci_bytes(expr, param_name, pid_str, ecu_name))
+
+                # Typed (multi-modal) decoding validation
+                errors.extend(
+                    _validate_param_type(param, param_name, pid_str, ecu_name, valid_param_types)
+                )
 
                 # Stats
                 if param.get("verified", False):
