@@ -112,7 +112,13 @@ def format_value(value: float, unit: str, display: str = "") -> str:
     If display is set, evaluates it as an f-string with v=value and appends
     the formatted result in parentheses: "480 min (08:00)".
     """
-    if value == int(value):
+    try:
+        is_int = value == int(value)
+    except (TypeError, ValueError):
+        # Non-numeric value (e.g. a typed/enum label or a stray string) — render
+        # it as-is rather than crashing the whole (TUI) render in compose().
+        return f"{value} {unit}".strip()
+    if is_int:
         base = f"{int(value)} {unit}".strip()
     else:
         base = f"{value:.2f} {unit}".strip()

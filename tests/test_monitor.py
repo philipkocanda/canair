@@ -176,10 +176,32 @@ class TestRenderResults:
             results, verbose=False, cycle=5, elapsed=0.1, interval=5.0, hex_history=hist
         )
         text = t.plain
-        assert "50 earlier entries omitted" in text
+        assert "50 earlier entries hidden" in text
         # Only the newest _RENDER_MAX_ROWS payload rows are rendered (each payload
         # renders once as space-separated bytes "61 01 ..").
         assert text.count("61 01 ") == _RENDER_MAX_ROWS
+
+    def test_history_render_respects_max_history_rows(self):
+        # A caller-supplied cap (e.g. the compact --keep-unique default) bounds the
+        # rendered rows to the newest N and hides the rest.
+        n = 60
+        hexes = [f"6101{i:04X}" for i in range(n)]
+        history = [(h, f"12:{i // 60:02d}:{i % 60:02d}") for i, h in enumerate(hexes)]
+        hist = {("BMS (0x7E4)", "2101"): history}
+        entry = self._make_pid_result(pid="2101", raw_hex=hexes[-1])
+        results = [("BMS (0x7E4)", [entry])]
+        t = _render_results(
+            results,
+            verbose=False,
+            cycle=5,
+            elapsed=0.1,
+            interval=5.0,
+            hex_history=hist,
+            max_history_rows=4,
+        )
+        text = t.plain
+        assert "56 earlier entries hidden" in text
+        assert text.count("61 01 ") == 4
 
     def test_stale_entry_kept_and_marked_not_hidden(self):
         # A timed-out PID re-shown as stale keeps its params on screen (dimmed)
@@ -498,6 +520,21 @@ class TestControllerSnapshot:
         c._record([("BMS (0x7E4)", [{"pid": "2102", "raw_hex": ""}])])
         assert c.total_frames == 0
         assert c.unique_frames == 0
+
+    def test_history_render_limit_by_keep_mode(self):
+        from canlib.modes.monitor import _RENDER_DEFAULT_ROWS, _RENDER_MAX_ROWS, MonitorController
+
+        def _c(**kw):
+            return MonitorController(
+                terminal=None, query_steps=[], pids_data={}, verbose=False, **kw
+            )
+
+        # Default (unique) stays compact.
+        assert _c(keep_mode="unique")._history_render_limit() == _RENDER_DEFAULT_ROWS
+        assert _c(keep_mode=None)._history_render_limit() == _RENDER_DEFAULT_ROWS
+        # --keep N shows N; --keep-all keeps the safety cap.
+        assert _c(keep_mode="last", keep_n=25)._history_render_limit() == 25
+        assert _c(keep_mode="all")._history_render_limit() == _RENDER_MAX_ROWS
 
     def test_save_now(self, tmp_path):
         c = self._controller()

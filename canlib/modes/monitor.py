@@ -38,7 +38,7 @@ from ..formatting import (
     _render_hex_line,
 )
 from ..session_manager import SessionManager
-from ._monitor_render import _RENDER_MAX_ROWS, _render_results
+from ._monitor_render import _RENDER_DEFAULT_ROWS, _RENDER_MAX_ROWS, _render_results
 from .monitor_raw import MonitorRawPoller, _raw_pid_result
 
 # _HIGHLIGHT_STYLE, _bytes_to_ascii and _render_hex_line moved to canlib.formatting;
@@ -542,7 +542,22 @@ class MonitorController:
             show_rulers=self.show_rulers,
             footer=False,
             selected=self.editor.selected,
+            max_history_rows=self._history_render_limit(),
         )
+
+    def _history_render_limit(self) -> int:
+        """How many history rows to render per PID, by keep-mode.
+
+        --keep N shows the requested N; --keep-all keeps the safety cap; the
+        default (--keep-unique) stays compact at a handful of newest rows so a
+        noisy/long session's accrued unique payloads don't flood (or choke) the
+        live view — the full set is still in hex_history and the --save journal.
+        """
+        if self.keep_mode == "last" and self.keep_n:
+            return self.keep_n
+        if self.keep_mode == "all":
+            return _RENDER_MAX_ROWS
+        return _RENDER_DEFAULT_ROWS
 
     def has_captures(self) -> bool:
         """True when there's at least one payload available to save."""

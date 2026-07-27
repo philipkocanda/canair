@@ -21,6 +21,14 @@ from ..formatting import (
 # journal (--save) — this only bounds the on-screen buffer to the newest rows.
 _RENDER_MAX_ROWS = 200
 
+# Default on-screen history depth for the implicit --keep-unique mode (now the
+# monitor default). Unique-dedup accrues one row per *distinct* payload, so a
+# noisy PID can amass hundreds over a session; rendering them all every cycle
+# both clutters the view and (on a big multi-PID sweep) can make the frame large
+# enough to choke the TUI. Keep the live view compact — the full set is still in
+# hex_history (and the journal when --save). Overridable per keep-mode.
+_RENDER_DEFAULT_ROWS = 4
+
 
 def _render_results(
     queries: list[tuple[str, list]],
@@ -33,6 +41,7 @@ def _render_results(
     show_rulers: bool = False,
     footer: bool = True,
     selected: tuple[str, str, str] | None = None,
+    max_history_rows: int | None = None,
 ) -> Text:
     """Render all ECU query results as a Rich Text object for display.
 
@@ -43,7 +52,11 @@ def _render_results(
     ``selected`` is an ``(ecu_label, pid, param_name)`` triple naming the
     parameter row the monitor is targeting for in-place editing; that row is
     drawn with a ``▶`` cursor.
+
+    ``max_history_rows`` bounds how many history rows each PID renders (newest
+    kept); ``None`` falls back to :data:`_RENDER_MAX_ROWS`.
     """
+    row_cap = _RENDER_MAX_ROWS if max_history_rows is None else max(1, max_history_rows)
     text = Text()
 
     text.append(
@@ -133,14 +146,14 @@ def _render_results(
                         all_entries = [*history, (raw_hex, "")]
                     else:
                         all_entries = list(history)
-                    # Bound the rendered rows to the newest _RENDER_MAX_ROWS so a
-                    # long --keep-all run stays cheap to render (full data is in
-                    # the journal). Older rows are summarized, not walked.
-                    if len(all_entries) > _RENDER_MAX_ROWS:
-                        omitted = len(all_entries) - _RENDER_MAX_ROWS
-                        all_entries = all_entries[-_RENDER_MAX_ROWS:]
+                    # Bound the rendered rows to the newest ``row_cap`` so a long
+                    # --keep-all (or noisy --keep-unique) run stays cheap to
+                    # render (full data is retained in memory / the journal).
+                    if len(all_entries) > row_cap:
+                        omitted = len(all_entries) - row_cap
+                        all_entries = all_entries[-row_cap:]
                         entry_text.append(
-                            f"      … {omitted} earlier entries omitted (in journal)\n",
+                            f"      … {omitted} earlier entries hidden\n",
                             style="dim",
                         )
                     for i, (payload, ts) in enumerate(all_entries):

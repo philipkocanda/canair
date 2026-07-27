@@ -29,6 +29,12 @@ class TestFormatValue:
     def test_small_decimal(self):
         assert format_value(12.50, "A") == "12.50 A"
 
+    def test_non_numeric_value_does_not_crash(self):
+        # A typed/enum label or stray string must render as-is, never raise
+        # (this render runs inside the TUI compose(), where a crash is fatal).
+        assert format_value("fanMAX", "") == "fanMAX"
+        assert format_value("open", "state") == "open state"
+
 
 class TestRenderParamTable:
     def test_empty_returns_empty_text(self):

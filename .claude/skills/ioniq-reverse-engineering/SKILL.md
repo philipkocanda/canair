@@ -277,6 +277,8 @@ is a rising-edge transition, so `investigate --events` reconstructs the timeline
 cleanly — but return-to-previous states (falling edges) and durations are dropped,
 so the session is tagged `keep_mode: unique` and analysis tools (`decode`/
 `correlate`/`investigate`) warn and caveat rate/duration math on that scope.
+(The live view renders only the newest few unique rows per PID to stay compact
+and fast; the full set is still kept in memory and the `--save` journal.)
 **When you need real timing/rate** (e.g. a continuous drive log for
 `correlate --transform delta`), use `--keep-all`.
 Throughput is governed by ELM commands/cycle — cut via header caching + service-22
