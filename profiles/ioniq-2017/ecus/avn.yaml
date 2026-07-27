@@ -22,8 +22,8 @@
 #
 AVN:
   tx_id: 0x780
-  alias: IVI # In-Vehicle Infotainment
   identity:
+    alias: IVI # In-Vehicle Infotainment
     description: Audio/Video/Navigation head unit
     serial: "00000076FE0085-003240"
     app_sw: "AE_EV EURSOP 12 017.1"
