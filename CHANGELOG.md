@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-07-27
+
+### Changed
+
+- **Read commands are dramatically faster on mature profiles.** YAML loading now
+  uses the libyaml-backed C parser (`CSafeLoader`) everywhere it was still on the
+  pure-Python parser — capture files, coverage/validate scans, and the profile/
+  config/states loaders. On a profile with tens of thousands of captures this
+  cuts commands that scan the capture store (e.g. `canair ecu <name>`, `coverage`,
+  `validate captures`) from several seconds to a fraction of a second (~6-10x
+  faster YAML parse, no behavioural change). Centralised in `canlib/yaml_io.py`.
+
+
 ## [1.3.1] - 2026-07-27
 
 ### Added
@@ -438,7 +451,8 @@ dongle (both the WiCAN Pro and the classic/non-Pro WiCAN are supported).
 - Command safety blocklist preventing UDS programming/write sessions against a
   real vehicle.
 
-[Unreleased]: https://github.com/philipkocanda/canair/compare/v1.3.1...HEAD
+[Unreleased]: https://github.com/philipkocanda/canair/compare/v1.3.2...HEAD
+[1.3.2]: https://github.com/philipkocanda/canair/compare/v1.3.1...v1.3.2
 [1.3.1]: https://github.com/philipkocanda/canair/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/philipkocanda/canair/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/philipkocanda/canair/compare/v1.1.0...v1.2.0
