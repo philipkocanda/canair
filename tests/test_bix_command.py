@@ -70,6 +70,13 @@ def test_parse_hex_payload_invalid_byte_names_token(capsys):
     assert "invalid hex byte 'ZZ'" in err
 
 
+@pytest.mark.parametrize("raw", ["", "   "])
+def test_parse_hex_payload_empty_exits(capsys, raw):
+    with pytest.raises(SystemExit):
+        bix._parse_hex_payload(raw)
+    assert "non-empty hex payload" in capsys.readouterr().err
+
+
 # ── --annotate --ecu/--pid parameter overlay (T3.1) ──
 
 

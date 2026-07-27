@@ -403,6 +403,9 @@ def _print_table(
 def _parse_hex_payload(raw: str) -> list[int]:
     """Parse a hex string (with or without spaces) into a list of byte values."""
     cleaned = raw.replace(" ", "").strip()
+    if not cleaned:
+        print("Error: --annotate requires a non-empty hex payload.", file=sys.stderr)
+        sys.exit(1)
     if len(cleaned) % 2 != 0:
         print(f"Error: odd number of hex characters in '{raw}'.", file=sys.stderr)
         sys.exit(1)
