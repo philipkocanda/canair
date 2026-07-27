@@ -65,9 +65,9 @@ class TestSignalsEdit:
         )
         import yaml
 
-        sig = yaml.safe_load((temp_profile.signals_dir / "b.yaml").read_text())[
-            "messages"
-        ]["0x354"]["signals"]["GEAR"]
+        sig = yaml.safe_load((temp_profile.signals_dir / "b.yaml").read_text())["messages"][
+            "0x354"
+        ]["signals"]["GEAR"]
         assert sig["source"].startswith("uhi22")
         assert validate._run_signals() == 0  # source is an accepted field
 

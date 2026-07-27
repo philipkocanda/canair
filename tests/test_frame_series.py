@@ -70,9 +70,7 @@ class TestFrameExpr:
 
     def test_little_endian_unsigned_is_shift_composition(self):
         # Previously "<no-expr>" — now an actionable shift form (matches wican_expr).
-        assert (
-            frame_series._frame_expr(1, ("u16", 2, "int", False), True) == "r1 | (r2 << 8)"
-        )
+        assert frame_series._frame_expr(1, ("u16", 2, "int", False), True) == "r1 | (r2 << 8)"
         assert (
             frame_series._frame_expr(0, ("u24", 3, "int", False), True)
             == "r0 | (r1 << 8) | (r2 << 16)"
@@ -163,9 +161,7 @@ class TestCorrelateCanLog:
         log = tmp_path / "mirror.log"
         log.write_text("\n".join(lines) + "\n")
         assert (
-            self._run(
-                [str(log), "--find-mirrors", "--min-n", "10", "--join-tol", "0.05", "--json"]
-            )
+            self._run([str(log), "--find-mirrors", "--min-n", "10", "--join-tol", "0.05", "--json"])
             == 0
         )
         import json
