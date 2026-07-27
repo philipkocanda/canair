@@ -47,6 +47,13 @@ class FakeController:
         self.show_rulers = False
         self.editor = editor
         self.last_queries = []
+        # Segment metadata surfaced by the header bar.
+        self.session_label = ""
+        self.session_states = []
+        self.session_notes = ""
+
+    def segment_title(self) -> str:
+        return self.session_label or self._query_label or "Monitor"
 
     async def poll_once(self):
         self.cycle += 1
@@ -397,6 +404,32 @@ class TestMonitorApp:
             await pilot.pause(0.2)
             status = _plain(app.query_one("#status").render())
             assert "captured" in status and "uniq" in status
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
+    async def test_header_shows_title_states_and_note(self):
+        ctrl = FakeController()
+        ctrl.session_label = "test drive"
+        ctrl.session_states = ["ready", "parked"]
+        ctrl.session_notes = "heater on high"
+        app = MonitorApp(ctrl)
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause(0.2)
+            header = _plain(app.query_one("#header").render())
+            assert "test drive" in header
+            assert "ready, parked" in header
+            assert "heater on high" in header
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
+    async def test_header_falls_back_to_query_label(self):
+        # No explicit label -> the polled query is the title; no note line.
+        ctrl = FakeController(query_label="BCM VCU:2101")
+        app = MonitorApp(ctrl)
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause(0.2)
+            header = _plain(app.query_one("#header").render())
+            assert "BCM VCU:2101" in header
             await pilot.press("q")
 
     @pytest.mark.asyncio

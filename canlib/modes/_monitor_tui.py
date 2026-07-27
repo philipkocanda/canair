@@ -313,6 +313,7 @@ class MonitorApp(HelpMixin, App):
 
     CSS = """
     Screen { layout: vertical; background: transparent; }
+    #header { dock: top; height: auto; max-height: 3; padding: 0 1; background: transparent; }
     #scroll { height: 1fr; scrollbar-gutter: stable; background: transparent; }
     #body { height: auto; padding: 0 1; background: transparent; }
     #status { dock: bottom; height: 2; padding: 0 1; background: transparent; }
@@ -357,6 +358,7 @@ class MonitorApp(HelpMixin, App):
 
     # -- layout ------------------------------------------------------------
     def compose(self) -> ComposeResult:
+        yield Static("", id="header", markup=True)
         with VerticalScroll(id="scroll"):
             yield Static(self.controller.render(), id="body", markup=False)
         yield Static("", id="status", markup=True)
@@ -376,6 +378,7 @@ class MonitorApp(HelpMixin, App):
         self.run_worker(self._poll_loop(), name="poll", exclusive=True)
         self.set_interval(0.25, self._update_status)
         self._update_status()
+        self._update_header()
 
     # -- polling -----------------------------------------------------------
     async def _poll_loop(self) -> None:
@@ -472,6 +475,34 @@ class MonitorApp(HelpMixin, App):
     def _editor(self):
         """The controller's edit collaborator, or None (older/fake controllers)."""
         return getattr(self.controller, "editor", None)
+
+    def _update_header(self) -> None:
+        """Render the top bar: current segment title + optional note/states.
+
+        Title is the user-set label (falling back to the polled-selectors
+        summary), so it's meaningful even without --save. The note line is
+        omitted when empty, keeping the header a single line by default.
+        """
+        try:
+            header = self.query_one("#header", Static)
+        except NoMatches:
+            return
+        c = self.controller
+        title_fn = getattr(c, "segment_title", None)
+        title = title_fn() if callable(title_fn) else getattr(c, "session_label", "")
+        states = getattr(c, "session_states", None) or []
+        notes = (getattr(c, "session_notes", "") or "").replace("\n", " ").strip()
+
+        line1 = f"[b cyan]{title or 'Monitor'}[/]"
+        if states:
+            line1 += f"  [dim]· {', '.join(states)}[/]"
+        lines = [line1]
+        if notes:
+            width = max(20, (self.size.width or 80) - 4)
+            if len(notes) > width:
+                notes = notes[: width - 1] + "…"
+            lines.append(f"[dim]{notes}[/]")
+        header.update("\n".join(lines))
 
     def _edit_status_line(self) -> str:
         """Second status line: current selection, active filter, and edit keys."""
@@ -703,6 +734,7 @@ class MonitorApp(HelpMixin, App):
             except Exception as exc:  # keep the TUI alive on any save error
                 msg = f"Save failed: {exc}"
             self._flash(msg)
+            self._update_header()
 
         self.push_screen(
             SaveDialog(
@@ -732,6 +764,7 @@ class MonitorApp(HelpMixin, App):
             except Exception as exc:  # keep the TUI alive on any error
                 msg = f"New segment failed: {exc}"
             self._flash(msg)
+            self._update_header()
 
         self.push_screen(
             SaveDialog(

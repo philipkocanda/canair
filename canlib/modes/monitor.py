@@ -247,6 +247,13 @@ class MonitorController:
         # save (the fallback --save-off path), per PID key. Repeated 's' presses
         # only write rows beyond this, so a payload is never saved twice in one run.
         self._saved_counts: dict[tuple[str, str], int] = {}
+        # Current --save segment metadata (label/states/notes), surfaced by the
+        # TUI header. Kept in sync as the initial journal is opened and whenever
+        # the user edits (`s`) or rotates a segment (`n`); the journal itself only
+        # keeps these in its write-ahead log, so we mirror them here for display.
+        self.session_label = ""
+        self.session_notes = ""
+        self.session_states: list[str] = []
         self.disconnected = False
         # Write-ahead journal (durability): when --save is on, every polled
         # payload is appended here as it arrives and reconciled into a capture
@@ -593,6 +600,25 @@ class MonitorController:
             parts.append(f"{ecu}:{','.join(pids)}" if pids else ecu)
         return " ".join(parts)
 
+    def segment_title(self) -> str:
+        """Display title for the current session/segment.
+
+        The user-set label when present, else the polled-selectors summary, so
+        the TUI header is meaningful even before (or without) a --save label.
+        """
+        return self.session_label or self.query_label() or "Monitor"
+
+    def _set_segment_meta(
+        self, label: str | None, states: list[str] | None, notes: str | None
+    ) -> None:
+        """Mirror the journal's last-wins metadata onto the display fields."""
+        if label:
+            self.session_label = label
+        if states:
+            self.session_states = list(states)
+        if notes is not None:
+            self.session_notes = notes
+
     def suggested_state(self) -> str | None:
         """Auto-suggest the vehicle state from the latest decoded values.
 
@@ -643,6 +669,7 @@ class MonitorController:
         if self.journal is not None:
             with contextlib.suppress(Exception):
                 self.journal.update_meta(label, states, notes)
+            self._set_segment_meta(label, states, notes)
             if states:
                 self._state_explicit = True
             return f"Metadata set (label={label!r}); session auto-saves on exit."
@@ -713,6 +740,10 @@ class MonitorController:
 
         self.journal = _open_journal(self, label, states, notes)
         self._state_explicit = bool(states)
+        # Reset the display metadata to the new segment's (label always set here).
+        self.session_label = label or ""
+        self.session_states = list(states or [])
+        self.session_notes = notes or ""
 
         if written is not None:
             return f"Segment saved → {written.name}; recording new segment ({label!r})."
@@ -827,6 +858,10 @@ async def mode_monitor(
         include_static=include_static,
     )
     controller.captures_dir = captures_dir
+    # Seed the header's segment metadata from the initial --label/--state/--notes.
+    controller.session_label = label or ""
+    controller.session_states = list(states or [])
+    controller.session_notes = notes or ""
 
     # --save: open the write-ahead journal up front so every polled payload is
     # durably recorded as it arrives. On a clean stop we reconcile it into a

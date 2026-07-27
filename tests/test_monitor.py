@@ -536,6 +536,29 @@ class TestControllerSnapshot:
         assert _c(keep_mode="last", keep_n=25)._history_render_limit() == 25
         assert _c(keep_mode="all")._history_render_limit() == _RENDER_MAX_ROWS
 
+    def test_segment_title_and_meta(self):
+        from canlib.modes.monitor import MonitorController
+
+        c = MonitorController(
+            terminal=None,
+            query_steps=[{"ecu": "BCM", "pids": []}, {"ecu": "VCU", "pids": ["2101"]}],
+            pids_data={},
+            verbose=False,
+        )
+        # No label -> falls back to the polled-selectors summary.
+        assert c.segment_title() == "BCM VCU:2101"
+        # Metadata sync is last-wins on non-None; a label overrides the title.
+        c._set_segment_meta("drive A", ["driving"], "hard accel")
+        assert c.segment_title() == "drive A"
+        assert c.session_states == ["driving"]
+        assert c.session_notes == "hard accel"
+        # None fields leave prior values intact...
+        c._set_segment_meta(None, None, None)
+        assert c.session_label == "drive A" and c.session_notes == "hard accel"
+        # ...but an explicit empty note clears it (mirrors journal update_meta).
+        c._set_segment_meta(None, None, "")
+        assert c.session_notes == ""
+
     def test_save_now(self, tmp_path):
         c = self._controller()
         c.captures_dir = tmp_path
