@@ -2,8 +2,8 @@
 # Head unit at 0x780. Firmware: AE_EV EURSOP 12 017.1
 # No live data DIDs discovered yet. Service 22 ranges untested.
 # 
-# Runs Hyundai/MOBIS D-Audio 2V software, see:
-# https://programmingwithstyle.com/posts/howihackedmycar
+# Runs Hyundai/MOBIS D-Audio 2V.
+# Linux kernel, Yocto-based root filesystem, systemd for service management.
 #
 # This unit is what is used to set:
 # - The two cabin preconditioning schedules
@@ -12,8 +12,12 @@
 # - Portable ("granny charger") AC charging power
 # - Default/Eco/Sport profiles (regen level and climate ECO setting)
 #
-# TODO: Add details on how schedules are defined
+# TODO: Add details on how schedules are defined exactly!
 # 
+# Links/sources: 
+# - Connector pinouts: https://gitlab.com/g4933/wideopen/-/wikis/Unit/Pinouts
+# - Firmware update hacking: https://programmingwithstyle.com/posts/howihackedmycar
+#
 AVN:
   tx_id: 0x780
   alias: IVI # In-Vehicle Infotainment 
