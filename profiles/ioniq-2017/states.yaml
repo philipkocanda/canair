@@ -10,6 +10,13 @@
 # parameters as ECU.PARAM. See canlib/states.py for the grammar.
 #
 # Schema: canlib/schema/states_schema.yaml   (canair validate states)
+#
+# TODO:
+# - Take into account power states:
+# - IGN0 (OFF)
+# - IGN1 (ACC)
+# - IGN2 (ON/READY)
+# - IGN3 (START) (cranking on ICE cars)
 
 states:
   # Actively charging — BMS current is negative while charging (verified), and
