@@ -9,7 +9,7 @@ usage: canair routines [-h] [--rid RID] [--sf SF] [--wican WICAN]
                        [--reboot] [--unsafe] [--force]
                        [ECU]
 
-RoutineControl (0x31): interactive TUI, or single command with --rid.
+[UDS] RoutineControl (0x31): interactive TUI, or single command with --rid.
 
 positional arguments:
   ECU                   ECU name (e.g. BCM)

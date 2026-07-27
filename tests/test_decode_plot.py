@@ -248,3 +248,169 @@ class TestOverlayCycle:
     def test_unknown_ref_restarts(self):
         # A stale ref not in the cycle restarts from the first entry.
         assert dp._cycle_overlay("GONE", [None, "A"]) == "A"
+
+
+# ---------------------------------------------------------------------------
+# PlotModel (state + rendering extracted for the Textual port) and PlotApp
+# ---------------------------------------------------------------------------
+
+import pytest  # noqa: E402
+
+from canlib.commands._decode_plot import INSPECT_TYPES, PlotModel  # noqa: E402
+
+
+def _plot_results(values, pid="2101", ecu="BMS"):
+    out = []
+    for i, v in enumerate(values):
+        out.append(
+            {
+                "capture": {
+                    "payload": "6101" + f"{int(v) & 0xFF:02X}" + "00",
+                    "date": "2026-07-22",
+                    "time": f"12:00:{i:02d}",
+                    "ecu": ecu,
+                    "pid": pid,
+                },
+                "decoded": {"P": {"value": float(v)}},
+            }
+        )
+    return out
+
+
+def _plot_model(values=(1, 2, 3, 4, 5)):
+    results = _plot_results(values)
+    params = {"P": {"expression": "B4", "verified": True}}
+    return PlotModel(results, ["P"], params, set(), None, "BMS", "2101", defined_params=params)
+
+
+class TestPlotModel:
+    def test_initial_state_bytes_mode(self):
+        m = _plot_model()
+        assert m.mode == "bytes"
+        assert not m.empty
+        assert any("BMS 2101" in ln for ln in m.render_lines())
+
+    def test_toggle_mode_and_param_render(self):
+        m = _plot_model()
+        m.toggle_mode()
+        assert m.mode == "param"
+        assert m.current_param_name() == "P"
+        assert any("P" in ln for ln in m.render_lines())
+
+    def test_offset_navigation_clamps(self):
+        m = _plot_model()
+        for _ in range(100):
+            m.move_right()
+        assert m.offset == m.max_off
+        for _ in range(100):
+            m.move_left()
+        assert m.offset == 0
+
+    def test_type_cycle_wraps(self):
+        m = _plot_model()
+        m.ti = len(INSPECT_TYPES) - 1
+        m.type_next()
+        assert m.ti == 0
+        m.type_prev()
+        assert m.ti == len(INSPECT_TYPES) - 1
+
+    def test_transform_cycle(self):
+        m = _plot_model()
+        assert m.tmode == "raw"
+        m.cycle_transform()
+        assert m.tmode != "raw"
+
+    def test_zoom_and_reset(self):
+        m = _plot_model()
+        m.zoom_in()
+        assert (m.xlo, m.xhi) != (0.0, 1.0)
+        m.reset_x()
+        assert (m.xlo, m.xhi) == (0.0, 1.0)
+
+    def test_current_expr_bytes_mode(self):
+        m = _plot_model()
+        m.offset = 4
+        m.ti = 0  # u8
+        assert m.current_expr() == "B4"
+
+    def test_empty_model(self):
+        assert PlotModel([], [], {}, set(), None, "BMS", "2101").empty
+
+
+class TestPlotApp:
+    @pytest.mark.asyncio
+    async def test_renders_and_navigates(self):
+        from canlib.commands._decode_plot_tui import PlotApp
+
+        app = PlotApp(_plot_model())
+        async with app.run_test(size=(110, 30)) as pilot:
+            await pilot.pause(0.1)
+            body = app.query_one("#body").render()
+            plain = body.plain if hasattr(body, "plain") else str(body)
+            assert "BMS 2101" in plain
+            await pilot.press("m")  # to param mode
+            await pilot.pause(0.05)
+            assert app.model.mode == "param"
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
+    async def test_help_modal(self):
+        from canlib.commands._decode_plot_tui import PlotApp
+        from canlib.tui_help import HelpModal
+
+        app = PlotApp(_plot_model())
+        async with app.run_test(size=(110, 30)) as pilot:
+            await pilot.pause(0.1)
+            await pilot.press("question_mark")
+            await pilot.pause(0.1)
+            assert isinstance(app.screen, HelpModal)
+            await pilot.press("escape")
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
+    async def test_pid_switch_reloads_model(self):
+        from canlib.commands._decode_plot_tui import PlotApp
+
+        other = _plot_model((9, 8, 7))
+        other.ecu_key, other.pid_key = "VCU", "2102"
+
+        def reload(ecu, pid):
+            return other if (ecu, pid) == ("VCU", "2102") else None
+
+        app = PlotApp(_plot_model(), reload_pid=reload, pid_options=[("VCU", "2102")])
+        async with app.run_test(size=(110, 30)) as pilot:
+            await pilot.pause(0.1)
+            await pilot.press("p")
+            await pilot.pause(0.1)
+            await pilot.press("enter")  # select the only option
+            await pilot.pause(0.1)
+            assert app.model is other
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
+    async def test_annotate_param_calls_upsert(self, monkeypatch):
+        from canlib.commands._decode_plot_tui import PlotApp
+
+        calls = []
+
+        def fake_upsert(ecu, pid, name, expr, **kw):
+            calls.append((ecu, pid, name, expr, kw))
+            return None
+
+        monkeypatch.setattr("canlib.pids_edit.upsert_parameter", fake_upsert)
+
+        app = PlotApp(_plot_model())
+        async with app.run_test(size=(110, 30)) as pilot:
+            await pilot.pause(0.1)
+            await pilot.press("m")  # param mode -> annotate current param P
+            await pilot.pause(0.05)
+            await pilot.press("a")
+            await pilot.pause(0.1)
+            from textual.widgets import Input
+
+            app.screen.query_one("#prompt-input", Input).value = "a note"
+            await pilot.press("enter")
+            await pilot.pause(0.1)
+            assert calls and calls[0][2] == "P"
+            assert calls[0][4].get("notes") == "a note"
+            await pilot.press("q")

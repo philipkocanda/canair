@@ -10,7 +10,7 @@ usage: canair raw [-h] [--session] [--hold] [--wake] [--save] [--label TEXT]
                   [--reboot] [--unsafe] [--force]
                   TX:PID
 
-Send a raw UDS request (hex in, hex out).
+[UDS] Send a raw UDS request (hex in, hex out).
 
 positional arguments:
   TX:PID                Raw UDS request (e.g. 7E4:2101)

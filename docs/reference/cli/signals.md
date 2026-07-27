@@ -5,7 +5,7 @@
 ```
 usage: canair signals [-h] {list,upsert,rm} ...
 
-``canair signals`` — view/edit broadcast signal definitions (domain B).
+[CAN] ``canair signals`` — view/edit broadcast signal definitions (domain B).
 
 The broadcast-frame (domain-B) authoring counterpart to ``canair pids`` (which
 authors domain-A diagnostic UDS PID params): manage the ``signals/<bus>.yaml``

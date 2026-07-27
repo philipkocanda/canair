@@ -5,7 +5,7 @@
 ```
 usage: canair export [-h] {dbc} ...
 
-``canair export`` — export canair data to interchange formats.
+[CAN] ``canair export`` — export canair data to interchange formats.
 
 Currently: ``export dbc`` writes the profile's broadcast signal definitions
 (``signals/<bus>.yaml``, domain B) to a DBC via cantools, so they're consumable

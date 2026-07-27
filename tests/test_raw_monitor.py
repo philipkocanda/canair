@@ -14,8 +14,9 @@ class _Args:
 
 
 class TestKeepMode:
-    def test_none(self):
-        assert _keep_mode(_Args()) is None
+    def test_default_is_unique(self):
+        # No keep flag defaults to unique-dedup (keeps capture files small).
+        assert _keep_mode(_Args()) == "unique"
 
     def test_unique(self):
         assert _keep_mode(_Args(keep_unique=True)) == "unique"

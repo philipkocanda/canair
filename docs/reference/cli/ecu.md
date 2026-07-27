@@ -5,7 +5,7 @@
 ```
 usage: canair ecu [-h] <kind> ...
 
-Inspect or edit the profile's ECU registry.
+[UDS] Inspect or edit the profile's ECU registry.
   show   list ECUs, or show one ECU's details and PID stats (default)
   add    register a new ECU in the active profile's ecus/ (offline)
 

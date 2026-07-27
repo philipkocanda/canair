@@ -506,13 +506,16 @@ confirms it. A bad expression shows `ERROR` rather than hiding.
 
 **`--plot` (interactive signal explorer)** is the fastest way to *find* a signal
 when you don't yet have a candidate expression. It works even on a not-yet-defined
-PID (raw payloads only). Keys:
+PID (raw payloads only). It's a Textual TUI (same look/feel as the query monitor);
+keys:
 - `←`/`→` move the byte offset (byte mode) or switch parameter (param mode)
 - `t`/`T` cycle the interpretation type (`u8 i8 u16 i16 u24 i24 u32 i32 u64 i64 f16 f32 f64`)
 - `e` toggle endianness · `f` cycle post-transform (`raw delta abs cumsum normalize smooth`)
-- `+`/`-` zoom the x-axis · `,`/`.` pan · `0` reset x-range
+- `+`/`-` (or `=`/`-`) zoom the x-axis · `,`/`.` pan · `0` reset x-range
 - `i` toggle a modal listing the captures behind the current view (date/time, state, label, notes, file)
-- `m` toggle byte↔param source · `o` overlay the `--corr` reference (with live Pearson r) · `q` quit
+- `m` toggle byte↔param source · `o` overlay the `--corr` reference (with live Pearson r)
+- `p` switch to another captured PID in place · `a` annotate the current param/byte (writes via `canair pids`) · `R` rename the current PID
+- `?` keybinding help modal · `q` quit
 
 The caption under the chart shows the visible capture index range **and its
 date/time span**, both tracking zoom/pan, so you always know which captures —

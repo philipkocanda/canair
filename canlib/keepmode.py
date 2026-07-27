@@ -29,3 +29,19 @@ def scope_is_keep_unique(captures) -> bool:
         if isinstance(c, dict) and str(c.get("keep_mode") or "") == "unique":
             return True
     return False
+
+
+def keep_mode_from_args(args) -> str:
+    """Resolve the monitor keep-mode from parsed ``--keep*`` flags.
+
+    The default is ``"unique"`` (rising-edge dedup) so a ``--monitor --save``
+    session doesn't balloon its capture file with every polled duplicate. Explicit
+    overrides: ``--keep-all`` → ``"all"`` (full time-series), ``--keep N`` →
+    ``"last"``. Shared by both the ELM and raw-CAN monitor paths so the default
+    can't drift between transports.
+    """
+    if getattr(args, "keep_all", False):
+        return "all"
+    if getattr(args, "keep", None):
+        return "last"
+    return "unique"

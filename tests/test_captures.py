@@ -487,7 +487,7 @@ class TestCmdStepPair:
         out = capsys.readouterr().out
         assert "two distinct ECU:PID" in out
 
-    def _render(self, caps, tol_s=2.5, frame=0):
+    def _render(self, caps, tol_s=2.5, frame=0, aliases=None):
         import io
 
         from rich.console import Console
@@ -506,6 +506,7 @@ class TestCmdStepPair:
             key_a=key_a,
             key_b=key_b,
             tol_s=tol_s,
+            aliases=aliases,
         )
         return buf.getvalue()
 
@@ -518,6 +519,16 @@ class TestCmdStepPair:
         assert "VCU" in text and "BMS" in text
         assert "pair 1/1" in text
         assert "Δt=1.00s" in text
+
+    def test_render_pair_frame_shows_alias_when_present(self):
+        caps = [
+            _entry(ecu="SKM", pid="2101", payload="6101AA", time="12:00:00"),
+            _entry(ecu="BMS", pid="2101", payload="6101BB", time="12:00:01"),
+        ]
+        text = self._render(caps, aliases={"SKM": "SMK"})
+        assert "alias SMK" in text
+        # An ECU without an alias entry shows no alias tag.
+        assert "alias BMS" not in text
 
     def test_render_pair_frame_shows_missing_side(self):
         caps = [

@@ -45,10 +45,11 @@ from canlib.capture_dates import (
     add_scope_args,
     filter_by_date_range,
     filter_by_text,
-    resolve_date_bounds,
+    resolve_scope_bounds,
 )
 from canlib.commands._decode_plot import (
     POST_TRANSFORMS,
+    PlotModel,
     apply_transform,
     cmd_plot,
 )
@@ -1061,6 +1062,74 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     return parser
 
 
+def _plot_pid_options() -> list[tuple[str, str]]:
+    """Distinct ``(ECU, PID)`` pairs that have payload captures, for the --plot switcher."""
+    from canlib.commands._captures_query import load_all_captures
+
+    seen: dict[tuple[str, str], None] = {}
+    try:
+        for e in load_all_captures():
+            if not e.get("payload"):
+                continue
+            ecu = str(e.get("ecu", "")).upper()
+            pid = str(e.get("pid", "")).upper()
+            if ecu and pid:
+                seen.setdefault((ecu, pid), None)
+    except Exception:
+        return []
+    return sorted(seen)
+
+
+def _build_plot_model(args, ecu: str, pid: str) -> PlotModel | None:
+    """(Re)build a :class:`PlotModel` for ``ecu``/``pid`` reusing ``args`` scope.
+
+    Used by the --plot TUI's in-place PID switch. Carries the date/state/label
+    scope, but not --try/--corr (those were bound to the originally-selected PID).
+    Returns None when the target has no plottable captures.
+    """
+    ecu_key = ecu.upper()
+    pid_key = pid.upper()
+    since, until, err = resolve_scope_bounds(args)
+    if err:
+        return None
+    scope = {
+        "since": since,
+        "until": until,
+        "state": args.state,
+        "label": args.label,
+        "first": args.first,
+        "last": args.last,
+    }
+    pids_data = load_pids()
+    ecu_index = build_ecu_index(pids_data)
+    parameters: dict = {}
+    if ecu_key in ecu_index:
+        parameters = ecu_index[ecu_key]["pids"].get(pid_key, {}).get("parameters", {}) or {}
+    defined_params = dict(parameters)
+
+    captures = scope_captures(load_captures(ecu_key, pid_key), **scope)
+    all_results: list[dict] = []
+    for cap in captures:
+        try:
+            wican_bytes = payload_to_wican_bytes(cap["payload"])
+        except Exception as e:
+            all_results.append({"capture": cap, "decoded": {}, "error": str(e)})
+            continue
+        all_results.append({"capture": cap, "decoded": decode_payload(wican_bytes, parameters)})
+
+    model = PlotModel(
+        all_results,
+        list(parameters.keys()),
+        parameters,
+        set(),
+        None,
+        ecu_key,
+        pid_key,
+        defined_params=defined_params,
+    )
+    return None if model.empty else model
+
+
 def run(args) -> int:
     # Friendly guidance when the ECU/PID selectors are missing.
     if not args.ecu:
@@ -1085,7 +1154,7 @@ def run(args) -> int:
     tolerate_missing = bool(args.try_expr) or args.plot or args.find_mirrors
 
     # Resolve date scoping (--date shorthand for equal since/until; validated here).
-    since, until, err = resolve_date_bounds(args)
+    since, until, err = resolve_scope_bounds(args)
     if err:
         print(f"error: {err}", file=sys.stderr)
         return 2
@@ -1265,6 +1334,8 @@ def run(args) -> int:
             ecu_key,
             pid_key,
             defined_params=defined_params,
+            reload_pid=lambda e, p: _build_plot_model(args, e, p),
+            pid_options=_plot_pid_options(),
         )
         return 0
 

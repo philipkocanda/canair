@@ -14,14 +14,18 @@ from textual.binding import Binding
 from textual.containers import VerticalScroll
 from textual.widgets import Static
 
+from canlib.tui_help import HelpMixin
+
 if TYPE_CHECKING:
     from canlib.commands.sniff import SniffStats
 
 import time
 
 
-class SniffApp(App):
+class SniffApp(HelpMixin, App):
     """Live per-ID sniff table."""
+
+    HELP_TITLE = "canair sniff — keyboard shortcuts"
 
     CSS = """
     Screen { layout: vertical; background: transparent; }
@@ -33,6 +37,7 @@ class SniffApp(App):
     BINDINGS: ClassVar[list[Binding]] = [
         Binding("q", "quit", "quit", priority=True),
         Binding("ctrl+c", "quit", "quit", show=False, priority=True),
+        Binding("question_mark", "help", "help"),
         Binding("c", "clear", "clear"),
     ]
 
@@ -65,7 +70,7 @@ class SniffApp(App):
             self.query_one("#status", Static).update(
                 f"[dim]sniff[/] {self.host} [dim]·[/] {len(rows)} IDs [dim]·[/] "
                 f"{self.stats.total_frames} frames [dim]·[/] {elapsed:.0f}s"
-                "    [dim]c clear · q quit[/]"
+                "    [dim]? help · c clear · q quit[/]"
             )
         except Exception:  # transient teardown query misses are harmless
             return

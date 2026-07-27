@@ -9,7 +9,7 @@ usage: canair identity [-h] [--session] [--wake] [--protocol {auto,uds,kwp}]
                        [--verbose] [--timings] [--reboot] [--unsafe] [--force]
                        ECU
 
-Query ECU identity data and decode it. Supports UDS (22 F1xx) and KWP2000 (1A 8x/9x) ECUs; the protocol is auto-selected from the profile registry or an on-device probe (override with --protocol).
+[UDS] Query ECU identity data and decode it. Supports UDS (22 F1xx) and KWP2000 (1A 8x/9x) ECUs; the protocol is auto-selected from the profile registry or an on-device probe (override with --protocol).
 
 positional arguments:
   ECU                   ECU name or TX ID (e.g. IGPM or 770)

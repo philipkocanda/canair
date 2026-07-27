@@ -10,7 +10,7 @@ usage: canair discover [-h] [--range START-END] [--delay DELAY] [--register]
                        [--timeout SECONDS] [--json] [--verbose] [--timings]
                        [--reboot] [--unsafe] [--force]
 
-Sweep a range of TX addresses (sends 10 01 to each) to find ECUs.
+[UDS] Sweep a range of TX addresses (sends 10 01 to each) to find ECUs.
 
 options:
   -h, --help            show this help message and exit

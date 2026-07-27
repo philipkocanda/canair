@@ -7,7 +7,7 @@ usage: canair bix [-h] [-1] [-2] [--table] [--annotate HEX [HEX ...]] [--raw]
                   [--torque] [--obdb] [--max MAX] [--ecu ECU] [--pid PID]
                   [value]
 
-Convert byte indices between WiCAN, ISO-TP, Torque, and OBDb notations.
+[UDS] Convert byte indices between WiCAN, ISO-TP, Torque, and OBDb notations.
 
 positional arguments:
   value                 Index to convert (see formats below)

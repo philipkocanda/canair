@@ -73,7 +73,7 @@ from canlib.capture_dates import (
     add_scope_args,
     filter_by_date_range,
     filter_by_text,
-    resolve_date_bounds,
+    resolve_scope_bounds,
 )
 from canlib.commands._captures_query import (
     _BOLD,
@@ -867,7 +867,7 @@ def run(args) -> int:
         return 2
 
     # Resolve date scoping (--date is shorthand for an equal since/until pair).
-    since, until, err = resolve_date_bounds(args)
+    since, until, err = resolve_scope_bounds(args)
     if err:
         print(f"error: {err}", file=sys.stderr)
         return 2

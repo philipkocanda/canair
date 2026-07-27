@@ -5,7 +5,7 @@
 ```
 usage: canair scan [-h] <kind> ...
 
-Scan an ECU. Choose a kind:
+[UDS] Scan an ECU. Choose a kind:
   range      sweep a PID/DID range (general purpose)
   iocontrol  SAFE IOControl discovery (UDS 0x2F / KWP2000 0x30, auto)
   routines   SAFE RoutineControl discovery (UDS 0x31 SF03 / KWP2000 0x33, auto)

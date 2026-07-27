@@ -34,6 +34,7 @@ from canlib import (
     log_command,
     reboot_wican,
 )
+from canlib.keepmode import keep_mode_from_args
 from canlib.lock import WiCANLock
 from canlib.modes import (
     mode_discover,
@@ -552,9 +553,7 @@ async def dispatch_mode(args, terminal, pids_data, host):
             args.verbose,
             interval=args.monitor,
             session_steps=session_steps,
-            keep_mode="unique"
-            if args.keep_unique
-            else ("all" if args.keep_all else ("last" if args.keep else None)),
+            keep_mode=keep_mode_from_args(args),
             keep_n=args.keep,
             save=args.save,
             show_rulers=args.rulers,
