@@ -1047,7 +1047,14 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     parser.add_argument(
         "pid", nargs="?", help="PID code (e.g., 2101, 22BC03)"
     ).completer = _pid_completer
-    parser.add_argument("--param", nargs="+", metavar="NAME", help="Show only specific parameters")
+    parser.add_argument(
+        "--param",
+        action="extend",
+        nargs="+",
+        metavar="NAME",
+        help="Show only specific parameters (repeatable and/or space-separated: "
+        "--param A B or --param A --param B)",
+    )
     parser.add_argument("--verified", action="store_true", help="Show only verified parameters")
     parser.add_argument("--unverified", action="store_true", help="Show only unverified parameters")
     parser.add_argument(
