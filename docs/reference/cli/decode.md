@@ -26,7 +26,8 @@ positional arguments:
 options:
   -h, --help            show this help message and exit
   --param NAME [NAME ...]
-                        Show only specific parameters
+                        Show only specific parameters (repeatable and/or
+                        space-separated: --param A B or --param A --param B)
   --verified            Show only verified parameters
   --unverified          Show only unverified parameters
   --json                Output as JSON (per-capture decoded values)

@@ -20,10 +20,10 @@ Subcommands:
   mode set MODE               Switch the device protocol/mode and reboot (Pro)
 
 Examples:
-  canair wican autopid write                  # write out/autopid.json
-  canair wican autopid write --verified-only  # only verified parameters
-  canair wican autopid upload --reboot        # upload + reboot to apply
-  canair wican autopid diff --wican home      # compare device vs generated
+  canair wican autopid write                       # verified-only out/autopid.json
+  canair wican autopid write --include-unverified  # also include unverified params
+  canair wican autopid upload --reboot             # upload + reboot to apply
+  canair wican autopid diff --wican home           # compare device vs generated
   canair wican mode set slcan                 # raw CAN; `auto_pid` to restore
 """
 
@@ -584,7 +584,14 @@ def _add_autopid_parser(groups) -> argparse.ArgumentParser:
         "active bundle's out/autopid.json.",
     )
     write.add_argument(
-        "--verified-only", action="store_true", help="Only include verified parameters"
+        "--include-unverified",
+        action="store_true",
+        help="Include unverified parameters (default: verified only)",
+    )
+    write.add_argument(
+        "--verified-only",
+        action="store_true",
+        help=argparse.SUPPRESS,  # deprecated no-op: verified-only is the default
     )
     write.add_argument(
         "--out",
@@ -602,7 +609,14 @@ def _add_autopid_parser(groups) -> argparse.ArgumentParser:
         "device (POST /store_car_data). WiCAN Pro only.",
     )
     upload.add_argument(
-        "--verified-only", action="store_true", help="Only include verified parameters"
+        "--include-unverified",
+        action="store_true",
+        help="Include unverified parameters (default: verified only)",
+    )
+    upload.add_argument(
+        "--verified-only",
+        action="store_true",
+        help=argparse.SUPPRESS,  # deprecated no-op: verified-only is the default
     )
     upload.add_argument("--reboot", action="store_true", help="Reboot the device after upload")
     _add_wican_arg(upload)
@@ -624,7 +638,14 @@ def _add_autopid_parser(groups) -> argparse.ArgumentParser:
         "parameter-level diff against the freshly generated one. WiCAN Pro only.",
     )
     diff.add_argument(
-        "--verified-only", action="store_true", help="Only include verified parameters"
+        "--include-unverified",
+        action="store_true",
+        help="Include unverified parameters (default: verified only)",
+    )
+    diff.add_argument(
+        "--verified-only",
+        action="store_true",
+        help=argparse.SUPPRESS,  # deprecated no-op: verified-only is the default
     )
     _add_wican_arg(diff)
     diff.set_defaults(_wican_func=_cmd_autopid_diff)
@@ -684,6 +705,15 @@ def _add_mode_parser(groups) -> argparse.ArgumentParser:
 # ---------------------------------------------------------------------------
 
 
+def _verified_only(args) -> bool:
+    """Resolve whether to emit verified-only parameters.
+
+    Verified-only is the default; ``--include-unverified`` opts out. The legacy
+    ``--verified-only`` flag is accepted as a no-op for back-compat.
+    """
+    return not getattr(args, "include_unverified", False)
+
+
 def _generate(args) -> tuple[dict, dict]:
     """Load the active bundle and generate the AutoPID profile (grouped format)."""
     from canlib.profile import active
@@ -691,10 +721,11 @@ def _generate(args) -> tuple[dict, dict]:
     print(f"Loading {active().ecus_dir}")
     data = load_yaml()
 
-    label = " (verified only)" if getattr(args, "verified_only", False) else ""
+    verified_only = _verified_only(args)
+    label = "" if getattr(args, "include_unverified", False) else " (verified only)"
     print(f"\nGenerating AutoPID profile{label}...")
     try:
-        profile = generate_profile(data, getattr(args, "verified_only", False))
+        profile = generate_profile(data, verified_only)
     except DuplicateParameterError as e:
         print(f"error: {e}", file=sys.stderr)
         sys.exit(1)

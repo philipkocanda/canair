@@ -6,13 +6,14 @@ profile so others with the same vehicle benefit.
 
 ## Generate the WiCAN AutoPID JSON
 
-`canair wican autopid write` renders your profile's parameters into the JSON
-format the WiCAN's AutoPID feature consumes, written to the bundle's
-`out/autopid.json`:
+`canair wican autopid write` renders your profile's **verified** parameters into
+the JSON format the WiCAN's AutoPID feature consumes, written to the bundle's
+`out/autopid.json` (pass `--include-unverified` to also ship in-progress
+candidates):
 
 ```bash
-canair wican autopid write
-canair wican autopid write --verified-only   # ship only what you've confirmed
+canair wican autopid write                    # verified-only — ship what you've confirmed
+canair wican autopid write --include-unverified  # also include in-progress candidates
 ```
 
 On a **WiCAN Pro**, you can sync it to the device directly (these are Pro-only):

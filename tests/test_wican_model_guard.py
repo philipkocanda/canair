@@ -59,10 +59,19 @@ class TestParserWiring:
         assert args._wican_func(args) == 1
 
     def test_autopid_write_dispatch(self):
-        args = _parse("wican", "autopid", "write", "--verified-only")
+        args = _parse("wican", "autopid", "write", "--include-unverified")
         assert args.func is wican.run
         assert args._wican_func is wican._cmd_autopid_write
-        assert args.verified_only is True
+        assert args.include_unverified is True
+
+    def test_autopid_write_defaults_to_verified_only(self):
+        args = _parse("wican", "autopid", "write")
+        assert args.include_unverified is False
+        assert wican._verified_only(args) is True
+
+    def test_autopid_write_include_unverified_opts_out(self):
+        args = _parse("wican", "autopid", "write", "--include-unverified")
+        assert wican._verified_only(args) is False
 
     def test_autopid_upload_dispatch(self):
         args = _parse("wican", "autopid", "upload", "--reboot")

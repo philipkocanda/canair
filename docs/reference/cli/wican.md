@@ -45,10 +45,10 @@ Subcommands:
   mode set MODE               Switch the device protocol/mode and reboot (Pro)
 
 Examples:
-  canair wican autopid write                  # write out/autopid.json
-  canair wican autopid write --verified-only  # only verified parameters
-  canair wican autopid upload --reboot        # upload + reboot to apply
-  canair wican autopid diff --wican home      # compare device vs generated
+  canair wican autopid write                       # verified-only out/autopid.json
+  canair wican autopid write --include-unverified  # also include unverified params
+  canair wican autopid upload --reboot             # upload + reboot to apply
+  canair wican autopid diff --wican home           # compare device vs generated
   canair wican mode set slcan                 # raw CAN; `auto_pid` to restore
 ```
 
