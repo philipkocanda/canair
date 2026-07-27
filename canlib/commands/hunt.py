@@ -358,6 +358,22 @@ def run(args) -> int:
     pid = args.pid.upper()
 
     if args.physical:
+        ignored = [
+            flag
+            for flag, active in (
+                ("--control", args.control),
+                ("--control-file", args.control_file),
+                ("--transform", args.transform not in (None, "raw")),
+                ("--method", args.method != "pearson"),
+            )
+            if active
+        ]
+        if ignored:
+            print(
+                f"warning: --physical ignores {', '.join(ignored)} "
+                "(it scans value plausibility, not a reference correlation).",
+                file=sys.stderr,
+            )
         return _run_physical(args, ecu, pid, since, until)
 
     if args.control and args.control_file:

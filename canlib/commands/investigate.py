@@ -319,11 +319,6 @@ def run(args) -> int:
     # Target byte series (min_distinct=2 so near-binary relay bytes count).
     target = build_byte_series(lp, min_distinct=2)
 
-    # Physical-band hits per starting offset (plausibility, needs no reference).
-    from canlib.xanalysis import physical_scan
-
-    physical_by_off = {h.offset: f"{h.scaling}·{h.expr} ≈ {h.band}" for h in physical_scan(lp)}
-
     # Which offsets/bits are already mapped by a defined param, and at what confidence.
     ecu_index = build_ecu_index(load_pids())
     params_def = ecu_index.get(ecu.upper(), {}).get("pids", {}).get(pid, {}).get("parameters", {})
@@ -339,6 +334,12 @@ def run(args) -> int:
     if args.events:
         _print_events(ecu, pid, lp, mapped, mapped_bit, args, params_def)
         return 0
+
+    # Physical-band hits per starting offset (plausibility, needs no reference).
+    # Computed after the --events short-circuit so it isn't wasted there.
+    from canlib.xanalysis import physical_scan
+
+    physical_by_off = {h.offset: f"{h.scaling}·{h.expr} ≈ {h.band}" for h in physical_scan(lp)}
 
     # --independent-of: load a driver signal to rank bytes by independence from.
     driver_series = None
@@ -410,13 +411,19 @@ def run(args) -> int:
         )
 
     # Probable multi-byte words: a near-constant hi byte next to a full-range lo
-    # byte (how a scaled voltage hides across a byte boundary). Built from the
-    # data bytes in offset order so PCI-straddling pairs are still caught.
-    ordered_cols = [
+    # byte (how a scaled voltage hides across a byte boundary). Built from ALL
+    # non-PCI data bytes (min_distinct=1) — NOT the min_distinct=2 report set —
+    # so a near-constant hi byte isn't dropped and consecutive columns are truly
+    # ISO-TP-adjacent (PCI-straddling pairs included, filter gaps excluded).
+    word_cols = [
         (int(k.rsplit(":B", 1)[1]), [int(tp.value) for tp in s])
-        for k, s in sorted(target.items(), key=lambda kv: int(kv[0].rsplit(":B", 1)[1]))
+        for k, s in build_byte_series(lp, min_distinct=1).items()
     ]
-    word_candidates = detect_words(ordered_cols)
+    # Keep only pairs that render to a real adjacent word expression (drops any
+    # non-adjacent pair rather than emit a misleading [Bhi:Blo] spanning a gap).
+    word_candidates = [
+        (w, expr) for w in detect_words(word_cols) if (expr := _word_expr(w)) is not None
+    ]
 
     if args.bits:
         for key, series in build_bit_series(lp).items():
@@ -465,7 +472,7 @@ def run(args) -> int:
                 "keep_unique": scope_is_keep_unique(lp.captures),
                 "bytes": [vars(r) for r in reports],
                 "word_candidates": [
-                    {"expr": _word_expr(w, pid), "score": w.score} for w in word_candidates
+                    {"expr": expr, "score": w.score} for w, expr in word_candidates
                 ],
             },
             sys.stdout,
@@ -619,11 +626,13 @@ def _driver_r(series, driver, tol, min_n) -> float | None:
     return correlation(xs, ys)
 
 
-def _word_expr(word, pid: str) -> str:
+def _word_expr(word) -> str | None:
     """WiCAN big-endian word expression for a detected (hi, lo) offset pair.
 
-    Uses :class:`ByteRef` so a PCI-straddling pair renders as the correct
-    shift-composition rather than an invalid ``[Bhi:Blo]`` range.
+    Returns ``None`` when the pair is **not** ISO-TP-adjacent (a gap byte sits
+    between them) — such a pair isn't a real 16-bit word and must not be rendered
+    as a misleading ``[Bhi:Blo]`` range. Adjacent pairs (including PCI-straddling
+    ones) render via :class:`ByteRef`, which emits the correct shift-composition.
     """
     from canlib.byteindex import wican_to_isotp
     from canlib.notation import ByteRef
@@ -631,9 +640,8 @@ def _word_expr(word, pid: str) -> str:
     hi_iso = wican_to_isotp(int(word.hi_key))
     lo_iso = wican_to_isotp(int(word.lo_key))
     if hi_iso is None or lo_iso is None or lo_iso != hi_iso + 1:
-        return f"[B{word.hi_key}:B{word.lo_key}]"
-    expr = ByteRef.from_isotp(hi_iso, width=2).to_wican_expression()
-    return expr or f"[B{word.hi_key}:B{word.lo_key}]"
+        return None
+    return ByteRef.from_isotp(hi_iso, width=2).to_wican_expression()
 
 
 def _print_report(
@@ -691,8 +699,7 @@ def _print_report(
             f"\n    {_BOLD}probable multi-byte words{_RESET} "
             f"{_DIM}(near-constant hi byte + full-range lo byte){_RESET}"
         )
-        for w in words[:6]:
-            expr = _word_expr(w, pid)
+        for w, expr in words[:6]:
             print(f"      {_CYAN}{expr}{_RESET}  {_DIM}score={w.score:.2f}{_RESET}")
     if driver_label is not None:
         print(

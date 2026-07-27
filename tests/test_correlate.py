@@ -147,3 +147,98 @@ class TestAgainstFile:
         )
         assert rc == 2
         assert "mutually exclusive" in capsys.readouterr().err
+
+
+class TestControl:
+    def _write_confounded(self, tmp_path):
+        # B4 == confounder Z; B9 == independent component W. Reference X = Z + W.
+        z = [0, 1, 2, 3, 4, 5, 6, 7]
+        w = [0, 3, 1, 4, 2, 5, 3, 6]
+        caps = [
+            {
+                "ecu": "OBC",
+                "pid": "2101",
+                "payload": f"6101{z[i]:02X}000000{w[i]:02X}00",
+                "time": f"09:00:0{i}",
+            }
+            for i in range(8)
+        ]
+        (tmp_path / "2026-07-24.yaml").write_text(
+            yaml.safe_dump({"sessions": [{"date": "2026-07-24", "captures": caps}]})
+        )
+        x = tmp_path / "ref.csv"
+        x.write_text("".join(f"2026-07-24 09:00:0{i},{z[i] + w[i]}\n" for i in range(8)))
+        zc = tmp_path / "ctrl.csv"
+        zc.write_text("".join(f"2026-07-24 09:00:0{i},{z[i]}\n" for i in range(8)))
+        return x, zc
+
+    def _run_obc(self, tmp_path, monkeypatch, argv):
+        import canlib.align as align
+
+        orig = align.load_signal_captures
+        monkeypatch.setattr(
+            "canlib.commands.correlate.load_signal_captures",
+            lambda s, **kw: orig(
+                s, captures_dir=tmp_path, **{k: v for k, v in kw.items() if k != "captures_dir"}
+            ),
+        )
+        monkeypatch.setattr(
+            "canlib.commands.correlate._discover_specs", lambda *a, **k: [("OBC", "2101")]
+        )
+        p = correlate.add_parser(argparse.ArgumentParser().add_subparsers())
+        args = p.parse_args(["uds", *argv])
+        return args.func(args)
+
+    def test_control_removes_the_confounder(self, tmp_path, monkeypatch, capsys):
+        import json
+
+        x, zc = self._write_confounded(tmp_path)
+
+        def signals(argv):
+            rc = self._run_obc(tmp_path, monkeypatch, argv)
+            assert rc == 0
+            return {h["signal"] for h in json.loads(capsys.readouterr().out)["hits"]}
+
+        # Without control the confounder byte B4 shows up against the reference.
+        plain = signals(
+            ["--against-file", str(x), "--bytes", "--min-n", "4", "--min-r", "0.5", "--json"]
+        )
+        assert "OBC:2101:B4" in plain
+
+        # Controlling for Z drops B4 (it *is* Z) while keeping the independent B9.
+        controlled = signals(
+            [
+                "--against-file",
+                str(x),
+                "--control-file",
+                str(zc),
+                "--bytes",
+                "--min-n",
+                "4",
+                "--min-r",
+                "0.3",
+                "--json",
+            ]
+        )
+        assert "OBC:2101:B4" not in controlled
+        assert "OBC:2101:B9" in controlled
+
+    def test_control_rejects_categorical_method(self, tmp_path, monkeypatch, capsys):
+        x, zc = self._write_confounded(tmp_path)
+        rc = self._run_obc(
+            tmp_path,
+            monkeypatch,
+            [
+                "--against-file",
+                str(x),
+                "--control-file",
+                str(zc),
+                "--bytes",
+                "--min-n",
+                "4",
+                "--method",
+                "cramers_v",
+            ],
+        )
+        assert rc == 2
+        assert "undefined for a categorical" in capsys.readouterr().err

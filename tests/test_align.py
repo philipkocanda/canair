@@ -258,6 +258,21 @@ class TestLoadReferenceFile:
         with pytest.raises(ValueError, match="cannot read"):
             load_reference_file(tmp_path / "nope.csv")
 
+    def test_relative_timestamps_warn(self, tmp_path, capsys):
+        # A zero-based / relative log (all timestamps pre-2000) should warn that
+        # it won't align to the captures' absolute clock.
+        p = tmp_path / "relative.csv"
+        p.write_text("0.0,1.0\n0.07,2.0\n0.14,3.0\n")
+        series, _ = load_reference_file(p)
+        assert len(series) == 3
+        assert "relative" in capsys.readouterr().err.lower()
+
+    def test_absolute_timestamps_no_warn(self, tmp_path, capsys):
+        p = tmp_path / "abs.csv"
+        p.write_text("2026-07-22T09:00:00,1.0\n2026-07-22T09:00:01,2.0\n")
+        load_reference_file(p)
+        assert capsys.readouterr().err == ""
+
 
 # ---------------------------------------------------------------------------
 # join_nearest_triple — three-way alignment for partial correlation

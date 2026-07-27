@@ -255,6 +255,18 @@ def load_reference_file(path, *, label: str | None = None) -> tuple[list[TimePoi
             "(expected an absolute-clock timestamp in column 1 and a number in column 2)"
         )
     out.sort(key=lambda tp: tp.dt)
+    # A log whose timestamps are all pre-2000 is almost certainly relative /
+    # zero-based (many raw-CAN exporters start at t=0), which won't align to the
+    # captures' absolute wall clock — warn rather than silently join to nothing.
+    if out[-1].dt.year < 2000:
+        import sys
+
+        print(
+            f"warning: reference file {p.name} timestamps look relative/zero-based "
+            f"(latest is {out[-1].dt.isoformat()}); it must be on the captures' absolute "
+            "clock or the join yields n=0.",
+            file=sys.stderr,
+        )
     return out, label or p.name
 
 

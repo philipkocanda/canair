@@ -76,6 +76,15 @@ class TestDetectWords:
         assert (words[0].hi_key, words[0].lo_key) == ("hi", "lo")
         assert words[0].score > 0.3
 
+    def test_truly_constant_hi_still_detected(self):
+        # Regression: a hi byte that never changes (distinct == 1) is still part
+        # of a word when the lo byte sweeps wide — it must not be dropped.
+        hi = [86, 86, 86, 86, 86]
+        lo = [0, 255, 40, 200, 120]
+        words = triage.detect_words([("hi", hi), ("lo", lo)])
+        assert words
+        assert (words[0].hi_key, words[0].lo_key) == ("hi", "lo")
+
     def test_no_word_when_both_wide(self):
         a = [10, 200, 40, 250, 5]
         b = [230, 5, 190, 20, 240]

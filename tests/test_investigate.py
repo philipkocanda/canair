@@ -433,3 +433,42 @@ class TestTriageIntegration:
         assert "[B4:B5]" in exprs
         # Every byte carries a triage classification.
         assert all(b["kind"] for b in data["bytes"])
+
+    def test_no_spanning_word_across_a_constant_gap_byte(self, tmp_path, monkeypatch, capsys):
+        import argparse
+
+        # B4 varies a little, B5 is CONSTANT (dropped from the min_distinct=2
+        # report set), B6 sweeps wide. The old wiring fed the filtered set and
+        # would pair (B4,B6) across the dropped B5 as a misleading [B4:B6].
+        # The fix pairs only truly-adjacent bytes: expect [B5:B6], never [B4:B6].
+        b4_vals = [85, 86, 85, 86, 85, 86]
+        b6_vals = [10, 250, 40, 200, 5, 230]
+        caps = []
+        for i in range(6):
+            payload = f"6101{b4_vals[i]:02X}00{b6_vals[i]:02X}000000"  # B5 const 0x00
+            caps.append({"ecu": "OBC", "pid": "2101", "payload": payload, "time": f"09:00:0{i}"})
+        doc = {
+            "sessions": [{"date": "2026-07-24", "vehicle_states": ["charging"], "captures": caps}]
+        }
+        (tmp_path / "2026-07-24.yaml").write_text(yaml.safe_dump(doc))
+
+        import canlib.align as align
+
+        orig = align.load_signal_captures
+        monkeypatch.setattr(
+            "canlib.commands.investigate.load_signal_captures",
+            lambda specs, **kw: orig(
+                specs, captures_dir=tmp_path, **{k: v for k, v in kw.items() if k != "captures_dir"}
+            ),
+        )
+        monkeypatch.setattr(
+            "canlib.commands.correlate._discover_specs", lambda *a, **k: [("OBC", "2101")]
+        )
+        p = investigate.add_parser(argparse.ArgumentParser().add_subparsers())
+        args = p.parse_args(["uds", "OBC", "2101", "--min-n", "3", "--json"])
+        rc = investigate.run(args)
+        assert rc == 0
+        data = json.loads(capsys.readouterr().out)
+        exprs = [w["expr"] for w in data["word_candidates"]]
+        assert "[B5:B6]" in exprs  # the real adjacent word (constant hi + wide lo)
+        assert "[B4:B6]" not in exprs  # no misleading pair spanning the dropped B5
