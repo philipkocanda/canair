@@ -36,6 +36,8 @@ Columns & legend:
            speculative (spec) — a guess, e.g. borrowed from another vehicle
          A leading `~` means the level was DERIVED from the available evidence;
          without it, the level was set explicitly in the ECU registry.
+  BUS    physical CAN bus segment(s) the ECU sits on (B/P/C/M/H/All);
+         some ECUs span two (shown `H/P`). Blank (`—`) when unknown.
   PIDS   number of active (non-ignored) PIDs/DIDs defined.
   PARM   number of decoded parameters defined across those PIDs.
   VERIF  verified/total parameters (green when all verified).
@@ -75,6 +77,8 @@ Columns & legend:
            speculative (spec) — a guess, e.g. borrowed from another vehicle
          A leading `~` means the level was DERIVED from the available evidence;
          without it, the level was set explicitly in the ECU registry.
+  BUS    physical CAN bus segment(s) the ECU sits on (B/P/C/M/H/All);
+         some ECUs span two (shown `H/P`). Blank (`—`) when unknown.
   PIDS   number of active (non-ignored) PIDs/DIDs defined.
   PARM   number of decoded parameters defined across those PIDs.
   VERIF  verified/total parameters (green when all verified).

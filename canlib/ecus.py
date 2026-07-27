@@ -36,6 +36,10 @@ def load_ecus(path: Path | None = None) -> dict:
         identity = ecu_def.get("identity")
         if isinstance(identity, dict):
             info.update(identity)
+        # can_bus is a top-level ECU field (sibling of identity); surface it too.
+        can_bus = ecu_def.get("can_bus")
+        if can_bus is not None:
+            info["can_bus"] = can_bus
         result[int(tx_id)] = info
     return result
 

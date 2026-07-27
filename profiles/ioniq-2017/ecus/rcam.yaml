@@ -3,6 +3,8 @@
 # No live data DIDs discovered. Service 22 scan returned no results (2026-04-17).
 RCAM:
   tx_id: 0x796
+  can_bus:
+    - C
   identity:
     description: Rear View Camera (parking)
     part_number: "95760G2000"

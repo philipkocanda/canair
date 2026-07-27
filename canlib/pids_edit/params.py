@@ -671,6 +671,61 @@ def set_identity_field(
     return fpath
 
 
+# ── Top-level list-field editor ───────────────────────────────────────────────
+#
+# `can_bus` is a top-level ECU field (a sibling of tx_id/identity), a list of
+# physical CAN bus segment codes. It is curated by hand — no DID reads it — so it
+# gets a surgical/validated editor like the other hand-curated fields.
+
+
+def set_can_bus(
+    ecu_name: str,
+    codes: list[str],
+    *,
+    pids_dir: Path | None = None,
+) -> Path:
+    """Set the top-level ``can_bus:`` list on an ECU (physical bus segment codes).
+
+    Renders a block list (``can_bus:`` / ``  - B``). Adds the field if missing,
+    replaces it in place if present. The write is verified by a YAML re-parse;
+    on any failure the original file is restored.
+    """
+    cleaned = [str(c).strip() for c in codes if str(c).strip()]
+    if not cleaned:
+        raise PidsEditError("can_bus must have at least one code")
+
+    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
+    original = fpath.read_text()
+    ecu_key = ecu_name.strip().upper()
+
+    def transform(text: str) -> str:
+        ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
+        # The ECU block body is everything after the `ECU:` header line; top-level
+        # fields (tx_id/identity/can_bus/…) live at 2-space indent within it.
+        header_end = text.find("\n", ecu_start)
+        body_start = header_end + 1
+        block = text[body_start:ecu_end]
+        repl = _format_list_field(" " * 2, "can_bus", cleaned)
+        if re.search(r"^ {2}can_bus:", block, re.MULTILINE):
+            new_block = _replace_field_in_block_at(block, "can_bus", repl, indent=2)
+            return text[:body_start] + new_block + text[ecu_end:]
+        # Absent — insert right after the `tx_id:` line (its natural home), so it
+        # doesn't land at the very end of a long ECU block.
+        tx_m = re.search(r"^ {2}tx_id:.*$", block, re.MULTILINE)
+        insert_at = body_start + (tx_m.end() + 1 if tx_m else 0)
+        payload = "".join(ln + "\n" for ln in repl)
+        return text[:insert_at] + payload + text[insert_at:]
+
+    def checker(ecu_def: dict) -> None:
+        got = ecu_def.get("can_bus")
+        if got != cleaned:
+            raise PidsEditError(f"can_bus mismatch after edit (got {got!r})")
+
+    new_text = transform(original)
+    _safe_write(fpath, original, new_text, ecu_key, checker)
+    return fpath
+
+
 def set_research_status(
     ecu_name: str,
     target: str,

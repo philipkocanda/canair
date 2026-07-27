@@ -4,13 +4,13 @@
 
 ```
 usage: canair pids [-h]
-                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-research,set-status,set-pid-status,set-identity}
+                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-research,set-status,set-pid-status,set-identity,set-can-bus}
                    ...
 
 [UDS] Safely edit ecus/ parameters and research entries (domain A — diagnostic UDS PIDs, freeform WiCAN expressions). The broadcast-frame (domain B) authoring counterpart is `canair signals` (linear signals/ maps).
 
 positional arguments:
-  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-research,set-status,set-pid-status,set-identity}
+  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-research,set-status,set-pid-status,set-identity,set-can-bus}
     upsert-param        Add or update a parameter
     rename-param        Rename a parameter (key only; fields preserved)
     rm-param            Remove a parameter
@@ -20,6 +20,7 @@ positional arguments:
     set-status          Update a research item's status
     set-pid-status      Set a PID's lifecycle status
     set-identity        Set a curated identity field (e.g. notes)
+    set-can-bus         Set the physical CAN bus segment(s) the ECU sits on
 
 options:
   -h, --help            show this help message and exit
@@ -237,6 +238,23 @@ positional arguments:
   ecu
   field          Identity field name, e.g. notes or description
   value          New value (notes are stored as a folded block scalar)
+
+options:
+  -h, --help     show this help message and exit
+  --dir DIR      ecus/ directory (default: active profile)
+  --no-validate  Skip the post-edit schema validation gate
+```
+
+## `canair pids set-can-bus`
+
+```
+usage: canair pids set-can-bus [-h] [--dir DIR] [--no-validate]
+                               ecu CODE [CODE ...]
+
+positional arguments:
+  ecu
+  CODE           One or more bus codes (B/P/C/M/H/All); some ECUs span two,
+                 e.g. H P
 
 options:
   -h, --help     show this help message and exit

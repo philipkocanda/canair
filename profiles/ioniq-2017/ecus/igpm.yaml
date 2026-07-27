@@ -1,6 +1,8 @@
 # ─── IGPM (Integrated Gateway Power Module) ──────────────────────────
 IGPM:
   tx_id: 0x770
+  can_bus:
+    - All
   identity:
     description: Integrated Gateway & Power Module
     part_number: "91950G7510"

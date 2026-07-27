@@ -166,3 +166,43 @@ class TestTypedParamValidation:
             "fields": [{"name": "h", "expression": "B4"}],
         }
         assert self._v(param) == []
+
+
+class TestCanBusValidation:
+    """validate_ecu_file — top-level can_bus list vs valid_can_bus_codes."""
+
+    def _errors(self, tmp_path, can_bus_yaml):
+        import textwrap
+
+        p = tmp_path / "x.yaml"
+        p.write_text(
+            textwrap.dedent(
+                f"""\
+                ECUX:
+                  tx_id: 0x7E0
+                  can_bus: {can_bus_yaml}
+                  pids:
+                    2101:
+                      status: active
+                      parameters: {{}}
+                """
+            )
+        )
+        schema = validate_pids.load_schema()
+        errors, _warnings, _stats = validate_pids.validate_ecu_file(p, schema)
+        return errors
+
+    def test_valid_codes_ok(self, tmp_path):
+        assert self._errors(tmp_path, "[H, P]") == []
+
+    def test_invalid_code_errors(self, tmp_path):
+        errs = self._errors(tmp_path, "[X]")
+        assert any("can_bus" in e and "invalid" in e for e in errs)
+
+    def test_non_list_errors(self, tmp_path):
+        errs = self._errors(tmp_path, "B")
+        assert any("can_bus must be a list" in e for e in errs)
+
+    def test_duplicate_codes_error(self, tmp_path):
+        errs = self._errors(tmp_path, "[B, B]")
+        assert any("duplicate can_bus" in e for e in errs)
