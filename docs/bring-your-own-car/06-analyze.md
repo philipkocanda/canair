@@ -205,6 +205,10 @@ as **unverified**.
 > (`.claude/skills/reverse-engineer-signal/`). This page is the human-facing tour of
 > the same workflow.
 
+> **See it fight back:** [Finding the hidden AC input voltage](../case-studies/ac-input-voltage.md)
+> is a full case study of this workflow applied to a signal that resisted every
+> obvious approach — a good read for *why* the rigor above matters.
+
 ---
 
 You now have a confident hypothesis (*"byte 12 of `MyECU:2101` is speed in

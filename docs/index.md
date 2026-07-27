@@ -25,6 +25,9 @@ command list (that lives in the [CLI reference](reference/cli/index.md)).
 - **Want the details? →** [Concepts](concepts/architecture.md) explain *how* it
   works; the [Reference](reference/config.md) documents every flag, config key,
   and schema.
+- **Learn from a real hunt? →** [Case studies](case-studies/index.md) narrate
+  actual reverse-engineering investigations end-to-end — the wrong turns
+  included — like [finding the hidden AC input voltage](case-studies/ac-input-voltage.md).
 - **Just want to use a bundled car? →** [Bundled profiles](profiles/index.md)
   lists what ships (the mature [Ioniq 2017 profile](profiles/ioniq-2017.md) and
   more) — their ECUs, decoded signals, and IOControl actuators.
