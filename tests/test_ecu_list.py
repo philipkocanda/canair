@@ -69,3 +69,12 @@ def test_list_output_has_no_ident_column(capsys):
     out = capsys.readouterr().out
     assert "IDENT" not in out
     assert "BUS" in out
+
+
+def test_list_output_omits_alias_suffix(capsys):
+    ecus = {0x7A5: {"name": "SKM", "alias": "SMK", "can_bus": ["B"]}}
+    recs = _list_records(ecus, {"ecus": {}})
+    cmd_list(recs, as_json=False)
+    out = capsys.readouterr().out
+    assert "SKM" in out
+    assert "SMK" not in out

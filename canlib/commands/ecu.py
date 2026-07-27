@@ -20,7 +20,6 @@ Columns & legend:
          e.g. Hyundai B/P/C/M/H/All); some ECUs span two (shown `H/P`). Blank
          (`—`) when unknown. Use `--sort bus` to group the table by segment.
   PIDS   number of active (non-ignored) PIDs/DIDs defined.
-  PARM   number of decoded parameters defined across those PIDs.
   VERIF  verified/total parameters (green when all verified).
   CAPS   number of saved captures for the ECU.
   cap    in the per-PID detail view, "N cap" = number of saved captures for
@@ -197,19 +196,18 @@ def cmd_list(records: list[dict], as_json: bool) -> int:
     # Column header.
     print(
         f"  {_DIM}{'NAME':<12} {'TX':<6} {'PROTO':<8} {'BUS':<8} "
-        f"{'PIDS':>4} {'PARM':>5} {'VERIF':>7} {'CAPS':>5}{_RESET}"
+        f"{'PIDS':>4} {'VERIF':>7} {'CAPS':>5}{_RESET}"
     )
 
     for r in records:
         name = r["name"]
-        alias = f" {_DIM}({r['alias']}){_RESET}" if r.get("alias") else ""
         proto = r.get("id_protocol") or "?"
         bus = "/".join(r["can_bus"]) if r.get("can_bus") else "—"
         if not r["has_pids"]:
             # Registry-only module: no PID data to summarise.
             print(
                 f"  {_CYAN}{name:<12}{_RESET} {r['tx']:<6} {proto:<8} {_CYAN}{bus:<8}{_RESET} "
-                f"{_DIM}{'—':>4} {'—':>5} {'—':>7} {'—':>5}{_RESET}{alias}"
+                f"{_DIM}{'—':>4} {'—':>7} {'—':>5}{_RESET}"
             )
             continue
         params = r["params"]
@@ -220,8 +218,8 @@ def cmd_list(records: list[dict], as_json: bool) -> int:
         cstr = f"{caps:>5}" if caps else f"{_YELLOW}{'0':>5}{_RESET}"
         print(
             f"  {_CYAN}{name:<12}{_RESET} {r['tx']:<6} {proto:<8} {_CYAN}{bus:<8}{_RESET} "
-            f"{r['pids']:>4} {params:>5} {vcolor}{vstr:>7}{_RESET} "
-            f"{cstr}{alias}"
+            f"{r['pids']:>4} {vcolor}{vstr:>7}{_RESET} "
+            f"{cstr}"
         )
     print()
     return 0
