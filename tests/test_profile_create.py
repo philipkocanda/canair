@@ -51,6 +51,15 @@ class TestProfileCreate:
         assert (root / "out").is_dir()
         assert (root / "profile.yaml").exists()
 
+    def test_scaffolds_can_buses(self, tmp_path):
+        root = tmp_path / "prof"
+        _cmd_create(_args(path=root))
+        cb = root / "can_buses.yaml"
+        assert cb.exists()
+        data = yaml.safe_load(cb.read_text())
+        assert "All" in data["can_buses"]
+        assert data["can_buses"]["All"]["name"]
+
     def test_meta_contents(self, tmp_path):
         root = tmp_path / "prof"
         _cmd_create(_args(path=root, init="ATSP0;"))

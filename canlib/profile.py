@@ -69,6 +69,11 @@ class Profile:
         return self.root / "states.yaml"
 
     @property
+    def can_buses_file(self) -> Path:
+        """Per-profile CAN bus segment vocabulary (codes for ECU can_bus:)."""
+        return self.root / "can_buses.yaml"
+
+    @property
     def out_dir(self) -> Path:
         return self.root / "out"
 

@@ -107,7 +107,7 @@ All functionality is exposed as `canair <subcommand>`; run `canair <cmd> --help`
 |--------|---------|
 | `canair profile` | Manage profile bundles — create/list/show/path. |
 | `canair config` | View/manage user config. |
-| `canair update` | Update canair from its git clone (`git pull` + reinstall); links the changelog. |
+| `canair update` | Update canair from its git clone (checkout release tag + reinstall); links the changelog. |
 
 > The byte-index converter `canair bix` (WiCAN ↔ ISO-TP ↔ Torque ↔ OBDb) and `canair completion` round out the utilities.
 
@@ -130,7 +130,7 @@ canair query BMS:2101                   # read a PID (Ioniq profile)
 
 Full setup — installing, connecting the dongle (Pro vs classic, AP vs LAN), tab-completion, and your first read — is in [Getting started](https://philipkocanda.github.io/canair/getting-started/install/).
 
-canair checks once a day for a newer release (offline-safe, never blocking) and points you at the changelog; upgrade in place with `canair update` (`git pull` + reinstall). See [staying up to date](https://philipkocanda.github.io/canair/getting-started/install/#staying-up-to-date).
+canair checks once a day for a newer release (offline-safe, never blocking) and points you at the changelog; upgrade in place with `canair update` (checks out the latest release tag + reinstall). See [staying up to date](https://philipkocanda.github.io/canair/getting-started/install/#staying-up-to-date).
 
 > **You don't need to be a CAN expert to start.** Reading is safe and free — canair only *reads* unless you explicitly actuate something, and every state-changing action confirms first. Interacting with a vehicle bus still carries real risk: see the [Warning](#warning).
 

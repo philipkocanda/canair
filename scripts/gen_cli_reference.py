@@ -115,7 +115,13 @@ def _index_page(names: list[str]) -> str:
     help_by_name = {}
     if sub is not None:
         for n, p in sub.choices.items():
-            help_by_name[n] = (p.description or "").strip().split("\n")[0]
+            summary = (p.description or "").strip().split("\n")[0]
+            # Drop the leading domain tag ("[UDS] …") — this index is an overview
+            # and each linked command page states its domain, so repeating it here
+            # is redundant (mirrors the top-level --help command map).
+            if summary.startswith("["):
+                summary = summary.split("]", 1)[-1].lstrip()
+            help_by_name[n] = summary
 
     lines = [
         "# CLI reference",

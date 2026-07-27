@@ -6,6 +6,7 @@ Validators merged into one subcommand:
     (also validates profile.yaml). ``validate ecus`` is an alias.
   * ``validate captures`` — capture files in captures/ vs captures_schema.json
   * ``validate states`` — states.yaml (power-state vocabulary + predicates)
+  * ``validate can-buses`` — can_buses.yaml (per-profile CAN bus vocabulary)
   * ``validate signals`` — signals/ broadcast signal definitions (domain B)
   * ``validate can`` — captures/can/index.yaml (raw-CAN log index)
   * ``validate all`` (default) — run all of them
@@ -28,6 +29,7 @@ from .captures import (
 )
 from .other import (
     _run_can,
+    _run_can_buses,
     _run_signals,
     _run_states,
     check_signals_doc,
@@ -55,6 +57,7 @@ __all__ = [
     "_capture_state_warnings",
     "_duplicate_param_errors",
     "_run_can",
+    "_run_can_buses",
     "_run_signals",
     "_validate_param_type",
     "add_parser",
@@ -83,6 +86,7 @@ def add_parser(subparsers):
         "  captures  the captures/ payload files (+ soft warnings, see below)\n"
         "  ecus      alias for pids\n"
         "  states    states.yaml (vehicle power-state vocabulary + predicates)\n"
+        "  can-buses can_buses.yaml (per-profile CAN bus segment vocabulary)\n"
         "  signals   signals/ broadcast signal-definition files (domain B)\n"
         "  can       captures/can/index.yaml (raw-CAN log index)\n"
         "  all       everything above\n\n"
@@ -107,7 +111,7 @@ examples:
     parser.add_argument(
         "target",
         nargs="?",
-        choices=["pids", "captures", "ecus", "states", "signals", "can", "all"],
+        choices=["pids", "captures", "ecus", "states", "can-buses", "signals", "can", "all"],
         default="all",
         help="What to validate (default: all)",
     )
@@ -133,6 +137,8 @@ def run(args) -> int:
         return _run_captures(strict=strict)
     if args.target == "states":
         return _run_states()
+    if args.target == "can-buses":
+        return _run_can_buses()
     if args.target == "signals":
         return _run_signals()
     if args.target == "can":
@@ -144,7 +150,9 @@ def run(args) -> int:
     print()
     rc_s = _run_states()
     print()
+    rc_cb = _run_can_buses()
+    print()
     rc_sig = _run_signals()
     print()
     rc_can = _run_can()
-    return rc_p or rc_c or rc_s or rc_sig or rc_can
+    return rc_p or rc_c or rc_s or rc_cb or rc_sig or rc_can

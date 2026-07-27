@@ -2,9 +2,16 @@
 
 Status: **Phases 1–3 DONE** (commits: phase 1 byte-matrix export + external
 reference files; phase 2 confounder control / physical bands / independence;
-phase 3 byte-triage in `investigate`). Tier-2 items (domain-B periodicity/counter
-detector, CUSUM segmentation) remain deferred; the "considered & rejected" set
-(Transfer Entropy, HMM, BOCPD, Hamming clustering) stands.
+phase 3 byte-triage in `investigate`). **Post-review hardening done**: word
+detection now feeds *all* data bytes (not the `min_distinct`-filtered report set)
+and drops non-ISO-TP-adjacent pairs (no misleading `[Bhi:Blo]` spanning a
+dropped byte); `physical_scan` moved below the `--events` short-circuit;
+command-level `--control` tests added for `hunt`/`correlate`; `hunt --physical`
+warns on ignored reference flags; `load_reference_file` warns on an
+all-pre-2000 (relative/zero-based) series. Tier-2 items (domain-B
+periodicity/counter detector, CUSUM segmentation) remain deferred; the
+"considered & rejected" set (Transfer Entropy, HMM, BOCPD, Hamming clustering)
+stands.
 
 Gathered 2026-07-27 from (a) a proposed
 list of statistical/RE techniques and (b) the concrete tooling gaps surfaced by

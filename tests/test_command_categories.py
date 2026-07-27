@@ -43,7 +43,7 @@ class TestGroupedHelp:
         text = self._help()
         positions = []
         for title, _ in CATEGORIES:
-            marker = f"{title}:"
+            marker = title.upper()
             assert marker in text, f"missing category header {marker!r}"
             positions.append(text.index(marker))
         assert positions == sorted(positions), "category headers out of order"
@@ -59,5 +59,5 @@ class TestGroupedHelp:
         text = self._help()
         # bix is intentionally left ungrouped -> renders under "Other".
         assert "bix" not in categorized_names()
-        other_idx = text.index(f"{OTHER_TITLE}:")
+        other_idx = text.index(OTHER_TITLE.upper())
         assert text.index("bix", other_idx) > other_idx

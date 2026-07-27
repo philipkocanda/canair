@@ -27,7 +27,8 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         NAME,
         help="List, inspect, and create vehicle profiles",
         description="List, inspect, and create vehicle profiles — the per-vehicle\n"
-        "bundles (ecus/, profile.yaml, captures/, states.yaml, out/) that hold all\n"
+        "bundles (ecus/, profile.yaml, captures/, states.yaml, can_buses.yaml,\n"
+        "out/) that hold all\n"
         "the reverse-engineering data.\n\n"
         "Subcommands:\n"
         "  list            list every discovered profile (bundled + user)\n"
@@ -215,6 +216,32 @@ states:
 """
 
 
+# Starter can_buses.yaml — the profile's physical CAN bus segment vocabulary.
+# Bus naming is vendor-specific, so a fresh profile starts with just `All` (the
+# gateway) plus commented placeholders to fill in from the car's service docs.
+_CAN_BUSES_TEMPLATE = """\
+# {car_model} — physical CAN bus segment vocabulary
+#
+# Codes accepted by each ECU's `can_bus:` field (in ecus/). Each bare code maps
+# to a human name + description. Naming is vendor-specific: Hyundai/Kia use
+# B/P/C/M/H (Body, Powertrain, Chassis, Multimedia, Hybrid); Ford uses HS/MS;
+# BMW PT-CAN/K-CAN. See canlib/schema/can_buses_schema.yaml and
+# `canair validate can-buses`. Set an ECU's segment(s) with
+# `canair pids set-can-bus ECU CODE [CODE ...]`.
+
+can_buses:
+  All:
+    name: All segments
+    description: Convention for the gateway that bridges every segment.
+  # B:
+  #   name: Body CAN
+  #   description: Comfort/body electronics.
+  # P:
+  #   name: Powertrain CAN
+  #   description: Engine/drivetrain control.
+"""
+
+
 def create_profile(
     name: str,
     *,
@@ -257,6 +284,7 @@ def create_profile(
         f'init: "{init}"\n'
     )
     (root / "states.yaml").write_text(_STATES_TEMPLATE.format(car_model=car_model))
+    (root / "can_buses.yaml").write_text(_CAN_BUSES_TEMPLATE.format(car_model=car_model))
 
     if set_default:
         set_config_value("default_profile", name)

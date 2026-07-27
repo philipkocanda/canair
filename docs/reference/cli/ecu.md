@@ -28,16 +28,9 @@ options:
   canair ecu --json          # all ECUs as JSON
 
 Columns & legend:
-  IDENT  identity confidence — how sure we are the ECU is correctly
-         identified (name/part/role), NOT how complete its decoding is:
-           confirmed (conf)   — verified by part number / firmware / behaviour
-           probable (prob)    — strong circumstantial evidence
-           tentative (tent)   — plausible but unverified
-           speculative (spec) — a guess, e.g. borrowed from another vehicle
-         A leading `~` means the level was DERIVED from the available evidence;
-         without it, the level was set explicitly in the ECU registry.
-  BUS    physical CAN bus segment(s) the ECU sits on (B/P/C/M/H/All);
-         some ECUs span two (shown `H/P`). Blank (`—`) when unknown.
+  BUS    physical CAN bus segment(s) the ECU sits on (profile-specific codes,
+         e.g. Hyundai B/P/C/M/H/All); some ECUs span two (shown `H/P`). Blank
+         (`—`) when unknown. Use `--sort bus` to group the table by segment.
   PIDS   number of active (non-ignored) PIDs/DIDs defined.
   PARM   number of decoded parameters defined across those PIDs.
   VERIF  verified/total parameters (green when all verified).
@@ -49,16 +42,18 @@ Columns & legend:
 ## `canair ecu show`
 
 ```
-usage: canair ecu show [-h] [--json] [ecu]
+usage: canair ecu show [-h] [--sort {name,bus}] [--json] [ecu]
 
 List ECUs, or show one ECU's details and PID stats.
 
 positional arguments:
-  ecu         ECU name, alias, or hex TX/RX id (omit to list all)
+  ecu                ECU name, alias, or hex TX/RX id (omit to list all)
 
 options:
-  -h, --help  show this help message and exit
-  --json      Output as JSON
+  -h, --help         show this help message and exit
+  --sort {name,bus}  List ordering: 'name' (default) or 'bus' (group by CAN
+                     segment)
+  --json             Output as JSON
 
   canair ecu                 # plain list of all ECUs (one per line)
   canair ecu BMS             # details + stats for the BMS
@@ -69,16 +64,9 @@ options:
   canair ecu --json          # all ECUs as JSON
 
 Columns & legend:
-  IDENT  identity confidence — how sure we are the ECU is correctly
-         identified (name/part/role), NOT how complete its decoding is:
-           confirmed (conf)   — verified by part number / firmware / behaviour
-           probable (prob)    — strong circumstantial evidence
-           tentative (tent)   — plausible but unverified
-           speculative (spec) — a guess, e.g. borrowed from another vehicle
-         A leading `~` means the level was DERIVED from the available evidence;
-         without it, the level was set explicitly in the ECU registry.
-  BUS    physical CAN bus segment(s) the ECU sits on (B/P/C/M/H/All);
-         some ECUs span two (shown `H/P`). Blank (`—`) when unknown.
+  BUS    physical CAN bus segment(s) the ECU sits on (profile-specific codes,
+         e.g. Hyundai B/P/C/M/H/All); some ECUs span two (shown `H/P`). Blank
+         (`—`) when unknown. Use `--sort bus` to group the table by segment.
   PIDS   number of active (non-ignored) PIDs/DIDs defined.
   PARM   number of decoded parameters defined across those PIDs.
   VERIF  verified/total parameters (green when all verified).

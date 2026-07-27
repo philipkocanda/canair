@@ -61,18 +61,14 @@ def tag_for(name: str) -> str | None:
 
 
 def apply_domain_tags(subparsers) -> None:
-    """Prefix each tagged subcommand's help + description with its domain tag.
+    """Prefix each tagged subcommand's own ``--help`` description with its tag.
 
-    Operates on the built subparsers action so the tag shows both in the
-    top-level command map (the one-line help) and at the top of the command's
-    own ``--help`` (the description). Idempotent — skips text already prefixed.
+    The tag shows at the top of ``canair <cmd> --help`` (the command's
+    description). It is deliberately *not* added to the top-level command map
+    (the one-line help in the overview) — that list is already grouped by
+    category, and each command's own help states its domain, so repeating the
+    tag there is redundant noise. Idempotent — skips text already prefixed.
     """
-    # One-line help lives on the choices' pseudo-actions.
-    for action in getattr(subparsers, "_choices_actions", []):
-        tag = tag_for(action.dest)
-        if tag and action.help and not action.help.startswith("["):
-            action.help = f"{tag} {action.help}"
-    # The description shows at the top of `canair <cmd> --help`.
     for name, parser in subparsers.choices.items():
         tag = tag_for(name)
         desc = parser.description

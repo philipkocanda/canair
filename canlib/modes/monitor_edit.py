@@ -224,26 +224,17 @@ class MonitorEditor:
         pdef = self._lookup_pdef(ecu, pid, name)
         if pdef is None:
             return f"{name}: no definition to edit."
-        expression = (pdef.get("expression") or "").strip()
-        if not expression:
+        if not (pdef.get("expression") or "").strip():
             return f"{name}: no expression — edit it first."
         default = True if field == "enabled" else False
         new_val = not bool(pdef.get(field, default))
-        from ..pids_edit import PidsEditError, upsert_parameter
+        from ..pids_edit import PidsEditError, set_param_field
 
-        # `field` is only ever "verified" or "enabled" (see toggle_* below), both
-        # bool params of upsert_parameter. Pass explicitly so the value type is
-        # bool (a dynamic **{field: new_val} splat is checked against every kwarg,
-        # including the str|None ones, and rejected).
+        # Surgically flip only the boolean line — do NOT re-send expression, which
+        # would re-render (and re-normalize the quoting of) a field the user never
+        # changed (e.g. strip the hand-added quotes from `expression: "B10:1"`).
         try:
-            if field == "verified":
-                upsert_parameter(
-                    ecu, pid, name, expression, pids_dir=self.c.pids_dir, verified=new_val
-                )
-            else:
-                upsert_parameter(
-                    ecu, pid, name, expression, pids_dir=self.c.pids_dir, enabled=new_val
-                )
+            set_param_field(ecu, pid, name, field, new_val, pids_dir=self.c.pids_dir)
         except (PidsEditError, Exception) as exc:
             return f"Toggle failed: {exc}"
         self.c.reload_pids()

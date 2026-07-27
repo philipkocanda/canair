@@ -16,6 +16,13 @@ the ``import_`` module filename.
 from __future__ import annotations
 
 import argparse
+import sys
+
+# ANSI styling for category headers (match the sibling tools: bix, decode, …).
+# Emitted only when stdout is a TTY so piped/redirected help stays plain.
+_BOLD = "\033[1m"
+_CYAN = "\033[96m"
+_RESET = "\033[0m"
 
 # Ordered (title, command-names) groups. Order is the display order in --help.
 CATEGORIES: list[tuple[str, tuple[str, ...]]] = [
@@ -53,6 +60,16 @@ def categorized_names() -> set[str]:
     return {name for _title, names in CATEGORIES for name in names}
 
 
+def _header(title: str, indent: str) -> str:
+    """Render a category header line — uppercased so it stands out even when
+    piped, and bold-cyan when stdout is a TTY. Leading blank line separates it
+    from the previous group."""
+    label = title.upper()
+    if sys.stdout.isatty():
+        label = f"{_BOLD}{_CYAN}{label}{_RESET}"
+    return f"\n{indent}{label}\n"
+
+
 class CategorizedHelpFormatter(argparse.RawDescriptionHelpFormatter):
     """Top-level help formatter that groups the subcommand list by category.
 
@@ -86,13 +103,13 @@ class CategorizedHelpFormatter(argparse.RawDescriptionHelpFormatter):
                 group = [by_name[n] for n in names if n in by_name]
                 if not group:
                     continue
-                parts.append(f"\n{indent}{title}:\n")
+                parts.append(_header(title, indent))
                 for sub in group:
                     parts.append(super()._format_action(sub))
                     emitted.add(sub.dest)
             leftover = [sub for sub in subactions if sub.dest not in emitted]
             if leftover:
-                parts.append(f"\n{indent}{OTHER_TITLE}:\n")
+                parts.append(_header(OTHER_TITLE, indent))
                 for sub in leftover:
                     parts.append(super()._format_action(sub))
         finally:

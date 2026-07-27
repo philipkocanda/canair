@@ -132,3 +132,69 @@ class TestHuntControl:
         )
         assert rc == 2
         assert "mutually exclusive" in capsys.readouterr().err
+
+
+class TestHuntControlBehaviour:
+    def _write_confounded(self, tmp_path):
+        # B4 == the confounder Z; B9 == an independent component W (placed a frame
+        # apart so no multi-byte read merges them). Reference X = Z + W, so both
+        # bytes correlate with X. Controlling for Z should collapse everything at
+        # offset 4 (it is Z) and keep B9 (the part of X not explained by Z).
+        z = [0, 1, 2, 3, 4, 5, 6, 7]
+        w = [0, 3, 1, 4, 2, 5, 3, 6]
+        caps = []
+        for i in range(8):
+            # raw payload: 61 01 Z 00 00 00 W 00 -> WiCAN B4=Z, B9=W
+            payload = f"6101{z[i]:02X}000000{w[i]:02X}00"
+            caps.append({"ecu": "OBC", "pid": "2101", "payload": payload, "time": f"09:00:0{i}"})
+        doc = {"sessions": [{"date": "2026-07-24", "captures": caps}]}
+        (tmp_path / "2026-07-24.yaml").write_text(yaml.safe_dump(doc))
+        x_csv = tmp_path / "ref.csv"
+        x_csv.write_text("".join(f"2026-07-24 09:00:0{i},{z[i] + w[i]}\n" for i in range(8)))
+        z_csv = tmp_path / "ctrl.csv"
+        z_csv.write_text("".join(f"2026-07-24 09:00:0{i},{z[i]}\n" for i in range(8)))
+        return x_csv, z_csv
+
+    def test_control_demotes_the_confounder_byte(self, tmp_path, monkeypatch, capsys):
+        x_csv, z_csv = self._write_confounded(tmp_path)
+
+        def max_abs_r_by_offset(out):
+            by_off: dict[int, float] = {}
+            for h in json.loads(out)["hits"]:
+                by_off[h["offset"]] = max(by_off.get(h["offset"], 0.0), abs(h["r"]))
+            return by_off
+
+        # Without control: the confounder byte at offset 4 correlates strongly.
+        rc = _run(
+            tmp_path,
+            monkeypatch,
+            ["OBC", "2101", "--against-file", str(x_csv), "--min-n", "4", "--json"],
+        )
+        assert rc == 0
+        plain = max_abs_r_by_offset(capsys.readouterr().out)
+        assert plain.get(4, 0.0) > 0.6  # strong apparent link via the confounder
+
+        # With control for Z: the strong Z-driven read at offset 4 has an
+        # undefined/collapsed partial correlation, so offset 4's strength drops
+        # sharply (only weak float-sweep noise remains); the independent byte at
+        # offset 9 stays strong.
+        rc = _run(
+            tmp_path,
+            monkeypatch,
+            [
+                "OBC",
+                "2101",
+                "--against-file",
+                str(x_csv),
+                "--control-file",
+                str(z_csv),
+                "--min-n",
+                "4",
+                "--json",
+            ],
+        )
+        assert rc == 0
+        controlled = max_abs_r_by_offset(capsys.readouterr().out)
+        assert controlled.get(4, 0.0) < 0.6  # confounder-driven correlation removed
+        assert controlled.get(4, 0.0) < plain[4] - 0.3  # markedly weaker than uncontrolled
+        assert controlled.get(9, 0.0) > 0.4  # the genuinely-independent byte remains

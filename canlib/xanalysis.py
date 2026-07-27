@@ -473,7 +473,12 @@ def hunt_byte(
     from .align import join_nearest_triple
     from .byteindex import payload_to_wican_bytes, wican_to_isotp
     from .capture_dates import entry_datetime
-    from .commands._decode_plot import INSPECT_TYPES, interpret_bytes, wican_expr
+    from .commands._decode_plot import (
+        INSPECT_TYPES,
+        float_series_is_noise,
+        interpret_bytes,
+        wican_expr,
+    )
     from .stats import partial_correlation
 
     # Precompute (datetime, frame) for each timed capture.
@@ -497,7 +502,7 @@ def hunt_byte(
 
     hits: list[HuntHit] = []
     for spec in INSPECT_TYPES:
-        _, width, _kind, _signed = spec
+        _, width, kind, _signed = spec
         for endian_little in (False, True) if width > 1 else (False,):
             for off in range(max_len):
                 if off + width > max_len:
@@ -511,6 +516,8 @@ def hunt_byte(
                         cand.append(TimePoint(dt, v))
                 if len({tp.value for tp in cand}) < 3:
                     continue
+                if kind == "float" and float_series_is_noise([tp.value for tp in cand]):
+                    continue  # implausible float reinterpretation (denormal/huge) — skip
                 if control is not None:
                     xs, ys, zs, n = join_nearest_triple(ref, cand, control, tol_s=tol_s)
                     if n < min_n:

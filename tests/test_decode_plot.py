@@ -414,3 +414,23 @@ class TestPlotApp:
             assert calls and calls[0][2] == "P"
             assert calls[0][4].get("notes") == "a note"
             await pilot.press("q")
+
+
+class TestFloatSeriesIsNoise:
+    def test_denormal_tiny_values_are_noise(self):
+        # The reported case: interpreting integer byte runs as f32 yields
+        # absurdly tiny magnitudes that must be filtered from the hunt sweep.
+        assert dp.float_series_is_noise([5.8e-36, 1.2e-35, 3.4e-36])
+
+    def test_astronomically_large_values_are_noise(self):
+        assert dp.float_series_is_noise([1e20, 5e18, 2e19])
+
+    def test_plausible_physical_floats_are_kept(self):
+        assert not dp.float_series_is_noise([22.5, 100.0, 0.05, 371.0])
+
+    def test_empty_or_all_nan_is_noise(self):
+        assert dp.float_series_is_noise([])
+        assert dp.float_series_is_noise([float("nan"), float("nan")])
+
+    def test_zero_alongside_real_values_is_kept(self):
+        assert not dp.float_series_is_noise([0.0, 12.0, 0.0, 8.5])

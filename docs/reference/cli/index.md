@@ -9,39 +9,39 @@ Every capability is a `canair <subcommand>`. These pages are generated from each
 ### Live device
 
 - [`canair status`](status.md) — ``canair status`` — show the configured transport, device state, and profile.
-- [`canair query`](query.md) — [UDS] Query ECUs/parameters live. Positional STEPs use the multi mini-language.
-- [`canair scan`](scan.md) — [UDS] Scan an ECU. Choose a kind:
-- [`canair discover`](discover.md) — [UDS] Sweep a range of TX addresses (sends 10 01 to each) to find ECUs.
-- [`canair raw`](raw.md) — [UDS] Send a raw UDS request (hex in, hex out).
-- [`canair sniff`](sniff.md) — [CAN] ``canair sniff`` — passive CAN bus sniffer (raw SLCAN-over-TCP backend).
-- [`canair io`](io.md) — [UDS] IOControl (0x2F): interactive TUI, or single actuator command with --did.
-- [`canair routines`](routines.md) — [UDS] RoutineControl (0x31): interactive TUI, or single command with --rid.
-- [`canair identity`](identity.md) — [UDS] Query ECU identity data and decode it. Supports UDS (22 F1xx) and KWP2000 (1A 8x/9x) ECUs; the protocol is auto-selected from the profile registry or an on-device probe (override with --protocol).
-- [`canair dtc`](dtc.md) — [UDS] Read stored Diagnostic Trouble Codes with UDS 0x19 (reportDTCByStatusMask), or clear them with UDS 0x14. Clearing mutates ECU fault memory and prompts for confirmation unless --yes is given.
-- [`canair repl`](repl.md) — [UDS] Drop into an interactive live terminal (REPL) over the WiCAN
+- [`canair query`](query.md) — Query ECUs/parameters live. Positional STEPs use the multi mini-language.
+- [`canair scan`](scan.md) — Scan an ECU. Choose a kind:
+- [`canair discover`](discover.md) — Sweep a range of TX addresses (sends 10 01 to each) to find ECUs.
+- [`canair raw`](raw.md) — Send a raw UDS request (hex in, hex out).
+- [`canair sniff`](sniff.md) — ``canair sniff`` — passive CAN bus sniffer (raw SLCAN-over-TCP backend).
+- [`canair io`](io.md) — IOControl (0x2F): interactive TUI, or single actuator command with --did.
+- [`canair routines`](routines.md) — RoutineControl (0x31): interactive TUI, or single command with --rid.
+- [`canair identity`](identity.md) — Query ECU identity data and decode it. Supports UDS (22 F1xx) and KWP2000 (1A 8x/9x) ECUs; the protocol is auto-selected from the profile registry or an on-device probe (override with --protocol).
+- [`canair dtc`](dtc.md) — Read stored Diagnostic Trouble Codes with UDS 0x19 (reportDTCByStatusMask), or clear them with UDS 0x14. Clearing mutates ECU fault memory and prompts for confirmation unless --yes is given.
+- [`canair repl`](repl.md) — Drop into an interactive live terminal (REPL) over the WiCAN
 
 ### Analysis
 
-- [`canair captures`](captures.md) — [UDS+CAN] Query captured data. Choose a kind:
-- [`canair decode`](decode.md) — [UDS] Decode captured UDS payloads using PID parameter definitions.
-- [`canair correlate`](correlate.md) — [UDS+CAN] Find every strong cross-signal relationship across a drive/session.
-- [`canair hunt`](hunt.md) — [UDS+CAN] Answer 'which byte carries a signal I already know?' Choose a domain kind:
-- [`canair investigate`](investigate.md) — [UDS+CAN] Point this at an unknown signal and get one ranked table telling you
-- [`canair coverage`](coverage.md) — [UDS] Audit PID definitions for decoding gaps.
-- [`canair research`](research.md) — [UDS] Report open reverse-engineering work from ecus/ research: sections.
+- [`canair captures`](captures.md) — Query captured data. Choose a kind:
+- [`canair decode`](decode.md) — Decode captured UDS payloads using PID parameter definitions.
+- [`canair correlate`](correlate.md) — Find every strong cross-signal relationship across a drive/session.
+- [`canair hunt`](hunt.md) — Answer 'which byte carries a signal I already know?' Choose a domain kind:
+- [`canair investigate`](investigate.md) — Point this at an unknown signal and get one ranked table telling you
+- [`canair coverage`](coverage.md) — Audit PID definitions for decoding gaps.
+- [`canair research`](research.md) — Report open reverse-engineering work from ecus/ research: sections.
 
 ### Authoring
 
-- [`canair pids`](pids.md) — [UDS] Safely edit ecus/ parameters and research entries (domain A — diagnostic UDS PIDs, freeform WiCAN expressions). The broadcast-frame (domain B) authoring counterpart is `canair signals` (linear signals/ maps).
-- [`canair signals`](signals.md) — [CAN] ``canair signals`` — view/edit broadcast signal definitions (domain B).
-- [`canair ecu`](ecu.md) — [UDS] Inspect or edit the profile's ECU registry.
-- [`canair wican`](wican.md) — [UDS] Build and sync the WiCAN device's AutoPID profile.
-- [`canair validate`](validate.md) — [UDS+CAN] Validate a profile's data files against their schemas and
+- [`canair pids`](pids.md) — Safely edit ecus/ parameters and research entries (domain A — diagnostic UDS PIDs, freeform WiCAN expressions). The broadcast-frame (domain B) authoring counterpart is `canair signals` (linear signals/ maps).
+- [`canair signals`](signals.md) — ``canair signals`` — view/edit broadcast signal definitions (domain B).
+- [`canair ecu`](ecu.md) — Inspect or edit the profile's ECU registry.
+- [`canair wican`](wican.md) — Build and sync the WiCAN device's AutoPID profile.
+- [`canair validate`](validate.md) — Validate a profile's data files against their schemas and
 
 ### Import / export
 
-- [`canair import`](import.md) — [UDS+CAN] Import external CAN data into the active profile. Choose a kind:
-- [`canair export`](export.md) — [CAN] ``canair export`` — export canair data to interchange formats.
+- [`canair import`](import.md) — Import external CAN data into the active profile. Choose a kind:
+- [`canair export`](export.md) — ``canair export`` — export canair data to interchange formats.
 
 ### Setup
 
@@ -52,4 +52,4 @@ Every capability is a `canair <subcommand>`. These pages are generated from each
 
 ### Other
 
-- [`canair bix`](bix.md) — [UDS] Convert byte indices between WiCAN, ISO-TP, Torque, and OBDb notations.
+- [`canair bix`](bix.md) — Convert byte indices between WiCAN, ISO-TP, Torque, and OBDb notations.

@@ -182,6 +182,37 @@ def _validate_state_list(value, label: str, field: str, errors: list, allowed: s
         errors.append(f"{label}: duplicate {field} values")
 
 
+def _validate_can_bus_list(value, label: str, errors: list, allowed: set) -> None:
+    """Validate an ECU's top-level ``can_bus`` list.
+
+    Enforces list shape and no duplicates. Codes are checked against the
+    profile's declared vocabulary (``can_buses.yaml``) only when that vocabulary
+    is non-empty — a profile need not declare its buses, in which case any code
+    is accepted (membership can't be checked).
+    """
+    if value is None:
+        return
+    if not isinstance(value, list):
+        errors.append(f"{label}: can_bus must be a list")
+        return
+    if allowed:
+        for v in value:
+            if v not in allowed:
+                errors.append(
+                    f"{label}: invalid can_bus value '{v}' "
+                    f"(declared in can_buses.yaml: {sorted(allowed)})"
+                )
+    if len(value) != len(set(value)):
+        errors.append(f"{label}: duplicate can_bus values")
+
+
+def _allowed_can_buses(profile) -> set:
+    """The profile's declared CAN bus vocabulary (empty when undeclared)."""
+    from canlib.can_buses import allowed_can_buses
+
+    return allowed_can_buses(profile)
+
+
 def _profile_for_ecu_file(path: Path):
     """Build a Profile rooted at an ECU file's grandparent (``<root>/ecus/x.yaml``).
 
@@ -212,7 +243,6 @@ class _SchemaFields:
     identity: set
     valid_protocols: set
     valid_confidence: set
-    valid_can_bus: set
     scan_log: set
     dtcs: set
     sessions: set
@@ -237,7 +267,6 @@ class _SchemaFields:
             identity=set(identity.get("optional", [])) | set(identity.get("required", [])),
             valid_protocols=set(schema.get("valid_id_protocols", [])),
             valid_confidence=set(schema.get("valid_identity_confidence", [])),
-            valid_can_bus=set(schema.get("valid_can_bus_codes", [])),
             scan_log=set((schema.get("scan_log_entry_fields", {}) or {}).get("optional", [])),
             dtcs=set((schema.get("dtcs_fields", {}) or {}).get("optional", [])),
             sessions=set((schema.get("sessions_fields", {}) or {}).get("optional", [])),
@@ -289,6 +318,7 @@ def validate_ecu_file(
     if profile is None:
         profile = _profile_for_ecu_file(path)
     allowed_states_set = allowed_states(profile)
+    allowed_can_buses_set = _allowed_can_buses(profile)
     fields = _SchemaFields.from_schema(schema)
     stats = _new_ecu_stats()
 
@@ -306,14 +336,30 @@ def validate_ecu_file(
     for ecu_name, ecu_def in data.items():
         stats["ecus"] += 1
         _validate_ecu_entry(
-            ecu_name, ecu_def, path, fields, allowed_states_set, errors, warnings, stats
+            ecu_name,
+            ecu_def,
+            path,
+            fields,
+            allowed_states_set,
+            allowed_can_buses_set,
+            errors,
+            warnings,
+            stats,
         )
 
     return errors, warnings, stats
 
 
 def _validate_ecu_entry(
-    ecu_name, ecu_def, path, fields: _SchemaFields, allowed_states_set, errors, warnings, stats
+    ecu_name,
+    ecu_def,
+    path,
+    fields: _SchemaFields,
+    allowed_states_set,
+    allowed_can_buses_set,
+    errors,
+    warnings,
+    stats,
 ) -> None:
     """Validate one ECU definition (the top-level loop body of a file)."""
     if not isinstance(ecu_def, dict):
@@ -340,8 +386,9 @@ def _validate_ecu_entry(
         ecu_def.get("vehicle_states"), label, "vehicle_states", errors, allowed_states_set
     )
 
-    # can_bus: physical CAN bus segment(s), validated against valid_can_bus_codes.
-    _validate_state_list(ecu_def.get("can_bus"), label, "can_bus", errors, fields.valid_can_bus)
+    # can_bus: physical CAN bus segment(s), validated against the profile's
+    # declared vocabulary (can_buses.yaml) — vendor-specific, so per-profile.
+    _validate_can_bus_list(ecu_def.get("can_bus"), label, errors, allowed_can_buses_set)
 
     # Validate tx_id
     tx_id = ecu_def.get("tx_id")

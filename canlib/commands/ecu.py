@@ -16,16 +16,9 @@ Examples:
   canair ecu --json          # all ECUs as JSON
 
 Columns & legend:
-  IDENT  identity confidence — how sure we are the ECU is correctly
-         identified (name/part/role), NOT how complete its decoding is:
-           confirmed (conf)   — verified by part number / firmware / behaviour
-           probable (prob)    — strong circumstantial evidence
-           tentative (tent)   — plausible but unverified
-           speculative (spec) — a guess, e.g. borrowed from another vehicle
-         A leading `~` means the level was DERIVED from the available evidence;
-         without it, the level was set explicitly in the ECU registry.
-  BUS    physical CAN bus segment(s) the ECU sits on (B/P/C/M/H/All);
-         some ECUs span two (shown `H/P`). Blank (`—`) when unknown.
+  BUS    physical CAN bus segment(s) the ECU sits on (profile-specific codes,
+         e.g. Hyundai B/P/C/M/H/All); some ECUs span two (shown `H/P`). Blank
+         (`—`) when unknown. Use `--sort bus` to group the table by segment.
   PIDS   number of active (non-ignored) PIDs/DIDs defined.
   PARM   number of decoded parameters defined across those PIDs.
   VERIF  verified/total parameters (green when all verified).
@@ -42,7 +35,7 @@ from pathlib import Path
 
 from canlib.commands._group import group_help
 from canlib.commands._hints import ecu_completer as _ecu_completer
-from canlib.ecus import ecu_identity_confidence, load_ecus, resolve_tx, rx_addr_str
+from canlib.ecus import load_ecus, resolve_tx, rx_addr_str
 from canlib.pids import load_pids, pid_status
 
 NAME = "ecu"
@@ -55,23 +48,6 @@ _YELLOW = "\033[93m"
 _RED = "\033[91m"
 _CYAN = "\033[96m"
 _RESET = "\033[0m"
-
-# identity_confidence → (compact code, color) for the list/detail views.
-_CONF_STYLE = {
-    "confirmed": ("conf", _GREEN),
-    "probable": ("prob", _CYAN),
-    "tentative": ("tent", _YELLOW),
-    "speculative": ("spec", _RED),
-}
-
-
-def _conf_cell(rec: dict) -> str:
-    """Colored, width-6 confidence cell for the list view (``~`` = derived)."""
-    conf = rec.get("identity_confidence") or ""
-    explicit = rec.get("identity_confidence_explicit", False)
-    code, color = _CONF_STYLE.get(conf, (conf[:4], _DIM))
-    text = ("" if explicit else "~") + code
-    return f"{color}{text:<6}{_RESET}"
 
 
 # Identity fields to surface in the detail view, in display order.
@@ -163,8 +139,14 @@ def _all_captures_by_ecu() -> Counter:
     return Counter(str(c.get("ecu", "")).upper() for c in caps)
 
 
-def _list_records(ecus: dict, pids_data: dict, with_captures: bool = False) -> list[dict]:
-    """Build one record per registry ECU, joined to ecus/ by tx_id, name-sorted."""
+def _list_records(
+    ecus: dict, pids_data: dict, with_captures: bool = False, sort: str = "name"
+) -> list[dict]:
+    """Build one record per registry ECU, joined to ecus/ by tx_id.
+
+    Sorted by ``name`` (default) or ``bus`` (group by CAN segment, ECUs with no
+    segment last, then by name within a segment group).
+    """
     cap_counts = _all_captures_by_ecu() if with_captures else Counter()
     records = []
     for tx_id, info in ecus.items():
@@ -172,7 +154,6 @@ def _list_records(ecus: dict, pids_data: dict, with_captures: bool = False) -> l
             continue
         name = info.get("name") or f"0x{tx_id:03X}"
         _pids_name, ecu_def = _pids_def_for_tx(pids_data, tx_id)
-        conf, conf_explicit = ecu_identity_confidence(info)
         rec = {
             "name": name,
             "alias": info.get("alias"),
@@ -182,8 +163,6 @@ def _list_records(ecus: dict, pids_data: dict, with_captures: bool = False) -> l
             "description": info.get("description", ""),
             "id_protocol": info.get("id_protocol"),
             "can_bus": info.get("can_bus"),
-            "identity_confidence": conf,
-            "identity_confidence_explicit": conf_explicit,
             "has_pids": ecu_def is not None,
         }
         if ecu_def is not None:
@@ -191,9 +170,18 @@ def _list_records(ecus: dict, pids_data: dict, with_captures: bool = False) -> l
             if with_captures:
                 rec["captures"] = cap_counts.get(name.upper(), 0)
         records.append(rec)
-    # name is always a str at runtime; the record dict's inferred value union
-    # includes int (tx_id) so narrow explicitly for the sort key.
-    records.sort(key=lambda r: str(r["name"]).upper())
+    if sort == "bus":
+        # Group by CAN segment(s); unbussed ECUs (key "~") sort last, name breaks ties.
+        records.sort(
+            key=lambda r: (
+                "/".join(r["can_bus"]) if r.get("can_bus") else "~",
+                str(r["name"]).upper(),
+            )
+        )
+    else:
+        # name is always a str at runtime; the record dict's inferred value union
+        # includes int (tx_id) so narrow explicitly for the sort key.
+        records.sort(key=lambda r: str(r["name"]).upper())
     return records
 
 
@@ -208,7 +196,7 @@ def cmd_list(records: list[dict], as_json: bool) -> int:
 
     # Column header.
     print(
-        f"  {_DIM}{'NAME':<12} {'TX':<6} {'PROTO':<8} {'BUS':<7} {'IDENT':<6} "
+        f"  {_DIM}{'NAME':<12} {'TX':<6} {'PROTO':<8} {'BUS':<8} "
         f"{'PIDS':>4} {'PARM':>5} {'VERIF':>7} {'CAPS':>5}{_RESET}"
     )
 
@@ -217,11 +205,10 @@ def cmd_list(records: list[dict], as_json: bool) -> int:
         alias = f" {_DIM}({r['alias']}){_RESET}" if r.get("alias") else ""
         proto = r.get("id_protocol") or "?"
         bus = "/".join(r["can_bus"]) if r.get("can_bus") else "—"
-        conf = _conf_cell(r)
         if not r["has_pids"]:
             # Registry-only module: no PID data to summarise.
             print(
-                f"  {_CYAN}{name:<12}{_RESET} {r['tx']:<6} {proto:<8} {_DIM}{bus:<7}{_RESET} {conf} "
+                f"  {_CYAN}{name:<12}{_RESET} {r['tx']:<6} {proto:<8} {_CYAN}{bus:<8}{_RESET} "
                 f"{_DIM}{'—':>4} {'—':>5} {'—':>7} {'—':>5}{_RESET}{alias}"
             )
             continue
@@ -232,33 +219,34 @@ def cmd_list(records: list[dict], as_json: bool) -> int:
         caps = r.get("captures", 0)
         cstr = f"{caps:>5}" if caps else f"{_YELLOW}{'0':>5}{_RESET}"
         print(
-            f"  {_CYAN}{name:<12}{_RESET} {r['tx']:<6} {proto:<8} {_DIM}{bus:<7}{_RESET} {conf} "
+            f"  {_CYAN}{name:<12}{_RESET} {r['tx']:<6} {proto:<8} {_CYAN}{bus:<8}{_RESET} "
             f"{r['pids']:>4} {params:>5} {vcolor}{vstr:>7}{_RESET} "
             f"{cstr}{alias}"
         )
     print()
-    print(
-        f"  {_DIM}IDENT = identity confidence: "
-        f"{_GREEN}conf{_DIM}irmed · {_CYAN}prob{_DIM}able · {_YELLOW}tent{_DIM}ative · "
-        f"{_RED}spec{_DIM}ulative   (~ = derived from evidence, else set in registry){_RESET}"
-    )
     return 0
 
 
 # ── detail mode ─────────────────────────────────────────────────────────────
 
 
-def _detail_record(info: dict, tx_id: int, pids_name: str | None, ecu_def: dict | None) -> dict:
+def _detail_record(
+    info: dict,
+    tx_id: int,
+    pids_name: str | None,
+    ecu_def: dict | None,
+    bus_labels: dict | None = None,
+) -> dict:
     name = info.get("name") or f"0x{tx_id:03X}"
-    conf, conf_explicit = ecu_identity_confidence(info)
+    bus_labels = bus_labels or {}
+    can_bus = info.get("can_bus")
     rec = {
         "name": name,
         "alias": info.get("alias"),
         "description": info.get("description", ""),
         "id_protocol": info.get("id_protocol"),
-        "can_bus": info.get("can_bus"),
-        "identity_confidence": conf,
-        "identity_confidence_explicit": conf_explicit,
+        "can_bus": can_bus,
+        "can_bus_labels": [bus_labels.get(c, c) for c in (can_bus or [])],
         "tx": f"0x{tx_id:03X}",
         "rx": rx_addr_str(tx_id),
         "notes": info.get("notes"),
@@ -322,15 +310,13 @@ def cmd_detail(rec: dict, as_json: bool) -> int:
         f"{_DIM}protocol{_RESET} {proto}"
     )
     if rec.get("can_bus"):
-        print(f"  {_DIM}CAN bus{_RESET} {'/'.join(rec['can_bus'])}")
-
-    # Identity confidence
-    conf = rec.get("identity_confidence") or ""
-    _code, ccolor = _CONF_STYLE.get(conf, ("", _DIM))
-    origin = (
-        "set in registry" if rec.get("identity_confidence_explicit") else "derived from evidence"
-    )
-    print(f"  {_DIM}identity confidence{_RESET} {ccolor}{conf}{_RESET} {_DIM}({origin}){_RESET}")
+        labels = rec.get("can_bus_labels") or rec["can_bus"]
+        # Render "CODE (Name)" when a human label differs from the bare code.
+        parts = [
+            f"{code} ({label})" if label and label != code else code
+            for code, label in zip(rec["can_bus"], labels, strict=False)
+        ]
+        print(f"  {_DIM}CAN bus{_RESET} {', '.join(parts)}")
 
     # Identity fields
     if rec["identity"]:
@@ -441,6 +427,12 @@ def _add_show_parser(kinds) -> argparse.ArgumentParser:
         nargs="?",
         help="ECU name, alias, or hex TX/RX id (omit to list all)",
     ).completer = _ecu_completer
+    parser.add_argument(
+        "--sort",
+        choices=["name", "bus"],
+        default="name",
+        help="List ordering: 'name' (default) or 'bus' (group by CAN segment)",
+    )
     parser.add_argument("--json", action="store_true", help="Output as JSON")
     parser.set_defaults(func=run)
     return parser
@@ -520,11 +512,16 @@ def cmd_add(args) -> int:
 
 
 def run(args) -> int:
+    from canlib.can_buses import bus_names
+
     ecus = load_ecus()
     pids_data = load_pids()
+    labels = bus_names()
 
     if not args.ecu:
-        records = _list_records(ecus, pids_data, with_captures=True)
+        records = _list_records(
+            ecus, pids_data, with_captures=True, sort=getattr(args, "sort", "name")
+        )
         if not records:
             print("No ECUs found in the active profile (see `canair profile show`).")
             return 1
@@ -538,5 +535,5 @@ def run(args) -> int:
     # info is only non-None when tx_id resolved (see the guarded .get above).
     assert tx_id is not None
     pids_name, ecu_def = _pids_def_for_tx(pids_data, tx_id)
-    rec = _detail_record(info, tx_id, pids_name, ecu_def)
+    rec = _detail_record(info, tx_id, pids_name, ecu_def, bus_labels=labels)
     return cmd_detail(rec, args.json)
