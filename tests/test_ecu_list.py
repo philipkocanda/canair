@@ -50,6 +50,70 @@ def test_sort_by_name_default():
     assert [r["name"] for r in recs] == ["BCM", "GW", "MCU", "SRS"]
 
 
+def test_sort_by_bus_is_default():
+    # No explicit sort → bus grouping (unbussed last).
+    recs = _list_records(_ecus(), {"ecus": {}})
+    assert [r["name"] for r in recs] == ["GW", "BCM", "MCU", "SRS"]
+
+
+def test_sort_by_tx_ascending():
+    recs = _list_records(_ecus(), {"ecus": {}}, sort="tx")
+    # Numeric/hex ascending: 0x770 < 0x7A0 < 0x7D2 < 0x7E3.
+    assert [r["tx"] for r in recs] == ["0x770", "0x7A0", "0x7D2", "0x7E3"]
+
+
+def test_sort_by_proto_ascending_missing_last():
+    ecus = {
+        0x1: {"name": "A", "id_protocol": "UDS"},
+        0x2: {"name": "B", "id_protocol": "KWP2000"},
+        0x3: {"name": "C"},  # no protocol → last
+    }
+    recs = _list_records(ecus, {"ecus": {}}, sort="proto")
+    assert [r["name"] for r in recs] == ["B", "A", "C"]
+
+
+def _pids_data_counts():
+    return {
+        "ecus": {
+            "A": {"tx_id": 0x1, "pids": {"2101": {"parameters": {}}}},
+            "B": {
+                "tx_id": 0x2,
+                "pids": {
+                    "2101": {"parameters": {"x": {"verified": True}}},
+                    "2102": {"parameters": {"y": {}}},
+                    "2103": {"parameters": {}},
+                },
+            },
+        }
+    }
+
+
+def test_sort_by_pids_descending():
+    ecus = {0x1: {"name": "A"}, 0x2: {"name": "B"}, 0x3: {"name": "C"}}
+    recs = _list_records(ecus, _pids_data_counts(), sort="pids")
+    # B (3 pids) > A (1 pid) > C (registry-only, no pids) last.
+    assert [r["name"] for r in recs] == ["B", "A", "C"]
+
+
+def test_sort_by_verif_descending():
+    ecus = {0x1: {"name": "A"}, 0x2: {"name": "B"}, 0x3: {"name": "C"}}
+    recs = _list_records(ecus, _pids_data_counts(), sort="verif")
+    # B has 1 verified, A has 0, C has none (registry-only) → last.
+    assert [r["name"] for r in recs] == ["B", "A", "C"]
+
+
+def test_sort_by_caps_descending_none_last(monkeypatch):
+    from collections import Counter
+
+    import canlib.commands.ecu as ecu
+
+    monkeypatch.setattr(ecu, "_all_captures_by_ecu", lambda: Counter({"A": 5, "B": 9}))
+    ecus = {0x1: {"name": "A"}, 0x2: {"name": "B"}, 0x3: {"name": "C"}}
+    recs = _list_records(ecus, _pids_data_counts(), with_captures=True, sort="caps")
+    # B (9) > A (5) > C (registry-only, no captures key) last.
+    assert [r["name"] for r in recs] == ["B", "A", "C"]
+
+
 def test_no_identity_confidence_in_records():
     recs = _list_records(_ecus(), {"ecus": {}})
     assert all("identity_confidence" not in r for r in recs)
@@ -78,3 +142,87 @@ def test_list_output_omits_alias_suffix(capsys):
     out = capsys.readouterr().out
     assert "SKM" in out
     assert "SMK" not in out
+
+
+# ── capture-count opt-in (--captures) ────────────────────────────────────────
+# Capture counts require parsing every capture file, so they are opt-in. Without
+# --captures the counts must be None ("not computed", rendered "—"), never 0.
+
+
+def _pids_data_bms():
+    return {
+        "ecus": {
+            "BMS": {
+                "tx_id": 0x7E4,
+                "pids": {"2101": {"parameters": {"SOC": {"verified": True}}}},
+            }
+        }
+    }
+
+
+def test_list_captures_none_without_flag(monkeypatch):
+    # _all_captures_by_ecu must NOT be called when captures aren't requested.
+    import canlib.commands.ecu as ecu
+
+    def _boom():
+        raise AssertionError("_all_captures_by_ecu called without --captures")
+
+    monkeypatch.setattr(ecu, "_all_captures_by_ecu", _boom)
+    recs = _list_records({0x7E4: {"name": "BMS"}}, _pids_data_bms(), with_captures=False)
+    assert recs[0]["captures"] is None
+
+
+def test_list_captures_counted_with_flag(monkeypatch):
+    from collections import Counter
+
+    import canlib.commands.ecu as ecu
+
+    monkeypatch.setattr(ecu, "_all_captures_by_ecu", lambda: Counter({"BMS": 42}))
+    recs = _list_records({0x7E4: {"name": "BMS"}}, _pids_data_bms(), with_captures=True)
+    assert recs[0]["captures"] == 42
+
+
+def test_list_caps_column_shows_dash_without_flag(capsys):
+    recs = _list_records({0x7E4: {"name": "BMS"}}, _pids_data_bms(), with_captures=False)
+    cmd_list(recs, as_json=False)
+    out = capsys.readouterr().out
+    assert "—" in out  # CAPS rendered as em-dash, not "0"
+
+
+def test_detail_captures_none_without_flag(monkeypatch):
+    import canlib.commands.ecu as ecu
+
+    def _boom(_name):
+        raise AssertionError("_captures_by_pid called without --captures")
+
+    monkeypatch.setattr(ecu, "_captures_by_pid", _boom)
+    info = {"name": "BMS"}
+    ecu_def = _pids_data_bms()["ecus"]["BMS"]
+    rec = _detail_record(info, 0x7E4, "BMS", ecu_def, with_captures=False)
+    assert rec["captures"] is None
+    assert rec["pid_list"][0]["captures"] is None
+
+
+def test_detail_captures_counted_with_flag(monkeypatch):
+    from collections import Counter
+
+    import canlib.commands.ecu as ecu
+
+    monkeypatch.setattr(ecu, "_captures_by_pid", lambda _name: (Counter({"2101": 7}), 7))
+    info = {"name": "BMS"}
+    ecu_def = _pids_data_bms()["ecus"]["BMS"]
+    rec = _detail_record(info, 0x7E4, "BMS", ecu_def, with_captures=True)
+    assert rec["captures"] == 7
+    assert rec["pid_list"][0]["captures"] == 7
+
+
+def test_detail_display_omits_captures_without_flag(capsys):
+    from canlib.commands.ecu import cmd_detail
+
+    info = {"name": "BMS"}
+    ecu_def = _pids_data_bms()["ecus"]["BMS"]
+    rec = _detail_record(info, 0x7E4, "BMS", ecu_def, with_captures=False)
+    cmd_detail(rec, as_json=False)
+    out = capsys.readouterr().out
+    assert "Captures" not in out
+    assert "cap" not in out  # no "N cap" per-PID segment

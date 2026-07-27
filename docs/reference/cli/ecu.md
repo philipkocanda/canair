@@ -24,53 +24,73 @@ options:
   canair ecu MDPS            # aliases resolve too (MDPS -> EPS)
   canair ecu 0x7E4           # hex TX id also works
   canair ecu 0x7EC           # hex RX id resolves too (RX = TX + 8)
+  canair ecu --captures      # include capture-count columns (parses captures — slower)
+  canair ecu BMS --captures  # per-PID capture counts for the BMS
   canair ecu BMS --json      # machine-readable
   canair ecu --json          # all ECUs as JSON
 
 Columns & legend:
   BUS    physical CAN bus segment(s) the ECU sits on (profile-specific codes,
          e.g. Hyundai B/P/C/M/H/All); some ECUs span two (shown `H/P`). Blank
-         (`—`) when unknown. Use `--sort bus` to group the table by segment.
+         (`—`) when unknown. The list is sorted by BUS by default.
   PIDS   number of active (non-ignored) PIDs/DIDs defined.
   VERIF  verified/total parameters (green when all verified).
-  CAPS   number of saved captures for the ECU.
+  CAPS   number of saved captures for the ECU. Only computed with `--captures`
+         (parsing every capture is slow); shown as `—` otherwise.
   cap    in the per-PID detail view, "N cap" = number of saved captures for
-         that individual PID.
+         that individual PID (only shown with `--captures`).
+
+  Sort with `--sort {bus,name,tx,proto,pids,verif,caps}`: string/hex columns
+  (bus, name, tx, proto) ascending; numeric columns (pids, verif, caps)
+  descending. `name` breaks ties.
 ```
 
 ## `canair ecu show`
 
 ```
-usage: canair ecu show [-h] [--sort {name,bus}] [--json] [ecu]
+usage: canair ecu show [-h] [--sort {bus,name,tx,proto,pids,verif,caps}] [-c]
+                       [--json]
+                       [ecu]
 
 List ECUs, or show one ECU's details and PID stats.
 
 positional arguments:
-  ecu                ECU name, alias, or hex TX/RX id (omit to list all)
+  ecu                   ECU name, alias, or hex TX/RX id (omit to list all)
 
 options:
-  -h, --help         show this help message and exit
-  --sort {name,bus}  List ordering: 'name' (default) or 'bus' (group by CAN
-                     segment)
-  --json             Output as JSON
+  -h, --help            show this help message and exit
+  --sort {bus,name,tx,proto,pids,verif,caps}
+                        List ordering: 'bus' (default; group by CAN segment)
+                        or by column: name/tx/proto (ascending),
+                        pids/verif/caps (descending)
+  -c, --captures        Include per-ECU/PID capture counts (parses all
+                        captures — slower)
+  --json                Output as JSON
 
   canair ecu                 # plain list of all ECUs (one per line)
   canair ecu BMS             # details + stats for the BMS
   canair ecu MDPS            # aliases resolve too (MDPS -> EPS)
   canair ecu 0x7E4           # hex TX id also works
   canair ecu 0x7EC           # hex RX id resolves too (RX = TX + 8)
+  canair ecu --captures      # include capture-count columns (parses captures — slower)
+  canair ecu BMS --captures  # per-PID capture counts for the BMS
   canair ecu BMS --json      # machine-readable
   canair ecu --json          # all ECUs as JSON
 
 Columns & legend:
   BUS    physical CAN bus segment(s) the ECU sits on (profile-specific codes,
          e.g. Hyundai B/P/C/M/H/All); some ECUs span two (shown `H/P`). Blank
-         (`—`) when unknown. Use `--sort bus` to group the table by segment.
+         (`—`) when unknown. The list is sorted by BUS by default.
   PIDS   number of active (non-ignored) PIDs/DIDs defined.
   VERIF  verified/total parameters (green when all verified).
-  CAPS   number of saved captures for the ECU.
+  CAPS   number of saved captures for the ECU. Only computed with `--captures`
+         (parsing every capture is slow); shown as `—` otherwise.
   cap    in the per-PID detail view, "N cap" = number of saved captures for
-         that individual PID.
+         that individual PID (only shown with `--captures`).
+
+  Sort with `--sort {bus,name,tx,proto,pids,verif,caps}`: string/hex columns
+  (bus, name, tx, proto) ascending; numeric columns (pids, verif, caps)
+  descending. `name` breaks ties.
 ```
 
 ## `canair ecu add`

@@ -12,18 +12,25 @@ Examples:
   canair ecu MDPS            # aliases resolve too (MDPS -> EPS)
   canair ecu 0x7E4           # hex TX id also works
   canair ecu 0x7EC           # hex RX id resolves too (RX = TX + 8)
+  canair ecu --captures      # include capture-count columns (parses captures — slower)
+  canair ecu BMS --captures  # per-PID capture counts for the BMS
   canair ecu BMS --json      # machine-readable
   canair ecu --json          # all ECUs as JSON
 
 Columns & legend:
   BUS    physical CAN bus segment(s) the ECU sits on (profile-specific codes,
          e.g. Hyundai B/P/C/M/H/All); some ECUs span two (shown `H/P`). Blank
-         (`—`) when unknown. Use `--sort bus` to group the table by segment.
+         (`—`) when unknown. The list is sorted by BUS by default.
   PIDS   number of active (non-ignored) PIDs/DIDs defined.
   VERIF  verified/total parameters (green when all verified).
-  CAPS   number of saved captures for the ECU.
+  CAPS   number of saved captures for the ECU. Only computed with `--captures`
+         (parsing every capture is slow); shown as `—` otherwise.
   cap    in the per-PID detail view, "N cap" = number of saved captures for
-         that individual PID.
+         that individual PID (only shown with `--captures`).
+
+  Sort with `--sort {bus,name,tx,proto,pids,verif,caps}`: string/hex columns
+  (bus, name, tx, proto) ascending; numeric columns (pids, verif, caps)
+  descending. `name` breaks ties.
 """
 
 import argparse
@@ -138,13 +145,63 @@ def _all_captures_by_ecu() -> Counter:
     return Counter(str(c.get("ecu", "")).upper() for c in caps)
 
 
+# Sort columns → (record key, direction). Numeric columns sort descending
+# (most-populated first); string/hex columns sort ascending. `bus` is the
+# default (group by CAN segment). Order here also drives the --sort choices.
+_SORT_COLUMNS = {
+    "bus": ("can_bus", "asc"),
+    "name": ("name", "asc"),
+    "tx": ("tx_id", "asc"),
+    "proto": ("id_protocol", "asc"),
+    "pids": ("pids", "desc"),
+    "verif": ("verified", "desc"),
+    "caps": ("captures", "desc"),
+}
+
+
+def _sort_records(records: list[dict], sort: str) -> None:
+    """Sort ``records`` in place by the named column (see ``_SORT_COLUMNS``).
+
+    Numeric columns sort descending, string/hex columns ascending; ``name`` is
+    always the tie-breaker (ascending). Missing/unbussed values sort last.
+    """
+    key_name, direction = _SORT_COLUMNS.get(sort, _SORT_COLUMNS["bus"])
+    reverse = direction == "desc"
+
+    # Stable pre-sort by name so that, within an equal primary key, ties always
+    # resolve alphabetically — even under reverse=True (where an inline name
+    # tie-breaker would itself be flipped).
+    records.sort(key=lambda r: str(r["name"]).upper())
+
+    def key(r: dict):
+        if key_name == "can_bus":
+            # Group by CAN segment(s); unbussed ECUs (key "~") sort last.
+            return "/".join(r["can_bus"]) if r.get("can_bus") else "~"
+        if key_name == "name":
+            return str(r["name"]).upper()
+        value = r.get(key_name)
+        if key_name == "tx_id":
+            # Hex TX id: sort ascending by its numeric value (== hex order).
+            return value if value is not None else 0
+        if reverse:
+            # Numeric column: sort descending, but absent values (None — e.g.
+            # a registry-only ECU, or captures without --captures) sort last.
+            # reverse=True flips the list, so rank present > absent here.
+            return (0 if value is None else 1, value or 0)
+        # String column (id_protocol): missing values sort last.
+        return str(value).upper() if value is not None else "~"
+
+    records.sort(key=key, reverse=reverse)
+
+
 def _list_records(
-    ecus: dict, pids_data: dict, with_captures: bool = False, sort: str = "name"
+    ecus: dict, pids_data: dict, with_captures: bool = False, sort: str = "bus"
 ) -> list[dict]:
     """Build one record per registry ECU, joined to ecus/ by tx_id.
 
-    Sorted by ``name`` (default) or ``bus`` (group by CAN segment, ECUs with no
-    segment last, then by name within a segment group).
+    Sorted by ``bus`` (default; group by CAN segment, unbussed ECUs last) or any
+    other column in ``_SORT_COLUMNS`` — numeric columns descending, string/hex
+    ascending, with ``name`` as the tie-breaker.
     """
     cap_counts = _all_captures_by_ecu() if with_captures else Counter()
     records = []
@@ -166,21 +223,12 @@ def _list_records(
         }
         if ecu_def is not None:
             rec.update(_pid_stats(ecu_def))
-            if with_captures:
-                rec["captures"] = cap_counts.get(name.upper(), 0)
+            # None = capture counts not requested (--captures off); a display "—"
+            # vs. an integer 0 ("counted, none found"). Keeps the key present so
+            # --json is shape-stable.
+            rec["captures"] = cap_counts.get(name.upper(), 0) if with_captures else None
         records.append(rec)
-    if sort == "bus":
-        # Group by CAN segment(s); unbussed ECUs (key "~") sort last, name breaks ties.
-        records.sort(
-            key=lambda r: (
-                "/".join(r["can_bus"]) if r.get("can_bus") else "~",
-                str(r["name"]).upper(),
-            )
-        )
-    else:
-        # name is always a str at runtime; the record dict's inferred value union
-        # includes int (tx_id) so narrow explicitly for the sort key.
-        records.sort(key=lambda r: str(r["name"]).upper())
+    _sort_records(records, sort)
     return records
 
 
@@ -214,8 +262,13 @@ def cmd_list(records: list[dict], as_json: bool) -> int:
         verified = r["verified"]
         vcolor = _GREEN if params and verified == params else (_YELLOW if verified else _DIM)
         vstr = f"{verified}/{params}"
-        caps = r.get("captures", 0)
-        cstr = f"{caps:>5}" if caps else f"{_YELLOW}{'0':>5}{_RESET}"
+        caps = r.get("captures")
+        if caps is None:
+            cstr = f"{_DIM}{'—':>5}{_RESET}"  # counts not requested (--captures)
+        elif caps:
+            cstr = f"{caps:>5}"
+        else:
+            cstr = f"{_YELLOW}{'0':>5}{_RESET}"
         print(
             f"  {_CYAN}{name:<12}{_RESET} {r['tx']:<6} {proto:<8} {_CYAN}{bus:<8}{_RESET} "
             f"{r['pids']:>4} {vcolor}{vstr:>7}{_RESET} "
@@ -234,6 +287,7 @@ def _detail_record(
     pids_name: str | None,
     ecu_def: dict | None,
     bus_labels: dict | None = None,
+    with_captures: bool = False,
 ) -> dict:
     name = info.get("name") or f"0x{tx_id:03X}"
     bus_labels = bus_labels or {}
@@ -250,20 +304,27 @@ def _detail_record(
         "notes": info.get("notes"),
         "identity": {k: info[k] for k, _ in _IDENTITY_FIELDS if info.get(k) is not None},
     }
+    # Capture counts require parsing every capture file, so they're opt-in
+    # (--captures); when off, `captures` is None (== "not computed", shown as
+    # "—") rather than 0, and the per-PID rows carry no count.
     if ecu_def is not None:
         rec["stats"] = _pid_stats(ecu_def)
         rec["vehicle_states"] = ecu_def.get("vehicle_states")
-        per_pid, total = _captures_by_pid(name)
-        rec["captures"] = total
+        per_pid = None
+        if with_captures:
+            per_pid, total = _captures_by_pid(name)
+            rec["captures"] = total
+        else:
+            rec["captures"] = None
         rec["pid_list"] = _pid_details(ecu_def, per_pid)
     else:
         rec["stats"] = None
-        rec["captures"] = 0
+        rec["captures"] = _captures_by_pid(name)[1] if with_captures else None
         rec["pid_list"] = []
     return rec
 
 
-def _pid_details(ecu_def: dict, per_pid: Counter) -> list[dict]:
+def _pid_details(ecu_def: dict, per_pid: Counter | None) -> list[dict]:
     out = []
     for pid_code, pid_def in (ecu_def.get("pids", {}) or {}).items():
         if not isinstance(pid_def, dict):
@@ -280,10 +341,11 @@ def _pid_details(ecu_def: dict, per_pid: Counter) -> list[dict]:
                 ),
                 "status": status,
                 "ignored": status == "ignored",
-                "captures": per_pid.get(code, 0),
+                # None when capture counts weren't requested (--captures off).
+                "captures": per_pid.get(code, 0) if per_pid is not None else None,
             }
         )
-    out.sort(key=lambda p: p["pid"])
+    out.sort(key=lambda p: str(p["pid"]))
     return out
 
 
@@ -341,7 +403,8 @@ def cmd_detail(rec: dict, as_json: bool) -> int:
         )
         print(f"    {'Parameters':<14} {params}")
         print(f"    {'Verified':<14} {vcolor}{verified}/{params}{_RESET}")
-        print(f"    {'Captures':<14} {rec['captures']}")
+        if rec["captures"] is not None:
+            print(f"    {'Captures':<14} {rec['captures']}")
         if stats["research_total"]:
             print(
                 f"    {'Research':<14} {stats['research_open']} open "
@@ -368,14 +431,17 @@ def cmd_detail(rec: dict, as_json: bool) -> int:
             status = p.get("status", "active")
             if status != "active":
                 flags.append(f"{_DIM}{status}{_RESET}")
-            if not p["captures"]:
+            caps = p["captures"]
+            if caps is not None and not caps:
                 flags.append(f"{_YELLOW}no capture{_RESET}")
             flag_str = ("  " + " ".join(flags)) if flags else ""
             vcolor = _GREEN if p["params"] and p["verified"] == p["params"] else _DIM
+            # "N cap" only when counts were computed (--captures); otherwise omit.
+            cap_seg = f"  {_DIM}{caps} cap{_RESET}" if caps is not None else ""
             print(
                 f"    {_CYAN}{p['pid']:<8}{_RESET} "
-                f"{p['params']:>2}p  {vcolor}{p['verified']:>2} verified{_RESET}  "
-                f"{_DIM}{p['captures']} cap{_RESET}{flag_str}"
+                f"{p['params']:>2}p  {vcolor}{p['verified']:>2} verified{_RESET}"
+                f"{cap_seg}{flag_str}"
             )
 
     # Notes last (can be long/multiline)
@@ -427,9 +493,16 @@ def _add_show_parser(kinds) -> argparse.ArgumentParser:
     ).completer = _ecu_completer
     parser.add_argument(
         "--sort",
-        choices=["name", "bus"],
-        default="name",
-        help="List ordering: 'name' (default) or 'bus' (group by CAN segment)",
+        choices=list(_SORT_COLUMNS),
+        default="bus",
+        help="List ordering: 'bus' (default; group by CAN segment) or by column: "
+        "name/tx/proto (ascending), pids/verif/caps (descending)",
+    )
+    parser.add_argument(
+        "-c",
+        "--captures",
+        action="store_true",
+        help="Include per-ECU/PID capture counts (parses all captures — slower)",
     )
     parser.add_argument("--json", action="store_true", help="Output as JSON")
     parser.set_defaults(func=run)
@@ -515,10 +588,11 @@ def run(args) -> int:
     ecus = load_ecus()
     pids_data = load_pids()
     labels = bus_names()
+    with_captures = getattr(args, "captures", False)
 
     if not args.ecu:
         records = _list_records(
-            ecus, pids_data, with_captures=True, sort=getattr(args, "sort", "name")
+            ecus, pids_data, with_captures=with_captures, sort=getattr(args, "sort", "bus")
         )
         if not records:
             print("No ECUs found in the active profile (see `canair profile show`).")
@@ -533,5 +607,7 @@ def run(args) -> int:
     # info is only non-None when tx_id resolved (see the guarded .get above).
     assert tx_id is not None
     pids_name, ecu_def = _pids_def_for_tx(pids_data, tx_id)
-    rec = _detail_record(info, tx_id, pids_name, ecu_def, bus_labels=labels)
+    rec = _detail_record(
+        info, tx_id, pids_name, ecu_def, bus_labels=labels, with_captures=with_captures
+    )
     return cmd_detail(rec, args.json)
