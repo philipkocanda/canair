@@ -372,7 +372,11 @@ def run(args) -> int:
                 driver_series, driver_label = load_reference_file(args.independent_of_file)
             else:
                 driver_series, driver_label = load_ref(
-                    args.independent_of, since=since, until=until, state=args.state, label=args.label
+                    args.independent_of,
+                    since=since,
+                    until=until,
+                    state=args.state,
+                    label=args.label,
                 )
         except ValueError as e:
             flag = "--independent-of-file" if args.independent_of_file else "--independent-of"

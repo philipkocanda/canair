@@ -216,7 +216,9 @@ def _parse_reference_timestamp(raw: str) -> datetime | None:
     return dt
 
 
-def load_reference_file(path: Path | str, *, label: str | None = None) -> tuple[list[TimePoint], str]:
+def load_reference_file(
+    path: Path | str, *, label: str | None = None
+) -> tuple[list[TimePoint], str]:
     """Load an external reference series from a two-column ``timestamp,value`` file.
 
     The escape hatch for correlating against data that isn't on the bus — a

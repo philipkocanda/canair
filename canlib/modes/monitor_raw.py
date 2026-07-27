@@ -252,7 +252,9 @@ class MonitorRawPoller:
             if dlen is not None:
                 self.lengths[(ecu, code[2:])] = dlen
 
-    def build_queries(self, plan_by_ecu, by_pid: dict[tuple[str, str], ResultEntry]) -> list[EcuFrame]:
+    def build_queries(
+        self, plan_by_ecu, by_pid: dict[tuple[str, str], ResultEntry]
+    ) -> list[EcuFrame]:
         """Build the render frame in plan order. A PID resolved as a timeout keeps
         its last-good values (stale/dimmed); a PID not yet resolved this cycle
         shows its last-good values so the view neither flickers nor stutters."""
