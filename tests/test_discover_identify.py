@@ -11,6 +11,7 @@ import pytest
 from canlib import profile
 from canlib.modes import discover as disc
 from canlib.pids import clear_cache
+from tests._fakes import FakeTerminal as _SharedFakeTerminal
 
 
 @pytest.fixture(autouse=True)
@@ -54,20 +55,12 @@ class _FakeStdin:
         return self._line
 
 
-class FakeTerminal:
-    """Records set_header calls; returns NO DATA so identity probes finish fast."""
+class FakeTerminal(_SharedFakeTerminal):
+    """Records set_header calls; returns NO DATA so identity probes finish fast.
+    ``enter_extended_session`` reports no success (``(None, None)``)."""
 
     def __init__(self):
-        self.headers: list[int] = []
-
-    async def set_header(self, tx_id):
-        self.headers.append(tx_id)
-
-    async def send_uds(self, cmd, timeout=None):
-        return {"ok": False, "error": "NO DATA", "raw": "NO DATA"}
-
-    async def enter_extended_session(self, wake=False):
-        return None, None
+        super().__init__(session_result=(None, None))
 
 
 class TestClassifyAlive:

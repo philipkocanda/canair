@@ -6,27 +6,8 @@ import pytest
 
 from canlib.modes import identity as ident
 from canlib.modes import identity_decode as idec
-
-
-class FakeTerminal:
-    """Minimal terminal returning canned send_uds responses by request string."""
-
-    def __init__(self, responses):
-        self._responses = responses
-        self.sent = []
-
-    async def set_header(self, tx_id):
-        pass
-
-    async def send_uds(self, cmd, timeout=None):
-        self.sent.append(cmd)
-        resp = self._responses.get(cmd, {"ok": False, "error": "NO DATA", "raw": "NO DATA"})
-        return dict(resp)
-
-
-def _ok(hex_str):
-    b = bytes.fromhex(hex_str)
-    return {"ok": True, "bytes": b, "hex": hex_str.upper(), "raw": hex_str}
+from tests._fakes import FakeTerminal
+from tests._fakes import ok as _ok
 
 
 class TestProbeProtocol:

@@ -5,26 +5,14 @@ from __future__ import annotations
 import pytest
 
 from canlib.modes.discovery_scan import DiscoveryProbe, scan_ecu
+from tests._fakes import FakeTerminal
+from tests._fakes import nrc as _nrc
 
 
-class _FakeTerminal:
-    def __init__(self, responses=None):
-        self.headers: list[int] = []
-        self.sessions: list[tuple[bool, str]] = []
-        self.reqs: list[str] = []
-        self._responses = responses or {}
-
-    async def set_header(self, tx_id):
-        self.headers.append(tx_id)
-
-    async def enter_extended_session(self, wake=False, mode="03"):
-        self.sessions.append((wake, mode))
-        return True, None
-
-    async def send_uds(self, req, **kw):
-        self.reqs.append(req)
-        # Return a canned response keyed by request, else "absent" (NRC 0x31).
-        return self._responses.get(req, {"ok": False, "nrc": 0x31})
+def _FakeTerminal(responses=None):
+    """Discovery-scan terminal double: unscripted requests answer 'absent' (NRC
+    0x31); ``enter_extended_session`` records ``(wake, mode)`` in ``.sessions``."""
+    return FakeTerminal(responses, default=_nrc(0x31))
 
 
 def _classify(resp):

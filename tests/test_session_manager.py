@@ -6,31 +6,19 @@ import time
 import pytest
 
 from canlib.session_manager import SessionManager
+from tests._fakes import FakeTerminal
+from tests._fakes import ok as _ok
 
 
-class MockTerminal:
-    """Minimal WiCANTerminal mock that records calls."""
-
-    def __init__(self, uds_responses=None):
-        self.calls = []  # [(method, args), ...]
-        self._current_header = None
-        self._uds_responses = uds_responses or {}
-
-    async def set_header(self, tx_id: int):
-        self.calls.append(("set_header", tx_id))
-        self._current_header = tx_id
-
-    async def send_uds(self, cmd: str, timeout: float = 3.0) -> dict:
-        self.calls.append(("send_uds", cmd))
-        key = (self._current_header, cmd)
-        if key in self._uds_responses:
-            return self._uds_responses[key]
-        # Default: positive response
-        return {"ok": True, "hex": "5003", "bytes": b"\x50\x03", "raw": "50 03"}
-
-    async def send_command(self, cmd: str, timeout: float = 3.0) -> str:
-        self.calls.append(("send_command", cmd))
-        return "7E 00"
+def MockTerminal(uds_responses=None):
+    """SessionManager's terminal double: responses keyed by ``(header, cmd)``,
+    positive ``50 03`` default, and ``send_command`` returning ``"7E 00"``."""
+    return FakeTerminal(
+        uds_responses,
+        default=_ok("5003"),
+        send_command_reply="7E 00",
+        key_by_header=True,
+    )
 
 
 # --- open_session ---

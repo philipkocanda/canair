@@ -16,6 +16,8 @@ from canlib.modes.kwp_iocontrol_scan import (
     probe_kwp_iocontrol,
 )
 from canlib.pids_edit import append_iocontrol_discoveries_block
+from tests._fakes import FakeTerminal
+from tests._fakes import ok as _ok
 
 # ── safety guard ─────────────────────────────────────────────────────────────
 
@@ -42,29 +44,18 @@ async def test_probe_rejects_out_of_range_lid():
 
 @pytest.mark.asyncio
 async def test_probe_sends_30_lid_00_and_validates_echo():
-    sent = {}
-
-    class FakeTerminal:
-        async def send_uds(self, req, timeout=2.0, expected_sid=None, **kw):
-            sent["req"] = req
-            sent["expected_sid"] = expected_sid
-            # Positive response echoing the LID: 70 0A ...
-            return {"ok": True, "hex": "700A00", "bytes": bytes([0x70, 0x0A, 0x00])}
-
-    resp = await probe_kwp_iocontrol(FakeTerminal(), lid=0x0A)
-    assert sent["req"] == "300A00"
-    assert sent["expected_sid"] == 0x30
+    term = FakeTerminal({"300A00": _ok("700A00")})  # positive, echoing the LID
+    resp = await probe_kwp_iocontrol(term, lid=0x0A)
+    assert term.sent == ["300A00"]
+    assert term.uds_kwargs[0]["expected_sid"] == 0x30
     assert resp["ok"] is True
 
 
 @pytest.mark.asyncio
 async def test_probe_flags_lid_echo_mismatch():
-    class FakeTerminal:
-        async def send_uds(self, req, timeout=2.0, expected_sid=None, **kw):
-            # Stale frame: echoes the *previous* LID (0x09) not the requested 0x0A
-            return {"ok": True, "hex": "700900", "bytes": bytes([0x70, 0x09, 0x00])}
-
-    resp = await probe_kwp_iocontrol(FakeTerminal(), lid=0x0A)
+    # Stale frame: echoes the *previous* LID (0x09) not the requested 0x0A.
+    term = FakeTerminal({"300A00": _ok("700900")})
+    resp = await probe_kwp_iocontrol(term, lid=0x0A)
     assert resp["ok"] is False
     assert "echo mismatch" in resp["error"]
 

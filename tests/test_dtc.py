@@ -6,57 +6,8 @@ import json
 import pytest
 
 from canlib.modes import dtc
-
-
-class FakeTerminal:
-    """Minimal terminal returning canned send_uds responses by request string."""
-
-    def __init__(self, responses):
-        self._responses = responses
-        self.sent = []
-
-    async def set_header(self, tx_id):
-        pass
-
-    async def enter_extended_session(self, wake=False):
-        return True, None
-
-    async def send_uds(
-        self, cmd, timeout=None, expected_sid=None, expected_did=None, expected_echo=None
-    ):
-        self.sent.append(cmd)
-        resp = self._responses.get(cmd, {"ok": False, "error": "NO DATA", "raw": "NO DATA"})
-        return dict(resp)
-
-
-def _ok(hex_str):
-    b = bytes.fromhex(hex_str)
-    return {"ok": True, "bytes": b, "hex": hex_str.upper(), "raw": hex_str}
-
-
-class FlakyTerminal:
-    """Returns NO DATA the first time a request is seen, then the canned payload
-    — models a slow/asleep ECU that answers only on the wake+longer-timeout retry."""
-
-    def __init__(self, recover):
-        self._recover = recover  # request -> hex payload (returned after first miss)
-        self._seen: set[str] = set()
-        self.sent: list[str] = []
-
-    async def set_header(self, tx_id):
-        pass
-
-    async def enter_extended_session(self, wake=False):
-        return True, None
-
-    async def send_uds(
-        self, cmd, timeout=None, expected_sid=None, expected_did=None, expected_echo=None
-    ):
-        self.sent.append(cmd)
-        if cmd in self._recover and cmd in self._seen:
-            return _ok(self._recover[cmd])
-        self._seen.add(cmd)
-        return {"ok": False, "error": "NO DATA", "raw": "NO DATA"}
+from tests._fakes import FakeTerminal
+from tests._fakes import ok as _ok
 
 
 class TestFormatDtc:
@@ -319,7 +270,7 @@ class TestScanAll:
         monkeypatch.setattr(dtc, "resolve_protocol", lambda proto, tx: "uds")
         monkeypatch.setattr("canlib.ecus.load_ecus", lambda: {0x7A0: {"name": "BCM"}})
         # NO DATA on first read, a DTC once retried (after the wake).
-        t = FlakyTerminal({"1902FF": "5902FF0123002F"})
+        t = FakeTerminal(flaky_recover={"1902FF": "5902FF0123002F"})
         await dtc.mode_dtc_scan_all(t, as_json=True, timeout=0.1, retry=True)
         data = json.loads(capsys.readouterr().out)
         assert data["no_response"] == []  # recovered on retry
@@ -330,7 +281,7 @@ class TestScanAll:
     async def test_scan_all_no_retry_leaves_no_response(self, monkeypatch, capsys):
         monkeypatch.setattr(dtc, "resolve_protocol", lambda proto, tx: "uds")
         monkeypatch.setattr("canlib.ecus.load_ecus", lambda: {0x7A0: {"name": "BCM"}})
-        t = FlakyTerminal({"1902FF": "5902FF0123002F"})
+        t = FakeTerminal(flaky_recover={"1902FF": "5902FF0123002F"})
         await dtc.mode_dtc_scan_all(t, as_json=True, timeout=0.1, retry=False)
         data = json.loads(capsys.readouterr().out)
         assert data["no_response"] == ["BCM (0x7A0)"]

@@ -19,6 +19,9 @@ from canlib.modes.multi_batch import (
     _did_data_len,
     split_multi_did,
 )
+from tests._fakes import FakeTerminal
+from tests._fakes import nrc as _nrc
+from tests._fakes import ok as _ok
 
 BC03_SINGLE = "62BC03FDEE3C730A000000AAAA"
 BC06_SINGLE = "62BC06B480000000000000AAAA"
@@ -72,22 +75,15 @@ def _igpm_index(multi_did: bool) -> dict:
 
 
 _SINGLES = {
-    "22BC03": {"ok": True, "hex": BC03_SINGLE, "bytes": bytes.fromhex(BC03_SINGLE)},
-    "22BC06": {"ok": True, "hex": BC06_SINGLE, "bytes": bytes.fromhex(BC06_SINGLE)},
+    "22BC03": _ok(BC03_SINGLE),
+    "22BC06": _ok(BC06_SINGLE),
 }
 
 
 class TestBatchingExecutor:
     def test_learns_then_batches(self):
-        calls = []
-
-        async def send_uds(req, *a, **k):
-            calls.append(req)
-            if req == "22BC03BC06":
-                return {"ok": True, "hex": MULTI, "bytes": bytes.fromhex(MULTI)}
-            return _SINGLES[req]
-
-        sm = _mk_sm(send_uds)
+        term = FakeTerminal({**_SINGLES, "22BC03BC06": _ok(MULTI)})
+        sm = _mk_sm(term.send_uds)
         bs = BatchState()
         idx = _igpm_index(multi_did=True)
 
@@ -95,35 +91,26 @@ class TestBatchingExecutor:
         _l, r1 = asyncio.run(
             _exec_query(sm, "IGPM", [], idx, {}, False, return_results=True, batch_state=bs)
         )
-        assert calls == ["22BC03", "22BC06"]
+        assert term.sent == ["22BC03", "22BC06"]
         assert bs.lengths[(0x770, "BC03")] == 8
         assert bs.lengths[(0x770, "BC06")] == 8
         assert len(r1) == 2
 
         # Cycle 2: lengths known → one batched request replaces two singles.
-        calls.clear()
+        term.sent.clear()
         _l, r2 = asyncio.run(
             _exec_query(sm, "IGPM", [], idx, {}, False, return_results=True, batch_state=bs)
         )
-        assert calls == ["22BC03BC06"]
+        assert term.sent == ["22BC03BC06"]
         got = {x["pid"]: x["raw_hex"] for x in r2}
         assert got["22BC03"] == "62BC03FDEE3C730A000000"
         assert got["22BC06"] == "62BC06B480000000000000"
 
     def test_nrc13_disables_and_falls_back(self):
-        calls = []
-
-        async def send_uds(req, *a, **k):
-            calls.append(req)
-            if req == "22BC03BC06":
-                return {
-                    "ok": False,
-                    "nrc": 0x13,
-                    "nrc_desc": "incorrectMessageLengthOrInvalidFormat",
-                }
-            return _SINGLES[req]
-
-        sm = _mk_sm(send_uds)
+        term = FakeTerminal(
+            {**_SINGLES, "22BC03BC06": _nrc(0x13, "incorrectMessageLengthOrInvalidFormat")}
+        )
+        sm = _mk_sm(term.send_uds)
         bs = BatchState()
         # Pre-seed lengths so a batch is attempted immediately.
         bs.lengths[(0x770, "BC03")] = 8
@@ -133,27 +120,22 @@ class TestBatchingExecutor:
         _l, r = asyncio.run(
             _exec_query(sm, "IGPM", [], idx, {}, False, return_results=True, batch_state=bs)
         )
-        assert calls[0] == "22BC03BC06"  # batch attempted first
+        assert term.sent[0] == "22BC03BC06"  # batch attempted first
         assert 0x770 in bs.disabled  # then disabled
-        assert set(calls[1:]) == {"22BC03", "22BC06"}  # fell back to per-DID
+        assert set(term.sent[1:]) == {"22BC03", "22BC06"}  # fell back to per-DID
         assert len(r) == 2
 
         # Next cycle: batching stays disabled → straight to per-DID.
-        calls.clear()
+        term.sent.clear()
         asyncio.run(
             _exec_query(sm, "IGPM", [], idx, {}, False, return_results=True, batch_state=bs)
         )
-        assert "22BC03BC06" not in calls
-        assert set(calls) == {"22BC03", "22BC06"}
+        assert "22BC03BC06" not in term.sent
+        assert set(term.sent) == {"22BC03", "22BC06"}
 
     def test_flag_off_never_batches(self):
-        calls = []
-
-        async def send_uds(req, *a, **k):
-            calls.append(req)
-            return _SINGLES[req]
-
-        sm = _mk_sm(send_uds)
+        term = FakeTerminal(dict(_SINGLES))
+        sm = _mk_sm(term.send_uds)
         bs = BatchState()
         bs.lengths[(0x770, "BC03")] = 8
         bs.lengths[(0x770, "BC06")] = 8
@@ -162,22 +144,17 @@ class TestBatchingExecutor:
         asyncio.run(
             _exec_query(sm, "IGPM", [], idx, {}, False, return_results=True, batch_state=bs)
         )
-        assert calls == ["22BC03", "22BC06"]  # singles only
+        assert term.sent == ["22BC03", "22BC06"]  # singles only
 
     def test_no_batch_state_is_single(self):
-        calls = []
-
-        async def send_uds(req, *a, **k):
-            calls.append(req)
-            return _SINGLES[req]
-
-        sm = _mk_sm(send_uds)
+        term = FakeTerminal(dict(_SINGLES))
+        sm = _mk_sm(term.send_uds)
         idx = _igpm_index(multi_did=True)
         # No batch_state passed → single reads (the _exec_query API contract; the
         # one-shot pipeline now supplies a shared BatchState, tested via the
         # learn→batch case above).
         asyncio.run(_exec_query(sm, "IGPM", [], idx, {}, False, return_results=True))
-        assert calls == ["22BC03", "22BC06"]
+        assert term.sent == ["22BC03", "22BC06"]
 
 
 class TestReadSingleEchoValidation:
@@ -185,31 +162,22 @@ class TestReadSingleEchoValidation:
     frame (e.g. a 6101 response to a 2102 request) is rejected, not stored."""
 
     def test_service_21_passes_pid_echo(self):
-        seen = {}
-
-        async def send_uds(req, *a, **k):
-            seen.update(k)
-            return {"ok": True, "hex": "6102F8F8", "bytes": bytes.fromhex("6102F8F8")}
-
-        sm = _mk_sm(send_uds)
+        term = FakeTerminal({"2102": _ok("6102F8F8")})
+        sm = _mk_sm(term.send_uds)
         asyncio.run(_read_single(sm, 0x7E2, "2102", {"parameters": {}}, [], None))
-        assert seen["expected_sid"] == 0x21
-        assert seen["expected_echo"] == b"\x02"
+        assert term.uds_kwargs[0]["expected_sid"] == 0x21
+        assert term.uds_kwargs[0]["expected_echo"] == b"\x02"
 
     def test_service_22_passes_did_echo(self):
-        seen = {}
-
-        async def send_uds(req, *a, **k):
-            seen.update(k)
-            return {"ok": True, "hex": "62BC0300", "bytes": bytes.fromhex("62BC0300")}
-
-        sm = _mk_sm(send_uds)
+        term = FakeTerminal({"22BC03": _ok("62BC0300")})
+        sm = _mk_sm(term.send_uds)
         asyncio.run(_read_single(sm, 0x770, "22BC03", {"parameters": {}}, [], None))
-        assert seen["expected_sid"] == 0x22
-        assert seen["expected_echo"] == b"\xbc\x03"
+        assert term.uds_kwargs[0]["expected_sid"] == 0x22
+        assert term.uds_kwargs[0]["expected_echo"] == b"\xbc\x03"
 
     def test_mismatched_frame_becomes_error_not_stored(self):
-        # Simulate the parser rejecting a 6101 response to a 2102 request.
+        # Response depends on the passed echo/SID (the parser rejecting a 6101
+        # response to a 2102 request), so this stays a local computed closure.
         async def send_uds(req, *a, **k):
             from canlib.uds_parse import parse_uds_response
 

@@ -17,6 +17,8 @@ from canlib.modes.sessions_scan import (
     scan_ecu_sessions,
 )
 from canlib.pids_edit import append_sessions_block
+from tests._fakes import FakeTerminal
+from tests._fakes import nrc as _nrc
 
 # ── classify() ───────────────────────────────────────────────────────────────
 
@@ -262,21 +264,10 @@ def test_sessions_field_declared_in_schema():
 # ── scanner probing (fake terminal) ──────────────────────────────────────────
 
 
-class _FakeTerminal:
-    def __init__(self, responses=None):
-        self.headers: list[int] = []
-        self.reqs: list[str] = []
-        self._responses = responses or {}
-
-    async def set_header(self, tx_id):
-        self.headers.append(tx_id)
-
-    async def send_uds(self, req, **kw):
-        self.reqs.append(req)
-        # Default: subFunctionNotSupported.
-        return self._responses.get(
-            req, {"ok": False, "nrc": 0x12, "nrc_desc": "subFunctionNotSupported"}
-        )
+def _FakeTerminal(responses=None):
+    """Session-scan terminal double: unscripted requests answer
+    subFunctionNotSupported (NRC 0x12)."""
+    return FakeTerminal(responses, default=_nrc(0x12, "subFunctionNotSupported"))
 
 
 @pytest.mark.asyncio
@@ -299,7 +290,7 @@ async def test_scan_ecu_sessions_records_supported_and_unsupported():
     assert by_mode[0x82].supported is False and by_mode[0x82].nrc == 0x12
     assert by_mode[0x83].supported is False
     # Probes exactly the KWP safe modes, in order — never 0x85.
-    assert term.reqs == ["1081", "1082", "1083"]
+    assert term.sent == ["1081", "1082", "1083"]
 
 
 @pytest.mark.asyncio
@@ -319,7 +310,7 @@ async def test_scan_ecu_sessions_aborts_on_service_absent():
     )
     assert hits == []
     # Aborted after the first probe returned 0x11.
-    assert term.reqs == ["1001"]
+    assert term.sent == ["1001"]
 
 
 @pytest.mark.asyncio
@@ -342,7 +333,7 @@ async def test_mode_sessions_scan_autoselects_by_protocol(tmp_path):
         write_yaml=False,
     )
     # KWP2000 id_protocol → probes 81/82/83, not the UDS 01/03.
-    assert term.reqs == ["1081", "1082", "1083"]
+    assert term.sent == ["1081", "1082", "1083"]
     assert 0x81 in {h.mode for h in results["TEST"]}
 
 

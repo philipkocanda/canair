@@ -13,34 +13,26 @@ from canlib.modes.kwp_routines_scan import (
     probe_kwp_routine_results,
 )
 from canlib.pids_edit import append_routines_block
+from tests._fakes import FakeTerminal
+from tests._fakes import ok as _ok
 
 # ── probe: 0x33 read-only, never 0x31 ────────────────────────────────────────
 
 
 @pytest.mark.asyncio
 async def test_probe_sends_33_lid_and_validates_echo():
-    sent = {}
-
-    class FakeTerminal:
-        async def send_uds(self, req, timeout=2.0, expected_sid=None, **kw):
-            sent["req"] = req
-            sent["expected_sid"] = expected_sid
-            return {"ok": True, "hex": "730A00", "bytes": bytes([0x73, 0x0A, 0x00])}
-
-    resp = await probe_kwp_routine_results(FakeTerminal(), lid=0x0A)
-    assert sent["req"] == "330A"  # 0x33 RequestRoutineResults — NOT 0x31 StartRoutine
-    assert not sent["req"].startswith("31")
-    assert sent["expected_sid"] == 0x33
+    term = FakeTerminal({"330A": _ok("730A00")})
+    resp = await probe_kwp_routine_results(term, lid=0x0A)
+    assert term.sent == ["330A"]  # 0x33 RequestRoutineResults — NOT 0x31 StartRoutine
+    assert not term.sent[0].startswith("31")
+    assert term.uds_kwargs[0]["expected_sid"] == 0x33
     assert resp["ok"] is True
 
 
 @pytest.mark.asyncio
 async def test_probe_flags_lid_echo_mismatch():
-    class FakeTerminal:
-        async def send_uds(self, req, timeout=2.0, expected_sid=None, **kw):
-            return {"ok": True, "hex": "730900", "bytes": bytes([0x73, 0x09, 0x00])}
-
-    resp = await probe_kwp_routine_results(FakeTerminal(), lid=0x0A)
+    term = FakeTerminal({"330A": _ok("730900")})  # wrong LID echo (09 != 0A)
+    resp = await probe_kwp_routine_results(term, lid=0x0A)
     assert resp["ok"] is False
     assert "echo mismatch" in resp["error"]
 
