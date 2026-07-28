@@ -150,6 +150,8 @@ def load_all_captures(captures_dir: Path | None = None) -> list[dict]:
             vehicle_states = session.get("vehicle_states") or []
             session_notes = session.get("notes", "")
             keep_mode = session.get("keep_mode", "")
+            transport = session.get("transport", "")
+            quality = session.get("quality") or None
             for c_idx, cap in enumerate(session.get("captures", [])):
                 raw_ecu = cap.get("ecu", "")
                 entry = {
@@ -159,6 +161,8 @@ def load_all_captures(captures_dir: Path | None = None) -> list[dict]:
                     "vehicle_states": list(vehicle_states),
                     "session_notes": session_notes,
                     "keep_mode": keep_mode,
+                    "transport": transport,
+                    "quality": quality,
                     "ecu": ecu_name_from_ref(raw_ecu, rx_index) if raw_ecu else "",
                     "ecu_addr": raw_ecu,
                     "pid": cap.get("pid", ""),

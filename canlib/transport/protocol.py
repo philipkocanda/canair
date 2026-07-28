@@ -21,6 +21,7 @@ from __future__ import annotations
 import asyncio
 from typing import Protocol, runtime_checkable
 
+from ..transport_stats import TransportStats
 from ..uds_parse import UdsResponse
 
 
@@ -31,6 +32,10 @@ class Terminal(Protocol):
     Modes are written against THIS, never a concrete terminal, so a new backend
     slots in by implementing it (the "keep the WiCAN replaceable" rule).
     """
+
+    # Per-exchange outcome tally (drops/errors) — read by the monitor for its
+    # live status line and recorded-capture provenance.
+    diag: TransportStats
 
     async def set_header(self, tx_id: int) -> None: ...
 

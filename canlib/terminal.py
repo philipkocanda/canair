@@ -16,6 +16,7 @@ except ImportError as e:
 from .log import log_command, log_response
 from .safety import enforce_command_safety
 from .timing import TimingRecorder
+from .transport_stats import TransportStats
 from .uds_parse import UdsResponse, parse_uds_response
 
 
@@ -66,6 +67,10 @@ class WiCANTerminal:
         self.cmd_time = 0.0
         # Per-(ECU, PID) round-trip timing (surfaced by `canair query --timings`).
         self.timings = TimingRecorder()
+        # Per-exchange outcome tally (drops/errors/decode) — the sibling of
+        # `timings` read by the monitor for its live status line and stamped into
+        # recorded-capture provenance.
+        self.diag = TransportStats(transport="wican-ws")
         # Optional per-ECU response budget {tx_id: seconds}. When a read passes no
         # explicit timeout, the current header's budget (else self.timeout) applies.
         self.ecu_timeouts: dict[int, float] = {}
@@ -362,6 +367,11 @@ class WiCANTerminal:
                 expected_sid=expected_sid,
                 expected_did=expected_did,
                 expected_echo=expected_echo,
+            )
+            self.diag.record_response(
+                resp,
+                ecu=(f"0x{self._cur_header:03X}" if self._cur_header is not None else None),
+                pid=service_pid,
             )
             if resp.get("ok") or resp.get("nrc") is not None or attempt >= retries:
                 return resp

@@ -109,6 +109,7 @@ def _run_captures(strict: bool = False) -> int:
         warnings = _capture_state_warnings(path, vocab) if vocab else []
         warnings += _capture_echo_warnings(path)
         warnings += _capture_nonhex_warnings(path)
+        warnings += _capture_quality_warnings(path)
         # Missing-time on payload captures: an error under --strict (new-data
         # gate), otherwise a soft warning (existing rows grandfathered).
         time_gaps = _capture_missing_time_warnings(path)
@@ -170,7 +171,41 @@ def _capture_state_warnings(path: Path, vocab: set[str]) -> list[str]:
         if tokens and not any(t in vocab for t in tokens):
             warnings.append(
                 f"sessions[{si}]: vehicle_states {states} has no token in the "
-                f"vehicle_vehicle_states.yaml vocabulary"
+                f"vehicle_states.yaml vocabulary"
+            )
+    return warnings
+
+
+def _capture_quality_warnings(path: Path) -> list[str]:
+    """Soft warnings for sessions recorded with dropped/stale ISO-TP frames.
+
+    A session's ``quality`` footprint (written at capture time from the transport
+    diagnostics recorder) records ``drop``/``stale`` counts — dropped, duplicated,
+    out-of-order, or truncated multi-frame reads, and stale frames leaking between
+    requests. Those are exactly the faults that silently corrupted multi-frame
+    payloads before the ISO-TP reassembly hardening, so a non-zero count is a
+    trustworthiness flag on that session's multi-frame captures. Reported as a
+    warning, never an error — the payloads that survived the guards are fine; this
+    only nudges you to re-capture if a multi-frame PID looks off. ``no_data``/
+    ``bus``/``decode`` are non-answers (nothing was stored), so they don't warn.
+    """
+    warnings: list[str] = []
+    data = capture_io.load_capture_file(path)
+    if not isinstance(data, dict):
+        return warnings
+    for si, session in enumerate(data.get("sessions", []) or []):
+        if not isinstance(session, dict):
+            continue
+        quality = session.get("quality")
+        if not isinstance(quality, dict):
+            continue
+        drops = (quality.get("drop", 0) or 0) + (quality.get("stale", 0) or 0)
+        if drops:
+            transport = session.get("transport", "?")
+            warnings.append(
+                f"sessions[{si}]: recorded {drops} dropped/stale ISO-TP frame(s) "
+                f"during capture (transport={transport}) — multi-frame payloads in "
+                "this session may be unreliable"
             )
     return warnings
 

@@ -186,7 +186,10 @@ def _render_entry(
                 entry_text.append(f"      … {omitted} earlier entries hidden\n", style="dim")
             for i, (payload, ts) in enumerate(all_entries):
                 prev_row = all_entries[i - 1][0] if i > 0 else ""
-                prefix = f"      {ts}  " if ts else "                "
+                # Display seconds resolution only (sub-second precision is kept in
+                # the stored capture `time` for cross-signal alignment, not shown).
+                ts_disp = ts.split(".")[0] if ts else ""
+                prefix = f"      {ts_disp}  " if ts_disp else "                "
                 entry_text.append_text(
                     _render_hex_line(
                         payload,

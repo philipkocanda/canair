@@ -93,6 +93,7 @@ from canlib.commands._captures_query import (
     _BOLD,
     _CYAN,
     _DIM,
+    _RED,
     _RESET,
     _YELLOW,
     _decoded_preview,
@@ -235,6 +236,8 @@ class _SessionGroup(TypedDict):
     vehicle_states: list
     notes: str
     keep_mode: str
+    transport: str
+    quality: dict | None
     n: int
     ecus: dict  # ordered set (dict) of ECU names
     times: list
@@ -261,6 +264,8 @@ def _group_sessions(entries: list[dict]) -> list[_SessionGroup]:
                 "vehicle_states": e.get("vehicle_states") or [],
                 "notes": e.get("session_notes", ""),
                 "keep_mode": e.get("keep_mode", ""),
+                "transport": e.get("transport", ""),
+                "quality": e.get("quality") or None,
                 "n": 0,
                 "ecus": {},  # ordered set (dict) of ECU names
                 "times": [],
@@ -281,6 +286,30 @@ def _group_sessions(entries: list[dict]) -> list[_SessionGroup]:
     sessions = list(groups.values())
     sessions.sort(key=lambda g: (str(g["date"]), min(g["times"]) if g["times"] else ""))
     return sessions
+
+
+def _quality_tag(quality: dict | None) -> str:
+    """A colored one-liner flagging a session's recorded drops/errors, or ''.
+
+    Clean sessions (no drops/errors) return an empty string so the TOC stays
+    uncluttered; only a session that recorded transport trouble gets a line —
+    drops in red (the ISO-TP integrity signal), other errors in yellow, with the
+    exchange total for context.
+    """
+    if not quality:
+        return ""
+    drops = (quality.get("drop", 0) or 0) + (quality.get("stale", 0) or 0)
+    errs = sum(quality.get(k, 0) or 0 for k in ("no_data", "bus", "decode", "other"))
+    parts: list[str] = []
+    if drops:
+        parts.append(f"{_RED}drops {drops}{_RESET}")
+    if errs:
+        parts.append(f"{_YELLOW}errors {errs}{_RESET}")
+    if not parts:
+        return ""
+    ex = quality.get("exchanges")
+    ex_txt = f" {_DIM}/ {ex} exchanges{_RESET}" if ex else ""
+    return f"{_DIM}⚠ quality:{_RESET} " + " ".join(parts) + ex_txt
 
 
 def cmd_sessions(entries: list[dict], as_json: bool = False, max_notes: int = 6) -> None:
@@ -305,6 +334,8 @@ def cmd_sessions(entries: list[dict], as_json: bool = False, max_notes: int = 6)
                 "vehicle_states": s["vehicle_states"],
                 "notes": s["notes"],
                 "keep_mode": s["keep_mode"],
+                "transport": s["transport"],
+                "quality": s["quality"],
                 "captures": s["n"],
                 "ecus": list(s["ecus"]),
                 "time_start": min(s["times"]) if s["times"] else None,
@@ -338,7 +369,16 @@ def cmd_sessions(entries: list[dict], as_json: bool = False, max_notes: int = 6)
         ecus = ", ".join(s["ecus"]) or "—"
         keep = s.get("keep_mode")
         keep_tag = f" · {_CYAN}keep:{keep}{_RESET}{_DIM}" if keep else ""
-        print(f"    {_DIM}{s['n']} captures · {ecus}{keep_tag} · {s['file']}{_RESET}")
+        transport = s.get("transport")
+        transport_tag = f" · {transport}" if transport else ""
+        print(
+            f"    {_DIM}{s['n']} captures · {ecus}{keep_tag}{transport_tag} · {s['file']}{_RESET}"
+        )
+        # Data-quality footprint: flag any drops/errors recorded for the session
+        # (the transport-health provenance) so a suspect capture stands out.
+        qtag = _quality_tag(s.get("quality"))
+        if qtag:
+            print(f"    {qtag}")
         # Distinct capture-level notes (RE annotations) — the other place notes live.
         for cn in s["cap_notes"][:max_notes]:
             clean = _clean(cn)

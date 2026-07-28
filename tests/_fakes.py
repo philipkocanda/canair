@@ -22,6 +22,7 @@ Response dicts mirror :func:`canlib.uds_parse.parse_uds_response`: positives are
 
 from __future__ import annotations
 
+from canlib.transport_stats import TransportStats
 from canlib.uds_parse import UdsResponse
 
 NO_DATA: UdsResponse = {"ok": False, "error": "NO DATA", "raw": "NO DATA"}
@@ -90,6 +91,7 @@ class FakeTerminal:
         self.calls: list[tuple] = []
         self.uds_kwargs: list[dict] = []
         self._seen: set[str] = set()
+        self.diag = TransportStats(transport="fake")
 
     async def set_header(self, tx_id: int) -> None:
         self.header = tx_id

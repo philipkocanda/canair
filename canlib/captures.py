@@ -13,6 +13,24 @@ from .states import join_states as _join_states
 from .states import parse_states as _parse_states
 from .uds_parse import UdsResponse
 
+
+def active_transport_label() -> str | None:
+    """Best-effort label of the currently-configured transport (e.g. ``slcan-tcp``).
+
+    Provenance fallback for save paths that don't hold the live client (the
+    one-shot scan/raw/discover producers): a command resolves its transport once,
+    so the config-resolved type matches what was used. The streaming producers
+    (monitor/multi) pass the client's own ``diag.transport`` instead, which is
+    authoritative. Returns None if resolution fails.
+    """
+    try:
+        from .transport import resolve_transport
+
+        return resolve_transport(None).type
+    except Exception:
+        return None
+
+
 # ---------------------------------------------------------------------------
 # Metadata prompt
 # ---------------------------------------------------------------------------
@@ -90,6 +108,8 @@ def build_query_session(
     notes: str,
     keep_mode: str | None = None,
     date: str | None = None,
+    transport: str | None = None,
+    quality: dict | None = None,
 ) -> dict:
     """Build a capture session dict from query/raw payload results.
 
@@ -109,6 +129,11 @@ def build_query_session(
     transitions are stored); it is recorded on the session so later analysis
     knows return-to-previous states may be absent. ``"all"``/``"last"`` keep
     every polled sample and are not flagged.
+
+    ``transport`` records how the payloads were acquired (the transport label,
+    e.g. ``"slcan-tcp"``) and ``quality`` a small exchange/error footprint —
+    provenance for judging how trustworthy the session's data is. Both are
+    omitted when not supplied.
     """
     session: dict = {
         "date": date or datetime.now().strftime("%Y-%m-%d"),
@@ -120,6 +145,10 @@ def build_query_session(
         session["notes"] = notes
     if keep_mode == "unique":
         session["keep_mode"] = keep_mode
+    if transport:
+        session["transport"] = transport
+    if quality:
+        session["quality"] = dict(quality)
 
     captures: list[dict] = []
     for ecu_ref, pid, hex_val, ts in results:
@@ -311,13 +340,17 @@ def build_manual_session(
     date: str | None = None,
     vehicle_states: list[str] | None = None,
     notes: str | None = None,
+    transport: str | None = "import",
 ) -> dict:
     """Assemble a session dict from manually-supplied captures (the import path).
 
     Mirrors the shape produced by the ``--save`` streaming path so an imported
     session is indistinguishable from a device-recorded one. ``date`` defaults to
-    today; ``vehicle_states``/``notes`` are omitted when empty. Field order
-    follows the schema (date, label, [vehicle_states], [notes], captures).
+    today; ``vehicle_states``/``notes`` are omitted when empty. ``transport``
+    defaults to ``"import"`` (these payloads didn't come off a live bus here), so
+    imported data is distinguishable from device-recorded data in provenance.
+    Field order follows the schema (date, label, [vehicle_states], [notes],
+    [transport], captures).
     """
     session: dict = {
         "date": date or datetime.now().strftime("%Y-%m-%d"),
@@ -327,6 +360,8 @@ def build_manual_session(
         session["vehicle_states"] = list(vehicle_states)
     if notes:
         session["notes"] = notes
+    if transport:
+        session["transport"] = transport
     session["captures"] = list(captures)
     return session
 
@@ -372,6 +407,10 @@ def save_session_journaled(session: dict, captures_dir: Path | None = None) -> P
     the same recover-on-crash behaviour as streaming query/monitor. The session
     is written to a journal, then reconciled into ``captures/YYYY-MM-DD.yaml`` and
     the journal removed. Returns the capture file path (or None if empty).
+
+    The session's own ``transport`` (when set by the caller from the active
+    client) is carried through the journal meta so recovered one-shot captures
+    keep their provenance.
     """
     from .capture_journal import CaptureJournal
 
@@ -386,6 +425,7 @@ def save_session_journaled(session: dict, captures_dir: Path | None = None) -> P
         vehicle_states=session.get("vehicle_states"),
         notes=session.get("notes"),
         source="oneshot",
+        transport=session.get("transport") or active_transport_label(),
     )
     journal.append_session(session)
     return journal.reconcile()

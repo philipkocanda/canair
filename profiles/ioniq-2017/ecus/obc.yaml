@@ -304,13 +304,6 @@ OBC:
         (~250); still unresolved (OBC control/duty/headroom candidate). Also validated the new
         OBC_DC_POWER = OBC_CHARGE_V*OBC_DC_A = 3.33kW against the external wattmeter (3.44-3.56kW
         AC => ~95% AC/DC efficiency; DC out = BMS pack intake 3.10kW + ~0.15kW LDC 12V load).
-    - type: decode
-      target: 2101 12V output current
-      status: pending
-      priority: P3
-      vehicle_states:
-        - ready
-      notes: "The LDC 12V output CURRENT is not exposed in OBC 2101. B15 (old LDC_OUTPUT_A=B15/10) DISPROVEN 2026-07-22 by a rear-defroster load step: LDC_OUTPUT_V sagged 14.5->13.6V but B15 (and every other 2101 byte) stayed flat, so no byte tracks the 12V load. Future: hunt an OBC DID that exposes output current, or accept it is not broadcast. (Same test CONFIRMED LDC_OUTPUT_V = 12V rail voltage.)"
     - type: scan
       target: 21 00-FF
       status: done
@@ -328,6 +321,17 @@ OBC:
       created: "2026-07-27"
       updated: "2026-07-27"
       notes: "RESOLVED 2026-07-27 via an EVSE current step (10/13/16/20A). MEASURED AC input current = [B33:B34]/100 (AC_INPUT_A): 9.3/12.4/15.4A at 10/13/16A pilot — the actual draw, ~0.6A under the advertised limit, matching the power balance V_dc*I_dc/eff/V_ac. Its low byte B34 was the ex-'constant 250' from the steady 16A charge (only varied once the current stepped). The EVSE-advertised setpoint/pilot = [B35:B36] (duty [B35:B36]/10, amps [B35:B36]*0.06 = OBC_PILOT_AMPS). B28 (old AC_CURRENT_SETPOINT) was BOGUS (fixed 16) and removed."
+    - type: decode
+      target: 2101 12V output current
+      status: pending
+      priority: P3
+      vehicle_states: [ready]
+      created: "2026-07-28"
+      updated: "2026-07-28"
+      notes: "LDC 12V output CURRENT is NOT broadcast in OBC 2101. RE-CONFIRMED 2026-07-28 (three independent methods): (1) 2026-07-22 rear-defroster load step re-analysed via the exact byte matrix — an ~18A load (LDC_OUTPUT_V rail sagged 14.50->13.60V, B26 170->80) moved ONLY the voltage low byte; every other byte stayed within baseline jitter (B15 +2, B13 +3, all others flat). (2) decode --discriminate state --bytes: every current-like byte (B12/B17/B18/B28/B33/B34/B39/B51) reads exactly 0 in ready/driving = all CHARGE-side currents; an LDC output current must be non-zero whenever the car is awake, and no such byte exists. (3) investigate OBC 2101: every byte resolves to a charge/port-lock/EV-ready flag, temp, or checksum; every physical-band hit is a VOLTAGE, never a current. Soul standalone LDC 0x7C5 has DC_Current_Out (letter g) but its f/g/h/i block does NOT map contiguously onto the Ioniq OBC 2101 (only Temp survives at B19) — same redistribution that dropped the OBC internal temps. VCU 2101=drive-path only; VCU 2102=inverter/aux voltage + charge-time + fast phase-current bytes (no LDC current); VCU 21F2=static charge-timer config. Exhaustive 21 00-FF sweeps on OBC+VCU found no hidden page; 22xxxx all NRC."
+      what_to_test:
+        - "DECISIVE UNTESTED EXPERIMENT: the 2026-07-22 defroster load step polled OBC ONLY. Co-poll OBC:2101 + VCU:2102 + BMS:2101 with --monitor --keep-all while stepping a large 12V load (rear defroster + high beams + max blower on/off), then hunt every byte against the LDC_OUTPUT_V sag. VCU 2102 near-constant config bytes (B14~149, B20~58, B27~57) are the only OBC/VCU bytes not yet ruled out under a controlled 12V load."
+        - "If that also comes back flat: accept the LDC output current is genuinely not broadcast on this 2017 model and derive it as LDC_output_power/LDC_OUTPUT_V instead."
 
   sessions:
     "81":

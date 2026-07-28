@@ -54,6 +54,7 @@ COMMAND_NAMES: list[str] = [
     # utilities
     "bix",
     "completion",
+    "logs",
 ]
 
 

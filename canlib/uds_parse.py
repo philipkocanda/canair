@@ -12,6 +12,42 @@ harmless there.
 import re
 from typing import NotRequired, TypedDict
 
+# Exchange-outcome taxonomy. Every parsed response falls into exactly one
+# category; on a failure the same value is also stamped onto the response as
+# ``error_kind`` (set at the error site, so classification never has to re-parse
+# an error *string*). `canlib.transport_stats.TransportStats` tallies these per
+# transport, the monitor surfaces them, and recorded captures carry the counts.
+CAT_OK = "ok"  # positive, echo-matching response
+CAT_NRC = "nrc"  # legitimate negative response (7F …) — an answer, not a fault
+CAT_NO_DATA = "no_data"  # NO DATA / empty — the ECU said nothing
+CAT_DROP = "drop"  # ISO-TP consecutive frame dropped (truncated reassembly)
+CAT_STALE = "stale"  # stale/leaked frame: non-contiguous counters, SID/echo mismatch
+CAT_DECODE = "decode"  # non-hex / too-short / undecodable payload
+CAT_BUS = "bus"  # CAN ERROR / unable to connect / buffer full / bus init
+CAT_OTHER = "other"  # unclassified fallback
+
+# All categories a recorded exchange can fall into (drives TransportStats init).
+RESPONSE_CATEGORIES: tuple[str, ...] = (
+    CAT_OK,
+    CAT_NRC,
+    CAT_NO_DATA,
+    CAT_DROP,
+    CAT_STALE,
+    CAT_DECODE,
+    CAT_BUS,
+    CAT_OTHER,
+)
+
+# The subset that means something went wrong (not a clean positive / valid NRC).
+ERROR_CATEGORIES: tuple[str, ...] = (
+    CAT_NO_DATA,
+    CAT_DROP,
+    CAT_STALE,
+    CAT_DECODE,
+    CAT_BUS,
+    CAT_OTHER,
+)
+
 
 class UdsResponse(TypedDict):
     """Structured result of :func:`parse_uds_response` — the shape every transport returns.
@@ -39,6 +75,7 @@ class UdsResponse(TypedDict):
     nrc_service: NotRequired[int]  # negative: echoed service byte
     nrc_desc: NotRequired[str]  # negative: human description
     error: NotRequired[str]  # parse failure / NO DATA / echo mismatch
+    error_kind: NotRequired[str]  # failure category (a CAT_* value), set with `error`
 
 
 # UDS Negative Response Code descriptions
@@ -98,6 +135,68 @@ NRC_ABBREV = {
 def nrc_abbrev(nrc: int) -> str:
     """Short mnemonic for an NRC, or ``?`` if unknown."""
     return NRC_ABBREV.get(nrc, "?")
+
+
+def classify_response(resp: UdsResponse) -> str:
+    """Classify a parsed response into one :data:`RESPONSE_CATEGORIES` value.
+
+    A clean positive is ``ok`` and a legitimate negative (``7F …``) is ``nrc``
+    (an answer, not a fault). Every other outcome reports the ``error_kind``
+    stamped at the point of failure; for a response carrying only an ``error``
+    string (built outside this parser) it falls back to :func:`classify_error`
+    on that text, and finally to ``other`` so a total never silently disappears.
+    This is the single taxonomy both transports feed the diagnostics recorder,
+    so drops/stale-frames/timeouts count identically regardless of transport.
+    """
+    if resp.get("ok"):
+        return CAT_OK
+    if resp.get("nrc") is not None:
+        return CAT_NRC
+    return resp.get("error_kind") or classify_error(resp.get("error"))
+
+
+# Ordered (substring → category) rules matched case-insensitively against an
+# error string. First match wins, so order matters (drops before the generic
+# reassembly wording, mismatch before the rest). This is the fallback path for
+# a response that carries an ``error`` string but no structured ``error_kind``
+# (e.g. an error built outside :func:`parse_uds_response`); the parser itself
+# stamps ``error_kind`` directly, so classification rarely needs the text.
+_ERROR_RULES: tuple[tuple[str, str], ...] = (
+    ("non-contiguous iso-tp", "drop"),
+    ("truncated iso-tp", "drop"),
+    ("mismatch", "stale"),
+    ("no data", "no_data"),
+    ("no response", "no_data"),
+    ("empty response", "no_data"),
+    ("timeout", "no_data"),
+    ("can bus error", "bus"),
+    ("unable to connect", "bus"),
+    ("bus initialization", "bus"),
+    ("connection closed", "bus"),
+    ("request stopped", "bus"),
+    ("buffer full", "bus"),
+    ("non-hex", "decode"),
+    ("hex decode", "decode"),
+    ("too short", "decode"),
+    ("odd hex", "decode"),
+    ("unknown command", "decode"),
+)
+
+
+def classify_error(error: str | None) -> str:
+    """Classify a UDS error string into an :data:`ERROR_CATEGORIES` bucket.
+
+    Matches known substrings emitted by :func:`parse_uds_response` (and the raw
+    clients); anything unrecognised falls back to ``"other"`` so a total never
+    silently disappears. Pure/side-effect-free — safe to call on the hot path.
+    """
+    if not error:
+        return "other"
+    low = error.lower()
+    for needle, category in _ERROR_RULES:
+        if needle in low:
+            return category
+    return "other"
 
 
 def request_echo(request_hex: str) -> tuple[int, bytes] | None:
@@ -263,6 +362,12 @@ def parse_uds_response(
     """
     result: UdsResponse = {"raw": raw, "ok": False}
 
+    def _fail(kind: str, msg: str) -> UdsResponse:
+        """Set ``error`` + its ``error_kind`` (a CAT_* category) and return."""
+        result["error"] = msg
+        result["error_kind"] = kind
+        return result
+
     lines = raw.strip().split("\n")
     lines = [line.strip() for line in lines if line.strip()]
 
@@ -284,31 +389,23 @@ def parse_uds_response(
         if fc_body.startswith("F0") and len(fc_body) <= 8:
             continue
         if line == "?":
-            result["error"] = "Unknown command"
-            return result
+            return _fail(CAT_BUS, "Unknown command")
         if line == "NO DATA":
-            result["error"] = "No response from ECU (NO DATA)"
-            return result
+            return _fail(CAT_NO_DATA, "No response from ECU (NO DATA)")
         if line == "CAN ERROR":
-            result["error"] = "CAN bus error"
-            return result
+            return _fail(CAT_BUS, "CAN bus error")
         if line == "UNABLE TO CONNECT":
-            result["error"] = "Unable to connect to CAN bus"
-            return result
+            return _fail(CAT_BUS, "Unable to connect to CAN bus")
         if line == "BUS INIT: ...ERROR":
-            result["error"] = "Bus initialization error"
-            return result
+            return _fail(CAT_BUS, "Bus initialization error")
         if line == "STOPPED":
-            result["error"] = "Request stopped"
-            return result
+            return _fail(CAT_BUS, "Request stopped")
         if line == "BUFFER FULL":
-            result["error"] = "Response buffer full"
-            return result
+            return _fail(CAT_BUS, "Response buffer full")
         data_lines.append(line)
 
     if not data_lines:
-        result["error"] = "Empty response"
-        return result
+        return _fail(CAT_NO_DATA, "Empty response")
 
     # Filter out echo of the request
     if len(data_lines) > 1:
@@ -364,6 +461,7 @@ def parse_uds_response(
                 f"non-contiguous ISO-TP frames: line counters {counters} are not a "
                 f"contiguous 0,1,…,F(,0,…) run (dropped/duplicate/stale frame)"
             )
+            result["error_kind"] = CAT_DROP
             return result
         hex_clean = "".join(frame_hex)
     else:
@@ -371,18 +469,15 @@ def parse_uds_response(
         hex_clean = hex_str.replace(" ", "")
 
     if not all(c in "0123456789ABCDEFabcdef" for c in hex_clean):
-        result["error"] = f"Non-hex response: {hex_clean[:80]}"
-        return result
+        return _fail(CAT_DECODE, f"Non-hex response: {hex_clean[:80]}")
 
     if len(hex_clean) < 2:
-        result["error"] = f"Response too short: {hex_clean}"
-        return result
+        return _fail(CAT_DECODE, f"Response too short: {hex_clean}")
 
     try:
         response_bytes = bytes.fromhex(hex_clean)
     except ValueError as e:
-        result["error"] = f"Hex decode failed: {e}"
-        return result
+        return _fail(CAT_DECODE, f"Hex decode failed: {e}")
 
     # Reject truncated multi-frame reads. The ELM327 adapter reassembles ISO-TP
     # and reports the declared total length; if the frames it handed back fall
@@ -395,6 +490,7 @@ def parse_uds_response(
             result["error"] = (
                 f"truncated ISO-TP: got {len(response_bytes)} bytes, declared {declared_len}"
             )
+            result["error_kind"] = CAT_DROP
             return result
         # Drop any trailing ISO-TP padding beyond the declared payload length.
         if len(response_bytes) > declared_len:
@@ -416,6 +512,7 @@ def parse_uds_response(
                 f"NRC echo mismatch: NRC service byte 0x{response_bytes[1]:02X} "
                 f"!= expected SID 0x{expected_sid:02X}"
             )
+            result["error_kind"] = CAT_STALE
             # Keep nrc/nrc_desc for diagnostics, but leave ok=False.
             result.pop("nrc", None)
             result.pop("nrc_service", None)
@@ -430,6 +527,7 @@ def parse_uds_response(
                 f"!= expected 0x{expected_resp_sid:02X} "
                 f"(for request SID 0x{expected_sid:02X})"
             )
+            result["error_kind"] = CAT_STALE
             return result
         # expected_echo is the variable-width generalization of expected_did;
         # a 2-byte expected_did becomes a 2-byte echo when no explicit echo given.
@@ -442,6 +540,7 @@ def parse_uds_response(
                     f"Response too short for echo: got {len(response_bytes)} bytes, "
                     f"need >= {1 + len(echo)}"
                 )
+                result["error_kind"] = CAT_DECODE
                 return result
             got = response_bytes[1 : 1 + len(echo)]
             if got != echo and not _hk_identity_offset(expected_sid, echo, got):
@@ -450,6 +549,7 @@ def parse_uds_response(
                     f"!= expected 0x{echo.hex().upper()} "
                     f"(for request SID 0x{expected_sid:02X})"
                 )
+                result["error_kind"] = CAT_STALE
                 return result
 
     result["ok"] = True

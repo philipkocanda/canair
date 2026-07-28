@@ -24,6 +24,7 @@ import isotp
 from ..log import log_response
 from ..safety import enforce_command_safety
 from ..timing import TimingRecorder
+from ..transport_stats import TransportStats
 from ..uds_parse import UdsResponse, parse_uds_response
 from .uds_raw import (
     PENDING_RECV_TIMEOUT,
@@ -61,6 +62,9 @@ class RawTerminal:
         self.elm_timeout_cmd = ""
         # Per-(ECU, PID) round-trip timing (surfaced by `canair query --timings`).
         self.timings = TimingRecorder()
+        # Per-exchange outcome tally (drops/errors/decode), same as WiCANTerminal
+        # and RawUdsClient — read by the monitor + stamped into capture provenance.
+        self.diag = TransportStats(transport="slcan-tcp")
         # Optional per-ECU response budget {tx_id: seconds} (see canlib.timeouts).
         self.ecu_timeouts: dict[int, float] = {}
 
@@ -112,6 +116,11 @@ class RawTerminal:
                 expected_sid=expected_sid,
                 expected_did=expected_did,
                 expected_echo=expected_echo,
+            )
+            self.diag.record_response(
+                resp,
+                ecu=(f"0x{self._cur:03X}" if self._cur is not None else None),
+                pid=service_pid,
             )
             # Retry only a non-answer (NO DATA / timeout); an NRC is definitive.
             if resp.get("ok") or resp.get("nrc") is not None or attempt >= retries:

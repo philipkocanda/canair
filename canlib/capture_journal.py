@@ -74,6 +74,7 @@ class CaptureJournal:
         notes: str | None = None,
         source: str = "query",
         keep_mode: str | None = None,
+        transport: str | None = None,
     ) -> CaptureJournal:
         """Create a fresh journal under ``captures_dir/.journal/`` and write meta."""
         jdir = _journal_dir(captures_dir)
@@ -91,19 +92,19 @@ class CaptureJournal:
             n += 1
         journal = cls(path, captures_dir)
         journal._fh = open(path, "a", encoding="utf-8")
-        journal._write(
-            {
-                "v": JOURNAL_VERSION,
-                "type": "meta",
-                "date": datetime.now().strftime("%Y-%m-%d"),
-                "label": label or "",
-                "vehicle_states": list(vehicle_states or []),
-                "notes": notes or "",
-                "source": source,
-                "keep_mode": keep_mode,
-            },
-            durable=True,
-        )
+        meta: dict = {
+            "v": JOURNAL_VERSION,
+            "type": "meta",
+            "date": datetime.now().strftime("%Y-%m-%d"),
+            "label": label or "",
+            "vehicle_states": list(vehicle_states or []),
+            "notes": notes or "",
+            "source": source,
+            "keep_mode": keep_mode,
+        }
+        if transport:
+            meta["transport"] = transport
+        journal._write(meta, durable=True)
         return journal
 
     def _write(self, record: dict, *, durable: bool = False) -> None:
@@ -155,11 +156,15 @@ class CaptureJournal:
         label: str | None = None,
         vehicle_states: list | None = None,
         notes: str | None = None,
+        transport: str | None = None,
+        quality: dict | None = None,
     ) -> None:
         """Append a meta record with the provided fields (last-wins on reconcile).
 
         Only non-None fields are written, so a partial update (e.g. states only)
-        leaves the previously-recorded label/notes intact.
+        leaves the previously-recorded label/notes intact. ``quality`` (the
+        transport exchange/error footprint) is typically written once just before
+        reconcile; ``transport`` is normally set at :meth:`open`.
         """
         rec: dict = {"type": "meta"}
         if label is not None:
@@ -168,6 +173,10 @@ class CaptureJournal:
             rec["vehicle_states"] = list(vehicle_states)
         if notes is not None:
             rec["notes"] = notes
+        if transport is not None:
+            rec["transport"] = transport
+        if quality is not None:
+            rec["quality"] = dict(quality)
         self._write(rec, durable=True)
 
     def _close_fh(self) -> None:
@@ -264,6 +273,8 @@ def build_session_from_records(
     session_records: list[dict] = []
     rows: list[tuple[str, str, str, str, str]] = []
     meta_date = ""
+    transport: str | None = None
+    quality: dict | None = None
     for rec in records:
         rtype = rec.get("type")
         if rtype == "meta":
@@ -272,6 +283,10 @@ def build_session_from_records(
                     meta[k] = rec[k]
             if rec.get("date"):
                 meta_date = str(rec["date"])
+            if rec.get("transport"):
+                transport = str(rec["transport"])
+            if rec.get("quality") is not None:
+                quality = dict(rec["quality"])
         elif rtype == "session":
             session_records.append(rec["session"])
         elif rtype == "capture":
@@ -312,6 +327,11 @@ def build_session_from_records(
             base["notes"] = notes
         elif "notes" in base:
             del base["notes"]
+        # Provenance from meta wins (set at open); keep any already on the session.
+        if transport and not base.get("transport"):
+            base["transport"] = transport
+        if quality and not base.get("quality"):
+            base["quality"] = quality
         for extra in session_records[1:]:
             base.setdefault("captures", []).extend(extra.get("captures", []))
         return [base]
@@ -337,6 +357,8 @@ def build_session_from_records(
                 notes,
                 keep_mode=effective_keep,
                 date=rdate or None,
+                transport=transport,
+                quality=quality,
             )
         )
     return sessions

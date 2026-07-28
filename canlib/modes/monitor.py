@@ -156,6 +156,14 @@ class MonitorController:
         self.elapsed = 0.0
         self.last_cmds = 0  # ELM commands issued during the last poll cycle
         self.last_elm_time = 0.0  # seconds spent in ELM commands last cycle
+        # Per-cycle transport-health deltas (from the active client's .diag),
+        # surfaced in the TUI status line to raise awareness of connection/latency
+        # issues: dropped/stale ISO-TP frames + all non-answer errors this cycle.
+        self.last_drops = 0
+        self.last_errors = 0
+        # Resolved transport label (e.g. "slcan-tcp"/"wican-ws"), recorded into
+        # saved-capture provenance. Set by mode_monitor.
+        self.transport_type: str | None = None
         self.last_queries: list[EcuFrame] = []
         self.prev_hex: dict[tuple[str, str], str] = {}
         # Payloads as of the *previous* poll cycle, snapshotted before prev_hex is
@@ -176,7 +184,7 @@ class MonitorController:
         self.recorder = MonitorRecorder(self)
         self._name_index: dict | None = None
         # Auto-suggest state: latest decoded {ECU.PARAM: value} + responded ECUs,
-        # evaluated against the profile's states.yaml rules (lazy-loaded).
+        # evaluated against the profile's vehicle_states.yaml rules (lazy-loaded).
         self.decoded_values: dict[str, float] = {}
         self.responded: set[str] = set()
         self._state_rules: list | None = None
@@ -288,6 +296,17 @@ class MonitorController:
         """
         return self.recorder.new_segment(label, vehicle_states, notes)
 
+    def diag(self):
+        """The active transport's :class:`~canlib.transport_stats.TransportStats`.
+
+        Reads it off the raw pipelined client (raw backend) or the ELM terminal —
+        whichever is driving this run — so the TUI status line and capture
+        provenance both source drops/error counts from one place. ``None`` when
+        the transport doesn't expose one (older/fake terminals).
+        """
+        src = self.raw_client if self.raw else self.terminal
+        return getattr(src, "diag", None)
+
     def reload_pids(self) -> None:
         """Re-read PID definitions after an in-place edit and rebuild the index.
 
@@ -391,13 +410,31 @@ class MonitorController:
     async def poll_once(self) -> None:
         """Run every query step once, updating live state. Sets ``disconnected``."""
         self.cycle += 1
+        diag = self.diag_recorder()
+        base = diag.snapshot() if diag is not None else None
         t0 = time.monotonic()
         if self.raw:
             await self._poll_raw()
         else:
             await self._poll_elm()
         self.elapsed = time.monotonic() - t0
+        if diag is not None and base is not None:
+            delta = diag.diff(base)
+            self.last_drops = delta.drops
+            self.last_errors = delta.errors
         self._record(self.last_queries)
+
+    def diag_recorder(self):
+        """The active client's transport-diagnostics recorder, or None.
+
+        The monitor talks through the raw pipelined client (``raw_client``) on
+        the ``slcan-tcp`` path and the ELM terminal otherwise; both carry a
+        :class:`~canlib.transport_stats.TransportStats` as ``.diag``. Returns
+        None for a fake/older client without one (the status line then omits the
+        drops indicator).
+        """
+        client = self.raw_client if self.raw else self.terminal
+        return getattr(client, "diag", None)
 
     async def _poll_elm(self) -> None:
         import time as _t
@@ -572,7 +609,7 @@ class MonitorController:
     def suggested_state(self) -> str | None:
         """Auto-suggest the vehicle state from the latest decoded values.
 
-        Evaluates the active profile's states.yaml rules against the accumulated
+        Evaluates the active profile's vehicle_states.yaml rules against the accumulated
         ``decoded_values``/``responded`` snapshot. Returns None when no rule
         matches or the profile declares no states.
         """
@@ -651,6 +688,7 @@ async def mode_monitor(
     notes: str | None = None,
     raw_client=None,
     include_static: bool = False,
+    transport_type: str | None = None,
 ):
     """Live-refresh ECU parameter monitor.
 
@@ -709,6 +747,10 @@ async def mode_monitor(
     controller.session_label = label or ""
     controller.session_states = list(states or [])
     controller.session_notes = notes or ""
+    # Resolve the transport label for saved-capture provenance: prefer the caller's
+    # explicit value, else fall back to the active client's own diag label.
+    diag = controller.diag_recorder()
+    controller.transport_type = transport_type or (diag.transport if diag is not None else None)
 
     # --save: open the write-ahead journal up front so every polled payload is
     # durably recorded as it arrives. On a clean stop we reconcile it into a
@@ -755,6 +797,11 @@ async def mode_monitor(
                     backfill = controller.recorder._backfill_states()
                     if backfill:
                         controller.journal.update_meta(vehicle_states=backfill)
+                # Stamp the session with its transport data-quality footprint
+                # (drops/errors/exchanges) so the capture's provenance is recorded.
+                quality = controller.recorder.segment_quality()
+                if quality is not None:
+                    controller.journal.update_meta(quality=quality)
                 written = controller.journal.reconcile()
                 if written is not None:
                     _console.print(f"  → Saved journaled captures to {written.name}")

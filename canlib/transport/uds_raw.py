@@ -20,6 +20,7 @@ import can
 import isotp
 
 from ..timing import TimingRecorder
+from ..transport_stats import TransportStats
 
 # Quiet can-isotp's transient recovered-timeout warnings (e.g. a cold ECU's first
 # multi-frame response) — they're handled/retried and just add noise. Genuine
@@ -73,6 +74,8 @@ class RawUdsClient:
         self.ecu_timeouts = ecu_timeouts or {}
         # Per-(ECU, PID) round-trip timing (surfaced by `canair query --timings`).
         self.timings = TimingRecorder()
+        # Per-exchange outcome tally (drops/errors/decode), same as the terminals.
+        self.diag = TransportStats(transport="slcan-tcp")
         self.notifier = can.Notifier(bus, [], timeout=0.1)
         self._stacks: dict[str, isotp.NotifierBasedCanStack] = {}
         params = {
@@ -107,6 +110,7 @@ class RawUdsClient:
         t = timeout if timeout is not None else self.ecu_timeouts.get(ecu, self.timeout)
         resp = stack.recv(block=True, timeout=t)
         if resp is None:
+            self.diag.record("no_data", ecu=ecu, pid=request.hex().upper())
             raise TimeoutError(f"no UDS response from {ecu}")
         resp = bytes(resp)
         # Wait through UDS ResponsePending (0x78) so slow services return their
@@ -118,6 +122,7 @@ class RawUdsClient:
                 break
             resp = bytes(nxt)
         self.timings.record(ecu, request.hex().upper(), time.monotonic() - t0)
+        self.diag.record_raw(resp, ecu=ecu, pid=request.hex().upper())
         return resp
 
     def poll(
@@ -152,6 +157,7 @@ class RawUdsClient:
 
         def _finish(ecu: str, req: bytes, value):
             out[(ecu, req)] = value
+            self.diag.record_raw(value, ecu=ecu, pid=req.hex().upper())
             if on_result is not None:
                 try:
                     on_result((ecu, req), value)

@@ -203,6 +203,34 @@ help order).
 Follow an existing command as a template: `commands/routines.py` +
 `modes/routines.py`, or `commands/dtc.py` + `modes/dtc.py`.
 
+## Selecting ECUs/PIDs — prefer the query mini-language
+
+When a new or updated command needs the user to name what ECU(s)/PID(s) to act
+on, **take a positional QUERY in the shared mini-language rather than adding
+`--ecu`/`--pid` (or a bespoke `--param`) flag pair.** The mini-language
+(`ECU:PID`, whitespace = OR across selectors, colon binds a PID to its ECU) is
+the canonical selection surface across `query`/`captures`/`decode`/`correlate`,
+so a new command that reuses it is consistent, composable, and multi-ECU-capable
+for free — whereas a `--ecu X --pid Y` pair is single-target, non-composable, and
+drifts from the established UX.
+
+- **Parse through the shared helper, don't re-implement the grammar.** The
+  canonical parser lives in `canlib/query.py` (`parse_query`/`parse_selector`,
+  the `Query`/`Selector` dataclasses); capture/decode-style commands use the
+  ECU-alias-aware wrapper `_parse_query` in
+  `canlib/commands/_captures_query.py` (it canonicalizes selector ECUs against
+  the registry so `SMK`→`SKM`). Device-pipeline commands go through
+  `canlib/modes/multi_parse.py::parse_sub_commands` (which owns the
+  "`IGPM 22BC07` is a bogus ECU — bind with a colon" guard). Follow
+  `commands/captures.py` (positional QUERY) or `commands/correlate.py` (optional
+  `ECU[:PID]` selector) as templates.
+- **The remaining `--ecu`/`--pid`/`--param` flags are legacy, not the pattern to
+  copy.** A few survive as narrow filters (`decode --param`, `research --ecu`,
+  `bix --annotate --ecu/--pid`); don't treat them as precedent for new commands.
+- If you genuinely need a *filter* on top of a QUERY (not the primary selector),
+  prefer extending the shared scoping surface (see "Time & scoping conventions")
+  over a one-off flag.
+
 ## Time & scoping conventions
 
 Capture-consuming commands (`captures`/`decode`/`correlate`/`hunt`/`investigate`)
@@ -460,6 +488,29 @@ mirror what you see; don't invent a new format.
   first, stage deliberately (a pre-existing partial index is a smell — reconcile
   it, don't blindly `git add -A` over surprises), never commit secrets/PII, and
   don't push/tag/amend unless explicitly requested.
+
+### Committing safely when other agents may be working concurrently
+
+Multiple agents can share this working tree at once. The index (staging area)
+and the stash are **global shared state** — one agent's `git add`/`git reset`
+races another's, so an agent that stages broadly can commit files a *different*
+agent was mid-edit on. Commit only the paths you own, and never through the
+whole-tree shortcuts:
+
+- **Never `git add -A`, `git add .`, or `git commit -a`.** Each stages whatever
+  happens to be in the tree — including another agent's in-flight files — and is
+  the direct cause of the "committed the wrong files" race. Always scope to
+  explicit pathspecs *you* touched.
+- **Prefer `git commit -o -- <paths>`** (`--only` mode, the default when you pass
+  pathspecs). It builds the commit from HEAD's tree plus exactly those paths via
+  a **temporary index**, ignoring whatever else is staged — so it's insensitive
+  to what another agent left in the index, removing the "committed the wrong
+  *staged* files" class entirely. (It still *reads* those paths from the working
+  tree, so it can't cure a working-tree write race on files you don't own — but
+  scoping to your own paths avoids that too.)
+- **`git stash` is not a fix.** It's another piece of global shared state; using
+  it to "clear" the index only makes interleaving with other agents worse. Don't
+  reach for it to work around a dirty index — scope your commit instead.
 
 ## Cutting a release
 

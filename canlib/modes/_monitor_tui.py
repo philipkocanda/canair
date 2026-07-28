@@ -464,6 +464,23 @@ class MonitorApp(HelpMixin, App):
         captured = getattr(c, "total_frames", 0)
         uniq = getattr(c, "unique_frames", 0)
         frames = f"[dim]· captured[/] {captured}[dim]/uniq[/] {uniq} "
+        # Transport health: dropped/stale frames (the reassembly-corruption class
+        # that silently poisoned historical captures) and other errors (timeouts,
+        # bus, decode). Surfaced live to raise awareness of connection/latency
+        # problems. Only shown when non-zero so a clean run stays uncluttered.
+        health = ""
+        diag_fn = getattr(c, "diag", None)
+        diag = diag_fn() if callable(diag_fn) else None
+        if diag is not None:
+            drops = diag.drops
+            other = diag.errors - drops
+            segs = []
+            if drops:
+                segs.append(f"[b red]drops {drops}[/]")
+            if other:
+                segs.append(f"[yellow]errs {other}[/]")
+            if segs:
+                health = "[dim]·[/] " + " [dim]·[/] ".join(segs) + " "
         flash = ""
         if self._flash_msg:
             if time.monotonic() < self._flash_expires:
@@ -483,10 +500,36 @@ class MonitorApp(HelpMixin, App):
         status.update(
             f"{rec}[dim]cycle[/] {c.cycle} [dim]·[/] {c.interval:.1f}[dim]s ·[/] "
             f"{c.elapsed:.1f}[dim]s ·[/] {metric} "
-            f"{frames}{state_txt}{follow}{paused}"
+            f"{frames}{health}{state_txt}{follow}{paused}"
             f"{flash}\n"
             f"{self._edit_status_line()}"
         )
+
+    def _health_segment(self) -> str:
+        """Transport-health indicator: cumulative dropped/stale frames + errors.
+
+        Reads the active client's diagnostics recorder (drops = dropped/stale
+        ISO-TP frames, the data-integrity headline; err = all non-answer errors).
+        ``drops`` is always shown (dim 0 when clean, red when any) to keep the
+        connection's health visible; a per-cycle spike (``+N``) flags a live
+        burst. Omitted entirely when the client exposes no recorder.
+        """
+        c = self.controller
+        diag_fn = getattr(c, "diag_recorder", None)
+        diag = diag_fn() if callable(diag_fn) else None
+        if diag is None:
+            return ""
+        drops = diag.drops
+        errs = diag.errors - drops  # non-drop errors (timeouts/bus/decode) — disjoint from drops
+        last_d = getattr(c, "last_drops", 0)
+        if drops:
+            spike = f" [b red]+{last_d}[/]" if last_d else ""
+            seg = f"[dim]· drops[/] [red]{drops}[/]{spike} "
+        else:
+            seg = "[dim]· drops 0[/] "
+        if errs:
+            seg += f"[dim]· err[/] [yellow]{errs}[/] "
+        return seg
 
     def _editor(self):
         """The controller's edit collaborator, or None (older/fake controllers)."""

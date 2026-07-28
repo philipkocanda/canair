@@ -100,6 +100,7 @@ def _finalize_journal(
     notes: str | None = None,
     prompt: bool = True,
     suggested_state: str | None = None,
+    quality: dict | None = None,
 ) -> None:
     """Resolve metadata (optionally prompting) and reconcile the write-ahead journal.
 
@@ -108,6 +109,8 @@ def _finalize_journal(
     is False (e.g. an interrupted pipeline) the journal is reconciled with the
     metadata already on it — no stdin interaction. ``suggested_state`` pre-fills
     the interactive state prompt (auto-suggested from decoded PID values).
+    ``quality`` (the transport exchange/error footprint) is stamped onto the
+    session before reconcile.
     """
     from ..captures import resolve_metadata
 
@@ -132,6 +135,8 @@ def _finalize_journal(
             return
         lbl, states, nt = meta
         journal.update_meta(lbl, states, nt)
+    if quality is not None:
+        journal.update_meta(quality=quality)
     journal.reconcile()
 
 
@@ -182,6 +187,7 @@ async def mode_multi(
             vehicle_states=vehicle_states,
             notes=notes,
             source="query",
+            transport=getattr(getattr(terminal, "diag", None), "transport", None),
         )
 
     def _collect_query(ecu_label: str, pid_results: list[ResultEntry]) -> None:
@@ -318,6 +324,7 @@ async def mode_multi(
                 vehicle_states,
                 notes,
                 suggested_state=_suggest_pipeline_state(),
+                quality=getattr(getattr(terminal, "diag", None), "quality", lambda: None)(),
             )
             journal = None
 
@@ -333,7 +340,15 @@ async def mode_multi(
         print("\n  Interrupted.")
         # Reconcile whatever was captured before the interrupt (no prompt).
         if save and journal is not None:
-            _finalize_journal(journal, len(collected), label, vehicle_states, notes, prompt=False)
+            _finalize_journal(
+                journal,
+                len(collected),
+                label,
+                vehicle_states,
+                notes,
+                prompt=False,
+                quality=getattr(getattr(terminal, "diag", None), "quality", lambda: None)(),
+            )
             journal = None
 
     finally:

@@ -58,6 +58,8 @@ def _write_merged(
     notes: str,
     captures_dir: Path,
     keep_mode: str | None = None,
+    transport: str | None = None,
+    quality: dict | None = None,
 ) -> Path:
     """Build a query-capture session from merged payloads and save it to disk.
 
@@ -77,7 +79,15 @@ def _write_merged(
         for hex_val, ts in entries:
             results.append((ecu_ref, pid, hex_val, ts))
 
-    session = build_query_session(results, label, vehicle_states, notes, keep_mode=keep_mode)
+    session = build_query_session(
+        results,
+        label,
+        vehicle_states,
+        notes,
+        keep_mode=keep_mode,
+        transport=transport,
+        quality=quality,
+    )
     return save_session(session, captures_dir)
 
 
@@ -87,6 +97,7 @@ def _open_journal(controller, label: str | None, vehicle_states, notes: str | No
     Shared by ``mode_monitor`` (run start) and ``MonitorRecorder.new_segment``
     (segment rotate) so their open args can't drift. ``keep_mode="unique"`` is
     carried through from the display keep-mode; other modes journal every row.
+    The transport label (for saved-capture provenance) comes from the controller.
     """
     from ..capture_journal import CaptureJournal
 
@@ -99,6 +110,7 @@ def _open_journal(controller, label: str | None, vehicle_states, notes: str | No
         notes=notes,
         source="monitor",
         keep_mode=keep,
+        transport=getattr(controller, "transport_type", None),
     )
 
 
@@ -151,6 +163,33 @@ class MonitorRecorder:
         # snapshot) so a segment that charged then went idle is still labelled
         # `charging` — the exit snapshot alone would miss it.
         self.observed_states: dict[str, None] = {}
+        # Transport-diagnostics baseline for the current segment: a snapshot of the
+        # active client's .diag counts taken when the segment starts, so each
+        # segment's recorded `quality` reflects only its own span (diff at
+        # reconcile). None = start-of-run (baseline is zero → whole run so far).
+        self._diag_base: dict[str, int] | None = None
+
+    def segment_quality(self) -> dict | None:
+        """Data-quality footprint for the current segment, or None if unavailable.
+
+        The active client's exchange/error counts since :attr:`_diag_base` (set at
+        segment start). Recorded onto the reconciled session so a capture carries
+        the transport health it was gathered under.
+        """
+        diag = self._diag_recorder()
+        if diag is None:
+            return None
+        return diag.diff(self._diag_base or {}).quality()
+
+    def _diag_recorder(self):
+        """The controller's active-client diag recorder, or None (older/fake controllers)."""
+        fn = getattr(self.c, "diag_recorder", None)
+        return fn() if callable(fn) else None
+
+    def _reset_diag_base(self) -> None:
+        """Snapshot the active client's diag counts as the new segment's baseline."""
+        diag = self._diag_recorder()
+        self._diag_base = diag.snapshot() if diag is not None else None
 
     def observe(self, new_queries: list[EcuFrame]) -> None:
         """Record freshly-polled payloads: update ``prev_hex`` + histories/journal.
@@ -317,7 +356,14 @@ class MonitorRecorder:
         n_payloads = sum(len(v) for v in new_merged.values())
         with contextlib.redirect_stdout(io.StringIO()):
             path = _write_merged(
-                new_merged, label, states, notes or "", captures_dir, keep_mode=self.c.keep_mode
+                new_merged,
+                label,
+                states,
+                notes or "",
+                captures_dir,
+                keep_mode=self.c.keep_mode,
+                transport=getattr(self.c, "transport_type", None),
+                quality=self.segment_quality(),
             )
         for key, entries in merged.items():
             self._saved_counts[key] = len(entries)
@@ -348,6 +394,12 @@ class MonitorRecorder:
                 with contextlib.suppress(Exception):
                     self.journal.update_meta(vehicle_states=backfill)
 
+        # Stamp the closing segment with its transport data-quality footprint.
+        with contextlib.suppress(Exception):
+            quality = self.segment_quality()
+            if quality is not None:
+                self.journal.update_meta(quality=quality)
+
         written = None
         with contextlib.suppress(Exception):
             written = self.journal.reconcile()
@@ -355,8 +407,10 @@ class MonitorRecorder:
         self.journal = _open_journal(self.c, label, states, notes)
         self.state_explicit = bool(states)
         # Fresh segment: reset the observed-state accumulator so it doesn't carry
-        # the previous segment's states into this one's back-fill.
+        # the previous segment's states into this one's back-fill, and rebase the
+        # diag baseline so the new segment's quality counts only its own span.
         self.observed_states = {}
+        self._reset_diag_base()
         # Reset the display metadata to the new segment's (label always set here).
         self.session_label = label or ""
         self.session_states = list(states or [])

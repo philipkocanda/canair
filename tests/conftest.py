@@ -34,3 +34,22 @@ def _reset_active_profile():
     profile._active = None
     yield
     profile._active = None
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _isolate_event_log(tmp_path_factory):
+    """Redirect the central diagnostics event log to a temp file for the suite.
+
+    Transport exchanges log drops/errors to ``config_dir()/logs/canair.log``; left
+    unpinned, the test suite would scribble into the developer's real user log.
+    Point it at a throwaway path (and clear any handler a test opened).
+    """
+    import logging
+
+    import canlib.log as clog
+
+    path = tmp_path_factory.mktemp("eventlog") / "canair.log"
+    clog.event_log_path = lambda: path  # type: ignore[assignment]
+    clog._event_logger = None
+    logging.getLogger("canair.events").handlers.clear()
+    yield
