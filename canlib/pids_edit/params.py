@@ -438,6 +438,20 @@ def delete_parameter(
         existing = _keyed_block(text, param_name, 8, params[2], params[3])
         if not existing:
             raise PidsEditError(f"parameter {param_name!r} not found on {ecu_name} {pid}")
+        # If this is the ONLY parameter under the PID, drop the whole
+        # ``parameters:`` block — leaving an empty ``parameters:`` key parses to
+        # None and fails the schema ("'parameters' must be a dict").
+        sibling = re.compile(r"^ {8}[^\s#]", re.MULTILINE)
+        others = [
+            m
+            for m in sibling.finditer(text, params[2], params[3])
+            if not (existing[0] <= m.start() < existing[3])
+        ]
+        if not others:
+            p_start, p_end = params[0], params[3]
+            block = text[p_start:p_end]
+            trailing = block[len(block.rstrip("\n")) :]
+            return text[:p_start] + trailing + text[p_end:]
         start, end = existing[0], existing[3]
         # _keyed_block's body_end absorbs trailing blank lines that visually
         # separate this param from the next sibling. Keep them so removing a
@@ -452,6 +466,84 @@ def delete_parameter(
         params = (match or {}).get("parameters") or {}
         if param_name in params:
             raise PidsEditError(f"parameter {param_name!r} still present after delete")
+
+    new_text = transform(original)
+    _safe_write(fpath, original, new_text, ecu_key, checker)
+    return fpath
+
+
+def add_pid(
+    ecu_name: str,
+    pid: str,
+    *,
+    status: str = "draft",
+    vehicle_states: list | None = None,
+    period: int | None = None,
+    notes: str | None = None,
+    pids_dir: Path | None = None,
+) -> Path:
+    """Create a new *parameter-less* PID under ``ECU.pids.<PID>``.
+
+    The create path for a bare PID — a discovery placeholder or an identity-only
+    page (e.g. a not-yet-decoded ``21F2``) that should be polled/documented
+    before any parameter is decoded. Renders ``status:`` (default ``draft`` so it
+    is swept/queryable but not shipped to the device) plus any provided
+    ``vehicle_states``/``period``/``notes``. Scaffolds the ``pids:`` section if
+    the ECU has none yet. Fails if the PID already exists (use
+    :func:`upsert_parameter` / :func:`set_pid_status` to edit it).
+
+    The write is verified by a YAML re-parse; on failure the file is restored.
+    """
+    from canlib.pids import PID_STATUSES
+
+    status = str(status).strip().lower()
+    if status not in PID_STATUSES:
+        raise PidsEditError(f"status must be one of {PID_STATUSES}, got {status!r}")
+    pid_u = str(pid).strip().upper()
+    if not re.fullmatch(r"[0-9A-Fa-f]{2,}", pid_u):
+        raise PidsEditError(f"invalid PID {pid!r} (expected a hex code like 21F2 or 22B003)")
+
+    def _pid_lines(indent: str) -> list[str]:
+        lines = [f"{indent}{pid_u}:", f"{indent}  status: {status}"]
+        if period is not None:
+            lines.append(f"{indent}  period: {period}")
+        if vehicle_states:
+            lines.extend(_format_list_field(indent + "  ", "vehicle_states", list(vehicle_states)))
+        if notes:
+            lines.extend(_format_block_scalar(indent + "  ", "notes", str(notes)))
+        return lines
+
+    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
+    original = fpath.read_text()
+    ecu_key = ecu_name.strip().upper()
+
+    def transform(text: str) -> str:
+        ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
+        pids = _keyed_block(text, "pids", 2, ecu_start, ecu_end)
+        if not pids:
+            # ECU has no pids: section yet — scaffold it with this PID.
+            block = ["  pids:", *_pid_lines("    ")]
+            return _insert_lines(text, ecu_start, ecu_end, block)
+        _, _, pids_body_start, pids_body_end, pids_inline = pids
+        if pids_body_start >= pids_body_end or pids_inline in ("{}", "{ }"):
+            # Inline-empty pids: — rewrite the header to block form + this PID.
+            chain = "\n".join(["  pids:", *_pid_lines("    ")])
+            return text[: pids[0]] + chain + "\n" + text[pids[1] + 1 :]
+        if _keyed_block(text, pid_u, 4, pids_body_start, pids_body_end):
+            raise PidsEditError(
+                f"PID {pid_u!r} already exists on {ecu_name} — "
+                "use upsert-param / set-pid-status to edit it"
+            )
+        return _insert_lines(text, pids_body_start, pids_body_end, _pid_lines("    "))
+
+    def checker(ecu_def: dict) -> None:
+        pids_map = ecu_def.get("pids", {}) or {}
+        pdef = next((v for k, v in pids_map.items() if str(k).upper() == pid_u), None)
+        if pdef is None:
+            raise PidsEditError(f"PID {pid_u!r} missing after edit")
+        got = str((pdef or {}).get("status", "active")).lower()
+        if got != status:
+            raise PidsEditError(f"status mismatch after edit: {got!r} != {status!r}")
 
     new_text = transform(original)
     _safe_write(fpath, original, new_text, ecu_key, checker)

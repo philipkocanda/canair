@@ -41,6 +41,7 @@ from pathlib import Path
 from canlib.pids import PID_STATUSES
 from canlib.pids_edit import (
     PidsEditError,
+    add_pid,
     add_research_entry,
     delete_parameter,
     delete_pid,
@@ -61,6 +62,7 @@ NAME = "pids"
 _GREEN = "\033[92m"
 _RED = "\033[91m"
 _DIM = "\033[2m"
+_YELLOW = "\033[93m"
 _RESET = "\033[0m"
 
 
@@ -112,6 +114,70 @@ def _parse_pairs(raw: list[str] | None, kind: str) -> dict | None:
     return out
 
 
+def _echo_capture_range(ecu: str, pid: str, name: str, param: dict) -> None:
+    """Print the just-written param's decoded value range across existing captures.
+
+    A passive sanity-check echoed after a successful ``upsert-param``: a wrong
+    byte offset (e.g. a WiCAN Bnn landing on an ISO-TP PCI framing byte) shows up
+    immediately as a nonsensical ``constant`` or an error, instead of being
+    silently persisted. Never fails the write — any problem loading/decoding
+    captures is swallowed (the edit already succeeded and was validated).
+    """
+    try:
+        from canlib.commands.decode import (
+            decode_payload,
+            load_captures,
+            payload_to_wican_bytes,
+        )
+
+        caps = load_captures(ecu, pid)
+        if not caps:
+            print(f"    {_DIM}(no captures for {ecu} {pid} yet — expression unverified){_RESET}")
+            return
+
+        values: list[float] = []
+        displays: list[str] = []
+        err: str | None = None
+        for cap in caps:
+            try:
+                wb = payload_to_wican_bytes(cap["payload"])
+            except Exception:
+                continue
+            decoded = decode_payload(wb, {name: param}).get(name)
+            if not decoded:
+                continue
+            if decoded.get("error"):
+                err = decoded["error"]
+                continue
+            if decoded.get("display") is not None:
+                if decoded["display"] not in displays:
+                    displays.append(decoded["display"])
+            elif decoded.get("value") is not None:
+                values.append(decoded["value"])
+
+        unit = param.get("unit") or ""
+        if displays:
+            shown = "  ".join(displays[:6]) + ("  …" if len(displays) > 6 else "")
+            tag = "(constant)" if len(displays) == 1 else f"({len(displays)} values)"
+            print(f"    {_DIM}captures:{_RESET} {shown}  {_DIM}{tag}{_RESET}")
+        elif values:
+            mn, mx = min(values), max(values)
+            if mn == mx:
+                print(
+                    f"    {_YELLOW}captures: constant {mn:g}{unit}{_RESET}"
+                    f"  {_DIM}(check the offset if you expected variation){_RESET}"
+                )
+            else:
+                print(f"    {_DIM}captures:{_RESET} {mn:g}{unit} — {mx:g}{unit}")
+        elif err:
+            print(f"    {_RED}captures: ERROR — {err}{_RESET}")
+        else:
+            print(f"    {_DIM}(captures present but expression yielded no value){_RESET}")
+    except Exception:
+        # Never let a sanity-check echo break a successful write.
+        pass
+
+
 def cmd_upsert_param(args: argparse.Namespace) -> int:
     values = _parse_pairs(args.values, "value")
     bits = _parse_pairs(args.bits, "bit")
@@ -148,6 +214,19 @@ def cmd_upsert_param(args: argparse.Namespace) -> int:
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
     print(f"{_GREEN}  ✓ {args.ecu} {args.pid} {args.name}{_RESET}  {_DIM}({fpath.name}){_RESET}")
+
+    # Passive sanity-check: decode the new expression against existing captures so
+    # a wrong byte offset surfaces at write time (a PCI byte reads constant, etc.).
+    param = {
+        "expression": args.expression,
+        "unit": args.unit,
+        "min": args.min,
+        "max": args.max,
+        "type": ptype or "numeric",
+        "values": values,
+        "bits": bits,
+    }
+    _echo_capture_range(args.ecu, args.pid, args.name, param)
     return 0
 
 
@@ -190,6 +269,25 @@ def cmd_rm_pid(args: argparse.Namespace) -> int:
 
     fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
     print(f"{_GREEN}  ✓ removed {args.ecu} {args.pid}{_RESET}  {_DIM}({fpath.name}){_RESET}")
+    return 0
+
+
+def cmd_add_pid(args: argparse.Namespace) -> int:
+    def do():
+        add_pid(
+            args.ecu,
+            args.pid,
+            status=args.status,
+            vehicle_states=args.prereq or None,
+            period=args.period,
+            notes=args.notes,
+            pids_dir=args.dir,
+        )
+
+    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
+    print(
+        f"{_GREEN}  ✓ {args.ecu} {args.pid} [{args.status}]{_RESET}  {_DIM}({fpath.name}){_RESET}"
+    )
     return 0
 
 
@@ -385,6 +483,30 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     rmp.add_argument("pid")
     _add_common(rmp)
     rmp.set_defaults(_pids_func=cmd_rm_pid)
+
+    adp = sub.add_parser(
+        "add-pid", help="Create a new parameter-less PID (discovery/identity placeholder)"
+    )
+    adp.add_argument("ecu")
+    adp.add_argument("pid", help="PID code, hex (e.g. 21F2)")
+    adp.add_argument(
+        "--status",
+        choices=list(PID_STATUSES),
+        default="draft",
+        help="PID lifecycle (default: draft — swept/queryable but not shipped)",
+    )
+    adp.add_argument(
+        "--prereq",
+        "--vehicle-states",
+        dest="prereq",
+        action="append",
+        choices=list(POWER_STATES),
+        help="Power state(s) in which this PID responds (repeatable)",
+    )
+    adp.add_argument("--period", type=int, help="Polling interval in ms")
+    adp.add_argument("--notes", help="Freeform notes for the PID")
+    _add_common(adp)
+    adp.set_defaults(_pids_func=cmd_add_pid)
 
     ar = sub.add_parser("add-research", help="Append a research: entry")
     ar.add_argument("ecu")

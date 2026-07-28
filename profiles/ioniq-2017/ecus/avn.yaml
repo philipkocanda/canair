@@ -51,3 +51,13 @@ AVN:
         Head unit alive (all NRC, 0 timeouts) but exposes NO live-data DIDs — identity DIDs only. Hidden-page hunt.
 
   pids: {}
+
+  research:
+    - type: scan
+      target: 21 00-FF
+      status: pending
+      priority: P2
+      vehicle_states: [acc]
+      created: "2026-07-28"
+      updated: "2026-07-28"
+      notes: AVN/IVI head unit (0x780) — this is the unit the driver USES to set the charge timer and preconditioning schedules, so it may store them locally (or proxy them). NEVER swept for service-21. Sweep 21 00-FF (esp. 21F2, the cross-ECU config/identity convention seen on VCU/MCU/BMS/OBC/Unknown-746). Prime candidate alongside HVAC 21F2 for the 2 preconditioning schedules (15 C Thu 15:30 + 15 C Thu 16:00) and the charge windows (wknd 17:40-20:50 / wkdy 01:20-03:40). If AVN answers 21F2, capture it, change one schedule field, and diff. Cross-ref VCU 21F2 charge-schedule + HVAC 21 00-FF research entries.

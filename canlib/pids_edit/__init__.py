@@ -22,6 +22,7 @@ from .hits import (
     update_routines_field,
 )
 from .params import (
+    add_pid,
     add_research_entry,
     delete_parameter,
     delete_pid,
@@ -39,6 +40,7 @@ from .params import (
 __all__ = [
     "EDITABLE_FIELDS",
     "PidsEditError",
+    "add_pid",
     "add_research_entry",
     "append_iocontrol_discoveries_block",
     "append_routines_block",

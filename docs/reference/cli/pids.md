@@ -4,18 +4,20 @@
 
 ```
 usage: canair pids [-h]
-                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-research,set-status,set-pid-status,set-pid-variable-length,set-identity,set-can-bus}
+                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,set-pid-status,set-pid-variable-length,set-identity,set-can-bus}
                    ...
 
 [UDS] Safely edit ecus/ parameters and research entries (domain A — diagnostic UDS PIDs, freeform WiCAN expressions). The broadcast-frame (domain B) authoring counterpart is `canair signals` (linear signals/ maps).
 
 positional arguments:
-  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-research,set-status,set-pid-status,set-pid-variable-length,set-identity,set-can-bus}
+  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,set-pid-status,set-pid-variable-length,set-identity,set-can-bus}
     upsert-param        Add or update a parameter
     rename-param        Rename a parameter (key only; fields preserved)
     rm-param            Remove a parameter
     rename-pid          Rename a PID key (e.g. B002 -> 22B002)
     rm-pid              Remove a whole PID (header, status, parameters)
+    add-pid             Create a new parameter-less PID (discovery/identity
+                        placeholder)
     add-research        Append a research: entry
     set-status          Update a research item's status
     set-pid-status      Set a PID's lifecycle status
@@ -153,6 +155,32 @@ options:
   -h, --help     show this help message and exit
   --dir DIR      ecus/ directory (default: active profile)
   --no-validate  Skip the post-edit schema validation gate
+```
+
+## `canair pids add-pid`
+
+```
+usage: canair pids add-pid [-h] [--status {active,draft,static,ignored}]
+                           [--prereq {sleep,plugged,acc,acc2,ready,charging}]
+                           [--period PERIOD] [--notes NOTES] [--dir DIR]
+                           [--no-validate]
+                           ecu pid
+
+positional arguments:
+  ecu
+  pid                   PID code, hex (e.g. 21F2)
+
+options:
+  -h, --help            show this help message and exit
+  --status {active,draft,static,ignored}
+                        PID lifecycle (default: draft — swept/queryable but
+                        not shipped)
+  --prereq {sleep,plugged,acc,acc2,ready,charging}, --vehicle-states {sleep,plugged,acc,acc2,ready,charging}
+                        Power state(s) in which this PID responds (repeatable)
+  --period PERIOD       Polling interval in ms
+  --notes NOTES         Freeform notes for the PID
+  --dir DIR             ecus/ directory (default: active profile)
+  --no-validate         Skip the post-edit schema validation gate
 ```
 
 ## `canair pids add-research`

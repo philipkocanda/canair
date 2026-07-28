@@ -594,6 +594,14 @@ HVAC:
         - acc2
         - ready
       parameters: {}
+    21F2:
+      status: draft
+      period: 0
+      vehicle_states:
+        - ready
+        - charging
+      notes: >
+        DRAFT / UNCONFIRMED — not yet captured from the device. Added 2026-07-28 as a discovery placeholder so a bare-ECU capture (canair query HVAC) polls it. RATIONALE: preconditioning is a CLIMATE function, and every other major ECU (VCU/MCU/BMS/OBC/Unknown-746) exposes a 21F2 service-21 config/identity page — so HVAC (0x7B3) very likely has one too, and it is the prime candidate to hold the 2 preconditioning schedules (currently 15 C Thu 15:30 + 15 C Thu 16:00). It was never captured before only because it was never DEFINED (a bare-ECU query polls only defined PIDs). If a device read returns NRC/NO DATA, set status: ignored. See HVAC research 'scan 21 00-FF' and the VCU 21F2 charge-schedule entry.
   iocontrol:
     F011:
       label: "Unknown actuator 1"
@@ -799,6 +807,17 @@ HVAC:
       created: "2026-07-27"
       updated: "2026-07-27"
       notes: "01Ax higher pages surveyed 2026-07-27 (2026-07-26 HVAC capture). STRUCTURE: A0=actuators/fan(decoded); A1(62B)/A2(55B)/A3(55B)=distinct 16-bit sensor/actuator detail pages; A4/A5/A6=byte-identical aliases of A3 (now ignored). CONFIRMED: mode-door position mirrored on A1 B22 & A2 B20 (r~0.97 vs A0 B07, ~raw). Fan level (A0 B18) NOT on any sibling page. OPEN: multiple temperatures on A1(B65,B20)/A2(B18|B19)/A3(B29~heat-exch, 0.905x-23.5) all co-move under heating so specific sensors unresolved. TO DECODE: single-variable capture — vary ONE temp/actuator at a time (e.g. evap vs heat-exch vs duct), hold, note; then hunt each A-page word against the isolated reference."
+    - type: scan
+      target: 21 00-FF
+      status: pending
+      priority: P2
+      vehicle_states: [ready]
+      created: "2026-07-28"
+      updated: "2026-07-28"
+      notes: "HVAC (0x7B3, UDS) has NEVER been probed for service-21 pages — only service-22 DIDs (2201xx) and one service-31 sweep are logged. Preconditioning is a CLIMATE function, so an HVAC service-21 config page (esp. 21F2, mirroring the VCU/MCU/BMS/OBC 21F2 convention) is a strong candidate to hold the 2 preconditioning schedules (currently 15 C Thu 15:30 + 15 C Thu 16:00) — possibly the PRIMARY store, with VCU 21F2 only carrying the charge windows. Sweep 21 00-FF in READY; if 21F2 (or any page) responds, capture it, then reprogram ONE precondition field and re-read to diff. Cross-ref: VCU 21F2 charge-schedule research entry (charge timer is bit-packed in VCU 21F2 B38-B43+B75)."
+      what_to_test:
+        - Sweep service-21 00-FF on HVAC 0x7B3 in READY; note which LIDs respond (expect 21F2 per the 21F2 convention on other ECUs).
+        - If a page responds, capture it in a known precondition state, then change one precondition schedule field and re-read to locate the schedule bytes.
   dtcs:
     B1285:
       description: >

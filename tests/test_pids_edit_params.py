@@ -7,6 +7,7 @@ import yaml
 
 from canlib.pids_edit import (
     PidsEditError,
+    add_pid,
     add_research_entry,
     set_research_status,
     upsert_parameter,
@@ -189,6 +190,76 @@ class TestUpsertCreatesPidsSection:
 
         idx = build_ecu_index(load_pids(d))
         assert "NEWECU" in idx
+
+
+class TestAddPid:
+    """add-pid creates a bare, parameter-less PID (discovery/identity placeholder)."""
+
+    def test_add_into_existing_pids_section(self, pids_dir):
+        add_pid(
+            "TESTECU",
+            "21F2",
+            status="draft",
+            vehicle_states=["ready", "charging"],
+            period=0,
+            notes="discovery placeholder",
+            pids_dir=pids_dir,
+        )
+        ecu = _load(pids_dir)["TESTECU"]
+        block = next(v for k, v in ecu["pids"].items() if str(k).upper() == "21F2")
+        assert block["status"] == "draft"
+        assert block["period"] == 0
+        assert block["vehicle_states"] == ["ready", "charging"]
+        assert block["notes"].strip() == "discovery placeholder"
+        assert "parameters" not in block  # bare PID — no params
+        # sibling PIDs + header comment survive
+        assert "EXISTING" in ecu["pids"][2101]["parameters"]
+        assert "# Header comment that must survive edits" in (pids_dir / "test.yaml").read_text()
+
+    def test_default_status_is_draft(self, pids_dir):
+        add_pid("TESTECU", "21FF", pids_dir=pids_dir)
+        ecu = _load(pids_dir)["TESTECU"]
+        block = next(v for k, v in ecu["pids"].items() if str(k).upper() == "21FF")
+        assert block["status"] == "draft"
+
+    def test_rejects_existing_pid(self, pids_dir):
+        with pytest.raises(PidsEditError, match="already exists"):
+            add_pid("TESTECU", "2101", pids_dir=pids_dir)
+
+    def test_rejects_bad_status(self, pids_dir):
+        with pytest.raises(PidsEditError, match="status must be one of"):
+            add_pid("TESTECU", "21F2", status="bogus", pids_dir=pids_dir)
+
+    def test_rejects_non_hex_pid(self, pids_dir):
+        with pytest.raises(PidsEditError, match="invalid PID"):
+            add_pid("TESTECU", "NOTHEX", pids_dir=pids_dir)
+
+    def test_scaffolds_missing_pids_section(self, tmp_path):
+        (tmp_path / "_meta.yaml").write_text('car_model: "Test"\ninit: "ATSP6;"\n')
+        (tmp_path / "e.yaml").write_text(
+            textwrap.dedent(
+                """\
+                # keep me
+                NEWECU:
+                  tx_id: 0x7B3
+                  identity:
+                    description: Climate
+                """
+            )
+        )
+        add_pid("NEWECU", "21F2", status="draft", pids_dir=tmp_path)
+        ecu = yaml.safe_load((tmp_path / "e.yaml").read_text())["NEWECU"]
+        assert ecu["pids"]["21F2"]["status"] == "draft"
+        assert ecu["identity"]["description"] == "Climate"  # sibling preserved
+        assert "# keep me" in (tmp_path / "e.yaml").read_text()
+
+    def test_result_round_trips_and_is_swept(self, pids_dir):
+        # A draft PID must be indexed by the loader (draft = swept/queryable).
+        add_pid("TESTECU", "21F2", status="draft", pids_dir=pids_dir)
+        from canlib.pids import build_ecu_index, load_pids
+
+        idx = build_ecu_index(load_pids(pids_dir))
+        assert "21F2" in idx["TESTECU"]["pids"]
 
 
 class TestUpsertParameterUpdate:
@@ -438,9 +509,22 @@ class TestDeleteParameter:
     def test_delete_removes(self, pids_dir):
         from canlib.pids_edit import delete_parameter
 
+        # 2101 has KEEP + EXISTING so a delete leaves a non-empty parameters: map.
+        upsert_parameter("TESTECU", "2101", "KEEP", "B5", pids_dir=pids_dir)
         delete_parameter("TESTECU", "2101", "EXISTING", pids_dir=pids_dir)
         params = _load(pids_dir)["TESTECU"]["pids"][2101]["parameters"] or {}
         assert "EXISTING" not in params
+
+    def test_delete_last_param_drops_parameters_block(self, pids_dir):
+        # Removing a PID's LAST parameter must drop the now-empty parameters:
+        # block entirely — an empty `parameters:` parses to None and fails the
+        # schema ("'parameters' must be a dict"). Leaves a valid identity-only PID.
+        from canlib.pids_edit import delete_parameter
+
+        delete_parameter("TESTECU", "2101", "EXISTING", pids_dir=pids_dir)
+        block = _load(pids_dir)["TESTECU"]["pids"][2101]
+        assert "parameters" not in block  # whole block gone, not left empty/None
+        assert block["period"] == 5000  # other PID fields preserved
 
     def test_delete_missing_raises(self, pids_dir):
         from canlib.pids_edit import delete_parameter

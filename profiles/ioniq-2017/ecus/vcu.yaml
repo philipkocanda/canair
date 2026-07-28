@@ -338,18 +338,65 @@ VCU:
           verified: false
           notes: >
             Estimated charge time remaining (time-to-full, to 100% — this car has no built-in SOC charge limit). [B22:B23]/10 = minutes. Confirmed as time=energy/power by four lines: byte*charge_current constant (CV 0.008) across a 10/13/16A EVSE step (242/180/146 min); r=-0.77 vs SOC over the steady 16A charge (falls as SOC rises); collapses to ~0 when charging stops; ~4h at 10A from 67% SOC (owner-confirmed plausible). UNVERIFIED: exact /10=min scale not pinned (afternoon reads ~25% below the naive kWh/kW estimate — the car's algorithm likely accounts for CV taper). Coarser/related estimates on B19 and VCU-2101 B21. ISO-TP 0x12-0x13.
+
     21F2:
+      parameters:
+        CHARGE_TIMER_WKND_END_HOUR:
+          expression: B75
+          unit: h
+          min: "0"
+          max: "23"
+          source: "canair before/after 2026-07-28: AVN charge timer set weekends 17:40-20:50, weekdays 01:20-03:40"
+          verified: false
+          notes: >
+            WiCAN B75 (ISO-TP payload index 0x40). Changed 0x10->0x14 (16->20) on 2026-07-28 charge-schedule reprogram; 0x14=20 = weekend-END hour (20:50). Single before/after point — needs a second value to verify. Rest of schedule packed in B38/B39/B41/B42/B43.
+
+
       status: active
       period: 0
       vehicle_states:
         - charging
+        - ready
       notes: >
-        69 bytes. Discovered during charging PID scan (2026-04-18).
+        ~86 bytes. Discovered during charging PID scan (2026-04-18).
         Raw payload: 61F2FF000000084566003FC6AE1101877F00000000000000000000000000...
-        Undecoded — needs analysis.
 
         2026-07-19: charge timer schedule and precondition timestamp? -> no change
         2026-07-19: charger power limit setting? -> no change
+
+        2026-07-28: NOT static (earlier "static charge-timer config" label was WRONG — it
+        changed 3x within 2026-07-22 alone). This is a MIXED block: many live analog bytes
+        (WiCAN B10/B12/B13/B14/B15/B19/B20/B21/B29-B37/B45/B47/B57 vary hour-to-hour) plus a
+        genuine charge/precondition-SCHEDULE config region. Confirmed via before/after: on
+        2026-07-28 BOTH the charge timer AND the preconditioning schedules were reprogrammed
+        via the AVN/IVI. The bytes that were CONSTANT across three 07-22 reads
+        (09:02/11:15/16:48) yet changed on 07-28 are the config set (WiCAN indexing, incl.
+        ISO-TP PCI framing): contiguous B38/B39 + B41/B42/B43 (ISO-TP 0x20-0x24:
+        E1 21 CB 65 F3 -> A0 27 D3 D3 F4), plus B75 (ISO-TP 0x40: 0x10 -> 0x14) and a small
+        B11 tick (0x67->0x68, likely counter/checksum). B75=0x14=20 cleanly matches the
+        weekend-END charge-timer hour (20:50) -> strong single-field hit (defined as candidate
+        CHARGE_TIMER_WKND_END_HOUR). The B38-B43 block is the packed schedule payload but does
+        NOT decode as plain hour/minute/temp bytes or BCD, and the raw values 15/16/30 (the
+        preconditioning temp/hours/minutes) do NOT appear as any byte in the 07-28 payload ->
+        the schedule is bit-packed (and the block likely carries BOTH charge windows AND the
+        two precondition schedules, so a single 07-28 before/after cannot separate the fields).
+        Encoding not yet cracked. Captures exist for only two config states so far (07-22
+        unknown-old + 07-28 known below), so it needs controlled single-variable A/B captures
+        to solve. State is NOT charging-only — the AVN timer reads/writes in ready/parked too
+        (07-28 reads were ready,parked). NOTE: WiCAN Bnn here includes the ISO-TP PCI bytes
+        (B00/B01 = FF PCI, B08/B16/... = CF PCI); the SID 0x61 is at B02.
+
+        --- KNOWN SETTINGS REFERENCE (ground truth for future before/after comparison) ---
+        As of 2026-07-28 (payload
+        61F2FF00000008EE68804EA8531D01B1B1...A0BA027D3D3F401000064...5B0014030000...36303030
+        first seen 11:30:28):
+          Charge timer (2 windows): weekends 17:40-20:50, weekdays 01:20-03:40.
+          Preconditioning (ALWAYS exactly 2 schedules): (1) 15 C, Thursdays, 15:30;
+            (2) 15 C, Thursdays, 16:00.
+          -> config bytes at this state: B38=A0 B39=27 B41=D3 B42=D3 B43=F4 B75=14 (B11=68).
+        Prior 07-22 state (settings before this change, unknown values): B38=E1 B39=21 B41=CB
+          B42=65 B43=F3 B75=10 (B11=67). When any setting is next changed, re-read 21F2 and
+          diff against this reference to attribute bits to fields.
 
   research:
     - type: verify
@@ -499,6 +546,36 @@ VCU:
       created: "2026-07-27"
       updated: "2026-07-27"
       notes: "State-discrimination 2026-07-27 surfaced: (1) B22:3 = charge-active indicator — set 98% during AC charging, 0% ready-parked, but ~34% during driving; hypothesis = 'battery charge current flowing' (EVSE + regen), UNCONFIRMED (driveway drive had negligible regen; vs BMS current join n/a, vs MCU torque r~0.01). Retest on a highway drive with strong regen + co-polled BMS:2101 BATTERY_CURRENT. (2) B23 = drive-path-enable bitmask = 52 (bits 2/4/5) ready/drive, 0 charging; B23:2 is VCU_INVERTER_ENABLED, B23:4/B23:5 undecoded companions (same pattern, no ready-vs-drive distinction). (3) VCU_POWER_STATE now enum 4/6/7."
+    - type: decode
+      target: 21F2 charge-schedule
+      status: captured
+      priority: P2
+      vehicle_states: [charging]
+      created: "2026-07-28"
+      updated: "2026-07-28"
+      notes: "Crack the packed charge/precondition-SCHEDULE encoding in VCU 21F2 (WiCAN indexing, incl. ISO-TP PCI: B00/B01=FF PCI, B08/B16/...=CF PCI, SID 0x61 at B02). Config bytes = constant across three 2026-07-22 reads yet changed on 2026-07-28 when BOTH the charge timer AND the two preconditioning schedules were reprogrammed via the AVN/IVI: contiguous B38/B39 + B41/B42/B43 (ISO-TP 0x20-0x24: E1 21 CB 65 F3 -> A0 27 D3 D3 F4) + B75 (ISO-TP 0x40: 0x10 -> 0x14) + a small B11 tick (0x67->0x68, likely counter/checksum). KNOWN 07-28 settings (ground truth, see PID notes): charge timer weekends 17:40-20:50 / weekdays 01:20-03:40; preconditioning ALWAYS exactly TWO: (1) 15 C Thu 15:30, (2) 15 C Thu 16:00. SOLVED so far: B75=0x14=20 = weekend-end HOUR (candidate CHARGE_TIMER_WKND_END_HOUR). UNSOLVED: the B38-B43 block does NOT decode to any schedule value as plain bytes/BCD, and the raw preconditioning numbers 15/16/30 do not appear as any byte in the 07-28 payload -> bit-packed. It likely carries BOTH charge windows and both precondition schedules, so the single 07-28 before/after (where everything changed at once) cannot separate the fields. Live analog bytes to IGNORE: B10,B12,B13,B14,B15,B19,B20,B21,B29-B37,B45,B47,B57."
+      what_to_test:
+        - Capture 21F2 after changing ONLY ONE schedule field at a time (e.g. move only the weekday-start minute, or only precondition schedule 1's minute), diffing each read against the recorded reference state, to attribute individual bits to charge-timer vs preconditioning fields, then map the packing of B38-B43/B75.
+        - Confirm B75 = weekend-end hour by setting a different weekend-end hour and re-reading.
+        - Note preconditioning is always exactly 2 schedules — a change from 15:30/16:00 to a distinct pair should move a specific sub-region; use that to locate the precondition block within B38-B43.
+      result: >
+        2026-07-28 VCU-wide search (07-22 vs 07-28 static-then-changed byte diff across every
+        ECU:PID with captures on both days): the ONLY VCU PID carrying schedule config is 21F2
+        (B11/B38/B39/B41/B42/B43/B75). VCU 2101 and 2102 have NO cleanly-static-then-changed
+        bytes — they are pure live telemetry, no schedule. VCU has only 3 PIDs (21 00-FF sweep
+        confirmed no hidden pages), so on the VCU the schedule config is confined to 21F2. The
+        CHARGE-timer windows are confirmed here (B75 = weekend-end hour). Also checked other
+        ECUs that HAVE 07-22/07-28 captures: BMS:21F2 (32-byte cal/counter block, unrelated),
+        MCU:21F2/OBC:2101 (1-byte counter ticks), and the HVAC DIDs (2201A0-A6) + AAF
+        (2180/2181) show many changed bytes but those are dominated by genuine climate-STATE
+        differences between the two days, not schedule config — the 15 C precondition target
+        does not appear as a clean set-temp byte (only HVAC:2201A2 B44=30 coincidentally).
+        CAVEAT: PRECONDITIONING (a climate function) may NOT actually live in VCU 21F2 — HVAC
+        (0x7B3) has NEVER been probed for a service-21 page, and an HVAC 21F2 config page is a
+        strong candidate for the precondition schedules (VCU 21F2 may only carry the charge
+        windows). See HVAC research entry "scan 21 00-FF". Whether the B38-B43 change on 07-28
+        was charge-timer-only or also preconditioning is unresolved until single-variable A/B
+        (and the HVAC 21F2 probe) are done. Charge-timer bytes are bit-packed in B38-B43 + B75.
 
   sessions:
     "81":
