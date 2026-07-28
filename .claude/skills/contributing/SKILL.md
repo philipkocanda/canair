@@ -31,6 +31,15 @@ trusts them builds on a false premise.
 
 ## Non-negotiables
 
+00. **Good design and architecture are CRUCIAL.** canair is meant to live and
+    grow for a long time, so **long-term maintainability outranks short-term
+    expedience**. Every change should leave the architecture *clearer*, not
+    murkier: right seams and abstractions, clear separation of concerns,
+    single-purpose modules, no god objects, no leaky coupling across layers.
+    When a quick hack and a clean shape diverge, choose the clean shape — or
+    stop and surface the tradeoff to the user rather than quietly accruing debt.
+    The specific rules below are all *instances* of this one principle — uphold
+    the principle even where no rule spells out your case.
 0. **canair is a CLI built for both human *and* agentic use.** Every capability
    is a composable, scriptable subcommand; keep it that way. New features must
    work non-interactively (a flag escape hatch for any prompt, e.g. `--yes`) and

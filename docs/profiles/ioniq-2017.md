@@ -1,7 +1,7 @@
 # The bundled Ioniq 2017 profile
 
-The repo's most developed profile, `ioniq-2017`, is both the **default** and a
-**worked reference example** for the [bring-your-own-car](../bring-your-own-car/overview.md)
+The repo's most developed profile, `ioniq-2017`, is the **worked reference example**
+for the [bring-your-own-car](../bring-your-own-car/overview.md)
 journey (see [Bundled profiles](index.md) for the full list of what ships). It
 turns canair into a ready-to-use diagnostics toolkit for the
 **2017 Hyundai Ioniq Electric (28 kWh, `AE` platform)** — read live battery,
