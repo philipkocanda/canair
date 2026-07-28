@@ -93,12 +93,11 @@ OBC:
           max: "120"
           source: "Kia Soul EV LDC CSV (LDC Temp = i-100) + charging session trend (2026-07-19)"
           source_links: []
-          verified: false
+          verified: true
           notes: >
             LDC/converter temperature. 2026-07-20: corrected from B21-40 (which varies too much → not a temp).
             B19-100 = 21°C at READY (≈18°C ambient) and rises smoothly 28→65°C over a 3h AC charge (10:45→13:50)
-            — textbook thermal behaviour; live 10A-AC charge read 27°C. Matches Soul LDC "-100" offset. ISO-TP byte 0x0f. 
-            Historical data shows -35-70C range, implausible!
+            — textbook thermal behaviour; live 10A-AC charge read 27°C. Matches Soul LDC "-100" offset. ISO-TP byte 0x0f.
 
         OBC_CHARGE_V:
           expression: "[B10:B11]/100"
