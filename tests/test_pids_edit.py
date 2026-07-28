@@ -294,3 +294,21 @@ class TestSetPidVariableLength:
     def test_unknown_ecu(self, tmp_pids_dir: Path):
         with pytest.raises(PidsEditError):
             set_pid_variable_length("NOPE", "2200", True, pids_dir=tmp_pids_dir)
+
+    def test_mixed_case_ecu_key(self, tmp_path: Path):
+        # ECU file keys may be mixed-case (e.g. `Unknown-746`) while callers pass
+        # the upper-cased name. The post-edit check must resolve case-insensitively.
+        d = tmp_path / "pids"
+        d.mkdir()
+        (d / "unknown-746.yaml").write_text(
+            "Unknown-746:\n"
+            "  tx_id: 0x746\n"
+            "  pids:\n"
+            "    21F2:\n"
+            "      status: static\n"
+            "      parameters:\n"
+            "        DUMMY:\n"
+            '          expression: "B:0"\n'
+        )
+        p = set_pid_variable_length("Unknown-746", "21F2", True, pids_dir=d)
+        assert _reload(p)["Unknown-746"]["pids"]["21F2"]["variable_length"] is True
