@@ -60,6 +60,15 @@ class TestProfileCreate:
         assert "All" in data["can_buses"]
         assert data["can_buses"]["All"]["name"]
 
+    def test_scaffolds_vehicle_states(self, tmp_path):
+        root = tmp_path / "prof"
+        _cmd_create(_args(path=root))
+        vs = root / "vehicle_states.yaml"
+        assert vs.exists()
+        assert not (root / "states.yaml").exists()
+        data = yaml.safe_load(vs.read_text())
+        assert any(s["name"] == "charging" for s in data["states"])
+
     def test_meta_contents(self, tmp_path):
         root = tmp_path / "prof"
         _cmd_create(_args(path=root, init="ATSP0;"))

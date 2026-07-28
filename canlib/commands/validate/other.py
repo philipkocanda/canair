@@ -1,4 +1,4 @@
-"""states.yaml / signals/ / captures/can index validation."""
+"""vehicle_states.yaml / signals/ / captures/can index validation."""
 
 import json
 import re
@@ -11,25 +11,25 @@ from ._common import CAN_INDEX_SCHEMA_FILE
 
 
 def _run_states() -> int:
-    """Validate the profile's optional states.yaml (structure + predicates)."""
+    """Validate the profile's optional vehicle_states.yaml (structure + predicates)."""
     from canlib.profile import active
     from canlib.states import StatePredicateError, compile_predicate
 
     path = active().states_file
     if not path.exists():
-        print("No states.yaml (optional) — skipping.")
+        print("No vehicle_states.yaml (optional) — skipping.")
         return 0
 
     data = yaml_io.safe_load(path.read_text()) or {}
     errors: list[str] = []
     if not isinstance(data, dict) or "states" not in data:
-        print("states.yaml: missing top-level 'states:' list")
+        print(f"{path.name}: missing top-level 'states:' list")
         return 1
 
     seen: set[str] = set()
     states = data.get("states") or []
     if not isinstance(states, list):
-        print("states.yaml: 'states' must be a list")
+        print(f"{path.name}: 'states' must be a list")
         return 1
 
     for i, entry in enumerate(states):
@@ -53,11 +53,11 @@ def _run_states() -> int:
                 errors.append(f"states[{i}] ('{name}'): invalid when: {ex}")
 
     if errors:
-        print(f"states.yaml: {len(errors)} errors")
+        print(f"{path.name}: {len(errors)} errors")
         for e in errors:
             print(f"  - {e}")
         return 1
-    print(f"states.yaml: OK ({len(seen)} states)")
+    print(f"{path.name}: OK ({len(seen)} states)")
     return 0
 
 

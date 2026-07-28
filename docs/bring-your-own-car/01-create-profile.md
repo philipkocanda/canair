@@ -45,14 +45,14 @@ The command scaffolds a valid, empty bundle:
 ```
 my-car/
   profile.yaml     # car_model + ELM327 init string
-  states.yaml      # starter vehicle power-state vocabulary (sleep/acc/ready/…)
+  vehicle_states.yaml      # starter vehicle power-state vocabulary (sleep/acc/ready/…)
   ecus/            # per-ECU definitions — empty, populated in the next steps
   captures/        # recorded payloads — empty
   out/             # generated AutoPID JSON — empty
 ```
 
 `profile.yaml` holds `car_model` and an `init` string (the ELM327 initialization
-sent to the dongle; the default suits most cars). `states.yaml` starts with a
+sent to the dongle; the default suits most cars). `vehicle_states.yaml` starts with a
 generic power-state vocabulary you'll refine later — see
 [Captures & states](../concepts/captures-and-states.md).
 

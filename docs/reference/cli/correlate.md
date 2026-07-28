@@ -192,6 +192,26 @@ examples:
 
   # spearman ranks catch monotone-but-nonlinear links
   canair correlate --against ESC:22C101:REAL_SPEED_KMH --method spearman
+
+--method cheat sheet (which coefficient when):
+  pearson      linear correlation of two continuous signals (DEFAULT). Use for
+               analog values that scale together — speed vs wheel-rpm, current
+               vs power. Misses nonlinear/curved links. Reports signed r (±1).
+  spearman     rank correlation — catches any MONOTONE relationship, even
+               nonlinear/quantized/saturating (a signal that rises then flattens,
+               or is coarsely stepped). Reach for it when pearson looks weak but
+               the plot clearly tracks. Reports signed r (±1).
+  cramers_v    categorical association [0..1]: treats each distinct value as an
+               unordered CATEGORY. Use for mode/gear/flag/enum bytes where the
+               numeric spacing is meaningless (state 3 isn't "more" than state 1).
+  mutual_info  categorical too — normalized mutual information [0..1]. Like
+               cramers_v but detects ANY statistical dependence between two
+               enum/flag signals, not just a table-association pattern.
+
+  Rule of thumb: numeric-and-proportional → pearson; numeric-but-curved/stepped
+  → spearman; a code/mode/flag (not a magnitude) → cramers_v / mutual_info.
+  The two categorical methods rank by association strength only — they have no
+  sign (no ±direction) and no linear fit.
 ```
 
 ## `canair correlate can`
@@ -247,4 +267,24 @@ options:
   --notation NAME       byte-index notation for output labels: wican
                         (default), isotp, torque, bix. Overrides the
                         display.byte_notation config key.
+
+--method cheat sheet (which coefficient when):
+  pearson      linear correlation of two continuous signals (DEFAULT). Use for
+               analog values that scale together — speed vs wheel-rpm, current
+               vs power. Misses nonlinear/curved links. Reports signed r (±1).
+  spearman     rank correlation — catches any MONOTONE relationship, even
+               nonlinear/quantized/saturating (a signal that rises then flattens,
+               or is coarsely stepped). Reach for it when pearson looks weak but
+               the plot clearly tracks. Reports signed r (±1).
+  cramers_v    categorical association [0..1]: treats each distinct value as an
+               unordered CATEGORY. Use for mode/gear/flag/enum bytes where the
+               numeric spacing is meaningless (state 3 isn't "more" than state 1).
+  mutual_info  categorical too — normalized mutual information [0..1]. Like
+               cramers_v but detects ANY statistical dependence between two
+               enum/flag signals, not just a table-association pattern.
+
+  Rule of thumb: numeric-and-proportional → pearson; numeric-but-curved/stepped
+  → spearman; a code/mode/flag (not a magnitude) → cramers_v / mutual_info.
+  The two categorical methods rank by association strength only — they have no
+  sign (no ±direction) and no linear fit.
 ```

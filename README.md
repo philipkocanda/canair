@@ -66,6 +66,7 @@ All functionality is exposed as `canair <subcommand>`; run `canair <cmd> --help`
 | Subcommand | Purpose |
 |--------|---------|
 | `canair status` | Snapshot of transport, device mode, and reachability. |
+| `canair logs` | View the central diagnostics log (transport drops/errors), size-rotated and self-cleaning. |
 | `canair query` | Send UDS/KWP2000 requests — parameter queries, multi-ECU pipelines, live `--monitor`. Companions: `discover`, `io`, `routines`, `raw`, `repl`. |
 | `canair scan` | Probe DID/routine/iocontrol/session ranges for responses. |
 | `canair dtc` | Read/clear Diagnostic Trouble Codes; report changes since the last scan. |
@@ -77,7 +78,7 @@ All functionality is exposed as `canair <subcommand>`; run `canair <cmd> --help`
 | Subcommand | Purpose |
 |--------|---------|
 | `canair captures` | Search/diff/step saved diagnostic captures (`captures uds`) or list raw-CAN frame logs (`captures can`). |
-| `canair decode` | Value-centric decoding of captures — stats, correlation, `--plot`, candidate-expression testing. |
+| `canair decode` | Value-centric decoding of captures (mini-language QUERY, multi-PID) — stats, correlation, `--plot`, candidate-expression testing. |
 | `canair correlate` | Rank the strongest cross-signal relationships across a drive (`uds` captures \| `can` frame log). |
 | `canair hunt` | "Which byte *is* this known signal?" — sweep, correlate, fit, unit-guess (`uds` PID \| `can` frame ID). |
 | `canair investigate` | One-shot per-byte report for an unknown PID. |
@@ -90,7 +91,8 @@ All functionality is exposed as `canair <subcommand>`; run `canair <cmd> --help`
 |--------|---------|
 | `canair pids` | Add/update `ecus/` parameters and research entries (validated). |
 | `canair signals` | Add/update broadcast signal definitions (`signals/`, DBC-compatible linear model). |
-| `canair ecu` | Inspect ECUs, or register one offline (`ecu add`). |
+| `canair ecu` | Inspect ECUs (`ecu <ECU> pids` = per-PID latest state), or register one offline (`ecu add`). |
+| `canair bus` | List the profile's CAN bus segments, their descriptions, and ECU counts. |
 | `canair wican` | Generate the WiCAN AutoPID JSON; upload/download/diff (Pro). |
 | `canair validate` | Validate `ecus/`, `profile.yaml`, and `captures/` against their schemas. |
 

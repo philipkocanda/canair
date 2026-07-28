@@ -452,6 +452,151 @@ def cmd_detail(rec: dict, as_json: bool) -> int:
     return 0
 
 
+def _latest_capture_by_pid(ecu_name: str) -> dict[str, dict]:
+    """Map each PID (upper-cased) to this ECU's most recent payload capture.
+
+    Capture files are chronological, so the last-seen payload entry per PID wins.
+    Returns an empty dict when captures can't be loaded.
+    """
+    try:
+        from canlib.commands.captures import load_all_captures
+
+        caps = load_all_captures()
+    except Exception:
+        return {}
+    latest: dict[str, dict] = {}
+    for c in caps:
+        if str(c.get("ecu", "")).upper() != ecu_name.upper():
+            continue
+        if not c.get("payload"):
+            continue
+        latest[str(c.get("pid", "")).upper()] = c
+    return latest
+
+
+def _pids_latest_records(ecu_def: dict | None, ecu_name: str) -> list[dict]:
+    """One record per defined PID with its latest decoded parameter values.
+
+    Values are the *decoded* parameters (name -> formatted value string) from the
+    most recent capture of that PID — never raw hex. PIDs with no capture, or no
+    parameters defined, are still listed (so the view shows *all* available PIDs).
+    """
+    from canlib.commands._captures_query import _decoded_preview
+
+    latest = _latest_capture_by_pid(ecu_name)
+    out: list[dict] = []
+    for pid_code, pid_def in (ecu_def or {}).get("pids", {}).items():
+        if not isinstance(pid_def, dict):
+            continue
+        code = str(pid_code).upper()
+        status = pid_status(pid_def)
+        n_params = len(pid_def.get("parameters", {}) or {})
+        cap = latest.get(code)
+        rec: dict = {
+            "pid": code,
+            "status": status,
+            "n_params": n_params,
+            "values": None,
+            "date": None,
+            "time": None,
+            "vehicle_states": None,
+        }
+        if cap is not None:
+            rec["values"] = _decoded_preview(cap) or {}
+            rec["date"] = cap.get("date")
+            rec["time"] = cap.get("time")
+            rec["vehicle_states"] = list(cap.get("vehicle_states") or [])
+        out.append(rec)
+    out.sort(key=lambda r: str(r["pid"]))
+    return out
+
+
+def _wrap_pairs(pairs: list[str], width: int, indent: str) -> list[str]:
+    """Wrap ``NAME=value`` pairs into lines no wider than ``width`` (2-space gap)."""
+    lines: list[str] = []
+    cur = indent
+    for p in pairs:
+        add = p if cur == indent else "  " + p
+        if len(cur) + len(add) > width and cur != indent:
+            lines.append(cur)
+            cur = indent + p
+        else:
+            cur += add
+    if cur != indent:
+        lines.append(cur)
+    return lines
+
+
+def cmd_pids(info: dict, tx_id: int, ecu_def: dict | None, as_json: bool) -> int:
+    """Compact per-PID view: every defined PID + its latest decoded state.
+
+    Shows the *decoded* parameter values (not raw hex) from the most recent
+    capture of each PID — a quick "what does this ECU currently report?" glance.
+    Points at `canair captures`/`canair decode` for full history and statistics.
+    """
+    name = info.get("name") or f"0x{tx_id:03X}"
+    records = _pids_latest_records(ecu_def, name)
+
+    if as_json:
+        json.dump(
+            {"ecu": name, "tx": f"0x{tx_id:03X}", "pids": records},
+            sys.stdout,
+            indent=2,
+            default=str,
+        )
+        print()
+        return 0
+
+    title = f"{_BOLD}{_CYAN}{name}{_RESET}"
+    if info.get("alias"):
+        title += f" {_DIM}(alias: {info['alias']}){_RESET}"
+    print(f"\n  {title} {_DIM}(0x{tx_id:03X}){_RESET} — latest decoded state")
+
+    if ecu_def is None:
+        print(f"\n  {_YELLOW}No PID definitions{_RESET} {_DIM}(identity-only module){_RESET}\n")
+        return 0
+    if not records:
+        print(f"\n  {_YELLOW}No PIDs defined for {name}.{_RESET}\n")
+        return 0
+
+    n_with = sum(1 for r in records if r["values"])
+    print(f"  {_DIM}{len(records)} PIDs · {n_with} with a recent capture{_RESET}\n")
+
+    from canlib.states import join_states
+
+    width = 96
+    for r in records:
+        flags = []
+        if r["status"] != "active":
+            flags.append(f"{_DIM}{r['status']}{_RESET}")
+        # Context (state/date) for the capture the values came from.
+        ctx = ""
+        if r["values"]:
+            st = join_states(r["vehicle_states"])
+            when = " ".join(x for x in [r.get("date") or "", r.get("time") or ""] if x).strip()
+            bits = [b for b in [f"[{st}]" if st else "", when] if b]
+            ctx = f"  {_DIM}{' · '.join(bits)}{_RESET}" if bits else ""
+        flag_str = ("  " + " ".join(flags)) if flags else ""
+        print(f"  {_CYAN}{r['pid']:<8}{_RESET}{ctx}{flag_str}")
+
+        if r["values"]:
+            pairs = [f"{k}={v}" for k, v in r["values"].items()]
+            for line in _wrap_pairs(pairs, width, "      "):
+                print(line)
+        elif r["n_params"] == 0:
+            print(f"      {_DIM}(no parameters defined){_RESET}")
+        else:
+            print(
+                f"      {_YELLOW}no capture{_RESET} {_DIM}({r['n_params']} params defined){_RESET}"
+            )
+
+    print(
+        f"\n  {_DIM}Latest values only. Full history/diff: "
+        f"`canair captures {name} <PID>` · stats: `canair decode {name} <PID> --stats`{_RESET}\n"
+    )
+    return 0
+
+
 def _unknown_ecu(value: str, records: list[dict]) -> int:
     print(f"{_RED}Unknown ECU {value!r}.{_RESET}", file=sys.stderr)
     names = [r["name"] for r in records]
@@ -491,6 +636,13 @@ def _add_show_parser(kinds) -> argparse.ArgumentParser:
         nargs="?",
         help="ECU name, alias, or hex TX/RX id (omit to list all)",
     ).completer = _ecu_completer
+    parser.add_argument(
+        "view",
+        nargs="?",
+        choices=["pids"],
+        help="'pids': compact per-PID view with each PID's latest decoded state "
+        "(e.g. `canair ecu BMS pids`)",
+    )
     parser.add_argument(
         "--sort",
         choices=list(_SORT_COLUMNS),
@@ -607,6 +759,10 @@ def run(args) -> int:
     # info is only non-None when tx_id resolved (see the guarded .get above).
     assert tx_id is not None
     pids_name, ecu_def = _pids_def_for_tx(pids_data, tx_id)
+
+    if getattr(args, "view", None) == "pids":
+        return cmd_pids(info, tx_id, ecu_def, args.json)
+
     rec = _detail_record(
         info, tx_id, pids_name, ecu_def, bus_labels=labels, with_captures=with_captures
     )

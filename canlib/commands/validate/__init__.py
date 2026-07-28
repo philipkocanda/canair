@@ -5,7 +5,7 @@ Validators merged into one subcommand:
   * ``validate pids`` — per-ECU definition files in ecus/ vs pids_schema.yaml
     (also validates profile.yaml). ``validate ecus`` is an alias.
   * ``validate captures`` — capture files in captures/ vs captures_schema.json
-  * ``validate states`` — states.yaml (power-state vocabulary + predicates)
+  * ``validate states`` — vehicle_states.yaml (power-state vocabulary + predicates)
   * ``validate can-buses`` — can_buses.yaml (per-profile CAN bus vocabulary)
   * ``validate signals`` — signals/ broadcast signal definitions (domain B)
   * ``validate can`` — captures/can/index.yaml (raw-CAN log index)
@@ -85,7 +85,7 @@ def add_parser(subparsers):
         "  pids      the per-ECU ecus/ files (identity/scan_log/dtcs/pids/...)\n"
         "  captures  the captures/ payload files (+ soft warnings, see below)\n"
         "  ecus      alias for pids\n"
-        "  states    states.yaml (vehicle power-state vocabulary + predicates)\n"
+        "  states    vehicle_states.yaml (vehicle power-state vocabulary + predicates)\n"
         "  can-buses can_buses.yaml (per-profile CAN bus segment vocabulary)\n"
         "  signals   signals/ broadcast signal-definition files (domain B)\n"
         "  can       captures/can/index.yaml (raw-CAN log index)\n"
@@ -104,7 +104,7 @@ examples:
   canair validate pids                # just the ecus/ definition files
   canair validate captures            # just captures/ (with soft warnings)
   canair validate captures --strict   # treat untimed-payload warnings as errors (CI)
-  canair validate states              # just states.yaml
+  canair validate states              # just vehicle_states.yaml
   canair validate pids ecus/bms.yaml  # a specific ECU file only
 """,
     )

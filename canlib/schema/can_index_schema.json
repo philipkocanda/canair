@@ -39,7 +39,7 @@
         },
         "label": { "type": "string" },
         "vehicle_states": {
-          "description": "Power states the car was in while logging (vocabulary from states.yaml).",
+          "description": "Power states the car was in while logging (vocabulary from vehicle_states.yaml).",
           "type": "array",
           "items": { "type": "string" }
         },

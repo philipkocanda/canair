@@ -3,7 +3,7 @@
 A *state* is a named, standardized description of the car's power/operating
 condition (e.g. ``deep sleep``, ``acc``, ``ready``, ``charging``) recorded on a
 capture session. Historically this field was free text; profiles can now declare
-a canonical, ordered list of states in ``profiles/<name>/states.yaml`` so the
+a canonical, ordered list of states in ``profiles/<name>/vehicle_states.yaml`` so the
 vocabulary is consistent across vehicles and comparable between captures.
 
 Each state may carry a ``when:`` predicate over decoded PID values, written as a
@@ -44,7 +44,7 @@ if TYPE_CHECKING:
 # profile. This is THE single definition — schema validators, the research
 # backlog, and the `pids`/`research` CLIs all derive their accepted tokens from
 # here (via `allowed_states`) rather than keeping their own hardcoded copies.
-# A profile's states.yaml may declare additional composite states on top of
+# A profile's vehicle_states.yaml may declare additional composite states on top of
 # these (e.g. `parked`, `driving`); `allowed_states` returns the union.
 POWER_STATES = ("sleep", "plugged", "acc", "acc2", "ready", "charging")
 
@@ -193,7 +193,7 @@ def _states_path(profile=None) -> Path:
 
 
 def load_states(profile=None) -> list[StateRule]:
-    """Load and compile the profile's states.yaml. Returns [] when absent.
+    """Load and compile the profile's vehicle_states.yaml. Returns [] when absent.
 
     Raises :class:`StatePredicateError` when a ``when:`` expression is invalid.
     """
@@ -219,7 +219,7 @@ def load_states(profile=None) -> list[StateRule]:
 
 
 def state_names(profile=None) -> list[str]:
-    """Declared state names for the active profile (empty when no states.yaml)."""
+    """Declared state names for the active profile (empty when no vehicle_states.yaml)."""
     try:
         return [r.name for r in load_states(profile)]
     except StatePredicateError:
@@ -227,12 +227,12 @@ def state_names(profile=None) -> list[str]:
 
 
 def allowed_states(profile=None) -> set[str]:
-    """The set of accepted state tokens: base ``POWER_STATES`` plus states.yaml names.
+    """The set of accepted state tokens: base ``POWER_STATES`` plus vehicle_states.yaml names.
 
     This is the single vocabulary that every validator/CLI should check against
     (PID/ECU/iocontrol/research declarations *and* capture/scan_log
     observations), so a profile can extend the shared base with its own
-    composite states in one place (states.yaml) without editing the tool.
+    composite states in one place (vehicle_states.yaml) without editing the tool.
     """
     return set(POWER_STATES) | set(state_names(profile))
 
@@ -241,7 +241,7 @@ def state_options(profile=None) -> list[tuple[str, str]]:
     """Ordered ``(name, description)`` pairs for the profile's state vocabulary.
 
     The list is what a picker (e.g. the monitor save dialog) offers: every
-    declared state from states.yaml first, in file order, each with its
+    declared state from vehicle_states.yaml first, in file order, each with its
     ``description``, followed by any base ``POWER_STATES`` not already declared
     (so the shared base is always selectable even in a bare profile). Names are
     unique and lower-cased to match :func:`parse_states`/:func:`allowed_states`.

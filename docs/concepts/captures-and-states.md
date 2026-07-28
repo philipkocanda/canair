@@ -51,6 +51,36 @@ deprecated fields) is `canlib/schema/captures_schema.json`; `canair validate
 captures` checks every file against it. A profile created before the JSON
 cutover is converted once with `canair captures migrate`.
 
+## Provenance: transport & data quality
+
+Each recorded session also carries **where its data came from** and **how clean
+the connection was** — provenance for judging how much to trust it (multi-frame
+ISO-TP payloads recorded over a flaky link were the reason historical captures
+became suspect; see the note below):
+
+```json
+{
+  "date": "2026-04-19",
+  "label": "highway pull",
+  "vehicle_states": ["driving"],
+  "transport": "slcan-tcp",
+  "quality": { "exchanges": 412, "drop": 0, "no_data": 3 },
+  "captures": [ … ]
+}
+```
+
+- **`transport`** — how the payloads were acquired: the transport label
+  (`slcan-tcp` / `wican-ws`) for a device-recorded session, or `import` for a
+  device-free `canair import uds`.
+- **`quality`** — the transport's exchange/error tally for the session:
+  `exchanges` (total UDS round-trips) plus any **non-zero** error categories
+  (`drop`/`stale` = dropped/mis-assembled ISO-TP frames, `no_data` = timeouts,
+  `bus`, `decode`). A clean session records just `exchanges`; NRCs are
+  legitimate ECU answers and are **not** counted.
+
+`canair captures uds --sessions` shows both per session (flagging any drops), and
+every error is also written to the central log — inspect it with `canair logs`.
+
 
 ## Recording captures
 
@@ -130,7 +160,7 @@ with (`driving`, `charging`, `ready`, `sleep`, …) is what powers state-aware
 analysis like `decode --group-by state` and `investigate`'s discriminability
 ranking.
 
-States are defined per-profile in `states.yaml` — a canonical, ordered vocabulary
+States are defined per-profile in `vehicle_states.yaml` — a canonical, ordered vocabulary
 of power states, each with an optional predicate over decoded values. Because of
 those predicates, canair can **auto-suggest** a capture's state from the data it
 just read, so tagging is mostly automatic.

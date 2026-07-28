@@ -15,13 +15,20 @@ usage: canair decode [-h] [--param NAME [NAME ...]] [--verified]
                      [--until WHEN] [--date YYYY-MM-DD] [--today]
                      [--last-sessions [N]] [--last-session] [--state SUBSTR]
                      [--label SUBSTR]
-                     [ecu] [pid]
+                     [QUERY ...]
 
 [UDS] Decode captured UDS payloads using PID parameter definitions.
 
 positional arguments:
-  ecu                   ECU name (e.g., BMS, IGPM, BCM)
-  pid                   PID code (e.g., 2101, 22BC03)
+  QUERY                 ECU/PID selection (mini-language, see
+                        canlib/query.py): 'BMS 2101', 'BMS:2101',
+                        'BMS:2101,2102', 'BMS' (all defined PIDs), or a quoted
+                        cross-ECU query 'MCU:2102 VCU:2101'. Multi-PID queries
+                        are supported for the default value-range, --compact
+                        and --json views; the analysis modes
+                        (--corr/--plot/--stats/--discriminate/--find-
+                        mirrors/--try/--dump-bytes) require the query to
+                        resolve to a single PID.
 
 options:
   -h, --help            show this help message and exit
@@ -134,4 +141,24 @@ scoping:
   canair decode MCU 21F2 --try "X=B9" --try "Y=[S10:S11]"  # Multiple candidates, undefined PID OK
   canair decode BMS 2101 --dump-bytes         # timestamp x byte-offset matrix (CSV, PCI skipped)
   canair decode BMS 2101 --dump-bytes --json  # same matrix as JSON (ad-hoc analysis escape hatch)
+
+--method cheat sheet (which coefficient when):
+  pearson      linear correlation of two continuous signals (DEFAULT). Use for
+               analog values that scale together — speed vs wheel-rpm, current
+               vs power. Misses nonlinear/curved links. Reports signed r (±1).
+  spearman     rank correlation — catches any MONOTONE relationship, even
+               nonlinear/quantized/saturating (a signal that rises then flattens,
+               or is coarsely stepped). Reach for it when pearson looks weak but
+               the plot clearly tracks. Reports signed r (±1).
+  cramers_v    categorical association [0..1]: treats each distinct value as an
+               unordered CATEGORY. Use for mode/gear/flag/enum bytes where the
+               numeric spacing is meaningless (state 3 isn't "more" than state 1).
+  mutual_info  categorical too — normalized mutual information [0..1]. Like
+               cramers_v but detects ANY statistical dependence between two
+               enum/flag signals, not just a table-association pattern.
+
+  Rule of thumb: numeric-and-proportional → pearson; numeric-but-curved/stepped
+  → spearman; a code/mode/flag (not a magnitude) → cramers_v / mutual_info.
+  The two categorical methods rank by association strength only — they have no
+  sign (no ±direction) and no linear fit.
 ```

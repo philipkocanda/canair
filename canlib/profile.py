@@ -66,7 +66,21 @@ class Profile:
 
     @property
     def states_file(self) -> Path:
-        return self.root / "states.yaml"
+        """Path to the profile's vehicle-state vocabulary.
+
+        The canonical name is ``vehicle_states.yaml``. For back-compatibility a
+        legacy ``states.yaml`` is still honoured: when the canonical file is
+        absent but a legacy one exists, the legacy path is returned (so old
+        profiles keep working). New profiles are scaffolded with the canonical
+        name, and writes/messages use it.
+        """
+        canonical = self.root / "vehicle_states.yaml"
+        if canonical.exists():
+            return canonical
+        legacy = self.root / "states.yaml"
+        if legacy.exists():
+            return legacy
+        return canonical
 
     @property
     def can_buses_file(self) -> Path:

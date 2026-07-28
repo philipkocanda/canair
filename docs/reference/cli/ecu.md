@@ -50,12 +50,14 @@ Columns & legend:
 ```
 usage: canair ecu show [-h] [--sort {bus,name,tx,proto,pids,verif,caps}] [-c]
                        [--json]
-                       [ecu]
+                       [ecu] [{pids}]
 
 List ECUs, or show one ECU's details and PID stats.
 
 positional arguments:
   ecu                   ECU name, alias, or hex TX/RX id (omit to list all)
+  {pids}                'pids': compact per-PID view with each PID's latest
+                        decoded state (e.g. `canair ecu BMS pids`)
 
 options:
   -h, --help            show this help message and exit

@@ -46,7 +46,7 @@ CATEGORIES: list[tuple[str, tuple[str, ...]]] = [
         "Analysis",
         ("captures", "decode", "correlate", "hunt", "investigate", "coverage", "research"),
     ),
-    ("Authoring", ("pids", "signals", "ecu", "wican", "validate")),
+    ("Authoring", ("pids", "signals", "ecu", "bus", "wican", "validate")),
     ("Import / export", ("import", "export")),
     ("Setup", ("profile", "config", "update", "completion")),
 ]

@@ -14,7 +14,7 @@ Pick a target (default: all):
   pids      the per-ECU ecus/ files (identity/scan_log/dtcs/pids/...)
   captures  the captures/ payload files (+ soft warnings, see below)
   ecus      alias for pids
-  states    states.yaml (vehicle power-state vocabulary + predicates)
+  states    vehicle_states.yaml (vehicle power-state vocabulary + predicates)
   can-buses can_buses.yaml (per-profile CAN bus segment vocabulary)
   signals   signals/ broadcast signal-definition files (domain B)
   can       captures/can/index.yaml (raw-CAN log index)
@@ -46,6 +46,6 @@ examples:
   canair validate pids                # just the ecus/ definition files
   canair validate captures            # just captures/ (with soft warnings)
   canair validate captures --strict   # treat untimed-payload warnings as errors (CI)
-  canair validate states              # just states.yaml
+  canair validate states              # just vehicle_states.yaml
   canair validate pids ecus/bms.yaml  # a specific ECU file only
 ```

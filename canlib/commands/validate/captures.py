@@ -96,7 +96,7 @@ def _run_captures(strict: bool = False) -> int:
         print("No capture files found.")
         return 0
 
-    # State vocabulary for soft warnings (empty when no states.yaml → no warnings).
+    # State vocabulary for soft warnings (empty when no vehicle_states.yaml → no warnings).
     from canlib.states import state_names
 
     vocab = {n.lower() for n in state_names()}
@@ -151,7 +151,7 @@ def _capture_state_warnings(path: Path, vocab: set[str]) -> list[str]:
     A session's ``vehicle_states`` is a list of tokens (e.g. [ready, parked]); a
     session is flagged only when *none* of its tokens is a known state name
     (case-insensitive). Never an error — this only nudges toward the
-    standardized states.yaml vocabulary.
+    standardized vehicle_states.yaml vocabulary.
     """
     warnings: list[str] = []
     data = capture_io.load_capture_file(path)
@@ -170,7 +170,7 @@ def _capture_state_warnings(path: Path, vocab: set[str]) -> list[str]:
         if tokens and not any(t in vocab for t in tokens):
             warnings.append(
                 f"sessions[{si}]: vehicle_states {states} has no token in the "
-                f"states.yaml vocabulary"
+                f"vehicle_vehicle_states.yaml vocabulary"
             )
     return warnings
 

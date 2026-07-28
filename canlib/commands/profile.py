@@ -27,7 +27,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         NAME,
         help="List, inspect, and create vehicle profiles",
         description="List, inspect, and create vehicle profiles — the per-vehicle\n"
-        "bundles (ecus/, profile.yaml, captures/, states.yaml, can_buses.yaml,\n"
+        "bundles (ecus/, profile.yaml, captures/, vehicle_states.yaml, can_buses.yaml,\n"
         "out/) that hold all\n"
         "the reverse-engineering data.\n\n"
         "Subcommands:\n"
@@ -179,7 +179,7 @@ def _cmd_use(args) -> int:
     return 0
 
 
-# Starter states.yaml — the shared base power-state vocabulary. Add `when:`
+# Starter vehicle_states.yaml — the shared base power-state vocabulary. Add `when:`
 # predicates over decoded ECU.PARAM values to enable state auto-suggestion.
 _STATES_TEMPLATE = """\
 # {car_model} — vehicle operating states
@@ -283,7 +283,7 @@ def create_profile(
         f'car_model: "{car_model}"\n'
         f'init: "{init}"\n'
     )
-    (root / "states.yaml").write_text(_STATES_TEMPLATE.format(car_model=car_model))
+    (root / "vehicle_states.yaml").write_text(_STATES_TEMPLATE.format(car_model=car_model))
     (root / "can_buses.yaml").write_text(_CAN_BUSES_TEMPLATE.format(car_model=car_model))
 
     if set_default:

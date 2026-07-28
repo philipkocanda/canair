@@ -73,7 +73,7 @@ Backlog: `canair research --summary` (per-ECU `research:` sections).
 
 Vehicle data lives in a *profile* bundle: `ecus/` (one file per ECU — the
 **source of truth**, each carrying identity/scan_log/dtcs/pids), `profile.yaml`
-(car_model/init/failure_types), `captures/` (dated UDS payloads), `states.yaml`
+(car_model/init/failure_types), `captures/` (dated UDS payloads), `vehicle_states.yaml`
 (canonical operating states + auto-suggest predicates), `references/` (reference
 data), and **generated** `out/` (never hand-edit — run `canair wican autopid write`). The repo ships
 `profiles/ioniq-2017/` as the default. Local (uncommitted) profiles live in
@@ -173,7 +173,7 @@ everywhere). `validate` errors if a PID omits it; set it with
 seeds `status: active` on a newly-created PID). Power
 states in which a PID/ECU responds, and those a research lead needs, use the
 shared **`vehicle_states:`** list (`sleep, plugged, acc, acc2, ready, charging`;
-a profile's states.yaml may add composites like `parked`/`driving`).
+a profile's vehicle_states.yaml may add composites like `parked`/`driving`).
 
 Edit with `canair pids upsert-param / add-research / set-status / set-pid-status`
 (surgical, comment-preserving, schema-validated, auto-reverted on failure) — prefer it over
@@ -220,7 +220,7 @@ Full reference: **AGENTS.md** + `canair <cmd> --help`. Key project behaviors:
   `n` to close the current segment and start a fresh one (several labelled
   sessions per run); a `● REC` blinks while `--save` is recording. The **state is
   auto-suggested** from decoded PID values via the profile's
-  `states.yaml`. For edits/removals use `canlib.captures`
+  `vehicle_states.yaml`. For edits/removals use `canlib.captures`
   (`set_capture_note`/`delete_capture`). After saving, run `canair captures uds
   --summary` to spot patterns missed live, or `canair captures uds --sessions` for a
   metadata table of contents (date/state/label/notes/ECUs per session; `--json`).

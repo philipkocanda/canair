@@ -35,6 +35,7 @@ from canlib.commands._group import group_help
 from canlib.keepmode import BANNER as KEEP_BANNER
 from canlib.keepmode import scope_is_keep_unique
 from canlib.notation import add_notation_arg, relabel_signal, resolve_notation
+from canlib.stats import METHOD_CHEAT_SHEET as _METHOD_CHEAT_SHEET
 from canlib.xanalysis import _CLUSTER_THRESHOLD as _CLUSTER_THRESHOLD
 from canlib.xanalysis import (
     build_bit_series,
@@ -90,6 +91,7 @@ def _add_can_parser(kinds) -> argparse.ArgumentParser:
             "--against/--bits/--id/--min-r/--top/--find-mirrors all apply."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=_METHOD_CHEAT_SHEET,
     )
     add_can_log_source_args(parser)
     parser.add_argument(
@@ -182,7 +184,7 @@ def _add_uds_parser(kinds) -> argparse.ArgumentParser:
             "down *which byte* a relationship lives in, follow up with `canair hunt`."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""\
+        epilog=f"""\
 examples:
   # every strong relationship in the most recent drive
   canair correlate --state driving
@@ -210,7 +212,9 @@ examples:
   canair correlate --against-file grid_voltage.csv --control OBC:2101:OBC_DC_A --bytes
 
   # spearman ranks catch monotone-but-nonlinear links
-  canair correlate --against ESC:22C101:REAL_SPEED_KMH --method spearman""",
+  canair correlate --against ESC:22C101:REAL_SPEED_KMH --method spearman
+
+{_METHOD_CHEAT_SHEET}""",
     )
     parser.add_argument(
         "query",

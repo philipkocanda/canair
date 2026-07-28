@@ -35,6 +35,7 @@ Every capability is a `canair <subcommand>`. These pages are generated from each
 - [`canair pids`](pids.md) — Safely edit ecus/ parameters and research entries (domain A — diagnostic UDS PIDs, freeform WiCAN expressions). The broadcast-frame (domain B) authoring counterpart is `canair signals` (linear signals/ maps).
 - [`canair signals`](signals.md) — ``canair signals`` — view/edit broadcast signal definitions (domain B).
 - [`canair ecu`](ecu.md) — Inspect or edit the profile's ECU registry.
+- [`canair bus`](bus.md) — List the active profile's CAN bus segments with their human names, descriptions, and the number of ECUs on each (from can_buses.yaml).
 - [`canair wican`](wican.md) — Build and sync the WiCAN device's AutoPID profile.
 - [`canair validate`](validate.md) — Validate a profile's data files against their schemas and
 
@@ -53,3 +54,4 @@ Every capability is a `canair <subcommand>`. These pages are generated from each
 ### Other
 
 - [`canair bix`](bix.md) — Convert byte indices between WiCAN, ISO-TP, Torque, and OBDb notations.
+- [`canair logs`](logs.md) — ``canair logs`` — view the central rotating diagnostics event log.

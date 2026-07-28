@@ -98,12 +98,37 @@ class TestSuggestState:
         assert suggest_state(rules, {}, {"BCM"}) is None
 
 
+class TestStatesFileFallback:
+    """Profile.states_file: prefer vehicle_states.yaml, fall back to legacy."""
+
+    def _profile(self, tmp_path):
+        from canlib.profile import Profile
+
+        return Profile(tmp_path.name, tmp_path)
+
+    def test_prefers_canonical_name(self, tmp_path):
+        (tmp_path / "vehicle_states.yaml").write_text("states: []\n")
+        (tmp_path / "states.yaml").write_text("states: []\n")
+        assert self._profile(tmp_path).states_file.name == "vehicle_states.yaml"
+
+    def test_falls_back_to_legacy(self, tmp_path):
+        (tmp_path / "states.yaml").write_text("states: []\n")
+        p = self._profile(tmp_path).states_file
+        assert p.name == "states.yaml"
+        assert p.exists()
+
+    def test_defaults_to_canonical_when_absent(self, tmp_path):
+        p = self._profile(tmp_path).states_file
+        assert p.name == "vehicle_states.yaml"
+        assert not p.exists()
+
+
 class TestLoadStates:
     def _write(self, tmp_path, text):
-        (tmp_path / "states.yaml").write_text(text)
+        (tmp_path / "vehicle_states.yaml").write_text(text)
 
         class _P:
-            states_file = tmp_path / "states.yaml"
+            states_file = tmp_path / "vehicle_states.yaml"
 
         return _P()
 

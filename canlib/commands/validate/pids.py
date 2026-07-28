@@ -219,7 +219,7 @@ def _profile_for_ecu_file(path: Path):
 
     Scopes state-vocabulary validation to the profile the file belongs to,
     independent of the globally-active profile. A bare test/tmp file (no
-    ``states.yaml`` at that root) simply yields the base ``POWER_STATES``.
+    ``vehicle_states.yaml`` at that root) simply yields the base ``POWER_STATES``.
     """
     from canlib.profile import Profile
 
@@ -305,7 +305,7 @@ def validate_ecu_file(
     """Validate a single ECU YAML file.
 
     ``profile`` scopes the accepted vehicle-state vocabulary to that profile's
-    ``states.yaml``. When omitted, it is derived from the file's own location
+    ``vehicle_states.yaml``. When omitted, it is derived from the file's own location
     (an ECU file lives at ``<root>/ecus/<name>.yaml``, so its profile root is the
     grandparent dir) rather than the globally-*active* profile — so validating a
     file in a non-active profile works even when several profiles are discovered

@@ -236,7 +236,7 @@ optional_pid_fields:
                      #   charging — actively charging (implies plugged)
                      # These are independent properties — e.g. [sleep, plugged] means
                      # the ECU responds both during unplugged sleep AND when plugged in.
-                     # A profile's states.yaml may add composite tokens (parked/driving).
+                     # A profile's vehicle_states.yaml may add composite tokens (parked/driving).
                      # Empty array [] means untested/unknown. Omitting is also valid.
   - notes
   - parameters

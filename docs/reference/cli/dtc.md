@@ -37,7 +37,8 @@ options:
   --state STATES, --vehicle-states STATES
                         Vehicle power state(s) during the scan, recorded on
                         the log entry (comma-separated, e.g. 'ready' or
-                        'sleep, plugged'). Vocabulary from states.yaml.
+                        'sleep, plugged'). Vocabulary from
+                        vehicle_states.yaml.
   --mask HEX            statusOfDTC mask for the UDS read (hex, default FF =
                         all; falls back to 08 if the ECU rejects FF with
                         requestOutOfRange)

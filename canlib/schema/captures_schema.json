@@ -25,7 +25,7 @@
         },
         "label": { "type": "string" },
         "vehicle_states": {
-          "description": "Power states the car was in during this session (vocabulary from states.yaml). Array of tokens, e.g. [ready, parked].",
+          "description": "Power states the car was in during this session (vocabulary from vehicle_states.yaml). Array of tokens, e.g. [ready, parked].",
           "type": "array",
           "items": { "type": "string" }
         },
@@ -34,6 +34,11 @@
           "description": "How the monitor deduplicated payloads: 'unique' stores only payloads that differ from any seen before (rising-edge transitions; return-to-previous states are dropped). Absent/other = every polled payload kept.",
           "type": "string"
         },
+        "transport": {
+          "description": "How the payloads were acquired: the transport label ('slcan-tcp' / 'wican-ws') for a device-recorded session, or 'import' for a device-free import. Provenance for judging data trustworthiness.",
+          "type": "string"
+        },
+        "quality": { "$ref": "#/$defs/quality" },
         "captures": {
           "type": "array",
           "items": { "$ref": "#/$defs/capture" }
@@ -95,6 +100,20 @@
         { "required": ["did"] },
         { "required": ["ecu"] }
       ]
+    },
+    "quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Transport data-quality footprint recorded at capture time (from the client's exchange tally). Always carries 'exchanges'; error categories appear only when non-zero. NRCs are legitimate ECU answers and are not counted here.",
+      "properties": {
+        "exchanges": { "type": "integer", "description": "Total UDS exchanges during the session." },
+        "drop": { "type": "integer", "description": "Dropped/duplicate/out-of-order/truncated ISO-TP multi-frame reads." },
+        "stale": { "type": "integer", "description": "SID/echo/NRC-echo mismatches (a stale frame leaking from a prior request)." },
+        "no_data": { "type": "integer", "description": "No answer (NO DATA / empty / timeout)." },
+        "bus": { "type": "integer", "description": "Transport/bus-level failures." },
+        "decode": { "type": "integer", "description": "Malformed/undecodable responses." },
+        "other": { "type": "integer", "description": "Unclassified errors." }
+      }
     }
   }
 }

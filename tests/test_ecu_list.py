@@ -226,3 +226,99 @@ def test_detail_display_omits_captures_without_flag(capsys):
     out = capsys.readouterr().out
     assert "Captures" not in out
     assert "cap" not in out  # no "N cap" per-PID segment
+
+
+# ── pids view (ecu <name> pids) ──────────────────────────────────────────────
+
+
+def _pids_data_multi():
+    return {
+        "tx_id": 0x7E4,
+        "pids": {
+            "2101": {"parameters": {"SOC": {"expression": "B1"}}},
+            "2102": {"status": "draft", "parameters": {"CELL": {"expression": "B1"}}},
+            "2180": {"parameters": {}},  # no params defined
+        },
+    }
+
+
+def test_wrap_pairs_wraps_to_width():
+    from canlib.commands.ecu import _wrap_pairs
+
+    pairs = ["A=1", "B=2", "C=3"]
+    # width just enough for one pair + indent → one pair per line
+    lines = _wrap_pairs(pairs, width=len("  A=1"), indent="  ")
+    assert lines == ["  A=1", "  B=2", "  C=3"]
+
+
+def test_pids_latest_records_shape(monkeypatch):
+    import canlib.commands.ecu as ecu
+
+    # Latest capture only for 2101; 2102/2180 have none.
+    monkeypatch.setattr(
+        ecu,
+        "_latest_capture_by_pid",
+        lambda name: {
+            "2101": {
+                "payload": "620...",
+                "date": "2026-07-22",
+                "time": "10:00",
+                "vehicle_states": ["ready"],
+            }
+        },
+    )
+    monkeypatch.setattr(
+        "canlib.commands._captures_query._decoded_preview", lambda e: {"SOC": "79.0 %"}
+    )
+    recs = ecu._pids_latest_records(_pids_data_multi(), "BMS")
+    by_pid = {r["pid"]: r for r in recs}
+    assert by_pid["2101"]["values"] == {"SOC": "79.0 %"}
+    assert by_pid["2101"]["vehicle_states"] == ["ready"]
+    assert by_pid["2102"]["values"] is None
+    assert by_pid["2102"]["status"] == "draft"
+    assert by_pid["2180"]["n_params"] == 0
+
+
+def test_cmd_pids_renders_values_not_hex(monkeypatch, capsys):
+    import canlib.commands.ecu as ecu
+
+    monkeypatch.setattr(
+        ecu,
+        "_latest_capture_by_pid",
+        lambda name: {"2101": {"payload": "6201DEADBEEF", "date": "2026-07-22"}},
+    )
+    monkeypatch.setattr(
+        "canlib.commands._captures_query._decoded_preview", lambda e: {"SOC": "79.0 %"}
+    )
+    rc = ecu.cmd_pids({"name": "BMS"}, 0x7E4, _pids_data_multi(), as_json=False)
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "SOC=79.0 %" in out
+    assert "DEADBEEF" not in out  # never shows raw hex
+    assert "no capture" in out  # 2102 has params but no capture
+    assert "no parameters defined" in out  # 2180
+    assert "canair captures BMS" in out  # pointer to full history
+
+
+def test_cmd_pids_json(monkeypatch, capsys):
+    import json
+
+    import canlib.commands.ecu as ecu
+
+    monkeypatch.setattr(ecu, "_latest_capture_by_pid", lambda name: {})
+    rc = ecu.cmd_pids({"name": "BMS"}, 0x7E4, _pids_data_multi(), as_json=True)
+    out = capsys.readouterr().out
+    assert rc == 0
+    data = json.loads(out)
+    assert data["ecu"] == "BMS"
+    assert {p["pid"] for p in data["pids"]} == {"2101", "2102", "2180"}
+
+
+def test_cmd_pids_identity_only(capsys):
+    import canlib.commands.ecu as ecu
+
+    rc = ecu.cmd_pids({"name": "SRS"}, 0x7D2, None, as_json=False)
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "No PID definitions" in out
+

@@ -70,7 +70,6 @@ from canlib.commands._decode_render import (
     scope_banner,
 )
 from canlib.commands._hints import ecu_completer as _ecu_completer
-from canlib.commands._hints import pid_completer as _pid_completer
 from canlib.expression import evaluate_expression
 from canlib.inspect_bytes import POST_TRANSFORMS
 from canlib.keepmode import BANNER as KEEP_BANNER
@@ -81,6 +80,7 @@ from canlib.notation import (
     subfunction_bytes_for_pid,
 )
 from canlib.pids import build_ecu_index, load_pids
+from canlib.stats import METHOD_CHEAT_SHEET as _METHOD_CHEAT_SHEET
 from canlib.stats import compute_stats
 from canlib.stats import correlation as _correlation
 
@@ -252,14 +252,21 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         help="Decode captured UDS payloads using PID parameter definitions",
         description="Decode captured UDS payloads using PID parameter definitions.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=__doc__.split("Examples:")[1] if "Examples:" in __doc__ else "",
+        epilog=(__doc__.split("Examples:")[1] if "Examples:" in __doc__ else "")
+        + "\n"
+        + _METHOD_CHEAT_SHEET,
     )
     parser.add_argument(
-        "ecu", nargs="?", help="ECU name (e.g., BMS, IGPM, BCM)"
+        "query",
+        nargs="*",
+        metavar="QUERY",
+        help="ECU/PID selection (mini-language, see canlib/query.py): 'BMS 2101', "
+        "'BMS:2101', 'BMS:2101,2102', 'BMS' (all defined PIDs), or a quoted "
+        "cross-ECU query 'MCU:2102 VCU:2101'. Multi-PID queries are supported for "
+        "the default value-range, --compact and --json views; the analysis modes "
+        "(--corr/--plot/--stats/--discriminate/--find-mirrors/--try/--dump-bytes) "
+        "require the query to resolve to a single PID.",
     ).completer = _ecu_completer
-    parser.add_argument(
-        "pid", nargs="?", help="PID code (e.g., 2101, 22BC03)"
-    ).completer = _pid_completer
     parser.add_argument(
         "--param",
         action="extend",
@@ -466,25 +473,68 @@ def _build_plot_model(args, ecu: str, pid: str) -> PlotModel | None:
     return None if model.empty else model
 
 
+# Analysis modes that are inherently single-PID (they bind to one PID's byte
+# layout / build one signal). A multi-PID query is rejected for these.
+_SINGLE_PID_FLAGS = ("corr", "plot", "stats", "discriminate", "find_mirrors", "dump_bytes")
+
+
+def _resolve_targets(
+    query_str: str, ecu_index: dict, *, tolerate_missing: bool
+) -> tuple[list[tuple[str, str]], str | None]:
+    """Expand a mini-language QUERY to concrete ``(ECU, PID)`` pairs (upper-cased).
+
+    Each selector is matched (exact or substring) against the ECU's *defined*
+    PIDs. A selector naming a single explicit PID that matches nothing defined is
+    still kept as a literal target, so ``_decode_one`` can emit its "PID not
+    found" guidance (or, under ``--try``/``--plot``, probe the undefined PID).
+    Returns ``(targets, error)``; ``error`` is a message when nothing resolved.
+    """
+    from canlib.commands._captures_query import _parse_query
+    from canlib.query import QueryError
+
+    try:
+        q = _parse_query(query_str)
+    except QueryError as e:
+        return [], f"invalid query: {e}"
+
+    targets: list[tuple[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    unmatched: list[str] = []
+    for sel in q.selectors:
+        ecu = sel.ecu.upper()
+        defined = sorted(ecu_index.get(ecu, {}).get("pids", {}))
+        matched = [p.upper() for p in defined if sel.matches_pid(p)]
+        if not matched:
+            if len(sel.pids) == 1:
+                matched = [sel.pids[0].upper()]  # literal (not-found msg / --try)
+            else:
+                unmatched.append(str(sel))
+                continue
+        for p in matched:
+            key = (ecu, p)
+            if key not in seen:
+                seen.add(key)
+                targets.append(key)
+
+    if not targets:
+        avail = ", ".join(sorted(ecu_index))
+        detail = f" (selectors matched nothing: {', '.join(unmatched)})" if unmatched else ""
+        return [], f"no ECU/PID matched {query_str!r}{detail}. Available ECUs: {avail}"
+    return targets, None
+
+
 def run(args) -> int:
-    # Friendly guidance when the ECU/PID selectors are missing.
-    if not args.ecu:
+    from canlib.commands.captures import build_query
+
+    # Friendly guidance when the QUERY is missing.
+    if not args.query:
         from canlib.commands._hints import ecu_hint
 
         print("Specify an ECU and PID to decode, e.g. `canair decode BMS 2101`.\n")
         print(ecu_hint())
         return 2
-    # Accept an ECU-registry alias (e.g. LDC for OBC, ABS for ESC) or any case,
-    # matching `canair captures`. Canonicalises to the ecus/ key before lookup.
-    from canlib.ecus import canonical_ecu_name_safe
 
-    args.ecu = canonical_ecu_name_safe(args.ecu)
-    if not args.pid:
-        from canlib.commands._hints import pid_hint
-
-        print(f"Specify a PID for {args.ecu.upper()}, e.g. `canair decode {args.ecu} 2101`.\n")
-        print(pid_hint(args.ecu))
-        return 2
+    query_str = build_query(args.query)
 
     # --plot and --try tolerate a not-yet-defined ECU/PID (raw byte inspection).
     tolerate_missing = bool(args.try_expr) or args.plot or args.find_mirrors or args.dump_bytes
@@ -518,8 +568,88 @@ def run(args) -> int:
     pids_data = load_pids()
     ecu_index = build_ecu_index(pids_data)
 
-    ecu_key = args.ecu.upper()
-    pid_key = args.pid.upper()
+    targets, terr = _resolve_targets(query_str, ecu_index, tolerate_missing=tolerate_missing)
+    if terr:
+        print(f"error: {terr}", file=sys.stderr)
+        return 1
+
+    # Analysis modes bind to one PID's byte layout; require a single target.
+    single_mode = any(getattr(args, f, False) for f in _SINGLE_PID_FLAGS) or bool(args.try_expr)
+    if single_mode and len(targets) > 1:
+        which = ", ".join(f"{e} {p}" for e, p in targets[:6])
+        print(
+            f"error: this mode requires the query to resolve to a single PID, but "
+            f"{query_str!r} matched {len(targets)} ({which}{'…' if len(targets) > 6 else ''}). "
+            f"Narrow it, e.g. `canair decode {targets[0][0]}:{targets[0][1]} …`.",
+            file=sys.stderr,
+        )
+        return 2
+
+    if single_mode or len(targets) == 1:
+        ecu_key, pid_key = targets[0]
+        return _decode_one(
+            args, ecu_key, pid_key, ecu_index, try_params, candidate_names, since, until
+        )
+
+    # Multi-PID: default value-range, --compact, and --json only.
+    if args.json:
+        collected: list[dict] = []
+        for ecu_key, pid_key in targets:
+            _decode_one(
+                args,
+                ecu_key,
+                pid_key,
+                ecu_index,
+                try_params,
+                candidate_names,
+                since,
+                until,
+                multi=True,
+                json_collect=collected,
+            )
+        json.dump(collected, sys.stdout, indent=2, default=str)
+        print()
+        return 0
+
+    rc = 0
+    for ecu_key, pid_key in targets:
+        one = _decode_one(
+            args,
+            ecu_key,
+            pid_key,
+            ecu_index,
+            try_params,
+            candidate_names,
+            since,
+            until,
+            multi=True,
+        )
+        rc = rc or one
+    return rc
+
+
+def _decode_one(
+    args,
+    ecu_key: str,
+    pid_key: str,
+    ecu_index: dict,
+    try_params: dict,
+    candidate_names: set,
+    since,
+    until,
+    *,
+    multi: bool = False,
+    json_collect: list | None = None,
+) -> int:
+    """Decode a single ECU+PID (the original per-PID pipeline).
+
+    ``multi`` marks a call that is one of several in a multi-PID query (used to
+    keep the "no parameters/captures" notes terse and to continue past a miss);
+    ``json_collect`` (when set) collects this PID's per-capture JSON into a shared
+    list instead of dumping it, so a multi-PID ``--json`` yields one array.
+    """
+    # --plot and --try tolerate a not-yet-defined ECU/PID (raw byte inspection).
+    tolerate_missing = bool(args.try_expr) or args.plot or args.find_mirrors or args.dump_bytes
 
     # Resolve defined parameters. With --try we tolerate an unknown ECU/PID so a
     # brand-new PID (captured but not yet defined) can still be probed.
@@ -530,11 +660,11 @@ def run(args) -> int:
             parameters = ecu_pids[pid_key]["parameters"]
         elif not tolerate_missing:
             print(
-                f"PID '{args.pid}' not found for {ecu_key}. Available: {', '.join(sorted(ecu_pids))}"
+                f"PID '{pid_key}' not found for {ecu_key}. Available: {', '.join(sorted(ecu_pids))}"
             )
             return 1
     elif not tolerate_missing:
-        print(f"ECU '{args.ecu}' not found in ecus/. Available: {', '.join(sorted(ecu_index))}")
+        print(f"ECU '{ecu_key}' not found in ecus/. Available: {', '.join(sorted(ecu_index))}")
         return 1
 
     # Full (unfiltered) defined params for this PID — used by --plot to flag
@@ -575,7 +705,16 @@ def run(args) -> int:
         # (This is a terminating error path, so loading captures here doesn't
         # double-load — the normal path at load_captures() below is only reached
         # when there are parameters to decode.)
-        caps = scope_captures(load_captures(args.ecu, args.pid), **scope)
+        caps = scope_captures(load_captures(ecu_key, pid_key), **scope)
+        if multi:
+            # Terse one-liner per PID inside a multi-PID query (keep it scannable).
+            note = (
+                "filtered out"
+                if defined_params
+                else (f"no params defined ({len(caps)} captures)" if caps else "no params/captures")
+            )
+            print(f"\n{_BOLD}{ecu_key} {pid_key}{_RESET} — {_DIM}{note}{_RESET}")
+            return 1
         if defined_params:
             # Params exist for this PID; the active --param/--verified/--unverified
             # filters just excluded them all.
@@ -590,18 +729,17 @@ def run(args) -> int:
                 f"but {len(caps)} capture(s) exist."
             )
             print(
-                f"  {_DIM}·{_RESET} Inspect raw bytes:  "
-                f"query-captures.py {ecu_key} {pid_key} --diff"
+                f"  {_DIM}·{_RESET} Inspect raw bytes:  canair captures {ecu_key} {pid_key} --diff"
             )
-            print(f"  {_DIM}·{_RESET} Explore signals:    decode.py {ecu_key} {pid_key} --plot")
+            print(f"  {_DIM}·{_RESET} Explore signals:    canair decode {ecu_key}:{pid_key} --plot")
             print(
                 f"  {_DIM}·{_RESET} Test a candidate:   "
-                f'decode.py {ecu_key} {pid_key} --try "NAME:unit=EXPR"'
+                f'canair decode {ecu_key}:{pid_key} --try "NAME:unit=EXPR"'
             )
         else:
             # Neither defined nor captured.
             print(f"No parameters defined and no captures found for {ecu_key} {pid_key}.")
-        sys.exit(1)
+        return 1
 
     # Resolve the --corr reference. A reference containing ':' is a cross-signal
     # ECU:PID:PARAM|EXPR loaded from another ECU/PID and time-aligned; otherwise
@@ -628,8 +766,11 @@ def run(args) -> int:
                 return 1
 
     # Load captures (with any date/state/label/first/last scoping applied).
-    captures = scope_captures(load_captures(args.ecu, args.pid), **scope)
+    captures = scope_captures(load_captures(ecu_key, pid_key), **scope)
     if not captures:
+        if multi:
+            print(f"\n{_BOLD}{ecu_key} {pid_key}{_RESET} — {_DIM}no captures in scope{_RESET}")
+            return 1
         if scoped:
             print(f"No captures for {ecu_key} PID {pid_key} match the scope filters.")
         else:
@@ -750,6 +891,10 @@ def run(args) -> int:
             if r.get("error"):
                 entry["error"] = r["error"]
             out.append(entry)
+        if json_collect is not None:
+            # Multi-PID --json: contribute one tagged block to the shared array.
+            json_collect.append({"ecu": ecu_key, "pid": pid_key, "captures": out})
+            return 0
         json.dump(out, sys.stdout, indent=2, default=str)
         print()
         return 0
