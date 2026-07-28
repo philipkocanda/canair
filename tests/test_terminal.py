@@ -242,3 +242,73 @@ class TestRetryOnTimeout:
         r = await t.send_uds("2101")  # retries=0
         assert r["ok"] is False
         assert _reads(t, "2101") == 1
+
+
+class DrainWS:
+    """WebSocket double for the stale-frame drain: the reply is only enqueued
+    on send() when ``reply`` is set (None => the recv loop times out), and stale
+    frames can be pre-loaded into the queue to simulate a dirty pipe."""
+
+    def __init__(self, reply: str | None = "OK\r>"):
+        self.sent: list[str] = []
+        self.reply = reply
+        self._q: asyncio.Queue[str] = asyncio.Queue()
+
+    def preload(self, *items: str):
+        for it in items:
+            self._q.put_nowait(it)
+
+    async def send(self, data: str):
+        self.sent.append(data)
+        if self.reply is not None:
+            await self._q.put(self.reply)
+
+    async def recv(self) -> str:
+        return await self._q.get()
+
+    async def close(self):
+        pass
+
+
+class TestStaleFrameDrain:
+    """A command that times out before consuming the ELM `>` prompt leaves the
+    pipe dirty; the next command must drain the adapter's late/stale frames
+    before sending so they can't leak into (and corrupt) the next response."""
+
+    @pytest.mark.asyncio
+    async def test_timeout_marks_pipe_dirty(self):
+        t = WiCANTerminal(host="test")
+        t.ws = DrainWS(reply=None)  # no reply -> the recv loop times out
+        assert t._pipe_dirty is False
+        await t.send_command("2101", timeout=0.05)
+        assert t._pipe_dirty is True
+
+    @pytest.mark.asyncio
+    async def test_clean_prompt_keeps_pipe_clean(self):
+        t = WiCANTerminal(host="test")
+        t.ws = DrainWS(reply="6101AA\r>")
+        t._pipe_dirty = True  # pretend a prior command left it dirty
+        await t.send_command("2101")
+        assert t._pipe_dirty is False  # this command consumed its prompt
+
+    @pytest.mark.asyncio
+    async def test_stale_frames_drained_before_next_command(self):
+        # Dirty pipe with two stale frames buffered; the next command must
+        # discard them so its parsed response is only the real reply.
+        t = WiCANTerminal(host="test")
+        t.ws = DrainWS(reply="6101AA\r>")
+        t._pipe_dirty = True
+        t.ws.preload("6F BC 09 00\r", "STALE\r")  # late frames from a prior read
+        resp = await t.send_command("2101")
+        assert resp == "6101AA"  # stale frames drained, not concatenated
+        assert t._pipe_dirty is False
+
+    @pytest.mark.asyncio
+    async def test_no_drain_when_pipe_clean(self):
+        # A clean pipe must not drain: a frame arriving concurrently with the
+        # send is this command's real response, not stale, and is preserved.
+        t = WiCANTerminal(host="test")
+        t.ws = DrainWS(reply="6101AA\r>")
+        assert t._pipe_dirty is False
+        resp = await t.send_command("2101")
+        assert resp == "6101AA"

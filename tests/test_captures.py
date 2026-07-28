@@ -662,6 +662,55 @@ class TestSetSessionKeepMode:
             set_session_keep_mode(f, 5, "unique")
 
 
+class TestSetSessionStates:
+    """set_session_states: canonical way to back-fill a session's vehicle_states."""
+
+    def _write(self, tmp_path, states=None):
+        from canlib.captures import save_session
+
+        s = build_query_session([("0x7EC", "2101", "6101AA", "12:00:00")], "L", states or [], "n")
+        return save_session(s, tmp_path)
+
+    def test_backfill_from_empty(self, tmp_path):
+        from canlib.captures import set_session_states
+
+        f = self._write(tmp_path, states=[])
+        set_session_states(f, 0, "charging")
+        doc = json.loads(f.read_text())
+        assert doc["sessions"][0]["vehicle_states"] == ["charging"]
+
+    def test_accepts_comma_string_and_list(self, tmp_path):
+        from canlib.captures import set_session_states
+
+        f = self._write(tmp_path, states=[])
+        set_session_states(f, 0, "charging, ready")
+        doc = json.loads(f.read_text())
+        assert doc["sessions"][0]["vehicle_states"] == ["charging", "ready"]
+
+    def test_empty_clears(self, tmp_path):
+        from canlib.captures import set_session_states
+
+        f = self._write(tmp_path, states=["charging"])
+        set_session_states(f, 0, "")
+        doc = json.loads(f.read_text())
+        assert "vehicle_states" not in doc["sessions"][0]
+
+    def test_bad_index_raises(self, tmp_path):
+        from canlib.captures import set_session_states
+
+        f = self._write(tmp_path)
+        with pytest.raises(IndexError):
+            set_session_states(f, 5, "charging")
+
+    def test_preserves_captures(self, tmp_path):
+        from canlib.captures import set_session_states
+
+        f = self._write(tmp_path, states=[])
+        set_session_states(f, 0, "charging")
+        doc = json.loads(f.read_text())
+        assert doc["sessions"][0]["captures"][0]["payload"] == "6101AA"
+
+
 class TestCmdDelete:
     """`canair captures uds --delete <query>` — targeted capture removal."""
 

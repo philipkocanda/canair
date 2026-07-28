@@ -318,3 +318,99 @@ class TestIsoTpTruncationGuard:
         r = parse_uds_response("0:6101AABBCCDDEE\n1:FF0011223344556\n2:67788")
         assert r["ok"] is True
         assert "isotp_declared_len" not in r
+
+
+class TestIsoTpContiguityGuard:
+    """A dropped/duplicate/stale ISO-TP frame reorders or gaps the frame counters;
+    reject those so a misaligned payload never reaches decoders/captures. A gap
+    can be hidden from the declared-length guard by trailing padding, so counter
+    contiguity is checked independently. The ELM327 emits frames in transmission
+    order with a single hex-digit counter that wraps 0..F,0.."""
+
+    def test_contiguous_frames_accepted(self):
+        r = parse_uds_response("0:6101AABBCCDDEE\n1:FF0011223344556\n2:67788")
+        assert r["ok"] is True
+
+    def test_out_of_order_arrival_rejected(self):
+        # Real ELM327 output is in transmission order; a reordered counter
+        # sequence means a stale/dropped frame, not benign reordering.
+        r = parse_uds_response("2:67788\n0:6101AABBCCDDEE\n1:FF0011223344556")
+        assert r["ok"] is False
+        assert "non-contiguous ISO-TP frames" in r["error"]
+
+    def test_missing_middle_frame_rejected(self):
+        # Frame counter 2 dropped: [0,1,3] is not contiguous.
+        r = parse_uds_response("0:62C00BFFFF00\n1:00C84F0100C84E\n3:4D0100AAAAAAAA")
+        assert r["ok"] is False
+        assert "non-contiguous ISO-TP frames" in r["error"]
+        assert "['0', '1', '3']" in r["error"]
+
+    def test_duplicate_frame_index_rejected(self):
+        # A stale frame with a repeated counter: [0,1,1,2].
+        r = parse_uds_response(
+            "0:62C00BFFFF00\n1:00C84F0100C84E\n1:DEADBEEFDEADBE\n2:0100C84D0100C6"
+        )
+        assert r["ok"] is False
+        assert "non-contiguous ISO-TP frames" in r["error"]
+
+    def test_gap_masked_by_padding_still_rejected(self):
+        # Counters [0,1,3] but the declared length (0x017 = 23) is satisfied by
+        # the payload bytes present, so the truncation guard would pass — the
+        # contiguity check must still fire.
+        masked = "017\n0:62C00BFFFF00\n1:00C84F0100C84E\n3:0100C84D0100C6"
+        r = parse_uds_response(masked)
+        assert r["ok"] is False
+        assert "non-contiguous ISO-TP frames" in r["error"]
+
+
+class TestIsoTpFrameCounterWrap:
+    """The ELM327 counter is a SINGLE hex digit that wraps 0..F then repeats, so
+    a response with 16+ frames uses A..F and starts over at 0. These must
+    reassemble by transmission order (unwrapping the counter), not by sorting the
+    printed nibble — sorting collides once the counter wraps."""
+
+    @staticmethod
+    def _frames(n: int) -> tuple[str, str]:
+        """Build an n-frame ELM327 multiframe body + its expected reassembly.
+
+        Each line carries a distinct 2-byte payload so a misalignment would show;
+        the printed counter is ``i mod 16`` in hex (how real hardware numbers it).
+        """
+        lines, payload = [], ""
+        for i in range(n):
+            data = f"{i:02X}FF"  # 2 bytes, unique per frame
+            lines.append(f"{i & 0xF:X}:{data}")
+            payload += data
+        return "\n".join(lines), payload
+
+    def test_eighteen_frames_wrap_reassembles(self):
+        # 18 frames: counters 0..F,0,1 — the case the old decimal-only regex
+        # silently dropped (A..F never matched) and the sort mis-ordered.
+        body, expected = self._frames(18)
+        r = parse_uds_response(body)
+        assert r["ok"] is True
+        assert r["hex"] == expected.upper()
+        assert len(r["bytes"]) == 18 * 2
+
+    def test_sixteen_frames_exact_wrap_boundary(self):
+        # Exactly 16 frames: counters 0..F, no repeat yet.
+        body, expected = self._frames(16)
+        r = parse_uds_response(body)
+        assert r["ok"] is True
+        assert r["hex"] == expected.upper()
+
+    def test_broken_after_wrap_rejected(self):
+        # 0..F,0,2 — counter 1 dropped after the wrap; must be rejected.
+        body, _ = self._frames(18)
+        broken = body.rsplit("\n", 1)[0] + "\n2:1111"  # replace the final "1:..." line
+        r = parse_uds_response(broken)
+        assert r["ok"] is False
+        assert "non-contiguous ISO-TP frames" in r["error"]
+
+    def test_a_to_f_counters_matched(self):
+        # Direct check that hex counters A..F are parsed (not dropped as before).
+        body, expected = self._frames(12)  # counters 0..B, includes A, B
+        assert "A:" in body and "B:" in body
+        r = parse_uds_response(body)
+        assert r["ok"] is True
+        assert r["hex"] == expected.upper()

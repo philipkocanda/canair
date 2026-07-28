@@ -640,8 +640,8 @@ block.
 ### 10. Integrate
 
 ```bash
-canair wican autopid write               # regenerate the bundle's out/autopid.json
-canair wican autopid diff --wican home   # compare to device (optional)
+canair wican autopid write       # regenerate the bundle's out/autopid.json
+canair wican autopid diff        # compare to device (optional)
 python3 -m pytest -q             # keep the suite green
 ```
 

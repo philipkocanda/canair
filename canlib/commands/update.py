@@ -5,7 +5,7 @@ updating means: check out the latest **release tag** in the clone, then reinstal
 the tool from it. This command locates that source clone (via uv's tool receipt,
 falling back to the package's own repo root), reports the current vs latest
 released version with a changelog link, and — after confirmation — runs
-``git fetch --tags`` + ``git checkout <tag>`` + ``uv tool install <clone> --reinstall``.
+``git fetch --tags`` + ``git checkout <tag>`` + ``uv tool install <clone-dir> --reinstall``.
 
 Checking out the advertised release tag (rather than fast-forwarding a branch to
 its HEAD) means the installed code is exactly the released version — never
@@ -206,7 +206,7 @@ def _print_install_context(c, install: dict) -> None:
                 "clone runs newer code.[/dim]"
             )
         c.print(
-            "  [dim]run `canair update` (or `uv tool install <clone> --reinstall`) to sync.[/dim]"
+            "  [dim]run `canair update` (or `uv tool install <clone-dir> --reinstall`) to sync.[/dim]"
         )
     c.print("")
 
@@ -301,7 +301,7 @@ def run(args) -> int:
         return _CANNOT
 
     c.print(f"  This will check out [bold]{latest}[/bold] in the clone at [bold]{clone}[/bold]:")
-    c.print(f"    git fetch --tags  &&  git checkout {latest}  &&  uv tool install . --reinstall\n")
+    c.print(f"    git fetch --tags  &&  git checkout {latest}  &&  uv tool install {clone} --reinstall\n")
 
     if not args.yes:
         if not (sys.stdin.isatty() and sys.stdout.isatty()):

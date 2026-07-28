@@ -281,6 +281,48 @@ class TestMonitorApp:
             await pilot.press("q")
 
     @pytest.mark.asyncio
+    async def test_empty_state_shows_autodetect_hint(self):
+        # The state field is free-text (not a checkbox): an empty field must say
+        # the state will be auto-detected from data on save, so a user who leaves
+        # it blank knows the span-aware back-fill is the safety net.
+        from textual.widgets import Label
+
+        from canlib.modes._monitor_tui import SaveDialog
+
+        ctrl = FakeController()  # no suggested_state -> state field opens empty
+        app = MonitorApp(ctrl)
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause(0.1)
+            await pilot.press("s")
+            await pilot.pause(0.1)
+            assert isinstance(app.screen, SaveDialog)
+            status = app.screen.query_one("#state-status", Label)
+            assert "auto-detect" in _plain(status.render())
+            await pilot.press("escape")
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
+    async def test_prefilled_state_shows_autodetected_caption(self):
+        from textual.widgets import Input, Label
+
+        from canlib.modes._monitor_tui import SaveDialog
+
+        ctrl = FakeController()
+        ctrl.suggested_state = lambda: "charging"  # auto-suggest pre-fills the field
+        app = MonitorApp(ctrl)
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause(0.1)
+            await pilot.press("s")
+            await pilot.pause(0.1)
+            assert isinstance(app.screen, SaveDialog)
+            assert app.screen.query_one("#f-state", Input).value == "charging"
+            status = app.screen.query_one("#state-status", Label)
+            plain = _plain(status.render())
+            assert "auto-detected" in plain and "charging" in plain
+            await pilot.press("escape")
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
     async def test_save_cancelled_with_escape(self):
         from canlib.modes._monitor_tui import SaveDialog
 

@@ -1623,7 +1623,7 @@ BMS:
           notes: "Last cell. Total: 96 cells across PIDs 2102/2103/2104."
 
     21F2:
-      status: static
+      status: active
       period: 0
       vehicle_states:
         - ready

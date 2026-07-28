@@ -103,6 +103,7 @@ class SaveDialog(ModalScreen[tuple[str, str, str] | None]):
     #dialog-caption { color: $text-muted; margin-bottom: 1; }
     #dialog Input { margin-bottom: 0; }
     #state-hint { color: $text-muted; height: 1; margin-bottom: 0; }
+    #state-status { color: $text-muted; height: auto; margin-bottom: 0; }
     #state-warning { color: $warning; height: auto; margin-bottom: 1; display: none; }
     #state-warning.visible { display: block; }
     #state-options {
@@ -152,8 +153,9 @@ class SaveDialog(ModalScreen[tuple[str, str, str] | None]):
                 placeholder="States (comma-separated, e.g. ready, parked)",
                 id="f-state",
             )
-            yield Label("↑/↓ + enter to pick a state · type to filter", id="state-hint")
+            yield Label("↑/↓ + enter to ADD a state to the field · type to filter", id="state-hint")
             yield OptionList(id="state-options")
+            yield Label("", id="state-status")
             yield Label("", id="state-warning")
             yield Input(placeholder="Notes (optional)", id="f-notes")
             with Horizontal(id="dialog-buttons"):
@@ -192,6 +194,20 @@ class SaveDialog(ModalScreen[tuple[str, str, str] | None]):
         else:
             warning.update("")
             warning.set_class(False, "visible")
+
+        # The state field is free-text, not a checkbox — nothing is ever
+        # "selected". Make that explicit: when empty, say the state will be
+        # auto-detected from data on save (the span-aware back-fill); when it
+        # still holds the auto-suggested value, mark it as auto-detected so the
+        # user knows it was pre-filled (and can edit/clear it).
+        status = self.query_one("#state-status", Label)
+        stripped = value.strip().rstrip(",").strip()
+        if not stripped:
+            status.update("no state set — will auto-detect from data on save")
+        elif self._suggested_state and stripped == self._suggested_state.strip():
+            status.update(f"state auto-detected: {stripped} (edit or clear)")
+        else:
+            status.update("")
 
     def on_input_changed(self, event: Input.Changed) -> None:
         if event.input.id == "f-state":

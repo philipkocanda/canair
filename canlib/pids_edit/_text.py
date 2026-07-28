@@ -380,6 +380,12 @@ def _safe_write(fpath: Path, original: str, new_text: str, ecu: str, checker) ->
         data = _reparse_or_raise(fpath)
         ecu_def = data.get(ecu)
         if not isinstance(ecu_def, dict):
+            # ECU file keys may be mixed-case (e.g. `Unknown-746`) while callers
+            # pass the upper-cased key — resolve case-insensitively.
+            ecu_def = next(
+                (v for k, v in data.items() if str(k).upper() == str(ecu).upper()), None
+            )
+        if not isinstance(ecu_def, dict):
             raise PidsEditError(f"ECU {ecu!r} missing after edit")
         checker(ecu_def)
     except PidsEditError:

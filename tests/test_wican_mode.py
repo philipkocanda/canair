@@ -3,7 +3,7 @@
 import pytest
 
 from canlib import wican_mode
-from canlib.wican_mode import ModeError, require_protocol, set_protocol
+from canlib.wican_mode import ModeError, require_protocol, require_ws_reachable, set_protocol
 
 
 class FakeDevice:
@@ -77,3 +77,30 @@ class TestRequireProtocol:
 
         monkeypatch.setattr(wican_mode, "current_protocol", boom)
         require_protocol("vpn", "slcan")  # no raise (connect will surface it)
+
+
+class TestRequireWsReachable:
+    def test_ok_when_port_open(self, monkeypatch):
+        monkeypatch.setattr(wican_mode, "_tcp_open", lambda host, port, timeout: True)
+        require_ws_reachable("10.0.2.86")  # no raise
+
+    def test_raises_when_port_closed(self, monkeypatch):
+        monkeypatch.setattr(wican_mode, "_tcp_open", lambda host, port, timeout: False)
+        with pytest.raises(ModeError) as exc:
+            require_ws_reachable("10.0.2.86")
+        msg = str(exc.value)
+        # The alert names the host and points at the diagnostic commands.
+        assert "10.0.2.86" in msg
+        assert "canair status" in msg
+        assert "wican mode set" in msg
+
+    def test_default_port_is_the_http_websocket_port(self, monkeypatch):
+        seen: dict = {}
+
+        def fake_open(host, port, timeout):
+            seen["port"] = port
+            return True
+
+        monkeypatch.setattr(wican_mode, "_tcp_open", fake_open)
+        require_ws_reachable("10.0.2.86")
+        assert seen["port"] == 80

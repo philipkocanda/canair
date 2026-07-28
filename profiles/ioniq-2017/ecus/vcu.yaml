@@ -339,7 +339,7 @@ VCU:
           notes: >
             Estimated charge time remaining (time-to-full, to 100% — this car has no built-in SOC charge limit). [B22:B23]/10 = minutes. Confirmed as time=energy/power by four lines: byte*charge_current constant (CV 0.008) across a 10/13/16A EVSE step (242/180/146 min); r=-0.77 vs SOC over the steady 16A charge (falls as SOC rises); collapses to ~0 when charging stops; ~4h at 10A from 67% SOC (owner-confirmed plausible). UNVERIFIED: exact /10=min scale not pinned (afternoon reads ~25% below the naive kWh/kW estimate — the car's algorithm likely accounts for CV taper). Coarser/related estimates on B19 and VCU-2101 B21. ISO-TP 0x12-0x13.
     21F2:
-      status: static
+      status: active
       period: 0
       vehicle_states:
         - charging
