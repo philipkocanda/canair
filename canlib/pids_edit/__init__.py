@@ -31,6 +31,7 @@ from .params import (
     set_identity_field,
     set_param_field,
     set_pid_status,
+    set_pid_variable_length,
     set_research_status,
     upsert_parameter,
 )
@@ -52,6 +53,7 @@ __all__ = [
     "set_identity_field",
     "set_param_field",
     "set_pid_status",
+    "set_pid_variable_length",
     "set_research_status",
     "update_iocontrol_field",
     "update_routines_field",

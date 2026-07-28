@@ -50,6 +50,7 @@ from canlib.pids_edit import (
     set_can_bus,
     set_identity_field,
     set_pid_status,
+    set_pid_variable_length,
     set_research_status,
     upsert_parameter,
 )
@@ -244,6 +245,21 @@ def cmd_set_pid_status(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_set_pid_variable_length(args: argparse.Namespace) -> int:
+    value = args.value == "true"
+
+    def do():
+        set_pid_variable_length(args.ecu, args.pid, value, pids_dir=args.dir)
+
+    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
+    state = "true" if value else "false (cleared)"
+    print(
+        f"{_GREEN}  ✓ {args.ecu} {args.pid} variable_length -> {state}{_RESET}  "
+        f"{_DIM}({fpath.name}){_RESET}"
+    )
+    return 0
+
+
 def cmd_set_identity(args: argparse.Namespace) -> int:
     def do():
         set_identity_field(args.ecu, args.field, args.value, pids_dir=args.dir)
@@ -416,6 +432,21 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     sps.add_argument("status", choices=list(PID_STATUSES))
     _add_common(sps)
     sps.set_defaults(_pids_func=cmd_set_pid_status)
+
+    spv = sub.add_parser(
+        "set-pid-variable-length",
+        help="Flag a PID as returning legitimately variable-length responses",
+    )
+    spv.add_argument("ecu")
+    spv.add_argument("pid")
+    spv.add_argument(
+        "value",
+        choices=["true", "false"],
+        help="true = variable-length (a short payload is not truncation); "
+        "false = clear the flag (fixed-length, the default)",
+    )
+    _add_common(spv)
+    spv.set_defaults(_pids_func=cmd_set_pid_variable_length)
 
     si = sub.add_parser("set-identity", help="Set a curated identity field (e.g. notes)")
     si.add_argument("ecu")

@@ -16,6 +16,7 @@ from canlib.pids_edit import (
     PidsEditError,
     find_ecu_file,
     promote_discovery,
+    set_pid_variable_length,
     update_iocontrol_field,
 )
 
@@ -264,3 +265,32 @@ class TestPromoteDiscovery:
     def test_unknown_ecu(self, tmp_pids_dir: Path):
         with pytest.raises(PidsEditError):
             promote_discovery("NOPE", "BB01", "x", pids_dir=tmp_pids_dir)
+
+
+class TestSetPidVariableLength:
+    def test_sets_true(self, tmp_pids_dir: Path):
+        p = set_pid_variable_length("TEST", "2200", True, pids_dir=tmp_pids_dir)
+        pid = _reload(p)["TEST"]["pids"][2200]
+        assert pid["variable_length"] is True
+        # Existing content preserved.
+        assert pid["parameters"]["DUMMY"]["expression"] == "B:0"
+
+    def test_clears_when_false(self, tmp_pids_dir: Path):
+        set_pid_variable_length("TEST", "2200", True, pids_dir=tmp_pids_dir)
+        p = set_pid_variable_length("TEST", "2200", False, pids_dir=tmp_pids_dir)
+        assert "variable_length" not in _reload(p)["TEST"]["pids"][2200]
+
+    def test_idempotent_true(self, tmp_pids_dir: Path):
+        set_pid_variable_length("TEST", "2200", True, pids_dir=tmp_pids_dir)
+        p = set_pid_variable_length("TEST", "2200", True, pids_dir=tmp_pids_dir)
+        text = p.read_text()
+        # No duplicate line.
+        assert text.count("variable_length: true") == 1
+
+    def test_unknown_pid(self, tmp_pids_dir: Path):
+        with pytest.raises(PidsEditError, match="not found"):
+            set_pid_variable_length("TEST", "9999", True, pids_dir=tmp_pids_dir)
+
+    def test_unknown_ecu(self, tmp_pids_dir: Path):
+        with pytest.raises(PidsEditError):
+            set_pid_variable_length("NOPE", "2200", True, pids_dir=tmp_pids_dir)

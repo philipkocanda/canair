@@ -54,6 +54,8 @@
 #                          #             documented tombstone excluded from ALL tooling.
 #                          # Confidence (`verified:`) is a SEPARATE, per-parameter axis.
 #         vehicle_states: [...]  # optional — power states in which this PID responds
+#         variable_length: bool  # optional — PID returns variable-length responses
+#                                #   (legit; a short payload is not truncation)
 #         notes: str       # optional — PID-level notes
 #         parameters:
 #           PARAM_NAME:
@@ -216,6 +218,15 @@ required_pid_fields:
 
 optional_pid_fields:
   - period
+  - variable_length   # bool: this PID legitimately returns variable-length
+                      #   responses (the ECU populates a different number of
+                      #   trailing bytes/records depending on state or content),
+                      #   so a shorter-than-usual payload is NOT evidence of a
+                      #   truncated ISO-TP read. Omit (or false) for a
+                      #   fixed-length PID, where a short payload is suspect.
+                      #   Truncation is guarded at capture time regardless (the
+                      #   ISO-TP declared-length check in parse_uds_response);
+                      #   this flag documents intent for analysis/lint tooling.
   - vehicle_states   # Power states in which this PID responds. Array of tokens:
                      #   sleep    — deep sleep, 12V standby only (unplugged)
                      #   plugged  — charge cable connected (AC or DC)

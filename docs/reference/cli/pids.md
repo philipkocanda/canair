@@ -4,13 +4,13 @@
 
 ```
 usage: canair pids [-h]
-                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-research,set-status,set-pid-status,set-identity,set-can-bus}
+                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-research,set-status,set-pid-status,set-pid-variable-length,set-identity,set-can-bus}
                    ...
 
 [UDS] Safely edit ecus/ parameters and research entries (domain A — diagnostic UDS PIDs, freeform WiCAN expressions). The broadcast-frame (domain B) authoring counterpart is `canair signals` (linear signals/ maps).
 
 positional arguments:
-  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-research,set-status,set-pid-status,set-identity,set-can-bus}
+  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-research,set-status,set-pid-status,set-pid-variable-length,set-identity,set-can-bus}
     upsert-param        Add or update a parameter
     rename-param        Rename a parameter (key only; fields preserved)
     rm-param            Remove a parameter
@@ -19,6 +19,9 @@ positional arguments:
     add-research        Append a research: entry
     set-status          Update a research item's status
     set-pid-status      Set a PID's lifecycle status
+    set-pid-variable-length
+                        Flag a PID as returning legitimately variable-length
+                        responses
     set-identity        Set a curated identity field (e.g. notes)
     set-can-bus         Set the physical CAN bus segment(s) the ECU sits on
 
@@ -226,6 +229,24 @@ options:
   -h, --help            show this help message and exit
   --dir DIR             ecus/ directory (default: active profile)
   --no-validate         Skip the post-edit schema validation gate
+```
+
+## `canair pids set-pid-variable-length`
+
+```
+usage: canair pids set-pid-variable-length [-h] [--dir DIR] [--no-validate]
+                                           ecu pid {true,false}
+
+positional arguments:
+  ecu
+  pid
+  {true,false}   true = variable-length (a short payload is not truncation);
+                 false = clear the flag (fixed-length, the default)
+
+options:
+  -h, --help     show this help message and exit
+  --dir DIR      ecus/ directory (default: active profile)
+  --no-validate  Skip the post-edit schema validation gate
 ```
 
 ## `canair pids set-identity`

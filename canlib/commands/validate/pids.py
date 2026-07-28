@@ -481,6 +481,10 @@ def _validate_one_pid(
     if period is not None and (not isinstance(period, int) or period < 0):
         errors.append(f"{label}: period must be positive int")
 
+    variable_length = pid_def.get("variable_length")
+    if variable_length is not None and not isinstance(variable_length, bool):
+        errors.append(f"{label}: variable_length must be a boolean")
+
     status = pid_def.get("status")
     if status is not None and status not in fields.valid_pid_status:
         errors.append(

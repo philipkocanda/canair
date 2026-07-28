@@ -506,6 +506,52 @@ def set_pid_status(ecu_name: str, pid: str, status: str, *, pids_dir: Path | Non
     return fpath
 
 
+def set_pid_variable_length(
+    ecu_name: str, pid: str, value: bool, *, pids_dir: Path | None = None
+) -> Path:
+    """Set (or clear) a PID's ``variable_length:`` flag.
+
+    ``variable_length: true`` documents that the PID legitimately returns
+    variable-length responses, so a shorter payload is not a truncated read.
+    Passing ``False`` removes the field (the default is fixed-length). Written
+    after the PID header; verified by a YAML re-parse, restored on failure.
+    """
+    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
+    original = fpath.read_text()
+    ecu_key = ecu_name.strip().upper()
+    pid_u = str(pid).strip().upper()
+
+    def transform(text: str) -> str:
+        ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
+        pids = _keyed_block(text, "pids", 2, ecu_start, ecu_end)
+        if not pids:
+            raise PidsEditError(f"ECU {ecu_name!r} has no pids: section")
+        _, _, pids_body_start, pids_body_end, _ = pids
+        pidb = _keyed_block(text, pid_u, 4, pids_body_start, pids_body_end)
+        if not pidb:
+            raise PidsEditError(f"PID {pid_u!r} not found under {ecu_name!r}")
+        p_hdr, _p_line_end, _p_body_start, p_body_end, _inline = pidb
+        block_text = text[p_hdr:p_body_end]
+        block_text = _remove_field_line(block_text, "variable_length", indent=6)
+        if value:
+            lines = block_text.splitlines(keepends=True)
+            block_text = lines[0] + "      variable_length: true\n" + "".join(lines[1:])
+        return text[:p_hdr] + block_text + text[p_body_end:]
+
+    def checker(ecu_def: dict) -> None:
+        pids_map = ecu_def.get("pids", {}) or {}
+        pdef = next((v for k, v in pids_map.items() if str(k).upper() == pid_u), None)
+        if pdef is None:
+            raise PidsEditError(f"PID {pid_u!r} missing after edit")
+        got = bool((pdef or {}).get("variable_length", False))
+        if got != value:
+            raise PidsEditError(f"variable_length mismatch after edit: {got!r} != {value!r}")
+
+    new_text = transform(original)
+    _safe_write(fpath, original, new_text, ecu_key, checker)
+    return fpath
+
+
 def rename_pid(ecu_name: str, old_pid: str, new_pid: str, *, pids_dir: Path | None = None) -> Path:
     """Rename a PID key under ``ECU.pids`` (e.g. ``B002`` -> ``22B002``).
 
