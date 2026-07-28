@@ -318,8 +318,11 @@ def parse_uds_response(
             if 0x10 <= first_byte <= 0x3E:
                 data_lines = data_lines[1:]
 
-    # Check for multi-frame ISO-TP format
-    is_multiframe = any(re.match(r"^\d+:", line) for line in data_lines)
+    # Check for multi-frame ISO-TP format. The ELM327 prefixes each numbered
+    # frame line with a SINGLE hex-digit counter (0..F) that wraps back to 0
+    # after F, so responses with 16+ frames use A..F and repeat — the prefix is
+    # hex, not decimal.
+    is_multiframe = any(re.match(r"^[0-9A-Fa-f]:", line) for line in data_lines)
 
     # ELM327 multi-frame output precedes the numbered frame lines with a bare-hex
     # total-length token (the ISO-TP First Frame length), e.g. `017` = 23 bytes:
@@ -329,17 +332,40 @@ def parse_uds_response(
     declared_len: int | None = None
 
     if is_multiframe:
-        frame_lines = []
+        # The ELM327 emits frame lines in transmission order, so arrival order —
+        # not the printed counter — is authoritative. Reassemble in order and
+        # verify each line's single hex-digit counter is the next value in the
+        # wrapping 0..F,0..F,… sequence. A missing, duplicate, or out-of-order
+        # counter means a frame was dropped or a stale frame from a prior request
+        # leaked in, so the concatenation would silently misalign every
+        # downstream byte. A gap can be masked by trailing padding (total length
+        # still >= declared), so the length guard below can't catch it — check
+        # contiguity explicitly. Unwrapping by arrival order (rather than sorting
+        # the printed nibble) is what makes 16+ frame responses reassemble
+        # correctly, where the counter wraps and nibbles collide.
+        frame_hex: list[str] = []
+        counters: list[str] = []  # printed nibbles, for the error message
+        contiguous = True
+        expected_counter = 0
         for line in data_lines:
-            m = re.match(r"^(\d+):([0-9A-Fa-f]+)$", line)
+            m = re.match(r"^([0-9A-Fa-f]):([0-9A-Fa-f]+)$", line)
             if m:
-                frame_lines.append((int(m.group(1)), m.group(2)))
+                counters.append(m.group(1).upper())
+                if int(m.group(1), 16) != (expected_counter & 0xF):
+                    contiguous = False
+                frame_hex.append(m.group(2))
+                expected_counter += 1
                 continue
             # A non-frame, bare-hex line before the frames is the length token.
             if declared_len is None and re.fullmatch(r"[0-9A-Fa-f]{1,4}", line):
                 declared_len = int(line, 16)
-        frame_lines.sort(key=lambda x: x[0])
-        hex_clean = "".join(hex_data for _, hex_data in frame_lines)
+        if not contiguous:
+            result["error"] = (
+                f"non-contiguous ISO-TP frames: line counters {counters} are not a "
+                f"contiguous 0,1,…,F(,0,…) run (dropped/duplicate/stale frame)"
+            )
+            return result
+        hex_clean = "".join(frame_hex)
     else:
         hex_str = " ".join(data_lines)
         hex_clean = hex_str.replace(" ", "")

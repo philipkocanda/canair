@@ -50,7 +50,13 @@ class WiCANTerminal:
         self.verbose = verbose
         self.unsafe = unsafe
         self.ws: ClientConnection | None = None
-        self._buffer = ""
+        # Set when a command's read loop exits WITHOUT consuming the ELM `>`
+        # prompt (a timeout mid-response): the adapter may still emit trailing
+        # frames + a late prompt, which would otherwise leak into — and corrupt
+        # — the next command's response. The next command drains first (see
+        # _send_command_locked). This attacks the stale-frame root cause that
+        # the parser's expected_sid/expected_echo validation only catches after.
+        self._pipe_dirty = False
         self.elm_timeout_cmd = "ATST96"  # current ELM327 timeout command
         self._cmd_lock = asyncio.Lock()  # serialize all ELM327 commands
         # Lightweight instrumentation: total ELM commands sent and time spent
@@ -86,6 +92,7 @@ class WiCANTerminal:
 
         await asyncio.sleep(0.3)
         await self._drain()
+        self._pipe_dirty = False
 
     async def close(self):
         """Close the WebSocket connection."""
@@ -96,12 +103,19 @@ class WiCANTerminal:
                 pass
             self.ws = None
 
-    async def _drain(self):
-        """Read and discard any pending messages."""
-        while True:
+    async def _drain(self, per_recv_timeout: float = 0.2, max_seconds: float = 1.0):
+        """Read and discard any pending messages (clears stale/late frames).
+
+        Loops until a ``per_recv_timeout`` window passes with no message, or the
+        overall ``max_seconds`` budget is spent (so a continuous stream can't
+        hang the drain). Called at connect, after a wake, and — critically —
+        before a command when the pipe was left dirty by a prior timeout.
+        """
+        deadline = time.monotonic() + max_seconds
+        while time.monotonic() < deadline:
             try:
                 assert self.ws is not None  # connected before use
-                msg = await asyncio.wait_for(self.ws.recv(), timeout=0.2)
+                msg = await asyncio.wait_for(self.ws.recv(), timeout=per_recv_timeout)
                 if self.verbose:
                     print(f"  [ws] Drained: {msg!r}", file=sys.stderr)
             except (TimeoutError, Exception):
@@ -143,6 +157,13 @@ class WiCANTerminal:
         log_command(cmd)
         self._track_header(cmd)
 
+        # If the previous command left the pipe dirty (timed out before its ELM
+        # prompt), discard any stale/late frames still buffered before sending so
+        # they can't leak into this response.
+        if self._pipe_dirty:
+            await self._drain()
+            self._pipe_dirty = False
+
         self.cmd_count += 1
         _t0 = time.monotonic()
         assert self.ws is not None  # connected before use
@@ -153,6 +174,10 @@ class WiCANTerminal:
         response_parts = []
         deadline = time.monotonic() + timeout
         got_prompt = False
+        # Cleared to True only when the loop exits having consumed the ELM `>`
+        # prompt with no unresolved ResponsePending; any other exit (deadline,
+        # partial-data early break) leaves the pipe dirty for the next command.
+        clean_exit = False
 
         while time.monotonic() < deadline:
             remaining = deadline - time.monotonic()
@@ -167,6 +192,7 @@ class WiCANTerminal:
                         clean = full.replace(" ", "").replace("\r", "").replace("\n", "")
                         if re.search(r"7F[0-9A-Fa-f]{2}78", clean):
                             continue
+                    clean_exit = True
                     break
                 if response_parts:
                     text = "".join(response_parts)
@@ -218,7 +244,12 @@ class WiCANTerminal:
                 if re.search(r"7F[0-9A-Fa-f]{2}78", clean):
                     deadline = time.monotonic() + timeout
                     continue
+                clean_exit = True
                 break
+
+        # Mark the pipe dirty when we never cleanly consumed the prompt: the ELM
+        # may still emit trailing frames the next command must drain first.
+        self._pipe_dirty = not clean_exit
 
         raw = "".join(response_parts)
         raw = raw.replace(">", "").replace("\r\n", "\n").replace("\r", "\n")
