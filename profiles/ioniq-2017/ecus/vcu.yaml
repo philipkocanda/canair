@@ -54,7 +54,7 @@ VCU:
           ha_class: speed
           min: "0"
           max: "250"
-          verified: false
+          verified: true
           notes: >
             Speed. 16-bit MPH (low byte B19 unsigned, high byte S20), *1.609344/100
             → km/h. r=0.999 vs ESC 22C101 REAL_SPEED_KMH (124 joined points,
