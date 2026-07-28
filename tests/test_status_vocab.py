@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
+from canlib.autopid_profile import DuplicateParameterError, generate_profile
 from canlib.commands.validate import collect_pids_validation
-from canlib.commands.wican import DuplicateParameterError, generate_profile
 from canlib.pids_edit import PidsEditError, set_pid_status
 from canlib.states import POWER_STATES, allowed_states, join_states, parse_states
 
