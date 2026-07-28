@@ -51,6 +51,32 @@ deprecated fields) is `canlib/schema/captures_schema.json`; `canair validate
 captures` checks every file against it. A profile created before the JSON
 cutover is converted once with `canair captures migrate`.
 
+## Sharing captures across machines (the merge driver)
+
+Capture files are **append-only session logs** — a session, once written, is
+never rewritten; new sessions are appended to the tail. So when two machines
+both record on the same day, they each append a *different* session to the same
+`captures/YYYY-MM-DD.json`. Git's line-based merge can't reconcile that (every
+session ends with the same `}`/`]`/`}`, so the diff misaligns and splits the
+conflict *inside* individual records) — even though the data is a trivially
+mergeable list.
+
+canair ships a git **merge driver** that resolves this automatically by unioning
+the two sides' session lists (shared history collapses; disjoint appends are
+kept; a genuine divergent edit falls back to normal conflict markers). It's
+wired for `profiles/*/captures/*.json` via `.gitattributes`, but git will not
+run a driver command it finds in a tracked file (a security measure), so **each
+clone must register it once**:
+
+```bash
+canair captures merge-driver --install
+```
+
+Until a clone runs this, merges simply fall back to conflict markers — nothing
+breaks, you just don't get the auto-union. (The driver itself is
+`canair captures merge-driver %O %A %B %P`, invoked by git; you never call that
+form by hand. See `plans/2026-07-28-captures-merge-driver.md`.)
+
 ## Provenance: transport & data quality
 
 Each recorded session also carries **where its data came from** and **how clean

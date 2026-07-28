@@ -15,13 +15,16 @@ A bare `canair captures BMS 2102` (or any of the --summary/--sessions/… flags)
 
 positional arguments:
   <kind>
-    uds       Query captured diagnostic UDS payloads across all capture files
-    can       List imported raw broadcast-CAN frame logs
-              (captures/can/index.yaml)
-    migrate   Convert legacy captures/*.yaml to JSON (captures/*.json)
+    uds           Query captured diagnostic UDS payloads across all capture
+                  files
+    can           List imported raw broadcast-CAN frame logs
+                  (captures/can/index.yaml)
+    migrate       Convert legacy captures/*.yaml to JSON (captures/*.json)
+    merge-driver  Git merge driver: auto-union capture-file sessions (or
+                  --install it)
 
 options:
-  -h, --help  show this help message and exit
+  -h, --help      show this help message and exit
 ```
 
 ## `canair captures uds`
@@ -207,4 +210,34 @@ options:
   --dry-run   Preview conversions without writing
   --json      Machine-readable JSON output
   --dir DIR   Captures directory (default: active profile)
+```
+
+## `canair captures merge-driver`
+
+```
+usage: canair captures merge-driver [-h] [--install] [--json]
+                                    [base] [ours] [theirs] [path]
+
+Git merge driver for append-only capture files (captures/*.json).
+
+Invoked by git during a merge as `merge-driver %O %A %B %P`; unions the
+session lists so two machines' same-day appends merge cleanly instead of
+conflicting. Falls back to normal conflict markers on a genuine divergent
+edit.
+
+Run `canair captures merge-driver --install` once per clone to register it
+in .git/config (git never loads a driver command from a tracked file, so
+this local step is required; until then merges just fall back to markers).
+
+positional arguments:
+  base        git %O — common ancestor version
+  ours        git %A — our version (also the output file)
+  theirs      git %B — their version
+  path        git %P — merged file's pathname (for messages)
+
+options:
+  -h, --help  show this help message and exit
+  --install   Register the driver in this repo's .git/config (one-time, per
+              clone)
+  --json      Machine-readable JSON output
 ```

@@ -922,6 +922,9 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     _add_uds_parser(kinds)
     _add_can_parser(kinds)
     _add_migrate_parser(kinds)
+    from . import captures_merge_driver
+
+    captures_merge_driver.add_parser(kinds)
     parser.set_defaults(func=group_help("_captures_group_parser"), _captures_group_parser=parser)
     return parser
 

@@ -20,6 +20,16 @@
 # A profile's own raw-CAN capture store (any format, incl. large .csv logs)
 profiles/*/captures/can/** filter=lfs diff=lfs merge=lfs -text
 
+# Diagnostic capture files (captures/YYYY-MM-DD.json) are append-only session
+# logs — two machines routinely both append on the same day, which git's
+# line-based merge conflicts on (and misaligns inside records) even though the
+# data model is a trivially mergeable list. Route them through canair's
+# session-union merge driver. Requires a one-time per-clone registration:
+#   canair captures merge-driver --install
+# (git never loads a driver command from a tracked file, for safety; until a
+# clone installs it, merges simply fall back to normal conflict markers).
+profiles/*/captures/*.json merge=canair-captures
+
 # Keep the tiny hand-trimmed test fixtures in plain git (must stay diffable /
 # inspectable; they are only KB-sized excerpts).
 tests/fixtures/** !filter !diff !merge text=auto
