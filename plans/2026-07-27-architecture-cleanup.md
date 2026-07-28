@@ -110,6 +110,19 @@ Ordered lowest-risk / highest-unblock first. C1 → C2 are the natural pair
 
 ### C1. Fix the layering inversion — move byte-interpretation primitives to the library
 
+**DONE (2026-07-27).** Created `canlib/inspect_bytes.py` holding `INSPECT_TYPES`,
+`POST_TRANSFORMS`, `interpret_bytes`, `float_series_is_noise`, `wican_expr`,
+`apply_transform`, and `norm01` (the former `_decode_plot._norm01`). `_decode_plot`,
+`decode`, `_decode_calc`, `_decode_render`, `xanalysis`, and `frame_series` all now
+import **down** from `canlib.inspect_bytes`; the lazy in-function imports in
+`xanalysis` (3×) and `frame_series` (1×) that dodged the old cycle are gone (top-level
+now). New `tests/test_inspect_bytes.py` covers all primitives; `test_decode_plot`,
+`test_notation`, and `test_frame_series`/`test_xanalysis` stay green (2433). No dead
+re-export shims left — call sites were rewired. `--help` + real analysis runs verified
+unchanged.
+
+<details><summary>Original plan text</summary>
+
 **Move** `INSPECT_TYPES`, `POST_TRANSFORMS`, `interpret_bytes`,
 `float_series_is_noise`, `wican_expr`, `apply_transform` out of
 `commands/_decode_plot.py` into a neutral library module. Candidate home: a new
@@ -133,7 +146,41 @@ or `notation.py`, and mirrors the `uds_parse`/`frame_series` leaf style.
 - **Risk:** low (pure move + import rewiring). Watch for a stray cycle via
   `_decode_plot`'s local color constants — leave those in `_decode_plot`.
 
+</details>
+
 ### C2. Finish audit item #4 — relocate `decode.py`'s analysis math to the library
+
+**DONE (2026-07-27).** Refined against the post-C5 tree (the analysis math already
+lived in the command-adjacent `_decode_calc.py`, not `decode.py`):
+
+- **Generic positional mirror core pushed down.** `xanalysis.find_frame_mirrors(frames,
+  *, bits)` now holds the intra-frame (single-PID, positionally-aligned) mirror
+  algorithm; `_decode_calc.find_mirrors` is a thin adapter that extracts each
+  capture's WiCAN frame from decode's `all_results` and delegates.
+- **The two duplicate time-aligned mirror primitives collapsed.**
+  `align.aligned_all_equal` (sorted-`TimePoint`-list, datetime arithmetic) was a
+  near-duplicate of `align.mirror_aligned_count` (the faster `PreparedSeries`
+  epoch-float path). `aligned_all_equal` was **deleted**; `correlate`'s cross-ECU
+  (`_print_cross_mirrors`) *and* cross-ID (`_print_can_mirrors`) renderers both now
+  route through the single `mirror_aligned_count` primitive (same `prepare_series` +
+  `n >= min_n` pattern). Three parallel scans → one generic positional finder + one
+  generic time-aligned primitive.
+- **Deliberately NOT moved:** the decode-shaped `all_results` glue (`_series`,
+  `_paired`, `_paired_timed`, `_local_series`, `load_cross_ref_series`,
+  `_transform_series`). The plan (pre-C5) targeted these for `xanalysis`/`align`, but
+  pushing decode's `{capture, decoded, error}` shape into the generic engine would
+  invert the layering the contributing skill mandates ("generalize the shared layer
+  rather than special-casing"). They stay as thin command-adjacent adapters in
+  `_decode_calc.py` (their C5 home), over the generic `TimePoint`/`PreparedSeries`
+  primitives. This supersedes the plan's original "move everything down" wording.
+- Corrected the stale DONE mark in
+  `plans/2026-07-25-architecture-audit-and-transport-fixes.md` item #4.
+- **Tests:** `tests/test_xanalysis.py::TestFindFrameMirrors` (generic core), the
+  existing `_decode_calc.find_mirrors` delegation tests, and `test_align`'s new
+  `TestMirrorAlignedCount` (retitled from the deleted `aligned_all_equal`). 2438 green;
+  `decode --find-mirrors` / `correlate --find-mirrors` output verified unchanged.
+
+<details><summary>Original plan text (superseded)</summary>
 
 Depends on nothing but reads cleaner after C1.
 
@@ -156,7 +203,24 @@ Depends on nothing but reads cleaner after C1.
 - **Risk:** low–medium (the three mirror variants have subtly different grouping;
   unify carefully and lean on the existing command tests as the oracle).
 
+</details>
+
+
 ### C3. Extract `wican.py` profile-transform logic to the library
+
+**DONE (2026-07-27).** Created `canlib/autopid_profile.py` (238 lines) holding the
+pure transforms `generate_profile`/`to_device_format`/`normalize_device_profile` +
+their helpers `make_pid_init` and `DuplicateParameterError`. A **new** module (not
+folded into `autopid_layout.py`) so byte-layout reconstruction and profile-dict
+transforms stay single-purpose. `wican.py` imports them (868 → 653 lines) and keeps
+the HTTP upload/download, diff rendering, stats table, and argparse. Updated the
+doc-comment in `validate/pids.py` to the new location and re-pointed
+`test_status_vocab.py`'s import. New `tests/test_autopid_profile.py` covers the
+device-format conversion + normalize round-trip (`test_status_vocab` still covers the
+shipping gate / dup-name rejection). 2446 green; `wican autopid write`/`stats` output
+verified unchanged.
+
+<details><summary>Original plan text</summary>
 
 - Move `generate_profile`/`to_device_format`/`normalize_device_profile` (+ their
   private helpers) into a library module beside `autopid_layout.py` — either fold
@@ -170,7 +234,30 @@ Depends on nothing but reads cleaner after C1.
   `normalize_device_profile` round-trip. Keep `test_wican*` (if present) green.
 - **Risk:** low (self-contained pure functions).
 
+</details>
+
 ### C4. Shared fake-terminal test fixture
+
+### C4. Shared fake-terminal test fixture
+
+**DONE (2026-07-27).** Added `tests/_fakes.py` with a single `FakeTerminal`
+exposing the faithful async surface (`set_header`/`send_uds`/`send_command`/
+`enter_extended_session(wake, mode)`/`close`), a scriptable per-request response
+map (req-keyed or `(header, req)`-keyed via `key_by_header`), a configurable
+`default` (NO DATA / NRC), `flaky_recover` (the old `FlakyTerminal` retry
+behaviour), `session_result`, and uniform recorders (`sent`/`headers`/`sessions`/
+`calls`/`uds_kwargs`), plus `ok()`/`nrc()`/`NO_DATA` builders. The `mode=`
+dual-transport contract is first-class (recorded in `sessions`). All 9 files
+migrated: `test_dtc`, `test_identity`, `test_session_manager` (factory with
+`key_by_header`+`send_command_reply`), `test_discovery_scan`, `test_sessions_scan`
+(`.reqs`→`.sent`), `test_discover_identify` (thin subclass keeping
+`session_result=(None, None)` + its `SweepTerminal` override), `test_kwp_routines_scan`
+& `test_kwp_iocontrol_scan` (inline per-test fakes → response map + `.uds_kwargs`
+assertions), and `test_multi_batching` (static closures → `FakeTerminal.send_uds`;
+the one kwargs-computed parse test stays a local closure). Added
+`tests/test_fake_terminal.py` (11 contract tests). 2457 green.
+
+<details><summary>Original plan text</summary>
 
 - Add one async fake terminal exposing the documented surface
   (`set_header`/`send_uds`/`send_command`/`enter_extended_session`/`close`) to
@@ -185,6 +272,8 @@ Depends on nothing but reads cleaner after C1.
 - **Test:** the migration *is* the test (existing suites stay green); add a tiny
   `test_fake_terminal.py` documenting the fixture's contract so it doesn't drift.
 - **Risk:** low, but touches many files — do it as one mechanical PR after C1–C3.
+
+</details>
 
 ### C5. Split the big analysis commands (renderer extraction)
 
@@ -210,6 +299,28 @@ siblings so each command drops back toward argparse + orchestration.
   `align.aligned_all_equal`) are **not** yet collapsed. Doing that now would
   conflict with the in-flight uncommitted `xanalysis.py`/`align.py` work; revisit
   once that lands.
+- **`correlate.py` (1099 → 818). DONE (2026-07-27).** Extracted the self-contained
+  sub-report renderers (`_color_r`/`_print_overlap`/`_print_cross_mirrors`/
+  `_print_can_mirrors`) into `commands/_correlate_render.py`; moved the gate helpers
+  (`_parse_gate`/`_apply_gate`/`_GATE_OPS`) into `commands/_correlate_calc.py`; and
+  lifted the cluster helper to the library as `xanalysis.colinear_clusters` (it
+  operates on `CorrHit`, which lives there — reusable). `correlate.py` keeps the
+  ranked-pair / `--against` / matrix orchestration in `run`/`_run_can_log` and
+  imports the moved helpers back. Behavior byte-identical (`correlate`, `--overlap`,
+  `--find-mirrors`, `correlate can` verified). Tests updated to the new homes
+  (`test_xanalysis` → `xanalysis.colinear_clusters` + `_correlate_calc._parse_gate/
+  _apply_gate`); 2457 green.
+- **`investigate.py` (1012 → 697). DONE (2026-07-27).** Extracted the event/edge
+  timeline + per-byte report renderers (`print_report`/`print_events`/
+  `print_field_events`/`iter_edges`/`iter_field_edges`/`print_keep_banner`/`cap_note`)
+  into `commands/_investigate_render.py`; kept the two orchestrators (`run`/`_run_can`)
+  + scoring (`_best_anchor`/`_driver_r`/`_independence_score`/`_word_expr`) and the
+  `_ByteReport` dataclass in the command. Behavior byte-identical (`investigate`,
+  `--events`, `--events --field` verified); `test_investigate` re-pointed at the
+  render module. 2457 green.
+
+<details><summary>Original plan text</summary>
+
 - **`correlate.py` (1083):** extract `_print_cross_mirrors`/`_print_can_mirrors`/
   overlap+matrix renderers into `commands/_correlate_render.py`; split the 264-line
   `run` — lift the cluster (`_colinear_clusters`) and gate (`_parse_gate`/
@@ -225,6 +336,8 @@ siblings so each command drops back toward argparse + orchestration.
   renderer becomes independently unit-testable (then a small `test_*_render.py`).
 - **Risk:** medium (large mechanical moves; the win is real but do one command per
   PR, smallest first — `investigate` renderer is the most self-contained).
+
+</details>
 
 ### C6. God-object decomposition (higher-risk, later)
 

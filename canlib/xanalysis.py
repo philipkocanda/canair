@@ -26,6 +26,13 @@ from .align import (
     prepare_series,
     series_time_ranges_disjoint,
 )
+from .inspect_bytes import (
+    INSPECT_TYPES,
+    apply_transform,
+    float_series_is_noise,
+    interpret_bytes,
+    wican_expr,
+)
 from .stats import correlation, pearson
 
 __all__ = [
@@ -133,7 +140,6 @@ def transform_ref(ref: list[TimePoint], mode: str | None) -> list[TimePoint]:
     """
     if not mode or mode == "raw" or not ref:
         return ref
-    from .commands._decode_plot import apply_transform
 
     ordered = sorted(ref, key=lambda tp: tp.dt)
     vals = apply_transform([tp.value for tp in ordered], mode)
@@ -246,6 +252,53 @@ def build_bit_series(loaded: LoadedPid, *, skip_pci: bool = True) -> dict[str, l
             if len({tp.value for tp in series}) >= 2:
                 out[f"{loaded.ecu}:{loaded.pid}:B{off}:{k}"] = series
     return out
+
+
+def find_frame_mirrors(frames: list[bytes], *, bits: bool = False) -> list[tuple[str, str, int]]:
+    """Byte (and optionally bit) positions *exactly equal* across every frame.
+
+    The intra-frame, positionally-aligned mirror finder (the single-PID case of
+    ``decode --find-mirrors``): given one reconstructed frame per capture — all in
+    the same offset space — report position pairs whose value columns are
+    identical in all frames. Unlike the time-aligned cross-signal mirror
+    (:func:`~canlib.align.mirror_aligned_count`), no timestamp join is needed
+    because the columns are already row-aligned by capture index.
+
+    Returns ``(a, b, n)`` tuples where position ``a`` == position ``b`` in all
+    ``n`` frames. Byte positions are ``Bn``; bits are ``Bn:k``. Only positions
+    that actually vary (≥2 distinct values) are considered, so all-constant
+    padding doesn't produce spurious "mirrors".
+    """
+    if len(frames) < 2:
+        return []
+    max_len = min(len(f) for f in frames)  # only positions present in every frame
+    n = len(frames)
+
+    # Collect per-position value columns for varying byte (and bit) positions.
+    cols: dict[str, list[int]] = {}
+    for i in range(max_len):
+        col = [f[i] for f in frames]
+        if len(set(col)) >= 2:
+            cols[f"B{i}"] = col
+    if bits:
+        for i in range(max_len):
+            for k in range(8):
+                col = [(f[i] >> k) & 1 for f in frames]
+                if len(set(col)) >= 2:
+                    cols[f"B{i}:{k}"] = col
+
+    names = list(cols)
+    mirrors: list[tuple[str, str, int]] = []
+    for i in range(len(names)):
+        for j in range(i + 1, len(names)):
+            a, b = names[i], names[j]
+            # A byte and one of its own bits trivially "mirror" for single-bit
+            # bytes; skip a bit compared against its own containing byte.
+            if a.split(":")[0] == b.split(":")[0] and (":" in a) != (":" in b):
+                continue
+            if cols[a] == cols[b]:
+                mirrors.append((a, b, n))
+    return mirrors
 
 
 # ---------------------------------------------------------------------------
@@ -453,6 +506,39 @@ def _same_pid(a: str, b: str) -> bool:
     return pa == pb
 
 
+_CLUSTER_THRESHOLD = 0.995
+
+
+def colinear_clusters(hits, threshold: float = _CLUSTER_THRESHOLD):
+    """Union-find signals joined by ``|r| >= threshold`` into co-linear groups.
+
+    Returns the list of clusters (sets of signal labels) with ≥3 members — the
+    near-perfectly-correlated bundles (e.g. every balanced cell voltage during
+    charging) that otherwise flood the ranked pair list with redundant rows.
+    ``hits`` are :class:`CorrHit`-shaped (``.a``/``.b``/``.r``).
+    """
+    parent: dict[str, str] = {}
+
+    def find(x: str) -> str:
+        parent.setdefault(x, x)
+        root = x
+        while parent[root] != root:
+            root = parent[root]
+        while parent[x] != root:
+            parent[x], x = root, parent[x]
+        return root
+
+    for h in hits:
+        if abs(h.r) >= threshold:
+            ra, rb = find(h.a), find(h.b)
+            if ra != rb:
+                parent[ra] = rb
+    groups: dict[str, set] = {}
+    for sig in parent:
+        groups.setdefault(find(sig), set()).add(sig)
+    return [g for g in groups.values() if len(g) >= 3]
+
+
 # ---------------------------------------------------------------------------
 # Byte hunt — "which byte/interpretation on ECU:PID is this reference signal?"
 # ---------------------------------------------------------------------------
@@ -483,8 +569,9 @@ def hunt_byte(
 ) -> list[HuntHit]:
     """Sweep every byte offset × interpretation, rank by |r| vs ``ref``.
 
-    Reuses the plot explorer's interpretation machinery (``INSPECT_TYPES``,
-    ``interpret_bytes``, ``wican_expr``) so hunt and plot agree on how bytes are
+    Uses the shared byte-interpretation primitives (``INSPECT_TYPES``,
+    ``interpret_bytes``, ``wican_expr`` from ``canlib.inspect_bytes``) so hunt and
+    plot agree on how bytes are
     read and expressed. PCI-crossing multi-byte reads are skipped. Ranking uses
     ``method`` (pearson/spearman); the reported linear fit is always least-squares
     on the raw values regardless.
@@ -498,12 +585,6 @@ def hunt_byte(
     from .align import join_nearest_triple
     from .byteindex import payload_to_wican_bytes, wican_to_isotp
     from .capture_dates import entry_datetime
-    from .commands._decode_plot import (
-        INSPECT_TYPES,
-        float_series_is_noise,
-        interpret_bytes,
-        wican_expr,
-    )
     from .stats import partial_correlation
 
     # Precompute (datetime, frame) for each timed capture.
@@ -710,7 +791,6 @@ def physical_scan(
     starting offset; ranks by fraction.
     """
     from .byteindex import isotp_to_wican, payload_to_wican_bytes, wican_to_isotp
-    from .commands._decode_plot import INSPECT_TYPES, interpret_bytes, wican_expr
     from .notation import subfunction_bytes_for_pid
 
     frames: list[bytes] = []

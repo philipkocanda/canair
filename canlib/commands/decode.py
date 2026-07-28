@@ -55,7 +55,6 @@ from canlib.commands._decode_calc import (
     load_cross_ref_series,
 )
 from canlib.commands._decode_plot import (
-    POST_TRANSFORMS,
     PlotModel,
     cmd_plot,
 )
@@ -73,6 +72,7 @@ from canlib.commands._decode_render import (
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.commands._hints import pid_completer as _pid_completer
 from canlib.expression import evaluate_expression
+from canlib.inspect_bytes import POST_TRANSFORMS
 from canlib.keepmode import BANNER as KEEP_BANNER
 from canlib.keepmode import scope_is_keep_unique
 from canlib.notation import (

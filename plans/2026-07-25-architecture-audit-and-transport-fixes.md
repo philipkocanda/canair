@@ -108,10 +108,15 @@ changes:
      **DONE** — `multi_batch.py` (kernel), plus `multi_parse.py` (sub-command / ECU-PID
      parsing), `multi_exec.py` (per-step execution primitives), `multi_repl.py` (the REPL);
      `multi.py` is now the orchestrator (1075 → 344 lines), re-exporting the moved names.
-  4. Consolidate stats — `_mean/_median/_stdev/compute_stats/_fmt_num` duplicated across
-     `decode.py` + `_decode_plot.py` → `stats.py`; move `_discriminability`/
-     `_byte_state_buckets`/`find_mirrors` from `decode.py` to `xanalysis.py` (fixes the
-     `investigate.py` → `decode.py` import leak). **DONE** (`stats.py` exists).
+   4. Consolidate stats — `_mean/_median/_stdev/compute_stats/_fmt_num` duplicated across
+      `decode.py` + `_decode_plot.py` → `stats.py`; move `_discriminability`/
+      `_byte_state_buckets`/`find_mirrors` from `decode.py` to `xanalysis.py` (fixes the
+      `investigate.py` → `decode.py` import leak). **PARTIALLY DONE** (`stats.py` exists;
+      `_discriminability`/`_byte_state_buckets` moved). `find_mirrors` was NOT moved at the
+      time — it was later relocated to the command-adjacent `_decode_calc.py` (C5), then its
+      generic positional core pushed down to `xanalysis.find_frame_mirrors` and the two
+      duplicate time-aligned mirror primitives collapsed onto `align.mirror_aligned_count`
+      under **C2 of `plans/2026-07-27-architecture-cleanup.md`** (completed there).
   5. Extract shared CLI scaffolding — `_group_help` (copy-pasted 6×) and the raw-CAN-log
      argparse block (3×).
   - God objects (higher-risk, later): `MonitorController` (`monitor.py`), `_IOControlTUI`

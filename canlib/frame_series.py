@@ -18,6 +18,7 @@ from datetime import datetime
 
 from .align import TimePoint
 from .can_logs import detect_format, iter_frames
+from .inspect_bytes import INSPECT_TYPES, float_series_is_noise, interpret_bytes
 
 # Frame-signal label: "0xID:rN" (byte) / "0xID:rN.k" (bit). The single ":" keeps
 # arbitration-ID grouping working in xanalysis._same_pid (which rsplits on ":").
@@ -153,14 +154,13 @@ def hunt_frame(
     The frame-domain analogue of :func:`canlib.xanalysis.hunt_byte`: sweeps every
     byte offset × interpretation (u8/i16/f32/… × endianness) of one arbitration
     ID's frames, time-aligns each against ``ref``, and ranks by |r| — reusing the
-    plot inspector's ``INSPECT_TYPES``/``interpret_bytes`` and the shared
+    shared ``INSPECT_TYPES``/``interpret_bytes`` primitives and the shared
     ranking/collapse. No PCI to skip (frames are contiguous). Returns
     :class:`~canlib.xanalysis.HuntHit` with raw-CAN ``rN`` labels.
     """
     from pathlib import Path
 
     from .align import join_nearest
-    from .commands._decode_plot import INSPECT_TYPES, float_series_is_noise, interpret_bytes
     from .xanalysis import HuntHit, _rank_and_collapse, correlation, linear_fit, sniff_unit
 
     p = Path(path)

@@ -32,7 +32,6 @@ __all__ = [
     "SignalRef",
     "TimePoint",
     "align_many",
-    "aligned_all_equal",
     "extract_series",
     "join_nearest",
     "join_nearest_presorted",
@@ -453,41 +452,6 @@ def join_nearest_triple(
             ys.append(cy)
             zs.append(cz)
     return xs, ys, zs, len(xs)
-
-
-def aligned_all_equal(
-    ref: list[TimePoint],
-    cand_sorted: list[TimePoint],
-    tol_s: float,
-    min_n: int,
-) -> int:
-    """Return the aligned overlap ``n`` iff ``ref`` and ``cand_sorted`` are equal
-    in *every* nearest-joined sample and ``n >= min_n``; else ``0``.
-
-    A fused join+compare for mirror detection: bails at the **first** value
-    mismatch instead of materialising both value lists and comparing after, which
-    matters for the O(n²) all-pairs bit-level sweep where the vast majority of
-    pairs differ on an early sample. ``cand_sorted`` must be time-sorted.
-    """
-    if not ref or not cand_sorted or len(ref) < min_n:
-        return 0
-    cand_ts = [tp.dt for tp in cand_sorted]
-    n = 0
-    for rp in ref:
-        i = bisect.bisect_left(cand_ts, rp.dt)
-        best_val: float | None = None
-        best_dt = tol_s + 1.0
-        for j in (i - 1, i):
-            if 0 <= j < len(cand_sorted):
-                delta = abs((cand_ts[j] - rp.dt).total_seconds())
-                if delta < best_dt:
-                    best_dt = delta
-                    best_val = cand_sorted[j].value
-        if best_val is not None and best_dt <= tol_s:
-            if best_val != rp.value:
-                return 0  # first mismatch → not a mirror, bail
-            n += 1
-    return n if n >= min_n else 0
 
 
 def align_many(

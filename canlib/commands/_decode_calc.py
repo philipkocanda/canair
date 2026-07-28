@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from canlib.commands._decode_plot import apply_transform
+from canlib.inspect_bytes import apply_transform
 
 if TYPE_CHECKING:
     from canlib.align import TimePoint
@@ -128,12 +128,12 @@ def find_mirrors(all_results: list[dict], *, bits: bool = False) -> list[tuple[s
     """Find byte (and optionally bit) positions that are exactly equal across
     every capture — redundant status mirrors and unit-variants.
 
-    Returns ``(a, b, n)`` tuples where signal ``a`` == signal ``b`` in all ``n``
-    captures. Byte positions are ``Bn``; bits are ``Bn:k``. Only positions that
-    actually vary (≥2 distinct values) are considered, so all-constant padding
-    doesn't produce spurious "mirrors".
+    Extracts each capture's reconstructed WiCAN frame from decode's
+    ``all_results`` and delegates the positional equality scan to the generic
+    :func:`canlib.xanalysis.find_frame_mirrors`.
     """
     from canlib.byteindex import payload_to_wican_bytes
+    from canlib.xanalysis import find_frame_mirrors
 
     frames: list[bytes] = []
     for r in all_results:
@@ -142,35 +142,7 @@ def find_mirrors(all_results: list[dict], *, bits: bool = False) -> list[tuple[s
             frames.append(payload_to_wican_bytes(cap["payload"]))
         except Exception:
             continue
-    if len(frames) < 2:
-        return []
-    max_len = min(len(f) for f in frames)  # only positions present in every frame
-
-    # Collect per-position value columns for varying byte positions.
-    byte_cols: dict[str, list[int]] = {}
-    for i in range(max_len):
-        col = [f[i] for f in frames]
-        if len(set(col)) >= 2:
-            byte_cols[f"B{i}"] = col
-    if bits:
-        for i in range(max_len):
-            for k in range(8):
-                col = [(f[i] >> k) & 1 for f in frames]
-                if len(set(col)) >= 2:
-                    byte_cols[f"B{i}:{k}"] = col
-
-    names = list(byte_cols)
-    mirrors: list[tuple[str, str, int]] = []
-    for i in range(len(names)):
-        for j in range(i + 1, len(names)):
-            a, b = names[i], names[j]
-            # A byte and one of its own bits trivially "mirror" for single-bit
-            # bytes; skip a bit compared against its own containing byte.
-            if a.split(":")[0] == b.split(":")[0] and (":" in a) != (":" in b):
-                continue
-            if byte_cols[a] == byte_cols[b]:
-                mirrors.append((a, b, len(frames)))
-    return mirrors
+    return find_frame_mirrors(frames, bits=bits)
 
 
 def _transform_series(series: list[TimePoint], mode: str) -> list[TimePoint]:

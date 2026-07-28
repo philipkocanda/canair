@@ -60,7 +60,7 @@ class TestToWicanExpression:
         assert ref.to_wican_expression() == "[S4:S5]"
 
     def test_little_endian_unsigned_shift_composition(self):
-        # LE unsigned -> shift form (matches _decode_plot.wican_expr).
+        # LE unsigned -> shift form (matches inspect_bytes.wican_expr).
         ref = ByteRef.from_wican(4, width=2, little=True)
         assert ref.to_wican_expression() == "B4 | (B5 << 8)"
 
@@ -79,8 +79,8 @@ class TestToWicanExpression:
         assert "[" not in expr  # never a PCI-spanning range
 
     def test_matches_decode_plot_wican_expr_for_common_cases(self):
-        # Parity with the existing inspector expression generator.
-        from canlib.commands._decode_plot import INSPECT_TYPES, wican_expr
+        # Parity with the shared inspector expression generator.
+        from canlib.inspect_bytes import INSPECT_TYPES, wican_expr
 
         by_name = {spec[0]: spec for spec in INSPECT_TYPES}
         for name, width, signed, little in [

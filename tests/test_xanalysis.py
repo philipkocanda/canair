@@ -137,34 +137,32 @@ class TestCorrelateGate:
     """T2.3 — signal-predicate gating on correlate --against."""
 
     def test_parse_gate_reference_form(self):
-        from canlib.commands import correlate
+        from canlib.commands._correlate_calc import _parse_gate
 
-        signal, op_fn, value, _ = correlate._parse_gate("> 0")
+        signal, op_fn, value, _ = _parse_gate("> 0")
         assert signal is None and value == 0.0
         assert op_fn(1, 0) and not op_fn(-1, 0)
 
     def test_parse_gate_named_signal(self):
-        from canlib.commands import correlate
+        from canlib.commands._correlate_calc import _parse_gate
 
-        signal, op_fn, value, _ = correlate._parse_gate("MCU:2102:MCU_MOTOR_RPM >= 100")
+        signal, op_fn, value, _ = _parse_gate("MCU:2102:MCU_MOTOR_RPM >= 100")
         assert signal == "MCU:2102:MCU_MOTOR_RPM" and value == 100.0
         assert op_fn(100, 100)
 
     def test_parse_gate_invalid(self):
         import pytest
 
-        from canlib.commands import correlate
+        from canlib.commands._correlate_calc import _parse_gate
 
         with pytest.raises(ValueError):
-            correlate._parse_gate("not a gate")
+            _parse_gate("not a gate")
 
     def test_apply_gate_reference_value(self):
-        from canlib.commands import correlate
+        from canlib.commands._correlate_calc import _apply_gate
 
         ref = [_tp(0, -5.0), _tp(1, 0.0), _tp(2, 10.0), _tp(3, 20.0)]
-        kept = correlate._apply_gate(
-            ref, "> 0", 1.0, since=None, until=None, state=None, label=None
-        )
+        kept = _apply_gate(ref, "> 0", 1.0, since=None, until=None, state=None, label=None)
         assert [tp.value for tp in kept] == [10.0, 20.0]
 
 
@@ -422,8 +420,7 @@ class TestOutputHygiene:
         assert len(expanded) >= len(collapsed)  # --all-interps shows more
 
     def test_colinear_clusters_groups_mutual(self):
-        from canlib.commands import correlate
-        from canlib.xanalysis import CorrHit
+        from canlib.xanalysis import CorrHit, colinear_clusters
 
         # A,B,C mutually ~1.0 -> one cluster of 3; D unrelated
         hits = [
@@ -432,7 +429,7 @@ class TestOutputHygiene:
             CorrHit("A", "C", 0.997, 30),
             CorrHit("A", "D", 0.5, 30),
         ]
-        clusters = correlate._colinear_clusters(hits)
+        clusters = colinear_clusters(hits)
         assert len(clusters) == 1
         assert clusters[0] == {"A", "B", "C"}
 
@@ -649,3 +646,43 @@ class TestPhysicalScan:
         payloads = [f"6101{cv:04X}00000000" for cv in (21850, 22100, 22400, 22750)]
         hits = xanalysis.physical_scan(self._loaded(payloads), min_n=3)
         assert all(h.offset >= 4 for h in hits)  # nothing at/below the echo byte B3
+
+
+class TestFindFrameMirrors:
+    """Generic positional (intra-frame) mirror finder shared by decode's
+    single-PID --find-mirrors (via _decode_calc.find_mirrors)."""
+
+    def test_byte_mirror_detected(self):
+        # Frames b4/b5 always equal; b6 varies independently.
+        frames = [
+            bytes([0, 0, 0, 0, 0x0A, 0x0A, 0x01]),
+            bytes([0, 0, 0, 0, 0x14, 0x14, 0x05]),
+            bytes([0, 0, 0, 0, 0x09, 0x09, 0xFF]),
+        ]
+        pairs = {(a, b) for a, b, _ in xanalysis.find_frame_mirrors(frames)}
+        assert ("B4", "B5") in pairs
+        assert ("B4", "B6") not in pairs
+
+    def test_constant_positions_excluded(self):
+        # B4 constant 0x00 across all frames -> excluded (only varying positions).
+        frames = [
+            bytes([0, 0, 0, 0, 0x00, 0xAA]),
+            bytes([0, 0, 0, 0, 0x00, 0xBB]),
+            bytes([0, 0, 0, 0, 0x00, 0xCC]),
+        ]
+        mirrors = xanalysis.find_frame_mirrors(frames)
+        assert all("B4" not in (a, b) for a, b, _ in mirrors)
+
+    def test_bit_mirror(self):
+        # B4 bits 0 and 2 co-vary (0x00/0x05).
+        frames = [bytes([0, 0, 0, 0, v]) for v in (0x00, 0x05, 0x00, 0x05)]
+        pairs = {(a, b) for a, b, _ in xanalysis.find_frame_mirrors(frames, bits=True)}
+        assert ("B4:0", "B4:2") in pairs
+
+    def test_too_few_frames(self):
+        assert xanalysis.find_frame_mirrors([bytes([1, 2, 3])]) == []
+
+    def test_n_is_frame_count(self):
+        frames = [bytes([0, 0, 0, 0, v, v]) for v in (1, 2, 3)]
+        mirrors = xanalysis.find_frame_mirrors(frames)
+        assert mirrors and all(n == 3 for _, _, n in mirrors)

@@ -9,12 +9,13 @@ from canlib.align import (
     SignalRef,
     TimePoint,
     align_many,
-    aligned_all_equal,
     extract_series,
     join_nearest,
     join_nearest_presorted,
     load_reference_file,
     load_signal_captures,
+    mirror_aligned_count,
+    prepare_series,
 )
 
 
@@ -89,21 +90,24 @@ class TestJoinNearest:
         )
 
 
-class TestAlignedAllEqual:
+class TestMirrorAlignedCount:
+    """The single time-aligned mirror primitive (both cross-ECU and cross-ID
+    mirror finders route through it): equal-on-every-aligned-pair count, else -1."""
+
     def test_equal_series_returns_overlap(self):
-        a = [_tp(i, i % 4) for i in range(20)]
-        b = [_tp(i + 0.1, i % 4) for i in range(20)]  # same values, small skew
-        assert aligned_all_equal(a, sorted(b, key=lambda tp: tp.dt), tol_s=0.5, min_n=10) == 20
+        a = prepare_series([_tp(i, i % 4) for i in range(20)])
+        b = prepare_series([_tp(i + 0.1, i % 4) for i in range(20)])  # same values, small skew
+        assert mirror_aligned_count(a, b, tol_s=0.5) == 20
 
-    def test_first_mismatch_returns_zero(self):
-        a = [_tp(i, i % 4) for i in range(20)]
-        b = [_tp(i + 0.1, (i % 4) + 1) for i in range(20)]  # off by one everywhere
-        assert aligned_all_equal(a, sorted(b, key=lambda tp: tp.dt), tol_s=0.5, min_n=10) == 0
+    def test_first_mismatch_returns_minus_one(self):
+        a = prepare_series([_tp(i, i % 4) for i in range(20)])
+        b = prepare_series([_tp(i + 0.1, (i % 4) + 1) for i in range(20)])  # off by one
+        assert mirror_aligned_count(a, b, tol_s=0.5) == -1
 
-    def test_below_min_n_returns_zero(self):
-        a = [_tp(i, i % 4) for i in range(5)]
-        b = [_tp(i + 0.1, i % 4) for i in range(5)]
-        assert aligned_all_equal(a, sorted(b, key=lambda tp: tp.dt), tol_s=0.5, min_n=10) == 0
+    def test_empty_returns_zero(self):
+        a = prepare_series([])
+        b = prepare_series([_tp(i + 0.1, i % 4) for i in range(5)])
+        assert mirror_aligned_count(a, b, tol_s=0.5) == 0
 
 
 # ---------------------------------------------------------------------------

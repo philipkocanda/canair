@@ -21,7 +21,7 @@ from canlib.commands._decode_calc import (
     _transform_series,
     find_mirrors,
 )
-from canlib.commands._decode_plot import apply_transform
+from canlib.inspect_bytes import apply_transform
 from canlib.notation import ByteNotation, relabel_signal
 from canlib.states import join_states as _join_states
 from canlib.stats import compute_stats

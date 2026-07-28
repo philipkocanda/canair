@@ -2,6 +2,7 @@
 
 import json
 
+from canlib.commands import _investigate_render as render
 from canlib.commands import investigate
 
 
@@ -104,7 +105,7 @@ class TestInvestigate:
             captures = (1, 2, 3)
 
         args = argparse.Namespace(join_tol=2.5, min_r=0.6, all=True, bits=False, notation=None)
-        investigate._print_report("AAF", "2181", rpts, args, _LP(), True)
+        render.print_report("AAF", "2181", rpts, args, _LP(), True)
         out = capsys.readouterr().out
         assert "B12" in out and "ESC:22C101:REAL_SPEED_KMH" in out and "r=+0.997" in out
         assert "mph" in out
@@ -298,7 +299,7 @@ class TestFieldEvents:
             n_no_time = 0
 
         args = type("A", (), {"field": "FAN", "json": False})()
-        investigate._print_events("HVAC", "220100", LP(), {}, {}, args, {"FAN": param})
+        render.print_events("HVAC", "220100", LP(), {}, {}, args, {"FAN": param})
         out = capsys.readouterr().out
         assert "fanMAX (45)" in out and "fan1 (40)" in out
         assert "→" in out
@@ -308,7 +309,7 @@ class TestFieldEvents:
             captures = ()
 
         args = type("A", (), {"field": "NOPE", "json": False})()
-        investigate._print_events("HVAC", "220100", LP(), {}, {}, args, {})
+        render.print_events("HVAC", "220100", LP(), {}, {}, args, {})
         err = capsys.readouterr().err
         assert "no parameter" in err
 
