@@ -62,6 +62,7 @@ async def run_raw_monitor(args, host: str, port: int, bitrate: int, pids_data: d
         ecus,
         timeout=(cli if cli is not None else 3.0),
         ecu_timeouts=(None if cli is not None else ecu_timeouts_by_name(pids_data)),
+        isotp_config=pids_data.get("isotp"),
     )
     await mode_monitor(
         None,

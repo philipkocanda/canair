@@ -18,8 +18,11 @@ from canlib.profile import (
 NAME = "profile"
 
 # Default ELM327 init string for a new profile: ISO 15765-4 CAN 11-bit/500 kbit
-# (the common modern-vehicle protocol). Editable in profile.yaml afterwards.
-DEFAULT_INIT = "ATSP6;ATS0;ATAL;ATST96;"
+# (the common modern-vehicle protocol), spaces off, allow long messages. The
+# response timeout (ATST) is deliberately NOT baked in here — it is vehicle-
+# specific and set via the profile's `response_timeout_ms:` (the Ioniq needs a
+# high value; faster cars want a lower one). Editable in profile.yaml afterwards.
+DEFAULT_INIT = "ATSP6;ATS0;ATAL;"
 
 
 def add_parser(subparsers) -> argparse.ArgumentParser:
@@ -298,6 +301,23 @@ def create_profile(
         f"# `canair validate`.\n"
         f'car_model: "{car_model}"\n'
         f'init: "{init}"\n'
+        f"\n"
+        f"# Vehicle bus speed in bit/s (the CAN datarate). Uncomment if this car's\n"
+        f"# diagnostic bus is not 500 kbit/s (e.g. 250000 for some body/comfort buses).\n"
+        f"# Precedence: config transport.bitrate > this > device config > 500000.\n"
+        f"# can_bitrate: 500000\n"
+        f"\n"
+        f"# ELM327 response timeout in ms, applied as ATSTxx (--elm-timeout overrides).\n"
+        f"# Raise it for slow-responding ECUs; lower it to speed up cycles / NO-DATA\n"
+        f"# detection. Left unset, the ELM327 default applies.\n"
+        f"# response_timeout_ms: 500\n"
+        f"\n"
+        f"# Client-side ISO-TP tuning for the slcan-tcp transport. Defaults suit most\n"
+        f"# 11-bit/classic-CAN vehicles; override per this car's needs. See\n"
+        f"# canlib/transport/isotp_params.py for every field + default.\n"
+        f"# isotp:\n"
+        f"#   tx_padding: 0xAA   # ISO-TP fill byte (0x00/0xCC on some makes)\n"
+        f"#   can_fd: false      # true for CAN-FD ECUs\n"
     )
     (root / "vehicle_states.yaml").write_text(_STATES_TEMPLATE.format(car_model=car_model))
     (root / "can_buses.yaml").write_text(_CAN_BUSES_TEMPLATE.format(car_model=car_model))

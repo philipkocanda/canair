@@ -65,10 +65,17 @@
 #
 # Profile-wide settings live one level up in `<profile>/profile.yaml`:
 #   car_model: str
-#   init: str              # AT command init string
+#   init: str              # AT command init string (ELM327/wican-ws transport only)
 #   response_timeout_ms: int   # ELM ATST response timeout in ms (--elm-timeout overrides)
+#   can_bitrate: int       # optional — vehicle bus speed in bit/s (default 500000).
+#                          #   Config transport.bitrate > this > device config > 500000.
 #   multi_did_batching: bool   # profile default for per-ECU service-22 multi-DID batching
 #   failure_types: {0xNN: str} # optional — DTC failure-type byte meanings (profile-wide)
+#   isotp: {...}           # optional — client-side ISO-TP tuning (slcan-tcp transport):
+#                          #   tx_padding/blocksize/stmin/rx_flowcontrol_timeout/
+#                          #   rx_consecutive_frame_timeout/can_fd/tx_data_length.
+#                          #   Defaults suit 11-bit/classic-CAN; see
+#                          #   canlib/transport/isotp_params.py for every field.
 
 required_ecu_fields:
   - tx_id

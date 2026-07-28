@@ -37,6 +37,30 @@ maps), which is separate from the diagnostic request/response `captures/`. Both
 are absent unless you import broadcast data; `canair validate signals` and
 `canair validate can` check them and quietly skip when they don't exist.
 
+## `profile.yaml` settings
+
+`profile.yaml` holds the profile-wide, vehicle-level settings. Only `car_model`
+and `init` are required; everything else is optional with a sensible default.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `car_model` | str | Human description (required). |
+| `init` | str | ELM327 AT init string, `;`-separated (required). Applies to the `wican-ws` (ELM327) transport only; the `slcan-tcp` transport ignores it and drives ISO-TP directly. A fresh profile scaffolds `ATSP6;ATS0;ATAL;` (ISO 15765-4 11-bit/500 kbit). |
+| `can_bitrate` | int | Vehicle bus speed in bit/s. Set it when the diagnostic bus isn't 500 kbit/s (e.g. `250000`). Precedence: config `transport.bitrate` > this > device config > `500000`. |
+| `response_timeout_ms` | int | ELM327 response timeout (applied as `ATSTxx`; `--elm-timeout` overrides). Raise it for slow ECUs (the Ioniq needs `614`), lower it to speed up cycles. |
+| `multi_did_batching` | bool | Profile default for per-ECU service-22 multi-DID batching. |
+| `failure_types` | map | DTC failure-type byte meanings, profile-wide (`{0xNN: "meaning"}`). |
+| `isotp` | map | Client-side ISO-TP tuning for the `slcan-tcp` transport (see below). |
+
+The `isotp:` block overrides the client-side ISO-TP flow-control / padding /
+CAN-FD parameters. The defaults suit most 11-bit / classic-CAN vehicles; override
+per this car's needs (e.g. an ECU that pads frames with `0x00` instead of `0xAA`,
+or a CAN-FD bus). The accepted keys — `tx_padding`, `blocksize`, `stmin`,
+`rx_flowcontrol_timeout`, `rx_consecutive_frame_timeout`, `can_fd`,
+`tx_data_length` — and their defaults are defined in
+[`canlib/transport/isotp_params.py`](https://github.com/philipkocanda/canair/blob/main/canlib/transport/isotp_params.py).
+`canair validate` type-checks every field and rejects an unknown `isotp:` key.
+
 ## Editing rules
 
 The bundle has strict edit disciplines that keep it valid and reviewable:

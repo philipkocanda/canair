@@ -155,6 +155,18 @@ def _parse_filters(spec: str | None) -> list[dict] | None:
     return [{"can_id": i, "can_mask": 0x7FF if i <= 0x7FF else 0x1FFFFFFF} for i in ids]
 
 
+def _profile_can_bitrate() -> int | None:
+    """The active profile's ``can_bitrate`` (its bus speed), or None if unset."""
+    try:
+        from canlib.profile import active
+
+        value = active().meta.get("can_bitrate")
+        return int(value) if value is not None else None
+    except Exception:
+        # No resolvable profile / bad value: fall back to config/device/default.
+        return None
+
+
 def run(args) -> int:
     import sys
 
@@ -174,9 +186,10 @@ def run(args) -> int:
         )
         return 2
 
-    # Port/bitrate come from the config transport block, falling back to the
+    # Port/bitrate come from the config transport block, then the active
+    # profile's can_bitrate (the vehicle's bus speed), falling back to the
     # device's live config (WiCAN only) via the transport layer.
-    port, bitrate = t.resolve_device_defaults()
+    port, bitrate = t.resolve_device_defaults(_profile_can_bitrate())
     print(f"  Raw CAN via SLCAN — {host}:{port} @ {bitrate} bps")
 
     # No auto-switch: the device must already be in slcan mode.

@@ -52,9 +52,12 @@ my-car/
 ```
 
 `profile.yaml` holds `car_model` and an `init` string (the ELM327 initialization
-sent to the dongle; the default suits most cars). `vehicle_states.yaml` starts with a
-generic power-state vocabulary you'll refine later — see
-[Captures & states](../concepts/captures-and-states.md).
+sent to the dongle; the default `ATSP6;ATS0;ATAL;` suits most cars — ISO 15765-4
+11-bit/500 kbit). If your car's diagnostic bus runs at a different speed, or its
+ECUs need different ISO-TP tuning, set `can_bitrate:` / `isotp:` in `profile.yaml`
+— see [Profiles → `profile.yaml` settings](../concepts/profiles.md#profileyaml-settings).
+`vehicle_states.yaml` starts with a generic power-state vocabulary you'll refine
+later — see [Captures & states](../concepts/captures-and-states.md).
 
 ## Confirm it's active
 

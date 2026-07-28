@@ -270,8 +270,8 @@ class WiCANTerminal:
             self.timings.record(f"0x{self._cur_header:03X}", cu, elapsed)
         return result
 
-    async def init_elm(self, init_string: str = "ATSP6;ATS0;ATAL;ATST96;"):
-        """Send ELM327 initialization commands."""
+    async def init_elm(self, init_string: str):
+        """Send ELM327 initialization commands (``;``-separated AT commands)."""
         resp = await self.send_command("ATZ", timeout=3.0)
         if self.verbose:
             print(f"  [init] ATZ -> {resp!r}", file=sys.stderr)

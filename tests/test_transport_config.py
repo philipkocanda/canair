@@ -114,6 +114,33 @@ class TestTransportConfigProps:
         t = TransportConfig("slcan-tcp", "1.2.3.4")
         assert t.resolve_device_defaults() == (3333, 500000)
 
+    def test_profile_bitrate_used_when_config_silent(self):
+        from canlib.transport.config import TransportConfig
+
+        # No config bitrate, no host -> the profile's can_bitrate wins over 500k.
+        t = TransportConfig("slcan-tcp", host=None)
+        assert t.resolve_device_defaults(250000) == (3333, 250000)
+
+    def test_config_bitrate_beats_profile(self):
+        from canlib.transport.config import TransportConfig
+
+        # Explicit config transport.bitrate outranks the profile can_bitrate.
+        t = TransportConfig("slcan-tcp", "1.2.3.4", port=35000, bitrate=500000)
+        assert t.resolve_device_defaults(250000) == (35000, 500000)
+
+    def test_profile_bitrate_beats_device_probe(self, monkeypatch):
+        from canlib.transport.config import TransportConfig
+
+        # A profile can_bitrate is preferred over the device's live config; with
+        # bitrate resolved, only the port gap triggers a probe.
+        monkeypatch.setattr(
+            TransportConfig,
+            "_wican_device_config",
+            lambda self: {"port": 3333, "can_datarate": "500K"},
+        )
+        t = TransportConfig("slcan-tcp", "1.2.3.4")
+        assert t.resolve_device_defaults(250000) == (3333, 250000)
+
 
 class TestParseDatarate:
     def test_suffixes_and_garbage(self):

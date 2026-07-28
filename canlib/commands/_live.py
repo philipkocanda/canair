@@ -425,7 +425,17 @@ async def async_main(args):
         mode_routines_list(pids_data, args.routines, as_json=True)
         return
 
-    init_string = pids_data.get("init", "ATSP6;ATS0;ATAL;ATST96;")
+    # ELM327 init string from the active profile. Required (validate enforces
+    # it); a profile missing it fails loud rather than silently using a stale
+    # Ioniq-flavoured fallback.
+    init_string = pids_data.get("init")
+    if not init_string:
+        print(
+            "error: the active profile has no `init:` string (profile.yaml). "
+            'Add one, e.g. `init: "ATSP6;ATS0;ATAL;"` (ISO 15765-4 11-bit).',
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
     # Fail loud: --save (and metadata flags) only apply to capture-producing modes.
     _wants_save = (

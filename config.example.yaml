@@ -68,4 +68,5 @@ default_wican: ap
 #   type: slcan-tcp      # slcan-tcp (raw SLCAN over TCP, default) | wican-ws (WebSocket ELM327, Pro-only)
 #   host: 192.168.3.2    # device host/IP (both transports)
 #   port: 35000          # slcan-tcp only (Pro 35000, classic 3333); auto-detected if omitted
-#   bitrate: 500000      # slcan-tcp only; defaults to the profile's can_datarate, else 500000
+#   bitrate: 500000      # slcan-tcp only; overrides all else. Precedence:
+#                        #   this > profile can_bitrate > device can_datarate > 500000

@@ -48,8 +48,9 @@ class RawTerminal:
         verbose: bool = False,
         unsafe: bool = False,
         timeout: float = 2.0,
-        tx_padding: int = 0xAA,
+        isotp_config: dict | None = None,
     ):
+        from .isotp_params import build_isotp_params
         from .slcan_tcp import SlcanTcpBus
 
         self.host = host
@@ -70,15 +71,7 @@ class RawTerminal:
 
         self.bus = SlcanTcpBus(host, port=port, bitrate=bitrate)
         self.notifier = can.Notifier(self.bus, [], timeout=0.1)
-        self._params = {
-            "tx_padding": tx_padding,
-            "blocksize": 0,
-            "stmin": 0,
-            "rx_flowcontrol_timeout": 1000,
-            "rx_consecutive_frame_timeout": 1000,
-            "can_fd": False,
-            "tx_data_length": 8,
-        }
+        self._params = build_isotp_params(isotp_config)
         self._stacks: dict[int, isotp.NotifierBasedCanStack] = {}
         self._cur: int | None = None
 

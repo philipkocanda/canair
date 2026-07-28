@@ -16,8 +16,8 @@ class T:
         self.port = port
         self.bitrate = bitrate
 
-    def resolve_device_defaults(self):
-        return self.port or 3333, self.bitrate or 500000
+    def resolve_device_defaults(self, profile_bitrate=None):
+        return self.port or 3333, self.bitrate or profile_bitrate or 500000
 
 
 class Args:

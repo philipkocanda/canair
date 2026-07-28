@@ -61,14 +61,18 @@ class RawUdsClient:
         ecus: dict[str, tuple[int, int]],
         *,
         timeout: float = 1.0,
-        tx_padding: int = 0xAA,
+        isotp_config: dict | None = None,
         ecu_timeouts: dict[str, float] | None = None,
     ):
         """``ecus``: name -> (tx_id, rx_id). ``timeout``: per-request seconds.
 
         ``ecu_timeouts``: optional ``{ECU_NAME(upper): seconds}`` per-ECU budget
         overriding ``timeout`` for that ECU (see :mod:`canlib.timeouts`).
+        ``isotp_config``: optional profile ``isotp:`` block (flow-control/padding/
+        CAN-FD).
         """
+        from .isotp_params import build_isotp_params
+
         self.bus = bus
         self.timeout = timeout
         self.ecu_timeouts = ecu_timeouts or {}
@@ -78,15 +82,7 @@ class RawUdsClient:
         self.diag = TransportStats(transport="slcan-tcp")
         self.notifier = can.Notifier(bus, [], timeout=0.1)
         self._stacks: dict[str, isotp.NotifierBasedCanStack] = {}
-        params = {
-            "tx_padding": tx_padding,
-            "blocksize": 0,
-            "stmin": 0,
-            "rx_flowcontrol_timeout": 1000,
-            "rx_consecutive_frame_timeout": 1000,
-            "can_fd": False,
-            "tx_data_length": 8,
-        }
+        params = build_isotp_params(isotp_config)
         for name, (tx, rx) in ecus.items():
             addr = isotp.Address(isotp.AddressingMode.Normal_11bits, txid=tx, rxid=rx)
             stack = isotp.NotifierBasedCanStack(bus, self.notifier, address=addr, params=params)

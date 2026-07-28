@@ -33,7 +33,7 @@ async def run_raw(args, transport, pids_data) -> int:
         print(f"error: {e}", file=sys.stderr)
         return 2
 
-    port, bitrate = transport.resolve_device_defaults()
+    port, bitrate = transport.resolve_device_defaults(pids_data.get("can_bitrate"))
 
     # Monitor: optimized pipelined + batched backend.
     if args.multi and args.monitor:
@@ -55,6 +55,7 @@ async def run_raw(args, transport, pids_data) -> int:
         verbose=args.verbose,
         unsafe=getattr(args, "unsafe", False),
         timeout=(cli if cli is not None else 2.0),
+        isotp_config=pids_data.get("isotp"),
     )
     # Per-ECU budgets apply only when the user didn't force --timeout.
     if cli is None:

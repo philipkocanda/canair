@@ -826,7 +826,15 @@ def _validate_hit_section(
 
 
 def validate_meta(path: Path, required_fields: set) -> list[str]:
-    """Validate profile.yaml (profile-wide settings)."""
+    """Validate profile.yaml (profile-wide settings).
+
+    Checks required fields are present and that every known field has the right
+    type (and, for bounded values, a sane range). Unknown top-level keys are
+    tolerated (profile.yaml stays extensible), but the ``isotp:`` block's keys
+    are checked against the accepted set so a typo is caught.
+    """
+    from canlib.transport.isotp_params import ISOTP_FIELDS
+
     errors = []
     try:
         with open(path) as f:
@@ -841,6 +849,57 @@ def validate_meta(path: Path, required_fields: set) -> list[str]:
         if field not in data:
             errors.append(f"profile.yaml: missing required field '{field}'")
 
+    def _is_int(v) -> bool:
+        # bool is an int subclass — reject it where a number is expected.
+        return isinstance(v, int) and not isinstance(v, bool)
+
+    for field in ("car_model", "init"):
+        if field in data and not isinstance(data[field], str):
+            errors.append(f"profile.yaml: '{field}' must be a string")
+
+    if "response_timeout_ms" in data and not (
+        _is_int(data["response_timeout_ms"]) and data["response_timeout_ms"] > 0
+    ):
+        errors.append("profile.yaml: 'response_timeout_ms' must be a positive integer")
+
+    if "can_bitrate" in data and not (_is_int(data["can_bitrate"]) and data["can_bitrate"] > 0):
+        errors.append("profile.yaml: 'can_bitrate' must be a positive integer (bit/s)")
+
+    if "multi_did_batching" in data and not isinstance(data["multi_did_batching"], bool):
+        errors.append("profile.yaml: 'multi_did_batching' must be a boolean")
+
+    if "failure_types" in data and not isinstance(data["failure_types"], dict):
+        errors.append("profile.yaml: 'failure_types' must be a mapping of {byte: meaning}")
+
+    if "isotp" in data:
+        errors.extend(_validate_isotp(data["isotp"], set(ISOTP_FIELDS), _is_int))
+
+    return errors
+
+
+def _validate_isotp(isotp, allowed: set, is_int) -> list[str]:
+    """Validate the profile.yaml ``isotp:`` block (client-side ISO-TP tuning)."""
+    if not isinstance(isotp, dict):
+        return ["profile.yaml: 'isotp' must be a mapping"]
+    errors = []
+    for key in isotp:
+        if key not in allowed:
+            errors.append(
+                f"profile.yaml: unknown isotp field '{key}' (allowed: {', '.join(sorted(allowed))})"
+            )
+    if "can_fd" in isotp and not isinstance(isotp["can_fd"], bool):
+        errors.append("profile.yaml: 'isotp.can_fd' must be a boolean")
+    if "tx_padding" in isotp and not (
+        is_int(isotp["tx_padding"]) and 0 <= isotp["tx_padding"] <= 255
+    ):
+        errors.append("profile.yaml: 'isotp.tx_padding' must be a byte (0–255)")
+    for key in ("blocksize", "stmin", "rx_flowcontrol_timeout", "rx_consecutive_frame_timeout"):
+        if key in isotp and not (is_int(isotp[key]) and isotp[key] >= 0):
+            errors.append(f"profile.yaml: 'isotp.{key}' must be a non-negative integer")
+    if "tx_data_length" in isotp and not (
+        is_int(isotp["tx_data_length"]) and isotp["tx_data_length"] > 0
+    ):
+        errors.append("profile.yaml: 'isotp.tx_data_length' must be a positive integer")
     return errors
 
 
