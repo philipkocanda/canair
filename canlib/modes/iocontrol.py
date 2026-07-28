@@ -18,7 +18,7 @@ from ..pids_edit import PidsEditError, promote_discovery, update_iocontrol_field
 from ..terminal import WiCANTerminal
 from ..tui import terminal_columns as _terminal_columns
 from ..tui import terminal_lines as _terminal_lines
-from ..uds_parse import nrc_abbrev
+from ._iocontrol_actuate import IOControlActuator
 from ._iocontrol_render import _truncate_text, render_iocontrol
 from .status import format_status_value, query_param_status
 
@@ -315,6 +315,11 @@ class _IOControlTUI:
         # adjusted in ``_clamp_viewport()`` so the cursor is always visible.
         self._scroll_top = 0
 
+        # CAN-facing session/actuation behaviour lives in the actuator
+        # collaborator; it reads/updates this TUI's state via a back-reference,
+        # keeping the class focused on view state, input, rendering, and edits.
+        self.actuator = IOControlActuator(self)
+
     def _apply_view_filter(self):
         """Populate ``self.cmds`` / ``self.dids`` from ``self.all_cmds`` per view mode.
 
@@ -367,244 +372,6 @@ class _IOControlTUI:
         which reads this controller's state (and clamps ``_scroll_top``).
         """
         return render_iocontrol(self)
-
-    async def _ensure_session(self):
-        """Open extended session + TesterPresent if not already active."""
-        if self._session_active:
-            return
-        _tui_logger.info("Opening extended session (10 03) on 0x%03X", self.tx_id)
-        await self.terminal.set_header(self.tx_id)
-        ok, self._tester_task = await self.terminal.enter_extended_session()
-        self._session_active = ok
-        _tui_logger.info("Session established: %s", ok)
-
-    def _extract_status_bytes(self, did: str, resp: dict) -> None:
-        """Extract the controlStatusRecord tail from a 0x2F response and store it.
-
-        A positive 0x2F response is `6F {DID_HI} {DID_LO} [tail bytes...]`.
-        We store the tail bytes (anything after the 3-byte echo) as an
-        uppercase hex string in ``self.status_bytes[did]``.
-
-        - Positive with tail: ``"AA BB"`` (space-separated bytes)
-        - Positive with no tail: ``""``
-        - Negative (NRC): ``f"NRC {nrc:02X} {abbrev}"``
-        - Transport error: ``"ERR"``
-        """
-        if resp.get("ok"):
-            b = resp.get("bytes") or []
-            tail = b[3:] if len(b) >= 3 else []
-            self.status_bytes[did] = " ".join(f"{x:02X}" for x in tail)
-        elif resp.get("nrc") is not None:
-            self.status_bytes[did] = f"NRC {resp['nrc']:02X} {nrc_abbrev(resp['nrc'])}"
-        else:
-            self.status_bytes[did] = "ERR"
-
-    async def _send_on(self, did: str):
-        """Send ON command for a DID."""
-        cmd = self.cmds[did]
-        hex_cmd = cmd["on"]
-        if not hex_cmd:
-            self.state[did] = "error"
-            self.last_response[did] = "no ON cmd defined"
-            return
-
-        self._busy = True
-        self._status = f"Sending ON: {did} ({cmd['label']})..."
-        _tui_logger.info("ON  %s %s cmd=%s", did, cmd["label"], hex_cmd)
-        try:
-            if cmd["session"]:
-                await self._ensure_session()
-            resp = await self.terminal.send_uds(hex_cmd, timeout=3.0)
-            _tui_logger.info("ON  %s resp: %s", did, resp)
-            self._extract_status_bytes(did, resp)
-            if resp["ok"]:
-                self.state[did] = "on"
-                self.last_response[did] = resp["hex"]
-            elif resp.get("nrc") is not None:
-                self.state[did] = "error"
-                self.last_response[did] = f"NRC 0x{resp['nrc']:02X} {nrc_abbrev(resp['nrc'])}"
-            else:
-                self.state[did] = "error"
-                self.last_response[did] = resp.get("error", "unknown error")
-            self._status = ""
-        except Exception as e:
-            _tui_logger.error("ON  %s exception: %s", did, e, exc_info=True)
-            self.state[did] = "error"
-            self.last_response[did] = str(e)
-            self._status = ""
-        finally:
-            self._busy = False
-
-    async def _send_off(self, did: str):
-        """Send OFF command for a DID."""
-        cmd = self.cmds[did]
-        hex_cmd = cmd["off"]
-        if not hex_cmd:
-            self.last_response[did] = "no OFF cmd defined"
-            return
-
-        self._busy = True
-        self._status = f"Sending OFF: {did} ({cmd['label']})..."
-        _tui_logger.info("OFF %s %s cmd=%s", did, cmd["label"], hex_cmd)
-        try:
-            resp = await self.terminal.send_uds(hex_cmd, timeout=3.0)
-            _tui_logger.info("OFF %s resp: %s", did, resp)
-            self._extract_status_bytes(did, resp)
-            if resp["ok"]:
-                self.state[did] = "off"
-                self.last_response[did] = resp["hex"]
-            elif resp.get("nrc") is not None:
-                self.state[did] = "error"
-                self.last_response[did] = f"NRC 0x{resp['nrc']:02X} {nrc_abbrev(resp['nrc'])}"
-            else:
-                self.state[did] = "error"
-                self.last_response[did] = resp.get("error", "unknown error")
-            self._status = ""
-        except Exception as e:
-            _tui_logger.error("OFF %s exception: %s", did, e, exc_info=True)
-            self.state[did] = "error"
-            self.last_response[did] = str(e)
-            self._status = ""
-        finally:
-            self._busy = False
-
-    async def _toggle(self, did: str):
-        """Toggle: if ON → OFF, otherwise → ON.
-
-        If the DID has no simple ON command (``on: ""`` in the YAML), open
-        the hex value prompt instead of erroring. This is the common case
-        for HVAC F0xx actuators and other DIDs that require
-        ShortTermAdjustment value bytes. The prompt is seeded with the last
-        value sent to this DID in the current session (``last_value``) or
-        ``00`` if none has been sent yet.
-        """
-        if self.state[did] == "on":
-            await self._send_off(did)
-            return
-        if not self.cmds[did]["on"]:
-            # No simple ON — open the hex value prompt. Seed with the last
-            # value sent this session (if any) so +/- stepping still works
-            # naturally afterwards.
-            seed = self.last_value[did].hex().upper() if did in self.last_value else "00"
-            self._hex_input = seed
-            return
-        await self._send_on(did)
-
-    async def _send_adjust(self, did: str, value_bytes: bytes):
-        """Send ShortTermAdjustment (2F{DID}03{value}) for a DID."""
-        did_hex = did.upper()
-        hex_cmd = f"2F{did_hex}03{value_bytes.hex().upper()}"
-
-        self._busy = True
-        self._status = f"Adjust: {did} → {hex_cmd}"
-        _tui_logger.info("ADJ %s cmd=%s", did, hex_cmd)
-        try:
-            cmd = self.cmds.get(did, {})
-            if cmd.get("session", True):
-                await self._ensure_session()
-            resp = await self.terminal.send_uds(hex_cmd, timeout=3.0)
-            _tui_logger.info("ADJ %s resp: %s", did, resp)
-            self._extract_status_bytes(did, resp)
-            if resp["ok"]:
-                self.state[did] = "on"
-                self.last_response[did] = resp["hex"]
-                self.last_value[did] = value_bytes
-            elif resp.get("nrc") is not None:
-                self.state[did] = "error"
-                self.last_response[did] = f"NRC 0x{resp['nrc']:02X} {nrc_abbrev(resp['nrc'])}"
-                self.last_value[did] = value_bytes  # still store for +/- stepping
-            else:
-                self.state[did] = "error"
-                self.last_response[did] = resp.get("error", "unknown error")
-            self._status = ""
-        except Exception as e:
-            _tui_logger.error("ADJ %s exception: %s", did, e, exc_info=True)
-            self.state[did] = "error"
-            self.last_response[did] = str(e)
-            self._status = ""
-        finally:
-            self._busy = False
-
-    async def _poll_status_once(self):
-        """Poll every DID once by sending ``2F {DID} 00`` (returnControlToECU).
-
-        ISO 14229-1 §10.4 sub-function 00 is *returnControlToECU* — it hands the
-        addressed I/O back to the ECU's own control logic. This is often benign,
-        but it is **NOT a guaranteed silent read**: an ECU may re-assert the
-        actuator's default drive state when control is returned, which on
-        relay/solenoid-backed DIDs (e.g. IGPM door lock/unlock ``BC10``/``BC11``,
-        trunk ``BC09``, charge-cable lock ``BC3F``/``BC41``, defogger ``BC0C``)
-        produces an audible click. Because of this the whole poll loop is
-        opt-in (``--poll``); ECUs that support the DID return a positive response
-        including the current ``controlStatusRecord`` tail bytes, which are stored
-        in ``self.status_bytes[did]`` and rendered in the "Status" column.
-
-        Bails early if the TUI is busy (mid-ON/OFF/ADJUST) or quitting; the
-        scheduling loop in ``_status_poll_loop`` retries on the next tick.
-
-        Most 0x2F DIDs require an extended diagnostic session, so we open
-        one (same mechanism as the ON/OFF paths) before the first poll.
-        """
-        # Ensure extended session — 0x2F typically returns NRC 7F without it.
-        if not self._session_active:
-            if self._quit or self._busy:
-                return
-            await self._ensure_session()
-            if not self._session_active:
-                _tui_logger.warning("poll: could not establish extended session")
-                return
-
-        # Make sure we're talking to the right ECU header.
-        await self.terminal.set_header(self.tx_id)
-
-        for did in self.dids:
-            if self._quit or self._busy:
-                return
-            did_hex = did.upper()
-            req = f"2F{did_hex}00"
-            try:
-                resp = await self.terminal.send_uds(req, timeout=3.0)
-            except Exception as exc:
-                self.status_bytes[did] = "ERR"
-                _tui_logger.warning("poll %s exception: %s", did, exc)
-                continue
-            _tui_logger.debug("poll %s req=%s resp=%s", did, req, resp)
-            self._extract_status_bytes(did, resp)
-
-    async def _status_poll_loop(self, interval: float = 3.0):
-        """Background loop: poll every DID's status bytes every ``interval`` seconds."""
-        self._status_polling = True
-        _tui_logger.info("Status poll loop started (interval=%.1fs)", interval)
-        try:
-            while not self._quit:
-                if not self._busy:
-                    try:
-                        await self._poll_status_once()
-                    except Exception as exc:
-                        _tui_logger.warning("Status poll error: %s", exc)
-                await asyncio.sleep(interval)
-        finally:
-            self._status_polling = False
-            _tui_logger.info("Status poll loop ended")
-
-    async def _release_all(self):
-        """Send OFF for all active actuators."""
-        active = [d for d in self.dids if self.state[d] == "on"]
-        for did in active:
-            try:
-                await self._send_off(did)
-            except Exception:
-                pass
-
-    async def _cleanup(self):
-        """Release actuators and close session."""
-        await self._release_all()
-        if self._tester_task:
-            self._tester_task.cancel()
-            try:
-                await self._tester_task
-            except asyncio.CancelledError:
-                pass
 
     def _apply_edit(self, did: str, field: str, value) -> None:
         """Persist an edit to ecus/<ecu>.yaml and refresh in-memory state.
@@ -741,7 +508,9 @@ class _IOControlTUI:
             # cable lock, defogger) — producing an audible click on the first
             # poll. So it is off by default; the user enables it explicitly.
             poll_task = (
-                asyncio.ensure_future(self._status_poll_loop()) if self._poll_enabled else None
+                asyncio.ensure_future(self.actuator.status_poll_loop())
+                if self._poll_enabled
+                else None
             )
 
             self._draw()
@@ -795,7 +564,7 @@ class _IOControlTUI:
                         if hex_str and len(hex_str) % 2 == 0 and not self._busy:
                             did = self.dids[self.cursor]
                             value_bytes = bytes.fromhex(hex_str)
-                            await self._send_adjust(did, value_bytes)
+                            await self.actuator.send_adjust(did, value_bytes)
                         elif hex_str:
                             self._status = "Invalid: need even number of hex chars"
                     elif key in ("\x7f", "\x08"):  # Backspace/Delete
@@ -820,11 +589,11 @@ class _IOControlTUI:
                 elif key in ("\r", "\n", " "):  # Enter or Space — toggle ON/OFF
                     if not self._busy:
                         did = self.dids[self.cursor]
-                        await self._toggle(did)
+                        await self.actuator.toggle(did)
                 elif key in ("o", "O"):  # Explicit OFF
                     if not self._busy:
                         did = self.dids[self.cursor]
-                        await self._send_off(did)
+                        await self.actuator.send_off(did)
                 elif key in ("v", "V"):  # Enter hex value input mode
                     if not self._busy:
                         did = self.dids[self.cursor]
@@ -837,14 +606,14 @@ class _IOControlTUI:
                         val = int.from_bytes(self.last_value[did], "big") + 1
                         n = len(self.last_value[did])
                         if val < (1 << (8 * n)):
-                            await self._send_adjust(did, val.to_bytes(n, "big"))
+                            await self.actuator.send_adjust(did, val.to_bytes(n, "big"))
                 elif key == "-" and not self._busy:  # Decrement last value
                     did = self.dids[self.cursor]
                     if did in self.last_value:
                         val = int.from_bytes(self.last_value[did], "big") - 1
                         n = len(self.last_value[did])
                         if val >= 0:
-                            await self._send_adjust(did, val.to_bytes(n, "big"))
+                            await self.actuator.send_adjust(did, val.to_bytes(n, "big"))
                 elif key == "e" and not self._busy:  # Edit label
                     did = self.dids[self.cursor]
                     self._edit_input = ("label", self.cmds[did].get("label", ""))
@@ -887,7 +656,7 @@ class _IOControlTUI:
             sys.stdout.flush()
             # Print final state to main screen
             print(final_render)
-            await self._cleanup()
+            await self.actuator.cleanup()
             _tui_logger.info("TUI session end")
             print(f"  Debug log: {_LOG_FILE}")
 
