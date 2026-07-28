@@ -22,6 +22,7 @@
 #
 AVN:
   tx_id: 0x780
+  can_bus: [M, B, P] # Source: connector pinouts
   identity:
     alias: IVI # In-Vehicle Infotainment
     description: Audio/Video/Navigation head unit
