@@ -10,14 +10,15 @@ import math
 import struct
 
 from canlib import inspect_bytes as ib
+from canlib.inspect_bytes import InspectType
 
-U8 = ("u8", 1, "int", False)
-I8 = ("i8", 1, "int", True)
-U16 = ("u16", 2, "int", False)
-I16 = ("i16", 2, "int", True)
-U24 = ("u24", 3, "int", False)
-U32 = ("u32", 4, "int", False)
-F32 = ("f32", 4, "float", True)
+U8 = InspectType("u8", 1, "int", False)
+I8 = InspectType("i8", 1, "int", True)
+U16 = InspectType("u16", 2, "int", False)
+I16 = InspectType("i16", 2, "int", True)
+U24 = InspectType("u24", 3, "int", False)
+U32 = InspectType("u32", 4, "int", False)
+F32 = InspectType("f32", 4, "float", True)
 
 FRAME = bytes([0x04, 0x61, 0x01, 0xAB, 0xCD, 0x00])  # PCI, SID, echo, data...
 

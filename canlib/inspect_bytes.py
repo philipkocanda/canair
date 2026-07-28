@@ -19,34 +19,51 @@ leaf style.
 from __future__ import annotations
 
 import struct
+from typing import NamedTuple
 
-# name, byte width, kind ("int"/"float"), signed (ints only)
-INSPECT_TYPES = [
-    ("u8", 1, "int", False),
-    ("i8", 1, "int", True),
-    ("u16", 2, "int", False),
-    ("i16", 2, "int", True),
-    ("u24", 3, "int", False),
-    ("i24", 3, "int", True),
-    ("u32", 4, "int", False),
-    ("i32", 4, "int", True),
-    ("u64", 8, "int", False),
-    ("i64", 8, "int", True),
-    ("f16", 2, "float", True),
-    ("f32", 4, "float", True),
-    ("f64", 8, "float", True),
+
+class InspectType(NamedTuple):
+    """One data-inspector interpretation: read ``width`` bytes as ``kind``.
+
+    A named view over the former ``(name, width, kind, signed)`` 4-tuple so the
+    fields read as ``spec.width``/``spec.kind`` rather than opaque ``spec[1]``.
+    Still a ``tuple`` at runtime, so positional access and plain-tuple equality
+    keep working for existing callers.
+    """
+
+    name: str
+    width: int
+    kind: str  # "int" or "float"
+    signed: bool  # ints only; floats are always signed
+
+
+INSPECT_TYPES: list[InspectType] = [
+    InspectType("u8", 1, "int", False),
+    InspectType("i8", 1, "int", True),
+    InspectType("u16", 2, "int", False),
+    InspectType("i16", 2, "int", True),
+    InspectType("u24", 3, "int", False),
+    InspectType("i24", 3, "int", True),
+    InspectType("u32", 4, "int", False),
+    InspectType("i32", 4, "int", True),
+    InspectType("u64", 8, "int", False),
+    InspectType("i64", 8, "int", True),
+    InspectType("f16", 2, "float", True),
+    InspectType("f32", 4, "float", True),
+    InspectType("f64", 8, "float", True),
 ]
 
 POST_TRANSFORMS = ("raw", "delta", "abs", "cumsum", "normalize", "smooth")
 
 
-def interpret_bytes(frame: bytes, offset: int, spec: tuple, little: bool = False) -> float | None:
-    """Read ``frame`` at ``offset`` as one INSPECT_TYPES spec, or None if OOB.
+def interpret_bytes(
+    frame: bytes, offset: int, spec: InspectType, little: bool = False
+) -> float | None:
+    """Read ``frame`` at ``offset`` as one :class:`InspectType`, or None if OOB.
 
-    ``spec`` is ``(name, width, kind, signed)``. Endianness applies to
-    multi-byte types; single bytes ignore it.
+    Endianness applies to multi-byte types; single bytes ignore it.
     """
-    _, width, kind, signed = spec
+    width, kind, signed = spec.width, spec.kind, spec.signed
     if offset < 0 or offset + width > len(frame):
         return None
     bs = frame[offset : offset + width]
@@ -78,14 +95,14 @@ def float_series_is_noise(values: list[float]) -> bool:
     return hi < 1e-6 or hi > 1e15
 
 
-def wican_expr(offset: int, spec: tuple, little: bool = False) -> str | None:
+def wican_expr(offset: int, spec: InspectType, little: bool = False) -> str | None:
     """Equivalent WiCAN expression for an interpretation, or None if not expressible.
 
     Big-endian ints map to the ``[Bnn:Bmm]`` / ``[Snn:Smm]`` forms; little-endian
     unsigned ints to a shift-composition; floats and little-endian *signed* ints
     have no direct expression in the WiCAN language.
     """
-    _, width, kind, signed = spec
+    width, kind, signed = spec.width, spec.kind, spec.signed
     if kind == "float":
         return None
     c = "S" if signed else "B"

@@ -3,8 +3,9 @@
 import math
 
 from canlib.commands import _decode_plot as dp
+from canlib.inspect_bytes import InspectType
 
-U16 = ("u16", 2, "int", False)
+U16 = InspectType("u16", 2, "int", False)
 
 FRAME = bytes([0x04, 0x61, 0x01, 0xAB, 0xCD, 0x00])  # PCI, SID, echo, data...
 
@@ -115,10 +116,10 @@ class TestNonFinite:
 
     def test_float_interpretation_can_be_nan(self):
         nan_bytes = bytes([0x7F, 0xC0, 0x00, 0x00])  # IEEE-754 quiet NaN, big-endian
-        v = dp.interpret_bytes(nan_bytes, 0, ("f32", 4, "float", True))
+        v = dp.interpret_bytes(nan_bytes, 0, InspectType("f32", 4, "float", True))
         assert v is not None and math.isnan(v)
         inf_bytes = bytes([0x7F, 0x80, 0x00, 0x00])  # +Inf
-        assert dp.interpret_bytes(inf_bytes, 0, ("f32", 4, "float", True)) == math.inf
+        assert dp.interpret_bytes(inf_bytes, 0, InspectType("f32", 4, "float", True)) == math.inf
 
     def test_stats_str_survives_stray_nan(self):
         # Backstop: a NaN reaching the stats line renders instead of raising.

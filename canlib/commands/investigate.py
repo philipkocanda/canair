@@ -15,6 +15,7 @@ import argparse
 import json as _json
 import sys
 from dataclasses import dataclass
+from typing import NamedTuple
 
 from canlib.align import (
     DEFAULT_JOIN_TOL_S,
@@ -419,12 +420,12 @@ def run(args) -> int:
                 mapped_by=m[0] if m else None,
                 mapped_verified=m[1] if m else False,
                 state_f=sf,
-                anchor=best[0] if best else None,
-                anchor_r=best[1] if best else None,
-                anchor_n=best[2] if best else 0,
-                slope=best[3] if best else None,
-                intercept=best[4] if best else None,
-                unit_guess=best[5] if best else None,
+                anchor=best.label if best else None,
+                anchor_r=best.r if best else None,
+                anchor_n=best.n if best else 0,
+                slope=best.slope if best else None,
+                intercept=best.intercept if best else None,
+                unit_guess=best.unit_guess if best else None,
                 driver_r=dr,
                 independence=_independence_score(sf, dr),
                 physical=physical_by_off.get(off),
@@ -463,12 +464,12 @@ def run(args) -> int:
                     mapped_by=m[0] if m else None,
                     mapped_verified=m[1] if m else False,
                     state_f=sf,
-                    anchor=best[0] if best else None,
-                    anchor_r=best[1] if best else None,
-                    anchor_n=best[2] if best else 0,
-                    slope=best[3] if best else None,
-                    intercept=best[4] if best else None,
-                    unit_guess=best[5] if best else None,
+                    anchor=best.label if best else None,
+                    anchor_r=best.r if best else None,
+                    anchor_n=best.n if best else 0,
+                    slope=best.slope if best else None,
+                    intercept=best.intercept if best else None,
+                    unit_guess=best.unit_guess if best else None,
                     bit=bit,
                     driver_r=dr,
                     independence=_independence_score(sf, dr),
@@ -573,12 +574,12 @@ def _run_can(args) -> int:
                 "bytes": [
                     {
                         "signal": name,
-                        "anchor": best[0] if best else None,
-                        "r": best[1] if best else None,
-                        "n": best[2] if best else 0,
-                        "slope": best[3] if best else None,
-                        "intercept": best[4] if best else None,
-                        "unit_guess": best[5] if best else None,
+                        "anchor": best.label if best else None,
+                        "r": best.r if best else None,
+                        "n": best.n if best else 0,
+                        "slope": best.slope if best else None,
+                        "intercept": best.intercept if best else None,
+                        "unit_guess": best.unit_guess if best else None,
                     }
                     for name, best in rows
                 ],
@@ -597,13 +598,13 @@ def _run_can(args) -> int:
     )
     shown = False
     for name, best in rows:
-        if best and best[1] is not None and abs(best[1]) >= args.min_r:
+        if best and best.r is not None and abs(best.r) >= args.min_r:
             _label, r, n, m, c, unit = best
             rc = _GREEN if abs(r) >= 0.7 else _YELLOW
             fit = f" fit y={m:.4f}·x{c:+.2f}" if m is not None else ""
             unit_s = f" {_CYAN}{unit}{_RESET}" if unit else ""
             print(
-                f"    {_BOLD}{name}{_RESET}  {rc}r={r:+.3f}{_RESET} vs {best[0]} "
+                f"    {_BOLD}{name}{_RESET}  {rc}r={r:+.3f}{_RESET} vs {best.label} "
                 f"{_DIM}n={n}{fit}{_RESET}{unit_s}"
             )
             shown = True
@@ -624,8 +625,14 @@ def _parse_bit_key(key: str) -> tuple[int, int]:
     return int(off.lstrip("B")), int(bit)
 
 
-# The strongest-anchor result: (label, r, n, slope, intercept, unit_guess).
-_AnchorHit = tuple[str, float, int, float | None, float | None, str | None]
+# The strongest-anchor result for one byte series.
+class AnchorHit(NamedTuple):
+    label: str  # the anchoring ECU:PID:PARAM signal
+    r: float  # Pearson correlation with the target byte
+    n: int  # aligned sample count
+    slope: float | None  # least-squares fit y = slope·x + intercept
+    intercept: float | None
+    unit_guess: str | None  # sniffed physical-unit guess for the fit
 
 
 def _best_anchor(
@@ -633,8 +640,8 @@ def _best_anchor(
     anchors_prepared: dict[str, PreparedSeries],
     tol: float,
     min_n: int,
-) -> _AnchorHit | None:
-    """The strongest-correlating anchor for one byte series → (label,r,n,m,c,unit).
+) -> AnchorHit | None:
+    """The strongest-correlating anchor for one byte series.
 
     ``anchors_prepared`` maps label → :class:`PreparedSeries` (built once by the
     caller); the target ``series`` is prepared once here and joined against each
@@ -643,7 +650,7 @@ def _best_anchor(
     if not anchors_prepared:
         return None
     ps = prepare_series(series)
-    best: _AnchorHit | None = None
+    best: AnchorHit | None = None
     for label, aprep in anchors_prepared.items():
         xs, ys, n = join_prepared(aprep, ps, tol_s=tol)
         if n < min_n:
@@ -651,10 +658,10 @@ def _best_anchor(
         r = correlation(xs, ys)
         if r is None:
             continue
-        if best is None or abs(r) > abs(best[1]):
+        if best is None or abs(r) > abs(best.r):
             fit = linear_fit(xs, ys)
             m, c = (fit[0], fit[1]) if fit else (None, None)
-            best = (label, r, n, m, c, sniff_unit(xs, ys))
+            best = AnchorHit(label, r, n, m, c, sniff_unit(xs, ys))
     return best
 
 

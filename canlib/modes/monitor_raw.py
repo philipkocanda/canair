@@ -20,6 +20,7 @@ import contextlib
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from .monitor import MonitorController
     from .multi_batch import EcuFrame, ResultEntry
 
 
@@ -69,7 +70,7 @@ class MonitorRawPoller:
     back-reference ``self.c``.
     """
 
-    def __init__(self, controller):
+    def __init__(self, controller: MonitorController):
         self.c = controller
         # Learned per-DID data lengths (ecu, did4) -> len, and ECUs that rejected
         # batching (NRC 0x13/0x31 or an unsplittable positive) this session.
