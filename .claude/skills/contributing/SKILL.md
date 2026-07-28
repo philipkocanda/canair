@@ -438,6 +438,29 @@ README→`docs/` links); a broken cross-link is a defect (Boy Scout: fix stale
 paths you pass). The docs strategy and the README/`docs/` policy are recorded in
 `plans/2026-07-24-documentation-strategy.md`.
 
+## Commit messages
+
+Match the repo's established style — **inspect `git log --oneline` first** and
+mirror what you see; don't invent a new format.
+
+- **`prefix: lower-case summary`.** The subject is a short lower-case-area prefix
+  and a terse imperative-ish summary (e.g. `types: …`, `refactor: …`,
+  `captures: …`, `docs: …`, `test: …`, `pids: …`). The prefix is the *area/kind*
+  touched, not a fixed enum — read `git log` for the vocabulary in use and reuse
+  an existing one rather than coining a synonym.
+- **Body explains the *why* and the shape of the change**, wrapped prose +
+  bullets, not a file-by-file changelog (the diff already lists files). Lead with
+  intent.
+- **Reference the plan doc when the change implements one** (name
+  `plans/YYYY-MM-DD-*.md`), the same durable-pointer rule as release notes — and
+  like release notes, **keep internal scaffolding out of the subject** (no "Stage
+  N"/phase numbers; describe the capability/contract that landed).
+- **Commit only when asked, and only intended files.** Follow the git rules in
+  the root/`~/.config` AGENTS.md: inspect `git status`/`git diff`/`git log`
+  first, stage deliberately (a pre-existing partial index is a smell — reconcile
+  it, don't blindly `git add -A` over surprises), never commit secrets/PII, and
+  don't push/tag/amend unless explicitly requested.
+
 ## Cutting a release
 
 Version is single-sourced in `pyproject.toml` (`canlib.__version__` reads it via
