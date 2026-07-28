@@ -341,6 +341,30 @@ siblings so each command drops back toward argparse + orchestration.
 
 ### C6. God-object decomposition (higher-risk, later)
 
+**DONE (2026-07-27, with explicit sign-off).** Both remaining >900-line god
+objects shed a focused collaborator via the delegate-to-collaborator pattern the
+`modes/` files already use (`MonitorRawPoller`/`MonitorEditor`):
+
+- **`MonitorController` (929 → 759).** Recording/journaling extracted to
+  `modes/_monitor_record.py::MonitorRecorder` (frame counters, display/`--save`
+  history, write-ahead journal, on-demand save, segment rotation, segment
+  metadata + the `_merge_history`/`_write_merged`/`_open_journal` helpers). The
+  controller keeps poll/display state (`prev_hex`/`decoded_values`) the recorder
+  reads via its back-ref, and exposes the tested surface (`total_frames`/
+  `unique_frames`/`journal`/`session_*`/`save_now`/`new_segment`/`has_captures`/
+  `_record`) via thin delegating properties/methods, so the 160 monitor tests +
+  TUI/renderer are unchanged.
+- **`_IOControlTUI` (916 → 685).** CAN-facing session + actuation extracted to
+  `modes/_iocontrol_actuate.py::IOControlActuator` (`ensure_session`/`send_on`/
+  `send_off`/`toggle`/`send_adjust`/`poll_status_once`/`status_poll_loop`/
+  `release_all`/`cleanup`/`extract_status_bytes`). Pure behaviour move — all
+  state stays on the TUI, the actuator reads/updates it through a **typed**
+  back-ref (`self.t: _IOControlTUI`). The TUI has no automated tests, so the
+  typed back-ref is the structural guard: `ty` verifies every state access. Both
+  extractions verified with `ruff`/`ty`/full suite (2461 green) + smoke.
+
+<details><summary>Original plan text</summary>
+
 - `MonitorController` (`modes/monitor.py`, 912) and `_IOControlTUI`
   (`modes/iocontrol.py`, 916) remain >900 after the prior renderer/poller
   extraction. Decompose further into focused collaborators (recording/journaling
@@ -351,6 +375,8 @@ siblings so each command drops back toward argparse + orchestration.
 - **Risk:** higher (TUI + async device state). Do **only after** C1–C5 land and
   with explicit sign-off — this is the "propose a redesign before adding a layer"
   case, not a quick move. Surface the decomposition sketch to the user first.
+
+</details>
 
 ---
 
