@@ -519,6 +519,13 @@ Version is single-sourced in `pyproject.toml` (`canlib.__version__` reads it via
 `gh release create`. Match the existing tag/release style (`git tag -a`, one
 GitHub release per tag) — inspect the previous tag/release first.
 
+**Regenerate `uv.lock` in the same release commit as the version bump.** `uv.lock`
+is tracked and pins canair's *own* editable version, so bumping `pyproject.toml`
+leaves the lock stale (still pinning the old version) — run `uv lock` right after
+the bump and commit both together (verify the diff is only the `version` line, no
+unintended dependency churn). Skipping it means a fresh `uv sync` from the tagged
+commit resolves against a lock that disagrees with `pyproject.toml`.
+
 **Write release notes for the *reader*, not the committer:**
 
 - **Never expose internal development scaffolding** — plan-doc "Stage N", phase
