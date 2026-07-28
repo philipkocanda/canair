@@ -4,11 +4,11 @@ import asyncio
 import json
 import sys
 
-from ..terminal import WiCANTerminal
+from ..transport.protocol import Terminal
 
 
 async def mode_scan(
-    terminal: WiCANTerminal,
+    terminal: Terminal,
     tx_id: int,
     service: int,
     pid_range: tuple[int, int],

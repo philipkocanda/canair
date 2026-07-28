@@ -34,7 +34,8 @@ from __future__ import annotations
 import sys
 from typing import NamedTuple
 
-from ..terminal import WiCANTerminal
+from ..transport.protocol import Terminal
+from ..uds_parse import UdsResponse
 from .discovery_scan import DiscoveryProbe, mode_discovery_scan
 
 # Routine sub-functions
@@ -73,16 +74,16 @@ class RoutineHit(NamedTuple):
 
 
 async def probe_routine(
-    terminal: WiCANTerminal,
+    terminal: Terminal,
     rid: int,
     sub_function: int = SF_RESULTS,
-) -> dict:
+) -> UdsResponse:
     """Send ``31 {SF} {RID_HI} {RID_LO}`` and return the parsed response."""
     req = f"31{sub_function:02X}{rid:04X}"
     return await terminal.send_uds(req, timeout=2.0)
 
 
-def classify(response: dict) -> tuple[str, int | None]:
+def classify(response: UdsResponse) -> tuple[str, int | None]:
     """Classify a probe response.
 
     Returns (category, nrc) where category is one of:
@@ -135,7 +136,7 @@ ROUTINES_PROBE = DiscoveryProbe(
 
 
 async def mode_routines_scan(
-    terminal: WiCANTerminal,
+    terminal: Terminal,
     pids_data: dict,
     ecus: list[str],
     rid_range: tuple[int, int] = (0xF000, 0xF0FF),

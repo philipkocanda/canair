@@ -12,6 +12,7 @@ way); this module re-exports ``decode_date`` and layers the identity-specific
 
 from ..decode_value import bytes_to_ascii, decode_date
 from ..ecus import ecu_id_protocol
+from ..uds_parse import UdsResponse
 
 __all__ = [
     "decode_date",
@@ -60,7 +61,7 @@ def resolve_protocol_hint(tx_id: int, requested: str) -> str | None:
     return None  # "none"/"unknown"/missing -> probe
 
 
-def service_supported(resp: dict) -> bool | None:
+def service_supported(resp: UdsResponse) -> bool | None:
     """Interpret a probe response: True=supported, False=not, None=no signal.
 
     A positive response or any NRC other than serviceNotSupported (0x11) /

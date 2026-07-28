@@ -8,6 +8,7 @@ from rich.text import Text
 
 from .byteindex import extract_byte_indices, wican_to_elm_idx
 from .decoding import ParamRow
+from .uds_parse import UdsResponse
 
 if TYPE_CHECKING:
     from .modes.multi_batch import ResultEntry
@@ -540,7 +541,7 @@ def decode_uds_response(data: bytes) -> str | None:
     return None
 
 
-def print_json_result(result: dict):
+def print_json_result(result: UdsResponse):
     """Print result as JSON for machine consumption."""
     out = {}
     for k, v in result.items():

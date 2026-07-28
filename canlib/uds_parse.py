@@ -10,6 +10,36 @@ harmless there.
 """
 
 import re
+from typing import NotRequired, TypedDict
+
+
+class UdsResponse(TypedDict):
+    """Structured result of :func:`parse_uds_response` — the shape every transport returns.
+
+    Both the ``wican-ws`` (:class:`canlib.terminal.WiCANTerminal`) and
+    ``slcan-tcp`` (:class:`canlib.transport.raw_terminal.RawTerminal`) paths
+    funnel their raw response through :func:`parse_uds_response`, so downstream
+    code sees this identical shape regardless of transport. ``raw``/``ok`` are
+    always present; the rest depend on the outcome:
+
+    - a parseable positive carries ``hex``/``bytes`` (and ``isotp_declared_len``
+      on a multi-frame read that reported an ISO-TP First Frame length);
+    - a negative (``7F``) carries ``nrc``/``nrc_service``/``nrc_desc`` — unless
+      the NRC echoes a *different* service, in which case those are dropped and
+      ``error`` is set instead;
+    - a parse failure / ``NO DATA`` / echo mismatch carries ``error``.
+    """
+
+    raw: str  # always: original response text
+    ok: bool  # always: positive + echo-matching?
+    hex: NotRequired[str]  # parseable positive: uppercased, space-stripped
+    bytes: NotRequired[bytes]  # parseable positive
+    isotp_declared_len: NotRequired[int]  # multi-frame: ISO-TP First Frame length
+    nrc: NotRequired[int]  # negative (7F): the NRC byte
+    nrc_service: NotRequired[int]  # negative: echoed service byte
+    nrc_desc: NotRequired[str]  # negative: human description
+    error: NotRequired[str]  # parse failure / NO DATA / echo mismatch
+
 
 # UDS Negative Response Code descriptions
 NRC_CODES = {
@@ -194,7 +224,7 @@ def parse_uds_response(
     expected_sid: int | None = None,
     expected_did: int | None = None,
     expected_echo: bytes | None = None,
-) -> dict:
+) -> UdsResponse:
     """Parse a UDS response (as returned by any transport) into structured data.
 
     Args:
@@ -231,7 +261,7 @@ def parse_uds_response(
         error: str - error message (if parse failed or echo mismatched)
         raw: str - original response text
     """
-    result = {"raw": raw, "ok": False}
+    result: UdsResponse = {"raw": raw, "ok": False}
 
     lines = raw.strip().split("\n")
     lines = [line.strip() for line in lines if line.strip()]

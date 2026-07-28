@@ -22,18 +22,25 @@ Response dicts mirror :func:`canlib.uds_parse.parse_uds_response`: positives are
 
 from __future__ import annotations
 
-NO_DATA: dict = {"ok": False, "error": "NO DATA", "raw": "NO DATA"}
+from canlib.uds_parse import UdsResponse
+
+NO_DATA: UdsResponse = {"ok": False, "error": "NO DATA", "raw": "NO DATA"}
 
 
-def ok(hex_str: str) -> dict:
+def ok(hex_str: str) -> UdsResponse:
     """Build a positive UDS response dict from a hex payload string."""
     clean = hex_str.replace(" ", "")
     return {"ok": True, "bytes": bytes.fromhex(clean), "hex": clean.upper(), "raw": hex_str}
 
 
-def nrc(code: int, desc: str = "") -> dict:
-    """Build a negative-response (NRC) dict."""
-    d: dict = {"ok": False, "nrc": code}
+def nrc(code: int, desc: str = "") -> UdsResponse:
+    """Build a negative-response (NRC) dict.
+
+    ``raw`` mirrors the real parser, which always echoes the transport text — a
+    reconstructed ``7F <nrc>`` marker here (the service byte is unknown to this
+    minimal builder), so the payload is a valid :class:`UdsResponse`.
+    """
+    d: UdsResponse = {"ok": False, "nrc": code, "raw": f"7F{code:02X}"}
     if desc:
         d["nrc_desc"] = desc
     return d
@@ -98,7 +105,7 @@ class FakeTerminal:
         expected_echo: bytes | None = None,
         retries: int = 0,
         **kw,
-    ) -> dict:
+    ) -> UdsResponse:
         self.sent.append(req)
         self.calls.append(("send_uds", req))
         self.uds_kwargs.append(

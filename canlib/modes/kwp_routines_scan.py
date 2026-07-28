@@ -24,7 +24,8 @@ from __future__ import annotations
 import sys
 from typing import NamedTuple
 
-from ..terminal import WiCANTerminal
+from ..transport.protocol import Terminal
+from ..uds_parse import UdsResponse
 from .discovery_scan import DiscoveryProbe, mode_discovery_scan
 
 # NRCs that still indicate "routine local identifier exists"
@@ -54,7 +55,7 @@ class KwpRoutineHit(NamedTuple):
     nrc_desc: str | None
 
 
-async def probe_kwp_routine_results(terminal: WiCANTerminal, lid: int) -> dict:
+async def probe_kwp_routine_results(terminal: Terminal, lid: int) -> UdsResponse:
     """Send ``33 {LID}`` (RequestRoutineResultsByLocalIdentifier) — read-only.
 
     Validates the ``0x73`` response SID and guards against the stale-frame -1
@@ -75,7 +76,7 @@ async def probe_kwp_routine_results(terminal: WiCANTerminal, lid: int) -> dict:
     return resp
 
 
-def classify(response: dict) -> tuple[str, int | None]:
+def classify(response: UdsResponse) -> tuple[str, int | None]:
     """Classify a probe response.
 
     "positive" | "exists" | "absent" | "service-absent" | "wrong-session" | "error".
@@ -126,7 +127,7 @@ KWP_ROUTINES_PROBE = DiscoveryProbe(
 
 
 async def mode_kwp_routines_scan(
-    terminal: WiCANTerminal,
+    terminal: Terminal,
     pids_data: dict,
     ecus: list[str],
     lid_range: tuple[int, int] | None = None,

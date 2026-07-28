@@ -4,11 +4,11 @@ import asyncio
 import json
 import sys
 
-from ..terminal import WiCANTerminal
+from ..transport.protocol import Terminal
 
 
 async def mode_discover(
-    terminal: WiCANTerminal,
+    terminal: Terminal,
     addr_range: tuple[int, int],
     verbose: bool,
     as_json: bool,
@@ -198,7 +198,7 @@ def _classify_alive(
 
 
 async def _offer_identify(
-    terminal: WiCANTerminal,
+    terminal: Terminal,
     alive: list[tuple[int, str, str]],
     identify: bool,
     as_json: bool,

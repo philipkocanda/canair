@@ -19,7 +19,7 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING
 
-from ..uds_parse import nrc_abbrev
+from ..uds_parse import UdsResponse, nrc_abbrev
 
 if TYPE_CHECKING:
     from .iocontrol import _IOControlTUI
@@ -45,7 +45,7 @@ class IOControlActuator:
         t._session_active = ok
         _tui_logger.info("Session established: %s", ok)
 
-    def extract_status_bytes(self, did: str, resp: dict) -> None:
+    def extract_status_bytes(self, did: str, resp: UdsResponse) -> None:
         """Extract the controlStatusRecord tail from a 0x2F response and store it.
 
         A positive 0x2F response is `6F {DID_HI} {DID_LO} [tail bytes...]`.

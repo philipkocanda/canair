@@ -7,11 +7,11 @@ from ..autopid_layout import uds_hex_to_wican_bytes
 from ..expression import evaluate_expression
 from ..formatting import print_decoded_params
 from ..pids import build_param_index
-from ..terminal import WiCANTerminal
+from ..transport.protocol import Terminal
 
 
 async def mode_param(
-    terminal: WiCANTerminal,
+    terminal: Terminal,
     pids_data: dict,
     param_names: list[str],
     verbose: bool,

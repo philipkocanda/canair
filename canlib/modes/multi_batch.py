@@ -14,6 +14,7 @@ from typing import NotRequired, TypedDict
 
 from ..decoding import ParamRow, decode_param_rows
 from ..formatting import decode_uds_response
+from ..uds_parse import UdsResponse
 
 
 class ResultEntry(TypedDict):
@@ -172,7 +173,7 @@ def _decode_pid_result(
 
 
 def _error_result(
-    pid_code: str, unmapped: bool, resp: dict, acquired_at: float | None
+    pid_code: str, unmapped: bool, resp: UdsResponse, acquired_at: float | None
 ) -> ResultEntry:
     error = resp.get("error") or resp.get("nrc_desc", "unknown")
     nrc = resp.get("nrc")

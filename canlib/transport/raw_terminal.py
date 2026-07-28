@@ -24,7 +24,7 @@ import isotp
 from ..log import log_response
 from ..safety import enforce_command_safety
 from ..timing import TimingRecorder
-from ..uds_parse import parse_uds_response
+from ..uds_parse import UdsResponse, parse_uds_response
 from .uds_raw import (
     PENDING_RECV_TIMEOUT,
     PENDING_TOTAL_TIMEOUT,
@@ -96,7 +96,7 @@ class RawTerminal:
         expected_did: int | None = None,
         expected_echo: bytes | None = None,
         retries: int = 0,
-    ) -> dict:
+    ) -> UdsResponse:
         await enforce_command_safety(service_pid, self.unsafe)
         try:
             req = bytes.fromhex(service_pid.replace(" ", ""))

@@ -8,11 +8,11 @@ to show a live status column alongside each actuator.
 from ..autopid_layout import uds_hex_to_wican_bytes
 from ..expression import evaluate_expression
 from ..pids import build_param_index
-from ..terminal import WiCANTerminal
+from ..transport.protocol import Terminal
 
 
 async def query_param_status(
-    terminal: WiCANTerminal,
+    terminal: Terminal,
     pids_data: dict,
     param_name: str,
     verbose: bool = False,

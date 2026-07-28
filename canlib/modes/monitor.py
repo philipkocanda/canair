@@ -660,7 +660,7 @@ async def mode_monitor(
     kept alive with background keepalives.
 
     Args:
-        terminal:       Connected WiCANTerminal.
+        terminal:       Connected terminal (WiCANTerminal or RawTerminal).
         query_steps:    list of {'type': 'query', 'ecu': ..., 'pids': [...]} dicts.
         pids_data:      Loaded PID definitions.
         verbose:        Show expressions.

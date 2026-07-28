@@ -29,7 +29,7 @@ from pathlib import Path
 
 from ..pids import build_routines_index, load_pids
 from ..pids_edit import PidsEditError, update_routines_field
-from ..terminal import WiCANTerminal
+from ..transport.protocol import Terminal
 from ..tui import terminal_columns as _terminal_columns
 from ..tui import terminal_lines as _terminal_lines
 from ..uds_parse import nrc_abbrev
@@ -138,7 +138,7 @@ def mode_routines_list(pids_data: dict, ecu_name: str, as_json: bool = False):
 
 
 async def mode_routines_execute(
-    terminal: WiCANTerminal,
+    terminal: Terminal,
     pids_data: dict,
     ecu_name: str,
     rid: str,
@@ -244,7 +244,7 @@ class _RoutinesTUI:
 
     def __init__(
         self,
-        terminal: WiCANTerminal,
+        terminal: Terminal,
         ecu_key: str,
         ecu_info: dict,
         pids_data: dict,
@@ -645,7 +645,7 @@ class _RoutinesTUI:
 
 
 async def mode_routines_tui(
-    terminal: WiCANTerminal,
+    terminal: Terminal,
     pids_data: dict,
     ecu_name: str,
     verbose: bool = False,

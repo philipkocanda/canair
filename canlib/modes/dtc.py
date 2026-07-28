@@ -19,7 +19,7 @@ import asyncio
 import json
 
 from ..ecus import ecu_display
-from ..terminal import WiCANTerminal
+from ..transport.protocol import Terminal
 
 # SAE J2012 DTC category letters, selected by the top two bits of the first byte.
 _DTC_LETTERS = ("P", "C", "B", "U")
@@ -149,7 +149,7 @@ def _report_read(as_json: bool, result: dict) -> None:
 
 
 async def mode_dtc_read(
-    terminal: WiCANTerminal,
+    terminal: Terminal,
     tx_id: int,
     mask: int = 0xFF,
     protocol: str = "auto",
@@ -240,7 +240,7 @@ def _print_log_result(path, previous, diff) -> None:
 
 
 async def _read_one(
-    terminal: WiCANTerminal,
+    terminal: Terminal,
     tx_id: int,
     mask: int,
     protocol: str,
@@ -256,7 +256,7 @@ async def _read_one(
 
 
 async def _read_uds(
-    terminal: WiCANTerminal, tx_id: int, mask: int, verbose: bool, timeout: float = 3.0
+    terminal: Terminal, tx_id: int, mask: int, verbose: bool, timeout: float = 3.0
 ) -> dict:
     ecu = ecu_display(tx_id)
     cmd = f"1902{mask & 0xFF:02X}"
@@ -289,7 +289,7 @@ async def _read_uds(
     return {**base, "error": response.get("error", "unknown")}
 
 
-async def _read_kwp(terminal: WiCANTerminal, tx_id: int, timeout: float = 3.0) -> dict:
+async def _read_kwp(terminal: Terminal, tx_id: int, timeout: float = 3.0) -> dict:
     ecu = ecu_display(tx_id)
     response = None
     cmd = _KWP_READ_REQUESTS[0]
@@ -384,7 +384,7 @@ async def _wake_read(terminal, tx_id, mask, protocol, verbose, timeout):
 
 
 async def mode_dtc_scan_all(
-    terminal: WiCANTerminal,
+    terminal: Terminal,
     mask: int = 0xFF,
     protocol: str = "auto",
     as_json: bool = False,
@@ -509,7 +509,7 @@ async def mode_dtc_scan_all(
 
 
 async def mode_dtc_clear(
-    terminal: WiCANTerminal,
+    terminal: Terminal,
     tx_id: int,
     group: int = 0xFFFFFF,
     protocol: str = "auto",

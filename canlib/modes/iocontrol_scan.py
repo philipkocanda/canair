@@ -41,7 +41,8 @@ from __future__ import annotations
 import sys
 from typing import NamedTuple
 
-from ..terminal import WiCANTerminal
+from ..transport.protocol import Terminal
+from ..uds_parse import UdsResponse
 from .discovery_scan import DiscoveryProbe, mode_discovery_scan
 
 # IOControl sub-functions — 0x00 is the ONLY safe one for scanning
@@ -82,10 +83,10 @@ class IOControlHit(NamedTuple):
 
 
 async def probe_iocontrol(
-    terminal: WiCANTerminal,
+    terminal: Terminal,
     did: int,
     sub_function: int = SF_RETURN_CONTROL,
-) -> dict:
+) -> UdsResponse:
     """Send ``2F {DID_HI} {DID_LO} {SF}`` and return the parsed response.
 
     Uses SID/DID echo validation (``expected_sid=0x2F``, ``expected_did=did``)
@@ -109,7 +110,7 @@ async def probe_iocontrol(
     )
 
 
-def classify(response: dict) -> tuple[str, int | None]:
+def classify(response: UdsResponse) -> tuple[str, int | None]:
     """Classify a probe response.
 
     Returns (category, nrc) where category is one of:
@@ -190,7 +191,7 @@ IOCONTROL_PROBE = DiscoveryProbe(
 
 
 async def mode_iocontrol_scan(
-    terminal: WiCANTerminal,
+    terminal: Terminal,
     pids_data: dict,
     ecus: list[str],
     did_range: tuple[int, int] | None = None,

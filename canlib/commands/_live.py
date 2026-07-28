@@ -54,6 +54,7 @@ from canlib.modes.routines import mode_routines_execute, mode_routines_list
 from canlib.modes.routines_scan import mode_routines_scan
 from canlib.states import parse_states
 from canlib.transport.config import DEFAULT_TRANSPORT, VALID_TRANSPORTS
+from canlib.transport.protocol import Terminal
 
 try:
     import websockets
@@ -528,11 +529,14 @@ def run(args) -> int:
     return run_live(args)
 
 
-async def dispatch_mode(args, terminal, pids_data, host):
+async def dispatch_mode(args, terminal: Terminal, pids_data, host):
     """Dispatch a live subcommand to its mode handler over ``terminal``.
 
     Shared by the ELM (WiCANTerminal) and raw (RawTerminal) transports so the
     same commands work on either — the transport differs, the dispatch does not.
+    Typed against the :class:`~canlib.transport.protocol.Terminal` contract, not
+    a concrete class, so a mode reaching for a transport-specific attribute is a
+    ``ty`` error (the "keep the WiCAN replaceable" rule, compiler-checked).
     """
     if args.multi and args.monitor:
         from canlib.modes.multi import parse_sub_commands
@@ -948,4 +952,16 @@ async def dispatch_mode(args, terminal, pids_data, host):
             identify=getattr(args, "identify", False),
         )
     else:
+        # The interactive REPL is an ELM327 command prompt: it sets the ECU
+        # header via raw ``ATSH`` sends, which are no-ops on the raw transport
+        # (RawTerminal uses set_header(), not ATSH parsing), so a UDS request
+        # would fire with no header set. Guard like skm-wake so raw reports a
+        # clear error instead of a half-working prompt.
+        if not isinstance(terminal, WiCANTerminal):
+            print(
+                "Error: the interactive REPL is only supported on the wican-ws "
+                "(ELM327) transport, not slcan-tcp.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
         await mode_interactive(terminal, pids_data, args.verbose)

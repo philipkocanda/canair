@@ -32,7 +32,8 @@ from __future__ import annotations
 import sys
 from typing import NamedTuple
 
-from ..terminal import WiCANTerminal
+from ..transport.protocol import Terminal
+from ..uds_parse import UdsResponse
 from .discovery_scan import DiscoveryProbe, mode_discovery_scan
 
 # InputOutputControlParameter (IOCP) — byte after the LID. 0x00 is the ONLY safe one.
@@ -71,10 +72,10 @@ class KwpIOControlHit(NamedTuple):
 
 
 async def probe_kwp_iocontrol(
-    terminal: WiCANTerminal,
+    terminal: Terminal,
     lid: int,
     iocp: int = IOCP_RETURN_CONTROL,
-) -> dict:
+) -> UdsResponse:
     """Send ``30 {LID} 00`` (returnControlToECU) and return the parsed response.
 
     Validates the ``0x70`` response SID echo. Refuses any IOCP other than
@@ -102,7 +103,7 @@ async def probe_kwp_iocontrol(
     return resp
 
 
-def classify(response: dict) -> tuple[str, int | None]:
+def classify(response: UdsResponse) -> tuple[str, int | None]:
     """Classify a probe response (identical semantics to the UDS 0x2F scanner).
 
     "positive" | "exists" | "absent" | "service-absent" | "wrong-session" | "error".
@@ -154,7 +155,7 @@ KWP_IOCONTROL_PROBE = DiscoveryProbe(
 
 
 async def mode_kwp_iocontrol_scan(
-    terminal: WiCANTerminal,
+    terminal: Terminal,
     pids_data: dict,
     ecus: list[str],
     lid_range: tuple[int, int] | None = None,

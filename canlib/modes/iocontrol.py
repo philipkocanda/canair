@@ -15,7 +15,7 @@ from pathlib import Path
 
 from ..pids import build_iocontrol_index, load_pids
 from ..pids_edit import PidsEditError, promote_discovery, update_iocontrol_field
-from ..terminal import WiCANTerminal
+from ..transport.protocol import Terminal
 from ..tui import terminal_columns as _terminal_columns
 from ..tui import terminal_lines as _terminal_lines
 from ._iocontrol_actuate import IOControlActuator
@@ -97,7 +97,7 @@ def mode_iocontrol_list(pids_data: dict, ecu_name: str, as_json: bool = False):
 
 
 async def mode_iocontrol_execute(
-    terminal: WiCANTerminal,
+    terminal: Terminal,
     pids_data: dict,
     ecu_name: str,
     did: str,
@@ -257,7 +257,7 @@ class _IOControlTUI:
 
     def __init__(
         self,
-        terminal: WiCANTerminal,
+        terminal: Terminal,
         ecu_key: str,
         ecu_info: dict,
         pids_data: dict,
@@ -662,7 +662,7 @@ class _IOControlTUI:
 
 
 async def mode_iocontrol_tui(
-    terminal: WiCANTerminal,
+    terminal: Terminal,
     pids_data: dict,
     ecu_name: str,
     verbose: bool = False,

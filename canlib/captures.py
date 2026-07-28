@@ -11,6 +11,7 @@ from pathlib import Path
 from . import capture_io
 from .states import join_states as _join_states
 from .states import parse_states as _parse_states
+from .uds_parse import UdsResponse
 
 # ---------------------------------------------------------------------------
 # Metadata prompt
@@ -142,7 +143,7 @@ def build_scan_session(
     tx_id: int,
     service: int,
     pid_range: tuple[int, int],
-    positive: list[tuple[int, dict]],
+    positive: list[tuple[int, UdsResponse]],
     negative: list[tuple[int, int, str]],
     errors: list[tuple[int, str]],
     label: str,
@@ -207,7 +208,7 @@ def build_raw_session(
     ecu_ref: str,
     tx_id: int,
     request: str,
-    response: dict,
+    response: UdsResponse,
     label: str,
     vehicle_states: list,
     notes: str,

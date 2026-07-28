@@ -18,6 +18,7 @@ from ..formatting import (
 )
 from ..pids import build_iocontrol_index
 from ..session_manager import SessionManager
+from ..terminal import WiCANTerminal
 from ..uds_parse import request_echo
 from .multi_batch import (
     BatchState,
@@ -34,6 +35,10 @@ async def _exec_skm_wake(sm: SessionManager, level: str, verbose: bool):
     from .skm_wakeup import mode_skm_wakeup
 
     terminal = sm.terminal
+
+    if not isinstance(terminal, WiCANTerminal):
+        print("  skm-wake is only supported on the wican-ws (ELM327) transport.")
+        return False
 
     success = await mode_skm_wakeup(terminal, level, verbose)
     if success:

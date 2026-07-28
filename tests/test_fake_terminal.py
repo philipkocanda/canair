@@ -15,11 +15,12 @@ class TestResponseBuilders:
         assert r == {"ok": True, "bytes": b"\x62\xb0\x04", "hex": "62B004", "raw": "62 B0 04"}
 
     def test_nrc_shape(self):
-        assert nrc(0x31) == {"ok": False, "nrc": 0x31}
+        assert nrc(0x31) == {"ok": False, "nrc": 0x31, "raw": "7F31"}
         assert nrc(0x11, "serviceNotSupported") == {
             "ok": False,
             "nrc": 0x11,
             "nrc_desc": "serviceNotSupported",
+            "raw": "7F11",
         }
 
 

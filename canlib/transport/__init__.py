@@ -18,6 +18,7 @@ from .config import (
     TransportSpec,
     resolve_transport,
 )
+from .protocol import Terminal
 from .raw_terminal import RawTerminal
 from .slcan_tcp import SlcanTcpBus, format_slcan_frame, parse_slcan_frame
 from .uds_raw import RawUdsClient, response_id
@@ -29,6 +30,7 @@ __all__ = [
     "RawTerminal",
     "RawUdsClient",
     "SlcanTcpBus",
+    "Terminal",
     "TransportConfig",
     "TransportError",
     "TransportSpec",

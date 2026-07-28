@@ -40,7 +40,7 @@ import asyncio
 from ..formatting import print_ecu_results
 from ..pids import build_ecu_index
 from ..session_manager import SessionManager
-from ..terminal import WiCANTerminal
+from ..transport.protocol import Terminal
 from .multi_batch import (
     BatchState,
     ResultEntry,
@@ -136,7 +136,7 @@ def _finalize_journal(
 
 
 async def mode_multi(
-    terminal: WiCANTerminal,
+    terminal: Terminal,
     sub_commands: list[str],
     pids_data: dict,
     verbose: bool,
@@ -150,7 +150,7 @@ async def mode_multi(
     """Execute a multi-ECU pipeline and optionally drop into REPL.
 
     Args:
-        terminal: Connected WiCANTerminal.
+        terminal: Connected Terminal.
         sub_commands: List of sub-command strings (e.g., ["skm-wake acc", "query IGPM:BC03"]).
         pids_data: Loaded PID definitions.
         verbose: Show debug output.

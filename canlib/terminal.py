@@ -16,7 +16,7 @@ except ImportError as e:
 from .log import log_command, log_response
 from .safety import enforce_command_safety
 from .timing import TimingRecorder
-from .uds_parse import parse_uds_response
+from .uds_parse import UdsResponse, parse_uds_response
 
 
 # The import is isolated in a helper so the module name isn't rebound to None
@@ -298,7 +298,7 @@ class WiCANTerminal:
         expected_did: int | None = None,
         expected_echo: bytes | None = None,
         retries: int = 0,
-    ) -> dict:
+    ) -> UdsResponse:
         """Send a UDS request and parse the response.
 
         Args:

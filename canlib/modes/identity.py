@@ -14,7 +14,7 @@ import asyncio
 import json
 
 from ..ecus import ecu_display
-from ..terminal import WiCANTerminal
+from ..transport.protocol import Terminal
 from .identity_decode import (
     decode_identity_payload,
     resolve_protocol_hint,
@@ -35,7 +35,7 @@ __all__ = [
 ]
 
 
-async def _probe_protocol(terminal: WiCANTerminal) -> tuple[str | None, str]:
+async def _probe_protocol(terminal: Terminal) -> tuple[str | None, str]:
     """Probe the ECU to decide UDS vs KWP2000. Returns (protocol, reason)."""
     uds = await terminal.send_uds("22F190")
     uds_ok = service_supported(uds)
@@ -53,7 +53,7 @@ async def _probe_protocol(terminal: WiCANTerminal) -> tuple[str | None, str]:
 
 
 async def mode_identity(
-    terminal: WiCANTerminal,
+    terminal: Terminal,
     tx_id: int,
     session: bool,
     wake: bool,

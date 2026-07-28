@@ -4,11 +4,12 @@ import asyncio
 import re
 
 from ..formatting import decode_uds_response, format_raw_with_bnn, print_hexdump, print_json_result
-from ..terminal import WiCANTerminal
+from ..transport.protocol import Terminal
+from ..uds_parse import UdsResponse
 
 
 async def mode_raw(
-    terminal: WiCANTerminal,
+    terminal: Terminal,
     raw_spec: str,
     verbose: bool,
     as_json: bool,
@@ -104,7 +105,7 @@ async def mode_raw(
 def _save_raw(
     tx_id: int,
     request: str,
-    response: dict,
+    response: UdsResponse,
     pids_data: dict | None,
     label: str | None = None,
     vehicle_states=None,

@@ -27,7 +27,8 @@ import asyncio
 import sys
 from typing import NamedTuple
 
-from ..terminal import WiCANTerminal
+from ..transport.protocol import Terminal
+from ..uds_parse import UdsResponse
 
 # Human labels for the session sub-functions we know about.
 SESSION_NAMES = {
@@ -62,7 +63,7 @@ class SessionHit(NamedTuple):
     nrc_desc: str | None
 
 
-def classify(response: dict) -> tuple[str, int | None]:
+def classify(response: UdsResponse) -> tuple[str, int | None]:
     """Classify a ``10 {mode}`` probe response.
 
     Returns (category, nrc) where category is one of:
@@ -86,7 +87,7 @@ def classify(response: dict) -> tuple[str, int | None]:
     return "not-supported", nrc
 
 
-async def probe_session(terminal: WiCANTerminal, mode: int) -> dict:
+async def probe_session(terminal: Terminal, mode: int) -> UdsResponse:
     """Send ``10 {mode}`` and return the parsed response (SID echo validated)."""
     req = f"10{mode:02X}"
     return await terminal.send_uds(req, timeout=3.0, expected_sid=0x10)
@@ -109,7 +110,7 @@ def _modes_for_protocol(proto: str | None) -> tuple[int, ...]:
 
 
 async def scan_ecu_sessions(
-    terminal: WiCANTerminal,
+    terminal: Terminal,
     ecu_name: str,
     tx_id: int,
     modes: tuple[int, ...],
@@ -173,7 +174,7 @@ async def scan_ecu_sessions(
 
 
 async def mode_sessions_scan(
-    terminal: WiCANTerminal,
+    terminal: Terminal,
     pids_data: dict,
     ecus: list[str],
     modes: tuple[int, ...] | None = None,

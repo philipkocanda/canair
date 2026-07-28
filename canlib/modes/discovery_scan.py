@@ -22,7 +22,8 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
 from ..scan_state import ScanStateWriter
-from ..terminal import WiCANTerminal
+from ..transport.protocol import Terminal
+from ..uds_parse import UdsResponse
 
 
 @dataclass(frozen=True)
@@ -42,10 +43,10 @@ class DiscoveryProbe[HitT]:
     service: int  # request SID (for the "service not supported" abort message)
     # Send a single probe for ``id_`` (safe sub-function baked in) and return the
     # parsed response dict. Owns request layout + echo validation.
-    probe: Callable[[WiCANTerminal, int], Awaitable[dict]]
+    probe: Callable[[Terminal, int], Awaitable[UdsResponse]]
     # Map a response to (category, nrc). Categories consumed by the loop:
     # "positive" | "exists" | "absent" | "service-absent" | "wrong-session" | "error".
-    classify: Callable[[dict], tuple[str, int | None]]
+    classify: Callable[[UdsResponse], tuple[str, int | None]]
     # Build the scanner-specific hit NamedTuple.
     make_hit: Callable[..., HitT]
     # Human-readable request preview for the progress line, e.g. "2F 00A0 00".
@@ -59,7 +60,7 @@ class DiscoveryProbe[HitT]:
 
 
 async def scan_ecu[HitT](
-    terminal: WiCANTerminal,
+    terminal: Terminal,
     probe: DiscoveryProbe[HitT],
     ecu_name: str,
     tx_id: int,
@@ -181,7 +182,7 @@ async def scan_ecu[HitT](
 
 
 async def mode_discovery_scan[HitT](
-    terminal: WiCANTerminal,
+    terminal: Terminal,
     probe: DiscoveryProbe[HitT],
     pids_data: dict,
     ecus: list[str],

@@ -28,13 +28,13 @@ Usage:
 import asyncio
 import time
 
-from .terminal import WiCANTerminal
+from .transport.protocol import Terminal
 
 
 class SessionManager:
     """Manages extended diagnostic sessions for multiple ECUs simultaneously."""
 
-    def __init__(self, terminal: WiCANTerminal, verbose: bool = False):
+    def __init__(self, terminal: Terminal, verbose: bool = False):
         self.terminal = terminal
         self.verbose = verbose
         # {tx_id: last_keepalive_timestamp}
