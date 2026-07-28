@@ -7,6 +7,122 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-07-28
+
+### Added
+
+- **`canair pids add-pid ECU PID`** — create a bare, parameter-less PID (a
+  discovery/identity placeholder like a not-yet-decoded `21F2`) so a bare-ECU
+  query (`canair query ECU`) polls the page. A bare-ECU query polls only
+  *defined* PIDs, so an undiscovered page must be seeded here first. Defaults to
+  `draft` (swept/queryable but not shipped to the device), scaffolds the `pids:`
+  section if the ECU has none, and refuses an existing PID. Surgical,
+  comment-preserving, schema-validated + auto-reverted.
+- **`canair captures merge-driver`** — a git merge driver for the append-only
+  dated capture files (`captures/YYYY-MM-DD.json`). Two machines that record on
+  the same day each append a different session to the same file's tail, which
+  git's line-based merge can't reconcile (the near-identical record boilerplate
+  misaligns the diff and splits conflicts *inside* records). The driver resolves
+  this class automatically by **unioning the two sides' session lists** (shared
+  history collapses, disjoint appends are kept, a genuine divergent edit still
+  falls back to conflict markers). Wired via a `.gitattributes` rule
+  (`profiles/*/captures/*.json merge=canair-captures`); run
+  **`canair captures merge-driver --install`** once per clone to register the
+  `[merge "canair-captures"]` stanza in `.git/config` (git never loads a driver
+  command from a tracked file, so until a clone installs it merges simply fall
+  back to markers). Pure union in `canlib/captures_merge.py`.
+
+### Changed
+
+- **`canair pids upsert-param` echoes a capture-range sanity-check.** After a
+  successful write it decodes the new expression against the PID's existing
+  captures and prints the resulting value range — so a wrong byte offset (e.g. a
+  WiCAN `Bnn` landing on an ISO-TP PCI framing byte) surfaces immediately as a
+  nonsensical `constant`/error instead of being silently persisted. It never
+  fails the write.
+- **`canair wican mode set` aligns the config transport** to the new device
+  mode (`slcan` → `slcan-tcp`, `elm327` → `wican-ws`), printing the `old -> new`
+  change (or reporting it is already aligned) — closing the foot-gun of
+  switching device mode and then hitting the wrong backend. Modes with no
+  request/response transport are left untouched; `--no-transport` opts out. The
+  usage line now surfaces the valid mode choices.
+- **`canair config set` gives before→after feedback** (`key: old -> new`, or
+  `already … (unchanged)` with no rewrite), validates enum keys
+  (`transport.type`/`wican_model`) up front with a clear `valid: …` error, warns
+  on an unrecognized key, and gains a richer `--help` with worked examples.
+
+### Fixed
+
+- **`canair pids` no longer leaves an empty `parameters:` block.** Removing a
+  PID's last parameter dropped the map to an empty `parameters:` that parses to
+  `None` and fails the schema; the now-empty block is dropped entirely, leaving a
+  valid identity-only PID.
+
+## [1.5.0] - 2026-07-28
+
+### Added
+
+- **`canair bus`** — read-only list of the active profile's physical CAN bus
+  segments (`can_buses.yaml`): each code with its human name, description, and
+  per-bus ECU count; flags undeclared codes + unbussed ECUs; prints the source
+  file path. The read-only companion to `canair pids set-can-bus`.
+- **`canair ecu <ECU> pids`** — a compact per-PID view listing every defined PID
+  with its latest *decoded* state (never raw hex), pointing at
+  `canair captures`/`canair decode` for full history (`--json`).
+- **`canair logs`** — view the central, size-rotated diagnostics event log
+  where transport faults (dropped/stale ISO-TP frames, timeouts, bus/decode
+  errors) and internal exceptions are collated. `-n` tails the last N lines,
+  `--path`/`--json`/`--clear`.
+- **Transport diagnostics + capture provenance.** A per-exchange outcome tally
+  (drops/stale/no_data/bus/decode, classified via `classify_response`) is
+  attached as `.diag` on both terminals and the raw UDS client. The live
+  `--monitor` status line gains a **`drops`/`err`** health indicator and
+  **`captured/uniq`** counters, and each recorded `--save` session stores its
+  acquisition **transport** and a **quality** footprint (surfaced in
+  `captures --sessions` and validated — a degraded-transport session now soft-
+  warns in `validate captures`).
+- **First-class `variable_length` PID field.** Some PIDs legitimately return a
+  variable number of trailing bytes, so a shorter payload is not evidence of a
+  truncated read. Declare that intent with
+  **`canair pids set-pid-variable-length ECU PID {true|false}`** (schema-
+  validated; `false` clears it) so the truncation guard doesn't flag them.
+
+### Changed
+
+- **`canair decode` accepts the shared mini-language QUERY** (`BMS:2101`,
+  `BMS` = all its PIDs, cross-ECU `"MCU:2102 VCU:2101"`; the two-token
+  `BMS 2101` still works). The value-range/`--compact`/`--json` views support
+  multi-PID; the single-PID analysis modes
+  (`--corr`/`--plot`/`--stats`/`--discriminate`/`--find-mirrors`/`--try`/
+  `--dump-bytes`) require one PID.
+- **`canair captures` default list view is capped** at the most recent
+  `--limit N` captures (default 50; `--limit 0` = no cap) with a loud footer
+  reporting hidden history, so a bare `captures BMS 2102` can't blow the context
+  window (truncation surfaced in `--json` too). `--latest` is now a plain flag
+  that reads its ECU/PID from the QUERY.
+- **Renamed `states.yaml` → `vehicle_states.yaml`** (a legacy `states.yaml` is
+  still read as a fallback so existing profiles keep working).
+- **`correlate` and `decode --corr` gain a `--method` cheat sheet** in `--help`
+  (pearson/spearman/cramers_v/mutual_info — which coefficient when).
+
+### Fixed
+
+- **Truncated multi-frame ISO-TP reads are rejected at capture time.**
+  Multi-frame reads over the ELM327 (`wican-ws`) terminal occasionally dropped a
+  consecutive frame, yielding a payload short of the declared length whose bytes
+  were misaligned after the gap (the -35 °C `LDC_TEMP` case). `parse_uds_response`
+  now compares the reassembly to the ISO-TP First-Frame declared length and
+  rejects a short read (`truncated ISO-TP: got N, declared M`) so `--save` never
+  stores it. Generic — no per-PID length table.
+- **`canair captures uds --delete`** — remove captures matching a QUERY via
+  canair's own helpers (refuses a bare `--delete`, `--dry-run` preview,
+  interactive confirm unless `--yes`) instead of hand-editing `captures/`.
+- **`wican-ws` pre-flight reachability check** — a clear alert instead of a
+  silent hang when the device is unreachable.
+- **`pids_edit` resolves the ECU key case-insensitively** when writing.
+- Corrected historic ioniq-2017 capture data affected by the transport bugs
+  above (including recovery of full-length `21F2` payloads).
+
 ## [1.4.0] - 2026-07-27
 
 ### Changed
@@ -512,7 +628,9 @@ dongle (both the WiCAN Pro and the classic/non-Pro WiCAN are supported).
 - Command safety blocklist preventing UDS programming/write sessions against a
   real vehicle.
 
-[Unreleased]: https://github.com/philipkocanda/canair/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/philipkocanda/canair/compare/v1.5.1...HEAD
+[1.5.1]: https://github.com/philipkocanda/canair/compare/v1.5.0...v1.5.1
+[1.5.0]: https://github.com/philipkocanda/canair/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/philipkocanda/canair/compare/v1.3.3...v1.4.0
 [1.3.3]: https://github.com/philipkocanda/canair/compare/v1.3.2...v1.3.3
 [1.3.2]: https://github.com/philipkocanda/canair/compare/v1.3.1...v1.3.2
