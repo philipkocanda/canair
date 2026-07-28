@@ -12,7 +12,7 @@ updating means: check out the latest **release tag** in the clone, then reinstal
 the tool from it. This command locates that source clone (via uv's tool receipt,
 falling back to the package's own repo root), reports the current vs latest
 released version with a changelog link, and — after confirmation — runs
-``git fetch --tags`` + ``git checkout <tag>`` + ``uv tool install <clone> --reinstall``.
+``git fetch --tags`` + ``git checkout <tag>`` + ``uv tool install <clone-dir> --reinstall``.
 
 Checking out the advertised release tag (rather than fast-forwarding a branch to
 its HEAD) means the installed code is exactly the released version — never
