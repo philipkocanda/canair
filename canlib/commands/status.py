@@ -193,6 +193,12 @@ def _gather(args) -> dict:
                 f"installed `canair` ({install['tool_version']}) is out of sync with the "
                 f"source clone ({install['clone_version']}) — run `canair update` to reinstall"
             )
+        elif install["running_origin"] == "uv-tool":
+            info["warnings"].append(
+                "running the `uv tool install` copy — its bundled profiles are a frozen "
+                "snapshot; edits to the repo's profiles/ won't appear until reinstall. Use "
+                "`uv run canair` from the repo root for live profile edits"
+            )
     except Exception:
         info["install"] = None
 

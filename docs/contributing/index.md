@@ -44,6 +44,13 @@ guidelines — the transport contract, how to add a subcommand, testing, and the
 `.claude/skills/contributing/SKILL.md`, which doubles as the human contributor
 guide.
 
+Always run and test with `uv run canair …` from the repo root (never a
+globally-installed bare `canair`) — that runs your working-tree code and reads
+the repo's bundled `profiles/` live, whereas a bare `canair` runs a frozen
+install-time snapshot. See
+[During development](../concepts/profiles.md#during-development-which-canair-sees-your-edits)
+for why.
+
 Quick check before you open a code PR (run from the repo root):
 
 ```bash

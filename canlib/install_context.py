@@ -143,6 +143,21 @@ def installed_tool_version() -> str | None:
 # --- Summary ---------------------------------------------------------------
 
 
+def bundled_profiles_are_snapshot() -> bool:
+    """True when the running code is the ``uv tool install`` snapshot copy.
+
+    The repo-bundled ``profiles/`` directory is resolved relative to the running
+    ``canlib`` package (``BUNDLED_PROFILES_DIR``), so a bare ``canair`` reads the
+    frozen copy baked into the uv-tool venv at install time — edits to the git
+    checkout's ``profiles/`` are invisible until a reinstall. ``uv run canair``
+    from the repo runs the working tree, so its bundled profiles are live.
+
+    Contributor-facing commands use this to warn that repo profile edits won't be
+    picked up.
+    """
+    return running_origin() == "uv-tool"
+
+
 def describe(clone: Path | None) -> dict:
     """Bundle the running/installed/clone facts and the sync verdict.
 

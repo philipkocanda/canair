@@ -74,3 +74,26 @@ canair profile show [NAME]    # a profile's paths and settings
 canair profile use NAME       # set NAME as the default profile
 canair profile create NAME --car-model "…" [--set-default]
 ```
+
+## During development: which `canair` sees your edits
+
+The repo-bundled `profiles/` is resolved **relative to the running canair code**,
+not your current directory — so whether your edits to a bundled profile are live
+depends on *which copy of canair you run*:
+
+| You run | Runs the code in | Bundled `profiles/` it reads |
+|---|---|---|
+| `uv run canair` (from the repo root) | your git working tree | the repo's `profiles/` — **edits are live** |
+| a bare `canair` (`uv tool install .`) | a frozen snapshot in uv's tool venv | a copy baked in at install time — **edits are not seen** |
+
+**So when contributing to a bundled profile, run `uv run canair` from the repo
+root.** A bare `canair` reads the snapshot taken when you last installed it;
+edits to `profiles/` in your checkout won't appear until you reinstall
+(`uv tool install . --reinstall`). `canair profile list` and `canair status`
+warn when you're running the snapshot copy.
+
+There's no config flag that makes a bare `canair` run your checkout's *code* —
+that's what `uv run` is for. You *can* point any canair at your checkout's
+profile *data* by setting `profiles_dir` (e.g.
+`canair config set profiles_dir /path/to/canair/profiles`), the persistent
+equivalent of `--profiles-dir`, but a bare `canair` still runs the snapshot code.

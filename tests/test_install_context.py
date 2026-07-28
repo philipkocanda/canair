@@ -79,6 +79,20 @@ class TestRunningOrigin:
         assert ic.running_origin() == "other"
 
 
+class TestBundledProfilesAreSnapshot:
+    def test_true_when_running_uv_tool_copy(self, tmp_path, monkeypatch):
+        data_home, sp = _make_tool_venv(tmp_path, "0.1.0")
+        monkeypatch.setenv("XDG_DATA_HOME", str(data_home))
+        monkeypatch.setattr(ic, "running_package_dir", lambda: sp / "canlib")
+        assert ic.bundled_profiles_are_snapshot() is True
+
+    def test_false_when_running_from_repo(self, tmp_path, monkeypatch):
+        clone = _make_clone(tmp_path, "1.0.0")
+        monkeypatch.setattr(ic, "running_package_dir", lambda: clone / "canlib")
+        monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "nothing"))
+        assert ic.bundled_profiles_are_snapshot() is False
+
+
 class TestDescribeSyncVerdict:
     def test_out_of_sync_when_versions_differ(self, tmp_path, monkeypatch):
         clone = _make_clone(tmp_path, "1.2.0")

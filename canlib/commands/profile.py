@@ -126,7 +126,23 @@ def _cmd_list(args) -> int:
         else:
             print("No default_profile set.")
         print("Set one with `canair profile use <name>`.")
+
+    _warn_if_bundled_snapshot()
     return 0
+
+
+def _warn_if_bundled_snapshot() -> None:
+    """Warn contributors that a bare `canair` reads a frozen copy of the bundled
+    profiles, so edits to the git checkout's `profiles/` aren't picked up."""
+    from canlib.install_context import bundled_profiles_are_snapshot
+
+    if bundled_profiles_are_snapshot():
+        print()
+        print(
+            "note: running the `uv tool install` copy — its bundled profiles are a\n"
+            "      frozen snapshot, so edits to the repo's profiles/ won't appear here.\n"
+            "      Run `uv run canair` from the repo root (or reinstall) to pick them up."
+        )
 
 
 def _cmd_show(args) -> int:
