@@ -45172,7 +45172,11 @@
           "payload": "6102F8F8000001000000008500778021340000105DE43300000000",
           "time": "13:30:36.163"
         }
-      ]
+      ],
+      "vehicle_states": [
+        "charging"
+      ],
+      "notes": "Charging wind-down: BMS current ~-10.8A until 13:28:16, then tapered to ~0.4A (charge stopped). Labelled charging for the whole segment (started charging); tail is idle. Back-filled after the span-aware state fix."
     }
   ]
 }

@@ -145,6 +145,12 @@ class MonitorRecorder:
         # True once the user sets a non-empty state via the TUI save dialog, so the
         # end-of-run auto-suggest fallback doesn't clobber their choice.
         self.state_explicit = False
+        # Every distinct state auto-suggested from decoded values across the
+        # *current segment's* lifetime, insertion-ordered. The end-of-run /
+        # segment-rotate back-fill uses this union (not a single point-in-time
+        # snapshot) so a segment that charged then went idle is still labelled
+        # `charging` — the exit snapshot alone would miss it.
+        self.observed_states: dict[str, None] = {}
 
     def observe(self, new_queries: list[EcuFrame]) -> None:
         """Record freshly-polled payloads: update ``prev_hex`` + histories/journal.
@@ -207,6 +213,33 @@ class MonitorRecorder:
         if self.journal is not None:
             with contextlib.suppress(Exception):
                 self.journal.flush()
+        # Accumulate the state auto-suggested from this cycle's decoded values, so
+        # the segment's back-fill reflects everything it saw (not just the state
+        # active at reconcile time). Cheap; only consulted when no explicit state.
+        self._observe_state()
+
+    def _observe_state(self) -> None:
+        """Fold this cycle's auto-suggested state into ``observed_states``."""
+        with contextlib.suppress(Exception):
+            suggested = self.c.suggested_state()
+            if suggested:
+                self.observed_states.setdefault(suggested, None)
+
+    def _backfill_states(self) -> list[str] | None:
+        """States to back-fill the closing segment with when none was set explicitly.
+
+        The union of everything observed over the segment's span (insertion
+        order), falling back to the instantaneous auto-suggest if the accumulator
+        is empty (e.g. a segment too short to complete a decode cycle). ``None``
+        when nothing can be inferred, leaving the segment unlabelled.
+        """
+        if self.observed_states:
+            return list(self.observed_states)
+        with contextlib.suppress(Exception):
+            suggested = self.c.suggested_state()
+            if suggested:
+                return [suggested]
+        return None
 
     def open_journal(self, label: str | None, vehicle_states, notes: str | None):
         """Open (and store) the write-ahead journal for the current run/segment."""
@@ -306,13 +339,14 @@ class MonitorRecorder:
 
         states = parse_states(vehicle_states)
 
-        # Give the closing segment its auto-suggested state when none was set
-        # explicitly, mirroring the end-of-run reconcile in mode_monitor.
+        # Give the closing segment its states when none were set explicitly: the
+        # union of everything auto-suggested across the segment span (mirroring the
+        # end-of-run reconcile in mode_monitor), not just the state active now.
         if not self.state_explicit:
-            with contextlib.suppress(Exception):
-                suggested = self.c.suggested_state()
-                if suggested:
-                    self.journal.update_meta(vehicle_states=[suggested])
+            backfill = self._backfill_states()
+            if backfill:
+                with contextlib.suppress(Exception):
+                    self.journal.update_meta(vehicle_states=backfill)
 
         written = None
         with contextlib.suppress(Exception):
@@ -320,6 +354,9 @@ class MonitorRecorder:
 
         self.journal = _open_journal(self.c, label, states, notes)
         self.state_explicit = bool(states)
+        # Fresh segment: reset the observed-state accumulator so it doesn't carry
+        # the previous segment's states into this one's back-fill.
+        self.observed_states = {}
         # Reset the display metadata to the new segment's (label always set here).
         self.session_label = label or ""
         self.session_states = list(states or [])

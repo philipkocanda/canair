@@ -446,6 +446,26 @@ def set_session_keep_mode(fpath: Path, session_idx: int, keep_mode: str | None) 
     _write_captures_file(fpath, data)
 
 
+def set_session_states(fpath: Path, session_idx: int, vehicle_states) -> None:
+    """Set (or clear) the ``vehicle_states`` field on one session, by index.
+
+    ``vehicle_states`` is normalized to a token list (a comma-separated string or
+    a list are both accepted); a non-empty list is stored, an empty one removes
+    the field. Raises IndexError if the index doesn't resolve. Use this instead
+    of hand-editing a session's ``vehicle_states`` in a capture file — e.g. to
+    back-fill a session that reconciled with an empty state before the monitor's
+    span-aware state back-fill existed.
+    """
+    data = capture_io.load_capture_file(fpath)
+    session = data["sessions"][session_idx]
+    states = _parse_states(vehicle_states)
+    if states:
+        session["vehicle_states"] = states
+    else:
+        session.pop("vehicle_states", None)
+    _write_captures_file(fpath, data)
+
+
 def delete_capture(fpath: Path, session_idx: int, capture_idx: int) -> bool:
     """Delete one capture, addressed by index. Returns True if its (now empty)
     session was removed too. Raises IndexError if the indices don't resolve.

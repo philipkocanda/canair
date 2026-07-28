@@ -748,11 +748,13 @@ async def mode_monitor(
         if controller.journal is not None:
             with contextlib.suppress(Exception):
                 # If no state was set explicitly (flag or the TUI dialog), fall
-                # back to the auto-suggested state from decoded PID values.
+                # back to the union of states auto-suggested across the run's span
+                # — not just the state active at exit, so a run that charged then
+                # went idle still reconciles as `charging`.
                 if not states and not controller._state_explicit:
-                    suggested = controller.suggested_state()
-                    if suggested:
-                        controller.journal.update_meta(vehicle_states=[suggested])
+                    backfill = controller.recorder._backfill_states()
+                    if backfill:
+                        controller.journal.update_meta(vehicle_states=backfill)
                 written = controller.journal.reconcile()
                 if written is not None:
                     _console.print(f"  → Saved journaled captures to {written.name}")

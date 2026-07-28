@@ -106,12 +106,20 @@ whenever a `--save` recording is active, and two keys control the session:
 
 - **`s`** — set or edit the label / state / notes for the **current** session
   (the modal states which segment you're labelling). This only updates metadata;
-  payloads are already being recorded. The vehicle state is auto-suggested from
-  decoded values.
+  payloads are already being recorded. The state field is **free text**
+  (comma-separated) pre-filled with the auto-suggested state; leaving it blank is
+  fine — the modal says so (`no state set — will auto-detect from data on save`),
+  and the state is filled in on save.
 - **`n`** — close the current segment (save it to its own capture file) and start
   a **fresh** one, labelled via the same modal. One monitor run can thus produce
   several independently-labelled sessions — press `n` at each phase change (e.g.
   parked → driving → charging) rather than stopping and restarting.
+
+When a `--save` segment ends without an explicit state, canair back-fills it with
+the **union of every state auto-suggested across that segment's whole span** — not
+just the state active at the instant it closed. So a segment that charged and then
+went idle still reconciles as `charging`, rather than losing the label because the
+car happened to stop charging just before you stopped recording.
 
 ## Vehicle states
 
