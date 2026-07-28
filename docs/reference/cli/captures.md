@@ -28,11 +28,11 @@ options:
 
 ```
 usage: canair captures uds [-h] [--diff | --step]
-                           [--summary | --sessions | --latest | --recover]
-                           [--discard] [--all] [--limit N] [--rulers] [--pair]
-                           [--join-tol SECONDS] [--json] [--since WHEN]
-                           [--until WHEN] [--date YYYY-MM-DD] [--today]
-                           [--last-sessions [N]] [--last-session]
+                           [--summary | --sessions | --latest | --recover | --delete]
+                           [--discard] [--dry-run] [--yes] [--all] [--limit N]
+                           [--rulers] [--pair] [--join-tol SECONDS] [--json]
+                           [--since WHEN] [--until WHEN] [--date YYYY-MM-DD]
+                           [--today] [--last-sessions [N]] [--last-session]
                            [--state SUBSTR] [--label SUBSTR] [--dir DIR]
                            [QUERY ...]
 
@@ -58,8 +58,15 @@ options:
   --recover            Reconcile orphaned capture journals (from a
                        killed/crashed session) into capture files. Add
                        --discard to delete them without saving.
+  --delete             Delete the captures matching QUERY (and any scope
+                       filters). Previews with --dry-run; confirms before
+                       deleting unless --yes.
   --discard            With --recover: delete orphaned journals without saving
                        them
+  --dry-run            With --delete: list the captures that would be deleted,
+                       delete nothing
+  --yes, -y            With --delete: skip the confirmation prompt (for
+                       scripting)
   --all, -a            For --diff/--step: use every payload instead of unique-
                        only
   --limit N, -L N      Default list view: show only the most recent N captures
@@ -116,6 +123,8 @@ are aggregate modes that take no QUERY.
                         --join-tol (query must resolve to exactly two keys)
   QUERY --latest        Most recent payload per PID for the QUERY selection
   --latest              Most recent payload per PID (all ECUs; no QUERY)
+  QUERY --delete        Delete the captures matching QUERY (and scope filters);
+                        --dry-run previews, confirms before deleting unless --yes
   --summary             Overview: captures per ECU, per date, total payloads
   --sessions            Session table of contents: date/time-span/state/label/
                         notes/ECUs per session (no payloads); --json for machine
@@ -162,6 +171,8 @@ Examples (a bare `canair captures …` is shorthand for `canair captures uds …
   canair captures uds --sessions --json      # Machine-readable TOC
   canair captures uds BMS --latest          # Latest payload per BMS PID
   canair captures uds --latest              # Latest payload per PID (all ECUs)
+  canair captures uds OBC 2101 --delete --dry-run  # Preview a delete
+  canair captures uds OBC 2101 --delete --yes      # Delete (non-interactive)
   canair captures uds BMS 2102 --limit 200  # Widen the default 50-row cap
   canair captures uds BMS 2102 --limit 0    # Every matching capture (no cap)
   canair captures uds --summary --since 2026-04-19        # Stats since a date

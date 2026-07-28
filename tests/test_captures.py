@@ -660,3 +660,70 @@ class TestSetSessionKeepMode:
         f = self._write(tmp_path)
         with pytest.raises(IndexError):
             set_session_keep_mode(f, 5, "unique")
+
+
+class TestCmdDelete:
+    """`canair captures uds --delete <query>` — targeted capture removal."""
+
+    def _seed(self, cdir):
+        # MCU (0x7EB): two 2102 captures + one 2101 capture in one session.
+        s = build_query_session(
+            [
+                ("0x7EB", "2102", "6102AABB", ""),
+                ("0x7EB", "2102", "6102CCDD", ""),
+                ("0x7EB", "2101", "6101EEFF", ""),
+            ],
+            "test",
+            ["ready"],
+            "",
+        )
+        save_session(s, cdir)
+
+    def test_dry_run_deletes_nothing(self, tmp_path, capsys):
+        from canlib.commands._captures_query import load_all_captures
+        from canlib.commands.captures import cmd_delete
+
+        self._seed(tmp_path)
+        entries = load_all_captures(tmp_path)
+        rc = cmd_delete(entries, "MCU:2102", captures_dir=tmp_path, dry_run=True)
+        out = capsys.readouterr().out
+        assert rc == 0
+        assert "Would delete 2 capture(s)" in out
+        # File untouched: all 3 captures still present.
+        assert len(load_all_captures(tmp_path)) == 3
+
+    def test_deletes_matching_only(self, tmp_path):
+        from canlib.commands._captures_query import load_all_captures
+        from canlib.commands.captures import cmd_delete
+
+        self._seed(tmp_path)
+        entries = load_all_captures(tmp_path)
+        rc = cmd_delete(entries, "MCU:2102", captures_dir=tmp_path, assume_yes=True)
+        assert rc == 0
+        remaining = load_all_captures(tmp_path)
+        # The two 2102 captures are gone; the 2101 one survives.
+        assert [(e["ecu"], str(e["pid"])) for e in remaining] == [("MCU", "2101")]
+
+    def test_no_match_returns_1(self, tmp_path, capsys):
+        from canlib.commands._captures_query import load_all_captures
+        from canlib.commands.captures import cmd_delete
+
+        self._seed(tmp_path)
+        entries = load_all_captures(tmp_path)
+        rc = cmd_delete(entries, "MCU:9999", captures_dir=tmp_path, assume_yes=True)
+        assert rc == 1
+        assert "nothing to delete" in capsys.readouterr().out
+        assert len(load_all_captures(tmp_path)) == 3
+
+    def test_json_dry_run_emits_rows(self, tmp_path, capsys):
+        from canlib.commands._captures_query import load_all_captures
+        from canlib.commands.captures import cmd_delete
+
+        self._seed(tmp_path)
+        entries = load_all_captures(tmp_path)
+        capsys.readouterr()  # discard save_session's "Saved N capture(s)" banner
+        rc = cmd_delete(entries, "MCU:2102", captures_dir=tmp_path, dry_run=True, as_json=True)
+        assert rc == 0
+        rows = json.loads(capsys.readouterr().out)
+        assert len(rows) == 2
+        assert all(r["pid"] == "2102" for r in rows)

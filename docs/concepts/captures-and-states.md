@@ -62,6 +62,31 @@ canair query MyECU:2101 --save --label "highway" --state driving --notes "…"
 
 `--save` works with `query`, `scan`, `discover`, and live `--monitor`.
 
+!!! note "Truncated reads are rejected, not stored"
+    A multi-frame ISO-TP response is self-describing — its first frame declares
+    the total length. If a consecutive frame is dropped (the ELM327 terminal
+    occasionally returns a short read), the reassembled payload falls short of
+    that declared length and every byte after the gap is misaligned. canair
+    rejects such reads (`truncated ISO-TP: got N bytes, declared M`) so a
+    corrupt payload is never saved. The check is generic — no per-PID length
+    table — and needs no configuration.
+
+## Removing captures
+
+Delete captures with the same query mini-language used to view them, scoped by
+the usual `--since`/`--state`/`--label` filters. Preview with `--dry-run`; the
+delete confirms interactively unless you pass `--yes`:
+
+```bash
+canair captures uds OBC 2101 --delete --dry-run   # preview what would go
+canair captures uds OBC 2101 --delete             # confirm, then delete
+canair captures uds OBC 2101 --delete --yes        # non-interactive
+```
+
+`--delete` refuses to run without a QUERY (it never deletes everything). It
+addresses captures through canair's own helpers, so the record stays consistent
+— never hand-edit files to remove data.
+
 ## Journaling — you won't lose data
 
 Saves are **journaled**: written to a write-ahead log under `captures/.journal/`

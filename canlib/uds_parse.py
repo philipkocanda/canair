@@ -291,12 +291,23 @@ def parse_uds_response(
     # Check for multi-frame ISO-TP format
     is_multiframe = any(re.match(r"^\d+:", line) for line in data_lines)
 
+    # ELM327 multi-frame output precedes the numbered frame lines with a bare-hex
+    # total-length token (the ISO-TP First Frame length), e.g. `017` = 23 bytes:
+    #   22C00B\r 017 \r 0:62C00BFFFF00 \r 1:00C84F0100C84E \r 2:... \r 3:...
+    # Capture it so we can reject truncated multi-frame reads (a dropped consecutive
+    # frame silently misaligns every downstream byte) rather than store them.
+    declared_len: int | None = None
+
     if is_multiframe:
         frame_lines = []
         for line in data_lines:
             m = re.match(r"^(\d+):([0-9A-Fa-f]+)$", line)
             if m:
                 frame_lines.append((int(m.group(1)), m.group(2)))
+                continue
+            # A non-frame, bare-hex line before the frames is the length token.
+            if declared_len is None and re.fullmatch(r"[0-9A-Fa-f]{1,4}", line):
+                declared_len = int(line, 16)
         frame_lines.sort(key=lambda x: x[0])
         hex_clean = "".join(hex_data for _, hex_data in frame_lines)
     else:
@@ -316,6 +327,23 @@ def parse_uds_response(
     except ValueError as e:
         result["error"] = f"Hex decode failed: {e}"
         return result
+
+    # Reject truncated multi-frame reads. The ELM327 adapter reassembles ISO-TP
+    # and reports the declared total length; if the frames it handed back fall
+    # short of that (a dropped consecutive frame), every byte after the gap is
+    # misaligned and the payload is worthless. Trailing ISO-TP padding may make
+    # the reassembly *longer* than declared, which is fine; only short is fatal.
+    if declared_len is not None:
+        result["isotp_declared_len"] = declared_len
+        if len(response_bytes) < declared_len:
+            result["error"] = (
+                f"truncated ISO-TP: got {len(response_bytes)} bytes, declared {declared_len}"
+            )
+            return result
+        # Drop any trailing ISO-TP padding beyond the declared payload length.
+        if len(response_bytes) > declared_len:
+            response_bytes = response_bytes[:declared_len]
+            hex_clean = response_bytes.hex()
 
     result["hex"] = hex_clean.upper()
     result["bytes"] = response_bytes

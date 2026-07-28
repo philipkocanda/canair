@@ -221,6 +221,7 @@ canair captures uds MCU:2102 --diff --rulers  # add the idx/wican byte-index rul
 canair captures uds MCU:2102 --diff --since 2026-07-19   # scope by date
 canair captures uds MCU:2102 --diff --state driving       # scope to one drive/state
 canair captures uds MCU:2102 --step           # interactive step-through (e=note, d=delete)
+canair captures uds OBC 2101 --delete --dry-run  # preview a targeted delete (then --yes / confirm)
 canair captures uds --recover                 # reconcile orphaned journals (--discard to drop)
 canair captures can                           # list imported raw broadcast-CAN frame logs (domain B)
 canair bix -1 --annotate 6101FFFF...          # map each byte -> Bnn/ISO-TP/Torque/role
@@ -244,6 +245,19 @@ flags the PCI bytes you must not read across (see Reference below); add
 `--ecu ECU --pid PID` to overlay which defined parameter (and bit) maps each byte
 and flag `unmapped` data bytes — the fastest way to catch a wrong byte offset in
 an expression.
+
+!!! note "Scripting over captures — use `load_all_captures()`, mind the RX address"
+    If you must script over captures (a bulk edit/delete keyed on a payload
+    predicate the QUERY can't express, e.g. "drop every truncated read"), go
+    through `canlib.commands._captures_query.load_all_captures()`. It returns
+    flat entries with `ecu` already **resolved to the short name** (e.g. `OBC`),
+    the raw `ecu_addr` (`0x7ED`), and `_session_idx`/`_capture_idx` locators that
+    plug straight into `canlib.captures.delete_capture` (delete in reverse
+    `(file, session, capture)` order). **Do not re-derive the list with a raw
+    `ecu == "OBC"` filter** — the stored `ecu` field is the CAN **response
+    address** (`0x7ED`), *not* the short name, so that scan silently matches
+    nothing. Prefer `canair captures uds --delete` when the QUERY can express the
+    selection.
 
 ### 6. Hypothesize — form an expression
 

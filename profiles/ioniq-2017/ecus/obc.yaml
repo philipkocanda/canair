@@ -86,10 +86,10 @@ OBC:
           notes: "LDC 12V system output voltage. 14.52V charging / 14.31V READY — correct for 12V system. ISO-TP bytes 20-21. Load-test confirmed 2026-07-22: sagged 14.5→13.6→14.5V as a rear-defroster (~15-20A) load was switched ON→OFF, i.e. the real 12V rail."
 
         LDC_TEMP:
-          expression: "B19-100"
-          unit: "°C"
+          expression: B19-100
+          unit: °C
           ha_class: temperature
-          min: "-40"
+          min: "-30"
           max: "120"
           source: "Kia Soul EV LDC CSV (LDC Temp = i-100) + charging session trend (2026-07-19)"
           source_links: []
@@ -98,7 +98,9 @@ OBC:
             LDC/converter temperature. 2026-07-20: corrected from B21-40 (which varies too much → not a temp).
             B19-100 = 21°C at READY (≈18°C ambient) and rises smoothly 28→65°C over a 3h AC charge (10:45→13:50)
             — textbook thermal behaviour; live 10A-AC charge read 27°C. Matches Soul LDC "-100" offset. ISO-TP byte 0x0f.
-
+            2026-07-28: removed 6 corrupt captures reading -35/-33°C (raw B19=65/67). Signature: B17=5, i.e.
+            OBC_DC_A high byte non-zero (raw ~1450) while not charging — physically impossible, so whole frame
+            was mis-framed/garbage, not a real reading. min tightened -40→-30 to reject the corruption band.
         OBC_CHARGE_V:
           expression: "[B10:B11]/100"
           unit: V

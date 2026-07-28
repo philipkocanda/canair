@@ -281,3 +281,40 @@ class TestPayloadNotHex:
         reason = payload_not_hex("6")
         assert reason is not None
         assert "too short" in reason
+
+
+class TestIsoTpTruncationGuard:
+    """ELM327 multi-frame reads carry a declared ISO-TP length; reject short ones."""
+
+    # Real wire format of a live BCM 22C00B read (declared 0x017 = 23 bytes):
+    #   22C00B\r 017 \r 0:62C00BFFFF00 \r 1:00C84F0100C84E \r 2:0100C84D0100C6 \r 3:4D0100AAAAAAAA
+    _COMPLETE = "017\n0:62C00BFFFF00\n1:00C84F0100C84E\n2:0100C84D0100C6\n3:4D0100AAAAAAAA"
+
+    def test_complete_multiframe_accepted(self):
+        r = parse_uds_response(self._COMPLETE)
+        assert r["ok"] is True
+        assert r["isotp_declared_len"] == 0x017
+        # Reassembled payload is trimmed to the declared length (AA padding dropped),
+        # matching what the slcan-tcp client-side ISO-TP path returns.
+        assert r["hex"] == "62C00BFFFF0000C84F0100C84E0100C84D0100C64D0100"
+        assert len(r["bytes"]) == 0x017
+
+    def test_truncated_multiframe_rejected(self):
+        # Drop the last consecutive frame: 8 fewer data bytes than declared.
+        truncated = "017\n0:62C00BFFFF00\n1:00C84F0100C84E\n2:0100C84D0100C6"
+        r = parse_uds_response(truncated)
+        assert r["ok"] is False
+        assert "truncated ISO-TP" in r["error"]
+        assert "declared 23" in r["error"]
+
+    def test_single_frame_has_no_length_guard(self):
+        # A single-frame response carries no declared-length line; guard is a no-op.
+        r = parse_uds_response("62 BC 07 08 41 FB CC 00 00 15 00")
+        assert r["ok"] is True
+        assert "isotp_declared_len" not in r
+
+    def test_multiframe_without_length_line_still_parses(self):
+        # slcan-tcp / older adapters may emit only N: frames (no length token).
+        r = parse_uds_response("0:6101AABBCCDDEE\n1:FF0011223344556\n2:67788")
+        assert r["ok"] is True
+        assert "isotp_declared_len" not in r

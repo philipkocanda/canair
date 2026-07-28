@@ -17,6 +17,8 @@ are aggregate modes that take no QUERY.
                         --join-tol (query must resolve to exactly two keys)
   QUERY --latest        Most recent payload per PID for the QUERY selection
   --latest              Most recent payload per PID (all ECUs; no QUERY)
+  QUERY --delete        Delete the captures matching QUERY (and scope filters);
+                        --dry-run previews, confirms before deleting unless --yes
   --summary             Overview: captures per ECU, per date, total payloads
   --sessions            Session table of contents: date/time-span/state/label/
                         notes/ECUs per session (no payloads); --json for machine
@@ -63,6 +65,8 @@ Examples (a bare `canair captures …` is shorthand for `canair captures uds …
   canair captures uds --sessions --json      # Machine-readable TOC
   canair captures uds BMS --latest          # Latest payload per BMS PID
   canair captures uds --latest              # Latest payload per PID (all ECUs)
+  canair captures uds OBC 2101 --delete --dry-run  # Preview a delete
+  canair captures uds OBC 2101 --delete --yes      # Delete (non-interactive)
   canair captures uds BMS 2102 --limit 200  # Widen the default 50-row cap
   canair captures uds BMS 2102 --limit 0    # Every matching capture (no cap)
   canair captures uds --summary --since 2026-04-19        # Stats since a date
@@ -697,6 +701,106 @@ def cmd_recover(captures_dir: Path | None, discard: bool = False) -> int:
     return 0
 
 
+def cmd_delete(
+    entries: list[dict],
+    query: str,
+    *,
+    captures_dir: Path | None = None,
+    dry_run: bool = False,
+    assume_yes: bool = False,
+    as_json: bool = False,
+) -> int:
+    """Delete the captures matching QUERY (already scoped by date/state/label).
+
+    ``entries`` is the scope-filtered capture list from ``run`` (so --since/--state
+    already applied); the QUERY narrows it to specific ECU/PID selectors. Deletes
+    are addressed by each entry's ``_session_idx``/``_capture_idx`` locators and
+    applied in reverse order per file so earlier indices stay valid. Requires
+    confirmation unless ``assume_yes``; ``dry_run`` deletes nothing.
+    """
+    import json as _json
+
+    from canlib.captures import delete_capture
+    from canlib.query import QueryError
+
+    cdir = _resolve_captures_dir(captures_dir)
+
+    q = _parse_query(query)
+    try:
+        matched, _empty = q.filter(
+            entries, ecu_of=lambda e: e["ecu"], pid_of=lambda e: str(e["pid"])
+        )
+    except QueryError as ex:
+        print(f"error: invalid query: {ex}", file=sys.stderr)
+        return 2
+
+    if not matched:
+        if as_json:
+            print("[]")
+            return 0
+        print(f"  No captures match {query!r} in scope — nothing to delete.")
+        return 1
+
+    def _row(e: dict) -> dict:
+        return {
+            "file": e.get("file"),
+            "date": e.get("date"),
+            "time": e.get("time"),
+            "ecu": e.get("ecu"),
+            "ecu_addr": e.get("ecu_addr"),
+            "pid": e.get("pid"),
+            "payload": e.get("payload"),
+        }
+
+    if as_json and dry_run:
+        print(_json.dumps([_row(e) for e in matched], indent=2))
+        return 0
+
+    verb = "Would delete" if dry_run else "Deleting"
+    print(f"  {verb} {len(matched)} capture(s) matching {query!r}:")
+    for e in matched:
+        print(
+            f"    {_DIM}{e.get('file', '?')}{_RESET} "
+            f"{e.get('ecu', '?')} {e.get('pid', '?')} @ {e.get('date', '?')} "
+            f"{e.get('time', '') or '(no time)'}  {_DIM}{e.get('payload', '') or ''}{_RESET}"
+        )
+
+    if dry_run:
+        print("  (--dry-run: nothing deleted)")
+        return 0
+
+    if not assume_yes:
+        if not (sys.stdin.isatty() and sys.stdout.isatty()):
+            print(
+                "  error: refusing to delete without confirmation "
+                "(pass --yes for non-interactive use, or --dry-run to preview).",
+                file=sys.stderr,
+            )
+            return 2
+        resp = input(f"  Delete these {len(matched)} capture(s)? [y/N] ").strip().lower()
+        if resp not in ("y", "yes"):
+            print("  Cancelled — nothing deleted.")
+            return 1
+
+    # Delete in reverse (file, session_idx, capture_idx) order so earlier indices
+    # remain valid as we remove entries from each file.
+    to_delete = sorted(
+        matched,
+        key=lambda e: (e["file"], e["_session_idx"], e["_capture_idx"]),
+        reverse=True,
+    )
+    deleted = 0
+    for e in to_delete:
+        try:
+            delete_capture(cdir / e["file"], e["_session_idx"], e["_capture_idx"])
+            deleted += 1
+        except Exception as ex:  # keep going; report the failure
+            print(f"    ! {e.get('file', '?')} {e.get('ecu', '?')} {e.get('pid', '?')}: {ex}")
+
+    print(f"  Deleted {deleted} capture(s).")
+    return 0 if deleted == len(matched) else 1
+
+
 def cmd_migrate(captures_dir: Path | None, *, dry_run: bool = False, as_json: bool = False) -> int:
     """Convert legacy captures/*.yaml → *.json for the active profile (or --dir)."""
     import json as _json
@@ -874,11 +978,30 @@ def _add_uds_parser(kinds) -> argparse.ArgumentParser:
         help="Reconcile orphaned capture journals (from a killed/crashed session) "
         "into capture files. Add --discard to delete them without saving.",
     )
+    standalone.add_argument(
+        "--delete",
+        action="store_true",
+        help="Delete the captures matching QUERY (and any scope filters). "
+        "Previews with --dry-run; confirms before deleting unless --yes.",
+    )
 
     parser.add_argument(
         "--discard",
         action="store_true",
         help="With --recover: delete orphaned journals without saving them",
+    )
+
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="With --delete: list the captures that would be deleted, delete nothing",
+    )
+
+    parser.add_argument(
+        "--yes",
+        "-y",
+        action="store_true",
+        help="With --delete: skip the confirmation prompt (for scripting)",
     )
 
     parser.add_argument(
@@ -956,6 +1079,15 @@ def run(args) -> int:
 
     if args.pair and not args.step:
         print("error: --pair requires --step", file=sys.stderr)
+        return 2
+
+    if args.delete and not query:
+        print(
+            "error: --delete requires a QUERY selecting what to delete "
+            "(e.g. `canair captures uds OBC 2101 --delete`). Refusing to delete "
+            "everything. Narrow with the QUERY and/or scope flags (--since/--state/…).",
+            file=sys.stderr,
+        )
         return 2
 
     if args.limit < 0:
@@ -1047,6 +1179,15 @@ def run(args) -> int:
             cmd_summary(entries, as_json=args.json)
         elif args.sessions:
             cmd_sessions(entries, as_json=args.json)
+        elif args.delete:
+            return cmd_delete(
+                entries,
+                query,
+                captures_dir=args.dir,
+                dry_run=args.dry_run,
+                assume_yes=args.yes,
+                as_json=args.json,
+            )
         elif args.latest:
             # ECU/PID selection comes from the QUERY (e.g. `BMS --latest`,
             # `BMS:2102 --latest`); a bare `--latest` shows every PID's latest.
