@@ -26,7 +26,6 @@ import re
 import signal
 import sys
 import time
-from datetime import datetime
 from pathlib import Path
 
 from rich.console import Console
@@ -38,6 +37,7 @@ from ..formatting import (
     _render_hex_line,
 )
 from ..session_manager import SessionManager
+from ._monitor_record import MonitorRecorder, _merge_history, _open_journal, _write_merged
 from ._monitor_render import (
     _RENDER_DEFAULT_ROWS,
     _RENDER_MAX_ROWS,
@@ -49,17 +49,22 @@ from .multi_batch import EcuFrame, ResultEntry
 
 # _HIGHLIGHT_STYLE, _bytes_to_ascii and _render_hex_line moved to canlib.formatting;
 # _render_results/_RENDER_MAX_ROWS/RenderCache to _monitor_render; _raw_pid_result to
-# monitor_raw. All re-exported here for backward-compatible imports (e.g.
-# tests/test_monitor.py).
+# monitor_raw; _merge_history/_write_merged/_open_journal + the recording/journaling
+# logic to _monitor_record. All re-exported here for backward-compatible imports
+# (e.g. tests/test_monitor.py).
 __all__ = [
     "_HIGHLIGHT_STYLE",
     "_RENDER_MAX_ROWS",
     "MonitorController",
+    "MonitorRecorder",
     "RenderCache",
     "_bytes_to_ascii",
+    "_merge_history",
+    "_open_journal",
     "_raw_pid_result",
     "_render_hex_line",
     "_render_results",
+    "_write_merged",
     "mode_monitor",
     "query_ecu_error",
 ]
@@ -93,81 +98,6 @@ def query_ecu_error(query_steps: list[dict], pids_data: dict) -> str | None:
         return None
     available = ", ".join(sorted(ecu_index.keys()))
     return f"unknown ECU(s) in query: {', '.join(unknown)}.\n  Available ECUs: {available}"
-
-
-def _merge_history(
-    hex_history: dict[tuple[str, str], list[tuple[str, str]]],
-    prev_hex: dict[tuple[str, str], str],
-) -> dict[tuple[str, str], list[tuple[str, str]]]:
-    """Merge the latest ``prev_hex`` snapshot into the payload history.
-
-    Returns a ``{(ecu_label, pid): [(hex, timestamp), ...]}`` map. A PID whose
-    current payload isn't already the last history entry gets it appended with a
-    fresh timestamp, so a bare snapshot (no history kept) still yields one row
-    per PID.
-    """
-    all_keys = set(hex_history.keys()) | set(prev_hex.keys())
-    merged: dict[tuple[str, str], list[tuple[str, str]]] = {}
-    for key in all_keys:
-        entries = list(hex_history.get(key, []))
-        cur = prev_hex.get(key, "")
-        if cur and cur not in [h for h, _ts in entries]:
-            ts = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-            entries.append((cur, ts))
-        if entries:
-            merged[key] = entries
-    return merged
-
-
-def _write_merged(
-    merged: dict[tuple[str, str], list[tuple[str, str]]],
-    label: str,
-    vehicle_states,
-    notes: str,
-    captures_dir: Path,
-    keep_mode: str | None = None,
-) -> Path:
-    """Build a query-capture session from merged payloads and save it to disk.
-
-    The ECU label (e.g. "BMS") is resolved to its CAN response address; an
-    unknown label falls back to its leading token verbatim.
-    """
-    from ..captures import build_query_session, save_session
-    from ..ecus import build_name_tx_index, rx_from_name
-
-    name_index = build_name_tx_index()
-    results: list[tuple[str, str, str, str]] = []
-    for (ecu_label, pid), entries in sorted(merged.items()):
-        m = re.match(r"(\w+)", ecu_label)
-        assert m is not None  # ecu_label is an ECU name/label, always starts with a word char
-        ecu_short = m.group(1)
-        ecu_ref = rx_from_name(ecu_short, name_index) or ecu_short
-        for hex_val, ts in entries:
-            results.append((ecu_ref, pid, hex_val, ts))
-
-    session = build_query_session(results, label, vehicle_states, notes, keep_mode=keep_mode)
-    return save_session(session, captures_dir)
-
-
-def _open_journal(controller, label: str | None, vehicle_states, notes: str | None):
-    """Open a write-ahead capture journal for a monitor --save run/segment.
-
-    Shared by ``mode_monitor`` (run start) and ``MonitorController.new_segment``
-    (segment rotate) so their open args can't drift. ``keep_mode="unique"`` is
-    carried through from the display keep-mode; other modes journal every row.
-    """
-    from ..capture_journal import CaptureJournal
-
-    journal_label = label or controller.query_label() or "Monitor session"
-    keep = "unique" if controller.keep_mode == "unique" else None
-    return CaptureJournal.open(
-        controller.captures_dir,
-        label=journal_label,
-        vehicle_states=list(vehicle_states or []),
-        notes=notes,
-        source="monitor",
-        keep_mode=keep,
-    )
 
 
 class MonitorController:
@@ -226,15 +156,6 @@ class MonitorController:
         self.elapsed = 0.0
         self.last_cmds = 0  # ELM commands issued during the last poll cycle
         self.last_elm_time = 0.0  # seconds spent in ELM commands last cycle
-        # Frame accounting (surfaced in the status line). total_frames counts every
-        # fresh (non-stale) payload received across all cycles — the "captured"
-        # figure; unique_frames counts distinct (ecu, pid, payload) values seen,
-        # which is what a keep:unique session actually stores/displays. These two
-        # differ from the number of on-screen rows (one per polled PID), so the
-        # status line shows them explicitly.
-        self.total_frames = 0
-        self.unique_frames = 0
-        self._seen_payloads: set[tuple[tuple[str, str], str]] = set()
         self.last_queries: list[EcuFrame] = []
         self.prev_hex: dict[tuple[str, str], str] = {}
         # Payloads as of the *previous* poll cycle, snapshotted before prev_hex is
@@ -245,38 +166,20 @@ class MonitorController:
         # Where on-demand ('s' key in the TUI) / end-of-run captures are written.
         # Set by mode_monitor; resolved lazily if left None.
         self.captures_dir: Path | None = None
-        self.hex_history: dict[tuple[str, str], list[tuple[str, str]]] | None = (
-            {} if keep_mode else None
-        )
-        self.save_history: dict[tuple[str, str], list[tuple[str, str]]] | None = (
-            {} if save else None
-        )
-        # High-water mark of payloads already written by a non-journal on-demand
-        # save (the fallback --save-off path), per PID key. Repeated 's' presses
-        # only write rows beyond this, so a payload is never saved twice in one run.
-        self._saved_counts: dict[tuple[str, str], int] = {}
-        # Current --save segment metadata (label/states/notes), surfaced by the
-        # TUI header. Kept in sync as the initial journal is opened and whenever
-        # the user edits (`s`) or rotates a segment (`n`); the journal itself only
-        # keeps these in its write-ahead log, so we mirror them here for display.
-        self.session_label = ""
-        self.session_notes = ""
-        self.session_states: list[str] = []
         self.disconnected = False
-        # Write-ahead journal (durability): when --save is on, every polled
-        # payload is appended here as it arrives and reconciled into a capture
-        # file on exit. Set by mode_monitor. A dropped connection or crash leaves
-        # the journal on disk for `canair captures uds --recover`.
-        self.journal = None
+        # Capture recording / journaling / on-demand-save / segment-rotate logic
+        # lives in the MonitorRecorder collaborator (frame counters, display &
+        # --save history, the write-ahead journal, segment label/state/notes).
+        # The controller exposes its tested surface via the delegating
+        # properties/methods below. Constructed after keep_mode/save are set,
+        # since it initialises its history maps from them.
+        self.recorder = MonitorRecorder(self)
         self._name_index: dict | None = None
         # Auto-suggest state: latest decoded {ECU.PARAM: value} + responded ECUs,
         # evaluated against the profile's states.yaml rules (lazy-loaded).
         self.decoded_values: dict[str, float] = {}
         self.responded: set[str] = set()
         self._state_rules: list | None = None
-        # True once the user sets a non-empty state via the TUI save dialog, so
-        # the end-of-run auto-suggest fallback doesn't clobber their choice.
-        self._state_explicit = False
         # In-place editing / filtering of PID definitions from the TUI. The
         # editor owns the selection cursor + display filter and writes edits
         # through canlib.pids_edit; this controller reloads on its request.
@@ -288,6 +191,102 @@ class MonitorController:
         # every mid-cycle partial, but most PIDs are unchanged between paints, so
         # reuse their rendered Text instead of rebuilding it each time.
         self._render_cache = RenderCache()
+
+    # --- Recording / journaling: delegated to the MonitorRecorder collaborator.
+    # These facades keep the tested public surface (and the TUI/renderer reads)
+    # stable while the durability logic lives in _monitor_record.py.
+    @property
+    def total_frames(self) -> int:
+        return self.recorder.total_frames
+
+    @total_frames.setter
+    def total_frames(self, v: int) -> None:
+        self.recorder.total_frames = v
+
+    @property
+    def unique_frames(self) -> int:
+        return self.recorder.unique_frames
+
+    @unique_frames.setter
+    def unique_frames(self, v: int) -> None:
+        self.recorder.unique_frames = v
+
+    @property
+    def hex_history(self):
+        return self.recorder.hex_history
+
+    @hex_history.setter
+    def hex_history(self, v) -> None:
+        self.recorder.hex_history = v
+
+    @property
+    def save_history(self):
+        return self.recorder.save_history
+
+    @save_history.setter
+    def save_history(self, v) -> None:
+        self.recorder.save_history = v
+
+    @property
+    def journal(self):
+        return self.recorder.journal
+
+    @journal.setter
+    def journal(self, v) -> None:
+        self.recorder.journal = v
+
+    @property
+    def session_label(self) -> str:
+        return self.recorder.session_label
+
+    @session_label.setter
+    def session_label(self, v: str) -> None:
+        self.recorder.session_label = v
+
+    @property
+    def session_states(self) -> list[str]:
+        return self.recorder.session_states
+
+    @session_states.setter
+    def session_states(self, v: list[str]) -> None:
+        self.recorder.session_states = v
+
+    @property
+    def session_notes(self) -> str:
+        return self.recorder.session_notes
+
+    @session_notes.setter
+    def session_notes(self, v: str) -> None:
+        self.recorder.session_notes = v
+
+    @property
+    def _state_explicit(self) -> bool:
+        return self.recorder.state_explicit
+
+    @_state_explicit.setter
+    def _state_explicit(self, v: bool) -> None:
+        self.recorder.state_explicit = v
+
+    def has_captures(self) -> bool:
+        """True when there's at least one payload available to save."""
+        return self.recorder.has_captures()
+
+    def _set_segment_meta(
+        self, label: str | None, states: list[str] | None, notes: str | None
+    ) -> None:
+        """Mirror the journal's last-wins metadata onto the display fields."""
+        self.recorder.set_segment_meta(label, states, notes)
+
+    def save_now(self, label: str, vehicle_states=None, notes: str | None = None) -> str:
+        """On-demand save (TUI 's'). See :meth:`MonitorRecorder.save_now`."""
+        return self.recorder.save_now(label, vehicle_states, notes)
+
+    def new_segment(self, label: str, vehicle_states=None, notes: str | None = None) -> str:
+        """Close the current --save segment and start a fresh one (TUI 'n').
+
+        See :meth:`MonitorRecorder.new_segment`.
+        """
+        return self.recorder.new_segment(label, vehicle_states, notes)
 
     def reload_pids(self) -> None:
         """Re-read PID definitions after an in-place edit and rebuild the index.
@@ -381,63 +380,13 @@ class MonitorController:
         values, responded = collect_values(new_queries)
         self.decoded_values.update(values)
         self.responded |= responded
-        # Snapshot the prior cycle's payloads before overwriting them, so the
-        # renderer can diff current-vs-previous (prev_hex is about to become the
-        # current values).
+        # Snapshot the prior cycle's payloads before the recorder overwrites them,
+        # so the renderer can diff current-vs-previous (prev_hex is about to become
+        # the current values).
         self.prev_snapshot = dict(self.prev_hex)
-        for ecu_label, pid_results in new_queries:
-            for entry in pid_results:
-                if entry.get("stale"):
-                    continue  # a re-shown last-good value on timeout — not fresh data
-                raw = entry.get("raw_hex", "")
-                if not raw:
-                    continue
-                key = (ecu_label, entry["pid"])
-                self.prev_hex[key] = raw
-                # Frame accounting: every fresh payload is a captured frame; track
-                # distinct (key, payload) so the status line can show captured vs
-                # unique (which is what keep:unique stores).
-                self.total_frames += 1
-                sig = (key, raw)
-                if sig not in self._seen_payloads:
-                    self._seen_payloads.add(sig)
-                    self.unique_frames += 1
-                # Per-PID acquisition timestamp (moment the response arrived),
-                # millisecond precision, so sequentially-polled PIDs keep skew.
-                # Also carry the acquisition date so a monitor session crossing
-                # midnight reconciles into the correct per-day capture files.
-                acq = entry.get("acquired_at")
-                dt = datetime.fromtimestamp(acq) if acq else datetime.now()
-                ts = dt.strftime("%H:%M:%S.%f")[:-3]
-                ts_date = dt.strftime("%Y-%m-%d")
-                if self.save_history is not None:  # --save
-                    if self.journal is not None:
-                        # Journaled: the write-ahead log is the source of truth on
-                        # exit, so skip the redundant in-memory save_history growth.
-                        with contextlib.suppress(Exception):
-                            self.journal.append(
-                                self._ecu_ref(ecu_label), entry["pid"], raw, ts, ts_date
-                            )
-                    else:
-                        self.save_history.setdefault(key, []).append((raw, ts))
-                if self.hex_history is not None:  # --keep display history
-                    if self.keep_mode in ("all", "last"):
-                        self.hex_history.setdefault(key, []).append((raw, ts))
-                        if (
-                            self.keep_mode == "last"
-                            and self.keep_n
-                            and len(self.hex_history[key]) > self.keep_n
-                        ):
-                            self.hex_history[key] = self.hex_history[key][-self.keep_n :]
-                    else:  # "unique": store only if not seen before
-                        existing = [h for h, _ts in self.hex_history.get(key, [])]
-                        if raw not in existing:
-                            self.hex_history.setdefault(key, []).append((raw, ts))
-        # One durable flush per cycle instead of an fsync per payload — keeps the
-        # poll loop (and TUI) off N serial fsync syscalls when saving many PIDs.
-        if self.journal is not None:
-            with contextlib.suppress(Exception):
-                self.journal.flush()
+        # Durability (prev_hex update + frame accounting + display/--save history +
+        # journal) is the recorder's job.
+        self.recorder.observe(new_queries)
 
     async def poll_once(self) -> None:
         """Run every query step once, updating live state. Sets ``disconnected``."""
@@ -583,11 +532,6 @@ class MonitorController:
             return _RENDER_MAX_ROWS
         return _RENDER_DEFAULT_ROWS
 
-    def has_captures(self) -> bool:
-        """True when there's at least one payload available to save."""
-        history = self.save_history if self.save_history is not None else (self.hex_history or {})
-        return bool(history) or bool(self.prev_hex)
-
     def _ecu_ref(self, ecu_label: str) -> str:
         """Resolve a monitor ECU label (e.g. "BMS") to its CAN response address.
 
@@ -625,17 +569,6 @@ class MonitorController:
         """
         return self.session_label or self.query_label() or "Monitor"
 
-    def _set_segment_meta(
-        self, label: str | None, states: list[str] | None, notes: str | None
-    ) -> None:
-        """Mirror the journal's last-wins metadata onto the display fields."""
-        if label:
-            self.session_label = label
-        if states:
-            self.session_states = list(states)
-        if notes is not None:
-            self.session_notes = notes
-
     def suggested_state(self) -> str | None:
         """Auto-suggest the vehicle state from the latest decoded values.
 
@@ -662,109 +595,6 @@ class MonitorController:
             return state_options()
         except Exception:
             return []
-
-    def save_now(self, label: str, vehicle_states=None, notes: str | None = None) -> str:
-        """Save the payloads captured so far (on-demand save from the TUI).
-
-        ``vehicle_states`` may be a comma-separated string (as typed in the TUI
-        dialog) or a token list; it is normalized to a list. Uses the richest
-        history available — the full ``--save`` history if enabled, else the
-        display (``--keep``) history, else just the latest per-PID snapshot —
-        merged with the current values. Returns a one-line summary for display.
-        Never writes to stdout (the TUI owns the screen).
-        """
-        import contextlib
-        import io
-
-        from ..states import parse_states
-
-        states = parse_states(vehicle_states)
-
-        # Journal active (--save): payloads are already durably journaled and
-        # reconciled on exit. The on-demand save just updates the metadata that
-        # the reconciled session will carry (label/states/notes), applied live.
-        if self.journal is not None:
-            with contextlib.suppress(Exception):
-                self.journal.update_meta(label, states, notes)
-            self._set_segment_meta(label, states, notes)
-            if states:
-                self._state_explicit = True
-            return f"Metadata set (label={label!r}); session auto-saves on exit."
-
-        history = self.save_history if self.save_history is not None else (self.hex_history or {})
-        merged = _merge_history(history, self.prev_hex)
-        if not merged:
-            return "No payloads captured yet — nothing to save."
-
-        # Only write rows that appeared since the last on-demand save. Repeated
-        # 's' presses re-merge the full history, so without this a payload would
-        # be written once per press. The high-water mark is per PID; advance it
-        # by the number of rows written so the next press starts after them.
-        new_merged: dict[tuple[str, str], list[tuple[str, str]]] = {}
-        for key, entries in merged.items():
-            already = self._saved_counts.get(key, 0)
-            fresh = entries[already:]
-            if fresh:
-                new_merged[key] = fresh
-        if not new_merged:
-            return "Nothing new since last save."
-
-        captures_dir = self.captures_dir
-        if captures_dir is None:
-            from ..profile import active
-
-            captures_dir = active().captures_dir
-
-        n_pids = len(new_merged)
-        n_payloads = sum(len(v) for v in new_merged.values())
-        with contextlib.redirect_stdout(io.StringIO()):
-            path = _write_merged(
-                new_merged, label, states, notes or "", captures_dir, keep_mode=self.keep_mode
-            )
-        for key, entries in merged.items():
-            self._saved_counts[key] = len(entries)
-        return f"Saved {n_payloads} payload(s) across {n_pids} PID(s) → {path.name}"
-
-    def new_segment(self, label: str, vehicle_states=None, notes: str | None = None) -> str:
-        """Close the current --save segment and start a fresh one (journal rotate).
-
-        Reconciles the current journal into a capture file, then opens a new empty
-        journal carrying the provided label/states/notes. One monitor run can thus
-        produce several independently-labelled sessions. A no-op (with a message)
-        when --save is off, since there is no journal to rotate. Returns a one-line
-        summary; never writes to stdout (the TUI owns the screen).
-        """
-        import contextlib
-
-        from ..states import parse_states
-
-        if self.journal is None:
-            return "New segment requires --save (nothing is being recorded)."
-
-        states = parse_states(vehicle_states)
-
-        # Give the closing segment its auto-suggested state when none was set
-        # explicitly, mirroring the end-of-run reconcile in mode_monitor.
-        if not self._state_explicit:
-            with contextlib.suppress(Exception):
-                suggested = self.suggested_state()
-                if suggested:
-                    self.journal.update_meta(vehicle_states=[suggested])
-
-        written = None
-        with contextlib.suppress(Exception):
-            written = self.journal.reconcile()
-
-        self.journal = _open_journal(self, label, states, notes)
-        self._state_explicit = bool(states)
-        # Reset the display metadata to the new segment's (label always set here).
-        self.session_label = label or ""
-        self.session_states = list(states or [])
-        self.session_notes = notes or ""
-
-        if written is not None:
-            return f"Segment saved → {written.name}; recording new segment ({label!r})."
-        return f"Recording new segment ({label!r})."
 
     async def close(self) -> None:
         """Stop keepalives and close all open sessions / the raw client (best-effort)."""
