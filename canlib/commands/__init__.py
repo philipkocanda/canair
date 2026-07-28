@@ -21,6 +21,7 @@ COMMAND_NAMES: list[str] = [
     # live device
     "status",
     "query",
+    "monitor",
     "scan",
     "discover",
     "raw",

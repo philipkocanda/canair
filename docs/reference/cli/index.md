@@ -10,6 +10,7 @@ Every capability is a `canair <subcommand>`. These pages are generated from each
 
 - [`canair status`](status.md) — ``canair status`` — show the configured transport, device state, and profile.
 - [`canair query`](query.md) — Query ECUs/parameters live. Positional STEPs use the multi mini-language.
+- [`canair monitor`](monitor.md) — Monitor ECUs/parameters live in a scrollable, refreshing view. Positional STEPs use the multi mini-language (same as `canair query`).
 - [`canair scan`](scan.md) — Scan an ECU. Choose a kind:
 - [`canair discover`](discover.md) — Sweep a range of TX addresses (sends 10 01 to each) to find ECUs.
 - [`canair raw`](raw.md) — Send a raw UDS request (hex in, hex out).

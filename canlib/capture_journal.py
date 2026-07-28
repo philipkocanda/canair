@@ -1,6 +1,6 @@
 """Capture journaling — a write-ahead log for streaming/one-shot captures.
 
-Problem: ``canair query --save`` (especially ``--monitor``) buffers all payloads
+Problem: ``canair query --save`` (especially ``canair monitor --save``) buffers all payloads
 in memory and only writes the capture file on a clean exit. A crash, ``kill``, or
 dropped connection loses the whole session.
 

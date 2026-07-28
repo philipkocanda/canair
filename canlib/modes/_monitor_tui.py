@@ -1,4 +1,4 @@
-"""Textual TUI for the live monitor (``canair query --monitor``).
+"""Textual TUI for the live monitor (``canair monitor``).
 
 The latest values render into a single widget that updates *in place* inside a
 scrollable container. The scroll position is independent of the data refresh, so

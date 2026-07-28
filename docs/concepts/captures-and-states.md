@@ -116,7 +116,7 @@ Add `--save` to a read, with context flags:
 canair query MyECU:2101 --save --label "highway" --state driving --notes "…"
 ```
 
-`--save` works with `query`, `scan`, `discover`, and live `--monitor`.
+`--save` works with `query`, `monitor`, `scan`, and `discover`.
 
 !!! note "Truncated reads are rejected, not stored"
     A multi-frame ISO-TP response is self-describing — its first frame declares
@@ -156,7 +156,7 @@ canair captures uds --recover --discard   # or drop them unsaved
 
 ## Recording in the live monitor
 
-`canair query … --monitor --save` records continuously: every poll cycle is
+`canair monitor … --save` records continuously: every poll cycle is
 journaled as it arrives. The scrollable live view shows a blinking `● REC`
 whenever a `--save` recording is active, and two keys control the session:
 

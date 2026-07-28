@@ -7,13 +7,12 @@ scrollbar and keys all scroll natively and nothing ever freezes. When stdout is
 not a TTY (piped/scripted) it polls silently until Ctrl+C and prints the final
 values.
 
-Usage (via canair query --monitor):
-    canair query "session BCM --wake" "query BCM:C00B,B00E" --monitor
-    canair query "query BMS:2101" --monitor 2.0
-    canair query "session IGPM --wake" "query IGPM:BC03,BC06" --monitor
+Usage (via canair monitor):
+    canair monitor "session BCM --wake" "query BCM:C00B,B00E"
+    canair monitor "query BMS:2101" --interval 2.0
+    canair monitor "session IGPM --wake" "query IGPM:BC03,BC06"
 
-The --monitor flag applies to the last 'query' step in the pipeline. If
-there are multiple query steps, all of them are repeated each cycle.
+Every 'query' step in the pipeline is repeated each poll cycle.
 
 The polling / decoding / capture-saving logic lives in :class:`MonitorController`
 (reused by both the TUI and the non-interactive path); only the presentation

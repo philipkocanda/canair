@@ -222,6 +222,24 @@ def param_completer(prefix, parsed_args=None, **kwargs):
 
 
 # ---------------------------------------------------------------------------
+# Multi mini-language step helpers (shared by the query + monitor surfaces)
+# ---------------------------------------------------------------------------
+
+# Leading verbs recognised by the multi mini-language. A positional STEP whose
+# first token is one of these is passed through verbatim; anything else is a
+# bare selector and gets the implicit ``query`` verb prepended.
+STEP_VERBS = ("skm-wake", "session", "query", "raw", "scan", "iocontrol", "sleep", "repl")
+
+
+def to_step(selector: str) -> str:
+    """Prefix a bare selector with the ``query`` verb unless it already has one."""
+    first = selector.strip().split(maxsplit=1)
+    if first and first[0].lower() in STEP_VERBS:
+        return selector
+    return f"query {selector}"
+
+
+# ---------------------------------------------------------------------------
 # Parser helpers shared by live subcommands
 # ---------------------------------------------------------------------------
 
@@ -559,7 +577,7 @@ async def dispatch_mode(args, terminal: Terminal, pids_data, host):
         query_steps = [c for c in commands if c["type"] == "query"]
         if not query_steps:
             print(
-                "Error: --monitor requires at least one 'query' step in --multi",
+                "Error: monitor requires at least one 'query' step",
                 file=sys.stderr,
             )
             sys.exit(1)

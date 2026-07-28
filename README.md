@@ -67,7 +67,8 @@ All functionality is exposed as `canair <subcommand>`; run `canair <cmd> --help`
 |--------|---------|
 | `canair status` | Snapshot of transport, device mode, and reachability. |
 | `canair logs` | View the central diagnostics log (transport drops/errors), size-rotated and self-cleaning. |
-| `canair query` | Send UDS/KWP2000 requests — parameter queries, multi-ECU pipelines, live `--monitor`. Companions: `discover`, `io`, `routines`, `raw`, `repl`. |
+| `canair query` | Send UDS/KWP2000 requests — parameter queries, multi-ECU pipelines. Companions: `discover`, `io`, `routines`, `raw`, `repl`. |
+| `canair monitor` | Live, continuously-refreshing view of ECU parameters (scrollable TUI); records with `--save`. |
 | `canair scan` | Probe DID/routine/iocontrol/session ranges for responses. |
 | `canair dtc` | Read/clear Diagnostic Trouble Codes; report changes since the last scan. |
 | `canair identity` | Decode ECU identity DIDs — part number, versions, serial, VIN. |

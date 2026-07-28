@@ -1,6 +1,6 @@
 """Shared Textual help modal for canair's live TUIs.
 
-Every full-screen Textual app in canair (the query ``--monitor`` monitor, the
+Every full-screen Textual app in canair (the ``canair monitor`` monitor, the
 ``sniff`` table, and any future one) advertises its keybindings the same way: a
 ``?`` opens a modal cheat-sheet built **from the app's own ``BINDINGS``**, so the
 list can never drift from what the keys actually do.

@@ -210,12 +210,12 @@ Full reference: **AGENTS.md** + `canair <cmd> --help`. Key project behaviors:
   **plus** a bogus ECU `BC03`" (rejected). Write `query IGPM:BC03,BC06`. Bare
   `canair query BMS` / `BMS:2101` and `--param NAME` are single-ECU shortcuts.
 - **`--save` discipline.** NEVER hand-write/edit `captures/` YAML — record via
-  `canair query/scan/raw/discover … --save` (and `--monitor`). Agents must pass
+  `canair query/monitor/scan/raw/discover … --save`. Agents must pass
   `--label` (+ optional `--state`/`--notes`) for non-interactive save; without
   `--label` it prompts. Saves are **journaled** to `captures/.journal/` as they
   stream and reconciled into the dated file on exit, so a killed/disconnected
   session isn't lost — recover leftovers with `canair captures uds --recover`
-  (`--discard` to drop). In `--monitor` press `s` to set/edit the current
+  (`--discard` to drop). In `canair monitor` press `s` to set/edit the current
   session's label/state/notes live (the modal names the segment it labels), or
   `n` to close the current segment and start a fresh one (several labelled
   sessions per run); a `● REC` blinks while `--save` is recording. The **state is
@@ -249,7 +249,7 @@ canair query "query BMS:2101"                        # single PID, decoded
 canair query "query BMS:2101" "query VCU:2101"       # multi-ECU, one session
 canair query "session IGPM --wake" "query IGPM:BC03,BC06"   # wake + query
 canair query "skm-wake acc" "sleep 1" "query BCM:B00E" "repl"
-canair query "query BCM" --monitor 2 --keep-unique   # live refresh, unique payloads
+canair monitor "query BCM" --interval 2 --keep-unique   # live refresh, unique payloads
 ```
 
 Step verbs: `skm-wake [acc|ign1|ign2|start]`, `session <ECU> [--wake] [--mode XX]`,
@@ -257,9 +257,11 @@ Step verbs: `skm-wake [acc|ign1|ign2|start]`, `session <ECU> [--wake] [--mode XX
 `iocontrol <ECU> <DID> [--off]`, `sleep <s>`, `repl`.
 ECUs resolve by name (`IGPM`) or hex TX ID (`770`).
 
-### `--monitor`
+### `canair monitor`
 
-Live-refreshing poll: non-query steps run once as setup, `query` steps poll in a
+Live-refreshing poll (its own top-level command; positional query steps like
+`canair query`, plus `--interval SECONDS`, default 5.0). Non-query steps run once
+as setup, `query` steps poll in a
 background worker with TesterPresent keepalives. On a TTY it's a scrollable
 Textual TUI (`↑↓/j/k`/wheel scroll, `f` follow-tail, `space` pause, `=`/`-` poll
 faster/slower live, `s` save payloads with a metadata modal, `?` a keybinding

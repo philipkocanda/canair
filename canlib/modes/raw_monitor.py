@@ -40,7 +40,7 @@ async def run_raw_monitor(args, host: str, port: int, bitrate: int, pids_data: d
     session_steps = [c for c in commands if c["type"] in ("session", "skm-wake", "sleep")]
     query_steps = [c for c in commands if c["type"] == "query"]
     if not query_steps:
-        print("Error: --monitor requires at least one 'query' step in --multi", file=sys.stderr)
+        print("Error: monitor requires at least one 'query' step", file=sys.stderr)
         return 1
 
     ecu_index = build_ecu_index(pids_data)

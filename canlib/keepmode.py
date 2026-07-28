@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Helpers for reasoning about a capture's ``keep_mode``.
 
-``keep_mode: unique`` (set by ``--monitor --keep-unique``) means the monitor
+``keep_mode: unique`` (set by ``canair monitor --keep-unique``) means the monitor
 stored only payloads that differed from any seen before — so the capture holds
 **rising-edge transitions only**; return-to-previous states (falling edges) and
 dwell durations are absent. Analysis tools use these helpers to caveat results
@@ -34,7 +34,7 @@ def scope_is_keep_unique(captures) -> bool:
 def keep_mode_from_args(args) -> str:
     """Resolve the monitor keep-mode from parsed ``--keep*`` flags.
 
-    The default is ``"unique"`` (rising-edge dedup) so a ``--monitor --save``
+    The default is ``"unique"`` (rising-edge dedup) so a ``canair monitor --save``
     session doesn't balloon its capture file with every polled duplicate. Explicit
     overrides: ``--keep-all`` → ``"all"`` (full time-series), ``--keep N`` →
     ``"last"``. Shared by both the ELM and raw-CAN monitor paths so the default

@@ -31,6 +31,7 @@ CATEGORIES: list[tuple[str, tuple[str, ...]]] = [
         (
             "status",
             "query",
+            "monitor",
             "scan",
             "discover",
             "raw",

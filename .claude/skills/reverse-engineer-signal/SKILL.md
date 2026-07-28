@@ -182,22 +182,22 @@ canair pids add-research MCU --type decode --target 2102 \
 canair query "query MCU:2102" --save --label "MCU 2102 driving" \
     --state "ready, driving" --notes "hard launches + regen"
 # Capture change across time (values that move reveal what a byte means)
-canair query "query MCU 2102" --monitor 1 --keep-all --save
+canair monitor "query MCU 2102" --interval 1 --keep-all --save
 ```
 
 Capture the SAME PID in DIFFERENT states (park vs drive, cold vs warm, charging
 vs ready) — contrast is what lets you separate signal bytes from constants. For
 **cross-signal analysis** (step 7), co-poll the target PID *together with* an ECU
 carrying a known reference (speed on ESC, RPM on MCU) in one `canair query` /
-`--monitor` run — they'll share a drive so `hunt`/`correlate`/cross-ECU `--corr`
+`canair monitor` run — they'll share a drive so `hunt`/`correlate`/cross-ECU `--corr`
 can time-align them. Every payload capture is now timestamped automatically, so
 any co-polled drive is joinable; only one-shot scans/identity reads stay untimed.
 **Never hand-edit `captures/` — and never read the raw `captures/*.yaml` files
 directly.** Always inspect captures through `canair captures`/`canair decode`
 (next step): reading the YAML by hand gives you undecoded raw payloads and skips
 byte-diffing, decoding, and state/date scoping. Saves are journaled to `captures/.journal/` and
-reconciled on exit (a killed/disconnected `--monitor` session is recoverable with
-`canair captures uds --recover`); in `--monitor` the `state` is auto-suggested from
+reconciled on exit (a killed/disconnected `canair monitor` session is recoverable with
+`canair captures uds --recover`); in `canair monitor` the `state` is auto-suggested from
 decoded values (press `s` to edit the current session's metadata live, `n` to start
 a fresh labelled segment; a `● REC` blinks while recording). After saving, run
 `canair captures uds --summary`.
@@ -290,7 +290,7 @@ same "reason from the ECU's role" applies to any powertrain):
 - **BCM/IGPM (body)** — mostly *discrete* signals: lights, locks, doors,
   switches → **bitfields and enums**, not continuous analog. Decode these with
   the **bit-level, event-driven** workflow: capture a *narrated* event sequence
-  (`--monitor --keep-unique`, noting each physical action), then
+  (`canair monitor --keep-unique`, noting each physical action), then
   `canair investigate <ECU> <PID> --events --bits` to get the rising/falling-edge
   timeline aligned to your notes, and `canair correlate --find-mirrors --bits` to
   find the same bit exposed on a second ECU (e.g. an IGPM door bit mirrored in
@@ -520,7 +520,7 @@ confirms it. A bad expression shows `ERROR` rather than hiding.
 
 **`--plot` (interactive signal explorer)** is the fastest way to *find* a signal
 when you don't yet have a candidate expression. It works even on a not-yet-defined
-PID (raw payloads only). It's a Textual TUI (same look/feel as the query monitor);
+PID (raw payloads only). It's a Textual TUI (same look/feel as `canair monitor`);
 keys:
 - `←`/`→` move the byte offset (byte mode) or switch parameter (param mode)
 - `t`/`T` cycle the interpretation type (`u8 i8 u16 i16 u24 i24 u32 i32 u64 i64 f16 f32 f64`)
@@ -654,7 +654,7 @@ upstream wican-fw PR — see the `ioniq-reverse-engineering` skill's goals).
 |------|------|
 | what to work on | `canair research`, `canair coverage` |
 | what's captured | `canair captures uds --sessions` (TOC: date/state/label/notes/ECUs; `--json`) |
-| talk to the car | `canair query`/`scan`/`discover` (`--monitor`, `--save`) |
+| talk to the car | `canair query`/`monitor`/`scan`/`discover` (`--save`) |
 | see captures | `canair captures` (`--diff`/`--step`/`--rulers`/`--all`/`--latest`/`--summary`/`--since`/`--until`/`--state`/`--label`) |
 | map bytes | `canair bix --annotate` (+ `--ecu ECU --pid PID` to overlay which param maps each byte / flag unmapped) |
 | reason about a signal | step 6 Hypothesize — ECU context, physics/EE (thermal mass), CS (enums/counters), statistics (`--corr`/`--stats`/autocorr) |
