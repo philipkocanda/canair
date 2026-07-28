@@ -1,7 +1,7 @@
-# ISO-TP truncation guard, short-frame lint, and capture deletion
+# ISO-TP reassembly hardening: truncation guard, frame contiguity, hex-counter wrap, stale-frame drain
 
 **Date:** 2026-07-28
-**Status:** in progress
+**Status:** Implemented (2026-07-28)
 
 ## Motivation
 
@@ -126,3 +126,87 @@ Result: OBC 2101 length distribution is now `{44: 43, 48: 2521}`; `LDC_TEMP` rea
 
 WiCAN was left in ELM327 mode by the validation reads; restored to AutoPID at the start of build
 (`wican mode set auto_pid --yes`).
+
+---
+
+## Follow-on (2026-07-28): reassembly interleaving audit — drain, contiguity, hex-counter wrap
+
+After the truncation guard shipped, an audit of both transports' ISO-TP reassembly for
+interleaving/corruption under fast back-to-back multi-frame responses surfaced three more issues in
+the **`wican-ws`/ELM327** path (the `slcan-tcp` path is structurally safe — one `can-isotp` stack
+per ECU over a single `Notifier` reader thread, and each stack drops frames whose arbitration ID
+isn't its `rxid` via `address.is_for_me`, so cross-ECU misrouting cannot happen).
+
+### 4. Stale-frame drain before each ELM327 command (root cause)
+
+**File:** `canlib/terminal.py`.
+
+- `_send_command_locked` never drained stale WebSocket frames before sending, and `self._buffer`
+  was dead code. A command that timed out mid-multiframe left the ECU's late frames buffered; they
+  leaked into the *next* command's `response_parts`. The existing `expected_sid`/`expected_echo`
+  validation only caught this downstream.
+- Replaced dead `self._buffer` with `self._pipe_dirty`, set `= not clean_exit` after each command
+  (`clean_exit` is True only when the read loop consumed the ELM `>` prompt with no unresolved
+  ResponsePending). When the next command starts with a dirty pipe it drains first. Zero latency in
+  the common (clean-prompt) case; the drain only fires after a timeout.
+- Hardened `_drain()` with an overall `max_seconds` budget so a continuous stream can't hang it;
+  existing callers unchanged (defaults preserved); `connect()` clears the flag.
+
+### 5. Multi-frame index-contiguity guard
+
+**File:** `canlib/uds_parse.py`, `parse_uds_response`.
+
+- After parsing the numbered frame lines, verify the counters form the expected sequence; a
+  missing, duplicate, or out-of-order counter → `ok=False`, `error="non-contiguous ISO-TP
+  frames: …"` (reject, matching the truncation guard). A gap can be masked from the declared-length
+  guard by trailing padding, so contiguity is checked independently.
+
+### 6. ELM327 hex frame-counter wrap fix (latent bug)
+
+**File:** `canlib/uds_parse.py`, `parse_uds_response`.
+
+- The ELM327 numbers multi-frame lines with a **single hex digit** that wraps `0..F` then repeats,
+  but the line regex matched only decimal digits (`^\d+:`) and the code *sorted* by the printed
+  index. Effect: for responses with 16+ frames, lines `A:`–`F:` were silently dropped and the
+  wrapped `0..9` tail mis-ordered — any multi-frame UDS response ≥11 frames over `wican-ws` failed
+  (caught only as "truncated", never completing).
+- Fix: broadened the regex to a single hex digit (`^[0-9A-Fa-f]:`) and replaced sort-by-index with
+  **arrival-order reassembly + wrapping-counter unwrap** — ELM327 emits frames in transmission
+  order (confirmed on-car), so arrival order is authoritative; each line's counter must equal
+  `expected_counter & 0xF` as the counter increments past `F`. Subsumes the contiguity guard (#5).
+- Behavior change: reordered frame lines are now rejected as corruption (previously sorted +
+  accepted). Real ELM327 output is always in order, so reordering genuinely indicates a
+  stale/dropped frame.
+
+### Tests
+
+- `tests/test_uds_parse.py`: `TestIsoTpContiguityGuard` (missing/duplicate/out-of-order/gap-masked)
+  and `TestIsoTpFrameCounterWrap` (18-frame wrap `0..F,0,1`, exact 16-frame boundary, `A`–`F`
+  counters parsed, broken-after-wrap rejected).
+- `tests/test_terminal.py`: `TestStaleFrameDrain` (timeout marks pipe dirty, clean prompt stays
+  clean, stale frames drained before next command, no drain when clean).
+- Full suite: 2505 passed; `ruff` clean; `canair validate all` OK.
+
+### Live stress test (on-car, READY mode, 2026-07-28)
+
+Verified on real hardware — the fix works end-to-end, not just in synthetic tests.
+
+- **Smoking gun:** SKM `22B002` (178 B) returned with counters `0,1,…,E,F,0,1,…,9` — **26 frames,
+  counter wraps past `F`** — and reassembled correctly to exactly 178 B, matching the declared
+  length token `0B2` (=178) and the historical capture. `A:`–`F:` frames (dropped by the old
+  regex) and the wrapped `0:`–`9:` tail all landed. `7F2278` ResponsePending handled.
+- **Known large wrapping stress PIDs on this car:** SKM `22B002` (178 B, ~26 frames), BMS `21F2`
+  (123 B, ~18 frames). VCU `21F2` (86 B, ~13 frames) is just under the wrap boundary — a
+  non-wrapping control.
+- **Rapid interleave:** 20 back-to-back reads (10× SKM 178 B interleaved with 10× BMS 21F2 123 B) —
+  every response exact length, no interleaving/corruption/truncation. Exercised both reassembly and
+  the inter-command drain.
+- **Parity:** the same 20 interleaved reads over `slcan-tcp` (client-side `can-isotp`) also returned
+  correct lengths — both transports handle large wrapping responses.
+- 5 captures saved to `2026-07-28.json` (SKM/BMS/VCU/MCU), `validate captures` OK. Device restored
+  to `auto_pid`.
+
+### Docs
+
+No user-facing surface changed (subcommands/flags/defaults unchanged) — the wrap behavior is
+documented in the `uds_parse.py` comment; no README/`docs/` update required.

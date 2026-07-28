@@ -261,7 +261,7 @@ MCU:
       parameters: {}
 
     21F2:
-      status: static
+      status: active
       period: 0
       vehicle_states:
         - charging

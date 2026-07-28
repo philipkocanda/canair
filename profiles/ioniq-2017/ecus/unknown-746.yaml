@@ -33,7 +33,7 @@ Unknown-746:
   - charging
   pids:
     21F2:
-      status: static
+      status: active
       period: 10000
       vehicle_states:
       - ready
