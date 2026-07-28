@@ -466,6 +466,12 @@ rather than assume it.
 3. **`AGENTS.md`** — the exhaustive agent-facing command reference (keep the
    tool list, flags, and file map accurate);
 4. the **skills** (`.claude/skills/`) if the RE/contributing *workflow* changed.
+5. **`CHANGELOG.md`** — add a bullet to the `[Unreleased]` section for any
+   user-facing change (new/renamed command, changed/added/removed flag, shifted
+   default, new profile field). A stale changelog is the same class of defect as
+   stale docs; keeping `[Unreleased]` current as you land the change makes cutting
+   a release a rename rather than a `git log` archaeology exercise (see "Cutting a
+   release").
 
 Verify every internal doc link still resolves (relative `.md` links and
 README→`docs/` links); a broken cross-link is a defect (Boy Scout: fix stale
@@ -520,6 +526,10 @@ whole-tree shortcuts:
 
 ## Cutting a release
 
+**`RELEASING.md` is the authoritative step-by-step checklist** (gates → version
+bump → changelog → commit → tag → GitHub release) — follow it and don't
+duplicate it here; the notes below only stress the traps an agent hits.
+
 Version is single-sourced in `pyproject.toml` (`canlib.__version__` reads it via
 `importlib.metadata`); bump only there. Tags are annotated `vX.Y.Z`; publish via
 `gh release create`. Match the existing tag/release style (`git tag -a`, one
@@ -531,6 +541,16 @@ leaves the lock stale (still pinning the old version) — run `uv lock` right af
 the bump and commit both together (verify the diff is only the `version` line, no
 unintended dependency churn). Skipping it means a fresh `uv sync` from the tagged
 commit resolves against a lock that disagrees with `pyproject.toml`.
+
+**Update `CHANGELOG.md` as part of the release commit** (per `RELEASING.md`): move
+the accumulated `[Unreleased]` entries into a new `[X.Y.Z] - YYYY-MM-DD` section
+and refresh the compare/tag links at the bottom of the file. The cleanest path is
+to keep `[Unreleased]` current *as features land* (see "Keep the docs and README
+current") so a release is just a rename — don't leave the changelog empty and try
+to reconstruct it from `git log` at tag time. If a prior release was tagged
+without its changelog section (it happens), backfill the missing `[X.Y.Z]`
+section and fix the links in the same release so the file stops drifting from the
+tags.
 
 **Write release notes for the *reader*, not the committer:**
 
