@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-07-28
+
+### Changed
+
+- **The live monitor is now its own top-level `canair monitor` command**
+  (promoted out of `canair query --monitor`). It takes the same positional query
+  steps (`canair monitor BMS:2101`, cross-ECU `"VCU:2101 BMS:2101"`) plus
+  `--interval SECONDS` (poll period, default 5.0 — adjustable live in the TUI with
+  `=`/`-`), the keep-modes (`--keep-unique` default, `--keep-all`, `--keep N`),
+  and `--save`/`--label`/`--state`/`--notes` recording. On a TTY it opens the
+  scrollable Textual monitor; piped it polls silently until Ctrl+C.
+
+  **Breaking:** `canair query` no longer has a `--monitor` flag (nor the
+  monitor-only `--keep-*`/`--rulers` options); passing `--monitor` now errors with
+  a pointer to `canair monitor`. `query`'s own `--save` and metadata flags are
+  unchanged. Move any `canair query --monitor …` invocation to `canair monitor …`.
+
 ## [1.5.1] - 2026-07-28
 
 ### Added
@@ -628,7 +645,8 @@ dongle (both the WiCAN Pro and the classic/non-Pro WiCAN are supported).
 - Command safety blocklist preventing UDS programming/write sessions against a
   real vehicle.
 
-[Unreleased]: https://github.com/philipkocanda/canair/compare/v1.5.1...HEAD
+[Unreleased]: https://github.com/philipkocanda/canair/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/philipkocanda/canair/compare/v1.5.1...v1.6.0
 [1.5.1]: https://github.com/philipkocanda/canair/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/philipkocanda/canair/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/philipkocanda/canair/compare/v1.3.3...v1.4.0
