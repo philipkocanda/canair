@@ -321,4 +321,3 @@ def test_cmd_pids_identity_only(capsys):
     out = capsys.readouterr().out
     assert rc == 0
     assert "No PID definitions" in out
-

@@ -301,7 +301,9 @@ def run(args) -> int:
         return _CANNOT
 
     c.print(f"  This will check out [bold]{latest}[/bold] in the clone at [bold]{clone}[/bold]:")
-    c.print(f"    git fetch --tags  &&  git checkout {latest}  &&  uv tool install {clone} --reinstall\n")
+    c.print(
+        f"    git fetch --tags  &&  git checkout {latest}  &&  uv tool install {clone} --reinstall\n"
+    )
 
     if not args.yes:
         if not (sys.stdin.isatty() and sys.stdout.isatty()):
