@@ -436,6 +436,19 @@ async def async_main(args):
     _cli_timeout = cli_timeout(args)
     _ws_timeout = _cli_timeout if _cli_timeout is not None else 3.0
 
+    # Pre-flight reachability check. The WebSocket ELM327 terminal lives on the
+    # device's HTTP port; if that port is closed or the host is silent (wrong
+    # IP, VPN down, device asleep, or a protocol not serving the WebSocket),
+    # websockets.connect() would otherwise hang out its full open_timeout and
+    # raise a bare TimeoutError with no guidance. Fail fast with an alert.
+    from canlib.wican_mode import ModeError, require_ws_reachable
+
+    try:
+        require_ws_reachable(host)
+    except ModeError as e:
+        print(f"error: {e}", file=sys.stderr)
+        sys.exit(1)
+
     terminal = WiCANTerminal(
         host=host,
         timeout=_ws_timeout,

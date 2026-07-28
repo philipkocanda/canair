@@ -14,7 +14,6 @@ Mode changes go through the HTTP config API:
 
 from __future__ import annotations
 
-import contextlib
 import socket
 import time
 
@@ -70,6 +69,46 @@ def require_protocol(
         raise ModeError(msg)
 
 
+def _tcp_open(host: str, port: int, timeout: float) -> bool:
+    """Return True if a TCP connection to ``host:port`` succeeds within ``timeout``."""
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
+def require_ws_reachable(host: str, *, port: int = 80, timeout: float = 4.0) -> None:
+    """Raise :class:`ModeError` if the WiCAN's WebSocket/HTTP port doesn't respond.
+
+    The ``wican-ws`` transport reaches the ELM327 terminal over ``ws://host/ws``,
+    which lives on the device's HTTP port. When that port is closed or the host
+    is silent (wrong IP, VPN down, device asleep, or a protocol that isn't
+    serving the WebSocket), ``websockets.connect()`` either fails deep in the
+    stack or hangs out its full open-timeout before raising a bare
+    ``TimeoutError`` — neither tells the user what's actually wrong. This fast
+    TCP pre-check fails up front with an actionable alert instead.
+
+    A no-op when the port answers (the ``/ws`` terminal works in any device
+    mode, so an open port is good enough — we don't gate on the protocol here).
+    """
+    if _tcp_open(host, port, timeout):
+        return
+    raise ModeError(
+        f"can't reach the WiCAN's ELM327 WebSocket terminal at ws://{host}/ws — "
+        f"TCP port {port} didn't respond within {timeout:.0f}s.\n"
+        f"The 'wican-ws' transport needs the device's HTTP/WebSocket server. "
+        f"Likely causes:\n"
+        f"  • the device is powered off, asleep, or still booting\n"
+        f"  • the host is wrong — trying '{host}' (check --wican / transport.host in config)\n"
+        f"  • you're not on the same network as the device (VPN down? wrong Wi-Fi?)\n"
+        f"  • the device is in a mode that isn't serving the WebSocket (e.g. raw "
+        f"'slcan') — the ELM327 terminal needs 'elm327'/'auto_pid'\n"
+        f"  • diagnose:      canair status --wican {host}\n"
+        f"  • switch mode:   canair wican mode set elm327"
+    )
+
+
 def wait_until_ready(host: str, port: int = 80, timeout: float = 45.0) -> bool:
     """Block until ``host:port`` accepts a TCP connection (device back up).
 
@@ -78,7 +117,7 @@ def wait_until_ready(host: str, port: int = 80, timeout: float = 45.0) -> bool:
     """
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        with contextlib.suppress(OSError), socket.create_connection((host, port), timeout=2.0):
+        if _tcp_open(host, port, timeout=2.0):
             return True
         time.sleep(1.0)
     return False
