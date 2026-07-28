@@ -48,6 +48,11 @@ When `transport` is omitted, canair defaults to `slcan-tcp` using
 `wican_addresses`/`default_wican` for the host. See
 [Architecture](../concepts/architecture.md) for what the transports are.
 
+`canair wican mode set MODE` keeps `transport.type` in step with the device's
+mode: switching to `slcan` sets `slcan-tcp`, switching to `elm327` sets
+`wican-ws` (it prints the `old -> new` change, or says it's already aligned).
+Pass `--no-transport` to switch the device mode without touching the config.
+
 ## Example
 
 ```yaml

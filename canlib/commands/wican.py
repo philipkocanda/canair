@@ -17,14 +17,14 @@ Subcommands:
   autopid diff                Download + diff against the generated JSON (Pro)
   autopid stats               Per-ECU/PID statistics table
   mode show                   Show the device's active protocol
-  mode set MODE               Switch the device protocol/mode and reboot (Pro)
+  mode set MODE               Switch the device protocol/mode + align transport (Pro)
 
 Examples:
   canair wican autopid write                       # verified-only out/autopid.json
   canair wican autopid write --include-unverified  # also include unverified params
   canair wican autopid upload --reboot             # upload + reboot to apply
   canair wican autopid diff --wican home           # compare device vs generated
-  canair wican mode set slcan                 # raw CAN; `auto_pid` to restore
+  canair wican mode set slcan                 # raw CAN + set transport slcan-tcp
 """
 
 import argparse
@@ -310,6 +310,16 @@ def print_stats(data: dict) -> None:
 
 _PROTOCOLS = ("elm327", "slcan", "savvycan", "realdash66", "auto_pid")
 
+# canair drives the bus in exactly two device modes; `mode set` aligns the
+# config transport.type to match so switching the device doesn't leave the
+# transport pointing at the wrong backend (the usual foot-gun). The other modes
+# (auto_pid/savvycan/realdash66) have no request/response transport, so the
+# transport is left untouched with a note.
+_MODE_TO_TRANSPORT = {
+    "slcan": "slcan-tcp",
+    "elm327": "wican-ws",
+}
+
 
 def _add_wican_arg(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
@@ -332,7 +342,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "  autopid diff      download + diff against the generated JSON (Pro)\n"
         "  autopid stats     per-ECU/PID statistics table\n"
         "  mode show         show the device's active protocol\n"
-        "  mode set MODE     switch the device protocol/mode and reboot (Pro)",
+        "  mode set MODE     switch the device protocol/mode, reboot + align transport (Pro)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
@@ -473,11 +483,28 @@ def _add_mode_parser(groups) -> argparse.ArgumentParser:
     setp = sub.add_parser(
         "set",
         help="Switch the device protocol/mode and reboot (Pro)",
-        description="Switch the WiCAN device to MODE and reboot it (e.g. 'slcan' "
-        "for raw CAN, 'auto_pid' to restore Home Assistant). WiCAN Pro only.",
+        description=(
+            "Switch the WiCAN device to MODE and reboot it, then align canair's "
+            "transport to match (slcan -> slcan-tcp, elm327 -> wican-ws). "
+            "WiCAN Pro only.\n\n"
+            "Valid modes:\n"
+            "  slcan        raw CAN — canair drives ISO-TP client-side; enables sniff\n"
+            "  elm327       ELM327 terminal — the dongle runs ISO-TP\n"
+            "  auto_pid     restore Home Assistant AutoPID broadcasting\n"
+            "  savvycan     stream frames to SavvyCAN\n"
+            "  realdash66   stream frames to RealDash (CAN 66)"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    setp.add_argument("protocol", metavar="MODE", choices=_PROTOCOLS, help="Target protocol/mode")
+    # No metavar override: argparse then lists the valid modes in the usage line
+    # (e.g. `{elm327,slcan,savvycan,realdash66,auto_pid}`) instead of a bare MODE.
+    setp.add_argument("protocol", choices=_PROTOCOLS, help="Target protocol/mode")
     setp.add_argument("--yes", action="store_true", help="Skip the confirmation prompt")
+    setp.add_argument(
+        "--no-transport",
+        action="store_true",
+        help="Don't auto-align the config transport.type to the new mode",
+    )
     _add_wican_arg(setp)
     setp.set_defaults(_wican_func=_cmd_mode_set)
 
@@ -597,6 +624,37 @@ def _cmd_mode_show(args) -> int:
     return 0
 
 
+def _sync_transport_to_mode(mode: str, *, no_transport: bool) -> None:
+    """Align the config ``transport.type`` to the device mode just set.
+
+    canair drives the bus in ``slcan`` (raw ``slcan-tcp``) or ``elm327``
+    (``wican-ws`` ELM327 terminal); switching the device mode without also
+    pointing the transport at it is the usual foot-gun. Prints the ``old ->
+    new`` transition, or reports the transport is already aligned. Modes with no
+    request/response transport (auto_pid/savvycan/realdash66) are left untouched.
+    """
+    if no_transport:
+        return
+
+    desired = _MODE_TO_TRANSPORT.get(mode)
+    if desired is None:
+        print(
+            f"  Transport unchanged — no canair transport maps to '{mode}' mode "
+            "(canair drives the bus in 'slcan' or 'elm327' mode)."
+        )
+        return
+
+    from canlib.config import get_config_key, set_config_key
+    from canlib.transport.config import DEFAULT_TRANSPORT
+
+    current = get_config_key("transport.type") or DEFAULT_TRANSPORT
+    if current == desired:
+        print(f"  Transport already '{desired}'.")
+        return
+    set_config_key("transport.type", desired)
+    print(f"  Transport '{current}' -> '{desired}'.")
+
+
 def _cmd_mode_set(args) -> int:
     """Explicitly set the WiCAN device protocol/mode (reboots). Opt-in only."""
     from canlib.wican_mode import ModeError, current_protocol, set_protocol
@@ -615,6 +673,7 @@ def _cmd_mode_set(args) -> int:
 
     if cur == target:
         print(f"WiCAN already in '{target}' mode.")
+        _sync_transport_to_mode(target, no_transport=args.no_transport)
         return 0
 
     if not args.yes:
@@ -644,6 +703,7 @@ def _cmd_mode_set(args) -> int:
         now = "?"
     if now == target:
         print(f"WiCAN now in '{target}' mode.")
+        _sync_transport_to_mode(target, no_transport=args.no_transport)
         return 0
     print(f"warning: WiCAN reports '{now}' after switch.", file=sys.stderr)
     return 1

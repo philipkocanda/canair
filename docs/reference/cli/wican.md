@@ -14,7 +14,7 @@ Nothing is written until you ask for it — a bare `canair wican` prints this he
   autopid diff      download + diff against the generated JSON (Pro)
   autopid stats     per-ECU/PID statistics table
   mode show         show the device's active protocol
-  mode set MODE     switch the device protocol/mode and reboot (Pro)
+  mode set MODE     switch the device protocol/mode, reboot + align transport (Pro)
 
 positional arguments:
   <command>
@@ -42,14 +42,14 @@ Subcommands:
   autopid diff                Download + diff against the generated JSON (Pro)
   autopid stats               Per-ECU/PID statistics table
   mode show                   Show the device's active protocol
-  mode set MODE               Switch the device protocol/mode and reboot (Pro)
+  mode set MODE               Switch the device protocol/mode + align transport (Pro)
 
 Examples:
   canair wican autopid write                       # verified-only out/autopid.json
   canair wican autopid write --include-unverified  # also include unverified params
   canair wican autopid upload --reboot             # upload + reboot to apply
   canair wican autopid diff --wican home           # compare device vs generated
-  canair wican mode set slcan                 # raw CAN; `auto_pid` to restore
+  canair wican mode set slcan                 # raw CAN + set transport slcan-tcp
 ```
 
 ## `canair wican autopid`

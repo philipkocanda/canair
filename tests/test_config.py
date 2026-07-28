@@ -186,6 +186,62 @@ class TestConfigCommand:
         _reset()
         assert config.load_config()["some_id"] == "007"
 
+    def test_set_reports_before_after(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        _reset()
+        config_cmd._cmd_set(argparse.Namespace(key="default_wican", value="home", string=False))
+        _reset()
+        capsys.readouterr()
+        rc = config_cmd._cmd_set(argparse.Namespace(key="default_wican", value="vpn", string=False))
+        assert rc == 0
+        assert "default_wican: 'home' -> 'vpn'" in capsys.readouterr().out
+
+    def test_set_already_set_is_unchanged(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        _reset()
+        config_cmd._cmd_set(argparse.Namespace(key="default_wican", value="home", string=False))
+        _reset()
+        capsys.readouterr()
+        rc = config_cmd._cmd_set(
+            argparse.Namespace(key="default_wican", value="home", string=False)
+        )
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "already 'home' (unchanged)" in out
+        assert "Saved" not in out
+
+    def test_set_invalid_transport_type_errors(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        _reset()
+        rc = config_cmd._cmd_set(
+            argparse.Namespace(key="transport.type", value="bogus", string=False)
+        )
+        assert rc == 2
+        err = capsys.readouterr().err
+        assert "slcan-tcp" in err and "wican-ws" in err
+
+    def test_set_invalid_wican_model_errors(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        _reset()
+        rc = config_cmd._cmd_set(
+            argparse.Namespace(key="wican_model", value="deluxe", string=False)
+        )
+        assert rc == 2
+        assert "pro, classic" in capsys.readouterr().err
+
+    def test_set_unknown_key_warns_but_writes(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        from canlib import config
+
+        _reset()
+        rc = config_cmd._cmd_set(
+            argparse.Namespace(key="defualt_wican", value="home", string=False)
+        )
+        assert rc == 0
+        assert "not a recognized config key" in capsys.readouterr().err
+        _reset()
+        assert config.load_config()["defualt_wican"] == "home"
+
     def test_get_missing_returns_1(self, tmp_path, monkeypatch):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
         _reset()

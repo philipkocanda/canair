@@ -87,6 +87,16 @@ positional arguments:
 options:
   -h, --help    show this help message and exit
   -s, --string  Store the value verbatim as a string (skip int/bool coercion)
+
+examples:
+  canair config set default_wican home
+  canair config set wican_addresses.home 10.0.2.86
+  canair config set transport.type slcan-tcp      # or: wican-ws
+  canair config set wican_model pro               # or: classic
+  canair config set check_for_updates false
+
+Values are coerced to int/bool/null where unambiguous; pass --string to force a
+string (e.g. a zero-padded id). Dotted keys create nested mappings.
 ```
 
 ## `canair config unset`

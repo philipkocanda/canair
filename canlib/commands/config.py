@@ -44,6 +44,29 @@ _KNOWN_KEYS = (
 )
 
 
+# Known keys whose value is an enum — validated up front so a typo gets a clear
+# "valid: …" error instead of silently writing a value nothing will accept.
+def _transport_types() -> tuple[str, ...]:
+    from canlib.transport.config import VALID_TRANSPORTS
+
+    return VALID_TRANSPORTS
+
+
+_WICAN_MODELS = ("pro", "classic")
+
+_SET_EPILOG = """\
+examples:
+  canair config set default_wican home
+  canair config set wican_addresses.home 10.0.2.86
+  canair config set transport.type slcan-tcp      # or: wican-ws
+  canair config set wican_model pro               # or: classic
+  canair config set check_for_updates false
+
+Values are coerced to int/bool/null where unambiguous; pass --string to force a
+string (e.g. a zero-padded id). Dotted keys create nested mappings.
+"""
+
+
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
@@ -69,6 +92,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         help="Set a (dotted) config value",
         description="Set a config value. Dotted keys create nested mappings.\n\n"
         "Known keys: " + ", ".join(_KNOWN_KEYS),
+        epilog=_SET_EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     st.add_argument("key", help="Config key, e.g. transport.type or wican_addresses.home")
@@ -115,12 +139,51 @@ def _cmd_get(args) -> int:
     return 0
 
 
+def _known_key(key: str) -> bool:
+    """True if ``key`` is a recognized config key (exact or a known namespace)."""
+    if key in _KNOWN_KEYS:
+        return True
+    prefix = key.split(".", 1)[0]
+    namespaces = {k.split(".", 1)[0] for k in _KNOWN_KEYS if "." in k}
+    return prefix in namespaces
+
+
+def _invalid_value(key: str, value) -> str | None:
+    """Return an error message if ``value`` is invalid for a known enum key."""
+    if key == "transport.type" and value not in _transport_types():
+        return f"invalid transport.type {value!r}; valid: {', '.join(_transport_types())}"
+    if key == "wican_model" and str(value).strip().lower() not in _WICAN_MODELS:
+        return f"invalid wican_model {value!r}; valid: {', '.join(_WICAN_MODELS)}"
+    return None
+
+
 def _cmd_set(args) -> int:
-    from canlib.config import coerce_scalar, set_config_key
+    from canlib.config import coerce_scalar, get_config_key, set_config_key
 
     value = args.value if args.string else coerce_scalar(args.value)
+
+    err = _invalid_value(args.key, value)
+    if err:
+        print(f"error: {err}", file=sys.stderr)
+        return 2
+
+    if not _known_key(args.key):
+        print(
+            f"note: '{args.key}' is not a recognized config key "
+            "(see `canair config set --help`); setting it anyway.",
+            file=sys.stderr,
+        )
+
+    old = get_config_key(args.key)
+    if old == value:
+        print(f"{args.key} is already {value!r} (unchanged)")
+        return 0
+
     path = set_config_key(args.key, value)
-    print(f"{args.key} = {value!r}")
+    if old is None:
+        print(f"{args.key} = {value!r}")
+    else:
+        print(f"{args.key}: {old!r} -> {value!r}")
     print(f"Saved to {path}")
     return 0
 

@@ -103,6 +103,65 @@ class TestParserWiring:
         with pytest.raises(SystemExit):
             _parse("wican", "mode", "set", "bogus")
 
+    def test_mode_set_no_transport_defaults_false(self):
+        args = _parse("wican", "mode", "set", "slcan")
+        assert args.no_transport is False
+
+    def test_mode_set_no_transport_flag(self):
+        args = _parse("wican", "mode", "set", "slcan", "--no-transport")
+        assert args.no_transport is True
+
+
+class TestModeSetTransportAlign:
+    """`mode set` aligns the config transport.type to the new device mode."""
+
+    def _fresh(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        cfg_mod.load_config.cache_clear()
+
+    def test_slcan_aligns_transport_to_slcan_tcp(self, tmp_path, monkeypatch, capsys):
+        self._fresh(tmp_path, monkeypatch)
+        cfg_mod.set_config_key("transport.type", "wican-ws")
+        cfg_mod.load_config.cache_clear()
+        wican._sync_transport_to_mode("slcan", no_transport=False)
+        cfg_mod.load_config.cache_clear()
+        assert cfg_mod.get_config_key("transport.type") == "slcan-tcp"
+        assert "'wican-ws' -> 'slcan-tcp'" in capsys.readouterr().out
+
+    def test_elm327_aligns_transport_to_wican_ws(self, tmp_path, monkeypatch, capsys):
+        self._fresh(tmp_path, monkeypatch)
+        cfg_mod.set_config_key("transport.type", "slcan-tcp")
+        cfg_mod.load_config.cache_clear()
+        wican._sync_transport_to_mode("elm327", no_transport=False)
+        cfg_mod.load_config.cache_clear()
+        assert cfg_mod.get_config_key("transport.type") == "wican-ws"
+        assert "-> 'wican-ws'" in capsys.readouterr().out
+
+    def test_already_aligned_reports_and_skips_write(self, tmp_path, monkeypatch, capsys):
+        self._fresh(tmp_path, monkeypatch)
+        cfg_mod.set_config_key("transport.type", "slcan-tcp")
+        cfg_mod.load_config.cache_clear()
+        wican._sync_transport_to_mode("slcan", no_transport=False)
+        assert "already 'slcan-tcp'" in capsys.readouterr().out
+
+    def test_unmapped_mode_leaves_transport_untouched(self, tmp_path, monkeypatch, capsys):
+        self._fresh(tmp_path, monkeypatch)
+        cfg_mod.set_config_key("transport.type", "slcan-tcp")
+        cfg_mod.load_config.cache_clear()
+        wican._sync_transport_to_mode("auto_pid", no_transport=False)
+        cfg_mod.load_config.cache_clear()
+        assert cfg_mod.get_config_key("transport.type") == "slcan-tcp"
+        assert "Transport unchanged" in capsys.readouterr().out
+
+    def test_no_transport_flag_skips_alignment(self, tmp_path, monkeypatch, capsys):
+        self._fresh(tmp_path, monkeypatch)
+        cfg_mod.set_config_key("transport.type", "wican-ws")
+        cfg_mod.load_config.cache_clear()
+        wican._sync_transport_to_mode("slcan", no_transport=True)
+        cfg_mod.load_config.cache_clear()
+        assert cfg_mod.get_config_key("transport.type") == "wican-ws"
+        assert capsys.readouterr().out == ""
+
 
 class TestProGuards:
     """Device ops must bail out on a classic WiCAN before doing any work."""
