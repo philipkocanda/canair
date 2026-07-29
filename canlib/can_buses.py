@@ -2,7 +2,7 @@
 
 A profile declares the physical CAN bus segments its ECUs sit on in
 ``<profile>/can_buses.yaml``. Bus naming is **vendor-specific** — Hyundai/Kia
-use domain codes (B-CAN/P-CAN/C-CAN/M-CAN/H-CAN), Ford uses speed codes (HS/MS),
+use domain codes (B-CAN/P-CAN/C-CAN/MM-CAN/H-CAN), Ford uses speed codes (HS/MS),
 BMW uses PT-CAN/K-CAN/F-CAN, VW uses German domain names — so the accepted codes
 live per profile rather than in a global enum. The top-level ``can_bus:`` field
 on each ECU (in ``ecus/``) is validated against this per-profile vocabulary.

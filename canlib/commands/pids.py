@@ -16,7 +16,7 @@ Subcommands:
   set-status  ECU TARGET STATUS    Update a research item's status
   set-pid-status ECU PID STATUS    Set a PID's lifecycle (active|draft|static|ignored)
   set-identity ECU FIELD VALUE     Set a curated identity field (e.g. notes)
-  set-can-bus  ECU CODE [CODE ...] Set the physical CAN bus segment(s) (B-CAN/P-CAN/C-CAN/M-CAN/H-CAN/ALL)
+  set-can-bus  ECU CODE [CODE ...] Set the physical CAN bus segment(s) (see can_buses.yaml)
 
 Examples:
   # Record a decoded parameter
@@ -584,7 +584,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         nargs="+",
         metavar="CODE",
         help="One or more bus codes from the profile's can_buses.yaml "
-        "(Hyundai: B-CAN/P-CAN/C-CAN/M-CAN/H-CAN/ALL); some ECUs span two, e.g. H-CAN P-CAN",
+        "(Hyundai: B-CAN/P-CAN/C-CAN/MM-CAN/H-CAN/ALL); some ECUs span two, e.g. H-CAN P-CAN",
     )
     _add_common(scb)
     scb.set_defaults(_pids_func=cmd_set_can_bus)

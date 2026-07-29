@@ -6,7 +6,7 @@ the number of ECUs sitting on it (an ECU spanning two segments counts on each).
 An ECU tagged with the gateway code ``ALL`` bridges every segment, so it is
 counted on each declared bus (including the diagnostic bus), not just a lone
 ``ALL`` row. The bus vocabulary is vendor-specific (Hyundai/Kia B-CAN/P-CAN/
-C-CAN/M-CAN/H-CAN, Ford HS/MS, BMW PT-CAN/K-CAN, …), so it lives per profile —
+C-CAN/MM-CAN/H-CAN, Ford HS/MS, BMW PT-CAN/K-CAN, …), so it lives per profile —
 this is the read-only view of it.
 
 Examples:

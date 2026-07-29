@@ -20,7 +20,7 @@
 #     can_bus: [...]       # optional — physical CAN bus segment(s) the ECU sits on.
 #                          #   A list of codes drawn from the profile's own
 #                          #   can_buses.yaml vocabulary (vendor-specific: Hyundai
-#                          #   B-CAN/P-CAN/C-CAN/M-CAN/H-CAN, Ford HS/MS, …). Some
+#                          #   B-CAN/P-CAN/C-CAN/MM-CAN/H-CAN, Ford HS/MS, …). Some
 #                          #   ECUs span more than one segment (e.g. [H-CAN, P-CAN]);
 #                          #   the gateway is [ALL].
 #     vehicle_states: [...]  # optional — ECU-level power states in which this

@@ -6,7 +6,7 @@
 # Edit an ECU's segment(s) with `canair pids set-can-bus ECU CODE [CODE ...]`.
 #
 # `bitrate` is the segment's bus speed in bit/s (optional). Hyundai runs the
-# high-speed segments (P-CAN/C-CAN/M-CAN/H-CAN/D-CAN) at 500 kbit/s and the
+# high-speed segments (P-CAN/C-CAN/MM-CAN/H-CAN/D-CAN) at 500 kbit/s and the
 # low-speed Body CAN (B-CAN) at 100 kbit/s. D-CAN (500 kbit/s) is confirmed; the
 # rest are the standard Hyundai/Ioniq figures.
 
