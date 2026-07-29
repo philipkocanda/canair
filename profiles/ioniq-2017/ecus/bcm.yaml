@@ -157,7 +157,7 @@ BCM:
           notes: "Bit flag — 1=open, 0=closed. Niro PR had B10:4 — wrong for Ioniq, actual bit is B10:5. BCM does NOT require extended diagnostic session. Verified 2026-04-15."
 
     22B00F:
-      status: draft
+      status: ignored
       vehicle_states: [ACC2]
       notes: >
         13 bytes. Identical payload to B00D (0xFCFC E0...) — possibly mirrored register
@@ -281,7 +281,7 @@ BCM:
       parameters: {}
 
     22B00B:
-      status: draft
+      status: ignored
       vehicle_states: [ACC, ACC2, READY, CHARGING]
       notes: >
         NRC 0x31 (requestOutOfRange) in deep sleep AND in READY (retested
