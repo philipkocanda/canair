@@ -150,6 +150,67 @@ class TestAppendScanLog:
             append_scan_log(0x7E0, service=0x22, ecus_dir=ecus_dir)
 
 
+_LONG_NOTE = (
+    "Seeded device-free from the upstream WiCAN community profile "
+    "meatpiHQ/wican-fw vehicle_profiles/xpeng/xpeng_g6.json. The upstream routes "
+    "every DID through a single responder at request 0x704 / response 0x784 "
+    "(rx = tx + 0x80). Named BMS from the battery-centric DIDs; unverified."
+)
+
+
+class TestNoteRendering:
+    """Free-text notes render per the shared policy: inline when short, else a
+    wrapped folded (``>-``) block — and folding never reflows the rest of the file."""
+
+    def test_long_note_folds_and_wraps(self, ecus_dir):
+        register_ecu(0x7E0, "VCU", notes=_LONG_NOTE, ecus_dir=ecus_dir)
+        text = (ecus_dir / "vcu.yaml").read_text()
+        assert "notes: >-" in text  # folded block, not inline
+        # Wrapped for readability, and value-preserving on round-trip.
+        assert max(len(ln) for ln in text.splitlines()) <= 100
+        assert _load_ecu(ecus_dir, "vcu.yaml")["VCU"]["identity"]["notes"] == _LONG_NOTE
+
+    def test_short_note_stays_inline(self, ecus_dir):
+        register_ecu(0x7E0, "VCU", notes="Short battery ECU note.", ecus_dir=ecus_dir)
+        text = (ecus_dir / "vcu.yaml").read_text()
+        assert "notes: >" not in text
+        assert "notes: Short battery ECU note." in text
+
+    def test_scan_log_note_folds(self, ecus_dir):
+        append_scan_log(0x770, service=0x22, notes=_LONG_NOTE, ecus_dir=ecus_dir)
+        text = (ecus_dir / "igpm.yaml").read_text()
+        assert "notes: >-" in text
+        assert _load_ecu(ecus_dir, "igpm.yaml")["IGPM"]["scan_log"][0]["notes"] == _LONG_NOTE
+
+    def test_set_ecu_fields_note_folds(self, ecus_dir):
+        set_ecu_fields(0x770, notes=_LONG_NOTE, overwrite=True, ecus_dir=ecus_dir)
+        text = (ecus_dir / "igpm.yaml").read_text()
+        assert "notes: >-" in text
+        assert _load_ecu(ecus_dir, "igpm.yaml")["IGPM"]["identity"]["notes"] == _LONG_NOTE
+
+    def test_write_does_not_reflow_other_content(self, tmp_path):
+        # A note-setting write must fold ONLY the note — a long pre-existing line
+        # elsewhere in the file (here a long expression) stays byte-identical.
+        d = tmp_path / "ecus"
+        d.mkdir()
+        long_expr = "(" + "+".join(f"B{i}*{i}" for i in range(1, 30)) + ")/1000"
+        seed = (
+            "BMS:\n"
+            "  tx_id: 0x7E4\n"
+            "  pids:\n"
+            "    2101:\n"
+            "      status: active\n"
+            "      parameters:\n"
+            "        WIDE:\n"
+            f'          expression: "{long_expr}"\n'
+        )
+        (d / "bms.yaml").write_text(seed)
+        set_ecu_fields(0x7E4, notes=_LONG_NOTE, overwrite=True, ecus_dir=d)
+        text = (d / "bms.yaml").read_text()
+        assert f'expression: "{long_expr}"' in text  # untouched, not wrapped
+        assert "notes: >-" in text
+
+
 class TestIdentityValidation:
     def _write(self, tmp_path, text):
         d = tmp_path / "ecus"

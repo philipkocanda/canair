@@ -160,32 +160,6 @@ def _format_verified(value: bool) -> str:
     return "true" if value else "false"
 
 
-def _format_notes_block(value: str, indent: str = "        ") -> list[str]:
-    """Render notes as a folded block-scalar: ``notes: >`` + indented lines.
-
-    Long lines are word-wrapped (default ~92 cols after the indent) so a note
-    passed as one long string — e.g. from ``pids upsert-param --notes`` or an
-    analysis ``--promote`` — lands as readable multi-line text instead of a single
-    overlong line. Because ``>`` is a *folded* scalar (consecutive non-blank lines
-    fold back to spaces), wrapping is value-preserving; blank lines are kept as
-    paragraph breaks.
-    """
-    import textwrap
-
-    width = max(20, 100 - len(indent))
-    out = ["      notes: >"]
-    for ln in value.strip("\n").splitlines() or [""]:
-        stripped = ln.rstrip()
-        if not stripped:
-            out.append("")  # paragraph break (folded scalar → newline)
-            continue
-        for piece in textwrap.wrap(
-            stripped, width=width, break_long_words=False, break_on_hyphens=False
-        ) or [""]:
-            out.append(f"{indent}{piece}")
-    return out
-
-
 # ── Block mutation ───────────────────────────────────────────────────────────
 
 
@@ -317,11 +291,25 @@ def _format_scalar_field(indent: str, key: str, value) -> str:
 
 
 def _format_block_scalar(indent: str, key: str, value: str) -> list[str]:
-    """Render ``key: >`` followed by the folded body, indented two deeper."""
+    """Render a free-text field per the shared note policy (canlib.yaml_rt).
+
+    A short single-line value stays an inline scalar (``key: value``); a longer
+    or multi-line value becomes a folded ``key: >-`` block, word-wrapped at
+    ~``NOTE_WRAP_WIDTH`` columns (blank lines preserved as paragraph breaks).
+    Folding is value-preserving, so the note round-trips to the original text.
+    """
+    from ..yaml_rt import NOTE_WRAP_WIDTH, note_should_inline, wrap_note_lines
+
+    value = str(value)
+    if note_should_inline(value, len(indent) + len(key) + len(": ")):
+        inline = _format_scalar_field(indent, key, value)
+        # _format_scalar_field may add quotes; keep inline only if it still fits.
+        if len(inline) <= NOTE_WRAP_WIDTH:
+            return [inline]
     body_indent = indent + "  "
-    out = [f"{indent}{key}: >"]
-    for ln in str(value).strip("\n").splitlines() or [""]:
-        out.append(f"{body_indent}{ln.rstrip()}")
+    width = max(20, NOTE_WRAP_WIDTH - len(body_indent))
+    out = [f"{indent}{key}: >-"]
+    out.extend(f"{body_indent}{piece}" if piece else "" for piece in wrap_note_lines(value, width))
     return out
 
 

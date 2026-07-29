@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`notes` fields auto-format consistently** when written by the tooling
+  (`canair pids`, `canair ecu add`, `discover --register`, identity/scan-log
+  writes): a short note stays inline, a longer/multi-line one becomes a
+  word-wrapped folded (`>-`) block. Both the text-based and ruamel-based writers
+  share one policy (`canlib/yaml_rt.py`), and folding wraps only the note — it
+  never reflows the rest of the file. Pass plain strings; no need to hand-format
+  YAML block scalars.
 - **QUERY mini-language PID matching is now boundary-anchored** (prefix *or*
   suffix) instead of substring-anywhere. A PID token matches when the stored PID
   *starts with* or *ends with* it, so `ECU:22` still selects the `22xxxx` service

@@ -271,6 +271,15 @@ share one scoping surface via `canlib/capture_dates.py::add_scope_args`
   the fix is to add the surgical/validated editor (a `canlib.pids_edit` helper +
   a `canair pids` subcommand) — not to normalize hand-editing. A gap in the CLI
   editor is a bug to close, so new hand-curated fields must gain tool support.
+- **Free-text fields (`notes`) render themselves — pass plain strings.** Both
+  writer subsystems render notes via one shared policy (`canlib/yaml_rt.py`:
+  `note_should_inline`/`wrap_note_lines`/`folded`; the text path's
+  `_format_block_scalar`): a short note stays inline, a longer/multi-line one
+  becomes a wrapped folded `>-` block (value-preserving, folds only that scalar
+  — never reflowing the rest of the file). So pass a plain string to
+  `--notes` / the `pids_edit`/`ecus_edit` helpers; never pre-format YAML block
+  scalars by hand. A new ruamel-written free-text field just needs adding to
+  `ecus_edit.FREE_TEXT_FIELDS` to get the same treatment.
 - `profiles/*/captures/*.yaml` are **never** hand-written; they are recorded by
   the tool (the `--save` path) and edited/removed via `canlib.captures` helpers
   — the recording/labelling *workflow* is covered by the RE skills. Raw-frame

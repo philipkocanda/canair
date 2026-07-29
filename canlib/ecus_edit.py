@@ -26,7 +26,13 @@ from ruamel.yaml.scalarint import HexCapsInt
 
 from .yaml_rt import detect_sequence_indent as _detect_seq
 from .yaml_rt import dump as _dump
+from .yaml_rt import folded as _folded
 from .yaml_rt import round_trip_yaml as _yaml
+
+# Free-text ECU fields rendered per the shared note policy (canlib.yaml_rt):
+# inline when short, else a wrapped folded block scalar. Kept in one place so a
+# new curated free-text field only needs adding here to gain the same treatment.
+FREE_TEXT_FIELDS = frozenset({"notes"})
 
 # Order used when rendering a brand-new identity block (unknown fields last).
 CANONICAL_FIELD_ORDER = (
@@ -152,6 +158,18 @@ def _load_doc(path: Path) -> CommentedMap:
     return data
 
 
+def _render_field(key: str, value, key_indent: int):
+    """Wrap a free-text field value per the shared note policy; pass others through.
+
+    Free-text fields (``FREE_TEXT_FIELDS``) render inline when short or as a
+    wrapped folded block when long; ``key_indent`` is how far the key sits from
+    the margin (4 for identity, 6 for a scan_log list-item field).
+    """
+    if key in FREE_TEXT_FIELDS and isinstance(value, str) and value.strip():
+        return _folded(value, key_indent=key_indent, key=key)
+    return value
+
+
 def _merge_fields(entry: dict, updates: dict, overwrite: bool) -> bool:
     """Merge ``updates`` into ``entry``; return True if anything changed."""
     changed = False
@@ -161,7 +179,7 @@ def _merge_fields(entry: dict, updates: dict, overwrite: bool) -> bool:
         cur = entry.get(key)
         if overwrite or cur is None or cur == "":
             if cur != val:
-                entry[key] = val
+                entry[key] = _render_field(key, val, key_indent=4)
                 changed = True
     return changed
 
@@ -170,10 +188,10 @@ def _new_identity(fields: dict) -> CommentedMap:
     ident = CommentedMap()
     for key in CANONICAL_FIELD_ORDER:
         if fields.get(key) is not None:
-            ident[key] = fields[key]
+            ident[key] = _render_field(key, fields[key], key_indent=4)
     for key, val in fields.items():
         if key not in ident and val is not None:
-            ident[key] = val
+            ident[key] = _render_field(key, val, key_indent=4)
     return ident
 
 
@@ -366,7 +384,8 @@ def append_scan_log(
     entry = CommentedMap()
     for field in _SCAN_LOG_FIELDS:
         if values[field] is not None:
-            entry[field] = values[field]
+            # scan_log entries are list items: dash at 4, fields at 6.
+            entry[field] = _render_field(field, values[field], key_indent=6)
     ecu_def["scan_log"].append(entry)
 
     _safe_write(fpath, original, data)

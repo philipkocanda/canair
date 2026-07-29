@@ -15,8 +15,8 @@ from ._text import (
     PidsEditError,
     _find_did_block,
     _find_ecu_block,
+    _format_block_scalar,
     _format_label,
-    _format_notes_block,
     _format_verified,
     _invalidate,
     _replace_field_in_block,
@@ -342,7 +342,7 @@ def update_routines_field(
         new_line = f"      verified: {_format_verified(bool(value))}"
         new_block = _replace_field_in_block(block, "verified", new_line)
     elif field == "notes":
-        new_lines = _format_notes_block(str(value))
+        new_lines = _format_block_scalar("      ", "notes", str(value))
         new_block = _replace_field_in_block(block, "notes", new_lines)
     else:  # pragma: no cover
         raise PidsEditError(field)
@@ -386,7 +386,7 @@ def update_iocontrol_field(
         new_line = f"      verified: {_format_verified(bool(value))}"
         new_block = _replace_field_in_block(block, "verified", new_line)
     elif field == "notes":
-        new_lines = _format_notes_block(str(value))
+        new_lines = _format_block_scalar("      ", "notes", str(value))
         new_block = _replace_field_in_block(block, "notes", new_lines)
     else:  # pragma: no cover
         raise PidsEditError(field)
