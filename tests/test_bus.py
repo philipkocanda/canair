@@ -22,7 +22,7 @@ def _patched(monkeypatch):
     buses = [
         BusDef("B-CAN", "Body CAN", "Comfort/body electronics.", bitrate=100000),
         BusDef("P-CAN", "Powertrain CAN", "Drivetrain.", bitrate=500000),
-        BusDef("All", "All segments", "Gateway bridges all."),
+        BusDef("ALL", "All segments", "Gateway bridges all."),
     ]
     ecus = {
         0x7A0: {"name": "BCM", "can_bus": ["B-CAN"]},
@@ -69,11 +69,37 @@ def test_json(_patched, capsys):
     assert rc == 0
     data = json.loads(out)
     counts = {b["code"]: b["ecus"] for b in data["buses"]}
-    assert counts == {"B-CAN": 1, "P-CAN": 2, "All": 0}
+    assert counts == {"B-CAN": 1, "P-CAN": 2, "ALL": 0}
     rates = {b["code"]: b["bitrate"] for b in data["buses"]}
-    assert rates == {"B-CAN": 100000, "P-CAN": 500000, "All": None}
+    assert rates == {"B-CAN": 100000, "P-CAN": 500000, "ALL": None}
     assert data["unbussed_ecus"] == 1
     assert [u["code"] for u in data["undeclared"]] == ["H-CAN"]
+
+
+def test_gateway_all_counted_on_every_segment(monkeypatch, capsys):
+    # An ECU tagged ALL is counted on every declared segment (incl. the
+    # standalone ALL row), not just an ALL row.
+    buses = [
+        BusDef("ALL", "All segments", "Gateway."),
+        BusDef("B-CAN", "Body CAN", "Body.", bitrate=100000),
+        BusDef("D-CAN", "Diagnostic CAN", "Diag.", bitrate=500000),
+    ]
+    ecus = {
+        0x770: {"name": "IGPM", "can_bus": ["ALL"]},  # gateway
+        0x7A0: {"name": "BCM", "can_bus": ["B-CAN"]},
+    }
+    monkeypatch.setattr(bus, "_use_color", lambda: False)
+    monkeypatch.setattr("canlib.can_buses.load_can_buses", lambda prof=None: buses)
+    monkeypatch.setattr("canlib.ecus.load_ecus", lambda path=None: ecus)
+    monkeypatch.setattr("canlib.profile.active", lambda: _FakeProfile())
+
+    rc = _run(json=True)
+    data = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    counts = {b["code"]: b["ecus"] for b in data["buses"]}
+    # ALL row = the gateway itself; B-CAN = BCM + gateway; D-CAN = just gateway.
+    assert counts == {"ALL": 1, "B-CAN": 2, "D-CAN": 1}
+    assert data["gateway_ecus"] == 1
 
 
 def test_no_color_when_piped(_patched, capsys):

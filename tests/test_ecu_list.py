@@ -24,9 +24,9 @@ def _restore_active_profile():
 
 def _ecus():
     return {
-        0x770: {"name": "GW", "can_bus": ["All"]},
-        0x7E3: {"name": "MCU", "can_bus": ["H", "P"]},
-        0x7A0: {"name": "BCM", "can_bus": ["B"]},
+        0x770: {"name": "GW", "can_bus": ["ALL"]},
+        0x7E3: {"name": "MCU", "can_bus": ["H-CAN", "P-CAN"]},
+        0x7A0: {"name": "BCM", "can_bus": ["B-CAN"]},
         0x7D2: {"name": "SRS"},  # no bus
     }
 
@@ -34,14 +34,14 @@ def _ecus():
 def test_records_carry_can_bus():
     recs = _list_records(_ecus(), {"ecus": {}})
     by_name = {r["name"]: r for r in recs}
-    assert by_name["MCU"]["can_bus"] == ["H", "P"]
+    assert by_name["MCU"]["can_bus"] == ["H-CAN", "P-CAN"]
     assert by_name["SRS"]["can_bus"] is None
 
 
 def test_sort_by_bus_groups_and_puts_unbussed_last():
     recs = _list_records(_ecus(), {"ecus": {}}, sort="bus")
     order = [r["name"] for r in recs]
-    # All < B < H/P, unbussed (SRS) last.
+    # ALL < B-CAN < H-CAN/P-CAN, unbussed (SRS) last.
     assert order == ["GW", "BCM", "MCU", "SRS"]
 
 
@@ -120,8 +120,8 @@ def test_no_identity_confidence_in_records():
 
 
 def test_detail_record_resolves_bus_labels():
-    info = {"name": "MCU", "can_bus": ["H", "P"]}
-    labels = {"H": "Hybrid CAN", "P": "Powertrain CAN"}
+    info = {"name": "MCU", "can_bus": ["H-CAN", "P-CAN"]}
+    labels = {"H-CAN": "Hybrid CAN", "P-CAN": "Powertrain CAN"}
     rec = _detail_record(info, 0x7E3, None, None, bus_labels=labels)
     assert rec["can_bus_labels"] == ["Hybrid CAN", "Powertrain CAN"]
     assert "identity_confidence" not in rec
@@ -136,7 +136,7 @@ def test_list_output_has_no_ident_column(capsys):
 
 
 def test_list_output_omits_alias_suffix(capsys):
-    ecus = {0x7A5: {"name": "SKM", "alias": "SMK", "can_bus": ["B"]}}
+    ecus = {0x7A5: {"name": "SKM", "alias": "SMK", "can_bus": ["B-CAN"]}}
     recs = _list_records(ecus, {"ecus": {}})
     cmd_list(recs, as_json=False)
     out = capsys.readouterr().out

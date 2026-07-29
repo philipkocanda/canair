@@ -11,7 +11,7 @@ File format — each bare code maps to a human ``name``, ``description``, and an
 optional ``bitrate`` (the segment's bus speed in bit/s)::
 
     can_buses:
-      All:
+      ALL:
         name: All segments
         description: The gateway bridges every segment.
       B-CAN:
@@ -19,7 +19,7 @@ optional ``bitrate`` (the segment's bus speed in bit/s)::
         description: Comfort/body electronics.
         bitrate: 100000
 
-The older list form (``can_buses: [All, B-CAN]``) is still accepted for
+The older list form (``can_buses: [ALL, B-CAN]``) is still accepted for
 back-compatibility — those codes simply carry no name/description/bitrate.
 
 ``allowed_can_buses`` returns the set of declared codes; when the file is absent
@@ -36,6 +36,8 @@ from typing import TYPE_CHECKING
 from canlib import yaml_io
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from canlib.profile import Profile
 
 
@@ -130,3 +132,32 @@ def allowed_can_buses(profile: Profile | None = None) -> set[str]:
 def bus_names(profile: Profile | None = None) -> dict[str, str]:
     """Map each declared code to its human label (name, or the code itself)."""
     return {b.code: b.label for b in load_can_buses(profile)}
+
+
+# The conventional code for a gateway that bridges every segment. An ECU tagged
+# with it is a member of every declared bus (see ``expand_bus_membership``).
+ALL_CODE = "ALL"
+
+
+def expand_bus_membership(codes: Iterable[str], declared: Iterable[str]) -> set[str]:
+    """Resolve an ECU's ``can_bus`` codes to concrete segment membership.
+
+    The conventional gateway code (``ALL``, case-insensitive) means the ECU sits
+    on / bridges *every* declared segment, so it expands to the full declared
+    vocabulary; all other codes pass through unchanged. Used by ``canair bus`` so
+    an ``ALL``-tagged gateway is counted on each segment (including the diagnostic
+    bus) rather than only on a standalone ``ALL`` row.
+    """
+    declared_list = list(declared)
+    out: set[str] = set()
+    for code in codes:
+        code = str(code).strip()
+        if not code:
+            continue
+        if code.upper() == ALL_CODE:
+            # Gateway: member of every declared segment (the canonical ALL code
+            # is itself in the vocabulary, so it's included when declared).
+            out.update(declared_list)
+        else:
+            out.add(code)
+    return out

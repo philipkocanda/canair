@@ -57,8 +57,8 @@ class TestProfileCreate:
         cb = root / "can_buses.yaml"
         assert cb.exists()
         data = yaml.safe_load(cb.read_text())
-        assert "All" in data["can_buses"]
-        assert data["can_buses"]["All"]["name"]
+        assert "ALL" in data["can_buses"]
+        assert data["can_buses"]["ALL"]["name"]
 
     def test_scaffolds_vehicle_states(self, tmp_path):
         root = tmp_path / "prof"

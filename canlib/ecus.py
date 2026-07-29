@@ -49,9 +49,7 @@ def load_ecus(path: Path | None = None) -> dict:
         # Resolve the CAN response address once (explicit rx_id → profile offset
         # → default +8) so every consumer reads it rather than recomputing +8.
         ecu_rx = ecu_def.get("rx_id")
-        info["rx_id"] = resolve_rx(
-            tx_id, int(ecu_rx) if ecu_rx is not None else None, rx_offset
-        )
+        info["rx_id"] = resolve_rx(tx_id, int(ecu_rx) if ecu_rx is not None else None, rx_offset)
         result[tx_id] = info
     return result
 
@@ -204,9 +202,7 @@ def build_rx_index(ecus: dict | None = None) -> dict[int, str]:
     """
     if ecus is None:
         ecus = load_ecus()
-    return {
-        rx_for_tx(tx_id, ecus): info["name"] for tx_id, info in ecus.items()
-    }
+    return {rx_for_tx(tx_id, ecus): info["name"] for tx_id, info in ecus.items()}
 
 
 def build_rx_tx_index(ecus: dict | None = None) -> dict[int, int]:
@@ -344,6 +340,7 @@ def rx_from_name(name: str, name_index: dict[str, int] | None = None) -> str | N
         name_index = build_name_tx_index()
     tx_id = name_index.get(str(name).strip().upper())
     return rx_addr_str(tx_id) if tx_id is not None else None
+
 
 def resolve_tx(
     value,

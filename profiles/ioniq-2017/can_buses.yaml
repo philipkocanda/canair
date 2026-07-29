@@ -11,7 +11,7 @@
 # rest are the standard Hyundai/Ioniq figures.
 
 can_buses:
-  All:
+  ALL:
     name: All segments
     description: The gateway (IGPM) bridges every segment; the OBD-II port connects here.
   B-CAN:

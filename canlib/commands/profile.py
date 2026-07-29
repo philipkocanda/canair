@@ -249,7 +249,7 @@ _CAN_BUSES_TEMPLATE = """\
 # ECU's segment(s) with `canair pids set-can-bus ECU CODE [CODE ...]`.
 
 can_buses:
-  All:
+  ALL:
     name: All segments
     description: Convention for the gateway that bridges every segment.
   # B-CAN:

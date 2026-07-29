@@ -30,15 +30,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **CAN bus segment codes renamed to `*-CAN` identifiers** (Hyundai/Kia):
-  `B`/`P`/`C`/`M`/`H`/`D` → `B-CAN`/`P-CAN`/`C-CAN`/`M-CAN`/`H-CAN`/`D-CAN`
-  (the virtual gateway code `All` is unchanged). The old single letters were
-  hard to grep for; the hyphenated forms are unambiguous. The bundled
-  `ioniq-2017` `can_buses.yaml` vocabulary and every ECU `can_bus:` list are
-  updated. **`canair pids set-can-bus` now writes the `can_bus:` list in the
+  `B`/`P`/`C`/`M`/`H`/`D` → `B-CAN`/`P-CAN`/`C-CAN`/`M-CAN`/`H-CAN`/`D-CAN`, and
+  the gateway code `All` → `ALL` (uppercase, to match the `*-CAN` style). The
+  old single letters were hard to grep for; the new forms are unambiguous. The
+  bundled `ioniq-2017` `can_buses.yaml` vocabulary and every ECU `can_bus:` list
+  are updated. **`canair pids set-can-bus` now writes the `can_bus:` list in the
   readable flow (inline) form** — `can_bus: [B-CAN, P-CAN]` instead of a
   multi-line block list; existing block-style lists are rewritten to flow style
   in place. Bus naming is per-profile vocabulary, so other profiles are
   unaffected.
+- **`canair bus` counts an `ALL`-tagged gateway on every segment.** An ECU on
+  the gateway code `ALL` bridges every declared bus, so it is now counted on each
+  segment (including the diagnostic bus) rather than only on a standalone `ALL`
+  row — e.g. the Ioniq IGPM now shows on D-CAN. A footnote reports how many
+  gateway ECUs were fanned out, and `--json` gains a `gateway_ecus` count. The
+  rule lives in `can_buses.expand_bus_membership` (`ALL` matched
+  case-insensitively).
 - **The persisted capture field `ecu` is renamed to `rx`.** It holds the ECU CAN
   *response* address (RX = request TX + 8), not an ECU name — the old name
   collided conceptually with the resolved short name (`"BMS"`) that the in-memory

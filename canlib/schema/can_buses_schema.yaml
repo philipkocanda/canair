@@ -12,7 +12,7 @@
 #
 # Top-level structure — each bare code maps to a human name + description:
 #   can_buses:
-#     All:                  # the bare code (used in ecus/ can_bus: lists)
+#     ALL:                  # the bare code (used in ecus/ can_bus: lists)
 #       name: str           # optional — human label shown by `canair ecu`
 #       description: str    # optional — what sits on / characterises the segment
 #     B-CAN:

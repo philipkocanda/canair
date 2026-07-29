@@ -3,9 +3,11 @@
 Prints each physical CAN bus segment declared in the active profile's
 ``can_buses.yaml`` with its human name, description, bus speed (bitrate), and
 the number of ECUs sitting on it (an ECU spanning two segments counts on each).
-The bus vocabulary is vendor-specific (Hyundai/Kia B-CAN/P-CAN/C-CAN/M-CAN/H-CAN,
-Ford HS/MS, BMW PT-CAN/K-CAN, …), so it lives per profile — this is the
-read-only view of it.
+An ECU tagged with the gateway code ``ALL`` bridges every segment, so it is
+counted on each declared bus (including the diagnostic bus), not just a lone
+``ALL`` row. The bus vocabulary is vendor-specific (Hyundai/Kia B-CAN/P-CAN/
+C-CAN/M-CAN/H-CAN, Ford HS/MS, BMW PT-CAN/K-CAN, …), so it lives per profile —
+this is the read-only view of it.
 
 Examples:
   canair bus            # table of buses + descriptions + ECU counts
@@ -73,17 +75,21 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
 def run(args) -> int:
     from collections import Counter
 
-    from canlib.can_buses import load_can_buses
+    from canlib.can_buses import ALL_CODE, expand_bus_membership, load_can_buses
     from canlib.ecus import load_ecus
     from canlib.profile import active
 
     prof = active()
     buses = load_can_buses(prof)
     ecus = load_ecus()
+    declared_codes = [b.code for b in buses]
 
-    # Count ECUs per bus code (an ECU spanning two segments counts on each).
+    # Count ECUs per bus code. An ECU tagged with the gateway code (ALL) bridges
+    # every declared segment, so it is counted on each of them (not just a lone
+    # ALL row) — see expand_bus_membership.
     per_bus: Counter = Counter()
     n_unbussed = 0
+    n_gateway = 0
     for info in ecus.values():
         if not isinstance(info, dict):
             continue
@@ -91,7 +97,9 @@ def run(args) -> int:
         if not codes:
             n_unbussed += 1
             continue
-        for code in codes:
+        if any(c.upper() == ALL_CODE for c in codes):
+            n_gateway += 1
+        for code in expand_bus_membership(codes, declared_codes):
             per_bus[code] += 1
 
     # Codes referenced by an ECU but not declared in the vocabulary (surfaced so
@@ -116,6 +124,7 @@ def run(args) -> int:
                 "buses": records,
                 "undeclared": [{"code": c, "ecus": per_bus[c]} for c in undeclared],
                 "unbussed_ecus": n_unbussed,
+                "gateway_ecus": n_gateway,
                 "source": str(prof.can_buses_file),
             },
             sys.stdout,
@@ -155,6 +164,12 @@ def run(args) -> int:
 
     if n_unbussed:
         print(f"\n  {_c(f'{n_unbussed} ECU(s) have no can_bus set.', _DIM)}")
+
+    if n_gateway:
+        plural = "s" if n_gateway != 1 else ""
+        print(
+            f"\n  {_c(f'{n_gateway} gateway ECU{plural} on `{ALL_CODE}` counted on every segment.', _DIM)}"
+        )
 
     print(f"\n  {_c(f'source: {prof.can_buses_file}', _DIM)}\n")
     return 0
