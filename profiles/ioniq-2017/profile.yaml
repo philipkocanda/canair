@@ -58,6 +58,13 @@ response_timeout_ms: 614
 # Enable UDS service-22 multi-DID batching per ECU (see each ECU file's
 # `multi_did:` flag). Batching is only attempted for ECUs opted in; any ECU that
 # rejects it (NRC 0x13) auto-falls back to single-DID reads for the session.
+#
+# multi_did_max: max DIDs combined into one multi-DID request (default 3). Raised
+# to 6 here after on-car verification 2026-07-29: IGPM (0x770) answered all 7 of
+# its BC01-BC07 DIDs in one request (62-byte multi-frame reassembly, request
+# itself multi-frame) with no truncation, repeatably. 6 stays under that proven
+# ceiling. A per-ECU `multi_did_max:` overrides this.
+multi_did_max: 6
 failure_types:
   "0x00": "no sub-type information"          # standard (also known by the tool)
   "0x77": "Hyundai-specific — meaning not yet determined"

@@ -49,6 +49,7 @@ class EcuIndexEntry(TypedDict):
     address: EcuAddress
     pids: dict[str, PidIndexEntry]
     multi_did: bool
+    multi_did_max: int
 
 
 class RoutineIndexEntry(TypedDict):
@@ -262,6 +263,7 @@ def build_routines_index(pids_data: dict) -> dict[str, RoutineIndexEntry]:
 def build_ecu_index(pids_data: dict) -> dict[str, EcuIndexEntry]:
     """Build lookup: ECU_NAME -> {tx_id, rx_id, pids: {PID: {parameters: ...}}}."""
     from .addressing import resolve_ecu_address
+    from .modes.multi_batch import resolve_multi_did_max
 
     index: dict[str, EcuIndexEntry] = {}
     default_batch = bool(pids_data.get("multi_did_batching", False))
@@ -283,6 +285,8 @@ def build_ecu_index(pids_data: dict) -> dict[str, EcuIndexEntry]:
             # profile-wide setting. Only ECUs that opt in are batched (and even
             # then it auto-falls back if the ECU rejects a multi-DID request).
             "multi_did": bool(ecu_def.get("multi_did", default_batch)),
+            # Max DIDs combined per multi-DID request (per-ECU → profile → default).
+            "multi_did_max": resolve_multi_did_max(pids_data, ecu_def),
         }
         index[ecu_name.upper()] = entry
         for pid_code, pid_def in ecu_def.get("pids", {}).items():

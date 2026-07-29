@@ -188,15 +188,16 @@ def build_query_plan(
     return query_plan
 
 
-async def _run_query_plan(sm, tx_id, query_plan, out, batch_state):
+async def _run_query_plan(sm, tx_id, query_plan, out, batch_state, max_dids=None):
     """Execute a query plan, batching consecutive service-22 DIDs when possible.
 
     Appends result dicts to ``out`` in plan order. With ``batch_state`` (and an
     ECU that opted into ``multi_did``), runs of consecutive 22-DIDs whose lengths
-    are already known are read in one ``22 D1 D2 …`` request (≤3 DIDs, so it
-    stays a single-frame request); everything else is read singly. A batch that
-    fails falls back to per-DID reads for that group.
+    are already known are read in one ``22 D1 D2 …`` request (up to ``max_dids``,
+    defaulting to the batch state's cap); everything else is read singly. A batch
+    that fails falls back to per-DID reads for that group.
     """
+    cap = max_dids if max_dids is not None else (batch_state.max_dids if batch_state else 1)
     i, n = 0, len(query_plan)
     while i < n:
         code = query_plan[i][0]
@@ -210,7 +211,7 @@ async def _run_query_plan(sm, tx_id, query_plan, out, batch_state):
             group = []
             while (
                 i < n
-                and len(group) < 3
+                and len(group) < cap
                 and _is_did22(query_plan[i][0])
                 and (tx_id, query_plan[i][0][2:]) in batch_state.lengths
             ):
@@ -273,7 +274,14 @@ async def _exec_query(
     all_pid_results = []
 
     batching = batch_state is not None and ecu_info.get("multi_did", False)
-    await _run_query_plan(sm, tx_id, query_plan, all_pid_results, batch_state if batching else None)
+    await _run_query_plan(
+        sm,
+        tx_id,
+        query_plan,
+        all_pid_results,
+        batch_state if batching else None,
+        max_dids=ecu_info.get("multi_did_max"),
+    )
 
     ecu_label = f"{upper} (0x{tx_id:03X})"
     if return_results:

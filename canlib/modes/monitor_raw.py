@@ -88,8 +88,9 @@ class MonitorRawPoller:
         ``ecu``, ``req`` (bytes to send), ``members`` [(pid_code, pid_info,
         unmapped)], and ``lengths`` ([(did4, data_len)] for a batch, else None).
         Consecutive service-22 DIDs on a ``multi_did`` ECU whose lengths are
-        already learned are combined (≤3, single-frame request); everything else
-        is a single request (and 22-DID lengths are learned from single reads).
+        already learned are combined (up to the ECU's ``multi_did_max``, default
+        3); everything else is a single request (and 22-DID lengths are learned
+        from single reads).
         """
         from .multi_batch import _is_did22
         from .multi_exec import build_query_plan
@@ -112,6 +113,7 @@ class MonitorRawPoller:
             )
             plan_by_ecu.append((ecu, info["tx_id"], plan))
             batchable = info.get("multi_did", False) and ecu not in self.nobatch
+            cap = info.get("multi_did_max", 3)
             i, n = 0, len(plan)
             while i < n:
                 code = plan[i][0]
@@ -119,7 +121,7 @@ class MonitorRawPoller:
                     group = []
                     while (
                         i < n
-                        and len(group) < 3
+                        and len(group) < cap
                         and _is_did22(plan[i][0])
                         and (ecu, plan[i][0][2:]) in self.lengths
                     ):

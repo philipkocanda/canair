@@ -17,6 +17,7 @@ from canlib.modes.multi import (
 from canlib.modes.multi_batch import (
     BatchState,
     _did_data_len,
+    resolve_multi_did_max,
     split_multi_did,
 )
 from tests._fakes import FakeTerminal
@@ -75,6 +76,23 @@ class TestSplitHelpers:
         assert bs.lengths[(0x770, "BC03")] == 8
 
 
+class TestResolveMultiDidMax:
+    def test_default_when_absent(self):
+        assert resolve_multi_did_max(None) == 3
+        assert resolve_multi_did_max({}) == 3
+
+    def test_profile_level(self):
+        assert resolve_multi_did_max({"multi_did_max": 6}) == 6
+
+    def test_per_ecu_overrides_profile(self):
+        assert resolve_multi_did_max({"multi_did_max": 6}, {"multi_did_max": 2}) == 2
+
+    def test_invalid_falls_back_to_default(self):
+        assert resolve_multi_did_max({"multi_did_max": 0}) == 3
+        assert resolve_multi_did_max({"multi_did_max": -1}) == 3
+        assert resolve_multi_did_max({"multi_did_max": "x"}) == 3
+
+
 def _mk_sm(send_uds):
     sm = MagicMock()
     sm.keepalive_stale = AsyncMock()
@@ -89,6 +107,25 @@ def _igpm_index(multi_did: bool) -> dict:
     ecu = {"tx_id": 0x770, "pids": {"22BC03": {"parameters": {}}, "22BC06": {"parameters": {}}}}
     if multi_did:
         ecu["multi_did"] = True
+    return {"IGPM": ecu}
+
+
+BC04_SINGLE = "62BC04B53FF4EA01000042AAAA"
+MULTI3 = "62BC03FDEE3C730A000000BC04B53FF4EA01000042BC06B480000000000000AAAA"
+
+
+def _igpm_index3(multi_did: bool = True, max_dids: int | None = None) -> dict:
+    ecu = {
+        "tx_id": 0x770,
+        "pids": {
+            "22BC03": {"parameters": {}},
+            "22BC04": {"parameters": {}},
+            "22BC06": {"parameters": {}},
+        },
+        "multi_did": multi_did,
+    }
+    if max_dids is not None:
+        ecu["multi_did_max"] = max_dids
     return {"IGPM": ecu}
 
 
@@ -123,6 +160,42 @@ class TestBatchingExecutor:
         got = {x["pid"]: x["raw_hex"] for x in r2}
         assert got["22BC03"] == "62BC03FDEE3C730A000000"
         assert got["22BC06"] == "62BC06B480000000000000"
+
+    def test_batches_up_to_cap(self):
+        # multi_did_max=3 (default) → all three consecutive DIDs in one request.
+        term = FakeTerminal({**_SINGLES, "22BC04": _ok(BC04_SINGLE), "22BC03BC04BC06": _ok(MULTI3)})
+        sm = _mk_sm(term.send_uds)
+        bs = BatchState()
+        for d in ("BC03", "BC04", "BC06"):
+            bs.lengths[(0x770, d)] = 8
+        idx = _igpm_index3()
+
+        _l, r = asyncio.run(
+            _exec_query(sm, "IGPM", [], idx, {}, False, return_results=True, batch_state=bs)
+        )
+        assert term.sent == ["22BC03BC04BC06"]  # one request for all three
+        assert {x["pid"] for x in r} == {"22BC03", "22BC04", "22BC06"}
+
+    def test_per_ecu_cap_splits_into_two_requests(self):
+        # multi_did_max=2 → a run of 3 splits 2+1: BC03+BC04 batched, BC06 single.
+        term = FakeTerminal(
+            {
+                **_SINGLES,
+                "22BC04": _ok(BC04_SINGLE),
+                "22BC03BC04": _ok("62BC03FDEE3C730A000000BC04B53FF4EA01000042AAAA"),
+            }
+        )
+        sm = _mk_sm(term.send_uds)
+        bs = BatchState()
+        for d in ("BC03", "BC04", "BC06"):
+            bs.lengths[(0x770, d)] = 8
+        idx = _igpm_index3(max_dids=2)
+
+        _l, r = asyncio.run(
+            _exec_query(sm, "IGPM", [], idx, {}, False, return_results=True, batch_state=bs)
+        )
+        assert term.sent == ["22BC03BC04", "22BC06"]
+        assert {x["pid"] for x in r} == {"22BC03", "22BC04", "22BC06"}
 
     def test_nrc13_disables_and_falls_back(self):
         term = FakeTerminal(

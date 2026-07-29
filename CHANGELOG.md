@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`multi_did_max` profile setting** caps how many service-22 DIDs are combined
+  into one multi-DID batch request (default `3`; per-ECU `multi_did_max`
+  overrides). Previously the cap was hard-coded to 3 in two places; it is now a
+  single, validated, per-profile/per-ECU knob. The bundled `ioniq-2017` profile
+  raises it to `6` after on-car verification that IGPM answers all 7 of its
+  BC01–BC07 DIDs in one multi-frame request with no truncation.
+- **`multi_did: true` on the Ioniq SCC, ESC, and MFC ECUs** — verified on-device
+  that they answer service-22 multi-DID batch requests (`22 D1 D2 …`) and split
+  cleanly, so the monitor now batches their consecutive DIDs (IGPM was already
+  batched; BCM/CLU/EPS/HVAC/SKM reject batching and stay single-read).
+
 - **`canair query` prints a hint to use `canair monitor`** when run on an
   interactive terminal — `query` is a one-shot read, while `canair monitor`
   gives a live, continuously-refreshing view of the same query steps. The hint
@@ -16,6 +27,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   output stays clean.
 
 ### Fixed
+
+- **`--force` now warns when it steals the device lock from a still-running
+  process.** An orphaned/stuck canair session (e.g. a wedged `canair scan`)
+  keeps the WiCAN's single connection open even after `--force` takes the lock,
+  so the new session's connection can then time out. The heads-up names the PID
+  and suggests clearing it (`kill <pid>` / `pkill -f canair`) rather than
+  rebooting the device. No warning when the previous holder is already dead
+  (its socket is gone too) or is the current process.
 
 - **Live commands now handle connection failures and mid-session drops
   gracefully on both transports — never a bare traceback**, and never lose

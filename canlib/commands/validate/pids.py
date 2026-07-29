@@ -388,6 +388,13 @@ def _validate_ecu_entry(
         if field not in fields.all_ecu:
             warnings.append(f"{label}: unknown ECU field '{field}'")
 
+    if "multi_did_max" in ecu_def and (
+        not isinstance(ecu_def["multi_did_max"], int)
+        or isinstance(ecu_def["multi_did_max"], bool)
+        or ecu_def["multi_did_max"] < 1
+    ):
+        errors.append(f"{label}: 'multi_did_max' must be a positive integer")
+
     # Legacy ECU-level availability -> vehicle_states
     if "availability" in ecu_def:
         errors.append(
@@ -899,6 +906,11 @@ def validate_meta(path: Path, required_fields: set[str]) -> list[str]:
 
     if "multi_did_batching" in data and not isinstance(data["multi_did_batching"], bool):
         errors.append("profile.yaml: 'multi_did_batching' must be a boolean")
+
+    if "multi_did_max" in data and (
+        not _is_int(data["multi_did_max"]) or data["multi_did_max"] < 1
+    ):
+        errors.append("profile.yaml: 'multi_did_max' must be a positive integer")
 
     if "failure_types" in data and not isinstance(data["failure_types"], dict):
         errors.append("profile.yaml: 'failure_types' must be a mapping of {byte: meaning}")

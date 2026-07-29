@@ -45,6 +45,35 @@ class ResultEntry(TypedDict):
 EcuFrame = tuple[str, list[ResultEntry]]
 
 
+# Max service-22 DIDs to combine into one multi-DID request when an ECU opts into
+# batching. Bounded because a batch is only as fast as its slowest member (one
+# stalled DID holds up the whole group) and a very large group grows the ISO-TP
+# response. 3 is deliberately conservative — it keeps the *request* within a
+# single CAN frame (``22`` + 3 two-byte DIDs = 7 data bytes); larger groups make
+# the request itself multi-frame, which the ECUs tested tolerate but which adds
+# request-side flow-control. Override per profile with ``multi_did_max`` (or
+# per-ECU with the same key); resolved by :func:`resolve_multi_did_max`.
+MULTI_DID_MAX_DEFAULT = 3
+
+
+def resolve_multi_did_max(pids_data: dict | None, ecu_def: dict | None = None) -> int:
+    """Resolve the multi-DID batch size cap (per-ECU → profile → default).
+
+    ``multi_did_max`` may be set profile-wide (top level of the profile data) and
+    overridden per ECU (in the ECU's definition), mirroring how ``multi_did`` /
+    ``multi_did_batching`` resolve. A non-positive or missing value falls back to
+    :data:`MULTI_DID_MAX_DEFAULT`; a value < 1 is clamped to 1 (batching off).
+    """
+    val = None
+    if ecu_def is not None and "multi_did_max" in ecu_def:
+        val = ecu_def["multi_did_max"]
+    elif pids_data is not None:
+        val = pids_data.get("multi_did_max")
+    if not isinstance(val, int) or val < 1:
+        return MULTI_DID_MAX_DEFAULT
+    return val
+
+
 class BatchState:
     """Per-session UDS service-22 multi-DID batching state.
 
@@ -55,10 +84,11 @@ class BatchState:
     rejects it (or whose response fails to split) for the rest of the session.
     """
 
-    def __init__(self, pad: int = 0xAA):
+    def __init__(self, pad: int = 0xAA, max_dids: int = MULTI_DID_MAX_DEFAULT):
         self.lengths: dict[tuple[int, str], int] = {}  # (tx_id, DID4) -> data bytes
         self.disabled: set[int] = set()  # tx_ids that don't support batching
         self.pad = pad  # ISO-TP padding byte (profile isotp.tx_padding)
+        self.max_dids = max_dids  # max DIDs combined per multi-DID request
 
     def learn(self, tx_id: int, did4: str, resp_hex: str) -> None:
         """Record a DID's data length from a single-DID ``62 DID <data>`` response."""
