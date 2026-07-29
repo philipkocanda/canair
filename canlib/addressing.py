@@ -35,7 +35,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from enum import StrEnum
-from typing import TYPE_CHECKING, Any, Final
+from typing import TYPE_CHECKING, Any, Final, assert_never
 
 if TYPE_CHECKING:
     import isotp
@@ -183,24 +183,27 @@ def build_isotp_address(
     """
     import isotp
 
-    if mode == AddressingMode.NORMAL_11BIT:
-        return isotp.Address(isotp.AddressingMode.Normal_11bits, txid=tx_id, rxid=rx_id)
-    if mode == AddressingMode.NORMAL_29BIT:
-        return isotp.Address(isotp.AddressingMode.Normal_29bits, txid=tx_id, rxid=rx_id)
-    target = (tx_id >> 8) & 0xFF
-    source = tx_id & 0xFF
-    if mode == AddressingMode.NORMAL_FIXED_29BIT:
-        return isotp.Address(
-            isotp.AddressingMode.NormalFixed_29bits,
-            target_address=target,
-            source_address=source,
-        )
-    if mode == AddressingMode.EXTENDED_29BIT:
-        return isotp.Address(
-            isotp.AddressingMode.Extended_29bits,
-            txid=tx_id,
-            rxid=rx_id,
-            target_address=target,
-            source_address=source,
-        )
-    raise ValueError(f"unsupported addressing mode: {mode!r}")
+    target = (tx_id >> 8) & 0xFF  # 0x18DA{target}{tester}: target = bits 8-15
+    source = tx_id & 0xFF  # tester/source = bits 0-7 (29-bit modes only)
+    match mode:
+        case AddressingMode.NORMAL_11BIT:
+            return isotp.Address(isotp.AddressingMode.Normal_11bits, txid=tx_id, rxid=rx_id)
+        case AddressingMode.NORMAL_29BIT:
+            return isotp.Address(isotp.AddressingMode.Normal_29bits, txid=tx_id, rxid=rx_id)
+        case AddressingMode.NORMAL_FIXED_29BIT:
+            return isotp.Address(
+                isotp.AddressingMode.NormalFixed_29bits,
+                target_address=target,
+                source_address=source,
+            )
+        case AddressingMode.EXTENDED_29BIT:
+            return isotp.Address(
+                isotp.AddressingMode.Extended_29bits,
+                txid=tx_id,
+                rxid=rx_id,
+                target_address=target,
+                source_address=source,
+            )
+    # Exhaustive over AddressingMode — a new member here is a type error at check
+    # time (assert_never) rather than a silent runtime surprise.
+    assert_never(mode)

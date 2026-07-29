@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, TypedDict
 
 from canlib import yaml_io
+from canlib.addressing import AddressingMode
 
 
 class PidIndexEntry(TypedDict):
@@ -33,12 +34,14 @@ class EcuIndexEntry(TypedDict):
 
     ``rx_id`` is the resolved CAN response address (explicit per-ECU ``rx_id`` →
     profile ``addressing.rx_offset`` → the conventional ``tx_id + 0x08``), so the
-    raw transport never recomputes ``tx + 8``.
+    raw transport never recomputes ``tx + 8``. ``mode`` is the resolved CAN
+    addressing mode (per-ECU ``addressing.mode`` → profile → 11-bit), which shapes
+    the ISO-TP stack the raw transport builds for this ECU.
     """
 
     tx_id: int
     rx_id: int
-    mode: str
+    mode: AddressingMode
     pids: dict[str, PidIndexEntry]
     multi_did: bool
 
@@ -271,7 +274,7 @@ def build_ecu_index(pids_data: dict) -> dict:
             ),
             # Addressing mode (per-ECU → profile → 11-bit): the raw transport
             # builds the ISO-TP stack for this ECU from it.
-            "mode": mode.value,
+            "mode": mode,
             "pids": {},
             # UDS service-22 multi-DID batching: per-ECU flag, defaulting to the
             # profile-wide setting. Only ECUs that opt in are batched (and even

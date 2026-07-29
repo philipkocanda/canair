@@ -63,15 +63,16 @@ class _EcuIdentity(TypedDict, total=False):
 class EcuRegistryEntry(_EcuIdentity):
     """One ECU's entry in a :func:`load_ecus` result (keyed by TX id).
 
-    ``name`` (the canonical short name — the ECU file's top key) and the resolved
-    CAN response address ``rx_id`` are always present; the identity fields from
-    :class:`_EcuIdentity` are optional. The registry is keyed by TX id, so ``tx_id``
-    itself is the dict key rather than a field here.
+    ``name`` (the canonical short name — the ECU file's top key), the resolved
+    CAN response address ``rx_id``, and the resolved addressing ``mode`` are always
+    present; the identity fields from :class:`_EcuIdentity` are optional. The
+    registry is keyed by TX id, so ``tx_id`` itself is the dict key rather than a
+    field here.
     """
 
     name: str
     rx_id: int
-    mode: str
+    mode: AddressingMode
 
 
 def load_ecus(path: Path | None = None) -> dict[int, EcuRegistryEntry]:
@@ -115,7 +116,7 @@ def load_ecus(path: Path | None = None) -> dict[int, EcuRegistryEntry]:
         info["rx_id"] = resolve_rx(
             tx_id, int(ecu_rx) if ecu_rx is not None else None, rx_offset, mode
         )
-        info["mode"] = mode.value
+        info["mode"] = mode
         result[tx_id] = cast(EcuRegistryEntry, info)
     return result
 

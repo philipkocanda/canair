@@ -42,7 +42,7 @@ async def run_raw(args, transport, pids_data) -> int:
         return await run_raw_monitor(args, host, port, bitrate, pids_data)
 
     # All other commands: reuse the shared dispatch over a RawTerminal adapter.
-    from ..addressing import AddressingMode, parse_mode, resolve_mode, resolve_rx_offset
+    from ..addressing import AddressingMode, resolve_mode, resolve_rx_offset
     from ..commands._live import dispatch_mode
     from ..pids import build_ecu_index
     from ..quirks import HK_F1XX_MINUS_ONE, has_quirk
@@ -57,8 +57,7 @@ async def run_raw(args, transport, pids_data) -> int:
     ecu_index = build_ecu_index(pids_data)
     rx_map: dict[int, int] = {info["tx_id"]: info["rx_id"] for info in ecu_index.values()}
     mode_map: dict[int, AddressingMode] = {
-        info["tx_id"]: parse_mode(info["mode"]) or AddressingMode.NORMAL_11BIT
-        for info in ecu_index.values()
+        info["tx_id"]: info["mode"] for info in ecu_index.values()
     }
     terminal = RawTerminal(
         host,

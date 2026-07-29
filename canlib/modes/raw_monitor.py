@@ -34,14 +34,12 @@ def query_ecu_modes(
     query_steps: list[dict], ecu_index: Mapping[str, EcuIndexEntry]
 ) -> dict[str, AddressingMode]:
     """name(upper) -> addressing mode for every known ECU in the query steps."""
-    from ..addressing import AddressingMode, parse_mode
-
     out: dict[str, AddressingMode] = {}
     for step in query_steps:
         ecu = step["ecu"].upper()
         info = ecu_index.get(ecu)
         if info:
-            out[ecu] = parse_mode(info["mode"]) or AddressingMode.NORMAL_11BIT
+            out[ecu] = info["mode"]
     return out
 
 

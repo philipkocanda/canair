@@ -24,7 +24,13 @@ import time
 import can
 import isotp
 
-from ..addressing import DEFAULT_MODE, DEFAULT_RX_OFFSET, AddressingMode, build_isotp_address
+from ..addressing import (
+    DEFAULT_MODE,
+    DEFAULT_RX_OFFSET,
+    AddressingMode,
+    build_isotp_address,
+    resolve_rx,
+)
 from ..log import log_response
 from ..safety import enforce_command_safety
 from ..timing import TimingRecorder
@@ -208,8 +214,6 @@ class RawTerminal:
         st = self._stacks.get(tx_id)
         if st is None:
             mode = self.mode_map.get(tx_id, self.mode)
-            from ..addressing import resolve_rx
-
             rx_id = self.rx_map.get(tx_id)
             if rx_id is None:
                 rx_id = resolve_rx(tx_id, rx_offset=self.rx_offset, mode=mode)
