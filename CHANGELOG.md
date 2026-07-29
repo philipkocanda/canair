@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`canair query` prints a hint to use `canair monitor`** when run on an
+  interactive terminal — `query` is a one-shot read, while `canair monitor`
+  gives a live, continuously-refreshing view of the same query steps. The hint
+  goes to stderr and is suppressed when piped or with `--json`, so machine
+  output stays clean.
+
 ## [1.8.1] - 2026-07-29
 
 ### Added

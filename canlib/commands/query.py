@@ -96,4 +96,15 @@ def run(args) -> int:
                 print(f"Error: {ecu_err}", file=sys.stderr)
                 return 2
     # else: --param / interactive fall through to async_main's dispatch
+
+    # On an interactive terminal, nudge toward the live monitor — `query` is a
+    # one-shot read, while `canair monitor` gives a continuously-refreshing view
+    # of the same steps. Skip when piped or emitting JSON so machine output stays
+    # clean.
+    if sys.stdout.isatty() and not args.json:
+        print(
+            "hint: for a live, continuously-refreshing view use `canair monitor` "
+            "(same query steps).",
+            file=sys.stderr,
+        )
     return run_live(args)
