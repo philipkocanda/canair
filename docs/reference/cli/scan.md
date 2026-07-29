@@ -16,8 +16,10 @@ A bare `canair scan BMS` (or `canair scan` alone) is shorthand for `canair scan 
 positional arguments:
   <kind>
     range      Sweep a range of PIDs/DIDs on an ECU
-    iocontrol  SAFE IOControl discovery (UDS 0x2F / KWP2000 0x30, auto by id_protocol)
-    routines   SAFE RoutineControl discovery (UDS 0x31 SF03 / KWP2000 0x33, auto)
+    iocontrol  SAFE IOControl discovery (UDS 0x2F / KWP2000 0x30, auto by
+               id_protocol)
+    routines   SAFE RoutineControl discovery (UDS 0x31 SF03 / KWP2000 0x33,
+               auto)
     sessions   SAFE diagnostic session-type discovery (0x10, auto UDS/KWP2000)
 
 options:
@@ -37,19 +39,27 @@ Run `canair scan <kind> --help` for the flags of each kind.
 ## `canair scan range`
 
 ```
-usage: canair scan range [-h] [-i] [--service SVC] [--range START-END] [--append HEX] [--session] [--wake] [--save] [--label TEXT] [--state TEXT] [--notes TEXT] [--wican WICAN]
-                         [--transport {slcan-tcp,wican-ws}] [--elm-timeout MS] [--timeout SECONDS] [--json] [--verbose] [--timings] [--reboot] [--unsafe] [--force]
+usage: canair scan range [-h] [-i] [--service SVC] [--range START-END]
+                         [--append HEX] [--session] [--wake] [--save]
+                         [--label TEXT] [--state TEXT] [--notes TEXT]
+                         [--wican WICAN] [--transport {slcan-tcp,wican-ws}]
+                         [--elm-timeout MS] [--timeout SECONDS] [--json]
+                         [--verbose] [--timings] [--reboot] [--unsafe]
+                         [--force]
                          [ECU]
 
 Scan a range of PIDs/DIDs on an ECU. One scan at a time only.
 
 positional arguments:
-  ECU                   ECU name or TX ID (e.g. BMS or 7E4). Omit for the interactive wizard.
+  ECU                   ECU name or TX ID (e.g. BMS or 7E4). Omit for the
+                        interactive wizard.
 
 options:
   -h, --help            show this help message and exit
   -i, --interactive     Force the interactive wizard even when an ECU is given
-  --service SVC         UDS service: a preset name (live-data, read-did, iocontrol, routine) or a hex byte (default: smart per-ECU)
+  --service SVC         UDS service: a preset name (live-data, read-did,
+                        iocontrol, routine) or a hex byte (default: smart per-
+                        ECU)
   --range START-END     PID/DID range in hex (default: smart per-ECU)
   --append HEX          Hex bytes to append after each DID
   --session             Enter extended session (10 03)
@@ -58,17 +68,26 @@ options:
   --label TEXT          Session label for --save
   --state TEXT          Session state for --save
   --notes TEXT          Session notes for --save
-  --wican WICAN         WiCAN address: ap or IP (default: config transport.host / default_wican=ap)
+  --wican WICAN         WiCAN address: ap or IP (default: config
+                        transport.host / default_wican=ap)
   --transport {slcan-tcp,wican-ws}
-                        CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327 terminal). Overrides the config `transport.type` (default: slcan-tcp).
-  --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx after init)
-  --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0 ELM / 2.0 raw). Overrides any per-ECU response_timeout_ms for the whole run.
+                        CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327
+                        terminal). Overrides the config `transport.type`
+                        (default: slcan-tcp).
+  --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx
+                        after init)
+  --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0
+                        ELM / 2.0 raw). Overrides any per-ECU
+                        response_timeout_ms for the whole run.
   --json                Output results as JSON
   --verbose, -v         Show raw transport traffic and expressions
-  --timings             Print per-ECU/PID round-trip timing stats on exit (to stderr)
+  --timings             Print per-ECU/PID round-trip timing stats on exit (to
+                        stderr)
   --reboot              Reboot WiCAN after session to restore AutoPID mode
-  --unsafe              Bypass dangerous command blocklist (requires explicit per-command consent)
-  --force               Steal the connection lock if another session is still running
+  --unsafe              Bypass dangerous command blocklist (requires explicit
+                        per-command consent)
+  --force               Steal the connection lock if another session is still
+                        running
 
 getting started:
   canair scan range                 # interactive wizard — pick ECU/service/range
@@ -100,8 +119,13 @@ tips:
 ## `canair scan iocontrol`
 
 ```
-usage: canair scan iocontrol [-h] [--did-range START-END] [--throttle-ms THROTTLE_MS] [--session] [--wake] [--mode HEX] [--wican WICAN] [--transport {slcan-tcp,wican-ws}]
-                             [--elm-timeout MS] [--timeout SECONDS] [--json] [--verbose] [--timings] [--reboot] [--unsafe] [--force]
+usage: canair scan iocontrol [-h] [--did-range START-END]
+                             [--throttle-ms THROTTLE_MS] [--session] [--wake]
+                             [--mode HEX] [--wican WICAN]
+                             [--transport {slcan-tcp,wican-ws}]
+                             [--elm-timeout MS] [--timeout SECONDS] [--json]
+                             [--verbose] [--timings] [--reboot] [--unsafe]
+                             [--force]
                              ECU [ECU ...]
 
 Probe returnControlToECU across an id range on one or more ECUs. The service is auto-selected per ECU from its id_protocol: UDS ECUs use InputOutputControlByIdentifier (0x2F, 16-bit DID); KWP2000 ECUs (BMS, VCU, MCU, LDC, AAF) use InputOutputControlByLocalIdentifier (0x30, 8-bit LID). Only the side-effect-free sub-function is ever sent — the scanner never actuates. Hits are written to pids/<ecu>.yaml under an iocontrol_discoveries: section.
@@ -112,23 +136,34 @@ positional arguments:
 options:
   -h, --help            show this help message and exit
   --did-range START-END
-                        Id range: DID for UDS (per-ECU defaults), LID 00-FF for KWP2000 (default 00-FF)
+                        Id range: DID for UDS (per-ECU defaults), LID 00-FF
+                        for KWP2000 (default 00-FF)
   --throttle-ms THROTTLE_MS
                         Delay in ms between probes (default 150)
   --session             Open a diagnostic session before scanning
   --wake                Wake ECU from deep sleep first
-  --mode HEX            Session mode for --session (default 03 = UDS extended; 81 = KWP2000 standard, e.g. BMS)
-  --wican WICAN         WiCAN address: ap or IP (default: config transport.host / default_wican=ap)
+  --mode HEX            Session mode for --session (default 03 = UDS extended;
+                        81 = KWP2000 standard, e.g. BMS)
+  --wican WICAN         WiCAN address: ap or IP (default: config
+                        transport.host / default_wican=ap)
   --transport {slcan-tcp,wican-ws}
-                        CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327 terminal). Overrides the config `transport.type` (default: slcan-tcp).
-  --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx after init)
-  --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0 ELM / 2.0 raw). Overrides any per-ECU response_timeout_ms for the whole run.
+                        CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327
+                        terminal). Overrides the config `transport.type`
+                        (default: slcan-tcp).
+  --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx
+                        after init)
+  --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0
+                        ELM / 2.0 raw). Overrides any per-ECU
+                        response_timeout_ms for the whole run.
   --json                Output results as JSON
   --verbose, -v         Show raw transport traffic and expressions
-  --timings             Print per-ECU/PID round-trip timing stats on exit (to stderr)
+  --timings             Print per-ECU/PID round-trip timing stats on exit (to
+                        stderr)
   --reboot              Reboot WiCAN after session to restore AutoPID mode
-  --unsafe              Bypass dangerous command blocklist (requires explicit per-command consent)
-  --force               Steal the connection lock if another session is still running
+  --unsafe              Bypass dangerous command blocklist (requires explicit
+                        per-command consent)
+  --force               Steal the connection lock if another session is still
+                        running
 
 examples:
   canair scan iocontrol IGPM              # UDS 0x2F DID scan
@@ -140,8 +175,13 @@ examples:
 ## `canair scan routines`
 
 ```
-usage: canair scan routines [-h] [--rid-range START-END] [--throttle-ms THROTTLE_MS] [--session] [--wake] [--mode HEX] [--wican WICAN] [--transport {slcan-tcp,wican-ws}] [--elm-timeout MS]
-                            [--timeout SECONDS] [--json] [--verbose] [--timings] [--reboot] [--unsafe] [--force]
+usage: canair scan routines [-h] [--rid-range START-END]
+                            [--throttle-ms THROTTLE_MS] [--session] [--wake]
+                            [--mode HEX] [--wican WICAN]
+                            [--transport {slcan-tcp,wican-ws}]
+                            [--elm-timeout MS] [--timeout SECONDS] [--json]
+                            [--verbose] [--timings] [--reboot] [--unsafe]
+                            [--force]
                             ECU [ECU ...]
 
 Probe routine results across a range on one or more ECUs. The service is auto-selected per ECU from its id_protocol: UDS ECUs use RoutineControl (0x31, requestRoutineResults SF 0x03); KWP2000 ECUs (BMS, VCU, MCU, LDC, AAF) use RequestRoutineResultsByLocalIdentifier (0x33). 0x31 (StartRoutine on KWP2000) is NEVER sent to a KWP2000 ECU — only the read-only results service. Hits are written to pids/<ecu>.yaml under a routines: section.
@@ -152,23 +192,34 @@ positional arguments:
 options:
   -h, --help            show this help message and exit
   --rid-range START-END
-                        RID range for UDS (default F000-F0FF); KWP2000 ECUs use LID 00-FF
+                        RID range for UDS (default F000-F0FF); KWP2000 ECUs
+                        use LID 00-FF
   --throttle-ms THROTTLE_MS
                         Delay in ms between probes (default 150)
   --session             Open a diagnostic session before scanning
   --wake                Wake ECU from deep sleep first
-  --mode HEX            Session mode for --session (default 03 = UDS extended; 81 = KWP2000 standard, e.g. BMS)
-  --wican WICAN         WiCAN address: ap or IP (default: config transport.host / default_wican=ap)
+  --mode HEX            Session mode for --session (default 03 = UDS extended;
+                        81 = KWP2000 standard, e.g. BMS)
+  --wican WICAN         WiCAN address: ap or IP (default: config
+                        transport.host / default_wican=ap)
   --transport {slcan-tcp,wican-ws}
-                        CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327 terminal). Overrides the config `transport.type` (default: slcan-tcp).
-  --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx after init)
-  --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0 ELM / 2.0 raw). Overrides any per-ECU response_timeout_ms for the whole run.
+                        CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327
+                        terminal). Overrides the config `transport.type`
+                        (default: slcan-tcp).
+  --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx
+                        after init)
+  --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0
+                        ELM / 2.0 raw). Overrides any per-ECU
+                        response_timeout_ms for the whole run.
   --json                Output results as JSON
   --verbose, -v         Show raw transport traffic and expressions
-  --timings             Print per-ECU/PID round-trip timing stats on exit (to stderr)
+  --timings             Print per-ECU/PID round-trip timing stats on exit (to
+                        stderr)
   --reboot              Reboot WiCAN after session to restore AutoPID mode
-  --unsafe              Bypass dangerous command blocklist (requires explicit per-command consent)
-  --force               Steal the connection lock if another session is still running
+  --unsafe              Bypass dangerous command blocklist (requires explicit
+                        per-command consent)
+  --force               Steal the connection lock if another session is still
+                        running
 
 examples:
   canair scan routines IGPM               # UDS 0x31 SF03
@@ -180,8 +231,12 @@ examples:
 ## `canair scan sessions`
 
 ```
-usage: canair scan sessions [-h] [--modes HEX[,HEX...]] [--throttle-ms THROTTLE_MS] [--wican WICAN] [--transport {slcan-tcp,wican-ws}] [--elm-timeout MS] [--timeout SECONDS] [--json]
-                            [--verbose] [--timings] [--reboot] [--unsafe] [--force]
+usage: canair scan sessions [-h] [--modes HEX[,HEX...]]
+                            [--throttle-ms THROTTLE_MS] [--wican WICAN]
+                            [--transport {slcan-tcp,wican-ws}]
+                            [--elm-timeout MS] [--timeout SECONDS] [--json]
+                            [--verbose] [--timings] [--reboot] [--unsafe]
+                            [--force]
                             ECU [ECU ...]
 
 Probe which DiagnosticSessionControl (service 0x10) session types an ECU supports. The session-mode set is auto-selected per ECU from its id_protocol: UDS ECUs are probed with 01 (default) + 03 (extended); KWP2000 ECUs (BMS, VCU, MCU, LDC, AAF) with 81 (standard) + 82 + 83 (extended). Only these SAFE read-only modes are ever sent — the programming sessions (UDS 0x02, KWP2000 0x85) are NEVER probed. Results are written to ecus/<ecu>.yaml under a sessions: section.
@@ -191,20 +246,31 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-  --modes HEX[,HEX...]  Comma-separated 0x10 sub-functions to probe, overriding the per-ECU protocol default (e.g. 01,03 or 81,82,83). Programming modes 02/85 are refused.
+  --modes HEX[,HEX...]  Comma-separated 0x10 sub-functions to probe,
+                        overriding the per-ECU protocol default (e.g. 01,03 or
+                        81,82,83). Programming modes 02/85 are refused.
   --throttle-ms THROTTLE_MS
                         Delay in ms between probes (default 200)
-  --wican WICAN         WiCAN address: ap or IP (default: config transport.host / default_wican=ap)
+  --wican WICAN         WiCAN address: ap or IP (default: config
+                        transport.host / default_wican=ap)
   --transport {slcan-tcp,wican-ws}
-                        CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327 terminal). Overrides the config `transport.type` (default: slcan-tcp).
-  --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx after init)
-  --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0 ELM / 2.0 raw). Overrides any per-ECU response_timeout_ms for the whole run.
+                        CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327
+                        terminal). Overrides the config `transport.type`
+                        (default: slcan-tcp).
+  --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx
+                        after init)
+  --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0
+                        ELM / 2.0 raw). Overrides any per-ECU
+                        response_timeout_ms for the whole run.
   --json                Output results as JSON
   --verbose, -v         Show raw transport traffic and expressions
-  --timings             Print per-ECU/PID round-trip timing stats on exit (to stderr)
+  --timings             Print per-ECU/PID round-trip timing stats on exit (to
+                        stderr)
   --reboot              Reboot WiCAN after session to restore AutoPID mode
-  --unsafe              Bypass dangerous command blocklist (requires explicit per-command consent)
-  --force               Steal the connection lock if another session is still running
+  --unsafe              Bypass dangerous command blocklist (requires explicit
+                        per-command consent)
+  --force               Steal the connection lock if another session is still
+                        running
 
 examples:
   canair scan sessions IGPM             # UDS: probe 10 01 / 10 03

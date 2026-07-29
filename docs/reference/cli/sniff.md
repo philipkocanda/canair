@@ -3,7 +3,8 @@
 # `canair sniff`
 
 ```
-usage: canair sniff [-h] [--wican WICAN] [--listen-only] [--filter IDS] [--duration DURATION] [--save FILE] [--force]
+usage: canair sniff [-h] [--wican WICAN] [--listen-only] [--filter IDS]
+                    [--duration DURATION] [--save FILE] [--force]
 
 [CAN] ``canair sniff`` — passive CAN bus sniffer (raw SLCAN-over-TCP backend).
 
@@ -18,7 +19,8 @@ in another mode, sniff errors with the exact command to fix it
 
 options:
   -h, --help           show this help message and exit
-  --wican WICAN        WiCAN address: ap or IP (default: config transport.host / default_wican=ap)
+  --wican WICAN        WiCAN address: ap or IP (default: config transport.host
+                       / default_wican=ap)
   --listen-only        Open the bus silently (no ACK/TX) — pure passive sniff
   --filter IDS         Comma-separated hex CAN IDs to capture (default: all)
   --duration DURATION  Stop after N seconds

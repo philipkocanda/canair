@@ -15,11 +15,15 @@ A bare `canair captures BMS 2102` (or any of the --summary/--sessions/… flags)
 
 positional arguments:
   <kind>
-    uds           Query captured diagnostic UDS payloads across all capture files
-    can           List imported raw broadcast-CAN frame logs (captures/can/index.yaml)
+    uds           Query captured diagnostic UDS payloads across all capture
+                  files
+    can           List imported raw broadcast-CAN frame logs
+                  (captures/can/index.yaml)
     migrate       Convert legacy captures/*.yaml to JSON (captures/*.json)
-    migrate-rx    Rename the legacy capture `ecu` field to `rx` (captures/*.json)
-    merge-driver  Git merge driver: auto-union capture-file sessions (or --install it)
+    migrate-rx    Rename the legacy capture `ecu` field to `rx`
+                  (captures/*.json)
+    merge-driver  Git merge driver: auto-union capture-file sessions (or
+                  --install it)
 
 options:
   -h, --help      show this help message and exit
@@ -28,48 +32,83 @@ options:
 ## `canair captures uds`
 
 ```
-usage: canair captures uds [-h] [--diff | --step] [--summary | --sessions | --latest | --recover | --delete] [--discard] [--dry-run] [--yes] [--all] [--limit N] [--rulers] [--pair]
-                           [--join-tol SECONDS] [--json] [--since WHEN] [--until WHEN] [--date YYYY-MM-DD] [--today] [--last-sessions [N]] [--last-session] [--state SUBSTR]
-                           [--label SUBSTR] [--dir DIR]
+usage: canair captures uds [-h] [--diff | --step]
+                           [--summary | --sessions | --latest | --recover | --delete]
+                           [--discard] [--dry-run] [--yes] [--all] [--limit N]
+                           [--rulers] [--pair] [--join-tol SECONDS] [--json]
+                           [--since WHEN] [--until WHEN] [--date YYYY-MM-DD]
+                           [--today] [--last-sessions [N]] [--last-session]
+                           [--state SUBSTR] [--label SUBSTR] [--dir DIR]
                            [QUERY ...]
 
 Query captured UDS payloads.
 
 positional arguments:
-  QUERY                ECU/PID selection: 'BMS 2102', 'BMS:2102,2103', 'BMS' (all PIDs), or a quoted cross-ECU query 'VCU:2101 BMS:2101'
+  QUERY                ECU/PID selection: 'BMS 2102', 'BMS:2102,2103', 'BMS'
+                       (all PIDs), or a quoted cross-ECU query 'VCU:2101
+                       BMS:2101'
 
 options:
   -h, --help           show this help message and exit
-  --diff, -d           Monitor-style view (decoded params + colored byte-diff), one block per ECU+PID
-  --step, -S           Interactively step through matching captures (arrow keys; e=note, d=delete)
+  --diff, -d           Monitor-style view (decoded params + colored byte-
+                       diff), one block per ECU+PID
+  --step, -S           Interactively step through matching captures (arrow
+                       keys; e=note, d=delete)
   --summary, -s        Overview statistics
-  --sessions, -n       List sessions with their metadata (date/state/label/notes/ECUs) — a searchable table of contents; no payloads. Honors the scope filters.
-  --latest, -l         Latest payload per PID (ECU/PID taken from the QUERY, e.g. `BMS --latest`)
-  --recover            Reconcile orphaned capture journals (from a killed/crashed session) into capture files. Add --discard to delete them without saving.
-  --delete             Delete the captures matching QUERY (and any scope filters). Previews with --dry-run; confirms before deleting unless --yes.
-  --discard            With --recover: delete orphaned journals without saving them
-  --dry-run            With --delete: list the captures that would be deleted, delete nothing
-  --yes, -y            With --delete: skip the confirmation prompt (for scripting)
-  --all, -a            For --diff/--step: use every payload instead of unique-only
-  --limit N, -L N      Default list view: show only the most recent N captures (default 50; 0 = no cap). A loud footer reports any hidden history.
-  --rulers, -r         For --diff/--step: show the byte-index ruler (idx/wican) above the hex
-  --pair, -P           For --step: compare two ECU:PID selections side by side, joining captures by nearest timestamp within --join-tol (query must resolve to exactly two keys, e.g.
-                       "VCU:2101 BMS:2101")
-  --join-tol SECONDS   For --step --pair: max timestamp difference to pair two captures (default 2.5s)
-  --json               Machine-readable JSON output (summary/sessions/latest/diff and the default QUERY list; not --step, which is interactive)
+  --sessions, -n       List sessions with their metadata
+                       (date/state/label/notes/ECUs) — a searchable table of
+                       contents; no payloads. Honors the scope filters.
+  --latest, -l         Latest payload per PID (ECU/PID taken from the QUERY,
+                       e.g. `BMS --latest`)
+  --recover            Reconcile orphaned capture journals (from a
+                       killed/crashed session) into capture files. Add
+                       --discard to delete them without saving.
+  --delete             Delete the captures matching QUERY (and any scope
+                       filters). Previews with --dry-run; confirms before
+                       deleting unless --yes.
+  --discard            With --recover: delete orphaned journals without saving
+                       them
+  --dry-run            With --delete: list the captures that would be deleted,
+                       delete nothing
+  --yes, -y            With --delete: skip the confirmation prompt (for
+                       scripting)
+  --all, -a            For --diff/--step: use every payload instead of unique-
+                       only
+  --limit N, -L N      Default list view: show only the most recent N captures
+                       (default 50; 0 = no cap). A loud footer reports any
+                       hidden history.
+  --rulers, -r         For --diff/--step: show the byte-index ruler
+                       (idx/wican) above the hex
+  --pair, -P           For --step: compare two ECU:PID selections side by
+                       side, joining captures by nearest timestamp within
+                       --join-tol (query must resolve to exactly two keys,
+                       e.g. "VCU:2101 BMS:2101")
+  --join-tol SECONDS   For --step --pair: max timestamp difference to pair two
+                       captures (default 2.5s)
+  --json               Machine-readable JSON output
+                       (summary/sessions/latest/diff and the default QUERY
+                       list; not --step, which is interactive)
   --dir DIR            Captures directory (default: active profile)
 
 scoping:
   Restrict to captures within a date/time range (inclusive) and/or by session state/label substring. --since/--until accept a date (YYYY-MM-DD) or a timestamp (YYYY-MM-DD HH:MM[:SS[.ffffff]])
 
-  --since WHEN         Only captures on or after this date/time (YYYY-MM-DD[ HH:MM:SS])
-  --until WHEN         Only captures on or before this date/time (YYYY-MM-DD[ HH:MM:SS])
-  --date YYYY-MM-DD    Only captures on this exact date (shorthand for --since X --until X)
-  --today              Only captures recorded today (shorthand for --date <today>)
-  --last-sessions [N]  Only the most recent N recorded sessions in scope (N defaults to 1)
-  --last-session       Only the most recent recorded session in scope (alias for --last-sessions 1)
-  --state SUBSTR       Only captures whose session vehicle_states contain SUBSTR (case-insensitive), e.g. --state driving
-  --label SUBSTR       Only captures whose session/capture label contains SUBSTR (case-insensitive)
+  --since WHEN         Only captures on or after this date/time (YYYY-MM-DD[
+                       HH:MM:SS])
+  --until WHEN         Only captures on or before this date/time (YYYY-MM-DD[
+                       HH:MM:SS])
+  --date YYYY-MM-DD    Only captures on this exact date (shorthand for --since
+                       X --until X)
+  --today              Only captures recorded today (shorthand for --date
+                       <today>)
+  --last-sessions [N]  Only the most recent N recorded sessions in scope (N
+                       defaults to 1)
+  --last-session       Only the most recent recorded session in scope (alias
+                       for --last-sessions 1)
+  --state SUBSTR       Only captures whose session vehicle_states contain
+                       SUBSTR (case-insensitive), e.g. --state driving
+  --label SUBSTR       Only captures whose session/capture label contains
+                       SUBSTR (case-insensitive)
 
 Query captured UDS payloads across all capture files.
 
@@ -195,7 +234,8 @@ options:
 ## `canair captures merge-driver`
 
 ```
-usage: canair captures merge-driver [-h] [--install] [--json] [base] [ours] [theirs] [path]
+usage: canair captures merge-driver [-h] [--install] [--json]
+                                    [base] [ours] [theirs] [path]
 
 Git merge driver for append-only capture files (captures/*.json).
 
@@ -216,6 +256,7 @@ positional arguments:
 
 options:
   -h, --help  show this help message and exit
-  --install   Register the driver in this repo's .git/config (one-time, per clone)
+  --install   Register the driver in this repo's .git/config (one-time, per
+              clone)
   --json      Machine-readable JSON output
 ```

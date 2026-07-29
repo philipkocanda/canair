@@ -18,7 +18,8 @@ down *which byte* a relationship lives in, follow up with `canair hunt`.
 positional arguments:
   <kind>
     uds       Correlate co-polled diagnostic captures (domain A)
-    can       Correlate a raw broadcast-CAN frame log's per-byte series (domain B)
+    can       Correlate a raw broadcast-CAN frame log's per-byte series
+              (domain B)
 
 options:
   -h, --help  show this help message and exit
@@ -27,10 +28,20 @@ options:
 ## `canair correlate uds`
 
 ```
-usage: canair correlate uds [-h] [--transform MODE] [--matrix] [--against-file FILE] [--include-intra] [--include-self] [--against ECU:PID:PARAM] [--min-r R] [--min-n N] [--top N]
-                            [--method {pearson,spearman,cramers_v,mutual_info}] [--join-tol SECONDS] [--bits] [--json] [--no-cluster] [--bytes] [--lag-scan N] [--gate '[SIGNAL] OP VALUE']
-                            [--control ECU:PID:PARAM] [--control-file FILE] [--promote NAME] [--overlap] [--find-mirrors] [--notation NAME] [--since WHEN] [--until WHEN]
-                            [--date YYYY-MM-DD] [--today] [--last-sessions [N]] [--last-session] [--state SUBSTR] [--label SUBSTR]
+usage: canair correlate uds [-h] [--transform MODE] [--matrix]
+                            [--against-file FILE] [--include-intra]
+                            [--include-self] [--against ECU:PID:PARAM]
+                            [--min-r R] [--min-n N] [--top N]
+                            [--method {pearson,spearman,cramers_v,mutual_info}]
+                            [--join-tol SECONDS] [--bits] [--json]
+                            [--no-cluster] [--bytes] [--lag-scan N]
+                            [--gate '[SIGNAL] OP VALUE']
+                            [--control ECU:PID:PARAM] [--control-file FILE]
+                            [--promote NAME] [--overlap] [--find-mirrors]
+                            [--notation NAME] [--since WHEN] [--until WHEN]
+                            [--date YYYY-MM-DD] [--today]
+                            [--last-sessions [N]] [--last-session]
+                            [--state SUBSTR] [--label SUBSTR]
                             [query]
 
 Show me every strong relationship across a whole drive.
@@ -55,56 +66,103 @@ Read-only: analyses captures/ only, never talks to the device. To pin
 down *which byte* a relationship lives in, follow up with `canair hunt`.
 
 positional arguments:
-  query                 Optional ECU[:PID] selector(s) to restrict the signals (e.g. 'MCU VCU' or 'ESC:22C101'); default = all co-polled in scope
+  query                 Optional ECU[:PID] selector(s) to restrict the signals
+                        (e.g. 'MCU VCU' or 'ESC:22C101'); default = all co-
+                        polled in scope
 
 options:
   -h, --help            show this help message and exit
-  --transform MODE      With --against: transform the reference before aligning (e.g. delta to rank signals against the reference's *rate*)
-  --matrix              Print a labelled r-matrix instead of a ranked pair list
-  --against-file FILE   Rank every signal against an external CSV (timestamp,value) reference instead of a bus signal — a calibrated meter log, GPS track, grid-voltage export. Joined by
-                        nearest timestamp; the file must be on the same absolute clock as the captures (relative/zero-based logs won't align)
-  --include-intra       Include same-ECU+PID pairs (default: cross-PID/ECU only)
-  --include-self        With --against: keep the reference's own signal (trivial r=1.0; dropped by default)
+  --transform MODE      With --against: transform the reference before
+                        aligning (e.g. delta to rank signals against the
+                        reference's *rate*)
+  --matrix              Print a labelled r-matrix instead of a ranked pair
+                        list
+  --against-file FILE   Rank every signal against an external CSV
+                        (timestamp,value) reference instead of a bus signal —
+                        a calibrated meter log, GPS track, grid-voltage
+                        export. Joined by nearest timestamp; the file must be
+                        on the same absolute clock as the captures
+                        (relative/zero-based logs won't align)
+  --include-intra       Include same-ECU+PID pairs (default: cross-PID/ECU
+                        only)
+  --include-self        With --against: keep the reference's own signal
+                        (trivial r=1.0; dropped by default)
   --against ECU:PID:PARAM
-                        Correlate every signal against this one reference (e.g. ESC:22C101:REAL_SPEED_KMH) instead of the full matrix
+                        Correlate every signal against this one reference
+                        (e.g. ESC:22C101:REAL_SPEED_KMH) instead of the full
+                        matrix
   --min-r R             Min |r| to report (default 0.6)
   --min-n N             Min aligned points (default 15)
   --top N               Max hits (default 40)
   --method {pearson,spearman,cramers_v,mutual_info}
-                        Association coefficient: pearson (linear, default) or spearman (rank — catches monotone-but-nonlinear/quantized/saturating links), or the categorical cramers_v /
-                        mutual_info (treat each value as a nominal category — for mode/flag/enum bytes where numeric spacing is meaningless)
+                        Association coefficient: pearson (linear, default) or
+                        spearman (rank — catches monotone-but-
+                        nonlinear/quantized/saturating links), or the
+                        categorical cramers_v / mutual_info (treat each value
+                        as a nominal category — for mode/flag/enum bytes where
+                        numeric spacing is meaningless)
   --join-tol SECONDS    Nearest-timestamp join window (default 2.5s)
   --bits                Include individual toggling bits (rN:k / Bn:k)
   --json                Machine-readable output
-  --no-cluster          Don't collapse near-perfectly-correlated (|r|≥0.995) signal groups into a single summary line (e.g. balanced cell voltages while charging)
+  --no-cluster          Don't collapse near-perfectly-correlated (|r|≥0.995)
+                        signal groups into a single summary line (e.g.
+                        balanced cell voltages while charging)
   --bytes               Include raw varying bytes (Bn)
-  --lag-scan N          With --against: shift each signal by ±N sample-intervals and report the lag maximising |r| (apparent lag incl. poll offset — not proven causality). Reveals
+  --lag-scan N          With --against: shift each signal by ±N sample-
+                        intervals and report the lag maximising |r| (apparent
+                        lag incl. poll offset — not proven causality). Reveals
                         command→response ordering across ECUs
   --gate '[SIGNAL] OP VALUE'
-                        With --against: only count points where a predicate holds, e.g. '> 0' (reference itself — 'while moving') or 'MCU:2102:MCU_MOTOR_RPM > 0' (a named signal). Isolates
-                        a regime whole-history correlation dilutes
+                        With --against: only count points where a predicate
+                        holds, e.g. '> 0' (reference itself — 'while moving')
+                        or 'MCU:2102:MCU_MOTOR_RPM > 0' (a named signal).
+                        Isolates a regime whole-history correlation dilutes
   --control ECU:PID:PARAM
-                        With --against: regress out this nuisance signal and rank by the PARTIAL correlation (what remains after removing the control's linear influence) — surfaces signals
-                        visible only once the dominant driver is removed. --control-file takes an external timestamp,value CSV instead
-  --control-file FILE   Like --control, but the nuisance signal is an external timestamp,value CSV (mutually exclusive with --control)
-  --promote NAME        With --against: write the top raw-byte hit to ecus/ as an enabled, unverified candidate param NAME (via pids upsert-param), with the correlation evidence auto-
+                        With --against: regress out this nuisance signal and
+                        rank by the PARTIAL correlation (what remains after
+                        removing the control's linear influence) — surfaces
+                        signals visible only once the dominant driver is
+                        removed. --control-file takes an external
+                        timestamp,value CSV instead
+  --control-file FILE   Like --control, but the nuisance signal is an external
+                        timestamp,value CSV (mutually exclusive with
+                        --control)
+  --promote NAME        With --against: write the top raw-byte hit to ecus/ as
+                        an enabled, unverified candidate param NAME (via pids
+                        upsert-param), with the correlation evidence auto-
                         filled into notes
-  --overlap             Instead of correlating, report which ECU:PID pairs share time-aligned samples (and how many) in scope — pick a viable --against reference without trial and error
-  --find-mirrors        Instead of ranking correlations, report byte/bit positions that are time-aligned equal ACROSS co-polled ECU/PIDs — e.g. a door bit in IGPM mirrored in BCM. Use with
-                        --bits for bit-level. Cross-ECU companion to `decode --find-mirrors` (which is single-PID)
-  --notation NAME       byte-index notation for output labels: wican (default), isotp, torque, bix. Overrides the display.byte_notation config key.
+  --overlap             Instead of correlating, report which ECU:PID pairs
+                        share time-aligned samples (and how many) in scope —
+                        pick a viable --against reference without trial and
+                        error
+  --find-mirrors        Instead of ranking correlations, report byte/bit
+                        positions that are time-aligned equal ACROSS co-polled
+                        ECU/PIDs — e.g. a door bit in IGPM mirrored in BCM.
+                        Use with --bits for bit-level. Cross-ECU companion to
+                        `decode --find-mirrors` (which is single-PID)
+  --notation NAME       byte-index notation for output labels: wican
+                        (default), isotp, torque, bix. Overrides the
+                        display.byte_notation config key.
 
 scoping:
   Restrict to captures within a date/time range (inclusive) and/or by session state/label substring. --since/--until accept a date (YYYY-MM-DD) or a timestamp (YYYY-MM-DD HH:MM[:SS[.ffffff]])
 
-  --since WHEN          Only captures on or after this date/time (YYYY-MM-DD[ HH:MM:SS])
-  --until WHEN          Only captures on or before this date/time (YYYY-MM-DD[ HH:MM:SS])
-  --date YYYY-MM-DD     Only captures on this exact date (shorthand for --since X --until X)
-  --today               Only captures recorded today (shorthand for --date <today>)
-  --last-sessions [N]   Only the most recent N recorded sessions in scope (N defaults to 1)
-  --last-session        Only the most recent recorded session in scope (alias for --last-sessions 1)
-  --state SUBSTR        Only captures whose session vehicle_states contain SUBSTR (case-insensitive), e.g. --state driving
-  --label SUBSTR        Only captures whose session/capture label contains SUBSTR (case-insensitive)
+  --since WHEN          Only captures on or after this date/time (YYYY-MM-DD[
+                        HH:MM:SS])
+  --until WHEN          Only captures on or before this date/time (YYYY-MM-DD[
+                        HH:MM:SS])
+  --date YYYY-MM-DD     Only captures on this exact date (shorthand for
+                        --since X --until X)
+  --today               Only captures recorded today (shorthand for --date
+                        <today>)
+  --last-sessions [N]   Only the most recent N recorded sessions in scope (N
+                        defaults to 1)
+  --last-session        Only the most recent recorded session in scope (alias
+                        for --last-sessions 1)
+  --state SUBSTR        Only captures whose session vehicle_states contain
+                        SUBSTR (case-insensitive), e.g. --state driving
+  --label SUBSTR        Only captures whose session/capture label contains
+                        SUBSTR (case-insensitive)
 
 examples:
   # every strong relationship in the most recent drive
@@ -159,36 +217,56 @@ examples:
 ## `canair correlate can`
 
 ```
-usage: canair correlate can [-h] [--can-format {auto,asc,blf,csv,log,gvret}] [--id IDS] [--include-intra] [--find-mirrors] [--no-cluster] [--against ECU:PID:PARAM] [--min-r R] [--min-n N]
-                            [--top N] [--method {pearson,spearman,cramers_v,mutual_info}] [--join-tol SECONDS] [--bits] [--json] [--notation NAME]
+usage: canair correlate can [-h] [--can-format {auto,asc,blf,csv,log,gvret}]
+                            [--id IDS] [--include-intra] [--find-mirrors]
+                            [--no-cluster] [--against ECU:PID:PARAM]
+                            [--min-r R] [--min-n N] [--top N]
+                            [--method {pearson,spearman,cramers_v,mutual_info}]
+                            [--join-tol SECONDS] [--bits] [--json]
+                            [--notation NAME]
                             FILE
 
 Correlate the per-byte series of a raw broadcast-CAN frame log (.asc/.blf/candump .log/.trc/GVRET .csv) — bytes are labelled 0xID:rN. --against/--bits/--id/--min-r/--top/--find-mirrors all apply.
 
 positional arguments:
-  FILE                  Path to a raw broadcast-CAN frame log (.asc/.blf/candump .log/.trc/GVRET .csv)
+  FILE                  Path to a raw broadcast-CAN frame log
+                        (.asc/.blf/candump .log/.trc/GVRET .csv)
 
 options:
   -h, --help            show this help message and exit
   --can-format {auto,asc,blf,csv,log,gvret}
                         Log format (default: auto-detect by extension)
-  --id IDS              Restrict to comma-separated arbitration IDs (e.g. 0x220,0x386)
-  --include-intra       Include same-arbitration-ID pairs (default: cross-ID only)
-  --find-mirrors        Instead of ranking correlations, report byte/bit positions that are time-aligned equal ACROSS arbitration IDs — a signal mirrored on two IDs (e.g. wheel speed on
-                        0x386 and 0x331). Use with --bits for bit-level
-  --no-cluster          Don't collapse near-perfectly-correlated (|r|≥0.995) byte groups into one line
+  --id IDS              Restrict to comma-separated arbitration IDs (e.g.
+                        0x220,0x386)
+  --include-intra       Include same-arbitration-ID pairs (default: cross-ID
+                        only)
+  --find-mirrors        Instead of ranking correlations, report byte/bit
+                        positions that are time-aligned equal ACROSS
+                        arbitration IDs — a signal mirrored on two IDs (e.g.
+                        wheel speed on 0x386 and 0x331). Use with --bits for
+                        bit-level
+  --no-cluster          Don't collapse near-perfectly-correlated (|r|≥0.995)
+                        byte groups into one line
   --against ECU:PID:PARAM
-                        Correlate every signal against this one reference (e.g. ESC:22C101:REAL_SPEED_KMH) instead of the full matrix
+                        Correlate every signal against this one reference
+                        (e.g. ESC:22C101:REAL_SPEED_KMH) instead of the full
+                        matrix
   --min-r R             Min |r| to report (default 0.6)
   --min-n N             Min aligned points (default 15)
   --top N               Max hits (default 40)
   --method {pearson,spearman,cramers_v,mutual_info}
-                        Association coefficient: pearson (linear, default) or spearman (rank — catches monotone-but-nonlinear/quantized/saturating links), or the categorical cramers_v /
-                        mutual_info (treat each value as a nominal category — for mode/flag/enum bytes where numeric spacing is meaningless)
+                        Association coefficient: pearson (linear, default) or
+                        spearman (rank — catches monotone-but-
+                        nonlinear/quantized/saturating links), or the
+                        categorical cramers_v / mutual_info (treat each value
+                        as a nominal category — for mode/flag/enum bytes where
+                        numeric spacing is meaningless)
   --join-tol SECONDS    Nearest-timestamp join window (default 2.5s)
   --bits                Include individual toggling bits (rN:k / Bn:k)
   --json                Machine-readable output
-  --notation NAME       byte-index notation for output labels: wican (default), isotp, torque, bix. Overrides the display.byte_notation config key.
+  --notation NAME       byte-index notation for output labels: wican
+                        (default), isotp, torque, bix. Overrides the
+                        display.byte_notation config key.
 
 --method cheat sheet (which coefficient when):
   pearson      linear correlation of two continuous signals (DEFAULT). Use for

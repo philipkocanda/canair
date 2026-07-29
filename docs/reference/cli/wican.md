@@ -64,7 +64,8 @@ positional arguments:
     write     Generate the AutoPID JSON to the bundle's out/autopid.json
     upload    Generate + upload the AutoPID profile to the device (Pro)
     download  Download the device's current AutoPID profile (Pro)
-    diff      Download + diff the device profile against the generated one (Pro)
+    diff      Download + diff the device profile against the generated one
+              (Pro)
     stats     Show a per-ECU/PID statistics table
 
 options:

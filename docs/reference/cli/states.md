@@ -3,7 +3,8 @@
 # `canair states`
 
 ```
-usage: canair states [-h] [--json] {list,add,rm,rename,set-description,set-predicate} ...
+usage: canair states [-h] [--json]
+                     {list,add,rm,rename,set-description,set-predicate} ...
 
 List the active profile's vehicle operating states, or edit the vocabulary (add/rm/rename/set-description/set-predicate). Read-only companion of the state auto-suggestion used when recording captures.
 

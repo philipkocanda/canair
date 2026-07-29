@@ -4,7 +4,8 @@
 
 ```
 usage: canair pids [-h]
-                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,set-pid-status,set-pid-variable-length,set-identity,set-can-bus,set-addressing} ...
+                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,set-pid-status,set-pid-variable-length,set-identity,set-can-bus,set-addressing}
+                   ...
 
 [UDS] Safely edit ecus/ parameters and research entries (domain A — diagnostic UDS PIDs, freeform WiCAN expressions). The broadcast-frame (domain B) authoring counterpart is `canair signals` (linear signals/ maps).
 
@@ -15,15 +16,18 @@ positional arguments:
     rm-param            Remove a parameter
     rename-pid          Rename a PID key (e.g. B002 -> 22B002)
     rm-pid              Remove a whole PID (header, status, parameters)
-    add-pid             Create a new parameter-less PID (discovery/identity placeholder)
+    add-pid             Create a new parameter-less PID (discovery/identity
+                        placeholder)
     add-research        Append a research: entry
     set-status          Update a research item's status
     set-pid-status      Set a PID's lifecycle status
     set-pid-variable-length
-                        Flag a PID as returning legitimately variable-length responses
+                        Flag a PID as returning legitimately variable-length
+                        responses
     set-identity        Set a curated identity field (e.g. notes)
     set-can-bus         Set the physical CAN bus segment(s) the ECU sits on
-    set-addressing      Set an ECU's CAN addressing override (mode / extension bytes / FC id / rx_id)
+    set-addressing      Set an ECU's CAN addressing override (mode / extension
+                        bytes / FC id / rx_id)
 
 options:
   -h, --help            show this help message and exit
@@ -45,9 +49,16 @@ options:
 ## `canair pids upsert-param`
 
 ```
-usage: canair pids upsert-param [-h] [--unit UNIT] [--ha-class HA_CLASS] [--mqtt-topic MQTT_TOPIC] [--min MIN] [--max MAX] [--source SOURCE] [--source-link URL] [--display DISPLAY]
-                                [--notes NOTES] [--type {numeric,enum,bitmask,ascii,date,bcd}] [--value RAW=LABEL] [--bit INDEX=LABEL] [--verified | --unverified] [--enabled | --disabled]
-                                [--dir DIR] [--no-validate]
+usage: canair pids upsert-param [-h] [--unit UNIT] [--ha-class HA_CLASS]
+                                [--mqtt-topic MQTT_TOPIC] [--min MIN]
+                                [--max MAX] [--source SOURCE]
+                                [--source-link URL] [--display DISPLAY]
+                                [--notes NOTES]
+                                [--type {numeric,enum,bitmask,ascii,date,bcd}]
+                                [--value RAW=LABEL] [--bit INDEX=LABEL]
+                                [--verified | --unverified]
+                                [--enabled | --disabled] [--dir DIR]
+                                [--no-validate]
                                 ecu pid name expression
 
 positional arguments:
@@ -68,9 +79,13 @@ options:
   --display DISPLAY
   --notes NOTES
   --type {numeric,enum,bitmask,ascii,date,bcd}
-                        Typed decoding: enum/bitmask/ascii/date/bcd (default numeric). See --value / --bit for the enum/bitmask maps.
-  --value RAW=LABEL     Enum mapping (repeatable), e.g. --value 40=fan1 --value 45=fanMAX
-  --bit INDEX=LABEL     Bitmask mapping (repeatable, 0=LSB), e.g. --bit 0=mon --bit 5=sat
+                        Typed decoding: enum/bitmask/ascii/date/bcd (default
+                        numeric). See --value / --bit for the enum/bitmask
+                        maps.
+  --value RAW=LABEL     Enum mapping (repeatable), e.g. --value 40=fan1
+                        --value 45=fanMAX
+  --bit INDEX=LABEL     Bitmask mapping (repeatable, 0=LSB), e.g. --bit 0=mon
+                        --bit 5=sat
   --verified
   --unverified
   --enabled
@@ -82,7 +97,8 @@ options:
 ## `canair pids rename-param`
 
 ```
-usage: canair pids rename-param [-h] [--dir DIR] [--no-validate] ecu pid old new
+usage: canair pids rename-param [-h] [--dir DIR] [--no-validate]
+                                ecu pid old new
 
 positional arguments:
   ecu
@@ -146,7 +162,9 @@ options:
 ## `canair pids add-pid`
 
 ```
-usage: canair pids add-pid [-h] [--status {active,draft,static,ignored}] [--prereq {SLEEP,PLUGGED,ACC,ACC2,READY,CHARGING,ALL}] [--period PERIOD] [--notes NOTES] [--dir DIR]
+usage: canair pids add-pid [-h] [--status {active,draft,static,ignored}]
+                           [--prereq {SLEEP,PLUGGED,ACC,ACC2,READY,CHARGING,ALL}]
+                           [--period PERIOD] [--notes NOTES] [--dir DIR]
                            [--no-validate]
                            ecu pid
 
@@ -157,7 +175,8 @@ positional arguments:
 options:
   -h, --help            show this help message and exit
   --status {active,draft,static,ignored}
-                        PID lifecycle (default: draft — swept/queryable but not shipped)
+                        PID lifecycle (default: draft — swept/queryable but
+                        not shipped)
   --prereq {SLEEP,PLUGGED,ACC,ACC2,READY,CHARGING,ALL}, --vehicle-states {SLEEP,PLUGGED,ACC,ACC2,READY,CHARGING,ALL}
                         Power state(s) in which this PID responds (repeatable)
   --period PERIOD       Polling interval in ms
@@ -169,9 +188,17 @@ options:
 ## `canair pids add-research`
 
 ```
-usage: canair pids add-research [-h] --type {scan,decode,verify,iocontrol_scan} --target TARGET --status {pending,captured,nrc,done} [--priority {P1,P2,P3}]
-                                [--prereq {SLEEP,PLUGGED,ACC,ACC2,READY,CHARGING,ALL}] [--date DATE] [--created YYYY-MM-DD] [--updated YYYY-MM-DD] [--result RESULT] [--notes NOTES]
-                                [--source SRC] [--what-to-test ITEM] [--capture-protocol TEXT] [--dir DIR] [--no-validate]
+usage: canair pids add-research [-h] --type
+                                {scan,decode,verify,iocontrol_scan} --target
+                                TARGET --status {pending,captured,nrc,done}
+                                [--priority {P1,P2,P3}]
+                                [--prereq {SLEEP,PLUGGED,ACC,ACC2,READY,CHARGING,ALL}]
+                                [--date DATE] [--created YYYY-MM-DD]
+                                [--updated YYYY-MM-DD] [--result RESULT]
+                                [--notes NOTES] [--source SRC]
+                                [--what-to-test ITEM]
+                                [--capture-protocol TEXT] [--dir DIR]
+                                [--no-validate]
                                 ecu
 
 positional arguments:
@@ -199,7 +226,10 @@ options:
 ## `canair pids set-status`
 
 ```
-usage: canair pids set-status [-h] [--type {scan,decode,verify,iocontrol_scan}] [--dir DIR] [--no-validate] ecu target {pending,captured,nrc,done}
+usage: canair pids set-status [-h]
+                              [--type {scan,decode,verify,iocontrol_scan}]
+                              [--dir DIR] [--no-validate]
+                              ecu target {pending,captured,nrc,done}
 
 positional arguments:
   ecu
@@ -217,7 +247,8 @@ options:
 ## `canair pids set-pid-status`
 
 ```
-usage: canair pids set-pid-status [-h] [--dir DIR] [--no-validate] ecu pid {active,draft,static,ignored}
+usage: canair pids set-pid-status [-h] [--dir DIR] [--no-validate]
+                                  ecu pid {active,draft,static,ignored}
 
 positional arguments:
   ecu
@@ -233,12 +264,14 @@ options:
 ## `canair pids set-pid-variable-length`
 
 ```
-usage: canair pids set-pid-variable-length [-h] [--dir DIR] [--no-validate] ecu pid {true,false}
+usage: canair pids set-pid-variable-length [-h] [--dir DIR] [--no-validate]
+                                           ecu pid {true,false}
 
 positional arguments:
   ecu
   pid
-  {true,false}   true = variable-length (a short payload is not truncation); false = clear the flag (fixed-length, the default)
+  {true,false}   true = variable-length (a short payload is not truncation);
+                 false = clear the flag (fixed-length, the default)
 
 options:
   -h, --help     show this help message and exit
@@ -249,7 +282,8 @@ options:
 ## `canair pids set-identity`
 
 ```
-usage: canair pids set-identity [-h] [--dir DIR] [--no-validate] ecu field value
+usage: canair pids set-identity [-h] [--dir DIR] [--no-validate]
+                                ecu field value
 
 positional arguments:
   ecu
@@ -265,11 +299,14 @@ options:
 ## `canair pids set-can-bus`
 
 ```
-usage: canair pids set-can-bus [-h] [--dir DIR] [--no-validate] ecu CODE [CODE ...]
+usage: canair pids set-can-bus [-h] [--dir DIR] [--no-validate]
+                               ecu CODE [CODE ...]
 
 positional arguments:
   ecu
-  CODE           One or more bus codes from the profile's can_buses.yaml (Hyundai: B-CAN/P-CAN/C-CAN/MM-CAN/H-CAN/ALL); some ECUs span two, e.g. H-CAN P-CAN
+  CODE           One or more bus codes from the profile's can_buses.yaml
+                 (Hyundai: B-CAN/P-CAN/C-CAN/MM-CAN/H-CAN/ALL); some ECUs span
+                 two, e.g. H-CAN P-CAN
 
 options:
   -h, --help     show this help message and exit
@@ -280,7 +317,12 @@ options:
 ## `canair pids set-addressing`
 
 ```
-usage: canair pids set-addressing [-h] [--mode MODE] [--target-address TARGET_ADDRESS] [--source-address SOURCE_ADDRESS] [--fc-id FC_ID] [--rx-id RX_ID] [--dir DIR] [--no-validate] ecu
+usage: canair pids set-addressing [-h] [--mode MODE]
+                                  [--target-address TARGET_ADDRESS]
+                                  [--source-address SOURCE_ADDRESS]
+                                  [--fc-id FC_ID] [--rx-id RX_ID] [--dir DIR]
+                                  [--no-validate]
+                                  ecu
 
 Set the make-specific CAN addressing knobs on an ECU: the addressing `mode` (11-bit vs the 29-bit modes / extended-11-bit), the ISO-TP extension bytes (`target_address`/`source_address`, for BMW/PSA extended-11-bit), a flow-control arbitration override (`fc_id`, for functional-TX / physical-RX ECUs like Renault/Mitsubishi), and/or the response-address `rx_id`. Writes only the fields given.
 
@@ -289,12 +331,17 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-  --mode MODE           Addressing mode (normal_11bit | normal_29bit | normal_fixed_29bit | normal_extended_11bit | extended_29bit)
+  --mode MODE           Addressing mode (normal_11bit | normal_29bit |
+                        normal_fixed_29bit | normal_extended_11bit |
+                        extended_29bit)
   --target-address TARGET_ADDRESS
-                        ISO-TP target extension byte (hex, e.g. 0x12) — extended-11-bit/29-bit modes
+                        ISO-TP target extension byte (hex, e.g. 0x12) —
+                        extended-11-bit/29-bit modes
   --source-address SOURCE_ADDRESS
-                        ISO-TP tester (source) byte (hex, default 0xF1) — extended-11-bit modes
-  --fc-id FC_ID         Flow-control arbitration override (hex) — functional-TX / physical-RX ECUs
+                        ISO-TP tester (source) byte (hex, default 0xF1) —
+                        extended-11-bit modes
+  --fc-id FC_ID         Flow-control arbitration override (hex) — functional-
+                        TX / physical-RX ECUs
   --rx-id RX_ID         CAN response-address override (hex, e.g. 0x784)
   --dir DIR             ecus/ directory (default: active profile)
   --no-validate         Skip the post-edit schema validation gate

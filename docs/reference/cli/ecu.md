@@ -49,19 +49,25 @@ Columns & legend:
 ## `canair ecu show`
 
 ```
-usage: canair ecu show [-h] [--sort {bus,name,tx,proto,pids,verif,caps}] [-c] [--json] [ecu] [{pids}]
+usage: canair ecu show [-h] [--sort {bus,name,tx,proto,pids,verif,caps}] [-c]
+                       [--json]
+                       [ecu] [{pids}]
 
 List ECUs, or show one ECU's details and PID stats.
 
 positional arguments:
   ecu                   ECU name, alias, or hex TX/RX id (omit to list all)
-  {pids}                'pids': compact per-PID view with each PID's latest decoded state (e.g. `canair ecu BMS pids`)
+  {pids}                'pids': compact per-PID view with each PID's latest
+                        decoded state (e.g. `canair ecu BMS pids`)
 
 options:
   -h, --help            show this help message and exit
   --sort {bus,name,tx,proto,pids,verif,caps}
-                        List ordering: 'bus' (default; group by CAN segment) or by column: name/tx/proto (ascending), pids/verif/caps (descending)
-  -c, --captures        Include per-ECU/PID capture counts (parses all captures — slower)
+                        List ordering: 'bus' (default; group by CAN segment)
+                        or by column: name/tx/proto (ascending),
+                        pids/verif/caps (descending)
+  -c, --captures        Include per-ECU/PID capture counts (parses all
+                        captures — slower)
   --json                Output as JSON
 
   canair ecu                 # plain list of all ECUs (one per line)
@@ -94,8 +100,11 @@ Columns & legend:
 ## `canair ecu add`
 
 ```
-usage: canair ecu add [-h] [--name NAME] [--description DESCRIPTION] [--id-protocol ID_PROTOCOL] [--rx-id RX_ID] [--mode MODE] [--target-address TARGET_ADDRESS]
-                      [--source-address SOURCE_ADDRESS] [--fc-id FC_ID] [--notes NOTES] [--overwrite] [--dir DIR]
+usage: canair ecu add [-h] [--name NAME] [--description DESCRIPTION]
+                      [--id-protocol ID_PROTOCOL] [--rx-id RX_ID]
+                      [--mode MODE] [--target-address TARGET_ADDRESS]
+                      [--source-address SOURCE_ADDRESS] [--fc-id FC_ID]
+                      [--notes NOTES] [--overwrite] [--dir DIR]
                       TX
 
 Register a new ECU as ecus/<name>.yaml in the active profile.
@@ -112,13 +121,20 @@ options:
                         Human description
   --id-protocol ID_PROTOCOL
                         Identity protocol (UDS | KWP2000)
-  --rx-id RX_ID         CAN response address override (hex, e.g. 0x784) — for an ECU whose response addr isn't tx_id + the profile's addressing.rx_offset
-  --mode MODE           Addressing mode (normal_11bit | normal_29bit | normal_fixed_29bit | normal_extended_11bit | extended_29bit) — required to seed a 29-bit ECU
+  --rx-id RX_ID         CAN response address override (hex, e.g. 0x784) — for
+                        an ECU whose response addr isn't tx_id + the profile's
+                        addressing.rx_offset
+  --mode MODE           Addressing mode (normal_11bit | normal_29bit |
+                        normal_fixed_29bit | normal_extended_11bit |
+                        extended_29bit) — required to seed a 29-bit ECU
   --target-address TARGET_ADDRESS
-                        ISO-TP target extension byte (hex) — extended-11-bit/29-bit modes
+                        ISO-TP target extension byte (hex) —
+                        extended-11-bit/29-bit modes
   --source-address SOURCE_ADDRESS
-                        ISO-TP tester (source) byte (hex, default 0xF1) — extended-11-bit modes
-  --fc-id FC_ID         Flow-control arbitration override (hex) — functional-TX / physical-RX ECUs
+                        ISO-TP tester (source) byte (hex, default 0xF1) —
+                        extended-11-bit modes
+  --fc-id FC_ID         Flow-control arbitration override (hex) — functional-
+                        TX / physical-RX ECUs
   --notes NOTES         Free-text notes
   --overwrite           Overwrite existing identity fields
   --dir DIR             ecus/ directory (default: active profile)

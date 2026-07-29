@@ -3,8 +3,12 @@
 # `canair query`
 
 ```
-usage: canair query [-h] [--param NAME [NAME ...]] [--session] [--wake] [--repl] [--save] [--label TEXT] [--state TEXT] [--notes TEXT] [--include-static] [--wican WICAN]
-                    [--transport {slcan-tcp,wican-ws}] [--elm-timeout MS] [--timeout SECONDS] [--json] [--verbose] [--timings] [--reboot] [--unsafe] [--force]
+usage: canair query [-h] [--param NAME [NAME ...]] [--session] [--wake]
+                    [--repl] [--save] [--label TEXT] [--state TEXT]
+                    [--notes TEXT] [--include-static] [--wican WICAN]
+                    [--transport {slcan-tcp,wican-ws}] [--elm-timeout MS]
+                    [--timeout SECONDS] [--json] [--verbose] [--timings]
+                    [--reboot] [--unsafe] [--force]
                     [STEP ...]
 
 [UDS] Query ECUs/parameters live. Positional STEPs use the multi mini-language.
@@ -23,19 +27,30 @@ options:
   --label TEXT          Session label for --save
   --state TEXT          Session state for --save
   --notes TEXT          Session notes for --save
-  --include-static      Include static config/identity PIDs (e.g. 21F2) in a bare-ECU sweep. By default `canair query ECU` omits PIDs flagged static:true; naming one explicitly (ECU:21F2)
-                        always queries it.
-  --wican WICAN         WiCAN address: ap or IP (default: config transport.host / default_wican=ap)
+  --include-static      Include static config/identity PIDs (e.g. 21F2) in a
+                        bare-ECU sweep. By default `canair query ECU` omits
+                        PIDs flagged static:true; naming one explicitly
+                        (ECU:21F2) always queries it.
+  --wican WICAN         WiCAN address: ap or IP (default: config
+                        transport.host / default_wican=ap)
   --transport {slcan-tcp,wican-ws}
-                        CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327 terminal). Overrides the config `transport.type` (default: slcan-tcp).
-  --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx after init)
-  --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0 ELM / 2.0 raw). Overrides any per-ECU response_timeout_ms for the whole run.
+                        CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327
+                        terminal). Overrides the config `transport.type`
+                        (default: slcan-tcp).
+  --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx
+                        after init)
+  --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0
+                        ELM / 2.0 raw). Overrides any per-ECU
+                        response_timeout_ms for the whole run.
   --json                Output results as JSON
   --verbose, -v         Show raw transport traffic and expressions
-  --timings             Print per-ECU/PID round-trip timing stats on exit (to stderr)
+  --timings             Print per-ECU/PID round-trip timing stats on exit (to
+                        stderr)
   --reboot              Reboot WiCAN after session to restore AutoPID mode
-  --unsafe              Bypass dangerous command blocklist (requires explicit per-command consent)
-  --force               Steal the connection lock if another session is still running
+  --unsafe              Bypass dangerous command blocklist (requires explicit
+                        per-command consent)
+  --force               Steal the connection lock if another session is still
+                        running
 
 examples:
   canair query BMS:2101                     Query BMS PID 2101

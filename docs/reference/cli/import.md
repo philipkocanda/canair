@@ -20,9 +20,11 @@ auto-detected by header.
 
 positional arguments:
   {uds,can,dbc}
-    uds          Record externally-provided UDS payloads into captures/ (device-free)
+    uds          Record externally-provided UDS payloads into captures/
+                 (device-free)
     can          Import a raw broadcast-CAN frame log into captures/can/
-    dbc          Import DBC broadcast signal definitions into the signals/ model
+    dbc          Import DBC broadcast signal definitions into the signals/
+                 model
 
 options:
   -h, --help     show this help message and exit
@@ -31,18 +33,23 @@ options:
 ## `canair import uds`
 
 ```
-usage: canair import uds [-h] --label LABEL [--state STATE] [--notes NOTES] [--capture-note CAPTURE_NOTE] [--time HH:MM:SS] [--date YYYY-MM-DD] [--json] [--dir DIR]
+usage: canair import uds [-h] --label LABEL [--state STATE] [--notes NOTES]
+                         [--capture-note CAPTURE_NOTE] [--time HH:MM:SS]
+                         [--date YYYY-MM-DD] [--json] [--dir DIR]
                          ECU:PID=PAYLOAD [ECU:PID=PAYLOAD ...]
 
 Record externally-provided UDS payloads into the active profile (device-free capture import).
 
 positional arguments:
-  ECU:PID=PAYLOAD       One or more captures, e.g. CLU:22B002=62B002... (ECU short name or hex TX id; PID/DID; reassembled UDS payload, SID-first)
+  ECU:PID=PAYLOAD       One or more captures, e.g. CLU:22B002=62B002... (ECU
+                        short name or hex TX id; PID/DID; reassembled UDS
+                        payload, SID-first)
 
 options:
   -h, --help            show this help message and exit
   --label LABEL         Session label (what this reading is)
-  --state STATE         Vehicle power state(s) during capture (e.g. acc2, ready). Repeatable.
+  --state STATE         Vehicle power state(s) during capture (e.g. acc2,
+                        ready). Repeatable.
   --notes NOTES         Session notes (context, source/attribution)
   --capture-note CAPTURE_NOTE
                         Per-capture note applied to each imported payload
@@ -63,7 +70,10 @@ options:
 ## `canair import can`
 
 ```
-usage: canair import can [-h] [--format {auto,asc,blf,csv,log,gvret}] [--label LABEL] [--state STATE] [--notes NOTES] [--source SOURCE] [--bitrate BITRATE] [--date DATE] [--force] [--json]
+usage: canair import can [-h] [--format {auto,asc,blf,csv,log,gvret}]
+                         [--label LABEL] [--state STATE] [--notes NOTES]
+                         [--source SOURCE] [--bitrate BITRATE] [--date DATE]
+                         [--force] [--json]
                          file
 
 positional arguments:
@@ -72,9 +82,11 @@ positional arguments:
 options:
   -h, --help            show this help message and exit
   --format {auto,asc,blf,csv,log,gvret}
-                        Log format (default: auto-detect by extension; .csv is sniffed for GVRET).
+                        Log format (default: auto-detect by extension; .csv is
+                        sniffed for GVRET).
   --label LABEL         Session label for the index entry
-  --state STATE         Vehicle power state(s) while logging (comma-separated, e.g. 'driving')
+  --state STATE         Vehicle power state(s) while logging (comma-separated,
+                        e.g. 'driving')
   --notes NOTES         Free-text notes for the index entry
   --source SOURCE       Provenance (capture tool, or upstream URL)
   --bitrate BITRATE     Bus bitrate in bit/s (e.g. 500000)
@@ -86,7 +98,9 @@ options:
 ## `canair import dbc`
 
 ```
-usage: canair import dbc [-h] [--bus BUS] [--tx-ecu TX_ECU] [--ids IDS] [--dry-run] [--json] file
+usage: canair import dbc [-h] [--bus BUS] [--tx-ecu TX_ECU] [--ids IDS]
+                         [--dry-run] [--json]
+                         file
 
 positional arguments:
   file             Path to a .dbc file

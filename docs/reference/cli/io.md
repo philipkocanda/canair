@@ -3,8 +3,10 @@
 # `canair io`
 
 ```
-usage: canair io [-h] [--did DID] [--off] [--poll] [--wican WICAN] [--transport {slcan-tcp,wican-ws}] [--elm-timeout MS] [--timeout SECONDS] [--json] [--verbose] [--timings] [--reboot]
-                 [--unsafe] [--force]
+usage: canair io [-h] [--did DID] [--off] [--poll] [--wican WICAN]
+                 [--transport {slcan-tcp,wican-ws}] [--elm-timeout MS]
+                 [--timeout SECONDS] [--json] [--verbose] [--timings]
+                 [--reboot] [--unsafe] [--force]
                  [ECU]
 
 [UDS] IOControl (0x2F): interactive TUI, or single actuator command with --did.
@@ -16,19 +18,30 @@ options:
   -h, --help            show this help message and exit
   --did DID             DID to execute (e.g. BC01)
   --off                 Send OFF/returnControl instead of ON
-  --poll                Enable background status polling in the TUI: sends 2F{DID}00 (returnControlToECU) to every DID every 3s. This can actuate relay/solenoid-backed DIDs (audible click)
-                        — off by default.
-  --wican WICAN         WiCAN address: ap or IP (default: config transport.host / default_wican=ap)
+  --poll                Enable background status polling in the TUI: sends
+                        2F{DID}00 (returnControlToECU) to every DID every 3s.
+                        This can actuate relay/solenoid-backed DIDs (audible
+                        click) — off by default.
+  --wican WICAN         WiCAN address: ap or IP (default: config
+                        transport.host / default_wican=ap)
   --transport {slcan-tcp,wican-ws}
-                        CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327 terminal). Overrides the config `transport.type` (default: slcan-tcp).
-  --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx after init)
-  --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0 ELM / 2.0 raw). Overrides any per-ECU response_timeout_ms for the whole run.
+                        CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327
+                        terminal). Overrides the config `transport.type`
+                        (default: slcan-tcp).
+  --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx
+                        after init)
+  --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0
+                        ELM / 2.0 raw). Overrides any per-ECU
+                        response_timeout_ms for the whole run.
   --json                Output results as JSON
   --verbose, -v         Show raw transport traffic and expressions
-  --timings             Print per-ECU/PID round-trip timing stats on exit (to stderr)
+  --timings             Print per-ECU/PID round-trip timing stats on exit (to
+                        stderr)
   --reboot              Reboot WiCAN after session to restore AutoPID mode
-  --unsafe              Bypass dangerous command blocklist (requires explicit per-command consent)
-  --force               Steal the connection lock if another session is still running
+  --unsafe              Bypass dangerous command blocklist (requires explicit
+                        per-command consent)
+  --force               Steal the connection lock if another session is still
+                        running
 
 examples:
   canair io IGPM                 Interactive TUI (navigate + toggle)

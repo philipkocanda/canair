@@ -3,7 +3,9 @@
 # `canair coverage`
 
 ```
-usage: canair coverage [-h] [--all] [--unmapped] [--unverified] [--bitfields] [--no-capture] [--json] [--notation NAME] [ecu] [pid]
+usage: canair coverage [-h] [--all] [--unmapped] [--unverified] [--bitfields]
+                       [--no-capture] [--json] [--notation NAME]
+                       [ecu] [pid]
 
 [UDS] Audit PID definitions for decoding gaps.
 
@@ -15,11 +17,14 @@ options:
   -h, --help       show this help message and exit
   --all            Include fully-mapped PIDs (no gaps)
   --unmapped       Only report unmapped-byte findings
-  --unverified     Only report bytes mapped by an unverified param (needs confirming)
+  --unverified     Only report bytes mapped by an unverified param (needs
+                   confirming)
   --bitfields      Only report incomplete-bitfield findings
   --no-capture     Only report PIDs with params but no capture
   --json           Output as JSON
-  --notation NAME  byte-index notation for output labels: wican (default), isotp, torque, bix. Overrides the display.byte_notation config key.
+  --notation NAME  byte-index notation for output labels: wican (default),
+                   isotp, torque, bix. Overrides the display.byte_notation
+                   config key.
 
   canair coverage                 # audit every ECU/PID
   canair coverage IGPM            # only the IGPM ECU
