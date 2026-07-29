@@ -41,7 +41,7 @@ examples:
   canair monitor BMS:2101 --interval 2      Refresh every 2s
   canair monitor "VCU:2101 BMS:2101"        Cross-ECU monitor
   canair monitor "skm-wake acc" "query IGPM:BC03,BC06"
-  canair monitor BMS:2101 --save --label "…" --state "ready, parked"  Record while monitoring
+  canair monitor BMS:2101 --save --label "…" --state "READY, PARKED"  Record while monitoring
 
 In the TUI: mouse wheel / scrollbar / arrows-jk / PgUp-PgDn / g-G scroll,
 f toggles follow-tail, space pauses, =/- change the poll interval live,

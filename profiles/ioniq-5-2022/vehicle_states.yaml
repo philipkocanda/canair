@@ -15,7 +15,7 @@ states:
   - name: READY
     description: HV active, driveable.
     # when: "VCU.EV_READY == 1"
-  - name: DEEP SLEEP
+  - name: DEEPSLEEP
     description: No ECU responded (12V standby only).
     when: "__no_response__"
   - name: SLEEP

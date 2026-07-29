@@ -172,8 +172,11 @@ everywhere). `validate` errors if a PID omits it; set it with
 `canair pids set-pid-status ECU PID STATUS` (and `canair pids upsert-param`
 seeds `status: active` on a newly-created PID). Power
 states in which a PID/ECU responds, and those a research lead needs, use the
-shared **`vehicle_states:`** list (`sleep, plugged, acc, acc2, ready, charging`;
-a profile's vehicle_states.yaml may add composites like `parked`/`driving`).
+shared **`vehicle_states:`** list (UPPERCASE vocabulary
+`SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING` + the `ALL` meta-token; a profile's
+vehicle_states.yaml may add composites like `PARKED`/`DRIVING`, and is
+listed/edited with `canair states`). It's written as an inline flow list
+(`[READY, CHARGING]`); input is case-insensitive.
 
 Edit with `canair pids upsert-param / add-research / set-status / set-pid-status`
 (surgical, comment-preserving, schema-validated, auto-reverted on failure) — prefer it over

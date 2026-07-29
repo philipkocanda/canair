@@ -29,10 +29,10 @@ from .yaml_rt import round_trip_yaml as _yaml
 if TYPE_CHECKING:
     from .profile import Profile
 
-# A state name: UPPERCASE letters/digits, single-space-separated words
-# (e.g. ``READY``, ``DEEP SLEEP``). Kept deliberately narrow so a name stays a
-# clean flow-list token.
-_NAME_RE = re.compile(r"^[A-Z0-9]+(?: [A-Z0-9]+)*$")
+# A state name: a single UPPERCASE alphanumeric word (e.g. ``READY``, ``ACC2``,
+# ``DEEPSLEEP``). No spaces/underscores/punctuation — a controlled-vocabulary
+# token, kept clean for the inline flow lists that reference it.
+_NAME_RE = re.compile(r"^[A-Z0-9]+$")
 
 
 class StatesEditError(Exception):
@@ -47,13 +47,13 @@ def _states_path(profile: Profile | None = None) -> Path:
 
 def normalize_name(name: str) -> str:
     """Normalize + validate a state name to the canonical UPPERCASE form."""
-    norm = " ".join(str(name).strip().upper().split())
+    norm = str(name).strip().upper()
     if not norm:
         raise StatesEditError("state name must not be empty")
     if not _NAME_RE.match(norm):
         raise StatesEditError(
-            f"invalid state name {name!r} — use UPPERCASE letters/digits "
-            "(spaces allowed, e.g. 'DEEP SLEEP')"
+            f"invalid state name {name!r} — a state is a single UPPERCASE "
+            "alphanumeric word (letters/digits only, no spaces or punctuation)"
         )
     return norm
 

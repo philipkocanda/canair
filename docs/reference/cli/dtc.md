@@ -36,9 +36,9 @@ options:
                         clearing')
   --state STATES, --vehicle-states STATES
                         Vehicle power state(s) during the scan, recorded on
-                        the log entry (comma-separated, e.g. 'ready' or
-                        'sleep, plugged'). Vocabulary from
-                        vehicle_states.yaml.
+                        the log entry (comma-separated, e.g. 'READY' or
+                        'SLEEP, PLUGGED'; case-insensitive). Vocabulary from
+                        vehicle_states.yaml (`canair states`).
   --mask HEX            statusOfDTC mask for the UDS read (hex, default FF =
                         all; falls back to 08 if the ECU rejects FF with
                         requestOutOfRange)

@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`canair states`** — list and edit a profile's vehicle operating-state
+  vocabulary (`vehicle_states.yaml`), the state-axis analogue of `canair bus`. A
+  bare `canair states` lists each declared state with its description, whether
+  it's auto-suggested (has a `when:` predicate), and how many `ecus/` entries
+  reference it, and surfaces undeclared tokens (`--json` for machine output). The
+  edit subcommands `add`/`rm`/`rename`/`set-description`/`set-predicate` modify
+  the file surgically (comment-preserving, re-validated, reverted on failure via
+  `canlib/states_edit.py`) — no more hand-editing `vehicle_states.yaml`.
+
+### Changed
+
+- **Vehicle-state names are now an UPPERCASE controlled vocabulary** (like the
+  CAN-bus segment codes) — `SLEEP/PLUGGED/ACC/ACC2/READY/CHARGING` — plus a new
+  **`ALL`** meta-token meaning "applicable/readable in every state" (the state
+  analogue of the `ALL` CAN-bus code; documentary, no predicate). A state name is
+  a single alphanumeric word (`DEEP SLEEP` → `DEEPSLEEP`). Input is normalized to
+  uppercase everywhere, so any casing on `--state`/`--prereq`/`--states` is
+  accepted, and validators compare tokens case-insensitively. `vehicle_states:`
+  fields in the per-ECU files render as compact inline flow lists
+  (`[SLEEP, PLUGGED]`) for readability. Bundled profiles were migrated; migrate a
+  legacy lowercase/block-style profile with
+  `scripts/migrate_states_uppercase.py` (historical captures keep their free-text
+  state and normalize on read).
+
 ## [1.7.0] - 2026-07-29
 
 ### Added

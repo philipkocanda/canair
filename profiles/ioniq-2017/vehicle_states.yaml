@@ -37,7 +37,7 @@ states:
     when: "VCU.VEHICLE_STATE_EV_READY == 1"
 
   # No ECU answered at all — car fully asleep / powered down.
-  - name: DEEP SLEEP
+  - name: DEEPSLEEP
     description: Deep sleep — no ECU responded (12V standby only).
     when: "__no_response__"
 

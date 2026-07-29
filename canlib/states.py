@@ -1,7 +1,7 @@
 """Vehicle operating-state definitions + auto-suggestion.
 
 A *state* is a named, standardized description of the car's power/operating
-condition (e.g. ``deep sleep``, ``acc``, ``ready``, ``charging``) recorded on a
+condition (e.g. ``DEEPSLEEP``, ``ACC``, ``READY``, ``CHARGING``) recorded on a
 capture session. Historically this field was free text; profiles can now declare
 a canonical, ordered list of states in ``profiles/<name>/vehicle_states.yaml`` so the
 vocabulary is consistent across vehicles and comparable between captures.
@@ -10,12 +10,12 @@ Each state may carry a ``when:`` predicate over decoded PID values, written as a
 small boolean expression referencing parameters by ``ECU.PARAM``::
 
     states:
-      - name: charging
+      - name: CHARGING
         description: Actively charging (implies plugged)
         when: "BMS.BATTERY_CURRENT < -1"
-      - name: ready
+      - name: READY
         when: "VCU.CAR_READY == 1"
-      - name: deep sleep
+      - name: DEEPSLEEP
         when: "__no_response__"
 
 ``suggest_state`` evaluates the rules top-to-bottom against the latest decoded

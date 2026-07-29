@@ -132,9 +132,11 @@ which kind of signal and are worth probing.
 
 ### 2. Prerequisites — power state & access
 
-Decide the car power state the PID needs (`vehicle_states`:
-`sleep, plugged, acc, acc2, ready, charging` — the same field on PIDs/ECUs and
-in `research:` entries) and whether the ECU needs waking /
+Decide the car power state the PID needs (`vehicle_states`: UPPERCASE
+`SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING` + the `ALL` meta-token — the same
+field on PIDs/ECUs and in `research:` entries, written as an inline flow list
+like `[READY]`; see/edit the vocabulary with `canair states`) and whether the
+ECU needs waking /
 an extended session. IGPM (0x770) and BCM (0x7A0) wake from CAN activity;
 powertrain ECUs (BMS/VCU/MCU) generally need ACC/ignition or charging.
 

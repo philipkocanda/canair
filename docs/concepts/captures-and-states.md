@@ -184,7 +184,7 @@ car happened to stop charging just before you stopped recording.
 A byte's meaning often only becomes clear *relative to what the car is doing*. A
 value that's constant while parked but ramps while driving is a different kind of
 signal from one that only flips when charging. The **state** you tag a capture
-with (`driving`, `charging`, `ready`, `sleep`, …) is what powers state-aware
+with (`DRIVING`, `CHARGING`, `READY`, `SLEEP`, …) is what powers state-aware
 analysis like `decode --group-by state` and `investigate`'s discriminability
 ranking.
 
@@ -193,8 +193,17 @@ of power states, each with an optional predicate over decoded values. Because of
 those predicates, canair can **auto-suggest** a capture's state from the data it
 just read, so tagging is mostly automatic.
 
+State names are an **UPPERCASE** controlled vocabulary (like the CAN-bus segment
+codes) — the base `SLEEP/PLUGGED/ACC/ACC2/READY/CHARGING`, any composites a
+profile adds, plus the meta-token **`ALL`** ("applicable in every state"). Input
+is normalized to uppercase, so any casing you type is accepted. Inspect and edit
+the vocabulary with `canair states`:
+
 ```bash
-canair validate states     # check the vocabulary
+canair states                          # list the vocabulary + usage counts
+canair states add PRECONDITION -d "Cabin pre-conditioning"
+canair states set-predicate CHARGING "BMS.BATTERY_CURRENT < -1"
+canair validate states                 # check the vocabulary
 ```
 
 ## Reviewing captures

@@ -85,7 +85,8 @@ examples:
         metavar="STATES",
         default=None,
         help="Vehicle power state(s) during the scan, recorded on the log entry "
-        "(comma-separated, e.g. 'ready' or 'sleep, plugged'). Vocabulary from vehicle_states.yaml.",
+        "(comma-separated, e.g. 'READY' or 'SLEEP, PLUGGED'; case-insensitive). "
+        "Vocabulary from vehicle_states.yaml (`canair states`).",
     )
     parser.add_argument(
         "--mask",

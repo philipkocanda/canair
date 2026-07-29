@@ -35,12 +35,17 @@ class TestNormalizeName:
     def test_uppercases_and_trims(self):
         assert normalize_name("  charging ") == "CHARGING"
 
-    def test_keeps_multiword(self):
-        assert normalize_name("deep sleep") == "DEEP SLEEP"
+    def test_alphanumeric_word_ok(self):
+        assert normalize_name("acc2") == "ACC2"
+        assert normalize_name("deepsleep") == "DEEPSLEEP"
 
     def test_rejects_empty(self):
         with pytest.raises(StatesEditError):
             normalize_name("   ")
+
+    def test_rejects_space(self):
+        with pytest.raises(StatesEditError):
+            normalize_name("deep sleep")
 
     def test_rejects_punctuation(self):
         with pytest.raises(StatesEditError):
