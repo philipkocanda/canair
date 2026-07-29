@@ -19,8 +19,19 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from typing import TypedDict
 
 NAME = "bus"
+
+
+class BusRecord(TypedDict):
+    """One CAN-bus row in the ``canair bus`` output / ``--json`` payload."""
+
+    code: str
+    name: str | None
+    description: str | None
+    bitrate: int | None
+    ecus: int
 
 # ANSI colors — emitted only when stdout is a TTY (piped output stays plain).
 _BOLD = "\033[1m"
@@ -107,7 +118,7 @@ def run(args) -> int:
     declared = {b.code for b in buses}
     undeclared = sorted(set(per_bus) - declared)
 
-    records = [
+    records: list[BusRecord] = [
         {
             "code": b.code,
             "name": b.name or None,

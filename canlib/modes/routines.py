@@ -27,7 +27,7 @@ import termios
 import tty
 from pathlib import Path
 
-from ..pids import build_routines_index, load_pids
+from ..pids import RoutineIndexEntry, build_routines_index, load_pids
 from ..pids_edit import PidsEditError, update_routines_field
 from ..transport.protocol import Terminal
 from ..tui import terminal_columns as _terminal_columns
@@ -246,7 +246,7 @@ class _RoutinesTUI:
         self,
         terminal: Terminal,
         ecu_key: str,
-        ecu_info: dict,
+        ecu_info: RoutineIndexEntry,
         pids_data: dict,
         verbose: bool = False,
     ):

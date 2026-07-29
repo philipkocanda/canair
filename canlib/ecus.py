@@ -9,7 +9,9 @@ files reference the **response** address as a hex string (e.g. ``"0x7EC"``); the
 helpers here convert between that reference and the canonical ECU short name.
 """
 
+from collections.abc import Mapping
 from pathlib import Path
+from typing import Any, TypedDict, cast
 
 from .addressing import DEFAULT_RX_OFFSET, resolve_rx, resolve_rx_offset
 
@@ -18,7 +20,54 @@ from .addressing import DEFAULT_RX_OFFSET, resolve_rx, resolve_rx_offset
 SENTINELS = frozenset({"broadcast"})
 
 
-def load_ecus(path: Path | None = None) -> dict:
+class _EcuIdentity(TypedDict, total=False):
+    """Optional identity fields flattened onto a registry entry.
+
+    Mirrors ``identity_fields.optional`` in ``canlib/schema/pids_schema.yaml`` —
+    the ECU's self-reported identity block, plus the top-level ``can_bus`` list.
+    All optional (an identity-only or barely-probed ECU may carry none).
+    """
+
+    alias: str
+    description: str
+    part_number: str
+    mfg_date: str
+    hw_version: str
+    sw_version: str
+    hw_sw: str
+    boot_sw: str
+    app_sw: str
+    fw_version: str
+    firmware: str
+    software: str
+    serial: str
+    ecu_id: str
+    sw_id: str
+    calibration: str
+    supplier: str
+    diag_address: str
+    vin: str
+    id_protocol: str
+    identity_confidence: str
+    notes: str
+    can_bus: list[str]
+
+
+class EcuRegistryEntry(_EcuIdentity):
+    """One ECU's entry in a :func:`load_ecus` result (keyed by TX id).
+
+    ``name`` (the canonical short name — the ECU file's top key) and the resolved
+    CAN response address ``rx_id`` are always present; the identity fields from
+    :class:`_EcuIdentity` are optional. The registry is keyed by TX id, so ``tx_id``
+    itself is the dict key rather than a field here.
+    """
+
+    name: str
+    rx_id: int
+
+
+
+def load_ecus(path: Path | None = None) -> dict[int, EcuRegistryEntry]:
     """Load the ECU registry, keyed by TX id (int) -> {name, identity fields...}.
 
     Derived from the profile's per-ECU ``ecus/`` files: each ECU's short name
@@ -30,7 +79,7 @@ def load_ecus(path: Path | None = None) -> dict:
 
     data = load_pids(path)
     rx_offset = resolve_rx_offset(data)
-    result = {}
+    result: dict[int, EcuRegistryEntry] = {}
     for name, ecu_def in (data.get("ecus") or {}).items():
         if not isinstance(ecu_def, dict):
             continue
@@ -38,7 +87,10 @@ def load_ecus(path: Path | None = None) -> dict:
         if tx_id is None:
             continue
         tx_id = int(tx_id)
-        info = {"name": name}
+        # The identity block is flattened onto the entry (arbitrary self-reported
+        # fields), so it's built as a dynamic dict and cast to the documented
+        # shape at the boundary — mirrors capture_io's parsed-JSON → TypedDict seam.
+        info: dict[str, Any] = {"name": name}
         identity = ecu_def.get("identity")
         if isinstance(identity, dict):
             info.update(identity)
@@ -50,11 +102,11 @@ def load_ecus(path: Path | None = None) -> dict:
         # → default +8) so every consumer reads it rather than recomputing +8.
         ecu_rx = ecu_def.get("rx_id")
         info["rx_id"] = resolve_rx(tx_id, int(ecu_rx) if ecu_rx is not None else None, rx_offset)
-        result[tx_id] = info
+        result[tx_id] = cast(EcuRegistryEntry, info)
     return result
 
 
-def ecu_name(tx_id: int, ecus: dict | None = None) -> str:
+def ecu_name(tx_id: int, ecus: Mapping[int, EcuRegistryEntry] | None = None) -> str:
     """Get ECU name for a TX ID, or '0x{tx_id:03X}' if unknown."""
     if ecus is None:
         ecus = load_ecus()
@@ -62,7 +114,7 @@ def ecu_name(tx_id: int, ecus: dict | None = None) -> str:
     return info["name"] if info else f"0x{tx_id:03X}"
 
 
-def ecu_id_protocol(tx_id: int, ecus: dict | None = None) -> str | None:
+def ecu_id_protocol(tx_id: int, ecus: Mapping[int, EcuRegistryEntry] | None = None) -> str | None:
     """Return the identity protocol hint for a TX ID from the registry.
 
     One of ``"UDS"``, ``"KWP2000"``, ``"none"``, ``"unknown"``, or ``None`` when
@@ -106,7 +158,7 @@ _IDENTITY_EVIDENCE_FIELDS = (
 )
 
 
-def derive_identity_confidence(info: dict) -> str:
+def derive_identity_confidence(info: EcuRegistryEntry) -> str:
     """Heuristically rate how well-established an ECU's identity is.
 
     Returns one of ``confirmed`` / ``probable`` / ``tentative`` / ``speculative``
@@ -130,7 +182,7 @@ def derive_identity_confidence(info: dict) -> str:
     return "tentative"
 
 
-def ecu_identity_confidence(info: dict) -> tuple[str, bool]:
+def ecu_identity_confidence(info: EcuRegistryEntry) -> tuple[str, bool]:
     """Return ``(confidence, explicit)`` for an ECU registry entry.
 
     ``explicit`` is True when the value is set in the registry, False when it was
@@ -144,7 +196,7 @@ def ecu_identity_confidence(info: dict) -> tuple[str, bool]:
 
 def rx_for_tx(
     tx_id: int,
-    ecus: dict | None = None,
+    ecus: Mapping[int, EcuRegistryEntry] | None = None,
     rx_offset: int = DEFAULT_RX_OFFSET,
 ) -> int:
     """Resolve a TX id to its CAN response (RX) address int.
@@ -164,7 +216,7 @@ def rx_for_tx(
     return tx_id + rx_offset
 
 
-def rx_addr_str(tx_id: int, ecus: dict | None = None) -> str:
+def rx_addr_str(tx_id: int, ecus: Mapping[int, EcuRegistryEntry] | None = None) -> str:
     """Format the CAN response address for a TX id as a hex string.
 
     Honors a per-ECU ``rx_id`` / the profile's ``addressing.rx_offset`` via the
@@ -193,7 +245,7 @@ def parse_ecu_ref(value) -> int | None:
         return None
 
 
-def build_rx_index(ecus: dict | None = None) -> dict[int, str]:
+def build_rx_index(ecus: Mapping[int, EcuRegistryEntry] | None = None) -> dict[int, str]:
     """Build lookup: RX address (int) -> canonical ECU short name.
 
     Derived from the ECU registry (the superset of all known addresses, including
@@ -205,7 +257,7 @@ def build_rx_index(ecus: dict | None = None) -> dict[int, str]:
     return {rx_for_tx(tx_id, ecus): info["name"] for tx_id, info in ecus.items()}
 
 
-def build_rx_tx_index(ecus: dict | None = None) -> dict[int, int]:
+def build_rx_tx_index(ecus: Mapping[int, EcuRegistryEntry] | None = None) -> dict[int, int]:
     """Build lookup: RX address (int) -> TX id, using each ECU's resolved rx_id."""
     if ecus is None:
         ecus = load_ecus()
@@ -235,7 +287,7 @@ class EcuNameCollision(ValueError):
     """
 
 
-def build_name_tx_index(ecus: dict | None = None) -> dict[str, int]:
+def build_name_tx_index(ecus: Mapping[int, EcuRegistryEntry] | None = None) -> dict[str, int]:
     """Build lookup: upper-cased ECU name (and alias) -> TX id.
 
     Primary ``name`` keys are assigned first (authoritative), then ``alias``
@@ -266,7 +318,7 @@ def build_name_tx_index(ecus: dict | None = None) -> dict[str, int]:
     return index
 
 
-def build_canonical_name_index(ecus: dict | None = None) -> dict[str, str]:
+def build_canonical_name_index(ecus: Mapping[int, EcuRegistryEntry] | None = None) -> dict[str, str]:
     """Build lookup: upper-cased ECU name/alias -> canonical short name.
 
     Both the primary ``name`` and any ``alias`` resolve to the canonical
@@ -278,7 +330,7 @@ def build_canonical_name_index(ecus: dict | None = None) -> dict[str, str]:
     return {key: ecu_name(tx_id, ecus) for key, tx_id in build_name_tx_index(ecus).items()}
 
 
-def build_alias_index(ecus: dict | None = None) -> dict[str, str]:
+def build_alias_index(ecus: Mapping[int, EcuRegistryEntry] | None = None) -> dict[str, str]:
     """Map canonical ECU short name -> its declared alias (only ECUs that have one).
 
     Used for display (e.g. the captures stepper shows ``SKM (alias SMK)``) so the
@@ -299,7 +351,7 @@ def build_alias_index(ecus: dict | None = None) -> dict[str, str]:
 def canonical_ecu_name(
     name,
     name_index: dict[str, str] | None = None,
-    ecus: dict | None = None,
+    ecus: Mapping[int, EcuRegistryEntry] | None = None,
 ) -> str:
     """Resolve an ECU name/alias to its canonical short name.
 
@@ -318,7 +370,7 @@ def canonical_ecu_name(
 def canonical_ecu_name_safe(
     name,
     name_index: dict[str, str] | None = None,
-    ecus: dict | None = None,
+    ecus: Mapping[int, EcuRegistryEntry] | None = None,
 ) -> str:
     """:func:`canonical_ecu_name` that tolerates a missing ECU registry.
 
@@ -345,7 +397,7 @@ def rx_from_name(name: str, name_index: dict[str, int] | None = None) -> str | N
 def resolve_tx(
     value,
     name_index: dict[str, int] | None = None,
-    ecus: dict | None = None,
+    ecus: Mapping[int, EcuRegistryEntry] | None = None,
 ) -> int | None:
     """Resolve an ECU name/alias or hex TX/RX ID to a TX id int, or None.
 
@@ -381,7 +433,7 @@ def resolve_tx(
     return parsed
 
 
-def ecu_display(tx_id: int, ecus: dict | None = None) -> str:
+def ecu_display(tx_id: int, ecus: Mapping[int, EcuRegistryEntry] | None = None) -> str:
     """Human-friendly label for a TX id, e.g. 'BMS (0x7E4)' or '0x7E4'."""
     name = ecu_name(tx_id, ecus)
     return f"0x{tx_id:03X}" if name.startswith("0x") else f"{name} (0x{tx_id:03X})"

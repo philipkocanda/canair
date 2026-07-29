@@ -38,7 +38,9 @@ import argparse
 import json
 import sys
 from collections import Counter
+from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 
 from canlib.commands._group import group_help
 from canlib.commands._hints import ecu_completer as _ecu_completer
@@ -283,7 +285,7 @@ def cmd_list(records: list[dict], as_json: bool) -> int:
 
 
 def _detail_record(
-    info: dict,
+    info: Mapping[str, Any],
     tx_id: int,
     pids_name: str | None,
     ecu_def: dict | None,
@@ -528,7 +530,7 @@ def _wrap_pairs(pairs: list[str], width: int, indent: str) -> list[str]:
     return lines
 
 
-def cmd_pids(info: dict, tx_id: int, ecu_def: dict | None, as_json: bool) -> int:
+def cmd_pids(info: Mapping[str, Any], tx_id: int, ecu_def: dict | None, as_json: bool) -> int:
     """Compact per-PID view: every defined PID + its latest decoded state.
 
     Shows the *decoded* parameter values (not raw hex) from the most recent

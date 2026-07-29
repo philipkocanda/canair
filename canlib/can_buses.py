@@ -86,7 +86,7 @@ def load_can_buses(profile: Profile | None = None) -> list[BusDef]:
         if code and code not in seen:
             seen.add(code)
             rate: int | None = None
-            if bitrate is not None:
+            if isinstance(bitrate, (int, float, str)):
                 try:
                     rate = int(bitrate)
                 except (TypeError, ValueError):

@@ -2,8 +2,10 @@
 
 import re
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -832,7 +834,7 @@ def _validate_hit_section(
         stats[section_name] += 1
 
 
-def validate_meta(path: Path, required_fields: set) -> list[str]:
+def validate_meta(path: Path, required_fields: set[str]) -> list[str]:
     """Validate profile.yaml (profile-wide settings).
 
     Checks required fields are present and that every known field has the right
@@ -856,7 +858,7 @@ def validate_meta(path: Path, required_fields: set) -> list[str]:
         if field not in data:
             errors.append(f"profile.yaml: missing required field '{field}'")
 
-    def _is_int(v) -> bool:
+    def _is_int(v: Any) -> bool:
         # bool is an int subclass — reject it where a number is expected.
         return isinstance(v, int) and not isinstance(v, bool)
 
@@ -889,14 +891,14 @@ def validate_meta(path: Path, required_fields: set) -> list[str]:
 
 # Accepted keys in the profile.yaml `addressing:` block. Only the TX→RX offset
 # today; 29-bit mode/width knobs are a later phase.
-_ADDRESSING_FIELDS = {"rx_offset"}
+_ADDRESSING_FIELDS: set[str] = {"rx_offset"}
 
 
-def _validate_addressing(addressing, is_int) -> list[str]:
+def _validate_addressing(addressing: Any, is_int: Callable[[Any], bool]) -> list[str]:
     """Validate the profile.yaml ``addressing:`` block (CAN response-offset rule)."""
     if not isinstance(addressing, dict):
         return ["profile.yaml: 'addressing' must be a mapping"]
-    errors = []
+    errors: list[str] = []
     for key in addressing:
         if key not in _ADDRESSING_FIELDS:
             errors.append(
@@ -908,11 +910,11 @@ def _validate_addressing(addressing, is_int) -> list[str]:
     return errors
 
 
-def _validate_isotp(isotp, allowed: set, is_int) -> list[str]:
+def _validate_isotp(isotp: Any, allowed: set[str], is_int: Callable[[Any], bool]) -> list[str]:
     """Validate the profile.yaml ``isotp:`` block (client-side ISO-TP tuning)."""
     if not isinstance(isotp, dict):
         return ["profile.yaml: 'isotp' must be a mapping"]
-    errors = []
+    errors: list[str] = []
     for key in isotp:
         if key not in allowed:
             errors.append(

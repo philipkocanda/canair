@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import datetime
 import re
+from collections.abc import Sequence
 from pathlib import Path
 
 
@@ -324,7 +325,7 @@ def _format_block_scalar(indent: str, key: str, value: str) -> list[str]:
     return out
 
 
-def _format_list_field(indent: str, key: str, values) -> list[str]:
+def _format_list_field(indent: str, key: str, values: Sequence[object]) -> list[str]:
     """Render a block list ``key:`` / ``  - item`` (empty -> ``key: []``)."""
     if not values:
         return [f"{indent}{key}: []"]
@@ -334,7 +335,7 @@ def _format_list_field(indent: str, key: str, values) -> list[str]:
     return out
 
 
-def _format_inline_list_field(indent: str, key: str, values) -> list[str]:
+def _format_inline_list_field(indent: str, key: str, values: Sequence[object]) -> list[str]:
     """Render a flow (inline) list ``key: [a, b, c]`` (empty -> ``key: []``).
 
     Used for short, hand-curated code lists (e.g. ``can_bus: [B-CAN, P-CAN]``)

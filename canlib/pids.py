@@ -9,8 +9,44 @@ settings (``car_model``, ``init``, ``failure_types``, ...) live one level up in
 """
 
 from pathlib import Path
+from typing import Any, TypedDict
 
 from canlib import yaml_io
+
+
+class PidIndexEntry(TypedDict):
+    """One PID's entry in a :func:`build_ecu_index` result.
+
+    ``shipped``/``swept`` are derived from ``status`` (single source of truth) so
+    callers never re-implement the lifecycle rules — see ``PID_STATUSES``.
+    """
+
+    parameters: dict[str, Any]
+    period: int
+    status: str
+    shipped: bool  # include in the generated WiCAN device profile (status == active)
+    swept: bool  # include in a bare-ECU sweep (status != static)
+
+
+class EcuIndexEntry(TypedDict):
+    """One ECU's entry in a :func:`build_ecu_index` result.
+
+    ``rx_id`` is the resolved CAN response address (explicit per-ECU ``rx_id`` →
+    profile ``addressing.rx_offset`` → the conventional ``tx_id + 0x08``), so the
+    raw transport never recomputes ``tx + 8``.
+    """
+
+    tx_id: int
+    rx_id: int
+    pids: dict[str, PidIndexEntry]
+    multi_did: bool
+
+
+class RoutineIndexEntry(TypedDict):
+    """One ECU's entry in a :func:`build_routines_index` result."""
+
+    tx_id: int
+    routines: dict[str, dict[str, Any]]
 
 # ── PID visibility lifecycle ──────────────────────────────────────────────
 # A PID's `status:` is a single, mutually-exclusive lifecycle value that
@@ -181,7 +217,7 @@ def build_iocontrol_index(pids_data: dict, include_discoveries: bool = False) ->
     return index
 
 
-def build_routines_index(pids_data: dict) -> dict:
+def build_routines_index(pids_data: dict) -> dict[str, RoutineIndexEntry]:
     """Build lookup: ECU_NAME -> {tx_id, routines: {RID: {label, nrc, nrc_desc, response, verified, notes}}}.
 
     Reads the ``routines:`` section from each ECU's YAML. Each entry corresponds
@@ -189,7 +225,7 @@ def build_routines_index(pids_data: dict) -> dict:
     to send sub-function 0x03 (requestRoutineResults — safe, read-only) and
     optionally 0x01 (startRoutine — only with explicit user confirmation).
     """
-    index = {}
+    index: dict[str, RoutineIndexEntry] = {}
     for ecu_name, ecu_def in pids_data.get("ecus", {}).items():
         routines = ecu_def.get("routines", {})
         if not routines:
@@ -217,13 +253,13 @@ def build_ecu_index(pids_data: dict) -> dict:
     """Build lookup: ECU_NAME -> {tx_id, rx_id, pids: {PID: {parameters: ...}}}."""
     from .addressing import resolve_rx, resolve_rx_offset
 
-    index: dict[str, dict] = {}
+    index: dict[str, EcuIndexEntry] = {}
     default_batch = bool(pids_data.get("multi_did_batching", False))
     rx_offset = resolve_rx_offset(pids_data)
     for ecu_name, ecu_def in pids_data.get("ecus", {}).items():
         tx_id = ecu_def["tx_id"]
         ecu_rx = ecu_def.get("rx_id")
-        index[ecu_name.upper()] = {
+        entry: EcuIndexEntry = {
             "tx_id": tx_id,
             # Resolved CAN response address (explicit rx_id → profile offset →
             # default +8), so the raw transport doesn't recompute tx+8.
@@ -234,11 +270,12 @@ def build_ecu_index(pids_data: dict) -> dict:
             # then it auto-falls back if the ECU rejects a multi-DID request).
             "multi_did": bool(ecu_def.get("multi_did", default_batch)),
         }
+        index[ecu_name.upper()] = entry
         for pid_code, pid_def in ecu_def.get("pids", {}).items():
             status = pid_status(pid_def)
             if status == "ignored":
                 continue
-            index[ecu_name.upper()]["pids"][str(pid_code).upper()] = {
+            entry["pids"][str(pid_code).upper()] = {
                 "parameters": pid_def.get("parameters", {}),
                 "period": pid_def.get("period", 5000),
                 "status": status,

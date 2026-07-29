@@ -53,7 +53,7 @@ async def run_raw(args, transport, pids_data) -> int:
     # Resolved tx->rx map (per-ECU rx_id / profile offset) so RawTerminal doesn't
     # recompute tx+8; unknown addresses fall back to the profile's rx_offset.
     ecu_index = build_ecu_index(pids_data)
-    rx_map = {info["tx_id"]: info["rx_id"] for info in ecu_index.values()}
+    rx_map: dict[int, int] = {info["tx_id"]: info["rx_id"] for info in ecu_index.values()}
     terminal = RawTerminal(
         host,
         port,

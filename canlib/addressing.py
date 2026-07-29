@@ -22,11 +22,11 @@ TX→RX offset today (see ``plans/2026-07-28-multi-vehicle-support.md``).
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, Final
 
 # Conventional 11-bit UDS response offset (0x770 → 0x778, 0x7E4 → 0x7EC). Used
 # when a profile declares no addressing.rx_offset and an ECU has no rx_id.
-DEFAULT_RX_OFFSET = 0x08
+DEFAULT_RX_OFFSET: Final = 0x08
 
 
 def resolve_rx_offset(meta: Mapping[str, Any] | None) -> int:

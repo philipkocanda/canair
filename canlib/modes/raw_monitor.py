@@ -8,9 +8,17 @@ mode (the caller / ``run_raw`` verifies this — no auto-switching).
 from __future__ import annotations
 
 import sys
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from ..pids import EcuIndexEntry
 
 
-def query_ecu_addresses(query_steps: list[dict], ecu_index: dict) -> dict[str, tuple[int, int]]:
+def query_ecu_addresses(
+    query_steps: list[dict], ecu_index: Mapping[str, EcuIndexEntry]
+) -> dict[str, tuple[int, int]]:
     """name(upper) -> (tx_id, rx_id) for every known ECU in the query steps."""
     out: dict[str, tuple[int, int]] = {}
     for step in query_steps:
