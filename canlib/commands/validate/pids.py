@@ -396,6 +396,13 @@ def _validate_ecu_entry(
     if tx_id is not None and (not isinstance(tx_id, int) or tx_id < 0 or tx_id > 0x7FF):
         errors.append(f"{label}: tx_id must be 0x000-0x7FF, got {tx_id}")
 
+    # Validate rx_id (optional CAN response-address override)
+    rx_id = ecu_def.get("rx_id")
+    if rx_id is not None and (
+        not isinstance(rx_id, int) or isinstance(rx_id, bool) or rx_id < 0 or rx_id > 0x7FF
+    ):
+        errors.append(f"{label}: rx_id must be 0x000-0x7FF, got {rx_id}")
+
     _validate_identity(
         ecu_def,
         path,
@@ -865,6 +872,9 @@ def validate_meta(path: Path, required_fields: set) -> list[str]:
     if "can_bitrate" in data and not (_is_int(data["can_bitrate"]) and data["can_bitrate"] > 0):
         errors.append("profile.yaml: 'can_bitrate' must be a positive integer (bit/s)")
 
+    if "addressing" in data:
+        errors.extend(_validate_addressing(data["addressing"], _is_int))
+
     if "multi_did_batching" in data and not isinstance(data["multi_did_batching"], bool):
         errors.append("profile.yaml: 'multi_did_batching' must be a boolean")
 
@@ -874,6 +884,27 @@ def validate_meta(path: Path, required_fields: set) -> list[str]:
     if "isotp" in data:
         errors.extend(_validate_isotp(data["isotp"], set(ISOTP_FIELDS), _is_int))
 
+    return errors
+
+
+# Accepted keys in the profile.yaml `addressing:` block. Only the TX→RX offset
+# today; 29-bit mode/width knobs are a later phase.
+_ADDRESSING_FIELDS = {"rx_offset"}
+
+
+def _validate_addressing(addressing, is_int) -> list[str]:
+    """Validate the profile.yaml ``addressing:`` block (CAN response-offset rule)."""
+    if not isinstance(addressing, dict):
+        return ["profile.yaml: 'addressing' must be a mapping"]
+    errors = []
+    for key in addressing:
+        if key not in _ADDRESSING_FIELDS:
+            errors.append(
+                f"profile.yaml: unknown addressing field '{key}' "
+                f"(allowed: {', '.join(sorted(_ADDRESSING_FIELDS))})"
+            )
+    if "rx_offset" in addressing and not is_int(addressing["rx_offset"]):
+        errors.append("profile.yaml: 'addressing.rx_offset' must be an integer")
     return errors
 
 

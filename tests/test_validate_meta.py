@@ -84,3 +84,24 @@ class TestIsotpBlock:
     def test_negative_stmin(self, tmp_path):
         p = _write(tmp_path, self._base("isotp:\n  stmin: -1\n"))
         assert any("stmin" in e for e in validate_meta(p, REQUIRED))
+
+
+class TestAddressingBlock:
+    def _base(self, extra: str) -> str:
+        return 'car_model: "C"\ninit: "ATSP6;"\n' + extra
+
+    def test_valid_rx_offset(self, tmp_path):
+        p = _write(tmp_path, self._base("addressing:\n  rx_offset: 0x80\n"))
+        assert validate_meta(p, REQUIRED) == []
+
+    def test_unknown_addressing_key(self, tmp_path):
+        p = _write(tmp_path, self._base("addressing:\n  bogus: 1\n"))
+        assert any("unknown addressing field 'bogus'" in e for e in validate_meta(p, REQUIRED))
+
+    def test_rx_offset_must_be_int(self, tmp_path):
+        p = _write(tmp_path, self._base('addressing:\n  rx_offset: "0x80"\n'))
+        assert any("addressing.rx_offset" in e for e in validate_meta(p, REQUIRED))
+
+    def test_addressing_must_be_mapping(self, tmp_path):
+        p = _write(tmp_path, self._base("addressing: 8\n"))
+        assert any("'addressing' must be a mapping" in e for e in validate_meta(p, REQUIRED))

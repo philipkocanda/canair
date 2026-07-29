@@ -107,7 +107,7 @@ options:
   -h, --help            show this help message and exit
   --car-model CAR_MODEL
                         Vehicle description (e.g. 'VW e-Golf 2019')
-  --init INIT           ELM327 init string (default: ATSP6;ATS0;ATAL;ATST96;)
+  --init INIT           ELM327 init string (default: ATSP6;ATS0;ATAL;)
   --path PATH           Create at this directory instead of
                         ~/.config/canair/profiles/<name>
   --set-default         Set this profile as default_profile in the user config

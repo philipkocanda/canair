@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Profile-driven CAN response addressing** — the diagnostic response address
+  is no longer a hardcoded `TX + 8`. A profile can set `addressing.rx_offset` in
+  `profile.yaml` (e.g. `0x80` for XPeng, where request `0x704` → response
+  `0x784`), and an individual ECU can override it with an explicit `rx_id` in its
+  `ecus/*.yaml`. Resolution precedence: per-ECU `rx_id` → profile
+  `addressing.rx_offset` → the conventional `0x08`. Centralized in
+  `canlib/addressing.py` and threaded through the ECU registry, the raw
+  (`slcan-tcp`) transport, discovery, and capture-reference resolution;
+  `canair validate` type-checks both new fields. The bundled `ioniq-2017`
+  profile is unchanged (defaults reproduce `TX + 8`). Part of
+  `plans/2026-07-28-multi-vehicle-support.md` (Phase 2).
 - **CAN bus `bitrate`** — `can_buses.yaml` bus entries take an optional
   `bitrate` field (segment bus speed in bit/s). `canair bus` renders it as a
   `SPEED` column (e.g. `500 kbit/s`) and includes it in `--json`;

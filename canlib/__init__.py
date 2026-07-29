@@ -19,6 +19,7 @@ from .ecus import (
     load_ecus,
     parse_ecu_ref,
     rx_addr_str,
+    rx_for_tx,
     rx_from_name,
 )
 from .formatting import (
@@ -76,6 +77,7 @@ __all__ = [
     "render_byte_rulers",
     "render_param_table",
     "rx_addr_str",
+    "rx_for_tx",
     "rx_from_name",
     "uds_hex_to_wican_bytes",
 ]

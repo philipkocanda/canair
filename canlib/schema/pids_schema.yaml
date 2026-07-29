@@ -6,7 +6,12 @@
 #
 # Each ECU file (e.g. bcm.yaml) must have this top-level structure:
 #   ECU_NAME:              # the canonical short name IS the top-level key
-#     tx_id: 0xNNN         # required — hex OBD-II request arbitration ID (RX = TX + 8)
+#     tx_id: 0xNNN         # required — hex OBD-II request arbitration ID
+#     rx_id: 0xNNN         # optional — hex CAN response address. Defaults to
+#                          #   tx_id + the profile's addressing.rx_offset (itself
+#                          #   defaulting to +0x08). Set this only for an ECU whose
+#                          #   response address doesn't follow the profile's offset
+#                          #   rule (an irregular per-ECU mapping).
 #     identity:            # optional — who this module is (see identity_fields)
 #       description: str   # human-readable module name
 #       part_number: str   # from F187/F188 (UDS) or 1A 8x (KWP2000)
@@ -15,8 +20,9 @@
 #     can_bus: [...]       # optional — physical CAN bus segment(s) the ECU sits on.
 #                          #   A list of codes drawn from the profile's own
 #                          #   can_buses.yaml vocabulary (vendor-specific: Hyundai
-#                          #   B/P/C/M/H, Ford HS/MS, …). Some ECUs span more than
-#                          #   one segment (e.g. [H, P]); the gateway is [All].
+#                          #   B-CAN/P-CAN/C-CAN/M-CAN/H-CAN, Ford HS/MS, …). Some
+#                          #   ECUs span more than one segment (e.g. [H-CAN, P-CAN]);
+#                          #   the gateway is [ALL].
 #     vehicle_states: [...]  # optional — ECU-level power states in which this
 #                          #   ECU responds to session control (1001).
 #                          #   Tokens: sleep, plugged, acc, acc2, ready, charging
@@ -69,6 +75,10 @@
 #   response_timeout_ms: int   # ELM ATST response timeout in ms (--elm-timeout overrides)
 #   can_bitrate: int       # optional — vehicle bus speed in bit/s (default 500000).
 #                          #   Config transport.bitrate > this > device config > 500000.
+#   addressing: {...}      # optional — CAN diagnostic addressing rule:
+#                          #   rx_offset: int  # response = tx_id + this (default 0x08).
+#                          #     Set once here for a make with a non-standard fixed
+#                          #     offset (e.g. XPeng 0x80); per-ECU rx_id overrides it.
 #   multi_did_batching: bool   # profile default for per-ECU service-22 multi-DID batching
 #   failure_types: {0xNN: str} # optional — DTC failure-type byte meanings (profile-wide)
 #   isotp: {...}           # optional — client-side ISO-TP tuning (slcan-tcp transport):
@@ -82,6 +92,7 @@ required_ecu_fields:
 
 optional_ecu_fields:
   - identity        # ECU identity (name/part-number/protocol) — see identity_fields
+  - rx_id           # CAN response address override (default tx_id + profile rx_offset)
   - can_bus         # Physical CAN bus segment(s) the ECU sits on — see valid_can_bus_codes
   - vehicle_states  # ECU-level: power states in which the ECU responds (10 01)
   - session

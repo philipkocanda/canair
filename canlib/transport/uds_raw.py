@@ -19,6 +19,7 @@ import time
 import can
 import isotp
 
+from ..addressing import DEFAULT_RX_OFFSET
 from ..timing import TimingRecorder
 from ..transport_stats import TransportStats
 
@@ -27,9 +28,11 @@ from ..transport_stats import TransportStats
 # errors surface as per-request Exceptions from poll()/read().
 logging.getLogger("isotp").setLevel(logging.ERROR)
 
-# Standard 11-bit UDS response offset for the Ioniq ECUs (0x770->0x778,
-# 0x7E4->0x7EC). Overridable per-ECU when constructing the client.
-RESPONSE_OFFSET = 0x08
+# Conventional 11-bit UDS response offset (0x770->0x778, 0x7E4->0x7EC). The
+# canonical source is canlib.addressing; kept here as the default for callers
+# that pass explicit (tx, rx) pairs. Per-ECU / per-profile overrides are resolved
+# upstream (see canlib.addressing.resolve_rx) and fed in as explicit rx addresses.
+RESPONSE_OFFSET = DEFAULT_RX_OFFSET
 
 
 def response_id(tx_id: int) -> int:

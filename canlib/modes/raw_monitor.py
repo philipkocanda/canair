@@ -12,14 +12,12 @@ import sys
 
 def query_ecu_addresses(query_steps: list[dict], ecu_index: dict) -> dict[str, tuple[int, int]]:
     """name(upper) -> (tx_id, rx_id) for every known ECU in the query steps."""
-    from ..transport.uds_raw import response_id
-
     out: dict[str, tuple[int, int]] = {}
     for step in query_steps:
         ecu = step["ecu"].upper()
         info = ecu_index.get(ecu)
         if info:
-            out[ecu] = (info["tx_id"], response_id(info["tx_id"]))
+            out[ecu] = (info["tx_id"], info["rx_id"])
     return out
 
 

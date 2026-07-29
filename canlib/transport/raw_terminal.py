@@ -6,10 +6,13 @@ Presents the small surface the live modes use on a ``WiCANTerminal``
 existing ELM-path modes (scan, discover, identity, iocontrol, routines, and the
 *-scan probers) run unchanged over the ``slcan-tcp`` transport.
 
-One ISO-TP stack is created lazily per target ECU (rx = tx + 8) over a shared
-Notifier. Responses are formatted back through :func:`parse_uds_response` so the
-returned dict is byte-for-byte the same shape the modes already expect (ok / hex
-/ bytes / nrc / nrc_desc / error), including SID/DID echo validation.
+One ISO-TP stack is created lazily per target ECU over a shared Notifier. The
+response (rx) address is resolved per ECU: an explicit ``rx_map`` entry (from the
+registry, honoring a per-ECU ``rx_id`` / the profile's ``addressing.rx_offset``)
+wins, otherwise ``tx + rx_offset``. Responses are formatted back through
+:func:`parse_uds_response` so the returned dict is byte-for-byte the same shape
+the modes already expect (ok / hex / bytes / nrc / nrc_desc / error), including
+SID/DID echo validation.
 """
 
 from __future__ import annotations
@@ -21,6 +24,7 @@ import time
 import can
 import isotp
 
+from ..addressing import DEFAULT_RX_OFFSET
 from ..log import log_response
 from ..safety import enforce_command_safety
 from ..timing import TimingRecorder
@@ -29,7 +33,6 @@ from ..uds_parse import UdsResponse, parse_uds_response
 from .uds_raw import (
     PENDING_RECV_TIMEOUT,
     PENDING_TOTAL_TIMEOUT,
-    RESPONSE_OFFSET,
     is_response_pending,
 )
 
@@ -49,6 +52,8 @@ class RawTerminal:
         unsafe: bool = False,
         timeout: float = 2.0,
         isotp_config: dict | None = None,
+        rx_map: dict[int, int] | None = None,
+        rx_offset: int = DEFAULT_RX_OFFSET,
     ):
         from .isotp_params import build_isotp_params
         from .slcan_tcp import SlcanTcpBus
@@ -57,6 +62,11 @@ class RawTerminal:
         self.verbose = verbose
         self.unsafe = unsafe
         self.timeout = timeout
+        # CAN response-address resolution: an explicit per-ECU rx (from the
+        # registry, honoring rx_id / the profile offset) wins; unknown TX ids
+        # (e.g. a discovery sweep) fall back to tx + rx_offset.
+        self.rx_map: dict[int, int] = rx_map or {}
+        self.rx_offset = rx_offset
         # Parity attributes some callers read.
         self.cmd_count = 0
         self.cmd_time = 0.0
@@ -187,9 +197,8 @@ class RawTerminal:
     def _stack(self, tx_id: int) -> isotp.NotifierBasedCanStack:
         st = self._stacks.get(tx_id)
         if st is None:
-            addr = isotp.Address(
-                isotp.AddressingMode.Normal_11bits, txid=tx_id, rxid=tx_id + RESPONSE_OFFSET
-            )
+            rx_id = self.rx_map.get(tx_id, tx_id + self.rx_offset)
+            addr = isotp.Address(isotp.AddressingMode.Normal_11bits, txid=tx_id, rxid=rx_id)
             st = isotp.NotifierBasedCanStack(
                 self.bus, self.notifier, address=addr, params=self._params
             )

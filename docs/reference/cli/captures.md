@@ -20,6 +20,8 @@ positional arguments:
     can           List imported raw broadcast-CAN frame logs
                   (captures/can/index.yaml)
     migrate       Convert legacy captures/*.yaml to JSON (captures/*.json)
+    migrate-rx    Rename the legacy capture `ecu` field to `rx`
+                  (captures/*.json)
     merge-driver  Git merge driver: auto-union capture-file sessions (or
                   --install it)
 
@@ -208,6 +210,22 @@ Capture data is stored as JSON (parses ~60x faster than YAML); this is the suppo
 options:
   -h, --help  show this help message and exit
   --dry-run   Preview conversions without writing
+  --json      Machine-readable JSON output
+  --dir DIR   Captures directory (default: active profile)
+```
+
+## `canair captures migrate-rx`
+
+```
+usage: canair captures migrate-rx [-h] [--dry-run] [--json] [--dir DIR]
+
+Rename the persisted capture field `ecu` → `rx` in the active profile's capture files.
+
+The field holds the ECU CAN *response* address (RX = request TX + 8), not an ECU name, so it was renamed to `rx` to stop it being confused with the resolved short name. Renames at the capture level and inside scan_results.responding[]; idempotent (a file already on `rx` is left untouched). Readers tolerate the legacy `ecu` key, so this migration is safe to defer. Performs the rename by default; pass --dry-run to preview.
+
+options:
+  -h, --help  show this help message and exit
+  --dry-run   Preview renames without writing
   --json      Machine-readable JSON output
   --dir DIR   Captures directory (default: active profile)
 ```

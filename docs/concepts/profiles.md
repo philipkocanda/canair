@@ -47,6 +47,7 @@ and `init` are required; everything else is optional with a sensible default.
 | `car_model` | str | Human description (required). |
 | `init` | str | ELM327 AT init string, `;`-separated (required). Applies to the `wican-ws` (ELM327) transport only; the `slcan-tcp` transport ignores it and drives ISO-TP directly. A fresh profile scaffolds `ATSP6;ATS0;ATAL;` (ISO 15765-4 11-bit/500 kbit). |
 | `can_bitrate` | int | Vehicle bus speed in bit/s. Set it when the diagnostic bus isn't 500 kbit/s (e.g. `250000`). Precedence: config `transport.bitrate` > this > device config > `500000`. |
+| `addressing` | map | CAN diagnostic addressing rule. `rx_offset` sets the response address as `tx_id + rx_offset` (default `0x08`, the 11-bit Hyundai/Kia convention). Set it once for a make with a different fixed offset — e.g. `0x80` for XPeng (request `0x704` → response `0x784`). A single irregular ECU overrides it with its own `rx_id` (see ECU fields). |
 | `response_timeout_ms` | int | ELM327 response timeout (applied as `ATSTxx`; `--elm-timeout` overrides). Raise it for slow ECUs (the Ioniq needs `614`), lower it to speed up cycles. |
 | `multi_did_batching` | bool | Profile default for per-ECU service-22 multi-DID batching. |
 | `failure_types` | map | DTC failure-type byte meanings, profile-wide (`{0xNN: "meaning"}`). |

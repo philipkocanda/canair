@@ -214,12 +214,20 @@ def build_routines_index(pids_data: dict) -> dict:
 
 
 def build_ecu_index(pids_data: dict) -> dict:
-    """Build lookup: ECU_NAME -> {tx_id, pids: {PID: {parameters: ...}}}."""
+    """Build lookup: ECU_NAME -> {tx_id, rx_id, pids: {PID: {parameters: ...}}}."""
+    from .addressing import resolve_rx, resolve_rx_offset
+
     index: dict[str, dict] = {}
     default_batch = bool(pids_data.get("multi_did_batching", False))
+    rx_offset = resolve_rx_offset(pids_data)
     for ecu_name, ecu_def in pids_data.get("ecus", {}).items():
+        tx_id = ecu_def["tx_id"]
+        ecu_rx = ecu_def.get("rx_id")
         index[ecu_name.upper()] = {
-            "tx_id": ecu_def["tx_id"],
+            "tx_id": tx_id,
+            # Resolved CAN response address (explicit rx_id → profile offset →
+            # default +8), so the raw transport doesn't recompute tx+8.
+            "rx_id": resolve_rx(tx_id, int(ecu_rx) if ecu_rx is not None else None, rx_offset),
             "pids": {},
             # UDS service-22 multi-DID batching: per-ECU flag, defaulting to the
             # profile-wide setting. Only ECUs that opt in are batched (and even

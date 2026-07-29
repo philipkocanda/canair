@@ -18,6 +18,7 @@ from ._text import (
     PidsEditError,
     _find_ecu_block,
     _format_block_scalar,
+    _format_inline_list_field,
     _format_list_field,
     _format_map_field,
     _format_scalar_field,
@@ -888,7 +889,8 @@ def set_can_bus(
 ) -> Path:
     """Set the top-level ``can_bus:`` list on an ECU (physical bus segment codes).
 
-    Renders a block list (``can_bus:`` / ``  - B``). Adds the field if missing,
+    Renders a flow (inline) list (``can_bus: [B-CAN, P-CAN]``) — short and
+    readable for the handful of segment codes. Adds the field if missing,
     replaces it in place if present. The write is verified by a YAML re-parse;
     on any failure the original file is restored.
     """
@@ -907,7 +909,7 @@ def set_can_bus(
         header_end = text.find("\n", ecu_start)
         body_start = header_end + 1
         block = text[body_start:ecu_end]
-        repl = _format_list_field(" " * 2, "can_bus", cleaned)
+        repl = _format_inline_list_field(" " * 2, "can_bus", cleaned)
         if re.search(r"^ {2}can_bus:", block, re.MULTILINE):
             new_block = _replace_field_in_block_at(block, "can_bus", repl, indent=2)
             return text[:body_start] + new_block + text[ecu_end:]

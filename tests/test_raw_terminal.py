@@ -284,3 +284,47 @@ class TestRawTerminalSafety:
         with pytest.raises(ValueError):
             await t.send_uds("2E1234AA")
         await t.close()
+
+
+class TestRawTerminalRxResolution:
+    """The ISO-TP stack's rx address comes from rx_map (per-ECU rx_id / profile
+    offset), not a hardcoded tx+8 — so a non-standard RX (e.g. XPeng +0x80) works.
+    """
+
+    @pytest.fixture
+    def capture_addr(self, monkeypatch):
+        seen: dict[int, int] = {}
+
+        def _addr(*a, txid=None, rxid=None, **k):
+            seen[txid] = rxid
+
+            class _A:
+                _txid = txid
+                _rxid = rxid
+
+            return _A()
+
+        monkeypatch.setattr(slcan_mod, "SlcanTcpBus", FakeBus)
+        monkeypatch.setattr(raw_terminal.can, "Notifier", FakeNotifier)
+        monkeypatch.setattr(raw_terminal.isotp, "Address", _addr)
+        monkeypatch.setattr(
+            raw_terminal.isotp,
+            "NotifierBasedCanStack",
+            lambda bus, notifier, address=None, params=None: FakeStack(address._txid, {}),
+        )
+        monkeypatch.setattr(raw_terminal.time, "sleep", lambda *_a: None)
+        return seen
+
+    def test_rx_map_used(self, capture_addr):
+        # Non-standard mapping 0x704 -> 0x784 (XPeng), and a fallback offset for
+        # an address not in the map.
+        t = raw_terminal.RawTerminal("h", 3333, 500000, rx_map={0x704: 0x784}, rx_offset=0x80)
+        t._stack(0x704)
+        t._stack(0x710)  # unknown -> tx + rx_offset
+        assert capture_addr[0x704] == 0x784
+        assert capture_addr[0x710] == 0x790
+
+    def test_default_offset_when_unconfigured(self, capture_addr):
+        t = raw_terminal.RawTerminal("h", 3333, 500000)
+        t._stack(0x7E4)
+        assert capture_addr[0x7E4] == 0x7EC  # default +8

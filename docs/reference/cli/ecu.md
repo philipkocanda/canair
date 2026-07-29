@@ -23,7 +23,7 @@ options:
   canair ecu BMS             # details + stats for the BMS
   canair ecu MDPS            # aliases resolve too (MDPS -> EPS)
   canair ecu 0x7E4           # hex TX id also works
-  canair ecu 0x7EC           # hex RX id resolves too (RX = TX + 8)
+  canair ecu 0x7EC           # hex RX id resolves too (the ECU's response address)
   canair ecu --captures      # include capture-count columns (parses captures — slower)
   canair ecu BMS --captures  # per-PID capture counts for the BMS
   canair ecu BMS --json      # machine-readable
@@ -74,7 +74,7 @@ options:
   canair ecu BMS             # details + stats for the BMS
   canair ecu MDPS            # aliases resolve too (MDPS -> EPS)
   canair ecu 0x7E4           # hex TX id also works
-  canair ecu 0x7EC           # hex RX id resolves too (RX = TX + 8)
+  canair ecu 0x7EC           # hex RX id resolves too (the ECU's response address)
   canair ecu --captures      # include capture-count columns (parses captures — slower)
   canair ecu BMS --captures  # per-PID capture counts for the BMS
   canair ecu BMS --json      # machine-readable

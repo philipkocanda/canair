@@ -53,9 +53,13 @@ my-car/
 
 `profile.yaml` holds `car_model` and an `init` string (the ELM327 initialization
 sent to the dongle; the default `ATSP6;ATS0;ATAL;` suits most cars — ISO 15765-4
-11-bit/500 kbit). If your car's diagnostic bus runs at a different speed, or its
-ECUs need different ISO-TP tuning, set `can_bitrate:` / `isotp:` in `profile.yaml`
-— see [Profiles → `profile.yaml` settings](../concepts/profiles.md#profileyaml-settings).
+11-bit/500 kbit). If your car's diagnostic bus runs at a different speed, its
+ECUs answer at a non-standard response address, or they need different ISO-TP
+tuning, set `can_bitrate:` / `addressing:` / `isotp:` in `profile.yaml` — see
+[Profiles → `profile.yaml` settings](../concepts/profiles.md#profileyaml-settings).
+(For example, XPeng answers at `TX + 0x80`, so its profile sets
+`addressing: {rx_offset: 0x80}`; a single irregular ECU instead gets an `rx_id`
+in its `ecus/*.yaml`.)
 `vehicle_states.yaml` starts with a generic power-state vocabulary you'll refine
 later — see [Captures & states](../concepts/captures-and-states.md).
 

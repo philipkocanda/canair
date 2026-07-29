@@ -23,11 +23,20 @@ unchanged at every step.
   which still tolerates the legacy `ecu` key), and the on-disk shapes are typed.
   This **moves the Phase 2 step-7 / gap-B touch points**: capture-reference
   resolution now flows through `capture_rx()` rather than a bare dict `["ecu"]`.
-- **Phases 2–4 — remaining.** The next concrete driver is the **XPeng G6** (see
-  the worked example below): it is 11-bit/500k (`ATSP6`) so it needs **no** 29-bit
-  work, but uses a **non-standard `RX = TX + 0x80`** offset — exactly the Phase 2
-  addressing abstraction, exercisable from a real upstream profile with no
-  physical car.
+- **Phase 2 addressing abstraction (steps 5–7) — DONE** (this change). Gap **B**
+  is resolved: a new `canlib/addressing.py` owns TX→RX resolution
+  (`resolve_rx`/`resolve_rx_offset`, `DEFAULT_RX_OFFSET`); per-ECU `rx_id` and a
+  profile-level `addressing.rx_offset` are schema-validated; the ECU registry
+  (`load_ecus`/`build_ecu_index`) resolves and stores each ECU's `rx_id`; and the
+  hardcoded `+8` sites (`ecus.py` rx_addr_str/build_rx_index/build_rx_tx_index/
+  resolve_tx, the raw path `RawTerminal.rx_map`/`raw_ops`/`raw_monitor`,
+  `discover.py`) all route through it. Ioniq unchanged (defaults reproduce `+8`).
+  The **7-digit XPeng PID convention is resolved**: `22`+4-hex-DID + an optional
+  trailing ELM327 response-frame-count digit (`2211011` = request `22 1101`,
+  "expect 1 frame"); canair PID keys drop the count digit (ISO-TP reassembly
+  handles frame counting). **Step 8 (seed `profiles/xpeng-g6/`) remains.**
+- **Phases 2 (step 8) – 4 — remaining.** The next concrete driver is the **XPeng
+  G6** seed (step 8, now unblocked), then 29-bit (Phase 3).
 
 ## Worked example / first non-Hyundai driver: XPeng G6
 
@@ -123,7 +132,7 @@ constants.
 | # | Gap | Impact | Location | Status |
 |---|-----|--------|----------|--------|
 | A | **11-bit only** on active UDS path — no 29-bit (`18DAF1xx`) | Blocks many non-Hyundai makes (Ford/VAG/etc.) | `uds_raw.py:87`, `raw_terminal.py:191` | open (Phase 3) |
-| B | **`RX = TX + 8` hardcoded**, no per-ECU `rx_id` | Breaks irregular RX (e.g. **XPeng G6 `+0x80`**) & 29-bit | `uds_raw.py:30-36`, `ecus.py:140/170/334`, `discover.py:104/121`, `validate/captures.py:17/70`, `raw_terminal.py:191` | open (Phase 2) |
+| B | **`RX = TX + 8` hardcoded**, no per-ECU `rx_id` | Breaks irregular RX (e.g. **XPeng G6 `+0x80`**) & 29-bit | `canlib/addressing.py`, `ecus.py`, `pids.py`, raw path, `discover.py` | ✅ done (addressing abstraction; seed step 8 remains) |
 | C | **No per-profile bitrate** | Must edit global config per car | `config.py`, `profile.yaml` | ✅ done (`a0a0a80`) |
 | D | **Hardcoded ISO-TP params** (STmin/blocksize/FC/padding/CAN-FD) | Can't tune makes using `0x00`/`0xCC` padding or CAN-FD | `canlib/transport/isotp_params.py` | ✅ done (`a0a0a80`) |
 | E | **Hyundai defaults leak into scaffolding** — `DEFAULT_INIT` w/ `ATST96` | Every new car starts Ioniq-tuned/slow | `commands/profile.py:25`, `_live.py`, `terminal.py` | ✅ done (`a0a0a80`) |
@@ -159,27 +168,29 @@ Prerequisite for 29-bit; also fixes irregular 11-bit RX mappings. **The XPeng G6
 (`RX = TX + 0x80`) is the concrete, seedable driver for this phase** (see the
 worked example above).
 
-5. **Per-ECU `rx_id`** — add to `optional_ecu_fields` (`pids_schema.yaml:83`) and
-   surface in `load_ecus` (`ecus.py:29-43`). Optionally a profile-level
-   `addressing.rx_offset` default (the G6 would set this once rather than per-ECU).
-6. **`EcuAddress` resolver** — one helper computing `(tx_id, rx_id, mode)`:
-   explicit `rx_id` → profile `addressing.rx_offset` → `tx+8`. Replace the ~8
-   hardcoded `+8` sites (`ecus.py:140/170/334`, `uds_raw.py:30-36`,
-   `discover.py:104/121`, `validate/captures.py:17/70`, `raw_terminal.py:191`)
-   with calls to it. Both `RawUdsClient` (already takes `(tx, rx)` tuples,
-   `uds_raw.py:61/86`) and `RawTerminal._stack` (`raw_terminal.py:191`, still
-   computes `tx + RESPONSE_OFFSET`) feed resolved rx.
-7. **Capture-reference resolution** — `parse_ecu_ref` / `ecu_name_from_ref`
-   (`ecus.py:143/173`) resolve RX→ECU via the resolver, not a bare `+8`, so
-   historical captures still map. **Post-`ecu`→`rx` rename**, callers read the
-   stored address via `capture_io.capture_rx()` (`_captures_query.py`,
-   `coverage.py`, `validate/captures.py`) — the resolver must agree with the
-   offset those captures were recorded under.
+5. ✅ **Per-ECU `rx_id`** — added to `optional_ecu_fields` and surfaced in
+   `load_ecus` (stored as a resolved `rx_id` on each entry). Profile-level
+   `addressing.rx_offset` default added + schema-validated in `validate_meta`.
+6. ✅ **`EcuAddress` resolver** — `canlib/addressing.py` (`resolve_rx`,
+   `resolve_rx_offset`, `DEFAULT_RX_OFFSET`): explicit `rx_id` → profile
+   `addressing.rx_offset` → `+8`. The hardcoded `+8` sites now route through it:
+   `ecus.py` (`rx_for_tx`/`rx_addr_str`/`build_rx_index`/`build_rx_tx_index`/
+   `resolve_tx`), `pids.build_ecu_index` (stores resolved `rx_id`), the raw path
+   (`RawTerminal.rx_map`/`rx_offset`, `raw_ops`, `raw_monitor.query_ecu_addresses`),
+   and `discover.py`. `RawUdsClient` already took explicit `(tx, rx)`; the
+   `uds_raw.RESPONSE_OFFSET` constant now derives from `addressing`.
+7. ✅ **Capture-reference resolution** — `build_rx_index`/`build_rx_tx_index`
+   (used by `validate/captures.py::load_valid_rx_addrs`, `_captures_query`,
+   `coverage`) and `resolve_tx` resolve RX↔ECU via the resolved `rx_id`, so
+   historical captures written under the profile's offset still map. Capture
+   writes (`captures.py`, `import_uds.py`, `multi_exec.py`) go through
+   `rx_addr_str`, which now honors the resolved `rx_id`.
 8. **Seed `profiles/xpeng-g6/`** — once 5–7 land, seed the G6 device-free from the
-   upstream JSON (ECU TX `0x704`, `rx_id: 0x784`, `can_bitrate: 500000`, neutral
-   init) as the regression fixture for non-`+8` addressing. All PIDs
-   `--unverified`. Resolve the 7-digit PID convention (read `wican-fw/` source)
-   before transcribing DIDs.
+   upstream JSON (ECU TX `0x704`, `rx_id: 0x784` or `addressing.rx_offset: 0x80`,
+   `can_bitrate: 500000`, neutral init) as the regression fixture for non-`+8`
+   addressing. All PIDs `--unverified`/`draft`. **PID convention resolved** (see
+   Status): PID keys are `22`+DID (e.g. `221101`, `221122`); the upstream 7th
+   digit is the ELM327 response-frame count, dropped for canair's ISO-TP path.
 
 ## Phase 3 — 29-bit addressing (gap A)
 

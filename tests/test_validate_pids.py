@@ -114,6 +114,30 @@ class TestDuplicateParamNames:
         assert not errs
 
 
+class TestRxIdValidation:
+    """Per-ECU rx_id (CAN response-address override) is range-checked like tx_id."""
+
+    def _validate(self, tmp_path, body: str):
+        import textwrap
+
+        p = tmp_path / "e.yaml"
+        p.write_text(textwrap.dedent(body))
+        errors, _warnings, _stats = validate_pids.validate_ecu_file(p, validate_pids.load_schema())
+        return errors
+
+    def test_valid_rx_id(self, tmp_path):
+        errs = self._validate(tmp_path, "ECU:\n  tx_id: 0x704\n  rx_id: 0x784\n")
+        assert errs == []
+
+    def test_rx_id_out_of_range(self, tmp_path):
+        errs = self._validate(tmp_path, "ECU:\n  tx_id: 0x704\n  rx_id: 0x1234\n")
+        assert any("rx_id" in e for e in errs)
+
+    def test_rx_id_must_be_int(self, tmp_path):
+        errs = self._validate(tmp_path, 'ECU:\n  tx_id: 0x704\n  rx_id: "0x784"\n')
+        assert any("rx_id" in e for e in errs)
+
+
 class TestTypedParamValidation:
     """validate._validate_param_type — typed-decoding field rules."""
 

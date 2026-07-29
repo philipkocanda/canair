@@ -334,6 +334,19 @@ def _format_list_field(indent: str, key: str, values) -> list[str]:
     return out
 
 
+def _format_inline_list_field(indent: str, key: str, values) -> list[str]:
+    """Render a flow (inline) list ``key: [a, b, c]`` (empty -> ``key: []``).
+
+    Used for short, hand-curated code lists (e.g. ``can_bus: [B-CAN, P-CAN]``)
+    where the inline form reads better than a multi-line block list. Items are
+    quoted only when a bare scalar would be unsafe (via ``_format_label``).
+    """
+    if not values:
+        return [f"{indent}{key}: []"]
+    items = ", ".join(_format_label(str(v)) for v in values)
+    return [f"{indent}{key}: [{items}]"]
+
+
 def _format_map_field(indent: str, key: str, mapping: dict) -> list[str]:
     """Render a nested ``key:`` mapping (``values:``/``bits:`` typed-decode maps).
 
@@ -415,16 +428,6 @@ def _insert_lines(text: str, region_start: int, region_end: int, lines: list[str
     return text[:ins] + payload + text[ins:]
 
 
-def _is_list_or_map_lines(lines: list[str]) -> bool:
-    """True when a rendered field is a multi-line block (list/map) rather than a
-    single ``key: value`` scalar — i.e. its header line ends with ``:`` (no
-    inline value)."""
-    if not lines:
-        return False
-    head = lines[0].rstrip()
-    return head.endswith(":") and len(lines) > 1
-
-
 def _replace_field_in_block_at(block: str, field: str, new_line_or_lines, indent: int) -> str:
     """Like ``_replace_field_in_block`` but for an arbitrary field indent.
 
@@ -453,10 +456,15 @@ def _replace_field_in_block_at(block: str, field: str, new_line_or_lines, indent
                     if re.match(rf"^ {{{indent}}}[A-Za-z_]", lines[i]):
                         break
                     i += 1
-            elif rest == "" and _is_list_or_map_lines(replacement_lines):
-                # The field is a nested block (list/map, e.g. values:/bits:) with
-                # an empty header rest — skip its deeper-indented body so the
-                # whole old block is replaced, not just the header line.
+            elif rest == "" and i < len(lines) and (
+                lines[i] == "" or lines[i].startswith(" " * (indent + 1))
+            ):
+                # The OLD field is a nested block (list/map, e.g. values:/bits:
+                # or a block-style can_bus:) with an empty header rest — skip its
+                # deeper-indented body so the whole old block is replaced, not
+                # just the header line. Keyed on the old body's shape (not the
+                # replacement's) so a block field can be replaced by an inline
+                # one (e.g. block can_bus: -> can_bus: [B-CAN, P-CAN]).
                 while i < len(lines) and (
                     lines[i] == "" or lines[i].startswith(" " * (indent + 1))
                 ):

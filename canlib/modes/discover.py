@@ -7,6 +7,18 @@ import sys
 from ..transport.protocol import Terminal
 
 
+def _profile_rx_offset() -> int:
+    """The active profile's CAN response offset (addressing.rx_offset, default +8).
+
+    Used to display/compute the RX address of an *unregistered* responder seen
+    during a sweep — a known ECU resolves via its registry rx_id instead.
+    """
+    from ..addressing import resolve_rx_offset
+    from ..pids import load_pids
+
+    return resolve_rx_offset(load_pids())
+
+
 async def mode_discover(
     terminal: Terminal,
     addr_range: tuple[int, int],
@@ -99,9 +111,13 @@ async def mode_discover(
     if alive:
         known, new = _classify_alive(alive)
         names = {tx: name for tx, _, _, name in known}
+        from ..ecus import load_ecus, rx_for_tx
+
+        ecus = load_ecus()
+        rx_offset = _profile_rx_offset()
         print("\n  Responding addresses:")
         for tx_id, status, detail in alive:
-            rx_id = tx_id + 8
+            rx_id = rx_for_tx(tx_id, ecus, rx_offset)
             tag = names.get(tx_id) or "NEW"
             print(f"    0x{tx_id:03X} (RX 0x{rx_id:03X}) [{tag}] — {status}: {detail}")
         print(f"\n  Cross-reference: {len(known)} known, {len(new)} new (not in ECU registry).")
@@ -112,13 +128,17 @@ async def mode_discover(
             print(f"    0x{tx_id:03X}: {err}")
 
     if as_json:
+        from ..ecus import load_ecus, rx_for_tx
+
+        ecus = load_ecus()
+        rx_offset = _profile_rx_offset()
         names = {tx: name for tx, _, _, name in _classify_alive(alive)[0]}
         out = {
             "range": f"0x{start:03X}-0x{end:03X}",
             "alive": [
                 {
                     "tx": f"0x{t:03X}",
-                    "rx": f"0x{t + 8:03X}",
+                    "rx": f"0x{rx_for_tx(t, ecus, rx_offset):03X}",
                     "status": s,
                     "detail": d,
                     "name": names.get(t),

@@ -42,12 +42,18 @@ async def run_raw(args, transport, pids_data) -> int:
         return await run_raw_monitor(args, host, port, bitrate, pids_data)
 
     # All other commands: reuse the shared dispatch over a RawTerminal adapter.
+    from ..addressing import resolve_rx_offset
     from ..commands._live import dispatch_mode
+    from ..pids import build_ecu_index
     from ..timeouts import cli_timeout, ecu_timeouts_by_tx
     from ..transport import RawTerminal
 
     print(f"  Raw CAN via SLCAN — {host}:{port} @ {bitrate} bps")
     cli = cli_timeout(args)
+    # Resolved tx->rx map (per-ECU rx_id / profile offset) so RawTerminal doesn't
+    # recompute tx+8; unknown addresses fall back to the profile's rx_offset.
+    ecu_index = build_ecu_index(pids_data)
+    rx_map = {info["tx_id"]: info["rx_id"] for info in ecu_index.values()}
     terminal = RawTerminal(
         host,
         port,
@@ -56,6 +62,8 @@ async def run_raw(args, transport, pids_data) -> int:
         unsafe=getattr(args, "unsafe", False),
         timeout=(cli if cli is not None else 2.0),
         isotp_config=pids_data.get("isotp"),
+        rx_map=rx_map,
+        rx_offset=resolve_rx_offset(pids_data),
     )
     # Per-ECU budgets apply only when the user didn't force --timeout.
     if cli is None:
