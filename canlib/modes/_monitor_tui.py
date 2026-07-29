@@ -260,12 +260,14 @@ class EditParamDialog(ModalScreen[dict | None]):
     CSS = """
     EditParamDialog { align: center middle; background: $background 60%; }
     #edit-dialog {
-        width: 72; height: auto; padding: 1 2;
+        width: 90%; max-width: 100; height: auto; max-height: 90%; padding: 1 2;
         border: round $accent; background: $surface;
     }
     #edit-title { text-style: bold; margin-bottom: 1; }
-    #edit-dialog Input { margin-bottom: 1; }
-    #edit-dialog Checkbox { height: 1; }
+    #edit-scroll { height: auto; max-height: 1fr; }
+    #edit-scroll .edit-label { color: $text-muted; margin-top: 1; }
+    #edit-dialog Input { margin-bottom: 0; }
+    #edit-dialog Checkbox { height: 1; margin-top: 1; }
     #edit-buttons { height: auto; align-horizontal: right; margin-top: 1; }
     #edit-buttons Button { margin-left: 2; }
     """
@@ -283,13 +285,19 @@ class EditParamDialog(ModalScreen[dict | None]):
         title = f"Edit {t.get('ecu', '')} {t.get('pid', '')} {t.get('name', '')}"
         with Vertical(id="edit-dialog"):
             yield Label(title.strip(), id="edit-title")
-            yield Input(value=t.get("expression", ""), placeholder="expression", id="e-expr")
-            yield Input(value=t.get("unit", ""), placeholder="unit", id="e-unit")
-            yield Input(value=t.get("min", ""), placeholder="min", id="e-min")
-            yield Input(value=t.get("max", ""), placeholder="max", id="e-max")
-            yield Input(value=t.get("notes", ""), placeholder="notes", id="e-notes")
-            yield Checkbox("verified", value=bool(t.get("verified")), id="e-verified")
-            yield Checkbox("enabled", value=bool(t.get("enabled", True)), id="e-enabled")
+            with VerticalScroll(id="edit-scroll"):
+                yield Label("expression", classes="edit-label")
+                yield Input(value=t.get("expression", ""), placeholder="expression", id="e-expr")
+                yield Label("unit", classes="edit-label")
+                yield Input(value=t.get("unit", ""), placeholder="unit", id="e-unit")
+                yield Label("min", classes="edit-label")
+                yield Input(value=t.get("min", ""), placeholder="min", id="e-min")
+                yield Label("max", classes="edit-label")
+                yield Input(value=t.get("max", ""), placeholder="max", id="e-max")
+                yield Label("notes", classes="edit-label")
+                yield Input(value=t.get("notes", ""), placeholder="notes", id="e-notes")
+                yield Checkbox("verified", value=bool(t.get("verified")), id="e-verified")
+                yield Checkbox("enabled", value=bool(t.get("enabled", True)), id="e-enabled")
             with Horizontal(id="edit-buttons"):
                 yield Button("Save", variant="primary", id="edit-save")
                 yield Button("Cancel", id="edit-cancel")
