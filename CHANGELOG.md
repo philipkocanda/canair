@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-07-29
+
 ### Added
 
 - **Profile-driven CAN response addressing** — the diagnostic response address
@@ -720,7 +722,8 @@ dongle (both the WiCAN Pro and the classic/non-Pro WiCAN are supported).
 - Command safety blocklist preventing UDS programming/write sessions against a
   real vehicle.
 
-[Unreleased]: https://github.com/philipkocanda/canair/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/philipkocanda/canair/compare/v1.7.0...HEAD
+[1.7.0]: https://github.com/philipkocanda/canair/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/philipkocanda/canair/compare/v1.5.1...v1.6.0
 [1.5.1]: https://github.com/philipkocanda/canair/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/philipkocanda/canair/compare/v1.4.0...v1.5.0
