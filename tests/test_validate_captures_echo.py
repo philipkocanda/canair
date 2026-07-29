@@ -41,8 +41,8 @@ def test_flags_pid_echo_mismatch(tmp_path):
     )
     warnings = _capture_echo_warnings(path)
     assert len(warnings) == 1
-    assert "2102" in warnings[0]
-    assert "16:13:04" in warnings[0]
+    assert "2102" in str(warnings[0])
+    assert "16:13:04" in str(warnings[0])
 
 
 def test_clean_capture_no_warning(tmp_path):
@@ -94,7 +94,7 @@ def test_did_offset_minus_two_flagged(tmp_path):
     )
     warnings = _capture_echo_warnings(path)
     assert len(warnings) == 1
-    assert "F193" in warnings[0]
+    assert "F193" in str(warnings[0])
 
 
 def test_missing_fields_skipped(tmp_path):
@@ -127,8 +127,8 @@ def test_nonhex_error_string_flagged(tmp_path):
     )
     warnings = _capture_nonhex_warnings(path)
     assert len(warnings) == 1
-    assert "not hex" in warnings[0]
-    assert "1001" in warnings[0]
+    assert "not hex" in str(warnings[0])
+    assert "1001" in str(warnings[0])
 
 
 def test_nonhex_mixed_ascii_flagged(tmp_path):
@@ -146,7 +146,7 @@ def test_nonhex_mixed_ascii_flagged(tmp_path):
     )
     warnings = _capture_nonhex_warnings(path)
     assert len(warnings) == 1
-    assert "not hex" in warnings[0]
+    assert "not hex" in str(warnings[0])
 
 
 def test_nonhex_valid_payload_no_warning(tmp_path):

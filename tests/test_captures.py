@@ -453,7 +453,7 @@ class TestTimeEnforcement:
         p.write_text(json.dumps(doc))
         warns = _capture_missing_time_warnings(p)
         assert len(warns) == 1
-        assert "captures[0]" in warns[0]
+        assert "captures[0]" in str(warns[0])
 
 
 class TestPairByTime:

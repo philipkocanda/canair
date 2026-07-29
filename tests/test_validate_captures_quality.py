@@ -36,8 +36,8 @@ def test_flags_dropped_frames(tmp_path):
     )
     warnings = _capture_quality_warnings(path)
     assert len(warnings) == 1
-    assert "2 dropped/stale" in warnings[0]
-    assert "wican-ws" in warnings[0]
+    assert "2 dropped/stale" in str(warnings[0])
+    assert "wican-ws" in str(warnings[0])
 
 
 def test_stale_counts_too(tmp_path):
@@ -54,7 +54,7 @@ def test_stale_counts_too(tmp_path):
     )
     warnings = _capture_quality_warnings(path)
     assert len(warnings) == 1
-    assert "2 dropped/stale" in warnings[0]
+    assert "2 dropped/stale" in str(warnings[0])
 
 
 def test_clean_session_no_warning(tmp_path):

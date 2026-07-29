@@ -1,6 +1,8 @@
 """captures/ validation — payload files vs captures_schema.json + soft warnings."""
 
 import json
+from collections import OrderedDict
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -10,6 +12,46 @@ from jsonschema.protocols import Validator
 from canlib import capture_io
 
 from ._common import CAPTURES_SCHEMA_FILE, DEPRECATED_FIELDS
+
+# How many locations to list inline before collapsing a grouped warning to "(+N more)".
+_MAX_GROUP_LOCATIONS = 6
+
+
+@dataclass
+class CaptureWarning:
+    """A soft warning split into its groupable ``message`` and its ``location``.
+
+    Separating the fixed message text from the per-capture location lets the
+    printer collapse many identical warnings (e.g. the same lint hit on dozens
+    of sessions) into one line with a count instead of one line each.
+    """
+
+    location: str
+    message: str
+
+    def __str__(self) -> str:
+        return f"{self.location}: {self.message}"
+
+
+def _print_grouped(warnings: list[CaptureWarning], marker: str) -> None:
+    """Print warnings, collapsing repeats of the same message into one line.
+
+    A message seen once prints inline (``marker location: message``); a message
+    seen multiple times prints once as ``marker message — N captures:`` followed
+    by an indented, capped list of the offending locations.
+    """
+    groups: OrderedDict[str, list[str]] = OrderedDict()
+    for w in warnings:
+        groups.setdefault(w.message, []).append(w.location)
+    for message, locations in groups.items():
+        if len(locations) == 1:
+            print(f"  {marker} {locations[0]}: {message}")
+            continue
+        shown = locations[:_MAX_GROUP_LOCATIONS]
+        extra = len(locations) - len(shown)
+        tail = f", … (+{extra} more)" if extra else ""
+        print(f"  {marker} {message} — {len(locations)} captures:")
+        print(f"      {', '.join(shown)}{tail}")
 
 
 def load_valid_rx_addrs() -> set[int]:
@@ -106,7 +148,7 @@ def _run_captures(strict: bool = False) -> int:
     total_time_gaps = 0
     for path in files:
         errors = validate_captures_file(path, validator, rx_addrs)
-        warnings = _capture_state_warnings(path, vocab) if vocab else []
+        warnings: list[CaptureWarning] = _capture_state_warnings(path, vocab) if vocab else []
         warnings += _capture_echo_warnings(path)
         warnings += _capture_nonhex_warnings(path)
         warnings += _capture_quality_warnings(path)
@@ -114,19 +156,23 @@ def _run_captures(strict: bool = False) -> int:
         # gate), otherwise a soft warning (existing rows grandfathered).
         time_gaps = _capture_missing_time_warnings(path)
         total_time_gaps += len(time_gaps)
-        if strict:
-            errors = list(errors) + time_gaps
-        else:
+        strict_gaps = time_gaps if strict else []
+        if not strict:
             warnings += time_gaps
-        if errors:
-            print(f"\n{path.name}: {len(errors)} errors")
+        error_count = len(errors) + len(strict_gaps)
+        # Only print files that have something to report — a clean profile can
+        # hold hundreds of capture files, so the "OK" lines would bury the signal.
+        if not error_count and not warnings:
+            continue
+        if error_count:
+            print(f"\n{path.name}: {error_count} errors")
             for e in errors:
                 print(f"  - {e}")
-            total_errors += len(errors)
+            _print_grouped(strict_gaps, marker="-")
+            total_errors += error_count
         else:
-            print(f"{path.name}: OK")
-        for w in warnings:
-            print(f"  ⚠ {w}")
+            print(f"\n{path.name}:")
+        _print_grouped(warnings, marker="⚠")
         total_warnings += len(warnings)
 
     if total_warnings:
@@ -146,7 +192,7 @@ def _run_captures(strict: bool = False) -> int:
         return 0
 
 
-def _capture_state_warnings(path: Path, vocab: set[str]) -> list[str]:
+def _capture_state_warnings(path: Path, vocab: set[str]) -> list[CaptureWarning]:
     """Soft warnings for session vehicle_states outside the declared vocabulary.
 
     A session's ``vehicle_states`` is a list of tokens (e.g. [ready, parked]); a
@@ -154,7 +200,7 @@ def _capture_state_warnings(path: Path, vocab: set[str]) -> list[str]:
     (case-insensitive). Never an error — this only nudges toward the
     standardized vehicle_states.yaml vocabulary.
     """
-    warnings: list[str] = []
+    warnings: list[CaptureWarning] = []
     data = capture_io.load_capture_file(path)
     if not isinstance(data, dict):
         return warnings
@@ -165,18 +211,20 @@ def _capture_state_warnings(path: Path, vocab: set[str]) -> list[str]:
         if not states:
             continue
         if not isinstance(states, list):
-            warnings.append(f"sessions[{si}]: vehicle_states must be a list")
+            warnings.append(CaptureWarning(f"sessions[{si}]", "vehicle_states must be a list"))
             continue
         tokens = [str(t).strip().lower() for t in states if str(t).strip()]
         if tokens and not any(t in vocab for t in tokens):
             warnings.append(
-                f"sessions[{si}]: vehicle_states {states} has no token in the "
-                f"vehicle_states.yaml vocabulary"
+                CaptureWarning(
+                    f"sessions[{si}]",
+                    f"vehicle_states {states} has no token in the vehicle_states.yaml vocabulary",
+                )
             )
     return warnings
 
 
-def _capture_quality_warnings(path: Path) -> list[str]:
+def _capture_quality_warnings(path: Path) -> list[CaptureWarning]:
     """Soft warnings for sessions recorded with dropped/stale ISO-TP frames.
 
     A session's ``quality`` footprint (written at capture time from the transport
@@ -189,7 +237,7 @@ def _capture_quality_warnings(path: Path) -> list[str]:
     only nudges you to re-capture if a multi-frame PID looks off. ``no_data``/
     ``bus``/``decode`` are non-answers (nothing was stored), so they don't warn.
     """
-    warnings: list[str] = []
+    warnings: list[CaptureWarning] = []
     data = capture_io.load_capture_file(path)
     if not isinstance(data, dict):
         return warnings
@@ -203,14 +251,17 @@ def _capture_quality_warnings(path: Path) -> list[str]:
         if drops:
             transport = session.get("transport", "?")
             warnings.append(
-                f"sessions[{si}]: recorded {drops} dropped/stale ISO-TP frame(s) "
-                f"during capture (transport={transport}) — multi-frame payloads in "
-                "this session may be unreliable"
+                CaptureWarning(
+                    f"sessions[{si}]",
+                    f"recorded {drops} dropped/stale ISO-TP frame(s) during capture "
+                    f"(transport={transport}) — multi-frame payloads in this session "
+                    "may be unreliable",
+                )
             )
     return warnings
 
 
-def _capture_echo_warnings(path: Path) -> list[str]:
+def _capture_echo_warnings(path: Path) -> list[CaptureWarning]:
     """Soft warnings for captures whose payload doesn't echo their recorded PID.
 
     A UDS positive response echoes the request SID (+0x40) and identifier bytes;
@@ -221,7 +272,7 @@ def _capture_echo_warnings(path: Path) -> list[str]:
     """
     from canlib.uds_parse import payload_echo_mismatch
 
-    warnings: list[str] = []
+    warnings: list[CaptureWarning] = []
     data = capture_io.load_capture_file(path)
     if not isinstance(data, dict):
         return warnings
@@ -238,13 +289,16 @@ def _capture_echo_warnings(path: Path) -> list[str]:
             reason = payload_echo_mismatch(str(pid), str(payload))
             if reason:
                 warnings.append(
-                    f"sessions[{si}].captures[{ci}] ({capture_io.capture_rx(cap) or '?'} {pid} "
-                    f"@ {cap.get('time', '?')}): {reason}"
+                    CaptureWarning(
+                        f"sessions[{si}].captures[{ci}] "
+                        f"({capture_io.capture_rx(cap) or '?'} {pid} @ {cap.get('time', '?')})",
+                        reason,
+                    )
                 )
     return warnings
 
 
-def _capture_nonhex_warnings(path: Path) -> list[str]:
+def _capture_nonhex_warnings(path: Path) -> list[CaptureWarning]:
     """Soft warnings for captures whose payload isn't a valid UDS byte string.
 
     Payloads are recorded by the tool as raw response hex, so a non-hex one
@@ -254,7 +308,7 @@ def _capture_nonhex_warnings(path: Path) -> list[str]:
     """
     from canlib.uds_parse import payload_not_hex
 
-    warnings: list[str] = []
+    warnings: list[CaptureWarning] = []
     data = capture_io.load_capture_file(path)
     if not isinstance(data, dict):
         return warnings
@@ -270,13 +324,17 @@ def _capture_nonhex_warnings(path: Path) -> list[str]:
             reason = payload_not_hex(str(payload))
             if reason:
                 warnings.append(
-                    f"sessions[{si}].captures[{ci}] ({capture_io.capture_rx(cap) or '?'} "
-                    f"{cap.get('pid', '?')} @ {cap.get('time', '?')}): {reason}"
+                    CaptureWarning(
+                        f"sessions[{si}].captures[{ci}] "
+                        f"({capture_io.capture_rx(cap) or '?'} {cap.get('pid', '?')} "
+                        f"@ {cap.get('time', '?')})",
+                        reason,
+                    )
                 )
     return warnings
 
 
-def _capture_missing_time_warnings(path: Path) -> list[str]:
+def _capture_missing_time_warnings(path: Path) -> list[CaptureWarning]:
     """Soft warnings for time-series (``payload``) captures with no usable ``time``.
 
     A payload capture is a time-series sample and should carry a timestamp so
@@ -287,7 +345,7 @@ def _capture_missing_time_warnings(path: Path) -> list[str]:
     """
     from canlib.capture_dates import entry_datetime
 
-    warnings: list[str] = []
+    warnings: list[CaptureWarning] = []
     data = capture_io.load_capture_file(path)
     if not isinstance(data, dict):
         return warnings
@@ -301,8 +359,10 @@ def _capture_missing_time_warnings(path: Path) -> list[str]:
             # entry_datetime needs the session date + capture time.
             if entry_datetime({"date": date, "time": cap.get("time", "")}) is None:
                 warnings.append(
-                    f"sessions[{si}].captures[{ci}] ({capture_io.capture_rx(cap) or '?'} "
-                    f"{cap.get('pid', '?')}): payload capture has no usable time "
-                    "(excluded from time-aligned analysis)"
+                    CaptureWarning(
+                        f"sessions[{si}].captures[{ci}] "
+                        f"({capture_io.capture_rx(cap) or '?'} {cap.get('pid', '?')})",
+                        "payload capture has no usable time (excluded from time-aligned analysis)",
+                    )
                 )
     return warnings
