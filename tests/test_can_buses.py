@@ -37,6 +37,25 @@ def test_label_falls_back_to_code(tmp_path):
     assert load_can_buses(prof)[0].label == "X"
 
 
+def test_loads_bitrate(tmp_path):
+    prof = _profile(
+        tmp_path,
+        "can_buses:\n"
+        "  All:\n    name: All segments\n"
+        "  B:\n    name: Body CAN\n    bitrate: 100000\n"
+        "  D:\n    name: Diagnostic CAN\n    bitrate: 500000\n",
+    )
+    buses = {b.code: b for b in load_can_buses(prof)}
+    assert buses["All"].bitrate is None
+    assert buses["B"].bitrate == 100000
+    assert buses["D"].bitrate == 500000
+
+
+def test_invalid_bitrate_is_none(tmp_path):
+    prof = _profile(tmp_path, "can_buses:\n  B:\n    bitrate: fast\n")
+    assert load_can_buses(prof)[0].bitrate is None
+
+
 def test_legacy_list_form(tmp_path):
     prof = _profile(tmp_path, "can_buses:\n  - All\n  - B\n")
     assert load_can_bus_codes(prof) == ["All", "B"]

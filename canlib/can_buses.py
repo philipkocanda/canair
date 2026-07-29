@@ -7,7 +7,8 @@ uses PT-CAN/K-CAN/F-CAN, VW uses German domain names — so the accepted codes
 live per profile rather than in a global enum. The top-level ``can_bus:`` field
 on each ECU (in ``ecus/``) is validated against this per-profile vocabulary.
 
-File format — each bare code maps to a human ``name`` and ``description``::
+File format — each bare code maps to a human ``name``, ``description``, and an
+optional ``bitrate`` (the segment's bus speed in bit/s)::
 
     can_buses:
       All:
@@ -16,9 +17,10 @@ File format — each bare code maps to a human ``name`` and ``description``::
       B:
         name: Body CAN
         description: Comfort/body electronics.
+        bitrate: 100000
 
 The older list form (``can_buses: [All, B]``) is still accepted for
-back-compatibility — those codes simply carry no name/description.
+back-compatibility — those codes simply carry no name/description/bitrate.
 
 ``allowed_can_buses`` returns the set of declared codes; when the file is absent
 the vocabulary is empty (membership is then not enforced — a profile need not
@@ -39,11 +41,17 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class BusDef:
-    """One declared CAN bus segment: a code plus optional human name/description."""
+    """One declared CAN bus segment: a code plus optional human name/description.
+
+    ``bitrate`` is the segment's bus speed in bit/s (e.g. ``500000`` for a
+    500 kbit/s high-speed CAN, ``100000`` for a 100 kbit/s low-speed body CAN);
+    ``None`` when the profile hasn't recorded it.
+    """
 
     code: str
     name: str = ""
     description: str = ""
+    bitrate: int | None = None
 
     @property
     def label(self) -> str:
@@ -71,22 +79,34 @@ def load_can_buses(profile: Profile | None = None) -> list[BusDef]:
     out: list[BusDef] = []
     seen: set[str] = set()
 
-    def _add(code: str, name: str = "", description: str = "") -> None:
+    def _add(code: str, name: str = "", description: str = "", bitrate: object = None) -> None:
         code = str(code).strip()
         if code and code not in seen:
             seen.add(code)
+            rate: int | None = None
+            if bitrate is not None:
+                try:
+                    rate = int(bitrate)
+                except (TypeError, ValueError):
+                    rate = None
             out.append(
                 BusDef(
                     code=code,
                     name=str(name or "").strip(),
                     description=str(description or "").strip(),
+                    bitrate=rate,
                 )
             )
 
     if isinstance(raw, dict):
         for code, meta in raw.items():
             if isinstance(meta, dict):
-                _add(code, meta.get("name", ""), meta.get("description", ""))
+                _add(
+                    code,
+                    meta.get("name", ""),
+                    meta.get("description", ""),
+                    meta.get("bitrate"),
+                )
             elif isinstance(meta, str):
                 _add(code, meta)
             else:

@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CAN bus `bitrate`** — `can_buses.yaml` bus entries take an optional
+  `bitrate` field (segment bus speed in bit/s). `canair bus` renders it as a
+  `SPEED` column (e.g. `500 kbit/s`) and includes it in `--json`;
+  `canair validate can-buses` errors on a non-positive-integer value; exposed as
+  `BusDef.bitrate` on the loader. The bundled `ioniq-2017` profile now records
+  the Hyundai/Ioniq figures (P/C/M/H/D = 500 kbit/s, Body = 100 kbit/s).
+- **Diagnostic CAN (`D`) segment** added to the bundled `ioniq-2017`
+  `can_buses.yaml` vocabulary — the D-CAN bus exposed on the OBD-II port for
+  UDS/KWP2000 requests (500 kbit/s).
 - **`canair captures migrate-rx`** — rename the persisted capture field `ecu` →
   `rx` in a profile's capture files (at the capture level and inside
   `scan_results.responding[]`). Idempotent, `--dry-run`/`--json` supported.

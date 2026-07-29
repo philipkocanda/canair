@@ -99,8 +99,13 @@ def _run_can_buses() -> int:
                     f"can_buses['{code}']: must be a mapping (name/description) or omitted"
                 )
             elif isinstance(meta, dict):
-                for extra in set(meta) - {"name", "description"}:
+                for extra in set(meta) - {"name", "description", "bitrate"}:
                     errors.append(f"can_buses['{code}']: unknown field '{extra}'")
+                rate = meta.get("bitrate")
+                if rate is not None and (not isinstance(rate, int) or isinstance(rate, bool) or rate <= 0):
+                    errors.append(
+                        f"can_buses['{code}']: bitrate must be a positive integer (bit/s)"
+                    )
     elif isinstance(buses, list):  # legacy list form
         for i, code in enumerate(buses):
             _check_code(i, code)

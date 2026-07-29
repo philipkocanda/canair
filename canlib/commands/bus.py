@@ -1,10 +1,10 @@
 """``canair bus`` — list the profile's CAN bus segments.
 
 Prints each physical CAN bus segment declared in the active profile's
-``can_buses.yaml`` with its human name, description, and the number of ECUs
-sitting on it (an ECU spanning two segments counts on each). The bus vocabulary
-is vendor-specific (Hyundai/Kia B/P/C/M/H, Ford HS/MS, BMW PT-CAN/K-CAN, …), so
-it lives per profile — this is the read-only view of it.
+``can_buses.yaml`` with its human name, description, bus speed (bitrate), and
+the number of ECUs sitting on it (an ECU spanning two segments counts on each).
+The bus vocabulary is vendor-specific (Hyundai/Kia B/P/C/M/H, Ford HS/MS, BMW
+PT-CAN/K-CAN, …), so it lives per profile — this is the read-only view of it.
 
 Examples:
   canair bus            # table of buses + descriptions + ECU counts
@@ -35,6 +35,15 @@ def _use_color() -> bool:
 def _c(text: str, code: str) -> str:
     """Wrap ``text`` in an ANSI ``code`` when stdout is a TTY, else return it plain."""
     return f"{code}{text}{_RESET}" if _use_color() else text
+
+
+def _fmt_bitrate(bitrate: int | None) -> str:
+    """Human-readable bus speed (e.g. ``500 kbit/s``); ``—`` when unrecorded."""
+    if not bitrate:
+        return "—"
+    if bitrate % 1000 == 0:
+        return f"{bitrate // 1000} kbit/s"
+    return f"{bitrate} bit/s"
 
 
 def _normalize_bus(value) -> list[str]:
@@ -94,6 +103,7 @@ def run(args) -> int:
             "code": b.code,
             "name": b.name or None,
             "description": b.description or None,
+            "bitrate": b.bitrate,
             "ecus": per_bus.get(b.code, 0),
         }
         for b in buses
@@ -123,15 +133,16 @@ def run(args) -> int:
         return 0
 
     print(f"\n  {_c('CAN buses', _BOLD)} — {len(buses)} segment(s) in {_c(prof.name, _CYAN)}\n")
-    header = f"{'CODE':<6} {'ECUS':>4}  {'NAME':<22} DESCRIPTION"
+    header = f"{'CODE':<6} {'ECUS':>4}  {'NAME':<16} {'SPEED':<10} DESCRIPTION"
     print(f"  {_c(header, _DIM)}")
     for r in records:
         code = _c(f"{r['code']:<6}", _CYAN)
         n = r["ecus"]
         n_str = f"{n:>4}" if n else _c(f"{0:>4}", _YELLOW)
-        name = str(r["name"] or "—")[:22]
+        name = str(r["name"] or "—")[:16]
+        speed = _fmt_bitrate(r["bitrate"])
         desc = str(r["description"] or "")
-        print(f"  {code} {n_str}  {name:<22} {_c(desc, _DIM)}")
+        print(f"  {code} {n_str}  {name:<16} {speed:<10} {_c(desc, _DIM)}")
 
     if undeclared:
         print(

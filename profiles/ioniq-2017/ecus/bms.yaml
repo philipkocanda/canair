@@ -1684,29 +1684,18 @@ BMS:
       target: "22 BC01-BC0B"
       status: nrc
       priority: P2
-      vehicle_states:
-        - ready
-        - charging
-      notes: "ChatGPT-sourced: BC01 battery voltage, BC02 current, BC03 SoC, BC04 display SoC, BC05 charging status, BC06 temp, BC07 max cell V, BC08 min cell V, BC09 max/min cell temp, BC0A SoH, BC0B avg cell V."
       sources:
         - "ChatGPT"
     - type: scan
       target: "22 B002-B005"
       status: nrc
       priority: P3
-      vehicle_states:
-        - ready
-        - charging
-      notes: "ChatGPT-sourced: B002 max charge power, B003 max discharge power, B004 internal temp, B005 status flags."
       sources:
         - "ChatGPT"
     - type: scan
       target: "22 E003-E005"
       status: nrc
       priority: P2
-      vehicle_states:
-        - ready
-        - charging
       notes: "E003 estimated range, E005 time to full charge (charging only)."
       sources:
         - "ChatGPT"

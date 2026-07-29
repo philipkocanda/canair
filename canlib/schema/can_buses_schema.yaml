@@ -18,9 +18,10 @@
 #     B:
 #       name: Body CAN
 #       description: Comfort/body electronics.
+#       bitrate: 100000     # optional — segment bus speed in bit/s (int)
 #
 # The legacy list form (`can_buses: [All, B]`) is still accepted; those codes
-# just carry no name/description.
+# just carry no name/description/bitrate.
 #
 # `canair pids set-can-bus ECU CODE [CODE ...]` accepts only codes declared here,
 # and `canair validate pids` errors on an ECU can_bus value outside this list.
@@ -28,3 +29,4 @@
 optional_bus_fields:
   - name
   - description
+  - bitrate  # segment bus speed in bit/s (positive integer)

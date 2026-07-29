@@ -20,8 +20,8 @@ class _FakeProfile:
 @pytest.fixture
 def _patched(monkeypatch):
     buses = [
-        BusDef("B", "Body CAN", "Comfort/body electronics."),
-        BusDef("P", "Powertrain CAN", "Drivetrain."),
+        BusDef("B", "Body CAN", "Comfort/body electronics.", bitrate=100000),
+        BusDef("P", "Powertrain CAN", "Drivetrain.", bitrate=500000),
         BusDef("All", "All segments", "Gateway bridges all."),
     ]
     ecus = {
@@ -51,6 +51,9 @@ def test_human_output(_patched, capsys):
     # ECU counts: B has 1 (BCM), P has 2 (BMS, MCU).
     assert "source:" in out
     assert "can_buses.yaml" in out
+    # bitrate rendered as a human-readable bus speed; unset shows the em dash.
+    assert "100 kbit/s" in out
+    assert "500 kbit/s" in out
 
 
 def test_undeclared_and_unbussed(_patched, capsys):
@@ -67,6 +70,8 @@ def test_json(_patched, capsys):
     data = json.loads(out)
     counts = {b["code"]: b["ecus"] for b in data["buses"]}
     assert counts == {"B": 1, "P": 2, "All": 0}
+    rates = {b["code"]: b["bitrate"] for b in data["buses"]}
+    assert rates == {"B": 100000, "P": 500000, "All": None}
     assert data["unbussed_ecus"] == 1
     assert [u["code"] for u in data["undeclared"]] == ["H"]
 
