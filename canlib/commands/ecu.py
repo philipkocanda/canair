@@ -594,7 +594,10 @@ def cmd_pids(info: Mapping[str, Any], tx_id: int, ecu_def: dict | None, as_json:
         return 0
 
     n_with = sum(1 for r in records if r["values"])
-    print(f"  {_DIM}{len(records)} PIDs · {n_with} with a recent capture{_RESET}\n")
+    print(
+        f"  {_DIM}{len(records)} PIDs · {n_with} with a recent capture "
+        f"(each PID's newest value + the vehicle state it was read in){_RESET}\n"
+    )
 
     from canlib.states import join_states
 
@@ -610,7 +613,7 @@ def cmd_pids(info: Mapping[str, Any], tx_id: int, ecu_def: dict | None, as_json:
             when = " ".join(x for x in [r.get("date") or "", r.get("time") or ""] if x).strip()
             bits = []
             if st:
-                bits.append(f"{_BOLD}{_GREEN}{st}{_RESET}")
+                bits.append(f"{_DIM}vehicle_state{_RESET} {_BOLD}{_GREEN}{st}{_RESET}")
             if when:
                 bits.append(f"{_CYAN}{when}{_RESET}")
             ctx = f"  {_DIM}·{_RESET} " + f" {_DIM}·{_RESET} ".join(bits) if bits else ""

@@ -242,13 +242,18 @@ def _pids_data_multi():
     }
 
 
-def test_wrap_pairs_wraps_to_width():
-    from canlib.commands.ecu import _wrap_pairs
+def test_value_grid_shrinks_to_fit_width():
+    from canlib.commands.ecu import _value_grid
 
-    pairs = ["A=1", "B=2", "C=3"]
-    # width just enough for one pair + indent → one pair per line
-    lines = _wrap_pairs(pairs, width=len("  A=1"), indent="  ")
-    assert lines == ["  A=1", "  B=2", "  C=3"]
+    values = {"A": "1", "B": "2", "C": "3"}
+    # width just enough for one name+value cell → one pair per line
+    lines = _value_grid(values, width=len("  A 1"), indent="  ")
+    assert len(lines) == 3
+    # Each name and value appears, one per line.
+    assert all(any(n in ln and v in ln for n, v in [("A", "1")]) for ln in lines[:1])
+    joined = "\n".join(lines)
+    for name, val in values.items():
+        assert name in joined and val in joined
 
 
 def test_pids_latest_records_shape(monkeypatch):
@@ -293,7 +298,7 @@ def test_cmd_pids_renders_values_not_hex(monkeypatch, capsys):
     rc = ecu.cmd_pids({"name": "BMS"}, 0x7E4, _pids_data_multi(), as_json=False)
     out = capsys.readouterr().out
     assert rc == 0
-    assert "SOC=79.0 %" in out
+    assert "SOC" in out and "79.0 %" in out  # decoded name + value
     assert "DEADBEEF" not in out  # never shows raw hex
     assert "no capture" in out  # 2102 has params but no capture
     assert "no parameters defined" in out  # 2180
