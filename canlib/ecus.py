@@ -66,7 +66,6 @@ class EcuRegistryEntry(_EcuIdentity):
     rx_id: int
 
 
-
 def load_ecus(path: Path | None = None) -> dict[int, EcuRegistryEntry]:
     """Load the ECU registry, keyed by TX id (int) -> {name, identity fields...}.
 
@@ -318,7 +317,9 @@ def build_name_tx_index(ecus: Mapping[int, EcuRegistryEntry] | None = None) -> d
     return index
 
 
-def build_canonical_name_index(ecus: Mapping[int, EcuRegistryEntry] | None = None) -> dict[str, str]:
+def build_canonical_name_index(
+    ecus: Mapping[int, EcuRegistryEntry] | None = None,
+) -> dict[str, str]:
     """Build lookup: upper-cased ECU name/alias -> canonical short name.
 
     Both the primary ``name`` and any ``alias`` resolve to the canonical

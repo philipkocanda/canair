@@ -33,6 +33,7 @@ class BusRecord(TypedDict):
     bitrate: int | None
     ecus: int
 
+
 # ANSI colors — emitted only when stdout is a TTY (piped output stays plain).
 _BOLD = "\033[1m"
 _DIM = "\033[2m"

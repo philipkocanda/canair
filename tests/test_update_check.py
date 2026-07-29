@@ -471,9 +471,7 @@ class TestUpdateCommand:
         base.update(kw)
         return base
 
-    def test_out_of_sync_reinstalls_without_new_release(
-        self, monkeypatch, capsys, tmp_path
-    ):
+    def test_out_of_sync_reinstalls_without_new_release(self, monkeypatch, capsys, tmp_path):
         """No newer release, but the tool copy drifted from the clone -> resync."""
         from canlib.commands import update as update_cmd
 
@@ -496,9 +494,7 @@ class TestUpdateCommand:
         monkeypatch.setattr(update_cmd.shutil, "which", lambda name: "/usr/bin/uv")
 
         git_calls: list[tuple[str, ...]] = []
-        monkeypatch.setattr(
-            update_cmd, "_git", lambda clone, *a: git_calls.append(a)
-        )
+        monkeypatch.setattr(update_cmd, "_git", lambda clone, *a: git_calls.append(a))
 
         install_calls: list[list[str]] = []
 
@@ -516,9 +512,7 @@ class TestUpdateCommand:
         rc = update_cmd.run(self._args(yes=True))
         assert rc == 0
         # It resynced without touching git (no fetch/checkout).
-        assert git_calls == [] or all(
-            a[:1] not in {("fetch",), ("checkout",)} for a in git_calls
-        )
+        assert git_calls == [] or all(a[:1] not in {("fetch",), ("checkout",)} for a in git_calls)
         # And reinstalled the tool from the clone.
         assert any("install" in cmd and "--reinstall" in cmd for cmd in install_calls)
         out = capsys.readouterr().out
@@ -572,9 +566,7 @@ class TestUpdateCommand:
         )
 
         called: list[str] = []
-        monkeypatch.setattr(
-            update_cmd.subprocess, "run", lambda *a, **k: called.append("run")
-        )
+        monkeypatch.setattr(update_cmd.subprocess, "run", lambda *a, **k: called.append("run"))
 
         rc = update_cmd.run(self._args(yes=True))
         assert rc == 0

@@ -457,8 +457,10 @@ def _replace_field_in_block_at(block: str, field: str, new_line_or_lines, indent
                     if re.match(rf"^ {{{indent}}}[A-Za-z_]", lines[i]):
                         break
                     i += 1
-            elif rest == "" and i < len(lines) and (
-                lines[i] == "" or lines[i].startswith(" " * (indent + 1))
+            elif (
+                rest == ""
+                and i < len(lines)
+                and (lines[i] == "" or lines[i].startswith(" " * (indent + 1)))
             ):
                 # The OLD field is a nested block (list/map, e.g. values:/bits:
                 # or a block-style can_bus:) with an empty header rest — skip its

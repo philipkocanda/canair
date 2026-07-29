@@ -48,6 +48,7 @@ class RoutineIndexEntry(TypedDict):
     tx_id: int
     routines: dict[str, dict[str, Any]]
 
+
 # ── PID visibility lifecycle ──────────────────────────────────────────────
 # A PID's `status:` is a single, mutually-exclusive lifecycle value that
 # replaces the old ignored/static/enabled booleans. It answers "where does
