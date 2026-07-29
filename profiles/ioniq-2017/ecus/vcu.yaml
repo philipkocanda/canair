@@ -20,9 +20,7 @@
 #
 VCU:
   tx_id: 0x7E2
-  can_bus:
-    - H
-    - P
+  can_bus: [H-CAN, P-CAN]
   identity:
     alias: VLDC  # KWP2000 ecu_id module code (VCU with integrated LDC)
     description: Vehicle Control Unit (integrated LDC)
