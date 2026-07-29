@@ -303,7 +303,8 @@ usage: canair pids set-can-bus [-h] [--dir DIR] [--no-validate]
 positional arguments:
   ecu
   CODE           One or more bus codes from the profile's can_buses.yaml
-                 (Hyundai: B/P/C/M/H/All); some ECUs span two, e.g. H P
+                 (Hyundai: B-CAN/P-CAN/C-CAN/M-CAN/H-CAN/All); some ECUs span
+                 two, e.g. H-CAN P-CAN
 
 options:
   -h, --help     show this help message and exit

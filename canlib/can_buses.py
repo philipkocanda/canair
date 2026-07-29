@@ -2,8 +2,8 @@
 
 A profile declares the physical CAN bus segments its ECUs sit on in
 ``<profile>/can_buses.yaml``. Bus naming is **vendor-specific** — Hyundai/Kia
-use single-letter domain codes (B/P/C/M/H), Ford uses speed codes (HS/MS), BMW
-uses PT-CAN/K-CAN/F-CAN, VW uses German domain names — so the accepted codes
+use domain codes (B-CAN/P-CAN/C-CAN/M-CAN/H-CAN), Ford uses speed codes (HS/MS),
+BMW uses PT-CAN/K-CAN/F-CAN, VW uses German domain names — so the accepted codes
 live per profile rather than in a global enum. The top-level ``can_bus:`` field
 on each ECU (in ``ecus/``) is validated against this per-profile vocabulary.
 
@@ -14,12 +14,12 @@ optional ``bitrate`` (the segment's bus speed in bit/s)::
       All:
         name: All segments
         description: The gateway bridges every segment.
-      B:
+      B-CAN:
         name: Body CAN
         description: Comfort/body electronics.
         bitrate: 100000
 
-The older list form (``can_buses: [All, B]``) is still accepted for
+The older list form (``can_buses: [All, B-CAN]``) is still accepted for
 back-compatibility — those codes simply carry no name/description/bitrate.
 
 ``allowed_can_buses`` returns the set of declared codes; when the file is absent

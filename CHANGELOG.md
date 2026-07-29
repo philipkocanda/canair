@@ -14,8 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `SPEED` column (e.g. `500 kbit/s`) and includes it in `--json`;
   `canair validate can-buses` errors on a non-positive-integer value; exposed as
   `BusDef.bitrate` on the loader. The bundled `ioniq-2017` profile now records
-  the Hyundai/Ioniq figures (P/C/M/H/D = 500 kbit/s, Body = 100 kbit/s).
-- **Diagnostic CAN (`D`) segment** added to the bundled `ioniq-2017`
+  the Hyundai/Ioniq figures (P-CAN/C-CAN/M-CAN/H-CAN/D-CAN = 500 kbit/s,
+  B-CAN = 100 kbit/s).
+- **Diagnostic CAN (`D-CAN`) segment** added to the bundled `ioniq-2017`
   `can_buses.yaml` vocabulary — the D-CAN bus exposed on the OBD-II port for
   UDS/KWP2000 requests (500 kbit/s).
 - **`canair captures migrate-rx`** — rename the persisted capture field `ecu` →
@@ -28,6 +29,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **CAN bus segment codes renamed to `*-CAN` identifiers** (Hyundai/Kia):
+  `B`/`P`/`C`/`M`/`H`/`D` → `B-CAN`/`P-CAN`/`C-CAN`/`M-CAN`/`H-CAN`/`D-CAN`
+  (the virtual gateway code `All` is unchanged). The old single letters were
+  hard to grep for; the hyphenated forms are unambiguous. The bundled
+  `ioniq-2017` `can_buses.yaml` vocabulary and every ECU `can_bus:` list are
+  updated. **`canair pids set-can-bus` now writes the `can_bus:` list in the
+  readable flow (inline) form** — `can_bus: [B-CAN, P-CAN]` instead of a
+  multi-line block list; existing block-style lists are rewritten to flow style
+  in place. Bus naming is per-profile vocabulary, so other profiles are
+  unaffected.
 - **The persisted capture field `ecu` is renamed to `rx`.** It holds the ECU CAN
   *response* address (RX = request TX + 8), not an ECU name — the old name
   collided conceptually with the resolved short name (`"BMS"`) that the in-memory

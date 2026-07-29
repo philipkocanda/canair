@@ -1,7 +1,6 @@
 AMP:
   tx_id: 0x783
-  can_bus:
-    - M
+  can_bus: [M-CAN]
   identity:
     description: Audio Amplifier (external - Infinity audio system)
     id_protocol: none  # NRC 0x11 on all UDS F1xx and KWP2000 1Axx

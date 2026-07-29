@@ -243,20 +243,20 @@ _CAN_BUSES_TEMPLATE = """\
 #
 # Codes accepted by each ECU's `can_bus:` field (in ecus/). Each bare code maps
 # to a human name + description (and an optional `bitrate` in bit/s). Naming is
-# vendor-specific: Hyundai/Kia use B/P/C/M/H (Body, Powertrain, Chassis,
-# Multimedia, Hybrid); Ford uses HS/MS; BMW PT-CAN/K-CAN. See
-# canlib/schema/can_buses_schema.yaml and `canair validate can-buses`. Set an
+# vendor-specific: Hyundai/Kia use B-CAN/P-CAN/C-CAN/M-CAN/H-CAN (Body,
+# Powertrain, Chassis, Multimedia, Hybrid); Ford uses HS/MS; BMW PT-CAN/K-CAN.
+# See canlib/schema/can_buses_schema.yaml and `canair validate can-buses`. Set an
 # ECU's segment(s) with `canair pids set-can-bus ECU CODE [CODE ...]`.
 
 can_buses:
   All:
     name: All segments
     description: Convention for the gateway that bridges every segment.
-  # B:
+  # B-CAN:
   #   name: Body CAN
   #   description: Comfort/body electronics.
   #   bitrate: 100000
-  # P:
+  # P-CAN:
   #   name: Powertrain CAN
   #   description: Engine/drivetrain control.
   #   bitrate: 500000

@@ -6,8 +6,7 @@
 # actuators) — see iocontrol_discoveries below.
 DDM:
   tx_id: 0x7A1
-  can_bus:
-    - B
+  can_bus: [B-CAN]
   identity:
     description: Driver Door Module
     part_number: "93570G2110"

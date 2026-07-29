@@ -21,9 +21,7 @@
 # 2103=27B; 2104/2105 → NRC 0x12 (do not exist).
 MCU:
   tx_id: 0x7E3
-  can_bus:
-    - H
-    - P
+  can_bus: [H-CAN, P-CAN]
   identity:
     alias: VMCU # aka HPCU (Hybrid Power Control Unit - legacy term but may help to know)
     description: Motor Control Unit (inverter)

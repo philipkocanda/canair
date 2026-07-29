@@ -4,7 +4,7 @@
 # can_buses.yaml declares a profile's physical CAN bus segment vocabulary — the
 # codes accepted by each ECU's top-level `can_bus:` field (in ecus/). Bus naming
 # is VENDOR-SPECIFIC, so it lives per profile rather than in a global enum:
-#   Hyundai/Kia   B / P / C / M / H  (Body, Powertrain, Chassis, Multimedia, Hybrid)
+#   Hyundai/Kia   B-CAN / P-CAN / C-CAN / M-CAN / H-CAN  (Body, Powertrain, Chassis, Multimedia, Hybrid)
 #   Ford          HS / MS            (High-/Medium-speed CAN)
 #   BMW           PT-CAN / K-CAN / F-CAN
 #   VW/Audi       Antriebs / Komfort / Infotainment (German domain names)
@@ -15,12 +15,12 @@
 #     All:                  # the bare code (used in ecus/ can_bus: lists)
 #       name: str           # optional — human label shown by `canair ecu`
 #       description: str    # optional — what sits on / characterises the segment
-#     B:
+#     B-CAN:
 #       name: Body CAN
 #       description: Comfort/body electronics.
 #       bitrate: 100000     # optional — segment bus speed in bit/s (int)
 #
-# The legacy list form (`can_buses: [All, B]`) is still accepted; those codes
+# The legacy list form (`can_buses: [All, B-CAN]`) is still accepted; those codes
 # just carry no name/description/bitrate.
 #
 # `canair pids set-can-bus ECU CODE [CODE ...]` accepts only codes declared here,

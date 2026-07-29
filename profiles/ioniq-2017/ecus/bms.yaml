@@ -7,8 +7,7 @@
 # are identical across sessions: 2101=61B, 2102=38B, 2103=38B, 2104=38B, 2105=45B.
 BMS:
   tx_id: 0x7E4
-  can_bus:
-    - P
+  can_bus: [P-CAN]
   identity:
     description: Battery Management System
     ecu_id: "AEEV__ BMS"  # KWP2000 1A90

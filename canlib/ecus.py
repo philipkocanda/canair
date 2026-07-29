@@ -2,12 +2,16 @@
 
 The registry is derived from the profile's per-ECU files under ``ecus/`` (each
 keyed by the ECU short name, carrying a ``tx_id`` and an ``identity:`` block).
-The CAN *response* address is ``RX = TX + 8``. Capture files reference the
-**response** address as a hex string (e.g. ``"0x7EC"``); the helpers here
-convert between that reference and the canonical ECU short name.
+The CAN *response* address is resolved per ECU (explicit ``rx_id`` → the
+profile's ``addressing.rx_offset`` → the conventional ``TX + 0x08``) by
+:mod:`canlib.addressing` and stored as ``rx_id`` on each registry entry. Capture
+files reference the **response** address as a hex string (e.g. ``"0x7EC"``); the
+helpers here convert between that reference and the canonical ECU short name.
 """
 
 from pathlib import Path
+
+from .addressing import DEFAULT_RX_OFFSET, resolve_rx, resolve_rx_offset
 
 # Non-address ECU references allowed in capture files (multi-ECU / broadcast
 # captures that don't map to a single physical responder).
@@ -25,6 +29,7 @@ def load_ecus(path: Path | None = None) -> dict:
     from .pids import load_pids
 
     data = load_pids(path)
+    rx_offset = resolve_rx_offset(data)
     result = {}
     for name, ecu_def in (data.get("ecus") or {}).items():
         if not isinstance(ecu_def, dict):
@@ -32,6 +37,7 @@ def load_ecus(path: Path | None = None) -> dict:
         tx_id = ecu_def.get("tx_id")
         if tx_id is None:
             continue
+        tx_id = int(tx_id)
         info = {"name": name}
         identity = ecu_def.get("identity")
         if isinstance(identity, dict):
@@ -40,7 +46,13 @@ def load_ecus(path: Path | None = None) -> dict:
         can_bus = ecu_def.get("can_bus")
         if can_bus is not None:
             info["can_bus"] = can_bus
-        result[int(tx_id)] = info
+        # Resolve the CAN response address once (explicit rx_id → profile offset
+        # → default +8) so every consumer reads it rather than recomputing +8.
+        ecu_rx = ecu_def.get("rx_id")
+        info["rx_id"] = resolve_rx(
+            tx_id, int(ecu_rx) if ecu_rx is not None else None, rx_offset
+        )
+        result[tx_id] = info
     return result
 
 
@@ -132,12 +144,36 @@ def ecu_identity_confidence(info: dict) -> tuple[str, bool]:
     return derive_identity_confidence(info), False
 
 
-def rx_addr_str(tx_id: int) -> str:
-    """Format the CAN response address (RX = TX + 8) as a hex string.
+def rx_for_tx(
+    tx_id: int,
+    ecus: dict | None = None,
+    rx_offset: int = DEFAULT_RX_OFFSET,
+) -> int:
+    """Resolve a TX id to its CAN response (RX) address int.
 
-    e.g. ``rx_addr_str(0x7E4) == "0x7EC"``.
+    Uses the ECU registry's resolved ``rx_id`` (which already honors a per-ECU
+    ``rx_id`` override or the profile's ``addressing.rx_offset``) when the ECU
+    is known; otherwise falls back to ``tx_id + rx_offset`` — the escape hatch
+    for an address not (yet) in the registry, e.g. an unregistered responder
+    seen during discovery. Pass ``rx_offset`` (the profile default) there so a
+    non-standard-offset profile still resolves unknown addresses correctly.
     """
-    return f"0x{tx_id + 8:03X}"
+    if ecus is None:
+        ecus = load_ecus()
+    info = ecus.get(tx_id)
+    if info and info.get("rx_id") is not None:
+        return int(info["rx_id"])
+    return tx_id + rx_offset
+
+
+def rx_addr_str(tx_id: int, ecus: dict | None = None) -> str:
+    """Format the CAN response address for a TX id as a hex string.
+
+    Honors a per-ECU ``rx_id`` / the profile's ``addressing.rx_offset`` via the
+    registry (falling back to the conventional ``TX + 0x08`` for an unknown
+    address), e.g. ``rx_addr_str(0x7E4) == "0x7EC"``.
+    """
+    return f"0x{rx_for_tx(tx_id, ecus):03X}"
 
 
 def parse_ecu_ref(value) -> int | None:
@@ -164,10 +200,20 @@ def build_rx_index(ecus: dict | None = None) -> dict[int, str]:
 
     Derived from the ECU registry (the superset of all known addresses, including
     non-decodable modules like AMP/SRS), so any responder resolves for display.
+    Uses each ECU's resolved ``rx_id`` (per-ECU override / profile offset).
     """
     if ecus is None:
         ecus = load_ecus()
-    return {tx_id + 8: info["name"] for tx_id, info in ecus.items()}
+    return {
+        rx_for_tx(tx_id, ecus): info["name"] for tx_id, info in ecus.items()
+    }
+
+
+def build_rx_tx_index(ecus: dict | None = None) -> dict[int, int]:
+    """Build lookup: RX address (int) -> TX id, using each ECU's resolved rx_id."""
+    if ecus is None:
+        ecus = load_ecus()
+    return {rx_for_tx(tx_id, ecus): tx_id for tx_id in ecus}
 
 
 def ecu_name_from_ref(value, rx_index: dict[int, str] | None = None) -> str:
@@ -299,7 +345,6 @@ def rx_from_name(name: str, name_index: dict[str, int] | None = None) -> str | N
     tx_id = name_index.get(str(name).strip().upper())
     return rx_addr_str(tx_id) if tx_id is not None else None
 
-
 def resolve_tx(
     value,
     name_index: dict[str, int] | None = None,
@@ -308,8 +353,9 @@ def resolve_tx(
     """Resolve an ECU name/alias or hex TX/RX ID to a TX id int, or None.
 
     Accepts an ECU name/alias ('BMS', 'igpm'), a hex TX id ('7E4', '0x770'),
-    or a hex RX id ('0x7EA' resolves to VCU's TX 0x7E2, since RX = TX + 8).
-    A known TX id always wins over an RX interpretation of the same value.
+    or a hex RX id ('0x7EA' resolves to VCU's TX 0x7E2, via the resolved
+    response-address map). A known TX id always wins over an RX interpretation
+    of the same value.
     """
     if value is None:
         return None
@@ -330,9 +376,11 @@ def resolve_tx(
     if ecus is None:
         ecus = load_ecus()
     # A hex value is a TX id if it's a registered ECU; otherwise fall back to
-    # interpreting it as an RX address (RX = TX + 8) and resolving to its TX id.
-    if parsed not in ecus and (parsed - 8) in ecus:
-        return parsed - 8
+    # interpreting it as an RX (response) address and resolving to its TX id.
+    if parsed not in ecus:
+        rx_tx = build_rx_tx_index(ecus)
+        if parsed in rx_tx:
+            return rx_tx[parsed]
     return parsed
 
 

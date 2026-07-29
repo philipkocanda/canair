@@ -22,14 +22,14 @@ def test_loads_mapping_with_names(tmp_path):
         tmp_path,
         "can_buses:\n"
         "  All:\n    name: All segments\n    description: gateway\n"
-        "  B:\n    name: Body CAN\n",
+        "  B-CAN:\n    name: Body CAN\n",
     )
     buses = load_can_buses(prof)
-    assert [b.code for b in buses] == ["All", "B"]
+    assert [b.code for b in buses] == ["All", "B-CAN"]
     assert buses[0].name == "All segments"
     assert buses[0].description == "gateway"
-    assert bus_names(prof) == {"All": "All segments", "B": "Body CAN"}
-    assert allowed_can_buses(prof) == {"All", "B"}
+    assert bus_names(prof) == {"All": "All segments", "B-CAN": "Body CAN"}
+    assert allowed_can_buses(prof) == {"All", "B-CAN"}
 
 
 def test_label_falls_back_to_code(tmp_path):
@@ -42,29 +42,29 @@ def test_loads_bitrate(tmp_path):
         tmp_path,
         "can_buses:\n"
         "  All:\n    name: All segments\n"
-        "  B:\n    name: Body CAN\n    bitrate: 100000\n"
-        "  D:\n    name: Diagnostic CAN\n    bitrate: 500000\n",
+        "  B-CAN:\n    name: Body CAN\n    bitrate: 100000\n"
+        "  D-CAN:\n    name: Diagnostic CAN\n    bitrate: 500000\n",
     )
     buses = {b.code: b for b in load_can_buses(prof)}
     assert buses["All"].bitrate is None
-    assert buses["B"].bitrate == 100000
-    assert buses["D"].bitrate == 500000
+    assert buses["B-CAN"].bitrate == 100000
+    assert buses["D-CAN"].bitrate == 500000
 
 
 def test_invalid_bitrate_is_none(tmp_path):
-    prof = _profile(tmp_path, "can_buses:\n  B:\n    bitrate: fast\n")
+    prof = _profile(tmp_path, "can_buses:\n  B-CAN:\n    bitrate: fast\n")
     assert load_can_buses(prof)[0].bitrate is None
 
 
 def test_legacy_list_form(tmp_path):
-    prof = _profile(tmp_path, "can_buses:\n  - All\n  - B\n")
-    assert load_can_bus_codes(prof) == ["All", "B"]
-    assert bus_names(prof) == {"All": "All", "B": "B"}
+    prof = _profile(tmp_path, "can_buses:\n  - All\n  - B-CAN\n")
+    assert load_can_bus_codes(prof) == ["All", "B-CAN"]
+    assert bus_names(prof) == {"All": "All", "B-CAN": "B-CAN"}
 
 
 def test_drops_blanks_and_dups(tmp_path):
-    prof = _profile(tmp_path, "can_buses:\n  - B\n  - ' '\n  - B\n  - P\n")
-    assert load_can_bus_codes(prof) == ["B", "P"]
+    prof = _profile(tmp_path, "can_buses:\n  - B-CAN\n  - ' '\n  - B-CAN\n  - P-CAN\n")
+    assert load_can_bus_codes(prof) == ["B-CAN", "P-CAN"]
 
 
 def test_non_container_is_empty(tmp_path):

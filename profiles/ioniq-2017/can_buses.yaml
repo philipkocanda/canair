@@ -6,35 +6,35 @@
 # Edit an ECU's segment(s) with `canair pids set-can-bus ECU CODE [CODE ...]`.
 #
 # `bitrate` is the segment's bus speed in bit/s (optional). Hyundai runs the
-# high-speed segments (P/C/M/H/D) at 500 kbit/s and the low-speed Body CAN at
-# 100 kbit/s. D-CAN (500 kbit/s) is confirmed; the rest are the standard
-# Hyundai/Ioniq figures.
+# high-speed segments (P-CAN/C-CAN/M-CAN/H-CAN/D-CAN) at 500 kbit/s and the
+# low-speed Body CAN (B-CAN) at 100 kbit/s. D-CAN (500 kbit/s) is confirmed; the
+# rest are the standard Hyundai/Ioniq figures.
 
 can_buses:
   All:
     name: All segments
     description: The gateway (IGPM) bridges every segment; the OBD-II port connects here.
-  B:
+  B-CAN:
     name: Body CAN
     description: Comfort/body electronics (doors, seats, BCM, smart key, HVAC).
     bitrate: 100000
-  P:
+  P-CAN:
     name: Powertrain CAN
     description: High-voltage/drivetrain control (BMS, VMCU/MCU, VESS).
     bitrate: 500000
-  C:
+  C-CAN:
     name: Chassis CAN
     description: Chassis/ADAS (cluster, cameras, cruise/braking assist).
     bitrate: 500000
-  M:
+  M-CAN:
     name: Multimedia CAN
     description: Infotainment/audio (head unit, amplifier).
     bitrate: 500000
-  H:
+  H-CAN:
     name: Hybrid CAN
     description: Hybrid/EV powertrain segment (motor/inverter, VMCU).
     bitrate: 500000
-  D:
+  D-CAN:
     name: Diagnostic CAN
     description: Diagnostic bus (D-CAN) exposed on the OBD-II port for UDS/KWP2000 requests.
     bitrate: 500000

@@ -3,9 +3,7 @@
 # TPMS data is accessed via DID 22C00B on the BCM.
 BCM:
   tx_id: 0x7A0
-  can_bus:
-    - B
-    - C
+  can_bus: [B-CAN, C-CAN]
   identity:
     description: Body Control Module
     part_number: "95400G7470"

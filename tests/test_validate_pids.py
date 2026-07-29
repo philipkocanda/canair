@@ -171,7 +171,7 @@ class TestTypedParamValidation:
 class TestCanBusValidation:
     """validate_ecu_file — top-level can_bus list vs the profile's can_buses.yaml."""
 
-    def _errors(self, tmp_path, can_bus_yaml, *, vocab="[B, P, C, M, H, All]"):
+    def _errors(self, tmp_path, can_bus_yaml, *, vocab="[B-CAN, P-CAN, C-CAN, M-CAN, H-CAN, All]"):
         import textwrap
 
         from canlib.profile import Profile
@@ -200,18 +200,18 @@ class TestCanBusValidation:
         return errors
 
     def test_valid_codes_ok(self, tmp_path):
-        assert self._errors(tmp_path, "[H, P]") == []
+        assert self._errors(tmp_path, "[H-CAN, P-CAN]") == []
 
     def test_invalid_code_errors(self, tmp_path):
         errs = self._errors(tmp_path, "[X]")
         assert any("can_bus" in e and "invalid" in e for e in errs)
 
     def test_non_list_errors(self, tmp_path):
-        errs = self._errors(tmp_path, "B")
+        errs = self._errors(tmp_path, "B-CAN")
         assert any("can_bus must be a list" in e for e in errs)
 
     def test_duplicate_codes_error(self, tmp_path):
-        errs = self._errors(tmp_path, "[B, B]")
+        errs = self._errors(tmp_path, "[B-CAN, B-CAN]")
         assert any("duplicate can_bus" in e for e in errs)
 
     def test_no_vocabulary_skips_membership(self, tmp_path):

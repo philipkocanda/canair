@@ -3,8 +3,9 @@
 Prints each physical CAN bus segment declared in the active profile's
 ``can_buses.yaml`` with its human name, description, bus speed (bitrate), and
 the number of ECUs sitting on it (an ECU spanning two segments counts on each).
-The bus vocabulary is vendor-specific (Hyundai/Kia B/P/C/M/H, Ford HS/MS, BMW
-PT-CAN/K-CAN, …), so it lives per profile — this is the read-only view of it.
+The bus vocabulary is vendor-specific (Hyundai/Kia B-CAN/P-CAN/C-CAN/M-CAN/H-CAN,
+Ford HS/MS, BMW PT-CAN/K-CAN, …), so it lives per profile — this is the
+read-only view of it.
 
 Examples:
   canair bus            # table of buses + descriptions + ECU counts

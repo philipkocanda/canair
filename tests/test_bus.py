@@ -20,14 +20,14 @@ class _FakeProfile:
 @pytest.fixture
 def _patched(monkeypatch):
     buses = [
-        BusDef("B", "Body CAN", "Comfort/body electronics.", bitrate=100000),
-        BusDef("P", "Powertrain CAN", "Drivetrain.", bitrate=500000),
+        BusDef("B-CAN", "Body CAN", "Comfort/body electronics.", bitrate=100000),
+        BusDef("P-CAN", "Powertrain CAN", "Drivetrain.", bitrate=500000),
         BusDef("All", "All segments", "Gateway bridges all."),
     ]
     ecus = {
-        0x7A0: {"name": "BCM", "can_bus": ["B"]},
-        0x7E4: {"name": "BMS", "can_bus": ["P"]},
-        0x7E3: {"name": "MCU", "can_bus": ["P", "H"]},  # spans P + undeclared H
+        0x7A0: {"name": "BCM", "can_bus": ["B-CAN"]},
+        0x7E4: {"name": "BMS", "can_bus": ["P-CAN"]},
+        0x7E3: {"name": "MCU", "can_bus": ["P-CAN", "H-CAN"]},  # spans P + undeclared H
         0x7D2: {"name": "SRS"},  # unbussed
     }
     monkeypatch.setattr(bus, "_use_color", lambda: False)
@@ -59,7 +59,7 @@ def test_human_output(_patched, capsys):
 def test_undeclared_and_unbussed(_patched, capsys):
     _run()
     out = capsys.readouterr().out
-    assert "Undeclared codes" in out  # H used by MCU but not declared
+    assert "Undeclared codes" in out  # H-CAN used by MCU but not declared
     assert "1 ECU(s) have no can_bus set." in out  # SRS
 
 
@@ -69,11 +69,11 @@ def test_json(_patched, capsys):
     assert rc == 0
     data = json.loads(out)
     counts = {b["code"]: b["ecus"] for b in data["buses"]}
-    assert counts == {"B": 1, "P": 2, "All": 0}
+    assert counts == {"B-CAN": 1, "P-CAN": 2, "All": 0}
     rates = {b["code"]: b["bitrate"] for b in data["buses"]}
-    assert rates == {"B": 100000, "P": 500000, "All": None}
+    assert rates == {"B-CAN": 100000, "P-CAN": 500000, "All": None}
     assert data["unbussed_ecus"] == 1
-    assert [u["code"] for u in data["undeclared"]] == ["H"]
+    assert [u["code"] for u in data["undeclared"]] == ["H-CAN"]
 
 
 def test_no_color_when_piped(_patched, capsys):
