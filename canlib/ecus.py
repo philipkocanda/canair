@@ -13,7 +13,14 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, TypedDict, cast
 
-from .addressing import DEFAULT_RX_OFFSET, resolve_rx, resolve_rx_offset
+from .addressing import (
+    DEFAULT_MODE,
+    DEFAULT_RX_OFFSET,
+    AddressingMode,
+    resolve_mode,
+    resolve_rx,
+    resolve_rx_offset,
+)
 
 # Non-address ECU references allowed in capture files (multi-ECU / broadcast
 # captures that don't map to a single physical responder).
@@ -64,6 +71,7 @@ class EcuRegistryEntry(_EcuIdentity):
 
     name: str
     rx_id: int
+    mode: str
 
 
 def load_ecus(path: Path | None = None) -> dict[int, EcuRegistryEntry]:
@@ -99,8 +107,15 @@ def load_ecus(path: Path | None = None) -> dict[int, EcuRegistryEntry]:
             info["can_bus"] = can_bus
         # Resolve the CAN response address once (explicit rx_id → profile offset
         # → default +8) so every consumer reads it rather than recomputing +8.
+        # The addressing mode (per-ECU → profile → 11-bit) shapes both the RX
+        # derivation (fixed-29-bit swaps bytes) and the ISO-TP stack the raw
+        # transport builds.
+        mode = resolve_mode(data, ecu_def)
         ecu_rx = ecu_def.get("rx_id")
-        info["rx_id"] = resolve_rx(tx_id, int(ecu_rx) if ecu_rx is not None else None, rx_offset)
+        info["rx_id"] = resolve_rx(
+            tx_id, int(ecu_rx) if ecu_rx is not None else None, rx_offset, mode
+        )
+        info["mode"] = mode.value
         result[tx_id] = cast(EcuRegistryEntry, info)
     return result
 
@@ -197,22 +212,24 @@ def rx_for_tx(
     tx_id: int,
     ecus: Mapping[int, EcuRegistryEntry] | None = None,
     rx_offset: int = DEFAULT_RX_OFFSET,
+    mode: AddressingMode = DEFAULT_MODE,
 ) -> int:
     """Resolve a TX id to its CAN response (RX) address int.
 
     Uses the ECU registry's resolved ``rx_id`` (which already honors a per-ECU
     ``rx_id`` override or the profile's ``addressing.rx_offset``) when the ECU
-    is known; otherwise falls back to ``tx_id + rx_offset`` — the escape hatch
-    for an address not (yet) in the registry, e.g. an unregistered responder
-    seen during discovery. Pass ``rx_offset`` (the profile default) there so a
-    non-standard-offset profile still resolves unknown addresses correctly.
+    is known; otherwise falls back to :func:`~canlib.addressing.resolve_rx` with
+    the given ``rx_offset``/``mode`` — the escape hatch for an address not (yet)
+    in the registry, e.g. an unregistered responder seen during discovery. Pass
+    the profile ``rx_offset``/``mode`` there so a non-standard-offset or 29-bit
+    profile still resolves unknown addresses correctly.
     """
     if ecus is None:
         ecus = load_ecus()
     info = ecus.get(tx_id)
     if info and info.get("rx_id") is not None:
         return int(info["rx_id"])
-    return tx_id + rx_offset
+    return resolve_rx(tx_id, rx_offset=rx_offset, mode=mode)
 
 
 def rx_addr_str(tx_id: int, ecus: Mapping[int, EcuRegistryEntry] | None = None) -> str:

@@ -226,7 +226,9 @@ async def mode_multi(
         # Shared batch state so multi_did-capable ECUs batch service-22 DIDs in
         # the one-shot pipeline too (previously only the monitor did). Learns
         # per-DID lengths across steps and auto-falls back per-DID on rejection.
-        batch_state = BatchState()
+        from ..transport.isotp_params import resolve_tx_padding
+
+        batch_state = BatchState(resolve_tx_padding(pids_data))
         for i, cmd in enumerate(commands):
             cmd_type = cmd["type"]
             step = f"[{i + 1}/{len(commands)}]"

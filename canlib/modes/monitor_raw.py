@@ -76,6 +76,10 @@ class MonitorRawPoller:
         # batching (NRC 0x13/0x31 or an unsplittable positive) this session.
         self.lengths: dict[tuple[str, str], int] = {}
         self.nobatch: set[str] = set()
+        # ISO-TP padding byte (profile isotp.tx_padding) for stripping/splitting.
+        from ..transport.isotp_params import resolve_tx_padding
+
+        self.pad = resolve_tx_padding(getattr(controller, "pids_data", None))
 
     def build_submissions(self):
         """Plan this cycle's raw requests, batching multi-DID ECUs.
@@ -230,7 +234,7 @@ class MonitorRawPoller:
         if s["lengths"] is not None:  # batched request
             split = None
             if resp and resp[0] != 0x7F:
-                split = split_multi_did(resp.hex().upper(), s["lengths"])
+                split = split_multi_did(resp.hex().upper(), s["lengths"], self.pad)
             elif resp and resp[0] == 0x7F and (resp[2] if len(resp) >= 3 else 0) in (0x13, 0x31):
                 self.nobatch.add(ecu)  # ECU can't batch — fall back next cycle
             if split is None:
@@ -249,7 +253,7 @@ class MonitorRawPoller:
         code, pi, un = s["members"][0]
         by_pid[(ecu, code)] = _raw_pid_result(code, pi, un, val, acquired)
         if _is_did22(code) and resp and resp[0] != 0x7F:  # learn length for batching
-            dlen = _did_data_len(resp.hex().upper(), code[2:])
+            dlen = _did_data_len(resp.hex().upper(), code[2:], self.pad)
             if dlen is not None:
                 self.lengths[(ecu, code[2:])] = dlen
 

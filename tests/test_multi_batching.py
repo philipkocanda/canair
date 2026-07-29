@@ -56,6 +56,24 @@ class TestSplitHelpers:
         # Extra non-AA byte after the last DID's data → not a clean split.
         assert split_multi_did("62BC03FDEE3C730A00000099", [("BC03", 8)]) is None
 
+    def test_custom_pad_byte(self):
+        # A make that pads with 0x00 (not 0xAA): the pad byte is profile-driven.
+        # (Data ends in a non-pad byte so stripping padding can't eat real data.)
+        single = "62BC03FDEE3C730A0000FF0000"  # 8 data bytes + 00 pad
+        assert _did_data_len(single, "BC03", pad=0x00) == 8
+        multi = "62BC03FDEE3C730A0000FFBC06B4800000000000FF000000"
+        assert split_multi_did(multi, [("BC03", 8), ("BC06", 8)], pad=0x00) == {
+            "BC03": "62BC03FDEE3C730A0000FF",
+            "BC06": "62BC06B4800000000000FF",
+        }
+        # With the default 0xAA pad the trailing 00s aren't padding → no split.
+        assert split_multi_did(multi, [("BC03", 8), ("BC06", 8)]) is None
+
+    def test_batchstate_carries_pad(self):
+        bs = BatchState(pad=0x00)
+        bs.learn(0x770, "BC03", "62BC03FDEE3C730A0000FF0000")
+        assert bs.lengths[(0x770, "BC03")] == 8
+
 
 def _mk_sm(send_uds):
     sm = MagicMock()

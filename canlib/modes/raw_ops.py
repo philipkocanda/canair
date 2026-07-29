@@ -42,9 +42,10 @@ async def run_raw(args, transport, pids_data) -> int:
         return await run_raw_monitor(args, host, port, bitrate, pids_data)
 
     # All other commands: reuse the shared dispatch over a RawTerminal adapter.
-    from ..addressing import resolve_rx_offset
+    from ..addressing import AddressingMode, parse_mode, resolve_mode, resolve_rx_offset
     from ..commands._live import dispatch_mode
     from ..pids import build_ecu_index
+    from ..quirks import HK_F1XX_MINUS_ONE, has_quirk
     from ..timeouts import cli_timeout, ecu_timeouts_by_tx
     from ..transport import RawTerminal
 
@@ -52,8 +53,13 @@ async def run_raw(args, transport, pids_data) -> int:
     cli = cli_timeout(args)
     # Resolved tx->rx map (per-ECU rx_id / profile offset) so RawTerminal doesn't
     # recompute tx+8; unknown addresses fall back to the profile's rx_offset.
+    # A parallel tx->mode map carries each ECU's addressing mode (11-bit vs 29-bit).
     ecu_index = build_ecu_index(pids_data)
     rx_map: dict[int, int] = {info["tx_id"]: info["rx_id"] for info in ecu_index.values()}
+    mode_map: dict[int, AddressingMode] = {
+        info["tx_id"]: parse_mode(info["mode"]) or AddressingMode.NORMAL_11BIT
+        for info in ecu_index.values()
+    }
     terminal = RawTerminal(
         host,
         port,
@@ -64,6 +70,9 @@ async def run_raw(args, transport, pids_data) -> int:
         isotp_config=pids_data.get("isotp"),
         rx_map=rx_map,
         rx_offset=resolve_rx_offset(pids_data),
+        mode_map=mode_map,
+        mode=resolve_mode(pids_data),
+        hk_f1xx_offset=has_quirk(pids_data, HK_F1XX_MINUS_ONE),
     )
     # Per-ECU budgets apply only when the user didn't force --timeout.
     if cli is None:

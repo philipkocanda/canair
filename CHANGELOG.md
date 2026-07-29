@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **29-bit diagnostic addressing** — profiles can now declare a CAN addressing
+  mode under `addressing.mode`: `normal_11bit` (default), `normal_29bit`,
+  `normal_fixed_29bit` (the ISO `0x18DA{target}{tester}` convention used by
+  Ford/VAG and many non-Hyundai makes), or `extended_29bit`. A per-ECU
+  `addressing.mode` overrides the profile default. The raw (`slcan-tcp`) transport
+  builds each ECU's ISO-TP stack for its mode (extended CAN frames transmit with
+  the 29-bit flag), `canair discover` sweeps a 29-bit target-address range and
+  computes 29-bit response IDs, and `tx_id`/`rx_id` accept full 29-bit values when
+  a 29-bit mode is in effect. The Ioniq (11-bit) is unchanged. See
+  `plans/2026-07-28-multi-vehicle-support.md` (Phase 3).
+- **Profile `quirks:` list** — make-specific behavior toggles a profile opts
+  into. The first is `hk_f1xx_minus_one` (Hyundai/Kia identity DIDs answer one
+  less than requested, `22F188` → `62F187`); echo validation now tolerates that
+  off-by-one only when a profile declares the quirk, so a genuinely misfiled frame
+  on a make-neutral profile is flagged instead of silently accepted. The bundled
+  `ioniq-2017` profile opts in. (Phase 4.)
 - **`canair states`** — list and edit a profile's vehicle operating-state
   vocabulary (`vehicle_states.yaml`), the state-axis analogue of `canair bus`. A
   bare `canair states` lists each declared state with its description, whether
@@ -19,6 +35,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `canlib/states_edit.py`) — no more hand-editing `vehicle_states.yaml`.
 
 ### Changed
+
+- **ISO-TP padding is profile-driven** — the byte used to strip/split padded
+  multi-DID responses now comes from `isotp.tx_padding` (default `0xAA`) instead
+  of assuming Hyundai's `0xAA`, so a make padding with `0x00`/`0xCC` batches
+  correctly. (Phase 4.)
 
 - **Vehicle-state names are now an UPPERCASE controlled vocabulary** (like the
   CAN-bus segment codes) — `SLEEP/PLUGGED/ACC/ACC2/READY/CHARGING` — plus a new

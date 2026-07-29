@@ -105,3 +105,28 @@ class TestAddressingBlock:
     def test_addressing_must_be_mapping(self, tmp_path):
         p = _write(tmp_path, self._base("addressing: 8\n"))
         assert any("'addressing' must be a mapping" in e for e in validate_meta(p, REQUIRED))
+
+    def test_valid_addressing_mode(self, tmp_path):
+        p = _write(tmp_path, self._base("addressing:\n  mode: normal_fixed_29bit\n"))
+        assert validate_meta(p, REQUIRED) == []
+
+    def test_invalid_addressing_mode(self, tmp_path):
+        p = _write(tmp_path, self._base("addressing:\n  mode: bogus_mode\n"))
+        assert any("addressing.mode" in e for e in validate_meta(p, REQUIRED))
+
+
+class TestQuirks:
+    def _base(self, extra: str) -> str:
+        return 'car_model: "C"\ninit: "ATSP6;"\n' + extra
+
+    def test_valid_quirk(self, tmp_path):
+        p = _write(tmp_path, self._base("quirks:\n  - hk_f1xx_minus_one\n"))
+        assert validate_meta(p, REQUIRED) == []
+
+    def test_unknown_quirk(self, tmp_path):
+        p = _write(tmp_path, self._base("quirks:\n  - not_a_quirk\n"))
+        assert any("unknown quirk 'not_a_quirk'" in e for e in validate_meta(p, REQUIRED))
+
+    def test_quirks_must_be_list(self, tmp_path):
+        p = _write(tmp_path, self._base("quirks: hk_f1xx_minus_one\n"))
+        assert any("'quirks' must be a list" in e for e in validate_meta(p, REQUIRED))

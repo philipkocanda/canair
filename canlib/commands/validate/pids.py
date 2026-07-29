@@ -328,6 +328,7 @@ def validate_ecu_file(
         profile = _profile_for_ecu_file(path)
     allowed_states_set = allowed_states(profile)
     allowed_can_buses_set = _allowed_can_buses(profile)
+    profile_meta = getattr(profile, "meta", None) or {}
     fields = _SchemaFields.from_schema(schema)
     stats = _new_ecu_stats()
 
@@ -351,6 +352,7 @@ def validate_ecu_file(
             fields,
             allowed_states_set,
             allowed_can_buses_set,
+            profile_meta,
             errors,
             warnings,
             stats,
@@ -366,6 +368,7 @@ def _validate_ecu_entry(
     fields: _SchemaFields,
     allowed_states_set,
     allowed_can_buses_set,
+    profile_meta,
     errors,
     warnings,
     stats,
@@ -399,17 +402,28 @@ def _validate_ecu_entry(
     # declared vocabulary (can_buses.yaml) — vendor-specific, so per-profile.
     _validate_can_bus_list(ecu_def.get("can_bus"), label, errors, allowed_can_buses_set)
 
+    # Resolve this ECU's addressing mode (per-ECU addressing.mode → profile → 11-bit)
+    # to pick the valid arbitration-id width: 11-bit (0x7FF) vs 29-bit (0x1FFFFFFF).
+    from canlib.addressing import is_extended, resolve_mode
+
+    _validate_ecu_addressing(ecu_def.get("addressing"), label, errors)
+    mode = resolve_mode(profile_meta, ecu_def)
+    max_id = 0x1FFFFFFF if is_extended(mode) else 0x7FF
+    width = "0x00000000-0x1FFFFFFF (29-bit)" if is_extended(mode) else "0x000-0x7FF"
+
     # Validate tx_id
     tx_id = ecu_def.get("tx_id")
-    if tx_id is not None and (not isinstance(tx_id, int) or tx_id < 0 or tx_id > 0x7FF):
-        errors.append(f"{label}: tx_id must be 0x000-0x7FF, got {tx_id}")
+    if tx_id is not None and (
+        not isinstance(tx_id, int) or isinstance(tx_id, bool) or tx_id < 0 or tx_id > max_id
+    ):
+        errors.append(f"{label}: tx_id must be {width}, got {tx_id}")
 
     # Validate rx_id (optional CAN response-address override)
     rx_id = ecu_def.get("rx_id")
     if rx_id is not None and (
-        not isinstance(rx_id, int) or isinstance(rx_id, bool) or rx_id < 0 or rx_id > 0x7FF
+        not isinstance(rx_id, int) or isinstance(rx_id, bool) or rx_id < 0 or rx_id > max_id
     ):
-        errors.append(f"{label}: rx_id must be 0x000-0x7FF, got {rx_id}")
+        errors.append(f"{label}: rx_id must be {width}, got {rx_id}")
 
     _validate_identity(
         ecu_def,
@@ -892,16 +906,41 @@ def validate_meta(path: Path, required_fields: set[str]) -> list[str]:
     if "isotp" in data:
         errors.extend(_validate_isotp(data["isotp"], set(ISOTP_FIELDS), _is_int))
 
+    if "quirks" in data:
+        errors.extend(_validate_quirks(data["quirks"]))
+
     return errors
 
 
-# Accepted keys in the profile.yaml `addressing:` block. Only the TX→RX offset
-# today; 29-bit mode/width knobs are a later phase.
-_ADDRESSING_FIELDS: set[str] = {"rx_offset"}
+def _validate_quirks(quirks: Any) -> list[str]:
+    """Validate the profile.yaml ``quirks:`` list against the known vocabulary."""
+    from canlib.quirks import KNOWN_QUIRKS
+
+    if not isinstance(quirks, list):
+        return ["profile.yaml: 'quirks' must be a list of quirk tokens"]
+    errors: list[str] = []
+    for q in quirks:
+        if q not in KNOWN_QUIRKS:
+            errors.append(
+                f"profile.yaml: unknown quirk '{q}' (allowed: {', '.join(sorted(KNOWN_QUIRKS))})"
+            )
+    return errors
+
+
+# Accepted keys in the profile.yaml `addressing:` block: the TX→RX offset
+# (11-bit) and the addressing mode (11-bit vs 29-bit).
+_ADDRESSING_FIELDS: set[str] = {"rx_offset", "mode"}
+
+
+def _valid_addressing_modes() -> set[str]:
+    """The addressing-mode vocabulary, sourced from canlib.addressing (no drift)."""
+    from canlib.addressing import AddressingMode
+
+    return {m.value for m in AddressingMode}
 
 
 def _validate_addressing(addressing: Any, is_int: Callable[[Any], bool]) -> list[str]:
-    """Validate the profile.yaml ``addressing:`` block (CAN response-offset rule)."""
+    """Validate the profile.yaml ``addressing:`` block (CAN response-offset + mode)."""
     if not isinstance(addressing, dict):
         return ["profile.yaml: 'addressing' must be a mapping"]
     errors: list[str] = []
@@ -913,7 +952,33 @@ def _validate_addressing(addressing: Any, is_int: Callable[[Any], bool]) -> list
             )
     if "rx_offset" in addressing and not is_int(addressing["rx_offset"]):
         errors.append("profile.yaml: 'addressing.rx_offset' must be an integer")
+    if "mode" in addressing:
+        modes = _valid_addressing_modes()
+        if addressing["mode"] not in modes:
+            errors.append(
+                f"profile.yaml: 'addressing.mode' must be one of "
+                f"{', '.join(sorted(modes))}, got {addressing['mode']!r}"
+            )
     return errors
+
+
+def _validate_ecu_addressing(addressing: Any, label: str, errors: list[str]) -> None:
+    """Validate a per-ECU ``addressing:`` override block (only ``mode:`` today)."""
+    if addressing is None:
+        return
+    if not isinstance(addressing, dict):
+        errors.append(f"{label}: 'addressing' must be a mapping")
+        return
+    for key in addressing:
+        if key != "mode":
+            errors.append(f"{label}: unknown addressing field '{key}' (allowed: mode)")
+    if "mode" in addressing:
+        modes = _valid_addressing_modes()
+        if addressing["mode"] not in modes:
+            errors.append(
+                f"{label}: 'addressing.mode' must be one of "
+                f"{', '.join(sorted(modes))}, got {addressing['mode']!r}"
+            )
 
 
 def _validate_isotp(isotp: Any, allowed: set[str], is_int: Callable[[Any], bool]) -> list[str]:

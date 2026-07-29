@@ -19,7 +19,7 @@ import time
 import can
 import isotp
 
-from ..addressing import DEFAULT_RX_OFFSET
+from ..addressing import DEFAULT_MODE, DEFAULT_RX_OFFSET, AddressingMode, build_isotp_address
 from ..timing import TimingRecorder
 from ..transport_stats import TransportStats
 
@@ -66,13 +66,17 @@ class RawUdsClient:
         timeout: float = 1.0,
         isotp_config: dict | None = None,
         ecu_timeouts: dict[str, float] | None = None,
+        modes: dict[str, AddressingMode] | None = None,
+        mode: AddressingMode = DEFAULT_MODE,
     ):
         """``ecus``: name -> (tx_id, rx_id). ``timeout``: per-request seconds.
 
         ``ecu_timeouts``: optional ``{ECU_NAME(upper): seconds}`` per-ECU budget
         overriding ``timeout`` for that ECU (see :mod:`canlib.timeouts`).
         ``isotp_config``: optional profile ``isotp:`` block (flow-control/padding/
-        CAN-FD).
+        CAN-FD). ``modes``/``mode``: per-ECU addressing mode (name → mode) falling
+        back to the profile default ``mode`` — shapes each ECU's ISO-TP stack
+        (11-bit vs 29-bit normal/fixed).
         """
         from .isotp_params import build_isotp_params
 
@@ -85,9 +89,10 @@ class RawUdsClient:
         self.diag = TransportStats(transport="slcan-tcp")
         self.notifier = can.Notifier(bus, [], timeout=0.1)
         self._stacks: dict[str, isotp.NotifierBasedCanStack] = {}
+        modes = modes or {}
         params = build_isotp_params(isotp_config)
         for name, (tx, rx) in ecus.items():
-            addr = isotp.Address(isotp.AddressingMode.Normal_11bits, txid=tx, rxid=rx)
+            addr = build_isotp_address(tx, rx, modes.get(name, mode))
             stack = isotp.NotifierBasedCanStack(bus, self.notifier, address=addr, params=params)
             stack.start()
             self._stacks[name] = stack

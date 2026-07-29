@@ -6,12 +6,16 @@
 #
 # Each ECU file (e.g. bcm.yaml) must have this top-level structure:
 #   ECU_NAME:              # the canonical short name IS the top-level key
-#     tx_id: 0xNNN         # required — hex OBD-II request arbitration ID
+#     tx_id: 0xNNN         # required — hex OBD-II request arbitration ID. 11-bit
+#                          #   (0x000-0x7FF) for normal addressing; a full 29-bit
+#                          #   id (e.g. 0x18DA10F1) when the profile/ECU addressing
+#                          #   mode is a 29-bit mode.
 #     rx_id: 0xNNN         # optional — hex CAN response address. Defaults to
 #                          #   tx_id + the profile's addressing.rx_offset (itself
-#                          #   defaulting to +0x08). Set this only for an ECU whose
-#                          #   response address doesn't follow the profile's offset
-#                          #   rule (an irregular per-ECU mapping).
+#                          #   defaulting to +0x08) for 11-bit modes, or the
+#                          #   byte-swapped id for normal_fixed_29bit. Set this only
+#                          #   for an ECU whose response address doesn't follow the
+#                          #   profile's rule (an irregular per-ECU mapping).
 #     identity:            # optional — who this module is (see identity_fields)
 #       description: str   # human-readable module name
 #       part_number: str   # from F187/F188 (UDS) or 1A 8x (KWP2000)
@@ -76,11 +80,23 @@
 #   can_bitrate: int       # optional — vehicle bus speed in bit/s (default 500000).
 #                          #   Config transport.bitrate > this > device config > 500000.
 #   addressing: {...}      # optional — CAN diagnostic addressing rule:
-#                          #   rx_offset: int  # response = tx_id + this (default 0x08).
-#                          #     Set once here for a make with a non-standard fixed
-#                          #     offset (e.g. XPeng 0x80); per-ECU rx_id overrides it.
+#                          #   mode: normal_11bit (default) | normal_29bit |
+#                          #     normal_fixed_29bit | extended_29bit. Selects how the
+#                          #     CAN arbitration ids are formed. normal_fixed_29bit is
+#                          #     the ISO 0x18DA{target}{tester} diagnostic convention
+#                          #     (Ford/VAG/etc.); its response id is derived by swapping
+#                          #     the address bytes (no rx_offset). A per-ECU addressing.mode
+#                          #     overrides this profile default.
+#                          #   rx_offset: int  # response = tx_id + this (default 0x08;
+#                          #     11-bit modes only). Set once here for a make with a
+#                          #     non-standard fixed offset (e.g. XPeng 0x80); per-ECU
+#                          #     rx_id overrides it.
 #   multi_did_batching: bool   # profile default for per-ECU service-22 multi-DID batching
 #   failure_types: {0xNN: str} # optional — DTC failure-type byte meanings (profile-wide)
+#   quirks: [str]          # optional — make-specific behavior toggles the profile opts
+#                          #   into (make-neutral profiles omit). Known: hk_f1xx_minus_one
+#                          #   (Hyundai/Kia identity DIDs answer one less than requested,
+#                          #   22F188 -> 62F187; echo validation tolerates it for F1xx).
 #   isotp: {...}           # optional — client-side ISO-TP tuning (slcan-tcp transport):
 #                          #   tx_padding/blocksize/stmin/rx_flowcontrol_timeout/
 #                          #   rx_consecutive_frame_timeout/can_fd/tx_data_length.
@@ -93,6 +109,8 @@ required_ecu_fields:
 optional_ecu_fields:
   - identity        # ECU identity (name/part-number/protocol) — see identity_fields
   - rx_id           # CAN response address override (default tx_id + profile rx_offset)
+  - addressing      # Per-ECU addressing override — a mapping with `mode:` (see the
+                    #   profile addressing block); overrides the profile-wide mode.
   - can_bus         # Physical CAN bus segment(s) the ECU sits on — see valid_can_bus_codes
   - vehicle_states  # ECU-level: power states in which the ECU responds (10 01)
   - session

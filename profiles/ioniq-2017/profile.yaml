@@ -45,6 +45,12 @@
 car_model: "Hyundai Ioniq 2017"
 init: "ATSP6;ATS0;ATAL;ATST96;"
 
+# Make-specific quirks this profile opts into (make-neutral profiles omit this).
+# hk_f1xx_minus_one: Hyundai/Kia identity DIDs answer one less than requested
+#   (request 22F188 -> response 62F187); echo validation tolerates it for F1xx.
+quirks:
+  - hk_f1xx_minus_one
+
 # ELM327 response timeout in ms (applied as ATSTxx after init; --elm-timeout
 # overrides). The Ioniq 2017 responds slowly, so keep this high. ~614ms == ATST96.
 response_timeout_ms: 614

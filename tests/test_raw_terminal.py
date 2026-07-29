@@ -328,3 +328,65 @@ class TestRawTerminalRxResolution:
         t = raw_terminal.RawTerminal("h", 3333, 500000)
         t._stack(0x7E4)
         assert capture_addr[0x7E4] == 0x7EC  # default +8
+
+
+class TestRawTerminalModeResolution:
+    """The ISO-TP stack is built for the ECU's addressing mode (11-bit vs 29-bit)."""
+
+    @pytest.fixture
+    def capture_mode(self, monkeypatch):
+        from canlib.addressing import AddressingMode
+
+        seen: list[tuple[int, int, AddressingMode]] = []
+
+        def _build(tx_id, rx_id, mode):
+            seen.append((tx_id, rx_id, mode))
+
+            class _A:
+                _txid = tx_id
+
+            return _A()
+
+        monkeypatch.setattr(slcan_mod, "SlcanTcpBus", FakeBus)
+        monkeypatch.setattr(raw_terminal.can, "Notifier", FakeNotifier)
+        monkeypatch.setattr(raw_terminal, "build_isotp_address", _build)
+        monkeypatch.setattr(
+            raw_terminal.isotp,
+            "NotifierBasedCanStack",
+            lambda bus, notifier, address=None, params=None: FakeStack(address._txid, {}),
+        )
+        monkeypatch.setattr(raw_terminal.time, "sleep", lambda *_a: None)
+        return seen
+
+    def test_per_ecu_mode_map(self, capture_mode):
+        from canlib.addressing import AddressingMode
+
+        t = raw_terminal.RawTerminal(
+            "h",
+            3333,
+            500000,
+            mode_map={0x18DA10F1: AddressingMode.NORMAL_FIXED_29BIT},
+            mode=AddressingMode.NORMAL_11BIT,
+        )
+        t._stack(0x18DA10F1)
+        assert capture_mode[0][0] == 0x18DA10F1
+        assert capture_mode[0][2] == AddressingMode.NORMAL_FIXED_29BIT
+
+    def test_29bit_rx_derived_when_unmapped(self, capture_mode):
+        from canlib.addressing import AddressingMode
+
+        # No rx_map entry: RX for fixed-29 is the byte-swapped id.
+        t = raw_terminal.RawTerminal("h", 3333, 500000, mode=AddressingMode.NORMAL_FIXED_29BIT)
+        t._stack(0x18DA10F1)
+        tx, rx, mode = capture_mode[0]
+        assert (tx, rx, mode) == (0x18DA10F1, 0x18DAF110, AddressingMode.NORMAL_FIXED_29BIT)
+
+
+class TestRawTerminalQuirk:
+    def test_hk_f1xx_offset_forwarded(self, monkeypatch):
+        monkeypatch.setattr(slcan_mod, "SlcanTcpBus", FakeBus)
+        monkeypatch.setattr(raw_terminal.can, "Notifier", FakeNotifier)
+        t = raw_terminal.RawTerminal("h", 3333, 500000, hk_f1xx_offset=True)
+        assert t.hk_f1xx_offset is True
+        t2 = raw_terminal.RawTerminal("h", 3333, 500000)
+        assert t2.hk_f1xx_offset is False

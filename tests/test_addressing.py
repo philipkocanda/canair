@@ -6,7 +6,17 @@ conventional +0x08 default — plus that the ECU-index/registry builders and the
 RX↔TX lookups all honor it (see plans/2026-07-28-multi-vehicle-support.md).
 """
 
-from canlib.addressing import DEFAULT_RX_OFFSET, resolve_rx, resolve_rx_offset
+from canlib.addressing import (
+    DEFAULT_RX_OFFSET,
+    AddressingMode,
+    build_isotp_address,
+    fixed_29bit_rx,
+    is_extended,
+    parse_mode,
+    resolve_mode,
+    resolve_rx,
+    resolve_rx_offset,
+)
 from canlib.ecus import build_rx_index, build_rx_tx_index, resolve_tx, rx_for_tx
 from canlib.pids import build_ecu_index
 
@@ -99,3 +109,107 @@ class TestRxLookupsHonorResolution:
         assert resolve_tx("0x784", name_index={}, ecus=ecus) == 0x704
         # A known TX passes straight through.
         assert resolve_tx("0x704", name_index={}, ecus=ecus) == 0x704
+
+
+class TestAddressingMode:
+    """Phase 3: the 11-bit/29-bit addressing-mode vocabulary + resolution."""
+
+    def test_parse_mode(self):
+        assert parse_mode("normal_11bit") == AddressingMode.NORMAL_11BIT
+        assert parse_mode("NORMAL_FIXED_29BIT") == AddressingMode.NORMAL_FIXED_29BIT
+        assert parse_mode(AddressingMode.NORMAL_29BIT) == AddressingMode.NORMAL_29BIT
+        assert parse_mode("bogus") is None
+        assert parse_mode(None) is None
+
+    def test_is_extended(self):
+        assert not is_extended(AddressingMode.NORMAL_11BIT)
+        assert is_extended(AddressingMode.NORMAL_29BIT)
+        assert is_extended(AddressingMode.NORMAL_FIXED_29BIT)
+        assert is_extended(AddressingMode.EXTENDED_29BIT)
+
+    def test_resolve_mode_default(self):
+        assert resolve_mode(None) == AddressingMode.NORMAL_11BIT
+        assert resolve_mode({}) == AddressingMode.NORMAL_11BIT
+
+    def test_resolve_mode_profile(self):
+        meta = {"addressing": {"mode": "normal_fixed_29bit"}}
+        assert resolve_mode(meta) == AddressingMode.NORMAL_FIXED_29BIT
+
+    def test_resolve_mode_per_ecu_overrides_profile(self):
+        meta = {"addressing": {"mode": "normal_11bit"}}
+        ecu = {"addressing": {"mode": "normal_fixed_29bit"}}
+        assert resolve_mode(meta, ecu) == AddressingMode.NORMAL_FIXED_29BIT
+
+    def test_resolve_mode_ignores_bad_value(self):
+        assert resolve_mode({"addressing": {"mode": "nope"}}) == AddressingMode.NORMAL_11BIT
+
+    def test_fixed_29bit_rx_swaps_bytes(self):
+        # 0x18DA{target}{tester} request -> 0x18DA{tester}{target} response.
+        assert fixed_29bit_rx(0x18DA10F1) == 0x18DAF110
+        assert fixed_29bit_rx(0x18DA00F1) == 0x18DAF100
+
+    def test_resolve_rx_fixed_29bit(self):
+        assert resolve_rx(0x18DA10F1, mode=AddressingMode.NORMAL_FIXED_29BIT) == 0x18DAF110
+
+    def test_resolve_rx_explicit_wins_over_29bit(self):
+        assert (
+            resolve_rx(0x18DA10F1, rx_id=0x18DAF199, mode=AddressingMode.NORMAL_FIXED_29BIT)
+            == 0x18DAF199
+        )
+
+
+class TestBuildIsotpAddress:
+    """Phase 3: (tx, rx, mode) -> isotp.Address for both raw clients."""
+
+    def test_normal_11bit(self):
+        a = build_isotp_address(0x7E4, 0x7EC, AddressingMode.NORMAL_11BIT)
+        assert a.get_tx_arbitration_id() == 0x7E4
+        assert a.get_rx_arbitration_id() == 0x7EC
+
+    def test_normal_29bit_arbitrary(self):
+        a = build_isotp_address(0x18DA10F1, 0x18DAF110, AddressingMode.NORMAL_29BIT)
+        assert a.get_tx_arbitration_id() == 0x18DA10F1
+        assert a.get_rx_arbitration_id() == 0x18DAF110
+
+    def test_normal_fixed_29bit(self):
+        # target/source extracted from the request id -> 18DA convention.
+        a = build_isotp_address(0x18DA10F1, 0x18DAF110, AddressingMode.NORMAL_FIXED_29BIT)
+        assert a.get_tx_arbitration_id() == 0x18DA10F1
+        assert a.get_rx_arbitration_id() == 0x18DAF110
+
+    def test_extended_29bit(self):
+        a = build_isotp_address(0x18DA10F1, 0x18DAF110, AddressingMode.EXTENDED_29BIT)
+        assert a.get_tx_arbitration_id() == 0x18DA10F1
+
+
+class TestRegistryModeResolution:
+    """build_ecu_index / load_ecus store each ECU's resolved addressing mode + RX."""
+
+    def test_default_mode(self):
+        idx = build_ecu_index({"ecus": {"BMS": {"tx_id": 0x7E4, "pids": {}}}})
+        assert idx["BMS"]["mode"] == "normal_11bit"
+        assert idx["BMS"]["rx_id"] == 0x7EC
+
+    def test_profile_29bit_mode(self):
+        data = {
+            "addressing": {"mode": "normal_fixed_29bit"},
+            "ecus": {"PCM": {"tx_id": 0x18DA10F1, "pids": {}}},
+        }
+        idx = build_ecu_index(data)
+        assert idx["PCM"]["mode"] == "normal_fixed_29bit"
+        assert idx["PCM"]["rx_id"] == 0x18DAF110
+
+    def test_per_ecu_mode_override(self):
+        data = {
+            "addressing": {"mode": "normal_11bit"},
+            "ecus": {
+                "PCM": {
+                    "tx_id": 0x18DA10F1,
+                    "addressing": {"mode": "normal_fixed_29bit"},
+                    "pids": {},
+                }
+            },
+        }
+        idx = build_ecu_index(data)
+        assert idx["PCM"]["mode"] == "normal_fixed_29bit"
+        assert idx["PCM"]["rx_id"] == 0x18DAF110

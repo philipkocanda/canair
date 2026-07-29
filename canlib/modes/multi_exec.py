@@ -106,7 +106,9 @@ async def _read_batch(sm, tx_id, group, out, batch_state) -> bool:
             batch_state.disabled.add(tx_id)
         return False
     split = split_multi_did(
-        resp.get("hex", ""), [(d, batch_state.lengths[(tx_id, d)]) for d in dids]
+        resp.get("hex", ""),
+        [(d, batch_state.lengths[(tx_id, d)]) for d in dids],
+        batch_state.pad,
     )
     if split is None:
         batch_state.disabled.add(tx_id)

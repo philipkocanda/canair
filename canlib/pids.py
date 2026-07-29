@@ -38,6 +38,7 @@ class EcuIndexEntry(TypedDict):
 
     tx_id: int
     rx_id: int
+    mode: str
     pids: dict[str, PidIndexEntry]
     multi_did: bool
 
@@ -252,7 +253,7 @@ def build_routines_index(pids_data: dict) -> dict[str, RoutineIndexEntry]:
 
 def build_ecu_index(pids_data: dict) -> dict:
     """Build lookup: ECU_NAME -> {tx_id, rx_id, pids: {PID: {parameters: ...}}}."""
-    from .addressing import resolve_rx, resolve_rx_offset
+    from .addressing import resolve_mode, resolve_rx, resolve_rx_offset
 
     index: dict[str, EcuIndexEntry] = {}
     default_batch = bool(pids_data.get("multi_did_batching", False))
@@ -260,11 +261,17 @@ def build_ecu_index(pids_data: dict) -> dict:
     for ecu_name, ecu_def in pids_data.get("ecus", {}).items():
         tx_id = ecu_def["tx_id"]
         ecu_rx = ecu_def.get("rx_id")
+        mode = resolve_mode(pids_data, ecu_def)
         entry: EcuIndexEntry = {
             "tx_id": tx_id,
             # Resolved CAN response address (explicit rx_id → profile offset →
             # default +8), so the raw transport doesn't recompute tx+8.
-            "rx_id": resolve_rx(tx_id, int(ecu_rx) if ecu_rx is not None else None, rx_offset),
+            "rx_id": resolve_rx(
+                tx_id, int(ecu_rx) if ecu_rx is not None else None, rx_offset, mode
+            ),
+            # Addressing mode (per-ECU → profile → 11-bit): the raw transport
+            # builds the ISO-TP stack for this ECU from it.
+            "mode": mode.value,
             "pids": {},
             # UDS service-22 multi-DID batching: per-ECU flag, defaulting to the
             # profile-wide setting. Only ECUs that opt in are batched (and even

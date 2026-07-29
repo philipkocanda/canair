@@ -55,29 +55,30 @@ class BatchState:
     rejects it (or whose response fails to split) for the rest of the session.
     """
 
-    def __init__(self):
+    def __init__(self, pad: int = 0xAA):
         self.lengths: dict[tuple[int, str], int] = {}  # (tx_id, DID4) -> data bytes
         self.disabled: set[int] = set()  # tx_ids that don't support batching
+        self.pad = pad  # ISO-TP padding byte (profile isotp.tx_padding)
 
     def learn(self, tx_id: int, did4: str, resp_hex: str) -> None:
         """Record a DID's data length from a single-DID ``62 DID <data>`` response."""
-        dlen = _did_data_len(resp_hex, did4)
+        dlen = _did_data_len(resp_hex, did4, self.pad)
         if dlen is not None:
             self.lengths[(tx_id, did4.upper())] = dlen
 
 
 def _strip_trailing_padding(data: bytes, pad: int = 0xAA) -> bytes:
-    """Drop trailing ISO-TP padding bytes (Hyundai pads with 0xAA)."""
+    """Drop trailing ISO-TP padding bytes (profile ``isotp.tx_padding``, default 0xAA)."""
     i = len(data)
     while i > 0 and data[i - 1] == pad:
         i -= 1
     return data[:i]
 
 
-def _did_data_len(resp_hex: str, did4: str) -> int | None:
+def _did_data_len(resp_hex: str, did4: str, pad: int = 0xAA) -> int | None:
     """Length (bytes) of a single-DID response's data, padding stripped.
 
-    ``resp_hex`` is a ``62 <DID> <data> [AA…]`` positive response. Returns the
+    ``resp_hex`` is a ``62 <DID> <data> [pad…]`` positive response. Returns the
     number of data bytes after the 2-byte DID, or None if it doesn't parse.
     """
     try:
@@ -87,15 +88,18 @@ def _did_data_len(resp_hex: str, did4: str) -> int | None:
         return None
     if len(b) < 3 or b[0] != 0x62 or b[1:3] != did:
         return None
-    return len(_strip_trailing_padding(b[3:]))
+    return len(_strip_trailing_padding(b[3:], pad))
 
 
-def split_multi_did(resp_hex: str, dids_lengths: list[tuple[str, int]]) -> dict[str, str] | None:
+def split_multi_did(
+    resp_hex: str, dids_lengths: list[tuple[str, int]], pad: int = 0xAA
+) -> dict[str, str] | None:
     """Split a ``62`` multi-DID response into per-DID single-style responses.
 
     Args:
-        resp_hex: reassembled UDS payload, ``62 D1 <data1> D2 <data2> … [AA…]``.
+        resp_hex: reassembled UDS payload, ``62 D1 <data1> D2 <data2> … [pad…]``.
         dids_lengths: ordered ``(DID4, data_len_bytes)`` as requested.
+        pad: ISO-TP padding byte (profile ``isotp.tx_padding``, default 0xAA).
 
     Returns ``{DID4: "62"+DID+data hex}`` (each looking like a normal single-DID
     response so existing decoders work unchanged), or ``None`` if the response
@@ -123,7 +127,7 @@ def split_multi_did(resp_hex: str, dids_lengths: list[tuple[str, int]]) -> dict[
         pos += dlen
         out[did4.upper()] = (b"\x62" + did + data).hex().upper()
     # Anything left over must be padding only.
-    if any(x != 0xAA for x in b[pos:]):
+    if any(x != pad for x in b[pos:]):
         return None
     return out
 

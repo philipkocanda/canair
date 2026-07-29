@@ -360,7 +360,9 @@ class MonitorController:
         from .multi_batch import BatchState
 
         assert self.sm is not None  # not self.raw ⟺ sm was constructed
-        self._batch_state = BatchState()
+        from ..transport.isotp_params import resolve_tx_padding
+
+        self._batch_state = BatchState(resolve_tx_padding(self.pids_data))
         for step in session_steps or []:
             stype = step["type"]
             if stype == "skm-wake":

@@ -24,7 +24,7 @@ import time
 import can
 import isotp
 
-from ..addressing import DEFAULT_RX_OFFSET
+from ..addressing import DEFAULT_MODE, DEFAULT_RX_OFFSET, AddressingMode, build_isotp_address
 from ..log import log_response
 from ..safety import enforce_command_safety
 from ..timing import TimingRecorder
@@ -54,6 +54,9 @@ class RawTerminal:
         isotp_config: dict | None = None,
         rx_map: dict[int, int] | None = None,
         rx_offset: int = DEFAULT_RX_OFFSET,
+        mode_map: dict[int, AddressingMode] | None = None,
+        mode: AddressingMode = DEFAULT_MODE,
+        hk_f1xx_offset: bool = False,
     ):
         from .isotp_params import build_isotp_params
         from .slcan_tcp import SlcanTcpBus
@@ -67,6 +70,12 @@ class RawTerminal:
         # (e.g. a discovery sweep) fall back to tx + rx_offset.
         self.rx_map: dict[int, int] = rx_map or {}
         self.rx_offset = rx_offset
+        # CAN addressing mode: per-ECU map (from the registry) → the profile
+        # default. Shapes the ISO-TP stack (11-bit vs 29-bit normal/fixed).
+        self.mode_map: dict[int, AddressingMode] = mode_map or {}
+        self.mode = mode
+        # Profile HK F1xx -1 identity-DID quirk; forwarded to echo validation.
+        self.hk_f1xx_offset = hk_f1xx_offset
         # Parity attributes some callers read.
         self.cmd_count = 0
         self.cmd_time = 0.0
@@ -119,6 +128,7 @@ class RawTerminal:
                 expected_sid=expected_sid,
                 expected_did=expected_did,
                 expected_echo=expected_echo,
+                hk_f1xx_offset=self.hk_f1xx_offset,
             )
             self.diag.record_response(
                 resp,
@@ -197,8 +207,13 @@ class RawTerminal:
     def _stack(self, tx_id: int) -> isotp.NotifierBasedCanStack:
         st = self._stacks.get(tx_id)
         if st is None:
-            rx_id = self.rx_map.get(tx_id, tx_id + self.rx_offset)
-            addr = isotp.Address(isotp.AddressingMode.Normal_11bits, txid=tx_id, rxid=rx_id)
+            mode = self.mode_map.get(tx_id, self.mode)
+            from ..addressing import resolve_rx
+
+            rx_id = self.rx_map.get(tx_id)
+            if rx_id is None:
+                rx_id = resolve_rx(tx_id, rx_offset=self.rx_offset, mode=mode)
+            addr = build_isotp_address(tx_id, rx_id, mode)
             st = isotp.NotifierBasedCanStack(
                 self.bus, self.notifier, address=addr, params=self._params
             )

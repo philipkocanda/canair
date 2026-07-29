@@ -477,11 +477,14 @@ async def async_main(args):
         print(f"error: {e}", file=sys.stderr)
         sys.exit(1)
 
+    from canlib.quirks import HK_F1XX_MINUS_ONE, has_quirk
+
     terminal = WiCANTerminal(
         host=host,
         timeout=_ws_timeout,
         verbose=args.verbose,
         unsafe=args.unsafe,
+        hk_f1xx_offset=has_quirk(pids_data, HK_F1XX_MINUS_ONE),
     )
     # Per-ECU response budgets apply only when the user didn't force --timeout.
     if _cli_timeout is None:
@@ -977,7 +980,18 @@ async def dispatch_mode(args, terminal: Terminal, pids_data, host):
             write_yaml=True,
         )
     elif args.discover:
-        addr_range = parse_range(args.range) if args.range != "01-FF" else (0x700, 0x7EF)
+        from canlib.addressing import is_extended, resolve_mode
+        from canlib.modes.discover import DEFAULT_TESTER_ADDRESS
+
+        _addr_mode = resolve_mode(pids_data)
+        # 11-bit sweeps arbitration ids (default 0x700-0x7EF); 29-bit sweeps the
+        # target-address byte (default 0x00-0xFF), formed into 0x18DA{target}{tester}.
+        if args.range != "01-FF":
+            addr_range = parse_range(args.range)
+        elif is_extended(_addr_mode):
+            addr_range = (0x00, 0xFF)
+        else:
+            addr_range = (0x700, 0x7EF)
         await mode_discover(
             terminal,
             addr_range,
@@ -991,6 +1005,8 @@ async def dispatch_mode(args, terminal: Terminal, pids_data, host):
             register=getattr(args, "register", False),
             dry_run=getattr(args, "dry_run", False),
             identify=getattr(args, "identify", False),
+            mode=_addr_mode,
+            tester=DEFAULT_TESTER_ADDRESS,
         )
     else:
         # The interactive REPL is an ELM327 command prompt: it sets the ECU

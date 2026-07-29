@@ -36,8 +36,31 @@ unchanged at every step.
   "expect 1 frame"); canair PID keys drop the count digit (ISO-TP reassembly
   handles frame counting). **Phase 2 is COMPLETE** — `profiles/xpeng-g6/` is
   seeded (step 8).
-- **Phases 3–4 — remaining.** Next is 29-bit addressing (Phase 3), then the
-  de-Hyundai heuristics (Phase 4).
+- **Phases 3–4 — DONE** (this change).
+  - **Phase 3 (29-bit addressing, gap A):** `canlib/addressing.py` grew an
+    `AddressingMode` enum (`normal_11bit`/`normal_29bit`/`normal_fixed_29bit`/
+    `extended_29bit`), a mode-aware `resolve_rx` (fixed-29-bit derives RX by
+    byte-swap), `resolve_mode` (per-ECU `addressing.mode` → profile → 11-bit
+    default), and `build_isotp_address` — the single home turning `(tx, rx, mode)`
+    into an `isotp.Address` so both raw clients (`RawTerminal`/`RawUdsClient`) stop
+    hardwiring `Normal_11bits`. The registry (`load_ecus`/`build_ecu_index`) stores
+    each ECU's resolved `mode`; the raw path threads a `mode_map`. `canair discover`
+    sweeps a 29-bit target-address range (`0x18DA{target}{tester}`) and computes
+    29-bit RX, width-aware in all output. SLCAN already transmits extended frames
+    (`format_slcan_frame` `T`-prefix); verified 29-bit ISO-TP frames carry the
+    extended flag. Schema + `canair validate` accept `addressing.mode` (profile &
+    per-ECU) and widen `tx_id`/`rx_id` to 29-bit when a 29-bit mode is in effect.
+  - **Phase 4 (de-Hyundai heuristics, gaps F/G):** the HK F1xx `-1` echo tolerance
+    (`uds_parse.parse_uds_response`/`payload_echo_mismatch`) is gated behind the
+    profile `quirks: [hk_f1xx_minus_one]` flag (new `canlib/quirks.py`), default off
+    for new profiles, declared on for `ioniq-2017`; terminals resolve + forward it,
+    `canair validate captures` too. The multi-DID padding-strip/split
+    (`multi_batch.py`) is driven by `isotp.tx_padding` (`resolve_tx_padding`) instead
+    of assuming `0xAA`. Gap G's identity-label split (step 13) is satisfied by the
+    existing "clear marking" (`(HK)`/`(UDS)` suffixes + docstring notes) — a
+    per-profile override table was judged not worth the complexity for a cosmetic
+    probe-hint; `identity_decode`'s display strip already handles `AA`/`00`/`FF`
+    generically. **All phases complete.**
 
 ## Worked example / first non-Hyundai driver: XPeng G6
 
@@ -132,13 +155,13 @@ constants.
 
 | # | Gap | Impact | Location | Status |
 |---|-----|--------|----------|--------|
-| A | **11-bit only** on active UDS path — no 29-bit (`18DAF1xx`) | Blocks many non-Hyundai makes (Ford/VAG/etc.) | `uds_raw.py:87`, `raw_terminal.py:191` | open (Phase 3) |
+| A | **11-bit only** on active UDS path — no 29-bit (`18DAF1xx`) | Blocks many non-Hyundai makes (Ford/VAG/etc.) | `addressing.py`, `uds_raw.py`, `raw_terminal.py`, `discover.py` | ✅ done (Phase 3) |
 | B | **`RX = TX + 8` hardcoded**, no per-ECU `rx_id` | Breaks irregular RX (e.g. **XPeng G6 `+0x80`**) & 29-bit | `canlib/addressing.py`, `ecus.py`, `pids.py`, raw path, `discover.py` | ✅ done (addressing abstraction; seed step 8 remains) |
 | C | **No per-profile bitrate** | Must edit global config per car | `config.py`, `profile.yaml` | ✅ done (`a0a0a80`) |
 | D | **Hardcoded ISO-TP params** (STmin/blocksize/FC/padding/CAN-FD) | Can't tune makes using `0x00`/`0xCC` padding or CAN-FD | `canlib/transport/isotp_params.py` | ✅ done (`a0a0a80`) |
 | E | **Hyundai defaults leak into scaffolding** — `DEFAULT_INIT` w/ `ATST96` | Every new car starts Ioniq-tuned/slow | `commands/profile.py:25`, `_live.py`, `terminal.py` | ✅ done (`a0a0a80`) |
-| F | **HK F1xx `-1` offset** lint heuristic hardcoded | Silently tolerates misfiled frames on non-HK | `uds_parse.py:238-251` | open (Phase 4) |
-| G | **HK-flavored identity labels** + `0xAA` padding-strip assumption | Cosmetic / trailing garbage on odd padding | `modes/identity_records.py`, `multi_batch.py:69`, `identity_decode.py:33` | open (Phase 4) |
+| F | **HK F1xx `-1` offset** lint heuristic hardcoded | Silently tolerates misfiled frames on non-HK | `uds_parse.py`, `quirks.py` | ✅ done (Phase 4 — profile `quirks:`) |
+| G | **HK-flavored identity labels** + `0xAA` padding-strip assumption | Cosmetic / trailing garbage on odd padding | `multi_batch.py`, `identity_decode.py`, `isotp_params.py` | ✅ done (Phase 4 — `tx_padding`-driven; labels marked) |
 | H | **No `profile.yaml` schema** — only `car_model`+`init` validated | New knobs won't be validated | `validate/pids.py` | ✅ done (`a0a0a80`) |
 
 ## Phase 1 — Foundation: per-profile config plumbing — ✅ DONE (`a0a0a80`)
@@ -194,29 +217,34 @@ worked example above).
    `rx_id` editor was added (`canair ecu add --rx-id` / `register_ecu(rx_id=…)`)
    to close the CLI-coverage gap for the new field.
 
-## Phase 3 — 29-bit addressing (gap A)
+## Phase 3 — 29-bit addressing (gap A) — ✅ DONE
 
-9. **Profile/ECU `addressing` block** — support `mode: normal_11bit |
-   extended_29bit | normal_fixed_29bit` and the 29-bit diagnostic convention
-   (`0x18DA{ecu}{tester}` / `18DB33F1` functional). Map to
-   `isotp.AddressingMode.NormalFixed_29bits` / `Extended_29bits` in both raw
-   clients (replace the hardwired `Normal_11bits`).
-10. **Discovery** (`modes/discover.py`) — support sweeping a 29-bit diagnostic
-    range + computing 29-bit RX; register with the right addressing mode.
-11. **SLCAN frame TX/RX** — verify the extended-ID send path (receive already
-    parses extended IDs, `slcan_tcp.py:67-69`); ensure 29-bit ISO-TP frames
-    transmit with the extended flag.
+9. ✅ **Profile/ECU `addressing` block** — `mode: normal_11bit | normal_29bit |
+   normal_fixed_29bit | extended_29bit` (the 29-bit diagnostic convention
+   `0x18DA{ecu}{tester}` / `18DB33F1` functional). `build_isotp_address` maps
+   each to `isotp.AddressingMode.NormalFixed_29bits` / `Extended_29bits` /
+   `Normal_29bits` / `Normal_11bits` in both raw clients (the hardwired
+   `Normal_11bits` is gone). Per-ECU `addressing.mode` overrides the profile.
+10. ✅ **Discovery** (`modes/discover.py`) — `discovery_targets` sweeps a 29-bit
+    target-address range into `0x18DA{target}{tester}` request ids and computes
+    29-bit RX; output is width-aware (`fmt_id`), and register uses the right mode.
+11. ✅ **SLCAN frame TX/RX** — extended-id send already works
+    (`format_slcan_frame` emits a `T`-prefixed frame); verified 29-bit ISO-TP
+    frames transmit with the extended flag (`tests/test_multi_vehicle.py`).
 
-## Phase 4 — De-Hyundai the heuristics (gaps F, G)
+## Phase 4 — De-Hyundai the heuristics (gaps F, G) — ✅ DONE
 
-12. **F1xx `-1` offset** (`uds_parse.py:238-251`) — gate behind a profile flag
-    (e.g. `identity.quirks: [hk_f1xx_minus_one]`); default off for new profiles,
-    on for `ioniq-2017`.
-13. **Identity DID labels** (`modes/identity_records.py`) — split ISO-standard
-    from HK-flavored labels; per-profile overrides or clear marking. Low priority
-    (cosmetic).
-14. **`0xAA` padding strip** (`multi_batch.py:69`, `identity_decode.py:33`) —
-    drive the pad byte from profile `isotp.tx_padding` instead of assuming `0xAA`.
+12. ✅ **F1xx `-1` offset** (`uds_parse.py`) — gated behind the profile
+    `quirks: [hk_f1xx_minus_one]` flag (`canlib/quirks.py`); default off for new
+    profiles, on for `ioniq-2017`. Terminals + `validate captures` forward it.
+13. ✅ **Identity DID labels** (`modes/identity_records.py`) — the "clear marking"
+    branch is satisfied (`(HK)`/`(UDS)` suffixes + docstring notes distinguish
+    ISO-standard from HK-flavored). A per-profile override table was judged not
+    worth the complexity for cosmetic probe hints (low priority as scoped).
+14. ✅ **`0xAA` padding strip** (`multi_batch.py`) — driven by
+    profile `isotp.tx_padding` via `resolve_tx_padding` instead of assuming `0xAA`
+    (the functional multi-DID split path; `identity_decode`'s display strip stays
+    generic across `AA`/`00`/`FF`).
 
 ## Verification (per phase)
 

@@ -239,7 +239,8 @@ def _hk_identity_offset(expected_sid: int, expected_id: bytes, got: bytes) -> bo
     """True when ``got`` is the expected identifier minus one — the Hyundai/Kia
     identity-DID quirk (request 22F188 -> response 62F187). Expected ECU
     behaviour on HK modules, not a stale/misfiled frame, so echo validation
-    tolerates it for F1xx DIDs.
+    tolerates it for F1xx DIDs **when the profile opts into the quirk** (see
+    :data:`canlib.quirks.HK_F1XX_MINUS_ONE`); off for make-neutral profiles.
     """
     return (
         expected_sid == 0x22
@@ -251,7 +252,9 @@ def _hk_identity_offset(expected_sid: int, expected_id: bytes, got: bytes) -> bo
     )
 
 
-def payload_echo_mismatch(request_pid: str, payload_hex: str) -> str | None:
+def payload_echo_mismatch(
+    request_pid: str, payload_hex: str, hk_f1xx_offset: bool = False
+) -> str | None:
     """Cross-check a stored capture payload against the PID it was recorded for.
 
     Returns a human-readable reason string when the payload's SID+identifier
@@ -260,6 +263,9 @@ def payload_echo_mismatch(request_pid: str, payload_hex: str) -> str | None:
     or when we can't validate (non-identifier request, NRC/short payload, hex we
     can't parse). Only known echo mismatches are reported, so this is safe to
     surface as a soft lint warning.
+
+    ``hk_f1xx_offset``: when True (the profile opts into the HK F1xx -1 quirk),
+    an F1xx identity DID answering one *less* than requested is tolerated.
     """
     echo = request_echo(request_pid)
     if echo is None:
@@ -283,9 +289,9 @@ def payload_echo_mismatch(request_pid: str, payload_hex: str) -> str | None:
     if expected_id and resp[1 : 1 + len(expected_id)] != expected_id:
         got = resp[1 : 1 + len(expected_id)]
         # Hyundai/Kia identity DIDs answer one *less* than requested (the HK -1
-        # offset: 22F188 -> 62F187, etc.). That's expected ECU behaviour, not a
-        # misfiled frame, so don't flag F1xx reads that are exactly off-by-one.
-        if _hk_identity_offset(expected_sid, expected_id, got):
+        # offset: 22F188 -> 62F187, etc.). On an HK profile that's expected ECU
+        # behaviour, not a misfiled frame, so don't flag exact off-by-one F1xx.
+        if hk_f1xx_offset and _hk_identity_offset(expected_sid, expected_id, got):
             return None
         return (
             f"payload echoes id 0x{got.hex().upper()} but request {request_pid} "
@@ -323,6 +329,7 @@ def parse_uds_response(
     expected_sid: int | None = None,
     expected_did: int | None = None,
     expected_echo: bytes | None = None,
+    hk_f1xx_offset: bool = False,
 ) -> UdsResponse:
     """Parse a UDS response (as returned by any transport) into structured data.
 
@@ -359,6 +366,10 @@ def parse_uds_response(
         nrc_desc: str - NRC description (if not ok)
         error: str - error message (if parse failed or echo mismatched)
         raw: str - original response text
+
+    ``hk_f1xx_offset``: when True (the profile opts into the HK F1xx -1 quirk),
+    an F1xx identity DID answering one *less* than requested passes echo
+    validation instead of being rejected as a stale/misfiled frame.
     """
     result: UdsResponse = {"raw": raw, "ok": False}
 
@@ -543,7 +554,9 @@ def parse_uds_response(
                 result["error_kind"] = CAT_DECODE
                 return result
             got = response_bytes[1 : 1 + len(echo)]
-            if got != echo and not _hk_identity_offset(expected_sid, echo, got):
+            if got != echo and not (
+                hk_f1xx_offset and _hk_identity_offset(expected_sid, echo, got)
+            ):
                 result["error"] = (
                     f"Echo mismatch: response id 0x{got.hex().upper()} "
                     f"!= expected 0x{echo.hex().upper()} "

@@ -44,12 +44,16 @@ class WiCANTerminal:
         timeout: float = 3.0,
         verbose: bool = False,
         unsafe: bool = False,
+        hk_f1xx_offset: bool = False,
     ):
         self.host = host
         self.url = f"ws://{host}/ws"
         self.timeout = timeout
         self.verbose = verbose
         self.unsafe = unsafe
+        # Profile HK F1xx -1 identity-DID quirk (tolerate 62F187 for a 22F188
+        # request); forwarded to parse_uds_response's echo validation.
+        self.hk_f1xx_offset = hk_f1xx_offset
         self.ws: ClientConnection | None = None
         # Set when a command's read loop exits WITHOUT consuming the ELM `>`
         # prompt (a timeout mid-response): the adapter may still emit trailing
@@ -367,6 +371,7 @@ class WiCANTerminal:
                 expected_sid=expected_sid,
                 expected_did=expected_did,
                 expected_echo=expected_echo,
+                hk_f1xx_offset=self.hk_f1xx_offset,
             )
             self.diag.record_response(
                 resp,

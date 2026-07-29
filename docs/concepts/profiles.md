@@ -47,10 +47,11 @@ and `init` are required; everything else is optional with a sensible default.
 | `car_model` | str | Human description (required). |
 | `init` | str | ELM327 AT init string, `;`-separated (required). Applies to the `wican-ws` (ELM327) transport only; the `slcan-tcp` transport ignores it and drives ISO-TP directly. A fresh profile scaffolds `ATSP6;ATS0;ATAL;` (ISO 15765-4 11-bit/500 kbit). |
 | `can_bitrate` | int | Vehicle bus speed in bit/s. Set it when the diagnostic bus isn't 500 kbit/s (e.g. `250000`). Precedence: config `transport.bitrate` > this > device config > `500000`. |
-| `addressing` | map | CAN diagnostic addressing rule. `rx_offset` sets the response address as `tx_id + rx_offset` (default `0x08`, the 11-bit Hyundai/Kia convention). Set it once for a make with a different fixed offset — e.g. `0x80` for XPeng (request `0x704` → response `0x784`). A single irregular ECU overrides it with its own `rx_id` (see ECU fields). |
+| `addressing` | map | CAN diagnostic addressing rule. `mode` selects how the arbitration IDs are formed — `normal_11bit` (default), `normal_29bit`, `normal_fixed_29bit` (the ISO `0x18DA{target}{tester}` convention used by Ford/VAG/etc.), or `extended_29bit`. `rx_offset` sets the 11-bit response address as `tx_id + rx_offset` (default `0x08`, the Hyundai/Kia convention; set `0x80` for XPeng, request `0x704` → response `0x784`). For `normal_fixed_29bit` the response ID is derived by swapping the address bytes, so `rx_offset` doesn't apply. A single irregular ECU overrides the mode with a per-ECU `addressing.mode`, or the response address with its own `rx_id` (see ECU fields). |
 | `response_timeout_ms` | int | ELM327 response timeout (applied as `ATSTxx`; `--elm-timeout` overrides). Raise it for slow ECUs (the Ioniq needs `614`), lower it to speed up cycles. |
 | `multi_did_batching` | bool | Profile default for per-ECU service-22 multi-DID batching. |
 | `failure_types` | map | DTC failure-type byte meanings, profile-wide (`{0xNN: "meaning"}`). |
+| `quirks` | list | Make-specific behavior toggles the profile opts into (make-neutral profiles omit). Known: `hk_f1xx_minus_one` — Hyundai/Kia identity DIDs answer one less than requested (`22F188` → `62F187`); echo validation tolerates it for F1xx only when this quirk is set. |
 | `isotp` | map | Client-side ISO-TP tuning for the `slcan-tcp` transport (see below). |
 
 The `isotp:` block overrides the client-side ISO-TP flow-control / padding /

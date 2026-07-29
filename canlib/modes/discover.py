@@ -4,7 +4,12 @@ import asyncio
 import json
 import sys
 
+from ..addressing import DEFAULT_MODE, AddressingMode, is_extended
 from ..transport.protocol import Terminal
+
+# Standard tester/source address used to form 29-bit physical request ids
+# (0x18DA{target}{tester}); F1 is the ISO 15765-4 external-tester address.
+DEFAULT_TESTER_ADDRESS = 0xF1
 
 
 def _profile_rx_offset() -> int:
@@ -17,6 +22,29 @@ def _profile_rx_offset() -> int:
     from ..pids import load_pids
 
     return resolve_rx_offset(load_pids())
+
+
+def fmt_id(can_id: int) -> str:
+    """Format a CAN arbitration id: 3 hex digits for 11-bit, 8 for 29-bit."""
+    return f"0x{can_id:08X}" if can_id > 0x7FF else f"0x{can_id:03X}"
+
+
+def discovery_targets(
+    addr_range: tuple[int, int],
+    mode: AddressingMode = DEFAULT_MODE,
+    tester: int = DEFAULT_TESTER_ADDRESS,
+) -> list[int]:
+    """Build the list of request (TX) arbitration ids to probe.
+
+    For 11-bit modes the range is swept directly as arbitration ids. For 29-bit
+    modes the range is interpreted as *target-address bytes* and each is formed
+    into a physical diagnostic request id ``0x18DA{target}{tester}`` (normal-fixed
+    convention) — so ``--range 00-FF`` sweeps every ECU address.
+    """
+    start, end = addr_range
+    if is_extended(mode):
+        return [0x18DA0000 | (target << 8) | tester for target in range(start, end + 1)]
+    return list(range(start, end + 1))
 
 
 async def mode_discover(
@@ -32,6 +60,8 @@ async def mode_discover(
     register: bool = False,
     dry_run: bool = False,
     identify: bool = False,
+    mode: AddressingMode = DEFAULT_MODE,
+    tester: int = DEFAULT_TESTER_ADDRESS,
 ):
     """Sweep a range of CAN arbitration IDs to find responding ECUs.
 
@@ -40,19 +70,32 @@ async def mode_discover(
     are considered "alive".
 
     Args:
-        addr_range: (start, end) TX IDs inclusive (e.g. 0x700, 0x7EF).
+        addr_range: (start, end) inclusive. For 11-bit ``mode`` these are TX
+            arbitration ids (e.g. 0x700, 0x7EF); for a 29-bit ``mode`` they are
+            target-address bytes (e.g. 0x00, 0xFF) formed into
+            ``0x18DA{target}{tester}`` request ids.
         delay: Seconds to wait between addresses to avoid overwhelming
             the WiCAN WebSocket. Default 0.2s.
+        mode: CAN addressing mode (from the profile); selects 11-bit vs the
+            29-bit normal-fixed diagnostic convention.
+        tester: Tester/source address for 29-bit request ids (default 0xF1).
         register: Register newly-discovered ECUs as files in the profile's ecus/ directory.
         dry_run: With ``register``, preview additions without writing.
         identify: Run ``canair identity`` on each alive ECU after the sweep
             (skips the interactive prompt). When unset, offer interactively.
     """
+    tx_ids = discovery_targets(addr_range, mode, tester)
+    total = len(tx_ids)
     start, end = addr_range
-    total = end - start + 1
 
+    scope = (
+        f"target 0x{start:02X}..0x{end:02X} → {fmt_id(tx_ids[0])}..{fmt_id(tx_ids[-1])}"
+        if is_extended(mode)
+        else f"TX {fmt_id(start)}..{fmt_id(end)}"
+    )
     print(
-        f"\n  ECU discovery: TX 0x{start:03X}..0x{end:03X} ({total} addresses)"
+        f"\n  ECU discovery: {scope} ({total} addresses)"
+        f"\n  Mode: {mode.value}"
         f"\n  Probe: 10 01 (default session request)"
         f"\n  Delay: {delay}s between addresses"
     )
@@ -61,14 +104,14 @@ async def mode_discover(
     alive = []
     errors = []
 
-    for i, tx_id in enumerate(range(start, end + 1)):
+    for i, tx_id in enumerate(tx_ids):
         try:
             await terminal.set_header(tx_id)
             response = await terminal.send_uds("1001", timeout=2.0)
         except Exception as e:
             errors.append((tx_id, str(e)))
             if verbose:
-                print(f"  ! 0x{tx_id:03X}: {e}")
+                print(f"  ! {fmt_id(tx_id)}: {e}")
             # On connection errors, wait longer before retrying
             await asyncio.sleep(1.0)
             continue
@@ -76,18 +119,18 @@ async def mode_discover(
         if response["ok"]:
             n_bytes = len(response["bytes"])
             alive.append((tx_id, "positive", response["hex"]))
-            print(f"  + 0x{tx_id:03X}: OK ({n_bytes} bytes) {response['hex']}")
+            print(f"  + {fmt_id(tx_id)}: OK ({n_bytes} bytes) {response['hex']}")
         elif response.get("nrc") is not None:
             nrc = response["nrc"]
             desc = response["nrc_desc"]
             # NRC means the ECU is alive but rejected the request
             alive.append((tx_id, f"NRC 0x{nrc:02X}", desc))
-            print(f"  ~ 0x{tx_id:03X}: NRC 0x{nrc:02X} ({desc}) — ECU alive")
+            print(f"  ~ {fmt_id(tx_id)}: NRC 0x{nrc:02X} ({desc}) — ECU alive")
         else:
             # NO DATA / no response — not an ECU at this address
             if verbose:
                 error = response.get("error", "no response")
-                print(f"  - 0x{tx_id:03X}: {error}")
+                print(f"  - {fmt_id(tx_id)}: {error}")
 
         # Progress indicator (non-verbose)
         if not verbose and not response["ok"] and response.get("nrc") is None:
@@ -117,15 +160,15 @@ async def mode_discover(
         rx_offset = _profile_rx_offset()
         print("\n  Responding addresses:")
         for tx_id, status, detail in alive:
-            rx_id = rx_for_tx(tx_id, ecus, rx_offset)
+            rx_id = rx_for_tx(tx_id, ecus, rx_offset, mode)
             tag = names.get(tx_id) or "NEW"
-            print(f"    0x{tx_id:03X} (RX 0x{rx_id:03X}) [{tag}] — {status}: {detail}")
+            print(f"    {fmt_id(tx_id)} (RX {fmt_id(rx_id)}) [{tag}] — {status}: {detail}")
         print(f"\n  Cross-reference: {len(known)} known, {len(new)} new (not in ECU registry).")
 
     if errors:
         print("\n  Errors:")
         for tx_id, err in errors:
-            print(f"    0x{tx_id:03X}: {err}")
+            print(f"    {fmt_id(tx_id)}: {err}")
 
     if as_json:
         from ..ecus import load_ecus, rx_for_tx
@@ -134,11 +177,12 @@ async def mode_discover(
         rx_offset = _profile_rx_offset()
         names = {tx: name for tx, _, _, name in _classify_alive(alive)[0]}
         out = {
-            "range": f"0x{start:03X}-0x{end:03X}",
+            "range": f"{fmt_id(tx_ids[0])}-{fmt_id(tx_ids[-1])}",
+            "mode": mode.value,
             "alive": [
                 {
-                    "tx": f"0x{t:03X}",
-                    "rx": f"0x{rx_for_tx(t, ecus, rx_offset):03X}",
+                    "tx": fmt_id(t),
+                    "rx": fmt_id(rx_for_tx(t, ecus, rx_offset, mode)),
                     "status": s,
                     "detail": d,
                     "name": names.get(t),
@@ -146,7 +190,7 @@ async def mode_discover(
                 }
                 for t, s, d in alive
             ],
-            "errors": [{"tx": f"0x{t:03X}", "error": e} for t, e in errors],
+            "errors": [{"tx": fmt_id(t), "error": e} for t, e in errors],
         }
         print(json.dumps(out, indent=2))
 
@@ -281,7 +325,7 @@ def _register_discovered(alive: list[tuple[int, str, str]], dry_run: bool = Fals
     if dry_run:
         print(f"  Would register {len(new)} new ECU(s) ({len(alive) - len(new)} already known):")
         for tx, status in new:
-            print(f"    0x{tx:03X} -> Unknown-{tx:03X}  ({status})")
+            print(f"    {fmt_id(tx)} -> Unknown-{tx:03X}  ({status})")
         print("  (dry-run — nothing written)")
         return
 
@@ -293,8 +337,8 @@ def _register_discovered(alive: list[tuple[int, str, str]], dry_run: bool = Fals
         try:
             register_ecu(tx, notes=f"Discovered {today} via 10 01 ({status}).")
             added += 1
-            print(f"    + 0x{tx:03X} -> Unknown-{tx:03X}  ({status})")
+            print(f"    + {fmt_id(tx)} -> Unknown-{tx:03X}  ({status})")
         except EcusEditError as e:
-            print(f"    ! 0x{tx:03X}: {e}")
+            print(f"    ! {fmt_id(tx)}: {e}")
     print(f"  Registered {added} new ECU(s); {len(alive) - len(new)} already known.")
     print("  Next: name them, then run `canair identity <ecu>` to fill in metadata.")

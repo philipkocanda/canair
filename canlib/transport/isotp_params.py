@@ -49,3 +49,19 @@ def build_isotp_params(config: dict | None = None) -> dict[str, int | bool]:
             if value is not None:
                 params[key] = value
     return params
+
+
+def resolve_tx_padding(pids_data: dict | None) -> int:
+    """The profile's ISO-TP padding byte (``isotp.tx_padding``, default 0xAA).
+
+    The byte ECUs pad short frames with — Hyundai/Kia use ``0xAA``, but other
+    makes use ``0x00``/``0xCC``. Callers that strip trailing padding from a
+    reassembled payload read it from here rather than assuming ``0xAA``.
+    """
+    if isinstance(pids_data, dict):
+        isotp = pids_data.get("isotp")
+        if isinstance(isotp, dict):
+            value = isotp.get("tx_padding")
+            if isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= 0xFF:
+                return value
+    return DEFAULT_TX_PADDING

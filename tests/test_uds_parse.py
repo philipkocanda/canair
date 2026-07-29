@@ -197,14 +197,25 @@ class TestParseServicePidEcho:
         assert r["ok"] is False
         assert "Echo mismatch" in r["error"]
 
-    def test_hk_identity_offset_tolerated(self):
-        # 22F188 -> 62F187 is the expected Hyundai/Kia -1 offset, not a mismatch.
-        r = parse_uds_response("62 F1 87 00", expected_sid=0x22, expected_echo=b"\xf1\x88")
+    def test_hk_identity_offset_tolerated_when_quirk_on(self):
+        # 22F188 -> 62F187 is the expected Hyundai/Kia -1 offset when the profile
+        # opts into the quirk (hk_f1xx_offset=True), not a mismatch.
+        r = parse_uds_response(
+            "62 F1 87 00", expected_sid=0x22, expected_echo=b"\xf1\x88", hk_f1xx_offset=True
+        )
         assert r["ok"] is True
 
+    def test_hk_identity_offset_flagged_when_quirk_off(self):
+        # Default (make-neutral) profile: the -1 echo is a stale/misfiled frame.
+        r = parse_uds_response("62 F1 87 00", expected_sid=0x22, expected_echo=b"\xf1\x88")
+        assert r["ok"] is False
+        assert "Echo mismatch" in r["error"]
+
     def test_hk_offset_minus_two_still_rejected(self):
-        # -2 is a genuine stale/queue-lag frame, not the HK quirk.
-        r = parse_uds_response("62 F1 86 00", expected_sid=0x22, expected_echo=b"\xf1\x88")
+        # -2 is a genuine stale/queue-lag frame, not the HK quirk (even with it on).
+        r = parse_uds_response(
+            "62 F1 86 00", expected_sid=0x22, expected_echo=b"\xf1\x88", hk_f1xx_offset=True
+        )
         assert r["ok"] is False
         assert "Echo mismatch" in r["error"]
 
@@ -225,9 +236,13 @@ class TestPayloadEchoMismatch:
         assert reason is not None
         assert "F193" in reason
 
-    def test_hk_identity_offset_not_flagged(self):
-        # 22F188 -> 62F187 is expected HK behaviour.
-        assert payload_echo_mismatch("22F188", "62F18700") is None
+    def test_hk_identity_offset_not_flagged_when_quirk_on(self):
+        # 22F188 -> 62F187 is expected HK behaviour when the profile opts in.
+        assert payload_echo_mismatch("22F188", "62F18700", hk_f1xx_offset=True) is None
+
+    def test_hk_identity_offset_flagged_when_quirk_off(self):
+        # Make-neutral default: the -1 echo is flagged as stale/misfiled.
+        assert payload_echo_mismatch("22F188", "62F18700") is not None
 
     def test_sid_mismatch_flagged(self):
         reason = payload_echo_mismatch("2102", "7F2131")
