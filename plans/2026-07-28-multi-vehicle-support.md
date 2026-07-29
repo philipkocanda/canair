@@ -44,7 +44,11 @@ unchanged at every step.
     default), and `build_isotp_address` — the single home turning `(tx, rx, mode)`
     into an `isotp.Address` so both raw clients (`RawTerminal`/`RawUdsClient`) stop
     hardwiring `Normal_11bits`. The registry (`load_ecus`/`build_ecu_index`) stores
-    each ECU's resolved `mode`; the raw path threads a `mode_map`. `canair discover`
+    each ECU's resolved `mode` **as the `AddressingMode` enum** (typed end to end —
+    consumers read `info["mode"]` directly, no stringify/re-parse), and
+    `build_isotp_address` is exhaustive via `assert_never`, so adding a mode that
+    isn't mapped is a type error, not a runtime surprise (commit `0e6bc9f`). The raw
+    path threads a `mode_map`. `canair discover`
     sweeps a 29-bit target-address range (`0x18DA{target}{tester}`) and computes
     29-bit RX, width-aware in all output. SLCAN already transmits extended frames
     (`format_slcan_frame` `T`-prefix); verified 29-bit ISO-TP frames carry the
@@ -246,30 +250,46 @@ worked example above).
     (the functional multi-DID split path; `identity_decode`'s display strip stays
     generic across `AA`/`00`/`FF`).
 
-## Verification (per phase)
+## Verification (per phase) — landed
 
-- `canair validate all` — new profile schema passes; Ioniq unchanged.
-- **Ioniq regression:** `uv run canair query "query BMS:2101"` and
-  `canair identity BMS` produce identical results (defaults reproduce `+8` /
-  11-bit / `0xAA` / 500k).
-- **New-profile smoke:** `canair profile create testcar` → scaffold has neutral
-  (non-`ATST96`) init. ✅ (Phase 1 done.)
-- **Phase 2 / XPeng G6:** with `profiles/xpeng-g6/` seeded (TX `0x704`, `rx_id:
-  0x784`), the `EcuAddress` resolver returns `0x784` for the G6 ECU while still
-  returning `tx+8` for every Ioniq ECU. Unit test both. On a bench/car,
-  `canair --profile xpeng-g6 query 704:2211011` reads SOC over the raw path.
-- **29-bit (Phase 3):** synthetic ISO-TP test (mock `can.BusABC`) asserting
-  `18DAF1xx` framing, and/or a bench/other-car profile.
-- **Unit tests** for the `EcuAddress` resolver: explicit rx_id (G6 `+0x80`),
-  profile offset, default +8, 29-bit fixed.
+- ✅ `canair validate all` — the bundled `ioniq-2017` and seeded `xpeng-g6`
+  profiles both validate; new `addressing.mode` / per-ECU `addressing` / `quirks`
+  fields are schema-checked (`tests/test_validate_meta.py`,
+  `tests/test_validate_pids.py`).
+- ✅ **Ioniq regression:** the resolver reproduces `+8` / 11-bit / `0xAA` / 500k —
+  `load_ecus()` returns `rx 0x7EC`, `mode normal_11bit` for BMS; unchanged behaviour.
+- ✅ **New-profile smoke:** `canair profile create` scaffold has the neutral
+  (non-`ATST96`) init (Phase 1).
+- ✅ **Phase 2 / XPeng G6:** `resolve_rx`/`build_ecu_index` return `0x784` for the
+  G6's `0x704` (profile `rx_offset: 0x80`) while every Ioniq ECU still resolves
+  `tx+8` (`tests/test_addressing.py`).
+- ✅ **29-bit (Phase 3):** `tests/test_multi_vehicle.py` drives a mock `can.BusABC`
+  and asserts a 29-bit ISO-TP send emits an extended (`is_extended_id`) frame on
+  `0x18DA10F1`, serialized by SLCAN as an uppercase-`T` frame; plus
+  `discovery_targets` forming `0x18DA{target}{tester}` ids and `resolve_rx`
+  byte-swapping the fixed-29 RX.
+- ✅ **`EcuAddress` resolver unit tests** (`tests/test_addressing.py`): explicit
+  `rx_id` (G6 `+0x80`), profile offset, default `+8`, and fixed-29 byte-swap; mode
+  resolution precedence (per-ECU → profile → default) and `build_isotp_address`
+  for every mode.
+- ✅ **Phase 4:** `hk_f1xx_minus_one` quirk on/off flips the echo-mismatch
+  tolerance (`tests/test_uds_parse.py`, `tests/test_validate_captures_echo.py`);
+  the multi-DID split honours a non-`0xAA` `tx_padding` (`tests/test_multi_batching.py`);
+  `RawTerminal` threads the mode map + quirk (`tests/test_raw_terminal.py`).
 
-## Docs to update (per AGENTS.md policy)
+## Docs updated (per AGENTS.md policy) — landed
 
-- `docs/` bring-your-own-car pages: new `can_bitrate` / `addressing` / `isotp`
-  profile fields, per-ECU `rx_id`, 29-bit setup.
-- `config.example.yaml` + `profile.yaml` comments; `AGENTS.md` profile/ECU field
-  references; `canair profile create` scaffolding notes.
-- Keep `README.md` pointer-only.
+- ✅ `docs/concepts/profiles.md` — `addressing.mode` (11-bit vs the 29-bit modes),
+  `quirks:`, and the existing `can_bitrate`/`rx_offset`/`isotp` fields; per-ECU
+  `addressing.mode` note.
+- ✅ `docs/bring-your-own-car/01-create-profile.md` — 29-bit (`normal_fixed_29bit`)
+  setup pointer alongside the XPeng `rx_offset` example.
+- ✅ `AGENTS.md` profile/ECU field references (`addressing.mode`, per-ECU
+  `addressing`, `quirks`, `tx_padding`-driven padding, the echo-mismatch quirk
+  wording) and `canlib/schema/pids_schema.yaml` comments; `CHANGELOG.md`
+  `[Unreleased]`.
+- `config.example.yaml` needs nothing — addressing/quirks live in `profile.yaml`,
+  not user config. `README.md` stays pointer-only (unchanged).
 
 ## Notes / open questions
 
@@ -277,14 +297,20 @@ worked example above).
   Kia-sheet idea): a real upstream profile, 11-bit/500k so no 29-bit dependency,
   and a genuine non-`+8` RX offset that exercises the Phase 2 addressing
   abstraction. Seed it as soon as per-ECU `rx_id` (step 5) exists.
-- **Open — 7-digit PID convention.** The upstream G6 PIDs (`2211011`, `221122`,
-  `22011A1`) are longer than a plain `22`+DID. Decode how WiCAN parses the
-  trailing digit(s) (read the in-repo `wican-fw/` source) before transcribing, or
-  the seeded DIDs will be wrong. Until resolved, keep them as `draft`/unverified.
-- **Open — G6 flow control.** The upstream `init` sets an explicit FC header
-  (`ATFCSH704;ATFCSM1`); on `wican-ws` the ELM327 firmware handles it, but confirm
-  `can-isotp`'s auto-generated flow control suffices on the raw `slcan-tcp` path
-  (a per-ECU FC-address override may be a small follow-up if not).
+- **Resolved — 7-digit PID convention.** The upstream G6 PIDs (`2211011`,
+  `221122`, `22011A1`) are `22`+4-hex-DID + an optional trailing ELM327
+  response-frame-count digit; canair PID keys drop the count digit (ISO-TP
+  reassembly handles frame counting). Seeded G6 PIDs stay `draft`/unverified until
+  confirmed on a car.
+- **Open — G6 flow control (bench verification).** The upstream `init` sets an
+  explicit FC header (`ATFCSH704;ATFCSM1`); on `wican-ws` the ELM327 firmware
+  handles it, but `can-isotp`'s auto-generated flow control on the raw `slcan-tcp`
+  path is untested against the G6 (a per-ECU FC-address override may be a small
+  follow-up if it doesn't suffice).
+- **Open — real-vehicle 29-bit confirmation.** Phase 3 is verified by synthetic
+  ISO-TP/SLCAN tests (mock bus); a bench/car run against a real 29-bit
+  (`normal_fixed_29bit`) vehicle to confirm end-to-end framing is still pending —
+  no such profile is seeded yet.
 - A Kia Soul/Niro-seeded profile (11-bit, still `+8`) remains a possible *second*
   fixture but adds little over the G6 for exercising the addressing code.
 - 29-bit (Phase 3) is the single largest effort — Phase 2's addressing
