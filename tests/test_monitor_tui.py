@@ -129,6 +129,11 @@ class FakeEditor:
     def ensure_valid(self, _last_queries):
         pass
 
+    def clear_selection(self):
+        had = self.selected is not None
+        self.selected = None
+        return had
+
     def selection_label(self):
         if self.selected is None:
             return ""
@@ -725,4 +730,35 @@ class TestMonitorEditing:
             assert not isinstance(app.screen, EditParamDialog)
             assert ed.applied is None
             assert app.paused is False
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
+    async def test_escape_clears_selection(self):
+        ed = FakeEditor()
+        app = MonitorApp(FakeController(editor=ed))
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause(0.1)
+            await pilot.press("down")  # select SOC
+            await pilot.pause(0.05)
+            assert ed.selected is not None
+            await pilot.press("escape")
+            await pilot.pause(0.05)
+            assert ed.selected is None
+            status = _plain(app.query_one("#status").render())
+            assert "Selection cleared" in status
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
+    async def test_event_log_modal_opens_and_closes(self):
+        from canlib.modes._monitor_tui import EventLogModal
+
+        app = MonitorApp(FakeController(editor=FakeEditor()))
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause(0.1)
+            await pilot.press("l")
+            await pilot.pause(0.1)
+            assert isinstance(app.screen, EventLogModal)
+            await pilot.press("escape")
+            await pilot.pause(0.1)
+            assert not isinstance(app.screen, EventLogModal)
             await pilot.press("q")

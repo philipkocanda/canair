@@ -11,6 +11,7 @@ from rich.text import Text
 
 from ..formatting import (
     _render_hex_line,
+    changed_param_highlights,
     render_byte_rulers,
     render_param_table,
 )
@@ -156,8 +157,20 @@ def _render_entry(
         # With rulers on, annotate each param with the payload byte index(es) it
         # maps to (e.g. "16-17"), matching the diff view.
         n_bytes = len(raw_hex) // 2 if (show_rulers and raw_hex) else None
+        # Highlight the param(s) a just-changed byte decodes to, with the same
+        # background the changed byte gets in the hex line (skipped when stale —
+        # a timed-out reuse of last-good data is not a live change).
+        changed_styles = (
+            changed_param_highlights(params, raw_hex, prev_raw) if raw_hex and not stale else {}
+        )
         entry_text.append_text(
-            render_param_table(params, verbose=verbose, n_bytes=n_bytes, selected_name=sel_name)
+            render_param_table(
+                params,
+                verbose=verbose,
+                n_bytes=n_bytes,
+                selected_name=sel_name,
+                changed_styles=changed_styles,
+            )
         )
     elif decode:
         entry_text.append(f"      {decode}\n")

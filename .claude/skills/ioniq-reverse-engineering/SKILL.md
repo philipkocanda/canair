@@ -267,10 +267,14 @@ Live-refreshing poll (its own top-level command; positional query steps like
 as setup, `query` steps poll in a
 background worker with TesterPresent keepalives. On a TTY it's a scrollable
 Textual TUI (`↑↓/j/k`/wheel scroll, `f` follow-tail, `space` pause, `=`/`-` poll
-faster/slower live, `s` save payloads with a metadata modal, `?` a keybinding
-help modal, `q` quit); piped, it polls silently until
+faster/slower live, `r` toggle byte-index rulers, `l` open the errors/diagnostics
+log overlay, `↑`/`↓` select a parameter (`esc` deselects), `e`/`v`/`d`/`F`
+edit/verify/en-disable/filter, `s` save payloads with a metadata modal, `?` a
+keybinding help modal, `q` quit); piped, it polls silently until
 Ctrl+C. Hex view highlights bytes changed since the previous cycle, colors bytes
-by verification state, and shows ASCII for unmapped PIDs. The status line shows a
+by verification state, and shows ASCII for unmapped PIDs; a changed byte also
+highlights the parameter row(s) whose expression decodes it, with the same
+coverage-coloured background the byte gets. The status line shows a
 **`captured N/uniq M`** frame counter — total fresh payloads received vs distinct
 values kept (both differ from the on-screen row count of one row per PID). **Keep-mode default is
 `--keep-unique`** — the monitor stores only distinct payloads per PID, so a

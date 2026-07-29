@@ -125,6 +125,12 @@ class MonitorEditor:
         if self.selected is not None and self.selected not in self.selectable(last_queries):
             self.selected = None
 
+    def clear_selection(self) -> bool:
+        """Drop the selection cursor; return True if there was one to clear."""
+        had = self.selected is not None
+        self.selected = None
+        return had
+
     def cycle_filter(self, last_queries: list[EcuFrame] | None = None) -> str:
         """Advance to the next display filter; keep the selection valid."""
         self.filter_mode = FILTERS[(FILTERS.index(self.filter_mode) + 1) % len(FILTERS)]

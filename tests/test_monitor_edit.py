@@ -160,6 +160,17 @@ class TestSelection:
         ed.move(ed.c.last_queries, 1)
         assert ed.selection_label() == "BMS 2101 SOC"
 
+    def test_clear_selection_returns_true_when_selected(self):
+        ed = self._editor()
+        ed.move(ed.c.last_queries, 1)  # select SOC
+        assert ed.clear_selection() is True
+        assert ed.selected is None
+
+    def test_clear_selection_returns_false_when_none(self):
+        ed = self._editor()
+        assert ed.clear_selection() is False
+        assert ed.selected is None
+
 
 # ── editing (writes to disk) ──────────────────────────────────────────────────
 @pytest.fixture

@@ -26,6 +26,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar
 
+from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, VerticalScroll
@@ -322,6 +323,97 @@ class EditParamDialog(ModalScreen[dict | None]):
         self.dismiss(None)
 
 
+# Central-log categories mapped to a display colour. Data-integrity faults
+# (frames dropped/corrupted, bus errors, internal exceptions) are the loud red
+# class; the softer non-answers (stale/no-data/decode) are yellow; anything else
+# is dim. Categories are produced by canlib.uds_parse.classify_response +
+# canlib.log.log_exception ("internal").
+_EVENT_CATEGORY_STYLE = {
+    "drop": "red",
+    "bus": "red",
+    "internal": "bold red",
+    "stale": "yellow",
+    "no_data": "yellow",
+    "decode": "yellow",
+}
+
+
+class EventLogModal(ModalScreen[None]):
+    """Scrollable overlay of the central diagnostics event log.
+
+    Snapshots the last N lines of ``canair logs`` (the same size-rotated file
+    the transport-fault recorder writes drops/stale/timeouts/bus/decode and
+    internal-exception events to) and colour-codes them by category. Read-only;
+    reopen to refresh. The full history and management live in ``canair logs``.
+    """
+
+    _MAX_LINES = 200
+
+    CSS = """
+    EventLogModal { align: center middle; background: $background 60%; }
+    #evlog-box {
+        width: 90%; max-width: 140; height: 80%; max-height: 90%;
+        padding: 1 2; border: round $accent; background: $surface;
+    }
+    #evlog-title { text-style: bold; margin-bottom: 1; }
+    #evlog-rows { height: 1fr; }
+    #evlog-hint { color: $text-muted; margin-top: 1; }
+    """
+
+    BINDINGS: ClassVar[list[Binding]] = [
+        Binding("escape", "close", "close"),
+        Binding("q", "close", "close"),
+        Binding("l", "close", "close"),
+        Binding("j", "scroll_down", "down", show=False),
+        Binding("k", "scroll_up", "up", show=False),
+        Binding("g", "to_top", "top", show=False),
+        Binding("G", "to_bottom", "bottom", show=False),
+    ]
+
+    def compose(self) -> ComposeResult:
+        from textual.containers import Vertical
+
+        with Vertical(id="evlog-box"):
+            yield Label("Diagnostics event log (canair logs)", id="evlog-title")
+            with VerticalScroll(id="evlog-rows"):
+                yield Static(self._render_events(), id="evlog-body", markup=False)
+            yield Label("newest last · j/k g/G scroll · l / esc / q to close", id="evlog-hint")
+
+    def on_mount(self) -> None:
+        # Land on the newest events (the file is oldest→newest).
+        self.query_one("#evlog-rows", VerticalScroll).scroll_end(animate=False)
+
+    def _render_events(self) -> Text:
+        from ..log import parse_event_line, read_event_log
+
+        lines = read_event_log(lines=self._MAX_LINES)
+        if not lines:
+            return Text("(no events logged yet)", style="dim")
+        out = Text()
+        for line in lines:
+            fields = parse_event_line(line)
+            category = fields.get("category", "")
+            style = _EVENT_CATEGORY_STYLE.get(category, "dim")
+            out.append(line, style=style)
+            out.append("\n")
+        return out
+
+    def action_close(self) -> None:
+        self.dismiss(None)
+
+    def action_scroll_down(self) -> None:
+        self.query_one("#evlog-rows", VerticalScroll).scroll_relative(y=1, animate=False)
+
+    def action_scroll_up(self) -> None:
+        self.query_one("#evlog-rows", VerticalScroll).scroll_relative(y=-1, animate=False)
+
+    def action_to_top(self) -> None:
+        self.query_one("#evlog-rows", VerticalScroll).scroll_home(animate=False)
+
+    def action_to_bottom(self) -> None:
+        self.query_one("#evlog-rows", VerticalScroll).scroll_end(animate=False)
+
+
 class MonitorApp(HelpMixin, App):
     """Scrollable, in-place live-value monitor."""
 
@@ -343,6 +435,7 @@ class MonitorApp(HelpMixin, App):
         Binding("n", "new_segment", "new segment"),
         Binding("f", "toggle_follow", "follow"),
         Binding("r", "toggle_rulers", "rulers"),
+        Binding("l", "event_log", "errors/log"),
         Binding("space", "toggle_pause", "pause"),
         Binding("equals_sign", "faster", "poll faster"),
         Binding("plus", "faster", "poll faster", show=False),
@@ -350,6 +443,7 @@ class MonitorApp(HelpMixin, App):
         Binding("underscore", "slower", "poll slower", show=False),
         Binding("down", "select(1)", "select down", show=False, priority=True),
         Binding("up", "select(-1)", "select up", show=False, priority=True),
+        Binding("escape", "clear_selection", "clear selection", show=False),
         Binding("e", "edit", "edit"),
         Binding("v", "verify", "verify"),
         Binding("d", "disable", "en/disable"),
@@ -571,7 +665,7 @@ class MonitorApp(HelpMixin, App):
         if ed is None:
             return (
                 "[dim]↑↓/jk PgUp/PgDn g/G · f follow · space pause · r rulers · "
-                f"s save{seg} · ? help · q quit[/]"
+                f"l errors · s save{seg} · ? help · q quit[/]"
             )
         filt = getattr(ed, "filter_mode", "all")
         filt_txt = f"[cyan]{filt}[/]" if filt != "all" else "[dim]all[/]"
@@ -579,10 +673,11 @@ class MonitorApp(HelpMixin, App):
         label = ed.selection_label() if hasattr(ed, "selection_label") else ""
         if label:
             sel = f"[b]▶ {label}[/]  "
+        deselect = " · esc deselect" if label else ""
         return (
             f"{sel}[dim]filter[/] {filt_txt} "
             "[dim]· ↑↓ select · e edit · v verify · d en/disable · F filter · "
-            f"s save{seg} · ? help · q quit[/]"
+            f"s save{seg}{deselect} · ? help · q quit[/]"
         )
 
     # -- actions -----------------------------------------------------------
@@ -624,6 +719,12 @@ class MonitorApp(HelpMixin, App):
         self.controller.show_rulers = not self.controller.show_rulers
         self._refresh_body()
 
+    def action_event_log(self) -> None:
+        """Open the scrollable diagnostics event-log overlay."""
+        if self._modal_active():
+            return
+        self.push_screen(EventLogModal())
+
     # -- selection / in-place editing --------------------------------------
     def _last_queries(self):
         return getattr(self.controller, "last_queries", [])
@@ -647,6 +748,22 @@ class MonitorApp(HelpMixin, App):
         self._render_no_follow()
         self._scroll_to_selection()
         self._update_status()
+
+    def action_clear_selection(self) -> None:
+        """Drop the ▶ parameter cursor so ↑/↓ resume plain scrolling.
+
+        No-ops (letting escape fall through) when a modal owns the screen or
+        nothing is selected, so it never steals escape from a dialog.
+        """
+        if self._modal_active():
+            return
+        ed = self._editor()
+        if ed is None or not getattr(ed, "clear_selection", None):
+            return
+        if not ed.clear_selection():
+            return
+        self._render_no_follow()
+        self._flash("Selection cleared.")
 
     def action_cycle_filter(self) -> None:
         ed = self._editor()

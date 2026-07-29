@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`canair monitor` TUI enhancements** — deselect, an errors/log overlay, and
+  byte→parameter change-highlighting:
+  - **`esc` clears the parameter-selection cursor** (deselect), so `↑`/`↓` resume
+    plain scrolling after selecting a row for in-place editing.
+  - **`l` opens a scrollable errors/diagnostics log overlay** — a live view of the
+    central `canair logs` event log (dropped/stale ISO-TP frames, timeouts, bus,
+    decode, and internal errors), colour-coded by category.
+  - **A changed payload byte now also highlights the parameter row(s) it decodes
+    to**, with the same coverage-coloured background the byte itself gets
+    (verified→`dark_green`, unverified→`dark_goldenrod`), linking a byte flash to
+    the value it produced.
+
 - **Extended (mixed) 11-bit and functional-TX addressing support** — the
   remaining multi-vehicle addressing gaps from
   `plans/2026-07-28-multi-vehicle-support.md`:

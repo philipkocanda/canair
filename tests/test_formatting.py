@@ -1,6 +1,8 @@
 """Tests for canlib.formatting — output formatting helpers."""
 
 from canlib.formatting import (
+    _HIGHLIGHT_STYLE,
+    changed_param_highlights,
     format_byte_ranges,
     format_value,
     param_byte_index_str,
@@ -151,6 +153,68 @@ class TestParamByteIndexStr:
 
     def test_empty_expression(self):
         assert param_byte_index_str("", 27) == ""
+
+
+class TestChangedParamHighlights:
+    # 5-byte single-frame payload: WiCAN B3 → ISO-TP/ELM index 2.
+    ROWS = (("SOC", 50.0, "%", "B3", None, True),)
+
+    def test_no_prev_no_highlight(self):
+        assert changed_param_highlights(list(self.ROWS), "6201020304", "") == {}
+
+    def test_unchanged_byte_no_highlight(self):
+        # Byte 2 (the one B3 reads) is identical between the two payloads.
+        assert changed_param_highlights(list(self.ROWS), "6201020304", "6201029904") == {}
+
+    def test_changed_byte_highlights_owning_param(self):
+        # Byte 2 differs (02 → 99); B3 reads it → SOC lights up, verified variant.
+        out = changed_param_highlights(list(self.ROWS), "6201990304", "6201020304")
+        assert out == {"SOC": _HIGHLIGHT_STYLE["green"]}
+
+    def test_unverified_uses_yellow_variant(self):
+        rows = [("UNK", 1.0, "", "B3", None, False)]
+        out = changed_param_highlights(rows, "6201990304", "6201020304")
+        assert out == {"UNK": _HIGHLIGHT_STYLE["yellow"]}
+
+    def test_change_outside_param_bytes_ignored(self):
+        # Byte 4 changes but B3 reads byte 2 → not highlighted.
+        assert changed_param_highlights(list(self.ROWS), "6201020399", "6201020304") == {}
+
+    def test_error_and_exprless_params_skipped(self):
+        rows = [
+            ("BAD", None, "", "B3", "boom", True),
+            ("NOEXPR", 1.0, "", "", None, True),
+        ]
+        assert changed_param_highlights(rows, "6201990304", "6201020304") == {}
+
+
+def _row_style_at(text, needle: str) -> str:
+    """Return the style string covering the first char of ``needle`` in ``text``."""
+    plain = text.plain
+    idx = plain.index(needle)
+    for span in text.spans:
+        if span.start <= idx < span.end:
+            return str(span.style)
+    return ""
+
+
+class TestRenderParamTableHighlight:
+    ROWS = (("SOC", 50.0, "%", "B3", None, True),)
+
+    def test_changed_style_applied_to_row(self):
+        styles = {"SOC": _HIGHLIGHT_STYLE["green"]}
+        text = render_param_table(list(self.ROWS), changed_styles=styles)
+        assert _HIGHLIGHT_STYLE["green"] in _row_style_at(text, "SOC")
+
+    def test_selection_beats_change_highlight(self):
+        styles = {"SOC": _HIGHLIGHT_STYLE["green"]}
+        text = render_param_table(list(self.ROWS), selected_name="SOC", changed_styles=styles)
+        # The reverse selection style wins on a row that is both selected + changed.
+        assert "reverse" in _row_style_at(text, "SOC")
+
+    def test_no_changed_styles_leaves_row_plain(self):
+        text = render_param_table(list(self.ROWS))
+        assert "on dark_green" not in _row_style_at(text, "SOC")
 
 
 class TestRenderByteRulers:

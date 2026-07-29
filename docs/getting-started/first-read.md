@@ -17,7 +17,7 @@ canair query BMS
 # Read specific named parameters across ECUs
 canair query --param SOC_BMS BATTERY_VOLTAGE BATTERY_POWER
 
-# Watch a value live — refreshes and highlights changed bytes
+# Watch a value live — refreshes, highlights changed bytes and the params they decode
 canair monitor BMS:2101
 
 # Read Diagnostic Trouble Codes across every ECU

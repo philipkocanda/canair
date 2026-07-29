@@ -57,6 +57,41 @@ def _build_byte_colors(params: list[ParamRow], n_bytes: int) -> list[str]:
     return [color_map[r] for r in rank]
 
 
+def _changed_byte_offsets(raw_hex: str, prev_raw: str) -> set[int]:
+    """Byte positions whose value differs from ``prev_raw`` (empty if no prior)."""
+    if not prev_raw:
+        return set()
+    cur = [raw_hex[i : i + 2] for i in range(0, len(raw_hex), 2)]
+    prev = [prev_raw[i : i + 2] for i in range(0, len(prev_raw), 2)]
+    return {i for i, hb in enumerate(cur) if i < len(prev) and prev[i] != hb}
+
+
+def changed_param_highlights(params: list[ParamRow], raw_hex: str, prev_raw: str) -> dict[str, str]:
+    """Map each parameter that decodes a *changed* byte to its highlight style.
+
+    A byte is "changed" when it differs from ``prev_raw`` at the same position.
+    A parameter is highlighted when any byte its expression reads is changed; the
+    style is the parameter's own coverage-background variant (verified→dark_green,
+    unverified→dark_goldenrod), matching the background the changed byte itself
+    gets in the hex line so the visual link is exact. Returns ``{name: style}``
+    (empty when nothing changed / no prior payload).
+    """
+    changed = _changed_byte_offsets(raw_hex, prev_raw)
+    if not changed:
+        return {}
+    n_bytes = len(raw_hex) // 2
+    out: dict[str, str] = {}
+    for row in params:
+        name, expression, perr, verified = row[0], row[3], row[4], row[5]
+        if perr or not expression:
+            continue
+        offsets = param_byte_indices(expression, n_bytes)
+        if changed.intersection(offsets):
+            base = "green" if verified else "yellow"
+            out[name] = _HIGHLIGHT_STYLE.get(base, base)
+    return out
+
+
 def param_byte_indices(expression: str, n_bytes: int) -> list[int]:
     """Return the ELM payload byte positions a WiCAN expression reads.
 
@@ -198,6 +233,7 @@ def render_param_table(
     indent: str = "      ",
     n_bytes: int | None = None,
     selected_name: str | None = None,
+    changed_styles: dict[str, str] | None = None,
 ) -> Text:
     """Render decoded parameter rows as an aligned Rich Text block.
 
@@ -212,7 +248,13 @@ def render_param_table(
     When ``selected_name`` matches a row's parameter name, that row is marked
     with a ``▶`` cursor and reverse-styled — used by the live monitor to show the
     parameter currently targeted for in-place editing.
+
+    ``changed_styles`` (``{name: style}``, from :func:`changed_param_highlights`)
+    backgrounds a parameter's name/value cells with the highlight variant of the
+    changed byte it decodes, linking a byte flash to the value it produced. The
+    ``▶`` selection style takes precedence when a row is both selected and changed.
     """
+    changed_styles = changed_styles or {}
     t = Text()
     if not params:
         return t
@@ -240,7 +282,10 @@ def render_param_table(
         # Replace the last two indent columns with a "▶ " cursor so the selected
         # row's value/mark columns stay aligned with its neighbours.
         name_prefix = (indent[:-2] + "▶ ") if is_sel and len(indent) >= 2 else indent
-        name_style = "reverse bold" if is_sel else ""
+        # Selection (reverse) wins over a change-highlight background on the same
+        # row — the cursor is the interactive focus and must stay legible.
+        changed_style = changed_styles.get(name, "")
+        name_style = "reverse bold" if is_sel else changed_style
         if perr or value is None:
             t.append(f"{name_prefix}{name:<{max_name}}  ", style=name_style)
             t.append(f"ERROR: {perr or 'no value'}\n", style="red")
@@ -248,7 +293,7 @@ def render_param_table(
 
         val_str = format_value(value, unit, display)
         t.append(f"{name_prefix}{name:<{max_name}}  ", style=name_style)
-        t.append(f"{val_str:<{max_val}}  ")
+        t.append(f"{val_str:<{max_val}}  ", style=name_style)
         t.append(mark_char, style=mark_style)
         if n_bytes is not None:
             byte_str = byte_strs.get(idx, "")
