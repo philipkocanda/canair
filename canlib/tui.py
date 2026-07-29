@@ -81,7 +81,7 @@ def select_from_list[T](
     import termios
     import tty
 
-    from rich.console import Console
+    from rich.console import Console, Group
     from rich.live import Live
     from rich.text import Text
 
@@ -91,17 +91,21 @@ def select_from_list[T](
     console = Console()
     cursor = max(0, min(initial, len(items) - 1))
 
-    def _frame() -> Text:
-        body = Text()
-        body.append(title + "\n\n", style="bold cyan")
+    def _frame() -> Group:
+        rows: list[Text] = [Text(title, style="bold cyan"), Text()]
         for i, item in enumerate(items):
             selected = i == cursor
-            marker = "▶ " if selected else "  "
-            style = "bold reverse" if selected else ""
-            body.append(marker, style="cyan" if selected else "")
-            body.append(render(item) + "\n", style=style)
-        body.append("\n" + footer, style="dim")
-        return body
+            # Parse the caller's Rich markup, then prefix a cursor marker and,
+            # when selected, overlay a highlight across the whole row.
+            line = Text.from_markup(render(item))
+            marker = Text("▶ " if selected else "  ", style="bold cyan" if selected else "")
+            row = marker + line
+            if selected:
+                row.stylize("bold")
+            rows.append(row)
+        rows.append(Text())
+        rows.append(Text(footer, style="dim"))
+        return Group(*rows)
 
     fd = sys.stdin.fileno()
     old_settings = termios.tcgetattr(fd)

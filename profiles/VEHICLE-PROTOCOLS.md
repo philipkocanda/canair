@@ -14,9 +14,10 @@ does on the wire.
 
 The addressing facts here are derived from the diagnostic initialisation strings
 (ELM327 `AT*` / STN `ST*` commands) published in the community **WiCAN firmware**
-`vehicle_profiles/` corpus, cross-read against ISO 15765-4 (CAN transport) and
-ISO 14229 (UDS). Each entry cites the observed request/response CAN IDs and the
-directives that set them.
+`vehicle_profiles/` corpus —
+<https://github.com/meatpiHQ/wican-fw/tree/main/vehicle_profiles> — cross-read
+against ISO 15765-4 (CAN transport) and ISO 14229 (UDS). Each entry cites the
+observed request/response CAN IDs and the directives that set them.
 
 Caveats:
 
