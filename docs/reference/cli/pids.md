@@ -161,7 +161,7 @@ options:
 
 ```
 usage: canair pids add-pid [-h] [--status {active,draft,static,ignored}]
-                           [--prereq {sleep,plugged,acc,acc2,ready,charging}]
+                           [--prereq {SLEEP,PLUGGED,ACC,ACC2,READY,CHARGING}]
                            [--period PERIOD] [--notes NOTES] [--dir DIR]
                            [--no-validate]
                            ecu pid
@@ -175,7 +175,7 @@ options:
   --status {active,draft,static,ignored}
                         PID lifecycle (default: draft — swept/queryable but
                         not shipped)
-  --prereq {sleep,plugged,acc,acc2,ready,charging}, --vehicle-states {sleep,plugged,acc,acc2,ready,charging}
+  --prereq {SLEEP,PLUGGED,ACC,ACC2,READY,CHARGING}, --vehicle-states {SLEEP,PLUGGED,ACC,ACC2,READY,CHARGING}
                         Power state(s) in which this PID responds (repeatable)
   --period PERIOD       Polling interval in ms
   --notes NOTES         Freeform notes for the PID
@@ -190,7 +190,7 @@ usage: canair pids add-research [-h] --type
                                 {scan,decode,verify,iocontrol_scan} --target
                                 TARGET --status {pending,captured,nrc,done}
                                 [--priority {P1,P2,P3}]
-                                [--prereq {sleep,plugged,acc,acc2,ready,charging}]
+                                [--prereq {SLEEP,PLUGGED,ACC,ACC2,READY,CHARGING}]
                                 [--date DATE] [--created YYYY-MM-DD]
                                 [--updated YYYY-MM-DD] [--result RESULT]
                                 [--notes NOTES] [--source SRC]
@@ -208,7 +208,7 @@ options:
   --target TARGET
   --status {pending,captured,nrc,done}
   --priority {P1,P2,P3}
-  --prereq {sleep,plugged,acc,acc2,ready,charging}, --vehicle-states {sleep,plugged,acc,acc2,ready,charging}
+  --prereq {SLEEP,PLUGGED,ACC,ACC2,READY,CHARGING}, --vehicle-states {SLEEP,PLUGGED,ACC,ACC2,READY,CHARGING}
   --date DATE
   --created YYYY-MM-DD  Override auto creation date (default: today)
   --updated YYYY-MM-DD  Override auto updated date (default: today)

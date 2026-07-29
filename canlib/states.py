@@ -46,7 +46,18 @@ if TYPE_CHECKING:
 # here (via `allowed_states`) rather than keeping their own hardcoded copies.
 # A profile's vehicle_states.yaml may declare additional composite states on top of
 # these (e.g. `parked`, `driving`); `allowed_states` returns the union.
-POWER_STATES = ("sleep", "plugged", "acc", "acc2", "ready", "charging")
+#
+# State tokens are UPPERCASE (like the CAN-bus segment codes) — a visual cue
+# that they're a controlled vocabulary, not free prose. Input is normalized to
+# uppercase (:func:`parse_states`), so any casing typed on the CLI is accepted.
+POWER_STATES = ("SLEEP", "PLUGGED", "ACC", "ACC2", "READY", "CHARGING")
+
+# The conventional token meaning "applicable/readable in every vehicle state"
+# — the state analogue of the ``ALL`` CAN-bus gateway code. It is documentary:
+# a PID/DID/research entry tagged ``[ALL]`` is available regardless of power
+# state. It carries no ``when:`` predicate (nothing to auto-suggest) and is
+# always an accepted token (see :func:`allowed_states`).
+ALL_STATE = "ALL"
 
 # Backwards-compatible alias (older code/imports referred to BASE_STATES).
 BASE_STATES = POWER_STATES
@@ -227,14 +238,15 @@ def state_names(profile=None) -> list[str]:
 
 
 def allowed_states(profile=None) -> set[str]:
-    """The set of accepted state tokens: base ``POWER_STATES`` plus vehicle_states.yaml names.
+    """The set of accepted state tokens: base ``POWER_STATES`` + ``ALL`` + vehicle_states.yaml names.
 
     This is the single vocabulary that every validator/CLI should check against
     (PID/ECU/iocontrol/research declarations *and* capture/scan_log
     observations), so a profile can extend the shared base with its own
     composite states in one place (vehicle_states.yaml) without editing the tool.
+    Tokens are compared case-insensitively (they are canonically UPPERCASE).
     """
-    return set(POWER_STATES) | set(state_names(profile))
+    return {ALL_STATE} | set(POWER_STATES) | {n.upper() for n in state_names(profile)}
 
 
 def state_options(profile=None) -> list[tuple[str, str]]:
@@ -243,8 +255,9 @@ def state_options(profile=None) -> list[tuple[str, str]]:
     The list is what a picker (e.g. the monitor save dialog) offers: every
     declared state from vehicle_states.yaml first, in file order, each with its
     ``description``, followed by any base ``POWER_STATES`` not already declared
-    (so the shared base is always selectable even in a bare profile). Names are
-    unique and lower-cased to match :func:`parse_states`/:func:`allowed_states`.
+    (so the shared base is always selectable even in a bare profile) and finally
+    the ``ALL`` meta-token. Names are unique and UPPER-cased to match
+    :func:`parse_states`/:func:`allowed_states`.
     """
     seen: set[str] = set()
     options: list[tuple[str, str]] = []
@@ -253,7 +266,7 @@ def state_options(profile=None) -> list[tuple[str, str]]:
     except StatePredicateError:
         rules = []
     for rule in rules:
-        name = rule.name.lower()
+        name = rule.name.upper()
         if name in seen:
             continue
         seen.add(name)
@@ -263,16 +276,20 @@ def state_options(profile=None) -> list[tuple[str, str]]:
             continue
         seen.add(name)
         options.append((name, ""))
+    if ALL_STATE not in seen:
+        options.append((ALL_STATE, "Applicable in every vehicle state."))
     return options
 
 
 def parse_states(value) -> list[str]:
-    """Normalize a ``vehicle_states`` value into a lower-cased token list.
+    """Normalize a ``vehicle_states`` value into an UPPER-cased token list.
 
     Accepts a comma-separated string (as typed on ``--state``), a list/tuple of
-    tokens, or None. Tokens are stripped and lower-cased; empties are dropped.
+    tokens, or None. Tokens are stripped and UPPER-cased; empties are dropped.
     Kept deliberately permissive (no vocabulary check) — validation soft-warns
-    on unknown tokens elsewhere.
+    on unknown tokens elsewhere. Casing is normalized here so any casing typed
+    on the CLI (``charging``/``Charging``/``CHARGING``) lands as the canonical
+    UPPERCASE token.
     """
     if value is None:
         return []
@@ -280,7 +297,7 @@ def parse_states(value) -> list[str]:
         toks = [str(v).strip() for v in value]
     else:
         toks = [t.strip() for t in str(value).split(",")]
-    return [t.lower() for t in toks if t]
+    return [t.upper() for t in toks if t]
 
 
 def join_states(states) -> str:
