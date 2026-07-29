@@ -184,6 +184,12 @@ class TestAddressingModeValidation:
         )
         assert any("addressing.target_address" in e for e in errs)
 
+    def test_source_address_out_of_range(self, tmp_path):
+        errs = self._validate(
+            tmp_path, "ECU:\n  tx_id: 0x6F1\n  addressing:\n    source_address: 300\n"
+        )
+        assert any("addressing.source_address" in e for e in errs)
+
     def test_fc_id_override_accepted(self, tmp_path):
         # Functional-TX / physical-RX (Renault/Mitsubishi): fc_id override. Gap G-J.
         errs = self._validate(

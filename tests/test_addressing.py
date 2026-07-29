@@ -189,6 +189,20 @@ class TestBuildIsotpAddress:
         a = build_isotp_address(EcuAddress(0x18DA10F1, 0x18DAF110, AddressingMode.EXTENDED_29BIT))
         assert a.get_tx_arbitration_id() == 0x18DA10F1
 
+    def test_extended_29bit_derives_target_source_from_id(self):
+        # With target/source unset, build_isotp_address derives them from the tx
+        # id: target = bits 8-15 (0x10), source = bits 0-7 (0xF1).
+        a = build_isotp_address(EcuAddress(0x18DA10F1, 0x18DAF110, AddressingMode.EXTENDED_29BIT))
+        assert a.get_tx_payload_prefix() == b"\x10"  # id-derived target extension byte
+        assert a._source_address == 0xF1  # id-derived tester (private: no public accessor)
+
+    def test_extended_29bit_explicit_target_overrides_id(self):
+        # An explicit target_address on the EcuAddress wins over the id-derived one.
+        a = build_isotp_address(
+            EcuAddress(0x18DA10F1, 0x18DAF110, AddressingMode.EXTENDED_29BIT, target_address=0x40)
+        )
+        assert a.get_tx_payload_prefix() == b"\x40"
+
 
 class TestRegistryModeResolution:
     """build_ecu_index / load_ecus store each ECU's resolved addressing mode + RX."""
@@ -310,6 +324,46 @@ class TestEcuAddressResolution:
 
     def test_no_fc_id_by_default(self):
         assert resolve_fc_id(None, {"tx_id": 0x7E4}) is None
+
+
+class TestResolveSourceAddressModeNarrowing:
+    """The 0xF1 tester default is narrowed to normal_extended_11bit only.
+
+    For the 29-bit modes the tester byte lives in the arbitration id, so
+    resolve_source_address must return None (build_isotp_address derives it from
+    the id). A regression that re-broadened the default would silently corrupt
+    29-bit extended source addressing.
+    """
+
+    def test_extended_29bit_returns_none(self):
+        assert (
+            resolve_source_address(None, {"tx_id": 0x18DA10F1}, AddressingMode.EXTENDED_29BIT)
+            is None
+        )
+
+    def test_normal_fixed_29bit_returns_none(self):
+        assert (
+            resolve_source_address(None, {"tx_id": 0x18DA10F1}, AddressingMode.NORMAL_FIXED_29BIT)
+            is None
+        )
+
+    def test_normal_29bit_returns_none(self):
+        assert (
+            resolve_source_address(None, {"tx_id": 0x18DA10F1}, AddressingMode.NORMAL_29BIT) is None
+        )
+
+    def test_extended_11bit_defaults_tester(self):
+        # Only the extended-11-bit scheme carries the source out-of-band, so it
+        # (and only it) defaults to 0xF1.
+        assert (
+            resolve_source_address(None, {"tx_id": 0x6F1}, AddressingMode.NORMAL_EXTENDED_11BIT)
+            == DEFAULT_TESTER_ADDRESS
+        )
+
+    def test_explicit_source_wins_regardless_of_mode(self):
+        # An explicit per-ECU source_address is honored even for a 29-bit mode.
+        ecu = {"tx_id": 0x18DA10F1, "addressing": {"source_address": 0xF0}}
+        assert resolve_source_address(None, ecu, AddressingMode.EXTENDED_29BIT) == 0xF0
 
 
 class TestExtendedAddressingIsotp:

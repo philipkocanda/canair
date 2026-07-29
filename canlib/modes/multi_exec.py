@@ -16,7 +16,7 @@ from ..formatting import (
     print_ecu_results,
     print_hexdump,
 )
-from ..pids import build_iocontrol_index
+from ..pids import EcuIndexEntry, PidIndexEntry, build_iocontrol_index
 from ..session_manager import SessionManager
 from ..terminal import WiCANTerminal
 from ..uds_parse import request_echo
@@ -124,7 +124,10 @@ async def _read_batch(sm, tx_id, group, out, batch_state) -> bool:
 
 
 def build_query_plan(
-    ecu_info: dict, pid_filter: list[str], quiet: bool = False, include_static: bool = False
+    ecu_info: EcuIndexEntry,
+    pid_filter: list[str],
+    quiet: bool = False,
+    include_static: bool = False,
 ):
     """Resolve an ECU + PID filter into a sorted query plan.
 
@@ -177,7 +180,9 @@ def build_query_plan(
         # `swept` is derived from the PID's status in build_ecu_index.
         pids_to_query = {k: v for k, v in pids_to_query.items() if v.get("swept", True)}
 
-    query_plan = [(pid_code, pid_info, False) for pid_code, pid_info in pids_to_query.items()]
+    query_plan: list[tuple[str, PidIndexEntry | None, bool]] = [
+        (pid_code, pid_info, False) for pid_code, pid_info in pids_to_query.items()
+    ]
     query_plan += [(raw_pid, None, True) for raw_pid in raw_pids]
     query_plan.sort(key=lambda x: x[0])
     return query_plan

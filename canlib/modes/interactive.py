@@ -90,7 +90,7 @@ async def mode_interactive(terminal: WiCANTerminal, pids_data: dict, verbose: bo
             print(f"\n  {ecu_name} -- TX 0x{info['tx_id']:03X}")
             for pid_code, pid_info in sorted(info["pids"].items()):
                 n_params = len(pid_info["parameters"])
-                enabled = "enabled" if pid_info["enabled"] else "disabled"
+                enabled = "enabled" if pid_info["shipped"] else "disabled"
                 print(f"    PID {pid_code} ({enabled}, {pid_info['period']}ms, {n_params} params)")
                 for pname in sorted(pid_info["parameters"].keys()):
                     pdef = pid_info["parameters"][pname]

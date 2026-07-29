@@ -39,6 +39,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from canlib.commands._hexarg import HexArgError, parse_hex_arg
 from canlib.pids import PID_STATUSES
 from canlib.pids_edit import (
     PidsEditError,
@@ -401,18 +402,6 @@ def cmd_set_can_bus(args: argparse.Namespace) -> int:
     return 0
 
 
-def _parse_hex_arg(value: str | None, label: str) -> int | None:
-    """Parse an optional hex CLI arg (``0x784``/``784``) to an int, or None."""
-    if value is None:
-        return None
-    try:
-        return int(str(value), 16)
-    except ValueError:
-        raise SystemExit(
-            f"{_RED}  Error: --{label} expects hex (e.g. 0x784), got {value!r}{_RESET}"
-        ) from None
-
-
 def cmd_set_addressing(args: argparse.Namespace) -> int:
     from canlib import yaml_io
     from canlib.ecus_edit import EcusEditError, set_addressing, tx_key
@@ -440,12 +429,14 @@ def cmd_set_addressing(args: argparse.Namespace) -> int:
         changed = set_addressing(
             tx_id,
             mode=args.mode,
-            target_address=_parse_hex_arg(args.target_address, "target-address"),
-            source_address=_parse_hex_arg(args.source_address, "source-address"),
-            fc_id=_parse_hex_arg(args.fc_id, "fc-id"),
-            rx_id=_parse_hex_arg(args.rx_id, "rx-id"),
+            target_address=parse_hex_arg(args.target_address, "target-address"),
+            source_address=parse_hex_arg(args.source_address, "source-address"),
+            fc_id=parse_hex_arg(args.fc_id, "fc-id"),
+            rx_id=parse_hex_arg(args.rx_id, "rx-id"),
             ecus_dir=args.dir,
         )
+    except HexArgError as e:
+        raise SystemExit(str(e)) from None
     except EcusEditError as e:
         raise SystemExit(f"{_RED}  Error: {e}{_RESET}") from None
 

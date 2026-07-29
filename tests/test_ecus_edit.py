@@ -167,6 +167,37 @@ class TestSetAddressing:
         with pytest.raises(EcusEditError, match="unknown addressing mode"):
             set_addressing(0x704, mode="bogus", ecus_dir=ecus_dir)
 
+    def test_noop_returns_false_and_leaves_file_untouched(self, ecus_dir):
+        # Applying the same values twice is a no-op: the second call reports False
+        # ("nothing to change") and must not rewrite the file.
+        register_ecu(0x6F1, "DME", ecus_dir=ecus_dir)
+        assert (
+            set_addressing(
+                0x6F1,
+                mode="normal_extended_11bit",
+                target_address=0x12,
+                rx_id=0x612,
+                ecus_dir=ecus_dir,
+            )
+            is True
+        )
+        fpath = ecus_dir / "dme.yaml"
+        before = fpath.read_text()
+        before_mtime = fpath.stat().st_mtime_ns
+        # Re-apply the identical values — no change expected.
+        assert (
+            set_addressing(
+                0x6F1,
+                mode="normal_extended_11bit",
+                target_address=0x12,
+                rx_id=0x612,
+                ecus_dir=ecus_dir,
+            )
+            is False
+        )
+        assert fpath.read_text() == before
+        assert fpath.stat().st_mtime_ns == before_mtime
+
     def test_byte_out_of_range_rejected(self, ecus_dir):
         register_ecu(0x6F1, "DME", ecus_dir=ecus_dir)
         with pytest.raises(EcusEditError, match="target_address"):

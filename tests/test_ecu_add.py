@@ -111,7 +111,7 @@ class TestEcuAdd:
         root = _mk_profile(tmp_path)
         rc = cmd_add(_args(tx="704", name="BMS", rx_id="ZZ", dir=root / "ecus"))
         assert rc == 1
-        assert "Invalid RX" in capsys.readouterr().err
+        assert "--rx-id expects hex" in capsys.readouterr().err
 
     def test_29bit_functional_tx_with_fc_id(self, tmp_path):
         # Gap G-J: a functional-TX 29-bit ECU seeded in one command (the mode makes

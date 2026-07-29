@@ -40,11 +40,11 @@ class _FcAddressStack(isotp.NotifierBasedCanStack):
         self._fc_extended = fc_id > 0x7FF
         super().__init__(*args, **kwargs)
 
-    def _make_flow_control(self, *args, **kwargs):
+    def _make_flow_control(self, *args, **kwargs) -> isotp.protocol.CanMessage:
         # Reuse the base implementation (correct FC payload/prefix) then redirect
-        # the frame to the ECU's physical address. Coupled to the can-isotp
-        # internal _make_flow_control name — the fc-override test guards against a
-        # library rename.
+        # the frame to the ECU's physical address. Overrides the can-isotp internal
+        # _make_flow_control (whose name/return object the fc-override test guards
+        # against a library rename); returns the same isotp.protocol.CanMessage.
         msg = super()._make_flow_control(*args, **kwargs)
         msg.arbitration_id = self._fc_id
         msg.is_extended_id = self._fc_extended
@@ -55,7 +55,7 @@ def build_isotp_stack(
     bus: can.BusABC,
     notifier: can.Notifier,
     address: isotp.Address,
-    params: dict,
+    params: dict[str, int | bool],
     *,
     fc_id: int | None = None,
 ) -> isotp.NotifierBasedCanStack:

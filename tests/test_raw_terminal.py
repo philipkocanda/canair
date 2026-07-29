@@ -396,3 +396,58 @@ class TestRawTerminalQuirk:
         assert t.hk_f1xx_offset is True
         t2 = raw_terminal.RawTerminal("h", 3333, 500000)
         assert t2.hk_f1xx_offset is False
+
+
+class TestRawTerminalFcOverride:
+    """_stack must thread the ECU's fc_id (from its addr_map EcuAddress) into
+    build_isotp_stack (gap G-J: functional-TX / physical-RX ECUs). An ECU without
+    an fc_id passes None.
+    """
+
+    @pytest.fixture
+    def capture_fc(self, monkeypatch):
+        seen: dict[int, int | None] = {}
+
+        def _build(bus, notifier, address, params, *, fc_id=None):
+            seen[address._txid] = fc_id
+            return FakeStack(address._txid, {})
+
+        def _addr(*a, txid=None, rxid=None, **k):
+            class _A:
+                _txid = txid
+
+            return _A()
+
+        monkeypatch.setattr(slcan_mod, "SlcanTcpBus", FakeBus)
+        monkeypatch.setattr(raw_terminal.can, "Notifier", FakeNotifier)
+        monkeypatch.setattr(raw_terminal.isotp, "Address", _addr)
+        monkeypatch.setattr(raw_terminal, "build_isotp_stack", _build)
+        monkeypatch.setattr(raw_terminal.time, "sleep", lambda *_a: None)
+        return seen
+
+    def test_fc_id_threaded_from_addr_map(self, capture_fc):
+        from canlib.addressing import AddressingMode, EcuAddress
+
+        t = raw_terminal.RawTerminal(
+            "h",
+            3333,
+            500000,
+            addr_map={
+                # Renault functional-TX with a physical FC override.
+                0x18DB33F1: EcuAddress(
+                    0x18DB33F1, 0x18DAF1DB, AddressingMode.NORMAL_29BIT, fc_id=0x18DADBF1
+                ),
+                # Plain ECU: no fc_id -> None.
+                0x7E4: EcuAddress(0x7E4, 0x7EC),
+            },
+        )
+        t._stack(0x18DB33F1)
+        t._stack(0x7E4)
+        assert capture_fc[0x18DB33F1] == 0x18DADBF1
+        assert capture_fc[0x7E4] is None
+
+    def test_unmapped_ecu_passes_none(self, capture_fc):
+        # A discovery-sweep TX id absent from addr_map has no fc_id override.
+        t = raw_terminal.RawTerminal("h", 3333, 500000)
+        t._stack(0x750)
+        assert capture_fc[0x750] is None

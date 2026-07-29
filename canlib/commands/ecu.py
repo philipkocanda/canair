@@ -43,6 +43,7 @@ from pathlib import Path
 from typing import Any
 
 from canlib.commands._group import group_help
+from canlib.commands._hexarg import HexArgError, parse_hex_arg
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.ecus import load_ecus, resolve_tx, rx_addr_str
 from canlib.pids import load_pids, pid_status
@@ -772,32 +773,14 @@ def cmd_add(args) -> int:
         )
         return 1
 
-    rx_id = None
-    if getattr(args, "rx_id", None) is not None:
-        try:
-            rx_id = int(str(args.rx_id), 16)
-        except ValueError:
-            print(
-                f"{_RED}Invalid RX id {args.rx_id!r} — expected hex (e.g. 0x784).{_RESET}",
-                file=sys.stderr,
-            )
-            return 1
-
-    def _hex_or_die(value, label):
-        if value is None:
-            return None
-        try:
-            return int(str(value), 16)
-        except ValueError:
-            print(f"{_RED}Invalid {label} {value!r} — expected hex.{_RESET}", file=sys.stderr)
-            raise SystemExit(1) from None
-
     try:
-        target_address = _hex_or_die(getattr(args, "target_address", None), "--target-address")
-        source_address = _hex_or_die(getattr(args, "source_address", None), "--source-address")
-        fc_id = _hex_or_die(getattr(args, "fc_id", None), "--fc-id")
-    except SystemExit as e:
-        return int(e.code or 1)
+        rx_id = parse_hex_arg(getattr(args, "rx_id", None), "rx-id")
+        target_address = parse_hex_arg(getattr(args, "target_address", None), "target-address")
+        source_address = parse_hex_arg(getattr(args, "source_address", None), "source-address")
+        fc_id = parse_hex_arg(getattr(args, "fc_id", None), "fc-id")
+    except HexArgError as e:
+        print(str(e), file=sys.stderr)
+        return 1
 
     fields = {
         k: v

@@ -272,6 +272,48 @@ class TestRawUdsClient:
         assert isinstance(out[("IGPM", bytes.fromhex("22BC03"))], TimeoutError)
 
 
+class TestRawUdsClientAddressing:
+    """__init__ must thread each ECU's fc_id and full EcuAddress into
+    build_isotp_stack (gap G-I extended-11-bit / gap G-J functional-TX). Without
+    this, an extended-addressing or functional-TX ECU builds a plain stack.
+    """
+
+    def test_fc_id_and_address_threaded_per_ecu(self, monkeypatch):
+        from canlib.addressing import AddressingMode
+
+        seen: dict[str, dict] = {}
+
+        def _build(bus, notifier, address, params, *, fc_id=None):
+            # address is the isotp.Address; capture the tx id + fc_id per stack.
+            seen[address._txid] = fc_id
+            return FakeStack(address._txid, {})
+
+        monkeypatch.setattr(uds_raw.can, "Notifier", FakeNotifier)
+        monkeypatch.setattr(uds_raw, "build_isotp_stack", _build)
+        monkeypatch.setattr(uds_raw.time, "sleep", lambda *_a: None)  # skip warmup settle
+
+        addresses = {
+            # Renault functional-TX 29-bit with a physical FC override (gap G-J).
+            "EVC": EcuAddress(
+                0x18DB33F1, 0x18DAF1DB, AddressingMode.NORMAL_29BIT, fc_id=0x18DADBF1
+            ),
+            # BMW extended-11-bit (gap G-I): no fc_id -> None.
+            "DME": EcuAddress(
+                0x6F1,
+                0x612,
+                AddressingMode.NORMAL_EXTENDED_11BIT,
+                target_address=0x12,
+                source_address=0xF1,
+            ),
+            # Plain 11-bit ECU: no fc_id -> None.
+            "BMS": EcuAddress(0x7E4, 0x7EC),
+        }
+        RawUdsClient(bus=object(), addresses=addresses, timeout=0.3)
+        assert seen[0x18DB33F1] == 0x18DADBF1
+        assert seen[0x6F1] is None
+        assert seen[0x7E4] is None
+
+
 class TestPollCallback:
     def test_on_result_fires_per_request(self, monkeypatch):
         table = {

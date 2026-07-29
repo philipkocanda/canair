@@ -259,7 +259,7 @@ def build_routines_index(pids_data: dict) -> dict[str, RoutineIndexEntry]:
     return index
 
 
-def build_ecu_index(pids_data: dict) -> dict:
+def build_ecu_index(pids_data: dict) -> dict[str, EcuIndexEntry]:
     """Build lookup: ECU_NAME -> {tx_id, rx_id, pids: {PID: {parameters: ...}}}."""
     from .addressing import resolve_ecu_address
 
