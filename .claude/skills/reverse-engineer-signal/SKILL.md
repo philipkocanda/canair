@@ -311,7 +311,6 @@ same "reason from the ECU's role" applies to any powertrain):
 > logical transition per decoded-value change, e.g. `fanMAX (45) → fan1 (40)`).
 > For a setting the *head unit writes* (schedule/clock), use **toggle → re-read →
 > `captures uds --diff`** on the storing DID. See
-> `plans/2026-07-25-multimodal-signal-analysis.md` and
 > `docs/concepts/typed-signals.md`.
 
 - **HVAC/AAF** — temperatures (ambient/evaporator/heatsink), fan/compressor
