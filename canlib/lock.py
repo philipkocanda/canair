@@ -29,6 +29,18 @@ from pathlib import Path
 LOCK_FILE = Path("/tmp/wican-connection.lock")
 
 
+def _pid_alive(pid: int) -> bool:
+    """True if a process with ``pid`` currently exists (signal 0 probe)."""
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        # Exists but owned by another user — still alive for our purposes.
+        return True
+    return True
+
+
 class WiCANLock:
     """Exclusive advisory lock on LOCK_FILE via flock(2).
 
@@ -40,6 +52,17 @@ class WiCANLock:
         self._path = lock_file
         self._fd: int | None = None
 
+    def _read_holder(self) -> int | None:
+        """Return the PID recorded in the lock file, or None if empty/unreadable."""
+        if self._fd is None:
+            return None
+        try:
+            os.lseek(self._fd, 0, os.SEEK_SET)
+            data = os.read(self._fd, 32).decode().strip()
+            return int(data) if data else None
+        except (ValueError, OSError):
+            return None
+
     def acquire(self, force: bool = False):
         """Acquire the lock. Exits with an error message if contended and not forcing.
 
@@ -48,19 +71,32 @@ class WiCANLock:
         """
         self._fd = os.open(str(self._path), os.O_CREAT | os.O_RDWR, 0o600)
 
+        # Who holds it right now (if anyone)? Read before we take/overwrite the
+        # lock so --force can warn when it steals from a process still alive.
+        prev_holder = self._read_holder()
+
         if force:
             # Unconditional exclusive lock (blocking — steals from any holder)
             fcntl.flock(self._fd, fcntl.LOCK_EX)
+            # An orphaned/stuck canair process keeps the device's single
+            # connection open even after --force steals *this* lock, so a fresh
+            # connection can then time out. Warn (and name the PID) so the user
+            # can clear it without a device reboot.
+            if prev_holder is not None and prev_holder != os.getpid() and _pid_alive(prev_holder):
+                print(
+                    f"WARNING: --force stole the lock from PID {prev_holder}, which is still "
+                    f"running.\n"
+                    f"  If that's an orphaned/stuck canair session it still holds the device's\n"
+                    f"  single connection — a new connection can then time out. Kill it if so:\n"
+                    f"    kill {prev_holder}   (or: pkill -f canair)",
+                    file=sys.stderr,
+                )
         else:
             try:
                 fcntl.flock(self._fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError:
-                # Read holder PID from the file for the error message
-                try:
-                    holder = os.read(self._fd, 32).decode().strip()
-                    holder_info = f" (held by PID {holder})" if holder else ""
-                except Exception:
-                    holder_info = ""
+                # Report the holder PID (read above) for the error message.
+                holder_info = f" (held by PID {prev_holder})" if prev_holder else ""
                 os.close(self._fd)
                 self._fd = None
                 print(

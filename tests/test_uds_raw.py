@@ -1,5 +1,8 @@
 """Tests for RawUdsClient (pipelined UDS over ISO-TP) with fake isotp stacks."""
 
+import threading
+import time
+
 import pytest
 
 from canlib.addressing import EcuAddress
@@ -134,6 +137,41 @@ class TestRawUdsClient:
             bytes.fromhex("22BC06"),
             bytes.fromhex("22BC07"),
         ]
+
+    def test_interrupt_before_poll_returns_immediately(self, monkeypatch):
+        # A pre-interrupted client aborts at the loop entry: no per-ECU timeout wait.
+        c = _client(monkeypatch, {}, {"BMS": (0x7E4, 0x7EC)})
+        c.interrupt()
+        t0 = time.monotonic()
+        out = c.poll([("BMS", bytes.fromhex("2101"))])
+        assert time.monotonic() - t0 < 0.1  # did not wait the 0.3s ECU timeout
+        assert out == {}
+
+    def test_interrupt_mid_poll_aborts_before_timeout(self, monkeypatch):
+        # An ECU that never answers would burn the full 0.3s per-ECU timeout;
+        # interrupting mid-poll (from another thread, as a signal handler does)
+        # must abort well before that.
+        c = _client(monkeypatch, {}, {"BMS": (0x7E4, 0x7EC)})  # empty table => silent
+        result: dict = {}
+
+        def _run():
+            result["out"] = c.poll([("BMS", bytes.fromhex("2101"))])
+            result["done_at"] = time.monotonic()
+
+        th = threading.Thread(target=_run)
+        t0 = time.monotonic()
+        th.start()
+        time.sleep(0.05)
+        c.interrupt()
+        th.join(timeout=1.0)
+        assert not th.is_alive()
+        assert result["done_at"] - t0 < 0.25  # aborted before the 0.3s timeout
+        assert result["out"] == {}
+
+    def test_close_sets_interrupt(self, monkeypatch):
+        c = _client(monkeypatch, {}, {"BMS": (0x7E4, 0x7EC)})
+        c.close()
+        assert c._interrupt.is_set()
 
     def test_read_waits_through_response_pending(self, monkeypatch):
         # read() must ride out 7F xx 78 (ResponsePending) and return the final

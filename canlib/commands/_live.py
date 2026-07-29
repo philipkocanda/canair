@@ -15,6 +15,7 @@ import asyncio
 import importlib.util
 import io
 import re
+import signal
 import sys
 
 # Force line-buffered stdout so output appears immediately when piped.
@@ -605,12 +606,24 @@ def run_live(args) -> int:
     """Acquire the device lock and run ``async_main`` for a live subcommand."""
     lock = WiCANLock()
     lock.acquire(force=args.force)
+
+    # Map SIGTERM onto the same graceful path as Ctrl-C (SIGINT already raises
+    # KeyboardInterrupt). So a `kill`/`pkill -f canair` of a live session — e.g.
+    # an orphan that another run just --force'd past — unwinds cleanly (closes
+    # the terminal, reconciles any --save journal, releases the device
+    # connection) instead of the default abrupt terminate. Modes that install
+    # their own SIGTERM handler (the monitor) override this for their duration.
+    def _on_sigterm(_sig, _frame):
+        raise KeyboardInterrupt
+
+    prev_term = signal.signal(signal.SIGTERM, _on_sigterm)
     try:
         result = asyncio.run(async_main(args))
     except KeyboardInterrupt:
         print("\nInterrupted.")
         return 0
     finally:
+        signal.signal(signal.SIGTERM, prev_term)
         lock.release()
     return result if isinstance(result, int) else 0
 

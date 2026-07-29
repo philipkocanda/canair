@@ -189,23 +189,31 @@ class MonitorRawPoller:
         by_pid: dict[tuple[str, str], ResultEntry] = {}
         applied: set = set()
         last_render = 0.0
-        while True:
-            item = await q.get()
-            if item is sentinel:
-                break
-            key, val = item
-            s = sub_by_req.get(key)
-            if s is None:
-                continue
-            self.apply_submission(s, val, _t.time(), by_pid)
-            applied.add(key)
-            c.last_queries = self.build_queries(plan_by_ecu, by_pid)
-            # Throttle mid-cycle repaints so a burst of fast PIDs doesn't thrash.
-            now = _t.monotonic()
-            if c._on_partial is not None and (now - last_render) >= 0.12:
-                last_render = now
-                with contextlib.suppress(Exception):
-                    c._on_partial()
+        try:
+            while True:
+                item = await q.get()
+                if item is sentinel:
+                    break
+                key, val = item
+                s = sub_by_req.get(key)
+                if s is None:
+                    continue
+                self.apply_submission(s, val, _t.time(), by_pid)
+                applied.add(key)
+                c.last_queries = self.build_queries(plan_by_ecu, by_pid)
+                # Throttle mid-cycle repaints so a burst of fast PIDs doesn't thrash.
+                now = _t.monotonic()
+                if c._on_partial is not None and (now - last_render) >= 0.12:
+                    last_render = now
+                    with contextlib.suppress(Exception):
+                        c._on_partial()
+        except asyncio.CancelledError:
+            # Ctrl-C / quit cancels the poll worker. Tell the blocking pipelined
+            # poll to abort so its executor thread returns at once — otherwise
+            # asyncio joins the still-running thread at shutdown and exit hangs
+            # for seconds (a full cycle of per-ECU timeouts).
+            raw_client.interrupt()
+            raise
         try:
             result_dict = await fut  # surface a bus-level failure (connection dropped)
         except Exception:

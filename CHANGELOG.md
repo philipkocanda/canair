@@ -28,6 +28,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`canair monitor` now stops promptly on Ctrl-C / `q`** instead of hanging for
+  seconds. The raw (`slcan-tcp`) monitor's pipelined poll runs in a background
+  thread; on quit the in-flight poll is now interrupted at once (rather than
+  waiting out every pending ECU's timeout, which `asyncio` then joined at
+  shutdown). The `--save` journal is still reconciled on the way out, so no data
+  is lost.
+
+- **Live sessions now shut down gracefully on `SIGTERM`** (`kill` / `pkill -f
+  canair`), the same clean path as Ctrl-C — closing the terminal, reconciling
+  any `--save` journal, and releasing the device connection — instead of the
+  default abrupt terminate. This means killing an orphaned/stuck session (e.g.
+  one that another run just `--force`'d past) frees the WiCAN's single
+  connection without a device reboot. The monitor handles `SIGTERM` and `SIGINT`
+  identically.
+
 - **`--force` now warns when it steals the device lock from a still-running
   process.** An orphaned/stuck canair session (e.g. a wedged `canair scan`)
   keeps the WiCAN's single connection open even after `--force` takes the lock,

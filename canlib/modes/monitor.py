@@ -634,6 +634,17 @@ class MonitorController:
         except Exception:
             return []
 
+    def interrupt(self) -> None:
+        """Abort an in-flight raw poll ASAP so Ctrl-C / SIGTERM exit is prompt.
+
+        Only the raw backend can stall shutdown (its pipelined poll runs in an
+        executor thread that asyncio joins on the way out); the ELM path's polls
+        are plain awaits that cancel promptly, so this is a no-op there.
+        """
+        if self.raw and self.raw_client is not None:
+            with contextlib.suppress(Exception):
+                self.raw_client.interrupt()
+
     async def close(self) -> None:
         """Stop keepalives and close all open sessions / the raw client (best-effort)."""
         if self.raw:
@@ -652,13 +663,19 @@ class MonitorController:
 
 
 async def _monitor_noninteractive(controller: MonitorController) -> None:
-    """No TTY: poll silently until SIGINT/disconnect (piped/scripted runs)."""
+    """No TTY: poll silently until SIGINT/SIGTERM/disconnect (piped/scripted runs)."""
     stop_flag = {"v": False}
 
-    def _handle_sigint(_sig, _frame):
+    def _handle_stop(_sig, _frame):
         stop_flag["v"] = True
+        # Unblock any in-flight raw poll immediately so we don't wait out the
+        # cycle's per-ECU timeouts (the slow-Ctrl-C / slow-`kill` cause).
+        controller.interrupt()
 
-    old_handler = signal.signal(signal.SIGINT, _handle_sigint)
+    # Handle both interactive Ctrl-C (SIGINT) and a `kill`/`pkill` (SIGTERM) the
+    # same way — a graceful stop that reconciles the --save journal on exit.
+    old_int = signal.signal(signal.SIGINT, _handle_stop)
+    old_term = signal.signal(signal.SIGTERM, _handle_stop)
     try:
         while not stop_flag["v"] and not controller.disconnected:
             t0 = time.monotonic()
@@ -670,7 +687,8 @@ async def _monitor_noninteractive(controller: MonitorController) -> None:
                 await asyncio.sleep(min(remaining, 0.1))
                 remaining = controller.interval - (time.monotonic() - t0)
     finally:
-        signal.signal(signal.SIGINT, old_handler)
+        signal.signal(signal.SIGINT, old_int)
+        signal.signal(signal.SIGTERM, old_term)
 
 
 async def mode_monitor(

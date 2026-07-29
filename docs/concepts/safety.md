@@ -46,6 +46,15 @@ connection at a time (a mutex prevents concurrent sessions that could lock up th
 dongle), and you should never hammer an ECU with concurrent requests. When a
 first read looks unresponsive, retry once before concluding the PID/ECU is dead.
 
+If another canair session is already running, a new one refuses to start and
+names the holder's PID. `--force` steals the lock — but an orphaned/stuck session
+still holds the device's single connection even after the lock is stolen, so the
+new run can then time out. `--force` warns when it steals from a live process;
+clear it with `kill <pid>` (or `pkill -f canair`) rather than rebooting the
+device. Sessions shut down gracefully on Ctrl-C **and** `SIGTERM` (`kill`),
+reconciling any `--save` data and releasing the connection on the way out.
+
+
 ## The bottom line
 
 > Interacting with your vehicle's CAN bus and ECUs can damage your car, trigger

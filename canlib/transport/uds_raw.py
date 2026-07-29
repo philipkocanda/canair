@@ -14,6 +14,7 @@ Requests/responses are raw UDS payloads (e.g. ``bytes.fromhex("22BC03")`` in,
 from __future__ import annotations
 
 import logging
+import threading
 import time
 
 import can
@@ -87,6 +88,11 @@ class RawUdsClient:
         self.diag = TransportStats(transport="slcan-tcp")
         self.notifier = can.Notifier(bus, [], timeout=0.1)
         self._stacks: dict[str, isotp.NotifierBasedCanStack] = {}
+        # Set to abort an in-flight poll() promptly (Ctrl-C / SIGTERM), so the
+        # executor thread running poll() returns at once instead of finishing the
+        # whole cycle's per-ECU timeouts — otherwise asyncio joins it at shutdown
+        # and the process hangs for seconds. See canair monitor's interrupt path.
+        self._interrupt = threading.Event()
         params = build_isotp_params(isotp_config)
         for name, address in addresses.items():
             stack = build_isotp_stack(
@@ -180,6 +186,8 @@ class RawUdsClient:
 
         out: dict[tuple[str, bytes], bytes | Exception] = {}
         while any(queues.values()):
+            if self._interrupt.is_set():
+                break
             # Send one request per ECU (concurrent on the bus).
             pending: dict[str, dict] = {}  # ecu -> {req, sent_at, deadline, cap}
             now = time.monotonic()
@@ -197,6 +205,8 @@ class RawUdsClient:
                     }
             # Harvest whichever completes first; each ECU only spends its own budget.
             while pending:
+                if self._interrupt.is_set():
+                    break
                 progressed = False
                 now = time.monotonic()
                 for ecu in list(pending):
@@ -234,7 +244,18 @@ class RawUdsClient:
                     time.sleep(0.002)  # yield to the notifier thread reassembling frames
         return out
 
+    def interrupt(self) -> None:
+        """Abort an in-flight :meth:`poll` ASAP (thread-safe).
+
+        Set from the main thread on Ctrl-C / SIGTERM so the pipelined poll loop —
+        which runs in an executor thread — returns immediately instead of waiting
+        out every pending ECU's timeout. Terminal: the client is being torn down,
+        so it is never cleared.
+        """
+        self._interrupt.set()
+
     def close(self) -> None:
+        self._interrupt.set()  # abort any in-flight poll() so its thread returns
         for stack in self._stacks.values():
             try:
                 stack.stop()

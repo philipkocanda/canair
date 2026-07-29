@@ -282,3 +282,24 @@ class TestPollRaw:
         c = MonitorController(None, [], {}, verbose=False, save=True)
         c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA", "stale": True}])])
         assert c.save_history == {}
+
+
+class TestControllerInterrupt:
+    def test_delegates_to_raw_client(self):
+        class IClient(FakeRawClient):
+            def __init__(self):
+                super().__init__({})
+                self.interrupted = False
+
+            def interrupt(self):
+                self.interrupted = True
+
+        client = IClient()
+        c = MonitorController(None, [], {}, verbose=False, raw_client=client)
+        c.interrupt()
+        assert client.interrupted is True
+
+    def test_noop_on_elm_backend(self):
+        # No raw_client (ELM path): interrupt must be a safe no-op, not raise.
+        c = MonitorController(None, [], {}, verbose=False)
+        c.interrupt()  # no raise
