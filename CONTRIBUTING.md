@@ -34,12 +34,18 @@ contract, adding subcommands, testing, docs-upkeep policy) are in
 repo root:
 
 ```bash
+uv run pre-commit install --install-hooks           # once per clone: enable git hooks
+uv run pre-commit install --hook-type pre-push
 uv run pytest -q
 uv run ruff check . && uv run ruff format --check .
 uv run ty check
 uv run canair validate all                          # if you touched profile data
 uv run python scripts/gen_cli_reference.py --check   # if you changed a command's flags
 ```
+
+The `pre-commit` hooks mirror the CI gates (ruff format/check + `ty` on commit,
+the generated-artifact currency checks on push), so a clean local run means a
+green CI.
 
 Update the docs and README in the same PR for any user-facing change (see the
 README ↔ `docs/` policy in `AGENTS.md`).

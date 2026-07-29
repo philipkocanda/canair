@@ -51,6 +51,15 @@ install-time snapshot. See
 [During development](../concepts/profiles.md#during-development-which-canair-sees-your-edits)
 for why.
 
+**Enable the git hooks once per clone** so the fast CI gates run automatically —
+`ruff format`/`ruff check`/`ty` on each commit, and the generated-artifact
+currency checks on each push:
+
+```bash
+uv run pre-commit install --install-hooks   # commit-stage hooks
+uv run pre-commit install --hook-type pre-push
+```
+
 Quick check before you open a code PR (run from the repo root):
 
 ```bash

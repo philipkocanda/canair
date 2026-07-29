@@ -35,6 +35,7 @@ exclude = ["profiles/*/logs", "**/__pycache__"]
 
 [dependency-groups]
 dev = [
+    "pre-commit>=4.0",
     "pytest>=8.0",
     "pytest-asyncio>=1.0",
     "ruff>=0.9",

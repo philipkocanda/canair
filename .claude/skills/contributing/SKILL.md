@@ -578,5 +578,11 @@ uv run canair <yourcmd> --help   # parser sane
 uv run canair validate all       # if you touched ecus/captures/schema
 ```
 
+The repo ships a `.pre-commit-config.yaml` mirroring the fast CI gates — enable
+it once per clone (`uv run pre-commit install --install-hooks` + `uv run
+pre-commit install --hook-type pre-push`) so `ruff`/`ty` run on every commit and
+the `gen_*.py --check` currency checks run on every push. It's the local
+early-warning for the CI gates; CI stays the hard gate.
+
 Then confirm the **docs + README** reflect any user-facing change (see the
 policy above) and that internal doc links still resolve.
