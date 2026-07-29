@@ -1,8 +1,33 @@
 # Variable-length PID re-capture
 
 **Date:** 2026-07-28
-**Status:** in progress — READY-parked session captured
+**Status:** in progress — READY-parked reconfirmed (2026-07-29); awaiting other states
 **Context:** follow-up to plans/2026-07-28-isotp-truncation-guard.md
+
+## READY-parked re-confirmation (2026-07-29, slcan-tcp)
+
+Second clean READY-parked session (`var-length recheck: ready parked`,
+`keep:unique`, 1165 captures; quality 416 no_data / 3806 exchanges — no drops/
+stale, so multi-frame payloads are trustworthy). **Every PID again returned a
+single stable length within the session** — reconfirms length is state/content-
+driven, not flaky.
+
+Cross-checked against history, this session's READY length + the historical
+majority give **two clean, multi-day lengths** for the Bucket-1 PIDs (AAF 2180/
+2181 25/27B, EPS 220101 18/20B, ESC 22C101 42/48B & 22C102 26/27B, MCU 2101 30/
+34B & 2102 56/62B, VCU 2101 22/27B & 2102 23/27B, OBC 2101 44/48B, BMS 2102/2103/
+2104 38/41B & 2105 45/48B, HVAC 220100 38/41B, 220102 16/20B, 2201A0–A6). MCU
+2103 stays single-length 27B (the 20B stray remains gone). **No PID is flagged
+`variable_length: true` yet** — deferred until each PID's *other* length is
+observed in its native state.
+
+**No new truncation strays.** The oddball historical rows this pass surfaced —
+HVAC 2201A0 57B / 2201A1 74B / 2201A2 69B / 2201A3–A6 70B (all single-day
+2026-04-17), CLU 22B002 19/20B, BMS 2101 63B×2 (2025-08-07) — are all *longer
+than or between* the clean lengths, i.e. **not** the `majority − 7B` dropped-
+frame signature. They were **left in place** (deleting on a non-truncation
+criterion would discard possibly-real data). The only clean truncation strays
+were the 26 deleted on 2026-07-28.
 
 ## READY-parked results (2026-07-28, slcan-tcp)
 
@@ -29,9 +54,11 @@ length variation can't be firmware — it's the transport bug): a banner in
 pre-2026-07-28 multi-frame lengths are untrustworthy and variable-length must be
 confirmed by post-fix re-capture.
 
-Still need driving / charging / acc2 / sleep sessions to observe the *other*
-lengths (e.g. OBC 2101 48B while charging, MCU/VCU driving lengths) before
-flagging each PID `variable_length: true`.
+READY-parked is now **double-confirmed** (2026-07-28 + 2026-07-29). Still need
+driving / charging / acc2 / sleep sessions to observe the *other* lengths (e.g.
+OBC 2101 48B while charging, MCU/VCU driving lengths) in their native state
+before flagging each PID `variable_length: true`. No multi-length flags applied
+until that full-state verification is complete.
 
 ## Goal
 
@@ -61,29 +88,32 @@ MCU 2103 (20B), VCU 2101/2102 (20B), BMS 2103/2104 (38B), BCM 22B00x/22C00x
 single-sample shorts, CLU 22B002, SKM 22B002.
 → if the short length never reappears, delete the stale rows.
 
-## Re-capture commands (one --monitor session per state; press `q` to stop)
+## Re-capture commands (one `canair monitor` session per state; press `q` to stop)
 
+Uses the top-level `canair monitor` command (the former `canair query --monitor`
+flag was promoted to its own subcommand — recording/keep-mode flags live here).
+`--save` defaults to `--keep-unique`, which is what we want for length analysis.
 Add `--reboot` to the last command run to restore AutoPID.
 
 Driving:
 
-    uv run canair query "AAF:2180,2181" "EPS:220101" "ESC:22C101,22C102" "MCU:2101,2102,2103,21F2" "VCU:2101,2102,21F2" --wican vpn --save --label "var-length recheck: driving" --state driving --monitor
+    uv run canair monitor "AAF:2180,2181" "EPS:220101" "ESC:22C101,22C102" "MCU:2101,2102,2103,21F2" "VCU:2101,2102,21F2" --wican vpn --save --label "var-length recheck: driving" --state driving
 
 Ready, parked:
 
-    uv run canair query "AAF:2180,2181" "BMS:2101,2102,2103,2104,2105" "MCU:2101,2102,2103,21F2" "VCU:2101,2102,21F2" "OBC:2101" "ESC:22C101,22C102" "EPS:220101" "HVAC:220100,220102,2201A0,2201A1,2201A2,2201A3,2201A4,2201A5,2201A6" "CLU:22B002" --wican vpn --save --label "var-length recheck: ready parked" --state "ready, parked" --monitor
+    uv run canair monitor "AAF:2180,2181" "BMS:2101,2102,2103,2104,2105" "MCU:2101,2102,2103,21F2" "VCU:2101,2102,21F2" "OBC:2101" "ESC:22C101,22C102" "EPS:220101" "HVAC:220100,220102,2201A0,2201A1,2201A2,2201A3,2201A4,2201A5,2201A6" "CLU:22B002" --wican vpn --save --label "var-length recheck: ready parked" --state "ready, parked"
 
 Charging:
 
-    uv run canair query "OBC:2101" "BMS:2101,2102,2103,2104,2105" "HVAC:220100,220102,2201A0,2201A1,2201A2,2201A3,2201A4,2201A5,2201A6" "IGPM:22BC01,22BC03,22BC04,22BC05,22BC06,22BC07" --wican vpn --save --label "var-length recheck: charging" --state charging --monitor
+    uv run canair monitor "OBC:2101" "BMS:2101,2102,2103,2104,2105" "HVAC:220100,220102,2201A0,2201A1,2201A2,2201A3,2201A4,2201A5,2201A6" "IGPM:22BC01,22BC03,22BC04,22BC05,22BC06,22BC07" --wican vpn --save --label "var-length recheck: charging" --state charging
 
 ACC2 (ignition on, HV off):
 
-    uv run canair query "HVAC:220100,220102,2201A0,2201A1,2201A2,2201A3,2201A4,2201A5,2201A6" "CLU:22B002" "AAF:2180,2181" "BCM:22C001,22C003,22C004,22C005,22C006,22C007,22C008,22C009,22C00A,22C00B,22C00C,22C00D,22C00E,22C00F,22C011" --wican vpn --save --label "var-length recheck: acc2" --state acc2 --monitor
+    uv run canair monitor "HVAC:220100,220102,2201A0,2201A1,2201A2,2201A3,2201A4,2201A5,2201A6" "CLU:22B002" "AAF:2180,2181" "BCM:22C001,22C003,22C004,22C005,22C006,22C007,22C008,22C009,22C00A,22C00B,22C00C,22C00D,22C00E,22C00F,22C011" --wican vpn --save --label "var-length recheck: acc2" --state acc2
 
 Sleep / standby (12V only, unplugged; may wake car; SKM often needs a wake):
 
-    uv run canair query "BCM:22B002,22B003,22B004,22B005,22B006,22B007,22B008,22B009,22B00A,22B00C,22B00D,22B00E" "IGPM:22BC01,22BC03,22BC04,22BC05,22BC06,22BC07" "SKM:22B002" --wican vpn --save --label "var-length recheck: sleep standby" --state sleep --monitor --reboot
+    uv run canair monitor "BCM:22B002,22B003,22B004,22B005,22B006,22B007,22B008,22B009,22B00A,22B00C,22B00D,22B00E" "IGPM:22BC01,22BC03,22BC04,22BC05,22BC06,22BC07" "SKM:22B002" --wican vpn --save --label "var-length recheck: sleep standby" --state sleep --reboot
 
 ## Verify + flag (after re-capture)
 
