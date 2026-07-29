@@ -307,7 +307,7 @@ class TestFinalizeJournal:
         assert len(files) == 1
         sess = json.loads(files[0].read_text())["sessions"][0]
         assert sess["label"] == "My label"
-        assert sess["vehicle_states"] == ["ready"]
+        assert sess["vehicle_states"] == ["READY"]
         assert not j.path.exists()
 
     def test_no_payloads_discards(self, tmp_path):

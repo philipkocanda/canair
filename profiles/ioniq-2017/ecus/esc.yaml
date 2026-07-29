@@ -11,10 +11,7 @@ ESC:
       Electronic Stability Control (ABS). Exposes vehicle speed and the four
       individual wheel speeds via 22C101; candidate yaw-rate / accel dynamics
       still undecoded.
-  vehicle_states:
-    - acc
-    - acc2
-    - ready
+  vehicle_states: [ACC, ACC2, READY]
   pids:
     22C101:
       status: active
@@ -126,8 +123,7 @@ ESC:
       target: "22C101"
       status: captured
       priority: P2
-      vehicle_states:
-        - acc
+      vehicle_states: [ACC]
       notes: >
         REAL_SPEED_KMH (B12) and 4 wheel speeds (B18-B21, FL/FR/RL/RR interleaved,
         1 km/h/bit) decoded + verified from the 2026-07-22 drive (r=+1.000).
@@ -160,15 +156,13 @@ ESC:
       target: "22 C101-C10F"
       status: done
       priority: P2
-      vehicle_states:
-        - acc
+      vehicle_states: [ACC]
       notes: "ESC C1xx range scan."
     - type: scan
       target: "22 0101-010F"
       status: nrc
       priority: P2
-      vehicle_states:
-        - acc
+      vehicle_states: [ACC]
       notes: "ESC 01xx range. 0104 = individual wheel speeds FL/FR/RL/RR per Ioniq 5."
       sources:
         - "OBDb Ioniq 5"
@@ -176,8 +170,7 @@ ESC:
       target: "22 F010 (on 0x730)"
       status: nrc
       priority: P2
-      vehicle_states:
-        - ready
+      vehicle_states: [READY]
       notes: "Ioniq 5 uses 0x730 for ESC with 22F010: 4 wheel speeds (16-bit/32), steering angle (/10), lateral/longitudinal accel, yaw rate. Try on both 0x7D1 and 0x730."
       sources:
         - "OBDb Ioniq 5"

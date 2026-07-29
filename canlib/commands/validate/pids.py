@@ -172,14 +172,20 @@ _LEGACY_PID_FIELDS = {
 
 
 def _validate_state_list(value, label: str, field: str, errors: list, allowed: set) -> None:
-    """Validate a ``vehicle_states``-style token list against ``allowed``."""
+    """Validate a ``vehicle_states``-style token list against ``allowed``.
+
+    Tokens are compared case-insensitively (the vocabulary is canonically
+    UPPERCASE), so a lower-case hold-over still validates while the tree
+    migrates toward the uppercase form.
+    """
     if value is None:
         return
     if not isinstance(value, list):
         errors.append(f"{label}: {field} must be a list")
         return
+    allowed_upper = {str(a).upper() for a in allowed}
     for v in value:
-        if v not in allowed:
+        if str(v).upper() not in allowed_upper:
             errors.append(f"{label}: invalid {field} value '{v}' (allowed: {sorted(allowed)})")
     if len(value) != len(set(value)):
         errors.append(f"{label}: duplicate {field} values")

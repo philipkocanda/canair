@@ -46,6 +46,7 @@ COMMAND_NAMES: list[str] = [
     "wican",
     "ecu",
     "bus",
+    "states",
     "profile",
     "config",
     "update",

@@ -18,21 +18,14 @@ SKM:
       Smart Key Module (self-identifies as "SMK") — key-fob detection,
       immobiliser and remote functions. Slow to wake (>1s, needs two or more
       CAN requests) and sleeps after ~60s of bus inactivity.
-  vehicle_states:
-    - sleep
-    - plugged
-    - acc
-    - acc2
-    - ready
-    - charging
+  vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
   session: true
   scan_log: # SKM
     - service: 0x22
       range: "0101-010F,B001-B010"
       date: 2026-07-22
       hits: "B002,B003,B005,B006,B008,B00A"
-      vehicle_states:
-        - ready, fob present
+      vehicle_states: [READY, FOB PRESENT]
       notes: >
         Re-confirmed the B0xx live-data block (already registered in this file's pids:).
         01xx all NRC. NOTE the Hyundai -1 echo: requesting B007/B009/B00B returns
@@ -42,8 +35,7 @@ SKM:
     22B002:
       status: draft
       period: 10000
-      vehicle_states:
-        - sleep
+      vehicle_states: [SLEEP]
       notes: >
         136 data bytes — massive status register. Likely contains key fob presence,
         RSSI, button presses, immobilizer state. Needs decoding.
@@ -63,8 +55,7 @@ SKM:
     22B003:
       status: draft
       period: 10000
-      vehicle_states:
-        - sleep
+      vehicle_states: [SLEEP]
       parameters:
         SKM_B003_UNKNOWN:
           expression: ""
@@ -76,8 +67,7 @@ SKM:
     22B005:
       status: draft
       period: 10000
-      vehicle_states:
-        - sleep
+      vehicle_states: [SLEEP]
       parameters:
         SKM_B005_UNKNOWN:
           expression: ""
@@ -89,8 +79,7 @@ SKM:
     22B006:
       status: draft
       period: 10000
-      vehicle_states:
-        - sleep
+      vehicle_states: [SLEEP]
       parameters:
         SKM_B006_UNKNOWN:
           expression: ""
@@ -102,8 +91,7 @@ SKM:
     22B007:
       status: draft
       period: 10000
-      vehicle_states:
-        - sleep
+      vehicle_states: [SLEEP]
       parameters:
         SKM_B007_UNKNOWN:
           expression: ""
@@ -115,8 +103,7 @@ SKM:
     22B008:
       status: draft
       period: 10000
-      vehicle_states:
-        - sleep
+      vehicle_states: [SLEEP]
       parameters:
         SKM_B008_UNKNOWN:
           expression: ""
@@ -128,8 +115,7 @@ SKM:
     22B009:
       status: draft
       period: 10000
-      vehicle_states:
-        - sleep
+      vehicle_states: [SLEEP]
       parameters:
         SKM_B009_UNKNOWN:
           expression: ""
@@ -141,8 +127,7 @@ SKM:
     22B00A:
       status: draft
       period: 10000
-      vehicle_states:
-        - sleep
+      vehicle_states: [SLEEP]
       parameters:
         SKM_B00A_UNKNOWN:
           expression: ""
@@ -154,8 +139,7 @@ SKM:
     22B00B:
       status: draft
       period: 10000
-      vehicle_states:
-        - sleep
+      vehicle_states: [SLEEP]
       parameters:
         SKM_B00B_UNKNOWN:
           expression: ""
@@ -383,8 +367,7 @@ SKM:
       target: "22B002"
       status: captured
       priority: P1
-      vehicle_states:
-        - sleep
+      vehicle_states: [SLEEP]
       date: "2026-04-18"
       notes: >
         136 bytes — biggest payload of any ECU. Likely contains key fob presence/RSSI,

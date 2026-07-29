@@ -12,16 +12,12 @@ AAF:
       Active Air Flap (AAF) controller — confirmed by the "AAF" module code in its
       sw_id (EAE16AAFB30001) and firmware (EAEAAFP201). Located in the front bumper, behind the grille.
       Also connected physically to the car's radiator, which cools the powertrain (inverter, motor, etc.).
-  vehicle_states:
-    - ready
-    - charging
+  vehicle_states: [READY, CHARGING]
   pids:
     2180:
       status: active
       period: 10000
-      vehicle_states:
-        - ready
-        - charging
+      vehicle_states: [READY, CHARGING]
       parameters:
         AMBIENT_TEMP:
           expression: "(B18-80)/2"
@@ -89,8 +85,7 @@ AAF:
     2181:
       status: draft
       period: 0
-      vehicle_states:
-        - charging
+      vehicle_states: [CHARGING]
       parameters:
         AAF_2181_UNKNOWN:
           expression: ""
@@ -159,8 +154,7 @@ AAF:
       target: 21 00-FF
       status: done
       priority: P3
-      vehicle_states:
-        - ready
+      vehicle_states: [READY]
       date: "2026-07-22"
       result: "Exhaustive service-21 LID sweep (ignition on): only 80/81 respond (= known 2180/2181), all 254 others NRC. Confirms AAF lives in the 0x80 page range (not 0x01); no hidden pages. Fully mapped."
       notes: Hidden-page hunt 2026-07-22 (KWP2000 completion).
@@ -168,7 +162,7 @@ AAF:
       target: 2180/2181 thermal bytes
       status: captured
       priority: P2
-      vehicle_states: [ready]
+      vehicle_states: [READY]
       created: "2026-07-23"
       updated: "2026-07-23"
       notes: "Speed bytes decoded (2181 B12=MPH, B13=km/h; r=0.997 vs ESC). Identity docs list ambient/heater-element/heat-sink/compressor temps on 2180/2181; temp bytes not yet located. Existing captures don't overlap HVAC 220100 AAT with timestamped AAF reads. Method: co-poll 'query HVAC:220100' 'query AAF:2180' 'query AAF:2181' over a temperature-varying window; correlate AAF bytes vs HVAC_AAT."
@@ -176,7 +170,7 @@ AAF:
       target: "2180"
       status: done
       priority: P3
-      vehicle_states: [ready]
+      vehicle_states: [READY]
       created: "2026-07-23"
       updated: "2026-07-23"
       notes: "AAF 2180 has two more varying bytes beyond the 4 defined temps: B25 (raw 129-152) and B28==B29 (mirror pair, raw 141-152). Both plausibly temperatures at the same (x-80)/2 scale AMBIENT_TEMP uses on B18: B25->24.5-36C, B28->30.5-36C. Only 77 captures in a narrow ambient band and B25 does NOT track AMBIENT_TEMP (r=0.26), so it is a distinct signal (evaporator / in-car / coolant?). Needs a wide-thermal-range capture (cold morning + hot cabin + A/C on) with a temp anchor to assign. B28==B29 exact mirror suggests a duplicated/unit-variant temp."
@@ -184,7 +178,7 @@ AAF:
       target: 2180 B28/B29 mirror
       status: captured
       priority: P3
-      vehicle_states: [ready]
+      vehicle_states: [READY]
       created: "2026-07-23"
       updated: "2026-07-23"
       notes: "AAF 2180 B25 RESOLVED = AAF_AUX_BATTERY_VOLTAGE (B25/10, r=0.995 vs VCU aux) — was mis-guessed as a temp. Renamed from AUX_BATTERY_VOLTAGE to AAF_AUX_BATTERY_VOLTAGE 2026-07-24 to avoid a shipped-signal-name collision with BMS 2101 AUX_BATTERY_VOLTAGE. Remaining: B28==B29 mirror pair (raw 141-152, distinct=3 among timed caps) still undecoded; near-constant, not a temp (doesn't track ambient). Low priority; needs a wider-range capture."

@@ -19,16 +19,19 @@ from canlib.states import POWER_STATES, allowed_states, join_states, parse_state
 
 class TestVocabularySource:
     def test_power_states_base(self):
-        assert POWER_STATES == ("sleep", "plugged", "acc", "acc2", "ready", "charging")
+        assert POWER_STATES == ("SLEEP", "PLUGGED", "ACC", "ACC2", "READY", "CHARGING")
 
     def test_allowed_states_superset_of_base(self):
         assert set(POWER_STATES) <= allowed_states()
 
+    def test_all_meta_token_allowed(self):
+        assert "ALL" in allowed_states()
+
     def test_parse_states_from_comma_string(self):
-        assert parse_states("Ready, Parked") == ["ready", "parked"]
+        assert parse_states("Ready, Parked") == ["READY", "PARKED"]
 
     def test_parse_states_from_list(self):
-        assert parse_states(["ACC2", " charging "]) == ["acc2", "charging"]
+        assert parse_states(["ACC2", " charging "]) == ["ACC2", "CHARGING"]
 
     def test_parse_states_none_and_empty(self):
         assert parse_states(None) == []

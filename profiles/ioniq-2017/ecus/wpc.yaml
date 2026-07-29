@@ -12,26 +12,19 @@ WPC:
     notes: >
       Wireless Phone Charging pad. 220100 exposes two signed 16-bit fields
       (B03:B04, B05:B06) of unknown purpose — re-examine with a phone on/off pad.
-  vehicle_states:
-    - acc
-    - acc2
-    - ready
+  vehicle_states: [ACC, ACC2, READY]
   scan_log: # WPC (wireless phone charging)
     - service: 0x22
       range: "0101-010F,B001-B010,C101-C10F"
       date: 2026-07-22
       hits: 0
-      vehicle_states:
-        - ready
+      vehicle_states: [READY]
       notes: "No live-data DIDs found."
   pids:
     220100:
       status: draft
       period: 5000
-      vehicle_states:
-        - acc
-        - acc2
-        - ready
+      vehicle_states: [ACC, ACC2, READY]
       parameters:
         WPC_0100_B03_B04:
           expression: "[S03:S04]"

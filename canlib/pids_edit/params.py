@@ -76,6 +76,18 @@ RESEARCH_FIELD_ORDER = (
 )
 
 
+def _norm_states(value: object) -> list[str]:
+    """Normalize a ``vehicle_states`` value to the canonical UPPERCASE token list.
+
+    Delegates to :func:`canlib.states.parse_states` so the normalization rule
+    (strip + upper-case, drop empties, accept a list or comma-string) is shared
+    with the runtime readers rather than reimplemented in the text editors.
+    """
+    from canlib.states import parse_states
+
+    return parse_states(value)
+
+
 def _format_param_block(name: str, fields: dict, indent: int = 8) -> list[str]:
     """Render a full ``PARAM_NAME:`` block (key at ``indent``, fields +2)."""
     ind = " " * indent
@@ -109,7 +121,7 @@ def _format_research_item(fields: dict, indent: int = 4) -> list[str]:
         val = fields[key]
         prefix = dash if not lines else fld  # first field sits on the dash line
         if key == "vehicle_states":
-            joined = ", ".join(str(v) for v in val) if isinstance(val, (list, tuple)) else str(val)
+            joined = ", ".join(_norm_states(val))
             lines.append(f"{prefix}{key}: [{joined}]")
         elif key in ("notes", "result") and "\n" in str(val):
             block = _format_block_scalar(fld, key, str(val))
@@ -509,7 +521,11 @@ def add_pid(
         if period is not None:
             lines.append(f"{indent}  period: {period}")
         if vehicle_states:
-            lines.extend(_format_list_field(indent + "  ", "vehicle_states", list(vehicle_states)))
+            lines.extend(
+                _format_inline_list_field(
+                    indent + "  ", "vehicle_states", _norm_states(vehicle_states)
+                )
+            )
         if notes:
             lines.extend(_format_block_scalar(indent + "  ", "notes", str(notes)))
         return lines

@@ -45,18 +45,12 @@ OBC:
       live even while driving with the OBC idle (OBC_DC_A=0) — confirming both functions live
       in this one ECU. The LDC *control* bits (enable/inhibit) live on the VCU (0x7E2, whose
       module code is "VLDC"), not here.
-  vehicle_states:
-    - ready
-    - charging
-    - acc2
+  vehicle_states: [READY, CHARGING, ACC2]
   pids:
     2101:
       status: active
       period: 5000
-      vehicle_states:
-        - ready
-        - charging
-        - acc2
+      vehicle_states: [READY, CHARGING, ACC2]
       parameters:
         LDC_HV_INPUT_V:
           expression: "[B45:B46]/100"
@@ -204,9 +198,7 @@ OBC:
     2102:
       status: draft
       period: 5000
-      vehicle_states:
-        - charging
-        - acc2
+      vehicle_states: [CHARGING, ACC2]
       notes: >
         34 bytes. Also responds in ACC2 (not just charging). Returns NRC when car is fully off.
         Discovered during charging PID scan (2026-04-18).
@@ -219,9 +211,7 @@ OBC:
       target: "2101"
       status: captured
       priority: P1
-      vehicle_states:
-        - ready
-        - charging
+      vehicle_states: [READY, CHARGING]
       notes: >
         2026-07-20 (Kia Soul LDC/OBC CSV + live READY vs 10A-AC charging + BMS cross-check): LDC_HV_INPUT_V
         = [B45:B46]/100 (385.7V READY / 386.9V charging = BMS pack 385.6V), LDC_TEMP=B19-100 (21→65°C over 3h,
@@ -241,8 +231,7 @@ OBC:
       target: "2102"
       status: done
       priority: P3
-      vehicle_states:
-        - charging
+      vehicle_states: [CHARGING]
       date: "2026-04-19"
       notes: >
         34 bytes captured during charging. Payload identical across Apr 14 and Apr 19 sessions —
@@ -255,8 +244,7 @@ OBC:
       target: "22 E001-E011"
       status: done
       priority: P2
-      vehicle_states:
-        - charging
+      vehicle_states: [CHARGING]
       date: "2026-04-19"
       notes: "All 17 DIDs return NRC 0x12 (subFunctionNotSupported) — both default and extended session. LDC also rejects 10 03 with NRC 0x12. Service 22 not supported on Ioniq 2017 LDC. Ioniq 5 cross-ref does not apply."
       sources:
@@ -265,8 +253,7 @@ OBC:
       target: "21 01-20"
       status: done
       priority: P2
-      vehicle_states:
-        - charging
+      vehicle_states: [CHARGING]
       date: "2026-07-20"
       notes: >
         Service 21 scan 0x01-0x20 while charging (10A AC): ONLY 2101 (48B) and 2102 (34B, static calib) respond;
@@ -275,8 +262,7 @@ OBC:
       target: "2101 AC-side"
       status: done
       priority: P3
-      vehicle_states:
-        - charging
+      vehicle_states: [CHARGING]
       date: "2026-07-20"
       notes: >
         AC INPUT VOLTAGE FOUND 2026-07-26 = [B14:B15]/100 (see AC_INPUT_V param). This OVERTURNS the
@@ -308,8 +294,7 @@ OBC:
       target: 21 00-FF
       status: done
       priority: P3
-      vehicle_states:
-        - ready
+      vehicle_states: [READY]
       date: "2026-07-22"
       result: "Exhaustive service-21 LID sweep (ignition on, OBC idle): only 01/02 respond (= known 2101/2102), all 254 others NRC. No hidden pages; notably NO 21F2 (unlike BMS/MCU/VCU). OBC service-21 space fully mapped."
       notes: Hidden-page hunt 2026-07-22 (KWP2000 completion after BMS/MCU/VCU).
@@ -317,7 +302,7 @@ OBC:
       target: 2101 AC input current
       status: done
       priority: P3
-      vehicle_states: [charging]
+      vehicle_states: [CHARGING]
       created: "2026-07-27"
       updated: "2026-07-27"
       notes: "RESOLVED 2026-07-27 via an EVSE current step (10/13/16/20A). MEASURED AC input current = [B33:B34]/100 (AC_INPUT_A): 9.3/12.4/15.4A at 10/13/16A pilot — the actual draw, ~0.6A under the advertised limit, matching the power balance V_dc*I_dc/eff/V_ac. Its low byte B34 was the ex-'constant 250' from the steady 16A charge (only varied once the current stepped). The EVSE-advertised setpoint/pilot = [B35:B36] (duty [B35:B36]/10, amps [B35:B36]*0.06 = OBC_PILOT_AMPS). B28 (old AC_CURRENT_SETPOINT) was BOGUS (fixed 16) and removed."
@@ -325,7 +310,7 @@ OBC:
       target: 2101 12V output current
       status: pending
       priority: P3
-      vehicle_states: [ready]
+      vehicle_states: [READY]
       created: "2026-07-28"
       updated: "2026-07-28"
       notes: "LDC 12V output CURRENT is NOT broadcast in OBC 2101. RE-CONFIRMED 2026-07-28 (three independent methods): (1) 2026-07-22 rear-defroster load step re-analysed via the exact byte matrix — an ~18A load (LDC_OUTPUT_V rail sagged 14.50->13.60V, B26 170->80) moved ONLY the voltage low byte; every other byte stayed within baseline jitter (B15 +2, B13 +3, all others flat). (2) decode --discriminate state --bytes: every current-like byte (B12/B17/B18/B28/B33/B34/B39/B51) reads exactly 0 in ready/driving = all CHARGE-side currents; an LDC output current must be non-zero whenever the car is awake, and no such byte exists. (3) investigate OBC 2101: every byte resolves to a charge/port-lock/EV-ready flag, temp, or checksum; every physical-band hit is a VOLTAGE, never a current. Soul standalone LDC 0x7C5 has DC_Current_Out (letter g) but its f/g/h/i block does NOT map contiguously onto the Ioniq OBC 2101 (only Temp survives at B19) — same redistribution that dropped the OBC internal temps. VCU 2101=drive-path only; VCU 2102=inverter/aux voltage + charge-time + fast phase-current bytes (no LDC current); VCU 21F2=MIXED block, NOT static — many live analog bytes plus a charge-schedule config region (WiCAN B38/B39/B41/B42/B43 packed + B75 = weekend-end hour), confirmed by a 2026-07-28 before/after when the AVN/IVI charge timer was reprogrammed (see VCU 21F2 research entry). Exhaustive 21 00-FF sweeps on OBC+VCU found no hidden page; 22xxxx all NRC. (4) 2ND PASS 2026-07-28 Ohm's-law droop test: `hunt OBC 2101 --against LDC_OUTPUT_V` finds NO independent byte anti-correlated with the 12V rail — only S26 (r=-0.58), which is the voltage word's own low byte. A real output current would droop the rail (V=V0-I*R) and surface here; nothing does. (5) 2ND PASS 2026-07-28 examined VCU 21F2 live analog bytes (the newly-opened mixed block): B29-B34 are drive/charge HV-side data (=0 when idle-parked, so NOT the always-on LDC 12V output); B10/B14/B19/B20 are fast-aliased/counter bytes (B19~=B20 mirror); B11=103/104 slow counter. None fits an LDC output current (must be nonzero whenever awake + load-tracking). Only 4 unique 21F2 payloads currently (keep-unique; NO charging capture in the set), too sparse to fully rule in/out. MCU 2102 currents are motor phase-current; Unknown-746=4 static bytes; no broadcast-CAN (domain B) logs exist."

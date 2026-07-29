@@ -137,6 +137,7 @@ class TestAppendScanLog:
         assert len(entries) == 1
         assert entries[0]["hits"] == 3
         assert entries[0]["range"] == "F100-F1FF"
+        assert entries[0]["vehicle_states"] == ["ACC"]  # normalized to UPPERCASE
         assert "date" in entries[0]  # defaulted to today
 
     def test_appends_to_existing_list(self, ecus_dir):

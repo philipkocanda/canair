@@ -67,7 +67,7 @@ class TestProfileCreate:
         assert vs.exists()
         assert not (root / "states.yaml").exists()
         data = yaml.safe_load(vs.read_text())
-        assert any(s["name"] == "charging" for s in data["states"])
+        assert any(s["name"] == "CHARGING" for s in data["states"])
 
     def test_meta_contents(self, tmp_path):
         root = tmp_path / "prof"

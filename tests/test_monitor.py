@@ -763,7 +763,7 @@ class TestControllerJournal:
         data = json.loads(written.read_text())
         assert len(data["sessions"]) == 1
         assert data["sessions"][0]["label"] == "edited"
-        assert data["sessions"][0]["vehicle_states"] == ["ready"]
+        assert data["sessions"][0]["vehicle_states"] == ["READY"]
 
     def test_new_segment_rotates_journal(self, tmp_path):
         """'n' reconciles the current segment and opens a fresh, newly-labelled one."""

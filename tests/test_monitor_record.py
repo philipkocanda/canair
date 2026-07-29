@@ -124,4 +124,4 @@ class TestSpanAwareBackfill:
 
         rec.new_segment("seg2", None, None)
         session = _read_session(tmp_path)
-        assert session["vehicle_states"] == ["ready"]
+        assert session["vehicle_states"] == ["READY"]

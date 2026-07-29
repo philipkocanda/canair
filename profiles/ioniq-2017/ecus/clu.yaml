@@ -14,18 +14,12 @@ CLU:
       Cluster / instrument panel. Odometer is read via 22B002 (3-byte value at
       [B12:B14]); the imperial odometer / range / cruise fields the e-Niro
       exposes are absent on this car (15-byte response).
-  vehicle_states:
-    - acc
-    - acc2
-    - ready
+  vehicle_states: [ACC, ACC2, READY]
   pids:
     22B002:
       status: active
       period: 10000
-      vehicle_states:
-        - acc
-        - acc2
-        - ready
+      vehicle_states: [ACC, ACC2, READY]
       parameters:
         ODOMETER:
           expression: "[B12:B14]"
@@ -72,8 +66,7 @@ CLU:
       target: "22B002"
       status: done
       priority: P1
-      vehicle_states:
-        - acc
+      vehicle_states: [ACC]
       notes: >
         Odometer (ODOMETER = [B12:B14]) confirmed = 72982 km in READY (2026-07-22).
         NEGATIVE result on the e-Niro extras: 22B002 returns only 15 bytes on the Ioniq
@@ -91,15 +84,13 @@ CLU:
       target: "22 B001-B010"
       status: done
       priority: P2
-      vehicle_states:
-        - acc
+      vehicle_states: [ACC]
       notes: "CLU cluster range scan."
     - type: scan
       target: "0x7C0/0x7C1 probes"
       status: nrc
       priority: P2
-      vehicle_states:
-        - acc
+      vehicle_states: [ACC]
       notes: "Head unit — NO DATA during deep sleep (probed 2026-04-16). May be on M-CAN bus. Retry with ACC on: scan 21 01-05, 22 B001-B010."
       sources:
         - "Hyundai/Kia convention: 0x7C0 = AVN"
@@ -107,7 +98,7 @@ CLU:
       target: 2F B001 cluster indicators
       status: pending
       priority: P3
-      vehicle_states: [ready]
+      vehicle_states: [READY]
       created: "2026-07-27"
       updated: "2026-07-27"
       notes: "e-Niro cluster: in a 10 03 session, 2F B0 01 03 turns ON all cluster indicator lamps, 2F B0 01 00 restores normal. LEAD: probe returnControlToECU (2F B001 00) on CLU 0x7C6 to confirm the actuator exists on the Ioniq (safe, non-actuating) before any ShortTermAdjustment. e-Niro CM PIDs 22B001-B003 largely match Ioniq (B002=odo)."

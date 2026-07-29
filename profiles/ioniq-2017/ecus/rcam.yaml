@@ -15,18 +15,12 @@ RCAM:
     notes: >
       Rear-view (parking) camera. Exposes only identity/diagnostics via OBD —
       no live-data DIDs found.
-  vehicle_states:
-    - plugged
-    - acc
-    - acc2
-    - ready
-    - charging
+  vehicle_states: [PLUGGED, ACC, ACC2, READY, CHARGING]
   scan_log: # RCAM (rear camera)
     - service: 0x22
       range: "0101-010F,B001-B010,C101-C10F"
       date: 2026-07-22
       hits: 0
-      vehicle_states:
-        - ready
+      vehicle_states: [READY]
       notes: "No live-data DIDs found. Camera likely exposes only identity/diagnostics via OBD."
   pids: {}

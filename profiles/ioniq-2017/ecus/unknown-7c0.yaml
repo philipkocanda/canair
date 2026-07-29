@@ -14,7 +14,6 @@ Unknown-7C0:
       range: "0100-010F"
       date: 2026-07-22
       hits: 0
-      vehicle_states:
-        - ready, ignition on
+      vehicle_states: [READY, IGNITION ON]
       notes: "All 16 requests timed out (NO DATA) — dormant/asleep at ignition-on, consistent with the prior dead-during-charging result. No readable pages; likely absent/inactive hardware."
 

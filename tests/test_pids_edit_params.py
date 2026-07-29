@@ -209,9 +209,11 @@ class TestAddPid:
         block = next(v for k, v in ecu["pids"].items() if str(k).upper() == "21F2")
         assert block["status"] == "draft"
         assert block["period"] == 0
-        assert block["vehicle_states"] == ["ready", "charging"]
+        assert block["vehicle_states"] == ["READY", "CHARGING"]
         assert block["notes"].strip() == "discovery placeholder"
         assert "parameters" not in block  # bare PID — no params
+        # vehicle_states renders as an inline flow list (not a block list)
+        assert "vehicle_states: [READY, CHARGING]" in (pids_dir / "test.yaml").read_text()
         # sibling PIDs + header comment survive
         assert "EXISTING" in ecu["pids"][2101]["parameters"]
         assert "# Header comment that must survive edits" in (pids_dir / "test.yaml").read_text()
@@ -350,7 +352,7 @@ class TestResearch:
         research = _load(pids_dir)["TESTECU"]["research"]
         assert len(research) == 2
         new = next(e for e in research if e["target"] == "22 E001-E010")
-        assert new["type"] == "scan" and new["vehicle_states"] == ["acc"]
+        assert new["type"] == "scan" and new["vehicle_states"] == ["ACC"]
 
     def test_add_entry_creates_section(self, pids_dir):
         # Remove research section first by rewriting a section-less ECU.

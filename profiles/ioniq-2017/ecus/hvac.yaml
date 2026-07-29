@@ -14,18 +14,14 @@ HVAC:
     notes: >
       Climate control unit (DATC — Digital Automatic Temperature Control).
       Exposes climate/compressor live data via service 22 (e.g. 220102).
-  vehicle_states:
-    - acc
-    - acc2
-    - ready
+  vehicle_states: [ACC, ACC2, READY]
   scan_log: # HVAC
     - service: 0x31
       range: "E000-E0FF"
       date: 2026-04-20
       hits: 0
       probes: 256
-      vehicle_states:
-        - sleep
+      vehicle_states: [SLEEP]
       notes: "256 errors — likely no service 31 support without ignition"
   # ─── 2026-07-22 read-DID (service 22) sweep, car in READY (parked) ───
   # Goal: find live-data DIDs on ECUs previously only identity-scanned.
@@ -35,10 +31,7 @@ HVAC:
     220100:
       status: active
       period: 5000
-      vehicle_states:
-        - acc
-        - acc2
-        - ready
+      vehicle_states: [ACC, ACC2, READY]
       notes: >
         41-byte ELM response (39 data bytes). Live HVAC sensor/actuator data.
         Monitored 2026-04-17 with HVAC on/off, fan speed changes, temp changes,
@@ -314,10 +307,7 @@ HVAC:
     2201A0:
       status: active
       period: 5000
-      vehicle_states:
-        - acc
-        - acc2
-        - ready
+      vehicle_states: [ACC, ACC2, READY]
       notes: >
         62 bytes. Primary HVAC control/status DID. Contains set temperature,
         HVAC on/off flags, heating mode, and defrost flags. Also contains
@@ -520,10 +510,7 @@ HVAC:
             Actual blower fan speed indicator. Verified by a deliberate fan 1->MAX->1 sweep (2026-07-26 heater-high session): 8 clean symmetric monotonic plateaus L1=40 L2=52 L3=65 L4=77 L5=90 L6=102 L7=111 L8/MAX=121 (~+12/level, compresses at top). Fan-only session steps matched (52/65/90 on the 3->5 change). Reads actual (not rigid setpoint): small off-plateau values (85-93) appear as a transient when vents/recirc change airflow load; steady when load fixed. 0 = glitch frames.
     2201A1:
       status: draft
-      vehicle_states:
-        - acc
-        - acc2
-        - ready
+      vehicle_states: [ACC, ACC2, READY]
       notes: >
         62 bytes. Actuator control data. First 10 bytes very active during
         HVAC operation (RPM-like 16-bit values). ELM[9-10] = 01 01 when on,
@@ -544,18 +531,12 @@ HVAC:
         present here (r≈-0.5). B18|B19 (u16 LE) tracks temp/blend (r~0.97) but temps
         co-move under heating so the specific sensor is unresolved — needs a
         single-variable capture (one temp/actuator at a time).
-      vehicle_states:
-        - acc
-        - acc2
-        - ready
+      vehicle_states: [ACC, ACC2, READY]
       parameters: {}
 
     2201A3:
       status: draft
-      vehicle_states:
-        - acc
-        - acc2
-        - ready
+      vehicle_states: [ACC, ACC2, READY]
       notes: >
         55 bytes. Dynamic during HVAC operation (NOT static as initially
         thought from cold-read). Contains compressor RPM data, PTC heater
@@ -571,35 +552,24 @@ HVAC:
     2201A4:
       status: ignored
       notes: "55 bytes. Byte-identical alias of 2201A3 (confirmed 2026-07-27 across fan-only + PTC-heat load). Redundant — ignored; decode 2201A3 instead."
-      vehicle_states:
-        - acc
-        - acc2
-        - ready
+      vehicle_states: [ACC, ACC2, READY]
       parameters: {}
 
     2201A5:
       status: ignored
       notes: "55 bytes. Byte-identical alias of 2201A3 (confirmed 2026-07-27). Redundant — ignored; decode 2201A3 instead."
-      vehicle_states:
-        - acc
-        - acc2
-        - ready
+      vehicle_states: [ACC, ACC2, READY]
       parameters: {}
 
     2201A6:
       status: ignored
       notes: "55 bytes. Byte-identical alias of 2201A3 (confirmed 2026-07-27). Redundant — ignored; decode 2201A3 instead."
-      vehicle_states:
-        - acc
-        - acc2
-        - ready
+      vehicle_states: [ACC, ACC2, READY]
       parameters: {}
     21F2:
       status: draft
       period: 0
-      vehicle_states:
-        - ready
-        - charging
+      vehicle_states: [READY, CHARGING]
       notes: >
         DRAFT / UNCONFIRMED — not yet captured from the device. Added 2026-07-28 as a discovery placeholder so a bare-ECU capture (canair query HVAC) polls it. RATIONALE: preconditioning is a CLIMATE function, and every other major ECU (VCU/MCU/BMS/OBC/Unknown-746) exposes a 21F2 service-21 config/identity page — so HVAC (0x7B3) very likely has one too, and it is the prime candidate to hold the 2 preconditioning schedules (currently 15 C Thu 15:30 + 15 C Thu 16:00). It was never captured before only because it was never DEFINED (a bare-ECU query polls only defined PIDs). If a device read returns NRC/NO DATA, set status: ignored. See HVAC research 'scan 21 00-FF' and the VCU 21F2 charge-schedule entry.
   iocontrol:
@@ -711,9 +681,7 @@ HVAC:
       status: done
       date: "2026-04-19"
       priority: P1
-      vehicle_states:
-        - acc
-        - charging
+      vehicle_states: [ACC, CHARGING]
       result: >
         13 DIDs respond to ReturnControlToECU (00): F011, F013-F018, F022-F027.
         F012 accepts ShortTermAdjustment (03) but rejects ReturnControlToECU (00).
@@ -729,8 +697,7 @@ HVAC:
       target: "220100"
       status: pending
       priority: P1
-      vehicle_states:
-        - acc
+      vehicle_states: [ACC]
       notes: "HVAC_INVERTER_TEMP (B15, (x/2)-40) unverified. Additional undecoded bytes: driver vent temp (B28), driver legs vent temp (B29), evaporator temp alt (B31), unknown temps (B32-34). Vehicle speed at bix 232 (byte 29) per Ioniq 5."
       what_to_test:
         - "HVAC_INVERTER_TEMP (B15, (x/2)-40)"
@@ -742,8 +709,7 @@ HVAC:
       target: "22 0100-010B"
       status: done
       priority: P1
-      vehicle_states:
-        - acc
+      vehicle_states: [ACC]
       notes: >
         Scanned 2026-04-19. Service 0x21 for 0101-010B: all NRC 0x11.
         Service 0x22 for 0101-010B: only 0102 responds (already known),
@@ -754,8 +720,7 @@ HVAC:
       target: "climate power (console split)"
       status: pending
       priority: P2
-      vehicle_states:
-        - ready
+      vehicle_states: [READY]
       notes: >
         The centre console shows a Drive/Climate/Electronics power split. Investigated 2026-07-22
         (READY, parked) with a steady PTC heat ~1kW load and, earlier, heat-pump ~1.5kW; contrasted
@@ -771,7 +736,7 @@ HVAC:
       target: 2201A0 actuator doors
       status: captured
       priority: P3
-      vehicle_states: [ready]
+      vehicle_states: [READY]
       created: "2026-07-23"
       updated: "2026-07-27"
       notes: "PROGRESS 2026-07-27 (mode-cycle capture 2026-07-26): FAN resolved = B18 (HVAC_BLOWER_FAN_SPEED, verified). Airflow-DIRECTION door = the B5/B7/B9/B11 actuator cluster: they reposition on every direction change (temp fixed 21C, so mode-driven). B7 sweeps monotonically face~122 < face+legs~137-157 < legs(floor)~230 < legs+windshield~237; B5/B9/B11 a locked trio (+5/+8). Analog/hysteretic (~+/-20 on repeat visits) so discrete direction->value map still needs a DWELL-per-mode capture (hold each direction ~30s, note each). STILL OPEN: recirc + driver-only produce NO clean flag/enum on 2201A0 or 220100 in this capture (small B18 fan dips at 17:13 are consistent with recirc/driver-only altering airflow load, reinforcing B18=actual feedback). motor-drive B47/B50 = 0-255 sawtooth (position/commutation counter), not load. Cross-ref 2201A1-A6."
@@ -779,7 +744,7 @@ HVAC:
       target: 220100 B14/B35 signals
       status: captured
       priority: P3
-      vehicle_states: [ready]
+      vehicle_states: [READY]
       created: "2026-07-23"
       updated: "2026-07-23"
       notes: "220100 has 3 non-constant unmapped bytes, all registered as enabled-unverified candidates: HVAC_ACTUATOR_B14 (0-59, weak corr, likely valve/PWM), HVAC_HEAT_DEMAND (B34, r=-0.74 vs ambient), HVAC_ACTUATOR_B35 (86-255, noisy, r=-0.80 vs blower feedback). Other unmapped bytes are constants/FF-padding (B5=0x7E B6=0x50 B7=0x07 B9=0xC8; B10/B18-B31 tail=0xFF). Verify: actuate heat/fan and observe which moves."
@@ -787,7 +752,7 @@ HVAC:
       target: 220100 B34 (heat demand, NOT fan)
       status: captured
       priority: P3
-      vehicle_states: [ready]
+      vehicle_states: [READY]
       created: "2026-07-24"
       updated: "2026-07-27"
       notes: "RESOLVED-fan-question 2026-07-27: B34 is NOT the fan. Against the now-confirmed actual fan (2201A0 B18) over the 2026-07-26 fan-only+heater session, B34 r=-0.07 (no relation); the 2026-04-19 'fan1->MAX' co-movement was coincidental (fan-up accompanies demand). Old B33 HVAC_FAN_SPEED_LEVEL dead 0xFF; B20 HVAC_BLOWER_FAN_DUTY_3 also r=+0.09 vs real fan (not fan, stays disabled). REMAINING: B34 vs ambient r=-0.74 historically + weak vs PTC (r=-0.21) => heat/climate-demand candidate; confirm with a heat sweep at constant fan."
@@ -795,7 +760,7 @@ HVAC:
       target: 2201A0 B18 blower fan speed
       status: done
       priority: P2
-      vehicle_states: [ready]
+      vehicle_states: [READY]
       created: "2026-07-27"
       updated: "2026-07-27"
       notes: "HVAC_BLOWER_FAN_SPEED (2201A0 B18) registered enabled-unverified from the 2026-07-26 fan-only capture: stepped 52/65/90 for fan 3/4/5, load-sensitive analog wobble = likely ACTUAL blower feedback not setpoint. TO VERIFY: clean fan-level sweep 1..MAX at constant temp/airflow to build the level<->value map and confirm scale/units (RPM? voltage x10? %). Also settle setpoint-vs-feedback: hold fan fixed and change only airflow/recirc — if B18 moves it's actual feedback. Check B18 at MAX fan (max~121 seen as outlier)."
@@ -803,7 +768,7 @@ HVAC:
       target: 2201A1/A2/A3 sensor pages
       status: captured
       priority: P3
-      vehicle_states: [ready]
+      vehicle_states: [READY]
       created: "2026-07-27"
       updated: "2026-07-27"
       notes: "01Ax higher pages surveyed 2026-07-27 (2026-07-26 HVAC capture). STRUCTURE: A0=actuators/fan(decoded); A1(62B)/A2(55B)/A3(55B)=distinct 16-bit sensor/actuator detail pages; A4/A5/A6=byte-identical aliases of A3 (now ignored). CONFIRMED: mode-door position mirrored on A1 B22 & A2 B20 (r~0.97 vs A0 B07, ~raw). Fan level (A0 B18) NOT on any sibling page. OPEN: multiple temperatures on A1(B65,B20)/A2(B18|B19)/A3(B29~heat-exch, 0.905x-23.5) all co-move under heating so specific sensors unresolved. TO DECODE: single-variable capture — vary ONE temp/actuator at a time (e.g. evap vs heat-exch vs duct), hold, note; then hunt each A-page word against the isolated reference."
@@ -811,7 +776,7 @@ HVAC:
       target: 21 00-FF
       status: pending
       priority: P2
-      vehicle_states: [ready]
+      vehicle_states: [READY]
       created: "2026-07-28"
       updated: "2026-07-28"
       notes: "HVAC (0x7B3, UDS) has NEVER been probed for service-21 pages — only service-22 DIDs (2201xx) and one service-31 sweep are logged. Preconditioning is a CLIMATE function, so an HVAC service-21 config page (esp. 21F2, mirroring the VCU/MCU/BMS/OBC 21F2 convention) is a strong candidate to hold the 2 preconditioning schedules (currently 15 C Thu 15:30 + 15 C Thu 16:00) — possibly the PRIMARY store, with VCU 21F2 only carrying the charge windows. Sweep 21 00-FF in READY; if 21F2 (or any page) responds, capture it, then reprogram ONE precondition field and re-read to diff. Cross-ref: VCU 21F2 charge-schedule research entry (charge timer is bit-packed in VCU 21F2 B38-B43+B75)."

@@ -65,7 +65,7 @@ class TestResolveMetadata:
         # input() would raise if called — proving non-interactive.
         with patch("builtins.input", side_effect=AssertionError("should not prompt")):
             meta = resolve_metadata("My label", "ready, parked", "some notes")
-        assert meta == ("My label", ["ready", "parked"], "some notes")
+        assert meta == ("My label", ["READY", "PARKED"], "some notes")
 
     def test_label_given_defaults_empty_state_notes(self):
         with patch("builtins.input", side_effect=AssertionError("should not prompt")):
@@ -75,7 +75,7 @@ class TestResolveMetadata:
     def test_no_label_falls_back_to_prompt(self):
         with patch("builtins.input", side_effect=["Prompted", "charging", "n"]):
             meta = resolve_metadata(None, None, None, suggested_label="sugg")
-        assert meta == ("Prompted", ["charging"], "n")
+        assert meta == ("Prompted", ["CHARGING"], "n")
 
     def test_no_label_prompt_cancelled(self):
         with patch("builtins.input", side_effect=KeyboardInterrupt):
@@ -677,7 +677,7 @@ class TestSetSessionStates:
         f = self._write(tmp_path, states=[])
         set_session_states(f, 0, "charging")
         doc = json.loads(f.read_text())
-        assert doc["sessions"][0]["vehicle_states"] == ["charging"]
+        assert doc["sessions"][0]["vehicle_states"] == ["CHARGING"]
 
     def test_accepts_comma_string_and_list(self, tmp_path):
         from canlib.captures import set_session_states
@@ -685,7 +685,7 @@ class TestSetSessionStates:
         f = self._write(tmp_path, states=[])
         set_session_states(f, 0, "charging, ready")
         doc = json.loads(f.read_text())
-        assert doc["sessions"][0]["vehicle_states"] == ["charging", "ready"]
+        assert doc["sessions"][0]["vehicle_states"] == ["CHARGING", "READY"]
 
     def test_empty_clears(self, tmp_path):
         from canlib.captures import set_session_states

@@ -183,12 +183,14 @@ class TestStateOptions:
         )
         opts = state_options(prof)
         names = [n for n, _ in opts]
-        # Declared states keep file order and come before base-only states.
-        assert names[:2] == ["charging", "parked"]
-        assert opts[0] == ("charging", "HV charging")
-        # Base POWER_STATES not already declared are appended (e.g. ready, sleep).
-        assert "ready" in names
-        assert "sleep" in names
+        # Declared states keep file order, are UPPER-cased, and come before base.
+        assert names[:2] == ["CHARGING", "PARKED"]
+        assert opts[0] == ("CHARGING", "HV charging")
+        # Base POWER_STATES not already declared are appended (e.g. READY, SLEEP).
+        assert "READY" in names
+        assert "SLEEP" in names
+        # The ALL meta-token is always offered.
+        assert "ALL" in names
         # No duplicates.
         assert len(names) == len(set(names))
 
@@ -197,4 +199,12 @@ class TestStateOptions:
             states_file = tmp_path / "nope.yaml"
 
         names = [n for n, _ in state_options(_P())]
-        assert set(names) == {"sleep", "plugged", "acc", "acc2", "ready", "charging"}
+        assert set(names) == {
+            "SLEEP",
+            "PLUGGED",
+            "ACC",
+            "ACC2",
+            "READY",
+            "CHARGING",
+            "ALL",
+        }

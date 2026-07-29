@@ -21,7 +21,7 @@ from __future__ import annotations
 from datetime import date as _date
 from pathlib import Path
 
-from ruamel.yaml.comments import CommentedMap
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.scalarint import HexCapsInt
 
 from .yaml_rt import detect_sequence_indent as _detect_seq
@@ -56,6 +56,23 @@ CANONICAL_FIELD_ORDER = (
 
 class EcusEditError(Exception):
     """Raised when an ECU-file edit cannot be applied safely."""
+
+
+def _flow_states(vehicle_states) -> CommentedSeq | None:
+    """Normalize a ``vehicle_states`` list to canonical UPPERCASE, flow-styled.
+
+    Renders as an inline list (``[SLEEP, PLUGGED]``) for readability in the long
+    per-ECU files, matching how the ``pids``/``research`` editors write the field.
+    Returns ``None`` for an empty/absent value so the caller omits the key.
+    """
+    from .states import parse_states
+
+    toks = parse_states(vehicle_states)
+    if not toks:
+        return None
+    seq = CommentedSeq(toks)
+    seq.fa.set_flow_style()
+    return seq
 
 
 # ── helpers ───────────────────────────────────────────────────────────────
@@ -343,7 +360,7 @@ def append_scan_log(
         "date": date if date is not None else _date.today().isoformat(),
         "hits": hits,
         "probes": probes,
-        "vehicle_states": vehicle_states,
+        "vehicle_states": _flow_states(vehicle_states),
         "notes": notes,
     }
     entry = CommentedMap()

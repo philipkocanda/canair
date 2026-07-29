@@ -55,7 +55,7 @@ from canlib.pids_edit import (
     set_research_status,
     upsert_parameter,
 )
-from canlib.states import POWER_STATES
+from canlib.states import CLI_STATE_CHOICES
 
 NAME = "pids"
 
@@ -500,7 +500,8 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "--vehicle-states",
         dest="prereq",
         action="append",
-        choices=list(POWER_STATES),
+        type=str.upper,
+        choices=list(CLI_STATE_CHOICES),
         help="Power state(s) in which this PID responds (repeatable)",
     )
     adp.add_argument("--period", type=int, help="Polling interval in ms")
@@ -519,7 +520,8 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "--vehicle-states",
         dest="prereq",
         action="append",
-        choices=list(POWER_STATES),
+        type=str.upper,
+        choices=list(CLI_STATE_CHOICES),
     )
     ar.add_argument("--date")
     ar.add_argument(

@@ -15,8 +15,9 @@ Modes / filters (all combine with AND):
   --type TYPE           scan | decode | verify | iocontrol_scan
   --status STATUS       pending | captured | nrc | done
   --priority PRIO       P1 | P2 | P3
-  --states STATE        sleep | plugged | acc | acc2 | ready | charging
-                        (aliases: --vehicle-states / --prerequisite / --prereq)
+  --states STATE        SLEEP | PLUGGED | ACC | ACC2 | READY | CHARGING | ALL
+                        (aliases: --vehicle-states / --prerequisite / --prereq;
+                        case-insensitive)
   --summary             Counts by status / type / priority / ECU
   --all                 Include done items (hidden by default)
   --verbose             Show full notes/results (default caps long prose)
@@ -43,7 +44,7 @@ from pathlib import Path
 
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.pids import load_pids
-from canlib.states import POWER_STATES
+from canlib.states import CLI_STATE_CHOICES
 
 NAME = "research"
 
@@ -307,7 +308,8 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "--prerequisite",
         "--prereq",
         dest="state",
-        choices=POWER_STATES,
+        type=str.upper,
+        choices=CLI_STATE_CHOICES,
         help="Filter to items needing this car power state",
     )
     parser.add_argument(

@@ -113,7 +113,7 @@ class TestRun:
         data = json.loads((tmp_path / "2026-07-25.json").read_text())
         sess = data["sessions"][0]
         assert sess["label"] == "Odometer"
-        assert sess["vehicle_states"] == ["acc2"]
+        assert sess["vehicle_states"] == ["ACC2"]
         cap = sess["captures"][0]
         assert cap == {
             "rx": "0x7CE",

@@ -9,24 +9,19 @@ SCC:
     notes: >
       Smart Cruise Control (front radar). Live data via 220100-0103/0105
       (mode/target/gap/radar), all still undecoded — needs driving captures.
-  vehicle_states:
-    - acc
-    - acc2
-    - ready
+  vehicle_states: [ACC, ACC2, READY]
   scan_log: # SCC (smart cruise control)
     - service: 0x22
       range: "0101-010F,0106-0120,B001-B010"
       date: 2026-07-22
       hits: "0101,0102,0103,0105"
-      vehicle_states:
-        - ready
+      vehicle_states: [READY]
       notes: "Re-confirmed the 01xx block (already registered). 0106-0120 and B0xx all NRC."
   pids:
     220100:
       status: draft
       period: 2500
-      vehicle_states:
-        - ready
+      vehicle_states: [READY]
       parameters:
         SCC_0100_UNKNOWN:
           expression: ""
@@ -104,8 +99,7 @@ SCC:
       target: 22 0104-0110
       status: done
       priority: P3
-      vehicle_states:
-        - ready
+      vehicle_states: [READY]
       date: "2026-07-22"
       result: "22010x gap sweep (ignition on): only 0105 (5B, 6201050307) responds in 0104-0110; 0104 and 0106-0110 all NRC. SCC readable pages remain 0100-0103,0105 — no hidden pages found."
       notes: Hidden-page hunt 2026-07-22.
@@ -114,7 +108,7 @@ SCC:
       target: 220102 speed byte
       status: pending
       priority: P3
-      vehicle_states: [ready]
+      vehicle_states: [READY]
       created: "2026-07-27"
       updated: "2026-07-27"
       notes: "e-Niro AEB 0x7D0 22 02 00: byte 3 of the 62 02 xx response = vehicle Speed. Ioniq SCC/AEB is also 0x7D0 (220100-220105 defined, NO captures yet). LEAD: capture SCC 220102/220100 while driving and hunt for the speed byte vs ESC:22C101:REAL_SPEED_KMH. e-Niro is single-frame so the offset is a hint, not a map."

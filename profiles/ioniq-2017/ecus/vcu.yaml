@@ -35,16 +35,12 @@ VCU:
       of the EV powertrain: torque requests, drive-mode logic, regen strength
       and brake blending, and coordination between motor, inverter and battery.
       Shares the EPCU (Electronic Powertrain Control Unit) housing with the MCU.
-  vehicle_states:
-    - ready
-    - charging
+  vehicle_states: [READY, CHARGING]
   pids:
     2101:
       status: active
       period: 2500
-      vehicle_states:
-        - ready
-        - charging
+      vehicle_states: [READY, CHARGING]
       parameters:
         VCU_VEHICLE_SPEED:
           expression: ((S20*256)+B19)*1.609344/100
@@ -252,9 +248,7 @@ VCU:
     2102:
       status: active
       period: 5000
-      vehicle_states:
-        - ready
-        - charging
+      vehicle_states: [READY, CHARGING]
       parameters:
         VCU_INVERTER_INPUT_VOLTAGE:
           expression: "B17*2"
@@ -352,9 +346,7 @@ VCU:
 
       status: active
       period: 0
-      vehicle_states:
-        - charging
-        - ready
+      vehicle_states: [CHARGING, READY]
       notes: >
         ~86 bytes. Discovered during charging PID scan (2026-04-18).
         Raw payload: 61F2FF000000084566003FC6AE1101877F00000000000000000000000000...
@@ -401,8 +393,7 @@ VCU:
       target: "2101"
       status: pending
       priority: P1
-      vehicle_states:
-        - acc
+      vehicle_states: [ACC]
       notes: >
         Several unverified params: CAR_READY (B26:3) causes OOB on 22-byte response, PARK_BRAKE (B26:5) same issue, ACCEL_PEDAL_DEPTH (B17), LDC_INHIBIT (B11:7),
         MCU_STATE (B11:6).
@@ -432,9 +423,7 @@ VCU:
       target: "2102"
       status: captured
       priority: P1
-      vehicle_states:
-        - ready
-        - charging
+      vehicle_states: [READY, CHARGING]
       notes: >
         27 bytes. 2026-07-20 (Kia Soul EV VMCU cross-ref, 0x7E2): mapped INVERTER_INPUT_VOLTAGE=B17*2
         (verified vs BMS pack ~369V) and AUX_BATTERY_VOLTAGE=B18/10 (~12–13.6V). KEY FINDING: the Ioniq
@@ -471,8 +460,7 @@ VCU:
       target: "22 E001-E010"
       status: done
       priority: P1
-      vehicle_states:
-        - acc
+      vehicle_states: [ACC]
       notes: >
         Ioniq 5 cross-ref: E001 vehicle speed, E002 motor RPM, E004 accel pedal/speed HD/aux voltage, E005 disconnector, E006 drive mode, E007 regen level, E008 torque request, E009 actual regen torque, E00A odometer, E00B motor temp, E00C inverter cooling temp, E010 gear state."
         2026-07-19: 22E001 -> NRC 0x12 (subFunctionNotSupported)
@@ -495,8 +483,7 @@ VCU:
       target: "2101 speed"
       status: done
       priority: P1
-      vehicle_states:
-        - ready
+      vehicle_states: [READY]
       notes: >
         2026-07-20: RESOLVED unit = MPH (not km/h) and low byte = B19 (unsigned), high byte = S20 (signed).
         Expression ((S20*256)+B19)*1.609344/100 reads 0 at park (verified live) and ~+4% under dashboard.
@@ -509,15 +496,13 @@ VCU:
       target: "0x7E1 22 0101-0105"
       status: nrc
       priority: P3
-      vehicle_states:
-        - acc
+      vehicle_states: [ACC]
       notes: "Powertrain address — test if anything responds."
     - type: scan
       target: 21 00-FF
       status: done
       priority: P2
-      vehicle_states:
-        - ready
+      vehicle_states: [READY]
       date: "2026-07-22"
       result: "Exhaustive service-21 LID sweep (ignition on): only 01/02/F2 respond (= known 2101/2102/21F2), all 253 others NRC. No hidden pages. Drive-mode/regen not exposed as a separate VCU service-21 page — must be bytes within 2101/2102 (or 21F2)."
       notes: Hidden-page hunt. Redirects the drive-mode/regen search back into the known 2101/2102 payloads.
@@ -525,14 +510,13 @@ VCU:
       target: "2101"
       status: done
       priority: P3
-      vehicle_states:
-        - ready
+      vehicle_states: [READY]
       notes: "VCU 2101 B13/B15 = accelerator/torque REQUEST echo (driver demand), essentially redundant with ACCEL_PEDAL_DEPTH so not worth a separate param. From 2026-07-22 drive: B13 and B15 both correlate ~0.99 with ACCEL_PEDAL_DEPTH; B13 = 2xB15 exactly; linear fit B13 = 0.263*pedal + 6.4 (residual std 0.44); both FLOOR at their idle value (B13=6, B15=3) during braking/regen (never go negative), confirming it is a >=0 request signal, not actual bidirectional motor torque (which lives in MCU 2102). Neighbouring unmapped B14/B21 are uncorrelated with speed/pedal (noise/other). Actual motor torque + regen must be read from MCU 2102 (MCU_MOTOR_TORQUE) — VCU 2101 does not expose signed motor torque."
     - type: verify
       target: 2102 charge-time estimates
       status: captured
       priority: P3
-      vehicle_states: [charging]
+      vehicle_states: [CHARGING]
       created: "2026-07-27"
       updated: "2026-07-27"
       notes: "VCU_CHARGE_TIME_REMAINING = [B22:B23]/10 min found 2026-07-27 (time=energy/power: byte*I const CV 0.008; -0.77 vs SOC; ~0 at stop). TODO: (1) verify the /10=min scale against a known dash time-to-full readout; (2) decode the coarser/related inverse estimates on B19 (2102) and B21 (2101) — likely a second time-to-full or a to-target estimate; (3) no clean charge-power byte found on VCU 2101/2102 (positive-vs-current correlators were weak drift)."
@@ -540,7 +524,7 @@ VCU:
       target: 2101 charge/drive state bits
       status: captured
       priority: P3
-      vehicle_states: [ready]
+      vehicle_states: [READY]
       created: "2026-07-27"
       updated: "2026-07-27"
       notes: "State-discrimination 2026-07-27 surfaced: (1) B22:3 = charge-active indicator — set 98% during AC charging, 0% ready-parked, but ~34% during driving; hypothesis = 'battery charge current flowing' (EVSE + regen), UNCONFIRMED (driveway drive had negligible regen; vs BMS current join n/a, vs MCU torque r~0.01). Retest on a highway drive with strong regen + co-polled BMS:2101 BATTERY_CURRENT. (2) B23 = drive-path-enable bitmask = 52 (bits 2/4/5) ready/drive, 0 charging; B23:2 is VCU_INVERTER_ENABLED, B23:4/B23:5 undecoded companions (same pattern, no ready-vs-drive distinction). (3) VCU_POWER_STATE now enum 4/6/7."
@@ -548,7 +532,7 @@ VCU:
       target: 21F2 charge-schedule
       status: captured
       priority: P2
-      vehicle_states: [charging]
+      vehicle_states: [CHARGING]
       created: "2026-07-28"
       updated: "2026-07-28"
       notes: "Crack the packed charge/precondition-SCHEDULE encoding in VCU 21F2 (WiCAN indexing, incl. ISO-TP PCI: B00/B01=FF PCI, B08/B16/...=CF PCI, SID 0x61 at B02). Config bytes = constant across three 2026-07-22 reads yet changed on 2026-07-28 when BOTH the charge timer AND the two preconditioning schedules were reprogrammed via the AVN/IVI: contiguous B38/B39 + B41/B42/B43 (ISO-TP 0x20-0x24: E1 21 CB 65 F3 -> A0 27 D3 D3 F4) + B75 (ISO-TP 0x40: 0x10 -> 0x14) + a small B11 tick (0x67->0x68, likely counter/checksum). KNOWN 07-28 settings (ground truth, see PID notes): charge timer weekends 17:40-20:50 / weekdays 01:20-03:40; preconditioning ALWAYS exactly TWO: (1) 15 C Thu 15:30, (2) 15 C Thu 16:00. SOLVED so far: B75=0x14=20 = weekend-end HOUR (candidate CHARGE_TIMER_WKND_END_HOUR). UNSOLVED: the B38-B43 block does NOT decode to any schedule value as plain bytes/BCD, and the raw preconditioning numbers 15/16/30 do not appear as any byte in the 07-28 payload -> bit-packed. It likely carries BOTH charge windows and both precondition schedules, so the single 07-28 before/after (where everything changed at once) cannot separate the fields. Live analog bytes to IGNORE: B10,B12,B13,B14,B15,B19,B20,B21,B29-B37,B45,B47,B57."

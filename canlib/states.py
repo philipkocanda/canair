@@ -62,6 +62,11 @@ ALL_STATE = "ALL"
 # Backwards-compatible alias (older code/imports referred to BASE_STATES).
 BASE_STATES = POWER_STATES
 
+# Tokens offered as argparse ``choices`` for state flags (base vocabulary + the
+# ``ALL`` meta-token). Pair with ``type=str.upper`` so any casing typed on the
+# CLI is normalized before the choices check.
+CLI_STATE_CHOICES = (*POWER_STATES, ALL_STATE)
+
 
 class StatePredicateError(Exception):
     """Raised when a state ``when:`` expression uses disallowed/invalid syntax."""

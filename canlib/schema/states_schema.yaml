@@ -9,9 +9,13 @@
 #
 # Top-level structure:
 #   states:                 # ordered list; first matching `when` wins on suggest
-#     - name: str           # required — the state name (e.g. "ready", "charging")
+#     - name: str           # required — the state name (e.g. "READY", "CHARGING")
 #       description: str    # optional — human-readable explanation
 #       when: str           # optional — boolean predicate over ECU.PARAM values
+#
+# State names are an UPPERCASE controlled vocabulary (like the CAN-bus segment
+# codes in can_buses.yaml). Input is normalized to uppercase, so any casing
+# works on the CLI. Inspect/edit with `canair states`.
 #
 # Predicate grammar (whitelisted AST; no function calls / attribute access beyond
 # dotted ECU.PARAM names):
@@ -23,7 +27,9 @@
 #   __responded__           true when at least one ECU responded
 #
 # Base vocabulary (shared across vehicles; profiles may add composite states):
-#   sleep, plugged, acc, acc2, ready, charging
+#   SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING
+# Plus the meta-token ALL — "applicable/readable in every state" (documentary,
+# the state analogue of the ALL CAN-bus code).
 
 required_state_fields:
   - name
