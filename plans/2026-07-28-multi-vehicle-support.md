@@ -34,9 +34,10 @@ unchanged at every step.
   The **7-digit XPeng PID convention is resolved**: `22`+4-hex-DID + an optional
   trailing ELM327 response-frame-count digit (`2211011` = request `22 1101`,
   "expect 1 frame"); canair PID keys drop the count digit (ISO-TP reassembly
-  handles frame counting). **Step 8 (seed `profiles/xpeng-g6/`) remains.**
-- **Phases 2 (step 8) – 4 — remaining.** The next concrete driver is the **XPeng
-  G6** seed (step 8, now unblocked), then 29-bit (Phase 3).
+  handles frame counting). **Phase 2 is COMPLETE** — `profiles/xpeng-g6/` is
+  seeded (step 8).
+- **Phases 3–4 — remaining.** Next is 29-bit addressing (Phase 3), then the
+  de-Hyundai heuristics (Phase 4).
 
 ## Worked example / first non-Hyundai driver: XPeng G6
 
@@ -185,12 +186,13 @@ worked example above).
    historical captures written under the profile's offset still map. Capture
    writes (`captures.py`, `import_uds.py`, `multi_exec.py`) go through
    `rx_addr_str`, which now honors the resolved `rx_id`.
-8. **Seed `profiles/xpeng-g6/`** — once 5–7 land, seed the G6 device-free from the
-   upstream JSON (ECU TX `0x704`, `rx_id: 0x784` or `addressing.rx_offset: 0x80`,
-   `can_bitrate: 500000`, neutral init) as the regression fixture for non-`+8`
-   addressing. All PIDs `--unverified`/`draft`. **PID convention resolved** (see
-   Status): PID keys are `22`+DID (e.g. `221101`, `221122`); the upstream 7th
-   digit is the ELM327 response-frame count, dropped for canair's ISO-TP path.
+8. ✅ **Seed `profiles/xpeng-g6/`** — seeded device-free from the upstream JSON
+   through the sanctioned writers (`ecus_edit`/`pids_edit`): one ECU `BMS` at TX
+   `0x704`, profile `addressing.rx_offset: 0x80` (→ RX `0x784`), `can_bitrate:
+   500000`, neutral init. 11 PIDs / 236 params, all `draft` + unverified. PID
+   keys are `22`+DID (trailing ELM327 frame-count digit dropped). A per-ECU
+   `rx_id` editor was added (`canair ecu add --rx-id` / `register_ecu(rx_id=…)`)
+   to close the CLI-coverage gap for the new field.
 
 ## Phase 3 — 29-bit addressing (gap A)
 

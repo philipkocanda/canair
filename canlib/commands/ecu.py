@@ -675,6 +675,7 @@ def _add_add_parser(kinds) -> argparse.ArgumentParser:
         epilog="examples:\n"
         "  canair ecu add 7C6 --name CLU --description 'Cluster (instrument panel)'\n"
         "  canair ecu add 0x7E4 --name BMS --id-protocol KWP2000\n"
+        "  canair ecu add 0x704 --name BMS --rx-id 0x784   # non-standard response addr\n"
         "  canair ecu add 770 --name IGPM --notes 'Seeded offline; no PIDs yet'\n",
     )
     parser.add_argument("tx", metavar="TX", help="ECU TX id (hex, e.g. 7C6 or 0x7C6)")
@@ -682,6 +683,12 @@ def _add_add_parser(kinds) -> argparse.ArgumentParser:
     parser.add_argument("--description", help="Human description")
     parser.add_argument(
         "--id-protocol", dest="id_protocol", help="Identity protocol (UDS | KWP2000)"
+    )
+    parser.add_argument(
+        "--rx-id",
+        dest="rx_id",
+        help="CAN response address override (hex, e.g. 0x784) — for an ECU whose "
+        "response addr isn't tx_id + the profile's addressing.rx_offset",
     )
     parser.add_argument("--notes", help="Free-text notes")
     parser.add_argument(
@@ -705,6 +712,17 @@ def cmd_add(args) -> int:
         )
         return 1
 
+    rx_id = None
+    if getattr(args, "rx_id", None) is not None:
+        try:
+            rx_id = int(str(args.rx_id), 16)
+        except ValueError:
+            print(
+                f"{_RED}Invalid RX id {args.rx_id!r} — expected hex (e.g. 0x784).{_RESET}",
+                file=sys.stderr,
+            )
+            return 1
+
     fields = {
         k: v
         for k, v in (
@@ -720,6 +738,7 @@ def cmd_add(args) -> int:
             name=args.name,
             overwrite=args.overwrite,
             ecus_dir=args.dir,
+            rx_id=rx_id,
             **fields,
         )
     except EcusEditError as e:

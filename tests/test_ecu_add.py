@@ -48,6 +48,7 @@ def _args(**kw):
         "name": None,
         "description": None,
         "id_protocol": None,
+        "rx_id": None,
         "notes": None,
         "overwrite": False,
         "dir": None,
@@ -91,6 +92,22 @@ class TestEcuAdd:
         root = _mk_profile(tmp_path)
         rc = cmd_add(_args(tx="999", dir=root / "ecus"))
         assert rc == 1
+
+    def test_rx_id_override_written(self, tmp_path):
+        # A non-standard response address (XPeng: 0x704 -> 0x784) is written as a
+        # top-level rx_id field (sibling of tx_id).
+        root = _mk_profile(tmp_path)
+        rc = cmd_add(_args(tx="704", name="BMS", rx_id="0x784", dir=root / "ecus"))
+        assert rc == 0
+        data = yaml.safe_load((root / "ecus" / "bms.yaml").read_text())
+        assert data["BMS"]["tx_id"] == 0x704
+        assert data["BMS"]["rx_id"] == 0x784
+
+    def test_invalid_rx_id_is_error(self, tmp_path, capsys):
+        root = _mk_profile(tmp_path)
+        rc = cmd_add(_args(tx="704", name="BMS", rx_id="ZZ", dir=root / "ecus"))
+        assert rc == 1
+        assert "Invalid RX" in capsys.readouterr().err
 
 
 class TestOfflineValidationProfileScoping:

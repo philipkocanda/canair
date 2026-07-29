@@ -206,6 +206,7 @@ def register_ecu(
     *,
     overwrite: bool = False,
     ecus_dir: Path | None = None,
+    rx_id: int | None = None,
     **fields,
 ) -> bool:
     """Register an ECU as ``ecus/<name>.yaml``, or merge into the existing file.
@@ -213,10 +214,15 @@ def register_ecu(
     A new file defaults its name to ``Unknown-<TX>`` when none is given. Existing
     files keep their human-authored identity fields; only missing/empty ones are
     filled unless ``overwrite=True``. ``fields`` are identity fields (see
-    ``identity_fields`` in the schema). Returns True if a file was written.
+    ``identity_fields`` in the schema). ``rx_id`` is the optional top-level CAN
+    response-address override (for an ECU whose response address doesn't follow
+    the profile's ``addressing.rx_offset``); it is written/updated when provided.
+    Returns True if a file was written.
     """
     _check_fields(fields)
     disp = tx_key(tx_id)  # validates range
+    if rx_id is not None:
+        tx_key(rx_id)  # reuse the 0x000-0x7FF range check
     ecus_dir = _resolve_dir(ecus_dir)
 
     fpath, existing_name = _find_file_by_tx(tx_id, ecus_dir)
@@ -232,6 +238,12 @@ def register_ecu(
             ident = CommentedMap()
             ecu_def["identity"] = ident
         changed = _merge_fields(ident, fields, overwrite)
+        # rx_id is a top-level field (sibling of tx_id); set when provided and
+        # missing, or when overwrite is requested.
+        if rx_id is not None and (overwrite or ecu_def.get("rx_id") is None):
+            if ecu_def.get("rx_id") != rx_id:
+                ecu_def["rx_id"] = _hex_tx(rx_id)
+                changed = True
         if changed:
             _safe_write(fpath, original, data)
         return changed
@@ -245,6 +257,8 @@ def register_ecu(
     data = CommentedMap()
     ecu_def = CommentedMap()
     ecu_def["tx_id"] = _hex_tx(tx_id)
+    if rx_id is not None:
+        ecu_def["rx_id"] = _hex_tx(rx_id)
     ident = _new_identity(fields)
     if len(ident):
         ecu_def["identity"] = ident

@@ -20,6 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `canair validate` type-checks both new fields. The bundled `ioniq-2017`
   profile is unchanged (defaults reproduce `TX + 8`). Part of
   `plans/2026-07-28-multi-vehicle-support.md` (Phase 2).
+- **`canair ecu add --rx-id`** — set a per-ECU CAN response-address override when
+  registering an ECU offline (for a single ECU whose response addr doesn't follow
+  the profile's `addressing.rx_offset`).
+- **Bundled `xpeng-g6` seed profile** — a device-free profile transcribed from the
+  upstream WiCAN community profile (all PIDs `draft`/unverified), demonstrating
+  non-`+8` addressing (`addressing.rx_offset: 0x80`, request `0x704` → response
+  `0x784`) and serving as its regression fixture.
 - **CAN bus `bitrate`** — `can_buses.yaml` bus entries take an optional
   `bitrate` field (segment bus speed in bit/s). `canair bus` renders it as a
   `SPEED` column (e.g. `500 kbit/s`) and includes it in `--json`;
@@ -40,6 +47,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`canair validate captures` groups repeated soft warnings.** Instead of one
+  line per offending capture (a wall of near-identical warnings — e.g. dozens of
+  untimed payloads), each distinct warning message now prints once per file as
+  `⚠ <message> — N captures:` followed by a capped, indented list of locations
+  (`(+N more)` when truncated). Applies to every capture lint (missing-time,
+  echo mismatch, non-hex, quality, state vocabulary) and to the `--strict`
+  errors. Warning/error counts are unchanged.
 - **CAN bus segment codes renamed to `*-CAN` identifiers** (Hyundai/Kia):
   `B`/`P`/`C`/`M`/`H`/`D` → `B-CAN`/`P-CAN`/`C-CAN`/`MM-CAN`/`H-CAN`/`D-CAN`, and
   the gateway code `All` → `ALL` (uppercase, to match the `*-CAN` style). The

@@ -101,8 +101,8 @@ Columns & legend:
 
 ```
 usage: canair ecu add [-h] [--name NAME] [--description DESCRIPTION]
-                      [--id-protocol ID_PROTOCOL] [--notes NOTES]
-                      [--overwrite] [--dir DIR]
+                      [--id-protocol ID_PROTOCOL] [--rx-id RX_ID]
+                      [--notes NOTES] [--overwrite] [--dir DIR]
                       TX
 
 Register a new ECU as ecus/<name>.yaml in the active profile.
@@ -119,6 +119,9 @@ options:
                         Human description
   --id-protocol ID_PROTOCOL
                         Identity protocol (UDS | KWP2000)
+  --rx-id RX_ID         CAN response address override (hex, e.g. 0x784) — for
+                        an ECU whose response addr isn't tx_id + the profile's
+                        addressing.rx_offset
   --notes NOTES         Free-text notes
   --overwrite           Overwrite existing identity fields
   --dir DIR             ecus/ directory (default: active profile)
@@ -126,5 +129,6 @@ options:
 examples:
   canair ecu add 7C6 --name CLU --description 'Cluster (instrument panel)'
   canair ecu add 0x7E4 --name BMS --id-protocol KWP2000
+  canair ecu add 0x704 --name BMS --rx-id 0x784   # non-standard response addr
   canair ecu add 770 --name IGPM --notes 'Seeded offline; no PIDs yet'
 ```

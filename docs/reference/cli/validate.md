@@ -24,6 +24,8 @@ Pick a target (default: all):
 states, SID/PID/DID echo mismatches (misfiled frames), non-hex payloads
 (e.g. a stored 'NO DATA'), and untimed payload captures. Pass --strict to
 promote the untimed-payload warning to an error — the CI / new-data gate.
+Repeats of the same warning are grouped per file (`⚠ <message> — N captures:`
+plus a capped list of locations) so a large profile stays readable.
 
 Run this after editing ecus/ or adding captures; `canair pids` already
 validates each edit, so this is the whole-profile check.
