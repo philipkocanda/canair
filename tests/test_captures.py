@@ -1,6 +1,7 @@
 """Tests for capture session builders and metadata resolution."""
 
 import json
+from typing import ClassVar
 from unittest.mock import patch
 
 import pytest
@@ -776,3 +777,291 @@ class TestCmdDelete:
         rows = json.loads(capsys.readouterr().out)
         assert len(rows) == 2
         assert all(r["pid"] == "2102" for r in rows)
+
+
+def _uds_response(**kw):
+    """Build a UdsResponse dict with the fields the builders read."""
+    base = {"ok": False, "hex": "", "bytes": b"", "nrc": None, "nrc_desc": "", "error": ""}
+    base.update(kw)
+    return base
+
+
+class TestBuildRawSession:
+    """build_raw_session: one capture from a single raw UDS response."""
+
+    def test_ok_stores_payload(self):
+        from canlib.captures import build_raw_session
+
+        resp = _uds_response(ok=True, hex="62b00412", bytes=b"\x62\xb0\x04\x12")
+        s = build_raw_session("0x7EC", 0x7E4, "22B004", resp, "L", ["ready"], "note")
+        cap = s["captures"][0]
+        assert cap == {"rx": "0x7EC", "pid": "22B004", "payload": "62B00412"}
+        assert s["vehicle_states"] == ["ready"]
+        assert s["notes"] == "note"
+
+    def test_nrc_recorded_as_response(self):
+        from canlib.captures import build_raw_session
+
+        resp = _uds_response(nrc=0x31, nrc_desc="requestOutOfRange")
+        s = build_raw_session("0x7EC", 0x7E4, "22B004", resp, "L", [], "")
+        cap = s["captures"][0]
+        assert cap["response"] == "NRC 0x31 (requestOutOfRange)"
+        assert "payload" not in cap
+        # empty states/notes are omitted, not stored empty
+        assert "vehicle_states" not in s
+        assert "notes" not in s
+
+    def test_error_recorded_as_response(self):
+        from canlib.captures import build_raw_session
+
+        resp = _uds_response(error="NO DATA")
+        s = build_raw_session("0x7EC", 0x7E4, "22B004", resp, "L", [], "")
+        assert s["captures"][0]["response"] == "NO DATA"
+
+
+class TestBuildScanSession:
+    """build_scan_session: one scan_results capture summarising a range probe."""
+
+    def test_responding_and_rejected(self):
+        from canlib.captures import build_scan_session
+
+        pos = [(0xB004, _uds_response(ok=True, hex="62B004" + "12" * 60, bytes=b"\x00" * 62))]
+        neg = [(0xB005, 0x31, "requestOutOfRange")]
+        errs = [(0xB006, "timeout")]
+        s = build_scan_session(
+            "0x7EC", 0x7E4, 0x22, (0xB000, 0xB010), pos, neg, errs, "L", ["ready"], "n"
+        )
+        cap = s["captures"][0]
+        assert cap["pid"] == "scan 22 B000-B010"
+        sr = cap["scan_results"]
+        assert sr["responding"][0]["did"] == "B004"
+        assert sr["responding"][0]["response"] == "62 bytes"
+        # Long raw hex is truncated with an ellipsis.
+        assert sr["responding"][0]["notes"].endswith("...")
+        assert sr["rejected"] == "2 DIDs returned 1 NRC + 1 errors"
+
+    def test_service_21_uses_two_digit_did(self):
+        from canlib.captures import build_scan_session
+
+        s = build_scan_session("0x7EC", 0x7E4, 0x21, (0x01, 0x02), [], [], [], "L", [], "")
+        assert s["captures"][0]["pid"] == "scan 21 01-02"
+
+    def test_append_bytes_suffix(self):
+        from canlib.captures import build_scan_session
+
+        s = build_scan_session(
+            "0x7EC", 0x7E4, 0x22, (0xB000, 0xB010), [], [], [], "L", [], "", append_bytes="AA"
+        )
+        assert s["captures"][0]["pid"] == "scan 22 B000-B010 + suffix AA"
+
+    def test_no_rejected_when_all_positive(self):
+        from canlib.captures import build_scan_session
+
+        pos = [(0xB004, _uds_response(ok=True, hex="62B004", bytes=b"\x62\xb0\x04"))]
+        s = build_scan_session("0x7EC", 0x7E4, 0x22, (0xB000, 0xB010), pos, [], [], "L", [], "")
+        assert "rejected" not in s["captures"][0]["scan_results"]
+
+
+class TestBuildDiscoverSession:
+    """build_discover_session: broadcast-rx capture from a discovery sweep."""
+
+    def test_alive_and_silent(self):
+        from canlib.captures import build_discover_session
+
+        alive = [(0x7E0, "ECU-A", "50 03"), (0x7E2, "ECU-B", "")]
+        s = build_discover_session(alive, 5, 2, (0x700, 0x7FF), "L", ["ready"], "n")
+        cap = s["captures"][0]
+        assert cap["rx"] == "broadcast"
+        assert cap["pid"] == "discover 700-7FF"
+        responding = cap["scan_results"]["responding"]
+        # Each responder's originating ECU is its CAN response address (TX + 8).
+        assert responding[0]["rx"] == "0x7E8"
+        assert responding[0]["response"] == "ECU-A"
+        assert responding[0]["notes"] == "Raw: 50 03"
+        assert responding[1]["notes"] == ""
+        # silent + error counts fold into one rejected line.
+        assert cap["scan_results"]["rejected"] == "7 addresses silent"
+
+    def test_no_responders(self):
+        from canlib.captures import build_discover_session
+
+        s = build_discover_session([], 3, 0, (0x700, 0x710), "L", [], "")
+        sr = s["captures"][0]["scan_results"]
+        assert "responding" not in sr
+        assert sr["rejected"] == "3 addresses silent"
+
+
+class TestSetCaptureNote:
+    """set_capture_note: per-capture note editing (not hand-edit)."""
+
+    def _write(self, tmp_path):
+        from canlib.captures import save_session
+
+        s = build_query_session(
+            [
+                ("0x7EC", "2101", "6101AA", "12:00:00"),
+                ("0x7EC", "2102", "6102BB", "12:00:01"),
+            ],
+            "L",
+            ["ready"],
+            "n",
+        )
+        return save_session(s, tmp_path)
+
+    def test_set_note(self, tmp_path):
+        from canlib.captures import set_capture_note
+
+        f = self._write(tmp_path)
+        set_capture_note(f, 0, 1, "second cap note")
+        doc = json.loads(f.read_text())
+        assert doc["sessions"][0]["captures"][1]["notes"] == "second cap note"
+        # sibling capture untouched
+        assert "notes" not in doc["sessions"][0]["captures"][0]
+
+    def test_clear_note(self, tmp_path):
+        from canlib.captures import set_capture_note
+
+        f = self._write(tmp_path)
+        set_capture_note(f, 0, 0, "x")
+        set_capture_note(f, 0, 0, "  ")
+        doc = json.loads(f.read_text())
+        assert "notes" not in doc["sessions"][0]["captures"][0]
+
+    def test_bad_index_raises(self, tmp_path):
+        from canlib.captures import set_capture_note
+
+        f = self._write(tmp_path)
+        with pytest.raises(IndexError):
+            set_capture_note(f, 0, 9, "x")
+
+
+class TestDeleteCapture:
+    """delete_capture: index-addressed removal, dropping an emptied session."""
+
+    def _write(self, tmp_path):
+        from canlib.captures import save_session
+
+        s = build_query_session(
+            [
+                ("0x7EC", "2101", "6101AA", "12:00:00"),
+                ("0x7EC", "2102", "6102BB", "12:00:01"),
+            ],
+            "L",
+            ["ready"],
+            "n",
+        )
+        return save_session(s, tmp_path)
+
+    def test_delete_leaves_session_when_more_remain(self, tmp_path):
+        from canlib.captures import delete_capture
+
+        f = self._write(tmp_path)
+        removed_session = delete_capture(f, 0, 0)
+        assert removed_session is False
+        doc = json.loads(f.read_text())
+        assert len(doc["sessions"]) == 1
+        assert len(doc["sessions"][0]["captures"]) == 1
+        assert doc["sessions"][0]["captures"][0]["pid"] == "2102"
+
+    def test_delete_last_capture_removes_session(self, tmp_path):
+        from canlib.captures import delete_capture
+
+        f = self._write(tmp_path)
+        delete_capture(f, 0, 0)
+        removed_session = delete_capture(f, 0, 0)
+        assert removed_session is True
+        doc = json.loads(f.read_text())
+        assert doc["sessions"] == []
+
+    def test_bad_index_raises(self, tmp_path):
+        from canlib.captures import delete_capture
+
+        f = self._write(tmp_path)
+        with pytest.raises(IndexError):
+            delete_capture(f, 0, 9)
+
+
+class TestLabelSuggesters:
+    """suggest_*_label: human-readable session labels."""
+
+    def test_scan_label_wide_did(self):
+        from canlib.captures import suggest_scan_label
+
+        assert suggest_scan_label("BMS", 0x22, (0xB000, 0xB010)) == "Scan BMS 22 B000-B010"
+
+    def test_scan_label_two_digit_did_and_suffix(self):
+        from canlib.captures import suggest_scan_label
+
+        assert suggest_scan_label("BMS", 0x21, (0x01, 0x02), "AA") == "Scan BMS 21 01-02 +AA"
+
+    def test_raw_label(self):
+        from canlib.captures import suggest_raw_label
+
+        assert suggest_raw_label("BMS", "2101") == "Raw BMS 2101"
+
+    def test_discover_label(self):
+        from canlib.captures import suggest_discover_label
+
+        assert suggest_discover_label((0x700, 0x7FF)) == "Discovery scan 700-7FF"
+
+
+class TestDecodePayload:
+    """_decode_payload: on-demand decode of a stored payload for display."""
+
+    _PIDS: ClassVar[dict] = {
+        "ecus": {
+            "BMS": {
+                "tx_id": 0x7E4,
+                "pids": {
+                    "2101": {
+                        "parameters": {
+                            "SOC": {"expression": "B03/2", "unit": "%"},
+                            "FLAG": {
+                                "expression": "B03",
+                                "unit": "",
+                                "display": "'HI' if v > 100 else 'LO'",
+                            },
+                        }
+                    }
+                },
+            }
+        }
+    }
+
+    def test_decodes_params_and_display(self):
+        from canlib.captures import _decode_payload
+
+        # WiCAN layout of 6101C8: B00=PCI, B01=SID, B02=PID, B03=0xC8 (200)
+        decoded = _decode_payload("BMS", "2101", "6101C8", self._PIDS)
+        assert decoded == {"SOC": "100.0 %", "FLAG": "200.0  (HI)"}
+
+    def test_bad_display_falls_back_to_plain_value(self):
+        from canlib.captures import _decode_payload
+
+        pids = {
+            "ecus": {
+                "BMS": {
+                    "tx_id": 0x7E4,
+                    "pids": {
+                        "2101": {"parameters": {"X": {"expression": "B03/2", "display": "("}}}
+                    },
+                }
+            }
+        }
+        assert _decode_payload("BMS", "2101", "6101C8", pids) == {"X": "100.0"}
+
+    def test_unknown_ecu_returns_none(self):
+        from canlib.captures import _decode_payload
+
+        assert _decode_payload("NOPE", "2101", "6101C8", self._PIDS) is None
+
+    def test_unknown_pid_returns_none(self):
+        from canlib.captures import _decode_payload
+
+        assert _decode_payload("BMS", "9999", "6101C8", self._PIDS) is None
+
+    def test_pid_without_parameters_returns_none(self):
+        from canlib.captures import _decode_payload
+
+        pids = {"ecus": {"BMS": {"tx_id": 0x7E4, "pids": {"2101": {}}}}}
+        assert _decode_payload("BMS", "2101", "6101C8", pids) is None
