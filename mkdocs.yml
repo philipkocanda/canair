@@ -70,9 +70,6 @@ nav:
       - 7. Define & verify: bring-your-own-car/07-define-and-verify.md
       - 8. Share: bring-your-own-car/08-share.md
       - 9. Broadcast CAN frames (optional): bring-your-own-car/09-broadcast-frames.md
-  - Case studies:
-      - Overview: case-studies/index.md
-      - Finding the hidden AC input voltage: case-studies/ac-input-voltage.md
   - Concepts:
       - Architecture: concepts/architecture.md
       - Profiles: concepts/profiles.md
@@ -84,6 +81,9 @@ nav:
       - Typed (multi-modal) signals: concepts/typed-signals.md
       - Captures & states: concepts/captures-and-states.md
       - Safety: concepts/safety.md
+  - Case studies:
+      - Overview: case-studies/index.md
+      - Finding the hidden AC input voltage: case-studies/ac-input-voltage.md
   - Reference:
       - Configuration: reference/config.md
       - CLI:
