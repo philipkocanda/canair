@@ -147,7 +147,8 @@ QUERY mini-language (see canlib/query.py):
   ECU:PID               one PID                        e.g. VCU:2101
   ECU:PID,PID           several PIDs                   e.g. VCU:2101,22BC03
   "ECU:PID ECU:PID"     cross-ECU (quote the space)    e.g. "VCU:2101 BMS:2101"
-  ECU:22                substring PID match (22xxxx)   e.g. BCM:22
+  ECU:22                prefix PID match (22xxxx)      e.g. BCM:22
+  ECU:BC03              suffix PID match (->22BC03)    e.g. IGPM:BC03
 
 Date scoping (inclusive, YYYY-MM-DD; combines with any mode):
   --since DATE          captures on or after DATE

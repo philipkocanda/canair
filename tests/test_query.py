@@ -5,6 +5,7 @@ import pytest
 from canlib.query import (
     QueryError,
     Selector,
+    looks_like_pid,
     parse_query,
     parse_selector,
 )
@@ -100,10 +101,26 @@ class TestSelectorMatching:
         assert not s.matches("VCU", "2102")
 
     def test_substring_pid(self):
+        # Prefix match: "22" -> the 22xxxx service DIDs.
         s = Selector("BCM", ("22",))
         assert s.matches("BCM", "22BC03")
         assert s.matches("BCM", "22C00B")
         assert not s.matches("BCM", "2101")
+
+    def test_suffix_pid(self):
+        # Suffix match: "BC03" -> the stored full DID "22BC03" (service-byte free).
+        s = Selector("IGPM", ("BC03",))
+        assert s.matches("IGPM", "22BC03")
+        assert s.matches("IGPM", "BC03")  # already the short form
+        assert not s.matches("IGPM", "BC04")
+
+    def test_middle_only_does_not_match(self):
+        # A token appearing only in the middle is neither prefix nor suffix.
+        s = Selector("IGPM", ("BC",))
+        assert not s.matches("IGPM", "22BC03")
+        # ...but it still matches as a genuine prefix/suffix.
+        assert s.matches("IGPM", "BC03")  # prefix
+        assert s.matches("IGPM", "22BC")  # suffix
 
     def test_pid_list_or(self):
         s = Selector("VCU", ("2101", "2102"))
@@ -153,6 +170,12 @@ class TestQueryFilter:
         matched, _ = self._filter("IGPM:22")
         assert [r["x"] for r in matched] == [5]
 
+    def test_suffix_shorthand(self):
+        # "BC03" (short form) matches the stored full DID "22BC03".
+        matched, empty = self._filter("IGPM:BC03")
+        assert [r["x"] for r in matched] == [5]
+        assert empty == []
+
     def test_preserves_input_order(self):
         matched, _ = self._filter("BMS:2101 VCU:2101")
         # order follows records, not selector order
@@ -177,3 +200,18 @@ class TestStr:
 
     def test_query_str(self):
         assert str(parse_query("vcu:2101 bms")) == "VCU:2101 BMS"
+
+
+class TestLooksLikePid:
+    @pytest.mark.parametrize("tok", ["2101", "22BC07", "BC03", "C00B", "B00E", "770"])
+    def test_pid_like_tokens(self, tok):
+        assert looks_like_pid(tok)
+
+    @pytest.mark.parametrize("tok", ["IGPM", "BMS", "VCU", "A", "", "0x770", "BCEF"])
+    def test_ecu_like_tokens(self, tok):
+        # Alphabetic names, too-short tokens, all-hex-no-digit (BCEF), and an
+        # 0x-prefixed hex TX-id (the 'x' is non-hex) are NOT flagged as PIDs.
+        assert not looks_like_pid(tok)
+
+    def test_case_insensitive(self):
+        assert looks_like_pid("bc03")

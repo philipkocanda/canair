@@ -9,6 +9,8 @@ parsing can be unit-tested and reused without importing the transport stack.
 
 import shlex
 
+from ..query import looks_like_pid
+
 
 def resolve_tx_id(name_or_hex: str, ecu_index: dict) -> int | None:
     """Resolve an ECU name or hex TX ID to an integer.
@@ -30,19 +32,9 @@ def resolve_tx_id(name_or_hex: str, ecu_index: dict) -> int | None:
         return None
 
 
-_HEX_DIGITS = frozenset("0123456789ABCDEF")
-
-
-def _looks_like_pid(token: str) -> bool:
-    """True if ``token`` looks like a bare PID/DID rather than an ECU name.
-
-    Real ECU names are alphabetic (IGPM, BMS, VCU, …); PIDs/DIDs are hex tokens
-    that contain a digit (2101, 22BC07, BC03, C00B, B00E). A bare hex-with-digit
-    token in the ``ECU`` position is almost always a PID accidentally separated
-    from its ECU by a space instead of a colon.
-    """
-    t = token.upper()
-    return len(t) >= 2 and all(c in _HEX_DIGITS for c in t) and any(c.isdigit() for c in t)
+# Backwards-compatible alias — the space-vs-colon guard now lives in
+# canlib.query.looks_like_pid (shared with the capture query hint).
+_looks_like_pid = looks_like_pid
 
 
 def _query_selectors(tokens: list[str]) -> list[tuple[str, list[str]]]:
@@ -57,14 +49,20 @@ def _query_selectors(tokens: list[str]) -> list[tuple[str, list[str]]]:
     Fails loudly on the classic space-vs-colon mistake: a bare selector that
     looks like a PID/DID (e.g. ``query IGPM 22BC07``, meant to be
     ``query IGPM:22BC07``) is rejected rather than silently treated as a query
-    for a non-existent ECU named ``22BC07``.
+    for a non-existent ECU named ``22BC07``. An explicit ``0x``-prefixed token
+    (``query 0x770``) is exempt — it's an unambiguous, deliberate hex TX-id
+    selector, not a PID stranded from its ECU.
     """
     from ..query import parse_query
 
     query = parse_query(tokens)
     prev_ecu: str | None = None
     for sel in query.selectors:
-        if not sel.pids and _looks_like_pid(sel.ecu):
+        if not sel.pids and sel.ecu.startswith("0X"):
+            # Explicit hex TX-id selector (e.g. `query 0x770`) — deliberate, keep.
+            prev_ecu = sel.ecu
+            continue
+        if not sel.pids and looks_like_pid(sel.ecu):
             if prev_ecu is not None:
                 hint = (
                     f"Did you mean '{prev_ecu}:{sel.ecu}'? Attach the PID to its "

@@ -15,8 +15,11 @@ Grammar
 - Whitespace separates independent selectors (logical OR across selectors).
 - A selector is an ECU name, optionally followed by ``:`` and a comma-separated
   PID list. With no PID list, the selector matches *all* PIDs for that ECU.
-- Matching is case-insensitive. Each PID token matches a capture's PID by exact
-  match *or* substring (so ``22`` matches every ``22xxxx`` DID).
+- Matching is case-insensitive. Each PID token matches a capture's PID by a
+  boundary-anchored match: the PID must *start with* or *end with* the token
+  (so ``22`` matches every ``22xxxx`` service DID and ``BC03`` matches the
+  stored ``22BC03`` regardless of service byte). A token that appears only in
+  the middle does not match.
 
 Examples
 --------
@@ -24,7 +27,8 @@ Examples
 ``VCU``                    all PIDs for VCU
 ``VCU:2101``               VCU PID 2101 only
 ``VCU:2101,22BC03``        VCU PIDs 2101 and 22BC03
-``VCU:22``                 all VCU DIDs whose PID contains "22"
+``VCU:22``                 all VCU DIDs whose PID starts with "22"
+``IGPM:BC03``              the ``22BC03`` DID (suffix match, service-byte free)
 ``VCU:2101 BMS:2101``      VCU 2101 and BMS 2101 (cross-ECU)
 ``BMS``                    all PIDs for BMS
 =========================  ==================================================
@@ -49,9 +53,25 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from typing import TypeVar
 
-__all__ = ["Query", "QueryError", "Selector", "parse_query", "parse_selector"]
+__all__ = ["Query", "QueryError", "Selector", "looks_like_pid", "parse_query", "parse_selector"]
 
 T = TypeVar("T")
+
+_HEX_DIGITS = frozenset("0123456789ABCDEF")
+
+
+def looks_like_pid(token: str) -> bool:
+    """True if ``token`` looks like a bare PID/DID rather than an ECU name.
+
+    Real ECU names are alphabetic (IGPM, BMS, VCU, …); PIDs/DIDs are hex tokens
+    that contain a digit (2101, 22BC07, BC03, C00B, B00E). A bare hex-with-digit
+    token in the ``ECU`` position is almost always a PID accidentally separated
+    from its ECU by a space instead of a colon. The single source of truth for
+    the space-vs-colon guard shared by the query-step parser and the capture
+    query hint.
+    """
+    t = token.upper()
+    return len(t) >= 2 and all(c in _HEX_DIGITS for c in t) and any(c.isdigit() for c in t)
 
 
 class QueryError(ValueError):
@@ -74,11 +94,17 @@ class Selector:
         return str(ecu).upper() == self.ecu
 
     def matches_pid(self, pid: str) -> bool:
-        """True if ``pid`` matches any token (exact or substring), or ALL."""
+        """True if ``pid`` matches any token (prefix or suffix), or ALL.
+
+        A token matches when the PID *starts with* or *ends with* it. This
+        anchors matching to a boundary so ``22`` picks the ``22xxxx`` service-22
+        DIDs (prefix) and ``BC03`` picks ``22BC03`` regardless of service byte
+        (suffix), without a token matching arbitrarily in the middle.
+        """
         if not self.pids:
             return True
         p = str(pid).upper()
-        return any(tok == p or tok in p for tok in self.pids)
+        return any(p == tok or p.startswith(tok) or p.endswith(tok) for tok in self.pids)
 
     def matches(self, ecu: str, pid: str) -> bool:
         return self.matches_ecu(ecu) and self.matches_pid(pid)

@@ -152,6 +152,18 @@ class TestParseSubCommands:
         with pytest.raises(ValueError, match="looks like a PID/DID"):
             parse_sub_commands(["query 2101"])
 
+    def test_query_explicit_hex_tx_id_not_flagged(self):
+        # An explicit 0x-prefixed token is a deliberate hex TX-id selector, not a
+        # PID stranded from its ECU — it must parse cleanly.
+        result = parse_sub_commands(["query 0x770"])
+        assert result[0] == {"type": "query", "ecu": "0X770", "pids": []}
+
+    def test_query_bare_hex_tx_id_still_raises(self):
+        # Without the 0x prefix, a bare hex-with-digit token is ambiguous with a
+        # PID and stays rejected.
+        with pytest.raises(ValueError, match="looks like a PID/DID"):
+            parse_sub_commands(["query 770"])
+
     def test_query_colon_form_ok(self):
         # The correct form must still parse cleanly.
         result = parse_sub_commands(["query IGPM:22BC07"])

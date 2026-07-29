@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **QUERY mini-language PID matching is now boundary-anchored** (prefix *or*
+  suffix) instead of substring-anywhere. A PID token matches when the stored PID
+  *starts with* or *ends with* it, so `ECU:22` still selects the `22xxxx` service
+  DIDs (prefix) and `ECU:BC03` still selects the stored `22BC03` regardless of
+  service byte (suffix) — but a token that appears only in the *middle* of a PID
+  no longer matches. Affects `captures`/`decode`/`correlate` selectors. See
+  `plans/2026-07-29-query-mini-language-fixes.md`.
+
+### Fixed
+
+- `canair query`/`monitor` now accept an explicit `0x`-prefixed hex TX-id as a
+  bare selector (e.g. `query 0x770`); a bare `770` stays rejected as ambiguous
+  with a PID. The space-vs-colon guard is unified in one shared helper
+  (`canlib.query.looks_like_pid`) so the query-step parser and the capture query
+  hint no longer diverge.
+
 ## [1.8.0] - 2026-07-29
 
 ### Added

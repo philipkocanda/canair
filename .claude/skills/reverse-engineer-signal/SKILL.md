@@ -231,8 +231,8 @@ canair bix -1 --annotate 6101FFFF...          # map each byte -> Bnn/ISO-TP/Torq
 
 The QUERY mini-language is shared with `canair decode`: `MCU 2102` (one PID),
 `MCU:2102,2103` (several PIDs), `MCU` (all PIDs for an ECU), `"VCU:2101 BMS:2101"`
-(cross-ECU — quote the space), and `BCM:22` (substring PID match — all `22xxxx`
-DIDs on an ECU).
+(cross-ECU — quote the space), and `BCM:22` (prefix PID match — all `22xxxx`
+DIDs on an ECU; a suffix token like `BCM:BC03` matches the stored `22BC03`).
 
 Start with `canair captures uds --sessions` to see what data exists (labels, states,
 notes per session — no payloads) and pick a drive/state to analyze; `--json`

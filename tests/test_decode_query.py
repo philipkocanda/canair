@@ -30,8 +30,15 @@ def test_all_pids_for_ecu():
     assert targets == [("BMS", "2101"), ("BMS", "2102"), ("BMS", "22BC03")]
 
 
-def test_substring_pid_match():
+def test_prefix_pid_match():
     targets, err = _resolve_targets("BMS:22", _index(), tolerate_missing=False)
+    assert err is None
+    assert targets == [("BMS", "22BC03")]
+
+
+def test_suffix_pid_match():
+    # Short form "BC03" resolves to the defined full DID "22BC03".
+    targets, err = _resolve_targets("BMS:BC03", _index(), tolerate_missing=False)
     assert err is None
     assert targets == [("BMS", "22BC03")]
 

@@ -119,9 +119,11 @@ def load_all_captures(captures_dir: Path | None = None) -> list[dict]:
         file, date, label, state, ecu, ecu_addr, pid, payload, response,
         scan_results, notes, time
 
-    The capture ``ecu`` field stores the ECU CAN response address (e.g.
-    ``"0x7EC"``); it is resolved to the canonical short name in ``ecu`` for
-    display/joins, with the raw address preserved in ``ecu_addr``.
+    On disk the capture stores the ECU CAN *response* address under ``rx``
+    (e.g. ``"0x7EC"``; read tolerantly via :func:`capture_io.capture_rx`, which
+    also accepts the legacy ``ecu`` key). It is resolved to the canonical short
+    name in the entry's ``ecu`` field for display/joins, with the raw address
+    preserved in ``ecu_addr``.
 
     Plus internal locator keys (``_session_idx``, ``_capture_idx``) that address
     the capture within its source file, for in-place edits/deletes.
@@ -224,7 +226,7 @@ def _load_ecu_index() -> dict:
 def _resolve_defs(ecu_index: dict, ecu: str, pid: str) -> PidDefs:
     """Look up ``(parameters, tx_id)`` for one ECU+PID from the index.
 
-    Parameters come from an *exact* PID key match (substring-matched captures
+    Parameters come from an *exact* PID key match (boundary-matched captures
     with no exact definition render as raw hex, i.e. empty parameters).
     """
     info = ecu_index.get(str(ecu).upper())
@@ -265,12 +267,14 @@ def _gather_query(
             defs[key] = _resolve_defs(ecu_index, *key)
 
     if warn and empty:
+        from canlib.query import looks_like_pid
+
         known_ecus = {e["ecu"].upper() for e in payloads}
         for sel in empty:
             hint = ""
             # Bare selector whose "ECU" isn't a real ECU but looks like a DID —
             # likely the old `ECU PID` space form; nudge toward `ECU:PID`.
-            if not sel.pids and sel.ecu not in known_ecus and any(c.isdigit() for c in sel.ecu):
+            if not sel.pids and sel.ecu not in known_ecus and looks_like_pid(sel.ecu):
                 hint = "  (did you mean to attach it as a PID, e.g. ECU:PID?)"
             print(f"  {_YELLOW}No captures matched selector '{sel}'{_RESET}{hint}")
         avail = ", ".join(sorted(known_ecus))

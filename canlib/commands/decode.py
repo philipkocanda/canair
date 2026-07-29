@@ -483,10 +483,11 @@ def _resolve_targets(
 ) -> tuple[list[tuple[str, str]], str | None]:
     """Expand a mini-language QUERY to concrete ``(ECU, PID)`` pairs (upper-cased).
 
-    Each selector is matched (exact or substring) against the ECU's *defined*
-    PIDs. A selector naming a single explicit PID that matches nothing defined is
-    still kept as a literal target, so ``_decode_one`` can emit its "PID not
-    found" guidance (or, under ``--try``/``--plot``, probe the undefined PID).
+    Each selector is matched (exact, or prefix/suffix) against the ECU's
+    *defined* PIDs. A selector naming a single explicit PID that matches nothing
+    defined is still kept as a literal target, so ``_decode_one`` can emit its
+    "PID not found" guidance (or, under ``--try``/``--plot``, probe the undefined
+    PID).
     Returns ``(targets, error)``; ``error`` is a message when nothing resolved.
     """
     from canlib.commands._captures_query import _parse_query
