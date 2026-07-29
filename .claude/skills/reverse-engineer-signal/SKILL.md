@@ -254,7 +254,7 @@ an expression.
     the raw `ecu_addr` (`0x7ED`), and `_session_idx`/`_capture_idx` locators that
     plug straight into `canlib.captures.delete_capture` (delete in reverse
     `(file, session, capture)` order). **Do not re-derive the list with a raw
-    `ecu == "OBC"` filter** — the stored `ecu` field is the CAN **response
+    `ecu == "OBC"` filter** — the stored `rx` field is the CAN **response
     address** (`0x7ED`), *not* the short name, so that scan silently matches
     nothing. Prefer `canair captures uds --delete` when the QUERY can express the
     selection.

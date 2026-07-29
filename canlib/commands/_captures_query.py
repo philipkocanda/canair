@@ -153,7 +153,7 @@ def load_all_captures(captures_dir: Path | None = None) -> list[dict]:
             transport = session.get("transport", "")
             quality = session.get("quality") or None
             for c_idx, cap in enumerate(session.get("captures", [])):
-                raw_ecu = cap.get("ecu", "")
+                raw_ecu = capture_io.capture_rx(cap)
                 entry = {
                     "file": fpath.name,
                     "date": date,

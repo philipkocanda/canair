@@ -9,6 +9,21 @@ import pytest
 from canlib import capture_io
 
 
+class TestCaptureRx:
+    def test_reads_rx_key(self):
+        assert capture_io.capture_rx({"rx": "0x7EC", "pid": "2101"}) == "0x7EC"
+
+    def test_falls_back_to_legacy_ecu_key(self):
+        # Un-migrated file / stale journal still resolves.
+        assert capture_io.capture_rx({"ecu": "0x7EC", "pid": "2101"}) == "0x7EC"
+
+    def test_rx_wins_over_ecu(self):
+        assert capture_io.capture_rx({"rx": "0x7EC", "ecu": "0x000"}) == "0x7EC"
+
+    def test_empty_when_neither_present(self):
+        assert capture_io.capture_rx({"pid": "2101"}) == ""
+
+
 class TestGlobbing:
     def test_iter_capture_files_only_json_sorted(self, tmp_path):
         (tmp_path / "2026-01-02.json").write_text("{}")
@@ -114,8 +129,8 @@ def test_migrate_then_load_all_captures_roundtrip(tmp_path):
                 "date": "2026-01-01",
                 "label": "x",
                 "captures": [
-                    {"ecu": "0x7EC", "pid": "2101", "payload": "6101AA", "time": "09:00:00"},
-                    {"ecu": "0x7EC", "pid": "2102", "payload": "6102BB", "time": "09:00:01"},
+                    {"rx": "0x7EC", "pid": "2101", "payload": "6101AA", "time": "09:00:00"},
+                    {"rx": "0x7EC", "pid": "2102", "payload": "6102BB", "time": "09:00:01"},
                 ],
             }
         ]

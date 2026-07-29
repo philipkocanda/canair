@@ -33,6 +33,8 @@ import json
 import sys
 from pathlib import Path
 
+from canlib.capture_types import CaptureRecord
+
 _GREEN = "\033[92m"
 _YELLOW = "\033[93m"
 _RED = "\033[91m"
@@ -54,7 +56,7 @@ def _parse_spec(spec: str) -> tuple[str, str, str]:
     return ecu, pid.upper(), payload.upper()
 
 
-def _build_capture(spec: str, name_index: dict[str, int]) -> tuple[dict, list[str]]:
+def _build_capture(spec: str, name_index: dict[str, int]) -> tuple[CaptureRecord, list[str]]:
     """Resolve/validate one spec into a capture dict. Returns (capture, warnings)."""
     from canlib.ecus import resolve_tx, rx_addr_str
     from canlib.uds_parse import payload_echo_mismatch, payload_not_hex
@@ -77,7 +79,7 @@ def _build_capture(spec: str, name_index: dict[str, int]) -> tuple[dict, list[st
     if mismatch:
         warnings.append(f"{ecu}:{pid}: {mismatch}")
 
-    return {"ecu": rx_addr_str(tx_id), "pid": pid, "payload": payload}, warnings
+    return {"rx": rx_addr_str(tx_id), "pid": pid, "payload": payload}, warnings
 
 
 def run(args) -> int:
@@ -87,7 +89,7 @@ def run(args) -> int:
 
     name_index = build_name_tx_index()
 
-    captures: list[dict] = []
+    captures: list[CaptureRecord] = []
     warnings: list[str] = []
     for spec in args.spec:
         try:
@@ -120,7 +122,7 @@ def run(args) -> int:
         print(json.dumps({"file": str(fpath), "session": session, "warnings": warnings}))
     else:
         for c in captures:
-            print(f"{_GREEN}  ✓ {c['ecu']} {c['pid']}{_RESET}  {_DIM}{c['payload']}{_RESET}")
+            print(f"{_GREEN}  ✓ {c['rx']} {c['pid']}{_RESET}  {_DIM}{c['payload']}{_RESET}")
     return 0
 
 

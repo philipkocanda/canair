@@ -7,8 +7,16 @@ monitor modes.
 
 from datetime import datetime
 from pathlib import Path
+from typing import cast
 
 from . import capture_io
+from .capture_types import (
+    CaptureFile,
+    CaptureRecord,
+    CaptureSession,
+    RespondingEntry,
+    ScanResults,
+)
 from .states import join_states as _join_states
 from .states import parse_states as _parse_states
 from .uds_parse import UdsResponse
@@ -110,14 +118,15 @@ def build_query_session(
     date: str | None = None,
     transport: str | None = None,
     quality: dict | None = None,
-) -> dict:
+) -> CaptureSession:
     """Build a capture session dict from query/raw payload results.
 
     ``results`` is a list of ``(ecu_ref, pid, hex, time)`` tuples (``time``
     may be an empty string). ``ecu_ref`` is the ECU CAN response address as a
-    hex string (e.g. ``"0x7EC"``). Captures are grouped by ECU then PID in the
-    order given. Decoded parameter values are intentionally NOT stored — they
-    are regenerated on demand from the payload + PID definitions.
+    hex string (e.g. ``"0x7EC"``), stored in each capture's ``rx`` field.
+    Captures are grouped by ECU then PID in the order given. Decoded parameter
+    values are intentionally NOT stored — they are regenerated on demand from
+    the payload + PID definitions.
 
     ``date`` sets the session date (the acquisition date, from the journal's
     per-record dates); it falls back to today when omitted, for the direct
@@ -150,10 +159,10 @@ def build_query_session(
     if quality:
         session["quality"] = dict(quality)
 
-    captures: list[dict] = []
+    captures: list[CaptureRecord] = []
     for ecu_ref, pid, hex_val, ts in results:
-        capture: dict = {
-            "ecu": ecu_ref,
+        capture: CaptureRecord = {
+            "rx": ecu_ref,
             "pid": pid,
             "payload": hex_val.upper(),
         }
@@ -164,7 +173,7 @@ def build_query_session(
         captures.append(capture)
 
     session["captures"] = captures
-    return session
+    return cast(CaptureSession, session)
 
 
 def build_scan_session(
@@ -180,7 +189,7 @@ def build_scan_session(
     notes: str,
     append_bytes: str = "",
     session_flag: bool = False,
-) -> dict:
+) -> CaptureSession:
     """Build a capture session dict from scan results."""
     start, end = pid_range
     wide_did = service in (0x22, 0x2F, 0x31)
@@ -199,16 +208,16 @@ def build_scan_session(
         session["notes"] = notes
 
     # Build scan_results capture
-    scan_capture: dict = {
-        "ecu": ecu_ref,
+    scan_capture: CaptureRecord = {
+        "rx": ecu_ref,
         "pid": f"scan {service:02X} {range_str}{suffix}",
     }
 
-    scan_results: dict = {}
+    scan_results: ScanResults = {}
     if positive:
-        responding = []
+        responding: list[RespondingEntry] = []
         for pid_val, resp in positive:
-            entry: dict = {
+            entry: RespondingEntry = {
                 "did": f"{pid_val:{did_fmt}}",
                 "response": f"{len(resp['bytes'])} bytes",
             }
@@ -230,7 +239,7 @@ def build_scan_session(
 
     scan_capture["scan_results"] = scan_results
     session["captures"] = [scan_capture]
-    return session
+    return cast(CaptureSession, session)
 
 
 def build_raw_session(
@@ -242,7 +251,7 @@ def build_raw_session(
     vehicle_states: list,
     notes: str,
     pids_data: dict | None = None,
-) -> dict:
+) -> CaptureSession:
     """Build a capture session dict from a raw UDS response.
 
     Decoded parameter values are intentionally NOT stored — they are derived
@@ -258,8 +267,8 @@ def build_raw_session(
     if notes:
         session["notes"] = notes
 
-    capture: dict = {
-        "ecu": ecu_ref,
+    capture: CaptureRecord = {
+        "rx": ecu_ref,
         "pid": request,
     }
 
@@ -272,7 +281,7 @@ def build_raw_session(
             capture["response"] = response.get("error", "unknown error")
 
     session["captures"] = [capture]
-    return session
+    return cast(CaptureSession, session)
 
 
 def build_discover_session(
@@ -283,12 +292,12 @@ def build_discover_session(
     label: str,
     vehicle_states: list,
     notes: str,
-) -> dict:
+) -> CaptureSession:
     """Build a capture session dict from discovery scan results.
 
-    The top-level ``ecu`` is the ``broadcast`` sentinel (a discovery scan spans
+    The top-level ``rx`` is the ``broadcast`` sentinel (a discovery scan spans
     many ECUs). Each responder's originating ECU is preserved as its CAN
-    response address (RX = TX + 8) in ``scan_results.responding[].ecu``.
+    response address (RX = TX + 8) in ``scan_results.responding[].rx``.
     """
     from .ecus import rx_addr_str
 
@@ -302,17 +311,17 @@ def build_discover_session(
     if notes:
         session["notes"] = notes
 
-    capture: dict = {
-        "ecu": "broadcast",
+    capture: CaptureRecord = {
+        "rx": "broadcast",
         "pid": f"discover {start:03X}-{end:03X}",
     }
 
-    scan_results: dict = {}
+    scan_results: ScanResults = {}
     if alive:
-        responding = []
+        responding: list[RespondingEntry] = []
         for tx_id, ecu_label, resp_hex in alive:
-            entry: dict = {
-                "ecu": rx_addr_str(tx_id),
+            entry: RespondingEntry = {
+                "rx": rx_addr_str(tx_id),
                 "response": ecu_label,
                 "notes": f"Raw: {resp_hex}" if resp_hex else "",
             }
@@ -325,7 +334,7 @@ def build_discover_session(
 
     capture["scan_results"] = scan_results
     session["captures"] = [capture]
-    return session
+    return cast(CaptureSession, session)
 
 
 # ---------------------------------------------------------------------------
@@ -334,14 +343,14 @@ def build_discover_session(
 
 
 def build_manual_session(
-    captures: list[dict],
+    captures: list[CaptureRecord],
     *,
     label: str,
     date: str | None = None,
     vehicle_states: list[str] | None = None,
     notes: str | None = None,
     transport: str | None = "import",
-) -> dict:
+) -> CaptureSession:
     """Assemble a session dict from manually-supplied captures (the import path).
 
     Mirrors the shape produced by the ``--save`` streaming path so an imported
@@ -363,10 +372,10 @@ def build_manual_session(
     if transport:
         session["transport"] = transport
     session["captures"] = list(captures)
-    return session
+    return cast(CaptureSession, session)
 
 
-def save_session(session: dict, captures_dir: Path | None = None) -> Path:
+def save_session(session: CaptureSession, captures_dir: Path | None = None) -> Path:
     """Append a session dict to captures/YYYY-MM-DD.json. Returns the file path.
 
     The file is named after the session's own ``date`` (falling back to today),
@@ -400,7 +409,9 @@ def save_session(session: dict, captures_dir: Path | None = None) -> Path:
     return capture_file
 
 
-def save_session_journaled(session: dict, captures_dir: Path | None = None) -> Path | None:
+def save_session_journaled(
+    session: CaptureSession, captures_dir: Path | None = None
+) -> Path | None:
     """Save a pre-built session via a write-ahead journal (crash-safe path).
 
     Used by the one-shot producers (scan/raw/discover) so every save path shares
@@ -431,7 +442,7 @@ def save_session_journaled(session: dict, captures_dir: Path | None = None) -> P
     return journal.reconcile()
 
 
-def _write_captures_file(fpath: Path, data: dict) -> None:
+def _write_captures_file(fpath: Path, data: CaptureFile) -> None:
     """Serialize a capture-file dict back to disk (JSON)."""
     capture_io.dump_capture_file(fpath, data)
 

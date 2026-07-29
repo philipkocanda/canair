@@ -18,8 +18,8 @@ _DOC = {
             "vehicle_states": ["ready", "driving"],
             "notes": "café ☕",  # non-ASCII survives
             "captures": [
-                {"ecu": "0x7EC", "pid": "2101", "payload": "6101AABB", "time": "09:00:01"},
-                {"ecu": "0x7EC", "pid": "2102", "payload": "6102CCDD", "time": "09:00:02"},
+                {"rx": "0x7EC", "pid": "2101", "payload": "6101AABB", "time": "09:00:01"},
+                {"rx": "0x7EC", "pid": "2102", "payload": "6102CCDD", "time": "09:00:02"},
             ],
         }
     ]

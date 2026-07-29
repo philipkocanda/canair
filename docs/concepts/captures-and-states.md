@@ -27,17 +27,19 @@ Each `captures/YYYY-MM-DD.json` holds one day, as sessions of captures:
       "label": "highway pull",
       "vehicle_states": ["driving"],
       "captures": [
-        { "ecu": "0x7EC", "pid": "2101", "payload": "6101FFE0…", "time": "14:02:11.480" }
+        { "rx": "0x7EC", "pid": "2101", "payload": "6101FFE0…", "time": "14:02:11.480" }
       ]
     }
   ]
 }
 ```
 
-- **`ecu`** is the CAN **response** address (RX = request TX + 8) as a hex string
+- **`rx`** is the CAN **response** address (RX = request TX + 8) as a hex string
   (`"broadcast"` for multi-ECU discovery scans); tools resolve it back to the
   short name via the profile's [`ecus/`](profiles.md) registry, so you still
-  query by name.
+  query by name. (This field was named `ecu` before it was renamed to `rx` to
+  make clear it holds an address, not an ECU name; readers still accept the old
+  key, and `canair captures migrate-rx` renames it in existing files.)
 - **`pid`** / **`payload`** are the request DID and the reassembled UDS response
   (SID-first, ISO-TP framing stripped). Decoded *values* are **not** stored —
   they're regenerated on demand from `payload` + the PID definitions, so a

@@ -18,8 +18,11 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
+
+from .capture_types import CaptureFile
 
 # On-disk capture-file extension. Legacy profiles used ``.yaml`` (pre-migration);
 # see :func:`find_legacy_yaml` and ``canair captures migrate``.
@@ -74,9 +77,23 @@ def ensure_migrated(captures_dir: Path) -> None:
         )
 
 
-def load_capture_file(path: Path) -> Any:
+def load_capture_file(path: Path) -> CaptureFile:
     """Parse one capture file (JSON). Returns the decoded structure (a dict)."""
     return json.loads(path.read_text())
+
+
+def capture_rx(cap: Mapping[str, Any]) -> str:
+    """Read a capture's RX (CAN response) address, tolerating the legacy key.
+
+    The field was renamed ``ecu`` → ``rx`` (it holds the RX/response address,
+    not an ECU name; see
+    ``plans/2026-07-28-captures-rx-field-rename-and-typing.md``). Capture files
+    are migrated in place (``canair captures migrate-rx``), but this fallback
+    keeps an un-migrated file or a stale journal readable — the store is
+    append-only public data, so a read must never depend on migration having
+    run. Returns ``""`` when neither key is present.
+    """
+    return str(cap.get("rx") or cap.get("ecu") or "")
 
 
 def dump_capture_file(path: Path, data: Any) -> None:

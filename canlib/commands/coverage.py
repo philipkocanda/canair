@@ -114,7 +114,7 @@ def load_longest_payloads() -> dict[tuple[str, str], dict]:
                 if not payload:
                     continue
                 payload = payload.replace(" ", "")
-                ecu_name = ecu_name_from_ref(cap.get("ecu", ""), rx_index)
+                ecu_name = ecu_name_from_ref(capture_io.capture_rx(cap), rx_index)
                 key = (ecu_name.upper(), str(cap.get("pid", "")).upper())
                 prev = best.get(key)
                 if prev is None or len(payload) > len(prev["payload"]):

@@ -67,12 +67,12 @@ def validate_captures_file(path: Path, validator: Validator, rx_addrs: set[int])
             for ci, cap in enumerate(session.get("captures", []) or []):
                 if not isinstance(cap, dict):
                     continue
-                ecu = cap.get("ecu")
+                ecu = capture_io.capture_rx(cap) or None
                 if ecu and str(ecu).lower() not in SENTINELS:
                     rx = parse_ecu_ref(ecu)
                     if rx is not None and rx not in rx_addrs:
                         errors.append(
-                            f"sessions[{si}].captures[{ci}].ecu: response address "
+                            f"sessions[{si}].captures[{ci}].rx: response address "
                             f"'{ecu}' is not a known ECU response address (RX = TX + 8)"
                         )
 
@@ -238,7 +238,7 @@ def _capture_echo_warnings(path: Path) -> list[str]:
             reason = payload_echo_mismatch(str(pid), str(payload))
             if reason:
                 warnings.append(
-                    f"sessions[{si}].captures[{ci}] ({cap.get('ecu', '?')} {pid} "
+                    f"sessions[{si}].captures[{ci}] ({capture_io.capture_rx(cap) or '?'} {pid} "
                     f"@ {cap.get('time', '?')}): {reason}"
                 )
     return warnings
@@ -270,7 +270,7 @@ def _capture_nonhex_warnings(path: Path) -> list[str]:
             reason = payload_not_hex(str(payload))
             if reason:
                 warnings.append(
-                    f"sessions[{si}].captures[{ci}] ({cap.get('ecu', '?')} "
+                    f"sessions[{si}].captures[{ci}] ({capture_io.capture_rx(cap) or '?'} "
                     f"{cap.get('pid', '?')} @ {cap.get('time', '?')}): {reason}"
                 )
     return warnings
@@ -301,7 +301,7 @@ def _capture_missing_time_warnings(path: Path) -> list[str]:
             # entry_datetime needs the session date + capture time.
             if entry_datetime({"date": date, "time": cap.get("time", "")}) is None:
                 warnings.append(
-                    f"sessions[{si}].captures[{ci}] ({cap.get('ecu', '?')} "
+                    f"sessions[{si}].captures[{ci}] ({capture_io.capture_rx(cap) or '?'} "
                     f"{cap.get('pid', '?')}): payload capture has no usable time "
                     "(excluded from time-aligned analysis)"
                 )

@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`canair captures migrate-rx`** — rename the persisted capture field `ecu` →
+  `rx` in a profile's capture files (at the capture level and inside
+  `scan_results.responding[]`). Idempotent, `--dry-run`/`--json` supported.
+- **`canlib/capture_types.py`** — `TypedDict`s for the on-disk capture shapes
+  (`CaptureFile`/`CaptureSession`/`CaptureRecord`/`ScanResults`/`RespondingEntry`/
+  `Quality`), mirroring `captures_schema.json`. The session builders and the
+  capture I/O/journal are now typed against them (enforced by `ty`).
+
+### Changed
+
+- **The persisted capture field `ecu` is renamed to `rx`.** It holds the ECU CAN
+  *response* address (RX = request TX + 8), not an ECU name — the old name
+  collided conceptually with the resolved short name (`"BMS"`) that the in-memory
+  loader exposes under `ecu`. Bundled capture files are migrated; readers accept
+  the legacy `ecu` key as a fallback (via `capture_io.capture_rx`), so
+  un-migrated files and stale journals still load. Run `canair captures
+  migrate-rx` to rename a profile's files. The in-memory loaded-entry key `ecu`
+  (resolved short name) is unchanged.
+
 ## [1.6.0] - 2026-07-28
 
 ### Changed

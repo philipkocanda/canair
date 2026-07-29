@@ -51,7 +51,7 @@ class TestJournalBasics:
         # append() stamps a per-record date (for midnight-correct day-splitting)
         # alongside the time.
         assert recs[-1]["type"] == "capture"
-        assert recs[-1]["ecu"] == "0x7EC"
+        assert recs[-1]["rx"] == "0x7EC"
         assert recs[-1]["pid"] == "2102"
         assert recs[-1]["payload"] == "6102CCDD"
         assert recs[-1]["time"] == "12:00:02"
@@ -118,7 +118,7 @@ class TestReconcile:
             "date": "2026-07-22",
             "label": "placeholder",
             "captures": [
-                {"ecu": "0x7EC", "pid": "scan 21 01-FF", "scan_results": {"rejected": "x"}}
+                {"rx": "0x7EC", "pid": "scan 21 01-FF", "scan_results": {"rejected": "x"}}
             ],
         }
         j.append_session(session)
@@ -194,7 +194,7 @@ class TestTruncatedLine:
         j._close_fh()
         # Simulate a kill mid-write: append a partial JSON line.
         with open(j.path, "a") as f:
-            f.write('{"type": "capture", "ecu": "0x7E')
+            f.write('{"type": "capture", "rx": "0x7E')
         written = reconcile_file(j.path)
         caps = json.loads(written.read_text())["sessions"][0]["captures"]
         assert [c["payload"] for c in caps] == ["6101AA"]
@@ -231,10 +231,18 @@ class TestOrphanRecovery:
 
 class TestBuildSessionFromRecords:
     def test_default_label_when_missing(self):
-        recs = [{"type": "capture", "ecu": "0x7EC", "pid": "2101", "payload": "6101"}]
+        recs = [{"type": "capture", "rx": "0x7EC", "pid": "2101", "payload": "6101"}]
         sessions = build_session_from_records(recs)
         assert len(sessions) == 1
         assert sessions[0]["label"] == "Recovered session"
+
+    def test_legacy_ecu_key_still_reconciles(self):
+        # A journal written before the ecu→rx rename still reconciles: the
+        # reconcile read falls back to the legacy `ecu` key.
+        recs = [{"type": "capture", "ecu": "0x7EC", "pid": "2101", "payload": "6101"}]
+        sessions = build_session_from_records(recs)
+        assert len(sessions) == 1
+        assert sessions[0]["captures"][0]["rx"] == "0x7EC"
 
     def test_none_when_no_payloads(self):
         recs = [{"type": "meta", "label": "L"}]
@@ -247,7 +255,7 @@ class TestBuildSessionFromRecords:
             {"type": "meta", "label": "overnight", "vehicle_states": ["driving"]},
             {
                 "type": "capture",
-                "ecu": "0x7EC",
+                "rx": "0x7EC",
                 "pid": "2101",
                 "payload": "6101AA",
                 "date": "2026-07-22",
@@ -255,7 +263,7 @@ class TestBuildSessionFromRecords:
             },
             {
                 "type": "capture",
-                "ecu": "0x7EC",
+                "rx": "0x7EC",
                 "pid": "2101",
                 "payload": "6101BB",
                 "date": "2026-07-23",
@@ -279,7 +287,7 @@ class TestBuildSessionFromRecords:
             {"type": "meta", "label": "L", "date": "2026-01-05"},
             {
                 "type": "capture",
-                "ecu": "0x7EC",
+                "rx": "0x7EC",
                 "pid": "2101",
                 "payload": "6101",
                 "time": "08:00:00",

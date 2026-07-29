@@ -98,7 +98,7 @@ class TestBuildQuerySession:
         # A payload capture always gets a timestamp (Tranche 2.6): explicit
         # time preserved, missing time backfilled with the current HH:MM:SS.
         cap0 = s["captures"][0]
-        assert cap0["ecu"] == "0x7EB" and cap0["pid"] == "2102" and cap0["payload"] == "6102AABB"
+        assert cap0["rx"] == "0x7EB" and cap0["pid"] == "2102" and cap0["payload"] == "6102AABB"
         assert cap0.get("time")  # backfilled, non-empty
         # time preserved when present
         assert s["captures"][1]["time"] == "12:00:01"
@@ -442,9 +442,9 @@ class TestTimeEnforcement:
                 {
                     "date": "2026-07-22",
                     "captures": [
-                        {"ecu": "0x7EC", "pid": "2101", "payload": "6101AA"},  # no time
-                        {"ecu": "0x7EC", "pid": "2101", "payload": "6101BB", "time": "09:00:00"},
-                        {"ecu": "0x7EC", "pid": "scan 22 0100", "scan_results": {}},  # exempt
+                        {"rx": "0x7EC", "pid": "2101", "payload": "6101AA"},  # no time
+                        {"rx": "0x7EC", "pid": "2101", "payload": "6101BB", "time": "09:00:00"},
+                        {"rx": "0x7EC", "pid": "scan 22 0100", "scan_results": {}},  # exempt
                     ],
                 }
             ]

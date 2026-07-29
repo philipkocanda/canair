@@ -36,12 +36,12 @@ class TestParseSpec:
 class TestBuildCapture:
     def test_resolves_ecu_to_rx(self):
         cap, warns = _build_capture("CLU:22B002=62B002E0", _NAME_INDEX)
-        assert cap == {"ecu": "0x7CE", "pid": "22B002", "payload": "62B002E0"}
+        assert cap == {"rx": "0x7CE", "pid": "22B002", "payload": "62B002E0"}
         assert warns == []
 
     def test_hex_tx_id_accepted(self):
         cap, _ = _build_capture("0x7C6:22B002=62B002E0", _NAME_INDEX)
-        assert cap["ecu"] == "0x7CE"
+        assert cap["rx"] == "0x7CE"
 
     def test_unknown_ecu_raises(self):
         with pytest.raises(ValueError, match="unknown ECU"):
@@ -60,14 +60,14 @@ class TestBuildCapture:
 
 class TestBuildManualSession:
     def test_minimal(self):
-        s = build_manual_session([{"ecu": "0x7CE", "pid": "22B002", "payload": "62"}], label="Odo")
+        s = build_manual_session([{"rx": "0x7CE", "pid": "22B002", "payload": "62"}], label="Odo")
         assert s["label"] == "Odo"
         assert "date" in s and s["captures"][0]["pid"] == "22B002"
         assert "vehicle_states" not in s and "notes" not in s
 
     def test_full(self):
         s = build_manual_session(
-            [{"ecu": "0x7CE", "pid": "22B002", "payload": "62"}],
+            [{"rx": "0x7CE", "pid": "22B002", "payload": "62"}],
             label="Odo",
             date="2026-07-25",
             vehicle_states=["acc2"],
@@ -116,7 +116,7 @@ class TestRun:
         assert sess["vehicle_states"] == ["acc2"]
         cap = sess["captures"][0]
         assert cap == {
-            "ecu": "0x7CE",
+            "rx": "0x7CE",
             "pid": "22B002",
             "payload": "62B002E0000000FFB7008D08000000",
             "time": "09:38:15",

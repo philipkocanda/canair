@@ -15,7 +15,7 @@ Journal format (one JSON object per line):
 
     {"v": 1, "type": "meta", "date": "...", "label": "...", "vehicle_states": [...],
      "notes": "...", "source": "monitor", "keep_mode": "unique"}
-    {"type": "capture", "ecu": "0x7EC", "pid": "2101", "payload": "6101...",
+    {"type": "capture", "rx": "0x7EC", "pid": "2101", "payload": "6101...",
      "date": "2026-07-22", "time": "12:00:01"}
     ...
 
@@ -37,6 +37,9 @@ import json
 import os
 from datetime import datetime
 from pathlib import Path
+from typing import cast
+
+from .capture_types import CaptureSession
 
 JOURNAL_VERSION = 1
 JOURNAL_DIRNAME = ".journal"
@@ -141,13 +144,13 @@ class CaptureJournal:
         reconcile time. Callers pass the acquisition timestamp; both fall back to
         "now" when omitted.
         """
-        rec: dict = {"type": "capture", "ecu": ecu_ref, "pid": pid, "payload": hex_val.upper()}
+        rec: dict = {"type": "capture", "rx": ecu_ref, "pid": pid, "payload": hex_val.upper()}
         now = datetime.now()
         rec["date"] = date or now.strftime("%Y-%m-%d")
         rec["time"] = time or now.strftime("%H:%M:%S")
         self._write(rec)
 
-    def append_session(self, session: dict) -> None:
+    def append_session(self, session: CaptureSession) -> None:
         """Append a fully-built session dict (one-shot scan/raw/discover)."""
         self._write({"type": "session", "session": session}, durable=True)
 
@@ -257,7 +260,7 @@ def _dedup(
 
 def build_session_from_records(
     records: list[dict], keep_mode: str | None = None, recovered: bool = False
-) -> list[dict]:
+) -> list[CaptureSession]:
     """Build capture session dicts from journal records — one per capture date.
 
     Uses the last ``meta`` record for label/vehicle_states/notes and its
@@ -292,7 +295,7 @@ def build_session_from_records(
         elif rtype == "capture":
             rows.append(
                 (
-                    rec.get("ecu", ""),
+                    rec.get("rx") or rec.get("ecu", ""),
                     rec.get("pid", ""),
                     rec.get("payload", ""),
                     rec.get("time", ""),
@@ -334,7 +337,7 @@ def build_session_from_records(
             base["quality"] = quality
         for extra in session_records[1:]:
             base.setdefault("captures", []).extend(extra.get("captures", []))
-        return [base]
+        return [cast(CaptureSession, base)]
 
     if not rows:
         return []
@@ -347,7 +350,7 @@ def build_session_from_records(
     for ecu, pid, hex_val, ts, rdate in rows:
         by_date.setdefault(rdate, []).append((ecu, pid, hex_val, ts))
 
-    sessions: list[dict] = []
+    sessions: list[CaptureSession] = []
     for rdate, day_rows in by_date.items():
         sessions.append(
             build_query_session(

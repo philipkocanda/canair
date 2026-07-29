@@ -730,7 +730,7 @@ class TestControllerJournal:
         s = json.loads(written.read_text())["sessions"][0]
         assert s["label"] == "L"
         # ECU label resolved to its CAN response address (0x7E4 + 8 = 0x7EC).
-        assert s["captures"][0]["ecu"] == "0x7EC"
+        assert s["captures"][0]["rx"] == "0x7EC"
         assert s["captures"][0]["payload"] == "6101AA"
 
     def test_journaling_skips_dead_save_history(self, tmp_path):
