@@ -42,7 +42,7 @@ async def run_raw(args, transport, pids_data) -> int:
         return await run_raw_monitor(args, host, port, bitrate, pids_data)
 
     # All other commands: reuse the shared dispatch over a RawTerminal adapter.
-    from ..addressing import AddressingMode, resolve_mode, resolve_rx_offset
+    from ..addressing import EcuAddress, resolve_mode, resolve_rx_offset
     from ..commands._live import dispatch_mode
     from ..pids import build_ecu_index
     from ..quirks import HK_F1XX_MINUS_ONE, has_quirk
@@ -51,13 +51,12 @@ async def run_raw(args, transport, pids_data) -> int:
 
     print(f"  Raw CAN via SLCAN — {host}:{port} @ {bitrate} bps")
     cli = cli_timeout(args)
-    # Resolved tx->rx map (per-ECU rx_id / profile offset) so RawTerminal doesn't
-    # recompute tx+8; unknown addresses fall back to the profile's rx_offset.
-    # A parallel tx->mode map carries each ECU's addressing mode (11-bit vs 29-bit).
+    # Resolved tx->EcuAddress map (per-ECU mode/rx_id/extended/FC bytes) so
+    # RawTerminal builds each ISO-TP stack from the full addressing; unknown TX
+    # ids (a discovery sweep) fall back to the profile's rx_offset/mode.
     ecu_index = build_ecu_index(pids_data)
-    rx_map: dict[int, int] = {info["tx_id"]: info["rx_id"] for info in ecu_index.values()}
-    mode_map: dict[int, AddressingMode] = {
-        info["tx_id"]: info["mode"] for info in ecu_index.values()
+    addr_map: dict[int, EcuAddress] = {
+        info["tx_id"]: info["address"] for info in ecu_index.values()
     }
     terminal = RawTerminal(
         host,
@@ -67,9 +66,8 @@ async def run_raw(args, transport, pids_data) -> int:
         unsafe=getattr(args, "unsafe", False),
         timeout=(cli if cli is not None else 2.0),
         isotp_config=pids_data.get("isotp"),
-        rx_map=rx_map,
+        addr_map=addr_map,
         rx_offset=resolve_rx_offset(pids_data),
-        mode_map=mode_map,
         mode=resolve_mode(pids_data),
         hk_f1xx_offset=has_quirk(pids_data, HK_F1XX_MINUS_ONE),
     )

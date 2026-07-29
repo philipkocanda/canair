@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, TypedDict
 
 from canlib import yaml_io
-from canlib.addressing import AddressingMode
+from canlib.addressing import AddressingMode, EcuAddress
 
 
 class PidIndexEntry(TypedDict):
@@ -36,12 +36,17 @@ class EcuIndexEntry(TypedDict):
     profile ``addressing.rx_offset`` → the conventional ``tx_id + 0x08``), so the
     raw transport never recomputes ``tx + 8``. ``mode`` is the resolved CAN
     addressing mode (per-ECU ``addressing.mode`` → profile → 11-bit), which shapes
-    the ISO-TP stack the raw transport builds for this ECU.
+    the ISO-TP stack the raw transport builds for this ECU. ``address`` is the
+    full resolved :class:`~canlib.addressing.EcuAddress` (mode + RX + any extended
+    target/source bytes + flow-control override) the transport builds the stack
+    from; ``rx_id``/``mode`` are surfaced flat for the many callers that only need
+    those two.
     """
 
     tx_id: int
     rx_id: int
     mode: AddressingMode
+    address: EcuAddress
     pids: dict[str, PidIndexEntry]
     multi_did: bool
 
@@ -256,25 +261,23 @@ def build_routines_index(pids_data: dict) -> dict[str, RoutineIndexEntry]:
 
 def build_ecu_index(pids_data: dict) -> dict:
     """Build lookup: ECU_NAME -> {tx_id, rx_id, pids: {PID: {parameters: ...}}}."""
-    from .addressing import resolve_mode, resolve_rx, resolve_rx_offset
+    from .addressing import resolve_ecu_address
 
     index: dict[str, EcuIndexEntry] = {}
     default_batch = bool(pids_data.get("multi_did_batching", False))
-    rx_offset = resolve_rx_offset(pids_data)
     for ecu_name, ecu_def in pids_data.get("ecus", {}).items():
         tx_id = ecu_def["tx_id"]
-        ecu_rx = ecu_def.get("rx_id")
-        mode = resolve_mode(pids_data, ecu_def)
+        address = resolve_ecu_address(pids_data, ecu_def)
         entry: EcuIndexEntry = {
             "tx_id": tx_id,
             # Resolved CAN response address (explicit rx_id → profile offset →
             # default +8), so the raw transport doesn't recompute tx+8.
-            "rx_id": resolve_rx(
-                tx_id, int(ecu_rx) if ecu_rx is not None else None, rx_offset, mode
-            ),
+            "rx_id": address.rx_id,
             # Addressing mode (per-ECU → profile → 11-bit): the raw transport
             # builds the ISO-TP stack for this ECU from it.
-            "mode": mode,
+            "mode": address.mode,
+            # Full resolved addressing bundle (mode + RX + extended/FC bytes).
+            "address": address,
             "pids": {},
             # UDS service-22 multi-DID batching: per-ECU flag, defaulting to the
             # profile-wide setting. Only ECUs that opt in are batched (and even

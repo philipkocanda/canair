@@ -49,6 +49,10 @@ def _args(**kw):
         "description": None,
         "id_protocol": None,
         "rx_id": None,
+        "mode": None,
+        "target_address": None,
+        "source_address": None,
+        "fc_id": None,
         "notes": None,
         "overwrite": False,
         "dir": None,
@@ -108,6 +112,44 @@ class TestEcuAdd:
         rc = cmd_add(_args(tx="704", name="BMS", rx_id="ZZ", dir=root / "ecus"))
         assert rc == 1
         assert "Invalid RX" in capsys.readouterr().err
+
+    def test_29bit_functional_tx_with_fc_id(self, tmp_path):
+        # Gap G-J: a functional-TX 29-bit ECU seeded in one command (the mode makes
+        # the 29-bit tx_id pass the width check), with a physical FC override.
+        root = _mk_profile(tmp_path)
+        rc = cmd_add(
+            _args(
+                tx="18DB33F1",
+                name="EVC",
+                mode="normal_29bit",
+                rx_id="0x18DAF1DB",
+                fc_id="0x18DADBF1",
+                dir=root / "ecus",
+            )
+        )
+        assert rc == 0
+        data = yaml.safe_load((root / "ecus" / "evc.yaml").read_text())
+        assert data["EVC"]["tx_id"] == 0x18DB33F1
+        assert data["EVC"]["addressing"]["mode"] == "normal_29bit"
+        assert data["EVC"]["addressing"]["fc_id"] == 0x18DADBF1
+
+    def test_extended_11bit_target_address(self, tmp_path):
+        # Gap G-I: BMW/PSA extended-11-bit ECU with a target extension byte.
+        root = _mk_profile(tmp_path)
+        rc = cmd_add(
+            _args(
+                tx="6F1",
+                name="DME",
+                mode="normal_extended_11bit",
+                target_address="0x12",
+                rx_id="0x612",
+                dir=root / "ecus",
+            )
+        )
+        assert rc == 0
+        data = yaml.safe_load((root / "ecus" / "dme.yaml").read_text())
+        assert data["DME"]["addressing"]["mode"] == "normal_extended_11bit"
+        assert data["DME"]["addressing"]["target_address"] == 0x12
 
 
 class TestOfflineValidationProfileScoping:

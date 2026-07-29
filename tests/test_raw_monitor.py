@@ -2,6 +2,7 @@
 
 import asyncio
 
+from canlib.addressing import EcuAddress
 from canlib.modes.monitor import MonitorController, _raw_pid_result
 from canlib.modes.raw_monitor import _keep_mode, query_ecu_addresses
 
@@ -29,26 +30,27 @@ class TestKeepMode:
 
 
 class TestQueryEcuAddresses:
-    def test_maps_tx_rx(self):
-        # build_ecu_index supplies the resolved rx_id; query_ecu_addresses just
-        # passes (tx, rx) through.
+    def test_maps_ecu_address(self):
+        # build_ecu_index supplies the resolved EcuAddress; query_ecu_addresses
+        # just passes it through per queried ECU.
         ecu_index = {
-            "IGPM": {"tx_id": 0x770, "rx_id": 0x778},
-            "BMS": {"tx_id": 0x7E4, "rx_id": 0x7EC},
+            "IGPM": {"tx_id": 0x770, "rx_id": 0x778, "address": EcuAddress(0x770, 0x778)},
+            "BMS": {"tx_id": 0x7E4, "rx_id": 0x7EC, "address": EcuAddress(0x7E4, 0x7EC)},
         }
         steps = [{"ecu": "igpm", "pids": []}, {"ecu": "BMS", "pids": ["2101"]}]
         out = query_ecu_addresses(steps, ecu_index)
-        assert out == {"IGPM": (0x770, 0x778), "BMS": (0x7E4, 0x7EC)}
+        assert out == {"IGPM": EcuAddress(0x770, 0x778), "BMS": EcuAddress(0x7E4, 0x7EC)}
 
     def test_uses_nonstandard_rx(self):
         # A non-+8 rx (e.g. XPeng 0x704 -> 0x784) is honored, not recomputed.
-        ecu_index = {"VCU": {"tx_id": 0x704, "rx_id": 0x784}}
+        ecu_index = {"VCU": {"tx_id": 0x704, "rx_id": 0x784, "address": EcuAddress(0x704, 0x784)}}
         out = query_ecu_addresses([{"ecu": "VCU", "pids": ["2211011"]}], ecu_index)
-        assert out == {"VCU": (0x704, 0x784)}
+        assert out == {"VCU": EcuAddress(0x704, 0x784)}
 
     def test_skips_unknown_ecu(self):
         out = query_ecu_addresses(
-            [{"ecu": "NOPE", "pids": []}], {"IGPM": {"tx_id": 0x770, "rx_id": 0x778}}
+            [{"ecu": "NOPE", "pids": []}],
+            {"IGPM": {"tx_id": 0x770, "rx_id": 0x778, "address": EcuAddress(0x770, 0x778)}},
         )
         assert out == {}
 

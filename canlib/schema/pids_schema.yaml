@@ -81,16 +81,24 @@
 #                          #   Config transport.bitrate > this > device config > 500000.
 #   addressing: {...}      # optional — CAN diagnostic addressing rule:
 #                          #   mode: normal_11bit (default) | normal_29bit |
-#                          #     normal_fixed_29bit | extended_29bit. Selects how the
-#                          #     CAN arbitration ids are formed. normal_fixed_29bit is
-#                          #     the ISO 0x18DA{target}{tester} diagnostic convention
+#                          #     normal_fixed_29bit | normal_extended_11bit |
+#                          #     extended_29bit. Selects how the CAN arbitration ids
+#                          #     are formed. normal_fixed_29bit is the ISO
+#                          #     0x18DA{target}{tester} diagnostic convention
 #                          #     (Ford/VAG/etc.); its response id is derived by swapping
-#                          #     the address bytes (no rx_offset). A per-ECU addressing.mode
-#                          #     overrides this profile default.
+#                          #     the address bytes (no rx_offset). normal_extended_11bit
+#                          #     is the ISO-TP extended (mixed) 11-bit scheme (BMW 0x6F1,
+#                          #     PSA/Stellantis): an 11-bit header plus a per-ECU target
+#                          #     -address extension byte in the payload. A per-ECU
+#                          #     addressing.mode overrides this profile default.
 #                          #   rx_offset: int  # response = tx_id + this (default 0x08;
-#                          #     11-bit modes only). Set once here for a make with a
-#                          #     non-standard fixed offset (e.g. XPeng 0x80); per-ECU
-#                          #     rx_id overrides it.
+#                          #     11-bit modes only). May be negative (PSA -0x20). Set once
+#                          #     here for a make with a non-standard fixed offset (e.g.
+#                          #     XPeng 0x80); per-ECU rx_id overrides it.
+#                          #   target_address: int  # profile-default ISO-TP target
+#                          #     extension byte (extended modes; usually per-ECU).
+#                          #   source_address: int  # tester address (default 0xF1;
+#                          #     extended-11-bit modes).
 #   multi_did_batching: bool   # profile default for per-ECU service-22 multi-DID batching
 #   failure_types: {0xNN: str} # optional — DTC failure-type byte meanings (profile-wide)
 #   quirks: [str]          # optional — make-specific behavior toggles the profile opts
@@ -111,6 +119,11 @@ optional_ecu_fields:
   - rx_id           # CAN response address override (default tx_id + profile rx_offset)
   - addressing      # Per-ECU addressing override — a mapping with `mode:` (see the
                     #   profile addressing block); overrides the profile-wide mode.
+                    #   May also carry `target_address` (ISO-TP extension byte, per
+                    #   module for extended-11-bit BMW/PSA schemes), `source_address`
+                    #   (tester address, default 0xF1), and `fc_id` (flow-control
+                    #   arbitration override for functional-TX / physical-RX ECUs,
+                    #   e.g. Renault/Mitsubishi).
   - can_bus         # Physical CAN bus segment(s) the ECU sits on — see valid_can_bus_codes
   - vehicle_states  # ECU-level: power states in which the ECU responds (10 01)
   - session

@@ -928,8 +928,13 @@ def _validate_quirks(quirks: Any) -> list[str]:
 
 
 # Accepted keys in the profile.yaml `addressing:` block: the TX→RX offset
-# (11-bit) and the addressing mode (11-bit vs 29-bit).
-_ADDRESSING_FIELDS: set[str] = {"rx_offset", "mode"}
+# (11-bit), the addressing mode, and the profile-default ISO-TP extension bytes.
+_ADDRESSING_FIELDS: set[str] = {"rx_offset", "mode", "target_address", "source_address"}
+
+# Accepted keys in a per-ECU `addressing:` override block. Adds fc_id (a flow
+# -control arbitration override) on top of the profile-level fields, minus
+# rx_offset (a per-ECU rx_id is the per-ECU response override).
+_ECU_ADDRESSING_FIELDS: set[str] = {"mode", "target_address", "source_address", "fc_id"}
 
 
 def _valid_addressing_modes() -> set[str]:
@@ -937,6 +942,14 @@ def _valid_addressing_modes() -> set[str]:
     from canlib.addressing import AddressingMode
 
     return {m.value for m in AddressingMode}
+
+
+def _validate_addressing_byte(
+    block: dict, key: str, label: str, is_int: Callable[[Any], bool], errors: list[str]
+) -> None:
+    """A shared 0–255 byte check for an addressing extension field (target/source)."""
+    if key in block and not (is_int(block[key]) and 0 <= block[key] <= 0xFF):
+        errors.append(f"{label}: 'addressing.{key}' must be a byte (0–255)")
 
 
 def _validate_addressing(addressing: Any, is_int: Callable[[Any], bool]) -> list[str]:
@@ -950,6 +963,7 @@ def _validate_addressing(addressing: Any, is_int: Callable[[Any], bool]) -> list
                 f"profile.yaml: unknown addressing field '{key}' "
                 f"(allowed: {', '.join(sorted(_ADDRESSING_FIELDS))})"
             )
+    # rx_offset may be negative (PSA/Stellantis -0x20), so only an int is required.
     if "rx_offset" in addressing and not is_int(addressing["rx_offset"]):
         errors.append("profile.yaml: 'addressing.rx_offset' must be an integer")
     if "mode" in addressing:
@@ -959,19 +973,33 @@ def _validate_addressing(addressing: Any, is_int: Callable[[Any], bool]) -> list
                 f"profile.yaml: 'addressing.mode' must be one of "
                 f"{', '.join(sorted(modes))}, got {addressing['mode']!r}"
             )
+    _validate_addressing_byte(addressing, "target_address", "profile.yaml", is_int, errors)
+    _validate_addressing_byte(addressing, "source_address", "profile.yaml", is_int, errors)
     return errors
 
 
 def _validate_ecu_addressing(addressing: Any, label: str, errors: list[str]) -> None:
-    """Validate a per-ECU ``addressing:`` override block (only ``mode:`` today)."""
+    """Validate a per-ECU ``addressing:`` override block.
+
+    Accepts ``mode``, the ISO-TP extension bytes ``target_address``/
+    ``source_address`` (extended 11-bit/29-bit modes), and a flow-control
+    arbitration override ``fc_id`` (functional-TX / physical-RX ECUs).
+    """
     if addressing is None:
         return
     if not isinstance(addressing, dict):
         errors.append(f"{label}: 'addressing' must be a mapping")
         return
+
+    def _is_int(v: Any) -> bool:
+        return isinstance(v, int) and not isinstance(v, bool)
+
     for key in addressing:
-        if key != "mode":
-            errors.append(f"{label}: unknown addressing field '{key}' (allowed: mode)")
+        if key not in _ECU_ADDRESSING_FIELDS:
+            errors.append(
+                f"{label}: unknown addressing field '{key}' "
+                f"(allowed: {', '.join(sorted(_ECU_ADDRESSING_FIELDS))})"
+            )
     if "mode" in addressing:
         modes = _valid_addressing_modes()
         if addressing["mode"] not in modes:
@@ -979,6 +1007,10 @@ def _validate_ecu_addressing(addressing: Any, label: str, errors: list[str]) -> 
                 f"{label}: 'addressing.mode' must be one of "
                 f"{', '.join(sorted(modes))}, got {addressing['mode']!r}"
             )
+    _validate_addressing_byte(addressing, "target_address", label, _is_int, errors)
+    _validate_addressing_byte(addressing, "source_address", label, _is_int, errors)
+    if "fc_id" in addressing and not (_is_int(addressing["fc_id"]) and addressing["fc_id"] > 0):
+        errors.append(f"{label}: 'addressing.fc_id' must be a positive CAN arbitration id")
 
 
 def _validate_isotp(isotp: Any, allowed: set[str], is_int: Callable[[Any], bool]) -> list[str]:

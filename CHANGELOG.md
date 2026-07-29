@@ -7,7 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Extended (mixed) 11-bit and functional-TX addressing support** — the
+  remaining multi-vehicle addressing gaps from
+  `plans/2026-07-28-multi-vehicle-support.md`:
+  - A new `normal_extended_11bit` addressing mode (ISO-TP extended/mixed 11-bit):
+    an 11-bit header plus a per-ECU **target-address extension byte** carried in
+    the ISO-TP payload, with a tester **source address** (default `0xF1`). Covers
+    the BMW `0x6F1` tester scheme (i3/528i/M340d/Mini) and PSA/Stellantis
+    diagnostics. Set per-ECU `addressing: {mode: normal_extended_11bit,
+    target_address: 0x12}`.
+  - A per-ECU **flow-control address override** (`addressing.fc_id`) for
+    functional-TX / physical-RX ECUs (Renault, Mitsubishi Outlander): the request
+    goes to the functional broadcast id but ISO-TP flow control is redirected to
+    the ECU's physical request id (can-isotp otherwise sends it to the functional
+    TX). Implemented as a thin stack subclass in a new
+    `canlib/transport/isotp_stack.py`.
+  - **`canair pids set-addressing ECU [--mode --target-address --source-address
+    --fc-id --rx-id]`** — a surgical, validated editor for the make-specific
+    addressing knobs. `canair ecu add` gains the same
+    `--mode`/`--target-address`/`--source-address`/`--fc-id` flags so a 29-bit or
+    extended-addressing ECU can be seeded offline in one atomic write.
+  - **Negative `addressing.rx_offset`** is accepted (PSA/Stellantis `-0x20`), and
+    the offline-registration id range widened to 29-bit ids.
+  - Internally, `(tx, rx, mode, …)` is consolidated into a single resolved
+    `EcuAddress` bundle (`canlib/addressing.py::resolve_ecu_address`) threaded
+    through the raw transport, replacing the parallel per-ECU rx/mode maps.
+
+- **`canair profile` (bare, no subcommand) is now an interactive picker on a
+  TTY** — an arrow-key selector over the discovered profiles (↑/↓ move, Enter
+  sets it as `default_profile`, q/Esc cancels). Piped or non-interactive it
+  falls back to the plain list, so scripting is unaffected. Built on a new
+  reusable `canlib.tui.select_from_list` helper.
+
 ### Changed
+
+- **`canair profile show` now reports every bundle component** — it previously
+  omitted `can_buses.yaml`, the `signals/` broadcast maps, the raw-CAN log store
+  (`captures/can/`), and the `references/` directory. All are now listed
+  alongside `ecus/`, `profile.yaml`, `captures/`, `vehicle_states.yaml`, and
+  `out/`, each with a presence/summary line.
 
 - **`notes` fields auto-format consistently** when written by the tooling
   (`canair pids`, `canair ecu add`, `discover --register`, identity/scan-log
@@ -21,8 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   *starts with* or *ends with* it, so `ECU:22` still selects the `22xxxx` service
   DIDs (prefix) and `ECU:BC03` still selects the stored `22BC03` regardless of
   service byte (suffix) — but a token that appears only in the *middle* of a PID
-  no longer matches. Affects `captures`/`decode`/`correlate` selectors. See
-  `plans/2026-07-29-query-mini-language-fixes.md`.
+  no longer matches. Affects `captures`/`decode`/`correlate` selectors.
 
 ### Fixed
 
@@ -304,8 +343,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   release fails fast with a clear error pointing at the new migration command
   (below). Capture files are still written/edited only by the tool; the schema
   (`canlib/schema/captures_schema.json`) is unchanged (it validates the parsed
-  structure), and the human companion doc moved to `captures/SCHEMA.md`. See
-  `plans/2026-07-27-captures-json-storage.md`.
+  structure), and the human companion doc moved to `captures/SCHEMA.md`.
 - **The live `monitor` TUI repaints far more cheaply.** The monitor rebuilt its
   entire body — every ECU, PID, parameter table and hex/history line — on every
   poll cycle *and* every mid-cycle partial resolve, re-running the per-byte Rich
@@ -454,7 +492,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New concept doc `docs/concepts/typed-signals.md` and an expanded
   `docs/bring-your-own-car/06-analyze.md` (categorical analysis + the
   toggle→re-read→diff workflow for decoding settings the head unit *writes*).
-  Design in `plans/2026-07-25-multimodal-signal-analysis.md`.
 
 - **Live-monitor recording controls.** `canair query --monitor --save` now shows a
   blinking `● REC` in the status line while a recording is active, and adds an

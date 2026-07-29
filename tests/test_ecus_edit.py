@@ -16,6 +16,7 @@ from canlib.ecus_edit import (
     EcusEditError,
     append_scan_log,
     register_ecu,
+    set_addressing,
     set_ecu_fields,
     tx_key,
 )
@@ -47,7 +48,11 @@ class TestTxKey:
         assert tx_key(0x7E0) == "0x7E0"
         assert tx_key(0x770) == "0x770"
 
-    @pytest.mark.parametrize("bad", [-1, 0x800, "770", 1.0])
+    def test_formats_29bit_8_digit(self):
+        assert tx_key(0x18DA10F1) == "0x18DA10F1"
+        assert tx_key(0x800) == "0x00000800"
+
+    @pytest.mark.parametrize("bad", [-1, 0x20000000, "770", 1.0])
     def test_rejects_out_of_range(self, bad):
         with pytest.raises(EcusEditError):
             tx_key(bad)
@@ -120,6 +125,56 @@ class TestSetEcuFields:
         with pytest.raises(EcusEditError, match="invalid after edit"):
             set_ecu_fields(0x770, id_protocol="BOGUS", overwrite=True, ecus_dir=ecus_dir)
         assert (ecus_dir / "igpm.yaml").read_text() == before
+
+
+class TestSetAddressing:
+    def test_set_rx_only(self, ecus_dir):
+        register_ecu(0x704, "VCU", ecus_dir=ecus_dir)
+        changed = set_addressing(0x704, rx_id=0x784, ecus_dir=ecus_dir)
+        assert changed is True
+        entry = _load_ecu(ecus_dir, "vcu.yaml")["VCU"]
+        assert entry["rx_id"] == 0x784
+
+    def test_extended_11bit(self, ecus_dir):
+        # BMW/PSA extended-11-bit: mode + target byte. Gap G-I.
+        register_ecu(0x6F1, "DME", ecus_dir=ecus_dir)
+        set_addressing(
+            0x6F1, mode="normal_extended_11bit", target_address=0x12, rx_id=0x612, ecus_dir=ecus_dir
+        )
+        entry = _load_ecu(ecus_dir, "dme.yaml")["DME"]
+        assert entry["addressing"]["mode"] == "normal_extended_11bit"
+        assert entry["addressing"]["target_address"] == 0x12
+        assert entry["rx_id"] == 0x612
+
+    def test_register_29bit_functional_tx_with_fc_id(self, ecus_dir):
+        # Gap G-J: functional-TX 29-bit ECU created atomically (mode present so the
+        # 29-bit tx_id passes the width check), with a physical FC override.
+        register_ecu(
+            0x18DB33F1,
+            "EVC",
+            ecus_dir=ecus_dir,
+            mode="normal_29bit",
+            rx_id=0x18DAF1DB,
+            fc_id=0x18DADBF1,
+        )
+        entry = _load_ecu(ecus_dir, "evc.yaml")["EVC"]
+        assert entry["tx_id"] == 0x18DB33F1
+        assert entry["addressing"]["mode"] == "normal_29bit"
+        assert entry["addressing"]["fc_id"] == 0x18DADBF1
+
+    def test_unknown_mode_rejected(self, ecus_dir):
+        register_ecu(0x704, "VCU", ecus_dir=ecus_dir)
+        with pytest.raises(EcusEditError, match="unknown addressing mode"):
+            set_addressing(0x704, mode="bogus", ecus_dir=ecus_dir)
+
+    def test_byte_out_of_range_rejected(self, ecus_dir):
+        register_ecu(0x6F1, "DME", ecus_dir=ecus_dir)
+        with pytest.raises(EcusEditError, match="target_address"):
+            set_addressing(0x6F1, target_address=0x100, ecus_dir=ecus_dir)
+
+    def test_raises_for_unregistered(self, ecus_dir):
+        with pytest.raises(EcusEditError, match="not registered"):
+            set_addressing(0x7E0, rx_id=0x7E8, ecus_dir=ecus_dir)
 
 
 class TestAppendScanLog:

@@ -446,6 +446,10 @@ def cmd_detail(rec: dict, as_json: bool) -> int:
                 f"{p['params']:>2}p  {vcolor}{p['verified']:>2} verified{_RESET}"
                 f"{cap_seg}{flag_str}"
             )
+        print(
+            f"\n  {_DIM}Tip: `canair ecu {rec['name']} pids` shows each PID's "
+            f"latest decoded state.{_RESET}"
+        )
 
     # Notes last (can be long/multiline)
     if rec.get("notes"):
@@ -514,19 +518,46 @@ def _pids_latest_records(ecu_def: dict | None, ecu_name: str) -> list[dict]:
     return out
 
 
-def _wrap_pairs(pairs: list[str], width: int, indent: str) -> list[str]:
-    """Wrap ``NAME=value`` pairs into lines no wider than ``width`` (2-space gap)."""
+def _value_grid(values: Mapping[str, Any], width: int, indent: str, ncols: int = 2) -> list[str]:
+    """Render ``name value`` pairs as an aligned multi-column grid.
+
+    Names are left-aligned and values right-aligned within per-column widths so
+    the pairs line up in tidy columns (rather than a flat wrapped blob). Each
+    cell is ``name … value``; the number of columns is reduced automatically
+    when a single row wouldn't fit ``width``.
+    """
+    items = [(str(k), str(v)) for k, v in values.items()]
+    if not items:
+        return []
+
+    gap = "   "  # between columns
+    # Shrink ncols until a row fits the target width (or we're down to 1 column).
+    while ncols > 1:
+        rows = [items[i : i + ncols] for i in range(0, len(items), ncols)]
+        name_w = [max((len(r[c][0]) for r in rows if c < len(r)), default=0) for c in range(ncols)]
+        val_w = [max((len(r[c][1]) for r in rows if c < len(r)), default=0) for c in range(ncols)]
+        row_w = len(indent) + sum(name_w) + sum(val_w) + 2 * ncols + len(gap) * (ncols - 1)
+        if row_w <= width:
+            break
+        ncols -= 1
+
+    rows = [items[i : i + ncols] for i in range(0, len(items), ncols)]
+    name_w = [
+        max((len(rows[r][c][0]) for r in range(len(rows)) if c < len(rows[r])), default=0)
+        for c in range(ncols)
+    ]
+    val_w = [
+        max((len(rows[r][c][1]) for r in range(len(rows)) if c < len(rows[r])), default=0)
+        for c in range(ncols)
+    ]
+
     lines: list[str] = []
-    cur = indent
-    for p in pairs:
-        add = p if cur == indent else "  " + p
-        if len(cur) + len(add) > width and cur != indent:
-            lines.append(cur)
-            cur = indent + p
-        else:
-            cur += add
-    if cur != indent:
-        lines.append(cur)
+    for row in rows:
+        cells = [
+            f"{_DIM}{n:<{name_w[c]}}{_RESET} {_BOLD}{v:>{val_w[c]}}{_RESET}"
+            for c, (n, v) in enumerate(row)
+        ]
+        lines.append(indent + gap.join(cells))
     return lines
 
 
@@ -571,20 +602,23 @@ def cmd_pids(info: Mapping[str, Any], tx_id: int, ecu_def: dict | None, as_json:
     for r in records:
         flags = []
         if r["status"] != "active":
-            flags.append(f"{_DIM}{r['status']}{_RESET}")
+            flags.append(f"{_YELLOW}{r['status']}{_RESET}")
         # Context (state/date) for the capture the values came from.
         ctx = ""
         if r["values"]:
             st = join_states(r["vehicle_states"])
             when = " ".join(x for x in [r.get("date") or "", r.get("time") or ""] if x).strip()
-            bits = [b for b in [f"[{st}]" if st else "", when] if b]
-            ctx = f"  {_DIM}{' · '.join(bits)}{_RESET}" if bits else ""
+            bits = []
+            if st:
+                bits.append(f"{_BOLD}{_GREEN}{st}{_RESET}")
+            if when:
+                bits.append(f"{_CYAN}{when}{_RESET}")
+            ctx = f"  {_DIM}·{_RESET} " + f" {_DIM}·{_RESET} ".join(bits) if bits else ""
         flag_str = ("  " + " ".join(flags)) if flags else ""
-        print(f"  {_CYAN}{r['pid']:<8}{_RESET}{ctx}{flag_str}")
+        print(f"  {_BOLD}{_CYAN}{r['pid']}{_RESET}{ctx}{flag_str}")
 
         if r["values"]:
-            pairs = [f"{k}={v}" for k, v in r["values"].items()]
-            for line in _wrap_pairs(pairs, width, "      "):
+            for line in _value_grid(r["values"], width, "      "):
                 print(line)
         elif r["n_params"] == 0:
             print(f"      {_DIM}(no parameters defined){_RESET}")
@@ -678,6 +712,7 @@ def _add_add_parser(kinds) -> argparse.ArgumentParser:
         "  canair ecu add 7C6 --name CLU --description 'Cluster (instrument panel)'\n"
         "  canair ecu add 0x7E4 --name BMS --id-protocol KWP2000\n"
         "  canair ecu add 0x704 --name BMS --rx-id 0x784   # non-standard response addr\n"
+        "  canair ecu add 0x18DB33F1 --name EVC --mode normal_29bit --rx-id 0x18DAF1DB --fc-id 0x18DADBF1\n"
         "  canair ecu add 770 --name IGPM --notes 'Seeded offline; no PIDs yet'\n",
     )
     parser.add_argument("tx", metavar="TX", help="ECU TX id (hex, e.g. 7C6 or 0x7C6)")
@@ -691,6 +726,26 @@ def _add_add_parser(kinds) -> argparse.ArgumentParser:
         dest="rx_id",
         help="CAN response address override (hex, e.g. 0x784) — for an ECU whose "
         "response addr isn't tx_id + the profile's addressing.rx_offset",
+    )
+    parser.add_argument(
+        "--mode",
+        help="Addressing mode (normal_11bit | normal_29bit | normal_fixed_29bit | "
+        "normal_extended_11bit | extended_29bit) — required to seed a 29-bit ECU",
+    )
+    parser.add_argument(
+        "--target-address",
+        dest="target_address",
+        help="ISO-TP target extension byte (hex) — extended-11-bit/29-bit modes",
+    )
+    parser.add_argument(
+        "--source-address",
+        dest="source_address",
+        help="ISO-TP tester (source) byte (hex, default 0xF1) — extended-11-bit modes",
+    )
+    parser.add_argument(
+        "--fc-id",
+        dest="fc_id",
+        help="Flow-control arbitration override (hex) — functional-TX / physical-RX ECUs",
     )
     parser.add_argument("--notes", help="Free-text notes")
     parser.add_argument(
@@ -725,6 +780,22 @@ def cmd_add(args) -> int:
             )
             return 1
 
+    def _hex_or_die(value, label):
+        if value is None:
+            return None
+        try:
+            return int(str(value), 16)
+        except ValueError:
+            print(f"{_RED}Invalid {label} {value!r} — expected hex.{_RESET}", file=sys.stderr)
+            raise SystemExit(1) from None
+
+    try:
+        target_address = _hex_or_die(getattr(args, "target_address", None), "--target-address")
+        source_address = _hex_or_die(getattr(args, "source_address", None), "--source-address")
+        fc_id = _hex_or_die(getattr(args, "fc_id", None), "--fc-id")
+    except SystemExit as e:
+        return int(e.code or 1)
+
     fields = {
         k: v
         for k, v in (
@@ -741,6 +812,10 @@ def cmd_add(args) -> int:
             overwrite=args.overwrite,
             ecus_dir=args.dir,
             rx_id=rx_id,
+            mode=getattr(args, "mode", None),
+            target_address=target_address,
+            source_address=source_address,
+            fc_id=fc_id,
             **fields,
         )
     except EcusEditError as e:

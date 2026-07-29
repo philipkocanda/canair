@@ -7,7 +7,7 @@ See plans/2026-07-28-multi-vehicle-support.md (Phases 3–4).
 import can
 import isotp
 
-from canlib.addressing import AddressingMode, build_isotp_address
+from canlib.addressing import AddressingMode, EcuAddress, build_isotp_address
 from canlib.modes.discover import discovery_targets, fmt_id
 from canlib.quirks import HK_F1XX_MINUS_ONE, has_quirk, resolve_quirks
 from canlib.transport.isotp_params import DEFAULT_TX_PADDING, resolve_tx_padding
@@ -57,7 +57,9 @@ class TestSlcanExtendedFrame:
                 pass
 
         bus = _Bus()
-        addr = build_isotp_address(0x18DA10F1, 0x18DAF110, AddressingMode.NORMAL_FIXED_29BIT)
+        addr = build_isotp_address(
+            EcuAddress(0x18DA10F1, 0x18DAF110, AddressingMode.NORMAL_FIXED_29BIT)
+        )
         stack = isotp.CanStack(bus, address=addr)
         stack.send(bytes.fromhex("221101"))
         stack.process()

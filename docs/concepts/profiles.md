@@ -47,7 +47,7 @@ and `init` are required; everything else is optional with a sensible default.
 | `car_model` | str | Human description (required). |
 | `init` | str | ELM327 AT init string, `;`-separated (required). Applies to the `wican-ws` (ELM327) transport only; the `slcan-tcp` transport ignores it and drives ISO-TP directly. A fresh profile scaffolds `ATSP6;ATS0;ATAL;` (ISO 15765-4 11-bit/500 kbit). |
 | `can_bitrate` | int | Vehicle bus speed in bit/s. Set it when the diagnostic bus isn't 500 kbit/s (e.g. `250000`). Precedence: config `transport.bitrate` > this > device config > `500000`. |
-| `addressing` | map | CAN diagnostic addressing rule. `mode` selects how the arbitration IDs are formed — `normal_11bit` (default), `normal_29bit`, `normal_fixed_29bit` (the ISO `0x18DA{target}{tester}` convention used by Ford/VAG/etc.), or `extended_29bit`. `rx_offset` sets the 11-bit response address as `tx_id + rx_offset` (default `0x08`, the Hyundai/Kia convention; set `0x80` for XPeng, request `0x704` → response `0x784`). For `normal_fixed_29bit` the response ID is derived by swapping the address bytes, so `rx_offset` doesn't apply. A single irregular ECU overrides the mode with a per-ECU `addressing.mode`, or the response address with its own `rx_id` (see ECU fields). |
+| `addressing` | map | CAN diagnostic addressing rule. `mode` selects how the arbitration IDs are formed — `normal_11bit` (default), `normal_29bit` (arbitrary explicit `tx_id`/`rx_id`), `normal_fixed_29bit` (the ISO `0x18DA{target}{tester}` convention used by Ford/VAG/etc.), `normal_extended_11bit` (ISO-TP extended/mixed 11-bit: an 11-bit header plus a per-ECU target-address extension byte in the payload — BMW `0x6F1` / PSA), or `extended_29bit`. `rx_offset` sets the 11-bit response address as `tx_id + rx_offset` (default `0x08`, the Hyundai/Kia convention; `0x80` for XPeng `0x704`→`0x784`; **may be negative**, e.g. PSA `-0x20`). For `normal_fixed_29bit` the response ID is derived by swapping the address bytes, so `rx_offset` doesn't apply. `target_address`/`source_address` are profile-default ISO-TP extension bytes for the extended modes (`source_address` is the tester address, default `0xF1`). A single irregular ECU overrides the mode with a per-ECU `addressing.mode`, the response address with its own `rx_id`, or the flow-control address with `addressing.fc_id` (see ECU fields). |
 | `response_timeout_ms` | int | ELM327 response timeout (applied as `ATSTxx`; `--elm-timeout` overrides). Raise it for slow ECUs (the Ioniq needs `614`), lower it to speed up cycles. |
 | `multi_did_batching` | bool | Profile default for per-ECU service-22 multi-DID batching. |
 | `failure_types` | map | DTC failure-type byte meanings, profile-wide (`{0xNN: "meaning"}`). |
@@ -95,6 +95,7 @@ profiles), then the repo's bundled `profiles/`. **User profiles shadow bundled
 ones by name** and are not committed to the repo.
 
 ```bash
+canair profile               # interactive picker on a TTY (set the default); plain list when piped
 canair profile list          # discovered profiles; active one marked
 canair profile show [NAME]    # a profile's paths and settings
 canair profile use NAME       # set NAME as the default profile

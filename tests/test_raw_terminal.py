@@ -287,7 +287,7 @@ class TestRawTerminalSafety:
 
 
 class TestRawTerminalRxResolution:
-    """The ISO-TP stack's rx address comes from rx_map (per-ECU rx_id / profile
+    """The ISO-TP stack's rx address comes from addr_map (per-ECU rx_id / profile
     offset), not a hardcoded tx+8 — so a non-standard RX (e.g. XPeng +0x80) works.
     """
 
@@ -315,10 +315,14 @@ class TestRawTerminalRxResolution:
         monkeypatch.setattr(raw_terminal.time, "sleep", lambda *_a: None)
         return seen
 
-    def test_rx_map_used(self, capture_addr):
+    def test_addr_map_used(self, capture_addr):
+        from canlib.addressing import EcuAddress
+
         # Non-standard mapping 0x704 -> 0x784 (XPeng), and a fallback offset for
         # an address not in the map.
-        t = raw_terminal.RawTerminal("h", 3333, 500000, rx_map={0x704: 0x784}, rx_offset=0x80)
+        t = raw_terminal.RawTerminal(
+            "h", 3333, 500000, addr_map={0x704: EcuAddress(0x704, 0x784)}, rx_offset=0x80
+        )
         t._stack(0x704)
         t._stack(0x710)  # unknown -> tx + rx_offset
         assert capture_addr[0x704] == 0x784
@@ -339,11 +343,11 @@ class TestRawTerminalModeResolution:
 
         seen: list[tuple[int, int, AddressingMode]] = []
 
-        def _build(tx_id, rx_id, mode):
-            seen.append((tx_id, rx_id, mode))
+        def _build(addr):
+            seen.append((addr.tx_id, addr.rx_id, addr.mode))
 
             class _A:
-                _txid = tx_id
+                _txid = addr.tx_id
 
             return _A()
 
@@ -358,14 +362,16 @@ class TestRawTerminalModeResolution:
         monkeypatch.setattr(raw_terminal.time, "sleep", lambda *_a: None)
         return seen
 
-    def test_per_ecu_mode_map(self, capture_mode):
-        from canlib.addressing import AddressingMode
+    def test_per_ecu_addr_map(self, capture_mode):
+        from canlib.addressing import AddressingMode, EcuAddress
 
         t = raw_terminal.RawTerminal(
             "h",
             3333,
             500000,
-            mode_map={0x18DA10F1: AddressingMode.NORMAL_FIXED_29BIT},
+            addr_map={
+                0x18DA10F1: EcuAddress(0x18DA10F1, 0x18DAF110, AddressingMode.NORMAL_FIXED_29BIT)
+            },
             mode=AddressingMode.NORMAL_11BIT,
         )
         t._stack(0x18DA10F1)
@@ -375,7 +381,7 @@ class TestRawTerminalModeResolution:
     def test_29bit_rx_derived_when_unmapped(self, capture_mode):
         from canlib.addressing import AddressingMode
 
-        # No rx_map entry: RX for fixed-29 is the byte-swapped id.
+        # No addr_map entry: RX for fixed-29 is the byte-swapped id.
         t = raw_terminal.RawTerminal("h", 3333, 500000, mode=AddressingMode.NORMAL_FIXED_29BIT)
         t._stack(0x18DA10F1)
         tx, rx, mode = capture_mode[0]

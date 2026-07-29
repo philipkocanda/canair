@@ -60,8 +60,17 @@ ECUs answer at a non-standard response address, uses 29-bit diagnostic addressin
 set `can_bitrate:` / `addressing:` / `isotp:` in `profile.yaml` — see
 [Profiles → `profile.yaml` settings](../concepts/profiles.md#profileyaml-settings).
 (For example, XPeng answers at `TX + 0x80`, so its profile sets
-`addressing: {rx_offset: 0x80}`; a single irregular ECU instead gets an `rx_id`
-or per-ECU `addressing: {mode: …}` in its `ecus/*.yaml`.)
+`addressing: {rx_offset: 0x80}` — this offset may also be negative (PSA/Stellantis
+use `-0x20`); a single irregular ECU instead gets an `rx_id` or per-ECU
+`addressing: {mode: …}` in its `ecus/*.yaml`, set via
+`canair pids set-addressing`. Makes that carry a per-module target-address byte
+inside the ISO-TP payload (BMW `0x6F1` / PSA) use
+`addressing: {mode: normal_extended_11bit}` + a per-ECU `target_address`; makes
+that request on a functional broadcast id but answer physically (some
+Renault/Mitsubishi) use `normal_29bit` with an explicit `rx_id` and an
+`addressing: {fc_id: …}` flow-control override. Non-`0x18` 29-bit priorities
+(GM `0x14…`, VW `0x17…`, Volvo `0x1D…`) are handled by `normal_29bit` with
+explicit `tx_id`/`rx_id`.)
 `vehicle_states.yaml` starts with a generic power-state vocabulary you'll refine
 later — see [Captures & states](../concepts/captures-and-states.md).
 

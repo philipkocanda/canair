@@ -8,7 +8,7 @@ from canlib.commands import pids as cli
 @pytest.fixture
 def pids_dir(tmp_path):
     (tmp_path / "e.yaml").write_text(
-        "TESTECU:\n  tx_id: 0x700\n  pids:\n    2101:\n      parameters: {}\n"
+        "TESTECU:\n  tx_id: 0x700\n  pids:\n    2101:\n      status: active\n      parameters: {}\n"
     )
     return tmp_path
 
@@ -40,3 +40,36 @@ def test_guarded_skips_gate_when_disabled(pids_dir, monkeypatch):
     monkeypatch.setattr(cli, "_schema_validate", _boom)
     cli._guarded("TESTECU", pids_dir, lambda: fp.write_text("whatever"), validate=False)
     assert fp.read_text() == "whatever"
+
+
+class _Args:
+    def __init__(self, **kw):
+        self.ecu = "TESTECU"
+        self.dir = None
+        self.mode = self.target_address = self.source_address = None
+        self.fc_id = self.rx_id = None
+        self.no_validate = False
+        self.__dict__.update(kw)
+
+
+def test_set_addressing_writes_block(pids_dir):
+    import canlib.yaml_io as yaml_io
+
+    rc = cli.cmd_set_addressing(
+        _Args(dir=pids_dir, mode="normal_extended_11bit", target_address="0x12", rx_id="0x708")
+    )
+    assert rc == 0
+    doc = yaml_io.safe_load((pids_dir / "e.yaml").read_text())
+    assert doc["TESTECU"]["addressing"]["mode"] == "normal_extended_11bit"
+    assert doc["TESTECU"]["addressing"]["target_address"] == 0x12
+    assert doc["TESTECU"]["rx_id"] == 0x708
+
+
+def test_set_addressing_requires_a_field(pids_dir):
+    with pytest.raises(SystemExit, match="nothing to set"):
+        cli.cmd_set_addressing(_Args(dir=pids_dir))
+
+
+def test_set_addressing_bad_hex(pids_dir):
+    with pytest.raises(SystemExit, match="fc-id"):
+        cli.cmd_set_addressing(_Args(dir=pids_dir, fc_id="nothex"))

@@ -8,14 +8,20 @@ RX↔TX lookups all honor it (see plans/2026-07-28-multi-vehicle-support.md).
 
 from canlib.addressing import (
     DEFAULT_RX_OFFSET,
+    DEFAULT_TESTER_ADDRESS,
     AddressingMode,
+    EcuAddress,
     build_isotp_address,
     fixed_29bit_rx,
     is_extended,
     parse_mode,
+    resolve_ecu_address,
+    resolve_fc_id,
     resolve_mode,
     resolve_rx,
     resolve_rx_offset,
+    resolve_source_address,
+    resolve_target_address,
 )
 from canlib.ecus import build_rx_index, build_rx_tx_index, resolve_tx, rx_for_tx
 from canlib.pids import build_ecu_index
@@ -159,26 +165,28 @@ class TestAddressingMode:
 
 
 class TestBuildIsotpAddress:
-    """Phase 3: (tx, rx, mode) -> isotp.Address for both raw clients."""
+    """Phase 3: EcuAddress -> isotp.Address for both raw clients."""
 
     def test_normal_11bit(self):
-        a = build_isotp_address(0x7E4, 0x7EC, AddressingMode.NORMAL_11BIT)
+        a = build_isotp_address(EcuAddress(0x7E4, 0x7EC, AddressingMode.NORMAL_11BIT))
         assert a.get_tx_arbitration_id() == 0x7E4
         assert a.get_rx_arbitration_id() == 0x7EC
 
     def test_normal_29bit_arbitrary(self):
-        a = build_isotp_address(0x18DA10F1, 0x18DAF110, AddressingMode.NORMAL_29BIT)
+        a = build_isotp_address(EcuAddress(0x18DA10F1, 0x18DAF110, AddressingMode.NORMAL_29BIT))
         assert a.get_tx_arbitration_id() == 0x18DA10F1
         assert a.get_rx_arbitration_id() == 0x18DAF110
 
     def test_normal_fixed_29bit(self):
         # target/source extracted from the request id -> 18DA convention.
-        a = build_isotp_address(0x18DA10F1, 0x18DAF110, AddressingMode.NORMAL_FIXED_29BIT)
+        a = build_isotp_address(
+            EcuAddress(0x18DA10F1, 0x18DAF110, AddressingMode.NORMAL_FIXED_29BIT)
+        )
         assert a.get_tx_arbitration_id() == 0x18DA10F1
         assert a.get_rx_arbitration_id() == 0x18DAF110
 
     def test_extended_29bit(self):
-        a = build_isotp_address(0x18DA10F1, 0x18DAF110, AddressingMode.EXTENDED_29BIT)
+        a = build_isotp_address(EcuAddress(0x18DA10F1, 0x18DAF110, AddressingMode.EXTENDED_29BIT))
         assert a.get_tx_arbitration_id() == 0x18DA10F1
 
 
@@ -213,3 +221,117 @@ class TestRegistryModeResolution:
         idx = build_ecu_index(data)
         assert idx["PCM"]["mode"] == "normal_fixed_29bit"
         assert idx["PCM"]["rx_id"] == 0x18DAF110
+
+
+class TestNegativeRxOffset:
+    """Gap G-L: PSA/Stellantis use a negative offset (0x6B4 -> 0x694 = -0x20)."""
+
+    def test_resolve_rx_offset_negative(self):
+        assert resolve_rx_offset({"addressing": {"rx_offset": -0x20}}) == -0x20
+
+    def test_resolve_rx_negative_offset(self):
+        assert resolve_rx(0x6B4, rx_offset=-0x20) == 0x694
+        assert resolve_rx(0x6A2, rx_offset=-0x20) == 0x682
+
+    def test_registry_negative_offset(self):
+        data = {"addressing": {"rx_offset": -0x20}, "ecus": {"BSI": {"tx_id": 0x6A6, "pids": {}}}}
+        idx = build_ecu_index(data)
+        assert idx["BSI"]["rx_id"] == 0x686
+
+
+class TestNon0x18Priority:
+    """Gap G-K: non-0x18 29-bit priority + non-derivable RX via normal_29bit ids.
+
+    The escape hatch is arbitrary explicit tx_id/rx_id under normal_29bit — GM
+    Global-A (0x14...), VW MEB (0x17...), Volvo SPA (0x1D...) all fit there because
+    the ids are baked in whole (priority included), no derivation attempted.
+    """
+
+    def test_gm_global_a_ids_pass_through(self):
+        # GM: TX 0x14DACBF1 -> RX 0x142AF1CB (DA->2A discriminator, not a byte-swap).
+        a = build_isotp_address(EcuAddress(0x14DACBF1, 0x142AF1CB, AddressingMode.NORMAL_29BIT))
+        assert a.get_tx_arbitration_id() == 0x14DACBF1
+        assert a.get_rx_arbitration_id() == 0x142AF1CB
+
+    def test_vw_meb_ids_pass_through(self):
+        a = build_isotp_address(EcuAddress(0x17FC007B, 0x17FE007B, AddressingMode.NORMAL_29BIT))
+        assert a.get_tx_arbitration_id() == 0x17FC007B
+        assert a.get_rx_arbitration_id() == 0x17FE007B
+
+    def test_registry_resolves_arbitrary_29bit(self):
+        # normal_29bit keeps the explicit rx_id verbatim (no fixed-29 byte-swap).
+        data = {
+            "ecus": {
+                "PCM": {
+                    "tx_id": 0x1DD01635,
+                    "rx_id": 0x1EC6AE80,
+                    "addressing": {"mode": "normal_29bit"},
+                    "pids": {},
+                }
+            }
+        }
+        idx = build_ecu_index(data)
+        assert idx["PCM"]["rx_id"] == 0x1EC6AE80
+
+
+class TestEcuAddressResolution:
+    """resolve_ecu_address bundles mode + RX + extended/FC bytes."""
+
+    def test_plain_11bit(self):
+        addr = resolve_ecu_address(None, {"tx_id": 0x7E4})
+        assert addr == EcuAddress(0x7E4, 0x7EC, AddressingMode.NORMAL_11BIT)
+
+    def test_extended_11bit_defaults_tester(self):
+        # Gap G-I: BMW extended-11-bit — target from the ECU, source defaults 0xF1.
+        meta = {"addressing": {"mode": "normal_extended_11bit"}}
+        ecu = {"tx_id": 0x6F1, "rx_id": 0x612, "addressing": {"target_address": 0x12}}
+        addr = resolve_ecu_address(meta, ecu)
+        assert addr.mode == AddressingMode.NORMAL_EXTENDED_11BIT
+        assert addr.rx_id == 0x612
+        assert addr.target_address == 0x12
+        assert addr.source_address == DEFAULT_TESTER_ADDRESS
+
+    def test_functional_tx_fc_id(self):
+        # Gap G-J: Renault functional-TX with a physical FC override.
+        ecu = {
+            "tx_id": 0x18DB33F1,
+            "rx_id": 0x18DAF1DB,
+            "addressing": {"mode": "normal_29bit", "fc_id": 0x18DADBF1},
+        }
+        addr = resolve_ecu_address(None, ecu)
+        assert addr.fc_id == 0x18DADBF1
+        assert addr.rx_id == 0x18DAF1DB
+
+    def test_target_source_precedence_per_ecu_over_profile(self):
+        meta = {"addressing": {"source_address": 0xF0, "target_address": 0x01}}
+        ecu = {"tx_id": 0x6F1, "addressing": {"target_address": 0x60}}
+        assert resolve_target_address(meta, ecu) == 0x60  # per-ECU wins
+        assert resolve_source_address(meta, ecu) == 0xF0  # profile default used
+
+    def test_no_fc_id_by_default(self):
+        assert resolve_fc_id(None, {"tx_id": 0x7E4}) is None
+
+
+class TestExtendedAddressingIsotp:
+    """Gap G-I: build_isotp_address for the extended (mixed) 11-bit scheme."""
+
+    def test_extended_11bit_prepends_target(self):
+        addr = EcuAddress(
+            0x6F1,
+            0x612,
+            AddressingMode.NORMAL_EXTENDED_11BIT,
+            target_address=0x12,
+            source_address=0xF1,
+        )
+        a = build_isotp_address(addr)
+        assert a.get_tx_arbitration_id() == 0x6F1
+        assert a.get_rx_arbitration_id() == 0x612
+        # The target-address extension byte rides as the first payload byte.
+        assert a.get_tx_payload_prefix() == b"\x12"
+
+    def test_extended_11bit_missing_target_raises(self):
+        import pytest
+
+        addr = EcuAddress(0x6F1, 0x612, AddressingMode.NORMAL_EXTENDED_11BIT)
+        with pytest.raises(ValueError, match="target_address"):
+            build_isotp_address(addr)

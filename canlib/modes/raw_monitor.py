@@ -13,33 +13,20 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from ..addressing import AddressingMode
+    from ..addressing import EcuAddress
     from ..pids import EcuIndexEntry
 
 
 def query_ecu_addresses(
     query_steps: list[dict], ecu_index: Mapping[str, EcuIndexEntry]
-) -> dict[str, tuple[int, int]]:
-    """name(upper) -> (tx_id, rx_id) for every known ECU in the query steps."""
-    out: dict[str, tuple[int, int]] = {}
+) -> dict[str, EcuAddress]:
+    """name(upper) -> resolved :class:`EcuAddress` for every ECU in the query steps."""
+    out: dict[str, EcuAddress] = {}
     for step in query_steps:
         ecu = step["ecu"].upper()
         info = ecu_index.get(ecu)
         if info:
-            out[ecu] = (info["tx_id"], info["rx_id"])
-    return out
-
-
-def query_ecu_modes(
-    query_steps: list[dict], ecu_index: Mapping[str, EcuIndexEntry]
-) -> dict[str, AddressingMode]:
-    """name(upper) -> addressing mode for every known ECU in the query steps."""
-    out: dict[str, AddressingMode] = {}
-    for step in query_steps:
-        ecu = step["ecu"].upper()
-        info = ecu_index.get(ecu)
-        if info:
-            out[ecu] = info["mode"]
+            out[ecu] = info["address"]
     return out
 
 
@@ -68,7 +55,6 @@ async def run_raw_monitor(args, host: str, port: int, bitrate: int, pids_data: d
     if not ecus:
         print("Error: no known ECUs in the query steps.", file=sys.stderr)
         return 1
-    modes = query_ecu_modes(query_steps, ecu_index)
 
     print(
         f"  Raw CAN monitor via SLCAN — {host}:{port} @ {bitrate} bps  "
@@ -84,7 +70,6 @@ async def run_raw_monitor(args, host: str, port: int, bitrate: int, pids_data: d
         timeout=(cli if cli is not None else 3.0),
         ecu_timeouts=(None if cli is not None else ecu_timeouts_by_name(pids_data)),
         isotp_config=pids_data.get("isotp"),
-        modes=modes,
     )
     await mode_monitor(
         None,

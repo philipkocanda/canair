@@ -85,15 +85,19 @@ def _flow_states(vehicle_states) -> CommentedSeq | None:
 
 
 def tx_key(tx_id: int) -> str:
-    """Human-readable display form for a TX id (e.g. ``0x7E0``)."""
-    if not isinstance(tx_id, int) or isinstance(tx_id, bool) or tx_id < 0 or tx_id > 0x7FF:
-        raise EcusEditError(f"tx_id must be an int in 0x000-0x7FF, got {tx_id!r}")
-    return f"0x{tx_id:03X}"
+    """Human-readable display form for a CAN id (e.g. ``0x7E0`` / ``0x18DA10F1``).
+
+    Accepts an 11-bit id (``0x000-0x7FF``) or a 29-bit extended id
+    (``0x800-0x1FFFFFFF``), rendered 3 or 8 hex digits wide respectively.
+    """
+    if not isinstance(tx_id, int) or isinstance(tx_id, bool) or tx_id < 0 or tx_id > 0x1FFFFFFF:
+        raise EcusEditError(f"tx_id must be an int in 0x000-0x1FFFFFFF, got {tx_id!r}")
+    return f"0x{tx_id:08X}" if tx_id > 0x7FF else f"0x{tx_id:03X}"
 
 
 def _hex_tx(tx_id: int) -> HexCapsInt:
-    """A hex-rendering integer so ``tx_id`` dumps as ``0x7E0``."""
-    return HexCapsInt(tx_id, width=3)
+    """A hex-rendering integer so a CAN id dumps as ``0x7E0`` / ``0x18DA10F1``."""
+    return HexCapsInt(tx_id, width=8 if tx_id > 0x7FF else 3)
 
 
 def _resolve_dir(ecus_dir: Path | None) -> Path:
@@ -242,6 +246,10 @@ def register_ecu(
     overwrite: bool = False,
     ecus_dir: Path | None = None,
     rx_id: int | None = None,
+    mode: str | None = None,
+    target_address: int | None = None,
+    source_address: int | None = None,
+    fc_id: int | None = None,
     **fields,
 ) -> bool:
     """Register an ECU as ``ecus/<name>.yaml``, or merge into the existing file.
@@ -251,13 +259,14 @@ def register_ecu(
     filled unless ``overwrite=True``. ``fields`` are identity fields (see
     ``identity_fields`` in the schema). ``rx_id`` is the optional top-level CAN
     response-address override (for an ECU whose response address doesn't follow
-    the profile's ``addressing.rx_offset``); it is written/updated when provided.
-    Returns True if a file was written.
+    the profile's ``addressing.rx_offset``). ``mode``/``target_address``/
+    ``source_address``/``fc_id`` seed the per-ECU ``addressing:`` block — needed
+    to register a 29-bit or extended-addressing ECU in one atomic, valid write
+    (see :func:`set_addressing`). Returns True if a file was written.
     """
     _check_fields(fields)
+    mode = _normalize_addressing_args(mode, target_address, source_address, fc_id, rx_id)
     disp = tx_key(tx_id)  # validates range
-    if rx_id is not None:
-        tx_key(rx_id)  # reuse the 0x000-0x7FF range check
     ecus_dir = _resolve_dir(ecus_dir)
 
     fpath, existing_name = _find_file_by_tx(tx_id, ecus_dir)
@@ -273,12 +282,17 @@ def register_ecu(
             ident = CommentedMap()
             ecu_def["identity"] = ident
         changed = _merge_fields(ident, fields, overwrite)
-        # rx_id is a top-level field (sibling of tx_id); set when provided and
-        # missing, or when overwrite is requested.
-        if rx_id is not None and (overwrite or ecu_def.get("rx_id") is None):
-            if ecu_def.get("rx_id") != rx_id:
-                ecu_def["rx_id"] = _hex_tx(rx_id)
-                changed = True
+        # Don't clobber an existing rx_id unless overwrite is requested; the rest
+        # of the addressing block merges (only differing values change).
+        merge_rx = rx_id if (overwrite or ecu_def.get("rx_id") is None) else None
+        changed |= _apply_addressing(
+            ecu_def,
+            mode=mode,
+            target_address=target_address,
+            source_address=source_address,
+            fc_id=fc_id,
+            rx_id=merge_rx,
+        )
         if changed:
             _safe_write(fpath, original, data)
         return changed
@@ -292,8 +306,16 @@ def register_ecu(
     data = CommentedMap()
     ecu_def = CommentedMap()
     ecu_def["tx_id"] = _hex_tx(tx_id)
-    if rx_id is not None:
-        ecu_def["rx_id"] = _hex_tx(rx_id)
+    # Seed addressing (rx_id + block) BEFORE the single validating write, so a
+    # 29-bit/extended ECU passes the mode-aware tx_id/rx_id width check.
+    _apply_addressing(
+        ecu_def,
+        mode=mode,
+        target_address=target_address,
+        source_address=source_address,
+        fc_id=fc_id,
+        rx_id=rx_id,
+    )
     ident = _new_identity(fields)
     if len(ident):
         ecu_def["identity"] = ident
@@ -339,6 +361,123 @@ def set_ecu_fields(
 
 # scan_log entry fields we accept (mirrors pids_schema scan_log_entry_fields).
 _SCAN_LOG_FIELDS = ("service", "range", "date", "hits", "probes", "vehicle_states", "notes")
+
+
+def _normalize_addressing_args(
+    mode: str | None,
+    target_address: int | None,
+    source_address: int | None,
+    fc_id: int | None,
+    rx_id: int | None,
+) -> str | None:
+    """Validate addressing args; return the canonical mode string (or None).
+
+    Raises :class:`EcusEditError` on an unknown mode or out-of-range byte/id.
+    """
+    from .addressing import AddressingMode
+
+    if mode is not None:
+        try:
+            mode = AddressingMode(str(mode).strip().lower()).value
+        except ValueError as e:
+            allowed = ", ".join(m.value for m in AddressingMode)
+            raise EcusEditError(f"unknown addressing mode {mode!r} (allowed: {allowed})") from e
+    for label, byte in (("target_address", target_address), ("source_address", source_address)):
+        if byte is not None and not (isinstance(byte, int) and 0 <= byte <= 0xFF):
+            raise EcusEditError(f"addressing.{label} must be a byte (0x00-0xFF), got {byte!r}")
+    if fc_id is not None:
+        tx_key(fc_id)  # reuse the CAN-id range check
+    if rx_id is not None:
+        tx_key(rx_id)
+    return mode
+
+
+def _apply_addressing(
+    ecu_def: CommentedMap,
+    *,
+    mode: str | None,
+    target_address: int | None,
+    source_address: int | None,
+    fc_id: int | None,
+    rx_id: int | None,
+) -> bool:
+    """Merge addressing fields into an ECU mapping in place; return True if changed.
+
+    ``mode`` must already be a validated canonical string (see
+    :func:`_normalize_addressing_args`). Writes ``rx_id`` at the top level and the
+    rest under an ``addressing:`` block, creating it if absent.
+    """
+    changed = False
+    if rx_id is not None and ecu_def.get("rx_id") != rx_id:
+        ecu_def["rx_id"] = _hex_tx(rx_id)
+        changed = True
+
+    updates: list[tuple[str, object]] = []
+    if mode is not None:
+        updates.append(("mode", mode))
+    if target_address is not None:
+        updates.append(("target_address", HexCapsInt(target_address, width=2)))
+    if source_address is not None:
+        updates.append(("source_address", HexCapsInt(source_address, width=2)))
+    if fc_id is not None:
+        updates.append(("fc_id", _hex_tx(fc_id)))
+    if updates:
+        block = ecu_def.get("addressing")
+        if not isinstance(block, dict):
+            block = CommentedMap()
+            ecu_def["addressing"] = block
+        for key, value in updates:
+            if block.get(key) != value:
+                block[key] = value
+                changed = True
+    return changed
+
+
+def set_addressing(
+    tx_id: int,
+    *,
+    mode: str | None = None,
+    target_address: int | None = None,
+    source_address: int | None = None,
+    fc_id: int | None = None,
+    rx_id: int | None = None,
+    ecus_dir: Path | None = None,
+) -> bool:
+    """Set an ECU's ``addressing:`` override block (and/or top-level ``rx_id``).
+
+    Writes only the fields provided (each non-None), merging into any existing
+    ``addressing:`` block — the surgical, validated editor for the make-specific
+    addressing knobs (extended-11-bit ``target_address``/``source_address``,
+    functional-TX ``fc_id``, and the 11-bit/29-bit ``mode``). Byte fields
+    (target/source) and the ``fc_id``/``rx_id`` arbitration ids render as hex.
+    Returns True if the file changed. Raises :class:`EcusEditError` if the ECU is
+    not registered (call :func:`register_ecu` first) or a value is out of range.
+    """
+    mode = _normalize_addressing_args(mode, target_address, source_address, fc_id, rx_id)
+
+    disp = tx_key(tx_id)
+    ecus_dir = _resolve_dir(ecus_dir)
+    fpath, name = _find_file_by_tx(tx_id, ecus_dir)
+    if fpath is None:
+        raise EcusEditError(f"ECU {disp} not registered; call register_ecu first")
+
+    original = fpath.read_text()
+    data = _load_doc(fpath)
+    ecu_def = data[name]
+    if not isinstance(ecu_def, dict):
+        raise EcusEditError(f"{fpath.name}/{name} is not a mapping")
+
+    changed = _apply_addressing(
+        ecu_def,
+        mode=mode,
+        target_address=target_address,
+        source_address=source_address,
+        fc_id=fc_id,
+        rx_id=rx_id,
+    )
+    if changed:
+        _safe_write(fpath, original, data)
+    return changed
 
 
 def append_scan_log(

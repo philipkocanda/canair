@@ -6,10 +6,11 @@ Presents the small surface the live modes use on a ``WiCANTerminal``
 existing ELM-path modes (scan, discover, identity, iocontrol, routines, and the
 *-scan probers) run unchanged over the ``slcan-tcp`` transport.
 
-One ISO-TP stack is created lazily per target ECU over a shared Notifier. The
-response (rx) address is resolved per ECU: an explicit ``rx_map`` entry (from the
-registry, honoring a per-ECU ``rx_id`` / the profile's ``addressing.rx_offset``)
-wins, otherwise ``tx + rx_offset``. Responses are formatted back through
+One ISO-TP stack is created lazily per target ECU over a shared Notifier. Each
+ECU's full addressing (mode + RX + any extended target/source bytes + a
+flow-control override) comes from an ``addr_map`` entry (resolved by the
+registry); an unknown TX id (a discovery sweep) falls back to the profile's
+``rx_offset``/``mode``. Responses are formatted back through
 :func:`parse_uds_response` so the returned dict is byte-for-byte the same shape
 the modes already expect (ok / hex / bytes / nrc / nrc_desc / error), including
 SID/DID echo validation.
@@ -28,6 +29,7 @@ from ..addressing import (
     DEFAULT_MODE,
     DEFAULT_RX_OFFSET,
     AddressingMode,
+    EcuAddress,
     build_isotp_address,
     resolve_rx,
 )
@@ -36,6 +38,7 @@ from ..safety import enforce_command_safety
 from ..timing import TimingRecorder
 from ..transport_stats import TransportStats
 from ..uds_parse import UdsResponse, parse_uds_response
+from .isotp_stack import build_isotp_stack
 from .uds_raw import (
     PENDING_RECV_TIMEOUT,
     PENDING_TOTAL_TIMEOUT,
@@ -58,9 +61,8 @@ class RawTerminal:
         unsafe: bool = False,
         timeout: float = 2.0,
         isotp_config: dict | None = None,
-        rx_map: dict[int, int] | None = None,
+        addr_map: dict[int, EcuAddress] | None = None,
         rx_offset: int = DEFAULT_RX_OFFSET,
-        mode_map: dict[int, AddressingMode] | None = None,
         mode: AddressingMode = DEFAULT_MODE,
         hk_f1xx_offset: bool = False,
     ):
@@ -71,14 +73,12 @@ class RawTerminal:
         self.verbose = verbose
         self.unsafe = unsafe
         self.timeout = timeout
-        # CAN response-address resolution: an explicit per-ECU rx (from the
-        # registry, honoring rx_id / the profile offset) wins; unknown TX ids
-        # (e.g. a discovery sweep) fall back to tx + rx_offset.
-        self.rx_map: dict[int, int] = rx_map or {}
+        # Full per-ECU addressing (from the registry: mode + RX + any extended
+        # target/source bytes + flow-control override). An unknown TX id (e.g. a
+        # discovery sweep) falls back to the profile's rx_offset/mode below.
+        self.addr_map: dict[int, EcuAddress] = addr_map or {}
         self.rx_offset = rx_offset
-        # CAN addressing mode: per-ECU map (from the registry) → the profile
-        # default. Shapes the ISO-TP stack (11-bit vs 29-bit normal/fixed).
-        self.mode_map: dict[int, AddressingMode] = mode_map or {}
+        # Profile-default addressing mode for TX ids not in addr_map.
         self.mode = mode
         # Profile HK F1xx -1 identity-DID quirk; forwarded to echo validation.
         self.hk_f1xx_offset = hk_f1xx_offset
@@ -213,13 +213,18 @@ class RawTerminal:
     def _stack(self, tx_id: int) -> isotp.NotifierBasedCanStack:
         st = self._stacks.get(tx_id)
         if st is None:
-            mode = self.mode_map.get(tx_id, self.mode)
-            rx_id = self.rx_map.get(tx_id)
-            if rx_id is None:
-                rx_id = resolve_rx(tx_id, rx_offset=self.rx_offset, mode=mode)
-            addr = build_isotp_address(tx_id, rx_id, mode)
-            st = isotp.NotifierBasedCanStack(
-                self.bus, self.notifier, address=addr, params=self._params
+            addr = self.addr_map.get(tx_id)
+            if addr is None:
+                # Unknown ECU (discovery sweep): resolve RX from the profile
+                # defaults, no extended/flow-control bytes.
+                rx_id = resolve_rx(tx_id, rx_offset=self.rx_offset, mode=self.mode)
+                addr = EcuAddress(tx_id, rx_id, self.mode)
+            st = build_isotp_stack(
+                self.bus,
+                self.notifier,
+                build_isotp_address(addr),
+                self._params,
+                fc_id=addr.fc_id,
             )
             st.start()
             self._stacks[tx_id] = st

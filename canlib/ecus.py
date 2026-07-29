@@ -17,9 +17,9 @@ from .addressing import (
     DEFAULT_MODE,
     DEFAULT_RX_OFFSET,
     AddressingMode,
-    resolve_mode,
+    EcuAddress,
+    resolve_ecu_address,
     resolve_rx,
-    resolve_rx_offset,
 )
 
 # Non-address ECU references allowed in capture files (multi-ECU / broadcast
@@ -64,7 +64,8 @@ class EcuRegistryEntry(_EcuIdentity):
     """One ECU's entry in a :func:`load_ecus` result (keyed by TX id).
 
     ``name`` (the canonical short name — the ECU file's top key), the resolved
-    CAN response address ``rx_id``, and the resolved addressing ``mode`` are always
+    CAN response address ``rx_id``, the resolved addressing ``mode``, and the full
+    resolved ``address`` (:class:`~canlib.addressing.EcuAddress`) are always
     present; the identity fields from :class:`_EcuIdentity` are optional. The
     registry is keyed by TX id, so ``tx_id`` itself is the dict key rather than a
     field here.
@@ -73,6 +74,7 @@ class EcuRegistryEntry(_EcuIdentity):
     name: str
     rx_id: int
     mode: AddressingMode
+    address: EcuAddress
 
 
 def load_ecus(path: Path | None = None) -> dict[int, EcuRegistryEntry]:
@@ -86,7 +88,6 @@ def load_ecus(path: Path | None = None) -> dict[int, EcuRegistryEntry]:
     from .pids import load_pids
 
     data = load_pids(path)
-    rx_offset = resolve_rx_offset(data)
     result: dict[int, EcuRegistryEntry] = {}
     for name, ecu_def in (data.get("ecus") or {}).items():
         if not isinstance(ecu_def, dict):
@@ -106,17 +107,14 @@ def load_ecus(path: Path | None = None) -> dict[int, EcuRegistryEntry]:
         can_bus = ecu_def.get("can_bus")
         if can_bus is not None:
             info["can_bus"] = can_bus
-        # Resolve the CAN response address once (explicit rx_id → profile offset
-        # → default +8) so every consumer reads it rather than recomputing +8.
-        # The addressing mode (per-ECU → profile → 11-bit) shapes both the RX
-        # derivation (fixed-29-bit swaps bytes) and the ISO-TP stack the raw
-        # transport builds.
-        mode = resolve_mode(data, ecu_def)
-        ecu_rx = ecu_def.get("rx_id")
-        info["rx_id"] = resolve_rx(
-            tx_id, int(ecu_rx) if ecu_rx is not None else None, rx_offset, mode
-        )
-        info["mode"] = mode
+        # Resolve the full CAN addressing once (mode + RX + any extended/flow
+        # -control bytes) so every consumer reads it rather than recomputing +8.
+        # The resolved RX and mode are also surfaced flat for the many callers
+        # that only need those two; the transport reads the whole EcuAddress.
+        address = resolve_ecu_address(data, ecu_def)
+        info["address"] = address
+        info["rx_id"] = address.rx_id
+        info["mode"] = address.mode
         result[tx_id] = cast(EcuRegistryEntry, info)
     return result
 

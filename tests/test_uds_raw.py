@@ -2,8 +2,14 @@
 
 import pytest
 
+from canlib.addressing import EcuAddress
 from canlib.transport import uds_raw
 from canlib.transport.uds_raw import RawUdsClient, response_id
+
+
+def _addrs(mapping: dict[str, tuple[int, int]]) -> dict[str, EcuAddress]:
+    """Convert a {name: (tx, rx)} test map to {name: EcuAddress} (11-bit)."""
+    return {name: EcuAddress(tx, rx) for name, (tx, rx) in mapping.items()}
 
 
 class FakeStack:
@@ -52,7 +58,7 @@ def _client(monkeypatch, table, ecus):
         "NotifierBasedCanStack",
         lambda bus, notifier, address=None, params=None: FakeStack(address._txid, table),
     )
-    return RawUdsClient(bus=object(), ecus=ecus, timeout=0.3)
+    return RawUdsClient(bus=object(), addresses=_addrs(ecus), timeout=0.3)
 
 
 def test_response_id_offset():
@@ -162,7 +168,7 @@ class TestRawUdsClient:
             "NotifierBasedCanStack",
             lambda bus, notifier, address=None, params=None: SeqStack(address._txid, seq),
         )
-        c = RawUdsClient(bus=object(), ecus={"BMS": (0x7E4, 0x7EC)}, timeout=0.3)
+        c = RawUdsClient(bus=object(), addresses=_addrs({"BMS": (0x7E4, 0x7EC)}), timeout=0.3)
         assert c.read("BMS", bytes.fromhex("1902FF")) == bytes.fromhex("5902FF0123002F")
 
     def test_poll_waits_through_response_pending(self, monkeypatch):
@@ -203,7 +209,7 @@ class TestRawUdsClient:
             "NotifierBasedCanStack",
             lambda bus, notifier, address=None, params=None: SeqStack(address._txid, seq),
         )
-        c = RawUdsClient(bus=object(), ecus={"IGPM": (0x770, 0x778)}, timeout=0.5)
+        c = RawUdsClient(bus=object(), addresses=_addrs({"IGPM": (0x770, 0x778)}), timeout=0.5)
         out = c.poll([("IGPM", bytes.fromhex("22BC03"))])
         assert out[("IGPM", bytes.fromhex("22BC03"))] == bytes.fromhex("62BC03FDEE")
 
@@ -255,7 +261,9 @@ class TestRawUdsClient:
             lambda bus, notifier, address=None, params=None: stacks[address._txid],
         )
         c = RawUdsClient(
-            bus=object(), ecus={"IGPM": (0x770, 0x778), "BMS": (0x7E4, 0x7EC)}, timeout=0.3
+            bus=object(),
+            addresses=_addrs({"IGPM": (0x770, 0x778), "BMS": (0x7E4, 0x7EC)}),
+            timeout=0.3,
         )
         out = c.poll([("IGPM", bytes.fromhex("22BC03")), ("BMS", bytes.fromhex("2101"))])
         # FAST resolves despite SLOW being silent...

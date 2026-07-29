@@ -17,6 +17,7 @@ Subcommands:
   set-pid-status ECU PID STATUS    Set a PID's lifecycle (active|draft|static|ignored)
   set-identity ECU FIELD VALUE     Set a curated identity field (e.g. notes)
   set-can-bus  ECU CODE [CODE ...] Set the physical CAN bus segment(s) (see can_buses.yaml)
+  set-addressing ECU ...           Set CAN addressing (mode / extension bytes / fc_id / rx_id)
 
 Examples:
   # Record a decoded parameter
@@ -400,6 +401,66 @@ def cmd_set_can_bus(args: argparse.Namespace) -> int:
     return 0
 
 
+def _parse_hex_arg(value: str | None, label: str) -> int | None:
+    """Parse an optional hex CLI arg (``0x784``/``784``) to an int, or None."""
+    if value is None:
+        return None
+    try:
+        return int(str(value), 16)
+    except ValueError:
+        raise SystemExit(
+            f"{_RED}  Error: --{label} expects hex (e.g. 0x784), got {value!r}{_RESET}"
+        ) from None
+
+
+def cmd_set_addressing(args: argparse.Namespace) -> int:
+    from canlib import yaml_io
+    from canlib.ecus_edit import EcusEditError, set_addressing, tx_key
+    from canlib.pids_edit import find_ecu_file
+
+    if not any(
+        getattr(args, k) is not None
+        for k in ("mode", "target_address", "source_address", "fc_id", "rx_id")
+    ):
+        raise SystemExit(
+            f"{_RED}  Error: nothing to set — pass at least one of --mode/"
+            f"--target-address/--source-address/--fc-id/--rx-id{_RESET}"
+        )
+
+    fpath = find_ecu_file(args.ecu, pids_dir=args.dir)
+    doc = yaml_io.safe_load(fpath.read_text()) or {}
+    tx_id = next(
+        (int(d["tx_id"]) for d in doc.values() if isinstance(d, dict) and "tx_id" in d),
+        None,
+    )
+    if tx_id is None:
+        raise SystemExit(f"{_RED}  Error: no tx_id found in {fpath.name}{_RESET}")
+
+    try:
+        changed = set_addressing(
+            tx_id,
+            mode=args.mode,
+            target_address=_parse_hex_arg(args.target_address, "target-address"),
+            source_address=_parse_hex_arg(args.source_address, "source-address"),
+            fc_id=_parse_hex_arg(args.fc_id, "fc-id"),
+            rx_id=_parse_hex_arg(args.rx_id, "rx-id"),
+            ecus_dir=args.dir,
+        )
+    except EcusEditError as e:
+        raise SystemExit(f"{_RED}  Error: {e}{_RESET}") from None
+
+    disp = tx_key(tx_id)
+    if changed:
+        print(
+            f"{_GREEN}  ✓ {args.ecu} addressing updated ({disp}){_RESET}  {_DIM}({fpath.name}){_RESET}"
+        )
+    else:
+        print(
+            f"{_DIM}  {args.ecu} ({disp}) addressing already as requested; nothing to change.{_RESET}"
+        )
+    return 0
+
+
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
@@ -590,6 +651,51 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     )
     _add_common(scb)
     scb.set_defaults(_pids_func=cmd_set_can_bus)
+
+    sad = sub.add_parser(
+        "set-addressing",
+        help="Set an ECU's CAN addressing override (mode / extension bytes / FC id / rx_id)",
+        description="Set the make-specific CAN addressing knobs on an ECU: the "
+        "addressing `mode` (11-bit vs the 29-bit modes / extended-11-bit), the "
+        "ISO-TP extension bytes (`target_address`/`source_address`, for BMW/PSA "
+        "extended-11-bit), a flow-control arbitration override (`fc_id`, for "
+        "functional-TX / physical-RX ECUs like Renault/Mitsubishi), and/or the "
+        "response-address `rx_id`. Writes only the fields given.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="examples:\n"
+        "  canair pids set-addressing PCM --mode normal_fixed_29bit\n"
+        "  canair pids set-addressing DME --mode normal_extended_11bit --target-address 0x12\n"
+        "  canair pids set-addressing EVC --mode normal_29bit --fc-id 0x18DADBF1\n"
+        "  canair pids set-addressing BMS --rx-id 0x784\n",
+    )
+    sad.add_argument("ecu")
+    sad.add_argument(
+        "--mode",
+        help="Addressing mode (normal_11bit | normal_29bit | normal_fixed_29bit | "
+        "normal_extended_11bit | extended_29bit)",
+    )
+    sad.add_argument(
+        "--target-address",
+        dest="target_address",
+        help="ISO-TP target extension byte (hex, e.g. 0x12) — extended-11-bit/29-bit modes",
+    )
+    sad.add_argument(
+        "--source-address",
+        dest="source_address",
+        help="ISO-TP tester (source) byte (hex, default 0xF1) — extended-11-bit modes",
+    )
+    sad.add_argument(
+        "--fc-id",
+        dest="fc_id",
+        help="Flow-control arbitration override (hex) — functional-TX / physical-RX ECUs",
+    )
+    sad.add_argument(
+        "--rx-id",
+        dest="rx_id",
+        help="CAN response-address override (hex, e.g. 0x784)",
+    )
+    _add_common(sad)
+    sad.set_defaults(_pids_func=cmd_set_addressing)
 
     parser.set_defaults(func=run)
     return parser

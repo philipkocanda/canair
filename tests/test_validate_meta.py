@@ -114,6 +114,24 @@ class TestAddressingBlock:
         p = _write(tmp_path, self._base("addressing:\n  mode: bogus_mode\n"))
         assert any("addressing.mode" in e for e in validate_meta(p, REQUIRED))
 
+    def test_negative_rx_offset_allowed(self, tmp_path):
+        # PSA/Stellantis use a negative offset (0x6B4 -> 0x694 = -0x20). Gap G-L.
+        p = _write(tmp_path, self._base("addressing:\n  rx_offset: -32\n"))
+        assert validate_meta(p, REQUIRED) == []
+
+    def test_extended_11bit_mode_valid(self, tmp_path):
+        # BMW/PSA extended (mixed) 11-bit. Gap G-I.
+        p = _write(tmp_path, self._base("addressing:\n  mode: normal_extended_11bit\n"))
+        assert validate_meta(p, REQUIRED) == []
+
+    def test_target_address_byte_range(self, tmp_path):
+        p = _write(tmp_path, self._base("addressing:\n  target_address: 300\n"))
+        assert any("addressing.target_address" in e for e in validate_meta(p, REQUIRED))
+
+    def test_source_address_valid(self, tmp_path):
+        p = _write(tmp_path, self._base("addressing:\n  source_address: 0xF1\n"))
+        assert validate_meta(p, REQUIRED) == []
+
 
 class TestQuirks:
     def _base(self, extra: str) -> str:

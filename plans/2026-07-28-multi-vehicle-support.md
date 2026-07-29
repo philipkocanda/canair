@@ -12,6 +12,39 @@ unchanged at every step.
 
 ## Status (2026-07-28)
 
+- **Survey follow-up gaps G-I / G-J / G-K / G-L — DONE** (2026-07-29). All four
+  addressing gaps from the WiCAN-corpus survey are closed:
+  - **G-I (extended/mixed 11-bit):** new `AddressingMode.NORMAL_EXTENDED_11BIT` →
+    isotp `Extended_11bits`, with a per-ECU `addressing.target_address` extension
+    byte + tester `source_address` (default `0xF1`, `DEFAULT_TESTER_ADDRESS`).
+    Covers BMW `0x6F1` / PSA.
+  - **G-J (functional-TX + physical-RX flow control):** a per-ECU
+    `addressing.fc_id` override, applied by a `NotifierBasedCanStack` subclass
+    (`canlib/transport/isotp_stack.py::build_isotp_stack` /
+    `_FcAddressStack._make_flow_control`) that redirects FC frames to the ECU's
+    physical id. Both raw clients build stacks through it. (Note: canair addresses
+    ECUs *physically* on the raw path, so a plain `normal_fixed_29bit` profile
+    already sends FC correctly; `fc_id` covers the functional-request-only edge.)
+  - **G-K (non-`0x18` 29-bit priority):** confirmed + tested that `normal_29bit`
+    with explicit `tx_id`/`rx_id` is the escape hatch for GM `0x14…`, VW `0x17…`,
+    Volvo `0x1D…` (arbitrary priority + non-derivable RX baked into the ids). No
+    `priority:` knob added — `build_isotp_address` for `normal_fixed_29bit`
+    already preserves the priority bits, and the non-derivable-RX cases can't use
+    fixed mode regardless, so the knob would add surface with no coverage.
+  - **G-L (negative `rx_offset`):** confirmed representable and now schema-tested
+    (PSA `-0x20`).
+  - **Architecture:** the resolved addressing is consolidated into a single
+    `EcuAddress` dataclass (`resolve_ecu_address`), stored on the registry and
+    threaded through the raw path (`RawTerminal.addr_map` /
+    `RawUdsClient(addresses=…)`), replacing the parallel rx/mode maps.
+  - **Editors:** `canair pids set-addressing` (new) + `canair ecu add` addressing
+    flags + `register_ecu(mode=/target_address=/source_address=/fc_id=)`; the
+    offline id-range check widened to 29-bit ids.
+  - **Tests:** `tests/test_addressing.py` (EcuAddress/extended-11bit/G-K/G-L),
+    `tests/test_isotp_stack.py` (FC override), `tests/test_ecus_edit.py` +
+    `tests/test_pids_edit_cli.py` + `tests/test_ecu_add.py` (editors),
+    `tests/test_validate_meta.py` + `tests/test_validate_pids.py` (schema).
+
 - **Phase 1 (foundation) — DONE**, commit `a0a0a80` ("profile: make CAN bitrate +
   ISO-TP tuning profile-driven"). Gaps **C, D, E, H** are resolved: per-profile
   `can_bitrate`, the optional `isotp:` block (shared `canlib/transport/isotp_params.py`),
@@ -167,10 +200,10 @@ constants.
 | F | **HK F1xx `-1` offset** lint heuristic hardcoded | Silently tolerates misfiled frames on non-HK | `uds_parse.py`, `quirks.py` | ✅ done (Phase 4 — profile `quirks:`) |
 | G | **HK-flavored identity labels** + `0xAA` padding-strip assumption | Cosmetic / trailing garbage on odd padding | `multi_batch.py`, `identity_decode.py`, `isotp_params.py` | ✅ done (Phase 4 — `tx_padding`-driven; labels marked) |
 | H | **No `profile.yaml` schema** — only `car_model`+`init` validated | New knobs won't be validated | `validate/pids.py` | ✅ done (`a0a0a80`) |
-| G-I | **Extended (mixed) 11-bit addressing** (`ATCEA<nn>`), per-ECU extension byte | Blocks **BMW** (i3/528i/M340d), **Mini**, PSA | `addressing.py` (new `NORMAL_EXTENDED_11BIT`), schema, editors | ⛔ open (survey 2026-07-29) |
-| G-J | **Functional-TX 29-bit + physical-RX flow control** (`0x18DB33F1`→`0x18DAF1xx`) | Blocks/undermines **Renault**, **Mitsubishi Outlander** on raw path | per-ECU FC-address override, raw path | ⛔ open (survey 2026-07-29) |
-| G-K | **Non-`0x18` 29-bit priority / non-derivable RX** (GM `14`, VW `17`, Volvo `1D`) | Workable via `normal_29bit` explicit ids | `addressing.py` (optional `priority:` on fixed mode); docs | 🟡 authoring (escape hatch exists) |
-| G-L | **Negative `rx_offset`** (PSA `−0x20`) | PSA/Stellantis 11-bit RX | `validate/pids.py`, `tests/test_addressing.py` | 🟡 small (confirm + test) |
+| G-I | **Extended (mixed) 11-bit addressing** (`ATCEA<nn>`), per-ECU extension byte | Blocks **BMW** (i3/528i/M340d), **Mini**, PSA | `addressing.py` (new `NORMAL_EXTENDED_11BIT`), schema, editors | ✅ done |
+| G-J | **Functional-TX 29-bit + physical-RX flow control** (`0x18DB33F1`→`0x18DAF1xx`) | Blocks/undermines **Renault**, **Mitsubishi Outlander** on raw path | per-ECU FC-address override, raw path | ✅ done (`isotp_stack.py` FC override) |
+| G-K | **Non-`0x18` 29-bit priority / non-derivable RX** (GM `14`, VW `17`, Volvo `1D`) | Workable via `normal_29bit` explicit ids | `addressing.py` (optional `priority:` on fixed mode); docs | ✅ done (documented + tested escape hatch) |
+| G-L | **Negative `rx_offset`** (PSA `−0x20`) | PSA/Stellantis 11-bit RX | `validate/pids.py`, `tests/test_addressing.py` | ✅ done (confirmed + tested) |
 
 ## Phase 1 — Foundation: per-profile config plumbing — ✅ DONE (`a0a0a80`)
 
@@ -453,8 +486,9 @@ real, in-catalog need — not a hypothetical.
 The abstractions from Phases 1–4 hold up well across 38 makes: `normal_29bit`
 (explicit ids) absorbs GM/VW/Volvo/Zeekr, per-ECU `rx_id` absorbs the wild offset
 spread, `id_protocol`/graceful-probe absorbs non-`0x22` services, and the FC
-cadence already matches. The **two genuine new code gaps** are **G-I (extended
+cadence already matches. The **two genuine new code gaps** — **G-I (extended
 11-bit — BMW/Mini/PSA)** and **G-J (functional-TX flow control —
-Renault/Mitsubishi)**; a **small schema check for negative `rx_offset`** and
-**import-time parsing of `STCAFCP` / the `remove` sentinel / multi-DID keys** are
-minor follow-ups.
+Renault/Mitsubishi)** — plus **G-K (documented `normal_29bit` escape hatch)** and
+the **negative-`rx_offset` check (G-L)** are all now **implemented** (see the
+Status header, 2026-07-29). Remaining follow-ups are import-time niceties:
+parsing of `STCAFCP` / the `remove` sentinel / multi-DID PID keys.

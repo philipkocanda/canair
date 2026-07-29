@@ -169,6 +169,37 @@ class TestAddressingModeValidation:
         errs = self._validate(tmp_path, "ECU:\n  tx_id: 0x704\n  addressing:\n    rx_offset: 8\n")
         assert any("unknown addressing field" in e for e in errs)
 
+    def test_extended_11bit_target_source(self, tmp_path):
+        # BMW/PSA extended-11-bit: mode + target/source bytes. Gap G-I.
+        errs = self._validate(
+            tmp_path,
+            "DME:\n  tx_id: 0x6F1\n  rx_id: 0x612\n  addressing:\n"
+            "    mode: normal_extended_11bit\n    target_address: 0x12\n    source_address: 0xF1\n",
+        )
+        assert errs == []
+
+    def test_target_address_out_of_range(self, tmp_path):
+        errs = self._validate(
+            tmp_path, "ECU:\n  tx_id: 0x6F1\n  addressing:\n    target_address: 300\n"
+        )
+        assert any("addressing.target_address" in e for e in errs)
+
+    def test_fc_id_override_accepted(self, tmp_path):
+        # Functional-TX / physical-RX (Renault/Mitsubishi): fc_id override. Gap G-J.
+        errs = self._validate(
+            tmp_path,
+            "EVC:\n  tx_id: 0x18DB33F1\n  rx_id: 0x18DAF1DB\n  addressing:\n"
+            "    mode: normal_29bit\n    fc_id: 0x18DADBF1\n",
+        )
+        assert errs == []
+
+    def test_fc_id_must_be_positive(self, tmp_path):
+        errs = self._validate(
+            tmp_path,
+            "EVC:\n  tx_id: 0x18DB33F1\n  addressing:\n    mode: normal_29bit\n    fc_id: 0\n",
+        )
+        assert any("addressing.fc_id" in e for e in errs)
+
 
 class TestTypedParamValidation:
     """validate._validate_param_type — typed-decoding field rules."""

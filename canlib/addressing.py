@@ -10,8 +10,12 @@ many other makes (Ford, VAG, …) use the 29-bit *normal fixed* diagnostic
 convention (``0x18DA{target}{tester}`` request, ``0x18DA{tester}{target}``
 response, ``0x18DB33F1`` functional broadcast). :class:`AddressingMode` is the
 canonical vocabulary; :func:`resolve_mode` reads it from a profile/ECU, and
-:func:`build_isotp_address` turns ``(tx_id, rx_id, mode)`` into the ``isotp``
-address object both raw clients drive their ISO-TP stacks with.
+:func:`build_isotp_address` turns a resolved :class:`EcuAddress` into the
+``isotp`` address object both raw clients drive their ISO-TP stacks with. Two
+further make-specific schemes are modelled per ECU on top of the mode: the
+ISO-TP *extended (mixed) 11-bit* target-address byte (BMW/PSA 0x6F1, gap G-I)
+and a *flow-control address override* for functional-TX / physical-RX ECUs
+(Renault/Mitsubishi, gap G-J) — both carried on :class:`EcuAddress`.
 
 **2. The TX→RX offset** — for the 11-bit modes the response is conventionally
 ``TX + 0x08`` (Hyundai/Kia), but that offset is make-specific: some vehicles use
@@ -34,6 +38,7 @@ See ``plans/2026-07-28-multi-vehicle-support.md`` (Phases 2–3).
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any, Final, assert_never
 
@@ -48,6 +53,11 @@ DEFAULT_RX_OFFSET: Final = 0x08
 # on this id is heard by every ECU. Physical requests use 0x18DA{target}{tester}.
 FUNCTIONAL_29BIT_ID: Final = 0x18DB33F1
 
+# Conventional diagnostic tester (source) address — the "F1" in 0x18DA{ta}F1 and
+# the ISO-TP extended-11-bit source byte the tester answers to. Overridable per
+# profile/ECU (BMW/PSA tester schemes all use 0xF1, but the field stays explicit).
+DEFAULT_TESTER_ADDRESS: Final = 0xF1
+
 
 class AddressingMode(StrEnum):
     """How an ECU's CAN diagnostic arbitration IDs are formed.
@@ -59,6 +69,12 @@ class AddressingMode(StrEnum):
     NORMAL_11BIT = "normal_11bit"  # plain 11-bit ids (Hyundai/Kia default)
     NORMAL_29BIT = "normal_29bit"  # arbitrary 29-bit tx/rx ids (needs explicit rx_id)
     NORMAL_FIXED_29BIT = "normal_fixed_29bit"  # 0x18DA{ta}{sa} diagnostic convention
+    # ISO-TP extended (mixed) 11-bit: an 11-bit arbitration id (BMW 0x6F1 tester
+    # scheme) PLUS a target-address extension byte carried as the first payload
+    # byte. The extension byte varies per module (BMW 07/18/60, PSA/Stellantis),
+    # so it is a per-ECU `addressing.target_address`; the tester answers to a
+    # `source_address` (0xF1). See gap G-I in the multi-vehicle plan.
+    NORMAL_EXTENDED_11BIT = "normal_extended_11bit"
     EXTENDED_29BIT = "extended_29bit"  # 29-bit + target-address extension byte
 
 
@@ -168,23 +184,150 @@ def resolve_rx(
     return tx_id + rx_offset
 
 
-def build_isotp_address(
-    tx_id: int,
-    rx_id: int,
-    mode: AddressingMode = DEFAULT_MODE,
-) -> isotp.Address:
-    """Build the ``isotp.Address`` for one ECU given its ids + addressing mode.
+def _addressing_block(
+    meta: Mapping[str, Any] | None,
+    ecu_def: Mapping[str, Any] | None,
+    key: str,
+) -> Any:
+    """Read ``addressing.<key>`` with per-ECU → profile precedence (or None)."""
+    for scope in (ecu_def, meta):
+        if isinstance(scope, Mapping):
+            block = scope.get("addressing")
+            if isinstance(block, Mapping) and block.get(key) is not None:
+                return block[key]
+    return None
 
-    The single home for turning canair's ``(tx, rx, mode)`` into the ``isotp``
-    library's address object, so neither raw client (``uds_raw`` / ``raw_terminal``)
-    hardwires ``Normal_11bits``. For the fixed/extended 29-bit modes the
-    target/source address bytes are taken from the request id
-    (``0x18DA{target}{tester}`` → target = bits 8–15, tester = bits 0–7).
+
+def _addressing_int(
+    meta: Mapping[str, Any] | None,
+    ecu_def: Mapping[str, Any] | None,
+    key: str,
+) -> int | None:
+    """A per-ECU/profile ``addressing.<key>`` byte/id, if a plain int (not bool)."""
+    value = _addressing_block(meta, ecu_def, key)
+    if isinstance(value, int) and not isinstance(value, bool):
+        return value
+    return None
+
+
+def resolve_target_address(
+    meta: Mapping[str, Any] | None,
+    ecu_def: Mapping[str, Any] | None = None,
+) -> int | None:
+    """The ISO-TP target-address extension byte (``addressing.target_address``).
+
+    Per-ECU value → profile default → None. Only meaningful for the extended
+    (mixed) modes (BMW/PSA extended 11-bit, extended 29-bit) where the target
+    address rides in the payload rather than the arbitration id.
+    """
+    return _addressing_int(meta, ecu_def, "target_address")
+
+
+def resolve_source_address(
+    meta: Mapping[str, Any] | None,
+    ecu_def: Mapping[str, Any] | None = None,
+    mode: AddressingMode = DEFAULT_MODE,
+) -> int | None:
+    """The ISO-TP tester (source) address (``addressing.source_address``).
+
+    Per-ECU value → profile default → :data:`DEFAULT_TESTER_ADDRESS` (0xF1) for
+    the extended *11-bit* scheme, else None. Only the extended-11-bit (BMW 0x6F1)
+    scheme carries the source out-of-band and so needs a default; the 29-bit
+    modes encode the tester byte in the arbitration id, so ``None`` there lets
+    :func:`build_isotp_address` derive it from the id.
+    """
+    explicit = _addressing_int(meta, ecu_def, "source_address")
+    if explicit is not None:
+        return explicit
+    if mode == AddressingMode.NORMAL_EXTENDED_11BIT:
+        return DEFAULT_TESTER_ADDRESS
+    return None
+
+
+def resolve_fc_id(
+    meta: Mapping[str, Any] | None,
+    ecu_def: Mapping[str, Any] | None = None,
+) -> int | None:
+    """A per-ECU flow-control arbitration-id override (``addressing.fc_id``).
+
+    For a functional-TX / physical-RX ECU (Renault, Mitsubishi Outlander) the
+    request goes to the functional broadcast id but ISO-TP flow control must be
+    addressed to the ECU's *physical* request id. can-isotp otherwise sends flow
+    control to the TX id, so this override redirects it. See gap G-J in the
+    multi-vehicle plan. None (the common case) leaves flow control on the TX id.
+    """
+    return _addressing_int(meta, ecu_def, "fc_id")
+
+
+@dataclass(frozen=True)
+class EcuAddress:
+    """The fully-resolved CAN addressing for one ECU.
+
+    The single bundle threaded through the raw transport so the ISO-TP stack for
+    an ECU is built from one value rather than a fistful of parallel maps. Built
+    by :func:`resolve_ecu_address` from a profile + ECU definition; consumed by
+    :func:`build_isotp_address` and the shared ISO-TP stack factory.
+
+    ``target_address``/``source_address`` are the ISO-TP extension bytes for the
+    extended (mixed) modes; ``fc_id`` overrides where flow-control frames are
+    addressed (functional-TX ECUs). All three are None for the common 11-bit and
+    normal-fixed-29-bit cases.
+    """
+
+    tx_id: int
+    rx_id: int
+    mode: AddressingMode = DEFAULT_MODE
+    target_address: int | None = None
+    source_address: int | None = None
+    fc_id: int | None = None
+
+
+def resolve_ecu_address(
+    meta: Mapping[str, Any] | None,
+    ecu_def: Mapping[str, Any],
+) -> EcuAddress:
+    """Resolve one ECU's complete :class:`EcuAddress` from profile + ECU data.
+
+    ``meta`` is the profile-wide settings mapping (``profile.yaml`` merged into
+    the loaded PID data); ``ecu_def`` is the per-ECU definition (carries ``tx_id``,
+    optional ``rx_id``, and an optional ``addressing`` override block). Combines
+    the mode, RX, and extended/flow-control resolvers into the single bundle the
+    transport builds an ISO-TP stack from.
+    """
+    tx_id = int(ecu_def["tx_id"])
+    mode = resolve_mode(meta, ecu_def)
+    explicit_rx = ecu_def.get("rx_id")
+    rx_id = resolve_rx(
+        tx_id,
+        int(explicit_rx) if explicit_rx is not None else None,
+        resolve_rx_offset(meta),
+        mode,
+    )
+    return EcuAddress(
+        tx_id=tx_id,
+        rx_id=rx_id,
+        mode=mode,
+        target_address=resolve_target_address(meta, ecu_def),
+        source_address=resolve_source_address(meta, ecu_def, mode),
+        fc_id=resolve_fc_id(meta, ecu_def),
+    )
+
+
+def build_isotp_address(addr: EcuAddress) -> isotp.Address:
+    """Build the ``isotp.Address`` for one ECU from its resolved :class:`EcuAddress`.
+
+    The single home for turning canair's addressing into the ``isotp`` library's
+    address object, so neither raw client (``uds_raw`` / ``raw_terminal``)
+    hardwires an addressing mode. For the fixed 29-bit mode the target/source
+    bytes are taken from the request id (``0x18DA{target}{tester}``); the extended
+    (mixed) modes take them from the resolved ``target_address``/``source_address``.
     """
     import isotp
 
-    target = (tx_id >> 8) & 0xFF  # 0x18DA{target}{tester}: target = bits 8-15
-    source = tx_id & 0xFF  # tester/source = bits 0-7 (29-bit modes only)
+    tx_id, rx_id, mode = addr.tx_id, addr.rx_id, addr.mode
+    # 0x18DA{target}{tester}: target = bits 8-15, tester/source = bits 0-7.
+    id_target = (tx_id >> 8) & 0xFF
+    id_source = tx_id & 0xFF
     match mode:
         case AddressingMode.NORMAL_11BIT:
             return isotp.Address(isotp.AddressingMode.Normal_11bits, txid=tx_id, rxid=rx_id)
@@ -193,16 +336,36 @@ def build_isotp_address(
         case AddressingMode.NORMAL_FIXED_29BIT:
             return isotp.Address(
                 isotp.AddressingMode.NormalFixed_29bits,
-                target_address=target,
-                source_address=source,
+                target_address=id_target,
+                source_address=id_source,
+            )
+        case AddressingMode.NORMAL_EXTENDED_11BIT:
+            # 11-bit arbitration ids + a payload target-address extension byte
+            # (BMW/PSA 0x6F1 tester scheme). target/source come from the ECU
+            # definition, not the arbitration id.
+            if addr.target_address is None or addr.source_address is None:
+                raise ValueError(
+                    "normal_extended_11bit requires addressing.target_address "
+                    "(and a tester source_address) — none resolved"
+                )
+            return isotp.Address(
+                isotp.AddressingMode.Extended_11bits,
+                txid=tx_id,
+                rxid=rx_id,
+                target_address=addr.target_address,
+                source_address=addr.source_address,
             )
         case AddressingMode.EXTENDED_29BIT:
             return isotp.Address(
                 isotp.AddressingMode.Extended_29bits,
                 txid=tx_id,
                 rxid=rx_id,
-                target_address=target,
-                source_address=source,
+                target_address=addr.target_address
+                if addr.target_address is not None
+                else id_target,
+                source_address=addr.source_address
+                if addr.source_address is not None
+                else id_source,
             )
     # Exhaustive over AddressingMode — a new member here is a type error at check
     # time (assert_never) rather than a silent runtime surprise.
