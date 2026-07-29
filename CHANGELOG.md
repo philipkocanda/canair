@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `SPEED` column (e.g. `500 kbit/s`) and includes it in `--json`;
   `canair validate can-buses` errors on a non-positive-integer value; exposed as
   `BusDef.bitrate` on the loader. The bundled `ioniq-2017` profile now records
-  the Hyundai/Ioniq figures (P-CAN/C-CAN/M-CAN/H-CAN/D-CAN = 500 kbit/s,
+  the Hyundai/Ioniq figures (P-CAN/C-CAN/MM-CAN/H-CAN/D-CAN = 500 kbit/s,
   B-CAN = 100 kbit/s).
 - **Diagnostic CAN (`D-CAN`) segment** added to the bundled `ioniq-2017`
   `can_buses.yaml` vocabulary — the D-CAN bus exposed on the OBD-II port for
@@ -30,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **CAN bus segment codes renamed to `*-CAN` identifiers** (Hyundai/Kia):
-  `B`/`P`/`C`/`M`/`H`/`D` → `B-CAN`/`P-CAN`/`C-CAN`/`M-CAN`/`H-CAN`/`D-CAN`, and
+  `B`/`P`/`C`/`M`/`H`/`D` → `B-CAN`/`P-CAN`/`C-CAN`/`MM-CAN`/`H-CAN`/`D-CAN`, and
   the gateway code `All` → `ALL` (uppercase, to match the `*-CAN` style). The
   old single letters were hard to grep for; the new forms are unambiguous. The
   bundled `ioniq-2017` `can_buses.yaml` vocabulary and every ECU `can_bus:` list

@@ -26,7 +26,7 @@ can_buses:
     name: Chassis CAN
     description: Chassis/ADAS (cluster, cameras, cruise/braking assist).
     bitrate: 500000
-  M-CAN:
+  MM-CAN:
     name: Multimedia CAN
     description: Infotainment/audio (head unit, amplifier).
     bitrate: 500000

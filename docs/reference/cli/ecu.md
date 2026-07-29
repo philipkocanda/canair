@@ -31,7 +31,7 @@ options:
 
 Columns & legend:
   BUS    physical CAN bus segment(s) the ECU sits on (profile-specific codes,
-         e.g. Hyundai B-CAN/P-CAN/C-CAN/M-CAN/H-CAN/All); some ECUs span two
+         e.g. Hyundai B-CAN/P-CAN/C-CAN/M-CAN/H-CAN/ALL); some ECUs span two
          (shown `H-CAN/P-CAN`). Blank (`—`) when unknown. The list is sorted by
          BUS by default.
   PIDS   number of active (non-ignored) PIDs/DIDs defined.
@@ -82,7 +82,7 @@ options:
 
 Columns & legend:
   BUS    physical CAN bus segment(s) the ECU sits on (profile-specific codes,
-         e.g. Hyundai B-CAN/P-CAN/C-CAN/M-CAN/H-CAN/All); some ECUs span two
+         e.g. Hyundai B-CAN/P-CAN/C-CAN/M-CAN/H-CAN/ALL); some ECUs span two
          (shown `H-CAN/P-CAN`). Blank (`—`) when unknown. The list is sorted by
          BUS by default.
   PIDS   number of active (non-ignored) PIDs/DIDs defined.
