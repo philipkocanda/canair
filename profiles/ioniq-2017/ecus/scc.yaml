@@ -10,6 +10,10 @@ SCC:
       Smart Cruise Control (front radar). Live data via 220100-0103/0105
       (mode/target/gap/radar), all still undecoded — needs driving captures.
   vehicle_states: [ACC, ACC2, READY]
+  # UDS service-22 multi-DID batching: verified on-device 2026-07-29 (READY) —
+  # SCC answers `22 0100 0101` with `620100 <data> 0101 <data>` and the response
+  # splits cleanly. Batching cuts poll commands for its consecutive 22-DIDs.
+  multi_did: true
   scan_log: # SCC (smart cruise control)
     - service: 0x22
       range: "0101-010F,0106-0120,B001-B010"

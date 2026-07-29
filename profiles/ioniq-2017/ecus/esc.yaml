@@ -12,6 +12,10 @@ ESC:
       individual wheel speeds via 22C101; candidate yaw-rate / accel dynamics
       still undecoded.
   vehicle_states: [ACC, ACC2, READY]
+  # UDS service-22 multi-DID batching: verified on-device 2026-07-29 (READY) —
+  # ESC answers `22 C101 C102` with `62C101 <data> C102 <data>` and the response
+  # splits cleanly. Batching cuts poll commands for its consecutive 22-DIDs.
+  multi_did: true
   pids:
     22C101:
       status: active

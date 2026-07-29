@@ -158,11 +158,25 @@ BCM:
 
     22B00F:
       status: draft
-      vehicle_states: [ACC, ACC2, READY, CHARGING]
+      vehicle_states: [ACC2]
       notes: >
         13 bytes. Identical payload to B00D (0xFCFC E0...) — possibly mirrored register
-        or preheat config overflow. B010+ did not respond in DID scan.  Does not respond when vehicle is asleep.
-        Sample: 62B00FFCFCE00000000000AAAA.
+        or preheat config overflow. B010+ did not respond in DID scan.
+        STATE-GATED: responded (62B00FFCFCE00000000000AAAA) during the 2026-04-15
+        BCM scan taken under artificial ACC+IGN1 (car off/deep-sleep, SKM relay
+        held in ACC+IGN1 via IOControl, no fob) — mapped to ACC2 (full ignition,
+        no HV) as the closest vocabulary state — but returned NRC 0x31 in READY
+        on 2026-07-29. So it is available in ACC2/IGN1 but NOT READY; vehicle_states
+        narrowed to [ACC2] accordingly (READY dropped as it demonstrably failed;
+        ACC-only and CHARGING untested — widen if a later capture confirms them).
+        Does not respond when asleep. Its 04-15 payload matched B00D, which DOES
+        respond in READY (62B00DFCFCE0...), so B00F may just be an intermittent
+        mirror of B00D. Re-capture across states to map exactly when it is readable.
+        NOT likely an ELM327 stale-read artifact: the response echoed 62B00F (the
+        requested DID), not 62B00D — a stale-buffer/mislabel would have carried
+        B00D's echo and been rejected by echo validation; and the whole 04-15
+        B001-C00F sweep is well-formed with correct per-DID echoes (no framing
+        corruption). So it reads as a genuine B00F answer that mirrors B00D's data.
       parameters: {}
 
     22B004:
@@ -270,8 +284,10 @@ BCM:
       status: draft
       vehicle_states: [ACC, ACC2, READY, CHARGING]
       notes: >
-        NRC 0x31 (requestOutOfRange) in deep sleep. Only 2-byte response (7E00) on some
-        attempts — may be a status register that requires ACC/IGN on.
+        NRC 0x31 (requestOutOfRange) in deep sleep AND in READY (retested
+        2026-07-29). Only 2-byte response (7E00) on some attempts — may be a
+        status register that requires a state not yet tested. No valid capture
+        (no 62B00B response) has ever been recorded in any state.
       parameters: {}
 
     22B00C:

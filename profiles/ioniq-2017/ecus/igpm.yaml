@@ -421,8 +421,15 @@ IGPM:
       status: ignored
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
       notes: >
-        NRC 0x31 (requestOutOfRange). DID does not exist on Ioniq 2017 IGPM.
-        Tested 2026-04-14.
+        NRC 0x31 (requestOutOfRange) — no response, ignored for now. Every
+        test to date has been in READY / ignition-on (2026-04-14, retested
+        after keyfob-wake 2026-04-16, full BC-family boundary sweep, and again
+        2026-07-29); it has NEVER been probed in CHARGING or driving. There are
+        zero valid captures of BC08 in any state (no 62BC08 positive response
+        ever recorded) — the earlier "DID does not exist" conclusion rests only
+        on READY-state data, so it may be state-gated (e.g. charge-cable/lock
+        related, cf. the BC09/BC0A/BC0C charge IOControls). Re-probe in
+        CHARGING and driving before treating as truly absent.
       parameters: {}
 
   # ─── IOControl (service 2F) ──────────────────────────────────────────

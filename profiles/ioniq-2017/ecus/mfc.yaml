@@ -10,6 +10,10 @@ MFC:
       Multi-Function Camera (ADAS / LKAS — lane detection, speed-sign
       recognition). Pure UDS ECU (no service 21); live data via 220100/0101/0102.
   vehicle_states: [ACC, ACC2, READY]
+  # UDS service-22 multi-DID batching: verified on-device 2026-07-29 (READY) —
+  # MFC answers `22 0100 0101` with `620100 <data> 0101 <data>` and the response
+  # splits cleanly. Batching cuts poll commands for its consecutive 22-DIDs.
+  multi_did: true
   scan_log: # MFC (ADAS camera)
     - service: 0x22
       range: "0101-010F,0103-0120,B001-B010"
