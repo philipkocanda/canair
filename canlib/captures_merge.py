@@ -11,8 +11,7 @@ conflict *inside* individual capture records.
 
 The data model, however, is trivially mergeable: disjoint additions to a list.
 This module implements that union as a pure function so it can be driven both by
-the git merge-driver command and by tests. See
-``plans/2026-07-28-captures-merge-driver.md``.
+the git merge-driver command and by tests.
 
 Session identity
 ----------------

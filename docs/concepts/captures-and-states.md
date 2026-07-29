@@ -77,7 +77,7 @@ canair captures merge-driver --install
 Until a clone runs this, merges simply fall back to conflict markers — nothing
 breaks, you just don't get the auto-union. (The driver itself is
 `canair captures merge-driver %O %A %B %P`, invoked by git; you never call that
-form by hand. See `plans/2026-07-28-captures-merge-driver.md`.)
+form by hand.)
 
 ## Provenance: transport & data quality
 

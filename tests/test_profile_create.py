@@ -7,7 +7,14 @@ import argparse
 import pytest
 import yaml
 
-from canlib.commands.profile import DEFAULT_INIT, _cmd_create, _cmd_list, _cmd_use
+from canlib.commands.profile import (
+    DEFAULT_INIT,
+    _cmd_create,
+    _cmd_default,
+    _cmd_list,
+    _cmd_show,
+    _cmd_use,
+)
 from canlib.commands.validate import collect_pids_validation
 
 
@@ -251,3 +258,88 @@ class TestProfileListSnapshotWarning:
         _cmd_list(argparse.Namespace(profiles_dir=None))
         out = capsys.readouterr().out
         assert "frozen snapshot" not in out
+
+
+class TestProfileShow:
+    def test_show_lists_all_bundle_components(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
+        monkeypatch.setenv("CANAIR_PROFILES_DIR", str(tmp_path / "profiles"))
+        from canlib import config, profile
+
+        config.load_config.cache_clear()
+        profile._active = None
+        root = tmp_path / "profiles" / "ev6"
+        _cmd_create(_args(name="ev6", path=root))
+        (root / "signals").mkdir()
+        (root / "signals" / "powertrain.yaml").write_text("signals: {}\n")
+        (root / "references").mkdir()
+        (root / "references" / "notes.txt").write_text("hi\n")
+
+        assert _cmd_show(argparse.Namespace(name="ev6")) == 0
+        out = capsys.readouterr().out
+        # Every bundle component is surfaced (the gaps the change closes).
+        for key in ("can_buses:", "states:", "signals:", "can logs:", "references:", "out:"):
+            assert key in out
+        assert "powertrain.yaml" in out
+        assert "references" in out
+
+
+class TestProfileDefaultDispatch:
+    def test_bare_profile_lists_when_not_a_tty(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
+        monkeypatch.setenv("CANAIR_PROFILES_DIR", str(tmp_path / "profiles"))
+        from canlib import config, profile
+
+        config.load_config.cache_clear()
+        profile._active = None
+        _scaffold(tmp_path, "ev6")
+        monkeypatch.setattr("sys.stdin.isatty", lambda: False)
+        monkeypatch.setattr("sys.stdout.isatty", lambda: True)
+
+        assert _cmd_default(argparse.Namespace(profiles_dir=None)) == 0
+        out = capsys.readouterr().out
+        assert "ev6" in out  # plain list, no picker
+
+    def test_bare_profile_picker_sets_default_on_a_tty(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
+        monkeypatch.setenv("CANAIR_PROFILES_DIR", str(tmp_path / "profiles"))
+        from canlib import config, profile
+
+        config.load_config.cache_clear()
+        profile._active = None
+        _scaffold(tmp_path, "ev6")
+        _scaffold(tmp_path, "leaf")
+        monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+        monkeypatch.setattr("sys.stdout.isatty", lambda: True)
+        # Stub the interactive selector to "choose" the second profile.
+        chosen: dict = {}
+
+        def _fake_select(items, **kw):
+            chosen["items"] = list(items)
+            return list(items)[1]
+
+        monkeypatch.setattr("canlib.tui.select_from_list", _fake_select)
+
+        assert _cmd_default(argparse.Namespace(profiles_dir=None)) == 0
+        cfg = yaml.safe_load((tmp_path / "cfg" / "canair" / "config.yaml").read_text())
+        assert cfg["default_profile"] == chosen["items"][1][0]
+
+    def test_bare_profile_picker_cancel_makes_no_change(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
+        monkeypatch.setenv("CANAIR_PROFILES_DIR", str(tmp_path / "profiles"))
+        from canlib import config, profile
+
+        config.load_config.cache_clear()
+        profile._active = None
+        _scaffold(tmp_path, "ev6")
+        monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+        monkeypatch.setattr("sys.stdout.isatty", lambda: True)
+        monkeypatch.setattr("canlib.tui.select_from_list", lambda items, **kw: None)
+
+        assert _cmd_default(argparse.Namespace(profiles_dir=None)) == 0
+        out = capsys.readouterr().out
+        assert "Cancelled" in out
+        cfg_file = tmp_path / "cfg" / "canair" / "config.yaml"
+        if cfg_file.exists():
+            cfg = yaml.safe_load(cfg_file.read_text()) or {}
+            assert cfg.get("default_profile") is None

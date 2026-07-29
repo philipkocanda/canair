@@ -10,7 +10,7 @@ format lives in one seam (mirroring :mod:`canlib.yaml_io`).
 
 Capture files are **never hand-written**; they are produced by the
 ``canlib.captures`` helpers (the ``--save`` / journal-reconcile path) and edited
-via those helpers. See ``plans/2026-07-27-captures-json-storage.md``.
+via those helpers.
 """
 
 from __future__ import annotations
@@ -38,8 +38,7 @@ class LegacyCaptureError(Exception):
     """Raised when a profile still has legacy YAML capture files.
 
     Capture data is JSON-only; there is no dual-format read path. The supported
-    fix is ``canair captures migrate`` (see
-    ``plans/2026-07-27-captures-json-storage.md``).
+    fix is ``canair captures migrate``.
     """
 
 

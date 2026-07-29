@@ -39,13 +39,14 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "  path [NAME]     print a profile's root directory (handy for scripting)\n"
         "  use NAME        set NAME as the default profile (default_profile in config)\n"
         "  create NAME     scaffold a new empty profile bundle\n\n"
-        "A bare `canair profile` lists profiles. Select the active profile with the\n"
-        "global --profile flag, CANAIR_PROFILE, or default_profile in config (set the\n"
-        "last with `canair profile use NAME`).",
+        "A bare `canair profile` opens an interactive arrow-key picker on a TTY (choose\n"
+        "the default profile); piped/non-interactive it prints the list. Select the\n"
+        "active profile with the global --profile flag, CANAIR_PROFILE, or\n"
+        "default_profile in config (set the last with `canair profile use NAME`).",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
 examples:
-  canair profile                              # list discovered profiles
+  canair profile                              # interactive picker (TTY) / list (piped)
   canair profile show                         # details of the active profile
   canair profile show ioniq-2017              # details of a named profile
   canair profile path                         # print the active profile's directory
@@ -99,12 +100,69 @@ examples:
     crt.add_argument("--force", action="store_true", help="Allow a non-empty target directory")
     crt.set_defaults(_profile_func=_cmd_create)
 
-    parser.set_defaults(func=run, _profile_func=_cmd_list)
+    parser.set_defaults(func=run, _profile_func=_cmd_default)
     return parser
 
 
 def _resolve(name: str | None):
     return resolve_profile(name) if name else active()
+
+
+def _cmd_default(args) -> int:
+    """Bare ``canair profile``: an interactive picker on a TTY, else the list.
+
+    On an interactive terminal, launch an arrow-key selector over the discovered
+    profiles; choosing one sets it as ``default_profile`` (like ``profile use``).
+    When stdin/stdout aren't a TTY (piped, scripted) fall back to the plain list
+    so the command stays composable and non-interactive.
+    """
+    if sys.stdin.isatty() and sys.stdout.isatty():
+        return _cmd_pick(args)
+    return _cmd_list(args)
+
+
+def _cmd_pick(args) -> int:
+    """Interactive arrow-key profile picker → set default_profile."""
+    from canlib.config import set_config_value
+    from canlib.tui import select_from_list
+
+    profiles = discover_profiles(getattr(args, "profiles_dir", None))
+    if not profiles:
+        return _cmd_list(args)  # prints the "no profiles" guidance
+
+    try:
+        active_name = active().name
+    except ProfileError:
+        active_name = None
+
+    items = list(profiles.items())
+    initial = next((i for i, (n, _) in enumerate(items) if n == active_name), 0)
+
+    def _render(item: tuple[str, Path]) -> str:
+        name, root = item
+        current = "  [green](current default)[/green]" if name == active_name else ""
+        return f"[bold]{name}[/bold]{current}\n     [dim]{root}[/dim]"
+
+    chosen = select_from_list(
+        items,
+        title="Select the default vehicle profile",
+        render=_render,
+        initial=initial,
+        footer="↑/↓ move · enter set as default · q/esc cancel",
+    )
+    if chosen is None:
+        print("Cancelled — no change.")
+        return 0
+
+    name, root = chosen
+    if name == active_name:
+        print(f"'{name}' is already the default profile.")
+        return 0
+    path = set_config_value("default_profile", name)
+    print(f"default_profile = {name}")
+    print(f"  ({root})")
+    print(f"Saved to {path}")
+    return 0
 
 
 def _cmd_list(args) -> int:
@@ -160,7 +218,16 @@ def _cmd_show(args) -> int:
         f"profile:    {prof.root / 'profile.yaml'}  ({'ok' if (prof.root / 'profile.yaml').exists() else 'MISSING'})"
     )
     print(f"captures:   {prof.captures_dir}  ({'ok' if prof.captures_dir.is_dir() else 'MISSING'})")
-    print(f"out:        {prof.out_dir}")
+
+    # CAN buses (optional): list the declared segment vocabulary.
+    if prof.can_buses_file.exists():
+        from canlib.can_buses import load_can_buses
+
+        buses = load_can_buses(prof)
+        codes = ", ".join(b.code for b in buses) if buses else "empty"
+        print(f"can_buses:  {prof.can_buses_file}  ({len(buses)} buses: {codes})")
+    else:
+        print(f"can_buses:  {prof.can_buses_file}  (none — optional)")
 
     # States (optional): list the declared vocabulary, marking auto-suggest rules.
     from canlib.states import StatePredicateError, load_states
@@ -175,6 +242,31 @@ def _cmd_show(args) -> int:
             print(f"states:     {prof.states_file}  (INVALID: {ex})")
     else:
         print(f"states:     {prof.states_file}  (none — optional)")
+
+    # Broadcast signal maps (optional): one <bus>.yaml per CAN bus.
+    if prof.signals_dir.is_dir():
+        sig_files = sorted(p.name for p in prof.signals_dir.glob("*.yaml"))
+        listing = ", ".join(sig_files) if sig_files else "empty"
+        print(f"signals:    {prof.signals_dir}  ({len(sig_files)} files: {listing})")
+    else:
+        print(f"signals:    {prof.signals_dir}  (none — optional)")
+
+    # Raw-CAN frame-log store (optional).
+    if prof.can_dir.is_dir():
+        idx = "index ok" if prof.can_index_file.exists() else "no index"
+        print(f"can logs:   {prof.can_dir}  ({idx})")
+    else:
+        print(f"can logs:   {prof.can_dir}  (none — optional)")
+
+    # External reference material (optional).
+    references = prof.root / "references"
+    if references.is_dir():
+        n = sum(1 for p in references.rglob("*") if p.is_file())
+        print(f"references: {references}  ({n} files)")
+    else:
+        print(f"references: {references}  (none — optional)")
+
+    print(f"out:        {prof.out_dir}  ({'ok' if prof.out_dir.is_dir() else 'none'})")
     return 0
 
 

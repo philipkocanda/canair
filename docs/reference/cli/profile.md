@@ -17,9 +17,10 @@ Subcommands:
   use NAME        set NAME as the default profile (default_profile in config)
   create NAME     scaffold a new empty profile bundle
 
-A bare `canair profile` lists profiles. Select the active profile with the
-global --profile flag, CANAIR_PROFILE, or default_profile in config (set the
-last with `canair profile use NAME`).
+A bare `canair profile` opens an interactive arrow-key picker on a TTY (choose
+the default profile); piped/non-interactive it prints the list. Select the
+active profile with the global --profile flag, CANAIR_PROFILE, or
+default_profile in config (set the last with `canair profile use NAME`).
 
 positional arguments:
   {list,show,path,use,create,init,new}
@@ -34,7 +35,7 @@ options:
   -h, --help            show this help message and exit
 
 examples:
-  canair profile                              # list discovered profiles
+  canair profile                              # interactive picker (TTY) / list (piped)
   canair profile show                         # details of the active profile
   canair profile show ioniq-2017              # details of a named profile
   canair profile path                         # print the active profile's directory

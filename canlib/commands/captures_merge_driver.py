@@ -18,8 +18,6 @@ Two uses:
   ``.gitattributes`` rule takes effect. Git deliberately never reads a driver
   *command* from a tracked file, so every clone must run this once; until it does,
   merges simply fall back to markers (nothing breaks).
-
-See ``plans/2026-07-28-captures-merge-driver.md``.
 """
 
 from __future__ import annotations
