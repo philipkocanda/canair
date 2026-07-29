@@ -3,124 +3,66 @@
 # `canair decode`
 
 ```
-usage: canair decode [-h] [--param NAME [NAME ...]] [--verified]
-                     [--unverified] [--json] [--compact] [--changes-only]
-                     [--stats] [--group-by FIELD] [--discriminate FIELD]
-                     [--find-mirrors] [--bits] [--bytes] [--first N]
-                     [--last N] [--corr PARAM] [--join-tol SECONDS]
-                     [--corr-transform MODE]
-                     [--method {pearson,spearman,cramers_v,mutual_info}]
-                     [--plot] [--try NAME[:unit]=EXPR] [--dump-bytes]
-                     [--include-pci] [--notation NAME] [--since WHEN]
-                     [--until WHEN] [--date YYYY-MM-DD] [--today]
-                     [--last-sessions [N]] [--last-session] [--state SUBSTR]
-                     [--label SUBSTR]
+usage: canair decode [-h] [--param NAME [NAME ...]] [--verified] [--unverified] [--json] [--compact] [--changes-only] [--stats] [--group-by FIELD] [--discriminate FIELD] [--find-mirrors]
+                     [--bits] [--bytes] [--first N] [--last N] [--corr PARAM] [--join-tol SECONDS] [--corr-transform MODE] [--method {pearson,spearman,cramers_v,mutual_info}] [--plot]
+                     [--try NAME[:unit]=EXPR] [--dump-bytes] [--include-pci] [--notation NAME] [--since WHEN] [--until WHEN] [--date YYYY-MM-DD] [--today] [--last-sessions [N]]
+                     [--last-session] [--state SUBSTR] [--label SUBSTR]
                      [QUERY ...]
 
 [UDS] Decode captured UDS payloads using PID parameter definitions.
 
 positional arguments:
-  QUERY                 ECU/PID selection (mini-language, see
-                        canlib/query.py): 'BMS 2101', 'BMS:2101',
-                        'BMS:2101,2102', 'BMS' (all defined PIDs), or a quoted
-                        cross-ECU query 'MCU:2102 VCU:2101'. Multi-PID queries
-                        are supported for the default value-range, --compact
-                        and --json views; the analysis modes
-                        (--corr/--plot/--stats/--discriminate/--find-
-                        mirrors/--try/--dump-bytes) require the query to
-                        resolve to a single PID.
+  QUERY                 ECU/PID selection (mini-language, see canlib/query.py): 'BMS 2101', 'BMS:2101', 'BMS:2101,2102', 'BMS' (all defined PIDs), or a quoted cross-ECU query 'MCU:2102
+                        VCU:2101'. Multi-PID queries are supported for the default value-range, --compact and --json views; the analysis modes (--corr/--plot/--stats/--discriminate/--find-
+                        mirrors/--try/--dump-bytes) require the query to resolve to a single PID.
 
 options:
   -h, --help            show this help message and exit
   --param NAME [NAME ...]
-                        Show only specific parameters (repeatable and/or
-                        space-separated: --param A B or --param A --param B)
+                        Show only specific parameters (repeatable and/or space-separated: --param A B or --param A --param B)
   --verified            Show only verified parameters
   --unverified          Show only unverified parameters
   --json                Output as JSON (per-capture decoded values)
   --compact             One line per capture (chronological param=value pairs)
-  --changes-only, -c    With --compact: skip rows where all shown params are
-                        unchanged from the previous row (collapses stationary
-                        runs)
-  --stats               Descriptive statistics per param (n, distinct, mean,
-                        median, stdev)
-  --group-by FIELD      With --stats: compute statistics per session FIELD
-                        (currently 'state') instead of pooling all captures
-  --discriminate FIELD  Rank params/bytes by how cleanly they separate across
-                        session FIELD groups (F = between/within variance) —
-                        finds state-dependent signals (thermal/mode/relay) a
+  --changes-only, -c    With --compact: skip rows where all shown params are unchanged from the previous row (collapses stationary runs)
+  --stats               Descriptive statistics per param (n, distinct, mean, median, stdev)
+  --group-by FIELD      With --stats: compute statistics per session FIELD (currently 'state') instead of pooling all captures
+  --discriminate FIELD  Rank params/bytes by how cleanly they separate across session FIELD groups (F = between/within variance) — finds state-dependent signals (thermal/mode/relay) a
                         driving correlation misses
-  --find-mirrors        Report byte positions that are exactly equal across
-                        all captures (redundant status mirrors / unit-
-                        variants); add --bits for bit-level
-  --bits                With --find-mirrors: compare individual bits (Bn:k).
-                        With --discriminate: also rank individual toggling
-                        bits by state
-  --bytes               With --discriminate: also rank every varying raw byte
-                        (Bn), not just defined params — finds state-dependent
-                        bytes without a --try
+  --find-mirrors        Report byte positions that are exactly equal across all captures (redundant status mirrors / unit-variants); add --bits for bit-level
+  --bits                With --find-mirrors: compare individual bits (Bn:k). With --discriminate: also rank individual toggling bits by state
+  --bytes               With --discriminate: also rank every varying raw byte (Bn), not just defined params — finds state-dependent bytes without a --try
   --first N             Only the first N matching captures (chronological)
   --last N              Only the last N matching captures (chronological)
-  --corr PARAM          Correlate every param (incl. --try) against PARAM
-                        (Pearson r). PARAM may be a local param name, or a
-                        cross-signal reference ECU:PID:PARAM or ECU:PID:EXPR
-                        (e.g. ESC:22C101:REAL_SPEED_KMH) which is time-aligned
-                        by nearest timestamp.
-  --join-tol SECONDS    Nearest-timestamp join window for a cross-signal
-                        --corr (default 2.5s)
+  --corr PARAM          Correlate every param (incl. --try) against PARAM (Pearson r). PARAM may be a local param name, or a cross-signal reference ECU:PID:PARAM or ECU:PID:EXPR (e.g.
+                        ESC:22C101:REAL_SPEED_KMH) which is time-aligned by nearest timestamp.
+  --join-tol SECONDS    Nearest-timestamp join window for a cross-signal --corr (default 2.5s)
   --corr-transform MODE
-                        Transform the --corr reference before pairing
-                        (raw/delta/abs/cumsum/normalize/smooth) — e.g. --corr-
-                        transform delta to test whether a signal tracks a
-                        reference's RATE rather than its level
+                        Transform the --corr reference before pairing (raw/delta/abs/cumsum/normalize/smooth) — e.g. --corr-transform delta to test whether a signal tracks a reference's
+                        RATE rather than its level
   --method {pearson,spearman,cramers_v,mutual_info}
-                        Coefficient for --corr: pearson (linear, default) or
-                        spearman (rank — catches monotone-but-
-                        nonlinear/quantized/saturating links), or the
-                        categorical cramers_v / mutual_info (nominal
-                        association — for mode/flag/enum references where
-                        numeric spacing is meaningless)
-  --plot                Interactive signal explorer: sweep byte
-                        interpretations (u8/i16/f32/... and endianness) and
-                        params, plot across captures, apply transforms
-                        (delta/abs/normalize/...), zoom/pan the x-axis,
-                        overlay a --corr signal, and flag bytes already mapped
-                        by a param
+                        Coefficient for --corr: pearson (linear, default) or spearman (rank — catches monotone-but-nonlinear/quantized/saturating links), or the categorical cramers_v /
+                        mutual_info (nominal association — for mode/flag/enum references where numeric spacing is meaningless)
+  --plot                Interactive signal explorer: sweep byte interpretations (u8/i16/f32/... and endianness) and params, plot across captures, apply transforms
+                        (delta/abs/normalize/...), zoom/pan the x-axis, overlay a --corr signal, and flag bytes already mapped by a param
   --try NAME[:unit]=EXPR
-                        Evaluate a candidate expression against captures
-                        without editing YAML (repeatable; works even if the
-                        PID has no params defined yet)
-  --dump-bytes          Emit a timestamp × byte-offset matrix (one row per
-                        capture) instead of decoding params — the escape hatch
-                        for ad-hoc byte analysis. CSV by default; add --json
-                        for JSON. PCI framing bytes are skipped unless
-                        --include-pci. Honours --notation for column labels
-                        and all scope flags
-  --include-pci         With --dump-bytes: include ISO-TP PCI framing bytes
-                        (skipped by default)
-  --notation NAME       byte-index notation for output labels: wican
-                        (default), isotp, torque, bix. Overrides the
-                        display.byte_notation config key.
+                        Evaluate a candidate expression against captures without editing YAML (repeatable; works even if the PID has no params defined yet)
+  --dump-bytes          Emit a timestamp × byte-offset matrix (one row per capture) instead of decoding params — the escape hatch for ad-hoc byte analysis. CSV by default; add --json for
+                        JSON. PCI framing bytes are skipped unless --include-pci. Honours --notation for column labels and all scope flags
+  --include-pci         With --dump-bytes: include ISO-TP PCI framing bytes (skipped by default)
+  --notation NAME       byte-index notation for output labels: wican (default), isotp, torque, bix. Overrides the display.byte_notation config key.
 
 scoping:
   Restrict to captures within a date/time range (inclusive) and/or by session state/label substring. --since/--until accept a date (YYYY-MM-DD) or a timestamp (YYYY-MM-DD HH:MM[:SS[.ffffff]])
 
-  --since WHEN          Only captures on or after this date/time (YYYY-MM-DD[
-                        HH:MM:SS])
-  --until WHEN          Only captures on or before this date/time (YYYY-MM-DD[
-                        HH:MM:SS])
-  --date YYYY-MM-DD     Only captures on this exact date (shorthand for
-                        --since X --until X)
-  --today               Only captures recorded today (shorthand for --date
-                        <today>)
-  --last-sessions [N]   Only the most recent N recorded sessions in scope (N
-                        defaults to 1)
-  --last-session        Only the most recent recorded session in scope (alias
-                        for --last-sessions 1)
-  --state SUBSTR        Only captures whose session vehicle_states contain
-                        SUBSTR (case-insensitive), e.g. --state driving
-  --label SUBSTR        Only captures whose session/capture label contains
-                        SUBSTR (case-insensitive)
+  --since WHEN          Only captures on or after this date/time (YYYY-MM-DD[ HH:MM:SS])
+  --until WHEN          Only captures on or before this date/time (YYYY-MM-DD[ HH:MM:SS])
+  --date YYYY-MM-DD     Only captures on this exact date (shorthand for --since X --until X)
+  --today               Only captures recorded today (shorthand for --date <today>)
+  --last-sessions [N]   Only the most recent N recorded sessions in scope (N defaults to 1)
+  --last-session        Only the most recent recorded session in scope (alias for --last-sessions 1)
+  --state SUBSTR        Only captures whose session vehicle_states contain SUBSTR (case-insensitive), e.g. --state driving
+  --label SUBSTR        Only captures whose session/capture label contains SUBSTR (case-insensitive)
 
   canair decode BMS 2101              # Value range of every param across captures
   canair decode BMS 2101 --param SOC_BMS SOC_DISP  # Only specific params

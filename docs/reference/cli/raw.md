@@ -3,11 +3,8 @@
 # `canair raw`
 
 ```
-usage: canair raw [-h] [--session] [--hold] [--wake] [--save] [--label TEXT]
-                  [--state TEXT] [--notes TEXT] [--wican WICAN]
-                  [--transport {slcan-tcp,wican-ws}] [--elm-timeout MS]
-                  [--timeout SECONDS] [--json] [--verbose] [--timings]
-                  [--reboot] [--unsafe] [--force]
+usage: canair raw [-h] [--session] [--hold] [--wake] [--save] [--label TEXT] [--state TEXT] [--notes TEXT] [--wican WICAN] [--transport {slcan-tcp,wican-ws}] [--elm-timeout MS]
+                  [--timeout SECONDS] [--json] [--verbose] [--timings] [--reboot] [--unsafe] [--force]
                   TX:PID
 
 [UDS] Send a raw UDS request (hex in, hex out).
@@ -24,26 +21,17 @@ options:
   --label TEXT          Session label for --save
   --state TEXT          Session state for --save
   --notes TEXT          Session notes for --save
-  --wican WICAN         WiCAN address: ap or IP (default: config
-                        transport.host / default_wican=ap)
+  --wican WICAN         WiCAN address: ap or IP (default: config transport.host / default_wican=ap)
   --transport {slcan-tcp,wican-ws}
-                        CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327
-                        terminal). Overrides the config `transport.type`
-                        (default: slcan-tcp).
-  --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx
-                        after init)
-  --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0
-                        ELM / 2.0 raw). Overrides any per-ECU
-                        response_timeout_ms for the whole run.
+                        CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327 terminal). Overrides the config `transport.type` (default: slcan-tcp).
+  --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx after init)
+  --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0 ELM / 2.0 raw). Overrides any per-ECU response_timeout_ms for the whole run.
   --json                Output results as JSON
   --verbose, -v         Show raw transport traffic and expressions
-  --timings             Print per-ECU/PID round-trip timing stats on exit (to
-                        stderr)
+  --timings             Print per-ECU/PID round-trip timing stats on exit (to stderr)
   --reboot              Reboot WiCAN after session to restore AutoPID mode
-  --unsafe              Bypass dangerous command blocklist (requires explicit
-                        per-command consent)
-  --force               Steal the connection lock if another session is still
-                        running
+  --unsafe              Bypass dangerous command blocklist (requires explicit per-command consent)
+  --force               Steal the connection lock if another session is still running
 
 examples:
   canair raw 7E4:2101

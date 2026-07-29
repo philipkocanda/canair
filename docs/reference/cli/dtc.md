@@ -3,13 +3,8 @@
 # `canair dtc`
 
 ```
-usage: canair dtc [-h] [--all] [--history] [--no-log] [--no-retry]
-                  [--label LABEL] [--state STATES] [--mask HEX]
-                  [--protocol {auto,uds,kwp}] [--clear] [--group HEX] [--yes]
-                  [--session] [--wake] [--wican WICAN]
-                  [--transport {slcan-tcp,wican-ws}] [--elm-timeout MS]
-                  [--timeout SECONDS] [--json] [--verbose] [--timings]
-                  [--reboot] [--unsafe] [--force]
+usage: canair dtc [-h] [--all] [--history] [--no-log] [--no-retry] [--label LABEL] [--state STATES] [--mask HEX] [--protocol {auto,uds,kwp}] [--clear] [--group HEX] [--yes] [--session]
+                  [--wake] [--wican WICAN] [--transport {slcan-tcp,wican-ws}] [--elm-timeout MS] [--timeout SECONDS] [--json] [--verbose] [--timings] [--reboot] [--unsafe] [--force]
                   [ECU]
 
 [UDS] Read stored Diagnostic Trouble Codes with UDS 0x19 (reportDTCByStatusMask), or clear them with UDS 0x14. Clearing mutates ECU fault memory and prompts for confirmation unless --yes is given.
@@ -19,60 +14,34 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-  --all                 Scan every ECU in the profile for DTCs (protocol auto-
-                        selected per ECU)
-  --history             Show the most recent logged scan from dtc_log.yaml
-                        without touching the device (useful when the WiCAN is
-                        offline). Decodes each code and reports the change
-                        since the previous scan. Scope is --all by default, or
-                        a single ECU when one is named.
-  --no-log              Don't record this scan to the profile's dtc_log.yaml
-                        (scans are logged by default, reporting what
-                        cleared/appeared since the last scan)
-  --no-retry            With --all, don't retry unresponsive ECUs (by default
-                        a no-response ECU is retried once with a wake + longer
-                        timeout so it isn't skipped)
-  --label LABEL         Optional label for the logged scan entry (e.g. 'before
-                        clearing')
+  --all                 Scan every ECU in the profile for DTCs (protocol auto-selected per ECU)
+  --history             Show the most recent logged scan from dtc_log.yaml without touching the device (useful when the WiCAN is offline). Decodes each code and reports the change since
+                        the previous scan. Scope is --all by default, or a single ECU when one is named.
+  --no-log              Don't record this scan to the profile's dtc_log.yaml (scans are logged by default, reporting what cleared/appeared since the last scan)
+  --no-retry            With --all, don't retry unresponsive ECUs (by default a no-response ECU is retried once with a wake + longer timeout so it isn't skipped)
+  --label LABEL         Optional label for the logged scan entry (e.g. 'before clearing')
   --state STATES, --vehicle-states STATES
-                        Vehicle power state(s) during the scan, recorded on
-                        the log entry (comma-separated, e.g. 'READY' or
-                        'SLEEP, PLUGGED'; case-insensitive). Vocabulary from
+                        Vehicle power state(s) during the scan, recorded on the log entry (comma-separated, e.g. 'READY' or 'SLEEP, PLUGGED'; case-insensitive). Vocabulary from
                         vehicle_states.yaml (`canair states`).
-  --mask HEX            statusOfDTC mask for the UDS read (hex, default FF =
-                        all; falls back to 08 if the ECU rejects FF with
-                        requestOutOfRange)
+  --mask HEX            statusOfDTC mask for the UDS read (hex, default FF = all; falls back to 08 if the ECU rejects FF with requestOutOfRange)
   --protocol {auto,uds,kwp}
-                        DTC protocol: uds (0x19/0x14), kwp (KWP2000
-                        0x18/0x14), or auto (from the profile's id_protocol).
-                        Default: auto
-  --clear               Clear DTCs (ClearDiagnosticInformation 0x14) instead
-                        of reading
-  --group HEX           groupOfDTC to clear (3-byte hex, default FFFFFF = all
-                        groups)
+                        DTC protocol: uds (0x19/0x14), kwp (KWP2000 0x18/0x14), or auto (from the profile's id_protocol). Default: auto
+  --clear               Clear DTCs (ClearDiagnosticInformation 0x14) instead of reading
+  --group HEX           groupOfDTC to clear (3-byte hex, default FFFFFF = all groups)
   --yes, -y             Skip the clear confirmation prompt
   --session             Enter extended session (10 03)
   --wake                Wake ECU from deep sleep (10 01)
-  --wican WICAN         WiCAN address: ap or IP (default: config
-                        transport.host / default_wican=ap)
+  --wican WICAN         WiCAN address: ap or IP (default: config transport.host / default_wican=ap)
   --transport {slcan-tcp,wican-ws}
-                        CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327
-                        terminal). Overrides the config `transport.type`
-                        (default: slcan-tcp).
-  --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx
-                        after init)
-  --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0
-                        ELM / 2.0 raw). Overrides any per-ECU
-                        response_timeout_ms for the whole run.
+                        CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327 terminal). Overrides the config `transport.type` (default: slcan-tcp).
+  --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx after init)
+  --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0 ELM / 2.0 raw). Overrides any per-ECU response_timeout_ms for the whole run.
   --json                Output results as JSON
   --verbose, -v         Show raw transport traffic and expressions
-  --timings             Print per-ECU/PID round-trip timing stats on exit (to
-                        stderr)
+  --timings             Print per-ECU/PID round-trip timing stats on exit (to stderr)
   --reboot              Reboot WiCAN after session to restore AutoPID mode
-  --unsafe              Bypass dangerous command blocklist (requires explicit
-                        per-command consent)
-  --force               Steal the connection lock if another session is still
-                        running
+  --unsafe              Bypass dangerous command blocklist (requires explicit per-command consent)
+  --force               Steal the connection lock if another session is still running
 
 examples:
   canair dtc BMS                       Read all stored DTCs (status mask FF)

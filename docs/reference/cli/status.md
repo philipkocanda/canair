@@ -3,8 +3,7 @@
 # `canair status`
 
 ```
-usage: canair status [-h] [--transport {slcan-tcp,wican-ws}] [--wican WICAN]
-                     [--json]
+usage: canair status [-h] [--transport {slcan-tcp,wican-ws}] [--wican WICAN] [--json]
 
 ``canair status`` — show the configured transport, device state, and profile.
 

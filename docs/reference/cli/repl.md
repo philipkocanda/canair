@@ -3,9 +3,7 @@
 # `canair repl`
 
 ```
-usage: canair repl [-h] [--wican WICAN] [--transport {slcan-tcp,wican-ws}]
-                   [--elm-timeout MS] [--timeout SECONDS] [--json] [--verbose]
-                   [--timings] [--reboot] [--unsafe] [--force]
+usage: canair repl [-h] [--wican WICAN] [--transport {slcan-tcp,wican-ws}] [--elm-timeout MS] [--timeout SECONDS] [--json] [--verbose] [--timings] [--reboot] [--unsafe] [--force]
 
 [UDS] Drop into an interactive live terminal (REPL) over the WiCAN
 connection — type raw ELM327 (AT...) and UDS requests by hand and see the
@@ -27,26 +25,17 @@ manual, freeform fallback.
 
 options:
   -h, --help            show this help message and exit
-  --wican WICAN         WiCAN address: ap or IP (default: config
-                        transport.host / default_wican=ap)
+  --wican WICAN         WiCAN address: ap or IP (default: config transport.host / default_wican=ap)
   --transport {slcan-tcp,wican-ws}
-                        CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327
-                        terminal). Overrides the config `transport.type`
-                        (default: slcan-tcp).
-  --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx
-                        after init)
-  --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0
-                        ELM / 2.0 raw). Overrides any per-ECU
-                        response_timeout_ms for the whole run.
+                        CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327 terminal). Overrides the config `transport.type` (default: slcan-tcp).
+  --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx after init)
+  --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0 ELM / 2.0 raw). Overrides any per-ECU response_timeout_ms for the whole run.
   --json                Output results as JSON
   --verbose, -v         Show raw transport traffic and expressions
-  --timings             Print per-ECU/PID round-trip timing stats on exit (to
-                        stderr)
+  --timings             Print per-ECU/PID round-trip timing stats on exit (to stderr)
   --reboot              Reboot WiCAN after session to restore AutoPID mode
-  --unsafe              Bypass dangerous command blocklist (requires explicit
-                        per-command consent)
-  --force               Steal the connection lock if another session is still
-                        running
+  --unsafe              Bypass dangerous command blocklist (requires explicit per-command consent)
+  --force               Steal the connection lock if another session is still running
 
 examples:
   canair repl                     # open the interactive terminal (default WiCAN)

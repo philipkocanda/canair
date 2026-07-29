@@ -27,8 +27,7 @@ positional arguments:
     list                List discovered profiles
     show                Show details of a profile (default: active)
     path                Print the root directory of a profile
-    use                 Set the default profile (default_profile in the user
-                        config)
+    use                 Set the default profile (default_profile in the user config)
     create (init, new)  Scaffold a new empty profile
 
 options:
@@ -82,8 +81,7 @@ options:
 ```
 usage: canair profile use [-h] name
 
-Set NAME as the default profile — an alias for `canair config set
-default_profile NAME`. The name must be a discovered profile.
+Set NAME as the default profile — an alias for `canair config set default_profile NAME`. The name must be a discovered profile.
 
 positional arguments:
   name        Profile name to set as default
@@ -95,9 +93,7 @@ options:
 ## `canair profile create`
 
 ```
-usage: canair profile create [-h] [--car-model CAR_MODEL] [--init INIT]
-                             [--path PATH] [--set-default] [--force]
-                             name
+usage: canair profile create [-h] [--car-model CAR_MODEL] [--init INIT] [--path PATH] [--set-default] [--force] name
 
 Create a new vehicle profile bundle (ecus/, profile.yaml, captures/, out/).
 
@@ -109,8 +105,7 @@ options:
   --car-model CAR_MODEL
                         Vehicle description (e.g. 'VW e-Golf 2019')
   --init INIT           ELM327 init string (default: ATSP6;ATS0;ATAL;)
-  --path PATH           Create at this directory instead of
-                        ~/.config/canair/profiles/<name>
+  --path PATH           Create at this directory instead of ~/.config/canair/profiles/<name>
   --set-default         Set this profile as default_profile in the user config
   --force               Allow a non-empty target directory
 ```

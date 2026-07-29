@@ -3,13 +3,9 @@
 # `canair monitor`
 
 ```
-usage: canair monitor [-h] [--interval SECONDS] [--session] [--wake]
-                      [--keep-unique | --keep-all | --keep N] [--save]
-                      [--label TEXT] [--state TEXT] [--notes TEXT] [--rulers]
-                      [--include-static] [--wican WICAN]
-                      [--transport {slcan-tcp,wican-ws}] [--elm-timeout MS]
-                      [--timeout SECONDS] [--json] [--verbose] [--timings]
-                      [--reboot] [--unsafe] [--force]
+usage: canair monitor [-h] [--interval SECONDS] [--session] [--wake] [--keep-unique | --keep-all | --keep N] [--save] [--label TEXT] [--state TEXT] [--notes TEXT] [--rulers]
+                      [--include-static] [--wican WICAN] [--transport {slcan-tcp,wican-ws}] [--elm-timeout MS] [--timeout SECONDS] [--json] [--verbose] [--timings] [--reboot] [--unsafe]
+                      [--force]
                       [STEP ...]
 
 [UDS] Monitor ECUs/parameters live in a scrollable, refreshing view. Positional STEPs use the multi mini-language (same as `canair query`).
@@ -19,44 +15,30 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-  --interval SECONDS    Poll interval in seconds (default 5.0; change it live
-                        in the TUI with =/-)
+  --interval SECONDS    Poll interval in seconds (default 5.0; change it live in the TUI with =/-)
   --session             Enter extended session (10 03)
   --wake                Wake ECUs from deep sleep (10 01)
-  --keep-unique         Retain only unique payloads (rising-edge) — the
-                        default
-  --keep-all            Retain every polled payload (full time-series; larger
-                        capture files)
+  --keep-unique         Retain only unique payloads (rising-edge) — the default
+  --keep-all            Retain every polled payload (full time-series; larger capture files)
   --keep N              Keep the last N payloads per PID
   --save                Save results to captures/
   --label TEXT          Session label for --save
   --state TEXT          Session state for --save
   --notes TEXT          Session notes for --save
   --rulers              Show byte-index rulers above the hex
-  --include-static      Include static config/identity PIDs (e.g. 21F2) in a
-                        bare-ECU sweep. By default `canair monitor ECU` omits
-                        PIDs flagged static:true; naming one explicitly
+  --include-static      Include static config/identity PIDs (e.g. 21F2) in a bare-ECU sweep. By default `canair monitor ECU` omits PIDs flagged static:true; naming one explicitly
                         (ECU:21F2) always polls it.
-  --wican WICAN         WiCAN address: ap or IP (default: config
-                        transport.host / default_wican=ap)
+  --wican WICAN         WiCAN address: ap or IP (default: config transport.host / default_wican=ap)
   --transport {slcan-tcp,wican-ws}
-                        CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327
-                        terminal). Overrides the config `transport.type`
-                        (default: slcan-tcp).
-  --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx
-                        after init)
-  --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0
-                        ELM / 2.0 raw). Overrides any per-ECU
-                        response_timeout_ms for the whole run.
+                        CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327 terminal). Overrides the config `transport.type` (default: slcan-tcp).
+  --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx after init)
+  --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0 ELM / 2.0 raw). Overrides any per-ECU response_timeout_ms for the whole run.
   --json                Output results as JSON
   --verbose, -v         Show raw transport traffic and expressions
-  --timings             Print per-ECU/PID round-trip timing stats on exit (to
-                        stderr)
+  --timings             Print per-ECU/PID round-trip timing stats on exit (to stderr)
   --reboot              Reboot WiCAN after session to restore AutoPID mode
-  --unsafe              Bypass dangerous command blocklist (requires explicit
-                        per-command consent)
-  --force               Steal the connection lock if another session is still
-                        running
+  --unsafe              Bypass dangerous command blocklist (requires explicit per-command consent)
+  --force               Steal the connection lock if another session is still running
 
 examples:
   canair monitor BMS:2101                   Monitor BMS PID 2101 (default 5s interval)

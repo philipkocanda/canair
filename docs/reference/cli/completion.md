@@ -9,13 +9,11 @@ Enable `canair` tab-completion (subcommands, flags, ECU/PID names).
 
 positional arguments:
   {bash,zsh,fish,tcsh,powershell}
-                        Target shell (default: auto-detected from $SHELL, else
-                        bash)
+                        Target shell (default: auto-detected from $SHELL, else bash)
 
 options:
   -h, --help            show this help message and exit
-  --install             Write the completion script into the shell's autoload
-                        directory
+  --install             Write the completion script into the shell's autoload directory
 
 examples:
   canair completion --install          # auto-detect shell, install, done

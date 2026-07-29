@@ -35,8 +35,7 @@ tag checkout needed — to bring the bare ``canair`` back in line with the clone
 
 options:
   -h, --help  show this help message and exit
-  --check     Only report the current/latest version and changelog; make no
-              changes
+  --check     Only report the current/latest version and changelog; make no changes
   -y, --yes   Skip the confirmation prompt (checkout release tag + reinstall)
   --json      Emit machine-readable JSON
 

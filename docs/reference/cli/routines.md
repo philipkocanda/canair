@@ -3,10 +3,8 @@
 # `canair routines`
 
 ```
-usage: canair routines [-h] [--rid RID] [--sf SF] [--wican WICAN]
-                       [--transport {slcan-tcp,wican-ws}] [--elm-timeout MS]
-                       [--timeout SECONDS] [--json] [--verbose] [--timings]
-                       [--reboot] [--unsafe] [--force]
+usage: canair routines [-h] [--rid RID] [--sf SF] [--wican WICAN] [--transport {slcan-tcp,wican-ws}] [--elm-timeout MS] [--timeout SECONDS] [--json] [--verbose] [--timings] [--reboot]
+                       [--unsafe] [--force]
                        [ECU]
 
 [UDS] RoutineControl (0x31): interactive TUI, or single command with --rid.
@@ -17,28 +15,18 @@ positional arguments:
 options:
   -h, --help            show this help message and exit
   --rid RID             Routine ID to execute (e.g. 12A1)
-  --sf SF               Sub-function: results (0x03, safe default), start
-                        (0x01, actuates), stop (0x02)
-  --wican WICAN         WiCAN address: ap or IP (default: config
-                        transport.host / default_wican=ap)
+  --sf SF               Sub-function: results (0x03, safe default), start (0x01, actuates), stop (0x02)
+  --wican WICAN         WiCAN address: ap or IP (default: config transport.host / default_wican=ap)
   --transport {slcan-tcp,wican-ws}
-                        CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327
-                        terminal). Overrides the config `transport.type`
-                        (default: slcan-tcp).
-  --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx
-                        after init)
-  --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0
-                        ELM / 2.0 raw). Overrides any per-ECU
-                        response_timeout_ms for the whole run.
+                        CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327 terminal). Overrides the config `transport.type` (default: slcan-tcp).
+  --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx after init)
+  --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0 ELM / 2.0 raw). Overrides any per-ECU response_timeout_ms for the whole run.
   --json                Output results as JSON
   --verbose, -v         Show raw transport traffic and expressions
-  --timings             Print per-ECU/PID round-trip timing stats on exit (to
-                        stderr)
+  --timings             Print per-ECU/PID round-trip timing stats on exit (to stderr)
   --reboot              Reboot WiCAN after session to restore AutoPID mode
-  --unsafe              Bypass dangerous command blocklist (requires explicit
-                        per-command consent)
-  --force               Steal the connection lock if another session is still
-                        running
+  --unsafe              Bypass dangerous command blocklist (requires explicit per-command consent)
+  --force               Steal the connection lock if another session is still running
 
 examples:
   canair routines BCM                     Interactive TUI

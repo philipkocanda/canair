@@ -3,12 +3,8 @@
 # `canair research`
 
 ```
-usage: canair research [-h] [--ecu ECU]
-                       [--type {scan,decode,verify,iocontrol_scan}]
-                       [--status {pending,captured,nrc,done}]
-                       [--priority {P1,P2,P3}]
-                       [--states {SLEEP,PLUGGED,ACC,ACC2,READY,CHARGING,ALL}]
-                       [--summary] [--all] [--verbose] [--json] [--dir DIR]
+usage: canair research [-h] [--ecu ECU] [--type {scan,decode,verify,iocontrol_scan}] [--status {pending,captured,nrc,done}] [--priority {P1,P2,P3}]
+                       [--states {SLEEP,PLUGGED,ACC,ACC2,READY,CHARGING,ALL}] [--summary] [--all] [--verbose] [--json] [--dir DIR]
 
 [UDS] Report open reverse-engineering work from ecus/ research: sections.
 

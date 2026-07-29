@@ -3,9 +3,7 @@
 # `canair bix`
 
 ```
-usage: canair bix [-h] [-1] [-2] [--table] [--annotate HEX [HEX ...]] [--raw]
-                  [--torque] [--obdb] [--max MAX] [--ecu ECU] [--pid PID]
-                  [value]
+usage: canair bix [-h] [-1] [-2] [--table] [--annotate HEX [HEX ...]] [--raw] [--torque] [--obdb] [--max MAX] [--ecu ECU] [--pid PID] [value]
 
 [UDS] Convert byte indices between WiCAN, ISO-TP, Torque, and OBDb notations.
 
@@ -18,29 +16,17 @@ options:
   -2                    2-byte subfunction mode (22xxxx DIDs)
   --table, -t           Print the full conversion table (all frames)
   --annotate HEX [HEX ...], -a HEX [HEX ...]
-                        Annotate a hex payload with all index representations
-                        (e.g. 62B0047402990C0040A000AAAA, or space-separated
-                        bytes 62 B0 04 ... quoted or unquoted). Expects the
-                        reassembled UDS response payload (SID-first, ISO-TP
-                        PCI stripped) unless --raw.
-  --raw, --frame        With --annotate: the hex is an ALREADY-FRAMED CAN
-                        payload (ISO-TP PCI bytes present, e.g. straight off
-                        the bus) — index it as-is instead of reconstructing
-                        the framing from a PCI-stripped UDS payload.
-  --torque              Show the Torque byte-letter column
-                        (--table/--annotate). Hidden by default. Torque
-                        notation (A, B, C… from the first UDS data byte) is
-                        what the Torque app, Car Scanner, and similar OBD apps
-                        use — handy for porting their PID sheets.
-  --obdb                Show the OBDb bix (bit-index) column
-                        (--table/--annotate). Hidden by default. bix is a
-                        distinct notation from Torque (data-byte index × 8) —
-                        request it independently of --torque.
+                        Annotate a hex payload with all index representations (e.g. 62B0047402990C0040A000AAAA, or space-separated bytes 62 B0 04 ... quoted or unquoted). Expects the
+                        reassembled UDS response payload (SID-first, ISO-TP PCI stripped) unless --raw.
+  --raw, --frame        With --annotate: the hex is an ALREADY-FRAMED CAN payload (ISO-TP PCI bytes present, e.g. straight off the bus) — index it as-is instead of reconstructing the
+                        framing from a PCI-stripped UDS payload.
+  --torque              Show the Torque byte-letter column (--table/--annotate). Hidden by default. Torque notation (A, B, C… from the first UDS data byte) is what the Torque app, Car
+                        Scanner, and similar OBD apps use — handy for porting their PID sheets.
+  --obdb                Show the OBDb bix (bit-index) column (--table/--annotate). Hidden by default. bix is a distinct notation from Torque (data-byte index × 8) — request it
+                        independently of --torque.
   --max MAX             Max WiCAN index for table (default: 71)
-  --ecu ECU             With --annotate: overlay which defined parameter maps
-                        each byte (and flag unmapped bytes). Requires --pid.
-  --pid PID             With --annotate --ecu: the PID whose parameters to
-                        overlay (e.g. 22BC03).
+  --ecu ECU             With --annotate: overlay which defined parameter maps each byte (and flag unmapped bytes). Requires --pid.
+  --pid PID             With --annotate --ecu: the PID whose parameters to overlay (e.g. 22BC03).
 
 run `canair bix` with no arguments for a guided overview (a legend explaining
 each notation + a compact 2-frame table); `--table` prints the full table.

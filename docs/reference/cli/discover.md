@@ -3,12 +3,8 @@
 # `canair discover`
 
 ```
-usage: canair discover [-h] [--range START-END] [--delay DELAY] [--register]
-                       [--dry-run] [--identify] [--save] [--label TEXT]
-                       [--state TEXT] [--notes TEXT] [--wican WICAN]
-                       [--transport {slcan-tcp,wican-ws}] [--elm-timeout MS]
-                       [--timeout SECONDS] [--json] [--verbose] [--timings]
-                       [--reboot] [--unsafe] [--force]
+usage: canair discover [-h] [--range START-END] [--delay DELAY] [--register] [--dry-run] [--identify] [--save] [--label TEXT] [--state TEXT] [--notes TEXT] [--wican WICAN]
+                       [--transport {slcan-tcp,wican-ws}] [--elm-timeout MS] [--timeout SECONDS] [--json] [--verbose] [--timings] [--reboot] [--unsafe] [--force]
 
 [UDS] Sweep a range of TX addresses (sends 10 01 to each) to find ECUs.
 
@@ -16,36 +12,24 @@ options:
   -h, --help            show this help message and exit
   --range START-END     Address range (default 700-7EF)
   --delay DELAY         Delay between probes in seconds (default 0.2)
-  --register            Register newly-discovered ECUs as files in the
-                        profile's ecus/ directory
-  --dry-run             With --register: show what would be added without
-                        writing
-  --identify            Run `canair identity` on each alive ECU after the
-                        sweep (otherwise offer interactively)
+  --register            Register newly-discovered ECUs as files in the profile's ecus/ directory
+  --dry-run             With --register: show what would be added without writing
+  --identify            Run `canair identity` on each alive ECU after the sweep (otherwise offer interactively)
   --save                Save results to captures/
   --label TEXT          Session label for --save
   --state TEXT          Session state for --save
   --notes TEXT          Session notes for --save
-  --wican WICAN         WiCAN address: ap or IP (default: config
-                        transport.host / default_wican=ap)
+  --wican WICAN         WiCAN address: ap or IP (default: config transport.host / default_wican=ap)
   --transport {slcan-tcp,wican-ws}
-                        CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327
-                        terminal). Overrides the config `transport.type`
-                        (default: slcan-tcp).
-  --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx
-                        after init)
-  --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0
-                        ELM / 2.0 raw). Overrides any per-ECU
-                        response_timeout_ms for the whole run.
+                        CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327 terminal). Overrides the config `transport.type` (default: slcan-tcp).
+  --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx after init)
+  --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0 ELM / 2.0 raw). Overrides any per-ECU response_timeout_ms for the whole run.
   --json                Output results as JSON
   --verbose, -v         Show raw transport traffic and expressions
-  --timings             Print per-ECU/PID round-trip timing stats on exit (to
-                        stderr)
+  --timings             Print per-ECU/PID round-trip timing stats on exit (to stderr)
   --reboot              Reboot WiCAN after session to restore AutoPID mode
-  --unsafe              Bypass dangerous command blocklist (requires explicit
-                        per-command consent)
-  --force               Steal the connection lock if another session is still
-                        running
+  --unsafe              Bypass dangerous command blocklist (requires explicit per-command consent)
+  --force               Steal the connection lock if another session is still running
 
 examples:
   canair discover                     Discover ECUs in 0x700-0x7EF (default)

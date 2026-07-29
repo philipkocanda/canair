@@ -3,9 +3,7 @@
 # `canair validate`
 
 ```
-usage: canair validate [-h] [--stats] [--strict]
-                       [{pids,captures,ecus,states,can-buses,signals,can,all}]
-                       [files ...]
+usage: canair validate [-h] [--stats] [--strict] [{pids,captures,ecus,states,can-buses,signals,can,all}] [files ...]
 
 [UDS+CAN] Validate a profile's data files against their schemas and
 report problems.
@@ -36,9 +34,7 @@ positional arguments:
 options:
   -h, --help            show this help message and exit
   --stats               Show parameter statistics (pids)
-  --strict              Treat soft warnings that gate new data (currently:
-                        untimed payload captures) as errors — for CI / new-
-                        capture checks
+  --strict              Treat soft warnings that gate new data (currently: untimed payload captures) as errors — for CI / new-capture checks
 
 examples:
   canair validate                     # validate everything (pids + captures + states)

@@ -16,8 +16,7 @@ Read-only: analyses captures/ only, never talks to the device.
 positional arguments:
   <kind>
     uds       Hunt a diagnostic PID's bytes vs a known signal (domain A)
-    can       Hunt a raw broadcast-CAN frame ID's bytes vs a reference (domain
-              B)
+    can       Hunt a raw broadcast-CAN frame ID's bytes vs a reference (domain B)
 
 options:
   -h, --help  show this help message and exit
@@ -26,15 +25,9 @@ options:
 ## `canair hunt uds`
 
 ```
-usage: canair hunt uds [-h]
-                       (--against ECU:PID:PARAM | --against-file FILE | --physical)
-                       [--min-n N] [--top N] [--transform MODE]
-                       [--method {pearson,spearman}] [--join-tol SECONDS]
-                       [--json] [--all-interps] [--control ECU:PID:PARAM]
-                       [--control-file FILE] [--promote NAME]
-                       [--notation NAME] [--since WHEN] [--until WHEN]
-                       [--date YYYY-MM-DD] [--today] [--last-sessions [N]]
-                       [--last-session] [--state SUBSTR] [--label SUBSTR]
+usage: canair hunt uds [-h] (--against ECU:PID:PARAM | --against-file FILE | --physical) [--min-n N] [--top N] [--transform MODE] [--method {pearson,spearman}] [--join-tol SECONDS]
+                       [--json] [--all-interps] [--control ECU:PID:PARAM] [--control-file FILE] [--promote NAME] [--notation NAME] [--since WHEN] [--until WHEN] [--date YYYY-MM-DD]
+                       [--today] [--last-sessions [N]] [--last-session] [--state SUBSTR] [--label SUBSTR]
                        [ecu] [pid]
 
 Sweeps every byte offset of the target PID under every interpretation
@@ -58,67 +51,37 @@ positional arguments:
 options:
   -h, --help            show this help message and exit
   --against ECU:PID:PARAM
-                        Reference signal: a diagnostic ECU:PID:PARAM (or
-                        ECU:PID:EXPR)
-  --against-file FILE   Reference from an external CSV (timestamp,value)
-                        instead of a bus signal — a calibrated meter log, GPS
-                        track, grid-voltage export. Joined by nearest
-                        timestamp; the file must be on the same absolute clock
-                        as the captures (relative/zero-based logs won't align)
-  --physical            No reference: flag bytes whose (scaled) value lands in
-                        a named physical band (mains RMS/peak, line freq, 12V
-                        rail, HV pack) at some scaling (/1 /10 /100 ×2 ×√2).
+                        Reference signal: a diagnostic ECU:PID:PARAM (or ECU:PID:EXPR)
+  --against-file FILE   Reference from an external CSV (timestamp,value) instead of a bus signal — a calibrated meter log, GPS track, grid-voltage export. Joined by nearest timestamp; the
+                        file must be on the same absolute clock as the captures (relative/zero-based logs won't align)
+  --physical            No reference: flag bytes whose (scaled) value lands in a named physical band (mains RMS/peak, line freq, 12V rail, HV pack) at some scaling (/1 /10 /100 ×2 ×√2).
                         Finds anchorless signals by plausibility
   --min-n N             Min aligned points (default 10)
   --top N               Max hits (default 12)
-  --transform MODE      Transform the reference before aligning (e.g. delta to
-                        hunt the byte that tracks the reference's *rate* —
-                        torque vs acceleration)
+  --transform MODE      Transform the reference before aligning (e.g. delta to hunt the byte that tracks the reference's *rate* — torque vs acceleration)
   --method {pearson,spearman}
-                        Ranking coefficient: pearson (linear, default) or
-                        spearman (rank)
+                        Ranking coefficient: pearson (linear, default) or spearman (rank)
   --join-tol SECONDS    Nearest-timestamp join window (default 2.5s)
   --json                Machine-readable output
-  --all-interps         Show every interpretation per offset (u8/i16/u24/…);
-                        default collapses to the best interpretation per byte
-                        offset
+  --all-interps         Show every interpretation per offset (u8/i16/u24/…); default collapses to the best interpretation per byte offset
   --control ECU:PID:PARAM
-                        Confounder control: regress out this nuisance signal
-                        and rank by the PARTIAL correlation (what remains
-                        after removing the control's linear influence).
-                        Surfaces a byte whose link to --against only shows
-                        once the dominant driver is removed (e.g. AC voltage
-                        behind the IR-drop current)
-  --control-file FILE   Like --control, but the nuisance signal is an external
-                        timestamp,value CSV (mutually exclusive with
-                        --control)
-  --promote NAME        Write the top hit's expression to ecus/ as an enabled,
-                        unverified candidate param NAME (via pids upsert-
-                        param), with the correlation evidence auto-filled into
-                        notes
-  --notation NAME       byte-index notation for output labels: wican
-                        (default), isotp, torque, bix. Overrides the
-                        display.byte_notation config key.
+                        Confounder control: regress out this nuisance signal and rank by the PARTIAL correlation (what remains after removing the control's linear influence). Surfaces a
+                        byte whose link to --against only shows once the dominant driver is removed (e.g. AC voltage behind the IR-drop current)
+  --control-file FILE   Like --control, but the nuisance signal is an external timestamp,value CSV (mutually exclusive with --control)
+  --promote NAME        Write the top hit's expression to ecus/ as an enabled, unverified candidate param NAME (via pids upsert-param), with the correlation evidence auto-filled into notes
+  --notation NAME       byte-index notation for output labels: wican (default), isotp, torque, bix. Overrides the display.byte_notation config key.
 
 scoping:
   Restrict to captures within a date/time range (inclusive) and/or by session state/label substring. --since/--until accept a date (YYYY-MM-DD) or a timestamp (YYYY-MM-DD HH:MM[:SS[.ffffff]])
 
-  --since WHEN          Only captures on or after this date/time (YYYY-MM-DD[
-                        HH:MM:SS])
-  --until WHEN          Only captures on or before this date/time (YYYY-MM-DD[
-                        HH:MM:SS])
-  --date YYYY-MM-DD     Only captures on this exact date (shorthand for
-                        --since X --until X)
-  --today               Only captures recorded today (shorthand for --date
-                        <today>)
-  --last-sessions [N]   Only the most recent N recorded sessions in scope (N
-                        defaults to 1)
-  --last-session        Only the most recent recorded session in scope (alias
-                        for --last-sessions 1)
-  --state SUBSTR        Only captures whose session vehicle_states contain
-                        SUBSTR (case-insensitive), e.g. --state driving
-  --label SUBSTR        Only captures whose session/capture label contains
-                        SUBSTR (case-insensitive)
+  --since WHEN          Only captures on or after this date/time (YYYY-MM-DD[ HH:MM:SS])
+  --until WHEN          Only captures on or before this date/time (YYYY-MM-DD[ HH:MM:SS])
+  --date YYYY-MM-DD     Only captures on this exact date (shorthand for --since X --until X)
+  --today               Only captures recorded today (shorthand for --date <today>)
+  --last-sessions [N]   Only the most recent N recorded sessions in scope (N defaults to 1)
+  --last-session        Only the most recent recorded session in scope (alias for --last-sessions 1)
+  --state SUBSTR        Only captures whose session vehicle_states contain SUBSTR (case-insensitive), e.g. --state driving
+  --label SUBSTR        Only captures whose session/capture label contains SUBSTR (case-insensitive)
 
 examples:
   # which byte on AAF 2181 is vehicle speed (known on ESC 22C101)?
@@ -156,18 +119,14 @@ tip: --against takes a known signal ECU:PID:PARAM (or a raw ECU:PID:EXPR). Use
 ## `canair hunt can`
 
 ```
-usage: canair hunt can [-h] [--can-format {auto,asc,blf,csv,log,gvret}] --id
-                       ID --against 0xID:rN [--min-n N] [--top N]
-                       [--transform MODE] [--method {pearson,spearman}]
-                       [--join-tol SECONDS] [--json] [--all-interps]
-                       [--notation NAME]
+usage: canair hunt can [-h] [--can-format {auto,asc,blf,csv,log,gvret}] --id ID --against 0xID:rN [--min-n N] [--top N] [--transform MODE] [--method {pearson,spearman}]
+                       [--join-tol SECONDS] [--json] [--all-interps] [--notation NAME]
                        FILE
 
 Hunt on a raw broadcast-CAN frame log: sweep every byte/interpretation of --id's frames vs --against (a frame byte 0xID:rN in the same log). Hits are raw-CAN rN labels (no WiCAN expr); --promote is not supported for frames yet (frame signals are defined in signals/).
 
 positional arguments:
-  FILE                  Path to a raw broadcast-CAN frame log
-                        (.asc/.blf/candump .log/.trc/GVRET .csv)
+  FILE                  Path to a raw broadcast-CAN frame log (.asc/.blf/candump .log/.trc/GVRET .csv)
 
 options:
   -h, --help            show this help message and exit
@@ -177,18 +136,11 @@ options:
   --against 0xID:rN     Reference frame byte in the same log (e.g. 0x386:r0)
   --min-n N             Min aligned points (default 10)
   --top N               Max hits (default 12)
-  --transform MODE      Transform the reference before aligning (e.g. delta to
-                        hunt the byte that tracks the reference's *rate* —
-                        torque vs acceleration)
+  --transform MODE      Transform the reference before aligning (e.g. delta to hunt the byte that tracks the reference's *rate* — torque vs acceleration)
   --method {pearson,spearman}
-                        Ranking coefficient: pearson (linear, default) or
-                        spearman (rank)
+                        Ranking coefficient: pearson (linear, default) or spearman (rank)
   --join-tol SECONDS    Nearest-timestamp join window (default 2.5s)
   --json                Machine-readable output
-  --all-interps         Show every interpretation per offset (u8/i16/u24/…);
-                        default collapses to the best interpretation per byte
-                        offset
-  --notation NAME       byte-index notation for output labels: wican
-                        (default), isotp, torque, bix. Overrides the
-                        display.byte_notation config key.
+  --all-interps         Show every interpretation per offset (u8/i16/u24/…); default collapses to the best interpretation per byte offset
+  --notation NAME       byte-index notation for output labels: wican (default), isotp, torque, bix. Overrides the display.byte_notation config key.
 ```
