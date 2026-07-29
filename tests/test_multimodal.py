@@ -1,7 +1,5 @@
 """Tests for multi-modal signal analysis: typed decoding (enum/bitmask/ascii/
 date/bcd/struct), categorical statistics, and the event field-transition view.
-
-Covers Layers 1-3 of plans/2026-07-25-multimodal-signal-analysis.md.
 """
 
 from datetime import date

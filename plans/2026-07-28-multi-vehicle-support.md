@@ -167,6 +167,10 @@ constants.
 | F | **HK F1xx `-1` offset** lint heuristic hardcoded | Silently tolerates misfiled frames on non-HK | `uds_parse.py`, `quirks.py` | ✅ done (Phase 4 — profile `quirks:`) |
 | G | **HK-flavored identity labels** + `0xAA` padding-strip assumption | Cosmetic / trailing garbage on odd padding | `multi_batch.py`, `identity_decode.py`, `isotp_params.py` | ✅ done (Phase 4 — `tx_padding`-driven; labels marked) |
 | H | **No `profile.yaml` schema** — only `car_model`+`init` validated | New knobs won't be validated | `validate/pids.py` | ✅ done (`a0a0a80`) |
+| G-I | **Extended (mixed) 11-bit addressing** (`ATCEA<nn>`), per-ECU extension byte | Blocks **BMW** (i3/528i/M340d), **Mini**, PSA | `addressing.py` (new `NORMAL_EXTENDED_11BIT`), schema, editors | ⛔ open (survey 2026-07-29) |
+| G-J | **Functional-TX 29-bit + physical-RX flow control** (`0x18DB33F1`→`0x18DAF1xx`) | Blocks/undermines **Renault**, **Mitsubishi Outlander** on raw path | per-ECU FC-address override, raw path | ⛔ open (survey 2026-07-29) |
+| G-K | **Non-`0x18` 29-bit priority / non-derivable RX** (GM `14`, VW `17`, Volvo `1D`) | Workable via `normal_29bit` explicit ids | `addressing.py` (optional `priority:` on fixed mode); docs | 🟡 authoring (escape hatch exists) |
+| G-L | **Negative `rx_offset`** (PSA `−0x20`) | PSA/Stellantis 11-bit RX | `validate/pids.py`, `tests/test_addressing.py` | 🟡 small (confirm + test) |
 
 ## Phase 1 — Foundation: per-profile config plumbing — ✅ DONE (`a0a0a80`)
 
@@ -315,3 +319,142 @@ worked example above).
   fixture but adds little over the G6 for exercising the addressing code.
 - 29-bit (Phase 3) is the single largest effort — Phase 2's addressing
   abstraction is sequenced first precisely as its foundation.
+
+## Further compatibility findings (2026-07-29 WiCAN profile survey)
+
+Surveyed the **full upstream corpus** (`wican-fw/vehicle_profiles/`, 79 profiles /
+38 makes) — extracting each profile's `init` + per-PID `pid_init` addressing
+directives — to pressure-test the addressing/transport abstractions above against
+real-world makes beyond Hyundai/Kia/XPeng. Tags: **[code gap]** (needs new code),
+**[authoring]** (representable today, a profile-modelling nuance), **[note]**
+(informational / graceful degradation). This section is the authoritative backlog;
+the physical-band subset is handled in
+`plans/2026-07-29-configurable-physical-bands.md`.
+
+### New code gaps (ranked)
+
+- **G-I · ISO-TP extended (mixed) 11-bit addressing, per-ECU extension byte.
+  [code gap]** The recurring blocker. BMW **i3** (`ATCEA07`), **528i**
+  (`ATCEA18`), **M340d** (`ATCEA60`) and **Mini SE** (`ATCEA07`) all use the F-CAN
+  `0x6F1` tester scheme: an 11-bit header (`ATSH6F1`/`ATCRA6xx`) **plus a
+  target-address byte carried inside the ISO-TP payload** (`ATCEA<nn>`), with a
+  tester address (`ATTAF1`) and an extension-prefixed FC (`ATFCSD<nn>300000`).
+  The **extension byte varies per module** (07/18/60), so it must be a **per-ECU**
+  field. canair's `AddressingMode` has `extended_29bit` but **no 11-bit
+  extended/mixed mode** → `build_isotp_address` (`canlib/addressing.py:171`) can't
+  express it. Fix: add `NORMAL_EXTENDED_11BIT` mapping to isotp
+  `Extended_11bits`/`Mixed_11bits` with a per-ECU `target_address`/extension byte
+  (+ schema + validate + a `pids`/`ecu add` editor field). Also used by
+  **PSA/Stellantis** diagnostics. All BMW/Mini profiles are **WiCAN-PRO-only**.
+
+- **G-J · Functional-TX 29-bit + physical-RX flow control. [code gap]**
+  Requests sent on the **functional broadcast** id (`0x18DB33F1`), responses (and
+  ISO-TP flow control) on a **physical** id (`0x18DAF1xx`). Seen in **Renault**
+  (Megane/Scenic/R5/Master E-Tech family) and **Mitsubishi Outlander PHEV
+  2023/2025**. Expressible today as `normal_29bit` with explicit
+  `tx_id: 0x18DB33F1` / `rx_id: 0x18DAF1DB`, **but can-isotp addresses FC to
+  `txid`** (the functional broadcast), which is wrong — FC must go to the ECU's
+  physical address. Needs a **per-ECU FC-address override** on the raw path (same
+  knob already flagged open for the XPeng G6). Recurs alliance-wide, so worth
+  doing properly.
+
+- **G-K · Non-`0x18` 29-bit priority + non-derivable RX. [code gap (nicety) /
+  authoring]** Several makes use a 29-bit priority prefix other than `0x18` and an
+  RX that is **not** the `normal_fixed` byte-swap:
+  - **GM Global-A / Ultium** (`ATCP14`): TX `0x14DACBF1` → RX `0x142AF1CB` — note
+    the request/response discriminator is `DA`→`2A` (not the fixed-29 `0x18DA`
+    both-ways), so `normal_fixed_29bit` **cannot** model it. Spans a big family:
+    **bt1** (Hummer EV, Silverado EV, Cadillac Lyriq/Celestiq, Chevrolet Blazer
+    EV/Equinox EV, Acura ZDX), **GMC Sierra EV**, **Honda Prologue**.
+  - **VW/Porsche MEB** (`ATCP17`): TX `0x17FC007B` / RX `0x17FE007B` (also
+    **Cupra Seat Leon**, **VW ID/e-Golf/e-Up**).
+  - **Volvo SPA/CMA + Zeekr** (`ATCP1D`): fully arbitrary — TX `0x1DD01635`, RX
+    `0x1EC6AE80`, FC `0x1DD01635` (no derivable relation at all).
+  All are representable **today** via per-ECU `addressing.mode: normal_29bit` +
+  explicit `tx_id`/`rx_id` (the arbitrary-id path bakes in the priority), so
+  `normal_29bit` is the essential escape hatch — **document it as the go-to for
+  non-`0x18` makes.** Optional nicety: a `priority:` knob on `normal_fixed_29bit`.
+
+### RX-offset findings (per-ECU `rx_id` is mandatory, and offsets go negative)
+
+The `+8` assumption is Hyundai/Kia-specific; the corpus shows a **wide, per-ECU,
+sometimes-negative** spread — validating the Phase-2 per-ECU `rx_id` design and
+exposing one schema gap:
+
+| offset | makes / example |
+|--------|-----------------|
+| **+1** | Mitsubishi i-MiEV / Peugeot iON / Citroën C-Zero triplet (`0x761→0x762`); Smart EQ (`0x792→0x793`) |
+| **+8** | standard (Hyundai/Kia/BYD/MG/Chevy Bolt/Smart `0x7E4→0x7EC`) |
+| **+0x20** | Nissan Leaf, Dacia Spring, Twizy, Smart (`0x79B→0x7BB`; `0x743→0x763`) |
+| **+0x6A** | VW MEB 11-bit ECUs (`0x710→0x77A`, `0x746→0x7B0`) |
+| **+0x400** | Opel EOBD (`0x241→0x641`) |
+| **−0x20** | **PSA/Stellantis** — Fiat 600e/e-Ulysse, Peugeot e-208 (`0x6B4→0x694`, `0x6A2→0x682`, `0x6A6→0x686`) |
+
+- **Offsets vary *within one car*** — Smart EQ mixes `+1` / `+8` / `+0x20` across
+  its ECUs; PSA cars use several `0x6xx` headers all at `−0x20`. → a profile-wide
+  `addressing.rx_offset` is insufficient for these; **per-ECU `rx_id` is
+  required** (already supported). A uniform-offset make (PSA `−0x20`, Nissan
+  `+0x20`) can still use the profile default.
+- **[code gap — small] Negative `rx_offset`.** `resolve_rx` computes
+  `tx_id + rx_offset` (negative works arithmetically) and `resolve_rx_offset`
+  accepts any non-bool int, so `−0x20` is representable — but confirm
+  `_validate_addressing` (`validate/pids.py`) doesn't reject a negative
+  `rx_offset` and add a test (`tests/test_addressing.py`).
+
+### Transport / command-set findings
+
+- **STN/OBDLink `ST*` commands (Ford). [note / import]** Ford Focus RS / Transit
+  configure the CAN ID pair with `STCAFCP726,72E` (an STN1110 command, **not**
+  ELM327 AT) rather than `ATCRA`. Irrelevant to the raw `slcan-tcp` path
+  (tx=`0x726`, rx=`0x72E`, i.e. `+8`), but **profile-import tooling must parse
+  `STCAFCP <req>,<resp>`** to recover RX — it won't find an `ATCRA`. Also note
+  Ford's zero-padded 11-bit header `ATSH000726` (= `0x726`).
+- **`ATSP0` protocol auto-detect (Geely Geometry). [note]** canair has no
+  auto-detect; a profile must pin the mode (11-bit default is right for Geely).
+- **Custom FC cadence already matched. [note]** The near-universal `ATFCSD300000`
+  + `ATFCSM1` (`30 00 00` = CTS, BlockSize 0, STmin 0) equals canair's ISO-TP
+  defaults (`blocksize:0, stmin:0`, `isotp_params.py:26-27`) — no work. Hyundai
+  Ioniq9 uniquely uses `ATFCSM0`; minor.
+- **CAN-FD. [note / known limit]** Ultium (GM), MEB (VW), SPA2 (Volvo/Zeekr) run
+  CAN-FD on internal buses, but the **OBD diagnostic bus stays classic 500 k**, so
+  UDS diagnostics work unchanged; only passive FD-bus sniffing is unsupported.
+- **ELM-only directives** (`ATCEA`/`ATTAF1`/`ATCP`/`ATCERF1`/`ATCAF1`/`ATH1`/
+  `ATSP*`) are honoured only on `wican-ws`; on `slcan-tcp` their intent is
+  reimplemented natively — except **`ATCEA`/`ATTAF1` (extended 11-bit) which has
+  no raw-path equivalent yet** (gap G-I).
+
+### Service-ID / PID-key findings
+
+- **Services beyond `0x22`. [note]** `0x21` group reads (Toyota Hilux `21291`,
+  Smart `21083`, Nissan Leaf `21018`, Kia Niro/Soul `21014`, Renault Twizy
+  `21035`, Mitsubishi/PSA triplet `2101`), OBD mode `0x01` (Chevy Volt, Chrysler
+  Pacifica, Renault Megane, Toyota Rav4, `generic.json`), and KWP `0x1A`
+  ReadEcuId (Opel EOBD `1ADF`/`1A6D`). Raw query sends the bytes fine;
+  identity/DTC auto-probing (UDS `0x22` / KWP `0x1A`) **degrades gracefully** (NRC
+  → "not supported") — worth a doc note that discovery helpers are UDS/KWP-centric.
+- **PID-key conventions. [authoring]** The trailing ELM327 frame-count digit is
+  **corpus-wide** (`2201019`, `2211011`, `2227C42`) and **inconsistent within a
+  profile** (VW mixes `22028C` and `2227C42`), so import can't blindly strip the
+  7th char — disambiguate by DID validity. VW's `221E3B1E3D` is a **multi-DID**
+  request (`22 1E3B 1E3D`). Kia Kona has a literal **`remove`** PID key (an
+  upstream edit sentinel) — importers must skip it.
+
+### Cross-reference — physical bands (800 V roster)
+
+The corpus strongly reinforces the 800 V case in
+`plans/2026-07-29-configurable-physical-bands.md`: **Porsche Taycan**, **Zeekr
+001**, the **E-GMP** cars (Hyundai Ioniq 5/6/9, Kia EV6, Genesis GV60/GV70/G80),
+and 800 V-capable **GM Ultium / VW PPE** (Macan EV, Q6 e-tron) all run packs above
+the built-in `HV pack V` 300–450 band. Confirms `physical_bands.hv_pack` as a
+real, in-catalog need — not a hypothetical.
+
+### Net
+
+The abstractions from Phases 1–4 hold up well across 38 makes: `normal_29bit`
+(explicit ids) absorbs GM/VW/Volvo/Zeekr, per-ECU `rx_id` absorbs the wild offset
+spread, `id_protocol`/graceful-probe absorbs non-`0x22` services, and the FC
+cadence already matches. The **two genuine new code gaps** are **G-I (extended
+11-bit — BMW/Mini/PSA)** and **G-J (functional-TX flow control —
+Renault/Mitsubishi)**; a **small schema check for negative `rx_offset`** and
+**import-time parsing of `STCAFCP` / the `remove` sentinel / multi-DID keys** are
+minor follow-ups.
