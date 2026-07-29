@@ -60,7 +60,16 @@ async def run_raw_monitor(args, host: str, port: int, bitrate: int, pids_data: d
         f"  Raw CAN monitor via SLCAN — {host}:{port} @ {bitrate} bps  "
         f"(ECUs: {', '.join(sorted(ecus))})"
     )
-    bus = SlcanTcpBus(host, port=port, bitrate=bitrate)
+    try:
+        bus = SlcanTcpBus(host, port=port, bitrate=bitrate)
+    except OSError as e:
+        from ..transport.errors import connect_error_detail
+
+        print(
+            f"error: can't connect to the SLCAN port at {host}:{port} — {connect_error_detail(e)}",
+            file=sys.stderr,
+        )
+        return 1
     from ..timeouts import cli_timeout, ecu_timeouts_by_name
 
     cli = cli_timeout(args)
@@ -71,22 +80,40 @@ async def run_raw_monitor(args, host: str, port: int, bitrate: int, pids_data: d
         ecu_timeouts=(None if cli is not None else ecu_timeouts_by_name(pids_data)),
         isotp_config=pids_data.get("isotp"),
     )
-    await mode_monitor(
-        None,
-        query_steps,
-        pids_data,
-        args.verbose,
-        interval=args.monitor,
-        session_steps=session_steps,
-        keep_mode=_keep_mode(args),
-        keep_n=getattr(args, "keep", None),
-        save=args.save,
-        show_rulers=getattr(args, "rulers", False),
-        label=args.label,
-        vehicle_states=args.state,
-        notes=args.notes,
-        raw_client=client,
-    )
+    # The monitor reconciles its --save journal in its own finally even on a
+    # disconnect (so no data loss), then re-raises the transport error — catch it
+    # here through the shared classifier so a dropped bus is a clean message, not
+    # a traceback. (The ELM monitor gets this via dispatch_mode/run_session_guarded;
+    # the raw monitor bypasses dispatch_mode for its pipelined client, so guard here.)
+    from ..commands._live import wants_save
+    from ..transport.errors import describe_transport_error, transport_error_types
+
+    try:
+        await mode_monitor(
+            None,
+            query_steps,
+            pids_data,
+            args.verbose,
+            interval=args.monitor,
+            session_steps=session_steps,
+            keep_mode=_keep_mode(args),
+            keep_n=getattr(args, "keep", None),
+            save=args.save,
+            show_rulers=getattr(args, "rulers", False),
+            label=args.label,
+            vehicle_states=args.state,
+            notes=args.notes,
+            raw_client=client,
+        )
+    except transport_error_types() as e:
+        print(
+            "error: "
+            + describe_transport_error(
+                e, host=host, transport_label="SLCAN", saving=wants_save(args)
+            ),
+            file=sys.stderr,
+        )
+        return 1
     if getattr(args, "timings", False):
         from ..timing import print_timings
 

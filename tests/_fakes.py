@@ -22,6 +22,7 @@ Response dicts mirror :func:`canlib.uds_parse.parse_uds_response`: positives are
 
 from __future__ import annotations
 
+from canlib.timing import TimingRecorder
 from canlib.transport_stats import TransportStats
 from canlib.uds_parse import UdsResponse
 
@@ -92,6 +93,7 @@ class FakeTerminal:
         self.uds_kwargs: list[dict] = []
         self._seen: set[str] = set()
         self.diag = TransportStats(transport="fake")
+        self.timings = TimingRecorder()
 
     async def set_header(self, tx_id: int) -> None:
         self.header = tx_id

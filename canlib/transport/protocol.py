@@ -21,6 +21,7 @@ from __future__ import annotations
 import asyncio
 from typing import Protocol, runtime_checkable
 
+from ..timing import TimingRecorder
 from ..transport_stats import TransportStats
 from ..uds_parse import UdsResponse
 
@@ -36,6 +37,9 @@ class Terminal(Protocol):
     # Per-exchange outcome tally (drops/errors) — read by the monitor for its
     # live status line and recorded-capture provenance.
     diag: TransportStats
+
+    # Per-(ECU, PID) round-trip timings — read by `--timings` after a session.
+    timings: TimingRecorder
 
     async def set_header(self, tx_id: int) -> None: ...
 

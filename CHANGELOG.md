@@ -15,6 +15,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   goes to stderr and is suppressed when piped or with `--json`, so machine
   output stays clean.
 
+### Fixed
+
+- **Live commands now handle connection failures and mid-session drops
+  gracefully on both transports — never a bare traceback**, and never lose
+  `--save` data. Transport-error handling is centralized in one classifier
+  (`canlib/transport/errors.py`) used at connection setup *and* during a running
+  session (monitor / scan / query), so a device that's silent, refuses the port,
+  or drops mid-session (peer close / reset / broken pipe) always produces a
+  clean, actionable message + a proper exit code. Highlights:
+  - The message **states what actually happened** (timed out / connection
+    refused / connection dropped by the device / no route to host /
+    name-resolution failure) rather than a generic "didn't respond".
+  - The raw (`slcan-tcp`) pre-flight now **says whether the device is otherwise
+    online**: if its HTTP config API (port 80) responds but the SLCAN data port
+    doesn't, it reports the device is up and its SLCAN socket is wedged (a reboot
+    usually clears it) — versus a genuine offline/host/VPN problem.
+  - A `--save` session that drops mid-run is **pointed at recovery** — its data
+    is safe in the write-ahead journal (`canair captures uds --recover`).
+  - The raw path previously caught only `ConnectionError` (so a socket
+    `OSError`/`TimeoutError` or a python-can `CanError` from a peer-close
+    tracebacked); it now catches the full transport-failure set, matching the
+    WebSocket path. The raw live-monitor path is guarded too.
+
+- **Raw (`slcan-tcp`) commands fail fast with an actionable alert when the
+  device's SLCAN data port is unreachable** (the pre-flight above), instead of
+  blowing out `socket.create_connection`'s timeout deep in the stack.
+
 ## [1.8.1] - 2026-07-29
 
 ### Added

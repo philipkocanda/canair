@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import importlib.util
 import io
 import re
 import sys
@@ -56,9 +57,7 @@ from canlib.states import parse_states
 from canlib.transport.config import DEFAULT_TRANSPORT, VALID_TRANSPORTS
 from canlib.transport.protocol import Terminal
 
-try:
-    import websockets
-except ImportError:  # pragma: no cover
+if importlib.util.find_spec("websockets") is None:  # pragma: no cover
     print("ERROR: websockets not installed. Run: pip3 install websockets", file=sys.stderr)
     sys.exit(1)
 
@@ -438,9 +437,7 @@ async def async_main(args):
         sys.exit(1)
 
     # Fail loud: --save (and metadata flags) only apply to capture-producing modes.
-    _wants_save = (
-        args.save or args.label is not None or args.state is not None or args.notes is not None
-    )
+    _wants_save = wants_save(args)
     if _wants_save:
         _save_ok = bool(args.scan or args.raw or args.discover)
         if not _save_ok and args.multi:
@@ -492,66 +489,116 @@ async def async_main(args):
 
         terminal.ecu_timeouts = ecu_timeouts_by_tx(pids_data)
 
-    try:
-        print(f"Connecting to WiCAN at {host}...")
-        await terminal.connect()
-        print("Connected. Initializing ELM327...")
-        await terminal.init_elm(init_string)
+    from canlib.transport.errors import describe_transport_error, transport_error_types
 
-        if args.elm_timeout is not None:
-            atst_val = max(1, min(255, round(args.elm_timeout / 4.096)))
-            atst_cmd = f"ATST{atst_val:02X}"
-            await terminal.send_command(atst_cmd)
-            terminal.elm_timeout_cmd = atst_cmd
-            actual_ms = atst_val * 4.096
-            print(f"  ELM327 timeout: {atst_cmd} ({actual_ms:.0f}ms)")
-        elif pids_data.get("response_timeout_ms") is not None:
-            # Per-profile ELM response timeout (ECUs vary: the Ioniq 2017 is slow
-            # and needs a high value; faster vehicles can lower it to speed up
-            # cycles / NO-DATA detection). --elm-timeout overrides this.
-            atst_val = max(1, min(255, round(pids_data["response_timeout_ms"] / 4.096)))
-            atst_cmd = f"ATST{atst_val:02X}"
-            # Skip if the init string already applied this exact ATST (avoid a
-            # redundant round-trip on connect).
-            _init_atst = re.search(r"ATST([0-9A-Fa-f]{2})", init_string)
-            already = _init_atst and f"ATST{_init_atst.group(1).upper()}" == atst_cmd
-            if not already:
+    rc = 0
+    try:
+        try:
+            print(f"Connecting to WiCAN at {host}...")
+            await terminal.connect()
+            print("Connected. Initializing ELM327...")
+            await terminal.init_elm(init_string)
+
+            if args.elm_timeout is not None:
+                atst_val = max(1, min(255, round(args.elm_timeout / 4.096)))
+                atst_cmd = f"ATST{atst_val:02X}"
                 await terminal.send_command(atst_cmd)
                 terminal.elm_timeout_cmd = atst_cmd
                 actual_ms = atst_val * 4.096
-                print(f"  ELM327 timeout: {atst_cmd} ({actual_ms:.0f}ms, from profile)")
+                print(f"  ELM327 timeout: {atst_cmd} ({actual_ms:.0f}ms)")
+            elif pids_data.get("response_timeout_ms") is not None:
+                # Per-profile ELM response timeout (ECUs vary: the Ioniq 2017 is slow
+                # and needs a high value; faster vehicles can lower it to speed up
+                # cycles / NO-DATA detection). --elm-timeout overrides this.
+                atst_val = max(1, min(255, round(pids_data["response_timeout_ms"] / 4.096)))
+                atst_cmd = f"ATST{atst_val:02X}"
+                # Skip if the init string already applied this exact ATST (avoid a
+                # redundant round-trip on connect).
+                _init_atst = re.search(r"ATST([0-9A-Fa-f]{2})", init_string)
+                already = _init_atst and f"ATST{_init_atst.group(1).upper()}" == atst_cmd
+                if not already:
+                    await terminal.send_command(atst_cmd)
+                    terminal.elm_timeout_cmd = atst_cmd
+                    actual_ms = atst_val * 4.096
+                    print(f"  ELM327 timeout: {atst_cmd} ({actual_ms:.0f}ms, from profile)")
 
-        print("Ready.")
-        _print_sleep_banner(host)
+            print("Ready.")
+            _print_sleep_banner(host)
 
-        if args.wake:
-            args.session = True
+            if args.wake:
+                args.session = True
+        except transport_error_types() as e:
+            # Connection setup failed (connect / ELM init). Classify + report
+            # cleanly rather than dumping a traceback; no session ran yet.
+            print(
+                "error: "
+                + describe_transport_error(
+                    e, host=host, transport_label="WebSocket", saving=_wants_save
+                ),
+                file=sys.stderr,
+            )
+            return 1
 
-        await dispatch_mode(args, terminal, pids_data, host)
-
-        if getattr(args, "timings", False):
-            from canlib.timing import print_timings
-
-            print_timings(terminal.timings, as_json=args.json)
-
-    except ConnectionError as e:
-        print(f"Connection error: {e}", file=sys.stderr)
-        sys.exit(1)
-    except websockets.exceptions.InvalidURI as e:
-        print(f"Invalid WebSocket URI: {e}", file=sys.stderr)
-        sys.exit(1)
-    except websockets.exceptions.ConnectionClosedError as e:
-        print(f"WebSocket closed: {e}", file=sys.stderr)
-        sys.exit(1)
-    except OSError as e:
-        print(f"Network error: {e}", file=sys.stderr)
-        sys.exit(1)
+        # Session dispatch under the shared, transport-agnostic error guard.
+        rc = await run_session_guarded(args, terminal, pids_data, host, transport_label="WebSocket")
     finally:
         await terminal.close()
         log_command("--- SESSION END ---")
 
         if args.reboot:
             reboot_wican(host)
+    return rc
+
+
+def wants_save(args) -> bool:
+    """True when the invocation intends to record captures (``--save`` or metadata flags).
+
+    Shared by the ``--save`` validation and the session error guard (so a dropped
+    session knows whether to point the user at ``--recover``).
+    """
+    return bool(
+        getattr(args, "save", False)
+        or getattr(args, "label", None) is not None
+        or getattr(args, "state", None) is not None
+        or getattr(args, "notes", None) is not None
+    )
+
+
+async def run_session_guarded(
+    args, terminal: Terminal, pids_data, host, *, transport_label: str
+) -> int:
+    """Run :func:`dispatch_mode` (+ optional timings) under unified error handling.
+
+    The single, transport-agnostic home for "a live session hit a transport/IO
+    failure" — shared by both the ELM (``async_main``) and raw (``run_raw``)
+    entry points so a dropped/failed bus is always a clean, classified message
+    (never a traceback), with a ``--recover`` hint when a ``--save`` session was
+    in flight (its data is safe in the write-ahead journal). Returns a process
+    exit code: 0 on success, 1 on a transport failure.
+
+    The caller owns the terminal lifecycle (construct/close) and any
+    transport-specific ``finally`` (session-end logging, reboot). ``KeyboardInterrupt``
+    is intentionally *not* caught here — the mode handlers reconcile their journals
+    on interrupt, and ``run_live`` reports the interrupt.
+    """
+    from canlib.transport.errors import describe_transport_error, transport_error_types
+
+    try:
+        await dispatch_mode(args, terminal, pids_data, host)
+        if getattr(args, "timings", False):
+            from canlib.timing import print_timings
+
+            print_timings(terminal.timings, as_json=getattr(args, "json", False))
+        return 0
+    except transport_error_types() as e:
+        print(
+            "error: "
+            + describe_transport_error(
+                e, host=host, transport_label=transport_label, saving=wants_save(args)
+            ),
+            file=sys.stderr,
+        )
+        return 1
 
 
 def run_live(args) -> int:
@@ -559,13 +606,13 @@ def run_live(args) -> int:
     lock = WiCANLock()
     lock.acquire(force=args.force)
     try:
-        asyncio.run(async_main(args))
+        result = asyncio.run(async_main(args))
     except KeyboardInterrupt:
         print("\nInterrupted.")
         return 0
     finally:
         lock.release()
-    return 0
+    return result if isinstance(result, int) else 0
 
 
 def run(args) -> int:

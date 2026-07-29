@@ -43,6 +43,7 @@ class FakeRawTerminal:
 def routed(monkeypatch):
     calls = []
     monkeypatch.setattr(wican_mode, "require_protocol", lambda host, expected, **kw: None)
+    monkeypatch.setattr(wican_mode, "require_slcan_reachable", lambda host, port, **kw: None)
 
     async def _mon(args, host, port, bitrate, pids):
         calls.append("monitor")
@@ -93,3 +94,78 @@ def test_mode_mismatch_errors(monkeypatch, routed):
     monkeypatch.setattr(wican_mode, "require_protocol", boom)
     rc = asyncio.run(raw_ops.run_raw(Args(multi=["query BMS"]), T(), {}))
     assert rc == 2 and routed == []
+
+
+def test_slcan_port_unreachable_errors(monkeypatch, routed):
+    """A silent/wedged SLCAN data port fails fast with rc=2, no traceback."""
+
+    def boom(host, port, **kw):
+        raise ModeError("port not reachable")
+
+    monkeypatch.setattr(wican_mode, "require_slcan_reachable", boom)
+    rc = asyncio.run(raw_ops.run_raw(Args(multi=["query BMS"]), T(), {}))
+    assert rc == 2 and routed == []
+    assert FakeRawTerminal.instances == []  # never got to constructing the terminal
+
+
+def test_terminal_connect_oserror_is_clean(monkeypatch, routed, capsys):
+    """A socket failure at RawTerminal construction is a clean rc=1, not a traceback."""
+
+    def boom(*a, **k):
+        raise TimeoutError("timed out")
+
+    import canlib.transport as transport
+
+    monkeypatch.setattr(transport, "RawTerminal", boom)
+    rc = asyncio.run(raw_ops.run_raw(Args(multi=["query BMS"]), T(), {}))
+    assert rc == 1 and routed == []
+    # The message names the real reason, not a bare exception repr.
+    err = capsys.readouterr().err
+    assert "timed out" in err
+
+
+def test_mid_session_drop_is_clean(monkeypatch, capsys):
+    """A transport error DURING the session (e.g. peer close) is caught gracefully."""
+    import can
+
+    monkeypatch.setattr(wican_mode, "require_protocol", lambda host, expected, **kw: None)
+    monkeypatch.setattr(wican_mode, "require_slcan_reachable", lambda host, port, **kw: None)
+
+    async def _drop(args, terminal, pids, host):
+        raise can.CanError("SLCAN TCP connection closed by peer")
+
+    import canlib.commands._live as live
+
+    monkeypatch.setattr(live, "dispatch_mode", _drop)
+    import canlib.transport as transport
+
+    FakeRawTerminal.instances = []
+    monkeypatch.setattr(transport, "RawTerminal", FakeRawTerminal)
+
+    rc = asyncio.run(raw_ops.run_raw(Args(multi=["query BMS"]), T(), {}))
+    assert rc == 1  # clean exit code, no traceback
+    assert FakeRawTerminal.instances[0].closed is True  # terminal still closed
+    err = capsys.readouterr().err
+    assert "SLCAN" in err and "closed by peer" in err
+
+
+def test_mid_session_drop_while_saving_points_at_recover(monkeypatch, capsys):
+    """A --save session that drops tells the user their data is recoverable."""
+    monkeypatch.setattr(wican_mode, "require_protocol", lambda host, expected, **kw: None)
+    monkeypatch.setattr(wican_mode, "require_slcan_reachable", lambda host, port, **kw: None)
+
+    async def _drop(args, terminal, pids, host):
+        raise ConnectionResetError("reset by peer")
+
+    import canlib.commands._live as live
+
+    monkeypatch.setattr(live, "dispatch_mode", _drop)
+    import canlib.transport as transport
+
+    FakeRawTerminal.instances = []
+    monkeypatch.setattr(transport, "RawTerminal", FakeRawTerminal)
+
+    rc = asyncio.run(raw_ops.run_raw(Args(multi=["query BMS"], save=True, label="drive"), T(), {}))
+    assert rc == 1
+    err = capsys.readouterr().err
+    assert "--recover" in err

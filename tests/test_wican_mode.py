@@ -3,7 +3,14 @@
 import pytest
 
 from canlib import wican_mode
-from canlib.wican_mode import ModeError, require_protocol, require_ws_reachable, set_protocol
+from canlib.transport.errors import connect_error_detail
+from canlib.wican_mode import (
+    ModeError,
+    require_protocol,
+    require_slcan_reachable,
+    require_ws_reachable,
+    set_protocol,
+)
 
 
 class FakeDevice:
@@ -86,6 +93,9 @@ class TestRequireWsReachable:
 
     def test_raises_when_port_closed(self, monkeypatch):
         monkeypatch.setattr(wican_mode, "_tcp_open", lambda host, port, timeout: False)
+        monkeypatch.setattr(
+            wican_mode, "_tcp_probe", lambda host, port, timeout: ConnectionRefusedError()
+        )
         with pytest.raises(ModeError) as exc:
             require_ws_reachable("10.0.2.86")
         msg = str(exc.value)
@@ -93,6 +103,8 @@ class TestRequireWsReachable:
         assert "10.0.2.86" in msg
         assert "canair status" in msg
         assert "wican mode set" in msg
+        # ...and reports what actually happened (the real OS-level reason).
+        assert "refused" in msg
 
     def test_default_port_is_the_http_websocket_port(self, monkeypatch):
         seen: dict = {}
@@ -104,3 +116,74 @@ class TestRequireWsReachable:
         monkeypatch.setattr(wican_mode, "_tcp_open", fake_open)
         require_ws_reachable("10.0.2.86")
         assert seen["port"] == 80
+
+
+class TestRequireSlcanReachable:
+    def test_ok_when_port_open(self, monkeypatch):
+        monkeypatch.setattr(wican_mode, "_tcp_open", lambda host, port, timeout: True)
+        require_slcan_reachable("10.0.2.86", 35000)  # no raise
+
+    def test_raises_when_slcan_closed_but_device_online(self, monkeypatch):
+        # SLCAN port (35000) closed, but the HTTP config API (80) responds → the
+        # device is online and the SLCAN socket itself is wedged (reboot hint).
+        monkeypatch.setattr(wican_mode, "_tcp_open", lambda host, port, timeout: port == 80)
+        monkeypatch.setattr(wican_mode, "_tcp_probe", lambda host, port, timeout: TimeoutError())
+        with pytest.raises(ModeError) as exc:
+            require_slcan_reachable("10.0.2.86", 35000)
+        msg = str(exc.value)
+        assert "10.0.2.86:35000" in msg
+        assert "canair status" in msg
+        # ...reports what actually happened (the real OS-level reason)...
+        assert "timed out" in msg
+        # ...says the device is online (HTTP responded) and points at a reboot.
+        assert "online" in msg.lower()
+        assert "reboot" in msg.lower()
+
+    def test_raises_when_device_offline(self, monkeypatch):
+        # Neither port responds → the device looks offline; no false "it's online".
+        monkeypatch.setattr(wican_mode, "_tcp_open", lambda host, port, timeout: False)
+        monkeypatch.setattr(wican_mode, "_tcp_probe", lambda host, port, timeout: TimeoutError())
+        with pytest.raises(ModeError) as exc:
+            require_slcan_reachable("10.0.2.86", 35000)
+        msg = str(exc.value)
+        assert "offline" in msg.lower()
+        assert "online — its" not in msg.lower()
+
+    def test_probes_the_given_slcan_port(self, monkeypatch):
+        seen: dict = {}
+
+        def fake_open(host, port, timeout):
+            seen["port"] = port
+            return True
+
+        monkeypatch.setattr(wican_mode, "_tcp_open", fake_open)
+        require_slcan_reachable("10.0.2.86", 35000)
+        assert seen["port"] == 35000
+
+
+class TestConnectErrorDetail:
+    def test_timeout(self):
+        assert "timed out" in connect_error_detail(TimeoutError())
+
+    def test_refused(self):
+        assert "refused" in connect_error_detail(ConnectionRefusedError())
+
+    def test_name_resolution(self):
+        import socket
+
+        assert "resolution" in connect_error_detail(socket.gaierror("nope"))
+
+    def test_no_route_to_host(self):
+        import errno
+
+        err = OSError(errno.EHOSTUNREACH, "No route to host")
+        assert "no route to host" in connect_error_detail(err).lower()
+
+    def test_network_unreachable(self):
+        import errno
+
+        err = OSError(errno.ENETUNREACH, "Network is unreachable")
+        assert "network is unreachable" in connect_error_detail(err).lower()
+
+    def test_unknown_falls_back_to_message(self):
+        assert "weird" in connect_error_detail(OSError("weird failure"))

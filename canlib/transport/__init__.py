@@ -18,6 +18,12 @@ from .config import (
     TransportSpec,
     resolve_transport,
 )
+from .errors import (
+    connect_error_detail,
+    describe_transport_error,
+    is_transport_error,
+    transport_error_types,
+)
 from .protocol import Terminal
 from .raw_terminal import RawTerminal
 from .slcan_tcp import SlcanTcpBus, format_slcan_frame, parse_slcan_frame
@@ -34,8 +40,12 @@ __all__ = [
     "TransportConfig",
     "TransportError",
     "TransportSpec",
+    "connect_error_detail",
+    "describe_transport_error",
     "format_slcan_frame",
+    "is_transport_error",
     "parse_slcan_frame",
     "resolve_transport",
     "response_id",
+    "transport_error_types",
 ]

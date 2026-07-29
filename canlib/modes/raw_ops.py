@@ -35,6 +35,18 @@ async def run_raw(args, transport, pids_data) -> int:
 
     port, bitrate = transport.resolve_device_defaults(pids_data.get("can_bitrate"))
 
+    # Pre-flight reachability check for the SLCAN *data* port (distinct from the
+    # HTTP config API require_protocol just probed). A wedged/silent socket would
+    # otherwise blow out socket.create_connection's connect timeout and raise a
+    # bare TimeoutError deep in the transport stack — fail fast with guidance.
+    from ..wican_mode import require_slcan_reachable
+
+    try:
+        require_slcan_reachable(host, port)
+    except ModeError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+
     # Monitor: optimized pipelined + batched backend.
     if args.multi and args.monitor:
         from .raw_monitor import run_raw_monitor
@@ -43,7 +55,7 @@ async def run_raw(args, transport, pids_data) -> int:
 
     # All other commands: reuse the shared dispatch over a RawTerminal adapter.
     from ..addressing import EcuAddress, resolve_mode, resolve_rx_offset
-    from ..commands._live import dispatch_mode
+    from ..commands._live import run_session_guarded
     from ..pids import build_ecu_index
     from ..quirks import HK_F1XX_MINUS_ONE, has_quirk
     from ..timeouts import cli_timeout, ecu_timeouts_by_tx
@@ -58,31 +70,35 @@ async def run_raw(args, transport, pids_data) -> int:
     addr_map: dict[int, EcuAddress] = {
         info["tx_id"]: info["address"] for info in ecu_index.values()
     }
-    terminal = RawTerminal(
-        host,
-        port,
-        bitrate,
-        verbose=args.verbose,
-        unsafe=getattr(args, "unsafe", False),
-        timeout=(cli if cli is not None else 2.0),
-        isotp_config=pids_data.get("isotp"),
-        addr_map=addr_map,
-        rx_offset=resolve_rx_offset(pids_data),
-        mode=resolve_mode(pids_data),
-        hk_f1xx_offset=has_quirk(pids_data, HK_F1XX_MINUS_ONE),
-    )
+    try:
+        terminal = RawTerminal(
+            host,
+            port,
+            bitrate,
+            verbose=args.verbose,
+            unsafe=getattr(args, "unsafe", False),
+            timeout=(cli if cli is not None else 2.0),
+            isotp_config=pids_data.get("isotp"),
+            addr_map=addr_map,
+            rx_offset=resolve_rx_offset(pids_data),
+            mode=resolve_mode(pids_data),
+            hk_f1xx_offset=has_quirk(pids_data, HK_F1XX_MINUS_ONE),
+        )
+    except OSError as e:
+        # The pre-flight check above should catch an unreachable port, but guard
+        # the connect itself too (a race, or the port closing between probe and
+        # connect) so a socket failure is a clean message, not a traceback.
+        from ..transport.errors import connect_error_detail
+
+        print(
+            f"error: can't connect to the SLCAN port at {host}:{port} — {connect_error_detail(e)}",
+            file=sys.stderr,
+        )
+        return 1
     # Per-ECU budgets apply only when the user didn't force --timeout.
     if cli is None:
         terminal.ecu_timeouts = ecu_timeouts_by_tx(pids_data)
     try:
-        await dispatch_mode(args, terminal, pids_data, host)
-    except ConnectionError as e:
-        print(f"Connection error: {e}", file=sys.stderr)
-        return 1
+        return await run_session_guarded(args, terminal, pids_data, host, transport_label="SLCAN")
     finally:
-        if getattr(args, "timings", False):
-            from ..timing import print_timings
-
-            print_timings(terminal.timings, as_json=getattr(args, "json", False))
         await terminal.close()
-    return 0

@@ -69,13 +69,23 @@ def require_protocol(
         raise ModeError(msg)
 
 
-def _tcp_open(host: str, port: int, timeout: float) -> bool:
-    """Return True if a TCP connection to ``host:port`` succeeds within ``timeout``."""
+def _tcp_probe(host: str, port: int, timeout: float) -> OSError | None:
+    """Try to open ``host:port``; return the ``OSError`` on failure, ``None`` on success.
+
+    Callers that want the *reason* a connection failed (to show the user what
+    actually happened — timed out vs refused vs no route vs bad name) inspect the
+    returned exception; :func:`_tcp_open` is the bool-only convenience wrapper.
+    """
     try:
         with socket.create_connection((host, port), timeout=timeout):
-            return True
-    except OSError:
-        return False
+            return None
+    except OSError as e:
+        return e
+
+
+def _tcp_open(host: str, port: int, timeout: float) -> bool:
+    """Return True if a TCP connection to ``host:port`` succeeds within ``timeout``."""
+    return _tcp_probe(host, port, timeout) is None
 
 
 def require_ws_reachable(host: str, *, port: int = 80, timeout: float = 4.0) -> None:
@@ -94,9 +104,12 @@ def require_ws_reachable(host: str, *, port: int = 80, timeout: float = 4.0) -> 
     """
     if _tcp_open(host, port, timeout):
         return
+    from .transport.errors import connect_error_detail
+
+    err = _tcp_probe(host, port, timeout)
+    detail = connect_error_detail(err) if err is not None else f"no response within {timeout:.0f}s"
     raise ModeError(
-        f"can't reach the WiCAN's ELM327 WebSocket terminal at ws://{host}/ws — "
-        f"TCP port {port} didn't respond within {timeout:.0f}s.\n"
+        f"can't reach the WiCAN's ELM327 WebSocket terminal at ws://{host}/ws — {detail}.\n"
         f"The 'wican-ws' transport needs the device's HTTP/WebSocket server. "
         f"Likely causes:\n"
         f"  • the device is powered off, asleep, or still booting\n"
@@ -107,6 +120,58 @@ def require_ws_reachable(host: str, *, port: int = 80, timeout: float = 4.0) -> 
         f"  • diagnose:      canair status --wican {host}\n"
         f"  • switch mode:   canair wican mode set elm327"
     )
+
+
+def require_slcan_reachable(host: str, port: int, *, timeout: float = 5.0) -> None:
+    """Raise :class:`ModeError` if the WiCAN's SLCAN data port doesn't respond.
+
+    The ``slcan-tcp`` transport moves CAN frames over a raw TCP socket on the
+    device's SLCAN port (distinct from its HTTP config API on port 80). The
+    config API can be perfectly reachable — so ``require_protocol`` passes — while
+    the SLCAN port is hung or silent (a device that hasn't been rebooted in a
+    long time, still booting, or in a mode that isn't serving SLCAN). Without
+    this pre-check ``socket.create_connection`` blows out its connect timeout and
+    raises a bare ``TimeoutError`` deep in the stack with no guidance. Fail fast
+    with an actionable alert instead.
+
+    We also probe the device's HTTP config API (port 80) so the alert can say
+    *whether the device is otherwise online*: if HTTP answers but the SLCAN port
+    doesn't, the device is on the network and the SLCAN socket itself is wedged
+    (a reboot usually clears it) — a much more specific hint than a generic
+    "unreachable", which would suggest a wrong host / VPN / power problem.
+    """
+    if _tcp_open(host, port, timeout):
+        return
+    from .transport.errors import connect_error_detail
+
+    err = _tcp_probe(host, port, timeout)
+    detail = connect_error_detail(err) if err is not None else f"no response within {timeout:.0f}s"
+    # Is the device otherwise reachable? A quick TCP check of its HTTP config port.
+    http_ok = _tcp_open(host, 80, timeout=2.0)
+    lines = [f"can't reach the WiCAN's SLCAN data port at {host}:{port} — {detail}."]
+    if http_ok:
+        lines += [
+            "The device IS online — its HTTP config API (port 80) responded — but its "
+            "SLCAN data port didn't answer.",
+            "That points at the SLCAN socket itself, not the network/host:",
+            "  • the device has been up a long time and its SLCAN socket is wedged "
+            "— a reboot (power-cycle) usually clears it",
+            "  • or the device isn't in 'slcan' mode — the raw transport needs it "
+            "(switch:  canair wican mode set slcan)",
+        ]
+    else:
+        lines += [
+            "The device's HTTP config API (port 80) didn't respond either, so the "
+            "device looks offline/unreachable. Likely causes:",
+            "  • the device is powered off, asleep, or still booting",
+            f"  • the host is wrong — trying '{host}' (check --wican / transport.host in config)",
+            "  • you're not on the same network as the device (VPN down? wrong Wi-Fi?)",
+        ]
+    lines += [
+        f"  • diagnose:      canair status --wican {host}",
+        "  • or use the ELM327 terminal (works in any mode): --transport wican-ws",
+    ]
+    raise ModeError("\n".join(lines))
 
 
 def wait_until_ready(host: str, port: int = 80, timeout: float = 45.0) -> bool:
