@@ -456,3 +456,127 @@ class TestUpdateCommand:
         rc = update_cmd.run(self._args(yes=True))
         assert rc == update_cmd._FAILED
         assert "git checkout failed" in capsys.readouterr().out
+
+    def _install(self, **kw):
+        base = {
+            "running_origin": "uv-tool",
+            "running_version": "1.0.0",
+            "running_package_dir": "/tmp/canlib",
+            "clone_dir": None,
+            "clone_version": "1.1.0",
+            "tool_install_dir": "/tmp/uvtool",
+            "tool_version": "1.0.0",
+            "out_of_sync": True,
+        }
+        base.update(kw)
+        return base
+
+    def test_out_of_sync_reinstalls_without_new_release(
+        self, monkeypatch, capsys, tmp_path
+    ):
+        """No newer release, but the tool copy drifted from the clone -> resync."""
+        from canlib.commands import update as update_cmd
+
+        # Latest release equals the running version, so nothing to check out.
+        monkeypatch.setattr(
+            update_cmd,
+            "fetch_latest_release",
+            lambda *a, **k: {"tag": "v1.0.0", "url": "https://example/rel"},
+        )
+        import canlib
+
+        monkeypatch.setattr(canlib, "__version__", "1.0.0")
+        monkeypatch.setattr(update_cmd, "_find_clone_dir", lambda: tmp_path)
+        monkeypatch.setattr(update_cmd, "_git_head", lambda clone: "main")
+        monkeypatch.setattr(
+            update_cmd,
+            "describe_install",
+            lambda clone: self._install(clone_dir=str(clone)),
+        )
+        monkeypatch.setattr(update_cmd.shutil, "which", lambda name: "/usr/bin/uv")
+
+        git_calls: list[tuple[str, ...]] = []
+        monkeypatch.setattr(
+            update_cmd, "_git", lambda clone, *a: git_calls.append(a)
+        )
+
+        install_calls: list[list[str]] = []
+
+        class _CP:
+            returncode = 0
+            stdout = ""
+            stderr = ""
+
+        def _run(cmd, *a, **k):
+            install_calls.append(cmd)
+            return _CP()
+
+        monkeypatch.setattr(update_cmd.subprocess, "run", _run)
+
+        rc = update_cmd.run(self._args(yes=True))
+        assert rc == 0
+        # It resynced without touching git (no fetch/checkout).
+        assert git_calls == [] or all(
+            a[:1] not in {("fetch",), ("checkout",)} for a in git_calls
+        )
+        # And reinstalled the tool from the clone.
+        assert any("install" in cmd and "--reinstall" in cmd for cmd in install_calls)
+        out = capsys.readouterr().out
+        assert "out of sync" in out
+
+    def test_out_of_sync_no_uv_reports_manual(self, monkeypatch, capsys, tmp_path):
+        from canlib.commands import update as update_cmd
+
+        monkeypatch.setattr(
+            update_cmd,
+            "fetch_latest_release",
+            lambda *a, **k: {"tag": "v1.0.0", "url": "https://example/rel"},
+        )
+        import canlib
+
+        monkeypatch.setattr(canlib, "__version__", "1.0.0")
+        monkeypatch.setattr(update_cmd, "_find_clone_dir", lambda: tmp_path)
+        monkeypatch.setattr(update_cmd, "_git_head", lambda clone: "main")
+        monkeypatch.setattr(
+            update_cmd,
+            "describe_install",
+            lambda clone: self._install(clone_dir=str(clone)),
+        )
+        monkeypatch.setattr(update_cmd.shutil, "which", lambda name: None)
+
+        rc = update_cmd.run(self._args(yes=True))
+        assert rc == update_cmd._CANNOT
+        out = capsys.readouterr().out
+        assert "uv tool install" in out
+        assert "--reinstall" in out
+
+    def test_up_to_date_and_in_sync_does_nothing(self, monkeypatch, capsys, tmp_path):
+        from canlib.commands import update as update_cmd
+
+        monkeypatch.setattr(
+            update_cmd,
+            "fetch_latest_release",
+            lambda *a, **k: {"tag": "v1.0.0", "url": "https://example/rel"},
+        )
+        import canlib
+
+        monkeypatch.setattr(canlib, "__version__", "1.0.0")
+        monkeypatch.setattr(update_cmd, "_find_clone_dir", lambda: tmp_path)
+        monkeypatch.setattr(update_cmd, "_git_head", lambda clone: "main")
+        monkeypatch.setattr(
+            update_cmd,
+            "describe_install",
+            lambda clone: self._install(
+                clone_dir=str(clone), clone_version="1.0.0", out_of_sync=False
+            ),
+        )
+
+        called: list[str] = []
+        monkeypatch.setattr(
+            update_cmd.subprocess, "run", lambda *a, **k: called.append("run")
+        )
+
+        rc = update_cmd.run(self._args(yes=True))
+        assert rc == 0
+        assert called == []
+        assert "Already up to date" in capsys.readouterr().out

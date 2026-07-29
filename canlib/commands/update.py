@@ -21,7 +21,10 @@ working tree (``uv run`` / dev checkout) vs the ``uv tool install`` snapshot
 (bare ``canair``) — the clone's current git HEAD (branch name, e.g. ``main``, or
 ``detached at <tag>`` after an update), and warns when the installed tool copy's
 version has drifted out of sync with the source clone's ``pyproject.toml`` (so a
-bare ``canair`` would run different code than ``uv run canair``).
+bare ``canair`` would run different code than ``uv run canair``). When there's no
+newer release but the installed copy *is* out of sync, ``canair update`` offers a
+reinstall-only resync (``uv tool install <clone> --reinstall``) — no network or
+tag checkout needed — to bring the bare ``canair`` back in line with the clone.
 """
 
 from __future__ import annotations
@@ -170,6 +173,88 @@ def _manual_instructions(clone: Path | None, tag: str | None = None) -> str:
     )
 
 
+def _reinstall_instructions(clone: Path | None) -> str:
+    """Manual steps for a reinstall-only resync (no tag checkout needed)."""
+    loc = str(clone) if clone else "<your canair clone>"
+    return f"  To reinstall manually:\n    uv tool install {loc} --reinstall\n"
+
+
+def _confirm(c, yes: bool) -> bool:
+    """Ask for confirmation (unless ``--yes``); True to proceed, False to abort.
+
+    Prints the standard non-interactive / aborted notices as a side effect.
+    """
+    if yes:
+        return True
+    if not (sys.stdin.isatty() and sys.stdout.isatty()):
+        c.print("  Non-interactive; pass --yes to proceed. Nothing changed.\n")
+        return False
+    try:
+        answer = input("  Proceed? [y/N]: ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        answer = ""
+    if answer not in ("y", "yes"):
+        c.print("  Aborted. Nothing changed.\n")
+        return False
+    return True
+
+
+def _do_reinstall(c, uv: str, clone: Path) -> int:
+    """Run ``uv tool install <clone> --reinstall``; return an exit code."""
+    c.print("  Reinstalling the CLI …")
+    result = subprocess.run(
+        [uv, "tool", "install", str(clone), "--reinstall"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        c.print("  [red]reinstall failed:[/red]")
+        c.print(f"  [dim]{(result.stderr or result.stdout).strip()}[/dim]\n")
+        return _FAILED
+    return _OK
+
+
+def _sync_reinstall(c, args, clone: Path | None, install: dict) -> int:
+    """Resync the installed tool copy with the clone (no newer release).
+
+    When the ``uv tool install`` copy's version has drifted from the source
+    clone's ``pyproject.toml`` version but there's no newer release to check
+    out, a plain ``uv tool install <clone> --reinstall`` brings the bare
+    ``canair`` back in line with the clone (and with ``uv run canair``). No
+    network or tag checkout is needed — the clone is already where it should be.
+    """
+    tool_version = install.get("tool_version")
+    src_version = install.get("clone_version")
+    c.print(
+        f"  The installed `canair` ([bold]{tool_version}[/bold]) is out of sync "
+        f"with the clone ([bold]{src_version}[/bold])."
+    )
+    if clone is None:
+        c.print("  [yellow]Couldn't locate a git clone to reinstall from.[/yellow]")
+        c.print(_reinstall_instructions(None))
+        return _CANNOT
+
+    uv = shutil.which("uv")
+    if uv is None:
+        c.print("  [yellow]`uv` not found on PATH — can't reinstall automatically.[/yellow]")
+        c.print(_reinstall_instructions(clone))
+        return _CANNOT
+
+    c.print(f"  This will reinstall from [bold]{clone}[/bold] to sync them:")
+    c.print(f"    uv tool install {clone} --reinstall\n")
+
+    if not _confirm(c, args.yes):
+        return _CANNOT
+
+    rc = _do_reinstall(c, uv, clone)
+    if rc != _OK:
+        c.print(_reinstall_instructions(clone))
+        return rc
+    c.print("\n  [green]✓ Reinstalled.[/green] The installed `canair` now matches the clone.\n")
+    return _OK
+
+
 def _origin_label(origin: str) -> str:
     return {
         "repo": "repo working tree (uv run / dev checkout)",
@@ -267,9 +352,16 @@ def run(args) -> int:
     if args.check:
         return _OK
 
-    if latest is not None and not update_available:
-        c.print("  Already up to date. Nothing to do.\n")
-        return _OK
+    if not update_available:
+        # No newer release to check out. Either the installed tool copy has
+        # drifted from the clone (offer a reinstall-only resync — no network,
+        # no tag checkout), or we're genuinely up to date / can't determine a
+        # tag (fall through to the offline refuse path below).
+        if install["out_of_sync"]:
+            return _sync_reinstall(c, args, clone, install)
+        if latest is not None:
+            c.print("  Already up to date. Nothing to do.\n")
+            return _OK
 
     if clone is None:
         c.print("  [yellow]Couldn't locate a git clone to update from.[/yellow]")
@@ -305,18 +397,8 @@ def run(args) -> int:
         f"    git fetch --tags  &&  git checkout {latest}  &&  uv tool install {clone} --reinstall\n"
     )
 
-    if not args.yes:
-        if not (sys.stdin.isatty() and sys.stdout.isatty()):
-            c.print("  Non-interactive; pass --yes to proceed. Nothing changed.\n")
-            return _CANNOT
-        try:
-            answer = input("  Proceed? [y/N]: ").strip().lower()
-        except (EOFError, KeyboardInterrupt):
-            print()
-            answer = ""
-        if answer not in ("y", "yes"):
-            c.print("  Aborted. Nothing changed.\n")
-            return _CANNOT
+    if not _confirm(c, args.yes):
+        return _CANNOT
 
     c.print("\n  Fetching tags …")
     fetch = _git(clone, "fetch", "--tags", "--force")
@@ -340,17 +422,10 @@ def run(args) -> int:
     if checkout.stderr.strip():
         c.print(f"  [dim]{checkout.stderr.strip()}[/dim]")
 
-    c.print("  Reinstalling the CLI …")
-    install = subprocess.run(
-        [uv, "tool", "install", str(clone), "--reinstall"],
-        capture_output=True,
-        text=True,
-    )
-    if install.returncode != 0:
-        c.print("  [red]reinstall failed:[/red]")
-        c.print(f"  [dim]{(install.stderr or install.stdout).strip()}[/dim]\n")
+    rc = _do_reinstall(c, uv, clone)
+    if rc != _OK:
         c.print(_manual_instructions(clone, latest))
-        return _FAILED
+        return rc
 
     c.print("\n  [green]✓ Updated.[/green] Run `canair --version` to confirm.\n")
     return _OK

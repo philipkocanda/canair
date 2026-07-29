@@ -28,7 +28,10 @@ working tree (``uv run`` / dev checkout) vs the ``uv tool install`` snapshot
 (bare ``canair``) — the clone's current git HEAD (branch name, e.g. ``main``, or
 ``detached at <tag>`` after an update), and warns when the installed tool copy's
 version has drifted out of sync with the source clone's ``pyproject.toml`` (so a
-bare ``canair`` would run different code than ``uv run canair``).
+bare ``canair`` would run different code than ``uv run canair``). When there's no
+newer release but the installed copy *is* out of sync, ``canair update`` offers a
+reinstall-only resync (``uv tool install <clone> --reinstall``) — no network or
+tag checkout needed — to bring the bare ``canair`` back in line with the clone.
 
 options:
   -h, --help  show this help message and exit
