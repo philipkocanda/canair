@@ -1,6 +1,6 @@
 """Shared path roots and lazily-resolved constants.
 
-Path roots (``PACKAGE_DIR``, ``SCRIPT_DIR``, ``BUNDLED_PROFILES_DIR``,
+Path roots (``PACKAGE_DIR``, ``SCRIPT_DIR``, ``BUNDLED_PROFILES_DIR``, ``TEMPLATES_DIR``,
 ``SCHEMA_DIR``) are static. Vehicle-data paths (``ECUS_DIR``, ``CAPTURES_DIR``)
 and WiCAN settings (``WICAN_ADDRESSES``, ``DEFAULT_WICAN``)
 are resolved lazily via :mod:`canlib.profile` / :mod:`canlib.config` so the
@@ -13,6 +13,7 @@ from pathlib import Path
 PACKAGE_DIR = Path(__file__).parent  # canlib/
 SCRIPT_DIR = PACKAGE_DIR.parent  # repo root
 BUNDLED_PROFILES_DIR = SCRIPT_DIR / "profiles"  # profiles shipped with the repo
+TEMPLATES_DIR = SCRIPT_DIR / "templates"  # scaffold templates for `profile create`
 SCHEMA_DIR = PACKAGE_DIR / "schema"  # tool-owned YAML/JSON schemas
 
 # Legacy repo-local WiCAN config (deprecated in favor of ~/.config/canair/config.yaml)

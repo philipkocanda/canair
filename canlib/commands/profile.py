@@ -198,72 +198,18 @@ def _cmd_use(args) -> int:
     return 0
 
 
-# Starter vehicle_states.yaml — the shared base power-state vocabulary. Add `when:`
-# predicates over decoded ECU.PARAM values to enable state auto-suggestion.
-_STATES_TEMPLATE = """\
-# {car_model} — vehicle operating states
-#
-# Canonical, ordered operating states for capture sessions (`vehicle_states`
-# field). State names are UPPERCASE (a controlled vocabulary, like the CAN-bus
-# codes). Add a `when:` predicate over decoded PID values to auto-suggest the
-# state at save time (first match wins). See canlib/schema/states_schema.yaml
-# and `canair validate states` / `canair states`. Predicate grammar: ECU.PARAM
-# names, and/or/not, == != < <= > >=, numeric/'string' literals, and the
-# sentinels __no_response__ / __responded__.
+# Scaffold templates live in the repo-root `templates/` dir (shipped in the wheel
+# via pyproject force-include). Placeholders use `string.Template` ($var) syntax
+# so literal braces in YAML/comments never need escaping. See templates/*.tmpl.
+def _render_template(filename: str, **subs: str) -> str:
+    """Read templates/<filename> and substitute $placeholders (safe_substitute
+    tolerates each template using only the vars it needs)."""
+    from string import Template
 
-states:
-  - name: CHARGING
-    description: HV battery actively charging (implies plugged).
-    # when: "BMS.BATTERY_CURRENT < -1"
-  - name: READY
-    description: HV active, driveable.
-    # when: "VCU.EV_READY == 1"
-  - name: DEEPSLEEP
-    description: No ECU responded (12V standby only).
-    when: "__no_response__"
-  - name: SLEEP
-    description: Light sleep / 12V standby (unplugged).
-  - name: PLUGGED
-    description: Charge cable connected, not necessarily charging.
-  - name: ACC
-    description: Accessory power (ACC1).
-  - name: ACC2
-    description: Full ignition, no HV (ACC2/IGN).
-  - name: PARKED
-    description: Stationary, gear in Park.
-  - name: DRIVING
-    description: In motion.
-  - name: ALL
-    description: Applicable/readable in every vehicle state.
-"""
+    from canlib.constants import TEMPLATES_DIR
 
-
-# Starter can_buses.yaml — the profile's physical CAN bus segment vocabulary.
-# Bus naming is vendor-specific, so a fresh profile starts with just `All` (the
-# gateway) plus commented placeholders to fill in from the car's service docs.
-_CAN_BUSES_TEMPLATE = """\
-# {car_model} — physical CAN bus segment vocabulary
-#
-# Codes accepted by each ECU's `can_bus:` field (in ecus/). Each bare code maps
-# to a human name + description (and an optional `bitrate` in bit/s). Naming is
-# vendor-specific: Hyundai/Kia use B-CAN/P-CAN/C-CAN/MM-CAN/H-CAN (Body,
-# Powertrain, Chassis, Multimedia, Hybrid); Ford uses HS/MS; BMW PT-CAN/K-CAN.
-# See canlib/schema/can_buses_schema.yaml and `canair validate can-buses`. Set an
-# ECU's segment(s) with `canair pids set-can-bus ECU CODE [CODE ...]`.
-
-can_buses:
-  ALL:
-    name: All segments
-    description: Convention for the gateway that bridges every segment.
-  # B-CAN:
-  #   name: Body CAN
-  #   description: Comfort/body electronics.
-  #   bitrate: 100000
-  # P-CAN:
-  #   name: Powertrain CAN
-  #   description: Engine/drivetrain control.
-  #   bitrate: 500000
-"""
+    text = (TEMPLATES_DIR / filename).read_text()
+    return Template(text).safe_substitute(subs)
 
 
 def create_profile(
@@ -300,39 +246,14 @@ def create_profile(
     (root / "out").mkdir(parents=True, exist_ok=True)
 
     (root / "profile.yaml").write_text(
-        f"# {car_model} — vehicle profile settings (created by `canair profile create`)\n"
-        f"# Per-ECU definitions live in ecus/. Populate with `canair discover --register`\n"
-        f"# (add --identify to read identity DIDs), then `canair pids ...`. Validate with\n"
-        f"# `canair validate`.\n"
-        f'car_model: "{car_model}"\n'
-        f'init: "{init}"\n'
-        f"\n"
-        f"# Vehicle bus speed in bit/s (the CAN datarate). Uncomment if this car's\n"
-        f"# diagnostic bus is not 500 kbit/s (e.g. 250000 for some body/comfort buses).\n"
-        f"# Precedence: config transport.bitrate > this > device config > 500000.\n"
-        f"# can_bitrate: 500000\n"
-        f"\n"
-        f"# CAN diagnostic addressing. By default an ECU's response address is\n"
-        f"# tx_id + 0x08 (11-bit Hyundai/Kia convention). Set rx_offset once here for\n"
-        f"# a make with a different fixed offset (e.g. 0x80 for XPeng: 0x704 -> 0x784);\n"
-        f"# an individual ECU can still override with its own rx_id.\n"
-        f"# addressing:\n"
-        f"#   rx_offset: 0x08\n"
-        f"\n"
-        f"# ELM327 response timeout in ms, applied as ATSTxx (--elm-timeout overrides).\n"
-        f"# Raise it for slow-responding ECUs; lower it to speed up cycles / NO-DATA\n"
-        f"# detection. Left unset, the ELM327 default applies.\n"
-        f"# response_timeout_ms: 500\n"
-        f"\n"
-        f"# Client-side ISO-TP tuning for the slcan-tcp transport. Defaults suit most\n"
-        f"# 11-bit/classic-CAN vehicles; override per this car's needs. See\n"
-        f"# canlib/transport/isotp_params.py for every field + default.\n"
-        f"# isotp:\n"
-        f"#   tx_padding: 0xAA   # ISO-TP fill byte (0x00/0xCC on some makes)\n"
-        f"#   can_fd: false      # true for CAN-FD ECUs\n"
+        _render_template("profile.yaml.tmpl", car_model=car_model, init=init)
     )
-    (root / "vehicle_states.yaml").write_text(_STATES_TEMPLATE.format(car_model=car_model))
-    (root / "can_buses.yaml").write_text(_CAN_BUSES_TEMPLATE.format(car_model=car_model))
+    (root / "vehicle_states.yaml").write_text(
+        _render_template("vehicle_states.yaml.tmpl", car_model=car_model)
+    )
+    (root / "can_buses.yaml").write_text(
+        _render_template("can_buses.yaml.tmpl", car_model=car_model)
+    )
 
     if set_default:
         set_config_value("default_profile", name)

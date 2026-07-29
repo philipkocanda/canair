@@ -32,6 +32,7 @@ exclude = ["profiles/*/logs", "**/__pycache__"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "profiles" = "profiles"
+"templates" = "templates"
 
 [dependency-groups]
 dev = [

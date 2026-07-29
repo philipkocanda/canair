@@ -1,0 +1,30 @@
+# $car_model — vehicle profile settings (created by `canair profile create`)
+# Per-ECU definitions live in ecus/. Populate with `canair discover --register`
+# (add --identify to read identity DIDs), then `canair pids ...`. Validate with
+# `canair validate`.
+car_model: "$car_model"
+init: "$init"
+
+# Vehicle bus speed in bit/s (the CAN datarate). Uncomment if this car's
+# diagnostic bus is not 500 kbit/s (e.g. 250000 for some body/comfort buses).
+# Precedence: config transport.bitrate > this > device config > 500000.
+# can_bitrate: 500000
+
+# CAN diagnostic addressing. By default an ECU's response address is
+# tx_id + 0x08 (11-bit Hyundai/Kia convention). Set rx_offset once here for
+# a make with a different fixed offset (e.g. 0x80 for XPeng: 0x704 -> 0x784);
+# an individual ECU can still override with its own rx_id.
+# addressing:
+#   rx_offset: 0x08
+
+# ELM327 response timeout in ms, applied as ATSTxx (--elm-timeout overrides).
+# Raise it for slow-responding ECUs; lower it to speed up cycles / NO-DATA
+# detection. Left unset, the ELM327 default applies.
+# response_timeout_ms: 500
+
+# Client-side ISO-TP tuning for the slcan-tcp transport. Defaults suit most
+# 11-bit/classic-CAN vehicles; override per this car's needs. See
+# canlib/transport/isotp_params.py for every field + default.
+# isotp:
+#   tx_padding: 0xAA   # ISO-TP fill byte (0x00/0xCC on some makes)
+#   can_fd: false      # true for CAN-FD ECUs
