@@ -647,6 +647,36 @@ class TestPhysicalScan:
         hits = xanalysis.physical_scan(self._loaded(payloads), min_n=3)
         assert all(h.offset >= 4 for h in hits)  # nothing at/below the echo byte B3
 
+    def test_800v_pack_missed_by_defaults_hit_by_override(self):
+        # A 16-bit deci-volt HV word ~550-800 V (800 V architecture) -> raw
+        # 5500..8000, /10 = 550..800 V — outside the built-in HV pack 300-450.
+        payloads = [f"6101{dv:04X}00000000" for dv in (5500, 6200, 7000, 7600, 8000)]
+        lp = self._loaded(payloads)
+
+        # Default bands: no HV-pack hit (out of the 300-450 band at /10).
+        default_hits = xanalysis.physical_scan(lp, min_n=3)
+        assert not [h for h in default_hits if h.band == "HV pack V"]
+
+        # With an 800 V override the /10 word lands in the widened band.
+        from canlib.physical_bands import resolve_physical_bands
+
+        bands = resolve_physical_bands({"physical_bands": {"hv_pack": [450, 850]}})
+        hits = xanalysis.physical_scan(lp, min_n=3, bands=bands)
+        hv = [h for h in hits if h.band == "HV pack V"]
+        assert hv, f"expected an HV-pack hit, got {[(h.expr, h.band) for h in hits]}"
+        assert hv[0].scaling == "/10"
+        assert 450 <= hv[0].median <= 850
+
+    def test_bands_none_matches_default_constant(self):
+        # bands=None must reproduce the built-in PHYSICAL_BANDS behaviour exactly.
+        payloads = [f"6101{cv:04X}00000000" for cv in (21850, 22100, 22400, 22750, 22200)]
+        lp = self._loaded(payloads)
+        a = xanalysis.physical_scan(lp, min_n=3)
+        b = xanalysis.physical_scan(lp, min_n=3, bands=xanalysis.PHYSICAL_BANDS)
+        assert [(h.offset, h.band, h.scaling) for h in a] == [
+            (h.offset, h.band, h.scaling) for h in b
+        ]
+
 
 class TestFindFrameMirrors:
     """Generic positional (intra-frame) mirror finder shared by decode's

@@ -348,9 +348,15 @@ def run(args) -> int:
 
     # Physical-band hits per starting offset (plausibility, needs no reference).
     # Computed after the --events short-circuit so it isn't wasted there.
+    from canlib.grid_prompt import resolve_grid_region
+    from canlib.physical_bands import resolve_physical_bands
+    from canlib.profile import active
     from canlib.xanalysis import physical_scan
 
-    physical_by_off = {h.offset: f"{h.scaling}·{h.expr} ≈ {h.band}" for h in physical_scan(lp)}
+    bands = resolve_physical_bands(active().meta, grid_region=resolve_grid_region())
+    physical_by_off = {
+        h.offset: f"{h.scaling}·{h.expr} ≈ {h.band}" for h in physical_scan(lp, bands=bands)
+    }
 
     # --independent-of: load a driver signal to rank bytes by independence from.
     driver_series = None

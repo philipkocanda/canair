@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Configurable physical-value bands for the reference-free scan
+  (`canair hunt --physical` / `canair investigate`).** The plausibility scan that
+  flags a raw byte whose scaled value lands in a named physical range (HV pack
+  volts, mains RMS/peak, line frequency, 12 V rail) was hardwired to a ~400 V EV
+  on a 230 V / 50 Hz grid, so on an 800 V architecture or a non-EU grid it
+  silently failed to flag the real signal. Bands are now overridable across two
+  axes, each owned where its truth lives:
+  - **Vehicle axis** — a profile's new **`physical_bands:`** block overrides
+    `hv_pack` / `rail_12v` by key (or adds a custom band). Declare only what
+    differs, e.g. `physical_bands: { hv_pack: [450, 850] }` for an 800 V pack.
+    Validated by `canair validate` (2-element `[low, high]`, `low < high`).
+  - **Grid axis** — a new user-config **`grid_region`** key
+    (`EU`/`UK`/`US`/`JP`/`CN`/`AU`, case-insensitive) selects the mains-voltage
+    and line-frequency bands, since the same car charges on different grids by
+    region. The first physical scan with no region set offers to set one (a
+    one-time TTY prompt, or a single stderr note when piped).
+
+  Precedence per band: `physical_bands` (final say) > `grid_region` preset >
+  built-in default. The bundled `ioniq-2017` profile is unaffected (defaults
+  reproduce the previous five bands). See
+  `plans/2026-07-29-configurable-physical-bands.md`.
+
 - **Capture sessions record the canair `version` that wrote them.** Every
   recorded/imported session now carries a `version` field (the tool version at
   save time), stamped once at the single save choke point (`save_session`) so it

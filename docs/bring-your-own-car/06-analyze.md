@@ -200,6 +200,16 @@ canair hunt uds OBC 2101 --physical --state charging
 canair investigate MyECU 2101 --independent-of OBC:2101:OBC_DC_A --state charging
 ```
 
+!!! tip "800 V pack or a non-EU grid? Tune the bands first"
+    The physical bands default to a ~400 V EV on a 230 V / 50 Hz grid, so on a
+    mismatched car/grid the `--physical` scan can silently find nothing. For an
+    **800 V architecture** set the HV band in your profile —
+    `physical_bands: { hv_pack: [450, 850] }` (see
+    [Profiles](../concepts/profiles.md)); if you're **not on a 230 V / 50 Hz
+    grid** set your region — `canair config set grid_region US` (see
+    [Configuration](../reference/config.md)) — before running `--physical`.
+
+
 ## The one-shot shortcut: `investigate`
 
 `canair investigate` bundles inspect + reason + correlate into a single report:

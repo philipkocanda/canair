@@ -27,8 +27,34 @@ canair config edit           # open in $EDITOR
 | `default_wican` | Which `wican_addresses` alias to use by default. |
 | `wican_model` | `pro` (default) or `classic`. `classic` makes canair cleanly refuse Pro-only features. |
 | `check_for_updates` | `true` (default) or `false`. Disables the automatic once-a-day update check (also disabled by `CANAIR_NO_UPDATE_CHECK`). |
+| `grid_region` | Charging-grid region for the physical-value scan: `EU`, `UK`, `US`, `JP`, `CN`, or `AU` (case-insensitive). Sets the mains-voltage / line-frequency bands (see below). |
 | `display.byte_notation` | Default byte-index notation for analysis output labels: `wican` (default), `isotp`, `torque`, or `bix`. Overridden per-command by `--notation`. |
 | `transport` | Advanced: explicit CAN transport selection (see below). |
+
+## `grid_region` — physical-scan grid bands
+
+The reference-free physical-value scan (`canair hunt --physical` /
+`canair investigate`) flags a raw byte whose scaled value lands in a named
+physical range. The **mains-voltage and line-frequency** bands depend on *where
+the car charges*, not the car — the same EV charges from 230 V / 50 Hz in Berlin
+and split-phase 120/240 V / 60 Hz in Denver — so they're set once per location
+here (and apply across every profile), rather than in a shared vehicle profile.
+
+Unset assumes **EU (230 V / 50 Hz)**; the first time a physical scan runs, canair
+offers to set the region (a one-time prompt on a TTY, a single stderr note when
+piped). Presets:
+
+| Region | Nominal | Line frequency |
+|---|---|---|
+| `EU` / `UK` / `AU` | 230 V | 50 Hz |
+| `CN` | 220 V | 50 Hz |
+| `US` | 120 / 240 V split-phase | 60 Hz |
+| `JP` | 100 / 200 V | 50 Hz (east) + 60 Hz (west) |
+
+The **vehicle-axis** bands (HV pack voltage, 12 V rail) are a fact about the car
+model, so they live in the profile's
+[`physical_bands`](../concepts/profiles.md) instead. A profile's
+`physical_bands` override has final say over the `grid_region` preset.
 
 ## The `transport` block
 

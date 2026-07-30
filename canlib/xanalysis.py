@@ -33,6 +33,7 @@ from .inspect_bytes import (
     interpret_bytes,
     wican_expr,
 )
+from .physical_bands import DEFAULT_PHYSICAL_BANDS
 from .stats import correlation, pearson
 
 __all__ = [
@@ -735,15 +736,12 @@ def load_ref(
 # Named physical bands: (label, low, high) in the band's natural unit. A byte's
 # raw value is multiplied by a candidate scaling before the band test, so e.g. a
 # 16-bit centivolt word (raw ~22200) is caught by the mains-RMS band at x0.01.
-# Bands are car-class assumptions (mains/HV/12V are EV/region-typical); a
-# conservative built-in set - profile overrides are future work.
-PHYSICAL_BANDS: list[tuple[str, float, float]] = [
-    ("mains RMS V", 200.0, 250.0),
-    ("mains peak V", 300.0, 340.0),
-    ("line freq Hz", 49.0, 51.0),
-    ("12V rail V", 11.0, 15.0),
-    ("HV pack V", 300.0, 450.0),
-]
+# Bands are car-class + grid-region assumptions (mains/HV/12V are EV/region
+# -typical). The built-in defaults live in canlib.physical_bands; a profile
+# (vehicle axis) and the user's grid_region (grid axis) override them via
+# resolve_physical_bands(). This constant is the default when no bands are
+# threaded in (preserves the historical no-config behaviour).
+PHYSICAL_BANDS: list[tuple[str, float, float]] = list(DEFAULT_PHYSICAL_BANDS.values())
 
 # Candidate scalings (factor, label): physical = raw * factor.
 _PHYSICAL_SCALINGS: list[tuple[float, str]] = [
@@ -780,18 +778,26 @@ def physical_scan(
     min_frac: float = 0.6,
     min_n: int = 10,
     top: int = 12,
+    bands: list[tuple[str, float, float]] | None = None,
 ) -> list[PhysicalHit]:
     """Find bytes whose (scaled) value lands in a named physical band.
 
     Sweeps every byte offset × interpretation × candidate scaling and reports the
-    ones a majority (``min_frac``) of whose samples fall inside a
-    :data:`PHYSICAL_BANDS` range — a plausibility hunt that needs **no reference
-    signal**, which is the only way to find a signal (like AC mains voltage) that
-    has no correlate on the bus. Collapses to the best (highest-fraction) hit per
-    starting offset; ranks by fraction.
+    ones a majority (``min_frac``) of whose samples fall inside a physical band
+    range — a plausibility hunt that needs **no reference signal**, which is the
+    only way to find a signal (like AC mains voltage) that has no correlate on
+    the bus. Collapses to the best (highest-fraction) hit per starting offset;
+    ranks by fraction.
+
+    ``bands`` is the resolved ``(label, low, high)`` list (see
+    :func:`canlib.physical_bands.resolve_physical_bands`); ``None`` falls back to
+    the built-in :data:`PHYSICAL_BANDS` defaults.
     """
     from .byteindex import isotp_to_wican, payload_to_wican_bytes, wican_to_isotp
     from .notation import subfunction_bytes_for_pid
+
+    if bands is None:
+        bands = PHYSICAL_BANDS
 
     frames: list[bytes] = []
     max_len = 0
@@ -831,7 +837,7 @@ def physical_scan(
             best: PhysicalHit | None = None
             for factor, slabel in _PHYSICAL_SCALINGS:
                 scaled = [v * factor for v in vals]
-                for blabel, lo, hi in PHYSICAL_BANDS:
+                for blabel, lo, hi in bands:
                     inband = sum(1 for v in scaled if lo <= v <= hi)
                     frac = inband / len(scaled)
                     if frac < min_frac:

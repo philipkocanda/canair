@@ -28,3 +28,13 @@ init: "$init"
 # isotp:
 #   tx_padding: 0xAA   # ISO-TP fill byte (0x00/0xCC on some makes)
 #   can_fd: false      # true for CAN-FD ECUs
+
+# Physical-value bands for the reference-free scan (`canair hunt --physical` /
+# `canair investigate`). Override the vehicle-axis bands here; a name matching a
+# built-in (hv_pack, rail_12v) replaces its [low, high], any other name adds a
+# custom band. Grid bands (mains_rms/mains_peak/line_freq) normally come from
+# the user's `grid_region` config, not here. The built-in hv_pack is a ~400 V
+# EV (300-450) — an 800 V architecture (E-GMP/PPE/Taycan) needs a wider band.
+# physical_bands:
+#   hv_pack: [450, 850]   # 800 V pack
+

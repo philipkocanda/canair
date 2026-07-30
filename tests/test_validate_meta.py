@@ -148,3 +148,32 @@ class TestQuirks:
     def test_quirks_must_be_list(self, tmp_path):
         p = _write(tmp_path, self._base("quirks: hk_f1xx_minus_one\n"))
         assert any("'quirks' must be a list" in e for e in validate_meta(p, REQUIRED))
+
+
+class TestPhysicalBands:
+    def _base(self, extra: str) -> str:
+        return 'car_model: "C"\ninit: "ATSP6;"\n' + extra
+
+    def test_valid_override(self, tmp_path):
+        p = _write(tmp_path, self._base("physical_bands:\n  hv_pack: [450, 850]\n"))
+        assert validate_meta(p, REQUIRED) == []
+
+    def test_custom_band_allowed(self, tmp_path):
+        p = _write(tmp_path, self._base("physical_bands:\n  hv_pack_peak: [600, 900]\n"))
+        assert validate_meta(p, REQUIRED) == []
+
+    def test_must_be_mapping(self, tmp_path):
+        p = _write(tmp_path, self._base("physical_bands: [1, 2]\n"))
+        assert any("'physical_bands' must be a mapping" in e for e in validate_meta(p, REQUIRED))
+
+    def test_range_must_be_two_elements(self, tmp_path):
+        p = _write(tmp_path, self._base("physical_bands:\n  hv_pack: [450]\n"))
+        assert any("physical_bands.hv_pack" in e for e in validate_meta(p, REQUIRED))
+
+    def test_range_must_be_numeric(self, tmp_path):
+        p = _write(tmp_path, self._base("physical_bands:\n  hv_pack: [low, high]\n"))
+        assert any("must be numbers" in e for e in validate_meta(p, REQUIRED))
+
+    def test_low_must_be_less_than_high(self, tmp_path):
+        p = _write(tmp_path, self._base("physical_bands:\n  hv_pack: [850, 450]\n"))
+        assert any("must be less than high" in e for e in validate_meta(p, REQUIRED))

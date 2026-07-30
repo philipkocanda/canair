@@ -37,6 +37,7 @@ _KNOWN_KEYS = (
     "wican_addresses.<alias>",
     "wican_model",
     "check_for_updates",
+    "grid_region",
     "transport.type",
     "transport.host",
     "transport.port",
@@ -50,6 +51,12 @@ def _transport_types() -> tuple[str, ...]:
     from canlib.transport.config import VALID_TRANSPORTS
 
     return VALID_TRANSPORTS
+
+
+def _grid_regions() -> tuple[str, ...]:
+    from canlib.grid_regions import GRID_REGIONS
+
+    return GRID_REGIONS
 
 
 _WICAN_MODELS = ("pro", "classic")
@@ -154,6 +161,8 @@ def _invalid_value(key: str, value) -> str | None:
         return f"invalid transport.type {value!r}; valid: {', '.join(_transport_types())}"
     if key == "wican_model" and str(value).strip().lower() not in _WICAN_MODELS:
         return f"invalid wican_model {value!r}; valid: {', '.join(_WICAN_MODELS)}"
+    if key == "grid_region" and str(value).strip().upper() not in _grid_regions():
+        return f"invalid grid_region {value!r}; valid: {', '.join(_grid_regions())}"
     return None
 
 

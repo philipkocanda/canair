@@ -930,6 +930,33 @@ def validate_meta(path: Path, required_fields: set[str]) -> list[str]:
     if "quirks" in data:
         errors.extend(_validate_quirks(data["quirks"]))
 
+    if "physical_bands" in data:
+        errors.extend(_validate_physical_bands(data["physical_bands"]))
+
+    return errors
+
+
+def _validate_physical_bands(bands: Any) -> list[str]:
+    """Validate the profile.yaml ``physical_bands:`` block.
+
+    A mapping of band key → 2-element numeric ``[low, high]`` with ``low < high``.
+    Unknown band keys are allowed (custom bands); only the shape is checked.
+    """
+    if not isinstance(bands, dict):
+        return ["profile.yaml: 'physical_bands' must be a mapping of {name: [low, high]}"]
+    errors: list[str] = []
+    for name, rng in bands.items():
+        label = f"profile.yaml: physical_bands.{name}"
+        if not isinstance(rng, (list, tuple)) or len(rng) != 2:
+            errors.append(f"{label} must be a 2-element list [low, high]")
+            continue
+        lo, hi = rng
+        nums_ok = all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in (lo, hi))
+        if not nums_ok:
+            errors.append(f"{label}: low and high must be numbers")
+            continue
+        if not lo < hi:
+            errors.append(f"{label}: low ({lo}) must be less than high ({hi})")
     return errors
 
 

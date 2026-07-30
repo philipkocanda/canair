@@ -54,6 +54,7 @@ and `init` are required; everything else is optional with a sensible default.
 | `failure_types` | map | DTC failure-type byte meanings, profile-wide (`{0xNN: "meaning"}`). |
 | `quirks` | list | Make-specific behavior toggles the profile opts into (make-neutral profiles omit). Known: `hk_f1xx_minus_one` — Hyundai/Kia identity DIDs answer one less than requested (`22F188` → `62F187`); echo validation tolerates it for F1xx only when this quirk is set. |
 | `isotp` | map | Client-side ISO-TP tuning for the `slcan-tcp` transport (see below). |
+| `physical_bands` | map | Vehicle-axis overrides for the reference-free physical-value scan (see below). |
 
 The `isotp:` block overrides the client-side ISO-TP flow-control / padding /
 CAN-FD parameters. The defaults suit most 11-bit / classic-CAN vehicles; override
@@ -63,6 +64,28 @@ or a CAN-FD bus). The accepted keys — `tx_padding`, `blocksize`, `stmin`,
 `tx_data_length` — and their defaults are defined in
 [`canlib/transport/isotp_params.py`](https://github.com/philipkocanda/canair/blob/main/canlib/transport/isotp_params.py).
 `canair validate` type-checks every field and rejects an unknown `isotp:` key.
+
+The `physical_bands:` block tunes the **vehicle axis** of the reference-free
+physical-value scan (`canair hunt --physical` / `canair investigate`), which
+flags a raw byte whose scaled value lands in a named physical range. It's a
+mapping of band key → `[low, high]`: a key matching a built-in
+(`hv_pack`, `rail_12v`) **replaces** its range, any other key **adds** a custom
+band; unspecified built-ins keep their defaults. The built-in `hv_pack` is a
+~400 V EV (`[300, 450]`) — an **800 V architecture** (E-GMP/PPE/Taycan) needs a
+wider band, so declare only what differs:
+
+```yaml
+physical_bands:
+  hv_pack: [450, 850]      # 800 V pack
+  hv_pack_peak: [600, 900] # custom band (added)
+```
+
+The **grid axis** (mains voltage, line frequency) is a property of *where the
+car charges*, not the car, so it lives in user config as
+[`grid_region`](../reference/config.md), not here — that way a
+shared profile works in any region. Precedence per band: `physical_bands` (final
+say) > `grid_region` preset (grid bands only) > built-in default. `canair
+validate` checks each override is a 2-element `[low, high]` with `low < high`.
 
 ## Editing rules
 

@@ -47,6 +47,15 @@ default_wican: ap
 # CANAIR_NO_UPDATE_CHECK environment variable does the same.
 # check_for_updates: true
 
+# Charging-grid region for the reference-free physical-value scan
+# (`canair hunt --physical` / `canair investigate`). Sets the mains-voltage and
+# line-frequency bands the scan looks for — a property of *where* you charge,
+# not the car, so it lives here (once per location) and applies to every profile.
+# One of: EU | UK | US | JP | CN | AU (case-insensitive). Unset assumes EU
+# (230 V / 50 Hz); canair offers to set it the first time a physical scan runs.
+# The vehicle-axis bands (HV pack, 12 V rail) live in a profile's physical_bands.
+# grid_region: EU
+
 # WiCAN hardware model: "pro" (default) or "classic" (the regular, non-Pro WiCAN).
 # The classic WiCAN has no AutoPID profile support and no ELM327
 # WebSocket terminal, so with wican_model: classic canair refuses:

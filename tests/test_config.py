@@ -229,6 +229,25 @@ class TestConfigCommand:
         assert rc == 2
         assert "pro, classic" in capsys.readouterr().err
 
+    def test_set_invalid_grid_region_errors(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        _reset()
+        rc = config_cmd._cmd_set(argparse.Namespace(key="grid_region", value="mars", string=False))
+        assert rc == 2
+        err = capsys.readouterr().err
+        assert "invalid grid_region" in err and "US" in err
+
+    def test_set_valid_grid_region_writes(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        from canlib import config
+
+        _reset()
+        # Case-insensitive: lower-case token accepted (enum check upper-cases).
+        rc = config_cmd._cmd_set(argparse.Namespace(key="grid_region", value="us", string=False))
+        assert rc == 0
+        _reset()
+        assert config.load_config()["grid_region"] == "us"
+
     def test_set_unknown_key_warns_but_writes(self, tmp_path, monkeypatch, capsys):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
         from canlib import config
