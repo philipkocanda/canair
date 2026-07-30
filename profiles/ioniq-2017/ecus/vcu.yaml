@@ -155,13 +155,19 @@ VCU:
           expression: "B11:6"
           unit: ""
           verified: false
-          notes: ""
+          notes: >
+            HV power-enable flag. 2026-07-30 power-cycle (READY->OFF->ACC1->ACC2->READY, keep-unique):
+            B11:6 = 1 in READY (B11=0x5A), 0 in the accessory/off states (B11=0x92/0x91/0x80), toggling
+            together with EV_READY (B11:3) and LDC (1-B11:7) — physically consistent (HV power enable
+            drops when the car leaves READY). Direction proven; kept unverified because keep-unique only
+            resolved READY vs one accessory blend — ACC1(amber)/ACC2(blue)/true-OFF not individually
+            separated (needs a keep-all IGPM+VCU cycle capture).
 
         VEHICLE_STATE_LDC_ENABLED:
           expression: "1-B11:7"
           unit: ""
           verified: false
-          notes: "Inverted from LDC_INHIBIT bit. 1=LDC active, 0=inhibited."
+          notes: "Inverted from LDC_INHIBIT bit. 1=LDC active, 0=inhibited. 2026-07-30 power-cycle: LDC=1 in READY (B11=0x5A), 0 in accessory/off (B11=0x92/0x91/0x80) — DC-DC converter inhibited when not READY, toggles with EV_READY/POWER_ENABLE. Direction proven; ACC1/ACC2/OFF not individually resolved under keep-unique."
 
         VCU_STATE_FLAGS_RAW:
           expression: "B12"
@@ -329,7 +335,7 @@ VCU:
           source: Live EVSE current step 10/13/16A (2026-07-27) + steady-16A charge SOC cross-check
           verified: false
           notes: >
-            Estimated charge time remaining (time-to-full, to 100% — this car has no built-in SOC charge limit). [B22:B23]/10 = minutes. Confirmed as time=energy/power by four lines: byte*charge_current constant (CV 0.008) across a 10/13/16A EVSE step (242/180/146 min); r=-0.77 vs SOC over the steady 16A charge (falls as SOC rises); collapses to ~0 when charging stops; ~4h at 10A from 67% SOC (owner-confirmed plausible). UNVERIFIED: exact /10=min scale not pinned (afternoon reads ~25% below the naive kWh/kW estimate — the car's algorithm likely accounts for CV taper). Coarser/related estimates on B19 and VCU-2101 B21. ISO-TP 0x12-0x13.
+            Estimated charge time remaining (time-to-full, to 100% — this car has no built-in SOC charge limit). [B22:B23]/10 = minutes. Confirmed as time=energy/power by four lines: byte*charge_current constant (CV 0.008) across a 10/13/16A EVSE step (242/180/146 min); r=-0.77 vs SOC over the steady 16A charge (falls as SOC rises); collapses to ~0 when charging stops; ~4h at 10A from 67% SOC (owner-confirmed plausible). UNVERIFIED: exact /10=min scale not pinned (afternoon reads ~25% below the naive kWh/kW estimate — the car's algorithm likely accounts for CV taper). Coarser/related estimates on B19 and VCU-2101 B21. ISO-TP 0x12-0x13. 2026-07-30 READY-state behaviour: NOT time in READY — [B22:B23] tracks HV battery power draw r=+0.978 vs BMS BATTERY_POWER and BATTERY_CURRENT (n=50), r=-0.84 vs BATTERY_VOLTAGE, rises 195->601 when rear defroster switched on, follows DC-load changes. Mapping to raw is NONLINEAR (fit BATTERY_POWER_kW=1.5e-4*raw+0.74, raw/W not constant), so it is not a clean watt reading — most likely the VCU's continuous time-to-full estimator (energy/available-power) co-moving with instantaneous load, which matches owner's "follows but doesn't match the dash climate/electronics W" observation.
 
     21F2:
       parameters:
@@ -387,6 +393,15 @@ VCU:
         Prior 07-22 state (settings before this change, unknown values): B38=E1 B39=21 B41=CB
           B42=65 B43=F3 B75=10 (B11=67). When any setting is next changed, re-read 21F2 and
           diff against this reference to attribute bits to fields.
+
+        2026-07-30 SINGLE-VARIABLE RESULT (preconditioning-only change): reprogrammed
+          preconditioning to 01:00, Sun/Tue/Wed/Thu/Sat, 20 C, no windshield heating; charge
+          timer left unchanged. B38-B43/B75 read A0 27 D3 D3 F4 / 14 — IDENTICAL to the 07-28
+          state and stable across 07-28/07-29/07-30. CONCLUSION: preconditioning does NOT live
+          in VCU 21F2. The 07-28 B38-B43/B75 change was CHARGE-TIMER-ONLY, and B75=0x14 is a
+          charge-timer field (unchanged when only precondition changed). Preconditioning schedule
+          is stored elsewhere — AVN 0x780 (never polled) or the unprobed HVAC 0x7B3 21F2 page.
+          To crack the charge-timer packing, do the single-variable A/B on a CHARGE-timer field.
 
   research:
     - type: verify
@@ -534,7 +549,7 @@ VCU:
       priority: P2
       vehicle_states: [CHARGING]
       created: "2026-07-28"
-      updated: "2026-07-28"
+      updated: "2026-07-30"
       notes: "Crack the packed charge/precondition-SCHEDULE encoding in VCU 21F2 (WiCAN indexing, incl. ISO-TP PCI: B00/B01=FF PCI, B08/B16/...=CF PCI, SID 0x61 at B02). Config bytes = constant across three 2026-07-22 reads yet changed on 2026-07-28 when BOTH the charge timer AND the two preconditioning schedules were reprogrammed via the AVN/IVI: contiguous B38/B39 + B41/B42/B43 (ISO-TP 0x20-0x24: E1 21 CB 65 F3 -> A0 27 D3 D3 F4) + B75 (ISO-TP 0x40: 0x10 -> 0x14) + a small B11 tick (0x67->0x68, likely counter/checksum). KNOWN 07-28 settings (ground truth, see PID notes): charge timer weekends 17:40-20:50 / weekdays 01:20-03:40; preconditioning ALWAYS exactly TWO: (1) 15 C Thu 15:30, (2) 15 C Thu 16:00. SOLVED so far: B75=0x14=20 = weekend-end HOUR (candidate CHARGE_TIMER_WKND_END_HOUR). UNSOLVED: the B38-B43 block does NOT decode to any schedule value as plain bytes/BCD, and the raw preconditioning numbers 15/16/30 do not appear as any byte in the 07-28 payload -> bit-packed. It likely carries BOTH charge windows and both precondition schedules, so the single 07-28 before/after (where everything changed at once) cannot separate the fields. Live analog bytes to IGNORE: B10,B12,B13,B14,B15,B19,B20,B21,B29-B37,B45,B47,B57."
       what_to_test:
         - Capture 21F2 after changing ONLY ONE schedule field at a time (e.g. move only the weekday-start minute, or only precondition schedule 1's minute), diffing each read against the recorded reference state, to attribute individual bits to charge-timer vs preconditioning fields, then map the packing of B38-B43/B75.
@@ -558,7 +573,14 @@ VCU:
         windows). See HVAC research entry "scan 21 00-FF". Whether the B38-B43 change on 07-28
         was charge-timer-only or also preconditioning is unresolved until single-variable A/B
         (and the HVAC 21F2 probe) are done. Charge-timer bytes are bit-packed in B38-B43 + B75.
-
+    - type: verify
+      target: 2101 power-state LED
+      status: pending
+      priority: P2
+      vehicle_states: [ACC]
+      created: "2026-07-30"
+      updated: "2026-07-30"
+      notes: "Resolve the 4 start-button power states individually (READY / true-OFF / ACC1 amber / ACC2 blue). 2026-07-30 keep-unique cycle proved VCU 2101 B11 is the power-state byte (values 0x5A READY, 0x92/0x91/0x80 accessory/off) and that EV_READY(B11:3)/POWER_ENABLE(B11:6)/LDC(1-B11:7) drop together leaving READY — but keep-unique collapsed the fast transitions so ACC1/ACC2/OFF were not separated. Re-capture with: canair monitor 'VCU:2101 IGPM:22BC03' --interval 1 --keep-all --save, cycling and dwelling ~10s in each LED state; then map each B11 value + IGPM ACC2_IGN_ON to the amber/blue/off LED."
   sessions:
     "81":
       name: "standardDiagnosticSession"
