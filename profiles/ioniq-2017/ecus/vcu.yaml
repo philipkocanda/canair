@@ -324,19 +324,79 @@ VCU:
             verified INVERTER_INPUT_VOLTAGE (B17*2) across 1672 captures; B25*2.56 tracks B17*2 with a median
             residual of ~1V (larger stdev only across the mislabeled 16:13 shutdown frames, see VCU_TORQUE_REQUEST).
             Redundant with the full-resolution B17*2 — kept disabled as a research note / integrity cross-check.
-            The remaining dynamic 2102 bytes (B14~149, B27~57, B20~58 are near-constant config/status; B19/B21/
-            B23/B26 are max-entropy fast signals — motor phase currents / resolver angle per the Soul VMCU sheet —
+            The remaining dynamic 2102 bytes (B14~149, B27~57, B20~58 are near-constant config/status; B19/B21
+            are max-entropy fast signals — motor phase currents / resolver angle per the Soul VMCU sheet —
             that alias at the 5s poll rate and need a synced high-rate VCU+MCU drive capture to resolve).
-        VCU_CHARGE_TIME_REMAINING:
+            B22/B23 = VCU_AUX_POWER (12V accessory power, W); B15 = its /100 coarse mirror; B26 = config/status.
+        VCU_AUX_POWER:
           expression: "[B22:B23]/10"
-          unit: min
+          unit: W
           min: "0"
-          max: "6000"
-          source: Live EVSE current step 10/13/16A (2026-07-27) + steady-16A charge SOC cross-check
+          max: "6553"
+          source: "2026-07-30 dash anchor: climate/electronics power bar 130->650W == raw/10 137->651; rear+side defroster step ~28A@14.5V"
           verified: false
-          notes: >
-            Estimated charge time remaining (time-to-full, to 100% — this car has no built-in SOC charge limit). [B22:B23]/10 = minutes. Confirmed as time=energy/power by four lines: byte*charge_current constant (CV 0.008) across a 10/13/16A EVSE step (242/180/146 min); r=-0.77 vs SOC over the steady 16A charge (falls as SOC rises); collapses to ~0 when charging stops; ~4h at 10A from 67% SOC (owner-confirmed plausible). UNVERIFIED: exact /10=min scale not pinned (afternoon reads ~25% below the naive kWh/kW estimate — the car's algorithm likely accounts for CV taper). Coarser/related estimates on B19 and VCU-2101 B21. ISO-TP 0x12-0x13. 2026-07-30 READY-state behaviour: NOT time in READY — [B22:B23] tracks HV battery power draw r=+0.978 vs BMS BATTERY_POWER and BATTERY_CURRENT (n=50), r=-0.84 vs BATTERY_VOLTAGE, rises 195->601 when rear defroster switched on, follows DC-load changes. Mapping to raw is NONLINEAR (fit BATTERY_POWER_kW=1.5e-4*raw+0.74, raw/W not constant), so it is not a clean watt reading — most likely the VCU's continuous time-to-full estimator (energy/available-power) co-moving with instantaneous load, which matches owner's "follows but doesn't match the dash climate/electronics W" observation.
-
+          notes: >-
+            12V/accessory electrical power draw, watts. [B22:B23]/10 = W. CORRECTION 2026-07-30:
+            previously mislabeled VCU_CHARGE_TIME_REMAINING (min) — that was WRONG. Proof it is
+            power, not time: (1) READY DC-load session raw/10 137->651 matches the dash
+            climate/electronics power bar 130->650W (owner-confirmed); (2) rose 195->601W when
+            rear+side window defroster switched on = ~28A@14.5V step, matches a defroster load (cf
+            OBC LDC_OUTPUT_V note: rear-defroster ~15-20A); (3) r=+0.97 vs BMS BATTERY_POWER/CURRENT
+            across READY (load-tracking); (4) during 24min steady 10A AC charge it does NOT count
+            down — wanders non-monotonically 52-108W (standby electronics), disproving time-to-full.
+            Coarse mirror: B15 = [B22:B23]/100 (~0.1kW steps). OPEN: dash splits climate vs
+            electronics (+driving, =0 while parked) as 3 values — this field tracked the
+            climate(defroster) load; whether it is climate-only, electronics-only, or total
+            accessory is unresolved (the other varying VCU 2102 bytes B19/B21 are aliased phase
+            currents, not the sibling power). ISO-TP 0x12-0x13.
+        VCU_AUX_POWER_COARSE:
+          expression: B15*10
+          unit: W
+          min: "0"
+          max: "2550"
+          source: "2026-07-30: B15*10 vs [B22:B23]/10 r2=0.994"
+          verified: false
+          notes: >-
+            Coarse (10 W/LSB) mirror of VCU_AUX_POWER. B15*10 = W, r2=0.994 vs the fine [B22:B23]/10
+            field. Cross-check candidate — should read the same watts as VCU_AUX_POWER at lower
+            resolution.
+        VCU_2102_B19:
+          expression: B19
+          source: 2026-07-30 adjacent-field candidate
+          verified: false
+          notes: >-
+            Adjacent unmapped byte, candidate. Range 26-207, tracks VCU_AUX_POWER r2=0.77
+            (partial/noisy) — possibly a related power/current component or aliased phase current.
+            Check against dash whether it moves with a specific 12V load.
+        VCU_2102_B14:
+          expression: B14
+          source: 2026-07-30 adjacent-field candidate
+          verified: false
+          notes: >-
+            Adjacent unmapped byte, candidate. Slow/coarse, 138-149 (6 distinct), r~-0.18 vs
+            AUX_POWER. Candidate temp/status — check for temperature-like behaviour (slow drift,
+            offset ~-40/-100).
+        VCU_2102_B20:
+          expression: B20
+          source: 2026-07-30 adjacent-field candidate
+          verified: false
+          notes: >-
+            Adjacent unmapped byte, candidate. Coarse, 54-58 (3 distinct). Candidate
+            temp/status/counter — eyeball behaviour.
+        VCU_2102_B27:
+          expression: B27
+          source: 2026-07-30 adjacent-field candidate
+          verified: false
+          notes: >-
+            Adjacent unmapped byte, candidate. Coarse, 53-57 (4 distinct). Candidate temp/status —
+            eyeball behaviour.
+        VCU_2102_B18:
+          expression: B18
+          source: 2026-07-30 adjacent-field candidate
+          verified: false
+          notes: >-
+            Adjacent unmapped byte, candidate. 131-138 (8 distinct), sits next to
+            VCU_AUX_BATTERY_VOLTAGE (B18 in the aux-voltage region). Check if voltage/temp-like.
     21F2:
       parameters:
         CHARGE_TIMER_WKND_END_HOUR:
@@ -527,14 +587,29 @@ VCU:
       priority: P3
       vehicle_states: [READY]
       notes: "VCU 2101 B13/B15 = accelerator/torque REQUEST echo (driver demand), essentially redundant with ACCEL_PEDAL_DEPTH so not worth a separate param. From 2026-07-22 drive: B13 and B15 both correlate ~0.99 with ACCEL_PEDAL_DEPTH; B13 = 2xB15 exactly; linear fit B13 = 0.263*pedal + 6.4 (residual std 0.44); both FLOOR at their idle value (B13=6, B15=3) during braking/regen (never go negative), confirming it is a >=0 request signal, not actual bidirectional motor torque (which lives in MCU 2102). Neighbouring unmapped B14/B21 are uncorrelated with speed/pedal (noise/other). Actual motor torque + regen must be read from MCU 2102 (MCU_MOTOR_TORQUE) — VCU 2101 does not expose signed motor torque."
-    - type: verify
-      target: 2102 charge-time estimates
-      status: captured
+    - type: decode
+      target: 2102 aux power (was charge-time)
+      status: done
       priority: P3
-      vehicle_states: [CHARGING]
+      vehicle_states: [READY, CHARGING]
       created: "2026-07-27"
-      updated: "2026-07-27"
-      notes: "VCU_CHARGE_TIME_REMAINING = [B22:B23]/10 min found 2026-07-27 (time=energy/power: byte*I const CV 0.008; -0.77 vs SOC; ~0 at stop). TODO: (1) verify the /10=min scale against a known dash time-to-full readout; (2) decode the coarser/related inverse estimates on B19 (2102) and B21 (2101) — likely a second time-to-full or a to-target estimate; (3) no clean charge-power byte found on VCU 2101/2102 (positive-vs-current correlators were weak drift)."
+      updated: "2026-07-30"
+      notes: >
+        RESOLVED 2026-07-30 — [B22:B23]/10 is 12V/accessory electrical POWER in watts, NOT
+        time-to-full. The 2026-07-27 "time-to-full (min)" label was WRONG (renamed
+        VCU_CHARGE_TIME_REMAINING -> VCU_AUX_POWER, unit W). Proof: (1) READY DC-load session
+        raw/10 137->651 matches the dash climate/electronics power bar 130->650W (owner
+        confirmed the dash shows 3 separate power values — climate / electronics / driving,
+        driving=0 while parked); (2) rose 195->601W when the rear+side defroster switched on
+        (~28A@14.5V step); (3) r=+0.97 vs BMS BATTERY_POWER/CURRENT while load-varying;
+        (4) during 24min steady 10A AC charge it does NOT count down — wanders non-monotonically
+        52-108W (standby electronics), which a time-to-full cannot do. The earlier "time" evidence
+        (byte*I const, -0.77 vs SOC) was coincidental drift over a short charge window. Coarse
+        mirror: B15 = [B22:B23]/100 (~0.1kW). OPEN follow-up (new lead below): resolve whether
+        this field is climate-only vs electronics-only vs total accessory, and find the sibling
+        power components — the other varying VCU 2102 bytes (B19/B21) are aliased phase currents,
+        so the siblings are likely on HVAC (climate) or another DID, needing a keep-all capture
+        that toggles climate and non-climate 12V loads independently while noting each dash value.
     - type: decode
       target: 2101 charge/drive state bits
       status: captured
@@ -581,6 +656,14 @@ VCU:
       created: "2026-07-30"
       updated: "2026-07-30"
       notes: "Resolve the 4 start-button power states individually (READY / true-OFF / ACC1 amber / ACC2 blue). 2026-07-30 keep-unique cycle proved VCU 2101 B11 is the power-state byte (values 0x5A READY, 0x92/0x91/0x80 accessory/off) and that EV_READY(B11:3)/POWER_ENABLE(B11:6)/LDC(1-B11:7) drop together leaving READY — but keep-unique collapsed the fast transitions so ACC1/ACC2/OFF were not separated. Re-capture with: canair monitor 'VCU:2101 IGPM:22BC03' --interval 1 --keep-all --save, cycling and dwelling ~10s in each LED state; then map each B11 value + IGPM ACC2_IGN_ON to the amber/blue/off LED."
+    - type: decode
+      target: 2102 aux power siblings
+      status: pending
+      priority: P2
+      vehicle_states: [READY]
+      created: "2026-07-30"
+      updated: "2026-07-30"
+      notes: "Find the climate / electronics / driving power components the dash shows as 3 separate values. VCU_AUX_POWER ([B22:B23]/10 W) tracked the CLIMATE (defroster) load on 2026-07-30 but the sibling components were not isolated (VCU 2102 B19/B21 are aliased phase currents, not power). Plan: keep-all capture (canair monitor 'VCU:2102 HVAC:220100 HVAC:2201A0' --interval 1 --keep-all --save) while independently toggling (a) a climate-only load (defroster/heater), (b) an electronics-only load (headlights/audio, no climate), noting each dash value; then hunt VCU 2102 + HVAC DIDs --against each to attribute one 16-bit field per component. Confirm whether VCU_AUX_POWER is climate-only, electronics-only, or total. B15 is the /100 coarse mirror of VCU_AUX_POWER."
   sessions:
     "81":
       name: "standardDiagnosticSession"
