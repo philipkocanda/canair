@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-07-30
+
 ### Added
 
 - **`canair contribute` — one-command pull requests for profiles.** Sharing a
@@ -29,6 +31,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     uses an existing checkout instead of the managed fork. Aliased as
     `canair share`. When `gh` is missing/unauthenticated it prints install +
     login instructions and the equivalent manual steps.
+  - The copy is an **overlay**: it replaces only the managed members
+    (`ecus/`, `signals/`, `profile.yaml`, states, buses, and `captures/` when
+    included) onto the destination, leaving unmanaged members (generated
+    `out/`, `references/`, logs, and `captures/` when excluded) untouched — so a
+    definitions-only PR touches only the definitions instead of showing every
+    upstream capture as deleted.
+
+- **Community health files and contribution guidance.** GitHub issue forms
+  (bug / feature / profile-contribution), a pull-request template with
+  profile/code checklists, a `CODE_OF_CONDUCT.md`, and an explicit
+  public-domain (no CLA/DCO) statement in `CONTRIBUTING.md`. The contributing
+  guidance is also split into two focused skills — `contributing-code` (the
+  tool-engineering contract) and `contributing-profiles` (the
+  upstream-contribution mechanics and profile quality bar) — so each task loads
+  only what it needs.
 
 - **Configurable physical-value bands for the reference-free scan
   (`canair hunt --physical` / `canair investigate`).** The plausibility scan that
@@ -988,7 +1005,8 @@ dongle (both the WiCAN Pro and the classic/non-Pro WiCAN are supported).
 - Command safety blocklist preventing UDS programming/write sessions against a
   real vehicle.
 
-[Unreleased]: https://github.com/philipkocanda/canair/compare/v1.8.1...HEAD
+[Unreleased]: https://github.com/philipkocanda/canair/compare/v1.9.0...HEAD
+[1.9.0]: https://github.com/philipkocanda/canair/compare/v1.8.1...v1.9.0
 [1.8.1]: https://github.com/philipkocanda/canair/compare/v1.8.0...v1.8.1
 [1.8.0]: https://github.com/philipkocanda/canair/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/philipkocanda/canair/compare/v1.6.0...v1.7.0
