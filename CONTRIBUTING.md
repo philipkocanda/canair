@@ -10,11 +10,15 @@ your car and share the result.
 
 1. Build a profile with the [Bring your own car](https://philipkocanda.github.io/canair/bring-your-own-car/overview/)
    walkthrough (or decode more of an existing one).
-2. Put it under `profiles/<your-car>/` (`canair profile create <name> --path profiles/<name>`).
-3. Make it clean: `canair validate all` must pass; prefer `--verified` params
+2. Make it clean: `canair validate all` must pass; prefer `--verified` params
    with a `--source`; set `car_model` precisely; include a representative subset
    of `captures/`.
-4. Open a pull request.
+3. Share it with **`canair contribute`** — one command that opens the pull
+   request for you (no manual fork/clone/branch), wherever your profile is
+   stored. It validates and scans for VIN/PII first, then opens the PR via the
+   [GitHub CLI](https://github.com/cli/cli#installation) (`gh` — install it and
+   run `gh auth login` once). Prefer doing it by hand? A normal PR putting your
+   profile under `profiles/<your-car>/` works too.
 
 **Partial is welcome** — a few verified signals, a corrected offset, or a new
 `research:` lead all help. See

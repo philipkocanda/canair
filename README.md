@@ -110,6 +110,7 @@ All functionality is exposed as `canair <subcommand>`; run `canair <cmd> --help`
 | Subcommand | Purpose |
 |--------|---------|
 | `canair profile` | Manage profile bundles — create/list/show/path. |
+| `canair contribute` | Open a pull request sharing the active profile upstream (via `gh`; no manual fork). |
 | `canair config` | View/manage user config. |
 | `canair update` | Update canair from its git clone (checkout release tag + reinstall); links the changelog. |
 

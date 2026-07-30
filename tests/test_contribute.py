@@ -1,0 +1,201 @@
+"""Tests for `canair contribute` orchestration and command flow.
+
+The git/gh calls go through the module-level ``contribute._run``; unit tests
+drive the orchestration with a fake runner (no network, no real GitHub). The
+command-level dry-run test uses a real throwaway git repo as ``--repo-dir`` so
+the branch/copy/commit path is exercised end-to-end without pushing.
+"""
+
+from __future__ import annotations
+
+import argparse
+import subprocess
+
+from canlib import contribute as C
+from canlib.commands import contribute as cmd
+from canlib.profile import Profile
+
+
+class FakeRunner:
+    """Records commands and returns programmed :class:`contribute.Step`s."""
+
+    def __init__(self, responder):
+        self.calls: list[list[str]] = []
+        self._responder = responder
+
+    def __call__(self, cmd_args, cwd=None):
+        self.calls.append(cmd_args)
+        rc, out, err = self._responder(cmd_args)
+        return C.Step(cmd=cmd_args, returncode=rc, stdout=out, stderr=err)
+
+
+def _ready() -> C.Preflight:
+    return C.Preflight(gh="gh", git="git", authenticated=True)
+
+
+class TestPreflight:
+    def test_not_ready_without_gh(self):
+        assert not C.Preflight(gh=None, git="git", authenticated=True).ready
+
+    def test_ready(self):
+        assert _ready().ready
+
+    def test_gh_install_hint_mentions_gh_and_login(self):
+        hint = C.gh_install_hint()
+        assert "gh auth login" in hint
+        assert "cli/cli" in hint
+
+
+class TestEnsureForkClone:
+    def test_fresh_clone_forks_then_syncs(self, tmp_path, monkeypatch):
+        ws = tmp_path / "canair"  # no .git → fresh
+
+        def responder(args):
+            if "remote" in args and "add" not in args:
+                return 0, "origin\nupstream\n", ""  # upstream already present
+            return 0, "", ""
+
+        runner = FakeRunner(responder)
+        monkeypatch.setattr(C, "_run", runner)
+        steps = C.ensure_fork_clone(_ready(), ws)
+        assert steps[-1].ok
+        # First call must be the fork+clone.
+        assert runner.calls[0][:3] == ["gh", "repo", "fork"]
+
+    def test_adds_upstream_when_missing(self, tmp_path, monkeypatch):
+        ws = tmp_path / "canair"
+        (ws / ".git").mkdir(parents=True)  # existing clone
+
+        def responder(args):
+            if args[-1] == "remote":  # `git -C ws remote`
+                return 0, "origin\n", ""  # no upstream yet
+            return 0, "", ""
+
+        runner = FakeRunner(responder)
+        monkeypatch.setattr(C, "_run", runner)
+        C.ensure_fork_clone(_ready(), ws)
+        assert any("add" in call and "upstream" in call for call in runner.calls)
+        # An existing clone must NOT be re-forked.
+        assert not any(call[:3] == ["gh", "repo", "fork"] for call in runner.calls)
+
+
+class TestCreatePr:
+    def test_targets_upstream_and_head(self, monkeypatch, tmp_path):
+        runner = FakeRunner(lambda a: (0, "https://github.com/x/y/pull/1", ""))
+        monkeypatch.setattr(C, "_run", runner)
+        step = C.create_pr(_ready(), tmp_path, title="t", body="b", head="me:branch")
+        assert step.ok
+        call = runner.calls[0]
+        assert "--repo" in call and C.UPSTREAM_REPO in call
+        assert "--head" in call and "me:branch" in call
+
+
+class TestCopyProfile:
+    def test_excludes_out_and_journal(self, tmp_path):
+        src = tmp_path / "src"
+        (src / "ecus").mkdir(parents=True)
+        (src / "ecus" / "bms.yaml").write_text("x")
+        (src / "out").mkdir()
+        (src / "out" / "autopid.json").write_text("{}")
+        (src / "captures").mkdir()
+        (src / "captures" / "2026-01-01.json").write_text("{}")
+        (src / "captures" / ".journal").mkdir()
+        (src / "captures" / ".journal" / "wal.jsonl").write_text("x")
+        (src / "profile.yaml").write_text("car_model: X\n")
+        prof = Profile("mycar", src)
+
+        ws = tmp_path / "ws"
+        ws.mkdir()
+        dest = C.copy_profile(prof, ws, include_captures=True)
+
+        assert (dest / "ecus" / "bms.yaml").exists()
+        assert (dest / "captures" / "2026-01-01.json").exists()
+        assert not (dest / "out").exists()  # generated — excluded
+        assert not (dest / "captures" / ".journal").exists()  # transient — excluded
+
+    def test_no_captures_omits_capture_dir(self, tmp_path):
+        src = tmp_path / "src"
+        (src / "ecus").mkdir(parents=True)
+        (src / "captures").mkdir()
+        (src / "captures" / "2026-01-01.json").write_text("{}")
+        (src / "profile.yaml").write_text("car_model: X\n")
+        ws = tmp_path / "ws"
+        ws.mkdir()
+        dest = C.copy_profile(Profile("mycar", src), ws, include_captures=False)
+        assert not (dest / "captures").exists()
+
+
+# --- command-level -----------------------------------------------------------
+
+
+def _cmd_args(**kw):
+    base = {
+        "captures": True,
+        "branch": None,
+        "title": None,
+        "body": None,
+        "repo_dir": None,
+        "dry_run": False,
+        "yes": True,
+        "json": True,
+    }
+    base.update(kw)
+    return argparse.Namespace(**base)
+
+
+def _make_profile(root):
+    (root / "ecus").mkdir(parents=True)
+    (root / "ecus" / "bms.yaml").write_text("x")
+    (root / "profile.yaml").write_text("car_model: Test EV 2022\ninit: ATSP6;\n")
+    return Profile("testcar", root)
+
+
+def _git(repo, *args):
+    subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True)
+
+
+class TestContributeCommand:
+    def test_gh_missing_reports_cannot(self, tmp_path, monkeypatch):
+        prof = _make_profile(tmp_path / "prof")
+        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(cmd, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(
+            C, "preflight", lambda: C.Preflight(gh=None, git="git", authenticated=True)
+        )
+        rc = cmd.run(_cmd_args())
+        assert rc == cmd._CANNOT
+
+    def test_dry_run_prepares_commit(self, tmp_path, monkeypatch, capsys):
+        # Real throwaway upstream-less repo used as the workspace.
+        ws = tmp_path / "ws"
+        ws.mkdir()
+        _git(ws, "init", "-b", "main")
+        _git(ws, "config", "user.email", "t@example.com")
+        _git(ws, "config", "user.name", "T")
+        (ws / "README.md").write_text("seed\n")
+        _git(ws, "add", "README.md")
+        _git(ws, "commit", "-m", "seed")
+
+        prof = _make_profile(tmp_path / "prof")
+        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(cmd, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(C, "preflight", lambda: _ready())
+
+        rc = cmd.run(_cmd_args(repo_dir=str(ws), dry_run=True))
+        assert rc == cmd._OK
+        # The profile was committed onto a contribute branch, nothing pushed.
+        assert (ws / "profiles" / "testcar" / "ecus" / "bms.yaml").exists()
+        log = subprocess.run(
+            ["git", "-C", str(ws), "log", "--oneline", "-1"], capture_output=True, text=True
+        ).stdout
+        assert "contribute" in log.lower()
+
+    def test_pii_blocks_json_without_yes(self, tmp_path, monkeypatch):
+        root = tmp_path / "prof"
+        prof = _make_profile(root)
+        (root / "profile.yaml").write_text("car_model: owner me@example.com\ninit: ATSP6;\n")
+        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(cmd, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(C, "preflight", lambda: _ready())
+        rc = cmd.run(_cmd_args(yes=False, json=True))
+        assert rc == cmd._CANNOT

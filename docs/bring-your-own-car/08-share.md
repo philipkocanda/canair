@@ -34,7 +34,44 @@ useful beyond one vehicle. Contributions are genuinely wanted and warmly
 welcomed, whether it's a whole new car, a handful of newly-decoded parameters, or
 a fix to an existing one.
 
-**How to contribute** (a standard GitHub pull request):
+### The easy way: `canair contribute`
+
+One command opens the pull request for you — no forking, cloning, or branching by
+hand:
+
+```bash
+canair contribute            # PR the active profile (definitions + captures)
+canair contribute --no-captures   # definitions only (smaller)
+canair contribute --dry-run       # prepare it locally, but don't push/open the PR
+```
+
+It copies your profile into a fork of the repo and opens the PR against
+`philipkocanda/canair` — and it doesn't matter **where** your profile lives (the
+repo, `~/.config/canair/profiles/`, or a `--path` bundle). Before anything is
+shared it:
+
+- runs `canair validate all` (and refuses if it fails), and
+- scans for anything that could **identify or locate you** — a VIN, an ECU
+  serial, an email or phone number in a label/note — and asks you to confirm.
+
+**One-time setup — the GitHub CLI (`gh`):**
+
+```bash
+# install gh
+brew install gh                      # macOS (Homebrew)
+winget install --id GitHub.cli       # Windows
+#   Linux / other: https://github.com/cli/cli#installation
+
+# sign in (opens your browser)
+gh auth login
+```
+
+`canair contribute` prints these same instructions if `gh` isn't installed or
+you're not signed in.
+
+### The manual way (or if you prefer git yourself)
+
+A standard GitHub pull request works too:
 
 1. Fork [`philipkocanda/canair`](https://github.com/philipkocanda/canair) and
    put your profile under `profiles/<your-car>/` (see
@@ -48,6 +85,8 @@ a fix to an existing one.
      model/year/market/battery so someone can tell if it matches theirs.
    - **Decide on `captures/`.** They're great evidence but large — include a
      representative subset rather than everything if size is a concern.
+   - **Scrub for privacy.** No VINs, ECU serials, addresses, or other
+     identifying/location data (the tree is public).
 3. Open a PR. Even a *partial* profile is welcome — a few verified signals beats
    nothing, and others can build on it.
 

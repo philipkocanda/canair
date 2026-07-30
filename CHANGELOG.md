@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`canair contribute` — one-command pull requests for profiles.** Sharing a
+  reverse-engineered profile upstream no longer needs the manual fork/clone/
+  branch/push dance. `canair contribute` copies the **active** profile into a
+  managed fork checkout and opens a PR against `philipkocanda/canair` via the
+  GitHub CLI (`gh`), which also handles a friendly browser-based sign-in
+  (`gh auth login`). It works **regardless of where the profile is stored** —
+  bundled in the repo, in `~/.config/canair/profiles/`, or an arbitrary
+  `--path` bundle — because the destination is always `profiles/<name>/` inside
+  the fork, so both a brand-new profile and edits to an existing one Just Work.
+  - Runs `canair validate all` first (refuses to contribute a broken profile).
+  - **Privacy pre-flight** (`canlib/pii.py`): scans for likely
+    personally-identifiable / location data — VIN & ECU-serial identity DIDs,
+    VIN-shaped capture payloads, and emails/phone-ish text in labels/notes/
+    `car_model` — and requires confirmation before sharing.
+  - Captures are included by default (with a size guard); `--no-captures` ships
+    definitions only. `--dry-run` prepares the branch+commit without pushing,
+    `--yes` skips prompts (agents/CI), `--json` emits the PR URL, `--repo-dir`
+    uses an existing checkout instead of the managed fork. Aliased as
+    `canair share`. When `gh` is missing/unauthenticated it prints install +
+    login instructions and the equivalent manual steps.
+
 - **Configurable physical-value bands for the reference-free scan
   (`canair hunt --physical` / `canair investigate`).** The plausibility scan that
   flags a raw byte whose scaled value lands in a named physical range (HV pack

@@ -19,6 +19,10 @@ SCHEMA_DIR = PACKAGE_DIR / "schema"  # tool-owned YAML/JSON schemas
 # Legacy repo-local WiCAN config (deprecated in favor of ~/.config/canair/config.yaml)
 CONFIG_FILE = SCRIPT_DIR / "config.yaml"
 
+# GitHub repository canair is developed under — the source for releases
+# (`canair update`) and the target for contributions (`canair contribute`).
+GITHUB_REPO = "philipkocanda/canair"
+
 _LAZY = {"ECUS_DIR", "CAPTURES_DIR", "WICAN_ADDRESSES", "DEFAULT_WICAN"}
 
 

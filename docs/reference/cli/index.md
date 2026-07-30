@@ -55,5 +55,6 @@ Every capability is a `canair <subcommand>`. These pages are generated from each
 ### Other
 
 - [`canair states`](states.md) — List the active profile's vehicle operating states, or edit the vocabulary (add/rm/rename/set-description/set-predicate). Read-only companion of the state auto-suggestion used when recording captures.
+- [`canair contribute`](contribute.md) — ``canair contribute`` — open a pull request for the active profile.
 - [`canair bix`](bix.md) — Convert byte indices between WiCAN, ISO-TP, Torque, and OBDb notations.
 - [`canair logs`](logs.md) — ``canair logs`` — view the central rotating diagnostics event log.

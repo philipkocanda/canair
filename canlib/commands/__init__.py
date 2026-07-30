@@ -49,6 +49,7 @@ COMMAND_NAMES: list[str] = [
     "states",
     "profile",
     "config",
+    "contribute",
     "update",
     # interop (import/export external CAN data — uds/can/dbc kinds)
     "import_",

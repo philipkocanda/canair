@@ -30,8 +30,10 @@ import threading
 import time
 from pathlib import Path
 
-# GitHub repository the releases are published under.
-REPO = "philipkocanda/canair"
+# GitHub repository the releases are published under (shared with `canair
+# contribute`, which targets the same repo for pull requests).
+from .constants import GITHUB_REPO as REPO
+
 RELEASES_LATEST_URL = f"https://api.github.com/repos/{REPO}/releases/latest"
 # Human-facing links used in notices and by ``canair update``.
 RELEASES_URL = f"https://github.com/{REPO}/releases"

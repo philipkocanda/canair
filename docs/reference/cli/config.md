@@ -78,7 +78,7 @@ usage: canair config set [-h] [-s] key value
 
 Set a config value. Dotted keys create nested mappings.
 
-Known keys: default_profile, profiles_dir, default_wican, wican_addresses.<alias>, wican_model, check_for_updates, transport.type, transport.host, transport.port, transport.bitrate
+Known keys: default_profile, profiles_dir, default_wican, wican_addresses.<alias>, wican_model, check_for_updates, grid_region, transport.type, transport.host, transport.port, transport.bitrate
 
 positional arguments:
   key           Config key, e.g. transport.type or wican_addresses.home
