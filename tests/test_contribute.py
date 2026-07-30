@@ -23,7 +23,7 @@ class FakeRunner:
         self.calls: list[list[str]] = []
         self._responder = responder
 
-    def __call__(self, cmd_args, cwd=None):
+    def __call__(self, cmd_args, cwd=None, env=None):
         self.calls.append(cmd_args)
         rc, out, err = self._responder(cmd_args)
         return C.Step(cmd=cmd_args, returncode=rc, stdout=out, stderr=err)
@@ -46,37 +46,84 @@ class TestPreflight:
         assert "cli/cli" in hint
 
 
-class TestEnsureForkClone:
-    def test_fresh_clone_forks_then_syncs(self, tmp_path, monkeypatch):
-        ws = tmp_path / "canair"  # no .git → fresh
+class TestEnsureWorkspace:
+    def test_direct_mode_clones_upstream_no_fork(self, tmp_path, monkeypatch):
+        ws = tmp_path / "canair"  # fresh
 
         def responder(args):
-            if "remote" in args and "add" not in args:
-                return 0, "origin\nupstream\n", ""  # upstream already present
+            if "repo" in args and "view" in args:  # viewerPermission probe
+                return 0, "ADMIN", ""
             return 0, "", ""
 
         runner = FakeRunner(responder)
         monkeypatch.setattr(C, "_run", runner)
-        steps = C.ensure_fork_clone(_ready(), ws)
-        assert steps[-1].ok
-        # First call must be the fork+clone.
-        assert runner.calls[0][:3] == ["gh", "repo", "fork"]
-
-    def test_adds_upstream_when_missing(self, tmp_path, monkeypatch):
-        ws = tmp_path / "canair"
-        (ws / ".git").mkdir(parents=True)  # existing clone
-
-        def responder(args):
-            if args[-1] == "remote":  # `git -C ws remote`
-                return 0, "origin\n", ""  # no upstream yet
-            return 0, "", ""
-
-        runner = FakeRunner(responder)
-        monkeypatch.setattr(C, "_run", runner)
-        C.ensure_fork_clone(_ready(), ws)
-        assert any("add" in call and "upstream" in call for call in runner.calls)
-        # An existing clone must NOT be re-forked.
+        steps, mode, ok = C.ensure_workspace(_ready(), ws)
+        assert ok and mode == C.MODE_DIRECT
+        assert steps
+        # Must clone upstream directly, never fork.
+        assert runner.calls[0][:3] == ["gh", "repo", "clone"] or any(
+            call[:3] == ["gh", "repo", "clone"] for call in runner.calls
+        )
         assert not any(call[:3] == ["gh", "repo", "fork"] for call in runner.calls)
+
+    def test_fork_mode_when_no_push_access(self, tmp_path, monkeypatch):
+        ws = tmp_path / "canair"  # fresh
+
+        def responder(args):
+            if "repo" in args and "view" in args:
+                return 0, "READ", ""  # no push access → must fork
+            if "remote" in args and "add" not in args:
+                return 0, "origin\nupstream\n", ""
+            return 0, "", ""
+
+        runner = FakeRunner(responder)
+        monkeypatch.setattr(C, "_run", runner)
+        steps, mode, ok = C.ensure_workspace(_ready(), ws)
+        assert ok and mode == C.MODE_FORK
+        assert steps
+        assert any(call[:3] == ["gh", "repo", "fork"] for call in runner.calls)
+        assert not any(call[:3] == ["gh", "repo", "clone"] for call in runner.calls)
+
+    def test_existing_clone_detects_fork_by_upstream_remote(self, tmp_path, monkeypatch):
+        ws = tmp_path / "canair"
+        (ws / ".git").mkdir(parents=True)  # existing
+
+        def responder(args):
+            if args[-1] == "remote":
+                return 0, "origin\nupstream\n", ""  # has upstream → fork clone
+            return 0, "", ""
+
+        runner = FakeRunner(responder)
+        monkeypatch.setattr(C, "_run", runner)
+        _, mode, ok = C.ensure_workspace(_ready(), ws)
+        assert ok and mode == C.MODE_FORK
+        # No permission probe / no fork for an existing clone.
+        assert not any("view" in call for call in runner.calls)
+        assert not any(call[:3] == ["gh", "repo", "fork"] for call in runner.calls)
+
+    def test_fetch_failure_is_tolerated(self, tmp_path, monkeypatch):
+        ws = tmp_path / "canair"
+        (ws / ".git").mkdir(parents=True)  # existing, direct
+
+        def responder(args):
+            if args[-1] == "remote":
+                return 0, "origin\n", ""  # no upstream → direct
+            if "fetch" in args:
+                return 1, "", "offline"  # fetch fails
+            return 0, "", ""
+
+        monkeypatch.setattr(C, "_run", FakeRunner(responder))
+        _, mode, ok = C.ensure_workspace(_ready(), ws)
+        assert ok and mode == C.MODE_DIRECT  # fetch failure not fatal
+
+
+class TestPrHead:
+    def test_direct_is_bare_branch(self):
+        assert C.pr_head(_ready(), "br", C.MODE_DIRECT) == "br"
+
+    def test_fork_is_owner_prefixed(self, monkeypatch):
+        monkeypatch.setattr(C, "_run", FakeRunner(lambda a: (0, "octocat", "")))
+        assert C.pr_head(_ready(), "br", C.MODE_FORK) == "octocat:br"
 
 
 class TestCreatePr:
@@ -218,11 +265,20 @@ class TestContributeCommand:
         assert "contribute" in log.lower()
 
     def test_pii_blocks_json_without_yes(self, tmp_path, monkeypatch):
+        ws = tmp_path / "ws"
+        ws.mkdir()
+        _git(ws, "init", "-b", "main")
+        _git(ws, "config", "user.email", "t@example.com")
+        _git(ws, "config", "user.name", "T")
+        (ws / "README.md").write_text("seed\n")
+        _git(ws, "add", "README.md")
+        _git(ws, "commit", "-m", "seed")
+
         root = tmp_path / "prof"
         prof = _make_profile(root)
         (root / "profile.yaml").write_text("car_model: owner me@example.com\ninit: ATSP6;\n")
         monkeypatch.setattr(cmd, "active", lambda: prof)
         monkeypatch.setattr(cmd, "_validate", lambda p: (True, ""))
         monkeypatch.setattr(C, "preflight", lambda: _ready())
-        rc = cmd.run(_cmd_args(yes=False, json=True))
+        rc = cmd.run(_cmd_args(repo_dir=str(ws), yes=False, json=True))
         assert rc == cmd._CANNOT

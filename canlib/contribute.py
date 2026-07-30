@@ -6,13 +6,21 @@ profile in, commit, push, open a PR. That is a lot to ask of a non-git-savvy
 contributor. This module automates the whole thing via the GitHub CLI (``gh``),
 which also handles authentication (a friendly browser/device-flow login).
 
+It adapts to the contributor's access to the upstream repo:
+
+* **No push access** (the common case) — fork the repo under the user's account,
+  clone the fork, push a branch there, and open a cross-fork PR.
+* **Push access** (the maintainer / a collaborator, or the repo owner who
+  *cannot* fork their own repo) — skip forking entirely: clone the upstream repo
+  directly, push a branch to it, and open a same-repo PR.
+
 Crucially, it does **not** matter where the source profile lives — bundled in
 the repo, in ``~/.config/canair/profiles/``, or at an arbitrary ``--path``. The
-destination is always ``profiles/<name>/`` inside a *fork* of the upstream repo,
-so the profile is simply **copied** into a managed fork checkout and git computes
-the diff. That single indirection makes the source location irrelevant and
-handles both a brand-new profile (an added directory) and edits to an existing
-bundled profile (a diff) uniformly.
+destination is always ``profiles/<name>/`` inside a checkout of the upstream repo
+(a fork or the repo itself), so the profile is simply **copied** in and git
+computes the diff. That single indirection makes the source location irrelevant
+and handles both a brand-new profile (an added directory) and edits to an
+existing bundled profile (a diff) uniformly.
 
 The heavy lifting (``git``/``gh`` invocations) goes through the module-level
 :func:`_run` so tests can drive the flow with a fake runner and no network. The
@@ -22,6 +30,7 @@ module stays pure orchestration.
 
 from __future__ import annotations
 
+import os
 import platform
 import shutil
 import subprocess
@@ -31,7 +40,16 @@ from pathlib import Path
 from .constants import GITHUB_REPO as UPSTREAM_REPO
 
 UPSTREAM_URL = f"https://github.com/{UPSTREAM_REPO}.git"
+UPSTREAM_OWNER = UPSTREAM_REPO.split("/")[0]
 GH_INSTALL_URL = "https://github.com/cli/cli#installation"
+
+# GitHub permission levels that allow pushing a branch to the repo directly
+# (so no fork is needed). Anything below WRITE (TRIAGE/READ/NONE) must fork.
+_PUSH_PERMISSIONS = {"ADMIN", "MAINTAIN", "WRITE"}
+
+# Workspace modes.
+MODE_FORK = "fork"  # push to a fork, cross-fork PR
+MODE_DIRECT = "direct"  # push to upstream directly, same-repo PR
 
 # Bundle members copied into a contribution. ``out/`` (generated), ``logs/``,
 # and ``references/`` (may hold third-party / licensed material) are excluded;
@@ -90,15 +108,20 @@ class ContributionPlan:
     steps: list[Step] = field(default_factory=list)
 
 
-def _run(cmd: list[str], cwd: Path | None = None) -> Step:
+def _run(cmd: list[str], cwd: Path | None = None, env: dict | None = None) -> Step:
     """Run a subprocess, capturing output. Never raises on non-zero exit."""
     proc = subprocess.run(
         cmd,
         cwd=str(cwd) if cwd else None,
         capture_output=True,
         text=True,
+        env=({**os.environ, **env} if env else None),
     )
     return Step(cmd=cmd, returncode=proc.returncode, stdout=proc.stdout, stderr=proc.stderr)
+
+
+# Clone without pulling Git-LFS blobs (raw-CAN logs) we don't need to open a PR.
+_NO_LFS_ENV = {"GIT_LFS_SKIP_SMUDGE": "1"}
 
 
 # --- environment ------------------------------------------------------------
@@ -136,44 +159,107 @@ def gh_install_hint() -> str:
     )
 
 
-# --- workspace (the managed fork clone) -------------------------------------
+# --- workspace (fork clone, or a direct upstream clone) ---------------------
 
 
 def workspace_dir() -> Path:
-    """Persistent fork-clone location, reused across contributions."""
+    """Persistent clone location, reused across contributions."""
     from .config import config_dir
 
     return config_dir() / "contribute" / UPSTREAM_REPO.split("/")[-1]
 
 
-def ensure_fork_clone(pre: Preflight, workspace: Path) -> list[Step]:
-    """Ensure ``workspace`` is a clone of the user's fork, synced to upstream/main.
+def viewer_permission(pre: Preflight) -> str:
+    """The authenticated user's permission on the upstream repo (GitHub term).
 
-    First run: ``gh repo fork <upstream> --clone`` into the workspace parent.
-    Later runs: reuse the clone, fetch upstream, and hard-reset to upstream/main
-    so each contribution starts from a clean, current base. Returns the executed
-    steps; a non-``ok`` last step signals failure.
+    One of ``ADMIN``/``MAINTAIN``/``WRITE``/``TRIAGE``/``READ``/``NONE`` (or
+    ``""`` when it can't be determined). Drives fork-vs-direct: WRITE+ can push
+    to the repo directly, so no fork is created.
     """
-    assert pre.gh and pre.git  # guarded by the caller's readiness check
-    steps: list[Step] = []
+    assert pre.gh
+    res = _run(
+        [
+            pre.gh,
+            "repo",
+            "view",
+            UPSTREAM_REPO,
+            "--json",
+            "viewerPermission",
+            "--jq",
+            ".viewerPermission",
+        ]
+    )
+    return res.stdout.strip() if res.ok else ""
+
+
+def can_push_directly(pre: Preflight) -> bool:
+    """Whether the user can push a branch to upstream (so forking is unnecessary).
+
+    True for a collaborator/maintainer/owner. Notably the **repo owner cannot
+    fork their own repo** ("a single user account cannot own both a parent and a
+    fork"), so detecting push access is what lets an owner use this command.
+    """
+    return viewer_permission(pre) in _PUSH_PERMISSIONS
+
+
+def ensure_workspace(pre: Preflight, workspace: Path) -> tuple[list[Step], str, bool]:
+    """Ensure ``workspace`` is a usable checkout; return ``(steps, mode, ok)``.
+
+    Chooses the mode by the user's upstream access:
+
+    * ``MODE_DIRECT`` — has push access (or owns the repo, which can't be
+      forked): clone the upstream repo directly (``origin`` = upstream).
+    * ``MODE_FORK`` — no push access: fork under the user's account and clone the
+      fork (``origin`` = fork, ``upstream`` remote = the source repo).
+
+    On a reused clone it just fetches. ``ok`` reflects only the **critical**
+    clone/fork step — a failed *fetch* (offline, or a local ``--repo-dir`` with no
+    matching remote) is tolerated, since an existing checkout can still be
+    branched from its local base.
+    """
+    assert pre.gh and pre.git
     workspace.parent.mkdir(parents=True, exist_ok=True)
+    fresh = not (workspace / ".git").is_dir()
+    mode = _detect_mode(pre, workspace, fresh)
 
-    if not (workspace / ".git").is_dir():
-        # gh forks under the user's account and clones it into ./<repo> in cwd.
-        fork = _run(
-            [pre.gh, "repo", "fork", UPSTREAM_REPO, "--clone", "--remote"],
-            cwd=workspace.parent,
-        )
-        steps.append(fork)
-        if not fork.ok:
-            return steps
+    steps: list[Step] = []
+    if fresh:
+        if mode == MODE_DIRECT:
+            steps.append(
+                _run([pre.gh, "repo", "clone", UPSTREAM_REPO, str(workspace)], env=_NO_LFS_ENV)
+            )
+        else:
+            steps.append(
+                _run(
+                    [pre.gh, "repo", "fork", UPSTREAM_REPO, "--clone", "--remote"],
+                    cwd=workspace.parent,
+                    env=_NO_LFS_ENV,
+                )
+            )
+        if not steps[-1].ok:
+            return steps, mode, False
 
-    steps.append(_ensure_upstream_remote(pre, workspace))
-    steps.append(_run([pre.git, "-C", str(workspace), "fetch", "upstream", "--quiet"]))
-    if not steps[-1].ok:
-        # Fall back to origin if upstream isn't reachable/named as expected.
+    # Fetches are best-effort (don't fail the run when offline / no remote).
+    if mode == MODE_FORK:
+        steps.append(_ensure_upstream_remote(pre, workspace))
+        fetched = _run([pre.git, "-C", str(workspace), "fetch", "upstream", "--quiet"])
+        steps.append(fetched)
+        if not fetched.ok:
+            steps.append(_run([pre.git, "-C", str(workspace), "fetch", "origin", "--quiet"]))
+    else:
         steps.append(_run([pre.git, "-C", str(workspace), "fetch", "origin", "--quiet"]))
-    return steps
+    return steps, mode, True
+
+
+def _detect_mode(pre: Preflight, workspace: Path, fresh: bool) -> str:
+    """Fork vs direct. Reuse an existing clone's remotes; else probe access."""
+    if not fresh:
+        # An existing clone tells us how it was set up: a fork has an `upstream`
+        # remote distinct from `origin`; a direct clone has origin == upstream.
+        assert pre.git
+        has_upstream = "upstream" in _run([pre.git, "-C", str(workspace), "remote"]).stdout.split()
+        return MODE_FORK if has_upstream else MODE_DIRECT
+    return MODE_DIRECT if can_push_directly(pre) else MODE_FORK
 
 
 def _ensure_upstream_remote(pre: Preflight, workspace: Path) -> Step:
@@ -192,6 +278,24 @@ def _upstream_ref(workspace: Path, git: str) -> str:
         if _run([git, "-C", str(workspace), "rev-parse", "--verify", "--quiet", ref]).ok:
             return ref
     return "main"
+
+
+def base_reader(pre: Preflight, workspace: Path):
+    """Return ``read(relpath)`` giving a file's committed (base) content, or None.
+
+    Used by the PII scan to tell which capture sessions are *already upstream*
+    (so they aren't re-flagged). ``relpath`` is repo-relative, e.g.
+    ``profiles/x/captures/2026-01-01.json``.
+    """
+    assert pre.git
+    git = pre.git
+    base = _upstream_ref(workspace, git)
+
+    def read(relpath: str) -> str | None:
+        res = _run([git, "-C", str(workspace), "show", f"{base}:{relpath}"])
+        return res.stdout if res.ok else None
+
+    return read
 
 
 def start_branch(pre: Preflight, workspace: Path, branch: str) -> Step:
@@ -312,13 +416,15 @@ def create_pr(
     )
 
 
-def fork_head(pre: Preflight, workspace: Path, branch: str) -> str:
-    """``owner:branch`` head spec for the PR, resolving the fork owner via gh.
+def pr_head(pre: Preflight, branch: str, mode: str) -> str:
+    """The ``--head`` spec for the PR.
 
-    Falls back to a bare branch name if the owner can't be determined (gh can
-    still infer the head from the pushed branch on the fork remote).
+    Direct (same-repo) PRs use a bare ``branch``; cross-fork PRs need
+    ``owner:branch`` so GitHub finds the branch on the user's fork.
     """
     assert pre.gh
+    if mode == MODE_DIRECT:
+        return branch
     who = _run([pre.gh, "api", "user", "--jq", ".login"])
     owner = who.stdout.strip() if who.ok else ""
     return f"{owner}:{branch}" if owner else branch

@@ -101,3 +101,59 @@ class TestPrefixStrip:
         assert pii._strip_service_prefix("22F190") == "F190"
         assert pii._strip_service_prefix("1A90") == "90"
         assert pii._strip_service_prefix("F190") == "F190"
+
+
+class TestScanContribution:
+    def test_skips_sessions_already_upstream(self, tmp_path):
+        # captures/ in the (workspace) contribution has two sessions: one that
+        # already exists upstream (base), one newly added — both contain a VIN.
+        old = {
+            "label": "old",
+            "captures": [{"rx": "0x7EC", "pid": "22F190", "payload": _vin_hex()}],
+        }
+        new = {
+            "label": "new",
+            "captures": [{"rx": "0x7EC", "pid": "22F190", "payload": _vin_hex()}],
+        }
+        caps = tmp_path / "captures"
+        caps.mkdir()
+        (caps / "2026-01-01.json").write_text(json.dumps({"sessions": [old, new]}))
+        prof = Profile("testcar", tmp_path)
+        (tmp_path / "profile.yaml").write_text("car_model: Clean Car\n")
+
+        # base_reader returns the committed file with ONLY the old session.
+        base = json.dumps({"sessions": [old]})
+
+        def base_reader(relpath):
+            assert relpath == "profiles/testcar/captures/2026-01-01.json"
+            return base
+
+        findings = pii.scan_contribution(prof, caps, include_captures=True, base_reader=base_reader)
+        # Only the NEW session's VIN is flagged; the already-upstream one is not.
+        locs = [f.location for f in findings]
+        assert any("sessions[1]" in loc for loc in locs)
+        assert not any("sessions[0]" in loc for loc in locs)
+
+    def test_new_file_scanned_fully(self, tmp_path):
+        new = {"label": "new", "captures": [{"rx": "0x7EC", "pid": "1A90", "payload": "5A90"}]}
+        caps = tmp_path / "captures"
+        caps.mkdir()
+        (caps / "2026-02-02.json").write_text(json.dumps({"sessions": [new]}))
+        prof = Profile("testcar", tmp_path)
+        (tmp_path / "profile.yaml").write_text("car_model: Clean Car\n")
+
+        findings = pii.scan_contribution(
+            prof, caps, include_captures=True, base_reader=lambda rel: None
+        )
+        assert any(f.kind == "identity-did" for f in findings)
+
+    def test_no_captures_only_scans_car_model(self, tmp_path):
+        caps = tmp_path / "captures"
+        caps.mkdir()
+        (caps / "x.json").write_text(json.dumps({"sessions": [{"label": "s", "captures": []}]}))
+        prof = Profile("testcar", tmp_path)
+        (tmp_path / "profile.yaml").write_text("car_model: contact me@example.com\n")
+        findings = pii.scan_contribution(
+            prof, caps, include_captures=False, base_reader=lambda rel: None
+        )
+        assert len(findings) == 1 and findings[0].kind == "email"

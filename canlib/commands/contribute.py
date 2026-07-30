@@ -150,32 +150,7 @@ def run(args) -> int:
         c.print("  Run `canair validate all` for details.")
         return _CANNOT
 
-    # 2. PII pre-flight.
-    findings = pii.scan_profile(profile, include_captures=include_captures)
-    findings_json = [{"location": f.location, "kind": f.kind, "detail": f.detail} for f in findings]
-    if findings and not json_mode:
-        c.print(
-            f"\n[yellow]⚠ {len(findings)} possible privacy issue(s)[/yellow] "
-            "— the tree is public, so review before sharing:\n"
-        )
-        for f in findings:
-            c.print(f"  [yellow]•[/yellow] {f.location}  [dim]({f.detail})[/dim]")
-        c.print("")
-        if not _confirm("Contribute anyway?", args.yes, json_mode=json_mode):
-            c.print("  Aborted — nothing was contributed.")
-            return _CANNOT
-    elif findings and json_mode and not args.yes:
-        return _emit_json(
-            {
-                "ok": False,
-                "cannot": True,
-                "profile": profile.name,
-                "findings": findings_json,
-                "error": "possible PII found; re-run with --yes to proceed",
-            }
-        )
-
-    # 3. Environment: gh + git + authenticated.
+    # 2. Environment: gh + git + authenticated.
     pre = C.preflight()
     if not pre.gh:
         if json_mode:
@@ -197,7 +172,7 @@ def run(args) -> int:
         c.print("  then re-run `canair contribute`.")
         return _CANNOT
 
-    # 4. Size guard on captures.
+    # 3. Size guard on captures (source-side; fail fast before the clone).
     if include_captures:
         size = C.dir_size(profile.captures_dir)
         if size > _CAPTURES_WARN_BYTES and not json_mode:
@@ -210,27 +185,26 @@ def run(args) -> int:
                 c.print("  Aborted — nothing was contributed.")
                 return _CANNOT
 
-    # 5. Workspace: managed fork clone (or an explicit --repo-dir).
+    # 4. Workspace: fork clone, direct upstream clone, or an explicit --repo-dir.
     workspace = Path(args.repo_dir).expanduser() if args.repo_dir else C.workspace_dir()
     if not json_mode:
         c.print(f"\n  workspace: [dim]{workspace}[/dim]")
+        c.print("  syncing (first run clones — may take a moment) …")
+    steps, mode, ok = C.ensure_workspace(pre, workspace)
+    if not ok:
+        failed = steps[-1] if steps else None
+        detail = failed.output if failed else "unknown error"
+        if json_mode:
+            return _emit_json({"ok": False, "error": "workspace prep failed", "detail": detail})
+        c.print("  [red]failed to prepare the workspace:[/red]")
+        c.print(f"  [dim]{detail}[/dim]")
+        c.print("\n" + C.manual_instructions(profile.name, branch))
+        return _FAILED
+    if not json_mode:
+        where = C.UPSTREAM_REPO if mode == C.MODE_DIRECT else "your fork"
+        c.print(f"  mode: [cyan]{mode}[/cyan] (will push to {where})")
 
-    if not args.repo_dir:
-        if not json_mode:
-            c.print("  syncing your fork (first run forks + clones — may take a moment) …")
-        steps = C.ensure_fork_clone(pre, workspace)
-        if steps and not steps[-1].ok:
-            failed = steps[-1]
-            if json_mode:
-                return _emit_json(
-                    {"ok": False, "error": "fork/clone failed", "detail": failed.output}
-                )
-            c.print("  [red]failed to prepare the fork clone:[/red]")
-            c.print(f"  [dim]{failed.output}[/dim]")
-            c.print("\n" + C.manual_instructions(profile.name, branch))
-            return _FAILED
-
-    # 6. Branch, copy, commit.
+    # 5. Branch + copy the profile in.
     br = C.start_branch(pre, workspace, branch)
     if not br.ok:
         if json_mode:
@@ -249,6 +223,39 @@ def run(args) -> int:
         c.print(f"\n  [green]{msg}[/green]")
         return _OK
 
+    # 6. PII pre-flight — scoped to what THIS contribution adds/changes vs
+    #    upstream (already-committed captures are not re-flagged).
+    findings = pii.scan_contribution(
+        profile,
+        workspace / "profiles" / profile.name / "captures",
+        include_captures=include_captures,
+        base_reader=C.base_reader(pre, workspace),
+    )
+    findings_json = [{"location": f.location, "kind": f.kind, "detail": f.detail} for f in findings]
+    if findings:
+        if json_mode and not args.yes:
+            return _emit_json(
+                {
+                    "ok": False,
+                    "cannot": True,
+                    "profile": profile.name,
+                    "findings": findings_json,
+                    "error": "possible PII in the contribution; re-run with --yes to proceed",
+                }
+            )
+        if not json_mode:
+            c.print(
+                f"\n[yellow]⚠ {len(findings)} possible privacy issue(s) in this "
+                "contribution[/yellow] — the tree is public, so review before sharing:\n"
+            )
+            for f in findings:
+                c.print(f"  [yellow]•[/yellow] {f.location}  [dim]({f.detail})[/dim]")
+            c.print("")
+            if not _confirm("Contribute anyway?", args.yes, json_mode=json_mode):
+                c.print("  Aborted — nothing was contributed.")
+                return _CANNOT
+
+    # 7. Commit.
     commit = C.commit_profile(
         pre,
         workspace,
@@ -266,6 +273,7 @@ def run(args) -> int:
             "ok": True,
             "profile": profile.name,
             "branch": branch,
+            "mode": mode,
             "include_captures": include_captures,
             "workspace": str(workspace),
             "dry_run": True,
@@ -278,9 +286,10 @@ def run(args) -> int:
         c.print("  [dim](dry run — nothing pushed; no PR opened)[/dim]")
         return _OK
 
-    # 7. Push + open the PR.
+    # 8. Push + open the PR.
     if not json_mode:
-        c.print(f"  pushing [cyan]{branch}[/cyan] to your fork …")
+        where = C.UPSTREAM_REPO if mode == C.MODE_DIRECT else "your fork"
+        c.print(f"  pushing [cyan]{branch}[/cyan] to {where} …")
     push = C.push_branch(pre, workspace, branch)
     if not push.ok:
         if json_mode:
@@ -292,7 +301,7 @@ def run(args) -> int:
         args.title or C.default_message(profile, include_captures=include_captures).splitlines()[0]
     )
     body = args.body or C.default_pr_body(profile, include_captures=include_captures)
-    head = C.fork_head(pre, workspace, branch)
+    head = C.pr_head(pre, branch, mode)
     pr = C.create_pr(pre, workspace, title=title, body=body, head=head)
     if not pr.ok:
         if json_mode:
@@ -308,6 +317,7 @@ def run(args) -> int:
                 "ok": True,
                 "profile": profile.name,
                 "branch": branch,
+                "mode": mode,
                 "include_captures": include_captures,
                 "workspace": str(workspace),
                 "dry_run": False,
