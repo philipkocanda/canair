@@ -10,10 +10,10 @@ The repo ships these vehicle profiles under [`profiles/`](https://github.com/phi
 |---|---|---:|---:|---:|---:|---|---|
 | [ioniq-2017](ioniq-2017.md) | Hyundai Ioniq 2017 | 30 | 98 | 343 | 223 | mature | [`profiles/ioniq-2017/`](https://github.com/philipkocanda/canair/tree/main/profiles/ioniq-2017) |
 | `ioniq-5-2022` | Hyundai Ioniq 5 2022 | 1 | 1 | 1 | 1 | seed / stub | [`profiles/ioniq-5-2022/`](https://github.com/philipkocanda/canair/tree/main/profiles/ioniq-5-2022) |
-| `xpeng-g6` | Xpeng: P5/P7/G6/G9/X9 | 1 | 11 | 236 | 0 | early | [`profiles/xpeng-g6/`](https://github.com/philipkocanda/canair/tree/main/profiles/xpeng-g6) |
+| `xpeng-g6` | Xpeng G6 (87.5 kWh) | 1 | 11 | 194 | 194 | mature | [`profiles/xpeng-g6/`](https://github.com/philipkocanda/canair/tree/main/profiles/xpeng-g6) |
 
 ## The profiles
 
 - **[ioniq-2017](ioniq-2017.md)** — Hyundai Ioniq 2017. A mature, worked reference profile (223 verified parameters across 30 ECUs). See the full tour, or browse [`profiles/ioniq-2017/`](https://github.com/philipkocanda/canair/tree/main/profiles/ioniq-2017).
 - **`ioniq-5-2022`** — Hyundai Ioniq 5 2022. An early seed / stub profile (1 parameter, 1 verified) — a starting point that needs contributions. Browse [`profiles/ioniq-5-2022/`](https://github.com/philipkocanda/canair/tree/main/profiles/ioniq-5-2022).
-- **`xpeng-g6`** — Xpeng: P5/P7/G6/G9/X9. An early early profile (236 parameters, 0 verified) — a starting point that needs contributions. Browse [`profiles/xpeng-g6/`](https://github.com/philipkocanda/canair/tree/main/profiles/xpeng-g6).
+- **`xpeng-g6`** — Xpeng G6 (87.5 kWh). An early mature profile (194 parameters, 194 verified) — a starting point that needs contributions. Browse [`profiles/xpeng-g6/`](https://github.com/philipkocanda/canair/tree/main/profiles/xpeng-g6).
