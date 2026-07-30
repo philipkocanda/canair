@@ -124,6 +124,33 @@ class TestCopyProfile:
         dest = C.copy_profile(Profile("mycar", src), ws, include_captures=False)
         assert not (dest / "captures").exists()
 
+    def test_preserves_unmanaged_upstream_members(self, tmp_path):
+        # An existing upstream profile with captures/references/out that this
+        # (definitions-only) contribution does not include must NOT be deleted.
+        src = tmp_path / "src"
+        (src / "ecus").mkdir(parents=True)
+        (src / "ecus" / "bms.yaml").write_text("new\n")
+        (src / "profile.yaml").write_text("car_model: X\n")
+
+        ws = tmp_path / "ws"
+        existing = ws / "profiles" / "mycar"
+        (existing / "captures").mkdir(parents=True)
+        (existing / "captures" / "2026-01-01.json").write_text("{}")
+        (existing / "references").mkdir()
+        (existing / "references" / "sheet.csv").write_text("a,b\n")
+        (existing / "out").mkdir()
+        (existing / "out" / "autopid.json").write_text("{}")
+        (existing / "ecus").mkdir()
+        (existing / "ecus" / "bms.yaml").write_text("old\n")
+
+        dest = C.copy_profile(Profile("mycar", src), ws, include_captures=False)
+        # Managed member updated …
+        assert (dest / "ecus" / "bms.yaml").read_text() == "new\n"
+        # … unmanaged members preserved (not deleted by the contribution).
+        assert (dest / "captures" / "2026-01-01.json").exists()
+        assert (dest / "references" / "sheet.csv").exists()
+        assert (dest / "out" / "autopid.json").exists()
+
 
 # --- command-level -----------------------------------------------------------
 

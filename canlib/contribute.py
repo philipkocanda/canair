@@ -207,14 +207,18 @@ def start_branch(pre: Preflight, workspace: Path, branch: str) -> Step:
 def copy_profile(profile, workspace: Path, *, include_captures: bool) -> Path:
     """Copy the resolved profile bundle into ``workspace/profiles/<name>/``.
 
-    Replaces any existing copy of that profile in the workspace so the git diff
-    reflects the current state (append-only capture files still merge cleanly
-    upstream via the capture merge driver). Returns the destination directory.
+    Each *managed* member (ecus/, signals/, profile.yaml, states, buses, and —
+    when ``include_captures`` — captures/) is replaced with the user's copy so
+    the git diff reflects the current state. Members the tool does **not** manage
+    (``out/`` generated JSON, ``references/`` possibly-third-party material,
+    ``logs/``, and captures/ when excluded) are left untouched, so contributing
+    into an existing upstream profile never *deletes* its captures/references
+    just because this contribution didn't include them. Append-only capture files
+    still merge cleanly upstream via the capture merge driver. Returns the
+    destination directory.
     """
     dest = workspace / "profiles" / profile.name
-    if dest.exists():
-        shutil.rmtree(dest)
-    dest.mkdir(parents=True)
+    dest.mkdir(parents=True, exist_ok=True)  # overlay — do NOT wipe the whole dir
 
     members = list(_DEFINITION_MEMBERS)
     if include_captures:
@@ -226,6 +230,8 @@ def copy_profile(profile, workspace: Path, *, include_captures: bool) -> Path:
             continue
         target = dest / member
         if src.is_dir():
+            if target.exists():
+                shutil.rmtree(target)  # replace this member subtree wholesale
             shutil.copytree(
                 src,
                 target,
