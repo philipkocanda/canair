@@ -49,3 +49,15 @@ repos:
         language: system
         pass_filenames: false
         stages: [pre-push]
+
+  # Normalize line endings on committed JSON. canair's capture writer always
+  # emits LF, but a capture file created/edited on Windows (or pasted through a
+  # CRLF editor) can sneak in \r bytes — noise in the append-only session logs
+  # and in diffs. Strip them to LF at commit time.
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: mixed-line-ending
+        name: normalize JSON line endings to LF
+        args: [--fix=lf]
+        types_or: [json]

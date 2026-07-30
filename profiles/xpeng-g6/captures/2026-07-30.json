@@ -1,0 +1,118 @@
+{
+  "sessions": [
+    {
+      "date": "2026-07-30",
+      "label": "cell count check",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "testing full BMS cell payload length vs WiCAN truncation",
+      "transport": "slcan-tcp",
+      "quality": {
+        "exchanges": 1
+      },
+      "captures": [
+        {
+          "rx": "0x784",
+          "pid": "221122",
+          "payload": "621122BEBFBFBFBEBFBEBFBEBFBFBFBFBEBEBFBFBFBFBFBEBFBEBFBFBFBFBEBFBFBFBFBFBFBFBFBFBFBFBFBEBFBFBFBEBFBEBFBEBEBFBEBFBEBFBEBFBEBFBEBFBFBFBEBFBEBFBEBFBEBFBFBEBFBEBEBFBFBFBFBEBFBEBFBFBFBFBFBFBFBFBFBFBFBFBEBFBEBFBEBEBFBEBFBEBFBEBFBFBFBEBFBFBFBEBFBFBFBFBFBEBFBEBFBEBEBEC0BEBFBEBFBEBFBEC0BEBEBEBFBEBFBEBFBEBFBEBFBEBFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
+          "time": "10:51:40.945"
+        }
+      ]
+    },
+    {
+      "date": "2026-07-30",
+      "label": "temp count check",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "check real temp sensor count and FF padding pattern",
+      "transport": "slcan-tcp",
+      "quality": {
+        "exchanges": 1
+      },
+      "captures": [
+        {
+          "rx": "0x784",
+          "pid": "221123",
+          "payload": "6211233C3C3C3C3C3B3B3C3C3C3D3C3C3D3C3D3D3B3B3D3C3D3D3C3C3C3C3C3D3B3B3C3B3C3C3BFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
+          "time": "10:52:45.339"
+        }
+      ]
+    },
+    {
+      "date": "2026-07-30",
+      "label": "BMS full status capture for Philip",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "221122/221123 show valid data then FF padding; investigating real cell count vs profile assumptions",
+      "transport": "slcan-tcp",
+      "quality": {
+        "exchanges": 11
+      },
+      "captures": [
+        {
+          "rx": "0x784",
+          "pid": "220101",
+          "payload": "620101005524",
+          "time": "10:53:45.970"
+        },
+        {
+          "rx": "0x784",
+          "pid": "221101",
+          "payload": "6211011679",
+          "time": "10:53:46.161"
+        },
+        {
+          "rx": "0x784",
+          "pid": "221103",
+          "payload": "6211030C3A",
+          "time": "10:53:46.269"
+        },
+        {
+          "rx": "0x784",
+          "pid": "221105",
+          "payload": "6211050F0B",
+          "time": "10:53:46.369"
+        },
+        {
+          "rx": "0x784",
+          "pid": "221106",
+          "payload": "6211060EE8",
+          "time": "10:53:46.484"
+        },
+        {
+          "rx": "0x784",
+          "pid": "221107",
+          "payload": "6211073E",
+          "time": "10:53:46.584"
+        },
+        {
+          "rx": "0x784",
+          "pid": "221108",
+          "payload": "6211083B",
+          "time": "10:53:46.706"
+        },
+        {
+          "rx": "0x784",
+          "pid": "221109",
+          "payload": "621109021D",
+          "time": "10:53:46.792"
+        },
+        {
+          "rx": "0x784",
+          "pid": "221122",
+          "payload": "621122BFC0BFC0BFBFBFC0BFC0BFC0C0BFBFBFBFC0BFC0BFC0BFC0BFBFC0BFBFBFC0C0C0BFC0BFC0C0BFC0BFC0BFC0BEC0BEBFBEBFC0BFBFBFBFBFC0BFC0BFC0C0C0BFBFBFBFBFC0BFBFC0BFC0BFBFC0BFC0C0BFC0BFC0C0C0C0C0C0C0C0C0C0C0C0BFC0BFC0BFBFC0BFC0BFC0BFC0BFC0BFC0C0C0BFC0BFC0BFC0BEC0BFC0BFBFBFC0BFC0BFC0BFC0BFC0BEBEBFC0BFC0BEC0BEC0BEC0BEC0FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
+          "time": "10:53:46.994"
+        },
+        {
+          "rx": "0x784",
+          "pid": "221123",
+          "payload": "6211233C3C3C3C3C3B3B3D3C3C3D3C3C3D3C3D3D3B3C3D3C3D3D3C3C3C3C3C3D3B3B3C3B3C3C3BFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
+          "time": "10:53:47.206"
+        }
+      ]
+    }
+  ]
+}
