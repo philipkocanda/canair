@@ -61,6 +61,26 @@ def _grid_regions() -> tuple[str, ...]:
 
 _WICAN_MODELS = ("pro", "classic")
 
+
+def _keys_block() -> str:
+    """Aligned 'known keys' list with valid values for enum keys."""
+    width = max(len(k) for k in _KNOWN_KEYS)
+    lines = []
+    for k in _KNOWN_KEYS:
+        vals = _enum_values(k)
+        suffix = f"  valid: {', '.join(vals)}" if vals else ""
+        lines.append(f"  {k:<{width}}{suffix}".rstrip())
+    return "\n".join(lines)
+
+
+def _set_description() -> str:
+    return (
+        "Set a config value:  canair config set KEY VALUE\n"
+        "Dotted keys create nested mappings (e.g. transport.type).\n\n"
+        "known keys:\n" + _keys_block()
+    )
+
+
 _SET_EPILOG = """\
 examples:
   canair config set default_wican home
@@ -97,13 +117,20 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     st = sub.add_parser(
         "set",
         help="Set a (dotted) config value",
-        description="Set a config value. Dotted keys create nested mappings.\n\n"
-        "Known keys: " + ", ".join(_KNOWN_KEYS),
+        description=_set_description(),
         epilog=_SET_EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    st.add_argument("key", help="Config key, e.g. transport.type or wican_addresses.home")
-    st.add_argument("value", help="Value (coerced to int/bool where unambiguous)")
+    st.add_argument(
+        "key",
+        nargs="?",
+        help="Config key, e.g. transport.type or wican_addresses.home",
+    )
+    st.add_argument(
+        "value",
+        nargs="?",
+        help="Value (coerced to int/bool where unambiguous)",
+    )
     st.add_argument(
         "-s",
         "--string",
@@ -155,6 +182,17 @@ def _known_key(key: str) -> bool:
     return prefix in namespaces
 
 
+def _enum_values(key: str) -> tuple[str, ...] | None:
+    """Return the allowed values for a known enum key, else None."""
+    if key == "transport.type":
+        return _transport_types()
+    if key == "wican_model":
+        return _WICAN_MODELS
+    if key == "grid_region":
+        return _grid_regions()
+    return None
+
+
 def _invalid_value(key: str, value) -> str | None:
     """Return an error message if ``value`` is invalid for a known enum key."""
     if key == "transport.type" and value not in _transport_types():
@@ -166,8 +204,48 @@ def _invalid_value(key: str, value) -> str | None:
     return None
 
 
+def _missing_key_help() -> None:
+    """Print guidance when `config set` is called with no key."""
+    print("error: missing KEY (and VALUE) to set.\n", file=sys.stderr)
+    print("usage: canair config set KEY VALUE\n", file=sys.stderr)
+    print("known keys:", file=sys.stderr)
+    print(_keys_block(), file=sys.stderr)
+    print("\nexamples:", file=sys.stderr)
+    print("  canair config set default_wican home", file=sys.stderr)
+    print("  canair config set transport.type slcan-tcp", file=sys.stderr)
+
+
+def _missing_value_help(key: str) -> None:
+    """Print key-aware guidance when `config set KEY` is missing its value."""
+    print(f"error: missing VALUE for '{key}'.\n", file=sys.stderr)
+    print(f"usage: canair config set {key} VALUE", file=sys.stderr)
+
+    vals = _enum_values(key)
+    if vals:
+        print(f"\nvalid values: {', '.join(vals)}", file=sys.stderr)
+        print(f"\nexample:\n  canair config set {key} {vals[0]}", file=sys.stderr)
+        return
+
+    if not _known_key(key):
+        print(
+            f"\nnote: '{key}' is not a recognized config key (see `canair config set --help`).",
+            file=sys.stderr,
+        )
+    if key.startswith("wican_addresses."):
+        print("\nexample:\n  canair config set wican_addresses.home 10.0.2.86", file=sys.stderr)
+    else:
+        print(f"\nexample:\n  canair config set {key} <value>", file=sys.stderr)
+
+
 def _cmd_set(args) -> int:
     from canlib.config import coerce_scalar, get_config_key, set_config_key
+
+    if args.key is None:
+        _missing_key_help()
+        return 2
+    if args.value is None:
+        _missing_value_help(args.key)
+        return 2
 
     value = args.value if args.string else coerce_scalar(args.value)
 
