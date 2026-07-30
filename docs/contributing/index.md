@@ -36,9 +36,10 @@ See [Share your profile](../bring-your-own-car/08-share.md) for the full detail.
 
 ## Report a bug or request a feature
 
-Open a [GitHub issue](https://github.com/philipkocanda/canair/issues). Include
-what you ran, what you expected, and what happened (a `--json` dump or the exact
-command helps). Rough edges in the CLI or docs are fair game too.
+Open a [GitHub issue](https://github.com/philipkocanda/canair/issues) and pick
+the matching form (bug, feature, or profile). It prompts for what you ran, what
+you expected, and what happened (a `--json` dump or the exact command helps).
+Rough edges in the CLI or docs are fair game too.
 
 ## Contribute code
 
@@ -81,4 +82,5 @@ docs and README in the same PR (see the README ↔ `docs/` policy in `AGENTS.md`
 ## Code of conduct
 
 Be kind and constructive. This is a hobbyist project for people curious about
-their cars — assume good faith, and help newcomers.
+their cars — assume good faith, and help newcomers. The full text is in
+[`CODE_OF_CONDUCT.md`](https://github.com/philipkocanda/canair/blob/main/CODE_OF_CONDUCT.md).

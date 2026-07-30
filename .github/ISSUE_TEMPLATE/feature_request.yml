@@ -1,0 +1,30 @@
+name: Feature request
+description: Suggest a new capability or an improvement to canair.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Rough edges in the CLI or docs are fair game too — you don't need a fully
+        formed proposal.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What are you trying to do that's hard or impossible today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: What would you like canair to do? A sketch of the command/flag is great.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds you've tried, or other ways this could work.
+    validations:
+      required: false

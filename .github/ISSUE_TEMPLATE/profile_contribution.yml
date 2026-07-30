@@ -1,0 +1,49 @@
+name: Contribute or discuss a vehicle profile / PIDs
+description: Share decoded signals for a car, or discuss a profile before opening a PR.
+labels: ["enhancement", "help wanted"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **The best way to contribute a profile or PIDs is a pull request, not an
+        issue** — run `canair contribute` (alias `canair share`) and it opens the
+        PR for you (validates + scans for VIN/PII first). See
+        [Share your profile](https://philipkocanda.github.io/canair/bring-your-own-car/08-share/).
+
+        Use this form when you want to **discuss** a profile first, report a
+        decoding gap/mismatch, or share a reading when you can't open a PR.
+  - type: input
+    id: car_model
+    attributes:
+      label: Car model
+      description: Model / year / market / battery — precise enough that others can tell if it matches theirs.
+      placeholder: "XPeng G6 2024 EU Long Range"
+    validations:
+      required: true
+  - type: dropdown
+    id: validate
+    attributes:
+      label: Does `canair validate all` pass for this profile?
+      options:
+        - "Yes"
+        - "No"
+        - "Not applicable (just a reading / discussion)"
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: >
+        What signals/PIDs, verified vs. unverified, your evidence/source, and any
+        captures. Paste reassembled UDS payloads as `ECU:PID=PAYLOAD` if you have them.
+    validations:
+      required: true
+  - type: checkboxes
+    id: pii
+    attributes:
+      label: Privacy
+      description: canair's contribute flow scans for these automatically; please confirm for manual shares.
+      options:
+        - label: I've removed VIN / ECU serials / other personal data from anything I'm sharing here.
+          required: true

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://philipkocanda.github.io/canair/
+    about: Guides, CLI reference, and concepts — check here first.
+  - name: Bring your own car
+    url: https://philipkocanda.github.io/canair/bring-your-own-car/overview/
+    about: The walkthrough for reverse-engineering and contributing a new car.

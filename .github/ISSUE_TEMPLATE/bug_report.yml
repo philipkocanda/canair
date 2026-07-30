@@ -1,0 +1,59 @@
+name: Bug report
+description: Something in canair didn't work the way you expected.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report! The more of the below you fill in, the faster it
+        gets fixed. A `--json` dump or the exact command usually tells the whole
+        story.
+  - type: input
+    id: version
+    attributes:
+      label: canair version
+      description: Output of `uv run canair --version` (or `canair --version`).
+      placeholder: "1.8.1"
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command you ran
+      description: The exact invocation, ideally as `uv run canair …` from the repo root.
+      render: shell
+      placeholder: uv run canair captures BMS 2102 --profile xpeng-g6
+    validations:
+      required: true
+  - type: input
+    id: profile
+    attributes:
+      label: Profile / car
+      description: Which profile was active (and `car_model` if relevant)?
+      placeholder: xpeng-g6 (XPeng G6)
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What actually happened
+      description: Paste output, errors, or a `--json` dump. Attach logs/captures if helpful.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, transport (`slcan-tcp` / `wican-ws` / `import`), device model, anything relevant.
+      placeholder: |
+        OS: macOS 15
+        Transport: wican-ws
+    validations:
+      required: false
