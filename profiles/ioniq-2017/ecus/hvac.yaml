@@ -174,7 +174,8 @@ HVAC:
           source: Fan speed test 2026-04-19; resolved via off-by-one hunt 2026-07-24
           verified: false
           notes: >
-            DEAD MAPPING (kept disabled for research trail). B33 is constant 0xFF across all 220100 captures — NOT the fan level. RESOLVED 2026-07-24 (bix --annotate overlay + decode --try over the 2026-04-19 fan 1/4/MAX sessions): the fan-setting value the 2026-04-19 note saw (0x26 fan1 -> 0x2D fan4/MAX) is on B34, currently mapped as HVAC_HEAT_DEMAND (B34 reads 40/41 fan1 -> 45 fan4/MAX). B34 also correlates with cabin cold (r=-0.74 vs ambient), so B34 is a combined fan/heat demand — see research lead to disambiguate. Fan LEVEL 1-8 RESOLVED 2026-07-27: it is 2201A0 B18 (HVAC_BLOWER_FAN_SPEED, verified), 8 plateaus 40/52/65/77/90/102/111/121 for fan 1..8/MAX.
+            DEAD MAPPING (kept disabled for research trail). B33 is constant 0xFF across all 220100 captures — NOT the fan level.
+
         HVAC_AC_COMPRESSOR_ON:
           expression: "B44"
           unit: ""
@@ -429,7 +430,9 @@ HVAC:
           source: coverage analysis 2026-07-23; mode-cycle capture 2026-07-26
           verified: false
           notes: >
-            Airflow-direction door actuator position. Locked trio B5/B9/B11 (B9=B5+5, B11=B5+8) moving together per direction change (2026-07-26, temp fixed). Slow monotonic drift 102->93 across session (hysteresis/thermal comp, not temp setpoint). Paired with B7 (independent mode door). Discrete direction->value map needs a dwell-per-mode capture.
+            Airflow-direction door actuator position. Locked trio B5/B9/B11 (B9=B5+5, B11=B5+8) moving together per direction change (2026-07-26, temp fixed).
+            Slow monotonic drift 102->93 across session (hysteresis/thermal comp, not temp setpoint).
+            Paired with B7 (independent mode door). Discrete direction->value map needs a dwell-per-mode capture.
           enabled: true
         HVAC_ACTUATOR_TARGET_2:
           expression: B7
@@ -438,7 +441,11 @@ HVAC:
           source: coverage analysis 2026-07-23; mode-cycle capture 2026-07-26
           verified: false
           notes: >
-            Airflow-direction (mode) door actuator position. 2026-07-26 fan-only capture (temp fixed 21C, so moves are direction-driven not temp): repositions on each airflow-direction change with a physically-sensible monotonic sweep face<bi-level<floor<floor+windshield -> face~122, face+legs~137-157, legs(floor)~230, legs+windshield~237. Analog/hysteretic (face+legs read 157 then 137 on the two visits, ~+/-20 drift). B5/B9/B11 (TARGET_1/3/4) are a locked trio (+5/+8) that move together per direction = a second linked door. Discrete direction->value map + verification needs a dwell-per-mode capture with per-action notes.
+            Airflow-direction (mode) door actuator position.
+            2026-07-26 fan-only capture (temp fixed 21C, so moves are direction-driven not temp): repositions on each airflow-direction change with a physically-sensible monotonic sweep face<bi-level<floor<floor+windshield -> face~122, face+legs~137-157, legs(floor)~230, legs+windshield~237.
+            Analog/hysteretic (face+legs read 157 then 137 on the two visits, ~+/-20 drift).
+            B5/B9/B11 (TARGET_1/3/4) are a locked trio (+5/+8) that move together per direction = a second linked door.
+            Discrete direction->value map + verification needs a dwell-per-mode capture with per-action notes.
           enabled: true
         HVAC_ACTUATOR_TARGET_3:
           expression: B9
@@ -507,7 +514,11 @@ HVAC:
           source: HVAC fan-only + fan 1->MAX->1 sweep captures 2026-07-26
           verified: true
           notes: >
-            Actual blower fan speed indicator. Verified by a deliberate fan 1->MAX->1 sweep (2026-07-26 heater-high session): 8 clean symmetric monotonic plateaus L1=40 L2=52 L3=65 L4=77 L5=90 L6=102 L7=111 L8/MAX=121 (~+12/level, compresses at top). Fan-only session steps matched (52/65/90 on the 3->5 change). Reads actual (not rigid setpoint): small off-plateau values (85-93) appear as a transient when vents/recirc change airflow load; steady when load fixed. 0 = glitch frames.
+            Actual blower fan speed indicator.
+            Verified by a deliberate fan 1->MAX->1 sweep (2026-07-26 heater-high session):
+            8 clean symmetric monotonic plateaus L1=40 L2=52 L3=65 L4=77 L5=90 L6=102 L7=111 L8/MAX=121 (~+12/level, compresses at top).
+            Fan-only session steps matched (52/65/90 on the 3->5 change).
+            Reads actual (not rigid setpoint): small off-plateau values (85-93) appear as a transient when vents/recirc change airflow load; steady when load fixed.
     2201A1:
       status: draft
       vehicle_states: [ACC, ACC2, READY]
