@@ -1761,6 +1761,13 @@ BMS:
       date: "2026-07-22"
       result: "Exhaustive service-21 LID sweep (ignition on): 01/02/03/04/05 (known 2101-2105) PLUS F2 (NEW - see 21F2 decode entry). All 250 others NRC. One new page discovered."
       notes: Hidden-page hunt. Only genuine new page found in the whole session.
+    - type: scan
+      target: TEST_CONTRIBUTE_WORKFLOW
+      status: pending
+      priority: P3
+      created: "2026-07-30"
+      updated: "2026-07-30"
+      notes: Temporary entry to test the canair contribute PR workflow — safe to close/reject.
 
   sessions:
     "81":
