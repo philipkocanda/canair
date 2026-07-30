@@ -45,8 +45,9 @@ command helps). Rough edges in the CLI or docs are fair game too.
 Changes to canair itself (the `canlib/` package) are welcome. The engineering
 guidelines — the transport contract, how to add a subcommand, testing, and the
 "keep docs & README current" policy — live in the agent skill at
-`.claude/skills/contributing/SKILL.md`, which doubles as the human contributor
-guide.
+`.claude/skills/contributing-code/SKILL.md`, which doubles as the human
+contributor guide. (The profile-contribution mechanics — `canair contribute`,
+the PII/security scrub — are in `.claude/skills/contributing-profiles/SKILL.md`.)
 
 Always run and test with `uv run canair …` from the repo root (never a
 globally-installed bare `canair`) — that runs your working-tree code and reads

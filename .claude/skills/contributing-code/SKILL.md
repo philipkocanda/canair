@@ -1,14 +1,20 @@
 ---
-name: contributing
-description: Guidelines for agents making code or architecture changes to the canair codebase (CLI subcommands, transports, modes, library code, tests). Load this whenever you are adding, refactoring, or removing canair Python code — NOT for reverse-engineering PIDs or editing vehicle data (use the ioniq-reverse-engineering / reverse-engineer-signal skills for that).
+name: contributing-code
+description: Guidelines for agents making code or architecture changes to the canair codebase (CLI subcommands, transports, modes, library code, tests, releases). Load this whenever you are adding, refactoring, or removing canair Python code — NOT for contributing a vehicle profile/PIDs upstream (use contributing-profiles) or reverse-engineering signals (use ioniq-reverse-engineering / reverse-engineer-signal).
 ---
 
-# Contributing to canair
+# Contributing code to canair
 
 Guidelines for changing canair's own code (the `canlib/` package: CLI,
-transports, modes, library, tests). This is about *engineering* the tool — for
-vehicle/PID work load the **ioniq-reverse-engineering** and
-**reverse-engineer-signal** skills instead.
+transports, modes, library, tests). This is about *engineering* the tool.
+
+Related skills — load the right one for the job:
+
+- **`contributing-profiles`** — contributing a vehicle profile / PIDs *upstream*
+  (the `canair contribute`/`share` flow, PII & security scrubbing, profile data
+  discipline). If your change is *data*, not Python, that's the skill.
+- **`reverse-engineer-signal`** / **`ioniq-reverse-engineering`** — the RE
+  *workflow* itself (discover → capture → analyze → define → verify).
 
 Always run and test the tree with `uv run …` from the repo root (never a
 globally-installed `canair`). See `AGENTS.md` for why.
@@ -260,39 +266,36 @@ share one scoping surface via `canlib/capture_dates.py::add_scope_args`
 - Reads are free; be gentle regardless (old, slow ECUs; one connection at a
   time).
 
-## Data & generated artifacts
+## Data & generated artifacts — the plumbing you maintain
 
-- `profiles/*/ecus/` is the source of truth — edit via `canair pids` (validated,
-  comment-preserving), not by hand. This covers parameters (`upsert-param`),
-  research entries (`add-research`/`set-status`), PID lifecycle
-  (`set-pid-status`), **and curated identity fields** like `notes`/`description`
-  (`set-identity`). **Keep this coverage complete:** if you ever find yourself
-  hand-editing a field of `ecus/` because no `canair pids` subcommand reaches it,
-  the fix is to add the surgical/validated editor (a `canlib.pids_edit` helper +
-  a `canair pids` subcommand) — not to normalize hand-editing. A gap in the CLI
-  editor is a bug to close, so new hand-curated fields must gain tool support.
-- **Free-text fields (`notes`) render themselves — pass plain strings.** Both
-  writer subsystems render notes via one shared policy (`canlib/yaml_rt.py`:
+This section is about the *code* that reads/writes profile data. The
+authoring/scrubbing discipline for the data itself (edit-via-tool, never
+hand-edit, what may/may not be committed) is the **`contributing-profiles`**
+skill — load it if you're touching the data rather than the machinery.
+
+- `profiles/*/ecus/` is the source of truth, edited only through the
+  surgical/validated `canair pids` editors (`canlib/pids_edit.py` /
+  `canlib/ecus_edit.py`). **Keep that editor coverage complete:** if a field of
+  `ecus/` can only be changed by hand because no `canair pids` subcommand reaches
+  it, the fix is to *add* the surgical/validated editor — a gap in the CLI editor
+  is a bug to close, not a reason to normalize hand-editing.
+- **Free-text fields render themselves.** Both writer subsystems format notes via
+  one shared policy (`canlib/yaml_rt.py`:
   `note_should_inline`/`wrap_note_lines`/`folded`; the text path's
-  `_format_block_scalar`): a short note stays inline, a longer/multi-line one
-  becomes a wrapped folded `>-` block (value-preserving, folds only that scalar
-  — never reflowing the rest of the file). So pass a plain string to
-  `--notes` / the `pids_edit`/`ecus_edit` helpers; never pre-format YAML block
-  scalars by hand. A new ruamel-written free-text field just needs adding to
+  `_format_block_scalar`) — a short note stays inline, a longer one becomes a
+  wrapped folded `>-` block (folding only that scalar, never reflowing the file).
+  A new ruamel-written free-text field just needs adding to
   `ecus_edit.FREE_TEXT_FIELDS` to get the same treatment.
-- `profiles/*/captures/*.yaml` are **never** hand-written; they are recorded by
-  the tool (the `--save` path) and edited/removed via `canlib.captures` helpers
-  — the recording/labelling *workflow* is covered by the RE skills. Raw-frame
-  captures (see "Two data domains") must go through the same shared
-  capture/journal machinery, not an external-only file. These per-day files are
-  **append-only** logs; two machines' same-day appends are auto-unioned by
-  canair's git merge driver (`canair captures merge-driver`), which each clone
-  registers once with `canair captures merge-driver --install` (until then git
-  falls back to conflict markers). If you touch the capture on-disk format,
-  the pure union lives in `canlib/captures_merge.py` — keep it format-aligned
-  with `canlib/capture_io.py`.
-- `profiles/*/out/*.json` is generated by `canair wican autopid write` — never hand-edit;
-  regenerate.
+- `profiles/*/captures/*.json` are recorded by the tool (the `--save` path), never
+  hand-written. Raw-frame captures (see "Two data domains") must go through the
+  *same* shared capture/journal machinery, not an external-only file. These
+  per-day files are **append-only** logs; two machines' same-day appends are
+  auto-unioned by canair's git merge driver (`canair captures merge-driver`). If
+  you touch the capture on-disk format, the pure union lives in
+  `canlib/captures_merge.py` — keep it format-aligned with
+  `canlib/capture_io.py`.
+- `profiles/*/out/*.json` is generated by `canair wican autopid write` — never
+  hand-edit; regenerate.
 - Schemas are tool-owned in `canlib/schema/`. Validate with `canair validate`.
 
 ## No PII or location data — the tree is public
@@ -301,7 +304,9 @@ Everything committed here is **shareable/public** (profiles are meant to be
 contributed upstream; git history is forever). Nothing that could identify or
 geolocate the author — or any car owner — may land in the tree, in **code, data,
 docs, tests, fixtures, commit messages, or history**. When in doubt, leave it
-out and ask.
+out and ask. (This mirrors the same rule in **`contributing-profiles`** — there
+it's about scrubbing *data*; here it's about not baking a real IP/email/VIN into
+*code*, `--help` strings, or test fixtures.)
 
 Watch for these leaks (not exhaustive — reason about the *class*, not the list):
 
@@ -340,7 +345,9 @@ Watch for these leaks (not exhaustive — reason about the *class*, not the list
 
 **Sharing the material that unlocks an ECU's SecurityAccess (UDS/KWP2000 `0x27`)
 is illegal in many jurisdictions, and dangerous — it never belongs in this tree,
-not even by accident.** Security access gates the services that can reflash,
+not even by accident.** (Mirrored in **`contributing-profiles`** for the data
+angle — captures/notes; here it's about not re-adding a solver to the *code*.)
+Security access gates the services that can reflash,
 reprogram, or otherwise alter an ECU; the ability to defeat it is exactly what
 manufacturers restrict to authorized dealers and licensed repairers.
 
