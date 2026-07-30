@@ -93,6 +93,7 @@ BMS:
       notes: >
         HV pack min cell voltage.
     221122:
+      variable_length: true
       parameters:
         HV_C_V_001:
           expression: ((B5*2)/100)
@@ -694,178 +695,18 @@ BMS:
           expression: ((B175*2)/100)
           unit: V
           verified: false
-        HV_C_V_151:
-          expression: ((B177*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_152:
-          expression: ((B178*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_153:
-          expression: ((B179*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_154:
-          expression: ((B180*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_155:
-          expression: ((B181*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_156:
-          expression: ((B182*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_157:
-          expression: ((B183*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_158:
-          expression: ((B185*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_159:
-          expression: ((B186*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_160:
-          expression: ((B187*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_161:
-          expression: ((B188*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_162:
-          expression: ((B189*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_163:
-          expression: ((B190*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_164:
-          expression: ((B191*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_165:
-          expression: ((B193*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_166:
-          expression: ((B194*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_167:
-          expression: ((B195*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_168:
-          expression: ((B196*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_169:
-          expression: ((B197*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_170:
-          expression: ((B198*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_171:
-          expression: ((B199*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_172:
-          expression: ((B201*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_173:
-          expression: ((B202*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_174:
-          expression: ((B203*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_175:
-          expression: ((B204*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_176:
-          expression: ((B205*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_177:
-          expression: ((B206*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_178:
-          expression: ((B207*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_179:
-          expression: ((B209*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_180:
-          expression: ((B210*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_181:
-          expression: ((B211*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_182:
-          expression: ((B212*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_183:
-          expression: ((B213*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_184:
-          expression: ((B214*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_185:
-          expression: ((B215*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_186:
-          expression: ((B217*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_187:
-          expression: ((B218*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_188:
-          expression: ((B219*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_189:
-          expression: ((B220*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_190:
-          expression: ((B221*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_191:
-          expression: ((B222*2)/100)
-          unit: V
-          verified: false
-        HV_C_V_192:
-          expression: ((B223*2)/100)
-          unit: V
-          verified: false
       status: draft
-      notes: >
-        Per-cell voltages (192 cells, multi-frame).
+      notes: >-
+        Per-cell voltages, 150 cells (multi-frame). Confirmed 150S from the
+        2026-07-30 capture: the BMS returns a fixed 224-byte data field (ISO-TP
+        declared length 227) in which only the first 150 bytes are real cells and
+        the remainder is 0xFF padding. 150 is corroborated by physics — pack
+        voltage 575.3 V (221101) / measured ~3.835 V per cell = 150 series. The
+        upstream community profile over-defined this at 192 (would imply an
+        impossible 3.00 V/cell at this pack voltage); cells 151-192 were trimmed.
+        This is the 87.5 kWh (150S) variant; the 66 kWh variant likely differs.
     221123:
+      variable_length: true
       parameters:
         HV_T_1:
           expression: (B5-40)
@@ -1009,4 +850,7 @@ BMS:
           verified: false
       status: draft
       notes: >
-        Cell temperatures (35 sensors, multi-frame).
+        Cell/module temperatures (multi-frame). 35 sensors defined; the
+        2026-07-30 capture carries 36 real data bytes (all decoding to a
+        plausible 19-21 °C) before 0xFF padding, so there may be a 36th sensor
+        or an aggregate (max/min/avg) in the last byte — unverified, left at 35.

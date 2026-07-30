@@ -1,75 +1,70 @@
 # XPeng G6 — Known Issues
 
-## Cell voltages / temperatures cut off partway (only ~130 of 192 cells read)
+## Cell-voltage / temperature DIDs return a fixed, 0xFF-padded buffer
 
-**Symptom:** On the WiCAN device (AutoPID firmware), the cell-voltage PID reads
-data for only ~130 cells even though the profile defines 192 (`BMS` DID
-`221122`, `HV_C_V_001`…`HV_C_V_192`). The device dashboard may *list* ~150
-parameters while only ~130 actually show values; the rest read zero/blank.
+**Not a bug — documented device behaviour.** The BMS answers the cell-voltage
+DID `221122` (and the temperature DID `221123`) with a **fixed-size data field
+padded with `0xFF`** past the real sensor count:
 
-This is a **WiCAN AutoPID firmware limitation for long multi-frame (ISO-TP)
-responses** — not a canair bug and not a byte-mapping error in the profile.
+| DID      | Data field (ISO-TP) | Real bytes | Padding        |
+|----------|--------------------:|-----------:|----------------|
+| `221122` | 224 B (declared 227)|  **150**   | 74 × `0xFF`    |
+| `221123` |  ~96 B              |   **36**   | rest × `0xFF`  |
 
-### Why it happens
+Both are flagged `variable_length: true` so a shorter real read isn't mistaken
+for a truncated ISO-TP response.
 
-A 192-cell response is ~194 payload bytes ≈ **28 CAN frames**. The AutoPID
-firmware caps that read:
+### Cell count: 150, not 192 (87.5 kWh / 150S variant)
 
-- **Receive window.** AutoPID hardcodes its ELM init to `ATST96`
-  (`wican-fw/main/autopid.c`), giving each request only `0x96 × 4.096 ms ≈
-  614 ms`, and grabs the accumulated buffer with a single 1 s queue read
-  (`autopid.c`, `xQueueReceive(..., pdMS_TO_TICKS(1000))`). The firmware's own
-  flow control sends STmin = 10 ms (`elm327.c`), so ~28 frames cost ~280 ms of
-  inter-frame spacing alone, plus per-frame text accumulation and MQTT
-  publishing. On a loaded ESP32 the tail frames (cells ~130→192) don't arrive
-  before the buffer is parsed.
-- **Partial multi-frame support.** `elm327.c` carries an explicit TODO noting
-  the firmware doesn't fully handle large multi-frame flows.
+The profile was seeded device-free from the upstream WiCAN community profile,
+which defined **192** cells (`HV_C_V_001`…`HV_C_V_192`). The 2026-07-30 capture
+disproves that:
 
-So the missing cells are simply **not in the response buffer** by the time the
-expressions run — the byte offsets themselves are correct.
+- Only the **first 150** data bytes hold real cell voltages (~3.80–3.84 V while
+  charging); bytes 151→ are `0xFF`. Decoding `0xFF` as a cell gives a bogus
+  `(0xFF × 2)/100 = 5.10 V`, and `HV_C_V_151`…`192` either read that padding or
+  index past the payload entirely.
+- **Physics confirms 150S.** Pack voltage `221101` = **575.3 V**; at the measured
+  ~3.835 V/cell that is exactly **150** cells in series. 192S would require an
+  impossible **3.00 V/cell** at this pack voltage.
 
-### Why it is NOT a mapping bug
+`HV_C_V_151`…`HV_C_V_192` were therefore **trimmed** — the profile now defines
+**150 cells**, matching the car.
 
-AutoPID inits with `ATH1` (headers on) and `parse_elm327_response`
-(`autopid.c`) keeps the ISO-TP PCI bytes as `data[0]` of each frame. The
-expression evaluator (`expression_parser.c`) does a flat `data[index]`, so it
-indexes a buffer that includes PCI at `B0/B1` (First Frame) and `B8/B16/…`
-(Consecutive Frames) — the same WiCAN `Bnn` convention canair uses. The
-PCI-skip pattern in the profile expressions (`B5..B13`, skip `B16`, `B17..B23`,
-skip `B24`, …) is consistent all the way through, including at the 128→130 and
-149→150 boundaries.
+> **Variant note.** The XPeng G6 ships in **66 kWh** and **87.5 kWh** packs with
+> different cell counts. This profile / capture is the **87.5 kWh (150S)**
+> variant. A 66 kWh car will report a different cell count — build a separate
+> profile (or a variant) for it rather than assuming 150.
 
-The three numbers in play:
+### Temperature count: 35 defined, possibly 36
 
-| Count | Meaning |
-|------:|---------|
-| 192   | Cells defined in the profile (`221122`) |
-| ~150  | Params the firmware lists (parsed/attempted) |
-| ~130  | Cells whose byte landed in frames that arrived within the ~614 ms window |
+`221123` carries **36** real data bytes (all ~19–21 °C) before the `0xFF`
+padding, but the profile defines **35** sensors (`HV_T_1`…`HV_T_35`). The 36th
+byte is a plausible temperature — it may be a 36th sensor or an aggregate
+(max/min/avg). Left at 35 pending verification; do not assume 36 without a
+second reading and, ideally, a cross-check against a known pack/module count.
+
+## Reading all 150 cells over the WiCAN device (AutoPID firmware)
+
+Independent of the count above, reading the **full** `221122` response over the
+WiCAN device's AutoPID firmware can still be truncated — a ~150-byte response is
+~22 CAN frames and the firmware caps its receive window:
+
+- **Receive window.** AutoPID hardcodes `ATST96` (`wican-fw/main/autopid.c`) →
+  `0x96 × 4.096 ms ≈ 614 ms` per request, grabbed with a single 1 s queue read.
+  Its own flow control sends STmin = 10 ms (`elm327.c`), so the frames cost
+  ~220 ms of inter-frame spacing alone, plus text accumulation and MQTT publish.
+  On a loaded ESP32 the tail frames may not arrive before the buffer is parsed.
+- **Partial multi-frame support.** `elm327.c` carries a TODO noting large
+  multi-frame flows aren't fully handled.
+
+So on the device you may see values for only the first ~130 cells even though
+150 are defined and present on the bus.
 
 ### What to do
 
-1. **Confirm the real pack cell count first.** XPeng G6 ships in 66 kWh and
-   87.5 kWh variants with different cell counts. If the car genuinely has ~130
-   cells, `HV_C_V_131`…`HV_C_V_192` are speculative padding — trim them and the
-   read fits the window. (This whole profile is seeded device-free and
-   unverified; see `profile.yaml`.)
-2. **Verify with canair over `slcan-tcp`**, which does full ISO-TP reassembly
-   with its own flow control:
-   `uv run canair query BMS:221122 --wican <ip> --save --label "cell count check"`.
-   Compare the declared First-Frame length to the pack's real cell count. If the
-   declared length ≈ 194 but the device-read stops at ~130, it confirms the
-   AutoPID window cap; if the declared length itself is small, the pack simply
-   has fewer cells.
-3. **If the pack really has 192 cells,** split `221122` (and the temperature DID
-   `221123`) into smaller sub-reads if XPeng exposes paged/sub-DID access, so
-   each request stays within the firmware's frame budget. This is a profile
-   change (no firmware reflash) but needs a capture to confirm the paging
-   scheme.
-4. **Firmware-side** (out of scope for this profile): raising `ATST` in the
-   AutoPID init and the queue-grab timeout in `wican-fw` would widen the window,
-   but requires editing and reflashing the device.
-
-The same reasoning applies to the temperature DID `221123` (`HV_T_1`…`HV_T_35`),
-though its shorter response is far less likely to hit the window.
+1. **Verify over `slcan-tcp`**, which does full ISO-TP reassembly with its own
+   flow control (this is how the 150-cell count above was captured):
+   `uv run canair query BMS:221122 --wican <ip> --save --label "cell read"`.
+2. **Firmware-side** (out of scope here): raising `ATST` and the queue-grab
+   timeout in `wican-fw` widens the window, but requires reflashing the device.
