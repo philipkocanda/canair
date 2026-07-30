@@ -375,6 +375,31 @@ def build_manual_session(
     return cast(CaptureSession, session)
 
 
+def _stamp_version(session: CaptureSession) -> CaptureSession:
+    """Return a copy of ``session`` with the recording canair ``version`` stamped.
+
+    Called from :func:`save_session` — the single choke point every session flows
+    through before landing on disk — so every recorded session carries the tool
+    version that wrote it (provenance for debugging capture issues traced to a
+    specific release). An existing ``version`` (e.g. on a recovered/re-saved
+    session) is left untouched. Inserted right after ``label`` so the on-disk
+    field order stays readable (date, label, version, …).
+    """
+    if session.get("version"):
+        return session
+    from . import __version__
+
+    rebuilt: dict = {}
+    for key, value in session.items():
+        rebuilt[key] = value
+        if key == "label":
+            rebuilt["version"] = __version__
+    if "version" not in rebuilt:
+        # No ``label`` key (shouldn't happen for a valid session) — append it.
+        rebuilt["version"] = __version__
+    return cast(CaptureSession, rebuilt)
+
+
 def save_session(session: CaptureSession, captures_dir: Path | None = None) -> Path:
     """Append a session dict to captures/YYYY-MM-DD.json. Returns the file path.
 
@@ -382,7 +407,11 @@ def save_session(session: CaptureSession, captures_dir: Path | None = None) -> P
     so a session captured on — or recovered from — a different day lands in the
     correct per-day file rather than today's. When ``captures_dir`` is None, the
     active vehicle profile's captures/ directory is used.
+
+    Every session is stamped with the recording canair ``version`` here (the one
+    place all save paths funnel through), unless it already carries one.
     """
+    session = _stamp_version(session)
     if captures_dir is None:
         from .profile import active
 

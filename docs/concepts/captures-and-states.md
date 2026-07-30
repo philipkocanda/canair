@@ -90,6 +90,7 @@ became suspect; see the note below):
 {
   "date": "2026-04-19",
   "label": "highway pull",
+  "version": "1.8.1",
   "vehicle_states": ["driving"],
   "transport": "slcan-tcp",
   "quality": { "exchanges": 412, "drop": 0, "no_data": 3 },
@@ -97,6 +98,9 @@ became suspect; see the note below):
 }
 ```
 
+- **`version`** — the canair version that recorded the session, stamped at save
+  time. Provenance for debugging a capture issue traced to a specific release.
+  Sessions recorded before version stamping was added simply omit it.
 - **`transport`** — how the payloads were acquired: the transport label
   (`slcan-tcp` / `wican-ws`) for a device-recorded session, or `import` for a
   device-free `canair import uds`.
@@ -106,8 +110,9 @@ became suspect; see the note below):
   `bus`, `decode`). A clean session records just `exchanges`; NRCs are
   legitimate ECU answers and are **not** counted.
 
-`canair captures uds --sessions` shows both per session (flagging any drops), and
-every error is also written to the central log — inspect it with `canair logs`.
+`canair captures uds --sessions` shows all three per session (flagging any
+drops), and every error is also written to the central log — inspect it with
+`canair logs`.
 
 
 ## Recording captures

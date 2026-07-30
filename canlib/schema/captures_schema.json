@@ -24,6 +24,10 @@
           "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}(-.+)?$"
         },
         "label": { "type": "string" },
+        "version": {
+          "description": "The canair version that recorded this session (e.g. '1.4.2'). Provenance for debugging capture issues traced to a specific tool release. Absent on sessions recorded before version stamping was added.",
+          "type": "string"
+        },
         "vehicle_states": {
           "description": "Power states the car was in during this session (vocabulary from vehicle_states.yaml). Array of tokens, e.g. [ready, parked].",
           "type": "array",

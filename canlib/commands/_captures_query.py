@@ -149,6 +149,7 @@ def load_all_captures(captures_dir: Path | None = None) -> list[dict]:
         for s_idx, session in enumerate(data["sessions"]):
             date = session.get("date", "")
             label = session.get("label", "")
+            version = session.get("version", "")
             vehicle_states = session.get("vehicle_states") or []
             session_notes = session.get("notes", "")
             keep_mode = session.get("keep_mode", "")
@@ -160,6 +161,7 @@ def load_all_captures(captures_dir: Path | None = None) -> list[dict]:
                     "file": fpath.name,
                     "date": date,
                     "session_label": label,
+                    "session_version": version,
                     "vehicle_states": list(vehicle_states),
                     "session_notes": session_notes,
                     "keep_mode": keep_mode,

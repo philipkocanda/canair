@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from canlib import capture_io
 from canlib.capture_journal import CaptureJournal, build_session_from_records
-from canlib.captures import build_manual_session, build_query_session
+from canlib.captures import build_manual_session, build_query_session, save_session
 
 
 class TestSessionBuilders:
@@ -76,3 +76,38 @@ class TestJournalProvenance:
         ]
         sessions = build_session_from_records(records)
         assert sessions[0]["transport"] == "slcan-tcp"
+
+
+class TestVersionStamping:
+    def test_save_session_stamps_current_version(self, tmp_path):
+        import canlib
+
+        s = build_query_session([("0x7EC", "2101", "6101AA", "12:00:00")], "lbl", [], "")
+        assert "version" not in s  # builders don't stamp it; save_session does
+        written = save_session(s, tmp_path)
+        data = capture_io.load_capture_file(written)
+        assert data["sessions"][0]["version"] == canlib.__version__
+
+    def test_version_stamped_after_label(self, tmp_path):
+        s = build_query_session([("0x7EC", "2101", "6101AA", "12:00:00")], "lbl", [], "")
+        written = save_session(s, tmp_path)
+        data = capture_io.load_capture_file(written)
+        keys = list(data["sessions"][0].keys())
+        assert keys.index("version") == keys.index("label") + 1
+
+    def test_existing_version_preserved(self, tmp_path):
+        s = build_query_session([("0x7EC", "2101", "6101AA", "12:00:00")], "lbl", [], "")
+        s["version"] = "0.0.1-pinned"
+        written = save_session(s, tmp_path)
+        data = capture_io.load_capture_file(written)
+        assert data["sessions"][0]["version"] == "0.0.1-pinned"
+
+    def test_journaled_session_carries_version(self, tmp_path):
+        import canlib
+
+        j = CaptureJournal.open(tmp_path, label="run", transport="wican-ws")
+        j.append("0x7EC", "2101", "6101AA")
+        written = j.reconcile()
+        assert written is not None
+        data = capture_io.load_capture_file(written)
+        assert data["sessions"][0]["version"] == canlib.__version__

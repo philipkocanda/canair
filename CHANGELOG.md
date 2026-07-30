@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Capture sessions record the canair `version` that wrote them.** Every
+  recorded/imported session now carries a `version` field (the tool version at
+  save time), stamped once at the single save choke point (`save_session`) so it
+  covers every path — `query`/`monitor --save`, one-shot `scan`/`raw`/`discover`,
+  and device-free `import uds` — and journal-recovered sessions alike. It's
+  provenance for debugging a capture issue traced to a specific release, sitting
+  alongside `transport`/`quality`. Surfaced in `canair captures uds --sessions`
+  (a `· vX.Y.Z ·` tag) and its `--json`. Sessions recorded before this change
+  simply have no `version` (the field is optional).
 - **Per-ECU `wake:` block — profile-declared wake rituals for fast-sleeping
   ECUs.** Some modules (e.g. a Smart Key Module) power their CAN transceiver
   only briefly and sleep again within a second or two, so a single `10 01` wake

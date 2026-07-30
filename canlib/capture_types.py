@@ -81,6 +81,7 @@ class CaptureSession(TypedDict):
     date: str
     label: str
     captures: list[CaptureRecord]
+    version: NotRequired[str]
     vehicle_states: NotRequired[list[str]]
     notes: NotRequired[str]
     keep_mode: NotRequired[str]

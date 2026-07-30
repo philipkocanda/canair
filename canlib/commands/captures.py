@@ -234,6 +234,7 @@ class _SessionGroup(TypedDict):
     file: str
     date: str
     label: str
+    version: str
     vehicle_states: list
     notes: str
     keep_mode: str
@@ -262,6 +263,7 @@ def _group_sessions(entries: list[dict]) -> list[_SessionGroup]:
                 "file": e["file"],
                 "date": e.get("date", ""),
                 "label": e.get("session_label", ""),
+                "version": e.get("session_version", ""),
                 "vehicle_states": e.get("vehicle_states") or [],
                 "notes": e.get("session_notes", ""),
                 "keep_mode": e.get("keep_mode", ""),
@@ -332,6 +334,7 @@ def cmd_sessions(entries: list[dict], as_json: bool = False, max_notes: int = 6)
                 "file": s["file"],
                 "date": s["date"],
                 "label": s["label"],
+                "version": s["version"],
                 "vehicle_states": s["vehicle_states"],
                 "notes": s["notes"],
                 "keep_mode": s["keep_mode"],
@@ -372,8 +375,10 @@ def cmd_sessions(entries: list[dict], as_json: bool = False, max_notes: int = 6)
         keep_tag = f" · {_CYAN}keep:{keep}{_RESET}{_DIM}" if keep else ""
         transport = s.get("transport")
         transport_tag = f" · {transport}" if transport else ""
+        version = s.get("version")
+        version_tag = f" · v{version}" if version else ""
         print(
-            f"    {_DIM}{s['n']} captures · {ecus}{keep_tag}{transport_tag} · {s['file']}{_RESET}"
+            f"    {_DIM}{s['n']} captures · {ecus}{keep_tag}{transport_tag}{version_tag} · {s['file']}{_RESET}"
         )
         # Data-quality footprint: flag any drops/errors recorded for the session
         # (the transport-health provenance) so a suspect capture stands out.
