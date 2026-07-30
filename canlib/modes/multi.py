@@ -202,7 +202,14 @@ async def mode_multi(
                 cap_date, cap_time = _capture_stamp(entry.get("acquired_at"))
                 collected.append((ecu_ref, entry["pid"], raw_hex, cap_time))
                 if journal is not None:
-                    journal.append(ecu_ref, entry["pid"], raw_hex, cap_time, cap_date)
+                    journal.append(
+                        ecu_ref,
+                        entry["pid"],
+                        raw_hex,
+                        cap_time,
+                        cap_date,
+                        elapsed_ms=entry.get("elapsed_ms"),
+                    )
         # Accumulate decoded values for end-of-pipeline state auto-suggestion.
         if save:
             from ..states import collect_values

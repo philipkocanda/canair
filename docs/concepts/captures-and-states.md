@@ -27,7 +27,7 @@ Each `captures/YYYY-MM-DD.json` holds one day, as sessions of captures:
       "label": "highway pull",
       "vehicle_states": ["driving"],
       "captures": [
-        { "rx": "0x7EC", "pid": "2101", "payload": "6101FFE0…", "time": "14:02:11.480" }
+        { "rx": "0x7EC", "pid": "2101", "payload": "6101FFE0…", "time": "14:02:11.480", "elapsed_ms": 47 }
       ]
     }
   ]
@@ -44,6 +44,13 @@ Each `captures/YYYY-MM-DD.json` holds one day, as sessions of captures:
   (SID-first, ISO-TP framing stripped). Decoded *values* are **not** stored —
   they're regenerated on demand from `payload` + the PID definitions, so a
   refined expression re-decodes old captures for free.
+- **`elapsed_ms`** (optional) is the wall-clock UDS round-trip in milliseconds —
+  a *relative* speed signal for the ECU/PID, not pure ECU processing time (it
+  includes transport, WiCAN, and any ISO-TP/`responsePending` round-trips). It's
+  recorded only for **single per-DID reads** on the live `query` path; batched
+  multi-DID reads (one round-trip answers several PIDs), `monitor --save`, scans,
+  and imports omit it. Because transports have very different fixed overhead, an
+  `elapsed_ms` is comparable only **within the same session `transport`**.
 - Stored as JSON because it parses ~60× faster than YAML — the dominant cost of
   every history-consuming command (`ecu`, `coverage`, `decode`, `correlate`,
   `hunt`, `investigate`).

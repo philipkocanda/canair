@@ -84,9 +84,15 @@ async def _read_single(sm, tx_id, pid_code, pid_info, unmapped, batch_state):
     echo = request_echo(pid_code)
     expected_sid = echo[0] if echo else None
     expected_echo = echo[1] if echo else None
+    t0 = time.monotonic()
     resp = await sm.terminal.send_uds(
         pid_code, retries=1, expected_sid=expected_sid, expected_echo=expected_echo
     )
+    # Wall-clock round-trip (transport + ECU) for this single read — persisted on
+    # the capture as a relative timing signal. Batched multi-DID reads don't get
+    # this (one round-trip answers several PIDs), so it lives here, not in
+    # _read_batch.
+    elapsed_ms = round((time.monotonic() - t0) * 1000)
     # Timestamp the moment the response arrived so sequentially-polled PIDs keep
     # their true sub-second acquisition skew.
     acquired_at = time.time()
@@ -96,7 +102,9 @@ async def _read_single(sm, tx_id, pid_code, pid_info, unmapped, batch_state):
         return _error_result(pid_code, unmapped, resp, acquired_at)
     if batch_state is not None and _is_did22(pid_code) and resp.get("hex"):
         batch_state.learn(tx_id, pid_code[2:], resp["hex"])
-    return _decode_pid_result(pid_code, pid_info, unmapped, resp["hex"], resp["bytes"], acquired_at)
+    return _decode_pid_result(
+        pid_code, pid_info, unmapped, resp["hex"], resp["bytes"], acquired_at, elapsed_ms
+    )
 
 
 async def _read_batch(sm, tx_id, group, out, batch_state) -> bool:

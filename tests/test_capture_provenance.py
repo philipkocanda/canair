@@ -111,3 +111,70 @@ class TestVersionStamping:
         assert written is not None
         data = capture_io.load_capture_file(written)
         assert data["sessions"][0]["version"] == canlib.__version__
+
+
+class TestElapsedMs:
+    """Per-capture wall-clock round-trip (single per-DID reads only)."""
+
+    def test_query_session_stores_elapsed_ms(self):
+        s = build_query_session([("0x7EC", "2101", "6101AA", "12:00:00", 47)], "lbl", [], "")
+        assert s["captures"][0]["elapsed_ms"] == 47
+
+    def test_query_session_omits_elapsed_when_none(self):
+        s = build_query_session([("0x7EC", "2101", "6101AA", "12:00:00", None)], "lbl", [], "")
+        assert "elapsed_ms" not in s["captures"][0]
+
+    def test_query_session_back_compat_four_tuple(self):
+        # Monitor/direct callers still pass 4-tuples (no elapsed).
+        s = build_query_session([("0x7EC", "2101", "6101AA", "12:00:00")], "lbl", [], "")
+        assert "elapsed_ms" not in s["captures"][0]
+
+    def test_journal_append_persists_elapsed_ms(self, tmp_path):
+        j = CaptureJournal.open(tmp_path, label="run", transport="slcan-tcp")
+        j.append("0x7EC", "2101", "6101AA", elapsed_ms=42)
+        written = j.reconcile()
+        assert written is not None
+        data = capture_io.load_capture_file(written)
+        assert data["sessions"][0]["captures"][0]["elapsed_ms"] == 42
+
+    def test_journal_append_omits_elapsed_when_absent(self, tmp_path):
+        j = CaptureJournal.open(tmp_path, label="run", transport="slcan-tcp")
+        j.append("0x7EC", "2101", "6101AA")
+        written = j.reconcile()
+        assert written is not None
+        data = capture_io.load_capture_file(written)
+        assert "elapsed_ms" not in data["sessions"][0]["captures"][0]
+
+    def test_build_session_from_records_threads_elapsed(self):
+        records = [
+            {"type": "meta", "label": "run"},
+            {
+                "type": "capture",
+                "rx": "0x7EC",
+                "pid": "2101",
+                "payload": "6101",
+                "date": "2026-07-28",
+                "elapsed_ms": 33,
+            },
+        ]
+        sessions = build_session_from_records(records)
+        assert sessions[0]["captures"][0]["elapsed_ms"] == 33
+
+
+class TestDecodePidResultElapsed:
+    """_decode_pid_result carries elapsed only for single reads."""
+
+    def test_single_read_carries_elapsed(self):
+        from canlib.modes.multi_batch import _decode_pid_result
+
+        entry = _decode_pid_result(
+            "2101", None, True, "6101AA", bytes.fromhex("6101AA"), 1.0, elapsed_ms=55
+        )
+        assert entry["elapsed_ms"] == 55
+
+    def test_batched_read_omits_elapsed(self):
+        from canlib.modes.multi_batch import _decode_pid_result
+
+        # Batched callers don't pass elapsed_ms (defaults to None → omitted).
+        entry = _decode_pid_result("22B001", None, True, "62B00100", bytes.fromhex("62B00100"), 1.0)
+        assert "elapsed_ms" not in entry

@@ -69,7 +69,12 @@
         "scan_results": { "$ref": "#/$defs/scan_results" },
         "label": { "type": "string" },
         "time": { "type": "string" },
-        "notes": { "type": "string" }
+        "notes": { "type": "string" },
+        "elapsed_ms": {
+          "description": "Wall-clock UDS round-trip in ms (transport + ECU, not pure ECU time). Recorded only for single per-DID reads on the live query path; absent for batched multi-DID reads, monitor --save, scans, and imports. Comparable only within the same session 'transport'.",
+          "type": "integer",
+          "minimum": 0
+        }
       },
       "oneOf": [
         { "required": ["payload"] },

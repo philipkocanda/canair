@@ -34,6 +34,7 @@ class ResultEntry(TypedDict):
     params: NotRequired[list[ParamRow]]
     raw_hex: NotRequired[str]
     acquired_at: NotRequired[float | None]
+    elapsed_ms: NotRequired[int]
     decode: NotRequired[str | None]
     unmapped: NotRequired[bool]
     error: NotRequired[str]
@@ -187,23 +188,34 @@ def _decode_pid_result(
     hex_str: str,
     bytes_val: bytes,
     acquired_at: float | None,
+    elapsed_ms: int | None = None,
 ) -> ResultEntry:
-    """Build a result dict from a successful (single or split-out) response."""
+    """Build a result dict from a successful (single or split-out) response.
+
+    ``elapsed_ms`` (wall-clock round-trip) is carried through to the saved
+    capture only for single per-DID reads — batched multi-DID reads share one
+    round-trip across several PIDs, so they pass ``None`` and omit the field.
+    """
+    entry: ResultEntry
     if pid_info:
-        return {
+        entry = {
             "pid": pid_code,
             "params": decode_param_rows(hex_str, pid_info["parameters"]),
             "raw_hex": hex_str,
             "acquired_at": acquired_at,
         }
-    return {
-        "pid": pid_code,
-        "params": [],
-        "raw_hex": hex_str,
-        "decode": decode_uds_response(bytes_val),
-        "unmapped": True,
-        "acquired_at": acquired_at,
-    }
+    else:
+        entry = {
+            "pid": pid_code,
+            "params": [],
+            "raw_hex": hex_str,
+            "decode": decode_uds_response(bytes_val),
+            "unmapped": True,
+            "acquired_at": acquired_at,
+        }
+    if elapsed_ms is not None:
+        entry["elapsed_ms"] = elapsed_ms
+    return entry
 
 
 def _error_result(

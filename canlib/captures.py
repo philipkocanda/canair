@@ -110,7 +110,7 @@ def resolve_metadata(
 
 
 def build_query_session(
-    results: list[tuple[str, str, str, str]],
+    results: list[tuple[str, str, str, str]] | list[tuple[str, str, str, str, int | None]],
     label: str,
     vehicle_states: list,
     notes: str,
@@ -122,11 +122,12 @@ def build_query_session(
     """Build a capture session dict from query/raw payload results.
 
     ``results`` is a list of ``(ecu_ref, pid, hex, time)`` tuples (``time``
-    may be an empty string). ``ecu_ref`` is the ECU CAN response address as a
-    hex string (e.g. ``"0x7EC"``), stored in each capture's ``rx`` field.
-    Captures are grouped by ECU then PID in the order given. Decoded parameter
-    values are intentionally NOT stored — they are regenerated on demand from
-    the payload + PID definitions.
+    may be an empty string), optionally with a 5th ``elapsed_ms`` element
+    (``None`` when unavailable — e.g. monitor/batched rows). ``ecu_ref`` is the
+    ECU CAN response address as a hex string (e.g. ``"0x7EC"``), stored in each
+    capture's ``rx`` field. Captures are grouped by ECU then PID in the order
+    given. Decoded parameter values are intentionally NOT stored — they are
+    regenerated on demand from the payload + PID definitions.
 
     ``date`` sets the session date (the acquisition date, from the journal's
     per-record dates); it falls back to today when omitted, for the direct
@@ -160,7 +161,9 @@ def build_query_session(
         session["quality"] = dict(quality)
 
     captures: list[CaptureRecord] = []
-    for ecu_ref, pid, hex_val, ts in results:
+    for row in results:
+        ecu_ref, pid, hex_val, ts = row[0], row[1], row[2], row[3]
+        elapsed_ms: int | None = row[4] if len(row) > 4 else None  # ty: ignore[index-out-of-bounds]
         capture: CaptureRecord = {
             "rx": ecu_ref,
             "pid": pid,
@@ -170,6 +173,8 @@ def build_query_session(
         # timestamp so cross-signal time-alignment can use it (Tranche 2.6). Fall
         # back to the current time when the caller didn't supply one.
         capture["time"] = ts or datetime.now().strftime("%H:%M:%S")
+        if elapsed_ms is not None:
+            capture["elapsed_ms"] = elapsed_ms
         captures.append(capture)
 
     session["captures"] = captures

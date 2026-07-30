@@ -16,7 +16,7 @@ Journal format (one JSON object per line):
     {"v": 1, "type": "meta", "date": "...", "label": "...", "vehicle_states": [...],
      "notes": "...", "source": "monitor", "keep_mode": "unique"}
     {"type": "capture", "rx": "0x7EC", "pid": "2101", "payload": "6101...",
-     "date": "2026-07-22", "time": "12:00:01"}
+     "date": "2026-07-22", "time": "12:00:01", "elapsed_ms": 47}
     ...
 
 Each ``capture`` row carries its own ``date`` (the acquisition date), so a
@@ -134,7 +134,15 @@ class CaptureJournal:
 
     # -- streaming API -----------------------------------------------------
 
-    def append(self, ecu_ref: str, pid: str, hex_val: str, time: str = "", date: str = "") -> None:
+    def append(
+        self,
+        ecu_ref: str,
+        pid: str,
+        hex_val: str,
+        time: str = "",
+        date: str = "",
+        elapsed_ms: int | None = None,
+    ) -> None:
         """Append one captured payload row (buffered; caller flushes per cycle).
 
         Payload rows are time-series samples, so each stamps both a ``date`` and
@@ -143,11 +151,16 @@ class CaptureJournal:
         capture files — the session's date is no longer a single value fixed at
         reconcile time. Callers pass the acquisition timestamp; both fall back to
         "now" when omitted.
+
+        ``elapsed_ms`` (wall-clock UDS round-trip) is persisted when supplied —
+        only single per-DID reads carry it; batched/monitor rows pass ``None``.
         """
         rec: dict = {"type": "capture", "rx": ecu_ref, "pid": pid, "payload": hex_val.upper()}
         now = datetime.now()
         rec["date"] = date or now.strftime("%Y-%m-%d")
         rec["time"] = time or now.strftime("%H:%M:%S")
+        if elapsed_ms is not None:
+            rec["elapsed_ms"] = elapsed_ms
         self._write(rec)
 
     def append_session(self, session: CaptureSession) -> None:
@@ -238,9 +251,9 @@ def _read_records(path: Path) -> list[dict]:
 
 
 def _dedup(
-    rows: list[tuple[str, str, str, str, str]], keep_mode: str | None
-) -> list[tuple[str, str, str, str, str]]:
-    """Apply keep-mode dedup to (ecu, pid, hex, time, date) rows, preserving order.
+    rows: list[tuple[str, str, str, str, str, int | None]], keep_mode: str | None
+) -> list[tuple[str, str, str, str, str, int | None]]:
+    """Apply keep-mode dedup to (ecu, pid, hex, time, date, elapsed_ms) rows, preserving order.
 
     ``None``/``last`` keep every row as-is; ``unique`` drops rows whose
     (ecu, pid, payload) has already been seen.
@@ -248,7 +261,7 @@ def _dedup(
     if keep_mode not in ("unique",):
         return rows
     seen: set[tuple[str, str, str]] = set()
-    out: list[tuple[str, str, str, str, str]] = []
+    out: list[tuple[str, str, str, str, str, int | None]] = []
     for row in rows:
         key = (row[0], row[1], row[2])
         if key in seen:
@@ -274,7 +287,7 @@ def build_session_from_records(
 
     meta = {"label": "", "vehicle_states": [], "notes": "", "keep_mode": None, "date": ""}
     session_records: list[dict] = []
-    rows: list[tuple[str, str, str, str, str]] = []
+    rows: list[tuple[str, str, str, str, str, int | None]] = []
     meta_date = ""
     transport: str | None = None
     quality: dict | None = None
@@ -300,6 +313,7 @@ def build_session_from_records(
                     rec.get("payload", ""),
                     rec.get("time", ""),
                     str(rec.get("date") or meta_date),
+                    rec.get("elapsed_ms"),
                 )
             )
 
@@ -346,9 +360,9 @@ def build_session_from_records(
 
     # Group by capture date so each day becomes its own session. Preserve the
     # order dates first appear so the earliest day is saved first.
-    by_date: dict[str, list[tuple[str, str, str, str]]] = {}
-    for ecu, pid, hex_val, ts, rdate in rows:
-        by_date.setdefault(rdate, []).append((ecu, pid, hex_val, ts))
+    by_date: dict[str, list[tuple[str, str, str, str, int | None]]] = {}
+    for ecu, pid, hex_val, ts, rdate, elapsed_ms in rows:
+        by_date.setdefault(rdate, []).append((ecu, pid, hex_val, ts, elapsed_ms))
 
     sessions: list[CaptureSession] = []
     for rdate, day_rows in by_date.items():

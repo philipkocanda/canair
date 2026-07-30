@@ -73,6 +73,11 @@ class CaptureRecord(TypedDict):
     label: NotRequired[str]
     time: NotRequired[str]
     notes: NotRequired[str]
+    # Wall-clock UDS round-trip in ms (transport + ECU, not pure ECU time).
+    # Recorded only for single per-DID reads on the live query path; absent for
+    # batched multi-DID reads, monitor --save, scans, and imports. Comparable
+    # only within the same session `transport`.
+    elapsed_ms: NotRequired[int]
 
 
 class CaptureSession(TypedDict):
