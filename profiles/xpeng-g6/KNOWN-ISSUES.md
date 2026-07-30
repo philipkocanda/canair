@@ -46,25 +46,63 @@ second reading and, ideally, a cross-check against a known pack/module count.
 
 ## Reading all 150 cells over the WiCAN device (AutoPID firmware)
 
-Independent of the count above, reading the **full** `221122` response over the
-WiCAN device's AutoPID firmware can still be truncated — a ~150-byte response is
-~22 CAN frames and the firmware caps its receive window:
+The `221122` response is ~227 bytes ≈ **33 CAN frames**. Read over **canair's
+`slcan-tcp`** path this reassembles fully (that is how the 150-cell capture was
+made — canair does its own ISO-TP with proper flow control). Read on the
+**WiCAN device's own AutoPID firmware** (the device dashboard / MQTT), only the
+first ~130 cells tend to show values; the rest read zero/blank.
 
-- **Receive window.** AutoPID hardcodes `ATST96` (`wican-fw/main/autopid.c`) →
-  `0x96 × 4.096 ms ≈ 614 ms` per request, grabbed with a single 1 s queue read.
-  Its own flow control sends STmin = 10 ms (`elm327.c`), so the frames cost
-  ~220 ms of inter-frame spacing alone, plus text accumulation and MQTT publish.
-  On a loaded ESP32 the tail frames may not arrive before the buffer is parsed.
-- **Partial multi-frame support.** `elm327.c` carries a TODO noting large
-  multi-frame flows aren't fully handled.
+### What actually causes the ~130-cell cut-off
 
-So on the device you may see values for only the first ~130 cells even though
-150 are defined and present on the bus.
+Verified against the firmware source (`wican-fw/main/autopid.c`, `elm327.c`).
+There are three independent caps; which one bites depends on the car's
+addressing width:
 
-### What to do
+| Cap | Value | Firmware site | Tunable from profile? |
+|-----|-------|---------------|-----------------------|
+| Inter-frame timeout (`ATST`) | `req_timeout × 4.096 ms`; `ATST96` ⇒ ~614 ms; **max `ATSTFF` ⇒ ~1044 ms** | `elm327.c` (`xtimeout`), reset per frame | **Yes** — `init` |
+| AutoPID poll queue read | **1000 ms, hardcoded** | `autopid.c` (`xQueueReceive(..., pdMS_TO_TICKS(1000))`) | **No — reflash** |
+| ASCII accumulation buffer | **1024 bytes, hardcoded** | `autopid.h` (`BUFFER_SIZE`), `autopid.c` (`append_to_buffer` silently drops the overflow) | **No — reflash** |
 
-1. **Verify over `slcan-tcp`**, which does full ISO-TP reassembly with its own
-   flow control (this is how the 150-cell count above was captured):
-   `uv run canair query BMS:221122 --wican <ip> --save --label "cell read"`.
-2. **Firmware-side** (out of scope here): raising `ATST` and the queue-grab
-   timeout in `wican-fw` widens the window, but requires reflashing the device.
+**For this car (11-bit) the buffer is NOT the limit; timing is.** AutoPID always
+runs `ath1` (headers on) + `ats1` (spaces on), and the firmware *filters out*
+`ATH0`/`ATS0`/`ATE1` from any init string, so you can't shrink the ASCII
+footprint. With 11-bit headers (`7EC`) each frame renders to ~28 ASCII chars, so
+the full 33-frame response is only **~924 chars** — it fits the 1024 buffer with
+margin. The cut-off is therefore the **timing race**: a per-frame gap exceeding
+the `ATST` window, or the whole 33-frame exchange (+ ESP32 text accumulation +
+MQTT publish) not finishing inside the hardcoded **1000 ms** poll read.
+
+> A **29-bit** car is different: 8-char headers push each frame to ~33 chars, so
+> ~33 frames ≈ 1090 chars and the **1024-byte buffer** becomes the hard cap
+> (overflow silently dropped). That is a reflash-only fix.
+
+### Profile mitigations (applied; UNVERIFIED without a device)
+
+`profile.yaml` `init` now carries, in addition to the neutral protocol bits:
+
+```
+ATSTFF;ATFCSM1;ATFCSD300000;
+```
+
+- `ATSTFF` — widen the per-frame timeout from ~614 ms to the ~1044 ms max, so a
+  slow/jittery frame doesn't end the read early (the timer resets each frame).
+- `ATFCSM1;ATFCSD300000` — supply flow control explicitly: FS=0 (clear-to-send),
+  **BS=0** (ECU sends all frames without pausing), **STmin=0** (no inter-frame
+  gap), so all 33 frames burst as fast as the bus allows and are more likely to
+  land inside the 1000 ms poll window. (The firmware default is BS=0 / STmin=10 ms.)
+
+Also keep the request hex **even-length** (`221122` is): an odd-length PID string
+makes the firmware treat the last nibble as an expected-frame count and stop
+early, capped at 9 frames.
+
+### What still requires a firmware reflash
+
+The **1000 ms poll timeout** and the **1024-byte ASCII buffer** are hardcoded and
+un-tunable. If the exchange can't complete in 1 s (or, on a 29-bit car, the ASCII
+overflows 1024), the tail is lost regardless of `init`. The clean firmware fix is
+to raise those limits (and/or drop header echo in the AutoPID default init) —
+out of scope for this profile.
+
+None of this affects canair's own `slcan-tcp` reads, which already return all
+150 cells.

@@ -9,7 +9,18 @@ car_model: "Xpeng G6 (87.5 kWh)"
 # receive-address / flow-control parts are per-request and set by canair itself,
 # so only the neutral protocol/format bits are kept here (wican-ws transport
 # only; the slcan-tcp raw path ignores init).
-init: "ATSP6;ATS0;ATAL;"
+#
+# Long multi-frame mitigation (see KNOWN-ISSUES.md): the BMS cell-voltage DID
+# 221122 is a ~33-frame ISO-TP response the WiCAN AutoPID firmware truncates
+# around ~130 cells. The trailing AT bits widen the firmware's per-frame timeout
+# and force flow-control STmin=0 / BS=0 so all 33 frames burst inside the
+# firmware's (hardcoded, un-tunable) 1000 ms poll window:
+#   ATSTFF        inter-frame timeout 0xFF x 4.096 ~= 1044 ms (max; from ~614 ms)
+#   ATFCSM1       use client-supplied flow control (below) instead of the default
+#   ATFCSD300000  FS=0 (clear-to-send), BS=0 (all frames), STmin=0 (no gap)
+# UNVERIFIED (device-free profile). Firmware still filters ATH0/ATS0/ATE1, so the
+# ASCII footprint can't be reduced from here; the 1000 ms cap needs a reflash.
+init: "ATSP6;ATS0;ATAL;ATSTFF;ATFCSM1;ATFCSD300000;"
 
 # XPeng is ISO 15765-4 11-bit / 500 kbit (ATSP6).
 can_bitrate: 500000
