@@ -4,13 +4,13 @@
 
 ```
 usage: canair pids [-h]
-                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,set-pid-status,set-pid-variable-length,set-identity,set-can-bus,set-addressing}
+                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,set-pid-status,set-pid-variable-length,set-identity,set-can-bus,set-wake,set-addressing}
                    ...
 
 [UDS] Safely edit ecus/ parameters and research entries (domain A — diagnostic UDS PIDs, freeform WiCAN expressions). The broadcast-frame (domain B) authoring counterpart is `canair signals` (linear signals/ maps).
 
 positional arguments:
-  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,set-pid-status,set-pid-variable-length,set-identity,set-can-bus,set-addressing}
+  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,set-pid-status,set-pid-variable-length,set-identity,set-can-bus,set-wake,set-addressing}
     upsert-param        Add or update a parameter
     rename-param        Rename a parameter (key only; fields preserved)
     rm-param            Remove a parameter
@@ -26,6 +26,8 @@ positional arguments:
                         responses
     set-identity        Set a curated identity field (e.g. notes)
     set-can-bus         Set the physical CAN bus segment(s) the ECU sits on
+    set-wake            Set how to rouse a fast-sleeping ECU before reads
+                        (wake ritual)
     set-addressing      Set an ECU's CAN addressing override (mode / extension
                         bytes / FC id / rx_id)
 
@@ -312,6 +314,46 @@ options:
   -h, --help     show this help message and exit
   --dir DIR      ecus/ directory (default: active profile)
   --no-validate  Skip the post-edit schema validation gate
+```
+
+## `canair pids set-wake`
+
+```
+usage: canair pids set-wake [-h] --method {rapid_read,session,relay}
+                            [--prime-pid REQ] [--attempts N]
+                            [--interval-ms MS] [--sleep-timer-ms MS]
+                            [--session-mode XX] [--notes NOTES] [--dir DIR]
+                            [--no-validate]
+                            ecu
+
+Declare a per-ECU wake ritual (canlib.wake). Some modules (e.g. a Smart Key
+Module) power their CAN transceiver only briefly and sleep again within a
+second or two, so a single 10 01 wake races the sleep timer. `rapid_read`
+fires a cheap prime PID back-to-back to hold the transceiver awake, then opens
+a session — honoured by `session <ECU> --wake` on both transports.
+
+positional arguments:
+  ecu
+
+options:
+  -h, --help            show this help message and exit
+  --method {rapid_read,session,relay}
+                        rapid_read = back-to-back primes (fast-sleepers);
+                        session = single 10 01; relay = rapid_read + iocontrol
+                        relay (Ioniq SKM, needs skm_wakeup quirk)
+  --prime-pid REQ       Cheap full UDS request fired repeatedly to hold the
+                        ECU awake (SID-first, e.g. 22B003 / 1001 / 3E00;
+                        default 1001)
+  --attempts N          Back-to-back prime frames (default 6)
+  --interval-ms MS      Gap between primes in ms — must be under the ECU's
+                        sleep timer (default 60)
+  --sleep-timer-ms MS   Documented time the ECU stays awake after a frame
+                        (informational)
+  --session-mode XX     DiagnosticSessionControl sub-function entered after
+                        waking (default 03)
+  --notes NOTES         Free-text note on the wake ritual
+  --dir DIR             ecus/ directory (default: active profile)
+  --no-validate         Skip the post-edit schema validation gate
 ```
 
 ## `canair pids set-addressing`

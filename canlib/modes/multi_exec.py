@@ -55,8 +55,22 @@ async def _exec_session(
     if tx_id is None:
         print(f"  ERROR: Unknown ECU '{target}'. Use a name (IGPM) or hex ID (770).")
         return False
+    # A profile-declared wake ritual (canlib.wake) for a fast-sleeping ECU is
+    # honoured when --wake is set — the rapid-fire prime loop instead of a single
+    # 10 01. Resolved into the ECU index by build_ecu_index; None = default wake.
+    wake_plan = None
+    if wake:
+        entry = ecu_index.get(target.upper()) if isinstance(ecu_index, dict) else None
+        if entry is None:
+            from ..ecus import canonical_ecu_name_safe
+
+            entry = ecu_index.get(canonical_ecu_name_safe(target).upper())
+        if isinstance(entry, dict):
+            wake_plan = entry.get("wake")
+    if wake_plan is not None:
+        print(f"  Waking 0x{tx_id:03X} ({target}) — {wake_plan.method} ritual...")
     print(f"  Opening session (10{mode.upper().zfill(2)}) on 0x{tx_id:03X} ({target})...")
-    return await sm.open_session(tx_id, wake=wake, mode=mode)
+    return await sm.open_session(tx_id, wake=wake, mode=mode, wake_plan=wake_plan)
 
 
 async def _read_single(sm, tx_id, pid_code, pid_info, unmapped, batch_state):

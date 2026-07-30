@@ -34,6 +34,7 @@ from .params import (
     set_pid_status,
     set_pid_variable_length,
     set_research_status,
+    set_wake,
     upsert_parameter,
 )
 
@@ -57,6 +58,7 @@ __all__ = [
     "set_pid_status",
     "set_pid_variable_length",
     "set_research_status",
+    "set_wake",
     "update_iocontrol_field",
     "update_routines_field",
     "upsert_parameter",

@@ -257,6 +257,8 @@ class _SchemaFields:
     sessions: set
     valid_pid_status: set
     valid_param_types: set
+    wake: set
+    valid_wake_methods: set
 
     @classmethod
     def from_schema(cls, schema: dict) -> "_SchemaFields":
@@ -266,6 +268,7 @@ class _SchemaFields:
         optional_pid = set(schema.get("optional_pid_fields", []))
         required_param = set(schema.get("required_param_fields", []))
         identity = schema.get("identity_fields", {}) or {}
+        wake_fields = schema.get("wake_fields", {}) or {}
         return cls(
             required_ecu=required_ecu,
             all_ecu=required_ecu | optional_ecu,
@@ -283,6 +286,9 @@ class _SchemaFields:
             or {"active", "draft", "static", "ignored"},
             valid_param_types=set(schema.get("valid_param_types", []))
             or {"numeric", "enum", "bitmask", "ascii", "date", "bcd", "struct"},
+            wake=set(wake_fields.get("optional", [])) | set(wake_fields.get("required", [])),
+            valid_wake_methods=set(schema.get("valid_wake_methods", []))
+            or {"rapid_read", "session", "relay"},
         )
 
 
@@ -408,6 +414,9 @@ def _validate_ecu_entry(
     # can_bus: physical CAN bus segment(s), validated against the profile's
     # declared vocabulary (can_buses.yaml) — vendor-specific, so per-profile.
     _validate_can_bus_list(ecu_def.get("can_bus"), label, errors, allowed_can_buses_set)
+
+    # wake: how to rouse a fast-sleeping ECU before reads (canlib.wake).
+    _validate_wake(ecu_def.get("wake"), label, fields, errors)
 
     # Resolve this ECU's addressing mode (per-ECU addressing.mode → profile → 11-bit)
     # to pick the valid arbitration-id width: 11-bit (0x7FF) vs 29-bit (0x1FFFFFFF).
@@ -988,6 +997,44 @@ def _validate_addressing(addressing: Any, is_int: Callable[[Any], bool]) -> list
     _validate_addressing_byte(addressing, "target_address", "profile.yaml", is_int, errors)
     _validate_addressing_byte(addressing, "source_address", "profile.yaml", is_int, errors)
     return errors
+
+
+def _validate_wake(wake: Any, label: str, fields: "_SchemaFields", errors: list[str]) -> None:
+    """Validate an ECU's optional ``wake:`` block (canlib.wake wake ritual).
+
+    Enforces a mapping shape, known fields, a required + known ``method``, and
+    sane types on the numeric knobs. Value semantics (interval < sleep timer) are
+    left to the resolver's tolerant defaults — this catches structural mistakes.
+    """
+    if wake is None:
+        return
+    if not isinstance(wake, dict):
+        errors.append(f"{label}: 'wake' must be a mapping")
+        return
+
+    def _is_int(v: Any) -> bool:
+        return isinstance(v, int) and not isinstance(v, bool)
+
+    for key in wake:
+        if key not in fields.wake:
+            errors.append(
+                f"{label}: unknown wake field '{key}' (allowed: {', '.join(sorted(fields.wake))})"
+            )
+    method = wake.get("method")
+    if method is None:
+        errors.append(
+            f"{label}: 'wake' requires a 'method' (one of {sorted(fields.valid_wake_methods)})"
+        )
+    elif method not in fields.valid_wake_methods:
+        errors.append(
+            f"{label}: 'wake.method' must be one of "
+            f"{', '.join(sorted(fields.valid_wake_methods))}, got {method!r}"
+        )
+    for key in ("attempts", "interval_ms", "sleep_timer_ms"):
+        if key in wake and not (_is_int(wake[key]) and wake[key] >= 0):
+            errors.append(f"{label}: 'wake.{key}' must be a non-negative integer")
+    if "attempts" in wake and _is_int(wake["attempts"]) and wake["attempts"] < 1:
+        errors.append(f"{label}: 'wake.attempts' must be at least 1")
 
 
 def _validate_ecu_addressing(addressing: Any, label: str, errors: list[str]) -> None:

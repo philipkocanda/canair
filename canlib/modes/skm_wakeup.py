@@ -1,4 +1,18 @@
-"""Wake sleeping ECUs via SKM relay control."""
+"""Wake sleeping ECUs via SKM relay control.
+
+Ioniq/HKMC-specific: the Smart Key Module relay DIDs (``B108``–``B10B``), the
+magic IOControl bytes (``0A0A05``), and the ECU addresses (SKM ``0x7A5``, IGPM
+``0x770``, BCM ``0x7A0``) are all Ioniq-particular, so the ``skm-wake`` command
+is gated behind the profile ``skm_wakeup`` capability (see
+:mod:`canlib.quirks`) — it is refused for profiles that don't declare it.
+
+This module is the *relay-actuation* extension (idea 3): rouse the SKM, then
+close a power relay (ACC/IGN). Merely *reading* a fast-sleeping ECU is the
+make-neutral, profile-declared per-ECU ``wake:`` block in :mod:`canlib.wake`
+(idea 1), which uses the same rapid-fire prime primitive
+(:meth:`canlib.session_manager.SessionManager.rapid_read_wake`) but needs no
+quirk. Extracting these relay DIDs/addresses into the profile is future work.
+"""
 
 import asyncio
 import json

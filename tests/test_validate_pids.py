@@ -138,6 +138,48 @@ class TestRxIdValidation:
         assert any("rx_id" in e for e in errs)
 
 
+class TestWakeValidation:
+    """The per-ECU wake: block (canlib.wake) is schema-validated."""
+
+    def _validate(self, tmp_path, body: str):
+        import textwrap
+
+        p = tmp_path / "e.yaml"
+        p.write_text(textwrap.dedent(body))
+        errors, _warnings, _stats = validate_pids.validate_ecu_file(p, validate_pids.load_schema())
+        return errors
+
+    def test_valid_wake_block(self, tmp_path):
+        errs = self._validate(
+            tmp_path,
+            "ECU:\n  tx_id: 0x7A5\n  wake:\n    method: rapid_read\n"
+            "    prime_pid: 22B003\n    attempts: 8\n    interval_ms: 80\n",
+        )
+        assert errs == []
+
+    def test_missing_method(self, tmp_path):
+        errs = self._validate(tmp_path, "ECU:\n  tx_id: 0x7A5\n  wake:\n    attempts: 8\n")
+        assert any("method" in e for e in errs)
+
+    def test_bad_method(self, tmp_path):
+        errs = self._validate(tmp_path, "ECU:\n  tx_id: 0x7A5\n  wake:\n    method: teleport\n")
+        assert any("method" in e for e in errs)
+
+    def test_unknown_wake_field(self, tmp_path):
+        errs = self._validate(
+            tmp_path,
+            "ECU:\n  tx_id: 0x7A5\n  wake:\n    method: rapid_read\n    bogus: 1\n",
+        )
+        assert any("bogus" in e for e in errs)
+
+    def test_non_int_interval(self, tmp_path):
+        errs = self._validate(
+            tmp_path,
+            'ECU:\n  tx_id: 0x7A5\n  wake:\n    method: rapid_read\n    interval_ms: "fast"\n',
+        )
+        assert any("interval_ms" in e for e in errs)
+
+
 class TestAddressingModeValidation:
     """29-bit addressing widens the accepted tx_id/rx_id range; per-ECU mode is validated."""
 

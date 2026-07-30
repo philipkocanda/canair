@@ -48,8 +48,12 @@ init: "ATSP6;ATS0;ATAL;ATST96;"
 # Make-specific quirks this profile opts into (make-neutral profiles omit this).
 # hk_f1xx_minus_one: Hyundai/Kia identity DIDs answer one less than requested
 #   (request 22F188 -> response 62F187); echo validation tolerates it for F1xx.
+# skm_wakeup: enable the Ioniq SKM relay-wake command (`skm-wake`) — rouse the
+#   Smart Key Module then close a power relay (ACC/IGN) via IOControl. The relay
+#   DIDs/magic/addresses are Ioniq-specific, so it's gated behind this capability.
 quirks:
   - hk_f1xx_minus_one
+  - skm_wakeup
 
 # ELM327 response timeout in ms (applied as ATSTxx after init; --elm-timeout
 # overrides). The Ioniq 2017 responds slowly, so keep this high. ~614ms == ATST96.

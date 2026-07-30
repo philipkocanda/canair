@@ -1,0 +1,48 @@
+{
+  "sessions": [
+    {
+      "date": "2026-07-30",
+      "label": "SKM stability multi-read (deep sleep, no fob)",
+      "vehicle_states": [
+        "SLEEP"
+      ],
+      "notes": "Repeated reads to establish byte stability and B002 reproducibility. Car deep sleep, keyfob absent.",
+      "transport": "slcan-tcp",
+      "quality": {
+        "exchanges": 6
+      },
+      "captures": [
+        {
+          "rx": "0x7AD",
+          "pid": "22B006",
+          "payload": "62B006AFE00000A2000000000000000000A10000000000",
+          "time": "00:00:37.005"
+        },
+        {
+          "rx": "0x7AD",
+          "pid": "22B006",
+          "payload": "62B006AFE00000A1000000000000000000A10000000000",
+          "time": "00:00:37.126"
+        },
+        {
+          "rx": "0x7AD",
+          "pid": "22B007",
+          "payload": "62B0071E7FB80000000C007FFF00000000",
+          "time": "00:00:37.194"
+        },
+        {
+          "rx": "0x7AD",
+          "pid": "22B002",
+          "payload": "62B002000000003C0A462C3F75FEFF1EC89664FA14323205061403073246141E1E1E2C3F75FE00000000FFFAC896649612080F0A14100AC864030F3CC8146428081010031E326464C800000000051E1EC4BCC81E1E050A1E031680100F10E0051003050A0A0A1E0F6414C48C0000000014320007120A0A1910E016800403320503090A1E32320205320F00140000000000000000000000000001020000001000000000000000000000000000000000000000",
+          "time": "00:00:37.485"
+        },
+        {
+          "rx": "0x7AD",
+          "pid": "22B006",
+          "payload": "62B006AFE00000A1000000000000000000A10000000000",
+          "time": "00:00:37.595"
+        }
+      ]
+    }
+  ]
+}

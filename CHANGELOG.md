@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Per-ECU `wake:` block — profile-declared wake rituals for fast-sleeping
+  ECUs.** Some modules (e.g. a Smart Key Module) power their CAN transceiver
+  only briefly and sleep again within a second or two, so a single `10 01` wake
+  races the sleep timer and follow-up reads return NO DATA. An ECU can now
+  declare, in profile data, how to rouse it: `method: rapid_read` fires a cheap
+  prime request densely (short per-prime timeout, `attempts`/`interval_ms`
+  tunable) to hold the transceiver awake, then opens a session. Honoured by
+  `session <ECU> --wake` on **both** transports (`slcan-tcp` and `wican-ws`).
+  Edit it with the new **`canair pids set-wake ECU --method … [--prime-pid
+  --attempts --interval-ms --sleep-timer-ms --session-mode --notes]`** (surgical,
+  validated). Resolver in `canlib/wake.py`; schema `wake_fields` /
+  `valid_wake_methods`. The bundled `ioniq-2017` SKM declares a `rapid_read`
+  ritual (verified on-car).
+- **`skm_wakeup` profile quirk gates the Ioniq SKM relay-wake command.** The
+  `skm-wake` relay procedure (rouse the SKM, then close an ACC/IGN power relay
+  via IOControl) uses Ioniq-specific relay DIDs/addresses, so it is now refused
+  for profiles that don't declare the `skm_wakeup` capability under `quirks:`.
+  Merely *reading* a fast-sleeping ECU is the make-neutral per-ECU `wake:` block
+  above — no quirk needed. The bundled `ioniq-2017` profile declares the quirk.
+
 - **`multi_did_max` profile setting** caps how many service-22 DIDs are combined
   into one multi-DID batch request (default `3`; per-ECU `multi_did_max`
   overrides). Previously the cap was hard-coded to 3 in two places; it is now a

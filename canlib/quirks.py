@@ -13,6 +13,12 @@ Today there is one quirk:
   requested (request ``22F188`` → response ``62F187``). Expected HK behaviour,
   but on any other make an off-by-one identifier echo is a genuinely stale /
   misfiled frame, so echo validation must only tolerate it when this quirk is on.
+- :data:`SKM_WAKEUP` — the Ioniq/HKMC Smart Key Module *relay*-wake procedure
+  (:mod:`canlib.modes.skm_wakeup`): rouse the SKM then close a power relay
+  (ACC/IGN) via IOControl. The relay DIDs / magic bytes / addresses are
+  Ioniq-particular, so the ``skm-wake`` relay command is refused for profiles
+  that don't declare this capability. (Merely *reading* a fast-sleeping ECU is
+  the make-neutral per-ECU ``wake:`` block — :mod:`canlib.wake` — not this quirk.)
 
 See ``plans/2026-07-28-multi-vehicle-support.md`` (Phase 4, gap F).
 """
@@ -25,8 +31,16 @@ from typing import Any, Final
 # The Hyundai/Kia identity-DID -1 offset (22F188 → 62F187).
 HK_F1XX_MINUS_ONE: Final = "hk_f1xx_minus_one"
 
+# The Ioniq/HKMC Smart Key Module relay-wake procedure (canlib.modes.skm_wakeup):
+# rouse the SKM, then actuate a power relay (ACC/IGN) via IOControl. Make-specific
+# (relay DIDs / magic bytes / addresses are Ioniq-particular), so the `skm-wake`
+# relay command is gated behind this capability. Reading a fast-sleeping ECU is
+# the make-neutral per-ECU `wake:` block (canlib.wake); this quirk is only the
+# relay-actuation extension.
+SKM_WAKEUP: Final = "skm_wakeup"
+
 # Every recognized quirk token (the validation whitelist).
-KNOWN_QUIRKS: Final = frozenset({HK_F1XX_MINUS_ONE})
+KNOWN_QUIRKS: Final = frozenset({HK_F1XX_MINUS_ONE, SKM_WAKEUP})
 
 
 def resolve_quirks(meta: Mapping[str, Any] | None) -> frozenset[str]:

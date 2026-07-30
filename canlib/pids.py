@@ -50,6 +50,7 @@ class EcuIndexEntry(TypedDict):
     pids: dict[str, PidIndexEntry]
     multi_did: bool
     multi_did_max: int
+    wake: Any  # WakePlan | None — profile-declared wake ritual (canlib.wake)
 
 
 class RoutineIndexEntry(TypedDict):
@@ -264,6 +265,7 @@ def build_ecu_index(pids_data: dict) -> dict[str, EcuIndexEntry]:
     """Build lookup: ECU_NAME -> {tx_id, rx_id, pids: {PID: {parameters: ...}}}."""
     from .addressing import resolve_ecu_address
     from .modes.multi_batch import resolve_multi_did_max
+    from .wake import resolve_wake
 
     index: dict[str, EcuIndexEntry] = {}
     default_batch = bool(pids_data.get("multi_did_batching", False))
@@ -287,6 +289,8 @@ def build_ecu_index(pids_data: dict) -> dict[str, EcuIndexEntry]:
             "multi_did": bool(ecu_def.get("multi_did", default_batch)),
             # Max DIDs combined per multi-DID request (per-ECU → profile → default).
             "multi_did_max": resolve_multi_did_max(pids_data, ecu_def),
+            # Profile-declared wake ritual for a fast-sleeping ECU (or None).
+            "wake": resolve_wake(ecu_def),
         }
         index[ecu_name.upper()] = entry
         for pid_code, pid_def in ecu_def.get("pids", {}).items():

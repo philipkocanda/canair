@@ -29,6 +29,7 @@ import asyncio
 import time
 
 from .transport.protocol import Terminal
+from .wake import WakePlan
 
 
 class SessionManager:
@@ -41,6 +42,56 @@ class SessionManager:
         self._sessions: dict[int, float] = {}
         self._bg_task: asyncio.Task | None = None
 
+    async def rapid_read_wake(self, tx_id: int, plan: WakePlan) -> bool:
+        """Rouse a fast-sleeping ECU by firing a cheap request back-to-back.
+
+        Some modules (e.g. a Smart Key Module) power their CAN transceiver only
+        briefly — a single ``10 01`` wake races the sleep timer and follow-up
+        reads return NO DATA. This fires ``plan.prime`` up to ``plan.attempts``
+        times with a **short per-prime timeout** (``plan.interval_ms``) so the
+        frames go out *densely* — filling the ECU's sleep window — instead of
+        each request blocking for the full response timeout (which, on a
+        deep-asleep ECU, would space the "rapid" primes seconds apart and miss
+        the window entirely). This mirrors the original ELM ``ATST10`` fast-timer
+        technique, made transport-agnostic (uses only ``set_header``/
+        ``send_command``, so it runs identically over ``slcan-tcp`` and
+        ``wican-ws``).
+
+        Breaks early the moment a prime draws any response (positive or NRC — the
+        ECU is awake). Returns True if a response was seen. Even when it returns
+        False, the burst of frames may still have roused the transceiver, so the
+        caller should proceed to open the session (with a normal timeout).
+        """
+        await self.terminal.set_header(tx_id)
+        # Short per-prime timeout so frames fire densely (floor to keep a single
+        # frame's round-trip feasible on either transport).
+        prime_timeout = max(0.1, plan.interval_s)
+        if self.verbose:
+            print(
+                f"  [wake] 0x{tx_id:03X}: rapid_read up to {plan.attempts}× "
+                f"{plan.prime} @ ~{int(prime_timeout * 1000)}ms..."
+            )
+        awake = False
+        for attempt in range(plan.attempts):
+            try:
+                resp = await self.terminal.send_command(plan.prime, timeout=prime_timeout)
+            except Exception:
+                resp = ""
+            clean = resp.replace(" ", "").upper()
+            # Any non-empty, non-NO-DATA hex (a positive response OR an NRC 7Fxx)
+            # means the ECU is awake and answering.
+            if clean and "NODATA" not in clean and "?" not in clean:
+                awake = True
+                if self.verbose:
+                    print(f"  [wake] 0x{tx_id:03X}: awake (attempt {attempt + 1})")
+                break
+        if not awake and self.verbose:
+            print(
+                f"  [wake] 0x{tx_id:03X}: no prime response after {plan.attempts} — "
+                "proceeding to session anyway (frames may have roused it)"
+            )
+        return awake
+
     @property
     def active_sessions(self) -> list[int]:
         """List of TX IDs with active sessions."""
@@ -49,7 +100,13 @@ class SessionManager:
     def has_session(self, tx_id: int) -> bool:
         return tx_id in self._sessions
 
-    async def open_session(self, tx_id: int, wake: bool = False, mode: str = "03") -> bool:
+    async def open_session(
+        self,
+        tx_id: int,
+        wake: bool = False,
+        mode: str = "03",
+        wake_plan: WakePlan | None = None,
+    ) -> bool:
         """Enter a diagnostic session on an ECU.
 
         Args:
@@ -60,10 +117,18 @@ class SessionManager:
                 KWP2000 standardDiagnosticSession on powertrain ECUs that reject
                 ``10 03`` (e.g. the BMS). Programming/unknown modes are refused by
                 the command-safety guard unless ``--unsafe``.
+            wake_plan: Optional profile-declared wake ritual (see
+                :mod:`canlib.wake`). When ``wake`` is set and a plan is given, its
+                rapid-fire prime loop is used instead of the single ``10 01`` —
+                the way to rouse a fast-sleeping ECU (e.g. a Smart Key Module).
+                The plan's ``session_mode`` overrides ``mode`` when it differs
+                from the default.
 
         Returns:
             True if session was established (or at least attempted).
         """
+        if wake_plan is not None and wake_plan.session_mode:
+            mode = wake_plan.session_mode
         mode = mode.upper().removeprefix("0X").zfill(2)
         req = f"10{mode}"
         await self.terminal.set_header(tx_id)
@@ -77,10 +142,15 @@ class SessionManager:
             return True
 
         if wake:
-            if self.verbose:
-                print(f"  [session] Sending wake-up (1001) to 0x{tx_id:03X}...")
-            await self.terminal.send_uds("1001", timeout=15.0)
-            await asyncio.sleep(0.5)
+            if wake_plan is not None:
+                # Profile-declared ritual — rapid-fire prime loop (fast-sleepers).
+                await self.rapid_read_wake(tx_id, wake_plan)
+                await self.terminal.set_header(tx_id)
+            else:
+                if self.verbose:
+                    print(f"  [session] Sending wake-up (1001) to 0x{tx_id:03X}...")
+                await self.terminal.send_uds("1001", timeout=15.0)
+                await asyncio.sleep(0.5)
 
         if self.verbose:
             print(f"  [session] Entering session (10{mode}) on 0x{tx_id:03X}...")

@@ -946,6 +946,87 @@ def set_can_bus(
     return fpath
 
 
+# Canonical field order for a rendered `wake:` block (matches pids_schema.yaml).
+WAKE_FIELD_ORDER = (
+    "method",
+    "prime_pid",
+    "attempts",
+    "interval_ms",
+    "sleep_timer_ms",
+    "session_mode",
+    "notes",
+)
+
+
+def set_wake(
+    ecu_name: str,
+    fields: dict,
+    *,
+    pids_dir: Path | None = None,
+) -> Path:
+    """Set (or replace) the top-level ``wake:`` block on an ECU.
+
+    ``fields`` is the wake mapping (``method`` required; ``prime_pid``/
+    ``attempts``/``interval_ms``/``sleep_timer_ms``/``session_mode``/``notes``
+    optional). Rendered as a nested block at 2-space indent, keys in the
+    canonical schema order. Adds the block if missing (right after ``can_bus:``/
+    ``vehicle_states:``/``tx_id:``), replaces it in place if present. The write is
+    verified by a YAML re-parse; on any failure the original file is restored.
+    """
+    method = str(fields.get("method", "")).strip()
+    if not method:
+        raise PidsEditError("wake requires a 'method'")
+
+    # Render in canonical order, dropping keys not supplied.
+    lines: list[str] = ["  wake:"]
+    _int_keys = {"attempts", "interval_ms", "sleep_timer_ms"}
+    for key in WAKE_FIELD_ORDER:
+        if key not in fields or fields[key] is None:
+            continue
+        val = fields[key]
+        if key == "notes":
+            lines.extend(_format_block_scalar(" " * 4, key, str(val)))
+        elif key in _int_keys:
+            # Bare integer (not quoted) so the schema's int check passes.
+            lines.append(f"    {key}: {int(val)}")
+        else:
+            lines.append(_format_scalar_field(" " * 4, key, val))
+
+    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
+    original = fpath.read_text()
+    ecu_key = ecu_name.strip().upper()
+
+    def transform(text: str) -> str:
+        ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
+        header_end = text.find("\n", ecu_start)
+        body_start = header_end + 1
+        block = text[body_start:ecu_end]
+        if re.search(r"^ {2}wake:", block, re.MULTILINE):
+            new_block = _replace_field_in_block_at(block, "wake", lines, indent=2)
+            return text[:body_start] + new_block + text[ecu_end:]
+        # Absent — insert after can_bus:/vehicle_states:/tx_id: (whichever is
+        # last present), so it sits with the other top-level ECU fields.
+        anchor_end = body_start
+        for anchor in ("vehicle_states", "can_bus", "tx_id"):
+            m = re.search(rf"^ {{2}}{anchor}:.*$", block, re.MULTILINE)
+            if m:
+                anchor_end = body_start + m.end() + 1
+                break
+        payload = "".join(ln + "\n" for ln in lines)
+        return text[:anchor_end] + payload + text[anchor_end:]
+
+    def checker(ecu_def: dict) -> None:
+        got = ecu_def.get("wake")
+        if not isinstance(got, dict):
+            raise PidsEditError("wake: block missing after edit")
+        if got.get("method") != method:
+            raise PidsEditError(f"wake.method mismatch after edit (got {got.get('method')!r})")
+
+    new_text = transform(original)
+    _safe_write(fpath, original, new_text, ecu_key, checker)
+    return fpath
+
+
 def set_research_status(
     ecu_name: str,
     target: str,

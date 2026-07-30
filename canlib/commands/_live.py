@@ -684,6 +684,22 @@ async def dispatch_mode(args, terminal: Terminal, pids_data, host):
             include_static=getattr(args, "include_static", False),
         )
     elif args.skm_wakeup:
+        # The SKM relay-wake is a make-specific Ioniq capability (relay DIDs /
+        # magic bytes / addresses are Ioniq-particular), gated behind the profile
+        # `skm_wakeup` quirk. Reading a fast-sleeping ECU is the make-neutral
+        # per-ECU `wake:` block (canlib.wake) — not this command.
+        from canlib.quirks import SKM_WAKEUP, has_quirk
+
+        if not has_quirk(pids_data, SKM_WAKEUP):
+            prof_name = getattr(getattr(args, "_profile", None), "name", None) or "this profile"
+            print(
+                f"Error: skm-wake is not supported by {prof_name} — it requires the "
+                "`skm_wakeup` capability (declare it under `quirks:` in profile.yaml). "
+                "To merely wake a fast-sleeping ECU, declare a per-ECU `wake:` block "
+                "(`canair pids set-wake`) and use `session <ECU> --wake`.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
         # skm-wake relies on ELM327 multi-frame text semantics (terminal._drain /
         # terminal.ws) that only WiCANTerminal exposes; guard explicitly so the raw
         # transport reports a clear error instead of an opaque AttributeError.

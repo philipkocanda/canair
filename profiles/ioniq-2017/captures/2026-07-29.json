@@ -7022,6 +7022,131 @@
           "notes": "NRC 0x11 serviceNotSupported"
         }
       ]
+    },
+    {
+      "date": "2026-07-29",
+      "label": "SKM investigation baseline probe (asleep?)",
+      "notes": "Initial probe before wake attempt. Device in slcan mode.",
+      "transport": "slcan-tcp",
+      "quality": {
+        "exchanges": 2,
+        "no_data": 1
+      },
+      "captures": [
+        {
+          "rx": "0x7AD",
+          "pid": "22B003",
+          "payload": "62B003000000003412900300000000C6A21261000000000F00",
+          "time": "23:25:01.842"
+        }
+      ],
+      "vehicle_states": [
+        "SLEEP"
+      ]
+    },
+    {
+      "date": "2026-07-29",
+      "label": "SKM woken via rapid-fire probing",
+      "vehicle_states": [
+        "SLEEP"
+      ],
+      "notes": "CORRECTION: car in deep sleep, keyfob NOT present. SKM was asleep and woken by rapid back-to-back reads keeping the CAN transceiver alive; full B0xx block then captured. Earlier label wrongly said READY/FOB PRESENT. This is a no-fob sleep capture — a good fob-ABSENT contrast for decoding B002.",
+      "transport": "slcan-tcp",
+      "quality": {
+        "exchanges": 15
+      },
+      "captures": [
+        {
+          "rx": "0x7AD",
+          "pid": "22B003",
+          "payload": "62B003000000003412900300000000C6A21261000000000F00",
+          "time": "23:26:50.426"
+        },
+        {
+          "rx": "0x7AD",
+          "pid": "22B002",
+          "payload": "62B002000000003C0A462C3F75FEFF1EC89664FA14323205061403073246141E1E1E2C3F75FE00000000FFFAC896649612080F0A14100AC864030F3CC8146428081010031E326464C800000000051E1EC4BCC81E1E050A1E031680100F10E0051003050A0A0A1E0F6414C48C0000000014320007120A0A1910E016800403320503090A1E32320205320F00140000000000000000000000000001020000001000000000000000000000000000000000000000",
+          "time": "23:26:50.719"
+        },
+        {
+          "rx": "0x7AD",
+          "pid": "22B005",
+          "payload": "62B005FA60900000040000",
+          "time": "23:26:50.788"
+        },
+        {
+          "rx": "0x7AD",
+          "pid": "22B006",
+          "payload": "62B006AFE000009F0000000000000000009F0000000000",
+          "time": "23:26:50.858"
+        },
+        {
+          "rx": "0x7AD",
+          "pid": "22B008",
+          "payload": "62B0080000000000000300000000000000",
+          "time": "23:26:50.927"
+        },
+        {
+          "rx": "0x7AD",
+          "pid": "22B00A",
+          "payload": "62B00A0100F038000501080600000040010000",
+          "time": "23:26:50.991"
+        },
+        {
+          "rx": "0x7AD",
+          "pid": "22B002",
+          "payload": "62B002000000003C0A462C3F75FEFF1EC89664FA14323205061403073246141E1E1E2C3F75FE00000000FFFAC896649612080F0A14100AC864030F3CC8146428081010031E326464C800000000051E1EC4BCC81E1E050A1E031680100F10E0051003050A0A0A1E0F6414C48C0000000014320007120A0A1910E016800403320503090A1E32320205320F00140000000000000000000000000001020000001000000000000000000000000000000000000000",
+          "time": "23:26:51.317"
+        },
+        {
+          "rx": "0x7AD",
+          "pid": "22B003",
+          "payload": "62B003000000003412900300000000C6A21261000000000F00",
+          "time": "23:26:51.427"
+        },
+        {
+          "rx": "0x7AD",
+          "pid": "22B005",
+          "payload": "62B005FA60900000040000",
+          "time": "23:26:51.512"
+        },
+        {
+          "rx": "0x7AD",
+          "pid": "22B006",
+          "payload": "62B006AFE000009F0000000000000000009F0000000000",
+          "time": "23:26:51.577"
+        },
+        {
+          "rx": "0x7AD",
+          "pid": "22B007",
+          "payload": "62B0071E7FB80000000C007FFF00000000",
+          "time": "23:26:51.640"
+        },
+        {
+          "rx": "0x7AD",
+          "pid": "22B008",
+          "payload": "62B0080000000000000300000000000000",
+          "time": "23:26:51.701"
+        },
+        {
+          "rx": "0x7AD",
+          "pid": "22B009",
+          "payload": "62B009000000000000000000000000000000000000000000000000000000000000",
+          "time": "23:26:51.781"
+        },
+        {
+          "rx": "0x7AD",
+          "pid": "22B00A",
+          "payload": "62B00A0100F038000501080600000040010000",
+          "time": "23:26:51.837"
+        },
+        {
+          "rx": "0x7AD",
+          "pid": "22B00B",
+          "payload": "62B00B80000000020000000000000000000000040400481947000000000200000000000004000000000000000000000000000000",
+          "time": "23:26:51.977"
+        }
+      ]
     }
   ]
 }

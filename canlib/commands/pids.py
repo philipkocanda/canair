@@ -17,6 +17,7 @@ Subcommands:
   set-pid-status ECU PID STATUS    Set a PID's lifecycle (active|draft|static|ignored)
   set-identity ECU FIELD VALUE     Set a curated identity field (e.g. notes)
   set-can-bus  ECU CODE [CODE ...] Set the physical CAN bus segment(s) (see can_buses.yaml)
+  set-wake     ECU --method ...     Set how to rouse a fast-sleeping ECU before reads
   set-addressing ECU ...           Set CAN addressing (mode / extension bytes / fc_id / rx_id)
 
 Examples:
@@ -55,6 +56,7 @@ from canlib.pids_edit import (
     set_pid_status,
     set_pid_variable_length,
     set_research_status,
+    set_wake,
     upsert_parameter,
 )
 from canlib.states import CLI_STATE_CHOICES
@@ -402,6 +404,30 @@ def cmd_set_can_bus(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_set_wake(args: argparse.Namespace) -> int:
+    fields: dict = {"method": args.method}
+    if args.prime_pid is not None:
+        fields["prime_pid"] = args.prime_pid
+    if args.attempts is not None:
+        fields["attempts"] = args.attempts
+    if args.interval_ms is not None:
+        fields["interval_ms"] = args.interval_ms
+    if args.sleep_timer_ms is not None:
+        fields["sleep_timer_ms"] = args.sleep_timer_ms
+    if args.session_mode is not None:
+        fields["session_mode"] = args.session_mode
+    if args.notes is not None:
+        fields["notes"] = args.notes
+
+    def do():
+        set_wake(args.ecu, fields, pids_dir=args.dir)
+
+    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
+    detail = ", ".join(f"{k}={v}" for k, v in fields.items() if k != "notes")
+    print(f"{_GREEN}  ✓ {args.ecu} wake -> {{{detail}}}{_RESET}  {_DIM}({fpath.name}){_RESET}")
+    return 0
+
+
 def cmd_set_addressing(args: argparse.Namespace) -> int:
     from canlib import yaml_io
     from canlib.ecus_edit import EcusEditError, set_addressing, tx_key
@@ -642,6 +668,62 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     )
     _add_common(scb)
     scb.set_defaults(_pids_func=cmd_set_can_bus)
+
+    sw = sub.add_parser(
+        "set-wake",
+        help="Set how to rouse a fast-sleeping ECU before reads (wake ritual)",
+        description="Declare a per-ECU wake ritual (canlib.wake). Some modules "
+        "(e.g. a Smart Key Module) power their CAN transceiver only briefly and "
+        "sleep again within a second or two, so a single 10 01 wake races the "
+        "sleep timer. `rapid_read` fires a cheap prime PID back-to-back to hold "
+        "the transceiver awake, then opens a session — honoured by "
+        "`session <ECU> --wake` on both transports.",
+    )
+    sw.add_argument("ecu")
+    sw.add_argument(
+        "--method",
+        required=True,
+        choices=["rapid_read", "session", "relay"],
+        help="rapid_read = back-to-back primes (fast-sleepers); session = single 10 01; "
+        "relay = rapid_read + iocontrol relay (Ioniq SKM, needs skm_wakeup quirk)",
+    )
+    sw.add_argument(
+        "--prime-pid",
+        default=None,
+        metavar="REQ",
+        help="Cheap full UDS request fired repeatedly to hold the ECU awake "
+        "(SID-first, e.g. 22B003 / 1001 / 3E00; default 1001)",
+    )
+    sw.add_argument(
+        "--attempts",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Back-to-back prime frames (default 6)",
+    )
+    sw.add_argument(
+        "--interval-ms",
+        type=int,
+        default=None,
+        metavar="MS",
+        help="Gap between primes in ms — must be under the ECU's sleep timer (default 60)",
+    )
+    sw.add_argument(
+        "--sleep-timer-ms",
+        type=int,
+        default=None,
+        metavar="MS",
+        help="Documented time the ECU stays awake after a frame (informational)",
+    )
+    sw.add_argument(
+        "--session-mode",
+        default=None,
+        metavar="XX",
+        help="DiagnosticSessionControl sub-function entered after waking (default 03)",
+    )
+    sw.add_argument("--notes", default=None, help="Free-text note on the wake ritual")
+    _add_common(sw)
+    sw.set_defaults(_pids_func=cmd_set_wake)
 
     sad = sub.add_parser(
         "set-addressing",

@@ -19,6 +19,17 @@ SKM:
       immobiliser and remote functions. Slow to wake (>1s, needs two or more
       CAN requests) and sleeps after ~60s of bus inactivity.
   vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
+  wake:
+    method: rapid_read
+    prime_pid: 22B003
+    attempts: 8
+    interval_ms: 80
+    sleep_timer_ms: 2000
+    notes: >-
+      SKM powers its CAN transceiver only briefly (~2s) and answers one request before sleeping
+      again. Rapid-fire a cheap read (22B003) to hold it awake, then open a session and read the
+      B0xx block. Verified 2026-07-29 on slcan-tcp: single 1001 wake races the sleep timer;
+      back-to-back reads succeed.
   session: true
   scan_log: # SKM
     - service: 0x22
@@ -37,21 +48,28 @@ SKM:
       period: 10000
       vehicle_states: [SLEEP]
       notes: >
-        136 data bytes — massive status register. Likely contains key fob presence,
-        RSSI, button presses, immobilizer state. Needs decoding.
-        Captured with key in unlocked car during deep sleep (2026-04-18).
+        Stable 178-byte block. Reproduces byte-identical across sessions/dates and
+        across states (READY+fob-present 2026-07-22 == SLEEP+fob-absent 2026-07-29),
+        so no observed byte encodes power state or fob presence. Repeated 6-7B motifs
+        suggest a per-key record table / config, not live status. Decoding needs
+        controlled experiments (fob near/far; add/remove a registered key).
       parameters:
         SKM_B002_UNKNOWN:
           expression: ""
           unit: ""
-          source: "DID scan 2026-04-18"
+          source: "DID scan 2026-04-18; state-contrast 2026-07-29"
           source_links: []
           verified: false
           notes: >
-            136 bytes. Raw:
-            62 B0 02 00 00 00 00 14 32 00 07 12 0A 00 3C 0A 46 2C 3F 75 0A 19 10 E0 16 80 04 FE FF 1E C8 96 64 FA 03 32 05 03 09 0A 1E 14 32 32 05 06 14 03 32 32
-            02 05 32 0F 00 07 32 46 14 1E 1E 1E 14 00 00 00 00 00 00 2C 3F 75 FE 00 00 00 00 00 00 00 00 00 00 00 FF FA C8 96 64 96 01 02 00 00 00 10 00 12 08 0F 0A 14 10 0A 00
-            00 00 00 00 00 00 C8 64 03 0F 3C C8 14 00 00 00 00 00 00 00 64 28 08 10 10 03 1E 00 00 00 00 AA AA AA
+            178 data bytes (stable). Example (2026-07-29, SLEEP, no fob):
+            62 B0 02 00 00 00 00 3C 0A 46 2C 3F 75 FE FF 1E C8 96 64 FA 14 32 32 05 06
+            14 03 07 32 46 14 1E 1E 1E 2C 3F 75 FE 00 00 00 00 FF FA C8 96 64 96 12 08
+            0F 0A 14 10 0A C8 64 03 0F 3C C8 14 64 28 08 10 10 03 1E ... (repeats/zeros).
+            CORRECTION: the older 2026-04-18 "136-byte" capture is a CORRUPT multi-frame
+            reassembly (same chunks appear REORDERED — dropped/misordered ISO-TP
+            consecutive frames from the fast-sleeping SKM over a ~26-frame read,
+            predating the truncation guard), NOT valid state data.
+
     22B003:
       status: draft
       period: 10000
@@ -81,25 +99,37 @@ SKM:
       period: 10000
       vehicle_states: [SLEEP]
       parameters:
-        SKM_B006_UNKNOWN:
-          expression: ""
-          unit: ""
-          source: "DID scan 2026-04-18"
-          source_links: []
+
+        SKM_B006_VAL_A:
+          expression: B10
+          source: state-contrast analysis 2026-07-29
           verified: false
-          notes: "27 bytes. Raw: 62B006AFE000009C0000000000000000009B0000000000AAAAAAAA"
+          notes: >-
+            Live slow-drift byte at WiCAN B10 (reassembled idx 7). Observed 0x9A-0xA2 across
+            sessions; drifts ~1/reading. Mirrored by SKM_B006_VAL_B (B21). Unknown unit — candidate
+            SKM supply voltage or internal temp; needs a controlled voltage/temp reference to
+            identify.
+        SKM_B006_VAL_B:
+          expression: B21
+          source: state-contrast analysis 2026-07-29
+          verified: false
+          notes: >-
+            Redundant mirror of SKM_B006_VAL_A (B10): tracks it within +-1 (B10/B21 = 9C/9B, 9B/9A,
+            9A/9A, 9F/9F, A2/A1...). Same unknown analog quantity read twice.
     22B007:
       status: draft
       period: 10000
       vehicle_states: [SLEEP]
       parameters:
-        SKM_B007_UNKNOWN:
-          expression: ""
-          unit: ""
-          source: "DID scan 2026-04-18"
-          source_links: []
+
+        SKM_B007_FLAG:
+          expression: B11
+          source: state-contrast analysis 2026-07-29
           verified: false
-          notes: "20 bytes. Raw: 62B0071E7FB80000000C007FFF00000000AAAAAA"
+          notes: >-
+            Only varying byte in B007 (WiCAN B11, reassembled idx 8). Observed 0x00 and 0x06 — small
+            enum/flag. Meaning unknown; correlate with a physical event (button/fob/door) to
+            identify.
     22B008:
       status: draft
       period: 10000
@@ -368,18 +398,21 @@ SKM:
       status: captured
       priority: P1
       vehicle_states: [SLEEP]
-      date: "2026-04-18"
+      date: "2026-07-29"
       notes: >
-        136 bytes — biggest payload of any ECU. Likely contains key fob presence/RSSI,
-        immobilizer state, button presses. Capture with key removed for diff.
-        2026-07-22: captured a READY (fob-present) contrast — the B002 payload DIFFERS from
-        the 2026-04-18 deep-sleep capture (bytes ~7-13 shifted: sleep 14 32 00 07 12 0A 00 vs
-        READY 3C 0A 46 2C 3F 75 FE), so several bytes track power/ignition state. Best next
-        step remains a key-removed capture to isolate the fob-presence byte(s).
+        178-byte block, stable/reproducible. CORRECTION (2026-07-29): the earlier
+        claim that "bytes 7-13 track power state" was WRONG — it compared a CORRUPT
+        2026-04-18 capture (139B, chunks reordered from dropped/misordered ISO-TP
+        frames on the fast-sleeping SKM) against the good 178B read. With clean reads,
+        B002 is byte-identical across READY+fob-present (2026-07-22) and SLEEP+fob-absent
+        (2026-07-29): it does NOT encode power state or fob presence. Repeated 6-7B
+        motifs point to a per-key record table / config. Still undecoded; needs
+        controlled experiments (fob near/far, add/remove a registered key).
       what_to_test:
-        - "Key in car vs key removed — diff B002 payload (the key isolation test — still pending)"
-        - "Key near vs far — check for RSSI bytes"
-        - "During ACC/ready — compare states (partial: sleep vs READY captured 2026-07-22, bytes 7-13 move)"
+        - "Fob near vs removed/far — same session, diff B002 (the key-isolation test; still pending — prior captures did NOT vary)"
+        - "Add/remove a registered key — does the record count / a motif block change? (tests the per-key-table hypothesis)"
+        - "B006 B10/B21 (slow-drift analog pair, 0x9A-0xA2) — correlate with a controlled 12V or temperature reference to identify the unit"
+
     - type: verify
       target: "2FB109"
       status: pending
@@ -397,3 +430,11 @@ SKM:
       notes: "Start relay ON — CAUTION. Only test if safe."
       sources:
         - "Obsidian: SKM.md — KIA Soul commands"
+    - type: verify
+      target: 22B006 SKM_B006_VAL_A/B
+      status: captured
+      priority: P2
+      vehicle_states: [SLEEP]
+      created: "2026-07-30"
+      updated: "2026-07-30"
+      notes: B006 B10/B21 = redundant slow-drift analog pair (0x9A-0xA2, drifts ~1/reading, tracked within +-1). Registered as unverified candidates. Identify unit via a controlled reference (12V rail or temperature). B007 B11 = small enum (0x00/0x06) — correlate with a physical event.

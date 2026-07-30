@@ -234,6 +234,16 @@ async def mode_multi(
             step = f"[{i + 1}/{len(commands)}]"
 
             if cmd_type == "skm-wake":
+                from ..quirks import SKM_WAKEUP, has_quirk
+
+                if not has_quirk(pids_data, SKM_WAKEUP):
+                    print(
+                        f"\n{step} skm-wake skipped — not supported by this profile "
+                        "(requires the `skm_wakeup` capability under quirks:). "
+                        "For a plain wake, declare a per-ECU `wake:` block and use "
+                        "`session <ECU> --wake`."
+                    )
+                    continue
                 print(f"\n{step} SKM wakeup ({cmd['level']})...")
                 await _exec_skm_wake(sm, cmd["level"], verbose)
 

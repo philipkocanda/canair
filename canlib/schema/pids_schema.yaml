@@ -128,6 +128,7 @@ optional_ecu_fields:
                     #   e.g. Renault/Mitsubishi).
   - can_bus         # Physical CAN bus segment(s) the ECU sits on — see valid_can_bus_codes
   - vehicle_states  # ECU-level: power states in which the ECU responds (10 01)
+  - wake            # How to rouse a fast-sleeping ECU before reads — see wake_fields
   - session
   - sessions        # Supported diagnostic session types (service 0x10) — see sessions_fields
   - multi_did       # bool: attempt UDS service-22 multi-DID batching on this ECU
@@ -255,6 +256,51 @@ sessions_fields:
     - date
     - verified
     - notes
+
+# wake section (under ECU_NAME.wake) — how to rouse a fast-sleeping ECU before
+# reads. Some modules (e.g. a Smart Key Module) power their CAN transceiver only
+# briefly: they answer one request, then sleep again within a second or two, so a
+# normal single 10 01 wake (SessionManager.open_session's default) races the
+# sleep timer and the follow-up reads return NO DATA. This block declares — per
+# ECU, in profile data, not hardcoded — the ritual that reliably wakes it, so
+# `session <ECU> --wake` (and any read that opts in) honours it on BOTH
+# transports. Make-neutral: absent = the default single-1001 wake.
+#
+# Format:
+#   wake:
+#     method: rapid_read     # required — how to wake (see valid_wake_methods)
+#     prime_pid: "22B003"    # rapid_read/relay: a cheap full UDS request (SID-first)
+#                            #   fired repeatedly to hold the transceiver awake —
+#                            #   e.g. 22B003 (read DID), 1001, 3E00 (default 1001).
+#                            #   Author the service byte; a bare DID is not prefixed.
+#     attempts: 8            # how many back-to-back prime frames to send (default 6)
+#     interval_ms: 80        # gap between prime frames in ms — MUST be shorter than
+#                            #   the ECU's sleep timer (default 60)
+#     sleep_timer_ms: 2000   # documented time the ECU stays awake after a frame
+#                            #   (informational; tunes defaults/warnings)
+#     session_mode: "03"     # DiagnosticSessionControl sub-function to enter after
+#                            #   waking (default 03 = UDS extended)
+#     notes: str             # optional — free text (why this ritual, quirks)
+# The `relay` method additionally uses the ECU's iocontrol: block to close a power
+# relay after waking (the Ioniq SKM ACC/IGN procedure); it is gated behind the
+# profile `skm_wakeup` quirk. See canlib/wake.py (resolver) and canlib/quirks.py.
+wake_fields:
+  required: [method]
+  optional: [prime_pid, attempts, interval_ms, sleep_timer_ms, session_mode, notes]
+
+# Accepted values for wake.method.
+#   rapid_read — fire `prime_pid` (or 10 01) back-to-back `attempts` times at
+#                `interval_ms` spacing to hold the transceiver awake, then open a
+#                session. The general, transport-agnostic primitive.
+#   session    — a single 10 01 wake + session (the built-in default behaviour;
+#                declaring it is documentary).
+#   relay      — rapid_read wake, then actuate a power relay via the ECU's
+#                iocontrol: block (Ioniq SKM ACC/IGN). Gated behind the
+#                `skm_wakeup` profile quirk.
+valid_wake_methods:
+  - rapid_read
+  - session
+  - relay
 
 required_pid_fields:
   - status           # PID lifecycle: active | draft | static | ignored.
