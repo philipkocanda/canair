@@ -8,8 +8,8 @@ verified), and renders a Markdown table — each row linking to the profile's
 folder on GitHub.
 
 Usage:
-    python3 scripts/gen_profiles_index.py            # write the page
-    python3 scripts/gen_profiles_index.py --check     # fail if stale (CI)
+    uv run scripts/gen_profiles_index.py            # write the page
+    uv run scripts/gen_profiles_index.py --check     # fail if stale (CI)
 
 Run it after adding a bundled profile or when a profile's headline counts change
 enough to matter. CI checks the page is current (see .github/workflows/ci.yml).
@@ -178,7 +178,7 @@ def main(argv: list[str] | None = None) -> int:
         if current != content:
             print(
                 "Bundled-profiles index is out of date; run "
-                "`python3 scripts/gen_profiles_index.py`.",
+                "`uv run scripts/gen_profiles_index.py`.",
                 file=sys.stderr,
             )
             return 1
