@@ -1,22 +1,14 @@
-# Xpeng: P5/P7/G6/G9/X9 — vehicle profile settings (created by `canair profile create`)
+# Xpeng G6 (87.5 kWh) — vehicle profile settings (created by `canair profile create`)
 # Per-ECU definitions live in ecus/. Populate with `canair discover --register`
 # (add --identify to read identity DIDs), then `canair pids ...`. Validate with
 # `canair validate`.
 #
-# SEED profile — transcribed device-free from the upstream WiCAN community
-# profile (meatpiHQ/wican-fw vehicle_profiles/xpeng/xpeng_g6.json,
-# car_model "Xpeng: P5/P7/G6/G9/X9"). It has NOT been verified on a physical
-# car, so every PID/param is status:draft + unverified until confirmed. Its
-# value here is as the regression fixture for non-`+8` CAN response addressing
-# (Phase 2 of plans/2026-07-28-multi-vehicle-support.md).
-car_model: "Xpeng: P5/P7/G6/G9/X9"
+car_model: "Xpeng G6 (87.5 kWh)"
 # The upstream ELM327 init is
 # ATH1;ATSP6;ATS0;ATM0;ATAT1;ATSH704;ATCRA784;ATFCSH704;ATFCSM1 — the header /
 # receive-address / flow-control parts are per-request and set by canair itself,
 # so only the neutral protocol/format bits are kept here (wican-ws transport
-# only; the slcan-tcp raw path ignores init). NOTE: the upstream sets an explicit
-# flow-control header (ATFCSH704;ATFCSM1); on the raw path can-isotp's auto flow
-# control should suffice, but this is unverified without a device.
+# only; the slcan-tcp raw path ignores init).
 init: "ATSP6;ATS0;ATAL;"
 
 # XPeng is ISO 15765-4 11-bit / 500 kbit (ATSP6).
