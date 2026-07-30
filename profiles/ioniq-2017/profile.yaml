@@ -69,6 +69,15 @@ response_timeout_ms: 614
 # itself multi-frame) with no truncation, repeatably. 6 stays under that proven
 # ceiling. A per-ECU `multi_did_max:` overrides this.
 multi_did_max: 6
+
+# Vehicle-axis physical bands for the reference-free plausibility scan
+# (`canair hunt --physical` / `canair investigate`). Only hv_pack is overridden;
+# rail_12v (11-15 V) and the grid bands (mains/line-freq, from `grid_region`)
+# keep their defaults. The 28 kWh pack is 96S Li-polymer: 96 x 2.5 V (empty) to
+# 96 x 4.2 V (full) ~= 240-403 V. Band widened slightly to bracket the range.
+physical_bands:
+  hv_pack: [240, 410]   # HV traction pack V (96S, ~360 V nominal)
+
 failure_types:
   "0x00": "no sub-type information"          # standard (also known by the tool)
   "0x77": "Hyundai-specific — meaning not yet determined"

@@ -25,6 +25,14 @@ init: "ATSP6;ATS0;ATAL;ATSTFF;ATFCSM1;ATFCSD300000;"
 # XPeng is ISO 15765-4 11-bit / 500 kbit (ATSP6).
 can_bitrate: 500000
 
+# Vehicle-axis physical bands for the reference-free plausibility scan
+# (`canair hunt --physical` / `canair investigate`). The default hv_pack band
+# (300-450 V) is for a ~400 V car and would MISS this 800 V architecture. The
+# 87.5 kWh pack is ~200S (~700 V nominal): 200 x 2.5 V (empty) to 200 x 4.2 V
+# (full) ~= 500-840 V. rail_12v + grid bands keep their defaults.
+physical_bands:
+  hv_pack: [450, 850]   # HV traction pack V (800 V architecture, ~700 V nominal)
+
 # CAN diagnostic addressing. XPeng answers at tx_id + 0x80 (request 0x704 ->
 # response 0x784, from the upstream ATSH704/ATCRA784), NOT the +0x08 default.
 addressing:

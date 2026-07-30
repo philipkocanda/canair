@@ -4,3 +4,11 @@
 # `canair validate`.
 car_model: "Hyundai Ioniq 5 2022"
 init: "ATSP6;ATS0;ATAL;ATST96;"
+
+# Vehicle-axis physical bands for the reference-free plausibility scan
+# (`canair hunt --physical` / `canair investigate`). The default hv_pack band
+# (300-450 V) is for a ~400 V car and would MISS this 800 V E-GMP architecture.
+# The 77.4 kWh pack is ~192S (~653 V nominal): 192 x 2.5 V (empty) to 192 x 4.2 V
+# (full) ~= 480-806 V. rail_12v + grid bands keep their defaults.
+physical_bands:
+  hv_pack: [450, 820]   # HV traction pack V (800 V E-GMP, ~653 V nominal)
