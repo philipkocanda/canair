@@ -5,7 +5,7 @@
 ```
 usage: canair contribute [-h] [--captures | --no-captures] [--branch BRANCH]
                          [--title TITLE] [--body BODY] [--repo-dir REPO_DIR]
-                         [--dry-run] [-y] [--json]
+                         [--dry-run] [--diff] [-y] [--json]
 
 ``canair contribute`` — open a pull request for the active profile.
 
@@ -31,6 +31,8 @@ options:
                        'origin') instead of the managed fork clone
   --dry-run            Prepare the branch and commit locally, but do not push
                        or open a PR
+  --diff               Show the diff this contribution would submit, then stop
+                       (no commit/push/PR)
   -y, --yes            Skip confirmation prompts
   --json               Emit a machine-readable summary
 
@@ -38,6 +40,7 @@ examples:
   canair contribute                     # PR the active profile (definitions + captures)
   canair --profile ev6 contribute       # PR a specific profile
   canair contribute --no-captures       # contribute definitions only
+  canair contribute --diff              # show what would be contributed, then stop
   canair contribute --dry-run           # prepare the branch + commit locally; no push/PR
   canair contribute --yes --json        # non-interactive (agents/CI); emit the PR URL
 

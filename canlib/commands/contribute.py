@@ -44,6 +44,7 @@ examples:
   canair contribute                     # PR the active profile (definitions + captures)
   canair --profile ev6 contribute       # PR a specific profile
   canair contribute --no-captures       # contribute definitions only
+  canair contribute --diff              # show what would be contributed, then stop
   canair contribute --dry-run           # prepare the branch + commit locally; no push/PR
   canair contribute --yes --json        # non-interactive (agents/CI); emit the PR URL
 
@@ -81,6 +82,11 @@ requires the GitHub CLI:
         "--dry-run",
         action="store_true",
         help="Prepare the branch and commit locally, but do not push or open a PR",
+    )
+    parser.add_argument(
+        "--diff",
+        action="store_true",
+        help="Show the diff this contribution would submit, then stop (no commit/push/PR)",
     )
     parser.add_argument("-y", "--yes", action="store_true", help="Skip confirmation prompts")
     parser.add_argument("--json", action="store_true", help="Emit a machine-readable summary")
@@ -188,7 +194,8 @@ def run(args) -> int:
     # 4. Workspace: fork clone, direct upstream clone, or an explicit --repo-dir.
     workspace = Path(args.repo_dir).expanduser() if args.repo_dir else C.workspace_dir()
     if not json_mode:
-        c.print(f"\n  workspace: [dim]{workspace}[/dim]")
+        c.print(f"\n  reading profile from: [dim]{profile.root}[/dim]")
+        c.print(f"  staging in workspace: [dim]{workspace}[/dim]")
         c.print("  syncing (first run clones — may take a moment) …")
     steps, mode, ok = C.ensure_workspace(pre, workspace)
     if not ok:
@@ -221,6 +228,34 @@ def run(args) -> int:
                 {"ok": True, "profile": profile.name, "no_changes": True, "message": msg}
             )
         c.print(f"\n  [green]{msg}[/green]")
+        return _OK
+
+    # 5b. --diff: show exactly what would be contributed, then stop.
+    if args.diff:
+        diff = C.diff_profile(pre, workspace, profile.name)
+        if json_mode:
+            return _emit_json(
+                {
+                    "ok": True,
+                    "profile": profile.name,
+                    "branch": branch,
+                    "mode": mode,
+                    "include_captures": include_captures,
+                    "workspace": str(workspace),
+                    "source": str(profile.root),
+                    "diff": diff,
+                    "pr_url": None,
+                }
+            )
+        from rich.syntax import Syntax
+
+        c.print(f"\n  diff of [cyan]profiles/{profile.name}/[/cyan] vs upstream:\n")
+        if diff.strip():
+            c.print(Syntax(diff, "diff", theme="ansi_dark", background_color="default"))
+        else:
+            c.print("  [dim](no textual diff)[/dim]")
+        c.print("\n  [dim](diff only — nothing committed, pushed, or opened)[/dim]")
+        c.print("  Re-run without [cyan]--diff[/cyan] to contribute it.")
         return _OK
 
     # 6. PII pre-flight — scoped to what THIS contribution adds/changes vs
@@ -286,9 +321,29 @@ def run(args) -> int:
         c.print("  [dim](dry run — nothing pushed; no PR opened)[/dim]")
         return _OK
 
-    # 8. Push + open the PR.
+    # 8. Confirm, then push + open the PR.
+    where = C.UPSTREAM_REPO if mode == C.MODE_DIRECT else "your fork"
     if not json_mode:
-        where = C.UPSTREAM_REPO if mode == C.MODE_DIRECT else "your fork"
+        c.print(
+            f"\n  Ready to push [cyan]{branch}[/cyan] to {where} and open a pull "
+            f"request against [cyan]{C.UPSTREAM_REPO}[/cyan]."
+        )
+        c.print("  [dim](tip: `canair contribute --diff` shows the full change first)[/dim]")
+    if not _confirm("Push and open the PR?", args.yes, json_mode=json_mode):
+        if json_mode:
+            return _emit_json(
+                {
+                    "ok": False,
+                    "cannot": True,
+                    "profile": profile.name,
+                    "branch": branch,
+                    "error": "push not confirmed (pass --yes to proceed non-interactively)",
+                }
+            )
+        c.print("  Aborted — nothing was pushed. Your branch is prepared locally in the workspace.")
+        return _CANNOT
+
+    if not json_mode:
         c.print(f"  pushing [cyan]{branch}[/cyan] to {where} …")
     push = C.push_branch(pre, workspace, branch)
     if not push.ok:

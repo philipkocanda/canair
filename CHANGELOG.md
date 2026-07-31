@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`canair contribute --diff`** previews the exact change a contribution would
+  submit — it validates, prepares the workspace, copies the profile in, and
+  prints the unified `git diff` of `profiles/<name>/` against upstream (new files
+  included), then stops without committing, pushing, or opening a PR. `--json`
+  emits the diff text under a `diff` key.
 - **`canair status` now reports versions.** It prints the running canair version
   and, when the WiCAN HTTP API answers, the device's firmware/hardware version
   (`fw_version`/`hw_version`/`git_version` from `/check_status`) — surfaced in
@@ -20,6 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`canair contribute` now confirms before pushing.** After preparing the
+  branch and commit it asks for an explicit `[y/N]` before pushing and opening
+  the pull request (declining leaves the branch prepared locally, nothing
+  pushed); pass `--yes` to proceed non-interactively (agents/CI). It also now
+  prints **where it reads the profile from** and **where it stages/pushes**
+  (the source profile path and the workspace checkout), and hints at
+  `canair contribute --diff` before the push.
 - **`canair query` renamed to `canair read`** (named for the UDS
   ReadDataByIdentifier service it fronts). `query` is kept as a backward-compat
   alias, so existing invocations and scripts keep working; help and docs lead

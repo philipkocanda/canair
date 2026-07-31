@@ -42,17 +42,27 @@ hand:
 ```bash
 canair contribute            # PR the active profile (definitions + captures)
 canair contribute --no-captures   # definitions only (smaller)
+canair contribute --diff          # show exactly what would be contributed, then stop
 canair contribute --dry-run       # prepare it locally, but don't push/open the PR
 ```
 
 It copies your profile into a fork of the repo and opens the PR against
 `philipkocanda/canair` — and it doesn't matter **where** your profile lives (the
-repo, `~/.config/canair/profiles/`, or a `--path` bundle). Before anything is
+repo, `~/.config/canair/profiles/`, or a `--path` bundle). It prints where it
+**reads your profile from** and the **workspace** it stages/pushes from, so
+there's no guessing which copy is being shared. Before anything is
 shared it:
 
-- runs `canair validate all` (and refuses if it fails), and
+- runs `canair validate all` (and refuses if it fails),
 - scans for anything that could **identify or locate you** — a VIN, an ECU
-  serial, an email or phone number in a label/note — and asks you to confirm.
+  serial, an email or phone number in a label/note — and asks you to confirm, and
+- **asks you to confirm before pushing** and opening the PR (nothing leaves your
+  machine until you say yes; `--yes` skips the prompt for scripts/agents).
+
+Not sure what you're about to send? Run `canair contribute --diff` first — it
+prepares everything and prints the full diff of `profiles/<your-car>/` vs
+upstream, without committing, pushing, or opening a PR.
+
 
 **One-time setup — the GitHub CLI (`gh`):**
 

@@ -378,6 +378,21 @@ def has_changes(pre: Preflight, workspace: Path, profile_name: str) -> bool:
     return bool(status.stdout.strip())
 
 
+def diff_profile(pre: Preflight, workspace: Path, profile_name: str) -> str:
+    """The full diff of the copied-in profile vs the upstream base.
+
+    Stages the profile dir into git's intent-to-add index (``--intent-to-add``)
+    so freshly-copied **untracked** files show up as additions, then returns the
+    unified ``git diff`` — exactly the change this contribution would submit.
+    ``git diff`` alone omits untracked files, so the ``-N`` step is what makes a
+    brand-new profile's files appear.
+    """
+    assert pre.git
+    rel = f"profiles/{profile_name}"
+    _run([pre.git, "-C", str(workspace), "add", "--intent-to-add", "--", rel])
+    return _run([pre.git, "-C", str(workspace), "diff", "--", rel]).stdout
+
+
 def push_branch(pre: Preflight, workspace: Path, branch: str) -> Step:
     assert pre.git
     return _run(

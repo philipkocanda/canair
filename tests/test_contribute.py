@@ -199,6 +199,26 @@ class TestCopyProfile:
         assert (dest / "out" / "autopid.json").exists()
 
 
+class TestDiffProfile:
+    def test_diff_shows_new_untracked_files(self, tmp_path):
+        # A real throwaway repo: copy a profile in, then diff should include the
+        # freshly-copied (untracked) files as additions.
+        ws = tmp_path / "ws"
+        ws.mkdir()
+        _git(ws, "init", "-b", "main")
+        _git(ws, "config", "user.email", "t@example.com")
+        _git(ws, "config", "user.name", "T")
+        (ws / "README.md").write_text("seed\n")
+        _git(ws, "add", "README.md")
+        _git(ws, "commit", "-m", "seed")
+
+        prof = _make_profile(tmp_path / "prof")
+        C.copy_profile(prof, ws, include_captures=False)
+        diff = C.diff_profile(_ready(), ws, prof.name)
+        assert "profiles/testcar/ecus/bms.yaml" in diff
+        assert "car_model: Test EV 2022" in diff
+
+
 # --- command-level -----------------------------------------------------------
 
 
@@ -210,6 +230,7 @@ def _cmd_args(**kw):
         "body": None,
         "repo_dir": None,
         "dry_run": False,
+        "diff": False,
         "yes": True,
         "json": True,
     }
@@ -282,3 +303,47 @@ class TestContributeCommand:
         monkeypatch.setattr(C, "preflight", lambda: _ready())
         rc = cmd.run(_cmd_args(repo_dir=str(ws), yes=False, json=True))
         assert rc == cmd._CANNOT
+
+    def _seed_repo(self, ws):
+        ws.mkdir()
+        _git(ws, "init", "-b", "main")
+        _git(ws, "config", "user.email", "t@example.com")
+        _git(ws, "config", "user.name", "T")
+        (ws / "README.md").write_text("seed\n")
+        _git(ws, "add", "README.md")
+        _git(ws, "commit", "-m", "seed")
+
+    def test_diff_emits_diff_and_does_not_commit(self, tmp_path, monkeypatch, capsys):
+        import json as _json
+
+        ws = tmp_path / "ws"
+        self._seed_repo(ws)
+        prof = _make_profile(tmp_path / "prof")
+        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(cmd, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(C, "preflight", lambda: _ready())
+
+        rc = cmd.run(_cmd_args(repo_dir=str(ws), diff=True, json=True))
+        assert rc == cmd._OK
+        payload = _json.loads(capsys.readouterr().out)
+        assert payload["pr_url"] is None
+        assert "profiles/testcar/ecus/bms.yaml" in payload["diff"]
+        assert payload["source"] == str(prof.root)
+        # --diff must not create a commit on the branch.
+        log = subprocess.run(
+            ["git", "-C", str(ws), "log", "--oneline"], capture_output=True, text=True
+        ).stdout
+        assert "contribute" not in log.lower()
+
+    def test_push_not_confirmed_aborts(self, tmp_path, monkeypatch):
+        # Non-interactive (json) without --yes must not push; it aborts at the
+        # push-confirmation gate rather than opening a PR.
+        ws = tmp_path / "ws"
+        self._seed_repo(ws)
+        prof = _make_profile(tmp_path / "prof")
+        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(cmd, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(C, "preflight", lambda: _ready())
+        rc = cmd.run(_cmd_args(repo_dir=str(ws), yes=False, json=True))
+        assert rc == cmd._CANNOT
+        # Nothing pushed: no push/PR gh|git calls happened because we bailed.
