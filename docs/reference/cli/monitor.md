@@ -69,7 +69,8 @@ In the TUI: mouse wheel / scrollbar / arrows-jk / PgUp-PgDn / g-G scroll,
 f toggles follow-tail, space pauses, =/- change the poll interval live,
 r toggles byte-index rulers, l opens the errors/diagnostics log,
 ↑/↓ select a parameter (esc deselects), e/v/d/F edit/verify/en-disable/filter,
-s edits the save label/state/notes, n starts a fresh recording segment,
+s labels the recording (or saves now when not using --save),
+n finishes the current --save session and starts a fresh one,
 ? shows all shortcuts, q quits.
 
 For a single one-shot read (no live refresh) use `canair query` instead.

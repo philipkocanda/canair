@@ -17,9 +17,13 @@ quick-toggle the selected parameter's verified/enabled flags, and ``F`` cycles
 a display filter (all / verified / unverified / enabled / disabled). Edits are
 written through :mod:`canlib.pids_edit` and picked up on the next poll.
 
-With ``--save`` a blinking ``● REC`` marks the active recording; ``s`` labels the
-current session and ``n`` closes the current segment and starts a fresh one (one
-run can thus yield several independently-labelled capture sessions).
+With ``--save`` a blinking ``● REC`` marks the active recording. Because every
+payload is journaled and written to a capture file automatically on exit, ``s``
+only *labels* the current recording (label / state / notes) — it doesn't write a
+separate file. ``n`` **finishes** the current session (writing it to a capture
+file now) and starts a fresh, separately-labelled one, so a single run can yield
+several sessions. Without ``--save``, ``s`` performs a one-off write of the
+payloads captured so far and ``n`` is unavailable.
 """
 
 from __future__ import annotations
@@ -97,22 +101,22 @@ class SaveDialog(ModalScreen[tuple[str, str, str] | None]):
     CSS = """
     SaveDialog { align: center middle; background: $background 60%; }
     #dialog {
-        width: 60; height: auto; padding: 1 2;
+        width: 84; max-width: 90%; height: auto; max-height: 90%; padding: 1 3;
         border: round $accent; background: $surface;
     }
     #dialog-title { text-style: bold; margin-bottom: 1; }
-    #dialog-caption { color: $text-muted; margin-bottom: 1; }
+    #dialog-caption { color: $text-muted; margin-bottom: 1; height: auto; }
     #dialog Input { margin-bottom: 0; }
     #state-hint { color: $text-muted; height: 1; margin-bottom: 0; }
     #state-status { color: $text-muted; height: auto; margin-bottom: 0; }
     #state-warning { color: $warning; height: auto; margin-bottom: 1; display: none; }
     #state-warning.visible { display: block; }
     #state-options {
-        height: auto; max-height: 6; margin-bottom: 1;
+        height: auto; max-height: 8; margin-bottom: 1;
         border: round $panel; background: $panel; display: none;
     }
     #state-options.visible { display: block; }
-    #dialog-buttons { height: auto; align-horizontal: right; }
+    #dialog-buttons { height: auto; align-horizontal: right; margin-top: 1; }
     #dialog-buttons Button { margin-left: 2; }
     """
 
@@ -125,12 +129,14 @@ class SaveDialog(ModalScreen[tuple[str, str, str] | None]):
         state_options: list[tuple[str, str]] | None = None,
         title: str = "Save captures to profile",
         caption: str = "",
+        save_button: str = "Save",
     ):
         super().__init__()
         self._suggested = suggested_label
         self._suggested_state = suggested_state
         self._title = title
         self._caption = caption
+        self._save_button = save_button
         if state_options is None:
             from ..states import state_options as load_state_options
 
@@ -147,7 +153,7 @@ class SaveDialog(ModalScreen[tuple[str, str, str] | None]):
         with Vertical(id="dialog"):
             yield Label(self._title, id="dialog-title")
             if self._caption:
-                yield Label(self._caption, id="dialog-caption")
+                yield Static(self._caption, id="dialog-caption", markup=True)
             yield Input(value=self._suggested, placeholder="Label (required)", id="f-label")
             yield Input(
                 value=self._suggested_state,
@@ -160,7 +166,7 @@ class SaveDialog(ModalScreen[tuple[str, str, str] | None]):
             yield Label("", id="state-warning")
             yield Input(placeholder="Notes (optional)", id="f-notes")
             with Horizontal(id="dialog-buttons"):
-                yield Button("Save", variant="primary", id="save")
+                yield Button(self._save_button, variant="primary", id="save")
                 yield Button("Cancel", id="cancel")
 
     def on_mount(self) -> None:
@@ -439,8 +445,8 @@ class MonitorApp(HelpMixin, App):
         Binding("q", "quit", "quit"),
         Binding("ctrl+c", "quit", "quit", show=False, priority=True),
         Binding("question_mark", "help", "help"),
-        Binding("s", "save", "save"),
-        Binding("n", "new_segment", "new segment"),
+        Binding("s", "save", "save / label"),
+        Binding("n", "new_segment", "new session"),
         Binding("f", "toggle_follow", "follow"),
         Binding("r", "toggle_rulers", "rulers"),
         Binding("l", "event_log", "errors/log"),
@@ -667,13 +673,16 @@ class MonitorApp(HelpMixin, App):
 
     def _edit_status_line(self) -> str:
         """Second status line: current selection, active filter, and edit keys."""
-        # Only advertise the segment key while a --save recording is active.
-        seg = " · n new-seg" if getattr(self.controller, "journal", None) is not None else ""
+        # While recording (--save), `s` labels the session and `n` finishes it and
+        # starts a new one; without --save, `s` is a one-off save and `n` is N/A.
+        recording = getattr(self.controller, "journal", None) is not None
+        save_key = "s label" if recording else "s save"
+        seg = " · n new-session" if recording else ""
         ed = self._editor()
         if ed is None:
             return (
                 "[dim]↑↓/jk PgUp/PgDn g/G · f follow · space pause · r rulers · "
-                f"l errors · s save{seg} · ? help · q quit[/]"
+                f"l errors · {save_key}{seg} · ? help · q quit[/]"
             )
         filt = getattr(ed, "filter_mode", "all")
         filt_txt = f"[cyan]{filt}[/]" if filt != "all" else "[dim]all[/]"
@@ -685,7 +694,7 @@ class MonitorApp(HelpMixin, App):
         return (
             f"{sel}[dim]filter[/] {filt_txt} "
             "[dim]· ↑↓ select · e edit · v verify · d en/disable · F filter · "
-            f"s save{seg}{deselect} · ? help · q quit[/]"
+            f"{save_key}{seg}{deselect} · ? help · q quit[/]"
         )
 
     # -- actions -----------------------------------------------------------
@@ -896,21 +905,38 @@ class MonitorApp(HelpMixin, App):
         return suggested, suggested_state, state_options
 
     def action_save(self) -> None:
-        """Prompt for metadata and save/label the current session."""
+        """Label the recording (--save) or write captures now (no --save).
+
+        With --save active every payload is already journaled and written to a
+        capture file automatically on exit, so ``s`` only *labels* the current
+        recording (label / state / notes). Without --save it performs an on-demand
+        write of the payloads captured so far to a new capture file.
+        """
         if not self.controller.has_captures():
             self._flash("No payloads captured yet — nothing to save.")
             return
         suggested, suggested_state, state_options = self._suggested_metadata()
         recording = getattr(self.controller, "journal", None) is not None
-        caption = (
-            "Labels the CURRENT recording segment (auto-saves on stop / new segment)."
-            if recording
-            else "Saves the payloads captured so far to a new capture file."
-        )
+        if recording:
+            title = "Label recording"
+            caption = (
+                "This recording is [b]already being saved[/] — every payload is "
+                "written automatically when you quit or start a new session.\n"
+                "[dim]Here you only set its label / state / notes. "
+                "Use [b]n[/b] to finish this session and start a fresh one.[/]"
+            )
+            save_button = "Set label"
+        else:
+            title = "Save captures now"
+            caption = (
+                "Writes the payloads captured so far to a [b]new capture file[/].\n"
+                "[dim](Not recording with --save — this is a one-off snapshot save.)[/]"
+            )
+            save_button = "Save"
 
         def _done(result: tuple[str, str, str] | None) -> None:
             if result is None:
-                self._flash("Save cancelled.")
+                self._flash("Cancelled — nothing saved.")
                 return
             label, state, notes = result
             try:
@@ -925,28 +951,29 @@ class MonitorApp(HelpMixin, App):
                 suggested,
                 suggested_state,
                 state_options,
-                title="Save / label session",
+                title=title,
                 caption=caption,
+                save_button=save_button,
             ),
             _done,
         )
 
     def action_new_segment(self) -> None:
-        """Close the current --save segment and start a fresh, newly-labelled one."""
+        """Finish the current --save session (write it now) and start a fresh one."""
         if getattr(self.controller, "journal", None) is None:
-            self._flash("New segment requires --save (nothing is being recorded).")
+            self._flash("Start a new session needs --save (nothing is being recorded).")
             return
         suggested, suggested_state, state_options = self._suggested_metadata()
 
         def _done(result: tuple[str, str, str] | None) -> None:
             if result is None:
-                self._flash("New segment cancelled.")
+                self._flash("Cancelled — current session kept recording.")
                 return
             label, state, notes = result
             try:
                 msg = self.controller.new_segment(label, state, notes)
             except Exception as exc:  # keep the TUI alive on any error
-                msg = f"New segment failed: {exc}"
+                msg = f"Could not start new session: {exc}"
             self._flash(msg)
             self._update_header()
 
@@ -955,8 +982,14 @@ class MonitorApp(HelpMixin, App):
                 suggested,
                 suggested_state,
                 state_options,
-                title="Start new segment",
-                caption="Saves the CURRENT segment, then labels the NEW segment you start now.",
+                title="Finish session & start a new one",
+                caption=(
+                    "[b]Writes the current session to a capture file now[/], then "
+                    "starts a fresh recording with the label below.\n"
+                    "[dim]One monitor run can produce several separately-labelled "
+                    "sessions this way.[/]"
+                ),
+                save_button="Finish & start new",
             ),
             _done,
         )

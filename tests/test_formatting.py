@@ -187,6 +187,30 @@ class TestChangedParamHighlights:
         ]
         assert changed_param_highlights(rows, "6201990304", "6201020304") == {}
 
+    def test_decoded_value_unchanged_not_highlighted(self):
+        # Byte 2 changed (02→99) and B3 reads it, but the decoded SOC value is the
+        # same as the prior cycle → no highlight (e.g. sub-resolution / bitfield
+        # change that rounds to the same value).
+        out = changed_param_highlights(
+            list(self.ROWS), "6201990304", "6201020304", prev_values={"SOC": 50.0}
+        )
+        assert out == {}
+
+    def test_decoded_value_changed_highlighted(self):
+        # Byte 2 changed and the decoded SOC value moved → highlight.
+        out = changed_param_highlights(
+            list(self.ROWS), "6201990304", "6201020304", prev_values={"SOC": 40.0}
+        )
+        assert out == {"SOC": _HIGHLIGHT_STYLE["green"]}
+
+    def test_no_prev_values_falls_back_to_raw_change(self):
+        # With no prior decoded snapshot, the raw-byte-change heuristic still
+        # highlights (first-change behaviour).
+        out = changed_param_highlights(
+            list(self.ROWS), "6201990304", "6201020304", prev_values=None
+        )
+        assert out == {"SOC": _HIGHLIGHT_STYLE["green"]}
+
 
 def _row_style_at(text, needle: str) -> str:
     """Return the style string covering the first char of ``needle`` in ``text``."""

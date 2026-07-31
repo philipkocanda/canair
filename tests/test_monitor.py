@@ -756,7 +756,7 @@ class TestControllerJournal:
         c.journal = CaptureJournal.open(tmp_path, label="orig", source="monitor")
         c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
         msg = c.save_now("edited", "ready", "note")
-        assert "Metadata set" in msg
+        assert "Label set" in msg
         # No immediate write — journal reconciles once on exit.
         assert list(tmp_path.glob("*.json")) == []
         written = c.journal.reconcile()
@@ -776,7 +776,7 @@ class TestControllerJournal:
         c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
 
         msg = c.new_segment("seg2", "ready", "note")
-        assert "Segment saved" in msg
+        assert "Session saved" in msg
         # A fresh journal is now active for the new segment.
         assert c.journal is not None
         assert not first_path.exists()  # the closed segment's journal was reconciled away
@@ -800,7 +800,7 @@ class TestControllerJournal:
         )
         assert c.journal is None
         msg = c.new_segment("x")
-        assert "requires --save" in msg
+        assert "needs --save" in msg
 
 
 class TestControllerSuggestedState:

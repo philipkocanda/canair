@@ -326,7 +326,11 @@ class MonitorRecorder:
             self.set_segment_meta(label, states, notes)
             if states:
                 self.state_explicit = True
-            return f"Metadata set (label={label!r}); session auto-saves on exit."
+            state_txt = f", state={', '.join(states)}" if states else ""
+            return (
+                f"Label set: {label!r}{state_txt} — recording continues "
+                "(auto-saved on quit / new session)."
+            )
 
         history = self.save_history if self.save_history is not None else (self.hex_history or {})
         merged = _merge_history(history, self.c.prev_hex)
@@ -381,7 +385,7 @@ class MonitorRecorder:
         from ..states import parse_states
 
         if self.journal is None:
-            return "New segment requires --save (nothing is being recorded)."
+            return "Start a new session needs --save (nothing is being recorded)."
 
         states = parse_states(vehicle_states)
 
@@ -417,5 +421,5 @@ class MonitorRecorder:
         self.session_notes = notes or ""
 
         if written is not None:
-            return f"Segment saved → {written.name}; recording new segment ({label!r})."
-        return f"Recording new segment ({label!r})."
+            return f"Session saved → {written.name}. Now recording {label!r}."
+        return f"Now recording new session {label!r}."

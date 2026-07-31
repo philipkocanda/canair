@@ -92,7 +92,7 @@ class FakeController:
 
     def new_segment(self, label, vehicle_states=None, notes=None) -> str:
         self.new_seg = (label, vehicle_states, notes)
-        return "Segment saved → foo.yaml; recording new segment."
+        return "Session saved → foo.yaml. Now recording."
 
 
 def _plain(renderable) -> str:
@@ -391,6 +391,47 @@ class TestMonitorApp:
             await pilot.pause(0.1)
             assert not isinstance(app.screen, SaveDialog)
             assert ctrl.new_seg is None
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
+    async def test_save_dialog_labels_when_recording(self):
+        """With --save active, 's' opens a 'Label recording' dialog (metadata only)."""
+        from textual.widgets import Button, Label
+
+        from canlib.modes._monitor_tui import SaveDialog
+
+        ctrl = FakeController(journal=object())  # recording
+        app = MonitorApp(ctrl)
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause(0.1)
+            await pilot.press("s")
+            await pilot.pause(0.1)
+            assert isinstance(app.screen, SaveDialog)
+            title = _plain(app.screen.query_one("#dialog-title", Label).render())
+            assert "Label recording" in title
+            btn = app.screen.query_one("#save", Button)
+            assert "label" in str(btn.label).lower()
+            await pilot.press("escape")
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
+    async def test_save_dialog_saves_when_not_recording(self):
+        """Without --save, 's' opens a 'Save captures now' dialog (writes a file)."""
+        from textual.widgets import Button, Label
+
+        from canlib.modes._monitor_tui import SaveDialog
+
+        ctrl = FakeController(journal=None)  # not recording
+        app = MonitorApp(ctrl)
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause(0.1)
+            await pilot.press("s")
+            await pilot.pause(0.1)
+            assert isinstance(app.screen, SaveDialog)
+            title = _plain(app.screen.query_one("#dialog-title", Label).render())
+            assert "Save captures now" in title
+            assert str(app.screen.query_one("#save", Button).label) == "Save"
+            await pilot.press("escape")
             await pilot.press("q")
 
     @pytest.mark.asyncio

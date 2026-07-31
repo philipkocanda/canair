@@ -77,6 +77,7 @@ def _entry_signature(
     sel_name: str | None,
     row_cap: int,
     prev_raw: str,
+    prev_values: dict[str, object] | None,
     history: list[tuple[str, str]] | None,
 ) -> tuple:
     """A hashable signature of everything that affects one PID entry's render.
@@ -101,6 +102,7 @@ def _entry_signature(
         sel_name if is_selected else None,
         row_cap,
         prev_raw,
+        tuple(sorted(prev_values.items())) if prev_values is not None else None,
         tuple(history) if history is not None else None,
         params,
     )
@@ -116,6 +118,7 @@ def _render_entry(
     sel_name: str | None,
     row_cap: int,
     prev_raw: str,
+    prev_values: dict[str, object] | None,
     history: list[tuple[str, str]] | None,
 ) -> Text:
     """Render one PID entry (mark line, param table, hex/history) to its own Text.
@@ -157,11 +160,15 @@ def _render_entry(
         # With rulers on, annotate each param with the payload byte index(es) it
         # maps to (e.g. "16-17"), matching the diff view.
         n_bytes = len(raw_hex) // 2 if (show_rulers and raw_hex) else None
-        # Highlight the param(s) a just-changed byte decodes to, with the same
-        # background the changed byte gets in the hex line (skipped when stale —
-        # a timed-out reuse of last-good data is not a live change).
+        # Highlight the param(s) whose *decoded value* just changed, with the
+        # same background the changed byte gets in the hex line (skipped when
+        # stale — a timed-out reuse of last-good data is not a live change). The
+        # per-byte hex highlight still tracks raw byte changes; only the param
+        # name/value cells are gated on the interpreted value moving.
         changed_styles = (
-            changed_param_highlights(params, raw_hex, prev_raw) if raw_hex and not stale else {}
+            changed_param_highlights(params, raw_hex, prev_raw, prev_values)
+            if raw_hex and not stale
+            else {}
         )
         entry_text.append_text(
             render_param_table(
@@ -228,6 +235,7 @@ def _render_results(
     elapsed: float,
     interval: float,
     prev_hex: dict[tuple[str, str], str] | None = None,
+    prev_params: dict[tuple[str, str], dict[str, object]] | None = None,
     hex_history: dict[tuple[str, str], list[tuple[str, str]]] | None = None,
     show_rulers: bool = False,
     footer: bool = True,
@@ -247,6 +255,11 @@ def _render_results(
 
     ``max_history_rows`` bounds how many history rows each PID renders (newest
     kept); ``None`` falls back to :data:`_RENDER_MAX_ROWS`.
+
+    ``prev_params`` is the previous cycle's decoded ``{param_name: value}`` per
+    PID key; it gates the param name/value change-highlight on the *interpreted*
+    value moving (the per-byte hex highlight still tracks raw byte changes).
+    ``None`` falls back to the raw-byte-change heuristic.
 
     ``cache`` (a :class:`RenderCache`) reuses per-PID blocks whose inputs are
     unchanged since the last render, avoiding the per-byte Text churn and
@@ -283,6 +296,9 @@ def _render_results(
             is_selected = selected is not None and selected[0] == ecu_label and selected[1] == pid
             sel_name = selected[2] if is_selected else None
             prev_raw = prev_hex.get(hex_key, "") if cycle > 1 else ""
+            prev_values = (
+                prev_params.get(hex_key) if prev_params is not None and cycle > 1 else None
+            )
             history = hex_history[hex_key] if hex_history and hex_key in hex_history else None
 
             if cache is not None:
@@ -295,6 +311,7 @@ def _render_results(
                     sel_name=sel_name,
                     row_cap=row_cap,
                     prev_raw=prev_raw,
+                    prev_values=prev_values,
                     history=history,
                 )
                 block = cache.get(hex_key, sig)
@@ -308,6 +325,7 @@ def _render_results(
                         sel_name=sel_name,
                         row_cap=row_cap,
                         prev_raw=prev_raw,
+                        prev_values=prev_values,
                         history=history,
                     )
                     cache.put(hex_key, sig, block)
@@ -321,6 +339,7 @@ def _render_results(
                     sel_name=sel_name,
                     row_cap=row_cap,
                     prev_raw=prev_raw,
+                    prev_values=prev_values,
                     history=history,
                 )
             text.append_text(block)

@@ -66,15 +66,26 @@ def _changed_byte_offsets(raw_hex: str, prev_raw: str) -> set[int]:
     return {i for i, hb in enumerate(cur) if i < len(prev) and prev[i] != hb}
 
 
-def changed_param_highlights(params: list[ParamRow], raw_hex: str, prev_raw: str) -> dict[str, str]:
-    """Map each parameter that decodes a *changed* byte to its highlight style.
+def changed_param_highlights(
+    params: list[ParamRow],
+    raw_hex: str,
+    prev_raw: str,
+    prev_values: dict[str, object] | None = None,
+) -> dict[str, str]:
+    """Map each parameter whose *decoded value* changed to its highlight style.
 
-    A byte is "changed" when it differs from ``prev_raw`` at the same position.
-    A parameter is highlighted when any byte its expression reads is changed; the
-    style is the parameter's own coverage-background variant (verified→dark_green,
-    unverified→dark_goldenrod), matching the background the changed byte itself
-    gets in the hex line so the visual link is exact. Returns ``{name: style}``
-    (empty when nothing changed / no prior payload).
+    A parameter is highlighted only when its decoded value differs from the
+    previous cycle's — not merely when a raw byte it reads changed. This avoids
+    flagging a param when a byte flips in a bit the param doesn't map, or when a
+    sub-resolution raw change rounds to the same displayed value. When
+    ``prev_values`` is ``None`` (no prior decoded snapshot, e.g. the first cycle),
+    it falls back to the raw-byte-change heuristic so the very first change still
+    highlights.
+
+    The style is the parameter's own coverage-background variant
+    (verified→dark_green, unverified→dark_goldenrod), matching the background the
+    changed byte itself gets in the hex line so the visual link is exact. Returns
+    ``{name: style}`` (empty when nothing changed / no prior payload).
     """
     changed = _changed_byte_offsets(raw_hex, prev_raw)
     if not changed:
@@ -82,13 +93,19 @@ def changed_param_highlights(params: list[ParamRow], raw_hex: str, prev_raw: str
     n_bytes = len(raw_hex) // 2
     out: dict[str, str] = {}
     for row in params:
-        name, expression, perr, verified = row[0], row[3], row[4], row[5]
+        name, value, expression, perr, verified = row[0], row[1], row[3], row[4], row[5]
         if perr or not expression:
             continue
         offsets = param_byte_indices(expression, n_bytes)
-        if changed.intersection(offsets):
-            base = "green" if verified else "yellow"
-            out[name] = _HIGHLIGHT_STYLE.get(base, base)
+        if not changed.intersection(offsets):
+            continue
+        # A byte the param reads changed; only highlight if the *decoded* value
+        # actually moved. With no prior decoded snapshot, fall back to the
+        # raw-change signal (first-change highlight).
+        if prev_values is not None and name in prev_values and prev_values[name] == value:
+            continue
+        base = "green" if verified else "yellow"
+        out[name] = _HIGHLIGHT_STYLE.get(base, base)
     return out
 
 

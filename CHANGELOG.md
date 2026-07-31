@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Live monitor: clearer `s` / `n` recording keys.** The save modal is bigger
+  and each action now explains itself and confirms the outcome:
+  - **`s` labels the recording** while `--save` is active (every payload is
+    already journaled and written on exit, so `s` only sets label/state/notes —
+    it no longer looks like a disk write that isn't). Without `--save`, `s` is a
+    one-off write of the payloads captured so far, as before.
+  - **`n` finishes the current `--save` session and starts a fresh one** —
+    writing the current session to a capture file *now*, then reopening a new
+    labelled recording. The modals carry explicit titles/captions and the status
+    line shows `s label` / `n new-session` while recording.
+- **Live monitor: parameter highlight now tracks the *decoded* value, not the
+  raw byte.** A parameter's name/value cells are highlighted only when its
+  interpreted value actually changes — a byte flip that leaves the value
+  unchanged (a bit the param doesn't map, or a sub-resolution change that rounds
+  to the same value) still flashes the *byte* in the hex line but no longer
+  falsely flags the parameter.
+
 ## [1.9.0] - 2026-07-30
 
 ### Added

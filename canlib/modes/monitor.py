@@ -170,6 +170,12 @@ class MonitorController:
         # highlighting works in the single-frame view too (prev_hex already holds
         # the freshly-recorded current payload by render time).
         self.prev_snapshot: dict[tuple[str, str], str] = {}
+        # Decoded param values as of the *previous* poll cycle, per PID key:
+        # {(ecu_label, pid): {param_name: value}}. Snapshotted alongside
+        # prev_snapshot so the renderer highlights a param only when its
+        # *interpreted* value changed (not merely a raw byte it reads).
+        self.prev_params_snapshot: dict[tuple[str, str], dict[str, object]] = {}
+        self._cur_params: dict[tuple[str, str], dict[str, object]] = {}
         # Where on-demand ('s' key in the TUI) / end-of-run captures are written.
         # Set by mode_monitor; resolved lazily if left None.
         self.captures_dir: Path | None = None
@@ -404,6 +410,18 @@ class MonitorController:
         # so the renderer can diff current-vs-previous (prev_hex is about to become
         # the current values).
         self.prev_snapshot = dict(self.prev_hex)
+        # Snapshot the prior cycle's decoded values (the accumulated per-PID map)
+        # so the renderer can gate the param highlight on the interpreted value
+        # changing; then fold this cycle's decoded values into the current map.
+        self.prev_params_snapshot = {k: dict(v) for k, v in self._cur_params.items()}
+        for ecu_label, pid_results in new_queries:
+            for entry in pid_results:
+                if entry.get("stale"):
+                    continue
+                key = (ecu_label, entry["pid"])
+                self._cur_params[key] = {
+                    row[0]: row[1] for row in entry.get("params", []) if not row[4]
+                }
         # Durability (prev_hex update + frame accounting + display/--save history +
         # journal) is the recorder's job.
         self.recorder.observe(new_queries)
@@ -548,12 +566,13 @@ class MonitorController:
             self.elapsed,
             self.interval,
             self.prev_snapshot,
-            self.hex_history,
+            hex_history=self.hex_history,
             show_rulers=self.show_rulers,
             footer=False,
             selected=self.editor.selected,
             max_history_rows=self._history_render_limit(),
             cache=self._render_cache,
+            prev_params=self.prev_params_snapshot,
         )
 
     def _history_render_limit(self) -> int:

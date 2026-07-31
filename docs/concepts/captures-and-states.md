@@ -171,19 +171,24 @@ canair captures uds --recover --discard   # or drop them unsaved
 ## Recording in the live monitor
 
 `canair monitor … --save` records continuously: every poll cycle is
-journaled as it arrives. The scrollable live view shows a blinking `● REC`
-whenever a `--save` recording is active, and two keys control the session:
+journaled as it arrives and written to a capture file automatically when you
+quit. The scrollable live view shows a blinking `● REC` whenever a `--save`
+recording is active, and two keys control the session:
 
-- **`s`** — set or edit the label / state / notes for the **current** session
-  (the modal states which segment you're labelling). This only updates metadata;
-  payloads are already being recorded. The state field is **free text**
+- **`s` (label recording)** — set or edit the label / state / notes for the
+  **current** recording. Because every payload is already journaled and saved on
+  exit, this only *labels* the session — it doesn't write a separate file (the
+  modal and confirmation say so). The state field is **free text**
   (comma-separated) pre-filled with the auto-suggested state; leaving it blank is
   fine — the modal says so (`no state set — will auto-detect from data on save`),
-  and the state is filled in on save.
-- **`n`** — close the current segment (save it to its own capture file) and start
-  a **fresh** one, labelled via the same modal. One monitor run can thus produce
-  several independently-labelled sessions — press `n` at each phase change (e.g.
-  parked → driving → charging) rather than stopping and restarting.
+  and the state is filled in on save. (Without `--save`, `s` instead performs a
+  one-off write of the payloads captured so far to a new capture file.)
+- **`n` (finish & start new)** — write the current session to its own capture
+  file **now**, then start a **fresh** recording, labelled via the same modal.
+  One monitor run can thus produce several independently-labelled sessions —
+  press `n` at each phase change (e.g. parked → driving → charging) rather than
+  stopping and restarting. (`n` requires `--save`; without it there's no
+  recording to finish.)
 
 When a `--save` segment ends without an explicit state, canair back-fills it with
 the **union of every state auto-suggested across that segment's whole span** — not
