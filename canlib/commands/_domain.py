@@ -21,7 +21,7 @@ BOTH = "UDS+CAN"
 
 DOMAINS: dict[str, str] = {
     # live device — diagnostic request/response
-    "query": UDS,
+    "read": UDS,
     "monitor": UDS,
     "scan": UDS,
     "discover": UDS,

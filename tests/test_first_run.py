@@ -20,7 +20,7 @@ def _restore_active_profile():
 
 
 def _args(**kw):
-    base = {"command": "query", "profile": None, "profiles_dir": None, "func": lambda a: 0}
+    base = {"command": "read", "profile": None, "profiles_dir": None, "func": lambda a: 0}
     base.update(kw)
     return argparse.Namespace(**base)
 

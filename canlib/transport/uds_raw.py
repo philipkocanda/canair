@@ -82,7 +82,7 @@ class RawUdsClient:
         self.bus = bus
         self.timeout = timeout
         self.ecu_timeouts = ecu_timeouts or {}
-        # Per-(ECU, PID) round-trip timing (surfaced by `canair query --timings`).
+        # Per-(ECU, PID) round-trip timing (surfaced by `canair read --timings`).
         self.timings = TimingRecorder()
         # Per-exchange outcome tally (drops/errors/decode), same as the terminals.
         self.diag = TransportStats(transport="slcan-tcp")

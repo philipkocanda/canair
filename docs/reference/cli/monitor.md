@@ -12,7 +12,7 @@ usage: canair monitor [-h] [--interval SECONDS] [--session] [--wake]
                       [--reboot] [--unsafe] [--force]
                       [STEP ...]
 
-[UDS] Monitor ECUs/parameters live in a scrollable, refreshing view. Positional STEPs use the multi mini-language (same as `canair query`).
+[UDS] Monitor ECUs/parameters live in a scrollable, refreshing view. Positional STEPs use the multi mini-language (same as `canair read`).
 
 positional arguments:
   STEP                  Query selector(s) or multi mini-language step(s)
@@ -73,5 +73,5 @@ s labels the recording (or saves now when not using --save),
 n finishes the current --save session and starts a fresh one,
 ? shows all shortcuts, q quits.
 
-For a single one-shot read (no live refresh) use `canair query` instead.
+For a single one-shot read (no live refresh) use `canair read` instead.
 ```

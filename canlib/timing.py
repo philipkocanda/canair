@@ -4,7 +4,7 @@ Every request client (:class:`~canlib.terminal.WiCANTerminal`,
 :class:`~canlib.transport.raw_terminal.RawTerminal`,
 :class:`~canlib.transport.uds_raw.RawUdsClient`) already measures per-command
 elapsed time; this keeps a small per-``(ecu, pid)`` aggregate so slow PIDs/ECUs
-can be surfaced (``canair query --timings``) and used to validate timeout /
+can be surfaced (``canair read --timings``) and used to validate timeout /
 pipeline changes. Purely additive and cheap — a dict update per request, no
 effect on the hot path.
 

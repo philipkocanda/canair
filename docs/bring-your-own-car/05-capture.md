@@ -10,7 +10,7 @@ the [analysis](06-analyze.md) tools have something to work with.
 Add `--save` to any read to record it, with context:
 
 ```bash
-canair query MyECU:2101 --save --label "highway 100 km/h" --state driving
+canair read MyECU:2101 --save --label "highway 100 km/h" --state driving
 ```
 
 - `--label` — a free-text description of the moment ("plugged in, charging").

@@ -1,7 +1,7 @@
 """``canair monitor`` — live, continuously-refreshing view of ECU parameters.
 
 Promoted from the former ``canair query --monitor`` flag into its own top-level
-command. Positional STEPs use the same multi mini-language as ``canair query``;
+command. Positional STEPs use the same multi mini-language as ``canair read``;
 a bare selector (no leading verb) is treated as a ``query`` step, so
 ``canair monitor BMS:2101`` and
 ``canair monitor "session IGPM --wake" "query IGPM"`` both work.
@@ -9,7 +9,7 @@ a bare selector (no leading verb) is treated as a ``query`` step, so
 On a terminal this opens the scrollable Textual monitor (the polling / decoding /
 capture-saving logic lives in :mod:`canlib.modes.monitor`); piped/non-interactive
 it polls silently until Ctrl+C. Recording (``--save`` + metadata) and keep-modes
-apply here, not to the one-shot ``canair query``.
+apply here, not to the one-shot ``canair read``.
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         NAME,
         help="Live, continuously-refreshing view of ECU parameters (scrollable TUI)",
         description="Monitor ECUs/parameters live in a scrollable, refreshing view. "
-        "Positional STEPs use the multi mini-language (same as `canair query`).",
+        "Positional STEPs use the multi mini-language (same as `canair read`).",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
 examples:
@@ -51,7 +51,7 @@ s labels the recording (or saves now when not using --save),
 n finishes the current --save session and starts a fresh one,
 ? shows all shortcuts, q quits.
 
-For a single one-shot read (no live refresh) use `canair query` instead.
+For a single one-shot read (no live refresh) use `canair read` instead.
 """,
     )
     parser.add_argument(
@@ -129,7 +129,7 @@ def run(args) -> int:
         print("Error: monitor requires at least one 'query' step", file=sys.stderr)
         return 2
 
-    # Reject typo'd/unknown ECU names before connecting (mirrors `canair query`).
+    # Reject typo'd/unknown ECU names before connecting (mirrors `canair read`).
     from canlib.commands._live import load_pids
     from canlib.modes.monitor import query_ecu_error
 

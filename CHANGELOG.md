@@ -7,8 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`canair status` now reports versions.** It prints the running canair version
+  and, when the WiCAN HTTP API answers, the device's firmware/hardware version
+  (`fw_version`/`hw_version`/`git_version` from `/check_status`) — surfaced in
+  both the human output and `--json`.
+- **New concept doc: "Reading & interpreting DTCs"** (`docs/concepts/dtcs.md`) —
+  explains DTC structure (category, generic-vs-manufacturer, failure-type byte),
+  the status byte and masks, where code meanings come from, the scan history log,
+  and clearing, complementing the CLI reference.
+
 ### Changed
 
+- **`canair query` renamed to `canair read`** (named for the UDS
+  ReadDataByIdentifier service it fronts). `query` is kept as a backward-compat
+  alias, so existing invocations and scripts keep working; help and docs lead
+  with `read`. The `query` **step verb** in the multi mini-language is unchanged
+  (`canair read "session IGPM --wake" "query IGPM:BC03,BC06"`).
 - **Live monitor: clearer `s` / `n` recording keys.** The save modal is bigger
   and each action now explains itself and confirms the outcome:
   - **`s` labels the recording** while `--save` is active (every payload is

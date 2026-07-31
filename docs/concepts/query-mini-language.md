@@ -1,6 +1,6 @@
 # The query mini-language
 
-`canair query` — and the capture/decode tools — select ECUs and PIDs with a
+`canair read` — and the capture/decode tools — select ECUs and PIDs with a
 small, consistent syntax.
 
 ## Selectors
@@ -27,11 +27,11 @@ why canair can resolve a bare identifier.
 
 ## Pipelines
 
-`canair query` also accepts a **pipeline** of steps (each a quoted string), run
+`canair read` also accepts a **pipeline** of steps (each a quoted string), run
 in order over one session. A bare selector is shorthand for a `query` step.
 
 ```bash
-canair query "session IGPM --wake" "query IGPM:BC03,BC06"
+canair read "session IGPM --wake" "query IGPM:BC03,BC06"
 ```
 
 Step verbs include: `query`, `session <ECU> [--wake]`, `skm-wake [acc|ign1|ign2]`,
@@ -52,7 +52,7 @@ thing automatically:
     polling loop injects no redundant keepalives. TesterPresent is shared by UDS
     and KWP2000, so it's sent identically regardless of the ECU's protocol.
 
-To send one by hand, use a query step (`canair query BMS:3E00`).
+To send one by hand, use a query step (`canair read BMS:3E00`).
 
 ## After a session
 

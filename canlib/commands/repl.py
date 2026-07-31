@@ -27,7 +27,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "  !tester [id]    TesterPresent keepalive loop (Ctrl+C to stop)\n"
         "  !reboot         reboot the WiCAN to restore AutoPID mode\n"
         "  !quit / Ctrl+C  exit\n\n"
-        "For scripted/one-shot reads prefer `canair query` instead; this is the\n"
+        "For scripted/one-shot reads prefer `canair read` instead; this is the\n"
         "manual, freeform fallback.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\

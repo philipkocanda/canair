@@ -20,7 +20,7 @@ from types import ModuleType
 COMMAND_NAMES: list[str] = [
     # live device
     "status",
-    "query",
+    "read",
     "monitor",
     "scan",
     "discover",

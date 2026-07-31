@@ -38,7 +38,7 @@ Every ECU in a profile carries an `id_protocol` field in its `ecus/<name>.yaml`:
 - `id_protocol: none` — NRCs both (identity-only silent modules).
 
 canair reads this field and **auto-selects the right service** for you across
-`query`, `scan`, `identity`, `routines`, and `iocontrol` — so it never blind-sends
+`read`, `scan`, `identity`, `routines`, and `iocontrol` — so it never blind-sends
 a `0x22` UDS request to a KWP2000 ECU (which would NRC), and vice versa. This is
 why a bare identifier often just works: the tool supplies the correct SID from the
 ECU's protocol.

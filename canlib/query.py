@@ -2,7 +2,7 @@
 
 A small, source-agnostic query syntax for picking ECUs and PIDs on the command
 line. Shared by the capture tools (``canair captures``) and intended for reuse
-anywhere an ECU/PID selection is needed (e.g. ``canair query``).
+anywhere an ECU/PID selection is needed (e.g. ``canair read``).
 
 Grammar
 -------

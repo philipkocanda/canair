@@ -276,12 +276,12 @@ The reliable device-only workflow is **toggle → re-read → diff**:
 
 ```bash
 # 1. Read the DID that stores the setting, before the change
-canair query BCM:22B00C --save --label "schedule: before" --state ready
+canair read BCM:22B00C --save --label "schedule: before" --state ready
 
 # 2. Change the setting on the car (set preheat to a different day/time)
 
 # 3. Re-read the same DID, after
-canair query BCM:22B00C --save --label "schedule: after" --state ready
+canair read BCM:22B00C --save --label "schedule: after" --state ready
 
 # 4. Diff the two payloads to see exactly which bytes moved
 canair captures uds BCM:22B00C --diff

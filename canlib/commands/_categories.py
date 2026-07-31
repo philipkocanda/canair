@@ -30,7 +30,7 @@ CATEGORIES: list[tuple[str, tuple[str, ...]]] = [
         "Live device",
         (
             "status",
-            "query",
+            "read",
             "monitor",
             "scan",
             "discover",

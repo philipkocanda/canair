@@ -29,7 +29,7 @@ flowchart LR
 | [2. Discover ECUs](02-discover-ecus.md) | `canair discover --register` | Every responding ECU written into `ecus/` |
 | [3. Read identity](03-identity.md) | `canair identity` / `discover --identify` | Part numbers, versions, VIN |
 | [4. Scan for data](04-scan.md) | `canair scan` | Which PIDs/DIDs each ECU answers |
-| [5. Capture](05-capture.md) | `canair query … --save` | Real payloads with driving/charging context |
+| [5. Capture](05-capture.md) | `canair read … --save` | Real payloads with driving/charging context |
 | [6. Analyze](06-analyze.md) | `decode` / `correlate` / `hunt` / `investigate` | Which byte *is* which signal |
 | [7. Define & verify](07-define-and-verify.md) | `canair pids upsert-param`, `coverage` | Named parameters in `ecus/` |
 | [8. Share](08-share.md) | `canair wican autopid write` | WiCAN AutoPID JSON; a profile to contribute |

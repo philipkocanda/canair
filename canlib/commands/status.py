@@ -3,6 +3,8 @@
 Read-only and side-effect-free: it never connects a session, never changes the
 device mode. Designed to answer "what am I talking to, in what mode, and is it
 reachable/usable?" at a glance, with actionable hints and Unix-style exit codes.
+Also reports the running canair version and, when the WiCAN HTTP API answers,
+the device's firmware/hardware version.
 """
 
 from __future__ import annotations
@@ -85,9 +87,10 @@ def _device_status(host: str, timeout: float) -> dict | None:
 
 def _gather(args) -> dict:
     """Collect everything status reports into a plain dict (also used for --json)."""
+    from .. import __version__
     from ..transport import TransportError, resolve_transport
 
-    info: dict = {"exit": _OK, "warnings": [], "errors": []}
+    info: dict = {"exit": _OK, "warnings": [], "errors": [], "canair_version": __version__}
 
     try:
         t = resolve_transport(args)
@@ -141,6 +144,9 @@ def _gather(args) -> dict:
         "sleep_volt": cfg.get("sleep_volt") if cfg else None,
         "battery": (st or {}).get("batt_voltage") if st else None,
         "ip": (st or {}).get("sta_ip") if st else None,
+        "fw_version": (st or {}).get("fw_version") if st else None,
+        "hw_version": (st or {}).get("hw_version") if st else None,
+        "git_version": (st or {}).get("git_version") if st else None,
     }
 
     # Transport usability check.
@@ -209,6 +215,9 @@ def _render(info: dict) -> None:
     from rich.console import Console
 
     c = Console()
+    ver = info.get("canair_version")
+    if ver:
+        c.print(f"\n  [bold]canair[/bold]     {ver}")
     t = info.get("transport")
     if t:
         loc = t.get("host") or "?"
@@ -234,6 +243,19 @@ def _render(info: dict) -> None:
             c.print(
                 f"    protocol   [cyan]{d['protocol']}[/cyan]  [dim](socket port {d['socket_port']})[/dim]"
             )
+            fw = d.get("fw_version")
+            hw = d.get("hw_version")
+            if fw or hw:
+                parts = []
+                if hw:
+                    parts.append(str(hw))
+                if fw:
+                    parts.append(f"fw {fw}")
+                git = d.get("git_version")
+                line = "  ".join(parts)
+                if git:
+                    line += f"  [dim]({git})[/dim]"
+                c.print(f"    version    {line}")
             slp = d.get("sleep")
             if slp is not None:
                 c.print(f"    sleep      {slp}  [dim](threshold {d.get('sleep_volt')}V)[/dim]")

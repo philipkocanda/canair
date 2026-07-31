@@ -127,10 +127,10 @@ drops), and every error is also written to the central log — inspect it with
 Add `--save` to a read, with context flags:
 
 ```bash
-canair query MyECU:2101 --save --label "highway" --state driving --notes "…"
+canair read MyECU:2101 --save --label "highway" --state driving --notes "…"
 ```
 
-`--save` works with `query`, `monitor`, `scan`, and `discover`.
+`--save` works with `read`, `monitor`, `scan`, and `discover`.
 
 !!! note "Truncated reads are rejected, not stored"
     A multi-frame ISO-TP response is self-describing — its first frame declares

@@ -22,7 +22,7 @@ Inside the REPL:
   !reboot         reboot the WiCAN to restore AutoPID mode
   !quit / Ctrl+C  exit
 
-For scripted/one-shot reads prefer `canair query` instead; this is the
+For scripted/one-shot reads prefer `canair read` instead; this is the
 manual, freeform fallback.
 
 options:

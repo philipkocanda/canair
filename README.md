@@ -22,7 +22,7 @@ Everything ships as a single installable CLI, **`canair`**. Vehicle data lives i
 | | |
 |---|---|
 | ![decode plot](https://github.com/user-attachments/assets/7cab4e56-550a-4443-83dd-2f96bb5eedc7) | Analyzing/decoding a captured signal with `canair decode <query> --plot` |
-| ![capture diff](https://github.com/user-attachments/assets/525affb7-836e-4f2d-9064-020858a4a268) | Byte-level capture diffs with `canair captures <query> --diff` (also the default view for `canair query` on a live vehicle) |
+| ![capture diff](https://github.com/user-attachments/assets/525affb7-836e-4f2d-9064-020858a4a268) | Byte-level capture diffs with `canair captures <query> --diff` (also the default view for `canair read` on a live vehicle) |
 
 ## How it connects
 
@@ -65,9 +65,9 @@ All functionality is exposed as `canair <subcommand>`; run `canair <cmd> --help`
 
 | Subcommand | Purpose |
 |--------|---------|
-| `canair status` | Snapshot of transport, device mode, and reachability. |
+| `canair status` | Snapshot of transport, device mode, reachability, and canair/WiCAN versions. |
 | `canair logs` | View the central diagnostics log (transport drops/errors), size-rotated and self-cleaning. |
-| `canair query` | Send UDS/KWP2000 requests — parameter queries, multi-ECU pipelines. Companions: `discover`, `io`, `routines`, `raw`, `repl`. |
+| `canair read` | Send UDS/KWP2000 requests — parameter reads, multi-ECU pipelines (alias: `query`). Companions: `discover`, `io`, `routines`, `raw`, `repl`. |
 | `canair monitor` | Live, continuously-refreshing view of ECU parameters (scrollable TUI); records with `--save`. |
 | `canair scan` | Probe DID/routine/iocontrol/session ranges for responses. |
 | `canair dtc` | Read/clear Diagnostic Trouble Codes; report changes since the last scan. |
@@ -130,7 +130,7 @@ canair config set wican_addresses.home 192.168.1.100
 canair config set default_wican home
 canair status                           # is the device reachable?
 canair discover                         # list every ECU on the bus (any car)
-canair query BMS:2101                   # read a PID (Ioniq profile)
+canair read BMS:2101                    # read a PID (Ioniq profile)
 ```
 
 Full setup — installing, connecting the dongle (Pro vs classic, AP vs LAN), tab-completion, and your first read — is in [Getting started](https://philipkocanda.github.io/canair/getting-started/install/).

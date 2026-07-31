@@ -86,7 +86,7 @@ class RawTerminal:
         self.cmd_count = 0
         self.cmd_time = 0.0
         self.elm_timeout_cmd = ""
-        # Per-(ECU, PID) round-trip timing (surfaced by `canair query --timings`).
+        # Per-(ECU, PID) round-trip timing (surfaced by `canair read --timings`).
         self.timings = TimingRecorder()
         # Per-exchange outcome tally (drops/errors/decode), same as WiCANTerminal
         # and RawUdsClient — read by the monitor + stamped into capture provenance.

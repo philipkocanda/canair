@@ -80,6 +80,7 @@ nav:
       - Broadcast CAN frames: concepts/broadcast-frames.md
       - Typed (multi-modal) signals: concepts/typed-signals.md
       - Captures & states: concepts/captures-and-states.md
+      - Reading & interpreting DTCs: concepts/dtcs.md
       - Safety: concepts/safety.md
   - Case studies:
       - Overview: case-studies/index.md
@@ -89,7 +90,8 @@ nav:
       - CLI:
           - Overview: reference/cli/index.md
           - canair status: reference/cli/status.md
-          - canair query: reference/cli/query.md
+          - canair read: reference/cli/read.md
+          - canair monitor: reference/cli/monitor.md
           - canair scan: reference/cli/scan.md
           - canair discover: reference/cli/discover.md
           - canair raw: reference/cli/raw.md

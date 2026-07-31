@@ -1,9 +1,11 @@
-"""``canair query`` — the primary live query command (multi-pipeline default).
+"""``canair read`` — the primary live read command (multi-pipeline default).
 
-Absorbs the old ``--multi``/``--param``/``--ecu`` modes. Positional arguments are
-steps in the multi mini-language; a bare selector (no leading verb) is treated as
-a ``query`` step, so ``canair query BMS:2101`` and
-``canair query "session IGPM --wake" "query IGPM"`` both work.
+Named for the UDS ReadDataByIdentifier service (0x22) it fronts. Absorbs the old
+``--multi``/``--param``/``--ecu`` modes. Positional arguments are steps in the
+multi mini-language; a bare selector (no leading verb) is treated as a ``query``
+step (the mini-language verb keeps its name), so ``canair read BMS:2101`` and
+``canair read "session IGPM --wake" "query IGPM"`` both work. ``canair query``
+remains as an alias.
 
 The live *monitor* (a scrollable, continuously-refreshing TUI) is its own
 top-level command — see ``canair monitor``.
@@ -22,33 +24,36 @@ from canlib.commands._live import (
     to_step,
 )
 
-NAME = "query"
+NAME = "read"
+ALIASES = ["query"]
 
 
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
-        help="Query ECUs/parameters over the WiCAN terminal (multi-pipeline default)",
-        description="Query ECUs/parameters live. Positional STEPs use the multi mini-language.",
+        aliases=ALIASES,
+        help="Read ECUs/parameters over the WiCAN terminal (multi-pipeline default)",
+        description="Read ECUs/parameters live. Positional STEPs use the multi mini-language.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
 examples:
-  canair query BMS:2101                     Query BMS PID 2101
-  canair query "VCU:2101 BMS:2101"          Cross-ECU query
-  canair query "skm-wake acc" "query IGPM:BC03,BC06"
-  canair query --param SOC_BMS SOC_DISP     Query named parameters
+  canair read BMS:2101                      Read BMS PID 2101
+  canair read "VCU:2101 BMS:2101"           Cross-ECU read
+  canair read "skm-wake acc" "query IGPM:BC03,BC06"
+  canair read --param SOC_BMS SOC_DISP      Read named parameters
 
-For a live, continuously-refreshing view use `canair monitor` instead.
+`canair query` is a kept alias. For a live, continuously-refreshing view use
+`canair monitor` instead.
 """,
     )
     parser.add_argument(
         "steps",
         nargs="*",
         metavar="STEP",
-        help="Query selector(s) or multi mini-language step(s)",
+        help="Read selector(s) or multi mini-language step(s)",
     )
     parser.add_argument(
-        "--param", nargs="+", metavar="NAME", help="Query named parameters instead of selectors"
+        "--param", nargs="+", metavar="NAME", help="Read named parameters instead of selectors"
     ).completer = param_completer
     parser.add_argument("--session", action="store_true", help="Enter extended session (10 03)")
     parser.add_argument("--wake", action="store_true", help="Wake ECUs from deep sleep (10 01)")
@@ -61,7 +66,7 @@ For a live, continuously-refreshing view use `canair monitor` instead.
         "--include-static",
         action="store_true",
         help="Include static config/identity PIDs (e.g. 21F2) in a bare-ECU sweep. "
-        "By default `canair query ECU` omits PIDs flagged static:true; naming one "
+        "By default `canair read ECU` omits PIDs flagged static:true; naming one "
         "explicitly (ECU:21F2) always queries it.",
     )
     add_connection_args(parser)
@@ -97,7 +102,7 @@ def run(args) -> int:
                 return 2
     # else: --param / interactive fall through to async_main's dispatch
 
-    # On an interactive terminal, nudge toward the live monitor — `query` is a
+    # On an interactive terminal, nudge toward the live monitor — `read` is a
     # one-shot read, while `canair monitor` gives a continuously-refreshing view
     # of the same steps. Skip when piped or emitting JSON so machine output stays
     # clean.

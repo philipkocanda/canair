@@ -9,13 +9,13 @@ ECU names (`BMS`, `MCU`, …) are Ioniq-specific — but `discover` works on any
 canair discover
 
 # Read the battery ECU's main PID, decoded into named parameters (Ioniq)
-canair query BMS:2101
+canair read BMS:2101
 
 # Read all known parameters for an ECU
-canair query BMS
+canair read BMS
 
 # Read specific named parameters across ECUs
-canair query --param SOC_BMS BATTERY_VOLTAGE BATTERY_POWER
+canair read --param SOC_BMS BATTERY_VOLTAGE BATTERY_POWER
 
 # Watch a value live — refreshes, highlights changed bytes and the params they decode
 canair monitor BMS:2101
@@ -24,7 +24,7 @@ canair monitor BMS:2101
 canair dtc --all
 ```
 
-`canair query` uses a small [selector syntax](../concepts/query-mini-language.md)
+`canair read` uses a small [selector syntax](../concepts/query-mini-language.md)
 (`ECU:PID`) and can run multi-step pipelines over one session.
 
 ## On a different car

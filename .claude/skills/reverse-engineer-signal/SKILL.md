@@ -181,7 +181,7 @@ canair pids add-research MCU --type decode --target 2102 \
 
 ```bash
 # Preferred: decoded, session-managed, saved
-canair query "query MCU:2102" --save --label "MCU 2102 driving" \
+canair read "query MCU:2102" --save --label "MCU 2102 driving" \
     --state "ready, driving" --notes "hard launches + regen"
 # Capture change across time (values that move reveal what a byte means)
 canair monitor "query MCU 2102" --interval 1 --keep-all --save
@@ -190,7 +190,7 @@ canair monitor "query MCU 2102" --interval 1 --keep-all --save
 Capture the SAME PID in DIFFERENT states (park vs drive, cold vs warm, charging
 vs ready) — contrast is what lets you separate signal bytes from constants. For
 **cross-signal analysis** (step 7), co-poll the target PID *together with* an ECU
-carrying a known reference (speed on ESC, RPM on MCU) in one `canair query` /
+carrying a known reference (speed on ESC, RPM on MCU) in one `canair read` /
 `canair monitor` run — they'll share a drive so `hunt`/`correlate`/cross-ECU `--corr`
 can time-align them. Every payload capture is now timestamped automatically, so
 any co-polled drive is joinable; only one-shot scans/identity reads stay untimed.
@@ -655,7 +655,7 @@ upstream wican-fw PR — see the `ioniq-reverse-engineering` skill's goals).
 |------|------|
 | what to work on | `canair research`, `canair coverage` |
 | what's captured | `canair captures uds --sessions` (TOC: date/state/label/notes/ECUs; `--json`) |
-| talk to the car | `canair query`/`monitor`/`scan`/`discover` (`--save`) |
+| talk to the car | `canair read`/`monitor`/`scan`/`discover` (`--save`) |
 | see captures | `canair captures` (`--diff`/`--step`/`--rulers`/`--all`/`--latest`/`--summary`/`--since`/`--until`/`--state`/`--label`) |
 | map bytes | `canair bix --annotate` (+ `--ecu ECU --pid PID` to overlay which param maps each byte / flag unmapped) |
 | reason about a signal | step 6 Hypothesize — ECU context, physics/EE (thermal mass), CS (enums/counters), statistics (`--corr`/`--stats`/autocorr) |

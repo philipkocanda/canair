@@ -69,7 +69,7 @@ class WiCANTerminal:
         # per-cycle command counts / ELM latency.
         self.cmd_count = 0
         self.cmd_time = 0.0
-        # Per-(ECU, PID) round-trip timing (surfaced by `canair query --timings`).
+        # Per-(ECU, PID) round-trip timing (surfaced by `canair read --timings`).
         self.timings = TimingRecorder()
         # Per-exchange outcome tally (drops/errors/decode) — the sibling of
         # `timings` read by the monitor for its live status line and stamped into

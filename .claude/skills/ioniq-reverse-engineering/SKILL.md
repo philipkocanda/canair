@@ -106,11 +106,11 @@ sleep, battery, IP, active profile) is one command away: **`canair status`**.
 ### AutoPID / live data
 
 In AutoPID mode the latest values are at `http://<ip>/autopid_data` (cached — may
-be stale if the car is off). For real-time reads use `canair query` (direct
+be stale if the car is off). For real-time reads use `canair read` (direct
 CAN/UDS), which bypasses AutoPID. **AutoPID stops polling when the 12V battery
 hits the `sleep_volt` threshold** while the WiCAN may stay WiFi-reachable — so
 `/autopid_data` (and MQTT) can go stale (e.g. lights reported "on" after
-parking) even though the device answers. Direct `canair query` still works and
+parking) even though the device answers. Direct `canair read` still works and
 values self-correct on the next poll. See Memory below. Check live sleep/voltage
 settings with `canair status` / `wican config`; don't rely on hardcoded numbers.
 
@@ -211,9 +211,9 @@ Full reference: **AGENTS.md** + `canair <cmd> --help`. Key project behaviors:
 - **Selectors bind PID to ECU with a colon, never a space.** In a `query` step a
   space separates *independent* selectors, so `query IGPM BC03` = "all of IGPM
   **plus** a bogus ECU `BC03`" (rejected). Write `query IGPM:BC03,BC06`. Bare
-  `canair query BMS` / `BMS:2101` and `--param NAME` are single-ECU shortcuts.
+  `canair read BMS` / `BMS:2101` and `--param NAME` are single-ECU shortcuts.
 - **`--save` discipline.** NEVER hand-write/edit `captures/` YAML — record via
-  `canair query/monitor/scan/raw/discover … --save`. Agents must pass
+  `canair read/monitor/scan/raw/discover … --save`. Agents must pass
   `--label` (+ optional `--state`/`--notes`) for non-interactive save; without
   `--label` it prompts. Saves are **journaled** to `captures/.journal/` as they
   stream and reconciled into the dated file on exit, so a killed/disconnected
@@ -242,16 +242,16 @@ Full reference: **AGENTS.md** + `canair <cmd> --help`. Key project behaviors:
 
 ### Query pipeline (multi mini-language)
 
-`canair query` runs a sequence of positional STEP strings in one session,
+`canair read` runs a sequence of positional STEP strings in one session,
 managing extended sessions across ECUs with interleaved TesterPresent. Exits
 after the pipeline unless `--repl` (or an explicit `repl` step). Unknown ECU
 names are rejected up front.
 
 ```bash
-canair query "query BMS:2101"                        # single PID, decoded
-canair query "query BMS:2101" "query VCU:2101"       # multi-ECU, one session
-canair query "session IGPM --wake" "query IGPM:BC03,BC06"   # wake + query
-canair query "skm-wake acc" "sleep 1" "query BCM:B00E" "repl"
+canair read "query BMS:2101"                        # single PID, decoded
+canair read "query BMS:2101" "query VCU:2101"       # multi-ECU, one session
+canair read "session IGPM --wake" "query IGPM:BC03,BC06"   # wake + query
+canair read "skm-wake acc" "sleep 1" "query BCM:B00E" "repl"
 canair monitor "query BCM" --interval 2 --keep-unique   # live refresh, unique payloads
 ```
 
@@ -263,7 +263,7 @@ ECUs resolve by name (`IGPM`) or hex TX ID (`770`).
 ### `canair monitor`
 
 Live-refreshing poll (its own top-level command; positional query steps like
-`canair query`, plus `--interval SECONDS`, default 5.0). Non-query steps run once
+`canair read`, plus `--interval SECONDS`, default 5.0). Non-query steps run once
 as setup, `query` steps poll in a
 background worker with TesterPresent keepalives. On a TTY it's a scrollable
 Textual TUI (`↑↓/j/k`/wheel scroll, `f` follow-tail, `space` pause, `=`/`-` poll
@@ -365,7 +365,7 @@ offset are in the **reverse-engineer-signal** skill. Quick reference:
 When 12V drops to `sleep_volt`, the WiCAN stops AutoPID polling but stays
 WiFi-connected: reachable, `/autopid_data` returns data, but values are stale.
 Observed after parking (DRL/beam/tail lights showed "on" via MQTT from an earlier
-poll during a lights-on drive); direct `canair query` confirmed they were off.
+poll during a lights-on drive); direct `canair read` confirmed they were off.
 Self-corrects on the next successful poll. Consider a small `sleep_volt` bump to
 widen the gap vs. the actual sleep trigger.
 
