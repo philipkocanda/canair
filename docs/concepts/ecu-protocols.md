@@ -16,6 +16,16 @@ differently:
 | **KWP2000** (ISO 14230, older) | `0x21` — *ReadDataByLocalIdentifier* | **1 byte** | `21` + LID → `2101`, `21F2` |
 | **UDS** (ISO 14229, newer) | `0x22` — *ReadDataByIdentifier* | **2 bytes** | `22` + DID → `22B002`, `22BC07` |
 
+!!! note "What canair calls a PID"
+    Strictly, in OBD-II a *PID* is a **Parameter ID** — a 1-byte code read under
+    service `0x01`. canair uses the word more broadly: **"PID" is an umbrella for
+    any read identifier** — a standard OBD-II PID, a KWP2000 **LID**, or a UDS
+    **DID**. So don't be surprised that `22B002` (a DID) is called a "PID". This
+    isn't canair being sloppy — it's WiCAN's convention: profiles ultimately
+    compile to the WiCAN AutoPID format (see [`canair wican`](../reference/cli/wican.md)),
+    whose profile schema keys **every** parameter group under `pid` regardless of
+    the underlying diagnostic service.
+
 So the prefix **is** the service ID (SID) — the literal first byte of the
 request:
 
