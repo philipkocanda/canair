@@ -21,7 +21,8 @@ Columns & legend:
   BUS    physical CAN bus segment(s) the ECU sits on (profile-specific codes,
          e.g. Hyundai B-CAN/P-CAN/C-CAN/MM-CAN/H-CAN/ALL); some ECUs span two
          (shown `H-CAN/P-CAN`). Blank (`—`) when unknown. The list is sorted by
-         BUS by default.
+         BUS by default. Shown as the last (widest, most-variable) column so
+         the numeric columns stay aligned.
   PIDS   number of active (non-ignored) PIDs/DIDs defined.
   VERIF  verified/total parameters (green when all verified).
   CAPS   number of saved captures for the ECU. Only computed with `--captures`
@@ -245,10 +246,11 @@ def cmd_list(records: list[dict], as_json: bool) -> int:
     n_pids = sum(1 for r in records if r["has_pids"])
     print(f"\n  {_BOLD}ECUs{_RESET} — {len(records)} in registry, {n_pids} with PID definitions\n")
 
-    # Column header.
+    # Column header. BUS is last: it's the widest, most-variable column, so
+    # trailing it keeps the numeric columns aligned instead of ragged.
     print(
-        f"  {_DIM}{'NAME':<12} {'TX':<6} {'PROTO':<8} {'BUS':<8} "
-        f"{'PIDS':>4} {'VERIF':>7} {'CAPS':>5}{_RESET}"
+        f"  {_DIM}{'NAME':<12} {'TX':<6} {'PROTO':<8} "
+        f"{'PIDS':>4} {'VERIF':>7} {'CAPS':>5}  {'BUS'}{_RESET}"
     )
 
     for r in records:
@@ -258,8 +260,8 @@ def cmd_list(records: list[dict], as_json: bool) -> int:
         if not r["has_pids"]:
             # Registry-only module: no PID data to summarise.
             print(
-                f"  {_CYAN}{name:<12}{_RESET} {r['tx']:<6} {proto:<8} {_CYAN}{bus:<8}{_RESET} "
-                f"{_DIM}{'—':>4} {'—':>7} {'—':>5}{_RESET}"
+                f"  {_CYAN}{name:<12}{_RESET} {r['tx']:<6} {proto:<8} "
+                f"{_DIM}{'—':>4} {'—':>7} {'—':>5}{_RESET}  {_CYAN}{bus}{_RESET}"
             )
             continue
         params = r["params"]
@@ -274,9 +276,9 @@ def cmd_list(records: list[dict], as_json: bool) -> int:
         else:
             cstr = f"{_YELLOW}{'0':>5}{_RESET}"
         print(
-            f"  {_CYAN}{name:<12}{_RESET} {r['tx']:<6} {proto:<8} {_CYAN}{bus:<8}{_RESET} "
+            f"  {_CYAN}{name:<12}{_RESET} {r['tx']:<6} {proto:<8} "
             f"{r['pids']:>4} {vcolor}{vstr:>7}{_RESET} "
-            f"{cstr}"
+            f"{cstr}  {_CYAN}{bus}{_RESET}"
         )
     print()
     return 0
