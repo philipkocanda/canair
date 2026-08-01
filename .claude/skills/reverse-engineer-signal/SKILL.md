@@ -481,6 +481,25 @@ The tooling exposes real statistical levers — use them as evidence, not decora
 - **Linear fit for scale/offset** — once a byte tracks a known engineering value,
   a straight-line fit (value = a·byte + b) gives the scale and offset; sanity
   check the intercept physically (a temperature's cold-park reading ≈ ambient).
+- **Eyeball the raw series side by side** (`canair align A B C …`) — before you
+  trust a correlation coefficient or a `--stats` min/max, print the candidate
+  byte(s) *next to* the reference (and any mode/state columns) as one
+  time-aligned table, one row per sample. **A single r or a min/max flattens the
+  *dynamics*** — a signal with a non-zero **baseline/offset** or **mode-dependent**
+  behaviour can post a strong r (or a tidy-looking range) yet mean something quite
+  different up close, and the raw series is the cheap check that catches it. Real
+  case: HVAC 2201A2 B41 looked like a clean "cooling power, 0 in heating" from
+  `--stats` (min=0), so it was written as `HVAC_COOL_POWER`; a `canair align` of
+  B41 beside `HVAC_HEAT_POWER`/`BATTERY_POWER` then showed a **~20 idle baseline
+  in *both* modes** (only cooling elevates it, heating never zeroes it) —
+  correcting the mislabel to `HVAC_COOL_LOAD_B41` *before* it misled anyone. Run
+  it as a routine pre-commit sanity check on any candidate with an offset or a
+  per-mode/per-state story. The first selector sets the row cadence; the rest
+  nearest-join onto it (`--join-tol`); `--csv`/`--json` export a drive slice for
+  an external plot or a `--against-file`, and it takes the standard scope flags
+  (`--state`/`--date`/…). Watch the reference-cadence gotcha: rows follow the
+  first selector's timestamps, so columns read `—` where a signal wasn't
+  co-polled at that instant (a quick way to *see* which window actually overlaps).
 
 #### Expect thematic grouping (but don't rely on it)
 
@@ -545,7 +564,18 @@ canair hunt AAF 2181 --against ESC:22C101:REAL_SPEED_KMH --promote AAF_SPEED  # 
 canair decode MCU 2101 --corr MCU:2102:[S10:S11] --corr-transform delta
 # Rank EVERY strong relationship in a drive at once:
 canair correlate --state DRIVING --against ESC:22C101:REAL_SPEED_KMH
+# Eyeball several signals as ONE time-aligned table — the cheap sanity-check
+# that catches what a lone r / min-max hides (baseline offsets, per-mode behaviour):
+canair align HVAC:2201A2:HVAC_HEAT_POWER HVAC:2201A2:B41 BMS:2101:BATTERY_POWER --state READY
 ```
+
+`canair align` complements the correlation tools: `hunt`/`correlate` give you the
+*coefficient and fit*, `align` shows the *series* they were computed from. Reach
+for it whenever a candidate has a non-zero baseline, a mode/state-dependent story,
+or you just want to watch A, B and C move together before you write a label (see
+"Eyeball the raw series side by side" in step 6). The first `ECU:PID:PARAM` sets
+the row cadence; the rest nearest-join onto it (columns read `—` where a signal
+wasn't co-polled). `--csv`/`--json` export a slice for an external plot.
 
 **Scope the captures** so a candidate is judged on the relevant drive/state, not
 the whole history (shared with `canair captures`): `--since`/`--until`/`--date`,
@@ -715,6 +745,7 @@ PR — see the `ioniq-reverse-engineering` skill's goals.
 | what's co-polled here | `canair correlate --overlap` (which ECU:PID pairs share timed samples) |
 | cross-ECU correlate | `canair decode … --corr ECU:PID:PARAM` (+ `--corr-transform`, `--method spearman`); `canair correlate [--against REF] [--bytes/--bits] [--lag-scan N] [--gate '>0'] [--promote NAME]` |
 | which byte is signal Y | `canair hunt <ECU> <PID> --against ECU:PID:PARAM` (linear fit + unit guess; `--transform delta`, `--promote NAME`, `--all-interps`) |
+| eyeball signals side by side | `canair align ECU:PID:PARAM …` (time-aligned wide table; sanity-check a fit before labelling / export a slice `--csv`/`--json`) |
 | reference an external log | `canair hunt/correlate … --against-file series.csv` (timestamp,value; absolute clock) |
 | a signal with no bus anchor | `canair hunt <ECU> <PID> --physical` (named physical bands); `canair investigate … --independent-of ECU:PID:PARAM` (active-but-independent) |
 | remove a confounder | `canair hunt/correlate … --against REF --control ECU:PID:PARAM` (partial correlation) |
