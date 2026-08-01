@@ -344,11 +344,12 @@ VCU:
             OBC LDC_OUTPUT_V note: rear-defroster ~15-20A); (3) r=+0.97 vs BMS BATTERY_POWER/CURRENT
             across READY (load-tracking); (4) during 24min steady 10A AC charge it does NOT count
             down — wanders non-monotonically 52-108W (standby electronics), disproving time-to-full.
-            Coarse mirror: B15 = [B22:B23]/100 (~0.1kW steps). OPEN: dash splits climate vs
-            electronics (+driving, =0 while parked) as 3 values — this field tracked the
-            climate(defroster) load; whether it is climate-only, electronics-only, or total
-            accessory is unresolved (the other varying VCU 2102 bytes B19/B21 are aliased phase
-            currents, not the sibling power). ISO-TP 0x12-0x13.
+            Coarse mirror: B15 = [B22:B23]/100 (~0.1kW steps). RESOLVED 2026-07-30: this is the 12V
+            AUX/ELECTRONICS term of the dash motor/climate/aux split (all LDC-fed 12V loads incl.
+            blower + rear defroster) — NOT climate, NOT total. The 2026-07-30 defroster step that moved
+            it was a 12V load; the HV compressor/PTC "climate" power is separate and independent (r=-0.09
+            vs BATTERY_POWER in the 2026-07-22 heat-pump session, while pack HV power swung 1kW). The
+            climate + motor sibling terms are NOT broadcast on VCU 2102/2101/21F2. ISO-TP 0x12-0x13.
         VCU_AUX_POWER_COARSE:
           expression: B15*10
           unit: W
@@ -663,7 +664,18 @@ VCU:
       vehicle_states: [READY]
       created: "2026-07-30"
       updated: "2026-07-30"
-      notes: "Find the climate / electronics / driving power components the dash shows as 3 separate values. VCU_AUX_POWER ([B22:B23]/10 W) tracked the CLIMATE (defroster) load on 2026-07-30 but the sibling components were not isolated (VCU 2102 B19/B21 are aliased phase currents, not power). Plan: keep-all capture (canair monitor 'VCU:2102 HVAC:220100 HVAC:2201A0' --interval 1 --keep-all --save) while independently toggling (a) a climate-only load (defroster/heater), (b) an electronics-only load (headlights/audio, no climate), noting each dash value; then hunt VCU 2102 + HVAC DIDs --against each to attribute one 16-bit field per component. Confirm whether VCU_AUX_POWER is climate-only, electronics-only, or total. B15 is the /100 coarse mirror of VCU_AUX_POWER."
+      notes: "Find the climate / electronics / driving power components the dash shows as 3 separate values. RESOLVED (aux) 2026-07-30: VCU_AUX_POWER ([B22:B23]/10 W) is the 12V AUX/ELECTRONICS term (all LDC-fed 12V loads incl. blower + rear defroster), NOT climate and NOT total. Proof: 2026-07-22 11:15 heat-pump session (HVAC_COMPRESSOR_ON=1, pack BATTERY_POWER swinging 1.29-2.27kW as the HV climate load modulated) — VCU_AUX_POWER stayed flat 256-309W, r=-0.09 vs BATTERY_POWER = independent of the HV climate load. CLIMATE + MOTOR siblings are NOT on VCU 2102 (nor 2101/21F2): hunt of every VCU byte vs the climate power gave |r|<0.26, aux-controlled partial-corr empty; no HVAC/OBC byte either. So the HV climate (compressor+PTC) and motor terms are NOT broadcast as watts on the polled ECUs — the dash split is computed/derived (climate_W ~= BATTERY_POWER - VCU_AUX_POWER/eff - HV_baseline). Motor power is separately available as MCU/BMS during a drive. (VCU 2102 B19/B21 are aliased phase currents, not power.) Only untested: a dedicated e-compressor/PTC inverter address or a passive broadcast frame. See OBC/HVAC 'climate power' research entries."
+    - type: decode
+      target: SOC mirror search (21F2 open)
+      status: captured
+      priority: P3
+      vehicle_states: [CHARGING, READY]
+      created: "2026-08-01"
+      updated: "2026-08-01"
+      notes: "SOC is NOT republished on VCU 2101/2102 (nor OBC/AAF/BCM/IGPM) in decodable form. 2026-07-30 long AC charge (SOC 71->95%): full-byte fingerprint scan of every co-polled PID (scripts/soc_mirror_scan.py) using scale + coarseness + value-range + charge-off discriminators. Every non-BMS byte that correlates with SOC is either a FINE voltage (600+ distinct, ~0.01%/LSB, collapses at charge-off — e.g. VCU 2102 p19:20 r=0.95, OBC 2101 p9:10 r=0.998) or a COARSE temperature (AAF 2180/2181 p17, ~2.15%/LSB, range 68-78) — a monotone-charge coincidence, not an SOC value. SOC lives ONLY on BMS: 2101 payload[6] (raw=%x2) = SOC_BMS, and 2105 = SOC_DISP. CAVEAT: a single steady charge proves this by scale/range/coarseness, not correlation (SOC is monotone). OPEN: VCU 21F2 (charge-management block) had only 2 timed samples here (keep-unique dedup) - the sole remaining place SOC could hide. NEXT: --keep-all capture of VCU:21F2 during charge AND a READY drive/discharge (non-monotone SOC w/ regen) co-polling BMS:2101 to disambiguate a true SOC field from voltage; re-run scripts/soc_mirror_scan.py over the drive."
+      what_to_test:
+        - --keep-all VCU:21F2 during charge (currently dedup'd to 2 pts)
+        - Re-run soc_mirror_scan.py over a READY drive (non-monotone SOC) to separate SOC from voltage
   sessions:
     "81":
       name: "standardDiagnosticSession"

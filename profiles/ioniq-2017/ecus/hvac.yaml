@@ -268,14 +268,18 @@ HVAC:
             HVAC_AC_COMPRESSOR_ON. (Nuance: should also read 1 during A/C cooling — untested today;
             if it's actually heat-pump-mode-only, cooling would show 0.)
 
-        HVAC_HEATER_MODE_FLAG:
+        HVAC_COMPRESSOR_ON_MIRROR_B18:
           expression: "B18"
           unit: ""
           min: "0"
           max: "1"
           source: "Monitor session 2026-04-17"
           verified: false
-          notes: "0x00/0x01 toggle. Possibly heater vs cooler mode flag."
+          notes: >
+            Compressor-on mirror. B18 is a 0/1 toggle equal to B12==B13==B15 and matches
+            HVAC_COMPRESSOR_ON (B17) r=0.92 across 197 captures (differs in 5). Renamed 2026-07-30 from
+            HVAC_HEATER_MODE_FLAG — it is a compressor-state mirror, not a distinct heater/cooler mode.
+            See HVAC_COMPRESSOR_ON_MIRROR (B12) for the same signal.
 
         HVAC_TEMP_B19:
           expression: "B19"
@@ -298,7 +302,7 @@ HVAC:
           source: coverage analysis 2026-07-23
           verified: false
           notes: >
-            B12==B13==B15==B18 (HEATER_MODE_FLAG) exactly across 197 captures —
+            B12==B13==B15==B18 (HVAC_COMPRESSOR_ON_MIRROR_B18) exactly across 197 captures —
             redundant status mirror (r=0.924 vs HVAC_COMPRESSOR_ON B17, differ in 5
             samples). Documents B12/B13/B15. 220102 constants: B5=0xFF B6=0x80
             B7/B9/B14=0x00 B20-B23=0x00 padding.
@@ -319,7 +323,7 @@ HVAC:
         (door target/feedback/motor drive) needing physical actuation to label. Confirmed:
         B9==B10 exactly (paired driver/pax target), B19≈B20 (paired). Target cluster
         B5/B7/B9(=B10)/B11 (36-221). Feedback cluster B13/B14/B15/B17 (~104-143); B17
-        mode-dependent (r=-0.63 vs HVAC_COOLING_MODE, likely mode/recirc door). High-churn
+        mode-dependent (r=-0.63 vs HVAC_COOLING_MODE_B25, likely mode/recirc door). High-churn
         B47/B50/B52/B66 (distinct 58-88) = fast motor-drive/RPM-like (cf. 01A1). Constants:
         B54=B55=0x00, tail B69/B70/B71=0x00; low-activity flags B26/B29/B37/B38/B46/B53/B61-B63.
       parameters:
@@ -369,7 +373,7 @@ HVAC:
             Transient flag: briefly 1 at HVAC turn-on, then returns to 0.
             Possibly a startup/initialization signal.
 
-        HVAC_COOLING_MODE:
+        HVAC_COOLING_MODE_B25:
           expression: "B25"
           unit: ""
           min: "0"
@@ -380,17 +384,26 @@ HVAC:
             Mode flag: 1 during normal/cooling operation, 0 during PTC
             heater mode. May indicate A/C compressor vs resistive heating.
 
-        HVAC_PTC_HEATER_FLAG:
-          expression: "B06"
+        HVAC_HEAT_MODE:
+          expression: B06
           unit: ""
           min: "0"
           max: "2"
-          source: "Monitor session 2026-04-17"
+          source: 2026-07-26 heater-high session (regime split vs HVAC_COMPRESSOR_ON)
           verified: false
-          notes: >
-            0x00 normal, 0x02 during PTC heater activation. Correlates
-            with high heat output values in ELM[3,5-8].
-
+          notes: >-
+            Heating-source MODE (WiCAN B06), 3-state: 0=off, 1=PTC resistive, 2=heat-pump
+            (compressor). Distinguishes PTC vs compressor heating. Evidence 2026-07-26 17:20: as
+            heating started B06 went 0->1 (COMPRESSOR_ON=0, B42=1.1-1.5kW PTC) ->2 (COMPRESSOR_ON=1,
+            B42 up to 4.5kW heat-pump). value 1 seen only n=4 (brief PTC warmup before the heat pump
+            engaged) — mild ambient (22C). UNTESTED: whether cold weather (PTC + heat-pump BOTH
+            running) shows a 4th combined code or holds at 2. Was mislabelled '0x00 normal / 0x02
+            PTC'. Tracks HVAC_COMPRESSOR_ON (B17).
+          type: enum
+          values:
+            0: "off"
+            1: ptc_resistive
+            2: heat_pump
         HVAC_MAX_FAN_FLAG:
           expression: "B57"
           unit: ""
@@ -471,7 +484,7 @@ HVAC:
           verified: false
           notes: >
             Position feedback, steady ~104-125. Mode-dependent: r=-0.63 vs
-            HVAC_COOLING_MODE. Likely mode/recirc door feedback. Verify: cycle
+            HVAC_COOLING_MODE_B25. Likely mode/recirc door feedback. Verify: cycle
             face/feet/defrost and recirc.
           enabled: true
         HVAC_DOOR_FEEDBACK_B13:
@@ -543,7 +556,31 @@ HVAC:
         co-move under heating so the specific sensor is unresolved — needs a
         single-variable capture (one temp/actuator at a time).
       vehicle_states: [ACC, ACC2, READY]
-      parameters: {}
+      parameters:
+        HVAC_HEAT_POWER:
+          expression: B42/10
+          unit: kW
+          min: "0"
+          max: "12"
+          source: 2026-07-26 heater-high + 2026-07-22 PTC sessions vs BMS BATTERY_POWER
+          verified: false
+          notes: >-
+            Climate HEATING power (PTC + heat-pump-heat), WiCAN B42, ~0.1 kW/LSB. Evidence: r=0.956
+            vs pack BATTERY_POWER over the 2026-07-26 heater-high session (n=152, 0.25-4.39kW swing,
+            compressor cycling), fan-independent (r=0.942 controlling HVAC_BLOWER_FAN_SPEED), and
+            B42=13 when the console showed ~1.2kW climate (2026-07-22 PTC session) => scale /10 kW.
+            Reads 0 (constant) when climate off AND during AC COOLING (2026-07-21) =>
+            HEATING-specific; the             cooling/compressor half of the dash climate bar is a separate byte
+            not yet found (candidates B41/B44 nonzero in cooling but no BMS-referenced cooling
+            capture yet). Scale approximate pending an exact dash read. Not the AC compressor
+            cooling power. ISO-TP data byte after CF PCI B40.
+            PTC vs COMPRESSOR: B42 is the TOTAL heat power, not one source. Use HVAC_HEAT_MODE
+            (B06: 1=PTC, 2=heat-pump) / HVAC_COMPRESSOR_ON (B17) to attribute it. In the 2026-07-26
+            session the two ran SEQUENTIALLY (PTC 1.1-1.5kW briefly at B06=1, then heat-pump to 4.5kW at
+            B06=2), so B42 = the active source's power there. No separate compressor-power/RPM byte
+            exists — the compressor-exclusive bytes (2201A2 B26=0/255, 2201A3 B15~52/B43~192) are
+            on/off STATUS flags (B26 r=0.02 vs power), not analog. Whether PTC+heat-pump ever run
+            together (B42 = their sum) is untested — needs a cold-weather capture.
 
     2201A3:
       status: draft
@@ -729,7 +766,7 @@ HVAC:
         incorrect for Ioniq 2017.
     - type: decode
       target: "climate power (console split)"
-      status: pending
+      status: captured
       priority: P2
       vehicle_states: [READY]
       notes: >
@@ -743,6 +780,30 @@ HVAC:
         distinguishes heat-pump (1) vs PTC-only (0). Remaining leads: hunt a PTC-duty byte or a
         dedicated compressor/PTC-inverter address; otherwise accept the console value is derived.
         (Note: 220102 is NOT a new PID — it was already decoded as heat-exchanger temps + flags.)
+        VCU RE-CHECKED 2026-07-30 (after VCU_AUX_POWER was found on VCU 2102): the 2026-07-22 11:15
+        heat-pump session (HVAC_COMPRESSOR_ON=1, pack BATTERY_POWER modulating 1.29-2.27kW while
+        VCU_AUX_POWER stayed flat ~256-309W) was hunted — NO VCU 2101/2102/21F2 byte tracks the climate
+        power (best |r|<0.26; aux-controlled partial-corr empty), and no HVAC/OBC byte either (all <0.6,
+        temperature-ish). Confirms climate power is NOT broadcast as watts on any polled ECU. Also proves
+        VCU_AUX_POWER is the 12V AUX/ELECTRONICS term, NOT climate: it is independent of the HV climate
+        load (r=-0.09 vs BATTERY_POWER here). So the dash split = motor(HV drive) / climate(HV
+        compressor+PTC) / aux(=VCU_AUX_POWER, 12V) — the climate term is DERIVED: climate_W ~=
+        BATTERY_POWER - VCU_AUX_POWER/eff - HV_baseline (1.85kW pack - ~0.3kW aux ~= console 1.2kW). Only
+        untested avenue left: a dedicated e-compressor/PTC inverter address (0x7B6=GSA answers only
+        220100, all else NRC) or a passive broadcast-CAN frame — neither captured. To improve: a
+        compressor/heat sweep (AC or heat setpoint low->high) co-polling VCU+HVAC+BMS with --keep-all.
+        FOUND 2026-07-30 (SUPERSEDES the "no wattage byte" finding above): the HEATING climate power IS
+        broadcast — HVAC 2201A2 B42 (see HVAC_HEAT_POWER param), ~0.1 kW/LSB. The earlier miss was scope:
+        the small n=35 PTC session buried it (B42 r=0.60), but the 2026-07-26 17:17 heater-high session
+        (n=152, pack 0.25-4.39kW, compressor cycling) gives B42 r=0.956 vs BATTERY_POWER, fan-independent
+        (r=0.942 controlling fan), B42=0 when climate off, B42=13 at the console's ~1.2kW. It sits on the
+        HVAC actuator-data page, not 220100/220102 (which I'd checked) — hence the earlier negative.
+        STILL OPEN — the COOLING half: B42=0 during AC cooling (2026-07-21), so it is heating-specific;
+        the AC-compressor cooling power is a separate byte (2201A2 B41/B44 are nonzero in cooling but
+        unverified — those AC sessions had no BMS reference). NEXT: an AC-cooling sweep (hot cabin, AC
+        low->high) co-polling HVAC:2201A2 + BMS:2101, then hunt B41/B44/page vs BATTERY_POWER to pin the
+        cooling term and confirm the B42 heating scale against an exact dash read.
+      updated: "2026-08-01"
     - type: decode
       target: 2201A0 actuator doors
       status: captured
