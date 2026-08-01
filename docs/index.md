@@ -10,7 +10,7 @@ logs and DBCs). It then helps you capture, decode, statistically correlate, and
 document that data — turning it into a shareable
 [vehicle profile](concepts/profiles.md).
 
-![canair analysis commands in action](screenshots/tour.gif)
+![canair analysis commands and the interactive decode --plot signal explorer in action](screenshots/tour.gif)
 
 These docs are organized around **what you're trying to do**, not around the
 command list (that lives in the [CLI reference](reference/cli/index.md)).

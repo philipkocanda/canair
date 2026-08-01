@@ -5,8 +5,7 @@ vehicle-agnostic — this journey takes you from *nothing* to decoded, verified
 diagnostic signals for **your** car, stored in a [profile](../concepts/profiles.md)
 you can share.
 
-You don't need to know your car's [PIDs](../concepts/ecu-protocols.md) in
-advance. The discovery and scan
+You don't need to know your car's PIDs in advance. The discovery and scan
 commands are a **write path**: they populate the profile as they find things, so
 the profile grows itself as you work.
 

@@ -19,7 +19,7 @@ canair read MyECU:2101 --save --label "highway 100 km/h" --state driving
   [Captures & states](../concepts/captures-and-states.md).
 - `--notes` — anything else worth remembering.
 
-`--save` works with `query`, `monitor`, `scan`, and `discover`. Saves are
+`--save` works with `read`, `monitor`, `scan`, and `discover`. Saves are
 **journaled** as they stream, so a crashed or disconnected session is never
 lost — recover leftovers with `canair captures uds --recover`.
 

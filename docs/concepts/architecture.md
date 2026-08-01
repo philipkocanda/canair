@@ -59,7 +59,7 @@ KWP2000 while body/comfort ECUs are UDS; another car may split differently.)
 
 canair handles two parallel kinds of data:
 
-- **Diagnostics** — request/response UDS/KWP2000 (mature: `query`/`scan`/`dtc`/…).
+- **Diagnostics** — request/response UDS/KWP2000 (mature: `read`/`scan`/`dtc`/…).
 - **Raw frames** — passively-sniffed broadcast traffic no request elicits
   (`canair sniff`).
 

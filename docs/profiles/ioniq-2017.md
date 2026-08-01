@@ -30,10 +30,10 @@ scan logs), which is exactly the shape you're building toward for your own car.
 |---|---|
 | Vehicle | 2017 Hyundai Ioniq Electric, 28 kWh, `AE` platform (NL market) |
 | ECUs mapped | **30** (all registered with identity) |
-| PIDs | **97** active/draft |
-| Parameters | **336** decoded (**215 verified**, 121 unverified/candidate) |
+| PIDs | **98** active/draft |
+| Parameters | **350** decoded (**223 verified**, 127 unverified/candidate) |
 | IOControl DIDs | **107** actuators (UDS `0x2F`) |
-| Research backlog | **81** open reverse-engineering leads |
+| Research backlog | **96** open reverse-engineering leads |
 
 > These numbers drift as the profile grows. The live figures come from
 > `canair --profile ioniq-2017 validate pids --stats`.

@@ -1,4 +1,5 @@
-# A quick tour of read-only canair analysis commands (device-free).
+# A quick tour of read-only canair analysis, ending in the interactive --plot
+# signal explorer (device-free). This is the docs home-page hero.
 #
 # Rendered by `python3 scripts/gen_screenshots.py` (which runs vhs from the repo
 # root). Output path is relative to the repo root. The setup block is hidden and
@@ -22,19 +23,29 @@ Type "alias canair='uv run canair --profiles-dir profiles --profile ioniq-2017'"
 Type "clear" Enter
 Show
 
+# 1. Latest decoded values for an ECU
 Type "canair ecu BMS pids"
 Sleep 500ms
 Enter
-Sleep 3500ms
+Sleep 3s
 
 Type "clear" Enter
+# 2. Decoded value ranges across every capture
 Type "canair decode BMS:2101"
 Sleep 500ms
 Enter
-Sleep 3500ms
+Sleep 3s
 
 Type "clear" Enter
-Type "canair coverage BMS"
+# 3. The interactive signal explorer, zoomed on a charge/discharge power curve
+Type "canair decode BMS:2101 --plot"
 Sleep 500ms
 Enter
-Sleep 3500ms
+Sleep 4s
+Type "m" Sleep 800ms
+Right Sleep 1000ms
+Type "=" Sleep 800ms
+Type "=" Sleep 2500ms
+Sleep 1200ms
+Type "q"
+Sleep 800ms

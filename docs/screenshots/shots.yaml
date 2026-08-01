@@ -104,7 +104,7 @@ animations:
     kind: anim
     tape: tapes/tour.tape
     checks:
-      - [bus]
       - [ecu, BMS, pids]
+      - [decode, "BMS:2101"]
       - [decode, "BMS:2101", --stats]
-    caption: "A quick tour of read-only analysis commands"
+    caption: "A tour of read-only analysis, ending in the interactive --plot signal explorer"
