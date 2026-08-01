@@ -124,6 +124,64 @@ def load_cross_ref_series(ref: str, *, scope: dict, tol_s: float):
     return series, sref.label
 
 
+def axis_group_keys(
+    all_results: list[dict], axis_spec: str, *, scope: dict, tol_s: float
+) -> tuple[dict[int, str | None], str]:
+    """Map each result to a group key from a cross-signal ``ECU:PID:PARAM`` axis.
+
+    The generalization of ``--discriminate state`` to an arbitrary signal: load
+    the axis series (same scope as the local decode), nearest-join it onto each
+    capture within ``tol_s``, and discretize its value into a group label. Returns
+    ``(keys_by_id, axis_label)`` where ``keys_by_id[id(result)]`` is the group key
+    (or ``None`` when no axis sample lands within tolerance).
+
+    Raises ``ValueError`` when the axis can't be built, aligns to nothing, or is
+    too high-cardinality to be a sensible grouping (``--discriminate`` wants an
+    enum/flag/mode axis, not a continuous analog).
+    """
+    import bisect
+
+    from canlib.align import prepare_series
+    from canlib.capture_dates import entry_datetime
+
+    series, label = load_cross_ref_series(axis_spec, scope=scope, tol_s=tol_s)
+    prepared = prepare_series(series)
+    ts, vals = prepared.ts, prepared.values
+
+    def _nearest(dt) -> float | None:
+        if dt is None or not ts:
+            return None
+        t = dt.timestamp()
+        i = bisect.bisect_left(ts, t)
+        best: float | None = None
+        best_d = tol_s + 1.0
+        for j in (i - 1, i):
+            if 0 <= j < len(ts):
+                d = abs(ts[j] - t)
+                if d < best_d:
+                    best_d = d
+                    best = vals[j]
+        return best if best_d <= tol_s else None
+
+    keys: dict[int, str | None] = {}
+    for r in all_results:
+        v = _nearest(entry_datetime(r["capture"]))
+        if v is None:
+            keys[id(r)] = None
+        else:
+            keys[id(r)] = str(int(v)) if float(v).is_integer() else f"{v:.3f}"
+
+    distinct = {k for k in keys.values() if k is not None}
+    if not distinct:
+        raise ValueError(f"axis {label} aligned to no captures in scope (join ≤{tol_s}s)")
+    if len(distinct) > 12:
+        raise ValueError(
+            f"axis {label} has {len(distinct)} distinct values in scope; --discriminate "
+            "expects a low-cardinality enum/flag/mode axis (or use 'state')"
+        )
+    return keys, label
+
+
 def find_mirrors(all_results: list[dict], *, bits: bool = False) -> list[tuple[str, str, int]]:
     """Find byte (and optionally bit) positions that are exactly equal across
     every capture — redundant status mirrors and unit-variants.

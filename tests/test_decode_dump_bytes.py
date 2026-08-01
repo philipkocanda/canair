@@ -3,7 +3,6 @@
 import io
 import json
 from contextlib import redirect_stdout
-from datetime import datetime
 
 from canlib.commands import decode as decode_script
 from canlib.notation import ByteNotation
@@ -62,7 +61,10 @@ class TestDumpBytesCSV:
     def test_uses_entry_datetime_when_timed(self):
         out = _dump([_result("6101ABCD", time="09:06:37.007")])
         row = out.strip().splitlines()[1]
-        assert row.startswith(datetime(2026, 7, 22, 9, 6, 37, 7000).isoformat())
+        # CSV time is the absolute wall clock, space-separated (no ISO 'T') so it
+        # joins with an `align --csv` dump without reformatting.
+        assert row.startswith("2026-07-22 09:06:37.007000")
+        assert "T" not in row.split(",")[0]
 
     def test_ragged_rows_pad_blank(self):
         # A shorter capture leaves trailing cells blank rather than erroring.
@@ -98,3 +100,12 @@ class TestDumpBytesJSON:
         assert doc["notation"] == "isotp"
         # ISO-TP labels use the i-prefix, never WiCAN Bnn.
         assert all(not c.startswith("B") for c in doc["columns"])
+
+    def test_time_is_time_only_no_iso_t(self):
+        # JSON time harmonized with decode/align --json: time-only HH:MM:SS.ffffff,
+        # with the date as a separate field, no ISO 'T'.
+        out = _dump([_result("6101ABCD", time="09:06:37.007")], as_json=True)
+        row = json.loads(out)["rows"][0]
+        assert row["time"] == "09:06:37.007000"
+        assert row["date"] == "2026-07-22"
+        assert "T" not in row["time"]

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import sys
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from canlib.commands._decode_calc import (
@@ -379,9 +380,10 @@ def print_discriminate(
     include_bits: bool = False,
     notation: ByteNotation = ByteNotation.WICAN,
     sub_bytes: int = 1,
+    group_of: Callable[[dict], str | None] | None = None,
 ) -> None:
     """Rank params (and optionally raw bytes/bits) by how cleanly they separate
-    across session ``field`` groups.
+    across ``field`` groups.
 
     The confirmation lever for state-dependent signals (thermal/mode/relay) that
     a driving-anchor correlation misses — e.g. MCU inverter temp reads distinctly
@@ -390,14 +392,27 @@ def print_discriminate(
     With ``include_bytes`` (``--bytes``) every varying non-PCI raw byte is ranked
     alongside the params; with ``include_bits`` (``--bits``) so is every varying
     bit (``Bn:k``) — finding a state-dependent byte/bit without a ``--try``.
+
+    ``group_of`` overrides the grouping key per result — the arbitrary-axis
+    generalization (bucket by a cross-signal's discretized value, not the vehicle
+    state). It defaults to the session vehicle-state key; a capture it maps to
+    ``None`` (e.g. no axis sample within tolerance) is dropped from every bucket.
     """
+
+    def _grp(r: dict) -> str | None:
+        if group_of is not None:
+            return group_of(r)
+        return _join_states(r["capture"].get("vehicle_states")) or "(no state)"
+
     buckets: dict[str, dict[str, list[float]]] = {name: {} for name in param_names}
     # Parallel categorical view: for typed enum/bitmask params, collect the
-    # nominal category per capture alongside its state, so we can score them with
+    # nominal category per capture alongside its group, so we can score them with
     # Cramér's V (F assumes interval scale — invalid for a mode/flag set).
     cat_pairs: dict[str, tuple[list, list]] = {}
     for r in all_results:
-        key = _join_states(r["capture"].get("vehicle_states")) or "(no state)"
+        key = _grp(r)
+        if key is None:
+            continue
         for name in param_names:
             d = r["decoded"].get(name, {})
             v = d.get("value")
@@ -411,7 +426,9 @@ def print_discriminate(
 
     byte_names: set[str] = set()
     if include_bytes or include_bits:
-        byte_buckets = _byte_state_buckets(all_results, field, include_bits=include_bits)
+        byte_buckets = _byte_state_buckets(
+            all_results, field, include_bits=include_bits, group_of=group_of
+        )
         byte_names = set(byte_buckets)
         buckets.update(byte_buckets)
 
@@ -625,11 +642,21 @@ def _dump_bytes(
     offsets = [off for off in range(max_len) if include_pci or wican_to_isotp(off) is not None]
     labels = [_dump_column_label(off, include_pci, notation, sub_bytes) for off in offsets]
 
-    def _row_time(cap: dict) -> str:
+    def _row_time(cap: dict, *, full: bool) -> str:
+        """Timestamp for a row, harmonized with ``decode``/``align`` output.
+
+        ``full`` (CSV) → absolute ``YYYY-MM-DD HH:MM:SS.ffffff`` (joinable with an
+        ``align --csv`` dump); otherwise (JSON) → time-only ``HH:MM:SS.ffffff`` to
+        match the ``decode --json`` / ``align --json`` shape (which carry ``date``
+        as a separate field). Neither uses the ISO ``T`` separator, so the two
+        pulls join without reformatting.
+        """
         dt = _entry_dt(cap)
         if dt is not None:
-            return dt.isoformat()
-        return f"{cap.get('date', '')} {cap.get('time', '')}".strip()
+            return dt.strftime("%Y-%m-%d %H:%M:%S.%f") if full else dt.strftime("%H:%M:%S.%f")
+        if full:
+            return f"{cap.get('date', '')} {cap.get('time', '')}".strip()
+        return str(cap.get("time", ""))
 
     if as_json:
         out = {
@@ -641,7 +668,7 @@ def _dump_bytes(
             "offsets": offsets,
             "rows": [
                 {
-                    "time": _row_time(cap),
+                    "time": _row_time(cap, full=False),
                     "date": str(cap.get("date", "")),
                     "vehicle_states": cap.get("vehicle_states") or [],
                     "bytes": {
@@ -663,7 +690,7 @@ def _dump_bytes(
     for cap, fr in rows:
         writer.writerow(
             [
-                _row_time(cap),
+                _row_time(cap, full=True),
                 ecu_key,
                 pid_key,
                 *[(fr[off] if off < len(fr) else "") for off in offsets],

@@ -150,6 +150,23 @@ class TestCorrelateGate:
         assert signal == "MCU:2102:MCU_MOTOR_RPM" and value == 100.0
         assert op_fn(100, 100)
 
+    def test_parse_gate_bracketed_signal(self):
+        # The documented '[SIGNAL] OP VALUE' form must parse to the same bare
+        # signal — otherwise the brackets leak into SignalRef.parse, yield a bogus
+        # ECU, and the gate silently matches nothing (the field-observed trap).
+        from canlib.commands._correlate_calc import _parse_gate
+
+        signal, _op, value, _ = _parse_gate("[MCU:2102:MCU_MOTOR_RPM] > 0")
+        assert signal == "MCU:2102:MCU_MOTOR_RPM" and value == 0.0
+
+    def test_parse_gate_bracketed_matches_bare(self):
+        from canlib.commands._correlate_calc import _parse_gate
+
+        assert (
+            _parse_gate("[HVAC:220102:HVAC_COMPRESSOR_ON] > 0")[0]
+            == (_parse_gate("HVAC:220102:HVAC_COMPRESSOR_ON > 0")[0])
+        )
+
     def test_parse_gate_invalid(self):
         import pytest
 
@@ -716,3 +733,84 @@ class TestFindFrameMirrors:
         frames = [bytes([0, 0, 0, 0, v, v]) for v in (1, 2, 3)]
         mirrors = xanalysis.find_frame_mirrors(frames)
         assert mirrors and all(n == 3 for _, _, n in mirrors)
+
+
+# ---------------------------------------------------------------------------
+# byte_state_buckets — arbitrary grouping axis (group_of)
+# ---------------------------------------------------------------------------
+class TestByteStateBucketsGroupOf:
+    """The --discriminate axis generalization: bucket bytes by any group key."""
+
+    def test_group_of_overrides_state(self):
+        results = [
+            {"capture": {"payload": f"6101{v:02X}", "_g": g}, "decoded": {}}
+            for v, g in [(0x10, "off"), (0x10, "off"), (0x40, "on"), (0x40, "on")]
+        ]
+        buckets = xanalysis.byte_state_buckets(
+            results, "axis", group_of=lambda r: r["capture"]["_g"]
+        )
+        # The varying data byte is bucketed by the custom key, not the state.
+        grouped = [b for b in buckets.values() if set(b) == {"off", "on"}]
+        assert grouped, "expected a byte bucketed into the custom on/off groups"
+        b = grouped[0]
+        assert b["off"] == [16.0, 16.0] and b["on"] == [64.0, 64.0]
+
+    def test_group_of_none_skips_capture(self):
+        results = [
+            {"capture": {"payload": "610110", "_g": "a"}, "decoded": {}},
+            {"capture": {"payload": "610140", "_g": None}, "decoded": {}},
+            {"capture": {"payload": "610120", "_g": "a"}, "decoded": {}},
+        ]
+        buckets = xanalysis.byte_state_buckets(
+            results, "axis", group_of=lambda r: r["capture"]["_g"]
+        )
+        # The None-group capture (0x40) is dropped; no bucket ever holds 64.0.
+        for b in buckets.values():
+            assert set(b) <= {"a"}
+            for vals in b.values():
+                assert 64.0 not in vals
+
+
+# ---------------------------------------------------------------------------
+# axis_group_keys — discretize a cross-signal into per-capture group labels
+# ---------------------------------------------------------------------------
+class TestAxisGroupKeys:
+    def _results(self, secs):
+        return [{"capture": {"date": "2026-07-22", "time": f"09:00:{s:02d}"}} for s in secs]
+
+    def test_discretizes_and_maps(self, monkeypatch):
+        from canlib.commands import _decode_calc
+
+        axis = [_tp(s, v) for s, v in [(0, 0.0), (2, 0.0), (4, 1.0), (6, 1.0)]]
+        monkeypatch.setattr(
+            _decode_calc, "load_cross_ref_series", lambda spec, **kw: (axis, "AXIS")
+        )
+        results = self._results([0, 2, 4, 6])
+        keys, label = _decode_calc.axis_group_keys(results, "E:P:X", scope={}, tol_s=2.5)
+        assert label == "AXIS"
+        assert keys[id(results[0])] == "0"  # integer-valued → no ".0"
+        assert keys[id(results[1])] == "0"
+        assert keys[id(results[2])] == "1"
+        assert keys[id(results[3])] == "1"
+
+    def test_rejects_high_cardinality(self, monkeypatch):
+        from canlib.commands import _decode_calc
+
+        axis = [_tp(s, float(s)) for s in range(20)]  # 20 distinct values
+        monkeypatch.setattr(
+            _decode_calc, "load_cross_ref_series", lambda spec, **kw: (axis, "AXIS")
+        )
+        results = self._results(list(range(20)))
+        with pytest.raises(ValueError, match="distinct values"):
+            _decode_calc.axis_group_keys(results, "E:P:X", scope={}, tol_s=2.5)
+
+    def test_no_alignment_raises(self, monkeypatch):
+        from canlib.commands import _decode_calc
+
+        axis = [_tp(1000 + s, 1.0) for s in range(4)]  # far from the captures
+        monkeypatch.setattr(
+            _decode_calc, "load_cross_ref_series", lambda spec, **kw: (axis, "AXIS")
+        )
+        results = self._results([0, 2, 4, 6])
+        with pytest.raises(ValueError, match="aligned to no captures"):
+            _decode_calc.axis_group_keys(results, "E:P:X", scope={}, tol_s=2.5)

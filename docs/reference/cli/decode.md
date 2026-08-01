@@ -5,7 +5,7 @@
 ```
 usage: canair decode [-h] [--param NAME [NAME ...]] [--verified]
                      [--unverified] [--json] [--compact] [--changes-only]
-                     [--stats] [--group-by FIELD] [--discriminate FIELD]
+                     [--stats] [--group-by FIELD] [--discriminate AXIS]
                      [--find-mirrors] [--bits] [--bytes] [--first N]
                      [--last N] [--corr PARAM] [--join-tol SECONDS]
                      [--corr-transform MODE]
@@ -46,18 +46,21 @@ options:
                         median, stdev)
   --group-by FIELD      With --stats: compute statistics per session FIELD
                         (currently 'state') instead of pooling all captures
-  --discriminate FIELD  Rank params/bytes by how cleanly they separate across
-                        session FIELD groups (F = between/within variance) —
-                        finds state-dependent signals (thermal/mode/relay) a
-                        driving correlation misses
+  --discriminate AXIS   Rank params/bytes by how cleanly they separate across
+                        AXIS groups (F = between/within variance; Cramér's V
+                        for typed params) — finds axis-dependent signals a
+                        driving correlation misses. AXIS is 'state' (the
+                        vehicle power state) or a cross-signal ECU:PID:PARAM
+                        to group by (e.g. HVAC:220102:HVAC_COMPRESSOR_ON —
+                        which byte separates on from off)
   --find-mirrors        Report byte positions that are exactly equal across
                         all captures (redundant status mirrors / unit-
                         variants); add --bits for bit-level
   --bits                With --find-mirrors: compare individual bits (Bn:k).
                         With --discriminate: also rank individual toggling
-                        bits by state
+                        bits across the axis
   --bytes               With --discriminate: also rank every varying raw byte
-                        (Bn), not just defined params — finds state-dependent
+                        (Bn), not just defined params — finds axis-dependent
                         bytes without a --try
   --first N             Only the first N matching captures (chronological)
   --last N              Only the last N matching captures (chronological)

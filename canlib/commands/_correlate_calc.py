@@ -33,8 +33,14 @@ def _parse_gate(expr: str):
             f"invalid --gate {expr!r} (expected '[SIGNAL] OP VALUE', e.g. '> 0' or "
             "'MCU:2102:MCU_MOTOR_RPM > 0')"
         )
-    signal = m.group(1).strip() or None
-    return signal, _GATE_OPS[m.group(2)], float(m.group(3)), expr.strip()
+    signal = m.group(1).strip()
+    # Accept the documented bracketed form '[ECU:PID:PARAM] OP VALUE' as well as
+    # the bare 'ECU:PID:PARAM OP VALUE'. Without this, the brackets are captured
+    # into the signal, SignalRef.parse yields a bogus ECU ('[ECU'), and the gate
+    # silently matches nothing — a real trap seen in the field.
+    if signal.startswith("[") and signal.endswith("]"):
+        signal = signal[1:-1].strip()
+    return signal or None, _GATE_OPS[m.group(2)], float(m.group(3)), expr.strip()
 
 
 def _apply_gate(ref_series, gate_expr, tol, *, since, until, state, label):

@@ -42,6 +42,7 @@ import argparse
 import json
 import sys
 
+from canlib.align import DEFAULT_JOIN_TOL_S, join_nearest
 from canlib.capture_dates import (
     add_scope_args,
     filter_by_date_range,
@@ -52,6 +53,7 @@ from canlib.commands._decode_calc import (
     _local_series,
     _paired,
     _series,
+    axis_group_keys,
     load_cross_ref_series,
 )
 from canlib.commands._decode_plot import (
@@ -306,11 +308,12 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--discriminate",
-        choices=["state"],
-        metavar="FIELD",
-        help="Rank params/bytes by how cleanly they separate across session "
-        "FIELD groups (F = between/within variance) — finds state-dependent "
-        "signals (thermal/mode/relay) a driving correlation misses",
+        metavar="AXIS",
+        help="Rank params/bytes by how cleanly they separate across AXIS groups "
+        "(F = between/within variance; Cramér's V for typed params) — finds "
+        "axis-dependent signals a driving correlation misses. AXIS is 'state' "
+        "(the vehicle power state) or a cross-signal ECU:PID:PARAM to group by "
+        "(e.g. HVAC:220102:HVAC_COMPRESSOR_ON — which byte separates on from off)",
     )
     parser.add_argument(
         "--find-mirrors",
@@ -322,13 +325,13 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "--bits",
         action="store_true",
         help="With --find-mirrors: compare individual bits (Bn:k). "
-        "With --discriminate: also rank individual toggling bits by state",
+        "With --discriminate: also rank individual toggling bits across the axis",
     )
     parser.add_argument(
         "--bytes",
         action="store_true",
         help="With --discriminate: also rank every varying raw byte (Bn), not "
-        "just defined params — finds state-dependent bytes without a --try",
+        "just defined params — finds axis-dependent bytes without a --try",
     )
     parser.add_argument(
         "--first", type=int, metavar="N", help="Only the first N matching captures (chronological)"
@@ -849,8 +852,6 @@ def _decode_one(
                 out["method"] = args.method
                 out["correlations"] = {}
                 if cross_ref_series is not None:
-                    from canlib.align import DEFAULT_JOIN_TOL_S, join_nearest
-
                     tol = args.join_tol if args.join_tol is not None else DEFAULT_JOIN_TOL_S
                     out["join_tol_s"] = tol
                     for name in param_names:
@@ -949,16 +950,38 @@ def _decode_one(
             print_stats_table(all_results, param_names, parameters, candidate_names)
         printed = True
     if args.discriminate:
+        disc_field = args.discriminate
+        group_of = None
+        if ":" in args.discriminate:
+            try:
+                axis_keys, disc_field = axis_group_keys(
+                    all_results,
+                    args.discriminate,
+                    scope=scope,
+                    tol_s=args.join_tol if args.join_tol is not None else DEFAULT_JOIN_TOL_S,
+                )
+            except ValueError as e:
+                print(f"--discriminate error: {e}", file=sys.stderr)
+                return 1
+            group_of = lambda r: axis_keys.get(id(r))  # noqa: E731
+        elif args.discriminate != "state":
+            print(
+                f"--discriminate: unknown axis {args.discriminate!r} — use 'state' or a "
+                "cross-signal ECU:PID:PARAM",
+                file=sys.stderr,
+            )
+            return 1
         print_discriminate(
             all_results,
             param_names,
             parameters,
             candidate_names,
-            args.discriminate,
+            disc_field,
             include_bytes=args.bytes,
             include_bits=args.bits,
             notation=_notation,
             sub_bytes=_sub_bytes,
+            group_of=group_of,
         )
         printed = True
     if corr_ref:

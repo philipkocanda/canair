@@ -1,0 +1,101 @@
+"""Tests for `canair align` — the time-aligned wide multi-signal table."""
+
+import argparse
+import json
+
+from canlib.commands import align
+
+
+def _write(tmp_path):
+    """Two co-polled PIDs, each with a byte that ramps over four timed captures."""
+    caps = []
+    for i, t in enumerate(["09:00:00", "09:00:02", "09:00:04", "09:00:06"]):
+        v = 10 + i * 20  # 10, 30, 50, 70
+        caps.append(
+            {"ecu": "IGPM", "pid": "22BC03", "payload": f"62BC03FDEE3C73{v:02X}0000", "time": t}
+        )
+        w = i  # 0,1,2,3
+        caps.append(
+            {"ecu": "IGPM", "pid": "22BC05", "payload": f"62BC057F1120{w:02X}000000", "time": t}
+        )
+    doc = {
+        "sessions": [
+            {
+                "date": "2026-07-24",
+                "vehicle_states": ["ready"],
+                "keep_mode": "unique",
+                "captures": caps,
+            }
+        ]
+    }
+    (tmp_path / "2026-07-24.json").write_text(json.dumps(doc))
+
+
+def _run(tmp_path, monkeypatch, argv):
+    import canlib.align as align_lib
+
+    orig = align_lib.load_signal_captures
+    monkeypatch.setattr(
+        "canlib.commands.align.load_signal_captures",
+        lambda s, **kw: orig(
+            s, captures_dir=tmp_path, **{k: v for k, v in kw.items() if k != "captures_dir"}
+        ),
+    )
+    p = align.add_parser(argparse.ArgumentParser().add_subparsers())
+    args = p.parse_args(argv)
+    return args.func(args)
+
+
+class TestAlign:
+    def test_csv_wide_table(self, tmp_path, monkeypatch, capsys):
+        _write(tmp_path)
+        rc = _run(tmp_path, monkeypatch, ["IGPM:22BC03:B10", "IGPM:22BC05:B10", "--csv"])
+        assert rc == 0
+        lines = capsys.readouterr().out.strip().splitlines()
+        assert lines[0] == "time,IGPM:22BC03:B10,IGPM:22BC05:B10"
+        # 4 reference rows, both columns populated (co-polled, same timestamps).
+        assert len(lines) == 5
+        first = lines[1].split(",")
+        # absolute space-separated timestamp (joinable, no ISO 'T')
+        assert first[0].startswith("2026-07-24 09:00:00") and "T" not in first[0]
+        assert first[1] == "10.0"  # reference ramp (raw float, for scripting fidelity)
+        assert first[2] == "0.0"  # second signal
+
+    def test_json_shape(self, tmp_path, monkeypatch, capsys):
+        _write(tmp_path)
+        rc = _run(tmp_path, monkeypatch, ["IGPM:22BC03:B10", "IGPM:22BC05:B10", "--json"])
+        assert rc == 0
+        rows = json.loads(capsys.readouterr().out)
+        assert len(rows) == 4
+        r0 = rows[0]
+        assert r0["date"] == "2026-07-24"
+        assert "T" not in r0["time"]  # time-only, matches decode --json
+        assert r0["values"]["IGPM:22BC03:B10"] == 10.0
+        assert r0["values"]["IGPM:22BC05:B10"] == 0.0
+
+    def test_table_shows_keep_unique_and_legend(self, tmp_path, monkeypatch, capsys):
+        _write(tmp_path)
+        rc = _run(tmp_path, monkeypatch, ["IGPM:22BC03:B10", "IGPM:22BC05:B10"])
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "keep:unique" in out  # the fixture session is keep_mode: unique
+        assert "c1 = IGPM:22BC03:B10" in out
+        assert "c2 = IGPM:22BC05:B10" in out
+
+    def test_needs_two_signals(self, tmp_path, monkeypatch, capsys):
+        _write(tmp_path)
+        rc = _run(tmp_path, monkeypatch, ["IGPM:22BC03:B10"])
+        assert rc == 2
+        assert "at least two" in capsys.readouterr().err
+
+    def test_quoted_whitespace_string_is_split(self, tmp_path, monkeypatch, capsys):
+        _write(tmp_path)
+        rc = _run(tmp_path, monkeypatch, ["IGPM:22BC03:B10 IGPM:22BC05:B10", "--csv"])
+        assert rc == 0
+        assert capsys.readouterr().out.splitlines()[0] == "time,IGPM:22BC03:B10,IGPM:22BC05:B10"
+
+    def test_unknown_signal_errors_cleanly(self, tmp_path, monkeypatch, capsys):
+        _write(tmp_path)
+        rc = _run(tmp_path, monkeypatch, ["BOGUS:9999:B3", "IGPM:22BC03:B10"])
+        assert rc == 1
+        assert "no timed captures" in capsys.readouterr().err

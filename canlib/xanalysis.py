@@ -11,6 +11,7 @@ Pure analysis over ``captures/`` — no device, no numpy.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime
 
@@ -334,7 +335,12 @@ def discriminability(groups: dict[str, list[float]]) -> float | None:
 
 
 def byte_state_buckets(
-    all_results: list[dict], field: str, *, min_distinct: int = 2, include_bits: bool = False
+    all_results: list[dict],
+    field: str,
+    *,
+    min_distinct: int = 2,
+    include_bits: bool = False,
+    group_of: Callable[[dict], str | None] | None = None,
 ) -> dict[str, dict[str, list[float]]]:
     """Bucket each varying, non-PCI raw byte value by session ``field``.
 
@@ -345,6 +351,11 @@ def byte_state_buckets(
     discrimination buckets by state, not time) and skips PCI framing bytes via
     the canonical :func:`byteindex.wican_to_isotp` detector. With ``include_bits``,
     each varying bit ``Bn:k`` is also bucketed (the body-status/relay finder).
+
+    ``group_of`` overrides the grouping key per result (the arbitrary-axis
+    generalization: e.g. bucket by a cross-signal's discretized value instead of
+    the vehicle state); when it returns ``None`` for a capture, that capture is
+    skipped. Defaults to the session vehicle-state key.
     """
     from .byteindex import payload_to_wican_bytes, wican_to_isotp
     from .states import join_states
@@ -357,8 +368,13 @@ def byte_state_buckets(
             fr = payload_to_wican_bytes(cap["payload"])
         except Exception:
             continue
-        state = join_states(cap.get("vehicle_states")) or "(no state)"
-        frames.append((fr, state))
+        if group_of is not None:
+            grp = group_of(r)
+            if grp is None:
+                continue
+        else:
+            grp = join_states(cap.get("vehicle_states")) or "(no state)"
+        frames.append((fr, grp))
         max_len = max(max_len, len(fr))
 
     buckets: dict[str, dict[str, list[float]]] = {}
@@ -367,10 +383,10 @@ def byte_state_buckets(
             continue  # PCI framing byte, not data
         per_state: dict[str, list[float]] = {}
         distinct: set[float] = set()
-        for fr, state in frames:
+        for fr, grp in frames:
             if off < len(fr):
                 v = float(fr[off])
-                per_state.setdefault(state, []).append(v)
+                per_state.setdefault(grp, []).append(v)
                 distinct.add(v)
         if len(distinct) >= min_distinct:
             buckets[f"B{off}"] = per_state
@@ -378,10 +394,10 @@ def byte_state_buckets(
             for k in range(8):
                 bit_state: dict[str, list[float]] = {}
                 bit_distinct: set[float] = set()
-                for fr, state in frames:
+                for fr, grp in frames:
                     if off < len(fr):
                         b = float((fr[off] >> k) & 1)
-                        bit_state.setdefault(state, []).append(b)
+                        bit_state.setdefault(grp, []).append(b)
                         bit_distinct.add(b)
                 if len(bit_distinct) >= 2:
                     buckets[f"B{off}:{k}"] = bit_state
