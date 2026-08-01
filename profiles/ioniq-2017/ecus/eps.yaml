@@ -26,17 +26,14 @@ EPS:
           source_links: []
           verified: false
           notes: >
-            18-byte payload. Steering data lives in ISO-TP bytes 0x03-0x0A
-            (WiCAN B05,B06,B07,B09,B10,B11,B12,B13). During the 2026-07-22 drive
-            (lots of steering both directions) this region swings both signs and
-            settles near constant at standstill, but exact pairing/endianness/scale
-            is NOT yet resolved: B10 holds a stable ~0xA8 at rest and wraps while
-            driving (candidate absolute-angle low byte); B12 is a signed byte ~0 at
-            rest with +-127 swings while driving (candidate steering torque/rate).
-            The +-256 flips seen when treating B10:B11 or B12:B13 as a single 16-bit
-            LE value show they are NOT clean little-endian pairs. Needs a controlled
-            capture (see research entry) to pin down angle vs torque vs MDPS current.
-            B14 = vehicle speed (decoded). B18/B19 tail = 0x1010 constant.
+            18-byte payload. ABSOLUTE STEERING ANGLE RESOLVED 2026-07-30 =
+            EPS_STEERING_ANGLE (signed big-endian S9:B10, ISO-TP 0x06:0x07;
+            -(S9*256+B10)/10 deg, r=+1.000 vs ESC SAS). So the region layout is:
+            S9=angle sign/high byte, B10=angle low byte, B14=vehicle speed (decoded),
+            B15=speed band. Still unresolved: B05/B06/B07 (=8A/8E/const at rest),
+            B11 (was mis-paired with B10 in the disproven EPS_STEERING_FAST), and the
+            B12:B13 signed LE pair (candidate torque, EPS_STEERING_TORQUE). B18/B19
+            tail = 0x1010 constant.
         EPS_VEHICLE_SPEED:
           expression: B14
           unit: km/h
@@ -54,7 +51,12 @@ EPS:
           source: RE 2026-07-22 MT->KW drive; Ioniq5 /10 deg convention
           verified: false
           notes: >
-            DISPROVEN as absolute steering angle (was STEERING_ANGLE, renamed+disabled 2026-07-26). B10:B11 is a FAST steering signal (rate / MDPS motor position / torque; exact identity unresolved), NOT absolute wheel angle. Proof: 2026-07-26 driveway capture — while the wheel was held (ESC STEERING_ANGLE rock-steady at -461 deg 17:01:11-50, then +24 deg 17:03:31+), this value FLIP-FLOPPED 0/-25.6 deg every sample and never held. The +-25.6 flip is the +-256/10 artifact of a non-clean-LE byte pair (see prior note). The true absolute steering wheel angle is ESC 22C101 STEERING_ANGLE (B35:B36, offset-binary /10).
+            SUPERSEDED 2026-07-30 by EPS_STEERING_ANGLE. B10 is the LOW byte of the
+            absolute angle (signed BE S9:B10), so this (B10+S11*256)/10 LE pairing was
+            always wrong — it mixed the angle low byte with the separate B11. The
+            0/-25.6 flip-flop seen 2026-07-26 while the wheel was held was that
+            mis-pairing artifact. Kept disabled for the research trail; B11's own
+            meaning is still unresolved.
           enabled: false
         EPS_STEERING_TORQUE:
           expression: (B12+S13*256)
@@ -98,18 +100,7 @@ EPS:
             angular rate. Distinct from EPS_STEERING_TORQUE (B12:S13). Verify:
             disambiguate driver-torque vs rate vs MDPS with a controlled capture.
           enabled: true
-        EPS_B9_FLAG:
-          expression: B9
-          min: "0"
-          max: "255"
-          source: RE 2026-07-23 analysis
-          verified: false
-          notes: >
-            Bimodal 0x00/0xFF status/validity flag at ISO-TP 0x06, before the
-            STEERING_ANGLE low byte B10. Likely angle sign/validity or MDPS status.
-            Verify what toggles it. B05=0x8A B06=0x8E constant; B18/B19 tail=0x1010
-            constant; B20/B21 = ISO-TP message counter (cycles 21→22).
-          enabled: false
+
         EPS_SPEED_BAND:
           expression: B15
           unit: ""
@@ -119,6 +110,20 @@ EPS:
           verified: false
           notes: >
             Speed-sensitive MDPS assist band. ISO-TP 0x0C (WiCAN B15). Discrete step counter 0-3 that increases with vehicle speed (r=+0.953 vs EPS_VEHICLE_SPEED/B14 over 360 driving captures). Steps 0->1 at ~26-27 km/h with hysteresis (returns to 0 below ~25 km/h); bands 2 and 3 at higher speeds. Only ever 0/1/2/3 (219/85/23/33 samples) so NOT a speed high byte. Consistent with a speed-band selector that discretely reduces steering assist as speed rises. Verify: sustained-speed sweep to pin each band's threshold.
+        EPS_STEERING_ANGLE:
+          expression: 0-(S9*256+B10)/10
+          unit: deg
+          min: "-600"
+          max: "600"
+          source: RE 2026-07-30 driving steer-sweep; ESC 22C101 SAS cross-check
+          verified: true
+          notes: >-
+            Absolute steering wheel angle. Signed big-endian 16-bit: S9=sign/high byte (ISO-TP 0x06,
+            WiCAN B09), B10=low byte (0x07/B10); angle=-(S9*256+B10)/10 deg to match ESC SAS sign.
+            r=+1.000 (n=29, resid 1.35deg) vs verified ESC 22C101 STEERING_ANGLE over the 2026-07-30
+            +-90deg steer sweep. Supersedes the disproven B10:B11 LE 'EPS_STEERING_FAST' (B10 is
+            this angle's low byte) and the old EPS_B9_FLAG (=this sign byte). Full-lock (>90deg) not
+            swept this session but the signed-16 range covers it.
     220102:
       status: static
       period: 2500
@@ -150,26 +155,25 @@ EPS:
       priority: P1
       vehicle_states: [READY]
       notes: >
-        2026-07-26: the B10:B11 "STEERING_ANGLE" candidate is DISPROVEN as the
-        absolute wheel angle and was renamed EPS_STEERING_FAST + disabled. On the
-        2026-07-26 driveway steer-and-hold capture it flip-flopped 0/-25.6 deg
-        every sample while the wheel was held (the +-256/10 non-clean-LE artifact),
-        never holding — whereas the true absolute steering wheel angle, found the
-        same session on ESC 22C101 B35:B36 (offset-binary /10), held rock-steady at
-        -461 then +24 deg. B10:B11 is a fast steering signal (rate / MDPS motor
-        position / torque), exact identity unresolved. VEHICLE_SPEED (B14) decoded.
-        2026-07-23 (376 captures) added three enabled-unverified candidates from
-        B05-B17: EPS_STEERING_TORQUE = (B12+S13*256) LE signed-16 at ISO-TP
-        0x09:0x0A, range ±9500, ~0 at rest, r=-0.64 vs the old angle candidate
-        (torque or 2nd steering rep); EPS_MDPS_ASSIST = B17, 0 at standstill, 0-253
-        moving, r=+0.53 vs speed (motor current/PWM); EPS_STEERING_TORQUE_ALT = S7
-        (small signed ±36). B9 = bimodal 0/FF flag (EPS_B9_FLAG, disabled). Open:
-        what EPS_STEERING_FAST (B10:B11) actually is; torque vs rate; assist units.
+        RESOLVED 2026-07-30 (absolute angle): EPS_STEERING_ANGLE =
+        -(S9*256+B10)/10 deg — a signed big-endian 16-bit (S9 sign/high byte at
+        ISO-TP 0x06/WiCAN B09, B10 low byte at 0x07/B10), verified. r=+1.000
+        (n=29, resid 1.35deg) vs verified ESC 22C101 STEERING_ANGLE over the
+        2026-07-30 DRIVING steer-sweep (+-90deg), and cross-checks the 2026-07-26
+        held-wheel session (both read -461 then +24 deg). This fixes the earlier
+        mistakes: the disproven B10:B11 LE 'EPS_STEERING_FAST' mixed the angle's
+        LOW byte (B10) with the separate B11; the old EPS_B9_FLAG (bimodal 0/FF)
+        was just this angle's sign byte (removed). VEHICLE_SPEED (B14), SPEED_BAND
+        (B15) also decoded. STILL OPEN (torque/assist): EPS_STEERING_TORQUE =
+        (B12+S13*256) LE signed-16 at ISO-TP 0x09:0x0A (range ±9500, ~0 at rest,
+        r=-0.62 vs angle); EPS_MDPS_ASSIST = B17 (0 at standstill, 0-253 moving,
+        speed-gated); EPS_STEERING_TORQUE_ALT = S7 (small signed ±36); and B11's
+        own meaning.
       what_to_test:
-        - "EPS_STEERING_FAST (B10:B11) — rate vs MDPS motor position vs torque? correlate d(ESC STEERING_ANGLE)/dt vs this on a real drive"
         - "EPS_STEERING_TORQUE (B12:S13) — torque vs 2nd angle? hold wheel against resistance at fixed positions to separate torque from displacement; find units"
         - "EPS_MDPS_ASSIST (B17) — motor current/PWM? push wheel with engine on/off to vary assist effort at fixed speed"
         - "EPS_STEERING_TORQUE_ALT (S7) vs B12:S13 — which is driver torque, which is rate/MDPS?"
+        - "B11 — separate fast signal? correlate vs d(EPS_STEERING_ANGLE)/dt on a real drive"
       sources:
         - "captures/2026-07-22.yaml — driving capture, lots of steering"
         - "captures/2026-07-26.yaml — driveway steer-and-hold (disproved B10:B11 as absolute angle; ESC 22C101 B35:B36 is the real one)"

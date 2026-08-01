@@ -13496,6 +13496,9 @@
           "payload": "62C1015BD7E760FFFF00FF01DDFF00000000FF80FF0030F4000000FFFF7FF007FB07FBFFFF0000FFFFFF",
           "time": "10:15:32.747"
         }
+      ],
+      "vehicle_states": [
+        "DRIVING"
       ]
     },
     {

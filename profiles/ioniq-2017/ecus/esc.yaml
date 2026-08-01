@@ -103,10 +103,18 @@ ESC:
           unit: deg
           min: "-600"
           max: "600"
-          source: RE 2026-07-26 driveway steering capture (stationary, wheel held)
-          verified: false
-          notes: >
-            Absolute steering wheel angle sensor (SAS) echoed on ESC/ABS. Big-endian offset-binary 16-bit at ISO-TP 0x1D:0x1E (WiCAN B35:B36, both in CAN frame 4 — no PCI between), zero at 0x8000, scale /10 deg. 2026-07-26 driveway capture (speed=0 throughout): HOLDS steady while wheel held (-461 deg ~40s at 17:01:11-50; +24 deg ~2.5min at 17:03:31-17:06:12) and swings smoothly -466..+408 deg (~+-1.3 turns) during steering. Holds large non-zero values while stationary => steering ANGLE, not yaw rate (yaw pins to center at 0 km/h). Resolves the esc.yaml B35:B36 'yaw rate vs steering angle' candidate. Zero/sign/exact scale need a known-straight-wheel reference (rest sat at +24 deg here). Distinct from EPS 220101 B10:B11 which only spikes (fast rate/torque).
+          source: RE 2026-07-26 held-wheel + 2026-07-30 DRIVING steer-sweep; EPS 220101 cross-check
+          verified: true
+          notes: >-
+            Absolute steering wheel angle sensor (SAS) echoed on ESC/ABS. Big-endian offset-binary
+            16-bit at ISO-TP 0x1D:0x1E (WiCAN B35:B36, both in CAN frame 4 — no PCI between), zero
+            at 0x8000, scale /10 deg. VERIFIED 2026-07-30: over the DRIVING steer-sweep it tracks
+            EPS 220101 EPS_STEERING_ANGLE r=+1.000, both crossing ~0 at centre together (independent
+            ECUs, same SAS) and matching magnitudes across +-90deg; scale and 0x8000 zero confirmed.
+            Holds large non-zero values while stationary => angle, not yaw rate. The 2026-07-26
+            '+24deg at rest' was the wheel parked slightly off-centre, not a zero offset. NOTE: rare
+            ECU init/invalid frames read ~3276deg (raw ~0xFFFx) — filter as out-of-range. Distinct
+            from EPS B12:B13 (fast rate/torque).
     22C102:
       status: draft
       period: 2500
@@ -131,16 +139,16 @@ ESC:
       notes: >
         REAL_SPEED_KMH (B12) and 4 wheel speeds (B18-B21, FL/FR/RL/RR interleaved,
         1 km/h/bit) decoded + verified from the 2026-07-22 drive (r=+1.000).
-        B35:B36 RESOLVED 2026-07-26 = STEERING_ANGLE (absolute SAS, big-endian
-        offset-binary centred 0x8000, /10 deg): on the 2026-07-26 driveway capture
-        (speed=0 throughout) it HELD steady at -461 deg then +24 deg while the wheel
-        was held, ruling out yaw rate — see the STEERING_ANGLE param. STILL
-        UNDECODED: B37:B38 (~2048 = offset-binary accel?), and B39/B41 (~2048, spans
-        PCI B40 so use (B39<<8)|B41 → 2nd accel axis?) — both sit near centre at
-        standstill (as expected for accel/yaw when stationary) so this driveway
-        capture can't resolve them; need a real moving drive. Also B18-B21
-        front/rear within a side is by convention only. B22/B27 = low-rate
-        status/counter.
+        B35:B36 RESOLVED + VERIFIED 2026-07-30 = STEERING_ANGLE (absolute SAS,
+        big-endian offset-binary centred 0x8000, /10 deg): over the 2026-07-30
+        DRIVING steer-sweep it tracks EPS 220101 EPS_STEERING_ANGLE r=+1.000, both
+        crossing ~0 at centre together (independent ECUs) — scale, sign and 0x8000
+        zero confirmed. The 2026-07-26 '+24 at rest' was the wheel parked off-centre.
+        STILL UNDECODED: B37:B38 (~2048 = offset-binary accel?), and B39/B41 (~2048,
+        spans PCI B40 so use (B39<<8)|B41 → 2nd accel axis?) — both sit near centre
+        at standstill so neither the driveway nor the 2026-07-30 (also ~stationary)
+        capture can resolve them; need a real moving drive. Also B18-B21 front/rear
+        within a side is by convention only. B22/B27 = low-rate status/counter.
         SPEED SIGN (2026-07-26): REAL_SPEED_KMH (B12) and the wheel speeds are
         UNSIGNED magnitudes and read positive in reverse — confirmed correct (not a
         bug): neighbours B10/B11/B13 are constant 0xFF (no high/sign byte). Direction
@@ -148,8 +156,7 @@ ESC:
         have to be a derived signal (magnitude x gear-direction), not decodable as a
         single WiCAN arithmetic expression — deferred to a downstream/typed approach.
       what_to_test:
-        - "STEERING_ANGLE (B35:B36): confirm zero point / sign / exact scale with a known-straight-wheel reference (rest sat at +24 deg on 2026-07-26)"
-        - "B37:B38 and (B39<<8)|B41 centred ~2048 — lateral/longitudinal accel (needs a real moving drive; stayed at centre on the stationary driveway capture)"
+        - "B37:B38 and (B39<<8)|B41 centred ~2048 — lateral/longitudinal accel (needs a real moving drive; stayed at centre on both stationary steer captures)"
         - "Confirm wheel front/rear assignment (needs known-corner reference)"
         - "GEAR_SELECTOR Neutral value (expected 3) still unobserved — capture a shift through N"
       sources:
