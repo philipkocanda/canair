@@ -30,14 +30,29 @@ default_profile: ioniq-2017
 # display:
 #   byte_notation: wican
 
-# WiCAN device addresses for the --wican flag. Values can be IPs or hostnames.
-# --wican accepts any alias defined here, or an arbitrary URL/IP.
-wican_addresses:
-  ap: "192.168.80.1"    # Direct connection to WiCAN AP (factory default)
-  home: "192.168.1.100" # Example: device on your home LAN
-  vpn: "10.0.0.100"     # Example: device reachable via VPN/tunnel
+# WiCAN/gateway devices for the --wican flag. Each alias maps to a device with a
+# `host` (IP or hostname) and, optionally, its own transport/port/bitrate — so a
+# user with several devices can bind e.g. a home LAN device to slcan-tcp and a
+# cellular/VPN device to wican-ws. --wican accepts any alias defined here, or an
+# arbitrary URL/IP.
+devices:
+  ap:
+    host: "192.168.80.1"    # Direct connection to WiCAN AP (factory default)
+  home:
+    host: "192.168.1.100"   # device on your home LAN
+    transport: slcan-tcp    # optional per-device transport (slcan-tcp | wican-ws)
+    port: 3333              # optional per-device slcan-tcp port
+  vpn:
+    host: "10.0.0.100"      # device reachable via VPN/tunnel
+    transport: wican-ws
 
-default_wican: ap
+default_wican: home
+
+# The legacy flat form is still read when no `devices:` block is present, and is
+# auto-migrated into `devices:` on first run:
+# wican_addresses:
+#   ap: "192.168.80.1"
+#   home: "192.168.1.100"
 
 # Automatic update check. canair checks GitHub once a day (in a background
 # thread, never blocking a command) for a newer released version and prints a
@@ -71,7 +86,8 @@ default_wican: ap
 # The type/host are overridden per-command by --transport/--wican; port and
 # bitrate are config-only (no CLI flags). When the type is omitted, canair
 # defaults to slcan-tcp (the canonical default — works on both the WiCAN Pro and
-# the classic WiCAN), using the wican_addresses/default_wican host above.
+# the classic WiCAN), using the devices/default_wican host above. A per-device
+# `transport:` (see devices above) overrides transport.type for that device.
 # The wican-ws transport requires a WiCAN Pro (see wican_model above).
 # transport:
 #   type: slcan-tcp      # slcan-tcp (raw SLCAN over TCP, default) | wican-ws (WebSocket ELM327, Pro-only)
@@ -79,3 +95,8 @@ default_wican: ap
 #   port: 35000          # slcan-tcp only (Pro 35000, classic 3333); auto-detected if omitted
 #   bitrate: 500000      # slcan-tcp only; overrides all else. Precedence:
 #                        #   this > profile can_bitrate > device can_datarate > 500000
+#
+#   # Auto-fallback: when the selected device is unreachable, try the others.
+#   fallback: true             # default true; --no-fallback overrides per-command
+#   connect_timeout: 2.0       # seconds — the (short) per-device liveness probe
+#   fallback_order: [home, vpn, ap]  # optional; default = selected device, then the rest

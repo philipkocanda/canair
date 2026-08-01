@@ -187,54 +187,141 @@ def _wican_addresses():  # small indirection so tests can monkeypatch cheaply
     return WICAN_ADDRESSES
 
 
-def resolve_transport(args=None) -> TransportConfig:
-    """Resolve the active transport from CLI args + user config.
+def _wican_devices():  # small indirection so tests can monkeypatch cheaply
+    from ..config import wican_devices
 
-    ``args`` is an argparse Namespace that may expose ``transport`` and ``wican``
-    (both optional). Port and bitrate are taken from the config ``transport:``
-    block only (no CLI flags). Raises :class:`TransportError` for an unknown
-    transport type.
+    return wican_devices()
+
+
+def _fallback_settings():  # small indirection so tests can monkeypatch cheaply
+    from ..config import fallback_settings
+
+    return fallback_settings()
+
+
+def _first(*vals):
+    """First value that is not None (used for CLI > device > block precedence)."""
+    for v in vals:
+        if v is not None:
+            return v
+    return None
+
+
+def _int(v):
+    return int(v) if v is not None else None
+
+
+def _check_type(ttype: str) -> None:
+    """Validate a transport type name, raising :class:`TransportError` if unknown."""
+    if ttype not in VALID_TRANSPORTS:
+        raise TransportError(f"Unknown transport '{ttype}'. Valid: {', '.join(VALID_TRANSPORTS)}.")
+
+
+def _wican_ws_pro_error() -> TransportError:
+    return TransportError(
+        "The 'wican-ws' transport (ELM327 WebSocket terminal) is a WiCAN "
+        "Pro-only feature; your config sets wican_model: classic. Use the "
+        "default 'slcan-tcp' transport instead (works on the classic WiCAN). "
+        "If this device is actually a Pro, run: canair config set wican_model pro"
+    )
+
+
+def _build_candidate(args, device, block) -> TransportConfig:
+    """Resolve one device into a :class:`TransportConfig`.
+
+    Per-field precedence (highest first): the CLI flag, then the device's own
+    ``transport``/``port``/``bitrate``, then the global ``transport:`` block,
+    then the default. Raises :class:`TransportError` for an unknown type.
     """
-    from ..config import load_config
+
+    def arg(name):
+        return getattr(args, name, None) if args is not None else None
+
+    ttype = _first(arg("transport"), device.transport, block.get("type"), DEFAULT_TRANSPORT)
+    _check_type(ttype)
+    port = _int(_first(arg("port"), device.port, block.get("port")))
+    bitrate = _int(_first(arg("bitrate"), device.bitrate, block.get("bitrate")))
+    return TransportConfig(type=ttype, host=device.host, port=port, bitrate=bitrate)
+
+
+def resolve_transport_candidates(args=None) -> list[TransportConfig]:
+    """Resolve the ordered list of transports to try (primary first).
+
+    ``candidates[0]`` is the explicitly selected device (``--wican`` > config
+    ``transport.host`` > ``default_wican``), with per-device transport applied.
+    When auto-fallback is enabled (config ``transport.fallback``, default true,
+    unless ``--no-fallback``), the remaining configured devices follow — ordered
+    by ``transport.fallback_order`` when set, else definition order. An explicit
+    ``--wican X`` always stays first; the ``fallback_order`` only sequences the
+    rest.
+    """
+    from ..config import DeviceEntry, load_config
 
     def arg(name):
         return getattr(args, name, None) if args is not None else None
 
     raw_block = load_config().get("transport")
     block = raw_block if isinstance(raw_block, dict) else {}
+    devices, default_alias = _wican_devices()
 
-    ttype = arg("transport") or block.get("type") or DEFAULT_TRANSPORT
-    if ttype not in VALID_TRANSPORTS:
-        raise TransportError(f"Unknown transport '{ttype}'. Valid: {', '.join(VALID_TRANSPORTS)}.")
-
-    # The wican-ws ELM327 terminal is a WiCAN Pro-only feature; the classic
-    # (non-Pro) WiCAN only speaks raw SLCAN. Refuse it early with a clear hint.
-    if ttype == "wican-ws":
-        from ..config import is_wican_pro
-
-        if not is_wican_pro():
-            raise TransportError(
-                "The 'wican-ws' transport (ELM327 WebSocket terminal) is a WiCAN "
-                "Pro-only feature; your config sets wican_model: classic. Use the "
-                "default 'slcan-tcp' transport instead (works on the classic WiCAN). "
-                "If this device is actually a Pro, run: canair config set wican_model pro"
-            )
-
-    # Host: explicit --wican > config transport.host > default_wican alias.
-    if arg("wican"):
-        host = _resolve_host(arg("wican"))
+    # Determine the primary device (candidate 0).
+    explicit = arg("wican")
+    if explicit:
+        primary_key: str | None = explicit
+        primary_dev = devices.get(explicit) or DeviceEntry(host=_resolve_host(explicit) or explicit)
     elif block.get("host"):
-        host = str(block["host"])
+        primary_key = None
+        primary_dev = DeviceEntry(host=str(block["host"]))
     else:
-        from ..constants import DEFAULT_WICAN
+        primary_key = default_alias
+        primary_dev = devices.get(default_alias) or DeviceEntry(
+            host=_resolve_host(default_alias) or default_alias
+        )
 
-        host = _resolve_host(DEFAULT_WICAN)
+    primary = _build_candidate(args, primary_dev, block)
+    if primary.type == "wican-ws" and not _is_pro():
+        raise _wican_ws_pro_error()
+    candidates = [primary]
 
-    def _int(v):
-        return int(v) if v is not None else None
+    enabled, _timeout, order = _fallback_settings()
+    if not enabled or arg("no_fallback"):
+        return candidates
 
-    # Port/bitrate are config-only (slcan-tcp): no dedicated CLI flags.
-    port = _int(arg("port")) or _int(block.get("port"))
-    bitrate = _int(arg("bitrate")) or _int(block.get("bitrate"))
+    ordered = order or [default_alias, *[a for a in devices if a != default_alias]]
+    seen_hosts = {primary.host}
+    for alias in ordered:
+        if alias == primary_key:
+            continue
+        dev = devices.get(alias)
+        if dev is None:
+            continue
+        try:
+            cand = _build_candidate(args, dev, block)
+        except TransportError:
+            continue
+        # Skip a wican-ws candidate we can't actually use, and any duplicate host.
+        if cand.type == "wican-ws" and not _is_pro():
+            continue
+        if cand.host in seen_hosts:
+            continue
+        seen_hosts.add(cand.host)
+        candidates.append(cand)
+    return candidates
 
-    return TransportConfig(type=ttype, host=host, port=port, bitrate=bitrate)
+
+def _is_pro() -> bool:
+    from ..config import is_wican_pro
+
+    return is_wican_pro()
+
+
+def resolve_transport(args=None) -> TransportConfig:
+    """Resolve the active (primary) transport from CLI args + user config.
+
+    ``args`` is an argparse Namespace that may expose ``transport`` and ``wican``
+    (both optional). Port and bitrate are taken from the selected device or the
+    config ``transport:`` block (no dedicated CLI flags). Raises
+    :class:`TransportError` for an unknown transport type. Equivalent to the
+    first entry of :func:`resolve_transport_candidates`.
+    """
+    return resolve_transport_candidates(args)[0]

@@ -25,12 +25,15 @@ Two options:
 Edit `~/.config/canair/config.yaml` or use `canair config set`:
 
 ```bash
-canair config set wican_addresses.home 192.168.1.100
+canair config set devices.home.host 192.168.1.100
 canair config set default_wican home
 ```
 
-Any command takes `--wican home|vpn|<ip>` to pick which device to use.
-`config.example.yaml` in the repo documents every key; see also the
+Any command takes `--wican home|vpn|<ip>` to pick which device to use. Each
+device can carry its own transport (`canair config set devices.vpn.transport
+wican-ws`), and when the chosen device is unreachable canair auto-falls-back to
+the others (disable per-command with `--no-fallback`). `config.example.yaml` in
+the repo documents every key; see also the
 [config reference](../reference/config.md).
 
 ## 4. Pro vs. classic

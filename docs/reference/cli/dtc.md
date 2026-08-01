@@ -7,9 +7,9 @@ usage: canair dtc [-h] [--all] [--history] [--no-log] [--no-retry]
                   [--label LABEL] [--state STATES] [--mask HEX]
                   [--protocol {auto,uds,kwp}] [--clear] [--group HEX] [--yes]
                   [--session] [--wake] [--wican WICAN]
-                  [--transport {slcan-tcp,wican-ws}] [--elm-timeout MS]
-                  [--timeout SECONDS] [--json] [--verbose] [--timings]
-                  [--reboot] [--unsafe] [--force]
+                  [--transport {slcan-tcp,wican-ws}] [--no-fallback]
+                  [--elm-timeout MS] [--timeout SECONDS] [--json] [--verbose]
+                  [--timings] [--reboot] [--unsafe] [--force]
                   [ECU]
 
 [UDS] Read stored Diagnostic Trouble Codes with UDS 0x19 (reportDTCByStatusMask), or clear them with UDS 0x14. Clearing mutates ECU fault memory and prompts for confirmation unless --yes is given.
@@ -59,6 +59,9 @@ options:
                         CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327
                         terminal). Overrides the config `transport.type`
                         (default: slcan-tcp).
+  --no-fallback         Don't auto-fall-back to other configured devices when
+                        the selected one is unreachable (see config
+                        transport.fallback).
   --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx
                         after init)
   --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0

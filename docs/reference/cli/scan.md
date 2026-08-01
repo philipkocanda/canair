@@ -43,9 +43,9 @@ usage: canair scan range [-h] [-i] [--service SVC] [--range START-END]
                          [--append HEX] [--session] [--wake] [--save]
                          [--label TEXT] [--state TEXT] [--notes TEXT]
                          [--wican WICAN] [--transport {slcan-tcp,wican-ws}]
-                         [--elm-timeout MS] [--timeout SECONDS] [--json]
-                         [--verbose] [--timings] [--reboot] [--unsafe]
-                         [--force]
+                         [--no-fallback] [--elm-timeout MS]
+                         [--timeout SECONDS] [--json] [--verbose] [--timings]
+                         [--reboot] [--unsafe] [--force]
                          [ECU]
 
 Scan a range of PIDs/DIDs on an ECU. One scan at a time only.
@@ -74,6 +74,9 @@ options:
                         CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327
                         terminal). Overrides the config `transport.type`
                         (default: slcan-tcp).
+  --no-fallback         Don't auto-fall-back to other configured devices when
+                        the selected one is unreachable (see config
+                        transport.fallback).
   --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx
                         after init)
   --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0
@@ -123,9 +126,9 @@ usage: canair scan iocontrol [-h] [--did-range START-END]
                              [--throttle-ms THROTTLE_MS] [--session] [--wake]
                              [--mode HEX] [--wican WICAN]
                              [--transport {slcan-tcp,wican-ws}]
-                             [--elm-timeout MS] [--timeout SECONDS] [--json]
-                             [--verbose] [--timings] [--reboot] [--unsafe]
-                             [--force]
+                             [--no-fallback] [--elm-timeout MS]
+                             [--timeout SECONDS] [--json] [--verbose]
+                             [--timings] [--reboot] [--unsafe] [--force]
                              ECU [ECU ...]
 
 Probe returnControlToECU across an id range on one or more ECUs. The service is auto-selected per ECU from its id_protocol: UDS ECUs use InputOutputControlByIdentifier (0x2F, 16-bit DID); KWP2000 ECUs (BMS, VCU, MCU, LDC, AAF) use InputOutputControlByLocalIdentifier (0x30, 8-bit LID). Only the side-effect-free sub-function is ever sent — the scanner never actuates. Hits are written to pids/<ecu>.yaml under an iocontrol_discoveries: section.
@@ -150,6 +153,9 @@ options:
                         CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327
                         terminal). Overrides the config `transport.type`
                         (default: slcan-tcp).
+  --no-fallback         Don't auto-fall-back to other configured devices when
+                        the selected one is unreachable (see config
+                        transport.fallback).
   --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx
                         after init)
   --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0
@@ -178,7 +184,7 @@ examples:
 usage: canair scan routines [-h] [--rid-range START-END]
                             [--throttle-ms THROTTLE_MS] [--session] [--wake]
                             [--mode HEX] [--wican WICAN]
-                            [--transport {slcan-tcp,wican-ws}]
+                            [--transport {slcan-tcp,wican-ws}] [--no-fallback]
                             [--elm-timeout MS] [--timeout SECONDS] [--json]
                             [--verbose] [--timings] [--reboot] [--unsafe]
                             [--force]
@@ -206,6 +212,9 @@ options:
                         CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327
                         terminal). Overrides the config `transport.type`
                         (default: slcan-tcp).
+  --no-fallback         Don't auto-fall-back to other configured devices when
+                        the selected one is unreachable (see config
+                        transport.fallback).
   --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx
                         after init)
   --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0
@@ -233,7 +242,7 @@ examples:
 ```
 usage: canair scan sessions [-h] [--modes HEX[,HEX...]]
                             [--throttle-ms THROTTLE_MS] [--wican WICAN]
-                            [--transport {slcan-tcp,wican-ws}]
+                            [--transport {slcan-tcp,wican-ws}] [--no-fallback]
                             [--elm-timeout MS] [--timeout SECONDS] [--json]
                             [--verbose] [--timings] [--reboot] [--unsafe]
                             [--force]
@@ -257,6 +266,9 @@ options:
                         CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327
                         terminal). Overrides the config `transport.type`
                         (default: slcan-tcp).
+  --no-fallback         Don't auto-fall-back to other configured devices when
+                        the selected one is unreachable (see config
+                        transport.fallback).
   --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx
                         after init)
   --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0

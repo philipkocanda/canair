@@ -118,6 +118,7 @@ CANAIR_DEFAULTS: dict = {
     "interval": 1.0,
     "delay": 0.2,
     "wican": DEFAULT_WICAN,
+    "no_fallback": False,
     "timeout": 3.0,  # WebSocket response timeout (s); fixed default, no CLI flag
     "elm_timeout": None,
     "json": False,
@@ -260,6 +261,13 @@ def add_connection_args(parser: argparse.ArgumentParser) -> None:
         f"Overrides the config `transport.type` (default: {DEFAULT_TRANSPORT}).",
     )
     parser.add_argument(
+        "--no-fallback",
+        dest="no_fallback",
+        action="store_true",
+        help="Don't auto-fall-back to other configured devices when the selected "
+        "one is unreachable (see config transport.fallback).",
+    )
+    parser.add_argument(
         "--elm-timeout",
         type=int,
         default=None,
@@ -361,9 +369,12 @@ def _print_sleep_banner(host: str, timeout: int = 5) -> None:
 
 async def async_main(args):
     """Main async entry point."""
-    from canlib.transport import resolve_transport
+    from canlib.config import fallback_settings
+    from canlib.transport import resolve_transport_candidates, select_reachable_transport
 
-    transport = resolve_transport(args)
+    candidates = resolve_transport_candidates(args)
+    _, _connect_timeout, _ = fallback_settings()
+    transport = select_reachable_transport(candidates, connect_timeout=_connect_timeout)
     host = transport.host
 
     init_logging()

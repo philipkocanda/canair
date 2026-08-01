@@ -11,15 +11,30 @@ from canlib.transport.config import TransportError, resolve_transport
 class Args:
     def __init__(self, **kw):
         self.__dict__.update(
-            {"transport": None, "wican": None, "port": None, "bitrate": None, "timeout": 4.0}
+            {
+                "transport": None,
+                "wican": None,
+                "port": None,
+                "bitrate": None,
+                "timeout": 4.0,
+                "no_fallback": False,
+            }
         )
         self.__dict__.update(kw)
 
 
 @pytest.fixture
 def env(monkeypatch):
+    from canlib.config import DeviceEntry
+
     monkeypatch.setattr(tc, "_wican_addresses", lambda: {"vpn": "1.2.3.4", "home": "10.0.0.9"})
     monkeypatch.setattr(const_mod, "DEFAULT_WICAN", "vpn", raising=False)
+
+    devices = {"vpn": DeviceEntry(host="1.2.3.4"), "home": DeviceEntry(host="10.0.0.9")}
+    monkeypatch.setattr(tc, "_wican_devices", lambda: (dict(devices), "vpn"))
+    # Fallback off by default so these focused tests see a single candidate;
+    # dedicated fallback tests re-enable it.
+    monkeypatch.setattr(tc, "_fallback_settings", lambda: (False, 2.0, None))
 
     def set_block(block):
         monkeypatch.setattr(cfg_mod, "load_config", lambda: {"transport": block} if block else {})
@@ -70,6 +85,142 @@ class TestResolveTransport:
         env({"type": "slcan-tcp"})
         monkeypatch.setattr(cfg_mod, "wican_model", lambda: "pro")
         assert resolve_transport(Args(transport="wican-ws")).type == "wican-ws"
+
+
+class TestResolveCandidates:
+    """Ordered candidate resolution + per-device transport + fallback ordering."""
+
+    @pytest.fixture
+    def devenv(self, monkeypatch):
+        from canlib.config import DeviceEntry
+
+        devices = {
+            "home": DeviceEntry(host="10.0.0.9", transport="slcan-tcp", port=3333),
+            "vpn": DeviceEntry(host="1.2.3.4", transport="wican-ws"),
+            "ap": DeviceEntry(host="192.168.80.1"),
+        }
+        monkeypatch.setattr(tc, "_wican_devices", lambda: (dict(devices), "home"))
+        monkeypatch.setattr(tc, "_wican_addresses", lambda: {a: d.host for a, d in devices.items()})
+        monkeypatch.setattr(tc, "_is_pro", lambda: True)
+        monkeypatch.setattr(cfg_mod, "load_config", lambda: {})
+
+        def set_fallback(enabled=True, timeout=2.0, order=None):
+            monkeypatch.setattr(tc, "_fallback_settings", lambda: (enabled, timeout, order))
+
+        set_fallback()
+        return set_fallback
+
+    def _hosts(self, cands):
+        return [(c.type, c.host) for c in cands]
+
+    def test_primary_then_others(self, devenv):
+        cands = tc.resolve_transport_candidates(Args())
+        assert self._hosts(cands) == [
+            ("slcan-tcp", "10.0.0.9"),
+            ("wican-ws", "1.2.3.4"),
+            ("slcan-tcp", "192.168.80.1"),
+        ]
+
+    def test_explicit_wican_goes_first(self, devenv):
+        cands = tc.resolve_transport_candidates(Args(wican="vpn"))
+        assert cands[0].host == "1.2.3.4" and cands[0].type == "wican-ws"
+        assert {c.host for c in cands[1:]} == {"10.0.0.9", "192.168.80.1"}
+
+    def test_no_fallback_single_candidate(self, devenv):
+        cands = tc.resolve_transport_candidates(Args(no_fallback=True))
+        assert len(cands) == 1 and cands[0].host == "10.0.0.9"
+
+    def test_fallback_disabled_in_config(self, devenv):
+        devenv(enabled=False)
+        cands = tc.resolve_transport_candidates(Args())
+        assert len(cands) == 1
+
+    def test_per_device_transport_applied(self, devenv):
+        cands = tc.resolve_transport_candidates(Args())
+        assert cands[0].type == "slcan-tcp"  # home's own transport
+        assert cands[1].type == "wican-ws"  # vpn's own transport
+
+    def test_cli_transport_forces_all(self, devenv):
+        cands = tc.resolve_transport_candidates(Args(transport="slcan-tcp"))
+        assert all(c.type == "slcan-tcp" for c in cands)
+
+    def test_explicit_order_sequences_the_rest(self, devenv):
+        devenv(order=["ap", "vpn"])
+        cands = tc.resolve_transport_candidates(Args())
+        assert cands[0].host == "10.0.0.9"  # primary still first
+        assert [c.host for c in cands[1:]] == ["192.168.80.1", "1.2.3.4"]
+
+    def test_classic_filters_wican_ws_fallback(self, devenv, monkeypatch):
+        monkeypatch.setattr(tc, "_is_pro", lambda: False)
+        cands = tc.resolve_transport_candidates(Args())
+        # vpn (wican-ws) filtered; home (slcan-tcp) primary + ap remain.
+        assert all(c.type != "wican-ws" for c in cands)
+        assert {c.host for c in cands} == {"10.0.0.9", "192.168.80.1"}
+
+
+class TestSelectReachable:
+    """Fallback connect-probe selection (fake liveness probe)."""
+
+    def _cands(self):
+        from canlib.transport.config import TransportConfig
+
+        return [
+            TransportConfig("slcan-tcp", "10.0.0.9"),
+            TransportConfig("wican-ws", "1.2.3.4"),
+        ]
+
+    def test_single_candidate_no_probe(self):
+        from canlib.transport.config import TransportConfig
+        from canlib.transport.fallback import select_reachable_transport
+
+        chosen = select_reachable_transport(
+            [TransportConfig("slcan-tcp", "10.0.0.9")], connect_timeout=2.0
+        )
+        assert chosen.host == "10.0.0.9"
+
+    def test_primary_reachable(self, monkeypatch):
+        from canlib import wican_mode
+        from canlib.transport.fallback import select_reachable_transport
+
+        monkeypatch.setattr(wican_mode, "_tcp_open", lambda h, p, t: True)
+        chosen = select_reachable_transport(
+            self._cands(), connect_timeout=2.0, notice=lambda m: None
+        )
+        assert chosen.host == "10.0.0.9"
+
+    def test_falls_back_to_second(self, monkeypatch):
+        from canlib import wican_mode
+        from canlib.transport.fallback import select_reachable_transport
+
+        monkeypatch.setattr(wican_mode, "_tcp_open", lambda h, p, t: h == "1.2.3.4")
+        msgs: list[str] = []
+        chosen = select_reachable_transport(self._cands(), connect_timeout=2.0, notice=msgs.append)
+        assert chosen.host == "1.2.3.4"
+        assert any("falling back" in m for m in msgs)
+
+    def test_all_down_returns_primary(self, monkeypatch):
+        from canlib import wican_mode
+        from canlib.transport.fallback import select_reachable_transport
+
+        monkeypatch.setattr(wican_mode, "_tcp_open", lambda h, p, t: False)
+        chosen = select_reachable_transport(
+            self._cands(), connect_timeout=2.0, notice=lambda m: None
+        )
+        assert chosen.host == "10.0.0.9"  # primary, so the normal error path fires
+
+    def test_probes_port_80_for_wican(self, monkeypatch):
+        from canlib import wican_mode
+        from canlib.transport.fallback import select_reachable_transport
+
+        seen: list[tuple] = []
+
+        def probe(h, p, t):
+            seen.append((h, p))
+            return True
+
+        monkeypatch.setattr(wican_mode, "_tcp_open", probe)
+        select_reachable_transport(self._cands(), connect_timeout=2.0, notice=lambda m: None)
+        assert seen[0] == ("10.0.0.9", 80)
 
 
 class TestTransportConfigProps:

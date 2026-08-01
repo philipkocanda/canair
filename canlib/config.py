@@ -25,7 +25,9 @@ edit/path).
 
 from __future__ import annotations
 
+import math
 import os
+from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
@@ -35,6 +37,12 @@ from .constants import CONFIG_FILE
 # Fallback WiCAN address when nothing is configured (WiCAN AP mode).
 _DEFAULT_ADDRESSES = {"ap": "192.168.80.1"}
 _DEFAULT_WICAN_KEY = "ap"
+
+# Auto-fallback defaults (the `transport:` block, keys fallback / connect_timeout
+# / fallback_order). Fallback is on by default; the probe timeout is short so a
+# dead device is skipped quickly (the full connect uses the normal, longer path).
+_DEFAULT_FALLBACK = True
+_DEFAULT_CONNECT_TIMEOUT = 2.0
 
 # WiCAN hardware model. AutoPID vehicle profiles and the wican-ws ELM327
 # terminal are Pro-only; the classic (non-Pro) WiCAN only supports raw SLCAN.
@@ -70,11 +78,18 @@ _STARTER_CONFIG = """\
 # profiles/ subfolder and the repo-bundled profiles/).
 # profiles_dir: ~/vehicles
 
-# WiCAN device addresses for the --wican flag (alias -> IP/host).
-# wican_addresses:
-#   ap: "192.168.80.1"    # WiCAN AP mode (factory default)
-#   home: "192.168.1.100"
+# WiCAN/gateway devices for the --wican flag (alias -> host, optional per-device
+# transport/port/bitrate).
+# devices:
+#   ap:
+#     host: "192.168.80.1"    # WiCAN AP mode (factory default)
+#   home:
+#     host: "192.168.1.100"
+#     transport: slcan-tcp    # optional: slcan-tcp | wican-ws (per device)
 # default_wican: ap
+#
+# When the selected device is unreachable, canair auto-falls-back to the others
+# (transport.fallback, default true; --no-fallback to disable per-command).
 
 # WiCAN hardware model: "pro" (default) or "classic" (non-Pro). The classic
 # WiCAN has no AutoPID profile support and no ELM327 WebSocket terminal, so
@@ -115,12 +130,13 @@ def ensure_config_dir(seed_config: bool = True) -> bool:
 
 
 def coerce_scalar(value: str):
-    """Coerce a CLI string into a bool/int/None where unambiguous, else str.
+    """Coerce a CLI string into a bool/int/float/None where unambiguous, else str.
 
     Used by ``canair config set`` so that e.g. ``transport.port 35000`` stores
-    an int and ``true``/``false`` store bools. IPs/hostnames stay strings (they
-    never parse as int). Pass through :func:`set_config_key` with ``--string``
-    to bypass this.
+    an int, ``transport.connect_timeout 2.0`` stores a float, and
+    ``true``/``false`` store bools. IPs/hostnames stay strings (they never parse
+    as a number); non-finite floats (``inf``/``nan``) are kept as strings. Pass
+    through :func:`set_config_key` with ``--string`` to bypass this.
     """
     low = value.strip().lower()
     if low in ("true", "false"):
@@ -130,7 +146,14 @@ def coerce_scalar(value: str):
     try:
         return int(value)
     except ValueError:
+        pass
+    try:
+        f = float(value)
+    except ValueError:
         return value
+    # Reject inf/nan (float() accepts them) so they stay strings, not silent
+    # non-finite config values.
+    return f if math.isfinite(f) else value
 
 
 def set_config_key(key: str, value) -> Path:
@@ -252,12 +275,110 @@ def load_config() -> dict:
 
 
 def wican_settings() -> tuple[dict[str, str], str]:
-    """Return (addresses, default_alias) from config or built-in fallbacks."""
+    """Return (addresses, default_alias) from config or built-in fallbacks.
+
+    Back-compat shim over :func:`wican_devices`: flattens the device map to
+    ``{alias: host}`` for callers that only need the host per alias.
+    """
+    devices, default = wican_devices()
+    return {alias: dev.host for alias, dev in devices.items()}, default
+
+
+@dataclass(frozen=True)
+class DeviceEntry:
+    """A configured WiCAN/gateway device.
+
+    ``host`` is always set (an IP or hostname). The optional per-device
+    ``transport`` / ``port`` / ``bitrate`` override the global ``transport:``
+    block for this device (see :func:`resolve_transport`), so a user with
+    several devices can bind e.g. a home LAN device to ``slcan-tcp`` and a
+    cellular/VPN device to ``wican-ws``.
+    """
+
+    host: str
+    transport: str | None = None
+    port: int | None = None
+    bitrate: int | None = None
+
+
+def _coerce_int(value) -> int | None:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _device_from(value) -> DeviceEntry | None:
+    """Build a :class:`DeviceEntry` from a config value (string host or mapping)."""
+    if isinstance(value, str):
+        return DeviceEntry(host=value)
+    if isinstance(value, dict):
+        host = value.get("host")
+        if not host:
+            return None
+        transport = value.get("transport")
+        return DeviceEntry(
+            host=str(host),
+            transport=str(transport) if transport else None,
+            port=_coerce_int(value.get("port")),
+            bitrate=_coerce_int(value.get("bitrate")),
+        )
+    return None
+
+
+def wican_devices() -> tuple[dict[str, DeviceEntry], str]:
+    """Return (devices, default_alias) — the resolved device namespace.
+
+    Precedence: a ``devices:`` block (rich per-device config) is authoritative
+    and, when present, ``wican_addresses`` is ignored entirely. Otherwise the
+    legacy flat ``wican_addresses`` map (each ``alias: ip`` a host-only device)
+    is used, falling back to the built-in AP-mode address when neither is set.
+    """
     cfg = load_config()
-    addresses = cfg.get("wican_addresses") or _DEFAULT_ADDRESSES
-    addresses = {k: str(v) for k, v in addresses.items()}
     default = cfg.get("default_wican", _DEFAULT_WICAN_KEY)
-    return addresses, default
+
+    devices: dict[str, DeviceEntry] = {}
+    raw_devices = cfg.get("devices")
+    if isinstance(raw_devices, dict) and raw_devices:
+        for alias, value in raw_devices.items():
+            dev = _device_from(value)
+            if dev is not None:
+                devices[str(alias)] = dev
+        if devices:
+            return devices, default
+
+    raw_addrs = cfg.get("wican_addresses") or _DEFAULT_ADDRESSES
+    return {str(k): DeviceEntry(host=str(v)) for k, v in raw_addrs.items()}, default
+
+
+def fallback_settings() -> tuple[bool, float, list[str] | None]:
+    """Return (enabled, connect_timeout, order) for cross-device auto-fallback.
+
+    Read from the ``transport:`` block (keys ``fallback`` / ``connect_timeout``
+    / ``fallback_order``). Fallback is on by default with a short probe timeout;
+    ``order`` is an optional explicit list of device aliases to try.
+    """
+    raw_block = load_config().get("transport")
+    block = raw_block if isinstance(raw_block, dict) else {}
+
+    enabled = block.get("fallback", _DEFAULT_FALLBACK)
+    enabled = bool(enabled) if not isinstance(enabled, str) else enabled.strip().lower() == "true"
+
+    try:
+        timeout = float(block.get("connect_timeout", _DEFAULT_CONNECT_TIMEOUT))
+        if not math.isfinite(timeout) or timeout <= 0:
+            timeout = _DEFAULT_CONNECT_TIMEOUT
+    except (TypeError, ValueError):
+        timeout = _DEFAULT_CONNECT_TIMEOUT
+
+    order = block.get("fallback_order")
+    if isinstance(order, str):
+        order = [p.strip() for p in order.split(",") if p.strip()]
+    elif isinstance(order, list):
+        order = [str(x).strip() for x in order if str(x).strip()]
+    else:
+        order = None
+    return enabled, timeout, order
 
 
 def wican_model() -> str:

@@ -1,7 +1,7 @@
 """``canair config`` — view and manage user configuration.
 
 Shows the effective (merged) configuration, where it lives on disk, the
-resolved transport, and the WiCAN address book — and edits the user config
+resolved transport, and the configured devices — and edits the user config
 (``$XDG_CONFIG_HOME/canair/config.yaml``) in place, preserving comments.
 
 Subcommands:
@@ -15,8 +15,8 @@ Subcommands:
 Examples:
   canair config
   canair config set default_wican home
-  canair config set wican_addresses.home 10.0.2.86
-  canair config set transport.type slcan-tcp
+  canair config set devices.home.host 10.0.2.86
+  canair config set devices.home.transport wican-ws
   canair config get transport.host
   canair config unset transport.port
 """
@@ -34,6 +34,10 @@ _KNOWN_KEYS = (
     "default_profile",
     "profiles_dir",
     "default_wican",
+    "devices.<alias>.host",
+    "devices.<alias>.transport",
+    "devices.<alias>.port",
+    "devices.<alias>.bitrate",
     "wican_addresses.<alias>",
     "wican_model",
     "check_for_updates",
@@ -42,6 +46,9 @@ _KNOWN_KEYS = (
     "transport.host",
     "transport.port",
     "transport.bitrate",
+    "transport.fallback",
+    "transport.connect_timeout",
+    "transport.fallback_order",
 )
 
 
@@ -60,6 +67,9 @@ def _grid_regions() -> tuple[str, ...]:
 
 
 _WICAN_MODELS = ("pro", "classic")
+
+# Keys whose value is a list; `config set` splits a comma-separated value.
+_LIST_KEYS = ("transport.fallback_order",)
 
 
 def _keys_block() -> str:
@@ -84,13 +94,18 @@ def _set_description() -> str:
 _SET_EPILOG = """\
 examples:
   canair config set default_wican home
-  canair config set wican_addresses.home 10.0.2.86
-  canair config set transport.type slcan-tcp      # or: wican-ws
+  canair config set devices.home.host 10.0.2.86
+  canair config set devices.home.transport slcan-tcp   # or: wican-ws
+  canair config set transport.fallback false            # disable auto-fallback
+  canair config set transport.connect_timeout 2.0       # fallback probe timeout (s)
+  canair config set transport.fallback_order home,vpn,ap   # comma-separated
   canair config set wican_model pro               # or: classic
   canair config set check_for_updates false
 
-Values are coerced to int/bool/null where unambiguous; pass --string to force a
-string (e.g. a zero-padded id). Dotted keys create nested mappings.
+Values are coerced to int/float/bool/null where unambiguous; pass --string to
+force a string (e.g. a zero-padded id). Dotted keys create nested mappings.
+Comma-separated values are stored as a list for list-valued keys
+(transport.fallback_order).
 """
 
 
@@ -124,12 +139,12 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     st.add_argument(
         "key",
         nargs="?",
-        help="Config key, e.g. transport.type or wican_addresses.home",
+        help="Config key, e.g. transport.type or devices.home.host",
     )
     st.add_argument(
         "value",
         nargs="?",
-        help="Value (coerced to int/bool where unambiguous)",
+        help="Value (coerced to int/float/bool where unambiguous)",
     )
     st.add_argument(
         "-s",
@@ -182,9 +197,15 @@ def _known_key(key: str) -> bool:
     return prefix in namespaces
 
 
+def _is_device_transport_key(key: str) -> bool:
+    """True for a ``devices.<alias>.transport`` key (wildcard middle segment)."""
+    parts = key.split(".")
+    return len(parts) == 3 and parts[0] == "devices" and parts[2] == "transport"
+
+
 def _enum_values(key: str) -> tuple[str, ...] | None:
     """Return the allowed values for a known enum key, else None."""
-    if key == "transport.type":
+    if key == "transport.type" or _is_device_transport_key(key):
         return _transport_types()
     if key == "wican_model":
         return _WICAN_MODELS
@@ -195,8 +216,10 @@ def _enum_values(key: str) -> tuple[str, ...] | None:
 
 def _invalid_value(key: str, value) -> str | None:
     """Return an error message if ``value`` is invalid for a known enum key."""
-    if key == "transport.type" and value not in _transport_types():
-        return f"invalid transport.type {value!r}; valid: {', '.join(_transport_types())}"
+    if (
+        key == "transport.type" or _is_device_transport_key(key)
+    ) and value not in _transport_types():
+        return f"invalid {key} {value!r}; valid: {', '.join(_transport_types())}"
     if key == "wican_model" and str(value).strip().lower() not in _WICAN_MODELS:
         return f"invalid wican_model {value!r}; valid: {', '.join(_WICAN_MODELS)}"
     if key == "grid_region" and str(value).strip().upper() not in _grid_regions():
@@ -238,7 +261,7 @@ def _missing_value_help(key: str) -> None:
 
 
 def _cmd_set(args) -> int:
-    from canlib.config import coerce_scalar, get_config_key, set_config_key
+    from canlib.config import coerce_scalar, get_config_key, load_config, set_config_key
 
     if args.key is None:
         _missing_key_help()
@@ -247,7 +270,10 @@ def _cmd_set(args) -> int:
         _missing_value_help(args.key)
         return 2
 
-    value = args.value if args.string else coerce_scalar(args.value)
+    if args.key in _LIST_KEYS and not args.string:
+        value: object = [p.strip() for p in args.value.split(",") if p.strip()]
+    else:
+        value = args.value if args.string else coerce_scalar(args.value)
 
     err = _invalid_value(args.key, value)
     if err:
@@ -260,6 +286,22 @@ def _cmd_set(args) -> int:
             "(see `canair config set --help`); setting it anyway.",
             file=sys.stderr,
         )
+
+    # wican_addresses is the legacy device map, superseded by `devices:`.
+    if args.key.startswith("wican_addresses."):
+        alias = args.key.split(".", 1)[1]
+        print(
+            f"warning: 'wican_addresses' is deprecated — prefer "
+            f"`canair config set devices.{alias}.host {args.value}` "
+            "(devices support per-device transport/port/bitrate).",
+            file=sys.stderr,
+        )
+        if isinstance(load_config().get("devices"), dict) and load_config()["devices"]:
+            print(
+                "warning: a `devices:` block is defined, so `wican_addresses` is "
+                "ignored at runtime — this value will have no effect.",
+                file=sys.stderr,
+            )
 
     old = get_config_key(args.key)
     if old == value:
@@ -337,6 +379,25 @@ def _gather(args) -> dict:
         "model": wican_model(),
     }
 
+    from canlib.config import fallback_settings, wican_devices
+
+    devices, _ = wican_devices()
+    info["devices"] = {
+        alias: {
+            "host": dev.host,
+            "transport": dev.transport,
+            "port": dev.port,
+            "bitrate": dev.bitrate,
+        }
+        for alias, dev in devices.items()
+    }
+    _fb_enabled, _fb_timeout, _fb_order = fallback_settings()
+    info["fallback"] = {
+        "enabled": _fb_enabled,
+        "connect_timeout": _fb_timeout,
+        "order": _fb_order,
+    }
+
     try:
         from canlib.transport import resolve_transport
 
@@ -365,7 +426,7 @@ def _gather(args) -> dict:
 
 # Keys rendered on their own in the "Settings" block are shown from the
 # effective config; these are surfaced elsewhere so we skip them there.
-_SPECIAL_KEYS = {"wican_addresses", "transport", "wican_model"}
+_SPECIAL_KEYS = {"wican_addresses", "devices", "transport", "wican_model"}
 
 
 def _render(info: dict) -> None:
@@ -388,6 +449,13 @@ def _render(info: dict) -> None:
         c.print(f"\n  [bold]Transport[/bold]   {t['type']}  [dim]({loc})[/dim]")
         if t.get("bitrate"):
             c.print(f"    {'bitrate':<9}{t['bitrate']}")
+        fb = info.get("fallback") or {}
+        if fb.get("enabled"):
+            order = fb.get("order")
+            order_str = " → ".join(order) if order else "primary, then other devices"
+            c.print(f"    [dim]fallback on ({fb.get('connect_timeout')}s probe; {order_str})[/dim]")
+        else:
+            c.print("    [dim]fallback off[/dim]")
         c.print("    [dim]resolved from config; override with --transport/--wican[/dim]")
     elif info.get("transport_error"):
         c.print(f"\n  [bold]Transport[/bold]   [red]{info['transport_error']}[/red]")
@@ -396,10 +464,16 @@ def _render(info: dict) -> None:
     model = w.get("model", "pro")
     model_note = "" if model == "pro" else "  [dim](AutoPID sync disabled)[/dim]"
     c.print(f"\n  [bold]WiCAN[/bold]   model: {model}{model_note}")
-    c.print("  [bold]WiCAN addresses[/bold]")
-    for alias, addr in w["addresses"].items():
+    devices = info.get("devices") or {}
+    c.print("  [bold]Devices[/bold]")
+    for alias, dev in devices.items():
         default = "  [green](default)[/green]" if alias == w["default"] else ""
-        c.print(f"    {alias:<9}{addr}{default}")
+        extra = ""
+        if dev.get("transport"):
+            extra = f"  [dim]{dev['transport']}[/dim]"
+        if dev.get("port"):
+            extra += f"[dim]:{dev['port']}[/dim]"
+        c.print(f"    {alias:<9}{dev['host']}{extra}{default}")
 
     cfg = info["config"]
     others = {k: v for k, v in cfg.items() if k not in _SPECIAL_KEYS}

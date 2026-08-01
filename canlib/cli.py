@@ -190,6 +190,12 @@ def main(argv: list[str] | None = None) -> int:
 
     seeded = ensure_config_dir()
 
+    # One-time, best-effort migration of a legacy wican_addresses block to the
+    # richer devices: form (never blocks; runtime precedence handles the rest).
+    from canlib.devices_migrate import maybe_auto_migrate
+
+    maybe_auto_migrate()
+
     # On a genuine first run, offer to pick or create a vehicle profile (only
     # when interactive and the command actually needs one).
     from canlib.first_run import run_first_run_setup, should_offer

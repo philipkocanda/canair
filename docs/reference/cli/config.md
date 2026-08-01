@@ -8,7 +8,7 @@ usage: canair config [-h] {show,path,get,set,unset,edit} ...
 ``canair config`` — view and manage user configuration.
 
 Shows the effective (merged) configuration, where it lives on disk, the
-resolved transport, and the WiCAN address book — and edits the user config
+resolved transport, and the configured devices — and edits the user config
 (``$XDG_CONFIG_HOME/canair/config.yaml``) in place, preserving comments.
 
 Subcommands:
@@ -22,8 +22,8 @@ Subcommands:
 Examples:
   canair config
   canair config set default_wican home
-  canair config set wican_addresses.home 10.0.2.86
-  canair config set transport.type slcan-tcp
+  canair config set devices.home.host 10.0.2.86
+  canair config set devices.home.transport wican-ws
   canair config get transport.host
   canair config unset transport.port
 
@@ -83,18 +83,25 @@ known keys:
   default_profile
   profiles_dir
   default_wican
+  devices.<alias>.host
+  devices.<alias>.transport  valid: slcan-tcp, wican-ws
+  devices.<alias>.port
+  devices.<alias>.bitrate
   wican_addresses.<alias>
-  wican_model              valid: pro, classic
+  wican_model                valid: pro, classic
   check_for_updates
-  grid_region              valid: EU, UK, AU, CN, US, JP
-  transport.type           valid: slcan-tcp, wican-ws
+  grid_region                valid: EU, UK, AU, CN, US, JP
+  transport.type             valid: slcan-tcp, wican-ws
   transport.host
   transport.port
   transport.bitrate
+  transport.fallback
+  transport.connect_timeout
+  transport.fallback_order
 
 positional arguments:
-  key           Config key, e.g. transport.type or wican_addresses.home
-  value         Value (coerced to int/bool where unambiguous)
+  key           Config key, e.g. transport.type or devices.home.host
+  value         Value (coerced to int/float/bool where unambiguous)
 
 options:
   -h, --help    show this help message and exit
@@ -102,13 +109,18 @@ options:
 
 examples:
   canair config set default_wican home
-  canair config set wican_addresses.home 10.0.2.86
-  canair config set transport.type slcan-tcp      # or: wican-ws
+  canair config set devices.home.host 10.0.2.86
+  canair config set devices.home.transport slcan-tcp   # or: wican-ws
+  canair config set transport.fallback false            # disable auto-fallback
+  canair config set transport.connect_timeout 2.0       # fallback probe timeout (s)
+  canair config set transport.fallback_order home,vpn,ap   # comma-separated
   canair config set wican_model pro               # or: classic
   canair config set check_for_updates false
 
-Values are coerced to int/bool/null where unambiguous; pass --string to force a
-string (e.g. a zero-padded id). Dotted keys create nested mappings.
+Values are coerced to int/float/bool/null where unambiguous; pass --string to
+force a string (e.g. a zero-padded id). Dotted keys create nested mappings.
+Comma-separated values are stored as a list for list-valued keys
+(transport.fallback_order).
 ```
 
 ## `canair config unset`

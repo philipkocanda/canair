@@ -23,8 +23,9 @@ canair config edit           # open in $EDITOR
 |---|---|
 | `default_profile` | Which [profile](../concepts/profiles.md) to use when none is given. Overridden by `--profile` / `CANAIR_PROFILE`. Optional if only one profile is discovered. |
 | `profiles_dir` | Extra directory to search for profiles (never committed). |
-| `wican_addresses` | Named device addresses for the `--wican` flag (IPs or hostnames). |
-| `default_wican` | Which `wican_addresses` alias to use by default. |
+| `devices` | Named devices for the `--wican` flag: each alias has a `host` and optional per-device `transport`/`port`/`bitrate` (see below). |
+| `default_wican` | Which device alias to use by default. |
+| `wican_addresses` | Legacy flat `alias: host` map (host-only). Read only when no `devices:` block exists, and **auto-migrated to `devices:` on first run**. |
 | `wican_model` | `pro` (default) or `classic`. `classic` makes canair cleanly refuse Pro-only features. |
 | `check_for_updates` | `true` (default) or `false`. Disables the automatic once-a-day update check (also disabled by `CANAIR_NO_UPDATE_CHECK`). |
 | `grid_region` | Charging-grid region for the physical-value scan: `EU`, `UK`, `US`, `JP`, `CN`, or `AU` (case-insensitive). Sets the mains-voltage / line-frequency bands (see below). |
@@ -56,6 +57,68 @@ model, so they live in the profile's
 [`physical_bands`](../concepts/profiles.md) instead. A profile's
 `physical_bands` override has final say over the `grid_region` preset.
 
+## `devices` — named devices, one per line
+
+Each alias maps to a device with a `host` (IP or hostname) and, optionally, its
+own `transport`, `port`, and `bitrate`. This lets a multi-device setup bind each
+device to the transport that suits it — e.g. a low-latency home LAN device to
+`slcan-tcp` and a laggy cellular/VPN device to the device-side-ISO-TP `wican-ws`
+(see [cellular timeouts](../concepts/architecture.md)).
+
+```yaml
+devices:
+  home:
+    host: "192.168.1.100"
+    transport: slcan-tcp     # optional; overrides transport.type for this device
+    port: 3333               # optional
+  vpn:
+    host: "10.0.0.100"
+    transport: wican-ws
+default_wican: home
+```
+
+Per-device values override the global `transport:` block; an explicit
+`--transport`/`--wican` on the command line still wins over both.
+
+Set them from the CLI:
+
+```bash
+canair config set devices.home.host 10.0.2.86
+canair config set devices.home.transport wican-ws   # validated: slcan-tcp | wican-ws
+```
+
+!!! note "Legacy `wican_addresses`"
+    The old flat `wican_addresses: {alias: host}` form still works when no
+    `devices:` block is present, and is **auto-migrated into `devices:` on the
+    next run** (comment-preserving; a one-line notice is printed). Once a
+    `devices:` block exists, `wican_addresses` is ignored — setting it warns.
+
+## Auto-fallback across devices
+
+When the selected device is unreachable at connect time, canair tries the other
+configured devices instead of failing. It's on by default; a fast, configurable
+probe timeout skips a dead device quickly.
+
+```yaml
+transport:
+  fallback: true                   # default true
+  connect_timeout: 2.0             # seconds — per-device liveness probe
+  fallback_order: [home, vpn, ap]  # optional; default = selected device, then the rest
+```
+
+- The explicitly selected device (`--wican X`, else `transport.host`, else
+  `default_wican`) is always tried **first**; `fallback_order` only sequences the
+  rest.
+- `--no-fallback` disables it for a single command; `transport.fallback: false`
+  disables it globally.
+- A `wican-ws` device is skipped as a fallback on a `classic` WiCAN (it can't use
+  that transport).
+- Set the order from the CLI with a comma-separated value:
+  `canair config set transport.fallback_order home,vpn,ap`.
+
+Fallback is **connect-time only** — a mid-session disconnect is reported, not
+silently re-homed.
+
 ## The `transport` block
 
 Transport is chosen explicitly, never auto-detected. `type` and `host` are
@@ -67,11 +130,12 @@ transport:
   type: slcan-tcp      # slcan-tcp (default) | wican-ws (Pro-only)
   host: 192.168.3.2    # device host/IP (both transports)
   port: 35000          # slcan-tcp only (Pro 35000, classic 3333); auto if omitted
-  bitrate: 500000      # slcan-tcp only; defaults to the profile's can_datarate
+  bitrate: 500000      # slcan-tcp only; overrides all else (falls back to profile can_bitrate)
 ```
 
 When `transport` is omitted, canair defaults to `slcan-tcp` using
-`wican_addresses`/`default_wican` for the host. See
+`devices`/`default_wican` for the host. A per-device `transport:` (see above)
+overrides `transport.type` for that device. See
 [Architecture](../concepts/architecture.md) for what the transports are.
 
 `canair wican mode set MODE` keeps `transport.type` in step with the device's
@@ -84,9 +148,11 @@ Pass `--no-transport` to switch the device mode without touching the config.
 ```yaml
 default_profile: my-car
 
-wican_addresses:
-  ap: "192.168.80.1"     # WiCAN AP (factory default)
-  home: "192.168.1.100"  # device on your home LAN
+devices:
+  ap:
+    host: "192.168.80.1"    # WiCAN AP (factory default)
+  home:
+    host: "192.168.1.100"   # device on your home LAN
 default_wican: home
 
 wican_model: classic     # regular / non-Pro WiCAN

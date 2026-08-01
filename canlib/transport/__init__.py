@@ -17,6 +17,7 @@ from .config import (
     TransportError,
     TransportSpec,
     resolve_transport,
+    resolve_transport_candidates,
 )
 from .errors import (
     connect_error_detail,
@@ -24,6 +25,7 @@ from .errors import (
     is_transport_error,
     transport_error_types,
 )
+from .fallback import select_reachable_transport
 from .protocol import Terminal
 from .raw_terminal import RawTerminal
 from .slcan_tcp import SlcanTcpBus, format_slcan_frame, parse_slcan_frame
@@ -46,6 +48,8 @@ __all__ = [
     "is_transport_error",
     "parse_slcan_frame",
     "resolve_transport",
+    "resolve_transport_candidates",
     "response_id",
+    "select_reachable_transport",
     "transport_error_types",
 ]

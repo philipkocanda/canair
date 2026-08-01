@@ -35,6 +35,19 @@ class TestCoerceScalar:
         assert coerce_scalar("10.0.2.86") == "10.0.2.86"  # IP: not an int
         assert coerce_scalar("slcan-tcp") == "slcan-tcp"
 
+    def test_float(self):
+        from canlib.config import coerce_scalar
+
+        assert coerce_scalar("2.0") == 2.0
+        assert coerce_scalar("0.5") == 0.5
+
+    def test_non_finite_floats_stay_strings(self):
+        from canlib.config import coerce_scalar
+
+        # float() accepts inf/nan; we must not silently store non-finite values.
+        assert coerce_scalar("inf") == "inf"
+        assert coerce_scalar("nan") == "nan"
+
 
 class TestSetConfigKey:
     def test_nested_key_creates_block(self, tmp_path, monkeypatch):
@@ -291,3 +304,155 @@ class TestConfigCommand:
         data = yaml.safe_load(config.user_config_file().read_text())
         assert data["transport"]["type"] == "slcan-tcp"
         assert data["wican_addresses"]["home"] == "10.0.2.86"
+
+
+def _ns(**kw):
+    kw.setdefault("string", False)
+    return argparse.Namespace(**kw)
+
+
+class TestDevicesAndFallbackConfig:
+    def test_wican_devices_from_devices_block(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        from canlib import config
+
+        _reset()
+        config.set_config_key("devices.home.host", "10.0.0.9")
+        config.set_config_key("devices.home.transport", "wican-ws")
+        config.set_config_key("devices.home.port", 3333)
+        _reset()
+        devices, _ = config.wican_devices()
+        assert devices["home"].host == "10.0.0.9"
+        assert devices["home"].transport == "wican-ws"
+        assert devices["home"].port == 3333
+
+    def test_devices_supersede_wican_addresses(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        from canlib import config
+
+        _reset()
+        config.set_config_key("wican_addresses.legacy", "1.1.1.1")
+        config.set_config_key("devices.home.host", "10.0.0.9")
+        _reset()
+        devices, _ = config.wican_devices()
+        assert set(devices) == {"home"}  # wican_addresses ignored when devices present
+
+    def test_wican_addresses_used_when_no_devices(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        from canlib import config
+
+        _reset()
+        config.set_config_key("wican_addresses.home", "10.0.0.9")
+        _reset()
+        devices, _ = config.wican_devices()
+        assert devices["home"].host == "10.0.0.9" and devices["home"].transport is None
+
+    def test_wican_settings_backcompat_shim(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        from canlib import config
+
+        _reset()
+        config.set_config_key("devices.home.host", "10.0.0.9")
+        config.set_config_key("devices.home.transport", "wican-ws")
+        _reset()
+        addresses, _ = config.wican_settings()
+        assert addresses == {"home": "10.0.0.9"}  # flattened to alias->host
+
+    def test_fallback_defaults(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        from canlib import config
+
+        _reset()
+        enabled, timeout, order = config.fallback_settings()
+        assert enabled is True and timeout == 2.0 and order is None
+
+    def test_fallback_settings_read(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        from canlib import config
+
+        _reset()
+        config.set_config_key("transport.fallback", False)
+        config.set_config_key("transport.connect_timeout", 1.5)
+        _reset()
+        enabled, timeout, _ = config.fallback_settings()
+        assert enabled is False and timeout == 1.5
+
+    def test_bad_connect_timeout_falls_back_to_default(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        from canlib import config
+
+        _reset()
+        config.set_config_key("transport.connect_timeout", -3)
+        _reset()
+        _, timeout, _ = config.fallback_settings()
+        assert timeout == 2.0
+
+
+class TestConfigCommandDevices:
+    def test_set_device_transport_valid(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        from canlib import config
+
+        _reset()
+        rc = config_cmd._cmd_set(_ns(key="devices.home.transport", value="wican-ws"))
+        assert rc == 0
+        _reset()
+        assert config.load_config()["devices"]["home"]["transport"] == "wican-ws"
+
+    def test_set_device_transport_invalid(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        _reset()
+        rc = config_cmd._cmd_set(_ns(key="devices.home.transport", value="bogus"))
+        assert rc == 2
+        err = capsys.readouterr().err
+        assert "devices.home.transport" in err and "slcan-tcp" in err
+
+    def test_fallback_order_comma_split(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        from canlib import config
+
+        _reset()
+        rc = config_cmd._cmd_set(_ns(key="transport.fallback_order", value="home, vpn ,ap"))
+        assert rc == 0
+        _reset()
+        assert config.load_config()["transport"]["fallback_order"] == ["home", "vpn", "ap"]
+
+    def test_wican_addresses_deprecation_warning(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        _reset()
+        rc = config_cmd._cmd_set(_ns(key="wican_addresses.home", value="10.0.0.9"))
+        assert rc == 0
+        err = capsys.readouterr().err
+        assert "deprecated" in err and "devices.home.host" in err
+
+    def test_wican_addresses_ignored_warning_when_devices_present(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        from canlib import config
+
+        _reset()
+        config.set_config_key("devices.home.host", "10.0.0.9")
+        _reset()
+        capsys.readouterr()
+        config_cmd._cmd_set(_ns(key="wican_addresses.legacy", value="1.1.1.1"))
+        assert "ignored at runtime" in capsys.readouterr().err
+
+    def test_show_json_has_devices_and_fallback(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        from canlib import config
+
+        _reset()
+        config.set_config_key("devices.home.host", "10.0.0.9")
+        config.set_config_key("devices.home.transport", "wican-ws")
+        _reset()
+        rc = config_cmd._cmd_show(argparse.Namespace(json=True))
+        assert rc == 0
+        import json
+
+        out = json.loads(capsys.readouterr().out)
+        assert out["devices"]["home"]["host"] == "10.0.0.9"
+        assert out["devices"]["home"]["transport"] == "wican-ws"
+        assert out["fallback"]["enabled"] is True
+        # back-compat: wican.addresses stays {alias: host}
+        assert out["wican"]["addresses"]["home"] == "10.0.0.9"

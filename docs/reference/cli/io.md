@@ -4,9 +4,9 @@
 
 ```
 usage: canair io [-h] [--did DID] [--off] [--poll] [--wican WICAN]
-                 [--transport {slcan-tcp,wican-ws}] [--elm-timeout MS]
-                 [--timeout SECONDS] [--json] [--verbose] [--timings]
-                 [--reboot] [--unsafe] [--force]
+                 [--transport {slcan-tcp,wican-ws}] [--no-fallback]
+                 [--elm-timeout MS] [--timeout SECONDS] [--json] [--verbose]
+                 [--timings] [--reboot] [--unsafe] [--force]
                  [ECU]
 
 [UDS] IOControl (0x2F): interactive TUI, or single actuator command with --did.
@@ -28,6 +28,9 @@ options:
                         CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327
                         terminal). Overrides the config `transport.type`
                         (default: slcan-tcp).
+  --no-fallback         Don't auto-fall-back to other configured devices when
+                        the selected one is unreachable (see config
+                        transport.fallback).
   --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx
                         after init)
   --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0

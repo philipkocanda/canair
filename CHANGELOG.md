@@ -9,6 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Per-device transport config + auto-fallback across devices.** Config gains a
+  richer `devices:` block — each alias maps to a device with a `host` and
+  optional per-device `transport`/`port`/`bitrate`, so a multi-device setup can
+  bind e.g. a home LAN device to `slcan-tcp` and a cellular/VPN device to
+  `wican-ws` (precedence: `--transport`/`--wican` CLI > device entry > global
+  `transport:` block > default). When the selected device is unreachable at
+  connect time, canair now **auto-falls-back** to the other configured devices
+  (config `transport.fallback`, default true; `--no-fallback` per command) using
+  a short, configurable `transport.connect_timeout` (default 2.0s) liveness
+  probe; `transport.fallback_order` sequences the fallbacks (the selected device
+  is always tried first). Fallback is connect-time only and can cross transports.
+  The legacy flat `wican_addresses:` map still works and is **auto-migrated into
+  `devices:` on first run** (comment-preserving, best-effort); once `devices:`
+  exists, `wican_addresses` is ignored (setting it warns, pointing at
+  `devices.<alias>.host`). `canair config set` gains the new keys with
+  `devices.<alias>.transport` enum validation, comma-separated list values for
+  `transport.fallback_order`, and general float coercion (`transport.connect_timeout`);
+  `canair config show` gains a Devices block + fallback status. See
+  `plans/2026-08-01-per-device-transport-and-fallback.md`.
+- **`canair align`** — a new analysis command that emits a time-aligned, **wide
+  table of several cross-ECU signals**: one row per reference sample, one column
+  per `ECU:PID:PARAM` selector, nearest-joined within `--join-tol`. `--csv` /
+  `--json` / a compact TTY table; shares the standard scope flags
+  (`--since`/`--until`/`--state`/…) and warns on `keep:unique` scope. Fills the
+  "show me A, B, C side by side over this window" gap (eyeballing a regime,
+  exporting a drive slice, feeding `--against-file`) that previously forced an
+  ad-hoc script. The first selector sets the row cadence. See the analysis-command
+  map in `docs/concepts/analysis-commands.md`.
 - **Generated documentation screenshots.** The docs now embed SVG screenshots
   and animated GIFs of the CLI in action, generated from a manifest
   (`docs/screenshots/shots.yaml`) by `scripts/gen_screenshots.py` — rendered with
@@ -26,6 +54,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `… +N more param(s) not shown — canair decode <ECU> <PID> for all` line instead
   of silently truncating (previously a param defined late in a busy PID, e.g. an
   enum/mode, could vanish from the preview with no indication).
+- **`canair decode --discriminate` now takes any axis, not just `state`.** In
+  addition to `--discriminate state` it accepts a cross-signal
+  `ECU:PID:PARAM` — e.g. `--discriminate HVAC:220102:HVAC_COMPRESSOR_ON --bytes`
+  ranks which bytes separate compressor-on from compressor-off. The signal is
+  nearest-joined onto each capture and discretized into groups (low-cardinality
+  enum/flag/mode axes; a too-continuous axis is rejected with a clear error).
+- **`canair decode --dump-bytes` timestamps harmonized** with `decode`/`align`
+  output: CSV emits an absolute space-separated `YYYY-MM-DD HH:MM:SS.ffffff`
+  (joinable with an `align --csv` dump) and JSON emits a time-only
+  `HH:MM:SS.ffffff` plus a separate `date` — neither uses the ISO `T` separator,
+  so a `dump-bytes` CSV and a `--json` pull join without reformatting.
+
+### Fixed
+
+- **`canair correlate --gate` now accepts the documented bracketed form.**
+  `--gate '[ECU:PID:PARAM] OP VALUE'` (as shown in the docs) previously leaked the
+  brackets into the signal, produced a bogus ECU, and silently matched nothing;
+  both `[SIGNAL] OP VALUE` and the bare `SIGNAL OP VALUE` now work.
 
 ## [1.9.1] - 2026-07-31
 
