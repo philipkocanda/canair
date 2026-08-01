@@ -25,7 +25,8 @@ canair dtc --all
 ```
 
 `canair read` uses a small [selector syntax](../concepts/query-mini-language.md)
-(`ECU:PID`) and can run multi-step pipelines over one session.
+(`ECU:PID`) and can run multi-step pipelines over one session. (Not sure what
+counts as a "PID"? See [ECU protocols & PID prefixes](../concepts/ecu-protocols.md).)
 
 ## On a different car
 
