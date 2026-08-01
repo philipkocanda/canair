@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-08-01
+
 ### Added
 
 - **Per-device transport config + auto-fallback across devices.** Config gains a
@@ -1120,7 +1122,8 @@ dongle (both the WiCAN Pro and the classic/non-Pro WiCAN are supported).
 - Command safety blocklist preventing UDS programming/write sessions against a
   real vehicle.
 
-[Unreleased]: https://github.com/philipkocanda/canair/compare/v1.9.1...HEAD
+[Unreleased]: https://github.com/philipkocanda/canair/compare/v1.10.0...HEAD
+[1.10.0]: https://github.com/philipkocanda/canair/compare/v1.9.1...v1.10.0
 [1.9.1]: https://github.com/philipkocanda/canair/compare/v1.9.0...v1.9.1
 [1.9.0]: https://github.com/philipkocanda/canair/compare/v1.8.1...v1.9.0
 [1.8.1]: https://github.com/philipkocanda/canair/compare/v1.8.0...v1.8.1
