@@ -74,10 +74,39 @@ uv run ruff check . && uv run ruff format --check .  # lint + format
 uv run ty check                                     # type check (canlib/)
 uv run canair validate all                          # if you touched profile data
 uv run python scripts/gen_cli_reference.py --check   # if you changed a command's flags
+uv run python scripts/gen_screenshots.py --check     # if you changed screenshotted command output
 ```
 
 If your change adds, removes, or alters a user-facing capability, update the
 docs and README in the same PR (see the README ↔ `docs/` policy in `AGENTS.md`).
+
+## Documentation screenshots
+
+The docs embed SVG screenshots and animated GIFs of the CLI in action, all
+**generated** from the manifest at `docs/screenshots/shots.yaml` — you never
+craft or maintain them by hand. Static command output is rendered with
+[`freeze`](https://github.com/charmbracelet/freeze) (SVG); interactive TUI and
+montage clips with [`vhs`](https://github.com/charmbracelet/vhs) (GIF). Every
+asset is captured against the bundled, read-only `ioniq-2017` profile with **no
+device attached**, so it's reproducible on any machine and contains no
+owner-specific data.
+
+```bash
+brew install charmbracelet/tap/freeze vhs   # one-time: the render tools
+make screenshots                             # regenerate everything
+make screenshots-only ONLY="bus decode-plot" # regenerate a subset
+make screenshots-check                        # verify assets present + commands still run
+```
+
+`--check` (run by CI and the pre-push hook) is deliberately light: it needs
+neither `freeze` nor `vhs`, and never byte-compares images (they aren't
+reproducible). It verifies every manifest asset exists, flags orphans, and runs
+each screenshotted command device-free — so a renamed command or dropped flag
+fails the check and tells you to regenerate. **When you change the output of a
+screenshotted command, re-render and commit the updated asset.** To add a shot,
+append an entry to `shots.yaml` (a `rich` command or an `anim` tape) and
+regenerate. Do **not** screenshot views that surface free-text capture
+notes/labels (e.g. `captures --sessions`) — those can leak PII into public docs.
 
 ## Code of conduct
 

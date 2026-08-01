@@ -4,12 +4,13 @@
 
 canair works with a vehicle's data across **two domains** through a
 [WiCAN](https://www.meatpi.com/products/wican-pro) WiFi dongle: request/response
-**diagnostics** (querying ECUs over UDS and KWP2000 — see
-[ECU protocols & PID prefixes](concepts/ecu-protocols.md)) and the **raw broadcast
+**diagnostics** (querying ECUs over UDS and KWP2000) and the **raw broadcast
 CAN** the car emits on its own (passively sniffed, or imported from external
 logs and DBCs). It then helps you capture, decode, statistically correlate, and
 document that data — turning it into a shareable
 [vehicle profile](concepts/profiles.md).
+
+![canair analysis commands in action](screenshots/tour.gif)
 
 These docs are organized around **what you're trying to do**, not around the
 command list (that lives in the [CLI reference](reference/cli/index.md)).

@@ -50,6 +50,13 @@ repos:
         pass_filenames: false
         stages: [pre-push]
 
+      - id: screenshots-current
+        name: doc screenshots are current
+        entry: uv run python scripts/gen_screenshots.py --check
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+
   # Normalize line endings on committed JSON. canair's capture writer always
   # emits LF, but a capture file created/edited on Windows (or pasted through a
   # CRLF editor) can sneak in \r bytes — noise in the append-only session logs

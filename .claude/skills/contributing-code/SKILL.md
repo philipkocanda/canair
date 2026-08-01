@@ -494,6 +494,18 @@ README→`docs/` links); a broken cross-link is a defect (Boy Scout: fix stale
 paths you pass). The docs strategy and the README/`docs/` policy are recorded in
 `plans/2026-07-24-documentation-strategy.md`.
 
+**Screenshots are generated, not hand-made.** The docs embed SVG/GIF captures of
+the CLI produced from `docs/screenshots/shots.yaml` by
+`scripts/gen_screenshots.py` (`freeze` for static output, `vhs` for interactive
+TUIs), all against the bundled read-only `ioniq-2017` profile — device-free and
+PII-free. If your change alters the **output** of a screenshotted command,
+re-render (`make screenshots` / `make screenshots-only ONLY="…"`) and commit the
+updated asset; adding a shot means an entry in `shots.yaml`, not a hand-drawn
+image. CI + the pre-push hook run `gen_screenshots.py --check` (asset presence +
+command validity, no re-render), so a renamed command/flag fails until you
+regenerate. Never screenshot views that surface free-text capture notes/labels
+(PII).
+
 ## Commit messages
 
 Match the repo's established style — **inspect `git log --oneline` first** and

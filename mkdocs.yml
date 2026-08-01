@@ -6,6 +6,13 @@ repo_name: philipkocanda/canair
 edit_uri: edit/main/docs/
 docs_dir: docs
 
+# The screenshot pipeline's inputs live beside the generated images under
+# docs/screenshots/ but aren't part of the site — keep them out of the build.
+exclude_docs: |
+  screenshots/shots.yaml
+  screenshots/freeze.json
+  screenshots/tapes/
+
 theme:
   name: material
   palette:
@@ -75,6 +82,7 @@ nav:
       - Profiles: concepts/profiles.md
       - ECU protocols & PID prefixes: concepts/ecu-protocols.md
       - Query mini-language: concepts/query-mini-language.md
+      - Which analysis command when: concepts/analysis-commands.md
       - Byte indexing: concepts/byte-indexing.md
       - WiCAN byte index (firmware reference): concepts/wican-byte-index.md
       - Broadcast CAN frames: concepts/broadcast-frames.md

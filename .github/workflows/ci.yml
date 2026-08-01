@@ -53,6 +53,12 @@ jobs:
       - name: Bundled-profiles index is current
         run: uv run python scripts/gen_profiles_index.py --check
 
+      - name: Doc screenshots are current
+        # Verifies every manifest asset is present and every screenshotted
+        # command still runs device-free (no re-render — freeze/vhs are not
+        # needed in CI, and the images aren't byte-reproducible).
+        run: uv run python scripts/gen_screenshots.py --check
+
       - name: Docs build (mkdocs --strict)
         run: uv run mkdocs build --strict --site-dir /tmp/site
 

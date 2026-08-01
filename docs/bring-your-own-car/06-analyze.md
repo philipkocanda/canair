@@ -83,9 +83,17 @@ raw payload to byte indices so you know exactly what you're looking at:
 canair bix --annotate 6101FFFF… --ecu MyECU --pid 2101
 ```
 
+![canair bix --annotate — map a payload to byte notations and params](../screenshots/bix-annotate.svg)
+
 > Byte indexing is the classic trap — WiCAN, ISO-TP, and Torque all count bytes
 > differently, and there are transport (PCI) bytes you must not read across. See
 > [Byte indexing](../concepts/byte-indexing.md).
+
+To see what's still undecoded across a whole ECU (or PID), `canair coverage`
+audits every parameter expression against the longest captured payload and lists
+the **unmapped** and partially-decoded bytes:
+
+![canair coverage BMS — undecoded payload bytes](../screenshots/coverage.svg)
 
 ## Step 2 — Reason: what could this byte be?
 
@@ -169,6 +177,12 @@ canair decode MyECU 2101 --try "SPEED_KMH=[B12]" --stats
 canair decode MyECU 2101 --try "SPEED_KMH=[B12]" --corr ESC:22C101:REAL_SPEED_KMH
 canair decode MyECU 2101 --plot               # interactive: sweep interpretations visually
 ```
+
+`--plot` opens an interactive explorer: step through parameters/bytes, sweep
+`u8`/`i16`/`f32` interpretations and endianness, apply transforms, and read off
+the equivalent WiCAN expression — all against your saved captures, no car needed:
+
+![canair decode --plot — the interactive signal explorer](../screenshots/decode-plot.gif)
 
 **Dump the raw bytes** as a `timestamp × byte-offset` matrix when you want to
 analyze outside canair (a spreadsheet, a scratch script) — the structured escape

@@ -78,6 +78,8 @@ offset in an expression:
 canair bix --annotate 62B004… --ecu MyECU --pid B004
 ```
 
+![canair bix --annotate with --ecu/--pid — per-byte notations, roles, and mapped params](../screenshots/bix-annotate.svg)
+
 ## Switch the notation in analysis output
 
 The analysis commands — `correlate`, `hunt`, `investigate`, `coverage`, and

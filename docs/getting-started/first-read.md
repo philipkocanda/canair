@@ -25,8 +25,12 @@ canair dtc --all
 ```
 
 `canair read` uses a small [selector syntax](../concepts/query-mini-language.md)
-(`ECU:PID`) and can run multi-step pipelines over one session. (Not sure what
-counts as a "PID"? See [ECU protocols & PID prefixes](../concepts/ecu-protocols.md).)
+(`ECU:PID`) and can run multi-step pipelines over one session.
+
+Once you've captured some readings, `canair ecu <ECU> pids` shows each PID's
+latest decoded value — raw payloads turned into named, unit-bearing parameters:
+
+![canair ecu BMS pids — latest decoded values](../screenshots/ecu-bms-pids.svg)
 
 ## On a different car
 

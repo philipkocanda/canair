@@ -1,0 +1,110 @@
+# Screenshot & animation manifest for the docs.
+#
+# GENERATED assets live beside this file (docs/screenshots/*.svg, *.gif).
+# Regenerate them with:
+#
+#     python3 scripts/gen_screenshots.py            # all assets (needs freeze + vhs)
+#     python3 scripts/gen_screenshots.py --only ID  # a subset
+#
+# CI runs `--check`, which verifies every asset is present and every declared
+# command still runs device-free against the bundled profile (it does NOT
+# re-render — freeze/vhs are not needed in CI — and never byte-compares images,
+# which aren't reproducible).
+#
+# Everything is captured against the bundled, read-only `ioniq-2017` profile
+# with NO device attached, so the output is reproducible on any machine and
+# contains no owner-specific data. Do not add shots that surface free-text
+# capture notes/labels (e.g. `captures --sessions`) — those can leak behavioural
+# PII into the public docs. Battery/temperature values are fine.
+
+# A *relative* profiles dir keeps the absolute repo path (which contains a
+# username) out of the rendered output — commands print `profiles/ioniq-2017/…`
+# instead of `/Users/<you>/…`. The generator runs from the repo root.
+profile: ioniq-2017
+profiles_dir: profiles
+freeze_config: freeze.json
+
+# ── Static command output → SVG (freeze) ────────────────────────────────────
+# `command` is the argv after `canair --profile <profile>`; it doubles as the
+# `--check` validity probe. `cols` sets the render width (COLUMNS) for that shot.
+shots:
+  - id: bus
+    kind: rich
+    cols: 100
+    command: [bus]
+    caption: "canair bus — the vehicle's CAN segments at a glance"
+
+  - id: ecu
+    kind: rich
+    cols: 100
+    command: [ecu]
+    caption: "canair ecu — the ECU registry, grouped by bus"
+
+  - id: ecu-bms-pids
+    kind: rich
+    cols: 96
+    command: [ecu, BMS, pids]
+    caption: "canair ecu BMS pids — every PID's latest decoded value"
+
+  - id: decode-bms-2101
+    kind: rich
+    cols: 92
+    command: [decode, "BMS:2101"]
+    caption: "canair decode BMS:2101 — decoded value ranges across all captures"
+
+  - id: decode-stats
+    kind: rich
+    cols: 96
+    command: [decode, "BMS:2102", --stats]
+    caption: "canair decode --stats — per-parameter statistics"
+
+  - id: coverage
+    kind: rich
+    cols: 100
+    command: [coverage, BMS]
+    caption: "canair coverage BMS — which payload bytes are still undecoded"
+
+  - id: bix-annotate
+    kind: rich
+    cols: 80
+    command: [bix, -a, 6101FFE12C, --ecu, BMS, --pid, "2101"]
+    caption: "canair bix -a — map a raw payload to byte notations and params"
+
+  - id: research-summary
+    kind: rich
+    cols: 80
+    command: [research, --summary]
+    caption: "canair research --summary — the open reverse-engineering backlog"
+
+  - id: states
+    kind: rich
+    cols: 100
+    command: [states]
+    caption: "canair states — the vehicle operating-state vocabulary"
+
+  - id: profile-list
+    kind: rich
+    cols: 90
+    command: [profile, list]
+    caption: "canair profile list — the bundled vehicle profiles"
+
+# ── Interactive / montage clips → GIF (vhs) ─────────────────────────────────
+# `tape` renders the GIF; `checks` are the device-free commands the tape
+# exercises, run by `--check` to catch command/flag drift (the tape's own
+# `--plot`/interactive path can't be validated non-interactively).
+animations:
+  - id: decode-plot
+    kind: anim
+    tape: tapes/decode-plot.tape
+    checks:
+      - [decode, "BMS:2101", --stats]
+    caption: "canair decode --plot — the interactive signal explorer (device-free, reads captures)"
+
+  - id: tour
+    kind: anim
+    tape: tapes/tour.tape
+    checks:
+      - [bus]
+      - [ecu, BMS, pids]
+      - [decode, "BMS:2101", --stats]
+    caption: "A quick tour of read-only analysis commands"

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Generated documentation screenshots.** The docs now embed SVG screenshots
+  and animated GIFs of the CLI in action, generated from a manifest
+  (`docs/screenshots/shots.yaml`) by `scripts/gen_screenshots.py` — rendered with
+  `freeze` (static output → SVG) and `vhs` (interactive TUI/montage → GIF), all
+  captured against the bundled read-only `ioniq-2017` profile with no device
+  attached. CI and a pre-push hook run `gen_screenshots.py --check` to verify
+  every asset is present and every screenshotted command still runs device-free
+  (no re-render, no pixel diffing). `make screenshots` regenerates them; the
+  pipeline is documented in `docs/contributing/index.md`.
+
 ### Changed
 
 - **`canair captures`** now makes its decoded-parameter preview cap visible: when
