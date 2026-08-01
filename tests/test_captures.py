@@ -21,6 +21,7 @@ from canlib.commands._captures_step import _render_step_pair_frame, cmd_step_pai
 from canlib.commands.captures import (
     _clean,
     _group_sessions,
+    _print_decoded_preview,
     cmd_diff,
     cmd_latest,
     cmd_list,
@@ -1065,3 +1066,35 @@ class TestDecodePayload:
 
         pids = {"ecus": {"BMS": {"tx_id": 0x7E4, "pids": {"2101": {}}}}}
         assert _decode_payload("BMS", "2101", "6101C8", pids) is None
+
+
+class TestPrintDecodedPreview:
+    """The decoded-param preview caps output but must make the cap visible."""
+
+    def test_under_limit_no_hint(self, capsys):
+        _print_decoded_preview({"A": 1, "B": 2}, limit=3, ecu="HVAC", pid="2201A0")
+        out = capsys.readouterr().out
+        assert "A: 1" in out and "B: 2" in out
+        assert "more param" not in out
+
+    def test_over_limit_shows_count_and_decode_hint(self, capsys):
+        decoded = {f"P{i}": i for i in range(8)}
+        _print_decoded_preview(decoded, limit=3, ecu="HVAC", pid="2201A0")
+        out = capsys.readouterr().out
+        # only the first `limit` are printed
+        assert "P0: 0" in out and "P2: 2" in out
+        assert "P3: 3" not in out
+        # the cap is visible with the hidden count + a runnable decode pointer
+        assert "+5 more param" in out
+        assert "canair decode HVAC 2201A0" in out
+
+    def test_hint_generic_without_ecu_pid(self, capsys):
+        decoded = {f"P{i}": i for i in range(5)}
+        _print_decoded_preview(decoded, limit=2)
+        out = capsys.readouterr().out
+        assert "+3 more param" in out
+        assert "canair decode <ECU> <PID>" in out
+
+    def test_exactly_at_limit_no_hint(self, capsys):
+        _print_decoded_preview({"A": 1, "B": 2, "C": 3}, limit=3, ecu="HVAC", pid="2201A0")
+        assert "more param" not in capsys.readouterr().out

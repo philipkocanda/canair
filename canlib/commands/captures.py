@@ -522,8 +522,7 @@ def cmd_latest(entries: list[dict], ecu_filter: str | None, as_json: bool = Fals
         print(f"    {trunc}")
         decoded = _decoded_preview(e)
         if decoded:
-            for k, v in list(decoded.items())[:5]:
-                print(f"    {_DIM}{k}: {v}{_RESET}")
+            _print_decoded_preview(decoded, limit=5, ecu=str(ecu), pid=str(pid))
     print()
 
 
@@ -647,6 +646,27 @@ def cmd_diff(
     console.print()
 
 
+def _print_decoded_preview(
+    decoded: dict, *, limit: int, ecu: str = "", pid: str = "", indent: str = "    "
+) -> None:
+    """Print decoded params capped at ``limit``, with a visible hint for any hidden.
+
+    The capture views show only a preview of a PID's decoded parameters to stay
+    compact; without a marker a busy PID silently drops params (e.g. a mode/enum
+    defined late in the file). Emit a "+N more" line so the cap is never silent,
+    pointing at ``canair decode`` (which renders every param, enum labels and all).
+    """
+    items = list(decoded.items())
+    for k, v in items[:limit]:
+        print(f"{indent}{_DIM}{k}: {v}{_RESET}")
+    hidden = len(items) - limit
+    if hidden > 0:
+        where = (
+            f"canair decode {ecu} {pid}".strip() if (ecu and pid) else "canair decode <ECU> <PID>"
+        )
+        print(f"{indent}{_DIM}… +{hidden} more param(s) not shown — `{where}` for all{_RESET}")
+
+
 def _print_entry(e: dict, show_ecu: bool = False) -> None:
     """Print a single capture entry."""
     ecu_prefix = f"{_CYAN}{e['ecu']:<10}{_RESET} " if show_ecu else ""
@@ -676,8 +696,9 @@ def _print_entry(e: dict, show_ecu: bool = False) -> None:
 
     decoded = _decoded_preview(e)
     if decoded:
-        for k, v in list(decoded.items())[:3]:
-            print(f"    {_DIM}{k}: {v}{_RESET}")
+        _print_decoded_preview(
+            decoded, limit=3, ecu=str(e.get("ecu", "")), pid=str(e.get("pid", ""))
+        )
 
     if e.get("notes"):
         notes_str = str(e["notes"]).strip()

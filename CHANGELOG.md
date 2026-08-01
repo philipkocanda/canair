@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`canair captures`** now makes its decoded-parameter preview cap visible: when
+  a PID has more decoded params than the compact view shows, it prints a
+  `… +N more param(s) not shown — canair decode <ECU> <PID> for all` line instead
+  of silently truncating (previously a param defined late in a busy PID, e.g. an
+  enum/mode, could vanish from the preview with no indication).
+
 ## [1.9.1] - 2026-07-31
 
 ### Added
