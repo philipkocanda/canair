@@ -1,8 +1,42 @@
 # Variable-length PID re-capture
 
 **Date:** 2026-07-28
-**Status:** in progress — READY-parked reconfirmed (2026-07-29); awaiting other states
+**Status:** RESOLVED (2026-07-30) — no PID is genuinely variable-length. The
+historical "second (longer) length" is ELM327/`wican-ws` last-frame padding, not
+a state-driven content length. READY (slcan-tcp) and CHARGING (wican-ws) both
+return one stable length per PID. **No `variable_length: true` flags applied.**
 **Context:** follow-up to plans/2026-07-28-isotp-truncation-guard.md
+
+## CONCLUSION (2026-07-30, charging session — the deciding evidence)
+
+A genuine CHARGING session (`2026-07-30.json` sessions[6], `wican-ws`,
+12:20–15:03, 4485 captures, BATTERY_CURRENT ≈ −8.3 A into the pack, quality 22
+drop / 27108 exchanges) settles it: **every PID returns the SAME length while
+charging as in clean READY.** The lengths the Bucket-1 hypothesis predicted would
+appear "while charging" never did:
+
+| PID              | READY (slcan) | CHARGING | predicted longer len |
+|------------------|---------------|----------|----------------------|
+| OBC 2101         | 44B           | **44B**  | 48B — never appeared |
+| BMS 2102/03/04   | 38B           | **38B**  | 41B — never appeared |
+| BMS 2105         | 45B           | **45B**  | 48B — never appeared |
+| BMS 2101         | 61B           | 61B      | (62B = 61B + 1 pad)  |
+| VCU 2101/2102/21F2 | 22/23/86B   | 22/23/86B| —                    |
+| AAF 2180/2181    | 25/25B        | 25/25B   | —                    |
+
+**The "longer" historical lengths are `wican-ws` (ELM327) trailing padding**,
+proven two ways: (1) every delta equals padding the final CAN frame to 8 bytes
+(+1/+2/+3/+4, all < 8; e.g. a legacy AAF 2181 27B payload ends literally
+`…9898 0000`); (2) this charging session is itself `wican-ws` yet **unpadded**
+(44/38/45, matching the clean slcan values) — current-firmware `wican-ws` no
+longer pads, only old `unknown`-transport captures did. The truncated (majority
+− 7B) strays were a *separate* artifact (one dropped ISO-TP frame), already
+deleted 2026-07-28.
+
+**Action taken:** none needed on the PIDs — no `variable_length: true` flags. The
+Bucket-1 "genuine variable-length" claim below is superseded (kept for the record;
+the reasoning was fooled by trusting a padded/`unknown`-transport length as a real
+second length).
 
 ## READY-parked re-confirmation (2026-07-29, slcan-tcp)
 
@@ -54,11 +88,13 @@ length variation can't be firmware — it's the transport bug): a banner in
 pre-2026-07-28 multi-frame lengths are untrustworthy and variable-length must be
 confirmed by post-fix re-capture.
 
-READY-parked is now **double-confirmed** (2026-07-28 + 2026-07-29). Still need
-driving / charging / acc2 / sleep sessions to observe the *other* lengths (e.g.
-OBC 2101 48B while charging, MCU/VCU driving lengths) in their native state
-before flagging each PID `variable_length: true`. No multi-length flags applied
-until that full-state verification is complete.
+READY-parked is now **double-confirmed** (2026-07-28 + 2026-07-29).
+
+> **SUPERSEDED by the 2026-07-30 charging session (see CONCLUSION above):** the
+> "other" length (e.g. OBC 2101 48B while charging) was never observed in the
+> native charging state — OBC 2101 stayed 44B, BMS 2102/03/04 stayed 38B, 2105
+> stayed 45B. The predicted longer lengths were `wican-ws` padding, not
+> state-driven content. No `variable_length: true` flags applied.
 
 ## Goal
 

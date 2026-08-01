@@ -256,7 +256,9 @@ OBC:
       vehicle_states: [CHARGING]
       date: "2026-07-20"
       notes: >
-        Service 21 scan 0x01-0x20 while charging (10A AC): ONLY 2101 (48B) and 2102 (34B, static calib) respond;
+        Service 21 scan 0x01-0x20 while charging (10A AC): ONLY 2101 (44B; this 2026-07-20 wican-ws
+        reading showed 48B = 44 B + 4 ELM327 padding bytes — real length 44 B, confirmed in the
+        2026-07-30 CHARGING session) and 2102 (34B, static calib) respond;
         all others NRC. No hidden OBC/charging PIDs on 0x7E5.
     - type: decode
       target: "2101 AC-side"
