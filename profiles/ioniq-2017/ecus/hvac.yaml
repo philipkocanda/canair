@@ -46,43 +46,45 @@ HVAC:
         sample). Only 3 varying bytes: B14 (0-59, weak corr, likely valve/PWM position),
         B34 (HVAC_HEAT_DEMAND), B35 (86-255, noisy, r=-0.80 vs blower feedback; likely fast
         actuator current/position). B34/B35 kept as leads; rest are documented constants.
+        2026-08-01: removed 4 dead params (findings retained here): B33/B44 = constant 0xFF
+        (were HVAC_FAN_SPEED_LEVEL / HVAC_AC_COMPRESSOR_ON — not fan/compressor), B38 = -40/-32
+        padding (HVAC_VENT_OUTLET_TEMP — bogus), B20 = live 16-255 but r=+0.09 vs the real blower
+        fan so NOT fan duty (HVAC_BLOWER_FAN_DUTY_3). Use HVAC_COMPRESSOR_ON (220102 B17) for
+        compressor state and HVAC_BLOWER_FAN_SPEED (2201A0 B18) for fan level.
       parameters:
         HVAC_INTERIOR_TEMP:
-          expression: "(B11/2)-40"
+          expression: (B11/2)-40
           unit: "°C"
           ha_class: temperature
           min: "-40"
-          max: "87"
+          max: "87.5"
           source: "Original WiCAN config"
           verified: true
           notes: >
             Interior Air Temperature (not "intake"!). Confirmed: drops from 27°C to 18.5°C
             when AC blows cold air, slowly recovers. Tracks cabin temp well.
-
         HVAC_AAT:
-          expression: "(B12/2)-40"
+          expression: (B12/2)-40
           unit: "°C"
           ha_class: temperature
           min: "-40"
-          max: "87"
+          max: "87.5"
           source: "Original WiCAN config"
           verified: true
           notes: "Ambient Air Temperature (HVAC sensor). Stable at ~18.5°C during session."
-
         HVAC_HEAT_PUMP_TEMP:
-          expression: "(B13/2)-40"
+          expression: (B13/2)-40
           unit: "°C"
           ha_class: temperature
           min: "-40"
-          max: "87"
+          max: "87.5"
           source: "Original WiCAN config"
           verified: true
-          notes: >
-            Confirmed: 21.5°C at rest, drops to ~5°C with compressor running,
-            recovers when compressor cycles off. Clear thermal lag vs IAT.
-            Renamed from evaporator to HVAC_HEAT_PUMP_TEMP, it's measuring something under the hood most likely but not sure what.
-            Could be evaporator, heat-pump inlet/outlet, or heat-exchanger temp. Needs verification.
-
+          notes: >-
+            Refrigerant-circuit temperature. Verified by behaviour: 21.5C at rest, drops to ~5C with
+            the compressor running, recovers when it cycles off (clear thermal lag vs interior
+            temp). Exact sensor unconfirmed (evaporator / heat-pump inlet-outlet / heat-exchanger) —
+            the HEAT_PUMP name is a best guess.
         HVAC_UNKNOWN_B15:
           expression: "B15"
           unit: ""
@@ -94,27 +96,16 @@ HVAC:
             Unsure, unlikely to be blower fan duty though.
 
         HVAC_UNKNOWN_B17:
-          expression: "B17"
+          expression: B17
           unit: ""
           min: "0"
           max: "255"
           source: "Monitor session 2026-04-17"
           verified: false
-          notes: >
-            Mirrors B15 almost exactly.
-
-        HVAC_BLOWER_FAN_DUTY_3:
-          expression: "B20"
-          unit: ""
-          min: "0"
-          max: "255"
-          source: "Monitor session 2026-04-17"
-          verified: false
-          enabled: false
-          notes: >
-            Third fan-related byte, same pattern as B15/B17. Possibly
-            redundant — disabled by default.
-
+          notes: >-
+            Unidentified. distinct=22, median 74, range 16-255. NOT an exact mirror of B15 (B15
+            distinct=53, median 16) — the earlier 'mirrors B15 almost exactly' note was wrong
+            (find-mirrors shows no match).
         HVAC_COMPRESSOR_TRANSITION:
           expression: "B22"
           unit: ""
@@ -128,66 +119,29 @@ HVAC:
             request signal or clutch duty cycle.
 
         HVAC_DUCT_TEMP_1:
-          expression: "(B36/2)-40"
+          expression: (B36/2)-40
           unit: "°C"
           ha_class: temperature
           min: "-40"
-          max: "87"
+          max: "87.5"
           source: "Monitor session 2026-04-17"
-          verified: true
-          notes: >
-            Slow thermal drift (0x26=−21→0x1F→0x24). Could be duct outlet
-            temp or heater core temp. Needs verification with heat mode.
-
+          verified: false
+          notes: >-
+            Plausible duct/heater-core outlet temp: median ~24C, slow thermal drift. Reads -40/87.5
+            at raw 0x00/0xFF (sensor-fault/absent sentinels). Identity and verification pending a
+            heat-mode capture.
         HVAC_DUCT_TEMP_2:
-          expression: "(B37/2)-40"
+          expression: (B37/2)-40
           unit: "°C"
           ha_class: temperature
           min: "-40"
-          max: "87"
-          source: "Monitor session 2026-04-17"
-          verified: true
-          notes: >
-            Big swings (0xEF=79.5→0x56=3→recovery). Drops sharply with
-            compressor — likely vent air temp close to evaporator.
-
-        HVAC_VENT_OUTLET_TEMP:
-          expression: "(B38/2)-40"
-          unit: "°C"
-          ha_class: temperature
-          min: "-40"
-          max: "87"
-          enabled: false
+          max: "87.5"
           source: "Monitor session 2026-04-17"
           verified: false
-          notes: >
-            DISABLED 2026-07-20: across all 143 220100 captures B38 only ever yields -40 or -32 (i.e. B38 =
-            0x00/0xFF/0x10 padding in the FF-filled tail region B30-B44). Never a plausible vent temp. Bogus
-            byte. (The earlier "tracks evaporator" note was a coincidence on one session.) Kept for research trail.
-
-        HVAC_FAN_SPEED_LEVEL:
-          expression: B33
-          unit: ""
-          min: "0"
-          max: "255"
-          enabled: false
-          source: Fan speed test 2026-04-19; resolved via off-by-one hunt 2026-07-24
-          verified: false
-          notes: >
-            DEAD MAPPING (kept disabled for research trail). B33 is constant 0xFF across all 220100 captures — NOT the fan level.
-
-        HVAC_AC_COMPRESSOR_ON:
-          expression: "B44"
-          unit: ""
-          min: "0"
-          max: "255"
-          enabled: false
-          source: "Monitor session 2026-04-17"
-          verified: false
-          notes: >
-            DISABLED 2026-07-20: B44 is constant 0xFF (255) across ALL 143 220100 captures (FF-padding tail).
-            Not a compressor flag. Use HVAC_COMPRESSOR_ON (220102 B17) which reads a clean 0/1 for the
-            actual compressor state. Kept for research trail.
+          notes: >-
+            Plausible vent / near-evaporator temp: median ~23C, drops sharply with the compressor.
+            Reads -40 at raw 0x00 (fault sentinel). Identity unconfirmed; unverified pending a
+            targeted capture.
         HVAC_HEAT_DEMAND:
           expression: B34
           min: "0"
@@ -212,14 +166,14 @@ HVAC:
           enabled: true
         HVAC_ACTUATOR_B35:
           expression: B35
-          min: "86"
+          min: "0"
           max: "255"
           source: coverage analysis 2026-07-23
           verified: false
-          notes: >
-            Raw 86-255 (distinct=38), noisy. r=-0.80 vs
-            HVAC_BLOWER_FAN_FEEDBACK/DUTY_3. Likely fast actuator current/position
-            feedback, not a clean scalar. Verify live.
+          notes: >-
+            Raw actuator byte 0-255 (observed 70-255), noisy. r=-0.80 vs
+            HVAC_BLOWER_FAN_SPEED-related feedback. Likely fast actuator current/position feedback,
+            not a clean scalar. Verify live.
           enabled: true
     220102:
       status: active
@@ -230,29 +184,27 @@ HVAC:
         Monitored 2026-04-17. B10/B11 are temps that rise with heating.
       parameters:
         HVAC_HEAT_EXCHANGER_TEMP:
-          expression: "(B10/2)-40"
+          expression: (B10/2)-40
           unit: "°C"
           ha_class: temperature
           min: "-40"
-          max: "87"
+          max: "87.5"
           source: "Monitor session 2026-04-17"
           verified: false
           notes: >
             0x78=20°C at rest, rises to 0x97=35.5°C with HVAC activity.
             Likely heater coolant or heat exchanger temperature.
-
         HVAC_HEAT_EXCHANGER_TEMP_2:
-          expression: "(B11/2)-40"
+          expression: (B11/2)-40
           unit: "°C"
           ha_class: temperature
           min: "-40"
-          max: "87"
+          max: "87.5"
           source: "Monitor session 2026-04-17"
           verified: false
           notes: >
             Follows B10 with lag. 0x77=19.5°C at rest, rises to 0x80=24°C.
             Secondary heat exchanger or return line temperature.
-
         HVAC_COMPRESSOR_ON:
           expression: "B17"
           unit: ""
@@ -282,11 +234,11 @@ HVAC:
             See HVAC_COMPRESSOR_ON_MIRROR (B12) for the same signal.
 
         HVAC_TEMP_B19:
-          expression: "B19"
+          expression: B19
           unit: "°C"
           ha_class: temperature
           min: "0"
-          max: "80"
+          max: "127"
           source: "Monitor session 2026-04-17; reclassified 2026-07-20"
           verified: false
           notes: >
@@ -296,8 +248,7 @@ HVAC:
             offset), reading a few degrees above the heat exchanger — consistent with the user's report of
             ~40°C after AC off for hours on a hot day. Exact sensor identity unconfirmed (heater-core / mix /
             in-cabin area), hence the neutral name. Was wrongly attributed to "compressor/PTC load".
-
-        HVAC_HEATER_MODE_FLAG_MIRROR:
+        HVAC_COMPRESSOR_ON_MIRROR_B12:
           expression: B12
           source: coverage analysis 2026-07-23
           verified: false
@@ -363,16 +314,16 @@ HVAC:
             HVAC system running flag. 1 when HVAC is on, 0 when off.
 
         HVAC_STARTUP_FLAG:
-          expression: "B22"
+          expression: B22
           unit: ""
           min: "0"
           max: "1"
           source: "Monitor session 2026-04-17"
           verified: false
-          notes: >
-            Transient flag: briefly 1 at HVAC turn-on, then returns to 0.
-            Possibly a startup/initialization signal.
-
+          notes: >-
+            Constant 0 across all 1139 captures (2026-08-01, after purging truncated reads). Was
+            hypothesized as a transient turn-on flag; if real, the brief 1 is missed by keep-unique
+            polling. Kept enabled to catch it live; unverified.
         HVAC_COOLING_MODE_B25:
           expression: "B25"
           unit: ""
@@ -404,48 +355,31 @@ HVAC:
             0: "off"
             1: ptc_resistive
             2: heat_pump
-        HVAC_MAX_FAN_FLAG:
-          expression: "B57"
-          unit: ""
-          min: "0"
-          max: "255"
-          source: "Fan speed test 2026-04-19"
-          verified: false
-          notes: >
-            MAX fan indicator. 0x00 at fan speeds 1-4, 0xAE (174) at MAX.
-            Only way to distinguish fan 4 from MAX (220100 B33 is identical
-            for both at 0x2D).
-            2026-07-20 CAVEAT: B57 is OUT-OF-BOUNDS in all 193 stored 2201A0 captures (all truncated to
-            40 bytes; B57 needs the full 62-byte response). Unverifiable from history. The companion April
-            claim (220100 B33=0x2D) is provably wrong — B33 is constant 0xFF across 143 captures — so this
-            mapping is suspect. Live 62B read today = 0 (fan-only speed 2). Downgraded to unverified; re-test
-            with MAX fan on and full-length capture.
 
         HVAC_DEFROST_FLAGS:
-          expression: "(B58 << 8) | B59"
+          expression: (B58 << 8) | B59
           unit: ""
           display: "f'0x{v:04X}'"
           min: "0"
           max: "65535"
           source: "Monitor session 2026-04-17"
           verified: false
-          notes: >
-            0x0000 = off, 0xFFEF appeared during defrost/defog period
-            (17:46:16-17:47:26). Likely bitfield for front defrost,
-            rear defogger, and possibly recirculation. Need more targeted
-            testing to decode individual bits.
-            2026-07-20 CAVEAT: B58/B59 are OUT-OF-BOUNDS in all stored 2201A0 captures (truncated to 40B);
-            only readable on the full 62-byte response. Verify against a full-length capture.
+          notes: >-
+            Reads 0x0000 (n=1099) or 0x00FF (n=40) across 1139 captures (2026-08-01, after purging
+            truncated reads); B58 is always 0, so this is effectively B59 as a 0/255 flag. The
+            earlier 0xFFEF-during-defrost claim does not appear in captured data. Needs targeted
+            defrost/defog toggling to decode the individual bits.
         HVAC_ACTUATOR_TARGET_1:
           expression: B5
           min: "0"
           max: "255"
           source: coverage analysis 2026-07-23; mode-cycle capture 2026-07-26
           verified: false
-          notes: >
-            Airflow-direction door actuator position. Locked trio B5/B9/B11 (B9=B5+5, B11=B5+8) moving together per direction change (2026-07-26, temp fixed).
-            Slow monotonic drift 102->93 across session (hysteresis/thermal comp, not temp setpoint).
-            Paired with B7 (independent mode door). Discrete direction->value map needs a dwell-per-mode capture.
+          notes: >-
+            Airflow-direction door actuator position. Locked trio B5/B9/B11 (B9=B5+5, B11=B5+8) move
+            together per direction; independent of the B7 mode door. Slow drift 102->93 over a
+            session (hysteresis, not setpoint). Discrete direction->value map needs a dwell-per-mode
+            capture.
           enabled: true
         HVAC_ACTUATOR_TARGET_2:
           expression: B7
@@ -453,12 +387,11 @@ HVAC:
           max: "255"
           source: coverage analysis 2026-07-23; mode-cycle capture 2026-07-26
           verified: false
-          notes: >
-            Airflow-direction (mode) door actuator position.
-            2026-07-26 fan-only capture (temp fixed 21C, so moves are direction-driven not temp): repositions on each airflow-direction change with a physically-sensible monotonic sweep face<bi-level<floor<floor+windshield -> face~122, face+legs~137-157, legs(floor)~230, legs+windshield~237.
-            Analog/hysteretic (face+legs read 157 then 137 on the two visits, ~+/-20 drift).
-            B5/B9/B11 (TARGET_1/3/4) are a locked trio (+5/+8) that move together per direction = a second linked door.
-            Discrete direction->value map + verification needs a dwell-per-mode capture with per-action notes.
+          notes: >-
+            Airflow-direction (mode) door actuator position, independent of the B5/B9/B11 trio.
+            Monotonic sweep by direction (2026-07-26, temp fixed 21C): face~122 < face+legs~137-157
+            < floor~230 < floor+windshield~237. Analog/hysteretic (~+/-20 on repeat visits).
+            Discrete map + verification needs a dwell-per-mode capture.
           enabled: true
         HVAC_ACTUATOR_TARGET_3:
           expression: B9
@@ -565,23 +498,16 @@ HVAC:
           source: 2026-07-26 heater-high + 2026-07-22 PTC sessions vs BMS BATTERY_POWER
           verified: false
           notes: >-
-            Climate HEATING power (PTC + heat-pump-heat), WiCAN B42, ~0.1 kW/LSB. Evidence: r=0.956
-            vs pack BATTERY_POWER over the 2026-07-26 heater-high session (n=152, 0.25-4.39kW swing,
-            compressor cycling), fan-independent (r=0.942 controlling HVAC_BLOWER_FAN_SPEED), and
-            B42=13 when the console showed ~1.2kW climate (2026-07-22 PTC session) => scale /10 kW.
-            Reads 0 (constant) when climate off AND during AC COOLING (2026-07-21) =>
-            HEATING-specific; the             cooling/compressor half of the dash climate bar is a separate byte
-            not yet found (candidates B41/B44 nonzero in cooling but no BMS-referenced cooling
-            capture yet). Scale approximate pending an exact dash read. Not the AC compressor
-            cooling power. ISO-TP data byte after CF PCI B40.
-            PTC vs COMPRESSOR: B42 is the TOTAL heat power, not one source. Use HVAC_HEAT_MODE
-            (B06: 1=PTC, 2=heat-pump) / HVAC_COMPRESSOR_ON (B17) to attribute it. In the 2026-07-26
-            session the two ran SEQUENTIALLY (PTC 1.1-1.5kW briefly at B06=1, then heat-pump to 4.5kW at
-            B06=2), so B42 = the active source's power there. No separate compressor-power/RPM byte
-            exists — the compressor-exclusive bytes (2201A2 B26=0/255, 2201A3 B15~52/B43~192) are
-            on/off STATUS flags (B26 r=0.02 vs power), not analog. Whether PTC+heat-pump ever run
-            together (B42 = their sum) is untested — needs a cold-weather capture.
-
+            Climate HEATING power (PTC + heat-pump), WiCAN B42 (~0.1 kW/LSB; ISO-TP data byte after
+            CF PCI B40). r=0.956 vs pack BATTERY_POWER over the 2026-07-26 heater-high session
+            (n=152, 0.25-4.39kW, compressor cycling), fan-independent (r=0.942 controlling
+            HVAC_BLOWER_FAN_SPEED); B42=13 at the console's ~1.2kW (2026-07-22 PTC) => /10 kW
+            (approximate, pending an exact dash read). Reads 0 when climate off and during AC
+            cooling (2026-07-21) => heating-specific; the cooling term is a separate unfound byte
+            (B41/B44 nonzero in cooling, no BMS-referenced cooling capture yet). B42 is the TOTAL
+            heat power, not one source — attribute with HVAC_HEAT_MODE (B06) / HVAC_COMPRESSOR_ON
+            (B17). No separate compressor-power byte (2201A2 B26, 2201A3 B15/B43 are on/off status,
+            not analog). Whether PTC+heat-pump ever sum is untested (needs a cold-weather capture).
     2201A3:
       status: draft
       vehicle_states: [ACC, ACC2, READY]
@@ -743,16 +669,18 @@ HVAC:
         with TUI v-key (ShortTermAdjustment with user-provided values).
     - type: verify
       target: "220100"
-      status: pending
+      status: done
       priority: P1
       vehicle_states: [ACC]
-      notes: "HVAC_INVERTER_TEMP (B15, (x/2)-40) unverified. Additional undecoded bytes: driver vent temp (B28), driver legs vent temp (B29), evaporator temp alt (B31), unknown temps (B32-34). Vehicle speed at bix 232 (byte 29) per Ioniq 5."
-      what_to_test:
-        - "HVAC_INVERTER_TEMP (B15, (x/2)-40)"
-        - "Driver vent temp (B28), legs vent temp (B29)"
-        - "Vehicle speed at bix 232"
+      updated: "2026-08-01"
+      notes: >-
+        CLOSED 2026-08-01 — the Ioniq-5-ported hypotheses are disproven on the 2017 Ioniq
+        220100: B15 is not an inverter temp ((B15/2)-40 gives no sensible temperature; B15 is
+        a high-variance 16-239 byte, kept as HVAC_UNKNOWN_B15); no vehicle-speed byte at
+        bix 232 / B29 (B28-B31 are FF-padding); B34 is HVAC_HEAT_DEMAND, not a temperature.
+        Remaining 220100 unknowns (B14/B34/B35, B15/B17) are tracked in the P3 decode items.
       sources:
-        - "OBDb Ioniq 5 — 220100 signals"
+        - "OBDb Ioniq 5 — 220100 signals (did not port to the 2017)"
     - type: scan
       target: "22 0100-010B"
       status: done
@@ -769,40 +697,20 @@ HVAC:
       status: captured
       priority: P2
       vehicle_states: [READY]
-      notes: >
-        The centre console shows a Drive/Climate/Electronics power split. Investigated 2026-07-22
-        (READY, parked) with a steady PTC heat ~1kW load and, earlier, heat-pump ~1.5kW; contrasted
-        against idle. FINDING: no climate WATTAGE byte was found in HVAC 220100 or 220102. Every byte
-        that moved with the climate load is a temperature (heat-exchanger B10/B11, evaporator, duct) or
-        fan duty — thermal/actuator response, not power. BMS 2101 shows only the AGGREGATE HV power
-        (0.15kW idle <-> ~1.5kW). So the per-domain split is most likely COMPUTED by the VMCU/cluster
-        from HV currents, not a single OBD PID. Useful adjunct: HVAC_COMPRESSOR_ON (220102 B17)
-        distinguishes heat-pump (1) vs PTC-only (0). Remaining leads: hunt a PTC-duty byte or a
-        dedicated compressor/PTC-inverter address; otherwise accept the console value is derived.
-        (Note: 220102 is NOT a new PID — it was already decoded as heat-exchanger temps + flags.)
-        VCU RE-CHECKED 2026-07-30 (after VCU_AUX_POWER was found on VCU 2102): the 2026-07-22 11:15
-        heat-pump session (HVAC_COMPRESSOR_ON=1, pack BATTERY_POWER modulating 1.29-2.27kW while
-        VCU_AUX_POWER stayed flat ~256-309W) was hunted — NO VCU 2101/2102/21F2 byte tracks the climate
-        power (best |r|<0.26; aux-controlled partial-corr empty), and no HVAC/OBC byte either (all <0.6,
-        temperature-ish). Confirms climate power is NOT broadcast as watts on any polled ECU. Also proves
-        VCU_AUX_POWER is the 12V AUX/ELECTRONICS term, NOT climate: it is independent of the HV climate
-        load (r=-0.09 vs BATTERY_POWER here). So the dash split = motor(HV drive) / climate(HV
-        compressor+PTC) / aux(=VCU_AUX_POWER, 12V) — the climate term is DERIVED: climate_W ~=
-        BATTERY_POWER - VCU_AUX_POWER/eff - HV_baseline (1.85kW pack - ~0.3kW aux ~= console 1.2kW). Only
-        untested avenue left: a dedicated e-compressor/PTC inverter address (0x7B6=GSA answers only
-        220100, all else NRC) or a passive broadcast-CAN frame — neither captured. To improve: a
-        compressor/heat sweep (AC or heat setpoint low->high) co-polling VCU+HVAC+BMS with --keep-all.
-        FOUND 2026-07-30 (SUPERSEDES the "no wattage byte" finding above): the HEATING climate power IS
-        broadcast — HVAC 2201A2 B42 (see HVAC_HEAT_POWER param), ~0.1 kW/LSB. The earlier miss was scope:
-        the small n=35 PTC session buried it (B42 r=0.60), but the 2026-07-26 17:17 heater-high session
-        (n=152, pack 0.25-4.39kW, compressor cycling) gives B42 r=0.956 vs BATTERY_POWER, fan-independent
-        (r=0.942 controlling fan), B42=0 when climate off, B42=13 at the console's ~1.2kW. It sits on the
-        HVAC actuator-data page, not 220100/220102 (which I'd checked) — hence the earlier negative.
-        STILL OPEN — the COOLING half: B42=0 during AC cooling (2026-07-21), so it is heating-specific;
-        the AC-compressor cooling power is a separate byte (2201A2 B41/B44 are nonzero in cooling but
-        unverified — those AC sessions had no BMS reference). NEXT: an AC-cooling sweep (hot cabin, AC
-        low->high) co-polling HVAC:2201A2 + BMS:2101, then hunt B41/B44/page vs BATTERY_POWER to pin the
-        cooling term and confirm the B42 heating scale against an exact dash read.
+      notes: >-
+        Console Drive/Climate/Electronics power split. RESOLVED (heating): the HEATING climate
+        power is broadcast on HVAC 2201A2 B42 (HVAC_HEAT_POWER, ~0.1 kW/LSB) — r=0.956 vs pack
+        BATTERY_POWER over the 2026-07-26 heater-high session (n=152), fan-independent, 0 when
+        climate off. (The earlier 2026-07-22 "no wattage byte" conclusion was wrong-scope: only
+        220100/220102 were checked and the small n=35 PTC session buried B42 at r=0.60.) Dash
+        split: motor = HV drive; climate = HV compressor+PTC (the B42 heating term); aux/electronics
+        = VCU_AUX_POWER (12V, independent of the HV climate load, r=-0.09 vs BATTERY_POWER — NOT
+        climate). STILL OPEN — the COOLING term: B42=0 during AC cooling (2026-07-21), so it is
+        heating-specific; the AC-compressor cooling power is a separate unverified byte (2201A2
+        B41/B44 nonzero in cooling, no BMS-referenced cooling capture yet). NEXT: an AC-cooling
+        sweep (hot cabin, AC low->high) co-polling HVAC:2201A2 + BMS:2101, hunt B41/B44 vs
+        BATTERY_POWER to pin the cooling term, and confirm the B42 heating scale against an exact
+        dash read.
       updated: "2026-08-01"
     - type: decode
       target: 2201A0 actuator doors
