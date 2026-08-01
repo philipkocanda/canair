@@ -508,6 +508,47 @@ HVAC:
             heat power, not one source — attribute with HVAC_HEAT_MODE (B06) / HVAC_COMPRESSOR_ON
             (B17). No separate compressor-power byte (2201A2 B26, 2201A3 B15/B43 are on/off status,
             not analog). Whether PTC+heat-pump ever sum is untested (needs a cold-weather capture).
+        HVAC_COOL_LOAD_B41:
+          expression: B41
+          min: "0"
+          max: "255"
+          source: 2026-07-21 AC-cooling + 2026-07-26 heating (align time-series)
+          verified: false
+          notes: >-
+            Cooling-responsive candidate (WiCAN B41), identity UNCONFIRMED. Per-mode time-series
+            (canair align): baseline ~20 at idle in BOTH heat and cool modes; rises to 50-60 under
+            AC cooling (2026-07-21); during PTC heating it dips to ~10 at onset then settles back to
+            ~20 (does NOT elevate). So it responds to COOLING only, but is NOT zero in heating — the
+            earlier 'active exactly when B42/B17=0' claim was wrong (stats min=0 was pre-session,
+            settled value ~20). Likely an AC-compressor/cooling load or target with a ~20 idle
+            offset; scale unknown, raw byte. NEXT: hot-cabin AC low->high sweep co-polling BMS:2101,
+            hunt vs BATTERY_POWER to confirm it's the cooling wattage vs a compressor-speed/target.
+        HVAC_HEAT_LOAD_B17:
+          expression: B17
+          unit: A
+          min: "0"
+          max: "255"
+          source: 2026-07-26 heater-high vs 2026-07-21 cooling
+          verified: false
+          notes: >-
+            Heating-load candidate (WiCAN B17). 0-39 during heating tracking pack current near 1:1
+            (r=0.83 vs BMS BATTERY_CURRENT, fit y=1.02x-0.98, n=296); constant 0 during AC cooling
+            (2026-07-21) => heating-specific, NOT the AC compressor (220102 B17 is that). Likely HV
+            climate/PTC current in A; unit tentative, confounded (climate is the dominant HV load in
+            this heating session). Verify against an isolated PTC-only step.
+        HVAC_TEMP_B44:
+          expression: B44
+          unit: degC
+          min: "0"
+          max: "255"
+          source: 2026-07-21 cooling + 2026-07-26 heating
+          verified: false
+          notes: >-
+            Temperature candidate (WiCAN B44), identity UNCONFIRMED. 27-34 during AC cooling (tight,
+            evaporator-like), 0-47 during heating; r=-0.87 vs HVAC_HEAT_PUMP_TEMP (220100).
+            Physically-plausible degC range but all HVAC temps co-move under heating so the specific
+            sensor is unresolved — hold the label. Needs a single-variable dwell capture (vary one
+            temp at a time). Unit tentative (raw ~= degC).
     2201A3:
       status: draft
       vehicle_states: [ACC, ACC2, READY]
@@ -705,12 +746,18 @@ HVAC:
         220100/220102 were checked and the small n=35 PTC session buried B42 at r=0.60.) Dash
         split: motor = HV drive; climate = HV compressor+PTC (the B42 heating term); aux/electronics
         = VCU_AUX_POWER (12V, independent of the HV climate load, r=-0.09 vs BATTERY_POWER — NOT
-        climate). STILL OPEN — the COOLING term: B42=0 during AC cooling (2026-07-21), so it is
-        heating-specific; the AC-compressor cooling power is a separate unverified byte (2201A2
-        B41/B44 nonzero in cooling, no BMS-referenced cooling capture yet). NEXT: an AC-cooling
-        sweep (hot cabin, AC low->high) co-polling HVAC:2201A2 + BMS:2101, hunt B41/B44 vs
-        BATTERY_POWER to pin the cooling term, and confirm the B42 heating scale against an exact
-        dash read.
+        climate). COOLING term candidate (2026-08-01): 2201A2 B41 (HVAC_COOL_LOAD_B41) responds to AC
+        cooling (rises to 50-60, baseline ~20; 2026-07-21) but is NOT a clean cooling-only term —
+        a canair align time-series shows B41 sits at baseline ~20 at idle in BOTH modes and stays
+        ~10-20 during heating (does not elevate), so the cooling term is still not cleanly pinned
+        (identity/scale unknown). Also registered on 2201A2: HVAC_HEAT_LOAD_B17 (B17, 0-39 tracking
+        pack current ~1:1 in heating r=0.83, ramps/decays in lockstep with B42; constant 0 in
+        cooling => heating-specific, NOT the 220102 compressor flag) and temp candidate
+        HVAC_TEMP_B44 (r=-0.87 vs HVAC_HEAT_PUMP_TEMP, thermal lag confirmed on align; identity
+        held). STILL OPEN:
+        (1) pin the B41 cooling scale via a hot-cabin AC low->high sweep co-polling HVAC:2201A2 +
+        BMS:2101, hunt B41 vs BATTERY_POWER; (2) confirm the B42 heating scale against an exact
+        dash read; (3) single-variable dwell to resolve B44 and the other co-moving temps.
       updated: "2026-08-01"
     - type: decode
       target: 2201A0 actuator doors
