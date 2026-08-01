@@ -164,8 +164,20 @@ AAF:
       priority: P2
       vehicle_states: [READY]
       created: "2026-07-23"
-      updated: "2026-07-23"
-      notes: "Speed bytes decoded (2181 B12=MPH, B13=km/h; r=0.997 vs ESC). Identity docs list ambient/heater-element/heat-sink/compressor temps on 2180/2181; temp bytes not yet located. Existing captures don't overlap HVAC 220100 AAT with timestamped AAF reads. Method: co-poll 'query HVAC:220100' 'query AAF:2180' 'query AAF:2181' over a temperature-varying window; correlate AAF bytes vs HVAC_AAT."
+      updated: "2026-07-30"
+      notes: >
+        Speed bytes decoded (2181 B12=MPH, B13=km/h; r=0.997 vs ESC). Identity docs
+        list ambient/heater-element/heat-sink/compressor temps on 2180/2181; temp
+        bytes not yet located. 2026-07-30 finally co-polled AAF 2180/2181 WITH HVAC
+        220100 over the READY sessions (the overlap that was missing) — but the
+        ambient anchor FAILED: HVAC_AAT was constant 23.5C across the whole ~30min
+        window (distinct=1), so no byte correlates and the ambient-anchor method
+        can't run on this data. AAF 2180 bytes that DO vary in scope: B17 (distinct
+        21, raw 41-53), B20/B21 (~61-67, move together), plus the known B25 (aux
+        voltage) and B28/B29 mirror — B17 and B20/B21 are candidate internal
+        heater/compressor temps but have no anchor here. NEEDS a session with real
+        thermal contrast (cold-start vs warm cabin, or A/C on driving the ambient
+        reading) so HVAC_AAT actually moves; then correlate AAF bytes vs HVAC_AAT."
     - type: decode
       target: "2180"
       status: done
