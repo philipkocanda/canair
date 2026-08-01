@@ -25,6 +25,17 @@ profile is the *data*.
 > **another** car, this skill plus that car's profile is what you need; the Ioniq
 > skill is then just an illustrative example of a finished profile.
 
+> **Target the right profile — the repo ships several** (`ioniq-2017`,
+> `ioniq-5-2022`, `xpeng-g6`, …) and **none auto-selects**. **Pass `--profile NAME`
+> explicitly on every mutative/authoring command** in this workflow — `pids
+> upsert-param`/`rename-*`/`rm-*`/`add-research`/`set-status`, `hunt … --promote`,
+> `import uds`, `signals upsert`, and `--save` reads. Without it these write to
+> whatever `default_profile`/`CANAIR_PROFILE` resolves to — *not necessarily the
+> car you mean* (this is exactly how signals once landed in the wrong profile).
+> Read-only commands (`decode`/`captures`/`correlate`/`hunt`/`investigate`/`coverage`)
+> resolve the same way, so prefer explicit `--profile` there too when a specific
+> car is intended. The examples below omit `--profile` for brevity — add it.
+
 ## Safety first (non-negotiable)
 
 - **NEVER** use UDS programming session (`10 02`) or any firmware write/upload.
@@ -38,8 +49,11 @@ profile is the *data*.
   overrides AutoPID; ask before rebooting to restore the AutoPID/MQTT feed.
 - Treat `0x22Fxxx` (flash/cal) as read-only. `2E` writes and `2F` IOControl can
   brick or actuate hardware — out of scope for signal decoding.
-- Disable device sleep during a session: `wican sleep --disable` (re-enable
-  after).
+- Disable device sleep during a session, then re-enable after. This is a
+  **`wican-cli`** command (a *separate* package — see the `ioniq-reverse-engineering`
+  skill), NOT canair: `wican sleep --disable` / `wican sleep --enable`. `canair`
+  itself has no sleep control (`canair wican` is only `autopid`/`mode`); check the
+  device's current sleep/voltage with `canair status`.
 
 ## Working principles
 
@@ -152,11 +166,19 @@ canair scan MCU --service 21 --range 01-FF --save
 canair scan IGPM --service 22 --range BC00-BCFF --session --wake --save
 ```
 
+`canair scan` is a group of SAFE discovery kinds — a bare `canair scan <ECU>` is
+shorthand for `scan range`. The others map to the non-PID signal types this skill
+covers: `canair scan sessions <ECU>` (which diagnostic session types the ECU
+supports — informs the session prerequisite in step 2), `canair scan routines
+<ECU>` (RoutineControl `0x31`/KWP `0x33`, auto by `id_protocol`), and
+`canair scan iocontrol <ECU>` (IOControl `0x2F`/KWP `0x30`). Hits are saved to the
+ECU's `routines:`/`iocontrol_discoveries:` sections.
+
 Record a research lead as you go:
 
 ```bash
 canair pids add-research MCU --type decode --target 2102 \
-    --status captured --priority P1 --prereq charging --notes "62 bytes, undecoded"
+    --status captured --priority P1 --prereq CHARGING --notes "62 bytes, undecoded"
 ```
 
 **Always record the scan outcome — a discovered DID must never be lost:**
@@ -177,15 +199,38 @@ canair pids add-research MCU --type decode --target 2102 \
   are KWP2000/service-21 and reliably NRC every `22 xxxx` DID ported from the Ioniq 5;
   confirm once, mark `nrc`, move on. Watch for the analogous mismatch on your own car.)
 
+Whether an ECU speaks UDS (service `22`/`0x19`/`0x31`/`0x2F`) or KWP2000 (service
+`21`/`0x18`/`0x33`/`0x30`) is recorded per-ECU as **`id_protocol`** in
+`ecus/<ecu>.yaml` — `canair scan`/`dtc`/`routines`/`iocontrol` auto-select the
+right service from it, so a wrong `id_protocol` makes an ECU blind-probe the wrong
+service and NRC everything. On a non-Hyundai car, confirm each ECU's protocol
+(one successful read of a known service) and set `id_protocol` before bulk
+scanning; see `docs/concepts/ecu-protocols.md`.
+
 ### 4. Capture — record real payloads across states
 
 ```bash
-# Preferred: decoded, session-managed, saved
-canair read "query MCU:2102" --save --label "MCU 2102 driving" \
-    --state "ready, driving" --notes "hard launches + regen"
+# Preferred: decoded, session-managed, saved (bind PID to ECU with a colon)
+canair read MCU:2102 --save --label "MCU 2102 driving" \
+    --state "READY, DRIVING" --notes "hard launches + regen"
 # Capture change across time (values that move reveal what a byte means)
-canair monitor "query MCU 2102" --interval 1 --keep-all --save
+canair monitor MCU:2102 --interval 1 --keep-all --save
 ```
+
+**No device on hand? You can still do most of this skill.** The bulk of the work
+— steps 5–9 (inspect → hypothesize → try → verify) — runs entirely against the
+*existing* capture corpus; you need a live car only to record *new* data. And a
+reading pasted from a forum/GitHub issue/another tool is onboarded device-free
+with **`canair import uds`**, which files it through the same machinery as a live
+`--save` (so it's immediately queryable by `decode`/`captures`/`coverage`):
+
+```bash
+canair import uds MCU:2102=6102... --label "forum: cold-soak" --state SLEEP \
+    --notes "posted by <user>, 2017 Ioniq"    # ECU:PID=reassembled-payload (SID-first, PCI stripped)
+```
+
+This is the sanctioned way to add a reading you didn't capture yourself — **never
+hand-write `captures/`** as an alternative.
 
 Capture the SAME PID in DIFFERENT states (park vs drive, cold vs warm, charging
 vs ready) — contrast is what lets you separate signal bytes from constants. For
@@ -194,10 +239,10 @@ carrying a known reference (speed on ESC, RPM on MCU) in one `canair read` /
 `canair monitor` run — they'll share a drive so `hunt`/`correlate`/cross-ECU `--corr`
 can time-align them. Every payload capture is now timestamped automatically, so
 any co-polled drive is joinable; only one-shot scans/identity reads stay untimed.
-**Never hand-edit `captures/` — and never read the raw `captures/*.yaml` files
-directly.** Always inspect captures through `canair captures`/`canair decode`
-(next step): reading the YAML by hand gives you undecoded raw payloads and skips
-byte-diffing, decoding, and state/date scoping. Saves are journaled to `captures/.journal/` and
+**Never hand-edit `captures/` — and never read the raw capture files
+(`captures/YYYY-MM-DD.json`) directly.** Always inspect captures through
+`canair captures`/`canair decode` (next step): reading the JSON by hand gives you
+undecoded raw payloads and skips byte-diffing, decoding, and state/date scoping. Saves are journaled to `captures/.journal/` and
 reconciled on exit (a killed/disconnected `canair monitor` session is recoverable with
 `canair captures uds --recover`); in `canair monitor` the `state` is auto-suggested from
 decoded values (press `s` to edit the current session's metadata live, `n` to start
@@ -212,7 +257,7 @@ domain (below); `captures can` lists raw broadcast-CAN frame logs. A bare
 
 ```bash
 canair captures uds --sessions                # what's in the captures? (TOC: date/state/label/notes/ECUs)
-canair captures uds --sessions --state driving  # index of every drive
+canair captures uds --sessions --state DRIVING  # index of every drive
 canair captures uds --sessions --json         # machine-readable TOC
 canair captures uds --summary                 # overview: captures per ECU / per date / totals
 canair captures uds MCU --latest              # most recent payload per PID (ECU/PID from the QUERY)
@@ -221,7 +266,7 @@ canair captures uds MCU:2102 --diff           # unique payloads, byte-diff
 canair captures uds MCU:2102 --diff --all     # every payload, not just unique ones
 canair captures uds MCU:2102 --diff --rulers  # add the idx/wican byte-index ruler above the hex
 canair captures uds MCU:2102 --diff --since 2026-07-19   # scope by date
-canair captures uds MCU:2102 --diff --state driving       # scope to one drive/state
+canair captures uds MCU:2102 --diff --state DRIVING       # scope to one drive/state
 canair captures uds MCU:2102 --step           # interactive step-through (e=note, d=delete)
 canair captures uds OBC 2101 --delete --dry-run  # preview a targeted delete (then --yes / confirm)
 canair captures uds --recover                 # reconcile orphaned journals (--discard to drop)
@@ -241,7 +286,7 @@ Byte-diff highlights which bytes moved between states — your candidate signal
 bytes; add `--rulers` to overlay the byte-index ruler and `--all` to include
 duplicate payloads. Both `captures` and `decode` share the same scoping flags —
 `--since`/`--until`/`--date`, `--state SUBSTR`/`--label SUBSTR`, `--first`/
-`--last N` — so you can isolate a single drive (`--state driving`) before
+`--last N` — so you can isolate a single drive (`--state DRIVING`) before
 diffing/decoding. `canair bix --annotate` tells you each byte's WiCAN index and
 flags the PCI bytes you must not read across (see Reference below); add
 `--ecu ECU --pid PID` to overlay which defined parameter (and bit) maps each byte
@@ -391,7 +436,7 @@ The tooling exposes real statistical levers — use them as evidence, not decora
     `--transform delta` hunts the byte tracking the reference's *rate* (torque vs
     acceleration); `--promote NAME` writes the winner into `ecus/` as an
     enabled-unverified candidate. Fastest path from "unknown byte" to "candidate".
-  - `canair correlate --state driving` — rank *every* strong cross-signal
+  - `canair correlate --state DRIVING` — rank *every* strong cross-signal
     relationship in a drive at once (`--against REF` to focus one, `--bytes`/
     `--bits` to include raw bytes/toggling bits, `--promote NAME` on the top
     raw-byte hit). `--lag-scan N` reports the apparent lead/lag (command→response
@@ -494,25 +539,25 @@ correlation" bullet in step 6 for the full detail):
 ```bash
 # "Which byte on this PID IS the known signal?" — sweeps every byte×interp,
 # ranks by |r|, prints the linear fit + a physical-unit guess.
-canair hunt AAF 2181 --against ESC:22C101:REAL_SPEED_KMH --state driving
+canair hunt AAF 2181 --against ESC:22C101:REAL_SPEED_KMH --state DRIVING
 canair hunt AAF 2181 --against ESC:22C101:REAL_SPEED_KMH --promote AAF_SPEED  # → candidate param
 # Correlate this PID's params against a cross-ECU reference (level or rate):
 canair decode MCU 2101 --corr MCU:2102:[S10:S11] --corr-transform delta
 # Rank EVERY strong relationship in a drive at once:
-canair correlate --state driving --against ESC:22C101:REAL_SPEED_KMH
+canair correlate --state DRIVING --against ESC:22C101:REAL_SPEED_KMH
 ```
 
 **Scope the captures** so a candidate is judged on the relevant drive/state, not
 the whole history (shared with `canair captures`): `--since`/`--until`/`--date`,
 `--state SUBSTR`/`--label SUBSTR` (case-insensitive; the natural unit of drive
-analysis, e.g. `--state driving`), and `--first N`/`--last N`. Combine with
+analysis, e.g. `--state DRIVING`), and `--first N`/`--last N`. Combine with
 `--stats --group-by state` to contrast a candidate across drive segments, or
 `--compact --changes-only` to watch it evolve with stationary runs collapsed:
 
 ```bash
-canair decode MCU 2102 --try "T=[S12:S13]/100" --state driving --stats  # one drive
-canair decode MCU 2102 --stats --group-by state --state driving          # per-segment
-canair decode ESC 22C101 --param REAL_SPEED_KMH --state driving --compact --changes-only
+canair decode MCU 2102 --try "T=[S12:S13]/100" --state DRIVING --stats  # one drive
+canair decode MCU 2102 --stats --group-by state --state DRIVING          # per-segment
+canair decode ESC 22C101 --param REAL_SPEED_KMH --state DRIVING --compact --changes-only
 ```
 
 Iterate until the range is physical, the distribution makes sense (constant?
@@ -643,11 +688,15 @@ block.
 ```bash
 canair wican autopid write       # regenerate the bundle's out/autopid.json
 canair wican autopid diff        # compare to device (optional)
-python3 -m pytest -q             # keep the suite green
+uv run pytest -q                 # keep the suite green (always `uv run` from the repo root)
 ```
 
-Then consider contributing the profile back (and, for the bundled car, an
-upstream wican-fw PR — see the `ioniq-reverse-engineering` skill's goals).
+Then consider contributing the profile back with **`canair contribute`** (alias
+`canair share`) — it opens the upstream PR for you (fork/branch/commit/push via
+`gh`) and runs a PII pre-flight first. Load the **`contributing-profiles`** skill
+before you do: it covers the scrubbing that gates the PR and the quality bar a
+shared profile must clear. For the bundled car, also consider an upstream wican-fw
+PR — see the `ioniq-reverse-engineering` skill's goals.
 
 ## Tool cheat-sheet (this workflow)
 
@@ -656,6 +705,7 @@ upstream wican-fw PR — see the `ioniq-reverse-engineering` skill's goals).
 | what to work on | `canair research`, `canair coverage` |
 | what's captured | `canair captures uds --sessions` (TOC: date/state/label/notes/ECUs; `--json`) |
 | talk to the car | `canair read`/`monitor`/`scan`/`discover` (`--save`) |
+| onboard a reading (no device) | `canair import uds ECU:PID=PAYLOAD --label … --state …` |
 | see captures | `canair captures` (`--diff`/`--step`/`--rulers`/`--all`/`--latest`/`--summary`/`--since`/`--until`/`--state`/`--label`) |
 | map bytes | `canair bix --annotate` (+ `--ecu ECU --pid PID` to overlay which param maps each byte / flag unmapped) |
 | reason about a signal | step 6 Hypothesize — ECU context, physics/EE (thermal mass), CS (enums/counters), statistics (`--corr`/`--stats`/autocorr) |
@@ -671,7 +721,7 @@ upstream wican-fw PR — see the `ioniq-reverse-engineering` skill's goals).
 | dump raw bytes for external analysis | `canair decode <ECU> <PID> --dump-bytes [--json]` (timestamp × byte matrix) |
 | find state-dependent signals | `canair decode … --discriminate state [--bytes] [--bits]` |
 | find redundant mirrors | `canair decode … --find-mirrors [--bits]` (single-PID); `canair correlate --find-mirrors [--bits]` (cross-ECU) |
-| scope a drive | `--state driving` / `--since`/`--until`/`--date` / `--first`/`--last N` (both `captures` + `decode`) |
+| scope a drive | `--state DRIVING` / `--since`/`--until`/`--date` / `--first`/`--last N` (both `captures` + `decode`) |
 | per-segment stats | `canair decode … --stats --group-by state` |
 | watch evolution | `canair decode … --compact --changes-only` |
 | write definitions | `canair pids upsert-param` / `rename-param` / `rm-param` / `add-research` / `set-status` |
