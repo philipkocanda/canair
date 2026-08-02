@@ -252,7 +252,7 @@ lives in. Ask it about B09 and it reports the frame and points out that the
 neighbouring B08 is a framing byte:
 
 ```text
-$ canair bix w9
+$ canair bix B09
   WiCAN:     B09  (WiCAN AutoPID frame index: ISO-TP + PCI)
   CAN frame: 1   (B09 is in CAN frame 1: B08–B15, 8 bytes per frame)
   ISO-TP:    0x06  (payload index 6)
@@ -289,7 +289,7 @@ Use the tooling instead of converting by hand:
 
 ```bash
 canair bix                                     # guided overview: legend + 2-frame table
-canair bix w9                                  # one lookup: every notation + the CAN frame it's in
+canair bix B09                                 # one lookup: every notation + the CAN frame it's in
 canair bix --torque                            # add the Torque letter column (Torque app, Car Scanner)
 canair bix --obdb                              # add the OBDb bix (bit-index) column
 canair bix --table                             # the full conversion table

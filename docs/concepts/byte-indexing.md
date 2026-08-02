@@ -40,7 +40,7 @@ the `PCI`/`SID`/`PID`/`DID` Role labels, plus a compact 2-frame table:
 
 ```bash
 canair bix                       # guided overview: legend + a compact 2-frame table
-canair bix w9                    # quick lookup for WiCAN byte 9
+canair bix B09                   # quick lookup for WiCAN byte 9 (w9 also works)
 canair bix --table               # the full conversion table, grouped by CAN frame
 canair bix --annotate 62B004…    # map a reassembled UDS payload (SID-first, PCI stripped)
 canair bix --annotate 1012… --raw  # map an already-framed CAN payload (PCI present)
