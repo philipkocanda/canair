@@ -52,8 +52,9 @@ each notation + a compact 2-frame table); `--table` prints the full table.
 
 input formats:
   w9, W09     WiCAN byte index (prefix w)
+  B09         WiCAN byte index (uppercase B — the Bnn convention)
   i6, i0x06   ISO-TP payload index (prefix i)
-  b32         OBDb bix / bit index (prefix b)
+  b32         OBDb bix / bit index (lowercase b)
   E, AA       Torque letter notation (Torque app, Car Scanner & similar apps)
   9           Plain number (assumed WiCAN)
 
@@ -173,21 +174,32 @@ def _parse_input(value: str) -> tuple[str, int]:
 
     m = re.match(r"^([wWiIbB])(\d+|0x[0-9a-fA-F]+)$", v)
     if m:
-        prefix = m.group(1).lower()
-        idx = int(m.group(2), 0)
-        notation = {"w": "wican", "i": "isotp", "b": "bix"}[prefix]
+        prefix = m.group(1)
+        num = m.group(2)
+        idx = int(num, 16) if num.lower().startswith("0x") else int(num, 10)
+        # Case-sensitive B/b: uppercase `B09` is WiCAN (the Bnn convention used
+        # throughout canair), lowercase `b32` is the OBDb bix index. w/W and i/I
+        # are case-insensitive.
+        notation = {
+            "w": "wican",
+            "W": "wican",
+            "i": "isotp",
+            "I": "isotp",
+            "B": "wican",
+            "b": "bix",
+        }[prefix]
         return notation, idx
 
     if re.match(r"^[A-Za-z]{1,2}$", v) and not re.match(r"^[wWiIbB]$", v):
         return "torque", letter_to_torque_idx(v)
 
     try:
-        return "wican", int(v, 0)
+        return "wican", int(v, 16) if v.lower().startswith("0x") else int(v, 10)
     except ValueError:
         pass
 
     print(
-        f"Error: cannot parse '{value}'. Use w9, i6, b32, E, AA, or a plain number.",
+        f"Error: cannot parse '{value}'. Use w9, B9, i6, b32, E, AA, or a plain number.",
         file=sys.stderr,
     )
     sys.exit(1)

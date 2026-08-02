@@ -15,6 +15,34 @@ def _parse(argv):
     return parser.parse_args(["bix", *argv])
 
 
+# ── _parse_input: prefix notation + leading-zero handling ──
+
+
+@pytest.mark.parametrize(
+    "token,expected",
+    [
+        # leading zero must not be read as octal (regression: int("09", 0))
+        ("w09", ("wican", 9)),
+        ("09", ("wican", 9)),
+        ("b09", ("bix", 9)),
+        ("i06", ("isotp", 6)),
+        # uppercase B is WiCAN (the Bnn convention), lowercase b is OBDb bix
+        ("B09", ("wican", 9)),
+        ("b32", ("bix", 32)),
+        # w/W and i/I stay case-insensitive
+        ("w9", ("wican", 9)),
+        ("W09", ("wican", 9)),
+        ("i6", ("isotp", 6)),
+        ("I6", ("isotp", 6)),
+        # hex still works
+        ("0x0b", ("wican", 11)),
+        ("i0x06", ("isotp", 6)),
+    ],
+)
+def test_parse_input_notation_and_leading_zeros(token, expected):
+    assert bix._parse_input(token) == expected
+
+
 # ── --annotate accepts quoted, unquoted, and no-space hex identically ──
 
 

@@ -47,8 +47,9 @@ each notation + a compact 2-frame table); `--table` prints the full table.
 
 input formats:
   w9, W09     WiCAN byte index (prefix w)
+  B09         WiCAN byte index (uppercase B — the Bnn convention)
   i6, i0x06   ISO-TP payload index (prefix i)
-  b32         OBDb bix / bit index (prefix b)
+  b32         OBDb bix / bit index (lowercase b)
   E, AA       Torque letter notation (Torque app, Car Scanner & similar apps)
   9           Plain number (assumed WiCAN)
 
