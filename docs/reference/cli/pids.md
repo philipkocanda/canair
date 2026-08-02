@@ -4,13 +4,13 @@
 
 ```
 usage: canair pids [-h]
-                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,set-pid-status,set-pid-variable-length,set-identity,set-can-bus,set-wake,set-addressing}
+                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,set-pid-status,set-pid-variable-length,set-identity,set-can-bus,set-iocontrol-ranges,set-wake,set-addressing}
                    ...
 
 [UDS] Safely edit ecus/ parameters and research entries (domain A — diagnostic UDS PIDs, freeform WiCAN expressions). The broadcast-frame (domain B) authoring counterpart is `canair signals` (linear signals/ maps).
 
 positional arguments:
-  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,set-pid-status,set-pid-variable-length,set-identity,set-can-bus,set-wake,set-addressing}
+  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,set-pid-status,set-pid-variable-length,set-identity,set-can-bus,set-iocontrol-ranges,set-wake,set-addressing}
     upsert-param        Add or update a parameter
     rename-param        Rename a parameter (key only; fields preserved)
     rm-param            Remove a parameter
@@ -26,6 +26,9 @@ positional arguments:
                         responses
     set-identity        Set a curated identity field (e.g. notes)
     set-can-bus         Set the physical CAN bus segment(s) the ECU sits on
+    set-iocontrol-ranges
+                        Set the IOControl (0x2F) scan DID ranges swept on this
+                        ECU
     set-wake            Set how to rouse a fast-sleeping ECU before reads
                         (wake ritual)
     set-addressing      Set an ECU's CAN addressing override (mode / extension
@@ -165,9 +168,8 @@ options:
 
 ```
 usage: canair pids add-pid [-h] [--status {active,draft,static,ignored}]
-                           [--prereq {SLEEP,PLUGGED,ACC,ACC2,READY,CHARGING,ALL}]
-                           [--period PERIOD] [--notes NOTES] [--dir DIR]
-                           [--no-validate]
+                           [--prereq PREREQ] [--period PERIOD] [--notes NOTES]
+                           [--dir DIR] [--no-validate]
                            ecu pid
 
 positional arguments:
@@ -179,8 +181,10 @@ options:
   --status {active,draft,static,ignored}
                         PID lifecycle (default: draft — swept/queryable but
                         not shipped)
-  --prereq {SLEEP,PLUGGED,ACC,ACC2,READY,CHARGING,ALL}, --vehicle-states {SLEEP,PLUGGED,ACC,ACC2,READY,CHARGING,ALL}
-                        Power state(s) in which this PID responds (repeatable)
+  --prereq PREREQ, --vehicle-states PREREQ
+                        Power state(s) in which this PID responds
+                        (repeatable). Validated against the profile's vehicle-
+                        state vocabulary at write time.
   --period PERIOD       Polling interval in ms
   --notes NOTES         Freeform notes for the PID
   --dir DIR             ecus/ directory (default: active profile)
@@ -193,8 +197,7 @@ options:
 usage: canair pids add-research [-h] --type
                                 {scan,decode,verify,iocontrol_scan} --target
                                 TARGET --status {pending,captured,nrc,done}
-                                [--priority {P1,P2,P3}]
-                                [--prereq {SLEEP,PLUGGED,ACC,ACC2,READY,CHARGING,ALL}]
+                                [--priority {P1,P2,P3}] [--prereq PREREQ]
                                 [--date DATE] [--created YYYY-MM-DD]
                                 [--updated YYYY-MM-DD] [--result RESULT]
                                 [--notes NOTES] [--source SRC]
@@ -212,7 +215,10 @@ options:
   --target TARGET
   --status {pending,captured,nrc,done}
   --priority {P1,P2,P3}
-  --prereq {SLEEP,PLUGGED,ACC,ACC2,READY,CHARGING,ALL}, --vehicle-states {SLEEP,PLUGGED,ACC,ACC2,READY,CHARGING,ALL}
+  --prereq PREREQ, --vehicle-states PREREQ
+                        Power state(s) prerequisite for this research
+                        (repeatable). Validated against the profile's vehicle-
+                        state vocabulary at write time.
   --date DATE
   --created YYYY-MM-DD  Override auto creation date (default: today)
   --updated YYYY-MM-DD  Override auto updated date (default: today)
@@ -309,6 +315,29 @@ positional arguments:
   CODE           One or more bus codes from the profile's can_buses.yaml
                  (Hyundai: B-CAN/P-CAN/C-CAN/MM-CAN/H-CAN/ALL); some ECUs span
                  two, e.g. H-CAN P-CAN
+
+options:
+  -h, --help     show this help message and exit
+  --dir DIR      ecus/ directory (default: active profile)
+  --no-validate  Skip the post-edit schema validation gate
+```
+
+## `canair pids set-iocontrol-ranges`
+
+```
+usage: canair pids set-iocontrol-ranges [-h] [--dir DIR] [--no-validate]
+                                        ecu RANGE [RANGE ...]
+
+Set the ECU's iocontrol_scan_ranges: list — the 'START-END' hex DID ranges the
+`canair scan iocontrol` sweep covers. When unset, ranges are derived from the
+ECU's known 2F/22 DID keys, else the full DID space (0000-FFFF). This replaces
+the old hardcoded HK body-controller zones with a per-ECU, profile-declared
+range.
+
+positional arguments:
+  ecu
+  RANGE          One or more 'START-END' hex DID ranges (e.g. B000-BFFF
+                 C000-C0FF)
 
 options:
   -h, --help     show this help message and exit

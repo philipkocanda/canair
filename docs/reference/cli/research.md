@@ -6,9 +6,8 @@
 usage: canair research [-h] [--ecu ECU]
                        [--type {scan,decode,verify,iocontrol_scan}]
                        [--status {pending,captured,nrc,done}]
-                       [--priority {P1,P2,P3}]
-                       [--states {SLEEP,PLUGGED,ACC,ACC2,READY,CHARGING,ALL}]
-                       [--summary] [--all] [--verbose] [--json] [--dir DIR]
+                       [--priority {P1,P2,P3}] [--states STATE] [--summary]
+                       [--all] [--verbose] [--json] [--dir DIR]
 
 [UDS] Report open reverse-engineering work from ecus/ research: sections.
 
@@ -21,8 +20,9 @@ options:
                         Filter by status
   --priority {P1,P2,P3}, -p {P1,P2,P3}
                         Filter by priority
-  --states {SLEEP,PLUGGED,ACC,ACC2,READY,CHARGING,ALL}, --vehicle-states {SLEEP,PLUGGED,ACC,ACC2,READY,CHARGING,ALL}, --prerequisite {SLEEP,PLUGGED,ACC,ACC2,READY,CHARGING,ALL}, --prereq {SLEEP,PLUGGED,ACC,ACC2,READY,CHARGING,ALL}
-                        Filter to items needing this car power state
+  --states STATE, --vehicle-states STATE, --prerequisite STATE, --prereq STATE
+                        Filter to items needing this car power state (from the
+                        profile's vehicle-state vocabulary)
   --summary, -s         Show aggregate counts instead of the item list
   --all, -a             Include done items (hidden by default)
   --verbose, -v         Show full notes/results (default caps long prose)

@@ -3,6 +3,7 @@
 # TPMS data is accessed via DID 22C00B on the BCM.
 BCM:
   tx_id: 0x7A0
+  iocontrol_scan_ranges: [B000-B3FF, B400-B7FF, C000-C0FF, F000-F0FF]
   can_bus: [B-CAN, C-CAN]
   identity:
     description: Body Control Module

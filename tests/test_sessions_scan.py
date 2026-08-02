@@ -72,7 +72,7 @@ TEST:
     description: Test ECU
     id_protocol: KWP2000
   vehicle_states:
-    - ready
+    - run
   pids:
     2101:
       status: active
@@ -139,7 +139,7 @@ def test_append_sessions_preserves_existing_sections(pids_dir):
     data = yaml.safe_load((pids_dir / "test.yaml").read_text())
 
     assert data["TEST"]["tx_id"] == 0x7E4
-    assert data["TEST"]["vehicle_states"] == ["ready"]
+    assert data["TEST"]["vehicle_states"] == ["run"]
     assert 2101 in data["TEST"]["pids"]
     assert data["TEST"]["research"][0]["target"] == "10 81 session"
 

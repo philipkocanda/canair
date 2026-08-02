@@ -734,6 +734,8 @@ async def dispatch_mode(args, terminal: Terminal, pids_data, host):
                 file=sys.stderr,
             )
             sys.exit(1)
+        from canlib.quirks import resolve_quirks
+
         await mode_identity(
             terminal,
             tx_id,
@@ -741,6 +743,7 @@ async def dispatch_mode(args, terminal: Terminal, pids_data, host):
             wake=args.wake,
             as_json=args.json,
             protocol=getattr(args, "protocol", "auto"),
+            quirks=resolve_quirks(pids_data),
         )
     elif args.dtc or getattr(args, "dtc_all", False):
         from canlib.ecus import resolve_tx
@@ -1074,7 +1077,7 @@ async def dispatch_mode(args, terminal: Terminal, pids_data, host):
         _addr_mode = resolve_mode(pids_data)
         # 11-bit sweeps arbitration ids (default 0x700-0x7EF); 29-bit sweeps the
         # target-address byte (default 0x00-0xFF), formed into 0x18DA{target}{tester}.
-        if args.range != "01-FF":
+        if args.range is not None:
             addr_range = parse_range(args.range)
         elif is_extended(_addr_mode):
             addr_range = (0x00, 0xFF)

@@ -946,6 +946,75 @@ def set_can_bus(
     return fpath
 
 
+def _normalize_iocontrol_range(spec: str) -> str:
+    """Normalize/validate a ``"START-END"`` hex range to canonical upper hex.
+
+    Raises :class:`PidsEditError` on a malformed range so a bad CLI arg is caught
+    before the file is touched.
+    """
+    parts = str(spec).strip().split("-")
+    if len(parts) != 2:
+        raise PidsEditError(f"range '{spec}' must be 'START-END' (e.g. B000-BFFF)")
+    try:
+        lo = int(parts[0], 16)
+        hi = int(parts[1], 16)
+    except ValueError as e:
+        raise PidsEditError(f"range '{spec}' has non-hex bounds") from e
+    if not 0 <= lo <= 0xFFFF or not 0 <= hi <= 0xFFFF:
+        raise PidsEditError(f"range '{spec}' bounds must be within 0000-FFFF")
+    if lo > hi:
+        raise PidsEditError(f"range '{spec}' start must be <= end")
+    return f"{lo:04X}-{hi:04X}"
+
+
+def set_iocontrol_scan_ranges(
+    ecu_name: str,
+    ranges: list[str],
+    *,
+    pids_dir: Path | None = None,
+) -> Path:
+    """Set the top-level ``iocontrol_scan_ranges:`` list on an ECU.
+
+    A curated list of ``"START-END"`` hex DID ranges the 0x2F scanner sweeps on
+    this ECU (the make-neutral replacement for the old hardcoded HK zones).
+    Renders a flow (inline) list; adds the field if missing, replaces it in
+    place if present. Verified by a YAML re-parse; restores the original on any
+    failure.
+    """
+    cleaned = [_normalize_iocontrol_range(r) for r in ranges if str(r).strip()]
+    if not cleaned:
+        raise PidsEditError("iocontrol_scan_ranges must have at least one range")
+
+    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
+    original = fpath.read_text()
+    ecu_key = ecu_name.strip().upper()
+    field = "iocontrol_scan_ranges"
+
+    def transform(text: str) -> str:
+        ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
+        header_end = text.find("\n", ecu_start)
+        body_start = header_end + 1
+        block = text[body_start:ecu_end]
+        repl = _format_inline_list_field(" " * 2, field, cleaned)
+        if re.search(rf"^ {{2}}{field}:", block, re.MULTILINE):
+            new_block = _replace_field_in_block_at(block, field, repl, indent=2)
+            return text[:body_start] + new_block + text[ecu_end:]
+        # Absent — insert right after the `tx_id:` line (its natural home).
+        tx_m = re.search(r"^ {2}tx_id:.*$", block, re.MULTILINE)
+        insert_at = body_start + (tx_m.end() + 1 if tx_m else 0)
+        payload = "".join(ln + "\n" for ln in repl)
+        return text[:insert_at] + payload + text[insert_at:]
+
+    def checker(ecu_def: dict) -> None:
+        got = ecu_def.get(field)
+        if got != cleaned:
+            raise PidsEditError(f"{field} mismatch after edit (got {got!r})")
+
+    new_text = transform(original)
+    _safe_write(fpath, original, new_text, ecu_key, checker)
+    return fpath
+
+
 # Canonical field order for a rendered `wake:` block (matches pids_schema.yaml).
 WAKE_FIELD_ORDER = (
     "method",

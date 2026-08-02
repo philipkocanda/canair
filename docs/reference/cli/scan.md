@@ -99,10 +99,10 @@ getting started:
 
 service presets (pass to --service, or use a raw hex byte):
   live-data  0x21  KWP2000 paged live data (powertrain ECUs: BMS, VCU, MCU, LDC)
-  read-did   0x22  UDS ReadDataByIdentifier (body/comfort ECUs: IGPM, BCM, …)
+  read-did   0x22  UDS ReadDataByIdentifier (body/comfort ECUs)
   iocontrol  0x2F  UDS InputOutputControlByIdentifier (actuators)
                    ⚠ may actuate physical hardware — prefer `canair scan iocontrol` (safe subfunction only) and keep the car in a safe state
-  iocontrol-kwp 0x30  KWP2000 InputOutputControlByLocalIdentifier (powertrain actuators: BMS fan, …)
+  iocontrol-kwp 0x30  KWP2000 InputOutputControlByLocalIdentifier (powertrain actuators)
                    ⚠ may actuate physical hardware — prefer `canair scan iocontrol BMS` (auto-selects 0x30, safe IOCP 0x00 only) and keep the car in a safe state
   routine    0x31  UDS RoutineControl (diagnostic routines)
                    ⚠ prefer `canair scan routines` (probes requestRoutineResults only)

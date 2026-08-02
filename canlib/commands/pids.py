@@ -17,6 +17,7 @@ Subcommands:
   set-pid-status ECU PID STATUS    Set a PID's lifecycle (active|draft|static|ignored)
   set-identity ECU FIELD VALUE     Set a curated identity field (e.g. notes)
   set-can-bus  ECU CODE [CODE ...] Set the physical CAN bus segment(s) (see can_buses.yaml)
+  set-iocontrol-ranges ECU RANGE ... Set the 0x2F scan DID ranges (e.g. B000-BFFF)
   set-wake     ECU --method ...     Set how to rouse a fast-sleeping ECU before reads
   set-addressing ECU ...           Set CAN addressing (mode / extension bytes / fc_id / rx_id)
 
@@ -53,13 +54,13 @@ from canlib.pids_edit import (
     rename_pid,
     set_can_bus,
     set_identity_field,
+    set_iocontrol_scan_ranges,
     set_pid_status,
     set_pid_variable_length,
     set_research_status,
     set_wake,
     upsert_parameter,
 )
-from canlib.states import CLI_STATE_CHOICES
 
 NAME = "pids"
 
@@ -404,6 +405,18 @@ def cmd_set_can_bus(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_set_iocontrol_ranges(args: argparse.Namespace) -> int:
+    def do():
+        set_iocontrol_scan_ranges(args.ecu, args.ranges, pids_dir=args.dir)
+
+    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
+    print(
+        f"{_GREEN}  ✓ {args.ecu} iocontrol_scan_ranges -> [{', '.join(args.ranges)}]{_RESET}  "
+        f"{_DIM}({fpath.name}){_RESET}"
+    )
+    return 0
+
+
 def cmd_set_wake(args: argparse.Namespace) -> int:
     fields: dict = {"method": args.method}
     if args.prime_pid is not None:
@@ -579,8 +592,8 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         dest="prereq",
         action="append",
         type=str.upper,
-        choices=list(CLI_STATE_CHOICES),
-        help="Power state(s) in which this PID responds (repeatable)",
+        help="Power state(s) in which this PID responds (repeatable). Validated "
+        "against the profile's vehicle-state vocabulary at write time.",
     )
     adp.add_argument("--period", type=int, help="Polling interval in ms")
     adp.add_argument("--notes", help="Freeform notes for the PID")
@@ -599,7 +612,8 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         dest="prereq",
         action="append",
         type=str.upper,
-        choices=list(CLI_STATE_CHOICES),
+        help="Power state(s) prerequisite for this research (repeatable). "
+        "Validated against the profile's vehicle-state vocabulary at write time.",
     )
     ar.add_argument("--date")
     ar.add_argument(
@@ -668,6 +682,25 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     )
     _add_common(scb)
     scb.set_defaults(_pids_func=cmd_set_can_bus)
+
+    sir = sub.add_parser(
+        "set-iocontrol-ranges",
+        help="Set the IOControl (0x2F) scan DID ranges swept on this ECU",
+        description="Set the ECU's iocontrol_scan_ranges: list — the "
+        "'START-END' hex DID ranges the `canair scan iocontrol` sweep covers. "
+        "When unset, ranges are derived from the ECU's known 2F/22 DID keys, "
+        "else the full DID space (0000-FFFF). This replaces the old hardcoded "
+        "HK body-controller zones with a per-ECU, profile-declared range.",
+    )
+    sir.add_argument("ecu")
+    sir.add_argument(
+        "ranges",
+        nargs="+",
+        metavar="RANGE",
+        help="One or more 'START-END' hex DID ranges (e.g. B000-BFFF C000-C0FF)",
+    )
+    _add_common(sir)
+    sir.set_defaults(_pids_func=cmd_set_iocontrol_ranges)
 
     sw = sub.add_parser(
         "set-wake",

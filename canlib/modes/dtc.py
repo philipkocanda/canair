@@ -1,7 +1,8 @@
 """DTC mode — read and clear Diagnostic Trouble Codes across UDS and KWP2000.
 
-The Ioniq mixes two diagnostic protocols, so DTC access is protocol-aware
-(auto-selected from the profile's ``id_protocol`` registry, like ``identity``):
+Many vehicles mix two diagnostic protocols across their ECUs, so DTC access is
+protocol-aware (auto-selected from the profile's ``id_protocol`` registry, like
+``identity``):
 
 * **UDS** ECUs (BCM, IGPM, ...) use ReadDTCInformation ``0x19`` subfunction
   ``0x02`` (reportDTCByStatusMask) and ClearDiagnosticInformation ``0x14`` with a
@@ -37,13 +38,14 @@ _STATUS_BITS = (
 )
 
 # UDS status mask to fall back to when an ECU rejects 0xFF with requestOutOfRange
-# (NRC 0x31). Some Hyundai ECUs (e.g. IGPM) only accept a mask within their
-# availability bits; confirmedDTC (0x08) is the most widely supported.
+# (NRC 0x31). Some ECUs only accept a mask within their availability bits;
+# confirmedDTC (0x08, ISO 14229-1 statusOfDTC bit 3) is the most widely
+# supported, so it is the make-neutral fallback.
 _MASK_FALLBACK = 0x08
 
-# KWP2000 readDiagnosticTroubleCodesByStatus (0x18) operands vary between Hyundai
-# ECUs; try the common forms until one returns a positive 0x58 response. Reads
-# are non-mutative, so probing is safe.
+# KWP2000 readDiagnosticTroubleCodesByStatus (0x18) operand forms vary between
+# ECUs/marques; try the common ISO 14230 forms until one returns a positive 0x58
+# response. Reads are non-mutative, so probing is safe.
 _KWP_READ_REQUESTS = ("1800FF00", "1802FF00", "1800FFFF")
 
 

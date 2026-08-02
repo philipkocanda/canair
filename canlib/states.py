@@ -40,17 +40,33 @@ from canlib import yaml_io
 if TYPE_CHECKING:
     from canlib.modes.multi_batch import EcuFrame
 
-# The canonical base power-state vocabulary, shared across every vehicle
-# profile. This is THE single definition — schema validators, the research
-# backlog, and the `pids`/`research` CLIs all derive their accepted tokens from
-# here (via `allowed_states`) rather than keeping their own hardcoded copies.
-# A profile's vehicle_states.yaml may declare additional composite states on top of
-# these (e.g. `parked`, `driving`); `allowed_states` returns the union.
+# The canonical base power-state vocabulary shared across every vehicle profile.
+# This is the **powertrain-neutral ignition-switch ladder** every road vehicle
+# has. The universal switch positions are OFF → ACC → ON → START; canair names
+# them with YAML-safe, vendor-agnostic tokens:
+#
+#     SLEEP   OFF / LOCK — ignition off, ECUs asleep / 12V standby   (Hyundai IGN0)
+#     ACC     accessory power                                        (Hyundai IGN1/ACC)
+#     RUN     ignition on — electronics live / driveable             (Hyundai IGN2)
+#     CRANK   starter engaged (ICE cranking)                         (Hyundai IGN3/START)
+#
+# `RUN` (not `ON`) and `SLEEP` (not `OFF`) are used because `ON`/`OFF`/`YES`/`NO`
+# are YAML 1.1 booleans that would parse as `True`/`False` in a bare
+# `vehicle_states:` list; `RUN` also reads unambiguously where a bare `IGN`
+# invites "which IGN level?" (vendors number them, e.g. Hyundai IGN0-3).
+#
+# Only the universal switch positions live here. Finer, vendor-specific rungs
+# (Hyundai's separate IGN1/IGN2 relays, an `ACC2` sub-level) and powertrain modes
+# (EV `PLUGGED`/`READY`/`CHARGING`; the EV `READY` is that car's name for the
+# driveable state) are NOT baked in — a profile declares those in its
+# `vehicle_states.yaml`, so an ICE profile never inherits EV states and an EV
+# profile never inherits ICE-only ones. `allowed_states` returns the union
+# (base + ALL + the profile's own).
 #
 # State tokens are UPPERCASE (like the CAN-bus segment codes) — a visual cue
 # that they're a controlled vocabulary, not free prose. Input is normalized to
 # uppercase (:func:`parse_states`), so any casing typed on the CLI is accepted.
-POWER_STATES = ("SLEEP", "PLUGGED", "ACC", "ACC2", "READY", "CHARGING")
+POWER_STATES = ("SLEEP", "ACC", "RUN", "CRANK")
 
 # The conventional token meaning "applicable/readable in every vehicle state"
 # — the state analogue of the ``ALL`` CAN-bus gateway code. It is documentary:
@@ -61,11 +77,6 @@ ALL_STATE = "ALL"
 
 # Backwards-compatible alias (older code/imports referred to BASE_STATES).
 BASE_STATES = POWER_STATES
-
-# Tokens offered as argparse ``choices`` for state flags (base vocabulary + the
-# ``ALL`` meta-token). Pair with ``type=str.upper`` so any casing typed on the
-# CLI is normalized before the choices check.
-CLI_STATE_CHOICES = (*POWER_STATES, ALL_STATE)
 
 
 class StatePredicateError(Exception):

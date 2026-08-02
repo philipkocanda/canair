@@ -26,7 +26,10 @@ examples:
 """,
     )
     parser.add_argument(
-        "--range", metavar="START-END", default="01-FF", help="Address range (default 700-7EF)"
+        "--range",
+        metavar="START-END",
+        default=None,
+        help="Address range (default: 700-7EF for 11-bit, 00-FF for 29-bit target bytes)",
     )
     parser.add_argument(
         "--delay", type=float, default=0.2, help="Delay between probes in seconds (default 0.2)"

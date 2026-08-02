@@ -19,7 +19,21 @@ from canlib.states import POWER_STATES, allowed_states, join_states, parse_state
 
 class TestVocabularySource:
     def test_power_states_base(self):
-        assert POWER_STATES == ("SLEEP", "PLUGGED", "ACC", "ACC2", "READY", "CHARGING")
+        # Make-neutral ignition-switch ladder — no EV states baked into the base.
+        assert POWER_STATES == ("SLEEP", "ACC", "RUN", "CRANK")
+
+    def test_base_has_no_ev_states(self):
+        for ev in ("PLUGGED", "READY", "CHARGING"):
+            assert ev not in POWER_STATES
+
+    def test_base_tokens_are_not_yaml_booleans(self):
+        # A bare `vehicle_states: [ON]` would parse as `True` under YAML 1.1, so
+        # no base token may collide with a YAML bool/null keyword.
+        import canlib.yaml_io as yaml_io
+
+        for tok in POWER_STATES:
+            loaded = yaml_io.safe_load(f"[{tok}, {tok.lower()}]")
+            assert loaded == [tok, tok.lower()], f"{tok} is a YAML keyword"
 
     def test_allowed_states_superset_of_base(self):
         assert set(POWER_STATES) <= allowed_states()
@@ -330,11 +344,11 @@ TEST:
             """\
 TEST:
   tx_id: 0x7E0
-  vehicle_states: [ready, charging]
+  vehicle_states: [acc, run]
   pids:
     2101:
       status: draft
-      vehicle_states: [ready]
+      vehicle_states: [run]
       parameters:
         A:
           expression: B0

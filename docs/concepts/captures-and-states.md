@@ -223,10 +223,14 @@ those predicates, canair can **auto-suggest** a capture's state from the data it
 just read, so tagging is mostly automatic.
 
 State names are an **UPPERCASE** controlled vocabulary (like the CAN-bus segment
-codes) — the base `SLEEP/PLUGGED/ACC/ACC2/READY/CHARGING`, any composites a
-profile adds, plus the meta-token **`ALL`** ("applicable in every state"). Input
-is normalized to uppercase, so any casing you type is accepted. Inspect and edit
-the vocabulary with `canair states`:
+codes) — the make-neutral base is the ignition-switch ladder `SLEEP/ACC/RUN/CRANK`
+(the universal OFF/ACC/ON/START positions; `RUN`/`SLEEP` because `ON`/`OFF` are
+YAML booleans, and `RUN` avoids the "which IGN level?" ambiguity of vendors that
+number them, e.g. Hyundai IGN0-3), plus any states a profile declares in its
+`vehicle_states.yaml` (EV profiles add `PLUGGED`/`READY`/`CHARGING`; the bundled
+Ioniq does), any composites, and the meta-token **`ALL`** ("applicable in every
+state"). Input is normalized to uppercase, so any casing you type is accepted.
+Inspect and edit the vocabulary with `canair states`:
 
 ```bash
 canair states                          # list the vocabulary + usage counts

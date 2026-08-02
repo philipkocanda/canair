@@ -1,6 +1,7 @@
 # ─── IGPM (Integrated Gateway Power Module) ──────────────────────────
 IGPM:
   tx_id: 0x770
+  iocontrol_scan_ranges: [B000-BFFF, BD00-BDFF, C000-C0FF]
   can_bus: [ALL]
   identity:
     description: Integrated Gateway & Power Module

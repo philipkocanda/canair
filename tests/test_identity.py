@@ -75,3 +75,38 @@ class TestReExports:
         assert ident.IDENTITY_DIDS is ident.UDS_IDENTITY_DIDS
         assert len(ident.UDS_IDENTITY_DIDS) > 0
         assert len(ident.KWP_IDENTITY_RECORDS) > 0
+
+
+class TestHkDidGating:
+    @pytest.mark.asyncio
+    async def test_f187_skipped_without_quirk(self, monkeypatch):
+        from canlib.modes import identity_records as recs
+
+        monkeypatch.setattr(idec, "ecu_id_protocol", lambda tx: "UDS")
+        t = FakeTerminal({"22F190": _ok("62F190" + "0102030405")})
+        await ident.mode_identity(
+            t, 0x770, session=False, wake=False, as_json=True, quirks=frozenset()
+        )
+        # Make-neutral profile must never probe the HK-only F187 DID.
+        assert not any(c.upper() == "22F187" for c in t.sent)
+        assert "F187" in recs.QUIRK_GATED_DIDS
+
+    @pytest.mark.asyncio
+    async def test_f187_probed_with_hk_quirk(self, monkeypatch):
+        from canlib.quirks import HK_F1XX_MINUS_ONE
+
+        monkeypatch.setattr(idec, "ecu_id_protocol", lambda tx: "UDS")
+        t = FakeTerminal({"22F190": _ok("62F190" + "0102030405")})
+        await ident.mode_identity(
+            t,
+            0x770,
+            session=False,
+            wake=False,
+            as_json=True,
+            quirks=frozenset({HK_F1XX_MINUS_ONE}),
+        )
+        assert any(c.upper() == "22F187" for c in t.sent)
+
+    def test_no_hk_label_in_tables(self):
+        for _did, label, _fmt in ident.UDS_IDENTITY_DIDS:
+            assert "(HK)" not in label

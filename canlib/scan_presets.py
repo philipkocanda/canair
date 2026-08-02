@@ -43,13 +43,16 @@ SERVICE_PRESETS: tuple[ServicePreset, ...] = (
         service=0x22,
         wide=True,
         default_range="F100-F1FF",
-        summary="UDS ReadDataByIdentifier (body/comfort ECUs: IGPM, BCM, …)",
+        summary="UDS ReadDataByIdentifier (body/comfort ECUs)",
     ),
     ServicePreset(
         name="iocontrol",
         service=0x2F,
         wide=True,
-        default_range="B000-B0FF",
+        # Make-neutral fallback: the full DID space. Real scans PID-derive a
+        # tighter per-ECU range (see `infer_iocontrol_ranges`) or read the
+        # ECU's `iocontrol_scan_ranges:` profile field.
+        default_range="0000-FFFF",
         summary="UDS InputOutputControlByIdentifier (actuators)",
         needs_session=True,
         caution="may actuate physical hardware — prefer `canair scan iocontrol` "
@@ -60,7 +63,7 @@ SERVICE_PRESETS: tuple[ServicePreset, ...] = (
         service=0x30,
         wide=False,  # KWP2000 local identifier is a single byte (2 hex digits)
         default_range="00-FF",
-        summary="KWP2000 InputOutputControlByLocalIdentifier (powertrain actuators: BMS fan, …)",
+        summary="KWP2000 InputOutputControlByLocalIdentifier (powertrain actuators)",
         needs_session=True,
         caution="may actuate physical hardware — prefer `canair scan iocontrol BMS` "
         "(auto-selects 0x30, safe IOCP 0x00 only) and keep the car in a safe state",
@@ -227,6 +230,35 @@ def _infer_from_pids(pid_keys: list[str]) -> tuple[int, tuple[int, int]] | None:
         return dominant, (lo, hi)
     # Narrow service (e.g. 21): the paged id space is small; scan it fully.
     return dominant, (0x01, 0xFF)
+
+
+def infer_iocontrol_ranges(ecu_def: dict) -> list[tuple[int, int]] | None:
+    """Candidate IOControl (0x2F) DID ranges derived from an ECU's known keys.
+
+    An ECU's IOControl DIDs cluster near the identifiers it already exposes for
+    ReadDataByIdentifier (0x22) and InputOutputControl (0x2F), so its known
+    wide-service DID keys are the best *make-neutral* prior for where to sweep —
+    replacing the old hardcoded HKMC body-controller DID map. Returns one
+    ``(start, end)`` range per observed DID high byte (``0xNN00``..``0xNNFF``),
+    or ``None`` when the ECU declares no such keys (caller then falls back to the
+    generic full-DID space).
+    """
+    pids = ecu_def.get("pids") or {}
+    highs: set[int] = set()
+    for key in pids:
+        k = str(key).upper().removeprefix("0X")
+        if len(k) < 4 or len(k) % 2 != 0:
+            continue
+        try:
+            service = int(k[:2], 16)
+            did = int(k[2:], 16)
+        except ValueError:
+            continue
+        if service in (0x2F, 0x22):
+            highs.add(did >> 8)
+    if not highs:
+        return None
+    return [((h << 8), (h << 8) | 0xFF) for h in sorted(highs)]
 
 
 def plan_scan(

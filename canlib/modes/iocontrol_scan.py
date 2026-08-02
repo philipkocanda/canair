@@ -140,27 +140,44 @@ def classify(response: UdsResponse) -> tuple[str, int | None]:
     return "exists", nrc
 
 
-# Default DID ranges to scan per ECU (tuple of (start, end) pairs).
-# Informed by the HKMC body-controller DID map:
-#   B000-B07F  exterior lamps (head/tail/turn)
-#   B080-B0FF  interior lamps + chimes
-#   B100-B1FF  wipers, horn
-#   B200-B2FF  door locks
-#   B300-B3FF  windows, mirror
-#   B400-B5FF  seats (PSM-owned)
-#   B600-B7FF  steering-wheel heater
-#   BC00-BCFF  EV accessory (IGPM-owned)
-#   BD00-BDFF  extended EV accessory
-#   C000-C0FF  TPMS
-#   F000-F2FF  HVAC climate
-# Curated hits so far cluster in these zones; the broader B800-BBFF /
-# B800-BFFF gaps are empty in practice so we skip them.
-DEFAULT_ECU_RANGES: dict[str, list[tuple[int, int]]] = {
-    "IGPM": [(0xB000, 0xBFFF), (0xBD00, 0xBDFF), (0xC000, 0xC0FF)],
-    "BCM": [(0xB000, 0xB3FF), (0xB400, 0xB7FF), (0xC000, 0xC0FF), (0xF000, 0xF0FF)],
-    "HVAC": [(0xF000, 0xFFFF)],
-    "PSM": [(0xB000, 0xBFFF)],
-}
+# Full-DID fallback when an ECU has no per-ECU range prior — make-neutral,
+# replacing the old hardcoded HKMC body-DID zone.
+FULL_DID_RANGE: tuple[int, int] = (0x0000, 0xFFFF)
+
+
+def _parse_range_str(spec: str) -> tuple[int, int] | None:
+    """Parse a ``"START-END"`` hex range string into an ``(int, int)`` pair."""
+    parts = str(spec).split("-")
+    if len(parts) != 2:
+        return None
+    try:
+        lo = int(parts[0], 16)
+        hi = int(parts[1], 16)
+    except ValueError:
+        return None
+    return (lo, hi) if lo <= hi else None
+
+
+def resolve_iocontrol_ranges(ecu_def: dict) -> list[tuple[int, int]] | None:
+    """Per-ECU IOControl DID ranges: profile field → PID-derived → None.
+
+    Precedence (an explicit ``did_range`` CLI arg is applied above this, in
+    :func:`mode_iocontrol_scan`):
+      1. the ECU's ``iocontrol_scan_ranges:`` profile field (list of
+         ``"START-END"`` hex strings), if present and parseable;
+      2. ranges inferred from the ECU's known ``2F``/``22`` DID keys
+         (:func:`canlib.scan_presets.infer_iocontrol_ranges`);
+      3. ``None`` — the caller falls back to the generic full-DID space
+         (:data:`FULL_DID_RANGE`), never an HK body-DID zone.
+    """
+    explicit = ecu_def.get("iocontrol_scan_ranges")
+    if isinstance(explicit, list):
+        parsed = [r for spec in explicit if (r := _parse_range_str(spec)) is not None]
+        if parsed:
+            return parsed
+    from ..scan_presets import infer_iocontrol_ranges
+
+    return infer_iocontrol_ranges(ecu_def)
 
 
 def _make_hit(did, session, response_hex, nrc, nrc_desc) -> IOControlHit:
@@ -205,16 +222,32 @@ async def mode_iocontrol_scan(
     """Scan IOControl DIDs on one or more ECUs using SF 00 returnControlToECU.
 
     Thin wrapper over :func:`discovery_scan.mode_discovery_scan` with the 0x2F
-    probe. Uses :data:`DEFAULT_ECU_RANGES` per ECU when ``did_range`` is None.
+    probe. When ``did_range`` is None, each ECU's ranges are resolved from its
+    profile ``iocontrol_scan_ranges:`` field, else PID-derived, else the generic
+    full-DID space :data:`FULL_DID_RANGE` — no hardcoded HK zone.
     """
+    ecu_defs: dict[str, dict] = {}
+    for fname, fdata in (pids_data.get("ecus") or {}).items():
+        if isinstance(fdata, dict):
+            ecu_defs[fname.upper()] = fdata
+
+    default_ranges: dict[str, list[tuple[int, int]]] = {}
+    for ecu in ecus:
+        edef = ecu_defs.get(ecu.upper())
+        if edef is None:
+            continue
+        ranges = resolve_iocontrol_ranges(edef)
+        if ranges:
+            default_ranges[ecu.upper()] = ranges
+
     return await mode_discovery_scan(
         terminal,
         IOCONTROL_PROBE,
         pids_data,
         ecus=ecus,
         id_range=did_range,
-        default_ranges=DEFAULT_ECU_RANGES,
-        default_range=(0xB000, 0xBFFF),
+        default_ranges=default_ranges,
+        default_range=FULL_DID_RANGE,
         throttle_ms=throttle_ms,
         verbose=verbose,
         write_yaml=write_yaml,

@@ -42,7 +42,18 @@ from canlib.yaml_rt import dump as _dump
 
 SYNONYMS = {"asleep": "sleep"}
 # Vocabulary accepted verbatim into a vehicle_states list (composites included).
-VOCAB = set(POWER_STATES) | {"deep sleep", "parked", "driving"}
+# EV states + Hyundai's ACC2 are listed explicitly (they are profile-declared, no
+# longer part of the make-neutral POWER_STATES base) so this one-time migration
+# still recognizes legacy Ioniq tokens.
+VOCAB = set(POWER_STATES) | {
+    "plugged",
+    "ready",
+    "charging",
+    "acc2",
+    "deep sleep",
+    "parked",
+    "driving",
+}
 
 
 def norm_token(tok: str) -> str:

@@ -4,6 +4,7 @@
 # active for desired duration, send OFF to stop.
 PSM:
   tx_id: 0x7A3
+  iocontrol_scan_ranges: [B000-BFFF]
   can_bus: [B-CAN]
   identity:
     description: Power Seat Module

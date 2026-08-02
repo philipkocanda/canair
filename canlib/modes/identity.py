@@ -25,6 +25,7 @@ from .identity_records import (
     KWP_IDENTITY_RECORDS,
     PROTOCOLS,
     UDS_IDENTITY_DIDS,
+    records_for,
 )
 
 __all__ = [
@@ -59,8 +60,20 @@ async def mode_identity(
     wake: bool,
     as_json: bool,
     protocol: str = "auto",
+    quirks: frozenset[str] | None = None,
 ):
-    """Query identity DIDs/records from an ECU across UDS and KWP2000."""
+    """Query identity DIDs/records from an ECU across UDS and KWP2000.
+
+    ``quirks`` is the active profile's declared quirk set; when None it is
+    resolved from the active profile. It gates make-specific identity DIDs
+    (e.g. the HK-only ``F187``) so a make-neutral profile never probes them.
+    """
+    if quirks is None:
+        from ..profile import active
+        from ..quirks import resolve_quirks
+
+        quirks = resolve_quirks(active().meta)
+
     await terminal.set_header(tx_id)
 
     tester_task = None
@@ -93,7 +106,7 @@ async def mode_identity(
             return
 
         spec = PROTOCOLS[resolved]
-        records = spec["records"]
+        records = records_for(resolved, quirks)
         offset = spec["payload_offset"]
         prefix = spec["prefix"]
         label_width = max(len(label) for _, label, _ in records)

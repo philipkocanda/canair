@@ -74,7 +74,10 @@ class TestProfileCreate:
         assert vs.exists()
         assert not (root / "states.yaml").exists()
         data = yaml.safe_load(vs.read_text())
-        assert any(s["name"] == "CHARGING" for s in data["states"])
+        names = {s["name"] for s in data["states"]}
+        # Scaffold declares the make-neutral base ladder (EV states are commented).
+        assert "RUN" in names
+        assert {"SLEEP", "ACC", "CRANK", "ALL"} <= names
 
     def test_meta_contents(self, tmp_path):
         root = tmp_path / "prof"

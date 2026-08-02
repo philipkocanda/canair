@@ -340,3 +340,57 @@ def test_routines_and_discoveries_coexist(pids_dir):
     assert "B020" in data["TEST"]["iocontrol_discoveries"]
     # Curated iocontrol still intact
     assert data["TEST"]["iocontrol"]["B001"]["label"] == "EXISTING_ACTUATOR"
+
+
+# ── iocontrol scan-range resolution (profile-driven, no hardcoded HK zones) ──
+
+
+def test_no_hardcoded_default_ecu_ranges():
+    """The old HK body-controller DID map is gone from the module."""
+    import canlib.modes.iocontrol_scan as mod
+
+    assert not hasattr(mod, "DEFAULT_ECU_RANGES")
+
+
+def test_full_did_range_is_make_neutral():
+    from canlib.modes.iocontrol_scan import FULL_DID_RANGE
+
+    assert FULL_DID_RANGE == (0x0000, 0xFFFF)
+
+
+def test_resolve_ranges_prefers_explicit_profile_field():
+    from canlib.modes.iocontrol_scan import resolve_iocontrol_ranges
+
+    ecu = {"iocontrol_scan_ranges": ["B000-BFFF", "C000-C0FF"], "pids": {"22F190": {}}}
+    assert resolve_iocontrol_ranges(ecu) == [(0xB000, 0xBFFF), (0xC000, 0xC0FF)]
+
+
+def test_resolve_ranges_falls_back_to_pid_derived():
+    from canlib.modes.iocontrol_scan import resolve_iocontrol_ranges
+
+    # No explicit field → derive from the ECU's 2F/22 DID high bytes.
+    ecu = {"pids": {"22BC01": {}, "22BC07": {}, "2FB010": {}}}
+    assert resolve_iocontrol_ranges(ecu) == [(0xB000, 0xB0FF), (0xBC00, 0xBCFF)]
+
+
+def test_resolve_ranges_none_when_no_prior():
+    from canlib.modes.iocontrol_scan import resolve_iocontrol_ranges
+
+    # Only a narrow-service (21) key and no 2F/22 keys → nothing to derive.
+    assert resolve_iocontrol_ranges({"pids": {"2101": {}}}) is None
+    assert resolve_iocontrol_ranges({}) is None
+
+
+def test_resolve_ranges_drops_malformed_explicit_entries():
+    from canlib.modes.iocontrol_scan import resolve_iocontrol_ranges
+
+    ecu = {"iocontrol_scan_ranges": ["B000-BFFF", "garbage", "FFFF-0000"]}
+    assert resolve_iocontrol_ranges(ecu) == [(0xB000, 0xBFFF)]
+
+
+def test_infer_iocontrol_ranges_helper():
+    from canlib.scan_presets import infer_iocontrol_ranges
+
+    assert infer_iocontrol_ranges({"pids": {"2FB015": {}}}) == [(0xB000, 0xB0FF)]
+    # Ignores non-2F/22 services (e.g. KWP 21xx) and identity F1xx is still 22.
+    assert infer_iocontrol_ranges({"pids": {"2101": {}}}) is None

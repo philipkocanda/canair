@@ -186,9 +186,11 @@ class TestStateOptions:
         # Declared states keep file order, are UPPER-cased, and come before base.
         assert names[:2] == ["CHARGING", "PARKED"]
         assert opts[0] == ("CHARGING", "HV charging")
-        # Base POWER_STATES not already declared are appended (e.g. READY, SLEEP).
-        assert "READY" in names
+        # Base POWER_STATES not already declared are appended (SLEEP/ACC/RUN/CRANK).
         assert "SLEEP" in names
+        assert "RUN" in names
+        # An EV state NOT declared by this profile is NOT offered (no longer base).
+        assert "READY" not in names
         # The ALL meta-token is always offered.
         assert "ALL" in names
         # No duplicates.
@@ -201,10 +203,8 @@ class TestStateOptions:
         names = [n for n, _ in state_options(_P())]
         assert set(names) == {
             "SLEEP",
-            "PLUGGED",
             "ACC",
-            "ACC2",
-            "READY",
-            "CHARGING",
+            "RUN",
+            "CRANK",
             "ALL",
         }

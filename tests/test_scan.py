@@ -61,6 +61,10 @@ class TestServiceHelpers:
         assert preset_by_service(0x21).name == "live-data"
         assert preset_by_service(0xAB) is None
 
+    def test_iocontrol_default_range_is_make_neutral(self):
+        # The iocontrol preset must not default to the old HK body-DID zone.
+        assert preset_by_service(0x2F).default_range == "0000-FFFF"
+
     def test_service_label(self):
         assert service_label(0x22, "read-did") == "read-did (0x22)"
         assert service_label(0x21) == "live-data (0x21)"

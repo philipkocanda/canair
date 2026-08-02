@@ -14,7 +14,8 @@ usage: canair discover [-h] [--range START-END] [--delay DELAY] [--register]
 
 options:
   -h, --help            show this help message and exit
-  --range START-END     Address range (default 700-7EF)
+  --range START-END     Address range (default: 700-7EF for 11-bit, 00-FF for
+                        29-bit target bytes)
   --delay DELAY         Delay between probes in seconds (default 0.2)
   --register            Register newly-discovered ECUs as files in the
                         profile's ecus/ directory

@@ -73,3 +73,29 @@ def test_set_addressing_requires_a_field(pids_dir):
 def test_set_addressing_bad_hex(pids_dir):
     with pytest.raises(SystemExit, match="fc-id"):
         cli.cmd_set_addressing(_Args(dir=pids_dir, fc_id="nothex"))
+
+
+class _RangeArgs:
+    def __init__(self, ranges, **kw):
+        self.ecu = "TESTECU"
+        self.dir = None
+        self.ranges = ranges
+        self.no_validate = True  # skip the active-profile schema gate in unit tests
+        self.__dict__.update(kw)
+
+
+def test_set_iocontrol_ranges_writes_field(pids_dir):
+    import canlib.yaml_io as yaml_io
+
+    rc = cli.cmd_set_iocontrol_ranges(_RangeArgs(["b000-bfff", "C000-C0FF"], dir=pids_dir))
+    assert rc == 0
+    doc = yaml_io.safe_load((pids_dir / "e.yaml").read_text())
+    # Normalized to canonical upper hex.
+    assert doc["TESTECU"]["iocontrol_scan_ranges"] == ["B000-BFFF", "C000-C0FF"]
+
+
+def test_set_iocontrol_ranges_rejects_bad_range(pids_dir):
+    from canlib.pids_edit import PidsEditError
+
+    with pytest.raises((PidsEditError, SystemExit)):
+        cli.cmd_set_iocontrol_ranges(_RangeArgs(["not-a-range"], dir=pids_dir))

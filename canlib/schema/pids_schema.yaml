@@ -141,6 +141,9 @@ optional_ecu_fields:
   - pids            # Readable PIDs (omit for identity-only modules like AMP/SRS)
   - iocontrol       # IOControl (service 2F) commands — see iocontrol_fields below
   - iocontrol_discoveries  # Raw 0x2F SF 00 scanner output — see iocontrol_discoveries_fields
+  - iocontrol_scan_ranges  # Optional list of "START-END" hex DID ranges the 0x2F
+                    #   scanner sweeps on this ECU (e.g. ["B000-BFFF", "C000-C0FF"]).
+                    #   When absent, ranges are PID-derived, else the full DID space.
   - research        # Untested/undecoded PIDs and scan TODOs — see research_fields below
   - routines        # RoutineControl (service 0x31) discoveries — see routines_fields below
 

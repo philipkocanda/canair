@@ -222,6 +222,37 @@ def _allowed_can_buses(profile) -> set:
     return allowed_can_buses(profile)
 
 
+def _validate_iocontrol_scan_ranges(value, label: str, errors: list) -> None:
+    """Validate an ECU's optional ``iocontrol_scan_ranges`` list.
+
+    Each entry must be a ``"START-END"`` hex string with ``start <= end`` and
+    both in the 16-bit DID space. Shape-only — the resolver
+    (``iocontrol_scan.resolve_iocontrol_ranges``) tolerates a malformed entry by
+    dropping it, but a definition committed to ``ecus/`` should be well-formed.
+    """
+    if value is None:
+        return
+    if not isinstance(value, list):
+        errors.append(f"{label}: iocontrol_scan_ranges must be a list of 'START-END' hex strings")
+        return
+    for spec in value:
+        rng = f"{label}: iocontrol_scan_ranges entry '{spec}'"
+        parts = str(spec).split("-")
+        if len(parts) != 2:
+            errors.append(f"{rng} must be 'START-END' (e.g. 'B000-BFFF')")
+            continue
+        try:
+            lo = int(parts[0], 16)
+            hi = int(parts[1], 16)
+        except ValueError:
+            errors.append(f"{rng} has non-hex bounds")
+            continue
+        if not 0 <= lo <= 0xFFFF or not 0 <= hi <= 0xFFFF:
+            errors.append(f"{rng} bounds must be within 0000-FFFF")
+        elif lo > hi:
+            errors.append(f"{rng} start (0x{lo:04X}) must be <= end (0x{hi:04X})")
+
+
 def _profile_for_ecu_file(path: Path):
     """Build a Profile rooted at an ECU file's grandparent (``<root>/ecus/x.yaml``).
 
@@ -414,6 +445,10 @@ def _validate_ecu_entry(
     # can_bus: physical CAN bus segment(s), validated against the profile's
     # declared vocabulary (can_buses.yaml) — vendor-specific, so per-profile.
     _validate_can_bus_list(ecu_def.get("can_bus"), label, errors, allowed_can_buses_set)
+
+    # iocontrol_scan_ranges: optional list of "START-END" hex DID ranges the
+    # 0x2F scanner sweeps on this ECU (replaces the old hardcoded HK zones).
+    _validate_iocontrol_scan_ranges(ecu_def.get("iocontrol_scan_ranges"), label, errors)
 
     # wake: how to rouse a fast-sleeping ECU before reads (canlib.wake).
     _validate_wake(ecu_def.get("wake"), label, fields, errors)
@@ -933,6 +968,35 @@ def validate_meta(path: Path, required_fields: set[str]) -> list[str]:
     if "physical_bands" in data:
         errors.extend(_validate_physical_bands(data["physical_bands"]))
 
+    if "unit_guess_candidates" in data:
+        errors.extend(_validate_unit_guess_candidates(data["unit_guess_candidates"]))
+
+    return errors
+
+
+def _validate_unit_guess_candidates(candidates: Any) -> list[str]:
+    """Validate the profile.yaml ``unit_guess_candidates:`` list.
+
+    A list of mappings ``{factor, offset?, label, hint?, dimension?}``. Only the
+    shape/types are checked — the resolver
+    (``canlib.unit_guess.resolve_unit_candidates``) drops a malformed entry.
+    """
+    if not isinstance(candidates, list):
+        return ["profile.yaml: 'unit_guess_candidates' must be a list of {factor, label, …}"]
+    errors: list[str] = []
+    for i, entry in enumerate(candidates):
+        label = f"profile.yaml: unit_guess_candidates[{i}]"
+        if not isinstance(entry, dict):
+            errors.append(f"{label} must be a mapping")
+            continue
+        factor = entry.get("factor")
+        if isinstance(factor, bool) or not isinstance(factor, (int, float)):
+            errors.append(f"{label}: 'factor' must be a number")
+        offset = entry.get("offset", 0.0)
+        if isinstance(offset, bool) or not isinstance(offset, (int, float)):
+            errors.append(f"{label}: 'offset' must be a number")
+        if not isinstance(entry.get("label"), str) or not str(entry.get("label")).strip():
+            errors.append(f"{label}: 'label' must be a non-empty string")
     return errors
 
 

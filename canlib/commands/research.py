@@ -15,7 +15,8 @@ Modes / filters (all combine with AND):
   --type TYPE           scan | decode | verify | iocontrol_scan
   --status STATUS       pending | captured | nrc | done
   --priority PRIO       P1 | P2 | P3
-  --states STATE        SLEEP | PLUGGED | ACC | ACC2 | READY | CHARGING | ALL
+  --states STATE        a token from the profile's vehicle-state vocabulary
+                        (base SLEEP/ACC/RUN/CRANK + ALL + any the profile declares)
                         (aliases: --vehicle-states / --prerequisite / --prereq;
                         case-insensitive)
   --summary             Counts by status / type / priority / ECU
@@ -44,7 +45,7 @@ from pathlib import Path
 
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.pids import load_pids
-from canlib.states import CLI_STATE_CHOICES
+from canlib.states import allowed_states, parse_states
 
 NAME = "research"
 
@@ -309,8 +310,8 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "--prereq",
         dest="state",
         type=str.upper,
-        choices=CLI_STATE_CHOICES,
-        help="Filter to items needing this car power state",
+        help="Filter to items needing this car power state (from the profile's "
+        "vehicle-state vocabulary)",
     )
     parser.add_argument(
         "--summary",
@@ -340,6 +341,17 @@ def run(args) -> int:
     if not records:
         print("  No research entries found in ecus/.")
         return 1
+
+    # Friendly (non-fatal) note when filtering on a state outside the profile's
+    # vocabulary — the filter still runs (yields nothing) but the user learns why.
+    if args.state:
+        allowed = allowed_states()
+        if not set(parse_states(args.state)) <= allowed:
+            print(
+                f"  note: '{args.state}' is not in this profile's state vocabulary "
+                f"({', '.join(sorted(allowed))}).",
+                file=sys.stderr,
+            )
 
     filtered = filter_records(
         records,
