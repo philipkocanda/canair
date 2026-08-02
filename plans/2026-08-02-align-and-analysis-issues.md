@@ -29,7 +29,7 @@ AGENTS.md + CHANGELOG, added regression tests
 (`tests/test_align.py::TestDefaultJoinTol`,
 `TestJoinNearest::test_default_tol_covers_round_robin_skew`).
 
-## 2. `align` silently emits zero-joined columns — TO FIX
+## 2. `align` silently emits zero-joined columns — FIXED
 
 **Symptom.** When a selector joins **0** (or very few) rows against the
 reference, `align` prints the column header with all-empty cells and no warning —
@@ -43,7 +43,12 @@ naming the selector and suggesting `--join-tol`. Mirror the existing
 `--against` references. Keep it a warning (not an error) — a legitimately
 disjoint pair (`series_time_ranges_disjoint`) should still produce output.
 
-## 3. `keep:unique` + a bimodal signal breaks correlation ranking — DOCUMENT / GUARD
+**Fix (done).** `align` now warns on stderr for any non-reference signal that
+joined 0 rows, or `< 5%` of reference rows, naming the selector + suggesting
+`--join-tol` (`_warn_thin_joins` in `commands/align.py`; test
+`test_align_command.py::test_warns_on_zero_joined_column`).
+
+## 3. `keep:unique` + a bimodal signal breaks correlation ranking — FIXED
 
 **Symptom.** Hunting for "which byte is the 12 V bus" on VCU 2102 returned many
 bytes at r≈0.998 — none of them actually the 12 V. The 12 V here is effectively
@@ -65,13 +70,33 @@ is nearly useless for *identifying* a signal on this scope.
   monotonic-charge trap (real temps cool, counters don't). Cool-downs /
   regime exits are valuable — don't scope them out.
 
-## 4. VCU_AUX_BATTERY_VOLTAGE misidentified — FIXED (data, not code)
+**Fix (done).** `xanalysis.reference_is_bimodal()` detects a reference that
+collapses into two well-separated clusters (a single gap dominating the wider
+cluster's own spread — which spares a continuously-varying reference like speed —
+with the smaller cluster holding ≥5% of samples so a lone outlier doesn't fire).
+`hunt --against` and `correlate --against` warn when the reference is bimodal.
+Documented the trap (and the monotonic-scope reverse trap) under
+"Bimodal references defeat correlation ranking" in
+`docs/concepts/analysis-commands.md`. Tests in
+`test_xanalysis.py::TestReferenceIsBimodal`.
+
+## 4. VCU_AUX_BATTERY_VOLTAGE misidentified — FIXED (byte found)
 
 Not a tooling bug, recorded here for the trail. `VCU 2102 VCU_AUX_BATTERY_VOLTAGE`
 (`B18/10`) read 14.70 V live in stable ACC2 while BMS/OBC/BCM agreed at
 12.16–12.20 V (no lag possible). B18 tracks the bus **inversely**, so no rescale
 fixes it. Demoted (`enabled: false`, unverified) with a research lead to find
 VCU's real 12 V byte from `keep-all` data. See `ecus/vcu.yaml`.
+
+**Resolution (done).** The **absolute-value anchoring** method from #3 found the
+real byte without a `keep-all` drive: **B14** is the only byte that hits ≈14.5 V
+charging *and* ≈12.2 V in ACC2 under one scale. `B14 * 0.0974` (≈`B14/10.27`)
+matches the OBC/BMS/BCM 12 V consensus to mean|Δ| **0.032 V** across the full
+12.4–15.0 V range (n=696), incl. the live ACC2 point. Re-pointed
+`VCU_AUX_BATTERY_VOLTAGE` to it (verified), removed the redundant raw
+`VCU_2102_B14` placeholder, closed the research lead. (B20/B27 also matched the
+14.5/12.2 *ratio* but needed an unphysical ×0.254 scale — they're the HV-state
+status bytes, correctly rejected.)
 
 ## Notes / follow-ups
 

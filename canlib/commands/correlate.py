@@ -46,6 +46,7 @@ from canlib.xanalysis import (
     correlation,
     lag_scan,
     load_ref,
+    reference_is_bimodal,
     transform_ref,
 )
 
@@ -618,6 +619,15 @@ def run(args) -> int:
                     file=sys.stderr,
                 )
                 return 1
+
+        if reference_is_bimodal([tp.value for tp in ref_series]):
+            print(
+                f"correlate: warning: reference {ref_label!r} collapses into ~2 clusters "
+                "(bimodal) \u2014 |r| then ranks cluster separation, not a real relationship, "
+                "so --against results are unreliable. Prefer a scope with continuous "
+                "variation. See docs/concepts/analysis-commands.md.",
+                file=sys.stderr,
+            )
 
         # --control: rank by partial correlation with a nuisance signal removed.
         control_series = None

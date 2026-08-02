@@ -114,3 +114,32 @@ All of these share the scope flags (`--since`/`--until`/`--date`, `--state`,
     caveat for `keep:unique`, a milder one for `keep:changes` (stored rows are
     transitions, not fixed-rate samples). Rate/`delta` analysis is unreliable on
     either; use `--keep-all` when you need real sampling cadence.
+
+!!! warning "Bimodal references defeat correlation ranking"
+    When a reference signal collapses into **two flat, well-separated clusters** —
+    e.g. a 12 V bus that sits at ~14.5 V while charging and ~12.2 V otherwise,
+    with little variation *within* each level — correlation stops being useful for
+    *identifying* a signal. **Any** candidate byte that merely differs between the
+    two regimes then correlates near-perfectly (`|r|≈1`), because all the apparent
+    "signal" is the single between-cluster jump every regime-discriminating byte
+    shares (a two-cluster / point-biserial artifact). So `hunt --against` and
+    `correlate --against` rank *cluster separation*, not a real match, and the top
+    hits are meaningless.
+
+    `hunt`/`correlate` now **warn** when the reference is bimodal. When you see it
+    (or suspect it): don't trust the ranking — instead
+
+    - scope to data with **continuous variation** in the reference (a `keep-all`
+      drive where the 12 V/temperature actually sweeps a range), not a two-state
+      regime flip, and/or
+    - **anchor on absolute value** rather than correlation: a real signal must
+      match the *known* physical value at each regime (e.g. read ≈12.2 in ACC2
+      **and** ≈14.5 while charging), which a spurious regime-discriminator won't.
+
+    A continuously-varying reference (vehicle speed: flat at 0 parked, then a
+    *wide* moving cluster) is **not** flagged — the gap there doesn't dominate the
+    moving cluster's own spread, so correlation against it stays meaningful.
+
+    Related: the reverse trap on a **monotonic** scope (a single long charge where
+    everything slowly rises) — every rising byte correlates too. A regime *exit*
+    (the post-charge cool-down) breaks it: real temperatures fall, counters don't.

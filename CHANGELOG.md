@@ -18,6 +18,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sample always wins); widen further with `--join-tol` for sparse/`keep:unique`
   scopes.
 
+### Added
+
+- **`align` warns on thin/empty joins.** When a joined signal lands on 0 (or
+  `< 5%`) of the reference rows within `--join-tol`, `align` now prints a stderr
+  warning naming the signal and suggesting a wider `--join-tol` — instead of
+  silently emitting an all-empty column that reads like a broken tool.
+- **`hunt --against` / `correlate --against` warn on a bimodal reference.** When
+  the reference collapses into two flat, well-separated clusters (e.g. a 12 V bus
+  at ~14.5 V charging vs ~12.2 V otherwise), `|r|` ranks *cluster separation*, not
+  a real match, so every regime-discriminating byte scores ~1.0. The tools now
+  detect this and warn; the trap (and the monotonic-scope reverse trap, plus the
+  absolute-value-anchoring workaround) is documented in
+  `docs/concepts/analysis-commands.md`.
+
 ## [1.10.1] - 2026-08-02
 
 ### Changed

@@ -34,6 +34,33 @@ class TestStats:
         assert resid == pytest.approx(0.0)
 
 
+class TestReferenceIsBimodal:
+    def test_two_flat_clusters_true(self):
+        # 12V-bus style: ~14.5V charging vs ~12.2V otherwise, tight within each.
+        assert xanalysis.reference_is_bimodal([14.5] * 40 + [12.2] * 20)
+
+    def test_minority_cluster_still_true(self):
+        # Charge dominates (~92%), ACC2 minority (~8%) — still a two-cluster ref.
+        assert xanalysis.reference_is_bimodal([14.5] * 90 + [12.2] * 8)
+
+    def test_continuous_ramp_false(self):
+        assert not xanalysis.reference_is_bimodal([12.0 + i * 0.05 for i in range(60)])
+
+    def test_speed_like_false(self):
+        # Big flat-at-zero block + a WIDE moving cluster: the gap doesn't dominate
+        # the moving cluster's own spread, so it must NOT be flagged (speed works).
+        assert not xanalysis.reference_is_bimodal([0.0] * 200 + [5 + i * 0.1 for i in range(500)])
+
+    def test_lone_outlier_false(self):
+        assert not xanalysis.reference_is_bimodal([12.0 + i * 0.02 for i in range(200)] + [40.0])
+
+    def test_too_few_samples_false(self):
+        assert not xanalysis.reference_is_bimodal([14.5] * 3 + [12.2] * 2)
+
+    def test_constant_false(self):
+        assert not xanalysis.reference_is_bimodal([12.4] * 30)
+
+
 class TestDiscriminability:
     def test_clean_separation_high(self):
         # Two states, tight within each, far apart between -> large F.

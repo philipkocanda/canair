@@ -99,3 +99,19 @@ class TestAlign:
         rc = _run(tmp_path, monkeypatch, ["BOGUS:9999:B3", "IGPM:22BC03:B10"])
         assert rc == 1
         assert "no timed captures" in capsys.readouterr().err
+
+    def test_warns_on_zero_joined_column(self, tmp_path, monkeypatch, capsys):
+        # Two PIDs recorded at disjoint times (>tol apart) → the second joins
+        # zero reference rows; align must warn (not silently emit empty cells).
+        caps = []
+        for t in ["09:00:00", "09:00:02", "09:00:04"]:  # reference cadence
+            caps.append({"ecu": "IGPM", "pid": "22BC03", "payload": "62BC03FDEE3C7300", "time": t})
+        for t in ["09:05:00", "09:05:02"]:  # far away — beyond any sane tol
+            caps.append({"ecu": "IGPM", "pid": "22BC05", "payload": "62BC057F112000", "time": t})
+        doc = {"sessions": [{"date": "2026-07-24", "keep_mode": "all", "captures": caps}]}
+        (tmp_path / "2026-07-24.json").write_text(json.dumps(doc))
+        rc = _run(tmp_path, monkeypatch, ["IGPM:22BC03:B3", "IGPM:22BC05:B3", "--csv"])
+        assert rc == 0
+        err = capsys.readouterr().err
+        assert "joined 0 of 3 reference rows" in err
+        assert "--join-tol" in err

@@ -27,7 +27,7 @@ from canlib.notation import (
     resolve_notation,
     subfunction_bytes_for_pid,
 )
-from canlib.xanalysis import hunt_byte, load_ref, transform_ref
+from canlib.xanalysis import hunt_byte, load_ref, reference_is_bimodal, transform_ref
 
 NAME = "hunt"
 
@@ -409,6 +409,16 @@ def run(args) -> int:
     if args.transform and args.transform != "raw":
         ref_series = transform_ref(ref_series, args.transform)
         ref_label = f"{args.transform}({ref_label})"
+
+    if reference_is_bimodal([tp.value for tp in ref_series]):
+        print(
+            f"hunt: warning: reference {ref_label!r} collapses into ~2 clusters "
+            "(bimodal) \u2014 |r| then ranks cluster separation, not a signal match, so "
+            "the top hits are unreliable. Use a scope with continuous variation "
+            "(a keep-all drive), not a bimodal regime flip. "
+            "See docs/concepts/analysis-commands.md.",
+            file=sys.stderr,
+        )
 
     control_series = None
     if args.control or args.control_file:

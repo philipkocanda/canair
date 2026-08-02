@@ -11,7 +11,7 @@ Pure analysis over ``captures/`` — no device, no numpy.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 
@@ -54,9 +54,49 @@ __all__ = [
     "linear_fit",
     "pearson",
     "physical_scan",
+    "reference_is_bimodal",
     "sniff_unit",
     "transform_ref",
 ]
+
+
+# ---------------------------------------------------------------------------
+# Reference-quality guard
+# ---------------------------------------------------------------------------
+def reference_is_bimodal(
+    values: Sequence[float | None],
+    *,
+    min_n: int = 15,
+    min_cluster_frac: float = 0.05,
+    gap_ratio: float = 3.0,
+) -> bool:
+    """True when a reference collapses into ~2 well-separated value clusters.
+
+    On such a reference — e.g. a 12 V bus that sits at ~14.5 V while charging and
+    ~12.2 V otherwise — *any* candidate that merely differs between the two
+    regimes correlates near-perfectly (a two-cluster / point-biserial artifact),
+    so |r| ranks *cluster separation*, not a real signal match. Detected by a
+    single dominant gap (``> gap_ratio ×`` the wider cluster's own spread — which
+    is what spares a *continuously*-varying reference like speed, whose "moving"
+    cluster is wide) that splits the values into two clusters, the smaller
+    holding at least ``min_cluster_frac`` of the samples (so a lone outlier
+    doesn't trigger it).
+    """
+    vals = [float(v) for v in values if v is not None]
+    n = len(vals)
+    if n < min_n:
+        return False
+    uniq = sorted(set(vals))
+    if len(uniq) < 2 or uniq[-1] == uniq[0]:
+        return False  # constant
+    gap, k = max((uniq[i + 1] - uniq[i], i) for i in range(len(uniq) - 1))
+    within = max(uniq[k] - uniq[0], uniq[-1] - uniq[k + 1])
+    if within > 0 and gap <= gap_ratio * within:
+        return False  # the gap doesn't dominate — looks continuous
+    split = (uniq[k] + uniq[k + 1]) / 2.0
+    n_low = sum(1 for v in vals if v <= split)
+    frac = min(n_low, n - n_low) / n
+    return frac >= min_cluster_frac
 
 
 # ---------------------------------------------------------------------------

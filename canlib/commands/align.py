@@ -160,6 +160,8 @@ def run(args) -> int:
     ref_sorted = sorted(ref_series, key=lambda tp: tp.dt)
     _ref_vals, cols = align_many(ref_series, others, tol_s=args.join_tol)
 
+    _warn_thin_joins(cols, labels, len(ref_sorted), args.join_tol)
+
     rows: list[tuple] = []  # (datetime, {label: value|None})
     for i, tp in enumerate(ref_sorted):
         values: dict[str, float | None] = {ref_label: tp.value}
@@ -174,6 +176,32 @@ def run(args) -> int:
     else:
         _emit_table(rows, labels, args.join_tol, any_keep_unique, any_keep_changes)
     return 0
+
+
+def _warn_thin_joins(cols, labels, n_ref: int, tol: float) -> None:
+    """Warn (stderr) when a joined signal landed on few/no reference rows.
+
+    A silent all-empty column reads like a broken tool; the usual cause is a
+    ``--join-tol`` too tight for the inter-ECU skew of a round-robin poll. Fires
+    for any non-reference signal that joined 0 rows, or fewer than 5%.
+    """
+    if n_ref == 0:
+        return
+    floor = max(1, n_ref // 20)  # 5%
+    for lbl in labels[1:]:
+        n_joined = sum(1 for v in cols[lbl] if v is not None)
+        if n_joined == 0:
+            print(
+                f"align: warning: {lbl!r} joined 0 of {n_ref} reference rows "
+                f"(within \u2264{tol:g}s) \u2014 widen --join-tol or check the scope overlaps",
+                file=sys.stderr,
+            )
+        elif n_joined < floor:
+            print(
+                f"align: warning: {lbl!r} joined only {n_joined} of {n_ref} reference rows "
+                f"(within \u2264{tol:g}s) \u2014 consider a larger --join-tol",
+                file=sys.stderr,
+            )
 
 
 def _emit_json(rows, labels) -> None:
