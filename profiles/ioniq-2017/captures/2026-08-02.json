@@ -5,9 +5,11 @@
       "label": "AAF OBC VCU MCU BMS IGPM HVAC BCM",
       "version": "1.10.0",
       "vehicle_states": [
+        "READY",
+        "PLUGGED",
         "CHARGING"
       ],
-      "notes": "transition READY to CHARGING",
+      "notes": "Car powered to READY (brake + start button), capture started, then charge port opened and cable plugged in (~09:53). EVSE control-pilot handshake at 09:53:55 (pilot duty 0->100%), AC charge started 09:54:18 (~3.3 kW, 230 V / ~15 A; pilot settled to 26.5% = 15.9 A EVSE rating). VCU EV_READY dropped 1->0 as soon as charging began.",
       "keep_mode": "unique",
       "transport": "wican-ws",
       "quality": {
@@ -2170,9 +2172,10 @@
       "label": "AAF OBC VCU MCU BMS IGPM HVAC BCM",
       "version": "1.10.0",
       "vehicle_states": [
+        "PLUGGED",
         "CHARGING"
       ],
-      "notes": "CHARGING",
+      "notes": "~1h24m single-phase AC charge, ~3.4 kW (230 V, 15.3 A AC in; pack ~9 A at 371 V; DC-charge flag = 0). SOC 57->68%, ~+3.6 kWh. Car kept fully powered the whole time: EV_READY=0 but HV contactors closed and the LDC (DC-DC) held 12 V at ~14.5 V, heating from 18 to ~68 C. EVSE charge ended 11:18:07 (pilot->100%, AC->0); HV contactors opened ~11:18:38.",
       "keep_mode": "unique",
       "transport": "wican-ws",
       "quality": {
@@ -49491,9 +49494,10 @@
       "label": "AAF OBC VCU MCU BMS IGPM HVAC BCM",
       "version": "1.10.0",
       "vehicle_states": [
+        "PLUGGED",
         "ACC2"
       ],
-      "notes": "chwrging stopped, car still on",
+      "notes": "Charging stopped, cable still plugged; car still powered (accessory/ignition on, MCU/VCU/BMS still answering) but HV disconnected: LDC HV input ~0 V, 12 V no longer boosted (LDC output 12.5->12.35 V, slowly draining), LDC cooling 62->57 C. Auto-classified ACC2.",
       "keep_mode": "unique",
       "transport": "wican-ws",
       "quality": {

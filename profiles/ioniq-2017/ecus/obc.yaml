@@ -193,6 +193,22 @@ OBC:
           verified: true
           notes: >
             Measured AC input current (actual grid draw). Verified 2026-07-27 EVSE pilot step 10/13/16A -> 9.3/12.4/15.4A: tracks the pilot ~0.6A below the advertised limit and matches the power balance V_dc*I_dc/eff/V_ac. Low byte B34 is the ex-'constant 250 (0xFA)' from the steady 16A charge — it only varied once the current stepped. ISO-TP 0x1B-0x1C.
+        OBC_CHARGE_STATE:
+          expression: B20
+          type: enum
+          values:
+            0: connected, EVSE idle (no pilot PWM)
+            2: charging (relay closed, current flowing)
+            3: CP handshake / ready (pilot PWM present)
+          source: RE 2026-08-02 charge phase transitions
+          verified: false
+          notes: >-
+            AC charge state machine at B20 (ISO-TP index). Steps 0->3->2 exactly with the
+            control-pilot: 0 while plugged but EVSE idle (pilot duty 0%), 3 during CP handshake
+            (pilot 100%), 2 while charging (pilot 26.5%, OBC_DC_A>0). All-history: only 0/2/3
+            (n=4654). IEC-61851-style (A/B/C). Companion bytes B17 (=3 only while current flows),
+            B22 (=1 only pre-charge), B35 (0/3/1 parallel) — see research lead. AC-only profile;
+            DC-charge states unobserved.
 
 
     2102:
@@ -346,6 +362,14 @@ OBC:
         - "PURE-12V step still wanted: the 2026-07-30 READY step used HVAC (blower 12V + AC compressor HV together), confounding pack-current. Repeat with a 12V-ONLY load (rear defroster + high beams + blower, AC OFF) co-polling OBC:2101 + VCU:2102 + VCU:21F2 + BMS:2101 --keep-all — then pack BATTERY_CURRENT should equal the LDC HV-input current alone, giving an efficiency cross-check on VCU_AUX_POWER/LDC_OUTPUT_V."
         - "Re-capture VCU 21F2 with --keep-all during a CHARGING session (LDC ~10A steady, energy-balance known) — the current set has no charging 21F2, so its analog bytes can't be contrasted charging-vs-ready yet."
         - "ACCEPTED: LDC output current is not broadcast on this 2017 model (confirmed under a 137->651W READY load swing — only the rail voltage droops). Derive it as VCU_AUX_POWER / LDC_OUTPUT_V. Cross-ECU, so not a single WiCAN expression; verify VCU_AUX_POWER first (still climate/electronics/total unresolved)."
+    - type: decode
+      target: 2101 charge state machine B17/B22/B35/B36
+      status: captured
+      priority: P2
+      vehicle_states: [CHARGING]
+      created: "2026-08-02"
+      updated: "2026-08-02"
+      notes: "OBC 2101 has a cluster of charge-phase flag/enum bytes beyond OBC_CHARGE_STATE (B20). Observed 2026-08-02 AC charge: B17=3 only while current flows; B22=1 only when plugged pre-handshake; B35=0/3/1 (idle/handshake/charging); B36=0/232/9-34 (232 at handshake+stop). Decode each vs control-pilot + OBC_DC_A. Needs a DC fast-charge session to see additional states."
 
   sessions:
     "81":

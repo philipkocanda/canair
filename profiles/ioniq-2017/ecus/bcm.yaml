@@ -344,27 +344,39 @@ BCM:
             12V battery voltage measured by BCM. Formula v*0.08 estimated: value 149 → 11.92V, cross-referenced
             against WiCAN onboard voltage sensor reading 12.1V at same time (value ~149).
             Approximate — needs multimeter reference to confirm exact scale.
-        BCM_POWER_MODE:
-          expression: "B12"
+        BCM_B003_B12:
+          expression: B12
           unit: ""
           display: ""
           ha_class: ""
           min: "0"
           max: "255"
-          source: "Reverse engineered from cross-state comparison"
+          source: RE 2026-08-02 state discrimination (READY/CHARGING/ACC2)
           source_links: []
           verified: false
-          notes: >
-            WiCAN B12 (ELM payload index 9). Shows ADC-like values (~245-248) during deep
-            sleep, oscillating ±1 LSB (typical ADC noise). Earlier captures showed 0x09 and
-            0x0A — possibly from a different vehicle state (ACC/IGN on) or a pre-PCI-fix
-            byte offset error. Disabled until values are better understood with at-car
-            captures across multiple vehicle states.
-
+          notes: >-
+            Was mislabelled BCM_POWER_MODE. In every labelled power state
+            (SLEEP..ACC..READY..CHARGING) B12 reads only 245/246 and does NOT track the state (F=0.7
+            across READY/CHARGING/ACC2) — not a power-mode enum. It just toggles 245<->246 for an
+            unknown reason; a few unlabelled edge captures show other values (9-246, likely
+            transitional/partial reads). Real power-state discriminators on this PID are B10/B28 (12
+            V bus). Disabled pending identification.
     # ─── TPMS configuration DIDs (22C001-C014) ───────────────────────────
     # Static TPMS sensor registration, IDs, and configuration data.
     # C00B (above) has live tyre pressure/temp readings.
-
+          enabled: false
+        BCM_12V_SENSE2:
+          expression: B28*0.08
+          unit: V
+          min: "0"
+          max: "20"
+          source: RE 2026-08-02 state discrimination
+          verified: false
+          notes: >-
+            Second 12 V-bus voltage at B28 (B10 is BCM_12V_BATTERY). Tracks B10 within ~0.16 V (B28
+            median 184 vs B10 182), and drops with it 14.5->12.4 V when HV/DC-DC stops after charge
+            (F=674 across states). Likely a different sense point (LDC output vs battery terminal).
+            Confirm which node.
     22C001:
       status: ignored
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]

@@ -398,6 +398,18 @@ VCU:
           notes: >-
             Adjacent unmapped byte, candidate. 131-138 (8 distinct), sits next to
             VCU_AUX_BATTERY_VOLTAGE (B18 in the aux-voltage region). Check if voltage/temp-like.
+        VCU_HV_MAIN_RELAY_ON:
+          expression: B10
+          unit: ""
+          min: "0"
+          max: "1"
+          source: capture 2026-08-02 READY+AC-charge→ACC2
+          verified: false
+          notes: >-
+            Flag at B10 (ISO-TP 0x07); neighbours B9/B11 constant. 0/1: mirrors BMS_MAIN_RELAY and
+            HV DC-link presence — 1 while HV contactors closed (READY + AC charging), flips 0 at
+            11:18:38 exactly when LDC_HV_INPUT collapses 206->6.7V after charge stop. Confirm across
+            an ignition cycle / drive.
     21F2:
       parameters:
         CHARGE_TIMER_WKND_END_HOUR:

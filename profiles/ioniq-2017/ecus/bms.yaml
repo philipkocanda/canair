@@ -425,6 +425,16 @@ BMS:
             charge-progression (SOC-monotone) confound — can't be distinguished from any other
             rising quantity in this steady charge. Low confidence; needs a dynamic capture
             (drive/charge-cycle) to characterize.
+        BMS_HV_RELAY_FLAG:
+          expression: B62
+          min: "0"
+          max: "1"
+          source: RE 2026-08-02 cross-ECU mirror
+          verified: false
+          notes: >-
+            Whole-byte HV main-relay flag at B62 (ISO-TP index). 0/1, mirrors the BMS_MAIN_RELAY bit
+            (B14:0) and VCU:2102:B10 exactly — 1 while HV contactors closed, flips 0 at 11:18:39
+            when HV drops after charge. Cleaner whole-byte form of the relay state.
 
     2105:
       status: active
