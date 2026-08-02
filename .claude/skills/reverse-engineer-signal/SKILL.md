@@ -237,7 +237,10 @@ vs ready) — contrast is what lets you separate signal bytes from constants. Fo
 **cross-signal analysis** (step 7), co-poll the target PID *together with* an ECU
 carrying a known reference (speed on ESC, RPM on MCU) in one `canair read` /
 `canair monitor` run — they'll share a drive so `hunt`/`correlate`/cross-ECU `--corr`
-can time-align them. Every payload capture is now timestamped automatically, so
+can time-align them. A recurring co-poll set is worth saving as a **group** and
+recalling with the `@` sigil (`canair monitor @driving CLU:220B` = the saved
+`driving` group plus an extra selector); manage groups with `canair groups`.
+Every payload capture is now timestamped automatically, so
 any co-polled drive is joinable; only one-shot scans/identity reads stay untimed.
 **Never hand-edit `captures/` — and never read the raw capture files
 (`captures/YYYY-MM-DD.json`) directly.** Always inspect captures through

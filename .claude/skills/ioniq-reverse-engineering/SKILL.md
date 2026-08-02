@@ -253,12 +253,15 @@ canair read "query BMS:2101" "query VCU:2101"       # multi-ECU, one session
 canair read "session IGPM --wake" "query IGPM:BC03,BC06"   # wake + query
 canair read "skm-wake acc" "sleep 1" "query BCM:B00E" "repl"
 canair monitor "query BCM" --interval 2   # live refresh (default keep:changes)
+canair monitor @charging                  # a saved selector group (see `canair groups`)
 ```
 
 Step verbs: `skm-wake [acc|ign1|ign2|start]`, `session <ECU> [--wake] [--mode XX]`,
 `query <ECU>[:PIDLIST] …`, `raw <TX:PID> [--hold]`, `scan <TX> <SVC> <RANGE> [APPEND]`,
 `iocontrol <ECU> <DID> [--off]`, `sleep <s>`, `repl`.
-ECUs resolve by name (`IGPM`) or hex TX ID (`770`).
+ECUs resolve by name (`IGPM`) or hex TX ID (`770`). A **`@group`** token in a
+`read`/`monitor` step expands to a saved set of selectors (`canair groups` to
+list/edit; e.g. `@charging`, `@driving`) and composes with ad-hoc selectors.
 
 ### `canair monitor`
 

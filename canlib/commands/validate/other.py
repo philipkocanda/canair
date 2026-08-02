@@ -61,6 +61,84 @@ def _run_states() -> int:
     return 0
 
 
+def _run_groups() -> int:
+    """Validate the profile's optional groups.yaml (selector-group vocabulary)."""
+    from canlib.ecus import build_canonical_name_index, canonical_ecu_name_safe
+    from canlib.pids import build_ecu_index, load_pids
+    from canlib.profile import active
+    from canlib.query import QueryError, parse_selector
+
+    path = active().groups_file
+    if not path.exists():
+        print("No groups.yaml (optional) — skipping.")
+        return 0
+
+    data = yaml_io.safe_load(path.read_text()) or {}
+    if not isinstance(data, dict) or "groups" not in data:
+        print("groups.yaml: missing top-level 'groups:' mapping")
+        return 1
+    groups = data.get("groups")
+    if not isinstance(groups, dict):
+        print("groups.yaml: 'groups' must be a mapping keyed by group name")
+        return 1
+
+    # Registry for the member ECU-existence check (best-effort — an absent/partial
+    # registry just skips that check, mirroring the query resolver's tolerance).
+    try:
+        ecu_index = build_ecu_index(load_pids())
+        name_index = build_canonical_name_index()
+    except Exception:
+        ecu_index, name_index = {}, None
+
+    errors: list[str] = []
+    seen: set[str] = set()
+    n_members = 0
+    for name, meta in groups.items():
+        key = str(name).strip().lower()
+        if not key:
+            errors.append("empty group name")
+            continue
+        if key in seen:
+            errors.append(f"duplicate group name '{key}'")
+            continue
+        seen.add(key)
+        if isinstance(meta, dict):
+            for extra in set(meta) - {"description", "members"}:
+                errors.append(f"group '{key}': unknown field '{extra}'")
+            members = meta.get("members")
+        elif isinstance(meta, list):  # bare-list shorthand
+            members = meta
+        else:
+            errors.append(f"group '{key}': must be a mapping (description/members) or a list")
+            continue
+        if not isinstance(members, list) or not members:
+            errors.append(f"group '{key}': 'members' must be a non-empty list")
+            continue
+        for raw in members:
+            tok = str(raw).strip()
+            n_members += 1
+            if tok.startswith("@"):
+                errors.append(f"group '{key}': member '{tok}' — groups cannot contain groups")
+                continue
+            try:
+                sel = parse_selector(tok)
+            except QueryError as ex:
+                errors.append(f"group '{key}': invalid member selector '{tok}': {ex}")
+                continue
+            if ecu_index:
+                canon = canonical_ecu_name_safe(sel.ecu, name_index).upper()
+                if canon not in ecu_index:
+                    errors.append(f"group '{key}': member '{tok}' names unknown ECU '{sel.ecu}'")
+
+    if errors:
+        print(f"groups.yaml: {len(errors)} errors")
+        for e in errors:
+            print(f"  - {e}")
+        return 1
+    print(f"groups.yaml: OK ({len(seen)} groups, {n_members} members)")
+    return 0
+
+
 _ARB_ID_RE = re.compile(r"^0x[0-9A-Fa-f]+$")
 
 

@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Named capture/monitor selector groups (`@group`).** Save a recurring set of
+  ECU / ECU:PID selectors as a named group in a per-profile `groups.yaml` and
+  recall it on the command line with the `@` sigil — e.g. `canair monitor
+  @charging` (BMS:2101 BMS:2105 OBC VCU MCU) or `canair read @driving`. Groups
+  compose freely with each other and with ad-hoc selectors (`canair monitor
+  @driving CLU:220B`); the expansion is purely textual, run before the query
+  parser, so it works anywhere `read`/`monitor` take steps.
+  - New **`canair groups`** command: list (human + `--json`) and edit
+    (`add`/`rm`/`rename`/`set-description`/`set-members`) the vocabulary
+    surgically (comment-preserving, re-validated, reverted on failure).
+  - New **`canair validate groups`** (folded into `validate all`): checks
+    structure, member-selector syntax, and that each member's ECU exists.
+  - The bundled `ioniq-2017` profile ships five seeded groups (`charging`,
+    `driving`, `powertrain`, `climate`, `body`) plus commented examples; new
+    profiles are scaffolded with an empty `groups.yaml`.
+
 ### Changed
 
 - **Analysis/scan tooling de-Hyundai'd — make-neutral defaults, profile-declared

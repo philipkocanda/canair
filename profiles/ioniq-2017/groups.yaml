@@ -1,0 +1,58 @@
+# Hyundai Ioniq 2017 EV — capture/monitor selector groups
+#
+# A group is a named, reusable query: a list of ECU / ECU:PID selectors in the
+# shared mini-language. Reference one on the command line with the `@` sigil, and
+# compose it with ad-hoc selectors:
+#
+#   canair monitor @charging                 # BMS:2101 BMS:2105 OBC VCU MCU
+#   canair monitor @driving CLU:220B         # a group plus an extra selector
+#   canair read @powertrain --save --label "…" --state "READY, DRIVING"
+#
+# Members are plain selectors (ECU or ECU:PID) — not full mini-language steps.
+# Inspect/edit with `canair groups` (never hand-edit — it re-validates on write).
+# Schema: canlib/schema/groups_schema.yaml   (canair validate groups)
+
+groups:
+  # SoC / charge power / OBC while plugged in. BMS:2101 = charge power + SOC_BMS,
+  # BMS:2105 = SOC_DISP (dash SoC); OBC/VCU/MCU round out the charge picture.
+  charging:
+    description: SoC, charge power and OBC while plugged in
+    members: [BMS:2101, BMS:2105, OBC, VCU, MCU]
+
+  # Powertrain + chassis while driving (odometer/distance changes on CLU).
+  driving:
+    description: Powertrain + chassis while driving (odometer on CLU)
+    members: [BMS, VCU, MCU, EPS, ESC, CLU]
+
+  # HV drive-core essentials — the most-co-polled trio for drive analysis
+  # (pack power, vehicle state, motor torque).
+  powertrain:
+    description: HV drive-core essentials (pack power, vehicle state, motor torque)
+    members: [BMS:2101, VCU:2101, MCU:2102]
+
+  # Climate power / heat-pump / active air flap work.
+  climate:
+    description: Climate power / heat-pump / active air flap
+    members: [HVAC, VCU:2102, BMS:2101, AAF]
+
+  # Body / gateway / smart-key comfort modules (door/lock/hood event decoding).
+  body:
+    description: Body / gateway / smart-key comfort modules
+    members: [IGPM, BCM, SKM]
+
+  # --- More useful sets (uncomment to enable) --------------------------------
+  # charge-detail:              # deeper superset of `charging` incl. DC-fast-charge PLC
+  #   description: Full charge picture incl. DC fast-charge (CCM/PLC)
+  #   members: [BMS:2101, BMS:2105, OBC:2101, VCU:2102, CCM]
+  # battery:                    # cell-voltage / temperature deep-dive (all BMS pages)
+  #   description: All BMS pages — cell voltages, temperatures, SoC
+  #   members: [BMS:2101, BMS:2102, BMS:2103, BMS:2104, BMS:2105]
+  # 12v:                        # LDC / 12V-rail / aux-battery-voltage cross-refs
+  #   description: LDC / 12V rail / aux-battery-voltage cross-references
+  #   members: [OBC:2101, VCU:2102, AAF:2180]
+  # motion:                     # wheel speed / steering / vehicle speed / odometer
+  #   description: Wheel speed / steering angle / vehicle speed / odometer
+  #   members: [ESC, EPS, CLU, VCU:2101]
+  # adas:                       # driver-assist cameras + radar
+  #   description: Driver-assist cameras and radar
+  #   members: [MFC, SCC, BSD-L, BSD-R, RCAM]

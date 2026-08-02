@@ -18,9 +18,11 @@ import sys
 
 from canlib.commands._live import (
     add_connection_args,
+    expand_step_groups,
     finalize_live_parser,
     param_completer,
     run_live,
+    step_completer,
     to_step,
 )
 
@@ -39,6 +41,8 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
 examples:
   canair read BMS:2101                      Read BMS PID 2101
   canair read "VCU:2101 BMS:2101"           Cross-ECU read
+  canair read @charging                     Read a saved group (see `canair groups`)
+  canair read @driving CLU:220B             A group plus an extra selector
   canair read "skm-wake acc" "query IGPM:BC03,BC06"
   canair read --param SOC_BMS SOC_DISP      Read named parameters
 
@@ -50,8 +54,8 @@ examples:
         "steps",
         nargs="*",
         metavar="STEP",
-        help="Read selector(s) or multi mini-language step(s)",
-    )
+        help="Read selector(s), @group(s), or multi mini-language step(s)",
+    ).completer = step_completer
     parser.add_argument(
         "--param", nargs="+", metavar="NAME", help="Read named parameters instead of selectors"
     ).completer = param_completer
@@ -77,6 +81,15 @@ examples:
 
 def run(args) -> int:
     if args.steps:
+        # Expand any @group references into their member selectors before the
+        # mini-language parser sees them (composes with ad-hoc selectors).
+        from canlib.ecu_groups import GroupError
+
+        try:
+            args.steps = expand_step_groups(args.steps)
+        except GroupError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            return 2
         args.multi = [to_step(s) for s in args.steps]
         # Validate the mini-language up front so ambiguous/malformed steps fail
         # loudly *before* we acquire the device lock and open a connection.

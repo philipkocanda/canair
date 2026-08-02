@@ -19,9 +19,10 @@ import sys
 
 from canlib.commands._live import (
     add_connection_args,
+    expand_step_groups,
     finalize_live_parser,
-    param_completer,
     run_live,
+    step_completer,
     to_step,
 )
 
@@ -40,6 +41,8 @@ examples:
   canair monitor BMS:2101                   Monitor BMS PID 2101 (default 5s interval)
   canair monitor BMS:2101 --interval 2      Refresh every 2s
   canair monitor "VCU:2101 BMS:2101"        Cross-ECU monitor
+  canair monitor @charging                  Monitor a saved group (see `canair groups`)
+  canair monitor @driving CLU:220B          A group plus an extra selector
   canair monitor "skm-wake acc" "query IGPM:BC03,BC06"
   canair monitor BMS:2101 --save --label "…" --state "READY, PARKED"  Record while monitoring
 
@@ -60,8 +63,8 @@ For a single one-shot read (no live refresh) use `canair read` instead.
         "steps",
         nargs="*",
         metavar="STEP",
-        help="Query selector(s) or multi mini-language step(s)",
-    ).completer = param_completer
+        help="Query selector(s), @group(s), or multi mini-language step(s)",
+    ).completer = step_completer
     parser.add_argument(
         "--interval",
         type=float,
@@ -116,6 +119,16 @@ def run(args) -> int:
             "Error: monitor needs at least one query step, e.g. `canair monitor BMS:2101`",
             file=sys.stderr,
         )
+        return 2
+
+    # Expand any @group references into their member selectors before the
+    # mini-language parser sees them (composes with ad-hoc selectors).
+    from canlib.ecu_groups import GroupError
+
+    try:
+        args.steps = expand_step_groups(args.steps)
+    except GroupError as e:
+        print(f"Error: {e}", file=sys.stderr)
         return 2
 
     args.multi = [to_step(s) for s in args.steps]

@@ -14,7 +14,8 @@ usage: canair read [-h] [--param NAME [NAME ...]] [--session] [--wake]
 [UDS] Read ECUs/parameters live. Positional STEPs use the multi mini-language.
 
 positional arguments:
-  STEP                  Read selector(s) or multi mini-language step(s)
+  STEP                  Read selector(s), @group(s), or multi mini-language
+                        step(s)
 
 options:
   -h, --help            show this help message and exit
@@ -58,6 +59,8 @@ options:
 examples:
   canair read BMS:2101                      Read BMS PID 2101
   canair read "VCU:2101 BMS:2101"           Cross-ECU read
+  canair read @charging                     Read a saved group (see `canair groups`)
+  canair read @driving CLU:220B             A group plus an extra selector
   canair read "skm-wake acc" "query IGPM:BC03,BC06"
   canair read --param SOC_BMS SOC_DISP      Read named parameters
 

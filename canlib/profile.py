@@ -88,6 +88,11 @@ class Profile:
         return self.root / "can_buses.yaml"
 
     @property
+    def groups_file(self) -> Path:
+        """Per-profile capture/monitor selector groups (named saved queries)."""
+        return self.root / "groups.yaml"
+
+    @property
     def out_dir(self) -> Path:
         return self.root / "out"
 

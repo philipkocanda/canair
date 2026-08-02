@@ -37,6 +37,8 @@ Every capability is a `canair <subcommand>`. These pages are generated from each
 - [`canair signals`](signals.md) — ``canair signals`` — view/edit broadcast signal definitions (domain B).
 - [`canair ecu`](ecu.md) — Inspect or edit the profile's ECU registry.
 - [`canair bus`](bus.md) — List the active profile's CAN bus segments with their human names, descriptions, and the number of ECUs on each (from can_buses.yaml).
+- [`canair states`](states.md) — List the active profile's vehicle operating states, or edit the vocabulary (add/rm/rename/set-description/set-predicate). Read-only companion of the state auto-suggestion used when recording captures.
+- [`canair groups`](groups.md) — List the active profile's named selector groups, or edit the vocabulary (add/rm/rename/set-description/set-members). Reference a group on the command line with the @ sigil, e.g. `canair monitor @charging`.
 - [`canair wican`](wican.md) — Build and sync the WiCAN device's AutoPID profile.
 - [`canair validate`](validate.md) — Validate a profile's data files against their schemas and
 
@@ -55,7 +57,6 @@ Every capability is a `canair <subcommand>`. These pages are generated from each
 ### Other
 
 - [`canair align`](align.md) — Emit a time-aligned, wide table of several ECU:PID:PARAM signals — one row per reference sample, one column per signal, nearest-joined within a tolerance. The first selector sets the row cadence; the rest join onto it.
-- [`canair states`](states.md) — List the active profile's vehicle operating states, or edit the vocabulary (add/rm/rename/set-description/set-predicate). Read-only companion of the state auto-suggestion used when recording captures.
 - [`canair contribute`](contribute.md) — ``canair contribute`` — open a pull request for the active profile.
 - [`canair bix`](bix.md) — Convert byte indices between WiCAN, ISO-TP, Torque, and OBDb notations.
 - [`canair logs`](logs.md) — ``canair logs`` — view the central rotating diagnostics event log.

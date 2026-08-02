@@ -25,6 +25,36 @@ why canair can resolve a bare identifier.
     `IGPM:22BC07`. A bare PID in the ECU slot is rejected with a hint. In a query
     step, a space separates *independent ECU selectors*.
 
+## Groups (`@name`)
+
+A **group** is a named, reusable set of selectors saved per-profile in
+`groups.yaml` — a saved query. Recall one on the command line with the `@`
+sigil; it expands to its member selectors before the query is parsed, so it
+composes with other groups and with ad-hoc selectors:
+
+```bash
+canair monitor @charging            # e.g. BMS:2101 BMS:2105 OBC VCU MCU
+canair read @driving                # a whole group
+canair monitor @driving CLU:220B    # a group plus an extra selector
+canair monitor "@charging @powertrain"   # two groups in one step (de-duped)
+```
+
+Groups work anywhere `canair read`/`canair monitor` take steps. Members are
+plain selectors (ECU or `ECU:PID`) — never other groups, never full pipeline
+steps. A group reference carries no PID suffix (`@charging`, not
+`@charging:2101`).
+
+List and edit the vocabulary with [`canair groups`](../reference/cli/index.md)
+(`add`/`rm`/`rename`/`set-description`/`set-members`) — never hand-edit
+`groups.yaml`; the editor re-validates on write. `canair validate groups` checks
+every member's ECU exists.
+
+!!! note "De-dup is per step"
+    Identical selectors within one step are de-duped. Two groups given as
+    *separate* args (`@charging @powertrain`) become separate steps, so a shared
+    selector is polled once per step; put both in one quoted arg to de-dup
+    globally. This matches how hand-typed selectors already behave.
+
 ## Pipelines
 
 `canair read` also accepts a **pipeline** of steps (each a quoted string), run

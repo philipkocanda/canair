@@ -15,7 +15,8 @@ usage: canair monitor [-h] [--interval SECONDS] [--session] [--wake]
 [UDS] Monitor ECUs/parameters live in a scrollable, refreshing view. Positional STEPs use the multi mini-language (same as `canair read`).
 
 positional arguments:
-  STEP                  Query selector(s) or multi mini-language step(s)
+  STEP                  Query selector(s), @group(s), or multi mini-language
+                        step(s)
 
 options:
   -h, --help            show this help message and exit
@@ -68,6 +69,8 @@ examples:
   canair monitor BMS:2101                   Monitor BMS PID 2101 (default 5s interval)
   canair monitor BMS:2101 --interval 2      Refresh every 2s
   canair monitor "VCU:2101 BMS:2101"        Cross-ECU monitor
+  canair monitor @charging                  Monitor a saved group (see `canair groups`)
+  canair monitor @driving CLU:220B          A group plus an extra selector
   canair monitor "skm-wake acc" "query IGPM:BC03,BC06"
   canair monitor BMS:2101 --save --label "…" --state "READY, PARKED"  Record while monitoring
 

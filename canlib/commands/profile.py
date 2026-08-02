@@ -243,6 +243,19 @@ def _cmd_show(args) -> int:
     else:
         print(f"states:     {prof.states_file}  (none — optional)")
 
+    # Selector groups (optional): named saved queries for read/monitor.
+    if prof.groups_file.exists():
+        from canlib.ecu_groups import GroupError, load_groups
+
+        try:
+            groups = load_groups(prof)
+            names = ", ".join(f"@{g}" for g in groups) if groups else "empty"
+            print(f"groups:     {prof.groups_file}  ({len(groups)} groups: {names})")
+        except GroupError as ex:
+            print(f"groups:     {prof.groups_file}  (INVALID: {ex})")
+    else:
+        print(f"groups:     {prof.groups_file}  (none — optional)")
+
     # Broadcast signal maps (optional): one <bus>.yaml per CAN bus.
     if prof.signals_dir.is_dir():
         sig_files = sorted(p.name for p in prof.signals_dir.glob("*.yaml"))
@@ -346,6 +359,7 @@ def create_profile(
     (root / "can_buses.yaml").write_text(
         _render_template("can_buses.yaml.tmpl", car_model=car_model)
     )
+    (root / "groups.yaml").write_text(_render_template("groups.yaml.tmpl", car_model=car_model))
 
     if set_default:
         set_config_value("default_profile", name)

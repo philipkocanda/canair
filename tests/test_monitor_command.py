@@ -75,3 +75,43 @@ class TestQueryNoLongerMonitors:
     def test_query_rejects_monitor_flag(self):
         with pytest.raises(SystemExit):
             _parse(["query", "BMS:2101", "--monitor"])
+
+
+class TestMonitorGroupExpansion:
+    """``@group`` refs expand into their member selectors before dispatch."""
+
+    def _stub(self, monkeypatch, captured):
+        from canlib.commands import monitor
+        from canlib.ecu_groups import Group
+
+        def fake_run_live(args):
+            captured["multi"] = args.multi
+            return 0
+
+        monkeypatch.setattr(monitor, "run_live", fake_run_live)
+        monkeypatch.setattr("canlib.modes.monitor.query_ecu_error", lambda steps, pids: None)
+        monkeypatch.setattr("canlib.commands._live.load_pids", lambda: {})
+        monkeypatch.setattr(
+            "canlib.ecu_groups.load_groups",
+            lambda profile=None: {
+                "charging": Group("charging", "", ("BMS:2101", "OBC", "VCU")),
+            },
+        )
+        return monitor
+
+    def test_group_expands(self, monkeypatch):
+        captured: dict = {}
+        monitor = self._stub(monkeypatch, captured)
+        assert monitor.run(_parse(["monitor", "@charging"])) == 0
+        assert captured["multi"] == ["query BMS:2101 OBC VCU"]
+
+    def test_group_plus_extra_selector(self, monkeypatch):
+        captured: dict = {}
+        monitor = self._stub(monkeypatch, captured)
+        assert monitor.run(_parse(["monitor", "@charging", "CLU:220B"])) == 0
+        assert captured["multi"] == ["query BMS:2101 OBC VCU", "query CLU:220B"]
+
+    def test_unknown_group_errors(self, monkeypatch):
+        captured: dict = {}
+        monitor = self._stub(monkeypatch, captured)
+        assert monitor.run(_parse(["monitor", "@bogus"])) == 2

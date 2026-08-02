@@ -1,0 +1,21 @@
+# $car_model — capture/monitor selector groups
+#
+# A group is a named, reusable query: a list of ECU / ECU:PID selectors in the
+# shared mini-language. Reference one on the command line with the `@` sigil, and
+# compose it with ad-hoc selectors:
+#
+#   canair monitor @charging                 # expands to the group's members
+#   canair monitor @driving CLU:220B         # a group plus an extra selector
+#   canair read @powertrain --save --label "…"
+#
+# Members are plain selectors (ECU or ECU:PID) — not full mini-language steps.
+# Inspect/edit with `canair groups` (never hand-edit — it re-validates on write).
+# See canlib/schema/groups_schema.yaml and `canair validate groups`.
+
+groups: {}
+  # charging:
+  #   description: SoC / charge power while plugged in
+  #   members: [BMS, OBC]
+  # driving:
+  #   description: Powertrain + chassis while driving
+  #   members: [BMS, VCU, MCU]

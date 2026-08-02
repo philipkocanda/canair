@@ -96,6 +96,7 @@ All functionality is exposed as `canair <subcommand>`; run `canair <cmd> --help`
 | `canair ecu` | Inspect ECUs (`ecu <ECU> pids` = per-PID latest state), register one offline (`ecu add`), or open its YAML in `$EDITOR` (`ecu <ECU> edit`, TTY only). |
 | `canair bus` | List the profile's CAN bus segments, their descriptions, and ECU counts. |
 | `canair states` | List/edit the vehicle operating-state vocabulary; `states <STATE>` shows which ECUs are readable in it. |
+| `canair groups` | List/edit named selector groups (saved queries); recall one as `@name` in `read`/`monitor` (e.g. `monitor @charging`). |
 | `canair wican` | Generate the WiCAN AutoPID JSON; upload/download/diff (Pro). |
 | `canair validate` | Validate `ecus/`, `profile.yaml`, and `captures/` against their schemas. |
 
@@ -132,6 +133,7 @@ canair config set default_wican home
 canair status                           # is the device reachable?
 canair discover                         # list every ECU on the bus (any car)
 canair read BMS:2101                    # read a PID (Ioniq profile)
+canair monitor @charging                # monitor a saved selector group (see `canair groups`)
 ```
 
 Full setup — installing, connecting the dongle (Pro vs classic, AP vs LAN), tab-completion, and your first read — is in [Getting started](https://philipkocanda.github.io/canair/getting-started/install/).

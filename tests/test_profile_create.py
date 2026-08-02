@@ -79,6 +79,14 @@ class TestProfileCreate:
         assert "RUN" in names
         assert {"SLEEP", "ACC", "CRANK", "ALL"} <= names
 
+    def test_scaffolds_groups(self, tmp_path):
+        root = tmp_path / "prof"
+        _cmd_create(_args(path=root))
+        gf = root / "groups.yaml"
+        assert gf.exists()
+        # Scaffold ships an empty groups mapping (examples commented out).
+        assert yaml.safe_load(gf.read_text()) == {"groups": {}}
+
     def test_meta_contents(self, tmp_path):
         root = tmp_path / "prof"
         _cmd_create(_args(path=root, init="ATSP0;"))

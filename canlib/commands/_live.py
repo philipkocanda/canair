@@ -223,6 +223,19 @@ def param_completer(prefix, parsed_args=None, **kwargs):
     return sorted(n for n in names if n.upper().startswith(up))
 
 
+def step_completer(prefix, parsed_args=None, **kwargs):
+    """Complete a query STEP: ``@group`` refs when it starts with ``@``, else ECUs."""
+    if prefix.startswith("@"):
+        try:
+            from canlib.ecu_groups import GROUP_SIGIL, load_groups
+
+            names = [f"{GROUP_SIGIL}{g}" for g in load_groups()]
+        except Exception:
+            return []
+        return [n for n in names if n.startswith(prefix)]
+    return ecu_completer(prefix, parsed_args, **kwargs)
+
+
 # ---------------------------------------------------------------------------
 # Multi mini-language step helpers (shared by the query + monitor surfaces)
 # ---------------------------------------------------------------------------
@@ -239,6 +252,20 @@ def to_step(selector: str) -> str:
     if first and first[0].lower() in STEP_VERBS:
         return selector
     return f"query {selector}"
+
+
+def expand_step_groups(steps: list[str]) -> list[str]:
+    """Expand ``@group`` references in positional STEPs into their selectors.
+
+    Loads the active profile's ``groups.yaml`` and rewrites each step textually
+    (see :func:`canlib.ecu_groups.expand_group_refs`) *before* the mini-language
+    parser sees it, so a group composes with ad-hoc selectors and other groups.
+    Raises ``GroupError`` (a ``ValueError``) on a bad/unknown reference — callers
+    already guard step parsing with a ``ValueError`` handler.
+    """
+    from canlib.ecu_groups import expand_group_refs, load_groups
+
+    return expand_group_refs(steps, load_groups())
 
 
 # ---------------------------------------------------------------------------
