@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.2] - 2026-08-02
+
 ### Changed
 
 - **Default nearest-join window widened 2.5s → 5.0s** (`DEFAULT_JOIN_TOL_S`,
@@ -1190,7 +1192,8 @@ dongle (both the WiCAN Pro and the classic/non-Pro WiCAN are supported).
 - Command safety blocklist preventing UDS programming/write sessions against a
   real vehicle.
 
-[Unreleased]: https://github.com/philipkocanda/canair/compare/v1.10.1...HEAD
+[Unreleased]: https://github.com/philipkocanda/canair/compare/v1.10.2...HEAD
+[1.10.2]: https://github.com/philipkocanda/canair/compare/v1.10.1...v1.10.2
 [1.10.1]: https://github.com/philipkocanda/canair/compare/v1.10.0...v1.10.1
 [1.10.0]: https://github.com/philipkocanda/canair/compare/v1.9.1...v1.10.0
 [1.9.1]: https://github.com/philipkocanda/canair/compare/v1.9.0...v1.9.1
