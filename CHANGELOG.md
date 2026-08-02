@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Monitor recording default is now run-length (`keep_mode: changes`), not
+  global dedup.** `canair monitor --save` previously deduplicated recorded
+  payloads *globally* per PID (`keep_mode: unique`), so a return to any prior
+  value — a genuine `A→B→A` oscillation or a falling edge — was dropped, and dwell
+  durations were unrecoverable. The new default **`--keep-changes`** collapses
+  only *immediately-preceding* repeats (run-length encoding): a stationary signal
+  still compacts to one row, but real transitions are all preserved and dwell
+  durations are recoverable from the timestamps. The legacy global behaviour is
+  retained explicitly as **`--keep-unique`** (`keep_mode: unique`) for the
+  smallest possible file when only the set of distinct values matters.
+  Already-recorded `keep_mode: unique` sessions are unchanged and keep their
+  meaning. Analysis tools (`decode`/`correlate`/`investigate`/`align`) now emit a
+  **milder** caveat for `keep:changes` scope (stored rows are value-transitions,
+  not fixed-rate samples) alongside the existing strong caveat for `keep:unique`.
+  Only the recording path changed; the live TUI history and the `uniq` frame
+  counter are unaffected (the on-screen history remains global-unique display).
+
+### Added
+
+- **`canair contribute` staleness guards.** Contributing from a stale source no
+  longer silently reverts upstream work. Two new pre-flight checks warn (and ask
+  to confirm; `--yes`/`--json` non-interactive as elsewhere): (1) an
+  **installed-snapshot guard** flags when the active profile was read from a
+  frozen `site-packages` / `uv tool` / `pipx` copy (a bare `canair` instead of
+  `uv run canair` from a checkout) — that copy can be behind your checkout and
+  ahead on captures from bare `--save` runs; and (2) a **rollback guard** flags
+  when the contribution would *remove* committed upstream lines from curated
+  definitions (`ecus/`, `profile.yaml`, buses, states, signals), which normally
+  only grow. `--diff` surfaces the rollback list too, and `--json` includes a
+  `rollback` array / `installed_snapshot` field.
+
+### Fixed
+
+- **`canair contribute` no longer proposes deleting upstream capture sessions.**
+  `captures/` is now **unioned** with the upstream copy (append-only merge, via
+  the same logic as `canair captures merge-driver`) instead of being replaced
+  wholesale, so a source that is merely *behind* upstream on captures keeps
+  every upstream session instead of showing spurious deletions.
+
 ## [1.10.0] - 2026-08-01
 
 ### Added

@@ -337,7 +337,8 @@ same "reason from the ECU's role" applies to any powertrain):
 - **BCM/IGPM (body)** — mostly *discrete* signals: lights, locks, doors,
   switches → **bitfields and enums**, not continuous analog. Decode these with
   the **bit-level, event-driven** workflow: capture a *narrated* event sequence
-  (`canair monitor --keep-unique`, noting each physical action), then
+  (`canair monitor --save`, the default `keep:changes` run-length recording, which
+  keeps both edges — noting each physical action), then
   `canair investigate <ECU> <PID> --events --bits` to get the rising/falling-edge
   timeline aligned to your notes, and `canair correlate --find-mirrors --bits` to
   find the same bit exposed on a second ECU (e.g. an IGPM door bit mirrored in
@@ -453,7 +454,8 @@ The tooling exposes real statistical levers — use them as evidence, not decora
     by state separation, not dropped). Add **`--events`** for the bit/byte **edge
     timeline** — every rising/falling transition with its timestamp, aligned to
     the nearest capture note; the fastest way to decode a narrated event capture
-    (door/lock/hood). Both **warn on `keep:unique` scope** (rising-edge only).
+    (door/lock/hood). Both **caveat `keep:unique`/`keep:changes` scope** (strong
+    for the legacy global dedup, milder for the run-length default).
 - **Cross-ECU mirror detection** (`canair correlate --find-mirrors [--bits]`) —
   reports byte/bit positions time-aligned *equal* across co-polled ECU/PIDs (a
   door bit in IGPM also present in BCM); the cross-ECU companion to

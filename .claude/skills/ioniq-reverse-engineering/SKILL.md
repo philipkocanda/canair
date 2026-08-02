@@ -252,7 +252,7 @@ canair read "query BMS:2101"                        # single PID, decoded
 canair read "query BMS:2101" "query VCU:2101"       # multi-ECU, one session
 canair read "session IGPM --wake" "query IGPM:BC03,BC06"   # wake + query
 canair read "skm-wake acc" "sleep 1" "query BCM:B00E" "repl"
-canair monitor "query BCM" --interval 2 --keep-unique   # live refresh, unique payloads
+canair monitor "query BCM" --interval 2   # live refresh (default keep:changes)
 ```
 
 Step verbs: `skm-wake [acc|ign1|ign2|start]`, `session <ECU> [--wake] [--mode XX]`,
@@ -277,17 +277,23 @@ highlights the parameter row(s) whose expression decodes it, with the same
 coverage-coloured background the byte gets. The status line shows a
 **`captured N/uniq M`** frame counter — total fresh payloads received vs distinct
 values kept (both differ from the on-screen row count of one row per PID). **Keep-mode default is
-`--keep-unique`** — the monitor stores only distinct payloads per PID, so a
-`--save` session doesn't balloon its capture file with every polled duplicate;
-pass `--keep-all` to retain every cycle with timestamps (full time-series, larger
-files), or `--keep N` for the last N per PID. `--keep-unique` (the default) is
-ideal for **event captures** (door/lock/hood): each stored row
-is a rising-edge transition, so `investigate --events` reconstructs the timeline
-cleanly — but return-to-previous states (falling edges) and durations are dropped,
-so the session is tagged `keep_mode: unique` and analysis tools (`decode`/
-`correlate`/`investigate`) warn and caveat rate/duration math on that scope.
+`--keep-changes`** — run-length dedup: the monitor stores every genuine
+value-transition per PID (collapsing only immediate repeats), so a `--save`
+session doesn't balloon its capture file on a stationary signal yet still records
+real oscillation (`A→B→A`). Pass `--keep-unique` for legacy **global** dedup
+(only globally-distinct values — smallest file, but return-to-previous
+transitions and durations are lost), `--keep-all` to retain every cycle with
+timestamps (full time-series, larger files), or `--keep N` for the last N per
+PID. `--keep-changes` (the default) is ideal for **event captures**
+(door/lock/hood): each stored row is a real transition, so `investigate --events`
+reconstructs the timeline cleanly *and* dwell durations are recoverable from the
+timestamps. Sessions are tagged `keep_mode: changes` (or `unique`), and analysis
+tools (`decode`/`correlate`/`investigate`) caveat rate/duration math on that
+scope — a strong warning for `unique`, a milder one for `changes`.
 (The live view renders only the newest few unique rows per PID to stay compact
-and fast; the full set is still kept in memory and the `--save` journal.)
+and fast — note the on-screen history is still global-unique display, so it won't
+exactly match the run-length `--save` file; the full set is kept in memory and the
+`--save` journal.)
 **When you need real timing/rate** (e.g. a continuous drive log for
 `correlate --transform delta`), use `--keep-all`.
 Throughput is governed by ELM commands/cycle — cut via header caching + service-22
