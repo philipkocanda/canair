@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.1] - 2026-08-02
+
 ### Changed
 
 - **Monitor recording default is now run-length (`keep_mode: changes`), not
@@ -1163,7 +1165,8 @@ dongle (both the WiCAN Pro and the classic/non-Pro WiCAN are supported).
 - Command safety blocklist preventing UDS programming/write sessions against a
   real vehicle.
 
-[Unreleased]: https://github.com/philipkocanda/canair/compare/v1.10.0...HEAD
+[Unreleased]: https://github.com/philipkocanda/canair/compare/v1.10.1...HEAD
+[1.10.1]: https://github.com/philipkocanda/canair/compare/v1.10.0...v1.10.1
 [1.10.0]: https://github.com/philipkocanda/canair/compare/v1.9.1...v1.10.0
 [1.9.1]: https://github.com/philipkocanda/canair/compare/v1.9.0...v1.9.1
 [1.9.0]: https://github.com/philipkocanda/canair/compare/v1.8.1...v1.9.0
