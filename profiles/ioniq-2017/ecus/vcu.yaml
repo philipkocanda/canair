@@ -274,21 +274,20 @@ VCU:
             the Ioniq VCU 2102 field order differs from the Soul VMCU.
 
         VCU_AUX_BATTERY_VOLTAGE:
-          expression: "B18/10"
+          expression: B18/10
           unit: V
           ha_class: voltage
           min: "0"
           max: "16"
           enabled: false
-          source: "Kia Soul EV VMCU CSV (Aux Battery Voltage = e/10)"
+          source: RE 2026-08-02 live ACC2 cross-check
           verified: false
-          notes: >
-            DISABLED 2026-07-20: B18/10 does NOT match the 12V aux battery. Charging cross-check (SOC 94%) read
-            14.8V while the actual 12V bus was 12.8V per BOTH BMS AUX_BATTERY_VOLTAGE (12.80V) and LDC_OUTPUT_V
-            (12.81V). It tracked plausibly (~12.3-13.6V) in READY but reads ~2V high under charge — likely an LDC
-            output target/command rather than the battery terminal. Use BMS AUX_BATTERY_VOLTAGE or LDC_OUTPUT_V
-            for the real 12V. Kept for research trail; excluded from profile.
-
+          notes: >-
+            MISIDENTIFIED - not the 12V bus. Live in stable ACC2 (1h+ after charge, no lag) B18/10
+            read 14.70 V while BMS AUX (12.20), OBC LDC_OUTPUT (12.18) and BCM (12.16) agreed to
+            within 40 mV. B18 tracks the 12V bus INVERSELY (low during 14.5V charge, high in 12.2V
+            ACC2), so no scale fixes it - B18 is some other quantity. Disabled. See research lead
+            for finding VCU's real 12V byte.
         VCU_TORQUE_REQUEST:
           expression: "[S12:S13]"
           unit: ""
@@ -403,13 +402,13 @@ VCU:
           unit: ""
           min: "0"
           max: "1"
-          source: capture 2026-08-02 READY+AC-charge→ACC2
-          verified: false
+          source: RE 2026-08-02, live ACC2 confirmed
+          verified: true
           notes: >-
-            Flag at B10 (ISO-TP 0x07); neighbours B9/B11 constant. 0/1: mirrors BMS_MAIN_RELAY and
-            HV DC-link presence — 1 while HV contactors closed (READY + AC charging), flips 0 at
-            11:18:38 exactly when LDC_HV_INPUT collapses 206->6.7V after charge stop. Confirm across
-            an ignition cycle / drive.
+            HV main-relay/DC-link-present flag at B10 (ISO-TP 0x07); neighbours B9/B11 constant. 1
+            while HV contactors closed (READY+charging, bus ~360V), 0 when open. Verified: flipped
+            1->0 at 11:18:39 as LDC_HV_INPUT collapsed 206->6.7V, and live in ACC2 read 0 with bus
+            at 6.3V. Mirrors BMS_MAIN_RELAY and BMS_HV_RELAY_FLAG (B62).
     21F2:
       parameters:
         CHARGE_TIMER_WKND_END_HOUR:
@@ -688,6 +687,14 @@ VCU:
       what_to_test:
         - --keep-all VCU:21F2 during charge (currently dedup'd to 2 pts)
         - Re-run soc_mirror_scan.py over a READY drive (non-monotone SOC) to separate SOC from voltage
+    - type: decode
+      target: 2102 real 12V bus byte (B18 wrong)
+      status: pending
+      priority: P2
+      vehicle_states: [ACC2]
+      created: "2026-08-02"
+      updated: "2026-08-02"
+      notes: VCU_AUX_BATTERY_VOLTAGE (B18/10) disproven live 2026-08-02 (read 14.70V in ACC2 vs 12.2V 3-ECU consensus; B18 inversely tracks the bus). Find VCU's real 12V byte. Hunt was inconclusive here - 12V is bimodal (14.5 charge / 12.2 ACC2) so every charge-vs-ACC2 byte correlates ~1.0 (two-cluster trap). Needs keep-all data with continuous 12V variation (e.g. a drive, or READY idle as 12V floats), or accept VCU may not cleanly broadcast it.
   sessions:
     "81":
       name: "standardDiagnosticSession"

@@ -199,18 +199,16 @@ OBC:
           values:
             0: connected, EVSE idle (no pilot PWM)
             2: charging (relay closed, current flowing)
-            3: CP handshake / ready (pilot PWM present)
-          source: RE 2026-08-02 charge phase transitions
-          verified: false
+            3: connected/standby (pilot PWM present, not charging)
+          source: RE 2026-08-02 charge transitions, live ACC2 confirmed
+          verified: true
           notes: >-
-            AC charge state machine at B20 (ISO-TP index). Steps 0->3->2 exactly with the
-            control-pilot: 0 while plugged but EVSE idle (pilot duty 0%), 3 during CP handshake
-            (pilot 100%), 2 while charging (pilot 26.5%, OBC_DC_A>0). All-history: only 0/2/3
-            (n=4654). IEC-61851-style (A/B/C). Companion bytes B17 (=3 only while current flows),
-            B22 (=1 only pre-charge), B35 (0/3/1 parallel) — see research lead. AC-only profile;
-            DC-charge states unobserved.
-
-
+            AC charge state at B20. 0->3->2 with the control-pilot: 0 plugged/EVSE-idle (pilot 0%),
+            3 connected-standby (pilot 100%, not charging), 2 charging (pilot 26.5%, OBC_DC_A>0).
+            Verified: matched pilot+current across the 2026-08-02 charge, and live in ACC2 (still
+            plugged, pilot 100%, 1h+ after charge) read a STEADY 3 - confirming 3 is the persistent
+            connected-idle state, not a transient handshake. All-history only 0/2/3 (n=4654);
+            AC-only profile, DC-charge states unobserved.
     2102:
       status: static
       period: 5000
