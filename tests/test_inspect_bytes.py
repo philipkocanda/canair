@@ -17,6 +17,7 @@ I8 = InspectType("i8", 1, "int", True)
 U16 = InspectType("u16", 2, "int", False)
 I16 = InspectType("i16", 2, "int", True)
 U24 = InspectType("u24", 3, "int", False)
+I24 = InspectType("i24", 3, "int", True)
 U32 = InspectType("u32", 4, "int", False)
 F32 = InspectType("f32", 4, "float", True)
 
@@ -66,8 +67,20 @@ class TestWicanExpr:
     def test_little_endian_unsigned_shift(self):
         assert ib.wican_expr(3, U16, little=True) == "B3 | (B4 << 8)"
 
+    def test_little_endian_signed_arithmetic(self):
+        # LE signed is expressible arithmetically (MSB signed) — promotable,
+        # verified to evaluate identically to interpret_bytes below.
+        assert ib.wican_expr(3, I16, little=True) == "B3 + S4*256"
+        assert ib.wican_expr(3, I24, little=True) == "B3 + B4*256 + S5*65536"
+
+    def test_little_endian_signed_expr_matches_interpretation(self):
+        from canlib.expression import evaluate_expression
+
+        frame = bytes([0] * 3 + [0x30, 0xFF] + [0] * 6)  # B3=0x30, B4=0xFF
+        expr = ib.wican_expr(3, I16, little=True)
+        assert evaluate_expression(expr, frame) == ib.interpret_bytes(frame, 3, I16, little=True)
+
     def test_inexpressible_cases_return_none(self):
-        assert ib.wican_expr(3, I16, little=True) is None  # LE signed
         assert ib.wican_expr(3, F32) is None  # float
 
 
@@ -124,3 +137,41 @@ class TestFloatSeriesIsNoise:
 
     def test_zero_alongside_real_values_is_kept(self):
         assert not ib.float_series_is_noise([0.0, 12.0, 0.0, 8.5])
+
+
+class TestReadIndices:
+    # WiCAN frame: B15 (last data byte of frame 1) = 0xFF, B16 = CF PCI (0x21),
+    # B17 (first data byte of frame 2) = 0xB1 — the BMS pack-current layout.
+    FR = bytes([0] * 15 + [0xFF, 0x21, 0xB1])
+
+    def test_pci_skip_signed(self):
+        # (S15<<8)|B17 skipping the PCI byte at B16 → 0xFFB1 signed = -79.
+        assert ib.read_indices(self.FR, [15, 17], signed=True) == -79.0
+
+    def test_pci_skip_unsigned(self):
+        assert ib.read_indices(self.FR, [15, 17], signed=False) == float(0xFFB1)
+
+    def test_out_of_range_returns_none(self):
+        assert ib.read_indices(self.FR, [15, 99], signed=False) is None
+
+    def test_empty_returns_none(self):
+        assert ib.read_indices(self.FR, [], signed=False) is None
+
+
+class TestWicanExprIndices:
+    def test_signed_msb_arithmetic_form(self):
+        # Arithmetic (not [Snn:Smm]) so a negative MSB and the PCI gap are correct.
+        assert ib.wican_expr_indices([15, 17], signed=True) == "S15*256 + B17"
+
+    def test_unsigned(self):
+        assert ib.wican_expr_indices([15, 17], signed=False) == "B15*256 + B17"
+
+    def test_three_bytes(self):
+        assert ib.wican_expr_indices([14, 15, 17], signed=False) == "B14*65536 + B15*256 + B17"
+
+    def test_expression_evaluates_to_read_indices(self):
+        from canlib.expression import evaluate_expression
+
+        fr = TestReadIndices.FR
+        expr = ib.wican_expr_indices([15, 17], signed=True)
+        assert evaluate_expression(expr, fr) == ib.read_indices(fr, [15, 17], signed=True)

@@ -402,6 +402,15 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         action="store_true",
         help="With --dump-bytes: include ISO-TP PCI framing bytes (skipped by default)",
     )
+    parser.add_argument(
+        "--signed",
+        dest="dump_signed",
+        action="store_true",
+        help="With --dump-bytes: render each data byte as a signed value (-128..127) "
+        "with an Snn column header, instead of the default unsigned Bnn (0..255). "
+        "Use when a byte is the high half of a signed value (a 0xFF near-zero baseline "
+        "correlates poorly unsigned but cleanly signed)",
+    )
     add_notation_arg(parser)
     add_scope_args(parser)
     parser.set_defaults(func=run)
@@ -831,6 +840,7 @@ def _decode_one(
             include_pci=args.include_pci,
             notation=resolve_notation(args.notation),
             sub_bytes=subfunction_bytes_for_pid(pid_key),
+            signed=args.dump_signed,
         )
 
     # Interactive signal explorer (byte interpretations + params + transforms).

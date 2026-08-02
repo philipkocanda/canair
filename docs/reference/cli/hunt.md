@@ -31,10 +31,11 @@ usage: canair hunt uds [-h]
                        [--min-n N] [--top N] [--transform MODE]
                        [--method {pearson,spearman}] [--join-tol SECONDS]
                        [--json] [--all-interps] [--control ECU:PID:PARAM]
-                       [--control-file FILE] [--promote NAME]
-                       [--notation NAME] [--since WHEN] [--until WHEN]
-                       [--date YYYY-MM-DD] [--today] [--last-sessions [N]]
-                       [--last-session] [--state SUBSTR] [--label SUBSTR]
+                       [--control-file FILE] [--promote NAME] [--per-session]
+                       [--session-gap SECONDS] [--notation NAME]
+                       [--since WHEN] [--until WHEN] [--date YYYY-MM-DD]
+                       [--today] [--last-sessions [N]] [--last-session]
+                       [--state SUBSTR] [--label SUBSTR]
                        [ecu] [pid]
 
 Sweeps every byte offset of the target PID under every interpretation
@@ -96,6 +97,15 @@ options:
                         unverified candidate param NAME (via pids upsert-
                         param), with the correlation evidence auto-filled into
                         notes
+  --per-session         Remove each recording session's DC baseline before
+                        ranking — makes a slowly-varying absolute-level
+                        reference/byte (pack/12V/mains voltage, a held
+                        temperature) rankable by --against instead of being
+                        dominated by cross-session offsets. Ranks the in-
+                        session *variation*, not the level
+  --session-gap SECONDS
+                        With --per-session: time gap that starts a new session
+                        (default 300.0s)
   --notation NAME       byte-index notation for output labels: wican
                         (default), isotp, torque, bix. Overrides the
                         display.byte_notation config key.

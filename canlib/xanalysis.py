@@ -17,9 +17,11 @@ from datetime import date, datetime
 
 from .align import (
     DEFAULT_JOIN_TOL_S,
+    DEFAULT_SESSION_GAP_S,
     LoadedPid,
     SignalRef,
     TimePoint,
+    detrend_by_session,
     extract_series,
     join_nearest,
     join_prepared,
@@ -32,10 +34,13 @@ from .inspect_bytes import (
     apply_transform,
     float_series_is_noise,
     interpret_bytes,
+    read_indices,
     wican_expr,
+    wican_expr_indices,
 )
 from .physical_bands import DEFAULT_PHYSICAL_BANDS
 from .stats import correlation, pearson
+from .unit_guess import DEFAULT_UNIT_CANDIDATES as _UNIT_CANDIDATES
 
 __all__ = [
     "PHYSICAL_BANDS",
@@ -54,9 +59,11 @@ __all__ = [
     "linear_fit",
     "pearson",
     "physical_scan",
+    "reference_is_absolute_level",
     "reference_is_bimodal",
     "sniff_unit",
     "transform_ref",
+    "unit_dimension",
 ]
 
 
@@ -99,6 +106,38 @@ def reference_is_bimodal(
     return frac >= min_cluster_frac
 
 
+def reference_is_absolute_level(
+    values: list[float],
+    *,
+    min_n: int = 10,
+    baseline_floor: float = 5.0,
+    max_rel_span: float = 0.15,
+) -> bool:
+    """True if a series looks like a slowly-varying absolute *level*.
+
+    A signal sitting on a large non-zero baseline with only a small relative
+    swing (a pack/12V/mains voltage, a temperature held near a setpoint) is the
+    case where Pearson |r| misleads: the swing is dwarfed by the baseline and by
+    cross-session DC offsets, so ``hunt --against`` / ``correlate`` rank noise.
+    The fix is band/anchor reasoning (``hunt --physical`` + per-state absolute
+    comparison), which this flag points the user toward.
+
+    Deliberately conservative to avoid false positives on genuinely dynamic
+    signals (speed/RPM sweep from ~0, wide relative span): requires a baseline
+    of at least ``baseline_floor`` and a peak-to-peak span under
+    ``max_rel_span`` of ``|mean|``.
+    """
+    vals = [float(v) for v in values if v is not None]
+    n = len(vals)
+    if n < min_n:
+        return False
+    mean = sum(vals) / n
+    if abs(mean) < baseline_floor:
+        return False  # near-zero baseline — DC offset doesn't dominate
+    span = max(vals) - min(vals)
+    return (span / abs(mean)) < max_rel_span
+
+
 # ---------------------------------------------------------------------------
 # Stats: linear fit + unit sniffing (pearson/spearman live in canlib.stats)
 # ---------------------------------------------------------------------------
@@ -124,32 +163,61 @@ def linear_fit(xs: list[float], ys: list[float]) -> tuple[float, float, float] |
     return m, c, resid
 
 
-# Common physical scalings for the unit sniffer. ``factor`` multiplies the raw
-# byte; ``offset`` is added after. Label describes the resulting unit.
-_UNIT_CANDIDATES = [
-    (1.0, 0.0, "raw (×1)"),
-    (0.5, 0.0, "raw/2"),
-    (0.1, 0.0, "raw/10"),
-    (0.01, 0.0, "raw/100"),
-    (0.02, 0.0, "raw×0.02 (cell V)"),
-    (1.0, -40.0, "raw−40 (°C offset)"),
-    (0.5, -40.0, "raw/2−40 (HK temp)"),
-    (1.609344, 0.0, "raw×1.609 (mph→km/h)"),
-    (0.621371, 0.0, "raw×0.621 (km/h→mph)"),
-]
+# Common physical scalings for the unit sniffer. The candidate table + resolver
+# live in canlib.unit_guess (make-neutral built-ins + profile extension); this
+# module just consumes the resolved list (imported above as _UNIT_CANDIDATES for
+# the callers/tests that referenced it from xanalysis historically).
 
 
-def sniff_unit(xs: list[float], ys: list[float]) -> str | None:
+def unit_dimension(unit: str | None) -> str | None:
+    """Coarse physical dimension of a reference unit string (or None if unknown).
+
+    Used to gate the unit-guess domain hint: a candidate's flavour (voltage /
+    temperature / speed) is only shown when it agrees with the reference's own
+    dimension. Deliberately conservative — an unrecognized unit returns None so
+    the hint is left as-is rather than wrongly suppressed.
+    """
+    if not unit:
+        return None
+    u = unit.strip().lower()
+    if u in {"v", "mv", "kv", "volt", "volts"}:
+        return "voltage"
+    if u in {"°c", "c", "degc", "celsius", "°f", "f", "degf", "k", "kelvin"}:
+        return "temperature"
+    if u in {"km/h", "kmh", "kph", "mph", "m/s", "mps"}:
+        return "speed"
+    return None
+
+
+def sniff_unit(
+    xs: list[float],
+    ys: list[float],
+    ref_unit: str | None = None,
+    candidates: list[tuple[float, float, str, str | None, str | None]] | None = None,
+) -> str | None:
     """Guess the physical scaling of candidate ``ys`` vs reference ``xs``.
 
     For each known scaling ``physical = raw*factor + offset`` (``xs`` is the
     reference in physical units, ``ys`` the raw candidate byte), measure how well
     that formula reproduces the reference and pick the closest. Using the
-    ``offset`` — not just the slope — is what lets a Hyundai/Kia ``raw−40`` temp
-    byte be identified as a temperature rather than a plain ``×1`` scaling.
-    Advisory only — returns a short human string (e.g. "≈ km/h ÷ 1.609 ⇒ mph")
-    or None when nothing fits well.
+    ``offset`` — not just the slope — is what lets a ``raw−40`` temperature byte
+    be identified as a temperature rather than a plain ``×1`` scaling.
+
+    ``candidates`` is the resolved scaling list (see
+    :func:`canlib.unit_guess.resolve_unit_candidates`); ``None`` uses the
+    make-neutral built-ins.
+
+    ``ref_unit`` (the reference signal's unit, when known) gates the domain hint:
+    a candidate's flavour (e.g. "cell V") is suppressed when the reference is a
+    *different* dimension (e.g. a speed), leaving just the numeric scale — so a
+    speed reference no longer tags an RPM slope as a cell voltage. An unknown
+    ``ref_unit`` leaves the hint untouched (conservative).
+
+    Advisory only — returns a short human string (e.g. "slope≈0.6214 ⇒ raw×0.621
+    (km/h→mph)") or None when nothing fits well.
     """
+    if candidates is None:
+        candidates = _UNIT_CANDIDATES
     fit = linear_fit(xs, ys)
     if fit is None:
         return None
@@ -158,15 +226,21 @@ def sniff_unit(xs: list[float], ys: list[float]) -> str | None:
         return None
     n = len(xs)
     ref_span = (max(xs) - min(xs)) or 1.0
-    best = None  # (normalised_residual, label)
-    for factor, offset, label in _UNIT_CANDIDATES:
+    ref_dim = unit_dimension(ref_unit)
+    best = None  # (normalised_residual, numeric_label, hint, dimension)
+    for factor, offset, numeric_label, hint, dimension in candidates:
         resid = sum(abs((y * factor + offset) - x) for x, y in zip(xs, ys, strict=True)) / n
         norm = resid / ref_span
         if best is None or norm < best[0]:
-            best = (norm, label)
+            best = (norm, numeric_label, hint, dimension)
     if best is None or best[0] > 0.05:  # >5% of the reference range — no confident unit
         return None
-    return f"slope≈{m:.4f} ⇒ {best[1]}"
+    _norm, numeric_label, hint, dimension = best
+    label = numeric_label
+    # Show the domain hint unless a *known* reference dimension contradicts it.
+    if hint is not None and not (ref_dim is not None and ref_dim != dimension):
+        label = f"{numeric_label} ({hint})"
+    return f"slope≈{m:.4f} ⇒ {label}"
 
 
 # ---------------------------------------------------------------------------
@@ -623,6 +697,10 @@ def hunt_byte(
     method: str = "pearson",
     all_interps: bool = False,
     control: list[TimePoint] | None = None,
+    ref_unit: str | None = None,
+    candidates: list[tuple[float, float, str, str | None, str | None]] | None = None,
+    per_session: bool = False,
+    session_gap_s: float = DEFAULT_SESSION_GAP_S,
 ) -> list[HuntHit]:
     """Sweep every byte offset × interpretation, rank by |r| vs ``ref``.
 
@@ -663,7 +741,49 @@ def hunt_byte(
     # coverage, validate, etc.
     pci = {i for i in range(max_len) if wican_to_isotp(i) is None}
 
+    ref_used = detrend_by_session(ref, session_gap_s) if per_session else ref
+    control_used = (
+        detrend_by_session(control, session_gap_s)
+        if (per_session and control is not None)
+        else control
+    )
+
     hits: list[HuntHit] = []
+
+    def _consider(cand: list[TimePoint], expr: str, interp: str, offset: int, width: int) -> None:
+        c = detrend_by_session(cand, session_gap_s) if per_session else cand
+        if control_used is not None:
+            xs, ys, zs, n = join_nearest_triple(ref_used, c, control_used, tol_s=tol_s)
+            if n < min_n:
+                return
+            r = partial_correlation(xs, ys, zs, method)
+        else:
+            xs, ys, n = join_nearest(ref_used, c, tol_s=tol_s)
+            if n < min_n:
+                return
+            r = correlation(xs, ys, method)
+        if r is None:
+            return
+        fit = linear_fit(xs, ys)
+        if fit is None:
+            return
+        m, ic, resid = fit
+        hits.append(
+            HuntHit(
+                expr=expr,
+                interp=interp,
+                offset=offset,
+                r=r,
+                n=n,
+                slope=m,
+                intercept=ic,
+                resid=resid,
+                unit_guess=sniff_unit(xs, ys, ref_unit, candidates),
+                width=width,
+            )
+        )
+
+    # Contiguous byte-window sweep: every interpretation x both endians.
     for spec in INSPECT_TYPES:
         _, width, kind, _signed = spec
         for endian_little in (False, True) if width > 1 else (False,):
@@ -672,52 +792,47 @@ def hunt_byte(
                     continue
                 if any((off + k) in pci for k in range(width)):
                     continue
-                cand: list[TimePoint] = []
-                for dt, frame in frames:
-                    v = interpret_bytes(frame, off, spec, little=endian_little)
-                    if v is not None:
-                        cand.append(TimePoint(dt, v))
+                cand = [
+                    TimePoint(dt, v)
+                    for dt, frame in frames
+                    if (v := interpret_bytes(frame, off, spec, little=endian_little)) is not None
+                ]
                 if len({tp.value for tp in cand}) < 3:
                     continue
                 if kind == "float" and float_series_is_noise([tp.value for tp in cand]):
                     continue  # implausible float reinterpretation (denormal/huge) — skip
-                if control is not None:
-                    xs, ys, zs, n = join_nearest_triple(ref, cand, control, tol_s=tol_s)
-                    if n < min_n:
-                        continue
-                    r = partial_correlation(xs, ys, zs, method)
-                else:
-                    xs, ys, n = join_nearest(ref, cand, tol_s=tol_s)
-                    if n < min_n:
-                        continue
-                    r = correlation(xs, ys, method)
-                if r is None:
-                    continue
-                fit = linear_fit(xs, ys)
-                if fit is None:
-                    continue
-                m, c, resid = fit
                 expr = wican_expr(off, spec, little=endian_little) or "<no-expr>"
                 interp = spec[0] + (" LE" if endian_little and width > 1 else "")
-                hits.append(
-                    HuntHit(
-                        expr=expr,
-                        interp=interp,
-                        offset=off,
-                        r=r,
-                        n=n,
-                        slope=m,
-                        intercept=c,
-                        resid=resid,
-                        unit_guess=sniff_unit(xs, ys),
-                        width=width,
-                    )
-                )
+                _consider(cand, expr, interp, off, width)
+
+    # PCI-skip sweep: big-endian multi-byte values whose data bytes are contiguous
+    # in ISO-TP order but straddle a framing (PCI) byte in the WiCAN frame — e.g. a
+    # signed 16-bit pack current with its low byte in the next consecutive frame
+    # (high byte B15, PCI at B16, low byte B17 → `S15*256 + B17`). The contiguous
+    # sweep above skips any window containing a PCI byte, so without this these
+    # frame-straddling words are undiscoverable.
+    data_idx = [i for i in range(max_len) if i not in pci]  # WiCAN indices, ISO-TP order
+    for width in (2, 3, 4):
+        for p in range(len(data_idx) - width + 1):
+            idxs = data_idx[p : p + width]
+            if idxs[-1] - idxs[0] == width - 1:
+                continue  # contiguous — already covered by the sweep above
+            for signed in (False, True):
+                cand = [
+                    TimePoint(dt, v)
+                    for dt, frame in frames
+                    if (v := read_indices(frame, idxs, signed)) is not None
+                ]
+                if len({tp.value for tp in cand}) < 3:
+                    continue
+                expr = wican_expr_indices(idxs, signed)
+                interp = f"{'i' if signed else 'u'}{width * 8} skip-PCI"
+                _consider(cand, expr, interp, idxs[0], width)
 
     # Rank: strongest |r| first; among near-equal r, prefer the narrowest read
     # (a single byte that *is* the signal beats any wider window that merely
     # contains it) and the lowest relative residual. Also demote reads with no
-    # expression (float / LE-signed) — not directly usable as a param.
+    # expression (a float reinterpretation) — not directly usable as a param.
     return _rank_and_collapse(hits, top=top, all_interps=all_interps)
 
 
@@ -725,8 +840,8 @@ def _rank_and_collapse(hits: list[HuntHit], *, top: int, all_interps: bool) -> l
     """Shared hit ranking + per-offset collapse for byte/frame hunts.
 
     Sorts strongest |r| first; among near-equal r prefers the narrowest read and
-    lowest relative residual, and demotes ``<no-expr>`` (float / LE-signed) hits.
-    Collapses to the best hit per starting offset (``all_interps`` keeps every
+    lowest relative residual, and demotes ``<no-expr>`` (a float reinterpretation)
+    hits. Collapses to the best hit per starting offset (``all_interps`` keeps every
     ``offset:interp``), then trims to ``top``.
     """
 
@@ -786,6 +901,24 @@ def load_ref(
     return series, sref.label
 
 
+def ref_unit_for(ref_spec: str) -> str | None:
+    """The declared ``unit`` of an ``ECU:PID:PARAM`` reference, or None.
+
+    Used to gate :func:`sniff_unit`'s domain hint to the reference's dimension.
+    Returns None for an expression reference (no named param) or when anything
+    can't be resolved — the sniffer treats None as "don't gate".
+    """
+    from .pids import build_ecu_index, load_pids
+
+    try:
+        sref = SignalRef.parse(ref_spec)
+        ecu_pids = build_ecu_index(load_pids()).get(sref.ecu.upper(), {}).get("pids", {})
+        params = ecu_pids.get(sref.pid.upper(), {}).get("parameters", {})
+        return params.get(sref.name_or_expr, {}).get("unit")
+    except Exception:
+        return None
+
+
 # ---------------------------------------------------------------------------
 # Physical-value band scan — find bytes whose value lands in a known band
 # ---------------------------------------------------------------------------
@@ -799,15 +932,32 @@ def load_ref(
 # threaded in (preserves the historical no-config behaviour).
 PHYSICAL_BANDS: list[tuple[str, float, float]] = list(DEFAULT_PHYSICAL_BANDS.values())
 
-# Candidate scalings (factor, label): physical = raw * factor.
-_PHYSICAL_SCALINGS: list[tuple[float, str]] = [
-    (1.0, "×1"),
-    (0.1, "/10"),
-    (0.01, "/100"),
-    (2.0, "×2"),
-    (0.5, "/2"),
-    (2.0**0.5, "×√2"),
+# Candidate scalings (factor, offset, label, kind): physical = raw * factor + offset.
+# ``kind`` pairs a scaling with the bands it is meaningful for: "ratio" scalings
+# (offset 0) test the voltage/frequency bands; "temp" scalings (the -40/-50 sensor
+# offsets, HK-style) test ONLY the temperature band. Keeping them separate stops a
+# -40 offset from manufacturing spurious voltage-band hits (and a ratio scaling
+# from hitting the temp band), and bounds the inherently-broad temperature band's
+# false positives. NB temperature bands are far less selective than the narrow
+# mains/HV/12V bands (a single byte spans most of the range) -- treat a temp hit as
+# a triage hint, not proof.
+_PHYSICAL_SCALINGS: list[tuple[float, float, str, str]] = [
+    (1.0, 0.0, "×1", "ratio"),
+    (0.1, 0.0, "/10", "ratio"),
+    (0.01, 0.0, "/100", "ratio"),
+    (2.0, 0.0, "×2", "ratio"),
+    (0.5, 0.0, "/2", "ratio"),
+    (2.0**0.5, 0.0, "×√2", "ratio"),
+    (0.5, -40.0, "/2−40", "temp"),
+    (1.0, -40.0, "−40", "temp"),
+    (0.5, -50.0, "/2−50", "temp"),
 ]
+
+
+def _band_kind(label: str) -> str:
+    """Band category for scaling/band kind-matching ("temp" vs "ratio")."""
+    return "temp" if "temp" in label.lower() else "ratio"
+
 
 # Interpretations swept for the physical scan — the common WiCAN-expressible
 # integer widths (BE). Floats/LE are excluded: a physical sensor field is a
@@ -890,38 +1040,52 @@ def physical_scan(
             ]
             if len(vals) < min_n or len({round(v, 6) for v in vals}) < 3:
                 continue
-            best: PhysicalHit | None = None
-            for factor, slabel in _PHYSICAL_SCALINGS:
-                scaled = [v * factor for v in vals]
+            # Best hit per band *kind* at this offset: a byte can be a plausible
+            # voltage AND a plausible temperature (a real ambiguity), so keep both
+            # rather than letting one mask the other — the per-offset collapse
+            # below is per (offset, kind).
+            best_by_kind: dict[str, tuple[float, PhysicalHit]] = {}
+            for factor, offset, slabel, kind in _PHYSICAL_SCALINGS:
+                scaled = [v * factor + offset for v in vals]
                 for blabel, lo, hi in bands:
+                    if _band_kind(blabel) != kind:
+                        continue
                     inband = sum(1 for v in scaled if lo <= v <= hi)
                     frac = inband / len(scaled)
                     if frac < min_frac:
                         continue
-                    if best is None or frac > best.frac:
+                    prev = best_by_kind.get(kind)
+                    if prev is None or frac > prev[0]:
                         expr = wican_expr(off, spec, little=False) or "<no-expr>"
-                        best = PhysicalHit(
-                            expr=expr,
-                            interp=name,
-                            offset=off,
-                            scaling=slabel,
-                            band=blabel,
-                            frac=frac,
-                            median=_median_scaled(scaled),
-                            n=len(scaled),
-                            width=width,
+                        best_by_kind[kind] = (
+                            frac,
+                            PhysicalHit(
+                                expr=expr,
+                                interp=name,
+                                offset=off,
+                                scaling=slabel,
+                                band=blabel,
+                                frac=frac,
+                                median=_median_scaled(scaled),
+                                n=len(scaled),
+                                width=width,
+                            ),
                         )
-            if best is not None:
-                hits.append(best)
+            for _frac, hit in best_by_kind.values():
+                hits.append(hit)
 
-    # Collapse to the best hit per starting offset, then rank by fraction.
-    hits.sort(key=lambda h: (-h.frac, h.width))
-    seen: set[int] = set()
+    # Collapse to the best hit per (starting offset, band-kind) — so a voltage and
+    # a temperature reading of the same byte both survive — then rank by fraction,
+    # with ratio-band hits ahead of temp-band hits at equal fraction (temp is a
+    # broad, lower-confidence triage band).
+    hits.sort(key=lambda h: (-h.frac, _band_kind(h.band) == "temp", h.width))
+    seen: set[tuple[int, str]] = set()
     unique: list[PhysicalHit] = []
     for h in hits:
-        if h.offset in seen:
+        key = (h.offset, _band_kind(h.band))
+        if key in seen:
             continue
-        seen.add(h.offset)
+        seen.add(key)
         unique.append(h)
         if len(unique) >= top:
             break

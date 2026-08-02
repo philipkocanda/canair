@@ -64,9 +64,17 @@ class TestToWicanExpression:
         ref = ByteRef.from_wican(4, width=2, little=True)
         assert ref.to_wican_expression() == "B4 | (B5 << 8)"
 
-    def test_little_endian_signed_has_no_expression(self):
+    def test_little_endian_signed_arithmetic_composition(self):
+        # LE signed -> arithmetic form with the MSB signed (never <</| on a
+        # negative high byte). Promotable, unlike the old None/<no-expr>.
         ref = ByteRef.from_wican(4, width=2, signed=True, little=True)
-        assert ref.to_wican_expression() is None
+        assert ref.to_wican_expression() == "B4 + S5*256"
+
+    def test_pci_straddling_signed_arithmetic_composition(self):
+        # BE signed straddling a PCI byte (ISO-TP 5,6 -> WiCAN B07,B09): the
+        # range form is impossible, so compose arithmetically with the MSB signed.
+        ref = ByteRef.from_isotp(5, width=2, signed=True)
+        assert ref.to_wican_expression() == "S7*256 + B9"
 
     def test_pci_straddling_range_uses_shift_composition(self):
         # ISO-TP bytes 5 and 6 are WiCAN B07 and B09 (B08 is a CF PCI byte).
@@ -89,6 +97,8 @@ class TestToWicanExpression:
             ("u16", 2, False, False),
             ("i16", 2, True, False),
             ("u16", 2, False, True),  # LE unsigned
+            ("i16", 2, True, True),  # LE signed -> arithmetic form
+            ("i24", 3, True, True),
         ]:
             spec = by_name[name]
             # Use a WiCAN offset whose window stays within one contiguous frame.

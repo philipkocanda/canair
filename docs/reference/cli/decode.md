@@ -11,10 +11,10 @@ usage: canair decode [-h] [--param NAME [NAME ...]] [--verified]
                      [--corr-transform MODE]
                      [--method {pearson,spearman,cramers_v,mutual_info}]
                      [--plot] [--try NAME[:unit]=EXPR] [--dump-bytes]
-                     [--include-pci] [--notation NAME] [--since WHEN]
-                     [--until WHEN] [--date YYYY-MM-DD] [--today]
-                     [--last-sessions [N]] [--last-session] [--state SUBSTR]
-                     [--label SUBSTR]
+                     [--include-pci] [--signed] [--notation NAME]
+                     [--since WHEN] [--until WHEN] [--date YYYY-MM-DD]
+                     [--today] [--last-sessions [N]] [--last-session]
+                     [--state SUBSTR] [--label SUBSTR]
                      [QUERY ...]
 
 [UDS] Decode captured UDS payloads using PID parameter definitions.
@@ -101,6 +101,12 @@ options:
                         and all scope flags
   --include-pci         With --dump-bytes: include ISO-TP PCI framing bytes
                         (skipped by default)
+  --signed              With --dump-bytes: render each data byte as a signed
+                        value (-128..127) with an Snn column header, instead
+                        of the default unsigned Bnn (0..255). Use when a byte
+                        is the high half of a signed value (a 0xFF near-zero
+                        baseline correlates poorly unsigned but cleanly
+                        signed)
   --notation NAME       byte-index notation for output labels: wican
                         (default), isotp, torque, bix. Overrides the
                         display.byte_notation config key.

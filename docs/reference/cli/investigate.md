@@ -30,7 +30,8 @@ options:
 ```
 usage: canair investigate uds [-h] [--min-r R] [--min-n N]
                               [--join-tol SECONDS] [--all] [--bits] [--events]
-                              [--field NAME] [--independent-of ECU:PID:PARAM]
+                              [--dwell] [--field NAME]
+                              [--independent-of ECU:PID:PARAM]
                               [--independent-of-file FILE] [--json]
                               [--notation NAME] [--since WHEN] [--until WHEN]
                               [--date YYYY-MM-DD] [--today]
@@ -78,6 +79,13 @@ options:
   --events              Report each bit/byte rising/falling edge with its
                         timestamp, aligned to the nearest capture note (the
                         narrated event timeline)
+  --dwell               Summarise each event bit/byte by how long it stays ON
+                        — median on-duration + a momentary|sustained class.
+                        Separates a briefly-pulsed bit (a door flicked open)
+                        from one held for minutes (a hood left up), so
+                        body/event signals are identifiable without capture-
+                        note narration. Needs --keep-all/--keep-changes data
+                        (keep:unique drops falling edges)
   --field NAME          With --events: track ONE defined param (a typed
                         enum/bitmask/struct date field) as a single logical
                         signal — emit one transition per change of its DECODED

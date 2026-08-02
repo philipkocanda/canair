@@ -148,6 +148,12 @@ def _find_file_by_tx(tx_id: int, ecus_dir: Path) -> tuple[Path | None, str | Non
     return None, None
 
 
+def find_ecu_file(tx_id: int, ecus_dir: Path | None = None) -> Path | None:
+    """Return the ``ecus/<name>.yaml`` path for the ECU with ``tx_id`` (or None)."""
+    fpath, _name = _find_file_by_tx(tx_id, _resolve_dir(ecus_dir))
+    return fpath
+
+
 def _load_doc(path: Path) -> CommentedMap:
     """Round-trip load an ECU file (or a fresh doc if absent/empty)."""
     y = _yaml()

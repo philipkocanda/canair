@@ -32,6 +32,7 @@ DEFAULT_PHYSICAL_BANDS: dict[str, tuple[str, float, float]] = {
     "line_freq": ("line freq Hz", 49.0, 51.0),
     "rail_12v": ("12V rail V", 11.0, 15.0),
     "hv_pack": ("HV pack V", 300.0, 450.0),
+    "temp_c": ("temp °C", -30.0, 130.0),
 }
 
 # The three bands that belong to the grid axis (owned by grid_region, not the

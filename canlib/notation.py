@@ -152,9 +152,11 @@ class ByteRef:
         familiar ``Bn`` / ``Sn`` / ``Bn:k`` / ``[Bn:Bm]`` forms. A multi-byte read
         whose bytes straddle a PCI byte in the WiCAN frame — contiguous in ISO-TP
         but not in WiCAN — is emitted as an explicit shift-composition (the
-        capability the old PCI-skipping analysis could not express). Little-endian
-        *signed* reads have no WiCAN form and return ``None`` (matching the plot
-        inspector's ``wican_expr``). Non-ISO-TP refs return ``None``.
+        capability the old PCI-skipping analysis could not express). A *signed*
+        read that can't use the ``[Sn:Sm]`` range form (little-endian, or
+        PCI-straddling) is emitted as an arithmetic composition with the
+        most-significant byte signed (e.g. ``B9 + S10*256``) — ``<<``/``|`` would
+        mishandle the negative high byte. Non-ISO-TP refs return ``None``.
         """
         if self.space is not ByteSpace.ISOTP:
             return None
@@ -168,10 +170,20 @@ class ByteRef:
         if not self.little and contiguous:
             return f"[{char}{woffs[0]}:{char}{woffs[-1]}]"
         if self.signed:
-            return None  # no signed shift-composition form
+            # Signed, non-range (little-endian or PCI-straddling): compose
+            # arithmetically with the MSB signed. ``+``/``*`` not ``<<``/``|``,
+            # which mishandle the negative high byte.
+            msb_idx = self.width - 1 if self.little else 0
+            terms: list[str] = []
+            for k, w in enumerate(woffs):
+                shift = 8 * k if self.little else 8 * (self.width - 1 - k)
+                mult = 1 << shift
+                c = "S" if k == msb_idx else "B"
+                terms.append(f"{c}{w}" if mult == 1 else f"{c}{w}*{mult}")
+            return " + ".join(terms)
         # Unsigned shift-composition (handles PCI-straddling and little-endian).
         # Big-endian: first byte is most significant; little-endian: least.
-        terms: list[str] = []
+        terms = []
         for k, w in enumerate(woffs):
             shift = 8 * k if self.little else 8 * (self.width - 1 - k)
             terms.append(f"B{w}" if shift == 0 else f"(B{w} << {shift})")

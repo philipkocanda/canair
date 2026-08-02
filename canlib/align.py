@@ -54,6 +54,12 @@ __all__ = [
 # scopes.
 DEFAULT_JOIN_TOL_S = 5.0
 
+# A time gap larger than this between consecutive samples of one signal marks a
+# new recording *session* for per-session detrending (recordings are minutes to
+# days apart; within a session samples arrive every few seconds). Deliberately
+# generous so a brief mid-drive stall doesn't split a session.
+DEFAULT_SESSION_GAP_S = 300.0
+
 
 @dataclass(frozen=True)
 class SignalRef:
@@ -95,6 +101,47 @@ class TimePoint:
 
     dt: datetime
     value: float
+
+
+def detrend_by_session(
+    series: list[TimePoint], gap_s: float = DEFAULT_SESSION_GAP_S
+) -> list[TimePoint]:
+    """Subtract each recording session's mean from a time series.
+
+    A slowly-varying absolute level (pack/12V/mains voltage, a temperature held
+    near a setpoint) is dominated by its per-recording DC baseline, so Pearson
+    correlation across sessions ranks that cross-session offset rather than the
+    in-session variation that actually tracks a reference. Splitting the series
+    wherever consecutive samples jump by more than ``gap_s`` (recordings sit
+    minutes-to-days apart) and removing each segment's mean leaves only the
+    within-session swing — making a level signal rankable by ``--against`` /
+    ``correlate`` instead of merely warned about.
+
+    The timestamps are preserved (only values shift), so a subsequent
+    nearest-timestamp join is unaffected. A segment with <2 points is left as-is.
+    Label-independent: it keys off timestamps, so it works even when session
+    labels are absent/scrubbed.
+    """
+    if not series:
+        return []
+    ordered = sorted(series, key=lambda tp: tp.dt)
+    out: list[TimePoint] = []
+    seg: list[TimePoint] = [ordered[0]]
+    for tp in ordered[1:]:
+        if (tp.dt - seg[-1].dt).total_seconds() > gap_s:
+            out.extend(_demean_segment(seg))
+            seg = [tp]
+        else:
+            seg.append(tp)
+    out.extend(_demean_segment(seg))
+    return out
+
+
+def _demean_segment(seg: list[TimePoint]) -> list[TimePoint]:
+    if len(seg) < 2:
+        return list(seg)
+    mean = sum(tp.value for tp in seg) / len(seg)
+    return [TimePoint(tp.dt, tp.value - mean) for tp in seg]
 
 
 @dataclass

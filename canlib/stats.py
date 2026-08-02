@@ -13,6 +13,24 @@ from __future__ import annotations
 import math
 
 CORRELATION_METHODS = ("pearson", "spearman")
+CATEGORICAL_METHODS = ("cramers_v", "mutual_info")
+
+
+def categorical_method_nudge(method: str) -> str:
+    """A one-line nudge to switch a numeric method to a categorical one.
+
+    Returned (with a leading space) when ``method`` is a numeric coefficient
+    (pearson/spearman) — for use after a "reference looks like an enum/flag"
+    warning, where |r| ranks cluster separation rather than a real relationship.
+    Empty when the caller is already using a categorical method.
+    """
+    if method in CATEGORICAL_METHODS:
+        return ""
+    return (
+        " For an enum/flag/mode reference, rank with `--method cramers_v` "
+        "(or `mutual_info`) instead of the numeric default."
+    )
+
 
 # A compact "which --method when?" cheat sheet, shared verbatim by the help
 # epilogs of every command exposing --method (correlate, decode). One source of

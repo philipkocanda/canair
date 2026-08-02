@@ -99,8 +99,10 @@ def wican_expr(offset: int, spec: InspectType, little: bool = False) -> str | No
     """Equivalent WiCAN expression for an interpretation, or None if not expressible.
 
     Big-endian ints map to the ``[Bnn:Bmm]`` / ``[Snn:Smm]`` forms; little-endian
-    unsigned ints to a shift-composition; floats and little-endian *signed* ints
-    have no direct expression in the WiCAN language.
+    unsigned ints to a bit-shift composition. A little-endian *signed* int has no
+    ``<<``/``|`` form (OR-ing a negative high byte is wrong), so it is emitted as
+    an arithmetic composition with the most-significant byte signed — e.g.
+    ``B9 + S10*256`` — which *is* promotable. Only floats remain inexpressible.
     """
     width, kind, signed = spec.width, spec.kind, spec.signed
     if kind == "float":
@@ -111,9 +113,56 @@ def wican_expr(offset: int, spec: InspectType, little: bool = False) -> str | No
     if not little:
         return f"[{c}{offset}:{c}{offset + width - 1}]"
     if signed:
-        return None
+        # Little-endian signed: MSB (last byte) signed, lower bytes unsigned,
+        # combined arithmetically (``+``/``*``) since ``<<``/``|`` mishandle the
+        # negative high byte.
+        terms = []
+        for k in range(width):
+            char = "S" if k == width - 1 else "B"
+            mult = 1 << (8 * k)
+            terms.append(f"{char}{offset + k}" if mult == 1 else f"{char}{offset + k}*{mult}")
+        return " + ".join(terms)
     terms = [f"B{offset}"] + [f"(B{offset + k} << {8 * k})" for k in range(1, width)]
     return " | ".join(terms)
+
+
+def read_indices(frame: bytes, indices: list[int], signed: bool) -> float | None:
+    """Read bytes at the given frame indices (big-endian order) as one integer.
+
+    ``indices`` are absolute WiCAN frame positions, most-significant byte first.
+    They need **not** be contiguous: a value split across an ISO-TP framing (PCI)
+    byte is read by passing only its data-byte positions, skipping the framing
+    byte in between — the case a plain ``[Bnn:Bmm]`` read gets wrong. Returns None
+    if any index is out of range.
+    """
+    if not indices:
+        return None
+    val = 0
+    for idx in indices:
+        if idx < 0 or idx >= len(frame):
+            return None
+        val = (val << 8) | frame[idx]
+    if signed and val >= 1 << (8 * len(indices) - 1):
+        val -= 1 << (8 * len(indices))
+    return float(val)
+
+
+def wican_expr_indices(indices: list[int], signed: bool) -> str:
+    """WiCAN expression for a big-endian value at (possibly non-contiguous) indices.
+
+    Emitted as an arithmetic composition (e.g. ``S15*256 + B17``) rather than the
+    ``[Bnn:Bmm]`` slice form, so it stays correct when the bytes straddle a PCI
+    framing byte (a slice would include the framing byte) and when the
+    most-significant byte is signed (``<<``/``|`` mishandle a negative MSB). Fully
+    promotable.
+    """
+    n = len(indices)
+    terms = []
+    for k, idx in enumerate(indices):
+        char = "S" if (signed and k == 0) else "B"
+        mult = 1 << (8 * (n - 1 - k))
+        terms.append(f"{char}{idx}" if mult == 1 else f"{char}{idx}*{mult}")
+    return " + ".join(terms)
 
 
 def apply_transform(values: list[float], mode: str) -> list[float]:

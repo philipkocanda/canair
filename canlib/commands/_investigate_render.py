@@ -350,3 +350,133 @@ def print_events(ecu, pid, lp, mapped, mapped_bit, args, params_def=None) -> Non
             f"    {_DIM}{dt.strftime('%H:%M:%S')}{_RESET}  {_BOLD}{shown}{_RESET} {arrow}  {tag}{note_str}"
         )
     print()
+
+
+def _median(xs: list[float]) -> float:
+    s = sorted(xs)
+    n = len(s)
+    return s[n // 2] if n % 2 else (s[n // 2 - 1] + s[n // 2]) / 2.0
+
+
+def _poll_interval_s(lp) -> float | None:
+    """Median gap (s) between consecutive timed captures — the sampling cadence."""
+    from itertools import pairwise
+
+    from canlib.capture_dates import entry_datetime
+
+    dts = sorted(dt for cap in lp.captures if (dt := entry_datetime(cap)) is not None)
+    gaps = [(b - a).total_seconds() for a, b in pairwise(dts)]
+    gaps = [g for g in gaps if g > 0]
+    return _median(gaps) if gaps else None
+
+
+def dwell_summary(lp, mapped, mapped_bit, *, bits: bool) -> list[dict]:
+    """Per-signal on-episode dwell stats from the edge timeline.
+
+    Groups :func:`iter_edges` transitions by signal, pairs each rising edge (to a
+    non-zero value) with the next falling edge (to zero) into an *on-episode*, and
+    summarises: transition count, completed-episode count, median on-duration (s),
+    and a ``momentary``/``sustained``/``unknown`` class. Separates a briefly-pulsed
+    bit (a door flicked open→closed) from one held on for minutes (a hood left up)
+    — the distinction that decodes body/event signals when capture notes are absent.
+    """
+    edges = list(iter_edges(lp, mapped, mapped_bit, bits=bits))
+    by_signal: dict[str, list] = {}
+    for e in edges:
+        by_signal.setdefault(e[1], []).append(e)  # e[1] = label
+
+    poll = _poll_interval_s(lp)
+    # Momentary ≈ an episode no longer than a couple of sampling intervals.
+    thresh = max(2.0 * poll, 1.0) if poll else None
+
+    out: list[dict] = []
+    for label, evs in by_signal.items():
+        evs.sort(key=lambda e: e[0])  # by dt
+        durations: list[float] = []
+        start = None  # datetime of the current on-episode's rising edge
+        for dt, _lbl, _before, after, _mapped_by, _verified, _cap, _kind in evs:
+            if after != 0 and start is None:
+                start = dt
+            elif after == 0 and start is not None:
+                durations.append((dt - start).total_seconds())
+                start = None
+        if durations:
+            med = _median(durations)
+            cls = "momentary" if (thresh is not None and med <= thresh) else "sustained"
+        else:
+            med = None
+            cls = "unknown"  # only rising edges seen (e.g. still-on at end / keep:unique)
+        mb = mapped_bit.get(_parse_bit_label(label)) if ":" in label else mapped.get(label)
+        out.append(
+            {
+                "signal": label,
+                "transitions": len(evs),
+                "episodes": len(durations),
+                "median_on_s": med,
+                "class": cls,
+                "mapped_by": (mb[0] if mb else None),
+            }
+        )
+    # Sustained first, then by episode count — the "held" signals (hood) surface
+    # above the momentary flickers (doors).
+    out.sort(key=lambda d: (d["class"] != "sustained", -d["transitions"]))
+    return out
+
+
+def _parse_bit_label(label: str) -> tuple[int, int]:
+    """`B11:0` → (11, 0) for a mapped_bit lookup; (-1,-1) if unparseable."""
+    try:
+        b, k = label.lstrip("B").split(":")
+        return int(b), int(k)
+    except (ValueError, AttributeError):
+        return (-1, -1)
+
+
+def print_dwell(ecu, pid, lp, mapped, mapped_bit, args) -> None:
+    """Per-signal dwell/duration summary (momentary vs sustained event bits)."""
+    rows = dwell_summary(lp, mapped, mapped_bit, bits=args.bits)
+    if args.json:
+        _json.dump(
+            {
+                "target": f"{ecu}:{pid}",
+                "keep_unique": scope_is_keep_unique(lp.captures),
+                "keep_changes": scope_is_keep_changes(lp.captures),
+                "dwell": rows,
+            },
+            sys.stdout,
+            indent=2,
+            default=str,
+        )
+        print()
+        return
+    print(f"\n  {_BOLD}Dwell {ecu} {pid}{_RESET} {_DIM}({len(lp.captures)} timed captures){_RESET}")
+    print_keep_banner(lp.captures)
+    if scope_is_keep_unique(lp.captures):
+        print(
+            f"    {_YELLOW}⚠ keep:unique scope — falling edges were dropped, so on-durations "
+            f"are unavailable (classes will read 'unknown'). Re-capture with "
+            f"--keep-all/--keep-changes for real dwell.{_RESET}"
+        )
+    if not rows:
+        print(f"    {_DIM}no transitions in scope.{_RESET}\n")
+        return
+    notation = resolve_notation(args.notation)
+    sub_bytes = subfunction_bytes_for_pid(pid)
+    print(
+        f"    {_DIM}{'signal':16} {'class':10} {'episodes':>8} {'trans':>6} "
+        f"{'median-on':>10}{_RESET}"
+    )
+    for r in rows:
+        shown = relabel_signal(r["signal"], notation, sub_bytes=sub_bytes)
+        med = "—" if r["median_on_s"] is None else f"{r['median_on_s']:.1f}s"
+        color = (
+            _GREEN
+            if r["class"] == "sustained"
+            else (_YELLOW if r["class"] == "momentary" else _DIM)
+        )
+        mapped_by = f"  {_DIM}[{r['mapped_by']}]{_RESET}" if r["mapped_by"] else ""
+        print(
+            f"    {shown:16} {color}{r['class']:10}{_RESET} {r['episodes']:>8} "
+            f"{r['transitions']:>6} {med:>10}{mapped_by}"
+        )
+    print()

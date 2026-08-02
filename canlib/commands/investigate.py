@@ -28,7 +28,7 @@ from canlib.align import (
 from canlib.byteindex import mapped_bits, mapped_offsets
 from canlib.capture_dates import add_scope_args, resolve_scope_bounds
 from canlib.commands._group import group_help
-from canlib.commands._investigate_render import print_events, print_report
+from canlib.commands._investigate_render import print_dwell, print_events, print_report
 from canlib.keepmode import scope_is_keep_changes, scope_is_keep_unique
 from canlib.notation import (
     add_notation_arg,
@@ -158,6 +158,15 @@ tip: no anchors found? widen scope (drop --state), lower --min-r, or grow the
         action="store_true",
         help="Report each bit/byte rising/falling edge with its timestamp, aligned to "
         "the nearest capture note (the narrated event timeline)",
+    )
+    parser.add_argument(
+        "--dwell",
+        action="store_true",
+        help="Summarise each event bit/byte by how long it stays ON — median "
+        "on-duration + a momentary|sustained class. Separates a briefly-pulsed "
+        "bit (a door flicked open) from one held for minutes (a hood left up), so "
+        "body/event signals are identifiable without capture-note narration. "
+        "Needs --keep-all/--keep-changes data (keep:unique drops falling edges)",
     )
     parser.add_argument(
         "--field",
@@ -341,9 +350,13 @@ def run(args) -> int:
     all_results = [{"capture": c} for c in lp.captures]
     state_buckets = _byte_state_buckets(all_results, "state", include_bits=args.bits)
 
-    # --events short-circuits to the edge/timeline view (no anchor correlation).
-    if args.events:
-        print_events(ecu, pid, lp, mapped, mapped_bit, args, params_def)
+    # --events short-circuits to the edge/timeline view (no anchor correlation);
+    # --dwell adds (or stands in for) the per-signal on-duration summary.
+    if args.events or args.dwell:
+        if args.events:
+            print_events(ecu, pid, lp, mapped, mapped_bit, args, params_def)
+        if args.dwell:
+            print_dwell(ecu, pid, lp, mapped, mapped_bit, args)
         return 0
 
     # Physical-band hits per starting offset (plausibility, needs no reference).

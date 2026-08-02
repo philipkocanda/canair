@@ -1,7 +1,7 @@
 """Tests for the time-aligned cross-signal analysis primitives (canlib.align)."""
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytest
 
@@ -10,6 +10,7 @@ from canlib.align import (
     SignalRef,
     TimePoint,
     align_many,
+    detrend_by_session,
     extract_series,
     join_nearest,
     join_nearest_presorted,
@@ -328,3 +329,49 @@ class TestJoinNearestTriple:
         xs, ys, zs, n = join_nearest_triple(ref, cand, [], tol_s=0.5)
         assert n == 0
         assert (xs, ys, zs) == ([], [], [])
+
+
+class TestDetrendBySession:
+    def test_removes_per_session_baseline(self):
+        # Two sessions (a day apart) share the same in-session ramp but sit on
+        # very different DC baselines — the case Pearson misranks across sessions.
+        base = datetime(2026, 7, 22, 9, 0, 0)
+        s1 = [TimePoint(base + _sec(i), 100.0 + i) for i in range(5)]
+        s2 = [TimePoint(base + timedelta(days=1) + _sec(i), 400.0 + i) for i in range(5)]
+        out = detrend_by_session(s1 + s2, gap_s=300.0)
+        vals = [tp.value for tp in out]
+        # Each session de-meaned to the same zero-centred ramp (mean of 0..4 = 2).
+        assert vals[:5] == [-2.0, -1.0, 0.0, 1.0, 2.0]
+        assert vals[5:] == [-2.0, -1.0, 0.0, 1.0, 2.0]
+
+    def test_makes_level_signal_correlate(self):
+        from canlib.stats import pearson
+
+        base = datetime(2026, 7, 22, 9, 0, 0)
+        # Reference ramps identically in both sessions; candidate tracks it but on
+        # a different per-session offset. Raw pearson is wrecked by the offset.
+        ref = [TimePoint(base + _sec(i), float(i)) for i in range(5)] + [
+            TimePoint(base + timedelta(days=1) + _sec(i), float(i)) for i in range(5)
+        ]
+        cand = [TimePoint(base + _sec(i), 100.0 + i) for i in range(5)] + [
+            TimePoint(base + timedelta(days=1) + _sec(i), 400.0 + i) for i in range(5)
+        ]
+        raw_r = pearson([t.value for t in ref], [t.value for t in cand])
+        dref = detrend_by_session(ref)
+        dcand = detrend_by_session(cand)
+        det_r = pearson([t.value for t in dref], [t.value for t in dcand])
+        assert raw_r is not None and det_r is not None
+        assert abs(det_r) > abs(raw_r)
+        assert det_r > 0.999  # in-session variation matches perfectly
+
+    def test_timestamps_preserved(self):
+        s = [_tp(0.0, 10.0), _tp(1.0, 20.0)]
+        out = detrend_by_session(s)
+        assert [tp.dt for tp in out] == [tp.dt for tp in s]
+
+    def test_single_point_segment_unchanged(self):
+        out = detrend_by_session([_tp(0.0, 42.0)])
+        assert out[0].value == 42.0
+
+    def test_empty(self):
+        assert detrend_by_session([]) == []

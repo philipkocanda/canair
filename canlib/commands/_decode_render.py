@@ -595,7 +595,9 @@ def _entry_dt(cap: dict):
     return entry_datetime(cap)
 
 
-def _dump_column_label(off: int, include_pci: bool, notation: ByteNotation, sub_bytes: int) -> str:
+def _dump_column_label(
+    off: int, include_pci: bool, notation: ByteNotation, sub_bytes: int, *, signed: bool = False
+) -> str:
     """Column label for WiCAN offset ``off`` in the byte-matrix export."""
     from canlib.byteindex import wican_to_isotp
     from canlib.notation import ByteRef
@@ -603,9 +605,25 @@ def _dump_column_label(off: int, include_pci: bool, notation: ByteNotation, sub_
     if wican_to_isotp(off) is None:
         return f"B{off}"  # PCI framing byte — no ISO-TP position, WiCAN label only
     try:
-        return ByteRef.from_wican(off).render(notation, sub_bytes=sub_bytes)
+        return ByteRef.from_wican(off, signed=signed).render(notation, sub_bytes=sub_bytes)
     except ValueError:
-        return f"B{off}"
+        return f"{'S' if signed else 'B'}{off}"
+
+
+def _dump_cell(fr: bytes, off: int, *, signed: bool) -> int | None:
+    """Byte value at ``off``, reinterpreted as signed (-128..127) when requested.
+
+    PCI framing bytes stay unsigned — signedness is only meaningful for a data
+    byte an analyst might read as the high half of a signed value.
+    """
+    from canlib.byteindex import wican_to_isotp
+
+    if off >= len(fr):
+        return None
+    v = fr[off]
+    if signed and wican_to_isotp(off) is not None and v >= 128:
+        return v - 256
+    return v
 
 
 def _dump_bytes(
@@ -617,6 +635,7 @@ def _dump_bytes(
     include_pci: bool,
     notation: ByteNotation,
     sub_bytes: int,
+    signed: bool = False,
 ) -> int:
     """Emit a ``timestamp × byte-offset`` matrix, one row per capture.
 
@@ -625,6 +644,11 @@ def _dump_bytes(
     JSON for ad-hoc analysis. Columns are WiCAN ``Bnn`` (relabelled by
     ``--notation``); ISO-TP PCI framing bytes are skipped unless ``include_pci``.
     A capture shorter than the widest frame leaves trailing cells blank/null.
+
+    With ``signed``, each data byte is reinterpreted as a two's-complement value
+    (-128..127) under an ``Snn`` header — so a byte that is the high half of a
+    signed quantity (a ``0xFF`` near-zero baseline) reads as a small negative
+    value and correlates cleanly, instead of the unsigned ``255`` foot-gun.
     """
     from canlib.byteindex import payload_to_wican_bytes, wican_to_isotp
 
@@ -640,7 +664,9 @@ def _dump_bytes(
         max_len = max(max_len, len(fr))
 
     offsets = [off for off in range(max_len) if include_pci or wican_to_isotp(off) is not None]
-    labels = [_dump_column_label(off, include_pci, notation, sub_bytes) for off in offsets]
+    labels = [
+        _dump_column_label(off, include_pci, notation, sub_bytes, signed=signed) for off in offsets
+    ]
 
     def _row_time(cap: dict, *, full: bool) -> str:
         """Timestamp for a row, harmonized with ``decode``/``align`` output.
@@ -672,7 +698,7 @@ def _dump_bytes(
                     "date": str(cap.get("date", "")),
                     "vehicle_states": cap.get("vehicle_states") or [],
                     "bytes": {
-                        lbl: (fr[off] if off < len(fr) else None)
+                        lbl: _dump_cell(fr, off, signed=signed)
                         for lbl, off in zip(labels, offsets, strict=True)
                     },
                 }
@@ -693,7 +719,10 @@ def _dump_bytes(
                 _row_time(cap, full=True),
                 ecu_key,
                 pid_key,
-                *[(fr[off] if off < len(fr) else "") for off in offsets],
+                *[
+                    (v if (v := _dump_cell(fr, off, signed=signed)) is not None else "")
+                    for off in offsets
+                ],
             ]
         )
     return 0

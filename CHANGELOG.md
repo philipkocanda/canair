@@ -7,6 +7,94 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Analysis/scan tooling de-Hyundai'd — make-neutral defaults, profile-declared
+  specifics** (`plans/2026-07-29-dehardcode-hkmc-scan-ranges-skm.md`). A fresh
+  profile for any make no longer inherits Ioniq/HKMC assumptions; the bundled
+  `ioniq-2017` profile behaves identically (the HK behavior moved into its data).
+  - **IOControl (`0x2F`) scan ranges are now per-ECU and profile-driven.** The
+    hardcoded HKMC body-controller DID map (and the `B000-BFFF` fallback zone) is
+    gone: `canair scan iocontrol` resolves each ECU's ranges from its new
+    **`iocontrol_scan_ranges:`** field, else derives them from the ECU's known
+    `2F`/`22` DID keys, else sweeps the full DID space. Set the field with the new
+    **`canair pids set-iocontrol-ranges ECU RANGE …`** editor.
+  - **`hunt`/`investigate` unit-guess candidates are make-neutral + profile
+    -extensible.** The `raw/2−40 "HK temp"` candidate lost its Hyundai label
+    (it's a generic half-degree-Celsius encoding); a profile can add its own
+    scalings via a **`unit_guess_candidates:`** list (mirrors `physical_bands:`).
+  - **Vehicle-state base vocabulary is now the powertrain-neutral ignition-switch
+    ladder `SLEEP`/`ACC`/`RUN`/`CRANK`** (the universal OFF/ACC/ON/START
+    positions; `RUN`/`SLEEP` because `ON`/`OFF` are YAML booleans, and `RUN`
+    reads unambiguously where a bare `IGN` invites "which IGN level?"). The EV
+    modes `PLUGGED`/`READY`/`CHARGING` and finer vendor ignition rungs (Hyundai's
+    numbered `IGN0-3`/split `IGN1`/`IGN2`, an `ACC2` sub-level) are no longer
+    baked into every profile — a profile declares those in `vehicle_states.yaml`
+    (the bundled Ioniq already does). The `--prereq`/`--vehicle-states`/`--states`
+    flags dropped their static choice list and validate against the *profile's*
+    vocabulary instead.
+  - **Identity/DTC HK bias removed.** The HK-only `F187` identity DID is now
+    probed only when a profile declares the `hk_f1xx_minus_one` quirk (a
+    make-neutral profile skips it), its "(HK)" label is neutralized, and the
+    HK-framed DTC fallback comments are reworded (no behavior change — the values
+    are ISO-standard).
+- **`canair discover --range` default reconciled with its help.** The `--range`
+  sentinel (`01-FF`) that contradicted the documented `700-7EF` default is gone;
+  the real per-addressing-mode default (`700-7EF` 11-bit / `00-FF` 29-bit) is now
+  the sole source of truth.
+
+### Added
+
+- **`canair ecu <ECU> edit`** opens the ECU's `ecus/<name>.yaml` file in
+  `$EDITOR` for bulk/awkward edits the surgical `canair pids` subcommands don't
+  reach. It is **TTY-only** — it refuses to run when stdin/stdout isn't a
+  terminal, so agents can't drive it (they must use the validated `canair pids`
+  editors). After the editor exits, the edited file is re-validated (the edit is
+  the user's own, not auto-reverted).
+- **`canair monitor` gained a view-mode toggle, a session-info overlay, and a
+  clearer segment header.**
+  - **`V` cycles the display view mode** (`ecus` → `ranges` → `signals` →
+    `full`): a bare responding-ECU list, each signal's captured value *span*
+    (numeric min–max or distinct labels, the way `investigate`/`decode` report a
+    range), the decoded signals only, or signals + raw byte payloads (the
+    default). View mode is display-only and never changes what's recorded.
+  - **`i` opens a read-only session-info overlay** — the current segment's
+    label/state/notes and start time, the run-level counters (frames
+    captured/unique, cycles, retain mode, poll interval, transport, run
+    start/elapsed), and the history of the `--save` segments already finished
+    this run (each with its label/states/time-span/frame-count/written file).
+  - The header bar keeps showing the **current segment name**; `s` renames /
+    relabels it (as before).
+  - The live view's **vertical scrollbar is now half-width** (matched across the
+    `monitor`, `sniff`, and `decode --plot` TUIs).
+- **`hunt` now emits promotable expressions for little-endian *signed* reads.**
+  A winning `i16 LE`/`i24 LE` (or PCI-straddling signed) interpretation used to
+  print `<no-expr>` and get demoted; it's now synthesized as an arithmetic form
+  with the most-significant byte signed (e.g. `B9 + S10*256`), so the top hit is
+  directly `--promote`-able. Only floats remain inexpressible.
+- **`decode --dump-bytes --signed`** renders each data byte as a two's-complement
+  value (-128..127) under an `Snn` column header instead of the unsigned `Bnn`
+  (0..255). A byte that is the high half of a signed quantity (a `0xFF` near-zero
+  baseline) reads as a small negative value that correlates cleanly — closing the
+  "why does `S20` correlate but the `B20` dump column doesn't?" foot-gun.
+- **`hunt --against` / `correlate --against` warn on a slowly-varying absolute
+  level.** When the reference sits on a large baseline with only a small swing (a
+  pack/12 V/mains voltage, a temperature held near a setpoint), Pearson `|r|` is
+  corrupted by cross-session DC offsets; the tools now warn and point at
+  `hunt --physical` + per-state absolute comparison.
+- The bimodal-reference warning now nudges toward `--method cramers_v` /
+  `mutual_info` when a numeric method is in use — the right coefficient for an
+  enum/flag/mode reference.
+
+### Fixed
+
+- **`hunt`'s physical-unit guess no longer emits a mismatched domain label.** The
+  slope→unit hint (e.g. `raw×0.02 (cell V)`) is now gated on the `--against`
+  reference's declared unit: a speed reference no longer tags an RPM slope as a
+  cell voltage. The numeric scale is always shown; only the domain flavour is
+  suppressed on a dimension mismatch (an unknown reference unit leaves it
+  untouched).
+
 ## [1.10.2] - 2026-08-02
 
 ### Changed

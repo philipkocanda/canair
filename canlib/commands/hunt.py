@@ -16,7 +16,7 @@ import argparse
 import json as _json
 import sys
 
-from canlib.align import DEFAULT_JOIN_TOL_S, load_signal_captures
+from canlib.align import DEFAULT_JOIN_TOL_S, DEFAULT_SESSION_GAP_S, load_signal_captures
 from canlib.capture_dates import add_scope_args, resolve_scope_bounds
 from canlib.commands._can_args import add_can_log_source_args
 from canlib.commands._group import group_help
@@ -27,7 +27,14 @@ from canlib.notation import (
     resolve_notation,
     subfunction_bytes_for_pid,
 )
-from canlib.xanalysis import hunt_byte, load_ref, reference_is_bimodal, transform_ref
+from canlib.xanalysis import (
+    hunt_byte,
+    load_ref,
+    ref_unit_for,
+    reference_is_absolute_level,
+    reference_is_bimodal,
+    transform_ref,
+)
 
 NAME = "hunt"
 
@@ -225,6 +232,23 @@ tip: --against takes a known signal ECU:PID:PARAM (or a raw ECU:PID:EXPR). Use
         "candidate param NAME (via pids upsert-param), with the correlation "
         "evidence auto-filled into notes",
     )
+    parser.add_argument(
+        "--per-session",
+        dest="per_session",
+        action="store_true",
+        help="Remove each recording session's DC baseline before ranking — makes a "
+        "slowly-varying absolute-level reference/byte (pack/12V/mains voltage, a "
+        "held temperature) rankable by --against instead of being dominated by "
+        "cross-session offsets. Ranks the in-session *variation*, not the level",
+    )
+    parser.add_argument(
+        "--session-gap",
+        dest="session_gap",
+        type=float,
+        default=DEFAULT_SESSION_GAP_S,
+        metavar="SECONDS",
+        help=f"With --per-session: time gap that starts a new session (default {DEFAULT_SESSION_GAP_S}s)",
+    )
     add_notation_arg(parser)
     add_scope_args(parser)
     parser.set_defaults(func=run)
@@ -353,6 +377,8 @@ def _run_can_log(args) -> int:
 
 def run(args) -> int:
     from canlib.ecus import canonical_ecu_name_safe
+    from canlib.profile import active
+    from canlib.unit_guess import resolve_unit_candidates
 
     if not args.ecu or not args.pid:
         print(
@@ -411,12 +437,23 @@ def run(args) -> int:
         ref_label = f"{args.transform}({ref_label})"
 
     if reference_is_bimodal([tp.value for tp in ref_series]):
+        from canlib.stats import categorical_method_nudge
+
         print(
             f"hunt: warning: reference {ref_label!r} collapses into ~2 clusters "
             "(bimodal) \u2014 |r| then ranks cluster separation, not a signal match, so "
             "the top hits are unreliable. Use a scope with continuous variation "
-            "(a keep-all drive), not a bimodal regime flip. "
+            f"(a keep-all drive), not a bimodal regime flip.{categorical_method_nudge(args.method)} "
             "See docs/concepts/analysis-commands.md.",
+            file=sys.stderr,
+        )
+    elif reference_is_absolute_level([tp.value for tp in ref_series]):
+        print(
+            f"hunt: warning: reference {ref_label!r} looks like a slowly-varying "
+            "absolute level (small swing on a large baseline) \u2014 Pearson |r| is then "
+            "corrupted by cross-session DC offsets, so --against ranking is unreliable "
+            "for it. Prefer `hunt --physical` (named bands) plus comparing per-state "
+            "absolute readings to a known value. See docs/concepts/analysis-commands.md.",
             file=sys.stderr,
         )
 
@@ -458,6 +495,10 @@ def run(args) -> int:
         method=args.method,
         all_interps=args.all_interps,
         control=control_series,
+        ref_unit=None if args.against_file else ref_unit_for(args.against),
+        candidates=resolve_unit_candidates(active().meta),
+        per_session=args.per_session,
+        session_gap_s=args.session_gap,
     )
 
     if args.promote:

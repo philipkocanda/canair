@@ -149,3 +149,19 @@ class TestPartialCorrelation:
 
         with pytest.raises(ValueError):
             partial_correlation([1, 2], [1, 2], [1, 2], method="cramers_v")
+
+
+class TestCategoricalMethodNudge:
+    def test_nudges_numeric_methods(self):
+        from canlib.stats import categorical_method_nudge
+
+        for m in ("pearson", "spearman"):
+            nudge = categorical_method_nudge(m)
+            assert "cramers_v" in nudge
+            assert nudge.startswith(" ")
+
+    def test_silent_for_categorical_methods(self):
+        from canlib.stats import categorical_method_nudge
+
+        assert categorical_method_nudge("cramers_v") == ""
+        assert categorical_method_nudge("mutual_info") == ""

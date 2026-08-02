@@ -478,3 +478,55 @@ class TestTriageIntegration:
         exprs = [w["expr"] for w in data["word_candidates"]]
         assert "[B5:B6]" in exprs  # the real adjacent word (constant hi + wide lo)
         assert "[B4:B6]" not in exprs  # no misleading pair spanning the dropped B5
+
+
+class TestDwellSummary:
+    """Per-signal on-duration classification (momentary door vs sustained hood)."""
+
+    def _lp(self):
+        from canlib.align import LoadedPid
+
+        # B10 (payload idx 7) carries two bits: bit0 pulses ON for one 5s sample
+        # (a door flicked open→closed); bit1 stays ON for 20s (a hood left up).
+        seq = [(0, 0x00), (5, 0x01), (10, 0x02), (15, 0x02), (20, 0x02), (25, 0x02), (30, 0x00)]
+        lp = LoadedPid("IGPM", "22BC03")
+        for s, v in seq:
+            lp.captures.append(
+                {
+                    "ecu": "IGPM",
+                    "pid": "22BC03",
+                    "date": "2026-07-24",
+                    "time": f"09:00:{s:02d}",
+                    "payload": f"62BC03FDEE3C73{v:02X}0000",
+                }
+            )
+        return lp
+
+    def test_classifies_momentary_vs_sustained(self):
+        rows = {r["signal"]: r for r in render.dwell_summary(self._lp(), {}, {}, bits=True)}
+        assert rows["B10:0"]["class"] == "momentary"  # 5s pulse ≈ one poll interval
+        assert rows["B10:1"]["class"] == "sustained"  # 20s held
+        assert rows["B10:1"]["median_on_s"] == 20.0
+        assert rows["B10:0"]["median_on_s"] == 5.0
+
+    def test_sustained_ranked_first(self):
+        rows = render.dwell_summary(self._lp(), {}, {}, bits=True)
+        assert rows[0]["class"] == "sustained"  # held signals surface above flickers
+
+    def test_still_on_at_end_is_unknown(self):
+        from canlib.align import LoadedPid
+
+        lp = LoadedPid("IGPM", "22BC03")
+        for s, v in [(0, 0x00), (5, 0x01), (10, 0x01)]:  # rises, never falls in scope
+            lp.captures.append(
+                {
+                    "ecu": "IGPM",
+                    "pid": "22BC03",
+                    "date": "2026-07-24",
+                    "time": f"09:00:{s:02d}",
+                    "payload": f"62BC03FDEE3C73{v:02X}0000",
+                }
+            )
+        rows = {r["signal"]: r for r in render.dwell_summary(lp, {}, {}, bits=True)}
+        assert rows["B10:0"]["class"] == "unknown"
+        assert rows["B10:0"]["median_on_s"] is None

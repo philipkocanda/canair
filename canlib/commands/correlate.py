@@ -17,6 +17,8 @@ import sys
 
 from canlib.align import (
     DEFAULT_JOIN_TOL_S,
+    DEFAULT_SESSION_GAP_S,
+    detrend_by_session,
     join_nearest,
     join_prepared,
     load_signal_captures,
@@ -46,6 +48,8 @@ from canlib.xanalysis import (
     correlation,
     lag_scan,
     load_ref,
+    ref_unit_for,
+    reference_is_absolute_level,
     reference_is_bimodal,
     transform_ref,
 )
@@ -256,6 +260,23 @@ examples:
         help="With --against: keep the reference's own signal (trivial r=1.0; dropped by default)",
     )
     _add_shared_analysis_args(parser)
+    parser.add_argument(
+        "--per-session",
+        dest="per_session",
+        action="store_true",
+        help="Remove each recording session's DC baseline before correlating — makes "
+        "slowly-varying absolute-level signals (pack/12V/mains voltage, a held "
+        "temperature) rankable instead of dominated by cross-session offsets. "
+        "Ranks in-session variation, not the level (so absolute scale is lost)",
+    )
+    parser.add_argument(
+        "--session-gap",
+        dest="session_gap",
+        type=float,
+        default=DEFAULT_SESSION_GAP_S,
+        metavar="SECONDS",
+        help=f"With --per-session: time gap that starts a new session (default {DEFAULT_SESSION_GAP_S}s)",
+    )
     parser.add_argument(
         "--no-cluster",
         action="store_true",
@@ -580,6 +601,15 @@ def run(args) -> int:
         print("No time-aligned signals found in scope.", file=sys.stderr)
         return 1
 
+    per_session = getattr(args, "per_session", False)
+    if per_session:
+        series = {k: detrend_by_session(v, args.session_gap) for k, v in series.items()}
+        print(
+            "correlate: --per-session active — each recording's DC baseline removed; "
+            "ranking in-session variation, not absolute level.",
+            file=sys.stderr,
+        )
+
     # --against / --against-file: rank every signal vs one reference.
     if args.against or args.against_file:
         try:
@@ -621,11 +651,23 @@ def run(args) -> int:
                 return 1
 
         if reference_is_bimodal([tp.value for tp in ref_series]):
+            from canlib.stats import categorical_method_nudge
+
             print(
                 f"correlate: warning: reference {ref_label!r} collapses into ~2 clusters "
                 "(bimodal) \u2014 |r| then ranks cluster separation, not a real relationship, "
                 "so --against results are unreliable. Prefer a scope with continuous "
-                "variation. See docs/concepts/analysis-commands.md.",
+                f"variation.{categorical_method_nudge(args.method)} "
+                "See docs/concepts/analysis-commands.md.",
+                file=sys.stderr,
+            )
+        elif reference_is_absolute_level([tp.value for tp in ref_series]):
+            print(
+                f"correlate: warning: reference {ref_label!r} looks like a slowly-varying "
+                "absolute level (small swing on a large baseline) \u2014 Pearson |r| is then "
+                "corrupted by cross-session DC offsets, so --against results are unreliable "
+                "for it. Prefer `hunt --physical` (named bands) plus comparing per-state "
+                "absolute readings to a known value. See docs/concepts/analysis-commands.md.",
                 file=sys.stderr,
             )
 
@@ -659,6 +701,11 @@ def run(args) -> int:
                 print(f"{flag} error: {e}", file=sys.stderr)
                 return 1
             ref_label = f"{ref_label} · control {control_label}"
+
+        if per_session:
+            ref_series = detrend_by_session(ref_series, args.session_gap)
+            if control_series is not None:
+                control_series = detrend_by_session(control_series, args.session_gap)
 
         rows = []
         ref_prepared = prepare_series(ref_series)
@@ -702,6 +749,7 @@ def run(args) -> int:
                 ref_series,
                 ref_label,
                 args.join_tol,
+                ref_unit=None if args.against_file else ref_unit_for(args.against),
             )
         rows = rows[: args.top]
         if args.json:
@@ -795,7 +843,7 @@ def run(args) -> int:
     return 0
 
 
-def _promote_top_byte(name, rows, series, ref_series, ref_label, tol) -> int:
+def _promote_top_byte(name, rows, series, ref_series, ref_label, tol, *, ref_unit=None) -> int:
     """Promote the strongest raw-byte hit vs the reference to a candidate param.
 
     Only raw bytes (``Bn``) are promotable — an already-defined param needs no
@@ -826,7 +874,7 @@ def _promote_top_byte(name, rows, series, ref_series, ref_label, tol) -> int:
     xs, ys, _ = join_nearest(ref_series, series[sig], tol_s=tol)
     fit = linear_fit(xs, ys)
     fit_note = f", fit y={fit[0]:.4f}·x{fit[1]:+.2f}, resid={fit[2]:.2f}" if fit else ""
-    unit = sniff_unit(xs, ys)
+    unit = sniff_unit(xs, ys, ref_unit)
     unit_note = f" {unit}" if unit else ""
     notes = (
         f"Candidate from `canair correlate --against {ref_label}`: r={r:+.3f} (n={n})"

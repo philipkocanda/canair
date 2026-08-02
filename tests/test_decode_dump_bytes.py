@@ -109,3 +109,30 @@ class TestDumpBytesJSON:
         assert row["time"] == "09:06:37.007000"
         assert row["date"] == "2026-07-22"
         assert "T" not in row["time"]
+
+
+class TestDumpBytesSigned:
+    def test_signed_column_header_and_value(self):
+        # B3 = 0xAB (171 unsigned) -> -85 signed, header relabelled S3.
+        out = _dump([_result("6101ABCD")], as_json=True, signed=True)
+        doc = json.loads(out)
+        assert "S3" in doc["columns"]
+        assert "B3" not in doc["columns"]
+        assert doc["rows"][0]["bytes"]["S3"] == 0xAB - 256  # -85
+
+    def test_unsigned_default_unchanged(self):
+        doc = json.loads(_dump([_result("6101ABCD")], as_json=True))
+        assert doc["rows"][0]["bytes"]["B3"] == 0xAB
+
+    def test_signed_csv(self):
+        out = _dump([_result("6101ABCD")], signed=True)
+        header = out.strip().splitlines()[0].split(",")
+        row = out.strip().splitlines()[1].split(",")
+        assert "S3" in header
+        assert int(row[header.index("S3")]) == 0xAB - 256
+
+    def test_low_byte_stays_positive(self):
+        # A byte < 128 is identical signed or unsigned (only the header changes).
+        out = _dump([_result("610105CD")], as_json=True, signed=True)
+        doc = json.loads(out)
+        assert doc["rows"][0]["bytes"]["S3"] == 0x05

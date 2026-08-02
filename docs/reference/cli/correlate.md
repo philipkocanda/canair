@@ -34,6 +34,7 @@ usage: canair correlate uds [-h] [--transform MODE] [--matrix]
                             [--min-r R] [--min-n N] [--top N]
                             [--method {pearson,spearman,cramers_v,mutual_info}]
                             [--join-tol SECONDS] [--bits] [--json]
+                            [--per-session] [--session-gap SECONDS]
                             [--no-cluster] [--bytes] [--lag-scan N]
                             [--gate '[SIGNAL] OP VALUE']
                             [--control ECU:PID:PARAM] [--control-file FILE]
@@ -104,6 +105,15 @@ options:
   --join-tol SECONDS    Nearest-timestamp join window (default 5.0s)
   --bits                Include individual toggling bits (rN:k / Bn:k)
   --json                Machine-readable output
+  --per-session         Remove each recording session's DC baseline before
+                        correlating — makes slowly-varying absolute-level
+                        signals (pack/12V/mains voltage, a held temperature)
+                        rankable instead of dominated by cross-session
+                        offsets. Ranks in-session variation, not the level (so
+                        absolute scale is lost)
+  --session-gap SECONDS
+                        With --per-session: time gap that starts a new session
+                        (default 300.0s)
   --no-cluster          Don't collapse near-perfectly-correlated (|r|≥0.995)
                         signal groups into a single summary line (e.g.
                         balanced cell voltages while charging)

@@ -61,6 +61,35 @@ class TestReferenceIsBimodal:
         assert not xanalysis.reference_is_bimodal([12.4] * 30)
 
 
+class TestReferenceIsAbsoluteLevel:
+    def test_pack_voltage_true(self):
+        # ~360V pack with a ±5V swing: tiny relative span on a big baseline.
+        import random
+
+        random.seed(0)
+        assert xanalysis.reference_is_absolute_level(
+            [360 + random.uniform(-5, 5) for _ in range(50)]
+        )
+
+    def test_12v_rail_true(self):
+        assert xanalysis.reference_is_absolute_level([14.2 + 0.01 * i for i in range(40)])
+
+    def test_speed_sweep_false(self):
+        # 0..100 km/h: huge relative span → dynamic, not a level.
+        assert not xanalysis.reference_is_absolute_level([float(i) for i in range(0, 100)])
+
+    def test_rpm_sweep_false(self):
+        assert not xanalysis.reference_is_absolute_level([float(i * 60) for i in range(100)])
+
+    def test_near_zero_baseline_false(self):
+        # A temperature swinging around 0°C: baseline below the floor → not flagged
+        # (DC offset doesn't dominate a near-zero mean).
+        assert not xanalysis.reference_is_absolute_level([(-2.0 + 0.1 * i) for i in range(40)])
+
+    def test_too_few_samples_false(self):
+        assert not xanalysis.reference_is_absolute_level([360.0] * 5)
+
+
 class TestDiscriminability:
     def test_clean_separation_high(self):
         # Two states, tight within each, far apart between -> large F.
@@ -119,6 +148,53 @@ class TestSniffUnit:
 
     def test_no_fit_returns_none(self):
         assert xanalysis.sniff_unit([1], [1]) is None
+
+    def test_domain_hint_suppressed_on_mismatched_ref_unit(self):
+        # An RPM slope ≈64 best-fits the 0.02 "cell V" candidate; with a speed
+        # reference the voltage hint must be dropped, leaving the numeric scale.
+        xs = [0.0, 10.0, 20.0, 30.0]  # km/h reference
+        ys = [x / 0.02 for x in xs]  # candidate byte, slope ≈ 50
+        guess = xanalysis.sniff_unit(xs, ys, ref_unit="km/h")
+        assert guess is not None
+        assert "cell V" not in guess
+        assert "raw×0.02" in guess
+
+    def test_domain_hint_kept_on_matching_ref_unit(self):
+        xs = [3.6, 3.7, 3.8, 3.9]  # voltage reference
+        ys = [x / 0.02 for x in xs]  # candidate byte ≈ centivolts
+        guess = xanalysis.sniff_unit(xs, ys, ref_unit="V")
+        assert guess is not None and "cell V" in guess
+
+    def test_domain_hint_kept_when_ref_unit_unknown(self):
+        # No/unknown reference unit → don't gate (conservative, unchanged).
+        xs = [3.6, 3.7, 3.8, 3.9]
+        ys = [x / 0.02 for x in xs]
+        assert "cell V" in (xanalysis.sniff_unit(xs, ys) or "")
+
+    def test_no_hyundai_label_in_builtins(self):
+        from canlib.unit_guess import DEFAULT_UNIT_CANDIDATES
+
+        hints = [c[3] for c in DEFAULT_UNIT_CANDIDATES]
+        labels = [c[2] for c in DEFAULT_UNIT_CANDIDATES]
+        assert "HK temp" not in hints
+        assert all("HK" not in (h or "") for h in hints)
+        assert all("HK" not in ln for ln in labels)
+
+    def test_profile_candidate_threaded_through(self):
+        # A profile-declared scaling (raw/4 minus 50) is used when passed in.
+        xs = [float(t) for t in range(-10, 40)]
+        ys = [(x + 50) * 4 for x in xs]
+        extra = [(0.25, -50.0, "raw/4−50", None, None)]
+        guess = xanalysis.sniff_unit(xs, ys, candidates=extra)
+        assert guess is not None
+        assert "raw/4−50" in guess
+
+    def test_unit_dimension_mapping(self):
+        assert xanalysis.unit_dimension("km/h") == "speed"
+        assert xanalysis.unit_dimension("V") == "voltage"
+        assert xanalysis.unit_dimension("°C") == "temperature"
+        assert xanalysis.unit_dimension("rpm") is None
+        assert xanalysis.unit_dimension(None) is None
 
 
 class TestTransformRef:
@@ -365,6 +441,53 @@ class TestHuntByte:
             f"hunt surfaced PCI-spanning hit(s): {[(h.expr, h.offset, h.width) for h in spanning]}"
         )
         assert 1 not in {h.offset for h in hits}  # B1 is a PCI byte, never a signal
+
+    def test_finds_frame_straddling_word(self):
+        """A 16-bit value split across an ISO-TP frame boundary (high byte last in
+        one frame, low byte first in the next, PCI byte between) must be surfaced
+        by the PCI-skip sweep as an arithmetic ``S15*256 + B17`` expression — the
+        BMS pack-current layout the contiguous sweep structurally can't find.
+        """
+        from datetime import date, datetime, time
+
+        from canlib.align import LoadedPid
+
+        lp = LoadedPid("BMS", "2101")
+        ref: list[TimePoint] = []
+        for i in range(15):
+            val = 1000 + i * 10  # 16-bit, both bytes vary; low byte wraps (non-monotonic)
+            pb = bytearray(14)  # 14-byte payload → multi-frame; idx 12→B15, idx 13→B17
+            pb[0] = 0x61
+            pb[12] = (val >> 8) & 0xFF
+            pb[13] = val & 0xFF
+            lp.captures.append(
+                {"date": "2026-07-22", "time": f"09:00:{i:02d}", "payload": pb.hex()}
+            )
+            ref.append(TimePoint(datetime.combine(date(2026, 7, 22), time(9, 0, i)), float(val)))
+
+        hits = xanalysis.hunt_byte(lp, ref, tol_s=1.0, min_n=10, all_interps=True)
+        assert any("skip-PCI" in h.interp for h in hits), "no PCI-skip candidates generated"
+        straddle = [h for h in hits if h.expr in ("B15*256 + B17", "S15*256 + B17")]
+        assert straddle, f"frame-straddling word not surfaced: {sorted(h.expr for h in hits)}"
+        assert max(abs(h.r) for h in straddle) > 0.999
+
+    def test_per_session_flag_accepted(self):
+        from datetime import date, datetime, time
+
+        from canlib.align import LoadedPid
+
+        lp = LoadedPid("AAF", "2181")
+        ref: list[TimePoint] = []
+        for i in range(12):
+            pb = bytearray(6)
+            pb[0] = 0x61
+            pb[3] = i  # a single varying data byte
+            lp.captures.append(
+                {"date": "2026-07-22", "time": f"09:00:{i:02d}", "payload": pb.hex()}
+            )
+            ref.append(TimePoint(datetime.combine(date(2026, 7, 22), time(9, 0, i)), float(i)))
+        hits = xanalysis.hunt_byte(lp, ref, tol_s=1.0, min_n=10, per_session=True)
+        assert hits  # runs and returns candidates with per-session detrending on
 
 
 # ---------------------------------------------------------------------------
@@ -710,6 +833,24 @@ class TestPhysicalScan:
         assert hv, f"expected an HV-pack hit, got {[(h.expr, h.band) for h in hits]}"
         assert hv[0].scaling == "/10"
         assert 450 <= hv[0].median <= 850
+
+    def test_temperature_byte_flagged_in_temp_band(self):
+        # A single byte encoding a Hyundai/Kia temperature (raw/2-40): raw
+        # 110..130 -> 15..25 °C. Must surface a temp-band hit, separate from any
+        # voltage reading of the same byte.
+        payloads = [f"6101{t:02X}0000000000" for t in (110, 116, 120, 124, 130)]
+        hits = xanalysis.physical_scan(self._loaded(payloads), min_n=3)
+        temp = [h for h in hits if h.band == "temp °C"]
+        assert temp, f"expected a temp-band hit, got {[(h.expr, h.band) for h in hits]}"
+        assert "40" in temp[0].scaling  # a raw/2-40 (or -40) temperature scaling
+        assert 10 <= temp[0].median <= 30
+
+    def test_voltage_hit_not_displaced_by_temp(self):
+        # The mains-RMS word still surfaces though its bytes also get a
+        # (lower-confidence) temperature reading — collapse is per (offset, kind).
+        payloads = [f"6101{cv:04X}00000000" for cv in (21850, 22100, 22400, 22750, 22200)]
+        hits = xanalysis.physical_scan(self._loaded(payloads), min_n=3)
+        assert [h for h in hits if h.band == "mains RMS V"]
 
     def test_bands_none_matches_default_constant(self):
         # bands=None must reproduce the built-in PHYSICAL_BANDS behaviour exactly.

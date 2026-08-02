@@ -28,6 +28,7 @@ options:
   canair ecu BMS --captures  # per-PID capture counts for the BMS
   canair ecu BMS --json      # machine-readable
   canair ecu --json          # all ECUs as JSON
+  canair ecu HVAC edit       # open HVAC's ecus/ YAML in $EDITOR (TTY only)
 
 Columns & legend:
   BUS    physical CAN bus segment(s) the ECU sits on (profile-specific codes,
@@ -52,14 +53,17 @@ Columns & legend:
 ```
 usage: canair ecu show [-h] [--sort {bus,name,tx,proto,pids,verif,caps}] [-c]
                        [--json]
-                       [ecu] [{pids}]
+                       [ecu] [{pids,edit}]
 
 List ECUs, or show one ECU's details and PID stats.
 
 positional arguments:
   ecu                   ECU name, alias, or hex TX/RX id (omit to list all)
-  {pids}                'pids': compact per-PID view with each PID's latest
-                        decoded state (e.g. `canair ecu BMS pids`)
+  {pids,edit}           'pids': compact per-PID view with each PID's latest
+                        decoded state (e.g. `canair ecu BMS pids`); 'edit':
+                        open the ECU's ecus/ YAML file in $EDITOR (TTY only —
+                        agents must use `canair pids` instead; e.g. `canair
+                        ecu HVAC edit`)
 
 options:
   -h, --help            show this help message and exit
@@ -80,6 +84,7 @@ options:
   canair ecu BMS --captures  # per-PID capture counts for the BMS
   canair ecu BMS --json      # machine-readable
   canair ecu --json          # all ECUs as JSON
+  canair ecu HVAC edit       # open HVAC's ecus/ YAML in $EDITOR (TTY only)
 
 Columns & legend:
   BUS    physical CAN bus segment(s) the ECU sits on (profile-specific codes,

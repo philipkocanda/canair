@@ -460,12 +460,23 @@ HVAC:
           max: "121"
           source: HVAC fan-only + fan 1->MAX->1 sweep captures 2026-07-26
           verified: true
-          notes: >
-            Actual blower fan speed indicator.
-            Verified by a deliberate fan 1->MAX->1 sweep (2026-07-26 heater-high session):
-            8 clean symmetric monotonic plateaus L1=40 L2=52 L3=65 L4=77 L5=90 L6=102 L7=111 L8/MAX=121 (~+12/level, compresses at top).
-            Fan-only session steps matched (52/65/90 on the 3->5 change).
-            Reads actual (not rigid setpoint): small off-plateau values (85-93) appear as a transient when vents/recirc change airflow load; steady when load fixed.
+          notes: >-
+            Actual blower fan speed indicator (analog feedback, not rigid setpoint). Verified by a
+            deliberate fan 1->MAX->1 sweep (2026-07-26 heater-high session): 8 clean symmetric
+            monotonic plateaus L1=40 L2=52 L3=65 L4=77 L5=90 L6=102 L7=111 L8/MAX=121 (~+12/level,
+            compresses at top). Fan-only session steps matched (52/65/90 on 3->5). Enum labels the
+            plateau centers; small off-plateau values (35-93) are transients when vents/recirc
+            change airflow load and fall through to the raw number.
+          type: enum
+          values:
+            40: Fan 1
+            52: Fan 2
+            65: Fan 3
+            77: Fan 4
+            90: Fan 5
+            102: Fan 6
+            111: Fan 7
+            121: Fan 8 (MAX)
     2201A1:
       status: draft
       vehicle_states: [ACC, ACC2, READY]

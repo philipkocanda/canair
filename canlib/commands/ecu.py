@@ -16,6 +16,7 @@ Examples:
   canair ecu BMS --captures  # per-PID capture counts for the BMS
   canair ecu BMS --json      # machine-readable
   canair ecu --json          # all ECUs as JSON
+  canair ecu HVAC edit       # open HVAC's ecus/ YAML in $EDITOR (TTY only)
 
 Columns & legend:
   BUS    physical CAN bus segment(s) the ECU sits on (profile-specific codes,
@@ -640,6 +641,70 @@ def cmd_pids(info: Mapping[str, Any], tx_id: int, ecu_def: dict | None, as_json:
     return 0
 
 
+def cmd_edit(info: Mapping[str, Any], tx_id: int) -> int:
+    """Open the ECU's ``ecus/<name>.yaml`` file in ``$EDITOR`` (TTY only).
+
+    A human escape hatch for bulk/awkward edits the surgical `canair pids`
+    subcommands don't reach. It refuses to run when stdin/stdout isn't a
+    terminal so agents can't drive it — they must use the validated `canair
+    pids` editors instead. After the editor exits, the file is re-validated and
+    any errors are surfaced (the edit is *not* auto-reverted — the user owns it).
+    """
+    import os
+    import shutil
+    import subprocess
+
+    from canlib.ecus_edit import find_ecu_file
+
+    name = info.get("name") or f"0x{tx_id:03X}"
+
+    if not (sys.stdin.isatty() and sys.stdout.isatty()):
+        print(
+            f"{_RED}`canair ecu {name} edit` requires an interactive terminal.{_RESET}\n"
+            f"{_DIM}It opens $EDITOR by design, so it can't be scripted or driven by an "
+            f"agent.\nUse the surgical, validated editors instead — e.g. "
+            f"`canair pids upsert-param`, `canair pids set-can-bus`, "
+            f"`canair ecu add`.{_RESET}",
+            file=sys.stderr,
+        )
+        return 1
+
+    path = find_ecu_file(tx_id)
+    if path is None or not path.exists():
+        print(
+            f"{_RED}No ecus/ file found for {name} (0x{tx_id:03X}).{_RESET}\n"
+            f"{_DIM}Register it first with `canair ecu add`.{_RESET}",
+            file=sys.stderr,
+        )
+        return 1
+
+    editor = os.environ.get("EDITOR") or os.environ.get("VISUAL")
+    if not editor:
+        editor = next((e for e in ("nano", "vim", "vi") if shutil.which(e)), None)
+    if not editor:
+        print("No editor found. Set $EDITOR or edit directly:", file=sys.stderr)
+        print(f"  {path}", file=sys.stderr)
+        return 1
+
+    rc = subprocess.call([*editor.split(), str(path)])
+    if rc != 0:
+        print(f"{_YELLOW}Editor exited with status {rc}; skipping validation.{_RESET}")
+        return rc
+
+    # Re-validate the edited file (not auto-reverted — the user owns the edit).
+    from canlib.commands.validate.pids import _run_pids
+
+    print(f"\n{_DIM}Validating {path.name} …{_RESET}")
+    vrc = _run_pids([str(path)], stats=False)
+    if vrc:
+        print(
+            f"{_YELLOW}Validation failed — re-run `canair ecu {name} edit` to fix, "
+            f"or `canair validate pids`.{_RESET}",
+            file=sys.stderr,
+        )
+    return vrc
+
+
 def _unknown_ecu(value: str, records: list[dict]) -> int:
     print(f"{_RED}Unknown ECU {value!r}.{_RESET}", file=sys.stderr)
     names = [r["name"] for r in records]
@@ -682,9 +747,11 @@ def _add_show_parser(kinds) -> argparse.ArgumentParser:
     parser.add_argument(
         "view",
         nargs="?",
-        choices=["pids"],
+        choices=["pids", "edit"],
         help="'pids': compact per-PID view with each PID's latest decoded state "
-        "(e.g. `canair ecu BMS pids`)",
+        "(e.g. `canair ecu BMS pids`); "
+        "'edit': open the ECU's ecus/ YAML file in $EDITOR (TTY only — agents "
+        "must use `canair pids` instead; e.g. `canair ecu HVAC edit`)",
     )
     parser.add_argument(
         "--sort",
@@ -847,6 +914,9 @@ def run(args) -> int:
 
     if getattr(args, "view", None) == "pids":
         return cmd_pids(info, tx_id, ecu_def, args.json)
+
+    if getattr(args, "view", None) == "edit":
+        return cmd_edit(info, tx_id)
 
     rec = _detail_record(
         info, tx_id, pids_name, ecu_def, bus_labels=labels, with_captures=with_captures
