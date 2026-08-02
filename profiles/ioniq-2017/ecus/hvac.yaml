@@ -86,16 +86,21 @@ HVAC:
             the compressor running, recovers when it cycles off (clear thermal lag vs interior
             temp). Exact sensor unconfirmed (evaporator / heat-pump inlet-outlet / heat-exchanger) —
             the HEAT_PUMP name is a best guess.
-        HVAC_UNKNOWN_B15:
-          expression: "B15"
+        HVAC_COMPRESSOR_DUTY:
+          expression: B15
           unit: ""
           min: "0"
           max: "255"
-          source: "Monitor session 2026-04-17"
+          source: canair investigate/correlate 2026-08-02
           verified: false
-          notes: >
-            Unsure, unlikely to be blower fan duty though.
-
+          notes: >-
+            Compressor-associated load/duty candidate (renamed from HVAC_UNKNOWN_B15 2026-08-02,
+            canair). Smooth continuous analog (lag1 autocorr 0.99, mean|step| ~1% of range), range
+            16-239; ~67 with compressor OFF rising to ~236 when ON; tracks HVAC_COMPRESSOR_ON
+            (220102 B17) r=+0.71, only weakly pack current (r=+0.25). NOT a temperature (no scaling
+            gives a sane both-ends deg C; corroborated by the closed 2026-08-01 220100 research
+            note). Nonzero-when-off (~67) argues against a pure speed — likely a compressor duty /
+            ECV position. Unverified; confirm with a compressor-ramp capture.
         HVAC_UNKNOWN_B17:
           expression: B17
           unit: ""
@@ -234,7 +239,7 @@ HVAC:
             HVAC_HEATER_MODE_FLAG — it is a compressor-state mirror, not a distinct heater/cooler mode.
             See HVAC_COMPRESSOR_ON_MIRROR (B12) for the same signal.
 
-        HVAC_TEMP_B19:
+        HVAC_HOTSIDE_TEMP:
           expression: B19
           unit: "°C"
           ha_class: temperature
@@ -242,13 +247,15 @@ HVAC:
           max: "127"
           source: "Monitor session 2026-04-17; reclassified 2026-07-20"
           verified: false
-          notes: >
-            RENAMED from HVAC_COMPRESSOR_LOAD 2026-07-20 — it is a TEMPERATURE, not a load. Evidence across
-            108 220102 captures: B19 reads 20-37 even with the compressor OFF (relay B17=0), so it cannot be
-            a load; and it correlates r=0.96 with HEAT_EXCHANGER_TEMP (B10). Raw byte ≈ °C directly (no /2-40
-            offset), reading a few degrees above the heat exchanger — consistent with the user's report of
-            ~40°C after AC off for hours on a hot day. Exact sensor identity unconfirmed (heater-core / mix /
-            in-cabin area), hence the neutral name. Was wrongly attributed to "compressor/PTC load".
+          notes: >-
+            Hot-side HVAC temperature (renamed from HVAC_TEMP_B19 2026-08-02, canair). It is a
+            TEMPERATURE, not a load: reads 20-37 with the compressor OFF (relay B17=0) and
+            correlates r=0.96 with HEAT_EXCHANGER_TEMP (B10); raw byte = deg C directly (no /2-40
+            offset), a few deg above the heat exchanger (~40C soak after AC off for hours). NEW
+            2026-08-02: confirmed HOT side — rises 31->69C when the compressor runs and
+            ANTI-correlates (r=-0.36) with the cold-side heat-pump/evaporator temp (220100 B13,
+            which drops on compressor-ON). Exact sensor still open (condenser vs heater-core vs
+            mix); hot-side region is confirmed. Unverified.
         HVAC_COMPRESSOR_ON_MIRROR_B12:
           expression: B12
           source: coverage analysis 2026-07-23
