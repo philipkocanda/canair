@@ -323,6 +323,68 @@ def render_param_table(
     return t
 
 
+def _format_range_value(stat: dict) -> str:
+    """One-line value-span string for a :class:`~canlib.modes._monitor_stats.SignalStat`.
+
+    A numeric signal renders as ``lo – hi unit`` (or a single value when it never
+    moved); a non-numeric signal lists its distinct labels (with a ``+N more``
+    tail past what was kept); an unsampled signal renders ``—``.
+    """
+    unit = stat.get("unit", "") or ""
+    lo, hi = stat.get("min"), stat.get("max")
+    if lo is not None and hi is not None:
+        if lo == hi:
+            return format_value(lo, unit)
+        return f"{format_value(lo, '')} – {format_value(hi, '')} {unit}".strip()
+    values = stat.get("values") or []
+    if values:
+        shown = values[:6]
+        hidden = (len(values) - len(shown)) + int(stat.get("overflow", 0))
+        text = ", ".join(shown)
+        if hidden:
+            text += f" (+{hidden} more)"
+        return text
+    return "—"
+
+
+def render_param_ranges(
+    stats: dict,
+    *,
+    indent: str = "      ",
+    selected_name: str | None = None,
+) -> Text:
+    """Render each signal's captured value *span* as an aligned Rich Text block.
+
+    ``stats`` maps ``{param_name: SignalStat}`` (from
+    :class:`canlib.modes._monitor_stats.ParamStats`). Each row is
+    ``{indent}{name}  {range}  ✓|?  n=N`` — the numeric min–max (or distinct
+    labels) accumulated across the run, the way ``canair investigate``/``decode``
+    report a signal's range. ``selected_name`` marks the in-place-edit cursor row
+    with ``▶``. Returns an empty ``Text`` when there are no stats.
+    """
+    t = Text()
+    if not stats:
+        return t
+    names = list(stats)
+    max_name = max(len(n) for n in names)
+    range_strs = {n: _format_range_value(stats[n]) for n in names}
+    max_val = max(len(v) for v in range_strs.values())
+
+    for name in names:
+        stat = stats[name]
+        verified = bool(stat.get("verified"))
+        mark_style = "green" if verified else "yellow"
+        mark_char = "✓" if verified else "?"
+        is_sel = selected_name is not None and name == selected_name
+        name_prefix = (indent[:-2] + "▶ ") if is_sel and len(indent) >= 2 else indent
+        name_style = "reverse bold" if is_sel else ""
+        t.append(f"{name_prefix}{name:<{max_name}}  ", style=name_style)
+        t.append(f"{range_strs[name]:<{max_val}}  ", style=name_style)
+        t.append(mark_char, style=mark_style)
+        t.append(f"  n={stat.get('n', 0)}\n", style="dim")
+    return t
+
+
 def render_byte_rulers(n_bytes: int, params: list[ParamRow], *, prefix_width: int = 8) -> Text:
     """Return a two-row byte-index ruler (``idx`` + ``wican``) as Rich Text.
 

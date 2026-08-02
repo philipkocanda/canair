@@ -24,6 +24,13 @@ separate file. ``n`` **finishes** the current session (writing it to a capture
 file now) and starts a fresh, separately-labelled one, so a single run can yield
 several sessions. Without ``--save``, ``s`` performs a one-off write of the
 payloads captured so far and ``n`` is unavailable.
+
+``V`` cycles the display view mode (``ecus`` → ``ranges`` → ``signals`` →
+``full``): a bare ECU list, each signal's captured value span, the decoded
+signals only, or the signals plus raw byte payloads (the default). ``i`` opens a
+read-only session-info overlay showing the current segment's label/state/notes,
+the run's frame/cycle counters and retain mode, and the history of finished
+``--save`` segments this run.
 """
 
 from __future__ import annotations
@@ -428,6 +435,164 @@ class EventLogModal(ModalScreen[None]):
         self.query_one("#evlog-rows", VerticalScroll).scroll_end(animate=False)
 
 
+def _keep_mode_label(keep_mode: str | None, keep_n: int | None) -> str:
+    """Human-friendly description of a monitor keep/retain mode."""
+    return {
+        None: "none (latest only)",
+        "changes": "changes (run-length dedup)",
+        "unique": "unique (global dedup)",
+        "all": "all (full time-series)",
+        "last": f"last {keep_n}" if keep_n else "last N",
+    }.get(keep_mode, str(keep_mode))
+
+
+def _fmt_dt(dt) -> str:
+    """Format a datetime as HH:MM:SS, or '?' when unavailable."""
+    try:
+        return dt.strftime("%H:%M:%S")
+    except Exception:
+        return "?"
+
+
+def _fmt_elapsed(start) -> str:
+    """Elapsed wall-clock since ``start`` as H:MM:SS (empty when unavailable)."""
+    try:
+        secs = int((datetime.now() - start).total_seconds())
+    except Exception:
+        return ""
+    h, rem = divmod(max(secs, 0), 3600)
+    m, s = divmod(rem, 60)
+    return f"{h}:{m:02d}:{s:02d}"
+
+
+class SessionInfoModal(ModalScreen[None]):
+    """Read-only overlay: the run's session summary + closed-segment history.
+
+    Shows the current segment's label/states/notes, the run-level counters
+    (frames, cycles, retain mode, transport, start time) and a list of the
+    ``--save`` segments already finished this run (the ``n`` rotations). Renaming
+    the current segment is done from here's hint via ``s`` (label) — this view is
+    a read-only snapshot, reopen to refresh.
+    """
+
+    CSS = """
+    SessionInfoModal { align: center middle; background: $background 60%; }
+    #sess-box {
+        width: 90%; max-width: 120; height: 80%; max-height: 90%;
+        padding: 1 2; border: round $accent; background: $surface;
+    }
+    #sess-title { text-style: bold; margin-bottom: 1; }
+    #sess-rows { height: 1fr; }
+    #sess-hint { color: $text-muted; margin-top: 1; }
+    """
+
+    BINDINGS: ClassVar[list[Binding]] = [
+        Binding("escape", "close", "close"),
+        Binding("q", "close", "close"),
+        Binding("i", "close", "close"),
+        Binding("j", "scroll_down", "down", show=False),
+        Binding("k", "scroll_up", "up", show=False),
+        Binding("g", "to_top", "top", show=False),
+        Binding("G", "to_bottom", "bottom", show=False),
+    ]
+
+    def __init__(self, summary: dict, segments: list[dict]):
+        super().__init__()
+        self._summary = summary
+        self._segments = segments
+
+    def compose(self) -> ComposeResult:
+        from textual.containers import Vertical
+
+        with Vertical(id="sess-box"):
+            yield Label("Session info", id="sess-title")
+            with VerticalScroll(id="sess-rows"):
+                yield Static(self._build_body(), id="sess-body", markup=False)
+            yield Label(
+                "s relabel · n new session · j/k g/G scroll · i / esc / q close", id="sess-hint"
+            )
+
+    def _build_body(self) -> Text:
+        s = self._summary
+        out = Text()
+
+        def row(label: str, value: str) -> None:
+            out.append(f"  {label:<16}", style="bold")
+            out.append(f"{value}\n")
+
+        rec = "● yes (--save)" if s.get("recording") else "no (not recording)"
+        states = s.get("states") or []
+        states_txt = ", ".join(states) if states else "(auto-detected on save)"
+        notes = (s.get("notes") or "").replace("\n", " ").strip() or "—"
+
+        out.append("Current segment\n", style="bold cyan")
+        row("label", s.get("label") or "Monitor")
+        row("recording", rec)
+        row("states", states_txt)
+        row("notes", notes)
+        row("query", s.get("query") or "—")
+        started = s.get("segment_started_at")
+        seg_frames = s.get("segment_frames", 0)
+        row("started", f"{_fmt_dt(started)}  ({seg_frames} frames)")
+
+        out.append("\nRun summary\n", style="bold cyan")
+        row("retain mode", _keep_mode_label(s.get("keep_mode"), s.get("keep_n")))
+        row("view mode", str(s.get("view_mode", "full")))
+        row("poll interval", f"{float(s.get('interval', 0.0)):.1f}s")
+        row("cycles", str(s.get("cycle", 0)))
+        row(
+            "captured",
+            f"{s.get('total_frames', 0)} frames · {s.get('unique_frames', 0)} unique",
+        )
+        if s.get("transport"):
+            row("transport", str(s["transport"]))
+        run_started = s.get("run_started_at")
+        elapsed = _fmt_elapsed(run_started)
+        run_txt = _fmt_dt(run_started) + (f"  (elapsed {elapsed})" if elapsed else "")
+        row("run started", run_txt)
+        if s.get("captures_dir"):
+            row("captures dir", str(s["captures_dir"]))
+
+        n = len(self._segments)
+        out.append(f"\nFinished segments this run ({n})\n", style="bold cyan")
+        if not n:
+            out.append(
+                "  (none yet — press n to finish this session and start a new one)\n",
+                style="dim",
+            )
+        for i, seg in enumerate(self._segments, 1):
+            label = seg.get("label") or "Monitor"
+            span = f"{_fmt_dt(seg.get('started_at'))}→{_fmt_dt(seg.get('ended_at'))}"
+            frames = seg.get("frames", 0)
+            seg_states = ", ".join(seg.get("states") or []) or "—"
+            written = seg.get("written")
+            out.append(f"  {i}. ", style="bold")
+            out.append(f"{label}\n")
+            out.append(f"       {span} · {frames} frames · {seg_states}", style="dim")
+            if written:
+                out.append(f" → {written}", style="dim")
+            out.append("\n")
+        return out
+
+    def on_mount(self) -> None:
+        self.query_one("#sess-rows", VerticalScroll).scroll_home(animate=False)
+
+    def action_close(self) -> None:
+        self.dismiss(None)
+
+    def action_scroll_down(self) -> None:
+        self.query_one("#sess-rows", VerticalScroll).scroll_relative(y=1, animate=False)
+
+    def action_scroll_up(self) -> None:
+        self.query_one("#sess-rows", VerticalScroll).scroll_relative(y=-1, animate=False)
+
+    def action_to_top(self) -> None:
+        self.query_one("#sess-rows", VerticalScroll).scroll_home(animate=False)
+
+    def action_to_bottom(self) -> None:
+        self.query_one("#sess-rows", VerticalScroll).scroll_end(animate=False)
+
+
 class MonitorApp(HelpMixin, App):
     """Scrollable, in-place live-value monitor."""
 
@@ -436,7 +601,7 @@ class MonitorApp(HelpMixin, App):
     CSS = """
     Screen { layout: vertical; background: transparent; }
     #header { dock: top; height: auto; max-height: 3; padding: 0 1; background: transparent; }
-    #scroll { height: 1fr; scrollbar-gutter: stable; background: transparent; }
+    #scroll { height: 1fr; scrollbar-gutter: stable; scrollbar-size-vertical: 1; background: transparent; }
     #body { height: auto; padding: 0 1; background: transparent; }
     #status { dock: bottom; height: 2; padding: 0 1; background: transparent; }
     """
@@ -450,6 +615,8 @@ class MonitorApp(HelpMixin, App):
         Binding("f", "toggle_follow", "follow"),
         Binding("r", "toggle_rulers", "rulers"),
         Binding("l", "event_log", "errors/log"),
+        Binding("i", "session_info", "session info"),
+        Binding("V", "cycle_view", "view mode"),
         Binding("space", "toggle_pause", "pause"),
         Binding("equals_sign", "faster", "poll faster"),
         Binding("plus", "faster", "poll faster", show=False),
@@ -678,11 +845,14 @@ class MonitorApp(HelpMixin, App):
         recording = getattr(self.controller, "journal", None) is not None
         save_key = "s label" if recording else "s save"
         seg = " · n new-session" if recording else ""
+        # Surface the active view mode when it's not the default full view.
+        view = getattr(self.controller, "view_mode", "full")
+        view_txt = f"[cyan]{view}[/] " if view and view != "full" else ""
         ed = self._editor()
         if ed is None:
             return (
-                "[dim]↑↓/jk PgUp/PgDn g/G · f follow · space pause · r rulers · "
-                f"l errors · {save_key}{seg} · ? help · q quit[/]"
+                f"{view_txt}[dim]↑↓/jk PgUp/PgDn g/G · f follow · space pause · r rulers · "
+                f"V view · i info · l errors · {save_key}{seg} · ? help · q quit[/]"
             )
         filt = getattr(ed, "filter_mode", "all")
         filt_txt = f"[cyan]{filt}[/]" if filt != "all" else "[dim]all[/]"
@@ -692,9 +862,9 @@ class MonitorApp(HelpMixin, App):
             sel = f"[b]▶ {label}[/]  "
         deselect = " · esc deselect" if label else ""
         return (
-            f"{sel}[dim]filter[/] {filt_txt} "
-            "[dim]· ↑↓ select · e edit · v verify · d en/disable · F filter · "
-            f"{save_key}{seg}{deselect} · ? help · q quit[/]"
+            f"{sel}[dim]filter[/] {filt_txt} {view_txt}"
+            "[dim]· ↑↓ select · e edit · v verify · d en/disable · F filter · V view · "
+            f"i info · {save_key}{seg}{deselect} · ? help · q quit[/]"
         )
 
     # -- actions -----------------------------------------------------------
@@ -741,6 +911,28 @@ class MonitorApp(HelpMixin, App):
         if self._modal_active():
             return
         self.push_screen(EventLogModal())
+
+    def action_session_info(self) -> None:
+        """Open the session summary + segment-history overlay."""
+        if self._modal_active():
+            return
+        c = self.controller
+        summary_fn = getattr(c, "session_summary", None)
+        summary = summary_fn() if callable(summary_fn) else {}
+        history_fn = getattr(c, "segment_history", None)
+        segments = history_fn() if callable(history_fn) else []
+        self.push_screen(SessionInfoModal(summary, segments))
+
+    def action_cycle_view(self) -> None:
+        """Cycle the display view mode (ecus → ranges → signals → full)."""
+        if self._modal_active():
+            return
+        cycle_fn = getattr(self.controller, "cycle_view", None)
+        if not callable(cycle_fn):
+            return
+        mode = cycle_fn()
+        self._render_no_follow()
+        self._flash(f"View: {mode}")
 
     # -- selection / in-place editing --------------------------------------
     def _last_queries(self):

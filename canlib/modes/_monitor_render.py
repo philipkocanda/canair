@@ -13,9 +13,17 @@ from ..formatting import (
     _render_hex_line,
     changed_param_highlights,
     render_byte_rulers,
+    render_param_ranges,
     render_param_table,
 )
 from .multi_batch import EcuFrame, ResultEntry
+
+# Ordered display view modes cycled by the TUI 'V' key. Increasing detail:
+#   ecus    — just the responding ECUs (+ a PID/signal count)
+#   ranges  — each signal's captured value span (min-max / distinct labels)
+#   signals — the decoded parameter table (no raw hex)
+#   full    — signals + the raw byte payloads (the default)
+VIEW_MODES = ("ecus", "ranges", "signals", "full")
 
 # Cap how many history rows a single PID renders per cycle. With --keep-all a
 # long drive accrues thousands of payloads per PID; rendering them all every
@@ -79,6 +87,8 @@ def _entry_signature(
     prev_raw: str,
     prev_values: dict[str, object] | None,
     history: list[tuple[str, str]] | None,
+    view_mode: str = "full",
+    stat_sig: tuple | None = None,
 ) -> tuple:
     """A hashable signature of everything that affects one PID entry's render.
 
@@ -86,6 +96,8 @@ def _entry_signature(
     lets :class:`RenderCache` reuse the prior block. ``params`` are flattened to
     a tuple (name/value/unit/expr/error/verified/display) because their values
     and verification state drive both the table and the per-byte colours.
+    ``view_mode`` and ``stat_sig`` (the ranges-view accumulated span) are part of
+    the signature so a view switch or a moving range invalidates the cache.
     """
     params = tuple(tuple(row) for row in entry.get("params", []))
     return (
@@ -105,7 +117,27 @@ def _entry_signature(
         tuple(sorted(prev_values.items())) if prev_values is not None else None,
         tuple(history) if history is not None else None,
         params,
+        view_mode,
+        stat_sig,
     )
+
+
+def _stat_signature(stat: dict) -> tuple:
+    """A hashable signature of a signal's accumulated range (for the ranges view)."""
+    return (
+        stat.get("unit", ""),
+        bool(stat.get("verified")),
+        stat.get("n", 0),
+        stat.get("min"),
+        stat.get("max"),
+        tuple(stat.get("values") or ()),
+        int(stat.get("overflow", 0)),
+    )
+
+
+def _pid_stat_signature(pid_stats: dict) -> tuple:
+    """Signature over all signals' ranges for one PID (order-stable)."""
+    return tuple((name, _stat_signature(s)) for name, s in pid_stats.items())
 
 
 def _render_entry(
@@ -120,12 +152,19 @@ def _render_entry(
     prev_raw: str,
     prev_values: dict[str, object] | None,
     history: list[tuple[str, str]] | None,
+    view_mode: str = "full",
+    pid_stats: dict | None = None,
 ) -> Text:
     """Render one PID entry (mark line, param table, hex/history) to its own Text.
 
     Rendered as a self-contained block so a stale (timed-out) PID can be dimmed
     as a unit — its last-good values stay on screen (greyed) instead of
     collapsing to an error line and jolting layout.
+
+    ``view_mode`` selects how much of the entry is drawn: ``"ranges"`` shows each
+    signal's accumulated value span (from ``pid_stats``) instead of the live
+    table; ``"signals"`` shows the decoded table but omits the raw hex payload;
+    ``"full"`` (the default) shows the table and the hex/history lines.
     """
     pid = entry["pid"]
     error = entry.get("error")
@@ -134,6 +173,7 @@ def _render_entry(
     decode = entry.get("decode")
     unmapped = entry.get("unmapped", False)
     stale = entry.get("stale", False)
+    show_hex = view_mode == "full"
 
     entry_text = Text()
     entry_text.append("    ")
@@ -144,8 +184,9 @@ def _render_entry(
         entry_text.append(" (stale)", style="dim")
     if unmapped:
         entry_text.append(" (unmapped)", style="dim")
-    # Show history count when keeping history
-    if history is not None:
+    # Show history count when keeping history (full view only — the count refers
+    # to the raw-payload history the other views don't draw).
+    if history is not None and show_hex:
         n_entries = len(history)
         if raw_hex and raw_hex not in [h for h, _ts in history]:
             n_entries += 1  # current not yet added
@@ -156,10 +197,26 @@ def _render_entry(
         return entry_text
     entry_text.append("\n")
 
+    # "ranges" view: the accumulated value span per signal, not the live table.
+    if view_mode == "ranges":
+        if pid_stats:
+            entry_text.append_text(render_param_ranges(pid_stats, selected_name=sel_name))
+        elif params:
+            # No accumulated stats yet (first cycle / error-only) — fall back to
+            # the live table so the row isn't blank.
+            entry_text.append_text(
+                render_param_table(params, verbose=verbose, selected_name=sel_name)
+            )
+        elif decode:
+            entry_text.append(f"      {decode}\n")
+        if stale:
+            entry_text.stylize("dim")
+        return entry_text
+
     if params:
         # With rulers on, annotate each param with the payload byte index(es) it
         # maps to (e.g. "16-17"), matching the diff view.
-        n_bytes = len(raw_hex) // 2 if (show_rulers and raw_hex) else None
+        n_bytes = len(raw_hex) // 2 if (show_rulers and raw_hex and show_hex) else None
         # Highlight the param(s) whose *decoded value* just changed, with the
         # same background the changed byte gets in the hex line (skipped when
         # stale — a timed-out reuse of last-good data is not a live change). The
@@ -182,7 +239,7 @@ def _render_entry(
     elif decode:
         entry_text.append(f"      {decode}\n")
 
-    if raw_hex:
+    if raw_hex and show_hex:
         # Byte-index ruler, once per PID, above the hex lines.
         if show_rulers:
             ruler_pw = 16 if history is not None else 6
@@ -242,6 +299,8 @@ def _render_results(
     selected: tuple[str, str, str] | None = None,
     max_history_rows: int | None = None,
     cache: RenderCache | None = None,
+    view_mode: str = "full",
+    param_stats=None,
 ) -> Text:
     """Render all ECU query results as a Rich Text object for display.
 
@@ -264,12 +323,20 @@ def _render_results(
     ``cache`` (a :class:`RenderCache`) reuses per-PID blocks whose inputs are
     unchanged since the last render, avoiding the per-byte Text churn and
     expression re-parsing for static PIDs. ``None`` renders everything fresh.
+
+    ``view_mode`` (see :data:`VIEW_MODES`) selects the presentation: ``"ecus"``
+    lists only the responding ECUs (+ a PID/signal count); ``"ranges"`` shows
+    each signal's accumulated value span (from ``param_stats``, a
+    :class:`~canlib.modes._monitor_stats.ParamStats`); ``"signals"`` shows the
+    decoded table without the raw hex; ``"full"`` (default) shows table + hex.
     """
     row_cap = _RENDER_MAX_ROWS if max_history_rows is None else max(1, max_history_rows)
     text = Text()
 
+    view_note = "" if view_mode == "full" else f"  ·  view: {view_mode}"
     text.append(
-        f"  Monitor — cycle {cycle}  (last: {elapsed:.1f}s, interval: {interval:.1f}s)\n",
+        f"  Monitor — cycle {cycle}  (last: {elapsed:.1f}s, interval: {interval:.1f}s)"
+        f"{view_note}\n",
         style="dim",
     )
 
@@ -284,6 +351,23 @@ def _render_results(
         text.append("\n  ")
         text.append(ecu_label, style="bold cyan")
         text.append("\n")
+
+        # "ecus" view: just the responding ECU + a compact count, no per-PID rows.
+        if view_mode == "ecus":
+            for entry in pid_results:
+                live_keys.add((ecu_label, entry["pid"]))
+            n_pids = len(pid_results)
+            n_signals = sum(len(e.get("params", [])) for e in pid_results)
+            fresh = sum(
+                1
+                for e in pid_results
+                if cycle > 1
+                and e.get("raw_hex")
+                and prev_hex.get((ecu_label, e["pid"])) not in (None, e.get("raw_hex"))
+            )
+            fresh_note = f" · {fresh} changed" if fresh else ""
+            text.append(f"    {n_pids} PID(s) · {n_signals} signal(s){fresh_note}\n", style="dim")
+            continue
 
         for entry in pid_results:
             pid = entry["pid"]
@@ -300,6 +384,10 @@ def _render_results(
                 prev_params.get(hex_key) if prev_params is not None and cycle > 1 else None
             )
             history = hex_history[hex_key] if hex_history and hex_key in hex_history else None
+            pid_stats = param_stats.for_pid(hex_key) if param_stats is not None else None
+            stat_sig = (
+                _pid_stat_signature(pid_stats) if (view_mode == "ranges" and pid_stats) else None
+            )
 
             if cache is not None:
                 sig = _entry_signature(
@@ -313,6 +401,8 @@ def _render_results(
                     prev_raw=prev_raw,
                     prev_values=prev_values,
                     history=history,
+                    view_mode=view_mode,
+                    stat_sig=stat_sig,
                 )
                 block = cache.get(hex_key, sig)
                 if block is None:
@@ -327,6 +417,8 @@ def _render_results(
                         prev_raw=prev_raw,
                         prev_values=prev_values,
                         history=history,
+                        view_mode=view_mode,
+                        pid_stats=pid_stats,
                     )
                     cache.put(hex_key, sig, block)
             else:
@@ -341,6 +433,8 @@ def _render_results(
                     prev_raw=prev_raw,
                     prev_values=prev_values,
                     history=history,
+                    view_mode=view_mode,
+                    pid_stats=pid_stats,
                 )
             text.append_text(block)
 

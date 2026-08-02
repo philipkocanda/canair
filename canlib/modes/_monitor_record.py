@@ -169,6 +169,15 @@ class MonitorRecorder:
         # segment's recorded `quality` reflects only its own span (diff at
         # reconcile). None = start-of-run (baseline is zero → whole run so far).
         self._diag_base: dict[str, int] | None = None
+        # Session/segment timing + history, surfaced by the TUI session-info modal.
+        # run_started_at is the whole monitor run's start; segment_started_at resets
+        # on each 'n' rotate; segment_frames_base is total_frames at the current
+        # segment's start (so per-segment frame count = total_frames - base).
+        # segments holds a summary dict of each closed segment (oldest first).
+        self.run_started_at = datetime.now()
+        self.segment_started_at = self.run_started_at
+        self.segment_frames_base = 0
+        self.segments: list[dict] = []
 
     def segment_quality(self) -> dict | None:
         """Data-quality footprint for the current segment, or None if unavailable.
@@ -398,9 +407,11 @@ class MonitorRecorder:
         # Give the closing segment its states when none were set explicitly: the
         # union of everything auto-suggested across the segment span (mirroring the
         # end-of-run reconcile in mode_monitor), not just the state active now.
+        closing_states = list(self.session_states)
         if not self.state_explicit:
             backfill = self._backfill_states()
             if backfill:
+                closing_states = backfill
                 with contextlib.suppress(Exception):
                     self.journal.update_meta(vehicle_states=backfill)
 
@@ -414,6 +425,10 @@ class MonitorRecorder:
         with contextlib.suppress(Exception):
             written = self.journal.reconcile()
 
+        # Record the just-closed segment's summary for the session-info modal
+        # before the metadata is reset for the fresh segment.
+        self._record_closed_segment(closing_states, written)
+
         self.journal = _open_journal(self.c, label, states, notes)
         self.state_explicit = bool(states)
         # Fresh segment: reset the observed-state accumulator so it doesn't carry
@@ -421,6 +436,9 @@ class MonitorRecorder:
         # diag baseline so the new segment's quality counts only its own span.
         self.observed_states = {}
         self._reset_diag_base()
+        # Reset per-segment timing/frame baseline for the new segment.
+        self.segment_started_at = datetime.now()
+        self.segment_frames_base = self.total_frames
         # Reset the display metadata to the new segment's (label always set here).
         self.session_label = label or ""
         self.session_states = list(states or [])
@@ -429,3 +447,17 @@ class MonitorRecorder:
         if written is not None:
             return f"Session saved → {written.name}. Now recording {label!r}."
         return f"Now recording new session {label!r}."
+
+    def _record_closed_segment(self, states: list[str], written) -> None:
+        """Append a summary of the segment being closed to :attr:`segments`."""
+        self.segments.append(
+            {
+                "label": self.session_label or self.c.query_label() or "Monitor",
+                "states": list(states),
+                "notes": self.session_notes,
+                "started_at": self.segment_started_at,
+                "ended_at": datetime.now(),
+                "frames": self.total_frames - self.segment_frames_base,
+                "written": written.name if written is not None else None,
+            }
+        )

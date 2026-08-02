@@ -126,7 +126,7 @@ class PlotApp(HelpMixin, App):
 
     CSS = """
     Screen { layout: vertical; background: transparent; }
-    #scroll { height: 1fr; scrollbar-gutter: stable; background: transparent; }
+    #scroll { height: 1fr; scrollbar-gutter: stable; scrollbar-size-vertical: 1; background: transparent; }
     #body { height: auto; padding: 0 1; background: transparent; }
     #status { dock: bottom; height: 2; padding: 0 1; background: transparent; }
     """

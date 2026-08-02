@@ -189,6 +189,18 @@ recording is active, and two keys control the session:
   press `n` at each phase change (e.g. parked → driving → charging) rather than
   stopping and restarting. (`n` requires `--save`; without it there's no
   recording to finish.)
+- **`i` (session info)** — open a read-only overlay summarising the run: the
+  current segment's label / state / notes and start time, the run-level counters
+  (frames captured / unique, cycles, retain mode, poll interval, transport, run
+  start / elapsed), and the history of the `--save` segments already finished
+  this run (each with its label, states, time span, frame count, and the file it
+  was written to). The current segment name also shows in the header bar at all
+  times; use `s` to rename/relabel it.
+- **`V` (view mode)** — cycle how much of each signal the live view shows:
+  `ecus` (just the responding ECUs and a PID/signal count), `ranges` (each
+  signal's captured value *span* — numeric min–max or distinct labels, the way
+  `canair investigate`/`decode` report a range), `signals` (the decoded values
+  only), and `full` (signals plus the raw byte payloads — the default).
 
 When a `--save` segment ends without an explicit state, canair back-fills it with
 the **union of every state auto-suggested across that segment's whole span** — not

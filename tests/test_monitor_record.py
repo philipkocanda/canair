@@ -125,3 +125,36 @@ class TestSpanAwareBackfill:
         rec.new_segment("seg2", None, None)
         session = _read_session(tmp_path)
         assert session["vehicle_states"] == ["READY"]
+
+
+class TestSegmentHistory:
+    def test_new_segment_records_closed_segment_summary(self, tmp_path):
+        c = FakeController(tmp_path)
+        rec = MonitorRecorder(c)
+        rec.session_label = "seg1"
+        rec.open_journal("seg1", None, None)
+
+        c.next_state = "charging"
+        rec.observe([_frame("2101", "6101AA")])
+        rec.observe([_frame("2101", "6101BB")])
+        assert rec.segments == []  # nothing closed yet
+
+        rec.new_segment("seg2", None, None)
+        assert len(rec.segments) == 1
+        seg = rec.segments[0]
+        assert seg["label"] == "seg1"
+        assert seg["states"] == ["charging"]
+        assert seg["frames"] == 2  # both observed payloads
+        assert seg["written"] is not None
+        assert seg["started_at"] is not None and seg["ended_at"] is not None
+
+    def test_segment_frame_baseline_resets_per_segment(self, tmp_path):
+        c = FakeController(tmp_path)
+        rec = MonitorRecorder(c)
+        rec.open_journal("seg1", None, None)
+        rec.observe([_frame("2101", "6101AA")])  # 1 frame in seg1
+        rec.new_segment("seg2", None, None)
+        assert rec.segment_frames_base == rec.total_frames == 1
+        rec.observe([_frame("2101", "6101CC")])  # 1 frame in seg2
+        # Per-segment count is total minus the baseline at segment start.
+        assert rec.total_frames - rec.segment_frames_base == 1

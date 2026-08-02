@@ -74,6 +74,8 @@ examples:
 In the TUI: mouse wheel / scrollbar / arrows-jk / PgUp-PgDn / g-G scroll,
 f toggles follow-tail, space pauses, =/- change the poll interval live,
 r toggles byte-index rulers, l opens the errors/diagnostics log,
+V cycles the view mode (ecus / ranges / signals / full),
+i opens the session-info overlay (segment history + summary),
 ↑/↓ select a parameter (esc deselects), e/v/d/F edit/verify/en-disable/filter,
 s labels the recording (or saves now when not using --save),
 n finishes the current --save session and starts a fresh one,

@@ -47,6 +47,10 @@ class FakeController:
         self.show_rulers = False
         self.editor = editor
         self.last_queries = []
+        # View mode + retain-mode surface used by the view toggle / session info.
+        self.view_mode = "full"
+        self.keep_n = None
+        self.transport_type = "slcan-tcp"
         # Segment metadata surfaced by the header bar.
         self.session_label = ""
         self.session_states = []
@@ -54,6 +58,40 @@ class FakeController:
 
     def segment_title(self) -> str:
         return self.session_label or self._query_label or "Monitor"
+
+    def cycle_view(self) -> str:
+        from canlib.modes._monitor_render import VIEW_MODES
+
+        idx = VIEW_MODES.index(self.view_mode) if self.view_mode in VIEW_MODES else 0
+        self.view_mode = VIEW_MODES[(idx + 1) % len(VIEW_MODES)]
+        return self.view_mode
+
+    def session_summary(self) -> dict:
+        from datetime import datetime
+
+        return {
+            "recording": self.journal is not None,
+            "label": self.segment_title(),
+            "states": list(self.session_states),
+            "notes": self.session_notes,
+            "query": self._query_label,
+            "keep_mode": self.keep_mode,
+            "keep_n": self.keep_n,
+            "view_mode": self.view_mode,
+            "interval": self.interval,
+            "cycle": self.cycle,
+            "total_frames": self.total_frames,
+            "unique_frames": self.unique_frames,
+            "transport": self.transport_type,
+            "captures_dir": "/tmp/captures",
+            "run_started_at": datetime.now(),
+            "segment_started_at": datetime.now(),
+            "segment_frames": self.total_frames,
+            "completed_segments": 0,
+        }
+
+    def segment_history(self) -> list[dict]:
+        return []
 
     async def poll_once(self):
         self.cycle += 1
@@ -546,6 +584,46 @@ class TestMonitorApp:
                 await pilot.press("equals_sign")  # faster, but clamped
                 await pilot.pause(0.02)
             assert ctrl.interval >= 0.1
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
+    async def test_view_toggle_cycles_modes(self):
+        ctrl = FakeController()
+        app = MonitorApp(ctrl)
+        async with app.run_test(size=(120, 30)) as pilot:
+            await pilot.pause(0.1)
+            assert ctrl.view_mode == "full"
+            await pilot.press("V")  # full -> ecus (wraps)
+            await pilot.pause(0.05)
+            assert ctrl.view_mode == "ecus"
+            status = _plain(app.query_one("#status").render())
+            assert "ecus" in status
+            await pilot.press("V")  # ecus -> ranges
+            await pilot.pause(0.05)
+            assert ctrl.view_mode == "ranges"
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
+    async def test_session_info_modal_opens_and_closes(self):
+        from canlib.modes._monitor_tui import SessionInfoModal
+
+        ctrl = FakeController(journal=object())
+        ctrl.session_label = "test drive"
+        app = MonitorApp(ctrl)
+        async with app.run_test(size=(120, 30)) as pilot:
+            await pilot.pause(0.15)
+            await pilot.press("i")
+            await pilot.pause(0.1)
+            assert isinstance(app.screen, SessionInfoModal)
+            from textual.widgets import Static
+
+            text = "\n".join(_plain(s.render()) for s in app.screen.query(Static))
+            assert "test drive" in text
+            assert "retain mode" in text
+            assert "Finished segments" in text
+            await pilot.press("escape")
+            await pilot.pause(0.1)
+            assert not isinstance(app.screen, SessionInfoModal)
             await pilot.press("q")
 
 

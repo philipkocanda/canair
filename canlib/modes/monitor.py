@@ -40,9 +40,11 @@ from ._monitor_record import MonitorRecorder, _merge_history, _open_journal, _wr
 from ._monitor_render import (
     _RENDER_DEFAULT_ROWS,
     _RENDER_MAX_ROWS,
+    VIEW_MODES,
     RenderCache,
     _render_results,
 )
+from ._monitor_stats import ParamStats
 from .monitor_raw import MonitorRawPoller, _raw_pid_result
 from .multi_batch import EcuFrame, ResultEntry
 
@@ -134,6 +136,11 @@ class MonitorController:
         self.save = save
         self.show_rulers = show_rulers
         self.include_static = include_static
+        # Live display view mode (cycled with 'V' in the TUI). See VIEW_MODES:
+        # "full" (signals + hex payloads, the default), "signals" (decoded params
+        # only), "ranges" (each signal's captured value span), "ecus" (just the
+        # responding ECUs). Named views only change presentation, not recording.
+        self.view_mode = "full"
 
         self.sm = SessionManager(terminal, verbose=verbose) if not self.raw else None
         self._ecu_index: dict | None = None
@@ -176,6 +183,10 @@ class MonitorController:
         # *interpreted* value changed (not merely a raw byte it reads).
         self.prev_params_snapshot: dict[tuple[str, str], dict[str, object]] = {}
         self._cur_params: dict[tuple[str, str], dict[str, object]] = {}
+        # Per-signal value-range accumulator (min/max + distinct labels across the
+        # whole run), backing the "ranges" view mode. Independent of the on-screen
+        # keep-history, which the default keep-mode trims.
+        self.param_stats = ParamStats()
         # Where on-demand ('s' key in the TUI) / end-of-run captures are written.
         # Set by mode_monitor; resolved lazily if left None.
         self.captures_dir: Path | None = None
@@ -419,9 +430,11 @@ class MonitorController:
                 if entry.get("stale"):
                     continue
                 key = (ecu_label, entry["pid"])
-                self._cur_params[key] = {
-                    row[0]: row[1] for row in entry.get("params", []) if not row[4]
-                }
+                params = entry.get("params", [])
+                self._cur_params[key] = {row[0]: row[1] for row in params if not row[4]}
+                # Fold this cycle's decoded values into the run-long value ranges
+                # (backs the "ranges" view mode).
+                self.param_stats.observe(key, params)
         # Durability (prev_hex update + frame accounting + display/--save history +
         # journal) is the recorder's job.
         self.recorder.observe(new_queries)
@@ -573,7 +586,15 @@ class MonitorController:
             max_history_rows=self._history_render_limit(),
             cache=self._render_cache,
             prev_params=self.prev_params_snapshot,
+            view_mode=self.view_mode,
+            param_stats=self.param_stats,
         )
+
+    def cycle_view(self) -> str:
+        """Advance to the next display view mode (TUI 'V'); returns the new mode."""
+        idx = VIEW_MODES.index(self.view_mode) if self.view_mode in VIEW_MODES else 0
+        self.view_mode = VIEW_MODES[(idx + 1) % len(VIEW_MODES)]
+        return self.view_mode
 
     def _history_render_limit(self) -> int:
         """How many history rows to render per PID, by keep-mode.
@@ -626,6 +647,39 @@ class MonitorController:
         the TUI header is meaningful even before (or without) a --save label.
         """
         return self.session_label or self.query_label() or "Monitor"
+
+    def session_summary(self) -> dict:
+        """A snapshot of the current run/segment for the session-info modal.
+
+        Aggregates the run-level counters (frames, cycles, transport) and the
+        active segment's metadata (label/states/notes, start time, frame count).
+        Pure read — safe to call any time.
+        """
+        r = self.recorder
+        return {
+            "recording": self.journal is not None,
+            "label": self.segment_title(),
+            "states": list(self.session_states),
+            "notes": self.session_notes,
+            "query": self.query_label(),
+            "keep_mode": self.keep_mode,
+            "keep_n": self.keep_n,
+            "view_mode": self.view_mode,
+            "interval": self.interval,
+            "cycle": self.cycle,
+            "total_frames": self.total_frames,
+            "unique_frames": self.unique_frames,
+            "transport": self.transport_type,
+            "captures_dir": str(self.captures_dir) if self.captures_dir else None,
+            "run_started_at": r.run_started_at,
+            "segment_started_at": r.segment_started_at,
+            "segment_frames": self.total_frames - r.segment_frames_base,
+            "completed_segments": len(r.segments),
+        }
+
+    def segment_history(self) -> list[dict]:
+        """Summaries of the --save segments already closed this run (oldest first)."""
+        return list(self.recorder.segments)
 
     def suggested_state(self) -> str | None:
         """Auto-suggest the vehicle state from the latest decoded values.
@@ -759,9 +813,11 @@ async def mode_monitor(
     page, g/Home top, G/End bottom, f toggle follow-tail, space pause/resume
     polling, e edit the selected parameter, v toggle its verified flag, d
     toggle enabled/disabled, F cycle the display filter (all/verified/
-    unverified/enabled/disabled), s save/label the current session, n close the
-    current --save segment and start a new one, q or Ctrl+C stop. A blinking
-    ``● REC`` in the status line marks an active --save recording.
+    unverified/enabled/disabled), V cycle the display view mode (ecus/ranges/
+    signals/full), i open the session-info overlay, s save/label the current
+    session, n close the current --save segment and start a new one, q or Ctrl+C
+    stop. A blinking ``● REC`` in the status line marks an active --save
+    recording.
     """
     from ..profile import active
     from ..states import parse_states

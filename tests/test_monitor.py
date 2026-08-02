@@ -238,6 +238,58 @@ class TestRenderResults:
         t = _render_results(results, verbose=True, cycle=1, elapsed=0.1, interval=5.0)
         assert "B09/2" in t.plain
 
+    def test_view_mode_ecus_hides_pid_rows(self):
+        params = [("SOC_BMS", 50.0, "%", "B09/2", None, True, "")]
+        entry = self._make_pid_result(params=params, raw_hex="6101000000000000006400")
+        results = [("BMS (0x7E4)", [entry])]
+        t = _render_results(
+            results, verbose=False, cycle=1, elapsed=0.1, interval=5.0, view_mode="ecus"
+        )
+        text = t.plain
+        assert "BMS (0x7E4)" in text  # ECU still listed
+        assert "1 PID(s)" in text and "1 signal(s)" in text
+        assert "SOC_BMS" not in text  # no per-signal detail
+        assert "64 00" not in text  # no hex payload
+        assert "view: ecus" in text
+
+    def test_view_mode_signals_hides_hex(self):
+        params = [("SOC_BMS", 50.0, "%", "B09/2", None, True, "")]
+        entry = self._make_pid_result(params=params, raw_hex="6101000000000000006400")
+        results = [("BMS (0x7E4)", [entry])]
+        t = _render_results(
+            results, verbose=False, cycle=1, elapsed=0.1, interval=5.0, view_mode="signals"
+        )
+        text = t.plain
+        assert "SOC_BMS" in text and "50 %" in text  # decoded signal shown
+        assert "61 01 " not in text  # raw hex payload hidden
+        assert "view: signals" in text
+
+    def test_view_mode_ranges_shows_span(self):
+        from canlib.modes._monitor_stats import ParamStats
+
+        stats = ParamStats()
+        key = ("BMS (0x7E4)", "2101")
+        stats.observe(key, [("SOC_BMS", 50.0, "%", "B09/2", None, True, "")])
+        stats.observe(key, [("SOC_BMS", 62.5, "%", "B09/2", None, True, "")])
+        entry = self._make_pid_result(
+            params=[("SOC_BMS", 62.5, "%", "B09/2", None, True, "")],
+            raw_hex="6101000000000000006400",
+        )
+        results = [(key[0], [entry])]
+        t = _render_results(
+            results,
+            verbose=False,
+            cycle=3,
+            elapsed=0.1,
+            interval=5.0,
+            view_mode="ranges",
+            param_stats=stats,
+        )
+        text = t.plain
+        assert "SOC_BMS" in text
+        assert "50 – 62.50 %" in text  # accumulated span
+        assert "61 01 " not in text  # no hex in ranges view
+
     def test_params_verified_mark(self):
         params_v = [("SOC_BMS", 50.0, "%", "B09/2", None, True, "")]
         params_u = [("UNKNOWN", 1.0, "", "B03", None, False, "")]
