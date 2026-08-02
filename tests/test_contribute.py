@@ -199,6 +199,117 @@ class TestCopyProfile:
         assert (dest / "out" / "autopid.json").exists()
 
 
+class TestInstalledSnapshotKind:
+    def test_working_checkout_is_none(self, tmp_path):
+        assert (
+            C.installed_snapshot_kind(tmp_path / "projects" / "canair" / "profiles" / "x") is None
+        )
+
+    def test_uv_tool_snapshot(self):
+        from pathlib import Path
+
+        p = Path(
+            "/home/u/.local/share/uv/tools/canair/lib/python3.12/site-packages/profiles/ioniq-2017"
+        )
+        assert C.installed_snapshot_kind(p) == "uv tool"
+
+    def test_generic_site_packages(self):
+        from pathlib import Path
+
+        p = Path("/usr/lib/python3.12/site-packages/profiles/ioniq-2017")
+        assert C.installed_snapshot_kind(p) == "installed package"
+
+
+class TestCopyProfileCapturesUnion:
+    def test_union_keeps_upstream_sessions_a_behind_source_lacks(self, tmp_path):
+        # Upstream has a session the (behind) source doesn't; the contribution
+        # must NOT propose deleting it — the merged file keeps both.
+        import json
+
+        src = tmp_path / "src"
+        (src / "ecus").mkdir(parents=True)
+        (src / "profile.yaml").write_text("car_model: X\n")
+        (src / "captures").mkdir()
+        ours = {
+            "sessions": [{"date": "2026-01-02", "captures": [{"time": "11:00", "pid": "2102"}]}]
+        }
+        (src / "captures" / "2026-01-01.json").write_text(json.dumps(ours))
+
+        ws = tmp_path / "ws"
+        dest = ws / "profiles" / "mycar"
+        (dest / "captures").mkdir(parents=True)
+        upstream = {
+            "sessions": [{"date": "2026-01-01", "captures": [{"time": "10:00", "pid": "2101"}]}]
+        }
+        (dest / "captures" / "2026-01-01.json").write_text(json.dumps(upstream))
+
+        C.copy_profile(Profile("mycar", src), ws, include_captures=True)
+        merged = json.loads((dest / "captures" / "2026-01-01.json").read_text())
+        pids = {c["pid"] for s in merged["sessions"] for c in s["captures"]}
+        assert pids == {"2101", "2102"}  # upstream session preserved, source added
+
+    def test_new_capture_file_is_copied(self, tmp_path):
+        import json
+
+        src = tmp_path / "src"
+        (src / "ecus").mkdir(parents=True)
+        (src / "profile.yaml").write_text("car_model: X\n")
+        (src / "captures").mkdir()
+        (src / "captures" / "2026-02-02.json").write_text(json.dumps({"sessions": []}))
+
+        ws = tmp_path / "ws"
+        dest = ws / "profiles" / "mycar"
+        (dest / "captures").mkdir(parents=True)  # exists but empty upstream
+
+        C.copy_profile(Profile("mycar", src), ws, include_captures=True)
+        assert (dest / "captures" / "2026-02-02.json").exists()
+
+    def test_upstream_only_capture_file_not_deleted(self, tmp_path):
+        import json
+
+        src = tmp_path / "src"
+        (src / "ecus").mkdir(parents=True)
+        (src / "profile.yaml").write_text("car_model: X\n")
+        (src / "captures").mkdir()  # source has no capture files at all
+
+        ws = tmp_path / "ws"
+        dest = ws / "profiles" / "mycar"
+        (dest / "captures").mkdir(parents=True)
+        (dest / "captures" / "2026-01-01.json").write_text(json.dumps({"sessions": []}))
+
+        C.copy_profile(Profile("mycar", src), ws, include_captures=True)
+        assert (dest / "captures" / "2026-01-01.json").exists()  # preserved
+
+
+class TestDefinitionRollback:
+    def _repo_with_committed_ecu(self, tmp_path, ecu_text):
+        ws = tmp_path / "ws"
+        ws.mkdir()
+        _git(ws, "init", "-b", "main")
+        _git(ws, "config", "user.email", "t@example.com")
+        _git(ws, "config", "user.name", "T")
+        d = ws / "profiles" / "testcar" / "ecus"
+        d.mkdir(parents=True)
+        (d / "bms.yaml").write_text(ecu_text)
+        (ws / "profiles" / "testcar" / "profile.yaml").write_text("car_model: X\n")
+        _git(ws, "add", "-A")
+        _git(ws, "commit", "-m", "seed profile")
+        return ws
+
+    def test_flags_removed_upstream_lines(self, tmp_path):
+        ws = self._repo_with_committed_ecu(tmp_path, "line1\nline2\nline3\n")
+        # Source rolls the file back (drops line2/line3).
+        (ws / "profiles" / "testcar" / "ecus" / "bms.yaml").write_text("line1\n")
+        rolled = C.definition_rollback(_ready(), ws, "testcar")
+        assert rolled and rolled[0][0] == "profiles/testcar/ecus/bms.yaml"
+        assert rolled[0][1] == 2  # two lines removed
+
+    def test_pure_additions_are_not_flagged(self, tmp_path):
+        ws = self._repo_with_committed_ecu(tmp_path, "line1\n")
+        (ws / "profiles" / "testcar" / "ecus" / "bms.yaml").write_text("line1\nline2\n")
+        assert C.definition_rollback(_ready(), ws, "testcar") == []
+
+
 class TestDiffProfile:
     def test_diff_shows_new_untracked_files(self, tmp_path):
         # A real throwaway repo: copy a profile in, then diff should include the
@@ -347,3 +458,46 @@ class TestContributeCommand:
         rc = cmd.run(_cmd_args(repo_dir=str(ws), yes=False, json=True))
         assert rc == cmd._CANNOT
         # Nothing pushed: no push/PR gh|git calls happened because we bailed.
+
+    def test_installed_snapshot_blocks_json_without_yes(self, tmp_path, monkeypatch):
+        # A profile resolved from a site-packages snapshot is refused (json, no
+        # --yes) before any workspace work.
+        root = tmp_path / "site-packages" / "profiles" / "testcar"
+        prof = _make_profile(root)
+        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(cmd, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(C, "preflight", lambda: _ready())
+        rc = cmd.run(_cmd_args(yes=False, json=True))
+        assert rc == cmd._CANNOT
+
+    def test_rollback_blocks_json_without_yes(self, tmp_path, monkeypatch, capsys):
+        # A source that removes committed upstream definition lines is refused
+        # (json, no --yes) at the rollback gate.
+        ws = tmp_path / "ws"
+        ws.mkdir()
+        _git(ws, "init", "-b", "main")
+        _git(ws, "config", "user.email", "t@example.com")
+        _git(ws, "config", "user.name", "T")
+        d = ws / "profiles" / "testcar" / "ecus"
+        d.mkdir(parents=True)
+        (d / "bms.yaml").write_text("a\nb\nc\n")
+        (ws / "profiles" / "testcar" / "profile.yaml").write_text("car_model: X\ninit: ATSP6;\n")
+        _git(ws, "add", "-A")
+        _git(ws, "commit", "-m", "seed profile")
+
+        # Source rolls the ecu back to one line.
+        root = tmp_path / "prof"
+        (root / "ecus").mkdir(parents=True)
+        (root / "ecus" / "bms.yaml").write_text("a\n")
+        (root / "profile.yaml").write_text("car_model: X\ninit: ATSP6;\n")
+        prof = Profile("testcar", root)
+
+        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(cmd, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(C, "preflight", lambda: _ready())
+        rc = cmd.run(_cmd_args(repo_dir=str(ws), captures=False, yes=False, json=True))
+        assert rc == cmd._CANNOT
+        import json as _json
+
+        payload = _json.loads(capsys.readouterr().out)
+        assert payload["rollback"] and payload["rollback"][0]["path"].endswith("ecus/bms.yaml")

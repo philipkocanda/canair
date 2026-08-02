@@ -107,6 +107,22 @@ def _confirm(prompt: str, yes: bool, *, json_mode: bool) -> bool:
         return False
 
 
+def _print_rollback_warning(c, rollback: list[tuple[str, int]]) -> None:
+    """Warn that the contribution removes committed upstream definition lines."""
+    c.print(
+        "\n[yellow]⚠ This contribution removes committed upstream definition "
+        "lines[/yellow] — curated definitions normally only grow, so if your source\n"
+        "  is stale this would revert work already merged upstream:\n"
+    )
+    for path, removed in rollback:
+        c.print(f"  [yellow]•[/yellow] {path}  [dim](−{removed} line(s))[/dim]")
+    c.print(
+        "\n  If this is a deliberate cleanup, proceed. Otherwise sync your source "
+        "first\n  (e.g. [cyan]git pull[/cyan], and run [cyan]uv run canair[/cyan] "
+        "from your checkout).\n"
+    )
+
+
 def _validate(profile) -> tuple[bool, str]:
     """Run ``validate all`` against ``profile``; return (ok, captured_output)."""
     from .validate import run as validate_run
@@ -143,6 +159,41 @@ def run(args) -> int:
         return _CANNOT
 
     branch = args.branch or f"contribute/{profile.name}-{date.today():%Y%m%d}"
+
+    # 0. Source sanity: warn if the profile is an installed snapshot, not a
+    #    working checkout. A bare `canair` resolves the profile from the frozen
+    #    site-packages copy, which can be behind the checkout (and ahead on
+    #    captures from bare --save runs) — contributing it silently reverts work.
+    snapshot = C.installed_snapshot_kind(profile.root)
+    if snapshot:
+        if json_mode and not args.yes:
+            return _emit_json(
+                {
+                    "ok": False,
+                    "cannot": True,
+                    "profile": profile.name,
+                    "installed_snapshot": snapshot,
+                    "source": str(profile.root),
+                    "error": (
+                        f"profile resolved from an installed {snapshot} snapshot, not a "
+                        "checkout; it may be stale — re-run with --yes to proceed"
+                    ),
+                }
+            )
+        if not json_mode:
+            c.print(
+                f"\n[yellow]⚠ This profile was read from an installed {snapshot} "
+                f"snapshot[/yellow], not your working checkout:\n  [dim]{profile.root}[/dim]\n"
+                "  That copy is frozen at install time — it can be behind your checkout\n"
+                "  (and ahead on captures from bare `--save` runs), so contributing it may\n"
+                "  revert upstream work. Prefer running [cyan]uv run canair contribute[/cyan] "
+                "from your repo checkout.\n"
+            )
+            if not _confirm(
+                "Contribute from the installed snapshot anyway?", args.yes, json_mode=json_mode
+            ):
+                c.print("  Aborted — nothing was contributed.")
+                return _CANNOT
 
     # 1. Validate — refuse to contribute a broken profile.
     ok, report = _validate(profile)
@@ -230,7 +281,13 @@ def run(args) -> int:
         c.print(f"\n  [green]{msg}[/green]")
         return _OK
 
-    # 5b. --diff: show exactly what would be contributed, then stop.
+    # 5b. Staleness check: does this contribution *remove* committed upstream
+    #     lines from curated definitions? Those normally only grow, so a
+    #     rollback signals the source is likely stale (would revert upstream).
+    rollback = C.definition_rollback(pre, workspace, profile.name)
+    rollback_json = [{"path": p, "removed_lines": n} for p, n in rollback]
+
+    # 5c. --diff: show exactly what would be contributed, then stop.
     if args.diff:
         diff = C.diff_profile(pre, workspace, profile.name)
         if json_mode:
@@ -244,6 +301,7 @@ def run(args) -> int:
                     "workspace": str(workspace),
                     "source": str(profile.root),
                     "diff": diff,
+                    "rollback": rollback_json,
                     "pr_url": None,
                 }
             )
@@ -254,6 +312,8 @@ def run(args) -> int:
             c.print(Syntax(diff, "diff", theme="ansi_dark", background_color="default"))
         else:
             c.print("  [dim](no textual diff)[/dim]")
+        if rollback:
+            _print_rollback_warning(c, rollback)
         c.print("\n  [dim](diff only — nothing committed, pushed, or opened)[/dim]")
         c.print("  Re-run without [cyan]--diff[/cyan] to contribute it.")
         return _OK
@@ -287,6 +347,28 @@ def run(args) -> int:
                 c.print(f"  [yellow]•[/yellow] {f.location}  [dim]({f.detail})[/dim]")
             c.print("")
             if not _confirm("Contribute anyway?", args.yes, json_mode=json_mode):
+                c.print("  Aborted — nothing was contributed.")
+                return _CANNOT
+
+    # 6b. Rollback pre-flight — the contribution removes committed upstream
+    #     definition lines (likely a stale source reverting upstream work).
+    if rollback:
+        if json_mode and not args.yes:
+            return _emit_json(
+                {
+                    "ok": False,
+                    "cannot": True,
+                    "profile": profile.name,
+                    "rollback": rollback_json,
+                    "error": (
+                        "this contribution removes committed upstream definition lines "
+                        "(source may be stale); re-run with --yes to proceed"
+                    ),
+                }
+            )
+        if not json_mode:
+            _print_rollback_warning(c, rollback)
+            if not _confirm("Contribute this rollback anyway?", args.yes, json_mode=json_mode):
                 c.print("  Aborted — nothing was contributed.")
                 return _CANNOT
 

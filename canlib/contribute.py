@@ -159,6 +159,82 @@ def gh_install_hint() -> str:
     )
 
 
+# --- source-profile sanity -------------------------------------------------
+
+
+def installed_snapshot_kind(path: Path) -> str | None:
+    """Name the install kind if ``path`` lives in a package snapshot, else None.
+
+    A bare ``canair`` (a ``uv tool`` / ``pipx`` / ``pip`` install) resolves the
+    active profile from the package copy in ``site-packages`` — a **frozen
+    snapshot** taken at install time. That snapshot can be arbitrarily behind
+    the working checkout (and simultaneously *ahead* on captures written by bare
+    ``--save`` runs), so contributing from it silently reverts upstream work.
+    Detecting it lets the command warn and steer the user back to ``uv run
+    canair`` from a checkout. Returns e.g. ``"uv tool"`` / ``"pipx"`` /
+    ``"installed package"``, or ``None`` for a normal working-tree profile.
+    """
+    try:
+        parts = path.resolve().parts
+    except OSError:
+        parts = path.parts
+    if not ({"site-packages", "dist-packages"} & set(parts)):
+        return None
+    if "uv" in parts and "tools" in parts:
+        return "uv tool"
+    if "pipx" in parts:
+        return "pipx"
+    return "installed package"
+
+
+# Curated-definition members that normally only move *forward* (append-only
+# captures/ is excluded — a "deletion" there is prevented at copy time, see
+# copy_profile). A contribution that *removes* committed upstream lines from
+# these is a strong signal the source profile is stale.
+_ROLLBACK_MEMBERS = (
+    "profile.yaml",
+    "vehicle_states.yaml",
+    "states.yaml",
+    "can_buses.yaml",
+    "ecus",
+    "signals",
+)
+
+
+def definition_rollback(
+    pre: Preflight, workspace: Path, profile_name: str
+) -> list[tuple[str, int]]:
+    """Definition files this contribution would delete committed upstream lines from.
+
+    Curated definitions (``ecus/``, ``profile.yaml``, buses, states, signals)
+    normally only grow, so a diff that *removes* lines already merged upstream
+    means the source is most likely **stale** and the contribution would revert
+    that work. Returns ``(relpath, removed_lines)`` for each such file, sorted.
+
+    This is a heuristic — a legitimate cleanup (pruning a dead param) also
+    removes lines and will appear here — so the caller *warns and confirms*
+    rather than blocking. Brand-new files (a fresh profile) are pure additions
+    and never appear. Captures are excluded by construction.
+    """
+    assert pre.git
+    rel = f"profiles/{profile_name}"
+    # Make freshly-copied untracked files visible to `git diff` (as in diff_profile).
+    _run([pre.git, "-C", str(workspace), "add", "--intent-to-add", "--", rel])
+    paths = [f"{rel}/{member}" for member in _ROLLBACK_MEMBERS]
+    res = _run([pre.git, "-C", str(workspace), "diff", "--numstat", "--", *paths])
+    rolled: list[tuple[str, int]] = []
+    for line in res.stdout.splitlines():
+        cols = line.split("\t")
+        if len(cols) != 3:
+            continue
+        added, removed, path = cols
+        if added == "-" or removed == "-":  # binary file — no line counts
+            continue
+        if int(removed) > 0:
+            rolled.append((path, int(removed)))
+    return sorted(rolled)
+
+
 # --- workspace (fork clone, or a direct upstream clone) ---------------------
 
 
@@ -311,24 +387,24 @@ def start_branch(pre: Preflight, workspace: Path, branch: str) -> Step:
 def copy_profile(profile, workspace: Path, *, include_captures: bool) -> Path:
     """Copy the resolved profile bundle into ``workspace/profiles/<name>/``.
 
-    Each *managed* member (ecus/, signals/, profile.yaml, states, buses, and —
-    when ``include_captures`` — captures/) is replaced with the user's copy so
-    the git diff reflects the current state. Members the tool does **not** manage
-    (``out/`` generated JSON, ``references/`` possibly-third-party material,
-    ``logs/``, and captures/ when excluded) are left untouched, so contributing
-    into an existing upstream profile never *deletes* its captures/references
-    just because this contribution didn't include them. Append-only capture files
-    still merge cleanly upstream via the capture merge driver. Returns the
-    destination directory.
+    Each *managed* definition member (ecus/, signals/, profile.yaml, states,
+    buses) is replaced with the user's copy so the git diff reflects the current
+    state. Members the tool does **not** manage (``out/`` generated JSON,
+    ``references/`` possibly-third-party material, ``logs/``) are left untouched,
+    so contributing into an existing upstream profile never *deletes* its
+    references just because this contribution didn't include them.
+
+    ``captures/`` (when ``include_captures``) is handled specially: rather than
+    replacing the directory wholesale (which would propose *deleting* any
+    upstream capture session a merely-behind source lacks), each dated capture
+    log is **unioned** with the upstream copy already in the workspace — captures
+    are append-only evidence, so the contribution only ever *adds* sessions. See
+    :func:`_overlay_captures`. Returns the destination directory.
     """
     dest = workspace / "profiles" / profile.name
     dest.mkdir(parents=True, exist_ok=True)  # overlay — do NOT wipe the whole dir
 
-    members = list(_DEFINITION_MEMBERS)
-    if include_captures:
-        members.append(_CAPTURE_MEMBER)
-
-    for member in members:
+    for member in _DEFINITION_MEMBERS:
         src = profile.root / member
         if not src.exists():
             continue
@@ -343,7 +419,59 @@ def copy_profile(profile, workspace: Path, *, include_captures: bool) -> Path:
             )
         else:
             shutil.copy2(src, target)
+
+    if include_captures:
+        _overlay_captures(profile.root / _CAPTURE_MEMBER, dest / _CAPTURE_MEMBER)
     return dest
+
+
+def _overlay_captures(src: Path, dst: Path) -> None:
+    """Overlay ``src`` captures onto ``dst`` without ever deleting upstream data.
+
+    Dated capture logs (top-level ``*.json``) that exist on both sides are
+    **unioned** (append-only sessions, deduped) so a source that is behind
+    upstream never proposes dropping sessions. Everything else under captures/
+    (e.g. ``can/`` raw-frame logs and their index) is copied as an overlay:
+    files present in the source replace their counterpart, files only upstream
+    are left in place. Transient members (``.journal``, ``_*``, ``*.tmp``) are
+    skipped.
+    """
+    if not src.exists():
+        return
+    dst.mkdir(parents=True, exist_ok=True)
+    for path in sorted(src.rglob("*")):
+        if not path.is_file():
+            continue
+        rel = path.relative_to(src)
+        if any(part in (".journal", "_") for part in rel.parts) or path.name.endswith(".tmp"):
+            continue
+        target = dst / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        # A dated capture log present on both sides → union (append-only merge).
+        if rel.parent == Path(".") and path.suffix == ".json" and target.exists():
+            _union_capture_files(upstream=target, source=path)
+        else:
+            shutil.copy2(path, target)
+
+
+def _union_capture_files(*, upstream: Path, source: Path) -> None:
+    """Rewrite ``upstream`` as the union of its own and ``source``'s sessions.
+
+    Falls back to a plain overwrite if either file can't be parsed as a capture
+    document (so a malformed file is still contributed rather than lost).
+    """
+    import json
+
+    from .capture_io import dump_capture_file, load_capture_file
+    from .captures_merge import union_documents
+
+    try:
+        up = load_capture_file(upstream)
+        ours = load_capture_file(source)
+    except (OSError, json.JSONDecodeError):
+        shutil.copy2(source, upstream)
+        return
+    dump_capture_file(upstream, union_documents(up, ours))
 
 
 def dir_size(path: Path) -> int:

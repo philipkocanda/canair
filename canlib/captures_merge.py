@@ -131,3 +131,17 @@ def merge_sessions(base: Any, ours: Any, theirs: Any) -> list[dict]:
 def merge_documents(base: Any, ours: Any, theirs: Any) -> dict:
     """Merge three parsed capture documents into one ``{"sessions": [...]}`` dict."""
     return {"sessions": merge_sessions(base, ours, theirs)}
+
+
+def union_documents(a: Any, b: Any) -> dict:
+    """Pure 2-way union of two capture docs' sessions (deduped, order-independent).
+
+    Unlike :func:`merge_documents`, this **never drops** a session: it is for
+    *combining* two independent recordings where neither side is authoritative
+    and a deletion must not be inferred — e.g. ``canair contribute`` overlaying a
+    contributor's local captures on top of the upstream copy, where a local file
+    that is merely *behind* upstream must not propose deleting the sessions it
+    lacks. Implemented as a 3-way merge against an empty base, so every session
+    on either side is an "addition" and is kept.
+    """
+    return merge_documents({"sessions": []}, a, b)

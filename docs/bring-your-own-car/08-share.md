@@ -56,8 +56,17 @@ shared it:
 - runs `canair validate all` (and refuses if it fails),
 - scans for anything that could **identify or locate you** — a VIN, an ECU
   serial, an email or phone number in a label/note — and asks you to confirm, and
+- **warns if your profile looks stale** — if it was read from an installed
+  snapshot (a bare `canair` reads the frozen `site-packages` copy, not your
+  checkout) or if the contribution would *remove* lines already merged upstream
+  (curated definitions normally only grow, so a rollback usually means your
+  source is behind) — and asks you to confirm before continuing, and
 - **asks you to confirm before pushing** and opening the PR (nothing leaves your
   machine until you say yes; `--yes` skips the prompt for scripts/agents).
+
+Captures are append-only evidence, so a contribution only ever *adds* capture
+sessions — even a source that's behind upstream on captures won't propose
+deleting the sessions it lacks.
 
 Not sure what you're about to send? Run `canair contribute --diff` first — it
 prepares everything and prints the full diff of `profiles/<your-car>/` vs
