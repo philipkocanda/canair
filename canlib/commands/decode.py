@@ -541,7 +541,13 @@ def run(args) -> int:
     query_str = build_query(args.query)
 
     # --plot and --try tolerate a not-yet-defined ECU/PID (raw byte inspection).
-    tolerate_missing = bool(args.try_expr) or args.plot or args.find_mirrors or args.dump_bytes
+    tolerate_missing = (
+        bool(args.try_expr)
+        or args.plot
+        or args.find_mirrors
+        or args.dump_bytes
+        or args.discriminate
+    )
 
     # Resolve date scoping (--date shorthand for equal since/until; validated here).
     since, until, err = resolve_scope_bounds(args)
@@ -653,7 +659,13 @@ def _decode_one(
     list instead of dumping it, so a multi-PID ``--json`` yields one array.
     """
     # --plot and --try tolerate a not-yet-defined ECU/PID (raw byte inspection).
-    tolerate_missing = bool(args.try_expr) or args.plot or args.find_mirrors or args.dump_bytes
+    tolerate_missing = (
+        bool(args.try_expr)
+        or args.plot
+        or args.find_mirrors
+        or args.dump_bytes
+        or args.discriminate
+    )
 
     # Resolve defined parameters. With --try we tolerate an unknown ECU/PID so a
     # brand-new PID (captured but not yet defined) can still be probed.
@@ -703,7 +715,12 @@ def _decode_one(
     }
     scoped = any(v is not None for v in scope.values())
 
-    if not parameters and not args.plot and not args.dump_bytes:
+    # Raw byte/bit analyses (--discriminate/--find-mirrors with --bytes/--bits)
+    # rank straight off the captured payloads and need no defined parameters —
+    # let them through the "nothing defined" early-exit below.
+    raw_byte_mode = bool((args.discriminate or args.find_mirrors) and (args.bytes or args.bits))
+
+    if not parameters and not args.plot and not args.dump_bytes and not raw_byte_mode:
         # Be capture-aware and split the two cases that used to collapse into one
         # misleading message: filters excluded everything vs. nothing defined yet.
         # (This is a terminating error path, so loading captures here doesn't

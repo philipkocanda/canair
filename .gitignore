@@ -45,3 +45,8 @@ profiles/*/dtc_log.yaml
 
 # Capture journals — write-ahead logs, reconciled into captures/*.json on exit
 profiles/*/captures/.journal/
+
+# Blind-rediscovery eval sandboxes, answer keys, and reports (on-demand tooling
+# stress-test — see scripts/blind_rediscovery.py and canlib/blind.py). Contains
+# held-out ground truth; never committed.
+/rediscovery/
