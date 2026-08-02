@@ -45,6 +45,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **ECU ↔ vehicle-state views.** Two inverse ways to see which states an ECU is
+  readable/awake in, both backed by one resolver (`canlib/states.py::ecu_states`
+  — the ECU-level `vehicle_states`, or the union of its PIDs' when that's unset):
+  - **`canair states <STATE>`** (e.g. `canair states READY`) — reverse lookup:
+    lists which ECUs are readable in a state, with each ECU's TX/CAN-bus and the
+    match source (`ECU-level` / `via PIDs` / `ALL`). `--json` supported; an
+    unknown state errors with the known vocabulary.
+  - **`canair ecu --states`** adds a **STATES** column to the list view; the new
+    **`--sort states`** groups by state (and auto-enables the column).
 - **`canair ecu <ECU> edit`** opens the ECU's `ecus/<name>.yaml` file in
   `$EDITOR` for bulk/awkward edits the surgical `canair pids` subcommands don't
   reach. It is **TTY-only** — it refuses to run when stdin/stdout isn't a

@@ -13,6 +13,8 @@ re-validated, reverted on failure) so you never hand-edit it.
 Examples:
   canair states                                   # list the vocabulary + usage
   canair states --json                            # machine-readable
+  canair states READY                             # which ECUs are readable in READY
+  canair states CHARGING --json                   # reverse lookup as JSON
   canair states add PRECONDITION --description "Cabin pre-conditioning"
   canair states set-predicate CHARGING "BMS.BATTERY_CURRENT < -1"
   canair states set-description ACC "Accessory power (ACC1)"
@@ -89,9 +91,120 @@ def _load_usage() -> dict[str, int]:
     return counts
 
 
+def cmd_show_state(args) -> int:
+    """Reverse lookup: which ECUs are readable/awake in a given state.
+
+    An ECU matches when the requested state is among its resolved states
+    (ECU-level ``vehicle_states``, else the union of its PIDs'); an ECU tagged
+    ``ALL`` matches every state. The source of each match is shown so it's clear
+    whether the state is declared at the ECU level or only inferred from PIDs.
+    """
+    from canlib.ecus import load_ecus
+    from canlib.pids import load_pids
+    from canlib.profile import active
+    from canlib.states import (
+        StatePredicateError,
+        allowed_states,
+        ecus_in_state,
+        load_states,
+    )
+
+    prof = active()
+    target = str(args.state).strip().upper()
+
+    try:
+        rules = load_states(prof)
+    except StatePredicateError as e:
+        print(f"{_c('Invalid vehicle_states.yaml:', _RED)} {e}", file=sys.stderr)
+        return 1
+
+    vocab = allowed_states(prof)
+    if target not in vocab:
+        if args.json:
+            json.dump(
+                {"state": target, "error": "unknown state", "known": sorted(vocab)}, sys.stdout
+            )
+            print()
+        else:
+            print(
+                f"\n  {_c('Unknown state', _RED)} {_c(target, _YELLOW)} "
+                f"{_c('(not in vehicle_states.yaml).', _DIM)}"
+            )
+            print(f"  {_c('Known states:', _DIM)} {', '.join(sorted(vocab))}\n")
+        return 1
+
+    rule = next((r for r in rules if r.name.upper() == target), None)
+    matches = ecus_in_state(target, load_pids(), prof)
+
+    # Join CAN-bus segment(s) from the registry for context.
+    ecus = load_ecus()
+    by_tx = {tx: info for tx, info in ecus.items() if isinstance(info, dict)}
+    for m in matches:
+        info = by_tx.get(m.get("tx_id")) or {}
+        m["bus"] = info.get("can_bus") or []
+
+    if args.json:
+        json.dump(
+            {
+                "state": target,
+                "description": (rule.description or None) if rule else None,
+                "when": (rule.expr or None) if rule else None,
+                "ecus": [
+                    {
+                        "name": m["name"],
+                        "tx": f"0x{m['tx_id']:03X}" if m.get("tx_id") else None,
+                        "bus": m["bus"],
+                        "source": m["source"],
+                    }
+                    for m in matches
+                ],
+            },
+            sys.stdout,
+            indent=2,
+            default=str,
+        )
+        print()
+        return 0
+
+    header = f"ECUs readable in {target}"
+    print(f"\n  {_c(header, _BOLD)} — {len(matches)} ECU(s) in {_c(prof.name, _CYAN)}")
+    if rule and rule.description:
+        print(f"  {_c(rule.description, _DIM)}")
+    if rule and rule.expr:
+        print(f"  {_c('when: ' + rule.expr, _DIM)}")
+
+    if not matches:
+        print(
+            f"\n  {_c('No ECUs declare this state.', _YELLOW)} "
+            f"{_c('Annotate an ECU/PID with `vehicle_states: [' + target + ']`.', _DIM)}\n"
+        )
+        return 0
+
+    _SOURCE_LABEL = {
+        "ecu": "ECU-level",
+        "pids": "via PIDs",
+        "all": "ALL (every state)",
+    }
+    print()
+    hdr = f"{'NAME':<12} {'TX':<6} {'SOURCE':<18} BUS"
+    print(f"  {_c(hdr, _DIM)}")
+    for m in matches:
+        tx = f"0x{m['tx_id']:03X}" if m.get("tx_id") else "—"
+        bus = "/".join(m["bus"]) if m["bus"] else "—"
+        src = _SOURCE_LABEL.get(m["source"], m["source"])
+        src_c = _c(f"{src:<18}", _GREEN if m["source"] == "all" else _DIM)
+        name_c = _c(f"{m['name']:<12}", _CYAN)
+        print(f"  {name_c} {tx:<6} {src_c} {_c(bus, _CYAN)}")
+    print()
+    return 0
+
+
 def cmd_list(args) -> int:
     from canlib.profile import active
     from canlib.states import StatePredicateError, load_states
+
+    if getattr(args, "state", None):
+        return cmd_show_state(args)
 
     prof = active()
     try:
@@ -234,7 +347,12 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     parser.add_argument("--json", action="store_true", help="Output the list as JSON")
     sub = parser.add_subparsers(dest="states_command")
 
-    lst = sub.add_parser("list", help="List the vocabulary (default)")
+    lst = sub.add_parser("list", help="List the vocabulary, or look up one state's ECUs (default)")
+    lst.add_argument(
+        "state",
+        nargs="?",
+        help="A state name (e.g. READY) — show which ECUs are readable/awake in it",
+    )
     lst.add_argument("--json", action="store_true", help="Output as JSON")
     lst.set_defaults(_states_func=cmd_list)
 

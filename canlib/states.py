@@ -325,6 +325,72 @@ def join_states(states) -> str:
     return ", ".join(str(s) for s in states)
 
 
+def _order_states(tokens, profile=None) -> list[str]:
+    """De-duplicate ``tokens`` and order them by the declared vocabulary.
+
+    Declared states come first in ``vehicle_states.yaml`` order, then any tokens
+    absent from the vocabulary (alphabetical), with the ``ALL`` meta-token last.
+    Tokens are UPPER-cased to match the canonical vocabulary.
+    """
+    order = {n.upper(): i for i, n in enumerate(state_names(profile))}
+
+    def key(tok: str):
+        if tok == ALL_STATE:
+            return (2, "")
+        if tok in order:
+            return (0, order[tok])
+        return (1, tok)
+
+    return sorted(dict.fromkeys(t.upper() for t in tokens), key=key)
+
+
+def ecu_states(ecu_def, profile=None) -> list[str]:
+    """Resolve which vehicle states an ECU is readable/awake in.
+
+    Uses the ECU-level ``vehicle_states`` when present; otherwise falls back to
+    the union of every PID's ``vehicle_states``. Tokens are UPPER-cased,
+    de-duplicated, and ordered by the profile's declared vocabulary. Returns an
+    empty list when neither level declares any state.
+    """
+    if not isinstance(ecu_def, dict):
+        return []
+    top = ecu_def.get("vehicle_states")
+    if top:
+        return _order_states(parse_states(top), profile)
+    tokens: list[str] = []
+    for pid_def in (ecu_def.get("pids") or {}).values():
+        if isinstance(pid_def, dict):
+            tokens.extend(parse_states(pid_def.get("vehicle_states")))
+    return _order_states(tokens, profile)
+
+
+def ecus_in_state(state, pids_data, profile=None) -> list[dict]:
+    """ECUs readable in ``state`` (the reverse of :func:`ecu_states`).
+
+    ``pids_data`` is a ``load_pids()`` mapping. An ECU matches when ``state`` is
+    among its resolved states (ECU-level, else the PID union); an ECU tagged
+    ``ALL`` is readable in *every* state, so it matches any query. Each returned
+    record carries ``name``/``tx_id`` and a ``source`` of ``"ecu"`` (ECU-level
+    field), ``"pids"`` (union of PID states), or ``"all"`` (matched via ``ALL``).
+    Sorted by ECU name.
+    """
+    target = str(state).strip().upper()
+    out: list[dict] = []
+    for name, ecu_def in (pids_data.get("ecus") or {}).items():
+        if not isinstance(ecu_def, dict):
+            continue
+        states = ecu_states(ecu_def, profile)
+        if not states:
+            continue
+        source = "ecu" if ecu_def.get("vehicle_states") else "pids"
+        if ALL_STATE in states and target != ALL_STATE:
+            out.append({"name": name, "tx_id": ecu_def.get("tx_id"), "source": "all"})
+        elif target in states:
+            out.append({"name": name, "tx_id": ecu_def.get("tx_id"), "source": source})
+    out.sort(key=lambda r: str(r["name"]).upper())
+    return out
+
+
 def suggest_state(rules: list[StateRule], values: dict, responded: set) -> str | None:
     """Return the first state whose predicate matches the decoded values.
 

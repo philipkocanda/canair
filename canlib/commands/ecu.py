@@ -13,6 +13,8 @@ Examples:
   canair ecu 0x7E4           # hex TX id also works
   canair ecu 0x7EC           # hex RX id resolves too (the ECU's response address)
   canair ecu --captures      # include capture-count columns (parses captures — slower)
+  canair ecu --states        # add a STATES column (states each ECU is readable in)
+  canair ecu --sort states   # group the list by vehicle state
   canair ecu BMS --captures  # per-PID capture counts for the BMS
   canair ecu BMS --json      # machine-readable
   canair ecu --json          # all ECUs as JSON
@@ -30,10 +32,13 @@ Columns & legend:
          (parsing every capture is slow); shown as `—` otherwise.
   cap    in the per-PID detail view, "N cap" = number of saved captures for
          that individual PID (only shown with `--captures`).
+  STATES the vehicle states the ECU is readable/awake in — its ECU-level
+         `vehicle_states`, or the union of its PIDs' when that's unset. Opt-in
+         (`--states`); shown after BUS.
 
-  Sort with `--sort {bus,name,tx,proto,pids,verif,caps}`: string/hex columns
-  (bus, name, tx, proto) ascending; numeric columns (pids, verif, caps)
-  descending. `name` breaks ties.
+  Sort with `--sort {bus,name,tx,proto,pids,verif,caps,states}`: string/hex
+  columns (bus, name, tx, proto, states) ascending; numeric columns (pids,
+  verif, caps) descending. `name` breaks ties.
 """
 
 import argparse
@@ -49,6 +54,7 @@ from canlib.commands._hexarg import HexArgError, parse_hex_arg
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.ecus import load_ecus, resolve_tx, rx_addr_str
 from canlib.pids import load_pids, pid_status
+from canlib.states import ecu_states
 
 NAME = "ecu"
 
@@ -162,6 +168,7 @@ _SORT_COLUMNS = {
     "pids": ("pids", "desc"),
     "verif": ("verified", "desc"),
     "caps": ("captures", "desc"),
+    "states": ("states", "asc"),
 }
 
 
@@ -183,6 +190,9 @@ def _sort_records(records: list[dict], sort: str) -> None:
         if key_name == "can_bus":
             # Group by CAN segment(s); unbussed ECUs (key "~") sort last.
             return "/".join(r["can_bus"]) if r.get("can_bus") else "~"
+        if key_name == "states":
+            # Group by resolved states; stateless ECUs (key "~") sort last.
+            return "/".join(r["states"]) if r.get("states") else "~"
         if key_name == "name":
             return str(r["name"]).upper()
         value = r.get(key_name)
@@ -226,6 +236,8 @@ def _list_records(
             "id_protocol": info.get("id_protocol"),
             "can_bus": info.get("can_bus"),
             "has_pids": ecu_def is not None,
+            # States the ECU is readable/awake in (ECU-level, else PID union).
+            "states": ecu_states(ecu_def) if ecu_def is not None else [],
         }
         if ecu_def is not None:
             rec.update(_pid_stats(ecu_def))
@@ -238,7 +250,7 @@ def _list_records(
     return records
 
 
-def cmd_list(records: list[dict], as_json: bool) -> int:
+def cmd_list(records: list[dict], as_json: bool, show_states: bool = False) -> int:
     if as_json:
         json.dump(records, sys.stdout, indent=2, default=str)
         print()
@@ -247,22 +259,28 @@ def cmd_list(records: list[dict], as_json: bool) -> int:
     n_pids = sum(1 for r in records if r["has_pids"])
     print(f"\n  {_BOLD}ECUs{_RESET} — {len(records)} in registry, {n_pids} with PID definitions\n")
 
-    # Column header. BUS is last: it's the widest, most-variable column, so
-    # trailing it keeps the numeric columns aligned instead of ragged.
+    # Column header. BUS (and optional STATES) are last: they're the widest,
+    # most-variable columns, so trailing them keeps the numeric columns aligned.
+    bus_hdr = f"{'BUS':<12}" if show_states else "BUS"
+    states_hdr = "  STATES" if show_states else ""
     print(
         f"  {_DIM}{'NAME':<12} {'TX':<6} {'PROTO':<8} "
-        f"{'PIDS':>4} {'VERIF':>7} {'CAPS':>5}  {'BUS'}{_RESET}"
+        f"{'PIDS':>4} {'VERIF':>7} {'CAPS':>5}  {bus_hdr}{states_hdr}{_RESET}"
     )
 
     for r in records:
         name = r["name"]
         proto = r.get("id_protocol") or "?"
         bus = "/".join(r["can_bus"]) if r.get("can_bus") else "—"
+        # Pad BUS only when a STATES column follows it (else it's trailing).
+        bus_disp = f"{bus:<12}" if show_states else bus
+        states = "/".join(r["states"]) if r.get("states") else "—"
+        states_seg = f"  {states}" if show_states else ""
         if not r["has_pids"]:
             # Registry-only module: no PID data to summarise.
             print(
                 f"  {_CYAN}{name:<12}{_RESET} {r['tx']:<6} {proto:<8} "
-                f"{_DIM}{'—':>4} {'—':>7} {'—':>5}{_RESET}  {_CYAN}{bus}{_RESET}"
+                f"{_DIM}{'—':>4} {'—':>7} {'—':>5}{_RESET}  {_CYAN}{bus_disp}{_RESET}{states_seg}"
             )
             continue
         params = r["params"]
@@ -279,7 +297,7 @@ def cmd_list(records: list[dict], as_json: bool) -> int:
         print(
             f"  {_CYAN}{name:<12}{_RESET} {r['tx']:<6} {proto:<8} "
             f"{r['pids']:>4} {vcolor}{vstr:>7}{_RESET} "
-            f"{cstr}  {_CYAN}{bus}{_RESET}"
+            f"{cstr}  {_CYAN}{bus_disp}{_RESET}{states_seg}"
         )
     print()
     return 0
@@ -758,7 +776,13 @@ def _add_show_parser(kinds) -> argparse.ArgumentParser:
         choices=list(_SORT_COLUMNS),
         default="bus",
         help="List ordering: 'bus' (default; group by CAN segment) or by column: "
-        "name/tx/proto (ascending), pids/verif/caps (descending)",
+        "name/tx/proto/states (ascending), pids/verif/caps (descending)",
+    )
+    parser.add_argument(
+        "--states",
+        action="store_true",
+        help="Add a STATES column: the vehicle states each ECU is readable/awake in "
+        "(ECU-level vehicle_states, else the union of its PIDs')",
     )
     parser.add_argument(
         "-c",
@@ -901,7 +925,9 @@ def run(args) -> int:
         if not records:
             print("No ECUs found in the active profile (see `canair profile show`).")
             return 1
-        return cmd_list(records, args.json)
+        # Sorting by states implies showing the column (else the order is invisible).
+        show_states = getattr(args, "states", False) or getattr(args, "sort", "bus") == "states"
+        return cmd_list(records, args.json, show_states=show_states)
 
     tx_id = resolve_tx(args.ecu)
     info = ecus.get(tx_id) if tx_id is not None else None

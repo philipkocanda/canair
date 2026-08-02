@@ -25,6 +25,8 @@ options:
   canair ecu 0x7E4           # hex TX id also works
   canair ecu 0x7EC           # hex RX id resolves too (the ECU's response address)
   canair ecu --captures      # include capture-count columns (parses captures — slower)
+  canair ecu --states        # add a STATES column (states each ECU is readable in)
+  canair ecu --sort states   # group the list by vehicle state
   canair ecu BMS --captures  # per-PID capture counts for the BMS
   canair ecu BMS --json      # machine-readable
   canair ecu --json          # all ECUs as JSON
@@ -42,17 +44,21 @@ Columns & legend:
          (parsing every capture is slow); shown as `—` otherwise.
   cap    in the per-PID detail view, "N cap" = number of saved captures for
          that individual PID (only shown with `--captures`).
+  STATES the vehicle states the ECU is readable/awake in — its ECU-level
+         `vehicle_states`, or the union of its PIDs' when that's unset. Opt-in
+         (`--states`); shown after BUS.
 
-  Sort with `--sort {bus,name,tx,proto,pids,verif,caps}`: string/hex columns
-  (bus, name, tx, proto) ascending; numeric columns (pids, verif, caps)
-  descending. `name` breaks ties.
+  Sort with `--sort {bus,name,tx,proto,pids,verif,caps,states}`: string/hex
+  columns (bus, name, tx, proto, states) ascending; numeric columns (pids,
+  verif, caps) descending. `name` breaks ties.
 ```
 
 ## `canair ecu show`
 
 ```
-usage: canair ecu show [-h] [--sort {bus,name,tx,proto,pids,verif,caps}] [-c]
-                       [--json]
+usage: canair ecu show [-h]
+                       [--sort {bus,name,tx,proto,pids,verif,caps,states}]
+                       [--states] [-c] [--json]
                        [ecu] [{pids,edit}]
 
 List ECUs, or show one ECU's details and PID stats.
@@ -67,10 +73,13 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-  --sort {bus,name,tx,proto,pids,verif,caps}
+  --sort {bus,name,tx,proto,pids,verif,caps,states}
                         List ordering: 'bus' (default; group by CAN segment)
-                        or by column: name/tx/proto (ascending),
+                        or by column: name/tx/proto/states (ascending),
                         pids/verif/caps (descending)
+  --states              Add a STATES column: the vehicle states each ECU is
+                        readable/awake in (ECU-level vehicle_states, else the
+                        union of its PIDs')
   -c, --captures        Include per-ECU/PID capture counts (parses all
                         captures — slower)
   --json                Output as JSON
@@ -81,6 +90,8 @@ options:
   canair ecu 0x7E4           # hex TX id also works
   canair ecu 0x7EC           # hex RX id resolves too (the ECU's response address)
   canair ecu --captures      # include capture-count columns (parses captures — slower)
+  canair ecu --states        # add a STATES column (states each ECU is readable in)
+  canair ecu --sort states   # group the list by vehicle state
   canair ecu BMS --captures  # per-PID capture counts for the BMS
   canair ecu BMS --json      # machine-readable
   canair ecu --json          # all ECUs as JSON
@@ -98,10 +109,13 @@ Columns & legend:
          (parsing every capture is slow); shown as `—` otherwise.
   cap    in the per-PID detail view, "N cap" = number of saved captures for
          that individual PID (only shown with `--captures`).
+  STATES the vehicle states the ECU is readable/awake in — its ECU-level
+         `vehicle_states`, or the union of its PIDs' when that's unset. Opt-in
+         (`--states`); shown after BUS.
 
-  Sort with `--sort {bus,name,tx,proto,pids,verif,caps}`: string/hex columns
-  (bus, name, tx, proto) ascending; numeric columns (pids, verif, caps)
-  descending. `name` breaks ties.
+  Sort with `--sort {bus,name,tx,proto,pids,verif,caps,states}`: string/hex
+  columns (bus, name, tx, proto, states) ascending; numeric columns (pids,
+  verif, caps) descending. `name` breaks ties.
 ```
 
 ## `canair ecu add`

@@ -208,3 +208,84 @@ class TestStateOptions:
             "CRANK",
             "ALL",
         }
+
+
+class TestEcuStates:
+    """`ecu_states` resolves an ECU's readable states (ECU-level, else PID union)."""
+
+    def test_ecu_level_wins(self):
+        from canlib.states import ecu_states
+
+        ecu = {
+            "vehicle_states": ["ready", "acc"],
+            "pids": {"2101": {"vehicle_states": ["CHARGING"]}},
+        }
+        # ECU-level field takes precedence; PID states are ignored when it's set.
+        assert ecu_states(ecu) == ["READY", "ACC"] or set(ecu_states(ecu)) == {"READY", "ACC"}
+        assert "CHARGING" not in ecu_states(ecu)
+
+    def test_pid_union_fallback(self):
+        from canlib.states import ecu_states
+
+        ecu = {
+            "pids": {
+                "2101": {"vehicle_states": ["READY"]},
+                "2102": {"vehicle_states": ["READY", "CHARGING"]},
+            }
+        }
+        assert set(ecu_states(ecu)) == {"READY", "CHARGING"}
+
+    def test_empty_when_no_states(self):
+        from canlib.states import ecu_states
+
+        assert ecu_states({"pids": {"2101": {}}}) == []
+        assert ecu_states({}) == []
+        assert ecu_states(None) == []
+
+    def test_all_token_preserved(self):
+        from canlib.states import ecu_states
+
+        assert ecu_states({"vehicle_states": ["ALL"]}) == ["ALL"]
+
+
+class TestEcusInState:
+    """`ecus_in_state` is the reverse index — which ECUs are readable in a state."""
+
+    def _data(self):
+        return {
+            "ecus": {
+                "BMS": {"tx_id": 0x7E4, "vehicle_states": ["CHARGING", "READY"]},
+                "CLU": {"tx_id": 0x7C6, "pids": {"22B002": {"vehicle_states": ["READY"]}}},
+                "IGPM": {"tx_id": 0x770, "vehicle_states": ["ALL"]},
+                "AMP": {"tx_id": 0x783},  # no states declared → never matches
+            }
+        }
+
+    def test_ecu_level_match(self):
+        from canlib.states import ecus_in_state
+
+        names = {m["name"]: m["source"] for m in ecus_in_state("CHARGING", self._data())}
+        # BMS declares it at the ECU level; IGPM matches via ALL.
+        assert names["BMS"] == "ecu"
+        assert names["IGPM"] == "all"
+        assert "CLU" not in names  # CLU is READY-only
+        assert "AMP" not in names
+
+    def test_pid_union_match_and_source(self):
+        from canlib.states import ecus_in_state
+
+        matches = {m["name"]: m["source"] for m in ecus_in_state("READY", self._data())}
+        assert matches["CLU"] == "pids"
+        assert matches["BMS"] == "ecu"
+        assert matches["IGPM"] == "all"
+
+    def test_case_insensitive(self):
+        from canlib.states import ecus_in_state
+
+        assert [m["name"] for m in ecus_in_state("charging", self._data())] == ["BMS", "IGPM"]
+
+    def test_querying_all_does_not_double_fan_out(self):
+        from canlib.states import ecus_in_state
+
+        # Querying ALL itself should return only ECUs that declare ALL, not every ECU.
+        assert [m["name"] for m in ecus_in_state("ALL", self._data())] == ["IGPM"]

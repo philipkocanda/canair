@@ -10,7 +10,8 @@ List the active profile's vehicle operating states, or edit the vocabulary (add/
 
 positional arguments:
   {list,add,rm,rename,set-description,set-predicate}
-    list                List the vocabulary (default)
+    list                List the vocabulary, or look up one state's ECUs
+                        (default)
     add                 Add a new state to the vocabulary
     rm                  Remove a state from the vocabulary
     rename              Rename a state (references are NOT rewritten)
@@ -23,6 +24,8 @@ options:
 
   canair states                                   # list the vocabulary + usage
   canair states --json                            # machine-readable
+  canair states READY                             # which ECUs are readable in READY
+  canair states CHARGING --json                   # reverse lookup as JSON
   canair states add PRECONDITION --description "Cabin pre-conditioning"
   canair states set-predicate CHARGING "BMS.BATTERY_CURRENT < -1"
   canair states set-description ACC "Accessory power (ACC1)"
@@ -33,7 +36,11 @@ options:
 ## `canair states list`
 
 ```
-usage: canair states list [-h] [--json]
+usage: canair states list [-h] [--json] [state]
+
+positional arguments:
+  state       A state name (e.g. READY) — show which ECUs are readable/awake
+              in it
 
 options:
   -h, --help  show this help message and exit

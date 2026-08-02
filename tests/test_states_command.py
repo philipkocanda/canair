@@ -120,3 +120,51 @@ class TestEditDispatch:
         with pytest.raises(SystemExit) as exc:
             states_cmd.run(args)
         assert "already exists" in str(exc.value)
+
+
+class TestReverseLookup:
+    """`canair states <STATE>` — which ECUs are readable/awake in a state."""
+
+    @pytest.fixture
+    def _patched_lookup(self, monkeypatch):
+        rules = [
+            StateRule("READY", "Driveable", predicate=object(), expr="VCU.RDY == 1"),
+            StateRule("CHARGING", "HV charging", predicate=object(), expr="BMS.CUR < -1"),
+            StateRule("ALL", "Every state"),
+        ]
+        pids_data = {
+            "ecus": {
+                "BMS": {"tx_id": 0x7E4, "vehicle_states": ["CHARGING", "READY"]},
+                "CLU": {"tx_id": 0x7C6, "pids": {"22B002": {"vehicle_states": ["READY"]}}},
+                "IGPM": {"tx_id": 0x770, "vehicle_states": ["ALL"]},
+            }
+        }
+        ecus = {0x7E4: {"can_bus": ["P-CAN"]}, 0x7C6: {"can_bus": ["C-CAN"]}, 0x770: {}}
+        monkeypatch.setattr(states_cmd, "_use_color", lambda: False)
+        monkeypatch.setattr("canlib.profile.active", lambda: _FakeProfile())
+        monkeypatch.setattr("canlib.states.load_states", lambda profile=None: rules)
+        monkeypatch.setattr("canlib.pids.load_pids", lambda: pids_data)
+        monkeypatch.setattr("canlib.ecus.load_ecus", lambda: ecus)
+
+    def test_human_output(self, _patched_lookup, capsys):
+        rc = _run(state="READY")
+        out = capsys.readouterr().out
+        assert rc == 0
+        assert "ECUs readable in READY" in out
+        assert "BMS" in out and "CLU" in out and "IGPM" in out
+        assert "ALL (every state)" in out  # IGPM matched via ALL
+
+    def test_json(self, _patched_lookup, capsys):
+        rc = _run(state="charging", json=True)
+        out = capsys.readouterr().out
+        assert rc == 0
+        data = json.loads(out)
+        assert data["state"] == "CHARGING"
+        names = {e["name"]: e["source"] for e in data["ecus"]}
+        assert names == {"BMS": "ecu", "IGPM": "all"}  # CLU is READY-only
+
+    def test_unknown_state_errors(self, _patched_lookup, capsys):
+        rc = _run(state="BOGUS")
+        out = capsys.readouterr().out
+        assert rc == 1
+        assert "Unknown state" in out

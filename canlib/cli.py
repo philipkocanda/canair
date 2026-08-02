@@ -23,6 +23,12 @@ _GLOBAL_OPTS_WITH_VALUE = {"--profile", "--profiles-dir"}
 _GROUP_DEFAULTS = {
     "scan": ({"range", "iocontrol", "routines", "sessions"}, "range"),
     "ecu": ({"show", "add"}, "show"),
+    # A bare token after `states` (e.g. `canair states READY`) is a state name to
+    # look up (which ECUs are readable in it), routed through the `list` kind.
+    "states": (
+        {"list", "add", "rm", "rename", "set-description", "set-predicate"},
+        "list",
+    ),
     # The uds/can domain-kind spine (ingest/list/analyze). A bare invocation
     # defaults to the mature domain-A (uds) surface, preserving muscle memory.
     "captures": ({"uds", "can", "migrate", "migrate-rx", "merge-driver"}, "uds"),

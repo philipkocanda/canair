@@ -26,6 +26,12 @@ class TestGroupDefaults:
         assert _GROUP_DEFAULTS["correlate"] == ({"uds", "can"}, "uds")
         assert _GROUP_DEFAULTS["hunt"] == ({"uds", "can"}, "uds")
 
+    def test_states_group_default(self):
+        # A bare token after `states` routes through the `list` kind (reverse lookup).
+        kinds, default = _GROUP_DEFAULTS["states"]
+        assert default == "list"
+        assert {"list", "add", "rm", "rename"} <= kinds
+
 
 class TestInjectDefaultSubcommand:
     @pytest.mark.parametrize(
@@ -55,6 +61,12 @@ class TestInjectDefaultSubcommand:
             ),
             # Non-group command → untouched.
             (["decode", "BMS", "2101"], ["decode", "BMS", "2101"]),
+            # A bare state name after `states` → `list` injected (reverse lookup).
+            (["states", "READY"], ["states", "list", "READY"]),
+            (["states"], ["states", "list"]),
+            (["states", "--json"], ["states", "list", "--json"]),
+            (["states", "add", "FOO"], ["states", "add", "FOO"]),
+            (["states", "-h"], ["states", "-h"]),
         ],
     )
     def test_injection(self, argv, expected):

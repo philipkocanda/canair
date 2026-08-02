@@ -95,7 +95,7 @@ All functionality is exposed as `canair <subcommand>`; run `canair <cmd> --help`
 | `canair signals` | Add/update broadcast signal definitions (`signals/`, DBC-compatible linear model). |
 | `canair ecu` | Inspect ECUs (`ecu <ECU> pids` = per-PID latest state), register one offline (`ecu add`), or open its YAML in `$EDITOR` (`ecu <ECU> edit`, TTY only). |
 | `canair bus` | List the profile's CAN bus segments, their descriptions, and ECU counts. |
-| `canair states` | List/edit the vehicle operating-state vocabulary (`vehicle_states.yaml`). |
+| `canair states` | List/edit the vehicle operating-state vocabulary; `states <STATE>` shows which ECUs are readable in it. |
 | `canair wican` | Generate the WiCAN AutoPID JSON; upload/download/diff (Pro). |
 | `canair validate` | Validate `ecus/`, `profile.yaml`, and `captures/` against their schemas. |
 

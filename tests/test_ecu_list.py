@@ -326,3 +326,49 @@ def test_cmd_pids_identity_only(capsys):
     out = capsys.readouterr().out
     assert rc == 0
     assert "No PID definitions" in out
+
+
+# ── states column / sort ────────────────────────────────────────────────────
+
+
+def _ecus_with_states_defs():
+    ecus = {
+        0x7E4: {"name": "BMS", "can_bus": ["P-CAN"]},
+        0x7C6: {"name": "CLU", "can_bus": ["C-CAN"]},
+        0x783: {"name": "AMP"},  # no def / no states
+    }
+    pids_data = {
+        "ecus": {
+            "BMS": {"tx_id": 0x7E4, "vehicle_states": ["CHARGING", "READY"]},
+            "CLU": {"tx_id": 0x7C6, "pids": {"22B002": {"vehicle_states": ["READY"]}}},
+        }
+    }
+    return ecus, pids_data
+
+
+def test_records_carry_resolved_states():
+    ecus, pids_data = _ecus_with_states_defs()
+    by_name = {r["name"]: r for r in _list_records(ecus, pids_data)}
+    assert set(by_name["BMS"]["states"]) == {"CHARGING", "READY"}
+    assert by_name["CLU"]["states"] == ["READY"]  # via PID union
+    assert by_name["AMP"]["states"] == []  # registry-only / no def
+
+
+def test_sort_by_states_puts_stateless_last():
+    ecus, pids_data = _ecus_with_states_defs()
+    recs = _list_records(ecus, pids_data, sort="states")
+    # AMP has no states → sorts last.
+    assert recs[-1]["name"] == "AMP"
+
+
+def test_states_column_shown_only_when_requested(capsys):
+    ecus, pids_data = _ecus_with_states_defs()
+    recs = _list_records(ecus, pids_data)
+
+    cmd_list(recs, as_json=False, show_states=False)
+    assert "STATES" not in capsys.readouterr().out
+
+    cmd_list(recs, as_json=False, show_states=True)
+    out = capsys.readouterr().out
+    assert "STATES" in out
+    assert "CHARGING/READY" in out
