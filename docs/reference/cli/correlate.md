@@ -101,7 +101,7 @@ options:
                         categorical cramers_v / mutual_info (treat each value
                         as a nominal category — for mode/flag/enum bytes where
                         numeric spacing is meaningless)
-  --join-tol SECONDS    Nearest-timestamp join window (default 2.5s)
+  --join-tol SECONDS    Nearest-timestamp join window (default 5.0s)
   --bits                Include individual toggling bits (rN:k / Bn:k)
   --json                Machine-readable output
   --no-cluster          Don't collapse near-perfectly-correlated (|r|≥0.995)
@@ -261,7 +261,7 @@ options:
                         categorical cramers_v / mutual_info (treat each value
                         as a nominal category — for mode/flag/enum bytes where
                         numeric spacing is meaningless)
-  --join-tol SECONDS    Nearest-timestamp join window (default 2.5s)
+  --join-tol SECONDS    Nearest-timestamp join window (default 5.0s)
   --bits                Include individual toggling bits (rN:k / Bn:k)
   --json                Machine-readable output
   --notation NAME       byte-index notation for output labels: wican

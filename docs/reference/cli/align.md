@@ -21,7 +21,7 @@ options:
   -h, --help           show this help message and exit
   --csv                Output CSV (time + one column per signal)
   --json               Output JSON (list of row objects)
-  --join-tol SECONDS   Nearest-join tolerance in seconds (default 2.5)
+  --join-tol SECONDS   Nearest-join tolerance in seconds (default 5.0)
 
 scoping:
   Restrict to captures within a date/time range (inclusive) and/or by session state/label substring. --since/--until accept a date (YYYY-MM-DD) or a timestamp (YYYY-MM-DD HH:MM[:SS[.ffffff]])

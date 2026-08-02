@@ -77,7 +77,7 @@ options:
   --method {pearson,spearman}
                         Ranking coefficient: pearson (linear, default) or
                         spearman (rank)
-  --join-tol SECONDS    Nearest-timestamp join window (default 2.5s)
+  --join-tol SECONDS    Nearest-timestamp join window (default 5.0s)
   --json                Machine-readable output
   --all-interps         Show every interpretation per offset (u8/i16/u24/…);
                         default collapses to the best interpretation per byte
@@ -183,7 +183,7 @@ options:
   --method {pearson,spearman}
                         Ranking coefficient: pearson (linear, default) or
                         spearman (rank)
-  --join-tol SECONDS    Nearest-timestamp join window (default 2.5s)
+  --join-tol SECONDS    Nearest-timestamp join window (default 5.0s)
   --json                Machine-readable output
   --all-interps         Show every interpretation per offset (u8/i16/u24/…);
                         default collapses to the best interpretation per byte

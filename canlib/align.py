@@ -44,9 +44,15 @@ __all__ = [
     "series_time_ranges_disjoint",
 ]
 
-# Default nearest-neighbour join window. Chosen from the observed 0.3-3 s
-# inter-ECU sampling skew of the sequential single-connection poller.
-DEFAULT_JOIN_TOL_S = 2.5
+# Default nearest-neighbour join window (shared by align/correlate/hunt/xanalysis).
+# The sequential single-connection poller visits ECUs round-robin, so two ECUs'
+# samples are skewed by the time to poll everything in between. On a large
+# multi-ECU monitor session (e.g. 8 ECUs) adjacent-in-cycle ECUs land ~3.4 s
+# apart, which a 2.5 s window silently dropped — a "far" ECU joined zero rows.
+# 5 s covers the observed skew while still being "nearest" (a closer sample, when
+# one exists, always wins); widen further with --join-tol for sparse/keep:unique
+# scopes.
+DEFAULT_JOIN_TOL_S = 5.0
 
 
 @dataclass(frozen=True)

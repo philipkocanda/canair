@@ -84,7 +84,7 @@ options:
                        --join-tol (query must resolve to exactly two keys,
                        e.g. "VCU:2101 BMS:2101")
   --join-tol SECONDS   For --step --pair: max timestamp difference to pair two
-                       captures (default 2.5s)
+                       captures (default 5s)
   --json               Machine-readable JSON output
                        (summary/sessions/latest/diff and the default QUERY
                        list; not --step, which is interactive)

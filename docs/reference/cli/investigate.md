@@ -70,7 +70,7 @@ options:
   -h, --help            show this help message and exit
   --min-r R             Only report an anchor when |r| ≥ this (default 0.6)
   --min-n N             Min aligned points (default 15)
-  --join-tol SECONDS    Nearest-timestamp join window (default 2.5s)
+  --join-tol SECONDS    Nearest-timestamp join window (default 5.0s)
   --all                 Include bytes a verified param already maps (default:
                         hide only verified-mapped)
   --bits                Also analyse individual toggling bits (Bn:k) — the
@@ -171,7 +171,7 @@ options:
                         Log format (default: auto-detect by extension)
   --min-r R             Only report an anchor when |r| ≥ this (default 0.6)
   --min-n N             Min aligned points (default 15)
-  --join-tol SECONDS    Nearest-timestamp join window (default 2.5s)
+  --join-tol SECONDS    Nearest-timestamp join window (default 5.0s)
   --bits                Also analyse individual toggling bits (rN:k)
   --json                Machine-readable output
 

@@ -6,6 +6,7 @@ from datetime import datetime
 import pytest
 
 from canlib.align import (
+    DEFAULT_JOIN_TOL_S,
     SignalRef,
     TimePoint,
     align_many,
@@ -80,6 +81,31 @@ class TestJoinNearest:
     def test_empty_inputs(self):
         assert join_nearest([], [_tp(0, 1)]) == ([], [], 0)
         assert join_nearest([_tp(0, 1)], []) == ([], [], 0)
+
+    def test_default_tol_covers_round_robin_skew(self):
+        # An 8-ECU round-robin poll skews adjacent-in-cycle ECUs ~3.4s; the
+        # default window must join them (the old 2.5s silently dropped the pair).
+        ref = [_tp(0.0, 10.0)]
+        cand = [_tp(3.4, 100.0)]
+        assert join_nearest(ref, cand, tol_s=DEFAULT_JOIN_TOL_S)[2] == 1
+        assert join_nearest(ref, cand, tol_s=2.5)[2] == 0  # regression guard
+
+
+class TestDefaultJoinTol:
+    def test_default_is_five_seconds(self):
+        # Shared by align/correlate/hunt/investigate/discriminate; widened
+        # 2.5->5.0 for multi-ECU round-robin monitor sessions.
+        assert DEFAULT_JOIN_TOL_S == 5.0
+
+    def test_align_parser_defaults_to_shared_constant(self):
+        import argparse
+
+        from canlib.commands import align as align_cmd
+
+        sub = argparse.ArgumentParser().add_subparsers()
+        align_cmd.add_parser(sub)
+        ns = sub.choices[align_cmd.NAME].parse_args(["A:B:C", "D:E:F"])
+        assert ns.join_tol == DEFAULT_JOIN_TOL_S
 
     def test_presorted_matches_join_nearest(self):
         ref = [_tp(0.0, 10.0), _tp(1.0, 20.0)]

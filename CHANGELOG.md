@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Default nearest-join window widened 2.5s → 5.0s** (`DEFAULT_JOIN_TOL_S`,
+  shared by `align`/`correlate`/`hunt`/`investigate`/`decode --discriminate`).
+  The old 2.5s was sized for a small poll cycle, but on a large multi-ECU
+  `monitor` session (e.g. 8 ECUs) the sequential poller skews adjacent-in-cycle
+  ECUs by ~3.4s, so a "far" ECU silently joined **zero** rows against the
+  reference. 5.0s covers the observed skew while still being "nearest" (a closer
+  sample always wins); widen further with `--join-tol` for sparse/`keep:unique`
+  scopes.
+
 ## [1.10.1] - 2026-08-02
 
 ### Changed
