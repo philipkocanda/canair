@@ -274,20 +274,21 @@ VCU:
             the Ioniq VCU 2102 field order differs from the Soul VMCU.
 
         VCU_AUX_BATTERY_VOLTAGE:
-          expression: B18/10
+          expression: B14*0.0974
           unit: V
           ha_class: voltage
           min: "0"
           max: "16"
-          enabled: false
-          source: RE 2026-08-02 live ACC2 cross-check
-          verified: false
+          enabled: true
+          source: RE 2026-08-02 absolute-value anchoring + live ACC2, vs OBC/BMS/BCM consensus
+          verified: true
           notes: >-
-            MISIDENTIFIED - not the 12V bus. Live in stable ACC2 (1h+ after charge, no lag) B18/10
-            read 14.70 V while BMS AUX (12.20), OBC LDC_OUTPUT (12.18) and BCM (12.16) agreed to
-            within 40 mV. B18 tracks the 12V bus INVERSELY (low during 14.5V charge, high in 12.2V
-            ACC2), so no scale fixes it - B18 is some other quantity. Disabled. See research lead
-            for finding VCU's real 12V byte.
+            12V bus voltage at B14 (empirical scale 0.0974, ~=B14/10.27). Found by absolute-value
+            anchoring: B14 hits ~14.5V charging and ~12.2V in ACC2 with one scale, where the old
+            B18/10 could not (B18 tracked the bus inversely). Verified: B14*0.0974 matches the OBC
+            LDC_OUTPUT_V / BMS AUX / BCM 12V consensus to mean|d|=0.032V across the full 12.4-15.0V
+            range (n=696), incl. the live ACC2 point. Scale is empirical (+/-0.03V); reads at VCU's
+            local node. Was mis-defined as B18/10.
         VCU_TORQUE_REQUEST:
           expression: "[S12:S13]"
           unit: ""
@@ -368,14 +369,7 @@ VCU:
             Adjacent unmapped byte, candidate. Range 26-207, tracks VCU_AUX_POWER r2=0.77
             (partial/noisy) — possibly a related power/current component or aliased phase current.
             Check against dash whether it moves with a specific 12V load.
-        VCU_2102_B14:
-          expression: B14
-          source: 2026-07-30 adjacent-field candidate
-          verified: false
-          notes: >-
-            Adjacent unmapped byte, candidate. Slow/coarse, 138-149 (6 distinct), r~-0.18 vs
-            AUX_POWER. Candidate temp/status — check for temperature-like behaviour (slow drift,
-            offset ~-40/-100).
+
         VCU_2102_B20:
           expression: B20
           source: 2026-07-30 adjacent-field candidate
@@ -689,7 +683,7 @@ VCU:
         - Re-run soc_mirror_scan.py over a READY drive (non-monotone SOC) to separate SOC from voltage
     - type: decode
       target: 2102 real 12V bus byte (B18 wrong)
-      status: pending
+      status: done
       priority: P2
       vehicle_states: [ACC2]
       created: "2026-08-02"
