@@ -57,6 +57,29 @@ def test_checks_for(mod):
     assert mod._checks_for({"id": "z", "kind": "anim"}) == []
 
 
+def test_live_assets_skipped_by_default_but_rendered_when_named(mod):
+    """`live: true` assets need a real car: skipped in a full run, rendered only
+    when explicitly requested via --only. Non-live assets render in a full run."""
+    live = {"id": "monitor-bms", "kind": "anim", "live": True}
+    normal = {"id": "bus", "kind": "rich", "command": ["bus"]}
+    # Full run (only=None): skip live, keep normal.
+    assert mod._should_render(live, None) is False
+    assert mod._should_render(normal, None) is True
+    # Explicit --only: render exactly what's named (live included).
+    assert mod._should_render(live, {"monitor-bms"}) is True
+    assert mod._should_render(normal, {"monitor-bms"}) is False
+
+
+def test_live_assets_are_presence_only_in_check(mod, manifest):
+    """A live asset declares no device-free checks, so --check validates only its
+    presence — never tries to run a command that needs a car."""
+    live_entries = [e for e in mod._all_entries(manifest) if e.get("live")]
+    assert live_entries, "expected at least one live monitor asset in the manifest"
+    for entry in live_entries:
+        assert mod._checks_for(entry) == []
+        assert mod._asset_path(entry).exists()
+
+
 def test_base_argv_uses_relative_profiles_dir(mod, manifest):
     """The rendered command must use a relative --profiles-dir so no absolute
     (username-bearing) path is baked into the committed images."""

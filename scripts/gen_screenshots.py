@@ -130,12 +130,28 @@ def _render_anim(entry: dict) -> None:
     print(f"  rendered {_asset_path(entry).relative_to(REPO_ROOT)}")
 
 
+def _should_render(entry: dict, only: set[str] | None) -> bool:
+    """Whether this entry is rendered in the current invocation.
+
+    `live: true` assets (live-vehicle monitor recordings) are non-reproducible
+    and skipped by default; they are only rendered when named explicitly via
+    `--only`, since they require a reachable car.
+    """
+    if only is not None:
+        return entry["id"] in only
+    return not entry.get("live", False)
+
+
 def generate(manifest: dict, only: set[str] | None) -> int:
+    if only:
+        missing = only - {e["id"] for e in _all_entries(manifest)}
+        if missing:
+            print(f"error: unknown shot id(s): {', '.join(sorted(missing))}", file=sys.stderr)
+            return 1
+
+    to_render = [e for e in _all_entries(manifest) if _should_render(e, only)]
     for tool, kinds in (("freeze", {"rich"}), ("vhs", {"anim"})):
-        needed = any(
-            e["kind"] in kinds for e in _all_entries(manifest) if not only or e["id"] in only
-        )
-        if needed and shutil.which(tool) is None:
+        if any(e["kind"] in kinds for e in to_render) and shutil.which(tool) is None:
             print(
                 f"error: `{tool}` is required to render these assets but is not installed.\n"
                 "Install the Charmbracelet tools:  brew install charmbracelet/tap/freeze vhs",
@@ -146,20 +162,21 @@ def generate(manifest: dict, only: set[str] | None) -> int:
     freeze_config = SHOTS_DIR / manifest["freeze_config"]
     rendered = 0
     for entry in _all_entries(manifest):
-        if only and entry["id"] not in only:
+        if not _should_render(entry, only):
+            if entry.get("live") and only is None:
+                print(
+                    f"• {entry['id']} (live) — skipped; needs a live vehicle. "
+                    f"Re-record with: gen_screenshots.py --only {entry['id']}"
+                )
             continue
-        print(f"• {entry['id']} ({entry['kind']})")
+        tag = "live" if entry.get("live") else entry["kind"]
+        print(f"• {entry['id']} ({tag})")
         if entry["kind"] == "rich":
             _render_rich(entry, manifest, freeze_config)
         else:
             _render_anim(entry)
         rendered += 1
 
-    if only:
-        missing = only - {e["id"] for e in _all_entries(manifest)}
-        if missing:
-            print(f"error: unknown shot id(s): {', '.join(sorted(missing))}", file=sys.stderr)
-            return 1
     print(f"\nRendered {rendered} asset(s) to {SHOTS_DIR.relative_to(REPO_ROOT)}.")
     return 0
 

@@ -92,6 +92,12 @@ shots:
 # `tape` renders the GIF; `checks` are the device-free commands the tape
 # exercises, run by `--check` to catch command/flag drift (the tape's own
 # `--plot`/interactive path can't be validated non-interactively).
+#
+# `live: true` marks a recording made against a REAL car (the monitor TUI polling
+# a live bus). These are NON-reproducible: the default `gen_screenshots.py` run
+# skips them, `--check` only verifies the file is present (no device-free command
+# to validate), and they are re-recorded manually with `--only <id>` when a car
+# is reachable.
 animations:
   - id: decode-plot
     kind: anim
@@ -108,3 +114,15 @@ animations:
       - [decode, "BMS:2101"]
       - [decode, "BMS:2101", --stats]
     caption: "A tour of read-only analysis, ending in the interactive --plot signal explorer"
+
+  - id: monitor-bms
+    kind: anim
+    live: true
+    tape: tapes/monitor-bms.tape
+    caption: "canair monitor BMS:2101 — live battery telemetry in READY mode; changed values/bytes highlighted"
+
+  - id: monitor-drivetrain
+    kind: anim
+    live: true
+    tape: tapes/monitor-drivetrain.tape
+    caption: "canair monitor — live cross-ECU drivetrain view (VCU vehicle-control + MCU motor) in READY mode"

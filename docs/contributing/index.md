@@ -108,6 +108,15 @@ append an entry to `shots.yaml` (a `rich` command or an `anim` tape) and
 regenerate. Do **not** screenshot views that surface free-text capture
 notes/labels (e.g. `captures --sessions`) — those can leak PII into public docs.
 
+A few `anim` assets are marked **`live: true`** — recordings of the `monitor` TUI
+polling a *real* car. These are non-reproducible, so the default `make
+screenshots` skips them and `--check` only verifies the file is present. Re-record
+one manually when a vehicle is reachable:
+
+```bash
+python3 scripts/gen_screenshots.py --only monitor-bms   # needs a live car + a configured device
+```
+
 ## Code of conduct
 
 Be kind and constructive. This is a hobbyist project for people curious about

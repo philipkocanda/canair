@@ -32,6 +32,22 @@ latest decoded value — raw payloads turned into named, unit-bearing parameters
 
 ![canair ecu BMS pids — latest decoded values](../screenshots/ecu-bms-pids.svg)
 
+## Watch it live
+
+`canair monitor` refreshes in place, highlighting the bytes that change and the
+parameters they decode. Here it is polling the **battery** with the car in READY
+mode — SOC, pack voltage/current, cell voltages, and module temperatures, with
+changed values highlighted and the live payload byte-diff underneath:
+
+![canair monitor BMS:2101 — live battery telemetry in READY mode](../screenshots/monitor-bms.gif)
+
+It monitors several ECUs at once, too. This cross-ECU view watches the
+**drivetrain** — the VCU (gear/drive-mode, vehicle state) alongside the MCU
+(motor speed/torque, inverter temperatures) — and auto-detects the vehicle state
+(`READY`) from the decoded values while recording (`● REC`):
+
+![canair monitor — live cross-ECU drivetrain view in READY mode](../screenshots/monitor-drivetrain.gif)
+
 ## On a different car
 
 `discover` will list *your* car's ECUs, but `BMS:2101` and the other named reads
