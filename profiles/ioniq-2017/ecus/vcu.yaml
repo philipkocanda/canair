@@ -251,6 +251,18 @@ VCU:
             4: drive_ready
             6: transition
             7: charge_standby
+        VCU_LOAD_INVERSE_B21:
+          expression: B21
+          min: "0"
+          max: "255"
+          source: canair hunt/correlate 2026-08-02 (per-session, driving scope)
+          verified: false
+          notes: >-
+            Unmapped VCU 2101 WiCAN B21. Smooth continuous analog (lag1 autocorr 0.92, mean|step|
+            ~5.5% of range) — not a counter/checksum. ~203 at standstill, ~111 at speed;
+            anti-correlates r=-0.66 with speed(ESC)/motor-RPM/pack-current across a drive. Likely a
+            pedal/brake/power/load signal (inverse of load). TEST LIVE: standstill accelerator press
+            vs brake press to disambiguate; note sign/scale.
     2102:
       status: active
       period: 5000
