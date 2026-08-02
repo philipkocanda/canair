@@ -31,7 +31,7 @@ from canlib.align import (
 )
 from canlib.capture_dates import add_scope_args, resolve_scope_bounds
 from canlib.keepmode import BANNER as KEEP_BANNER
-from canlib.keepmode import scope_is_keep_unique
+from canlib.keepmode import CHANGES_BANNER, scope_is_keep_changes, scope_is_keep_unique
 
 NAME = "align"
 
@@ -133,6 +133,7 @@ def run(args) -> int:
     labels: list[str] = []
     series_by_label: dict[str, list] = {}
     any_keep_unique = False
+    any_keep_changes = False
     for tok in tokens:
         try:
             label, series, caps = _load_one(
@@ -147,6 +148,7 @@ def run(args) -> int:
         labels.append(label)
         series_by_label[label] = series
         any_keep_unique = any_keep_unique or scope_is_keep_unique(caps)
+        any_keep_changes = any_keep_changes or scope_is_keep_changes(caps)
 
     if len(labels) < 2:
         print("align: need at least two distinct signals", file=sys.stderr)
@@ -170,7 +172,7 @@ def run(args) -> int:
     elif args.csv:
         _emit_csv(rows, labels)
     else:
-        _emit_table(rows, labels, args.join_tol, any_keep_unique)
+        _emit_table(rows, labels, args.join_tol, any_keep_unique, any_keep_changes)
     return 0
 
 
@@ -202,7 +204,7 @@ def _fmt_val(v: float | None) -> str:
     return f"{v:.3f}".rstrip("0").rstrip(".")
 
 
-def _emit_table(rows, labels, tol: float, keep_unique: bool) -> None:
+def _emit_table(rows, labels, tol: float, keep_unique: bool, keep_changes: bool = False) -> None:
     # Short cN handles keep the table narrow; a legend maps them to full labels.
     handles = [f"c{i + 1}" for i in range(len(labels))]
     print(
@@ -211,6 +213,8 @@ def _emit_table(rows, labels, tol: float, keep_unique: bool) -> None:
     )
     if keep_unique:
         print(f"  {_YELLOW}⚠ {KEEP_BANNER}{_RESET}")
+    if keep_changes:
+        print(f"  {_YELLOW}⚠ {CHANGES_BANNER}{_RESET}")
     for h, lbl in zip(handles, labels, strict=True):
         print(f"  {_DIM}{h} = {lbl}{_RESET}")
 

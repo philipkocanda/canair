@@ -95,14 +95,15 @@ def _open_journal(controller, label: str | None, vehicle_states, notes: str | No
     """Open a write-ahead capture journal for a monitor --save run/segment.
 
     Shared by ``mode_monitor`` (run start) and ``MonitorRecorder.new_segment``
-    (segment rotate) so their open args can't drift. ``keep_mode="unique"`` is
-    carried through from the display keep-mode; other modes journal every row.
+    (segment rotate) so their open args can't drift. The recording keep-mode
+    (``changes``/``unique``) is carried through from the display keep-mode; other
+    modes journal every row.
     The transport label (for saved-capture provenance) comes from the controller.
     """
     from ..capture_journal import CaptureJournal
 
     journal_label = label or controller.query_label() or "Monitor session"
-    keep = "unique" if controller.keep_mode == "unique" else None
+    keep = controller.keep_mode if controller.keep_mode in ("changes", "unique") else None
     return CaptureJournal.open(
         controller.captures_dir,
         label=journal_label,
@@ -358,6 +359,11 @@ class MonitorRecorder:
 
         n_pids = len(new_merged)
         n_payloads = sum(len(v) for v in new_merged.values())
+        # This non-journal path draws from the display history, which is
+        # globally deduped for both "changes" and "unique" modes (see observe()).
+        # Persist it honestly as "unique" (global) rather than the controller's
+        # nominal "changes" — run-length is only applied on the journal path.
+        save_keep = "unique" if self.c.keep_mode in ("changes", "unique") else self.c.keep_mode
         with contextlib.redirect_stdout(io.StringIO()):
             path = _write_merged(
                 new_merged,
@@ -365,7 +371,7 @@ class MonitorRecorder:
                 states,
                 notes or "",
                 captures_dir,
-                keep_mode=self.c.keep_mode,
+                keep_mode=save_keep,
                 transport=getattr(self.c, "transport_type", None),
                 quality=self.segment_quality(),
             )

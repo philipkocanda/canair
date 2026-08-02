@@ -115,8 +115,13 @@ class TestBuildQuerySession:
         s = build_query_session([("0x7EC", "2101", "6101", "")], "l", [], "", keep_mode="unique")
         assert s["keep_mode"] == "unique"
 
+    def test_keep_mode_changes_persisted(self):
+        s = build_query_session([("0x7EC", "2101", "6101", "")], "l", [], "", keep_mode="changes")
+        assert s["keep_mode"] == "changes"
+
     def test_keep_mode_all_not_persisted(self):
-        # Only "unique" changes interpretation; don't clutter with keep-all/last.
+        # Only the dedup modes ("changes"/"unique") change interpretation; don't
+        # clutter the session with keep-all/last.
         for mode in ("all", "last", None):
             s = build_query_session([("0x7EC", "2101", "6101", "")], "l", [], "", keep_mode=mode)
             assert "keep_mode" not in s

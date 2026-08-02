@@ -9,15 +9,19 @@ from canlib.modes.raw_monitor import _keep_mode, query_ecu_addresses
 
 class _Args:
     def __init__(self, **kw):
-        self.keep_unique = self.keep_all = False
+        self.keep_changes = self.keep_unique = self.keep_all = False
         self.keep = None
         self.__dict__.update(kw)
 
 
 class TestKeepMode:
-    def test_default_is_unique(self):
-        # No keep flag defaults to unique-dedup (keeps capture files small).
-        assert _keep_mode(_Args()) == "unique"
+    def test_default_is_changes(self):
+        # No keep flag defaults to run-length "changes" dedup (compact but
+        # preserves value-transitions).
+        assert _keep_mode(_Args()) == "changes"
+
+    def test_changes(self):
+        assert _keep_mode(_Args(keep_changes=True)) == "changes"
 
     def test_unique(self):
         assert _keep_mode(_Args(keep_unique=True)) == "unique"

@@ -579,9 +579,10 @@ class MonitorController:
         """How many history rows to render per PID, by keep-mode.
 
         --keep N shows the requested N; --keep-all keeps the safety cap; the
-        default (--keep-unique) stays compact at a handful of newest rows so a
-        noisy/long session's accrued unique payloads don't flood (or choke) the
-        live view — the full set is still in hex_history and the --save journal.
+        default (--keep-changes) and --keep-unique stay compact at a handful of
+        newest rows so a noisy/long session's accrued payloads don't flood (or
+        choke) the live view — the full set is still in hex_history and the
+        --save journal.
         """
         if self.keep_mode == "last" and self.keep_n:
             return self.keep_n

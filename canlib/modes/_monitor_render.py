@@ -23,12 +23,12 @@ from .multi_batch import EcuFrame, ResultEntry
 # journal (--save) — this only bounds the on-screen buffer to the newest rows.
 _RENDER_MAX_ROWS = 200
 
-# Default on-screen history depth for the implicit --keep-unique mode (now the
-# monitor default). Unique-dedup accrues one row per *distinct* payload, so a
-# noisy PID can amass hundreds over a session; rendering them all every cycle
-# both clutters the view and (on a big multi-PID sweep) can make the frame large
-# enough to choke the TUI. Keep the live view compact — the full set is still in
-# hex_history (and the journal when --save). Overridable per keep-mode.
+# Default on-screen history depth for the implicit dedup display (the monitor
+# default keep-mode). The live view dedups payloads globally for display, so a
+# noisy PID can amass hundreds of distinct rows over a session; rendering them all
+# every cycle both clutters the view and (on a big multi-PID sweep) can make the
+# frame large enough to choke the TUI. Keep the live view compact — the full set
+# is still in hex_history (and the journal when --save). Overridable per keep-mode.
 _RENDER_DEFAULT_ROWS = 4
 
 
@@ -198,7 +198,7 @@ def _render_entry(
             else:
                 all_entries = list(history)
             # Bound the rendered rows to the newest ``row_cap`` so a long
-            # --keep-all (or noisy --keep-unique) run stays cheap to render (full
+            # --keep-all (or noisy dedup) run stays cheap to render (full
             # data is retained in memory / the journal).
             if len(all_entries) > row_cap:
                 omitted = len(all_entries) - row_cap

@@ -97,6 +97,46 @@ class TestReconcile:
         # states may be absent (only rising-edge transitions were stored).
         assert sess["keep_mode"] == "unique"
 
+    def test_keep_mode_unique_drops_return_to_prior_value(self, tmp_path):
+        # Global dedup: A→B→A collapses to A,B (the return to A is lost).
+        j = CaptureJournal.open(tmp_path, label="L", keep_mode="unique")
+        for payload in ("6101AA", "6101BB", "6101AA", "6101BB"):
+            j.append("0x7EC", "2101", payload)
+        written = j.reconcile()
+        sess = json.loads(written.read_text())["sessions"][0]
+        assert [c["payload"] for c in sess["captures"]] == ["6101AA", "6101BB"]
+
+    def test_keep_mode_changes_is_run_length(self, tmp_path):
+        # Run-length: only immediate repeats collapse, so genuine oscillation
+        # A→B→A→B is preserved in full (unlike global "unique" dedup).
+        j = CaptureJournal.open(tmp_path, label="L", keep_mode="changes")
+        for payload in ("6101AA", "6101AA", "6101BB", "6101AA", "6101BB", "6101BB"):
+            j.append("0x7EC", "2101", payload)
+        written = j.reconcile()
+        sess = json.loads(written.read_text())["sessions"][0]
+        assert [c["payload"] for c in sess["captures"]] == [
+            "6101AA",
+            "6101BB",
+            "6101AA",
+            "6101BB",
+        ]
+        assert sess["keep_mode"] == "changes"
+
+    def test_keep_mode_changes_is_per_pid(self, tmp_path):
+        # The "immediately preceding" comparison is per (ecu, pid): an interleaved
+        # poll of two PIDs must not mask each other's repeats.
+        j = CaptureJournal.open(tmp_path, label="L", keep_mode="changes")
+        j.append("0x7EC", "2101", "6101AA")
+        j.append("0x7EC", "2102", "6102CC")
+        j.append("0x7EC", "2101", "6101AA")  # repeat for 2101 → dropped
+        j.append("0x7EC", "2102", "6102CC")  # repeat for 2102 → dropped
+        written = j.reconcile()
+        caps = json.loads(written.read_text())["sessions"][0]["captures"]
+        by_pid = {}
+        for c in caps:
+            by_pid.setdefault(c["pid"], []).append(c["payload"])
+        assert by_pid == {"2101": ["6101AA"], "2102": ["6102CC"]}
+
     def test_keep_all_keeps_duplicates(self, tmp_path):
         j = CaptureJournal.open(tmp_path, label="L", keep_mode="all")
         j.append("0x7EC", "2101", "6101AA")

@@ -134,11 +134,11 @@ def build_query_session(
     (non-journaled) callers. Persisting the true capture date keeps a
     midnight-crossing session's samples aligned to the right calendar day.
 
-    ``keep_mode`` records how the monitor deduplicated payloads. Only
-    ``"unique"`` is persisted (it drops repeated values, so only rising-edge
-    transitions are stored); it is recorded on the session so later analysis
-    knows return-to-previous states may be absent. ``"all"``/``"last"`` keep
-    every polled sample and are not flagged.
+    ``keep_mode`` records how the monitor deduplicated payloads. ``"changes"``
+    (run-length: only value-transitions kept) and ``"unique"`` (legacy global
+    dedup: only globally-distinct values kept) are persisted on the session so
+    later analysis knows how to read its timing/transitions; ``"all"``/``"last"``
+    keep every polled sample and are not flagged.
 
     ``transport`` records how the payloads were acquired (the transport label,
     e.g. ``"slcan-tcp"``) and ``quality`` a small exchange/error footprint —
@@ -153,7 +153,7 @@ def build_query_session(
         session["vehicle_states"] = list(vehicle_states)
     if notes:
         session["notes"] = notes
-    if keep_mode == "unique":
+    if keep_mode in ("changes", "unique"):
         session["keep_mode"] = keep_mode
     if transport:
         session["transport"] = transport
@@ -517,14 +517,14 @@ def set_session_note(fpath: Path, session_idx: int, note: str) -> None:
 def set_session_keep_mode(fpath: Path, session_idx: int, keep_mode: str | None) -> None:
     """Set (or clear) the ``keep_mode`` field on one session, addressed by index.
 
-    Only ``"unique"`` is meaningful (repeated payloads were dropped, so the
-    session holds rising-edge transitions only); any other value clears the
-    field. Use this to backfill sessions captured before ``keep_mode`` was
-    persisted, instead of hand-editing a capture file.
+    Only ``"changes"`` (run-length) and ``"unique"`` (legacy global dedup) are
+    meaningful — they tell later analysis how the payloads were deduplicated; any
+    other value clears the field. Use this to backfill sessions captured before
+    ``keep_mode`` was persisted, instead of hand-editing a capture file.
     """
     data = capture_io.load_capture_file(fpath)
     session = data["sessions"][session_idx]
-    if keep_mode == "unique":
+    if keep_mode in ("changes", "unique"):
         session["keep_mode"] = keep_mode
     else:
         session.pop("keep_mode", None)

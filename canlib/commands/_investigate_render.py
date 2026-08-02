@@ -16,7 +16,12 @@ from __future__ import annotations
 import json as _json
 import sys
 
-from canlib.keepmode import scope_is_keep_unique
+from canlib.keepmode import (
+    BANNER,
+    CHANGES_BANNER,
+    scope_is_keep_changes,
+    scope_is_keep_unique,
+)
 from canlib.notation import relabel_signal, resolve_notation, subfunction_bytes_for_pid
 
 # ANSI colors — kept local (not imported from investigate) so this module has no
@@ -35,12 +40,15 @@ def cap_note(cap) -> str:
 
 
 def print_keep_banner(captures) -> None:
-    """Warn when the scope includes keep:unique sessions (rising-edge-only data)."""
+    """Warn when the scope includes keep:unique / keep:changes sessions.
+
+    ``unique`` (legacy global dedup) gets the strong caveat; ``changes``
+    (run-length) the milder one. Both may print if the scope mixes sessions.
+    """
     if scope_is_keep_unique(captures):
-        print(
-            f"    {_YELLOW}⚠ scope includes keep:unique sessions — only rising-edge "
-            f"transitions were stored; falling edges/durations are absent.{_RESET}"
-        )
+        print(f"    {_YELLOW}⚠ {BANNER}.{_RESET}")
+    if scope_is_keep_changes(captures):
+        print(f"    {_YELLOW}⚠ {CHANGES_BANNER}.{_RESET}")
 
 
 def print_report(
@@ -242,6 +250,7 @@ def print_field_events(ecu, pid, lp, args, param: dict) -> None:
                 "target": f"{ecu}:{pid}",
                 "field": args.field,
                 "keep_unique": scope_is_keep_unique(lp.captures),
+                "keep_changes": scope_is_keep_changes(lp.captures),
                 "events": [
                     {
                         "time": e[0].strftime("%H:%M:%S"),
@@ -295,6 +304,7 @@ def print_events(ecu, pid, lp, mapped, mapped_bit, args, params_def=None) -> Non
             {
                 "target": f"{ecu}:{pid}",
                 "keep_unique": scope_is_keep_unique(lp.captures),
+                "keep_changes": scope_is_keep_changes(lp.captures),
                 "events": [
                     {
                         "time": e[0].strftime("%H:%M:%S"),

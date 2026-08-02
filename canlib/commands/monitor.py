@@ -71,9 +71,16 @@ For a single one-shot read (no live refresh) use `canair read` instead.
     parser.add_argument("--wake", action="store_true", help="Wake ECUs from deep sleep (10 01)")
     keep = parser.add_mutually_exclusive_group()
     keep.add_argument(
+        "--keep-changes",
+        action="store_true",
+        help="Retain value-transitions per PID (run-length; collapses only "
+        "immediate repeats) — the default",
+    )
+    keep.add_argument(
         "--keep-unique",
         action="store_true",
-        help="Retain only unique payloads (rising-edge) — the default",
+        help="Retain only globally-distinct payloads per PID (legacy global dedup; "
+        "return-to-previous transitions are dropped)",
     )
     keep.add_argument(
         "--keep-all",

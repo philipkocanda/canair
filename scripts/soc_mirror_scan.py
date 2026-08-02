@@ -33,7 +33,7 @@ Notes:
   * A single steady charge proves a *negative* by scale/range/coarseness, not by
     correlation. To positively confirm/deny a mirror, re-run over a drive or
     discharge (non-monotone SOC with regen) so a real SOC field separates from
-    voltage. Undersampled near-static blocks (keep-unique dedup) may have too few
+    voltage. Undersampled near-static blocks (keep-mode dedup) may have too few
     points — capture them with `--keep-all`.
   * Payload offsets are printed as ``pN`` (ISO-TP payload index, SID=p0), NOT
     WiCAN ``Bnn`` (which includes PCI bytes). Convert a hit with

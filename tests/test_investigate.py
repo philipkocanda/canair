@@ -112,9 +112,9 @@ class TestInvestigate:
         assert "B20" in out and "VCU_VEHICLE_SPEED" in out  # mapped tag shown
 
 
-def _write_events(tmp_path):
+def _write_events(tmp_path, keep_mode="unique"):
     """A body PID whose B10 bits toggle over time, with a narrated event note."""
-    # B10 goes 0x00 -> 0x20 (bit5) -> 0x00; keep:unique-style rising edges.
+    # B10 goes 0x00 -> 0x20 (bit5) -> 0x00 (a genuine falling edge back to 0).
     seq = [("09:00:00", "00"), ("09:00:05", "20"), ("09:00:10", "00")]
     caps = [
         {
@@ -131,7 +131,7 @@ def _write_events(tmp_path):
             {
                 "date": "2026-07-24",
                 "vehicle_states": ["sleep"],
-                "keep_mode": "unique",
+                "keep_mode": keep_mode,
                 "notes": "door event test",
                 "captures": caps,
             }
@@ -171,6 +171,13 @@ class TestInvestigateBitsEvents:
         _write_events(tmp_path)
         _run(tmp_path, monkeypatch, ["IGPM", "22BC03", "--bits", "--all"], [("IGPM", "22BC03")])
         assert "keep:unique" in capsys.readouterr().out
+
+    def test_keep_changes_banner(self, tmp_path, monkeypatch, capsys):
+        _write_events(tmp_path, keep_mode="changes")
+        _run(tmp_path, monkeypatch, ["IGPM", "22BC03", "--bits", "--all"], [("IGPM", "22BC03")])
+        out = capsys.readouterr().out
+        assert "keep:changes" in out
+        assert "keep:unique" not in out  # the milder caveat, not the strong one
 
     def test_events_edges_with_note(self, tmp_path, monkeypatch, capsys):
         _write_events(tmp_path)

@@ -4,9 +4,9 @@
 
 ```
 usage: canair monitor [-h] [--interval SECONDS] [--session] [--wake]
-                      [--keep-unique | --keep-all | --keep N] [--save]
-                      [--label TEXT] [--state TEXT] [--notes TEXT] [--rulers]
-                      [--include-static] [--wican WICAN]
+                      [--keep-changes | --keep-unique | --keep-all | --keep N]
+                      [--save] [--label TEXT] [--state TEXT] [--notes TEXT]
+                      [--rulers] [--include-static] [--wican WICAN]
                       [--transport {slcan-tcp,wican-ws}] [--no-fallback]
                       [--elm-timeout MS] [--timeout SECONDS] [--json]
                       [--verbose] [--timings] [--reboot] [--unsafe] [--force]
@@ -23,8 +23,11 @@ options:
                         in the TUI with =/-)
   --session             Enter extended session (10 03)
   --wake                Wake ECUs from deep sleep (10 01)
-  --keep-unique         Retain only unique payloads (rising-edge) — the
-                        default
+  --keep-changes        Retain value-transitions per PID (run-length;
+                        collapses only immediate repeats) — the default
+  --keep-unique         Retain only globally-distinct payloads per PID (legacy
+                        global dedup; return-to-previous transitions are
+                        dropped)
   --keep-all            Retain every polled payload (full time-series; larger
                         capture files)
   --keep N              Keep the last N payloads per PID

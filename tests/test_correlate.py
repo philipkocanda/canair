@@ -6,7 +6,7 @@ import json
 from canlib.commands import correlate
 
 
-def _write(tmp_path):
+def _write(tmp_path, keep_mode="unique"):
     """Two co-polled PIDs where IGPM B10:7 mirrors a bit on a second PID."""
     caps = []
     for i, t in enumerate(["09:00:00", "09:00:02", "09:00:04", "09:00:06"]):
@@ -29,7 +29,7 @@ def _write(tmp_path):
             {
                 "date": "2026-07-24",
                 "vehicle_states": ["sleep"],
-                "keep_mode": "unique",
+                "keep_mode": keep_mode,
                 "captures": caps,
             }
         ]
@@ -84,6 +84,13 @@ class TestCrossMirrors:
         _write(tmp_path)
         _run(tmp_path, monkeypatch, ["IGPM", "--min-n", "3"])
         assert "keep:unique" in capsys.readouterr().out
+
+    def test_keep_changes_banner_text_mode(self, tmp_path, monkeypatch, capsys):
+        _write(tmp_path, keep_mode="changes")
+        _run(tmp_path, monkeypatch, ["IGPM", "--min-n", "3"])
+        out = capsys.readouterr().out
+        assert "keep:changes" in out
+        assert "keep:unique" not in out
 
 
 def _write_ramp(tmp_path):

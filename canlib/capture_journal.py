@@ -14,7 +14,7 @@ survives and can be recovered later with ``canair captures uds --recover``.
 Journal format (one JSON object per line):
 
     {"v": 1, "type": "meta", "date": "...", "label": "...", "vehicle_states": [...],
-     "notes": "...", "source": "monitor", "keep_mode": "unique"}
+     "notes": "...", "source": "monitor", "keep_mode": "changes"}
     {"type": "capture", "rx": "0x7EC", "pid": "2101", "payload": "6101...",
      "date": "2026-07-22", "time": "12:00:01", "elapsed_ms": 47}
     ...
@@ -255,20 +255,39 @@ def _dedup(
 ) -> list[tuple[str, str, str, str, str, int | None]]:
     """Apply keep-mode dedup to (ecu, pid, hex, time, date, elapsed_ms) rows, preserving order.
 
-    ``None``/``last`` keep every row as-is; ``unique`` drops rows whose
-    (ecu, pid, payload) has already been seen.
+    ``None``/``last`` keep every row as-is. The two dedup modes differ in how far
+    back they look, per (ecu, pid):
+
+    - ``changes`` (the recording default) — **run-length**: drop a row only when
+      its payload equals the *immediately preceding* kept payload for that PID. A
+      stationary signal collapses to one row, but genuine oscillation
+      (``A→B→A→B``) is preserved in full, and each stored row is a real transition
+      (so dwell durations are recoverable from the timestamps).
+    - ``unique`` (legacy) — **global**: drop a row whose (ecu, pid, payload) has
+      been seen *anywhere* before in the session, so a return to any prior value
+      is lost (return-to-previous transitions and durations are absent).
     """
-    if keep_mode not in ("unique",):
-        return rows
-    seen: set[tuple[str, str, str]] = set()
-    out: list[tuple[str, str, str, str, str, int | None]] = []
-    for row in rows:
-        key = (row[0], row[1], row[2])
-        if key in seen:
-            continue
-        seen.add(key)
-        out.append(row)
-    return out
+    if keep_mode == "unique":
+        seen: set[tuple[str, str, str]] = set()
+        out: list[tuple[str, str, str, str, str, int | None]] = []
+        for row in rows:
+            key = (row[0], row[1], row[2])
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(row)
+        return out
+    if keep_mode == "changes":
+        last: dict[tuple[str, str], str] = {}
+        out = []
+        for row in rows:
+            key2 = (row[0], row[1])
+            if last.get(key2) == row[2]:
+                continue  # immediate repeat for this PID — collapse the run
+            last[key2] = row[2]
+            out.append(row)
+        return out
+    return rows
 
 
 def build_session_from_records(

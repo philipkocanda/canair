@@ -102,6 +102,7 @@ CANAIR_DEFAULTS: dict = {
     "repl": False,
     "protocol": "auto",
     "monitor": None,
+    "keep_changes": False,
     "keep_unique": False,
     "keep_all": False,
     "keep": None,

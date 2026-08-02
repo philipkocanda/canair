@@ -103,8 +103,14 @@ All of these share the scope flags (`--since`/`--until`/`--date`, `--state`,
 [Captures & states](captures-and-states.md). The natural unit is usually a
 `--state` (e.g. `--state charging`) or a single session.
 
-!!! note "keep:unique caveat"
-    A `canair monitor --keep-unique` session stores only rising-edge transitions.
-    `align`/`decode`/`correlate`/`investigate` warn when the scope includes such
-    sessions — falling edges and dwell durations are absent, so rate/`delta`
-    analysis on them can mislead.
+!!! note "keep-mode caveats"
+    The monitor deduplicates recorded payloads per PID. The default,
+    `canair monitor --keep-changes`, is **run-length**: it stores every genuine
+    value-transition (so `A→B→A` is preserved and dwell durations are recoverable
+    from the timestamps), collapsing only immediate repeats. The legacy
+    `--keep-unique` is **global** dedup: it keeps only globally-distinct values,
+    so return-to-previous transitions and durations are absent.
+    `align`/`decode`/`correlate`/`investigate` flag both in scope — a strong
+    caveat for `keep:unique`, a milder one for `keep:changes` (stored rows are
+    transitions, not fixed-rate samples). Rate/`delta` analysis is unreliable on
+    either; use `--keep-all` when you need real sampling cadence.

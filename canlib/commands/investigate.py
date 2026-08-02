@@ -29,7 +29,7 @@ from canlib.byteindex import mapped_bits, mapped_offsets
 from canlib.capture_dates import add_scope_args, resolve_scope_bounds
 from canlib.commands._group import group_help
 from canlib.commands._investigate_render import print_events, print_report
-from canlib.keepmode import scope_is_keep_unique
+from canlib.keepmode import scope_is_keep_changes, scope_is_keep_unique
 from canlib.notation import (
     add_notation_arg,
 )
@@ -501,6 +501,7 @@ def run(args) -> int:
                 "join_tol_s": args.join_tol,
                 "independent_of": driver_label,
                 "keep_unique": scope_is_keep_unique(lp.captures),
+                "keep_changes": scope_is_keep_changes(lp.captures),
                 "bytes": [vars(r) for r in reports],
                 "word_candidates": [
                     {"expr": expr, "score": w.score} for w, expr in word_candidates

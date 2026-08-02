@@ -35,7 +35,7 @@
         },
         "notes": { "type": "string" },
         "keep_mode": {
-          "description": "How the monitor deduplicated payloads: 'unique' stores only payloads that differ from any seen before (rising-edge transitions; return-to-previous states are dropped). Absent/other = every polled payload kept.",
+          "description": "How the monitor deduplicated payloads: 'changes' (run-length) stores a payload only when it differs from the immediately preceding one per PID, so value-transitions and dwell durations are preserved; 'unique' (legacy global dedup) stores a payload only when it differs from any seen before, so return-to-previous transitions and durations are absent. Absent/other = every polled payload kept.",
           "type": "string"
         },
         "transport": {

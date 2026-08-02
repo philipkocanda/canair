@@ -89,7 +89,7 @@ class CaptureSession(TypedDict):
     version: NotRequired[str]
     vehicle_states: NotRequired[list[str]]
     notes: NotRequired[str]
-    keep_mode: NotRequired[str]
+    keep_mode: NotRequired[str]  # "changes" (run-length) | "unique" (legacy global dedup)
     transport: NotRequired[str]
     quality: NotRequired[Quality]
 
