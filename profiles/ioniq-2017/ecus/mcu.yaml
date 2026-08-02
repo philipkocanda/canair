@@ -389,6 +389,14 @@ MCU:
       created: "2026-07-23"
       updated: "2026-07-23"
       notes: "Verify MCU_MOTOR_TORQUE [S12:S13]/100 and MCU_MOTOR_TORQUE_2 [S14:S15]/100 (command vs estimated) with a PEDAL-SYNCED drive co-polling VCU 2101 (ACCEL_PEDAL_DEPTH). 2026-07-23 cross-signal evidence: TORQUE r=+0.60 and TORQUE_2 r=+0.57 vs d(MCU_MOTOR_RPM)/dt; TORQUE<->TORQUE_2 r=+0.969 (coupled but distinct). Needed to confirm which field is command vs estimated, pin the /100 scale, and enable TORQUE_2. Hard accel + strong regen events required (this drive was gentle, only reached -10..+18 Nm)."
+    - type: decode
+      target: 21F2
+      status: captured
+      priority: P2
+      vehicle_states: [CHARGING, ACC2]
+      created: "2026-08-02"
+      updated: "2026-08-02"
+      notes: "69 bytes. Discovered during charging scan. 93 captures as of 2026-08-02 (READY/charge/ACC2). CAUTION: investigate/correlate on this scope is unreliable - keep:unique + the bimodal charge-vs-ACC2 regime makes many bytes hit r~0.999 vs unrelated HVAC signals (two-cluster artifact, see plans/2026-08-02-align-and-analysis-issues.md #3). Needs a keep-all drive with continuous variation to decode. Same shape as VCU 21F2 (140 caps)."
 
   sessions:
     "81":
