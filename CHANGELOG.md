@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`--wait` and mid-session auto-reconnect for the live monitor.** A new
+  `--wait` flag (shared by every live command) blocks on the initial connect,
+  retrying **indefinitely** until the device comes online, then starts — so
+  `canair monitor @driving --save --wait` waits for the WiCAN and records the
+  moment it appears (Ctrl-C to stop).
+  - `canair monitor` now **re-homes a session that drops mid-run** instead of
+    giving up: it re-probes the reachable **same-transport** devices (auto-
+    failover), reconnects, re-opens sessions, and resumes — a `--save` recording
+    continues on the same journal (the gap shows in the timestamps). Bounded to
+    `transport.reconnect_max_wait` (default `6.0`s) by default; `--wait` makes it
+    retry forever. The TUI shows a `⟳ reconnecting…` banner while it re-homes.
+  - New config key `transport.reconnect_max_wait`. See
+    `plans/2026-08-03-monitor-reconnect-and-wait.md`.
+
 ## [1.11.0] - 2026-08-02
 
 ### Added

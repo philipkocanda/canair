@@ -104,6 +104,7 @@ transport:
   fallback: true                   # default true
   connect_timeout: 2.0             # seconds — per-device liveness probe
   fallback_order: [home, vpn, ap]  # optional; default = selected device, then the rest
+  reconnect_max_wait: 6.0          # seconds — bounded mid-session reconnect window
 ```
 
 - The explicitly selected device (`--wican X`, else `transport.host`, else
@@ -116,8 +117,23 @@ transport:
 - Set the order from the CLI with a comma-separated value:
   `canair config set transport.fallback_order home,vpn,ap`.
 
-Fallback is **connect-time only** — a mid-session disconnect is reported, not
-silently re-homed.
+### Mid-session reconnect & `--wait`
+
+`canair monitor` also re-homes a session that drops **mid-run**, rather than
+giving up: on a disconnect it re-probes the reachable **same-transport** devices,
+reconnects, re-opens any sessions, and resumes — a `--save` recording simply
+continues (the gap shows in the timestamps). By default this is bounded to
+`transport.reconnect_max_wait` seconds (default `6.0`); `--wait` makes it retry
+**forever** (Ctrl-C to stop).
+
+`--wait` also governs the *initial* connect for every live command: it blocks,
+retrying indefinitely, and starts as soon as the device comes online — so
+`canair monitor @driving --save --wait` waits for the WiCAN, then records the
+moment it appears.
+
+Mid-session re-home stays on the connected transport (raw↔raw / ws↔ws); the
+initial connect can still cross transports via `fallback_order`.
+
 
 ## The `transport` block
 

@@ -643,6 +643,8 @@ class MonitorApp(HelpMixin, App):
         # stick-if-at-bottom rule keeps it non-annoying.
         self.follow_enabled = bool(controller.keep_mode)
         self.paused = False
+        # Set when the user asks to quit, so an in-flight reconnect aborts cleanly.
+        self._stopping = False
         # Transient status-line message (e.g. save confirmation) + its expiry.
         self._flash_msg = ""
         self._flash_expires = 0.0
@@ -672,6 +674,11 @@ class MonitorApp(HelpMixin, App):
         self._update_header()
 
     # -- polling -----------------------------------------------------------
+    async def action_quit(self) -> None:
+        """Quit, signalling any in-flight reconnect to abort (clean stop)."""
+        self._stopping = True
+        self.exit()
+
     async def _poll_loop(self) -> None:
         while True:
             if not self.paused:
@@ -685,8 +692,13 @@ class MonitorApp(HelpMixin, App):
                     self.exit()
                     return
                 if self.controller.disconnected:
-                    self.exit()
-                    return
+                    # Try to re-home the dropped session (auto-failover / --wait)
+                    # in place, keeping the --save journal recording across the gap.
+                    if not await self._attempt_reconnect():
+                        self.exit()
+                        return
+                    self._refresh_body()
+                    continue
                 self._refresh_body()
                 remaining = self.controller.interval - (time.monotonic() - t0)
             else:
@@ -695,6 +707,33 @@ class MonitorApp(HelpMixin, App):
             deadline = time.monotonic() + max(remaining, 0.05)
             while time.monotonic() < deadline:
                 await asyncio.sleep(0.05)
+
+    async def _attempt_reconnect(self) -> bool:
+        """Re-home a dropped session; True to resume, False to exit the app.
+
+        On a give-up the controller stays ``disconnected`` so ``mode_monitor``
+        reports the drop; a user quit during the attempt clears it for a clean stop.
+        """
+        c = self.controller
+        reconnect = getattr(c, "reconnect", None)
+        if reconnect is None:
+            return False
+
+        def _notice(msg: str) -> None:  # thread-safe: plain attribute write
+            c.reconnect_note = msg
+
+        c.reconnecting = True
+        c.reconnect_note = "connection dropped — reconnecting…"
+        self._update_status()
+        try:
+            ok = await reconnect(
+                c, getattr(c, "session_steps", None), stop=lambda: self._stopping, notice=_notice
+            )
+        finally:
+            c.reconnecting = False
+        if not ok and self._stopping:
+            c.disconnected = False  # deliberate stop, not a failure
+        return ok
 
     def _refresh_body(self) -> None:
         # The poll worker can fire mid-teardown (after quit); ignore if the DOM
@@ -727,6 +766,12 @@ class MonitorApp(HelpMixin, App):
             on = int(time.monotonic()) % 2 == 0
             dot = "[b red]●[/]" if on else "[dim red]●[/]"
             rec = f"{dot} [red]REC[/] [dim]·[/] "
+        # Reconnecting banner (auto-failover / --wait): while a reconnect attempt
+        # is in flight, lead the status line with its live note.
+        reconnecting = ""
+        if getattr(c, "reconnecting", False):
+            note = getattr(c, "reconnect_note", "") or "reconnecting…"
+            reconnecting = f"[b yellow]⟳ {note}[/] [dim]·[/] "
         # ELM path reports commands + time spent in the ELM327; the raw path
         # reports UDS requests (no ELM involved). Kept compact to leave room for
         # the live state / flash message on the same line.
@@ -773,7 +818,7 @@ class MonitorApp(HelpMixin, App):
             if s:
                 state_txt = f"[dim]· state[/] [cyan]{s}[/] "
         status.update(
-            f"{rec}[dim]cycle[/] {c.cycle} [dim]·[/] {c.interval:.1f}[dim]s ·[/] "
+            f"{reconnecting}{rec}[dim]cycle[/] {c.cycle} [dim]·[/] {c.interval:.1f}[dim]s ·[/] "
             f"{c.elapsed:.1f}[dim]s ·[/] {metric} "
             f"{frames}{health}{state_txt}{follow}{paused}"
             f"{flash}\n"

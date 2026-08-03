@@ -36,10 +36,62 @@ def _keep_mode(args) -> str | None:
     return keep_mode_from_args(args)
 
 
+def build_raw_client(
+    host: str,
+    port: int,
+    bitrate: int,
+    ecus: dict[str, EcuAddress],
+    args,
+    pids_data: dict,
+):
+    """Construct a connected :class:`RawUdsClient` (SLCAN bus + client-side ISO-TP).
+
+    The single build path shared by the initial monitor connect and the
+    mid-session reconnect, so both apply the same timeouts / ISO-TP config.
+    Raises ``OSError`` if the SLCAN socket can't be opened.
+    """
+    from ..timeouts import cli_timeout, ecu_timeouts_by_name
+    from ..transport import RawUdsClient, SlcanTcpBus
+
+    bus = SlcanTcpBus(host, port=port, bitrate=bitrate)
+    cli = cli_timeout(args)
+    return RawUdsClient(
+        bus,
+        ecus,
+        timeout=(cli if cli is not None else 3.0),
+        ecu_timeouts=(None if cli is not None else ecu_timeouts_by_name(pids_data)),
+        isotp_config=pids_data.get("isotp"),
+    )
+
+
+def build_raw_reconnector(args, ecus: dict[str, EcuAddress], pids_data: dict):
+    """A :class:`MonitorReconnector` that re-homes to a reachable slcan-tcp device.
+
+    Restricts the candidate list to raw (slcan-tcp) devices and reuses
+    :func:`build_raw_client` as the per-candidate connect step (built off-thread,
+    since opening the SLCAN socket blocks).
+    """
+    import asyncio
+
+    from ..transport import resolve_transport_candidates
+    from ..transport.config import TransportConfig
+    from .monitor_reconnect import MonitorReconnector, reconnect_policy
+
+    candidates = [c for c in resolve_transport_candidates(args) if c.is_raw]
+
+    async def connect(cand: TransportConfig):
+        assert cand.host is not None  # wait_for_reachable only yields hosted candidates
+        port, bitrate = cand.resolve_device_defaults(pids_data.get("can_bitrate"))
+        return await asyncio.to_thread(
+            build_raw_client, cand.host, port, bitrate, ecus, args, pids_data
+        )
+
+    return MonitorReconnector(candidates, connect, reconnect_policy(args))
+
+
 async def run_raw_monitor(args, host: str, port: int, bitrate: int, pids_data: dict) -> int:
     """Run the live monitor over raw CAN. Assumes the device is in slcan mode."""
     from ..pids import build_ecu_index
-    from ..transport import RawUdsClient, SlcanTcpBus
     from .monitor import mode_monitor
     from .multi import parse_sub_commands
 
@@ -61,7 +113,7 @@ async def run_raw_monitor(args, host: str, port: int, bitrate: int, pids_data: d
         f"(ECUs: {', '.join(sorted(ecus))})"
     )
     try:
-        bus = SlcanTcpBus(host, port=port, bitrate=bitrate)
+        client = build_raw_client(host, port, bitrate, ecus, args, pids_data)
     except OSError as e:
         from ..transport.errors import connect_error_detail
 
@@ -70,16 +122,6 @@ async def run_raw_monitor(args, host: str, port: int, bitrate: int, pids_data: d
             file=sys.stderr,
         )
         return 1
-    from ..timeouts import cli_timeout, ecu_timeouts_by_name
-
-    cli = cli_timeout(args)
-    client = RawUdsClient(
-        bus,
-        ecus,
-        timeout=(cli if cli is not None else 3.0),
-        ecu_timeouts=(None if cli is not None else ecu_timeouts_by_name(pids_data)),
-        isotp_config=pids_data.get("isotp"),
-    )
     # The monitor reconciles its --save journal in its own finally even on a
     # disconnect (so no data loss), then re-raises the transport error — catch it
     # here through the shared classifier so a dropped bus is a clean message, not
@@ -104,6 +146,7 @@ async def run_raw_monitor(args, host: str, port: int, bitrate: int, pids_data: d
             vehicle_states=args.state,
             notes=args.notes,
             raw_client=client,
+            reconnect=build_raw_reconnector(args, ecus, pids_data),
         )
     except transport_error_types() as e:
         print(

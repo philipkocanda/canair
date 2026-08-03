@@ -43,6 +43,9 @@ _DEFAULT_WICAN_KEY = "ap"
 # dead device is skipped quickly (the full connect uses the normal, longer path).
 _DEFAULT_FALLBACK = True
 _DEFAULT_CONNECT_TIMEOUT = 2.0
+# Bounded reconnect window (seconds) for a mid-session monitor drop when the user
+# did NOT pass --wait. --wait retries forever instead; see wait_for_reachable.
+_DEFAULT_RECONNECT_MAX_WAIT = 6.0
 
 # WiCAN hardware model. AutoPID vehicle profiles and the wican-ws ELM327
 # terminal are Pro-only; the classic (non-Pro) WiCAN only supports raw SLCAN.
@@ -379,6 +382,25 @@ def fallback_settings() -> tuple[bool, float, list[str] | None]:
     else:
         order = None
     return enabled, timeout, order
+
+
+def reconnect_max_wait() -> float:
+    """Bounded reconnect window (seconds) for a mid-session monitor drop.
+
+    Read from ``transport.reconnect_max_wait`` (default 6.0). This bounds the
+    automatic reconnect attempt when the user did *not* pass ``--wait``; with
+    ``--wait`` the monitor retries indefinitely instead. A non-positive or
+    non-finite value falls back to the default.
+    """
+    raw_block = load_config().get("transport")
+    block = raw_block if isinstance(raw_block, dict) else {}
+    try:
+        value = float(block.get("reconnect_max_wait", _DEFAULT_RECONNECT_MAX_WAIT))
+        if not math.isfinite(value) or value <= 0:
+            return _DEFAULT_RECONNECT_MAX_WAIT
+    except (TypeError, ValueError):
+        return _DEFAULT_RECONNECT_MAX_WAIT
+    return value
 
 
 def wican_model() -> str:

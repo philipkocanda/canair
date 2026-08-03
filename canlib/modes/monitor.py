@@ -26,6 +26,7 @@ import signal
 import sys
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from rich.console import Console
 from rich.text import Text
@@ -47,6 +48,9 @@ from ._monitor_render import (
 from ._monitor_stats import ParamStats
 from .monitor_raw import MonitorRawPoller, _raw_pid_result
 from .multi_batch import EcuFrame, ResultEntry
+
+if TYPE_CHECKING:
+    from .monitor_reconnect import Reconnector
 
 # _HIGHLIGHT_STYLE, _bytes_to_ascii and _render_hex_line moved to canlib.formatting;
 # _render_results/_RENDER_MAX_ROWS/RenderCache to _monitor_render; _raw_pid_result to
@@ -191,6 +195,16 @@ class MonitorController:
         # Set by mode_monitor; resolved lazily if left None.
         self.captures_dir: Path | None = None
         self.disconnected = False
+        # Mid-session reconnect / auto-failover (set by mode_monitor). When a
+        # reconnector is present the poll loop re-homes a dropped session instead
+        # of exiting; session_steps are replayed on each reconnect to re-open
+        # sessions. `reconnecting` flags an in-flight attempt (shown in the TUI).
+        self.reconnect: Reconnector | None = None
+        self.session_steps: list[dict] | None = None
+        self.reconnecting = False
+        # Latest reconnect status line (set from the reconnector, possibly off the
+        # main thread — a plain string write, read by the TUI status renderer).
+        self.reconnect_note = ""
         # Capture recording / journaling / on-demand-save / segment-rotate logic
         # lives in the MonitorRecorder collaborator (frame counters, display &
         # --save history, the write-ahead journal, segment label/state/notes).
@@ -735,6 +749,42 @@ class MonitorController:
         except (TimeoutError, Exception):
             pass
 
+    async def close_client(self) -> None:
+        """Best-effort close of just the transport client, keeping session state.
+
+        Used by the reconnector to free a dead socket before re-probing; unlike
+        :meth:`close` it does not reconcile the journal or tear down recording —
+        the controller lives on to resume once a new client is rebound.
+        """
+        if self.raw:
+            if self.raw_client is not None:
+                with contextlib.suppress(Exception):
+                    self.raw_client.close()
+            return
+        if self.sm is not None:
+            with contextlib.suppress(Exception):
+                self.sm.stop_background_keepalive()
+            with contextlib.suppress(Exception):
+                await asyncio.wait_for(self.terminal.close(), timeout=2.0)
+
+    def rebind(self, new_client) -> None:
+        """Swap in a freshly-reconnected transport client, preserving session state.
+
+        Journal, display/save history, counters, and value ranges stay on the
+        controller — only the transport-facing client (and its dependent
+        session-manager / raw poller) is replaced — so a reconnect continues the
+        same ``--save`` session. Clears :attr:`disconnected` so the poll loop
+        resumes. The new client must match the controller's transport kind (the
+        reconnector filters candidates to the same transport).
+        """
+        if self.raw:
+            self.raw_client = new_client
+            self.raw_poller = MonitorRawPoller(self)
+        else:
+            self.terminal = new_client
+            self.sm = SessionManager(new_client, verbose=self.verbose)
+        self.disconnected = False
+
 
 async def _monitor_noninteractive(controller: MonitorController) -> None:
     """No TTY: poll silently until SIGINT/SIGTERM/disconnect (piped/scripted runs)."""
@@ -750,12 +800,21 @@ async def _monitor_noninteractive(controller: MonitorController) -> None:
     # same way — a graceful stop that reconciles the --save journal on exit.
     old_int = signal.signal(signal.SIGINT, _handle_stop)
     old_term = signal.signal(signal.SIGTERM, _handle_stop)
+
+    def _notice(msg: str) -> None:
+        _console.print(f"  [yellow]{msg}[/yellow]")
+
     try:
         while not stop_flag["v"] and not controller.disconnected:
             t0 = time.monotonic()
             await controller.poll_once()
             if controller.disconnected:
-                return
+                # Try to re-home the dropped session (auto-failover / --wait)
+                # instead of exiting; the --save journal keeps recording across
+                # the gap since the controller (and its journal) is preserved.
+                if not await _attempt_reconnect(controller, stop_flag, _notice):
+                    return
+                continue
             remaining = controller.interval - (time.monotonic() - t0)
             while remaining > 0 and not stop_flag["v"] and not controller.disconnected:
                 await asyncio.sleep(min(remaining, 0.1))
@@ -763,6 +822,35 @@ async def _monitor_noninteractive(controller: MonitorController) -> None:
     finally:
         signal.signal(signal.SIGINT, old_int)
         signal.signal(signal.SIGTERM, old_term)
+
+
+async def _attempt_reconnect(controller: "MonitorController", stop_flag: dict, notice) -> bool:
+    """Re-home a dropped monitor session; return True to resume, False to stop.
+
+    Returns False when there is no reconnector, when the bounded window expired
+    (leaving :attr:`disconnected` set so ``mode_monitor`` reports the drop), or
+    when the user stopped during the attempt (clearing :attr:`disconnected` so
+    the run ends cleanly rather than as a failure).
+    """
+    if controller.reconnect is None:
+        return False
+    controller.reconnecting = True
+    notice("⟳ connection dropped — reconnecting…")
+    try:
+        ok = await controller.reconnect(
+            controller,
+            controller.session_steps,
+            stop=lambda: stop_flag["v"],
+            notice=notice,
+        )
+    finally:
+        controller.reconnecting = False
+    if ok:
+        return True
+    if stop_flag["v"]:
+        # User stopped mid-reconnect: a deliberate stop, not a failure.
+        controller.disconnected = False
+    return False
 
 
 async def mode_monitor(
@@ -782,6 +870,7 @@ async def mode_monitor(
     raw_client=None,
     include_static: bool = False,
     transport_type: str | None = None,
+    reconnect: "Reconnector | None" = None,
 ):
     """Live-refresh ECU parameter monitor.
 
@@ -846,6 +935,10 @@ async def mode_monitor(
     # explicit value, else fall back to the active client's own diag label.
     diag = controller.diag_recorder()
     controller.transport_type = transport_type or (diag.transport if diag is not None else None)
+    # Mid-session reconnect / auto-failover: the poll loops re-home a dropped
+    # session via this reconnector (replaying session_steps to re-open sessions).
+    controller.reconnect = reconnect
+    controller.session_steps = session_steps
 
     # --save: open the write-ahead journal up front so every polled payload is
     # durably recorded as it arrives. On a clean stop we reconcile it into a

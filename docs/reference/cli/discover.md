@@ -9,8 +9,9 @@ usage: canair discover [-h] [--range START-END] [--delay DELAY] [--register]
                        [--dry-run] [--identify] [--save] [--label TEXT]
                        [--state TEXT] [--notes TEXT] [--wican WICAN]
                        [--transport {slcan-tcp,wican-ws}] [--no-fallback]
-                       [--elm-timeout MS] [--timeout SECONDS] [--json]
-                       [--verbose] [--timings] [--reboot] [--unsafe] [--force]
+                       [--wait] [--elm-timeout MS] [--timeout SECONDS]
+                       [--json] [--verbose] [--timings] [--reboot] [--unsafe]
+                       [--force]
 
 [UDS] Sweep a range of TX addresses (sends 10 01 to each) to find ECUs.
 
@@ -38,6 +39,12 @@ options:
   --no-fallback         Don't auto-fall-back to other configured devices when
                         the selected one is unreachable (see config
                         transport.fallback).
+  --wait                Keep retrying to reach the device indefinitely, then
+                        start as soon as it comes online (Ctrl-C to stop). For
+                        'monitor', also reconnects forever if the connection
+                        drops mid-session (auto-failover to another same-
+                        transport device is bounded by default; --wait makes
+                        it unbounded).
   --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx
                         after init)
   --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0

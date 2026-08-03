@@ -32,7 +32,10 @@ canair config set default_wican home
 Any command takes `--wican home|vpn|<ip>` to pick which device to use. Each
 device can carry its own transport (`canair config set devices.vpn.transport
 wican-ws`), and when the chosen device is unreachable canair auto-falls-back to
-the others (disable per-command with `--no-fallback`). `config.example.yaml` in
+the others (disable per-command with `--no-fallback`). Add `--wait` to any live
+command to block until the device comes online and then start — handy for
+`canair monitor @driving --save --wait`, which also keeps reconnecting if the
+link drops mid-session. `config.example.yaml` in
 the repo documents every key; see also the
 [config reference](../reference/config.md).
 

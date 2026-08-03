@@ -100,3 +100,5 @@ default_wican: home
 #   fallback: true             # default true; --no-fallback overrides per-command
 #   connect_timeout: 2.0       # seconds — the (short) per-device liveness probe
 #   fallback_order: [home, vpn, ap]  # optional; default = selected device, then the rest
+#   reconnect_max_wait: 6.0    # seconds — bounded window to re-home a dropped
+#                              # `canair monitor` session (--wait retries forever)

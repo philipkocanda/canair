@@ -25,7 +25,7 @@ from .errors import (
     is_transport_error,
     transport_error_types,
 )
-from .fallback import select_reachable_transport
+from .fallback import select_reachable_transport, wait_for_reachable
 from .protocol import Terminal
 from .raw_terminal import RawTerminal
 from .slcan_tcp import SlcanTcpBus, format_slcan_frame, parse_slcan_frame
@@ -52,4 +52,5 @@ __all__ = [
     "response_id",
     "select_reachable_transport",
     "transport_error_types",
+    "wait_for_reachable",
 ]

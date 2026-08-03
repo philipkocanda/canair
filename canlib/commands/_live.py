@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import importlib.util
 import io
 import re
@@ -120,6 +121,7 @@ CANAIR_DEFAULTS: dict = {
     "delay": 0.2,
     "wican": DEFAULT_WICAN,
     "no_fallback": False,
+    "wait": False,
     "timeout": 3.0,  # WebSocket response timeout (s); fixed default, no CLI flag
     "elm_timeout": None,
     "json": False,
@@ -296,6 +298,14 @@ def add_connection_args(parser: argparse.ArgumentParser) -> None:
         "one is unreachable (see config transport.fallback).",
     )
     parser.add_argument(
+        "--wait",
+        action="store_true",
+        help="Keep retrying to reach the device indefinitely, then start as soon "
+        "as it comes online (Ctrl-C to stop). For 'monitor', also reconnects "
+        "forever if the connection drops mid-session (auto-failover to another "
+        "same-transport device is bounded by default; --wait makes it unbounded).",
+    )
+    parser.add_argument(
         "--elm-timeout",
         type=int,
         default=None,
@@ -395,14 +405,113 @@ def _print_sleep_banner(host: str, timeout: int = 5) -> None:
     console.print(f"  [WiCAN] Sleep: {sleep_str}  |  Battery: {batt}")
 
 
+async def connect_elm_terminal(host: str, pids_data: dict, args) -> WiCANTerminal:
+    """Construct, connect, and ELM-initialise a :class:`WiCANTerminal` for ``host``.
+
+    The single build path shared by the initial connect (``async_main``) and the
+    monitor's mid-session reconnect, so both apply the same ELM init + ATST
+    response-timeout + per-ECU budgets. Raises a transport error on failure
+    (closing the partially-opened terminal first); the caller classifies it.
+    """
+    from canlib.quirks import HK_F1XX_MINUS_ONE, has_quirk
+    from canlib.timeouts import cli_timeout, ecu_timeouts_by_tx
+
+    init_string = pids_data.get("init")
+    assert init_string, "profile init string must be validated by the caller"
+
+    _cli_timeout = cli_timeout(args)
+    _ws_timeout = _cli_timeout if _cli_timeout is not None else 3.0
+    terminal = WiCANTerminal(
+        host=host,
+        timeout=_ws_timeout,
+        verbose=args.verbose,
+        unsafe=args.unsafe,
+        hk_f1xx_offset=has_quirk(pids_data, HK_F1XX_MINUS_ONE),
+    )
+    # Per-ECU response budgets apply only when the user didn't force --timeout.
+    if _cli_timeout is None:
+        terminal.ecu_timeouts = ecu_timeouts_by_tx(pids_data)
+
+    try:
+        print(f"Connecting to WiCAN at {host}...")
+        await terminal.connect()
+        print("Connected. Initializing ELM327...")
+        await terminal.init_elm(init_string)
+
+        atst_cmd: str | None = None
+        label = ""
+        if args.elm_timeout is not None:
+            atst_val = max(1, min(255, round(args.elm_timeout / 4.096)))
+            atst_cmd = f"ATST{atst_val:02X}"
+        elif pids_data.get("response_timeout_ms") is not None:
+            atst_val = max(1, min(255, round(pids_data["response_timeout_ms"] / 4.096)))
+            candidate = f"ATST{atst_val:02X}"
+            # Skip if the init string already applied this exact ATST (avoid a
+            # redundant round-trip on connect).
+            _init_atst = re.search(r"ATST([0-9A-Fa-f]{2})", init_string)
+            if not (_init_atst and f"ATST{_init_atst.group(1).upper()}" == candidate):
+                atst_cmd = candidate
+                label = ", from profile"
+        if atst_cmd is not None:
+            await terminal.send_command(atst_cmd)
+            terminal.elm_timeout_cmd = atst_cmd
+            actual_ms = int(atst_cmd[4:], 16) * 4.096
+            print(f"  ELM327 timeout: {atst_cmd} ({actual_ms:.0f}ms{label})")
+
+        print("Ready.")
+        return terminal
+    except BaseException:
+        with contextlib.suppress(Exception):
+            await terminal.close()
+        raise
+
+
+def build_elm_reconnector(args, pids_data: dict):
+    """A :class:`MonitorReconnector` that re-homes to a reachable wican-ws device.
+
+    Restricts the candidate list to ELM (wican-ws) devices and reuses
+    :func:`connect_elm_terminal` as the per-candidate connect step, so a
+    mid-session drop reconnects exactly the way the initial connect did.
+    """
+    from canlib.modes.monitor_reconnect import MonitorReconnector, reconnect_policy
+    from canlib.transport import resolve_transport_candidates
+    from canlib.transport.config import TransportConfig
+
+    candidates = [c for c in resolve_transport_candidates(args) if c.is_elm]
+
+    async def connect(cand: TransportConfig):
+        assert cand.host is not None  # wait_for_reachable only yields hosted candidates
+        return await connect_elm_terminal(cand.host, pids_data, args)
+
+    return MonitorReconnector(candidates, connect, reconnect_policy(args))
+
+
 async def async_main(args):
     """Main async entry point."""
     from canlib.config import fallback_settings
-    from canlib.transport import resolve_transport_candidates, select_reachable_transport
+    from canlib.transport import (
+        resolve_transport_candidates,
+        select_reachable_transport,
+        wait_for_reachable,
+    )
 
     candidates = resolve_transport_candidates(args)
     _, _connect_timeout, _ = fallback_settings()
-    transport = select_reachable_transport(candidates, connect_timeout=_connect_timeout)
+    if getattr(args, "wait", False):
+        # --wait: block until a candidate comes online (Ctrl-C to stop). No custom
+        # signal handler is installed yet, so a SIGINT here raises KeyboardInterrupt
+        # which run_live reports cleanly.
+        transport = (
+            wait_for_reachable(
+                candidates,
+                connect_timeout=_connect_timeout,
+                deadline=None,
+                notice=lambda m: print(f"note: {m}", file=sys.stderr),
+            )
+            or candidates[0]
+        )
+    else:
+        transport = select_reachable_transport(candidates, connect_timeout=_connect_timeout)
     host = transport.host
 
     init_logging()
@@ -496,11 +605,6 @@ async def async_main(args):
 
         orphan_notice()
 
-    from canlib.timeouts import cli_timeout
-
-    _cli_timeout = cli_timeout(args)
-    _ws_timeout = _cli_timeout if _cli_timeout is not None else 3.0
-
     # Pre-flight reachability check. The WebSocket ELM327 terminal lives on the
     # device's HTTP port; if that port is closed or the host is silent (wrong
     # IP, VPN down, device asleep, or a protocol not serving the WebSocket),
@@ -514,55 +618,13 @@ async def async_main(args):
         print(f"error: {e}", file=sys.stderr)
         sys.exit(1)
 
-    from canlib.quirks import HK_F1XX_MINUS_ONE, has_quirk
-
-    terminal = WiCANTerminal(
-        host=host,
-        timeout=_ws_timeout,
-        verbose=args.verbose,
-        unsafe=args.unsafe,
-        hk_f1xx_offset=has_quirk(pids_data, HK_F1XX_MINUS_ONE),
-    )
-    # Per-ECU response budgets apply only when the user didn't force --timeout.
-    if _cli_timeout is None:
-        from canlib.timeouts import ecu_timeouts_by_tx
-
-        terminal.ecu_timeouts = ecu_timeouts_by_tx(pids_data)
-
     from canlib.transport.errors import describe_transport_error, transport_error_types
 
     rc = 0
+    terminal: WiCANTerminal | None = None
     try:
         try:
-            print(f"Connecting to WiCAN at {host}...")
-            await terminal.connect()
-            print("Connected. Initializing ELM327...")
-            await terminal.init_elm(init_string)
-
-            if args.elm_timeout is not None:
-                atst_val = max(1, min(255, round(args.elm_timeout / 4.096)))
-                atst_cmd = f"ATST{atst_val:02X}"
-                await terminal.send_command(atst_cmd)
-                terminal.elm_timeout_cmd = atst_cmd
-                actual_ms = atst_val * 4.096
-                print(f"  ELM327 timeout: {atst_cmd} ({actual_ms:.0f}ms)")
-            elif pids_data.get("response_timeout_ms") is not None:
-                # Per-profile ELM response timeout (ECUs vary: the Ioniq 2017 is slow
-                # and needs a high value; faster vehicles can lower it to speed up
-                # cycles / NO-DATA detection). --elm-timeout overrides this.
-                atst_val = max(1, min(255, round(pids_data["response_timeout_ms"] / 4.096)))
-                atst_cmd = f"ATST{atst_val:02X}"
-                # Skip if the init string already applied this exact ATST (avoid a
-                # redundant round-trip on connect).
-                _init_atst = re.search(r"ATST([0-9A-Fa-f]{2})", init_string)
-                already = _init_atst and f"ATST{_init_atst.group(1).upper()}" == atst_cmd
-                if not already:
-                    await terminal.send_command(atst_cmd)
-                    terminal.elm_timeout_cmd = atst_cmd
-                    actual_ms = atst_val * 4.096
-                    print(f"  ELM327 timeout: {atst_cmd} ({actual_ms:.0f}ms, from profile)")
-
-            print("Ready.")
+            terminal = await connect_elm_terminal(host, pids_data, args)
             _print_sleep_banner(host)
 
             if args.wake:
@@ -582,7 +644,8 @@ async def async_main(args):
         # Session dispatch under the shared, transport-agnostic error guard.
         rc = await run_session_guarded(args, terminal, pids_data, host, transport_label="WebSocket")
     finally:
-        await terminal.close()
+        if terminal is not None:
+            await terminal.close()
         log_command("--- SESSION END ---")
 
         if args.reboot:
@@ -708,6 +771,7 @@ async def dispatch_mode(args, terminal: Terminal, pids_data, host):
             vehicle_states=args.state,
             notes=args.notes,
             include_static=getattr(args, "include_static", False),
+            reconnect=build_elm_reconnector(args, pids_data),
         )
     elif args.multi:
         await mode_multi(

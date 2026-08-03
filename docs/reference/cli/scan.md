@@ -43,7 +43,7 @@ usage: canair scan range [-h] [-i] [--service SVC] [--range START-END]
                          [--append HEX] [--session] [--wake] [--save]
                          [--label TEXT] [--state TEXT] [--notes TEXT]
                          [--wican WICAN] [--transport {slcan-tcp,wican-ws}]
-                         [--no-fallback] [--elm-timeout MS]
+                         [--no-fallback] [--wait] [--elm-timeout MS]
                          [--timeout SECONDS] [--json] [--verbose] [--timings]
                          [--reboot] [--unsafe] [--force]
                          [ECU]
@@ -77,6 +77,12 @@ options:
   --no-fallback         Don't auto-fall-back to other configured devices when
                         the selected one is unreachable (see config
                         transport.fallback).
+  --wait                Keep retrying to reach the device indefinitely, then
+                        start as soon as it comes online (Ctrl-C to stop). For
+                        'monitor', also reconnects forever if the connection
+                        drops mid-session (auto-failover to another same-
+                        transport device is bounded by default; --wait makes
+                        it unbounded).
   --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx
                         after init)
   --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0
@@ -126,7 +132,7 @@ usage: canair scan iocontrol [-h] [--did-range START-END]
                              [--throttle-ms THROTTLE_MS] [--session] [--wake]
                              [--mode HEX] [--wican WICAN]
                              [--transport {slcan-tcp,wican-ws}]
-                             [--no-fallback] [--elm-timeout MS]
+                             [--no-fallback] [--wait] [--elm-timeout MS]
                              [--timeout SECONDS] [--json] [--verbose]
                              [--timings] [--reboot] [--unsafe] [--force]
                              ECU [ECU ...]
@@ -156,6 +162,12 @@ options:
   --no-fallback         Don't auto-fall-back to other configured devices when
                         the selected one is unreachable (see config
                         transport.fallback).
+  --wait                Keep retrying to reach the device indefinitely, then
+                        start as soon as it comes online (Ctrl-C to stop). For
+                        'monitor', also reconnects forever if the connection
+                        drops mid-session (auto-failover to another same-
+                        transport device is bounded by default; --wait makes
+                        it unbounded).
   --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx
                         after init)
   --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0
@@ -185,9 +197,9 @@ usage: canair scan routines [-h] [--rid-range START-END]
                             [--throttle-ms THROTTLE_MS] [--session] [--wake]
                             [--mode HEX] [--wican WICAN]
                             [--transport {slcan-tcp,wican-ws}] [--no-fallback]
-                            [--elm-timeout MS] [--timeout SECONDS] [--json]
-                            [--verbose] [--timings] [--reboot] [--unsafe]
-                            [--force]
+                            [--wait] [--elm-timeout MS] [--timeout SECONDS]
+                            [--json] [--verbose] [--timings] [--reboot]
+                            [--unsafe] [--force]
                             ECU [ECU ...]
 
 Probe routine results across a range on one or more ECUs. The service is auto-selected per ECU from its id_protocol: UDS ECUs use RoutineControl (0x31, requestRoutineResults SF 0x03); KWP2000 ECUs (BMS, VCU, MCU, LDC, AAF) use RequestRoutineResultsByLocalIdentifier (0x33). 0x31 (StartRoutine on KWP2000) is NEVER sent to a KWP2000 ECU — only the read-only results service. Hits are written to pids/<ecu>.yaml under a routines: section.
@@ -215,6 +227,12 @@ options:
   --no-fallback         Don't auto-fall-back to other configured devices when
                         the selected one is unreachable (see config
                         transport.fallback).
+  --wait                Keep retrying to reach the device indefinitely, then
+                        start as soon as it comes online (Ctrl-C to stop). For
+                        'monitor', also reconnects forever if the connection
+                        drops mid-session (auto-failover to another same-
+                        transport device is bounded by default; --wait makes
+                        it unbounded).
   --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx
                         after init)
   --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0
@@ -243,9 +261,9 @@ examples:
 usage: canair scan sessions [-h] [--modes HEX[,HEX...]]
                             [--throttle-ms THROTTLE_MS] [--wican WICAN]
                             [--transport {slcan-tcp,wican-ws}] [--no-fallback]
-                            [--elm-timeout MS] [--timeout SECONDS] [--json]
-                            [--verbose] [--timings] [--reboot] [--unsafe]
-                            [--force]
+                            [--wait] [--elm-timeout MS] [--timeout SECONDS]
+                            [--json] [--verbose] [--timings] [--reboot]
+                            [--unsafe] [--force]
                             ECU [ECU ...]
 
 Probe which DiagnosticSessionControl (service 0x10) session types an ECU supports. The session-mode set is auto-selected per ECU from its id_protocol: UDS ECUs are probed with 01 (default) + 03 (extended); KWP2000 ECUs (BMS, VCU, MCU, LDC, AAF) with 81 (standard) + 82 + 83 (extended). Only these SAFE read-only modes are ever sent — the programming sessions (UDS 0x02, KWP2000 0x85) are NEVER probed. Results are written to ecus/<ecu>.yaml under a sessions: section.
@@ -269,6 +287,12 @@ options:
   --no-fallback         Don't auto-fall-back to other configured devices when
                         the selected one is unreachable (see config
                         transport.fallback).
+  --wait                Keep retrying to reach the device indefinitely, then
+                        start as soon as it comes online (Ctrl-C to stop). For
+                        'monitor', also reconnects forever if the connection
+                        drops mid-session (auto-failover to another same-
+                        transport device is bounded by default; --wait makes
+                        it unbounded).
   --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx
                         after init)
   --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0

@@ -7,9 +7,9 @@
 ```
 usage: canair identity [-h] [--session] [--wake] [--protocol {auto,uds,kwp}]
                        [--wican WICAN] [--transport {slcan-tcp,wican-ws}]
-                       [--no-fallback] [--elm-timeout MS] [--timeout SECONDS]
-                       [--json] [--verbose] [--timings] [--reboot] [--unsafe]
-                       [--force]
+                       [--no-fallback] [--wait] [--elm-timeout MS]
+                       [--timeout SECONDS] [--json] [--verbose] [--timings]
+                       [--reboot] [--unsafe] [--force]
                        ECU
 
 [UDS] Query ECU identity data and decode it. Supports UDS (22 F1xx) and KWP2000 (1A 8x/9x) ECUs; the protocol is auto-selected from the profile registry or an on-device probe (override with --protocol).
@@ -34,6 +34,12 @@ options:
   --no-fallback         Don't auto-fall-back to other configured devices when
                         the selected one is unreachable (see config
                         transport.fallback).
+  --wait                Keep retrying to reach the device indefinitely, then
+                        start as soon as it comes online (Ctrl-C to stop). For
+                        'monitor', also reconnects forever if the connection
+                        drops mid-session (auto-failover to another same-
+                        transport device is bounded by default; --wait makes
+                        it unbounded).
   --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx
                         after init)
   --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0
