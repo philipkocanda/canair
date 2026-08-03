@@ -3,11 +3,29 @@
 import asyncio
 import json
 
-from ..autopid_layout import uds_hex_to_wican_bytes
-from ..expression import evaluate_expression
+from ..decoding import decode_param_rows
 from ..formatting import print_decoded_params
 from ..pids import build_param_index
 from ..transport.protocol import Terminal
+
+
+def _param_def(p: dict) -> dict:
+    """Reconstruct a parameter definition dict from a param-index entry.
+
+    Carries the typed-decode fields (``type``/``values``/``bits``/``fields``) and
+    ``display`` through so :func:`decode_param_rows` renders enum/bitmask labels
+    and display expressions, not just the bare float.
+    """
+    return {
+        "expression": p.get("expression", ""),
+        "unit": p.get("unit", ""),
+        "verified": p.get("verified", False),
+        "display": p.get("display", ""),
+        "type": p.get("type", ""),
+        "values": p.get("values", {}),
+        "bits": p.get("bits", {}),
+        "fields": p.get("fields", []),
+    }
 
 
 async def mode_param(
@@ -67,19 +85,10 @@ async def mode_param(
                     )
                 continue
 
-            wican_bytes = uds_hex_to_wican_bytes(response["hex"])
-
-            for p in params:
-                try:
-                    value = evaluate_expression(p["expression"], wican_bytes)
-                    value = round(value * 100) / 100
-                    all_results.append(
-                        (p["name"], value, p["unit"], p["expression"], None, p["verified"])
-                    )
-                except Exception as e:
-                    all_results.append(
-                        (p["name"], None, p["unit"], p["expression"], str(e), p["verified"])
-                    )
+            # Decode the requested params (typed-aware — enum/bitmask labels,
+            # display expressions) via the shared row decoder.
+            param_defs = {p["name"]: _param_def(p) for p in params}
+            all_results.extend(decode_param_rows(response["hex"], param_defs))
     finally:
         for task in tester_tasks:
             if task is None:
@@ -92,7 +101,8 @@ async def mode_param(
 
     if as_json:
         json_out = []
-        for name, value, unit, _expr, error, _verified in all_results:
+        for row in all_results:
+            name, value, unit, _expr, error = row[:5]
             entry = {"name": name, "value": value, "unit": unit}
             if error:
                 entry["error"] = error

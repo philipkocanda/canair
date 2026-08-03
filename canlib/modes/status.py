@@ -56,6 +56,27 @@ async def query_param_status(
         wican_bytes = uds_hex_to_wican_bytes(response["hex"])
         if verbose:
             print(f"    [status] {key}: raw={response['hex']}  bytes={wican_bytes.hex().upper()}")
+        ptype = (pinfo.get("type") or "numeric").lower()
+        if ptype != "numeric":
+            # Typed status param (enum/bitmask/…): render its label alongside the
+            # raw value so the IOControl status column shows e.g. "off" not "0".
+            from ..decode_value import decode_typed, render
+
+            pdef = {
+                "expression": expression,
+                "type": pinfo.get("type", ""),
+                "values": pinfo.get("values", {}),
+                "bits": pinfo.get("bits", {}),
+                "fields": pinfo.get("fields", []),
+            }
+            dv = decode_typed(pdef, wican_bytes)
+            return {
+                "param": key,
+                "value": dv.raw,
+                "unit": unit,
+                "display": render(dv, unit),
+                "error": None,
+            }
         value = evaluate_expression(expression, wican_bytes)
         value = round(value * 100) / 100
         return {"param": key, "value": value, "unit": unit, "error": None}
@@ -78,6 +99,10 @@ def format_status_value(result: dict) -> str:
         if len(err) > 20:
             err = err[:17] + "..."
         return f"ERR: {err}"
+
+    # Typed params carry a pre-rendered label (enum/bitmask/…).
+    if result.get("display"):
+        return str(result["display"])
 
     value = result["value"]
     unit = result.get("unit", "")

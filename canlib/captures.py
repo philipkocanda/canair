@@ -584,6 +584,7 @@ def _decode_payload(
     prebuilt ``ecu_index`` to avoid rebuilding it on every call.
     """
     from .autopid_layout import uds_hex_to_wican_bytes
+    from .decode_value import NUMERIC, decode_typed, render
     from .expression import evaluate_expression
     from .pids import build_ecu_index
 
@@ -603,12 +604,21 @@ def _decode_payload(
         decoded = {}
         for pname, pdef in pid_info["parameters"].items():
             expr = pdef.get("expression", "")
+            ptype = (pdef.get("type") or NUMERIC).lower()
+            unit = pdef.get("unit", "")
+            # Typed (enum/bitmask/ascii/date/bcd/struct) params: render the typed
+            # interpretation (e.g. an enum label) rather than the bare float.
+            if ptype != NUMERIC:
+                try:
+                    decoded[pname] = render(decode_typed(pdef, wican_bytes), unit)
+                except Exception:
+                    pass
+                continue
             if not expr:
                 continue
             try:
                 value = evaluate_expression(expr, wican_bytes)
                 value = round(value * 100) / 100
-                unit = pdef.get("unit", "")
                 display = pdef.get("display", "")
                 if display:
                     try:

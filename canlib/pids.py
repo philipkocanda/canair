@@ -170,6 +170,11 @@ def build_param_index(pids_data: dict) -> dict:
                     "unit": param.get("unit", ""),
                     "verified": param.get("verified", False),
                     "ha_class": param.get("ha_class", ""),
+                    "display": param.get("display", ""),
+                    "type": param.get("type", ""),
+                    "values": param.get("values", {}),
+                    "bits": param.get("bits", {}),
+                    "fields": param.get("fields", []),
                 }
     return index
 

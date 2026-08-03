@@ -164,7 +164,7 @@ def param_byte_index_str(expression: str, n_bytes: int) -> str:
     return " ".join(parts)
 
 
-def format_value(value: float | None, unit: str, display: str = "") -> str:
+def format_value(value: float | str | None, unit: str, display: str = "") -> str:
     """Format a decoded value with unit and optional display expression.
 
     If display is set, evaluates it as an f-string with v=value and appends

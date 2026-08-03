@@ -3,7 +3,7 @@
 import re
 
 from ..autopid_layout import uds_hex_to_wican_bytes
-from ..expression import evaluate_expression
+from ..decoding import decode_param_rows
 from ..formatting import print_decoded_params, print_hexdump
 from ..pids import build_ecu_index
 from ..terminal import WiCANTerminal, reboot_wican
@@ -123,21 +123,8 @@ async def mode_interactive(terminal: WiCANTerminal, pids_data: dict, verbose: bo
                     continue
                 pid_upper = pid_str.upper()
                 if pid_upper in ecu_info["pids"]:
-                    wican_bytes = uds_hex_to_wican_bytes(last_response["hex"])
                     params = ecu_info["pids"][pid_upper]["parameters"]
-                    results = []
-                    for pname, pdef in params.items():
-                        expr = pdef.get("expression", "")
-                        unit = pdef.get("unit", "")
-                        verified = pdef.get("verified", False)
-                        if not expr:
-                            continue
-                        try:
-                            value = evaluate_expression(expr, wican_bytes)
-                            value = round(value * 100) / 100
-                            results.append((pname, value, unit, expr, None, verified))
-                        except Exception as e:
-                            results.append((pname, None, unit, expr, str(e), verified))
+                    results = decode_param_rows(last_response["hex"], params)
                     print(f"\n  {ecu_name} -- PID {pid_str} -- TX 0x{last_tx_id:03X}")
                     print_decoded_params(results, verbose=verbose)
                     print()

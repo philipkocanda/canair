@@ -433,6 +433,8 @@ def collect_values(new_queries: list[EcuFrame]) -> tuple[dict[str, float], set[s
         for entry in pid_results or []:
             for row in entry.get("params", []) or []:
                 name, value = row[0], row[1]
-                if value is not None:
+                # Only numeric values feed state predicates; a typed text value
+                # (ascii/date) has no place in a numeric comparison.
+                if isinstance(value, (int, float)):
                     values[f"{ecu}.{name}"] = value
     return values, responded

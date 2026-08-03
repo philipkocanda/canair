@@ -15,7 +15,9 @@ from .expression import evaluate_expression
 # ``formatting._build_byte_colors`` / ``_render_hex_line``:
 #   (name, value, unit, expression, error, verified, display)
 # ``value`` is None when the expression errored (``error`` holds the message).
-ParamRow = tuple[str, float | None, str, str, str | None, bool, str]
+# For a ``type: ascii/date/struct`` param the value is the rendered text ``str``
+# (there is no numeric scalar); numeric/enum/bitmask/bcd carry the ``float``.
+ParamRow = tuple[str, float | str | None, str, str, str | None, bool, str]
 
 # One parameter's identity for the decode cache key — everything that affects the
 # decoded row (name/expr/unit/verified/display). Hashable so it can key an LRU.
@@ -49,6 +51,68 @@ def _decode_cached(payload_hex: str, params_sig: tuple[_ParamSig, ...]) -> tuple
     return tuple(rows)
 
 
+def _decode_typed_rows(payload_hex: str, parameters: dict) -> list[ParamRow]:
+    """Decode when at least one parameter declares a ``type:`` (enum/bitmask/…).
+
+    Typed params can't ride the numeric LRU cache (their ``values``/``bits`` maps
+    aren't hashable and their rendering is payload-dependent), so this path
+    decodes them directly and folds the typed label into the row's ``display``
+    slot — rendering as ``{raw} ({label})``, consistent with the ``display:``
+    based flags already shown in these views. Numeric params behave as before.
+    """
+    from .decode_value import BCD, BITMASK, DATE, ENUM, NUMERIC, decode_typed, render
+
+    try:
+        wican_bytes = uds_hex_to_wican_bytes(payload_hex)
+    except Exception:
+        return []
+
+    rows: list[ParamRow] = []
+    for name, pdef in parameters.items():
+        ptype = (pdef.get("type") or NUMERIC).lower()
+        expr = pdef.get("expression", "")
+        unit = pdef.get("unit", "")
+        verified = bool(pdef.get("verified", False))
+        display = pdef.get("display", "")
+
+        if ptype == NUMERIC:
+            if not expr:
+                continue
+            try:
+                value = evaluate_expression(expr, wican_bytes)
+                value = round(value * 100) / 100
+                rows.append((name, value, unit, expr, None, verified, display))
+            except Exception as ex:
+                rows.append((name, None, unit, expr, str(ex), verified, display))
+            continue
+
+        # Typed parameter: decode the typed interpretation.
+        try:
+            dv = decode_typed(pdef, wican_bytes)
+        except Exception as ex:
+            rows.append((name, None, unit, expr, str(ex), verified, display))
+            continue
+
+        if dv.error and ptype != DATE:
+            rows.append((name, None, unit, expr, dv.error, verified, display))
+            continue
+
+        if ptype in (ENUM, BITMASK):
+            # Keep the raw float as the value; surface the label via ``display``
+            # so it renders as ``{raw} ({label})``. ``display`` is eval'd by
+            # ``format_value`` as an expression, so pass a string *literal*.
+            label = dv.category()
+            disp = repr(label) if label else display
+            rows.append((name, dv.raw, unit, expr, None, verified, disp))
+        elif ptype == BCD:
+            rows.append((name, dv.raw, unit, expr, None, verified, display))
+        else:
+            # ascii/date/struct read a byte run — carry the rendered text as the
+            # (non-numeric) value; ``format_value`` renders a string as-is.
+            rows.append((name, render(dv), unit, "", None, verified, ""))
+    return rows
+
+
 def decode_param_rows(payload_hex: str, parameters: dict) -> list[ParamRow]:
     """Decode a UDS response payload into parameter rows.
 
@@ -65,6 +129,10 @@ def decode_param_rows(payload_hex: str, parameters: dict) -> list[ParamRow]:
     """
     if not parameters:
         return []
+    # Typed (enum/bitmask/ascii/date/bcd/struct) params take a slower, uncached
+    # path so their label/text interpretation is rendered (not just the float).
+    if any((p.get("type") or "numeric").lower() != "numeric" for p in parameters.values()):
+        return _decode_typed_rows(payload_hex, parameters)
     params_sig = tuple(
         (
             name,

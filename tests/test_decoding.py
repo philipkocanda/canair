@@ -61,6 +61,54 @@ class TestDecodeParamRows:
         assert [r[0] for r in rows] == ["A", "B", "C"]
 
 
+class TestTypedParams:
+    def test_enum_label_via_display(self):
+        # B1 = 0x62 = 98; map that value to a label.
+        params = {
+            "MODE": {
+                "expression": "B1",
+                "type": "enum",
+                "values": {98: "heat_pump", 0: "off"},
+            }
+        }
+        rows = decode_param_rows("62B001", params)
+        name, value, _unit, expr, error, _verified, display = rows[0]
+        assert name == "MODE"
+        assert value == 0x62  # raw float preserved for numeric consumers
+        assert expr == "B1"  # expression kept so byte-coverage still maps it
+        assert error is None
+        # display holds a string *literal* so format_value renders "{raw} (label)".
+        assert display == repr("heat_pump")
+
+    def test_enum_unmapped_value_falls_back_to_number(self):
+        params = {"MODE": {"expression": "B1", "type": "enum", "values": {0: "off"}}}
+        rows = decode_param_rows("62B001", params)
+        # 0x62 is unmapped -> _decode_enum returns the numeric string.
+        assert rows[0][6] == repr("98")
+
+    def test_bitmask_flags_via_display(self):
+        # B1 = 0x62 = 0b1100010 -> bits 1, 5, 6 set.
+        params = {
+            "FLAGS": {
+                "expression": "B1",
+                "type": "bitmask",
+                "bits": {1: "a", 5: "b", 6: "c"},
+            }
+        }
+        rows = decode_param_rows("62B001", params)
+        assert rows[0][6] == repr("a|b|c")
+
+    def test_numeric_alongside_typed_still_decodes(self):
+        params = {
+            "RAW": {"expression": "B1", "unit": "x"},
+            "MODE": {"expression": "B1", "type": "enum", "values": {98: "on"}},
+        }
+        rows = decode_param_rows("62B001", params)
+        assert [r[0] for r in rows] == ["RAW", "MODE"]
+        assert rows[0][1] == 0x62 and rows[0][6] == ""
+        assert rows[1][6] == repr("on")
+
+
 class TestDecodeMemoization:
     def test_repeat_payload_served_from_cache(self, monkeypatch):
         import canlib.decoding as dec

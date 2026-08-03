@@ -4,7 +4,7 @@ import asyncio
 import json
 
 from ..autopid_layout import uds_hex_to_wican_bytes
-from ..expression import evaluate_expression
+from ..decoding import decode_param_rows
 from ..formatting import print_decoded_params
 from ..pids import build_ecu_index
 from ..transport.protocol import Terminal
@@ -68,22 +68,11 @@ async def mode_ecu(
                 print(f"    Response: {response['hex']}")
                 print(f"    WiCAN bytes ({len(wican_bytes)}): {wican_bytes.hex().upper()}")
 
-            results = []
-            for pname, pdef in parameters.items():
-                expr = pdef.get("expression", "")
-                unit = pdef.get("unit", "")
-                verified = pdef.get("verified", False)
-                if not expr:
-                    continue
-                try:
-                    value = evaluate_expression(expr, wican_bytes)
-                    value = round(value * 100) / 100
-                    results.append((pname, value, unit, expr, None, verified))
-                except Exception as e:
-                    results.append((pname, None, unit, expr, str(e), verified))
+            results = decode_param_rows(response["hex"], parameters)
 
             if as_json:
-                for name, value, unit, _expr, error, _verified in results:
+                for row in results:
+                    name, value, unit, _expr, error = row[:5]
                     entry = {
                         "ecu": ecu_key,
                         "pid": pid_code,
