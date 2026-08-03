@@ -41,7 +41,6 @@ class WiCANTerminal(Elm327Terminal):
         unsafe: bool = False,
         hk_f1xx_offset: bool = False,
     ):
-        self.host = host
         channel = WebSocketChannel(host, verbose=verbose)
         super().__init__(
             channel,

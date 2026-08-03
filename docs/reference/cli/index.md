@@ -19,7 +19,7 @@ Every capability is a `canair <subcommand>`. These pages are generated from each
 - [`canair routines`](routines.md) — RoutineControl (0x31): interactive TUI, or single command with --rid.
 - [`canair identity`](identity.md) — Query ECU identity data and decode it. Supports UDS (22 F1xx) and KWP2000 (1A 8x/9x) ECUs; the protocol is auto-selected from the profile registry or an on-device probe (override with --protocol).
 - [`canair dtc`](dtc.md) — Read stored Diagnostic Trouble Codes with UDS 0x19 (reportDTCByStatusMask), or clear them with UDS 0x14. Clearing mutates ECU fault memory and prompts for confirmation unless --yes is given.
-- [`canair repl`](repl.md) — Drop into an interactive live terminal (REPL) over the WiCAN
+- [`canair repl`](repl.md) — Drop into an interactive live terminal (REPL) over an ELM327
 
 ### Analysis
 

@@ -11,7 +11,7 @@ import re
 
 from ..pids import build_param_index
 from ..session_manager import SessionManager
-from ..terminal import WiCANTerminal
+from ..transport.elm327_terminal import Elm327Terminal
 from ..uds_parse import parse_uds_response
 from .multi_exec import _exec_query, _exec_raw
 from .multi_parse import _query_selectors, resolve_tx_id
@@ -140,8 +140,10 @@ async def _multi_repl(
             if cmd_lower.startswith("skm"):
                 parts = cmd.split()
                 level = parts[1] if len(parts) > 1 else "acc"
-                if not isinstance(terminal, WiCANTerminal):
-                    print("  skm is only supported on the wican-ws (ELM327) transport.")
+                if not isinstance(terminal, Elm327Terminal):
+                    print(
+                        "  skm is only supported on the ELM327 transports (wican-ws / elm327-tcp)."
+                    )
                     continue
                 sm.stop_background_keepalive()
                 await mode_skm_wakeup(terminal, level, verbose)

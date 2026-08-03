@@ -15,11 +15,10 @@ quirk. Extracting these relay DIDs/addresses into the profile is future work.
 """
 
 import asyncio
-import json
 import re
 import time
 
-from ..terminal import WiCANTerminal
+from ..transport.elm327_terminal import Elm327Terminal
 
 # SKM relay control DIDs
 SKM_RELAYS = {
@@ -99,7 +98,7 @@ def parse_bcm_b003(raw_response: str) -> dict:
     return {"ok": True, "power_byte": pwr_byte, "state": state}
 
 
-async def wake_and_read(terminal: WiCANTerminal, tx_id: str, pid: str) -> dict:
+async def wake_and_read(terminal: Elm327Terminal, tx_id: str, pid: str) -> dict:
     """Wake an ECU, enter extended session, and read a PID.
 
     Args:
@@ -128,7 +127,7 @@ async def wake_and_read(terminal: WiCANTerminal, tx_id: str, pid: str) -> dict:
     return {"ok": True, "response": resp}
 
 
-async def mode_skm_wakeup(terminal: WiCANTerminal, level: str, verbose: bool):
+async def mode_skm_wakeup(terminal: Elm327Terminal, level: str, verbose: bool):
     """Wake sleeping ECUs via SKM relay control.
 
     Sends a broadcast 3E00 + 1001 to nudge the SKM awake, then establishes
@@ -208,7 +207,7 @@ async def mode_skm_wakeup(terminal: WiCANTerminal, level: str, verbose: bool):
     print("        Extended session (10 03) established.")
 
     # Step 3: Send relay ON command
-    await terminal._channel.drain()
+    await terminal.drain()
     cmd = f"2F{did}03{SKM_MAGIC}"
     print(f"  [3/4] Sending {desc} ON ({cmd})...")
     resp = await terminal.send_command(cmd, timeout=10.0)
@@ -230,34 +229,24 @@ async def mode_skm_wakeup(terminal: WiCANTerminal, level: str, verbose: bool):
             if remaining <= 0:
                 break
             try:
-                # The terminal is connected at this point, so ws is not None.
-                assert terminal.ws is not None
-                msg = await asyncio.wait_for(terminal.ws.recv(), timeout=min(remaining, 1.0))
-                if isinstance(msg, str):
-                    try:
-                        parsed = json.loads(msg)
-                        if parsed.get("type") == "term_out":
-                            data = parsed["data"]
-                            extra_parts.append(data)
-                            if verbose:
-                                print(f"        Recv: {data.strip()!r}")
-                        continue
-                    except json.JSONDecodeError:
-                        pass
-                    extra_parts.append(msg)
-                    if verbose:
-                        print(f"        Recv: {msg.strip()!r}")
-                combined = "".join(extra_parts).replace(" ", "").upper()
-                if "6FB1" in combined or "6F" in combined:
-                    break
-                if re.search(r"7F2F(?!78)[0-9A-Fa-f]{2}", combined):
-                    break
-            except TimeoutError:
+                # Passively collect late frames through the terminal's decoded
+                # receive (channel unwraps any WebSocket envelope); None = timeout.
+                msg = await terminal.recv_frame(min(remaining, 1.0))
+            except Exception:
+                break
+            if msg is None:
                 combined = "".join(extra_parts).replace(" ", "").upper()
                 if "7F2F78" in combined and "6F" not in combined:
                     continue
                 break
-            except Exception:
+            if msg:
+                extra_parts.append(msg)
+                if verbose:
+                    print(f"        Recv: {msg.strip()!r}")
+            combined = "".join(extra_parts).replace(" ", "").upper()
+            if "6FB1" in combined or "6F" in combined:
+                break
+            if re.search(r"7F2F(?!78)[0-9A-Fa-f]{2}", combined):
                 break
         if extra_parts:
             resp = resp + "\n" + "".join(extra_parts)

@@ -41,6 +41,9 @@ class Elm327Terminal:
         hk_f1xx_offset: bool = False,
     ):
         self._channel = channel
+        # Connection host if the channel is host-based (WebSocket/TCP), else None
+        # — the channel is the single source of truth (no duplicate on subclasses).
+        self.host: str | None = getattr(channel, "host", None)
         self.timeout = timeout
         self.verbose = verbose
         self.unsafe = unsafe
@@ -87,6 +90,26 @@ class Elm327Terminal:
     async def close(self):
         """Close the underlying channel."""
         await self._channel.close()
+
+    async def drain(self) -> None:
+        """Discard any buffered/late adapter output (delegates to the channel).
+
+        Exposed for modes that must clear stale frames before a delicate exchange
+        (e.g. the SKM relay-wake) without reaching into the transport internals.
+        """
+        await self._channel.drain()
+
+    async def recv_frame(self, timeout: float) -> str | None:
+        """Read the next chunk of decoded adapter output, ``None`` on timeout.
+
+        A *passive* receive — no command is sent. Used by modes that must collect
+        additional frames an ECU emits *after* the initial response (the SKM
+        relay-wake waits out flow-control/ResponsePending frames this way). The
+        text is already decoded by the channel (any WebSocket JSON envelope
+        stripped), so callers never touch the raw socket. Raises
+        :class:`ConnectionError` if the link drops.
+        """
+        return await self._channel.recv(timeout)
 
     async def send_command(self, cmd: str, timeout: float | None = None) -> str:
         """Send an ELM327 command and wait for the response.
@@ -417,7 +440,6 @@ class Elm327TcpTerminal(Elm327Terminal):
         unsafe: bool = False,
         hk_f1xx_offset: bool = False,
     ):
-        self.host = host
         self.port = port
         channel = TcpChannel(host, port, verbose=verbose)
         super().__init__(

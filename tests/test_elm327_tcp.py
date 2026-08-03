@@ -178,6 +178,63 @@ class TestEngineOverArbitraryChannel:
         assert resp["ok"] is False
         assert resp["nrc"] == 0x12
 
+    @pytest.mark.asyncio
+    async def test_recv_frame_and_drain_go_through_channel(self):
+        # Passive frame collection (used by skm_wakeup) goes through the channel
+        # surface, not the raw socket — proving the WebSocket leak is closed.
+        class RecordingChannel:
+            transport_name = "x"
+
+            def __init__(self, frames):
+                self.frames = list(frames)
+                self.drained = False
+
+            async def connect(self):
+                pass
+
+            async def send(self, text):
+                pass
+
+            async def recv(self, timeout):
+                return self.frames.pop(0) if self.frames else None
+
+            async def drain(self, per_recv_timeout=0.2, max_seconds=1.0):
+                self.drained = True
+
+            async def close(self):
+                pass
+
+        ch = RecordingChannel(["6FB100", None])
+        term = Elm327Terminal(ch)
+        assert await term.recv_frame(0.1) == "6FB100"
+        assert await term.recv_frame(0.1) is None
+        await term.drain()
+        assert ch.drained
+
+    def test_host_derived_from_channel(self):
+        # Single source of truth: the engine reads host off its channel.
+        assert Elm327TcpTerminal("1.2.3.4", 35000).host == "1.2.3.4"
+        from canlib.terminal import WiCANTerminal
+
+        assert WiCANTerminal(host="10.0.2.86").host == "10.0.2.86"
+
+
+class TestElmEngineGate:
+    """skm-wake / the interactive REPL gate on the ELM327 *engine* type, so they
+    run on any ELM transport (wican-ws / elm327-tcp) but are refused on raw
+    slcan-tcp (RawTerminal, which parses no ELM ATSH text)."""
+
+    def test_elm_tcp_is_elm_engine(self):
+        assert issubclass(Elm327TcpTerminal, Elm327Terminal)
+        from canlib.terminal import WiCANTerminal
+
+        assert issubclass(WiCANTerminal, Elm327Terminal)
+
+    def test_raw_terminal_is_not_elm_engine(self):
+        from canlib.transport.raw_terminal import RawTerminal
+
+        assert not issubclass(RawTerminal, Elm327Terminal)
+
 
 class TestEmulatorProfile:
     """Guard the bundled test profile that targets ELM327-Emulator.

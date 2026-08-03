@@ -35,6 +35,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reverted with "PID … missing after edit". PID keys that wouldn't survive a
   YAML round-trip are now quoted; ordinary keys (`2101`) are left as-is.
 
+### Changed
+- **The interactive REPL (`canair repl`) and `skm-wake` now work over the
+  `elm327-tcp` transport too**, not just `wican-ws` — both only need ELM327 text
+  semantics, which the shared engine provides on any ELM transport (still refused
+  on raw `slcan-tcp`). Internally, `skm_wakeup` no longer reaches into the raw
+  WebSocket: the ELM327 engine exposes `drain()` / `recv_frame()` so modes collect
+  late frames through the transport-agnostic surface instead of re-implementing
+  the WebSocket JSON unwrap.
+
 ## [1.12.0] - 2026-08-03
 
 ### Added

@@ -7,10 +7,11 @@ from ..decoding import decode_param_rows
 from ..formatting import print_decoded_params, print_hexdump
 from ..pids import build_ecu_index
 from ..terminal import WiCANTerminal, reboot_wican
+from ..transport.elm327_terminal import Elm327Terminal
 from ..uds_parse import parse_uds_response
 
 
-async def mode_interactive(terminal: WiCANTerminal, pids_data: dict, verbose: bool):
+async def mode_interactive(terminal: Elm327Terminal, pids_data: dict, verbose: bool):
     """Interactive REPL mode -- type ELM327/UDS commands directly."""
     # Lazy imports to avoid circular dependencies for modes that reference each other
     import asyncio
@@ -19,7 +20,7 @@ async def mode_interactive(terminal: WiCANTerminal, pids_data: dict, verbose: bo
     from .skm_wakeup import mode_skm_wakeup
     from .tester import mode_tester_present
 
-    print("WiCAN ELM327 Terminal -- Interactive Mode")
+    print("ELM327 Terminal -- Interactive Mode")
     print(f"Connected to {terminal.host}")
     print()
     print("Commands:")
@@ -56,8 +57,11 @@ async def mode_interactive(terminal: WiCANTerminal, pids_data: dict, verbose: bo
             break
 
         if cmd.lower() == "!reboot":
-            reboot_wican(terminal.host)
-            break
+            if isinstance(terminal, WiCANTerminal) and terminal.host:
+                reboot_wican(terminal.host)
+                break
+            print("  !reboot only applies to a WiCAN (no HTTP API on this adapter).")
+            continue
 
         if cmd.lower().startswith("!skm"):
             parts = cmd.split()

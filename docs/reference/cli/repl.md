@@ -11,9 +11,10 @@ usage: canair repl [-h] [--wican WICAN]
                    [--timeout SECONDS] [--json] [--verbose] [--timings]
                    [--reboot] [--unsafe] [--force]
 
-[UDS] Drop into an interactive live terminal (REPL) over the WiCAN
-connection — type raw ELM327 (AT...) and UDS requests by hand and see the
-decoded response, for exploratory poking the one-shot commands don't cover.
+[UDS] Drop into an interactive live terminal (REPL) over an ELM327
+transport (wican-ws / elm327-tcp) — type raw ELM327 (AT...) and UDS requests
+by hand and see the decoded response, for exploratory poking the one-shot
+commands don't cover. (Not supported on the raw slcan-tcp transport.)
 
 Inside the REPL:
   ATSH7E4         set the target ECU header (ELM327 AT command)
@@ -23,7 +24,7 @@ Inside the REPL:
   !info <ECU>     show an ECU's info from the profile (e.g. !info BMS)
   !list           list all known ECUs
   !tester [id]    TesterPresent keepalive loop (Ctrl+C to stop)
-  !reboot         reboot the WiCAN to restore AutoPID mode
+  !reboot         reboot the WiCAN to restore AutoPID mode (WiCAN only)
   !quit / Ctrl+C  exit
 
 For scripted/one-shot reads prefer `canair read` instead; this is the
@@ -63,7 +64,7 @@ options:
                         running
 
 examples:
-  canair repl                     # open the interactive terminal (default WiCAN)
+  canair repl                     # open the interactive terminal (default device)
   canair repl --wican vpn         # connect via the 'vpn' address
   canair interactive              # 'interactive' is an alias for 'repl'
 ```

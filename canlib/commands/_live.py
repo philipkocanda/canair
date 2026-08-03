@@ -57,6 +57,7 @@ from canlib.modes.routines import mode_routines_execute, mode_routines_list
 from canlib.modes.routines_scan import mode_routines_scan
 from canlib.states import parse_states
 from canlib.transport.config import DEFAULT_TRANSPORT, VALID_TRANSPORTS
+from canlib.transport.elm327_terminal import Elm327Terminal
 from canlib.transport.protocol import Terminal
 
 if importlib.util.find_spec("websockets") is None:  # pragma: no cover
@@ -835,13 +836,13 @@ async def dispatch_mode(args, terminal: Terminal, pids_data, host):
                 file=sys.stderr,
             )
             sys.exit(1)
-        # skm-wake relies on ELM327 multi-frame text semantics (terminal._drain /
-        # terminal.ws) that only WiCANTerminal exposes; guard explicitly so the raw
-        # transport reports a clear error instead of an opaque AttributeError.
-        if not isinstance(terminal, WiCANTerminal):
+        # skm-wake relies on ELM327 text semantics (raw ATSH/frame collection)
+        # provided by the shared Elm327Terminal engine — not the raw slcan-tcp
+        # RawTerminal. Guard on the engine type so raw reports a clear error.
+        if not isinstance(terminal, Elm327Terminal):
             print(
-                "Error: skm-wake is only supported on the wican-ws (ELM327) transport, "
-                "not slcan-tcp.",
+                "Error: skm-wake is only supported on the ELM327 transports "
+                "(wican-ws / elm327-tcp), not slcan-tcp.",
                 file=sys.stderr,
             )
             sys.exit(1)
@@ -1226,12 +1227,12 @@ async def dispatch_mode(args, terminal: Terminal, pids_data, host):
         # The interactive REPL is an ELM327 command prompt: it sets the ECU
         # header via raw ``ATSH`` sends, which are no-ops on the raw transport
         # (RawTerminal uses set_header(), not ATSH parsing), so a UDS request
-        # would fire with no header set. Guard like skm-wake so raw reports a
-        # clear error instead of a half-working prompt.
-        if not isinstance(terminal, WiCANTerminal):
+        # would fire with no header set. Guard on the ELM327 engine type so raw
+        # reports a clear error instead of a half-working prompt.
+        if not isinstance(terminal, Elm327Terminal):
             print(
-                "Error: the interactive REPL is only supported on the wican-ws "
-                "(ELM327) transport, not slcan-tcp.",
+                "Error: the interactive REPL is only supported on the ELM327 "
+                "transports (wican-ws / elm327-tcp), not slcan-tcp.",
                 file=sys.stderr,
             )
             sys.exit(1)

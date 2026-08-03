@@ -3,11 +3,11 @@
 import asyncio
 from datetime import datetime
 
-from ..terminal import WiCANTerminal
+from ..transport.elm327_terminal import Elm327Terminal
 
 
 async def mode_tester_present(
-    terminal: WiCANTerminal, target: str | None, interval: float, verbose: bool
+    terminal: Elm327Terminal, target: str | None, interval: float, verbose: bool
 ):
     """Send TesterPresent (3E00) at regular intervals to keep a session alive.
 
