@@ -2,6 +2,8 @@
 
 # `canair repl`
 
+*Alias: `interactive`*
+
 ```
 usage: canair repl [-h] [--wican WICAN] [--transport {slcan-tcp,wican-ws}]
                    [--no-fallback] [--elm-timeout MS] [--timeout SECONDS]

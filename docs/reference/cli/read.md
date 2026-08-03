@@ -2,6 +2,8 @@
 
 # `canair read`
 
+*Alias: `query`*
+
 ```
 usage: canair read [-h] [--param NAME [NAME ...]] [--session] [--wake]
                    [--repl] [--save] [--label TEXT] [--state TEXT]

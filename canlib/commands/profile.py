@@ -16,6 +16,7 @@ from canlib.profile import (
 )
 
 NAME = "profile"
+ALIASES = ["prof"]
 
 # Default ELM327 init string for a new profile: ISO 15765-4 CAN 11-bit/500 kbit
 # (the common modern-vehicle protocol), spaces off, allow long messages. The
@@ -28,6 +29,7 @@ DEFAULT_INIT = "ATSP6;ATS0;ATAL;"
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
+        aliases=ALIASES,
         help="List, inspect, and create vehicle profiles",
         description="List, inspect, and create vehicle profiles — the per-vehicle\n"
         "bundles (ecus/, profile.yaml, captures/, vehicle_states.yaml, can_buses.yaml,\n"

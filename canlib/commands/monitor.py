@@ -27,11 +27,13 @@ from canlib.commands._live import (
 )
 
 NAME = "monitor"
+ALIASES = ["mon"]
 
 
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
+        aliases=ALIASES,
         help="Live, continuously-refreshing view of ECU parameters (scrollable TUI)",
         description="Monitor ECUs/parameters live in a scrollable, refreshing view. "
         "Positional STEPs use the multi mini-language (same as `canair read`).",

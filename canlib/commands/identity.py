@@ -7,11 +7,13 @@ import argparse
 from canlib.commands._live import add_connection_args, finalize_live_parser
 
 NAME = "identity"
+ALIASES = ["id"]
 
 
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
+        aliases=ALIASES,
         help="Query ECU identity (part no., serial, VIN, ...) via UDS or KWP2000",
         description="Query ECU identity data and decode it. Supports UDS "
         "(22 F1xx) and KWP2000 (1A 8x/9x) ECUs; the protocol is auto-selected "

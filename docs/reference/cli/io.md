@@ -2,6 +2,8 @@
 
 # `canair io`
 
+*Alias: `iocontrol`*
+
 ```
 usage: canair io [-h] [--did DID] [--off] [--poll] [--wican WICAN]
                  [--transport {slcan-tcp,wican-ws}] [--no-fallback]

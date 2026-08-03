@@ -7,11 +7,13 @@ import argparse
 from canlib.commands._live import add_connection_args, finalize_live_parser
 
 NAME = "discover"
+ALIASES = ["disc"]
 
 
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
+        aliases=ALIASES,
         help="Sweep a range of TX addresses to find responding ECUs",
         description="Sweep a range of TX addresses (sends 10 01 to each) to find ECUs.",
         formatter_class=argparse.RawDescriptionHelpFormatter,

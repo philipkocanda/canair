@@ -87,6 +87,7 @@ from canlib.stats import compute_stats
 from canlib.stats import correlation as _correlation
 
 NAME = "decode"
+ALIASES = ["dec"]
 
 # ANSI colors
 _BOLD = "\033[1m"
@@ -251,6 +252,7 @@ def resolve_ref(ref: str, param_names: list[str]) -> str | None:
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
+        aliases=ALIASES,
         help="Decode captured UDS payloads using PID parameter definitions",
         description="Decode captured UDS payloads using PID parameter definitions.",
         formatter_class=argparse.RawDescriptionHelpFormatter,

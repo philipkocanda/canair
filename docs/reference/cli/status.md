@@ -2,6 +2,8 @@
 
 # `canair status`
 
+*Alias: `st`*
+
 ```
 usage: canair status [-h] [--transport {slcan-tcp,wican-ws}] [--wican WICAN]
                      [--json]

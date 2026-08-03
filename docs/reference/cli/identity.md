@@ -2,6 +2,8 @@
 
 # `canair identity`
 
+*Alias: `id`*
+
 ```
 usage: canair identity [-h] [--session] [--wake] [--protocol {auto,uds,kwp}]
                        [--wican WICAN] [--transport {slcan-tcp,wican-ws}]

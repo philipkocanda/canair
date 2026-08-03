@@ -2,6 +2,8 @@
 
 # `canair validate`
 
+*Alias: `val`*
+
 ```
 usage: canair validate [-h] [--stats] [--strict]
                        [{pids,captures,ecus,states,can-buses,signals,groups,can,all}]

@@ -69,9 +69,14 @@ def _subparsers_action(parser: argparse.ArgumentParser):
     return None
 
 
-def _render_command(name: str, parser: argparse.ArgumentParser) -> str:
+def _render_command(
+    name: str, parser: argparse.ArgumentParser, aliases: list[str] | None = None
+) -> str:
     """Render one top-level command (and its nested sub-kinds) to Markdown."""
     lines = [GENERATED_NOTE, "", f"# `canair {name}`", ""]
+    if aliases:
+        hint = ", ".join(f"`{a}`" for a in aliases)
+        lines += [f"*Alias{'es' if len(aliases) > 1 else ''}: {hint}*", ""]
     lines += ["```", _format_help(parser), "```", ""]
 
     sub = _subparsers_action(parser)
@@ -176,7 +181,9 @@ def generate() -> dict[str, str]:
         subparser = sub.choices.get(name)
         if subparser is None:
             continue
-        pages[f"{name}.md"] = _render_command(name, subparser)
+        # Alias keys share the canonical name's parser object (argparse aliases).
+        aliases = [k for k, v in sub.choices.items() if v is subparser and k != name]
+        pages[f"{name}.md"] = _render_command(name, subparser, aliases)
     pages["index.md"] = _index_page(names)
     return pages
 

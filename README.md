@@ -65,26 +65,26 @@ All functionality is exposed as `canair <subcommand>`; run `canair <cmd> --help`
 
 | Subcommand | Purpose |
 |--------|---------|
-| `canair status` | Snapshot of transport, device mode, reachability, and canair/WiCAN versions. |
+| `canair status` | Snapshot of transport, device mode, reachability, and canair/WiCAN versions (alias: `st`). |
 | `canair logs` | View the central diagnostics log (transport drops/errors), size-rotated and self-cleaning. |
 | `canair read` | Send UDS/KWP2000 requests — parameter reads, multi-ECU pipelines (alias: `query`). Companions: `discover`, `io`, `routines`, `raw`, `repl`. |
-| `canair monitor` | Live, continuously-refreshing view of ECU parameters (scrollable TUI); records with `--save`. |
+| `canair monitor` | Live, continuously-refreshing view of ECU parameters (scrollable TUI); records with `--save` (alias: `mon`). |
 | `canair scan` | Probe DID/routine/iocontrol/session ranges for responses. |
 | `canair dtc` | Read/clear Diagnostic Trouble Codes; report changes since the last scan. |
-| `canair identity` | Decode ECU identity DIDs — part number, versions, serial, VIN. |
+| `canair identity` | Decode ECU identity DIDs — part number, versions, serial, VIN (alias: `id`). |
 | `canair sniff` | Passive CAN-bus sniffer (raw SLCAN) with optional frame logging. |
 
 **Analysis**
 
 | Subcommand | Purpose |
 |--------|---------|
-| `canair captures` | Search/diff/step saved diagnostic captures (`captures uds`) or list raw-CAN frame logs (`captures can`). |
-| `canair decode` | Value-centric decoding of captures (mini-language QUERY, multi-PID) — stats, correlation, `--plot`, candidate-expression testing. |
+| `canair captures` | Search/diff/step saved diagnostic captures (`captures uds`) or list raw-CAN frame logs (`captures can`) (alias: `cap`). |
+| `canair decode` | Value-centric decoding of captures (mini-language QUERY, multi-PID) — stats, correlation, `--plot`, candidate-expression testing (alias: `dec`). |
 | `canair align` | Time-aligned wide table of several cross-ECU signals side by side (CSV/JSON/table). |
 | `canair correlate` | Rank the strongest cross-signal relationships across a drive (`uds` captures \| `can` frame log). |
 | `canair hunt` | "Which byte *is* this known signal?" — sweep, correlate, fit, unit-guess (`uds` PID \| `can` frame ID). |
 | `canair investigate` | One-shot per-byte report for an unknown PID. |
-| `canair coverage` | Audit PID definitions for decoding gaps. |
+| `canair coverage` | Audit PID definitions for decoding gaps (alias: `cov`). |
 | `canair research` | Report the open reverse-engineering backlog. |
 
 **Authoring**
@@ -98,7 +98,7 @@ All functionality is exposed as `canair <subcommand>`; run `canair <cmd> --help`
 | `canair states` | List/edit the vehicle operating-state vocabulary; `states <STATE>` shows which ECUs are readable in it. |
 | `canair groups` | List/edit named selector groups (saved queries); recall one as `@name` in `read`/`monitor` (e.g. `monitor @charging`). |
 | `canair wican` | Generate the WiCAN AutoPID JSON; upload/download/diff (Pro). |
-| `canair validate` | Validate `ecus/`, `profile.yaml`, and `captures/` against their schemas. |
+| `canair validate` | Validate `ecus/`, `profile.yaml`, and `captures/` against their schemas (alias: `val`). |
 
 **Import / export**
 
@@ -111,7 +111,7 @@ All functionality is exposed as `canair <subcommand>`; run `canair <cmd> --help`
 
 | Subcommand | Purpose |
 |--------|---------|
-| `canair profile` | Manage profile bundles — create/list/show/path. |
+| `canair profile` | Manage profile bundles — create/list/show/path (alias: `prof`). |
 | `canair contribute` | Open a pull request sharing the active profile upstream (via `gh`; no manual fork). |
 | `canair config` | View/manage user config. |
 | `canair update` | Update canair from its git clone (checkout release tag + reinstall); links the changelog. |

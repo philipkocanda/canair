@@ -2,6 +2,8 @@
 
 # `canair monitor`
 
+*Alias: `mon`*
+
 ```
 usage: canair monitor [-h] [--interval SECONDS] [--session] [--wake]
                       [--keep-changes | --keep-unique | --keep-all | --keep N]

@@ -13,6 +13,7 @@ import argparse
 import socket
 
 NAME = "status"
+ALIASES = ["st"]
 
 # Exit codes.
 _OK = 0
@@ -32,6 +33,7 @@ def _valid_transports():
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
+        aliases=ALIASES,
         help="Show the configured transport, device mode, and reachability",
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,

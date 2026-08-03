@@ -106,14 +106,32 @@ class CategorizedHelpFormatter(argparse.RawDescriptionHelpFormatter):
                     continue
                 parts.append(_header(title, indent))
                 for sub in group:
-                    parts.append(super()._format_action(sub))
+                    parts.append(self._format_subcommand(sub))
                     emitted.add(sub.dest)
             leftover = [sub for sub in subactions if sub.dest not in emitted]
             if leftover:
                 parts.append(_header(OTHER_TITLE, indent))
                 for sub in leftover:
-                    parts.append(super()._format_action(sub))
+                    parts.append(self._format_subcommand(sub))
         finally:
             self._dedent()
 
         return "".join(parts)
+
+    def _format_subcommand(self, sub: argparse.Action) -> str:
+        """Format one subcommand line, bolding its ``(alias, …)`` hint on a TTY.
+
+        argparse renders an aliased subcommand's invocation as ``name (a, b)``.
+        We bold only the parenthesised hint so the shortcuts stand out. The ANSI
+        codes are injected *after* argparse has padded the line (column widths are
+        computed from the plain text), and escapes have zero display width, so the
+        help-text column stays aligned.
+        """
+        text = super()._format_action(sub)
+        if not sys.stdout.isatty():
+            return text
+        inv = self._format_action_invocation(sub)
+        if "(" not in inv or ")" not in inv:
+            return text
+        hint = inv[inv.index("(") : inv.rindex(")") + 1]
+        return text.replace(hint, f"{_BOLD}{hint}{_RESET}", 1)

@@ -2,6 +2,8 @@
 
 # `canair contribute`
 
+*Alias: `share`*
+
 ```
 usage: canair contribute [-h] [--captures | --no-captures] [--branch BRANCH]
                          [--title TITLE] [--body BODY] [--repo-dir REPO_DIR]

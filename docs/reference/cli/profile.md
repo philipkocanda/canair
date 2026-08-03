@@ -2,6 +2,8 @@
 
 # `canair profile`
 
+*Alias: `prof`*
+
 ```
 usage: canair profile [-h] {list,show,path,use,create,init,new} ...
 

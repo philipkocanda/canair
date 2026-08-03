@@ -2,6 +2,8 @@
 
 # `canair decode`
 
+*Alias: `dec`*
+
 ```
 usage: canair decode [-h] [--param NAME [NAME ...]] [--verified]
                      [--unverified] [--json] [--compact] [--changes-only]

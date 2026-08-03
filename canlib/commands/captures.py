@@ -112,6 +112,7 @@ from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.states import join_states as _join_states
 
 NAME = "captures"
+ALIASES = ["cap"]
 
 
 # ---------------------------------------------------------------------------
@@ -974,6 +975,7 @@ def orphan_notice(captures_dir: Path | None = None) -> None:
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
+        aliases=ALIASES,
         help="Query captured data: uds (diagnostic payloads) | can (raw frame logs)",
         description="Query captured data. Choose a kind:\n"
         "  uds   diagnostic UDS payloads (captures/*.json) — the QUERY/diff/step/\n"

@@ -43,6 +43,7 @@ from canlib.notation import (
 from canlib.pids import build_ecu_index, load_pids
 
 NAME = "coverage"
+ALIASES = ["cov"]
 
 
 class BitfieldGap(TypedDict):
@@ -203,6 +204,7 @@ def analyze_pid(parameters: dict, payload_hex: str, sfb: int) -> PidAnalysis:
 def add_parser(subparsers):
     parser = subparsers.add_parser(
         NAME,
+        aliases=ALIASES,
         help="Audit PID definitions for decoding gaps",
         description="Audit PID definitions for decoding gaps.",
         formatter_class=argparse.RawDescriptionHelpFormatter,

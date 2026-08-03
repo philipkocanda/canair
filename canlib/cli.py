@@ -37,6 +37,12 @@ _GROUP_DEFAULTS = {
     "investigate": ({"uds", "can"}, "uds"),
 }
 
+# Alias -> canonical command name for the group-default injection below, so a
+# command alias (e.g. `cap` for `captures`) still gets its default kind injected.
+# argparse resolves aliases itself, but _inject_default_subcommand runs on raw
+# argv before argparse, so it must know the alias maps to a _GROUP_DEFAULTS key.
+_GROUP_ALIASES = {"cap": "captures"}
+
 # Commands that manage/report versions themselves or shouldn't be interrupted by
 # an update notice (they have their own output contract or run non-interactively).
 _UPDATE_CHECK_SKIP_COMMANDS = {"update", "completion", "config"}
@@ -123,7 +129,7 @@ def _inject_default_subcommand(argv: list[str]) -> list[str]:
         break
     if i >= n:
         return argv
-    group = _GROUP_DEFAULTS.get(argv[i])
+    group = _GROUP_DEFAULTS.get(_GROUP_ALIASES.get(argv[i], argv[i]))
     if group is None:
         return argv
     kinds, default_kind = group

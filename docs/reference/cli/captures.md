@@ -2,6 +2,8 @@
 
 # `canair captures`
 
+*Alias: `cap`*
+
 ```
 usage: canair captures [-h] <kind> ...
 

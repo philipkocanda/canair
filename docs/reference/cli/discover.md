@@ -2,6 +2,8 @@
 
 # `canair discover`
 
+*Alias: `disc`*
+
 ```
 usage: canair discover [-h] [--range START-END] [--delay DELAY] [--register]
                        [--dry-run] [--identify] [--save] [--label TEXT]

@@ -2,6 +2,8 @@
 
 # `canair coverage`
 
+*Alias: `cov`*
+
 ```
 usage: canair coverage [-h] [--all] [--unmapped] [--unverified] [--bitfields]
                        [--no-capture] [--json] [--notation NAME]

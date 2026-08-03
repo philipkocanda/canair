@@ -51,6 +51,7 @@ from .pids import (
 )
 
 NAME = "validate"
+ALIASES = ["val"]
 
 __all__ = [
     "NAME",
@@ -83,6 +84,7 @@ __all__ = [
 def add_parser(subparsers):
     parser = subparsers.add_parser(
         NAME,
+        aliases=ALIASES,
         help="Check a profile's ecus/, profile.yaml, and captures/ against their schemas",
         description="Validate a profile's data files against their schemas and\n"
         "report problems.\n\n"
