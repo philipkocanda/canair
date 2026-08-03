@@ -208,7 +208,7 @@ async def mode_skm_wakeup(terminal: WiCANTerminal, level: str, verbose: bool):
     print("        Extended session (10 03) established.")
 
     # Step 3: Send relay ON command
-    await terminal._drain()
+    await terminal._channel.drain()
     cmd = f"2F{did}03{SKM_MAGIC}"
     print(f"  [3/4] Sending {desc} ON ({cmd})...")
     resp = await terminal.send_command(cmd, timeout=10.0)
