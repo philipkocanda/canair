@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`elm327-tcp` transport — support any generic ELM327 adapter.** canair now
+  talks to a plain ELM327 clone (WiFi dongles like Kiwi, vLinker, OBDLink, or any
+  no-name $10 adapter) over a direct TCP socket — no WiCAN required. Select it
+  with `--transport elm327-tcp` or a per-device `transport: elm327-tcp` (default
+  ELM socket port 35000). Every command works identically to the WiCAN ELM327
+  path: the ELM327 protocol engine was extracted into a transport-agnostic
+  `Elm327Terminal` driven by a swappable byte `Channel` (WebSocket for the WiCAN,
+  a plain TCP socket for a clone), so the two ELM transports share one
+  battle-tested implementation.
+- **Offline testing with [ELM327-Emulator](https://github.com/ircama/ELM327-emulator).**
+  Point canair at the emulator's `-n` TCP mode (`elm -n 35000`) to develop and
+  try commands with no dongle and no car. A new
+  [offline-testing guide](https://philipkocanda.github.io/canair/getting-started/offline-testing/)
+  covers setup, and an opt-in integration test drives the emulator through the
+  real `elm327-tcp` path (auto-skipped when the emulator isn't installed, so the
+  core suite stays device-free). See
+  `plans/2026-08-03-elm327-direct-transport.md`.
+
 ## [1.12.0] - 2026-08-03
 
 ### Added

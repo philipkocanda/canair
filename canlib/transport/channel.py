@@ -142,3 +142,74 @@ class WebSocketChannel:
             except Exception:
                 pass
             self.ws = None
+
+
+class TcpChannel:
+    """ELM327 channel over a plain TCP socket (a direct WiFi ELM327 adapter).
+
+    Generic $10 WiFi clones (Kiwi, vLinker, OBDLink) — and the ELM327-Emulator's
+    ``-n`` network mode — expose the ELM327 terminal as a raw ASCII byte stream on
+    a TCP port (conventionally 35000), with **no** WebSocket/JSON envelope. So the
+    channel just streams command text and returns decoded ASCII; the engine's
+    ``>``-prompt accumulation handles reply framing exactly as for the WebSocket.
+    """
+
+    transport_name = "elm327-tcp"
+
+    def __init__(self, host: str, port: int, verbose: bool = False):
+        self.host = host
+        self.port = port
+        self.verbose = verbose
+        self._reader: asyncio.StreamReader | None = None
+        self._writer: asyncio.StreamWriter | None = None
+
+    async def connect(self) -> None:
+        if self.verbose:
+            print(f"  [tcp] Connecting to {self.host}:{self.port}...", file=sys.stderr)
+        self._reader, self._writer = await asyncio.open_connection(self.host, self.port)
+
+    async def send(self, text: str) -> None:
+        assert self._writer is not None  # connected before use
+        self._writer.write(text.encode("ascii", errors="ignore"))
+        await self._writer.drain()
+        if self.verbose:
+            print(f"  [tcp] Sent: {text!r}", file=sys.stderr)
+
+    async def recv(self, timeout: float) -> str | None:
+        assert self._reader is not None  # connected before use
+        try:
+            chunk = await asyncio.wait_for(self._reader.read(4096), timeout=timeout)
+        except TimeoutError:
+            return None
+        if chunk == b"":
+            # EOF: the peer closed the socket.
+            raise ConnectionError("ELM327 TCP connection closed")
+        text = chunk.decode("ascii", errors="ignore")
+        if self.verbose:
+            print(f"  [tcp] Recv: {text!r}", file=sys.stderr)
+        return text
+
+    async def drain(self, per_recv_timeout: float = 0.2, max_seconds: float = 1.0) -> None:
+        """Read and discard any pending bytes (clears stale/late frames)."""
+        if self._reader is None:
+            return
+        deadline = time.monotonic() + max_seconds
+        while time.monotonic() < deadline:
+            try:
+                chunk = await asyncio.wait_for(self._reader.read(4096), timeout=per_recv_timeout)
+                if chunk == b"":
+                    break
+                if self.verbose:
+                    print(f"  [tcp] Drained: {chunk!r}", file=sys.stderr)
+            except (TimeoutError, Exception):
+                break
+
+    async def close(self) -> None:
+        if self._writer is not None:
+            try:
+                self._writer.close()
+                await self._writer.wait_closed()
+            except Exception:
+                pass
+        self._reader = None
+        self._writer = None

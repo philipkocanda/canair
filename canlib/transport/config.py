@@ -31,15 +31,19 @@ class TransportSpec:
 
     Register one per transport in :data:`TRANSPORTS`. ``raw`` marks a raw-CAN
     backend (python-can bus + client-side ISO-TP, as opposed to an ELM327-style
-    terminal where the dongle does ISO-TP). ``summary`` is the human one-liner
-    shown by ``canair status`` — describe the *mechanism* and any transport-
-    specific capabilities, not the command list (nearly every command runs over
-    every transport via a common terminal interface).
+    terminal where the dongle does ISO-TP). ``wican_http`` marks a transport that
+    reaches a **WiCAN**, whose HTTP config API (``/load_config`` etc.) is then
+    queryable for mode/port/bitrate and liveness — false for a generic device
+    (e.g. a direct ELM327 clone) that has no such API. ``summary`` is the human
+    one-liner shown by ``canair status`` — describe the *mechanism* and any
+    transport-specific capabilities, not the command list (nearly every command
+    runs over every transport via a common terminal interface).
     """
 
     type: str
     raw: bool
     summary: str
+    wican_http: bool = True
 
 
 # Registry of known transports. Add a new entry here to teach canair a new
@@ -61,12 +65,25 @@ TRANSPORTS: dict[str, TransportSpec] = {
             "all diagnostic commands (no passive sniff)"
         ),
     ),
+    "elm327-tcp": TransportSpec(
+        type="elm327-tcp",
+        raw=False,
+        wican_http=False,
+        summary=(
+            "direct ELM327 adapter over a plain TCP socket (WiFi clones — "
+            "Kiwi, vLinker, OBDLink; also the ELM327-Emulator); the dongle "
+            "runs ISO-TP — all diagnostic commands (no passive sniff)"
+        ),
+    ),
 }
 
 VALID_TRANSPORTS = tuple(TRANSPORTS)
 
 # Canonical default when nothing is configured (see module docstring).
 DEFAULT_TRANSPORT = "slcan-tcp"
+
+# Conventional TCP port for a direct ELM327 WiFi adapter / ELM327-Emulator (-n).
+DEFAULT_ELM327_TCP_PORT = 35000
 
 
 @dataclass(frozen=True)
@@ -105,11 +122,17 @@ class TransportConfig:
     def is_wican_http(self) -> bool:
         """True when the device is a WiCAN reachable over its HTTP config API.
 
-        Both current transports point at a WiCAN (ws terminal or its SLCAN
-        socket), so its ``/load_config`` / ``/check_status`` endpoints are
-        queryable. (A future non-WiCAN transport, e.g. socketcan, would not be.)
+        Driven by the transport's :attr:`TransportSpec.wican_http` flag (and a
+        resolved host): the WiCAN transports (``slcan-tcp`` / ``wican-ws``) can
+        query ``/load_config`` / ``/check_status`` for mode/port/bitrate and
+        liveness, whereas a generic ELM327 adapter (``elm327-tcp``) has no such
+        API. An unknown transport type is assumed WiCAN-HTTP-capable (permissive,
+        matching the pre-registry behaviour) when it has a host.
         """
-        return self.host is not None
+        if self.host is None:
+            return False
+        spec = self.spec
+        return spec.wican_http if spec is not None else True
 
     def describe(self) -> str:
         loc = self.host or "?"

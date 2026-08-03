@@ -120,6 +120,20 @@ All CLI tools use `--wican home|vpn|<ip>` to select the target. Without config, 
 
 - WebSocket terminal: `ws://<ip>/ws` (send `{"ws_mode": "terminal", "terminal_type": "elm327"}`)
 
-## Ideas
+## Transports
+
+canair reaches the bus through one explicitly-selected transport (never auto-detected). Selection precedence: `--transport`/`--wican` CLI > per-device `transport:` > global `transport:` block > default `slcan-tcp`. Registry-driven: each is a `TransportSpec` in `canlib/transport/config.py::TRANSPORTS` (adding a backend = registering a spec).
+
+- **`slcan-tcp`** (default, `raw=True`) — raw SLCAN over TCP; canair runs client-side ISO-TP/UDS (pipelined). Any WiCAN (Pro/classic) or gateway; also powers `canair sniff`. Backend: `RawTerminal` (`canlib/transport/raw_terminal.py`) over `SlcanTcpBus`.
+- **`wican-ws`** (Pro-only, `raw=False`) — ELM327 terminal over the WiCAN's `ws://host/ws` WebSocket; the dongle does ISO-TP. Backend: `WiCANTerminal` (`canlib/terminal.py`).
+- **`elm327-tcp`** (`raw=False`, `wican_http=False`) — a **generic ELM327 adapter over a plain TCP socket**: WiFi clones (Kiwi, vLinker, OBDLink) and the ELM327-Emulator's `-n` mode. No WiCAN, no HTTP config API. Backend: `Elm327TcpTerminal` (`canlib/transport/elm327_terminal.py`) over a `TcpChannel`; default port 35000 (`DEFAULT_ELM327_TCP_PORT`).
+
+**Shared ELM327 engine.** The ELM327 protocol logic lives once in `Elm327Terminal` (`canlib/transport/elm327_terminal.py`), driven by a swappable async byte `Channel` (`canlib/transport/channel.py`: `WebSocketChannel` for the WiCAN, `TcpChannel` for a clone). `WiCANTerminal`/`Elm327TcpTerminal` are thin subclasses wiring their channel — so a new ELM327 wire (e.g. serial) is a new `Channel`, not a duplicated engine. `WiCANTerminal` keeps a settable `ws`/`url` proxy for the WiCAN-only SKM relay-wake ritual + test fakes. All three backends satisfy the `Terminal` protocol (`transport/protocol.py`) and run through the shared `dispatch_mode`.
+
+**`is_wican_http`** (`TransportConfig`) is spec-driven (`TransportSpec.wican_http` + a host), NOT `host is not None`: true only for the WiCAN transports (queryable `/load_config` / `/check_status`), false for `elm327-tcp`. Gates the WiCAN-only paths in `async_main` (sleep banner, `reboot_wican`, `require_ws_reachable`) and `canair status`. The ELM connect factory `connect_elm_terminal(transport, …)` (`_live.py`) builds the right terminal by `transport.type`; a direct-ELM reachability pre-check is `require_elm327_tcp_reachable` (`wican_mode.py`, probes the ELM socket port). Fallback liveness (`transport/fallback.py::_probe_port`) probes port 80 for WiCAN-HTTP, else the ELM/data port.
+
+**Offline testing** — point `elm327-tcp` at [ELM327-Emulator](https://github.com/ircama/ELM327-emulator) (`elm -n 35000`) for a device-free ELM327 wire. It is **not** a canair dependency (its legacy build breaks `uv sync`; install manually with `uv pip install "setuptools<80"` then `uv pip install --no-build-isolation ELM327-emulator`). Opt-in integration test `tests/test_elm327_emulator.py` auto-skips when absent (core suite stays device-free). Docs: `docs/getting-started/offline-testing.md`. Plan: `plans/2026-08-03-elm327-direct-transport.md`.
+
+- WebSocket terminal: `ws://<ip>/ws` (send `{"ws_mode": "terminal", "terminal_type": "elm327"}`)
 
 - Use known PIDs to automatically deduce vehicle state to help understand new PIDs

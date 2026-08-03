@@ -37,6 +37,9 @@ css-electronics/
 .secrets.json
 config.yaml
 
+# ELM327-Emulator writes a log file to the cwd during offline testing
+elm.log
+
 # Per-profile logs (command/response captures) and generated build output
 profiles/*/logs/
 

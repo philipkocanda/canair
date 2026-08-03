@@ -232,6 +232,33 @@ class TestTransportConfigProps:
         assert TransportConfig("slcan-tcp").is_raw
         assert not TransportConfig("slcan-tcp").is_elm
 
+    def test_elm327_tcp_is_elm_not_raw_not_wican_http(self):
+        from canlib.transport.config import TransportConfig
+
+        t = TransportConfig("elm327-tcp", "1.2.3.4", port=35000)
+        assert t.is_elm
+        assert not t.is_raw
+        # A direct ELM327 adapter has no HTTP config API even with a host set.
+        assert not t.is_wican_http
+
+    def test_wican_transports_are_wican_http_with_host(self):
+        from canlib.transport.config import TransportConfig
+
+        assert TransportConfig("slcan-tcp", "1.2.3.4").is_wican_http
+        assert TransportConfig("wican-ws", "1.2.3.4").is_wican_http
+        # No host -> never wican-http.
+        assert not TransportConfig("wican-ws", host=None).is_wican_http
+
+    def test_elm327_tcp_probe_port_default(self):
+        from canlib.transport.config import DEFAULT_ELM327_TCP_PORT, TransportConfig
+        from canlib.transport.fallback import _probe_port
+
+        # No HTTP -> probe the ELM socket port, defaulting to 35000.
+        assert _probe_port(TransportConfig("elm327-tcp", "1.2.3.4")) == DEFAULT_ELM327_TCP_PORT
+        assert _probe_port(TransportConfig("elm327-tcp", "1.2.3.4", port=3333)) == 3333
+        # WiCAN transports probe HTTP port 80.
+        assert _probe_port(TransportConfig("slcan-tcp", "1.2.3.4")) == 80
+
     def test_describe(self):
         from canlib.transport.config import TransportConfig
 

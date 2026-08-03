@@ -26,7 +26,7 @@ Everything ships as a single installable CLI, **`canair`**. Vehicle data lives i
 
 ## How it connects
 
-`canair` never talks CAN directly — it reaches the bus through the WiCAN dongle via one of two explicitly-selected transports: **`slcan-tcp`** (default; raw SLCAN over TCP, any WiCAN, canair does ISO-TP+UDS) or **`wican-ws`** (Pro only; ELM327 over WebSocket, the dongle does ISO-TP).
+`canair` never talks CAN directly — it reaches the bus through an adapter via one of three explicitly-selected transports: **`slcan-tcp`** (default; raw SLCAN over TCP, any WiCAN, canair does ISO-TP+UDS), **`wican-ws`** (Pro only; ELM327 over WebSocket, the dongle does ISO-TP), or **`elm327-tcp`** (a generic ELM327 clone — Kiwi/vLinker/OBDLink, or the [ELM327-Emulator](https://philipkocanda.github.io/canair/getting-started/offline-testing/) — over a plain TCP socket, no WiCAN needed).
 
 ```mermaid
 flowchart LR

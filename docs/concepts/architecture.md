@@ -1,8 +1,9 @@
 # Architecture
 
-canair **never talks CAN directly** — it reaches the bus through the WiCAN dongle
-over one of two explicitly-selected transports. Responses are parsed and decoded
-into named parameters using the active [profile](profiles.md)'s definitions.
+canair **never talks CAN directly** — it reaches the bus through an adapter
+(a WiCAN dongle, or a generic ELM327 clone) over one of several
+explicitly-selected transports. Responses are parsed and decoded into named
+parameters using the active [profile](profiles.md)'s definitions.
 
 ## How it connects
 
@@ -39,9 +40,17 @@ The device runs **one protocol at a time** — check with `canair status`.
   classic)** or gateway. Also powers `canair sniff`.
 - **`wican-ws`** (Pro only) — the WiCAN Pro's ELM327 emulation over a WebSocket;
   the *dongle* performs ISO-TP.
+- **`elm327-tcp`** — a **generic ELM327 adapter** over a plain TCP socket: the
+  $10 WiFi clones (Kiwi, vLinker, OBDLink, no-name dongles) and the
+  [ELM327-Emulator](../getting-started/offline-testing.md)'s `-n` mode. No WiCAN,
+  no HTTP config API — just the ELM327 terminal on a TCP port (usually 35000);
+  the *dongle* performs ISO-TP.
 
-`slcan-tcp` is the canonical default because it runs on both hardware variants.
-Select a transport with `--transport` or the config `transport:` block.
+`slcan-tcp` is the canonical default because it runs on both WiCAN hardware
+variants. Select a transport with `--transport` or the config `transport:` block.
+The ELM327 transports (`wican-ws`, `elm327-tcp`) share one ELM327 protocol
+engine — only the byte channel (WebSocket vs. plain TCP) differs — so every
+command works identically over each.
 
 ## Protocols
 
@@ -64,5 +73,5 @@ canair handles two parallel kinds of data:
   (`canair sniff`).
 
 Both are first-class. The transport layer treats the WiCAN as a *replaceable* way
-to reach the bus, so a future SocketCAN or replay backend could slot in behind
-the same interface.
+to reach the bus — a generic ELM327 clone (`elm327-tcp`) already slots in behind
+the same interface, and a future SocketCAN or replay backend could too.

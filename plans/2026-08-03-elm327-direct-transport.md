@@ -1,6 +1,6 @@
 # Direct ELM327 socket transport (`elm327-tcp`) + offline ELM327-Emulator testing
 
-Status: in progress (2026-08-03) — commit 1 (channel/engine extraction) done.
+Status: in progress (2026-08-03) — commit 1 (channel/engine extraction) + commit 2 (elm327-tcp transport + offline testing) done.
 
 ## Motivation
 
@@ -36,9 +36,12 @@ the new transport.
   design the `Channel` seam so a `SerialChannel` drops in with no engine change.
   Serial adds a `pyserial` dep + `device`/`baudrate` config + non-TCP liveness —
   deferred.
-- **Opt-in ELM327-Emulator integration fixture.** Add the emulator as a dev
-  dependency + a pytest fixture that spawns it in TCP mode on an ephemeral port,
-  skipped when unavailable — the core CI gate stays device-free and fast.
+- **Opt-in ELM327-Emulator integration test.** A pytest test that spawns the
+  emulator in TCP mode on an ephemeral port, **skipped when the `elm` package
+  isn't importable** — the core CI gate stays device-free and fast. The emulator
+  is **NOT** a canair dev dependency: its legacy build imports `pkg_resources`
+  and breaks a clean `uv sync` (needs `setuptools<80` + `--no-build-isolation`),
+  so it's a documented manual install instead.
 
 ## Architecture
 
@@ -130,18 +133,18 @@ serial `SerialException ⊂ OSError` for the follow-up). Add an "ELM327/TCP"
 
 ## Offline testing with ELM327-Emulator (commit 3, opt-in)
 
-- Add `ELM327-emulator` to the `dev` dependency group.
-- `tests/fixtures/elm_emulator.py` fixture: spawn `python -m elm -n <ephemeral>
-  -s car`, wait for readiness, yield `host:port`, tear down. **Skip** (via
-  `importorskip` / port check) when unavailable → core device-free CI stays green.
-- `tests/test_elm327_tcp.py` (integration): `Elm327TcpTerminal` against the
-  emulator — `init_elm`, `set_header` + single-frame `send_uds`, an ISO-TP
-  **multi-frame** response, a `NO DATA`/NRC path, and one run through
-  `dispatch_mode` (proving transport-agnosticism, per `TestDispatchTransportAgnostic`).
-- Device-free unit tests (always run): `TcpChannel` framing (ASCII decode,
-  `>`-boundary, partial-chunk reassembly); the `Elm327Terminal`/`WiCANTerminal`
-  split (existing `test_terminal.py` passes unchanged); transport-config for
-  `elm327-tcp` (incl. `is_wican_http` False); fallback probe-port selection.
+- The emulator is **not** a canair dependency (its legacy build imports
+  `pkg_resources`, breaking `uv sync`); install it manually for offline testing:
+  `uv pip install "setuptools<80"` then
+  `uv pip install --no-build-isolation ELM327-emulator`.
+- `tests/test_elm327_emulator.py` fixture: spawn `python -m elm -n <ephemeral>`,
+  wait for readiness, yield `host:port`, tear down. **Skips** (via
+  `importorskip("elm")`) when unavailable → core device-free CI stays green. The
+  fixture is function-scoped (the emulator's `-n` mode serves one client).
+- Integration assertions: `Elm327TcpTerminal` against the emulator — `ATI`
+  round-trip (the transport proof), a stable stateless PID (`0105` → `4105…`),
+  and `ATRV`. (`0100` bus-init and multi-frame VIN are emulator-flaky over TCP —
+  exercised manually, not asserted.)
 
 ## Docs (required — same-change policy)
 
@@ -167,7 +170,16 @@ serial `SerialException ⊂ OSError` for the follow-up). Add an "ELM327/TCP"
    3410 tests + ruff + ty green; zero behavior change on the WebSocket path.
 2. **Add `elm327-tcp`:** `TcpChannel`, `Elm327TcpTerminal`, registry + `wican_http`
    spec field, dispatch/status/fallback decoupling, unit tests, docs.
+   **DONE** — `TcpChannel` + `Elm327TcpTerminal`; `TransportSpec.wican_http` +
+   spec-driven `is_wican_http`; `DEFAULT_ELM327_TCP_PORT` (35000);
+   `connect_elm_terminal(transport, …)` factory + `require_elm327_tcp_reachable`;
+   `_probe_port`/`status`/`--transport` help decoupled from WiCAN. Tests:
+   `test_elm327_tcp.py` (TcpChannel framing + engine-over-arbitrary-channel) +
+   config/fallback cases.
 3. **Offline testing:** emulator dev dep + opt-in fixture + integration tests.
+   **DONE** — opt-in `tests/test_elm327_emulator.py` (spawns `elm -n <port>`,
+   auto-skips when the `elm` package is absent — it's NOT a dep, its legacy build
+   breaks `uv sync`). Docs: `docs/getting-started/offline-testing.md`.
 
 ## Out of scope (follow-up)
 

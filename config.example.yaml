@@ -40,11 +40,15 @@ devices:
     host: "192.168.80.1"    # Direct connection to WiCAN AP (factory default)
   home:
     host: "192.168.1.100"   # device on your home LAN
-    transport: slcan-tcp    # optional per-device transport (slcan-tcp | wican-ws)
+    transport: slcan-tcp    # optional per-device transport (slcan-tcp | wican-ws | elm327-tcp)
     port: 3333              # optional per-device slcan-tcp port
   vpn:
     host: "10.0.0.100"      # device reachable via VPN/tunnel
     transport: wican-ws
+  clone:
+    host: "192.168.0.10"    # a generic WiFi ELM327 dongle (Kiwi, vLinker, OBDLink)
+    transport: elm327-tcp   # direct ELM327 over a plain TCP socket (no WiCAN)
+    port: 35000             # ELM socket port (most WiFi clones use 35000)
 
 default_wican: home
 
@@ -88,11 +92,13 @@ default_wican: home
 # defaults to slcan-tcp (the canonical default — works on both the WiCAN Pro and
 # the classic WiCAN), using the devices/default_wican host above. A per-device
 # `transport:` (see devices above) overrides transport.type for that device.
-# The wican-ws transport requires a WiCAN Pro (see wican_model above).
+# The wican-ws transport requires a WiCAN Pro (see wican_model above). The
+# elm327-tcp transport talks to a generic ELM327 adapter (WiFi clones, or the
+# ELM327-Emulator's `-n` mode) over a plain TCP socket — no WiCAN required.
 # transport:
-#   type: slcan-tcp      # slcan-tcp (raw SLCAN over TCP, default) | wican-ws (WebSocket ELM327, Pro-only)
-#   host: 192.168.3.2    # device host/IP (both transports)
-#   port: 35000          # slcan-tcp only (Pro 35000, classic 3333); auto-detected if omitted
+#   type: slcan-tcp      # slcan-tcp (raw SLCAN over TCP, default) | wican-ws (WebSocket ELM327, Pro-only) | elm327-tcp (direct ELM327 over TCP)
+#   host: 192.168.3.2    # device host/IP (all transports)
+#   port: 35000          # slcan-tcp (Pro 35000, classic 3333) / elm327-tcp (usually 35000); auto-detected for slcan-tcp if omitted
 #   bitrate: 500000      # slcan-tcp only; overrides all else. Precedence:
 #                        #   this > profile can_bitrate > device can_datarate > 500000
 #

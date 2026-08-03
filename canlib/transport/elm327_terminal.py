@@ -26,7 +26,7 @@ from ..safety import enforce_command_safety
 from ..timing import TimingRecorder
 from ..transport_stats import TransportStats
 from ..uds_parse import UdsResponse, parse_uds_response
-from .channel import Channel
+from .channel import Channel, TcpChannel
 
 
 class Elm327Terminal:
@@ -396,3 +396,34 @@ class Elm327Terminal:
 
         tester_task = asyncio.create_task(_tester_present_loop())
         return resp.get("ok", False), tester_task
+
+
+class Elm327TcpTerminal(Elm327Terminal):
+    """ELM327 engine over a direct TCP socket (transport ``elm327-tcp``).
+
+    The counterpart to :class:`canlib.terminal.WiCANTerminal` for a generic WiFi
+    ELM327 adapter (or the ELM327-Emulator's ``-n`` network mode): same engine,
+    only the channel differs (a plain :class:`~canlib.transport.channel.TcpChannel`
+    instead of the WiCAN WebSocket). Unlike the WiCAN, there is no HTTP config API
+    and no ``reboot``.
+    """
+
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        timeout: float = 3.0,
+        verbose: bool = False,
+        unsafe: bool = False,
+        hk_f1xx_offset: bool = False,
+    ):
+        self.host = host
+        self.port = port
+        channel = TcpChannel(host, port, verbose=verbose)
+        super().__init__(
+            channel,
+            timeout=timeout,
+            verbose=verbose,
+            unsafe=unsafe,
+            hk_f1xx_offset=hk_f1xx_offset,
+        )

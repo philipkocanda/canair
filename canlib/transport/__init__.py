@@ -9,8 +9,9 @@ dongle does ISO-TP. Transports are described once in
 another backend.
 """
 
-from .channel import Channel, WebSocketChannel
+from .channel import Channel, TcpChannel, WebSocketChannel
 from .config import (
+    DEFAULT_ELM327_TCP_PORT,
     DEFAULT_TRANSPORT,
     TRANSPORTS,
     VALID_TRANSPORTS,
@@ -20,7 +21,7 @@ from .config import (
     resolve_transport,
     resolve_transport_candidates,
 )
-from .elm327_terminal import Elm327Terminal
+from .elm327_terminal import Elm327TcpTerminal, Elm327Terminal
 from .errors import (
     connect_error_detail,
     describe_transport_error,
@@ -34,14 +35,17 @@ from .slcan_tcp import SlcanTcpBus, format_slcan_frame, parse_slcan_frame
 from .uds_raw import RawUdsClient, response_id
 
 __all__ = [
+    "DEFAULT_ELM327_TCP_PORT",
     "DEFAULT_TRANSPORT",
     "TRANSPORTS",
     "VALID_TRANSPORTS",
     "Channel",
+    "Elm327TcpTerminal",
     "Elm327Terminal",
     "RawTerminal",
     "RawUdsClient",
     "SlcanTcpBus",
+    "TcpChannel",
     "Terminal",
     "TransportConfig",
     "TransportError",

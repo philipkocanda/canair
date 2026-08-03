@@ -24,13 +24,19 @@ from .config import TransportConfig
 def _probe_port(cand: TransportConfig) -> int:
     """Port to probe for device liveness.
 
-    Both current transports reach a WiCAN, whose HTTP/config API on port 80 is a
-    cheap, mode-independent liveness signal (the ws terminal lives there, and the
-    slcan data port's reachability is re-checked on the chosen device downstream).
-    A future non-WiCAN gateway (no HTTP) falls back to its data port.
+    A WiCAN transport's HTTP/config API on port 80 is a cheap, mode-independent
+    liveness signal (the ws terminal lives there, and the slcan data port's
+    reachability is re-checked on the chosen device downstream). A direct ELM327
+    adapter (``elm327-tcp``) has no HTTP API, so we probe its ELM socket port
+    directly (default 35000). Any other non-WiCAN gateway falls back to its data
+    port.
     """
     if cand.is_wican_http:
         return 80
+    if cand.type == "elm327-tcp":
+        from .config import DEFAULT_ELM327_TCP_PORT
+
+        return cand.port or DEFAULT_ELM327_TCP_PORT
     return cand.port or 3333
 
 

@@ -74,6 +74,10 @@ devices:
   vpn:
     host: "10.0.0.100"
     transport: wican-ws
+  clone:
+    host: "192.168.0.10"
+    transport: elm327-tcp    # generic WiFi ELM327 dongle (no WiCAN)
+    port: 35000
 default_wican: home
 ```
 
@@ -84,7 +88,7 @@ Set them from the CLI:
 
 ```bash
 canair config set devices.home.host 10.0.2.86
-canair config set devices.home.transport wican-ws   # validated: slcan-tcp | wican-ws
+canair config set devices.home.transport wican-ws   # validated: slcan-tcp | wican-ws | elm327-tcp
 ```
 
 !!! note "Legacy `wican_addresses`"
@@ -143,9 +147,9 @@ config-only.
 
 ```yaml
 transport:
-  type: slcan-tcp      # slcan-tcp (default) | wican-ws (Pro-only)
-  host: 192.168.3.2    # device host/IP (both transports)
-  port: 35000          # slcan-tcp only (Pro 35000, classic 3333); auto if omitted
+  type: slcan-tcp      # slcan-tcp (default) | wican-ws (Pro-only) | elm327-tcp (direct ELM327)
+  host: 192.168.3.2    # device host/IP (all transports)
+  port: 35000          # slcan-tcp (Pro 35000, classic 3333) / elm327-tcp (usually 35000); auto for slcan-tcp if omitted
   bitrate: 500000      # slcan-tcp only; overrides all else (falls back to profile can_bitrate)
 ```
 
@@ -153,6 +157,11 @@ When `transport` is omitted, canair defaults to `slcan-tcp` using
 `devices`/`default_wican` for the host. A per-device `transport:` (see above)
 overrides `transport.type` for that device. See
 [Architecture](../concepts/architecture.md) for what the transports are.
+
+The **`elm327-tcp`** transport talks to a generic ELM327 adapter (WiFi clones, or
+the [ELM327-Emulator](../getting-started/offline-testing.md)) over a plain TCP
+socket — no WiCAN, so its HTTP-only affordances (device mode/firmware, `wican`
+subcommands) don't apply; reachability is a direct probe of the ELM socket port.
 
 `canair wican mode set MODE` keeps `transport.type` in step with the device's
 mode: switching to `slcan` sets `slcan-tcp`, switching to `elm327` sets

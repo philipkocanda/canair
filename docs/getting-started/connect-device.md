@@ -1,8 +1,8 @@
 # Connect your dongle
 
-canair reaches the CAN bus *through* a WiCAN dongle — it never talks CAN
-directly. This page gets your computer talking to the dongle and confirms it's
-usable.
+canair reaches the CAN bus *through* an adapter — a WiCAN dongle, or a generic
+ELM327 clone — it never talks CAN directly. This page gets your computer talking
+to the dongle and confirms it's usable.
 
 ## 1. Plug in and power up
 
@@ -53,6 +53,29 @@ canair config set wican_model classic
 `diff`), `wican mode set`, and the `wican-ws` WebSocket transport. All the core
 reverse-engineering — query, scan, discover, decode, DTCs, sniff, and generating
 AutoPID JSON — works on **both** over the default raw-SLCAN transport.
+
+## Using a generic ELM327 clone (no WiCAN)
+
+Don't have a WiCAN? A generic **WiFi ELM327 adapter** (Kiwi, vLinker, OBDLink, or
+any no-name $10 clone) works over the **`elm327-tcp`** transport — a plain TCP
+socket to the dongle's ELM327 terminal, no WiCAN required:
+
+```bash
+canair config set devices.clone.host 192.168.0.10   # the dongle's WiFi IP
+canair config set devices.clone.transport elm327-tcp
+canair config set devices.clone.port 35000           # most WiFi clones use 35000
+canair config set default_wican clone
+canair status                                        # confirm it's reachable
+```
+
+Join the dongle's WiFi network first (many clones host their own access point).
+The ELM327 protocol engine is shared with `wican-ws`, so every canair command
+works the same — the dongle performs ISO-TP. There's no HTTP config API on a
+generic clone, so `canair status` reports transport reachability by probing the
+ELM socket directly (no device/firmware block).
+
+Want to try canair with **no hardware at all**? See
+[Offline testing with ELM327-Emulator](offline-testing.md).
 
 ## 5. Confirm it's working
 

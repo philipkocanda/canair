@@ -174,6 +174,34 @@ def require_slcan_reachable(host: str, port: int, *, timeout: float = 5.0) -> No
     raise ModeError("\n".join(lines))
 
 
+def require_elm327_tcp_reachable(host: str, port: int, *, timeout: float = 5.0) -> None:
+    """Raise :class:`ModeError` if a direct ELM327 adapter's TCP port is silent.
+
+    The ``elm327-tcp`` transport reaches a generic WiFi ELM327 clone (or the
+    ELM327-Emulator) over a plain TCP socket — there is no HTTP config API to
+    fall back on (unlike the WiCAN). Without this pre-check a silent host makes
+    ``asyncio.open_connection`` hang out its connect timeout before failing with
+    no guidance. A no-op when the port answers.
+    """
+    if _tcp_open(host, port, timeout):
+        return
+    from .transport.errors import connect_error_detail
+
+    err = _tcp_probe(host, port, timeout)
+    detail = connect_error_detail(err) if err is not None else f"no response within {timeout:.0f}s"
+    raise ModeError(
+        f"can't reach the ELM327 adapter at {host}:{port} — {detail}.\n"
+        f"The 'elm327-tcp' transport talks to a direct ELM327 adapter over a plain "
+        f"TCP socket. Likely causes:\n"
+        f"  • the adapter is powered off, not paired to Wi-Fi, or still booting\n"
+        f"  • the host/port is wrong — trying '{host}:{port}' (most WiFi clones use "
+        f"port 35000; check --wican / transport.host / transport.port in config)\n"
+        f"  • you're not on the adapter's Wi-Fi network (many clones host their own AP)\n"
+        f"  • for offline testing, start the emulator first:  elm -n {port}\n"
+        f"  • diagnose:  canair status --transport elm327-tcp --wican {host}"
+    )
+
+
 def wait_until_ready(host: str, port: int = 80, timeout: float = 45.0) -> bool:
     """Block until ``host:port`` accepts a TCP connection (device back up).
 

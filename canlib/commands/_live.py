@@ -287,7 +287,8 @@ def add_connection_args(parser: argparse.ArgumentParser) -> None:
         "--transport",
         choices=VALID_TRANSPORTS,
         default=None,
-        help="CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327 terminal). "
+        help="CAN transport: slcan-tcp (raw CAN), wican-ws (WiCAN ELM327 "
+        "WebSocket), or elm327-tcp (direct ELM327 adapter over TCP). "
         f"Overrides the config `transport.type` (default: {DEFAULT_TRANSPORT}).",
     )
     parser.add_argument(
@@ -405,35 +406,57 @@ def _print_sleep_banner(host: str, timeout: int = 5) -> None:
     console.print(f"  [WiCAN] Sleep: {sleep_str}  |  Battery: {batt}")
 
 
-async def connect_elm_terminal(host: str, pids_data: dict, args) -> WiCANTerminal:
-    """Construct, connect, and ELM-initialise a :class:`WiCANTerminal` for ``host``.
+async def connect_elm_terminal(transport, pids_data: dict, args) -> Terminal:
+    """Construct, connect, and ELM-initialise the ELM327 terminal for ``transport``.
 
-    The single build path shared by the initial connect (``async_main``) and the
-    monitor's mid-session reconnect, so both apply the same ELM init + ATST
-    response-timeout + per-ECU budgets. Raises a transport error on failure
-    (closing the partially-opened terminal first); the caller classifies it.
+    Builds a :class:`WiCANTerminal` (WebSocket) for ``wican-ws`` or a
+    :class:`~canlib.transport.elm327_terminal.Elm327TcpTerminal` (plain TCP) for
+    ``elm327-tcp`` — the ELM init + ATST response-timeout + per-ECU budgets are
+    identical because they live in the shared engine. The single build path
+    shared by the initial connect (``async_main``) and the monitor's mid-session
+    reconnect. Raises a transport error on failure (closing the partially-opened
+    terminal first); the caller classifies it.
     """
     from canlib.quirks import HK_F1XX_MINUS_ONE, has_quirk
     from canlib.timeouts import cli_timeout, ecu_timeouts_by_tx
+    from canlib.transport import DEFAULT_ELM327_TCP_PORT, Elm327TcpTerminal
 
     init_string = pids_data.get("init")
     assert init_string, "profile init string must be validated by the caller"
 
+    host = transport.host
+    assert host is not None  # ELM transports always resolve a host
+
     _cli_timeout = cli_timeout(args)
     _ws_timeout = _cli_timeout if _cli_timeout is not None else 3.0
-    terminal = WiCANTerminal(
-        host=host,
-        timeout=_ws_timeout,
-        verbose=args.verbose,
-        unsafe=args.unsafe,
-        hk_f1xx_offset=has_quirk(pids_data, HK_F1XX_MINUS_ONE),
-    )
+    hk = has_quirk(pids_data, HK_F1XX_MINUS_ONE)
+    terminal: Terminal
+    if transport.type == "elm327-tcp":
+        port = transport.port or DEFAULT_ELM327_TCP_PORT
+        terminal = Elm327TcpTerminal(
+            host,
+            port,
+            timeout=_ws_timeout,
+            verbose=args.verbose,
+            unsafe=args.unsafe,
+            hk_f1xx_offset=hk,
+        )
+        connecting = f"Connecting to ELM327 adapter at {host}:{port}..."
+    else:
+        terminal = WiCANTerminal(
+            host=host,
+            timeout=_ws_timeout,
+            verbose=args.verbose,
+            unsafe=args.unsafe,
+            hk_f1xx_offset=hk,
+        )
+        connecting = f"Connecting to WiCAN at {host}..."
     # Per-ECU response budgets apply only when the user didn't force --timeout.
     if _cli_timeout is None:
         terminal.ecu_timeouts = ecu_timeouts_by_tx(pids_data)
 
     try:
-        print(f"Connecting to WiCAN at {host}...")
+        print(connecting)
         await terminal.connect()
         print("Connected. Initializing ELM327...")
         await terminal.init_elm(init_string)
@@ -467,11 +490,11 @@ async def connect_elm_terminal(host: str, pids_data: dict, args) -> WiCANTermina
 
 
 def build_elm_reconnector(args, pids_data: dict):
-    """A :class:`MonitorReconnector` that re-homes to a reachable wican-ws device.
+    """A :class:`MonitorReconnector` that re-homes to a reachable ELM device.
 
-    Restricts the candidate list to ELM (wican-ws) devices and reuses
-    :func:`connect_elm_terminal` as the per-candidate connect step, so a
-    mid-session drop reconnects exactly the way the initial connect did.
+    Restricts the candidate list to ELM (``wican-ws`` / ``elm327-tcp``) devices
+    and reuses :func:`connect_elm_terminal` as the per-candidate connect step, so
+    a mid-session drop reconnects exactly the way the initial connect did.
     """
     from canlib.modes.monitor_reconnect import MonitorReconnector, reconnect_policy
     from canlib.transport import resolve_transport_candidates
@@ -481,7 +504,7 @@ def build_elm_reconnector(args, pids_data: dict):
 
     async def connect(cand: TransportConfig):
         assert cand.host is not None  # wait_for_reachable only yields hosted candidates
-        return await connect_elm_terminal(cand.host, pids_data, args)
+        return await connect_elm_terminal(cand, pids_data, args)
 
     return MonitorReconnector(candidates, connect, reconnect_policy(args))
 
@@ -605,15 +628,21 @@ async def async_main(args):
 
         orphan_notice()
 
-    # Pre-flight reachability check. The WebSocket ELM327 terminal lives on the
-    # device's HTTP port; if that port is closed or the host is silent (wrong
-    # IP, VPN down, device asleep, or a protocol not serving the WebSocket),
-    # websockets.connect() would otherwise hang out its full open_timeout and
-    # raise a bare TimeoutError with no guidance. Fail fast with an alert.
-    from canlib.wican_mode import ModeError, require_ws_reachable
+    # Pre-flight reachability check so a silent host fails fast with guidance
+    # instead of hanging out a connect timeout deep in the stack. For a WiCAN the
+    # ELM327 WebSocket lives on the HTTP port (require_ws_reachable); a direct
+    # ELM327 adapter (elm327-tcp) has no HTTP API, so we probe its data port.
+    from canlib.wican_mode import ModeError, require_elm327_tcp_reachable, require_ws_reachable
 
+    is_elm_tcp = transport.type == "elm327-tcp"
+    transport_label = "ELM327/TCP" if is_elm_tcp else "WebSocket"
     try:
-        require_ws_reachable(host)
+        if is_elm_tcp:
+            from canlib.transport import DEFAULT_ELM327_TCP_PORT
+
+            require_elm327_tcp_reachable(host, transport.port or DEFAULT_ELM327_TCP_PORT)
+        else:
+            require_ws_reachable(host)
     except ModeError as e:
         print(f"error: {e}", file=sys.stderr)
         sys.exit(1)
@@ -621,11 +650,12 @@ async def async_main(args):
     from canlib.transport.errors import describe_transport_error, transport_error_types
 
     rc = 0
-    terminal: WiCANTerminal | None = None
+    terminal: Terminal | None = None
     try:
         try:
-            terminal = await connect_elm_terminal(host, pids_data, args)
-            _print_sleep_banner(host)
+            terminal = await connect_elm_terminal(transport, pids_data, args)
+            if transport.is_wican_http:
+                _print_sleep_banner(host)
 
             if args.wake:
                 args.session = True
@@ -635,20 +665,22 @@ async def async_main(args):
             print(
                 "error: "
                 + describe_transport_error(
-                    e, host=host, transport_label="WebSocket", saving=_wants_save
+                    e, host=host, transport_label=transport_label, saving=_wants_save
                 ),
                 file=sys.stderr,
             )
             return 1
 
         # Session dispatch under the shared, transport-agnostic error guard.
-        rc = await run_session_guarded(args, terminal, pids_data, host, transport_label="WebSocket")
+        rc = await run_session_guarded(
+            args, terminal, pids_data, host, transport_label=transport_label
+        )
     finally:
         if terminal is not None:
             await terminal.close()
         log_command("--- SESSION END ---")
 
-        if args.reboot:
+        if args.reboot and transport.is_wican_http:
             reboot_wican(host)
     return rc
 

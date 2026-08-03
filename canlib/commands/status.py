@@ -126,9 +126,13 @@ def _gather(args) -> dict:
         info["exit"] = _MISCONFIGURED
         return info
 
-    # WiCAN HTTP config API (works for both current transports when the device
-    # is a WiCAN).
-    cfg = _load_device_config(host, _PROBE_TIMEOUT)
+    # WiCAN HTTP config API — queryable only for WiCAN-backed transports
+    # (slcan-tcp / wican-ws). A direct ELM327 adapter (elm327-tcp) has no such
+    # API, so skip the probe entirely and report device: None.
+    if t.is_wican_http:
+        cfg = _load_device_config(host, _PROBE_TIMEOUT)
+    else:
+        cfg = None
     st = _device_status(host, _PROBE_TIMEOUT) if cfg is not None else None
     device_protocol = str(cfg.get("protocol")) if cfg else None
     dev_port = None
@@ -138,26 +142,45 @@ def _gather(args) -> dict:
         except (TypeError, ValueError):
             dev_port = None
 
-    info["device"] = {
-        "http_reachable": cfg is not None,
-        "protocol": device_protocol,
-        "socket_port": dev_port,
-        "sleep": cfg.get("sleep_status") if cfg else None,
-        "sleep_volt": cfg.get("sleep_volt") if cfg else None,
-        "battery": (st or {}).get("batt_voltage") if st else None,
-        "ip": (st or {}).get("sta_ip") if st else None,
-        "fw_version": (st or {}).get("fw_version") if st else None,
-        "hw_version": (st or {}).get("hw_version") if st else None,
-        "git_version": (st or {}).get("git_version") if st else None,
-    }
+    info["device"] = (
+        {
+            "http_reachable": cfg is not None,
+            "protocol": device_protocol,
+            "socket_port": dev_port,
+            "sleep": cfg.get("sleep_status") if cfg else None,
+            "sleep_volt": cfg.get("sleep_volt") if cfg else None,
+            "battery": (st or {}).get("batt_voltage") if st else None,
+            "ip": (st or {}).get("sta_ip") if st else None,
+            "fw_version": (st or {}).get("fw_version") if st else None,
+            "hw_version": (st or {}).get("hw_version") if st else None,
+            "git_version": (st or {}).get("git_version") if st else None,
+        }
+        if t.is_wican_http
+        else None
+    )
 
     # Transport usability check.
-    if t.is_elm:
+    if t.is_wican_http and t.is_elm:
         # The /ws ELM327 terminal lives on the HTTP port and works in any mode.
         if cfg is None:
             info["errors"].append(f"WiCAN HTTP not reachable at {host} (is it online / on VPN?)")
             info["exit"] = _UNREACHABLE
         info["transport"]["usable"] = cfg is not None
+    elif t.is_elm:
+        # Direct ELM327 adapter (elm327-tcp): no HTTP API — usability is just
+        # whether the ELM socket accepts a TCP connection.
+        from ..transport.config import DEFAULT_ELM327_TCP_PORT
+
+        elm_port = t.port or DEFAULT_ELM327_TCP_PORT
+        info["transport"]["port"] = elm_port
+        elm_ok = _tcp_open(host, elm_port, _PROBE_TIMEOUT)
+        info["transport"]["usable"] = elm_ok
+        if not elm_ok:
+            info["errors"].append(
+                f"ELM327 adapter {host}:{elm_port} not reachable "
+                f"(powered on? on its Wi-Fi? for offline testing: elm -n {elm_port})"
+            )
+            info["exit"] = _UNREACHABLE
     else:
         raw_port = t.port or dev_port or 3333
         info["transport"]["port"] = raw_port
