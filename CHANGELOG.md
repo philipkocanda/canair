@@ -21,10 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Offline testing with [ELM327-Emulator](https://github.com/ircama/ELM327-emulator).**
   Point canair at the emulator's `-n` TCP mode (`elm -n 35000`) to develop and
   try commands with no dongle and no car. A new
-  [offline-testing guide](https://philipkocanda.github.io/canair/getting-started/offline-testing/)
-  covers setup, and an opt-in integration test drives the emulator through the
-  real `elm327-tcp` path (auto-skipped when the emulator isn't installed, so the
-  core suite stays device-free). See
+  [offline-testing guide](https://philipkocanda.github.io/canair/development/offline-testing/)
+  covers setup, a bundled test profile (`tests/fixtures/profiles/elm327-emulator/`,
+  an `ENGINE` ECU with standard OBD-II Mode-01 PIDs) makes `canair read` decode
+  against the emulator, and an opt-in integration test drives the emulator through
+  the real `elm327-tcp` path (auto-skipped when the emulator isn't installed, so
+  the core suite stays device-free). See
   `plans/2026-08-03-elm327-direct-transport.md`.
 
 ## [1.12.0] - 2026-08-03

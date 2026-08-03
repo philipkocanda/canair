@@ -1,0 +1,44 @@
+# ELM327-Emulator (offline test target) — vehicle profile settings (created by `canair profile create`)
+# Per-ECU definitions live in ecus/. Populate with `canair discover --register`
+# (add --identify to read identity DIDs), then `canair pids ...`. Validate with
+# `canair validate`.
+car_model: "ELM327-Emulator (offline test target)"
+# ATE0 (echo off) + ATH0 (headers off) so responses are the bare UDS payload,
+# not prefixed with the request echo or CAN id. ATSP6 = ISO 15765-4 CAN 11-bit.
+# ATCRA7E8 filters received frames to the primary ECU (0x7E0 -> responds 0x7E8),
+# so the emulator's second simulated ECU doesn't duplicate every response.
+init: "ATE0;ATL0;ATH0;ATS0;ATSP6;ATCRA7E8;ATAL;"
+
+# Vehicle bus speed in bit/s (the CAN datarate). Uncomment if this car's
+# diagnostic bus is not 500 kbit/s (e.g. 250000 for some body/comfort buses).
+# Precedence: config transport.bitrate > this > device config > 500000.
+# can_bitrate: 500000
+
+# CAN diagnostic addressing. By default an ECU's response address is
+# tx_id + 0x08 (11-bit Hyundai/Kia convention). Set rx_offset once here for
+# a make with a different fixed offset (e.g. 0x80 for XPeng: 0x704 -> 0x784);
+# an individual ECU can still override with its own rx_id.
+# addressing:
+#   rx_offset: 0x08
+
+# ELM327 response timeout in ms, applied as ATSTxx (--elm-timeout overrides).
+# Raise it for slow-responding ECUs; lower it to speed up cycles / NO-DATA
+# detection. Left unset, the ELM327 default applies.
+# response_timeout_ms: 500
+
+# Client-side ISO-TP tuning for the slcan-tcp transport. Defaults suit most
+# 11-bit/classic-CAN vehicles; override per this car's needs. See
+# canlib/transport/isotp_params.py for every field + default.
+# isotp:
+#   tx_padding: 0xAA   # ISO-TP fill byte (0x00/0xCC on some makes)
+#   can_fd: false      # true for CAN-FD ECUs
+
+# Physical-value bands for the reference-free scan (`canair hunt --physical` /
+# `canair investigate`). Override the vehicle-axis bands here; a name matching a
+# built-in (hv_pack, rail_12v) replaces its [low, high], any other name adds a
+# custom band. Grid bands (mains_rms/mains_peak/line_freq) normally come from
+# the user's `grid_region` config, not here. The built-in hv_pack is a ~400 V
+# EV (300-450) — an 800 V architecture (E-GMP/PPE/Taycan) needs a wider band.
+# physical_bands:
+#   hv_pack: [450, 850]   # 800 V pack
+

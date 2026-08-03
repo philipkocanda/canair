@@ -42,7 +42,7 @@ The device runs **one protocol at a time** — check with `canair status`.
   the *dongle* performs ISO-TP.
 - **`elm327-tcp`** — a **generic ELM327 adapter** over a plain TCP socket: the
   $10 WiFi clones (Kiwi, vLinker, OBDLink, no-name dongles) and the
-  [ELM327-Emulator](../getting-started/offline-testing.md)'s `-n` mode. No WiCAN,
+  [ELM327-Emulator](../development/offline-testing.md)'s `-n` mode. No WiCAN,
   no HTTP config API — just the ELM327 terminal on a TCP port (usually 35000);
   the *dongle* performs ISO-TP.
 

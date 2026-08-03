@@ -7,9 +7,10 @@ usage: canair dtc [-h] [--all] [--history] [--no-log] [--no-retry]
                   [--label LABEL] [--state STATES] [--mask HEX]
                   [--protocol {auto,uds,kwp}] [--clear] [--group HEX] [--yes]
                   [--session] [--wake] [--wican WICAN]
-                  [--transport {slcan-tcp,wican-ws}] [--no-fallback] [--wait]
-                  [--elm-timeout MS] [--timeout SECONDS] [--json] [--verbose]
-                  [--timings] [--reboot] [--unsafe] [--force]
+                  [--transport {slcan-tcp,wican-ws,elm327-tcp}]
+                  [--no-fallback] [--wait] [--elm-timeout MS]
+                  [--timeout SECONDS] [--json] [--verbose] [--timings]
+                  [--reboot] [--unsafe] [--force]
                   [ECU]
 
 [UDS] Read stored Diagnostic Trouble Codes with UDS 0x19 (reportDTCByStatusMask), or clear them with UDS 0x14. Clearing mutates ECU fault memory and prompts for confirmation unless --yes is given.
@@ -55,10 +56,11 @@ options:
   --wake                Wake ECU from deep sleep (10 01)
   --wican WICAN         WiCAN address: ap or IP (default: config
                         transport.host / default_wican=ap)
-  --transport {slcan-tcp,wican-ws}
-                        CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327
-                        terminal). Overrides the config `transport.type`
-                        (default: slcan-tcp).
+  --transport {slcan-tcp,wican-ws,elm327-tcp}
+                        CAN transport: slcan-tcp (raw CAN), wican-ws (WiCAN
+                        ELM327 WebSocket), or elm327-tcp (direct ELM327
+                        adapter over TCP). Overrides the config
+                        `transport.type` (default: slcan-tcp).
   --no-fallback         Don't auto-fall-back to other configured devices when
                         the selected one is unreachable (see config
                         transport.fallback).

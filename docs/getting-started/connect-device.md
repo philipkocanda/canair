@@ -75,7 +75,7 @@ generic clone, so `canair status` reports transport reachability by probing the
 ELM socket directly (no device/firmware block).
 
 Want to try canair with **no hardware at all**? See
-[Offline testing with ELM327-Emulator](offline-testing.md).
+[Offline testing with ELM327-Emulator](../development/offline-testing.md).
 
 ## 5. Confirm it's working
 

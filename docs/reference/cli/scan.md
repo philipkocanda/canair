@@ -42,7 +42,8 @@ Run `canair scan <kind> --help` for the flags of each kind.
 usage: canair scan range [-h] [-i] [--service SVC] [--range START-END]
                          [--append HEX] [--session] [--wake] [--save]
                          [--label TEXT] [--state TEXT] [--notes TEXT]
-                         [--wican WICAN] [--transport {slcan-tcp,wican-ws}]
+                         [--wican WICAN]
+                         [--transport {slcan-tcp,wican-ws,elm327-tcp}]
                          [--no-fallback] [--wait] [--elm-timeout MS]
                          [--timeout SECONDS] [--json] [--verbose] [--timings]
                          [--reboot] [--unsafe] [--force]
@@ -70,10 +71,11 @@ options:
   --notes TEXT          Session notes for --save
   --wican WICAN         WiCAN address: ap or IP (default: config
                         transport.host / default_wican=ap)
-  --transport {slcan-tcp,wican-ws}
-                        CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327
-                        terminal). Overrides the config `transport.type`
-                        (default: slcan-tcp).
+  --transport {slcan-tcp,wican-ws,elm327-tcp}
+                        CAN transport: slcan-tcp (raw CAN), wican-ws (WiCAN
+                        ELM327 WebSocket), or elm327-tcp (direct ELM327
+                        adapter over TCP). Overrides the config
+                        `transport.type` (default: slcan-tcp).
   --no-fallback         Don't auto-fall-back to other configured devices when
                         the selected one is unreachable (see config
                         transport.fallback).
@@ -131,7 +133,7 @@ tips:
 usage: canair scan iocontrol [-h] [--did-range START-END]
                              [--throttle-ms THROTTLE_MS] [--session] [--wake]
                              [--mode HEX] [--wican WICAN]
-                             [--transport {slcan-tcp,wican-ws}]
+                             [--transport {slcan-tcp,wican-ws,elm327-tcp}]
                              [--no-fallback] [--wait] [--elm-timeout MS]
                              [--timeout SECONDS] [--json] [--verbose]
                              [--timings] [--reboot] [--unsafe] [--force]
@@ -155,10 +157,11 @@ options:
                         81 = KWP2000 standard, e.g. BMS)
   --wican WICAN         WiCAN address: ap or IP (default: config
                         transport.host / default_wican=ap)
-  --transport {slcan-tcp,wican-ws}
-                        CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327
-                        terminal). Overrides the config `transport.type`
-                        (default: slcan-tcp).
+  --transport {slcan-tcp,wican-ws,elm327-tcp}
+                        CAN transport: slcan-tcp (raw CAN), wican-ws (WiCAN
+                        ELM327 WebSocket), or elm327-tcp (direct ELM327
+                        adapter over TCP). Overrides the config
+                        `transport.type` (default: slcan-tcp).
   --no-fallback         Don't auto-fall-back to other configured devices when
                         the selected one is unreachable (see config
                         transport.fallback).
@@ -196,10 +199,10 @@ examples:
 usage: canair scan routines [-h] [--rid-range START-END]
                             [--throttle-ms THROTTLE_MS] [--session] [--wake]
                             [--mode HEX] [--wican WICAN]
-                            [--transport {slcan-tcp,wican-ws}] [--no-fallback]
-                            [--wait] [--elm-timeout MS] [--timeout SECONDS]
-                            [--json] [--verbose] [--timings] [--reboot]
-                            [--unsafe] [--force]
+                            [--transport {slcan-tcp,wican-ws,elm327-tcp}]
+                            [--no-fallback] [--wait] [--elm-timeout MS]
+                            [--timeout SECONDS] [--json] [--verbose]
+                            [--timings] [--reboot] [--unsafe] [--force]
                             ECU [ECU ...]
 
 Probe routine results across a range on one or more ECUs. The service is auto-selected per ECU from its id_protocol: UDS ECUs use RoutineControl (0x31, requestRoutineResults SF 0x03); KWP2000 ECUs (BMS, VCU, MCU, LDC, AAF) use RequestRoutineResultsByLocalIdentifier (0x33). 0x31 (StartRoutine on KWP2000) is NEVER sent to a KWP2000 ECU — only the read-only results service. Hits are written to pids/<ecu>.yaml under a routines: section.
@@ -220,10 +223,11 @@ options:
                         81 = KWP2000 standard, e.g. BMS)
   --wican WICAN         WiCAN address: ap or IP (default: config
                         transport.host / default_wican=ap)
-  --transport {slcan-tcp,wican-ws}
-                        CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327
-                        terminal). Overrides the config `transport.type`
-                        (default: slcan-tcp).
+  --transport {slcan-tcp,wican-ws,elm327-tcp}
+                        CAN transport: slcan-tcp (raw CAN), wican-ws (WiCAN
+                        ELM327 WebSocket), or elm327-tcp (direct ELM327
+                        adapter over TCP). Overrides the config
+                        `transport.type` (default: slcan-tcp).
   --no-fallback         Don't auto-fall-back to other configured devices when
                         the selected one is unreachable (see config
                         transport.fallback).
@@ -260,10 +264,10 @@ examples:
 ```
 usage: canair scan sessions [-h] [--modes HEX[,HEX...]]
                             [--throttle-ms THROTTLE_MS] [--wican WICAN]
-                            [--transport {slcan-tcp,wican-ws}] [--no-fallback]
-                            [--wait] [--elm-timeout MS] [--timeout SECONDS]
-                            [--json] [--verbose] [--timings] [--reboot]
-                            [--unsafe] [--force]
+                            [--transport {slcan-tcp,wican-ws,elm327-tcp}]
+                            [--no-fallback] [--wait] [--elm-timeout MS]
+                            [--timeout SECONDS] [--json] [--verbose]
+                            [--timings] [--reboot] [--unsafe] [--force]
                             ECU [ECU ...]
 
 Probe which DiagnosticSessionControl (service 0x10) session types an ECU supports. The session-mode set is auto-selected per ECU from its id_protocol: UDS ECUs are probed with 01 (default) + 03 (extended); KWP2000 ECUs (BMS, VCU, MCU, LDC, AAF) with 81 (standard) + 82 + 83 (extended). Only these SAFE read-only modes are ever sent — the programming sessions (UDS 0x02, KWP2000 0x85) are NEVER probed. Results are written to ecus/<ecu>.yaml under a sessions: section.
@@ -280,10 +284,11 @@ options:
                         Delay in ms between probes (default 200)
   --wican WICAN         WiCAN address: ap or IP (default: config
                         transport.host / default_wican=ap)
-  --transport {slcan-tcp,wican-ws}
-                        CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327
-                        terminal). Overrides the config `transport.type`
-                        (default: slcan-tcp).
+  --transport {slcan-tcp,wican-ws,elm327-tcp}
+                        CAN transport: slcan-tcp (raw CAN), wican-ws (WiCAN
+                        ELM327 WebSocket), or elm327-tcp (direct ELM327
+                        adapter over TCP). Overrides the config
+                        `transport.type` (default: slcan-tcp).
   --no-fallback         Don't auto-fall-back to other configured devices when
                         the selected one is unreachable (see config
                         transport.fallback).

@@ -6,9 +6,9 @@
 
 ```
 usage: canair io [-h] [--did DID] [--off] [--poll] [--wican WICAN]
-                 [--transport {slcan-tcp,wican-ws}] [--no-fallback] [--wait]
-                 [--elm-timeout MS] [--timeout SECONDS] [--json] [--verbose]
-                 [--timings] [--reboot] [--unsafe] [--force]
+                 [--transport {slcan-tcp,wican-ws,elm327-tcp}] [--no-fallback]
+                 [--wait] [--elm-timeout MS] [--timeout SECONDS] [--json]
+                 [--verbose] [--timings] [--reboot] [--unsafe] [--force]
                  [ECU]
 
 [UDS] IOControl (0x2F): interactive TUI, or single actuator command with --did.
@@ -26,10 +26,11 @@ options:
                         click) — off by default.
   --wican WICAN         WiCAN address: ap or IP (default: config
                         transport.host / default_wican=ap)
-  --transport {slcan-tcp,wican-ws}
-                        CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327
-                        terminal). Overrides the config `transport.type`
-                        (default: slcan-tcp).
+  --transport {slcan-tcp,wican-ws,elm327-tcp}
+                        CAN transport: slcan-tcp (raw CAN), wican-ws (WiCAN
+                        ELM327 WebSocket), or elm327-tcp (direct ELM327
+                        adapter over TCP). Overrides the config
+                        `transport.type` (default: slcan-tcp).
   --no-fallback         Don't auto-fall-back to other configured devices when
                         the selected one is unreachable (see config
                         transport.fallback).

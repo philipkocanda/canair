@@ -179,7 +179,31 @@ serial `SerialException ⊂ OSError` for the follow-up). Add an "ELM327/TCP"
 3. **Offline testing:** emulator dev dep + opt-in fixture + integration tests.
    **DONE** — opt-in `tests/test_elm327_emulator.py` (spawns `elm -n <port>`,
    auto-skips when the `elm` package is absent — it's NOT a dep, its legacy build
-   breaks `uv sync`). Docs: `docs/getting-started/offline-testing.md`.
+   breaks `uv sync`). Docs: `docs/development/offline-testing.md`.
+
+## Follow-up (post-review)
+
+Moved the offline-testing doc into a new **Development** docs section (was under
+Getting started) and added a **test profile** so `canair read` decodes against
+the emulator out of the box:
+
+- `tests/fixtures/profiles/elm327-emulator/` — an `ENGINE` ECU at `0x7E0` with
+  standard OBD-II Mode-01 PIDs (`010C` RPM, `010D` speed, `010F` intake temp).
+  Its `init` disables echo/headers and filters to `7E8` (`ATCRA7E8`) so the
+  emulator's second simulated ECU doesn't duplicate every response. Not shipped
+  in the wheel (under `tests/`, not top-level `profiles/`), so it never pollutes
+  a real user's `canair profile list`.
+- `tests/test_elm327_tcp.py::TestEmulatorProfile` guards the profile's decode
+  expressions device-free (via the real `decode_param_rows` path).
+- Doc refinements: reconnect-gap / `--wait` tip; flags-vs-config distinction
+  (port is config-only; `--wican` is host-only; prefer `127.0.0.1` over
+  `localhost`); "run `elm` in its own terminal" caveat.
+
+**Known limitation surfaced (not fixed here):** the surgical `canair pids` editor
+can't round-trip a PID key that is all decimal digits with a leading zero
+(`0105`, `0902`) — YAML parses it as an int, losing the zero, so the edit reverts.
+OBD PIDs with a hex letter (`010C`/`010D`/`010F`) are unaffected. Worth a
+follow-up fix (quote such keys in `pids_edit`/`ecus_edit`).
 
 ## Out of scope (follow-up)
 

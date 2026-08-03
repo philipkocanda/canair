@@ -159,7 +159,7 @@ overrides `transport.type` for that device. See
 [Architecture](../concepts/architecture.md) for what the transports are.
 
 The **`elm327-tcp`** transport talks to a generic ELM327 adapter (WiFi clones, or
-the [ELM327-Emulator](../getting-started/offline-testing.md)) over a plain TCP
+the [ELM327-Emulator](../development/offline-testing.md)) over a plain TCP
 socket — no WiCAN, so its HTTP-only affordances (device mode/firmware, `wican`
 subcommands) don't apply; reachability is a direct probe of the ELM socket port.
 

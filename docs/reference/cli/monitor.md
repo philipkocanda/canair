@@ -9,9 +9,10 @@ usage: canair monitor [-h] [--interval SECONDS] [--session] [--wake]
                       [--keep-changes | --keep-unique | --keep-all | --keep N]
                       [--save] [--label TEXT] [--state TEXT] [--notes TEXT]
                       [--rulers] [--include-static] [--wican WICAN]
-                      [--transport {slcan-tcp,wican-ws}] [--no-fallback]
-                      [--wait] [--elm-timeout MS] [--timeout SECONDS] [--json]
-                      [--verbose] [--timings] [--reboot] [--unsafe] [--force]
+                      [--transport {slcan-tcp,wican-ws,elm327-tcp}]
+                      [--no-fallback] [--wait] [--elm-timeout MS]
+                      [--timeout SECONDS] [--json] [--verbose] [--timings]
+                      [--reboot] [--unsafe] [--force]
                       [STEP ...]
 
 [UDS] Monitor ECUs/parameters live in a scrollable, refreshing view. Positional STEPs use the multi mini-language (same as `canair read`).
@@ -45,10 +46,11 @@ options:
                         (ECU:21F2) always polls it.
   --wican WICAN         WiCAN address: ap or IP (default: config
                         transport.host / default_wican=ap)
-  --transport {slcan-tcp,wican-ws}
-                        CAN transport: slcan-tcp (raw CAN) or wican-ws (ELM327
-                        terminal). Overrides the config `transport.type`
-                        (default: slcan-tcp).
+  --transport {slcan-tcp,wican-ws,elm327-tcp}
+                        CAN transport: slcan-tcp (raw CAN), wican-ws (WiCAN
+                        ELM327 WebSocket), or elm327-tcp (direct ELM327
+                        adapter over TCP). Overrides the config
+                        `transport.type` (default: slcan-tcp).
   --no-fallback         Don't auto-fall-back to other configured devices when
                         the selected one is unreachable (see config
                         transport.fallback).

@@ -66,7 +66,6 @@ nav:
       - Install: getting-started/install.md
       - Connect your dongle: getting-started/connect-device.md
       - Read live data: getting-started/first-read.md
-      - Offline testing (emulator): getting-started/offline-testing.md
   - Bring your own car:
       - Overview: bring-your-own-car/overview.md
       - 1. Create a profile: bring-your-own-car/01-create-profile.md
@@ -132,4 +131,6 @@ nav:
   - Bundled profiles:
       - Overview: profiles/index.md
       - Ioniq 2017: profiles/ioniq-2017.md
+  - Development:
+      - Offline testing (emulator): development/offline-testing.md
   - Contributing: contributing/index.md

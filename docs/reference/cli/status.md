@@ -5,8 +5,8 @@
 *Alias: `st`*
 
 ```
-usage: canair status [-h] [--transport {slcan-tcp,wican-ws}] [--wican WICAN]
-                     [--json]
+usage: canair status [-h] [--transport {slcan-tcp,wican-ws,elm327-tcp}]
+                     [--wican WICAN] [--json]
 
 ``canair status`` — show the configured transport, device state, and profile.
 
@@ -18,7 +18,7 @@ the device's firmware/hardware version.
 
 options:
   -h, --help            show this help message and exit
-  --transport {slcan-tcp,wican-ws}
+  --transport {slcan-tcp,wican-ws,elm327-tcp}
                         Override the configured transport type
   --wican WICAN         Override device host (alias or IP)
   --json                Emit machine-readable JSON

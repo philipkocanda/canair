@@ -1,0 +1,36 @@
+ENGINE:
+  tx_id: 0x7E0
+  identity:
+    description: OBD-II engine ECU (emulator responds as 7E8)
+    id_protocol: UDS
+  pids:
+    010D:
+      parameters:
+        VEHICLE_SPEED:
+          expression: B03
+          unit: km/h
+          min: "0"
+          max: "255"
+          source: OBD-II standard (SAE J1979)
+      status: active
+      notes: "OBD-II Mode 01 PID 0D: vehicle speed"
+    010C:
+      parameters:
+        ENGINE_RPM:
+          expression: (B03 * 256 + B04) / 4
+          unit: rpm
+          min: "0"
+          max: "16383"
+          source: OBD-II standard (SAE J1979)
+      status: active
+      notes: "OBD-II Mode 01 PID 0C: engine RPM"
+    010F:
+      parameters:
+        INTAKE_TEMP_C:
+          expression: B03 - 40
+          unit: degC
+          min: "-40"
+          max: "215"
+          source: OBD-II standard (SAE J1979)
+      status: active
+      notes: "OBD-II Mode 01 PID 0F: intake air temperature"

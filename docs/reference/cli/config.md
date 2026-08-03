@@ -84,14 +84,14 @@ known keys:
   profiles_dir
   default_wican
   devices.<alias>.host
-  devices.<alias>.transport  valid: slcan-tcp, wican-ws
+  devices.<alias>.transport  valid: slcan-tcp, wican-ws, elm327-tcp
   devices.<alias>.port
   devices.<alias>.bitrate
   wican_addresses.<alias>
   wican_model                valid: pro, classic
   check_for_updates
   grid_region                valid: EU, UK, AU, CN, US, JP
-  transport.type             valid: slcan-tcp, wican-ws
+  transport.type             valid: slcan-tcp, wican-ws, elm327-tcp
   transport.host
   transport.port
   transport.bitrate

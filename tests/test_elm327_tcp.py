@@ -10,11 +10,16 @@ An opt-in end-to-end test against the ELM327-Emulator lives in
 """
 
 import asyncio
+from pathlib import Path
 
 import pytest
+import yaml
 
+from canlib.decoding import decode_param_rows
 from canlib.transport.channel import Channel, TcpChannel
 from canlib.transport.elm327_terminal import Elm327TcpTerminal, Elm327Terminal
+
+_EMU_ENGINE_YAML = Path(__file__).parent / "fixtures/profiles/elm327-emulator/ecus/engine.yaml"
 
 
 class FakeStreamReader:
@@ -172,3 +177,36 @@ class TestEngineOverArbitraryChannel:
         resp = await term.send_uds("2101")
         assert resp["ok"] is False
         assert resp["nrc"] == 0x12
+
+
+class TestEmulatorProfile:
+    """Guard the bundled test profile that targets ELM327-Emulator.
+
+    The `elm327-emulator` fixture profile (tests/fixtures/profiles/) defines an
+    ENGINE ECU with standard OBD-II Mode-01 PIDs so `canair read ENGINE:010F`
+    works against a running emulator (see docs/development/offline-testing.md).
+    These device-free tests lock the decode contract (the `Bnn` byte offsets)
+    and stop the fixture bit-rotting — using the real decode path, no socket.
+    """
+
+    def _params(self, pid: str) -> dict:
+        engine = yaml.safe_load(_EMU_ENGINE_YAML.read_text())["ENGINE"]
+        return engine["pids"][pid]["parameters"]
+
+    def _decode(self, pid: str, payload_hex: str, name: str) -> float:
+        rows = decode_param_rows(payload_hex, self._params(pid))
+        row = next(r for r in rows if r[0] == name)
+        assert row[4] is None, f"decode error: {row[4]}"  # index 4 = error
+        return row[1]  # index 1 = value
+
+    def test_intake_temp(self):
+        # 41 0F 44 -> B03=0x44 -> 0x44 - 40 = 28 degC
+        assert self._decode("010F", "410F44", "INTAKE_TEMP_C") == 28
+
+    def test_vehicle_speed(self):
+        # 41 0D 10 -> B03=0x10 = 16 km/h
+        assert self._decode("010D", "410D10", "VEHICLE_SPEED") == 16
+
+    def test_engine_rpm(self):
+        # 41 0C 0B 90 -> (B03*256 + B04)/4 = (0x0B*256 + 0x90)/4 = 740 rpm
+        assert self._decode("010C", "410C0B90", "ENGINE_RPM") == 740
