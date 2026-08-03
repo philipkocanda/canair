@@ -52,6 +52,14 @@ The ELM327 transports (`wican-ws`, `elm327-tcp`) share one ELM327 protocol
 engine — only the byte channel (WebSocket vs. plain TCP) differs — so every
 command works identically over each.
 
+!!! note "WiCAN is recommended; third-party dongles are best-effort"
+    The `elm327-tcp` transport lets you use any generic ELM327 clone, but the
+    **WiCAN is the best-tested adapter** for this project and is recommended.
+    Cheap clones vary in firmware quality, can't be guaranteed reliable, and are
+    especially likely to fall short on **newer vehicles** that depend on long
+    multi-frame ISO-TP payloads and **extended (29-bit) addressing**. See
+    [Connect your dongle](../getting-started/connect-device.md#using-a-generic-elm327-clone-no-wican).
+
 ## Protocols
 
 - **UDS** (ISO 14229) — the modern diagnostic protocol.

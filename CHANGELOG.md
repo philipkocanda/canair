@@ -16,7 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   path: the ELM327 protocol engine was extracted into a transport-agnostic
   `Elm327Terminal` driven by a swappable byte `Channel` (WebSocket for the WiCAN,
   a plain TCP socket for a clone), so the two ELM transports share one
-  battle-tested implementation.
+  battle-tested implementation. The **WiCAN remains recommended and best-tested**;
+  generic clones are best-effort and less likely to work on newer vehicles (which
+  lean on long multi-frame ISO-TP payloads and extended 29-bit addressing).
 - **Offline testing with [ELM327-Emulator](https://github.com/ircama/ELM327-emulator).**
   Point canair at the emulator's `-n` TCP mode (`elm -n 35000`) to develop and
   try commands with no dongle and no car. A new

@@ -74,6 +74,15 @@ works the same — the dongle performs ISO-TP. There's no HTTP config API on a
 generic clone, so `canair status` reports transport reachability by probing the
 ELM socket directly (no device/firmware block).
 
+!!! warning "Third-party dongles are best-effort"
+    The **WiCAN is the recommended and best-tested adapter** for this project.
+    Generic ELM327 clones vary wildly in firmware quality and their reliability
+    **cannot be guaranteed** — cheap clones are especially likely to struggle
+    with **newer vehicles**, which lean heavily on long multi-frame ISO-TP
+    responses and **extended (29-bit) addressing** that many clones handle poorly
+    or not at all. If reads are flaky, truncated, or a clone can't reach an ECU,
+    that's usually the adapter, not canair — try a WiCAN before filing a bug.
+
 Want to try canair with **no hardware at all**? See
 [Offline testing with ELM327-Emulator](../development/offline-testing.md).
 
