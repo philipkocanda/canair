@@ -10,12 +10,15 @@ An opt-in end-to-end test against the ELM327-Emulator lives in
 """
 
 import asyncio
+import time
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import pytest
 import yaml
 
 from canlib.decoding import decode_param_rows
+from canlib.transport import channel
 from canlib.transport.channel import Channel, TcpChannel
 from canlib.transport.elm327_terminal import Elm327TcpTerminal, Elm327Terminal
 
@@ -99,6 +102,88 @@ class TestTcpChannel:
         # The engine tags its per-exchange diagnostics with the channel's name.
         term = Elm327TcpTerminal("host", 35000)
         assert term.diag.transport == "elm327-tcp"
+
+
+class TestTcpChannelConnect:
+    """connect() must apply the same three guarantees as WebSocketChannel.
+
+    Regression: TcpChannel.connect() was a bare `asyncio.open_connection` — no
+    timeout, no settle, no drain — while its WebSocket twin had all three.
+    """
+
+    @staticmethod
+    @asynccontextmanager
+    async def _serving(handler):
+        """An ephemeral loopback TCP server, torn down without `wait_closed()`.
+
+        `asyncio.Server.wait_closed()` blocks until in-flight handler tasks finish
+        (and hangs outright on some 3.12 patch levels), so it's deliberately not
+        awaited here — `close()` releases the listening socket, which is all these
+        tests need.
+        """
+        server = await asyncio.start_server(handler, "127.0.0.1", 0)
+        try:
+            yield server.sockets[0].getsockname()[1]
+        finally:
+            server.close()
+
+    @pytest.mark.asyncio
+    async def test_drains_the_connect_banner(self):
+        """A clone's greeting must not be consumed as the first command's reply.
+
+        The engine frames a reply by its `>` prompt, so an undrained
+        `ELM327 v1.5\\r\\r>` banner is returned as the reply to whatever command is
+        sent first, leaving that command's real reply buffered — shifting every
+        response by one for the rest of the session.
+        """
+
+        async def handler(reader, writer):
+            writer.write(b"\r\rELM327 v1.5\r\r>")  # connect banner
+            await writer.drain()
+            await reader.read(64)  # the first command
+            writer.write(b"ATZ\rELM327 v1.5\r\r>")  # its actual reply
+            await writer.drain()
+
+        async with self._serving(handler) as port:
+            ch = TcpChannel("127.0.0.1", port)
+            await ch.connect()
+            await ch.send("ATZ\r")
+            reply = await ch.recv(2.0)
+            assert reply is not None
+            assert "ATZ" in reply, f"banner leaked into the first reply: {reply!r}"
+            await ch.close()
+
+    @pytest.mark.asyncio
+    async def test_connect_timeout_raises_connection_error(self, monkeypatch):
+        """A host that accepts then stalls must fail fast, not hang.
+
+        Without a timeout this blocked for the OS TCP timeout (~75s on
+        Darwin/Linux), which also overran the monitor's reconnect budget.
+        """
+        monkeypatch.setattr(channel, "CONNECT_TIMEOUT", 0.2)
+
+        async def never_connects(*args, **kwargs):
+            await asyncio.sleep(30)
+
+        monkeypatch.setattr(asyncio, "open_connection", never_connects)
+        ch = TcpChannel("10.255.255.1", 35000)
+        started = time.monotonic()
+        with pytest.raises(ConnectionError, match="did not respond"):
+            await ch.connect()
+        assert time.monotonic() - started < 5.0
+
+    @pytest.mark.asyncio
+    async def test_connect_succeeds_against_a_silent_adapter(self):
+        # No banner at all is the other valid case — the drain must simply find
+        # nothing and connect must still succeed.
+        async def handler(reader, writer):
+            await reader.read(64)
+
+        async with self._serving(handler) as port:
+            ch = TcpChannel("127.0.0.1", port)
+            await ch.connect()
+            assert ch._reader is not None and ch._writer is not None
+            await ch.close()
 
 
 class FakeChannel:

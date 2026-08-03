@@ -240,8 +240,26 @@ The same PCI-inclusive `data[]` buffer backs every accessor:
 - `[Bn:Bm]` — **big-endian** multi-byte unsigned value across those indices:
   `sum |= data[j] << ((m - j) * 8)` — first index is most significant
   (`expression_parser.c:112-114`). Max span 8 bytes (64-bit).
-- `[Sn:Sm]` — signed version, sized 8/16/32/64-bit by span
+- `[Sn:Sm]` — signed version, sign-extended from the **native container** the
+  firmware accumulates into — `int8`/`int16`/`int32`/`int64`, picked by span
   (`expression_parser.c:118-160`).
+
+!!! warning "`[Sn:Sm]` is only exact for a 1-, 2-, 4- or 8-byte span"
+
+    Because the sign bit is taken from the *container's* top bit rather than the
+    read's, a **3-, 5-, 6- or 7-byte** signed range is sign-extended from the wrong
+    position and can never produce a negative value. A 3-byte `[S5:S7]` over
+    `FF FF FE` yields `16777214`, not `-2`.
+
+    For those widths, write the arithmetic form with only the most-significant
+    byte signed — which is exact at any width:
+
+    ```text
+    S5*65536 + B6*256 + B7        # 3-byte big-endian signed
+    ```
+
+    canair emits this automatically (`hunt --promote`, `decode --plot`), so you
+    only need the rule when hand-authoring an expression.
 
 Because the indices go straight into the PCI-inclusive buffer, **a multi-byte
 range must not straddle a PCI byte** (B08/B16/B24/…) or it will fold a framing

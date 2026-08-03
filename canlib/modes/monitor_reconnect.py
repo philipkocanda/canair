@@ -137,7 +137,16 @@ class MonitorReconnector:
                 client = await self._connect(cand)
             except transport_error_types() as exc:
                 say(f"reconnect to {cand.describe()} failed ({exc}); retrying…")
-                if stopped():
+                # The liveness probe answered but the connect didn't, so
+                # `wait_for_reachable` will hand back the same candidate
+                # immediately on the next pass — it only consults the deadline
+                # when *nothing* is reachable. Without our own deadline check and
+                # backoff this became an unbounded, no-sleep hot loop that ignored
+                # `transport.reconnect_max_wait` and hammered the device
+                # thousands of times a second. Typical trigger: a WiCAN that
+                # rebooted into auto_pid — port 80 answers the probe, the data
+                # port refuses the connect.
+                if not await self._backoff(deadline, stopped):
                     return False
                 continue
             controller.rebind(client)
@@ -145,3 +154,23 @@ class MonitorReconnector:
             say(f"reconnected to {cand.describe()} — resuming")
             return True
         return False
+
+    async def _backoff(self, deadline: float | None, stopped: StopFn) -> bool:
+        """Wait ``poll_interval`` before the next connect attempt.
+
+        Returns False when the attempt should be abandoned — the retry budget
+        (``deadline``) is spent or the user stopped. Sleeps in short slices so a
+        stop flag set from the TUI/signal handler is honoured promptly.
+        """
+        if stopped():
+            return False
+        if deadline is not None and time.monotonic() >= deadline:
+            return False
+        end = time.monotonic() + self._policy.poll_interval
+        if deadline is not None:
+            end = min(end, deadline)
+        while time.monotonic() < end:
+            if stopped():
+                return False
+            await asyncio.sleep(min(0.1, max(0.0, end - time.monotonic())))
+        return not stopped() and not (deadline is not None and time.monotonic() >= deadline)

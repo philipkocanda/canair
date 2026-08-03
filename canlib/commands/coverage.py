@@ -31,7 +31,8 @@ import sys
 from typing import NotRequired, TypedDict
 
 from canlib import capture_io
-from canlib.byteindex import extract_byte_indices, mapped_offsets, payload_to_wican_frame
+from canlib.byteindex import extract_byte_indices, mapped_offsets
+from canlib.byteindex import mappable_data_indices as _mappable_data_indices
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.commands._hints import pid_completer as _pid_completer
 from canlib.notation import (
@@ -137,16 +138,12 @@ def subfunction_bytes(pid_code: str) -> int:
 
 
 def mappable_data_indices(payload_hex: str, sfb: int) -> list[int]:
-    """WiCAN indices that carry real data (not PCI, SID, or subfunction bytes).
+    """Deprecated alias — the primitive now lives in :mod:`canlib.byteindex`.
 
-    A WiCAN byte is mappable when it has a payload index (not a PCI byte) and
-    that index is past the UDS header (payload index 0 = SID, 1..sfb = sub/DID).
+    Kept so existing importers of this name keep working; new code should import
+    it from ``canlib.byteindex`` directly.
     """
-    payload_bytes = [int(payload_hex[i : i + 2], 16) for i in range(0, len(payload_hex), 2)]
-    frame = payload_to_wican_frame(payload_bytes)
-    return [
-        wican_idx for wican_idx, (_val, pidx) in enumerate(frame) if pidx is not None and pidx > sfb
-    ]
+    return _mappable_data_indices(payload_hex, sfb)
 
 
 _BIT_RE = re.compile(r"(?<!\[)B(\d+):(\d+)(?!\d)")

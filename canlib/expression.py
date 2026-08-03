@@ -14,6 +14,30 @@ in the WiCAN AutoPID layout (PCI re-inserted) — see
 
 import re
 
+# Byte widths the ``[Sn:Sm]`` range form sign-extends *correctly*.
+#
+# The firmware accumulates a signed range into the smallest native container that
+# holds the span — int8/int16/int32/int64 (see ``sum_*_signed`` in
+# wican-fw/main/expression_parser.c, mirrored by the span ladder in
+# :func:`evaluate_expression`) — so the sign bit is taken from the *container's*
+# top bit, not the read's. That only coincides for a span whose width exactly
+# fills a container: 1, 2, 4 or 8 bytes. A 3/5/6/7-byte signed range is
+# sign-extended from the wrong bit and can never go negative, so ``[Sn:Sm]`` must
+# not be used for it — emit an arithmetic composition with the MSB signed
+# instead (e.g. ``S5*65536 + B6*256 + B7``), which is exact for any width.
+SIGNED_RANGE_WIDTHS = frozenset({1, 2, 4, 8})
+
+
+def signed_range_is_exact(width: int) -> bool:
+    """True if ``[Sn:Sm]`` spanning ``width`` bytes sign-extends correctly.
+
+    See :data:`SIGNED_RANGE_WIDTHS`. Callers that build expressions (the byte
+    sweeps in :mod:`canlib.inspect_bytes` and :class:`canlib.notation.ByteRef`)
+    must fall back to an arithmetic composition when this is False, or they emit
+    an expression that decodes to a different value than they measured.
+    """
+    return width in SIGNED_RANGE_WIDTHS
+
 
 def evaluate_expression(expression: str, data: bytes, V: float = 0.0) -> float:
     """Evaluate a WiCAN expression against a byte array.

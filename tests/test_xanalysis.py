@@ -369,6 +369,69 @@ class TestCorrelateMatrix:
         series = {"E1:P:A": [_tp(i, i) for i in range(5)], "E2:P:B": [_tp(i, i) for i in range(5)]}
         assert xanalysis.correlate_matrix(series, tol_s=1.0, min_r=0.5, min_n=15) == []
 
+    def test_intra_pid_bit_labels_excluded_by_default(self):
+        """Bit labels (`ECU:PID:Bn:k`) must group by ECU+PID like every other label.
+
+        Regression: the grouping key was `rsplit(":", 1)[0]`, which on the 4-field
+        bit form yielded `ECU:PID:Bn` — so every `--bits` pair looked cross-PID.
+        `correlate --bits` then ranked a param against its own backing bit
+        (r=1.000) as the top "cross-signal" hit, flooding out real findings.
+        """
+        ramp = [_tp(i, i) for i in range(20)]
+        series = {
+            "IGPM:22BC03:DOOR_DRV_OPEN": ramp,
+            "IGPM:22BC03:B10:5": [_tp(i, i) for i in range(20)],
+        }
+        assert xanalysis.correlate_matrix(series, tol_s=1.0, min_r=0.9, min_n=10) == []
+        hits = xanalysis.correlate_matrix(
+            series, tol_s=1.0, min_r=0.9, min_n=10, include_intra=True
+        )
+        assert len(hits) == 1
+
+    def test_cross_pid_bit_labels_still_surface(self):
+        # The fix must not over-group: a bit on a *different* PID is a real hit.
+        series = {
+            "IGPM:22BC03:B10:5": [_tp(i, i) for i in range(20)],
+            "IGPM:22BC06:B10:0": [_tp(i + 0.2, i) for i in range(20)],
+        }
+        hits = xanalysis.correlate_matrix(series, tol_s=1.0, min_r=0.9, min_n=10)
+        assert len(hits) == 1
+        assert hits[0].r == pytest.approx(1.0)
+
+
+class TestSignalGroupKey:
+    """The cross-domain 'same signal source' key (see xanalysis.signal_group_key)."""
+
+    @pytest.mark.parametrize(
+        "label,expected",
+        [
+            # domain A — diagnostics: key on ECU+PID
+            ("BMS:2101:SOC", "BMS:2101"),
+            ("IGPM:22BC03:B12", "IGPM:22BC03"),
+            ("IGPM:22BC03:B12:3", "IGPM:22BC03"),  # 4-field bit form
+            # domain B — raw broadcast frames: key on the arbitration ID
+            ("0x220:r1", "0x220"),
+            ("0x220:r1.3", "0x220"),  # bit uses '.', not ':'
+        ],
+    )
+    def test_group_key(self, label, expected):
+        assert xanalysis.signal_group_key(label) == expected
+
+    @pytest.mark.parametrize(
+        "a,b,same",
+        [
+            ("IGPM:22BC03:B12", "IGPM:22BC03:B13", True),
+            ("IGPM:22BC03:B12:3", "IGPM:22BC03:B13:4", True),
+            ("IGPM:22BC03:SOC", "IGPM:22BC03:B13:4", True),
+            ("IGPM:22BC03:B12:3", "IGPM:22BC04:B13:4", False),  # different PID
+            ("IGPM:22BC03:B12:3", "BCM:22BC03:B13:4", False),  # different ECU
+            ("0x220:r1.3", "0x220:r2.4", True),
+            ("0x220:r1", "0x386:r2", False),
+        ],
+    )
+    def test_same_pid(self, a, b, same):
+        assert xanalysis._same_pid(a, b) is same
+
 
 # ---------------------------------------------------------------------------
 # hunt_byte (fixture PID where B4 == reference)
@@ -844,6 +907,44 @@ class TestPhysicalScan:
         assert temp, f"expected a temp-band hit, got {[(h.expr, h.band) for h in hits]}"
         assert "40" in temp[0].scaling  # a raw/2-40 (or -40) temperature scaling
         assert 10 <= temp[0].median <= 30
+
+    # -- single-frame layout -------------------------------------------------
+    # Regression: the skip-set was built from wican_to_isotp/isotp_to_wican, which
+    # hardcode the multi-frame layout (two First-Frame PCI bytes). A single-frame
+    # response has only ONE PCI byte, so the header was shifted a byte too far and
+    # the FIRST real data byte was silently excluded from the scan — a false
+    # negative in the one tool meant to find an anchorless signal. Every other test
+    # in this class uses an 8-byte (multi-frame) payload, which is why it survived.
+
+    def test_finds_value_in_first_data_byte_of_single_frame_response(self):
+        # 7-byte payload -> single frame: B0=PCI, B1=SID, B2=echo, B3..B7=data.
+        # A mains-RMS-looking value sits in B3, the first data byte.
+        payloads = [f"6101{v:02X}01020304" for v in (225, 228, 231, 226, 233)]
+        hits = xanalysis.physical_scan(self._loaded(payloads), min_n=3)
+        assert "B3" in {h.expr for h in hits}, (
+            f"first data byte B3 must be scanned, got {[(h.expr, h.band) for h in hits]}"
+        )
+
+    def test_single_frame_still_excludes_pci_sid_and_echo(self):
+        # The narrower skip-set must not swing the other way: B0 (PCI), B1 (SID)
+        # and B2 (PID echo) are never sensor data.
+        payloads = [f"6101{v:02X}01020304" for v in (225, 228, 231, 226, 233)]
+        hits = xanalysis.physical_scan(self._loaded(payloads), min_n=3)
+        assert all(h.offset >= 3 for h in hits), (
+            f"PCI/SID/echo must stay excluded, got {[(h.expr, h.offset) for h in hits]}"
+        )
+
+    def test_mixed_frame_layouts_scan_only_commonly_safe_bytes(self):
+        # If a PID answered with both layouts, a given WiCAN index can be a data
+        # byte in one capture and the SID in another. Interpreting those together
+        # is garbage, so only the intersection is scanned — never a byte whose role
+        # differs across captures.
+        single = [f"6101{v:02X}01020304" for v in (225, 228, 231)]
+        multi = [f"6101{v:02X}010203040506" for v in (226, 229, 232)]
+        hits = xanalysis.physical_scan(self._loaded(single + multi), min_n=3)
+        # B1 is the SID under the single-frame layout and a PCI byte under the
+        # multi-frame one — it must never be reported.
+        assert all(h.offset >= 3 for h in hits), [(h.expr, h.offset) for h in hits]
 
     def test_voltage_hit_not_displaced_by_temp(self):
         # The mains-RMS word still surfaces though its bytes also get a

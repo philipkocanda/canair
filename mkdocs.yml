@@ -111,6 +111,7 @@ nav:
           - canair repl: reference/cli/repl.md
           - canair captures: reference/cli/captures.md
           - canair decode: reference/cli/decode.md
+          - canair align: reference/cli/align.md
           - canair correlate: reference/cli/correlate.md
           - canair hunt: reference/cli/hunt.md
           - canair investigate: reference/cli/investigate.md
@@ -121,11 +122,16 @@ nav:
           - canair validate: reference/cli/validate.md
           - canair wican: reference/cli/wican.md
           - canair ecu: reference/cli/ecu.md
+          - canair bus: reference/cli/bus.md
+          - canair states: reference/cli/states.md
+          - canair groups: reference/cli/groups.md
           - canair profile: reference/cli/profile.md
           - canair config: reference/cli/config.md
           - canair import: reference/cli/import.md
           - canair export: reference/cli/export.md
+          - canair contribute: reference/cli/contribute.md
           - canair bix: reference/cli/bix.md
+          - canair logs: reference/cli/logs.md
           - canair update: reference/cli/update.md
           - canair completion: reference/cli/completion.md
   - Bundled profiles:

@@ -59,6 +59,36 @@ class TestToWicanExpression:
         ref = ByteRef.from_wican(4, width=2, signed=True)
         assert ref.to_wican_expression() == "[S4:S5]"
 
+    def test_signed_widths_the_range_form_cannot_sign_extend(self):
+        """3/5/6/7-byte signed reads must not use `[Sn:Sm]`.
+
+        The firmware sign-extends a signed range from the top bit of the native
+        container it accumulates into (int8/16/32/64), so only 1/2/4/8-byte spans
+        are exact. A 3-byte `[S4:S6]` reads bit 31 as the sign bit and can never
+        be negative — see canlib.expression.signed_range_is_exact.
+        """
+        from canlib.expression import evaluate_expression
+
+        for width in (3, 5, 6, 7):
+            ref = ByteRef.from_wican(2, width=width, signed=True)
+            expr = ref.to_wican_expression()
+            assert expr is not None
+            assert "[S" not in expr, f"width {width} must not use the range form: {expr}"
+
+        # An all-0xFF..FE 3-byte read is -2, not 16777214.
+        frame = bytes([0, 0, 0xFF, 0xFF, 0xFE] + [0] * 8)
+        expr = ByteRef.from_wican(2, width=3, signed=True).to_wican_expression()
+        assert expr is not None
+        assert evaluate_expression(expr, frame) == -2.0
+
+    def test_unsigned_ranges_are_unaffected_by_the_signed_width_rule(self):
+        # `[Bn:Bm]` has no sign bit, so every width keeps the compact range form
+        # — provided the bytes don't straddle a PCI byte (B8 here), which forces
+        # a shift composition for an unrelated reason.
+        for width in (3, 5, 6):
+            expr = ByteRef.from_wican(2, width=width).to_wican_expression()
+            assert expr == f"[B2:B{2 + width - 1}]"
+
     def test_little_endian_unsigned_shift_composition(self):
         # LE unsigned -> shift form (matches inspect_bytes.wican_expr).
         ref = ByteRef.from_wican(4, width=2, little=True)

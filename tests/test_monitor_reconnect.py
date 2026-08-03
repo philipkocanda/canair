@@ -156,6 +156,26 @@ def _reconnector(candidates, connect, *, forever=False, max_wait=0.2):
     return MonitorReconnector(candidates, connect, policy)
 
 
+def _run_bounded(reconnector, *args, timeout=5.0, **kwargs):
+    """Run a reconnector, failing loudly if it never returns.
+
+    A bounded reconnect that ignores its deadline loops forever, which would
+    otherwise *hang* the suite (and CI) instead of failing. Wrapping it in a
+    timeout converts that regression into a clean, fast assertion failure.
+    """
+
+    async def drive():
+        try:
+            return await asyncio.wait_for(reconnector(*args, **kwargs), timeout=timeout)
+        except TimeoutError:
+            raise AssertionError(
+                f"reconnector did not return within {timeout}s — its retry budget "
+                "is not being honoured (unbounded retry loop)"
+            ) from None
+
+    return asyncio.run(drive())
+
+
 class TestMonitorReconnector:
     def test_resumes_on_reachable(self, monkeypatch):
         monkeypatch.setattr("canlib.wican_mode._tcp_open", lambda *a: True)
@@ -219,6 +239,97 @@ class TestMonitorReconnector:
         r = _reconnector([_raw("dev")], connect, forever=True)
         ok = asyncio.run(r(ctl, None, stop=lambda: True))
         assert ok is False
+
+    # -- retry budget when the probe answers but the connect doesn't ---------
+    # Regression: `wait_for_reachable` returns a candidate as soon as its probe
+    # port answers and only consults the deadline when *nothing* is reachable. So
+    # a device whose probe port is up but whose data port refuses (a WiCAN that
+    # rebooted into auto_pid: port 80 answers, the SLCAN port doesn't) sent the
+    # retry loop spinning forever with no sleep — ignoring
+    # `transport.reconnect_max_wait` entirely and issuing tens of thousands of
+    # connects per second. The pre-existing retry test uses forever=True, which
+    # cannot observe a deadline, so nothing covered this.
+
+    def test_bounded_gives_up_when_probe_answers_but_connect_always_fails(self, monkeypatch):
+        monkeypatch.setattr("canlib.wican_mode._tcp_open", lambda *a: True)
+        attempts = {"n": 0}
+
+        async def connect(cand):
+            attempts["n"] += 1
+            raise ConnectionError("data port refused")
+
+        ctl = FakeController()
+        r = _reconnector([_raw("dev")], connect, forever=False, max_wait=0.2)
+        ok = _run_bounded(r, ctl, None)
+        assert ok is False, "a bounded reconnect must give up once max_wait is spent"
+        assert ctl.rebound == []
+        # Paced by poll_interval (0.01s here), not a hot loop. The unfixed code
+        # managed tens of thousands of attempts in this window.
+        assert attempts["n"] < 200, f"hot-spinning: {attempts['n']} connect attempts"
+
+    def test_bounded_reconnect_respects_max_wait_duration(self, monkeypatch):
+        monkeypatch.setattr("canlib.wican_mode._tcp_open", lambda *a: True)
+
+        async def connect(cand):
+            raise ConnectionError("nope")
+
+        r = _reconnector([_raw("dev")], connect, forever=False, max_wait=0.3)
+        started = time.monotonic()
+        ok = _run_bounded(r, FakeController(), None)
+        elapsed = time.monotonic() - started
+        assert ok is False
+        # Bounded by max_wait (+ scheduling slack), and it must actually return.
+        assert elapsed < 3.0, f"took {elapsed:.2f}s for a 0.3s budget"
+
+    def test_zero_budget_attempts_once_then_gives_up(self, monkeypatch):
+        monkeypatch.setattr("canlib.wican_mode._tcp_open", lambda *a: True)
+        attempts = {"n": 0}
+
+        async def connect(cand):
+            attempts["n"] += 1
+            raise ConnectionError("nope")
+
+        r = _reconnector([_raw("dev")], connect, forever=False, max_wait=0.0)
+        assert _run_bounded(r, FakeController(), None) is False
+        assert attempts["n"] == 1
+
+    def test_forever_keeps_retrying_a_failing_connect_but_paces_itself(self, monkeypatch):
+        """`--wait` must retry indefinitely — without busy-looping."""
+        monkeypatch.setattr("canlib.wican_mode._tcp_open", lambda *a: True)
+        attempts = {"n": 0}
+
+        async def connect(cand):
+            attempts["n"] += 1
+            raise ConnectionError("nope")
+
+        async def drive():
+            r = _reconnector([_raw("dev")], connect, forever=True)
+            task = asyncio.create_task(r(FakeController(), None))
+            await asyncio.sleep(0.2)
+            still_going = not task.done()
+            task.cancel()
+            return still_going
+
+        assert asyncio.run(drive()) is True, "--wait must not give up"
+        assert attempts["n"] < 200, f"hot-spinning: {attempts['n']} attempts in 0.2s"
+
+    def test_stop_is_honoured_during_the_retry_backoff(self, monkeypatch):
+        monkeypatch.setattr("canlib.wican_mode._tcp_open", lambda *a: True)
+        stopped = {"v": False}
+
+        async def connect(cand):
+            stopped["v"] = True  # stop right after the first failed attempt
+            raise ConnectionError("nope")
+
+        # A long poll_interval: only a slice-wise, stop-aware backoff returns fast.
+        policy = ReconnectPolicy(
+            forever=True, max_wait=99.0, connect_timeout=0.001, poll_interval=5.0
+        )
+        r = MonitorReconnector([_raw("dev")], connect, policy)
+        started = time.monotonic()
+        ok = asyncio.run(r(FakeController(), None, stop=lambda: stopped["v"]))
+        assert ok is False
+        assert time.monotonic() - started < 2.0, "backoff ignored the stop flag"
 
 
 # ---------------------------------------------------------------------------

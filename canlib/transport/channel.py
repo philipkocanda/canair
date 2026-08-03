@@ -27,6 +27,24 @@ try:
 except ImportError as e:  # pragma: no cover - import-time guard
     raise ImportError("websockets not installed. Run: pip3 install websockets") from e
 
+# Shared connect behaviour — every channel must apply all three, or the engine's
+# framing assumptions break in transport-specific ways:
+#
+# CONNECT_TIMEOUT  a host that accepts the TCP SYN then stalls (a filtered port, a
+#                  wedged adapter) must not hang the caller for the OS-level TCP
+#                  timeout (~75s on Darwin/Linux) — that would also blow straight
+#                  past the monitor's `transport.reconnect_max_wait` budget.
+# SETTLE_SECONDS   give the device a moment to emit its connect banner...
+# ...then drain()  ...and discard it. Most ELM327 clones greet a new connection
+#                  with `ELM327 v1.5\r\r>`. The engine detects a reply by its `>`
+#                  prompt, so an undrained banner is consumed as the *first*
+#                  command's response, leaving that command's real reply buffered
+#                  — a permanent one-command offset for the whole session, which
+#                  the engine's stale-frame defence cannot recover because
+#                  connect() also clears the dirty-pipe flag.
+CONNECT_TIMEOUT = 10.0
+SETTLE_SECONDS = 0.3
+
 
 @runtime_checkable
 class Channel(Protocol):
@@ -72,12 +90,14 @@ class WebSocketChannel:
     async def connect(self) -> None:
         if self.verbose:
             print(f"  [ws] Connecting to {self.url}...", file=sys.stderr)
-        self.ws = await websockets.connect(self.url, ping_interval=None, open_timeout=10.0)
+        self.ws = await websockets.connect(
+            self.url, ping_interval=None, open_timeout=CONNECT_TIMEOUT
+        )
         mode_msg = json.dumps({"ws_mode": "terminal", "terminal_type": "elm327"})
         await self.ws.send(mode_msg)
         if self.verbose:
             print(f"  [ws] Sent: {mode_msg}", file=sys.stderr)
-        await asyncio.sleep(0.3)
+        await asyncio.sleep(SETTLE_SECONDS)
         await self.drain()
 
     async def send(self, text: str) -> None:
@@ -166,7 +186,19 @@ class TcpChannel:
     async def connect(self) -> None:
         if self.verbose:
             print(f"  [tcp] Connecting to {self.host}:{self.port}...", file=sys.stderr)
-        self._reader, self._writer = await asyncio.open_connection(self.host, self.port)
+        try:
+            self._reader, self._writer = await asyncio.wait_for(
+                asyncio.open_connection(self.host, self.port), timeout=CONNECT_TIMEOUT
+            )
+        except TimeoutError as e:
+            raise ConnectionError(
+                f"ELM327 adapter {self.host}:{self.port} did not respond within "
+                f"{CONNECT_TIMEOUT:g}s"
+            ) from e
+        # Settle, then discard the adapter's connect banner (see CONNECT_TIMEOUT /
+        # SETTLE_SECONDS above) so it can't be mistaken for the first reply.
+        await asyncio.sleep(SETTLE_SECONDS)
+        await self.drain()
 
     async def send(self, text: str) -> None:
         assert self._writer is not None  # connected before use

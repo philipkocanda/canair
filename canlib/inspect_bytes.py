@@ -21,6 +21,8 @@ from __future__ import annotations
 import struct
 from typing import NamedTuple
 
+from .expression import signed_range_is_exact
+
 
 class InspectType(NamedTuple):
     """One data-inspector interpretation: read ``width`` bytes as ``kind``.
@@ -98,10 +100,12 @@ def float_series_is_noise(values: list[float]) -> bool:
 def wican_expr(offset: int, spec: InspectType, little: bool = False) -> str | None:
     """Equivalent WiCAN expression for an interpretation, or None if not expressible.
 
-    Big-endian ints map to the ``[Bnn:Bmm]`` / ``[Snn:Smm]`` forms; little-endian
-    unsigned ints to a bit-shift composition. A little-endian *signed* int has no
-    ``<<``/``|`` form (OR-ing a negative high byte is wrong), so it is emitted as
-    an arithmetic composition with the most-significant byte signed — e.g.
+    Big-endian ints map to the ``[Bnn:Bmm]`` / ``[Snn:Smm]`` forms — except a
+    *signed* read whose width the range form can't sign-extend exactly (3/5/6/7
+    bytes; see :func:`canlib.expression.signed_range_is_exact`), which falls back
+    to the arithmetic composition below. A little-endian *signed* int has no
+    ``<<``/``|`` form (OR-ing a negative high byte is wrong), so it too is emitted
+    as an arithmetic composition with the most-significant byte signed — e.g.
     ``B9 + S10*256`` — which *is* promotable. Only floats remain inexpressible.
     """
     width, kind, signed = spec.width, spec.kind, spec.signed
@@ -110,16 +114,20 @@ def wican_expr(offset: int, spec: InspectType, little: bool = False) -> str | No
     c = "S" if signed else "B"
     if width == 1:
         return f"{c}{offset}"
-    if not little:
+    exact_range = not signed or signed_range_is_exact(width)
+    if not little and exact_range:
         return f"[{c}{offset}:{c}{offset + width - 1}]"
     if signed:
-        # Little-endian signed: MSB (last byte) signed, lower bytes unsigned,
+        # Signed, non-range (little-endian, or a width the range form would
+        # sign-extend from the wrong bit): MSB signed, lower bytes unsigned,
         # combined arithmetically (``+``/``*``) since ``<<``/``|`` mishandle the
         # negative high byte.
+        msb_idx = width - 1 if little else 0
         terms = []
         for k in range(width):
-            char = "S" if k == width - 1 else "B"
-            mult = 1 << (8 * k)
+            char = "S" if k == msb_idx else "B"
+            shift = 8 * k if little else 8 * (width - 1 - k)
+            mult = 1 << shift
             terms.append(f"{char}{offset + k}" if mult == 1 else f"{char}{offset + k}*{mult}")
         return " + ".join(terms)
     terms = [f"B{offset}"] + [f"(B{offset + k} << {8 * k})" for k in range(1, width)]

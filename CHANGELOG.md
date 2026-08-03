@@ -31,6 +31,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `plans/2026-08-03-elm327-direct-transport.md`.
 
 ### Fixed
+- **`hunt --promote` no longer writes a wrong expression for a 3-byte signed
+  read.** The `[Snn:Smm]` range form is sign-extended by the *native container*
+  the firmware accumulates into (int8/16/32/64), so it is only exact for a 1-, 2-,
+  4- or 8-byte span. A 3/5/6/7-byte signed read took its sign bit from the wrong
+  position and could never be negative — so `hunt` ranked a candidate by the
+  correct signed series, then promoted an expression that decoded to something
+  else entirely (a small negative value became ~16.7 million, in `canair decode`
+  *and* on the device). Those widths now emit the exact arithmetic composition
+  (`S5*65536 + B6*256 + B7`) that the little-endian and PCI-straddling cases
+  already used. Also affects `decode --plot`'s annotate/promote actions.
+- **`hunt --physical` / `investigate` no longer skip the first data byte of a
+  single-frame PID.** The scan built its "which bytes are real data" set from
+  helpers that hardcode the multi-frame ISO-TP layout (two First-Frame PCI
+  bytes). A single-frame response has only *one* PCI byte, so the UDS header was
+  shifted a byte too far and the first genuine data byte was silently excluded —
+  a false negative in exactly the tool meant to find a signal with no reference
+  to correlate against. Byte roles are now derived per capture from the
+  length-aware frame reconstruction (shared as `byteindex.mappable_data_indices`),
+  and a PID that answered with both layouts only scans bytes that are data in
+  every capture.
+- **`correlate --bits` no longer reports same-PID pairs as cross-signal hits.**
+  The "same signal source" grouping key assumed a 3-field label, so the 4-field
+  bit form (`ECU:PID:Bn:k`) grouped by `ECU:PID:Bn` and every `--bits` pair looked
+  cross-PID. The top hit was typically a parameter correlated with its own backing
+  bit at r=1.000, crowding out real cross-ECU findings.
+- **A dropped monitor session no longer retries forever at 100% CPU.** When a
+  device's liveness probe answered but the connect failed (a WiCAN that rebooted
+  into `auto_pid`: port 80 up, data port closed), the reconnect loop never
+  consulted its deadline and never slept — ignoring `transport.reconnect_max_wait`
+  entirely and issuing tens of thousands of connect attempts per second. The
+  retry budget is now enforced on that path, with a stop-aware backoff between
+  attempts; `--wait` still retries indefinitely, but paced.
+- **`elm327-tcp` now applies a connect timeout and discards the adapter's connect
+  banner.** `TcpChannel.connect()` was missing both guarantees its WebSocket twin
+  had: a host that accepted the TCP SYN then stalled blocked for the OS timeout
+  (~75 s, also overrunning the monitor's reconnect budget), and the
+  `ELM327 v1.5\r\r>` greeting most clones emit was consumed as the *first*
+  command's reply — leaving that command's real reply buffered and shifting every
+  response by one for the whole session.
 - **`canair pids` can now author standard OBD-II PID keys with a leading zero**
   (`0105`, `0902`, …). Previously the surgical editor wrote such a key bare, YAML
   re-parsed it as an integer (dropping the leading zero), and the edit silently

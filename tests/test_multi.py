@@ -417,6 +417,73 @@ class TestExecIocontrolSession:
         sm.terminal.send_uds.assert_awaited_once()
 
 
+class TestExecIocontrolPolarity:
+    """The ON/OFF selection must send the *requested* actuator command.
+
+    This is the only code path in canair that energises a physical vehicle
+    output, and the pre-existing test above asserted `send_uds.assert_awaited_
+    once()` — a call *count*, not its arguments. Inverting the one-line
+    `cmd_def["off"] if off else cmd_def["on"]` ternary therefore switched a relay
+    ON when the user asked for OFF while the entire suite stayed green. These
+    tests pin the actual bytes put on the bus.
+    """
+
+    ON_CMD = "2FBC0103"
+    OFF_CMD = "2FBC0100"
+
+    def _sm(self):
+        sm = MagicMock()
+        sm.active_sessions = [0x770]  # already open: isolate the actuation step
+        sm.open_session = AsyncMock(return_value=True)
+        sm.keepalive_stale = AsyncMock()
+        sm.terminal = MagicMock()
+        sm.terminal.set_header = AsyncMock()
+        sm.terminal.send_uds = AsyncMock(return_value={"ok": True, "hex": "6FBC0103"})
+        return sm
+
+    def _index(self, **overrides):
+        cmd = {
+            "label": "low beam",
+            "on": self.ON_CMD,
+            "off": self.OFF_CMD,
+            "session": True,
+            "hold": False,
+            "verified": True,
+            "notes": "",
+            "discovery": False,
+        }
+        cmd.update(overrides)
+        return {"IGPM": {"tx_id": 0x770, "cmds": {"BC01": cmd}}}
+
+    def _run(self, monkeypatch, *, off, cmd_overrides=None):
+        from canlib.modes import multi_exec
+
+        index = self._index(**(cmd_overrides or {}))
+        monkeypatch.setattr(multi_exec, "build_iocontrol_index", lambda _pids: index)
+        sm = self._sm()
+        asyncio.run(_exec_iocontrol(sm, "IGPM", "BC01", off, {}, {}, False))
+        return sm
+
+    def test_on_request_sends_the_on_command(self, monkeypatch):
+        sm = self._run(monkeypatch, off=False)
+        sent = sm.terminal.send_uds.await_args.args[0]
+        assert sent == self.ON_CMD, f"ON must send {self.ON_CMD}, sent {sent}"
+
+    def test_off_request_sends_the_off_command(self, monkeypatch):
+        sm = self._run(monkeypatch, off=True)
+        sent = sm.terminal.send_uds.await_args.args[0]
+        assert sent == self.OFF_CMD, f"OFF must send {self.OFF_CMD}, sent {sent}"
+
+    def test_targets_the_ecu_header(self, monkeypatch):
+        sm = self._run(monkeypatch, off=False)
+        sm.terminal.set_header.assert_awaited_once_with(0x770)
+
+    def test_missing_command_for_the_requested_direction_sends_nothing(self, monkeypatch):
+        # A DID with no OFF defined must refuse, not silently fall through to ON.
+        sm = self._run(monkeypatch, off=True, cmd_overrides={"off": ""})
+        sm.terminal.send_uds.assert_not_awaited()
+
+
 class TestBuildQueryPlanStatic:
     """Static config/identity PIDs are omitted from a bare-ECU sweep."""
 

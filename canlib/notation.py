@@ -27,6 +27,7 @@ from .byteindex import (
     torque_to_bix,
     wican_to_isotp,
 )
+from .expression import signed_range_is_exact
 
 
 class ByteSpace(StrEnum):
@@ -153,10 +154,12 @@ class ByteRef:
         whose bytes straddle a PCI byte in the WiCAN frame — contiguous in ISO-TP
         but not in WiCAN — is emitted as an explicit shift-composition (the
         capability the old PCI-skipping analysis could not express). A *signed*
-        read that can't use the ``[Sn:Sm]`` range form (little-endian, or
-        PCI-straddling) is emitted as an arithmetic composition with the
-        most-significant byte signed (e.g. ``B9 + S10*256``) — ``<<``/``|`` would
-        mishandle the negative high byte. Non-ISO-TP refs return ``None``.
+        read that can't use the ``[Sn:Sm]`` range form (little-endian,
+        PCI-straddling, or a width the range form would sign-extend from the wrong
+        bit — see :func:`canlib.expression.signed_range_is_exact`) is emitted as an
+        arithmetic composition with the most-significant byte signed (e.g.
+        ``B9 + S10*256``) — ``<<``/``|`` would mishandle the negative high byte.
+        Non-ISO-TP refs return ``None``.
         """
         if self.space is not ByteSpace.ISOTP:
             return None
@@ -167,7 +170,8 @@ class ByteRef:
         if self.width == 1:
             return f"{char}{woffs[0]}"
         contiguous = all(woffs[i + 1] - woffs[i] == 1 for i in range(len(woffs) - 1))
-        if not self.little and contiguous:
+        exact_range = not self.signed or signed_range_is_exact(self.width)
+        if not self.little and contiguous and exact_range:
             return f"[{char}{woffs[0]}:{char}{woffs[-1]}]"
         if self.signed:
             # Signed, non-range (little-endian or PCI-straddling): compose

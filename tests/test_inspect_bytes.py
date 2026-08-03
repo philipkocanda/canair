@@ -19,6 +19,7 @@ I16 = InspectType("i16", 2, "int", True)
 U24 = InspectType("u24", 3, "int", False)
 I24 = InspectType("i24", 3, "int", True)
 U32 = InspectType("u32", 4, "int", False)
+I64 = InspectType("i64", 8, "int", True)
 F32 = InspectType("f32", 4, "float", True)
 
 FRAME = bytes([0x04, 0x61, 0x01, 0xAB, 0xCD, 0x00])  # PCI, SID, echo, data...
@@ -63,6 +64,68 @@ class TestWicanExpr:
         assert ib.wican_expr(3, U16) == "[B3:B4]"
         assert ib.wican_expr(3, I16) == "[S3:S4]"
         assert ib.wican_expr(10, U32) == "[B10:B13]"
+
+    def test_big_endian_signed_i24_avoids_the_range_form(self):
+        # Regression: `[Snn:Smm]` sign-extends by the *container* width the
+        # firmware accumulates into (int8/16/32/64), so a 3-byte span is
+        # sign-extended from bit 31 and can never go negative. Emitting it here
+        # made `hunt --promote` write an expression that decoded to a different
+        # value than the one it correlated on. Must use the arithmetic form.
+        assert ib.wican_expr(5, I24) == "S5*65536 + B6*256 + B7"
+        assert "[S" not in (ib.wican_expr(5, I24) or "")
+
+    def test_big_endian_signed_i24_expr_matches_interpretation(self):
+        from canlib.expression import evaluate_expression
+
+        # 0xFFFFFE as a 24-bit signed value is -2; the old `[S5:S7]` form
+        # evaluated to 16777214.
+        frame = bytes([0] * 5 + [0xFF, 0xFF, 0xFE] + [0] * 4)
+        expr = ib.wican_expr(5, I24)
+        assert ib.interpret_bytes(frame, 5, I24) == -2.0
+        assert evaluate_expression(expr, frame) == -2.0
+
+    def test_every_int_interpretation_round_trips_through_its_expression(self):
+        """Each emitted expression must decode to the value it was derived from.
+
+        The i24 bug hid because nothing checked expression output against
+        `interpret_bytes` across the whole type/offset/endianness matrix — the
+        exact promise `--promote` relies on.
+
+        Reads up to 4 bytes must round-trip *exactly*. An 8-byte little-endian
+        signed read is the one unavoidable exception: it cannot use the exact
+        `[Sn:Sm]` range form (wrong byte order), so it composes arithmetically
+        through a term of 2**56, and both this evaluator and the firmware
+        accumulate in a double — whose ULP up there is 16. That read is therefore
+        only accurate to the float64 ULP of its largest term, on-device included.
+        """
+        import math
+
+        from canlib.expression import evaluate_expression
+
+        frame = bytes([0xFF, 0x80, 0x7F, 0x01, 0xFE, 0xFF, 0xFF, 0xFE, 0x00, 0x81] * 3)
+        for spec in ib.INSPECT_TYPES:
+            if spec.kind == "float":
+                continue
+            for little in (False, True):
+                for off in range(0, len(frame) - spec.width + 1):
+                    expr = ib.wican_expr(off, spec, little=little)
+                    assert expr is not None
+                    expected = ib.interpret_bytes(frame, off, spec, little=little)
+                    got = evaluate_expression(expr, frame)
+                    assert expected is not None
+                    if "*" in expr and spec.width > 4:
+                        # Arithmetic composition through terms above 2**53.
+                        tol = math.ulp(2.0 ** (8 * (spec.width - 1))) * spec.width
+                    else:
+                        tol = 0.0
+                    assert abs(got - expected) <= tol, (
+                        f"{spec.name} little={little} off={off} expr={expr!r}: {got} != {expected}"
+                    )
+
+    def test_big_endian_signed_8_byte_keeps_the_exact_range_form(self):
+        # 8 *is* a native container width, so `[Sn:Sm]` is both correct and
+        # exact-integer — never downgrade it to a lossy arithmetic composition.
+        assert ib.wican_expr(2, I64) == "[S2:S9]"
 
     def test_little_endian_unsigned_shift(self):
         assert ib.wican_expr(3, U16, little=True) == "B3 | (B4 << 8)"

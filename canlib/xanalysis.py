@@ -630,11 +630,40 @@ def correlate_matrix(
     return hits
 
 
+def signal_group_key(label: str) -> str:
+    """The "same signal source" grouping key for a series label.
+
+    Two label grammars flow through the correlation engine, and the key is the
+    part identifying *where the bytes came from* — so a pair sharing it is an
+    intra-source (not cross-signal) relationship:
+
+    ==========================  =============================  ==========
+    label                       grammar                        key
+    ==========================  =============================  ==========
+    ``BMS:2101:SOC``            domain A, named param          ``BMS:2101``
+    ``IGPM:22BC03:B12``         domain A, raw byte             ``IGPM:22BC03``
+    ``IGPM:22BC03:B12:3``       domain A, raw *bit*            ``IGPM:22BC03``
+    ``0x220:r1``                domain B, frame byte           ``0x220``
+    ``0x220:r1.3``              domain B, frame bit            ``0x220``
+    ==========================  =============================  ==========
+
+    Domain A always has at least an ECU and a PID, so a 3-or-more-field label
+    keys on its first two fields; a domain-B frame label is a single
+    arbitration ID plus one byte/bit field (the bit uses a ``.``, deliberately,
+    see :mod:`canlib.frame_series`), so it keys on its first field.
+
+    A plain ``rsplit(":", 1)[0]`` — which this replaced — silently broke on the
+    4-field *bit* form: it keyed ``IGPM:22BC03:B12:3`` on ``IGPM:22BC03:B12``, so
+    every ``--bits`` pair looked cross-PID and `correlate --bits` reported a
+    param against its own backing bit (r=1.000) as a top "cross-signal" hit.
+    """
+    parts = label.split(":")
+    return ":".join(parts[:2]) if len(parts) >= 3 else parts[0]
+
+
 def _same_pid(a: str, b: str) -> bool:
-    """True if two ``ECU:PID:SIGNAL`` labels share the same ECU+PID."""
-    pa = a.rsplit(":", 1)[0]
-    pb = b.rsplit(":", 1)[0]
-    return pa == pb
+    """True if two signal labels come from the same ECU+PID (or arbitration ID)."""
+    return signal_group_key(a) == signal_group_key(b)
 
 
 _CLUSTER_THRESHOLD = 0.995
@@ -999,29 +1028,42 @@ def physical_scan(
     :func:`canlib.physical_bands.resolve_physical_bands`); ``None`` falls back to
     the built-in :data:`PHYSICAL_BANDS` defaults.
     """
-    from .byteindex import isotp_to_wican, payload_to_wican_bytes, wican_to_isotp
+    from .byteindex import mappable_data_indices, payload_to_wican_bytes
     from .notation import subfunction_bytes_for_pid
 
     if bands is None:
         bands = PHYSICAL_BANDS
 
+    sfb = subfunction_bytes_for_pid(loaded.pid)
     frames: list[bytes] = []
     max_len = 0
+    # Scan only bytes that carry real data — never ISO-TP framing (PCI) or the
+    # UDS header (SID + PID/DID echo): a physical sensor value is never in those,
+    # and letting a constant echo byte join a data byte into a wide 16-bit word
+    # manufactures false band hits.
+    #
+    # The roles must be derived per capture via the length-aware
+    # `mappable_data_indices`, because a single-frame response has ONE PCI byte
+    # and a multi-frame response TWO. Filtering with wican_to_isotp/isotp_to_wican
+    # (which hardcode the multi-frame layout) shifted the header by one on
+    # single-frame PIDs and silently excluded their first real data byte.
+    #
+    # Take the INTERSECTION across captures: an index is only safe to interpret
+    # if it is a data byte in *every* capture, otherwise a PID that answered with
+    # both layouts would mix a data byte with a SID at the same offset.
+    data_idx: set[int] | None = None
     for cap in loaded.captures:
         try:
             fr = payload_to_wican_bytes(cap["payload"])
+            mappable = set(mappable_data_indices(cap["payload"], sfb))
         except Exception:
             continue
         frames.append(fr)
         max_len = max(max_len, len(fr))
-    if not frames:
+        data_idx = mappable if data_idx is None else (data_idx & mappable)
+    if not frames or not data_idx:
         return []
-    # Skip PCI framing bytes AND the protocol header (SID + PID/DID echo): a
-    # physical sensor value is never in those, and letting a constant echo byte
-    # join a data byte into a wide 16-bit word manufactures false band hits.
-    skip = {i for i in range(max_len) if wican_to_isotp(i) is None}
-    header_isotp = 1 + subfunction_bytes_for_pid(loaded.pid)  # SID + echo bytes
-    skip |= {isotp_to_wican(i) for i in range(header_isotp)}
+    skip = {i for i in range(max_len) if i not in data_idx}
 
     hits: list[PhysicalHit] = []
     for spec in INSPECT_TYPES:

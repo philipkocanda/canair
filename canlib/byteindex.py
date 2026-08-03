@@ -346,6 +346,27 @@ def payload_to_wican_frame(payload_bytes: list[int]) -> list[tuple[int, int | No
 _payload_to_wican_frame = payload_to_wican_frame
 
 
+def mappable_data_indices(payload_hex: str, sfb: int) -> list[int]:
+    """WiCAN indices of ``payload_hex`` that carry real data.
+
+    Excludes ISO-TP framing (PCI) bytes and the UDS header (payload index 0 =
+    SID, ``1..sfb`` = subfunction / DID echo). ``sfb`` is
+    :func:`canlib.notation.subfunction_bytes_for_pid` for the PID in question.
+
+    **Use this rather than filtering with** :func:`wican_to_isotp` /
+    :func:`isotp_to_wican`: those two hardcode the multi-frame layout (two
+    First-Frame PCI bytes), so on a single-frame response — which has *one* PCI
+    byte — they are off by one and silently exclude the first real data byte.
+    This helper derives the roles from :func:`payload_to_wican_frame`, which is
+    length-aware, so it is correct for both layouts.
+    """
+    payload_bytes = [int(payload_hex[i : i + 2], 16) for i in range(0, len(payload_hex), 2)]
+    frame = payload_to_wican_frame(payload_bytes)
+    return [
+        wican_idx for wican_idx, (_val, pidx) in enumerate(frame) if pidx is not None and pidx > sfb
+    ]
+
+
 class NotAFrameError(ValueError):
     """Raised when bytes given as an already-framed CAN payload aren't one.
 
