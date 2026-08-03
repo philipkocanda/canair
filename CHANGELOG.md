@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-08-03
+
 ### Added
 
 - **`--wait` and mid-session auto-reconnect for the live monitor.** A new
@@ -22,6 +24,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     retry forever. The TUI shows a `⟳ reconnecting…` banner while it re-homes.
   - New config key `transport.reconnect_max_wait`. See
     `plans/2026-08-03-monitor-reconnect-and-wait.md`.
+- **Short aliases for common commands.** `mon` (monitor), `cap` (captures),
+  `id` (identity), `st` (status), `disc` (discover), `dec` (decode),
+  `cov` (coverage), `val` (validate), and `prof` (profile) now work as
+  first-class aliases; a bare `canair cap` still gets the default `uds` kind
+  injected. The top-level help bolds the parenthesised alias hint on a TTY.
+
+### Changed
+
+- **Typed (enum/bitmask) labels now render in every decode view.** The
+  typed-decode layer (`canlib/decode_value.py`) was previously applied only by
+  `canair decode`/`investigate`; every other view that decodes PID params
+  (`captures` ecu-pids/previews/`--latest`/`--step`/`--diff`, the live monitor,
+  the main `read` query-step path, single-ECU/param reads, `repl !decode`, and
+  the IOControl live-status column) rendered the bare float and dropped the
+  label. All now share the typed path and render `{raw} (label)`, also honoring
+  the legacy `display:` field.
+
+### Docs
+
+- Byte-index concept pages use the natural `Bnn` (WiCAN) form in `bix` examples,
+  matching how WiCAN bytes are written elsewhere.
 
 ## [1.11.0] - 2026-08-02
 
@@ -1325,7 +1348,8 @@ dongle (both the WiCAN Pro and the classic/non-Pro WiCAN are supported).
 - Command safety blocklist preventing UDS programming/write sessions against a
   real vehicle.
 
-[Unreleased]: https://github.com/philipkocanda/canair/compare/v1.11.0...HEAD
+[Unreleased]: https://github.com/philipkocanda/canair/compare/v1.12.0...HEAD
+[1.12.0]: https://github.com/philipkocanda/canair/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/philipkocanda/canair/compare/v1.10.2...v1.11.0
 [1.10.2]: https://github.com/philipkocanda/canair/compare/v1.10.1...v1.10.2
 [1.10.1]: https://github.com/philipkocanda/canair/compare/v1.10.0...v1.10.1
