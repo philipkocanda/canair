@@ -199,11 +199,16 @@ the emulator out of the box:
   (port is config-only; `--wican` is host-only; prefer `127.0.0.1` over
   `localhost`); "run `elm` in its own terminal" caveat.
 
-**Known limitation surfaced (not fixed here):** the surgical `canair pids` editor
-can't round-trip a PID key that is all decimal digits with a leading zero
-(`0105`, `0902`) — YAML parses it as an int, losing the zero, so the edit reverts.
-OBD PIDs with a hex letter (`010C`/`010D`/`010F`) are unaffected. Worth a
-follow-up fix (quote such keys in `pids_edit`/`ecus_edit`).
+**Leading-zero PID keys — FIXED (follow-up commit).** The surgical `canair pids`
+editor now round-trips a PID key that is all decimal digits with a leading zero
+(`0105`, `0902`) — standard OBD-II Mode-01/09 PIDs. Root cause: the key was
+written bare and YAML re-parsed it as an int (losing the zero), so the editor's
+key lookup failed and reverted. Fix: `canlib/pids_edit/_text.py::_key_token`
+double-quotes a key whenever a bare token wouldn't stringify back to itself
+(leaving ordinary keys like `2101` unquoted, so existing profiles don't churn),
+and `_keyed_block` now matches an optionally-quoted key. Applied at every PID-key
+emission site (`add_pid`/`upsert_parameter`/`rename_pid`). Regression tests in
+`tests/test_pids_edit_params.py::TestLeadingZeroPidKeys`.
 
 ## Out of scope (follow-up)
 

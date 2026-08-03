@@ -23,6 +23,7 @@ from ._text import (
     _format_map_field,
     _format_scalar_field,
     _insert_lines,
+    _key_token,
     _keyed_block,
     _remove_field_line,
     _replace_field_in_block_at,
@@ -214,7 +215,7 @@ def upsert_parameter(
             param_lines = _format_param_block(param_name, fields, indent=8)
             block = [
                 "  pids:",
-                f"    {pid_u}:",
+                f"    {_key_token(pid_u)}:",
                 "      status: active",
                 "      parameters:",
                 *param_lines,
@@ -230,7 +231,7 @@ def upsert_parameter(
             chain = "\n".join(
                 [
                     "  pids:",
-                    f"    {pid_u}:",
+                    f"    {_key_token(pid_u)}:",
                     "      status: active",
                     "      parameters:",
                     *param_lines,
@@ -242,7 +243,12 @@ def upsert_parameter(
         if not pidb:
             # New PID block appended to the pids: section.
             param_lines = _format_param_block(param_name, fields, indent=8)
-            block = [f"    {pid_u}:", "      status: active", "      parameters:", *param_lines]
+            block = [
+                f"    {_key_token(pid_u)}:",
+                "      status: active",
+                "      parameters:",
+                *param_lines,
+            ]
             return _insert_lines(text, pids_body_start, pids_body_end, block)
 
         _, _, pid_body_start, pid_body_end, _ = pidb
@@ -517,7 +523,7 @@ def add_pid(
         raise PidsEditError(f"invalid PID {pid!r} (expected a hex code like 21F2 or 22B003)")
 
     def _pid_lines(indent: str) -> list[str]:
-        lines = [f"{indent}{pid_u}:", f"{indent}  status: {status}"]
+        lines = [f"{indent}{_key_token(pid_u)}:", f"{indent}  status: {status}"]
         if period is not None:
             lines.append(f"{indent}  period: {period}")
         if vehicle_states:
@@ -689,8 +695,8 @@ def rename_pid(ecu_name: str, old_pid: str, new_pid: str, *, pids_dir: Path | No
             raise PidsEditError(f"PID {old_pid!r} not found on {ecu_name}")
         hdr = existing[0]
         renamed = re.sub(
-            rf"^( {{4}}){re.escape(old_u)}:",
-            rf"\g<1>{new_u}:",
+            rf"""^( {{4}})(?:"{re.escape(old_u)}"|'{re.escape(old_u)}'|{re.escape(old_u)}):""",
+            rf"\g<1>{_key_token(new_u)}:",
             text[hdr : existing[1] + 1],
             count=1,
         )

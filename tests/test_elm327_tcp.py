@@ -210,3 +210,8 @@ class TestEmulatorProfile:
     def test_engine_rpm(self):
         # 41 0C 0B 90 -> (B03*256 + B04)/4 = (0x0B*256 + 0x90)/4 = 740 rpm
         assert self._decode("010C", "410C0B90", "ENGINE_RPM") == 740
+
+    def test_coolant_temp_leading_zero_pid(self):
+        # PID key "0105" is all-decimal-with-leading-zero — quoted so it round-
+        # trips (see canlib.pids_edit._key_token). 41 05 7B -> 0x7B - 40 = 83 degC.
+        assert self._decode("0105", "41057B", "COOLANT_TEMP_C") == 83

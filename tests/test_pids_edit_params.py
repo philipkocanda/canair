@@ -706,3 +706,43 @@ class TestUpsertTypedParameter:
         assert p["values"] == {40: "a", 45: "b", 50: "c"}
         # Neighbouring param untouched.
         assert "EXISTING" in _params(pids_dir, "2101")
+
+
+class TestLeadingZeroPidKeys:
+    """A PID code of all decimal digits with a leading zero (standard OBD-II
+    Mode-01/09 PIDs like 0105/0902) is parsed by YAML as an int, losing the
+    zero. The surgical editors must quote such keys so they round-trip; without
+    that the edit silently reverts ("PID ... missing after edit")."""
+
+    def test_add_pid_leading_zero(self, pids_dir):
+        add_pid("TESTECU", "0105", status="active", pids_dir=pids_dir)
+        # Round-trips as the string key "0105" (not int 105).
+        keys = {str(k) for k in _load(pids_dir)["TESTECU"]["pids"]}
+        assert "0105" in keys
+        # Written quoted so YAML keeps it a string.
+        assert '"0105":' in (pids_dir / "test.yaml").read_text()
+
+    def test_upsert_param_creates_leading_zero_pid(self, pids_dir):
+        upsert_parameter("TESTECU", "0105", "COOLANT", "B03 - 40", unit="degC", pids_dir=pids_dir)
+        assert _params(pids_dir, "0105")["COOLANT"]["expression"] == "B03 - 40"
+
+    def test_upsert_then_edit_same_leading_zero_pid(self, pids_dir):
+        # Second upsert must find the (quoted) key and add a second param.
+        upsert_parameter("TESTECU", "0902", "A", "B03", pids_dir=pids_dir)
+        upsert_parameter("TESTECU", "0902", "B", "B04", pids_dir=pids_dir)
+        params = _params(pids_dir, "0902")
+        assert set(params) == {"A", "B"}
+
+    def test_rename_to_leading_zero_key(self, pids_dir):
+        from canlib.pids_edit import rename_pid
+
+        rename_pid("TESTECU", "2103", "0100", pids_dir=pids_dir)
+        keys = {str(k) for k in _load(pids_dir)["TESTECU"]["pids"]}
+        assert "0100" in keys and "2103" not in keys
+
+    def test_ordinary_numeric_key_not_quoted(self, pids_dir):
+        # A key that already round-trips via str() (2104 -> "2104") must NOT be
+        # quoted — existing profiles shouldn't churn.
+        add_pid("TESTECU", "2104", status="active", pids_dir=pids_dir)
+        text = (pids_dir / "test.yaml").read_text()
+        assert "    2104:" in text and '"2104":' not in text

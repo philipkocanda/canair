@@ -89,8 +89,8 @@ canair --profile $P read "ENGINE:010D ENGINE:010C ENGINE:010F" \
 
 Its `init` string disables echo/headers (`ATE0;ATH0;…`) and filters to the
 primary ECU (`ATCRA7E8`) so responses are the bare, un-duplicated UDS payload.
-It's a fine template if you want to add more PIDs (use PID keys containing a hex
-letter — e.g. `010C`, not `0105` — see the quirks below).
+It's a fine template if you want to add more PIDs — standard OBD-II PID keys
+(including all-decimal ones with a leading zero like `0105`) are handled.
 
 ## Reconnect gap & `--wait`
 
@@ -116,11 +116,7 @@ The emulator is a functional stand-in, not a real car:
 - **Flaky PIDs:** `0100` ("supported PIDs") simulates a multi-second `SEARCHING…`
   bus-init and is unstable over TCP; multi-frame ISO-TP (VIN `0902`) isn't
   reliably reassembled over headers-off TCP. Prefer stable stateless PIDs
-  (`010C`, `010D`, `010F`, `ATRV`).
-- **Leading-zero PID keys:** a PID key of all decimal digits with a leading zero
-  (`0105`, `0902`) is parsed by YAML as an integer (losing the zero), so the
-  surgical `canair pids` editor can't round-trip it. Use OBD PIDs whose key
-  contains a hex letter (`010C`/`010D`/`010F`) when authoring a test profile.
+  (`010C`, `010D`, `010F`, `0105`, `ATRV`).
 
 ## Automated tests
 

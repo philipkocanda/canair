@@ -260,6 +260,11 @@ def _find_ecu_block(text: str, ecu_name: str) -> tuple[int, int]:
 def _keyed_block(text: str, name: str, indent: int, win_start: int, win_end: int):
     """Locate ``<indent spaces><name>:`` within ``[win_start, win_end)``.
 
+    The key may be bare or quoted (``0105:`` / ``"0105":`` / ``'0105':``) — a PID
+    code that YAML would otherwise coerce (e.g. a leading-zero decimal like
+    ``0105``) is written quoted by :func:`_key_token`, so the finder must match
+    either form.
+
     Returns ``(hdr_start, line_end, body_start, body_end, inline)`` or ``None``:
       - ``hdr_start``  offset of the key line
       - ``line_end``   offset of the newline ending the key line
@@ -267,7 +272,8 @@ def _keyed_block(text: str, name: str, indent: int, win_start: int, win_end: int
       - ``body_end``   offset just before the next same-or-shallower sibling
       - ``inline``     any text after ``name:`` on the header line (e.g. ``{}``)
     """
-    pat = re.compile(rf"^ {{{indent}}}{re.escape(name)}:[ \t]*(.*)$", re.MULTILINE)
+    q = re.escape(name)
+    pat = re.compile(rf'^ {{{indent}}}(?:"{q}"|\'{q}\'|{q}):[ \t]*(.*)$', re.MULTILINE)
     m = pat.search(text, win_start, win_end)
     if not m:
         return None
@@ -279,6 +285,32 @@ def _keyed_block(text: str, name: str, indent: int, win_start: int, win_end: int
     tail = re.compile(rf"^ {{0,{indent}}}[^\s#]", re.MULTILINE).search(text, body_start, win_end)
     body_end = tail.start() if tail else win_end
     return (m.start(), line_end, body_start, body_end, inline)
+
+
+def _needs_key_quoting(key: str) -> bool:
+    """True if a bare YAML scalar ``key`` wouldn't stringify back to ``key``.
+
+    PID codes are hex strings, but a code of all decimal digits with a leading
+    zero (``0105``, ``0902`` — standard OBD-II Mode-01/09 PIDs) is parsed by YAML
+    as an *integer*, losing the leading zero (``0105`` -> ``105``). The surgical
+    editors compare keys via ``str(k)``, so such a key silently fails to round-
+    trip and the edit reverts — unless it's quoted. Keys that already round-trip
+    via ``str()`` (``2101`` -> ``2101``) or are non-numeric (``22B004``, ``010C``)
+    are left unquoted, so existing profiles don't churn.
+    """
+    import yaml
+
+    try:
+        v = yaml.safe_load(key)
+    except yaml.YAMLError:
+        return True
+    return str(v) != key
+
+
+def _key_token(key: str) -> str:
+    """Render a mapping key, double-quoting it only when a bare token wouldn't
+    round-trip (see :func:`_needs_key_quoting`)."""
+    return f'"{key}"' if _needs_key_quoting(key) else key
 
 
 def _format_scalar_field(indent: str, key: str, value) -> str:

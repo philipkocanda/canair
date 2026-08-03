@@ -34,3 +34,13 @@ ENGINE:
           source: OBD-II standard (SAE J1979)
       status: active
       notes: "OBD-II Mode 01 PID 0F: intake air temperature"
+    "0105":
+      parameters:
+        COOLANT_TEMP_C:
+          expression: B03 - 40
+          unit: degC
+          min: "-40"
+          max: "215"
+          source: OBD-II standard (SAE J1979)
+      status: active
+      notes: "OBD-II Mode 01 PID 05: engine coolant temperature"

@@ -8,7 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-
 - **`elm327-tcp` transport — support any generic ELM327 adapter.** canair now
   talks to a plain ELM327 clone (WiFi dongles like Kiwi, vLinker, OBDLink, or any
   no-name $10 adapter) over a direct TCP socket — no WiCAN required. Select it
@@ -28,6 +27,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the real `elm327-tcp` path (auto-skipped when the emulator isn't installed, so
   the core suite stays device-free). See
   `plans/2026-08-03-elm327-direct-transport.md`.
+
+### Fixed
+- **`canair pids` can now author standard OBD-II PID keys with a leading zero**
+  (`0105`, `0902`, …). Previously the surgical editor wrote such a key bare, YAML
+  re-parsed it as an integer (dropping the leading zero), and the edit silently
+  reverted with "PID … missing after edit". PID keys that wouldn't survive a
+  YAML round-trip are now quoted; ordinary keys (`2101`) are left as-is.
 
 ## [1.12.0] - 2026-08-03
 
