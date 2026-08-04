@@ -109,7 +109,7 @@ def test_sort_by_caps_descending_none_last(monkeypatch):
 
     monkeypatch.setattr(ecu, "_all_captures_by_ecu", lambda: Counter({"A": 5, "B": 9}))
     ecus = {0x1: {"name": "A"}, 0x2: {"name": "B"}, 0x3: {"name": "C"}}
-    recs = _list_records(ecus, _pids_data_counts(), with_captures=True, sort="caps")
+    recs = _list_records(ecus, _pids_data_counts(), sort="caps")
     # B (9) > A (5) > C (registry-only, no captures key) last.
     assert [r["name"] for r in recs] == ["B", "A", "C"]
 
@@ -144,9 +144,9 @@ def test_list_output_omits_alias_suffix(capsys):
     assert "SMK" not in out
 
 
-# ── capture-count opt-in (--captures) ────────────────────────────────────────
-# Capture counts require parsing every capture file, so they are opt-in. Without
-# --captures the counts must be None ("not computed", rendered "—"), never 0.
+# ── capture counts (always computed) ─────────────────────────────────────────
+# Capture counts used to be opt-in behind --captures for performance; that flag
+# was removed and counts are now always computed and shown.
 
 
 def _pids_data_bms():
@@ -160,50 +160,29 @@ def _pids_data_bms():
     }
 
 
-def test_list_captures_none_without_flag(monkeypatch):
-    # _all_captures_by_ecu must NOT be called when captures aren't requested.
-    import canlib.commands.ecu as ecu
-
-    def _boom():
-        raise AssertionError("_all_captures_by_ecu called without --captures")
-
-    monkeypatch.setattr(ecu, "_all_captures_by_ecu", _boom)
-    recs = _list_records({0x7E4: {"name": "BMS"}}, _pids_data_bms(), with_captures=False)
-    assert recs[0]["captures"] is None
-
-
-def test_list_captures_counted_with_flag(monkeypatch):
+def test_list_captures_counted_by_default(monkeypatch):
     from collections import Counter
 
     import canlib.commands.ecu as ecu
 
     monkeypatch.setattr(ecu, "_all_captures_by_ecu", lambda: Counter({"BMS": 42}))
-    recs = _list_records({0x7E4: {"name": "BMS"}}, _pids_data_bms(), with_captures=True)
+    recs = _list_records({0x7E4: {"name": "BMS"}}, _pids_data_bms())
     assert recs[0]["captures"] == 42
 
 
-def test_list_caps_column_shows_dash_without_flag(capsys):
-    recs = _list_records({0x7E4: {"name": "BMS"}}, _pids_data_bms(), with_captures=False)
-    cmd_list(recs, as_json=False)
-    out = capsys.readouterr().out
-    assert "—" in out  # CAPS rendered as em-dash, not "0"
+def test_list_caps_column_shows_zero_when_no_captures(monkeypatch, capsys):
+    from collections import Counter
 
-
-def test_detail_captures_none_without_flag(monkeypatch):
     import canlib.commands.ecu as ecu
 
-    def _boom(_name):
-        raise AssertionError("_captures_by_pid called without --captures")
-
-    monkeypatch.setattr(ecu, "_captures_by_pid", _boom)
-    info = {"name": "BMS"}
-    ecu_def = _pids_data_bms()["ecus"]["BMS"]
-    rec = _detail_record(info, 0x7E4, "BMS", ecu_def, with_captures=False)
-    assert rec["captures"] is None
-    assert rec["pid_list"][0]["captures"] is None
+    monkeypatch.setattr(ecu, "_all_captures_by_ecu", lambda: Counter())
+    recs = _list_records({0x7E4: {"name": "BMS"}}, _pids_data_bms())
+    cmd_list(recs, as_json=False)
+    out = capsys.readouterr().out
+    assert "0" in out  # CAPS rendered as "0" (not hidden behind a dash)
 
 
-def test_detail_captures_counted_with_flag(monkeypatch):
+def test_detail_captures_counted(monkeypatch):
     from collections import Counter
 
     import canlib.commands.ecu as ecu
@@ -211,21 +190,25 @@ def test_detail_captures_counted_with_flag(monkeypatch):
     monkeypatch.setattr(ecu, "_captures_by_pid", lambda _name: (Counter({"2101": 7}), 7))
     info = {"name": "BMS"}
     ecu_def = _pids_data_bms()["ecus"]["BMS"]
-    rec = _detail_record(info, 0x7E4, "BMS", ecu_def, with_captures=True)
+    rec = _detail_record(info, 0x7E4, "BMS", ecu_def)
     assert rec["captures"] == 7
     assert rec["pid_list"][0]["captures"] == 7
 
 
-def test_detail_display_omits_captures_without_flag(capsys):
+def test_detail_display_shows_captures(monkeypatch, capsys):
+    from collections import Counter
+
+    import canlib.commands.ecu as ecu
     from canlib.commands.ecu import cmd_detail
 
+    monkeypatch.setattr(ecu, "_captures_by_pid", lambda _name: (Counter({"2101": 7}), 7))
     info = {"name": "BMS"}
     ecu_def = _pids_data_bms()["ecus"]["BMS"]
-    rec = _detail_record(info, 0x7E4, "BMS", ecu_def, with_captures=False)
+    rec = _detail_record(info, 0x7E4, "BMS", ecu_def)
     cmd_detail(rec, as_json=False)
     out = capsys.readouterr().out
-    assert "Captures" not in out
-    assert "cap" not in out  # no "N cap" per-PID segment
+    assert "Captures" in out
+    assert "7 cap" in out  # "N cap" per-PID segment
 
 
 # ── pids view (ecu <name> pids) ──────────────────────────────────────────────
