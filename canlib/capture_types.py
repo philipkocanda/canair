@@ -82,20 +82,44 @@ class CaptureRecord(TypedDict):
     elapsed_ms: NotRequired[int]
 
 
-class CaptureSession(TypedDict):
-    """One recording session: metadata + its list of captures."""
+class SessionMeta(TypedDict, total=False):
+    """The optional metadata fields of a :class:`CaptureSession`.
+
+    Split out so a builder can *accumulate* only the fields it actually has —
+    every write checked against this shape — and then splat them into the session
+    literal (``{"date": …, "label": …, **meta, "captures": …}``). That yields a
+    fully-typed :class:`CaptureSession` while preserving the schema's on-disk field
+    order, which a single typed literal can't express (a conditional key can't
+    appear in a literal, and appending after construction would put the large
+    ``captures`` array before the small metadata fields).
+
+    The alternative the builders used before was an untyped ``dict`` plus
+    ``cast(CaptureSession, …)`` at return — which type-checked nothing at all: a
+    write of ``session["keep_mode"] = "all"`` (a value the schema forbids) passed
+    silently. :class:`CaptureSession` inherits these fields rather than repeating
+    them, so the two can't drift.
+    """
+
+    vehicle_states: list[str]
+    notes: str
+    # Only the two dedup policies are recordable; `all`/`last` applied no dedup,
+    # so the field is omitted rather than claiming one (see keepmode.py).
+    keep_mode: PersistedKeepMode
+    transport: str
+    quality: Quality
+
+
+class CaptureSession(SessionMeta):
+    """One recording session: metadata + its list of captures.
+
+    Required fields here; the optional metadata is inherited from
+    :class:`SessionMeta` (a ``total=False`` base keeps its keys optional).
+    """
 
     date: str
     label: str
     captures: list[CaptureRecord]
     version: NotRequired[str]
-    vehicle_states: NotRequired[list[str]]
-    notes: NotRequired[str]
-    # Only the two dedup policies are recordable; `all`/`last` applied no dedup,
-    # so the field is omitted rather than claiming one (see keepmode.py).
-    keep_mode: NotRequired[PersistedKeepMode]
-    transport: NotRequired[str]
-    quality: NotRequired[Quality]
 
 
 class CaptureFile(TypedDict):

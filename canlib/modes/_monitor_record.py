@@ -21,8 +21,9 @@ import io
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
+from ..capture_types import Quality
 from ..keepmode import (
     KEEP_ALL,
     KEEP_LAST,
@@ -69,7 +70,7 @@ def _write_merged(
     captures_dir: Path,
     keep_mode: KeepMode | None = None,
     transport: str | None = None,
-    quality: dict | None = None,
+    quality: Quality | None = None,
 ) -> Path:
     """Build a query-capture session from merged payloads and save it to disk.
 
@@ -195,7 +196,7 @@ class MonitorRecorder:
         # file it landed in.
         self.deferred_saves: list[str] = []
 
-    def segment_quality(self) -> dict | None:
+    def segment_quality(self) -> Quality | None:
         """Data-quality footprint for the current segment, or None if unavailable.
 
         The active client's exchange/error counts since :attr:`_diag_base` (set at
@@ -205,7 +206,10 @@ class MonitorRecorder:
         diag = self._diag_recorder()
         if diag is None:
             return None
-        return diag.diff(self._diag_base or {}).quality()
+        # Untyped→typed boundary: TransportStats.quality() builds its dict by
+        # looping over ERROR_CATEGORIES (plain `str` keys), so it can't return a
+        # TypedDict without those categories becoming a Literal too.
+        return cast(Quality, diag.diff(self._diag_base or {}).quality())
 
     def _diag_recorder(self):
         """The controller's active-client diag recorder, or None (older/fake controllers)."""

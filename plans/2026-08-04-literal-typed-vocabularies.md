@@ -9,6 +9,23 @@ because the read side legitimately carries `""` for a session that recorded no
 policy; and the transport narrowing is a `_checked_type()` parse-then-narrow
 helper rather than a bare `cast`, so the cast can't be forgotten.
 
+A follow-up commit closed the one write site the first pass left unchecked: the
+five `captures.py` session builders each assembled an untyped `dict` and returned
+`cast(CaptureSession, session)`, so *nothing* in them was checked — a
+`session["keep_mode"] = "all"` (a value the schema forbids) passed silently. The
+blocker was field order: a single typed literal can't hold a conditional key, and
+appending metadata after construction puts the large `captures` array ahead of the
+small metadata fields. Resolved by splitting the optional metadata into a
+`total=False` `SessionMeta` base that `CaptureSession` inherits: builders
+accumulate into it (every write checked) and splat it into the literal
+(`{"date": …, "label": …, **meta, "captures": …}`), which preserves the on-disk
+order exactly. `Quality` was typed along the whole write path in the same pass;
+the two remaining `cast`s are genuine untyped→typed boundaries (a JSONL journal
+record, and `_stamp_version`'s deliberate re-ordering) and are commented as such.
+Still open, and out of this plan's scope: `TransportStats.quality()` returns a
+plain `dict` because it builds it by looping over `ERROR_CATEGORIES` (`str` keys),
+so typing it needs those categories to become a `Literal` too.
+
 Make canair's three genuinely-closed string vocabularies type-checked, deriving
 each runtime tuple from the type so `argparse choices=` and existing guards keep
 working unchanged. Zero behaviour change.

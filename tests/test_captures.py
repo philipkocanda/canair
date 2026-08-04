@@ -897,6 +897,94 @@ class TestBuildDiscoverSession:
         assert sr["rejected"] == "3 addresses silent"
 
 
+class TestSessionFieldOrder:
+    """On-disk field order is deliberate: metadata first, the big array last.
+
+    All five builders assemble a `CaptureSession` as a typed literal with the
+    optional metadata splatted in (`{"date": …, "label": …, **meta, "captures":
+    …}`) precisely so every field write is checked *without* moving `captures`
+    ahead of the small metadata fields — the readability property that made the
+    obvious "type the literal directly" approach unusable. Nothing enforces that
+    ordering but this test.
+    """
+
+    _EXPECTED: ClassVar[list[str]] = [
+        "date",
+        "label",
+        "vehicle_states",
+        "notes",
+        "keep_mode",
+        "transport",
+        "quality",
+    ]
+
+    def _order(self, session):
+        keys = [k for k in session if k != "captures"]
+        assert list(session)[-1] == "captures", "captures must be the last field"
+        return keys
+
+    def test_query_session_full(self):
+        s = build_query_session(
+            [("0x7EC", "2101", "6101AA", "12:00:00")],
+            "L",
+            ["READY"],
+            "n",
+            keep_mode="changes",
+            date="2026-08-04",
+            transport="slcan-tcp",
+            quality={"exchanges": 3, "drop": 1},
+        )
+        assert self._order(s) == self._EXPECTED
+
+    def test_omitted_metadata_leaves_no_gap(self):
+        s = build_query_session([("0x7EC", "2101", "6101AA", "12:00:00")], "L", [], "")
+        assert self._order(s) == ["date", "label"]
+
+    def test_every_builder_puts_captures_last(self):
+        from canlib.captures import (
+            build_discover_session,
+            build_manual_session,
+            build_raw_session,
+            build_scan_session,
+        )
+
+        record = {"rx": "0x7EC", "pid": "2101", "payload": "6101"}
+        base = ["date", "label", "vehicle_states", "notes"]
+        cases = {
+            # build_manual_session defaults transport to "import".
+            "manual": (
+                build_manual_session([record], label="L", vehicle_states=["READY"], notes="n"),
+                [*base, "transport"],
+            ),
+            "raw": (
+                build_raw_session(
+                    "0x7EC",
+                    0x7E4,
+                    "2101",
+                    _uds_response(ok=True, hex="6101", bytes=b"\x61\x01"),
+                    "L",
+                    ["READY"],
+                    "n",
+                ),
+                base,
+            ),
+            "discover": (
+                build_discover_session(
+                    [(0x7E0, "ECU-A", "")], 1, 0, (0x700, 0x7FF), "L", ["READY"], "n"
+                ),
+                base,
+            ),
+            "scan": (
+                build_scan_session(
+                    "0x7EC", 0x7E4, 0x22, (0xB000, 0xB010), [], [], [], "L", ["READY"], "n"
+                ),
+                base,
+            ),
+        }
+        for name, (session, expected) in cases.items():
+            assert self._order(session) == expected, name
+
+
 class TestSetCaptureNote:
     """set_capture_note: per-capture note editing (not hand-edit)."""
 

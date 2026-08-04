@@ -37,6 +37,7 @@ The names that layers below use are re-exported here so existing callers
 
 import asyncio
 
+from ..capture_types import Quality
 from ..formatting import print_ecu_results
 from ..pids import build_ecu_index
 from ..session_manager import SessionManager
@@ -100,7 +101,7 @@ def _finalize_journal(
     notes: str | None = None,
     prompt: bool = True,
     suggested_state: str | None = None,
-    quality: dict | None = None,
+    quality: Quality | None = None,
 ) -> None:
     """Resolve metadata (optionally prompting) and reconcile the write-ahead journal.
 

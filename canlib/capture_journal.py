@@ -39,7 +39,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import cast
 
-from .capture_types import CaptureSession
+from .capture_types import CaptureSession, Quality
 from .keepmode import KEEP_CHANGES, KEEP_UNIQUE, KeepMode, PersistedKeepMode, parse_keep_mode
 
 JOURNAL_VERSION = 1
@@ -174,7 +174,7 @@ class CaptureJournal:
         vehicle_states: list | None = None,
         notes: str | None = None,
         transport: str | None = None,
-        quality: dict | None = None,
+        quality: Quality | None = None,
     ) -> None:
         """Append a meta record with the provided fields (last-wins on reconcile).
 
@@ -193,7 +193,7 @@ class CaptureJournal:
         if transport is not None:
             rec["transport"] = transport
         if quality is not None:
-            rec["quality"] = dict(quality)
+            rec["quality"] = quality.copy()
         self._write(rec, durable=True)
 
     def _close_fh(self) -> None:
@@ -310,7 +310,7 @@ def build_session_from_records(
     rows: list[tuple[str, str, str, str, str, int | None]] = []
     meta_date = ""
     transport: str | None = None
-    quality: dict | None = None
+    quality: Quality | None = None
     for rec in records:
         rtype = rec.get("type")
         if rtype == "meta":
@@ -322,7 +322,10 @@ def build_session_from_records(
             if rec.get("transport"):
                 transport = str(rec["transport"])
             if rec.get("quality") is not None:
-                quality = dict(rec["quality"])
+                # Untyped→typed boundary: the journal is JSONL written by (possibly
+                # an older) canair, and the footprint's producer
+                # (TransportStats.quality()) is itself untyped — see Quality.
+                quality = cast(Quality, dict(rec["quality"]))
         elif rtype == "session":
             session_records.append(rec["session"])
         elif rtype == "capture":
@@ -352,7 +355,9 @@ def build_session_from_records(
     # carry their own session date, so they are not day-split here.
     if session_records:
         # Only the first session dict carries the base; append others' captures.
-        base = dict(session_records[0])
+        # Narrowed at the *entry* boundary (the journal is untyped JSONL) so every
+        # field write below is checked, rather than casting the finished dict.
+        base = cast(CaptureSession, dict(session_records[0]))
         base["label"] = label
         if vehicle_states:
             base["vehicle_states"] = vehicle_states
@@ -369,7 +374,7 @@ def build_session_from_records(
             base["quality"] = quality
         for extra in session_records[1:]:
             base.setdefault("captures", []).extend(extra.get("captures", []))
-        return [cast(CaptureSession, base)]
+        return [base]
 
     if not rows:
         return []

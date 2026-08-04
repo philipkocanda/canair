@@ -5,6 +5,7 @@ to per-date YAML files in captures/. Used by scan, raw, discover, and
 monitor modes.
 """
 
+from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
 from typing import cast
@@ -14,8 +15,10 @@ from .capture_types import (
     CaptureFile,
     CaptureRecord,
     CaptureSession,
+    Quality,
     RespondingEntry,
     ScanResults,
+    SessionMeta,
 )
 from .keepmode import KeepMode, persisted_keep_mode
 from .states import join_states as _join_states
@@ -110,6 +113,26 @@ def resolve_metadata(
 # ---------------------------------------------------------------------------
 
 
+def _today() -> str:
+    return datetime.now().strftime("%Y-%m-%d")
+
+
+def _session_meta(vehicle_states: Sequence[str] | None, notes: str | None) -> SessionMeta:
+    """The metadata every builder shares, omitting what wasn't supplied.
+
+    Splat into the session literal (``{"date": …, "label": …, **meta, "captures":
+    …}``) so the on-disk field order stays date → metadata → captures. See
+    :class:`~canlib.capture_types.SessionMeta` for why the metadata is accumulated
+    separately rather than written into the session after construction.
+    """
+    meta: SessionMeta = {}
+    if vehicle_states:
+        meta["vehicle_states"] = list(vehicle_states)
+    if notes:
+        meta["notes"] = notes
+    return meta
+
+
 def build_query_session(
     results: list[tuple[str, str, str, str]] | list[tuple[str, str, str, str, int | None]],
     label: str,
@@ -118,7 +141,7 @@ def build_query_session(
     keep_mode: KeepMode | None = None,
     date: str | None = None,
     transport: str | None = None,
-    quality: dict | None = None,
+    quality: Quality | None = None,
 ) -> CaptureSession:
     """Build a capture session dict from query/raw payload results.
 
@@ -146,21 +169,15 @@ def build_query_session(
     provenance for judging how trustworthy the session's data is. Both are
     omitted when not supplied.
     """
-    session: dict = {
-        "date": date or datetime.now().strftime("%Y-%m-%d"),
-        "label": label,
-    }
-    if vehicle_states:
-        session["vehicle_states"] = list(vehicle_states)
-    if notes:
-        session["notes"] = notes
+    meta = _session_meta(vehicle_states, notes)
     persisted = persisted_keep_mode(keep_mode)
     if persisted is not None:
-        session["keep_mode"] = persisted
+        meta["keep_mode"] = persisted
     if transport:
-        session["transport"] = transport
+        meta["transport"] = transport
     if quality:
-        session["quality"] = dict(quality)
+        # Copied so the session doesn't alias the caller's footprint.
+        meta["quality"] = quality.copy()
 
     captures: list[CaptureRecord] = []
     for row in results:
@@ -179,8 +196,7 @@ def build_query_session(
             capture["elapsed_ms"] = elapsed_ms
         captures.append(capture)
 
-    session["captures"] = captures
-    return cast(CaptureSession, session)
+    return {"date": date or _today(), "label": label, **meta, "captures": captures}
 
 
 def build_scan_session(
@@ -205,14 +221,7 @@ def build_scan_session(
     range_str = f"{start:{did_fmt}}-{end:{did_fmt}}"
     suffix = f" + suffix {append_bytes}" if append_bytes else ""
 
-    session: dict = {
-        "date": datetime.now().strftime("%Y-%m-%d"),
-        "label": label,
-    }
-    if vehicle_states:
-        session["vehicle_states"] = list(vehicle_states)
-    if notes:
-        session["notes"] = notes
+    meta = _session_meta(vehicle_states, notes)
 
     # Build scan_results capture
     scan_capture: CaptureRecord = {
@@ -245,8 +254,7 @@ def build_scan_session(
         scan_results["rejected"] = f"{n_rejected} DIDs returned {' + '.join(parts)}"
 
     scan_capture["scan_results"] = scan_results
-    session["captures"] = [scan_capture]
-    return cast(CaptureSession, session)
+    return {"date": _today(), "label": label, **meta, "captures": [scan_capture]}
 
 
 def build_raw_session(
@@ -265,14 +273,7 @@ def build_raw_session(
     data, regenerated on demand from the payload + PID definitions (see
     decode.py and query-captures.py).
     """
-    session: dict = {
-        "date": datetime.now().strftime("%Y-%m-%d"),
-        "label": label,
-    }
-    if vehicle_states:
-        session["vehicle_states"] = list(vehicle_states)
-    if notes:
-        session["notes"] = notes
+    meta = _session_meta(vehicle_states, notes)
 
     capture: CaptureRecord = {
         "rx": ecu_ref,
@@ -287,8 +288,7 @@ def build_raw_session(
         else:
             capture["response"] = response.get("error", "unknown error")
 
-    session["captures"] = [capture]
-    return cast(CaptureSession, session)
+    return {"date": _today(), "label": label, **meta, "captures": [capture]}
 
 
 def build_discover_session(
@@ -309,14 +309,7 @@ def build_discover_session(
     from .ecus import rx_addr_str
 
     start, end = addr_range
-    session: dict = {
-        "date": datetime.now().strftime("%Y-%m-%d"),
-        "label": label,
-    }
-    if vehicle_states:
-        session["vehicle_states"] = list(vehicle_states)
-    if notes:
-        session["notes"] = notes
+    meta = _session_meta(vehicle_states, notes)
 
     capture: CaptureRecord = {
         "rx": "broadcast",
@@ -340,8 +333,7 @@ def build_discover_session(
         scan_results["rejected"] = f"{total_silent} addresses silent"
 
     capture["scan_results"] = scan_results
-    session["captures"] = [capture]
-    return cast(CaptureSession, session)
+    return {"date": _today(), "label": label, **meta, "captures": [capture]}
 
 
 # ---------------------------------------------------------------------------
@@ -368,18 +360,10 @@ def build_manual_session(
     Field order follows the schema (date, label, [vehicle_states], [notes],
     [transport], captures).
     """
-    session: dict = {
-        "date": date or datetime.now().strftime("%Y-%m-%d"),
-        "label": label,
-    }
-    if vehicle_states:
-        session["vehicle_states"] = list(vehicle_states)
-    if notes:
-        session["notes"] = notes
+    meta = _session_meta(vehicle_states, notes)
     if transport:
-        session["transport"] = transport
-    session["captures"] = list(captures)
-    return cast(CaptureSession, session)
+        meta["transport"] = transport
+    return {"date": date or _today(), "label": label, **meta, "captures": list(captures)}
 
 
 def _stamp_version(session: CaptureSession) -> CaptureSession:
@@ -404,6 +388,10 @@ def _stamp_version(session: CaptureSession) -> CaptureSession:
     if "version" not in rebuilt:
         # No ``label`` key (shouldn't happen for a valid session) — append it.
         rebuilt["version"] = __version__
+    # Sound: every key/value is copied verbatim from an already-typed
+    # CaptureSession, plus the one `version: str` this function adds. The cast is
+    # unavoidable because the whole point is to rebuild the dict in a *different
+    # key order*, which no TypedDict literal can express.
     return cast(CaptureSession, rebuilt)
 
 

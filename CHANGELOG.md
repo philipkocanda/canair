@@ -290,6 +290,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   list and the transport `Literal` to the `TRANSPORTS` registry keys, since both
   must keep their independent runtime source. See
   `plans/2026-08-04-literal-typed-vocabularies.md`.
+- **The capture-session builders are typed, not cast.** All five `captures.py`
+  builders assembled a plain `dict` and returned `cast(CaptureSession, session)`,
+  which type-checked *nothing* inside them — a `session["keep_mode"] = "all"` (a
+  value the capture schema forbids) passed silently, as did an unknown or
+  mistyped field. The optional metadata is now a `total=False` `SessionMeta` base
+  that `CaptureSession` inherits, so a builder accumulates only the fields it has
+  — every write checked — and splats them into a typed session literal. This
+  preserves the deliberate on-disk field order (metadata first, the large
+  `captures` array last), which is what made the obvious "just type the literal"
+  fix unusable and is now pinned by a test. `Quality` is typed along the whole
+  write path too; the two remaining casts are genuine untyped→typed boundaries (a
+  JSONL journal record, and the version-stamp's deliberate re-ordering) and say so.
 - **`canair captures --step --pair` is removed; a multi-PID QUERY compares by
   default.** `--pair` only ever handled *exactly two* keys, was read-only (no
   note/delete), and its PID set and tolerance were fixed at launch. Everything it
