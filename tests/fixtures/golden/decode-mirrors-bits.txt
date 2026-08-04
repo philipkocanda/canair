@@ -1,0 +1,10 @@
+
+IGPM PID 22BC03 — 18 parameters (15 verified, 3 unverified), 310 captures
+
+  ⚠ scope includes keep:unique sessions — only distinct values were kept (global dedup); return-to-previous transitions and durations are absent, and stored-row time gaps are not real sampling intervals.
+
+  Exact mirrors (positions equal across all captures)
+    B10:1 == B10:3  (n=310)
+    B11:5 == B11:6  (n=310)
+    B12:2 == B12:3  (n=310)
+

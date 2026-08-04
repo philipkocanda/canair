@@ -1,0 +1,7 @@
+
+PID coverage audit — 1 PID(s) with gaps, 0 without captures
+
+  IGPM 22BC02 (1p, 0 verified)  4 data bytes, 2026-04-14
+      UNMAPPED i2,i4,i5
+      UNVERIFIED i3
+

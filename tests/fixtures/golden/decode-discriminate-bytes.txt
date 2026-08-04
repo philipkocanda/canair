@@ -1,0 +1,30 @@
+
+IGPM PID 22BC03 — 18 parameters (15 verified, 3 unverified), 310 captures
+
+  ⚠ scope includes keep:unique sessions — only distinct values were kept (global dedup); return-to-previous transitions and durations are absent, and stored-row time gaps are not real sampling intervals.
+
+  Discriminability by state (params + bytes) (numeric: between/within variance F; categorical: Cramér's V — higher = cleaner separation)
+    ✓ ACC2_IGN_ON  F=200.5  (no state)=0.6  ready=1.0  SLEEP, PARKED=0.0  SLEEP=0.0  sleep=0.0  ready, parked=1.0  parked, sleep=0.0  charging=0.0  READY, SLEEP, ACC=0.5  READY=1.0  CHARGING=0.0  READY, PLUGGED, CHARGING=1.0  PLUGGED, CHARGING=1.0  PLUGGED, ACC2=1.0
+    ? IGN_STATUS_MIRROR  F=200.5  (no state)=0.6  ready=1.0  SLEEP, PARKED=0.0  SLEEP=0.0  sleep=0.0  ready, parked=1.0  parked, sleep=0.0  charging=0.0  READY, SLEEP, ACC=0.5  READY=1.0  CHARGING=0.0  READY, PLUGGED, CHARGING=1.0  PLUGGED, CHARGING=1.0  PLUGGED, ACC2=1.0
+    · B11  F=200.0  (no state)=55.7  ready=91.6  SLEEP, PARKED=0.0  SLEEP=0.0  sleep=0.0  ready, parked=96.0  parked, sleep=0.1  charging=0.0  READY, SLEEP, ACC=48.0  READY=96.0  CHARGING=0.0  READY, PLUGGED, CHARGING=96.0  PLUGGED, CHARGING=96.0  PLUGGED, ACC2=96.0
+    ✓ DOOR_LOCK_RL  F=186.3  (no state)=0.4  ready=0.0  SLEEP, PARKED=1.0  SLEEP=0.0  sleep=0.3  ready, parked=0.0  parked, sleep=0.3  charging=1.0  READY, SLEEP, ACC=0.0  READY=0.0  CHARGING=1.0  READY, PLUGGED, CHARGING=0.0  PLUGGED, CHARGING=0.0  PLUGGED, ACC2=0.0
+    ✓ DOOR_LOCK_RR  F=186.3  (no state)=0.4  ready=0.0  SLEEP, PARKED=1.0  SLEEP=0.0  sleep=0.3  ready, parked=0.0  parked, sleep=0.3  charging=1.0  READY, SLEEP, ACC=0.0  READY=0.0  CHARGING=1.0  READY, PLUGGED, CHARGING=0.0  PLUGGED, CHARGING=0.0  PLUGGED, ACC2=0.0
+    ✓ DOOR_DRV_OPEN  F=70.7  (no state)=0.3  ready=0.9  SLEEP, PARKED=0.0  SLEEP=0.0  sleep=0.0  ready, parked=0.5  parked, sleep=0.3  charging=0.0  READY, SLEEP, ACC=0.0  READY=0.0  CHARGING=0.0  READY, PLUGGED, CHARGING=0.7  PLUGGED, CHARGING=0.0  PLUGGED, ACC2=0.0
+    ✓ LOW_BEAM  F=61.3  (no state)=0.2  ready=0.0  SLEEP, PARKED=0.0  SLEEP=0.0  sleep=0.3  ready, parked=0.0  parked, sleep=0.0  charging=0.0  READY, SLEEP, ACC=1.0  READY=0.9  CHARGING=0.0  READY, PLUGGED, CHARGING=0.3  PLUGGED, CHARGING=0.0  PLUGGED, ACC2=0.0
+    ✓ DRL  F=58.2  (no state)=0.3  ready=0.0  SLEEP, PARKED=0.0  SLEEP=0.0  sleep=0.3  ready, parked=0.0  parked, sleep=0.0  charging=0.0  READY, SLEEP, ACC=1.0  READY=0.9  CHARGING=0.0  READY, PLUGGED, CHARGING=0.3  PLUGGED, CHARGING=0.0  PLUGGED, ACC2=0.0
+    ✓ TAIL_LIGHTS  F=58.2  (no state)=0.3  ready=0.0  SLEEP, PARKED=0.0  SLEEP=0.0  sleep=0.3  ready, parked=0.0  parked, sleep=0.0  charging=0.0  READY, SLEEP, ACC=1.0  READY=0.9  CHARGING=0.0  READY, PLUGGED, CHARGING=0.3  PLUGGED, CHARGING=0.0  PLUGGED, ACC2=0.0
+    · B12  F=56.1  (no state)=10.7  ready=0.0  SLEEP, PARKED=0.0  SLEEP=0.0  sleep=14.7  ready, parked=0.0  parked, sleep=0.0  charging=0.0  READY, SLEEP, ACC=44.0  READY=38.5  CHARGING=0.0  READY, PLUGGED, CHARGING=14.7  PLUGGED, CHARGING=0.0  PLUGGED, ACC2=0.0
+    · B13  F=21.6  (no state)=0.0  ready=0.0  SLEEP, PARKED=0.0  SLEEP=0.0  sleep=0.0  ready, parked=0.0  parked, sleep=0.0  charging=0.0  READY, SLEEP, ACC=0.0  READY=0.8  CHARGING=0.0  READY, PLUGGED, CHARGING=0.0  PLUGGED, CHARGING=0.0  PLUGGED, ACC2=0.0
+    · B10  F=15.6  (no state)=21.5  ready=28.1  SLEEP, PARKED=10.0  SLEEP=0.0  sleep=3.3  ready, parked=16.0  parked, sleep=32.6  charging=10.0  READY, SLEEP, ACC=0.0  READY=0.0  CHARGING=10.0  READY, PLUGGED, CHARGING=21.3  PLUGGED, CHARGING=0.0  PLUGGED, ACC2=0.0
+    ✓ DOOR_RL_OPEN  F=6.5  (no state)=0.2  ready=0.0  SLEEP, PARKED=0.0  SLEEP=0.0  sleep=0.0  ready, parked=0.0  parked, sleep=0.0  charging=0.0  READY, SLEEP, ACC=0.0  READY=0.0  CHARGING=0.0  READY, PLUGGED, CHARGING=0.0  PLUGGED, CHARGING=0.0  PLUGGED, ACC2=0.0
+    ✓ HOOD_OPEN  F=6.0  (no state)=0.0  ready=0.0  SLEEP, PARKED=0.0  SLEEP=0.0  sleep=0.0  ready, parked=0.0  parked, sleep=0.1  charging=0.0  READY, SLEEP, ACC=0.0  READY=0.0  CHARGING=0.0  READY, PLUGGED, CHARGING=0.0  PLUGGED, CHARGING=0.0  PLUGGED, ACC2=0.0
+    ✓ DOOR_PAS_OPEN  F=3.7  (no state)=0.1  ready=0.0  SLEEP, PARKED=0.0  SLEEP=0.0  sleep=0.0  ready, parked=0.0  parked, sleep=0.1  charging=0.0  READY, SLEEP, ACC=0.0  READY=0.0  CHARGING=0.0  READY, PLUGGED, CHARGING=0.0  PLUGGED, CHARGING=0.0  PLUGGED, ACC2=0.0
+    ✓ TRUNK_OPEN  F=3.7  (no state)=0.1  ready=0.0  SLEEP, PARKED=0.0  SLEEP=0.0  sleep=0.0  ready, parked=0.0  parked, sleep=0.1  charging=0.0  READY, SLEEP, ACC=0.0  READY=0.0  CHARGING=0.0  READY, PLUGGED, CHARGING=0.0  PLUGGED, CHARGING=0.0  PLUGGED, ACC2=0.0
+    ✓ HIGH_BEAM  F=1.9  (no state)=0.1  ready=0.0  SLEEP, PARKED=0.0  SLEEP=0.0  sleep=0.0  ready, parked=0.0  parked, sleep=0.0  charging=0.0  READY, SLEEP, ACC=0.0  READY=0.0  CHARGING=0.0  READY, PLUGGED, CHARGING=0.0  PLUGGED, CHARGING=0.0  PLUGGED, ACC2=0.0
+    ✓ SEATBELT_FL  F=1.9  (no state)=0.1  ready=0.0  SLEEP, PARKED=0.0  SLEEP=0.0  sleep=0.0  ready, parked=0.0  parked, sleep=0.0  charging=0.0  READY, SLEEP, ACC=0.0  READY=0.0  CHARGING=0.0  READY, PLUGGED, CHARGING=0.0  PLUGGED, CHARGING=0.0  PLUGGED, ACC2=0.0
+    · B14  F=1.6  (no state)=139.1  ready=170.0  SLEEP, PARKED=170.0  SLEEP=170.0  sleep=170.0  ready, parked=170.0  parked, sleep=170.0  charging=170.0
+    ? UNKNOWN_B10_6  F=n/a
+    ✓ DOOR_RR_OPEN  F=n/a
+    ✓ IGPM_CONFIG_BYTE  F=n/a
+    ? SEATBELT_FR  F=n/a
+

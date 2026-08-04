@@ -1,0 +1,6 @@
+
+  Investigate IGPM 22BC02 (272 timed captures, ≤5s join)
+    ⚠ scope includes keep:unique sessions — only distinct values were kept (global dedup); return-to-previous transitions and durations are absent, and stored-row time gaps are not real sampling intervals.
+    no varying bytes to report
+
+note: no grid_region set — physical-scan mains/line-freq bands assume 230 V / 50 Hz (EU). Set yours with `canair config set grid_region EU` (choices: EU, UK, AU, CN, US, JP).
