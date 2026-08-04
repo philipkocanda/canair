@@ -239,8 +239,10 @@ def _detail_groups(prof) -> str:
 
 
 def _detail_signals(prof) -> str:
-    files = sorted(p.name for p in prof.signals_dir.glob("*.yaml"))
-    return f"{len(files)} files: {', '.join(files) if files else 'empty'}"
+    from canlib.signals import load_signals
+
+    names = sorted(d.path.name for d in load_signals(profile=prof))
+    return f"{len(names)} files: {', '.join(names) if names else 'empty'}"
 
 
 def _detail_references(prof) -> str:

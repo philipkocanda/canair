@@ -275,21 +275,19 @@ def _run_signals() -> int:
     keyed by arbitration ID, each signal a DBC-compatible linear model. Structural
     checks mirror the signals_schema.yaml companion.
     """
-    from canlib.profile import active
+    from canlib.signals import load_signals, signals_dir
 
-    sig_dir = active().signals_dir
-    if not sig_dir.exists():
+    if not signals_dir().is_dir():
         print("No signals/ (optional) — skipping.")
         return 0
-    files = sorted(sig_dir.glob("*.yaml"))
-    if not files:
+    docs = load_signals()
+    if not docs:
         print("signals/: no files — skipping.")
         return 0
 
     total_errors = 0
     total_signals = 0
-    for path in files:
-        data = yaml_io.safe_load(path.read_text()) or {}
+    for path, data in ((d.path, d.data) for d in docs):
         errors, n_signals = check_signals_doc(data)
         total_signals += n_signals
         if errors:
@@ -301,9 +299,9 @@ def _run_signals() -> int:
             print(f"{path.name}: OK ({n_signals} signals)")
 
     if total_errors:
-        print(f"\n{total_errors} total errors across {len(files)} signals file(s)")
+        print(f"\n{total_errors} total errors across {len(docs)} signals file(s)")
         return 1
-    print(f"\nAll {len(files)} signals file(s) valid ({total_signals} signals).")
+    print(f"\nAll {len(docs)} signals file(s) valid ({total_signals} signals).")
     return 0
 
 

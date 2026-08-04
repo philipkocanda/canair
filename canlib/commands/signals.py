@@ -79,36 +79,21 @@ def run(args) -> int:
     return args._signals_func(args)
 
 
-def _load_all(bus_filter: str | None):
-    """(bus, data) for each signals/<bus>.yaml (optionally one bus)."""
-    from canlib import yaml_io
-    from canlib.profile import active
-
-    sig_dir = active().signals_dir
-    if not sig_dir.exists():
-        return []
-    out = []
-    for path in sorted(sig_dir.glob("*.yaml")):
-        bus = path.stem
-        if bus_filter and bus != bus_filter:
-            continue
-        out.append((bus, yaml_io.safe_load(path.read_text()) or {}))
-    return out
-
-
 def cmd_list(args) -> int:
-    buses = _load_all(getattr(args, "bus", None))
+    from canlib.signals import load_signals
+
+    docs = load_signals(getattr(args, "bus", None))
     if getattr(args, "json", False):
-        print(json.dumps(dict(buses), indent=2))
+        print(json.dumps({d.bus: d.data for d in docs}, indent=2))
         return 0
     total = 0
-    if not buses:
+    if not docs:
         print(
             "  No broadcast signals defined (signals/ is empty). Add with "
             "`canair signals upsert` or `canair import dbc`."
         )
         return 0
-    for bus, data in buses:
+    for bus, data in ((d.bus, d.data) for d in docs):
         messages = data.get("messages") or {}
         nsig = sum(len((m or {}).get("signals") or {}) for m in messages.values())
         total += nsig
