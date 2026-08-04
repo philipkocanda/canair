@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   than silently no-op'ing.
 
 ### Fixed
+- **`canair profile show` now lists the profile's `dtc_log.yaml`.** The component
+  listing was hand-written, so members added to the bundle over time were missed.
+  It is now driven by a single declaration of what a profile is made of, so every
+  member is surfaced by construction.
 - **`canair contribute` no longer drops the profile's `groups.yaml`.** The copied
   bundle members were listed literally, and the saved selector groups
   (`@charging`, `@driving`, …) were missing from that list — so contributing a

@@ -32,9 +32,8 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         aliases=ALIASES,
         help="List, inspect, and create vehicle profiles",
         description="List, inspect, and create vehicle profiles — the per-vehicle\n"
-        "bundles (ecus/, profile.yaml, captures/, vehicle_states.yaml, can_buses.yaml,\n"
-        "out/) that hold all\n"
-        "the reverse-engineering data.\n\n"
+        "bundles that hold all the reverse-engineering data. `show` lists every\n"
+        "member of a bundle (definitions, captures, references, generated output).\n\n"
         "Subcommands:\n"
         "  list            list every discovered profile (bundled + user)\n"
         "  show [NAME]     details of a profile (ECU/PID counts, paths); default active\n"
@@ -208,78 +207,88 @@ def _warn_if_bundled_snapshot() -> None:
         )
 
 
+def _detail_can_buses(prof) -> str:
+    from canlib.can_buses import load_can_buses
+
+    buses = load_can_buses(prof)
+    codes = ", ".join(b.code for b in buses) if buses else "empty"
+    return f"{len(buses)} buses: {codes}"
+
+
+def _detail_states(prof) -> str:
+    from canlib.states import StatePredicateError, load_states
+
+    try:
+        rules = load_states(prof)
+    except StatePredicateError as ex:
+        return f"INVALID: {ex}"
+    names = ", ".join(f"{r.name}*" if r.predicate else r.name for r in rules)
+    # A second line is printed as an indented continuation (see _cmd_show).
+    return f"{len(rules)} states: {names}\n(* = has an auto-suggest predicate)"
+
+
+def _detail_groups(prof) -> str:
+    from canlib.ecu_groups import GroupError, load_groups
+
+    try:
+        groups = load_groups(prof)
+    except GroupError as ex:
+        return f"INVALID: {ex}"
+    names = ", ".join(f"@{g}" for g in groups) if groups else "empty"
+    return f"{len(groups)} groups: {names}"
+
+
+def _detail_signals(prof) -> str:
+    files = sorted(p.name for p in prof.signals_dir.glob("*.yaml"))
+    return f"{len(files)} files: {', '.join(files) if files else 'empty'}"
+
+
+def _detail_references(prof) -> str:
+    return f"{sum(1 for p in prof.references_dir.rglob('*') if p.is_file())} files"
+
+
+# Richer "what's in it" line per member, where a bare ok/missing isn't useful.
+# A member with no entry here still gets listed (see _cmd_show) — the registry
+# decides *what* is shown, this only decides how much detail.
+_MEMBER_DETAIL = {
+    "can_buses.yaml": _detail_can_buses,
+    "vehicle_states.yaml": _detail_states,
+    "groups.yaml": _detail_groups,
+    "signals": _detail_signals,
+    "references": _detail_references,
+}
+
+
 def _cmd_show(args) -> int:
+    from canlib.profile import BUNDLE_MEMBERS
+
     prof = _resolve(args.name)
     meta = prof.meta
     print(f"name:       {prof.name}")
     print(f"root:       {prof.root}")
     print(f"car_model:  {meta.get('car_model', '?')}")
     print(f"init:       {meta.get('init', '?')}")
-    print(f"ecus:       {prof.ecus_dir}  ({'ok' if prof.ecus_dir.is_dir() else 'MISSING'})")
-    print(f"profile:    {prof.meta_file}  ({'ok' if prof.meta_file.exists() else 'MISSING'})")
-    print(f"captures:   {prof.captures_dir}  ({'ok' if prof.captures_dir.is_dir() else 'MISSING'})")
 
-    # CAN buses (optional): list the declared segment vocabulary.
-    if prof.can_buses_file.exists():
-        from canlib.can_buses import load_can_buses
+    for member in BUNDLE_MEMBERS:
+        path = prof.member_path(member)
+        if not prof.member_exists(member):
+            detail = "MISSING" if member.required else "none — optional"
+        elif member.name in _MEMBER_DETAIL:
+            detail = _MEMBER_DETAIL[member.name](prof)
+        else:
+            detail = "ok"
+        head, _, rest = detail.partition("\n")
+        print(f"{member.display_label + ':':<12}{path}  ({head})")
+        for line in rest.splitlines():
+            print(f"{'':<12}{line}")
+        # The raw-CAN frame-log store lives inside captures/.
+        if member.name == "captures":
+            if prof.can_dir.is_dir():
+                idx = "index ok" if prof.can_index_file.exists() else "no index"
+            else:
+                idx = "none — optional"
+            print(f"{'can logs:':<12}{prof.can_dir}  ({idx})")
 
-        buses = load_can_buses(prof)
-        codes = ", ".join(b.code for b in buses) if buses else "empty"
-        print(f"can_buses:  {prof.can_buses_file}  ({len(buses)} buses: {codes})")
-    else:
-        print(f"can_buses:  {prof.can_buses_file}  (none — optional)")
-
-    # States (optional): list the declared vocabulary, marking auto-suggest rules.
-    from canlib.states import StatePredicateError, load_states
-
-    if prof.states_file.exists():
-        try:
-            rules = load_states(prof)
-            names = ", ".join(f"{r.name}*" if r.predicate else r.name for r in rules)
-            print(f"states:     {prof.states_file}  ({len(rules)} states: {names})")
-            print("            (* = has an auto-suggest predicate)")
-        except StatePredicateError as ex:
-            print(f"states:     {prof.states_file}  (INVALID: {ex})")
-    else:
-        print(f"states:     {prof.states_file}  (none — optional)")
-
-    # Selector groups (optional): named saved queries for read/monitor.
-    if prof.groups_file.exists():
-        from canlib.ecu_groups import GroupError, load_groups
-
-        try:
-            groups = load_groups(prof)
-            names = ", ".join(f"@{g}" for g in groups) if groups else "empty"
-            print(f"groups:     {prof.groups_file}  ({len(groups)} groups: {names})")
-        except GroupError as ex:
-            print(f"groups:     {prof.groups_file}  (INVALID: {ex})")
-    else:
-        print(f"groups:     {prof.groups_file}  (none — optional)")
-
-    # Broadcast signal maps (optional): one <bus>.yaml per CAN bus.
-    if prof.signals_dir.is_dir():
-        sig_files = sorted(p.name for p in prof.signals_dir.glob("*.yaml"))
-        listing = ", ".join(sig_files) if sig_files else "empty"
-        print(f"signals:    {prof.signals_dir}  ({len(sig_files)} files: {listing})")
-    else:
-        print(f"signals:    {prof.signals_dir}  (none — optional)")
-
-    # Raw-CAN frame-log store (optional).
-    if prof.can_dir.is_dir():
-        idx = "index ok" if prof.can_index_file.exists() else "no index"
-        print(f"can logs:   {prof.can_dir}  ({idx})")
-    else:
-        print(f"can logs:   {prof.can_dir}  (none — optional)")
-
-    # External reference material (optional).
-    references = prof.references_dir
-    if references.is_dir():
-        n = sum(1 for p in references.rglob("*") if p.is_file())
-        print(f"references: {references}  ({n} files)")
-    else:
-        print(f"references: {references}  (none — optional)")
-
-    print(f"out:        {prof.out_dir}  ({'ok' if prof.out_dir.is_dir() else 'none'})")
     return 0
 
 

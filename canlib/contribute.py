@@ -38,6 +38,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .constants import GITHUB_REPO as UPSTREAM_REPO
+from .profile import member_names, members_by_role
 
 UPSTREAM_URL = f"https://github.com/{UPSTREAM_REPO}.git"
 UPSTREAM_OWNER = UPSTREAM_REPO.split("/")[0]
@@ -51,19 +52,13 @@ _PUSH_PERMISSIONS = {"ADMIN", "MAINTAIN", "WRITE"}
 MODE_FORK = "fork"  # push to a fork, cross-fork PR
 MODE_DIRECT = "direct"  # push to upstream directly, same-repo PR
 
-# Bundle members copied into a contribution. ``out/`` (generated), ``logs/``,
-# and ``references/`` (may hold third-party / licensed material) are excluded;
-# captures are opt-in-controlled separately.
-_DEFINITION_MEMBERS = (
-    "profile.yaml",
-    "vehicle_states.yaml",
-    "states.yaml",  # legacy name (honoured by Profile.states_file)
-    "can_buses.yaml",
-    "groups.yaml",
-    "ecus",
-    "signals",
-)
-_CAPTURE_MEMBER = "captures"
+# Bundle members copied into a contribution, from the single declaration in
+# canlib.profile. Curated definitions always ship; the captures/ evidence is
+# opt-in-controlled separately. External material (references/, uncertain
+# licence), machine-local bookkeeping (dtc_log.yaml) and generated output (out/)
+# are excluded by their role.
+_DEFINITION_MEMBERS = member_names(members_by_role("definition"))
+_CAPTURE_MEMBER = members_by_role("evidence")[0].name
 # Never copied even under captures/ (transient write-ahead log for --save).
 _CAPTURE_SKIP = ("_",)
 
@@ -188,19 +183,12 @@ def installed_snapshot_kind(path: Path) -> str | None:
     return "installed package"
 
 
-# Curated-definition members that normally only move *forward* (append-only
-# captures/ is excluded — a "deletion" there is prevented at copy time, see
-# copy_profile). A contribution that *removes* committed upstream lines from
-# these is a strong signal the source profile is stale.
-_ROLLBACK_MEMBERS = (
-    "profile.yaml",
-    "vehicle_states.yaml",
-    "states.yaml",
-    "can_buses.yaml",
-    "groups.yaml",
-    "ecus",
-    "signals",
-)
+# Curated-definition members that normally only move *forward* — the same set
+# that is always contributed (append-only captures/ is excluded, since a
+# "deletion" there is prevented at copy time; see copy_profile). A contribution
+# that *removes* committed upstream lines from these is a strong signal the
+# source profile is stale.
+_ROLLBACK_MEMBERS = _DEFINITION_MEMBERS
 
 
 def definition_rollback(

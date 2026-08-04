@@ -1,6 +1,8 @@
 """Profile bundle layout — the path properties and how ``meta`` reads them."""
 
-from canlib.profile import Profile
+import pytest
+
+from canlib.profile import BUNDLE_MEMBERS, Profile, member_names, members_by_role
 
 
 def _profile(root) -> Profile:
@@ -44,3 +46,59 @@ class TestMeta:
         prof = _profile(tmp_path)
         prof.meta_file.write_text("")
         assert prof.meta == {}
+
+
+class TestBundleRegistry:
+    """The registry is the single declaration of what a profile is made of.
+
+    Anything that reasons about bundle members (`profile show`, `contribute`,
+    the blind strip, discovery) reads it, so these guard the invariants those
+    consumers rely on — a member added to the registry but not wired to a
+    Profile property (or vice versa) is the drift that once let `groups.yaml`
+    fall out of contributions.
+    """
+
+    def test_every_member_declares_a_profile_property(self, tmp_path):
+        prof = _profile(tmp_path)
+        for member in BUNDLE_MEMBERS:
+            assert member.attr, f"{member.name} has no Profile property"
+            assert hasattr(prof, member.attr), f"Profile.{member.attr} missing"
+            assert prof.member_path(member).parent == tmp_path
+
+    def test_every_profile_path_property_is_registered(self):
+        # can_dir/can_index_file live *inside* captures/, so they are sub-members
+        # rather than top-level bundle members.
+        sub_members = {"can_dir", "can_index_file"}
+        declared = {m.attr for m in BUNDLE_MEMBERS}
+        actual = {
+            name
+            for name in dir(Profile)
+            if (name.endswith(("_dir", "_file")) and not name.startswith("_"))
+        }
+        assert actual - sub_members == declared
+
+    def test_member_path_honours_the_states_fallback(self, tmp_path):
+        (states,) = [m for m in BUNDLE_MEMBERS if m.name == "vehicle_states.yaml"]
+        (tmp_path / "states.yaml").write_text("states: []\n")
+        # Legacy alias present, canonical absent → member_path follows the property.
+        assert _profile(tmp_path).member_path(states).name == "states.yaml"
+
+    def test_names_include_legacy_aliases(self):
+        names = member_names(members_by_role("definition"))
+        assert "vehicle_states.yaml" in names and "states.yaml" in names
+
+    @pytest.mark.parametrize("member", BUNDLE_MEMBERS, ids=lambda m: m.name)
+    def test_role_decides_contributability(self, member):
+        expected = member.role in ("definition", "evidence")
+        assert member.contributable is expected
+
+    def test_required_members_identify_a_profile(self, tmp_path):
+        from canlib.profile import _looks_like_profile
+
+        assert not _looks_like_profile(tmp_path)
+        for member in (m for m in BUNDLE_MEMBERS if m.required):
+            root = tmp_path / member.name.replace(".", "_")
+            root.mkdir()
+            path = root / member.name
+            path.mkdir() if member.kind == "dir" else path.write_text("")
+            assert _looks_like_profile(root), f"{member.name} should identify a profile"

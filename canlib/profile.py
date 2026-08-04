@@ -30,6 +30,7 @@ import os
 from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
+from typing import Literal
 
 from canlib import yaml_io
 
@@ -39,6 +40,90 @@ from .constants import BUNDLED_PROFILES_DIR
 
 class ProfileError(Exception):
     """Raised when the active vehicle profile cannot be resolved."""
+
+
+# ── the bundle, declared once ─────────────────────────────────────────────
+# Every member of a profile directory is described here, and everything that
+# needs to reason about "what is a profile made of" reads this table rather than
+# repeating the names: Profile's path properties, `canair profile show`,
+# `canair contribute` (what to copy / what may only grow), the blind-test strip,
+# and profile discovery. A member added here is picked up by all of them at
+# once — a member added to only *some* of those lists is exactly how
+# `groups.yaml` came to be silently dropped from contributions.
+#
+# `role` decides how a contribution treats the member:
+#   definition — curated, hand-authored: always contributed, and normally only
+#                *grows* (so a diff that removes upstream lines is suspicious).
+#   evidence   — recorded measurements: contributed opt-in (`--captures`),
+#                append-only, unioned rather than replaced.
+#   external   — third-party material of uncertain licence: never contributed.
+#   local      — machine-local bookkeeping (gitignored): never contributed.
+#   generated  — reproducible output: never contributed, regenerate instead.
+MemberRole = Literal["definition", "evidence", "external", "local", "generated"]
+MemberKind = Literal["file", "dir"]
+
+
+@dataclass(frozen=True)
+class BundleMember:
+    """One member of a profile bundle (a file or directory under its root)."""
+
+    name: str
+    kind: MemberKind
+    role: MemberRole
+    # Profile property exposing this member's path (None for a legacy alias).
+    attr: str | None = None
+    # Column label in `canair profile show` (defaults to the name sans suffix).
+    label: str = ""
+    # A profile is recognisable by its required members (see _looks_like_profile).
+    required: bool = False
+    # Withheld from the blind-rediscovery sandbox: it would leak the answers.
+    blind_strip: bool = False
+    # Superseded names still honoured when present (e.g. states.yaml).
+    aliases: tuple[str, ...] = ()
+
+    @property
+    def contributable(self) -> bool:
+        """Whether `canair contribute` ships this member (evidence: opt-in)."""
+        return self.role in ("definition", "evidence")
+
+    @property
+    def display_label(self) -> str:
+        return self.label or self.name.removesuffix(".yaml")
+
+
+BUNDLE_MEMBERS: tuple[BundleMember, ...] = (
+    BundleMember(
+        "profile.yaml", "file", "definition", attr="meta_file", label="profile", required=True
+    ),
+    BundleMember("ecus", "dir", "definition", attr="ecus_dir", required=True),
+    BundleMember(
+        "vehicle_states.yaml",
+        "file",
+        "definition",
+        attr="states_file",
+        label="states",
+        aliases=("states.yaml",),
+    ),
+    BundleMember("can_buses.yaml", "file", "definition", attr="can_buses_file"),
+    BundleMember("groups.yaml", "file", "definition", attr="groups_file"),
+    # A signal map names and scales broadcast fields — the answers a blind run
+    # is meant to rediscover — so it ships upstream but never into the sandbox.
+    BundleMember("signals", "dir", "definition", attr="signals_dir", blind_strip=True),
+    BundleMember("captures", "dir", "evidence", attr="captures_dir"),
+    BundleMember("references", "dir", "external", attr="references_dir", blind_strip=True),
+    BundleMember("dtc_log.yaml", "file", "local", attr="dtc_log_file", blind_strip=True),
+    BundleMember("out", "dir", "generated", attr="out_dir", blind_strip=True),
+)
+
+
+def members_by_role(*roles: MemberRole) -> tuple[BundleMember, ...]:
+    """Bundle members with any of ``roles``, in declaration order."""
+    return tuple(m for m in BUNDLE_MEMBERS if m.role in roles)
+
+
+def member_names(members: tuple[BundleMember, ...]) -> tuple[str, ...]:
+    """Flatten members to on-disk names, each followed by its legacy aliases."""
+    return tuple(n for m in members for n in (m.name, *m.aliases))
 
 
 @dataclass(frozen=True)
@@ -126,9 +211,30 @@ class Profile:
                 return yaml_io.safe_load(f) or {}
         return {}
 
+    def member_path(self, member: BundleMember) -> Path:
+        """Resolve a bundle member to this profile's path for it.
+
+        Goes through the member's declared property (so ``states_file``'s legacy
+        fallback still applies) and falls back to the plain name.
+        """
+        if member.attr:
+            return getattr(self, member.attr)
+        return self.root / member.name
+
+    def member_exists(self, member: BundleMember) -> bool:
+        path = self.member_path(member)
+        return path.is_dir() if member.kind == "dir" else path.exists()
+
 
 def _looks_like_profile(path: Path) -> bool:
-    return path.is_dir() and ((path / "ecus").is_dir() or (path / "profile.yaml").exists())
+    """True when ``path`` holds any of the bundle's required members."""
+    if not path.is_dir():
+        return False
+    return any(
+        (path / m.name).is_dir() if m.kind == "dir" else (path / m.name).exists()
+        for m in BUNDLE_MEMBERS
+        if m.required
+    )
 
 
 def profiles_roots(profiles_dir: str | os.PathLike | None = None) -> list[Path]:

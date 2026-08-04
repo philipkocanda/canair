@@ -40,6 +40,7 @@ from . import pids as pids_mod
 from .byteindex import payload_to_wican_bytes
 from .decode_value import decode_typed
 from .expression import evaluate_expression
+from .profile import BUNDLE_MEMBERS, Profile
 from .stats import cramers_v, pearson, spearman
 from .xanalysis import linear_fit
 
@@ -56,14 +57,12 @@ _STRIP_ECU_SECTIONS = (
 )
 # Identity sub-fields that narrate the module's function or carry PII.
 _STRIP_IDENTITY_FIELDS = ("description", "notes", "vin", "serial")
-# Top-level profile members copied but not needed (and answer-bearing).
-_STRIP_BUNDLE_MEMBERS = (
-    "out",  # generated autopid.json — contains every expression!
-    "references",  # third-party sheets with decodes
-    "signals",  # broadcast signal definitions (names/scale = answers)
-    "logs",
-    "dtc_log.yaml",
-)
+# Top-level profile members withheld from the sandbox — each would hand over
+# answers (or is simply not needed). Declared by the bundle registry's
+# `blind_strip` flag: out/ (generated autopid.json — contains every
+# expression!), references/ (third-party sheets with decodes), signals/
+# (broadcast signal names and scales), dtc_log.yaml.
+_STRIP_BUNDLE_MEMBERS = tuple(m.name for m in BUNDLE_MEMBERS if m.blind_strip)
 _COPY_IGNORE = shutil.ignore_patterns(
     *_STRIP_BUNDLE_MEMBERS, ".journal", "*.tmp", ".git", "__pycache__"
 )
@@ -266,9 +265,10 @@ def strip_profile(src: Path, dst: Path, *, scrub_labels: bool = True) -> StripRe
         raise FileExistsError(f"strip destination already exists: {dst}")
     shutil.copytree(src, dst, ignore=_COPY_IGNORE)
 
+    sandbox = Profile(dst.name, dst)
     report = StripReport()
     yaml = yaml_rt.round_trip_yaml()
-    ecus_dir = dst / "ecus"
+    ecus_dir = sandbox.ecus_dir
     for path in sorted(ecus_dir.glob("*.yaml")):
         text = path.read_text()
         doc = yaml.load(text)
@@ -282,16 +282,16 @@ def strip_profile(src: Path, dst: Path, *, scrub_labels: bool = True) -> StripRe
         with open(path, "w") as f:
             yaml_rt.dump(doc, f, sequence=seq, offset=off)
 
-    if scrub_labels and (dst / "captures").is_dir():
-        _scrub_capture_labels(dst / "captures")
+    if scrub_labels and sandbox.captures_dir.is_dir():
+        _scrub_capture_labels(sandbox.captures_dir)
 
-    states_file = dst / "vehicle_states.yaml"
+    states_file = sandbox.states_file
     if states_file.exists():
         _strip_vehicle_states(states_file)
 
     report.residual_leaks = _find_leaks(ecus_dir)
     if states_file.exists() and "when:" in states_file.read_text():
-        report.residual_leaks.append("vehicle_states.yaml:when-predicate")
+        report.residual_leaks.append(f"{states_file.name}:when-predicate")
     return report
 
 
@@ -372,7 +372,7 @@ def load_payload_index(profile_root: Path) -> dict[tuple[str, str], list[bytes]]
     targets. ``rx`` keys are lower-case, ``pid`` keys upper-case. The returned
     mapping is cached and shared — treat it as read-only.
     """
-    captures_dir = Path(profile_root) / "captures"
+    captures_dir = Profile(Path(profile_root).name, Path(profile_root)).captures_dir
     if not captures_dir.is_dir():
         return {}
     return _payload_index(captures_dir, _captures_fingerprint(captures_dir))
@@ -576,7 +576,7 @@ def select_targets(
     voltages).
     """
     source_root = Path(source_root)
-    pids_data = pids_mod.load_pids(source_root / "ecus")
+    pids_data = pids_mod.load_pids(Profile(source_root.name, source_root).ecus_dir)
     index = pids_mod.build_ecu_index(pids_data)
     # One pass over captures/ for the whole selection: every verified parameter
     # needs its PID's payloads, and the params of one PID all share a key.
