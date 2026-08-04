@@ -13,12 +13,12 @@ import termios
 import tty
 from pathlib import Path
 
-from ..pids import build_iocontrol_index, load_pids
+from ..pids import IoControlCommand, IoControlIndexEntry, build_iocontrol_index, load_pids
 from ..pids_edit import PidsEditError, promote_discovery, update_iocontrol_field
 from ..transport.protocol import Terminal
 from ..tui import terminal_columns as _terminal_columns
 from ..tui import terminal_lines as _terminal_lines
-from ._iocontrol_actuate import IOControlActuator
+from ._iocontrol_actuate import ActuatorState, IOControlActuator
 from ._iocontrol_render import _truncate_text, render_iocontrol
 from .status import format_status_value, query_param_status
 
@@ -259,7 +259,7 @@ class _IOControlTUI:
         self,
         terminal: Terminal,
         ecu_key: str,
-        ecu_info: dict,
+        ecu_info: IoControlIndexEntry,
         pids_data: dict,
         verbose: bool = False,
         poll: bool = False,
@@ -268,7 +268,7 @@ class _IOControlTUI:
         self.ecu_key = ecu_key
         self.tx_id = ecu_info["tx_id"]
         # Full cmd map (curated + discoveries); filtered view is in self.cmds.
-        self.all_cmds = ecu_info["cmds"]
+        self.all_cmds: dict[str, IoControlCommand] = ecu_info["cmds"]
         self.pids_data = pids_data
         self.verbose = verbose
         # Background status polling is OPT-IN. When enabled, the poll loop sends
@@ -288,8 +288,10 @@ class _IOControlTUI:
 
         self.cursor = 0
 
-        # Per-DID state: None=idle, "on"=active, "off"=sent off, "error"=failed
-        self.state: dict[str, str | None] = dict.fromkeys(self.dids)
+        # Per-DID state: None=idle, else one of ActuatorState ("on"/"off"/"error").
+        # Typed so a drifted sentinel can't silently disable release_all's
+        # switch-everything-back-off safety net (see _iocontrol_actuate).
+        self.state: dict[str, ActuatorState | None] = dict.fromkeys(self.dids)
         self.last_response: dict[str, str] = {}  # DID → last response text
         self.last_value: dict[str, bytes] = {}  # DID → last ShortTermAdjustment value bytes
 
@@ -333,7 +335,7 @@ class _IOControlTUI:
             filtered = {d: c for d, c in self.all_cmds.items() if c.get("discovery")}
         else:  # "all"
             filtered = dict(self.all_cmds)
-        self.cmds = filtered
+        self.cmds: dict[str, IoControlCommand] = filtered
         self.dids = list(filtered.keys())
 
     def _cycle_view(self):

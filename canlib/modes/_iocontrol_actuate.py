@@ -17,12 +17,28 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal, get_args
 
 from ..uds_parse import UdsResponse, nrc_abbrev
 
 if TYPE_CHECKING:
     from .iocontrol import _IOControlTUI
+
+# Per-DID actuator state — the single source of truth for these sentinels.
+#
+# `release_all` (the exit-time safety net that switches every actuator back off)
+# selects its work with `state[did] == ACTUATOR_ON`. If a writer ever drifted to a
+# different spelling ("ON", True, an enum), that comparison would quietly match
+# nothing and the TUI would exit leaving vehicle outputs energised — a silent,
+# physical failure. Typing the dict makes every write and comparison checked.
+#
+# `None` means idle/unknown (never actuated this session) and is deliberately NOT
+# in this union: it is the initial value, not an outcome.
+ActuatorState = Literal["on", "off", "error"]
+ACTUATOR_ON: ActuatorState = "on"
+ACTUATOR_OFF: ActuatorState = "off"
+ACTUATOR_ERROR: ActuatorState = "error"
+ACTUATOR_STATES: tuple[ActuatorState, ...] = get_args(ActuatorState)
 
 # Same named logger the TUI attaches its per-session file handler to.
 _tui_logger = logging.getLogger("iocontrol-tui")
@@ -72,7 +88,7 @@ class IOControlActuator:
         cmd = t.cmds[did]
         hex_cmd = cmd["on"]
         if not hex_cmd:
-            t.state[did] = "error"
+            t.state[did] = ACTUATOR_ERROR
             t.last_response[did] = "no ON cmd defined"
             return
 
@@ -86,18 +102,18 @@ class IOControlActuator:
             _tui_logger.info("ON  %s resp: %s", did, resp)
             self.extract_status_bytes(did, resp)
             if resp["ok"]:
-                t.state[did] = "on"
+                t.state[did] = ACTUATOR_ON
                 t.last_response[did] = resp["hex"]
             elif resp.get("nrc") is not None:
-                t.state[did] = "error"
+                t.state[did] = ACTUATOR_ERROR
                 t.last_response[did] = f"NRC 0x{resp['nrc']:02X} {nrc_abbrev(resp['nrc'])}"
             else:
-                t.state[did] = "error"
+                t.state[did] = ACTUATOR_ERROR
                 t.last_response[did] = resp.get("error", "unknown error")
             t._status = ""
         except Exception as e:
             _tui_logger.error("ON  %s exception: %s", did, e, exc_info=True)
-            t.state[did] = "error"
+            t.state[did] = ACTUATOR_ERROR
             t.last_response[did] = str(e)
             t._status = ""
         finally:
@@ -120,18 +136,18 @@ class IOControlActuator:
             _tui_logger.info("OFF %s resp: %s", did, resp)
             self.extract_status_bytes(did, resp)
             if resp["ok"]:
-                t.state[did] = "off"
+                t.state[did] = ACTUATOR_OFF
                 t.last_response[did] = resp["hex"]
             elif resp.get("nrc") is not None:
-                t.state[did] = "error"
+                t.state[did] = ACTUATOR_ERROR
                 t.last_response[did] = f"NRC 0x{resp['nrc']:02X} {nrc_abbrev(resp['nrc'])}"
             else:
-                t.state[did] = "error"
+                t.state[did] = ACTUATOR_ERROR
                 t.last_response[did] = resp.get("error", "unknown error")
             t._status = ""
         except Exception as e:
             _tui_logger.error("OFF %s exception: %s", did, e, exc_info=True)
-            t.state[did] = "error"
+            t.state[did] = ACTUATOR_ERROR
             t.last_response[did] = str(e)
             t._status = ""
         finally:
@@ -148,7 +164,7 @@ class IOControlActuator:
         ``00`` if none has been sent yet.
         """
         t = self.t
-        if t.state[did] == "on":
+        if t.state[did] == ACTUATOR_ON:
             await self.send_off(did)
             return
         if not t.cmds[did]["on"]:
@@ -177,20 +193,20 @@ class IOControlActuator:
             _tui_logger.info("ADJ %s resp: %s", did, resp)
             self.extract_status_bytes(did, resp)
             if resp["ok"]:
-                t.state[did] = "on"
+                t.state[did] = ACTUATOR_ON
                 t.last_response[did] = resp["hex"]
                 t.last_value[did] = value_bytes
             elif resp.get("nrc") is not None:
-                t.state[did] = "error"
+                t.state[did] = ACTUATOR_ERROR
                 t.last_response[did] = f"NRC 0x{resp['nrc']:02X} {nrc_abbrev(resp['nrc'])}"
                 t.last_value[did] = value_bytes  # still store for +/- stepping
             else:
-                t.state[did] = "error"
+                t.state[did] = ACTUATOR_ERROR
                 t.last_response[did] = resp.get("error", "unknown error")
             t._status = ""
         except Exception as e:
             _tui_logger.error("ADJ %s exception: %s", did, e, exc_info=True)
-            t.state[did] = "error"
+            t.state[did] = ACTUATOR_ERROR
             t.last_response[did] = str(e)
             t._status = ""
         finally:
@@ -263,7 +279,7 @@ class IOControlActuator:
     async def release_all(self) -> None:
         """Send OFF for all active actuators."""
         t = self.t
-        active = [d for d in t.dids if t.state[d] == "on"]
+        active = [d for d in t.dids if t.state[d] == ACTUATOR_ON]
         for did in active:
             try:
                 await self.send_off(did)

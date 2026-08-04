@@ -8,8 +8,16 @@ state; it also clamps the scroll viewport (``tui._scroll_top``) so the cursor
 stays visible — a presentation concern that belongs here.
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from ..tui import terminal_columns as _terminal_columns
 from ..tui import terminal_lines as _terminal_lines
+from ._iocontrol_actuate import ACTUATOR_ERROR, ACTUATOR_OFF, ACTUATOR_ON
+
+if TYPE_CHECKING:
+    from .iocontrol import _IOControlTUI
 
 
 def _truncate_text(text: str, width: int) -> str:
@@ -23,7 +31,7 @@ def _truncate_text(text: str, width: int) -> str:
     return text[: width - 3] + "..."
 
 
-def render_iocontrol(tui) -> str:
+def render_iocontrol(tui: _IOControlTUI) -> str:
     """Build the IOControl TUI display as a plain string with ANSI codes."""
     lines = []
     lines.append(f"\033[1;36m  IOControl TUI — {tui.ecu_key} (0x{tui.tx_id:03X})\033[0m")
@@ -136,11 +144,11 @@ def render_iocontrol(tui) -> str:
         did_label = f"{b0}{did:<{did_w}}  {label_text:<{label_w}}{b1}"
 
         # "Cmd" column — what we last sent (3 visible chars)
-        if state == "on":
+        if state == ACTUATOR_ON:
             cmd_part = "\033[1;32mON \033[0m"
-        elif state == "off":
+        elif state == ACTUATOR_OFF:
             cmd_part = "\033[2mOFF\033[0m"
-        elif state == "error":
+        elif state == ACTUATOR_ERROR:
             cmd_part = "\033[1;31mERR\033[0m"
         else:
             cmd_part = "\033[2m · \033[0m"

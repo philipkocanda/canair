@@ -53,6 +53,37 @@ class EcuIndexEntry(TypedDict):
     wake: Any  # WakePlan | None — profile-declared wake ritual (canlib.wake)
 
 
+class IoControlCommand(TypedDict):
+    """One actuator command in a :func:`build_iocontrol_index` result.
+
+    ``on``/``off`` are the full UDS ``0x2F`` request hex strings; either may be
+    ``""`` when this DID has no simple command for that direction (common for
+    ShortTermAdjustment actuators needing value bytes, and for every
+    scanner-discovered entry). Callers must treat an empty string as "refuse",
+    never as a reason to fall through to the other direction.
+
+    ``discovery`` marks an entry merged in from ``iocontrol_discoveries:``
+    (probed, not curated) rather than the hand-verified ``iocontrol:`` section.
+    """
+
+    label: str
+    on: str
+    off: str
+    session: bool
+    hold: bool
+    verified: bool
+    notes: str
+    status_param: str | None
+    discovery: bool
+
+
+class IoControlIndexEntry(TypedDict):
+    """One ECU's entry in a :func:`build_iocontrol_index` result."""
+
+    tx_id: int
+    cmds: dict[str, IoControlCommand]
+
+
 class RoutineIndexEntry(TypedDict):
     """One ECU's entry in a :func:`build_routines_index` result."""
 
@@ -179,7 +210,9 @@ def build_param_index(pids_data: dict) -> dict:
     return index
 
 
-def build_iocontrol_index(pids_data: dict, include_discoveries: bool = False) -> dict:
+def build_iocontrol_index(
+    pids_data: dict, include_discoveries: bool = False
+) -> dict[str, IoControlIndexEntry]:
     """Build lookup: ECU_NAME -> {tx_id, cmds: {DID: {label, on, off, session, hold, verified, notes, discovery}}}.
 
     When ``include_discoveries=True``, entries from the ``iocontrol_discoveries:``
@@ -187,13 +220,13 @@ def build_iocontrol_index(pids_data: dict, include_discoveries: bool = False) ->
     take precedence if a DID appears in both. Discovery entries get safe defaults
     (label="?", on="", off="", verified=False, session=True, discovery=True).
     """
-    index = {}
+    index: dict[str, IoControlIndexEntry] = {}
     for ecu_name, ecu_def in pids_data.get("ecus", {}).items():
         ioctrl = ecu_def.get("iocontrol", {})
         discoveries = ecu_def.get("iocontrol_discoveries", {}) if include_discoveries else {}
         if not ioctrl and not discoveries:
             continue
-        cmds = {}
+        cmds: dict[str, IoControlCommand] = {}
         for did, cdef in ioctrl.items():
             did_str = str(did).upper()
             # YAML parses bare on/off as True/False booleans
