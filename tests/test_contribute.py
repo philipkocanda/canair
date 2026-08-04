@@ -198,6 +198,29 @@ class TestCopyProfile:
         assert (dest / "references" / "sheet.csv").exists()
         assert (dest / "out" / "autopid.json").exists()
 
+    def test_copies_every_curated_definition_member(self, tmp_path):
+        # Regression: groups.yaml was silently dropped, so a contributed profile
+        # lost its saved selector groups. Every curated definition member the
+        # profile owns must reach the workspace.
+        src = tmp_path / "src"
+        (src / "ecus").mkdir(parents=True)
+        (src / "ecus" / "bms.yaml").write_text("BMS:\n  tx_id: 0x7E4\n")
+        (src / "signals").mkdir()
+        (src / "signals" / "p-can.yaml").write_text("messages: {}\n")
+        (src / "profile.yaml").write_text("car_model: X\n")
+        (src / "vehicle_states.yaml").write_text("states:\n  SLEEP:\n")
+        (src / "can_buses.yaml").write_text("can_buses:\n  P-CAN:\n")
+        (src / "groups.yaml").write_text("groups:\n  charging: [BMS]\n")
+
+        ws = tmp_path / "ws"
+        ws.mkdir()
+        dest = C.copy_profile(Profile("mycar", src), ws, include_captures=False)
+
+        for member in ("profile.yaml", "vehicle_states.yaml", "can_buses.yaml", "groups.yaml"):
+            assert (dest / member).exists(), f"{member} not contributed"
+        assert (dest / "ecus" / "bms.yaml").exists()
+        assert (dest / "signals" / "p-can.yaml").exists()
+
 
 class TestInstalledSnapshotKind:
     def test_working_checkout_is_none(self, tmp_path):

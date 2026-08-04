@@ -59,6 +59,7 @@ _DEFINITION_MEMBERS = (
     "vehicle_states.yaml",
     "states.yaml",  # legacy name (honoured by Profile.states_file)
     "can_buses.yaml",
+    "groups.yaml",
     "ecus",
     "signals",
 )
@@ -196,6 +197,7 @@ _ROLLBACK_MEMBERS = (
     "vehicle_states.yaml",
     "states.yaml",
     "can_buses.yaml",
+    "groups.yaml",
     "ecus",
     "signals",
 )
@@ -206,8 +208,9 @@ def definition_rollback(
 ) -> list[tuple[str, int]]:
     """Definition files this contribution would delete committed upstream lines from.
 
-    Curated definitions (``ecus/``, ``profile.yaml``, buses, states, signals)
-    normally only grow, so a diff that *removes* lines already merged upstream
+    Curated definitions (``ecus/``, ``profile.yaml``, buses, states, groups,
+    signals) normally only grow, so a diff that *removes* lines already merged
+    upstream
     means the source is most likely **stale** and the contribution would revert
     that work. Returns ``(relpath, removed_lines)`` for each such file, sorted.
 

@@ -24,7 +24,7 @@ options:
   -h, --help           show this help message and exit
   --captures           Include the captures/ evidence (default)
   --no-captures        Contribute definitions only (ecus/, profile.yaml,
-                       states, buses, signals)
+                       states, buses, groups, signals)
   --branch BRANCH      Branch name to push (default:
                        contribute/<profile>-<date>)
   --title TITLE        Pull request title (default: generated)

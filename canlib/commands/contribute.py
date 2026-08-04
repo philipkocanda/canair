@@ -66,7 +66,7 @@ requires the GitHub CLI:
         "--no-captures",
         dest="captures",
         action="store_false",
-        help="Contribute definitions only (ecus/, profile.yaml, states, buses, signals)",
+        help="Contribute definitions only (ecus/, profile.yaml, states, buses, groups, signals)",
     )
     parser.add_argument(
         "--branch", help="Branch name to push (default: contribute/<profile>-<date>)"

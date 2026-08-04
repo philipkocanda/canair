@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   than silently no-op'ing.
 
 ### Fixed
+- **`canair contribute` no longer drops the profile's `groups.yaml`.** The copied
+  bundle members were listed literally, and the saved selector groups
+  (`@charging`, `@driving`, …) were missing from that list — so contributing a
+  profile upstream silently omitted them. The stale-source rollback guard was
+  missing them too, meaning a contribution that deleted upstream groups raised no
+  warning. Both member lists now include `groups.yaml`.
 - **An unknown `identity:` field name is now an ERROR, not a warning.** A typo'd
   `canair pids set-identity BMS sofware "…"` used to succeed and persist —
   `set-identity` validates only the *shape* of the field name, and the schema

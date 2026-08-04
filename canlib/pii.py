@@ -163,9 +163,16 @@ def scan_profile(profile: Profile, *, include_captures: bool = True) -> list[Fin
     ``include_captures=False`` skips the capture store (definitions-only
     contributions), still scanning ``profile.yaml``'s ``car_model``.
 
-    This scans everything, including data already committed upstream. For a
-    *contribution* review — where re-flagging already-shared history is just
-    noise — prefer :func:`scan_contribution`, which is scoped to what the PR adds.
+    Scope is deliberately the **high-risk** free text: capture session/capture
+    labels and notes (auto-suggested from real drives, so the most likely to name
+    a place or person) plus ``car_model``. Curated free text — an ECU's
+    ``notes``/``research``, and the state/bus/group vocabularies' descriptions —
+    is *not* scanned; keep it technical.
+
+    Within that scope this scans everything, including data already committed
+    upstream. For a *contribution* review — where re-flagging already-shared
+    history is just noise — prefer :func:`scan_contribution`, which is scoped to
+    what the PR adds.
     """
     findings: list[Finding] = []
     findings += _scan_free_text(str(profile.meta.get("car_model") or ""), "profile.yaml car_model")
