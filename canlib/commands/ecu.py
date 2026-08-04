@@ -12,10 +12,8 @@ Examples:
   canair ecu MDPS            # aliases resolve too (MDPS -> EPS)
   canair ecu 0x7E4           # hex TX id also works
   canair ecu 0x7EC           # hex RX id resolves too (the ECU's response address)
-  canair ecu --captures      # include capture-count columns (parses captures — slower)
   canair ecu --states        # add a STATES column (states each ECU is readable in)
   canair ecu --sort states   # group the list by vehicle state
-  canair ecu BMS --captures  # per-PID capture counts for the BMS
   canair ecu BMS --json      # machine-readable
   canair ecu --json          # all ECUs as JSON
   canair ecu HVAC edit       # open HVAC's ecus/ YAML in $EDITOR (TTY only)
@@ -28,10 +26,9 @@ Columns & legend:
          the numeric columns stay aligned.
   PIDS   number of active (non-ignored) PIDs/DIDs defined.
   VERIF  verified/total parameters (green when all verified).
-  CAPS   number of saved captures for the ECU. Only computed with `--captures`
-         (parsing every capture is slow); shown as `—` otherwise.
+  CAPS   number of saved captures for the ECU.
   cap    in the per-PID detail view, "N cap" = number of saved captures for
-         that individual PID (only shown with `--captures`).
+         that individual PID.
   STATES the vehicle states the ECU is readable/awake in — its ECU-level
          `vehicle_states`, or the union of its PIDs' when that's unset. Opt-in
          (`--states`); shown after BUS.
@@ -201,7 +198,7 @@ def _sort_records(records: list[dict], sort: str) -> None:
             return value if value is not None else 0
         if reverse:
             # Numeric column: sort descending, but absent values (None — e.g.
-            # a registry-only ECU, or captures without --captures) sort last.
+            # a registry-only ECU with no PID definitions) sort last.
             # reverse=True flips the list, so rank present > absent here.
             return (0 if value is None else 1, value or 0)
         # String column (id_protocol): missing values sort last.
@@ -210,16 +207,14 @@ def _sort_records(records: list[dict], sort: str) -> None:
     records.sort(key=key, reverse=reverse)
 
 
-def _list_records(
-    ecus: dict, pids_data: dict, with_captures: bool = False, sort: str = "bus"
-) -> list[dict]:
+def _list_records(ecus: dict, pids_data: dict, sort: str = "bus") -> list[dict]:
     """Build one record per registry ECU, joined to ecus/ by tx_id.
 
     Sorted by ``bus`` (default; group by CAN segment, unbussed ECUs last) or any
     other column in ``_SORT_COLUMNS`` — numeric columns descending, string/hex
     ascending, with ``name`` as the tie-breaker.
     """
-    cap_counts = _all_captures_by_ecu() if with_captures else Counter()
+    cap_counts = _all_captures_by_ecu()
     records = []
     for tx_id, info in ecus.items():
         if not isinstance(info, dict):
@@ -241,10 +236,7 @@ def _list_records(
         }
         if ecu_def is not None:
             rec.update(_pid_stats(ecu_def))
-            # None = capture counts not requested (--captures off); a display "—"
-            # vs. an integer 0 ("counted, none found"). Keeps the key present so
-            # --json is shape-stable.
-            rec["captures"] = cap_counts.get(name.upper(), 0) if with_captures else None
+            rec["captures"] = cap_counts.get(name.upper(), 0)
         records.append(rec)
     _sort_records(records, sort)
     return records
@@ -288,9 +280,7 @@ def cmd_list(records: list[dict], as_json: bool, show_states: bool = False) -> i
         vcolor = _GREEN if params and verified == params else (_YELLOW if verified else _DIM)
         vstr = f"{verified}/{params}"
         caps = r.get("captures")
-        if caps is None:
-            cstr = f"{_DIM}{'—':>5}{_RESET}"  # counts not requested (--captures)
-        elif caps:
+        if caps:
             cstr = f"{caps:>5}"
         else:
             cstr = f"{_YELLOW}{'0':>5}{_RESET}"
@@ -312,7 +302,6 @@ def _detail_record(
     pids_name: str | None,
     ecu_def: dict | None,
     bus_labels: dict | None = None,
-    with_captures: bool = False,
 ) -> dict:
     name = info.get("name") or f"0x{tx_id:03X}"
     bus_labels = bus_labels or {}
@@ -329,27 +318,20 @@ def _detail_record(
         "notes": info.get("notes"),
         "identity": {k: info[k] for k, _ in _IDENTITY_FIELDS if info.get(k) is not None},
     }
-    # Capture counts require parsing every capture file, so they're opt-in
-    # (--captures); when off, `captures` is None (== "not computed", shown as
-    # "—") rather than 0, and the per-PID rows carry no count.
+    per_pid, total = _captures_by_pid(name)
     if ecu_def is not None:
         rec["stats"] = _pid_stats(ecu_def)
         rec["vehicle_states"] = ecu_def.get("vehicle_states")
-        per_pid = None
-        if with_captures:
-            per_pid, total = _captures_by_pid(name)
-            rec["captures"] = total
-        else:
-            rec["captures"] = None
+        rec["captures"] = total
         rec["pid_list"] = _pid_details(ecu_def, per_pid)
     else:
         rec["stats"] = None
-        rec["captures"] = _captures_by_pid(name)[1] if with_captures else None
+        rec["captures"] = total
         rec["pid_list"] = []
     return rec
 
 
-def _pid_details(ecu_def: dict, per_pid: Counter | None) -> list[dict]:
+def _pid_details(ecu_def: dict, per_pid: Counter) -> list[dict]:
     out = []
     for pid_code, pid_def in (ecu_def.get("pids", {}) or {}).items():
         if not isinstance(pid_def, dict):
@@ -366,8 +348,7 @@ def _pid_details(ecu_def: dict, per_pid: Counter | None) -> list[dict]:
                 ),
                 "status": status,
                 "ignored": status == "ignored",
-                # None when capture counts weren't requested (--captures off).
-                "captures": per_pid.get(code, 0) if per_pid is not None else None,
+                "captures": per_pid.get(code, 0),
             }
         )
     out.sort(key=lambda p: str(p["pid"]))
@@ -428,8 +409,7 @@ def cmd_detail(rec: dict, as_json: bool) -> int:
         )
         print(f"    {'Parameters':<14} {params}")
         print(f"    {'Verified':<14} {vcolor}{verified}/{params}{_RESET}")
-        if rec["captures"] is not None:
-            print(f"    {'Captures':<14} {rec['captures']}")
+        print(f"    {'Captures':<14} {rec['captures']}")
         if stats["research_total"]:
             print(
                 f"    {'Research':<14} {stats['research_open']} open "
@@ -457,12 +437,11 @@ def cmd_detail(rec: dict, as_json: bool) -> int:
             if status != "active":
                 flags.append(f"{_DIM}{status}{_RESET}")
             caps = p["captures"]
-            if caps is not None and not caps:
+            if not caps:
                 flags.append(f"{_YELLOW}no capture{_RESET}")
             flag_str = ("  " + " ".join(flags)) if flags else ""
             vcolor = _GREEN if p["params"] and p["verified"] == p["params"] else _DIM
-            # "N cap" only when counts were computed (--captures); otherwise omit.
-            cap_seg = f"  {_DIM}{caps} cap{_RESET}" if caps is not None else ""
+            cap_seg = f"  {_DIM}{caps} cap{_RESET}"
             print(
                 f"    {_CYAN}{p['pid']:<8}{_RESET} "
                 f"{p['params']:>2}p  {vcolor}{p['verified']:>2} verified{_RESET}"
@@ -784,12 +763,6 @@ def _add_show_parser(kinds) -> argparse.ArgumentParser:
         help="Add a STATES column: the vehicle states each ECU is readable/awake in "
         "(ECU-level vehicle_states, else the union of its PIDs')",
     )
-    parser.add_argument(
-        "-c",
-        "--captures",
-        action="store_true",
-        help="Include per-ECU/PID capture counts (parses all captures — slower)",
-    )
     parser.add_argument("--json", action="store_true", help="Output as JSON")
     parser.set_defaults(func=run)
     return parser
@@ -916,12 +889,9 @@ def run(args) -> int:
     ecus = load_ecus()
     pids_data = load_pids()
     labels = bus_names()
-    with_captures = getattr(args, "captures", False)
 
     if not args.ecu:
-        records = _list_records(
-            ecus, pids_data, with_captures=with_captures, sort=getattr(args, "sort", "bus")
-        )
+        records = _list_records(ecus, pids_data, sort=getattr(args, "sort", "bus"))
         if not records:
             print("No ECUs found in the active profile (see `canair profile show`).")
             return 1
@@ -944,7 +914,5 @@ def run(args) -> int:
     if getattr(args, "view", None) == "edit":
         return cmd_edit(info, tx_id)
 
-    rec = _detail_record(
-        info, tx_id, pids_name, ecu_def, bus_labels=labels, with_captures=with_captures
-    )
+    rec = _detail_record(info, tx_id, pids_name, ecu_def, bus_labels=labels)
     return cmd_detail(rec, args.json)
