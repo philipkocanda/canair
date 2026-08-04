@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **WiCAN expressions are parsed once instead of on every evaluation.** An
+  expression is constant across a whole series, but the evaluator re-scanned its
+  string character by character (plus two regex probes per `[Bn:Bm]` token) for
+  every payload it decoded. Parsing is now split from evaluation: an expression
+  compiles once into a tree of closures, cached by expression string, and
+  evaluation does only byte loads and arithmetic. Across the 382 distinct
+  expressions in the bundled `ioniq-2017` profile that is **7.0x** per call
+  (1.07 → 0.15 µs; 9.4x when a bulk consumer reuses the compiled form directly).
+  End-to-end the win is more modest, because expression evaluation is no longer
+  the dominant cost of any command: ~2x on blind-rediscovery target selection,
+  1.2x on `investigate uds IGPM 22BC03 --bits`, and within noise on
+  `decode`/`align`/`correlate`. Decoded values are unchanged — the evaluator's
+  output is what `--promote` persists and what the WiCAN device itself computes,
+  so equivalence with the previous implementation (quirks included) is pinned by
+  a differential fuzz test against a preserved copy of it, every expression in
+  the bundled profiles, and the existing byte-identical golden analysis output.
+  One deliberate difference: an *unparseable* expression now fails when it is
+  compiled rather than at the point the old scan reached it, so a parse error
+  wins over a payload-dependent read error that used to surface first — which
+  was itself payload-dependent, and the expression is broken either way. See
+  `plans/2026-08-04-expression-evaluator-performance.md`.
+
 ## [1.13.0] - 2026-08-04
 
 ### Added
