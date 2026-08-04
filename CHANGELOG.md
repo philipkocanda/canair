@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`canair config example`** prints `config.example.yaml` — the authoritative,
+  fully-commented reference for every config key — so it's readable without
+  hunting down the repo file, including from an installed (`uv tool install`)
+  copy (now force-included in the wheel). `canair config`/`config set`/`config
+  show` help text and the example file itself now point at both
+  `canair config example` and the rendered
+  [config reference](https://philipkocanda.github.io/canair/reference/config/)
+  docs page.
+
 - **Jump between sessions and noted captures in `captures --step` (`s`).** A long
   recording is hard to navigate frame by frame, so `s` opens a jump list of every
   session in scope — newest first, with its date, time span, vehicle state, label

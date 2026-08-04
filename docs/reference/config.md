@@ -6,6 +6,7 @@ it from the CLI rather than by hand:
 
 ```bash
 canair config show          # config file locations + effective settings
+canair config example        # print config.example.yaml (the authoritative reference)
 canair config get KEY
 canair config set KEY VALUE  # dotted keys create nested mappings
 canair config unset KEY
@@ -14,8 +15,8 @@ canair config edit           # open in $EDITOR
 
 !!! note "Authoritative source"
     Every key is documented with inline comments in `config.example.yaml` in the
-    repo root. If this page and that file ever disagree, the example file wins —
-    it's kept next to the code.
+    repo root — print it anytime with `canair config example`. If this page and
+    that file ever disagree, the example file wins — it's kept next to the code.
 
 ## Keys
 

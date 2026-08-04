@@ -29,3 +29,12 @@ CONFIG_FILE = SCRIPT_DIR / "config.yaml"
 # GitHub repository canair is developed under — the source for releases
 # (`canair update`) and the target for contributions (`canair contribute`).
 GITHUB_REPO = "philipkocanda/canair"
+
+# Hosted docs site (mkdocs `site_url`) — for doc pointers in --help text.
+DOCS_URL = "https://philipkocanda.github.io/canair"
+CONFIG_DOCS_URL = f"{DOCS_URL}/reference/config/"
+
+# Commented, fully-documented example config — the authoritative reference for
+# every key (see `canair config example`). Force-included into the wheel
+# alongside `profiles`/`templates` so it's present in an installed copy too.
+CONFIG_EXAMPLE_FILE = SCRIPT_DIR / "config.example.yaml"

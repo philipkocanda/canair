@@ -6,6 +6,10 @@
 #
 # Copy to your config location and adjust to taste. All keys are optional.
 #
+# This file is the authoritative, fully-commented reference for every key —
+# print it anytime with `canair config example`. Rendered docs (may lag this
+# file): https://philipkocanda.github.io/canair/reference/config/
+#
 # View and edit these settings from the CLI with `canair config`
 # (e.g. `canair config show`, `canair config set default_wican home`).
 

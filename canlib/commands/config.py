@@ -6,6 +6,7 @@ resolved transport, and the configured devices — and edits the user config
 
 Subcommands:
   show            Show config file locations + effective settings (default)
+  example         Print the commented, fully-documented example config
   path            Print the user config file path (handy for scripting)
   get KEY         Print one value; KEY may be dotted (e.g. transport.port)
   set KEY VALUE   Set a value (dotted keys create nested mappings)
@@ -14,17 +15,24 @@ Subcommands:
 
 Examples:
   canair config
+  canair config example
   canair config set default_wican home
   canair config set devices.home.host 10.0.2.86
   canair config set devices.home.transport wican-ws
   canair config get transport.host
   canair config unset transport.port
+
+Every key is documented — with inline comments — in `canair config example`
+(`config.example.yaml` in the repo root); it's the authoritative reference. See
+also: https://philipkocanda.github.io/canair/reference/config/
 """
 
 from __future__ import annotations
 
 import argparse
 import sys
+
+from canlib.constants import CONFIG_DOCS_URL, CONFIG_EXAMPLE_FILE
 
 NAME = "config"
 
@@ -87,11 +95,13 @@ def _set_description() -> str:
     return (
         "Set a config value:  canair config set KEY VALUE\n"
         "Dotted keys create nested mappings (e.g. transport.type).\n\n"
-        "known keys:\n" + _keys_block()
+        "known keys:\n" + _keys_block() + "\n\n"
+        "Every key is documented in `canair config example` "
+        "(config.example.yaml) and " + CONFIG_DOCS_URL
     )
 
 
-_SET_EPILOG = """\
+_SET_EPILOG = f"""\
 examples:
   canair config set default_wican home
   canair config set devices.home.host 10.0.2.86
@@ -106,6 +116,9 @@ Values are coerced to int/float/bool/null where unambiguous; pass --string to
 force a string (e.g. a zero-padded id). Dotted keys create nested mappings.
 Comma-separated values are stored as a list for list-valued keys
 (transport.fallback_order).
+
+See `canair config example` (config.example.yaml) for every key documented
+with inline comments, and {CONFIG_DOCS_URL} for the rendered reference.
 """
 
 
@@ -121,6 +134,16 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     show = sub.add_parser("show", help="Show config locations and effective settings")
     show.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
     show.set_defaults(_config_func=_cmd_show)
+
+    example = sub.add_parser(
+        "example",
+        help="Print the commented, fully-documented example config",
+        description=(
+            "Print `config.example.yaml` — the authoritative, fully-commented "
+            "reference for every config key. See also: " + CONFIG_DOCS_URL
+        ),
+    )
+    example.set_defaults(_config_func=_cmd_example)
 
     pth = sub.add_parser("path", help="Print the user config file path")
     pth.set_defaults(_config_func=_cmd_path)
@@ -169,6 +192,17 @@ def _cmd_path(args) -> int:
     from canlib.config import user_config_file
 
     print(user_config_file())
+    return 0
+
+
+def _cmd_example(args) -> int:
+    if not CONFIG_EXAMPLE_FILE.exists():
+        print(
+            f"error: {CONFIG_EXAMPLE_FILE} not found; see {CONFIG_DOCS_URL} instead",
+            file=sys.stderr,
+        )
+        return 1
+    print(CONFIG_EXAMPLE_FILE.read_text(), end="")
     return 0
 
 
@@ -236,6 +270,10 @@ def _missing_key_help() -> None:
     print("\nexamples:", file=sys.stderr)
     print("  canair config set default_wican home", file=sys.stderr)
     print("  canair config set transport.type slcan-tcp", file=sys.stderr)
+    print(
+        f"\nSee `canair config example` or {CONFIG_DOCS_URL} for every key.",
+        file=sys.stderr,
+    )
 
 
 def _missing_value_help(key: str) -> None:
@@ -488,6 +526,7 @@ def _render(info: dict) -> None:
         c.print(f"\n  [bold]Active profile[/bold]  {p['name']}  [dim]{p['root']}[/dim]")
     elif info.get("profile_error"):
         c.print(f"\n  [bold]Active profile[/bold]  [yellow]{info['profile_error']}[/yellow]")
+    c.print(f"\n  [dim]Every key documented: `canair config example` · {CONFIG_DOCS_URL}[/dim]")
     c.print()
 
 

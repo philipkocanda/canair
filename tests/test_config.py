@@ -293,6 +293,21 @@ class TestConfigCommand:
         assert rc == 0
         assert str(tmp_path) in capsys.readouterr().out
 
+    def test_example_prints_the_example_file(self, capsys):
+        rc = config_cmd._cmd_example(argparse.Namespace())
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "canair configuration" in out
+        assert "default_profile" in out
+
+    def test_example_missing_file_errors(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setattr(config_cmd, "CONFIG_EXAMPLE_FILE", tmp_path / "nope.yaml")
+        rc = config_cmd._cmd_example(argparse.Namespace())
+        assert rc == 1
+        err = capsys.readouterr().err
+        assert "not found" in err
+        assert "reference/config" in err
+
     def test_written_config_roundtrips_with_pyyaml(self, tmp_path, monkeypatch):
         # Guard: config readers use PyYAML; ensure ruamel output parses cleanly.
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
