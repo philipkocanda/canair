@@ -1,7 +1,7 @@
 """Output formatting helpers."""
 
 import json
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from rich.console import Console
 from rich.text import Text
@@ -12,6 +12,11 @@ from .uds_parse import UdsResponse
 
 if TYPE_CHECKING:
     from .modes.multi_batch import ResultEntry
+
+# Which byte space a raw buffer is in. Both are plain ``bytes`` and they differ by
+# the ISO-TP PCI framing bytes, so the distinction has to be carried explicitly —
+# mixing them silently shifts every WiCAN ``Bnn`` label (see print_hexdump).
+ByteLayout = Literal["isotp", "wican"]
 
 _console = Console(highlight=False)
 
@@ -504,19 +509,33 @@ def print_ecu_results(
             c.print(_render_hex_line(raw_hex, params, unmapped), end="")
 
 
-def print_hexdump(data: bytes, prefix: str = "  "):
+def print_hexdump(data: bytes, prefix: str = "  ", *, layout: ByteLayout = "isotp"):
     """Print a hex dump of raw bytes with WiCAN byte indices.
 
-    Data is ISO-TP payload (PCI bytes already stripped). The WiCAN Bnn indices
-    account for PCI bytes that occupy positions 0-1 (first frame) and 8,16,24,...
-    (consecutive frames).
+    ``layout`` names the space ``data`` is in, because the two differ by the PCI
+    framing bytes and both are plain ``bytes``:
+
+    - ``"isotp"`` (default) — a reassembled UDS payload, PCI already stripped
+      (what every transport returns). Labels are derived with
+      :func:`~canlib.byteindex.isotp_to_wican`, which re-inserts the framing
+      offsets: PCI occupies WiCAN 0-1 (first frame) and 8, 16, 24, … (each
+      consecutive frame).
+    - ``"wican"`` — a buffer already in the WiCAN AutoPID layout (PCI present,
+      e.g. from :func:`~canlib.autopid_layout.uds_hex_to_wican_bytes`). Its index
+      *is* the WiCAN index, so labels are the identity.
+
+    Passing a WiCAN-layout buffer without ``layout="wican"`` shifts every label
+    by the framing offset — silently, since both are ``bytes``.
     """
     from .byteindex import isotp_to_wican
+
+    def label(j: int) -> int:
+        return j if layout == "wican" else isotp_to_wican(j)
 
     for row_start in range(0, len(data), 16):
         row_end = min(row_start + 16, len(data))
         hex_part = " ".join(f"{data[j]:02X}" for j in range(row_start, row_end))
-        bnn_part = " ".join(f"B{isotp_to_wican(j):02d}" for j in range(row_start, row_end))
+        bnn_part = " ".join(f"B{label(j):02d}" for j in range(row_start, row_end))
         print(f"{prefix}Bnn:  {bnn_part}")
         print(f"{prefix}Hex:   {hex_part}")
         print()

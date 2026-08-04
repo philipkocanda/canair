@@ -7,6 +7,7 @@ from canlib.formatting import (
     format_value,
     param_byte_index_str,
     param_byte_indices,
+    print_hexdump,
     render_byte_rulers,
     render_param_table,
 )
@@ -262,3 +263,51 @@ class TestRenderByteRulers:
         lines = render_byte_rulers(10, [], prefix_width=16).plain.splitlines()
         # Both rows start their numbers at the same column (prefix_width).
         assert lines[0].index("00") == lines[1].index("02") == 16
+
+
+class TestPrintHexdump:
+    """`print_hexdump` labels depend on which byte space the buffer is in.
+
+    Regression: an ISO-TP payload and a WiCAN-layout frame are both plain
+    `bytes`, and they differ by the PCI framing bytes. `canair repl`'s `!hexdump`
+    passed a WiCAN frame to the ISO-TP path, so every `Bnn` label was shifted by
+    the framing offset — with no type error to catch it.
+    """
+
+    HEX = "6101ABCDEF0102030405060708090A"
+
+    def _labels(self, capsys) -> list[str]:
+        out = capsys.readouterr().out
+        return [tok for line in out.splitlines() if "Bnn:" in line for tok in line.split()[1:]]
+
+    def test_isotp_payload_labels_reinsert_pci_offsets(self, capsys):
+        # ISO-TP index 6 -> WiCAN B09 (B08 is the first consecutive-frame PCI byte).
+        print_hexdump(bytes.fromhex(self.HEX))
+        labels = self._labels(capsys)
+        assert labels[:6] == ["B02", "B03", "B04", "B05", "B06", "B07"]
+        assert labels[6] == "B09", "PCI byte B08 must be skipped"
+
+    def test_wican_frame_labels_are_the_identity(self, capsys):
+        from canlib.autopid_layout import uds_hex_to_wican_bytes
+
+        print_hexdump(uds_hex_to_wican_bytes(self.HEX), layout="wican")
+        labels = self._labels(capsys)
+        assert labels[:4] == ["B00", "B01", "B02", "B03"]
+        # No re-insertion: the buffer already contains the framing bytes.
+        assert labels[8] == "B08"
+
+    def test_both_layouts_agree_on_where_a_data_byte_lives(self, capsys):
+        """The same physical byte must carry the same label in either view."""
+        from canlib.autopid_layout import uds_hex_to_wican_bytes
+
+        payload = bytes.fromhex(self.HEX)
+        first_data = payload.index(0xAB)  # first byte after SID + PID echo
+
+        print_hexdump(payload)
+        isotp_label = self._labels(capsys)[first_data]
+
+        frame = uds_hex_to_wican_bytes(self.HEX)
+        print_hexdump(frame, layout="wican")
+        wican_label = self._labels(capsys)[frame.index(0xAB)]
+
+        assert isotp_label == wican_label == "B04"

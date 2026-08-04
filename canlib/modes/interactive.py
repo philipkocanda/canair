@@ -147,7 +147,7 @@ async def mode_interactive(terminal: Elm327Terminal, pids_data: dict, verbose: b
                 print_hexdump(last_response["bytes"])
                 wican_bytes = uds_hex_to_wican_bytes(last_response["hex"])
                 print(f"  WiCAN-indexed ({len(wican_bytes)} bytes, with PCI prefix):")
-                print_hexdump(wican_bytes)
+                print_hexdump(wican_bytes, layout="wican")
             else:
                 print(f"  Raw: {last_response.get('raw', '(none)')}")
             continue

@@ -1083,3 +1083,64 @@ class TestAxisGroupKeys:
         results = self._results([0, 2, 4, 6])
         with pytest.raises(ValueError, match="aligned to no captures"):
             _decode_calc.axis_group_keys(results, "E:P:X", scope={}, tol_s=2.5)
+
+
+# ---------------------------------------------------------------------------
+# _promote — the firmware edge: refuse expressions that read ISO-TP PCI bytes
+# ---------------------------------------------------------------------------
+class TestPromotePciGuard:
+    """`write_candidate` must refuse an expression that reads an ISO-TP PCI byte.
+
+    Regression: `_promote`'s docstring claimed the schema-validate gate rejected a
+    PCI-crossing read, but `check_pci_bytes` only produces a *warning* and
+    `validate_pids_file` keys the revert on errors — so the guard happily
+    committed a knowingly-wrong expression (one that folds a frame counter/length
+    byte into the value). The refusal is now explicit and up front.
+    """
+
+    @pytest.mark.parametrize(
+        "expr",
+        [
+            "B08",  # first consecutive-frame PCI byte
+            "[B00:B01]",  # the two First-Frame PCI bytes
+            "[B7:B9]",  # a range spanning PCI byte B08
+        ],
+    )
+    def test_refuses_pci_reads(self, expr):
+        from canlib.commands._promote import write_candidate
+        from canlib.pids_edit import PidsEditError
+
+        with pytest.raises(PidsEditError, match="refusing to promote"):
+            write_candidate("BMS", "2101", "X", expr, source="s", notes="n")
+
+    @pytest.mark.parametrize(
+        "expr",
+        [
+            "B04",  # a plain data byte
+            "[B04:B05]",  # a range wholly inside one frame
+            "(B7 << 8) | B9",  # shift composition that SKIPS the framing byte
+            "S7*256 + B9",  # arithmetic composition that skips the framing byte
+        ],
+    )
+    def test_allows_reads_that_avoid_pci(self, expr, monkeypatch):
+        """A value straddling a frame boundary is promotable — by skipping PCI.
+
+        This is the capability the ISO-TP-canonical model unlocks, so the guard
+        must not reject it along with genuine PCI reads.
+        """
+        from pathlib import Path
+
+        from canlib.commands._promote import write_candidate
+
+        monkeypatch.setattr("canlib.commands.pids._guarded", lambda *a, **k: Path("x.yaml"))
+        write_candidate("BMS", "2101", "X", expr, source="s", notes="n")
+
+    def test_the_refusal_names_the_offending_byte_and_the_fix(self):
+        from canlib.commands._promote import write_candidate
+        from canlib.pids_edit import PidsEditError
+
+        with pytest.raises(PidsEditError) as exc:
+            write_candidate("BMS", "2101", "X", "[B7:B9]", source="s", notes="n")
+        msg = str(exc.value)
+        assert "B8" in msg  # the framing byte it spans
+        assert "shift composition" in msg  # the actionable alternative
