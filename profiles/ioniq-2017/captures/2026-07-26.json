@@ -99279,7 +99279,8 @@
           "rx": "0x7BB",
           "pid": "220100",
           "payload": "6201007E5007C8FF847B7C0110B7FFFFB7FF10FFFFFFFFFFFFFFFFFF3FB77D7D00FFFF00FFFF000000",
-          "time": "17:20:23.213"
+          "time": "17:20:23.213",
+          "notes": "Heating started"
         },
         {
           "rx": "0x7BB",
