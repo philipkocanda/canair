@@ -4,7 +4,9 @@
       "date": "2026-07-22",
       "label": "ESC EPS AAF MCU VCU",
       "vehicle_states": [
-        "driving"
+        "READY",
+        "PARKED",
+        "DRIVING"
       ],
       "notes": "Steering: left then right after driving away [migrated state: Driving from kidswijs to home]",
       "captures": [
@@ -5869,8 +5871,9 @@
       "date": "2026-07-22",
       "label": "IGPM BC01-BC07 (READY, ignition on)",
       "vehicle_states": [
-        "ready",
-        "parked"
+        "READY",
+        "ACC2",
+        "PARKED"
       ],
       "notes": "Fully powered/READY contrast vs prior deep-sleep BC0x captures. Doors closed, locked, lights off. [migrated state: ready, parked, ignition on]",
       "captures": [
@@ -6933,7 +6936,8 @@
       "date": "2026-07-22",
       "label": "HVAC/BMS/VCU/OBC",
       "vehicle_states": [
-        "ready"
+        "READY",
+        "PARKED"
       ],
       "notes": "PTC heater on (30C), center console reading ~1.2 kW for climate, ~0.4-0.5 kW for electronics.",
       "captures": [
@@ -11305,6 +11309,9 @@
           "payload": "62C011E000000001ADF82755",
           "time": "16:49:00.704"
         }
+      ],
+      "vehicle_states": [
+        "PARKED"
       ]
     },
     {
@@ -11557,13 +11564,19 @@
           "payload": "610207FFFFFF0000000000001F000B0A0E0EF8FFF6FF7DD6CDABC2CD61003FFA2600410AF726F606C1CD0900023200000000000000000000",
           "time": "16:50:56.206"
         }
+      ],
+      "vehicle_states": [
+        "READY",
+        "PARKED"
       ]
     },
     {
       "date": "2026-07-22",
       "label": "ESC EPS MCU:2101,2102 VCU:2101,2102",
       "vehicle_states": [
-        "driving"
+        "READY",
+        "PARKED",
+        "DRIVING"
       ],
       "notes": "standstill -> highway -> long decel -> roubdabout -> city slow -> park [migrated state: driving MT->KW]",
       "captures": [
@@ -16139,13 +16152,18 @@
           "payload": "6201018A8EFA007A00010100000010102101",
           "time": "17:12:40.036"
         }
+      ],
+      "vehicle_states": [
+        "READY",
+        "PARKED"
       ]
     },
     {
       "date": "2026-07-22",
       "label": "ESC EPS MCU:2102 VCU:2102",
       "vehicle_states": [
-        "driving"
+        "PARKED",
+        "DRIVING"
       ],
       "notes": "city driving only, one full stop halfway through [migrated state: Driving KW->Home]",
       "captures": [
@@ -19194,7 +19212,8 @@
       "date": "2026-07-22",
       "label": "VCU 2101-2105 in KWP session 1081",
       "vehicle_states": [
-        "ready"
+        "READY",
+        "PARKED"
       ],
       "notes": "standardDiagnosticSession (10 81) with tester present; VCU rejects 82/83 (NRC 0x12), testing whether 81 changes payload sizes",
       "captures": [

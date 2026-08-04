@@ -23,6 +23,9 @@
           "payload": "62BC06B480000000000000AAAA",
           "notes": "13 bytes. BRAKE_LIGHT (B7) = 0x00 (not braking)."
         }
+      ],
+      "vehicle_states": [
+        "ACC2"
       ]
     },
     {
@@ -150,6 +153,9 @@
           "response": "see notes",
           "notes": "WARNING: This scan triggered the car alarm! BC09 (trunk unlock) and\nBC10/BC11 (door lock/unlock) were actuated during the scan.\nNEVER scan IOControl ranges blindly — always list individual commands\nand get explicit approval before sending.\n\nAccepted DIDs (positive 6F response):\n  BC01 — low beam (verified: lights turned on)\n  BC02 — high beam\n  BC03 — front fog light\n  BC04 — tail/rear light\n  BC05 — red backlight flash\n  BC07 — unknown\n  BC08 — rear fog light\n  BC09 — trunk unlock (TRIGGERED ALARM)\n  BC0A — unknown\n  BC0C — rear defogger relay\n  BC10 — door LOCK all (TRIGGERED ALARM)\n  BC11 — door UNLOCK all (TRIGGERED ALARM)\n  BC12 — unknown (unlock variant?)\n  BC14 — unknown\n  BC15 — left turn indicator\n  BC16 — right turn indicator\n  BC18 — unknown\n  BC1B — unknown\n\nRejected DIDs (NRC):\n  BC00 — 0x31 (requestOutOfRange)\n  BC06 — 0x31\n  BC0B — 0x31\n  BC0D — 0x31\n  BC0E — 0x31\n  BC13 — 0x22 (conditionsNotCorrect)\n  BC17 — 0x31\n  BC19 — 0x31\n  BC1A — 0x31\n\nNo DRL-specific DID found. DRLs may activate with BC04 (tail light).\n"
         }
+      ],
+      "vehicle_states": [
+        "ACC2"
       ]
     },
     {

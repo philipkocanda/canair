@@ -354,6 +354,9 @@
           "payload": "62C011E000000000A35F2766",
           "time": "20:49:00.229"
         }
+      ],
+      "vehicle_states": [
+        "PARKED"
       ]
     },
     {

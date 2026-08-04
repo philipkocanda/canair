@@ -4,7 +4,9 @@
       "date": "2026-07-27",
       "label": "IGPM BCM BMS OBC VCU",
       "vehicle_states": [
-        "charging"
+        "CHARGING",
+        "PLUGGED",
+        "PARKED"
       ],
       "notes": "Charging at 10A (EVSE pilot)",
       "keep_mode": "unique",
@@ -1419,7 +1421,9 @@
       "date": "2026-07-27",
       "label": "IGPM BCM BMS OBC VCU",
       "vehicle_states": [
-        "charging"
+        "CHARGING",
+        "PLUGGED",
+        "PARKED"
       ],
       "notes": "13A (EVSE pilot)",
       "keep_mode": "unique",
@@ -1616,7 +1620,9 @@
       "date": "2026-07-27",
       "label": "IGPM BCM BMS OBC VCU",
       "vehicle_states": [
-        "charging"
+        "CHARGING",
+        "PLUGGED",
+        "PARKED"
       ],
       "notes": "13A (EVSE pilot)",
       "captures": [
@@ -19470,7 +19476,9 @@
       "date": "2026-07-27",
       "label": "IGPM BCM BMS OBC VCU",
       "vehicle_states": [
-        "charging"
+        "CHARGING",
+        "PLUGGED",
+        "PARKED"
       ],
       "notes": "16A (EVSE pilot)",
       "captures": [
@@ -45174,7 +45182,9 @@
         }
       ],
       "vehicle_states": [
-        "charging"
+        "CHARGING",
+        "PLUGGED",
+        "PARKED"
       ],
       "notes": "Charging wind-down: BMS current ~-10.8A until 13:28:16, then tapered to ~0.4A (charge stopped). Labelled charging for the whole segment (started charging); tail is idle. Back-filled after the span-aware state fix."
     }

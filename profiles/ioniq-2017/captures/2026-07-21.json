@@ -2710,7 +2710,9 @@
       "date": "2026-07-21",
       "label": "VCU,BCM,IGPM",
       "vehicle_states": [
-        "ready"
+        "READY",
+        "ACC2",
+        "PARKED"
       ],
       "notes": "parked",
       "captures": [
@@ -4614,7 +4616,8 @@
       "date": "2026-07-21",
       "label": "Drive mode",
       "vehicle_states": [
-        "ready"
+        "READY",
+        "ACC2"
       ],
       "notes": "Normal (regen 1) -> Sport (regen 2) -> ECO (regen 1) -> Normal (regen 1) -> change regen to 0 [migrated state: READY (D)]",
       "captures": [
@@ -5920,8 +5923,9 @@
       "date": "2026-07-21",
       "label": "IGPM 22BC03 default-session read test",
       "vehicle_states": [
-        "ready",
-        "parked"
+        "READY",
+        "ACC2",
+        "PARKED"
       ],
       "notes": "Verifies IGPM service-22 reads do NOT need extended session (1003). Wire trace: ATSH770;ATFCSH770;22BC03 only, no 1003 sent. Valid 62BC03 returned. Reconfirmed after 8s idle (S3 expired). Refutes 2026-04-15 note. NOTE: 2F IOControl still needs 1003 (untested here). [migrated state: ready, parked, doors closed/unlocked]",
       "captures": [
@@ -5978,6 +5982,9 @@
           "payload": "62C1023FE00000FFFFFFFFFFFF010100009C9C000000C0C0D4D4",
           "time": "23:19:05.396"
         }
+      ],
+      "vehicle_states": [
+        "PARKED"
       ]
     },
     {

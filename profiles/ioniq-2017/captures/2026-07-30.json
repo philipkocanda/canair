@@ -6,7 +6,9 @@
       "vehicle_states": [
         "READY",
         "SLEEP",
-        "ACC"
+        "ACC",
+        "ACC2",
+        "PARKED"
       ],
       "notes": "cycling through READY->OFF(IGN0)->ACC1(IGN1?,amber LED)->ACC2(IGN1?,blue LED)->READY(IGN2?,LED off) (LED: start/power button)",
       "keep_mode": "unique",
@@ -6298,7 +6300,9 @@
       "date": "2026-07-30",
       "label": "AAF BMS:2101 VCU OBC IGPM HVAC",
       "vehicle_states": [
-        "READY"
+        "READY",
+        "ACC2",
+        "PARKED"
       ],
       "notes": "precondition schedule 01:00, Sun/Tue/Wed/Thu/Sat. 20C,no windshield heating.",
       "keep_mode": "unique",
@@ -13498,6 +13502,7 @@
         }
       ],
       "vehicle_states": [
+        "PARKED",
         "DRIVING"
       ]
     },
@@ -13505,7 +13510,9 @@
       "date": "2026-07-30",
       "label": "AAF BMS:2101 VCU OBC BCM IGPM HVAC",
       "vehicle_states": [
-        "READY"
+        "READY",
+        "ACC2",
+        "PARKED"
       ],
       "notes": "defroster on",
       "keep_mode": "unique",
@@ -14727,7 +14734,9 @@
       "date": "2026-07-30",
       "label": "AAF BMS:2101 VCU OBC BCM IGPM HVAC",
       "vehicle_states": [
-        "READY"
+        "READY",
+        "ACC2",
+        "PARKED"
       ],
       "notes": "HVAC \"front\" button pressed (high fan, AC on, defroster still on too)",
       "keep_mode": "unique",
@@ -17179,7 +17188,9 @@
       "date": "2026-07-30",
       "label": "AAF BMS:2101 VCU OBC BCM IGPM HVAC",
       "vehicle_states": [
-        "READY"
+        "READY",
+        "ACC2",
+        "PARKED"
       ],
       "notes": "changing DC loads to see what changes - now around 220-250W indicated for \"electronics\"",
       "keep_mode": "unique",
@@ -22548,7 +22559,9 @@
       "label": "OBC BMS AAF VCU IGPM BCM",
       "version": "1.9.0",
       "vehicle_states": [
-        "CHARGING"
+        "CHARGING",
+        "PLUGGED",
+        "PARKED"
       ],
       "keep_mode": "unique",
       "transport": "wican-ws",

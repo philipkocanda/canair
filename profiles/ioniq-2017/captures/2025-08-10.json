@@ -11,6 +11,9 @@
           "payload": "610207ffffffc0091f011f019f0114121013f7fff6ff7dd6cdabc2cd720022fc3000e307f726f606c1cd0000eb3100000000000000000000",
           "notes": ""
         }
+      ],
+      "vehicle_states": [
+        "DRIVING"
       ]
     }
   ]

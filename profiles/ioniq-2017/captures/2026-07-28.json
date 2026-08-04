@@ -831,7 +831,9 @@
       "date": "2026-07-28",
       "label": "OBC VCU HVAC IGPM BCM BMS MCU CLU",
       "vehicle_states": [
-        "ready"
+        "READY",
+        "ACC2",
+        "PARKED"
       ],
       "keep_mode": "unique",
       "captures": [
@@ -1753,7 +1755,9 @@
       "date": "2026-07-28",
       "label": "AAF OBC VCU HVAC IGPM BCM BMS MCU CLU",
       "vehicle_states": [
-        "ready"
+        "READY",
+        "ACC2",
+        "PARKED"
       ],
       "notes": "Idle on driveway and in the sun (hot!)",
       "keep_mode": "unique",

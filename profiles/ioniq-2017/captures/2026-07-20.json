@@ -4,8 +4,10 @@
       "date": "2026-07-20",
       "label": "MCU/VCU live reference (parked READY, ~18C ambient)",
       "vehicle_states": [
-        "ready",
-        "parked"
+        "CHARGING",
+        "READY",
+        "PLUGGED",
+        "PARKED"
       ],
       "notes": "Live canair snapshot while parked in READY, ambient ~18C, cold-soaked (motor 0 RPM, no torque). Used to anchor MCU 2102 motor RPM (0 at park) and as a cold reference for future temp mapping.",
       "captures": [
@@ -87,7 +89,8 @@
       "date": "2026-07-20",
       "label": "parked",
       "vehicle_states": [
-        "ready"
+        "READY",
+        "PARKED"
       ],
       "captures": [
         {
@@ -281,8 +284,7 @@
       "date": "2026-07-20",
       "label": "MCU/VCU parked reference (via --save)",
       "vehicle_states": [
-        "ready",
-        "parked"
+        "PARKED"
       ],
       "notes": "~18C ambient; end-to-end test of --multi query --save\n",
       "captures": [

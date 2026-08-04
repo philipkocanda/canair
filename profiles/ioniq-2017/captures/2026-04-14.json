@@ -29,6 +29,9 @@
           "payload": "",
           "notes": "NRC 0x12 — subFunctionNotSupported. PID 2103 does not exist on this ECU."
         }
+      ],
+      "vehicle_states": [
+        "CHARGING"
       ]
     },
     {
@@ -96,6 +99,11 @@
           "payload": "6180C366C000225100000000001D67004435000085130098980000",
           "notes": "27 bytes. Ambient temp (B18-80)/2 = (0x67-80)/2 = 11.5°C."
         }
+      ],
+      "vehicle_states": [
+        "CHARGING",
+        "PLUGGED",
+        "PARKED"
       ]
     },
     {
@@ -163,6 +171,10 @@
           "payload": "62C1015BD7E760FFFF00FF01C4FF0000000000FF80FF0030F4000000FFFF801407FB07FCFFFF0000FFFFFF0000000000",
           "notes": "42 bytes. First capture of ESC. Responded in ACC (failed during charging). Contains wheel speed and stability data — undecoded."
         }
+      ],
+      "vehicle_states": [
+        "ACC2",
+        "PARKED"
       ]
     },
     {

@@ -59,6 +59,10 @@
           "payload": "6201007e5007c8ff79707103ef4affff49ff10ffffffffffffffffff49d47d7b00ffff00ffff",
           "notes": "Identical to stationary session"
         }
+      ],
+      "vehicle_states": [
+        "READY",
+        "DRIVING"
       ]
     },
     {

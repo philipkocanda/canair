@@ -4,7 +4,9 @@
       "date": "2026-07-26",
       "label": "BMS LDC VCU",
       "vehicle_states": [
-        "charging"
+        "CHARGING",
+        "PLUGGED",
+        "PARKED"
       ],
       "notes": "16A pilot, 3.44-3-56 kW (AC calibrated measurement)",
       "captures": [
@@ -34178,7 +34180,9 @@
       "date": "2026-07-26",
       "label": "BMS LDC VCU",
       "vehicle_states": [
-        "charging"
+        "CHARGING",
+        "PLUGGED",
+        "PARKED"
       ],
       "notes": "charging continued (16A pilot)",
       "captures": [
@@ -62892,7 +62896,8 @@
       "date": "2026-07-26",
       "label": "BMS LDC VCU MCU",
       "vehicle_states": [
-        "ready"
+        "READY",
+        "PARKED"
       ],
       "notes": "10min. after arriving from 20 min medium speed drive (ambient: 22C)",
       "captures": [
@@ -70066,8 +70071,9 @@
       "date": "2026-07-26",
       "label": "ESC EPS VCU MCU BMS:2101 OBC",
       "vehicle_states": [
-        "ready",
-        "driving"
+        "READY",
+        "PARKED",
+        "DRIVING"
       ],
       "notes": "Back and forth a few times while steering a lot on the driveway",
       "captures": [
@@ -79479,7 +79485,8 @@
       "date": "2026-07-26",
       "label": "AAF HVAC VCU BMS:2101 OBC",
       "vehicle_states": [
-        "ready"
+        "READY",
+        "PARKED"
       ],
       "notes": "HVAC modes cycled (no heating/cooling enabled): airflow face+legs -> legs only -> legs + windshield -> (speed from 3 to 5) -> face only -> face+legs -> driver only on -> driver only off -> recirculation on -> recirculation off",
       "captures": [
@@ -93247,7 +93254,8 @@
       "date": "2026-07-26",
       "label": "AAF HVAC VCU BMS:2101 OBC",
       "vehicle_states": [
-        "ready"
+        "READY",
+        "PARKED"
       ],
       "notes": "Parked, heater on high, airflow windshield+feet",
       "captures": [
