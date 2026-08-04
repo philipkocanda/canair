@@ -29,8 +29,6 @@ BMS:
           ha_class: battery
           min: "0"
           max: "100"
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: "BMS state of charge (raw, not display-adjusted)"
 
@@ -40,8 +38,6 @@ BMS:
           ha_class: power
           min: ""
           max: ""
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: "Computed from voltage * current. Negative = charging."
 
@@ -51,8 +47,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: ""
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: ""
 
@@ -62,8 +56,6 @@ BMS:
           ha_class: current
           min: "-200"
           max: "200"
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: "Signed — negative = charging"
 
@@ -73,8 +65,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "10"
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: ""
 
@@ -84,8 +74,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "10"
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: ""
 
@@ -95,8 +83,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "128"
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: "12V auxiliary battery"
 
@@ -117,8 +103,6 @@ BMS:
           ha_class: plug
           min: ""
           max: ""
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: "J1772 / AC charge plug connected (bit5). 2026-07-20: set only during AC charging (0xA3), not DC (0x45)."
 
@@ -128,8 +112,6 @@ BMS:
           ha_class: plug
           min: ""
           max: ""
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: "CCS / DC charge plug connected (bit6). 2026-07-20: set in the CCS/DC capture (0x45), clear on AC."
 
@@ -139,8 +121,6 @@ BMS:
           ha_class: battery_charging
           min: ""
           max: ""
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: ""
 
@@ -150,8 +130,6 @@ BMS:
           ha_class: ""
           min: ""
           max: ""
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: ""
 
@@ -161,8 +139,6 @@ BMS:
           ha_class: ""
           min: ""
           max: ""
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: ""
 
@@ -172,8 +148,6 @@ BMS:
           ha_class: temperature
           min: "-128"
           max: "128"
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: ""
 
@@ -183,8 +157,6 @@ BMS:
           ha_class: temperature
           min: "-128"
           max: "128"
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: ""
 
@@ -194,8 +166,6 @@ BMS:
           ha_class: temperature
           min: "-128"
           max: "128"
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: ""
 
@@ -205,8 +175,6 @@ BMS:
           ha_class: temperature
           min: "-128"
           max: "128"
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: ""
 
@@ -216,8 +184,6 @@ BMS:
           ha_class: temperature
           min: "-128"
           max: "128"
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: ""
 
@@ -227,8 +193,6 @@ BMS:
           ha_class: temperature
           min: "-128"
           max: "128"
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: ""
 
@@ -238,8 +202,6 @@ BMS:
           ha_class: temperature
           min: "-128"
           max: "128"
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: ""
 
@@ -249,8 +211,6 @@ BMS:
           ha_class: temperature
           min: "-128"
           max: "128"
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: ""
 
@@ -260,8 +220,6 @@ BMS:
           ha_class: ""
           min: ""
           max: ""
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: "Cell number with max voltage"
 
@@ -271,8 +229,6 @@ BMS:
           ha_class: ""
           min: ""
           max: ""
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: "Cell number with min voltage"
 
@@ -282,8 +238,6 @@ BMS:
           ha_class: energy
           min: "0"
           max: ""
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: "Lifetime cumulative. ECU reports in 0.1 kWh units, /10 gives kWh. Verified ~12274 kWh lifetime on 2017 Ioniq 28kWh."
 
@@ -293,8 +247,6 @@ BMS:
           ha_class: energy
           min: "0"
           max: ""
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: "Lifetime cumulative. ECU reports in 0.1 kWh units, /10 gives kWh."
 
@@ -363,8 +315,6 @@ BMS:
           ha_class: ""
           min: ""
           max: ""
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: ""
 
@@ -374,8 +324,6 @@ BMS:
           ha_class: ""
           min: ""
           max: ""
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: ""
 
@@ -446,8 +394,6 @@ BMS:
           ha_class: power
           min: ""
           max: ""
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: ""
 
@@ -457,8 +403,6 @@ BMS:
           ha_class: power
           min: ""
           max: ""
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: ""
 
@@ -468,8 +412,6 @@ BMS:
           ha_class: voltage
           min: ""
           max: ""
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: ""
 
@@ -479,8 +421,6 @@ BMS:
           ha_class: ""
           min: ""
           max: ""
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: ""
 
@@ -490,8 +430,6 @@ BMS:
           ha_class: temperature
           min: "-128"
           max: "128"
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: ""
 
@@ -501,8 +439,6 @@ BMS:
           ha_class: temperature
           min: "-128"
           max: "128"
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: ""
 
@@ -512,8 +448,6 @@ BMS:
           ha_class: temperature
           min: "-128"
           max: "128"
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: ""
 
@@ -523,8 +457,6 @@ BMS:
           ha_class: temperature
           min: "-128"
           max: "128"
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: ""
 
@@ -534,8 +466,6 @@ BMS:
           ha_class: temperature
           min: "-128"
           max: "128"
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: ""
 
@@ -545,8 +475,6 @@ BMS:
           ha_class: temperature
           min: "-128"
           max: "128"
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: ""
 
@@ -556,8 +484,6 @@ BMS:
           ha_class: temperature
           min: "-128"
           max: "128"
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: ""
 
@@ -567,8 +493,6 @@ BMS:
           ha_class: temperature
           min: "-128"
           max: "128"
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: ""
 
@@ -578,8 +502,6 @@ BMS:
           ha_class: temperature
           min: "-128"
           max: "128"
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: ""
 
@@ -589,8 +511,6 @@ BMS:
           ha_class: ""
           min: "0"
           max: "105"
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: "State of Health"
 
@@ -600,8 +520,6 @@ BMS:
           ha_class: ""
           min: ""
           max: ""
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: ""
 
@@ -611,8 +529,6 @@ BMS:
           ha_class: ""
           min: ""
           max: ""
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: ""
 
@@ -622,8 +538,6 @@ BMS:
           ha_class: ""
           min: ""
           max: ""
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: ""
 
@@ -633,8 +547,6 @@ BMS:
           ha_class: battery
           min: "0"
           max: "100"
-          source: "Original WiCAN config"
-          source_links: []
           verified: true
           notes: "Display SOC (what the dashboard shows)"
 
@@ -662,7 +574,7 @@ BMS:
     # Cells 1-32 in 2102, 33-64 in 2103, 65-96 in 2104
     # Only a subset are defined here; add more as needed.
     2102:
-      status: draft
+      status: active
       period: 10000
       vehicle_states: [READY, CHARGING]
       parameters:
@@ -687,8 +599,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_03_VOLTAGE:
@@ -697,8 +607,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_04_VOLTAGE:
@@ -707,8 +615,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_05_VOLTAGE:
@@ -717,8 +623,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_06_VOLTAGE:
@@ -727,8 +631,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_07_VOLTAGE:
@@ -737,8 +639,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_08_VOLTAGE:
@@ -747,8 +647,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_09_VOLTAGE:
@@ -757,8 +655,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_10_VOLTAGE:
@@ -767,8 +663,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_11_VOLTAGE:
@@ -777,8 +671,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_12_VOLTAGE:
@@ -787,8 +679,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_13_VOLTAGE:
@@ -797,8 +687,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_14_VOLTAGE:
@@ -807,8 +695,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_15_VOLTAGE:
@@ -817,8 +703,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_16_VOLTAGE:
@@ -827,8 +711,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_17_VOLTAGE:
@@ -837,8 +719,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_18_VOLTAGE:
@@ -847,8 +727,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_19_VOLTAGE:
@@ -857,8 +735,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_20_VOLTAGE:
@@ -867,8 +743,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_21_VOLTAGE:
@@ -877,8 +751,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_22_VOLTAGE:
@@ -887,8 +759,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_23_VOLTAGE:
@@ -897,8 +767,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_24_VOLTAGE:
@@ -907,8 +775,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_25_VOLTAGE:
@@ -917,8 +783,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_26_VOLTAGE:
@@ -927,8 +791,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_27_VOLTAGE:
@@ -937,8 +799,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_28_VOLTAGE:
@@ -947,8 +807,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_29_VOLTAGE:
@@ -957,8 +815,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_30_VOLTAGE:
@@ -967,8 +823,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_31_VOLTAGE:
@@ -977,8 +831,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_32_VOLTAGE:
@@ -987,13 +839,11 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: "Last cell in PID 2102."
 
     2103:
-      status: draft
+      status: active
       period: 10000
       vehicle_states: [READY, CHARGING]
       parameters:
@@ -1013,8 +863,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_35_VOLTAGE:
@@ -1023,8 +871,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_36_VOLTAGE:
@@ -1033,8 +879,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_37_VOLTAGE:
@@ -1043,8 +887,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_38_VOLTAGE:
@@ -1053,8 +895,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_39_VOLTAGE:
@@ -1063,8 +903,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_40_VOLTAGE:
@@ -1073,8 +911,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_41_VOLTAGE:
@@ -1083,8 +919,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_42_VOLTAGE:
@@ -1093,8 +927,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_43_VOLTAGE:
@@ -1103,8 +935,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_44_VOLTAGE:
@@ -1113,8 +943,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_45_VOLTAGE:
@@ -1123,8 +951,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_46_VOLTAGE:
@@ -1133,8 +959,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_47_VOLTAGE:
@@ -1143,8 +967,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_48_VOLTAGE:
@@ -1153,8 +975,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_49_VOLTAGE:
@@ -1163,8 +983,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_50_VOLTAGE:
@@ -1173,8 +991,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_51_VOLTAGE:
@@ -1183,8 +999,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_52_VOLTAGE:
@@ -1193,8 +1007,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_53_VOLTAGE:
@@ -1203,8 +1015,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_54_VOLTAGE:
@@ -1213,8 +1023,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_55_VOLTAGE:
@@ -1223,8 +1031,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_56_VOLTAGE:
@@ -1233,8 +1039,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_57_VOLTAGE:
@@ -1243,8 +1047,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_58_VOLTAGE:
@@ -1253,8 +1055,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_59_VOLTAGE:
@@ -1263,8 +1063,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_60_VOLTAGE:
@@ -1273,8 +1071,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_61_VOLTAGE:
@@ -1283,8 +1079,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_62_VOLTAGE:
@@ -1293,8 +1087,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_63_VOLTAGE:
@@ -1303,8 +1095,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_64_VOLTAGE:
@@ -1313,13 +1103,11 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: "Last cell in PID 2103."
 
     2104:
-      status: draft
+      status: active
       period: 10000
       vehicle_states: [READY, CHARGING]
       parameters:
@@ -1339,8 +1127,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_67_VOLTAGE:
@@ -1349,8 +1135,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_68_VOLTAGE:
@@ -1359,8 +1143,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_69_VOLTAGE:
@@ -1369,8 +1151,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_70_VOLTAGE:
@@ -1379,8 +1159,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_71_VOLTAGE:
@@ -1389,8 +1167,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_72_VOLTAGE:
@@ -1399,8 +1175,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_73_VOLTAGE:
@@ -1409,8 +1183,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_74_VOLTAGE:
@@ -1419,8 +1191,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_75_VOLTAGE:
@@ -1429,8 +1199,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_76_VOLTAGE:
@@ -1439,8 +1207,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_77_VOLTAGE:
@@ -1449,8 +1215,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_78_VOLTAGE:
@@ -1459,8 +1223,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_79_VOLTAGE:
@@ -1469,8 +1231,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_80_VOLTAGE:
@@ -1479,8 +1239,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_81_VOLTAGE:
@@ -1489,8 +1247,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_82_VOLTAGE:
@@ -1499,8 +1255,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_83_VOLTAGE:
@@ -1509,8 +1263,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_84_VOLTAGE:
@@ -1519,8 +1271,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_85_VOLTAGE:
@@ -1529,8 +1279,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_86_VOLTAGE:
@@ -1539,8 +1287,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_87_VOLTAGE:
@@ -1549,8 +1295,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_88_VOLTAGE:
@@ -1559,8 +1303,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_89_VOLTAGE:
@@ -1569,8 +1311,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_90_VOLTAGE:
@@ -1579,8 +1319,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_91_VOLTAGE:
@@ -1589,8 +1327,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_92_VOLTAGE:
@@ -1599,8 +1335,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_93_VOLTAGE:
@@ -1609,8 +1343,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_94_VOLTAGE:
@@ -1619,8 +1351,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_95_VOLTAGE:
@@ -1629,8 +1359,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: ""
         CELL_96_VOLTAGE:
@@ -1639,8 +1367,6 @@ BMS:
           ha_class: voltage
           min: "0"
           max: "5"
-          source: "ImHex pattern"
-          source_links: []
           verified: true
           notes: "Last cell. Total: 96 cells across PIDs 2102/2103/2104."
 
