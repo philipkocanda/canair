@@ -10,6 +10,7 @@ from canlib.states import (
     state_names,
     state_options,
     suggest_state,
+    suggest_states,
 )
 
 
@@ -289,3 +290,94 @@ class TestEcusInState:
 
         # Querying ALL itself should return only ECUs that declare ALL, not every ECU.
         assert [m["name"] for m in ecus_in_state("ALL", self._data())] == ["IGPM"]
+
+
+class TestKleeneLogic:
+    """Three-valued (Kleene) evaluation: an unavailable param yields UNKNOWN."""
+
+    def test_missing_param_is_unknown(self):
+        from canlib.states import UNKNOWN
+
+        p = compile_predicate("A.X > 0")
+        assert p({}, set()) is UNKNOWN
+        assert p({"A.X": 5}, set()) is True
+        assert p({"A.X": -5}, set()) is False
+
+    def test_or_true_dominates_unknown(self):
+        # This is the OBC-only-charging regression: one operand True, other unpolled.
+        p = compile_predicate("A.X < -1 or B.Y > 0.5")
+        assert p({"B.Y": 2.0}, set()) is True  # A.X unknown, B.Y true -> True
+        assert p({"A.X": -5}, set()) is True
+
+    def test_or_all_false_or_unknown(self):
+        from canlib.states import UNKNOWN
+
+        p = compile_predicate("A.X < -1 or B.Y > 0.5")
+        # A.X false, B.Y unknown -> UNKNOWN (can't rule it out)
+        assert p({"A.X": 3}, set()) is UNKNOWN
+        # both false -> False
+        assert p({"A.X": 3, "B.Y": 0.0}, set()) is False
+
+    def test_and_false_dominates_unknown(self):
+        from canlib.states import UNKNOWN
+
+        p = compile_predicate("A.X == 1 and B.Y == 1")
+        assert p({"A.X": 0}, set()) is False  # A.X false, B.Y unknown -> False
+        assert p({"A.X": 1}, set()) is UNKNOWN  # A.X true, B.Y unknown -> UNKNOWN
+        assert p({"A.X": 1, "B.Y": 1}, set()) is True
+
+    def test_not_of_unknown_is_unknown(self):
+        from canlib.states import UNKNOWN
+
+        p = compile_predicate("not A.X == 1")
+        assert p({}, set()) is UNKNOWN
+
+    def test_chained_comparison_unknown(self):
+        from canlib.states import UNKNOWN
+
+        p = compile_predicate("0 < A.X < 10")
+        assert p({}, set()) is UNKNOWN
+        assert p({"A.X": 5}, set()) is True
+        assert p({"A.X": 15}, set()) is False
+
+    def test_offline_responded_none_abstains(self):
+        from canlib.states import UNKNOWN
+
+        # responded=None (offline) -> the sentinels can't be evaluated.
+        assert compile_predicate("__no_response__")({}, None) is UNKNOWN
+        assert compile_predicate("__responded__")({}, None) is UNKNOWN
+
+
+class TestSuggestStates:
+    def _rules(self):
+        return [
+            StateRule("CHARGING", predicate=compile_predicate("BMS.CUR < -1 or OBC.A > 0.5")),
+            StateRule("READY", predicate=compile_predicate("VCU.READY == 1")),
+            StateRule("PARKED", predicate=compile_predicate("VCU.GEAR_PARK == 1")),
+            StateRule("SLEEP", predicate=None),  # vocabulary-only
+        ]
+
+    def test_composite_match(self):
+        matched, _false = suggest_states(self._rules(), {"VCU.READY": 1, "VCU.GEAR_PARK": 1}, None)
+        assert matched == ["READY", "PARKED"]
+
+    def test_obc_only_charging_regression(self):
+        # BMS not polled, OBC current present -> CHARGING (was previously missed).
+        matched, false = suggest_states(self._rules(), {"OBC.A": 2.85}, None)
+        assert matched == ["CHARGING"]
+        assert "CHARGING" not in false
+
+    def test_definitely_false_reported(self):
+        matched, false = suggest_states(self._rules(), {"VCU.READY": 0, "VCU.GEAR_PARK": 1}, None)
+        assert matched == ["PARKED"]
+        assert "READY" in false
+
+    def test_unknown_neither_matched_nor_false(self):
+        # Nothing decoded -> everything UNKNOWN -> both lists empty.
+        matched, false = suggest_states(self._rules(), {}, None)
+        assert matched == []
+        assert false == []
+
+    def test_suggest_state_wrapper_returns_first(self):
+        assert suggest_state(self._rules(), {"VCU.READY": 1, "VCU.GEAR_PARK": 1}, None) == "READY"
+        assert suggest_state(self._rules(), {}, None) is None

@@ -220,7 +220,7 @@ async def mode_multi(
             pipe_responded.update(resp)
 
     def _suggest_pipeline_state() -> str | None:
-        from ..states import StatePredicateError, load_states, suggest_state
+        from ..states import StatePredicateError, join_states, load_states, suggest_states
 
         try:
             rules = load_states()
@@ -228,7 +228,8 @@ async def mode_multi(
             return None
         if not rules:
             return None
-        return suggest_state(rules, pipe_values, pipe_responded)
+        matched, _false = suggest_states(rules, pipe_values, pipe_responded)
+        return join_states(matched) if matched else None
 
     try:
         # Shared batch state so multi_did-capable ECUs batch service-22 DIDs in

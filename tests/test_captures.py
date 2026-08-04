@@ -785,6 +785,84 @@ class TestCmdDelete:
         assert all(r["pid"] == "2102" for r in rows)
 
 
+class TestCmdBackfillStates:
+    """`canair captures uds --backfill-states` — offline state inference back-fill.
+
+    Uses the pinned real ``ioniq-2017`` profile (its vehicle_states.yaml carries
+    the CHARGING/READY/PARKED/… predicates) with real captured payloads that
+    decode to known state signals.
+    """
+
+    # VCU:2101, EV_READY=1 & GEAR_PARK=1 → READY, PARKED.
+    _VCU_READY_PARK = "6101ffe0000009215a5e064803000000009478340420"
+    # VCU:2101, EV_READY=0 & GEAR_PARK=1 → PARKED (and READY provably false).
+    _VCU_PARK_NOT_READY = "6101FFE000000921106A064A03000000008E770007200000000000"
+
+    def _seed(self, cdir, payload, states, *, rx="0x7EA", pid="2101"):
+        s = build_query_session([(rx, pid, payload, "")], "test", states, "")
+        save_session(s, cdir)
+
+    def _states(self, cdir):
+        files = list(cdir.glob("*.json"))
+        assert len(files) == 1
+        return json.loads(files[0].read_text())["sessions"][0].get("vehicle_states")
+
+    def _run(self, cdir, **kw):
+        from canlib.commands._captures_backfill import cmd_backfill_states
+        from canlib.commands._captures_query import load_all_captures
+
+        return cmd_backfill_states(load_all_captures(cdir), captures_dir=cdir, **kw)
+
+    def test_fill_from_empty(self, tmp_path):
+        self._seed(tmp_path, self._VCU_READY_PARK, [])
+        rc = self._run(tmp_path, assume_yes=True)
+        assert rc == 0
+        assert self._states(tmp_path) == ["READY", "PARKED"]
+
+    def test_conflict_not_written_by_default(self, tmp_path, capsys):
+        self._seed(tmp_path, self._VCU_PARK_NOT_READY, ["ready"])
+        rc = self._run(tmp_path, assume_yes=True)
+        out = capsys.readouterr().out
+        assert rc == 0
+        assert "conflict" in out
+        # A conflicting recorded state is reported but left untouched.
+        assert self._states(tmp_path) == ["ready"]
+
+    def test_overwrite_corrects_conflict(self, tmp_path):
+        self._seed(tmp_path, self._VCU_PARK_NOT_READY, ["ready"])
+        rc = self._run(tmp_path, overwrite=True, assume_yes=True)
+        assert rc == 0
+        result = self._states(tmp_path)
+        # READY was provably false → dropped; PARKED (matched) written.
+        assert "READY" not in result
+        assert "PARKED" in result
+
+    def test_dry_run_writes_nothing(self, tmp_path, capsys):
+        self._seed(tmp_path, self._VCU_READY_PARK, [])
+        rc = self._run(tmp_path, dry_run=True, assume_yes=True)
+        assert rc == 0
+        assert "--dry-run" in capsys.readouterr().out
+        assert self._states(tmp_path) is None  # unchanged (empty → field absent)
+
+    def test_json_dry_run_emits_rows(self, tmp_path, capsys):
+        self._seed(tmp_path, self._VCU_READY_PARK, [])
+        capsys.readouterr()  # discard save banner
+        rc = self._run(tmp_path, dry_run=True, as_json=True)
+        assert rc == 0
+        rows = json.loads(capsys.readouterr().out)
+        assert len(rows) == 1
+        assert rows[0]["verdict"] == "fill"
+        assert rows[0]["inferred"] == ["READY", "PARKED"]
+
+    def test_non_tty_without_yes_refuses(self, tmp_path, capsys):
+        self._seed(tmp_path, self._VCU_READY_PARK, [])
+        # pytest runs with a non-interactive stdin/stdout → refuse without --yes.
+        rc = self._run(tmp_path, assume_yes=False)
+        assert rc == 2
+        assert "refusing to write" in capsys.readouterr().err
+        assert self._states(tmp_path) is None  # nothing written
+
+
 def _uds_response(**kw):
     """Build a UdsResponse dict with the fields the builders read."""
     base = {"ok": False, "hex": "", "bytes": b"", "nrc": None, "nrc_desc": "", "error": ""}

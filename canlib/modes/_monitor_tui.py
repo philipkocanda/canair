@@ -1125,10 +1125,12 @@ class MonitorApp(HelpMixin, App):
             suggested = f"Monitor {datetime.now():%H:%M}"
 
         suggested_state = ""
-        state_fn = getattr(self.controller, "suggested_state", None)
+        state_fn = getattr(self.controller, "suggested_states", None)
         if callable(state_fn):
             try:
-                suggested_state = state_fn() or ""
+                from ..states import join_states
+
+                suggested_state = join_states(state_fn())
             except Exception:
                 suggested_state = ""
 

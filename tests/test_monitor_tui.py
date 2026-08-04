@@ -332,7 +332,7 @@ class TestMonitorApp:
 
         from canlib.modes._monitor_tui import SaveDialog
 
-        ctrl = FakeController()  # no suggested_state -> state field opens empty
+        ctrl = FakeController()  # no suggested_states -> state field opens empty
         app = MonitorApp(ctrl)
         async with app.run_test(size=(100, 30)) as pilot:
             await pilot.pause(0.1)
@@ -351,7 +351,8 @@ class TestMonitorApp:
         from canlib.modes._monitor_tui import SaveDialog
 
         ctrl = FakeController()
-        ctrl.suggested_state = lambda: "charging"  # auto-suggest pre-fills the field
+        # auto-suggest pre-fills the field (plural API)
+        ctrl.suggested_states = lambda: ["charging"]
         app = MonitorApp(ctrl)
         async with app.run_test(size=(100, 30)) as pilot:
             await pilot.pause(0.1)

@@ -288,10 +288,9 @@ class MonitorRecorder:
         self._observe_state()
 
     def _observe_state(self) -> None:
-        """Fold this cycle's auto-suggested state into ``observed_states``."""
+        """Fold this cycle's auto-suggested state(s) into ``observed_states``."""
         with contextlib.suppress(Exception):
-            suggested = self.c.suggested_state()
-            if suggested:
+            for suggested in self.c.suggested_states():
                 self.observed_states.setdefault(suggested, None)
 
     def _backfill_states(self) -> list[str] | None:
@@ -305,9 +304,9 @@ class MonitorRecorder:
         if self.observed_states:
             return list(self.observed_states)
         with contextlib.suppress(Exception):
-            suggested = self.c.suggested_state()
+            suggested = self.c.suggested_states()
             if suggested:
-                return [suggested]
+                return suggested
         return None
 
     def open_journal(self, label: str | None, vehicle_states, notes: str | None):

@@ -228,7 +228,15 @@ ranking.
 States are defined per-profile in `vehicle_states.yaml` — a canonical, ordered vocabulary
 of power states, each with an optional predicate over decoded values. Because of
 those predicates, canair can **auto-suggest** a capture's state from the data it
-just read, so tagging is mostly automatic.
+just read, so tagging is mostly automatic. A session is naturally **composite** —
+*every* predicate that matches contributes, so a parked, ready car reads as
+`READY, PARKED`. Predicate order is display order only, not priority.
+
+Predicates use **three-valued (Kleene) logic**: a predicate that depends on a
+parameter that wasn't polled *abstains* (neither matches nor is falsified) rather
+than reading false. So `BMS.BATTERY_CURRENT < -1 or OBC.OBC_DC_A > 0.5` still
+resolves to `CHARGING` from an OBC-only read where the BMS wasn't queried.
+
 
 State names are an **UPPERCASE** controlled vocabulary (like the CAN-bus segment
 codes) — the make-neutral base is the ignition-switch ladder `SLEEP/ACC/RUN/CRANK`
@@ -246,6 +254,32 @@ canair states add PRECONDITION -d "Cabin pre-conditioning"
 canair states set-predicate CHARGING "BMS.BATTERY_CURRENT < -1"
 canair validate states                 # check the vocabulary
 ```
+
+### Back-filling states on old captures
+
+Older sessions may have no state, or one recorded before the current predicates
+existed. Because most payloads decode cleanly today, canair can **infer** a
+session's state offline by re-decoding its captures and evaluating the same
+`vehicle_states.yaml` predicates:
+
+```bash
+canair captures uds --backfill-states --dry-run   # preview: report only, writes nothing
+canair captures uds --backfill-states             # fill sessions that have no state
+canair captures uds --backfill-states --overwrite # also correct recorded states that conflict
+```
+
+By default it only **fills** sessions that have no recorded state; a session
+whose recorded state is *provably contradicted* by the decoded evidence (a
+`conflict`) is reported but left untouched unless you pass `--overwrite`. It
+honors the usual scope filters (`--since`/`--state`/`--label`/`--last-session`),
+previews with `--dry-run`, emits `--json`, and confirms before writing unless
+`--yes`. Cross-ECU predicates need co-polled signals seen at roughly one instant,
+so timed captures are grouped into pseudo-cycles within `--cycle-tol` seconds
+(default 10s); untimed legacy sessions collapse to one whole-session cycle.
+
+Offline, a capture existing *is* a response, so the `__no_response__` /
+`__responded__` sentinels can't be evaluated (a predicate using them abstains) —
+which is why `SLEEP` has no offline predicate.
 
 ## Reviewing captures
 

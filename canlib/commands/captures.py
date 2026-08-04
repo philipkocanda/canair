@@ -101,6 +101,7 @@ from canlib.capture_dates import (
     resolve_scope_bounds,
 )
 from canlib.capture_types import CaptureEntry, Quality
+from canlib.commands._captures_backfill import cmd_backfill_states
 from canlib.commands._captures_query import (
     _BOLD,
     _CYAN,
@@ -127,6 +128,7 @@ from canlib.commands._captures_step_model import (
 )
 from canlib.commands._group import group_help
 from canlib.commands._hints import ecu_completer as _ecu_completer
+from canlib.state_infer import DEFAULT_CYCLE_TOL_S
 from canlib.states import join_states as _join_states
 
 NAME = "captures"
@@ -1085,6 +1087,15 @@ def _add_uds_parser(kinds) -> argparse.ArgumentParser:
         help="Delete the captures matching QUERY (and any scope filters). "
         "Previews with --dry-run; confirms before deleting unless --yes.",
     )
+    standalone.add_argument(
+        "--backfill-states",
+        action="store_true",
+        dest="backfill_states",
+        help="Infer each session's vehicle_states from its decoded captures and "
+        "fill sessions that have none. Reports conflicts (never writes them "
+        "unless --overwrite). Previews with --dry-run; confirms unless --yes. "
+        "Honors the scope filters.",
+    )
 
     parser.add_argument(
         "--discard",
@@ -1093,16 +1104,32 @@ def _add_uds_parser(kinds) -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="With --backfill-states: also rewrite sessions whose recorded states "
+        "conflict with / differ from the inferred states (default: fill empty only)",
+    )
+
+    parser.add_argument(
+        "--cycle-tol",
+        type=float,
+        default=DEFAULT_CYCLE_TOL_S,
+        metavar="SECONDS",
+        help="With --backfill-states: max timestamp gap grouping captures into one "
+        f"pseudo-cycle for cross-ECU predicates (default {DEFAULT_CYCLE_TOL_S:g}s)",
+    )
+
+    parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="With --delete: list the captures that would be deleted, delete nothing",
+        help="With --delete/--backfill-states: preview the changes, write nothing",
     )
 
     parser.add_argument(
         "--yes",
         "-y",
         action="store_true",
-        help="With --delete: skip the confirmation prompt (for scripting)",
+        help="With --delete/--backfill-states: skip the confirmation prompt (scripting)",
     )
 
     parser.add_argument(
@@ -1175,7 +1202,7 @@ def run(args) -> int:
         return cmd_recover(args.dir, discard=args.discard)
 
     query = build_query(args.query)
-    standalone_mode = args.summary or args.sessions
+    standalone_mode = args.summary or args.sessions or args.backfill_states
 
     if args.delete and not query:
         print(
@@ -1195,17 +1222,21 @@ def run(args) -> int:
     # the default list view), so it's handled with the QUERY path below.
     if standalone_mode:
         if query:
-            print("error: --summary/--sessions do not take a QUERY argument", file=sys.stderr)
+            print(
+                "error: --summary/--sessions/--backfill-states do not take a QUERY argument",
+                file=sys.stderr,
+            )
             return 2
         if args.latest:
             print(
-                "error: --latest cannot be combined with --summary/--sessions",
+                "error: --latest cannot be combined with --summary/--sessions/--backfill-states",
                 file=sys.stderr,
             )
             return 2
         if args.diff or args.step:
             print(
-                "error: --diff/--step cannot be combined with --summary/--sessions",
+                "error: --diff/--step cannot be combined with "
+                "--summary/--sessions/--backfill-states",
                 file=sys.stderr,
             )
             return 2
@@ -1275,6 +1306,16 @@ def run(args) -> int:
             cmd_summary(entries, as_json=args.json)
         elif args.sessions:
             cmd_sessions(entries, as_json=args.json)
+        elif args.backfill_states:
+            return cmd_backfill_states(
+                entries,
+                captures_dir=args.dir,
+                overwrite=args.overwrite,
+                cycle_tol=args.cycle_tol,
+                dry_run=args.dry_run,
+                assume_yes=args.yes,
+                as_json=args.json,
+            )
         elif args.delete:
             return cmd_delete(
                 entries,

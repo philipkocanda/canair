@@ -18,18 +18,23 @@
 # works on the CLI. Inspect/edit with `canair states`.
 #
 # Predicate grammar (whitelisted AST; no function calls / attribute access beyond
-# dotted ECU.PARAM names):
+# dotted ECU.PARAM names). Evaluated with three-valued (Kleene) logic — a
+# predicate depending on a not-polled parameter abstains (UNKNOWN) rather than
+# reading false, so a partial read still resolves the states it can determine:
 #   ECU.PARAM               decoded parameter value (e.g. BMS.BATTERY_CURRENT)
 #   and / or / not          boolean composition
 #   == != < <= > >=         comparisons
 #   numbers / 'strings'     literals
-#   __no_response__         true when no ECU responded (deep sleep / off)
-#   __responded__           true when at least one ECU responded
+#   __no_response__         true when no ECU responded (deep sleep / off);
+#                           UNKNOWN offline (a stored capture is itself a response)
+#   __responded__           true when at least one ECU responded (UNKNOWN offline)
 #
-# Base vocabulary (shared across vehicles; profiles may add composite states):
-#   SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING
+# Base vocabulary (the make-neutral ignition ladder baked into the tool;
+# profiles add EV/vendor/composite states in vehicle_states.yaml):
+#   SLEEP, ACC, RUN, CRANK   (POWER_STATES in canlib/states.py)
 # Plus the meta-token ALL — "applicable/readable in every state" (documentary,
-# the state analogue of the ALL CAN-bus code).
+# the state analogue of the ALL CAN-bus code). The bundled Ioniq profile, for
+# example, adds PLUGGED/ACC2/READY/CHARGING/PARKED/DRIVING.
 
 required_state_fields:
   - name

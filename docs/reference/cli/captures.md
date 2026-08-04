@@ -35,9 +35,9 @@ options:
 
 ```
 usage: canair captures uds [-h] [--diff | --step]
-                           [--summary | --sessions | --latest | --recover | --delete]
-                           [--discard] [--dry-run] [--yes] [--all] [--limit N]
-                           [--rulers]
+                           [--summary | --sessions | --latest | --recover | --delete | --backfill-states]
+                           [--discard] [--overwrite] [--cycle-tol SECONDS]
+                           [--dry-run] [--yes] [--all] [--limit N] [--rulers]
                            [--view {auto,stacked,signals,changed,interleaved}]
                            [--join-tol SECONDS] [--json] [--since WHEN]
                            [--until WHEN] [--date YYYY-MM-DD] [--today]
@@ -71,12 +71,23 @@ options:
   --delete              Delete the captures matching QUERY (and any scope
                         filters). Previews with --dry-run; confirms before
                         deleting unless --yes.
+  --backfill-states     Infer each session's vehicle_states from its decoded
+                        captures and fill sessions that have none. Reports
+                        conflicts (never writes them unless --overwrite).
+                        Previews with --dry-run; confirms unless --yes. Honors
+                        the scope filters.
   --discard             With --recover: delete orphaned journals without
                         saving them
-  --dry-run             With --delete: list the captures that would be
-                        deleted, delete nothing
-  --yes, -y             With --delete: skip the confirmation prompt (for
-                        scripting)
+  --overwrite           With --backfill-states: also rewrite sessions whose
+                        recorded states conflict with / differ from the
+                        inferred states (default: fill empty only)
+  --cycle-tol SECONDS   With --backfill-states: max timestamp gap grouping
+                        captures into one pseudo-cycle for cross-ECU
+                        predicates (default 10s)
+  --dry-run             With --delete/--backfill-states: preview the changes,
+                        write nothing
+  --yes, -y             With --delete/--backfill-states: skip the confirmation
+                        prompt (scripting)
   --all, -a             For --diff/--step: use every payload instead of
                         unique-only
   --limit N, -L N       Default list view: show only the most recent N

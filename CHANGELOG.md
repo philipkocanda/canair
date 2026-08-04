@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`canair captures uds --backfill-states`** — infer and back-fill a session's
+  `vehicle_states` offline by re-decoding its captures and evaluating the
+  profile's `vehicle_states.yaml` predicates. Fills sessions that have no
+  recorded state (many older captures predate the current predicates); reports —
+  but by default never rewrites — sessions whose recorded state is provably
+  contradicted by the evidence (`--overwrite` to correct them). Honors the shared
+  scope filters, previews with `--dry-run`, emits `--json`, and confirms before
+  writing unless `--yes`. Cross-ECU predicates group co-polled captures into
+  pseudo-cycles within `--cycle-tol` seconds (default 10s). The offline analogue
+  of the live monitor's span-aware state back-fill (`canlib/state_infer.py`).
 - **`canair pids rm-identity ECU FIELD`** — remove a field from an ECU's
   `identity:` block, the missing inverse of `set-identity`. Until now an identity
   value filed under the wrong field could only be *overwritten*, never dropped, so
@@ -47,6 +57,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of a string literal repeated across six call sites.
 
 ### Changed
+- **State predicates now use three-valued (Kleene) logic and a session is
+  composite.** A predicate that depends on an unpolled parameter *abstains*
+  (neither matches nor is falsified) instead of silently reading false — so
+  `BMS.BATTERY_CURRENT < -1 or OBC.OBC_DC_A > 0.5` resolves to `CHARGING` from an
+  OBC-only read where the BMS wasn't queried (previously it inferred nothing).
+  Auto-suggestion now returns *every* matching state, not just the first, so the
+  live monitor and the new offline back-fill both tag a parked, ready car as
+  `READY, PARKED`. Predicate order in `vehicle_states.yaml` is now display order
+  only, not priority.
+- **The bundled `ioniq-2017` profile gained `when:` predicates for
+  `DRIVING`/`PARKED`/`PLUGGED`/`ACC2`**, authored from verified signals, so those
+  states auto-suggest and back-fill. `SLEEP`/`ACC` stay predicate-less (no
+  trustworthy positive signal offline; `SLEEP`'s `__no_response__` is
+  unobservable in a stored capture).
 - **`canair validate pids` warns when two *synonymous* identity fields hold the
   same value.** The version-ish identity fields are near-synonyms by necessity
   (every marque names its identity DIDs differently), which makes it easy to

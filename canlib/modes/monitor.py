@@ -697,13 +697,24 @@ class MonitorController:
         return list(self.recorder.segments)
 
     def suggested_state(self) -> str | None:
-        """Auto-suggest the vehicle state from the latest decoded values.
+        """Auto-suggest the (single, highest-priority) vehicle state.
 
-        Evaluates the active profile's vehicle_states.yaml rules against the accumulated
-        ``decoded_values``/``responded`` snapshot. Returns None when no rule
-        matches or the profile declares no states.
+        Thin wrapper over :meth:`suggested_states` returning the first match —
+        for the callers/UI that still expect a single state.
         """
-        from ..states import StatePredicateError, load_states, suggest_state
+        matched = self.suggested_states()
+        return matched[0] if matched else None
+
+    def suggested_states(self) -> list[str]:
+        """Auto-suggest the vehicle state(s) from the latest decoded values.
+
+        Evaluates the active profile's vehicle_states.yaml rules against the
+        accumulated ``decoded_values``/``responded`` snapshot. Returns every
+        matching state (a session is naturally composite, e.g.
+        ``[READY, PARKED]``), or ``[]`` when no rule matches / the profile
+        declares no states.
+        """
+        from ..states import StatePredicateError, load_states, suggest_states
 
         if self._state_rules is None:
             try:
@@ -711,8 +722,9 @@ class MonitorController:
             except StatePredicateError:
                 self._state_rules = []
         if not self._state_rules:
-            return None
-        return suggest_state(self._state_rules, self.decoded_values, self.responded)
+            return []
+        matched, _false = suggest_states(self._state_rules, self.decoded_values, self.responded)
+        return matched
 
     def state_options(self) -> list[tuple[str, str]]:
         """The profile's ordered ``(state, description)`` vocabulary for the save dialog."""

@@ -18,13 +18,18 @@ small boolean expression referencing parameters by ``ECU.PARAM``::
       - name: DEEPSLEEP
         when: "__no_response__"
 
-``suggest_state`` evaluates the rules top-to-bottom against the latest decoded
-values and returns the first match — implementing the project goal of using
-known PIDs to deduce vehicle state.
+``suggest_states`` evaluates the rules against the latest decoded values and
+returns every match (a session is naturally composite, e.g. ``READY, PARKED``) —
+implementing the project goal of using known PIDs to deduce vehicle state.
+``suggest_state`` is the single-result wrapper older callers use.
 
 Predicates are evaluated with a whitelisted-AST evaluator (no ``eval``): only
 boolean/comparison operators, ``ECU.PARAM`` names, numeric/string/bool literals,
 and the sentinels ``__no_response__`` / ``__responded__`` are permitted.
+Evaluation is three-valued (Kleene): a sub-expression that depends on an
+unavailable parameter is :data:`UNKNOWN` rather than ``False``, so a rule is
+suggested only on positive evidence and never mislabels a partially-polled cycle
+(``UNKNOWN or True == True``, ``UNKNOWN and False == False``).
 """
 
 from __future__ import annotations
@@ -83,9 +88,37 @@ class StatePredicateError(Exception):
     """Raised when a state ``when:`` expression uses disallowed/invalid syntax."""
 
 
-class _Unknown(Exception):
-    """Internal: a referenced parameter wasn't available, so the rule can't match."""
+class _UnknownType:
+    """Kleene "unknown" truth value for a predicate that can't be decided.
 
+    A predicate references parameters that weren't polled (offline: not captured
+    in a cycle), or the ``__no_response__`` / ``__responded__`` sentinels in a
+    context where response information isn't observable. Rather than collapse to
+    ``False`` (which would silently mislabel), such sub-expressions evaluate to
+    :data:`UNKNOWN` and propagate through boolean logic with three-valued
+    (Kleene) semantics: ``UNKNOWN or True == True``, ``UNKNOWN and False ==
+    False``, everything else touching an ``UNKNOWN`` stays ``UNKNOWN``. A rule
+    that resolves to ``UNKNOWN`` is neither suggested nor treated as a conflict.
+    """
+
+    _instance: _UnknownType | None = None
+
+    def __new__(cls) -> _UnknownType:
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def __repr__(self) -> str:
+        return "UNKNOWN"
+
+    def __bool__(self) -> bool:  # pragma: no cover - guarded against in callers
+        raise TypeError("UNKNOWN has no boolean value; use three-valued helpers")
+
+
+UNKNOWN = _UnknownType()
+
+# A predicate value is True, False, or UNKNOWN.
+Tristate = bool | _UnknownType
 
 _MISSING = object()
 
@@ -119,7 +152,7 @@ class StateRule:
 
     name: str
     description: str = ""
-    predicate: Callable[[dict, set], bool] | None = None
+    predicate: Callable[[dict, set | None], Tristate] | None = None
     expr: str = ""
 
 
@@ -132,8 +165,14 @@ def _dotted_name(node: ast.AST) -> str:
     raise StatePredicateError("invalid name reference in predicate")
 
 
-def compile_predicate(expr: str) -> Callable[[dict, set], bool]:
+def compile_predicate(expr: str) -> Callable[[dict, set | None], Tristate]:
     """Compile a ``when:`` expression into a safe callable ``(values, responded)``.
+
+    The callable returns a three-valued result (``True`` / ``False`` /
+    :data:`UNKNOWN`): ``UNKNOWN`` when the expression depends on a parameter that
+    isn't in ``values`` (or on ``__no_response__`` / ``__responded__`` when
+    ``responded`` is ``None`` — i.e. response information isn't observable, as
+    for a stored capture).
 
     Raises :class:`StatePredicateError` for disallowed syntax so bad definitions
     fail loudly at load/validate time rather than silently never matching.
@@ -147,51 +186,95 @@ def compile_predicate(expr: str) -> Callable[[dict, set], bool]:
         if not isinstance(node, _ALLOWED_NODES):
             raise StatePredicateError(f"disallowed syntax: {type(node).__name__}")
 
-    def predicate(values: dict, responded: set) -> bool:
-        return bool(_eval(tree.body, values, responded))
+    def predicate(values: dict, responded: set | None) -> Tristate:
+        result = _eval(tree.body, values, responded)
+        # A well-formed predicate resolves to True/False/UNKNOWN; a `when:` that
+        # is a bare value (not a boolean expression) can't decide a state.
+        if result is True or result is False or result is UNKNOWN:
+            return result
+        return UNKNOWN
 
     return predicate
 
 
-def _lookup(name: str, values: dict, responded: set):
-    """Resolve a name to a value: sentinels first, then a decoded ECU.PARAM."""
+def _lookup(name: str, values: dict, responded: set | None):
+    """Resolve a name to a value: sentinels first, then a decoded ECU.PARAM.
+
+    Returns :data:`UNKNOWN` when the name can't be resolved (a not-polled param,
+    or a response sentinel when ``responded`` is ``None``).
+    """
     if name == "__no_response__":
-        return not responded
+        return UNKNOWN if responded is None else not responded
     if name == "__responded__":
-        return bool(responded)
+        return UNKNOWN if responded is None else bool(responded)
     val = values.get(name, _MISSING)
     if val is _MISSING:
-        raise _Unknown(name)
+        return UNKNOWN
     return val
 
 
-def _eval(node: ast.AST, values: dict, responded: set):
+def _eval(node: ast.AST, values: dict, responded: set | None) -> Tristate | float | str:
+    """Evaluate a predicate node with three-valued (Kleene) logic.
+
+    Boolean nodes return a :data:`Tristate`; leaf value nodes (a decoded param,
+    a numeric/string literal, unary minus) return the underlying value or
+    :data:`UNKNOWN` when a referenced param is absent.
+    """
     if isinstance(node, ast.BoolOp):
+        operands = [_eval(v, values, responded) for v in node.values]
         if isinstance(node.op, ast.And):
-            return all(_eval(v, values, responded) for v in node.values)
-        return any(_eval(v, values, responded) for v in node.values)
+            # False dominates; otherwise UNKNOWN if any operand is unknown.
+            if any(o is False for o in operands):
+                return False
+            if any(o is UNKNOWN for o in operands):
+                return UNKNOWN
+            return True
+        # Or: True dominates; otherwise UNKNOWN if any operand is unknown.
+        if any(o is True for o in operands):
+            return True
+        if any(o is UNKNOWN for o in operands):
+            return UNKNOWN
+        return False
     if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
-        return not _eval(node.operand, values, responded)
+        operand = _eval(node.operand, values, responded)
+        if operand is UNKNOWN:
+            return UNKNOWN
+        return not operand
     if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub):
-        return -_eval(node.operand, values, responded)
+        operand = _eval(node.operand, values, responded)
+        if isinstance(operand, (int, float)):
+            return -operand
+        return UNKNOWN
     if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.UAdd):
-        return +_eval(node.operand, values, responded)
+        operand = _eval(node.operand, values, responded)
+        if isinstance(operand, (int, float)):
+            return +operand
+        return UNKNOWN
     if isinstance(node, ast.Compare):
         left = _eval(node.left, values, responded)
+        result: Tristate = True
         for op, comparator in zip(node.ops, node.comparators, strict=False):
             right = _eval(comparator, values, responded)
-            if not _compare(op, left, right):
-                return False
+            link = _compare(op, left, right)
+            if link is False:
+                return False  # a definitely-false link short-circuits the chain
+            if link is UNKNOWN:
+                result = UNKNOWN  # keep scanning: a later link may be definitely False
             left = right
-        return True
+        return result
     if isinstance(node, (ast.Name, ast.Attribute)):
         return _lookup(_dotted_name(node), values, responded)
     if isinstance(node, ast.Constant):
-        return node.value
+        value = node.value
+        if isinstance(value, (bool, int, float, str)):
+            return value
+        return UNKNOWN  # bytes/None/complex are not valid predicate literals
     raise StatePredicateError(f"disallowed syntax: {type(node).__name__}")
 
 
-def _compare(op: ast.AST, left, right) -> bool:
+def _compare(op: ast.AST, left, right) -> Tristate:
+    if left is UNKNOWN or right is UNKNOWN:
+        return UNKNOWN
     if isinstance(op, ast.Eq):
         return left == right
     if isinstance(op, ast.NotEq):
@@ -391,23 +474,48 @@ def ecus_in_state(state, pids_data, profile=None) -> list[dict]:
     return out
 
 
-def suggest_state(rules: list[StateRule], values: dict, responded: set) -> str | None:
+def suggest_state(rules: list[StateRule], values: dict, responded: set | None) -> str | None:
     """Return the first state whose predicate matches the decoded values.
 
-    ``values`` maps ``"ECU.PARAM"`` → decoded numeric value; ``responded`` is the
-    set of ECU labels that answered this cycle. Rules referencing a parameter not
-    present in ``values`` are skipped (can't be evaluated), so a partial poll
-    still suggests the best determinable state.
+    A thin wrapper over :func:`suggest_states` that returns only the first match
+    (highest priority in file order) — the single-state shape older callers and
+    the interactive prompts expect. Prefer :func:`suggest_states` for offline
+    back-fill, where a session is naturally composite (e.g. ``READY, PARKED``).
     """
+    matched, _false = suggest_states(rules, values, responded)
+    return matched[0] if matched else None
+
+
+def suggest_states(
+    rules: list[StateRule], values: dict, responded: set | None
+) -> tuple[list[str], list[str]]:
+    """Evaluate every rule, returning ``(matched, definitely_false)``.
+
+    ``values`` maps ``"ECU.PARAM"`` → decoded numeric value; ``responded`` is the
+    set of ECU labels that answered this cycle, or ``None`` when response
+    information isn't observable (the offline case — a stored capture existing
+    *is* a response, so ``__no_response__`` can't be evaluated).
+
+    - ``matched`` — states whose predicate is definitely ``True``, in file order.
+      Multiple can match (the composite case); a predicate that resolves to
+      :data:`UNKNOWN` (references an unpolled param) is neither matched nor false.
+    - ``definitely_false`` — states whose predicate is definitely ``False``. This
+      lets a caller flag a *conflict* between an already-recorded state and the
+      decoded evidence without needing an explicit state-axis model.
+
+    ``ALL`` and predicate-less (vocabulary-only) states are never evaluated.
+    """
+    matched: list[str] = []
+    definitely_false: list[str] = []
     for rule in rules:
         if rule.predicate is None:
             continue
-        try:
-            if rule.predicate(values, responded):
-                return rule.name
-        except _Unknown:
-            continue
-    return None
+        result = rule.predicate(values, responded)
+        if result is True:
+            matched.append(rule.name)
+        elif result is False:
+            definitely_false.append(rule.name)
+    return matched, definitely_false
 
 
 def collect_values(new_queries: list[EcuFrame]) -> tuple[dict[str, float], set[str]]:
