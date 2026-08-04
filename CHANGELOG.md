@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.14.0] - 2026-08-04
+
 ### Added
 - **`canair captures uds --backfill-states`** — infer and back-fill a session's
   `vehicle_states` offline by re-decoding its captures and evaluating the
@@ -1847,7 +1849,8 @@ dongle (both the WiCAN Pro and the classic/non-Pro WiCAN are supported).
 - Command safety blocklist preventing UDS programming/write sessions against a
   real vehicle.
 
-[Unreleased]: https://github.com/philipkocanda/canair/compare/v1.13.0...HEAD
+[Unreleased]: https://github.com/philipkocanda/canair/compare/v1.14.0...HEAD
+[1.14.0]: https://github.com/philipkocanda/canair/compare/v1.13.0...v1.14.0
 [1.13.0]: https://github.com/philipkocanda/canair/compare/v1.12.0...v1.13.0
 [1.12.0]: https://github.com/philipkocanda/canair/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/philipkocanda/canair/compare/v1.10.2...v1.11.0
