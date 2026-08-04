@@ -15,6 +15,14 @@ ECU/PID, what the car was doing). They live under `captures/`, split by date
     canair's own helpers. Hand-editing them corrupts the record. Add data via
     `canair … --save`; review it with `canair captures`.
 
+!!! tip "Every save says where it landed"
+    Any command that writes captures prints the **full path** of the file it
+    wrote — `→ Saved 12 capture(s) to /…/profiles/<car>/captures/2026-04-19.json`
+    — so you always know which profile got the data. In `canair monitor` the TUI
+    owns the screen, so a save made while it's running (`s` without `--save`, or
+    an `n` segment rotate) reports its path once the monitor exits and the
+    terminal is yours again.
+
 ## File format
 
 Each `captures/YYYY-MM-DD.json` holds one day, as sessions of captures:

@@ -405,6 +405,17 @@ def _stamp_version(session: CaptureSession) -> CaptureSession:
     return cast(CaptureSession, rebuilt)
 
 
+def saved_banner(capture_file: Path, n_captures: int) -> str:
+    """The one-line "where the captures landed" banner.
+
+    Always the **full path**, never a bare filename: a save is worthless if the
+    user has to guess which profile's captures/ directory it went into. Shared
+    by :func:`save_session` (every save path funnels through it) and by the
+    monitor's post-TUI replay of banners Textual swallowed.
+    """
+    return f"  \u2192 Saved {n_captures} capture(s) to {capture_file}"
+
+
 def save_session(session: CaptureSession, captures_dir: Path | None = None) -> Path:
     """Append a session dict to captures/YYYY-MM-DD.json. Returns the file path.
 
@@ -439,7 +450,7 @@ def save_session(session: CaptureSession, captures_dir: Path | None = None) -> P
     capture_io.dump_capture_file(capture_file, data)
 
     n_captures = len(session.get("captures", []))
-    print(f"  \u2192 Saved {n_captures} capture(s) to {capture_file.name}")
+    print(saved_banner(capture_file, n_captures))
     return capture_file
 
 

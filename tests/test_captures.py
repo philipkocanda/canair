@@ -131,6 +131,24 @@ class TestBuildQuerySession:
         assert data["sessions"][0]["captures"][0]["payload"] == "6102AABB"
 
 
+class TestSavedBanner:
+    """Every save reports its full destination path, not a bare filename."""
+
+    def test_save_session_prints_full_path(self, tmp_path, capsys):
+        s = build_query_session([("0x7EB", "2102", "6102AABB", "")], "l", [], "")
+        written = save_session(s, tmp_path)
+        out = capsys.readouterr().out
+        assert str(written) in out
+        assert str(tmp_path) in out  # the directory, so the profile is unambiguous
+        assert "1 capture(s)" in out
+
+    def test_banner_formats_count_and_path(self, tmp_path):
+        from canlib.captures import saved_banner
+
+        line = saved_banner(tmp_path / "2026-08-04.json", 3)
+        assert line.strip() == f"→ Saved 3 capture(s) to {tmp_path / '2026-08-04.json'}"
+
+
 def _entry(**kw):
     """A minimal flat capture entry as load_all_captures would produce."""
     base = {

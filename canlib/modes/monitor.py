@@ -973,6 +973,12 @@ async def mode_monitor(
         print("  Monitoring stopped.")
 
     finally:
+        # Replay the save banners the TUI swallowed (an in-run 's' save / 'n'
+        # rotate wrote a real capture file while Textual owned stdout). The app —
+        # and any modal — is gone by now, so this is the first moment those
+        # destinations can actually reach the user.
+        for line in controller.recorder.drain_deferred_saves():
+            print(line)
         # Reconcile the journal even on disconnect/exception (this is the fix for
         # the old bug where a dropped connection lost the whole --save session).
         if controller.journal is not None:
@@ -990,7 +996,8 @@ async def mode_monitor(
                 quality = controller.recorder.segment_quality()
                 if quality is not None:
                     controller.journal.update_meta(quality=quality)
-                written = controller.journal.reconcile()
-                if written is not None:
-                    _console.print(f"  → Saved journaled captures to {written.name}")
+                # reconcile() prints its own "Saved N capture(s) to <full path>"
+                # banner per written day-file — stdout is real again here, so no
+                # extra (and potentially last-file-only) line is needed.
+                controller.journal.reconcile()
         await controller.close()

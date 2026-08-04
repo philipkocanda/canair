@@ -17,6 +17,7 @@ properties/methods for the tested public surface and holds the poll/display stat
 from __future__ import annotations
 
 import contextlib
+import io
 import re
 from datetime import datetime
 from pathlib import Path
@@ -178,6 +179,12 @@ class MonitorRecorder:
         self.segment_started_at = self.run_started_at
         self.segment_frames_base = 0
         self.segments: list[dict] = []
+        # Save banners produced while the TUI owned stdout (an on-demand 's' save
+        # or an 'n' segment rotate). Textual redirects stdout for the app's whole
+        # lifetime, so those lines would be silently dropped; mode_monitor drains
+        # this after the app (and any modal) is gone, so a save always reports the
+        # file it landed in.
+        self.deferred_saves: list[str] = []
 
     def segment_quality(self) -> dict | None:
         """Data-quality footprint for the current segment, or None if unavailable.
@@ -311,6 +318,26 @@ class MonitorRecorder:
         if notes is not None:
             self.session_notes = notes
 
+    def _defer_save_output(self, buf: io.StringIO) -> None:
+        """Queue save output captured while the TUI owned stdout, for post-exit printing.
+
+        The capture writer prints its own "Saved N capture(s) to <path>" banner;
+        inside the TUI that goes to Textual's redirected stdout and is discarded.
+        Collecting it here lets :func:`~canlib.modes.monitor.mode_monitor` replay
+        it once the screen is handed back, so an in-run save still tells the user
+        where it went (including a multi-day reconcile, which writes one file per
+        day and so emits several banners).
+        """
+        for line in buf.getvalue().splitlines():
+            if line.strip():
+                self.deferred_saves.append(line.rstrip())
+
+    def drain_deferred_saves(self) -> list[str]:
+        """Pop the queued save banners (see :meth:`_defer_save_output`)."""
+        lines = list(self.deferred_saves)
+        self.deferred_saves.clear()
+        return lines
+
     def save_now(self, label: str, vehicle_states=None, notes: str | None = None) -> str:
         """Save the payloads captured so far (on-demand save from the TUI).
 
@@ -319,10 +346,9 @@ class MonitorRecorder:
         history available — the full ``--save`` history if enabled, else the
         display (``--keep``) history, else just the latest per-PID snapshot —
         merged with the current values. Returns a one-line summary for display.
-        Never writes to stdout (the TUI owns the screen).
+        Never writes to stdout (the TUI owns the screen); the destination banner
+        is deferred to :attr:`deferred_saves` and printed after the app exits.
         """
-        import io
-
         from ..states import parse_states
 
         states = parse_states(vehicle_states)
@@ -373,7 +399,8 @@ class MonitorRecorder:
         # Persist it honestly as "unique" (global) rather than the controller's
         # nominal "changes" — run-length is only applied on the journal path.
         save_keep = "unique" if self.c.keep_mode in ("changes", "unique") else self.c.keep_mode
-        with contextlib.redirect_stdout(io.StringIO()):
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
             path = _write_merged(
                 new_merged,
                 label,
@@ -384,6 +411,7 @@ class MonitorRecorder:
                 transport=getattr(self.c, "transport_type", None),
                 quality=self.segment_quality(),
             )
+        self._defer_save_output(buf)
         for key, entries in merged.items():
             self._saved_counts[key] = len(entries)
         return f"Saved {n_payloads} payload(s) across {n_pids} PID(s) → {path.name}"
@@ -395,7 +423,8 @@ class MonitorRecorder:
         journal carrying the provided label/states/notes. One monitor run can thus
         produce several independently-labelled sessions. A no-op (with a message)
         when --save is off, since there is no journal to rotate. Returns a one-line
-        summary; never writes to stdout (the TUI owns the screen).
+        summary; never writes to stdout (the TUI owns the screen) — the destination
+        banner is deferred to :attr:`deferred_saves` and printed after the app exits.
         """
         from ..states import parse_states
 
@@ -422,8 +451,10 @@ class MonitorRecorder:
                 self.journal.update_meta(quality=quality)
 
         written = None
-        with contextlib.suppress(Exception):
+        buf = io.StringIO()
+        with contextlib.suppress(Exception), contextlib.redirect_stdout(buf):
             written = self.journal.reconcile()
+        self._defer_save_output(buf)
 
         # Record the just-closed segment's summary for the session-info modal
         # before the metadata is reset for the fresh segment.

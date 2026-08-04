@@ -718,6 +718,19 @@ class TestControllerSnapshot:
         assert s["label"] == "Live ref"
         assert s["captures"][0]["payload"] == "6101AA"
 
+    def test_save_now_defers_destination_banner(self, tmp_path, capsys):
+        """An in-run save keeps the screen clean but queues its full path for exit."""
+        c = self._controller()
+        c.captures_dir = tmp_path
+        c.prev_hex[("BMS (0x7E4)", "2101")] = "6101AA"
+        c.save_now("Live ref", "ready", "note")
+        assert capsys.readouterr().out == ""  # the TUI owns the screen
+        written = next(tmp_path.glob("*.json"))
+        banners = c.recorder.drain_deferred_saves()
+        assert len(banners) == 1
+        assert str(written) in banners[0]
+        assert c.recorder.drain_deferred_saves() == []  # drained once
+
     def test_save_now_nothing_to_save(self, tmp_path):
         c = self._controller()
         c.captures_dir = tmp_path
@@ -845,6 +858,21 @@ class TestControllerJournal:
             for s in json.loads(f.read_text())["sessions"]
         }
         assert {"seg1", "seg2"} <= labels
+
+    def test_new_segment_defers_destination_banner(self, tmp_path, capsys):
+        """Rotating a segment writes a file — its full path is queued, not lost."""
+        from canlib.capture_journal import CaptureJournal
+
+        c = self._controller()
+        c.captures_dir = tmp_path
+        c.journal = CaptureJournal.open(tmp_path, label="seg1", source="monitor")
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
+        c.new_segment("seg2", "ready", "note")
+        assert capsys.readouterr().out == ""  # nothing leaks onto the TUI screen
+        written = next(tmp_path.glob("*.json"))
+        banners = c.recorder.drain_deferred_saves()
+        assert len(banners) == 1
+        assert str(written) in banners[0]
 
     def test_new_segment_requires_save(self):
         c = MonitorController(
