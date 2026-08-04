@@ -49,6 +49,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+from canlib.capture_types import CaptureEntry
 from canlib.commands._group import group_help
 from canlib.commands._hexarg import HexArgError, parse_hex_arg
 from canlib.commands._hints import ecu_completer as _ecu_completer
@@ -481,7 +482,7 @@ def cmd_detail(rec: dict, as_json: bool) -> int:
     return 0
 
 
-def _latest_capture_by_pid(ecu_name: str) -> dict[str, dict]:
+def _latest_capture_by_pid(ecu_name: str) -> dict[str, CaptureEntry]:
     """Map each PID (upper-cased) to this ECU's most recent payload capture.
 
     Capture files are chronological, so the last-seen payload entry per PID wins.
@@ -493,7 +494,7 @@ def _latest_capture_by_pid(ecu_name: str) -> dict[str, dict]:
         caps = load_all_captures()
     except Exception:
         return {}
-    latest: dict[str, dict] = {}
+    latest: dict[str, CaptureEntry] = {}
     for c in caps:
         if str(c.get("ecu", "")).upper() != ecu_name.upper():
             continue

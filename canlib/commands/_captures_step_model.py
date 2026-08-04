@@ -21,6 +21,7 @@ Two navigation shapes share one model:
 from __future__ import annotations
 
 from bisect import bisect_left
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -28,6 +29,7 @@ from pathlib import Path
 from rich.text import Text
 
 from canlib.capture_dates import entry_datetime
+from canlib.capture_types import CaptureEntry
 from canlib.commands._captures_join import JoinFrame, build_join_frames
 from canlib.commands._captures_query import (
     PidDefs,
@@ -101,7 +103,7 @@ class StepModel:
     first :meth:`rebuild`) rather than directly.
     """
 
-    index: dict[tuple[str, str], list[dict]]
+    index: dict[tuple[str, str], list[CaptureEntry]]
     keys: list[tuple[str, str]]
     defs: dict[tuple[str, str], PidDefs]
     view: str = VIEW_STACKED
@@ -115,7 +117,7 @@ class StepModel:
     cursor: bool = True
 
     # Derived by rebuild().
-    captures: list[dict] = field(default_factory=list)
+    captures: list[CaptureEntry] = field(default_factory=list)
     prev_idx: list[int | None] = field(default_factory=list)
     ordinals: list[tuple[int, int]] = field(default_factory=list)
     frames: list[JoinFrame] = field(default_factory=list)
@@ -132,7 +134,7 @@ class StepModel:
     @classmethod
     def from_entries(
         cls,
-        entries: list[dict],
+        entries: Sequence[CaptureEntry],
         keys: list[tuple[str, str]],
         defs: dict[tuple[str, str], PidDefs],
         *,
@@ -174,7 +176,7 @@ class StepModel:
         """
         anchor = self.current_time() if preserve_time else None
 
-        caps: list[dict] = []
+        caps: list[CaptureEntry] = []
         for k in self.keys:
             caps.extend(self.index.get(k, ()))
         caps.sort(key=lambda e: (str(e.get("date", "")), str(e.get("time", ""))))
@@ -231,7 +233,7 @@ class StepModel:
         """Timestamp of the current frame (its anchor), or None when empty/untimed."""
         return self.frame_time()
 
-    def focused_capture(self) -> dict | None:
+    def focused_capture(self) -> CaptureEntry | None:
         """The capture the block cursor points at (target of note/delete)."""
         indices = self.frame_indices()
         if not indices:

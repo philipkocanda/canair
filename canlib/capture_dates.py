@@ -12,8 +12,17 @@ and (for captures) ``session_label`` keys, so any capture-shaped dict works.
 """
 
 import argparse
+from collections.abc import Mapping
 from datetime import date, datetime, time
 from pathlib import Path
+from typing import Any
+
+# NOTE on the scope filters below: they are deliberately shape-agnostic. Each
+# reads only a handful of keys (date/time/vehicle_states/label) and is applied
+# both to full `CaptureEntry` rows and to the slimmer row
+# `decode.load_captures` reshapes to. The `_Row` type parameter keeps them honest
+# *and* preserves the caller's row type through the filter, so a precisely-typed
+# input doesn't degrade to `list[dict]` on the way out.
 
 __all__ = [
     "add_scope_args",
@@ -86,7 +95,7 @@ def _as_upper_datetime(x: date | datetime) -> datetime:
     return datetime.combine(x, time.max)
 
 
-def entry_date(entry: dict) -> date | None:
+def entry_date(entry: Mapping[str, Any]) -> date | None:
     """Parse a capture entry's session ``date`` field, or None if absent/invalid.
 
     Tolerates a trailing suffix on same-day sessions (e.g. ``2026-04-17-b``) by
@@ -132,7 +141,7 @@ def _parse_date(raw: str) -> date | None:
     return None
 
 
-def entry_datetime(entry: dict) -> datetime | None:
+def entry_datetime(entry: Mapping[str, Any]) -> datetime | None:
     """Combine a capture entry's session ``date`` + per-capture ``time`` into a
     ``datetime``, or ``None`` if either is absent/unparseable.
 
@@ -186,11 +195,11 @@ def _parse_time(raw: str) -> time | None:
     return None
 
 
-def filter_by_date_range(
-    entries: list[dict],
+def filter_by_date_range[Row: Mapping[str, Any]](
+    entries: list[Row],
     since: date | datetime | None = None,
     until: date | datetime | None = None,
-) -> list[dict]:
+) -> list[Row]:
     """Keep entries whose session date/time falls within ``[since, until]`` (inclusive).
 
     Either bound may be ``None`` (open-ended). A bound may be a ``date`` (whole
@@ -235,9 +244,9 @@ def filter_by_date_range(
     return out
 
 
-def filter_by_text(
-    entries: list[dict], state: str | None = None, label: str | None = None
-) -> list[dict]:
+def filter_by_text[Row: Mapping[str, Any]](
+    entries: list[Row], state: str | None = None, label: str | None = None
+) -> list[Row]:
     """Keep entries whose session ``vehicle_states``/``label`` match the substrings.
 
     Matching is case-insensitive and substring-based against the joined

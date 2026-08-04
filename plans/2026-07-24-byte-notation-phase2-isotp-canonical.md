@@ -303,11 +303,15 @@ data byte rendered `—`, claiming no Torque position at all).
   correct, but the *internal* model is still WiCAN-expression-keyed. Unlocks the
   PCI-straddling-signal find (`_promote` already accepts a skip-the-framing-byte
   composition, so the write side is ready) and true raw-CAN analysis.
-- [ ] **Type the in-memory capture entry** (`load_all_captures() -> list[CaptureEntry]`).
-  Attempted and reverted: `list` invariance propagates the change through
-  `LoadedPid.captures` into the whole analysis engine (38 → 70 `ty` diagnostics
-  across ~9 files). Needs its own change, probably using `Sequence` at the
-  consumer boundaries to sidestep invariance.
+- [x] **Type the in-memory capture entry** — done. `load_all_captures()` now
+  returns `list[CaptureEntry]`. The invariance problem was solved by splitting the
+  read path in two: precise `CaptureEntry` on the loader, `LoadedPid.captures` and
+  the command signatures; a **type parameter** on the genuinely shape-agnostic
+  helpers (the scope filters, `key_index`, `_dedupe_payloads`, `_capture_key`,
+  `entry_date`/`entry_datetime`) so they accept both a full row and `decode`'s
+  slimmer reshaped row while *preserving* the caller's row type. `list[Row]`
+  (not `Sequence`) on the filters keeps their no-op fast path returning the same
+  object rather than copying 50k+ rows.
 - [ ] **Reimplement `canair bix` on `notation.py`** (pure internal dedup; deferred
   to avoid re-churning code Phase 1 just touched, and because the 35 notation
   tests already prove the renderer).

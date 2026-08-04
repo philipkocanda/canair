@@ -15,9 +15,12 @@ The ANSI colour constants live here as the single source of truth for the
 """
 
 import sys
+from collections.abc import Mapping, Sequence
 from pathlib import Path
+from typing import Any
 
 from canlib import capture_io
+from canlib.capture_types import CaptureEntry
 
 # ANSI color helpers (shared across the captures command family).
 _RED = "\033[91m"
@@ -41,7 +44,7 @@ _ecu_index = None
 _decode_fn = None
 
 
-def _decoded_preview(entry: dict) -> dict | None:
+def _decoded_preview(entry: Mapping[str, Any]) -> dict | None:
     """Regenerate decoded parameter values for a capture entry, or None.
 
     Lazily loads PID definitions on first use. Returns a dict of
@@ -83,7 +86,7 @@ def _dump_json(obj) -> None:
     print()
 
 
-def _entry_to_dict(e: dict, *, decoded: bool = True) -> dict:
+def _entry_to_dict(e: Mapping[str, Any], *, decoded: bool = True) -> dict:
     """Serialize a capture entry to a clean, JSON-ready dict.
 
     Includes the regenerated ``decoded`` preview (param -> formatted value) when
@@ -112,7 +115,7 @@ def _entry_to_dict(e: dict, *, decoded: bool = True) -> dict:
 # ---------------------------------------------------------------------------
 
 
-def load_all_captures(captures_dir: Path | None = None) -> list[dict]:
+def load_all_captures(captures_dir: Path | None = None) -> list[CaptureEntry]:
     """Load all capture files and return a flat list of (session, capture) tuples.
 
     Each entry is a dict with keys:
@@ -140,7 +143,7 @@ def load_all_captures(captures_dir: Path | None = None) -> list[dict]:
     except Exception:
         rx_index = {}
 
-    entries = []
+    entries: list[CaptureEntry] = []
     capture_io.ensure_migrated(captures_dir)
     for fpath in capture_io.iter_capture_files(captures_dir):
         data = capture_io.load_capture_file(fpath)
@@ -157,7 +160,7 @@ def load_all_captures(captures_dir: Path | None = None) -> list[dict]:
             quality = session.get("quality") or None
             for c_idx, cap in enumerate(session.get("captures", [])):
                 raw_ecu = capture_io.capture_rx(cap)
-                entry = {
+                entry: CaptureEntry = {
                     "file": fpath.name,
                     "date": date,
                     "session_label": label,
@@ -240,8 +243,8 @@ def _resolve_defs(ecu_index: dict, ecu: str, pid: str) -> PidDefs:
     return parameters, tx_id
 
 
-def _gather_query(
-    entries: list[dict], query, *, warn: bool = True
+def _gather_query[R: Mapping[str, Any]](
+    entries: Sequence[R], query, *, warn: bool = True
 ) -> tuple[list[dict], dict[tuple[str, str], PidDefs]]:
     """Select payload captures matching ``query`` (a canlib.query string/Query).
 
@@ -306,19 +309,19 @@ def _is_hex_payload(payload) -> bool:
     return True
 
 
-def _capture_key(e: dict) -> tuple[str, str]:
+def _capture_key(e: Mapping[str, Any]) -> tuple[str, str]:
     """The (ECU, PID) grouping/diff key for a capture (upper-cased)."""
     return e["ecu"].upper(), str(e["pid"]).upper()
 
 
-def _dedupe_payloads(payloads: list[dict]) -> list[dict]:
+def _dedupe_payloads[R: Mapping[str, Any]](payloads: Sequence[R]) -> list[R]:
     """Drop duplicate payloads per (ECU, PID), keeping first-seen order.
 
     Deduping is scoped to each ECU+PID so identical hex under different PIDs is
     never collapsed together.
     """
     seen: set[tuple[str, str, str]] = set()
-    unique: list[dict] = []
+    unique: list[R] = []
     for e in payloads:
         ecu, pid = _capture_key(e)
         norm = e["payload"].upper().replace(" ", "")
@@ -329,7 +332,7 @@ def _dedupe_payloads(payloads: list[dict]) -> list[dict]:
     return unique
 
 
-def _prev_same_index(captures: list[dict]) -> list[int | None]:
+def _prev_same_index(captures: Sequence[Mapping[str, Any]]) -> list[int | None]:
     """Per position, the nearest earlier index sharing the same (ECU, PID).
 
     Used by the interleaved step view so byte-diffing compares a capture against
@@ -344,7 +347,7 @@ def _prev_same_index(captures: list[dict]) -> list[int | None]:
     return out
 
 
-def _key_ordinals(captures: list[dict]) -> list[tuple[int, int]]:
+def _key_ordinals(captures: Sequence[Mapping[str, Any]]) -> list[tuple[int, int]]:
     """Per position, its 1-based ordinal within its (ECU, PID) and that group's total."""
     totals: dict[tuple[str, str], int] = {}
     for e in captures:
@@ -366,7 +369,7 @@ def _group_by_key(captures: list[dict]) -> dict[tuple[str, str], list[dict]]:
     return groups
 
 
-def key_index(entries: list[dict]) -> dict[tuple[str, str], list[dict]]:
+def key_index[R: Mapping[str, Any]](entries: Sequence[R]) -> dict[tuple[str, str], list[R]]:
     """Group payload-bearing ``entries`` by (ECU, PID), for repeated re-selection.
 
     The step TUI lets the user add/remove PIDs live, which re-selects captures on
@@ -374,7 +377,7 @@ def key_index(entries: list[dict]) -> dict[tuple[str, str], list[dict]]:
     proportional to the *selected* keys instead of rescanning every loaded
     capture. Non-hex payloads are excluded, matching :func:`_gather_query`.
     """
-    index: dict[tuple[str, str], list[dict]] = {}
+    index: dict[tuple[str, str], list[R]] = {}
     for e in entries:
         if not _is_hex_payload(e.get("payload")):
             continue

@@ -160,6 +160,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   *statically* bound to its `Terminal`/`Channel` protocol
   (`canlib/transport/_conformance.py`), since `runtime_checkable` + `isinstance`
   only checks method presence — never signatures.
+- **The capture read path is now typed end to end.** `load_all_captures()` returns
+  `list[CaptureEntry]` instead of `list[dict]`, so the flattened row every
+  history-consuming command reads (`captures`/`decode`/`correlate`/`hunt`/
+  `investigate`/`align`/`ecu`) is checked rather than ambient. Genuinely
+  shape-agnostic helpers (the scope filters, `key_index`, `_dedupe_payloads`) take
+  a type parameter so they still serve both the full row and `decode`'s slimmer
+  reshaped row while preserving the caller's type. Adopting it surfaced real
+  latent nullability — several call sites passed a possibly-`None` payload
+  straight into `payload_to_wican_bytes` — including `hunt_byte`, which had no
+  guard at all and would abort a whole sweep on one non-hex payload (a stored
+  `NO DATA`) where every sibling series builder already skipped the row.
 - **`canair captures --step --pair` is removed; a multi-PID QUERY compares by
   default.** `--pair` only ever handled *exactly two* keys, was read-only (no
   note/delete), and its PID set and tolerance were fixed at launch. Everything it

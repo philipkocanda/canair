@@ -90,6 +90,7 @@ import argparse
 import re
 import sys
 from collections import defaultdict
+from collections.abc import Sequence
 from pathlib import Path
 from typing import TypedDict
 
@@ -99,6 +100,7 @@ from canlib.capture_dates import (
     filter_by_text,
     resolve_scope_bounds,
 )
+from canlib.capture_types import CaptureEntry, Quality
 from canlib.commands._captures_query import (
     _BOLD,
     _CYAN,
@@ -177,7 +179,7 @@ def cmd_can_logs(as_json: bool = False) -> int:
     return 0
 
 
-def cmd_summary(entries: list[dict], as_json: bool = False) -> None:
+def cmd_summary(entries: Sequence[CaptureEntry], as_json: bool = False) -> None:
     """Print overview statistics."""
     by_ecu = defaultdict(int)
     by_date = defaultdict(int)
@@ -255,14 +257,14 @@ class _SessionGroup(TypedDict):
     notes: str
     keep_mode: str
     transport: str
-    quality: dict | None
+    quality: Quality | None
     n: int
     ecus: dict  # ordered set (dict) of ECU names
     times: list
     cap_notes: list  # distinct capture-level notes, first-seen order
 
 
-def _group_sessions(entries: list[dict]) -> list[_SessionGroup]:
+def _group_sessions(entries: Sequence[CaptureEntry]) -> list[_SessionGroup]:
     """Reconstruct per-session metadata from flat capture entries.
 
     Groups by ``(file, _session_idx)`` — the true session identity — and rolls
@@ -307,7 +309,7 @@ def _group_sessions(entries: list[dict]) -> list[_SessionGroup]:
     return sessions
 
 
-def _quality_tag(quality: dict | None) -> str:
+def _quality_tag(quality: Quality | None) -> str:
     """A colored one-liner flagging a session's recorded drops/errors, or ''.
 
     Clean sessions (no drops/errors) return an empty string so the TOC stays
@@ -331,7 +333,9 @@ def _quality_tag(quality: dict | None) -> str:
     return f"{_DIM}⚠ quality:{_RESET} " + " ".join(parts) + ex_txt
 
 
-def cmd_sessions(entries: list[dict], as_json: bool = False, max_notes: int = 6) -> None:
+def cmd_sessions(
+    entries: Sequence[CaptureEntry], as_json: bool = False, max_notes: int = 6
+) -> None:
     """List capture *sessions* with their metadata — a searchable table of contents.
 
     Answers "what's in the captures?" without dumping payloads: one block per
@@ -416,7 +420,7 @@ def cmd_sessions(entries: list[dict], as_json: bool = False, max_notes: int = 6)
 # ---------------------------------------------------------------------------
 
 
-def cmd_list(entries: list[dict], query, as_json: bool = False, limit: int = 0) -> None:
+def cmd_list(entries: Sequence[CaptureEntry], query, as_json: bool = False, limit: int = 0) -> None:
     """List captures matching ``query`` (canlib.query selection).
 
     The default view: unlike --diff/--step (payload-only), this lists *every*
@@ -493,7 +497,9 @@ def cmd_list(entries: list[dict], query, as_json: bool = False, limit: int = 0) 
 # ---------------------------------------------------------------------------
 
 
-def cmd_latest(entries: list[dict], ecu_filter: str | None, as_json: bool = False) -> None:
+def cmd_latest(
+    entries: Sequence[CaptureEntry], ecu_filter: str | None, as_json: bool = False
+) -> None:
     """Show latest payload per ECU+PID."""
     if ecu_filter:
         from canlib.ecus import canonical_ecu_name
@@ -514,7 +520,7 @@ def cmd_latest(entries: list[dict], ecu_filter: str | None, as_json: bool = Fals
         return
 
     # Group by ECU+PID, keep latest (last in list = most recent date/position)
-    latest: dict[tuple[str, str], dict] = {}
+    latest: dict[tuple[str, str | int], CaptureEntry] = {}
     for e in payload_entries:
         key = (e["ecu"], e["pid"])
         latest[key] = e
@@ -529,7 +535,7 @@ def cmd_latest(entries: list[dict], ecu_filter: str | None, as_json: bool = Fals
     print(f"\n  {_BOLD}{title}{_RESET} — {len(latest)} PIDs\n")
 
     for (ecu, pid), e in ordered:
-        payload = e["payload"]
+        payload = e["payload"] or ""
         date = e["date"]
         _st = _join_states(e.get("vehicle_states"))
         state = f"  ({_st})" if _st else ""
@@ -610,7 +616,11 @@ def _render_diff_group(
 
 
 def cmd_diff(
-    entries: list[dict], query, show_all: bool = False, rulers: bool = False, as_json: bool = False
+    entries: Sequence[CaptureEntry],
+    query,
+    show_all: bool = False,
+    rulers: bool = False,
+    as_json: bool = False,
 ) -> None:
     """Show payloads matching ``query`` in monitor style, per ECU+PID.
 
@@ -785,7 +795,7 @@ def cmd_recover(captures_dir: Path | None, discard: bool = False) -> int:
 
 
 def cmd_delete(
-    entries: list[dict],
+    entries: Sequence[CaptureEntry],
     query: str,
     *,
     captures_dir: Path | None = None,

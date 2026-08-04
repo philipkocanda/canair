@@ -14,8 +14,12 @@ free text (labels, notes) can never be mis-parsed as Rich markup.
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
+from typing import Any
+
 from rich.text import Text
 
+from canlib.capture_types import CaptureEntry
 from canlib.commands._captures_query import PidDefs, _capture_key
 from canlib.states import join_states as _join_states
 
@@ -23,7 +27,7 @@ from canlib.states import join_states as _join_states
 _SEPARATOR_WIDTH = 44
 
 
-def _payload_hex(entry: dict | None) -> str:
+def _payload_hex(entry: Mapping[str, Any] | None) -> str:
     """Normalized (upper, space-free) payload hex for a capture, or ``""``."""
     if not entry:
         return ""
@@ -36,7 +40,7 @@ def key_label(key: tuple[str, str]) -> str:
 
 
 def capture_block_text(
-    captures: list[dict],
+    captures: Sequence[CaptureEntry],
     i: int,
     defs: dict[tuple[str, str], PidDefs],
     prev_idx: list[int | None],
@@ -85,10 +89,10 @@ def capture_block_text(
     prev_norm = _payload_hex(prev)
     n_bytes = len(norm) // 2
 
-    rows = decode_param_rows(e["payload"], parameters)
+    rows = decode_param_rows(e["payload"] or "", parameters)
     unmapped = not rows
 
-    prev_rows = decode_param_rows(prev["payload"], parameters) if prev else []
+    prev_rows = decode_param_rows(prev["payload"] or "", parameters) if prev else []
     prev_values: dict[str, object] | None = {r[0]: r[1] for r in prev_rows} if prev else None
     changed_styles = changed_param_highlights(rows, norm, prev_norm, prev_values)
 

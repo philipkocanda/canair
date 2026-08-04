@@ -14,10 +14,12 @@ parity).
 from __future__ import annotations
 
 from bisect import bisect_left
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
 from canlib.capture_dates import entry_datetime
+from canlib.capture_types import CaptureEntry
 from canlib.commands._captures_query import _capture_key
 
 
@@ -58,7 +60,7 @@ def _nearest_within(ts: list[float], t: float, tol_s: float) -> int | None:
 
 
 def build_join_frames(
-    captures: list[dict],
+    captures: Sequence[CaptureEntry],
     keys: list[tuple[str, str]],
     tol_s: float,
 ) -> tuple[list[JoinFrame], int]:

@@ -24,6 +24,7 @@ from pathlib import Path
 
 from .byteindex import payload_to_wican_bytes as _payload_to_wican_bytes
 from .capture_dates import entry_datetime, filter_by_date_range, filter_by_text
+from .capture_types import CaptureEntry
 from .expression import evaluate_expression
 
 __all__ = [
@@ -150,7 +151,7 @@ class LoadedPid:
 
     ecu: str
     pid: str
-    captures: list[dict] = field(default_factory=list)  # payload captures only
+    captures: list[CaptureEntry] = field(default_factory=list)  # payload captures only
     n_no_time: int = 0  # payload captures dropped for lacking a usable time
 
 
@@ -264,8 +265,11 @@ def extract_series(
         dt = entry_datetime(cap)
         if dt is None:
             continue
+        payload = cap.get("payload")
+        if not payload:
+            continue
         try:
-            wb = _payload_to_wican_bytes(cap["payload"])
+            wb = _payload_to_wican_bytes(payload)
             val = evaluate_expression(expr, wb)
         except Exception:
             continue

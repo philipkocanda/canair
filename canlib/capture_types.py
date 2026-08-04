@@ -7,9 +7,11 @@ the shape is enforced by the ``ty`` type checker (a wrong key or a missing
 required field fails the build) — the schema stays the runtime source of truth,
 these are its static-typing companion.
 
-Scope: the **on-disk** shapes only. The in-memory entry dict produced by
-``load_all_captures()`` (which resolves the ``rx`` address to a short ``ecu``
-name) is a different, richer shape and is intentionally not modelled here.
+Scope: the on-disk shapes, plus :class:`CaptureEntry` — the flattened
+*in-memory* row that ``load_all_captures()`` produces (session metadata joined
+onto each capture, with the on-disk ``rx`` address resolved to a short ``ecu``
+name). That row is what every history-consuming command actually reads, so it is
+modelled here rather than passed around as a bare ``dict``.
 """
 
 from __future__ import annotations
@@ -96,3 +98,50 @@ class CaptureFile(TypedDict):
     """A whole ``captures/YYYY-MM-DD.json`` document."""
 
     sessions: list[CaptureSession]
+
+
+class CaptureEntry(TypedDict):
+    """One flattened ``(session, capture)`` row from ``load_all_captures()``.
+
+    The read-side counterpart to the on-disk shapes above: each session's metadata
+    is denormalised onto every capture so the analysis commands
+    (``decode``/``correlate``/``hunt``/``investigate``/``align``) can filter and
+    time-align without walking the file structure.
+
+    Naming: ``ecu`` is the resolved canonical **short name** (``"IGPM"``), while
+    the on-disk field is the CAN **response address** under ``rx`` — kept here as
+    ``ecu_addr``. ``session_*`` keys carry the owning session's metadata;
+    ``label``/``notes`` are the capture's own.
+
+    ``_session_idx``/``_capture_idx`` locate the row inside its source ``file``,
+    which is how in-place note edits and deletes address a capture.
+
+    Consumers that only *read* rows should accept ``Sequence[CaptureEntry]``, not
+    ``list[CaptureEntry]``: ``list`` is invariant, so a ``list`` parameter refuses
+    a ``list[CaptureEntry]`` argument wherever the annotation says ``list[dict]``,
+    which makes the type impossible to adopt incrementally.
+    """
+
+    file: str
+    date: str
+    # -- the owning session's metadata, denormalised onto every row --
+    session_label: str
+    session_version: str
+    vehicle_states: list[str]
+    session_notes: str
+    keep_mode: str
+    transport: str
+    quality: Quality | None
+    # -- the capture itself --
+    ecu: str  # resolved short name ("" when the rx address is unknown)
+    ecu_addr: str  # raw CAN response address, e.g. "0x7EC"
+    pid: str | int
+    payload: str | None
+    response: str | None
+    scan_results: ScanResults | None
+    notes: str
+    time: str
+    label: str
+    # -- locator within ``file`` (for in-place edit/delete) --
+    _session_idx: int
+    _capture_idx: int

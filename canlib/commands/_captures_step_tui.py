@@ -22,6 +22,7 @@ from textual.css.query import NoMatches
 from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Label, SelectionList, Static
 
+from canlib.capture_types import CaptureEntry
 from canlib.commands._captures_step_render import key_label
 from canlib.tui_help import HelpMixin
 from canlib.tui_modals import ConfirmModal, TextPromptModal
@@ -384,7 +385,7 @@ class CapturesStepApp(HelpMixin, App):
             _done,
         )
 
-    def _write_note(self, cap: dict, note: str) -> None:
+    def _write_note(self, cap: CaptureEntry, note: str) -> None:
         from canlib.captures import set_capture_note
 
         try:
@@ -424,7 +425,7 @@ class CapturesStepApp(HelpMixin, App):
             _done,
         )
 
-    def _delete(self, cap: dict) -> None:
+    def _delete(self, cap: CaptureEntry) -> None:
         from canlib.captures import delete_capture
 
         try:

@@ -311,7 +311,10 @@ def build_byte_series(
         if dt is None:
             continue
         try:
-            fr = payload_to_wican_bytes(cap["payload"])
+            payload = cap.get("payload")
+            if not payload:
+                continue
+            fr = payload_to_wican_bytes(payload)
         except Exception:
             continue
         frames.append((dt, fr))
@@ -351,7 +354,10 @@ def build_bit_series(loaded: LoadedPid, *, skip_pci: bool = True) -> dict[str, l
         if dt is None:
             continue
         try:
-            fr = payload_to_wican_bytes(cap["payload"])
+            payload = cap.get("payload")
+            if not payload:
+                continue
+            fr = payload_to_wican_bytes(payload)
         except Exception:
             continue
         frames.append((dt, fr))
@@ -479,7 +485,10 @@ def byte_state_buckets(
     for r in all_results:
         cap = r["capture"]
         try:
-            fr = payload_to_wican_bytes(cap["payload"])
+            payload = cap.get("payload")
+            if not payload:
+                continue
+            fr = payload_to_wican_bytes(payload)
         except Exception:
             continue
         if group_of is not None:
@@ -758,7 +767,16 @@ def hunt_byte(
         dt = entry_datetime(cap)
         if dt is None:
             continue
-        frame = payload_to_wican_bytes(cap["payload"])
+        payload = cap.get("payload")
+        if not payload:
+            continue
+        try:
+            frame = payload_to_wican_bytes(payload)
+        except Exception:
+            # A non-hex payload (a stored "NO DATA", a mis-transcribed capture)
+            # must skip the row, not abort the whole sweep — every sibling series
+            # builder already tolerates this.
+            continue
         frames.append((dt, frame))
         max_len = max(max_len, len(frame))
     if not frames:
@@ -1054,8 +1072,11 @@ def physical_scan(
     data_idx: set[int] | None = None
     for cap in loaded.captures:
         try:
-            fr = payload_to_wican_bytes(cap["payload"])
-            mappable = set(mappable_data_indices(cap["payload"], sfb))
+            payload = cap.get("payload")
+            if not payload:
+                continue
+            fr = payload_to_wican_bytes(payload)
+            mappable = set(mappable_data_indices(payload, sfb))
         except Exception:
             continue
         frames.append(fr)

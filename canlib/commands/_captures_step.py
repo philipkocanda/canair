@@ -12,8 +12,10 @@ The state and rendering live in the model/renderer modules; the join lives in
 """
 
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 
+from canlib.capture_types import CaptureEntry
 from canlib.commands._captures_query import (
     _DIM,
     _RESET,
@@ -40,7 +42,7 @@ def _safe_alias_index() -> dict[str, str]:
 
 
 def build_model(
-    entries: list[dict],
+    entries: Sequence[CaptureEntry],
     query,
     *,
     show_all: bool = False,
@@ -80,7 +82,7 @@ def build_model(
 
 
 def cmd_step(
-    entries: list[dict],
+    entries: Sequence[CaptureEntry],
     query,
     show_all: bool = False,
     captures_dir: Path | None = None,
