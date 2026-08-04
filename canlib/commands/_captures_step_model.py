@@ -21,10 +21,11 @@ Two navigation shapes share one model:
 from __future__ import annotations
 
 from bisect import bisect_left
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from rich.text import Text
 
@@ -35,10 +36,12 @@ from canlib.commands._captures_query import (
     PidDefs,
     _capture_key,
     _dedupe_payloads,
+    _is_hex_payload,
     _key_ordinals,
     _load_ecu_index,
     _prev_same_index,
     _resolve_defs,
+    group_sessions,
     key_index,
     load_all_captures,
 )
@@ -87,6 +90,56 @@ DEFAULT_STEP_JOIN_TOL_S = 10.0
 # Frames skipped by a "page" jump.
 PAGE_JUMP = 100
 
+#: A capture's immutable identity: ``(file, session_idx, capture_idx)``. Indices
+#: into :attr:`StepModel.captures` are invalidated by every rebuild, so anything
+#: that outlives a rebuild (a jump target) addresses captures by this instead.
+CaptureRef = tuple[str, int, int]
+
+
+def capture_ref(entry: Mapping[str, Any]) -> CaptureRef:
+    """The ``(file, session_idx, capture_idx)`` locator of a capture entry."""
+    return (
+        str(entry.get("file", "")),
+        int(entry.get("_session_idx", 0)),
+        int(entry.get("_capture_idx", 0)),
+    )
+
+
+# Why a jump target can't be shown, or "" when it can. Kept short: they are
+# rendered inline in the jump list, where the row budget is tight.
+BLOCK_NON_PAYLOAD = "no hex payload"
+BLOCK_UNTIMED = "untimed (legacy)"
+BLOCK_NO_FRAME = "not in this selection"
+
+
+@dataclass(frozen=True)
+class JumpTarget:
+    """One row of the session/note jump list.
+
+    A *session* row (``ref is None``) jumps to that session's first frame; a
+    *note* row jumps to the noted capture. ``blocked`` is empty when the row is
+    reachable, else the reason it isn't (the row is shown disabled — a note the
+    stepper cannot display is still worth surfacing).
+    """
+
+    session: tuple[str, int]
+    is_note: bool
+    label: str
+    detail: str = ""
+    ref: CaptureRef | None = None
+    key: tuple[str, str] | None = None
+    blocked: str = ""
+
+    @property
+    def searchable(self) -> str:
+        """Lower-cased text the modal's filter matches against."""
+        return f"{self.label} {self.detail}".lower()
+
+
+def _one_line(text: str) -> str:
+    """Collapse whitespace so a multi-line note fits a single list row."""
+    return " ".join(str(text).split())
+
 
 def resolve_view(view: str, n_keys: int) -> str:
     """Resolve ``auto`` to a concrete view for ``n_keys`` selected keys."""
@@ -115,6 +168,10 @@ class StepModel:
     #: Draw the block cursor. Off for the static/piped render, where there is
     #: nothing to focus and a ``▶`` would only imply interactivity.
     cursor: bool = True
+    #: Every scoped entry, including the ones no view can render (non-payload
+    #: captures). Kept so the jump list can show the *whole* recording history —
+    #: a note the stepper cannot display is still worth telling the user about.
+    entries: list[CaptureEntry] = field(default_factory=list)
 
     # Derived by rebuild().
     captures: list[CaptureEntry] = field(default_factory=list)
@@ -122,6 +179,10 @@ class StepModel:
     ordinals: list[tuple[int, int]] = field(default_factory=list)
     frames: list[JoinFrame] = field(default_factory=list)
     n_no_time: int = 0
+    #: Capture locator -> its index in :attr:`captures`.
+    _at: dict[CaptureRef, int] = field(default_factory=dict)
+    #: Index in :attr:`captures` -> the first frame showing it.
+    _frame_of: dict[int, int] = field(default_factory=dict)
 
     # Cursors.
     frame_idx: int = 0
@@ -155,6 +216,7 @@ class StepModel:
             rulers=rulers,
             captures_dir=captures_dir,
             aliases=dict(aliases or {}),
+            entries=list(entries),
         )
         model.rebuild()
         model.last()
@@ -187,15 +249,35 @@ class StepModel:
         self.prev_idx = _prev_same_index(caps)
         self.ordinals = _key_ordinals(caps)
         self.frames, self.n_no_time = build_join_frames(caps, self.keys, self.tol_s)
+        self._reindex()
 
         self.frame_idx = min(self.frame_idx, max(self.frame_count() - 1, 0))
         self.block_idx = min(self.block_idx, max(len(self.keys) - 1, 0))
         if anchor is not None:
             self.seek_time(anchor)
 
+    def _reindex(self) -> None:
+        """Rebuild the locator -> capture -> frame lookups the jump list needs.
+
+        Capture *indices* are invalidated by every rebuild, so a jump target is
+        addressed by its immutable ``(file, session, capture)`` locator and
+        resolved through here instead.
+        """
+        self._at = {capture_ref(e): i for i, e in enumerate(self.captures)}
+        frame_of: dict[int, int] = {}
+        if self.stacked:
+            for n, frame in enumerate(self.frames):
+                for idx in frame.indices:
+                    if idx is not None:
+                        frame_of.setdefault(idx, n)
+        else:
+            frame_of = {i: i for i in range(len(self.captures))}
+        self._frame_of = frame_of
+
     def reload_from_disk(self) -> bool:
         """Re-read captures from disk (after a note edit / delete). False if empty."""
         entries = load_all_captures(self.captures_dir)
+        self.entries = entries
         self.index = key_index(entries)
         self.rebuild(preserve_time=True)
         return bool(self.captures)
@@ -250,6 +332,130 @@ class StepModel:
     def available_keys(self) -> list[tuple[tuple[str, str], int]]:
         """Every (ECU, PID) with captures in scope, sorted, with its capture count."""
         return sorted((k, len(v)) for k, v in self.index.items())
+
+    # -- jump list ---------------------------------------------------------
+
+    def jump_targets(self) -> list[JumpTarget]:
+        """Session rows (newest first), each followed by its noted captures.
+
+        Built from *all* scoped entries, so it reflects the whole recording
+        history rather than the current PID selection: a session with nothing
+        for the selected PIDs, or a note on a capture the stepper cannot render,
+        is still listed — marked ``blocked`` with the reason.
+        """
+        rows: list[JumpTarget] = []
+        for g in reversed(group_sessions(self.entries)):
+            sid = (g["file"], g["session_idx"])
+            times = [t for t in g["times"] if t]
+            span = ""
+            if times:
+                lo, hi = min(times).split(".")[0], max(times).split(".")[0]
+                span = lo if lo == hi else f"{lo}-{hi}"
+            states = _join_states(g["vehicle_states"])
+            notes = len(g["noted"])
+            detail = f"{g['n']} caps"
+            if notes:
+                detail += f" · {notes} note{'s' if notes != 1 else ''}"
+            rows.append(
+                JumpTarget(
+                    session=sid,
+                    is_note=False,
+                    label=" ".join(
+                        x
+                        for x in (
+                            g["date"],
+                            span or "—",
+                            f"[{states}]" if states else "",
+                            _one_line(g["label"]),
+                        )
+                        if x
+                    ),
+                    detail=detail,
+                    blocked="" if self._session_frame(sid) is not None else BLOCK_NO_FRAME,
+                )
+            )
+            for e in g["noted"]:
+                rows.append(self._note_target(sid, e))
+        return rows
+
+    def _note_target(self, sid: tuple[str, int], e: CaptureEntry) -> JumpTarget:
+        key = _capture_key(e)
+        return JumpTarget(
+            session=sid,
+            is_note=True,
+            label=_one_line(str(e.get("notes") or "")),
+            detail=f"{str(e.get('time') or '—').split('.')[0]}  {key[0]}:{key[1]}",
+            ref=capture_ref(e),
+            key=key,
+            blocked=self._note_block(e),
+        )
+
+    def _note_block(self, e: CaptureEntry) -> str:
+        """Why a noted capture can't be jumped to, or ``""``.
+
+        A missing PID or a dedup-hidden payload is *not* blocking — those the
+        jump resolves by adjusting the selection (see :meth:`seek_capture`).
+        """
+        if not _is_hex_payload(e.get("payload")):
+            return BLOCK_NON_PAYLOAD
+        if entry_datetime(e) is None and self.stacked:
+            return BLOCK_UNTIMED
+        return ""
+
+    def _session_frame(self, sid: tuple[str, int]) -> int | None:
+        """The earliest frame showing a capture from that session, if any."""
+        best: int | None = None
+        for i, e in enumerate(self.captures):
+            if (e.get("file", ""), e.get("_session_idx", 0)) != sid:
+                continue
+            n = self._frame_of.get(i)
+            if n is not None and (best is None or n < best):
+                best = n
+        return best
+
+    def seek_session(self, sid: tuple[str, int]) -> str:
+        """Jump to a session's first frame. Returns a status message."""
+        n = self._session_frame(sid)
+        if n is None:
+            return f"No frame for session {sid[0]}#{sid[1]} in this selection"
+        self.frame_idx = n
+        return f"Jumped to {sid[0]}#{sid[1]}"
+
+    def seek_capture(self, ref: CaptureRef, key: tuple[str, str] | None = None) -> str:
+        """Jump to a specific capture, adjusting the view to make it visible.
+
+        The point of jumping to a noted capture is to *see* it, so two
+        obstructions are resolved rather than reported: a PID that isn't in the
+        comparison is added, and unique-payload dedup is lifted when it hid the
+        target. Both are named in the returned status so nothing changes
+        silently (``x`` and ``u`` undo them).
+        """
+        changed: list[str] = []
+        if key is not None and key not in self.keys and key in self.index:
+            self.set_keys([*self.keys, key])
+            changed.append(f"added {key[0]}:{key[1]}")
+        if ref not in self._at and not self.show_all:
+            self.show_all = True
+            self.rebuild()
+            changed.append("all payloads on")
+
+        idx = self._at.get(ref)
+        if idx is None:
+            return "That capture is not in view" + (f" ({', '.join(changed)})" if changed else "")
+        n = self._frame_of.get(idx)
+        if n is None:
+            return "That capture has no frame (untimed)"
+        self.frame_idx = n
+        self.block_idx = self._block_of(n, idx)
+        return "Jumped to note" + (f" — {', '.join(changed)}" if changed else "")
+
+    def _block_of(self, frame: int, idx: int) -> int:
+        """The block slot showing capture ``idx`` in frame ``frame``."""
+        indices = self.frame_indices(frame)
+        for slot, at in enumerate(indices):
+            if at == idx:
+                return slot
+        return self.block_idx
 
     # -- navigation --------------------------------------------------------
 
@@ -362,9 +568,24 @@ class StepModel:
     def render(self, n: int | None = None) -> Text:
         """Render frame ``n`` (default: the current one)."""
         if self.is_empty():
-            return Text("\n  No captures for the selected PIDs.\n", style="yellow")
+            return Text(f"\n  {self.empty_reason()}\n", style="yellow")
         i = self.frame_idx if n is None else n
         return self._render_stacked(i) if self.stacked else self._render_interleaved(i)
+
+    def empty_reason(self) -> str:
+        """Why there is nothing to show — distinguishing 'none' from 'unplaceable'.
+
+        Captures with no timestamp can't be joined onto a timeline, so a
+        selection of only untimed captures yields no stacked frame even though
+        captures exist. Saying so beats an unqualified "no captures".
+        """
+        if self.captures and self.n_no_time:
+            return (
+                f"No timestamped captures for the selected PIDs "
+                f"({self.n_no_time} untimed capture(s) cannot be placed on the "
+                f"timeline — try --view interleaved)."
+            )
+        return "No captures for the selected PIDs."
 
     def _render_interleaved(self, i: int) -> Text:
         return capture_block_text(
@@ -429,7 +650,9 @@ class StepModel:
 
     def status_line(self) -> str:
         """One-line summary of position and settings (plain text)."""
-        bits = [f"frame {self.frame_idx + 1}/{self.frame_count()}", f"view {self.view}"]
+        total = self.frame_count()
+        position = f"frame {self.frame_idx + 1}/{total}" if total else "no frames"
+        bits = [position, f"view {self.view}"]
         if self.stacked and len(self.keys) > 1:
             bits.append(f"tol {self.tol_s:g}s")
         bits.append(f"{len(self.keys)} PID{'s' if len(self.keys) != 1 else ''}")

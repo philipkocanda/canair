@@ -15,7 +15,8 @@ are aggregate modes that take no QUERY.
                         A QUERY selecting SEVERAL PIDs stacks them underneath
                         each other in one time-joined frame (--join-tol), so
                         they can be cross-compared; PIDs, tolerance and view are
-                        all editable inside the TUI (a/t/V, ? for help)
+                        all editable inside the TUI (a/t/V), s jumps between
+                        sessions and noted captures, ? for help
   QUERY --latest        Most recent payload per PID for the QUERY selection
   --latest              Most recent payload per PID (all ECUs; no QUERY)
   QUERY --delete        Delete the captures matching QUERY (and scope filters);
@@ -92,7 +93,6 @@ import sys
 from collections import defaultdict
 from collections.abc import Sequence
 from pathlib import Path
-from typing import TypedDict
 
 from canlib.capture_dates import (
     add_scope_args,
@@ -115,6 +115,7 @@ from canlib.commands._captures_query import (
     _gather_query,
     _group_by_key,
     _parse_query,
+    group_sessions,
     load_all_captures,
 )
 from canlib.commands._captures_step import cmd_step
@@ -246,69 +247,6 @@ def _clean(text) -> str:
     return " ".join(_CTRL_RE.sub("", str(text)).split())
 
 
-class _SessionGroup(TypedDict):
-    """Rolled-up per-session accumulator built by ``_group_sessions``."""
-
-    file: str
-    date: str
-    label: str
-    version: str
-    vehicle_states: list
-    notes: str
-    keep_mode: str
-    transport: str
-    quality: Quality | None
-    n: int
-    ecus: dict  # ordered set (dict) of ECU names
-    times: list
-    cap_notes: list  # distinct capture-level notes, first-seen order
-
-
-def _group_sessions(entries: Sequence[CaptureEntry]) -> list[_SessionGroup]:
-    """Reconstruct per-session metadata from flat capture entries.
-
-    Groups by ``(file, _session_idx)`` — the true session identity — and rolls
-    up each session's date, label, state, session-level notes, capture count,
-    the distinct ECUs touched, the time span, and any distinct capture-level
-    notes. Sessions are returned in chronological order (date, then first time).
-    """
-    groups: dict[tuple[str, int], _SessionGroup] = {}
-    for e in entries:
-        key = (e["file"], e.get("_session_idx", 0))
-        g: _SessionGroup | None = groups.get(key)
-        if g is None:
-            g = {
-                "file": e["file"],
-                "date": e.get("date", ""),
-                "label": e.get("session_label", ""),
-                "version": e.get("session_version", ""),
-                "vehicle_states": e.get("vehicle_states") or [],
-                "notes": e.get("session_notes", ""),
-                "keep_mode": e.get("keep_mode", ""),
-                "transport": e.get("transport", ""),
-                "quality": e.get("quality") or None,
-                "n": 0,
-                "ecus": {},  # ordered set (dict) of ECU names
-                "times": [],
-                "cap_notes": [],  # distinct capture-level notes, first-seen order
-            }
-            groups[key] = g
-        g["n"] += 1
-        ecu = e.get("ecu") or e.get("ecu_addr") or ""
-        if ecu:
-            g["ecus"].setdefault(ecu, None)
-        t = str(e.get("time", "")).strip()
-        if t:
-            g["times"].append(t)
-        cn = str(e.get("notes", "")).strip()
-        if cn and cn not in g["cap_notes"]:
-            g["cap_notes"].append(cn)
-
-    sessions = list(groups.values())
-    sessions.sort(key=lambda g: (str(g["date"]), min(g["times"]) if g["times"] else ""))
-    return sessions
-
-
 def _quality_tag(quality: Quality | None) -> str:
     """A colored one-liner flagging a session's recorded drops/errors, or ''.
 
@@ -344,7 +282,7 @@ def cmd_sessions(
     filters (``--since``/``--until``/``--date``/``--state``/``--label``), so e.g.
     ``--sessions --state driving`` is a quick index of every drive.
     """
-    sessions = _group_sessions(entries)
+    sessions = group_sessions(entries)
 
     if as_json:
         import json

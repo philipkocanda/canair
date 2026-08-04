@@ -16,6 +16,9 @@ from rich.console import Console
 from canlib.commands._captures_step import cmd_step
 from canlib.commands._captures_step_model import (
     AUTO_STACK_MAX_KEYS,
+    BLOCK_NO_FRAME,
+    BLOCK_NON_PAYLOAD,
+    BLOCK_UNTIMED,
     DEFAULT_STEP_JOIN_TOL_S,
     TOL_LADDER,
     VIEW_AUTO,
@@ -801,3 +804,411 @@ class TestCapturesStepAppEdits:
             await pilot.press("y")
             await pilot.pause()
             assert len(app.model.captures) == before - 1
+
+
+def _jump_entries() -> list[dict]:
+    """Two timed sessions plus one legacy untimed one, with assorted notes."""
+    out: list[dict] = []
+    # Session 0 (older): HVAC 220100 + 2201A0, one note on each PID.
+    for n, (pid, t, note) in enumerate(
+        [
+            ("220100", "12:00:00", ""),
+            ("2201A0", "12:00:01", "Heating started"),
+            ("220100", "12:00:10", "compressor engaged"),
+            ("2201A0", "12:00:11", ""),
+        ]
+    ):
+        out.append(
+            _entry(
+                file="2026-08-01.json",
+                date="2026-08-01",
+                session_label="older session",
+                vehicle_states=["READY"],
+                pid=pid,
+                time=t,
+                payload=f"6201005A640{n}",
+                notes=note,
+                _session_idx=0,
+                _capture_idx=n,
+            )
+        )
+    # Session 1 (newer, different file): a note on a PID and a non-payload note.
+    out.append(
+        _entry(
+            file="2026-08-02.json",
+            date="2026-08-02",
+            session_label="newer session",
+            pid="220100",
+            time="13:00:00",
+            payload="6201005A64AA",
+            notes="newer note",
+            _session_idx=0,
+            _capture_idx=0,
+        )
+    )
+    out.append(
+        _entry(
+            file="2026-08-02.json",
+            date="2026-08-02",
+            session_label="newer session",
+            pid="21F2",
+            time="13:00:01",
+            payload=None,
+            response="NO DATA",
+            notes="NRC 0x11 serviceNotSupported",
+            _session_idx=0,
+            _capture_idx=1,
+        )
+    )
+    # A session with no notes at all, so the notes-only filter has work to do.
+    out.append(
+        _entry(
+            file="2026-07-15.json",
+            date="2026-07-15",
+            session_label="unannotated session",
+            pid="220100",
+            time="09:00:00",
+            payload="6201005A64BB",
+            notes="",
+            _session_idx=0,
+            _capture_idx=0,
+        )
+    )
+    # Legacy untimed session — no timestamp, so it cannot be placed on a timeline.
+    out.append(
+        _entry(
+            file="2026-07-01.json",
+            date="2026-07-01",
+            session_label="legacy untimed",
+            pid="220100",
+            time="",
+            payload="6201005A64FF",
+            notes="legacy note",
+            _session_idx=0,
+            _capture_idx=0,
+        )
+    )
+    return out
+
+
+def _jump_model(**kw) -> StepModel:
+    entries = _jump_entries()
+    keys = kw.pop("keys", [("HVAC", "220100")])
+    defs = dict.fromkeys({(e["ecu"], str(e["pid"])) for e in entries} | set(keys), (PARAMS, 0x7B3))
+    kw.setdefault("captures_dir", None)
+    return StepModel.from_entries(entries, keys, defs, **kw)
+
+
+class TestJumpTargets:
+    def test_sessions_are_listed_newest_first(self):
+        rows = [t for t in _jump_model().jump_targets() if not t.is_note]
+        assert [t.session[0] for t in rows] == [
+            "2026-08-02.json",
+            "2026-08-01.json",
+            "2026-07-15.json",
+            "2026-07-01.json",
+        ]
+
+    def test_notes_nest_under_their_session(self):
+        rows = _jump_model().jump_targets()
+        # Each note row carries the session of the header immediately above it.
+        current = None
+        for t in rows:
+            if not t.is_note:
+                current = t.session
+            else:
+                assert t.session == current
+
+    def test_session_row_shows_span_states_and_counts(self):
+        row = next(
+            t
+            for t in _jump_model().jump_targets()
+            if not t.is_note and t.session[0] == "2026-08-01.json"
+        )
+        assert "2026-08-01" in row.label
+        assert "12:00:00-12:00:11" in row.label
+        assert "[READY]" in row.label
+        assert "older session" in row.label
+        assert "4 caps" in row.detail and "2 notes" in row.detail
+
+    def test_note_row_shows_time_pid_and_text(self):
+        row = next(t for t in _jump_model().jump_targets() if t.label == "Heating started")
+        assert "12:00:01" in row.detail
+        assert "HVAC:2201A0" in row.detail
+        assert row.ref == ("2026-08-01.json", 0, 1)
+        assert row.key == ("HVAC", "2201A0")
+
+    def test_untimed_session_shows_no_span(self):
+        row = next(
+            t
+            for t in _jump_model().jump_targets()
+            if not t.is_note and t.session[0] == "2026-07-01.json"
+        )
+        assert "—" in row.label
+
+    def test_multiline_note_is_collapsed_to_one_line(self):
+        entries = _jump_entries()
+        entries[1]["notes"] = "first line\n  second line"
+        keys = [("HVAC", "220100")]
+        defs = dict.fromkeys(
+            {(e["ecu"], str(e["pid"])) for e in entries} | set(keys), (PARAMS, 0x7B3)
+        )
+        m = StepModel.from_entries(entries, keys, defs)
+        row = next(t for t in m.jump_targets() if t.is_note and "first line" in t.label)
+        assert row.label == "first line second line"
+
+
+class TestJumpBlocking:
+    def test_non_payload_note_is_blocked_with_a_reason(self):
+        row = next(t for t in _jump_model().jump_targets() if t.label.startswith("NRC 0x11"))
+        assert row.blocked == BLOCK_NON_PAYLOAD
+
+    def test_untimed_note_is_blocked_in_the_stacked_view(self):
+        row = next(t for t in _jump_model().jump_targets() if t.label == "legacy note")
+        assert row.blocked == BLOCK_UNTIMED
+
+    def test_untimed_note_is_reachable_in_the_interleaved_view(self):
+        m = _jump_model(view=VIEW_INTERLEAVED)
+        row = next(t for t in m.jump_targets() if t.label == "legacy note")
+        assert row.blocked == ""
+
+    def test_session_with_nothing_for_the_selected_pids_is_blocked(self):
+        m = _jump_model(keys=[("HVAC", "2201A0")])
+        row = next(
+            t for t in m.jump_targets() if not t.is_note and t.session[0] == "2026-08-02.json"
+        )
+        # 2026-08-02 only has 220100 + a non-payload capture.
+        assert row.blocked == BLOCK_NO_FRAME
+
+    def test_note_on_an_unselected_pid_is_not_blocked(self):
+        """It is reachable — seek_capture adds the PID rather than refusing."""
+        m = _jump_model(keys=[("HVAC", "220100")])
+        row = next(t for t in m.jump_targets() if t.label == "Heating started")
+        assert row.key == ("HVAC", "2201A0") and row.blocked == ""
+
+
+class TestSeek:
+    def test_seek_session_lands_on_its_first_frame(self):
+        m = _jump_model()
+        m.last()
+        msg = m.seek_session(("2026-08-01.json", 0))
+        assert "Jumped to" in msg
+        assert m.frame_time().date().isoformat() == "2026-08-01"
+
+    def test_seek_session_reports_when_unreachable(self):
+        m = _jump_model(keys=[("HVAC", "2201A0")])
+        assert "No frame" in m.seek_session(("2026-08-02.json", 0))
+
+    def test_seek_capture_lands_on_the_note(self):
+        m = _jump_model()
+        ref = ("2026-08-01.json", 0, 2)  # "compressor engaged" on 220100
+        assert "Jumped to note" in m.seek_capture(ref, ("HVAC", "220100"))
+        assert m.captures[m._at[ref]]["notes"] == "compressor engaged"
+
+    def test_seek_capture_adds_a_missing_pid_and_says_so(self):
+        m = _jump_model(keys=[("HVAC", "220100")])
+        msg = m.seek_capture(("2026-08-01.json", 0, 1), ("HVAC", "2201A0"))
+        assert "added HVAC:2201A0" in msg
+        assert ("HVAC", "2201A0") in m.keys
+
+    def test_seek_capture_lifts_dedup_when_it_hid_the_target(self):
+        entries = _jump_entries()
+        # Make the noted capture a duplicate payload of an earlier one, so the
+        # default unique-payload filter drops it.
+        entries[2]["payload"] = entries[0]["payload"]
+        keys = [("HVAC", "220100")]
+        defs = dict.fromkeys(
+            {(e["ecu"], str(e["pid"])) for e in entries} | set(keys), (PARAMS, 0x7B3)
+        )
+        m = StepModel.from_entries(entries, keys, defs)
+        ref = ("2026-08-01.json", 0, 2)
+        assert ref not in m._at  # deduped away
+        msg = m.seek_capture(ref, ("HVAC", "220100"))
+        assert "all payloads on" in msg
+        assert m.show_all is True
+        assert ref in m._at
+
+    def test_seek_capture_focuses_the_block_showing_it(self):
+        m = _jump_model(keys=[("HVAC", "220100"), ("HVAC", "2201A0")])
+        m.seek_capture(("2026-08-01.json", 0, 1), ("HVAC", "2201A0"))
+        assert m.focused_key() == ("HVAC", "2201A0")
+        assert m.focused_capture()["notes"] == "Heating started"
+
+    def test_locators_survive_a_rebuild(self):
+        """Capture indices are invalidated by a rebuild; locators must not be."""
+        m = _jump_model(keys=[("HVAC", "220100"), ("HVAC", "2201A0")])
+        ref = ("2026-08-01.json", 0, 1)
+        before = m._at[ref]
+        m.set_tol(0.25)
+        m.toggle_show_all()
+        assert ref in m._at
+        assert isinstance(before, int)
+        assert "Jumped to note" in m.seek_capture(ref, ("HVAC", "2201A0"))
+
+
+class TestEmptyReason:
+    def test_untimed_only_selection_explains_itself(self):
+        """Regression: an all-untimed selection reported a bare 'No captures'
+        and a nonsensical 'frame 1/0'."""
+        entries = [e for e in _jump_entries() if e["file"] == "2026-07-01.json"]
+        keys = [("HVAC", "220100")]
+        m = StepModel.from_entries(entries, keys, dict.fromkeys(keys, (PARAMS, 0x7B3)))
+        assert m.is_empty()
+        assert m.captures and m.n_no_time == 1
+        assert "untimed" in m.empty_reason()
+        assert "no frames" in m.status_line()
+        assert "frame 1/0" not in m.status_line()
+        assert "untimed" in _render(m.render())
+
+    def test_genuinely_empty_selection_says_so(self):
+        m = _jump_model(keys=[("HVAC", "999999")])
+        assert m.empty_reason() == "No captures for the selected PIDs."
+
+
+class TestJumpModal:
+    def _open(self, model=None):
+        from canlib.commands._captures_step_tui import CapturesStepApp
+
+        return CapturesStepApp(model or _jump_model())
+
+    @pytest.mark.asyncio
+    async def test_s_opens_the_modal_listing_sessions_and_notes(self):
+        from canlib.commands._captures_step_tui import JumpModal
+
+        app = self._open()
+        async with app.run_test(size=(130, 40)) as pilot:
+            await pilot.pause()
+            await pilot.press("s")
+            await pilot.pause()
+            assert isinstance(app.screen, JumpModal)
+            rows = [app.screen._row(t).plain for t in app.screen._shown]
+            assert any("older session" in r for r in rows)
+            assert any("Heating started" in r for r in rows)
+            assert any("legacy note" in r and "untimed" in r for r in rows)
+
+    @pytest.mark.asyncio
+    async def test_free_text_is_not_parsed_as_markup(self):
+        """Regression: a session's `[READY]` state vanished as a Rich style tag."""
+        app = self._open()
+        async with app.run_test(size=(130, 40)) as pilot:
+            await pilot.pause()
+            await pilot.press("s")
+            await pilot.pause()
+            rows = [app.screen._row(t).plain for t in app.screen._shown]
+            assert any("[READY]" in r for r in rows)
+
+    @pytest.mark.asyncio
+    async def test_rows_never_wrap(self):
+        app = self._open()
+        async with app.run_test(size=(130, 40)) as pilot:
+            await pilot.pause()
+            await pilot.press("s")
+            await pilot.pause()
+            for t in app.screen._shown:
+                assert len(app.screen._row(t).plain) <= 88
+
+    @pytest.mark.asyncio
+    async def test_unreachable_rows_are_disabled(self):
+        from textual.widgets import OptionList
+
+        app = self._open()
+        async with app.run_test(size=(130, 40)) as pilot:
+            await pilot.pause()
+            await pilot.press("s")
+            await pilot.pause()
+            lst = app.screen.query_one("#jump-list", OptionList)
+            blocked = [n for n, t in enumerate(app.screen._shown) if t.blocked]
+            assert blocked, "fixture should contain unreachable rows"
+            for n in blocked:
+                assert lst.get_option_at_index(n).disabled
+            # The initial highlight skips them.
+            assert lst.highlighted not in blocked
+
+    @pytest.mark.asyncio
+    async def test_notes_only_toggle(self):
+        app = self._open()
+        async with app.run_test(size=(130, 40)) as pilot:
+            await pilot.pause()
+            await pilot.press("s")
+            await pilot.pause()
+            everything = len(app.screen._shown)
+            await pilot.press("n")
+            await pilot.pause()
+            assert len(app.screen._shown) < everything
+            # Only noted sessions and their notes survive.
+            assert all(
+                t.is_note or any(o.is_note and o.session == t.session for o in app.screen._shown)
+                for t in app.screen._shown
+            )
+
+    @pytest.mark.asyncio
+    async def test_filter_matches_note_text_and_keeps_its_session_header(self):
+        from textual.widgets import Input
+
+        app = self._open()
+        async with app.run_test(size=(130, 40)) as pilot:
+            await pilot.pause()
+            await pilot.press("s")
+            await pilot.pause()
+            app.screen.query_one("#jump-filter", Input).value = "heating"
+            await pilot.pause()
+            rows = [app.screen._row(t).plain for t in app.screen._shown]
+            assert any("Heating started" in r for r in rows)
+            assert any("older session" in r for r in rows)  # header retained
+            assert not any("newer note" in r for r in rows)
+
+    @pytest.mark.asyncio
+    async def test_selecting_a_note_jumps_and_flashes(self):
+        app = self._open(_jump_model(keys=[("HVAC", "220100")]))
+        async with app.run_test(size=(130, 40)) as pilot:
+            await pilot.pause()
+            await pilot.press("s")
+            await pilot.pause()
+            target = next(
+                n for n, t in enumerate(app.screen._shown) if t.label == "Heating started"
+            )
+            app.screen.query_one("#jump-list").highlighted = target
+            await pilot.press("enter")
+            await pilot.pause()
+            assert "added HVAC:2201A0" in app._flash_msg
+            assert ("HVAC", "2201A0") in app.model.keys
+            assert app.model.focused_capture()["notes"] == "Heating started"
+
+    @pytest.mark.asyncio
+    async def test_selecting_a_session_jumps_to_its_start(self):
+        app = self._open()
+        async with app.run_test(size=(130, 40)) as pilot:
+            await pilot.pause()
+            await pilot.press("s")
+            await pilot.pause()
+            target = next(
+                n
+                for n, t in enumerate(app.screen._shown)
+                if not t.is_note and t.session[0] == "2026-08-01.json"
+            )
+            app.screen.query_one("#jump-list").highlighted = target
+            await pilot.press("enter")
+            await pilot.pause()
+            assert "Jumped to 2026-08-01.json#0" in app._flash_msg
+            assert app.model.frame_time().date().isoformat() == "2026-08-01"
+
+    @pytest.mark.asyncio
+    async def test_cancel_changes_nothing(self):
+        app = self._open()
+        async with app.run_test(size=(130, 40)) as pilot:
+            await pilot.pause()
+            before = (app.model.frame_idx, list(app.model.keys))
+            await pilot.press("s")
+            await pilot.pause()
+            await pilot.press("escape")
+            await pilot.pause()
+            assert (app.model.frame_idx, list(app.model.keys)) == before
+
+    @pytest.mark.asyncio
+    async def test_jump_is_advertised_in_the_help(self):
+        from canlib.tui_help import bindings_help_rows
+
+        app = self._open()
+        async with app.run_test(size=(130, 40)) as pilot:
+            await pilot.pause()
+            assert ("s", "sessions & notes") in bindings_help_rows(app)

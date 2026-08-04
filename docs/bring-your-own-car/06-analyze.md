@@ -118,6 +118,14 @@ This is the fastest way to watch an event-driven signal: put the *known* signal
 (a compressor flag, a door state) in the same frame as the *candidate* byte, then
 walk the frames across the moment it switched.
 
+**Leave yourself landmarks.** Press **`e`** on any frame to annotate that capture
+("Heating started", "pressed the lock button"), then **`s`** to jump straight back
+to it later: the jump list shows every session in scope, newest first, with its
+noted captures nested underneath. That turns a long recording into a set of named
+moments — write the note while you remember what you did, and the analysis becomes
+"jump to the event, then step outward". A note also survives into
+`canair captures --sessions`, so it is a durable record rather than a UI bookmark.
+
 To see what's still undecoded across a whole ECU (or PID), `canair coverage`
 audits every parameter expression against the longest captured payload and lists
 the **unmapped** and partially-decoded bytes:

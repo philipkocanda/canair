@@ -17,10 +17,10 @@ The ANSI colour constants live here as the single source of truth for the
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 from canlib import capture_io
-from canlib.capture_types import CaptureEntry
+from canlib.capture_types import CaptureEntry, Quality
 
 # ANSI color helpers (shared across the captures command family).
 _RED = "\033[91m"
@@ -383,3 +383,79 @@ def key_index[R: Mapping[str, Any]](entries: Sequence[R]) -> dict[tuple[str, str
             continue
         index.setdefault(_capture_key(e), []).append(e)
     return index
+
+
+# ---------------------------------------------------------------------------
+# Session grouping
+# ---------------------------------------------------------------------------
+
+
+class SessionGroup(TypedDict):
+    """Rolled-up per-session accumulator built by :func:`group_sessions`."""
+
+    file: str
+    session_idx: int
+    date: str
+    label: str
+    version: str
+    vehicle_states: list
+    notes: str
+    keep_mode: str
+    transport: str
+    quality: Quality | None
+    n: int
+    ecus: dict  # ordered set (dict) of ECU names
+    times: list
+    cap_notes: list  # distinct capture-level notes, first-seen order
+    noted: list  # every capture entry carrying a note, in file order
+
+
+def group_sessions(entries: Sequence[CaptureEntry]) -> list[SessionGroup]:
+    """Reconstruct per-session metadata from flat capture entries.
+
+    Groups by ``(file, _session_idx)`` — the true session identity — and rolls
+    up each session's date, label, state, session-level notes, capture count,
+    the distinct ECUs touched, the time span, any distinct capture-level notes,
+    and the noted capture entries themselves (which carry the locators a jump
+    target needs). Sessions are returned in chronological order (date, then
+    first time).
+    """
+    groups: dict[tuple[str, int], SessionGroup] = {}
+    for e in entries:
+        key = (e["file"], e.get("_session_idx", 0))
+        g: SessionGroup | None = groups.get(key)
+        if g is None:
+            g = {
+                "file": e["file"],
+                "session_idx": e.get("_session_idx", 0),
+                "date": e.get("date", ""),
+                "label": e.get("session_label", ""),
+                "version": e.get("session_version", ""),
+                "vehicle_states": e.get("vehicle_states") or [],
+                "notes": e.get("session_notes", ""),
+                "keep_mode": e.get("keep_mode", ""),
+                "transport": e.get("transport", ""),
+                "quality": e.get("quality") or None,
+                "n": 0,
+                "ecus": {},  # ordered set (dict) of ECU names
+                "times": [],
+                "cap_notes": [],  # distinct capture-level notes, first-seen order
+                "noted": [],
+            }
+            groups[key] = g
+        g["n"] += 1
+        ecu = e.get("ecu") or e.get("ecu_addr") or ""
+        if ecu:
+            g["ecus"].setdefault(ecu, None)
+        t = str(e.get("time", "")).strip()
+        if t:
+            g["times"].append(t)
+        cn = str(e.get("notes", "")).strip()
+        if cn:
+            g["noted"].append(e)
+            if cn not in g["cap_notes"]:
+                g["cap_notes"].append(cn)
+
+    sessions = list(groups.values())
+    sessions.sort(key=lambda g: (str(g["date"]), min(g["times"]) if g["times"] else ""))
+    return sessions

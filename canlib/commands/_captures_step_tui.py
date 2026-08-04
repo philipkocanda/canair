@@ -15,12 +15,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar
 
+from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.css.query import NoMatches
 from textual.screen import ModalScreen
-from textual.widgets import Button, Input, Label, SelectionList, Static
+from textual.widgets import Button, Input, Label, OptionList, SelectionList, Static
+from textual.widgets.option_list import Option
 
 from canlib.capture_types import CaptureEntry
 from canlib.commands._captures_step_render import key_label
@@ -28,7 +30,7 @@ from canlib.tui_help import HelpMixin
 from canlib.tui_modals import ConfirmModal, TextPromptModal
 
 if TYPE_CHECKING:
-    from canlib.commands._captures_step_model import StepModel
+    from canlib.commands._captures_step_model import JumpTarget, StepModel
 
 Key = tuple[str, str]
 
@@ -129,6 +131,139 @@ class PidSelectModal(ModalScreen["list[Key] | None"]):
         self.dismiss(None)
 
 
+# Visible width of a jump row, i.e. the #jump-box width minus its padding and
+# the list's scrollbar gutter. Rows are truncated to it rather than wrapped.
+_JUMP_ROW_WIDTH = 88
+
+
+class JumpModal(ModalScreen["JumpTarget | None"]):
+    """Jump to a session, or to a capture carrying a note.
+
+    Sessions are listed newest first, each followed by its noted captures. Rows
+    the stepper cannot reach are shown **disabled with the reason** rather than
+    hidden — a note on a non-payload or untimed capture is still something the
+    user wrote and should be able to find.
+    """
+
+    CSS = """
+    JumpModal { align: center middle; background: $background 60%; }
+    #jump-box { width: 96; height: auto; max-height: 90%; padding: 1 2;
+                border: round $accent; background: $surface; }
+    #jump-title { text-style: bold; }
+    #jump-hint { color: $text-muted; margin-bottom: 1; }
+    #jump-list { height: auto; max-height: 22; }
+    #jump-footer { color: $text-muted; margin-top: 1; }
+    """
+
+    BINDINGS: ClassVar[list[Binding]] = [
+        Binding("escape", "cancel", "cancel"),
+        Binding("slash", "focus_filter", "filter"),
+        Binding("n", "toggle_notes", "notes only"),
+    ]
+
+    def __init__(self, targets: list[JumpTarget], *, notes_only: bool = False):
+        super().__init__()
+        self._targets = targets
+        self._notes_only = notes_only
+        self._filter = ""
+        self._shown: list[JumpTarget] = []
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="jump-box"):
+            yield Label("Jump to session / note", id="jump-title")
+            yield Label("enter jump · / filter · n notes-only · esc cancel", id="jump-hint")
+            yield Input(placeholder="filter (date, label, state, note text)", id="jump-filter")
+            yield OptionList(id="jump-list")
+            yield Label("", id="jump-footer")
+
+    def on_mount(self) -> None:
+        self._repopulate()
+        self.query_one("#jump-list", OptionList).focus()
+
+    def _visible(self) -> list[JumpTarget]:
+        rows = self._targets
+        if self._notes_only:
+            # Keep a session header only when it still has a note under it.
+            with_notes = {t.session for t in rows if t.is_note}
+            rows = [t for t in rows if t.is_note or t.session in with_notes]
+        if self._filter:
+            needle = self._filter.lower()
+            hit = {t.session for t in rows if needle in t.searchable}
+            rows = [
+                t for t in rows if needle in t.searchable or (not t.is_note and t.session in hit)
+            ]
+        return rows
+
+    def _repopulate(self) -> None:
+        lst = self.query_one("#jump-list", OptionList)
+        lst.clear_options()
+        self._shown = self._visible()
+        for n, t in enumerate(self._shown):
+            lst.add_option(Option(self._row(t), id=str(n), disabled=bool(t.blocked)))
+        blocked = sum(1 for t in self._shown if t.blocked)
+        total_notes = sum(1 for t in self._targets if t.is_note)
+        parts = [f"{len(self._shown)} row(s)", f"{total_notes} note(s) in scope"]
+        if blocked:
+            parts.append(f"{blocked} unreachable (dimmed)")
+        self.query_one("#jump-footer", Label).update(" · ".join(parts))
+        if self._shown:
+            lst.highlighted = next(
+                (n for n, t in enumerate(self._shown) if not t.blocked),
+                0,
+            )
+
+    def _row(self, t: JumpTarget) -> Text:
+        """One list row.
+
+        Built as a ``Text``, never a markup string: session labels and note text
+        are user-owned free text, and a ``[ready]`` state or a bracketed note
+        would otherwise be parsed away as a Rich style tag. ``no_wrap`` +
+        ellipsis keeps one row on one line so the indented note rows stay
+        readable under their session.
+        """
+        reason = f"   ({t.blocked})" if t.blocked else ""
+        row = Text(no_wrap=True, overflow="ellipsis")
+        if t.is_note:
+            row.append("    ▸ ")
+            row.append(t.detail, style="dim")
+            row.append("   ")
+            row.append(t.label)
+        else:
+            row.append(t.label)
+            row.append(f"   {t.detail}", style="dim")
+        # Hard-truncate: a wrapped row would break the indentation that ties a
+        # note to the session above it (notes are arbitrarily long free text).
+        # The reason is budgeted out first so it is never the part cut off.
+        row.truncate(_JUMP_ROW_WIDTH - len(reason), overflow="ellipsis")
+        if reason:
+            row.append(reason, style="dim italic")
+        return row
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        if event.input.id != "jump-filter":
+            return
+        self._filter = event.value.strip()
+        self._repopulate()
+
+    def on_input_submitted(self, _event: Input.Submitted) -> None:
+        self.query_one("#jump-list", OptionList).focus()
+
+    def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
+        if event.option.id is None:
+            return
+        self.dismiss(self._shown[int(event.option.id)])
+
+    def action_focus_filter(self) -> None:
+        self.query_one("#jump-filter", Input).focus()
+
+    def action_toggle_notes(self) -> None:
+        self._notes_only = not self._notes_only
+        self._repopulate()
+
+    def action_cancel(self) -> None:
+        self.dismiss(None)
+
+
 class CapturesStepApp(HelpMixin, App):
     """Interactive stepper/comparator for saved captures."""
 
@@ -169,6 +304,7 @@ class CapturesStepApp(HelpMixin, App):
         # priority: Textual would otherwise consume tab for focus movement.
         Binding("tab", "block(1)", "next block", show=False, priority=True),
         Binding("shift+tab", "block(-1)", "prev block", show=False, priority=True),
+        Binding("s", "jump", "sessions & notes"),
         Binding("a", "pick_pids", "add/remove PIDs"),
         Binding("x", "drop_pid", "drop this PID"),
         Binding("t", "set_tol", "join tolerance"),
@@ -320,6 +456,18 @@ class CapturesStepApp(HelpMixin, App):
             self._flash(f"Comparing {len(keys)} PID{'s' if len(keys) != 1 else ''}")
 
         self.push_screen(PidSelectModal(self.model.available_keys(), list(self.model.keys)), _done)
+
+    def action_jump(self) -> None:
+        def _done(target: JumpTarget | None) -> None:
+            if target is None:
+                return
+            if target.is_note and target.ref is not None:
+                self._flash_msg = self.model.seek_capture(target.ref, target.key)
+            else:
+                self._flash_msg = self.model.seek_session(target.session)
+            self._refresh()  # a jump lands on a new frame, so start at its top
+
+        self.push_screen(JumpModal(self.model.jump_targets()), _done)
 
     def action_drop_pid(self) -> None:
         key = self.model.focused_key()

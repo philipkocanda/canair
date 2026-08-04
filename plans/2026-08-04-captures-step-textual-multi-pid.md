@@ -154,6 +154,15 @@ shared fixture, so the two joins cannot silently diverge — the old
 
 ## Incidental fixes (Boy Scout)
 
+- **The `?` help modal rendered raw Textual key identifiers** (`]` showed as
+  `right_square_bracket`) because `tui_help._display_key` used a hand-written
+  table covering six names. It now delegates to Textual's own `format_key`,
+  which also fixed `monitor`'s and `decode --plot`'s cheat-sheets; a test pins
+  "no raw identifiers" across every shipped TUI.
+- **An all-untimed selection reported "No captures" and `frame 1/0`** — now it
+  says the captures exist but can't be placed on a timeline, and points at
+  `--view interleaved`.
+
 - **A capture's `label` was silently swallowed** by the step view: it was
   interpolated as `f"  [{escape(label)}]"` into a Rich *markup* string, so
   `[ac-on]` was parsed as a style tag and vanished. Building the header as a
@@ -163,6 +172,40 @@ shared fixture, so the two joins cannot silently diverge — the old
   `canlib/tui_modals.py` alongside a new `ConfirmModal`.
 - `cmd_step_pair`'s `captures_dir` parameter was resolved but never used (the
   view was read-only); gone with the function.
+
+## Follow-up: session & note jump list (`s`)
+
+Navigating a 2400-capture session frame by frame is impractical, so `s` opens a
+jump list: every session in scope (newest first — date, span, state, label,
+counts) with its **noted captures** nested underneath. A session row lands on
+that session's first frame; a note row lands on the noted capture.
+
+Design points worth recording:
+
+- **Locators, not indices.** `StepModel.captures` is rebuilt on every key /
+  tolerance / dedup change, so a jump target addresses a capture by its
+  immutable `(file, session_idx, capture_idx)` locator (`CaptureRef`) and
+  resolves it through two lookups rebuilt in `rebuild()`: locator → capture
+  index, capture index → containing frame.
+- **The jump makes its target visible.** Selecting a note whose PID isn't in the
+  comparison **adds that PID**, and unique-payload dedup is **lifted** when it
+  hid the target — both named in the status line, both undone by `x` / `u`.
+  Reporting "can't show that" when the user unambiguously asked to go there
+  would be obtuse.
+- **Unreachable rows are listed, disabled, with the reason** — a note on a
+  non-payload capture (`response`/`scan_results`, ~30% of the bundled profile's
+  notes) or on an **untimed** legacy capture. Hiding them would make a note the
+  user wrote look lost. Untimed captures are deliberately *not* given frames:
+  they are legacy data slated for removal, so the join stays timestamp-only.
+- **Session grouping moved to the data layer.** `_group_sessions`/`_SessionGroup`
+  → `_captures_query.group_sessions`/`SessionGroup` (plus a new `noted` field
+  carrying the noted entries). `captures.py` imports `_captures_step`, so the TUI
+  importing `captures.py` would have been circular — and the pure grouping
+  belongs beside the loader anyway. `cmd_sessions` and the jump list now share
+  one implementation, so the two can't disagree.
+
+Non-interactive parity needs no new flag: `canair captures --sessions` already
+lists every session with its distinct capture notes.
 
 ## Status
 

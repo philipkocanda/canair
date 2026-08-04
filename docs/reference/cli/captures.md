@@ -136,7 +136,8 @@ are aggregate modes that take no QUERY.
                         A QUERY selecting SEVERAL PIDs stacks them underneath
                         each other in one time-joined frame (--join-tol), so
                         they can be cross-compared; PIDs, tolerance and view are
-                        all editable inside the TUI (a/t/V, ? for help)
+                        all editable inside the TUI (a/t/V), s jumps between
+                        sessions and noted captures, ? for help
   QUERY --latest        Most recent payload per PID for the QUERY selection
   --latest              Most recent payload per PID (all ECUs; no QUERY)
   QUERY --delete        Delete the captures matching QUERY (and scope filters);

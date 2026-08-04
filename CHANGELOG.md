@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Jump between sessions and noted captures in `captures --step` (`s`).** A long
+  recording is hard to navigate frame by frame, so `s` opens a jump list of every
+  session in scope — newest first, with its date, time span, vehicle state, label
+  and capture count — and nests each session's **noted captures** underneath it.
+  Select a session to land on its first frame, or a note to land on that capture.
+  Because the point of jumping to a note is to *see* it, a note on a PID that
+  isn't in the comparison **adds that PID**, and unique-payload dedup is **lifted**
+  when it hid the target; both are reported in the status line (and `x`/`u` undo
+  them). `/` filters on date/label/state/note text, `n` narrows to noted sessions
+  only. Rows the stepper cannot reach — a note on a non-payload capture, or on an
+  untimed legacy capture — are listed **disabled with the reason** rather than
+  hidden, so a note you wrote is never silently missing. This pairs with `e`
+  (annotate the current capture): mark a moment while you remember it, jump back
+  to it later.
+
 - **`canair captures --step` compares several PIDs stacked underneath each other.**
   A QUERY that selects more than one PID now renders each one as its own block in
   a single **time-joined frame**, so signals can be read against each other at the
@@ -63,6 +78,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `plans/2026-08-03-elm327-direct-transport.md`.
 
 ### Fixed
+- **`captures --step` no longer claims "No captures" when a selection is only
+  untimed.** Captures with no timestamp cannot be joined onto a timeline, so a
+  selection of only untimed captures produced an empty stacked view — reported as
+  a bare "No captures for the selected PIDs." plus a nonsensical `frame 1/0`
+  counter, which reads as data loss rather than an unplaceable timestamp. The
+  message now says so and points at `--view interleaved` (which needs no
+  timestamps), and the counter reads `no frames`.
+- **A capture's session state and label are no longer swallowed as markup in the
+  step views.** Free text (`[READY]`, a bracketed note) was interpolated into Rich
+  *markup* strings, so anything in brackets was parsed as a style tag and
+  vanished. Both the capture header and the jump list now build `Text` directly,
+  which makes user-owned text unparseable as markup by construction.
+- **The `?` help modal showed raw key identifiers.** Symbolic bindings rendered as
+  `right_square_bracket` / `greater_than_sign` / `colon` instead of `]` / `>` / `:`
+  because the label came from a hand-written table that only listed a handful of
+  names. It now derives the label from Textual's own `format_key`, fixing the
+  cheat-sheets of `captures --step`, `monitor` (`=`/`+`/`-`/`_`) and
+  `decode --plot` (`,`/`.`/`<`/`>`) at once, and a new test pins the invariant for
+  every shipped TUI.
+
 - **Non-WiCAN byte notations named the wrong byte on every single-frame PID.**
   `--notation isotp|torque|bix` (and the labels in `coverage`, `correlate`,
   `investigate`, `decode`, `hunt`) converted a WiCAN index assuming the

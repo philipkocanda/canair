@@ -12,10 +12,9 @@ from canlib.captures import (
     save_session,
 )
 from canlib.commands._captures_join import _nearest_within, build_join_frames
-from canlib.commands._captures_query import _gather_query, _is_hex_payload
+from canlib.commands._captures_query import _gather_query, _is_hex_payload, group_sessions
 from canlib.commands.captures import (
     _clean,
-    _group_sessions,
     _print_decoded_preview,
     cmd_diff,
     cmd_latest,
@@ -183,7 +182,7 @@ class TestGroupSessions:
             ),
             _entry(_session_idx=1, session_label="park", vehicle_states=["ready"], time="17:00:00"),
         ]
-        sessions = _group_sessions(entries)
+        sessions = group_sessions(entries)
         assert len(sessions) == 2
         a = sessions[0]
         assert a["label"] == "drive A" and a["n"] == 2
@@ -196,14 +195,14 @@ class TestGroupSessions:
             _entry(_session_idx=0, session_label="dup", time="10:00:00"),
             _entry(_session_idx=1, session_label="dup", time="11:00:00"),
         ]
-        assert len(_group_sessions(entries)) == 2
+        assert len(group_sessions(entries)) == 2
 
     def test_chronological_order(self):
         entries = [
             _entry(_session_idx=0, date="2026-07-22", time="18:00:00"),
             _entry(_session_idx=1, date="2026-07-20", time="09:00:00"),
         ]
-        sessions = _group_sessions(entries)
+        sessions = group_sessions(entries)
         assert [s["date"] for s in sessions] == ["2026-07-20", "2026-07-22"]
 
     def test_distinct_capture_notes_deduped(self):
@@ -212,7 +211,7 @@ class TestGroupSessions:
             _entry(_session_idx=0, notes="note X"),
             _entry(_session_idx=0, notes="note Y"),
         ]
-        assert _group_sessions(entries)[0]["cap_notes"] == ["note X", "note Y"]
+        assert group_sessions(entries)[0]["cap_notes"] == ["note X", "note Y"]
 
 
 class TestCmdSessions:
