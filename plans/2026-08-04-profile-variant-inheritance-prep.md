@@ -1,18 +1,46 @@
 # Profile-path consolidation — groundwork for variant inheritance
 
-Status: **NOT STARTED** (2026-08-04). Scope agreed: **Tier 1 + Tier 2** (all nine
-commits below). Three decisions were taken up front and are recorded here:
+Status: **DONE** (2026-08-04) — all nine commits landed (`d70592e`..`c959682`).
+Scope was **Tier 1 + Tier 2**, with three decisions taken up front:
 
-- the `canair contribute` `groups.yaml` omission is fixed **standalone, first**
+- the `canair contribute` `groups.yaml` omission was fixed **standalone, first**
   (commit 1), ahead of any refactor;
-- **`Profile.logs_dir` is deleted** (commit 2) — it has zero consumers;
+- **`Profile.logs_dir` was deleted** (commit 2) — it had zero consumers;
 - prep stops short of any inheritance mechanism (see **Out of scope**).
 
-This is the preparation pass for `plans/2026-07-30-profile-variant-inheritance.md`
-(a design/decision doc, still **blocked** on picking Option A/B/C/D, the ECU merge
-granularity, and the write-target policy). Nothing here presupposes that
-decision: every commit is justified by a defect or a duplication that exists
-today, and each is independently committable and revertable.
+**What actually shipped**, beyond the plan as written:
+
+- The `groups.yaml` omission was in **two** member lists, not one — the
+  stale-source rollback guard (`_ROLLBACK_MEMBERS`) was missing it too, so a
+  contribution that *deleted* upstream groups raised no warning. Both fixed;
+  after commit 3 they are the same derived tuple and cannot disagree again.
+- Commit 3 found a **leak in the blind-rediscovery strip**: it rebuilt member
+  paths as literals, so a profile using the legacy `states.yaml` name had its
+  `when:` predicates copied into the sandbox unstripped. Now resolved through
+  `Profile.states_file`.
+- Commit 4 uncovered a **dangerous test setup**: two promote tests redirected
+  their writes by monkeypatching a private path resolver, so moving that seam
+  sent a real guarded write into the *bundled* profile — the run appended
+  `AAF_SPEED` to `profiles/ioniq-2017/ecus/aaf.yaml` (reverted). They now
+  activate a throwaway profile, so the write target cannot escape to `profiles/`
+  even if the seam moves again.
+- Commit 6's staleness was **confirmed reproducible before fixing** (the plan
+  flagged it as unproven): a capture from profile B decoded under profile A's
+  parameter names, and the logger mapped a tx_id to the other vehicle's ECU name.
+  Both are now regression-tested.
+- `canair profile show` gained a `dtc_log:` line (a registry member it had never
+  listed) and `set_active` now drops derived caches when the profile changes.
+
+Two pre-existing golden-test failures (`investigate-bits`,
+`decode-discriminate-bytes`) were present at `ec32490` before this work and are
+untouched by it — verified in a separate worktree at that commit. They belong to
+concurrent work in the analysis code.
+
+This was the preparation pass for
+`plans/2026-07-30-profile-variant-inheritance.md` (a design/decision doc, still
+**blocked** on picking Option A/B/C/D, the ECU merge granularity, and the
+write-target policy). Nothing here presupposes that decision: every commit was
+justified by a defect or a duplication that existed already.
 
 ## Why
 
@@ -80,54 +108,54 @@ Nine changes, ordered so each lands green. Verification after **every** commit:
 `make gen` / `make gen-check` where argparse help changes and `make docs` for
 doc edits.
 
-### 1. fix: `canair contribute` drops the profile's `groups.yaml`
+### 1. fix: `canair contribute` drops the profile's `groups.yaml` — `d70592e`
 
 Standalone bug fix, no refactor. Ships independently of everything below.
 
-- [ ] `canlib/contribute.py:57-64` — add `"groups.yaml"` to `_DEFINITION_MEMBERS`.
-- [ ] `canlib/commands/contribute.py:69` — the `--no-captures` help text
+- [x] `canlib/contribute.py:57-64` — add `"groups.yaml"` to `_DEFINITION_MEMBERS`.
+- [x] `canlib/commands/contribute.py:69` — the `--no-captures` help text
       enumerates the members ("ecus/, profile.yaml, states, buses, signals"); add
       groups.
-- [ ] `make gen` — `docs/reference/cli/contribute.md:26-27` is generated from
+- [x] `make gen` — `docs/reference/cli/contribute.md:26-27` is generated from
       that help string.
-- [ ] Decide explicitly whether group labels/descriptions belong in the PII
+- [x] Decide explicitly whether group labels/descriptions belong in the PII
       pre-flight (`canlib/pii.py:145-171` scans captures + `car_model`). Most
       likely no — they are user-authored selector names with no PII shape — but
       record the decision rather than leave it to omission.
-- [ ] Test (`tests/test_contribute.py`): a source profile's `groups.yaml` reaches
+- [x] Test (`tests/test_contribute.py`): a source profile's `groups.yaml` reaches
       `profiles/<name>/` in the prepared workspace.
 
-### 2. refactor: expose `Profile`'s own members; delete dead `logs_dir`
+### 2. refactor: expose `Profile`'s own members; delete dead `logs_dir` — `f26b357`
 
-- [ ] `canlib/profile.py` — add `meta_file` (`root/profile.yaml`),
+- [x] `canlib/profile.py` — add `meta_file` (`root/profile.yaml`),
       `references_dir`, `dtc_log_file`.
-- [ ] `canlib/profile.py:106` — `meta` reads `self.meta_file`.
-- [ ] `canlib/profile.py:99-101` — **delete** `logs_dir`.
-- [ ] Route the hand-built paths through the new properties:
+- [x] `canlib/profile.py:106` — `meta` reads `self.meta_file`.
+- [x] `canlib/profile.py:99-101` — **delete** `logs_dir`.
+- [x] Route the hand-built paths through the new properties:
       `canlib/commands/validate/pids.py:1299`, `canlib/commands/profile.py:220`
       (×2), `canlib/commands/profile.py:277`, `canlib/dtc_log.py:48`.
-- [ ] After this, `.root` survives only for display
+- [x] After this, `.root` survives only for display
       (`commands/profile.py:215,289`, `commands/status.py:118`,
       `commands/config.py:457`), `canlib/contribute.py:408,424`, and
       `installed_snapshot_kind` (`commands/contribute.py:167`) — which inspects
       the path's `.parts`, so a root is the right input there.
-- [ ] Check `docs/reference/cli/profile.md:11` still lists the components
+- [x] Check `docs/reference/cli/profile.md:11` still lists the components
       accurately.
 
-### 3. refactor: single bundle-member registry
+### 3. refactor: single bundle-member registry — `06ad681`
 
-- [ ] `canlib/profile.py` — one declarative tuple of member records:
+- [x] `canlib/profile.py` — one declarative tuple of member records:
       `name`, `kind` (file/dir), `role` (curated / evidence / generated),
       `contributable: bool`, `blind_strip: bool`. Include the legacy
       `states.yaml` alias (honoured by `states_file`, `profile.py:68-83`) and the
       gitignored `dtc_log.yaml` (`.gitignore:55` → not contributable).
-- [ ] `canlib/contribute.py` — replace `_DEFINITION_MEMBERS`/`_CAPTURE_MEMBER`
+- [x] `canlib/contribute.py` — replace `_DEFINITION_MEMBERS`/`_CAPTURE_MEMBER`
       (`:57-65`) and drive the copy loop (`:407-424`) off the registry.
-- [ ] `canlib/blind.py` — replace `_STRIP_BUNDLE_MEMBERS` (`:58-65`) and the
+- [x] `canlib/blind.py` — replace `_STRIP_BUNDLE_MEMBERS` (`:58-65`) and the
       literals in `strip_profile` (`:271`, `:285-288`).
-- [ ] `canlib/commands/profile.py::cmd_show` (`:213-284`) — list components from
+- [x] `canlib/commands/profile.py::cmd_show` (`:213-284`) — list components from
       the registry instead of by hand.
-- [ ] Test: a drift test asserting every `Profile` path property has a registry
+- [x] Test: a drift test asserting every `Profile` path property has a registry
       entry and vice versa. **This is what makes commit 1's class of bug
       unrepeatable** — the point of the registry.
 
@@ -135,72 +163,74 @@ Variant payoff: "which components are inheritable" and `profile show`'s future
 inherited-vs-overridden column become table lookups (sketch step 6 of the design
 doc).
 
-### 4. refactor: one ECU-file locator
+### 4. refactor: one ECU-file locator — `c794d28`
 
-- [ ] New shared locator (in `canlib/pids_edit/_text.py`, or a small
+- [x] New shared locator (in `canlib/pids_edit/_text.py`, or a small
       `canlib/ecu_files.py` if it reads cleaner):
       `locate_ecu_file(*, name=None, tx_id=None, profile=None, ecus_dir=None)`.
-- [ ] Collapse onto it: `canlib/ecus_edit.py::_resolve_dir` (`:103-108`),
+- [x] Collapse onto it: `canlib/ecus_edit.py::_resolve_dir` (`:103-108`),
       `_find_file_by_tx` (`:132-148`), `find_ecu_file` (`:151-154`); and
       `canlib/pids_edit/_text.py::_resolve_pids_dir` (`:33-39`),
       `find_ecu_file` (`:56-73`).
-- [ ] End the same-name/different-signature collision — rename whichever public
+- [x] End the same-name/different-signature collision — rename whichever public
       name survives so `(str) -> Path` and `(int) -> (Path, str)` can't be
       confused.
-- [ ] Call sites already thread `pids_dir`/`ecus_dir` through, so the change is
+- [x] Call sites already thread `pids_dir`/`ecus_dir` through, so the change is
       at the resolver, not per call: `pids_edit/params.py` (`:202,337,389,441,
       539,589,634,682,724,809,865,915,982,1053,1129`), `pids_edit/hits.py`
       (`:124,126,243,245,333,377,526`), `ecus_edit.py`
       (`:276,308,347,465,503`), `commands/pids.py:85`.
-- [ ] Keep `ecus_edit.register_ecu` (`:276-311`) as the **only** path that mints
+- [x] Keep `ecus_edit.register_ecu` (`:276-311`) as the **only** path that mints
       a new ECU file — that is the write-target seam the variant policy lands on.
 
 Leaving this split is the single biggest re-refactoring risk of the variant work:
 "which file owns this ECU" becomes "which **root** owns this ECU", and it should
 be answered in one function.
 
-### 5. refactor: one signals loader
+### 5. refactor: one signals loader — `0d3cb21`
 
-- [ ] New `canlib/signals.py::load_signals(profile: Profile | None = None)`,
+- [x] New `canlib/signals.py::load_signals(profile: Profile | None = None)`,
       matching the established shape of `load_states` (`states.py:222`),
       `load_can_buses` (`can_buses.py:70`), `load_groups` (`ecu_groups.py:77`).
-- [ ] Replace the four copies: `canlib/commands/signals.py:82-96` (which today
+- [x] Replace the four copies: `canlib/commands/signals.py:82-96` (which today
       takes **no** profile parameter and reads `active()` implicitly at `:87`),
       `canlib/commands/export.py:61-74`, `canlib/commands/validate/other.py:280-292`,
       `canlib/commands/profile.py:263`.
-- [ ] `canlib/signals_edit.py::_bus_path` (`:38-39`) stays the write-side
+- [x] `canlib/signals_edit.py::_bus_path` (`:38-39`) stays the write-side
       resolver — do not fold read and write together.
 
-### 6. fix: invalidate profile-derived caches
+### 6. fix: invalidate profile-derived caches — `2c4a2b8`
 
-- [ ] `canlib/profile.py` — add `cache_key` (today `str(self.root)`).
-- [ ] Key `canlib/commands/_captures_query.py:44-45` (`_ecu_index`, `_decode_fn`)
+- [x] `canlib/profile.py` — add `cache_key` (today `str(self.root)`).
+- [x] Key `canlib/commands/_captures_query.py:44-45` (`_ecu_index`, `_decode_fn`)
       and `canlib/log.py:30` (`_ecu_lookup`) on it, and register both with the
       invalidation `canlib/pids.py::clear_cache` (`:144-146`) already performs.
-- [ ] Test: build the decode index, mutate an ECU via `pids_edit`, assert the
+- [x] Test: build the decode index, mutate an ECU via `pids_edit`, assert the
       next `_decoded_preview` reflects the edit (fails today).
 
-### 7. refactor: profile-keyed `load_pids` cache
+### 7. refactor: profile-keyed `load_pids` cache — `a9e2ff4`
 
-- [ ] `canlib/pids.py:160` — key `_cache` on `prof.cache_key` instead of
+- [x] `canlib/pids.py:160` — key `_cache` on `prof.cache_key` instead of
       `str(prof.ecus_dir)`. Byte-identical value today; one line to teach when a
       profile becomes a chain.
 
-### 8. refactor: named ECU-document merge + duplicate-key warning
+### 8. refactor: named ECU-document merge + duplicate-key warning — `a9e2ff4`
 
-- [ ] Extract the `.update()` loop in `canlib/pids.py::_load_dir` (`:182-193`)
+- [x] Extract the `.update()` loop in `canlib/pids.py::_load_dir` (`:182-193`)
       into `merge_ecu_documents(docs)`.
-- [ ] Warn on a duplicate top-level ECU key across files — today a second file
+- [x] Warn on a duplicate top-level ECU key across files — today a second file
       declaring the same `ECU:` silently wins (last-writer-wins).
-- [ ] Promote it to an error in `canair validate pids`, alongside the existing
-      duplicate-shipped-param-name check.
+- [x] Promote it to an error in `canair validate pids`, alongside the existing
+      duplicate-shipped-param-name check. **Already covered** — no change needed:
+      `_duplicate_name_errors` has always errored on an ECU name/alias claimed by
+      two files. The loader warning now points the user at it.
 
 This one function is where PID-level variant merge later plugs in.
 
-### 9. refactor: one `profile_for_path` helper
+### 9. refactor: one `profile_for_path` helper — `c959682`
 
-- [ ] `canlib/profile.py::profile_for_path(path) -> Profile`.
-- [ ] Replace the parent-walking reconstructions:
+- [x] `canlib/profile.py::profile_for_path(path) -> Profile`.
+- [x] Replace the parent-walking reconstructions:
       `canlib/commands/validate/pids.py:257-267` (`root = path.parent.parent`),
       `canlib/commands/pids.py:398-402`, `canlib/pids.py:170`,
       `canlib/blind.py:375`, `canlib/blind.py:579`,

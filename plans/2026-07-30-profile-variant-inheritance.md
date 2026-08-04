@@ -8,6 +8,13 @@ granularity (PID-level recommended), and the write-target policy (the plan
 explicitly defers this one). Only pays off once a real second variant exists —
 e.g. XPeng G6 SR vs LR.
 
+**A preparation pass has since landed** (`plans/2026-08-04-profile-variant-inheritance-prep.md`,
+2026-08-04): the seams this plan would have to touch were consolidated so a chain
+change lands in one place per concern instead of several. The "Background" and
+"Implementation sketch" sections below have been updated to the post-prep code;
+the options, granularity, write-target and open questions are untouched — they
+remain the open decision.
+
 ## Goal
 
 Support **multiple variants of one vehicle model** — e.g. the XPeng G6 SR
@@ -37,32 +44,42 @@ from an agreed abstraction. No behaviour ships from this file.
 There is **no** profile inheritance / composition / variant / include mechanism
 anywhere in `canlib/` or the schemas today. A profile is a single self-contained
 directory resolved to a flat `Profile` dataclass. The seams an inheritance layer
-would touch:
+would touch (post-prep — each is now *one* place, not several):
 
-- **`Profile(name, root)`** — frozen dataclass, `canlib/profile.py:37-105`. Every
-  file location is a `root`-relative `@property` (`ecus_dir`, `captures_dir`,
-  `can_dir`, `can_index_file`, `signals_dir`, `states_file`, `can_buses_file`,
-  `out_dir`, `logs_dir`, and the cached `meta` reading `root/profile.yaml`). The
-  **single-root assumption is pervasive.**
-- **`resolve_profile`** — `canlib/profile.py:140-173`. Precedence chain
-  (`--profile` > `CANAIR_PROFILE` > `default_profile` > single discovered) →
-  `Profile`. `discover_profiles` (`:128-137`) does **shadowing only** ("earlier
-  roots shadow later ones"), never merges.
-- **`pids._load_dir` / `load_pids`** — `canlib/pids.py:109-153`. The single ECU
-  merge seam: shallow-copies `profile.yaml` meta, then `.update()`s every
-  `ecus/*.yaml` top-key into one `result["ecus"]` dict (last-writer-wins,
-  `_`-prefixed files skipped). Memoized by the **`ecus_dir` string** (`:101,120`);
-  writers call `clear_cache()`.
-- **Per-component loaders** each take an optional `Profile` and read one file/dir:
-  `load_states` (`canlib/states.py:211`), `load_can_buses`
-  (`canlib/can_buses.py:70`), signals globbing (`commands/signals.py`,
-  `signals_edit.py:39`), capture readers (`canlib/capture_io.py`).
+- **`Profile(name, root)`** — frozen dataclass in `canlib/profile.py`. Every file
+  location is a `root`-relative `@property`, and each one is declared in the
+  **`BUNDLE_MEMBERS` registry** alongside its role (definition / evidence /
+  external / local / generated) and whether it is contributable. `member_path` /
+  `member_exists` resolve a member for a profile; a drift test asserts the
+  properties and the registry agree. So "which components may a variant inherit,
+  and how does `profile show` mark inherited vs overridden" is a table question.
+  The **single-root assumption is still pervasive** — that is the actual work.
+- **`resolve_profile`** — precedence chain (`--profile` > `CANAIR_PROFILE` >
+  `default_profile` > single discovered) → `Profile`. `discover_profiles` does
+  **shadowing only**, never merges. **`profile_for_path`** resolves the profile
+  owning any path (root, `ecus/`, or a file inside) by walking up to the nearest
+  bundle — the one function that must learn to read `extends:`.
+- **`pids.load_pids` / `_load_dir` / `merge_ecu_documents`** — the ECU merge seam.
+  `merge_ecu_documents` is now a named function taking `(path, doc)` pairs and
+  merging them first-wins with a duplicate-key warning: the place a PID-level
+  variant merge slots in. Memoized on **`Profile.cache_key`** (not a member path),
+  and `clear_cache()` drops **registered derived caches** too, so chain
+  invalidation has one entry point.
+- **Per-component loaders** — uniform shape `load_x(profile: Profile | None)`:
+  `load_states` (`canlib/states.py`), `load_can_buses` (`canlib/can_buses.py`),
+  `load_groups` (`canlib/ecu_groups.py`), `load_signals` (`canlib/signals.py`,
+  added by the prep — previously four copies of a glob), capture readers
+  (`canlib/capture_io.py`, path-based).
+- **ECU file location** — `canlib/ecu_files.py`: `ecus_dir`, `iter_ecu_files`,
+  `find_by_name`, `find_by_tx`. Single home for "which file owns this ECU",
+  i.e. where the **write-target policy** belongs.
 - **`profile.yaml` validation** is imperative — `validate_meta`
-  (`canlib/commands/validate/pids.py:873`) — and **tolerates unknown top-level
-  keys** (deliberately extensible). There is **no `profile.yaml` schema file**.
+  (`canlib/commands/validate/pids.py`) — and **tolerates unknown top-level
+  keys** (deliberately extensible), so an `extends:` key already parses
+  harmlessly. There is **no `profile.yaml` schema file**.
 - **`canair profile`** — `canlib/commands/profile.py` — `list/show/path/use/create`
-  (`create_profile` at `:307` scaffolds `ecus/`+`captures/`+`out/` + three YAML
-  files from `templates/`). No notion of a base/parent.
+  (`create_profile` scaffolds the bundle from `templates/`). `show` iterates
+  `BUNDLE_MEMBERS`. No notion of a base/parent.
 
 **Existing override precedents to lean on** (the "child overrides base" mental
 model already in the tree):
@@ -209,26 +226,39 @@ is a bigger, riskier tooling change and can follow once A lands.
 
 ## Implementation sketch (recommended path)
 
+Each step now names the *single* function/table the prep pass consolidated it to.
+
 1. **Schema / validation** — allow `extends:` (string name or path) in
    `profile.yaml` (`validate_meta`, `canlib/commands/validate/pids.py`); detect a
-   missing base and reject inheritance **cycles**.
-2. **`resolve_profile`** — resolve the `extends` chain to an ordered
-   base→…→variant list of roots (reuse `discover_profiles` + the path-like
-   handling). Carry the chain on `Profile` (e.g. `bases: tuple[Path, ...]`) or a
-   new resolved type; keep `root` = the variant root.
-3. **`_load_dir` / `load_pids`** — layer the meta + ECU merges base→variant at the
-   chosen granularity; **fix the memoization cache key** to include the full chain
-   (today it's only `ecus_dir`).
-4. **Component loaders** — `load_states`, `load_can_buses`, signals globbing, and
-   capture readers resolve "variant file else base file" across the chain.
-5. **Mutative editors** — land writes in the variant root; add the guard/warning
-   per the chosen write policy.
-6. **`canair profile`** — `show` displays the base chain and which components are
-   inherited vs overridden; `profile create --extends <base>` scaffolds a variant
-   (thin `profile.yaml` + empty `ecus/`).
-7. **Docs** — a `docs/concepts/` variant page, README pointer, the AGENTS.md
+   missing base and reject inheritance **cycles**. Unknown top-level keys are
+   already tolerated, so nothing rejects `extends:` in the meantime.
+2. **`resolve_profile` / `profile_for_path`** — resolve the `extends` chain to an
+   ordered base→…→variant list of roots (reuse `discover_profiles` + the
+   path-like handling). Carry the chain on `Profile` (e.g. `bases: tuple[Path,
+   ...]`) or a new resolved type; keep `root` = the variant root, and extend
+   `Profile.cache_key` to cover the chain (it exists for exactly this).
+3. **`merge_ecu_documents`** — already the named merge seam, taking `(path, doc)`
+   pairs and resolving collisions first-wins. Layer base→variant at the chosen
+   granularity here; `_load_dir` feeds it and needs no policy of its own.
+4. **Component loaders** — `load_states`, `load_can_buses`, `load_groups`,
+   `load_signals` and the capture readers resolve "variant file else base file"
+   across the chain. All four vocabulary loaders already share one shape
+   (`load_x(profile=None)`), and `Profile.member_path` is where a chain-aware
+   resolution belongs.
+5. **Mutative editors** — land writes in the variant root; the decision point is
+   `canlib/ecu_files.py` (`find_by_name` / `find_by_tx`), the single answer to
+   "which file owns this ECU", plus the per-member write resolvers in
+   `states_edit` / `groups_edit` / `signals_edit`.
+6. **`canair profile`** — `show` already iterates `BUNDLE_MEMBERS`, so marking a
+   member inherited vs overridden is a per-member detail, not a rewrite;
+   `profile create --extends <base>` scaffolds a variant (thin `profile.yaml` +
+   empty `ecus/`).
+7. **Cache invalidation** — register any chain-derived cache through
+   `pids.register_derived_cache` so `clear_cache()` (and `set_active`) drops it;
+   don't add another unmanaged module global.
+8. **Docs** — a `docs/concepts/` variant page, README pointer, the AGENTS.md
    profile section, and update `profiles/xpeng-g6/KNOWN-ISSUES.md`.
-8. **Tests** — merge semantics, override precedence, chain resolution, cycle
+9. **Tests** — merge semantics, override precedence, chain resolution, cycle
    rejection, cache correctness, and write-target behaviour.
 
 ## Open questions (resolve during implementation)
