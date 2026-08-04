@@ -305,9 +305,18 @@ _active: Profile | None = None
 
 
 def set_active(name: str | None = None, profiles_dir: str | os.PathLike | None = None) -> Profile:
-    """Resolve and memoize the active profile (called by the CLI)."""
+    """Resolve and memoize the active profile (called by the CLI).
+
+    Drops any state cached from the previous profile's definitions, so switching
+    profiles in one process can't decode against the wrong vehicle.
+    """
     global _active
+    previous = _active
     _active = resolve_profile(name, profiles_dir)
+    if previous is not None and previous != _active:
+        from .pids import clear_cache
+
+        clear_cache()
     return _active
 
 

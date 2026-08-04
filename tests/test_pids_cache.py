@@ -1,0 +1,122 @@
+"""Invalidation of caches derived from ECU definitions (canlib.pids)."""
+
+import textwrap
+
+import pytest
+
+from canlib import profile
+from canlib.pids import clear_cache, register_derived_cache
+
+
+def _mk_profile(tmp_path, name, ecu, param):
+    root = tmp_path / name
+    (root / "ecus").mkdir(parents=True)
+    (root / "profile.yaml").write_text('car_model: "T"\ninit: "ATSP6;"\n')
+    (root / "ecus" / "e.yaml").write_text(
+        textwrap.dedent(f"""\
+            {ecu}:
+              tx_id: 0x7E4
+              pids:
+                2101:
+                  status: active
+                  parameters:
+                    {param}:
+                      expression: B04
+                      unit: V
+            """)
+    )
+    return root
+
+
+def _activate(root, name):
+    profile._active = profile.Profile(name, root)
+    clear_cache()
+
+
+@pytest.fixture(autouse=True)
+def _restore_active():
+    saved = profile._active
+    yield
+    profile._active = saved
+    clear_cache()
+
+
+class TestDerivedCacheRegistry:
+    def test_clear_cache_runs_registered_hooks(self):
+        calls = []
+        register_derived_cache(lambda: calls.append(1))
+        clear_cache()
+        assert calls == [1]
+
+    def test_registration_is_idempotent(self):
+        calls = []
+
+        def hook():
+            calls.append(1)
+
+        register_derived_cache(hook)
+        register_derived_cache(hook)
+        clear_cache()
+        # Registered twice, cleared once — a lazily-built cache re-registers on
+        # every rebuild and must not accumulate hooks.
+        assert calls == [1]
+
+
+class TestDecodePreviewIndex:
+    """The capture-preview PID index is built from load_pids() — derived state."""
+
+    def test_switching_profile_redecodes_with_the_new_definitions(self, tmp_path):
+        from canlib.commands import _captures_query as q
+
+        entry = {"payload": "6101AABBCCDD", "ecu": "BMS", "pid": "2101"}
+        _activate(_mk_profile(tmp_path, "a", "BMS", "A_VOLTS"), "a")
+        assert "A_VOLTS" in (q._decoded_preview(entry) or {})
+
+        _activate(_mk_profile(tmp_path, "b", "BMS", "B_VOLTS"), "b")
+        preview = q._decoded_preview(entry) or {}
+        assert "B_VOLTS" in preview, f"stale index decoded {sorted(preview)}"
+
+    def test_editing_a_param_is_reflected(self, tmp_path):
+        from canlib.commands import _captures_query as q
+        from canlib.pids_edit import rename_parameter
+
+        root = _mk_profile(tmp_path, "c", "BMS", "OLD_NAME")
+        _activate(root, "c")
+        entry = {"payload": "6101AABBCCDD", "ecu": "BMS", "pid": "2101"}
+        assert "OLD_NAME" in (q._decoded_preview(entry) or {})
+
+        rename_parameter("BMS", "2101", "OLD_NAME", "NEW_NAME", pids_dir=root / "ecus")
+        preview = q._decoded_preview(entry) or {}
+        assert "NEW_NAME" in preview, f"stale index decoded {sorted(preview)}"
+
+
+class TestLogEcuLookup:
+    def test_switching_profile_remaps_tx_ids(self, tmp_path):
+        from canlib import log
+
+        _activate(_mk_profile(tmp_path, "la", "BMS", "X"), "la")
+        assert log._load_ecu_lookup().get(0x7E4) == "BMS"
+
+        _activate(_mk_profile(tmp_path, "lb", "MCU", "Y"), "lb")
+        assert log._load_ecu_lookup().get(0x7E4) == "MCU"
+
+
+class TestSetActive:
+    def test_switching_via_set_active_clears_derived_state(self, tmp_path, monkeypatch):
+        calls = []
+        _mk_profile(tmp_path, "one", "BMS", "X")
+        _mk_profile(tmp_path, "two", "MCU", "Y")
+        monkeypatch.setenv("CANAIR_PROFILES_DIR", str(tmp_path))
+
+        profile.set_active("one", profiles_dir=tmp_path)
+        register_derived_cache(lambda: calls.append(1))
+        profile.set_active("two", profiles_dir=tmp_path)
+        assert calls == [1]
+
+    def test_reselecting_the_same_profile_does_not_clear(self, tmp_path):
+        calls = []
+        _mk_profile(tmp_path, "same", "BMS", "X")
+        profile.set_active("same", profiles_dir=tmp_path)
+        register_derived_cache(lambda: calls.append(1))
+        profile.set_active("same", profiles_dir=tmp_path)
+        assert calls == []

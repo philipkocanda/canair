@@ -28,6 +28,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   than silently no-op'ing.
 
 ### Fixed
+- **Capture previews and per-ECU logs no longer decode with a stale PID index.**
+  Both build a lookup from the ECU definitions and cached it in a module global
+  that nothing ever cleared — so editing a parameter, or switching profile within
+  one process, left them reporting the *previous* definitions (a capture from
+  profile B decoded under profile A's parameter names). Caches derived from the
+  ECU definitions are now registered with, and dropped by, the same invalidation
+  the definitions themselves use, and switching the active profile triggers it.
 - **`canair profile show` now lists the profile's `dtc_log.yaml`.** The component
   listing was hand-written, so members added to the bundle over time were missed.
   It is now driven by a single declaration of what a profile is made of, so every

@@ -8,6 +8,7 @@ settings (``car_model``, ``init``, ``failure_types``, ...) live one level up in
 ``<profile>/profile.yaml``.
 """
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Literal, TypedDict, get_args
 
@@ -140,10 +141,30 @@ def _yaml_load(fh) -> dict:
 # file so a later read in the same process never sees stale data.
 _cache: dict[str, dict] = {}
 
+# Caches *derived* from these definitions, registered by their owning module.
+# Clearing the definitions without clearing what was built from them leaves the
+# derived copy authoritative and wrong — e.g. a decode preview that still names
+# the previous profile's parameters. Each hook drops its own cache.
+_derived_cache_hooks: list[Callable[[], None]] = []
+
+
+def register_derived_cache(clear: Callable[[], None]) -> None:
+    """Register a cache built from ECU definitions, to clear with them.
+
+    Idempotent, so a lazily-built cache may register on every (re)build.
+    """
+    if clear not in _derived_cache_hooks:
+        _derived_cache_hooks.append(clear)
+
 
 def clear_cache() -> None:
-    """Drop the memoized ECU-definition load (call after writing any ECU file)."""
+    """Drop the memoized ECU-definition load and everything derived from it.
+
+    Call after writing any ECU file, or after switching the active profile.
+    """
     _cache.clear()
+    for clear in _derived_cache_hooks:
+        clear()
 
 
 def load_pids(path: Path | None = None) -> dict:

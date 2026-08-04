@@ -45,6 +45,17 @@ _ecu_index = None
 _decode_fn = None
 
 
+def _clear_decode_index() -> None:
+    """Drop the PID index (registered with canlib.pids.clear_cache).
+
+    Without this, a profile switch or an ECU edit leaves previews decoding with
+    the previous definitions — reporting the wrong profile's parameter names.
+    """
+    global _ecu_index, _decode_fn
+    _ecu_index = None
+    _decode_fn = None
+
+
 def _decoded_preview(entry: Mapping[str, Any]) -> dict | None:
     """Regenerate decoded parameter values for a capture entry, or None.
 
@@ -63,10 +74,11 @@ def _decoded_preview(entry: Mapping[str, Any]) -> dict | None:
     if _decode_fn is None:
         try:
             from canlib.captures import _decode_payload
-            from canlib.pids import build_ecu_index, load_pids
+            from canlib.pids import build_ecu_index, load_pids, register_derived_cache
 
             _decode_fn = _decode_payload
             _ecu_index = build_ecu_index(load_pids())
+            register_derived_cache(_clear_decode_index)
         except Exception:
             _decode_fn = False  # sentinel: decoding unavailable
             return None
