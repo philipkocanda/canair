@@ -48,6 +48,7 @@ define→verify loop.
 | a defined PID | its value ranges / stats / distribution | `decode [--stats]` |
 | a grouping signal (state, mode, on/off) | which bytes *separate* the groups | `decode --discriminate <axis>` |
 | several cross-ECU signals | them **side-by-side, time-aligned** | `align "A:B:C D:E:F"` |
+| several PIDs' **raw captures** | to read them at the same instant, frame by frame | `captures "A:P1,P2" --step` |
 | raw bytes of one PID | the timestamp×byte matrix | `decode --dump-bytes` |
 | raw payloads | the hex / byte-diff / sessions index | `captures` |
 | a finished-ish profile | what bytes are still undecoded | `coverage` |
@@ -78,6 +79,14 @@ They share the *same* nearest-timestamp join, but differ in what they emit:
   together, or when you'd otherwise write a one-off join script.
 - **`correlate` / `hunt`** emit **relationships** — ranked correlation summaries
   (r, linear fit, unit guess). Reach for them to *quantify* how signals relate.
+
+A third shape of the same join is **`captures --step`** with a multi-PID QUERY: it
+emits neither a table nor a coefficient but the **raw captures themselves**, stacked
+one block per PID in a time-joined frame (decoded params + byte-diff hex). Reach for
+it when you want to *look at the bytes* of several PIDs at one instant — typically
+walking the frames across the moment a known signal switched. The PID set, the join
+tolerance and the rendering are all editable inside the TUI; `--json` emits the same
+frames as data. See [Analyze](../bring-your-own-car/06-analyze.md#reading-several-pids-at-the-same-instant).
 
 ## `--discriminate` by any axis
 

@@ -18,13 +18,14 @@ from typing import TYPE_CHECKING, ClassVar
 from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal, Vertical, VerticalScroll
+from textual.containers import Vertical, VerticalScroll
 from textual.css.query import NoMatches
 from textual.screen import ModalScreen
-from textual.widgets import Button, Input, Label, OptionList, Static
+from textual.widgets import Label, OptionList, Static
 from textual.widgets.option_list import Option
 
 from canlib.tui_help import HelpMixin
+from canlib.tui_modals import TextPromptModal
 
 if TYPE_CHECKING:
     from canlib.commands._decode_plot import PlotModel
@@ -67,53 +68,6 @@ class PidPickerModal(ModalScreen["tuple[str, str] | None"]):
     def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
         ecu, pid = (event.option.id or ":").split(":", 1)
         self.dismiss((ecu, pid))
-
-    def action_cancel(self) -> None:
-        self.dismiss(None)
-
-
-class TextPromptModal(ModalScreen["str | None"]):
-    """A single-line text prompt (annotation note / new PID name / param name)."""
-
-    CSS = """
-    TextPromptModal { align: center middle; background: $background 60%; }
-    #prompt-box { width: 70; height: auto; padding: 1 2;
-                  border: round $accent; background: $surface; }
-    #prompt-title { text-style: bold; margin-bottom: 1; }
-    #prompt-buttons { height: auto; align-horizontal: right; margin-top: 1; }
-    #prompt-buttons Button { margin-left: 2; }
-    """
-
-    BINDINGS: ClassVar[list[Binding]] = [Binding("escape", "cancel", "cancel")]
-
-    def __init__(self, title: str, placeholder: str = "", value: str = ""):
-        super().__init__()
-        self._title = title
-        self._placeholder = placeholder
-        self._value = value
-
-    def compose(self) -> ComposeResult:
-        with Vertical(id="prompt-box"):
-            yield Label(self._title, id="prompt-title")
-            yield Input(value=self._value, placeholder=self._placeholder, id="prompt-input")
-            with Horizontal(id="prompt-buttons"):
-                yield Button("OK", variant="primary", id="ok")
-                yield Button("Cancel", id="cancel")
-
-    def on_mount(self) -> None:
-        self.query_one("#prompt-input", Input).focus()
-
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "ok":
-            self._submit()
-        else:
-            self.dismiss(None)
-
-    def on_input_submitted(self, _event: Input.Submitted) -> None:
-        self._submit()
-
-    def _submit(self) -> None:
-        self.dismiss(self.query_one("#prompt-input", Input).value.strip())
 
     def action_cancel(self) -> None:
         self.dismiss(None)

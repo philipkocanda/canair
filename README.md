@@ -78,7 +78,7 @@ All functionality is exposed as `canair <subcommand>`; run `canair <cmd> --help`
 
 | Subcommand | Purpose |
 |--------|---------|
-| `canair captures` | Search/diff/step saved diagnostic captures (`captures uds`) or list raw-CAN frame logs (`captures can`) (alias: `cap`). |
+| `canair captures` | Search/diff saved diagnostic captures, or `--step` through them (several PIDs stacked in one time-joined frame) (`captures uds`); list raw-CAN frame logs (`captures can`) (alias: `cap`). |
 | `canair decode` | Value-centric decoding of captures (mini-language QUERY, multi-PID) — stats, correlation, `--plot`, candidate-expression testing (alias: `dec`). |
 | `canair align` | Time-aligned wide table of several cross-ECU signals side by side (CSV/JSON/table). |
 | `canair correlate` | Rank the strongest cross-signal relationships across a drive (`uds` captures \| `can` frame log). |

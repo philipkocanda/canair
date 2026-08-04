@@ -3,8 +3,8 @@
     {
       "date": "2026-04-16",
       "vehicle_states": [
-        "deep sleep",
-        "parked"
+        "SLEEP",
+        "PARKED"
       ],
       "label": "IGPM deep-sleep baseline — all status registers",
       "notes": "Car fully asleep (WiCAN sleep mode, woke via terminal session). Queried all 7 known IGPM status DIDs (BC01-BC07) using --wake flag (sends 10 01 wake frame, then 10 03 extended session). All 7 DIDs respond successfully during deep sleep. BC01 responds here but returned NO DATA during earlier keyfob-wake test — timing issue. BC08-BC0A confirmed NRC 0x31 (requestOutOfRange) in earlier session.\n [migrated state: deep sleep, parked, locked, no charging]",
@@ -56,8 +56,8 @@
     {
       "date": "2026-04-16",
       "vehicle_states": [
-        "deep sleep",
-        "parked"
+        "SLEEP",
+        "PARKED"
       ],
       "label": "BCM deep-sleep DID range scan — B0xx and C0xx",
       "notes": "Car fully asleep. BCM (0x7A0) responds to wake (10 01 + 10 03). CLU (0x7C6) does NOT respond during deep sleep — NO DATA to wake and session. Scanned B0xx range: B001-B00A valid (10 DIDs), B000 and B00B+ = NRC 0x31. Scanned C0xx range: C001-C014 valid (20 DIDs), C000 and C015+ = NRC 0x31. BCM has 30 readable DIDs during deep sleep total. B004-B007 not probed individually in this session (gap — fill in next time). C003-C007 contain ASCII TPMS sensor names (DO01, NA01, NTPM, DO02, NA02). C008-C00A are empty TPMS slots (all FF payload).\n [migrated state: deep sleep, parked, locked, no charging]",
@@ -224,7 +224,7 @@
       "date": "2026-04-16",
       "label": "BCM gap DIDs B004-B007 & identity DIDs",
       "vehicle_states": [
-        "deep sleep"
+        "SLEEP"
       ],
       "notes": "Car parked at home, 12V battery resting. BCM inherently awake. Probed B004-B007 (missed in 2026-04-15 session) and standard UDS identity DIDs.",
       "captures": [
@@ -282,7 +282,7 @@
       "label": "BCM CAN bus wake test — no ACC needed",
       "date": "2026-04-16",
       "vehicle_states": [
-        "deep sleep"
+        "SLEEP"
       ],
       "notes": "Proved BCM wakes from CAN bus activity alone — no ACC relay needed. Only IGPM 1001 was sent (5x), no SKM involvement. BCM responded to 22C00B after ~1s delay.\n [migrated state: deep sleep, unplugged, no SKM ACC, no extended session]",
       "captures": [

@@ -36,11 +36,6 @@ states:
     description: HV active, car in READY (driveable).
     when: "VCU.VEHICLE_STATE_EV_READY == 1"
 
-  # No ECU answered at all — car fully asleep / powered down.
-  - name: DEEPSLEEP
-    description: Deep sleep — no ECU responded (12V standby only).
-    when: "__no_response__"
-
   # --- Vocabulary-only states (no auto-suggest predicate) --------------------
   # Present so composite free-text states like "READY, PARKED" or "SLEEP,
   # PLUGGED" don't trip the soft warning, and to document the shared base

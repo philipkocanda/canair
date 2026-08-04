@@ -12,12 +12,11 @@ from canlib.captures import (
     save_session,
 )
 from canlib.commands._captures_query import (
-    _build_pair_frames,
     _gather_query,
     _is_hex_payload,
-    _pair_by_time,
+    _nearest_within,
+    build_join_frames,
 )
-from canlib.commands._captures_step import _render_step_pair_frame, cmd_step_pair
 from canlib.commands.captures import (
     _clean,
     _group_sessions,
@@ -463,133 +462,121 @@ class TestTimeEnforcement:
         assert "captures[0]" in str(warns[0])
 
 
-class TestPairByTime:
-    def test_pairs_within_tolerance(self):
-        from datetime import datetime
+class TestNearestWithin:
+    """The join's nearest-within-tolerance rule must match canlib.align's."""
 
-        dts = {0: datetime(2026, 7, 22, 12, 0, 0), 1: datetime(2026, 7, 22, 12, 0, 1)}
-        frames = _pair_by_time([0], [1], dts, tol_s=2.5)
-        assert frames == [(0, 1)]
+    def test_picks_nearest_and_respects_tolerance(self):
+        ts = [0.0, 10.0, 20.0]
+        assert _nearest_within(ts, 9.0, 2.0) == 1
+        assert _nearest_within(ts, 12.0, 2.0) == 1
+        assert _nearest_within(ts, 5.0, 2.0) is None  # 5s from both, tol 2
+        assert _nearest_within([], 1.0, 5.0) is None
 
-    def test_out_of_tolerance_are_singletons_in_time_order(self):
-        from datetime import datetime
+    def test_exact_tie_prefers_the_earlier_sample(self):
+        # 5.0 is equidistant from 0 and 10; align's rule keeps the earlier one.
+        assert _nearest_within([0.0, 10.0], 5.0, 10.0) == 0
 
-        # A@00, B@10 — 10s apart, tol 2.5 → each alone, earlier first.
-        dts = {0: datetime(2026, 7, 22, 12, 0, 0), 1: datetime(2026, 7, 22, 12, 0, 10)}
-        frames = _pair_by_time([0], [1], dts, tol_s=2.5)
-        assert frames == [(0, None), (None, 1)]
+    def test_parity_with_align_join_prepared(self):
+        """Same inputs, same pairing decisions as canlib.align."""
+        from datetime import datetime, timedelta
 
-    def test_leftover_tail_appended(self):
-        from datetime import datetime
+        from canlib.align import TimePoint, join_prepared, prepare_series
 
-        # A0@00 pairs B@01; A1@10 has no B left → appended as a left singleton.
-        dts = {
-            0: datetime(2026, 7, 22, 12, 0, 0),
-            2: datetime(2026, 7, 22, 12, 0, 10),
-            1: datetime(2026, 7, 22, 12, 0, 1),
-        }
-        frames = _pair_by_time([0, 2], [1], dts, tol_s=2.5)
-        assert frames == [(0, 1), (2, None)]
+        t0 = datetime(2026, 7, 22, 12, 0, 0)
+        ref_offsets = [0.0, 3.0, 9.0, 30.0]
+        cand_offsets = [0.4, 4.0, 20.0]
+        tol = 2.5
 
-    def test_empty_sides(self):
-        from datetime import datetime
+        ref = prepare_series([TimePoint(t0 + timedelta(seconds=o), o) for o in ref_offsets])
+        cand = prepare_series([TimePoint(t0 + timedelta(seconds=o), o) for o in cand_offsets])
+        _rv, cand_vals, n_dropped = join_prepared(ref, cand, tol_s=tol)
 
-        dts = {0: datetime(2026, 7, 22, 12, 0, 0)}
-        assert _pair_by_time([0], [], dts, tol_s=2.5) == [(0, None)]
-        assert _pair_by_time([], [0], dts, tol_s=2.5) == [(None, 0)]
-        assert _pair_by_time([], [], {}, tol_s=2.5) == []
+        cand_ts = [t0.timestamp() + o for o in cand_offsets]
+        mine = [_nearest_within(cand_ts, t0.timestamp() + o, tol) for o in ref_offsets]
+
+        # align drops unmatched rows; ours yields None in the same places.
+        assert n_dropped == sum(1 for m in mine if m is None)
+        assert [cand_offsets[m] for m in mine if m is not None] == cand_vals
 
 
-class TestBuildPairFrames:
-    def test_pairs_two_keys_within_tolerance(self):
+class TestBuildJoinFrames:
+    def test_single_key_yields_one_frame_per_capture(self):
+        caps = [
+            _entry(ecu="VCU", pid="2101", payload="6101AA", time="12:00:00"),
+            _entry(ecu="VCU", pid="2101", payload="6101BB", time="12:00:05"),
+        ]
+        frames, n_no_time = build_join_frames(caps, [("VCU", "2101")], tol_s=2.5)
+        assert n_no_time == 0
+        assert [f.indices for f in frames] == [(0,), (1,)]
+
+    def test_two_keys_within_tolerance_collapse_to_one_frame(self):
         caps = [
             _entry(ecu="VCU", pid="2101", payload="6101AA", time="12:00:00"),
             _entry(ecu="BMS", pid="2101", payload="6101BB", time="12:00:01"),
             _entry(ecu="VCU", pid="2101", payload="6101CC", time="12:00:10"),
         ]
-        frames, key_a, key_b, n_no_time = _build_pair_frames(caps, tol_s=2.5)
-        assert key_a == ("VCU", "2101") and key_b == ("BMS", "2101")
-        assert n_no_time == 0
-        # VCU@00 pairs BMS@01; VCU@10 is a left-only frame.
-        assert frames == [(0, 1), (2, None)]
+        keys = [("VCU", "2101"), ("BMS", "2101")]
+        frames, _ = build_join_frames(caps, keys, tol_s=2.5)
+        # VCU@00 + BMS@01 join (both anchors give the same pair -> one frame);
+        # VCU@10 has no BMS in range.
+        assert [f.indices for f in frames] == [(0, 1), (2, None)]
 
-    def test_tighter_tolerance_splits_the_pair(self):
+    def test_three_keys_stack_in_key_order(self):
+        caps = [
+            _entry(ecu="HVAC", pid="220100", payload="6201AA", time="12:00:00"),
+            _entry(ecu="HVAC", pid="2201A0", payload="6201BB", time="12:00:01"),
+            _entry(ecu="HVAC", pid="2201A2", payload="6201CC", time="12:00:02"),
+        ]
+        keys = [("HVAC", "220100"), ("HVAC", "2201A0"), ("HVAC", "2201A2")]
+        frames, _ = build_join_frames(caps, keys, tol_s=5.0)
+        assert [f.indices for f in frames] == [(0, 1, 2)]
+        # Reordering the keys reorders the slots, not the pairing.
+        frames, _ = build_join_frames(caps, list(reversed(keys)), tol_s=5.0)
+        assert [f.indices for f in frames] == [(2, 1, 0)]
+
+    def test_tight_tolerance_hides_nothing(self):
         caps = [
             _entry(ecu="VCU", pid="2101", payload="6101AA", time="12:00:00"),
             _entry(ecu="BMS", pid="2101", payload="6101BB", time="12:00:01"),
         ]
-        frames, _, _, _ = _build_pair_frames(caps, tol_s=0.5)
-        assert frames == [(0, None), (None, 1)]
+        keys = [("VCU", "2101"), ("BMS", "2101")]
+        frames, _ = build_join_frames(caps, keys, tol_s=0.5)
+        # Every capture still anchors a frame — just no longer joined.
+        assert [f.indices for f in frames] == [(0, None), (None, 1)]
+
+    def test_repeating_set_is_not_collapsed_across_time(self):
+        caps = [
+            _entry(ecu="VCU", pid="2101", payload="6101AA", time="12:00:00"),
+            _entry(ecu="BMS", pid="2101", payload="6101BB", time="12:00:01"),
+            _entry(ecu="VCU", pid="2101", payload="6101CC", time="12:01:00"),
+            _entry(ecu="BMS", pid="2101", payload="6101DD", time="12:01:01"),
+        ]
+        keys = [("VCU", "2101"), ("BMS", "2101")]
+        frames, _ = build_join_frames(caps, keys, tol_s=2.5)
+        assert [f.indices for f in frames] == [(0, 1), (2, 3)]
 
     def test_untimed_captures_excluded_and_counted(self):
         caps = [
             _entry(ecu="VCU", pid="2101", payload="6101AA", time="12:00:00"),
             _entry(ecu="BMS", pid="2101", payload="6101BB", time=""),  # no time
         ]
-        frames, _, _, n_no_time = _build_pair_frames(caps, tol_s=2.5)
+        keys = [("VCU", "2101"), ("BMS", "2101")]
+        frames, n_no_time = build_join_frames(caps, keys, tol_s=2.5)
         assert n_no_time == 1
-        assert frames == [(0, None)]
+        assert [f.indices for f in frames] == [(0, None)]
 
+    def test_key_with_no_captures_is_an_empty_slot(self):
+        caps = [_entry(ecu="VCU", pid="2101", payload="6101AA", time="12:00:00")]
+        keys = [("VCU", "2101"), ("BMS", "2101")]
+        frames, _ = build_join_frames(caps, keys, tol_s=2.5)
+        assert [f.indices for f in frames] == [(0, None)]
 
-class TestCmdStepPair:
-    def test_requires_exactly_two_keys(self, capsys):
-        # A single-key query cannot be paired.
-        entries = [_entry(ecu="BMS", pid="2101", payload="6101AA", time="12:00:00")]
-        cmd_step_pair(entries, "BMS:2101", captures_dir="unused")
-        out = capsys.readouterr().out
-        assert "two distinct ECU:PID" in out
+    def test_anchor_time_is_the_anchoring_capture(self):
+        from datetime import datetime
 
-    def _render(self, caps, tol_s=2.5, frame=0, aliases=None):
-        import io
-
-        from rich.console import Console
-
-        frames, key_a, key_b, _ = _build_pair_frames(caps, tol_s=tol_s)
-        buf = io.StringIO()
-        console = Console(file=buf, highlight=False, width=100)
-        _render_step_pair_frame(
-            console,
-            caps,
-            frames,
-            frame,
-            defs={key_a: ({}, None), key_b: ({}, None)},
-            prev_idx=[None] * len(caps),
-            ordinals=[(1, 1)] * len(caps),
-            key_a=key_a,
-            key_b=key_b,
-            tol_s=tol_s,
-            aliases=aliases,
-        )
-        return buf.getvalue()
-
-    def test_render_pair_frame_shows_both_ecus_and_delta(self):
-        caps = [
-            _entry(ecu="VCU", pid="2101", payload="6101AA", time="12:00:00"),
-            _entry(ecu="BMS", pid="2101", payload="6101BB", time="12:00:01"),
-        ]
-        text = self._render(caps)
-        assert "VCU" in text and "BMS" in text
-        assert "pair 1/1" in text
-        assert "Δt=1.00s" in text
-
-    def test_render_pair_frame_shows_alias_when_present(self):
-        caps = [
-            _entry(ecu="SKM", pid="2101", payload="6101AA", time="12:00:00"),
-            _entry(ecu="BMS", pid="2101", payload="6101BB", time="12:00:01"),
-        ]
-        text = self._render(caps, aliases={"SKM": "SMK"})
-        assert "alias SMK" in text
-        # An ECU without an alias entry shows no alias tag.
-        assert "alias BMS" not in text
-
-    def test_render_pair_frame_shows_missing_side(self):
-        caps = [
-            _entry(ecu="VCU", pid="2101", payload="6101AA", time="12:00:00"),
-            _entry(ecu="BMS", pid="2101", payload="6101BB", time="12:00:10"),
-        ]
-        # First frame is VCU-only (BMS is 10s away, out of tolerance).
-        text = self._render(caps, frame=0)
-        assert "no BMS:2101 capture within" in text
+        caps = [_entry(ecu="VCU", pid="2101", payload="6101AA", time="12:00:00")]
+        frames, _ = build_join_frames(caps, [("VCU", "2101")], tol_s=2.5)
+        assert frames[0].anchor_dt == datetime(2026, 7, 22, 12, 0, 0)
 
 
 class TestSetSessionNote:

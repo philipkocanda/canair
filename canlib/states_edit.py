@@ -94,6 +94,60 @@ def _new_entry(name: str, description: str | None, when: str | None) -> Commente
     return entry
 
 
+def _comment_slot(data: CommentedMap, idx: int) -> tuple[dict, object | None, int]:
+    """Locate where the comment block *preceding* ``states[idx]`` is stored.
+
+    ruamel does not keep a sequence item's leading comment on the item itself:
+    it lands as the trailing comment of the *previous* item's last key, or — for
+    the first item — in the pre-comment list of the ``states`` key. Returns the
+    owning ``ca.items`` dict, the key within it, and the slot index.
+    """
+    if idx <= 0:
+        return data.ca.items, "states", 3
+    prev = data["states"][idx - 1]
+    keys = list(prev.keys()) if isinstance(prev, dict) else []
+    return prev.ca.items, (keys[-1] if keys else None), 2
+
+
+def _as_pre_comment(token) -> list:
+    """Split a trailing CommentToken into per-line tokens for a pre-comment list.
+
+    A trailing comment stores the whole block (blank lines and indentation
+    included) in one token, whereas a pre-comment list holds one token per line.
+    """
+    from ruamel.yaml.error import CommentMark
+    from ruamel.yaml.tokens import CommentToken
+
+    column = getattr(getattr(token, "start_mark", None), "column", 2)
+    lines = [ln.strip() for ln in str(token.value).splitlines()]
+    return [CommentToken(f"{ln}\n", CommentMark(column)) for ln in lines if ln]
+
+
+def _delete_state_entry(data: CommentedMap, idx: int) -> None:
+    """Delete ``states[idx]`` without stealing the next entry's leading comment.
+
+    A plain ``del`` loses the *following* entry's comment (ruamel stores it on
+    the victim) and orphans the victim's own comment onto its successor — so
+    removing a state silently re-labels the next one. Re-homing the victim's
+    trailing comment onto the slot that held its leading comment keeps every
+    surviving entry with the comment written above it.
+    """
+    v_items, v_key, v_slot = _comment_slot(data, idx + 1)
+    victim_trailing = v_items.get(v_key, [None] * 4)[v_slot] if v_key is not None else None
+
+    d_items, d_key, d_slot = _comment_slot(data, idx)
+    del data["states"][idx]
+    if d_key is None:
+        return
+    slot = d_items.setdefault(d_key, [None, None, None, None])
+    if victim_trailing is None:
+        slot[d_slot] = None
+    elif d_slot == 3:  # the parent key's pre-comment list wants per-line tokens
+        slot[d_slot] = _as_pre_comment(victim_trailing)
+    else:
+        slot[d_slot] = victim_trailing
+
+
 def _reparse_validate(path: Path) -> None:
     """Re-parse the written file and validate structure + predicate syntax."""
     data = yaml_io.safe_load(path.read_text()) or {}
@@ -165,7 +219,11 @@ def add_state(
 
 
 def remove_state(name: str, *, profile: Profile | None = None) -> Path:
-    """Remove a state from the vocabulary. Errors if it isn't declared."""
+    """Remove a state from the vocabulary. Errors if it isn't declared.
+
+    The removed entry's own leading comment goes with it; every surviving
+    entry keeps the comment written above it (see :func:`_delete_state_entry`).
+    """
     name = normalize_name(name)
     path = _states_path(profile)
     if not path.exists():
@@ -175,7 +233,7 @@ def remove_state(name: str, *, profile: Profile | None = None) -> Path:
     idx = _find(data["states"], name)
     if idx == -1:
         raise StatesEditError(f"state {name!r} not found")
-    del data["states"][idx]
+    _delete_state_entry(data, idx)
     _safe_write(path, original, data)
     return path
 

@@ -137,7 +137,7 @@
       "date": "2026-04-18",
       "label": "SKM DID scan + IGPM key-in-car observation",
       "vehicle_states": [
-        "deep sleep"
+        "SLEEP"
       ],
       "notes": "SKM B0xx range discovery: 9 responding DIDs (B002-B00B).\nB002 has 136 data bytes — massive status register, likely contains key presence.\nAlso captured IGPM BC03 POWER_MODE=0x73 with key in car (vs 0x0A without key).\nSKM B1xx, 01xx, service 21 01-0F all returned NRC — B0xx is the right range.\n [migrated state: Deep sleep, key in unlocked car, unplugged, 12.4-12.6V battery]",
       "captures": [

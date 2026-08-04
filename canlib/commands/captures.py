@@ -9,12 +9,13 @@ are aggregate modes that take no QUERY.
   QUERY                 List matching captures (default view; latest --limit)
   QUERY --diff          Monitor-style view (decoded params + colored byte-diff),
                         one block per ECU+PID (unique payloads only; --all = all)
-  QUERY --step          Interactive: step through captures one at a time with
-                        arrow keys, decoded params + byte-diff vs previous
-                        capture; e adds/edits a note, d deletes a capture
-  QUERY --step --pair   Interactive: compare two ECU:PID selections side by
-                        side, joining captures by nearest timestamp within
-                        --join-tol (query must resolve to exactly two keys)
+  QUERY --step          Interactive: step through captures with arrow keys,
+                        decoded params + byte-diff vs the previous capture of the
+                        same PID; e adds/edits a note, d deletes a capture.
+                        A QUERY selecting SEVERAL PIDs stacks them underneath
+                        each other in one time-joined frame (--join-tol), so
+                        they can be cross-compared; PIDs, tolerance and view are
+                        all editable inside the TUI (a/t/V, ? for help)
   QUERY --latest        Most recent payload per PID for the QUERY selection
   --latest              Most recent payload per PID (all ECUs; no QUERY)
   QUERY --delete        Delete the captures matching QUERY (and scope filters);
@@ -23,6 +24,12 @@ are aggregate modes that take no QUERY.
   --sessions            Session table of contents: date/time-span/state/label/
                         notes/ECUs per session (no payloads); --json for machine
                         output. Honors the scope filters.
+
+Step views (--view; default auto — stacked for up to 6 PIDs, else interleaved):
+  stacked               One block per PID per frame: params + byte-diff hex
+  signals               Params only (no hex) — fits more PIDs on one screen
+  changed               Only params whose decoded value moved, per block
+  interleaved           One capture per frame, chronologically across the PIDs
 
 Output size (default list view):
   --limit N             Show only the most recent N captures (default 50; 0 =
@@ -55,10 +62,13 @@ Examples (a bare `canair captures …` is shorthand for `canair captures uds …
   canair captures uds IGPM 22BC03 --diff    # Byte-diff for one ECU+PID
   canair captures uds "BMS:2102,2103" --diff  # Byte-diff, one block per PID
   canair captures uds BMS 2102 --step       # Step through one PID
-  canair captures uds "BMS:2102,2103" --step  # Step two PIDs interleaved
-  canair captures uds "VCU:2101 BMS:2101" --step  # Cross-ECU step-through
-  canair captures uds "VCU:2101 BMS:2101" --step --pair  # Compare two ECUs side by side
-  canair captures uds "VCU:2101 BMS:2101" --step --pair --join-tol 1.0  # Tighter pairing
+  canair captures uds "BMS:2102,2103" --step  # Stack two PIDs, time-joined
+  canair captures uds "HVAC:220100,2201A0,2201A2" --step  # Cross-compare three PIDs
+  canair captures uds "VCU:2101 BMS:2101" --step  # Cross-ECU compare
+  canair captures uds "VCU:2101 BMS:2101" --step --join-tol 1.0  # Tighter join
+  canair captures uds "HVAC:220100,2201A0" --step --view signals # Params only
+  canair captures uds BMS --step --view interleaved  # Browse every BMS PID
+  canair captures uds "BMS:2102,2103" --step --json --limit 5  # Frames as data
   canair captures uds --diff VCU:2101 --all  # One PID, every payload
   canair captures uds --summary             # Overview stats
   canair captures uds --sessions            # Session table of contents
@@ -106,7 +116,8 @@ from canlib.commands._captures_query import (
     _parse_query,
     load_all_captures,
 )
-from canlib.commands._captures_step import cmd_step, cmd_step_pair
+from canlib.commands._captures_step import cmd_step
+from canlib.commands._captures_step_model import AUTO_STACK_MAX_KEYS, VIEW_AUTO, VIEW_CHOICES
 from canlib.commands._group import group_help
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.states import join_states as _join_states
@@ -1090,7 +1101,8 @@ def _add_uds_parser(kinds) -> argparse.ArgumentParser:
         "--step",
         "-S",
         action="store_true",
-        help="Interactively step through matching captures (arrow keys; e=note, d=delete)",
+        help="Interactively step through matching captures (arrow keys; a several-PID "
+        "QUERY stacks them time-joined for cross-comparison; e=note, d=delete, ?=help)",
     )
 
     # Standalone modes that take no QUERY.
@@ -1155,7 +1167,8 @@ def _add_uds_parser(kinds) -> argparse.ArgumentParser:
         default=50,
         metavar="N",
         help="Default list view: show only the most recent N captures (default 50; "
-        "0 = no cap). A loud footer reports any hidden history.",
+        "0 = no cap). A loud footer reports any hidden history. Also caps the "
+        "frames rendered by a piped/--json --step.",
     )
 
     parser.add_argument(
@@ -1166,12 +1179,13 @@ def _add_uds_parser(kinds) -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        "--pair",
-        "-P",
-        action="store_true",
-        help="For --step: compare two ECU:PID selections side by side, joining "
-        "captures by nearest timestamp within --join-tol (query must resolve "
-        'to exactly two keys, e.g. "VCU:2101 BMS:2101")',
+        "--view",
+        choices=VIEW_CHOICES,
+        default=VIEW_AUTO,
+        help="For --step: how a frame is rendered — stacked (one block per PID), "
+        "signals (params only), changed (only params that moved), interleaved "
+        "(one capture per frame). Default auto: stacked for up to "
+        f"{AUTO_STACK_MAX_KEYS} PIDs, else interleaved. Cycle it live with V.",
     )
 
     parser.add_argument(
@@ -1179,15 +1193,16 @@ def _add_uds_parser(kinds) -> argparse.ArgumentParser:
         type=float,
         default=DEFAULT_JOIN_TOL_S,
         metavar="SECONDS",
-        help=f"For --step --pair: max timestamp difference to pair two captures "
-        f"(default {DEFAULT_JOIN_TOL_S:g}s)",
+        help=f"For --step: max timestamp difference when joining captures of "
+        f"different PIDs into one stacked frame (default {DEFAULT_JOIN_TOL_S:g}s; "
+        f"adjustable live with t / < / >)",
     )
 
     parser.add_argument(
         "--json",
         action="store_true",
-        help="Machine-readable JSON output (summary/sessions/latest/diff and the "
-        "default QUERY list; not --step, which is interactive)",
+        help="Machine-readable JSON output (summary/sessions/latest/diff/step and "
+        "the default QUERY list)",
     )
 
     add_scope_args(parser)
@@ -1209,14 +1224,6 @@ def run(args) -> int:
 
     query = build_query(args.query)
     standalone_mode = args.summary or args.sessions
-
-    if args.json and args.step:
-        print("error: --json cannot be combined with --step (interactive mode)", file=sys.stderr)
-        return 2
-
-    if args.pair and not args.step:
-        print("error: --pair requires --step", file=sys.stderr)
-        return 2
 
     if args.delete and not query:
         print(
@@ -1337,19 +1344,17 @@ def run(args) -> int:
         elif args.diff:
             cmd_diff(entries, query, show_all=args.all, rulers=args.rulers, as_json=args.json)
         elif args.step:
-            if args.pair:
-                cmd_step_pair(
-                    entries,
-                    query,
-                    show_all=args.all,
-                    captures_dir=args.dir,
-                    rulers=args.rulers,
-                    tol_s=args.join_tol,
-                )
-            else:
-                cmd_step(
-                    entries, query, show_all=args.all, captures_dir=args.dir, rulers=args.rulers
-                )
+            cmd_step(
+                entries,
+                query,
+                show_all=args.all,
+                captures_dir=args.dir,
+                rulers=args.rulers,
+                view=args.view,
+                tol_s=args.join_tol,
+                as_json=args.json,
+                limit=args.limit,
+            )
         else:
             cmd_list(entries, query, as_json=args.json, limit=args.limit)
     except QueryError as ex:

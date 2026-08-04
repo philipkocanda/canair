@@ -89,6 +89,34 @@ canair bix --annotate 6101FFFF… --ecu MyECU --pid 2101
 > differently, and there are transport (PCI) bytes you must not read across. See
 > [Byte indexing](../concepts/byte-indexing.md).
 
+### Reading several PIDs at the same instant
+
+`--diff` shows one PID's history. When the question is *"what did **that** byte do
+while **this** other signal changed?"*, step through the captures instead and let
+canair stack the PIDs into one time-joined frame:
+
+```bash
+canair captures uds "MyECU:2101,2102" --step              # two PIDs, stacked
+canair captures uds "HVAC:220100,2201A0,2201A2" --step    # duct temps vs compressor
+canair captures uds "VCU:2101 BMS:2101" --step            # across two ECUs
+```
+
+Each frame is anchored on a capture timestamp, with the other PIDs joined to the
+nearest capture within `--join-tol` (5s by default — wide enough for the skew of a
+round-robin `monitor` cycle). A block shows its `Δt` from the anchor, and a PID
+with no capture in range is reported rather than hidden, so you always know
+whether you are looking at a real simultaneous reading.
+
+Inside the stepper: `←`/`→` move between frames, `↑`/`↓` scroll a tall frame,
+**`a`** adds/removes PIDs from the comparison, **`t`** changes the join tolerance,
+**`V`** switches rendering (`signals` drops the hex to fit more PIDs; `changed`
+shows only parameters whose value actually moved), **`tab`** picks a block so
+**`e`** can annotate that capture, and **`?`** lists every key.
+
+This is the fastest way to watch an event-driven signal: put the *known* signal
+(a compressor flag, a door state) in the same frame as the *candidate* byte, then
+walk the frames across the moment it switched.
+
 To see what's still undecoded across a whole ECU (or PID), `canair coverage`
 audits every parameter expression against the longest captured payload and lists
 the **unmapped** and partially-decoded bytes:

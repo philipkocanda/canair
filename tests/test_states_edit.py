@@ -110,6 +110,75 @@ class TestRemoveState:
             remove_state("READY", profile=_Prof(tmp_path))
 
 
+class TestRemoveStateComments:
+    """Removing a state must not re-label its neighbours' comments.
+
+    ruamel keeps a sequence item's leading comment on the *previous* item, so a
+    naive delete drops the following state's comment and orphans the removed
+    state's own comment onto its successor — silently mislabelling it.
+    """
+
+    SRC = """states:
+  # charging comment
+  - name: CHARGING
+    when: "BMS.BATTERY_CURRENT < -1"
+
+  # deepsleep comment
+  - name: DEEPSLEEP
+    when: "__no_response__"
+
+  # --- vocabulary-only states ---
+  # (no auto-suggest predicate)
+  - name: SLEEP
+    description: Light sleep.
+
+  # trailing comment
+  - name: ALL
+    description: Every state.
+"""
+
+    def _prep(self, tmp_path):
+        prof = _Prof(tmp_path)
+        prof.states_file.write_text(self.SRC)
+        return prof
+
+    def test_middle_removal_keeps_next_comment(self, tmp_path):
+        prof = self._prep(tmp_path)
+        remove_state("DEEPSLEEP", profile=prof)
+        text = prof.states_file.read_text()
+        assert "# --- vocabulary-only states ---" in text
+        assert "# (no auto-suggest predicate)" in text
+        assert "# deepsleep comment" not in text
+        assert "# charging comment" in text
+        assert _names(prof) == ["CHARGING", "SLEEP", "ALL"]
+
+    def test_first_removal_keeps_next_comment(self, tmp_path):
+        prof = self._prep(tmp_path)
+        remove_state("CHARGING", profile=prof)
+        text = prof.states_file.read_text()
+        assert "# deepsleep comment" in text
+        assert "# charging comment" not in text
+        assert _names(prof) == ["DEEPSLEEP", "SLEEP", "ALL"]
+
+    def test_last_removal_keeps_own_comment_out(self, tmp_path):
+        prof = self._prep(tmp_path)
+        remove_state("ALL", profile=prof)
+        text = prof.states_file.read_text()
+        assert "# trailing comment" not in text
+        assert "# --- vocabulary-only states ---" in text
+        assert _names(prof) == ["CHARGING", "DEEPSLEEP", "SLEEP"]
+
+    def test_uncommented_removal_leaves_neighbours_alone(self, tmp_path):
+        prof = _Prof(tmp_path)
+        prof.states_file.write_text(
+            "states:\n  # a comment\n  - name: READY\n  - name: SLEEP\n  - name: ALL\n"
+        )
+        remove_state("SLEEP", profile=prof)
+        text = prof.states_file.read_text()
+        assert "# a comment" in text
+        assert _names(prof) == ["READY", "ALL"]
+
+
 class TestRenameState:
     def test_renames(self, tmp_path):
         prof = _Prof(tmp_path)

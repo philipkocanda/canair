@@ -8,6 +8,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`canair captures --step` compares several PIDs stacked underneath each other.**
+  A QUERY that selects more than one PID now renders each one as its own block in
+  a single **time-joined frame**, so signals can be read against each other at the
+  same instant — e.g. `canair cap "HVAC:220100,2201A0,2201A2" --step` shows the
+  compressor duty next to both duct temperatures as the AC cycles. Frames are
+  anchored on the *union* of every capture timestamp, with the other PIDs
+  nearest-joined within `--join-tol` (default 5s), so nothing is hidden: a capture
+  with no counterpart in range still gets a frame, marked
+  `— no ECU:PID capture within Ns —`. The view is **editable live**: `a` opens a
+  filterable checklist to add/remove PIDs, `t` (or `<`/`>`) changes the join
+  tolerance, `V` cycles the rendering, `tab` moves a block cursor that `e` (note),
+  `d` (delete) and `x` (drop this PID) act on. A new `--view` selects the rendering
+  non-interactively: `stacked` (params + byte-diff hex), `signals` (params only —
+  fits more PIDs on screen), `changed` (only params whose decoded value moved),
+  `interleaved` (the previous one-capture-per-frame walk), or the default `auto`
+  (stacked up to 6 PIDs, else interleaved). See
+  `plans/2026-08-04-captures-step-textual-multi-pid.md`.
+- **`canair captures --step` is now scrollable, with a `?` help modal.** It was the
+  last interactive view still driven by a hand-rolled full-redraw loop, which could
+  not show a frame taller than the terminal — fatal for three stacked PIDs (~50
+  lines). It is now a Textual app like `monitor`/`sniff`/`decode --plot`: the frame
+  scrolls (`↑`/`↓`, `j`/`k`, PgUp/PgDn, mouse wheel), `?` lists every key, and the
+  note/delete/goto prompts are real modals instead of character-accumulating
+  sub-loops.
+- **`canair captures --step` works non-interactively.** `--json` now emits the
+  joined frames as data (one block per selected PID, each with its `dt_s` offset
+  from the frame anchor and its decoded params) instead of being rejected, and
+  piped output renders the most recent frames statically (capped by `--limit`).
+  Previously `--step --pair` piped was a silent no-op, making the comparison
+  reachable only from a TTY.
 - **`elm327-tcp` transport — support any generic ELM327 adapter.** canair now
   talks to a plain ELM327 clone (WiFi dongles like Kiwi, vLinker, OBDLink, or any
   no-name $10 adapter) over a direct TCP socket — no WiCAN required. Select it
@@ -31,6 +61,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `plans/2026-08-03-elm327-direct-transport.md`.
 
 ### Fixed
+- **`canair states rm` no longer mislabels the neighbouring states' comments.**
+  ruamel stores a YAML sequence item's leading comment on the *previous* item, so
+  deleting a state took the **following** state's comment block with it (a section
+  header just vanished) and left the removed state's own comment orphaned above
+  its successor — silently re-labelling a state it never described. The removed
+  entry's comment now goes with it and every surviving entry keeps the comment
+  written above it, for a first, middle, or last removal.
 - **Slow UDS services (DTC reads, routines, long identity DIDs) no longer fail on
   the ELM327 transports.** When an ECU answered `7F xx 78` (ResponsePending —
   "request received, still working"), the engine correctly kept waiting but then
@@ -91,6 +128,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   YAML round-trip are now quoted; ordinary keys (`2101`) are left as-is.
 
 ### Changed
+- **`canair captures --step --pair` is removed; a multi-PID QUERY compares by
+  default.** `--pair` only ever handled *exactly two* keys, was read-only (no
+  note/delete), and its PID set and tolerance were fixed at launch. Everything it
+  did — and N-way, editable, and non-interactive — is now what a several-PID
+  `--step` QUERY does, so the flag has no reason to exist:
+  `canair cap "VCU:2101 BMS:2101" --step --pair` becomes
+  `canair cap "VCU:2101 BMS:2101" --step`. Two related behavior shifts: a multi-PID
+  `--step` now *stacks* the PIDs where it used to interleave one capture per frame
+  (`--view interleaved` restores the old walk), and PgUp/PgDn now scroll within a
+  frame (`[`/`]` keep the ±100-frame jump).
+- **The bundled `ioniq-2017` profile drops the `DEEPSLEEP` vehicle state.** It was
+  never referenced by any ECU definition, and its `__no_response__` predicate
+  asserts a *vehicle* state from the absence of an answer — which a transport
+  dropout produces just as readily as a sleeping car (and is already recorded
+  properly in a session's `quality` footprint). The 11 capture sessions carrying
+  the legacy free-text token `deep sleep` (which never matched `DEEPSLEEP`, and so
+  tripped `canair validate captures`) were re-tagged `SLEEP`. The
+  `__no_response__` sentinel itself is unchanged and still available to any
+  profile that wants it.
 - **The interactive REPL (`canair repl`) and `skm-wake` now work over the
   `elm327-tcp` transport too**, not just `wican-ws` — both only need ELM327 text
   semantics, which the shared engine provides on any ELM transport (still refused

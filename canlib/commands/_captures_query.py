@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Capture loading, query selection, and byte-diff/pair analysis helpers.
+"""Capture loading, query selection, and byte-diff/join analysis helpers.
 
 The pure data layer shared by the ``captures`` command's views (``captures.py``)
-and its interactive step TUI (``_captures_step.py``): loading capture files,
-resolving PID definitions, selecting entries with the query mini-language, and
-the keying/grouping/pairing primitives the diff and step views build on.
+and its interactive step TUI (``_captures_step_model.py``): loading capture
+files, resolving PID definitions, selecting entries with the query
+mini-language, and the keying/grouping/joining primitives the diff and step
+views build on.
 
 Nothing here is interactive — functions return data (the one exception is
 :func:`_gather_query`, which prints a note for selectors that matched nothing).
@@ -13,6 +14,8 @@ The ANSI colour constants live here as the single source of truth for the
 """
 
 import sys
+from bisect import bisect_left
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -366,65 +369,117 @@ def _group_by_key(captures: list[dict]) -> dict[tuple[str, str], list[dict]]:
     return groups
 
 
-def _pair_by_time(
-    a_indices: list[int],
-    b_indices: list[int],
-    dts: dict[int, datetime],
+def key_index(entries: list[dict]) -> dict[tuple[str, str], list[dict]]:
+    """Group payload-bearing ``entries`` by (ECU, PID), for repeated re-selection.
+
+    The step TUI lets the user add/remove PIDs live, which re-selects captures on
+    every change. Grouping the whole scoped set once up front makes each rebuild
+    proportional to the *selected* keys instead of rescanning every loaded
+    capture. Non-hex payloads are excluded, matching :func:`_gather_query`.
+    """
+    index: dict[tuple[str, str], list[dict]] = {}
+    for e in entries:
+        if not _is_hex_payload(e.get("payload")):
+            continue
+        index.setdefault(_capture_key(e), []).append(e)
+    return index
+
+
+# ---------------------------------------------------------------------------
+# N-way time join (the stacked compare view)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class JoinFrame:
+    """One row of the stacked compare view: an anchor time + one slot per key.
+
+    ``indices`` is parallel to the caller's key order; a slot is ``None`` when
+    that key had no capture within the join tolerance of ``anchor_dt``.
+    """
+
+    anchor_dt: datetime
+    indices: tuple[int | None, ...]
+
+
+def _nearest_within(ts: list[float], t: float, tol_s: float) -> int | None:
+    """Position in the sorted ``ts`` nearest to ``t``, or None if none within ``tol_s``.
+
+    Mirrors the nearest-within-tolerance rule of
+    :func:`canlib.align.join_prepared`: the smaller absolute delta wins, and an
+    exact tie resolves to the *earlier* sample.
+    """
+    if not ts:
+        return None
+    pos = bisect_left(ts, t)
+    best: int | None = None
+    best_d = float("inf")
+    # The nearest sample is one of the two straddling `t`; check the earlier
+    # candidate first so an exact tie keeps it (align's tie rule).
+    for cand in (pos - 1, pos):
+        if 0 <= cand < len(ts):
+            d = abs(ts[cand] - t)
+            if d < best_d:
+                best, best_d = cand, d
+    if best is None or best_d > tol_s:
+        return None
+    return best
+
+
+def build_join_frames(
+    captures: list[dict],
+    keys: list[tuple[str, str]],
     tol_s: float,
-) -> list[tuple[int | None, int | None]]:
-    """Merge two time-sorted index lists into ``(left, right)`` pair frames.
+) -> tuple[list[JoinFrame], int]:
+    """Join captures of several (ECU, PID) keys into a stacked, time-aligned timeline.
 
-    ``a_indices``/``b_indices`` are indices into a shared captures list, each
-    pre-sorted by its timestamp (looked up in ``dts``). Two captures whose
-    timestamps fall within ``tol_s`` seconds are paired into one frame; captures
-    with no counterpart in range appear alone (the other side is ``None``), so
-    the merged timeline hides nothing. The tolerance follows the
-    nearest-within-window join semantics of :mod:`canlib.align`.
+    Every *timed* capture anchors a frame (the union of all timestamps), and each
+    key contributes the capture nearest that anchor within ``tol_s`` seconds —
+    so nothing is hidden: a capture with no counterpart still appears, alone.
+    Consecutive frames resolving to the *same* set of captures collapse into one
+    (a round-robin poll of N PIDs within the tolerance yields N identical
+    anchors); the collapse is deliberately consecutive-only, so a set that
+    recurs later in the timeline still gets its own frame.
+
+    ``keys`` fixes the slot order of :attr:`JoinFrame.indices` (the on-screen
+    block order); a key with no captures contributes an always-``None`` slot.
+    Returns ``(frames, n_no_time)``, the latter counting captures excluded for
+    lacking a usable timestamp (as in :mod:`canlib.align`).
     """
-    frames: list[tuple[int | None, int | None]] = []
-    ia = ib = 0
-    na, nb = len(a_indices), len(b_indices)
-    while ia < na and ib < nb:
-        ta, tb = dts[a_indices[ia]], dts[b_indices[ib]]
-        if abs((ta - tb).total_seconds()) <= tol_s:
-            frames.append((a_indices[ia], b_indices[ib]))
-            ia += 1
-            ib += 1
-        elif ta < tb:
-            frames.append((a_indices[ia], None))
-            ia += 1
-        else:
-            frames.append((None, b_indices[ib]))
-            ib += 1
-    frames.extend((a_indices[ia + k], None) for k in range(na - ia))
-    frames.extend((None, b_indices[ib + k]) for k in range(nb - ib))
-    return frames
-
-
-def _build_pair_frames(
-    captures: list[dict], tol_s: float
-) -> tuple[list[tuple[int | None, int | None]], tuple[str, str], tuple[str, str], int]:
-    """Build the two-ECU pair timeline from captures spanning exactly two keys.
-
-    Returns ``(frames, key_a, key_b, n_no_time)`` where ``key_a``/``key_b`` are
-    the two (ECU, PID) keys in first-appearance order and ``n_no_time`` counts
-    captures excluded from pairing for lacking a usable timestamp (as in
-    :mod:`canlib.align`). The caller must have already verified there are exactly
-    two distinct keys.
-    """
-    keys = list(_group_by_key(captures))
-    key_a, key_b = keys[0], keys[1]
-    a_indices: list[int] = []
-    b_indices: list[int] = []
+    per_key: dict[tuple[str, str], list[int]] = {k: [] for k in keys}
     dts: dict[int, datetime] = {}
     n_no_time = 0
     for idx, e in enumerate(captures):
+        bucket = per_key.get(_capture_key(e))
+        if bucket is None:
+            continue
         dt = entry_datetime(e)
         if dt is None:
             n_no_time += 1
             continue
         dts[idx] = dt
-        (a_indices if _capture_key(e) == key_a else b_indices).append(idx)
-    a_indices.sort(key=lambda i: dts[i])
-    b_indices.sort(key=lambda i: dts[i])
-    return _pair_by_time(a_indices, b_indices, dts, tol_s), key_a, key_b, n_no_time
+        bucket.append(idx)
+
+    for bucket in per_key.values():
+        bucket.sort(key=lambda i: dts[i])
+    # Epoch floats per key for the bisect join (parallel to per_key's lists).
+    epochs = {k: [dts[i].timestamp() for i in idxs] for k, idxs in per_key.items()}
+
+    # Union of every timestamp, ordered by time then key order for a stable
+    # anchor sequence when two keys share an instant.
+    key_order = {k: n for n, k in enumerate(keys)}
+    anchors = sorted(dts, key=lambda i: (dts[i], key_order.get(_capture_key(captures[i]), 0)))
+
+    frames: list[JoinFrame] = []
+    prev: tuple[int | None, ...] | None = None
+    for a in anchors:
+        t = dts[a].timestamp()
+        row = tuple(
+            per_key[k][pos] if (pos := _nearest_within(epochs[k], t, tol_s)) is not None else None
+            for k in keys
+        )
+        if row == prev:
+            continue
+        frames.append(JoinFrame(anchor_dt=dts[a], indices=row))
+        prev = row
+    return frames, n_no_time

@@ -3,8 +3,8 @@
     {
       "date": "2026-04-17",
       "vehicle_states": [
-        "deep sleep",
-        "parked"
+        "SLEEP",
+        "PARKED"
       ],
       "label": "BCM 22B003/22B004 live voltage monitoring",
       "notes": "Observed 22B003 and 22B004 changing every few seconds in monitor mode. 22B003 contains slowly decrementing ADC-like values u2014 likely 12V battery voltage measurements across multiple points (battery terminals, fuse box, BCM internal rail). B07 drifts fastest (~2 LSB/min), B10/B12/B14 follow. Static bytes (B03-B06, B08, B15) may be config/thresholds. 22B004 has a single bit (B09 bit 6) toggling 0x00u21940x40 every ~12-15s u2014 periodic heartbeat/watchdog flag. Rest of B004 is static. BCM likely uses these readings to decide when to activate the LDC (DC-DC converter) to top up the 12V from the HV traction battery.\n [migrated state: deep sleep, parked, locked, no charging]",
@@ -56,8 +56,8 @@
     {
       "date": "2026-04-17",
       "vehicle_states": [
-        "deep sleep",
-        "parked"
+        "SLEEP",
+        "PARKED"
       ],
       "label": "BCM 22B001 — static config DID",
       "notes": "22B001 consistently returns NO DATA on the first query attempt, then responds on subsequent retries. 17 data bytes. All values appear static across multiple monitor cycles — no changes observed.\n [migrated state: deep sleep, parked, locked, no charging]",
@@ -73,8 +73,8 @@
     {
       "date": "2026-04-17",
       "vehicle_states": [
-        "deep sleep",
-        "parked"
+        "SLEEP",
+        "PARKED"
       ],
       "label": "IGPM 22BC07 — status DID, unknown decode",
       "notes": "10 data bytes. Not yet decoded. IOControl 2FBC0703 confirmed as Horn (see docs/IOControl CLI commands.md). Contents unknown \\u2014 possibly horn status, VESS, or unrelated body state.\n [migrated state: deep sleep, parked, locked, no charging]",
@@ -91,7 +91,7 @@
       "date": "2026-04-17",
       "label": "testing save feature",
       "vehicle_states": [
-        "deep sleep"
+        "SLEEP"
       ],
       "captures": [
         {
@@ -130,7 +130,7 @@
       "date": "2026-04-17",
       "label": "testing save feature",
       "vehicle_states": [
-        "deep sleep"
+        "SLEEP"
       ],
       "captures": [
         {
@@ -167,7 +167,7 @@
       "date": "2026-04-17",
       "label": "testing",
       "vehicle_states": [
-        "deep sleep"
+        "SLEEP"
       ],
       "captures": [
         {
