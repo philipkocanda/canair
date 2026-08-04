@@ -36,6 +36,10 @@ jobs:
         run: uv sync --group docs
 
       - name: Build site
+        # Silences Material's MkDocs-2.0 advocacy notice — see the same step in
+        # ci.yml and plans/2026-07-24-documentation-strategy.md.
+        env:
+          NO_MKDOCS_2_WARNING: "1"
         run: uv run mkdocs build --strict --site-dir site
 
       - name: Upload Pages artifact

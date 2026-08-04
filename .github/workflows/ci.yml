@@ -60,6 +60,13 @@ jobs:
         run: uv run python scripts/gen_screenshots.py --check
 
       - name: Docs build (mkdocs --strict)
+        # NO_MKDOCS_2_WARNING silences Material's red MkDocs-2.0 advocacy notice,
+        # which prints on every build and is not actionable for us (no
+        # third-party plugins, no theme overrides, mkdocs pinned <2). Keeping it
+        # out of the log makes a real docs failure easy to spot. Rationale:
+        # plans/2026-07-24-documentation-strategy.md.
+        env:
+          NO_MKDOCS_2_WARNING: "1"
         run: uv run mkdocs build --strict --site-dir /tmp/site
 
       - name: Tests

@@ -43,7 +43,14 @@ dev = [
     "ty>=0.0.1a1",
 ]
 docs = [
-    "mkdocs-material>=9.5",
+    # Capped below 10 deliberately. The MkDocs ecosystem is splitting: MkDocs 2.0
+    # removes the plugin system and rewrites theming (which Material 9.x is built
+    # on), and Material's authors have moved to their own engine, Zensical.
+    # Material 9.x already pins mkdocs<2, so builds are safe today — this cap
+    # makes the *next* engine change an explicit decision rather than something a
+    # routine `uv lock --upgrade` makes for us. See
+    # plans/2026-07-24-documentation-strategy.md.
+    "mkdocs-material>=9.5,<10",
 ]
 
 [tool.pytest.ini_options]

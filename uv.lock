@@ -165,7 +165,7 @@ dev = [
     { name = "ruff", specifier = ">=0.9" },
     { name = "ty", specifier = ">=0.0.1a1" },
 ]
-docs = [{ name = "mkdocs-material", specifier = ">=9.5" }]
+docs = [{ name = "mkdocs-material", specifier = ">=9.5,<10" }]
 
 [[package]]
 name = "cantools"

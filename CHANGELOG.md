@@ -188,6 +188,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   YAML round-trip are now quoted; ordinary keys (`2101`) are left as-is.
 
 ### Changed
+- **The docs toolchain is pinned to `mkdocs-material>=9.5,<10`, and its MkDocs-2.0
+  notice is silenced in `make docs`/CI.** Material 9.7.2+ prints a red advocacy
+  warning about the upcoming MkDocs 2.0 on every build; it is not actionable for
+  canair (no third-party plugins, no theme overrides) and never failed a build, but
+  it buried real docs output in red text. The previous unbounded `>=9.5` also meant
+  a routine `uv lock --upgrade` could move the docs onto a different engine
+  silently — the ecosystem is splitting between MkDocs 2.0 and Material's own
+  Zensical — so the cap makes that an explicit decision. Reasoning and revisit
+  triggers are recorded in `plans/2026-07-24-documentation-strategy.md`.
+
 - **Every save now reports the full path it landed in.** A save that printed a
   bare filename (`→ Saved 12 capture(s) to 2026-08-04.json`) left the most
   important question unanswered — *which* profile's `captures/` got the data,

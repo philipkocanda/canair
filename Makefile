@@ -2,6 +2,14 @@
 # runs through `uv run` so it uses the pinned toolchain (see pyproject.toml).
 # CI and the pre-commit hooks call these same scripts directly.
 
+# Material for MkDocs prints a red MkDocs-2.0 advocacy notice on every mkdocs
+# invocation (stderr, exit 0 — it never fails a build). It is not actionable
+# here: canair uses no third-party plugins and no theme overrides, and
+# mkdocs-material already pins mkdocs<2, so for us it is pure log noise.
+# Revisit if MkDocs 1.x takes a security issue or Material 9.x stops building.
+# Rationale: plans/2026-07-24-documentation-strategy.md.
+export NO_MKDOCS_2_WARNING := 1
+
 .PHONY: help docs docs-serve screenshots screenshots-check gen gen-check check
 
 help:

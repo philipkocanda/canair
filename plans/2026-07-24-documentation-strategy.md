@@ -288,3 +288,48 @@ Beyond the initial docs pass, the following shipped:
 Remaining open: `docs/reference/schemas.md` (planned, unwritten); a doc-numbers
 freshness check for the bundled-profile stats; the emoji/anchor housekeeping is
 done.
+
+## Toolchain: the MkDocs 2.0 / Zensical split (decided 2026-08-04)
+
+Since Material for MkDocs 9.7.2, every `mkdocs` invocation prints a red
+"Warning from the Material for MkDocs team" about MkDocs 2.0. It is **not** a
+warning about our configuration, and it never fails a build: it goes to stderr
+and `mkdocs build --strict` still exits 0. Source:
+`material/templates/__init__.py`.
+
+**Our exposure is low, and lower than the notice implies:**
+
+| | canair | the notice's claim |
+|---|---|---|
+| third-party plugins | 0 (only built-in `search`) | "all plugins will stop working" |
+| theme overrides (`custom_dir`) | 0 | "all theme overrides will break" |
+| hooks | 0 | — |
+
+Two things already protect the build: **mkdocs-material 9.x pins `mkdocs<2`**
+(added in 9.7.5 for exactly this reason), and **`uv.lock` is committed** while CI
+runs `uv sync --group docs`, so no upgrade happens spontaneously.
+
+**Decisions:**
+
+1. **`mkdocs-material>=9.5,<10`.** The previous unbounded `>=9.5` meant a routine
+   `uv lock --upgrade` could move us onto a different engine silently. The cap
+   turns that into an explicit choice. (Note `mkdocs` is *transitive* via
+   Material — we declare no direct constraint on it.)
+2. **Silence the notice** in the `Makefile` and both workflows via
+   `NO_MKDOCS_2_WARNING=1`, with the reasoning recorded at each site. It is
+   unactionable for us and would otherwise bury a real docs failure in red text.
+3. **Do not migrate** to Zensical or MkDocs 2.0 now. MkDocs 2.0 has no release
+   date, and our config is vanilla enough to stay portable.
+
+**Read the linked analysis with its authorship in mind.** It is written by the
+Material team, who now build the competing generator Zensical, and it closes with
+paid migration support. The technical claims (no plugin system, TOML config, no
+migration path) are checkable; the governance claims ("unmaintained",
+"unlicensed", "closed contribution model") are one side of an active dispute.
+
+**Revisit if:** a security issue lands in MkDocs 1.x or Material 9.x; Material 9.x
+stops building on a supported Python; or we want a Material 10 / Zensical feature.
+Worth knowing that the Material-specific nav features we use (`navigation.instant`,
+`navigation.sections`) are precisely what the notice says MkDocs 2.0 makes
+impossible for themes — so a move *to MkDocs 2.0* would cost us the nav
+experience, whereas Zensical aims at MkDocs 1.x compatibility.
