@@ -255,16 +255,15 @@ def _validate_iocontrol_scan_ranges(value, label: str, errors: list) -> None:
 
 
 def _profile_for_ecu_file(path: Path):
-    """Build a Profile rooted at an ECU file's grandparent (``<root>/ecus/x.yaml``).
+    """The profile owning an ECU file (``<root>/ecus/x.yaml``).
 
     Scopes state-vocabulary validation to the profile the file belongs to,
     independent of the globally-active profile. A bare test/tmp file (no
     ``vehicle_states.yaml`` at that root) simply yields the base ``POWER_STATES``.
     """
-    from canlib.profile import Profile
+    from canlib.profile import profile_for_path
 
-    root = path.resolve().parent.parent
-    return Profile(root.name, root)
+    return profile_for_path(path)
 
 
 @dataclass(frozen=True)

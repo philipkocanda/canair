@@ -2,7 +2,13 @@
 
 import pytest
 
-from canlib.profile import BUNDLE_MEMBERS, Profile, member_names, members_by_role
+from canlib.profile import (
+    BUNDLE_MEMBERS,
+    Profile,
+    member_names,
+    members_by_role,
+    profile_for_path,
+)
 
 
 def _profile(root) -> Profile:
@@ -102,3 +108,52 @@ class TestBundleRegistry:
             path = root / member.name
             path.mkdir() if member.kind == "dir" else path.write_text("")
             assert _looks_like_profile(root), f"{member.name} should identify a profile"
+
+
+class TestProfileForPath:
+    """Resolving *which* profile owns a path, without consulting the active one."""
+
+    def _bundle(self, tmp_path, name="car"):
+        root = tmp_path / name
+        (root / "ecus").mkdir(parents=True)
+        (root / "profile.yaml").write_text("car_model: X\n")
+        return root
+
+    def test_from_the_root_itself(self, tmp_path):
+        root = self._bundle(tmp_path)
+        assert profile_for_path(root).root == root
+
+    def test_from_the_ecus_dir(self, tmp_path):
+        root = self._bundle(tmp_path)
+        prof = profile_for_path(root / "ecus")
+        assert (prof.name, prof.root) == (root.name, root)
+
+    def test_from_an_ecu_file(self, tmp_path):
+        root = self._bundle(tmp_path)
+        (root / "ecus" / "bms.yaml").write_text("BMS:\n  tx_id: 0x7E4\n")
+        assert profile_for_path(root / "ecus" / "bms.yaml").root == root
+
+    def test_from_a_deeply_nested_file(self, tmp_path):
+        root = self._bundle(tmp_path)
+        nested = root / "captures" / "can"
+        nested.mkdir(parents=True)
+        log = nested / "drive.asc"
+        log.write_text("")
+        assert profile_for_path(log).root == root
+
+    def test_ignores_the_active_profile(self, tmp_path, monkeypatch):
+        from canlib import profile as profile_mod
+
+        other = self._bundle(tmp_path, "other")
+        monkeypatch.setattr(profile_mod, "_active", Profile("other", other))
+        root = self._bundle(tmp_path, "mine")
+        assert profile_for_path(root / "ecus").root == root
+
+    def test_outside_any_bundle_yields_absent_members(self, tmp_path):
+        # No bundle anywhere up the tree: the result must not resolve to the
+        # active profile — its vocabulary files simply don't exist.
+        loose = tmp_path / "scratch" / "ecus"
+        loose.mkdir(parents=True)
+        prof = profile_for_path(loose)
+        assert not prof.states_file.exists()
+        assert not prof.can_buses_file.exists()

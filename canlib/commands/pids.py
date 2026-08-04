@@ -391,13 +391,12 @@ def cmd_rm_identity(args: argparse.Namespace) -> int:
 
 def cmd_set_can_bus(args: argparse.Namespace) -> int:
     from canlib.can_buses import allowed_can_buses
-    from canlib.profile import Profile, active
+    from canlib.profile import active, profile_for_path
 
     # Resolve the vocabulary from the profile owning the target ecus/ dir
     # (or the active profile). Enforced only when the profile declares one.
     if args.dir:
-        root = Path(args.dir).resolve().parent
-        allowed = allowed_can_buses(Profile(root.name, root))
+        allowed = allowed_can_buses(profile_for_path(args.dir))
     else:
         allowed = allowed_can_buses(active())
     if allowed:

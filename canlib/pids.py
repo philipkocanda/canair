@@ -189,10 +189,12 @@ def load_pids(path: Path | None = None) -> dict:
 
     path = Path(path)
     if path.is_dir():
-        meta_path = path.parent / "profile.yaml"
+        from .profile import profile_for_path
+
+        meta_file = profile_for_path(path).meta_file
         meta = {}
-        if meta_path.exists():
-            with open(meta_path) as f:
+        if meta_file.exists():
+            with open(meta_file) as f:
                 meta = _yaml_load(f) or {}
         return _load_dir(path, meta=meta)
 

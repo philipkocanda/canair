@@ -40,7 +40,7 @@ from . import pids as pids_mod
 from .byteindex import payload_to_wican_bytes
 from .decode_value import decode_typed
 from .expression import evaluate_expression
-from .profile import BUNDLE_MEMBERS, Profile
+from .profile import BUNDLE_MEMBERS, Profile, profile_for_path
 from .stats import cramers_v, pearson, spearman
 from .xanalysis import linear_fit
 
@@ -372,7 +372,7 @@ def load_payload_index(profile_root: Path) -> dict[tuple[str, str], list[bytes]]
     targets. ``rx`` keys are lower-case, ``pid`` keys upper-case. The returned
     mapping is cached and shared — treat it as read-only.
     """
-    captures_dir = Profile(Path(profile_root).name, Path(profile_root)).captures_dir
+    captures_dir = profile_for_path(profile_root).captures_dir
     if not captures_dir.is_dir():
         return {}
     return _payload_index(captures_dir, _captures_fingerprint(captures_dir))
@@ -576,7 +576,7 @@ def select_targets(
     voltages).
     """
     source_root = Path(source_root)
-    pids_data = pids_mod.load_pids(Profile(source_root.name, source_root).ecus_dir)
+    pids_data = pids_mod.load_pids(profile_for_path(source_root).ecus_dir)
     index = pids_mod.build_ecu_index(pids_data)
     # One pass over captures/ for the whole selection: every verified parameter
     # needs its PID's payloads, and the params of one PID all share a key.

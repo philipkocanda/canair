@@ -312,6 +312,25 @@ def resolve_profile(
     )
 
 
+def profile_for_path(path: Path | str) -> Profile:
+    """The profile that owns ``path`` — its root, its ``ecus/`` dir, or a file inside.
+
+    Walks up to the nearest directory that looks like a profile bundle, so a
+    caller holding only a file path can resolve that file's *own* profile rather
+    than whichever one happens to be active. When nothing on the way up looks
+    like a bundle (a scratch file outside any profile), the nearest plausible
+    root is used anyway: its vocabulary files are simply absent, which is what
+    the callers want — never a silent fall back to the active profile.
+    """
+    path = Path(path).resolve()
+    candidates = [path, *path.parents] if path.is_dir() else list(path.parents)
+    for candidate in candidates:
+        if _looks_like_profile(candidate):
+            return Profile(candidate.name, candidate)
+    root = path.parent if path.is_dir() else path.parent.parent
+    return Profile(root.name, root)
+
+
 _active: Profile | None = None
 
 
