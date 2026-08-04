@@ -118,13 +118,13 @@ examples:
   canair sniff --filter 770,7E4 --listen-only
 """,
     )
-    from canlib.constants import DEFAULT_WICAN, WICAN_ADDRESSES
+    from canlib.config import default_wican, wican_addresses
 
     parser.add_argument(
         "--wican",
         default=None,
-        help=f"WiCAN address: {', '.join(WICAN_ADDRESSES)} or IP "
-        f"(default: config transport.host / default_wican={DEFAULT_WICAN})",
+        help=f"WiCAN address: {', '.join(wican_addresses())} or IP "
+        f"(default: config transport.host / default_wican={default_wican()})",
     )
     parser.add_argument(
         "--listen-only",

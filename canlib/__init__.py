@@ -42,11 +42,9 @@ from .uds_parse import NRC_ABBREV, NRC_CODES, nrc_abbrev, parse_uds_response
 
 __all__ = [
     "BLOCKED_UDS_SERVICES",
-    "DEFAULT_WICAN",
     "NRC_ABBREV",
     "NRC_CODES",
     "SCRIPT_DIR",
-    "WICAN_ADDRESSES",
     "WiCANTerminal",
     "__version__",
     "build_ecu_index",
@@ -81,12 +79,3 @@ __all__ = [
     "rx_from_name",
     "uds_hex_to_wican_bytes",
 ]
-
-
-def __getattr__(name):
-    """Lazily expose profile/config-dependent constants (PEP 562)."""
-    if name in ("DEFAULT_WICAN", "WICAN_ADDRESSES", "ECUS_DIR", "CAPTURES_DIR"):
-        from . import constants
-
-        return getattr(constants, name)
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

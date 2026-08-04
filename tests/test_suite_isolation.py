@@ -123,3 +123,31 @@ class TestNoEagerConfigReadAtImportTime:
         # Must stay None (matching the real `--wican` default). A config-derived
         # value here is resolved at import time and re-introduces the eager read.
         assert CANAIR_DEFAULTS["wican"] is None
+
+    def test_constants_exposes_no_lazy_config_magic(self):
+        """`canlib.constants` must hold only static values.
+
+        A module-level `__getattr__` (PEP 562) is what made the config read happen
+        at import time *and* left every imported constant untyped. Re-adding one
+        would silently reintroduce both problems, so assert it's gone and that the
+        old names resolve nowhere.
+        """
+        import canlib
+        from canlib import constants
+
+        assert not hasattr(constants, "__getattr__"), (
+            "constants.__getattr__ is back — use an explicit typed accessor "
+            "(config.wican_addresses / profile.active()) instead"
+        )
+        assert not hasattr(canlib, "__getattr__")
+        for name in ("WICAN_ADDRESSES", "DEFAULT_WICAN", "ECUS_DIR", "CAPTURES_DIR"):
+            assert not hasattr(constants, name), f"constants.{name} should be gone"
+            assert not hasattr(canlib, name), f"canlib.{name} should be gone"
+
+    def test_the_typed_accessors_work_and_are_typed(self):
+        from canlib.config import default_wican, wican_addresses
+
+        addresses = wican_addresses()
+        assert isinstance(addresses, dict)
+        assert all(isinstance(k, str) and isinstance(v, str) for k, v in addresses.items())
+        assert isinstance(default_wican(), str)

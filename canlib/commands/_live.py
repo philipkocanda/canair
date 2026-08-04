@@ -285,13 +285,13 @@ def expand_step_groups(steps: list[str]) -> list[str]:
 
 def add_connection_args(parser: argparse.ArgumentParser) -> None:
     """Add the connection/output flags common to every live subcommand."""
-    from canlib.constants import DEFAULT_WICAN, WICAN_ADDRESSES
+    from canlib.config import default_wican, wican_addresses
 
     parser.add_argument(
         "--wican",
         default=None,
-        help=f"WiCAN address: {', '.join(WICAN_ADDRESSES.keys())} or IP "
-        f"(default: config transport.host / default_wican={DEFAULT_WICAN})",
+        help=f"WiCAN address: {', '.join(wican_addresses())} or IP "
+        f"(default: config transport.host / default_wican={default_wican()})",
     )
     parser.add_argument(
         "--transport",

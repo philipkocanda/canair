@@ -3,7 +3,6 @@
 import pytest
 
 import canlib.config as cfg_mod
-import canlib.constants as const_mod
 from canlib.transport import config as tc
 from canlib.transport.config import TransportError, resolve_transport
 
@@ -28,7 +27,6 @@ def env(monkeypatch):
     from canlib.config import DeviceEntry
 
     monkeypatch.setattr(tc, "_wican_addresses", lambda: {"vpn": "1.2.3.4", "home": "10.0.0.9"})
-    monkeypatch.setattr(const_mod, "DEFAULT_WICAN", "vpn", raising=False)
 
     devices = {"vpn": DeviceEntry(host="1.2.3.4"), "home": DeviceEntry(host="10.0.0.9")}
     monkeypatch.setattr(tc, "_wican_devices", lambda: (dict(devices), "vpn"))

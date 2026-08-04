@@ -287,6 +287,24 @@ def wican_settings() -> tuple[dict[str, str], str]:
     return {alias: dev.host for alias, dev in devices.items()}, default
 
 
+def wican_addresses() -> dict[str, str]:
+    """``{alias: host}`` for every configured device.
+
+    Prefer this over the removed ``constants.WICAN_ADDRESSES`` module constant:
+    that was resolved through a module-level ``__getattr__`` (PEP 562), which
+    returned an *untyped* value at every import site and — because a plain
+    ``from … import`` triggers it — read the user's config file at **import**
+    time. That fired during pytest collection, before any fixture could isolate
+    it. A function makes both the type and the lazy resolution explicit.
+    """
+    return wican_settings()[0]
+
+
+def default_wican() -> str:
+    """The configured ``default_wican`` alias (see :func:`wican_addresses`)."""
+    return wican_settings()[1]
+
+
 @dataclass(frozen=True)
 class DeviceEntry:
     """A configured WiCAN/gateway device.

@@ -117,11 +117,12 @@ def write_json(data: dict, path: Path) -> None:
 
 def get_wican_url(address: str) -> str:
     """Resolve WiCAN address name to HTTP base URL."""
-    from canlib.constants import DEFAULT_WICAN, WICAN_ADDRESSES
+    from canlib.config import default_wican, wican_addresses
 
     if address.startswith("http"):
         return address
-    addr = WICAN_ADDRESSES.get(address, WICAN_ADDRESSES.get(DEFAULT_WICAN, address))
+    addresses = wican_addresses()
+    addr = addresses.get(address, addresses.get(default_wican(), address))
     if not addr.startswith("http"):
         return f"http://{addr}"
     return addr
@@ -323,12 +324,13 @@ _MODE_TO_TRANSPORT = {
 
 
 def _add_wican_arg(parser: argparse.ArgumentParser) -> None:
-    from canlib.constants import DEFAULT_WICAN, WICAN_ADDRESSES
+    from canlib.config import default_wican, wican_addresses
 
+    default = default_wican()
     parser.add_argument(
         "--wican",
-        default=DEFAULT_WICAN,
-        help=f"WiCAN address: {', '.join(WICAN_ADDRESSES.keys())} or URL (default: {DEFAULT_WICAN})",
+        default=default,
+        help=f"WiCAN address: {', '.join(wican_addresses())} or URL (default: {default})",
     )
 
 

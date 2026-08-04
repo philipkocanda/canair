@@ -11,10 +11,11 @@ import requests
 
 def resolve_wican_url(wican: str) -> str:
     """Resolve a named address or raw host to a base HTTP URL."""
-    from canlib.constants import WICAN_ADDRESSES
+    from canlib.config import wican_addresses
 
-    if wican in WICAN_ADDRESSES:
-        addr = WICAN_ADDRESSES[wican]
+    addresses = wican_addresses()
+    if wican in addresses:
+        addr = addresses[wican]
     else:
         addr = wican
     if not addr.startswith("http"):

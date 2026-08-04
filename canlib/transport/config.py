@@ -205,9 +205,9 @@ def _resolve_host(name: str | None) -> str | None:
 
 
 def _wican_addresses():  # small indirection so tests can monkeypatch cheaply
-    from ..constants import WICAN_ADDRESSES
+    from ..config import wican_addresses
 
-    return WICAN_ADDRESSES
+    return wican_addresses()
 
 
 def _wican_devices():  # small indirection so tests can monkeypatch cheaply
