@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.13.0] - 2026-08-04
+
 ### Added
 - **`canair config example`** prints `config.example.yaml` — the authoritative,
   fully-commented reference for every config key — so it's readable without
@@ -302,16 +304,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fix unusable and is now pinned by a test. `Quality` is typed along the whole
   write path too; the two remaining casts are genuine untyped→typed boundaries (a
   JSONL journal record, and the version-stamp's deliberate re-ordering) and say so.
-- **`canair captures --step --pair` is removed; a multi-PID QUERY compares by
-  default.** `--pair` only ever handled *exactly two* keys, was read-only (no
-  note/delete), and its PID set and tolerance were fixed at launch. Everything it
-  did — and N-way, editable, and non-interactive — is now what a several-PID
-  `--step` QUERY does, so the flag has no reason to exist:
-  `canair cap "VCU:2101 BMS:2101" --step --pair` becomes
-  `canair cap "VCU:2101 BMS:2101" --step`. Two related behavior shifts: a multi-PID
-  `--step` now *stacks* the PIDs where it used to interleave one capture per frame
-  (`--view interleaved` restores the old walk), and PgUp/PgDn now scroll within a
-  frame (`[`/`]` keep the ±100-frame jump).
 - **The bundled `ioniq-2017` profile drops the `DEEPSLEEP` vehicle state.** It was
   never referenced by any ECU definition, and its `__no_response__` predicate
   asserts a *vehicle* state from the absence of an answer — which a transport
@@ -345,6 +337,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   suite pins `XDG_CONFIG_HOME` to a throwaway directory, and
   `tests/test_suite_isolation.py` guards both so the regression can't return
   unnoticed.
+
+### Removed
+
+- **`canair captures --step --pair`** — a multi-PID QUERY now compares by default.
+  `--pair` only ever handled *exactly two* keys, was read-only (no note/delete),
+  and its PID set and tolerance were fixed at launch. Everything it did — and
+  N-way, editable, and non-interactive — is what a several-PID `--step` QUERY does,
+  so the flag had no reason to exist:
+  `canair cap "VCU:2101 BMS:2101" --step --pair` becomes
+  `canair cap "VCU:2101 BMS:2101" --step`. Two related behavior shifts: a multi-PID
+  `--step` now *stacks* the PIDs where it used to interleave one capture per frame
+  (`--view interleaved` restores the old walk), and PgUp/PgDn now scroll within a
+  frame (`[`/`]` keep the ±100-frame jump).
+- **`canair ecu --captures` / `-c`** — the capture counts are now always shown.
+  The flag existed only because reading the capture store used to be slow enough
+  to want opt-in; it no longer is (see the analysis-decoding and blind-rediscovery
+  entries above), so the `CAPS` column and the per-PID `N cap` counts come for
+  free. Drop the flag: `canair ecu --captures` becomes `canair ecu`.
 
 ## [1.12.0] - 2026-08-03
 
@@ -1687,7 +1697,8 @@ dongle (both the WiCAN Pro and the classic/non-Pro WiCAN are supported).
 - Command safety blocklist preventing UDS programming/write sessions against a
   real vehicle.
 
-[Unreleased]: https://github.com/philipkocanda/canair/compare/v1.12.0...HEAD
+[Unreleased]: https://github.com/philipkocanda/canair/compare/v1.13.0...HEAD
+[1.13.0]: https://github.com/philipkocanda/canair/compare/v1.12.0...v1.13.0
 [1.12.0]: https://github.com/philipkocanda/canair/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/philipkocanda/canair/compare/v1.10.2...v1.11.0
 [1.10.2]: https://github.com/philipkocanda/canair/compare/v1.10.1...v1.10.2
