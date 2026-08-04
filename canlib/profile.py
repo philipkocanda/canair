@@ -3,13 +3,20 @@
 A *profile* is a self-contained directory bundling one vehicle's data:
 
     <profile>/
-      profile.yaml   profile-wide settings (car_model, init, failure_types, ...)
-      ecus/          per-ECU definitions — each file is the single source of
-                     truth for one ECU (identity, scan_log, dtcs, pids, ...)
-      captures/      raw UDS capture files (per date)
-      references/    external reference material (spreadsheets, other-vehicle logs)
-      out/           generated WiCAN JSON profiles (optional)
-      logs/          command/response logs (optional)
+      profile.yaml         profile-wide settings (car_model, init, addressing, ...)
+      ecus/                per-ECU definitions — each file is the single source of
+                           truth for one ECU (identity, scan_log, dtcs, pids, ...)
+      vehicle_states.yaml  vehicle operating-state vocabulary
+      can_buses.yaml       physical CAN bus segment vocabulary
+      groups.yaml          named capture/monitor selector groups
+      signals/             broadcast signal maps, one <bus>.yaml per CAN bus
+      captures/            raw UDS capture files (per date) + can/ frame logs
+      references/          external reference material (spreadsheets, other logs)
+      dtc_log.yaml         DTC scan history (gitignored)
+      out/                 generated WiCAN JSON profiles (optional)
+
+Only ``profile.yaml`` and ``ecus/`` are required; every other member is optional
+and absent in a freshly-created profile.
 
 Profiles are discovered from several roots (user config dir shadows the
 repo-bundled ones). The active profile is chosen by ``--profile`` /
@@ -44,6 +51,21 @@ class Profile:
     @property
     def ecus_dir(self) -> Path:
         return self.root / "ecus"
+
+    @property
+    def meta_file(self) -> Path:
+        """Profile-wide settings (car_model, init, addressing, quirks, ...)."""
+        return self.root / "profile.yaml"
+
+    @property
+    def references_dir(self) -> Path:
+        """External reference material (other-vehicle logs, spreadsheets)."""
+        return self.root / "references"
+
+    @property
+    def dtc_log_file(self) -> Path:
+        """Per-profile DTC scan history (gitignored — recorded by `canair dtc`)."""
+        return self.root / "dtc_log.yaml"
 
     @property
     def captures_dir(self) -> Path:
@@ -96,16 +118,11 @@ class Profile:
     def out_dir(self) -> Path:
         return self.root / "out"
 
-    @property
-    def logs_dir(self) -> Path:
-        return self.root / "logs"
-
     @cached_property
     def meta(self) -> dict:
         """Contents of <profile>/profile.yaml (car_model, init, ...), or {}."""
-        meta_path = self.root / "profile.yaml"
-        if meta_path.exists():
-            with open(meta_path) as f:
+        if self.meta_file.exists():
+            with open(self.meta_file) as f:
                 return yaml_io.safe_load(f) or {}
         return {}
 

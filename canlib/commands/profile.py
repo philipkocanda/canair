@@ -216,9 +216,7 @@ def _cmd_show(args) -> int:
     print(f"car_model:  {meta.get('car_model', '?')}")
     print(f"init:       {meta.get('init', '?')}")
     print(f"ecus:       {prof.ecus_dir}  ({'ok' if prof.ecus_dir.is_dir() else 'MISSING'})")
-    print(
-        f"profile:    {prof.root / 'profile.yaml'}  ({'ok' if (prof.root / 'profile.yaml').exists() else 'MISSING'})"
-    )
+    print(f"profile:    {prof.meta_file}  ({'ok' if prof.meta_file.exists() else 'MISSING'})")
     print(f"captures:   {prof.captures_dir}  ({'ok' if prof.captures_dir.is_dir() else 'MISSING'})")
 
     # CAN buses (optional): list the declared segment vocabulary.
@@ -274,7 +272,7 @@ def _cmd_show(args) -> int:
         print(f"can logs:   {prof.can_dir}  (none — optional)")
 
     # External reference material (optional).
-    references = prof.root / "references"
+    references = prof.references_dir
     if references.is_dir():
         n = sum(1 for p in references.rglob("*") if p.is_file())
         print(f"references: {references}  ({n} files)")

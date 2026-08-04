@@ -45,7 +45,7 @@ def log_path(path: Path | None = None) -> Path:
         return path
     from .profile import active
 
-    return active().root / "dtc_log.yaml"
+    return active().dtc_log_file
 
 
 def load_log(path: Path | None = None) -> dict:

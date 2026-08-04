@@ -1296,7 +1296,7 @@ def _run_pids(files: list[str] | None, stats: bool) -> int:
     # Validate profile.yaml (profile-wide settings) unless a file subset was given.
     if not files:
         required_meta_fields = set(load_schema().get("required_meta_fields", []))
-        profile_yaml = prof.root / "profile.yaml"
+        profile_yaml = prof.meta_file
         if profile_yaml.exists():
             all_errors.extend(validate_meta(profile_yaml, required_meta_fields))
 
