@@ -100900,7 +100900,8 @@
           "rx": "0x7BB",
           "pid": "2201A0",
           "payload": "6201A0D00255D5D5D88787857B7B5A060600000101005028020C01010C00FB08000A00FFFF1E1E016C010402550A00000000002B00000000004200000000",
-          "time": "17:21:16.703"
+          "time": "17:21:16.703",
+          "notes": "HVAC_HEAT_MODE=heat_pump but HVAC_HEAT_POWER is 4.2 kW -> PTC heater likely also active!"
         },
         {
           "rx": "0x7BB",
