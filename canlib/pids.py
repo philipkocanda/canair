@@ -181,11 +181,11 @@ def load_pids(path: Path | None = None) -> dict:
 
 def _load_dir(path: Path, meta: dict) -> dict:
     """Merge profile-wide meta with every per-ECU file under ``path``."""
+    from .ecu_files import iter_ecu_files
+
     result = dict(meta) if meta else {}
     result["ecus"] = {}
-    for fpath in sorted(path.glob("*.yaml")):
-        if fpath.name.startswith("_"):
-            continue
+    for fpath in iter_ecu_files(path):
         with open(fpath) as f:
             data = _yaml_load(f)
         if data:

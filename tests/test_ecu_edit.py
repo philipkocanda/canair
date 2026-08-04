@@ -12,7 +12,7 @@ import pytest
 
 from canlib import profile
 from canlib.commands.ecu import cmd_edit
-from canlib.ecus_edit import find_ecu_file, register_ecu
+from canlib.ecus_edit import find_ecu_file_by_tx, register_ecu
 from canlib.pids import clear_cache
 
 
@@ -49,14 +49,14 @@ class TestFindEcuFile:
         root = _mk_profile(tmp_path)
         register_ecu(0x7C6, name="CLU", ecus_dir=root / "ecus")
         _activate(root)
-        path = find_ecu_file(0x7C6)
+        path = find_ecu_file_by_tx(0x7C6)
         assert path is not None
         assert path.name == "clu.yaml"
 
     def test_missing_returns_none(self, tmp_path):
         root = _mk_profile(tmp_path)
         _activate(root)
-        assert find_ecu_file(0x7C6) is None
+        assert find_ecu_file_by_tx(0x7C6) is None
 
 
 class TestEcuEditTtyGuard:

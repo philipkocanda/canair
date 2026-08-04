@@ -30,15 +30,6 @@ from collections.abc import Sequence
 from pathlib import Path
 
 
-def _resolve_pids_dir(pids_dir: Path | None) -> Path:
-    """Resolve the per-ECU definitions directory, defaulting to the active profile's."""
-    if pids_dir is None:
-        from ..profile import active
-
-        return active().ecus_dir
-    return Path(pids_dir)
-
-
 def _invalidate() -> None:
     """Drop the memoized ECU-definition load after a file write."""
     from ..pids import clear_cache
@@ -54,23 +45,18 @@ class PidsEditError(Exception):
 
 
 def find_ecu_file(ecu_name: str, pids_dir: Path | None = None) -> Path:
-    """Return the pids/<ecu>.yaml file that defines ``ecu_name``.
+    """Return the ``ecus/<ecu>.yaml`` file that defines ``ecu_name``.
 
-    Scans every non-underscore YAML in ``pids_dir`` for a top-level
-    ``<ecu_name>:`` key (0-space indent, case-insensitive on the name).
+    The write-target resolver for every name-keyed editor: the file returned is
+    the one that will be rewritten. Raises when no file claims the ECU (an edit
+    must never invent a definition file — that is `canair ecu add`'s job).
     """
-    pids_dir = _resolve_pids_dir(pids_dir)
-    target = ecu_name.strip().upper()
-    # Match a top-level key like "IGPM:" — no leading whitespace.
-    pattern = re.compile(r"^([A-Za-z][A-Za-z0-9_\-]*):\s*$", re.MULTILINE)
-    for fpath in sorted(pids_dir.glob("*.yaml")):
-        if fpath.name.startswith("_"):
-            continue
-        text = fpath.read_text()
-        for m in pattern.finditer(text):
-            if m.group(1).upper() == target:
-                return fpath
-    raise PidsEditError(f"ECU {ecu_name!r} not found in any ecus/*.yaml")
+    from ..ecu_files import find_by_name
+
+    fpath = find_by_name(ecu_name, pids_dir)
+    if fpath is None:
+        raise PidsEditError(f"ECU {ecu_name!r} not found in any ecus/*.yaml")
+    return fpath
 
 
 # ── DID block location ───────────────────────────────────────────────────────

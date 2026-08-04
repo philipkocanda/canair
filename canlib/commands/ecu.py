@@ -652,7 +652,7 @@ def cmd_edit(info: Mapping[str, Any], tx_id: int) -> int:
     import shutil
     import subprocess
 
-    from canlib.ecus_edit import find_ecu_file
+    from canlib.ecus_edit import find_ecu_file_by_tx
 
     name = info.get("name") or f"0x{tx_id:03X}"
 
@@ -667,7 +667,7 @@ def cmd_edit(info: Mapping[str, Any], tx_id: int) -> int:
         )
         return 1
 
-    path = find_ecu_file(tx_id)
+    path = find_ecu_file_by_tx(tx_id)
     if path is None or not path.exists():
         print(
             f"{_RED}No ecus/ file found for {name} (0x{tx_id:03X}).{_RESET}\n"

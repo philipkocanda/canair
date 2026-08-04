@@ -1283,13 +1283,16 @@ def validate_pids_file(fpath: Path, profile=None) -> tuple[bool, str]:
 
 
 def _run_pids(files: list[str] | None, stats: bool) -> int:
+    from canlib.ecu_files import iter_ecu_files
     from canlib.profile import active
 
     prof = active()
     if files:
         file_paths = [Path(f) for f in files]
     else:
-        file_paths = sorted(prof.ecus_dir.glob("*.yaml"))
+        # include_disabled: a parked `_name.yaml` is still reported on, so
+        # re-enabling it doesn't surface errors that were never flagged.
+        file_paths = list(iter_ecu_files(profile=prof, include_disabled=True))
 
     all_errors, all_warnings, total_stats = collect_pids_validation(file_paths)
 

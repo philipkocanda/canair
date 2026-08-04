@@ -101,11 +101,9 @@ def _hex_tx(tx_id: int) -> HexCapsInt:
 
 
 def _resolve_dir(ecus_dir: Path | None) -> Path:
-    if ecus_dir is None:
-        from .profile import active
+    from .ecu_files import ecus_dir as resolve
 
-        return active().ecus_dir
-    return Path(ecus_dir)
+    return resolve(ecus_dir)
 
 
 def _slug(name: str) -> str:
@@ -131,25 +129,17 @@ def _check_fields(fields: dict) -> None:
 
 def _find_file_by_tx(tx_id: int, ecus_dir: Path) -> tuple[Path | None, str | None]:
     """Locate the ``ecus/<name>.yaml`` file whose ECU has ``tx_id``."""
-    y = _yaml()
-    for fpath in sorted(ecus_dir.glob("*.yaml")):
-        if fpath.name.startswith("_"):
-            continue
-        try:
-            with open(fpath) as f:
-                data = y.load(f)
-        except Exception:
-            continue
-        if not isinstance(data, dict):
-            continue
-        for name, ecu_def in data.items():
-            if isinstance(ecu_def, dict) and ecu_def.get("tx_id") == tx_id:
-                return fpath, name
-    return None, None
+    from .ecu_files import find_by_tx
+
+    return find_by_tx(tx_id, ecus_dir)
 
 
-def find_ecu_file(tx_id: int, ecus_dir: Path | None = None) -> Path | None:
-    """Return the ``ecus/<name>.yaml`` path for the ECU with ``tx_id`` (or None)."""
+def find_ecu_file_by_tx(tx_id: int, ecus_dir: Path | None = None) -> Path | None:
+    """Return the ``ecus/<name>.yaml`` path for the ECU with ``tx_id`` (or None).
+
+    The address-keyed counterpart of :func:`canlib.pids_edit.find_ecu_file`
+    (which is name-keyed): a scanner knows a CAN address before it knows a name.
+    """
     fpath, _name = _find_file_by_tx(tx_id, _resolve_dir(ecus_dir))
     return fpath
 

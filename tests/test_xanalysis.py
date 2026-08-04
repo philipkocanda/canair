@@ -15,6 +15,52 @@ def _tp(sec, val):
     return TimePoint(datetime(2026, 7, 22, 9, 0, 0) + timedelta(seconds=sec), val)
 
 
+def _temp_ecu_profile(tmp_path, filename: str, ecu: str = "AAF", pid: str = "2181"):
+    """Activate a throwaway profile holding one bare ECU/PID; return its ECU file.
+
+    The promote tests below perform a *real* guarded write, so they must resolve
+    to a temp profile — not the bundled one. Activating a profile (rather than
+    monkeypatching an internal path resolver) means a refactor that moves the
+    resolution seam can't silently redirect the write into `profiles/`, which is
+    how a promote test once appended a param to the real ioniq-2017 AAF file.
+    """
+    import textwrap
+
+    from canlib import profile
+    from canlib.pids import clear_cache
+
+    root = tmp_path / "prof"
+    ecus = root / "ecus"
+    ecus.mkdir(parents=True)
+    (root / "profile.yaml").write_text('car_model: "T"\ninit: "ATSP6;"\n')
+    path = ecus / filename
+    path.write_text(
+        textwrap.dedent(f"""\
+            {ecu}:
+              tx_id: 0x7EA
+              pids:
+                {pid}:
+                  status: active
+                  parameters: {{}}
+            """)
+    )
+    profile._active = profile.Profile(name=root.name, root=root)
+    clear_cache()
+    return path
+
+
+@pytest.fixture(autouse=True)
+def _never_write_the_bundled_profile():
+    """Restore the active profile after every test in this module."""
+    from canlib import profile
+    from canlib.pids import clear_cache
+
+    saved = profile._active
+    yield
+    profile._active = saved
+    clear_cache()
+
+
 # ---------------------------------------------------------------------------
 # stats primitives
 # ---------------------------------------------------------------------------
@@ -646,26 +692,9 @@ class TestHuntPromote:
 
     def test_promote_end_to_end_writes_enabled_unverified(self, tmp_path, monkeypatch):
         """Real guarded write into a temp ecus/ dir: schema-validated + committed."""
-        import textwrap
+        from canlib.commands import hunt
 
-        from canlib.commands import hunt, pids
-
-        (tmp_path / "test.yaml").write_text(
-            textwrap.dedent(
-                """\
-                AAF:
-                  tx_id: 0x7EA
-                  pids:
-                    2181:
-                      status: active
-                      parameters: {}
-                """
-            )
-        )
-        f = tmp_path / "test.yaml"
-        # Point the guard + editor at our temp file/dir.
-        monkeypatch.setattr(pids, "find_ecu_file", lambda ecu, pids_dir=None: f)
-        monkeypatch.setattr("canlib.pids_edit._text._resolve_pids_dir", lambda d: tmp_path)
+        f = _temp_ecu_profile(tmp_path, "test.yaml")
 
         rc = hunt._promote("AAF_SPEED", "AAF", "2181", [self._hit(expr="B12")], "ESC:22C101:X")
         assert rc == 0
@@ -691,25 +720,9 @@ class TestCorrelatePromote:
         return rows, series, ramp
 
     def test_promote_picks_first_raw_byte(self, tmp_path, monkeypatch):
-        import textwrap
+        from canlib.commands import correlate
 
-        from canlib.commands import correlate, pids
-
-        (tmp_path / "aaf.yaml").write_text(
-            textwrap.dedent(
-                """\
-                AAF:
-                  tx_id: 0x7EA
-                  pids:
-                    2181:
-                      status: active
-                      parameters: {}
-                """
-            )
-        )
-        f = tmp_path / "aaf.yaml"
-        monkeypatch.setattr(pids, "find_ecu_file", lambda ecu, pids_dir=None: f)
-        monkeypatch.setattr("canlib.pids_edit._text._resolve_pids_dir", lambda d: tmp_path)
+        f = _temp_ecu_profile(tmp_path, "aaf.yaml")
 
         rows, series, ref = self._rows_and_series()
         rc = correlate._promote_top_byte(
