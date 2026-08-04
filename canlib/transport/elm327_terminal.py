@@ -28,6 +28,14 @@ from ..transport_stats import TransportStats
 from ..uds_parse import UdsResponse, parse_uds_response
 from .channel import Channel, TcpChannel
 
+# UDS ResponsePending negative response: `7F <sid> 78` ("request received,
+# response pending"). Matched against the whitespace-stripped ELM327 text, so it
+# works with `ATS1` (spaces on) and `ATS0` alike. Anchoring to the full 3-byte
+# shape — rather than testing for `7F` and `78` separately — keeps a positive
+# response that merely *contains* those bytes from being mistaken for the NRC.
+# The raw-CAN counterpart is `uds_raw.is_response_pending`.
+_PENDING_RE = re.compile(r"7F[0-9A-Fa-f]{2}78")
+
 
 class Elm327Terminal:
     """ELM327 protocol engine over an injected byte :class:`Channel`."""
@@ -175,10 +183,12 @@ class Elm327Terminal:
                 # Receive timeout (no data within the window).
                 if got_prompt:
                     full = "".join(response_parts)
-                    if "7F" in full and "78" in full:
-                        clean = full.replace(" ", "").replace("\r", "").replace("\n", "")
-                        if re.search(r"7F[0-9A-Fa-f]{2}78", clean):
-                            continue
+                    clean = full.replace(" ", "").replace("\r", "").replace("\n", "")
+                    if _PENDING_RE.search(clean):
+                        # An unresolved ResponsePending: the ECU said "still
+                        # working", so keep waiting within the (already extended)
+                        # deadline rather than returning the interim frame.
+                        continue
                     clean_exit = True
                     break
                 if response_parts:
@@ -208,7 +218,21 @@ class Elm327Terminal:
             if ">" in full:
                 got_prompt = True
                 clean = full.replace(" ", "").replace("\r", "").replace("\n", "")
-                if re.search(r"7F[0-9A-Fa-f]{2}78", clean):
+                if _PENDING_RE.search(clean):
+                    # UDS ResponsePending (7F xx 78): an interim acknowledgement,
+                    # NOT the answer. The ELM327 terminates it with its own `>`
+                    # prompt, so discard it and go back to waiting for a fresh
+                    # reply (matching the raw path, which *replaces* resp rather
+                    # than appending — see uds_raw.is_response_pending).
+                    #
+                    # Resetting the accumulator matters twice over: keeping the
+                    # pending frame made the `7F..78` test match forever, so the
+                    # exchange never exited cleanly (it burned the full timeout,
+                    # left the pipe dirty, and returned the pending frame
+                    # concatenated with the real reply — so parse_uds_response
+                    # reported NRC 0x78 even though the ECU had answered).
+                    response_parts = []
+                    got_prompt = False
                     deadline = time.monotonic() + timeout
                     continue
                 clean_exit = True

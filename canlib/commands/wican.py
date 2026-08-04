@@ -47,7 +47,6 @@ from canlib.autopid_profile import (
     to_device_format,
 )
 from canlib.commands._group import group_help
-from canlib.constants import DEFAULT_WICAN, WICAN_ADDRESSES
 
 
 # Declared optional so the ImportError fallback to None is type-legal. The
@@ -118,6 +117,8 @@ def write_json(data: dict, path: Path) -> None:
 
 def get_wican_url(address: str) -> str:
     """Resolve WiCAN address name to HTTP base URL."""
+    from canlib.constants import DEFAULT_WICAN, WICAN_ADDRESSES
+
     if address.startswith("http"):
         return address
     addr = WICAN_ADDRESSES.get(address, WICAN_ADDRESSES.get(DEFAULT_WICAN, address))
@@ -322,6 +323,8 @@ _MODE_TO_TRANSPORT = {
 
 
 def _add_wican_arg(parser: argparse.ArgumentParser) -> None:
+    from canlib.constants import DEFAULT_WICAN, WICAN_ADDRESSES
+
     parser.add_argument(
         "--wican",
         default=DEFAULT_WICAN,

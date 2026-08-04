@@ -8,11 +8,11 @@ import sys
 
 import requests
 
-from canlib.constants import WICAN_ADDRESSES
-
 
 def resolve_wican_url(wican: str) -> str:
     """Resolve a named address or raw host to a base HTTP URL."""
+    from canlib.constants import WICAN_ADDRESSES
+
     if wican in WICAN_ADDRESSES:
         addr = WICAN_ADDRESSES[wican]
     else:

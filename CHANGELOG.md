@@ -31,6 +31,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `plans/2026-08-03-elm327-direct-transport.md`.
 
 ### Fixed
+- **Slow UDS services (DTC reads, routines, long identity DIDs) no longer fail on
+  the ELM327 transports.** When an ECU answered `7F xx 78` (ResponsePending —
+  "request received, still working"), the engine correctly kept waiting but then
+  *appended* the interim frame to the reply instead of discarding it. Three
+  consequences, all on `wican-ws` and `elm327-tcp` only: the `7F..78` test kept
+  matching the buffered frame so the exchange never exited cleanly and always
+  burned its **full timeout**; the returned text was the pending frame
+  concatenated with the real one, so `parse_uds_response` reported **NRC 0x78
+  (`ok=False`) even though the ECU had answered**; and the pipe was always left
+  dirty, forcing a drain on the next command. Pending frames are now dropped and
+  only the final response is returned — matching the raw-CAN path, which already
+  *replaced* the frame (`uds_raw.is_response_pending`). The NRC match is also
+  anchored to the full `7F <sid> 78` shape, so a positive response that merely
+  contains those bytes is no longer mistaken for it.
 - **`hunt --promote` no longer writes a wrong expression for a 3-byte signed
   read.** The `[Snn:Smm]` range form is sign-extended by the *native container*
   the firmware accumulates into (int8/16/32/64), so it is only exact for a 1-, 2-,
@@ -84,6 +98,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   WebSocket: the ELM327 engine exposes `drain()` / `recv_frame()` so modes collect
   late frames through the transport-agnostic surface instead of re-implementing
   the WebSocket JSON unwrap.
+- **The bundled-profile headline counts are now generated, not hand-maintained.**
+  `scripts/gen_profiles_index.py` also refreshes the "At a glance" block on a
+  profile's dedicated docs page (between `<!-- BEGIN/END generated-stats -->`
+  markers), so those figures can no longer drift from the index — they had
+  (350 parameters / 223 verified / 96 open leads, against an actual
+  354 / 227 / 58). `make gen-check` fails when they go stale.
+- **The test suite no longer reads the developer's real user config.** Resolving a
+  profile consults `$XDG_CONFIG_HOME/canair/config.yaml` (for `profiles_dir`), and
+  two modules imported config-backed constants at *module scope* — so the read
+  happened during pytest collection, before any fixture could isolate it. A
+  malformed real config failed collection outright (110 failures + 30 errors), and
+  a `default_profile`/`devices`/`transport` block there silently changed which
+  profile or transport a test resolved. Those constants now resolve inside the
+  functions that use them (as `canlib.constants`' lazy contract intended), the
+  suite pins `XDG_CONFIG_HOME` to a throwaway directory, and
+  `tests/test_suite_isolation.py` guards both so the regression can't return
+  unnoticed.
 
 ## [1.12.0] - 2026-08-03
 

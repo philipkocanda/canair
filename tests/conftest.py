@@ -26,6 +26,35 @@ def _pin_bundled_profile():
         os.environ["CANAIR_PROFILE"] = prev
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _isolate_user_config(tmp_path_factory):
+    """Point ``$XDG_CONFIG_HOME`` at a throwaway directory for the whole suite.
+
+    Resolving the active profile (``canlib.profile.resolve_profile`` →
+    ``load_config().get("profiles_dir")``) legitimately reads the user config
+    file to see whether the profile search path was overridden — so *any* test
+    that loads a real profile (most of them) reads ``config_dir()`` at some
+    point, not just tests that exercise ``canlib.config`` directly. Left
+    unpinned, the suite's outcome depends on whatever happens to be in the
+    developer's real ``~/.config/canair/config.yaml`` (a malformed value there
+    fails collection/tests that have nothing to do with config; a `default_
+    profile`/`devices` block there silently changes which profile or transport
+    a test resolves). Point every test at an empty, deterministic directory
+    instead; a test that needs specific config content still writes into it or
+    overrides ``XDG_CONFIG_HOME`` itself via ``monkeypatch.setenv`` (which wins
+    for the duration of that test and is restored to this default afterward,
+    not to the developer's real environment).
+    """
+    path = tmp_path_factory.mktemp("xdg_config_home")
+    prev = os.environ.get("XDG_CONFIG_HOME")
+    os.environ["XDG_CONFIG_HOME"] = str(path)
+    yield
+    if prev is None:
+        os.environ.pop("XDG_CONFIG_HOME", None)
+    else:
+        os.environ["XDG_CONFIG_HOME"] = prev
+
+
 @pytest.fixture(autouse=True)
 def _reset_active_profile():
     """Clear the memoized active profile around each test."""

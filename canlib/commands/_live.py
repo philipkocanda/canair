@@ -29,8 +29,6 @@ if not sys.stdout.isatty():
         sys.stderr.reconfigure(line_buffering=True)
 
 from canlib import (
-    DEFAULT_WICAN,
-    WICAN_ADDRESSES,
     WiCANTerminal,
     init_logging,
     load_pids,
@@ -120,7 +118,16 @@ CANAIR_DEFAULTS: dict = {
     "target": None,
     "interval": 1.0,
     "delay": 0.2,
-    "wican": DEFAULT_WICAN,
+    # `None`, not a resolved device address: every live subcommand exposes its
+    # own `--wican` (default `None`, see add_connection_args below) via
+    # add_connection_args, so this entry is only a fallback for callers (tests)
+    # that build an argparse.Namespace straight from CANAIR_DEFAULTS. It must
+    # match that real default and must NOT eagerly resolve a config-backed
+    # value here — this dict is built at import time, and a config-derived
+    # default previously forced every import of this module to read the user's
+    # ~/.config/canair/config.yaml (a live liveness-lookup done purely because
+    # the module was imported, not because a device was ever contacted).
+    "wican": None,
     "no_fallback": False,
     "wait": False,
     "timeout": 3.0,  # WebSocket response timeout (s); fixed default, no CLI flag
@@ -278,6 +285,8 @@ def expand_step_groups(steps: list[str]) -> list[str]:
 
 def add_connection_args(parser: argparse.ArgumentParser) -> None:
     """Add the connection/output flags common to every live subcommand."""
+    from canlib.constants import DEFAULT_WICAN, WICAN_ADDRESSES
+
     parser.add_argument(
         "--wican",
         default=None,

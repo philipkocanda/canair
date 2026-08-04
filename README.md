@@ -166,7 +166,7 @@ A *profile* bundles one vehicle's data — `ecus/` (one file per ECU, the source
 
 ## The bundled Ioniq profile
 
-The `ioniq-2017` profile makes canair a ready-to-use diagnostics toolkit for the **2017 Hyundai Ioniq Electric (28 kWh, `AE` platform)** — read live battery, motor, charging, climate, and body data over WiFi with no dealer tools. It maps **30 ECUs** and **350 parameters** (~223 verified), including:
+The `ioniq-2017` profile makes canair a ready-to-use diagnostics toolkit for the **2017 Hyundai Ioniq Electric (28 kWh, `AE` platform)** — read live battery, motor, charging, climate, and body data over WiFi with no dealer tools. It maps **30 ECUs** and **350+ parameters** (the majority verified on the car), including:
 
 - Battery SOC / voltage / current / power, all 96 individual cell voltages, and State of Health
 - Motor gear, torque, and temperatures; vehicle speed and **individual wheel speeds** (from the ESC module)
