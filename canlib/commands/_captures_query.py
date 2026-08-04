@@ -21,6 +21,7 @@ from typing import Any, TypedDict
 
 from canlib import capture_io
 from canlib.capture_types import CaptureEntry, Quality
+from canlib.keepmode import EntryKeepMode
 
 # ANSI color helpers (shared across the captures command family).
 _RED = "\033[91m"
@@ -400,7 +401,7 @@ class SessionGroup(TypedDict):
     version: str
     vehicle_states: list
     notes: str
-    keep_mode: str
+    keep_mode: EntryKeepMode
     transport: str
     quality: Quality | None
     n: int

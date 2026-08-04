@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from typing import NotRequired, TypedDict
 
+from .keepmode import EntryKeepMode, PersistedKeepMode
+
 
 class RespondingEntry(TypedDict):
     """One responder in a scan's ``scan_results.responding`` list.
@@ -89,7 +91,9 @@ class CaptureSession(TypedDict):
     version: NotRequired[str]
     vehicle_states: NotRequired[list[str]]
     notes: NotRequired[str]
-    keep_mode: NotRequired[str]  # "changes" (run-length) | "unique" (legacy global dedup)
+    # Only the two dedup policies are recordable; `all`/`last` applied no dedup,
+    # so the field is omitted rather than claiming one (see keepmode.py).
+    keep_mode: NotRequired[PersistedKeepMode]
     transport: NotRequired[str]
     quality: NotRequired[Quality]
 
@@ -129,7 +133,7 @@ class CaptureEntry(TypedDict):
     session_version: str
     vehicle_states: list[str]
     session_notes: str
-    keep_mode: str
+    keep_mode: EntryKeepMode  # "" when the session recorded no dedup policy
     transport: str
     quality: Quality | None
     # -- the capture itself --

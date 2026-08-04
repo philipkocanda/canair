@@ -36,6 +36,7 @@ from ..formatting import (
     _bytes_to_ascii,
     _render_hex_line,
 )
+from ..keepmode import KEEP_ALL, KEEP_LAST, KeepMode
 from ..session_manager import SessionManager
 from ._monitor_record import MonitorRecorder, _merge_history, _open_journal, _write_merged
 from ._monitor_render import (
@@ -121,7 +122,7 @@ class MonitorController:
         pids_data: dict,
         verbose: bool,
         interval: float = 5.0,
-        keep_mode: str | None = None,
+        keep_mode: KeepMode | None = None,
         keep_n: int | None = None,
         save: bool = False,
         show_rulers: bool = False,
@@ -619,9 +620,9 @@ class MonitorController:
         choke) the live view — the full set is still in hex_history and the
         --save journal.
         """
-        if self.keep_mode == "last" and self.keep_n:
+        if self.keep_mode == KEEP_LAST and self.keep_n:
             return self.keep_n
-        if self.keep_mode == "all":
+        if self.keep_mode == KEEP_ALL:
             return _RENDER_MAX_ROWS
         return _RENDER_DEFAULT_ROWS
 
@@ -860,7 +861,7 @@ async def mode_monitor(
     verbose: bool,
     interval: float = 5.0,
     session_steps: list[dict] | None = None,
-    keep_mode: str | None = None,
+    keep_mode: KeepMode | None = None,
     keep_n: int | None = None,
     save: bool = False,
     show_rulers: bool = False,

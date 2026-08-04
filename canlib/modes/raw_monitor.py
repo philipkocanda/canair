@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from ..addressing import EcuAddress
+    from ..keepmode import KeepMode
     from ..pids import EcuIndexEntry
 
 
@@ -30,7 +31,7 @@ def query_ecu_addresses(
     return out
 
 
-def _keep_mode(args) -> str | None:
+def _keep_mode(args) -> KeepMode:
     from ..keepmode import keep_mode_from_args
 
     return keep_mode_from_args(args)

@@ -17,6 +17,7 @@ from .capture_types import (
     RespondingEntry,
     ScanResults,
 )
+from .keepmode import KeepMode, persisted_keep_mode
 from .states import join_states as _join_states
 from .states import parse_states as _parse_states
 from .uds_parse import UdsResponse
@@ -114,7 +115,7 @@ def build_query_session(
     label: str,
     vehicle_states: list,
     notes: str,
-    keep_mode: str | None = None,
+    keep_mode: KeepMode | None = None,
     date: str | None = None,
     transport: str | None = None,
     quality: dict | None = None,
@@ -153,8 +154,9 @@ def build_query_session(
         session["vehicle_states"] = list(vehicle_states)
     if notes:
         session["notes"] = notes
-    if keep_mode in ("changes", "unique"):
-        session["keep_mode"] = keep_mode
+    persisted = persisted_keep_mode(keep_mode)
+    if persisted is not None:
+        session["keep_mode"] = persisted
     if transport:
         session["transport"] = transport
     if quality:
@@ -525,7 +527,7 @@ def set_session_note(fpath: Path, session_idx: int, note: str) -> None:
     _write_captures_file(fpath, data)
 
 
-def set_session_keep_mode(fpath: Path, session_idx: int, keep_mode: str | None) -> None:
+def set_session_keep_mode(fpath: Path, session_idx: int, keep_mode: KeepMode | None) -> None:
     """Set (or clear) the ``keep_mode`` field on one session, addressed by index.
 
     Only ``"changes"`` (run-length) and ``"unique"`` (legacy global dedup) are
@@ -535,8 +537,9 @@ def set_session_keep_mode(fpath: Path, session_idx: int, keep_mode: str | None) 
     """
     data = capture_io.load_capture_file(fpath)
     session = data["sessions"][session_idx]
-    if keep_mode in ("changes", "unique"):
-        session["keep_mode"] = keep_mode
+    persisted = persisted_keep_mode(keep_mode)
+    if persisted is not None:
+        session["keep_mode"] = persisted
     else:
         session.pop("keep_mode", None)
     _write_captures_file(fpath, data)

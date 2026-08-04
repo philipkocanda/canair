@@ -11,6 +11,7 @@ import yaml
 
 from canlib import yaml_io
 from canlib.byteindex import wican_to_isotp
+from canlib.pids import PID_STATUSES
 
 from ._common import EXPR_TOKEN_RE, SCHEMA_FILE
 
@@ -313,8 +314,10 @@ class _SchemaFields:
             scan_log=set((schema.get("scan_log_entry_fields", {}) or {}).get("optional", [])),
             dtcs=set((schema.get("dtcs_fields", {}) or {}).get("optional", [])),
             sessions=set((schema.get("sessions_fields", {}) or {}).get("optional", [])),
-            valid_pid_status=set(schema.get("valid_pid_status", []))
-            or {"active", "draft", "static", "ignored"},
+            # Fallback derives from the Python vocabulary (canlib.pids.PidStatus)
+            # rather than repeating the values — a third copy would be a third
+            # thing to drift. tests/test_pids.py guards schema ↔ Literal agreement.
+            valid_pid_status=set(schema.get("valid_pid_status", [])) or set(PID_STATUSES),
             valid_param_types=set(schema.get("valid_param_types", []))
             or {"numeric", "enum", "bitmask", "ascii", "date", "bcd", "struct"},
             wake=set(wake_fields.get("optional", [])) | set(wake_fields.get("required", [])),

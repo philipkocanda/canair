@@ -94,6 +94,33 @@ class TestPidStatus:
         assert pid_status({"status": "DRAFT"}) == "draft"
 
 
+class TestPidStatusVocabulary:
+    """`PidStatus` (Python) and `valid_pid_status:` (schema) must not drift.
+
+    Both are deliberate: `canlib/schema/` validates *data* without importing
+    Python, while the `Literal` gives the Python side static checking. Deleting
+    either would cost one of those properties, so instead they're pinned equal.
+    """
+
+    def test_statuses_derive_from_the_literal(self):
+        from typing import get_args
+
+        from canlib.pids import PidStatus
+
+        assert PID_STATUSES == get_args(PidStatus)
+
+    def test_schema_matches_the_literal(self):
+        from canlib.commands.validate._common import SCHEMA_FILE
+        from canlib.commands.validate.pids import load_schema
+
+        schema_statuses = load_schema(SCHEMA_FILE).get("valid_pid_status")
+        assert schema_statuses, "pids_schema.yaml must declare valid_pid_status"
+        assert set(schema_statuses) == set(PID_STATUSES)
+
+    def test_default_is_a_known_status(self):
+        assert DEFAULT_PID_STATUS in PID_STATUSES
+
+
 class TestStatusVisibility:
     """build_*_index apply the lifecycle rules derived from `status:`."""
 

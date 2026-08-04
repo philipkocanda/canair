@@ -318,6 +318,41 @@ class TestTransportConfigProps:
         assert t.resolve_device_defaults(250000) == (3333, 250000)
 
 
+class TestTransportTypeVocabulary:
+    """`TransportType` is the single source of truth for the backend vocabulary.
+
+    Two ways to name a transport exist at runtime — the `TRANSPORTS` registry keys
+    and `VALID_TRANSPORTS` (which feeds argparse `choices=`) — and both must stay
+    equal to `get_args(TransportType)`, or a `.type == "…"` gate could compare
+    against a name the registry no longer knows.
+    """
+
+    def test_valid_transports_derives_from_the_literal(self):
+        from typing import get_args
+
+        assert tc.VALID_TRANSPORTS == get_args(tc.TransportType)
+
+    def test_registry_keys_match_the_literal(self):
+        from typing import get_args
+
+        assert set(tc.TRANSPORTS) == set(get_args(tc.TransportType))
+
+    def test_each_spec_type_matches_its_registry_key(self):
+        assert all(key == spec.type for key, spec in tc.TRANSPORTS.items())
+
+    def test_default_transport_is_a_known_type(self):
+        assert tc.DEFAULT_TRANSPORT in tc.VALID_TRANSPORTS
+
+    def test_checked_type_narrows_known_names(self):
+        for name in tc.VALID_TRANSPORTS:
+            assert tc._checked_type(name) == name
+
+    def test_checked_type_rejects_a_near_miss(self):
+        # The exact drift a plain `str` would have swallowed silently.
+        with pytest.raises(TransportError, match="Unknown transport 'wican_ws'"):
+            tc._checked_type("wican_ws")
+
+
 class TestParseDatarate:
     def test_suffixes_and_garbage(self):
         from canlib.transport.config import _parse_datarate

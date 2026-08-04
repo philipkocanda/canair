@@ -19,6 +19,15 @@ device's live config where relevant.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal, get_args
+
+# The closed set of backends canair knows how to speak. A `Literal` (not a bare
+# `str`) so the ~6 `.type == "…"` gates below — including the WiCAN-Pro-only
+# `wican-ws` guard — are checked statically: a typo like "wican_ws" would
+# otherwise compare False forever and silently stop gating. Runtime values stay
+# plain `str`, and :data:`VALID_TRANSPORTS` is derived from the type so the
+# argparse `choices=` can't drift from it.
+TransportType = Literal["slcan-tcp", "wican-ws", "elm327-tcp"]
 
 
 class TransportError(ValueError):
@@ -40,7 +49,7 @@ class TransportSpec:
     runs over every transport via a common terminal interface).
     """
 
-    type: str
+    type: TransportType
     raw: bool
     summary: str
     wican_http: bool = True
@@ -48,7 +57,7 @@ class TransportSpec:
 
 # Registry of known transports. Add a new entry here to teach canair a new
 # backend; everything else (validation, defaulting, status display) follows.
-TRANSPORTS: dict[str, TransportSpec] = {
+TRANSPORTS: dict[TransportType, TransportSpec] = {
     "slcan-tcp": TransportSpec(
         type="slcan-tcp",
         raw=True,
@@ -77,10 +86,12 @@ TRANSPORTS: dict[str, TransportSpec] = {
     ),
 }
 
-VALID_TRANSPORTS = tuple(TRANSPORTS)
+# Derived from the type, not from the registry keys, so the two can't disagree
+# (tests/test_transport_config.py asserts they stay equal).
+VALID_TRANSPORTS: tuple[TransportType, ...] = get_args(TransportType)
 
 # Canonical default when nothing is configured (see module docstring).
-DEFAULT_TRANSPORT = "slcan-tcp"
+DEFAULT_TRANSPORT: TransportType = "slcan-tcp"
 
 # Conventional TCP port for a direct ELM327 WiFi adapter / ELM327-Emulator (-n).
 DEFAULT_ELM327_TCP_PORT = 35000
@@ -90,7 +101,7 @@ DEFAULT_ELM327_TCP_PORT = 35000
 class TransportConfig:
     """A resolved transport selection."""
 
-    type: str
+    type: TransportType
     host: str | None = None
     port: int | None = None
     bitrate: int | None = None
@@ -234,10 +245,19 @@ def _int(v):
     return int(v) if v is not None else None
 
 
-def _check_type(ttype: str) -> None:
-    """Validate a transport type name, raising :class:`TransportError` if unknown."""
-    if ttype not in VALID_TRANSPORTS:
-        raise TransportError(f"Unknown transport '{ttype}'. Valid: {', '.join(VALID_TRANSPORTS)}.")
+def _checked_type(ttype: str) -> TransportType:
+    """Narrow a config-supplied transport name to a :data:`TransportType`.
+
+    The parse-then-narrow boundary: ``.type`` originates as arbitrary user-config
+    text, and everything downstream is annotated :data:`TransportType`. Matching
+    against :data:`VALID_TRANSPORTS` (itself derived from the type) both validates
+    and narrows, so no ``cast`` is needed. Raises :class:`TransportError` when the
+    name is unknown.
+    """
+    for known in VALID_TRANSPORTS:
+        if ttype == known:
+            return known
+    raise TransportError(f"Unknown transport '{ttype}'. Valid: {', '.join(VALID_TRANSPORTS)}.")
 
 
 def _wican_ws_pro_error() -> TransportError:
@@ -260,8 +280,9 @@ def _build_candidate(args, device, block) -> TransportConfig:
     def arg(name):
         return getattr(args, name, None) if args is not None else None
 
-    ttype = _first(arg("transport"), device.transport, block.get("type"), DEFAULT_TRANSPORT)
-    _check_type(ttype)
+    ttype = _checked_type(
+        _first(arg("transport"), device.transport, block.get("type"), DEFAULT_TRANSPORT)
+    )
     port = _int(_first(arg("port"), device.port, block.get("port")))
     bitrate = _int(_first(arg("bitrate"), device.bitrate, block.get("bitrate")))
     return TransportConfig(type=ttype, host=device.host, port=port, bitrate=bitrate)

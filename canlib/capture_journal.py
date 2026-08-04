@@ -40,6 +40,7 @@ from pathlib import Path
 from typing import cast
 
 from .capture_types import CaptureSession
+from .keepmode import KEEP_CHANGES, KEEP_UNIQUE, KeepMode, PersistedKeepMode, parse_keep_mode
 
 JOURNAL_VERSION = 1
 JOURNAL_DIRNAME = ".journal"
@@ -76,7 +77,7 @@ class CaptureJournal:
         vehicle_states: list | None = None,
         notes: str | None = None,
         source: str = "query",
-        keep_mode: str | None = None,
+        keep_mode: PersistedKeepMode | None = None,
         transport: str | None = None,
     ) -> CaptureJournal:
         """Create a fresh journal under ``captures_dir/.journal/`` and write meta."""
@@ -202,7 +203,7 @@ class CaptureJournal:
 
     # -- reconcile ---------------------------------------------------------
 
-    def reconcile(self, keep_mode: str | None = None) -> Path | None:
+    def reconcile(self, keep_mode: KeepMode | None = None) -> Path | None:
         """Fold the journal into a dated capture file, then delete the journal.
 
         Returns the capture file path, or None if there was nothing to save.
@@ -251,7 +252,7 @@ def _read_records(path: Path) -> list[dict]:
 
 
 def _dedup(
-    rows: list[tuple[str, str, str, str, str, int | None]], keep_mode: str | None
+    rows: list[tuple[str, str, str, str, str, int | None]], keep_mode: KeepMode | None
 ) -> list[tuple[str, str, str, str, str, int | None]]:
     """Apply keep-mode dedup to (ecu, pid, hex, time, date, elapsed_ms) rows, preserving order.
 
@@ -267,7 +268,7 @@ def _dedup(
       been seen *anywhere* before in the session, so a return to any prior value
       is lost (return-to-previous transitions and durations are absent).
     """
-    if keep_mode == "unique":
+    if keep_mode == KEEP_UNIQUE:
         seen: set[tuple[str, str, str]] = set()
         out: list[tuple[str, str, str, str, str, int | None]] = []
         for row in rows:
@@ -277,7 +278,7 @@ def _dedup(
             seen.add(key)
             out.append(row)
         return out
-    if keep_mode == "changes":
+    if keep_mode == KEEP_CHANGES:
         last: dict[tuple[str, str], str] = {}
         out = []
         for row in rows:
@@ -291,7 +292,7 @@ def _dedup(
 
 
 def build_session_from_records(
-    records: list[dict], keep_mode: str | None = None, recovered: bool = False
+    records: list[dict], keep_mode: KeepMode | None = None, recovered: bool = False
 ) -> list[CaptureSession]:
     """Build capture session dicts from journal records — one per capture date.
 
@@ -343,11 +344,9 @@ def build_session_from_records(
     notes = str(meta.get("notes") or "")
     if recovered:
         notes = f"{notes} [recovered]".strip()
-    _keep = meta.get("keep_mode")
-    if keep_mode is not None:
-        effective_keep: str | None = keep_mode
-    else:
-        effective_keep = _keep if isinstance(_keep, str) else None
+    # The journal is a loosely-typed JSONL file (possibly hand-inspected, or
+    # written by an older canair), so its recorded mode is re-narrowed here.
+    effective_keep = keep_mode if keep_mode is not None else parse_keep_mode(meta.get("keep_mode"))
 
     # One-shot producer stored a complete session; merge its captures in. These
     # carry their own session date, so they are not day-split here.
@@ -401,7 +400,7 @@ def build_session_from_records(
 
 
 def reconcile_file(
-    path: Path, keep_mode: str | None = None, recovered: bool = False
+    path: Path, keep_mode: KeepMode | None = None, recovered: bool = False
 ) -> Path | None:
     """Reconcile a single journal file into its captures dir, then delete it.
 

@@ -47,6 +47,7 @@ from canlib.autopid_profile import (
     to_device_format,
 )
 from canlib.commands._group import group_help
+from canlib.transport.config import TransportType
 
 
 # Declared optional so the ImportError fallback to None is type-legal. The
@@ -317,7 +318,7 @@ _PROTOCOLS = ("elm327", "slcan", "savvycan", "realdash66", "auto_pid")
 # transport pointing at the wrong backend (the usual foot-gun). The other modes
 # (auto_pid/savvycan/realdash66) have no request/response transport, so the
 # transport is left untouched with a note.
-_MODE_TO_TRANSPORT = {
+_MODE_TO_TRANSPORT: dict[str, TransportType] = {
     "slcan": "slcan-tcp",
     "elm327": "wican-ws",
 }

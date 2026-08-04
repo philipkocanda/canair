@@ -18,6 +18,7 @@ from .config import (
     TransportConfig,
     TransportError,
     TransportSpec,
+    TransportType,
     resolve_transport,
     resolve_transport_candidates,
 )
@@ -50,6 +51,7 @@ __all__ = [
     "TransportConfig",
     "TransportError",
     "TransportSpec",
+    "TransportType",
     "WebSocketChannel",
     "connect_error_detail",
     "describe_transport_error",

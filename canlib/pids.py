@@ -9,10 +9,49 @@ settings (``car_model``, ``init``, ``failure_types``, ...) live one level up in
 """
 
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import Any, Literal, TypedDict, get_args
 
 from canlib import yaml_io
 from canlib.addressing import AddressingMode, EcuAddress
+
+# ── PID visibility lifecycle ──────────────────────────────────────────────
+# A PID's `status:` is a single, mutually-exclusive lifecycle value that
+# replaces the old ignored/static/enabled booleans. It answers "where does
+# this PID show up?" on four surfaces (tooling index, bare-ECU polling sweep,
+# explicit query, and the shipped WiCAN device profile):
+#
+#   active   (default) — real & live: indexed, swept, queryable, shipped.
+#   draft              — discovered/undecoded placeholder or speculative work:
+#                        indexed, swept, queryable, but NOT shipped to the device.
+#   static             — unchanging identity/calibration block: indexed &
+#                        queryable & analysed, but skipped in a bare-ECU sweep
+#                        (needs --include-static) and NOT shipped.
+#   ignored            — dead/useless DID (NRC, no decodable data): a documented
+#                        tombstone excluded from ALL tooling.
+#
+# Confidence (`verified:`) is a SEPARATE, orthogonal axis and lives per-param.
+#
+# A closed vocabulary, so it's a `Literal`: every comparison and every write is
+# checked statically, with the runtime tuple derived from the type (one source of
+# truth for the argparse `choices=` and the editor guards). The schema keeps its
+# own `valid_pid_status:` list — `canlib/schema/` must validate data without
+# importing Python — and a drift test asserts the two agree.
+PidStatus = Literal["active", "draft", "static", "ignored"]
+PID_STATUSES: tuple[PidStatus, ...] = get_args(PidStatus)
+DEFAULT_PID_STATUS: PidStatus = "active"
+
+
+def pid_status(pid_def: dict) -> PidStatus:
+    """Return a PID definition's lifecycle status, defaulting to ``active``.
+
+    Tolerant of unknown/missing values (treated as ``active``) so a malformed
+    file degrades to "visible" rather than silently disappearing.
+    """
+    raw = str((pid_def or {}).get("status", DEFAULT_PID_STATUS)).strip().lower()
+    for status in PID_STATUSES:
+        if raw == status:
+            return status
+    return DEFAULT_PID_STATUS
 
 
 class PidIndexEntry(TypedDict):
@@ -24,7 +63,7 @@ class PidIndexEntry(TypedDict):
 
     parameters: dict[str, Any]
     period: int
-    status: str
+    status: PidStatus
     shipped: bool  # include in the generated WiCAN device profile (status == active)
     swept: bool  # include in a bare-ECU sweep (status != static)
 
@@ -89,36 +128,6 @@ class RoutineIndexEntry(TypedDict):
 
     tx_id: int
     routines: dict[str, dict[str, Any]]
-
-
-# ── PID visibility lifecycle ──────────────────────────────────────────────
-# A PID's `status:` is a single, mutually-exclusive lifecycle value that
-# replaces the old ignored/static/enabled booleans. It answers "where does
-# this PID show up?" on four surfaces (tooling index, bare-ECU polling sweep,
-# explicit query, and the shipped WiCAN device profile):
-#
-#   active   (default) — real & live: indexed, swept, queryable, shipped.
-#   draft              — discovered/undecoded placeholder or speculative work:
-#                        indexed, swept, queryable, but NOT shipped to the device.
-#   static             — unchanging identity/calibration block: indexed &
-#                        queryable & analysed, but skipped in a bare-ECU sweep
-#                        (needs --include-static) and NOT shipped.
-#   ignored            — dead/useless DID (NRC, no decodable data): a documented
-#                        tombstone excluded from ALL tooling.
-#
-# Confidence (`verified:`) is a SEPARATE, orthogonal axis and lives per-param.
-PID_STATUSES = ("active", "draft", "static", "ignored")
-DEFAULT_PID_STATUS = "active"
-
-
-def pid_status(pid_def: dict) -> str:
-    """Return a PID definition's lifecycle status, defaulting to ``active``.
-
-    Tolerant of unknown/missing values (treated as ``active``) so a malformed
-    file degrades to "visible" rather than silently disappearing.
-    """
-    status = str((pid_def or {}).get("status", DEFAULT_PID_STATUS)).strip().lower()
-    return status if status in PID_STATUSES else DEFAULT_PID_STATUS
 
 
 def _yaml_load(fh) -> dict:

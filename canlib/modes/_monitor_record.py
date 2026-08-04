@@ -23,6 +23,15 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ..keepmode import (
+    KEEP_ALL,
+    KEEP_LAST,
+    KEEP_UNIQUE,
+    KeepMode,
+    PersistedKeepMode,
+    persisted_keep_mode,
+)
+
 if TYPE_CHECKING:
     from .monitor import MonitorController
     from .multi_batch import EcuFrame
@@ -58,7 +67,7 @@ def _write_merged(
     vehicle_states,
     notes: str,
     captures_dir: Path,
-    keep_mode: str | None = None,
+    keep_mode: KeepMode | None = None,
     transport: str | None = None,
     quality: dict | None = None,
 ) -> Path:
@@ -104,7 +113,7 @@ def _open_journal(controller, label: str | None, vehicle_states, notes: str | No
     from ..capture_journal import CaptureJournal
 
     journal_label = label or controller.query_label() or "Monitor session"
-    keep = controller.keep_mode if controller.keep_mode in ("changes", "unique") else None
+    keep = persisted_keep_mode(controller.keep_mode)
     return CaptureJournal.open(
         controller.captures_dir,
         label=journal_label,
@@ -252,10 +261,10 @@ class MonitorRecorder:
                     else:
                         self.save_history.setdefault(key, []).append((raw, ts))
                 if self.hex_history is not None:  # --keep display history
-                    if c.keep_mode in ("all", "last"):
+                    if c.keep_mode in (KEEP_ALL, KEEP_LAST):
                         self.hex_history.setdefault(key, []).append((raw, ts))
                         if (
-                            c.keep_mode == "last"
+                            c.keep_mode == KEEP_LAST
                             and c.keep_n
                             and len(self.hex_history[key]) > c.keep_n
                         ):
@@ -397,8 +406,11 @@ class MonitorRecorder:
         # This non-journal path draws from the display history, which is
         # globally deduped for both "changes" and "unique" modes (see observe()).
         # Persist it honestly as "unique" (global) rather than the controller's
-        # nominal "changes" — run-length is only applied on the journal path.
-        save_keep = "unique" if self.c.keep_mode in ("changes", "unique") else self.c.keep_mode
+        # nominal "changes" — run-length is only applied on the journal path. A
+        # non-dedup mode (all/last) records no policy at all.
+        save_keep: PersistedKeepMode | None = (
+            KEEP_UNIQUE if persisted_keep_mode(self.c.keep_mode) else None
+        )
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
             path = _write_merged(

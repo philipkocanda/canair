@@ -1,6 +1,13 @@
 # `Literal` aliases for the closed controlled vocabularies
 
-Status: proposed (2026-08-04)
+Status: DONE (2026-08-04) — all three vocabularies typed, each mutation-verified
+to fail `ty` at the drifted write site; drift tests added for the schema ↔
+`PidStatus` and `TRANSPORTS` ↔ `TransportType` pairs. Two deliberate deviations
+from the sketch below, both noted inline: `CaptureEntry.keep_mode` became
+`EntryKeepMode` (`"changes" | "unique" | ""`) rather than `PersistedKeepMode`,
+because the read side legitimately carries `""` for a session that recorded no
+policy; and the transport narrowing is a `_checked_type()` parse-then-narrow
+helper rather than a bare `cast`, so the cast can't be forgotten.
 
 Make canair's three genuinely-closed string vocabularies type-checked, deriving
 each runtime tuple from the type so `argparse choices=` and existing guards keep
