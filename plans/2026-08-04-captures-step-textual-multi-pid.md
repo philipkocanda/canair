@@ -49,7 +49,16 @@ Decisions taken with the user up front:
    frames with an identical joined index-tuple collapse. Hides nothing (a
    strict superset of what `--pair` showed) and reads naturally for
    event-driven captures.
-4. **Per-block cursor** (`tab`/`shift+tab`, `▶` marker) so `e` (note),
+4. **The stepper's own join default, `DEFAULT_STEP_JOIN_TOL_S = 10s`**, wider
+   than the shared `align.DEFAULT_JOIN_TOL_S` (5s). A full round-robin `monitor`
+   cycle over several ECUs spans ~8-10s, so two PIDs polled in the *same* cycle
+   can sit >5s apart and would not be joined — the frames split and the
+   comparison disappears (observed in the bundled profile: `HVAC:220100` and
+   `HVAC:2201A0` 8.5s apart). The stepper can afford the looser window because
+   it is a **viewer** — every block reports its `Δt`, so an over-wide join is
+   visible and self-correcting. `align`/`correlate`/`hunt` keep the tighter
+   default, where a loose pairing would silently move a coefficient.
+5. **Per-block cursor** (`tab`/`shift+tab`, `▶` marker) so `e` (note),
    `d` (delete) and `x` (drop PID) act on a chosen block — compare mode reaches
    parity with single-PID stepping rather than staying read-only.
 
@@ -106,11 +115,12 @@ path renders with zero Textual involvement.
 
 | File | Role |
 |---|---|
-| `_captures_query.py` | pure data layer; gains the N-way `JoinFrame`/`build_join_frames` + `key_index`, loses `_pair_by_time`/`_build_pair_frames` |
+| `_captures_query.py` | pure data layer (load, select, key/group/dedup); loses `_pair_by_time`/`_build_pair_frames`, gains `key_index` |
+| `_captures_join.py` | **new** — the N-way union join: `JoinFrame`, `build_join_frames`, `_nearest_within` (split out to keep `_captures_query.py` under the ~500-line smell) |
 | `_captures_step_render.py` | **new** — the renderers, refactored from `console.print(...)` to *return* `rich.text.Text`; one renderer serves TTY, piped, and Textual |
 | `_captures_step_model.py` | **new** — framework-free `StepModel`: key set, tolerance, view, cursors, `rebuild()`, `render()`, `to_json()` |
-| `_captures_step_tui.py` | **new** — `CapturesStepApp(HelpMixin, App)` + `PidSelectModal` + `ConfirmModal` |
-| `canlib/tui_modals.py` | **new** — shared `TextPromptModal`, moved out of `_decode_plot_tui.py` now that two TUIs need it |
+| `_captures_step_tui.py` | **new** — `CapturesStepApp(HelpMixin, App)` + `PidSelectModal` |
+| `canlib/tui_modals.py` | **new** — shared `TextPromptModal` (moved out of `_decode_plot_tui.py` now that two TUIs need it) + `ConfirmModal` |
 | `_captures_step.py` | shrinks to the entry point: build model → TTY / piped / JSON |
 | `captures.py` | `--pair` removed, `--view` added, `--join-tol`/`--limit` retargeted, `--json` allowed with `--step` |
 
@@ -141,3 +151,21 @@ shared fixture, so the two joins cannot silently diverge — the old
 3. `--json --step` works (previously an error).
 4. Piped `--step` renders frames statically instead of falling back to `--diff`;
    `--limit` now applies to that static render.
+
+## Incidental fixes (Boy Scout)
+
+- **A capture's `label` was silently swallowed** by the step view: it was
+  interpolated as `f"  [{escape(label)}]"` into a Rich *markup* string, so
+  `[ac-on]` was parsed as a style tag and vanished. Building the header as a
+  `Text` (rather than printing markup) makes capture-owned free text
+  unparseable as markup by construction, and the label now shows.
+- `TextPromptModal` was private to `_decode_plot_tui`; it moved to the shared
+  `canlib/tui_modals.py` alongside a new `ConfirmModal`.
+- `cmd_step_pair`'s `captures_dir` parameter was resolved but never used (the
+  view was read-only); gone with the function.
+
+## Status
+
+Landed. `pytest` (3605), `ruff`, `ty`, `validate all`, `gen-check` green;
+verified interactively over a pty and against the bundled profile's 54k captures
+(1923 joined frames for the three HVAC PIDs; every live mutation < 0.15s).

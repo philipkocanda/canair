@@ -14,7 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   same instant — e.g. `canair cap "HVAC:220100,2201A0,2201A2" --step` shows the
   compressor duty next to both duct temperatures as the AC cycles. Frames are
   anchored on the *union* of every capture timestamp, with the other PIDs
-  nearest-joined within `--join-tol` (default 5s), so nothing is hidden: a capture
+  nearest-joined within `--join-tol` (default 10s — sized for a full round-robin
+  `monitor` cycle, and wider than the 5s the statistics tools use), so nothing is
+  hidden: a capture
   with no counterpart in range still gets a frame, marked
   `— no ECU:PID capture within Ns —`. The view is **editable live**: `a` opens a
   filterable checklist to add/remove PIDs, `t` (or `<`/`>`) changes the join

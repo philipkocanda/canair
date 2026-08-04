@@ -16,6 +16,7 @@ from rich.console import Console
 from canlib.commands._captures_step import cmd_step
 from canlib.commands._captures_step_model import (
     AUTO_STACK_MAX_KEYS,
+    DEFAULT_STEP_JOIN_TOL_S,
     TOL_LADDER,
     VIEW_AUTO,
     VIEW_CHANGED,
@@ -158,6 +159,35 @@ def _three_pid_entries() -> list[dict]:
     return out
 
 
+class TestJoinToleranceDefault:
+    def test_is_ten_seconds(self):
+        assert DEFAULT_STEP_JOIN_TOL_S == 10.0
+        assert _model().tol_s == 10.0
+
+    def test_is_wider_than_the_shared_analysis_default(self):
+        """The stepper is a viewer (every block shows its Δt), so it can afford a
+        looser join than the statistics tools, where a loose pairing would
+        silently move a correlation coefficient."""
+        from canlib.align import DEFAULT_JOIN_TOL_S
+
+        assert DEFAULT_STEP_JOIN_TOL_S > DEFAULT_JOIN_TOL_S
+
+    def test_sits_on_the_ladder_so_both_nudges_work(self):
+        assert DEFAULT_STEP_JOIN_TOL_S in TOL_LADDER
+        assert TOL_LADDER[0] < DEFAULT_STEP_JOIN_TOL_S < TOL_LADDER[-1]
+
+    def test_joins_a_full_round_robin_cycle(self):
+        """The motivating case: two PIDs of one ECU polled ~8.5s apart in the same
+        multi-ECU monitor cycle must land in one frame, which 5s split."""
+        caps = [
+            _entry(pid="220100", time="12:00:00", payload="6201005A6401"),
+            _entry(pid="2201A0", time="12:00:08.5", payload="6201005A6402", _capture_idx=1),
+        ]
+        keys = [("HVAC", "220100"), ("HVAC", "2201A0")]
+        assert _model(entries=caps, keys=keys).frame_count() == 1
+        assert _model(entries=caps, keys=keys, tol_s=5.0).frame_count() == 2
+
+
 class TestResolveView:
     def test_auto_stacks_a_small_selection(self):
         assert resolve_view(VIEW_AUTO, 1) == VIEW_STACKED
@@ -209,7 +239,7 @@ class TestStepModelState:
         line = _model().status_line()
         assert "frame 2/2" in line
         assert "view stacked" in line
-        assert "tol 5s" in line
+        assert "tol 10s" in line
         assert "3 PIDs" in line
         assert "unique payloads" in line
 
@@ -301,11 +331,12 @@ class TestStepModelMutation:
         assert all(len(f.indices) == 2 for f in m.frames)
 
     def test_nudge_tol_walks_the_ladder(self):
-        m = _model(tol_s=5.0)
+        m = _model()
+        assert m.tol_s == DEFAULT_STEP_JOIN_TOL_S  # the ladder starts at the default
         m.nudge_tol(1)
-        assert m.tol_s == TOL_LADDER[TOL_LADDER.index(5.0) + 1]
+        assert m.tol_s == TOL_LADDER[TOL_LADDER.index(DEFAULT_STEP_JOIN_TOL_S) + 1]
         m.nudge_tol(-1)
-        assert m.tol_s == 5.0
+        assert m.tol_s == DEFAULT_STEP_JOIN_TOL_S
 
     def test_nudge_tol_saturates_at_the_ends(self):
         m = _model(tol_s=TOL_LADDER[-1])
@@ -339,7 +370,7 @@ class TestStepModelRender:
         m.first()
         out = _render(m.render())
         assert "frame 1/2" in out
-        assert "tol=5s" in out
+        assert "tol=10s" in out
         assert out.count("HVAC (0x7B3)") == 3
         assert "220100" in out and "2201A0" in out and "2201A2" in out
         assert "Δt=+0.00s" in out and "Δt=+1.00s" in out
@@ -385,7 +416,7 @@ class TestStepModelJson:
         m = _model()
         data = m.to_json()
         assert data["view"] == VIEW_STACKED
-        assert data["tol_s"] == 5.0
+        assert data["tol_s"] == DEFAULT_STEP_JOIN_TOL_S
         assert data["keys"] == ["HVAC:220100", "HVAC:2201A0", "HVAC:2201A2"]
         assert data["frame_count"] == 2
         assert len(data["frames"]) == 2
@@ -582,10 +613,11 @@ class TestCapturesStepApp:
         app = self._app()
         async with app.run_test(size=(120, 30)) as pilot:
             await pilot.pause()
+            assert app.model.tol_s == DEFAULT_STEP_JOIN_TOL_S
             await pilot.press(">")
-            assert app.model.tol_s == 10.0
+            assert app.model.tol_s == 30.0
             await pilot.press("<")
-            assert app.model.tol_s == 5.0
+            assert app.model.tol_s == DEFAULT_STEP_JOIN_TOL_S
 
     @pytest.mark.asyncio
     async def test_tolerance_prompt_modal(self):
@@ -614,7 +646,7 @@ class TestCapturesStepApp:
                 await pilot.press(ch)
             await pilot.press("enter")
             await pilot.pause()
-            assert app.model.tol_s == 5.0
+            assert app.model.tol_s == DEFAULT_STEP_JOIN_TOL_S
             assert "Not a number" in app._flash_msg
 
     @pytest.mark.asyncio

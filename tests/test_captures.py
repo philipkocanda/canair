@@ -11,12 +11,8 @@ from canlib.captures import (
     resolve_metadata,
     save_session,
 )
-from canlib.commands._captures_query import (
-    _gather_query,
-    _is_hex_payload,
-    _nearest_within,
-    build_join_frames,
-)
+from canlib.commands._captures_join import _nearest_within, build_join_frames
+from canlib.commands._captures_query import _gather_query, _is_hex_payload
 from canlib.commands.captures import (
     _clean,
     _group_sessions,

@@ -213,9 +213,11 @@ class CapturesStepApp(HelpMixin, App):
         body.update(self.model.render())
         header.update(f"[b]captures step[/] [dim]·[/] {self.model.keys_label()}")
         flash = f"    [b green]{self._flash_msg}[/]" if self._flash_msg else ""
+        # Deliberately terse: `?` is the cheat-sheet, so the status bar does not
+        # have to be one (and stays readable on a narrow terminal).
         status.update(
             f"[dim]{self.model.status_line()}[/]{flash}"
-            "    [dim]←/→ frame · tab block · a PIDs · t tol · V view · ? help · q quit[/]"
+            "    [dim]←/→ frame · a PIDs · t tol · ? help · q quit[/]"
         )
         if to_top:
             # A new frame starts at its top; scrolling is for reading *within* one.

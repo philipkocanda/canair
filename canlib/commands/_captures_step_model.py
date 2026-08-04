@@ -27,10 +27,9 @@ from pathlib import Path
 
 from rich.text import Text
 
-from canlib.align import DEFAULT_JOIN_TOL_S
 from canlib.capture_dates import entry_datetime
+from canlib.commands._captures_join import JoinFrame, build_join_frames
 from canlib.commands._captures_query import (
-    JoinFrame,
     PidDefs,
     _capture_key,
     _dedupe_payloads,
@@ -38,7 +37,6 @@ from canlib.commands._captures_query import (
     _load_ecu_index,
     _prev_same_index,
     _resolve_defs,
-    build_join_frames,
     key_index,
     load_all_captures,
 )
@@ -70,6 +68,20 @@ AUTO_STACK_MAX_KEYS = 6
 #: Tolerance ladder stepped by ``<``/``>`` in the TUI (seconds).
 TOL_LADDER = (0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0, 300.0)
 
+#: Default join window for the stepper — deliberately wider than the shared
+#: :data:`canlib.align.DEFAULT_JOIN_TOL_S` (5s) used by
+#: ``align``/``correlate``/``hunt``.
+#:
+#: A full round-robin ``monitor`` cycle over several ECUs routinely spans ~8-10s,
+#: so two PIDs polled in the *same* cycle can sit further apart than 5s and would
+#: not be joined — the frames split, and the comparison the view exists for
+#: disappears. The stepper can afford the wider window because it is a *viewer*:
+#: every block reports its own ``Δt`` from the anchor, so an over-wide join is
+#: visible and self-correcting. The statistics tools cannot — a loose pairing
+#: silently changes a correlation coefficient — which is why they keep the
+#: tighter shared default.
+DEFAULT_STEP_JOIN_TOL_S = 10.0
+
 # Frames skipped by a "page" jump.
 PAGE_JUMP = 100
 
@@ -93,7 +105,7 @@ class StepModel:
     keys: list[tuple[str, str]]
     defs: dict[tuple[str, str], PidDefs]
     view: str = VIEW_STACKED
-    tol_s: float = DEFAULT_JOIN_TOL_S
+    tol_s: float = DEFAULT_STEP_JOIN_TOL_S
     show_all: bool = False
     rulers: bool = False
     captures_dir: Path | None = None
@@ -125,7 +137,7 @@ class StepModel:
         defs: dict[tuple[str, str], PidDefs],
         *,
         view: str = VIEW_AUTO,
-        tol_s: float = DEFAULT_JOIN_TOL_S,
+        tol_s: float = DEFAULT_STEP_JOIN_TOL_S,
         show_all: bool = False,
         rulers: bool = False,
         captures_dir: Path | None = None,

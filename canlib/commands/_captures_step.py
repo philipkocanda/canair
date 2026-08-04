@@ -14,7 +14,6 @@ The state and rendering live in the model/renderer modules; the join lives in
 import sys
 from pathlib import Path
 
-from canlib.align import DEFAULT_JOIN_TOL_S
 from canlib.commands._captures_query import (
     _DIM,
     _RESET,
@@ -23,7 +22,11 @@ from canlib.commands._captures_query import (
     _dump_json,
     _gather_query,
 )
-from canlib.commands._captures_step_model import VIEW_AUTO, StepModel
+from canlib.commands._captures_step_model import (
+    DEFAULT_STEP_JOIN_TOL_S,
+    VIEW_AUTO,
+    StepModel,
+)
 
 
 def _safe_alias_index() -> dict[str, str]:
@@ -44,7 +47,7 @@ def build_model(
     captures_dir: Path | None = None,
     rulers: bool = False,
     view: str = VIEW_AUTO,
-    tol_s: float = DEFAULT_JOIN_TOL_S,
+    tol_s: float = DEFAULT_STEP_JOIN_TOL_S,
     warn: bool = True,
 ) -> StepModel | None:
     """Select captures for ``query`` and build the step model (None if nothing matched).
@@ -83,7 +86,7 @@ def cmd_step(
     captures_dir: Path | None = None,
     rulers: bool = False,
     view: str = VIEW_AUTO,
-    tol_s: float = DEFAULT_JOIN_TOL_S,
+    tol_s: float = DEFAULT_STEP_JOIN_TOL_S,
     as_json: bool = False,
     limit: int = 0,
 ) -> None:

@@ -102,8 +102,9 @@ canair captures uds "VCU:2101 BMS:2101" --step            # across two ECUs
 ```
 
 Each frame is anchored on a capture timestamp, with the other PIDs joined to the
-nearest capture within `--join-tol` (5s by default — wide enough for the skew of a
-round-robin `monitor` cycle). A block shows its `Δt` from the anchor, and a PID
+nearest capture within `--join-tol` (10s by default — wide enough to span a full
+round-robin `monitor` cycle over several ECUs). A block shows its `Δt` from the
+anchor, and a PID
 with no capture in range is reported rather than hidden, so you always know
 whether you are looking at a real simultaneous reading.
 

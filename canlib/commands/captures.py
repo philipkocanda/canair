@@ -93,7 +93,6 @@ from collections import defaultdict
 from pathlib import Path
 from typing import TypedDict
 
-from canlib.align import DEFAULT_JOIN_TOL_S
 from canlib.capture_dates import (
     add_scope_args,
     filter_by_date_range,
@@ -117,7 +116,12 @@ from canlib.commands._captures_query import (
     load_all_captures,
 )
 from canlib.commands._captures_step import cmd_step
-from canlib.commands._captures_step_model import AUTO_STACK_MAX_KEYS, VIEW_AUTO, VIEW_CHOICES
+from canlib.commands._captures_step_model import (
+    AUTO_STACK_MAX_KEYS,
+    DEFAULT_STEP_JOIN_TOL_S,
+    VIEW_AUTO,
+    VIEW_CHOICES,
+)
 from canlib.commands._group import group_help
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.states import join_states as _join_states
@@ -1191,11 +1195,11 @@ def _add_uds_parser(kinds) -> argparse.ArgumentParser:
     parser.add_argument(
         "--join-tol",
         type=float,
-        default=DEFAULT_JOIN_TOL_S,
+        default=DEFAULT_STEP_JOIN_TOL_S,
         metavar="SECONDS",
         help=f"For --step: max timestamp difference when joining captures of "
-        f"different PIDs into one stacked frame (default {DEFAULT_JOIN_TOL_S:g}s; "
-        f"adjustable live with t / < / >)",
+        f"different PIDs into one stacked frame (default {DEFAULT_STEP_JOIN_TOL_S:g}s, "
+        f"sized for a full round-robin monitor cycle; adjustable live with t / < / >)",
     )
 
     parser.add_argument(
