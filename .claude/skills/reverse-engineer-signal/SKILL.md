@@ -457,8 +457,11 @@ The tooling exposes real statistical levers — use them as evidence, not decora
     by state separation, not dropped). Add **`--events`** for the bit/byte **edge
     timeline** — every rising/falling transition with its timestamp, aligned to
     the nearest capture note; the fastest way to decode a narrated event capture
-    (door/lock/hood). Both **caveat `keep:unique`/`keep:changes` scope** (strong
-    for the legacy global dedup, milder for the run-length default).
+    (door/lock/hood). Both **caveat `keep:changes` scope** (the run-length
+    default: stored rows are transitions, not fixed-rate samples). `keep:unique`
+    gets no blanket banner — it is flagged only where it changes a reading (the
+    `--events` dwell classes), so read the recording mode from
+    `canair captures --sessions` when timing matters.
 - **Cross-ECU mirror detection** (`canair correlate --find-mirrors [--bits]`) —
   reports byte/bit positions time-aligned *equal* across co-polled ECU/PIDs (a
   door bit in IGPM also present in BCM); the cross-ECU companion to

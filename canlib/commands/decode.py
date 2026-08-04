@@ -74,7 +74,6 @@ from canlib.commands._decode_render import (
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.expression import evaluate_expression
 from canlib.inspect_bytes import POST_TRANSFORMS
-from canlib.keepmode import BANNER as KEEP_BANNER
 from canlib.keepmode import CHANGES_BANNER, scope_is_keep_changes, scope_is_keep_unique
 from canlib.notation import (
     add_notation_arg,
@@ -948,14 +947,12 @@ def _decode_one(
     if banner:
         print(f"  {_DIM}scope: {banner}{_RESET}\n")
 
-    if scope_is_keep_unique(captures):
-        print(f"  {_YELLOW}⚠ {KEEP_BANNER}.{_RESET}")
-        if args.corr_transform in ("delta", "cumsum"):
-            print(
-                f"  {_YELLOW}  ⚠ --corr-transform {args.corr_transform} on keep:unique data is "
-                f"unreliable — the time gaps between stored rows are dedup artifacts, not "
-                f"real sampling intervals.{_RESET}"
-            )
+    if scope_is_keep_unique(captures) and args.corr_transform in ("delta", "cumsum"):
+        print(
+            f"  {_YELLOW}⚠ --corr-transform {args.corr_transform} on keep:unique data is "
+            f"unreliable — the time gaps between stored rows are dedup artifacts, not "
+            f"real sampling intervals.{_RESET}"
+        )
         print()
     if scope_is_keep_changes(captures):
         print(f"  {_YELLOW}⚠ {CHANGES_BANNER}.{_RESET}")

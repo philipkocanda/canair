@@ -1,5 +1,4 @@
 
   Investigate IGPM 22BC02 (272 timed captures, ≤5s join)
-    ⚠ scope includes keep:unique sessions — only distinct values were kept (global dedup); return-to-previous transitions and durations are absent, and stored-row time gaps are not real sampling intervals.
     no varying bytes to report
 

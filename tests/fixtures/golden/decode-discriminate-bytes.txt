@@ -3,8 +3,6 @@ IGPM PID 22BC03 — 18 parameters (15 verified, 3 unverified), 310 captures
 
   scope: earliest .. 2026-08-02
 
-  ⚠ scope includes keep:unique sessions — only distinct values were kept (global dedup); return-to-previous transitions and durations are absent, and stored-row time gaps are not real sampling intervals.
-
   Discriminability by state (params + bytes) (numeric: between/within variance F; categorical: Cramér's V — higher = cleaner separation)
     ✓ ACC2_IGN_ON  F=200.5  (no state)=0.6  ready=1.0  SLEEP, PARKED=0.0  SLEEP=0.0  sleep=0.0  ready, parked=1.0  parked, sleep=0.0  charging=0.0  READY, SLEEP, ACC=0.5  READY=1.0  CHARGING=0.0  READY, PLUGGED, CHARGING=1.0  PLUGGED, CHARGING=1.0  PLUGGED, ACC2=1.0
     ? IGN_STATUS_MIRROR  F=200.5  (no state)=0.6  ready=1.0  SLEEP, PARKED=0.0  SLEEP=0.0  sleep=0.0  ready, parked=1.0  parked, sleep=0.0  charging=0.0  READY, SLEEP, ACC=0.5  READY=1.0  CHARGING=0.0  READY, PLUGGED, CHARGING=1.0  PLUGGED, CHARGING=1.0  PLUGGED, ACC2=1.0

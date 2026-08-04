@@ -1,5 +1,3 @@
-  ⚠ scope includes keep:unique sessions — only distinct values were kept (global dedup); return-to-previous transitions and durations are absent, and stored-row time gaps are not real sampling intervals.
-
 
   Cross-signal correlations (35 signals, |r|≥0.6, n≥15, ≤5s)
     ≈ cluster (|r|≥0.995, 4 signals)  IGPM:22BC03:ACC2_IGN_ON, IGPM:22BC03:IGN_STATUS_MIRROR, IGPM:22BC04:IGPM_BC04_B10_0, IGPM:22BC07:ACC2_RELATED

@@ -35,7 +35,6 @@ from canlib.commands._correlate_render import (
     _print_overlap,
 )
 from canlib.commands._group import group_help
-from canlib.keepmode import BANNER as KEEP_BANNER
 from canlib.keepmode import CHANGES_BANNER, scope_is_keep_changes, scope_is_keep_unique
 from canlib.notation import add_notation_arg, relabel_signal, resolve_notation
 from canlib.stats import METHOD_CHEAT_SHEET as _METHOD_CHEAT_SHEET
@@ -571,28 +570,30 @@ def run(args) -> int:
         )
 
     keep_unique, keep_changes = _scope_keep_flags(specs, since, until, args.state, args.label)
-    if not args.json and (keep_unique or keep_changes):
+    if not args.json:
         transform_caveat = args.transform in ("delta", "cumsum") or args.lag_scan
         what = (
             f"--transform {args.transform}"
             if args.transform in ("delta", "cumsum")
             else "--lag-scan"
         )
-        if keep_unique:
-            print(f"  {_YELLOW}⚠ {KEEP_BANNER}.{_RESET}")
-            if transform_caveat:
-                print(
-                    f"  {_YELLOW}  ⚠ {what} on keep:unique data is unreliable — stored-row time "
-                    f"gaps are dedup artifacts, not real sampling intervals.{_RESET}"
-                )
+        caveats: list[str] = []
+        if keep_unique and transform_caveat:
+            caveats.append(
+                f"⚠ {what} on keep:unique data is unreliable — stored-row time "
+                f"gaps are dedup artifacts, not real sampling intervals."
+            )
         if keep_changes:
-            print(f"  {_YELLOW}⚠ {CHANGES_BANNER}.{_RESET}")
+            caveats.append(f"⚠ {CHANGES_BANNER}.")
             if transform_caveat:
-                print(
-                    f"  {_YELLOW}  ⚠ {what} on keep:changes data is unreliable — stored rows are "
-                    f"value-transitions, not fixed-rate samples.{_RESET}"
+                caveats.append(
+                    f"⚠ {what} on keep:changes data is unreliable — stored rows are "
+                    f"value-transitions, not fixed-rate samples."
                 )
-        print()
+        if caveats:
+            for line in caveats:
+                print(f"  {_YELLOW}{line}{_RESET}")
+            print()
 
     series, plens = _gather_series(
         specs,

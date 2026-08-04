@@ -119,10 +119,14 @@ All of these share the scope flags (`--since`/`--until`/`--date`, `--state`,
     from the timestamps), collapsing only immediate repeats. The legacy
     `--keep-unique` is **global** dedup: it keeps only globally-distinct values,
     so return-to-previous transitions and durations are absent.
-    `align`/`decode`/`correlate`/`investigate` flag both in scope — a strong
-    caveat for `keep:unique`, a milder one for `keep:changes` (stored rows are
-    transitions, not fixed-rate samples). Rate/`delta` analysis is unreliable on
-    either; use `--keep-all` when you need real sampling cadence.
+    `align`/`decode`/`correlate`/`investigate` print a banner when
+    `keep:changes` sessions are in scope (stored rows are transitions, not
+    fixed-rate samples). `keep:unique` gets **no blanket banner** — most
+    historical captures were recorded that way, so it was noise on nearly every
+    report; it is called out only where it actually changes a reading (the
+    `investigate --events` dwell classes, and the `--transform`/`--lag-scan`
+    time-gap warnings). Rate/`delta` analysis is unreliable on either; use
+    `--keep-all` when you need real sampling cadence.
 
 !!! warning "Bimodal references defeat correlation ranking"
     When a reference signal collapses into **two flat, well-separated clusters** —

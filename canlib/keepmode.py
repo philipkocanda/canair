@@ -86,14 +86,13 @@ def persisted_keep_mode(mode: str | None) -> PersistedKeepMode | None:
     return None
 
 
-# Strong caveat — legacy global dedup (``keep_mode: unique``).
-BANNER = (
-    "scope includes keep:unique sessions — only distinct values were kept (global "
-    "dedup); return-to-previous transitions and durations are absent, and stored-row "
-    "time gaps are not real sampling intervals"
-)
-
 # Mild caveat — run-length recording (``keep_mode: changes``).
+#
+# There is deliberately no blanket ``keep:unique`` counterpart: most historical
+# captures were recorded that way, so a scope banner fired on nearly every
+# report and became noise. The unique caveat is now raised only where it changes
+# a reading — the dwell classes (``investigate --events``) and the
+# ``--transform``/``--lag-scan`` time-gap warnings in ``decode``/``correlate``.
 CHANGES_BANNER = (
     "scope includes keep:changes sessions — stored rows are value-transitions "
     "(run-length); the intra-run sampling cadence and the final run's duration are "

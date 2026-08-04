@@ -30,8 +30,7 @@ from canlib.align import (
     load_signal_captures,
 )
 from canlib.capture_dates import add_scope_args, resolve_scope_bounds
-from canlib.keepmode import BANNER as KEEP_BANNER
-from canlib.keepmode import CHANGES_BANNER, scope_is_keep_changes, scope_is_keep_unique
+from canlib.keepmode import CHANGES_BANNER, scope_is_keep_changes
 
 NAME = "align"
 
@@ -90,7 +89,7 @@ def _load_one(spec: str, *, since, until, state, label):
     """Load one ``ECU:PID:PARAM|EXPR`` signal → ``(label, series, captures)``.
 
     Mirrors ``_decode_calc.load_cross_ref_series`` but also returns the backing
-    captures so the caller can flag ``keep:unique`` scope. Raises ``ValueError``
+    captures so the caller can flag ``keep:changes`` scope. Raises ``ValueError``
     with a clean message when the signal can't be built.
     """
     from canlib.pids import build_ecu_index, load_pids
@@ -132,7 +131,6 @@ def run(args) -> int:
 
     labels: list[str] = []
     series_by_label: dict[str, list] = {}
-    any_keep_unique = False
     any_keep_changes = False
     for tok in tokens:
         try:
@@ -147,7 +145,6 @@ def run(args) -> int:
             continue
         labels.append(label)
         series_by_label[label] = series
-        any_keep_unique = any_keep_unique or scope_is_keep_unique(caps)
         any_keep_changes = any_keep_changes or scope_is_keep_changes(caps)
 
     if len(labels) < 2:
@@ -174,7 +171,7 @@ def run(args) -> int:
     elif args.csv:
         _emit_csv(rows, labels)
     else:
-        _emit_table(rows, labels, args.join_tol, any_keep_unique, any_keep_changes)
+        _emit_table(rows, labels, args.join_tol, any_keep_changes)
     return 0
 
 
@@ -232,15 +229,13 @@ def _fmt_val(v: float | None) -> str:
     return f"{v:.3f}".rstrip("0").rstrip(".")
 
 
-def _emit_table(rows, labels, tol: float, keep_unique: bool, keep_changes: bool = False) -> None:
+def _emit_table(rows, labels, tol: float, keep_changes: bool = False) -> None:
     # Short cN handles keep the table narrow; a legend maps them to full labels.
     handles = [f"c{i + 1}" for i in range(len(labels))]
     print(
         f"\n  {_BOLD}align{_RESET} — {len(labels)} signals, {len(rows)} rows "
         f"{_DIM}(nearest-join ≤{tol}s; c1 is the reference){_RESET}"
     )
-    if keep_unique:
-        print(f"  {_YELLOW}⚠ {KEEP_BANNER}{_RESET}")
     if keep_changes:
         print(f"  {_YELLOW}⚠ {CHANGES_BANNER}{_RESET}")
     for h, lbl in zip(handles, labels, strict=True):

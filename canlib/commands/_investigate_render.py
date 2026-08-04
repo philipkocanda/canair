@@ -18,7 +18,6 @@ import sys
 
 from canlib.align import longest_payload_len
 from canlib.keepmode import (
-    BANNER,
     CHANGES_BANNER,
     scope_is_keep_changes,
     scope_is_keep_unique,
@@ -41,13 +40,12 @@ def cap_note(cap) -> str:
 
 
 def print_keep_banner(captures) -> None:
-    """Warn when the scope includes keep:unique / keep:changes sessions.
+    """Warn when the scope includes ``keep:changes`` (run-length) sessions.
 
-    ``unique`` (legacy global dedup) gets the strong caveat; ``changes``
-    (run-length) the milder one. Both may print if the scope mixes sessions.
+    ``keep:unique`` gets no blanket banner — it fired on nearly every report over
+    historical data, so the caveat is left to the places it actually changes a
+    reading (the dwell classes, and the ``--transform`` time-gap warnings).
     """
-    if scope_is_keep_unique(captures):
-        print(f"    {_YELLOW}⚠ {BANNER}.{_RESET}")
     if scope_is_keep_changes(captures):
         print(f"    {_YELLOW}⚠ {CHANGES_BANNER}.{_RESET}")
 

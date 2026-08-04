@@ -29,6 +29,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   wins over a payload-dependent read error that used to surface first — which
   was itself payload-dependent, and the expression is broken either way. See
   `plans/2026-08-04-expression-evaluator-performance.md`.
+- **Dropped the blanket `keep:unique` scope banner** from `decode`, `correlate`,
+  `align` and `investigate`. Nearly every historical capture was recorded with the
+  legacy global dedup, so the warning fired on almost every report and became
+  noise rather than information. The caveat now appears only where it actually
+  changes a reading: the `investigate --events` dwell classes (dropped falling
+  edges make on-durations unavailable) and the `--transform delta|cumsum` /
+  `--lag-scan` time-gap warnings. The milder `keep:changes` banner is unchanged,
+  and a session's recording mode is still reported by
+  `canair captures --sessions` and in `investigate --json`
+  (`keep_unique`/`keep_changes`).
 
 ## [1.13.0] - 2026-08-04
 

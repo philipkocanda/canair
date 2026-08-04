@@ -167,17 +167,20 @@ class TestInvestigateBitsEvents:
         out = capsys.readouterr().out
         assert "B10:5" in out  # the toggling bit surfaces at bit granularity
 
-    def test_keep_unique_banner(self, tmp_path, monkeypatch, capsys):
+    def test_no_keep_unique_banner(self, tmp_path, monkeypatch, capsys):
+        # keep:unique gets no blanket scope banner (it fired on nearly every
+        # report over historical data); its caveats are raised only where they
+        # change a reading, e.g. the dwell classes.
         _write_events(tmp_path)
         _run(tmp_path, monkeypatch, ["IGPM", "22BC03", "--bits", "--all"], [("IGPM", "22BC03")])
-        assert "keep:unique" in capsys.readouterr().out
+        assert "keep:unique" not in capsys.readouterr().out
 
     def test_keep_changes_banner(self, tmp_path, monkeypatch, capsys):
         _write_events(tmp_path, keep_mode="changes")
         _run(tmp_path, monkeypatch, ["IGPM", "22BC03", "--bits", "--all"], [("IGPM", "22BC03")])
         out = capsys.readouterr().out
         assert "keep:changes" in out
-        assert "keep:unique" not in out  # the milder caveat, not the strong one
+        assert "keep:unique" not in out
 
     def test_events_edges_with_note(self, tmp_path, monkeypatch, capsys):
         _write_events(tmp_path)

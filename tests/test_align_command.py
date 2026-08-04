@@ -73,12 +73,13 @@ class TestAlign:
         assert r0["values"]["IGPM:22BC03:B10"] == 10.0
         assert r0["values"]["IGPM:22BC05:B10"] == 0.0
 
-    def test_table_shows_keep_unique_and_legend(self, tmp_path, monkeypatch, capsys):
+    def test_table_shows_legend_without_keep_unique_banner(self, tmp_path, monkeypatch, capsys):
         _write(tmp_path)
         rc = _run(tmp_path, monkeypatch, ["IGPM:22BC03:B10", "IGPM:22BC05:B10"])
         assert rc == 0
         out = capsys.readouterr().out
-        assert "keep:unique" in out  # the fixture session is keep_mode: unique
+        # The fixture session is keep_mode: unique — no blanket scope banner.
+        assert "keep:unique" not in out
         assert "c1 = IGPM:22BC03:B10" in out
         assert "c2 = IGPM:22BC05:B10" in out
 

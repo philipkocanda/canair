@@ -80,10 +80,18 @@ class TestCrossMirrors:
             b_pid = m["b"].split(":")[1]
             assert a_pid != b_pid  # same-PID mirrors are decode's job
 
-    def test_keep_unique_banner_text_mode(self, tmp_path, monkeypatch, capsys):
+    def test_no_keep_unique_banner_text_mode(self, tmp_path, monkeypatch, capsys):
+        # No blanket keep:unique scope banner — only the --transform/--lag-scan
+        # caveats mention it (see test_transform_caveat_*).
         _write(tmp_path)
         _run(tmp_path, monkeypatch, ["IGPM", "--min-n", "3"])
-        assert "keep:unique" in capsys.readouterr().out
+        assert "keep:unique" not in capsys.readouterr().out
+
+    def test_keep_unique_transform_caveat(self, tmp_path, monkeypatch, capsys):
+        _write(tmp_path)
+        _run(tmp_path, monkeypatch, ["IGPM", "--min-n", "3", "--transform", "delta"])
+        out = capsys.readouterr().out
+        assert "--transform delta on keep:unique data is unreliable" in out
 
     def test_keep_changes_banner_text_mode(self, tmp_path, monkeypatch, capsys):
         _write(tmp_path, keep_mode="changes")
