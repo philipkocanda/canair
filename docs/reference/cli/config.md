@@ -3,7 +3,7 @@
 # `canair config`
 
 ```
-usage: canair config [-h] {show,path,get,set,unset,edit} ...
+usage: canair config [-h] {show,example,path,get,set,unset,edit} ...
 
 ``canair config`` — view and manage user configuration.
 
@@ -13,6 +13,7 @@ resolved transport, and the configured devices — and edits the user config
 
 Subcommands:
   show            Show config file locations + effective settings (default)
+  example         Print the commented, fully-documented example config
   path            Print the user config file path (handy for scripting)
   get KEY         Print one value; KEY may be dotted (e.g. transport.port)
   set KEY VALUE   Set a value (dotted keys create nested mappings)
@@ -21,15 +22,21 @@ Subcommands:
 
 Examples:
   canair config
+  canair config example
   canair config set default_wican home
   canair config set devices.home.host 10.0.2.86
   canair config set devices.home.transport wican-ws
   canair config get transport.host
   canair config unset transport.port
 
+Every key is documented — with inline comments — in `canair config example`
+(`config.example.yaml` in the repo root); it's the authoritative reference. See
+also: https://philipkocanda.github.io/canair/reference/config/
+
 positional arguments:
-  {show,path,get,set,unset,edit}
+  {show,example,path,get,set,unset,edit}
     show                Show config locations and effective settings
+    example             Print the commented, fully-documented example config
     path                Print the user config file path
     get                 Print a single (dotted) config value
     set                 Set a (dotted) config value
@@ -48,6 +55,19 @@ usage: canair config show [-h] [--json]
 options:
   -h, --help  show this help message and exit
   --json      Emit machine-readable JSON
+```
+
+## `canair config example`
+
+```
+usage: canair config example [-h]
+
+Print `config.example.yaml` — the authoritative, fully-commented reference for
+every config key. See also:
+https://philipkocanda.github.io/canair/reference/config/
+
+options:
+  -h, --help  show this help message and exit
 ```
 
 ## `canair config path`
@@ -99,6 +119,8 @@ known keys:
   transport.connect_timeout
   transport.fallback_order
 
+Every key is documented in `canair config example` (config.example.yaml) and https://philipkocanda.github.io/canair/reference/config/
+
 positional arguments:
   key           Config key, e.g. transport.type or devices.home.host
   value         Value (coerced to int/float/bool where unambiguous)
@@ -121,6 +143,9 @@ Values are coerced to int/float/bool/null where unambiguous; pass --string to
 force a string (e.g. a zero-padded id). Dotted keys create nested mappings.
 Comma-separated values are stored as a list for list-valued keys
 (transport.fallback_order).
+
+See `canair config example` (config.example.yaml) for every key documented
+with inline comments, and https://philipkocanda.github.io/canair/reference/config/ for the rendered reference.
 ```
 
 ## `canair config unset`
