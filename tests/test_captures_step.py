@@ -18,7 +18,6 @@ from canlib.commands._captures_step_model import (
     AUTO_STACK_MAX_KEYS,
     BLOCK_NO_FRAME,
     BLOCK_NON_PAYLOAD,
-    BLOCK_UNTIMED,
     DEFAULT_STEP_JOIN_TOL_S,
     TOL_LADDER,
     VIEW_AUTO,
@@ -901,16 +900,17 @@ def _jump_model(**kw) -> StepModel:
 
 class TestJumpTargets:
     def test_sessions_are_listed_newest_first(self):
-        rows = [t for t in _jump_model().jump_targets() if not t.is_note]
+        rows = [t for t in _jump_model().jump_targets().rows if not t.is_note]
+        # 2026-07-01 is the untimed legacy session: no frame, and its only note
+        # cannot be placed on a timeline, so it offers nowhere to go.
         assert [t.session[0] for t in rows] == [
             "2026-08-02.json",
             "2026-08-01.json",
             "2026-07-15.json",
-            "2026-07-01.json",
         ]
 
     def test_notes_nest_under_their_session(self):
-        rows = _jump_model().jump_targets()
+        rows = _jump_model().jump_targets().rows
         # Each note row carries the session of the header immediately above it.
         current = None
         for t in rows:
@@ -922,7 +922,7 @@ class TestJumpTargets:
     def test_session_row_shows_span_states_and_counts(self):
         row = next(
             t
-            for t in _jump_model().jump_targets()
+            for t in _jump_model().jump_targets().rows
             if not t.is_note and t.session[0] == "2026-08-01.json"
         )
         assert "2026-08-01" in row.label
@@ -932,16 +932,17 @@ class TestJumpTargets:
         assert "4 caps" in row.detail and "2 notes" in row.detail
 
     def test_note_row_shows_time_pid_and_text(self):
-        row = next(t for t in _jump_model().jump_targets() if t.label == "Heating started")
+        row = next(t for t in _jump_model().jump_targets().rows if t.label == "Heating started")
         assert "12:00:01" in row.detail
         assert "HVAC:2201A0" in row.detail
         assert row.ref == ("2026-08-01.json", 0, 1)
         assert row.key == ("HVAC", "2201A0")
 
     def test_untimed_session_shows_no_span(self):
+        # Only listed where it is reachable — the interleaved view needs no times.
         row = next(
             t
-            for t in _jump_model().jump_targets()
+            for t in _jump_model(view=VIEW_INTERLEAVED).jump_targets().rows
             if not t.is_note and t.session[0] == "2026-07-01.json"
         )
         assert "—" in row.label
@@ -954,36 +955,62 @@ class TestJumpTargets:
             {(e["ecu"], str(e["pid"])) for e in entries} | set(keys), (PARAMS, 0x7B3)
         )
         m = StepModel.from_entries(entries, keys, defs)
-        row = next(t for t in m.jump_targets() if t.is_note and "first line" in t.label)
+        row = next(t for t in m.jump_targets().rows if t.is_note and "first line" in t.label)
         assert row.label == "first line second line"
 
 
 class TestJumpBlocking:
     def test_non_payload_note_is_blocked_with_a_reason(self):
-        row = next(t for t in _jump_model().jump_targets() if t.label.startswith("NRC 0x11"))
+        row = next(t for t in _jump_model().jump_targets().rows if t.label.startswith("NRC 0x11"))
         assert row.blocked == BLOCK_NON_PAYLOAD
 
-    def test_untimed_note_is_blocked_in_the_stacked_view(self):
-        row = next(t for t in _jump_model().jump_targets() if t.label == "legacy note")
-        assert row.blocked == BLOCK_UNTIMED
+    def test_untimed_note_is_omitted_from_the_stacked_view_and_counted(self):
+        """The stacked views have no frame for an untimed capture, and this
+        profile's legacy notes are overwhelmingly untimed — listing them all as
+        dead rows would bury the reachable ones."""
+        jl = _jump_model().jump_targets()
+        assert not any(t.label == "legacy note" for t in jl.rows)
+        assert jl.hidden_notes == 1
 
-    def test_untimed_note_is_reachable_in_the_interleaved_view(self):
-        m = _jump_model(view=VIEW_INTERLEAVED)
-        row = next(t for t in m.jump_targets() if t.label == "legacy note")
+    def test_untimed_note_is_listed_and_reachable_in_the_interleaved_view(self):
+        jl = _jump_model(view=VIEW_INTERLEAVED).jump_targets()
+        row = next(t for t in jl.rows if t.label == "legacy note")
         assert row.blocked == ""
+        assert jl.hidden_notes == 0
 
-    def test_session_with_nothing_for_the_selected_pids_is_blocked(self):
+    def test_a_timed_non_payload_note_is_still_listed_with_its_reason(self):
+        """It is invisible in every view, so flagging it is the only way to
+        surface it at all — unlike an untimed note, which is one view away."""
+        row = next(t for t in _jump_model().jump_targets().rows if t.label.startswith("NRC 0x11"))
+        assert row.blocked == BLOCK_NON_PAYLOAD
+
+    def test_session_without_a_frame_is_kept_as_a_heading_for_its_notes(self):
         m = _jump_model(keys=[("HVAC", "2201A0")])
-        row = next(
-            t for t in m.jump_targets() if not t.is_note and t.session[0] == "2026-08-02.json"
-        )
-        # 2026-08-02 only has 220100 + a non-payload capture.
+        rows = m.jump_targets().rows
+        row = next(t for t in rows if not t.is_note and t.session[0] == "2026-08-02.json")
+        # 2026-08-02 has only 220100 + a non-payload capture, so there is no
+        # frame for it — but it carries notes, so it stays as their heading.
         assert row.blocked == BLOCK_NO_FRAME
+        assert any(t.is_note and t.session == row.session for t in rows)
+
+    def test_session_offering_nothing_is_omitted_and_counted(self):
+        """A session with no frame *and* no notes is noise, not a target."""
+        m = _jump_model(keys=[("HVAC", "2201A0")])
+        jl = m.jump_targets()
+        listed = {t.session[0] for t in jl.rows}
+        # 2026-07-15 holds only an unannotated 220100 capture.
+        assert "2026-07-15.json" not in listed
+        assert jl.hidden_sessions >= 1
+
+    def test_nothing_is_hidden_when_every_session_is_relevant(self):
+        m = _jump_model(keys=[("HVAC", "220100"), ("HVAC", "2201A0")], view=VIEW_INTERLEAVED)
+        jl = m.jump_targets()
+        assert jl.hidden_sessions == 0 and jl.hidden_notes == 0
 
     def test_note_on_an_unselected_pid_is_not_blocked(self):
         """It is reachable — seek_capture adds the PID rather than refusing."""
         m = _jump_model(keys=[("HVAC", "220100")])
-        row = next(t for t in m.jump_targets() if t.label == "Heating started")
+        row = next(t for t in m.jump_targets().rows if t.label == "Heating started")
         assert row.key == ("HVAC", "2201A0") and row.blocked == ""
 
 
@@ -1084,7 +1111,10 @@ class TestJumpModal:
             rows = [app.screen._row(t).plain for t in app.screen._shown]
             assert any("older session" in r for r in rows)
             assert any("Heating started" in r for r in rows)
-            assert any("legacy note" in r and "untimed" in r for r in rows)
+            # A non-payload note is listed with its reason; an untimed one is not
+            # listed at all in this (stacked) view.
+            assert any(BLOCK_NON_PAYLOAD in r for r in rows)
+            assert not any("legacy note" in r for r in rows)
 
     @pytest.mark.asyncio
     async def test_free_text_is_not_parsed_as_markup(self):
@@ -1104,8 +1134,10 @@ class TestJumpModal:
             await pilot.pause()
             await pilot.press("s")
             await pilot.pause()
+            from canlib.commands._captures_step_tui import _JUMP_ROW_WIDTH
+
             for t in app.screen._shown:
-                assert len(app.screen._row(t).plain) <= 88
+                assert len(app.screen._row(t).plain) <= _JUMP_ROW_WIDTH
 
     @pytest.mark.asyncio
     async def test_unreachable_rows_are_disabled(self):
@@ -1123,6 +1155,51 @@ class TestJumpModal:
                 assert lst.get_option_at_index(n).disabled
             # The initial highlight skips them.
             assert lst.highlighted not in blocked
+
+    @pytest.mark.asyncio
+    async def test_session_rows_carry_no_inline_reason(self):
+        """A blocked session row is just a heading; "(not in this selection)"
+        inline there reads as noise rather than information."""
+        app = self._open(_jump_model(keys=[("HVAC", "2201A0")]))
+        async with app.run_test(size=(130, 40)) as pilot:
+            await pilot.pause()
+            await pilot.press("s")
+            await pilot.pause()
+            for t in app.screen._shown:
+                row = app.screen._row(t).plain
+                if not t.is_note:
+                    assert BLOCK_NO_FRAME not in row
+            # A note still explains itself.
+            assert any(
+                BLOCK_NON_PAYLOAD in app.screen._row(t).plain
+                for t in app.screen._shown
+                if t.is_note
+            )
+
+    @pytest.mark.asyncio
+    async def test_footer_reports_hidden_sessions(self):
+        app = self._open(_jump_model(keys=[("HVAC", "2201A0")]))
+        async with app.run_test(size=(130, 40)) as pilot:
+            await pilot.pause()
+            await pilot.press("s")
+            await pilot.pause()
+            footer = app.screen.query_one("#jump-footer").render()
+            text = footer.plain if hasattr(footer, "plain") else str(footer)
+            assert "sessions hidden" in text
+
+    @pytest.mark.asyncio
+    async def test_footer_reports_dropped_untimed_notes(self):
+        """Dropping 300+ legacy notes silently would be worse than the noise —
+        the footer says how many and where to read them."""
+        app = self._open()
+        async with app.run_test(size=(130, 40)) as pilot:
+            await pilot.pause()
+            await pilot.press("s")
+            await pilot.pause()
+            footer = app.screen.query_one("#jump-footer").render()
+            text = footer.plain if hasattr(footer, "plain") else str(footer)
+            assert "untimed notes hidden" in text
+            assert "captures --sessions" in text
 
     @pytest.mark.asyncio
     async def test_notes_only_toggle(self):

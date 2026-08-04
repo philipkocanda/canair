@@ -30,7 +30,7 @@ from canlib.tui_help import HelpMixin
 from canlib.tui_modals import ConfirmModal, TextPromptModal
 
 if TYPE_CHECKING:
-    from canlib.commands._captures_step_model import JumpTarget, StepModel
+    from canlib.commands._captures_step_model import JumpList, JumpTarget, StepModel
 
 Key = tuple[str, str]
 
@@ -131,9 +131,11 @@ class PidSelectModal(ModalScreen["list[Key] | None"]):
         self.dismiss(None)
 
 
-# Visible width of a jump row, i.e. the #jump-box width minus its padding and
-# the list's scrollbar gutter. Rows are truncated to it rather than wrapped.
-_JUMP_ROW_WIDTH = 88
+# Visible width of a jump row: the #jump-box width (96) less its horizontal
+# padding (2+2), the OptionList's own padding/border and the scrollbar gutter.
+# Rows are truncated to it rather than wrapped — a wrapped row would break the
+# indentation tying a note to its session heading.
+_JUMP_ROW_WIDTH = 84
 
 
 class JumpModal(ModalScreen["JumpTarget | None"]):
@@ -161,9 +163,11 @@ class JumpModal(ModalScreen["JumpTarget | None"]):
         Binding("n", "toggle_notes", "notes only"),
     ]
 
-    def __init__(self, targets: list[JumpTarget], *, notes_only: bool = False):
+    def __init__(self, targets: JumpList, *, notes_only: bool = False):
         super().__init__()
-        self._targets = targets
+        self._targets = targets.rows
+        self._hidden_sessions = targets.hidden_sessions
+        self._hidden_notes = targets.hidden_notes
         self._notes_only = notes_only
         self._filter = ""
         self._shown: list[JumpTarget] = []
@@ -200,11 +204,17 @@ class JumpModal(ModalScreen["JumpTarget | None"]):
         self._shown = self._visible()
         for n, t in enumerate(self._shown):
             lst.add_option(Option(self._row(t), id=str(n), disabled=bool(t.blocked)))
-        blocked = sum(1 for t in self._shown if t.blocked)
+        blocked = sum(1 for t in self._shown if t.blocked and t.is_note)
         total_notes = sum(1 for t in self._targets if t.is_note)
-        parts = [f"{len(self._shown)} row(s)", f"{total_notes} note(s) in scope"]
+        # Terse on purpose: the footer gets one line inside a 96-wide box.
+        parts = [f"{len(self._shown)} rows", f"{total_notes} notes"]
         if blocked:
-            parts.append(f"{blocked} unreachable (dimmed)")
+            parts.append(f"{blocked} unreachable")
+        if self._hidden_sessions:
+            parts.append(f"{self._hidden_sessions} sessions hidden")
+        if self._hidden_notes:
+            # Never silently drop a note the user wrote — say where to read it.
+            parts.append(f"{self._hidden_notes} untimed notes hidden — captures --sessions")
         self.query_one("#jump-footer", Label).update(" · ".join(parts))
         if self._shown:
             lst.highlighted = next(
@@ -221,7 +231,10 @@ class JumpModal(ModalScreen["JumpTarget | None"]):
         ellipsis keeps one row on one line so the indented note rows stay
         readable under their session.
         """
-        reason = f"   ({t.blocked})" if t.blocked else ""
+        # Only a note explains itself: a blocked *session* row is just the
+        # heading its notes hang under, and an inline "not in this selection"
+        # there reads as noise rather than information.
+        reason = f"   ({t.blocked})" if t.blocked and t.is_note else ""
         row = Text(no_wrap=True, overflow="ellipsis")
         if t.is_note:
             row.append("    ▸ ")

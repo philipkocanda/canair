@@ -192,10 +192,23 @@ Design points worth recording:
   hid the target — both named in the status line, both undone by `x` / `u`.
   Reporting "can't show that" when the user unambiguously asked to go there
   would be obtuse.
-- **Unreachable rows are listed, disabled, with the reason** — a note on a
-  non-payload capture (`response`/`scan_results`, ~30% of the bundled profile's
-  notes) or on an **untimed** legacy capture. Hiding them would make a note the
-  user wrote look lost. Untimed captures are deliberately *not* given frames:
+- **Only relevant sessions are listed.** A session earns a row by having a frame
+  for the current selection *or* by carrying notes; one with neither offers
+  nowhere to go, so it is omitted and counted in the footer (`JumpList
+  .hidden_sessions`) instead of padding the list with unreachable rows — on the
+  bundled profile that is 161 of 223 sessions for a two-PID HVAC comparison. A
+  session kept purely to head its notes is a non-selectable heading and shows no
+  inline reason; the reason belongs on the note.
+- **A note the current view cannot place is omitted, not dimmed.** Untimed
+  captures have no frame in a stacked view, and 314 of this profile's 315 notes
+  are untimed legacy rows — listing them all left 39 of 62 sessions as blocks of
+  dead rows. They are dropped and counted (`JumpList.hidden_notes`), with the
+  footer pointing at `captures --sessions`; the interleaved view, needing no
+  timestamps, lists and reaches them normally. Net effect on the default view:
+  23 sessions, 0 dead blocks.
+- **A note *no* view can render is listed, disabled, with the reason** — one on a
+  non-payload capture (`response`/`scan_results`). Unlike an unplaceable note,
+  which is one keypress away, flagging it is the only way to surface it at all. Untimed captures are deliberately *not* given frames:
   they are legacy data slated for removal, so the join stays timestamp-only.
 - **Session grouping moved to the data layer.** `_group_sessions`/`_SessionGroup`
   → `_captures_query.group_sessions`/`SessionGroup` (plus a new `noted` field

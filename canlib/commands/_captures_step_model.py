@@ -108,7 +108,6 @@ def capture_ref(entry: Mapping[str, Any]) -> CaptureRef:
 # Why a jump target can't be shown, or "" when it can. Kept short: they are
 # rendered inline in the jump list, where the row budget is tight.
 BLOCK_NON_PAYLOAD = "no hex payload"
-BLOCK_UNTIMED = "untimed (legacy)"
 BLOCK_NO_FRAME = "not in this selection"
 
 
@@ -134,6 +133,22 @@ class JumpTarget:
     def searchable(self) -> str:
         """Lower-cased text the modal's filter matches against."""
         return f"{self.label} {self.detail}".lower()
+
+
+@dataclass(frozen=True)
+class JumpList:
+    """The jump modal's rows, plus what was left out of them.
+
+    A session offering nothing for the current comparison — no frame *and* no
+    notes — is omitted rather than listed as unreachable: those rows are pure
+    noise when the point is to navigate to *relevant* captures. So is a note the
+    current view cannot place. Both counts are carried here so the footer can
+    report them instead of them vanishing silently.
+    """
+
+    rows: list[JumpTarget]
+    hidden_sessions: int = 0
+    hidden_notes: int = 0
 
 
 def _one_line(text: str) -> str:
@@ -335,24 +350,33 @@ class StepModel:
 
     # -- jump list ---------------------------------------------------------
 
-    def jump_targets(self) -> list[JumpTarget]:
+    def jump_targets(self) -> JumpList:
         """Session rows (newest first), each followed by its noted captures.
 
-        Built from *all* scoped entries, so it reflects the whole recording
-        history rather than the current PID selection: a session with nothing
-        for the selected PIDs, or a note on a capture the stepper cannot render,
-        is still listed — marked ``blocked`` with the reason.
+        Built from *all* scoped entries, so notes are surfaced even on captures
+        the stepper cannot render. A session is listed when it has a frame for
+        the current selection **or** carries at least one note; one that has
+        neither offers nowhere to go and is counted into
+        :attr:`JumpList.hidden_sessions` instead of padding the list.
         """
         rows: list[JumpTarget] = []
+        hidden = 0
+        hidden_notes = 0
         for g in reversed(group_sessions(self.entries)):
             sid = (g["file"], g["session_idx"])
+            reachable = self._session_frame(sid) is not None
+            noted = [e for e in g["noted"] if self._note_placeable(e)]
+            hidden_notes += len(g["noted"]) - len(noted)
+            if not reachable and not noted:
+                hidden += 1
+                continue
             times = [t for t in g["times"] if t]
             span = ""
             if times:
                 lo, hi = min(times).split(".")[0], max(times).split(".")[0]
                 span = lo if lo == hi else f"{lo}-{hi}"
             states = _join_states(g["vehicle_states"])
-            notes = len(g["noted"])
+            notes = len(noted)
             detail = f"{g['n']} caps"
             if notes:
                 detail += f" · {notes} note{'s' if notes != 1 else ''}"
@@ -371,12 +395,14 @@ class StepModel:
                         if x
                     ),
                     detail=detail,
-                    blocked="" if self._session_frame(sid) is not None else BLOCK_NO_FRAME,
+                    # Kept only as a grouping heading for its notes — the row is
+                    # not selectable, and says nothing beyond that.
+                    blocked="" if reachable else BLOCK_NO_FRAME,
                 )
             )
-            for e in g["noted"]:
+            for e in noted:
                 rows.append(self._note_target(sid, e))
-        return rows
+        return JumpList(rows=rows, hidden_sessions=hidden, hidden_notes=hidden_notes)
 
     def _note_target(self, sid: tuple[str, int], e: CaptureEntry) -> JumpTarget:
         key = _capture_key(e)
@@ -390,17 +416,27 @@ class StepModel:
             blocked=self._note_block(e),
         )
 
-    def _note_block(self, e: CaptureEntry) -> str:
-        """Why a noted capture can't be jumped to, or ``""``.
+    def _note_placeable(self, e: CaptureEntry) -> bool:
+        """Whether the current view can put this noted capture on screen at all.
 
-        A missing PID or a dedup-hidden payload is *not* blocking — those the
-        jump resolves by adjusting the selection (see :meth:`seek_capture`).
+        A capture with no timestamp cannot be joined onto a timeline, so the
+        stacked views have no frame for it — and this profile's legacy captures
+        are overwhelmingly untimed, which would bury the list in rows that go
+        nowhere. Such a note is omitted (and counted) rather than listed; the
+        interleaved view, which needs no timestamps, still lists and reaches it.
         """
-        if not _is_hex_payload(e.get("payload")):
-            return BLOCK_NON_PAYLOAD
-        if entry_datetime(e) is None and self.stacked:
-            return BLOCK_UNTIMED
-        return ""
+        return entry_datetime(e) is not None or not self.stacked
+
+    def _note_block(self, e: CaptureEntry) -> str:
+        """Why a *listed* noted capture can't be jumped to, or ``""``.
+
+        Only one state survives here: a capture carrying no hex payload, which
+        no view renders. It is still listed — flagged — because it is otherwise
+        invisible, whereas an unplaceable note is merely a view away. A missing
+        PID or a dedup-hidden payload is *not* blocking: the jump resolves those
+        by adjusting the selection (see :meth:`seek_capture`).
+        """
+        return "" if _is_hex_payload(e.get("payload")) else BLOCK_NON_PAYLOAD
 
     def _session_frame(self, sid: tuple[str, int]) -> int | None:
         """The earliest frame showing a capture from that session, if any."""

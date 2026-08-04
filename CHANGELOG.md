@@ -17,9 +17,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   isn't in the comparison **adds that PID**, and unique-payload dedup is **lifted**
   when it hid the target; both are reported in the status line (and `x`/`u` undo
   them). `/` filters on date/label/state/note text, `n` narrows to noted sessions
-  only. Rows the stepper cannot reach — a note on a non-payload capture, or on an
-  untimed legacy capture — are listed **disabled with the reason** rather than
-  hidden, so a note you wrote is never silently missing. This pairs with `e`
+  only. The list holds what you can actually navigate to: a session is listed only
+  when it has a frame for the current selection **or** carries notes, and a note
+  the current view cannot place (an untimed legacy capture — nearly every note in
+  the bundled profile) is omitted rather than listed as a dead row. Both are
+  counted in the footer, the notes with a pointer to `captures --sessions`, so
+  nothing you wrote goes silently missing — and the interleaved view, which needs
+  no timestamps, lists and reaches those notes normally. A note **no** view can
+  render (one on a non-payload capture) is still listed, **disabled with the
+  reason**, since flagging it is the only way to surface it at all. This pairs with `e`
   (annotate the current capture): mark a moment while you remember it, jump back
   to it later.
 
