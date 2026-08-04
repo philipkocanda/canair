@@ -8,7 +8,8 @@ settings (``car_model``, ``init``, ``failure_types``, ...) live one level up in
 ``<profile>/profile.yaml``.
 """
 
-from collections.abc import Callable
+import sys
+from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Any, Literal, TypedDict, get_args
 
@@ -178,7 +179,7 @@ def load_pids(path: Path | None = None) -> dict:
         from .profile import active
 
         prof = active()
-        key = str(prof.ecus_dir)
+        key = prof.cache_key
         cached = _cache.get(key)
         if cached is not None:
             return cached
@@ -200,17 +201,43 @@ def load_pids(path: Path | None = None) -> dict:
         return _yaml_load(f)
 
 
+def merge_ecu_documents(docs: Iterable[tuple[Path, dict]]) -> dict[str, Any]:
+    """Merge per-file ECU documents into one ``{ECU_NAME: definition}`` mapping.
+
+    One ECU per top-level key, one file per ECU by convention. A key claimed by
+    two files is a mistake (two definitions for one ECU, only one of which the
+    tool would ever see), so it warns and keeps the first — reporting the
+    collision rather than silently letting file order decide. ``canair validate
+    pids`` errors on it.
+    """
+    merged: dict[str, Any] = {}
+    origin: dict[str, Path] = {}
+    for path, data in docs:
+        for name, definition in (data or {}).items():
+            if name in merged:
+                print(
+                    f"warning: ECU '{name}' is defined in both {origin[name].name} "
+                    f"and {path.name}; using {origin[name].name}. "
+                    f"Run `canair validate pids`.",
+                    file=sys.stderr,
+                )
+                continue
+            merged[name] = definition
+            origin[name] = path
+    return merged
+
+
 def _load_dir(path: Path, meta: dict) -> dict:
     """Merge profile-wide meta with every per-ECU file under ``path``."""
     from .ecu_files import iter_ecu_files
 
+    def _docs():
+        for fpath in iter_ecu_files(path):
+            with open(fpath) as f:
+                yield fpath, _yaml_load(f)
+
     result = dict(meta) if meta else {}
-    result["ecus"] = {}
-    for fpath in iter_ecu_files(path):
-        with open(fpath) as f:
-            data = _yaml_load(f)
-        if data:
-            result["ecus"].update(data)
+    result["ecus"] = merge_ecu_documents(_docs())
     return result
 
 

@@ -203,6 +203,17 @@ class Profile:
     def out_dir(self) -> Path:
         return self.root / "out"
 
+    @property
+    def cache_key(self) -> str:
+        """Identity of this profile's definitions, for per-process memoization.
+
+        Everything a profile resolves is rooted here, so the root identifies the
+        definitions a cache entry was built from. Callers key on this rather than
+        on one member's path, so a cache cannot be shared between two profiles
+        that happen to agree on the member it was keyed by.
+        """
+        return str(self.root)
+
     @cached_property
     def meta(self) -> dict:
         """Contents of <profile>/profile.yaml (car_model, init, ...), or {}."""

@@ -120,3 +120,73 @@ class TestSetActive:
         register_derived_cache(lambda: calls.append(1))
         profile.set_active("same", profiles_dir=tmp_path)
         assert calls == []
+
+
+class TestMergeEcuDocuments:
+    """One ECU per top-level key; a key claimed twice is reported, not silent."""
+
+    def test_merges_across_files(self):
+        from pathlib import Path
+
+        from canlib.pids import merge_ecu_documents
+
+        merged = merge_ecu_documents(
+            [
+                (Path("a.yaml"), {"BMS": {"tx_id": 0x7E4}}),
+                (Path("b.yaml"), {"MCU": {"tx_id": 0x7E2}}),
+            ]
+        )
+        assert sorted(merged) == ["BMS", "MCU"]
+
+    def test_empty_and_none_documents_are_skipped(self):
+        from pathlib import Path
+
+        from canlib.pids import merge_ecu_documents
+
+        merged = merge_ecu_documents(
+            [(Path("a.yaml"), {}), (Path("b.yaml"), None), (Path("c.yaml"), {"BMS": {}})]
+        )
+        assert list(merged) == ["BMS"]
+
+    def test_duplicate_key_keeps_first_and_warns(self, capsys):
+        from pathlib import Path
+
+        from canlib.pids import merge_ecu_documents
+
+        merged = merge_ecu_documents(
+            [
+                (Path("first.yaml"), {"BMS": {"tx_id": 0x7E4}}),
+                (Path("second.yaml"), {"BMS": {"tx_id": 0x111}}),
+            ]
+        )
+        # Deterministic: the first file wins, rather than file order deciding
+        # silently as the previous dict.update() did.
+        assert merged["BMS"]["tx_id"] == 0x7E4
+        err = capsys.readouterr().err
+        assert "BMS" in err and "first.yaml" in err and "second.yaml" in err
+
+
+class TestLoadPidsCacheKey:
+    def test_two_profiles_do_not_share_a_cache_entry(self, tmp_path):
+        from canlib import profile
+        from canlib.pids import clear_cache, load_pids
+
+        saved = profile._active
+        try:
+            for name, ecu in (("one", "BMS"), ("two", "MCU")):
+                root = tmp_path / name
+                (root / "ecus").mkdir(parents=True)
+                (root / "profile.yaml").write_text('car_model: "T"\ninit: "x"\n')
+                (root / "ecus" / "e.yaml").write_text(f"{ecu}:\n  tx_id: 0x7E4\n")
+
+            profile._active = profile.Profile("one", tmp_path / "one")
+            clear_cache()
+            assert list(load_pids()["ecus"]) == ["BMS"]
+
+            profile._active = profile.Profile("two", tmp_path / "two")
+            assert profile._active.cache_key == str(tmp_path / "two")
+            clear_cache()
+            assert list(load_pids()["ecus"]) == ["MCU"]
+        finally:
+            profile._active = saved
+            clear_cache()
