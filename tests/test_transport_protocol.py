@@ -55,11 +55,45 @@ def test_bare_object_is_not_a_terminal():
     assert not isinstance(object(), Terminal)
 
 
+def test_elm327_tcp_terminal_satisfies_protocol():
+    # The third transport. It was absent from this module entirely, which is how
+    # it shipped with a connect() missing the timeout/settle/drain its WebSocket
+    # twin had — isinstance only checks method *presence*, never signatures.
+    from canlib.transport.elm327_terminal import Elm327TcpTerminal
+
+    assert isinstance(Elm327TcpTerminal("h", 35000), Terminal)
+
+
+@pytest.mark.parametrize(
+    "backend",
+    [
+        lambda: WiCANTerminal(host="10.0.2.86"),
+        lambda: __import__(
+            "canlib.transport.elm327_terminal", fromlist=["Elm327TcpTerminal"]
+        ).Elm327TcpTerminal("h", 35000),
+    ],
+    ids=["wican-ws", "elm327-tcp"],
+)
 @pytest.mark.parametrize(
     "method",
     ["set_header", "send_uds", "send_command", "enter_extended_session", "close"],
 )
-def test_protocol_lists_the_dual_transport_surface(method):
-    # The surface the contributing skill names — asserted here so a rename in the
-    # protocol without updating the real terminals is caught.
-    assert hasattr(WiCANTerminal(host="10.0.2.86"), method)
+def test_every_elm_backend_exposes_the_shared_surface(backend, method):
+    """Both ELM transports must expose the whole surface, not just one of them.
+
+    This previously checked only `WiCANTerminal`, despite its name claiming to
+    cover the transport surface.
+    """
+    assert hasattr(backend(), method)
+
+
+def test_static_conformance_module_is_side_effect_free():
+    """`canlib/transport/_conformance.py` is a type-level check only.
+
+    It binds every backend to its protocol so `ty` rejects a drifted signature
+    (which `isinstance` cannot see). Importing it must stay harmless — no
+    connections, no config reads — and its function must never be called.
+    """
+    from canlib.transport import _conformance
+
+    assert callable(_conformance._static_conformance)
