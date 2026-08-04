@@ -69,12 +69,21 @@ uv run pre-commit install --hook-type pre-push
 Quick check before you open a code PR (run from the repo root):
 
 ```bash
-uv run pytest -q                                    # tests
+uv run pytest -q                                    # tests (parallel; ~14s)
 uv run ruff check . && uv run ruff format --check .  # lint + format
 uv run ty check                                     # type check (canlib/)
 uv run canair validate all                          # if you touched profile data
 uv run python scripts/gen_cli_reference.py --check   # if you changed a command's flags
 uv run python scripts/gen_screenshots.py --check     # if you changed screenshotted command output
+```
+
+The suite runs in parallel by default (`-n auto --dist loadscope`, set in
+`pyproject.toml`). When iterating on a single file or debugging one failure, pass
+`-n0` — spinning up workers costs more than a small selection saves, and serial
+output stays ordered instead of interleaved:
+
+```bash
+uv run pytest -n0 tests/test_foo.py -k some_case
 ```
 
 If your change adds, removes, or alters a user-facing capability, update the

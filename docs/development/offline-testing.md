@@ -126,3 +126,11 @@ that spawns the emulator on an ephemeral port and drives it through the real
 normal `uv run pytest` stays device-free and fast. Install the emulator (step 1)
 to run it. Device-free unit tests (`tests/test_elm327_tcp.py`) additionally guard
 the `elm327-emulator` profile's decode expressions.
+
+!!! note "`uv sync` uninstalls the emulator"
+
+    The emulator is deliberately **not** a dev dependency (its legacy build needs
+    `setuptools<80`), so it lives outside `uv.lock` — and `uv sync` prunes
+    anything not in the lock. After a sync the module simply reports one
+    `SKIPPED` instead of failing, which is easy to miss. Re-run step 1 to get it
+    back.

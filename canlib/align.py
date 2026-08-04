@@ -20,6 +20,7 @@ import bisect
 import csv
 from dataclasses import dataclass, field
 from datetime import date, datetime
+from functools import cached_property
 from pathlib import Path
 
 from .byteindex import payload_to_wican_bytes as _payload_to_wican_bytes
@@ -29,6 +30,7 @@ from .expression import evaluate_expression
 
 __all__ = [
     "DEFAULT_JOIN_TOL_S",
+    "DecodedCapture",
     "PreparedSeries",
     "SignalRef",
     "TimePoint",
@@ -145,6 +147,22 @@ def _demean_segment(seg: list[TimePoint]) -> list[TimePoint]:
     return [TimePoint(tp.dt, tp.value - mean) for tp in seg]
 
 
+@dataclass(frozen=True)
+class DecodedCapture:
+    """One capture reduced to the form every analysis pass actually reads.
+
+    ``frame`` is the reconstructed WiCAN frame (ISO-TP PCI bytes re-inserted, via
+    :func:`byteindex.payload_to_wican_bytes`), ``dt`` the capture's timestamp
+    (:func:`capture_dates.entry_datetime`), and ``payload`` the original hex —
+    kept because the length-aware byte-role helpers
+    (:func:`byteindex.mappable_data_indices`) need the raw payload, not the frame.
+    """
+
+    dt: datetime | None
+    frame: bytes
+    payload: str
+
+
 @dataclass
 class LoadedPid:
     """All captures for one (ecu, pid), plus loader metadata."""
@@ -153,6 +171,45 @@ class LoadedPid:
     pid: str
     captures: list[CaptureEntry] = field(default_factory=list)  # payload captures only
     n_no_time: int = 0  # payload captures dropped for lacking a usable time
+
+    @cached_property
+    def decoded(self) -> list[DecodedCapture]:
+        """Every capture's timestamp + reconstructed WiCAN frame, decoded **once**.
+
+        Each analysis pass over a PID reads the same two derived values from every
+        capture: the timestamp and the PCI-reinserted frame. Deriving them at each
+        call site made the work O(passes x captures) — and a pass is per *series*,
+        so ``investigate --bits`` (hundreds of byte/bit series over one PID) re-ran
+        the same hex decode and timestamp parse hundreds of thousands of times.
+        :func:`build_byte_series` already hoisted it within its own body; this
+        lifts it to the object so every consumer shares one decode.
+
+        Captures whose payload is missing or not valid hex are dropped (the store
+        can legitimately hold a stored ``NO DATA`` or a mis-transcribed capture);
+        that mirrors what every call site did individually. Computed lazily, so a
+        consumer that only wants ``captures`` pays nothing.
+        """
+        out: list[DecodedCapture] = []
+        for cap in self.captures:
+            payload = cap.get("payload")
+            if not payload:
+                continue
+            try:
+                frame = _payload_to_wican_bytes(payload)
+            except Exception:
+                continue
+            out.append(DecodedCapture(entry_datetime(cap), frame, str(payload)))
+        return out
+
+    def timed_frames(self) -> list[tuple[datetime, bytes]]:
+        """``(timestamp, frame)`` for every decodable capture that has a time.
+
+        The input shape for time-joined work (byte/bit series, byte hunts). An
+        untimed capture can't participate in a nearest-timestamp join, so it is
+        excluded — see :func:`load_signal_captures`, which counts those in
+        ``n_no_time`` and already keeps them out of ``captures``.
+        """
+        return [(d.dt, d.frame) for d in self.decoded if d.dt is not None]
 
 
 def load_signal_captures(
@@ -261,16 +318,9 @@ def extract_series(
                 break
 
     out: list[TimePoint] = []
-    for cap in loaded.captures:
-        dt = entry_datetime(cap)
-        if dt is None:
-            continue
-        payload = cap.get("payload")
-        if not payload:
-            continue
+    for dt, frame in loaded.timed_frames():
         try:
-            wb = _payload_to_wican_bytes(payload)
-            val = evaluate_expression(expr, wb)
+            val = evaluate_expression(expr, frame)
         except Exception:
             continue
         if isinstance(val, (int, float)):

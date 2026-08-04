@@ -16,6 +16,13 @@ __pycache__/
 dist/
 *.egg-info/
 
+# Tooling caches and coverage artifacts (machine-local, never shared)
+.pytest_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
 # NodeJS
 node_modules
 
@@ -37,8 +44,9 @@ css-electronics/
 .secrets.json
 config.yaml
 
-# ELM327-Emulator writes a log file to the cwd during offline testing
-elm.log
+# ELM327-Emulator writes a log file to the cwd during offline testing (and
+# rotates it to elm.log.1, elm.log.2, …)
+elm.log*
 
 # Per-profile logs (command/response captures) and generated build output
 profiles/*/logs/

@@ -43,7 +43,7 @@ from the repo root:
 ```bash
 uv run pre-commit install --install-hooks           # once per clone: enable git hooks
 uv run pre-commit install --hook-type pre-push
-uv run pytest -q
+uv run pytest -q                                    # parallel by default; -n0 for one file
 uv run ruff check . && uv run ruff format --check .
 uv run ty check
 uv run canair validate all                          # if you touched profile data

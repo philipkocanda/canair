@@ -296,29 +296,16 @@ def build_byte_series(
     (which handles the first-frame 2-byte PCI and every consecutive-frame PCI).
     """
 
-    from .byteindex import payload_to_wican_bytes, wican_to_isotp
-    from .capture_dates import entry_datetime
+    from .byteindex import wican_to_isotp
 
     skip_offsets = set(skip_offsets or set())
-    # Reconstruct each capture's WiCAN frame + timestamp ONCE, then read every
-    # byte offset by indexing the frame. Calling extract_series per offset would
-    # re-parse (payload_to_wican_bytes + evaluate_expression + entry_datetime)
-    # every capture once per byte — O(bytes * captures) redundant parsing.
-    frames: list[tuple[datetime, bytes]] = []
-    max_len = 0
-    for cap in loaded.captures:
-        dt = entry_datetime(cap)
-        if dt is None:
-            continue
-        try:
-            payload = cap.get("payload")
-            if not payload:
-                continue
-            fr = payload_to_wican_bytes(payload)
-        except Exception:
-            continue
-        frames.append((dt, fr))
-        max_len = max(max_len, len(fr))
+    # Each capture's WiCAN frame + timestamp is decoded ONCE by LoadedPid.decoded
+    # (shared with every other pass over this PID), then every byte offset is read
+    # by indexing the frame. Calling extract_series per offset would re-parse
+    # (payload_to_wican_bytes + evaluate_expression + entry_datetime) every capture
+    # once per byte — O(bytes * captures) redundant parsing.
+    frames = loaded.timed_frames()
+    max_len = max((len(fr) for _dt, fr in frames), default=0)
     if not max_len:
         return {}
     if skip_pci:
@@ -344,24 +331,10 @@ def build_bit_series(loaded: LoadedPid, *, skip_pci: bool = True) -> dict[str, l
     bytes are skipped by default.
     """
 
-    from .byteindex import payload_to_wican_bytes, wican_to_isotp
-    from .capture_dates import entry_datetime
+    from .byteindex import wican_to_isotp
 
-    frames: list[tuple[datetime, bytes]] = []
-    max_len = 0
-    for cap in loaded.captures:
-        dt = entry_datetime(cap)
-        if dt is None:
-            continue
-        try:
-            payload = cap.get("payload")
-            if not payload:
-                continue
-            fr = payload_to_wican_bytes(payload)
-        except Exception:
-            continue
-        frames.append((dt, fr))
-        max_len = max(max_len, len(fr))
+    frames = loaded.timed_frames()
+    max_len = max((len(fr) for _dt, fr in frames), default=0)
 
     out: dict[str, list[TimePoint]] = {}
     for off in range(max_len):
@@ -756,29 +729,14 @@ def hunt_byte(
     merely track the control). The linear fit stays on the raw (ref, cand) pairs.
     """
     from .align import join_nearest_triple
-    from .byteindex import payload_to_wican_bytes, wican_to_isotp
-    from .capture_dates import entry_datetime
+    from .byteindex import wican_to_isotp
     from .stats import partial_correlation
 
-    # Precompute (datetime, frame) for each timed capture.
-    frames: list[tuple[datetime, bytes]] = []
-    max_len = 0
-    for cap in loaded.captures:
-        dt = entry_datetime(cap)
-        if dt is None:
-            continue
-        payload = cap.get("payload")
-        if not payload:
-            continue
-        try:
-            frame = payload_to_wican_bytes(payload)
-        except Exception:
-            # A non-hex payload (a stored "NO DATA", a mis-transcribed capture)
-            # must skip the row, not abort the whole sweep — every sibling series
-            # builder already tolerates this.
-            continue
-        frames.append((dt, frame))
-        max_len = max(max_len, len(frame))
+    # (datetime, frame) per timed capture, decoded once by LoadedPid.decoded. A
+    # non-hex payload (a stored "NO DATA", a mis-transcribed capture) is dropped
+    # there rather than aborting the sweep — every sibling series builder agrees.
+    frames = loaded.timed_frames()
+    max_len = max((len(fr) for _dt, fr in frames), default=0)
     if not frames:
         return []
 
@@ -1046,7 +1004,7 @@ def physical_scan(
     :func:`canlib.physical_bands.resolve_physical_bands`); ``None`` falls back to
     the built-in :data:`PHYSICAL_BANDS` defaults.
     """
-    from .byteindex import mappable_data_indices, payload_to_wican_bytes
+    from .byteindex import mappable_data_indices
     from .notation import subfunction_bytes_for_pid
 
     if bands is None:
@@ -1069,18 +1027,17 @@ def physical_scan(
     # Take the INTERSECTION across captures: an index is only safe to interpret
     # if it is a data byte in *every* capture, otherwise a PID that answered with
     # both layouts would mix a data byte with a SID at the same offset.
+    #
+    # Unlike the time-joined passes this keeps *untimed* captures too — a band hit
+    # is a plausibility check on the value, not a correlation, so it needs no clock.
     data_idx: set[int] | None = None
-    for cap in loaded.captures:
+    for dec in loaded.decoded:
         try:
-            payload = cap.get("payload")
-            if not payload:
-                continue
-            fr = payload_to_wican_bytes(payload)
-            mappable = set(mappable_data_indices(payload, sfb))
+            mappable = set(mappable_data_indices(dec.payload, sfb))
         except Exception:
             continue
-        frames.append(fr)
-        max_len = max(max_len, len(fr))
+        frames.append(dec.frame)
+        max_len = max(max_len, len(dec.frame))
         data_idx = mappable if data_idx is None else (data_idx & mappable)
     if not frames or not data_idx:
         return []

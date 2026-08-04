@@ -197,6 +197,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   YAML round-trip are now quoted; ordinary keys (`2101`) are left as-is.
 
 ### Changed
+- **The analysis verbs no longer re-decode the same captures once per signal.**
+  `decode`/`correlate`/`hunt`/`investigate`/`align` derive two values from every
+  capture — its timestamp and its PCI-reinserted WiCAN frame — and each pass over
+  a PID was deriving them again, so the cost scaled with (signals x captures)
+  rather than captures. `investigate uds IGPM 22BC03 --bits` ranks hundreds of
+  byte/bit series against co-polled anchors and spent ~680,000 hex decodes and
+  ~790,000 timestamp parses doing it. A PID's captures are now decoded **once**
+  (`align.LoadedPid.decoded`, shared by all five call sites that previously
+  hoisted it themselves or not at all): 7.3s → 3.4s on that command, ~94% fewer
+  hex decodes, byte-identical output. The gain grows with the capture corpus,
+  which only ever gets bigger.
+
+- **Blind-rediscovery target selection reads the capture corpus once.** It
+  resolved each `(rx, pid)` target by re-globbing and re-parsing every capture
+  file, so selecting from the bundled profile's ~1,200 verified params did 5,405
+  JSON parses of the same 23 files (params of one PID all share a key). A single
+  indexed pass (`blind.load_payload_index`, cached on a cheap `stat()`
+  fingerprint so a rewritten capture file still invalidates it) makes a seeded
+  draw 28.3s → 2.3s with identical target selection.
+
+- **The test suite runs in parallel and no longer scales with the capture corpus.**
+  `uv run pytest` now defaults to `-n auto --dist loadscope` (`pytest-xdist`), which
+  with the decoding fixes above takes the suite from 87s to ~14s; pass `-n0` when
+  iterating on one file. Separately, several golden analysis cases queried an
+  *unbounded* date range over the append-only `captures/`, so they got slower with
+  every recording and would have broken on the next one (`investigate-bits` pinned a
+  literal `(292 timed captures, …)`). They are now frozen to a fixed `--until`, and a
+  new guard test fails any future case that isn't date-scoped, fixture-backed, or
+  volume-independent.
+
 - **The docs toolchain is pinned to `mkdocs-material>=9.5,<10`, and its MkDocs-2.0
   notice is silenced in `make docs`/CI.** Material 9.7.2+ prints a red advocacy
   warning about the upcoming MkDocs 2.0 on every build; it is not actionable for
@@ -242,6 +272,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   straight into `payload_to_wican_bytes` — including `hunt_byte`, which had no
   guard at all and would abort a whole sweep on one non-hex payload (a stored
   `NO DATA`) where every sibling series builder already skipped the row.
+- **The three closed controlled vocabularies are now `Literal`-typed.** Keep modes,
+  PID status, and transport type were plain `str` compared against bare literals
+  scattered across the tree, so a drifted or mistyped value didn't fail — it
+  silently compared `False` forever (the same failure shape as the actuator-state
+  finding). Each is now a `Literal` with its runtime tuple **derived** from the type
+  (`get_args`), so `argparse choices=` and every membership guard keep working
+  unchanged while writes and comparisons are statically checked. Typing keep modes
+  also made a previously-invisible distinction explicit: the monitor's *recording
+  policy* has four values, but only the two dedup policies (`changes`/`unique`) are
+  ever *persisted* — `all`/`last` applied no dedup, so the field's absence is the
+  honest provenance. That rule was re-implemented as a hand-written
+  `in ("changes", "unique")` guard at four call sites and now lives once, in
+  `keepmode.persisted_keep_mode()`. The vocabularies that are *open* by design
+  (vehicle states and CAN bus codes, both extended per profile) deliberately stay
+  `str`. Drift tests pin the PID-status `Literal` to the schema's `valid_pid_status`
+  list and the transport `Literal` to the `TRANSPORTS` registry keys, since both
+  must keep their independent runtime source. See
+  `plans/2026-08-04-literal-typed-vocabularies.md`.
 - **`canair captures --step --pair` is removed; a multi-PID QUERY compares by
   default.** `--pair` only ever handled *exactly two* keys, was read-only (no
   note/delete), and its PID set and tolerance were fixed at launch. Everything it

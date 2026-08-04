@@ -62,9 +62,15 @@ trusts them builds on a false premise.
    firmware/write/upload services. The command blocklist in
    `canlib/safety.py` (`BLOCKED_UDS_SERVICES` / `check_command_safety`) exists
    for this reason — extend it, never quietly bypass it.
-4. **Tests pass and cover the change.** Run `uv run pytest -q`; add tests for
-   new behavior. `uv run canair validate all` must stay green after data-schema
-   touching changes.
+4. **Tests pass and cover the change.** Run `uv run pytest -q` (parallel by
+   default via `addopts = -n auto --dist loadscope`; add `-n0` when iterating on
+   a single file or reading one failure's output). Add tests for new behavior.
+   `uv run canair validate all` must stay green after data-schema touching
+   changes. **Analysis tests must not read an unbounded capture range** —
+   `captures/` is append-only and grows with every `--save`, so scope a test to a
+   frozen date (`--until`) or a fixture profile, or it gets slower forever and
+   eventually breaks (see `tests/test_analysis_golden.py`'s
+   `test_cases_cannot_drift_as_captures_grow`).
 5. **Two data domains, one tool: don't hardwire to WiCAN or to diagnostics.**
    canair analyzes both **diagnostic responses** (request/response UDS/KWP2000)
    *and* **raw CAN frame captures** (passive broadcast traffic). Treat raw

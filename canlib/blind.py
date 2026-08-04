@@ -31,6 +31,7 @@ from __future__ import annotations
 import random
 import shutil
 from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -315,6 +316,68 @@ def _find_leaks(ecus_dir: Path) -> list[str]:
 
 
 # ── Capture loading + expression evaluation (for target selection + grading) ──────
+def _captures_fingerprint(captures_dir: Path) -> tuple[tuple[str, int, int], ...]:
+    """Cheap identity of the capture corpus: (name, mtime_ns, size) per file.
+
+    23 ``stat()`` calls, versus 23 JSON parses to rebuild the index — so this is
+    what lets :func:`_payload_index` be cached without ever going stale if a
+    capture file is written mid-process.
+    """
+    out = []
+    for p in capture_io.iter_capture_files(captures_dir):
+        st = p.stat()
+        out.append((p.name, st.st_mtime_ns, st.st_size))
+    return tuple(out)
+
+
+@lru_cache(maxsize=4)
+def _payload_index(
+    captures_dir: Path,
+    _fingerprint: tuple[tuple[str, int, int], ...],
+) -> dict[tuple[str, str], list[bytes]]:
+    """All payload captures as WiCAN byte arrays, keyed by ``(rx, pid)``.
+
+    Built in ONE pass over ``captures/``. Target selection asks for hundreds of
+    ``(rx, pid)`` pairs — every verified parameter, and a PID like BMS 2101 has 35
+    of them all sharing one key — so resolving each by re-globbing and re-parsing
+    the whole corpus was O(params x files) (5405 JSON parses of 23 files on the
+    bundled profile, dominated by ``json.raw_decode``). Keyed on ``rx`` only, with
+    no dependency on the active profile or on the PID being defined, so it works
+    identically against a stripped sandbox.
+
+    ``_fingerprint`` is not read — it is part of the cache key so a rewritten
+    capture file invalidates the index.
+    """
+    index: dict[tuple[str, str], list[bytes]] = {}
+    for path in capture_io.iter_capture_files(captures_dir):
+        doc = capture_io.load_capture_file(path)
+        for sess in doc.get("sessions", []):
+            for cap in sess.get("captures", []):
+                payload = cap.get("payload")
+                if not payload:
+                    continue
+                try:
+                    frame = payload_to_wican_bytes(str(payload))
+                except Exception:
+                    continue  # unparseable payload (a stored "NO DATA", bad transcription)
+                key = (capture_io.capture_rx(cap).lower(), str(cap.get("pid", "")).upper())
+                index.setdefault(key, []).append(frame)
+    return index
+
+
+def load_payload_index(profile_root: Path) -> dict[tuple[str, str], list[bytes]]:
+    """``(rx, pid)`` → WiCAN payload byte arrays for a whole profile, in one pass.
+
+    The bulk form of :func:`load_target_payloads`, for callers resolving many
+    targets. ``rx`` keys are lower-case, ``pid`` keys upper-case. The returned
+    mapping is cached and shared — treat it as read-only.
+    """
+    captures_dir = Path(profile_root) / "captures"
+    if not captures_dir.is_dir():
+        return {}
+    return _payload_index(captures_dir, _captures_fingerprint(captures_dir))
+
+
 def load_target_payloads(profile_root: Path, rx: str, pid: str) -> list[bytes]:
     """WiCAN-layout byte arrays for every payload capture matching ``rx``+``pid``.
 
@@ -322,28 +385,10 @@ def load_target_payloads(profile_root: Path, rx: str, pid: str) -> list[bytes]:
     profile or on the PID being defined — so it works identically against a
     stripped sandbox. Unparseable payloads are skipped.
     """
-    captures_dir = Path(profile_root) / "captures"
-    if not captures_dir.is_dir():
-        return []
-    want_rx = rx.lower()
-    want_pid = str(pid).upper()
-    out: list[bytes] = []
-    for path in capture_io.iter_capture_files(captures_dir):
-        doc = capture_io.load_capture_file(path)
-        for sess in doc.get("sessions", []):
-            for cap in sess.get("captures", []):
-                if capture_io.capture_rx(cap).lower() != want_rx:
-                    continue
-                if str(cap.get("pid", "")).upper() != want_pid:
-                    continue
-                payload = cap.get("payload")
-                if not payload:
-                    continue
-                try:
-                    out.append(payload_to_wican_bytes(str(payload)))
-                except Exception:
-                    continue
-    return out
+    index = load_payload_index(profile_root)
+    # Copy: the index is cached and shared, and this has always returned a list
+    # the caller owns.
+    return list(index.get((rx.lower(), str(pid).upper()), ()))
 
 
 def eval_series(expr: str, payloads: list[bytes]) -> list[float | None]:
@@ -533,6 +578,9 @@ def select_targets(
     source_root = Path(source_root)
     pids_data = pids_mod.load_pids(source_root / "ecus")
     index = pids_mod.build_ecu_index(pids_data)
+    # One pass over captures/ for the whole selection: every verified parameter
+    # needs its PID's payloads, and the params of one PID all share a key.
+    payload_index = load_payload_index(source_root)
 
     def _rx_for(ecu: str) -> str | None:
         entry = index.get(ecu.upper()) or index.get(ecu)
@@ -541,11 +589,14 @@ def select_targets(
         rx_id = entry.get("rx_id")
         return f"0x{int(rx_id):X}" if rx_id is not None else None
 
+    def _payloads(rx: str, pid: str) -> list[bytes]:
+        return payload_index.get((rx.lower(), str(pid).upper()), [])
+
     def _make(ecu: str, pid: str, name: str, pdef: dict, hint: str) -> Target | None:
         rx = _rx_for(ecu)
         if rx is None:
             return None
-        payloads = load_target_payloads(source_root, rx, pid)
+        payloads = _payloads(rx, pid)
         series = [v for v in eval_series(str(pdef["expression"]), payloads) if v is not None]
         distinct = len(set(series))
         return Target(
@@ -581,7 +632,7 @@ def select_targets(
         rx = _rx_for(ecu)
         if rx is None:
             continue
-        payloads = load_target_payloads(source_root, rx, pid)
+        payloads = _payloads(rx, pid)
         series = [v for v in eval_series(str(pdef["expression"]), payloads) if v is not None]
         if len(series) < min_captures or len(set(series)) < min_distinct:
             continue

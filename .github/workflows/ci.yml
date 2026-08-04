@@ -70,4 +70,8 @@ jobs:
         run: uv run mkdocs build --strict --site-dir /tmp/site
 
       - name: Tests
-        run: uv run pytest -q
+        # --durations surfaces the slowest tests in the log, so a creeping
+        # runaway (e.g. an analysis test re-reading a growing capture corpus) is
+        # visible in CI instead of only felt locally. Parallelism comes from the
+        # -n auto default in pyproject.toml's addopts.
+        run: uv run pytest -q --durations=15

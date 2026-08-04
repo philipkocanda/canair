@@ -12,9 +12,20 @@ Free-running assertions can't prove that: the labels are emitted from a dozen
 render paths and the failure mode is a silent off-by-PCI. So this module pins the
 full stdout of each label-emitting command against a committed golden file.
 
-**Stability.** Cases are scoped to *fixed historical dates* in the bundled
-``ioniq-2017`` profile. Captures are an append-only log, so a past day's data is
-frozen — new recordings can't drift these goldens, unlike an unscoped query.
+**Stability.** ``captures/`` is an append-only log that grows with every ``--save``,
+so any golden pinned to an *unscoped* query drifts the moment new data lands — and
+gets slower forever. Every case here is therefore stable by one of three means,
+enforced by :meth:`TestGoldenHarnessItself.test_cases_cannot_drift_as_captures_grow`:
+
+* **date-scoped** (``--until``/``--date``/``--since``) to :data:`FROZEN_UNTIL`, for the
+  verbs whose output depends on capture *volume* (``investigate``/``decode``/
+  ``correlate``/``hunt`` report counts, ``n=``, and correlation coefficients);
+* **a frozen fixture profile** (:data:`SINGLE_FRAME_PROFILE`) — committed test data
+  that no recording session appends to;
+* **a volume-independent verb** — ``coverage`` reports only the *longest* captured
+  payload per PID (``load_longest_payloads`` keeps the first strictly-longest, and
+  files are read in date order), so appending captures cannot change its output
+  unless an ECU answers with more bytes than ever before, which is a real finding.
 
 **ANSI is stripped** so the goldens stay reviewable in a diff (a colour change is
 out of scope here and is covered by the screenshot check). Labels are what matter.
@@ -45,6 +56,19 @@ GOLDEN_DIR = Path(__file__).parent / "fixtures" / "golden"
 SINGLE_FRAME_PROFILE = str(Path(__file__).parent / "fixtures" / "profiles" / "single-frame")
 REGEN = os.environ.get("CANAIR_REGEN_GOLDEN") == "1"
 
+# Upper bound for every volume-dependent case, so appending captures can never
+# drift a golden (or slow this module down). Bump it deliberately — with a golden
+# regen and a read of the diff — to widen what these cases cover.
+FROZEN_UNTIL = "2026-08-02"
+
+# Verbs whose output is a pure function of the PID definitions plus the *longest*
+# captured payload, not of capture volume — see the module docstring. These need no
+# date scope (and `coverage` has no scope flags to give it one).
+VOLUME_INDEPENDENT_VERBS = frozenset({"coverage"})
+
+# Flags that pin a case to a closed date range.
+_SCOPE_FLAGS = frozenset({"--until", "--date", "--since"})
+
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 
 # (name, argv). Every case must emit byte labels (Bnn / Bnn:k) or byte-derived
@@ -61,17 +85,38 @@ _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 CASES: list[tuple[str, str, list[str]]] = [
     # -- single-frame PID (ONE PCI byte): the layout that broke physical_scan --
     ("coverage-single-frame", "ioniq-2017", ["coverage", "IGPM", "22BC02"]),
-    ("investigate-single-frame", "ioniq-2017", ["investigate", "uds", "IGPM", "22BC02"]),
+    (
+        "investigate-single-frame",
+        "ioniq-2017",
+        ["investigate", "uds", "IGPM", "22BC02", "--until", FROZEN_UNTIL],
+    ),
     # -- multi-frame PID (two FF PCI bytes + a CF PCI byte every 8) --
     ("coverage-multi-frame", "ioniq-2017", ["coverage", "BMS", "2101"]),
     ("coverage-bitfields", "ioniq-2017", ["coverage", "IGPM", "--bitfields"]),
-    ("investigate-bits", "ioniq-2017", ["investigate", "uds", "IGPM", "22BC03", "--bits"]),
+    (
+        "investigate-bits",
+        "ioniq-2017",
+        ["investigate", "uds", "IGPM", "22BC03", "--bits", "--until", FROZEN_UNTIL],
+    ),
     # -- decode: mirrors / discriminate / dump-bytes --
-    ("decode-mirrors-bits", "ioniq-2017", ["decode", "IGPM", "22BC03", "--find-mirrors", "--bits"]),
+    (
+        "decode-mirrors-bits",
+        "ioniq-2017",
+        ["decode", "IGPM", "22BC03", "--find-mirrors", "--bits", "--until", FROZEN_UNTIL],
+    ),
     (
         "decode-discriminate-bytes",
         "ioniq-2017",
-        ["decode", "IGPM", "22BC03", "--discriminate", "state", "--bytes"],
+        [
+            "decode",
+            "IGPM",
+            "22BC03",
+            "--discriminate",
+            "state",
+            "--bytes",
+            "--until",
+            FROZEN_UNTIL,
+        ],
     ),
     (
         "decode-dump-bytes",
@@ -87,12 +132,12 @@ CASES: list[tuple[str, str, list[str]]] = [
     (
         "correlate-bytes",
         "ioniq-2017",
-        ["correlate", "uds", "IGPM", "--bytes", "--until", "2026-08-02"],
+        ["correlate", "uds", "IGPM", "--bytes", "--until", FROZEN_UNTIL],
     ),
     (
         "correlate-bits",
         "ioniq-2017",
-        ["correlate", "uds", "IGPM", "--bits", "--until", "2026-08-02"],
+        ["correlate", "uds", "IGPM", "--bits", "--until", FROZEN_UNTIL],
     ),
     # -- hunt: swept byte/interpretation labels --
     (
@@ -106,7 +151,7 @@ CASES: list[tuple[str, str, list[str]]] = [
             "--against",
             "ESC:22C101:REAL_SPEED_KMH",
             "--until",
-            "2026-08-02",
+            FROZEN_UNTIL,
         ],
     ),
     # -- the same data rendered in every notation: proves the views stay in step --
@@ -222,6 +267,34 @@ def test_analysis_output_is_unchanged(name, profile, argv, capsys):
 
 class TestGoldenHarnessItself:
     """The gate is worthless if it can't actually fail."""
+
+    def test_cases_cannot_drift_as_captures_grow(self):
+        """Every case must be immune to a new ``--save`` landing in the profile.
+
+        ``captures/`` is append-only and grows forever, so a case that queries a
+        volume-dependent verb over an unbounded range pins a moving target: it
+        breaks on the next recording *and* gets permanently slower. (This is not
+        hypothetical — ``investigate-bits`` used to pin a literal
+        ``(292 timed captures, …)`` with no date scope.)
+
+        A case is safe if it is date-scoped, runs against a frozen fixture
+        profile, or invokes a volume-independent verb. See the module docstring.
+        """
+        fixtures = str(Path(__file__).parent / "fixtures")
+        drifting = [
+            name
+            for name, profile, argv in CASES
+            if not (
+                profile.startswith(fixtures)
+                or (set(argv) & _SCOPE_FLAGS)
+                # argv[0] is the verb; `investigate uds` etc. keep it at index 0.
+                or argv[0] in VOLUME_INDEPENDENT_VERBS
+            )
+        ]
+        assert not drifting, (
+            "these golden cases will drift when new captures are recorded — add "
+            f"--until FROZEN_UNTIL, or justify an exemption: {drifting}"
+        )
 
     # Cases whose output legitimately carries no byte label. `IGPM 22BC02` is the
     # bundled profile's ONLY single-frame PID with capture volume (275), and every

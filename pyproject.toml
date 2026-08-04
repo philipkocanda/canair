@@ -40,6 +40,7 @@ dev = [
     "pre-commit>=4.0",
     "pytest>=8.0",
     "pytest-asyncio>=1.0",
+    "pytest-xdist>=3.6",
     "ruff>=0.9",
     "ty>=0.0.1a1",
 ]
@@ -56,6 +57,17 @@ docs = [
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+# Run in parallel by default: the full suite is ~3700 device-free tests that
+# spent most of their wall time idle in one process (58% CPU) — 67s serial vs
+# ~14s here. `loadscope` groups tests by module/class so a module-scoped fixture
+# is built once per module rather than once per worker that happens to draw one
+# of its tests (tests/test_blind_rediscovery.py strips a whole profile in one).
+#
+# Spinning up workers costs ~0.7s, so a FOCUSED run is faster serially — use
+# `-n0` when iterating on one file or debugging a single failure (it also keeps
+# output ordered and un-interleaved):
+#     uv run pytest -n0 tests/test_foo.py
+addopts = "-n auto --dist loadscope"
 
 [tool.ruff]
 line-length = 100

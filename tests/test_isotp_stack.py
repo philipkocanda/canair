@@ -27,7 +27,10 @@ class _FakeBus(can.BusABC):
         return None, False
 
     def shutdown(self):
-        pass
+        # Chain up: BusABC.shutdown() sets the _is_shutdown flag its __del__
+        # checks, otherwise GC logs "…was not properly shut down" at an
+        # arbitrary later moment (noise in an unrelated test's output).
+        super().shutdown()
 
 
 class _QueuedBus(can.BusABC):
@@ -56,7 +59,7 @@ class _QueuedBus(can.BusABC):
         return None, False
 
     def shutdown(self):
-        pass
+        super().shutdown()  # see _FakeBus.shutdown
 
 
 def _flow_control_frame(sent: list[can.Message]) -> can.Message | None:
