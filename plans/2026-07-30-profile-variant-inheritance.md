@@ -1,5 +1,13 @@
 # Multi-variant profile support — sharing a profile across model variants without duplication
 
+Status: **DESIGN / DECISION DOC — NOT STARTED.** "No behaviour ships from this
+file." There is no inheritance/composition/variant mechanism in `canlib/` or the
+schemas today (confirmed 2026-08-04: no `extends:` anywhere). **Blocked on a
+decision before any code:** pick Option A/B/C/D (A recommended), the ECU merge
+granularity (PID-level recommended), and the write-target policy (the plan
+explicitly defers this one). Only pays off once a real second variant exists —
+e.g. XPeng G6 SR vs LR.
+
 ## Goal
 
 Support **multiple variants of one vehicle model** — e.g. the XPeng G6 SR

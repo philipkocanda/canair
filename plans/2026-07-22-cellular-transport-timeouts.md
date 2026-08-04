@@ -1,5 +1,13 @@
 # Cellular Timeouts on VCU/MCU — Diagnosis & Transport Options
 
+Status: **ANALYSIS ONLY — no changes made, by decision.** Root cause identified
+(host-side ISO-TP over cellular; FC round-trip) and SavvyCAN/RealDash ruled out.
+The recommendation (use `wican-ws` over cellular) is now trivially expressible —
+per-device transport shipped in `plans/2026-08-01-per-device-transport-and-fallback.md`.
+Revisit only if cellular drive querying is needed again. Two checks still want a
+cellular link: the `terminal.py` early-break truncation heuristic, and confirming
+the VCU/MCU-specific hypothesis (well-supported, not proven).
+
 Analysis of a drive session (2026-07-22, "Driving from kidswijs to home") where
 VCU and MCU saw many timeouts while ESC/EPS/AAF did not, and all frames were
 slow to appear. WiCAN was reachable over the **cellular/VPN** link (iPhone

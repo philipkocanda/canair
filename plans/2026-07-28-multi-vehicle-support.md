@@ -1,5 +1,15 @@
 # Generalizing canair for other vehicles & makes (incl. 29-bit)
 
+Status: **ALL PHASES DONE** — gaps A–H and G-I…G-L all closed (see the
+`## Status (2026-07-28)` block below for per-phase detail). **Two open items are
+blocked on hardware, not code:** the XPeng G6 flow-control bench verification, and
+an end-to-end `normal_fixed_29bit` confirmation against a real 29-bit vehicle
+(Phase 3 is verified only by synthetic ISO-TP/SLCAN tests against a mock bus).
+Three **import-time niceties** remain unwritten: parsing `STCAFCP` to recover RX,
+skipping the literal `remove` PID-key sentinel (Kia Kona), and disambiguating
+multi-DID PID keys by DID validity. A `priority:` knob on `normal_fixed_29bit` was
+explicitly **declined**.
+
 ## Goal
 
 Make canair drive **any** modern CAN vehicle purely from a profile, removing the

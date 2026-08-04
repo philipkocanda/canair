@@ -1,6 +1,15 @@
 # Auto-failover during monitoring + `--wait`
 
-Status: in progress (2026-08-03)
+Status: **DONE** (2026-08-03) — both features shipped. Verified 2026-08-04:
+`transport/fallback.py::wait_for_reachable` (:92), `config.py::reconnect_max_wait`
+(:405) + `transport.reconnect_max_wait` in `config.example.yaml`, `--wait` in
+`add_connection_args` (`_live.py:312`), `modes/monitor_reconnect.py`
+(`ReconnectPolicy` / `MonitorReconnector` / `reconnect_policy`), and
+`tests/test_monitor_reconnect.py`. The per-section checklists below were never
+ticked during implementation — they are the design record, not open work.
+
+The two **out-of-scope** items still stand as stated: cross-transport mid-session
+re-home, and re-homing a mid-session drop for non-monitor commands.
 
 ## Motivation
 

@@ -1,5 +1,11 @@
 # Per-device transport config + auto-fallback across devices
 
+Status: **DONE** — every item in the `## Status` checklist is ticked, including a
+live verification against the WiCAN (fallback crosses to the reachable device over
+both `slcan-tcp` and `wican-ws`). Deliberately excluded: mid-session reconnect
+(since shipped separately in `plans/2026-08-03-monitor-reconnect-and-wait.md`) and
+a `config migrate-devices` subcommand (auto-migration only, no CLI surface).
+
 Two complementary transport features, plus the config-model rework they need:
 
 1. **Auto-fallback** — when the selected WiCAN/address is unreachable, try the

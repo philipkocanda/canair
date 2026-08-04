@@ -1,5 +1,35 @@
 # De-hardcode remaining HKMC/Ioniq bias (scan ranges + analysis tooling)
 
+Status: **DONE** — Stages 1–5 shipped (Stage 5.2 resolved as no-change; the SKM
+relay-wake stage was dropped as already-shipped, see the Scope note below).
+Verified 2026-08-04 against the tree:
+
+- **Stage 1** — `iocontrol_scan_ranges:` in `pids_schema.yaml` +
+  `_validate_iocontrol_scan_ranges` (`validate/pids.py:226`);
+  `infer_iocontrol_ranges` in `scan_presets.py`; `DEFAULT_ECU_RANGES` gone from
+  `modes/iocontrol_scan.py` (runtime resolution at `:173`); preset
+  `default_range="0000-FFFF"`; `canair pids set-iocontrol-ranges` shipped and the
+  Ioniq ranges migrated into `ecus/igpm.yaml` / `bcm.yaml` / `hvac.yaml` /
+  `psm.yaml`.
+- **Stage 2** — `canlib/unit_guess.py` (`DEFAULT_UNIT_CANDIDATES` +
+  `resolve_unit_candidates`), threaded at `commands/hunt.py:507`;
+  `_validate_unit_guess_candidates`; `tests/test_unit_guess.py`.
+- **Stage 3** — `POWER_STATES = ("SLEEP", "ACC", "RUN", "CRANK")`
+  (`states.py:69`); static `CLI_STATE_CHOICES` gone from `pids.py`/`research.py`
+  (now `type=str.upper` + profile-aware validation at write time).
+- **Stage 4** — `QUIRK_GATED_DIDS = {"F187": HK_F1XX_MINUS_ONE}`
+  (`modes/identity_records.py:47`), `(HK)` dropped from the F187 label, gating
+  covered by `tests/test_identity.py::test_f187_skipped_without_quirk`.
+- **Stage 5** — `discover --range` now `default=None` with `_live.py` owning the
+  real default; `response_id()` confirmed not orphaned (kept, per the inline
+  outcome note).
+
+**Residual (not blocking, Boy-Scout):** Stage 1 item 6 listed a
+`tests/test_validate_pids.py` case for `iocontrol_scan_ranges` — the validator
+exists and is exercised via `validate all`, but there is no dedicated unit test
+for it. The **Future work** section at the end is still open (tracked
+elsewhere).
+
 ## Goal
 
 Remove the last raw Hyundai/Kia/HKMC assumptions still compiled into otherwise

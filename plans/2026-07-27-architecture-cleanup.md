@@ -1,6 +1,10 @@
 # canair — Architecture & Organization Cleanup
 
-Status: implementation plan (backlog). Findings of a 2026-07-27 architecture /
+Status: **Part C DONE** (C1–C6 all landed 2026-07-27, C6 with explicit sign-off).
+**Part D remains** — but it is feature work, not organization cleanup, and is
+owned by `plans/2026-07-24-raw-can-analysis.md`; pull it forward only if
+prioritized, and only after the redesign conversation that plan's deferred
+Stage-4 items need. Findings of a 2026-07-27 architecture /
 code-organization review, measured against the house standard in
 `.claude/skills/contributing/SKILL.md` ("Refactor proactively — no monoliths":
 file size is a smell approaching ~500 lines, *well* before 1000; prefer plain

@@ -1,5 +1,36 @@
 # Typing & test-coverage follow-ups for the extended-11-bit / functional-TX addressing work
 
+Status: **8 of 11 items DONE** — all four High-priority items and all three
+Medium ones landed. Verified 2026-08-04 against the tree:
+
+- [x] **#1** `build_isotp_stack(params: dict[str, int | bool])` (`isotp_stack.py:58`)
+- [x] **#2** `_make_flow_control(...) -> isotp.protocol.CanMessage` (`isotp_stack.py:43`)
+- [x] **#4** shared hex parser — `canlib/commands/_hexarg.py` (`parse_hex_arg` /
+      `HexArgError`), used by `ecu add` (`ecu.py:844-847`) and `pids set-addressing`
+- [x] **#5** real-stack FC-override test (`tests/test_isotp_stack.py`)
+- [x] **#6** `RawTerminal` threads `fc_id` (`tests/test_raw_terminal.py:402-450`,
+      incl. the `None`-when-unset and discovery-sweep cases)
+- [x] **#7** `RawUdsClient` threads extended / `fc_id` (`tests/test_uds_raw.py`)
+- [x] **#8** `resolve_source_address` `extended_29bit` → `None`
+      (`tests/test_addressing.py:338`)
+- [x] **#9** `build_isotp_address` `extended_29bit` derived-byte + explicit-override
+      assertions (`tests/test_addressing.py:192-202`)
+
+**Remaining — all three Low priority:**
+
+- [ ] **#3** `build_ecu_index(pids_data: dict) -> dict[str, EcuIndexEntry]` typing
+      (`canlib/pids.py:311` still takes a bare `dict`). Run `ty check` first; if it
+      cascades, scope it to its own change.
+- [ ] **#10** `set_addressing` no-op returns `False` test (the "already as
+      requested" path at `commands/pids.py:489` has no test asserting the return
+      value / unchanged file).
+- [ ] **#11** per-ECU `source_address` byte-range validation test (symmetric to the
+      existing `target_address` / `fc_id` cases).
+
+The out-of-scope note still stands: a **bench run against real BMW/Renault
+hardware** remains the open confidence gap, tracked in
+`plans/2026-07-28-multi-vehicle-support.md`.
+
 ## Context
 
 Commit `b35af3a` ("addressing: extended-11-bit + functional-TX flow control

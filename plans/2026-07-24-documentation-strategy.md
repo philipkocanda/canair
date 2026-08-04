@@ -1,5 +1,12 @@
 # Plan: canair documentation strategy
 
+Status: **largely SHIPPED** — decisions resolved, `docs/` skeleton, the
+bring-your-own-car journey, concepts pages, generated CLI reference + `--check`
+gate, and MkDocs Material + Pages workflow all landed (see `## Status update`).
+**Remaining:** `docs/reference/schemas.md` (planned, confirmed missing) and a
+doc-numbers freshness check for the bundled-profile stats. The README ↔ `docs/`
+split policy this plan established is **live policy** — see `AGENTS.md`.
+
 ## Goal
 
 Make canair genuinely welcoming to the two audiences it should optimize for

@@ -1,14 +1,15 @@
 # Time-aligned multi-signal export (`align`) + generalized `--discriminate` axis
 
+Status: **Parts 1–4 DONE** (2026-08-01) — see the `## Implemented` section
+below. Two items remain deferred by design: `align can` (domain-B raw-frame kind)
+and `--against-expr`. Design settled from the 2026-08-01 session retrospective.
+
 Two closely-related analysis affordances, plus one bug to confirm and two
 papercuts. All motivated by a single recurring friction: during a real RE session
 (deriving LDC 12V output current, decoding HVAC climate/heat power, splitting
 PTC vs heat-pump), every drop into a hand-written Python script was for the *same*
 missing capability — pulling several **cross-ECU** signals into one time-aligned
 table so they can be eyeballed, regime-split, or arithmetic-combined.
-
-Not yet implemented — captured for later. Design settled from the 2026-08-01
-session retrospective.
 
 ## Why (the gap)
 
@@ -264,9 +265,15 @@ doesn't support a *cross-ECU* signal reference, or it silently matched nothing.
 
 ## Status
 
-Proposed, not implemented. Motivated by the 2026-08-01 LDC-current / HVAC
-climate-power / PTC-vs-compressor RE session, where the absence of Parts 1–2
-forced repeated hand-written nearest-join scripts.
+**Parts 1–4 DONE** (2026-08-01) — `canlib/align.py` + `canlib/commands/align.py`
+shipped; see the `## Implemented` section for the per-part detail. Originally
+motivated by the 2026-08-01 LDC-current / HVAC climate-power / PTC-vs-compressor
+RE session, where the absence of Parts 1–2 forced repeated hand-written
+nearest-join scripts.
+
+**Deferred:** `align can` (domain-B; keep the group shape so it slots in) and
+`--against-expr` (low priority — `--control` plus `align … --csv` →
+`--against-file` may make it redundant).
 
 ## Implemented (2026-08-01)
 

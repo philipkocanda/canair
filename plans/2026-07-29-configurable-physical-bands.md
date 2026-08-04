@@ -1,5 +1,20 @@
 # Configurable physical-value bands — vehicle profile + charging-grid region (`canair hunt --physical` / `investigate`)
 
+Status: **DONE** — all three phases shipped. Verified 2026-08-04 against the
+tree: `canlib/physical_bands.py` (`DEFAULT_PHYSICAL_BANDS` +
+`resolve_physical_bands`), `canlib/grid_regions.py` (`GRID_PRESETS`),
+`canlib/grid_prompt.py` (first-scan TTY prompt + `grid_region_prompted`
+sentinel); `bands=` threaded through `xanalysis.physical_scan` and resolved at
+both call sites (`commands/hunt.py:585`, `commands/investigate.py:369`);
+`_validate_physical_bands` in `commands/validate/pids.py:1006`; `grid_region` in
+`commands/config.py` `_KNOWN_KEYS` + `config.example.yaml`; `physical_bands:` in
+`templates/profile.yaml.tmpl`; tests `test_physical_bands.py` +
+`test_grid_regions.py`.
+
+The "Phases" section below is kept as the **implementation record** — read it for
+the design rationale (the two-axis split, the precedence rule, and the rejected
+alternatives), not as a to-do list.
+
 ## Goal
 
 Make the **physical-band plausibility scan** — the reference-free heuristic that

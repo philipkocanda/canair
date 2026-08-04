@@ -1,5 +1,35 @@
 # Plan: Streamline creating a new vehicle profile from scratch
 
+Status: **Phases 0–2 DONE; Phases 3–5 remain.** Verified 2026-08-04.
+
+> **The "Current state" section below is stale.** It describes a pre-`ecus/`
+> tree (a top-level `ecus.yaml` + a `pids/` dir). The profile layout has since
+> moved to **one file per ECU** under `ecus/`, which changes Phase 0's shape:
+> `canlib/ecus_edit.py` shipped with `register_ecu` / `set_ecu_fields` /
+> `append_scan_log` as planned, but there is **no separate
+> `canlib/schema/ecus_schema.yaml`** — per-ECU identity/scan_log validation was
+> folded into `pids_schema.yaml`, and `canair validate ecus` is an alias for
+> `validate pids` (`commands/validate/__init__.py:152`). Read the phases for
+> intent, not for paths.
+
+- [x] **Phase 0** — writer + validation (`canlib/ecus_edit.py`; schema folded
+      into `pids_schema.yaml` rather than standalone)
+- [x] **Phase 1** — `canair profile create` (+ `--path`, `--set-default`)
+- [x] **Phase 2** — `canair discover --register`
+- [ ] **Phase 3** — `canair identity --write` (DID→field autofill: F190→vin,
+      F187/F188→part_number, F189→sw_version, F18C→serial, F18B→mfg_date;
+      `--all`/`--overwrite`, fill-blanks-only). **No `--write` flag exists today.**
+      Stretch: the KWP2000 `1A 8x/9x` identity path for BMS/VCU/MCU/LDC.
+- [ ] **Phase 4** — `canair scan --seed` (research leads per positive responder;
+      optional `--seed-stub`). **No `--seed` flag exists today.**
+- [ ] **Phase 5** — `canair profile bootstrap` orchestrator (marked *optional* in
+      the plan; not implemented)
+
+Phases 3–4 are the "fill in missing information" half of the headline ask and are
+**unwritten code** — the five open questions below that gated them are largely
+answered by the shipped Phases 0–2 (placeholder naming, profile location), so
+re-read them before starting rather than treating them as blockers.
+
 ## Goal
 
 A new user should be able to point `canair` at an unknown vehicle and go from

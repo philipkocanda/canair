@@ -1,5 +1,13 @@
 # Byte Notation — Phase 2: ISO-TP-Canonical Analysis + Switchable Display Notation
 
+Status: **Phase 2a SHIPPED; Phase 2b DEFERRED** (see the `## Status` section).
+The header caveat below ("design doc … nothing here is implemented yet") is
+**stale** — it predates the 2a/2b split. Phase 2b is now an **optional cleanup**,
+not a prerequisite: `plans/2026-07-24-raw-can-analysis.md` Stage 2 reached the
+raw-CAN generalization from the frame side instead. Deferred items: re-home the
+analysis engine to read ISO-TP directly, reimplement `bix` on `notation.py`, the
+TUI live notation toggle, and the `ByteSpace.RAW_CAN` path.
+
 Re-home the analysis engine onto a **typed, ISO-TP-canonical byte model** and add
 a **switchable display notation** (WiCAN / ISO-TP / Torque / bix, and later
 raw-CAN). WiCAN's PCI-interleaved notation becomes a *rendering* + a *firmware

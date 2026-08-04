@@ -1,5 +1,13 @@
 # CLI command naming & structure reorganization
 
+Status: **Phase 1 COMMITTED** (`monitor` promoted, `query` → `read`).
+**Phase 2 DECIDED: no renames — close the gap with documentation.** Its three
+documentation action items are **not yet written** (the `captures` ↔ `decode`
+boundary line, the single-PID-vs-cross-PID rule of thumb, and a "which device
+command do I use?" note). The Appendix north-star (`car`/`data`/`dig`/`map`) is
+explicitly **not committed work** — a future breaking phase needing its own
+alias/migration plan.
+
 A review of the `canair` command surface for first-time-user intuitiveness,
 and a concrete reorganization. Two phases:
 

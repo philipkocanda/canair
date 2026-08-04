@@ -1,6 +1,7 @@
 # Multi-PID stacked compare in `captures --step` (Textual port)
 
-Status: in progress (2026-08-04)
+Status: **DONE** (2026-08-04) — see the `## Status` section at the end of this
+file for the landing report (test counts, gates, interactive verification).
 
 ## Motivation
 

@@ -1,5 +1,12 @@
 # `canair write` — the deliberately-gated config-DID writability probe
 
+Status: **NOT STARTED** — fully specified, zero code (confirmed 2026-08-04: no
+`canlib/commands/write.py`). Design decisions are settled; this doc is the
+authoritative record. Nothing blocks implementation but demand: the command is
+**agent-hostile by design** (config flag + `--unsafe` + typed confirmation) and
+`0x2E` remains the first entry in `BLOCKED_UDS_SERVICES`. Deliberately out of v1:
+arbitrary-value writes (`--value`) and a `write_log.yaml` audit trail.
+
 A `write` command that tests whether a suspected config DID is *writable* by
 reading its current value (`0x22`) and writing the **same bytes** back (`0x2E`),
 then classifying the response. The point is diagnostic ("is this DID

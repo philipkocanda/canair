@@ -1,5 +1,48 @@
 # Blind rediscovery stress-test of the analysis toolset
 
+Status: **REPORT / EVALUATION — tooling follow-ups #1–#3 DONE; #4 partly needs
+on-car data.** Verified against the tree 2026-08-04 (an earlier status line here
+claimed the follow-ups were "NOT started" — that was wrong, written without
+checking the code):
+
+- [x] **#1 — shift-form expressions for LE / PCI-skip winners.** `wican_expr`
+      emits arithmetic compositions (`B9 + S10*256`) and `wican_expr_indices`
+      handles PCI-straddling reads (`S7*256 + B9`). Confirmed live: `hunt MCU 2102
+      --against ESC:22C101:REAL_SPEED_KMH` tops out at `B9 + S10*256`, not
+      `<no-expr>`. Only **floats** are now inexpressible, which is correct.
+- [x] **#2 — absolute-level / enum-reference ranking guards.**
+      `xanalysis.reference_is_absolute_level` + `reference_is_bimodal` warn in both
+      `hunt` and `correlate`, and `stats.categorical_method_nudge` pushes an
+      enum/flag reference toward `--method cramers_v`/`mutual_info`. Both
+      detectors are deliberately **conservative** (baseline ≥5, relative span
+      <15%) to avoid false positives on genuinely dynamic signals — so a
+      reference like VCU 12V (22% span, 28 distinct values) is correctly *not*
+      flagged. Do not tune the thresholds against a single example.
+- [x] **#3 — unit-guess gating.** `unit_guess` candidates carry a `hint` +
+      `dimension`, and `sniff_unit` suppresses the hint when the reference unit's
+      dimension disagrees. Confirmed live: the RPM slope now reads `raw×0.02`
+      **without** the spurious `(cell V)` label.
+- [ ] **#4 — profile items.** The MCU:2102 RPM low-byte LE/BE tie is
+      **undecidable from existing captures** and needs one high-resolution drive
+      (or a reverse-gear check); the VCU `B18` second-12V-node labelling and the
+      `VCU_POWER_STATE` note are profile edits.
+
+**A new defect surfaced while verifying the above** (fixed 2026-08-04): a
+**float** interpretation has no WiCAN expression, yet ranking is by |r| alone, so
+a spurious float read could *top* the table (and crowd out expressible
+candidates) with nothing saying it was a dead end — `hunt MCU 2102 --against
+VCU:2102:VCU_AUX_BATTERY_VOLTAGE` returned two degenerate `f16` hits
+(`y=-0.0000·x+0.00`, resid 0.00) above the real byte `B19`. `hunt` now warns when
+the top hit is a float reinterpretation (mirroring the refusal `--promote`
+already had), the `<no-expr>` sentinel is a shared `inspect_bytes.NO_EXPR`
+constant instead of a string literal in six places, and the stale
+"float/LE-signed" wording is corrected (LE *is* expressible now). Ranking is
+deliberately **not** reordered — a float read can legitimately be the real signal
+on an ECU that transmits IEEE floats.
+
+Finding #5 (`--dump-bytes` signed columns) shipped as `--signed`. Finding #6 is
+inherent, not a tool defect.
+
 **Date:** 2026-08-02
 **Profile under test:** `profiles/ioniq-2017`
 **Purpose:** Validate that canair's *analysis* tooling (`decode`, `hunt`,
@@ -175,11 +218,19 @@ most of the remaining gap.
 
 ### Suggested follow-ups
 
-1. `hunt`: synthesize explicit shift-form expressions for LE / PCI-skip winners
-   (kill `<no-expr>`).
-2. `hunt`/`correlate`: prefer band/anchor ranking (or warn) when target/reference is a
+> Status per item is in the header at the top of this file. #1–#3 are **done**;
+> #4 is **open** and partly needs a fresh high-resolution drive.
+
+1. ~~`hunt`: synthesize explicit shift-form expressions for LE / PCI-skip winners
+   (kill `<no-expr>`).~~ **DONE** — only floats remain inexpressible.
+2. ~~`hunt`/`correlate`: prefer band/anchor ranking (or warn) when target/reference is a
    slowly-varying absolute level; strengthen the enum-reference nudge toward
-   `cramers_v`/`mutual_info`.
-3. `hunt`: gate the physical-unit guess to the ECU's plausible quantities.
-4. Re-validate MCU:2102 RPM low byte; investigate/label VCU:2102 `B18` as a second 12V
-   node; add a note to `VCU_POWER_STATE` about the distributed state bytes.
+   `cramers_v`/`mutual_info`.~~ **DONE (warn, not reorder)** —
+   `reference_is_absolute_level` / `reference_is_bimodal` /
+   `categorical_method_nudge`.
+3. ~~`hunt`: gate the physical-unit guess to the ECU's plausible quantities.~~
+   **DONE** — `hint`/`dimension` gating in `sniff_unit`.
+4. **OPEN.** Re-validate MCU:2102 RPM low byte (needs one high-resolution drive or a
+   reverse-gear check — undecidable from current captures); investigate/label
+   VCU:2102 `B18` as a second 12V node; add a note to `VCU_POWER_STATE` about the
+   distributed state bytes.

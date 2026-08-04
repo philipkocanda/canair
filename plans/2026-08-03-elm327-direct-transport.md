@@ -1,6 +1,11 @@
 # Direct ELM327 socket transport (`elm327-tcp`) + offline ELM327-Emulator testing
 
-Status: in progress (2026-08-03) — commit 1 (channel/engine extraction) + commit 2 (elm327-tcp transport + offline testing) done.
+Status: **DONE** (2026-08-03) — all three phased commits landed: commit 1
+(channel/engine extraction), commit 2 (`elm327-tcp` transport), commit 3 (offline
+ELM327-Emulator testing), plus the "leading-zero PID keys" follow-up fix.
+**Deferred (out of scope, by design):** the `elm327-serial` transport
+(`SerialChannel` + `pyserial` + `DeviceEntry.device`/`baudrate` + non-TCP liveness
+probing). Clone-quirk/baudrate auto-detection is **rejected**, not deferred.
 
 ## Motivation
 

@@ -1,5 +1,8 @@
 # Byte Notation — Phase 1: Fix + Consolidate the WiCAN-byte Boundary
 
+Status: **DONE** — see the `## Status` checklist near the end for the per-item
+verification. Phase 2 is `2026-07-24-byte-notation-phase2-isotp-canonical.md`.
+
 Tighten the existing WiCAN-byte plumbing without changing which byte space the
 analysis engine reasons in. This is the **low-risk, ship-now** foundation for the
 larger Phase 2 (ISO-TP-canonical + switchable display notation, see
@@ -190,8 +193,19 @@ command/flag/default changed → **no README change**):
 
 ## Status
 
-- [ ] 1a — fix `hunt_byte` PCI bug (red-green) + unify `bix` detector (characterization); tests
-- [ ] 1b — consolidate to one PCI-reinsertion impl; equivalence test
-- [ ] 1c — docstrings/comments naming the boundary; reword the three conflation smells
-- [ ] 1d — verify `wican-byte-index.md` example + cross-links post-1a/1c (doc already authored)
-- [ ] full `uv run pytest` + `uv run canair validate all` green; CHANGELOG line
+**DONE.** Verified 2026-08-04 against the tree — the boxes below were never
+ticked during implementation, but every item is in place:
+
+- [x] 1a — fix `hunt_byte` PCI bug (red-green) + unify `bix` detector (characterization); tests
+      — `xanalysis.py` now uses `byteindex.wican_to_isotp` as the sole PCI
+      detector (`:312`, `:341`, `:478`); `bix` single-frame vs multi-frame PCI
+      layout covered by `tests/test_bix_command.py:144-158`.
+- [x] 1b — consolidate to one PCI-reinsertion impl; equivalence test
+      — `byteindex.payload_to_wican_bytes` (`:439`) is the single canonical
+      converter; `commands/decode.py:163` is a thin re-export and
+      `autopid_layout.uds_hex_to_wican_bytes` delegates to it and only re-applies
+      the multi-frame final-frame zero padding (exactly as the plan specified).
+- [x] 1c — docstrings/comments naming the boundary; reword the three conflation smells
+      — `byteindex.py:5` carries the "**Which space is canonical:** ISO-TP" note.
+- [x] 1d — verify `wican-byte-index.md` example + cross-links post-1a/1c (doc already authored)
+- [x] full `uv run pytest` + `uv run canair validate all` green; CHANGELOG line

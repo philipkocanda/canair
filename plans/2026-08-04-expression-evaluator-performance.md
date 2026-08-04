@@ -1,14 +1,16 @@
 # Expression evaluator: compile once, evaluate many
 
+Status: **DONE** — prototyped, measured, and implemented (2026-08-04); see `## Status`
+section for the checklist and the CHANGELOG `[Unreleased]` entry for the shipped
+numbers. **If you came here looking for the next performance win, it is not in
+this file:** read the "The bigger fish — `align.join_prepared`" section instead.
+The join is 55% of profiled analysis runtime; expression evaluation is 3.5%.
+
 `canlib.expression.evaluate_expression` re-parses its expression string on
 **every** call — character by character, plus two `re.match` probes for the
 `[Bn:Bm]` / `[Sn:Sm]` forms. But an expression is *constant* across a whole
 series: the analysis engine evaluates one expression against thousands of
 payloads. Splitting parse from evaluate makes the parse happen once.
-
-Prototyped and measured (2026-08-04), not implemented. **Read the "Is this worth
-doing?" section before starting** — the microbenchmark win is large, the
-end-to-end win is modest, and there is a bigger fish in `align.join_prepared`.
 
 ## Why (the mechanism)
 

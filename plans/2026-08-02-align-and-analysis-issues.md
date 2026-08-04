@@ -1,5 +1,11 @@
 # Analysis-tooling issues found during the 2026-08-02 charge deep-dive
 
+Status: **all four issues FIXED** (join window widened 2.5 → 5.0s; `align`
+zero-join warning; `reference_is_bimodal()` guard; VCU_AUX_BATTERY_VOLTAGE
+resolved to `B14 * 0.0974`). **Small follow-ups remain:** extend the thin/zero-join
+warning to `correlate`/`hunt` `--against` references, and write the `align`
+cross-ECU-agreement worked example for the docs.
+
 Surfaced while stress-testing `canair align` (and `correlate`/`hunt`/`decode`)
 on the 2026-08-02 READY→AC-charge→ACC2 capture (an 8-ECU `monitor --save`
 `keep:unique` session), then cross-checking live against the car in ACC2.
@@ -105,5 +111,3 @@ status bytes, correctly rejected.)
   example in the docs.
 - MCU `21F2` now has captures but no PID definition (see the separate
   registration + research lead).
-</content>
-</invoke>
