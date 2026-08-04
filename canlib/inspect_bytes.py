@@ -57,6 +57,13 @@ INSPECT_TYPES: list[InspectType] = [
 
 POST_TRANSFORMS = ("raw", "delta", "abs", "cumsum", "normalize", "smooth")
 
+#: Placeholder shown (and stored on a hit) when an interpretation has **no** WiCAN
+#: expression. Only *float* reinterpretations reach this: since LE/PCI-straddling
+#: signed ints gained arithmetic-composition forms (``B9 + S10*256``,
+#: ``S15*256 + B17``), every integer read is expressible — see :func:`wican_expr`.
+#: A hit carrying this cannot be promoted or written as a parameter.
+NO_EXPR = "<no-expr>"
+
 
 def interpret_bytes(
     frame: bytes, offset: int, spec: InspectType, little: bool = False

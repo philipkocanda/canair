@@ -338,99 +338,9 @@ class TestBuildByteSeries:
 
 
 # ---------------------------------------------------------------------------
-# correlate_matrix
+# correlate_matrix / signal_group_key live in canlib.corrmatrix — see
+# tests/test_corrmatrix.py (this module keeps the series-building + hunt engine).
 # ---------------------------------------------------------------------------
-class TestCorrelateMatrix:
-    def test_cross_pid_pair_surfaces(self):
-        # A on ECU1 and B on ECU2 are the same ramp; C is noise
-        ramp = [_tp(i, i) for i in range(20)]
-        series = {
-            "E1:P:A": ramp,
-            "E2:P:B": [_tp(i + 0.2, i) for i in range(20)],
-            "E2:P:C": [_tp(i + 0.2, (i * 7) % 5) for i in range(20)],
-        }
-        hits = xanalysis.correlate_matrix(series, tol_s=1.0, min_r=0.9, min_n=10)
-        assert hits
-        top = hits[0]
-        assert {top.a, top.b} == {"E1:P:A", "E2:P:B"}
-        assert top.r == pytest.approx(1.0)
-
-    def test_intra_pid_excluded_by_default(self):
-        ramp = [_tp(i, i) for i in range(20)]
-        series = {"E1:P:A": ramp, "E1:P:B": [_tp(i, i) for i in range(20)]}
-        assert xanalysis.correlate_matrix(series, tol_s=1.0, min_r=0.9, min_n=10) == []
-        # ...but included on request
-        hits = xanalysis.correlate_matrix(
-            series, tol_s=1.0, min_r=0.9, min_n=10, include_intra=True
-        )
-        assert len(hits) == 1
-
-    def test_min_n_threshold(self):
-        series = {"E1:P:A": [_tp(i, i) for i in range(5)], "E2:P:B": [_tp(i, i) for i in range(5)]}
-        assert xanalysis.correlate_matrix(series, tol_s=1.0, min_r=0.5, min_n=15) == []
-
-    def test_intra_pid_bit_labels_excluded_by_default(self):
-        """Bit labels (`ECU:PID:Bn:k`) must group by ECU+PID like every other label.
-
-        Regression: the grouping key was `rsplit(":", 1)[0]`, which on the 4-field
-        bit form yielded `ECU:PID:Bn` — so every `--bits` pair looked cross-PID.
-        `correlate --bits` then ranked a param against its own backing bit
-        (r=1.000) as the top "cross-signal" hit, flooding out real findings.
-        """
-        ramp = [_tp(i, i) for i in range(20)]
-        series = {
-            "IGPM:22BC03:DOOR_DRV_OPEN": ramp,
-            "IGPM:22BC03:B10:5": [_tp(i, i) for i in range(20)],
-        }
-        assert xanalysis.correlate_matrix(series, tol_s=1.0, min_r=0.9, min_n=10) == []
-        hits = xanalysis.correlate_matrix(
-            series, tol_s=1.0, min_r=0.9, min_n=10, include_intra=True
-        )
-        assert len(hits) == 1
-
-    def test_cross_pid_bit_labels_still_surface(self):
-        # The fix must not over-group: a bit on a *different* PID is a real hit.
-        series = {
-            "IGPM:22BC03:B10:5": [_tp(i, i) for i in range(20)],
-            "IGPM:22BC06:B10:0": [_tp(i + 0.2, i) for i in range(20)],
-        }
-        hits = xanalysis.correlate_matrix(series, tol_s=1.0, min_r=0.9, min_n=10)
-        assert len(hits) == 1
-        assert hits[0].r == pytest.approx(1.0)
-
-
-class TestSignalGroupKey:
-    """The cross-domain 'same signal source' key (see xanalysis.signal_group_key)."""
-
-    @pytest.mark.parametrize(
-        "label,expected",
-        [
-            # domain A — diagnostics: key on ECU+PID
-            ("BMS:2101:SOC", "BMS:2101"),
-            ("IGPM:22BC03:B12", "IGPM:22BC03"),
-            ("IGPM:22BC03:B12:3", "IGPM:22BC03"),  # 4-field bit form
-            # domain B — raw broadcast frames: key on the arbitration ID
-            ("0x220:r1", "0x220"),
-            ("0x220:r1.3", "0x220"),  # bit uses '.', not ':'
-        ],
-    )
-    def test_group_key(self, label, expected):
-        assert xanalysis.signal_group_key(label) == expected
-
-    @pytest.mark.parametrize(
-        "a,b,same",
-        [
-            ("IGPM:22BC03:B12", "IGPM:22BC03:B13", True),
-            ("IGPM:22BC03:B12:3", "IGPM:22BC03:B13:4", True),
-            ("IGPM:22BC03:SOC", "IGPM:22BC03:B13:4", True),
-            ("IGPM:22BC03:B12:3", "IGPM:22BC04:B13:4", False),  # different PID
-            ("IGPM:22BC03:B12:3", "BCM:22BC03:B13:4", False),  # different ECU
-            ("0x220:r1.3", "0x220:r2.4", True),
-            ("0x220:r1", "0x386:r2", False),
-        ],
-    )
-    def test_same_pid(self, a, b, same):
-        assert xanalysis._same_pid(a, b) is same
 
 
 # ---------------------------------------------------------------------------
@@ -620,7 +530,8 @@ class TestCommandParsers:
 
 
 class TestOutputHygiene:
-    """T3.3 — interpretation collapse + co-linear clustering."""
+    """T3.3 — interpretation collapse (co-linear clustering lives in
+    tests/test_corrmatrix.py, alongside the engine that produces the hits)."""
 
     def test_hunt_collapses_to_one_per_offset(self, tmp_path):
         from canlib.align import load_signal_captures
@@ -648,20 +559,6 @@ class TestOutputHygiene:
             loaded[("AAF", "2181")], ref, tol_s=1.0, min_n=10, all_interps=True
         )
         assert len(expanded) >= len(collapsed)  # --all-interps shows more
-
-    def test_colinear_clusters_groups_mutual(self):
-        from canlib.xanalysis import CorrHit, colinear_clusters
-
-        # A,B,C mutually ~1.0 -> one cluster of 3; D unrelated
-        hits = [
-            CorrHit("A", "B", 0.999, 30),
-            CorrHit("B", "C", 0.998, 30),
-            CorrHit("A", "C", 0.997, 30),
-            CorrHit("A", "D", 0.5, 30),
-        ]
-        clusters = colinear_clusters(hits)
-        assert len(clusters) == 1
-        assert clusters[0] == {"A", "B", "C"}
 
 
 class TestOverlap:

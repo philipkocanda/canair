@@ -35,10 +35,10 @@ from canlib.commands._correlate_render import (
     _print_overlap,
 )
 from canlib.commands._group import group_help
+from canlib.corrmatrix import CLUSTER_THRESHOLD
 from canlib.keepmode import CHANGES_BANNER, scope_is_keep_changes, scope_is_keep_unique
 from canlib.notation import add_notation_arg, relabel_signal, resolve_notation
 from canlib.stats import METHOD_CHEAT_SHEET as _METHOD_CHEAT_SHEET
-from canlib.xanalysis import _CLUSTER_THRESHOLD as _CLUSTER_THRESHOLD
 from canlib.xanalysis import (
     build_bit_series,
     build_byte_series,
@@ -454,17 +454,20 @@ def _run_can_log(args) -> int:
             )
             return 1
         rows = []
+        best_n = 0
         ref_prepared = prepare_series(ref)
         for name, s in series.items():
             if name == args.against:
                 continue
             xs, ys, n = join_prepared(ref_prepared, prepare_series(s), tol_s=args.join_tol)
+            best_n = max(best_n, n)
             if n < args.min_n:
                 continue
             r = correlation(xs, ys, args.method)
             if r is None or abs(r) < args.min_r:
                 continue
             rows.append((name, r, n))
+        _warn_thin_reference_join("correlate", args.against, best_n, len(ref), args)
         rows.sort(key=lambda t: -abs(t[1]))
         rows = rows[: args.top]
         if args.json:
@@ -715,6 +718,7 @@ def run(args) -> int:
                 control_series = detrend_by_session(control_series, args.session_gap)
 
         rows = []
+        best_n = 0  # best realised overlap across the sweep (pre-min_n) — see below
         ref_prepared = prepare_series(ref_series)
         for name, s in series.items():
             if not args.include_self and name == args.against:
@@ -723,6 +727,8 @@ def run(args) -> int:
                 hit = lag_scan(
                     ref_series, s, tol_s=args.join_tol, max_lag=args.lag_scan, method=args.method
                 )
+                if hit is not None:
+                    best_n = max(best_n, hit.n)
                 if hit is None or abs(hit.r) < args.min_r or hit.n < args.min_n:
                     continue
                 rows.append((name, hit.r, hit.n, hit.lag_seconds))
@@ -733,6 +739,7 @@ def run(args) -> int:
                 xs, ys, zs, n = join_nearest_triple(
                     ref_series, s, control_series, tol_s=args.join_tol
                 )
+                best_n = max(best_n, n)
                 if n < args.min_n:
                     continue
                 r = partial_correlation(xs, ys, zs, args.method)
@@ -741,12 +748,17 @@ def run(args) -> int:
                 rows.append((name, r, n, None))
             else:
                 xs, ys, n = join_prepared(ref_prepared, prepare_series(s), tol_s=args.join_tol)
+                best_n = max(best_n, n)
                 if n < args.min_n:
                     continue
                 r = correlation(xs, ys, args.method)
                 if r is None or abs(r) < args.min_r:
                     continue
                 rows.append((name, r, n, None))
+        # A reference whose scope doesn't overlap the candidates drops every one of
+        # them at the min_n gate, which otherwise looks identical to "nothing
+        # correlates". Report the tolerance/scope cause instead.
+        _warn_thin_reference_join("correlate", ref_label, best_n, len(ref_series), args)
         rows.sort(key=lambda t: -abs(t[1]))
         if args.promote:
             return _promote_top_byte(
@@ -839,7 +851,7 @@ def run(args) -> int:
             f", +{len(members) - 4} more" if len(members) > 4 else ""
         )
         print(
-            f"    {_GREEN}≈ cluster{_RESET} {_DIM}(|r|≥{_CLUSTER_THRESHOLD:g}, "
+            f"    {_GREEN}≈ cluster{_RESET} {_DIM}(|r|≥{CLUSTER_THRESHOLD:g}, "
             f"{len(members)} signals){_RESET}  {shown}"
         )
     for h in remaining:
@@ -850,6 +862,22 @@ def run(args) -> int:
         )
     print()
     return 0
+
+
+def _warn_thin_reference_join(command: str, ref_label: str, best_n: int, n_ref: int, args) -> None:
+    """Print the shared thin/zero-join warning for an ``--against`` sweep."""
+    from canlib.align import thin_join_warning
+
+    msg = thin_join_warning(
+        command=command,
+        ref_label=ref_label,
+        n_joined=best_n,
+        n_candidates=n_ref,
+        tol_s=args.join_tol,
+        min_n=args.min_n,
+    )
+    if msg:
+        print(msg, file=sys.stderr)
 
 
 def _promote_top_byte(name, rows, series, ref_series, ref_label, tol, *, ref_unit=None) -> int:

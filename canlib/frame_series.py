@@ -18,7 +18,7 @@ from datetime import datetime
 
 from .align import TimePoint
 from .can_logs import detect_format, iter_frames
-from .inspect_bytes import INSPECT_TYPES, float_series_is_noise, interpret_bytes
+from .inspect_bytes import INSPECT_TYPES, NO_EXPR, float_series_is_noise, interpret_bytes
 
 # Frame-signal label: "0xID:rN" (byte) / "0xID:rN.k" (bit). The single ":" keeps
 # arbitration-ID grouping working in xanalysis._same_pid (which rsplits on ":").
@@ -203,7 +203,7 @@ def hunt_frame(
                 m, c, resid = fit
                 hits.append(
                     HuntHit(
-                        expr=_frame_expr(off, spec, little) or "<no-expr>",
+                        expr=_frame_expr(off, spec, little) or NO_EXPR,
                         interp=spec[0] + (" LE" if little and width > 1 else ""),
                         offset=off,
                         r=r,

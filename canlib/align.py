@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import bisect
 import csv
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from functools import cached_property
@@ -36,6 +37,7 @@ __all__ = [
     "TimePoint",
     "align_many",
     "extract_series",
+    "join_indices",
     "join_nearest",
     "join_nearest_presorted",
     "join_nearest_triple",
@@ -45,6 +47,7 @@ __all__ = [
     "mirror_aligned_count",
     "prepare_series",
     "series_time_ranges_disjoint",
+    "timestamps_disjoint",
 ]
 
 # Default nearest-neighbour join window (shared by align/correlate/hunt/xanalysis).
@@ -483,6 +486,19 @@ def prepare_series(points: list[TimePoint]) -> PreparedSeries:
     )
 
 
+def timestamps_disjoint(a_ts: Sequence[float], b_ts: Sequence[float], tol_s: float) -> bool:
+    """True when two epoch-second timestamp vectors can't share a pair within ``tol_s``.
+
+    The timestamp-only core of :func:`series_time_ranges_disjoint` — a join
+    depends solely on the two clocks, so the pruning guard does too, and the
+    bucketed sweep in :func:`canlib.xanalysis.correlate_matrix` prunes on bare
+    timestamp vectors (its bucket key) without materialising a series.
+    """
+    if not a_ts or not b_ts:
+        return True
+    return a_ts[0] - tol_s > b_ts[-1] or b_ts[0] - tol_s > a_ts[-1]
+
+
 def series_time_ranges_disjoint(a: PreparedSeries, b: PreparedSeries, tol_s: float) -> bool:
     """True when ``a`` and ``b`` can't share a nearest pair within ``tol_s``.
 
@@ -490,9 +506,51 @@ def series_time_ranges_disjoint(a: PreparedSeries, b: PreparedSeries, tol_s: flo
     spans don't overlap (even after padding each end by ``tol_s``), every
     nearest-neighbour join is empty, so the whole per-pair join can be skipped.
     """
-    if not a.ts or not b.ts:
-        return True
-    return a.ts[0] - tol_s > b.ts[-1] or b.ts[0] - tol_s > a.ts[-1]
+    return timestamps_disjoint(a.ts, b.ts, tol_s)
+
+
+def join_indices(
+    ref_ts: Sequence[float],
+    cand_ts: Sequence[float],
+    tol_s: float = DEFAULT_JOIN_TOL_S,
+) -> tuple[list[int], list[int]]:
+    """Nearest-neighbour join expressed as parallel **index** lists.
+
+    Returns ``(ref_idx, cand_idx)``: for each kept reference sample, its position
+    in ``ref_ts`` and the position of its nearest ``cand_ts`` sample within
+    ``tol_s``. Reference samples with no candidate in range are dropped, so both
+    lists have the realised overlap length.
+
+    A join depends only on the two *clocks*, never on the values — so the mapping
+    is reusable across every signal sharing a timestamp vector. That is what lets
+    :func:`canlib.xanalysis.correlate_matrix` join once per timestamp-vector pair
+    instead of once per signal pair (nearly every signal decoded from one
+    ``(ECU, PID)`` shares one vector). :func:`join_prepared` is a thin wrapper over
+    this, so the tie-breaking rule — smaller absolute delta wins, the earlier
+    candidate on an exact tie — cannot drift between the two paths.
+    """
+    if not ref_ts or not cand_ts:
+        return [], []
+    n_cand = len(cand_ts)
+    bisect_left = bisect.bisect_left
+    ref_idx: list[int] = []
+    cand_idx: list[int] = []
+    for k, rt in enumerate(ref_ts):
+        i = bisect_left(cand_ts, rt)
+        best_j = -1
+        best_dt = tol_s + 1.0
+        for j in (i - 1, i):
+            if 0 <= j < n_cand:
+                delta = cand_ts[j] - rt
+                if delta < 0.0:
+                    delta = -delta
+                if delta < best_dt:
+                    best_dt = delta
+                    best_j = j
+        if best_j >= 0 and best_dt <= tol_s:
+            ref_idx.append(k)
+            cand_idx.append(best_j)
+    return ref_idx, cand_idx
 
 
 def join_prepared(
@@ -504,31 +562,13 @@ def join_prepared(
 
     Equivalent to :func:`join_nearest` but on pre-flattened, pre-sorted float
     arrays — no per-call sort and no ``datetime`` arithmetic in the inner loop.
+    A thin wrapper over :func:`join_indices` (the single join implementation).
     """
-    ref_ts = ref.ts
-    if not ref_ts or not cand.ts:
-        return [], [], 0
-    cand_ts = cand.ts
+    ref_idx, cand_idx = join_indices(ref.ts, cand.ts, tol_s)
+    ref_vals = ref.values
     cand_vals = cand.values
-    n_cand = len(cand_ts)
-    bisect_left = bisect.bisect_left
-    xs: list[float] = []
-    ys: list[float] = []
-    for k, rt in enumerate(ref_ts):
-        i = bisect_left(cand_ts, rt)
-        best_val: float | None = None
-        best_dt = tol_s + 1.0
-        for j in (i - 1, i):
-            if 0 <= j < n_cand:
-                delta = cand_ts[j] - rt
-                if delta < 0.0:
-                    delta = -delta
-                if delta < best_dt:
-                    best_dt = delta
-                    best_val = cand_vals[j]
-        if best_val is not None and best_dt <= tol_s:
-            xs.append(ref.values[k])
-            ys.append(best_val)
+    xs = [ref_vals[k] for k in ref_idx]
+    ys = [cand_vals[j] for j in cand_idx]
     return xs, ys, len(xs)
 
 
@@ -571,6 +611,56 @@ def mirror_aligned_count(
                 return -1  # not a mirror — stop early
             n += 1
     return n
+
+
+def thin_join_warning(
+    *,
+    command: str,
+    ref_label: str,
+    n_joined: int,
+    n_candidates: int,
+    tol_s: float,
+    min_n: int | None = None,
+) -> str | None:
+    """Message for a reference that time-aligned onto few/none of its candidates.
+
+    The single-reference counterpart to :func:`canlib.commands.align._warn_thin_joins`
+    (which warns per *column*). ``correlate --against`` / ``hunt --against`` sweep
+    many candidates against **one** reference and drop each one that fails
+    ``min_n`` — so a reference whose scope simply doesn't overlap the target
+    reports "nothing correlates" instead of "nothing joined", which reads like a
+    real negative result rather than a tolerance/scope problem. This builds the
+    warning; the caller prints it to stderr.
+
+    ``n_joined`` is the **best** realised overlap across the sweep (the ceiling on
+    any candidate), ``n_candidates`` the reference's own sample count. Returns
+    ``None`` when the join is healthy.
+    """
+    if n_candidates == 0:
+        return None
+    if n_joined == 0:
+        return (
+            f"{command}: warning: reference {ref_label!r} joined 0 of "
+            f"{n_candidates} samples onto any candidate (within \u2264{tol_s:g}s) \u2014 "
+            "the scopes do not overlap in time. Widen --join-tol, or check that the "
+            "reference and target were co-polled in the selected scope "
+            "(`canair correlate --overlap` lists which ECU:PID pairs share samples)."
+        )
+    if min_n is not None and n_joined < min_n:
+        return (
+            f"{command}: warning: reference {ref_label!r} joined at most {n_joined} "
+            f"sample(s) onto any candidate (within \u2264{tol_s:g}s), below --min-n "
+            f"{min_n} \u2014 every candidate was dropped for thin overlap, not for a weak "
+            "correlation. Widen --join-tol or lower --min-n."
+        )
+    floor = max(1, n_candidates // 20)  # 5% — matches align's per-column floor
+    if n_joined < floor:
+        return (
+            f"{command}: warning: reference {ref_label!r} joined only {n_joined} of "
+            f"{n_candidates} samples onto its best candidate (within \u2264{tol_s:g}s) "
+            "\u2014 consider a larger --join-tol; thin overlap makes |r| unstable."
+        )
+    return None
 
 
 def join_nearest_triple(

@@ -7,7 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`canair pids rm-identity ECU FIELD`** — remove a field from an ECU's
+  `identity:` block, the missing inverse of `set-identity`. Until now an identity
+  value filed under the wrong field could only be *overwritten*, never dropped, so
+  the only way to remove one was hand-editing the ECU YAML. Surgical and
+  comment-preserving like the other `pids` editors: it handles block-scalar fields
+  (`notes`), drops the whole `identity:` block when removing its last field
+  (an empty `identity:` parses to `None`), and errors on an absent field rather
+  than silently no-op'ing.
+
+### Fixed
+- **An unknown `identity:` field name is now an ERROR, not a warning.** A typo'd
+  `canair pids set-identity BMS sofware "…"` used to succeed and persist —
+  `set-identity` validates only the *shape* of the field name, and the schema
+  check downgraded an unrecognized field to a warning that didn't affect the exit
+  code. It now fails validation, so the editor's post-write gate reverts the file
+  and the misfiled value never reaches the profile.
+- **Removed a redundant identity value from the bundled `ioniq-2017` HVAC ECU.**
+  Its `firmware:` and `software:` fields held the byte-identical string
+  `AE_EV DATC(-)1.0`. `software` was additionally missing from the
+  identity-display and new-block-write orders, so the duplicate was never even
+  rendered by `canair ecu HVAC` — dead data that read as independent evidence.
+- **`canair hunt` now flags a float top hit as unpromotable.** A float
+  reinterpretation has no WiCAN expression, so it can never be promoted or written
+  as a parameter — but hits are ranked by `|r|` alone, so a spurious float read
+  could top the table and push the genuinely expressible candidates down it, with
+  nothing saying it was a dead end. (Real case: `hunt MCU 2102 --against
+  VCU:2102:VCU_AUX_BATTERY_VOLTAGE` returned two degenerate `f16` hits —
+  `y=-0.0000·x+0.00`, `resid=0.00` — above the real byte `B19`.) `hunt` now prints
+  a warning when the top hit is a float, mirroring the refusal that `--promote`
+  already had. Ranking is deliberately **unchanged**: a float read can legitimately
+  be the signal on an ECU that transmits IEEE floats, so this informs rather than
+  reorders.
+- **Stale `<no-expr>` wording.** The `--promote` refusal described `<no-expr>` as
+  "float/LE-signed"; little-endian signed ints have been expressible as arithmetic
+  shift forms (`B9 + S10*256`) for some time, so only *floats* reach it. The
+  sentinel is now a single shared `canlib.inspect_bytes.NO_EXPR` constant instead
+  of a string literal repeated across six call sites.
+
 ### Changed
+- **`canair validate pids` warns when two *synonymous* identity fields hold the
+  same value.** The version-ish identity fields are near-synonyms by necessity
+  (every marque names its identity DIDs differently), which makes it easy to
+  mirror one DID reading into a second field and leave a dead copy behind. The
+  check is per synonym group (`firmware`/`fw_version`/`sw_version`/`sw_id`,
+  `hw_version`/`hw_sw`, `alias`/`description`, `part_number`/`serial`/`ecu_id`)
+  rather than across the whole block, so a genuine cross-axis coincidence — a real
+  one on the bundled ADM/DDM/PSM, where `hw_version` and `sw_version` both read
+  `"100"` — does not warn.
+- **Retired the `software` identity field.** It was declared as a "legacy alias
+  for firmware/sw_id" but no bundled profile used it except as the HVAC duplicate
+  above, and it was already absent from the display and write orders. One fewer
+  near-synonym to misfile a value into; use `firmware` or `sw_id`.
 - **WiCAN expressions are parsed once instead of on every evaluation.** An
   expression is constant across a whole series, but the evaluator re-scanned its
   string character by character (plus two regex probes per `[Bn:Bm]` token) for
@@ -29,6 +81,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   wins over a payload-dependent read error that used to surface first — which
   was itself payload-dependent, and the expression is broken either way. See
   `plans/2026-08-04-expression-evaluator-performance.md`.
+- **`canair correlate`'s ranked report is 8-15x faster, and `--bytes` is usable
+  again.** Ranking N signals means N²/2 pairs, and each pair was preceded by its
+  own nearest-timestamp join — but a join depends only on the two series'
+  *clocks*, never their values, and nearly every signal decoded from one
+  `(ECU, PID)` shares an identical timestamp vector. The same join was therefore
+  being recomputed thousands of times. Signals are now bucketed by their exact
+  timestamp vector and joined once per bucket pair (49,441 → 741 joins on the
+  bundled `ioniq-2017` profile; 411,778 → 1,225 with `--bytes`), and each
+  signal's mean deviations, sum of squares and finiteness are computed once per
+  bucket pair instead of once per pair, leaving a single covariance pass. On
+  `correlate uds --until 2026-08-02`: **23.9s → 3.1s**; `correlate uds --bytes
+  --until 2026-08-02`, which previously did not finish inside two minutes:
+  **145s → 9.7s**. Spearman rides the same hoist via a rank transform;
+  `cramers_v`/`mutual_info` are contingency-table statistics over the pair, so
+  they keep the per-pair coefficient path and gain only the (large) join
+  reduction — `cramers_v` 144s → 27s, `mutual_info` 34s → 9s.
+  **Results are unchanged**: hit lists, ordering and every `r` are identical to
+  full float precision, pinned by an equivalence test against a naive
+  pair-at-a-time oracle (all four methods × `include_intra` both ways) and by the
+  byte-identical golden analysis output. The subtle part is finiteness, which is
+  deliberately still evaluated on the *joined sub-vector* rather than the whole
+  series — a series carrying an `inf`/`nan` outside every join window remains
+  usable, as before — and has its own regression test. See
+  `plans/2026-08-04-join-and-correlation-performance.md`.
 - **Dropped the blanket `keep:unique` scope banner** from `decode`, `correlate`,
   `align` and `investigate`. Nearly every historical capture was recorded with the
   legacy global dedup, so the warning fired on almost every report and became

@@ -25,6 +25,7 @@ from canlib.align import (
 from canlib.capture_dates import add_scope_args, resolve_scope_bounds
 from canlib.commands._can_args import add_can_log_source_args
 from canlib.commands._group import group_help
+from canlib.inspect_bytes import NO_EXPR
 from canlib.notation import (
     ByteNotation,
     ByteRef,
@@ -494,6 +495,12 @@ def run(args) -> int:
         )
         return 1
 
+    # Scope diagnostic BEFORE the sweep: every byte candidate shares the target's
+    # frame timestamps, so the ref-vs-frames overlap is the exact ceiling on any
+    # candidate's `n`. Without this, a non-overlapping scope reports "no byte
+    # correlates" — indistinguishable from a real negative result.
+    _warn_thin_reference_join(args, lp, ref_series, ref_label)
+
     hits = hunt_byte(
         lp,
         ref_series,
@@ -560,6 +567,22 @@ def run(args) -> int:
             f"{_DIM}resid={h.resid:.2f} n={h.n}{_RESET}{unit}"
         )
     print()
+    # A float reinterpretation has no WiCAN expression, so it can't be promoted or
+    # written as a param — and reading integer byte runs as IEEE floats routinely
+    # produces a series that correlates spuriously. Ranking is by |r| alone, so such
+    # a hit can top the table (and crowd out expressible ones) with nothing saying
+    # it's a dead end. Warn rather than reorder: a float read *can* be the real
+    # signal on an ECU that genuinely transmits floats, so the user decides.
+    n_noexpr = sum(1 for h in hits if h.expr == NO_EXPR)
+    if hits and hits[0].expr == NO_EXPR:
+        extra = f" ({n_noexpr} of the {len(hits)} shown)" if n_noexpr > 1 else ""
+        print(
+            f"  hunt: warning: the top hit is a float reinterpretation{extra} with no WiCAN "
+            "expression, so it cannot be promoted or defined as a parameter. Float reads of "
+            "integer byte runs correlate spuriously — prefer the best expressible hit below "
+            "it unless this ECU really transmits IEEE floats.",
+            file=sys.stderr,
+        )
     return 0
 
 
@@ -638,6 +661,33 @@ def _run_physical(args, ecu: str, pid: str, since, until) -> int:
     return 0
 
 
+def _warn_thin_reference_join(args, lp, ref_series, ref_label: str) -> None:
+    """Warn when the reference barely time-aligns onto the target's captures.
+
+    Every byte interpretation of a PID is read from the same frames, so the
+    reference-vs-frames nearest join bounds every candidate's realised ``n``. If
+    that bound is 0 (or under ``--min-n``), the sweep can only come back empty —
+    for a *scope/tolerance* reason, not because nothing correlates.
+    """
+    from canlib.align import TimePoint, join_prepared, prepare_series, thin_join_warning
+
+    frames = lp.timed_frames()
+    if not frames or not ref_series:
+        return
+    target = prepare_series([TimePoint(dt, 0.0) for dt, _fr in frames])
+    _xs, _ys, n = join_prepared(prepare_series(ref_series), target, tol_s=args.join_tol)
+    msg = thin_join_warning(
+        command="hunt",
+        ref_label=ref_label,
+        n_joined=n,
+        n_candidates=len(ref_series),
+        tol_s=args.join_tol,
+        min_n=args.min_n,
+    )
+    if msg:
+        print(msg, file=sys.stderr)
+
+
 def _promote(name: str, ecu: str, pid: str, hits, ref_label: str) -> int:
     """Write the top hit as an enabled, unverified candidate param.
 
@@ -652,10 +702,10 @@ def _promote(name: str, ecu: str, pid: str, hits, ref_label: str) -> int:
         print("Nothing to promote — no correlating byte found.", file=sys.stderr)
         return 1
     top = hits[0]
-    if top.expr == "<no-expr>":
+    if top.expr == NO_EXPR:
         print(
             f"Top hit ({top.interp} @ B{top.offset}) has no WiCAN expression "
-            "(float/LE-signed) — cannot promote. Try a byte-expressible interpretation.",
+            "(a float reinterpretation) — cannot promote. Pick an expressible hit instead.",
             file=sys.stderr,
         )
         return 1

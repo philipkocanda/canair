@@ -12,12 +12,16 @@ from canlib.align import (
     align_many,
     detrend_by_session,
     extract_series,
+    join_indices,
     join_nearest,
     join_nearest_presorted,
+    join_prepared,
     load_reference_file,
     load_signal_captures,
     mirror_aligned_count,
     prepare_series,
+    series_time_ranges_disjoint,
+    timestamps_disjoint,
 )
 
 
@@ -115,6 +119,94 @@ class TestDefaultJoinTol:
         assert join_nearest_presorted(ref, cand_sorted, tol_s=1.0) == join_nearest(
             ref, cand, tol_s=1.0
         )
+
+
+class TestJoinIndices:
+    """The single join implementation, expressed as reusable index lists.
+
+    ``join_prepared`` is a thin wrapper over it, so these two must never diverge —
+    the bucketed correlation sweep reuses one mapping across many signals, and a
+    tie-breaking difference between the "fast" and "slow" paths would be invisible
+    in the ranked output.
+    """
+
+    def _pair(self, ref_offsets, cand_offsets):
+        ref = prepare_series([_tp(o, o * 10) for o in ref_offsets])
+        cand = prepare_series([_tp(o, o * 100) for o in cand_offsets])
+        return ref, cand
+
+    @pytest.mark.parametrize(
+        "ref_offsets,cand_offsets,tol",
+        [
+            ([0.0, 1.0], [0.3, 1.2], 1.0),  # both in range
+            ([0.0, 5.0], [0.02], 0.05),  # one out of range
+            ([1.0], [0.4, 1.1, 2.0], 2.5),  # nearest of three wins
+            ([0.0, 1.0, 2.0], [], 1.0),  # empty candidate
+            ([], [0.0], 1.0),  # empty reference
+            ([0.0, 0.0, 1.0], [0.0, 1.0], 1.0),  # duplicate reference stamps
+            ([0.0, 1.0], [0.5, 0.5], 1.0),  # duplicate candidate stamps
+            ([2.0], [1.0, 3.0], 1.0),  # exact tie either side
+            ([1.0], [0.0, 2.0], 1.0),  # tie at exactly ±tol
+            ([0.0, 1.0, 2.0], [0.0, 1.0, 2.0], 0.0),  # zero tolerance
+        ],
+    )
+    def test_agrees_with_join_prepared(self, ref_offsets, cand_offsets, tol):
+        ref, cand = self._pair(ref_offsets, cand_offsets)
+        ri, ci = join_indices(ref.ts, cand.ts, tol)
+        xs, ys, n = join_prepared(ref, cand, tol_s=tol)
+        assert len(ri) == len(ci) == n
+        assert [ref.values[k] for k in ri] == xs
+        assert [cand.values[j] for j in ci] == ys
+
+    def test_exact_tie_prefers_the_earlier_candidate(self):
+        # Two candidates exactly `tol` away on either side: the sweep tests j-1
+        # before j and keeps a strictly-smaller delta, so the EARLIER one wins.
+        # Pinned because the bucketed sweep depends on this being stable.
+        ref, cand = self._pair([2.0], [1.0, 3.0])
+        ri, ci = join_indices(ref.ts, cand.ts, 1.0)
+        assert (ri, ci) == ([0], [0])
+
+    def test_drops_reference_points_with_no_candidate_in_range(self):
+        ref, cand = self._pair([0.0, 10.0, 20.0], [0.1, 20.2])
+        ri, ci = join_indices(ref.ts, cand.ts, 0.5)
+        assert ri == [0, 2]  # the t=10 reference point has nothing within 0.5s
+        assert ci == [0, 1]
+
+    def test_indices_are_reusable_across_signals_sharing_a_clock(self):
+        """The whole point: one mapping, many signals.
+
+        Two signals decoded from the same captures share a timestamp vector, so the
+        join computed from that vector must apply verbatim to either one's values.
+        """
+        clock = [0.0, 1.0, 2.0, 3.0]
+        a = prepare_series([_tp(o, o) for o in clock])
+        b = prepare_series([_tp(o, o * -5.0) for o in clock])  # same stamps, other values
+        other = prepare_series([_tp(o + 0.4, o) for o in clock])
+        ri, ci = join_indices(a.ts, other.ts, 1.0)
+        for signal in (a, b):
+            xs, ys, _n = join_prepared(signal, other, tol_s=1.0)
+            assert [signal.values[k] for k in ri] == xs
+            assert [other.values[j] for j in ci] == ys
+
+
+class TestTimestampsDisjoint:
+    def test_matches_the_prepared_series_guard(self):
+        a = prepare_series([_tp(i, i) for i in range(5)])
+        b = prepare_series([_tp(i + 100, i) for i in range(5)])
+        assert timestamps_disjoint(a.ts, b.ts, 1.0) is True
+        assert series_time_ranges_disjoint(a, b, 1.0) is True
+        assert timestamps_disjoint(a.ts, a.ts, 1.0) is False
+        assert series_time_ranges_disjoint(a, a, 1.0) is False
+
+    def test_empty_is_disjoint(self):
+        assert timestamps_disjoint([], [1.0], 1.0) is True
+        assert timestamps_disjoint([1.0], [], 1.0) is True
+
+    def test_tolerance_bridges_a_gap(self):
+        a = prepare_series([_tp(0.0, 1.0)])
+        b = prepare_series([_tp(4.0, 1.0)])
+        assert timestamps_disjoint(a.ts, b.ts, 1.0) is True
+        assert timestamps_disjoint(a.ts, b.ts, 5.0) is False
 
 
 class TestMirrorAlignedCount:

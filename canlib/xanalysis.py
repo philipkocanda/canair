@@ -24,13 +24,17 @@ from .align import (
     detrend_by_session,
     extract_series,
     join_nearest,
-    join_prepared,
     load_signal_captures,
-    prepare_series,
-    series_time_ranges_disjoint,
+)
+from .corrmatrix import (
+    CorrHit,
+    colinear_clusters,
+    correlate_matrix,
+    signal_group_key,
 )
 from .inspect_bytes import (
     INSPECT_TYPES,
+    NO_EXPR,
     apply_transform,
     float_series_is_noise,
     interpret_bytes,
@@ -51,6 +55,7 @@ __all__ = [
     "build_byte_series",
     "build_param_series",
     "byte_state_buckets",
+    "colinear_clusters",
     "correlate_matrix",
     "correlation",
     "discriminability",
@@ -61,6 +66,7 @@ __all__ = [
     "physical_scan",
     "reference_is_absolute_level",
     "reference_is_bimodal",
+    "signal_group_key",
     "sniff_unit",
     "transform_ref",
     "unit_dimension",
@@ -559,126 +565,9 @@ def lag_scan(
 # ---------------------------------------------------------------------------
 # Correlation matrix
 # ---------------------------------------------------------------------------
-@dataclass
-class CorrHit:
-    a: str
-    b: str
-    r: float
-    n: int
-
-
-def correlate_matrix(
-    series: dict[str, list[TimePoint]],
-    *,
-    tol_s: float = DEFAULT_JOIN_TOL_S,
-    min_r: float = 0.6,
-    min_n: int = 15,
-    include_intra: bool = False,
-    method: str = "pearson",
-) -> list[CorrHit]:
-    """Pairwise correlation across all series, time-aligned by nearest timestamp.
-
-    Returns hits with ``|r| >= min_r`` and ``n >= min_n``, strongest first.
-    ``method`` selects Pearson (linear) or Spearman (monotone/rank). Same-(ECU,
-    PID) pairs are dropped unless ``include_intra`` (they're already covered by
-    ``decode --corr`` and dominate the ranking).
-    """
-    names = list(series)
-    hits: list[CorrHit] = []
-    # Prepare each series once (sort + flatten to float epoch arrays); the O(P²)
-    # pairwise join below then avoids re-sorting and datetime arithmetic per pair.
-    prepared = {name: prepare_series(series[name]) for name in names}
-    for i in range(len(names)):
-        a = names[i]
-        pa = prepared[a]
-        if len(pa.ts) < min_n:
-            continue  # can never reach min_n overlap
-        for j in range(i + 1, len(names)):
-            b = names[j]
-            if not include_intra and _same_pid(a, b):
-                continue
-            pb = prepared[b]
-            # O(1) prune: too few samples, or non-overlapping time spans → empty join.
-            if len(pb.ts) < min_n or series_time_ranges_disjoint(pa, pb, tol_s):
-                continue
-            xs, ys, n = join_prepared(pa, pb, tol_s=tol_s)
-            if n < min_n:
-                continue
-            r = correlation(xs, ys, method)
-            if r is None or abs(r) < min_r:
-                continue
-            hits.append(CorrHit(a, b, r, n))
-    hits.sort(key=lambda h: -abs(h.r))
-    return hits
-
-
-def signal_group_key(label: str) -> str:
-    """The "same signal source" grouping key for a series label.
-
-    Two label grammars flow through the correlation engine, and the key is the
-    part identifying *where the bytes came from* — so a pair sharing it is an
-    intra-source (not cross-signal) relationship:
-
-    ==========================  =============================  ==========
-    label                       grammar                        key
-    ==========================  =============================  ==========
-    ``BMS:2101:SOC``            domain A, named param          ``BMS:2101``
-    ``IGPM:22BC03:B12``         domain A, raw byte             ``IGPM:22BC03``
-    ``IGPM:22BC03:B12:3``       domain A, raw *bit*            ``IGPM:22BC03``
-    ``0x220:r1``                domain B, frame byte           ``0x220``
-    ``0x220:r1.3``              domain B, frame bit            ``0x220``
-    ==========================  =============================  ==========
-
-    Domain A always has at least an ECU and a PID, so a 3-or-more-field label
-    keys on its first two fields; a domain-B frame label is a single
-    arbitration ID plus one byte/bit field (the bit uses a ``.``, deliberately,
-    see :mod:`canlib.frame_series`), so it keys on its first field.
-
-    A plain ``rsplit(":", 1)[0]`` — which this replaced — silently broke on the
-    4-field *bit* form: it keyed ``IGPM:22BC03:B12:3`` on ``IGPM:22BC03:B12``, so
-    every ``--bits`` pair looked cross-PID and `correlate --bits` reported a
-    param against its own backing bit (r=1.000) as a top "cross-signal" hit.
-    """
-    parts = label.split(":")
-    return ":".join(parts[:2]) if len(parts) >= 3 else parts[0]
-
-
-def _same_pid(a: str, b: str) -> bool:
-    """True if two signal labels come from the same ECU+PID (or arbitration ID)."""
-    return signal_group_key(a) == signal_group_key(b)
-
-
-_CLUSTER_THRESHOLD = 0.995
-
-
-def colinear_clusters(hits, threshold: float = _CLUSTER_THRESHOLD):
-    """Union-find signals joined by ``|r| >= threshold`` into co-linear groups.
-
-    Returns the list of clusters (sets of signal labels) with ≥3 members — the
-    near-perfectly-correlated bundles (e.g. every balanced cell voltage during
-    charging) that otherwise flood the ranked pair list with redundant rows.
-    ``hits`` are :class:`CorrHit`-shaped (``.a``/``.b``/``.r``).
-    """
-    parent: dict[str, str] = {}
-
-    def find(x: str) -> str:
-        parent.setdefault(x, x)
-        root = x
-        while parent[root] != root:
-            root = parent[root]
-        while parent[x] != root:
-            parent[x], x = root, parent[x]
-        return root
-
-    for h in hits:
-        if abs(h.r) >= threshold:
-            ra, rb = find(h.a), find(h.b)
-            if ra != rb:
-                parent[ra] = rb
-    groups: dict[str, set] = {}
-    for sig in parent:
-        groups.setdefault(find(sig), set()).add(sig)
-    return [g for g in groups.values() if len(g) >= 3]
+# The pairwise ranking engine lives in canlib.corrmatrix (bucketed join + hoisted
+# per-signal statistics); re-exported here because `correlate`/`investigate` and
+# the tests have always reached for it through xanalysis.
 
 
 # ---------------------------------------------------------------------------
@@ -686,7 +575,7 @@ def colinear_clusters(hits, threshold: float = _CLUSTER_THRESHOLD):
 # ---------------------------------------------------------------------------
 @dataclass
 class HuntHit:
-    expr: str  # WiCAN expression (or "<no-expr>" for float/LE-signed)
+    expr: str  # WiCAN expression, or NO_EXPR for a float reinterpretation
     interp: str  # e.g. "u8", "i16 LE"
     offset: int
     r: float
@@ -806,7 +695,7 @@ def hunt_byte(
                     continue
                 if kind == "float" and float_series_is_noise([tp.value for tp in cand]):
                     continue  # implausible float reinterpretation (denormal/huge) — skip
-                expr = wican_expr(off, spec, little=endian_little) or "<no-expr>"
+                expr = wican_expr(off, spec, little=endian_little) or NO_EXPR
                 interp = spec[0] + (" LE" if endian_little and width > 1 else "")
                 _consider(cand, expr, interp, off, width)
 
@@ -852,7 +741,7 @@ def _rank_and_collapse(hits: list[HuntHit], *, top: int, all_interps: bool) -> l
 
     def _rank(h: HuntHit) -> tuple[float, int, bool, float]:
         rel_resid = h.resid / (abs(h.slope) or 1.0)
-        return (-round(abs(h.r), 3), h.width, h.expr == "<no-expr>", rel_resid)
+        return (-round(abs(h.r), 3), h.width, h.expr == NO_EXPR, rel_resid)
 
     hits.sort(key=_rank)
     seen: set[int | str] = set()
@@ -972,7 +861,7 @@ _PHYSICAL_INTERPS = ("u8", "u16", "u24", "i16")
 
 @dataclass
 class PhysicalHit:
-    expr: str  # WiCAN expression (or "<no-expr>")
+    expr: str  # WiCAN expression, or NO_EXPR for a float reinterpretation
     interp: str
     offset: int
     scaling: str
@@ -1076,7 +965,7 @@ def physical_scan(
                         continue
                     prev = best_by_kind.get(kind)
                     if prev is None or frac > prev[0]:
-                        expr = wican_expr(off, spec, little=False) or "<no-expr>"
+                        expr = wican_expr(off, spec, little=False) or NO_EXPR
                         best_by_kind[kind] = (
                             frac,
                             PhysicalHit(
