@@ -22,6 +22,7 @@ from canlib.align import (
     join_nearest,
     join_prepared,
     load_signal_captures,
+    payload_lengths,
     prepare_series,
 )
 from canlib.capture_dates import add_scope_args, entry_datetime, resolve_scope_bounds
@@ -380,7 +381,12 @@ def _scope_keep_flags(specs, since, until, state, label) -> tuple[bool, bool]:
 
 
 def _gather_series(specs, since, until, state, label, want_bytes, want_bits=False):
-    """Build all signal series (params + optionally varying bytes/bits) for specs."""
+    """Build all signal series (params + optionally varying bytes/bits) for specs.
+
+    Returns ``(series, payload_lens)``. The ranked output mixes labels from every
+    PID in scope, so the render layer needs each PID's payload length to resolve
+    a WiCAN offset against the right frame layout (see notation.relabel_signal).
+    """
     from canlib.pids import build_ecu_index, load_pids
 
     loaded = load_signal_captures(specs, since=since, until=until, state=state, label=label)
@@ -395,7 +401,7 @@ def _gather_series(specs, since, until, state, label, want_bytes, want_bits=Fals
             series.update(build_byte_series(lp))
         if want_bits:
             series.update(build_bit_series(lp))
-    return series
+    return series, payload_lengths(loaded)
 
 
 def _run_can_log(args) -> int:
@@ -588,7 +594,7 @@ def run(args) -> int:
                 )
         print()
 
-    series = _gather_series(
+    series, plens = _gather_series(
         specs,
         since,
         until,
@@ -778,7 +784,8 @@ def run(args) -> int:
         for name, r, n, lag in rows:
             lag_str = f"  {_DIM}lag={lag:+.1f}s{_RESET}" if lag is not None else ""
             print(
-                f"    {_color_r(r)}  {relabel_signal(name, notation)}  {_DIM}n={n}{_RESET}{lag_str}"
+                f"    {_color_r(r)}  {relabel_signal(name, notation, payload_lens=plens)}  "
+                f"{_DIM}n={n}{_RESET}{lag_str}"
             )
         print()
         return 0
@@ -826,7 +833,7 @@ def run(args) -> int:
     )
     for c in sorted(clusters, key=len, reverse=True):
         members = sorted(c)
-        shown_members = [relabel_signal(m, notation) for m in members[:4]]
+        shown_members = [relabel_signal(m, notation, payload_lens=plens) for m in members[:4]]
         shown = ", ".join(shown_members) + (
             f", +{len(members) - 4} more" if len(members) > 4 else ""
         )
@@ -836,8 +843,9 @@ def run(args) -> int:
         )
     for h in remaining:
         print(
-            f"    {_color_r(h.r)}  {relabel_signal(h.a, notation)}  {_DIM}⟷{_RESET}  "
-            f"{relabel_signal(h.b, notation)}  {_DIM}n={h.n}{_RESET}"
+            f"    {_color_r(h.r)}  {relabel_signal(h.a, notation, payload_lens=plens)}  "
+            f"{_DIM}⟷{_RESET}  {relabel_signal(h.b, notation, payload_lens=plens)}  "
+            f"{_DIM}n={h.n}{_RESET}"
         )
     print()
     return 0

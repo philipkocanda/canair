@@ -37,6 +37,12 @@ import pytest
 from canlib import cli
 
 GOLDEN_DIR = Path(__file__).parent / "fixtures" / "golden"
+# Synthetic profile whose only PID returns a SINGLE-FRAME (7-byte) payload with
+# *varying* data bytes. The bundled ioniq-2017 profile has no such PID — its 11
+# single-frame PIDs are either one-shot reads or entirely constant — so without
+# this fixture the one-PCI-byte layout has no end-to-end label coverage at all.
+# That gap is how the physical_scan and notation off-by-one bugs both survived.
+SINGLE_FRAME_PROFILE = str(Path(__file__).parent / "fixtures" / "profiles" / "single-frame")
 REGEN = os.environ.get("CANAIR_REGEN_GOLDEN") == "1"
 
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
@@ -52,31 +58,46 @@ _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 #   decode-dump       the byte-offset matrix column headers (Bnn)
 #   correlate-*       cross-signal labels, incl. the 4-field bit form
 #   hunt-*            the swept-byte hit labels + promoted expression form
-CASES: list[tuple[str, list[str]]] = [
+CASES: list[tuple[str, str, list[str]]] = [
     # -- single-frame PID (ONE PCI byte): the layout that broke physical_scan --
-    ("coverage-single-frame", ["coverage", "IGPM", "22BC02"]),
-    ("investigate-single-frame", ["investigate", "uds", "IGPM", "22BC02"]),
+    ("coverage-single-frame", "ioniq-2017", ["coverage", "IGPM", "22BC02"]),
+    ("investigate-single-frame", "ioniq-2017", ["investigate", "uds", "IGPM", "22BC02"]),
     # -- multi-frame PID (two FF PCI bytes + a CF PCI byte every 8) --
-    ("coverage-multi-frame", ["coverage", "BMS", "2101"]),
-    ("coverage-bitfields", ["coverage", "IGPM", "--bitfields"]),
-    ("investigate-bits", ["investigate", "uds", "IGPM", "22BC03", "--bits"]),
+    ("coverage-multi-frame", "ioniq-2017", ["coverage", "BMS", "2101"]),
+    ("coverage-bitfields", "ioniq-2017", ["coverage", "IGPM", "--bitfields"]),
+    ("investigate-bits", "ioniq-2017", ["investigate", "uds", "IGPM", "22BC03", "--bits"]),
     # -- decode: mirrors / discriminate / dump-bytes --
-    ("decode-mirrors-bits", ["decode", "IGPM", "22BC03", "--find-mirrors", "--bits"]),
+    ("decode-mirrors-bits", "ioniq-2017", ["decode", "IGPM", "22BC03", "--find-mirrors", "--bits"]),
     (
         "decode-discriminate-bytes",
+        "ioniq-2017",
         ["decode", "IGPM", "22BC03", "--discriminate", "state", "--bytes"],
     ),
-    ("decode-dump-bytes", ["decode", "IGPM", "22BC02", "--dump-bytes", "--date", "2026-07-22"]),
+    (
+        "decode-dump-bytes",
+        "ioniq-2017",
+        ["decode", "IGPM", "22BC02", "--dump-bytes", "--date", "2026-07-22"],
+    ),
     (
         "decode-dump-bytes-signed",
+        "ioniq-2017",
         ["decode", "BMS", "2101", "--dump-bytes", "--signed", "--date", "2026-07-21"],
     ),
     # -- correlate: the 4-field bit label form lives here --
-    ("correlate-bytes", ["correlate", "uds", "IGPM", "--bytes", "--until", "2026-08-02"]),
-    ("correlate-bits", ["correlate", "uds", "IGPM", "--bits", "--until", "2026-08-02"]),
+    (
+        "correlate-bytes",
+        "ioniq-2017",
+        ["correlate", "uds", "IGPM", "--bytes", "--until", "2026-08-02"],
+    ),
+    (
+        "correlate-bits",
+        "ioniq-2017",
+        ["correlate", "uds", "IGPM", "--bits", "--until", "2026-08-02"],
+    ),
     # -- hunt: swept byte/interpretation labels --
     (
         "hunt-against",
+        "ioniq-2017",
         [
             "hunt",
             "uds",
@@ -89,9 +110,47 @@ CASES: list[tuple[str, list[str]]] = [
         ],
     ),
     # -- the same data rendered in every notation: proves the views stay in step --
-    ("notation-isotp", ["coverage", "IGPM", "22BC02", "--notation", "isotp"]),
-    ("notation-torque", ["coverage", "IGPM", "22BC02", "--notation", "torque"]),
-    ("notation-bix", ["coverage", "IGPM", "22BC02", "--notation", "bix"]),
+    ("notation-isotp", "ioniq-2017", ["coverage", "IGPM", "22BC02", "--notation", "isotp"]),
+    ("notation-torque", "ioniq-2017", ["coverage", "IGPM", "22BC02", "--notation", "torque"]),
+    ("notation-bix", "ioniq-2017", ["coverage", "IGPM", "22BC02", "--notation", "bix"]),
+    # -- SYNTHETIC single-frame profile: the one-PCI-byte layout, with variation.
+    # These are the only cases that exercise a single-frame payload through the
+    # analysis verbs in a non-WiCAN notation, which is where the off-by-one lived.
+    # Ground truth (7-byte payload, sub_bytes=2): data is B4..B7, so
+    # B4=i3=Torque A=bix 0, B5=i4=B=8, B6=i5=C=16, B7=i6=D=24.
+    ("sf-coverage-wican", SINGLE_FRAME_PROFILE, ["coverage", "ALPHA", "22F001"]),
+    (
+        "sf-coverage-isotp",
+        SINGLE_FRAME_PROFILE,
+        ["coverage", "ALPHA", "22F001", "--notation", "isotp"],
+    ),
+    (
+        "sf-coverage-torque",
+        SINGLE_FRAME_PROFILE,
+        ["coverage", "ALPHA", "22F001", "--notation", "torque"],
+    ),
+    ("sf-coverage-bix", SINGLE_FRAME_PROFILE, ["coverage", "ALPHA", "22F001", "--notation", "bix"]),
+    (
+        "sf-investigate-bits",
+        SINGLE_FRAME_PROFILE,
+        ["investigate", "uds", "ALPHA", "22F001", "--bits"],
+    ),
+    (
+        "sf-investigate-bits-torque",
+        SINGLE_FRAME_PROFILE,
+        ["investigate", "uds", "ALPHA", "22F001", "--bits", "--notation", "torque"],
+    ),
+    (
+        "sf-decode-discriminate-isotp",
+        SINGLE_FRAME_PROFILE,
+        ["decode", "ALPHA", "22F001", "--discriminate", "state", "--bytes", "--notation", "isotp"],
+    ),
+    (
+        "sf-correlate-bytes-torque",
+        SINGLE_FRAME_PROFILE,
+        ["correlate", "uds", "--bytes", "--notation", "torque"],
+    ),
+    ("sf-dump-bytes", SINGLE_FRAME_PROFILE, ["decode", "ALPHA", "22F001", "--dump-bytes"]),
 ]
 
 
@@ -129,19 +188,19 @@ def _norm(text: str) -> str:
     return _ANSI_RE.sub("", text).replace("\r\n", "\n")
 
 
-def _run(argv: list[str], capsys) -> str:
-    """Run one canair command, returning its normalised stdout+stderr."""
+def _run(profile: str, argv: list[str], capsys) -> str:
+    """Run one canair command against ``profile``, returning normalised output."""
     try:
-        cli.main(["--profile", "ioniq-2017", *argv])
+        cli.main(["--profile", profile, *argv])
     except SystemExit:
         pass  # argparse/verb exit codes are not what we're pinning
     cap = capsys.readouterr()
     return _norm(cap.out + cap.err)
 
 
-@pytest.mark.parametrize("name,argv", CASES, ids=[c[0] for c in CASES])
-def test_analysis_output_is_unchanged(name, argv, capsys):
-    got = _run(argv, capsys)
+@pytest.mark.parametrize("name,profile,argv", CASES, ids=[c[0] for c in CASES])
+def test_analysis_output_is_unchanged(name, profile, argv, capsys):
+    got = _run(profile, argv, capsys)
     path = GOLDEN_DIR / f"{name}.txt"
 
     if REGEN:
@@ -179,11 +238,14 @@ class TestGoldenHarnessItself:
         """A golden with no byte reference can't detect a label regression."""
         if REGEN:
             pytest.skip("regenerating")
-        # Bnn (WiCAN), Snn (--signed), iN (ISO-TP), Torque letters / bix columns.
-        label_re = re.compile(r"\b[BS]\d{1,2}\b|\bi\d{1,2}\b|\bbix\b|Torque|UNMAPPED")
+        # Bnn/Snn (WiCAN, --signed), iN (ISO-TP), bix columns, or a Torque-letter
+        # label (`:A`, `D.6`) — the Torque view renders bare letters, not Bnn.
+        label_re = re.compile(
+            r"\b[BS]\d{1,2}\b|\bi\d{1,2}\b|\bbix\b|Torque|UNMAPPED|:[A-Z]{1,2}\b|\b[A-Z]\.\d\b"
+        )
         missing = [
             name
-            for name, _argv in CASES
+            for name, _profile, _argv in CASES
             if name not in self.NO_LABEL_EXPECTED
             and (GOLDEN_DIR / f"{name}.txt").exists()
             and not label_re.search((GOLDEN_DIR / f"{name}.txt").read_text())
@@ -192,5 +254,7 @@ class TestGoldenHarnessItself:
 
     def test_runs_are_deterministic(self, capsys):
         """Two runs of the same case must agree, or goldens are useless."""
-        name, argv = CASES[0]
-        assert _run(argv, capsys) == _run(argv, capsys), f"{name} is nondeterministic"
+        name, profile, argv = CASES[0]
+        assert _run(profile, argv, capsys) == _run(profile, argv, capsys), (
+            f"{name} is nondeterministic"
+        )

@@ -1,0 +1,20 @@
+ALPHA:
+  tx_id: 0x7A0
+  identity:
+    description: 'Synthetic ECU: single-frame responses only'
+    id_protocol: UDS
+  pids:
+    22F001:
+      parameters:
+        ALPHA_RAMP:
+          expression: B4
+          unit: ""
+          verified: true
+          notes: >-
+            Verified ramp on the FIRST data byte of a single-frame payload (WiCAN B4 = ISO-TP 3 =
+            Torque A)
+        ALPHA_FLAGS_B6_0:
+          expression: B6:0
+          notes: Single bit, to exercise the bit-label path
+      status: active
+      notes: "Single-frame (7-byte) response: PCI B0, SID B1, DID B2-B3, data B4-B7"

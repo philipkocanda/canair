@@ -14,6 +14,7 @@ import sys
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
+from canlib.align import longest_payload_len
 from canlib.commands._decode_calc import (
     _local_series,
     _paired,
@@ -450,12 +451,13 @@ def print_discriminate(
         f"{_DIM}(numeric: between/within variance F; categorical: Cramér's V — "
         f"higher = cleaner separation){_RESET}"
     )
+    plen = longest_payload_len([r.get("capture") for r in all_results])
     for name, score, groups in rows:
         if name in byte_names:
             mark = f"{_DIM}·{_RESET}"
         else:
             mark = _mark_for(name, parameters, candidate_names)
-        disp = relabel_signal(name, notation, sub_bytes=sub_bytes)
+        disp = relabel_signal(name, notation, sub_bytes=sub_bytes, payload_len=plen)
         try_tag = f" {_CYAN}(try){_RESET}" if name in candidate_names else ""
 
         # Categorical params: report Cramér's V vs state (nominal association)
@@ -500,9 +502,10 @@ def print_mirrors(
         print(f"    {_DIM}none{_RESET}")
         print()
         return
+    plen = longest_payload_len([r.get("capture") for r in all_results])
     for a, b, n in mirrors:
-        da = relabel_signal(a, notation, sub_bytes=sub_bytes)
-        db = relabel_signal(b, notation, sub_bytes=sub_bytes)
+        da = relabel_signal(a, notation, sub_bytes=sub_bytes, payload_len=plen)
+        db = relabel_signal(b, notation, sub_bytes=sub_bytes, payload_len=plen)
         print(f"    {_GREEN}{da} == {db}{_RESET}  {_DIM}(n={n}){_RESET}")
     print()
 

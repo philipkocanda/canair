@@ -1,0 +1,8 @@
+
+PID coverage audit — 1 PID(s) with gaps, 0 without captures
+
+  ALPHA 22F001 (2p, 1 verified)  4 data bytes, 2026-01-01
+      UNMAPPED B5,B7
+      UNVERIFIED B6
+      BITS B6 have{0} missing{1,2,3,4,5,6,7}
+

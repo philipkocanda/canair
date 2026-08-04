@@ -1,0 +1,10 @@
+
+ALPHA PID 22F001 — 2 parameters (1 verified, 1 unverified), 24 captures
+
+  Discriminability by state (params + bytes) (numeric: between/within variance F; categorical: Cramér's V — higher = cleaner separation)
+    ✓ ALPHA_RAMP  F=n/a
+    ? ALPHA_FLAGS_B6_0  F=n/a
+    · i3  F=n/a
+    · i5  F=n/a
+    · i6  F=n/a
+

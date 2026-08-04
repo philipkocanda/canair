@@ -16,7 +16,12 @@ import argparse
 import json as _json
 import sys
 
-from canlib.align import DEFAULT_JOIN_TOL_S, DEFAULT_SESSION_GAP_S, load_signal_captures
+from canlib.align import (
+    DEFAULT_JOIN_TOL_S,
+    DEFAULT_SESSION_GAP_S,
+    load_signal_captures,
+    longest_payload_len,
+)
 from canlib.capture_dates import add_scope_args, resolve_scope_bounds
 from canlib.commands._can_args import add_can_log_source_args
 from canlib.commands._group import group_help
@@ -255,16 +260,19 @@ tip: --against takes a known signal ECU:PID:PARAM (or a raw ECU:PID:EXPR). Use
     return parser
 
 
-def _hit_label(h, notation: ByteNotation, sub_bytes: int) -> str:
+def _hit_label(h, notation: ByteNotation, sub_bytes: int, payload_len: int | None = None) -> str:
     """Render a hunt hit's byte in ``notation``.
 
     WiCAN shows the promotable expression as-is (``h.expr``); other notations
     render the byte position (the expression stays available via --json/--promote,
-    which always emit the canonical WiCAN form).
+    which always emit the canonical WiCAN form). ``payload_len`` selects the frame
+    layout so a single-frame response is indexed correctly.
     """
     if notation is ByteNotation.WICAN:
         return h.expr
-    return ByteRef.from_wican(h.offset, width=h.width).render(notation, sub_bytes=sub_bytes)
+    return ByteRef.from_wican(h.offset, width=h.width, payload_len=payload_len).render(
+        notation, sub_bytes=sub_bytes
+    )
 
 
 def _run_can_log(args) -> int:
@@ -543,7 +551,9 @@ def run(args) -> int:
     for h in hits:
         color = _GREEN if abs(h.r) >= 0.7 else _YELLOW if abs(h.r) >= 0.3 else _DIM
         unit = f"  {_CYAN}{h.unit_guess}{_RESET}" if h.unit_guess else ""
-        label = _hit_label(h, notation, sub_bytes)
+        label = _hit_label(
+            h, notation, sub_bytes, longest_payload_len(getattr(lp, "captures", None))
+        )
         print(
             f"    {color}r={h.r:+.3f}{_RESET}  {_BOLD}{label}{_RESET} "
             f"{_DIM}({h.interp}){_RESET}  fit y={h.slope:.4f}·x{h.intercept:+.2f} "
@@ -614,9 +624,11 @@ def _run_physical(args, ecu: str, pid: str, since, until) -> int:
         if notation is ByteNotation.WICAN:
             label = h.expr
         else:
-            label = ByteRef.from_wican(h.offset, width=h.width).render(
-                notation, sub_bytes=sub_bytes
-            )
+            label = ByteRef.from_wican(
+                h.offset,
+                width=h.width,
+                payload_len=longest_payload_len(getattr(lp, "captures", None)),
+            ).render(notation, sub_bytes=sub_bytes)
         print(
             f"    {color}{h.frac * 100:3.0f}% in-band{_RESET}  {_BOLD}{h.scaling}·{label}{_RESET} "
             f"{_DIM}({h.interp}){_RESET}  {_CYAN}{h.band}{_RESET} "

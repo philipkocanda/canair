@@ -1,0 +1,19 @@
+
+  Investigate ALPHA 22F001 (24 timed captures, ≤5s join)
+    D unmapped  r=-1.000 vs BETA:22F002:BETA_RAMP n=24 fit y=-0.6667·x+206.67  /2−40·B7 ≈ temp °C
+    A.6 unmapped  r=+0.751 vs BETA:22F002:BETA_RAMP n=24 fit y=0.0157·x-0.45
+    D.6 unmapped  r=-0.704 vs BETA:22F002:BETA_RAMP n=24 fit y=-0.0138·x+0.82
+    A.4 unmapped
+    D.5 unmapped
+    A.2 unmapped
+    D.3 unmapped
+    A.5 unmapped
+    D.4 unmapped
+    C [ALPHA_FLAGS_B6_0?]  enum
+    A.0 unmapped
+    C.0 [ALPHA_FLAGS_B6_0?]
+    D.1 unmapped
+    A.3 unmapped
+    A.1 unmapped
+    D.2 unmapped
+

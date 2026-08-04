@@ -16,6 +16,7 @@ from __future__ import annotations
 import json as _json
 import sys
 
+from canlib.align import longest_payload_len
 from canlib.keepmode import (
     BANNER,
     CHANGES_BANNER,
@@ -56,6 +57,7 @@ def print_report(
 ) -> None:
     notation = resolve_notation(args.notation)
     sub_bytes = subfunction_bytes_for_pid(pid)
+    plen = longest_payload_len(getattr(lp, "captures", None))
     print(
         f"\n  {_BOLD}Investigate {ecu} {pid}{_RESET} "
         f"{_DIM}({len(lp.captures)} timed captures, ≤{args.join_tol:g}s join){_RESET}"
@@ -83,6 +85,10 @@ def print_report(
             rc = _GREEN if abs(r.anchor_r) >= 0.7 else _YELLOW
             fit = f" fit y={r.slope:.4f}·x{r.intercept:+.2f}" if r.slope is not None else ""
             unit = f" {_CYAN}{r.unit_guess}{_RESET}" if r.unit_guess else ""
+            # NOTE: no payload_len here — the anchor is a signal on a *different*
+            # ECU:PID (the co-polled cross-signal reference), so this PID's frame
+            # layout does not apply to it. Passing it would be actively wrong; the
+            # anchor is normally a named param, which relabel_signal passes through.
             anchor_label = relabel_signal(r.anchor, notation)
             anchor = f"  {rc}r={r.anchor_r:+.3f}{_RESET} vs {anchor_label} {_DIM}n={r.anchor_n}{fit}{_RESET}{unit}"
         drv = ""
@@ -98,7 +104,7 @@ def print_report(
             # "continuous" is the unremarkable default, left unlabelled.
             kind = f"  {_DIM}{r.kind}{_RESET}"
         print(
-            f"    {_BOLD}{relabel_signal(r.label, notation, sub_bytes=sub_bytes)}{_RESET} "
+            f"    {_BOLD}{relabel_signal(r.label, notation, sub_bytes=sub_bytes, payload_len=plen)}{_RESET} "
             f"{tag}{f_str}{drv}{anchor}{phys}{kind}"
         )
     if words:
@@ -333,6 +339,7 @@ def print_events(ecu, pid, lp, mapped, mapped_bit, args, params_def=None) -> Non
         return
     notation = resolve_notation(args.notation)
     sub_bytes = subfunction_bytes_for_pid(pid)
+    plen = longest_payload_len(getattr(lp, "captures", None))
     for dt, label, before, after, mapped_by, verified, cap, _kind in edges:
         if mapped_by is None:
             tag = f"{_YELLOW}candidate{_RESET}"
@@ -345,7 +352,7 @@ def print_events(ecu, pid, lp, mapped, mapped_bit, args, params_def=None) -> Non
         arrow = (
             f"{_BOLD}{before:#04x}→{after:#04x}{_RESET}" if _kind == "byte" else f"{before}→{after}"
         )
-        shown = relabel_signal(label, notation, sub_bytes=sub_bytes)
+        shown = relabel_signal(label, notation, sub_bytes=sub_bytes, payload_len=plen)
         print(
             f"    {_DIM}{dt.strftime('%H:%M:%S')}{_RESET}  {_BOLD}{shown}{_RESET} {arrow}  {tag}{note_str}"
         )
@@ -462,12 +469,13 @@ def print_dwell(ecu, pid, lp, mapped, mapped_bit, args) -> None:
         return
     notation = resolve_notation(args.notation)
     sub_bytes = subfunction_bytes_for_pid(pid)
+    plen = longest_payload_len(getattr(lp, "captures", None))
     print(
         f"    {_DIM}{'signal':16} {'class':10} {'episodes':>8} {'trans':>6} "
         f"{'median-on':>10}{_RESET}"
     )
     for r in rows:
-        shown = relabel_signal(r["signal"], notation, sub_bytes=sub_bytes)
+        shown = relabel_signal(r["signal"], notation, sub_bytes=sub_bytes, payload_len=plen)
         med = "—" if r["median_on_s"] is None else f"{r['median_on_s']:.1f}s"
         color = (
             _GREEN

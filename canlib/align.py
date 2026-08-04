@@ -199,6 +199,46 @@ def load_signal_captures(
     return result
 
 
+def longest_payload_len(captures) -> int | None:
+    """Longest reassembled payload length (bytes) in ``captures``, or None.
+
+    The WiCAN<->ISO-TP mapping depends on the frame layout — a single-frame
+    (<=7-byte) response carries one PCI byte, a multi-frame response two plus one
+    per consecutive frame — so render layers pass this to
+    :func:`canlib.notation.relabel_signal` / :meth:`canlib.notation.ByteRef.from_wican`.
+
+    The *longest* payload is used, matching ``coverage``: it is the most complete
+    response seen, so it defines the widest valid byte range. Deliberately
+    tolerant of odd entries (non-mappings, missing/blank payloads) — this only
+    decides a display label and must never break a render.
+    """
+    longest = 0
+    for cap in captures or ():
+        payload = cap.get("payload") if hasattr(cap, "get") else None
+        if payload:
+            longest = max(longest, len(str(payload).replace(" ", "")) // 2)
+    return longest or None
+
+
+def payload_lengths(loaded: dict[tuple[str, str], LoadedPid]) -> dict[tuple[str, str], int]:
+    """``{(ECU, PID): longest payload length in bytes}`` for a loaded signal set.
+
+    The frame layout — and therefore the WiCAN↔ISO-TP mapping — depends on the
+    payload's length (one PCI byte for a single frame, two plus one per
+    consecutive frame for a multi-frame response). Render layers pass this to
+    :func:`canlib.notation.relabel_signal` so a label names the right byte.
+
+    The *longest* payload is used, matching ``coverage``: it is the most complete
+    response seen, so it defines the widest valid byte range.
+    """
+    out: dict[tuple[str, str], int] = {}
+    for key, lp in loaded.items():
+        longest = longest_payload_len(lp.captures)
+        if longest:
+            out[key] = longest
+    return out
+
+
 def extract_series(
     loaded: LoadedPid,
     name_or_expr: str,

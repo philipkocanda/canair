@@ -19,6 +19,7 @@ from canlib.align import (
     join_prepared,
     load_signal_captures,
     mirror_aligned_count,
+    payload_lengths,
     prepare_series,
     series_time_ranges_disjoint,
 )
@@ -109,6 +110,9 @@ def _print_cross_mirrors(
     bit also present in BCM). Same-PID pairs are excluded (that's decode's job).
     """
     loaded = load_signal_captures(specs, since=since, until=until, state=state, label=label)
+    # Per-PID payload lengths: one mirror list mixes labels from several PIDs, so
+    # each needs its own frame layout to render a correct non-WiCAN label.
+    plens = payload_lengths(loaded)
     series: dict[str, list[TimePoint]] = {}
     for lp in loaded.values():
         if not lp.captures:
@@ -165,8 +169,9 @@ def _print_cross_mirrors(
         return 0
     for a, b, n in mirrors:
         print(
-            f"    {_GREEN}n={n:<4}{_RESET} {relabel_signal(a, notation)}  "
-            f"{_DIM}=={_RESET}  {relabel_signal(b, notation)}"
+            f"    {_GREEN}n={n:<4}{_RESET} "
+            f"{relabel_signal(a, notation, payload_lens=plens)}  "
+            f"{_DIM}=={_RESET}  {relabel_signal(b, notation, payload_lens=plens)}"
         )
     print()
     return 0

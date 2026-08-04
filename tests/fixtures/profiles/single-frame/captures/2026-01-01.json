@@ -1,0 +1,280 @@
+{
+  "sessions": [
+    {
+      "date": "2026-01-01",
+      "label": "synthetic single-frame ramp",
+      "version": "1.12.0",
+      "vehicle_states": [
+        "RUN"
+      ],
+      "transport": "import",
+      "captures": [
+        {
+          "rx": "0x7A8",
+          "pid": "22F001",
+          "payload": "62F0010A7F20C8",
+          "time": "10:00:00"
+        },
+        {
+          "rx": "0x7B8",
+          "pid": "22F002",
+          "payload": "62F0020A7F0011",
+          "time": "10:00:00"
+        }
+      ]
+    },
+    {
+      "date": "2026-01-01",
+      "label": "synthetic single-frame ramp",
+      "version": "1.12.0",
+      "vehicle_states": [
+        "RUN"
+      ],
+      "transport": "import",
+      "captures": [
+        {
+          "rx": "0x7A8",
+          "pid": "22F001",
+          "payload": "62F0010D7F21C6",
+          "time": "10:00:07"
+        },
+        {
+          "rx": "0x7B8",
+          "pid": "22F002",
+          "payload": "62F0020D7F0011",
+          "time": "10:00:07"
+        }
+      ]
+    },
+    {
+      "date": "2026-01-01",
+      "label": "synthetic single-frame ramp",
+      "version": "1.12.0",
+      "vehicle_states": [
+        "RUN"
+      ],
+      "transport": "import",
+      "captures": [
+        {
+          "rx": "0x7A8",
+          "pid": "22F001",
+          "payload": "62F001107F20C4",
+          "time": "10:00:14"
+        },
+        {
+          "rx": "0x7B8",
+          "pid": "22F002",
+          "payload": "62F002107F0011",
+          "time": "10:00:14"
+        }
+      ]
+    },
+    {
+      "date": "2026-01-01",
+      "label": "synthetic single-frame ramp",
+      "version": "1.12.0",
+      "vehicle_states": [
+        "RUN"
+      ],
+      "transport": "import",
+      "captures": [
+        {
+          "rx": "0x7A8",
+          "pid": "22F001",
+          "payload": "62F001137F21C2",
+          "time": "10:00:21"
+        },
+        {
+          "rx": "0x7B8",
+          "pid": "22F002",
+          "payload": "62F002137F0011",
+          "time": "10:00:21"
+        }
+      ]
+    },
+    {
+      "date": "2026-01-01",
+      "label": "synthetic single-frame ramp",
+      "version": "1.12.0",
+      "vehicle_states": [
+        "RUN"
+      ],
+      "transport": "import",
+      "captures": [
+        {
+          "rx": "0x7A8",
+          "pid": "22F001",
+          "payload": "62F001167F20C0",
+          "time": "10:00:28"
+        },
+        {
+          "rx": "0x7B8",
+          "pid": "22F002",
+          "payload": "62F002167F0011",
+          "time": "10:00:28"
+        }
+      ]
+    },
+    {
+      "date": "2026-01-01",
+      "label": "synthetic single-frame ramp",
+      "version": "1.12.0",
+      "vehicle_states": [
+        "RUN"
+      ],
+      "transport": "import",
+      "captures": [
+        {
+          "rx": "0x7A8",
+          "pid": "22F001",
+          "payload": "62F001197F21BE",
+          "time": "10:00:35"
+        },
+        {
+          "rx": "0x7B8",
+          "pid": "22F002",
+          "payload": "62F002197F0011",
+          "time": "10:00:35"
+        }
+      ]
+    },
+    {
+      "date": "2026-01-01",
+      "label": "synthetic single-frame ramp",
+      "version": "1.12.0",
+      "vehicle_states": [
+        "RUN"
+      ],
+      "transport": "import",
+      "captures": [
+        {
+          "rx": "0x7A8",
+          "pid": "22F001",
+          "payload": "62F0011C7F20BC",
+          "time": "10:01:42"
+        },
+        {
+          "rx": "0x7B8",
+          "pid": "22F002",
+          "payload": "62F0021C7F0011",
+          "time": "10:01:42"
+        }
+      ]
+    },
+    {
+      "date": "2026-01-01",
+      "label": "synthetic single-frame ramp",
+      "version": "1.12.0",
+      "vehicle_states": [
+        "RUN"
+      ],
+      "transport": "import",
+      "captures": [
+        {
+          "rx": "0x7A8",
+          "pid": "22F001",
+          "payload": "62F0011F7F21BA",
+          "time": "10:01:49"
+        },
+        {
+          "rx": "0x7B8",
+          "pid": "22F002",
+          "payload": "62F0021F7F0011",
+          "time": "10:01:49"
+        }
+      ]
+    },
+    {
+      "date": "2026-01-01",
+      "label": "synthetic single-frame ramp",
+      "version": "1.12.0",
+      "vehicle_states": [
+        "RUN"
+      ],
+      "transport": "import",
+      "captures": [
+        {
+          "rx": "0x7A8",
+          "pid": "22F001",
+          "payload": "62F001227F20B8",
+          "time": "10:01:56"
+        },
+        {
+          "rx": "0x7B8",
+          "pid": "22F002",
+          "payload": "62F002227F0011",
+          "time": "10:01:56"
+        }
+      ]
+    },
+    {
+      "date": "2026-01-01",
+      "label": "synthetic single-frame ramp",
+      "version": "1.12.0",
+      "vehicle_states": [
+        "RUN"
+      ],
+      "transport": "import",
+      "captures": [
+        {
+          "rx": "0x7A8",
+          "pid": "22F001",
+          "payload": "62F001257F21B6",
+          "time": "10:01:03"
+        },
+        {
+          "rx": "0x7B8",
+          "pid": "22F002",
+          "payload": "62F002257F0011",
+          "time": "10:01:03"
+        }
+      ]
+    },
+    {
+      "date": "2026-01-01",
+      "label": "synthetic single-frame ramp",
+      "version": "1.12.0",
+      "vehicle_states": [
+        "RUN"
+      ],
+      "transport": "import",
+      "captures": [
+        {
+          "rx": "0x7A8",
+          "pid": "22F001",
+          "payload": "62F001287F20B4",
+          "time": "10:01:10"
+        },
+        {
+          "rx": "0x7B8",
+          "pid": "22F002",
+          "payload": "62F002287F0011",
+          "time": "10:01:10"
+        }
+      ]
+    },
+    {
+      "date": "2026-01-01",
+      "label": "synthetic single-frame ramp",
+      "version": "1.12.0",
+      "vehicle_states": [
+        "RUN"
+      ],
+      "transport": "import",
+      "captures": [
+        {
+          "rx": "0x7A8",
+          "pid": "22F001",
+          "payload": "62F0012B7F21B2",
+          "time": "10:01:17"
+        },
+        {
+          "rx": "0x7B8",
+          "pid": "22F002",
+          "payload": "62F0022B7F0011",
+          "time": "10:01:17"
+        }
+      ]
+    }
+  ]
+}

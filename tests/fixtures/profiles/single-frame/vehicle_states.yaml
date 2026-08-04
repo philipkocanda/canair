@@ -1,0 +1,50 @@
+# Single-frame analysis fixture (synthetic) — vehicle operating states
+#
+# Canonical, ordered operating states for capture sessions (`vehicle_states`
+# field). State names are UPPERCASE (a controlled vocabulary, like the CAN-bus
+# codes). Add a `when:` predicate over decoded PID values to auto-suggest the
+# state at save time (first match wins). See canlib/schema/states_schema.yaml
+# and `canair validate states` / `canair states`. Predicate grammar: ECU.PARAM
+# names, and/or/not, == != < <= > >=, numeric/'string' literals, and the
+# sentinels __no_response__ / __responded__.
+#
+# The make-neutral base ladder (SLEEP/ACC/RUN/CRANK) + ALL is always accepted
+# even if you delete it below; it's re-listed here just to describe each state.
+# Keep the ones your car has and delete the rest. These are the universal
+# ignition-switch positions OFF/ACC/ON/START — `RUN` (not `ON`) and `SLEEP` (not
+# `OFF`) because ON/OFF are YAML booleans. Vendors that number them (e.g. Hyundai
+# IGN0/1/2/3) or split IGN1/IGN2 can add those extra rungs below.
+
+states:
+  - name: DEEPSLEEP
+    description: No ECU responded (12V standby only).
+    when: "__no_response__"
+
+  # --- Ignition-switch ladder (make-neutral base: OFF/ACC/ON/START) ----------
+  - name: SLEEP
+    description: Off / lock — ignition off, 12V standby.
+  - name: ACC
+    description: Accessory power (key/button ACC position).
+  - name: RUN
+    description: Ignition on — electronics live / driveable.
+  - name: CRANK
+    description: Starter engaged (ICE cranking).
+
+  # --- Common extra states ---------------------------------------------------
+  - name: PARKED
+    description: Stationary, gear in Park.
+  - name: DRIVING
+    description: In motion.
+
+  # --- EV / PHEV states — uncomment if your car has a traction battery -------
+  # - name: PLUGGED
+  #   description: Charge cable connected, not necessarily charging.
+  # - name: CHARGING
+  #   description: HV battery actively charging (implies plugged).
+  #   # when: "BMS.BATTERY_CURRENT < -1"
+  # - name: READY
+  #   description: HV active, driveable (the EV name for the IGN-and-go state).
+  #   # when: "VCU.EV_READY == 1"
+
+  - name: ALL
+    description: Applicable/readable in every vehicle state.

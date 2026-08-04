@@ -1,0 +1,14 @@
+BETA:
+  tx_id: 0x7B0
+  identity:
+    description: Synthetic second ECU for cross-PID correlation
+    id_protocol: UDS
+  pids:
+    22F002:
+      parameters:
+        BETA_RAMP:
+          expression: B4
+          verified: true
+          notes: Mirrors ALPHA_RAMP for cross-ECU correlation
+      status: active
+      notes: Single-frame reference PID for cross-ECU correlation

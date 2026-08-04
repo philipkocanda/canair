@@ -1,0 +1,4 @@
+
+  Cross-signal correlations (6 signals, |r|≥0.6, n≥15, ≤5s)
+    ≈ cluster (|r|≥0.995, 5 signals)  ALPHA:22F001:ALPHA_RAMP, ALPHA:22F001:A, ALPHA:22F001:D, BETA:22F002:A, +1 more
+

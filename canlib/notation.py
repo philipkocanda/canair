@@ -17,6 +17,7 @@ concept applying.
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -265,6 +266,7 @@ def relabel_signal(
     *,
     sub_bytes: int | None = None,
     payload_len: int | None = None,
+    payload_lens: Mapping[tuple[str, str], int] | None = None,
 ) -> str:
     """Re-render a raw-byte analysis label (``…:Bn`` / ``…:Bn:k``) in ``notation``.
 
@@ -276,10 +278,17 @@ def relabel_signal(
     ``ECU:PID:`` prefix when present (``22xxxx`` DID → 2, else 1), so callers can
     relabel with just ``(label, notation)``.
 
-    ``payload_len`` is the reassembled payload's length; pass it so a single-frame
-    response is indexed against its real one-PCI-byte layout (see
-    :meth:`ByteRef.from_wican`). Without it, non-WiCAN notations name the wrong
-    byte for every single-frame PID.
+    The payload's length decides the frame layout (see :meth:`ByteRef.from_wican`);
+    supply it one of two ways:
+
+    - ``payload_len`` — a single length, for a caller rendering one PID's labels.
+    - ``payload_lens`` — a ``{(ECU, PID): length}`` map, looked up via the label's
+      own prefix. Needed wherever one list mixes labels from several PIDs (the
+      ranked ``correlate`` output), since a single length would be wrong for most
+      of the rows.
+
+    With neither, the multi-frame layout is assumed — correct for multi-frame
+    payloads, one byte off for every single-frame one.
     """
     if notation is ByteNotation.WICAN:
         return label
@@ -287,9 +296,11 @@ def relabel_signal(
     if m is None:
         return label
     prefix = m.group("prefix") or ""
+    parts = prefix.rstrip(":").split(":")
     if sub_bytes is None:
-        parts = prefix.rstrip(":").split(":")
         sub_bytes = subfunction_bytes_for_pid(parts[-1]) if len(parts) >= 2 and parts[-1] else 1
+    if payload_len is None and payload_lens is not None and len(parts) >= 2:
+        payload_len = payload_lens.get((parts[-2].upper(), parts[-1].upper()))
     bit = int(m.group("bit")) if m.group("bit") is not None else None
     try:
         ref = ByteRef.from_wican(int(m.group("off")), bit=bit, payload_len=payload_len)
