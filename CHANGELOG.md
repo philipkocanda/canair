@@ -182,6 +182,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   YAML round-trip are now quoted; ordinary keys (`2101`) are left as-is.
 
 ### Changed
+- **Every save now reports the full path it landed in.** A save that printed a
+  bare filename (`→ Saved 12 capture(s) to 2026-08-04.json`) left the most
+  important question unanswered — *which* profile's `captures/` got the data,
+  which matters exactly when several cars are configured. The banner now names
+  the full path, on every save path (`read`/`monitor`/`scan`/`raw`/`discover`/
+  `import uds`). And in `canair monitor` a save made **while the TUI is running**
+  — `s` without `--save`, or an `n` segment rotate — reports its file at all: both
+  write a real capture file, but Textual redirects stdout for the app's lifetime,
+  so the destination was discarded outright and the only trace was a five-second
+  status flash. Those banners are now replayed once the monitor (and any modal)
+  exits and the terminal is yours again, one line per written day file.
 - **Typing hardened around the areas last week's review found untestable.** The
   IOControl actuator state is now `Literal["on","off","error"]` with named
   constants, so a drifted sentinel can't silently disable `release_all` — the
