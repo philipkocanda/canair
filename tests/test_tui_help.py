@@ -1,11 +1,12 @@
 """Tests for the shared Textual help modal (canlib.tui_help).
 
-Unit-covers the BINDINGS->rows derivation, and drives the ``?`` help modal in
-both Textual apps (the query monitor and the sniff table) headlessly.
+Unit-covers the BINDINGS->rows derivation (including key-label rendering for
+every shipped TUI) and drives the ``?`` help modal headlessly.
 """
 
 from __future__ import annotations
 
+import re
 from typing import ClassVar
 
 import pytest
@@ -49,6 +50,89 @@ class TestBindingsHelpRows:
 
         rows = bindings_help_rows(_Fake())
         assert rows == [("?", "help")]
+
+    @pytest.mark.parametrize(
+        ("key", "shown"),
+        [
+            ("right_square_bracket", "]"),
+            ("left_square_bracket", "["),
+            ("greater_than_sign", ">"),
+            ("less_than_sign", "<"),
+            ("colon", ":"),
+            ("equals_sign", "="),
+            ("plus", "+"),
+            ("minus", "-"),
+            ("underscore", "_"),
+            ("comma", ","),
+            ("full_stop", "."),
+            ("question_mark", "?"),
+            ("up", "↑"),
+            ("escape", "esc"),
+        ],
+    )
+    def test_symbolic_key_names_render_as_symbols(self, key, shown):
+        """Regression: symbolic bindings used to leak their raw Textual identifier
+        (``]`` showed as ``right_square_bracket``) because the label came from a
+        hand-written table that only listed a few names."""
+
+        class _Fake:
+            BINDINGS: ClassVar = [Binding(key, "noop", "do a thing")]
+
+        assert bindings_help_rows(_Fake()) == [(shown, "do a thing")]
+
+    def test_modifier_keys_pass_through(self):
+        class _Fake:
+            BINDINGS: ClassVar = [Binding("shift+tab", "noop", "prev")]
+
+        assert bindings_help_rows(_Fake()) == [("shift+tab", "prev")]
+
+
+# A displayed key should never look like a raw Textual identifier. Every real
+# label is either a symbol, a single letter/digit, or a short word (space, tab,
+# esc, pgup) — none of which contain an underscore.
+_RAW_IDENTIFIER = re.compile(r"[a-z]{2,}_[a-z]{2,}")
+
+
+def _canair_tui_apps():
+    from canlib.commands._captures_step_tui import CapturesStepApp
+    from canlib.commands._decode_plot_tui import PlotApp
+    from canlib.commands._sniff_tui import SniffApp
+    from canlib.modes._monitor_tui import MonitorApp
+
+    return [CapturesStepApp, PlotApp, MonitorApp, SniffApp]
+
+
+class TestRealAppsHaveReadableHelp:
+    """Guards every shipped TUI's cheat-sheet, so a new symbolic binding can't
+    silently reintroduce a raw key identifier."""
+
+    def test_no_raw_key_identifiers_in_any_app(self):
+        offenders = []
+        for app in _canair_tui_apps():
+            for keys, desc in bindings_help_rows(app.__new__(app)):
+                if _RAW_IDENTIFIER.search(keys):
+                    offenders.append(f"{app.__name__}: {keys!r} ({desc})")
+        assert offenders == []
+
+    def test_every_app_advertises_some_bindings(self):
+        for app in _canair_tui_apps():
+            rows = bindings_help_rows(app.__new__(app))
+            assert rows, f"{app.__name__} advertises no bindings"
+            assert all(desc for _keys, desc in rows)
+
+    def test_step_app_shows_its_symbolic_keys(self):
+        from canlib.commands._captures_step_tui import CapturesStepApp
+
+        rows = {
+            desc: keys
+            for keys, desc in bindings_help_rows(CapturesStepApp.__new__(CapturesStepApp))
+        }
+        assert rows["+100 frames"] == "]"
+        assert rows["-100 frames"] == "["
+        assert rows["goto frame"] == ":"
+        assert rows["wider tolerance"] == ">"
+        assert rows["tighter tolerance"] == "<"
+        assert rows["next frame"] == "→/l/n/space"
 
 
 class _HelpApp(HelpMixin, App):

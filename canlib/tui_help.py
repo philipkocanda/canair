@@ -47,15 +47,18 @@ def bindings_help_rows(app) -> list[tuple[str, str]]:
 
 
 def _display_key(key: str) -> str:
-    """Human-friendly rendering of a Textual key name (``question_mark`` -> ``?``)."""
-    return {
-        "question_mark": "?",
-        "space": "space",
-        "up": "↑",
-        "down": "↓",
-        "left": "←",
-        "right": "→",
-    }.get(key, key)
+    """Human-friendly rendering of a Textual key name (``right_square_bracket`` -> ``]``).
+
+    Delegates to Textual's own :func:`~textual.keys.format_key` — the function
+    that renders keys in its Footer — rather than a hand-written table. A local
+    table only covered the handful of names it happened to list, so every other
+    symbolic binding leaked its raw identifier into the cheat-sheet (``]``, ``>``,
+    ``:``, ``=``, ``,`` all showed as words). Deriving the label from Textual
+    means a new symbolic binding is rendered correctly without touching this.
+    """
+    from textual.keys import format_key
+
+    return format_key(key)
 
 
 class HelpModal(ModalScreen[None]):
