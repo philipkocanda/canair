@@ -95,6 +95,29 @@ CASES: list[tuple[str, list[str]]] = [
 ]
 
 
+@pytest.fixture(autouse=True)
+def _deterministic_grid_region(tmp_path, monkeypatch):
+    """Pin ``grid_region`` so the physical scan's one-shot prompt never fires.
+
+    ``investigate`` runs a physical-band scan, which (when ``grid_region`` is
+    unset) emits a *one-time* "no grid_region set" note and records a
+    ``grid_region_prompted`` sentinel in the user config. That makes the output
+    order-dependent: whichever test scans first sees the note and the rest don't.
+    Pinning the region makes every case deterministic in isolation *and* inside a
+    full-suite run, and keeps the golden free of a message that is really about
+    first-run onboarding rather than byte labels.
+    """
+    from canlib import config
+
+    cfg = tmp_path / "canair"
+    cfg.mkdir(parents=True, exist_ok=True)
+    (cfg / "config.yaml").write_text("grid_region: EU\n")
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    config.load_config.cache_clear()
+    yield
+    config.load_config.cache_clear()
+
+
 def _norm(text: str) -> str:
     """Strip ANSI and normalise line endings.
 

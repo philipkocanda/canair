@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import ClassVar
 
 from canlib import config, profile
 
@@ -36,13 +37,18 @@ class TestUserConfigIsolation:
     def test_resolved_config_dir_is_not_the_developers(self):
         assert config.config_dir().resolve() != (Path.home() / ".config" / "canair").resolve()
 
+    # Keys canair legitimately writes into the config *itself* during a run, as
+    # one-shot markers rather than user settings. `grid_region_prompted` is
+    # recorded by the physical scan's first-run prompt so it never asks twice.
+    SENTINEL_KEYS: ClassVar[set[str]] = {"grid_region_prompted"}
+
     def test_the_pinned_config_has_no_active_settings(self):
         """Any config in the pinned dir carries no real settings.
 
-        `cli.main()` seeds a commented-out starter `config.yaml` on first run, so
-        the file may legitimately exist once a test has invoked the CLI. What must
-        never happen is a *populated* config — that would mean the developer's own
-        file (or a leaked write) is steering the suite.
+        `cli.main()` seeds a commented-out starter `config.yaml` on first run, and
+        a run may record a one-shot sentinel (see SENTINEL_KEYS). What must never
+        happen is a *populated* config — that would mean the developer's own file
+        (or a leaked write) is steering the suite.
         """
         path = config.user_config_file()
         if not path.exists():
@@ -50,7 +56,9 @@ class TestUserConfigIsolation:
         active = [
             line
             for line in path.read_text().splitlines()
-            if line.strip() and not line.lstrip().startswith("#")
+            if line.strip()
+            and not line.lstrip().startswith("#")
+            and line.split(":", 1)[0].strip() not in self.SENTINEL_KEYS
         ]
         assert active == [], f"pinned config has real settings: {active}"
 

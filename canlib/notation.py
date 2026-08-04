@@ -25,6 +25,7 @@ from .byteindex import (
     isotp_to_wican,
     torque_label,
     torque_to_bix,
+    wican_to_elm_idx,
     wican_to_isotp,
 )
 from .expression import signed_range_is_exact
@@ -108,13 +109,25 @@ class ByteRef:
         width: int = 1,
         signed: bool = False,
         little: bool = False,
+        payload_len: int | None = None,
     ) -> ByteRef:
         """Build a ref from a WiCAN frame index (e.g. from a stored expression).
+
+        ``payload_len`` is the reassembled UDS payload's length in bytes. **Pass it
+        whenever you know it.** The WiCAN layout depends on it: a single-frame
+        (≤7-byte) response carries ONE PCI byte, a multi-frame response TWO (plus
+        one per consecutive frame). Without it this falls back to the multi-frame
+        layout, which is off by one for every data byte of a single-frame payload —
+        so the derived ISO-TP/Torque/bix views name the wrong byte.
 
         Raises :class:`ValueError` if ``wican_offset`` is a PCI (framing) byte,
         which has no ISO-TP position and can never be a data reference.
         """
-        iso = wican_to_isotp(wican_offset)
+        iso = (
+            wican_to_isotp(wican_offset)
+            if payload_len is None
+            else wican_to_elm_idx(wican_offset, payload_len)
+        )
         if iso is None:
             raise ValueError(f"WiCAN B{wican_offset} is a PCI byte, not a data byte")
         return cls(iso, bit=bit, width=width, signed=signed, little=little)
@@ -246,7 +259,13 @@ class ByteRef:
 _WICAN_BYTE_LABEL = re.compile(r"^(?P<prefix>.*:)?B(?P<off>\d+)(?::(?P<bit>\d+))?$")
 
 
-def relabel_signal(label: str, notation: ByteNotation, *, sub_bytes: int | None = None) -> str:
+def relabel_signal(
+    label: str,
+    notation: ByteNotation,
+    *,
+    sub_bytes: int | None = None,
+    payload_len: int | None = None,
+) -> str:
     """Re-render a raw-byte analysis label (``…:Bn`` / ``…:Bn:k``) in ``notation``.
 
     Whole-signal labels for *named parameters* (``ECU:PID:SOC_BMS``) and anything
@@ -256,6 +275,11 @@ def relabel_signal(label: str, notation: ByteNotation, *, sub_bytes: int | None 
     ``sub_bytes`` (needed only for Torque/bix) is auto-derived from an
     ``ECU:PID:`` prefix when present (``22xxxx`` DID → 2, else 1), so callers can
     relabel with just ``(label, notation)``.
+
+    ``payload_len`` is the reassembled payload's length; pass it so a single-frame
+    response is indexed against its real one-PCI-byte layout (see
+    :meth:`ByteRef.from_wican`). Without it, non-WiCAN notations name the wrong
+    byte for every single-frame PID.
     """
     if notation is ByteNotation.WICAN:
         return label
@@ -268,7 +292,7 @@ def relabel_signal(label: str, notation: ByteNotation, *, sub_bytes: int | None 
         sub_bytes = subfunction_bytes_for_pid(parts[-1]) if len(parts) >= 2 and parts[-1] else 1
     bit = int(m.group("bit")) if m.group("bit") is not None else None
     try:
-        ref = ByteRef.from_wican(int(m.group("off")), bit=bit)
+        ref = ByteRef.from_wican(int(m.group("off")), bit=bit, payload_len=payload_len)
     except ValueError:
         return label
     return prefix + ref.render(notation, sub_bytes=sub_bytes)

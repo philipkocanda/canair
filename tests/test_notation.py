@@ -284,3 +284,75 @@ class TestCommandsAcceptNotationFlag:
         p = coverage.add_parser(argparse.ArgumentParser().add_subparsers())
         with pytest.raises(SystemExit):
             p.parse_args(["--notation", "bogus"])
+
+
+class TestLengthAwareLabels:
+    """WiCAN->ISO-TP conversion depends on the payload's frame layout.
+
+    A single-frame (<=7-byte) response carries ONE PCI byte; a multi-frame
+    response carries TWO (plus one per consecutive frame). Without the payload
+    length, `from_wican` assumed the multi-frame layout, so every data byte of a
+    single-frame PID resolved one ISO-TP index too low — and the ISO-TP / Torque /
+    bix views therefore named the wrong byte. The first data byte degraded to `—`
+    (no Torque index at all).
+
+    Ground truth for the bundled `IGPM 22BC02` (payload `62BC0200000000`, 7 bytes,
+    sub_bytes=2): frame is [PCI][62=SID][BC][02][data B4..B7], so WiCAN B4 is
+    ISO-TP 3, which is Torque index 0 = "A" = bix 0.
+    """
+
+    SINGLE_FRAME_LEN = 7
+
+    @pytest.mark.parametrize(
+        "wican,isotp,torque,bix",
+        [(4, "i3", "A", "0"), (5, "i4", "B", "8"), (6, "i5", "C", "16"), (7, "i6", "D", "24")],
+    )
+    def test_single_frame_views(self, wican, isotp, torque, bix):
+        ref = ByteRef.from_wican(wican, payload_len=self.SINGLE_FRAME_LEN)
+        assert ref.render(ByteNotation.ISOTP, sub_bytes=2) == isotp
+        assert ref.render(ByteNotation.TORQUE, sub_bytes=2) == torque
+        assert ref.render(ByteNotation.BIX, sub_bytes=2) == bix
+
+    def test_single_frame_first_data_byte_has_a_torque_index(self):
+        # Regression: this rendered "—", implying the byte had no Torque position.
+        ref = ByteRef.from_wican(4, payload_len=self.SINGLE_FRAME_LEN)
+        assert ref.render(ByteNotation.TORQUE, sub_bytes=2) != "—"
+
+    def test_single_frame_pci_is_only_b0(self):
+        # One PCI byte, so B1 is already the SID (ISO-TP 0), not a framing byte.
+        with pytest.raises(ValueError, match="PCI byte"):
+            ByteRef.from_wican(0, payload_len=self.SINGLE_FRAME_LEN)
+        assert ByteRef.from_wican(1, payload_len=self.SINGLE_FRAME_LEN).offset == 0
+
+    def test_multi_frame_is_unchanged_by_passing_the_length(self):
+        """The length-aware path must agree with the old one where it was right.
+
+        Multi-frame was always correct, so passing `payload_len` must not shift
+        any label — this is what keeps the default `wican` output byte-identical.
+        """
+
+        def render(wican: int, **kw) -> str:
+            try:
+                return ByteRef.from_wican(wican, **kw).render(ByteNotation.ISOTP, sub_bytes=2)
+            except ValueError:
+                return "PCI"
+
+        for wican in range(2, 24):
+            assert render(wican) == render(wican, payload_len=15), f"B{wican} shifted"
+
+    def test_relabel_signal_threads_the_payload_length(self):
+        from canlib.notation import relabel_signal
+
+        assert (
+            relabel_signal("IGPM:22BC02:B4", ByteNotation.TORQUE, payload_len=7) == "IGPM:22BC02:A"
+        )
+        # Without it, the multi-frame assumption still applies (back-compatible).
+        assert relabel_signal("IGPM:22BC02:B4", ByteNotation.TORQUE) == "IGPM:22BC02:—"
+
+    def test_wican_notation_never_depends_on_the_length(self):
+        """WiCAN is the identity view, so it must be immune to the layout."""
+        from canlib.notation import relabel_signal
+
+        for length in (None, 7, 15, 64):
+            kw = {} if length is None else {"payload_len": length}
+            assert relabel_signal("IGPM:22BC02:B4", ByteNotation.WICAN, **kw) == "IGPM:22BC02:B4"

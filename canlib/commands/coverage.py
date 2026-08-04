@@ -59,6 +59,10 @@ class PidAnalysis(TypedDict):
     """Coverage findings for one PID's parameters against a payload."""
 
     data_bytes: int
+    # Reassembled payload length in bytes. Carried so the render layer can index
+    # WiCAN offsets against the *actual* frame layout — a single-frame (<=7B)
+    # response has one PCI byte, a multi-frame response two.
+    payload_len: int
     unmapped: list[int]
     unverified_mapped: list[int]
     incomplete_bitfields: list[BitfieldGap]
@@ -74,6 +78,7 @@ class CoverageEntry(TypedDict):
     no_capture: NotRequired[bool]
     capture: NotRequired[dict[str, str]]
     data_bytes: NotRequired[int]
+    payload_len: NotRequired[int]
     unmapped: NotRequired[list[int]]
     unverified_mapped: NotRequired[list[int]]
     incomplete_bitfields: NotRequired[list[BitfieldGap]]
@@ -192,6 +197,7 @@ def analyze_pid(parameters: dict, payload_hex: str, sfb: int) -> PidAnalysis:
 
     return {
         "data_bytes": len(data_idx),
+        "payload_len": len(payload_hex) // 2,
         "unmapped": unmapped,
         "unverified_mapped": unverified_mapped,
         "incomplete_bitfields": incomplete,
@@ -310,6 +316,9 @@ def run(args) -> int:
 
     for e in results:
         sub_bytes = subfunction_bytes_for_pid(e["pid"])
+        # The frame layout depends on the payload's length, so the non-WiCAN
+        # notations need it to name the right byte (see ByteRef.from_wican).
+        payload_len = e.get("payload_len")
         header = (
             f"  {_BOLD}{_CYAN}{e['ecu']} {e['pid']}{_RESET} "
             f"{_DIM}({e['params']}p, {e['verified']} verified){_RESET}"
@@ -320,19 +329,22 @@ def run(args) -> int:
         print(f"{header}  {_DIM}{e['data_bytes']} data bytes, {e['capture']['date']}{_RESET}")
         if e["unmapped"]:
             byts = ",".join(
-                relabel_signal(f"B{i}", notation, sub_bytes=sub_bytes) for i in e["unmapped"]
+                relabel_signal(f"B{i}", notation, sub_bytes=sub_bytes, payload_len=payload_len)
+                for i in e["unmapped"]
             )
             print(f"      {_YELLOW}UNMAPPED{_RESET} {byts}")
         if e.get("unverified_mapped"):
             byts = ",".join(
-                relabel_signal(f"B{i}", notation, sub_bytes=sub_bytes)
+                relabel_signal(f"B{i}", notation, sub_bytes=sub_bytes, payload_len=payload_len)
                 for i in e["unverified_mapped"]
             )
             print(f"      {_YELLOW}UNVERIFIED{_RESET} {byts}")
         for bf in e["incomplete_bitfields"]:
             have = ",".join(map(str, bf["have"]))
             miss = ",".join(map(str, bf["missing"]))
-            byte_label = relabel_signal(f"B{bf['byte']}", notation, sub_bytes=sub_bytes)
+            byte_label = relabel_signal(
+                f"B{bf['byte']}", notation, sub_bytes=sub_bytes, payload_len=payload_len
+            )
             print(f"      {_RED}BITS{_RESET} {byte_label} have{{{have}}} missing{{{miss}}}")
     print()
     return 0
