@@ -246,7 +246,9 @@ Prototyped and benchmarked 2026-08-04 (`/tmp/expr_bench.py`, not committed);
       a parse-once assertion on `cache_info()`.
 - [x] CHANGELOG + module docstring. No CLI surface changed, so no
       `AGENTS.md` / `docs/` / skill change (confirmed, not assumed).
-- [x] Gates green: 4223 passed, ruff/ty/`validate all` clean.
+- [x] Split the module along the seam the change created, since it had grown to
+      456 lines (see below).
+- [x] Gates green: 4227 passed, ruff/ty/`validate all` clean.
 
 Measured after implementation (382 expressions × 2000 payloads): **7.0x** per
 call (1.07 → 0.15 µs), **9.4x** reusing the compiled form directly — matching the
@@ -254,6 +256,37 @@ prototype. End-to-end: `blind.select_targets` ~2x, `investigate uds IGPM 22BC03
 --bits` 3.43s → 2.84s (1.21x), `align` within noise. The "optional second step"
 (hoisting `compile_expression` out of `align.extract_series` /
 `blind.eval_series`) was **not** done, per this plan's own assessment.
+
+### Module split
+
+Compiling doubled the module (249 → 456 lines), and in doing so it created a
+clean seam that did not exist before: the closure factories are the evaluator's
+*semantics* (byte loads, sign extension, arithmetic — the part that must match
+`expression_parser.c` exactly), while the shunting-yard scan is its *grammar*
+(token recognition, precedence, associativity, tolerance of malformed input).
+Previously both were interleaved in one loop, so there was nothing to separate.
+
+- **`canlib/expression_nodes.py`** (256 lines) — semantics: `CompiledExpression`,
+  the operand/operator node factories, `BINARY_NODES`, `with_discarded`, and the
+  `[Sn:Sm]` container ladder together with the public `signed_range_is_exact`
+  guard it necessitates (they were previously in separate halves of the file,
+  free to drift).
+- **`canlib/expression_compile.py`** (193 lines) — grammar: `_PRECEDENCE` and
+  `compile_expression`, importing the node factories as `nodes.*` (which reads
+  well and keeps generic names like `const`/`bit` out of the parser's namespace).
+- **`canlib/expression.py`** (71 lines) — the entry point: the authoritative
+  byte-space contract docstring, the cached `evaluate_expression`, and an
+  `__all__` re-exporting `compile_expression` / `CompiledExpression` /
+  `SIGNED_RANGE_WIDTHS` / `signed_range_is_exact`.
+
+Sibling modules with a shared prefix rather than a package, following the
+`modes/identity.py` → `identity_decode.py`/`identity_records.py` precedent the
+`contributing-code` skill names. No call site changed: all ten consumers still
+`from .expression import evaluate_expression`, and `notation`/`inspect_bytes`
+still import `signed_range_is_exact` from the facade their docstrings cite.
+Benchmarks are unchanged (the module boundary is crossed only at compile time),
+and `TestModuleLayering` pins the subsystem as a `canlib` leaf — the property
+`decode_value`'s "leaf module" docstring depends on.
 
 ### Two divergences the differential fuzz found
 

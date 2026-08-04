@@ -10,11 +10,13 @@ definition that declares an optional ``type:`` (``enum``/``bitmask``/``ascii``/
 into a category label, flag set, string, date, or structured record — for
 display and for categorical analysis — without touching the numeric path.
 
-Leaf module: depends only on ``canlib.expression`` (itself leaf). Kept
-dependency-free of the rest of ``canlib`` so any caller (decode, captures,
-investigate, monitor, identity) can import it without a cycle. The date/BCD/
-ASCII primitives here are the single home for that logic — ``identity_decode``
-delegates to them so identity DIDs and the analysis suite decode the same way.
+Leaf module: depends only on ``canlib.expression`` (itself a leaf subsystem —
+``expression`` + ``expression_compile`` + ``expression_nodes`` import nothing else
+from ``canlib``). Kept dependency-free of the rest of ``canlib`` so any caller
+(decode, captures, investigate, monitor, identity) can import it without a cycle.
+The date/BCD/ASCII primitives here are the single home for that logic —
+``identity_decode`` delegates to them so identity DIDs and the analysis suite
+decode the same way.
 """
 
 from __future__ import annotations
