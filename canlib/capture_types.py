@@ -10,8 +10,6 @@ these are its static-typing companion.
 Scope: the **on-disk** shapes only. The in-memory entry dict produced by
 ``load_all_captures()`` (which resolves the ``rx`` address to a short ``ecu``
 name) is a different, richer shape and is intentionally not modelled here.
-
-See ``plans/2026-07-28-captures-rx-field-rename-and-typing.md``.
 """
 
 from __future__ import annotations

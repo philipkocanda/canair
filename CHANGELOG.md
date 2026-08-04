@@ -63,6 +63,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `plans/2026-08-03-elm327-direct-transport.md`.
 
 ### Fixed
+- **Non-WiCAN byte notations named the wrong byte on every single-frame PID.**
+  `--notation isotp|torque|bix` (and the labels in `coverage`, `correlate`,
+  `investigate`, `decode`, `hunt`) converted a WiCAN index assuming the
+  *multi-frame* ISO-TP layout, which has two First-Frame PCI bytes. A single-frame
+  (≤7-byte) response has only **one**, so every data byte resolved one index too
+  low and the first data byte rendered as `—`, claiming it had no Torque position
+  at all. For the bundled `IGPM 22BC02`: `i2,i4,i5` → `i3,i5,i6`, `—,B,C` →
+  `A,C,D`, `—,8,16` → `0,16,24`. The default `wican` output is unchanged
+  (byte-identical, gated by a new golden-output suite). Also fixes the same
+  off-by-one in the `!hexdump` view of `canair repl`.
+- **`hunt --promote` / `correlate --promote` could persist an expression that
+  reads an ISO-TP framing byte.** The docstring claimed the schema-validate gate
+  rejected a PCI-crossing read, but that check only emits a *warning*, so the
+  expression was committed — silently folding a frame counter/length byte into the
+  signal. Now refused up front, with the offending byte named and the working
+  alternative suggested (a shift/arithmetic composition that skips the framing
+  byte, which stays allowed).
 - **`canair states rm` no longer mislabels the neighbouring states' comments.**
   ruamel stores a YAML sequence item's leading comment on the *previous* item, so
   deleting a state took the **following** state's comment block with it (a section
@@ -130,6 +147,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   YAML round-trip are now quoted; ordinary keys (`2101`) are left as-is.
 
 ### Changed
+- **Typing hardened around the areas last week's review found untestable.** The
+  IOControl actuator state is now `Literal["on","off","error"]` with named
+  constants, so a drifted sentinel can't silently disable `release_all` — the
+  exit-time net that switches every actuator back off (a mutation proved the old
+  suite couldn't catch that). `build_iocontrol_index` gained
+  `IoControlCommand`/`IoControlIndexEntry` TypedDicts, matching its two sibling
+  index builders. `canlib.constants`' PEP-562 `__getattr__` magic is replaced by
+  typed accessors (`config.wican_addresses()` / `config.default_wican()`), which
+  removes both an `Any` hole at every import site and the import-time config read
+  behind the earlier test-isolation defect. And every transport backend is now
+  *statically* bound to its `Terminal`/`Channel` protocol
+  (`canlib/transport/_conformance.py`), since `runtime_checkable` + `isinstance`
+  only checks method presence — never signatures.
 - **`canair captures --step --pair` is removed; a multi-PID QUERY compares by
   default.** `--pair` only ever handled *exactly two* keys, was read-only (no
   note/delete), and its PID set and tolerance were fixed at launch. Everything it

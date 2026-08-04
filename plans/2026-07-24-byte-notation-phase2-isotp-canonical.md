@@ -273,8 +273,41 @@ changes every default label and is best done per-command with golden tests.
 - [x] `display.byte_notation` config key (`resolve_notation`) + `config.example.yaml`.
 - [x] Docs: `byte-indexing.md`, regenerated CLI reference, `AGENTS.md`, CHANGELOG.
 
-### Phase 2b — deferred (follow-up)
+### Phase 2b — partially shipped
 
+**Shipped: length-aware labels (the WiCAN/ISO-TP conflation in the render layer).**
+A WiCAN index only maps to an ISO-TP index if you know the payload's length — a
+single-frame (≤7-byte) response has ONE PCI byte, a multi-frame response TWO. The
+conversion assumed multi-frame, so every data byte of a single-frame PID resolved
+one index too low and the ISO-TP/Torque/bix views named the wrong byte (the first
+data byte rendered `—`, claiming no Torque position at all).
+
+- [x] `ByteRef.from_wican` / `relabel_signal` take an optional `payload_len` (and
+  a `{(ECU, PID): length}` map, for the ranked `correlate` output that mixes PIDs
+  in one list); `align.longest_payload_len` / `align.payload_lengths` build them.
+- [x] Threaded through every label renderer: `coverage`, `correlate` (ranked,
+  clusters, `--against`, cross-ECU mirrors), `investigate` (report, `--events`,
+  dwell), `decode` (`--discriminate`, `--find-mirrors`), `hunt`.
+- [x] **Golden-output gate** (`tests/test_analysis_golden.py`, 24 cases) proving
+  default-`wican` output is byte-identical — the plan's back-compat constraint.
+- [x] `tests/fixtures/profiles/single-frame` — a synthetic profile with a
+  *varying* single-frame payload. The bundled profile could not cover this: of its
+  11 single-frame PIDs only one has capture volume and all its data bytes are
+  constant, which is how this bug class survived.
+
+**Still deferred:**
+
+- [ ] **Re-home the analysis engine to read ISO-TP directly** — retire the
+  synthesized-`"B{bn}"`-expression trick in `build_byte_series`/`build_bit_series`
+  so series carry `ByteRef`s and PCI-skipping leaves the engine. Labels are now
+  correct, but the *internal* model is still WiCAN-expression-keyed. Unlocks the
+  PCI-straddling-signal find (`_promote` already accepts a skip-the-framing-byte
+  composition, so the write side is ready) and true raw-CAN analysis.
+- [ ] **Type the in-memory capture entry** (`load_all_captures() -> list[CaptureEntry]`).
+  Attempted and reverted: `list` invariance propagates the change through
+  `LoadedPid.captures` into the whole analysis engine (38 → 70 `ty` diagnostics
+  across ~9 files). Needs its own change, probably using `Sequence` at the
+  consumer boundaries to sidestep invariance.
 - [ ] **Reimplement `canair bix` on `notation.py`** (pure internal dedup; deferred
   to avoid re-churning code Phase 1 just touched, and because the 35 notation
   tests already prove the renderer).

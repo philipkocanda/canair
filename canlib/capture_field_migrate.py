@@ -4,7 +4,7 @@ The persisted capture record's ``ecu`` field actually holds the ECU's CAN
 *response* address (RX = request TX + 8, e.g. ``"0x7EC"``), not an ECU name — so
 it was renamed ``ecu`` → ``rx`` to stop it being confused with the in-memory
 resolved short name (which keeps the ``ecu`` key). See
-``plans/2026-07-28-captures-rx-field-rename-and-typing.md``.
+the ``rx`` field rename (``canair captures migrate-rx``).
 
 This module rewrites existing capture files in place, swapping the key at both
 the capture level and inside ``scan_results.responding[]``, preserving field

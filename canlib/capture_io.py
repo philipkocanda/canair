@@ -86,7 +86,7 @@ def capture_rx(cap: Mapping[str, Any]) -> str:
 
     The field was renamed ``ecu`` → ``rx`` (it holds the RX/response address,
     not an ECU name; see
-    ``plans/2026-07-28-captures-rx-field-rename-and-typing.md``). Capture files
+    the `rx` rename). Capture files
     are migrated in place (``canair captures migrate-rx``), but this fallback
     keeps an un-migrated file or a stale journal readable — the store is
     append-only public data, so a read must never depend on migration having

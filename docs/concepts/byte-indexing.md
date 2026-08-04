@@ -23,6 +23,22 @@ start counting and whether you include the transport's framing (PCI) bytes, the
   the variant with `-1` (default) / `-2`, and names the active one so it's clear
   the Torque mapping is *not* fixed.
 
+!!! warning "The WiCAN↔ISO-TP offset depends on the response's length"
+
+    How many PCI bytes sit in front of the data is not fixed:
+
+    | Response | PCI bytes | First data byte |
+    |---|---|---|
+    | **Single frame** (payload ≤ 7 bytes) | **one** (`0x0n`) at `B00` | `B01` is the SID |
+    | **Multi frame** (payload > 7 bytes) | **two** (`0x1n nn`) at `B00`–`B01`, then one `0x2n` at `B08`, `B16`, … | `B02` is the SID |
+
+    So the *same* WiCAN index is a different ISO-TP byte depending on the payload
+    length — a 7-byte `22xxxx` response puts its first data byte at `B04` = ISO-TP
+    3 = Torque `A`, where a long one puts ISO-TP 3 at `B05`. canair resolves this
+    from the actual captured payload, so `--notation` labels and `canair bix
+    --annotate` are length-aware. Keep it in mind when hand-converting: assuming
+    the multi-frame layout on a short response shifts every byte by one.
+
 Because each notation includes or excludes different framing, an expression
 correct in one is off-by-one-or-two in another.
 
