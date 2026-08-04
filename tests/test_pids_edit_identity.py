@@ -1,11 +1,11 @@
-"""Tests for canlib.pids_edit.set_identity_field (curated identity editing)."""
+"""Tests for the curated identity editors (set_identity_field/remove_identity_field)."""
 
 import textwrap
 
 import pytest
 import yaml
 
-from canlib.pids_edit import PidsEditError, set_identity_field
+from canlib.pids_edit import PidsEditError, remove_identity_field, set_identity_field
 
 
 @pytest.fixture
@@ -83,3 +83,47 @@ def test_missing_identity_section(tmp_path):
     (tmp_path / "n.yaml").write_text("NOID:\n  tx_id: 0x700\n  pids: {}\n")
     with pytest.raises(PidsEditError):
         set_identity_field("NOID", "notes", "x", pids_dir=tmp_path)
+
+
+class TestRemoveIdentityField:
+    def test_removes_scalar_field(self, pids_dir):
+        remove_identity_field("TESTECU", "part_number", pids_dir=pids_dir)
+        ident = _identity(pids_dir)
+        assert "part_number" not in ident
+        # Siblings and the header comment survive.
+        assert ident["description"] == "Test ECU"
+        assert ident["notes"].strip().startswith("original multi-line")
+        assert "Header comment that must survive edits" in (pids_dir / "test.yaml").read_text()
+
+    def test_removes_block_scalar_field(self, pids_dir):
+        remove_identity_field("TESTECU", "notes", pids_dir=pids_dir)
+        ident = _identity(pids_dir)
+        assert "notes" not in ident
+        # The folded body went with it — no orphaned continuation lines.
+        assert "original multi-line" not in (pids_dir / "test.yaml").read_text()
+        assert ident["id_protocol"] == "UDS"
+
+    def test_absent_field_is_an_error(self, pids_dir):
+        with pytest.raises(PidsEditError, match=r"no identity\.alias"):
+            remove_identity_field("TESTECU", "alias", pids_dir=pids_dir)
+
+    def test_rejects_bad_field_name(self, pids_dir):
+        with pytest.raises(PidsEditError):
+            remove_identity_field("TESTECU", "bad field!", pids_dir=pids_dir)
+
+    def test_missing_identity_section(self, tmp_path):
+        (tmp_path / "_meta.yaml").write_text('car_model: "T"\ninit: "x"\n')
+        (tmp_path / "n.yaml").write_text("NOID:\n  tx_id: 0x700\n  pids: {}\n")
+        with pytest.raises(PidsEditError):
+            remove_identity_field("NOID", "notes", pids_dir=tmp_path)
+
+    def test_removing_last_field_drops_the_block(self, tmp_path):
+        # An empty `identity:` key parses to None, so the whole block goes.
+        (tmp_path / "_meta.yaml").write_text('car_model: "T"\ninit: "x"\n')
+        (tmp_path / "o.yaml").write_text(
+            "ONE:\n  tx_id: 0x700\n  identity:\n    alias: X\n  pids: {}\n"
+        )
+        remove_identity_field("ONE", "alias", pids_dir=tmp_path)
+        doc = yaml.safe_load((tmp_path / "o.yaml").read_text())["ONE"]
+        assert "identity" not in doc
+        assert doc["tx_id"] == 0x700

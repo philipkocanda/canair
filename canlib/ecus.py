@@ -46,7 +46,6 @@ class _EcuIdentity(TypedDict, total=False):
     app_sw: str
     fw_version: str
     firmware: str
-    software: str
     serial: str
     ecu_id: str
     sw_id: str

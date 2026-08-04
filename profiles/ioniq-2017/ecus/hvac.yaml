@@ -10,7 +10,6 @@ HVAC:
     firmware: "AE_EV DATC(-)1.0"
     fw_version: "1.03"
     id_protocol: UDS  # F1xx
-    software: "AE_EV DATC(-)1.0"
     serial: "1705304705"
     notes: >
       Climate control unit (DATC — Digital Automatic Temperature Control).

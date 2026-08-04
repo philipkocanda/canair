@@ -764,7 +764,11 @@ def _validate_identity(
         return
     for field in identity:
         if field not in identity_fields:
-            warnings.append(f"{path.name}/{ecu_name}/identity: unknown field '{field}'")
+            errors.append(
+                f"{path.name}/{ecu_name}/identity: unknown field '{field}' "
+                f"(allowed: {sorted(identity_fields)})"
+            )
+    _warn_duplicate_identity_values(identity, path, ecu_name, warnings)
     proto = identity.get("id_protocol")
     if proto is not None and proto not in valid_protocols:
         errors.append(
@@ -777,6 +781,43 @@ def _validate_identity(
             f"{path.name}/{ecu_name}/identity: invalid identity_confidence '{conf}' "
             f"(allowed: {sorted(valid_confidence)})"
         )
+
+
+# Identity fields that are near-synonyms of each other, grouped. The same value
+# under two fields of ONE group is a redundancy signal (a DID reading mirrored
+# into a second field); across groups it is a coincidence — `hw_version: "100"`
+# and `sw_version: "100"` describe genuinely different axes and must not warn.
+_IDENTITY_SYNONYM_GROUPS = (
+    frozenset({"firmware", "fw_version", "sw_version", "sw_id"}),
+    frozenset({"hw_version", "hw_sw"}),
+    frozenset({"alias", "description"}),
+    frozenset({"part_number", "serial", "ecu_id"}),
+)
+
+
+def _warn_duplicate_identity_values(identity, path, ecu_name, warnings) -> None:
+    """Warn when two *synonymous* identity fields hold the same value.
+
+    The version-ish identity fields are near-synonyms by necessity (each marque
+    names its identity DIDs differently), so the same reading easily gets filed
+    under two of them — leaving one of the pair as dead, misleading data. Values
+    are compared whitespace-normalized and case-insensitively; empty values are
+    ignored.
+    """
+    for group in _IDENTITY_SYNONYM_GROUPS:
+        seen: dict[str, list[str]] = {}
+        for field in group:
+            norm = " ".join(str(identity.get(field, "")).split()).lower()
+            if not norm:
+                continue
+            seen.setdefault(norm, []).append(field)
+        for value, fields in seen.items():
+            if len(fields) > 1:
+                warnings.append(
+                    f"{path.name}/{ecu_name}/identity: fields {sorted(fields)} hold the same "
+                    f"value {value!r} — keep the one the ECU actually reported, drop the rest "
+                    f"(canair pids rm-identity {ecu_name} <field>)"
+                )
 
 
 def _validate_scan_log(ecu_def, path, ecu_name, scan_log_fields, errors, warnings, stats) -> None:

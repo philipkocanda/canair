@@ -4,13 +4,13 @@
 
 ```
 usage: canair pids [-h]
-                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,set-pid-status,set-pid-variable-length,set-identity,set-can-bus,set-iocontrol-ranges,set-wake,set-addressing}
+                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,set-pid-status,set-pid-variable-length,set-identity,rm-identity,set-can-bus,set-iocontrol-ranges,set-wake,set-addressing}
                    ...
 
 [UDS] Safely edit ecus/ parameters and research entries (domain A — diagnostic UDS PIDs, freeform WiCAN expressions). The broadcast-frame (domain B) authoring counterpart is `canair signals` (linear signals/ maps).
 
 positional arguments:
-  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,set-pid-status,set-pid-variable-length,set-identity,set-can-bus,set-iocontrol-ranges,set-wake,set-addressing}
+  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,set-pid-status,set-pid-variable-length,set-identity,rm-identity,set-can-bus,set-iocontrol-ranges,set-wake,set-addressing}
     upsert-param        Add or update a parameter
     rename-param        Rename a parameter (key only; fields preserved)
     rm-param            Remove a parameter
@@ -25,6 +25,7 @@ positional arguments:
                         Flag a PID as returning legitimately variable-length
                         responses
     set-identity        Set a curated identity field (e.g. notes)
+    rm-identity         Remove an identity field from an ECU
     set-can-bus         Set the physical CAN bus segment(s) the ECU sits on
     set-iocontrol-ranges
                         Set the IOControl (0x2F) scan DID ranges swept on this
@@ -297,6 +298,21 @@ positional arguments:
   ecu
   field          Identity field name, e.g. notes or description
   value          New value (notes are stored as a folded block scalar)
+
+options:
+  -h, --help     show this help message and exit
+  --dir DIR      ecus/ directory (default: active profile)
+  --no-validate  Skip the post-edit schema validation gate
+```
+
+## `canair pids rm-identity`
+
+```
+usage: canair pids rm-identity [-h] [--dir DIR] [--no-validate] ecu field
+
+positional arguments:
+  ecu
+  field          Identity field name to drop, e.g. software
 
 options:
   -h, --help     show this help message and exit

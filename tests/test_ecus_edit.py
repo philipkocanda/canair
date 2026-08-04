@@ -320,11 +320,31 @@ class TestIdentityValidation:
         errors, _, _ = collect_pids_validation([p])
         assert any("invalid id_protocol" in e for e in errors)
 
-    def test_unknown_identity_field_is_warning(self, tmp_path):
+    def test_unknown_identity_field_is_error(self, tmp_path):
         p = self._write(tmp_path, "X:\n  tx_id: 0x770\n  identity:\n    wat: 1\n")
+        errors, _warnings, _ = collect_pids_validation([p])
+        assert any("unknown field 'wat'" in e for e in errors)
+
+    def test_duplicate_synonym_identity_values_warn(self, tmp_path):
+        # The HVAC case: one DID reading mirrored into a second, synonymous field.
+        p = self._write(
+            tmp_path,
+            'X:\n  tx_id: 0x770\n  identity:\n    firmware: "AE 1.0"\n    fw_version: "ae 1.0"\n',
+        )
         errors, warnings, _ = collect_pids_validation([p])
         assert errors == []
-        assert any("unknown field 'wat'" in w for w in warnings)
+        assert any("hold the same value" in w and "firmware" in w for w in warnings)
+
+    def test_duplicate_across_synonym_groups_is_not_flagged(self, tmp_path):
+        # hw_version and sw_version describe different axes — both reading "100"
+        # is a coincidence (real on ADM/DDM/PSM), not a mirrored value.
+        p = self._write(
+            tmp_path,
+            'X:\n  tx_id: 0x770\n  identity:\n    hw_version: "100"\n    sw_version: "100"\n',
+        )
+        errors, warnings, _ = collect_pids_validation([p])
+        assert errors == []
+        assert not any("hold the same value" in w for w in warnings)
 
     def test_identity_only_ecu_is_valid(self, tmp_path):
         # No pids: block — an identity-only module (AMP/SRS) must validate.

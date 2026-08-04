@@ -896,6 +896,65 @@ def set_identity_field(
     return fpath
 
 
+def remove_identity_field(
+    ecu_name: str,
+    field: str,
+    *,
+    pids_dir: Path | None = None,
+) -> Path:
+    """Remove a single field from ``ECU.identity`` (the inverse of :func:`set_identity_field`).
+
+    Drops the field and any block-scalar/nested continuation it owns. Raises if
+    the field isn't present, so a typo is a loud failure rather than a silent
+    no-op. The write is verified by a YAML re-parse; on any failure the original
+    file is restored.
+    """
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", field or ""):
+        raise PidsEditError(f"invalid identity field name {field!r}")
+
+    fpath = find_ecu_file(ecu_name, pids_dir=pids_dir)
+    original = fpath.read_text()
+    ecu_key = ecu_name.strip().upper()
+
+    def transform(text: str) -> str:
+        ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
+        identity = _keyed_block(text, "identity", 2, ecu_start, ecu_end)
+        if not identity:
+            raise PidsEditError(f"ECU {ecu_name!r} has no identity: section")
+        id_start, _, id_body_start, id_body_end, _ = identity
+        existing = _keyed_block(text, field, 4, id_body_start, id_body_end)
+        if not existing:
+            raise PidsEditError(f"ECU {ecu_name!r} has no identity.{field}")
+        # If this is the ONLY field, drop the whole ``identity:`` block — an
+        # empty ``identity:`` key parses to None and reads as "no identity".
+        sibling = re.compile(r"^ {4}[^\s#]", re.MULTILINE)
+        others = [
+            m
+            for m in sibling.finditer(text, id_body_start, id_body_end)
+            if not (existing[0] <= m.start() < existing[3])
+        ]
+        if not others:
+            block = text[id_start:id_body_end]
+            trailing = block[len(block.rstrip("\n")) :]
+            return text[:id_start] + trailing + text[id_body_end:]
+        block = text[id_body_start:id_body_end]
+        new_block = _replace_field_in_block_at(block, field, [], indent=4)
+        return text[:id_body_start] + new_block + text[id_body_end:]
+
+    def checker(ecu_def: dict) -> None:
+        identity = ecu_def.get("identity")
+        if identity is None:
+            return  # the field was the last one; the whole block is gone
+        if not isinstance(identity, dict):
+            raise PidsEditError("identity: section malformed after edit")
+        if field in identity:
+            raise PidsEditError(f"identity.{field} still present after edit")
+
+    new_text = transform(original)
+    _safe_write(fpath, original, new_text, ecu_key, checker)
+    return fpath
+
+
 # ── Top-level list-field editor ───────────────────────────────────────────────
 #
 # `can_bus` is a top-level ECU field (a sibling of tx_id/identity), a list of

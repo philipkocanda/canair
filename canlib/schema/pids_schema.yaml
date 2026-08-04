@@ -149,6 +149,12 @@ optional_ecu_fields:
 
 # Identity section (under ECU_NAME.identity) — who this module is. The canonical
 # short name is the top-level ECU key, not a field here. All fields optional.
+#
+# The version-ish fields below are near-synonyms by necessity (each marque names
+# its identity DIDs differently), which makes it easy to file the SAME value under
+# two of them. `validate pids` therefore (a) ERRORS on a field name not listed here
+# and (b) WARNS when two *synonymous* fields hold an identical value. Pick the field
+# that names what the ECU actually reported; don't mirror a value into a second one.
 identity_fields:
   optional:
     - alias          # secondary name the ECU self-identifies as (e.g. SMK for SKM)
@@ -162,7 +168,6 @@ identity_fields:
     - app_sw         # application software version
     - fw_version
     - firmware
-    - software        # legacy alias for firmware/sw_id (some ECU identity blocks)
     - serial         # from F18C/F18B
     - ecu_id         # from F110 / KWP2000 1A8C
     - sw_id

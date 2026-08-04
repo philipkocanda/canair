@@ -16,6 +16,7 @@ Subcommands:
   set-status  ECU TARGET STATUS    Update a research item's status
   set-pid-status ECU PID STATUS    Set a PID's lifecycle (active|draft|static|ignored)
   set-identity ECU FIELD VALUE     Set a curated identity field (e.g. notes)
+  rm-identity  ECU FIELD           Remove an identity field (e.g. a redundant duplicate)
   set-can-bus  ECU CODE [CODE ...] Set the physical CAN bus segment(s) (see can_buses.yaml)
   set-iocontrol-ranges ECU RANGE ... Set the 0x2F scan DID ranges (e.g. B000-BFFF)
   set-wake     ECU --method ...     Set how to rouse a fast-sleeping ECU before reads
@@ -50,6 +51,7 @@ from canlib.pids_edit import (
     delete_parameter,
     delete_pid,
     find_ecu_file,
+    remove_identity_field,
     rename_parameter,
     rename_pid,
     set_can_bus,
@@ -375,6 +377,18 @@ def cmd_set_identity(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_rm_identity(args: argparse.Namespace) -> int:
+    def do():
+        remove_identity_field(args.ecu, args.field, pids_dir=args.dir)
+
+    fpath = _guarded(args.ecu, args.dir, do, validate=not args.no_validate)
+    print(
+        f"{_GREEN}  ✓ {args.ecu} identity.{args.field} removed{_RESET}  "
+        f"{_DIM}({fpath.name}){_RESET}"
+    )
+    return 0
+
+
 def cmd_set_can_bus(args: argparse.Namespace) -> int:
     from canlib.can_buses import allowed_can_buses
     from canlib.profile import Profile, active
@@ -670,6 +684,12 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     si.add_argument("value", help="New value (notes are stored as a folded block scalar)")
     _add_common(si)
     si.set_defaults(_pids_func=cmd_set_identity)
+
+    ri = sub.add_parser("rm-identity", help="Remove an identity field from an ECU")
+    ri.add_argument("ecu")
+    ri.add_argument("field", help="Identity field name to drop, e.g. software")
+    _add_common(ri)
+    ri.set_defaults(_pids_func=cmd_rm_identity)
 
     scb = sub.add_parser("set-can-bus", help="Set the physical CAN bus segment(s) the ECU sits on")
     scb.add_argument("ecu")
