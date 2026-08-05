@@ -105,15 +105,18 @@ MCU:
       vehicle_states: [CHARGING]
       notes: >
         62 bytes. Layout (WiCAN B / ISO-TP): B10:B11 RPM (verified), B12:B13 & B14:B15 the two
-        signed-16 torque fields (command/estimated), B17:B18 phase-current RMS candidate, B20/B21
-        temperatures. Static calibration block ~B27-B33 (raw 7D D6 CD AB C2 CD …): per-unit resolver
+        signed-16 torque fields (command/estimated), B17:B18 phase-current RMS candidate. B18/B20
+        read near-ambient and are NOT motor/inverter temps (see 2026-08-05 correction below). Static
+        calibration block ~B27-B33 (raw 7D D6 CD AB C2 CD …): per-unit resolver
         + U/V phase current-sensor offsets (Soul VMCU: Int16 "Resolver Offset" / "U/V Phase Current
         Sensor Offset"). Constant across captures; same bytes recur in 21F2 by the "EHEL-MS2" cal ID
         → calibration data, not mapped as parameters. Tail B54+ is zero padding.
         2026-07-23 load-vs-temperature analysis (574 captures, 477 driving): the B18-B21 cluster splits.
-        Slow temps — B20 (MCU_TEMP_1) and B18 (MCU_TEMP_3): load-decoupled (r≈0 vs |torque|),
-        autocorrelation >0.93, step ~0.1/sample. B20 hottest during charging (22 °C, motor idle) →
-        inverter/power-stage; B18 coolest charging (8 °C), warms with driving → motor/coolant. Load-tracking
+        Slow, load-decoupled bytes — B20 (MCU_TEMP_1) and B18 (MCU_TEMP_3): r≈0 vs |torque|,
+        autocorrelation >0.93, step ~0.1/sample. CORRECTION 2026-08-05: these are NOT motor/inverter
+        temps — they sit in a compressed near-ambient band in every state (B20 10-25, B18 5-24 °C,
+        B18 often sub-ambient) incl. driving 13-16/12-20 °C, while the genuine inverter temp (2101 B22)
+        ran 80→21 °C over the same 3h charge; both demoted enabled:false. Load-tracking
         — B21 (was MCU_TEMP_2) and B19 (was MCU_INVERTER_TEMP): step with instantaneous torque
         (r(Δbyte,Δ|torque|)=0.90, 0.79), not temps. B21 = inverter-load/current scalar (r=0.875 vs |torque|,
         0.859 vs phase current); B19 = IGBT junction-temp estimate or current (ambiguous). Both demoted
