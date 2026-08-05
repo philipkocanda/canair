@@ -14,7 +14,12 @@ from canlib.captures import (
 )
 from canlib.commands.captures.diff import cmd_diff
 from canlib.commands.captures.join import _nearest_within, build_join_frames
-from canlib.commands.captures.listing import _print_decoded_preview, cmd_latest, cmd_list
+from canlib.commands.captures.listing import (
+    _print_decoded_preview,
+    _print_entry,
+    cmd_latest,
+    cmd_list,
+)
 from canlib.commands.captures.query import _gather_query, _is_hex_payload, group_sessions
 from canlib.commands.captures.sessions import _clean, _quality_tag, cmd_sessions, cmd_summary
 
@@ -463,6 +468,128 @@ class TestCmdLatestJson:
 
         cmd_latest([], as_json=True)
         assert json.loads(capsys.readouterr().out) == []
+
+
+class TestPrintEntryBranches:
+    """The per-entry render branches the golden fixture cannot reach.
+
+    ``tests/test_captures_golden.py`` pins the *layout* of each view, but its
+    synthetic profile only holds timed hex payloads — every capture record there is
+    ``{rx, pid, payload, time}``. So the branches for a text response, scan
+    results, capture labels/notes and the 80-char truncations have no golden to
+    catch them, and are asserted here instead.
+    """
+
+    def test_capture_label_is_shown(self, capsys):
+        _print_entry(_entry(label="post-charge read"))
+        assert "[post-charge read]" in _strip_ansi(capsys.readouterr().out)
+
+    def test_no_label_renders_no_brackets(self, capsys):
+        _print_entry(_entry(label=""))
+        assert "[" not in _strip_ansi(capsys.readouterr().out)
+
+    def test_state_is_shown(self, capsys):
+        _print_entry(_entry(vehicle_states=["CHARGING", "PLUGGED"]))
+        assert "(CHARGING, PLUGGED)" in _strip_ansi(capsys.readouterr().out)
+
+    def test_ecu_column_only_when_asked(self, capsys):
+        _print_entry(_entry(ecu="BMS"), show_ecu=True)
+        assert "BMS" in _strip_ansi(capsys.readouterr().out)
+        _print_entry(_entry(ecu="BMS"), show_ecu=False)
+        assert "BMS" not in _strip_ansi(capsys.readouterr().out)
+
+    def test_long_payload_is_truncated(self, capsys):
+        payload = "AB" * 60  # 120 hex chars
+        _print_entry(_entry(payload=payload))
+        out = _strip_ansi(capsys.readouterr().out)
+        assert f"Payload: {payload[:80]}..." in out
+        assert payload not in out
+
+    def test_short_payload_is_intact(self, capsys):
+        _print_entry(_entry(payload="6102AA"))
+        out = _strip_ansi(capsys.readouterr().out)
+        assert "Payload: 6102AA" in out
+        assert "..." not in out
+
+    def test_text_response_instead_of_payload(self, capsys):
+        # A stored outcome ("NO DATA") is a response, not a payload.
+        _print_entry(_entry(payload="", response="NO DATA"))
+        out = _strip_ansi(capsys.readouterr().out)
+        assert "Response: NO DATA" in out
+        assert "Payload:" not in out
+
+    def test_scan_results_report_responder_count(self, capsys):
+        _print_entry(
+            _entry(payload="", scan_results={"responding": [{"rx": "0x7EC"}, {"rx": "0x7EA"}]})
+        )
+        assert "Scan: 2 responding" in _strip_ansi(capsys.readouterr().out)
+
+    def test_scan_results_append_the_rejected_summary(self, capsys):
+        _print_entry(
+            _entry(payload="", scan_results={"responding": [], "rejected": "12 rejected (NRC 31)"})
+        )
+        assert "Scan: 0 responding, 12 rejected (NRC 31)" in _strip_ansi(capsys.readouterr().out)
+
+    def test_payload_wins_over_response_and_scan(self, capsys):
+        # The branch order matters: a payload-bearing capture renders as a payload
+        # even if the record also carries the other fields.
+        _print_entry(_entry(payload="6102AA", response="NO DATA", scan_results={"responding": []}))
+        out = _strip_ansi(capsys.readouterr().out)
+        assert "Payload: 6102AA" in out
+        assert "Response:" not in out and "Scan:" not in out
+
+    def test_capture_note_is_shown(self, capsys):
+        _print_entry(_entry(notes="fan audibly stepped up here"))
+        assert "Notes: fan audibly stepped up here" in _strip_ansi(capsys.readouterr().out)
+
+    def test_long_note_is_truncated(self, capsys):
+        _print_entry(_entry(notes="x" * 200))
+        out = _strip_ansi(capsys.readouterr().out)
+        assert "Notes: " + "x" * 77 + "..." in out
+        assert "x" * 81 not in out
+
+    def test_untimed_capture_renders_the_date_alone(self, capsys):
+        _print_entry(_entry(date="2026-07-22", time=""))
+        out = _strip_ansi(capsys.readouterr().out)
+        assert "2026-07-22" in out
+        # No trailing separator left behind by the empty time.
+        assert "2026-07-22 " not in out.split("\n")[0]
+
+
+class TestCmdLatestText:
+    """``cmd_latest``'s human output — the golden covers only the decoding path."""
+
+    def test_no_payload_captures_is_reported(self, capsys):
+        # Scan/response-only entries are not payloads, so there is nothing to show.
+        cmd_latest([_entry(payload="", response="NO DATA")])
+        assert "No payload captures found." in _strip_ansi(capsys.readouterr().out)
+
+    def test_empty_entries_is_reported(self, capsys):
+        cmd_latest([])
+        assert "No payload captures found." in _strip_ansi(capsys.readouterr().out)
+
+    def test_long_payload_is_truncated(self, capsys):
+        payload = "CD" * 60
+        cmd_latest([_entry(payload=payload)])
+        out = _strip_ansi(capsys.readouterr().out)
+        assert payload[:80] + "..." in out
+        assert payload not in out
+
+    def test_one_row_per_ecu_pid_sorted(self, capsys):
+        entries = [
+            _entry(ecu="VCU", pid="2101", payload="6101AA"),
+            _entry(ecu="BMS", pid="2102", payload="6102BB"),
+            _entry(ecu="BMS", pid="2101", payload="6101CC"),
+        ]
+        cmd_latest(entries)
+        out = _strip_ansi(capsys.readouterr().out)
+        assert "3 PIDs" in out
+        rows = [ln for ln in out.splitlines() if "21" in ln and ("BMS" in ln or "VCU" in ln)]
+        assert [r.split()[0] for r in rows] == ["BMS", "BMS", "VCU"]
+
+    def test_state_is_shown_per_row(self, capsys):
+        cmd_latest([_entry(payload="6102AA", vehicle_states=["READY"])])
+        assert "(READY)" in _strip_ansi(capsys.readouterr().out)
 
 
 class TestCmdListLimit:
