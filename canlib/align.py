@@ -26,6 +26,7 @@ from pathlib import Path
 
 from .byteindex import payload_to_wican_bytes as _payload_to_wican_bytes
 from .capture_dates import entry_datetime, filter_by_date_range, filter_by_text
+from .capture_store import load_all_captures
 from .capture_types import CaptureEntry
 from .expression import evaluate_expression
 
@@ -228,15 +229,13 @@ def load_signal_captures(
 
     ``specs`` is a list of ``(ECU, PID)`` (canonical short names, upper-cased for
     matching). Reuses the single canonical loader
-    (:func:`commands.captures.load_all_captures`) and the shared scope filters so
+    (:func:`capture_store.load_all_captures`) and the shared scope filters so
     date/state/label narrowing behaves identically to ``decode``/``captures``.
 
     Scan/probe captures (``scan_results``, no ``payload``) are ignored — they are
     not time-series. Payload captures with no usable ``time`` are counted in
     ``n_no_time`` and excluded (their ``datetime`` would be ``None``).
     """
-    from .commands.captures import load_all_captures
-
     wanted = {(e.upper(), str(p).upper()) for e, p in specs}
     result: dict[tuple[str, str], LoadedPid] = {
         (e.upper(), str(p).upper()): LoadedPid(e.upper(), str(p).upper()) for e, p in specs

@@ -101,13 +101,13 @@ _RESET = "\033[0m"
 def load_captures(ecu: str, pid: str) -> list[dict]:
     """Load all payload captures matching ECU+PID from capture files.
 
-    Thin wrapper over the canonical :func:`commands.captures.load_all_captures`
+    Thin wrapper over the canonical :func:`capture_store.load_all_captures`
     (one loader for the whole tool), narrowed to a single ECU+PID and reshaped to
     the slim dict decode's views expect: ``{file, date, label, vehicle_states,
     payload, notes, time}``. Capture ``ecu`` addresses are resolved to canonical
     short names by the shared loader.
     """
-    from canlib.commands.captures import load_all_captures
+    from canlib.capture_store import load_all_captures
 
     entries = []
     for e in load_all_captures():
@@ -420,7 +420,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
 
 def _plot_pid_options() -> list[tuple[str, str]]:
     """Distinct ``(ECU, PID)`` pairs that have payload captures, for the --plot switcher."""
-    from canlib.commands.captures.query import load_all_captures
+    from canlib.capture_store import load_all_captures
 
     seen: dict[tuple[str, str], None] = {}
     try:

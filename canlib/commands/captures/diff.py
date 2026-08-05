@@ -8,10 +8,10 @@ information one time-joined frame at a time.
 
 from collections.abc import Sequence
 
+from canlib.capture_store import decoded_preview
 from canlib.capture_types import CaptureEntry
 
 from .query import (
-    _decoded_preview,
     _dedupe_payloads,
     _dump_json,
     _gather_query,
@@ -121,7 +121,7 @@ def cmd_diff(
                     "total": len(group),
                     "unique": len(unique),
                     "payloads": [e["payload"].upper().replace(" ", "") for e in render_list],
-                    "decoded": _decoded_preview(group[-1]),
+                    "decoded": decoded_preview(group[-1]),
                 }
             )
         _dump_json(out)

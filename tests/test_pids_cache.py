@@ -66,27 +66,27 @@ class TestDecodePreviewIndex:
     """The capture-preview PID index is built from load_pids() — derived state."""
 
     def test_switching_profile_redecodes_with_the_new_definitions(self, tmp_path):
-        from canlib.commands.captures import query as q
+        from canlib.capture_store import decoded_preview
 
         entry = {"payload": "6101AABBCCDD", "ecu": "BMS", "pid": "2101"}
         _activate(_mk_profile(tmp_path, "a", "BMS", "A_VOLTS"), "a")
-        assert "A_VOLTS" in (q._decoded_preview(entry) or {})
+        assert "A_VOLTS" in (decoded_preview(entry) or {})
 
         _activate(_mk_profile(tmp_path, "b", "BMS", "B_VOLTS"), "b")
-        preview = q._decoded_preview(entry) or {}
+        preview = decoded_preview(entry) or {}
         assert "B_VOLTS" in preview, f"stale index decoded {sorted(preview)}"
 
     def test_editing_a_param_is_reflected(self, tmp_path):
-        from canlib.commands.captures import query as q
+        from canlib.capture_store import decoded_preview
         from canlib.pids_edit import rename_parameter
 
         root = _mk_profile(tmp_path, "c", "BMS", "OLD_NAME")
         _activate(root, "c")
         entry = {"payload": "6101AABBCCDD", "ecu": "BMS", "pid": "2101"}
-        assert "OLD_NAME" in (q._decoded_preview(entry) or {})
+        assert "OLD_NAME" in (decoded_preview(entry) or {})
 
         rename_parameter("BMS", "2101", "OLD_NAME", "NEW_NAME", pids_dir=root / "ecus")
-        preview = q._decoded_preview(entry) or {}
+        preview = decoded_preview(entry) or {}
         assert "NEW_NAME" in preview, f"stale index decoded {sorted(preview)}"
 
 

@@ -17,6 +17,8 @@ from datetime import date, datetime, time
 from pathlib import Path
 from typing import Any
 
+from .capture_store import load_all_captures
+
 # NOTE on the scope filters below: they are deliberately shape-agnostic. Each
 # reads only a handful of keys (date/time/vehicle_states/label) and is applied
 # both to full `CaptureEntry` rows and to the slimmer row
@@ -382,8 +384,6 @@ def _session_starts(
     placeable timestamp are skipped, so they can't anchor a --last-sessions
     window (consistent with time-aware date filtering dropping untimed data).
     """
-    from .commands.captures import load_all_captures
-
     entries = load_all_captures(captures_dir)
     entries = filter_by_date_range(entries, since, until)
     entries = filter_by_text(entries, state=state, label=label)

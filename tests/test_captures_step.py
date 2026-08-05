@@ -453,8 +453,8 @@ class TestStepModelJson:
 
 def _write_captures(tmp_path) -> list[dict]:
     """Save two real capture files and return the loaded entries."""
+    from canlib.capture_store import load_all_captures
     from canlib.captures import build_query_session, save_session
-    from canlib.commands.captures.query import load_all_captures
 
     save_session(
         build_query_session(

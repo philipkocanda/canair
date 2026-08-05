@@ -261,7 +261,7 @@ class TestResolveScopeBounds:
             {"file": "b.yaml", "_session_idx": 0, "date": "2026-07-22", "time": "14:00:00"},
             {"file": "b.yaml", "_session_idx": 0, "date": "2026-07-22", "time": "14:10:00"},
         ]
-        monkeypatch.setattr("canlib.commands.captures.load_all_captures", lambda *a, **k: entries)
+        monkeypatch.setattr("canlib.capture_dates.load_all_captures", lambda *a, **k: entries)
         since, _until, err = resolve_scope_bounds(self._args(last_sessions=1))
         assert err is None
         assert since == datetime(2026, 7, 22, 14, 0, 0)
@@ -273,7 +273,7 @@ class TestResolveScopeBounds:
         entries = [
             {"file": "a.yaml", "_session_idx": 0, "date": "2026-07-20", "time": "08:00:00"},
         ]
-        monkeypatch.setattr("canlib.commands.captures.load_all_captures", lambda *a, **k: entries)
+        monkeypatch.setattr("canlib.capture_dates.load_all_captures", lambda *a, **k: entries)
         since, _, err = resolve_scope_bounds(self._args(last_sessions=5))
         assert err is None
         assert since == datetime(2026, 7, 20, 8, 0, 0)

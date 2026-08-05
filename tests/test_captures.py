@@ -787,8 +787,8 @@ class TestCmdDelete:
         save_session(s, cdir)
 
     def test_dry_run_deletes_nothing(self, tmp_path, capsys):
+        from canlib.capture_store import load_all_captures
         from canlib.commands.captures.delete import cmd_delete
-        from canlib.commands.captures.query import load_all_captures
 
         self._seed(tmp_path)
         entries = load_all_captures(tmp_path)
@@ -800,8 +800,8 @@ class TestCmdDelete:
         assert len(load_all_captures(tmp_path)) == 3
 
     def test_deletes_matching_only(self, tmp_path):
+        from canlib.capture_store import load_all_captures
         from canlib.commands.captures.delete import cmd_delete
-        from canlib.commands.captures.query import load_all_captures
 
         self._seed(tmp_path)
         entries = load_all_captures(tmp_path)
@@ -812,8 +812,8 @@ class TestCmdDelete:
         assert [(e["ecu"], str(e["pid"])) for e in remaining] == [("MCU", "2101")]
 
     def test_no_match_returns_1(self, tmp_path, capsys):
+        from canlib.capture_store import load_all_captures
         from canlib.commands.captures.delete import cmd_delete
-        from canlib.commands.captures.query import load_all_captures
 
         self._seed(tmp_path)
         entries = load_all_captures(tmp_path)
@@ -823,8 +823,8 @@ class TestCmdDelete:
         assert len(load_all_captures(tmp_path)) == 3
 
     def test_json_dry_run_emits_rows(self, tmp_path, capsys):
+        from canlib.capture_store import load_all_captures
         from canlib.commands.captures.delete import cmd_delete
-        from canlib.commands.captures.query import load_all_captures
 
         self._seed(tmp_path)
         entries = load_all_captures(tmp_path)
@@ -859,8 +859,8 @@ class TestCmdBackfillStates:
         return json.loads(files[0].read_text())["sessions"][0].get("vehicle_states")
 
     def _run(self, cdir, **kw):
+        from canlib.capture_store import load_all_captures
         from canlib.commands.captures.backfill import cmd_backfill_states
-        from canlib.commands.captures.query import load_all_captures
 
         return cmd_backfill_states(load_all_captures(cdir), captures_dir=cdir, **kw)
 
@@ -927,7 +927,7 @@ class TestCmdSetState:
         return json.loads(files[0].read_text())["sessions"][0].get("vehicle_states")
 
     def _run(self, cdir, states_arg, **kw):
-        from canlib.commands.captures.query import load_all_captures
+        from canlib.capture_store import load_all_captures
         from canlib.commands.captures.set_state import cmd_set_state
 
         return cmd_set_state(load_all_captures(cdir), states_arg, captures_dir=cdir, **kw)

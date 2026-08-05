@@ -97,6 +97,7 @@ from canlib.capture_dates import (
     filter_by_text,
     resolve_scope_bounds,
 )
+from canlib.capture_store import load_all_captures
 from canlib.capture_types import CaptureEntry
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.state_infer import DEFAULT_CYCLE_TOL_S
@@ -107,7 +108,7 @@ from .diff import cmd_diff
 from .listing import cmd_latest, cmd_list
 from .maint import cmd_recover
 from .mode_select import Mode, ModeError, resolve_mode
-from .query import _DIM, _RESET, _parse_query, build_query, load_all_captures
+from .query import _DIM, _RESET, _parse_query, build_query
 from .sessions import cmd_sessions, cmd_summary
 from .set_state import cmd_set_state
 from .step import cmd_step

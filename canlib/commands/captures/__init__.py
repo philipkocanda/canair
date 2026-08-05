@@ -23,7 +23,7 @@ import argparse
 from canlib.commands._group import group_help
 
 from .maint import orphan_notice
-from .query import build_query, load_all_captures
+from .query import build_query
 
 NAME = "captures"
 ALIASES = ["cap"]
@@ -33,7 +33,6 @@ __all__ = [
     "NAME",
     "add_parser",
     "build_query",
-    "load_all_captures",
     "orphan_notice",
 ]
 

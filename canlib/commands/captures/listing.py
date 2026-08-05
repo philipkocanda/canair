@@ -9,6 +9,7 @@ these two views are their only callers.
 import sys
 from collections.abc import Sequence
 
+from canlib.capture_store import decoded_preview
 from canlib.capture_types import CaptureEntry
 from canlib.states import join_states as _join_states
 
@@ -18,7 +19,6 @@ from .query import (
     _DIM,
     _RESET,
     _YELLOW,
-    _decoded_preview,
     _dump_json,
     _entry_to_dict,
     _parse_query,
@@ -147,7 +147,7 @@ def cmd_latest(
         trunc = payload[:80] + "..." if len(payload) > 80 else payload
         print(f"  {_CYAN}{ecu:<10}{_RESET} {pid!s:<10} {_DIM}{date}{state}{_RESET}")
         print(f"    {trunc}")
-        decoded = _decoded_preview(e)
+        decoded = decoded_preview(e)
         if decoded:
             _print_decoded_preview(decoded, limit=5, ecu=str(ecu), pid=str(pid))
     print()
@@ -206,7 +206,7 @@ def _print_entry(e: dict, show_ecu: bool = False) -> None:
             print(f", {rejected}", end="")
         print()
 
-    decoded = _decoded_preview(e)
+    decoded = decoded_preview(e)
     if decoded:
         _print_decoded_preview(
             decoded, limit=3, ecu=str(e.get("ecu", "")), pid=str(e.get("pid", ""))

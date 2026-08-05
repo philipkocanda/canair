@@ -27,7 +27,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from canlib.capture_dates import entry_datetime
-from canlib.commands.captures.query import _resolve_defs
+from canlib.capture_store import resolve_pid_defs
 from canlib.decoding import decode_param_rows
 from canlib.states import StateRule, _order_states, suggest_states
 
@@ -109,7 +109,7 @@ def _decode_cycle(cycle: Sequence[Mapping[str, Any]], ecu_index: dict) -> dict[s
         pid = str(cap.get("pid") or "").upper()
         if not payload or not ecu or not pid:
             continue
-        parameters, _tx = _resolve_defs(ecu_index, ecu, pid)
+        parameters, _tx = resolve_pid_defs(ecu_index, ecu, pid)
         if not parameters:
             continue
         try:

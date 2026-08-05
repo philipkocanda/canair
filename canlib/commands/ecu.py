@@ -127,7 +127,7 @@ def _pid_stats(ecu_def: dict) -> dict:
 def _captures_by_pid(ecu_name: str) -> tuple[Counter, int]:
     """Return (per-PID capture counts, total captures) for an ECU name."""
     try:
-        from canlib.commands.captures import load_all_captures
+        from canlib.capture_store import load_all_captures
 
         caps = load_all_captures()
     except Exception:
@@ -147,7 +147,7 @@ def _captures_by_pid(ecu_name: str) -> tuple[Counter, int]:
 def _all_captures_by_ecu() -> Counter:
     """Total capture counts keyed by canonical ECU short name (upper-cased)."""
     try:
-        from canlib.commands.captures import load_all_captures
+        from canlib.capture_store import load_all_captures
 
         caps = load_all_captures()
     except Exception:
@@ -468,7 +468,7 @@ def _latest_capture_by_pid(ecu_name: str) -> dict[str, CaptureEntry]:
     Returns an empty dict when captures can't be loaded.
     """
     try:
-        from canlib.commands.captures import load_all_captures
+        from canlib.capture_store import load_all_captures
 
         caps = load_all_captures()
     except Exception:
@@ -490,7 +490,7 @@ def _pids_latest_records(ecu_def: dict | None, ecu_name: str) -> list[dict]:
     most recent capture of that PID — never raw hex. PIDs with no capture, or no
     parameters defined, are still listed (so the view shows *all* available PIDs).
     """
-    from canlib.commands.captures.query import _decoded_preview
+    from canlib.capture_store import decoded_preview
 
     latest = _latest_capture_by_pid(ecu_name)
     out: list[dict] = []
@@ -511,7 +511,7 @@ def _pids_latest_records(ecu_def: dict | None, ecu_name: str) -> list[dict]:
             "vehicle_states": None,
         }
         if cap is not None:
-            rec["values"] = _decoded_preview(cap) or {}
+            rec["values"] = decoded_preview(cap) or {}
             rec["date"] = cap.get("date")
             rec["time"] = cap.get("time")
             rec["vehicle_states"] = list(cap.get("vehicle_states") or [])

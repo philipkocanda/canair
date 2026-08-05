@@ -19,10 +19,11 @@ from typing import Any
 
 from rich.text import Text
 
+from canlib.capture_store import PidDefs
 from canlib.capture_types import CaptureEntry
 from canlib.states import join_states as _join_states
 
-from .query import PidDefs, _capture_key
+from .query import _capture_key
 
 # Width of the rule drawn between stacked capture blocks.
 _SEPARATOR_WIDTH = 44

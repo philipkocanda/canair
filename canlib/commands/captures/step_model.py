@@ -30,22 +30,19 @@ from typing import Any
 from rich.text import Text
 
 from canlib.capture_dates import entry_datetime
+from canlib.capture_store import PidDefs, load_all_captures, load_ecu_index, resolve_pid_defs
 from canlib.capture_types import CaptureEntry
 from canlib.states import join_states as _join_states
 
 from .join import JoinFrame, build_join_frames
 from .query import (
-    PidDefs,
     _capture_key,
     _dedupe_payloads,
     _is_hex_payload,
     _key_ordinals,
-    _load_ecu_index,
     _prev_same_index,
-    _resolve_defs,
     group_sessions,
     key_index,
-    load_all_captures,
 )
 from .step_render import (
     capture_block_text,
@@ -557,8 +554,8 @@ class StepModel:
         for k in self.keys:
             if k not in self.defs:
                 if not self._ecu_index:
-                    self._ecu_index = _load_ecu_index()
-                self.defs[k] = _resolve_defs(self._ecu_index, *k)
+                    self._ecu_index = load_ecu_index()
+                self.defs[k] = resolve_pid_defs(self._ecu_index, *k)
         self.rebuild(preserve_time=True)
 
     def remove_key(self, key: tuple[str, str]) -> bool:

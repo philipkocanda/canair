@@ -349,7 +349,7 @@ def _discover_specs(query, since, until, state, label):
         filter_by_date_range,
         filter_by_text,
     )
-    from canlib.commands.captures import load_all_captures
+    from canlib.capture_store import load_all_captures
 
     entries = load_all_captures()
     entries = filter_by_date_range(entries, since, until)

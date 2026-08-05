@@ -108,7 +108,7 @@ class TestEnsureMigrated:
 
 def test_load_all_captures_fails_fast_on_legacy_yaml(tmp_path):
     # The bulk reader raises the actionable error rather than silently skipping.
-    from canlib.commands.captures.query import load_all_captures
+    from canlib.capture_store import load_all_captures
 
     (tmp_path / "2026-01-01.yaml").write_text("sessions: []\n")
     with pytest.raises(capture_io.LegacyCaptureError):
@@ -121,7 +121,7 @@ def test_migrate_then_load_all_captures_roundtrip(tmp_path):
     import yaml
 
     from canlib.capture_migrate import migrate_dir
-    from canlib.commands.captures.query import load_all_captures
+    from canlib.capture_store import load_all_captures
 
     doc = {
         "sessions": [
