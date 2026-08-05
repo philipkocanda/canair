@@ -6,30 +6,50 @@ regardless of where the profile is stored (bundled repo, ``~/.config`` user dir,
 or a ``--path`` bundle): the profile is copied into a managed fork checkout and a
 PR is opened via the GitHub CLI (``gh``).
 
-See the module docstring of :mod:`canlib.contribute` for the orchestration and
-:mod:`canlib.pii` for the privacy pre-flight.
+The flow is a **linear pipeline**: pre-flight gates first, then the actions they
+guard (stage → review → submit). Any step can end the run by raising
+:class:`~canlib.commands._contribute_report.Stop`, which is what keeps
+:func:`_contribute` readable as the sequence a contributor experiences. This
+module owns the CLI surface and the actions; its collaborators own the rest:
+
+* :mod:`canlib.commands._contribute_gates` — the pre-flight policy (is the source
+  fit? is the environment ready? has the user consented?).
+* :mod:`canlib.commands._contribute_report` — the human/``--json`` duality every
+  outcome is reported through.
+* :mod:`canlib.contribute` — the git/gh orchestration (device-free testable).
+* :mod:`canlib.pii` — the privacy scan the PII gate runs.
+
+The user-facing ``--help`` text is :data:`_DESCRIPTION`, deliberately separate
+from this docstring so internal structure never leaks into it.
 """
 
 from __future__ import annotations
 
 import argparse
-import contextlib
-import io
-import sys
+from dataclasses import dataclass, field
 from datetime import date
+from pathlib import Path
+from typing import Any
 
 from .. import contribute as C
-from .. import pii
 from ..profile import ProfileError, active
+from . import _contribute_gates as gates
+from ._contribute_report import Reporter, Stop, confirm, findings_json, rollback_json
 
 NAME = "contribute"
 
+_DESCRIPTION = """\
+Open a pull request contributing the active profile upstream.
+
+A one-command path to share a reverse-engineered profile (its definitions, and by
+default its captures) without the manual fork/clone/branch/push dance — it works
+wherever the profile is stored. Before anything leaves your machine it validates
+the profile, scans it for anything that could identify or locate you, warns if the
+source looks stale, and asks you to confirm.
+"""
+
 # Warn before contributing a captures/ dir larger than this (bytes).
 _CAPTURES_WARN_BYTES = 25 * 1024 * 1024
-
-_OK = 0
-_FAILED = 1
-_CANNOT = 2
 
 
 def add_parser(subparsers) -> argparse.ArgumentParser:
@@ -37,7 +57,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         NAME,
         aliases=["share"],
         help="Open a pull request contributing the active profile upstream",
-        description=__doc__,
+        description=_DESCRIPTION,
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
 examples:
@@ -94,442 +114,269 @@ requires the GitHub CLI:
     return parser
 
 
-def _confirm(prompt: str, yes: bool, *, json_mode: bool) -> bool:
-    """Ask to proceed unless ``--yes``; non-interactive without ``--yes`` aborts."""
-    if yes:
-        return True
-    if json_mode or not (sys.stdin.isatty() and sys.stdout.isatty()):
-        return False
-    try:
-        return input(f"{prompt} [y/N]: ").strip().lower() in ("y", "yes")
-    except (EOFError, KeyboardInterrupt):
-        print()
-        return False
+@dataclass
+class _Contribution:
+    """What the action stages operate on, once the gates have cleared the run.
 
+    Constructed only after the environment and workspace gates have resolved
+    ``pre``/``workspace``, so no stage has to defend against a half-built run.
+    """
 
-def _print_rollback_warning(c, rollback: list[tuple[str, int]]) -> None:
-    """Warn that the contribution removes committed upstream definition lines."""
-    c.print(
-        "\n[yellow]⚠ This contribution removes committed upstream definition "
-        "lines[/yellow] — curated definitions normally only grow, so if your source\n"
-        "  is stale this would revert work already merged upstream:\n"
-    )
-    for path, removed in rollback:
-        c.print(f"  [yellow]•[/yellow] {path}  [dim](−{removed} line(s))[/dim]")
-    c.print(
-        "\n  If this is a deliberate cleanup, proceed. Otherwise sync your source "
-        "first\n  (e.g. [cyan]git pull[/cyan], and run [cyan]uv run canair[/cyan] "
-        "from your checkout).\n"
-    )
+    args: argparse.Namespace
+    rep: Reporter
+    profile: Any
+    branch: str
+    include_captures: bool
+    pre: C.Preflight
+    workspace: Path
+    mode: str = ""
+    rollback: list[tuple[str, int]] = field(default_factory=list)
+    findings: list[Any] = field(default_factory=list)
 
-
-def _validate(profile) -> tuple[bool, str]:
-    """Run ``validate all`` against ``profile``; return (ok, captured_output)."""
-    from .validate import run as validate_run
-
-    ns = argparse.Namespace(target="all", files=None, stats=False, strict=False)
-    buf = io.StringIO()
-    with contextlib.redirect_stdout(buf):
-        rc = validate_run(ns)
-    return rc == 0, buf.getvalue()
-
-
-def _emit_json(payload: dict) -> int:
-    import json
-
-    print(json.dumps(payload, indent=2))
-    return _OK if payload.get("ok") else (_CANNOT if payload.get("cannot") else _FAILED)
+    @property
+    def target(self) -> str:
+        """Where the branch is pushed, for prose."""
+        return C.UPSTREAM_REPO if self.mode == C.MODE_DIRECT else "your fork"
 
 
 def run(args) -> int:
-    from pathlib import Path
-
     from rich.console import Console
 
-    c = Console()
-    json_mode: bool = args.json
-    include_captures: bool = args.captures
+    rep = Reporter(console=Console(), json_mode=bool(args.json), yes=bool(args.yes))
+    try:
+        return _contribute(args, rep)
+    except Stop as stop:
+        return stop.code
 
+
+def _contribute(args, rep: Reporter) -> int:
+    """The contribution pipeline: pre-flight gates, then the actions they guard.
+
+    Each step either advances the run or ends it by raising ``Stop`` — which is
+    what keeps the flow readable as the sequence a contributor experiences.
+    """
+    profile, branch = _resolve_profile(args, rep)
+    include_captures = bool(args.captures)
+
+    gates.snapshot(rep, profile)
+    gates.validate(rep, profile)
+    pre = gates.environment(rep, profile, branch)
+    gates.capture_size(rep, profile, include_captures=include_captures)
+    workspace = gates.workspace(rep, args, profile)
+
+    run_ = _Contribution(
+        args=args,
+        rep=rep,
+        profile=profile,
+        branch=branch,
+        include_captures=include_captures,
+        pre=pre,
+        workspace=workspace,
+    )
+    if (no_changes := _stage_contribution(run_)) is not None:
+        return no_changes
+    if args.diff:
+        return _report_diff(run_)
+
+    run_.findings = gates.privacy(
+        rep,
+        profile,
+        pre,
+        workspace,
+        include_captures=include_captures,
+        rollback=run_.rollback,
+    )
+    return _submit(run_)
+
+
+# --- stages -----------------------------------------------------------------
+
+
+def _resolve_profile(args, rep: Reporter) -> tuple[Any, str]:
+    """Resolve the profile being contributed and the branch to push it on."""
     try:
         profile = active()
     except ProfileError as e:
-        if json_mode:
-            return _emit_json({"ok": False, "cannot": True, "error": str(e)})
-        c.print(f"[red]error:[/red] {e}")
-        return _CANNOT
+        error = str(e)  # `e` is unbound outside the except block
+        rep.refuse(error, human=lambda: rep.console.print(f"[red]error:[/red] {error}"))
 
     branch = args.branch or f"contribute/{profile.name}-{date.today():%Y%m%d}"
+    rep.note(
+        profile=profile.name,
+        source=str(profile.root),
+        branch=branch,
+        include_captures=bool(args.captures),
+    )
+    return profile, branch
 
-    # 0. Source sanity: warn if the profile is an installed snapshot, not a
-    #    working checkout. A bare `canair` resolves the profile from the frozen
-    #    site-packages copy, which can be behind the checkout (and ahead on
-    #    captures from bare --save runs) — contributing it silently reverts work.
-    snapshot = C.installed_snapshot_kind(profile.root)
-    if snapshot:
-        if json_mode and not args.yes:
-            return _emit_json(
-                {
-                    "ok": False,
-                    "cannot": True,
-                    "profile": profile.name,
-                    "installed_snapshot": snapshot,
-                    "source": str(profile.root),
-                    "error": (
-                        f"profile resolved from an installed {snapshot} snapshot, not a "
-                        "checkout; it may be stale — re-run with --yes to proceed"
-                    ),
-                }
-            )
-        if not json_mode:
-            c.print(
-                f"\n[yellow]⚠ This profile was read from an installed {snapshot} "
-                f"snapshot[/yellow], not your working checkout:\n  [dim]{profile.root}[/dim]\n"
-                "  That copy is frozen at install time — it can be behind your checkout\n"
-                "  (and ahead on captures from bare `--save` runs), so contributing it may\n"
-                "  revert upstream work. Prefer running [cyan]uv run canair contribute[/cyan] "
-                "from your repo checkout.\n"
-            )
-            if not _confirm(
-                "Contribute from the installed snapshot anyway?", args.yes, json_mode=json_mode
-            ):
-                c.print("  Aborted — nothing was contributed.")
-                return _CANNOT
 
-    # 1. Validate — refuse to contribute a broken profile.
-    ok, report = _validate(profile)
-    if not ok:
-        if json_mode:
-            return _emit_json(
-                {"ok": False, "cannot": True, "profile": profile.name, "error": "validation failed"}
-            )
-        c.print("[red]Profile failed validation — fix it before contributing:[/red]\n")
-        print(report)
-        c.print("  Run `canair validate all` for details.")
-        return _CANNOT
+def _stage_contribution(run_: _Contribution) -> int | None:
+    """Sync the workspace, branch, and copy the profile in.
 
-    # 2. Environment: gh + git + authenticated.
-    pre = C.preflight()
-    if not pre.gh:
-        if json_mode:
-            return _emit_json({"ok": False, "cannot": True, "error": "gh not found"})
-        c.print("\n[yellow]The GitHub CLI (`gh`) is not installed.[/yellow]\n")
-        c.print(C.gh_install_hint())
-        c.print("\n" + C.manual_instructions(profile.name, branch))
-        return _CANNOT
-    if not pre.git:
-        if json_mode:
-            return _emit_json({"ok": False, "cannot": True, "error": "git not found"})
-        c.print("[yellow]`git` not found on PATH.[/yellow]")
-        return _CANNOT
-    if not pre.authenticated:
-        if json_mode:
-            return _emit_json({"ok": False, "cannot": True, "error": "gh not authenticated"})
-        c.print("\n[yellow]You're not signed in to GitHub.[/yellow] Run:\n")
-        c.print("    gh auth login\n")
-        c.print("  then re-run `canair contribute`.")
-        return _CANNOT
+    Returns an exit code when the run is already complete (the profile matches
+    upstream, so there is nothing to contribute), else ``None``.
+    """
+    rep, pre, workspace = run_.rep, run_.pre, run_.workspace
 
-    # 3. Size guard on captures (source-side; fail fast before the clone).
-    if include_captures:
-        size = C.dir_size(profile.captures_dir)
-        if size > _CAPTURES_WARN_BYTES and not json_mode:
-            mb = size / (1024 * 1024)
-            c.print(
-                f"\n[yellow]captures/ is large (~{mb:.0f} MB).[/yellow] "
-                "Consider `--no-captures` or trimming it first."
-            )
-            if not _confirm("Include captures anyway?", args.yes, json_mode=json_mode):
-                c.print("  Aborted — nothing was contributed.")
-                return _CANNOT
+    if not rep.json_mode:
+        rep.console.print(f"\n  reading profile from: [dim]{run_.profile.root}[/dim]")
+        rep.console.print(f"  staging in workspace: [dim]{workspace}[/dim]")
+        rep.console.print("  syncing (first run clones — may take a moment) …")
 
-    # 4. Workspace: fork clone, direct upstream clone, or an explicit --repo-dir.
-    workspace = Path(args.repo_dir).expanduser() if args.repo_dir else C.workspace_dir()
-
-    # 4b. Self-collision: the source profile must not live inside the workspace
-    #     we stage into. The managed workspace is itself a canair checkout, so a
-    #     run from inside it resolves the active profile to the very directory
-    #     this command copies *into* — and `start_branch` resets that tree before
-    #     the copy either way.
-    collision = C.workspace_collision(profile.root, workspace, profile.name)
-    if collision == "self":
-        error = (
-            "the profile being contributed IS the workspace's own copy — canair "
-            "looks like it is running from inside its contribution workspace"
-        )
-        if json_mode:
-            return _emit_json(
-                {
-                    "ok": False,
-                    "cannot": True,
-                    "profile": profile.name,
-                    "workspace_collision": collision,
-                    "source": str(profile.root),
-                    "workspace": str(workspace),
-                    "error": error,
-                }
-            )
-        c.print(f"\n[red]error:[/red] {error}:\n")
-        c.print(f"  profile:   [dim]{profile.root}[/dim]")
-        c.print(f"  workspace: [dim]{workspace}[/dim]\n")
-        c.print(
-            "  Copying it onto itself can't contribute anything. Re-run "
-            "[cyan]uv run canair contribute[/cyan]\n  from your own canair checkout "
-            "(the workspace is a throwaway clone canair manages for you)."
-        )
-        return _CANNOT
-    if collision == "inside":
-        warning = (
-            "the profile being contributed lives inside the staging workspace; "
-            "preparing the branch resets that checkout, so your source may change "
-            "mid-run"
-        )
-        if json_mode and not args.yes:
-            return _emit_json(
-                {
-                    "ok": False,
-                    "cannot": True,
-                    "profile": profile.name,
-                    "workspace_collision": collision,
-                    "source": str(profile.root),
-                    "workspace": str(workspace),
-                    "error": f"{warning} — re-run with --yes to proceed",
-                }
-            )
-        if not json_mode:
-            c.print(f"\n[yellow]⚠ {warning}:[/yellow]\n")
-            c.print(f"  profile:   [dim]{profile.root}[/dim]")
-            c.print(f"  workspace: [dim]{workspace}[/dim]\n")
-            if not _confirm(
-                "Contribute from inside the workspace anyway?", args.yes, json_mode=json_mode
-            ):
-                c.print("  Aborted — nothing was contributed.")
-                return _CANNOT
-
-    if not json_mode:
-        c.print(f"\n  reading profile from: [dim]{profile.root}[/dim]")
-        c.print(f"  staging in workspace: [dim]{workspace}[/dim]")
-        c.print("  syncing (first run clones — may take a moment) …")
     steps, mode, ok = C.ensure_workspace(pre, workspace)
+    run_.mode = mode
+    rep.note(mode=mode)
     if not ok:
         failed = steps[-1] if steps else None
         detail = failed.output if failed else "unknown error"
-        if json_mode:
-            return _emit_json({"ok": False, "error": "workspace prep failed", "detail": detail})
-        c.print("  [red]failed to prepare the workspace:[/red]")
-        c.print(f"  [dim]{detail}[/dim]")
-        c.print("\n" + C.manual_instructions(profile.name, branch))
-        return _FAILED
-    if not json_mode:
-        where = C.UPSTREAM_REPO if mode == C.MODE_DIRECT else "your fork"
-        c.print(f"  mode: [cyan]{mode}[/cyan] (will push to {where})")
 
-    # 5. Branch + copy the profile in.
-    br = C.start_branch(pre, workspace, branch)
+        def explain() -> None:
+            rep.console.print("  [red]failed to prepare the workspace:[/red]")
+            rep.console.print(f"  [dim]{detail}[/dim]")
+            rep.console.print("\n" + C.manual_instructions(run_.profile.name, run_.branch))
+
+        rep.fail("workspace prep failed", detail=detail, human=explain)
+    if not rep.json_mode:
+        rep.console.print(f"  mode: [cyan]{mode}[/cyan] (will push to {run_.target})")
+
+    br = C.start_branch(pre, workspace, run_.branch)
     if not br.ok:
-        if json_mode:
-            return _emit_json({"ok": False, "error": "branch failed", "detail": br.output})
-        c.print(f"  [red]could not create branch {branch}:[/red] [dim]{br.output}[/dim]")
-        return _FAILED
+        rep.fail(
+            "branch failed",
+            detail=br.output,
+            human=lambda: rep.console.print(
+                f"  [red]could not create branch {run_.branch}:[/red] [dim]{br.output}[/dim]"
+            ),
+        )
 
-    copy_warnings: list[str] = []
-    C.copy_profile(profile, workspace, include_captures=include_captures, warn=copy_warnings.append)
-    if copy_warnings and not json_mode:
-        for warning in copy_warnings:
-            c.print(f"  [yellow]⚠[/yellow] {warning}")
+    C.copy_profile(run_.profile, workspace, include_captures=run_.include_captures, warn=rep.warn)
 
-    if not C.has_changes(pre, workspace, profile.name):
+    if not C.has_changes(pre, workspace, run_.profile.name):
         msg = "No changes to contribute — the upstream profile already matches yours."
-        if json_mode:
-            return _emit_json(
-                {"ok": True, "profile": profile.name, "no_changes": True, "message": msg}
-            )
-        c.print(f"\n  [green]{msg}[/green]")
-        return _OK
+        return rep.done(
+            lambda: rep.console.print(f"\n  [green]{msg}[/green]"),
+            no_changes=True,
+            message=msg,
+        )
 
-    # 5b. Staleness check: does this contribution *remove* committed upstream
-    #     lines from curated definitions? Those normally only grow, so a
-    #     rollback signals the source is likely stale (would revert upstream).
-    rollback = C.definition_rollback(pre, workspace, profile.name)
-    rollback_json = [{"path": p, "removed_lines": n} for p, n in rollback]
+    # Curated definitions normally only grow, so a diff that *removes* committed
+    # upstream lines suggests a stale source. Computed here because both --diff
+    # and the privacy gate report it.
+    run_.rollback = C.definition_rollback(pre, workspace, run_.profile.name)
+    return None
 
-    # 5c. --diff: show exactly what would be contributed, then stop.
-    if args.diff:
-        diff = C.diff_profile(pre, workspace, profile.name)
-        if json_mode:
-            return _emit_json(
-                {
-                    "ok": True,
-                    "profile": profile.name,
-                    "branch": branch,
-                    "mode": mode,
-                    "include_captures": include_captures,
-                    "workspace": str(workspace),
-                    "source": str(profile.root),
-                    "diff": diff,
-                    "rollback": rollback_json,
-                    "warnings": copy_warnings,
-                    "pr_url": None,
-                }
-            )
+
+def _report_diff(run_: _Contribution) -> int:
+    """``--diff``: show exactly what would be contributed, then stop."""
+    rep, pre, workspace = run_.rep, run_.pre, run_.workspace
+    diff = C.diff_profile(pre, workspace, run_.profile.name)
+
+    def show() -> None:
         from rich.syntax import Syntax
 
-        c.print(f"\n  diff of [cyan]profiles/{profile.name}/[/cyan] vs upstream:\n")
+        rep.console.print(f"\n  diff of [cyan]profiles/{run_.profile.name}/[/cyan] vs upstream:\n")
         if diff.strip():
-            c.print(Syntax(diff, "diff", theme="ansi_dark", background_color="default"))
+            rep.console.print(Syntax(diff, "diff", theme="ansi_dark", background_color="default"))
         else:
-            c.print("  [dim](no textual diff)[/dim]")
-        if rollback:
-            _print_rollback_warning(c, rollback)
-        c.print("\n  [dim](diff only — nothing committed, pushed, or opened)[/dim]")
-        c.print("  Re-run without [cyan]--diff[/cyan] to contribute it.")
-        return _OK
+            rep.console.print("  [dim](no textual diff)[/dim]")
+        if run_.rollback:
+            rep.rollback_warning(run_.rollback)
+        rep.console.print("\n  [dim](diff only — nothing committed, pushed, or opened)[/dim]")
+        rep.console.print("  Re-run without [cyan]--diff[/cyan] to contribute it.")
 
-    # 6. PII pre-flight — scoped to what THIS contribution adds/changes vs
-    #    upstream (already-committed captures are not re-flagged).
-    findings = pii.scan_contribution(
-        profile,
-        workspace / "profiles" / profile.name / "captures",
-        include_captures=include_captures,
-        base_reader=C.base_reader(pre, workspace),
-    )
-    findings_json = [{"location": f.location, "kind": f.kind, "detail": f.detail} for f in findings]
-    if findings:
-        if json_mode and not args.yes:
-            return _emit_json(
-                {
-                    "ok": False,
-                    "cannot": True,
-                    "profile": profile.name,
-                    "findings": findings_json,
-                    "error": "possible PII in the contribution; re-run with --yes to proceed",
-                }
-            )
-        if not json_mode:
-            c.print(
-                f"\n[yellow]⚠ {len(findings)} possible privacy issue(s) in this "
-                "contribution[/yellow] — the tree is public, so review before sharing:\n"
-            )
-            for f in findings:
-                c.print(f"  [yellow]•[/yellow] {f.location}  [dim]({f.detail})[/dim]")
-            c.print("")
-            if not _confirm("Contribute anyway?", args.yes, json_mode=json_mode):
-                c.print("  Aborted — nothing was contributed.")
-                return _CANNOT
+    return rep.done(show, diff=diff, rollback=rollback_json(run_.rollback), pr_url=None)
 
-    # 6b. Rollback pre-flight — the contribution removes committed upstream
-    #     definition lines (likely a stale source reverting upstream work).
-    if rollback:
-        if json_mode and not args.yes:
-            return _emit_json(
-                {
-                    "ok": False,
-                    "cannot": True,
-                    "profile": profile.name,
-                    "rollback": rollback_json,
-                    "error": (
-                        "this contribution removes committed upstream definition lines "
-                        "(source may be stale); re-run with --yes to proceed"
-                    ),
-                }
-            )
-        if not json_mode:
-            _print_rollback_warning(c, rollback)
-            if not _confirm("Contribute this rollback anyway?", args.yes, json_mode=json_mode):
-                c.print("  Aborted — nothing was contributed.")
-                return _CANNOT
 
-    # 7. Commit.
+def _submit(run_: _Contribution) -> int:
+    """Commit the staged profile, then either stop (``--dry-run``) or open the PR."""
+    rep = run_.rep
+    _commit(run_)
+    if run_.args.dry_run:
+
+        def prepared() -> None:
+            rep.console.print(
+                f"\n  [green]✓ Prepared[/green] branch [cyan]{run_.branch}[/cyan] "
+                f"in {run_.workspace}"
+            )
+            rep.console.print("  [dim](dry run — nothing pushed; no PR opened)[/dim]")
+
+        return rep.done(prepared, dry_run=True, findings=findings_json(run_.findings), pr_url=None)
+    return _push_and_open_pr(run_)
+
+
+def _commit(run_: _Contribution) -> None:
+    """Commit the copied-in profile onto the contribution branch."""
+    rep, pre, workspace, args = run_.rep, run_.pre, run_.workspace, run_.args
+
     commit = C.commit_profile(
         pre,
         workspace,
-        profile.name,
-        args.title or C.default_message(profile, include_captures=include_captures),
+        run_.profile.name,
+        args.title or C.default_message(run_.profile, include_captures=run_.include_captures),
     )
     if not commit.ok:
-        if json_mode:
-            return _emit_json({"ok": False, "error": "commit failed", "detail": commit.output})
-        c.print(f"  [red]commit failed:[/red] [dim]{commit.output}[/dim]")
-        return _FAILED
+        rep.fail(
+            "commit failed",
+            detail=commit.output,
+            human=lambda: rep.console.print(
+                f"  [red]commit failed:[/red] [dim]{commit.output}[/dim]"
+            ),
+        )
 
-    if args.dry_run:
-        result = {
-            "ok": True,
-            "profile": profile.name,
-            "branch": branch,
-            "mode": mode,
-            "include_captures": include_captures,
-            "workspace": str(workspace),
-            "dry_run": True,
-            "findings": findings_json,
-            "warnings": copy_warnings,
-            "pr_url": None,
-        }
-        if json_mode:
-            return _emit_json(result)
-        c.print(f"\n  [green]✓ Prepared[/green] branch [cyan]{branch}[/cyan] in {workspace}")
-        c.print("  [dim](dry run — nothing pushed; no PR opened)[/dim]")
-        return _OK
 
-    # 8. Confirm, then push + open the PR.
-    where = C.UPSTREAM_REPO if mode == C.MODE_DIRECT else "your fork"
-    if not json_mode:
-        c.print(
-            f"\n  Ready to push [cyan]{branch}[/cyan] to {where} and open a pull "
+def _push_and_open_pr(run_: _Contribution) -> int:
+    """The point of no return: confirm, push the branch, open the pull request."""
+    rep, pre, workspace, args = run_.rep, run_.pre, run_.workspace, run_.args
+
+    if not rep.json_mode:
+        rep.console.print(
+            f"\n  Ready to push [cyan]{run_.branch}[/cyan] to {run_.target} and open a pull "
             f"request against [cyan]{C.UPSTREAM_REPO}[/cyan]."
         )
-        c.print("  [dim](tip: `canair contribute --diff` shows the full change first)[/dim]")
-    if not _confirm("Push and open the PR?", args.yes, json_mode=json_mode):
-        if json_mode:
-            return _emit_json(
-                {
-                    "ok": False,
-                    "cannot": True,
-                    "profile": profile.name,
-                    "branch": branch,
-                    "error": "push not confirmed (pass --yes to proceed non-interactively)",
-                }
-            )
-        c.print("  Aborted — nothing was pushed. Your branch is prepared locally in the workspace.")
-        return _CANNOT
+        rep.console.print(
+            "  [dim](tip: `canair contribute --diff` shows the full change first)[/dim]"
+        )
+    if not confirm("Push and open the PR?", rep.yes, json_mode=rep.json_mode):
+        rep.refuse(
+            "push not confirmed (pass --yes to proceed non-interactively)",
+            human=lambda: rep.console.print(
+                "  Aborted — nothing was pushed. Your branch is prepared locally in the workspace."
+            ),
+        )
 
-    if not json_mode:
-        c.print(f"  pushing [cyan]{branch}[/cyan] to {where} …")
-    push = C.push_branch(pre, workspace, branch)
+    if not rep.json_mode:
+        rep.console.print(f"  pushing [cyan]{run_.branch}[/cyan] to {run_.target} …")
+    push = C.push_branch(pre, workspace, run_.branch)
     if not push.ok:
-        if json_mode:
-            return _emit_json({"ok": False, "error": "push failed", "detail": push.output})
-        c.print(f"  [red]push failed:[/red] [dim]{push.output}[/dim]")
-        return _FAILED
+        rep.fail(
+            "push failed",
+            detail=push.output,
+            human=lambda: rep.console.print(f"  [red]push failed:[/red] [dim]{push.output}[/dim]"),
+        )
 
-    title = (
-        args.title or C.default_message(profile, include_captures=include_captures).splitlines()[0]
+    pr = C.create_pr(
+        pre,
+        workspace,
+        title=args.title
+        or C.default_message(run_.profile, include_captures=run_.include_captures).splitlines()[0],
+        body=args.body or C.default_pr_body(run_.profile, include_captures=run_.include_captures),
+        head=C.pr_head(pre, run_.branch, run_.mode),
     )
-    body = args.body or C.default_pr_body(profile, include_captures=include_captures)
-    head = C.pr_head(pre, branch, mode)
-    pr = C.create_pr(pre, workspace, title=title, body=body, head=head)
     if not pr.ok:
-        if json_mode:
-            return _emit_json({"ok": False, "error": "pr create failed", "detail": pr.output})
-        c.print(f"  [red]opening the PR failed:[/red] [dim]{pr.output}[/dim]")
-        c.print("  Your branch was pushed — you can open the PR manually on GitHub.")
-        return _FAILED
+
+        def explain() -> None:
+            rep.console.print(f"  [red]opening the PR failed:[/red] [dim]{pr.output}[/dim]")
+            rep.console.print("  Your branch was pushed — you can open the PR manually on GitHub.")
+
+        rep.fail("pr create failed", detail=pr.output, human=explain)
 
     pr_url = pr.stdout.strip().splitlines()[-1] if pr.stdout.strip() else ""
-    if json_mode:
-        return _emit_json(
-            {
-                "ok": True,
-                "profile": profile.name,
-                "branch": branch,
-                "mode": mode,
-                "include_captures": include_captures,
-                "workspace": str(workspace),
-                "dry_run": False,
-                "findings": findings_json,
-                "warnings": copy_warnings,
-                "pr_url": pr_url,
-            }
-        )
-    c.print(f"\n  [green]✓ Pull request opened:[/green] {pr_url}")
-    c.print("  Thank you for contributing! 🎉")
-    return _OK
+
+    def celebrate() -> None:
+        rep.console.print(f"\n  [green]✓ Pull request opened:[/green] {pr_url}")
+        rep.console.print("  Thank you for contributing! 🎉")
+
+    return rep.done(celebrate, dry_run=False, findings=findings_json(run_.findings), pr_url=pr_url)
+
+
+# --- helpers ----------------------------------------------------------------

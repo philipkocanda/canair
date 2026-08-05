@@ -1,17 +1,24 @@
-"""Tests for `canair contribute` orchestration and command flow.
+"""Tests for `canair contribute` orchestration, reporting, and command flow.
 
 The git/gh calls go through the module-level ``contribute._run``; unit tests
 drive the orchestration with a fake runner (no network, no real GitHub). The
 command-level dry-run test uses a real throwaway git repo as ``--repo-dir`` so
-the branch/copy/commit path is exercised end-to-end without pushing.
+the branch/copy/commit path is exercised end-to-end without pushing. The gates
+report through :mod:`canlib.commands._contribute_report`, whose human/``--json``
+duality is covered directly by :class:`TestReporter`.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
 
+import pytest
+
 from canlib import contribute as C
+from canlib.commands import _contribute_gates as gates
+from canlib.commands import _contribute_report as report
 from canlib.commands import contribute as cmd
 from canlib.profile import Profile
 
@@ -31,6 +38,78 @@ class FakeRunner:
 
 def _ready() -> C.Preflight:
     return C.Preflight(gh="gh", git="git", authenticated=True)
+
+
+class FakeConsole:
+    """Collects rich markup instead of rendering it."""
+
+    def __init__(self) -> None:
+        self.lines: list[str] = []
+
+    def print(self, *args) -> None:
+        self.lines.append(" ".join(str(a) for a in args))
+
+
+def _reporter(**kw) -> report.Reporter:
+    kw.setdefault("json_mode", False)
+    kw.setdefault("yes", False)
+    return report.Reporter(console=FakeConsole(), **kw)
+
+
+class TestReporter:
+    """The human/--json duality every contribute gate reports through."""
+
+    def test_payload_accumulates_identity_and_warnings(self):
+        rep = _reporter(json_mode=True)
+        rep.note(profile="testcar", branch=None)  # None fields are not recorded
+        rep.warn("something odd")
+        payload = rep.payload(ok=True)
+        assert payload == {
+            "profile": "testcar",
+            "ok": True,
+            "warnings": ["something odd"],
+        }
+
+    def test_refuse_reports_once_and_stops(self, capsys):
+        rep = _reporter(json_mode=True)
+        with pytest.raises(report.Stop) as stop:
+            rep.refuse("nope", human=lambda: pytest.fail("human output in json mode"))
+        assert stop.value.code == report.CANNOT
+        assert json.loads(capsys.readouterr().out)["cannot"] is True
+
+    def test_fail_is_a_failure_not_a_refusal(self, capsys):
+        rep = _reporter(json_mode=True)
+        with pytest.raises(report.Stop) as stop:
+            rep.fail("push failed", detail="boom")
+        assert stop.value.code == report.FAILED
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["detail"] == "boom" and "cannot" not in payload
+
+    def test_gate_refuses_in_json_without_yes(self, capsys):
+        rep = _reporter(json_mode=True)
+        with pytest.raises(report.Stop):
+            rep.gate(error="risky", prompt="go on?", human=lambda: None, kind="x")
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["error"] == "risky; re-run with --yes to proceed"
+        assert payload["kind"] == "x"
+
+    def test_gate_passes_in_json_with_yes(self):
+        rep = _reporter(json_mode=True, yes=True)
+        rep.gate(error="risky", prompt="go on?", human=lambda: pytest.fail("no output with --yes"))
+
+    def test_gate_stops_when_the_user_declines(self, monkeypatch):
+        rep = _reporter()
+        monkeypatch.setattr(report, "confirm", lambda *a, **k: False)
+        shown: list[str] = []
+        with pytest.raises(report.Stop) as stop:
+            rep.gate(error="risky", prompt="go on?", human=lambda: shown.append("warned"))
+        assert shown == ["warned"] and stop.value.code == report.CANNOT
+
+    def test_done_prints_human_output_and_returns_ok(self):
+        rep = _reporter()
+        printed: list[str] = []
+        assert rep.done(lambda: printed.append("yay")) == report.OK
+        assert printed == ["yay"]
 
 
 class TestPreflight:
@@ -512,12 +591,12 @@ class TestContributeCommand:
     def test_gh_missing_reports_cannot(self, tmp_path, monkeypatch):
         prof = _make_profile(tmp_path / "prof")
         monkeypatch.setattr(cmd, "active", lambda: prof)
-        monkeypatch.setattr(cmd, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
         monkeypatch.setattr(
             C, "preflight", lambda: C.Preflight(gh=None, git="git", authenticated=True)
         )
         rc = cmd.run(_cmd_args())
-        assert rc == cmd._CANNOT
+        assert rc == report.CANNOT
 
     def test_dry_run_prepares_commit(self, tmp_path, monkeypatch, capsys):
         # Real throwaway upstream-less repo used as the workspace.
@@ -532,11 +611,11 @@ class TestContributeCommand:
 
         prof = _make_profile(tmp_path / "prof")
         monkeypatch.setattr(cmd, "active", lambda: prof)
-        monkeypatch.setattr(cmd, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
         monkeypatch.setattr(C, "preflight", lambda: _ready())
 
         rc = cmd.run(_cmd_args(repo_dir=str(ws), dry_run=True))
-        assert rc == cmd._OK
+        assert rc == report.OK
         # The profile was committed onto a contribute branch, nothing pushed.
         assert (ws / "profiles" / "testcar" / "ecus" / "bms.yaml").exists()
         log = subprocess.run(
@@ -558,10 +637,10 @@ class TestContributeCommand:
         prof = _make_profile(root)
         (root / "profile.yaml").write_text("car_model: owner me@example.com\ninit: ATSP6;\n")
         monkeypatch.setattr(cmd, "active", lambda: prof)
-        monkeypatch.setattr(cmd, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
         monkeypatch.setattr(C, "preflight", lambda: _ready())
         rc = cmd.run(_cmd_args(repo_dir=str(ws), yes=False, json=True))
-        assert rc == cmd._CANNOT
+        assert rc == report.CANNOT
 
     def _seed_repo(self, ws):
         ws.mkdir()
@@ -579,11 +658,11 @@ class TestContributeCommand:
         self._seed_repo(ws)
         prof = _make_profile(tmp_path / "prof")
         monkeypatch.setattr(cmd, "active", lambda: prof)
-        monkeypatch.setattr(cmd, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
         monkeypatch.setattr(C, "preflight", lambda: _ready())
 
         rc = cmd.run(_cmd_args(repo_dir=str(ws), diff=True, json=True))
-        assert rc == cmd._OK
+        assert rc == report.OK
         payload = _json.loads(capsys.readouterr().out)
         assert payload["pr_url"] is None
         assert "profiles/testcar/ecus/bms.yaml" in payload["diff"]
@@ -601,10 +680,10 @@ class TestContributeCommand:
         self._seed_repo(ws)
         prof = _make_profile(tmp_path / "prof")
         monkeypatch.setattr(cmd, "active", lambda: prof)
-        monkeypatch.setattr(cmd, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
         monkeypatch.setattr(C, "preflight", lambda: _ready())
         rc = cmd.run(_cmd_args(repo_dir=str(ws), yes=False, json=True))
-        assert rc == cmd._CANNOT
+        assert rc == report.CANNOT
         # Nothing pushed: no push/PR gh|git calls happened because we bailed.
 
     def test_installed_snapshot_blocks_json_without_yes(self, tmp_path, monkeypatch):
@@ -613,10 +692,10 @@ class TestContributeCommand:
         root = tmp_path / "site-packages" / "profiles" / "testcar"
         prof = _make_profile(root)
         monkeypatch.setattr(cmd, "active", lambda: prof)
-        monkeypatch.setattr(cmd, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
         monkeypatch.setattr(C, "preflight", lambda: _ready())
         rc = cmd.run(_cmd_args(yes=False, json=True))
-        assert rc == cmd._CANNOT
+        assert rc == report.CANNOT
 
     def test_rollback_blocks_json_without_yes(self, tmp_path, monkeypatch, capsys):
         # A source that removes committed upstream definition lines is refused
@@ -641,10 +720,10 @@ class TestContributeCommand:
         prof = Profile("testcar", root)
 
         monkeypatch.setattr(cmd, "active", lambda: prof)
-        monkeypatch.setattr(cmd, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
         monkeypatch.setattr(C, "preflight", lambda: _ready())
         rc = cmd.run(_cmd_args(repo_dir=str(ws), captures=False, yes=False, json=True))
-        assert rc == cmd._CANNOT
+        assert rc == report.CANNOT
         import json as _json
 
         payload = _json.loads(capsys.readouterr().out)
@@ -658,12 +737,12 @@ class TestContributeCommand:
         ws = tmp_path / "ws"
         prof = _make_profile(ws / "profiles" / "testcar")
         monkeypatch.setattr(cmd, "active", lambda: prof)
-        monkeypatch.setattr(cmd, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
         monkeypatch.setattr(C, "preflight", lambda: _ready())
 
         rc = cmd.run(_cmd_args(repo_dir=str(ws), yes=True, json=True))
 
-        assert rc == cmd._CANNOT
+        assert rc == report.CANNOT
         import json as _json
 
         payload = _json.loads(capsys.readouterr().out)
@@ -675,13 +754,53 @@ class TestContributeCommand:
         ws = tmp_path / "ws"
         prof = _make_profile(ws / "myprofiles" / "testcar")
         monkeypatch.setattr(cmd, "active", lambda: prof)
-        monkeypatch.setattr(cmd, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
         monkeypatch.setattr(C, "preflight", lambda: _ready())
 
         rc = cmd.run(_cmd_args(repo_dir=str(ws), yes=False, json=True))
 
-        assert rc == cmd._CANNOT
+        assert rc == report.CANNOT
         import json as _json
 
         payload = _json.loads(capsys.readouterr().out)
         assert payload["workspace_collision"] == "inside"
+
+    def test_large_captures_warns_in_json_instead_of_blocking(self, tmp_path, monkeypatch, capsys):
+        # A machine caller can't answer the size prompt, so --json reports the
+        # advisory in the payload and proceeds rather than silently skipping it
+        # (or blocking a legitimate --diff over a big but valid profile).
+        import json as _json
+
+        ws = tmp_path / "ws"
+        self._seed_repo(ws)
+        prof = _make_profile(tmp_path / "prof")
+        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(C, "preflight", lambda: _ready())
+        monkeypatch.setattr(C, "dir_size", lambda p: gates.CAPTURES_WARN_BYTES + 1)
+
+        rc = cmd.run(_cmd_args(repo_dir=str(ws), diff=True, json=True))
+
+        assert rc == report.OK
+        payload = _json.loads(capsys.readouterr().out)
+        assert any("captures/ is large" in w for w in payload["warnings"])
+
+    def test_every_payload_carries_the_profile_identity(self, tmp_path, monkeypatch, capsys):
+        # Payloads are built from one accumulating base, so even an early refusal
+        # says which profile/source it was talking about.
+        import json as _json
+
+        prof = _make_profile(tmp_path / "prof")
+        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(
+            C, "preflight", lambda: C.Preflight(gh=None, git="git", authenticated=True)
+        )
+
+        assert cmd.run(_cmd_args()) == report.CANNOT
+
+        payload = _json.loads(capsys.readouterr().out)
+        assert payload["error"] == "gh not found"
+        assert payload["profile"] == "testcar"
+        assert payload["source"] == str(prof.root)
+        assert payload["branch"].startswith("contribute/testcar-")

@@ -57,6 +57,6 @@ Every capability is a `canair <subcommand>`. These pages are generated from each
 ### Other
 
 - [`canair align`](align.md) — Emit a time-aligned, wide table of several ECU:PID:PARAM signals — one row per reference sample, one column per signal, nearest-joined within a tolerance. The first selector sets the row cadence; the rest join onto it.
-- [`canair contribute`](contribute.md) — ``canair contribute`` — open a pull request for the active profile.
+- [`canair contribute`](contribute.md) — Open a pull request contributing the active profile upstream.
 - [`canair bix`](bix.md) — Convert byte indices between WiCAN, ISO-TP, Torque, and OBDb notations.
 - [`canair logs`](logs.md) — ``canair logs`` — view the central rotating diagnostics event log.

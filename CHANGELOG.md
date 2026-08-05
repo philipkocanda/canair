@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **`canair contribute --json` payloads are now consistent.** Every outcome —
+  refusal, failure, or success — carries the same identity base (`profile`,
+  `source`, `branch`, `workspace`, `mode`, `include_captures`) plus a `warnings`
+  array, instead of each gate hand-rolling its own subset. An oversized
+  `captures/` directory, which `--json` mode previously skipped silently, is now
+  reported as a `warnings` entry (it still never blocks). The
+  "re-run with `--yes`" wording is uniform across the consent gates.
+- **`canair contribute --help` no longer leaks internal module references** into
+  its description.
+
 ### Fixed
 - **`canair contribute` no longer rewrites capture logs it adds nothing to.**
   Captures were unioned with the upstream copy through the git merge-driver's

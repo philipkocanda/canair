@@ -458,8 +458,56 @@ error message for every other command run from that directory, so it stays a
 separate decision. The merge-driver's own untimed-session reorder (item 3
 residue) also stands.
 
+## Follow-up: decomposing `commands/contribute.py` (2026-08-05)
+
+Fixing the two issues added a **fifth** copy of the same guard boilerplate, which
+made the underlying shape untenable: `run()` had grown to **392 lines** — a
+linear chain of gates each hand-rolling its own `--json` payload *and* human
+prose *and* return-code plumbing, with the payload fields drifting apart between
+them. Refactored along the seams the guards revealed:
+
+| module | concern | lines |
+| --- | --- | --- |
+| `canlib/commands/contribute.py` | CLI surface + the pipeline and its **actions** (stage → review → submit) | 363 |
+| `canlib/commands/_contribute_gates.py` | the pre-flight **policy**: snapshot, validate, environment, capture-size, workspace, privacy | 239 |
+| `canlib/commands/_contribute_report.py` | the human/`--json` **reporting duality** (`Reporter`, `Stop`, payload shaping) | 166 |
+| `canlib/contribute.py` (unchanged role) | git/gh orchestration | 669 |
+
+Key moves:
+
+* **`Stop` replaces return-code plumbing.** A gate that ends the run raises
+  `Stop(code)`; `run()` is 6 lines and `_contribute()` is the pipeline read as a
+  sequence. No stage has to notice and forward another stage's exit code.
+* **`Reporter` owns the duality.** One `base` payload accumulates the identity
+  fields as the pipeline learns them (`profile` → `workspace` → `mode`), so every
+  payload is consistent by construction rather than by discipline. `refuse` /
+  `fail` / `gate` / `done` name the four outcome kinds; `gate` encodes the
+  "warn, then require consent — and `--json` can't be prompted" rule **once**
+  instead of five times.
+* **The context is built when it is complete.** `_Contribution` holds
+  non-Optional `pre`/`workspace` because it is constructed *after* the gates that
+  resolve them, so no action stage defends against a half-built run (the earlier
+  draft's `assert pre is not None` in five stages is gone).
+* **`--help` and the module docstring split audiences.** `description=__doc__`
+  was leaking `:mod:`/`:func:` cross-references into user-facing help (and into
+  `docs/reference/cli/contribute.md`); the parser now uses a user-facing
+  `_DESCRIPTION` and the docstring is free to document the architecture.
+
+Two deliberate behaviour improvements fell out (both in `CHANGELOG.md`): every
+payload now carries the identity base + `warnings`, and an oversized `captures/`
+under `--json` is reported as a warning instead of being silently skipped (it
+never blocked, and blocking a `--diff` inspection would have been worse).
+
+Verification: the 40 pre-existing contribute tests passed **unchanged** except
+for renamed constants — the strongest evidence the behaviour was preserved — plus
+9 new tests (`TestReporter` covering the four outcome kinds and the consent rule,
+the payload-consistency case, and the capture-size-warning case). The real
+command was also smoke-tested end-to-end against a throwaway checkout in all
+three shapes: no-changes (clean), `--diff` (one added file), and the
+self-collision refusal.
+
 ## Gates
 
-`uv run pytest -q` (4392 passed, 1 skipped) · `ruff check`/`format --check` ·
+`uv run pytest -q` (4402 passed, 1 skipped) · `ruff check`/`format --check` ·
 `ty check` · `canair validate all` · `gen_cli_reference.py --check` ·
 `gen_screenshots.py --check` — all green.

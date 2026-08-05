@@ -9,16 +9,13 @@ usage: canair contribute [-h] [--captures | --no-captures] [--branch BRANCH]
                          [--title TITLE] [--body BODY] [--repo-dir REPO_DIR]
                          [--dry-run] [--diff] [-y] [--json]
 
-``canair contribute`` — open a pull request for the active profile.
+Open a pull request contributing the active profile upstream.
 
-A one-command path to share a reverse-engineered profile (definitions and
-captures) upstream, without the manual fork/clone/branch/push dance. It works
-regardless of where the profile is stored (bundled repo, ``~/.config`` user dir,
-or a ``--path`` bundle): the profile is copied into a managed fork checkout and a
-PR is opened via the GitHub CLI (``gh``).
-
-See the module docstring of :mod:`canlib.contribute` for the orchestration and
-:mod:`canlib.pii` for the privacy pre-flight.
+A one-command path to share a reverse-engineered profile (its definitions, and by
+default its captures) without the manual fork/clone/branch/push dance — it works
+wherever the profile is stored. Before anything leaves your machine it validates
+the profile, scans it for anything that could identify or locate you, warns if the
+source looks stale, and asks you to confirm.
 
 options:
   -h, --help           show this help message and exit
