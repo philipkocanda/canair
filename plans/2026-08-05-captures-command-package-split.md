@@ -1,7 +1,17 @@
 # Split `commands/captures.py` into a `commands/captures/` package
 
-Status: **PLANNED** (2026-08-05). Four commits, each independently green; no
+Status: **DONE** (2026-08-05). Four commits, each independently green; no
 user-facing behavior change in any of them.
+
+- `4c13771` `test:` pin the captures views with goldens
+- `3c9ad23` `refactor:` captures command becomes a package (rename only)
+- `944e923` `refactor:` split the captures package by concern
+- `7f013c7` `refactor:` push the capture data layer down to the library
+
+Result: the 1401-line module is nine files, largest 441 lines. Suite 4421 → 4488
+tests, green both in parallel and serially (`-n0`); `ruff`, `ruff format`, `ty`
+clean; all six parsers' `--help`, every view, and every error path verified
+unchanged.
 
 ## Motivation
 
@@ -143,7 +153,20 @@ entries + `capsys`, as `TestCmdSessions` already does.
 
 ## Commit 2 — `refactor:` captures command becomes a package (rename only)
 
-Zero content change; `commands/captures.py` becomes `__init__.py` verbatim.
+**DONE (`3c9ad23`).** Landed as planned; git tracked all 11 files as renames, so
+the diff is 87/80 lines of import rewiring rather than a 3000-line add/delete.
+Intra-package imports became relative (`from .query import …`), matching
+`validate/`; cross-package ones stayed absolute.
+
+One defect the rename exposed: `merge_driver.py` used `from .. import capture_io,
+captures_merge`, which resolved to `canlib` at the old depth and to
+`canlib.commands` one level deeper — an `ImportError` at collection. Fixed to the
+absolute `from canlib import …` form its siblings already use, rather than
+deepening the relative one. Under `--dist loadscope` that single collection error
+cascaded into 87 reported failures.
+
+Zero content change otherwise; `commands/captures.py` became `__init__.py`
+verbatim.
 
 | From | To |
 |---|---|
@@ -185,19 +208,53 @@ records — leave them.
 
 ## Commit 3 — `refactor:` split the package by concern
 
-| Module | Contents | ~lines |
+**DONE (`944e923`).** Actual line counts in the right-hand column.
+
+| Module | Contents | lines |
 |---|---|---:|
-| `__init__.py` | `NAME`/`ALIASES`, group `add_parser` wiring the kinds, re-exports + `__all__` | 70 |
-| `uds.py` | the 88-line QUERY/views/scoping help as its **own** `__doc__` (→ `epilog`), `_add_uds_parser`, `run` (resolve → load → scope-filter → dispatch) | 370 |
-| `mode_select.py` | pure `resolve_mode(args) -> Mode \| str` — the declarative exclusion table replacing `run`'s ~100 lines of guards | 90 |
-| `listing.py` | `cmd_list`, `cmd_latest`, `_print_entry`, `_print_decoded_preview` | 215 |
-| `sessions.py` | `cmd_summary`, `cmd_sessions`, `_clean`, `_quality_tag`, `_CTRL_RE` | 200 |
-| `diff.py` | `cmd_diff`, `_render_diff_group` | 140 |
-| `delete.py` | `cmd_delete` — QUERY-driven mutative mode, sibling of `backfill.py`/`set_state.py` | 110 |
-| `maint.py` | `cmd_recover`, `orphan_notice`, `cmd_migrate`, `cmd_migrate_rx` + their two parsers (store-file maintenance, no QUERY) | 200 |
+| `__init__.py` | `NAME`/`ALIASES`, group `add_parser` wiring the kinds, re-exports + `__all__` | 67 |
+| `uds.py` | the 88-line QUERY/views/scoping help as its **own** `__doc__` (→ `epilog`), `_add_uds_parser`, `run` (resolve → scope → dispatch) | 441 |
+| `mode_select.py` | pure `resolve_mode(args, query) -> Mode \| ModeError` — the declarative exclusion table replacing `run`'s ~100 lines of guards | 145 |
+| `listing.py` | `cmd_list`, `cmd_latest`, `_print_entry`, `_print_decoded_preview` | 219 |
+| `sessions.py` | `cmd_summary`, `cmd_sessions`, `_clean`, `_quality_tag`, `_CTRL_RE` | 187 |
+| `diff.py` | `cmd_diff`, `_render_diff_group` | 138 |
+| `delete.py` | `cmd_delete` — QUERY-driven mutative mode, sibling of `backfill.py`/`set_state.py` | 117 |
+| `maint.py` | `cmd_recover`, `orphan_notice`, `cmd_migrate`, `cmd_migrate_rx` + their two parsers (store-file maintenance, no QUERY) | 206 |
 | `can.py` | `cmd_can_logs`, `_add_can_parser` | 65 |
 
-Largest module ~370 lines; everything under the smell line.
+Largest module 441 lines (the plan estimated 370 — the difference is per-module
+docstrings and import blocks); everything under the smell line.
+
+### Deviations from the plan
+
+- **`_resolve_captures_dir` and `build_query` moved in this commit, not commit 4.**
+  Both were forced: `_resolve_captures_dir` existed as four verbatim copies and
+  splitting would have created a fifth, and leaving `build_query` in `__init__.py`
+  while `uds.py` needs it would make the package import itself in a cycle. So
+  `capture_io.resolve_captures_dir` (its planned final home) and
+  `query.build_query` landed here.
+- **The captures group no longer has a module-level `run`.** `add_parser` wires
+  `func` on each kind's subparser, and `cli.py` dispatches purely through
+  `args.func`, so nothing needed it — but one test called `cap.run(args)` and now
+  goes through `args.func(args)`, which is the more faithful path anyway.
+- **Tests import each view from its own module**; `__init__.py` re-exports only
+  what other *commands* consume.
+
+### A test-isolation defect the goldens caught
+
+Four goldens failed when `test_captures_golden.py` ran after `test_captures.py` in
+the same process. Not a split regression — it reproduced on `3c9ad23` in a
+worktree, and `--dist loadscope` had been masking it by giving each module its own
+worker.
+
+Root cause: `conftest._reset_active_profile` nulls `profile._active`, so the next
+`set_active()` takes its "first activation" branch and skips `clear_cache()`
+(which only fires when it sees a *different* previous profile). A test therefore
+inherited the previous test's memoized ECU definitions **and everything derived
+from them** — including the capture views' decode index — so the views decoded the
+fixture profile's captures against ioniq-2017 definitions and rendered no
+parameters. The fixture now clears the definition caches too, and the suite passes
+serially as well as in parallel.
 
 **Seam rationale.** `delete` sits with `backfill`/`set_state` (QUERY-driven
 mutative modes) rather than in `maint` (whole-store file operations that take no
@@ -205,57 +262,77 @@ QUERY) — that is the actual boundary, and it is why `cmd_delete` reads like
 `cmd_backfill_states` today.
 
 **`mode_select.py`** is named to avoid confusion with `canlib/modes/` (device-mode
-handlers). `resolve_mode` returns the selected mode or an error string; `uds.py::run`
-becomes `resolve → load → filter → dispatch`. New
-`tests/test_captures_mode_select.py` covers the exclusion matrix directly — today
-each guard is only reachable through a full CLI invocation:
+handlers). `resolve_mode` returns the selected mode or a `ModeError` carrying how
+to report the rejection (stream, exit code, whether to append the ECU hint);
+`uds.py::run` becomes `resolve → scope → dispatch`.
+`tests/test_captures_mode_select.py` covers the exclusion matrix directly (47
+cases) — each guard was previously reachable only through a full CLI invocation:
 
 - `--delete` without a QUERY (refuses to delete everything)
-- `--set-state` without a scope filter (refuses to relabel the whole history)
+- `--set-state` without a scope filter (refuses to relabel the whole history), and
+  each scope flag individually satisfying it
 - `--limit < 0`
-- a standalone mode combined with a QUERY
-- `--latest` × `--diff`/`--step`, `--latest` × the standalone modes
-- `--summary` × `--sessions`
-- no QUERY and no mode → the ECU hint
+- every standalone mode × (a QUERY / `--latest` / `--diff` / `--step`)
+- `--latest` × `--diff`/`--step`
+- no QUERY and no mode → the ECU hint on stdout
+- `--recover` winning over every other guard
+- `ModeError.report()`'s two presentations (stderr error vs stdout usage hint)
+
+Namespaces come from the *real* parser wherever the combination is reachable; the
+combinations argparse already rejects (its `standalone` mutually exclusive group)
+are built by overriding attributes, and are kept because `run` is also entered
+directly from tests.
 
 Also in this commit, closing the gaps found in commit 1: unit tests for
 `_quality_tag` (drops in red, errors in yellow, clean → empty string, exchange
 suffix) and for the `max_notes` truncation line.
 
 Moving the 88-line docstring into `uds.py` is a real fix, not cosmetics: that text
-documents the *uds* kind's QUERY/views/scoping and is already wired as
-`epilog=__doc__` (`captures.py:1036`), yet currently sits on the group module.
+documents the *uds* kind's QUERY/views/scoping and was already wired as
+`epilog=__doc__`, yet sat on the group module — so `captures --help` and
+`captures uds --help` described different things from the same string.
 
 ## Commit 4 — `refactor:` push the capture data layer down to the library
 
-Fixes the two inversions above, the same way C1 fixed `_decode_plot` →
+**DONE (`7f013c7`).** Fixes both inversions, the same way C1 fixed `_decode_plot` →
 `canlib/inspect_bytes.py`.
 
 - **New `canlib/capture_store.py`** (peer of `capture_io.py`): `load_all_captures`,
-  `_resolve_defs`/`_load_ecu_index`, `_decoded_preview`, and the PID-index cache
-  with its `canlib.pids.clear_cache` registration. Dependencies are
-  `capture_io`/`ecus`/`profile`/`pids` only — no cycle;
-  `capture_types.CaptureEntry` remains the contract.
-- **`capture_io.resolve_captures_dir(explicit)`** — one home, deleting the 3
-  verbatim `_resolve_captures_dir` copies and folding in the two open-coded
-  `None → active().captures_dir` sites. Keeps the lazy in-function `profile`
-  import (`capture_io` must not import `profile` at module level).
-- **`build_query`** → `captures/query.py`; rewire `decode.py:541` and
-  `tests/test_decode_query.py:5`.
+  `resolve_pid_defs`/`load_ecu_index`, `decoded_preview` + the PID-index cache with
+  its `canlib.pids.clear_cache` registration. Depends only on
+  `capture_io`/`capture_types` at module level (plus lazily `pids`/`ecus`), so
+  `align.py` and `capture_dates.py` now import it **top-level** — the lazy
+  in-function imports that dodged the cycle are gone.
+- **Names that became library API lost the command-private underscore:**
+  `_resolve_defs` → `resolve_pid_defs`, `_load_ecu_index` → `load_ecu_index`,
+  `_decoded_preview` → `decoded_preview`. `state_infer` had been importing the
+  *private* `_resolve_defs` across the layer boundary.
+- **`__init__.py` no longer re-exports `load_all_captures`** — `align`,
+  `capture_dates`, `decode`, `correlate` and `ecu` import it from the library
+  directly, so no shim is left behind (the C1 precedent). `build_query` and
+  `orphan_notice` stay exported: they are genuinely captures-command API.
+- `capture_io.resolve_captures_dir` and `query.build_query` landed in commit 3 (see
+  its deviations), so this commit is purely the `capture_store` move.
 
-Then rewire every consumer to import **down**, and **delete the re-export shims**
-(per the C1 precedent — "no dead re-export shims left; call sites were rewired"):
-`canlib/align.py:238`, `canlib/capture_dates.py:385`, `canlib/state_infer.py:30`,
-`commands/decode.py:110`, `commands/correlate.py:352`, `commands/ecu.py`
-(130/150/471), `commands/_live.py:637`, plus the monkeypatch strings in
-`test_decode_dates.py` (264/276) and the imports in `test_capture_io.py`.
+`tests/test_capture_store.py` (20 tests): session-metadata denormalisation onto
+every row, the `_session_idx`/`_capture_idx` locators, `rx` → ECU short-name
+resolution *including* the legacy `ecu` spelling (`capture_io.capture_rx`),
+date-ordered file reads, missing-field defaults, a file without `sessions`,
+definition resolution (exact match, case-insensitivity, unknown ECU, unknown PID
+keeping the TX id), and the decode preview's failure paths.
 
-`orphan_notice` stays exported from the package `__init__` — it is genuinely
-captures-command API, consumed by `_live.py`.
+Two of those tests are a **layering guard** — no `canlib/*.py` may import
+`canlib.commands.captures`, and `capture_store` may import nothing from
+`commands`. Asserted over the **parsed import graph** (`ast`), not the file text,
+so a `:mod:` docstring cross-reference is not mistaken for a dependency; relative
+imports are resolved so `from .commands.x` and `from canlib.commands.x` compare
+equal.
 
-New `tests/test_capture_store.py`: the loader's `_session_idx`/`_capture_idx`
-locator keys, `rx` → `ecu` short-name resolution including the legacy `ecu` key
-(`capture_io.capture_rx`), and the untimed/legacy paths.
+**One trap worth recording:** `capture_dates` now imports `load_all_captures` at
+module scope, so a `monkeypatch` of `canlib.capture_store.load_all_captures` no
+longer reaches it — the patch has to target the *importing* module's name
+(`canlib.capture_dates.load_all_captures`). Moving a lazy import to module scope
+silently invalidates patches aimed at the source module.
 
 ---
 
@@ -263,13 +340,15 @@ locator keys, `rx` → `ecu` short-name resolution including the legacy `ecu` ke
 
 ```
 uv run pytest -q                                    # incl. the new goldens
+uv run pytest -q -n0                                # serial: catches order leaks
 uv run ruff check . && uv run ruff format --check .
 uv run ty check
-uv run canair captures --help                       # all 5 parsers
+uv run canair captures --help                       # all 6 parsers
 uv run canair captures uds --help
 uv run canair captures can --help
 uv run canair captures migrate --help
 uv run canair captures migrate-rx --help
+uv run canair captures merge-driver --help
 uv run canair validate all
 ```
 
@@ -277,7 +356,15 @@ Plus a scripted before/after stdout diff over the bundled profile — the C5 ora
 — covering: `--summary`, `--sessions`, `--sessions --json`, `BMS 2102`,
 `BMS 2102 --limit 3` (truncation footer), `--latest`, `IGPM 22BC02 --diff`,
 `"BMS:2102,2103" --step --json --limit 5`, `OBC 2101 --delete --dry-run`,
-`migrate --dry-run`, `migrate-rx --dry-run`, `can`.
+`migrate --dry-run`, `migrate-rx --dry-run`, `can` — and every rejection path
+(`--delete` bare, `--set-state` bare, `--limit -1`, standalone+QUERY,
+`--latest --diff`, bare `captures uds`), each confirmed rc=2 with the same
+message. Downstream consumers of the moved loader were exercised too: `decode`,
+`align`, `correlate uds`, `ecu`, `ecu BMS pids`.
+
+**Run the serial suite (`-n0`), not just the default parallel one.** The default
+`--dist loadscope` puts each module in its own worker, which hides cross-module
+state leaks — exactly the class of defect commit 3 had to fix.
 
 ## Deliberately out of scope (flagged, not fixed)
 
@@ -298,9 +385,20 @@ Plus a scripted before/after stdout diff over the bundled profile — the C5 ora
 - **`cmd_summary`'s session count disagrees with `--sessions`.** Found while
   choosing golden cases: on the `single-frame` fixture `--summary` reports
   `Sessions: 2` while `--sessions` reports `24 total`. `cmd_summary` counts
-  distinct `(file, session_label)` pairs (`captures.py:208,221`), so sessions
-  sharing a label collapse; `group_sessions` correctly keys on
-  `(file, _session_idx)`. `cmd_summary` is almost certainly the wrong one — but
-  fixing it changes user-visible output, which would violate this refactor's
-  byte-identical invariant (and now its golden). Deliberately left for a separate
-  `fix:` commit, where the golden regen is the *point* rather than a red flag.
+  distinct `(file, session_label)` pairs (now `sessions.py`), so sessions sharing a
+  label collapse; `group_sessions` correctly keys on `(file, _session_idx)`.
+  `cmd_summary` is almost certainly the wrong one — but fixing it changes
+  user-visible output, which would violate this refactor's byte-identical
+  invariant (and now its golden). Deliberately left for a separate `fix:` commit,
+  where the golden regen is the *point* rather than a red flag.
+- **The remaining library→command imports**, unrelated to captures and predating
+  this work: `signals_edit.py` (3×) and `ecus_edit.py` (2×) reach into
+  `commands.validate` for schema loading / file validation, and `first_run.py` into
+  `commands.profile.create_profile` (its comment says "local import to avoid
+  cycles"). Same *class* as the inversion commit 4 fixed, but the call is bigger:
+  `validate` holds library-grade validators inside a command. Worth its own pass.
+- **`query.py` is at 489 lines** after the data layer moved out — just under the
+  smell line, but the remaining mix (ANSI constants + JSON shaping + the QUERY
+  mini-language + keying/dedup/grouping primitives) is still three concerns. Not
+  split now because nothing outside the command layer needs any of it; revisit if
+  it grows.
