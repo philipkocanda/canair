@@ -121,20 +121,27 @@ def render_stats_block(counts: dict[str, int]) -> str:
 
     Only the derived counts live here; the vehicle description row above them is
     hand-written prose outside the markers.
+
+    The BEGIN marker is glued to the end of the *preceding* (hand-written) table
+    row and the END marker to the end of the *last* generated row, rather than
+    sitting on its own line — Markdown's ``tables`` extension only recognizes a
+    contiguous run of ``|``-prefixed lines as one table, so a bare HTML comment
+    line in between silently splits it into a real table plus a dangling
+    paragraph of literal pipe characters (see the docs-site rendering bug this
+    fixed). A comment glued to the end of an existing row is simply dropped by
+    the table renderer instead, so it never breaks or shows up in the output.
     """
     unverified = counts["params"] - counts["verified"]
-    return "\n".join(
-        [
-            STATS_BEGIN,
-            f"| ECUs mapped | **{counts['ecus']}** (all registered with identity) |",
-            f"| PIDs | **{counts['pids']}** active/draft |",
-            f"| Parameters | **{counts['params']}** decoded "
-            f"(**{counts['verified']} verified**, {unverified} unverified/candidate) |",
-            f"| IOControl DIDs | **{counts['iocontrol']}** actuators (UDS `0x2F`) |",
-            f"| Research backlog | **{counts['research']}** open reverse-engineering leads |",
-            STATS_END,
-        ]
-    )
+    rows = [
+        f"| ECUs mapped | **{counts['ecus']}** (all registered with identity) |",
+        f"| PIDs | **{counts['pids']}** active/draft |",
+        f"| Parameters | **{counts['params']}** decoded "
+        f"(**{counts['verified']} verified**, {unverified} unverified/candidate) |",
+        f"| IOControl DIDs | **{counts['iocontrol']}** actuators (UDS `0x2F`) |",
+        f"| Research backlog | **{counts['research']}** open reverse-engineering leads |",
+    ]
+    body = "\n".join([*rows[:-1], f"{rows[-1]} {STATS_END}"])
+    return f"{STATS_BEGIN}\n{body}"
 
 
 def update_dedicated_page(path: Path, counts: dict[str, int]) -> str:
