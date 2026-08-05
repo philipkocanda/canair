@@ -85,19 +85,20 @@ MCU:
           unit: °C
           min: "0"
           max: "150"
-          source: RE 2026-08-05 charge-cooldown thermal analysis
+          source: RE 2026-08-05 charge-cooldown + all-state distribution analysis
           verified: false
           notes: >-
-            Second component temperature candidate at B25 (ISO-TP 0x16), parallel to
-            MCU_INVERTER_TEMP (B22). Over the 3h AC charge (motor idle) it cools smoothly 82 -> ~46
-            °C while the coolant loop rises — a hot mass shed from the preceding drive, like B22 but
-            higher thermal mass / warmer asymptote (~46 vs ~21 °C), so likely the motor stator or a
-            separate power component. Noisier than B22 (+/-3). Raw = °C plausible (settles ~46,
-            physical). CAVEAT: historically B25 has spiked to ~249 in other states (see 2026-07
-            notes) so it may not be a pure temperature outside charging - do not ship.
-            verified:false, enabled:false pending scan-tool motor/stator temp + a state that
-            produces the 249 spike to explain it.
-          enabled: false
+            Second component temperature at B25 (ISO-TP 0x14), parallel to MCU_INVERTER_TEMP (B22).
+            Over the 3h AC charge (motor idle) it cools smoothly 82 -> ~46 °C while the coolant loop
+            rises — a hot mass shed from the preceding drive, higher thermal mass / warmer asymptote
+            than B22 (~46 vs ~21 °C), likely the motor stator/winding or a separate power component.
+            Clean bounded temp in EVERY state (41-99 °C across all 3619 captures: charging 41-91,
+            READY/parked 46-89, driving 45-88), autocorrelated, no spikes. Raw = °C plausible.
+            RESOLVED 2026-08-05: the earlier 'B25 spikes to 249' caveat was a MISATTRIBUTION — B25
+            never exceeds 99; the 240-255 spikes belong to the neighbouring high-entropy
+            counter/status bytes B27/B29/B30/B31/B33/B35, not B25. verified:false only pending
+            scan-tool identification of the exact sensor.
+          enabled: true
     2102:
       status: active
       period: 5000
@@ -447,6 +448,17 @@ MCU:
       what_to_test:
         - Identify exact B22 sensor (IGBT module vs inverter housing vs heatsink) via scan tool during a warm drive.
         - Explain the historical B25 ~249 spikes (other states) - is B25 a pure temp or multiplexed? Needs a state that reproduces the spike co-polled with a known temp.
+    - type: decode
+      target: "2101"
+      status: done
+      priority: P3
+      vehicle_states: [ALL]
+      created: "2026-08-05"
+      updated: "2026-08-05"
+      result: B25 does NOT spike to 249 — across all 3619 MCU 2101 captures B25 is bounded 41-99 in every state (charging/READY/parked/driving), a clean autocorrelated temperature. The 240-255 spikes cited in the old note belong to the neighbouring high-entropy counter/status/checksum bytes B27/B29/B30/B31/B33/B35 (B30 & B35 reach 255 in ~1800 caps each). Old caveat was a byte misattribution; B25 promoted to enabled.
+      notes: Resolve whether MCU 2101 B25 is a pure temperature or is corrupted by the historical '249 spike'.
+      sources:
+        - canair decode --dump-bytes all-state analysis 2026-08-05
 
   sessions:
     "81":
