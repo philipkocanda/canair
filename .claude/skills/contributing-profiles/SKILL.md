@@ -48,12 +48,17 @@ Whichever it is, the data lives in a **profile bundle** (`ecus/`, `profile.yaml`
 
 ## Non-negotiables (data edition)
 
-0. **Never hand-edit profile data — go through the tool.** The `ecus/` files are
+0. **Never hand-edit profile *data* — go through the tool.** The `ecus/` files are
    the source of truth and are edited *only* through the surgical, validated,
    comment-preserving `canair pids` / `canair signals` / `canair states` /
    `canair ecu` editors. Captures are *only* recorded (`--save`) or imported
-   (`canair import`), never typed by hand. Hand-editing silently breaks schema,
-   formatting, or invariants a reviewer can't see.
+   (`canair import`), never typed by hand. Hand-editing *data* silently breaks
+   schema, formatting, or invariants a reviewer can't see.
+   **The one exception is YAML comments** — the `#` explanatory lines carry no
+   schema meaning and no tool edits them (the editors only *preserve* them), so
+   editing/adding/removing a comment by hand is fine. Touch only the comment
+   text, leave the surrounding data keys/values alone, and re-run
+   `canair validate all` afterward to confirm you didn't disturb the structure.
 1. **It must validate.** `canair validate all` must pass — no exceptions. A
    profile that doesn't validate can't be trusted or merged.
 2. **Never commit PII or location data.** Profiles, captures, and git history are
@@ -195,10 +200,13 @@ doesn't purge history, and the key may need rotating.
 ## Data & generated artifacts — the discipline
 
 - **`profiles/*/ecus/`** is the source of truth — parameters, research,
-  identity, addressing, buses, wake rituals. Edit *only* via `canair pids` /
-  `canair ecu` / `canair states` / `canair signals` (validated,
+  identity, addressing, buses, wake rituals. Edit the *data* *only* via
+  `canair pids` / `canair ecu` / `canair states` / `canair signals` (validated,
   comment-preserving). If a field can't be reached by a tool, that's a
-  canair-code bug to raise (see `contributing-code`), not a licence to hand-edit.
+  canair-code bug to raise (see `contributing-code`), not a licence to hand-edit
+  data. YAML **comments** are the exception — they carry no schema meaning and no
+  tool edits them, so hand-editing a `#` comment is fine (leave the data keys
+  alone and re-validate).
 - **`profiles/*/captures/*.json`** are append-only session logs — recorded via
   `--save` or `canair import`, edited/removed via `canair captures uds --delete`,
   never hand-written. Pass `--label`/`--state`/`--notes` when recording.
