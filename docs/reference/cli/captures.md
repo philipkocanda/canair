@@ -35,7 +35,7 @@ options:
 
 ```
 usage: canair captures uds [-h] [--diff | --step]
-                           [--summary | --sessions | --latest | --recover | --delete | --backfill-states]
+                           [--summary | --sessions | --latest | --recover | --delete | --backfill-states | --set-state STATES]
                            [--discard] [--overwrite] [--cycle-tol SECONDS]
                            [--dry-run] [--yes] [--all] [--limit N] [--rulers]
                            [--view {auto,stacked,signals,changed,interleaved}]
@@ -76,6 +76,12 @@ options:
                         conflicts (never writes them unless --overwrite).
                         Previews with --dry-run; confirms unless --yes. Honors
                         the scope filters.
+  --set-state STATES    Manually set vehicle_states (comma-separated) on the
+                        scope-selected sessions — for a state known from the
+                        label but not inferable from the data (e.g. --set-
+                        state ACC --label 'ACC only'). Requires a scope filter
+                        (--label/--date/--since/…); previews with --dry-run,
+                        confirms unless --yes.
   --discard             With --recover: delete orphaned journals without
                         saving them
   --overwrite           With --backfill-states: also rewrite sessions whose
@@ -84,10 +90,10 @@ options:
   --cycle-tol SECONDS   With --backfill-states: max timestamp gap grouping
                         captures into one pseudo-cycle for cross-ECU
                         predicates (default 10s)
-  --dry-run             With --delete/--backfill-states: preview the changes,
-                        write nothing
-  --yes, -y             With --delete/--backfill-states: skip the confirmation
-                        prompt (scripting)
+  --dry-run             With --delete/--backfill-states/--set-state: preview
+                        the changes, write nothing
+  --yes, -y             With --delete/--backfill-states/--set-state: skip the
+                        confirmation prompt (scripting)
   --all, -a             For --diff/--step: use every payload instead of
                         unique-only
   --limit N, -L N       Default list view: show only the most recent N

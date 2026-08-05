@@ -863,6 +863,96 @@ class TestCmdBackfillStates:
         assert self._states(tmp_path) is None  # nothing written
 
 
+class TestCmdSetState:
+    """`canair captures uds --set-state STATES` — manual session-state tagging."""
+
+    def _seed(self, cdir, states):
+        s = build_query_session([("0x7EB", "2101", "6101EEFF", "")], "body read", states, "")
+        save_session(s, cdir)
+
+    def _states(self, cdir):
+        files = list(cdir.glob("*.json"))
+        assert len(files) == 1
+        return json.loads(files[0].read_text())["sessions"][0].get("vehicle_states")
+
+    def _run(self, cdir, states_arg, **kw):
+        from canlib.commands._captures_query import load_all_captures
+        from canlib.commands._captures_set_state import cmd_set_state
+
+        return cmd_set_state(load_all_captures(cdir), states_arg, captures_dir=cdir, **kw)
+
+    def test_sets_state(self, tmp_path):
+        self._seed(tmp_path, [])
+        rc = self._run(tmp_path, "ACC", assume_yes=True)
+        assert rc == 0
+        assert self._states(tmp_path) == ["ACC"]
+
+    def test_multi_token(self, tmp_path):
+        self._seed(tmp_path, [])
+        rc = self._run(tmp_path, "acc2, parked", assume_yes=True)
+        assert rc == 0
+        assert self._states(tmp_path) == ["ACC2", "PARKED"]
+
+    def test_dry_run_writes_nothing(self, tmp_path, capsys):
+        self._seed(tmp_path, [])
+        rc = self._run(tmp_path, "ACC", dry_run=True, assume_yes=True)
+        assert rc == 0
+        assert "--dry-run" in capsys.readouterr().out
+        assert self._states(tmp_path) is None
+
+    def test_empty_states_refused(self, tmp_path, capsys):
+        self._seed(tmp_path, [])
+        rc = self._run(tmp_path, "", assume_yes=True)
+        assert rc == 2
+        assert "at least one state" in capsys.readouterr().err
+        assert self._states(tmp_path) is None
+
+    def test_already_set_no_write(self, tmp_path, capsys):
+        self._seed(tmp_path, ["ACC"])
+        rc = self._run(tmp_path, "acc", assume_yes=True)
+        assert rc == 0
+        assert "0 of 1" in capsys.readouterr().out  # nothing to write
+        assert self._states(tmp_path) == ["ACC"]
+
+    def test_out_of_vocab_warns_but_writes(self, tmp_path, capsys):
+        self._seed(tmp_path, [])
+        rc = self._run(tmp_path, "MADE_UP", assume_yes=True)
+        assert rc == 0
+        assert "not in the vehicle_states.yaml" in capsys.readouterr().out
+        assert self._states(tmp_path) == ["MADE_UP"]
+
+    def test_json_dry_run_emits_rows(self, tmp_path, capsys):
+        self._seed(tmp_path, [])
+        capsys.readouterr()  # discard save banner
+        rc = self._run(tmp_path, "ACC", dry_run=True, as_json=True)
+        assert rc == 0
+        rows = json.loads(capsys.readouterr().out)
+        assert len(rows) == 1
+        assert rows[0]["new_states"] == ["ACC"]
+        assert rows[0]["will_write"] is True
+
+    def test_non_tty_without_yes_refuses(self, tmp_path, capsys):
+        self._seed(tmp_path, [])
+        rc = self._run(tmp_path, "ACC", assume_yes=False)
+        assert rc == 2
+        assert "refusing to set state" in capsys.readouterr().err
+        assert self._states(tmp_path) is None
+
+    def test_bare_scope_refused_via_parser(self, tmp_path, capsys):
+        # The scope guard lives in run(): --set-state with no scope filter refuses.
+        import argparse
+
+        from canlib.commands import captures as cap
+
+        self._seed(tmp_path, [])
+        p = cap.add_parser(argparse.ArgumentParser().add_subparsers())
+        args = p.parse_args(["uds", "--set-state", "ACC", "--dir", str(tmp_path)])
+        rc = cap.run(args)
+        assert rc == 2
+        assert "requires a scope filter" in capsys.readouterr().err
+        assert self._states(tmp_path) is None
+
+
 def _uds_response(**kw):
     """Build a UdsResponse dict with the fields the builders read."""
     base = {"ok": False, "hex": "", "bytes": b"", "nrc": None, "nrc_desc": "", "error": ""}

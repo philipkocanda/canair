@@ -494,7 +494,9 @@
     {
       "date": "2026-04-15",
       "label": "BCM read scan — deep sleep, SKM ACC+IGN1 held",
-      "vehicle_states": [],
+      "vehicle_states": [
+        "ACC2"
+      ],
       "notes": "Method: canair scan range 7A0 --service 22 --range B001-B012 --wake [migrated state: Car off, locked, deep sleep. SKM ACC+IGN1 held via IOControl.]",
       "captures": [
         {
@@ -705,7 +707,9 @@
     {
       "date": "2026-04-15",
       "label": "BCM IOControl scan — deep sleep, SKM ACC+IGN1 held",
-      "vehicle_states": [],
+      "vehicle_states": [
+        "ACC2"
+      ],
       "notes": "Method: BCM IOControl scan: 2F B0xx 00 (returnControlToECU, safe) [migrated state: Car off, deep sleep. SKM ACC+IGN1 held via IOControl.]",
       "captures": [
         {
@@ -726,7 +730,9 @@
     },
     {
       "date": "2026-04-15",
-      "vehicle_states": [],
+      "vehicle_states": [
+        "ACC"
+      ],
       "label": "BCM power state comparison — ACC only",
       "captures": [
         {
@@ -755,7 +761,9 @@
     },
     {
       "date": "2026-04-15",
-      "vehicle_states": [],
+      "vehicle_states": [
+        "ACC2"
+      ],
       "label": "BCM power state comparison — ACC + IGN1",
       "captures": [
         {

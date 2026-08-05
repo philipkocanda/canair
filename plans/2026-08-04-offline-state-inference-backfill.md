@@ -49,6 +49,18 @@ decodable *verified* discriminators (`VCU.VEHICLE_STATE_EV_READY`,
    trustworthy positive offline signal). `OBC.OBC_CHARGE_STATE` deliberately not
    used for `PLUGGED` (all its enum values mean "connected").
 
+6. **`canair captures uds --set-state STATES`** (`_captures_set_state.py`) — the
+   manual counterpart, added after applying the back-fill left ~11 sessions
+   uninferable. Some of those are body/low-power reads whose state is known from
+   the label ("ACC only", "ACC + IGN1", "no ignition") but not from any decoded
+   signal (the candidate body byte `BCM_B003_B12` does not correlate with power
+   state — value 245 spans SLEEP/READY/CHARGING/ACC2 — so RE-ing a body predicate
+   is a dead end). `--set-state` writes the given states to every scope-selected
+   session; it requires a scope filter so it can't blanket-relabel the history.
+   Six label-clear sessions were tagged (ACC/ACC2/SLEEP + one AC-charging scan);
+   five genuinely ambiguous ones (data doesn't discriminate, label carries no
+   state) are left unlabelled by design.
+
 ## Decisions
 
 - **Plural matching, no `axis:` schema field** — a session is a set of tokens;

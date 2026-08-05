@@ -20,6 +20,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   writing unless `--yes`. Cross-ECU predicates group co-polled captures into
   pseudo-cycles within `--cycle-tol` seconds (default 10s). The offline analogue
   of the live monitor's span-aware state back-fill (`canlib/state_infer.py`).
+- **`canair captures uds --set-state STATES`** — manually set a session's
+  `vehicle_states` on the scope-selected sessions, the manual counterpart to
+  `--backfill-states` for a state known from the session's label/context but not
+  inferable from the decoded data (e.g. a body/low-power ECU read taken while the
+  powertrain state signals were asleep: `--set-state ACC --label 'ACC only'`).
+  Requires a scope filter so it can't blanket-relabel the whole history;
+  soft-warns on out-of-vocabulary tokens, previews with `--dry-run`, emits
+  `--json`, and confirms unless `--yes`.
 - **`canair pids rm-identity ECU FIELD`** — remove a field from an ECU's
   `identity:` block, the missing inverse of `set-identity`. Until now an identity
   value filed under the wrong field could only be *overwritten*, never dropped, so

@@ -281,6 +281,23 @@ Offline, a capture existing *is* a response, so the `__no_response__` /
 `__responded__` sentinels can't be evaluated (a predicate using them abstains) —
 which is why `SLEEP` has no offline predicate.
 
+Some sessions can't be inferred at all — a body/low-power ECU read taken while
+the powertrain state signals were asleep, or a scan with no decodable payloads.
+When you *know* the state from the session's label or context (e.g. an "ACC only"
+bench read), set it manually:
+
+```bash
+canair captures uds --set-state ACC --label "ACC only" --dry-run   # preview
+canair captures uds --set-state "CHARGING, PLUGGED" --date 2026-04-18
+```
+
+`--set-state` writes the given states to every **scope-selected** session
+(`--label`/`--date`/`--since`/…), so it *requires* a scope filter — it refuses a
+bare invocation that would relabel the whole history. Like the other mutating
+modes it previews with `--dry-run`, emits `--json`, and confirms unless `--yes`.
+A genuinely ambiguous session (the data doesn't discriminate and the label
+carries no state) is best left unlabelled — a guessed state is worse than none.
+
 ## Reviewing captures
 
 ```bash

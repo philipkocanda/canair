@@ -119,6 +119,7 @@ from canlib.commands._captures_query import (
     group_sessions,
     load_all_captures,
 )
+from canlib.commands._captures_set_state import cmd_set_state
 from canlib.commands._captures_step import cmd_step
 from canlib.commands._captures_step_model import (
     AUTO_STACK_MAX_KEYS,
@@ -1096,6 +1097,16 @@ def _add_uds_parser(kinds) -> argparse.ArgumentParser:
         "unless --overwrite). Previews with --dry-run; confirms unless --yes. "
         "Honors the scope filters.",
     )
+    standalone.add_argument(
+        "--set-state",
+        metavar="STATES",
+        default=None,
+        dest="set_state",
+        help="Manually set vehicle_states (comma-separated) on the scope-selected "
+        "sessions — for a state known from the label but not inferable from the "
+        "data (e.g. --set-state ACC --label 'ACC only'). Requires a scope filter "
+        "(--label/--date/--since/…); previews with --dry-run, confirms unless --yes.",
+    )
 
     parser.add_argument(
         "--discard",
@@ -1122,14 +1133,14 @@ def _add_uds_parser(kinds) -> argparse.ArgumentParser:
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="With --delete/--backfill-states: preview the changes, write nothing",
+        help="With --delete/--backfill-states/--set-state: preview the changes, write nothing",
     )
 
     parser.add_argument(
         "--yes",
         "-y",
         action="store_true",
-        help="With --delete/--backfill-states: skip the confirmation prompt (scripting)",
+        help="With --delete/--backfill-states/--set-state: skip the confirmation prompt (scripting)",
     )
 
     parser.add_argument(
@@ -1202,13 +1213,35 @@ def run(args) -> int:
         return cmd_recover(args.dir, discard=args.discard)
 
     query = build_query(args.query)
-    standalone_mode = args.summary or args.sessions or args.backfill_states
+    standalone_mode = (
+        args.summary or args.sessions or args.backfill_states or args.set_state is not None
+    )
 
     if args.delete and not query:
         print(
             "error: --delete requires a QUERY selecting what to delete "
             "(e.g. `canair captures uds OBC 2101 --delete`). Refusing to delete "
             "everything. Narrow with the QUERY and/or scope flags (--since/--state/…).",
+            file=sys.stderr,
+        )
+        return 2
+
+    # --set-state writes the same state to every scope-selected session, so it
+    # must be narrowed by a scope filter — refuse a bare invocation that would
+    # relabel the entire capture history.
+    if args.set_state is not None and not (
+        args.label
+        or args.state
+        or args.date
+        or args.today
+        or args.since
+        or args.until
+        or args.last_sessions
+    ):
+        print(
+            "error: --set-state requires a scope filter selecting which sessions "
+            "to tag (e.g. --label 'ACC only', --date 2026-04-15). Refusing to set "
+            "state on every session.",
             file=sys.stderr,
         )
         return 2
@@ -1223,20 +1256,22 @@ def run(args) -> int:
     if standalone_mode:
         if query:
             print(
-                "error: --summary/--sessions/--backfill-states do not take a QUERY argument",
+                "error: --summary/--sessions/--backfill-states/--set-state "
+                "do not take a QUERY argument",
                 file=sys.stderr,
             )
             return 2
         if args.latest:
             print(
-                "error: --latest cannot be combined with --summary/--sessions/--backfill-states",
+                "error: --latest cannot be combined with "
+                "--summary/--sessions/--backfill-states/--set-state",
                 file=sys.stderr,
             )
             return 2
         if args.diff or args.step:
             print(
                 "error: --diff/--step cannot be combined with "
-                "--summary/--sessions/--backfill-states",
+                "--summary/--sessions/--backfill-states/--set-state",
                 file=sys.stderr,
             )
             return 2
@@ -1312,6 +1347,15 @@ def run(args) -> int:
                 captures_dir=args.dir,
                 overwrite=args.overwrite,
                 cycle_tol=args.cycle_tol,
+                dry_run=args.dry_run,
+                assume_yes=args.yes,
+                as_json=args.json,
+            )
+        elif args.set_state is not None:
+            return cmd_set_state(
+                entries,
+                args.set_state,
+                captures_dir=args.dir,
                 dry_run=args.dry_run,
                 assume_yes=args.yes,
                 as_json=args.json,

@@ -3,7 +3,11 @@
     {
       "date": "2026-04-18",
       "label": "Service 21 PID scan during AC charging — powertrain ECUs",
-      "vehicle_states": [],
+      "vehicle_states": [
+        "CHARGING",
+        "PLUGGED",
+        "PARKED"
+      ],
       "notes": "Full service 21 scan (01-FF) on 7 ECUs during AC charging.\nGoal: find new PIDs available during charging, especially on LDC/OBC/Charging.\nKey finding: 0x744 (Charging) and 0x733 (PLC) remain dead during AC charging.\nNew PIDs discovered: LDC 2102, VCU 21F2, MCU 2101/2103/21F2.\n [migrated state: AC charging (240V, SOC ~63%, 14.7V battery)]",
       "captures": [
         {

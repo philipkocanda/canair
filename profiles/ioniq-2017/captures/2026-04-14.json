@@ -200,6 +200,9 @@
           "payload": "62BC06B4800000000000",
           "notes": "11 bytes. Same as ACC mode capture — no change."
         }
+      ],
+      "vehicle_states": [
+        "SLEEP"
       ]
     }
   ]
