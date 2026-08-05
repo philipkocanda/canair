@@ -3,6 +3,16 @@ Status: **DONE** — both issues diagnosed, reviewed (Issue 2 reproduced, see
 what actually landed is marked ✅. See "What landed" at the bottom for the
 verification of the original failure scenarios.
 
+**Validated in the real world** (2026-08-05, after the fix reached the second
+machine): PR #7 went from 12 files / +16,776 −14,549 to **2 files / +2,227 −0** —
+only the two genuinely new capture logs.
+
+**Follow-up:** `plans/2026-08-05-profile-write-targets-and-workspace-hygiene.md`
+covers what the post-fix investigation then uncovered — the managed workspace not
+being hermetic between runs (a `--diff` run's leftovers survive `checkout -B`, and
+had to be cleared by hand), captures being written into the `uv tool` install
+snapshot, and the layered bundled-base + user-captures-overlay design.
+
 # `canair contribute` issues: workspace self-collision + bloated capture diffs
 
 This plan covers two related `canair contribute` problems surfaced in the same
