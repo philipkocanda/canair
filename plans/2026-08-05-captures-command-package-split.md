@@ -376,12 +376,15 @@ state leaks — exactly the class of defect commit 3 had to fix.
   `AGENTS.md` and `docs/`, needing its own plan and a deprecation path.
   `mode_select.py` is the non-breaking middle path: same CLI, guards become one
   declarative, unit-testable table.
-- **`captures/step_model.py` (750 lines) and `step_tui.py` (610 lines)** are also
+- **`captures/step_model.py` (748 lines) and `step_tui.py` (611 lines)** are also
   over the smell line, but they are a separate concern (the Textual multi-PID
-  stepper from `plans/2026-08-04-captures-step-textual-multi-pid.md`). They are
-  the next candidates after this lands.
+  stepper from `plans/2026-08-04-captures-step-textual-multi-pid.md`). Planned in
+  `plans/2026-08-05-layering-and-module-size-followups.md` (Part B).
 - **A richer captures-views fixture profile** — rejected in favor of unit tests
-  for the `quality`/`notes`/`keep_mode` branches (see commit 1).
+  for the branches it cannot reach. Delivered in `9ad8269`: the golden fixture
+  holds only timed hex payloads, so `_print_entry`'s label/response/scan-results/
+  notes/truncation branches and `cmd_latest`'s text output are covered by
+  mutation-checked unit tests instead.
 - **`cmd_summary`'s session count disagrees with `--sessions`.** Found while
   choosing golden cases: on the `single-frame` fixture `--summary` reports
   `Sessions: 2` while `--sessions` reports `24 total`. `cmd_summary` counts
@@ -389,16 +392,22 @@ state leaks — exactly the class of defect commit 3 had to fix.
   label collapse; `group_sessions` correctly keys on `(file, _session_idx)`.
   `cmd_summary` is almost certainly the wrong one — but fixing it changes
   user-visible output, which would violate this refactor's byte-identical
-  invariant (and now its golden). Deliberately left for a separate `fix:` commit,
-  where the golden regen is the *point* rather than a red flag.
+  invariant (and now its golden). **Fixed separately in `e33152e`** (the bundled
+  profile read 204 where `--sessions` listed 223); both views now count through
+  `group_sessions`.
 - **The remaining library→command imports**, unrelated to captures and predating
   this work: `signals_edit.py` (3×) and `ecus_edit.py` (2×) reach into
   `commands.validate` for schema loading / file validation, and `first_run.py` into
   `commands.profile.create_profile` (its comment says "local import to avoid
   cycles"). Same *class* as the inversion commit 4 fixed, but the call is bigger:
-  `validate` holds library-grade validators inside a command. Worth its own pass.
-- **`query.py` is at 489 lines** after the data layer moved out — just under the
-  smell line, but the remaining mix (ANSI constants + JSON shaping + the QUERY
-  mini-language + keying/dedup/grouping primitives) is still three concerns. Not
-  split now because nothing outside the command layer needs any of it; revisit if
-  it grows.
+  `validate` holds library-grade validators inside a command. Planned in
+  `plans/2026-08-05-layering-and-module-size-followups.md` (Part A).
+- **`query.py`** was 489 lines mid-refactor and is **331** once the data layer
+  moved to `capture_store.py` — comfortably under the smell line. It still holds
+  four loosely related groups (ANSI constants, JSON shaping, the QUERY
+  mini-language, keying/dedup/grouping), but nothing outside the command layer
+  needs any of them, so it is deliberately left alone; revisit only if it grows.
+- **`cmd_latest`'s `ecu_filter` parameter was dead** — every caller passed `None`
+  after `--latest`'s selection moved to the QUERY, so the `canonical_ecu_name`
+  filter and the `Latest payloads for X` title were unreachable (and therefore
+  unpinnable by any golden). Removed in `0743b7c`.
