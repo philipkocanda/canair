@@ -49,26 +49,55 @@ MCU:
           unit: °C
           min: "0"
           max: "150"
-          source: cross-ECU + multi-state analysis 2026-07-23
+          source: cross-ECU + multi-state analysis 2026-07-23; charge-cooldown confirmed 2026-08-05
           verified: false
-          notes: >
-            Inverter/motor temperature, raw byte = °C (no -40 offset; -40 would
-            give -24 °C while charging). r=+0.84 vs MCU 2102 motor RPM
-            (2026-07-22 drive), confirmed thermal by state contrast: charging
-            (motor idle) 16-26, READY parked 41-49, driving 7-104. Sensor
-            (inverter/motor/heat-sink) unconfirmed. Neighbour B25 also thermal-ish
-            but spikes to 249.
+          notes: >-
+            Inverter / power-module temperature, raw byte = °C (no -40 offset). STRONG new evidence
+            2026-08-05: over a 3h AC charge (motor idle) B22 shows a clean, smooth exponential
+            thermal DECAY from 80 °C at plug-in (hot from the preceding drive) to ~21 °C, while
+            every actively-heated signal ROSE (motor coolant 29->44, heatsink 25->40, LDC 37->63). A
+            cooling hot mass independent of the coolant loop = a component temp, and the raw=°C
+            calibration is confirmed by the physical asymptote (~21 °C, near garage ambient; a -40
+            offset would give an impossible -20 °C tail). Earlier: r=+0.84 vs MCU 2102 RPM, state
+            contrast charging 16-26 / READY parked 41-49 / driving 7-104. Confirmed a genuine slow
+            inverter/power-stage temp; exact sensor (IGBT module vs inverter housing) still
+            unconfirmed -> verified:false pending scan-tool cross-check. Sibling hot-cooling mass at
+            B25 (see MCU_TEMP_B25).
           enabled: true
         MCU_HV_VOLTAGE:
           expression: B13*2.56
           unit: V
           min: "0"
           max: "500"
-          source: canair investigate/hunt 2026-07-22 drive
+          source: canair investigate/hunt 2026-07-22 drive; VERIFIED vs BMS pack voltage over 3h charge 2026-08-05
+          verified: true
+          notes: >-
+            HV DC-link voltage at the motor inverter, coarse 8-bit (~2.56 V/LSB). VERIFIED
+            2026-08-05 against the verified BMS BATTERY_VOLTAGE over a 3h AC charge whose SOC-driven
+            pack-voltage sweep (360-399 V) gave a wide anchor: B13*2.56 tracks BMS pack voltage 1:1
+            — slope 0.991, r=0.981, residual 2.30 V (=1 LSB), mean offset -1.4 V, across 2016
+            co-timed CHARGING samples. Confirms both the byte (B13) and the 2.56 scale. The pack
+            voltage is also carried fine-resolution on BMS BATTERY_VOLTAGE and the verified VCU
+            INVERTER_INPUT_VOLTAGE (B17*2); this is the MCU-side coarse copy, useful as an integrity
+            cross-check.
+        MCU_TEMP_B25:
+          expression: B25
+          unit: °C
+          min: "0"
+          max: "150"
+          source: RE 2026-08-05 charge-cooldown thermal analysis
           verified: false
-          notes: >
-            HV DC-link voltage at the motor inverter (coarse, ~2.56 V/LSB). B13*2.56 = 353-399 V over the drive — the correct HKMC HV pack range (nominal ~360, sag under load, rise on regen). r=+0.994 vs VCU:2102 coarse DC-link byte and r=+0.79 vs the verified VCU INVERTER_INPUT_VOLTAGE (B17*2); the moderate fine-voltage r reflects coarse 8-bit quantisation over a gentle drive's narrow voltage span. Exact scale approximate; verify against BMS BATTERY_VOLTAGE in a co-polled charge/drive with wider voltage swing.
-
+          notes: >-
+            Second component temperature candidate at B25 (ISO-TP 0x16), parallel to
+            MCU_INVERTER_TEMP (B22). Over the 3h AC charge (motor idle) it cools smoothly 82 -> ~46
+            °C while the coolant loop rises — a hot mass shed from the preceding drive, like B22 but
+            higher thermal mass / warmer asymptote (~46 vs ~21 °C), so likely the motor stator or a
+            separate power component. Noisier than B22 (+/-3). Raw = °C plausible (settles ~46,
+            physical). CAVEAT: historically B25 has spiked to ~249 in other states (see 2026-07
+            notes) so it may not be a pure temperature outside charging - do not ship.
+            verified:false, enabled:false pending scan-tool motor/stator temp + a state that
+            produces the 249 spike to explain it.
+          enabled: false
     2102:
       status: active
       period: 5000
@@ -405,6 +434,19 @@ MCU:
       created: "2026-08-02"
       updated: "2026-08-02"
       notes: "93 captures (62 driving 2026-07-22, +charge/ACC2/parked). ASSESSMENT 2026-08-02: 21F2 is a static-per-session identity+monitor page, NOT dynamic data. Structure (SID 61F2, 67B reassembled): constant framing/markers (FFFFFF3F, 7DD6, 09, CDABC2CD, C1CD) + ASCII software/part ID 'EHEL-MS2' at the tail (WiCAN B69-B77 but CROSSES the CF PCI byte at B72 -> not cleanly shippable as one contiguous expression; visible only in the reassembled payload). Varying bytes do NOT correlate with motor RPM (MCU 2102 [S10:S11]), vehicle speed (ESC 22C101) or the MCU slow temp - because they are ~constant WITHIN a session and only differ BETWEEN sessions. Candidate temp pair at reassembled idx 57-58 (two adjacent bytes, session-stable, tracking within 0-3, range 17-46 across sessions) = likely two related temperatures. TO DECODE: a keep-all thermal-sweep capture (long charge or warm-up) co-polling a known temp (AAF MOTOR_COOLANT_TEMP) so the temps actually vary within scope; motor/speed correlation is a dead end here."
+    - type: decode
+      target: "2101"
+      status: captured
+      priority: P2
+      vehicle_states: [CHARGING]
+      created: "2026-08-05"
+      updated: "2026-08-05"
+      notes: "2026-08-05 (3h AC charge, MCU+BMS+OBC+AAF co-polled, 2016 timed caps). RESULTS — (1) HV DC-link voltage LOCATED & VERIFIED at B13: MCU_HV_VOLTAGE=B13*2.56 tracks the verified BMS BATTERY_VOLTAGE 1:1 over the SOC-driven 360-399 V charge sweep (slope 0.991, r=0.981, resid 2.30 V=1 LSB). Supersedes the earlier 'HV DC-link voltage not located' note. (2) MCU_INVERTER_TEMP (B22) CONFIRMED a genuine slow inverter/power-module temp: smooth exponential decay 80->21 C over 3h (motor idle) while the coolant loop rose; raw=C calibration confirmed by the physical asymptote. (3) NEW second thermal mass MCU_TEMP_B25 (B25): cools 82->46 C in parallel, higher mass, likely motor stator (added enabled:false; historical 249 spikes in other states unresolved)."
+      sources:
+        - canair align/hunt/decode charge-cooldown analysis 2026-08-05
+      what_to_test:
+        - Identify exact B22 sensor (IGBT module vs inverter housing vs heatsink) via scan tool during a warm drive.
+        - Explain the historical B25 ~249 spikes (other states) - is B25 a pure temp or multiplexed? Needs a state that reproduces the spike co-polled with a known temp.
 
   sessions:
     "81":
