@@ -504,14 +504,39 @@ BCM:
       status: draft
       vehicle_states: [SLEEP, PLUGGED, ACC, ACC2, READY, CHARGING]
       notes: >
-        13 bytes. NOT static — bytes 8-9 (ELM index) change rapidly every 2s. Byte 8
-        drifts slowly (~0xA2, occasionally 0xA1), byte 9 jumps 20-100 counts per read
-        (ADC-like jitter). Tail bytes 10-11 (0x266E) are static. Likely TPMS RF signal
-        strength (RSSI) or last-received signal metric for a receiver channel. Earlier
+        13 bytes. NOT static — bytes 8-9 (ELM index) change rapidly every 2s. PARTLY DECODED
+        2026-08-05: the slowly-drifting "byte 8" (WiCAN B11, ~0xA2/0xA1) is NOT TPMS RSSI — it is
+        the 12V BUS VOLTAGE (B11/12.8, verified against the verified 22B003 BCM_12V_BATTERY; see
+        BCM_12V_BUS_C011). Its "slow drift" is just the bus moving between rest (~12.7 V) and
+        DC-DC-active (~14.5 V). Byte 9 (WiCAN B12) still jumps 20-100 counts per read
+        (ADC-like jitter) and remains unidentified — it is now the sole RSSI candidate here.
+        Tail bytes 10-11 (0x266E) are static. Earlier
         single-read capture (0xA2D3266B) was misleading — appeared static but byte 9
-        was just one snapshot. Test: compare with C012-C014 and correlate with tyre
+        was just one snapshot. Test: compare B12 with C012-C014 and correlate with tyre
         proximity. Sample: 62C011E000000000A25F266EAA (byte 9 varies).
-      parameters: {}
+      parameters:
+        BCM_12V_BUS_C011:
+          expression: B11/12.8
+          unit: V
+          min: "0"
+          max: "20"
+          source: RE 2026-08-05 cross-PID mirror vs the verified BCM 22B003 BCM_12V_BATTERY
+          verified: true
+          notes: >-
+            12V bus voltage on the 22C011 page (B11, ISO-TP 0x08). VERIFIED 2026-08-05 against the
+            VERIFIED BCM_12V_BATTERY (22B003 B10*0.08): the ratio B11/BCM_12V_BATTERY is exactly
+            12.8 in 1781 of 1965 co-polled rows, i.e. B11 = 12.8 x the bus voltage, so B11/12.8
+            recovers it (equivalently B11 ~= 1.024 x 22B003 B10 — the same quantity read at a
+            slightly different node/scale, ~0.35 V apart at 14.5 V, which is why the finer 1/12.8
+            scale is used here rather than 22B003's 0.08). Absolute check: at rest B11=162 -> 12.66
+            V; during AC charge B11=186 -> 14.53 V. CORRECTS A STANDING HYPOTHESIS: this is the byte
+            the 22C011 header note described as 'byte 8 drifts slowly (~0xA2, occasionally 0xA1)'
+            and guessed to be TPMS RF signal strength (RSSI) — it is the 12V bus, and the 'slow
+            drift' is simply the bus moving between rest (~12.7 V) and DC-DC-active (~14.5 V). The
+            genuinely jumpy neighbour B12 (the note's 'byte 9', ADC-like 20-100 count jumps) is
+            still unidentified and remains the RSSI candidate. Redundant with the shipped 22B003
+            copy and 22C011 is a draft page, so enabled:false.
+          enabled: false
 
     22C012:
       status: ignored

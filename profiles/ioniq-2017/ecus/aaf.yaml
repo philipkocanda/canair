@@ -144,10 +144,60 @@ AAF:
           unit: °C
           min: "-40"
           max: "150"
-          source: canair correlate 2026-07-22 drive
+          source: RE 2026-08-05 cross-ECU agreement with VCU:2102 B18-100 (supersedes the 2026-07-22 MCU_TEMP_2 correlation)
           verified: false
-          notes: >
-            Candidate motor/coolant temperature. B22-40, r=+0.958 vs MCU:2102 MCU_TEMP_2 over 61 co-polled driving pts. Distinct from the heat-sink temp (B20); likely the second powertrain-cooling temp the AAF thermal ECU monitors.
+          notes: >-
+            Powertrain coolant-loop temperature, B22-40. EVIDENCE REPLACED 2026-08-05: the original
+            basis (r=+0.958 vs MCU:2102 MCU_TEMP_2 over 61 driving points) is VOID — that byte (2102
+            B21) was demoted as not a temperature at all (near-ambient in every state,
+            load-tracking). New, stronger basis: this value is independently reported by VCU:2102
+            B18-100, matching with a constant offset of exactly 100 in 77% of 1729 co-polled rows
+            (rest +/-1..2 poll skew) — two ECUs agreeing on the same physical quantity, which also
+            confirms the -40 offset here. Behaviour over the 3h AC charge: 29->44 C, rising as the
+            OBC/LDC dump heat into the EPCU coolant loop; 34-37 C while driving; 44-47 C soaking
+            after. Distinct from the heat-sink temp (B20) and from the LDC temp (B19, 37-70 C).
+            NAMING CAVEAT: the 'MOTOR' attribution is unconfirmed — the 28 kWh Ioniq has one
+            powertrain coolant loop serving motor/EPCU/OBC/LDC, so which branch this sensor sits on
+            needs a scan tool; VCU's copy is therefore named VCU_COOLANT_TEMP. verified:false for
+            that reason only.
+        AAF_LDC_TEMP:
+          expression: B19-100
+          unit: °C
+          min: "-40"
+          max: "150"
+          source: RE 2026-08-05 cross-ECU offset-mirror vs verified OBC LDC_TEMP
+          verified: true
+          notes: >-
+            LDC (DC-DC converter) temperature, mirrored into the AAF thermal ECU's page. VERIFIED
+            2026-08-05 as the same signal as the VERIFIED OBC:2101 LDC_TEMP: AAF B19 minus OBC
+            LDC_TEMP is exactly 100 in 94.9% of 1729 co-polled rows (remainder +/-1 = round-robin
+            poll skew on a drifting temp). Both ECUs carry it at byte B19 with the same -100 offset,
+            i.e. the identical raw value — a gateway-distributed signal the AAF echoes. Ran 37->70 C
+            over the 3h AC charge (the LDC is the hottest thing in the loop while charging).
+            Redundant with the shipped OBC LDC_TEMP, so enabled:false — kept as a decoded-layout
+            record and an integrity cross-check (cf. VCU_DCLINK_VOLTAGE_COARSE). NOTE: canair
+            correlate --find-mirrors does NOT surface this because it requires exact equality in ALL
+            rows, which poll skew breaks; constant-offset mirrors need the absolute-difference test
+            used here.
+          enabled: false
+        AMBIENT_TEMP:
+          expression: (B18-80)/2
+          unit: °C
+          min: "-40"
+          max: "60"
+          source: RE 2026-08-05 cross-ECU offset-mirror vs verified AAF 2180 AMBIENT_TEMP
+          verified: true
+          notes: >-
+            Ambient (outside air) temperature — the same byte and formula as the VERIFIED AAF:2180
+            AMBIENT_TEMP. VERIFIED 2026-08-05: AAF 2181 B18 equals AAF 2180 B18 exactly in 98.1% of
+            839 co-polled rows (remainder +/-1 = poll skew), and B18 - (2*AMBIENT_TEMP+80) = 0 on
+            the same 98.1%, confirming the (B18-80)/2 scale transfers unchanged. Closes the B18
+            coverage gap on 2181. Redundant with the shipped 2180 copy (2181 is a draft page), so
+            enabled:false. CAUTION: 2180 and 2181 are NOT wholesale duplicates — they share
+            B9/B17/B18/B20/B21/B25 but DIFFER at B19/B22 (2181 carries the LDC temp at B19 and the
+            coolant temp at B22; 2180's same offsets do not match), so each byte must be tested
+            individually rather than assumed to transfer.
+          enabled: false
 
   research:
     - type: scan

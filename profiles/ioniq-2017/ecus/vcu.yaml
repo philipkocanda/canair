@@ -396,13 +396,32 @@ VCU:
           notes: >-
             Adjacent unmapped byte, candidate. Coarse, 53-57 (4 distinct). Candidate temp/status —
             eyeball behaviour.
-        VCU_2102_B18:
-          expression: B18
-          source: 2026-07-30 adjacent-field candidate
+        VCU_COOLANT_TEMP:
+          expression: B18-100
+          source: RE 2026-08-05 cross-ECU offset-mirror + within-PID state-divergence disambiguation
           verified: false
           notes: >-
-            Adjacent unmapped byte, candidate. 131-138 (8 distinct), sits next to
-            VCU_AUX_BATTERY_VOLTAGE (B18 in the aux-voltage region). Check if voltage/temp-like.
+            Powertrain coolant-loop temperature: raw B18 minus 100. Was the unidentified placeholder
+            VCU_2102_B18 ('check if voltage/temp-like'). IDENTIFIED 2026-08-05 by two independent
+            proofs. (1) CROSS-ECU: B18-100 equals AAF:2181 MOTOR_COOLANT_TEMP (B22-40) with a
+            constant offset of exactly 100 in 77% of 1729 co-polled rows (remainder +/-1..2 =
+            round-robin poll skew on a drifting temp) — two ECUs reporting the same physical value.
+            (2) NOT A VOLTAGE: B18 is degenerate on range alone (B18/10 = 12.0-15.0 V looks like a
+            12V bus, and correlates r=0.998 with AAF_AUX_BATTERY_VOLTAGE during the 3h charge — a
+            thermal-soak coincidence). Settled against this PID's own VERIFIED 12V reading
+            (VCU_AUX_BATTERY_VOLTAGE = B14*0.0974): in ACC2 the real bus sags 14.42->12.08 V while
+            B18/10 RISES 14.40->14.70 (opposite direction), and while DRIVING the real bus is pinned
+            at 14.51 V while B18 keeps varying. A bus voltage cannot do either; B18-100 instead
+            reads 44->47 C soaking after a drive and 34-37 C during it. This also explains the old
+            '14.70 V in ACC2' anomaly that disproved B18/10 — it was 47 C of coolant. Behaviour:
+            29->44 C over the 3h AC charge as the OBC/LDC dump heat into the EPCU loop. NAMING: the
+            'motor' attribution in AAF's name is unconfirmed — this single loop also serves
+            OBC/LDC/EPCU, so it is named COOLANT here; which branch the sensor sits on needs a scan
+            tool. verified:false for that reason only.
+          unit: °C
+          min: "-40"
+          max: "150"
+          enabled: true
         VCU_HV_MAIN_RELAY_ON:
           expression: B10
           unit: ""
@@ -701,6 +720,17 @@ VCU:
       created: "2026-08-02"
       updated: "2026-08-02"
       notes: VCU_AUX_BATTERY_VOLTAGE (B18/10) disproven live 2026-08-02 (read 14.70V in ACC2 vs 12.2V 3-ECU consensus; B18 inversely tracks the bus). Find VCU's real 12V byte. Hunt was inconclusive here - 12V is bimodal (14.5 charge / 12.2 ACC2) so every charge-vs-ACC2 byte correlates ~1.0 (two-cluster trap). Needs keep-all data with continuous 12V variation (e.g. a drive, or READY idle as 12V floats), or accept VCU may not cleanly broadcast it.
+    - type: decode
+      target: "2102"
+      status: done
+      priority: P2
+      vehicle_states: [ALL]
+      created: "2026-08-05"
+      updated: "2026-08-05"
+      result: "B18 IDENTIFIED as the powertrain coolant-loop temperature (B18-100), renamed VCU_2102_B18 -> VCU_COOLANT_TEMP. Two proofs: (1) cross-ECU, B18-100 == AAF:2181 MOTOR_COOLANT_TEMP (B22-40) at a constant offset of exactly 100 in 77% of 1729 co-polled rows (rest +/-1..2 poll skew); (2) not a voltage — settled against this PID's own verified 12V (B14*0.0974): in ACC2 the real bus sags 14.42->12.08 V while B18/10 RISES 14.40->14.70, and while driving the bus is pinned 14.51 V while B18 keeps varying. Explains the old '14.70 V in ACC2' anomaly (it was 47 C coolant). NOTE the degeneracy trap: B18/10 = 12.0-15.0 V looks like a 12V bus and correlates r=0.998 with AAF_AUX_BATTERY_VOLTAGE during charge (thermal-soak coincidence) — range plausibility alone cannot separate the two readings."
+      notes: Identify VCU 2102 B18 (placeholder 'check if voltage/temp-like').
+      sources:
+        - canair align cross-ECU offset-mirror + state-divergence 2026-08-05
   sessions:
     "81":
       name: "standardDiagnosticSession"

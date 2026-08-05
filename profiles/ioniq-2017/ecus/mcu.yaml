@@ -145,19 +145,21 @@ MCU:
           ha_class: ""
           min: "-300"
           max: "300"
-          source: "ITStromer community PID sheet (Motor Torque Command / Estimated Torque)"
+          source: ITStromer community PID sheet; strong null-test corroboration 2026-08-05
           source_links: []
           verified: false
-          notes: >
-            Motor torque, signed 16-bit big-endian at B12:B13 (ISO-TP 0x09:0x0A), the pair right after
-            MCU_MOTOR_RPM [S10:S11]. 2026-07-20 fix: previous ((S12*256)+B11)/10 reused B11 (the RPM low
-            byte) and its ÷10 scale gave ±3226 Nm across all captures — 10× the motor's ~295 Nm limit.
-            [S12:S13]/100 reads −249..+324 Nm (cruise small +ve, hard accel ~+300, regen ~−250) — physical.
-            Scale/bytes inferred from range; not yet correlated with pedal/accel, so still unverified.
-            2026-07-23 cross-signal analysis (canair decode --corr): r=+0.600 vs d(MCU_MOTOR_RPM)/dt over 477
-            driving captures — torque tracks angular acceleration (τ≈J·dω/dt), the expected physical relation,
-            corroborating this as a genuine torque byte. Full verification still needs a pedal-synced drive.
-
+          notes: >-
+            Motor torque, signed 16-bit big-endian at B12:B13 (ISO-TP 0x09:0x0A), right after
+            MCU_MOTOR_RPM. STRONG NULL TEST 2026-08-05: reads EXACTLY 0 in all 2687 captures of the
+            3h AC charge, where the motor is provably stationary and unenergised (MCU_MOTOR_RPM=0
+            throughout). A genuine torque field must be exactly zero under those conditions, and it
+            is — with no idle bias at all, unlike its neighbour [S14:S15] which holds a persistent
+            ~+30 raw offset (see MCU_MOTOR_TORQUE_2). That asymmetry makes [S12:S13] the better
+            candidate for the true torque field. Earlier evidence: r=+0.600 vs d(MCU_MOTOR_RPM)/dt
+            over 477 driving captures (tau ~= J*dw/dt), reads -10.0..+18.1 Nm over a gentle drive.
+            Still verified:false — the null test confirms it IS a torque field but does not pin the
+            /100 scale or resolve command-vs-estimated; that needs a pedal-synced drive with hard
+            accel and strong regen.
         MCU_MOTOR_TORQUE_2:
           expression: "[S14:S15]/100"
           unit: Nm
@@ -165,29 +167,45 @@ MCU:
           min: "-300"
           max: "300"
           enabled: false
-          source: "Kia Soul EV VMCU CSV (Torque Command vs Estimated Torque — two signed-16 torque fields)"
+          source: Kia Soul EV VMCU CSV; FAILS the standstill null test 2026-08-05
           source_links: []
           verified: false
-          notes: >
-            UNVERIFIED CANDIDATE. Second signed-16-bit big-endian pair at B14:B15 (ISO-TP 0x0B:0x0C), immediately after MCU_MOTOR_TORQUE [S12:S13]. The Soul VMCU exposes BOTH a Motor Torque Command AND an Estimated Motor Torque as separate signed-16 fields; [S12:S13] and [S14:S15] are the two zero/near-zero-at-park pairs here. 2026-07-23 cross-signal analysis (canair decode --corr): r=+0.969 vs MCU_MOTOR_TORQUE and r=+0.566 vs d(MCU_MOTOR_RPM)/dt over 477 driving captures (torque tracks angular acceleration, physically correct; the near-but-not-unity coupling to [S12:S13] is consistent with command-vs-estimated). Park ~0.27-0.40 Nm idle bias. Which is command vs estimated (and exact scale) still unconfirmed - kept enabled:false until a pedal-synced drive resolves command vs estimated and pins the scale.
-        MCU_PHASE_CURRENT_RMS:
-          expression: "[B17:B18]/10"
-          unit: A
+          notes: >-
+            UNVERIFIED CANDIDATE — now weakened. Second signed-16 big-endian pair at B14:B15 (ISO-TP
+            0x0B:0x0C). NULL TEST 2026-08-05: across all 2687 captures of the 3h AC charge (motor
+            provably stationary, RPM=0) it does NOT return to zero — it holds 27..54 raw (mean 30,
+            i.e. ~0.30 Nm) as a persistent structural offset, while the sibling [S12:S13] is EXACTLY
+            0 over the same captures. A torque command or estimate should read zero with the motor
+            unenergised, so this is probably not a plain torque field: more likely a biased/filtered
+            derivative, a different quantity sharing the torque scale, or a value with a deliberate
+            zero-offset. Coupling to [S12:S13] is r=+0.969 while driving (range -954..+1885 raw) so
+            it is clearly torque-RELATED, just not zero-referenced. The old note read this as a mere
+            'park idle bias' from a handful of samples; 2687 charge captures show it is systematic.
+            enabled:false; resolving it needs a pedal-synced drive.
+        MCU_LOAD_B17:
+          expression: B17
+          unit: ""
           ha_class: current
           min: "0"
-          max: "600"
+          max: "255"
           enabled: false
-          source: "Kia Soul EV VMCU CSV (Motor Phase Current RMS = Int16, 0..5000)"
+          source: RE 2026-08-05 — disproves the [B17:B18] 16-bit parse; B17 is the load-carrying byte
           source_links: []
           verified: false
-          notes: >
-            UNVERIFIED CANDIDATE (Phase 1, 2026-07-20) — needs Phase 2 validation. Unsigned 16-bit
-            big-endian at B17:B18 (ISO-TP 0x0D:0x0E). Always ≥0 (0..2069 raw), reads ~0 at park and rises
-            with acceleration (r=+0.44 vs dRPM across 255 driving samples) — the classic phase-current RMS
-            signature. Matches the Soul VMCU "Motor Phase Current RMS" field. The /10 scale (→ 0..~207 A) is
-            a guess to land in a plausible range for a ~120 kW motor; raw 2069 as amps would be too high.
-            Scale and exact bytes need confirmation against torque/accel under load — enabled:false meanwhile.
-
+          notes: >-
+            Coarse motor-load / current-related byte at B17 (ISO-TP 0x0D). Was MCU_PHASE_CURRENT_RMS
+            = [B17:B18]/10 (from the Soul VMCU 'Motor Phase Current RMS' Int16). THAT PARSE IS
+            DISPROVEN 2026-08-05: across all 3632 MCU 2102 captures the supposed LOW byte B18 only
+            ever takes 19 values in 5..24 — a true low byte of a continuously-varying 16-bit word
+            must sweep the full 0..255 as the value crosses multiples of 256. So B17 and B18 are two
+            SEPARATE fields, and the apparent '0..2069 rising with acceleration' was B17*256 plus
+            B18's small residue, i.e. all the signal content is in B17 (which would make the /10
+            scale ~25.6 A per LSB — implausibly coarse for a phase-current RMS). What B17 genuinely
+            is: load/current-related and correctly zero-referenced — constant 0 across all 2687
+            charge captures (motor stationary), rising to 0..8 while driving. Scale and exact
+            quantity unknown, so it is left as a raw byte; the real phase-current field, if
+            broadcast, is elsewhere. B18 remains a separate unidentified slow small-range signal
+            (see MCU_TEMP_3, demoted as not-a-temperature). enabled:false.
         MCU_TEMP_1:
           expression: S20
           unit: °C
@@ -475,6 +493,20 @@ MCU:
       notes: Re-evaluate MCU 2102 B18/B20/B21 temp claims vs the live 2101 B22/B25 temps during the long charge; test whether low charge-time temps are cached (TPMS-style) or live.
       sources:
         - canair align/decode all-state + RPM live-check 2026-08-05
+    - type: decode
+      target: "2102"
+      status: captured
+      priority: P1
+      vehicle_states: [CHARGING]
+      created: "2026-08-05"
+      updated: "2026-08-05"
+      result: "Standstill NULL TEST using the 3h AC charge (motor provably stationary, RPM=0 across 2687 captures) — newly possible now the MCU is co-polled during charge. (1) MCU_MOTOR_TORQUE [S12:S13] is EXACTLY 0 in all 2687 captures = genuine zero-referenced torque field. (2) MCU_MOTOR_TORQUE_2 [S14:S15] does NOT zero — holds 27..54 raw (mean 30) as a systematic offset, so it is not a plain torque field (torque-related, r=0.969 vs [S12:S13] driving, but not zero-referenced). (3) MCU_PHASE_CURRENT_RMS = [B17:B18]/10 DISPROVEN as a 16-bit pair: across all 3632 captures the supposed low byte B18 only takes 19 values in 5..24, whereas a true low byte must sweep 0..255. B17 and B18 are separate fields; all load content is in B17 (0 during charge, 0..8 driving) -> renamed MCU_LOAD_B17. The real phase-current field, if broadcast, is elsewhere."
+      notes: Use the charge-time motor-idle null test to falsify/confirm the MCU 2102 torque and phase-current candidates.
+      sources:
+        - canair decode null-test + full-corpus byte distribution 2026-08-05
+      what_to_test:
+        - Locate the real phase-current field (the [B17:B18] pair is disproven); look for a 16-bit word whose low byte actually sweeps 0-255 under load.
+        - Explain MCU_MOTOR_TORQUE_2's systematic ~+30 raw standstill offset — biased/filtered torque, different quantity, or deliberate zero-offset?
 
   sessions:
     "81":
