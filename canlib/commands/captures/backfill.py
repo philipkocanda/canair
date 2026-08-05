@@ -83,11 +83,11 @@ def cmd_backfill_states(
     import json as _json
 
     from canlib.captures import set_session_states
-    from canlib.commands._captures_query import group_sessions
     from canlib.pids import build_ecu_index, load_pids
     from canlib.states import StatePredicateError, join_states, load_states
 
-    from ._captures_backfill_render import print_report
+    from .backfill_render import print_report
+    from .query import group_sessions
 
     cdir = _resolve_captures_dir(captures_dir)
 

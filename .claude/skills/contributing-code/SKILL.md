@@ -230,11 +230,11 @@ drifts from the established UX.
   canonical parser lives in `canlib/query.py` (`parse_query`/`parse_selector`,
   the `Query`/`Selector` dataclasses); capture/decode-style commands use the
   ECU-alias-aware wrapper `_parse_query` in
-  `canlib/commands/_captures_query.py` (it canonicalizes selector ECUs against
+  `canlib/commands/captures/query.py` (it canonicalizes selector ECUs against
   the registry so `SMK`→`SKM`). Device-pipeline commands go through
   `canlib/modes/multi_parse.py::parse_sub_commands` (which owns the
   "`IGPM 22BC07` is a bogus ECU — bind with a colon" guard). Follow
-  `commands/captures.py` (positional QUERY) or `commands/correlate.py` (optional
+  `commands/captures/` (positional QUERY) or `commands/correlate.py` (optional
   `ECU[:PID]` selector) as templates.
 - **The remaining `--ecu`/`--pid`/`--param` flags are legacy, not the pattern to
   copy.** A few survive as narrow filters (`decode --param`, `research --ecu`,

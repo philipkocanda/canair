@@ -420,7 +420,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
 
 def _plot_pid_options() -> list[tuple[str, str]]:
     """Distinct ``(ECU, PID)`` pairs that have payload captures, for the --plot switcher."""
-    from canlib.commands._captures_query import load_all_captures
+    from canlib.commands.captures.query import load_all_captures
 
     seen: dict[tuple[str, str], None] = {}
     try:
@@ -503,7 +503,7 @@ def _resolve_targets(
     PID).
     Returns ``(targets, error)``; ``error`` is a message when nothing resolved.
     """
-    from canlib.commands._captures_query import _parse_query
+    from canlib.commands.captures.query import _parse_query
     from canlib.query import QueryError
 
     try:

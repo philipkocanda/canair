@@ -17,7 +17,7 @@ from pathlib import Path
 import pytest
 
 from canlib import capture_io, captures_merge
-from canlib.commands import captures_merge_driver
+from canlib.commands.captures import merge_driver
 
 
 def _session(label, time, *, date="2026-07-28", ecu="0x7EC", pid="2101", payload="6101AA"):
@@ -163,7 +163,7 @@ class TestDriverCommand:
         self._write(ours, _doc(shared, _session("ours", "12:00:00")))
         self._write(theirs, _doc(shared, _session("theirs", "11:00:00")))
 
-        rc = captures_merge_driver._run_driver(str(base), str(ours), str(theirs), "captures/x.json")
+        rc = merge_driver._run_driver(str(base), str(ours), str(theirs), "captures/x.json")
         assert rc == 0
         result = json.loads(ours.read_text())
         assert [s["label"] for s in result["sessions"]] == ["shared", "theirs", "ours"]
@@ -178,7 +178,7 @@ class TestDriverCommand:
         self._write(theirs, _doc())
         ours_before = ours.read_text()
 
-        rc = captures_merge_driver._run_driver(str(base), str(ours), str(theirs))
+        rc = merge_driver._run_driver(str(base), str(ours), str(theirs))
         assert rc != 0
         assert ours.read_text() == ours_before  # untouched → git shows markers
 
@@ -189,7 +189,7 @@ class TestDriverCommand:
         base.write_text("{ not json")
         self._write(ours, _doc())
         self._write(theirs, _doc())
-        assert captures_merge_driver._run_driver(str(base), str(ours), str(theirs)) != 0
+        assert merge_driver._run_driver(str(base), str(ours), str(theirs)) != 0
 
     def test_output_is_byte_identical_to_save_format(self, tmp_path):
         # Merged file must be indistinguishable from a normally-written one.
@@ -201,7 +201,7 @@ class TestDriverCommand:
         self._write(base, _doc(shared))
         self._write(ours, _doc(shared, _session("ours", "12:00:00")))
         self._write(theirs, _doc(shared, _session("theirs", "11:00:00")))
-        captures_merge_driver._run_driver(str(base), str(ours), str(theirs))
+        merge_driver._run_driver(str(base), str(ours), str(theirs))
 
         expected = tmp_path / "expected.json"
         capture_io.dump_capture_file(expected, merged_doc)

@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Entry point for ``captures --step``: build the model, pick an output path.
 
-Three paths over one :class:`~canlib.commands._captures_step_model.StepModel`:
+Three paths over one :class:`~canlib.commands.captures.step_model.StepModel`:
 
-* a TTY gets the interactive Textual app (:mod:`_captures_step_tui`);
+* a TTY gets the interactive Textual app (:mod:`step_tui`);
 * piped output renders the most recent frames statically;
 * ``--json`` emits the same frames as data.
 
 The state and rendering live in the model/renderer modules; the join lives in
-:mod:`_captures_query`. This module only wires them to the command line.
+:mod:`query`. This module only wires them to the command line.
 """
 
 import sys
@@ -16,7 +16,8 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from canlib.capture_types import CaptureEntry
-from canlib.commands._captures_query import (
+
+from .query import (
     _DIM,
     _RESET,
     _YELLOW,
@@ -24,7 +25,7 @@ from canlib.commands._captures_query import (
     _dump_json,
     _gather_query,
 )
-from canlib.commands._captures_step_model import (
+from .step_model import (
     DEFAULT_STEP_JOIN_TOL_S,
     VIEW_AUTO,
     StepModel,
@@ -132,7 +133,7 @@ def cmd_step(
         _print_frames(model, limit=limit)
         return
 
-    from canlib.commands._captures_step_tui import run_step_app
+    from .step_tui import run_step_app
 
     run_step_app(model)
 

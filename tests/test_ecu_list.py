@@ -256,7 +256,7 @@ def test_pids_latest_records_shape(monkeypatch):
         },
     )
     monkeypatch.setattr(
-        "canlib.commands._captures_query._decoded_preview", lambda e: {"SOC": "79.0 %"}
+        "canlib.commands.captures.query._decoded_preview", lambda e: {"SOC": "79.0 %"}
     )
     recs = ecu._pids_latest_records(_pids_data_multi(), "BMS")
     by_pid = {r["pid"]: r for r in recs}
@@ -276,7 +276,7 @@ def test_cmd_pids_renders_values_not_hex(monkeypatch, capsys):
         lambda name: {"2101": {"payload": "6201DEADBEEF", "date": "2026-07-22"}},
     )
     monkeypatch.setattr(
-        "canlib.commands._captures_query._decoded_preview", lambda e: {"SOC": "79.0 %"}
+        "canlib.commands.captures.query._decoded_preview", lambda e: {"SOC": "79.0 %"}
     )
     rc = ecu.cmd_pids({"name": "BMS"}, 0x7E4, _pids_data_multi(), as_json=False)
     out = capsys.readouterr().out

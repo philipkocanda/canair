@@ -94,9 +94,9 @@ _RAW_IDENTIFIER = re.compile(r"[a-z]{2,}_[a-z]{2,}")
 
 
 def _canair_tui_apps():
-    from canlib.commands._captures_step_tui import CapturesStepApp
     from canlib.commands._decode_plot_tui import PlotApp
     from canlib.commands._sniff_tui import SniffApp
+    from canlib.commands.captures.step_tui import CapturesStepApp
     from canlib.modes._monitor_tui import MonitorApp
 
     return [CapturesStepApp, PlotApp, MonitorApp, SniffApp]
@@ -121,7 +121,7 @@ class TestRealAppsHaveReadableHelp:
             assert all(desc for _keys, desc in rows)
 
     def test_step_app_shows_its_symbolic_keys(self):
-        from canlib.commands._captures_step_tui import CapturesStepApp
+        from canlib.commands.captures.step_tui import CapturesStepApp
 
         rows = {
             desc: keys

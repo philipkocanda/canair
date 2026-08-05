@@ -4,7 +4,7 @@
 Framework-free by design: :class:`StepModel` owns everything the step view *is*
 (the selected (ECU, PID) keys, the join tolerance, the view mode, the frame and
 block cursors) and renders a frame to a :class:`rich.text.Text`. The Textual app
-(:mod:`_captures_step_tui`) is a thin shell over it, and the piped/JSON paths use
+(:mod:`step_tui`) is a thin shell over it, and the piped/JSON paths use
 the same model with no Textual involved — so the capability is never
 TTY-only.
 
@@ -12,7 +12,7 @@ Two navigation shapes share one model:
 
 * **stacked** (``stacked``/``signals``/``changed``) — one frame per *joined*
   moment, with one block per selected key (see
-  :func:`~canlib.commands._captures_query.build_join_frames`). This is the
+  :func:`~canlib.commands.captures.query.build_join_frames`). This is the
   cross-compare view: several PIDs underneath each other at the same instant.
 * **interleaved** — one frame per capture, chronologically across the selected
   keys. Better for browsing many PIDs, where stacking would not fit a screen.
@@ -31,8 +31,10 @@ from rich.text import Text
 
 from canlib.capture_dates import entry_datetime
 from canlib.capture_types import CaptureEntry
-from canlib.commands._captures_join import JoinFrame, build_join_frames
-from canlib.commands._captures_query import (
+from canlib.states import join_states as _join_states
+
+from .join import JoinFrame, build_join_frames
+from .query import (
     PidDefs,
     _capture_key,
     _dedupe_payloads,
@@ -45,14 +47,13 @@ from canlib.commands._captures_query import (
     key_index,
     load_all_captures,
 )
-from canlib.commands._captures_step_render import (
+from .step_render import (
     capture_block_text,
     frame_header_text,
     key_label,
     missing_block_text,
     separator_text,
 )
-from canlib.states import join_states as _join_states
 
 # View vocabulary. ``auto`` is resolved at construction time and never stored.
 VIEW_AUTO = "auto"
@@ -709,7 +710,7 @@ class StepModel:
         ``limit`` keeps only the most recent N frames (0 = all), mirroring the
         ``--limit`` cap of the list view.
         """
-        from canlib.commands._captures_query import _entry_to_dict
+        from .query import _entry_to_dict
 
         total = self.frame_count()
         start = max(total - limit, 0) if limit > 0 else 0

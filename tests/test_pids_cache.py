@@ -66,7 +66,7 @@ class TestDecodePreviewIndex:
     """The capture-preview PID index is built from load_pids() — derived state."""
 
     def test_switching_profile_redecodes_with_the_new_definitions(self, tmp_path):
-        from canlib.commands import _captures_query as q
+        from canlib.commands.captures import query as q
 
         entry = {"payload": "6101AABBCCDD", "ecu": "BMS", "pid": "2101"}
         _activate(_mk_profile(tmp_path, "a", "BMS", "A_VOLTS"), "a")
@@ -77,7 +77,7 @@ class TestDecodePreviewIndex:
         assert "B_VOLTS" in preview, f"stale index decoded {sorted(preview)}"
 
     def test_editing_a_param_is_reflected(self, tmp_path):
-        from canlib.commands import _captures_query as q
+        from canlib.commands.captures import query as q
         from canlib.pids_edit import rename_parameter
 
         root = _mk_profile(tmp_path, "c", "BMS", "OLD_NAME")

@@ -46,7 +46,7 @@ import argparse
 import sys
 from collections import defaultdict
 
-from canlib.commands._captures_query import load_all_captures
+from canlib.commands.captures.query import load_all_captures
 
 # BMS 2101 reassembled-payload offset of the raw SOC byte (WiCAN B09); SOC% = raw/2.
 _SOC_PAYLOAD_OFFSET = 6

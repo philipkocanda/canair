@@ -3,7 +3,7 @@
 
 Turns several PIDs' captures into a shared timeline of frames, each frame
 holding one slot per selected (ECU, PID) key. Pure data — the rendering lives in
-:mod:`_captures_step_render`, the state in :mod:`_captures_step_model`.
+:mod:`step_render`, the state in :mod:`step_model`.
 
 The nearest-within-tolerance rule deliberately mirrors
 :func:`canlib.align.join_prepared`, so the stepper pairs captures exactly as
@@ -20,7 +20,8 @@ from datetime import datetime
 
 from canlib.capture_dates import entry_datetime
 from canlib.capture_types import CaptureEntry
-from canlib.commands._captures_query import _capture_key
+
+from .query import _capture_key
 
 
 @dataclass(frozen=True)

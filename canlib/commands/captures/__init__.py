@@ -101,8 +101,13 @@ from canlib.capture_dates import (
     resolve_scope_bounds,
 )
 from canlib.capture_types import CaptureEntry, Quality
-from canlib.commands._captures_backfill import cmd_backfill_states
-from canlib.commands._captures_query import (
+from canlib.commands._group import group_help
+from canlib.commands._hints import ecu_completer as _ecu_completer
+from canlib.state_infer import DEFAULT_CYCLE_TOL_S
+from canlib.states import join_states as _join_states
+
+from .backfill import cmd_backfill_states
+from .query import (
     _BOLD,
     _CYAN,
     _DIM,
@@ -119,18 +124,14 @@ from canlib.commands._captures_query import (
     group_sessions,
     load_all_captures,
 )
-from canlib.commands._captures_set_state import cmd_set_state
-from canlib.commands._captures_step import cmd_step
-from canlib.commands._captures_step_model import (
+from .set_state import cmd_set_state
+from .step import cmd_step
+from .step_model import (
     AUTO_STACK_MAX_KEYS,
     DEFAULT_STEP_JOIN_TOL_S,
     VIEW_AUTO,
     VIEW_CHOICES,
 )
-from canlib.commands._group import group_help
-from canlib.commands._hints import ecu_completer as _ecu_completer
-from canlib.state_infer import DEFAULT_CYCLE_TOL_S
-from canlib.states import join_states as _join_states
 
 NAME = "captures"
 ALIASES = ["cap"]
@@ -957,9 +958,9 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     _add_can_parser(kinds)
     _add_migrate_parser(kinds)
     _add_migrate_rx_parser(kinds)
-    from . import captures_merge_driver
+    from . import merge_driver
 
-    captures_merge_driver.add_parser(kinds)
+    merge_driver.add_parser(kinds)
     parser.set_defaults(func=group_help("_captures_group_parser"), _captures_group_parser=parser)
     return parser
 

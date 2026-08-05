@@ -12,8 +12,6 @@ from canlib.captures import (
     resolve_metadata,
     save_session,
 )
-from canlib.commands._captures_join import _nearest_within, build_join_frames
-from canlib.commands._captures_query import _gather_query, _is_hex_payload, group_sessions
 from canlib.commands.captures import (
     _clean,
     _print_decoded_preview,
@@ -24,6 +22,8 @@ from canlib.commands.captures import (
     cmd_sessions,
     cmd_summary,
 )
+from canlib.commands.captures.join import _nearest_within, build_join_frames
+from canlib.commands.captures.query import _gather_query, _is_hex_payload, group_sessions
 
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 
@@ -794,8 +794,8 @@ class TestCmdDelete:
         save_session(s, cdir)
 
     def test_dry_run_deletes_nothing(self, tmp_path, capsys):
-        from canlib.commands._captures_query import load_all_captures
         from canlib.commands.captures import cmd_delete
+        from canlib.commands.captures.query import load_all_captures
 
         self._seed(tmp_path)
         entries = load_all_captures(tmp_path)
@@ -807,8 +807,8 @@ class TestCmdDelete:
         assert len(load_all_captures(tmp_path)) == 3
 
     def test_deletes_matching_only(self, tmp_path):
-        from canlib.commands._captures_query import load_all_captures
         from canlib.commands.captures import cmd_delete
+        from canlib.commands.captures.query import load_all_captures
 
         self._seed(tmp_path)
         entries = load_all_captures(tmp_path)
@@ -819,8 +819,8 @@ class TestCmdDelete:
         assert [(e["ecu"], str(e["pid"])) for e in remaining] == [("MCU", "2101")]
 
     def test_no_match_returns_1(self, tmp_path, capsys):
-        from canlib.commands._captures_query import load_all_captures
         from canlib.commands.captures import cmd_delete
+        from canlib.commands.captures.query import load_all_captures
 
         self._seed(tmp_path)
         entries = load_all_captures(tmp_path)
@@ -830,8 +830,8 @@ class TestCmdDelete:
         assert len(load_all_captures(tmp_path)) == 3
 
     def test_json_dry_run_emits_rows(self, tmp_path, capsys):
-        from canlib.commands._captures_query import load_all_captures
         from canlib.commands.captures import cmd_delete
+        from canlib.commands.captures.query import load_all_captures
 
         self._seed(tmp_path)
         entries = load_all_captures(tmp_path)
@@ -866,8 +866,8 @@ class TestCmdBackfillStates:
         return json.loads(files[0].read_text())["sessions"][0].get("vehicle_states")
 
     def _run(self, cdir, **kw):
-        from canlib.commands._captures_backfill import cmd_backfill_states
-        from canlib.commands._captures_query import load_all_captures
+        from canlib.commands.captures.backfill import cmd_backfill_states
+        from canlib.commands.captures.query import load_all_captures
 
         return cmd_backfill_states(load_all_captures(cdir), captures_dir=cdir, **kw)
 
@@ -934,8 +934,8 @@ class TestCmdSetState:
         return json.loads(files[0].read_text())["sessions"][0].get("vehicle_states")
 
     def _run(self, cdir, states_arg, **kw):
-        from canlib.commands._captures_query import load_all_captures
-        from canlib.commands._captures_set_state import cmd_set_state
+        from canlib.commands.captures.query import load_all_captures
+        from canlib.commands.captures.set_state import cmd_set_state
 
         return cmd_set_state(load_all_captures(cdir), states_arg, captures_dir=cdir, **kw)
 

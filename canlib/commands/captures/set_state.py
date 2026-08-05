@@ -40,7 +40,8 @@ def cmd_set_state(
     import json as _json
 
     from canlib.captures import set_session_states
-    from canlib.commands._captures_query import group_sessions
+
+    from .query import group_sessions
 
     cdir = _resolve_captures_dir(captures_dir)
 

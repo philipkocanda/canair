@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Textual TUI for ``canair captures --step`` — the capture stepper/comparator.
 
-A thin shell over :class:`~canlib.commands._captures_step_model.StepModel`, which
+A thin shell over :class:`~canlib.commands.captures.step_model.StepModel`, which
 owns all state and renders the frame. The app contributes only interaction:
 
 - frame navigation, plus **scrolling** (a stacked multi-PID frame is routinely
@@ -25,12 +25,13 @@ from textual.widgets import Button, Input, Label, OptionList, SelectionList, Sta
 from textual.widgets.option_list import Option
 
 from canlib.capture_types import CaptureEntry
-from canlib.commands._captures_step_render import key_label
 from canlib.tui_help import HelpMixin
 from canlib.tui_modals import ConfirmModal, TextPromptModal
 
+from .step_render import key_label
+
 if TYPE_CHECKING:
-    from canlib.commands._captures_step_model import JumpList, JumpTarget, StepModel
+    from .step_model import JumpList, JumpTarget, StepModel
 
 Key = tuple[str, str]
 
@@ -415,7 +416,7 @@ class CapturesStepApp(HelpMixin, App):
         self._refresh()
 
     def action_page(self, direction: int) -> None:
-        from canlib.commands._captures_step_model import PAGE_JUMP
+        from .step_model import PAGE_JUMP
 
         self.action_advance(PAGE_JUMP * direction)
 

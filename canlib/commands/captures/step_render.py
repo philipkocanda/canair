@@ -3,9 +3,9 @@
 
 Pure formatting: every function here takes plain capture data and returns a
 :class:`rich.text.Text`, so the *same* renderer serves the interactive Textual
-app (:mod:`_captures_step_tui`), the piped static output, and tests. Nothing
+app (:mod:`step_tui`), the piped static output, and tests. Nothing
 here prints, and nothing here knows about the view vocabulary — the caller
-(:mod:`_captures_step_model`) decides *what* to show and passes explicit
+(:mod:`step_model`) decides *what* to show and passes explicit
 switches (``show_hex``/``changed_only``).
 
 Building ``Text`` directly rather than printing markup also means capture-owned
@@ -20,8 +20,9 @@ from typing import Any
 from rich.text import Text
 
 from canlib.capture_types import CaptureEntry
-from canlib.commands._captures_query import PidDefs, _capture_key
 from canlib.states import join_states as _join_states
+
+from .query import PidDefs, _capture_key
 
 # Width of the rule drawn between stacked capture blocks.
 _SEPARATOR_WIDTH = 44

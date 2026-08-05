@@ -490,7 +490,7 @@ def _pids_latest_records(ecu_def: dict | None, ecu_name: str) -> list[dict]:
     most recent capture of that PID — never raw hex. PIDs with no capture, or no
     parameters defined, are still listed (so the view shows *all* available PIDs).
     """
-    from canlib.commands._captures_query import _decoded_preview
+    from canlib.commands.captures.query import _decoded_preview
 
     latest = _latest_capture_by_pid(ecu_name)
     out: list[dict] = []

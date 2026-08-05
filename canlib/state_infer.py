@@ -27,7 +27,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from canlib.capture_dates import entry_datetime
-from canlib.commands._captures_query import _resolve_defs
+from canlib.commands.captures.query import _resolve_defs
 from canlib.decoding import decode_param_rows
 from canlib.states import StateRule, _order_states, suggest_states
 

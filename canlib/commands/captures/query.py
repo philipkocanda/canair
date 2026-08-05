@@ -2,11 +2,11 @@
 """Capture loading, query selection, and capture-set keying helpers.
 
 The pure data layer shared by the ``captures`` command's views (``captures.py``)
-and its interactive step TUI (``_captures_step_model.py``): loading capture
+and its interactive step TUI (``step_model.py``): loading capture
 files, resolving PID definitions, selecting entries with the query
 mini-language, and the keying/grouping/dedup primitives the diff and step views
 build on. The N-way time join those frames are built from lives in
-:mod:`_captures_join`.
+:mod:`join`.
 
 Nothing here is interactive — functions return data (the one exception is
 :func:`_gather_query`, which prints a note for selectors that matched nothing).

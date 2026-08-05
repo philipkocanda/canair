@@ -28,7 +28,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from .. import capture_io, captures_merge
+from canlib import capture_io, captures_merge
 
 # The driver name referenced by .gitattributes (`merge=canair-captures`) and the
 # .git/config `[merge "canair-captures"]` stanza. Keep the three in sync.

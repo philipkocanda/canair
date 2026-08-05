@@ -299,7 +299,7 @@ an expression.
 !!! note "Scripting over captures — use `load_all_captures()`, mind the RX address"
     If you must script over captures (a bulk edit/delete keyed on a payload
     predicate the QUERY can't express, e.g. "drop every truncated read"), go
-    through `canlib.commands._captures_query.load_all_captures()`. It returns
+    through `canlib.commands.captures.query.load_all_captures()`. It returns
     flat entries with `ecu` already **resolved to the short name** (e.g. `OBC`),
     the raw `ecu_addr` (`0x7ED`), and `_session_idx`/`_capture_idx` locators that
     plug straight into `canlib.captures.delete_capture` (delete in reverse

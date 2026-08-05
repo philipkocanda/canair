@@ -13,8 +13,8 @@ import json
 import pytest
 from rich.console import Console
 
-from canlib.commands._captures_step import cmd_step
-from canlib.commands._captures_step_model import (
+from canlib.commands.captures.step import cmd_step
+from canlib.commands.captures.step_model import (
     AUTO_STACK_MAX_KEYS,
     BLOCK_NO_FRAME,
     BLOCK_NON_PAYLOAD,
@@ -28,7 +28,7 @@ from canlib.commands._captures_step_model import (
     StepModel,
     resolve_view,
 )
-from canlib.commands._captures_step_render import capture_block_text
+from canlib.commands.captures.step_render import capture_block_text
 
 # Two params over the sample payload "6201005A6414" (a 6-byte single-frame
 # response, so WiCAN Bnn maps to payload byte nn-1):
@@ -454,7 +454,7 @@ class TestStepModelJson:
 def _write_captures(tmp_path) -> list[dict]:
     """Save two real capture files and return the loaded entries."""
     from canlib.captures import build_query_session, save_session
-    from canlib.commands._captures_query import load_all_captures
+    from canlib.commands.captures.query import load_all_captures
 
     save_session(
         build_query_session(
@@ -528,7 +528,7 @@ class TestCapturesStepApp:
     """The Textual shell. Model behavior is covered above; these drive the keys."""
 
     def _app(self, **kw):
-        from canlib.commands._captures_step_tui import CapturesStepApp
+        from canlib.commands.captures.step_tui import CapturesStepApp
 
         return CapturesStepApp(_model(**kw))
 
@@ -754,8 +754,8 @@ class TestCapturesStepAppEdits:
     """Note/delete act on the focused block and write through canlib.captures."""
 
     def _app(self, tmp_path):
-        from canlib.commands._captures_step import build_model
-        from canlib.commands._captures_step_tui import CapturesStepApp
+        from canlib.commands.captures.step import build_model
+        from canlib.commands.captures.step_tui import CapturesStepApp
 
         entries = _write_captures(tmp_path)
         model = build_model(entries, "BMS", captures_dir=tmp_path, warn=False)
@@ -1094,13 +1094,13 @@ class TestEmptyReason:
 
 class TestJumpModal:
     def _open(self, model=None):
-        from canlib.commands._captures_step_tui import CapturesStepApp
+        from canlib.commands.captures.step_tui import CapturesStepApp
 
         return CapturesStepApp(model or _jump_model())
 
     @pytest.mark.asyncio
     async def test_s_opens_the_modal_listing_sessions_and_notes(self):
-        from canlib.commands._captures_step_tui import JumpModal
+        from canlib.commands.captures.step_tui import JumpModal
 
         app = self._open()
         async with app.run_test(size=(130, 40)) as pilot:
@@ -1134,7 +1134,7 @@ class TestJumpModal:
             await pilot.pause()
             await pilot.press("s")
             await pilot.pause()
-            from canlib.commands._captures_step_tui import _JUMP_ROW_WIDTH
+            from canlib.commands.captures.step_tui import _JUMP_ROW_WIDTH
 
             for t in app.screen._shown:
                 assert len(app.screen._row(t).plain) <= _JUMP_ROW_WIDTH
