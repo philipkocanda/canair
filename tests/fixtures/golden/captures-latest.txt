@@ -1,0 +1,11 @@
+
+  Latest payloads — 2 PIDs
+
+  ALPHA      22F001     2026-01-02  (RUN)
+    62F0014F7F219A
+    ALPHA_RAMP: 79.0
+    ALPHA_FLAGS_B6_0: 1.0
+  BETA       22F002     2026-01-02  (RUN)
+    62F0024F7F0011
+    BETA_RAMP: 79.0
+

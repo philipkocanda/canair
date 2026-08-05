@@ -1,6 +1,7 @@
 """Tests for capture session builders and metadata resolution."""
 
 import json
+import re
 from typing import ClassVar
 from unittest.mock import patch
 
@@ -16,12 +17,20 @@ from canlib.commands._captures_query import _gather_query, _is_hex_payload, grou
 from canlib.commands.captures import (
     _clean,
     _print_decoded_preview,
+    _quality_tag,
     cmd_diff,
     cmd_latest,
     cmd_list,
     cmd_sessions,
     cmd_summary,
 )
+
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+
+
+def _strip_ansi(text: str) -> str:
+    """Drop colour codes so an assertion can read the words, not the escapes."""
+    return _ANSI_RE.sub("", text)
 
 
 class TestIsHexPayload:
@@ -294,6 +303,55 @@ class TestCmdSessions:
         import json
 
         assert json.loads(capsys.readouterr().out)[0]["keep_mode"] == "unique"
+
+    def test_capture_notes_listed_and_truncated(self, capsys):
+        # Distinct capture-level notes are listed, capped at max_notes with a
+        # "+N more" tail so the cap is never silent.
+        entries = [
+            _entry(session_label="rich", time=f"10:00:0{i}", notes=f"note {i}") for i in range(5)
+        ]
+        cmd_sessions(entries, max_notes=2)
+        out = capsys.readouterr().out
+        assert "note 0" in out and "note 1" in out
+        assert "note 2" not in out
+        assert "+3 more capture-notes" in out
+
+    def test_long_capture_note_is_shortened(self, capsys):
+        entries = [_entry(session_label="long", time="10:00:00", notes="x" * 200)]
+        cmd_sessions(entries)
+        out = capsys.readouterr().out
+        assert "x" * 97 + "..." in out
+        assert "x" * 101 not in out
+
+
+class TestQualityTag:
+    """The transport-health footprint shown per session in the TOC."""
+
+    def test_clean_session_is_silent(self):
+        # Only a session that recorded trouble gets a line; the TOC stays terse.
+        assert _quality_tag({"exchanges": 42}) == ""
+        assert _quality_tag({}) == ""
+        assert _quality_tag(None) == ""
+
+    def test_drops_and_stale_are_summed(self):
+        tag = _strip_ansi(_quality_tag({"drop": 2, "stale": 3, "exchanges": 100}))
+        assert "drops 5" in tag
+        assert "100 exchanges" in tag
+        assert "errors" not in tag
+
+    def test_other_categories_reported_as_errors(self):
+        # no_data/bus/decode/other are non-answers, not ISO-TP integrity failures.
+        tag = _strip_ansi(_quality_tag({"no_data": 1, "bus": 2, "decode": 3, "other": 4}))
+        assert "errors 10" in tag
+        assert "drops" not in tag
+
+    def test_exchange_total_omitted_when_absent(self):
+        assert "exchanges" not in _strip_ansi(_quality_tag({"drop": 1}))
+
+    def test_shown_in_sessions_text(self, capsys):
+        entries = [_entry(session_label="flaky", time="10:00:00", quality={"drop": 1})]
+        cmd_sessions(entries)
+        assert "drops 1" in _strip_ansi(capsys.readouterr().out)
 
 
 class TestCmdSummaryJson:

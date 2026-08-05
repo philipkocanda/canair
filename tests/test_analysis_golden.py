@@ -30,6 +30,9 @@ enforced by :meth:`TestGoldenHarnessItself.test_cases_cannot_drift_as_captures_g
 **ANSI is stripped** so the goldens stay reviewable in a diff (a colour change is
 out of scope here and is covered by the screenshot check). Labels are what matter.
 
+The harness itself (golden dir, regen switch, normalizer, runner) is shared with
+:mod:`tests.test_captures_golden` — see :mod:`tests._golden`.
+
 Regenerate after an *intended* change, then **read the diff**::
 
     CANAIR_REGEN_GOLDEN=1 uv run pytest tests/test_analysis_golden.py -q
@@ -38,23 +41,26 @@ Regenerate after an *intended* change, then **read the diff**::
 
 from __future__ import annotations
 
-import os
 import re
-from pathlib import Path
 from typing import ClassVar
 
 import pytest
 
-from canlib import cli
+from tests._golden import (
+    FIXTURE_PROFILES_DIR,
+    GOLDEN_DIR,
+    REGEN,
+    SCOPE_FLAGS,
+    check_golden,
+    run_cli,
+)
 
-GOLDEN_DIR = Path(__file__).parent / "fixtures" / "golden"
 # Synthetic profile whose only PID returns a SINGLE-FRAME (7-byte) payload with
 # *varying* data bytes. The bundled ioniq-2017 profile has no such PID — its 11
 # single-frame PIDs are either one-shot reads or entirely constant — so without
 # this fixture the one-PCI-byte layout has no end-to-end label coverage at all.
 # That gap is how the physical_scan and notation off-by-one bugs both survived.
-SINGLE_FRAME_PROFILE = str(Path(__file__).parent / "fixtures" / "profiles" / "single-frame")
-REGEN = os.environ.get("CANAIR_REGEN_GOLDEN") == "1"
+SINGLE_FRAME_PROFILE = str(FIXTURE_PROFILES_DIR / "single-frame")
 
 # Upper bound for every volume-dependent case, so appending captures can never
 # drift a golden (or slow this module down). Bump it deliberately — with a golden
@@ -65,11 +71,6 @@ FROZEN_UNTIL = "2026-08-02"
 # captured payload, not of capture volume — see the module docstring. These need no
 # date scope (and `coverage` has no scope flags to give it one).
 VOLUME_INDEPENDENT_VERBS = frozenset({"coverage"})
-
-# Flags that pin a case to a closed date range.
-_SCOPE_FLAGS = frozenset({"--until", "--date", "--since"})
-
-_ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 
 # (name, argv). Every case must emit byte labels (Bnn / Bnn:k) or byte-derived
 # columns, and must be scoped to frozen dates so the output can't drift.
@@ -222,46 +223,12 @@ def _deterministic_grid_region(tmp_path, monkeypatch):
     config.load_config.cache_clear()
 
 
-def _norm(text: str) -> str:
-    """Strip ANSI and normalise line endings.
-
-    ``--dump-bytes`` writes CSV through :mod:`csv`, which emits ``\\r\\n``, while
-    ``Path.read_text`` universal-newlines it back to ``\\n`` — so an unnormalised
-    comparison fails on a byte-identical run. Normalising also makes the goldens
-    immune to git's autocrlf.
-    """
-    return _ANSI_RE.sub("", text).replace("\r\n", "\n")
-
-
-def _run(profile: str, argv: list[str], capsys) -> str:
-    """Run one canair command against ``profile``, returning normalised output."""
-    try:
-        cli.main(["--profile", profile, *argv])
-    except SystemExit:
-        pass  # argparse/verb exit codes are not what we're pinning
-    cap = capsys.readouterr()
-    return _norm(cap.out + cap.err)
-
-
 @pytest.mark.parametrize("name,profile,argv", CASES, ids=[c[0] for c in CASES])
 def test_analysis_output_is_unchanged(name, profile, argv, capsys):
-    got = _run(profile, argv, capsys)
-    path = GOLDEN_DIR / f"{name}.txt"
-
-    if REGEN:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(got)
-        pytest.skip(f"regenerated {path.name}")
-
-    assert got.strip(), f"{name} produced no output — it would pin nothing"
-    assert path.exists(), (
-        f"missing golden {path.name} — regenerate with CANAIR_REGEN_GOLDEN=1 and review the diff"
-    )
-    want = _norm(path.read_text())
-    assert got == want, (
-        f"{name}: analysis output drifted from its golden.\n"
-        "If the change is intended, regenerate with CANAIR_REGEN_GOLDEN=1 "
-        "and READ the diff — these labels are what --promote persists."
+    check_golden(
+        name,
+        run_cli(profile, argv, capsys),
+        hint="these labels are what --promote persists.",
     )
 
 
@@ -280,13 +247,13 @@ class TestGoldenHarnessItself:
         A case is safe if it is date-scoped, runs against a frozen fixture
         profile, or invokes a volume-independent verb. See the module docstring.
         """
-        fixtures = str(Path(__file__).parent / "fixtures")
+        fixture_profiles = str(FIXTURE_PROFILES_DIR)
         drifting = [
             name
             for name, profile, argv in CASES
             if not (
-                profile.startswith(fixtures)
-                or (set(argv) & _SCOPE_FLAGS)
+                profile.startswith(fixture_profiles)
+                or (set(argv) & SCOPE_FLAGS)
                 # argv[0] is the verb; `investigate uds` etc. keep it at index 0.
                 or argv[0] in VOLUME_INDEPENDENT_VERBS
             )
@@ -328,6 +295,6 @@ class TestGoldenHarnessItself:
     def test_runs_are_deterministic(self, capsys):
         """Two runs of the same case must agree, or goldens are useless."""
         name, profile, argv = CASES[0]
-        assert _run(profile, argv, capsys) == _run(profile, argv, capsys), (
+        assert run_cli(profile, argv, capsys) == run_cli(profile, argv, capsys), (
             f"{name} is nondeterministic"
         )

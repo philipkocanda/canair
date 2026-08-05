@@ -1,0 +1,26 @@
+
+  ALPHA:22F001 — latest 4 of 24 captures
+
+  2026-01-02 10:03:20  (RUN)
+    PID: 22F001
+    Payload: 62F001467F20A0
+    ALPHA_RAMP: 70.0
+    ALPHA_FLAGS_B6_0: 0.0
+  2026-01-02 10:03:27  (RUN)
+    PID: 22F001
+    Payload: 62F001497F219E
+    ALPHA_RAMP: 73.0
+    ALPHA_FLAGS_B6_0: 1.0
+  2026-01-02 10:03:34  (RUN)
+    PID: 22F001
+    Payload: 62F0014C7F209C
+    ALPHA_RAMP: 76.0
+    ALPHA_FLAGS_B6_0: 0.0
+  2026-01-02 10:03:41  (RUN)
+    PID: 22F001
+    Payload: 62F0014F7F219A
+    ALPHA_RAMP: 79.0
+    ALPHA_FLAGS_B6_0: 1.0
+
+  … 20 more not shown (showing latest 4 of 24). Use --limit 0 for all, or narrow with --since/--last-session/--state.
+

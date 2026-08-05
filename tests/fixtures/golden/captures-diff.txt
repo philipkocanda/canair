@@ -1,0 +1,9 @@
+  Date range: 2026-01-02T10:03:34 .. latest  (4 entries)
+
+  ALPHA (0x7A0)
+    22F001  (2 entries)
+      ALPHA_RAMP        79  ✓  3
+      ALPHA_FLAGS_B6_0  1   ?  5
+      10:03:34  62 F0 01 4C 7F 20 9C  (7 B)
+      10:03:41  62 F0 01 4F 7F 21 9A  (7 B)
+

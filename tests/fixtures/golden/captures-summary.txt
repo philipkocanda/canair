@@ -1,0 +1,14 @@
+
+  Capture Summary
+  Files:    2
+  Sessions: 2
+  Entries:  48 (48 payloads, 0 scans, 0 responses)
+
+  By ECU:
+    ALPHA          24
+    BETA           24
+
+  By Date:
+    2026-01-01    24
+    2026-01-02    24
+
