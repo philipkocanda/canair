@@ -252,6 +252,38 @@ decoded values (press `s` to edit the current session's metadata live, `n` to st
 a fresh labelled segment; a `● REC` blinks while recording). After saving, run
 `canair captures uds --summary`.
 
+> **Keep modes change what "a capture" *means* — and how you must read it.**
+> `canair monitor --save` defaults to **`--keep-changes`** (run-length): a payload
+> is stored only when it *differs from the immediately preceding one for that PID*.
+> Two consequences that routinely mislead:
+>
+> - **A stored-row count measures VOLATILITY, not sampling.** An ECU that stored
+>   30 rows over a 3 h session was polled every cycle — it just barely *changed*;
+>   another ECU in the very same run with one noisy ADC byte stores thousands.
+>   Never read a low count as "barely polled" and never compare two ECUs' counts
+>   as if they were sample sizes. (This exact misreading produced a wrong
+>   conclusion about IGPM on 2026-08-05 — it looked unpolled at 30 rows vs BCM's
+>   4697, when both were polled identically.) Check the recording mode and span in
+>   `canair captures uds --sessions`.
+> - **A stored value stays valid until the next stored row** — that is the whole
+>   point of run-length — **but the time-aligned joins do not know that.**
+>   `align`/`correlate`/`hunt`/`investigate` nearest-join within `--join-tol` and
+>   treat rows as *samples*, with no forward-fill, so a signal that legitimately
+>   held steady has nothing to attach to and the row is silently dropped. Measured:
+>   aligning a charge-port-lock bit (known with certainty for a whole 3 h window —
+>   it changed twice) against a dense BMS signal joined **5 of 2016 rows, losing
+>   99.75 %**. So when you need a run-length signal *alongside* a dense one, read
+>   its dwell from the timestamps (`investigate --events`, `decode --compact`)
+>   instead of trusting a join, and treat a near-empty join column as a *storage
+>   artefact*, not as absent data. Gap tracked in
+>   `plans/2026-08-05-run-length-forward-fill-joins.md`.
+>
+> Choose deliberately: **`--keep-all`** when you need true timing/rate (dRPM,
+> `--transform delta`, dwell durations); **`--keep-changes`** for narrated event
+> captures (keeps both edges *and* recoverable dwell); avoid **`--keep-unique`**
+> when timing matters at all — global dedup discards return-to-previous
+> transitions, so the run structure is genuinely unrecoverable.
+
 ### 5. Inspect — see the bytes
 
 `canair captures` is a `uds`/`can` group: `captures uds …` is the diagnostic
@@ -467,6 +499,25 @@ The tooling exposes real statistical levers — use them as evidence, not decora
   door bit in IGPM also present in BCM); the cross-ECU companion to
   `decode --find-mirrors` (single-PID). Beware small `--min-n`: noisy low bits
   (e.g. a voltage ADC's LSBs) can match by chance over a handful of samples.
+  **It matches only EXACT equality in ALL rows, so it misses two very common real
+  cases:** (a) an **offset/scaled** mirror — the same physical quantity carried at
+  a different offset or scale (`AAF:2181:B19 − 100 == OBC LDC_TEMP`,
+  `VCU:2102:B18 − 100 == AAF coolant temp`, `BCM:22C011:B11 == 12.8 ×
+  BCM_12V_BATTERY`); and (b) a **drifting** signal read by two ECUs seconds apart
+  in the poll round-robin, where skew makes rows differ by ±1 and disqualifies the
+  pair outright (one genuine mirror was exact in 94.9 % of 1729 rows and reported
+  as nothing). **A null result is therefore not evidence of no mirror.** Test
+  candidates with an **absolute-difference** check instead: align the two signals
+  and look for a *constant integer difference* (or constant ratio) in the large
+  majority of rows — `canair align "ECU:PID:A" "ECU:PID:B" --csv` and tabulate the
+  differences. That test found all three mirrors above on 2026-08-05, none of
+  which `--find-mirrors` reported.
+  **A mirror of an already-VERIFIED signal is the jackpot of this whole skill:** it
+  decodes an unmapped byte at near-certainty with no new capture and no physical
+  reasoning, so when a PID is co-polled with well-mapped ECUs, sweep for mirrors
+  *before* reaching for correlation or physics. It also cuts the other way — a
+  "new" byte that merely mirrors a known one should be recorded and left disabled
+  (redundant), not shipped twice.
 - **State discrimination** (`canair decode … --discriminate state`, add `--bytes`
   for raw bytes / `--bits` for toggling bits — no `--try` needed) — ranks
   bytes/params by between-state vs within-state variance (F). Surfaces
@@ -476,7 +527,10 @@ The tooling exposes real statistical levers — use them as evidence, not decora
 - **Mirror detection** (`canair decode … --find-mirrors [--bits]`) — reports
   byte/bit positions exactly equal across all captures: redundant status mirrors
   and unit-variants (the km/h-vs-MPH speed pair, an ignition bit echoed in two
-  places). A fast way to prune "new" bytes that are just copies.
+  places). A fast way to prune "new" bytes that are just copies. Same
+  exact-equality caveat as the cross-ECU version above — it will not see an
+  offset/scaled mirror, so a null result proves nothing; fall back to the
+  constant-difference test.
 - **Autocorrelation / step size** — lag-1 autocorrelation and mean |Δ| per sample
   separate slow (thermal, integrating) from fast (load, switching) signals.
 - **Differencing / transforms** (`--plot` `delta/abs/cumsum/normalize/smooth`) —
