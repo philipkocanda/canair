@@ -78,6 +78,24 @@ IGPM:
           verified: false
           notes: >
             1=ACC2, 0=all other modes. Verified 2026-07-18.
+        IGPM_WAKE_LATCH_B12_2:
+          expression: B12:2
+          source: RE 2026-08-05 corpus-wide event-timeline analysis (investigate --events --bits)
+          verified: false
+          notes: >-
+            Candidate transient wake / power-transition latch at B12 bit 2 — SELF-CLEARING, not a
+            steady state. Two clean episodes across the whole corpus (285 captures), both ~2-3 min
+            long: (a) 2026-08-02 09:52:59 -> 09:54:42 (1m43s), set when the car was powered to READY
+            (brake+start), cleared ~24 s after AC charging began; (b) 2026-08-05 08:28:30 ->
+            08:31:28 (2m58s), set at the first CAN contact of the day (which is what wakes IGPM) and
+            cleared WHILE polling continued, i.e. it timed out rather than tracking bus activity.
+            Distinct from B12:3 (ACC2_RELATED) and from the charge-lock pair B11:7 / B12:0, all of
+            which moved independently. Reads as a wake-source latch or power-mode-transition timer
+            that expires once the module settles. NOT confirmed: only 4 transitions exist, so this
+            is a lead, not a decode. TO TEST: capture with --keep-changes across deliberate power
+            transitions (SLEEP->ACC->READY->off) and across a pure CAN-wake with the car untouched,
+            timing how long the bit holds each time.
+          enabled: false
 
     22BC03:
       status: active
@@ -787,6 +805,20 @@ IGPM:
       created: "2026-07-23"
       updated: "2026-07-23"
       notes: "Undecoded toggling bits in IGPM body DIDs (candidates registered, need physical correlation): BC04 B10:0 (distinct from door locks B10:2/3), BC04 B12:5, BC04 B13:6; BC06 brake composite B10=0x2D sets bits 2,3,5 (BRAKE_PEDAL_BITS=B10:2 candidate). Other BC03/BC04/BC06 unmapped bits constant-0. BC01/BC02/BC05 closed as static config. Verify: actuate each body function while capturing; press brake with turn signals off to isolate the brake bit."
+    - type: decode
+      target: 22BC07
+      status: captured
+      priority: P2
+      vehicle_states: [ALL]
+      created: "2026-08-05"
+      updated: "2026-08-05"
+      notes: "IGPM 22BC07 corpus event-timeline pass 2026-08-05 (investigate --events --bits over 285 captures). CONFIRMED on fresh data: CHARGE_PORT_LOCK (B11:7) and CHARGE_PORT_LOCK_INV (B12:0) move together and inversely at every plug-in/charge-end across five separate charge sessions, re-validating both. TWO UNMAPPED BITS SHOW STRUCTURE: (1) B12:2 = self-clearing wake/power-transition latch, ~2-3 min, 2 clean episodes (added as IGPM_WAKE_LATCH_B12_2, disabled). (2) B10:4 = 4 transitions only, and inconsistent dwell: once 0->1 on arrival from a 1h drive then 1->0 just 50 s later, but on another date it held 1 for ~3.5 h and cleared exactly when charging started and the port locked. Both a 50 s and a 3.5 h dwell rule out a simple door/flap state; not defined. METHOD NOTE: a parked AC charge does not exercise body signals at all, so IGPM cannot be decoded from charge sessions - it needs a dedicated event capture."
+      sources:
+        - canair investigate --events --bits + decode --compact corpus timeline 2026-08-05
+      what_to_test:
+        - "Dedicated IGPM event capture with --keep-changes: doors/trunk/hood/windows/lights/lock-unlock in a scripted order with capture notes per action, so investigate --events can attribute each bit to an action."
+        - B10:4 — what is 1 for 50 s after arriving from a drive AND for 3.5 h before a charge starts? Log it across plug-in-without-charge vs charge-start, and across arrival/lock/sleep.
+        - B12:2 — time the latch across SLEEP->ACC->READY transitions and a pure CAN-wake to confirm it is a self-expiring wake latch.
 
   iocontrol_discoveries:
     BC01:
