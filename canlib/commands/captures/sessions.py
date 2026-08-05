@@ -35,11 +35,17 @@ def cmd_summary(entries: Sequence[CaptureEntry], as_json: bool = False) -> None:
         elif e["response"]:
             responses += 1
 
+    # Count sessions through the same grouping --sessions lists, so the two views
+    # can't disagree. Counting distinct (file, label) pairs here used to collapse
+    # every same-label session into one — a monitor run that writes many sessions
+    # under one label reported a handful instead of hundreds.
+    n_sessions = len(group_sessions(entries))
+
     if as_json:
         _dump_json(
             {
                 "files": len({e["file"] for e in entries}),
-                "sessions": len({(e["file"], e["session_label"]) for e in entries}),
+                "sessions": n_sessions,
                 "entries": len(entries),
                 "payloads": payloads,
                 "scans": scans,
@@ -52,7 +58,7 @@ def cmd_summary(entries: Sequence[CaptureEntry], as_json: bool = False) -> None:
 
     print(f"\n  {_BOLD}Capture Summary{_RESET}")
     print(f"  Files:    {len({e['file'] for e in entries})}")
-    print(f"  Sessions: {len({(e['file'], e['session_label']) for e in entries})}")
+    print(f"  Sessions: {n_sessions}")
     print(f"  Entries:  {len(entries)} ({payloads} payloads, {scans} scans, {responses} responses)")
 
     print(f"\n  {_BOLD}By ECU:{_RESET}")

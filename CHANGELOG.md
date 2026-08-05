@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its description.
 
 ### Fixed
+- **`canair captures uds --summary` reported far too few sessions.** It counted
+  distinct `(file, label)` pairs, so every session sharing a label collapsed into
+  one — and a `canair monitor --save` run writes many sessions under a single
+  label. The bundled profile read `Sessions: 204` where `--sessions` listed 223.
+  Both views now count through the same grouping, keyed on the true session
+  identity, so they cannot disagree.
 - **`canair contribute` no longer rewrites capture logs it adds nothing to.**
   Captures were unioned with the upstream copy through the git merge-driver's
   *canonical re-sort*, which reorders sessions that carry no first-capture `time`

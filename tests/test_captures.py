@@ -364,6 +364,69 @@ class TestCmdSummaryJson:
         assert data["by_date"] == {"2026-07-22": 3}
 
 
+class TestSummarySessionCount:
+    """--summary and --sessions must never disagree on how many sessions are in scope.
+
+    --summary used to count distinct ``(file, session_label)`` pairs, so every
+    session sharing a label collapsed into one: a monitor run that writes many
+    sessions under a single label reported a handful instead of all of them (the
+    bundled profile read 204 instead of 223). Both views now count through
+    ``group_sessions``, whose key is the true session identity.
+    """
+
+    @staticmethod
+    def _summary_sessions(entries, capsys) -> int:
+        cmd_summary(entries, as_json=True)
+        return json.loads(capsys.readouterr().out)["sessions"]
+
+    def test_same_label_sessions_are_counted_separately(self, capsys):
+        entries = [
+            _entry(_session_idx=0, session_label="monitor", time="10:00:00"),
+            _entry(_session_idx=1, session_label="monitor", time="10:01:00"),
+            _entry(_session_idx=2, session_label="monitor", time="10:02:00"),
+        ]
+        assert self._summary_sessions(entries, capsys) == 3
+
+    def test_unlabelled_sessions_are_counted_separately(self, capsys):
+        entries = [
+            _entry(_session_idx=0, session_label="", time="10:00:00"),
+            _entry(_session_idx=1, session_label="", time="10:01:00"),
+        ]
+        assert self._summary_sessions(entries, capsys) == 2
+
+    def test_one_session_spanning_several_captures_counts_once(self, capsys):
+        entries = [
+            _entry(_session_idx=0, session_label="drive", time="10:00:00", ecu="BMS"),
+            _entry(_session_idx=0, session_label="drive", time="10:00:05", ecu="VCU"),
+        ]
+        assert self._summary_sessions(entries, capsys) == 1
+
+    def test_same_session_idx_in_different_files_counts_twice(self, capsys):
+        entries = [
+            _entry(file="a.json", _session_idx=0, session_label="drive", time="10:00:00"),
+            _entry(file="b.json", _session_idx=0, session_label="drive", time="10:00:00"),
+        ]
+        assert self._summary_sessions(entries, capsys) == 2
+
+    def test_the_two_views_agree(self, capsys):
+        # The invariant, asserted directly against the --sessions grouping.
+        entries = [
+            _entry(file="a.json", _session_idx=0, session_label="dup", time="10:00:00"),
+            _entry(file="a.json", _session_idx=1, session_label="dup", time="11:00:00"),
+            _entry(file="a.json", _session_idx=1, session_label="dup", time="11:00:02"),
+            _entry(file="b.json", _session_idx=0, session_label="", time="12:00:00"),
+        ]
+        assert self._summary_sessions(entries, capsys) == len(group_sessions(entries))
+
+    def test_text_view_reports_the_same_count(self, capsys):
+        entries = [
+            _entry(_session_idx=0, session_label="monitor", time="10:00:00"),
+            _entry(_session_idx=1, session_label="monitor", time="10:01:00"),
+        ]
+        cmd_summary(entries)
+        assert "Sessions: 2" in _strip_ansi(capsys.readouterr().out)
+
+
 class TestCmdListJson:
     def test_json_lists_matched_and_unmatched(self, capsys):
         import json

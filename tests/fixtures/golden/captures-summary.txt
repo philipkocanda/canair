@@ -1,7 +1,7 @@
 
   Capture Summary
   Files:    2
-  Sessions: 2
+  Sessions: 24
   Entries:  48 (48 payloads, 0 scans, 0 responses)
 
   By ECU:
