@@ -19,6 +19,7 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from canlib.capture_io import resolve_captures_dir
 from canlib.states import allowed_states, join_states, parse_states
 
 if TYPE_CHECKING:
@@ -43,7 +44,7 @@ def cmd_set_state(
 
     from .query import group_sessions
 
-    cdir = _resolve_captures_dir(captures_dir)
+    cdir = resolve_captures_dir(captures_dir)
 
     states = parse_states(states_arg)
     if not states:
@@ -147,11 +148,3 @@ def _print_report(rows: list[dict], states: list[str]) -> None:
         note = "" if r["will_write"] else "  (already)"
         print(f"  {mark} {r['date']} {span}  {recorded:24} → {join_states(states)}  {label}{note}")
     print()
-
-
-def _resolve_captures_dir(explicit: Path | None) -> Path:
-    if explicit is not None:
-        return explicit
-    from canlib.profile import active
-
-    return active().captures_dir

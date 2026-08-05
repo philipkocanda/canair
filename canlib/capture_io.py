@@ -46,6 +46,22 @@ def _is_capture_file(path: Path) -> bool:
     return not path.name.startswith(_SKIP_PREFIXES)
 
 
+def resolve_captures_dir(explicit: Path | None = None) -> Path:
+    """The captures directory to work in: ``explicit`` (``--dir``), else the profile's.
+
+    Every command that reads or writes the store needs this, so it lives here
+    rather than being re-derived per caller (it previously existed as three
+    verbatim copies under ``commands/captures/`` plus two open-coded sites). The
+    profile import is deferred because ``canlib.profile`` pulls in the definition
+    loaders, which this module must not depend on at import time.
+    """
+    if explicit is not None:
+        return explicit
+    from .profile import active
+
+    return active().captures_dir
+
+
 def iter_capture_files(captures_dir: Path) -> list[Path]:
     """Sorted list of capture JSON files in ``captures_dir`` (SCHEMA/_ skipped)."""
     return [p for p in sorted(captures_dir.glob(f"*{CAPTURE_SUFFIX}")) if _is_capture_file(p)]

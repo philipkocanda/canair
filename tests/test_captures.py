@@ -12,18 +12,11 @@ from canlib.captures import (
     resolve_metadata,
     save_session,
 )
-from canlib.commands.captures import (
-    _clean,
-    _print_decoded_preview,
-    _quality_tag,
-    cmd_diff,
-    cmd_latest,
-    cmd_list,
-    cmd_sessions,
-    cmd_summary,
-)
+from canlib.commands.captures.diff import cmd_diff
 from canlib.commands.captures.join import _nearest_within, build_join_frames
+from canlib.commands.captures.listing import _print_decoded_preview, cmd_latest, cmd_list
 from canlib.commands.captures.query import _gather_query, _is_hex_payload, group_sessions
+from canlib.commands.captures.sessions import _clean, _quality_tag, cmd_sessions, cmd_summary
 
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 
@@ -794,7 +787,7 @@ class TestCmdDelete:
         save_session(s, cdir)
 
     def test_dry_run_deletes_nothing(self, tmp_path, capsys):
-        from canlib.commands.captures import cmd_delete
+        from canlib.commands.captures.delete import cmd_delete
         from canlib.commands.captures.query import load_all_captures
 
         self._seed(tmp_path)
@@ -807,7 +800,7 @@ class TestCmdDelete:
         assert len(load_all_captures(tmp_path)) == 3
 
     def test_deletes_matching_only(self, tmp_path):
-        from canlib.commands.captures import cmd_delete
+        from canlib.commands.captures.delete import cmd_delete
         from canlib.commands.captures.query import load_all_captures
 
         self._seed(tmp_path)
@@ -819,7 +812,7 @@ class TestCmdDelete:
         assert [(e["ecu"], str(e["pid"])) for e in remaining] == [("MCU", "2101")]
 
     def test_no_match_returns_1(self, tmp_path, capsys):
-        from canlib.commands.captures import cmd_delete
+        from canlib.commands.captures.delete import cmd_delete
         from canlib.commands.captures.query import load_all_captures
 
         self._seed(tmp_path)
@@ -830,7 +823,7 @@ class TestCmdDelete:
         assert len(load_all_captures(tmp_path)) == 3
 
     def test_json_dry_run_emits_rows(self, tmp_path, capsys):
-        from canlib.commands.captures import cmd_delete
+        from canlib.commands.captures.delete import cmd_delete
         from canlib.commands.captures.query import load_all_captures
 
         self._seed(tmp_path)
@@ -997,7 +990,8 @@ class TestCmdSetState:
         assert self._states(tmp_path) is None
 
     def test_bare_scope_refused_via_parser(self, tmp_path, capsys):
-        # The scope guard lives in run(): --set-state with no scope filter refuses.
+        # The scope guard lives in resolve_mode(): --set-state with no scope filter
+        # refuses. Dispatch through args.func, as the CLI does.
         import argparse
 
         from canlib.commands import captures as cap
@@ -1005,7 +999,7 @@ class TestCmdSetState:
         self._seed(tmp_path, [])
         p = cap.add_parser(argparse.ArgumentParser().add_subparsers())
         args = p.parse_args(["uds", "--set-state", "ACC", "--dir", str(tmp_path)])
-        rc = cap.run(args)
+        rc = args.func(args)
         assert rc == 2
         assert "requires a scope filter" in capsys.readouterr().err
         assert self._states(tmp_path) is None

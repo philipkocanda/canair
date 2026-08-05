@@ -17,6 +17,7 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from canlib.capture_io import resolve_captures_dir
 from canlib.state_infer import (
     DEFAULT_CYCLE_TOL_S,
     SessionInference,
@@ -89,7 +90,7 @@ def cmd_backfill_states(
     from .backfill_render import print_report
     from .query import group_sessions
 
-    cdir = _resolve_captures_dir(captures_dir)
+    cdir = resolve_captures_dir(captures_dir)
 
     try:
         rules = load_states()
@@ -192,12 +193,3 @@ def cmd_backfill_states(
     if as_json:
         print(_json.dumps(rows, indent=2))
     return 0 if written == len(to_write) else 1
-
-
-def _resolve_captures_dir(explicit: Path | None) -> Path:
-    """Captures dir from --dir, else the active profile's captures/."""
-    if explicit is not None:
-        return explicit
-    from canlib.profile import active
-
-    return active().captures_dir

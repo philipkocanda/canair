@@ -491,7 +491,7 @@ class TestSharedScopingWiring:
         # captures must import the shared module (not redefine local date helpers),
         # so both commands stay in lockstep and expose --state/--label.
         from canlib import capture_dates
-        from canlib.commands import captures as cap
+        from canlib.commands.captures import uds as cap
 
         assert cap.filter_by_date_range is capture_dates.filter_by_date_range
         assert cap.filter_by_text is capture_dates.filter_by_text

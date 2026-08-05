@@ -204,6 +204,21 @@ def load_all_captures(captures_dir: Path | None = None) -> list[CaptureEntry]:
 # ---------------------------------------------------------------------------
 
 
+def build_query(tokens: list[str]) -> str:
+    """Turn positional CLI tokens into a query string for ``canlib.query``.
+
+    Two bare tokens (neither containing ``:``) collapse to the decode.py-style
+    ``ECU PID`` form, i.e. ``ECU:PID`` — so ``BMS 2102`` becomes ``BMS:2102``.
+    Everything else is space-joined and handed to the mini-language unchanged, so
+    ``BMS:2102,2103`` and a quoted ``"VCU:2101 BMS:2101"`` pass straight through.
+    """
+    if not tokens:
+        return ""
+    if len(tokens) == 2 and ":" not in tokens[0] and ":" not in tokens[1]:
+        return f"{tokens[0]}:{tokens[1]}"
+    return " ".join(tokens)
+
+
 def _parse_query(query):
     """Parse a QUERY and canonicalize selector ECUs (aliases -> primary name).
 
