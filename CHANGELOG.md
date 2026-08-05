@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.14.1] - 2026-08-05
+
 ### Changed
 - **`canair contribute --json` payloads are now consistent.** Every outcome —
   refusal, failure, or success — carries the same identity base (`profile`,
@@ -1898,7 +1900,8 @@ dongle (both the WiCAN Pro and the classic/non-Pro WiCAN are supported).
 - Command safety blocklist preventing UDS programming/write sessions against a
   real vehicle.
 
-[Unreleased]: https://github.com/philipkocanda/canair/compare/v1.14.0...HEAD
+[Unreleased]: https://github.com/philipkocanda/canair/compare/v1.14.1...HEAD
+[1.14.1]: https://github.com/philipkocanda/canair/compare/v1.14.0...v1.14.1
 [1.14.0]: https://github.com/philipkocanda/canair/compare/v1.13.0...v1.14.0
 [1.13.0]: https://github.com/philipkocanda/canair/compare/v1.12.0...v1.13.0
 [1.12.0]: https://github.com/philipkocanda/canair/compare/v1.11.0...v1.12.0
