@@ -98,6 +98,54 @@ class TestMergeSessions:
 
 
 # --------------------------------------------------------------------------
+# Contribute overlay (order-preserving, never deletes, no-op detectable)
+# --------------------------------------------------------------------------
+
+
+class TestOverlayDocuments:
+    def test_nothing_new_returns_none(self):
+        # The `canair contribute` no-op case: the caller must be able to tell
+        # "adds nothing" so it can leave the upstream file's bytes untouched.
+        doc = _doc(_session("a", "10:00:00"), _session("b", "11:00:00"))
+        assert captures_merge.overlay_documents(doc, doc) is None
+
+    def test_source_subset_of_upstream_returns_none(self):
+        a, b = _session("a", "10:00:00"), _session("b", "11:00:00")
+        assert captures_merge.overlay_documents(_doc(a, b), _doc(a)) is None
+
+    def test_preserves_upstream_order_and_appends_new(self):
+        # Upstream order is NOT the canonical sort order (labels descend, and
+        # untimed sessions would sort by label) — it must survive verbatim.
+        first = _session("zzz", "")
+        second = _session("aaa", "")
+        new = _session("mmm", "")
+        merged = captures_merge.overlay_documents(_doc(first, second), _doc(second, new))
+        assert merged is not None
+        assert [s["label"] for s in merged["sessions"]] == ["zzz", "aaa", "mmm"]
+
+    def test_never_drops_an_upstream_session(self):
+        # A source that is merely *behind* upstream must not propose a deletion.
+        upstream = _doc(_session("upstream-only", "10:00:00"))
+        source = _doc(_session("source-only", "11:00:00"))
+        merged = captures_merge.overlay_documents(upstream, source)
+        assert merged is not None
+        assert [s["label"] for s in merged["sessions"]] == ["upstream-only", "source-only"]
+
+    def test_preserves_other_top_level_keys(self):
+        merged = captures_merge.overlay_documents(
+            {"schema": 2, "sessions": []}, _doc(_session("new", "10:00:00"))
+        )
+        assert merged is not None
+        assert merged["schema"] == 2
+
+    def test_tolerates_missing_sessions_key(self):
+        assert captures_merge.overlay_documents({}, {}) is None
+        merged = captures_merge.overlay_documents({}, _doc(_session("new", "10:00:00")))
+        assert merged is not None
+        assert [s["label"] for s in merged["sessions"]] == ["new"]
+
+
+# --------------------------------------------------------------------------
 # Driver command: file I/O + exit codes
 # --------------------------------------------------------------------------
 

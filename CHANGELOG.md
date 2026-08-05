@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **`canair contribute` no longer rewrites capture logs it adds nothing to.**
+  Captures were unioned with the upstream copy through the git merge-driver's
+  *canonical re-sort*, which reorders sessions that carry no first-capture `time`
+  (they tie-break on label, unrelated to the append order the file was written
+  in). Every dated capture file present on both sides was therefore rewritten on
+  every contribution, turning a two-day recording into a whole-history diff (12
+  files changed, ~31k lines, of which 10 files were pure reordering). The copy-time
+  overlay now preserves upstream's session order, appends only genuinely new
+  sessions, and leaves a file the contribution doesn't add to **byte-identical**.
+  The git merge driver (`canair captures merge-driver`) is unchanged.
+- **`canair contribute` now refuses to run from inside its own staging
+  workspace** instead of crashing with `SameFileError`. The managed workspace
+  (`~/.config/canair/contribute/canair`) is itself a canair checkout, so running
+  `uv run canair` with a cwd inside it resolved the active profile to the very
+  directory the command copies *into*. It now fails fast naming both paths (and
+  warns + confirms when the profile merely lives elsewhere under the workspace,
+  since preparing the branch resets that checkout). `--json` reports
+  `workspace_collision`.
+- **`canair contribute` no longer overwrites an unreadable upstream capture
+  file** with the local copy (which could drop the very upstream sessions the
+  overlay exists to preserve); it skips the file and warns instead. Warnings are
+  printed and included in `--json` as `warnings`.
+
 ## [1.14.0] - 2026-08-04
 
 ### Added

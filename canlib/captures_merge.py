@@ -1,4 +1,4 @@
-"""Three-way union merge of capture files (git merge-driver core).
+"""Session-set merges of capture files (git merge-driver core + contribute overlay).
 
 A dated capture file (``captures/YYYY-MM-DD.json``) is an **append-only** log:
 ``{"sessions": [ … ]}`` where each session is a self-contained block that, once
@@ -10,8 +10,16 @@ identical boilerplate (``}``/``]``/``}``) so the diff misaligns and splits the
 conflict *inside* individual capture records.
 
 The data model, however, is trivially mergeable: disjoint additions to a list.
-This module implements that union as a pure function so it can be driven both by
-the git merge-driver command and by tests.
+This module implements that as pure functions so they can be driven by the git
+merge-driver command, by ``canair contribute``, and by tests. Two flavours, with
+deliberately different ordering contracts:
+
+* :func:`merge_documents` — the **3-way merge driver**. Honours deletions and
+  re-sorts canonically so ``merge(A, B) == merge(B, A)`` (order-independent, and
+  therefore re-mergeable).
+* :func:`overlay_documents` — the **contribute overlay**. Never deletes, keeps
+  the destination's existing order and appends, so contributing a profile does
+  not rewrite capture logs it adds nothing to.
 
 Session identity
 ----------------
@@ -133,15 +141,39 @@ def merge_documents(base: Any, ours: Any, theirs: Any) -> dict:
     return {"sessions": merge_sessions(base, ours, theirs)}
 
 
-def union_documents(a: Any, b: Any) -> dict:
-    """Pure 2-way union of two capture docs' sessions (deduped, order-independent).
+def overlay_documents(upstream: Any, source: Any) -> dict | None:
+    """``upstream`` with ``source``'s not-yet-present sessions appended, or None.
 
-    Unlike :func:`merge_documents`, this **never drops** a session: it is for
-    *combining* two independent recordings where neither side is authoritative
-    and a deletion must not be inferred — e.g. ``canair contribute`` overlaying a
-    contributor's local captures on top of the upstream copy, where a local file
-    that is merely *behind* upstream must not propose deleting the sessions it
-    lacks. Implemented as a 3-way merge against an empty base, so every session
-    on either side is an "addition" and is kept.
+    The **overlay** counterpart to :func:`merge_documents`, for combining two
+    independent recordings where one side is authoritative and a deletion must
+    not be inferred — ``canair contribute`` laying a contributor's local captures
+    on top of the upstream copy. It **never drops** a session (a local file that
+    is merely *behind* upstream must not propose deleting what it lacks) and
+    returns ``None`` when ``source`` adds nothing, so the caller can leave the
+    file's bytes alone entirely.
+
+    Deliberately **order-preserving and asymmetric**, unlike the merge-driver:
+    upstream's session list is kept verbatim and new sessions are appended after
+    it. The driver's canonical re-sort would otherwise rewrite an untouched file
+    end-to-end — many sessions carry no first-capture ``time``, so
+    :func:`_sort_key` falls back to sorting them by *label*, which bears no
+    relation to the append order the file was written in. That turned every
+    contribution into a whole-history diff (see
+    ``plans/2026-08-05-contribute-workspace-self-collision.md``).
     """
-    return merge_documents({"sessions": []}, a, b)
+    up_raw = upstream.get("sessions") if isinstance(upstream, dict) else None
+    up_sessions = list(up_raw) if isinstance(up_raw, list) else []
+    seen = {_canonical(s) for s in up_sessions}
+
+    added: list[dict] = []
+    for session in _sessions(source):
+        key = _canonical(session)
+        if key in seen:
+            continue
+        seen.add(key)
+        added.append(session)
+    if not added:
+        return None
+
+    base = dict(upstream) if isinstance(upstream, dict) else {}
+    return {**base, "sessions": [*up_sessions, *added]}

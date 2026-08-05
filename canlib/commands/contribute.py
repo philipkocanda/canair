@@ -244,6 +244,67 @@ def run(args) -> int:
 
     # 4. Workspace: fork clone, direct upstream clone, or an explicit --repo-dir.
     workspace = Path(args.repo_dir).expanduser() if args.repo_dir else C.workspace_dir()
+
+    # 4b. Self-collision: the source profile must not live inside the workspace
+    #     we stage into. The managed workspace is itself a canair checkout, so a
+    #     run from inside it resolves the active profile to the very directory
+    #     this command copies *into* — and `start_branch` resets that tree before
+    #     the copy either way.
+    collision = C.workspace_collision(profile.root, workspace, profile.name)
+    if collision == "self":
+        error = (
+            "the profile being contributed IS the workspace's own copy — canair "
+            "looks like it is running from inside its contribution workspace"
+        )
+        if json_mode:
+            return _emit_json(
+                {
+                    "ok": False,
+                    "cannot": True,
+                    "profile": profile.name,
+                    "workspace_collision": collision,
+                    "source": str(profile.root),
+                    "workspace": str(workspace),
+                    "error": error,
+                }
+            )
+        c.print(f"\n[red]error:[/red] {error}:\n")
+        c.print(f"  profile:   [dim]{profile.root}[/dim]")
+        c.print(f"  workspace: [dim]{workspace}[/dim]\n")
+        c.print(
+            "  Copying it onto itself can't contribute anything. Re-run "
+            "[cyan]uv run canair contribute[/cyan]\n  from your own canair checkout "
+            "(the workspace is a throwaway clone canair manages for you)."
+        )
+        return _CANNOT
+    if collision == "inside":
+        warning = (
+            "the profile being contributed lives inside the staging workspace; "
+            "preparing the branch resets that checkout, so your source may change "
+            "mid-run"
+        )
+        if json_mode and not args.yes:
+            return _emit_json(
+                {
+                    "ok": False,
+                    "cannot": True,
+                    "profile": profile.name,
+                    "workspace_collision": collision,
+                    "source": str(profile.root),
+                    "workspace": str(workspace),
+                    "error": f"{warning} — re-run with --yes to proceed",
+                }
+            )
+        if not json_mode:
+            c.print(f"\n[yellow]⚠ {warning}:[/yellow]\n")
+            c.print(f"  profile:   [dim]{profile.root}[/dim]")
+            c.print(f"  workspace: [dim]{workspace}[/dim]\n")
+            if not _confirm(
+                "Contribute from inside the workspace anyway?", args.yes, json_mode=json_mode
+            ):
+                c.print("  Aborted — nothing was contributed.")
+                return _CANNOT
+
     if not json_mode:
         c.print(f"\n  reading profile from: [dim]{profile.root}[/dim]")
         c.print(f"  staging in workspace: [dim]{workspace}[/dim]")
@@ -270,7 +331,11 @@ def run(args) -> int:
         c.print(f"  [red]could not create branch {branch}:[/red] [dim]{br.output}[/dim]")
         return _FAILED
 
-    C.copy_profile(profile, workspace, include_captures=include_captures)
+    copy_warnings: list[str] = []
+    C.copy_profile(profile, workspace, include_captures=include_captures, warn=copy_warnings.append)
+    if copy_warnings and not json_mode:
+        for warning in copy_warnings:
+            c.print(f"  [yellow]⚠[/yellow] {warning}")
 
     if not C.has_changes(pre, workspace, profile.name):
         msg = "No changes to contribute — the upstream profile already matches yours."
@@ -302,6 +367,7 @@ def run(args) -> int:
                     "source": str(profile.root),
                     "diff": diff,
                     "rollback": rollback_json,
+                    "warnings": copy_warnings,
                     "pr_url": None,
                 }
             )
@@ -395,6 +461,7 @@ def run(args) -> int:
             "workspace": str(workspace),
             "dry_run": True,
             "findings": findings_json,
+            "warnings": copy_warnings,
             "pr_url": None,
         }
         if json_mode:
@@ -459,6 +526,7 @@ def run(args) -> int:
                 "workspace": str(workspace),
                 "dry_run": False,
                 "findings": findings_json,
+                "warnings": copy_warnings,
                 "pr_url": pr_url,
             }
         )

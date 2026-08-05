@@ -66,7 +66,17 @@ shared it:
 
 Captures are append-only evidence, so a contribution only ever *adds* capture
 sessions — even a source that's behind upstream on captures won't propose
-deleting the sessions it lacks.
+deleting the sessions it lacks, and a capture log your contribution adds nothing
+to is left exactly as it is upstream (so the PR diff stays small and reviewable).
+
+!!! tip "Run it from your own checkout"
+
+    The **workspace** canair prints is a throwaway clone it manages for you
+    (under `~/.config/canair/`) — it is a full canair checkout, profiles and all.
+    Don't `cd` into it and run canair from there: the profile it would resolve is
+    that clone's own copy, which is exactly where this command *writes*. canair
+    refuses that case with an explanation, but the fix is always the same — run
+    `canair contribute` from your own checkout (or wherever your profile lives).
 
 Not sure what you're about to send? Run `canair contribute --diff` first — it
 prepares everything and prints the full diff of `profiles/<your-car>/` vs

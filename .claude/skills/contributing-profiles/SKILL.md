@@ -103,14 +103,18 @@ fork/clone/branch/push, and it works regardless of where the profile is stored
 2. Runs the **PII pre-flight** (`canlib/pii.py`) — VIN/serial identity DIDs,
    VIN-shaped payloads, and PII-looking free text in labels/notes/`car_model` —
    and requires you to confirm before continuing.
-3. Runs the **staleness guards** and asks you to confirm past each: an
-   *installed-snapshot* warning when the profile was read from a frozen
+3. Runs the **staleness / self-collision guards** and asks you to confirm past
+   each: an *installed-snapshot* warning when the profile was read from a frozen
    `site-packages`/`uv tool` copy (a bare `canair`, not `uv run canair` from a
-   checkout), and a *rollback* warning when the contribution would remove
-   committed upstream lines from curated definitions (which normally only grow —
-   a rollback usually means your source is behind, so sync it first). Captures
-   are append-only and are unioned with upstream, so a behind source never
-   proposes deleting upstream sessions.
+   checkout), a *rollback* warning when the contribution would remove committed
+   upstream lines from curated definitions (which normally only grow — a rollback
+   usually means your source is behind, so sync it first), and a *workspace
+   self-collision* refusal when you are running from **inside** the managed
+   contribution clone canair stages into (its bundled copy of the profile is the
+   copy destination, so there is nothing to contribute — re-run from your own
+   checkout). Captures are append-only and are overlaid onto upstream, so a
+   behind source never proposes deleting upstream sessions, and a capture log
+   your contribution adds nothing to is left untouched.
 4. Copies the profile into a managed fork checkout, commits, pushes to your fork,
    and opens the PR via the **GitHub CLI (`gh`)**. When `gh` is missing or
    unauthenticated it prints install + `gh auth login` steps (and the manual

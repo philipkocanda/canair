@@ -160,6 +160,26 @@ class TestCopyProfile:
         assert not (dest / "out").exists()  # generated — excluded
         assert not (dest / "captures" / ".journal").exists()  # transient — excluded
 
+    def test_excludes_underscore_prefixed_scratch_files(self, tmp_path):
+        # The skip list is a glob per path component, so `_`-prefixed helper
+        # files are skipped the same way capture_io's readers skip them (it used
+        # to match only a component named exactly "_", contributing scratch).
+        src = tmp_path / "src"
+        (src / "ecus").mkdir(parents=True)
+        (src / "ecus" / "_scratch.yaml").write_text("x")
+        (src / "profile.yaml").write_text("car_model: X\n")
+        (src / "captures").mkdir()
+        (src / "captures" / "_notes.json").write_text("{}")
+        (src / "captures" / "2026-01-01.json").write_text('{"sessions": []}')
+        (src / "captures" / "half-written.json.tmp").write_text("{")
+
+        dest = C.copy_profile(Profile("mycar", src), tmp_path / "ws", include_captures=True)
+
+        assert (dest / "captures" / "2026-01-01.json").exists()
+        assert not (dest / "ecus" / "_scratch.yaml").exists()
+        assert not (dest / "captures" / "_notes.json").exists()
+        assert not (dest / "captures" / "half-written.json.tmp").exists()
+
     def test_no_captures_omits_capture_dir(self, tmp_path):
         src = tmp_path / "src"
         (src / "ecus").mkdir(parents=True)
@@ -302,6 +322,111 @@ class TestCopyProfileCapturesUnion:
 
         C.copy_profile(Profile("mycar", src), ws, include_captures=True)
         assert (dest / "captures" / "2026-01-01.json").exists()  # preserved
+
+    def _capture_pair(self, tmp_path, *, upstream_doc, source_doc):
+        """A src profile + workspace dest, each with one dated capture file."""
+        from canlib import capture_io
+
+        src = tmp_path / "src"
+        (src / "ecus").mkdir(parents=True)
+        (src / "profile.yaml").write_text("car_model: X\n")
+        (src / "captures").mkdir()
+        capture_io.dump_capture_file(src / "captures" / "2026-01-01.json", source_doc)
+
+        ws = tmp_path / "ws"
+        dest = ws / "profiles" / "mycar"
+        (dest / "captures").mkdir(parents=True)
+        upstream = dest / "captures" / "2026-01-01.json"
+        capture_io.dump_capture_file(upstream, upstream_doc)
+        return src, ws, upstream
+
+    def test_same_sessions_in_different_order_leaves_file_byte_identical(self, tmp_path):
+        # Regression: the union used to re-sort every file it touched into
+        # canonical order. Sessions without a capture `time` tie-break on label,
+        # so an untouched log was rewritten end-to-end as pure reordering noise
+        # (10 spurious files in PR #7).
+        def session(label):
+            return {"date": "2026-01-01", "label": label, "captures": [{"rx": "0x7EC", "pid": "1"}]}
+
+        upstream = {"sessions": [session("zzz"), session("aaa")]}
+        source = {"sessions": [session("aaa"), session("zzz")]}  # same set, other order
+        src, ws, up_file = self._capture_pair(tmp_path, upstream_doc=upstream, source_doc=source)
+        before = up_file.read_bytes()
+
+        C.copy_profile(Profile("mycar", src), ws, include_captures=True)
+
+        assert up_file.read_bytes() == before
+
+    def test_new_session_is_appended_without_reordering(self, tmp_path):
+        import json
+
+        def session(label):
+            return {"date": "2026-01-01", "label": label, "captures": [{"rx": "0x7EC", "pid": "1"}]}
+
+        upstream = {"sessions": [session("zzz"), session("aaa")]}
+        source = {"sessions": [session("zzz"), session("aaa"), session("mmm")]}
+        src, ws, up_file = self._capture_pair(tmp_path, upstream_doc=upstream, source_doc=source)
+
+        C.copy_profile(Profile("mycar", src), ws, include_captures=True)
+
+        merged = json.loads(up_file.read_text())
+        assert [s["label"] for s in merged["sessions"]] == ["zzz", "aaa", "mmm"]
+
+    def test_unreadable_upstream_file_is_not_overwritten(self, tmp_path):
+        # A wholesale overwrite would drop exactly the upstream sessions this
+        # overlay exists to preserve; skip and warn instead.
+        src, ws, up_file = self._capture_pair(
+            tmp_path,
+            upstream_doc={"sessions": []},
+            source_doc={"sessions": [{"date": "2026-01-01", "label": "new", "captures": []}]},
+        )
+        up_file.write_text("{not json")
+        warnings: list[str] = []
+
+        C.copy_profile(Profile("mycar", src), ws, include_captures=True, warn=warnings.append)
+
+        assert up_file.read_text() == "{not json"
+        assert warnings and "2026-01-01.json" in warnings[0]
+
+
+class TestWorkspaceCollision:
+    def test_profile_is_the_workspace_copy(self, tmp_path):
+        ws = tmp_path / "ws"
+        root = ws / "profiles" / "mycar"
+        root.mkdir(parents=True)
+        assert C.workspace_collision(root, ws, "mycar") == "self"
+
+    def test_profile_elsewhere_under_the_workspace(self, tmp_path):
+        ws = tmp_path / "ws"
+        root = ws / "myprofiles" / "mycar"
+        root.mkdir(parents=True)
+        assert C.workspace_collision(root, ws, "mycar") == "inside"
+
+    def test_normal_source_has_no_collision(self, tmp_path):
+        ws = tmp_path / "ws"
+        ws.mkdir()
+        root = tmp_path / "elsewhere" / "mycar"
+        root.mkdir(parents=True)
+        assert C.workspace_collision(root, ws, "mycar") is None
+
+
+class TestCopyProfileSelfPath:
+    def test_source_equal_to_destination_is_a_noop_not_a_crash(self, tmp_path):
+        # Running from inside the staging workspace makes src == dest. Copying
+        # must neither raise SameFileError nor rmtree the source.
+        ws = tmp_path / "ws"
+        root = ws / "profiles" / "mycar"
+        (root / "ecus").mkdir(parents=True)
+        (root / "ecus" / "bms.yaml").write_text("x")
+        (root / "profile.yaml").write_text("car_model: X\n")
+        (root / "captures").mkdir()
+        (root / "captures" / "2026-01-01.json").write_text('{"sessions": []}')
+
+        C.copy_profile(Profile("mycar", root), ws, include_captures=True)
+
+        assert (root / "ecus" / "bms.yaml").read_text() == "x"  # source intact
+        assert (root / "profile.yaml").exists()
+        assert (root / "captures" / "2026-01-01.json").exists()
 
 
 class TestDefinitionRollback:
@@ -524,3 +649,39 @@ class TestContributeCommand:
 
         payload = _json.loads(capsys.readouterr().out)
         assert payload["rollback"] and payload["rollback"][0]["path"].endswith("ecus/bms.yaml")
+
+    def test_self_collision_is_refused_even_with_yes(self, tmp_path, monkeypatch, capsys):
+        # Running from inside the staging workspace: the source profile IS the
+        # copy destination, so there is nothing to contribute. Unlike the
+        # snapshot/PII/rollback warnings this is unconditional — --yes must not
+        # push through it.
+        ws = tmp_path / "ws"
+        prof = _make_profile(ws / "profiles" / "testcar")
+        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(cmd, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(C, "preflight", lambda: _ready())
+
+        rc = cmd.run(_cmd_args(repo_dir=str(ws), yes=True, json=True))
+
+        assert rc == cmd._CANNOT
+        import json as _json
+
+        payload = _json.loads(capsys.readouterr().out)
+        assert payload["workspace_collision"] == "self"
+
+    def test_profile_inside_workspace_blocks_json_without_yes(self, tmp_path, monkeypatch, capsys):
+        # Source under the workspace but not at the destination: workable, but
+        # `start_branch` resets that checkout — warn and require confirmation.
+        ws = tmp_path / "ws"
+        prof = _make_profile(ws / "myprofiles" / "testcar")
+        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(cmd, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(C, "preflight", lambda: _ready())
+
+        rc = cmd.run(_cmd_args(repo_dir=str(ws), yes=False, json=True))
+
+        assert rc == cmd._CANNOT
+        import json as _json
+
+        payload = _json.loads(capsys.readouterr().out)
+        assert payload["workspace_collision"] == "inside"

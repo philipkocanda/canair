@@ -34,7 +34,9 @@ import os
 import platform
 import shutil
 import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass, field
+from fnmatch import fnmatch
 from pathlib import Path
 
 from .constants import GITHUB_REPO as UPSTREAM_REPO
@@ -59,8 +61,10 @@ MODE_DIRECT = "direct"  # push to upstream directly, same-repo PR
 # are excluded by their role.
 _DEFINITION_MEMBERS = member_names(members_by_role("definition"))
 _CAPTURE_MEMBER = members_by_role("evidence")[0].name
-# Never copied even under captures/ (transient write-ahead log for --save).
-_CAPTURE_SKIP = ("_",)
+# Transient/helper members never contributed, matched as globs against each path
+# component: the --save write-ahead log, underscore-prefixed scratch files (the
+# same convention capture_io's readers skip) and half-written temp files.
+_SKIP_PATTERNS = ("_*", ".journal", "*.tmp")
 
 
 @dataclass
@@ -226,6 +230,37 @@ def definition_rollback(
     return sorted(rolled)
 
 
+def workspace_collision(profile_root: Path, workspace: Path, profile_name: str) -> str | None:
+    """How the source profile collides with the staging workspace, if at all.
+
+    The workspace is a full canair checkout, so it **bundles profiles of its
+    own** — and its bundled copy of the profile being contributed is exactly the
+    destination :func:`copy_profile` writes to. Running canair with a cwd inside
+    that checkout (``uv run`` builds the package from the local
+    ``pyproject.toml``, and ``BUNDLED_PROFILES_DIR`` is relative to the *running*
+    package) therefore resolves the "active profile" to the copy destination
+    itself. Returns:
+
+    * ``"self"`` — the profile **is** the workspace's own copy: source ==
+      destination, so the copy is meaningless (and ``shutil`` would either raise
+      ``SameFileError`` or ``rmtree`` the source).
+    * ``"inside"`` — the profile merely lives somewhere under the workspace. That
+      can work, but :func:`start_branch` resets the workspace's tracked files to
+      ``upstream/main`` *before* the copy, so the source is mutated mid-run.
+    * ``None`` — no overlap; the normal case.
+    """
+    try:
+        src = profile_root.resolve()
+        ws = workspace.resolve()
+    except OSError:
+        return None
+    if src == ws / "profiles" / profile_name:
+        return "self"
+    if src.is_relative_to(ws):
+        return "inside"
+    return None
+
+
 # --- workspace (fork clone, or a direct upstream clone) ---------------------
 
 
@@ -375,7 +410,13 @@ def start_branch(pre: Preflight, workspace: Path, branch: str) -> Step:
 # --- copying the profile ----------------------------------------------------
 
 
-def copy_profile(profile, workspace: Path, *, include_captures: bool) -> Path:
+def copy_profile(
+    profile,
+    workspace: Path,
+    *,
+    include_captures: bool,
+    warn: Callable[[str], None] | None = None,
+) -> Path:
     """Copy the resolved profile bundle into ``workspace/profiles/<name>/``.
 
     Each *managed* definition member (ecus/, signals/, profile.yaml, states,
@@ -388,9 +429,12 @@ def copy_profile(profile, workspace: Path, *, include_captures: bool) -> Path:
     ``captures/`` (when ``include_captures``) is handled specially: rather than
     replacing the directory wholesale (which would propose *deleting* any
     upstream capture session a merely-behind source lacks), each dated capture
-    log is **unioned** with the upstream copy already in the workspace — captures
-    are append-only evidence, so the contribution only ever *adds* sessions. See
-    :func:`_overlay_captures`. Returns the destination directory.
+    log gets the source's **new sessions appended** to the upstream copy already
+    in the workspace — captures are append-only evidence, so the contribution
+    only ever *adds* sessions. See :func:`_overlay_captures`.
+
+    ``warn`` receives a human-readable message for anything skipped that the user
+    should know about. Returns the destination directory.
     """
     dest = workspace / "profiles" / profile.name
     dest.mkdir(parents=True, exist_ok=True)  # overlay — do NOT wipe the whole dir
@@ -400,69 +444,93 @@ def copy_profile(profile, workspace: Path, *, include_captures: bool) -> Path:
         if not src.exists():
             continue
         target = dest / member
+        # Source == destination happens when canair is run from inside the
+        # staging workspace itself (see workspace_collision); copying would raise
+        # SameFileError, or rmtree the source for a directory member.
+        if _same_path(src, target):
+            continue
         if src.is_dir():
             if target.exists():
                 shutil.rmtree(target)  # replace this member subtree wholesale
-            shutil.copytree(
-                src,
-                target,
-                ignore=shutil.ignore_patterns(*_CAPTURE_SKIP, ".journal", "*.tmp"),
-            )
+            shutil.copytree(src, target, ignore=shutil.ignore_patterns(*_SKIP_PATTERNS))
         else:
             shutil.copy2(src, target)
 
     if include_captures:
-        _overlay_captures(profile.root / _CAPTURE_MEMBER, dest / _CAPTURE_MEMBER)
+        _overlay_captures(profile.root / _CAPTURE_MEMBER, dest / _CAPTURE_MEMBER, warn=warn)
     return dest
 
 
-def _overlay_captures(src: Path, dst: Path) -> None:
+def _same_path(a: Path, b: Path) -> bool:
+    """Whether two paths denote the same location (unresolvable → not same)."""
+    try:
+        return a.resolve() == b.resolve()
+    except OSError:
+        return False
+
+
+def _is_transient(rel: Path) -> bool:
+    """Whether any component of ``rel`` matches a :data:`_SKIP_PATTERNS` glob."""
+    return any(fnmatch(part, pattern) for part in rel.parts for pattern in _SKIP_PATTERNS)
+
+
+def _overlay_captures(src: Path, dst: Path, *, warn: Callable[[str], None] | None = None) -> None:
     """Overlay ``src`` captures onto ``dst`` without ever deleting upstream data.
 
-    Dated capture logs (top-level ``*.json``) that exist on both sides are
-    **unioned** (append-only sessions, deduped) so a source that is behind
-    upstream never proposes dropping sessions. Everything else under captures/
-    (e.g. ``can/`` raw-frame logs and their index) is copied as an overlay:
-    files present in the source replace their counterpart, files only upstream
-    are left in place. Transient members (``.journal``, ``_*``, ``*.tmp``) are
-    skipped.
+    Dated capture logs (top-level ``*.json``) that exist on both sides get the
+    source's new sessions **appended** so a source that is behind upstream never
+    proposes dropping sessions, and a log the source adds nothing to is left
+    byte-identical. Everything else under captures/ (e.g. ``can/`` raw-frame logs
+    and their index) is copied as an overlay: files present in the source replace
+    their counterpart, files only upstream are left in place. Transient members
+    (:data:`_SKIP_PATTERNS`) are skipped.
     """
-    if not src.exists():
+    if not src.exists() or _same_path(src, dst):
         return
     dst.mkdir(parents=True, exist_ok=True)
     for path in sorted(src.rglob("*")):
         if not path.is_file():
             continue
         rel = path.relative_to(src)
-        if any(part in (".journal", "_") for part in rel.parts) or path.name.endswith(".tmp"):
+        if _is_transient(rel):
             continue
         target = dst / rel
         target.parent.mkdir(parents=True, exist_ok=True)
-        # A dated capture log present on both sides → union (append-only merge).
+        # A dated capture log present on both sides → append the new sessions.
         if rel.parent == Path(".") and path.suffix == ".json" and target.exists():
-            _union_capture_files(upstream=target, source=path)
+            problem = _overlay_capture_file(upstream=target, source=path)
+            if problem and warn:
+                warn(problem)
         else:
             shutil.copy2(path, target)
 
 
-def _union_capture_files(*, upstream: Path, source: Path) -> None:
-    """Rewrite ``upstream`` as the union of its own and ``source``'s sessions.
+def _overlay_capture_file(*, upstream: Path, source: Path) -> str | None:
+    """Append ``source``'s new sessions to ``upstream``. Returns a warning, or None.
 
-    Falls back to a plain overwrite if either file can't be parsed as a capture
-    document (so a malformed file is still contributed rather than lost).
+    Leaves the file **untouched** when the source adds no session, so a
+    contribution never rewrites — and never reorders — a capture log it doesn't
+    actually add to.
+
+    An unreadable file on either side is skipped rather than overwritten: the
+    source side can't reach here (``canair validate all`` gates the run), and on
+    the upstream side a wholesale overwrite would drop exactly the sessions this
+    overlay exists to preserve.
     """
     import json
 
     from .capture_io import dump_capture_file, load_capture_file
-    from .captures_merge import union_documents
+    from .captures_merge import overlay_documents
 
     try:
         up = load_capture_file(upstream)
         ours = load_capture_file(source)
-    except (OSError, json.JSONDecodeError):
-        shutil.copy2(source, upstream)
-        return
-    dump_capture_file(upstream, union_documents(up, ours))
+    except (OSError, json.JSONDecodeError) as e:
+        return f"{_CAPTURE_MEMBER}/{source.name}: not contributed (unreadable capture file: {e})"
+    merged = overlay_documents(up, ours)
+    if merged is not None:
+        dump_capture_file(upstream, merged)
+    return None
 
 
 def dir_size(path: Path) -> int:
