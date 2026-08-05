@@ -160,32 +160,35 @@ MCU:
             Still verified:false — the null test confirms it IS a torque field but does not pin the
             /100 scale or resolve command-vs-estimated; that needs a pedal-synced drive with hard
             accel and strong regen.
-        MCU_MOTOR_TORQUE_2:
-          expression: "[S14:S15]/100"
-          unit: Nm
+        MCU_2102_S14S15:
+          expression: "[S14:S15]"
+          unit: ""
           ha_class: ""
-          min: "-300"
-          max: "300"
+          min: "-32768"
+          max: "32767"
           enabled: false
-          source: Kia Soul EV VMCU CSV; FAILS the standstill null test 2026-08-05
+          source: RE 2026-08-05 standstill null test — renamed from MCU_MOTOR_TORQUE_2 (name overclaimed)
           source_links: []
           verified: false
           notes: >-
-            UNVERIFIED CANDIDATE — now weakened. Second signed-16 big-endian pair at B14:B15 (ISO-TP
-            0x0B:0x0C). NULL TEST 2026-08-05: across all 2687 captures of the 3h AC charge (motor
-            provably stationary, RPM=0) it does NOT return to zero — it holds 27..54 raw (mean 30,
-            i.e. ~0.30 Nm) as a persistent structural offset, while the sibling [S12:S13] is EXACTLY
-            0 over the same captures. A torque command or estimate should read zero with the motor
-            unenergised, so this is probably not a plain torque field: more likely a biased/filtered
-            derivative, a different quantity sharing the torque scale, or a value with a deliberate
-            zero-offset. Coupling to [S12:S13] is r=+0.969 while driving (range -954..+1885 raw) so
-            it is clearly torque-RELATED, just not zero-referenced. The old note read this as a mere
-            'park idle bias' from a handful of samples; 2687 charge captures show it is systematic.
-            enabled:false; resolving it needs a pedal-synced drive.
+            Torque-RELATED signed-16 at B14:B15 (ISO-TP 0x0B:0x0C), quantity UNCONFIRMED. Renamed
+            from MCU_MOTOR_TORQUE_2 on 2026-08-05: that name (and the Nm unit / -300..300 range)
+            overclaimed — it is NOT a clean torque field. It IS a valid 16-bit field (low byte B15
+            sweeps 0..255, high byte B14 0..255 while driving, so not a broken pair like the
+            ex-[B17:B18]) and it tracks the real torque field [S12:S13] at r=+0.969 while driving
+            (raw -954..+1885). BUT it FAILS the standstill null test: across all 2687 captures of
+            the 3h AC charge (motor provably unenergised, RPM=0) it holds +27..54 raw (~+30, would
+            be 0.29 Nm at the old /100 scale) instead of ZERO, while the genuine torque [S12:S13] is
+            EXACTLY 0 over the same captures. A torque command/estimate must read 0 with the motor
+            off, so this is not torque — candidates: a biased/filtered torque, a mechanical-power or
+            q-axis-current term, or another load-tracking quantity with a deliberate zero-offset.
+            Expression left RAW ([S14:S15]); the /100 Nm scale was only meaningful under the
+            (now-rejected) torque assumption. enabled:false, verified:false — resolving it needs a
+            pedal-synced drive with hard accel + regen.
         MCU_LOAD_B17:
           expression: B17
           unit: ""
-          ha_class: current
+          ha_class: ""
           min: "0"
           max: "255"
           enabled: false
