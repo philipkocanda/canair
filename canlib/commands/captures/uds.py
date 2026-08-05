@@ -392,7 +392,7 @@ def _dispatch(mode: Mode, args, query: str, entries: list[CaptureEntry]) -> int:
             entries, _empty = q.filter(
                 entries, ecu_of=lambda e: e["ecu"], pid_of=lambda e: str(e["pid"])
             )
-        cmd_latest(entries, None, as_json=args.json)
+        cmd_latest(entries, as_json=args.json)
     elif mode == "diff":
         cmd_diff(entries, query, show_all=args.all, rulers=args.rulers, as_json=args.json)
     elif mode == "step":

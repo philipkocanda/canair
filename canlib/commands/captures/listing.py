@@ -102,20 +102,15 @@ def cmd_list(entries: Sequence[CaptureEntry], query, as_json: bool = False, limi
 # ---------------------------------------------------------------------------
 
 
-def cmd_latest(
-    entries: Sequence[CaptureEntry], ecu_filter: str | None, as_json: bool = False
-) -> None:
-    """Show latest payload per ECU+PID."""
-    if ecu_filter:
-        from canlib.ecus import canonical_ecu_name
+def cmd_latest(entries: Sequence[CaptureEntry], as_json: bool = False) -> None:
+    """Show the most recent payload per ECU+PID.
 
-        ecu_upper = canonical_ecu_name(ecu_filter).upper()
-        filtered = [e for e in entries if e["ecu"].upper() == ecu_upper]
-    else:
-        filtered = entries
-
+    ECU/PID selection is the caller's job: ``uds.run`` narrows ``entries`` with the
+    QUERY before calling, so ``BMS --latest`` and a bare ``--latest`` differ only in
+    what they pass here.
+    """
     # Only payloads (not scan_results or text responses)
-    payload_entries = [e for e in filtered if e["payload"]]
+    payload_entries = [e for e in entries if e["payload"]]
 
     if not payload_entries:
         if as_json:
@@ -136,8 +131,7 @@ def cmd_latest(
         _dump_json([_entry_to_dict(e) for _key, e in ordered])
         return
 
-    title = "Latest payloads" + (f" for {ecu_filter}" if ecu_filter else "")
-    print(f"\n  {_BOLD}{title}{_RESET} — {len(latest)} PIDs\n")
+    print(f"\n  {_BOLD}Latest payloads{_RESET} — {len(latest)} PIDs\n")
 
     for (ecu, pid), e in ordered:
         payload = e["payload"] or ""

@@ -453,7 +453,7 @@ class TestCmdLatestJson:
             _entry(ecu="BMS", pid="2101", payload="6101AA", date="2026-07-20"),
             _entry(ecu="BMS", pid="2101", payload="6101BB", date="2026-07-22"),
         ]
-        cmd_latest(entries, None, as_json=True)
+        cmd_latest(entries, as_json=True)
         data = json.loads(capsys.readouterr().out)
         assert len(data) == 1  # one ECU+PID, latest kept
         assert data[0]["payload"] == "6101BB"
@@ -461,7 +461,7 @@ class TestCmdLatestJson:
     def test_json_empty(self, capsys):
         import json
 
-        cmd_latest([], None, as_json=True)
+        cmd_latest([], as_json=True)
         assert json.loads(capsys.readouterr().out) == []
 
 
