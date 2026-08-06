@@ -105,7 +105,7 @@ After this, the manifest anchor is `1.15.0` and a published, non-draft GitHub
 Release exists — which is what release-please reads to find the previous release,
 so no bootstrap configuration is needed.
 
-## Phase 1 — switch the commit convention
+## Phase 1 — switch the commit convention (DONE 2026-08-06)
 
 Lands **before** the automation, so the first automated window is already clean.
 
@@ -138,6 +138,33 @@ Lands **before** the automation, so the first automated window is already clean.
   cannot disagree. Update the install instructions in `CONTRIBUTING.md` and the
   comment at the top of the hook config (both currently name only
   `pre-commit`/`pre-push`).
+
+### As implemented
+
+- Hook: `compilerla/conventional-pre-commit` `v4.4.0`, `stages: [commit-msg]`.
+  Verified against real subjects: `bitfields` (bare) and `tui: …` (a retired
+  prefix) are **rejected**; `docs:`, `feat(monitor):`, `feat(pids)!:` and `deps:`
+  pass; a `Merge pull request …` subject passes.
+- **Deliberately no `--strict`** — it rejects merge commits, and this repo has
+  them (`c0d3d52`, `060789b`, and local `git merge` pulls). **No `--force-scope`**
+  either: repo-wide changes have no meaningful scope.
+- **`deps` is in the allowed type list**, not just the conventional eleven. It has
+  to be: the Phase 2 `changelog-sections` maps `deps` → "Dependencies", so
+  omitting it here would reject locally what release-please would happily
+  section. The type vocabulary is now shared by **three** files — the hook args,
+  `SKILL.md`, and `release-please-config.json` — and the hook config carries a
+  comment saying so.
+- The types are spelled out in `args` rather than left to the hook's defaults
+  (which currently happen to match), so a `rev` bump cannot silently move the
+  vocabulary.
+- **Docs simplification:** `default_install_hook_types` is what `pre-commit
+  install` uses when no `--hook-type` is given, so the long-documented second
+  command (`pre-commit install --hook-type pre-push`) was always redundant.
+  Verified that a single `uv run pre-commit install --install-hooks` installs all
+  three stages; the four places that documented two commands now document one.
+- A fourth documentation site turned up beyond the three the plan predicted:
+  `docs/contributing/index.md` (which also gained the user-facing
+  "Commit messages" section).
 
 ## Phase 2 — release-please configuration
 
@@ -361,6 +388,7 @@ generated format.
 | `docs/profiles/index.md`, `docs/profiles/ioniq-2017.md` | regenerated stats (CI was red) | 0 |
 | `.claude/skills/contributing-code/SKILL.md` | §commit messages rewritten; §cutting a release retargeted; stale `uv lock` para removed | 1, 4 |
 | `CONTRIBUTING.md` | commit-message convention + hook install | 1 |
+| `docs/contributing/index.md` | commit-message section + hook install | 1 |
 | `.pre-commit-config.yaml` | `commit-msg` conventional hook | 1 |
 | `release-please-config.json` | new | 2 |
 | `.release-please-manifest.json` | new | 2 |

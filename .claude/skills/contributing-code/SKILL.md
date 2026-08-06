@@ -514,21 +514,54 @@ regenerate. Never screenshot views that surface free-text capture notes/labels
 
 ## Commit messages
 
-Match the repo's established style — **inspect `git log --oneline` first** and
-mirror what you see; don't invent a new format.
+**canair uses [Conventional Commits](https://www.conventionalcommits.org/).**
+`release-please` reads the subject line of every commit to derive the version
+bump and the changelog section, so the subject is machine-readable input, not
+just prose. Inspect `git log --oneline` for the house style of the *body*, but
+the subject's shape is fixed.
 
-- **`prefix: lower-case summary`.** The subject is a short lower-case-area prefix
-  and a terse imperative-ish summary (e.g. `types: …`, `refactor: …`,
-  `captures: …`, `docs: …`, `test: …`, `pids: …`). The prefix is the *area/kind*
-  touched, not a fixed enum — read `git log` for the vocabulary in use and reuse
-  an existing one rather than coining a synonym.
+- **`type(scope): lower-case summary`.** The **type** is a fixed enum —
+  `feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `chore`, `ci`, `build`,
+  `revert`, `style`, `deps`. The **scope** is the area touched, in parens, and is
+  the home of the old free-form prefix vocabulary (`captures`, `monitor`,
+  `pids`, `profiles`, `analysis`, `tui`, `lock`, `bix`, …) — read `git log` and
+  reuse an existing scope rather than coining a synonym. Scope is optional; omit
+  it for genuinely repo-wide changes.
+- **Only three things move the version:** `feat` → **minor**, any other listed
+  type → **patch**, and `!` after the type/scope (or a `BREAKING CHANGE:` footer)
+  → **major**. Use `!` for an incompatible CLI/behaviour change or a
+  profile/capture-schema break, matching the SemVer meanings in `RELEASING.md`.
+- **A malformed subject fails silently, so it is gated.** An unrecognized type is
+  dropped from the changelog without complaint, and a bare subject (no `type:`)
+  parses as nothing at all. The `commit-msg` pre-commit hook rejects both — its
+  type list, this list, and `release-please-config.json`'s `changelog-sections`
+  are one shared vocabulary and must be changed together.
+- **Migrating from the old free-form prefixes** (pre-v1.15.0 history is full of
+  them; do not copy them):
+
+  | old | now |
+  |---|---|
+  | `tui: …` | `feat(monitor):` / `refactor(tui):` |
+  | `analysis: …` | `feat(analysis):` / `fix(analysis):` |
+  | `profiles(ioniq-2017): …` | `feat(profiles):` / `chore(profiles):` |
+  | `skills: …`, `skills(x): …` | `docs(skills):` |
+  | `captures: …`, `lock: …`, `bix: …` | a type + that area as the scope |
+  | `formatting: …` | `fix(formatting):` / `refactor(formatting):` |
+  | `types: …` | `refactor(types):` |
+  | bare subject (`bitfields`, `plan`) | **never** — parses as nothing |
+
 - **Body explains the *why* and the shape of the change**, wrapped prose +
   bullets, not a file-by-file changelog (the diff already lists files). Lead with
-  intent.
+  intent. The body is *not* parsed (only the subject and a `BREAKING CHANGE:`
+  footer are), so it stays prose for humans.
 - **Reference the plan doc when the change implements one** (name
   `plans/YYYY-MM-DD-*.md`), the same durable-pointer rule as release notes — and
   like release notes, **keep internal scaffolding out of the subject** (no "Stage
   N"/phase numbers; describe the capability/contract that landed).
+- **Write the subject for the changelog reader.** It is the first draft of a
+  release note: release-please puts it in the generated section verbatim, and the
+  maintainer then rewrites that section into prose (see "Cutting a release"). A
+  vague subject makes that rewrite a re-investigation.
 - **Commit only when asked, and only intended files.** Follow the git rules in
   the root/`~/.config` AGENTS.md: inspect `git status`/`git diff`/`git log`
   first, stage deliberately (a pre-existing partial index is a smell — reconcile
@@ -613,10 +646,11 @@ uv run canair validate all       # if you touched ecus/captures/schema
 ```
 
 The repo ships a `.pre-commit-config.yaml` mirroring the fast CI gates — enable
-it once per clone (`uv run pre-commit install --install-hooks` + `uv run
-pre-commit install --hook-type pre-push`) so `ruff`/`ty` run on every commit and
-the `gen_*.py --check` currency checks run on every push. It's the local
-early-warning for the CI gates; CI stays the hard gate.
+it once per clone (`uv run pre-commit install --install-hooks`, which installs
+all three stages) so `ruff`/`ty` run on every commit, the Conventional Commits
+check runs on every commit *message*, and the `gen_*.py --check` currency checks
+run on every push. It's the local early-warning for the CI gates; CI stays the
+hard gate.
 
 Then confirm the **docs + README** reflect any user-facing change (see the
 policy above) and that internal doc links still resolve.

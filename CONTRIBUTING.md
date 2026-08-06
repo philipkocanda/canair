@@ -42,7 +42,6 @@ from the repo root:
 
 ```bash
 uv run pre-commit install --install-hooks           # once per clone: enable git hooks
-uv run pre-commit install --hook-type pre-push
 uv run pytest -q                                    # parallel by default; -n0 for one file
 uv run ruff check . && uv run ruff format --check .
 uv run ty check
@@ -51,8 +50,26 @@ uv run python scripts/gen_cli_reference.py --check   # if you changed a command'
 ```
 
 The `pre-commit` hooks mirror the CI gates (ruff format/check + `ty` on commit,
-the generated-artifact currency checks on push), so a clean local run means a
-green CI.
+Conventional Commits on the commit message, the generated-artifact currency
+checks on push), so a clean local run means a green CI.
+
+### Commit messages
+
+canair uses [Conventional Commits](https://www.conventionalcommits.org/) —
+`type(scope): summary`, e.g. `fix(captures): …` or `feat(monitor): …`. Releases
+are automated from these subjects, so they are what determines the version bump
+and what appears in the changelog:
+
+- `feat` → minor, any other type → patch, `!` (or a `BREAKING CHANGE:` footer)
+  → major.
+- Types: `feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `chore`, `ci`,
+  `build`, `revert`, `style`, `deps`. The scope is the area touched
+  (`captures`, `monitor`, `pids`, `profiles`, …) and is optional.
+- The `commit-msg` hook enforces this. It exists because a non-conforming
+  subject is *silently* left out of the release notes rather than rejected.
+
+Write the subject for the changelog reader — it is the first draft of a release
+note.
 
 Update the docs and README in the same PR for any user-facing change (see the
 README ↔ `docs/` policy in `AGENTS.md`).

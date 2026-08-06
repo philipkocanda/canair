@@ -58,12 +58,11 @@ install-time snapshot. See
 for why.
 
 **Enable the git hooks once per clone** so the fast CI gates run automatically —
-`ruff format`/`ruff check`/`ty` on each commit, and the generated-artifact
-currency checks on each push:
+`ruff format`/`ruff check`/`ty` on each commit, the Conventional Commits check on
+each commit message, and the generated-artifact currency checks on each push:
 
 ```bash
-uv run pre-commit install --install-hooks   # commit-stage hooks
-uv run pre-commit install --hook-type pre-push
+uv run pre-commit install --install-hooks   # installs all three hook stages
 ```
 
 Quick check before you open a code PR (run from the repo root):
@@ -88,6 +87,33 @@ uv run pytest -n0 tests/test_foo.py -k some_case
 
 If your change adds, removes, or alters a user-facing capability, update the
 docs and README in the same PR (see the README ↔ `docs/` policy in `AGENTS.md`).
+
+## Commit messages
+
+canair uses [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+type(scope): lower-case summary
+```
+
+Releases are automated from these subjects, so the subject line decides the
+version bump and what lands in the changelog:
+
+| | |
+|---|---|
+| **Types** | `feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `chore`, `ci`, `build`, `revert`, `style`, `deps` |
+| **Scope** | the area touched — `captures`, `monitor`, `pids`, `profiles`, `analysis`, … (optional) |
+| **Bump** | `feat` → minor · any other type → patch · `!` or a `BREAKING CHANGE:` footer → major |
+
+```bash
+git commit -m "fix(captures): count sessions the way --sessions does"
+git commit -m "feat(monitor): add a byte ruler"
+git commit -m "feat(pids)!: rename the parameters key"   # breaking → major
+```
+
+The `commit-msg` hook enforces this, because a non-conforming subject is
+*silently* omitted from the release notes rather than rejected. Write the subject
+for the changelog reader — it is the first draft of a release note.
 
 ## Documentation screenshots
 

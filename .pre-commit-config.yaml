@@ -2,11 +2,13 @@
 # implies "green in CI". Enable once per clone with:
 #
 #     uv run pre-commit install --install-hooks
-#     uv run pre-commit install --hook-type pre-push
 #
-# All hooks run the project's own tooling via `uv run`, so they use exactly the
+# One command is enough: `default_install_hook_types` below is what `install`
+# uses when no `--hook-type` is given, so all three stages get installed.
+#
+# Most hooks run the project's own tooling via `uv run`, so they use exactly the
 # ruff/ty pinned in pyproject.toml (no drift from a separately-pinned mirror).
-default_install_hook_types: [pre-commit, pre-push]
+default_install_hook_types: [pre-commit, pre-push, commit-msg]
 
 repos:
   - repo: local
@@ -68,3 +70,24 @@ repos:
         name: normalize JSON line endings to LF
         args: [--fix=lf]
         types_or: [json]
+
+  # ── commit-msg stage: enforce Conventional Commits ─────────────────────────
+  # release-please derives the version bump and the changelog section from the
+  # commit subject, and it does so *silently*: a subject with an unrecognized
+  # type is dropped from the release notes without complaint, and one with no
+  # `type:` at all parses as nothing. That failure is invisible until a release
+  # is cut with a hole in it, so it is caught here instead.
+  #
+  # The type list is a shared vocabulary — it must stay in step with
+  # `release-please-config.json`'s `changelog-sections` and the commit-message
+  # rules in `.claude/skills/contributing-code/SKILL.md`. It is spelled out
+  # rather than left to the hook's defaults so a `rev` bump cannot move it.
+  #
+  # Deliberately NOT `--strict` (that rejects merge commits, which this repo
+  # uses) and NOT `--force-scope` (repo-wide changes have no meaningful scope).
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v4.4.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args: [build, chore, ci, deps, docs, feat, fix, perf, refactor, revert, style, test]
