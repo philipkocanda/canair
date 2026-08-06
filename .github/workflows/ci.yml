@@ -24,6 +24,14 @@ jobs:
       - name: Set up Python
         run: uv python install 3.12
 
+      - name: Lockfile is current
+        # `uv.lock` pins canair's own version, and release-please bumps it via a
+        # targeted TOML splice rather than by re-locking. That updater only warns
+        # (it does not fail) when its jsonpath matches nothing, so without this
+        # gate a silent miss would ship a tag whose `uv sync` immediately
+        # re-locks. Also catches a hand bump that forgot `uv lock`.
+        run: uv lock --check
+
       - name: Sync dependencies
         run: uv sync --all-extras --dev --group docs
 
