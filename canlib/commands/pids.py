@@ -235,6 +235,30 @@ def cmd_upsert_param(args: argparse.Namespace) -> int:
     return 0
 
 
+def _warn_state_predicates(ecu: str, param: str, consequence: str, hint: str) -> None:
+    """Warn when a vehicle-state ``when:`` predicate reads the signal just edited.
+
+    A predicate references a signal by name, so renaming or removing that signal
+    silently stops the state from ever matching — a missing signal is
+    indistinguishable from a not-polled one at evaluation time (see
+    :mod:`canlib.state_refs`). ``canair validate states`` is the gate; this is the
+    nudge at the moment the breakage is introduced.
+    """
+    try:
+        from canlib.state_refs import states_referencing
+
+        states = states_referencing(ecu, param)
+    except Exception:
+        return  # never let an advisory check fail a successful write
+    if not states:
+        return
+    print(
+        f"  {_YELLOW}warn:{_RESET} vehicle_states.yaml predicate(s) "
+        f"{', '.join(states)} read {ecu.upper()}.{param} — {consequence}"
+    )
+    print(f"    {_DIM}{hint}{_RESET}")
+
+
 def cmd_rename_param(args: argparse.Namespace) -> int:
     def do():
         rename_parameter(args.ecu, args.pid, args.old, args.new, pids_dir=args.dir)
@@ -243,6 +267,12 @@ def cmd_rename_param(args: argparse.Namespace) -> int:
     print(
         f"{_GREEN}  ✓ {args.ecu} {args.pid} {args.old} → {args.new}{_RESET}  "
         f"{_DIM}({fpath.name}){_RESET}"
+    )
+    _warn_state_predicates(
+        args.ecu,
+        args.old,
+        "the rename leaves them permanently unmatched",
+        f"fix: canair states set-predicate NAME EXPR (with {args.old} → {args.new})",
     )
     return 0
 
@@ -255,6 +285,13 @@ def cmd_rm_param(args: argparse.Namespace) -> int:
     print(
         f"{_GREEN}  ✓ removed {args.ecu} {args.pid} {args.name}{_RESET}  "
         f"{_DIM}({fpath.name}){_RESET}"
+    )
+    _warn_state_predicates(
+        args.ecu,
+        args.name,
+        "the removal leaves them permanently unmatched",
+        "fix: canair states set-predicate NAME EXPR (or clear it: canair states "
+        "set-predicate NAME)",
     )
     return 0
 

@@ -268,8 +268,44 @@ Inspect and edit the vocabulary with `canair states`:
 canair states                          # list the vocabulary + usage counts
 canair states add PRECONDITION -d "Cabin pre-conditioning"
 canair states set-predicate CHARGING "BMS.BATTERY_CURRENT < -1"
-canair validate states                 # check the vocabulary
+canair validate states                 # check the vocabulary + its signal references
 ```
+
+### Predicates are cross-checked against the signal registry
+
+Kleene logic has one sharp edge: a predicate that reads a signal which *does not
+exist* abstains exactly like one whose signal merely wasn't polled. Both are
+UNKNOWN, so a typo'd or renamed signal name leaves the state permanently
+un-suggestable with nothing to see — no error, no warning, no failed decode.
+
+So the reference is resolved statically instead. `canair validate states` errors
+when a `when:` predicate names a signal the profile's `ecus/` doesn't define,
+reporting the specific reason:
+
+```
+vehicle_states.yaml: 1 errors
+  - state 'PARKED': when: references VCU.GEAR_PARK — VCU defines no signal 'GEAR_PARK'
+```
+
+A reference must match how the decoded value map is actually keyed at evaluation
+time, so each way of missing is reported distinctly: an unknown ECU, an ECU
+**alias** instead of its canonical short name, a lower-case ECU (the map is keyed
+UPPERCASE), a case-mismatched signal name (matched case-sensitively, with the real
+name suggested), a signal defined on a *different* ECU, a signal under a
+`status: ignored` PID (never polled), and a signal that doesn't decode to a
+number — `ascii`/`date`/`struct` render as text, and only numeric values reach a
+predicate. The `__no_response__` / `__responded__` sentinels are not signals and
+are never checked.
+
+The same check runs at the moments a reference can break, as a non-blocking
+warning (authoring a predicate before its signal exists stays allowed):
+
+- `canair states add --when …` / `canair states set-predicate …` — warns if the
+  new predicate can't resolve.
+- `canair pids rename-param` / `rm-param` — warns which states read the signal
+  you just renamed or removed.
+- `canair states` marks a dead predicate `✗` instead of `●` in the `AUTO` column
+  and prints the reason under it (`--json` carries a per-state `broken` array).
 
 ### Back-filling states on old captures
 

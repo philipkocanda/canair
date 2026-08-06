@@ -48,6 +48,7 @@ class StateRecord(TypedDict):
     description: str | None
     when: str | None
     uses: int
+    broken: list[dict[str, str]]
 
 
 def _use_color() -> bool:
@@ -199,6 +200,32 @@ def cmd_show_state(args) -> int:
     return 0
 
 
+def _load_broken_refs(rules) -> dict[str, list[dict[str, str]]]:
+    """``{STATE: [{ref, kind, message}, …]}`` for predicates that can never match.
+
+    A ``when:`` reference to a signal the registry doesn't define is invisible at
+    evaluation time (indistinguishable from a not-polled signal), so the listing
+    surfaces it here — otherwise a permanently-dead predicate still shows a
+    healthy ``●``. Best-effort: an unloadable registry simply reports nothing.
+    """
+    from canlib.pids import load_pids
+    from canlib.state_refs import check_references
+
+    try:
+        pids_data = load_pids()
+        if not pids_data.get("ecus"):
+            return {}
+        issues = check_references([(r.name, r.expr) for r in rules if r.expr], pids_data)
+    except Exception:
+        return {}
+    out: dict[str, list[dict[str, str]]] = {}
+    for issue in issues:
+        out.setdefault(issue.state, []).append(
+            {"ref": issue.ref, "kind": issue.kind, "message": issue.message}
+        )
+    return out
+
+
 def cmd_list(args) -> int:
     from canlib.profile import active
     from canlib.states import StatePredicateError, load_states
@@ -214,12 +241,14 @@ def cmd_list(args) -> int:
         return 1
 
     usage = _load_usage()
+    broken = _load_broken_refs(rules)
     records: list[StateRecord] = [
         {
             "name": r.name,
             "description": r.description or None,
             "when": r.expr or None,
             "uses": usage.get(r.name.upper(), 0),
+            "broken": broken.get(r.name, []),
         }
         for r in rules
     ]
@@ -258,13 +287,25 @@ def cmd_list(args) -> int:
         name = _c(f"{r['name']:<14}", _CYAN)
         n = r["uses"]
         n_str = f"{n:>4}" if n else _c(f"{0:>4}", _YELLOW)
-        auto = _c(f"{'●':<4}", _GREEN) if r["when"] else _c(f"{'—':<4}", _DIM)
+        if r["broken"]:
+            auto = _c(f"{'✗':<4}", _RED)
+        elif r["when"]:
+            auto = _c(f"{'●':<4}", _GREEN)
+        else:
+            auto = _c(f"{'—':<4}", _DIM)
         desc = str(r["description"] or "")
         print(f"  {name} {n_str}  {auto}  {_c(desc, _DIM)}")
         if r["when"]:
             print(f"  {'':<14} {'':>4}        {_c('when: ' + r['when'], _DIM)}")
+        for issue in r["broken"]:
+            print(f"  {'':<14} {'':>4}        {_c(issue['ref'] + ' — ' + issue['message'], _RED)}")
 
     print(f"\n  {_c('● = auto-suggested from decoded PIDs (has a when: predicate)', _DIM)}")
+    if any(r["broken"] for r in records):
+        print(
+            f"  {_c('✗ = predicate references a signal that does not exist — it can', _DIM)}\n"
+            f"  {_c('    never match (see `canair validate states`)', _DIM)}"
+        )
 
     if undeclared:
         print(
@@ -290,14 +331,40 @@ def _run_edit(args, action) -> int:
     return 0
 
 
+def _warn_unresolved_refs(state: str, expr: str | None) -> None:
+    """Warn when a just-written ``when:`` predicate reads signals that don't exist.
+
+    Authoring a predicate before its signal is defined is legitimate, so this
+    never blocks the write — but an unresolvable reference makes the state
+    permanently un-suggestable and the evaluator can't report it (see
+    :mod:`canlib.state_refs`), so it must not pass silently either.
+    ``canair validate states`` is the hard gate.
+    """
+    if not expr:
+        return
+    try:
+        from canlib.pids import load_pids
+        from canlib.state_refs import check_references
+
+        issues = check_references([(state, expr)], load_pids())
+    except Exception:
+        return  # never let an advisory check fail a successful write
+    for issue in issues:
+        print(f"  {_c('warn:', _YELLOW)} {issue.ref} — {issue.message}")
+    if issues:
+        print(f"    {_c('this predicate can never match until the reference resolves', _DIM)}")
+
+
 def cmd_add(args) -> int:
     from canlib.states_edit import add_state
 
     args._states_msg = f"added state {args.name.upper()}"
-    return _run_edit(
+    rc = _run_edit(
         args,
         lambda: add_state(args.name, description=args.description, when=args.when),
     )
+    _warn_unresolved_refs(args.name.upper(), args.when)
+    return rc
 
 
 def cmd_rm(args) -> int:
@@ -331,7 +398,9 @@ def cmd_set_predicate(args) -> int:
 
     verb = "cleared" if not args.value else "set"
     args._states_msg = f"{verb} when: predicate on {args.name.upper()}"
-    return _run_edit(args, lambda: set_state_field(args.name, "when", args.value or None))
+    rc = _run_edit(args, lambda: set_state_field(args.name, "when", args.value or None))
+    _warn_unresolved_refs(args.name.upper(), args.value)
+    return rc
 
 
 def add_parser(subparsers) -> argparse.ArgumentParser:

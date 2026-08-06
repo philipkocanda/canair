@@ -122,6 +122,11 @@ Tristate = bool | _UnknownType
 
 _MISSING = object()
 
+# The non-signal identifiers a predicate may read. They describe the polling
+# *cycle* rather than a decoded value, so they never name a signal — callers
+# resolving references against the registry must skip them.
+PREDICATE_SENTINELS = frozenset({"__no_response__", "__responded__"})
+
 # AST node types permitted in a state predicate.
 _ALLOWED_NODES = (
     ast.Expression,
@@ -165,6 +170,47 @@ def _dotted_name(node: ast.AST) -> str:
     raise StatePredicateError("invalid name reference in predicate")
 
 
+def _parse_predicate(expr: str) -> ast.Expression:
+    """Parse a ``when:`` expression, rejecting any node outside the whitelist."""
+    try:
+        tree = ast.parse(expr, mode="eval")
+    except SyntaxError as ex:
+        raise StatePredicateError(f"syntax error: {ex.msg}") from ex
+    for node in ast.walk(tree):
+        if not isinstance(node, _ALLOWED_NODES):
+            raise StatePredicateError(f"disallowed syntax: {type(node).__name__}")
+    return tree
+
+
+def predicate_references(expr: str) -> list[str]:
+    """Every non-sentinel identifier a ``when:`` expression reads, in source order.
+
+    What remains after dropping :data:`PREDICATE_SENTINELS` is what the predicate
+    expects to find in the decoded ``{ECU.PARAM: value}`` map, so a caller can
+    resolve it against the signal registry (see :mod:`canlib.state_refs`).
+
+    A *malformed* reference (a bare word, a triple-dotted name) is returned as-is
+    rather than rejected: it parses fine and merely fails to resolve, which is
+    exactly the silent breakage a caller wants to report.
+    """
+    tree = _parse_predicate(expr)
+    # A Name/Attribute nested inside another Attribute is the head of a dotted
+    # chain, not a reference of its own: `VCU.GEAR_P` reads one name, not two.
+    nested = {id(n.value) for n in ast.walk(tree) if isinstance(n, ast.Attribute)}
+    nodes = [
+        n
+        for n in ast.walk(tree)
+        if isinstance(n, (ast.Name, ast.Attribute)) and id(n) not in nested
+    ]
+    nodes.sort(key=lambda n: (n.lineno, n.col_offset))
+    refs: list[str] = []
+    for node in nodes:
+        name = _dotted_name(node)
+        if name not in PREDICATE_SENTINELS and name not in refs:
+            refs.append(name)
+    return refs
+
+
 def compile_predicate(expr: str) -> Callable[[dict, set | None], Tristate]:
     """Compile a ``when:`` expression into a safe callable ``(values, responded)``.
 
@@ -175,16 +221,13 @@ def compile_predicate(expr: str) -> Callable[[dict, set | None], Tristate]:
     for a stored capture).
 
     Raises :class:`StatePredicateError` for disallowed syntax so bad definitions
-    fail loudly at load/validate time rather than silently never matching.
+    fail loudly at load/validate time rather than silently never matching. Note
+    that a *well-formed reference to a signal that does not exist* is not a
+    syntax error and cannot be caught here — it is indistinguishable from a
+    not-polled signal at evaluation time, so it is checked separately against the
+    registry by :mod:`canlib.state_refs` (``canair validate states``).
     """
-    try:
-        tree = ast.parse(expr, mode="eval")
-    except SyntaxError as ex:
-        raise StatePredicateError(f"syntax error: {ex.msg}") from ex
-
-    for node in ast.walk(tree):
-        if not isinstance(node, _ALLOWED_NODES):
-            raise StatePredicateError(f"disallowed syntax: {type(node).__name__}")
+    tree = _parse_predicate(expr)
 
     def predicate(values: dict, responded: set | None) -> Tristate:
         result = _eval(tree.body, values, responded)
@@ -203,12 +246,14 @@ def _lookup(name: str, values: dict, responded: set | None):
     Returns :data:`UNKNOWN` when the name can't be resolved (a not-polled param,
     or a response sentinel when ``responded`` is ``None``).
     """
-    if name == "__no_response__":
-        return UNKNOWN if responded is None else not responded
-    if name == "__responded__":
-        return UNKNOWN if responded is None else bool(responded)
+    if name in PREDICATE_SENTINELS:
+        if responded is None:
+            return UNKNOWN
+        return (not responded) if name == "__no_response__" else bool(responded)
     val = values.get(name, _MISSING)
     if val is _MISSING:
+        # Indistinguishable here from a typo'd/renamed signal name — see
+        # :mod:`canlib.state_refs`, which resolves references against the registry.
         return UNKNOWN
     return val
 

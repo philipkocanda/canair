@@ -312,14 +312,28 @@ whole-byte-only case.
   its own commit once the tree is otherwise clean, before the next device
   upload.
 
-### Two gaps this exposed (not fixed here)
+### Two gaps this exposed
 
-1. **Nothing cross-validates `vehicle_states.yaml` predicates against signal
+1. **Nothing cross-validated `vehicle_states.yaml` predicates against signal
    names.** Renaming `GEAR_PARK` silently broke the `PARKED` predicate
    (`VCU.GEAR_PARK == 1`); `canair validate all` stayed green and only
-   `tests/test_captures.py::TestCmdBackfillStates` caught it. `validate states`
-   should resolve each `when:` predicate's `ECU.PARAM` references against the
-   registry and error on an unknown one.
+   `tests/test_captures.py::TestCmdBackfillStates` caught it.
+
+   **Fixed.** `canair validate states` now resolves each `when:` predicate's
+   `ECU.PARAM` references against the `ecus/` registry and errors on one that
+   cannot resolve — the only place this is catchable, since Kleene evaluation
+   makes a missing signal indistinguishable from a not-polled one. Resolution
+   mirrors how the decoded value map is keyed at evaluation time, so each way of
+   missing is reported distinctly (unknown ECU, an ECU alias, a lower-case ECU, a
+   case-mismatched signal name, a signal defined on another ECU, a signal under a
+   `status: ignored` PID, and a signal that doesn't decode to a number). The same
+   check runs as a non-blocking warning where a reference can break — `states
+   add --when`/`set-predicate`, `pids rename-param`/`rm-param` — and `canair
+   states` marks a dead predicate `✗` instead of `●`. New module
+   `canlib/state_refs.py`; `states.predicate_references` extracts the references;
+   `decoding.decodes_to_number` owns the "only numerics reach a predicate"
+   invariant. Regression guard: `tests/test_state_refs.py` asserts every
+   predicate in every bundled profile resolves.
 2. **No surgical editor reaches a `research:` item's `notes`/`what_to_test` or a
    `scan_log` note.** Correcting the stale VCU research lines and the GSA
    scan_log cross-reference required hand-editing `ecus/`, against the

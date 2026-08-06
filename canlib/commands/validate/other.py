@@ -10,6 +10,32 @@ from canlib import yaml_io
 from ._common import CAN_INDEX_SCHEMA_FILE
 
 
+def _state_reference_errors(predicates: list[tuple[str, str]]) -> tuple[list[str], str | None]:
+    """Cross-reference each ``when:`` predicate's ECU.PARAM refs against the registry.
+
+    Returns ``(errors, skip_reason)``. An unresolvable reference makes its state
+    permanently un-suggestable, and the evaluator cannot report it: a missing
+    signal is UNKNOWN exactly like a not-polled one. So this is the only place a
+    renamed/typo'd signal name in a predicate can be caught.
+
+    The check is skipped (with a reason, never silently) when the ECU registry
+    can't be loaded — mirroring ``_run_groups``' tolerance, since a profile with a
+    broken ``ecus/`` already fails ``validate pids`` loudly.
+    """
+    from canlib.pids import load_pids
+    from canlib.state_refs import check_references
+
+    if not predicates:
+        return ([], None)
+    try:
+        pids_data = load_pids()
+    except Exception as ex:
+        return ([], f"could not load ecus/ ({ex}) — see `canair validate pids`")
+    if not pids_data.get("ecus"):
+        return ([], "no ECUs defined in ecus/ yet")
+    return ([str(issue) for issue in check_references(predicates, pids_data)], None)
+
+
 def _run_states() -> int:
     """Validate the profile's optional vehicle_states.yaml (structure + predicates)."""
     from canlib.profile import active
@@ -32,6 +58,7 @@ def _run_states() -> int:
         print(f"{path.name}: 'states' must be a list")
         return 1
 
+    predicates: list[tuple[str, str]] = []
     for i, entry in enumerate(states):
         if not isinstance(entry, dict):
             errors.append(f"states[{i}]: must be a mapping")
@@ -51,13 +78,25 @@ def _run_states() -> int:
                 compile_predicate(expr)
             except StatePredicateError as ex:
                 errors.append(f"states[{i}] ('{name}'): invalid when: {ex}")
+            else:
+                predicates.append((str(name), str(expr)))
+
+    ref_errors, skipped = _state_reference_errors(predicates)
+    errors += ref_errors
 
     if errors:
         print(f"{path.name}: {len(errors)} errors")
         for e in errors:
             print(f"  - {e}")
+        if ref_errors:
+            print(
+                "  (a predicate referencing a signal that does not exist can never "
+                "match — fix it with `canair states set-predicate NAME EXPR`)"
+            )
         return 1
-    print(f"{path.name}: OK ({len(seen)} states)")
+    print(f"{path.name}: OK ({len(seen)} states, {len(predicates)} predicate(s))")
+    if skipped:
+        print(f"  note: predicate signal references not checked — {skipped}")
     return 0
 
 

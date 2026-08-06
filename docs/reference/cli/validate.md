@@ -28,6 +28,12 @@ states, SID/PID/DID echo mismatches (misfiled frames), non-hex payloads
 (e.g. a stored 'NO DATA'), and untimed payload captures. Pass --strict to
 promote the untimed-payload warning to an error — the CI / new-data gate.
 
+`validate states` resolves every `when:` predicate's ECU.PARAM references
+against the ecus/ registry: a predicate naming a signal that does not exist
+can never match, and the evaluator cannot report it (a missing signal is
+indistinguishable from a not-polled one), so this is the only place a
+renamed or typo'd signal name in a predicate is caught.
+
 Run this after editing ecus/ or adding captures; `canair pids` already
 validates each edit, so this is the whole-profile check.
 

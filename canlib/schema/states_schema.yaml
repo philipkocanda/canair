@@ -8,10 +8,12 @@
 # to auto-suggest the state from decoded PID values (see canlib/states.py).
 #
 # Top-level structure:
-#   states:                 # ordered list; first matching `when` wins on suggest
+#   states:                 # ordered list; order is display order, not priority —
 #     - name: str           # required — the state name (e.g. "READY", "CHARGING")
 #       description: str    # optional — human-readable explanation
 #       when: str           # optional — boolean predicate over ECU.PARAM values
+#                           # (every matching predicate contributes: a session is
+#                           # naturally composite, e.g. "READY, PARKED")
 #
 # State names are an UPPERCASE controlled vocabulary (like the CAN-bus segment
 # codes in can_buses.yaml). Input is normalized to uppercase, so any casing
@@ -28,6 +30,15 @@
 #   __no_response__         true when no ECU responded (deep sleep / off);
 #                           UNKNOWN offline (a stored capture is itself a response)
 #   __responded__           true when at least one ECU responded (UNKNOWN offline)
+#
+# ECU.PARAM references are RESOLVED against the profile's ecus/ registry by
+# `canair validate states` (canlib/state_refs.py) — a predicate naming a signal
+# that doesn't exist can never match, and Kleene logic makes that silent (a
+# missing signal is UNKNOWN exactly like a not-polled one). A reference must
+# match how the decoded value map is keyed: UPPERCASE canonical ECU short name
+# (not an alias), the `parameters:` key verbatim (case-sensitive), on a PID that
+# isn't `status: ignored`, and decoding to a NUMBER (ascii/date/struct render as
+# text and never reach a predicate).
 #
 # Base vocabulary (the make-neutral ignition ladder baked into the tool;
 # profiles add EV/vendor/composite states in vehicle_states.yaml):

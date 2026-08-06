@@ -31,6 +31,23 @@ ParamRow = tuple[str, float | str | None, str, str, str | None, bool, str]
 _ParamSig = tuple[str, str, str, bool, str]
 
 
+def decodes_to_number(param_def: Mapping[str, Any] | None) -> bool:
+    """Whether a signal definition can produce a *numeric* decoded value.
+
+    The typed layer renders ``ascii``/``date``/``struct`` as text, and a signal
+    with no ``expression`` is skipped entirely — so neither ever reaches a
+    consumer that only reads numbers (state-predicate evaluation, correlation).
+    Lives here beside :data:`ParamRow` because this is the invariant the decoders
+    below implement; callers that check it themselves drift from it silently.
+    """
+    from .decode_value import ASCII, DATE, NUMERIC, STRUCT
+
+    pdef = param_def or {}
+    if str(pdef.get("type") or NUMERIC).lower() in (ASCII, DATE, STRUCT):
+        return False
+    return bool(pdef.get("expression"))
+
+
 def signal_order_key(expression: str) -> tuple[int, int, int]:
     """Sort key placing a signal at the byte it reads first.
 
