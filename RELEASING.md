@@ -7,8 +7,15 @@ canair follows [Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH`.
 - **PATCH** — backwards-compatible bug fixes.
 
 The version is single-sourced from `pyproject.toml` (`[project].version`) and
-surfaced at runtime as `canlib.__version__` (read via `importlib.metadata`) and
-`canair --version`. There is no second copy to keep in sync.
+surfaced at runtime as `canlib.__version__` (read via `importlib.metadata`).
+There is no second copy to keep in sync.
+
+`canair --version` (and `canair status`/`update`, and every recorded capture)
+reports the *provenance* version from `canlib/build_info.py`: the same package
+version, plus the branch and short commit when canair is running from a git
+checkout rather than an installed release (`1.15.0+main.343b244`). Release
+comparisons always use the pure `canlib.__version__`, so the suffix never affects
+version ordering — and a released install shows no suffix at all.
 
 ## Release checklist
 

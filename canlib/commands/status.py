@@ -3,7 +3,9 @@
 Read-only and side-effect-free: it never connects a session, never changes the
 device mode. Designed to answer "what am I talking to, in what mode, and is it
 reachable/usable?" at a glance, with actionable hints and Unix-style exit codes.
-Also reports the running canair version and, when the WiCAN HTTP API answers,
+Also reports the running canair version — which, when canair is running from a
+git checkout rather than an installed release, names that checkout's branch and
+short commit (``1.15.0+main.343b244``) — and, when the WiCAN HTTP API answers,
 the device's firmware/hardware version.
 """
 
@@ -89,10 +91,10 @@ def _device_status(host: str, timeout: float) -> dict | None:
 
 def _gather(args) -> dict:
     """Collect everything status reports into a plain dict (also used for --json)."""
-    from .. import __version__
+    from ..build_info import full_version
     from ..transport import TransportError, resolve_transport
 
-    info: dict = {"exit": _OK, "warnings": [], "errors": [], "canair_version": __version__}
+    info: dict = {"exit": _OK, "warnings": [], "errors": [], "canair_version": full_version()}
 
     try:
         t = resolve_transport(args)

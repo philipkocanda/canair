@@ -25,7 +25,7 @@
         },
         "label": { "type": "string" },
         "version": {
-          "description": "The canair version that recorded this session (e.g. '1.4.2'). Provenance for debugging capture issues traced to a specific tool release. Absent on sessions recorded before version stamping was added.",
+          "description": "The canair version that recorded this session. A plain release for an installed copy (e.g. '1.4.2'); recorded from a git checkout it carries that checkout's branch and short commit as a local version segment (e.g. '1.15.0+main.343b244', '+…dirty' when tracked files were modified), so the exact code that produced the payloads is identifiable. Provenance for debugging capture issues traced to a specific tool build. Absent on sessions recorded before version stamping was added.",
           "type": "string"
         },
         "vehicle_states": {

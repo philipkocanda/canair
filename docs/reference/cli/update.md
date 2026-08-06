@@ -33,6 +33,10 @@ newer release but the installed copy *is* out of sync, ``canair update`` offers 
 reinstall-only resync (``uv tool install <clone> --reinstall``) — no network or
 tag checkout needed — to bring the bare ``canair`` back in line with the clone.
 
+The reported *current* version is the provenance-bearing one
+(:func:`canlib.build_info.full_version`) — from a checkout it names the branch and
+commit — while the release comparison runs on the pure package version.
+
 options:
   -h, --help  show this help message and exit
   --check     Only report the current/latest version and changelog; make no

@@ -372,22 +372,27 @@ def _stamp_version(session: CaptureSession) -> CaptureSession:
     Called from :func:`save_session` — the single choke point every session flows
     through before landing on disk — so every recorded session carries the tool
     version that wrote it (provenance for debugging capture issues traced to a
-    specific release). An existing ``version`` (e.g. on a recovered/re-saved
-    session) is left untouched. Inserted right after ``label`` so the on-disk
-    field order stays readable (date, label, version, …).
+    specific release). Recorded from a git checkout, the stamp carries that
+    checkout's branch and commit too (``1.15.0+main.343b244``, see
+    :mod:`canlib.build_info`), so a reading can be traced to the exact code that
+    produced it — not just the release it was near. An existing ``version`` (e.g.
+    on a recovered/re-saved session) is left untouched. Inserted right after
+    ``label`` so the on-disk field order stays readable (date, label, version, …).
     """
     if session.get("version"):
         return session
-    from . import __version__
+    from .build_info import full_version
+
+    version = full_version()
 
     rebuilt: dict = {}
     for key, value in session.items():
         rebuilt[key] = value
         if key == "label":
-            rebuilt["version"] = __version__
+            rebuilt["version"] = version
     if "version" not in rebuilt:
         # No ``label`` key (shouldn't happen for a valid session) — append it.
-        rebuilt["version"] = __version__
+        rebuilt["version"] = version
     # Sound: every key/value is copied verbatim from an already-typed
     # CaptureSession, plus the one `version: str` this function adds. The cast is
     # unavoidable because the whole point is to rebuild the dict in a *different

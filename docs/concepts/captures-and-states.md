@@ -115,7 +115,12 @@ became suspect; see the note below):
 
 - **`version`** — the canair version that recorded the session, stamped at save
   time. Provenance for debugging a capture issue traced to a specific release.
-  Sessions recorded before version stamping was added simply omit it.
+  Recorded from a git checkout (`uv run canair` in a clone) rather than an
+  installed release, it also carries that checkout's branch and short commit —
+  `1.15.0+main.343b244`, with `.dirty` appended when tracked files had uncommitted
+  edits — so a suspect reading points at the exact code that produced it, not just
+  the release it happened to sit near. Sessions recorded before version stamping
+  was added simply omit the field.
 - **`transport`** — how the payloads were acquired: the transport label
   (`slcan-tcp` / `wican-ws`) for a device-recorded session, or `import` for a
   device-free `canair import uds`.

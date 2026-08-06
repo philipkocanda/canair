@@ -12,7 +12,6 @@ from __future__ import annotations
 import argparse
 import sys
 
-from canlib import __version__
 from canlib.commands import iter_command_modules
 
 # Global options (before the subcommand) that consume a following value. Used by
@@ -141,6 +140,34 @@ def _inject_default_subcommand(argv: list[str]) -> list[str]:
     return [*argv[:j], default_kind, *argv[j:]]
 
 
+class _VersionAction(argparse.Action):
+    """``--version``, resolved only when actually asked for.
+
+    The reported version is provenance-bearing — from a git checkout it names the
+    branch and commit, which costs a ``git`` call (see :mod:`canlib.build_info`).
+    argparse's stock ``version`` action captures its string at ``add_argument``
+    time, i.e. while *building* the parser, which would tax every single canair
+    invocation; this one defers the lookup to the flag's use.
+    """
+
+    def __init__(
+        self,
+        option_strings,
+        dest=argparse.SUPPRESS,
+        default=argparse.SUPPRESS,
+        help=None,
+    ):
+        super().__init__(
+            option_strings=option_strings, dest=dest, default=default, nargs=0, help=help
+        )
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        from canlib.build_info import full_version
+
+        print(f"{parser.prog} {full_version()}")
+        parser.exit()
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the top-level argument parser with all subcommands registered."""
     from canlib.commands._categories import CategorizedHelpFormatter
@@ -152,8 +179,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--version",
-        action="version",
-        version=f"%(prog)s {__version__}",
+        action=_VersionAction,
         help="Show the canair version and exit.",
     )
     parser.add_argument(

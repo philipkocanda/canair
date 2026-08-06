@@ -24,8 +24,9 @@ It answers three questions, all without touching the network:
 3. **What version the source clone would install as** — read from the clone's
    ``pyproject.toml`` (:func:`clone_version`).
 
-:func:`describe` bundles all three into one dict and computes whether the tool
-copy is **out of sync** with the clone.
+:func:`describe` bundles all three into one dict, adds the running code's git
+build provenance (:mod:`canlib.build_info`), and computes whether the tool copy is
+**out of sync** with the clone.
 """
 
 from __future__ import annotations
@@ -95,10 +96,17 @@ def running_origin() -> str:
 
 
 def running_version() -> str:
-    """Version of the package that is currently executing."""
-    from . import __version__
+    """Version of the package that is currently executing.
 
-    return __version__
+    The **provenance** version (:func:`canlib.build_info.full_version`): the
+    package version, plus the checkout's branch/commit when running from a git
+    working tree. Version *comparisons* (the out-of-sync verdict below, the
+    release check in ``canair update``) deliberately use the pure versions
+    instead — a local segment says nothing about ordering.
+    """
+    from .build_info import full_version
+
+    return full_version()
 
 
 def _read_pyproject_version(root: Path) -> str | None:
@@ -167,7 +175,13 @@ def describe(clone: Path | None) -> dict:
     The ``out_of_sync`` flag is True when a uv-tool copy exists whose pinned
     version differs from the source clone's ``pyproject.toml`` version — i.e. a
     bare ``canair`` would run different code than ``uv run canair`` in the repo.
+
+    ``running_build`` describes the git checkout the running code came from
+    (branch/commit/dirty), or is ``None`` for an installed copy — the structured
+    form of the provenance suffix in ``running_version``.
     """
+    from .build_info import running_build
+
     origin = running_origin()
     tool_version = installed_tool_version()
     src_version = clone_version(clone)
@@ -176,11 +190,17 @@ def describe(clone: Path | None) -> dict:
         tool_version is not None and src_version is not None and tool_version != src_version
     )
 
+    build = running_build()
     tool_sp = uv_tool_site_packages()
     return {
         "running_origin": origin,
         "running_version": running_version(),
         "running_package_dir": str(running_package_dir()),
+        "running_build": (
+            {"branch": build.branch, "commit": build.commit, "dirty": build.dirty}
+            if build is not None
+            else None
+        ),
         "clone_dir": str(clone) if clone else None,
         "clone_version": src_version,
         "tool_install_dir": str(tool_sp.parent.parent.parent) if tool_sp else None,

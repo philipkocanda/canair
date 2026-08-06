@@ -78,7 +78,26 @@ is no newer release to check out but the two have drifted, `canair update` offer
 a **reinstall-only resync** — it runs `uv tool install <clone> --reinstall` (no
 network, no tag checkout) to bring the bare `canair` back in line with the clone.
 `canair update --json` includes the full `install` block (`running_origin`,
-`tool_version`, `clone_version`, `out_of_sync`) for scripts.
+`running_build`, `tool_version`, `clone_version`, `out_of_sync`) for scripts.
+
+### The version tells you which build you're running
+
+An installed release *is* its version — `uv tool install` snapshots the clone at a
+release tag, so `1.15.0` identifies that code exactly. A run from a clone is not
+any release; it's whatever is checked out. So when canair is running from a git
+working tree it says so, naming the branch and short commit:
+
+```console
+$ canair --version
+canair 1.15.0+main.343b244          # a clone, on `main`, at commit 343b244
+canair 1.15.0+main.343b244.dirty    # … with uncommitted edits to tracked files
+canair 1.15.0                       # an installed release
+```
+
+The same string shows up in `canair status`, `canair update`, and — most usefully
+— in every capture you record, so a suspect reading can be traced back to the
+exact code that produced it. Release comparisons ignore the suffix, so a dev
+checkout still gets an accurate "up to date" verdict.
 
 
 ## Tab-completion (optional)

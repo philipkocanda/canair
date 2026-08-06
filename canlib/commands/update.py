@@ -25,6 +25,10 @@ bare ``canair`` would run different code than ``uv run canair``). When there's n
 newer release but the installed copy *is* out of sync, ``canair update`` offers a
 reinstall-only resync (``uv tool install <clone> --reinstall``) — no network or
 tag checkout needed — to bring the bare ``canair`` back in line with the clone.
+
+The reported *current* version is the provenance-bearing one
+(:func:`canlib.build_info.full_version`) — from a checkout it names the branch and
+commit — while the release comparison runs on the pure package version.
 """
 
 from __future__ import annotations
@@ -35,6 +39,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from .. import build_info
 from ..install_context import describe as describe_install
 from ..update_check import (
     CHANGELOG_URL,
@@ -123,41 +128,6 @@ def _uv_receipt_directory() -> Path | None:
         directory = req.get("directory") if isinstance(req, dict) else None
         if directory:
             return Path(directory)
-    return None
-
-
-def _git(clone: Path, *args: str) -> subprocess.CompletedProcess:
-    return subprocess.run(
-        ["git", "-C", str(clone), *args],
-        capture_output=True,
-        text=True,
-    )
-
-
-def _git_dirty(clone: Path) -> bool:
-    """True when the clone has uncommitted changes (don't clobber contributor work)."""
-    res = _git(clone, "status", "--porcelain")
-    return res.returncode == 0 and bool(res.stdout.strip())
-
-
-def _git_head(clone: Path) -> str | None:
-    """Describe the clone's current HEAD for display.
-
-    Returns the branch name when on a branch (e.g. ``main``), or a
-    ``detached at <tag-or-commit>`` string when in detached-HEAD state (which is
-    where ``canair update`` leaves the clone after checking out a release tag).
-    ``None`` if git can't be queried.
-    """
-    branch = _git(clone, "symbolic-ref", "--quiet", "--short", "HEAD")
-    if branch is not None and branch.returncode == 0 and branch.stdout.strip():
-        return branch.stdout.strip()
-    # Detached HEAD — prefer an exact tag name, else the short commit.
-    tag = _git(clone, "describe", "--tags", "--exact-match", "HEAD")
-    if tag is not None and tag.returncode == 0 and tag.stdout.strip():
-        return f"detached at {tag.stdout.strip()}"
-    commit = _git(clone, "rev-parse", "--short", "HEAD")
-    if commit is not None and commit.returncode == 0 and commit.stdout.strip():
-        return f"detached at {commit.stdout.strip()}"
     return None
 
 
@@ -305,8 +275,11 @@ def run(args) -> int:
     latest = release["tag"] if release else None
     changelog = (release or {}).get("url") or CHANGELOG_URL
 
-    clone_head = _git_head(clone) if clone else None
+    clone_head = build_info.head_label(clone) if clone else None
+    # Compare on the *pure* package version: a build-provenance local segment
+    # (`+main.343b244`) says nothing about release ordering.
     update_available = _is_newer(latest, __version__)
+    current = build_info.full_version()
 
     if args.json:
         import json
@@ -314,7 +287,7 @@ def run(args) -> int:
         print(
             json.dumps(
                 {
-                    "current": __version__,
+                    "current": current,
                     "latest": latest,
                     "update_available": update_available,
                     "clone_dir": str(clone) if clone else None,
@@ -330,7 +303,7 @@ def run(args) -> int:
     from rich.console import Console
 
     c = Console()
-    c.print(f"\n  [bold]canair[/bold]  current: {__version__}")
+    c.print(f"\n  [bold]canair[/bold]  current: {current}")
     if latest is None:
         c.print("  [yellow]could not reach GitHub to check the latest release[/yellow]")
         c.print("  [dim](offline, or GitHub unreachable — a release tag is needed to update)[/dim]")
@@ -377,7 +350,7 @@ def run(args) -> int:
         c.print(_manual_instructions(clone, None))
         return _CANNOT
 
-    if _git_dirty(clone):
+    if build_info.is_dirty(clone):
         c.print(
             f"  [yellow]The clone at {clone} has uncommitted changes.[/yellow]\n"
             "  Refusing to touch it so your work isn't clobbered. Commit or stash first,\n"
@@ -401,7 +374,7 @@ def run(args) -> int:
         return _CANNOT
 
     c.print("\n  Fetching tags …")
-    fetch = _git(clone, "fetch", "--tags", "--force")
+    fetch = build_info.run_git(clone, "fetch", "--tags", "--force")
     if fetch.returncode != 0:
         c.print("  [red]git fetch failed:[/red]")
         c.print(f"  [dim]{(fetch.stderr or fetch.stdout).strip()}[/dim]\n")
@@ -409,7 +382,7 @@ def run(args) -> int:
         return _FAILED
 
     c.print(f"  Checking out [bold]{latest}[/bold] …")
-    checkout = _git(clone, "checkout", latest)
+    checkout = build_info.run_git(clone, "checkout", latest)
     if checkout.returncode != 0:
         c.print("  [red]git checkout failed:[/red]")
         c.print(f"  [dim]{(checkout.stderr or checkout.stdout).strip()}[/dim]\n")

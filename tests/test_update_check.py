@@ -8,7 +8,7 @@ import time
 
 import pytest
 
-from canlib import update_check
+from canlib import build_info, update_check
 
 
 @pytest.fixture(autouse=True)
@@ -21,6 +21,26 @@ def _isolate_config(tmp_path, monkeypatch):
     config.load_config.cache_clear()
     yield
     config.load_config.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def _clear_git_build_cache():
+    """`build_info.git_build` caches per clone for the process; keep tests honest."""
+    build_info.clear_cache()
+    yield
+    build_info.clear_cache()
+
+
+@pytest.fixture(autouse=True)
+def _no_running_build(monkeypatch):
+    """Keep git off the *reported* version path.
+
+    These tests are about the update flow, not about the checkout canair itself is
+    running from; stubbing the running build makes the reported version the plain
+    package version and stops `full_version()` shelling out to git behind the
+    subprocess assertions below.
+    """
+    monkeypatch.setattr(build_info, "running_build", lambda: None)
 
 
 class TestVersionCompare:
@@ -164,65 +184,6 @@ class TestPendingNotice:
         assert update_check.pending_notice() is None
 
 
-class TestGitHead:
-    """The clone HEAD describer: branch name on a branch, tag/commit when detached."""
-
-    def _init_repo(self, path):
-        import subprocess
-
-        def git(*a):
-            subprocess.run(
-                ["git", "-C", str(path), *a],
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-
-        git("init", "-q", "-b", "main")
-        git("config", "user.email", "t@example.com")
-        git("config", "user.name", "Test")
-        git("commit", "-q", "--allow-empty", "-m", "initial")
-        return git
-
-    def test_reports_branch_name(self, tmp_path):
-        from canlib.commands import update as update_cmd
-
-        self._init_repo(tmp_path)
-        assert update_cmd._git_head(tmp_path) == "main"
-
-    def test_reports_detached_tag(self, tmp_path):
-        from canlib.commands import update as update_cmd
-
-        git = self._init_repo(tmp_path)
-        git("tag", "v1.2.3")
-        git("checkout", "-q", "v1.2.3")
-        assert update_cmd._git_head(tmp_path) == "detached at v1.2.3"
-
-    def test_reports_detached_commit_without_tag(self, tmp_path):
-        import subprocess
-
-        from canlib.commands import update as update_cmd
-
-        git = self._init_repo(tmp_path)
-        git("commit", "-q", "--allow-empty", "-m", "second")
-        # Detach onto the first commit, which carries no tag.
-        first = subprocess.run(
-            ["git", "-C", str(tmp_path), "rev-parse", "HEAD~1"],
-            check=True,
-            capture_output=True,
-            text=True,
-        ).stdout.strip()
-        git("checkout", "-q", first)
-        head = update_cmd._git_head(tmp_path)
-        assert head is not None
-        assert head.startswith("detached at ")
-
-    def test_none_when_not_a_repo(self, tmp_path):
-        from canlib.commands import update as update_cmd
-
-        assert update_cmd._git_head(tmp_path) is None
-
-
 class TestUpdateCommand:
     def _args(self, **kw):
         base = {"check": False, "yes": False, "json": False}
@@ -251,6 +212,36 @@ class TestUpdateCommand:
         assert out["clone_dir"] is None
         assert out["clone_head"] is None
 
+    def test_json_current_carries_build_provenance(self, monkeypatch, capsys):
+        """From a git checkout, the reported version names the branch and commit."""
+        from canlib.commands import update as update_cmd
+
+        monkeypatch.setattr(
+            update_cmd,
+            "fetch_latest_release",
+            lambda *a, **k: {"tag": "v1.0.0", "url": "https://example/rel"},
+        )
+        import canlib
+
+        monkeypatch.setattr(canlib, "__version__", "1.0.0")
+        monkeypatch.setattr(update_cmd, "_find_clone_dir", lambda: None)
+        monkeypatch.setattr(
+            build_info,
+            "running_build",
+            lambda: build_info.GitBuild(branch="main", commit="343b244", dirty=False),
+        )
+
+        rc = update_cmd.run(self._args(json=True))
+        assert rc == 0
+        out = json.loads(capsys.readouterr().out)
+        assert out["current"] == "1.0.0+main.343b244"
+        assert out["install"]["running_version"] == "1.0.0+main.343b244"
+        assert out["install"]["running_build"] == {
+            "branch": "main",
+            "commit": "343b244",
+            "dirty": False,
+        }
+
     def test_json_reports_clone_head(self, monkeypatch, capsys, tmp_path):
         from canlib.commands import update as update_cmd
 
@@ -263,7 +254,7 @@ class TestUpdateCommand:
 
         monkeypatch.setattr(canlib, "__version__", "1.0.0")
         monkeypatch.setattr(update_cmd, "_find_clone_dir", lambda: tmp_path)
-        monkeypatch.setattr(update_cmd, "_git_head", lambda clone: "main")
+        monkeypatch.setattr(build_info, "head_label", lambda clone: "main")
 
         rc = update_cmd.run(self._args(json=True))
         assert rc == 0
@@ -283,8 +274,8 @@ class TestUpdateCommand:
 
         monkeypatch.setattr(canlib, "__version__", "1.0.0")
         monkeypatch.setattr(update_cmd, "_find_clone_dir", lambda: tmp_path)
-        monkeypatch.setattr(update_cmd, "_git_head", lambda clone: "main")
-        monkeypatch.setattr(update_cmd, "_git_dirty", lambda clone: False)
+        monkeypatch.setattr(build_info, "head_label", lambda clone: "main")
+        monkeypatch.setattr(build_info, "is_dirty", lambda clone: False)
         monkeypatch.setattr(update_cmd.shutil, "which", lambda name: None)
 
         rc = update_cmd.run(self._args(check=True))
@@ -309,7 +300,7 @@ class TestUpdateCommand:
             git_args.append(a)
             return _CP()
 
-        monkeypatch.setattr(update_cmd, "_git", _git)
+        monkeypatch.setattr(build_info, "run_git", _git)
         monkeypatch.setattr(
             update_cmd,
             "fetch_latest_release",
@@ -366,14 +357,10 @@ class TestUpdateCommand:
 
         monkeypatch.setattr(canlib, "__version__", "1.0.0")
         monkeypatch.setattr(update_cmd, "_find_clone_dir", lambda: tmp_path)
-        monkeypatch.setattr(update_cmd, "_git_head", lambda clone: "main")
+        monkeypatch.setattr(build_info, "head_label", lambda clone: "main")
 
         git_calls: list[tuple[str, ...]] = []
-        monkeypatch.setattr(
-            update_cmd,
-            "_git",
-            lambda clone, *a: git_calls.append(a),
-        )
+        monkeypatch.setattr(build_info, "run_git", lambda clone, *a: git_calls.append(a))
 
         rc = update_cmd.run(self._args(yes=True))
         assert rc == update_cmd._CANNOT
@@ -392,7 +379,7 @@ class TestUpdateCommand:
 
         monkeypatch.setattr(canlib, "__version__", "1.0.0")
         monkeypatch.setattr(update_cmd, "_find_clone_dir", lambda: tmp_path)
-        monkeypatch.setattr(update_cmd, "_git_dirty", lambda clone: False)
+        monkeypatch.setattr(build_info, "is_dirty", lambda clone: False)
         monkeypatch.setattr(update_cmd.shutil, "which", lambda name: "/usr/bin/uv")
 
         git_calls: list[tuple[str, ...]] = []
@@ -406,7 +393,7 @@ class TestUpdateCommand:
             git_calls.append(a)
             return _CP()
 
-        monkeypatch.setattr(update_cmd, "_git", _git)
+        monkeypatch.setattr(build_info, "run_git", _git)
 
         install_calls: list[list[str]] = []
 
@@ -438,7 +425,7 @@ class TestUpdateCommand:
 
         monkeypatch.setattr(canlib, "__version__", "1.0.0")
         monkeypatch.setattr(update_cmd, "_find_clone_dir", lambda: tmp_path)
-        monkeypatch.setattr(update_cmd, "_git_dirty", lambda clone: False)
+        monkeypatch.setattr(build_info, "is_dirty", lambda clone: False)
         monkeypatch.setattr(update_cmd.shutil, "which", lambda name: "/usr/bin/uv")
 
         class _CP:
@@ -451,7 +438,7 @@ class TestUpdateCommand:
             # fetch succeeds, checkout fails.
             return _CP(0 if a[:1] == ("fetch",) else 1)
 
-        monkeypatch.setattr(update_cmd, "_git", _git)
+        monkeypatch.setattr(build_info, "run_git", _git)
 
         rc = update_cmd.run(self._args(yes=True))
         assert rc == update_cmd._FAILED
@@ -485,7 +472,7 @@ class TestUpdateCommand:
 
         monkeypatch.setattr(canlib, "__version__", "1.0.0")
         monkeypatch.setattr(update_cmd, "_find_clone_dir", lambda: tmp_path)
-        monkeypatch.setattr(update_cmd, "_git_head", lambda clone: "main")
+        monkeypatch.setattr(build_info, "head_label", lambda clone: "main")
         monkeypatch.setattr(
             update_cmd,
             "describe_install",
@@ -494,7 +481,7 @@ class TestUpdateCommand:
         monkeypatch.setattr(update_cmd.shutil, "which", lambda name: "/usr/bin/uv")
 
         git_calls: list[tuple[str, ...]] = []
-        monkeypatch.setattr(update_cmd, "_git", lambda clone, *a: git_calls.append(a))
+        monkeypatch.setattr(build_info, "run_git", lambda clone, *a: git_calls.append(a))
 
         install_calls: list[list[str]] = []
 
@@ -530,7 +517,7 @@ class TestUpdateCommand:
 
         monkeypatch.setattr(canlib, "__version__", "1.0.0")
         monkeypatch.setattr(update_cmd, "_find_clone_dir", lambda: tmp_path)
-        monkeypatch.setattr(update_cmd, "_git_head", lambda clone: "main")
+        monkeypatch.setattr(build_info, "head_label", lambda clone: "main")
         monkeypatch.setattr(
             update_cmd,
             "describe_install",
@@ -556,7 +543,7 @@ class TestUpdateCommand:
 
         monkeypatch.setattr(canlib, "__version__", "1.0.0")
         monkeypatch.setattr(update_cmd, "_find_clone_dir", lambda: tmp_path)
-        monkeypatch.setattr(update_cmd, "_git_head", lambda clone: "main")
+        monkeypatch.setattr(build_info, "head_label", lambda clone: "main")
         monkeypatch.setattr(
             update_cmd,
             "describe_install",
