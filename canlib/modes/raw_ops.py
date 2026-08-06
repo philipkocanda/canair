@@ -55,11 +55,11 @@ async def run_raw(args, transport, pids_data) -> int:
 
     # All other commands: reuse the shared dispatch over a RawTerminal adapter.
     from ..addressing import EcuAddress, resolve_mode, resolve_rx_offset
-    from ..commands._live import run_session_guarded
     from ..pids import build_ecu_index
     from ..quirks import HK_F1XX_MINUS_ONE, has_quirk
     from ..timeouts import cli_timeout, ecu_timeouts_by_tx
     from ..transport import RawTerminal
+    from .dispatch import run_session_guarded
 
     print(f"  Raw CAN via SLCAN — {host}:{port} @ {bitrate} bps")
     cli = cli_timeout(args)

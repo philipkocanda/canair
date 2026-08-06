@@ -16,7 +16,8 @@ import pytest
 class TestInteractiveTransportGuard:
     @pytest.mark.asyncio
     async def test_interactive_refused_on_non_elm_terminal(self, capsys):
-        from canlib.commands._live import CANAIR_DEFAULTS, dispatch_mode
+        from canlib.commands._live import CANAIR_DEFAULTS
+        from canlib.modes.dispatch import dispatch_mode
 
         class NotWiCAN:  # not a WiCANTerminal -> raw path; no mode selector set
             pass

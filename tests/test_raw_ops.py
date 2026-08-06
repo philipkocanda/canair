@@ -51,10 +51,14 @@ def routed(monkeypatch):
 
     monkeypatch.setattr(raw_monitor, "run_raw_monitor", _mon)
 
-    async def _dispatch(args, terminal, pids, host):
-        calls.append(("dispatch", type(terminal).__name__))
+    async def _dispatch(args, terminal, pids, host, *, reconnect=None):
+        # The raw path never supplies a reconnector: raw_ops routes monitoring to
+        # its own pipelined client before reaching dispatch, so the monitor branch
+        # here is unreachable on this transport. Recorded so an accidental
+        # cross-transport wiring shows up as a failure rather than a latent bug.
+        calls.append(("dispatch", type(terminal).__name__, reconnect))
 
-    import canlib.commands._live as live
+    import canlib.modes.dispatch as live
 
     monkeypatch.setattr(live, "dispatch_mode", _dispatch)
 
@@ -73,13 +77,13 @@ def test_routes_monitor_to_optimized_path(routed):
 
 def test_routes_query_to_dispatch(routed):
     rc = asyncio.run(raw_ops.run_raw(Args(multi=["query BMS"]), T(), {}))
-    assert rc == 0 and routed == [("dispatch", "FakeRawTerminal")]
+    assert rc == 0 and routed == [("dispatch", "FakeRawTerminal", None)]
     assert FakeRawTerminal.instances[0].closed is True  # cleaned up
 
 
 def test_routes_scan_to_dispatch(routed):
     rc = asyncio.run(raw_ops.run_raw(Args(scan=True, tx="7E4"), T(), {}))
-    assert rc == 0 and routed == [("dispatch", "FakeRawTerminal")]
+    assert rc == 0 and routed == [("dispatch", "FakeRawTerminal", None)]
 
 
 def test_no_host_errors(routed):
@@ -131,10 +135,10 @@ def test_mid_session_drop_is_clean(monkeypatch, capsys):
     monkeypatch.setattr(wican_mode, "require_protocol", lambda host, expected, **kw: None)
     monkeypatch.setattr(wican_mode, "require_slcan_reachable", lambda host, port, **kw: None)
 
-    async def _drop(args, terminal, pids, host):
+    async def _drop(args, terminal, pids, host, *, reconnect=None):
         raise can.CanError("SLCAN TCP connection closed by peer")
 
-    import canlib.commands._live as live
+    import canlib.modes.dispatch as live
 
     monkeypatch.setattr(live, "dispatch_mode", _drop)
     import canlib.transport as transport
@@ -154,10 +158,10 @@ def test_mid_session_drop_while_saving_points_at_recover(monkeypatch, capsys):
     monkeypatch.setattr(wican_mode, "require_protocol", lambda host, expected, **kw: None)
     monkeypatch.setattr(wican_mode, "require_slcan_reachable", lambda host, port, **kw: None)
 
-    async def _drop(args, terminal, pids, host):
+    async def _drop(args, terminal, pids, host, *, reconnect=None):
         raise ConnectionResetError("reset by peer")
 
-    import canlib.commands._live as live
+    import canlib.modes.dispatch as live
 
     monkeypatch.setattr(live, "dispatch_mode", _drop)
     import canlib.transport as transport

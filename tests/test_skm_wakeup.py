@@ -17,7 +17,8 @@ class TestSkmWakeTransportGuard:
 
     @pytest.mark.asyncio
     async def test_skm_wake_refused_on_non_elm_terminal(self, capsys):
-        from canlib.commands._live import CANAIR_DEFAULTS, dispatch_mode
+        from canlib.commands._live import CANAIR_DEFAULTS
+        from canlib.modes.dispatch import dispatch_mode
 
         class NotWiCAN:  # not a WiCANTerminal -> raw path
             pass
@@ -33,7 +34,8 @@ class TestSkmWakeTransportGuard:
     async def test_skm_wake_refused_without_quirk(self, capsys):
         """A profile that doesn't declare `skm_wakeup` refuses skm-wake with a
         clear capability error (before the transport check)."""
-        from canlib.commands._live import CANAIR_DEFAULTS, dispatch_mode
+        from canlib.commands._live import CANAIR_DEFAULTS
+        from canlib.modes.dispatch import dispatch_mode
 
         class NotWiCAN:
             pass
