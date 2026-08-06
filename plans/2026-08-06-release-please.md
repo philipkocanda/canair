@@ -1,7 +1,9 @@
 # Adopt release-please for releases
 
-Status: **IN PROGRESS** — Phase 0 (the manual v1.15.0 seam) is prepared; Phases
-1-5 are open work.
+Status: **DONE** (2026-08-06) — Phases 0-5 all landed and verified end-to-end by
+release PR #10 (`chore(main): release 1.16.0`), which is green and mergeable. The
+one remaining action is a human one: curate that PR's notes and merge it when a
+release is wanted.
 
 ## Motivation
 
@@ -363,7 +365,7 @@ tag whose `uv sync` re-locks. This turns that into a red release PR.
   the flow; if it does not, the PAT is not being used and every release would need
   an admin bypass.
 
-## Phase 3 — prepare `CHANGELOG.md` for the generator
+## Phase 3 — prepare `CHANGELOG.md` for the generator (DONE 2026-08-06)
 
 > **UNBLOCKED 2026-08-06.** The concurrent version-provenance work landed
 > (`2c9eb5f`, `cb23040`) and notably left `CHANGELOG.md` alone, so no
@@ -395,7 +397,7 @@ Freeze the existing bottom `[X.Y.Z]: …` block as history and add a short HTML
 comment at the seam noting that entries from v1.16.0 on are generated and then
 hand-edited in the release PR, so the format change is explained in-file.
 
-## Phase 4 — rewrite `RELEASING.md`
+## Phase 4 — rewrite `RELEASING.md` (DONE 2026-08-06)
 
 Keep the SemVer definitions at the top (they describe *this* project's
 major/minor/patch, including profile/capture-schema breakage). Replace the
