@@ -4,7 +4,7 @@ import io
 import json
 from contextlib import redirect_stdout
 
-from canlib.commands import decode as decode_script
+from canlib.commands.decode import render
 from canlib.notation import ByteNotation
 
 
@@ -31,7 +31,7 @@ def _dump(results, **kw) -> str:
     defaults.update(kw)
     buf = io.StringIO()
     with redirect_stdout(buf):
-        rc = decode_script._dump_bytes(results, "BMS", "2101", **defaults)
+        rc = render._dump_bytes(results, "BMS", "2101", **defaults)
     assert rc == 0
     return buf.getvalue()
 

@@ -15,7 +15,7 @@ from canlib.capture_dates import (
     resolve_date_bounds,
     resolve_scope_bounds,
 )
-from canlib.commands import decode as decode_script
+from canlib.commands.decode import query, render
 
 # ---------------------------------------------------------------------------
 # capture_dates helpers
@@ -352,26 +352,26 @@ def _caps():
 
 class TestScopeCaptures:
     def test_no_scope_returns_all(self):
-        out = decode_script.scope_captures(_caps())
+        out = query.scope_captures(_caps())
         assert len(out) == 6
 
     def test_state_filter(self):
-        out = decode_script.scope_captures(_caps(), state="driving")
+        out = query.scope_captures(_caps(), state="driving")
         assert len(out) == 5 and all("driving" in c["vehicle_states"] for c in out)
 
     def test_first(self):
-        out = decode_script.scope_captures(_caps(), first=2)
+        out = query.scope_captures(_caps(), first=2)
         assert [c["id"] for c in out] == [0, 1]
 
     def test_last(self):
-        out = decode_script.scope_captures(_caps(), last=2)
+        out = query.scope_captures(_caps(), last=2)
         assert [c["id"] for c in out] == [4, 5]
 
     def test_last_zero_is_empty(self):
-        assert decode_script.scope_captures(_caps(), last=0) == []
+        assert query.scope_captures(_caps(), last=0) == []
 
     def test_state_then_last(self):
-        out = decode_script.scope_captures(_caps(), state="driving", last=2)
+        out = query.scope_captures(_caps(), state="driving", last=2)
         assert [c["id"] for c in out] == [3, 4]
 
     def test_date_filters(self):
@@ -379,7 +379,7 @@ class TestScopeCaptures:
             *_caps(),
             {"date": "2026-07-20", "vehicle_states": ["parked"], "label": "", "id": 9},
         ]
-        out = decode_script.scope_captures(caps, since=date(2026, 7, 22))
+        out = query.scope_captures(caps, since=date(2026, 7, 22))
         assert all(c["date"] == "2026-07-22" for c in out)
 
 
@@ -414,7 +414,7 @@ class TestPrintCompact:
                 ("16:00:01", "drive", {"SPEED": 10}),
             ]
         )
-        decode_script.print_compact(results, ["SPEED"], {"SPEED": {"unit": "km/h"}}, set())
+        render.print_compact(results, ["SPEED"], {"SPEED": {"unit": "km/h"}}, set())
         out = capsys.readouterr().out
         # Param name appears once (header), NOT on every data row.
         assert out.count("SPEED") == 1
@@ -428,7 +428,7 @@ class TestPrintCompact:
                 ("16:00:02", "drive B", {"SPEED": 8}),
             ]
         )
-        decode_script.print_compact(results, ["SPEED"], {"SPEED": {"unit": ""}}, set())
+        render.print_compact(results, ["SPEED"], {"SPEED": {"unit": ""}}, set())
         out = capsys.readouterr().out
         assert out.count("[drive A]") == 1
         assert out.count("[drive B]") == 1
@@ -442,9 +442,7 @@ class TestPrintCompact:
                 ("16:00:03", "s", {"SPEED": 7}),
             ]
         )
-        decode_script.print_compact(
-            results, ["SPEED"], {"SPEED": {"unit": ""}}, set(), changes_only=True
-        )
+        render.print_compact(results, ["SPEED"], {"SPEED": {"unit": ""}}, set(), changes_only=True)
         out = capsys.readouterr().out
         # First 0 prints, next two identical 0s are dropped, then 7 prints.
         assert "16:00:00" in out
@@ -454,7 +452,7 @@ class TestPrintCompact:
 
     def test_no_present_params(self, capsys):
         results = _compact_results([("16:00:00", "s", {})])
-        decode_script.print_compact(results, ["SPEED"], {"SPEED": {"unit": ""}}, set())
+        render.print_compact(results, ["SPEED"], {"SPEED": {"unit": ""}}, set())
         out = capsys.readouterr().out
         assert "no decodable parameters" in out
 
@@ -473,7 +471,7 @@ class TestPrintStatsGrouped:
                 ("16:00:02", "drive B", {"P": 100}),
             ]
         )
-        decode_script.print_stats_grouped(results, ["P"], {"P": {"unit": ""}}, set(), "state")
+        render.print_stats_grouped(results, ["P"], {"P": {"unit": ""}}, set(), "state")
         out = capsys.readouterr().out
         assert "[drive A]" in out and "[drive B]" in out
         # Group A max is 3, group B max is 100 — proves per-group stats.

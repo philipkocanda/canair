@@ -26,6 +26,9 @@ from canlib.byteindex import (
     payload_to_wican_bytes,
     payload_to_wican_frame,
 )
+from canlib.capture_dates import resolve_scope_bounds
+from canlib.capture_store import load_pid_captures
+from canlib.decoding import decode_payload, ordered_signal_names
 from canlib.inspect_bytes import (
     INSPECT_TYPES,
     POST_TRANSFORMS,
@@ -34,10 +37,13 @@ from canlib.inspect_bytes import (
     norm01,
     wican_expr,
 )
+from canlib.pids import build_ecu_index, load_pids
 from canlib.states import join_states as _join_states
 from canlib.stats import fmt_num as _fmt_num
 from canlib.stats import mean as _mean
 from canlib.stats import pearson as _pearson
+
+from .query import scope_captures
 
 # Terminal colors — mirror decode's palette. Kept local (not imported from
 # decode) so this leaf module has no import-time dependency on decode, which
@@ -601,3 +607,80 @@ class PlotModel:
 
     def toggle_info(self) -> None:
         self.show_info = not self.show_info
+
+
+# ---------------------------------------------------------------------------
+# Command wiring
+# ---------------------------------------------------------------------------
+#
+# Building a PlotModel from CLI args (rather than from already-decoded results)
+# lives here beside the model, not in the command entry point: the TUI's in-place
+# PID switch calls back into it, so it is part of the plot surface.
+
+
+def plot_pid_options() -> list[tuple[str, str]]:
+    """Distinct ``(ECU, PID)`` pairs that have payload captures, for the --plot switcher."""
+    from canlib.capture_store import load_all_captures
+
+    seen: dict[tuple[str, str], None] = {}
+    try:
+        for e in load_all_captures():
+            if not e.get("payload"):
+                continue
+            ecu = str(e.get("ecu", "")).upper()
+            pid = str(e.get("pid", "")).upper()
+            if ecu and pid:
+                seen.setdefault((ecu, pid), None)
+    except Exception:
+        return []
+    return sorted(seen)
+
+
+def build_plot_model(args, ecu: str, pid: str) -> PlotModel | None:
+    """(Re)build a :class:`PlotModel` for ``ecu``/``pid`` reusing ``args`` scope.
+
+    Used by the --plot TUI's in-place PID switch. Carries the date/state/label
+    scope, but not --try/--corr (those were bound to the originally-selected PID).
+    Returns None when the target has no plottable captures.
+    """
+    ecu_key = ecu.upper()
+    pid_key = pid.upper()
+    since, until, err = resolve_scope_bounds(args)
+    if err:
+        return None
+    scope = {
+        "since": since,
+        "until": until,
+        "state": args.state,
+        "label": args.label,
+        "first": args.first,
+        "last": args.last,
+    }
+    pids_data = load_pids()
+    ecu_index = build_ecu_index(pids_data)
+    parameters: dict = {}
+    if ecu_key in ecu_index:
+        parameters = ecu_index[ecu_key]["pids"].get(pid_key, {}).get("parameters", {}) or {}
+    defined_params = dict(parameters)
+
+    captures = scope_captures(load_pid_captures(ecu_key, pid_key), **scope)
+    all_results: list[dict] = []
+    for cap in captures:
+        try:
+            wican_bytes = payload_to_wican_bytes(cap["payload"])
+        except Exception as e:
+            all_results.append({"capture": cap, "decoded": {}, "error": str(e)})
+            continue
+        all_results.append({"capture": cap, "decoded": decode_payload(wican_bytes, parameters)})
+
+    model = PlotModel(
+        all_results,
+        ordered_signal_names(parameters),
+        parameters,
+        set(),
+        None,
+        ecu_key,
+        pid_key,
+        defined_params=defined_params,
+    )
+    return None if model.empty else model
