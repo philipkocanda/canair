@@ -40,6 +40,13 @@ tension is the central design decision below.
 3. **Fine-grained PAT** in `secrets.RELEASE_PLEASE_TOKEN`. Release PRs opened with
    the default `GITHUB_TOKEN` do not trigger workflows, so `ci.yml`'s
    `pull_request` job would never run on them; with a PAT you merge a green PR.
+   **This is a hard requirement, not a convenience:** the repo has an active
+   ruleset (`require-ci-on-pr`, id 20031501) on `~DEFAULT_BRANCH` requiring the
+   `test` status check. With `GITHUB_TOKEN` that check would never run on a release
+   PR, leaving it permanently unmergeable except by admin bypass — i.e. the whole
+   flow would depend on bypassing the rule on every release. The ruleset targets
+   only the default branch, so release-please pushing its own
+   `release-please--branches--main` branch is unaffected.
 4. **A `commit-msg` pre-commit hook is in scope**, not an optional follow-up. A
    non-conventional subject is *silently* dropped from the changelog, and a bare
    subject (`bitfields`, `plan`, `skills and docs` all exist in recent history)
@@ -84,6 +91,15 @@ Done in the working tree, following the existing `RELEASING.md`:
 permanently (see below), so re-adding an empty one would be immediate churn.
 
 Remaining: commit, `git tag -a v1.15.0`, push, `gh release create v1.15.0`.
+
+**Completed 2026-08-06.** Commits `ea7bb58` (docs stats fix), `2ae37d4`
+(`Release v1.15.0`), `e1322cd` (this plan); annotated tag `v1.15.0` on `2ae37d4`
+(the released code — the plan-doc commit is deliberately outside the tag);
+GitHub Release published at
+<https://github.com/philipkocanda/canair/releases/tag/v1.15.0>, and
+`/releases/latest` resolves to `v1.15.0`, which is what `canair update` reads.
+Note the push to `main` bypassed the `require-ci-on-pr` ruleset via admin
+bypass — the normal path for the automated flow is a green release PR.
 
 After this, the manifest anchor is `1.15.0` and a published, non-draft GitHub
 Release exists — which is what release-please reads to find the previous release,
@@ -231,8 +247,12 @@ tag whose `uv sync` re-locks. This turns that into a red release PR.
 
 - Fine-grained PAT scoped to `philipkocanda/canair` with **Contents: write**,
   **Pull requests: write**, **Issues: write**; stored as `RELEASE_PLEASE_TOKEN`.
+  Required, not optional — see decision 3 (the `require-ci-on-pr` ruleset).
 - With a PAT, "Allow GitHub Actions to create and approve pull requests" should
   not be needed (the PAT acts as the user); enable it if PR creation 403s.
+- Sanity-check that the release PR reports the `test` check *before* relying on
+  the flow; if it does not, the PAT is not being used and every release would need
+  an admin bypass.
 
 ## Phase 3 — prepare `CHANGELOG.md` for the generator
 
