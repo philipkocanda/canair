@@ -15,6 +15,24 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [1.16.0](https://github.com/philipkocanda/canair/compare/v1.15.0...v1.16.0) (2026-08-06)
+
+
+### Added
+
+* **version:** report the git checkout a build came from ([cb23040](https://github.com/philipkocanda/canair/commit/cb230402772cb22013845d739d6845d9ee0acc47))
+
+
+### Fixed
+
+* **ci:** make the uv.lock version jsonpath actually match ([b3e5db2](https://github.com/philipkocanda/canair/commit/b3e5db2030f90a597ea0ec3e873fcd9fb099e4fd))
+* **uds:** audit decode_uds_response and share the enum tables ([2c9eb5f](https://github.com/philipkocanda/canair/commit/2c9eb5f8be827aaa1dcfb833907bce0ee5baa91a))
+
+
+### Documentation
+
+* adopt Conventional Commits and gate it in pre-commit ([fcc7987](https://github.com/philipkocanda/canair/commit/fcc7987392bc004bf4a637e3b0b655d418093183))
+
 ## [1.15.0] - 2026-08-06
 
 ### Added
