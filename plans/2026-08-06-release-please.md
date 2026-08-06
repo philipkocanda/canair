@@ -67,7 +67,7 @@ of it. Everything before the seam is manual history; everything after is
 automated. This avoids `bootstrap-sha`/`release-as` fudging and a first bump that
 would have been wrong.
 
-## Phase 0 — cut v1.15.0 manually (PREPARED)
+## Phase 0 — cut v1.15.0 manually (DONE 2026-08-06)
 
 Done in the working tree, following the existing `RELEASING.md`:
 
@@ -166,7 +166,62 @@ Lands **before** the automation, so the first automated window is already clean.
   `docs/contributing/index.md` (which also gained the user-facing
   "Commit messages" section).
 
-## Phase 2 — release-please configuration
+## Phase 2 — release-please configuration (DONE 2026-08-06)
+
+### As implemented
+
+Landed in two pushes on purpose: **config first, workflow second**, because
+release-please reads its config from the *branch* (not the local tree), so the
+only way to dry-run a config is to push it — and pushing the workflow at the same
+time would have let an unverified config open a real PR.
+
+The dry run earned its keep immediately. It caught the `uv.lock` updater
+no-opping:
+
+```
+⚠ No entries modified in $.package[?(@.name=='canair')].version
+```
+
+release-please parses TOML with a **tagged** parser that replaces every scalar
+with a `{start, end, value}` object so it can splice by byte offset (verified
+directly: `pkgs[0].name` is `{"start":72,"end":85,"value":"argcomplete"}`). So
+`@.name` is never the string `canair` and the filter cannot match. The working
+path is **`$.package[?(@.name.value=='canair')].version`**, verified against
+release-please's own `GenericToml` updater: it rewrites exactly one line (117,
+the canair version) and leaves the other 182 KB byte-identical.
+
+That path depends on an *internal* representation, so a release-please upgrade
+could break it silently — the config is JSON and cannot carry a comment saying
+so, which is precisely why the `uv lock --check` CI gate exists. If a future
+upgrade re-breaks it, the release PR goes red instead of shipping a bad tag.
+
+Also confirmed by the dry run:
+
+- Previous release resolves to `1.15.0` at the `v1.15.0` tag's sha.
+- Tag has no `canair-` prefix. (The *branch* is still
+  `release-please--branches--main--components--canair`;
+  `include-component-in-tag` governs tags only, which is all that matters here.)
+- `exclude-paths` works: the two `plans/`-only commits are absent from the
+  proposed notes, while the commit touching `plans/` *and* real files is included.
+- Hidden sections work: a `ci:`-typed commit produced no entry.
+
+**A lesson worth recording:** the dry run showed my own `fix(ci): make the uv.lock
+version jsonpath actually match` rendering as a user-facing **Fixed** entry — for
+a bug that never shipped. Fixing an unreleased defect should reuse the original
+commit's (hidden) type; `fix:` is for what a released version got wrong. Added to
+`SKILL.md`'s commit rules.
+
+### Still required before the first automated release
+
+**The `RELEASE_PLEASE_TOKEN` secret does not exist yet**, and the workflow cannot
+work without it (see decision 3). The workflow therefore opens with an explicit
+guard step that fails with an actionable `::error::` naming the required scopes,
+rather than letting the action die on an opaque auth error — so until the secret
+is added, the Release workflow will show a **clear, intentional red** on each push
+to `main`. That is the honest state: releases are configured but not yet
+authorised.
+
+## Phase 2 — the configuration in full
 
 ### `release-please-config.json` (new, repo root)
 
@@ -282,6 +337,15 @@ tag whose `uv sync` re-locks. This turns that into a red release PR.
   an admin bypass.
 
 ## Phase 3 — prepare `CHANGELOG.md` for the generator
+
+> **BLOCKED (2026-08-06): concurrent work in the tree.** Another session is
+> mid-change on `CHANGELOG.md`, `RELEASING.md` and `AGENTS.md` (alongside a new
+> `canlib/build_info.py` and edits to `commands/update.py` /
+> `install_context.py` — version-provenance work). Phases 3 and 4 target exactly
+> those first two files, so landing them now would fight an in-flight edit.
+> **Do not start these until that work is committed**, then re-read both files
+> before editing — in particular, check whether an `[Unreleased]` section was
+> re-added to `CHANGELOG.md`, because the whole premise below is that it is gone.
 
 `[Unreleased]` is **removed permanently** (Phase 0 already renamed the heading and
 dropped its link reference). Two reasons:

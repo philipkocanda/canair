@@ -1,0 +1,48 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write # PR labelling goes through the issues API
+
+# Never run two release-please passes at once: both would try to reconcile the
+# same release branch/PR.
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      # Fail loudly and legibly if the PAT is missing, rather than letting the
+      # action die on an opaque auth error. Not optional: see the note below.
+      - name: Require the release token
+        env:
+          TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::error title=Missing RELEASE_PLEASE_TOKEN::Create a fine-grained PAT scoped to this repo with Contents: write, Pull requests: write, Issues: write, and store it as the RELEASE_PLEASE_TOKEN secret. See RELEASING.md."
+            exit 1
+          fi
+
+      # Opens/updates a release PR that bumps pyproject.toml + uv.lock and writes
+      # the CHANGELOG section; merging it tags vX.Y.Z and publishes the GitHub
+      # Release that `canair update` reads. See RELEASING.md for the human loop
+      # and plans/2026-08-06-release-please.md for the design.
+      #
+      # The token is a PAT, not GITHUB_TOKEN, and that is load-bearing: resources
+      # created with GITHUB_TOKEN do not trigger workflows, so CI would never run
+      # on a release PR — and the default branch requires the `test` check, which
+      # would leave every release PR unmergeable except by admin bypass.
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

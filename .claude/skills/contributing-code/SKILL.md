@@ -550,6 +550,12 @@ the subject's shape is fixed.
   | `types: …` | `refactor(types):` |
   | bare subject (`bitfields`, `plan`) | **never** — parses as nothing |
 
+- **Fixing something that never shipped keeps the *original* commit's type.** A
+  defect introduced and corrected within the same unreleased window did not exist
+  for any user, so `fix:` would document a bug nobody could have hit — reuse the
+  type of the commit being corrected (`ci:` corrects `ci:`, `chore:` corrects
+  `chore:`) so the entry stays out of the release notes. Reserve `fix:` for
+  something a released version actually did wrong.
 - **Body explains the *why* and the shape of the change**, wrapped prose +
   bullets, not a file-by-file changelog (the diff already lists files). Lead with
   intent. The body is *not* parsed (only the subject and a `BREAKING CHANGE:`
