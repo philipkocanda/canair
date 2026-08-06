@@ -128,7 +128,7 @@ async def run_raw_monitor(args, host: str, port: int, bitrate: int, pids_data: d
     # here through the shared classifier so a dropped bus is a clean message, not
     # a traceback. (The ELM monitor gets this via dispatch_mode/run_session_guarded;
     # the raw monitor bypasses dispatch_mode for its pipelined client, so guard here.)
-    from ..commands._live import wants_save
+    from ..keepmode import wants_save
     from ..notation import resolve_notation
     from ..transport.errors import describe_transport_error, transport_error_types
 

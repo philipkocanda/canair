@@ -453,3 +453,29 @@ def ecu_display(tx_id: int, ecus: Mapping[int, EcuRegistryEntry] | None = None) 
     """Human-friendly label for a TX id, e.g. 'BMS (0x7E4)' or '0x7E4'."""
     name = ecu_name(tx_id, ecus)
     return f"0x{tx_id:03X}" if name.startswith("0x") else f"{name} (0x{tx_id:03X})"
+
+
+def split_ecus_by_protocol(names: list[str]) -> tuple[list[str], list[str]]:
+    """Partition ECU names into (uds, kwp) by their registry ``id_protocol``.
+
+    KWP2000 ECUs (BMS/VCU/MCU/LDC/AAF) need the KWP variants of the discovery
+    scanners: InputOutputControlByLocalIdentifier (0x30) instead of UDS 0x2F, and
+    RequestRoutineResultsByLocalIdentifier (0x33) instead of UDS RoutineControl
+    (0x31) — sending 0x31 to a KWP2000 ECU means StartRoutine and can actuate, so
+    this split is a safety boundary, not just a convenience. ECUs whose protocol
+    can't be resolved fall in the UDS bucket (the historical default).
+
+    Lives in the registry module, not the CLI: it is a pure ``id_protocol``
+    lookup, and being a *safety* boundary it should not sit in a command helper
+    where a caller might reimplement it.
+    """
+    uds: list[str] = []
+    kwp: list[str] = []
+    for name in names:
+        tx_id = resolve_tx(name)
+        proto = ecu_id_protocol(tx_id) if tx_id is not None else None
+        if str(proto or "").upper().startswith("KWP"):
+            kwp.append(name)
+        else:
+            uds.append(name)
+    return uds, kwp

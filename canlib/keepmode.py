@@ -147,3 +147,23 @@ def keep_mode_from_args(args) -> KeepMode:
     if getattr(args, "keep_unique", False):
         return KEEP_UNIQUE
     return KEEP_CHANGES
+
+
+def wants_save(args) -> bool:
+    """True when the invocation intends to record captures (``--save`` or metadata flags).
+
+    Passing ``--label``/``--state``/``--notes`` without ``--save`` is treated as
+    intent to record, not as a no-op — the metadata has nowhere else to go.
+
+    Lives here beside :func:`keep_mode_from_args` (the other predicate over the
+    recording flags) rather than in the CLI layer, because ``modes.raw_monitor``
+    needs it to decide whether a dropped session should point the user at
+    ``--recover``, and a mode reaching up into a command helper for that was a
+    layering inversion.
+    """
+    return bool(
+        getattr(args, "save", False)
+        or getattr(args, "label", None) is not None
+        or getattr(args, "state", None) is not None
+        or getattr(args, "notes", None) is not None
+    )

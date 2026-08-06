@@ -34,7 +34,8 @@ from canlib import (
     log_command,
     reboot_wican,
 )
-from canlib.keepmode import keep_mode_from_args
+from canlib.ecus import split_ecus_by_protocol
+from canlib.keepmode import keep_mode_from_args, wants_save
 from canlib.lock import WiCANLock
 from canlib.lock_watchdog import LockWatchdog
 from canlib.modes import (
@@ -151,30 +152,6 @@ def parse_range(range_str: str) -> tuple[int, int]:
             f"Invalid range: {range_str}. Expected format: 01-FF or E000-E0FF"
         )
     return int(match.group(1), 16), int(match.group(2), 16)
-
-
-def split_ecus_by_protocol(names: list[str]) -> tuple[list[str], list[str]]:
-    """Partition ECU names into (uds, kwp) by their registry ``id_protocol``.
-
-    KWP2000 ECUs (BMS/VCU/MCU/LDC/AAF) need the KWP variants of the discovery
-    scanners: InputOutputControlByLocalIdentifier (0x30) instead of UDS 0x2F, and
-    RequestRoutineResultsByLocalIdentifier (0x33) instead of UDS RoutineControl
-    (0x31) — sending 0x31 to a KWP2000 ECU means StartRoutine and can actuate, so
-    this split is a safety boundary, not just a convenience. ECUs whose protocol
-    can't be resolved fall in the UDS bucket (the historical default).
-    """
-    from canlib.ecus import ecu_id_protocol, resolve_tx
-
-    uds: list[str] = []
-    kwp: list[str] = []
-    for name in names:
-        tx_id = resolve_tx(name)
-        proto = ecu_id_protocol(tx_id) if tx_id is not None else None
-        if str(proto or "").upper().startswith("KWP"):
-            kwp.append(name)
-        else:
-            uds.append(name)
-    return uds, kwp
 
 
 # ---------------------------------------------------------------------------
@@ -695,20 +672,6 @@ async def async_main(args):
         if args.reboot and transport.is_wican_http:
             reboot_wican(host)
     return rc
-
-
-def wants_save(args) -> bool:
-    """True when the invocation intends to record captures (``--save`` or metadata flags).
-
-    Shared by the ``--save`` validation and the session error guard (so a dropped
-    session knows whether to point the user at ``--recover``).
-    """
-    return bool(
-        getattr(args, "save", False)
-        or getattr(args, "label", None) is not None
-        or getattr(args, "state", None) is not None
-        or getattr(args, "notes", None) is not None
-    )
 
 
 async def run_session_guarded(

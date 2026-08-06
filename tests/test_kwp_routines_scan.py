@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 import yaml
 
-from canlib.commands._live import split_ecus_by_protocol
+from canlib.ecus import split_ecus_by_protocol
 from canlib.modes.kwp_routines_scan import (
     KWP_ROUTINES_PROBE,
     KwpRoutineHit,

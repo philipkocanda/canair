@@ -12,6 +12,7 @@ from canlib.keepmode import (
     persisted_keep_mode,
     scope_is_keep_changes,
     scope_is_keep_unique,
+    wants_save,
 )
 
 
@@ -155,3 +156,37 @@ class TestParseKeepMode:
         assert parse_keep_mode(None) is None
         assert parse_keep_mode(True) is None
         assert parse_keep_mode({"keep_mode": "unique"}) is None
+
+
+class TestWantsSave:
+    """``wants_save``: does this invocation intend to record captures?
+
+    The metadata flags count as intent on their own — ``--label`` without
+    ``--save`` has nowhere to put the label, so treating it as a no-op would
+    silently discard it. The predicate also drives whether a dropped session
+    points the user at ``--recover``, which is why ``modes.raw_monitor`` needs it
+    and why it lives here rather than in the CLI layer.
+    """
+
+    def test_no_flags_is_false(self):
+        assert wants_save(_Args()) is False
+
+    def test_save_flag(self):
+        assert wants_save(_Args(save=True)) is True
+
+    def test_metadata_alone_counts_as_intent(self):
+        assert wants_save(_Args(label="charging")) is True
+        assert wants_save(_Args(state="READY")) is True
+        assert wants_save(_Args(notes="hood open")) is True
+
+    def test_empty_string_metadata_still_counts(self):
+        """`--label ""` was passed explicitly; None means "not passed"."""
+        assert wants_save(_Args(label="")) is True
+
+    def test_tolerates_a_namespace_missing_the_attributes(self):
+        """Callers include modes that build a partial namespace."""
+
+        class Bare:
+            pass
+
+        assert wants_save(Bare()) is False
