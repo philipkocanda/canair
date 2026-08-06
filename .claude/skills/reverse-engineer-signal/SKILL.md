@@ -44,7 +44,9 @@ profile is the *data*.
   request after idle. **One `canair` connection at a time, any transport** —
   canair enforces a `flock` mutex (`/tmp/wican-connection.lock`); a second
   `slcan-tcp` client hangs unserved and a second `wican-ws` WebSocket can lock up
-  the device (power-cycle to recover). No concurrent requests to the same ECU.
+  the device (power-cycle to recover). No concurrent requests to the same ECU. A
+  stuck/orphaned session is cleared with `--force` (asks it to release, waits) or
+  `canair lock` — never by rebooting the device.
 - **Never reboot the device without asking.** Using the WebSocket terminal
   overrides AutoPID; ask before rebooting to restore the AutoPID/MQTT feed.
 - Treat `0x22Fxxx` (flash/cal) as read-only. `2E` writes and `2F` IOControl can

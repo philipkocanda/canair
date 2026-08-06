@@ -97,8 +97,8 @@ options:
   --reboot              Reboot WiCAN after session to restore AutoPID mode
   --unsafe              Bypass dangerous command blocklist (requires explicit
                         per-command consent)
-  --force               Steal the connection lock if another session is still
-                        running
+  --force               Ask a session already holding the connection to
+                        release it, then wait for it
 
 getting started:
   canair scan range                 # interactive wizard — pick ECU/service/range
@@ -183,8 +183,8 @@ options:
   --reboot              Reboot WiCAN after session to restore AutoPID mode
   --unsafe              Bypass dangerous command blocklist (requires explicit
                         per-command consent)
-  --force               Steal the connection lock if another session is still
-                        running
+  --force               Ask a session already holding the connection to
+                        release it, then wait for it
 
 examples:
   canair scan iocontrol IGPM              # UDS 0x2F DID scan
@@ -249,8 +249,8 @@ options:
   --reboot              Reboot WiCAN after session to restore AutoPID mode
   --unsafe              Bypass dangerous command blocklist (requires explicit
                         per-command consent)
-  --force               Steal the connection lock if another session is still
-                        running
+  --force               Ask a session already holding the connection to
+                        release it, then wait for it
 
 examples:
   canair scan routines IGPM               # UDS 0x31 SF03
@@ -310,8 +310,8 @@ options:
   --reboot              Reboot WiCAN after session to restore AutoPID mode
   --unsafe              Bypass dangerous command blocklist (requires explicit
                         per-command consent)
-  --force               Steal the connection lock if another session is still
-                        running
+  --force               Ask a session already holding the connection to
+                        release it, then wait for it
 
 examples:
   canair scan sessions IGPM             # UDS: probe 10 01 / 10 03

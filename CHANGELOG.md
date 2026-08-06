@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`canair lock`** — inspect and clear the device connection mutex without
+  starting a session. A bare `canair lock` names the holder (PID, command line,
+  age, any pending release request); `canair lock steal` asks it to release the
+  connection and waits; `canair lock kill` signals a holder that won't release
+  (`SIGTERM`, or `SIGKILL` with `--hard`), confirming first and refusing a PID
+  whose command line shows it isn't canair. `canair status` gained a matching
+  read-only `Lock` line (plus a `lock` block in `--json`).
+- **A live session now stands down when another run asks for the connection.**
+  Every live command runs a watchdog that watches the mutex, so an *orphaned*
+  session — one whose terminal vanished, where no hangup is ever delivered and
+  which would otherwise hold the device's single connection indefinitely —
+  shuts itself down gracefully (journal reconciled, connection released) instead
+  of having to be hunted down by PID.
+- **`SIGHUP` is handled like Ctrl-C.** A dropped SSH connection or closed
+  terminal window now unwinds a session properly (reconciling any `--save`
+  journal, closing sessions, releasing the connection) rather than terminating it
+  outright. The monitor's TUI routes stop signals through its own quit action, so
+  Textual tears down cleanly instead of unwinding a `KeyboardInterrupt` through
+  its internals.
+
+### Fixed
+- **`--force` hung forever against a live session.** It took the lock with a
+  *blocking* `flock`, so the one case it existed for — an orphaned session still
+  holding the device — made every `--force` run wait indefinitely (leaving no way
+  out but hunting the PID, or rebooting). It now asks the holder to release the
+  connection, waits a bounded window (10s), and either proceeds or gives up
+  promptly, naming the PID and the exact `kill` command. canair still never
+  signals another process on your behalf.
+- **A hung-up terminal could cost a `--save` session its data.** The monitor's
+  teardown printed its save banners *before* reconciling the journal, so a write
+  failing on a dead tty (`EIO`) skipped the reconcile. Output failures in the
+  shutdown path are now tolerated everywhere they occur.
+- **A lock file owned by another user** crashed with a `PermissionError`
+  traceback instead of explaining that another user's session holds the device.
+
 ## [1.14.1] - 2026-08-05
 
 ### Changed

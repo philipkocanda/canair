@@ -48,8 +48,8 @@ options:
   --reboot              Reboot WiCAN after session to restore AutoPID mode
   --unsafe              Bypass dangerous command blocklist (requires explicit
                         per-command consent)
-  --force               Steal the connection lock if another session is still
-                        running
+  --force               Ask a session already holding the connection to
+                        release it, then wait for it
 
 examples:
   canair routines BCM                     Interactive TUI

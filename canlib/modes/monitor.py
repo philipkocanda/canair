@@ -38,6 +38,7 @@ from ..formatting import (
 )
 from ..keepmode import KEEP_ALL, KEEP_LAST, KeepMode
 from ..session_manager import SessionManager
+from ..stop_signals import graceful_stop
 from ._monitor_record import MonitorRecorder, _merge_history, _open_journal, _write_merged
 from ._monitor_render import (
     _RENDER_DEFAULT_ROWS,
@@ -800,7 +801,7 @@ class MonitorController:
 
 
 async def _monitor_noninteractive(controller: MonitorController) -> None:
-    """No TTY: poll silently until SIGINT/SIGTERM/disconnect (piped/scripted runs)."""
+    """No TTY: poll silently until a stop signal/disconnect (piped/scripted runs)."""
     stop_flag = {"v": False}
 
     def _handle_stop(_sig, _frame):
@@ -809,32 +810,32 @@ async def _monitor_noninteractive(controller: MonitorController) -> None:
         # cycle's per-ECU timeouts (the slow-Ctrl-C / slow-`kill` cause).
         controller.interrupt()
 
-    # Handle both interactive Ctrl-C (SIGINT) and a `kill`/`pkill` (SIGTERM) the
-    # same way — a graceful stop that reconciles the --save journal on exit.
-    old_int = signal.signal(signal.SIGINT, _handle_stop)
-    old_term = signal.signal(signal.SIGTERM, _handle_stop)
-
     def _notice(msg: str) -> None:
-        _console.print(f"  [yellow]{msg}[/yellow]")
+        with contextlib.suppress(OSError):
+            _console.print(f"  [yellow]{msg}[/yellow]")
 
-    try:
-        while not stop_flag["v"] and not controller.disconnected:
-            t0 = time.monotonic()
-            await controller.poll_once()
-            if controller.disconnected:
-                # Try to re-home the dropped session (auto-failover / --wait)
-                # instead of exiting; the --save journal keeps recording across
-                # the gap since the controller (and its journal) is preserved.
-                if not await _attempt_reconnect(controller, stop_flag, _notice):
-                    return
-                continue
-            remaining = controller.interval - (time.monotonic() - t0)
-            while remaining > 0 and not stop_flag["v"] and not controller.disconnected:
-                await asyncio.sleep(min(remaining, 0.1))
+    # Handle interactive Ctrl-C (SIGINT), a `kill`/`pkill` or the lock
+    # watchdog's self-abort (SIGTERM), and a vanished terminal (SIGHUP) the same
+    # way — a graceful stop that reconciles the --save journal on exit.
+    old_int = signal.signal(signal.SIGINT, _handle_stop)
+    with graceful_stop(_handle_stop):
+        try:
+            while not stop_flag["v"] and not controller.disconnected:
+                t0 = time.monotonic()
+                await controller.poll_once()
+                if controller.disconnected:
+                    # Try to re-home the dropped session (auto-failover / --wait)
+                    # instead of exiting; the --save journal keeps recording across
+                    # the gap since the controller (and its journal) is preserved.
+                    if not await _attempt_reconnect(controller, stop_flag, _notice):
+                        return
+                    continue
                 remaining = controller.interval - (time.monotonic() - t0)
-    finally:
-        signal.signal(signal.SIGINT, old_int)
-        signal.signal(signal.SIGTERM, old_term)
+                while remaining > 0 and not stop_flag["v"] and not controller.disconnected:
+                    await asyncio.sleep(min(remaining, 0.1))
+                    remaining = controller.interval - (time.monotonic() - t0)
+        finally:
+            signal.signal(signal.SIGINT, old_int)
 
 
 async def _attempt_reconnect(controller: "MonitorController", stop_flag: dict, notice) -> bool:
@@ -977,21 +978,27 @@ async def mode_monitor(
 
         if controller.disconnected:
             link = "raw CAN bus" if controller.raw else "WebSocket"
-            _console.print(f"\n  [bold red]✖ {link} disconnected[/bold red]")
-            _console.print(f"  [red]Stopped after {controller.cycle} cycles.[/red]\n")
+            with contextlib.suppress(OSError):
+                _console.print(f"\n  [bold red]✖ {link} disconnected[/bold red]")
+                _console.print(f"  [red]Stopped after {controller.cycle} cycles.[/red]\n")
             raise ConnectionError(f"{link} disconnected")
 
-        # Print the final values so a stopped session leaves them in scrollback.
-        _console.print(controller.render())
-        print("  Monitoring stopped.")
+        # Print the final values so a stopped session leaves them in scrollback
+        # (best-effort: the terminal may be gone after a SIGHUP).
+        with contextlib.suppress(OSError):
+            _console.print(controller.render())
+            print("  Monitoring stopped.")
 
     finally:
         # Replay the save banners the TUI swallowed (an in-run 's' save / 'n'
         # rotate wrote a real capture file while Textual owned stdout). The app —
         # and any modal — is gone by now, so this is the first moment those
-        # destinations can actually reach the user.
-        for line in controller.recorder.drain_deferred_saves():
-            print(line)
+        # destinations can actually reach the user. Writing may fail outright if
+        # the terminal vanished (SIGHUP), which must not cost us the journal
+        # reconcile below.
+        with contextlib.suppress(OSError):
+            for line in controller.recorder.drain_deferred_saves():
+                print(line)
         # Reconcile the journal even on disconnect/exception (this is the fix for
         # the old bug where a dropped connection lost the whole --save session).
         if controller.journal is not None:

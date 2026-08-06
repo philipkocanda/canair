@@ -47,12 +47,40 @@ dongle), and you should never hammer an ECU with concurrent requests. When a
 first read looks unresponsive, retry once before concluding the PID/ECU is dead.
 
 If another canair session is already running, a new one refuses to start and
-names the holder's PID. `--force` steals the lock — but an orphaned/stuck session
-still holds the device's single connection even after the lock is stolen, so the
-new run can then time out. `--force` warns when it steals from a live process;
-clear it with `kill <pid>` (or `pkill -f canair`) rather than rebooting the
-device. Sessions shut down gracefully on Ctrl-C **and** `SIGTERM` (`kill`),
-reconciling any `--save` data and releasing the connection on the way out.
+names the holder (PID, command line, how long it has been running).
+
+## One session at a time — and how to clear a stuck one
+
+The device serves a single connection, so canair takes a mutex for the duration
+of a live session. It is released when the session ends — cleanly *or* by
+crashing — so a dead session never leaves the lock behind.
+
+- **`--force` asks that session to release the connection**, waits for it, and
+  then proceeds. It never signals or kills anything: the holder notices the
+  request itself and shuts down gracefully, reconciling its `--save` data.
+- **A session that loses its terminal stands down on its own** once another run
+  asks for the connection. This is the orphan case — an SSH drop or a closed
+  window, where no hangup is ever delivered and the session would otherwise hold
+  the device forever.
+- **If the holder doesn't respond** within the wait window (an older canair, or a
+  genuinely wedged process), `--force` gives up promptly and prints the exact
+  `kill <pid>` to run — it never hangs, and never leaves you hunting for the PID.
+
+Inspect and clear the mutex without starting a session:
+
+```bash
+canair lock          # who holds the device connection?
+canair lock steal    # ask them to release it, then wait
+canair lock kill     # signal a holder that won't release (confirms first)
+```
+
+`canair status` also shows whether the lock is free or held.
+
+Sessions shut down gracefully on **Ctrl-C**, on **`SIGTERM`** (`kill`, `pkill`),
+and on **`SIGHUP`** (your terminal went away) — each reconciling any `--save`
+data and releasing the connection on the way out. If a session was killed
+outright (`kill -9`), the data it recorded is still in its write-ahead journal:
+recover it with `canair captures uds --recover`.
 
 
 ## The bottom line

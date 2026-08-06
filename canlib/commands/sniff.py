@@ -13,6 +13,7 @@ in another mode, sniff errors with the exact command to fix it
 from __future__ import annotations
 
 import argparse
+import contextlib
 import threading
 import time
 
@@ -142,7 +143,9 @@ examples:
         "--save", metavar="FILE", default=None, help="Log all frames to FILE (.asc/.blf/.csv)"
     )
     parser.add_argument(
-        "--force", action="store_true", help="Steal the connection lock if one is held"
+        "--force",
+        action="store_true",
+        help="Ask a session already holding the connection to release it, then wait for it",
     )
     parser.set_defaults(func=run)
     return parser
@@ -171,6 +174,8 @@ def run(args) -> int:
     import sys
 
     from canlib.lock import WiCANLock
+    from canlib.lock_watchdog import LockWatchdog
+    from canlib.stop_signals import graceful_stop
     from canlib.transport import resolve_transport
     from canlib.wican_mode import ModeError, require_protocol
 
@@ -201,8 +206,23 @@ def run(args) -> int:
 
     lock = WiCANLock()
     lock.acquire(force=args.force)
+
+    # A vanished terminal (SIGHUP), a `kill` (SIGTERM), or another run asking for
+    # the connection with --force all stop the sniff the same way Ctrl-C does —
+    # closing the bus and flushing any --save frame log.
+    def _on_stop(_sig, _frame):
+        raise KeyboardInterrupt
+
+    watchdog = LockWatchdog(lock)
     try:
-        _run_sniff(host, args, filters, port, bitrate)
+        with graceful_stop(_on_stop):
+            watchdog.start()
+            try:
+                _run_sniff(host, args, filters, port, bitrate)
+            finally:
+                watchdog.stop()
+    except KeyboardInterrupt:
+        pass
     finally:
         lock.release()
     return 0
@@ -249,7 +269,10 @@ def _run_sniff(host: str, args, filters, port: int, bitrate: int) -> None:
         if logger:
             logger.stop()
         bus.shutdown()
-        _print_summary(stats)
+        # The terminal may be gone (SIGHUP) — a failed write must not turn a
+        # clean shutdown into a traceback.
+        with contextlib.suppress(OSError):
+            _print_summary(stats)
 
 
 def _run_sniff_plain(stats: SniffStats, duration: float | None) -> None:

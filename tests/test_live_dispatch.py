@@ -29,38 +29,47 @@ class TestInteractiveTransportGuard:
 
 
 class _FakeLock:
+    def __init__(self):
+        self.released = False
+
     def acquire(self, force=False):
         pass
 
     def release(self):
-        pass
+        self.released = True
+
+    def still_ours(self):
+        return None
 
 
-class TestRunLiveSigterm:
-    def test_maps_sigterm_to_graceful_and_restores(self, monkeypatch):
+class TestRunLiveStopSignals:
+    def test_maps_stop_signals_to_graceful_and_restores(self, monkeypatch):
+        """SIGTERM (a `kill` / the lock watchdog) *and* SIGHUP (the terminal went
+        away) must unwind like Ctrl-C, so the --save journal is reconciled and the
+        device connection released."""
         import signal
 
         from canlib.commands import _live
+        from canlib.stop_signals import STOP_SIGNALS
 
         monkeypatch.setattr(_live, "WiCANLock", lambda *a, **k: _FakeLock())
 
         captured = {}
 
         async def fake_main(args):
-            # The SIGTERM handler active mid-run should raise KeyboardInterrupt
-            # (the same graceful path as Ctrl-C), so a `kill`/`pkill` unwinds.
-            captured["handler"] = signal.getsignal(signal.SIGTERM)
+            captured["handlers"] = {sig: signal.getsignal(sig) for sig in STOP_SIGNALS}
             return 0
 
         monkeypatch.setattr(_live, "async_main", fake_main)
 
-        before = signal.getsignal(signal.SIGTERM)
+        before = {sig: signal.getsignal(sig) for sig in STOP_SIGNALS}
         rc = _live.run_live(argparse.Namespace(force=False))
         assert rc == 0
-        with pytest.raises(KeyboardInterrupt):
-            captured["handler"](signal.SIGTERM, None)
-        # The previous handler is restored on the way out.
-        assert signal.getsignal(signal.SIGTERM) == before
+        for sig in STOP_SIGNALS:
+            with pytest.raises(KeyboardInterrupt):
+                captured["handlers"][sig](sig, None)
+            # The previous handler is restored on the way out.
+            assert signal.getsignal(sig) == before[sig]
 
     def test_keyboardinterrupt_exits_cleanly(self, monkeypatch, capsys):
         from canlib.commands import _live
@@ -74,3 +83,56 @@ class TestRunLiveSigterm:
         rc = _live.run_live(argparse.Namespace(force=False))
         assert rc == 0
         assert "Interrupted" in capsys.readouterr().out
+
+    def test_a_dead_terminal_does_not_turn_a_clean_stop_into_a_crash(self, monkeypatch, capsys):
+        """After a SIGHUP the tty is gone, so the closing print can fail (EIO)."""
+        import builtins
+
+        from canlib.commands import _live
+
+        lock = _FakeLock()
+        monkeypatch.setattr(_live, "WiCANLock", lambda *a, **k: lock)
+
+        async def fake_main(args):
+            raise KeyboardInterrupt
+
+        monkeypatch.setattr(_live, "async_main", fake_main)
+        monkeypatch.setattr(
+            builtins, "print", lambda *a, **kw: (_ for _ in ()).throw(OSError(5, "I/O error"))
+        )
+
+        assert _live.run_live(argparse.Namespace(force=False)) == 0
+        assert lock.released
+
+    def test_runs_a_lock_watchdog_for_the_session(self, monkeypatch):
+        """An orphaned session must notice when another run asks for the device."""
+        from canlib.commands import _live
+
+        lock = _FakeLock()
+        monkeypatch.setattr(_live, "WiCANLock", lambda *a, **k: lock)
+
+        events: list[str] = []
+
+        class _SpyWatchdog:
+            def __init__(self, watched, **kwargs):
+                events.append("built")
+                assert watched is lock
+
+            def start(self):
+                events.append("start")
+
+            def stop(self):
+                events.append("stop")
+
+        monkeypatch.setattr(_live, "LockWatchdog", _SpyWatchdog)
+
+        async def fake_main(args):
+            events.append("session")
+            return 0
+
+        monkeypatch.setattr(_live, "async_main", fake_main)
+        assert _live.run_live(argparse.Namespace(force=False)) == 0
+        # Watching spans the whole session, and stops before the lock is released
+        # (so a normal teardown never looks like a takeover).
+        assert events == ["built", "start", "session", "stop"]
+        assert lock.released

@@ -41,6 +41,7 @@ CATEGORIES: list[tuple[str, tuple[str, ...]]] = [
             "identity",
             "dtc",
             "repl",
+            "lock",
         ),
     ),
     (

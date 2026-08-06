@@ -73,6 +73,7 @@ All functionality is exposed as `canair <subcommand>`; run `canair <cmd> --help`
 | `canair dtc` | Read/clear Diagnostic Trouble Codes; report changes since the last scan. |
 | `canair identity` | Decode ECU identity DIDs — part number, versions, serial, VIN (alias: `id`). |
 | `canair sniff` | Passive CAN-bus sniffer (raw SLCAN) with optional frame logging. |
+| `canair lock` | Show or clear the single-session device lock — the escape hatch for a stuck/orphaned session ([safety](https://philipkocanda.github.io/canair/concepts/safety/)). |
 
 **Analysis**
 

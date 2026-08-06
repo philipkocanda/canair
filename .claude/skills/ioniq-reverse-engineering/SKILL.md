@@ -39,7 +39,11 @@ reference lives in **AGENTS.md**, `docs/reference/cli/`, and `canair <cmd>
   concurrent command fails fast. The WiCAN serves a single client per protocol —
   a second `slcan-tcp` client hangs unserved until the first disconnects, and a
   second `wican-ws` WebSocket can lock up the device (power-cycle to recover).
-  Use `--force` only to steal a stale lock from a killed session.
+  `--force` asks the current holder to release the connection and waits for it —
+  it never kills anything, and it reports the PID + `kill` command if the holder
+  won't go. Inspect/clear a stuck one with `canair lock` (`lock steal`/`lock
+  kill`); a session whose terminal vanished stands down by itself once another run
+  asks for the connection.
 - **Never reboot the WiCAN without asking.** A bus reset via ELM327 is usually
   enough. Using the WebSocket (`wican-ws`) terminal overrides AutoPID; a reboot
   is needed to resume the MQTT feed afterward — ask first.

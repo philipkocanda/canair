@@ -1235,5 +1235,23 @@ class MonitorApp(HelpMixin, App):
 
 
 async def run_monitor_app(controller: MonitorController) -> None:
-    """Run the monitor TUI to completion (returns when the user quits)."""
-    await MonitorApp(controller).run_async()
+    """Run the monitor TUI to completion (returns when the user quits).
+
+    Stop signals (``SIGTERM``/``SIGHUP`` — a `kill`, a vanished terminal, or the
+    lock watchdog standing down) are routed through the app's own quit action, so
+    the TUI tears itself down cleanly (terminal restored, ``--save`` journal
+    reconciled) instead of a ``KeyboardInterrupt`` unwinding through Textual's
+    internals.
+    """
+    from ..stop_signals import graceful_stop_async
+
+    app = MonitorApp(controller)
+
+    def _request_quit() -> None:
+        # Runs on the event loop (asyncio signal handler), so the app can be
+        # asked to exit directly; _stopping aborts any in-flight reconnect.
+        app._stopping = True
+        app.exit()
+
+    with graceful_stop_async(_request_quit):
+        await app.run_async()

@@ -16,7 +16,6 @@ import contextlib
 import importlib.util
 import io
 import re
-import signal
 import sys
 
 # Force line-buffered stdout so output appears immediately when piped.
@@ -37,6 +36,7 @@ from canlib import (
 )
 from canlib.keepmode import keep_mode_from_args
 from canlib.lock import WiCANLock
+from canlib.lock_watchdog import LockWatchdog
 from canlib.modes import (
     mode_discover,
     mode_ecu,
@@ -54,6 +54,7 @@ from canlib.modes.iocontrol_scan import mode_iocontrol_scan
 from canlib.modes.routines import mode_routines_execute, mode_routines_list
 from canlib.modes.routines_scan import mode_routines_scan
 from canlib.states import parse_states
+from canlib.stop_signals import graceful_stop
 from canlib.transport.config import DEFAULT_TRANSPORT, VALID_TRANSPORTS
 from canlib.transport.elm327_terminal import Elm327Terminal
 from canlib.transport.protocol import Terminal
@@ -351,7 +352,7 @@ def add_connection_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--force",
         action="store_true",
-        help="Steal the connection lock if another session is still running",
+        help="Ask a session already holding the connection to release it, then wait for it",
     )
 
 
@@ -751,23 +752,35 @@ def run_live(args) -> int:
     lock = WiCANLock()
     lock.acquire(force=args.force)
 
-    # Map SIGTERM onto the same graceful path as Ctrl-C (SIGINT already raises
-    # KeyboardInterrupt). So a `kill`/`pkill -f canair` of a live session — e.g.
-    # an orphan that another run just --force'd past — unwinds cleanly (closes
-    # the terminal, reconciles any --save journal, releases the device
-    # connection) instead of the default abrupt terminate. Modes that install
-    # their own SIGTERM handler (the monitor) override this for their duration.
-    def _on_sigterm(_sig, _frame):
+    # Map SIGTERM/SIGHUP onto the same graceful path as Ctrl-C (SIGINT already
+    # raises KeyboardInterrupt). So a `kill`/`pkill -f canair`, a vanished
+    # terminal (SSH drop / closed window), or the lock watchdog's self-abort all
+    # unwind cleanly (closes the terminal, reconciles any --save journal,
+    # releases the device connection) instead of terminating abruptly. Modes that
+    # install their own handling (the monitor) override this for their duration.
+    def _on_stop(_sig, _frame):
         raise KeyboardInterrupt
 
-    prev_term = signal.signal(signal.SIGTERM, _on_sigterm)
+    # Stand down if another run asks for the connection with --force: an orphaned
+    # session (terminal gone, no hangup ever delivered) otherwise holds the
+    # device's single connection indefinitely, and canair never kills it for you.
+    # Watching is scoped *inside* the handler installation, so the watchdog's
+    # self-SIGTERM can never land after the graceful handler was restored.
+    watchdog = LockWatchdog(lock)
     try:
-        result = asyncio.run(async_main(args))
+        with graceful_stop(_on_stop):
+            watchdog.start()
+            try:
+                result = asyncio.run(async_main(args))
+            finally:
+                watchdog.stop()
     except KeyboardInterrupt:
-        print("\nInterrupted.")
+        with contextlib.suppress(OSError):
+            # The terminal may be gone (SIGHUP) — a failed write must not mask
+            # the clean shutdown that already happened.
+            print("\nInterrupted.")
         return 0
     finally:
-        signal.signal(signal.SIGTERM, prev_term)
         lock.release()
     return result if isinstance(result, int) else 0
 

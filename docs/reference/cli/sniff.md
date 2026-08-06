@@ -25,7 +25,8 @@ options:
   --filter IDS         Comma-separated hex CAN IDs to capture (default: all)
   --duration DURATION  Stop after N seconds
   --save FILE          Log all frames to FILE (.asc/.blf/.csv)
-  --force              Steal the connection lock if one is held
+  --force              Ask a session already holding the connection to release
+                       it, then wait for it
 
 examples:
   canair sniff                       # live per-ID table (asks to switch to slcan)

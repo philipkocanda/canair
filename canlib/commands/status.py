@@ -203,6 +203,15 @@ def _gather(args) -> dict:
             if info["exit"] == _OK:
                 info["exit"] = _UNREACHABLE
 
+    # Connection mutex (local-only): who, if anyone, currently owns the device
+    # connection. Read-only — it never takes or clears the lock.
+    try:
+        from ..lock import lock_state
+
+        info["lock"] = lock_state().as_dict()
+    except Exception:
+        info["lock"] = None
+
     # Cached update notice (local-only; no network on the status hot path).
     try:
         from ..update_check import pending_notice
@@ -293,6 +302,24 @@ def _render(info: dict) -> None:
                 "\n  [bold]WiCAN[/bold]   [yellow]HTTP config API not reachable[/yellow] "
                 "[dim](non-WiCAN gateway, offline, or wrong host)[/dim]"
             )
+
+    lock = info.get("lock")
+    if lock:
+        if lock.get("held"):
+            who = lock.get("summary") or "another session"
+            if lock.get("ours"):
+                who += " — this process"
+            c.print(f"\n  [bold]Lock[/bold]       [yellow]held[/yellow] by {who}")
+            c.print("             [dim]one session at a time — `canair lock` for detail[/dim]")
+            if lock.get("steal_pending"):
+                c.print(
+                    f"             [dim]release requested by PID "
+                    f"{lock['steal_pending']['by']}[/dim]"
+                )
+        else:
+            c.print("\n  [bold]Lock[/bold]       [green]free[/green]")
+        if lock.get("error"):
+            c.print(f"             [yellow]{lock['error']}[/yellow]")
 
     for w in info.get("warnings", []):
         c.print(f"  [yellow]⚠ {w}[/yellow]")
