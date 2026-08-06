@@ -213,13 +213,40 @@ commit's (hidden) type; `fix:` is for what a released version got wrong. Added t
 
 ### Still required before the first automated release
 
-**The `RELEASE_PLEASE_TOKEN` secret does not exist yet**, and the workflow cannot
-work without it (see decision 3). The workflow therefore opens with an explicit
-guard step that fails with an actionable `::error::` naming the required scopes,
-rather than letting the action die on an opaque auth error — so until the secret
-is added, the Release workflow will show a **clear, intentional red** on each push
-to `main`. That is the honest state: releases are configured but not yet
-authorised.
+~~The `RELEASE_PLEASE_TOKEN` secret does not exist yet~~ — **added 2026-08-06.**
+The guard step it was written for did its job in the meantime: the pre-secret runs
+failed with the intended `::error::` naming the required scopes, not an opaque
+auth error. The guard stays, since it is the same message a future
+rotated/expired secret would need.
+
+### Verified end-to-end (2026-08-06)
+
+First real run (`workflow_dispatch`) opened **PR #10, `chore(main): release
+1.16.0`**, and every design assumption held:
+
+- **Version derived correctly.** `1.16.0` — a *minor*, from
+  `feat(version): report the git checkout a build came from`. The window also held
+  two `fix:` commits and two hidden `ci:` commits; the `feat` correctly dominated.
+- **`uv.lock` splice works in production** — a single line (`1.15.0` → `1.16.0`),
+  the exact failure the dry run caught before it could ship.
+- **Only four files touched:** `pyproject.toml`, `uv.lock`, `CHANGELOG.md`,
+  `.release-please-manifest.json`.
+- **Changelog inserted directly above `## [1.15.0]`**, confirming in practice that
+  removing `[Unreleased]` was the right call — sections rendered under this
+  project's own vocabulary (`Added`/`Fixed`/`Documentation`), with an inline
+  compare link.
+- **`exclude-paths` and hidden sections both held:** the `plans/`-only commits and
+  the two `ci:` commits produced no entries.
+- **The PAT decision is vindicated:** the `test` check *ran* on the release PR and
+  passed, leaving it `mergeStateStatus=CLEAN` — mergeable normally, no admin
+  bypass. With `GITHUB_TOKEN` this PR would have been permanently blocked.
+
+**One piece of curation the flow correctly leaves to a human:** the generated
+notes list `fix(ci): make the uv.lock version jsonpath actually match` under
+**Fixed** — a bug that existed only between two unreleased commits and that no
+user could have hit. It is exactly the noise the hybrid model exists to remove
+(and the reason the "fixing unreleased work keeps the original type" rule was
+added to `SKILL.md`). Delete that line when curating the section.
 
 ## Phase 2 — the configuration in full
 
@@ -338,14 +365,15 @@ tag whose `uv sync` re-locks. This turns that into a red release PR.
 
 ## Phase 3 — prepare `CHANGELOG.md` for the generator
 
-> **BLOCKED (2026-08-06): concurrent work in the tree.** Another session is
-> mid-change on `CHANGELOG.md`, `RELEASING.md` and `AGENTS.md` (alongside a new
-> `canlib/build_info.py` and edits to `commands/update.py` /
-> `install_context.py` — version-provenance work). Phases 3 and 4 target exactly
-> those first two files, so landing them now would fight an in-flight edit.
-> **Do not start these until that work is committed**, then re-read both files
-> before editing — in particular, check whether an `[Unreleased]` section was
-> re-added to `CHANGELOG.md`, because the whole premise below is that it is gone.
+> **UNBLOCKED 2026-08-06.** The concurrent version-provenance work landed
+> (`2c9eb5f`, `cb23040`) and notably left `CHANGELOG.md` alone, so no
+> `[Unreleased]` section was re-added and the premise below holds — now confirmed
+> in practice by PR #10 inserting directly above `## [1.15.0]`. It did, however,
+> edit `RELEASING.md` and `AGENTS.md`, so **re-read both before starting Phase 4.**
+>
+> What remains here is only the seam comment. Do it **on the release PR branch or
+> after merging**, not on `main` while a release PR is open, to avoid fighting the
+> generator over the same lines.
 
 `[Unreleased]` is **removed permanently** (Phase 0 already renamed the heading and
 dropped its link reference). Two reasons:
